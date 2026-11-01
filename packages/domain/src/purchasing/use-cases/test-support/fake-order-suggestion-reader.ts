@@ -1,5 +1,6 @@
 import type { SoldLinesOfGroup } from "../../../sales/index.js";
 import type {
+  NewestShelfLifeLot,
   OrderSuggestionReader,
   OrderSuggestionSalesQuery,
   OrderSuggestionSupplier,
@@ -17,8 +18,10 @@ export class FakeOrderSuggestionReader
   sold: SoldLinesOfGroup[] = [];
   stock: ProductStock[] = [];
   supplierList: OrderSuggestionSupplier[] = [];
+  shelfLifeLots: NewestShelfLifeLot[] = [];
   readonly salesQueries: OrderSuggestionSalesQuery[] = [];
   readonly stockQueries: string[] = [];
+  readonly shelfLifeQueries: string[] = [];
 
   constructor(products: ComparableProduct[] = [], offers: SupplierOffer[] = []) {
     super(products, offers);
@@ -36,6 +39,11 @@ export class FakeOrderSuggestionReader
   async currentStock(locationId: string): Promise<ProductStock[]> {
     this.stockQueries.push(locationId);
     return [...this.stock];
+  }
+
+  async newestShelfLifeLots(locationId: string): Promise<NewestShelfLifeLot[]> {
+    this.shelfLifeQueries.push(locationId);
+    return [...this.shelfLifeLots];
   }
 
   async suppliers(): Promise<OrderSuggestionSupplier[]> {

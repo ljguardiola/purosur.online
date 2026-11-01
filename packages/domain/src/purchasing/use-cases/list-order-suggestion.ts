@@ -5,7 +5,10 @@ import {
   type Fraction,
   type ZoneRulesSource,
 } from "../../shared/index.js";
+import { lotShelfLifeDays } from "../../stock/index.js";
 import {
+  effectiveCoverageDays,
+  expiryCapQuantity,
   orderSuggestionPeriod,
   packagesToCover,
   quantityToOrderWithoutSupplier,
@@ -37,7 +40,9 @@ export interface SuggestedUnpricedOffer extends Omit<UnpricedOffer, "quantity"> 
 }
 
 export interface OrderSuggestionLine extends Omit<ComparedProduct, "offers" | "unpricedOffers"> {
-  coverageDays: number;
+  // The coverage days, or the shelf life of the newest lot when it is shorter.
+  effectiveDays: number;
+  cappedByExpiry: boolean;
   // In thousandths of `saleUnit`.
   soldQuantity: number;
   stock: number;
@@ -58,8 +63,8 @@ export interface ListOrderSuggestionInput {
   locationId: string;
 }
 
-function orderOf(shortfall: Fraction, packageQuantity: number) {
-  const packages = packagesToCover(shortfall, packageQuantity);
+function orderOf(shortfall: Fraction, cap: Fraction | null, packageQuantity: number) {
+  const packages = packagesToCover(shortfall, packageQuantity, cap);
   return { packages, quantity: packages * packageQuantity };
 }
 
@@ -72,16 +77,23 @@ export async function listOrderSuggestion(
   { locationId }: ListOrderSuggestionInput,
 ): Promise<OrderSuggestion> {
   const range = orderSuggestionPeriod(argentinaCalendarDay(clock.now(), zoneRules.zoneRules()));
-  const [compared, coverage, sold, stock, suppliers] = await Promise.all([
+  const [compared, coverage, sold, stock, newestLots, suppliers] = await Promise.all([
     listSupplierPriceComparison(reader),
     reader.coverageDays(),
     reader.completedSalesByProduct({ locationId, range }),
     reader.currentStock(locationId),
+    reader.newestShelfLifeLots(locationId),
     reader.suppliers(),
   ]);
   const coverageDaysOf = new Map(coverage.map((entry) => [entry.productId, entry.coverageDays]));
   const soldOf = new Map(salesOfGroups(sold).map((group) => [group.id, group]));
   const stockOf = new Map(stock.map((entry) => [entry.productId, entry.quantity]));
+  const shelfLifeOf = new Map(
+    newestLots.map((lot) => [
+      lot.productId,
+      lotShelfLifeDays(argentinaCalendarDay(lot.createdAt, zoneRules.zoneRules()), lot.expiresOn),
+    ]),
+  );
   const lines = compared.flatMap((product) => {
     const coverageDays = coverageDaysOf.get(product.id);
     if (coverageDays === undefined) {
@@ -90,31 +102,42 @@ export async function listOrderSuggestion(
     const sales = soldOf.get(product.id);
     const soldQuantity = sales === undefined ? 0 : soldThousandths(sales, product.saleUnit);
     const stockQuantity = stockOf.get(product.id) ?? 0;
+    const shelfLifeDays = shelfLifeOf.get(product.id) ?? null;
+    const { days: effectiveDays, cappedByExpiry } = effectiveCoverageDays(
+      coverageDays,
+      shelfLifeDays,
+    );
     const shortfall = shortfallToCover({
       soldThousandths: soldQuantity,
-      coverageDays,
+      coverageDays: effectiveDays,
       stockThousandths: stockQuantity,
     });
     if (shortfall === null) {
       return [];
     }
+    const cap = expiryCapQuantity({
+      soldThousandths: soldQuantity,
+      shelfLifeDays,
+      stockThousandths: stockQuantity,
+    });
     const { offers, unpricedOffers, ...shown } = product;
     return [
       {
         ...shown,
-        coverageDays,
+        effectiveDays,
+        cappedByExpiry,
         soldQuantity,
         stock: stockQuantity,
-        neededQuantity: quantityToOrderWithoutSupplier(shortfall, product.saleUnit),
+        neededQuantity: quantityToOrderWithoutSupplier(shortfall, product.saleUnit, cap),
         offers: offers.map(({ quantity: packageQuantity, ...offer }) => ({
           ...offer,
           packageQuantity,
-          ...orderOf(shortfall, packageQuantity),
+          ...orderOf(shortfall, cap, packageQuantity),
         })),
         unpricedOffers: unpricedOffers.map(({ quantity: packageQuantity, ...offer }) => ({
           ...offer,
           packageQuantity,
-          order: offer.reason === "link_outdated" ? null : orderOf(shortfall, packageQuantity),
+          order: offer.reason === "link_outdated" ? null : orderOf(shortfall, cap, packageQuantity),
         })),
       },
     ];

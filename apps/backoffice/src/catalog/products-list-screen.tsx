@@ -23,7 +23,17 @@ import {
 } from "@purosur/ui";
 import { formatNetContent } from "@purosur/ui/formatters";
 import { deepEqual } from "@tanstack/react-router";
-import { Ban, Package, Pencil, Plus, Printer, RotateCcw, Search, SearchX } from "lucide-react";
+import {
+  Ban,
+  Copy,
+  Package,
+  Pencil,
+  Plus,
+  Printer,
+  RotateCcw,
+  Search,
+  SearchX,
+} from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import {
   categoriesInTreeOrder,
@@ -139,6 +149,7 @@ export function ProductsListScreen({
     direction: filters.sort,
   });
   const [newModalOpen, setNewModalOpen] = useState(false);
+  const [cloneSource, setCloneSource] = useState<ProductSummary | undefined>(undefined);
   const [printModalOpen, setPrintModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<ProductSummary | null>(null);
   const [deactivateTarget, setDeactivateTarget] = useState<ProductSummary | null>(null);
@@ -307,6 +318,14 @@ export function ProductsListScreen({
           "aria-label": `Editar el producto ${item.name}`,
           onPress: () => setEditTarget(item),
         }),
+        (item: ListedProduct) => ({
+          icon: <Copy />,
+          "aria-label": `Clonar el producto ${item.name}`,
+          onPress: () => {
+            setCloneSource(item);
+            setNewModalOpen(true);
+          },
+        }),
         (item: ListedProduct) =>
           item.active
             ? {
@@ -370,7 +389,10 @@ export function ProductsListScreen({
                 variant="primary"
                 icon={<Plus />}
                 dataStatus={data.status}
-                onPress={() => setNewModalOpen(true)}
+                onPress={() => {
+                  setCloneSource(undefined);
+                  setNewModalOpen(true);
+                }}
               >
                 Nuevo producto
               </Button>
@@ -448,6 +470,7 @@ export function ProductsListScreen({
       </ScreenLayout>
       <NewProductModal
         open={newModalOpen}
+        {...(cloneSource ? { source: cloneSource } : {})}
         onClose={() => setNewModalOpen(false)}
         onCreated={() => {
           setNewModalOpen(false);
