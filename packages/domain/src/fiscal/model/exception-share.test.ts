@@ -125,6 +125,10 @@ describe("isMonthClosed", () => {
 });
 
 describe("monthsStartedInYear", () => {
+  it("lists the months of a year of fewer than four digits", () => {
+    expect(monthsStartedInYear(999, "0999-02-10")).toEqual(["0999-01", "0999-02"]);
+  });
+
   it("lists every month of a past year", () => {
     expect(monthsStartedInYear(2025, "2026-03-10")).toEqual([
       "2025-01",
@@ -161,6 +165,10 @@ describe("closedMonthsWindow", () => {
 
   it("crosses the year boundary in January", () => {
     expect(closedMonthsWindow("2026-01-01")).toEqual({ from: "2025-01", through: "2025-12" });
+  });
+
+  it("writes a year of fewer than four digits padded to four, as its days are written", () => {
+    expect(closedMonthsWindow("1000-01-15")).toEqual({ from: "0999-01", through: "0999-12" });
   });
 });
 
@@ -202,5 +210,9 @@ describe("nonCompliantMonthsOfYear", () => {
 
   it("is empty when the year has none", () => {
     expect(nonCompliantMonthsOfYear(2026, ["2025-12"])).toEqual([]);
+  });
+
+  it("matches a year of fewer than four digits by its padded months", () => {
+    expect(nonCompliantMonthsOfYear(999, ["0999-01", "999-02"])).toEqual(["0999-01"]);
   });
 });

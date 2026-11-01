@@ -2557,3 +2557,38 @@ test("shows a single header row for a table without groups", async () => {
   await expect.element(screen.getByRole("columnheader", { name: "Producto" })).toBeVisible();
   expect(screen.container.querySelectorAll("thead tr")).toHaveLength(1);
 });
+
+test("sizes the columns of a group and the columns after it at their own declared widths", async () => {
+  const widthGroupColumns = [
+    dataColumn({ id: "name", header: "Producto", render: (p: Product) => p.name }),
+    groupColumn({
+      id: "inventory",
+      header: "Existencias",
+      columns: [
+        dataColumn({
+          id: "stock",
+          header: "Stock",
+          width: 150,
+          render: (p: Product) => p.stock,
+        }),
+        dataColumn({ id: "sku", header: "Código", render: (p: Product) => p.sku ?? "" }),
+      ],
+    }),
+    actionsColumn({
+      id: "actions",
+      header: "Actions",
+      actions: [(_p: Product) => ({ icon: <Pencil />, "aria-label": "Edit", onPress: () => {} })],
+    }),
+  ] as const;
+  const screen = await render(
+    <div style={{ width: "800px" }}>
+      <TestTable {...commonProps} columns={widthGroupColumns} />
+    </div>,
+  );
+
+  const stock = screen.getByRole("columnheader", { name: "Stock" });
+  await expect.element(stock).toBeVisible();
+  expect(stock.element().getBoundingClientRect().width).toBeCloseTo(150 + 6 + 6, 0);
+  const actions = screen.getByRole("columnheader", { name: "Actions" }).element();
+  expect(actions.getBoundingClientRect().width).toBeCloseTo(60 + 6 + 16, 0);
+});

@@ -1,5 +1,6 @@
 import { FieldSizeProvider, formatNumber } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { beforeEach, expect, onTestFinished, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
@@ -8,6 +9,7 @@ import { render } from "../shell/test-support/render-with-router";
 import { type ExceptionalityFilters, exceptionalityFilters } from "./exceptionality-filters";
 import { ExceptionalityScreen } from "./exceptionality-screen";
 import type { ExceptionalityScreenServices } from "./exceptionality-services";
+import { fiscalKeys } from "./fiscal-queries";
 import {
   centralFiscalAddress,
   exceptionShareOf2026,
@@ -49,9 +51,16 @@ function ControlledScreen({
   onSessionEnded = () => {},
 }: Handlers & { services: ExceptionalityScreenServices }) {
   const [filters, setFilters] = useState(initial);
+  const client = useQueryClient();
   return (
     <FieldSizeProvider size="backoffice">
       <main>
+        <button
+          type="button"
+          onClick={() => void client.invalidateQueries({ queryKey: fiscalKeys.fiscalAddresses })}
+        >
+          Refrescar domicilios
+        </button>
         <ExceptionalityScreen
           services={services}
           filters={filters}
@@ -140,6 +149,49 @@ test("reads the fiscal address and the year the filters carry", async () => {
   await expect
     .poll(() => vi.mocked(services.fetchExceptionShareYear).mock.lastCall)
     .toEqual([{ fiscalAddressId: warehouseFiscalAddress.id, year: 2025 }]);
+});
+
+test("falls back to the first fiscal address and reports it when the filters carry one the cloud does not list", async () => {
+  const services = createServices();
+  const onFiltersChange = vi.fn();
+
+  const screen = await renderScreen(services, {
+    filters: exceptionalityFilters.parse({ fiscalAddress: "fiscal-address-gone" }),
+    onFiltersChange,
+  });
+
+  await expect
+    .element(screen.getByRole("button", { name: /Domicilio fiscal:/ }))
+    .toHaveTextContent("Domicilio fiscal: Local central");
+  await expect.poll(() => onFiltersChange.mock.lastCall).toEqual([{ fiscalAddress: "" }]);
+  expect(services.fetchExceptionShareYear).not.toHaveBeenCalledWith({
+    fiscalAddressId: "fiscal-address-gone",
+  });
+});
+
+test("falls back to the year the cloud answers and reports it when the filters carry a year it does not offer", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchExceptionShareYear).mockImplementation(async ({ year }) => ({
+    kind: "ok",
+    value: {
+      ...exceptionShareOf2026,
+      year: year ?? 2026,
+      ...(year === 2099 ? { months: [] } : {}),
+    },
+  }));
+  const onFiltersChange = vi.fn();
+
+  const screen = await renderScreen(services, {
+    filters: exceptionalityFilters.parse({ year: 2099 }),
+    onFiltersChange,
+  });
+
+  await expect.element(screen.getByText("Enero 2026")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: /Año:/ })).toHaveTextContent("Año: 2026");
+  expect(onFiltersChange.mock.lastCall).toEqual([{ fiscalAddress: "" }]);
+  expect(vi.mocked(services.fetchExceptionShareYear).mock.lastCall).toEqual([
+    { fiscalAddressId: centralFiscalAddress.id },
+  ]);
 });
 
 test("groups the voucher counts under Comprobantes por excepción next to the month", async () => {
@@ -289,6 +341,24 @@ test("shows the table loading while the year loads", async () => {
   expect(screen.getByText(/Meses que incumplieron|Ningún mes incumplió/).query()).toBeNull();
 });
 
+test("shows the table updating while the fiscal addresses read again", async () => {
+  const services = createServices();
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Enero 2026")).toBeVisible();
+  const reload = deferred<Awaited<ReturnType<typeof services.fetchFiscalAddresses>>>();
+  vi.mocked(services.fetchFiscalAddresses).mockReturnValueOnce(reload.promise);
+
+  await userEvent.click(screen.getByRole("button", { name: "Refrescar domicilios" }));
+
+  await expect
+    .element(screen.getByRole("table", { name: "Excepcionalidad por mes" }))
+    .toHaveAttribute("aria-busy", "true");
+  reload.resolve({ kind: "ok", value: fiscalAddresses });
+  await expect
+    .element(screen.getByRole("table", { name: "Excepcionalidad por mes" }))
+    .not.toHaveAttribute("aria-busy");
+});
+
 test("shows a load error with a retry action that starts again from the loading placeholder", async () => {
   const services = createServices();
   const retry = deferred<Awaited<ReturnType<typeof services.fetchExceptionShareYear>>>();
@@ -350,7 +420,7 @@ test("tells the fiscal address is not found when the cloud does not know it", as
   vi.mocked(services.fetchExceptionShareYear).mockResolvedValue({ kind: "not_found" });
 
   const screen = await renderScreen(services, {
-    filters: exceptionalityFilters.parse({ fiscalAddress: "fiscal-address-gone" }),
+    filters: exceptionalityFilters.parse({ fiscalAddress: warehouseFiscalAddress.id }),
   });
 
   await expect.element(screen.getByText("No encontramos ese domicilio fiscal")).toBeVisible();
