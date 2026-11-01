@@ -1,5 +1,4 @@
 import type { RemovedLinesAndCancelledSalesBody } from "@purosur/contracts";
-import { removedLinesAndCancelledSalesSchema } from "@purosur/contracts";
 import {
   Card,
   dataColumn,
@@ -13,11 +12,12 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { Ban } from "lucide-react";
-import { useId } from "react";
+import { useId, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { reportMoment } from "../platform/report-moment";
-import { schemaText } from "../platform/schema-text";
+import { ReportDownload } from "../shell/report-download";
+import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import {
   type ReportFilters as ReportFiltersValue,
@@ -26,7 +26,9 @@ import {
 import type { ReportRegisterField } from "../shell/report-register-field";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
+import { OPENED_TIME_ZONE } from "./removed-lines-and-cancelled-sales-opened-time-zone";
 import type { RemovedLinesAndCancelledSalesScreenServices } from "./removed-lines-and-cancelled-sales-services";
+import { removedLinesAndCancelledSalesSpreadsheet } from "./removed-lines-and-cancelled-sales-spreadsheet";
 import { useRemovedLinesAndCancelledSalesQuery } from "./sales-queries";
 import { soldQuantityText } from "./sold-quantity-text";
 
@@ -45,9 +47,7 @@ type FigureRow = Pick<CashierRow, "removed" | "cancelled">;
 const NO_CASHIERS: CashierRow[] = [];
 const NO_SESSIONS: SessionRow[] = [];
 
-const OPENED_TIME_ZONE = schemaText(
-  removedLinesAndCancelledSalesSchema.shape.sessions.element.shape.opened_at.meta()?.["timeZone"],
-);
+const SCREEN_TITLE = "Líneas quitadas y ventas canceladas";
 
 const UNIDENTIFIED = "Sin identificar";
 const REPORT_NAME = "el reporte de líneas quitadas y ventas canceladas";
@@ -129,6 +129,7 @@ export function RemovedLinesAndCancelledSalesScreen({
   services,
 }: RemovedLinesAndCancelledSalesScreenProps) {
   const registerChosen = filters.register !== "ALL";
+  const [registerLabel, setRegisterLabel] = useState("Todas");
   const cashiersHeadingId = useId();
   const sessionsHeadingId = useId();
   const data = useRemovedLinesAndCancelledSalesQuery({
@@ -154,9 +155,7 @@ export function RemovedLinesAndCancelledSalesScreen({
 
   return (
     <ScreenLayout
-      topBar={
-        <ScreenTopBar eyebrow="Reportes · Ventas" title="Líneas quitadas y ventas canceladas" />
-      }
+      topBar={<ScreenTopBar eyebrow="Reportes · Ventas" title={SCREEN_TITLE} />}
       bodyClassName="gap-4 p-6"
     >
       <div className="flex flex-wrap items-end gap-3">
@@ -165,6 +164,16 @@ export function RemovedLinesAndCancelledSalesScreen({
           onFiltersChange={onFiltersChange}
           answeredPeriod={shown?.range}
           registerFilter={registerFilter}
+          onRegisterLabelChange={setRegisterLabel}
+          trailing={
+            <ReportDownload
+              dataStatus={data.status}
+              workbook={() =>
+                shown ? removedLinesAndCancelledSalesSpreadsheet(shown, registerLabel) : null
+              }
+              fileName={shown ? reportFileName(SCREEN_TITLE, shown.range) : ""}
+            />
+          }
         />
       </div>
       {data.status === "failed" ? (
