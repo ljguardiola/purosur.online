@@ -13,6 +13,12 @@ export interface ProductStock {
   quantity: number;
 }
 
+export interface NewestShelfLifeLot {
+  productId: string;
+  createdAt: Date;
+  expiresOn: string;
+}
+
 export interface OrderSuggestionSalesQuery {
   locationId: string;
   range: ReportPeriod;
@@ -29,5 +35,7 @@ export interface OrderSuggestionReader extends SupplierPriceComparisonReader {
   completedSalesByProduct(query: OrderSuggestionSalesQuery): Promise<SoldLinesOfGroup[]>;
   // The branch's current stock of each product that has a balance there.
   currentStock(locationId: string): Promise<ProductStock[]>;
+  // Per product, its most recent lot in the branch that counts for the shelf life.
+  newestShelfLifeLots(locationId: string): Promise<NewestShelfLifeLot[]>;
   suppliers(): Promise<OrderSuggestionSupplier[]>;
 }

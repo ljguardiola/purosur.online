@@ -1,45 +1,19 @@
 import type { TagSummary } from "@purosur/contracts";
-import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { type Locator, page, userEvent } from "vitest/browser";
 import { organico, sinColorantes, sinTacc, vegano } from "../platform/test-support/tags";
-import { render } from "../shell/test-support/render-with-router";
-import { NewProductModal, type NewProductModalServices } from "./new-product-modal";
+import type { NewProductModalServices } from "./new-product-modal";
+import { createServices, renderNewProductModal } from "./test-support/new-product-modal";
 import { fillNewProductFieldsExceptBarcodes, scanInputOf } from "./test-support/product-form";
-import { driedFruits, groceries, honey } from "./test-support/products";
+import { honey } from "./test-support/products";
 
 beforeEach(async () => {
   await page.viewport(1280, 900);
 });
 
-function createServices(): NewProductModalServices {
-  return {
-    createProduct: vi.fn(),
-    createBrand: vi.fn(),
-    createCategory: vi.fn(),
-    createTag: vi.fn(),
-    generateInternalBarcode: vi.fn(),
-  };
-}
-
 async function renderModal(services: NewProductModalServices, tags: TagSummary[]) {
-  const screen = await render(
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <NewProductModal
-          open
-          onClose={() => {}}
-          onCreated={() => {}}
-          onSessionEnded={() => {}}
-          categories={[groceries, driedFruits]}
-          brands={[]}
-          tags={tags}
-          services={services}
-        />
-      </main>
-    </FieldSizeProvider>,
-  );
+  const screen = await renderNewProductModal(services, { tags });
   const dialog = screen.getByRole("dialog");
   await expect.element(dialog.getByRole("heading", { name: "Nuevo producto" })).toBeVisible();
   return { screen, dialog };

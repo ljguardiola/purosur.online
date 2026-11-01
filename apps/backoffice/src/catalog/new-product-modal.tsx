@@ -1,12 +1,13 @@
 import {
   type BrandSummary,
   type CategorySummary,
+  type ProductSummary,
   productCreationBodySchema,
   type TagSummary,
 } from "@purosur/contracts";
 import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import { Check, PackagePlus, ShieldX, TriangleAlert, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import {
   PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED,
   useBarcodeChips,
@@ -33,10 +34,12 @@ import { NewCategoryModal } from "./new-category-modal";
 import {
   CATALOG_PRODUCT_FIELDS,
   CATALOG_PRODUCT_MESSAGES,
+  type CatalogProductFormValues,
   catalogProductRequestFrom,
   categoryNameOf,
   EMPTY_CATALOG_PRODUCT_FORM,
   PRODUCT_CATEGORY_NOT_LEAF_ERROR,
+  productCloneFormValues,
 } from "./product-form";
 import type { createProduct } from "./products-api";
 
@@ -51,6 +54,7 @@ export type NewProductModalServices = {
 type NewProductModalProps = {
   open: boolean;
   initialName?: string;
+  source?: ProductSummary;
   onClose: () => void;
   onCreated: (product: CreatedProduct) => void;
   onSessionEnded: () => void;
@@ -63,6 +67,7 @@ type NewProductModalProps = {
 export function NewProductModal({
   open,
   initialName = "",
+  source,
   onClose,
   onCreated,
   onSessionEnded,
@@ -177,9 +182,16 @@ export function NewProductModal({
     onClose();
   };
 
+  const openingValues = useEffectEvent(
+    (cloned: ProductSummary | undefined, name: string): CatalogProductFormValues =>
+      cloned
+        ? productCloneFormValues(cloned, { brands, tags })
+        : { ...EMPTY_CATALOG_PRODUCT_FORM, name },
+  );
+
   useEffect(() => {
     if (open) {
-      reset({ ...EMPTY_CATALOG_PRODUCT_FORM, name: initialName });
+      reset(openingValues(source, initialName));
       chips.reset();
       setNotice(null);
       generate.reset();
@@ -190,6 +202,7 @@ export function NewProductModal({
   }, [
     open,
     initialName,
+    source,
     reset,
     chips.reset,
     generate.reset,
@@ -216,7 +229,7 @@ export function NewProductModal({
       tone="info"
       icon={<PackagePlus />}
       context="Catálogo · Productos"
-      title="Nuevo producto"
+      title={source ? "Clonar producto" : "Nuevo producto"}
       closable
       footer={
         <>

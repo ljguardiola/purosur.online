@@ -1,15 +1,18 @@
-import type { BrandSummary, CategorySummary } from "@purosur/contracts";
-import { FieldSizeProvider } from "@purosur/ui";
+import type { BrandSummary } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { type Locator, page, userEvent } from "vitest/browser";
-import type { CreatedProduct } from "../platform/creation-parts";
 import type { GenerateInternalBarcodeOutcome } from "../platform/internal-barcodes-api";
 import { radioLabel } from "../platform/test-support/radio-label";
-import { render } from "../shell/test-support/render-with-router";
-import { NewProductModal, type NewProductModalServices } from "./new-product-modal";
+import type { NewProductModalServices } from "./new-product-modal";
+import {
+  createServices,
+  type NewProductModalProps,
+  newProductModalElement,
+  renderNewProductModal,
+} from "./test-support/new-product-modal";
 import { fillNewProductFieldsExceptBarcodes, scanInputOf } from "./test-support/product-form";
-import { driedFruits, groceries, honey } from "./test-support/products";
+import { honey } from "./test-support/products";
 
 // A modal panel is centered by a fixed-position overlay that never grows the document's scroll
 // area, so a control past its clipped edge can't be scrolled into view at the default viewport.
@@ -17,54 +20,15 @@ beforeEach(async () => {
   await page.viewport(1280, 900);
 });
 
-function createServices(overrides: Partial<NewProductModalServices> = {}): NewProductModalServices {
-  return {
-    createProduct: vi.fn(),
-    createBrand: vi.fn(),
-    createCategory: vi.fn(),
-    createTag: vi.fn(),
-    generateInternalBarcode: vi.fn(),
-    ...overrides,
-  };
-}
-
-type ModalOptions = {
-  categories?: CategorySummary[];
-  brands?: BrandSummary[];
-  onClose?: () => void;
-  onCreated?: (product: CreatedProduct) => void;
-  initialName?: string;
-  onSessionEnded?: () => void;
-};
-
-function modalElement(open: boolean, services: NewProductModalServices, options: ModalOptions) {
-  return (
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <NewProductModal
-          open={open}
-          onClose={options.onClose ?? (() => {})}
-          onCreated={options.onCreated ?? (() => {})}
-          {...(options.initialName === undefined ? {} : { initialName: options.initialName })}
-          onSessionEnded={options.onSessionEnded ?? (() => {})}
-          categories={options.categories ?? [groceries, driedFruits]}
-          brands={options.brands ?? []}
-          tags={[]}
-          services={services}
-        />
-      </main>
-    </FieldSizeProvider>
-  );
-}
-
-async function renderModal(services: NewProductModalServices, options: ModalOptions = {}) {
-  const screen = await render(modalElement(true, services, options));
+async function renderModal(services: NewProductModalServices, props: NewProductModalProps = {}) {
+  const screen = await renderNewProductModal(services, props);
   const dialog = screen.getByRole("dialog");
   await expect.element(dialog.getByRole("heading", { name: "Nuevo producto" })).toBeVisible();
   return {
     screen,
     dialog,
-    rerender: (open: boolean) => screen.rerender(modalElement(open, services, options)),
+    rerender: (open: boolean) =>
+      screen.rerender(newProductModalElement(services, { ...props, open })),
   };
 }
 
