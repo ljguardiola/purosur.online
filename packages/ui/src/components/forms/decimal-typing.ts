@@ -138,11 +138,7 @@ export function applyDecimalEdit(
   if (edit.kind === "insert-paste") {
     const normalized = pastedCharacters(edit.data, maxDecimals);
     if (normalized === undefined) {
-      const text = state.text.slice(0, state.selectionStart) + edit.data;
-      return {
-        text: text + state.text.slice(state.selectionEnd),
-        caret: text.length,
-      };
+      return unchanged;
     }
     const pasted = insertCharacters(current, start.caret, end.caret, normalized, maxDecimals);
     return pasted === undefined ? unchanged : shownText(pasted);
