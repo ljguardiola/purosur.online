@@ -48,6 +48,8 @@ import { usePreviewReturnQuery } from "./returns-queries";
 const COMPLETE_FAILED = "No se pudo completar la devolución. Probá de nuevo.";
 const SALE_GONE = "Esa venta ya no se puede devolver.";
 const NOT_PERMITTED = "No tenés permiso para hacer devoluciones.";
+const NOTHING_TO_REFUND_TEXT =
+  "Los productos se cambian por otros iguales: no hay nada que reintegrar.";
 
 export type ReturnBuildStepProps = {
   sale: SaleForReturn;
@@ -115,6 +117,8 @@ export function ReturnBuildStep({
   const refusedLine =
     firstRefusal === undefined ? undefined : lineOf(sale, firstRefusal.sale_line_id);
   const refundableTotal = previewed?.refundable_total ?? 0;
+  const nothingToRefund =
+    previewed !== undefined && firstRefusal === undefined && refundableTotal === 0;
   const refundTexts = refundTextsFor(sale.payments, refundableTotal, values.refunds);
   const canComplete =
     !submitting &&
@@ -168,7 +172,7 @@ export function ReturnBuildStep({
             })),
           lines: previewed.lines.flatMap((line) => {
             const sold = lineOf(sale, line.sale_line_id);
-            return sold === undefined || line.disposition === null
+            return sold === undefined || line.disposition === null || line.resolution === null
               ? []
               : [
                   {
@@ -176,6 +180,7 @@ export function ReturnBuildStep({
                     name: sold.product_name,
                     quantity: quantityText(sold.sale_unit, line.quantity),
                     disposition: line.disposition,
+                    resolution: line.resolution,
                     amount: line.refund_amount ?? 0,
                   },
                 ];
@@ -320,10 +325,16 @@ export function ReturnBuildStep({
           variant="divided"
           rows={[{ label: "Líneas a devolver", value: String(lines.length) }]}
         />
-        <Eyebrow text="SE DEVUELVE POR EL MEDIO DEL PAGO" />
-        <form.AppField name="refunds">
-          {() => <ReturnRefundsField texts={refundTexts} disabled={submitting} />}
-        </form.AppField>
+        {nothingToRefund ? (
+          <p className="text-detail text-text-subtle">{NOTHING_TO_REFUND_TEXT}</p>
+        ) : (
+          <>
+            <Eyebrow text="SE DEVUELVE POR EL MEDIO DEL PAGO" />
+            <form.AppField name="refunds">
+              {() => <ReturnRefundsField texts={refundTexts} disabled={submitting} />}
+            </form.AppField>
+          </>
+        )}
       </SidePanel>
     </>
   );
