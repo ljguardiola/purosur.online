@@ -743,4 +743,66 @@ describe("the background worker the server sets up on a real Postgres", () => {
       await backgroundJobs.close();
     }
   }, 60_000);
+
+  it("warns that the month in progress may become a second consecutive one when the previous month is recorded", async () => {
+    const fiscalAddressId = await insertFiscalAddress(db, "Depósito Central");
+    const registerId = await insertRegisterAtFiscalAddress(
+      db,
+      fiscalAddressId,
+      "Caja del depósito",
+    );
+    await insertCaeaDocument(db, registerId, { issuedOn: "2019-12-12" });
+    await insertReceiptRequest(db, registerId, { issuedOn: "2019-12-13" });
+    await insertCaeaDocument(db, registerId, { issuedOn: "2020-01-02" });
+    await insertReceiptRequest(db, registerId, { issuedOn: "2020-01-03" });
+    await insertReceiptRequest(db, registerId, { issuedOn: "2020-01-04" });
+    await insertReceiptRequest(db, registerId, { issuedOn: "2020-01-04" });
+    const backgroundJobs = await setUpBackgroundJobs(
+      {
+        databaseUrl: integrationDb.databaseUrl,
+        emailSender: { transport: "log" },
+        emailFrom: FICTIONAL_RECOVERY_SENDER,
+        emailReplyTo: FICTIONAL_RECOVERY_REPLY_TO,
+        backofficeOrigin: "https://staging.purosur.online",
+        arcaCertificate: { environment: "production", notAfter: new Date("2126-09-01T19:42:17Z") },
+        arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
+      },
+      () => NOW,
+      fixedZoneRulesSource(),
+      { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
+    );
+
+    try {
+      await sql`select graphile_worker.add_job('alert-condition-resolution')`;
+
+      await vi.waitFor(
+        async () => {
+          const rows = await db
+            .select()
+            .from(alerts)
+            .where(eq(alerts.scope, `${fiscalAddressId}:2020-01`));
+          expect(rows).toHaveLength(1);
+          expect(rows[0]).toMatchObject({
+            kind: "exception_share_second_month_at_risk",
+            level: "warning",
+            audience: "all",
+            resolvedAt: null,
+            detail: {
+              fiscalAddressId,
+              fiscalAddressName: "Depósito Central",
+              month: "2020-01",
+              previousMonth: "2019-12",
+              exceptionCount: 1,
+              totalCount: 4,
+              shareTenthsOfPercent: 250,
+              nonCompliancePercent: 5,
+            },
+          });
+        },
+        { timeout: 20_000, interval: 100 },
+      );
+    } finally {
+      await backgroundJobs.close();
+    }
+  }, 60_000);
 });

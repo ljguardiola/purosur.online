@@ -67,6 +67,7 @@ describe("alertConditionResolutionJobs", () => {
           .fn()
           .mockResolvedValue({ kind: "recorded", recorded: 0, updated: 0 }),
         detectExceptionShareBreaches: vi.fn().mockResolvedValue(0),
+        detectSecondMonthRisks: vi.fn().mockResolvedValue(0),
       },
     );
     const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
@@ -120,6 +121,7 @@ describe("alertConditionResolutionJobs", () => {
           .fn()
           .mockResolvedValue({ kind: "recorded", recorded: 0, updated: 0 }),
         detectExceptionShareBreaches: vi.fn().mockResolvedValue(0),
+        detectSecondMonthRisks: vi.fn().mockResolvedValue(0),
       },
     );
     const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
@@ -171,6 +173,7 @@ describe("alertConditionResolutionJobs", () => {
           .fn()
           .mockResolvedValue({ kind: "recorded", recorded: 0, updated: 0 }),
         detectExceptionShareBreaches: vi.fn().mockResolvedValue(0),
+        detectSecondMonthRisks: vi.fn().mockResolvedValue(0),
       },
     );
     const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
@@ -225,6 +228,7 @@ describe("alertConditionResolutionJobs", () => {
           .fn()
           .mockResolvedValue({ kind: "recorded", recorded: 0, updated: 0 }),
         detectExceptionShareBreaches: vi.fn().mockResolvedValue(0),
+        detectSecondMonthRisks: vi.fn().mockResolvedValue(0),
       },
     );
     const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
@@ -279,6 +283,7 @@ describe("alertConditionResolutionJobs", () => {
           .fn()
           .mockResolvedValue({ kind: "recorded", recorded: 0, updated: 0 }),
         detectExceptionShareBreaches: vi.fn().mockResolvedValue(0),
+        detectSecondMonthRisks: vi.fn().mockResolvedValue(0),
       },
     );
     const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
@@ -333,6 +338,7 @@ describe("alertConditionResolutionJobs", () => {
           .fn()
           .mockResolvedValue({ kind: "recorded", recorded: 0, updated: 0 }),
         detectExceptionShareBreaches: vi.fn().mockResolvedValue(0),
+        detectSecondMonthRisks: vi.fn().mockResolvedValue(0),
       },
     );
     const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
@@ -387,6 +393,7 @@ describe("alertConditionResolutionJobs", () => {
           .fn()
           .mockResolvedValue({ kind: "recorded", recorded: 0, updated: 0 }),
         detectExceptionShareBreaches: vi.fn().mockResolvedValue(0),
+        detectSecondMonthRisks: vi.fn().mockResolvedValue(0),
       },
     );
     const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
@@ -441,6 +448,7 @@ describe("alertConditionResolutionJobs", () => {
           .fn()
           .mockResolvedValue({ kind: "recorded", recorded: 0, updated: 0 }),
         detectExceptionShareBreaches: vi.fn().mockResolvedValue(0),
+        detectSecondMonthRisks: vi.fn().mockResolvedValue(0),
       },
     );
     const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
@@ -493,6 +501,7 @@ describe("alertConditionResolutionJobs", () => {
           .fn()
           .mockResolvedValue({ kind: "recorded", recorded: 0, updated: 0 }),
         detectExceptionShareBreaches: vi.fn().mockResolvedValue(0),
+        detectSecondMonthRisks: vi.fn().mockResolvedValue(0),
       },
     );
     const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
@@ -547,6 +556,7 @@ describe("alertConditionResolutionJobs", () => {
           .fn()
           .mockResolvedValue({ kind: "recorded", recorded: 0, updated: 0 }),
         detectExceptionShareBreaches: vi.fn().mockResolvedValue(0),
+        detectSecondMonthRisks: vi.fn().mockResolvedValue(0),
       },
     );
     const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
@@ -605,6 +615,7 @@ describe("alertConditionResolutionJobs", () => {
           .fn()
           .mockResolvedValue({ kind: "recorded", recorded: 0, updated: 0 }),
         detectExceptionShareBreaches: vi.fn().mockResolvedValue(0),
+        detectSecondMonthRisks: vi.fn().mockResolvedValue(0),
       },
     );
     const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
@@ -662,6 +673,7 @@ describe("alertConditionResolutionJobs", () => {
           .fn()
           .mockResolvedValue({ kind: "recorded", recorded: 0, updated: 0 }),
         detectExceptionShareBreaches: vi.fn().mockResolvedValue(0),
+        detectSecondMonthRisks: vi.fn().mockResolvedValue(0),
         detectOverdueRegisterBackups,
         regularizeUninvoiceableDeferredSales,
         detectDeferredSaleDeadlines,
@@ -735,5 +747,65 @@ describe("alertConditionResolutionJobs", () => {
       expect(dbArgument).toBe(fakeDb);
       expect(depsArgument.now()).toEqual(new Date("2026-01-05T12:00:00.000Z"));
     }
+  });
+  it("warns about the second consecutive month only after the breaches were recorded and alerted, on the same database and by the same clock", async () => {
+    const fakeClient: PoolClient = Object.create(null);
+    const fakeDb = { marker: "fake-db" };
+    const calls: string[] = [];
+    const recordExceptionShareBreaches = vi.fn().mockImplementation(async () => {
+      calls.push("recordExceptionShareBreaches");
+      return { kind: "recorded", recorded: 0, updated: 0 };
+    });
+    const detectExceptionShareBreaches = vi.fn().mockImplementation(async () => {
+      calls.push("detectExceptionShareBreaches");
+      return 0;
+    });
+    const detectSecondMonthRisks = vi.fn().mockImplementation(async () => {
+      calls.push("detectSecondMonthRisks");
+      return 0;
+    });
+
+    const jobs = alertConditionResolutionJobs(
+      { zoneRules: fixedZoneRulesSource(), now: () => new Date("2026-01-05T12:00:00.000Z") },
+      {
+        createDatabase: vi.fn().mockReturnValue(fakeDb),
+        regularizeUninvoiceableDeferredSales: vi
+          .fn()
+          .mockResolvedValue({ kind: "regularized", count: 0 }),
+        detectDeferredSaleDeadlines: vi.fn().mockResolvedValue(0),
+        resolve: vi.fn().mockResolvedValue(0),
+        detectQuiet: vi.fn().mockResolvedValue(0),
+        detectMissingCodes: vi.fn().mockResolvedValue(0),
+        openRefundTaskAlerts: vi.fn().mockResolvedValue(0),
+        openUnclearOutcomeAlerts: vi.fn().mockResolvedValue(0),
+        detectExpiringLots: vi.fn().mockResolvedValue(0),
+        detectFortnightReportDeadlines: vi.fn().mockResolvedValue(0),
+        detectFortnightReportRegularizations: vi.fn().mockResolvedValue(0),
+        detectOwedElsewherePresentations: vi.fn().mockResolvedValue(0),
+        detectOverdueRegisterBackups: vi.fn().mockResolvedValue(0),
+        detectRejectedFortnightDocuments: vi.fn().mockResolvedValue(0),
+        recordExceptionShareBreaches,
+        detectExceptionShareBreaches,
+        detectSecondMonthRisks,
+      },
+    );
+    const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
+    if (!task) {
+      throw new Error("test setup: expected the registered alert condition resolution task");
+    }
+
+    await task({}, jobHelpers(fakeClient, vi.fn()));
+
+    expect(calls).toEqual([
+      "recordExceptionShareBreaches",
+      "detectExceptionShareBreaches",
+      "detectSecondMonthRisks",
+    ]);
+    const [dbArgument, depsArgument] = detectSecondMonthRisks.mock.calls[0] as [
+      unknown,
+      { now: () => Date },
+    ];
+    expect(dbArgument).toBe(fakeDb);
+    expect(depsArgument.now()).toEqual(new Date("2026-01-05T12:00:00.000Z"));
   });
 });
