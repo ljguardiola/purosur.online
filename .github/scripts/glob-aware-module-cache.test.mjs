@@ -22,7 +22,8 @@ const GLOB_TEST = [
   'import { ENTRY_NAMES } from "./entries";',
   'test("lists every entry of the folder", () => {',
   '  const folder = fileURLToPath(new URL("./entries/", import.meta.url));',
-  "  expect(ENTRY_NAMES).toEqual(readdirSync(folder).sort().map((file) => `./entries/${file}`));",
+  '  const files = ENTRY_NAMES.map((path) => path.slice("./entries/".length));',
+  "  expect(files).toEqual(readdirSync(folder).sort());",
   "});",
   "",
 ].join("\n");
