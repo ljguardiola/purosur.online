@@ -162,7 +162,7 @@ describe("readExceptionShareYear", () => {
 
     expect(outcome.kind === "read" && outcome.nonCompliantMonths).toEqual(["2026-02", "2026-07"]);
     expect(outcome.kind === "read" && outcome.months.map((each) => each.state)).toEqual([
-      "non_compliant",
+      "compliant",
       "non_compliant",
       "compliant",
       "compliant",
