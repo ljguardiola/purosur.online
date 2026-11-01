@@ -380,7 +380,7 @@ test("downloads a spreadsheet of the closes shown, with the applied register and
   expect(closes.get("C2")?.value).toBe("Tomás Ruiz");
   expect(closes.get("G2")?.value).toBe("-500");
   expect(closes.get("D4")?.value).toBe("Beto");
-  expect(closes.get("G4")?.value).toBe("Sin diferencia");
+  expect(closes.get("G4")?.value).toBe("0");
 });
 
 test("has its download disabled while the report loads and after loading fails", async () => {
