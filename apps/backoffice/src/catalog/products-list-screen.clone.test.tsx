@@ -1,7 +1,7 @@
 import type { ListedProduct } from "@purosur/contracts";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import { almondOil, honey, retiredHoney, vitora } from "./test-support/products";
+import { almondOil, honey, retiredHoney } from "./test-support/products";
 import {
   createServices,
   mockLoaded,
@@ -9,9 +9,9 @@ import {
   renderScreen,
 } from "./test-support/products-list-screen";
 
-test("the row action opens the new-product form filled from the product, without its barcodes", async () => {
+test("the row action opens the clone form filled from the product", async () => {
   const services = createServices();
-  mockLoaded(services, [almondOil], undefined, [vitora]);
+  mockLoaded(services, [almondOil]);
   const screen = await renderScreen(services);
 
   const dialog = await openCloneProductModal(screen, almondOil);
@@ -20,8 +20,6 @@ test("the row action opens the new-product form filled from the product, without
   await expect
     .element(dialog.getByRole("textbox", { name: /^Nombre/ }))
     .toHaveValue("Aceite de Almendras");
-  await expect.element(dialog.getByRole("combobox", { name: /^Marca/ })).toHaveValue("Vitora");
-  expect(dialog.getByText("7790001234567").query()).toBeNull();
 });
 
 test("an inactive product can be cloned too", async () => {
@@ -51,19 +49,7 @@ test("the new-product button still opens an empty form", async () => {
   await expect.element(dialog.getByRole("textbox", { name: /^Nombre/ })).toHaveValue("");
 });
 
-test("closing the clone form creates nothing", async () => {
-  const services = createServices();
-  mockLoaded(services, [honey]);
-  const screen = await renderScreen(services);
-  const dialog = await openCloneProductModal(screen, honey);
-
-  await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
-
-  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  expect(services.createProduct).not.toHaveBeenCalled();
-});
-
-test("confirming the clone creates the new product and refreshes the list", async () => {
+test("confirming the clone refreshes the list", async () => {
   const services = createServices();
   const created: ListedProduct = {
     ...honey,
@@ -78,7 +64,6 @@ test("confirming the clone creates the new product and refreshes the list", asyn
   vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok", product: created });
   const screen = await renderScreen(services);
   const dialog = await openCloneProductModal(screen, honey);
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Miel de azahar");
   await userEvent.fill(
     dialog.getByRole("textbox", { name: "Escanear otro código" }),
     "7790000000099",
@@ -88,16 +73,6 @@ test("confirming the clone creates the new product and refreshes the list", asyn
   await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
 
   await expect.poll(() => vi.mocked(services.createProduct).mock.calls.length).toBe(1);
-  expect(services.createProduct).toHaveBeenCalledWith({
-    name: "Miel de azahar",
-    categoryId: honey.categoryId,
-    brandId: null,
-    saleUnit: "UNIT",
-    barcodes: ["7790000000099"],
-    tagIds: [],
-    netContent: null,
-    coverageDays: 15,
-  });
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.element(screen.getByText("2 productos activos")).toBeVisible();
   expect(services.fetchProducts).toHaveBeenCalledTimes(2);

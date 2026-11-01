@@ -1,12 +1,11 @@
 import type { ListedProduct } from "@purosur/contracts";
-import { FieldSizeProvider } from "@purosur/ui";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { sinTacc } from "../platform/test-support/tags";
-import { render } from "../shell/test-support/render-with-router";
-import { NewProductModal, type NewProductModalServices } from "./new-product-modal";
+import type { NewProductModalServices } from "./new-product-modal";
+import { createServices, renderNewProductModal } from "./test-support/new-product-modal";
 import { scanInputOf } from "./test-support/product-form";
-import { almondOil, driedFruits, groceries, honey, vitora } from "./test-support/products";
+import { almondOil, groceries, honey, vitora } from "./test-support/products";
 
 beforeEach(async () => {
   await page.viewport(1280, 900);
@@ -19,37 +18,17 @@ const source: ListedProduct = {
   barcodes: ["7790001234567", "7790001234574"],
 };
 
-function createServices(): NewProductModalServices {
-  return {
-    createProduct: vi.fn(),
-    createBrand: vi.fn(),
-    createCategory: vi.fn(),
-    createTag: vi.fn(),
-    generateInternalBarcode: vi.fn(),
-  };
-}
-
 async function renderClone(
   services: NewProductModalServices,
   { onClose = () => {}, onCreated = () => {} } = {},
 ) {
-  const screen = await render(
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <NewProductModal
-          open
-          source={source}
-          onClose={onClose}
-          onCreated={onCreated}
-          onSessionEnded={() => {}}
-          categories={[groceries, driedFruits]}
-          brands={[vitora]}
-          tags={[sinTacc]}
-          services={services}
-        />
-      </main>
-    </FieldSizeProvider>,
-  );
+  const screen = await renderNewProductModal(services, {
+    source,
+    onClose,
+    onCreated,
+    brands: [vitora],
+    tags: [sinTacc],
+  });
   const dialog = screen.getByRole("dialog");
   await expect.element(dialog.getByRole("heading", { name: "Clonar producto" })).toBeVisible();
   return { dialog };
