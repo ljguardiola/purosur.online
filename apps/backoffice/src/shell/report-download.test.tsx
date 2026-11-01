@@ -3,35 +3,15 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { afterEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
-import { cell, type Workbook } from "../platform/spreadsheet/workbook";
-import { RegisterReportDownload, ReportDownload } from "./report-download";
+import type { Workbook } from "../platform/spreadsheet/workbook";
+import { RegisterReportDownload } from "./report-download";
 import { render } from "./test-support/render-with-router";
+import { renderDownload, workbook } from "./test-support/report-download";
 import { spyOnDownloads } from "./test-support/spy-on-downloads";
-
-const workbook: Workbook = {
-  sheets: [
-    { name: "Ventas", header: ["Día", "Total"], rows: [[cell.day("2026-10-02"), cell.money(500)]] },
-  ],
-};
 
 afterEach(() => {
   vi.restoreAllMocks();
 });
-
-function renderDownload(props: Partial<Parameters<typeof ReportDownload>[0]> = {}) {
-  return render(
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <ReportDownload
-          dataStatus="loaded"
-          workbook={() => workbook}
-          fileName="ventas-2026-10-01-2026-10-07.xlsx"
-          {...props}
-        />
-      </main>
-    </FieldSizeProvider>,
-  );
-}
 
 test("downloads the workbook as an xlsx file under the given name when pressed", async () => {
   const downloads = spyOnDownloads();
