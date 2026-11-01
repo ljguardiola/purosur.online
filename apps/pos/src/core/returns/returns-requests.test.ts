@@ -101,6 +101,7 @@ const YERBA = {
   quantity: 2,
   reason: "change_of_mind",
   disposition: "restock",
+  resolution: "refund",
 } as const;
 
 function completion(overrides: Partial<Parameters<typeof completeReturnFor>[1]> = {}) {
@@ -220,6 +221,7 @@ describe("finding the sale to return", () => {
           change_of_mind: { last_allowed_day: "2026-09-27", open: true },
           defective: { last_allowed_day: "2027-03-12", open: true },
         },
+        offered_resolutions: { change_of_mind: ["refund"], defective: ["refund", "exchange"] },
       },
     });
     if (outcome.kind !== "found") {
@@ -445,6 +447,7 @@ describe("previewing a return", () => {
           quantity: 2,
           reason: "change_of_mind",
           disposition: "restock",
+          resolution: "refund",
           refusal: null,
           refund_amount: 5000,
         },
@@ -471,6 +474,31 @@ describe("previewing a return", () => {
           refund_amount: null,
         },
       ],
+      refundable_total: 0,
+    });
+  });
+
+  it("previews a defective line left without its resolution as refused, since a defect offers a choice", async () => {
+    expect(
+      await previewReturnFor(deps(), {
+        saleId: "sale-1",
+        lines: [{ ...YERBA, reason: "defective", resolution: null }],
+      }),
+    ).toMatchObject({
+      kind: "previewed",
+      lines: [{ resolution: null, refusal: { kind: "missing_resolution" }, refund_amount: null }],
+    });
+  });
+
+  it("previews an exchanged line as refunding nothing", async () => {
+    expect(
+      await previewReturnFor(deps(), {
+        saleId: "sale-1",
+        lines: [{ ...YERBA, reason: "defective", resolution: "exchange" }],
+      }),
+    ).toMatchObject({
+      kind: "previewed",
+      lines: [{ resolution: "exchange", refusal: null, refund_amount: 0 }],
       refundable_total: 0,
     });
   });
@@ -653,6 +681,35 @@ describe("completing a return", () => {
       sale_line_id: "line-1",
       refusal: { kind: "outside_window", reason: "change_of_mind", last_allowed_day: "2026-09-27" },
     });
+  });
+
+  it("refuses to exchange a line returned for a change of mind, which only offers a refund", async () => {
+    expect(
+      await completeReturnFor(
+        deps(),
+        completion({ lines: [{ ...YERBA, resolution: "exchange" }], refunds: [] }),
+      ),
+    ).toEqual({
+      kind: "line_refused",
+      sale_line_id: "line-1",
+      refusal: { kind: "resolution_not_offered" },
+    });
+  });
+
+  it("completes the exchange of a defective line moving no money, recording it as exchanged", async () => {
+    const outcome = await completeReturnFor(
+      deps(),
+      completion({
+        lines: [{ ...YERBA, reason: "defective", resolution: "exchange" }],
+        refunds: [],
+      }),
+    );
+
+    expect(outcome).toMatchObject({ kind: "completed", refunded_in_cash: 0, refunds: [] });
+    expect(database.prepare("SELECT resolution, refunded_amount FROM return_lines").all()).toEqual([
+      { resolution: "exchange", refunded_amount: 0 },
+    ]);
+    expect(count("cash_movements")).toBe(0);
   });
 
   it("names the refund it refuses, in the wire's words", async () => {
@@ -918,6 +975,7 @@ describe("returning a sale another register rang up", () => {
     quantity: 1,
     reason: "change_of_mind",
     disposition: "restock",
+    resolution: "refund",
   } as const;
 
   const COMPLETION = {
@@ -965,6 +1023,7 @@ describe("returning a sale another register rang up", () => {
           quantity: 1,
           reason: "change_of_mind",
           disposition: "restock",
+          resolution: "refund",
           refusal: null,
           refund_amount: 2500,
         },

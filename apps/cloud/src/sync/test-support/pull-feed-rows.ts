@@ -37,7 +37,7 @@ import type { TestDatabase } from "../../test-support/build-test-database.js";
 import { logChange } from "../change-log.js";
 import { aTransferCancelledSale } from "./synced-facts.js";
 
-const KINDS_OF_SALE_LINES = ["sale", "sale_void", "return"];
+const KINDS_OF_SALE_LINES = ["sale", "sale_void", "return", "exchange_out"];
 const KINDS_OF_ASSEMBLY_BATCHES = ["assembly_out", "assembly_in", "assembly_void"];
 const KINDS_WITH_A_REASON = ["loss", "adjustment"];
 

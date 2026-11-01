@@ -969,6 +969,7 @@ export async function withRegisterSession<TResult>(
           quantity: 1,
           reason: "defective",
           disposition: "discard",
+          resolution: "refund",
         },
       ],
       refunds: [
@@ -1008,6 +1009,7 @@ export async function withRegisterSession<TResult>(
           quantity: 1,
           reason: "change_of_mind",
           disposition: "restock",
+          resolution: "refund",
         },
       ],
       refunds: [

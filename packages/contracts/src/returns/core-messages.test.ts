@@ -257,6 +257,7 @@ const FOUND = {
       change_of_mind: { last_allowed_day: "2026-09-27", open: true },
       defective: { last_allowed_day: "2027-03-12", open: true },
     },
+    offered_resolutions: { change_of_mind: ["refund"], defective: ["refund", "exchange"] },
     lines: [
       {
         id: "line-1",
@@ -354,6 +355,14 @@ describe("the answer to finding the sale to return", () => {
 
   it.each([
     { kind: "found" },
+    { ...FOUND, sale: { ...FOUND.sale, offered_resolutions: undefined } },
+    {
+      ...FOUND,
+      sale: {
+        ...FOUND.sale,
+        offered_resolutions: { ...FOUND.sale.offered_resolutions, defective: ["voucher"] },
+      },
+    },
     { ...FOUND, sale: { ...FOUND.sale, occurred_at: "yesterday" } },
     { ...FOUND, sale: { ...FOUND.sale, total: 10.5 } },
     {
