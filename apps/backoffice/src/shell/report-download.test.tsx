@@ -2,6 +2,7 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { afterEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { writeWorkbook } from "../platform/spreadsheet/spreadsheet-writer";
 import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
 import type { Workbook } from "../platform/spreadsheet/workbook";
 import { RegisterReportDownload } from "./report-download";
@@ -103,4 +104,29 @@ test("builds the workbook of a report filtered by register with the register's n
 
   await expect.poll(() => downloads.names.length).toBe(1);
   expect(build).toHaveBeenCalledWith("Caja del fondo");
+});
+
+test("stays disabled while the file is being prepared, so a second press downloads nothing", async () => {
+  const downloads = spyOnDownloads();
+  const build = vi.fn(() => workbook);
+  let release = () => {};
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const writeSpreadsheet = vi.fn(async (book: Workbook) => {
+    await held;
+    return writeWorkbook(book);
+  });
+  const screen = await renderDownload({ workbook: build, writeSpreadsheet });
+  const button = screen.getByRole("button", { name: "Descargar planilla" });
+
+  await userEvent.click(button);
+  await expect.element(button).toBeDisabled();
+  await userEvent.click(button, { force: true });
+  release();
+
+  await expect.element(button).toBeEnabled();
+  expect(build).toHaveBeenCalledTimes(1);
+  expect(writeSpreadsheet).toHaveBeenCalledTimes(1);
+  expect(downloads.names).toEqual(["ventas-2026-10-01-2026-10-07.xlsx"]);
 });
