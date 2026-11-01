@@ -12,6 +12,7 @@ const honey = {
   barcodes: ["7790987000015"],
   tagIds: [],
   netContent: null,
+  coverageDays: 15,
   active: true,
   labelCode: null,
   labelModules: null,
@@ -30,6 +31,16 @@ const almonds = {
 };
 
 describe("productSummarySchema", () => {
+  it("keeps the coverage days of a product", () => {
+    expect(productSummarySchema.safeParse({ ...honey, coverageDays: 40 }).data?.coverageDays).toBe(
+      40,
+    );
+  });
+
+  it.each([undefined, 1.5, "15", null])("refuses the coverageDays %j", (coverageDays) => {
+    expect(productSummarySchema.safeParse({ ...honey, coverageDays }).success).toBe(false);
+  });
+
   it("accepts a product without net content and one with it", () => {
     expect(productSummarySchema.safeParse(honey).data).toEqual(honey);
     expect(productSummarySchema.safeParse(almonds).data).toEqual(almonds);

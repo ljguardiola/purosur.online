@@ -183,6 +183,36 @@ describe("productCreationBodySchema, barcodes", () => {
   });
 });
 
+describe("productCreationBodySchema, coverageDays", () => {
+  it("gives a product sent without coverage days the default of 15", () => {
+    expect(productCreationBodySchema.safeParse(validBody()).data?.coverageDays).toBe(15);
+    expect(productCreationBodySchema.shape.coverageDays.parse(undefined)).toBe(15);
+  });
+
+  it.each([1, 30, 365])("keeps the %j coverage days sent", (coverageDays) => {
+    expect(
+      productCreationBodySchema.safeParse(validBody({ coverageDays })).data?.coverageDays,
+    ).toBe(coverageDays);
+  });
+
+  it.each([0, 366, -1, 1.5, "15", null, Number.NaN])(
+    "rejects the coverageDays %j",
+    (coverageDays) => {
+      expect(firstFailure(validBody({ coverageDays }))).toEqual({
+        field: "coverageDays",
+        message: "coverageDays must be an integer from 1 to 365",
+      });
+    },
+  );
+
+  it("exposes the bounds in the schema's meta", () => {
+    expect(productCreationBodySchema.shape.coverageDays.meta()).toEqual({
+      minimum: 1,
+      maximum: 365,
+    });
+  });
+});
+
 describe("productCreationBodySchema, netContent", () => {
   it.each([undefined, null])("reads %j as no net content", (netContent) => {
     const result = productCreationBodySchema.safeParse(validBody({ netContent }));
