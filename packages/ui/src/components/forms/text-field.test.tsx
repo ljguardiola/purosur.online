@@ -1597,14 +1597,33 @@ test("takes the numeric keypad's dot as the decimal comma of a weight", async ()
   expect(input.value).toBe("12,5");
 });
 
-test("regroups text changed by an edit it does not intercept", async () => {
+test("reads a value inserted all at once as Argentine text", async () => {
   const screen = await render(<DecimalHarness />);
   const input = fieldInput(screen, "Amount");
 
-  await userEvent.click(input);
-  await userEvent.fill(input, "1234,5x");
+  await userEvent.fill(input, "45.800,00");
 
-  expect(input.value).toBe("1.234,5");
+  expect(input.value).toBe("45.800,00");
+});
+
+test("ignores a value inserted all at once that is not Argentine text", async () => {
+  const screen = await render(<DecimalHarness />);
+  const input = fieldInput(screen, "Amount");
+
+  await userEvent.fill(input, "12.5");
+
+  expect(input.value).toBe("");
+});
+
+test("regroups text changed by an edit it does not intercept", async () => {
+  const screen = await render(<DecimalHarness initial="1.234.567" />);
+  const input = fieldInput(screen, "Amount");
+
+  await userEvent.click(input);
+  input.setSelectionRange(2, 5);
+  await userEvent.keyboard("{Control>}x{/Control}");
+
+  expect(input.value).toBe("1.567");
 });
 
 test("a field without decimals keeps the text exactly as typed", async () => {
