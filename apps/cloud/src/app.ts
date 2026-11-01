@@ -89,6 +89,7 @@ import {
   registerCreditNoteRoute,
 } from "./fiscal/credit-note-route.js";
 import type { EnqueueNumberingReconciliation } from "./fiscal/enqueue-numbering-conflict.js";
+import { registerExceptionShareYearRoute } from "./fiscal/exception-share-year-route.js";
 import { registerFiscalAddressCreationRoute } from "./fiscal/fiscal-address-creation-route.js";
 import { registerFiscalAddressEditRoute } from "./fiscal/fiscal-address-edit-route.js";
 import type { FiscalAddressesRouteOptions } from "./fiscal/fiscal-addresses-list-route.js";
@@ -810,6 +811,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerUnbilledDeferredSalesRoute(api, { ...options.registersPointsOfSale, now });
         registerIssuedFiscalDocumentsRoute(api, { ...options.registersPointsOfSale, now });
         registerIssuedFiscalDocumentsReportRoute(api, { ...options.registersPointsOfSale, now });
+        registerExceptionShareYearRoute(api, { ...options.registersPointsOfSale, now });
         registerFiscalRegistersRoute(api, { ...options.registersPointsOfSale, now });
         registerRejectedDocumentRemedyRoute(api, { ...options.registersPointsOfSale, now });
         registerBuyerTaxStatusesListRoute(api, { ...options.registersPointsOfSale, now });

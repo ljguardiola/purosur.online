@@ -1,20 +1,103 @@
 import type { RowData } from "@tanstack/react-table";
 import { actionsContentWidth, headerColumnWidthStyle } from "./table-actions";
-import { columnActionCount, columnAlign, columnTitle } from "./table-column";
+import { columnActionCount, columnAlign, columnTitle, type TableColumnOf } from "./table-column";
 import { SortableColumnHeader } from "./table-sort-header";
 import { alignClassName, cellHorizontalPaddingClassName } from "./table-styles";
 import type { TableModel, TableSortDirection, TableVariant } from "./table-types";
 
 const SORT_DIRECTIONS = { asc: "ascending", desc: "descending" } as const;
 
-export function TableHeaderRow<T extends RowData>({
+function TableGroupHeaderRow<T extends RowData>({
+  table,
+  depth,
+  variant,
+}: {
+  table: TableModel<T>;
+  depth: number;
+  variant: TableVariant;
+}) {
+  const headers = table.getHeaderGroups()[depth]?.headers ?? [];
+  return (
+    <tr className={variant === "nested" ? "h-control-sm" : "h-control-lg bg-surface-subtle"}>
+      {headers.map((header) =>
+        header.isPlaceholder ? (
+          <td key={header.id} colSpan={header.colSpan} />
+        ) : (
+          <th
+            key={header.id}
+            colSpan={header.colSpan}
+            scope="colgroup"
+            className="border-border border-b px-1.5 text-center align-middle font-bold text-caption text-text-subtle uppercase"
+          >
+            {columnTitle(header.column)}
+          </th>
+        ),
+      )}
+    </tr>
+  );
+}
+
+function leafColumnWidthStyle<T extends RowData>(
+  column: TableColumnOf<T>,
+  first: boolean,
+  last: boolean,
+  variant: TableVariant,
+) {
+  const actionCount = columnActionCount(column);
+  return headerColumnWidthStyle(
+    actionCount === undefined ? column.columnDef.meta?.width : actionsContentWidth(actionCount),
+    first,
+    last,
+    variant,
+  );
+}
+
+export function TableColumnWidths<T extends RowData>({
   table,
   variant,
 }: {
   table: TableModel<T>;
   variant: TableVariant;
 }) {
-  const headers = table.getLeafHeaders();
+  const columns = table.getAllLeafColumns();
+  return (
+    <colgroup>
+      {columns.map((column, index) => (
+        <col
+          key={column.id}
+          style={leafColumnWidthStyle(column, index === 0, index === columns.length - 1, variant)}
+        />
+      ))}
+    </colgroup>
+  );
+}
+
+export function TableHeaderRows<T extends RowData>({
+  table,
+  variant,
+}: {
+  table: TableModel<T>;
+  variant: TableVariant;
+}) {
+  const groupDepths = table.getHeaderGroups().slice(0, -1);
+  return (
+    <>
+      {groupDepths.map((group) => (
+        <TableGroupHeaderRow key={group.id} table={table} depth={group.depth} variant={variant} />
+      ))}
+      <TableHeaderRow table={table} variant={variant} />
+    </>
+  );
+}
+
+function TableHeaderRow<T extends RowData>({
+  table,
+  variant,
+}: {
+  table: TableModel<T>;
+  variant: TableVariant;
+}) {
+  const headers = table.getHeaderGroups().at(-1)?.headers ?? [];
   return (
     <tr className={variant === "nested" ? "h-control-sm" : "h-control-xl bg-surface-subtle"}>
       {headers.map(({ id, column }, index) => {
@@ -31,14 +114,7 @@ export function TableHeaderRow<T extends RowData>({
             key={id}
             scope="col"
             aria-sort={sortable ? (direction ?? "none") : undefined}
-            style={headerColumnWidthStyle(
-              actionCount === undefined
-                ? column.columnDef.meta?.width
-                : actionsContentWidth(actionCount),
-              first,
-              last,
-              variant,
-            )}
+            style={leafColumnWidthStyle(column, first, last, variant)}
             className={[
               // A cell's explicit height is a floor, not a cap, so h-full on a sortable
               // header's button always has an actual, resolved height to track.

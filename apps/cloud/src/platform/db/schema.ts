@@ -1017,6 +1017,36 @@ export const fiscalAddresses = pgTable(
   (table) => [uniqueIndex("fiscal_addresses_name_lower_key").on(sql`lower(${table.name})`)],
 );
 
+// The month is the "YYYY-MM" the domain names it by, the calendar month of the vouchers' issue day in
+// Argentina.
+export const exceptionShareBreaches = pgTable(
+  "exception_share_breaches",
+  {
+    fiscalAddressId: uuid("fiscal_address_id")
+      .notNull()
+      .references(() => fiscalAddresses.id),
+    month: text("month").notNull(),
+    exceptionCount: integer("exception_count").notNull(),
+    totalCount: integer("total_count").notNull(),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({
+      name: "exception_share_breaches_pkey",
+      columns: [table.fiscalAddressId, table.month],
+    }),
+    check(
+      "exception_share_breaches_month_format",
+      sql`${table.month} ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'`,
+    ),
+    check(
+      "exception_share_breaches_counts_consistent",
+      sql`${table.exceptionCount} >= 0 and ${table.exceptionCount} <= ${table.totalCount}`,
+    ),
+  ],
+);
+
 export const pointOfSaleMechanism = pgEnum("point_of_sale_mechanism", ["real_time", "offline"]);
 
 // Append-only: a number once claimed by a register stays that register's, even after the register
@@ -1072,6 +1102,26 @@ export const registerPointsOfSale = pgTable(
         pointOfSaleClaims.registerId,
         pointOfSaleClaims.mechanism,
       ],
+    }),
+  ],
+);
+
+// Append-only: the vouchers a register issued stay with the fiscal address it had when it issued them.
+export const registerFiscalAddressAssignments = pgTable(
+  "register_fiscal_address_assignments",
+  {
+    registerId: uuid("register_id")
+      .notNull()
+      .references(() => registers.id),
+    fiscalAddressId: uuid("fiscal_address_id")
+      .notNull()
+      .references(() => fiscalAddresses.id),
+    assignedAt: timestamp("assigned_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({
+      name: "register_fiscal_address_assignments_pkey",
+      columns: [table.registerId, table.assignedAt],
     }),
   ],
 );

@@ -11,7 +11,7 @@ import type { LoadFailureProps } from "../../feedback/load-failure";
 import { Button } from "../../forms/button";
 import { Table } from "./table";
 import { TableCellText } from "./table-cell-text";
-import { actionsColumn, dataColumn } from "./table-columns";
+import { actionsColumn, dataColumn, groupColumn } from "./table-columns";
 import type { TableColumn, TableColumns, TableProps, TableSort } from "./table-types";
 import { useTableModel } from "./use-table-model";
 
@@ -2512,4 +2512,83 @@ test("sizes a nested table's column to its content width plus the padding betwee
   const header = screen.getByRole("columnheader", { name: "Stock" }).element() as HTMLElement;
 
   expect(getComputedStyle(header).width).toBe(`${150 + 6}px`);
+});
+
+const groupedColumns = [
+  dataColumn({ id: "name", header: "Producto", render: (p: Product) => p.name }),
+  groupColumn({
+    id: "inventory",
+    header: "Existencias",
+    columns: [
+      dataColumn({ id: "stock", header: "Stock", align: "end", render: (p: Product) => p.stock }),
+      dataColumn({ id: "sku", header: "Código", render: (p: Product) => p.sku ?? "" }),
+    ],
+  }),
+] as const;
+
+test("heads the columns of a group with the group's name spanning all of them", async () => {
+  const screen = await render(<TestTable {...commonProps} columns={groupedColumns} />);
+
+  const group = screen.getByText("Existencias", { exact: true });
+  await expect.element(group).toBeVisible();
+  expect(group.element().getAttribute("colspan")).toBe("2");
+  await expect.element(screen.getByRole("columnheader", { name: "Producto" })).toBeVisible();
+  await expect.element(screen.getByRole("columnheader", { name: "Stock" })).toBeVisible();
+  await expect.element(screen.getByRole("columnheader", { name: "Código" })).toBeVisible();
+});
+
+test("renders one cell per leaf column in each row of a table with a group", async () => {
+  const screen = await render(<TestTable {...commonProps} columns={groupedColumns} />);
+
+  await expect.element(screen.getByRole("cell", { name: "Coffee" })).toBeVisible();
+  expect(screen.container.querySelectorAll("tbody tr:first-child td")).toHaveLength(3);
+});
+
+test("has no accessibility violations with a column group", async () => {
+  const screen = await render(<TestTable {...commonProps} columns={groupedColumns} />);
+
+  await expect.element(screen.getByText("Existencias", { exact: true })).toBeVisible();
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("shows a single header row for a table without groups", async () => {
+  const screen = await render(<TestTable {...commonProps} columns={columns} />);
+
+  await expect.element(screen.getByRole("columnheader", { name: "Producto" })).toBeVisible();
+  expect(screen.container.querySelectorAll("thead tr")).toHaveLength(1);
+});
+
+test("sizes the columns of a group and the columns after it at their own declared widths", async () => {
+  const widthGroupColumns = [
+    dataColumn({ id: "name", header: "Producto", render: (p: Product) => p.name }),
+    groupColumn({
+      id: "inventory",
+      header: "Existencias",
+      columns: [
+        dataColumn({
+          id: "stock",
+          header: "Stock",
+          width: 150,
+          render: (p: Product) => p.stock,
+        }),
+        dataColumn({ id: "sku", header: "Código", render: (p: Product) => p.sku ?? "" }),
+      ],
+    }),
+    actionsColumn({
+      id: "actions",
+      header: "Actions",
+      actions: [(_p: Product) => ({ icon: <Pencil />, "aria-label": "Edit", onPress: () => {} })],
+    }),
+  ] as const;
+  const screen = await render(
+    <div style={{ width: "800px" }}>
+      <TestTable {...commonProps} columns={widthGroupColumns} />
+    </div>,
+  );
+
+  const stock = screen.getByRole("columnheader", { name: "Stock" });
+  await expect.element(stock).toBeVisible();
+  expect(stock.element().getBoundingClientRect().width).toBeCloseTo(150 + 6 + 6, 0);
+  const actions = screen.getByRole("columnheader", { name: "Actions" }).element();
+  expect(actions.getBoundingClientRect().width).toBeCloseTo(60 + 6 + 16, 0);
 });

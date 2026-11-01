@@ -49,14 +49,17 @@ async function claimPointOfSale() {
   if (!actor || !fiscalAddress || !register) {
     throw new Error("test setup: seeding returned no row");
   }
-  await configureRegisterPointOfSale(new DrizzleRegisterPointOfSaleStore(db, () => NOW), {
-    locationId,
-    registerId: register.id,
-    pointOfSaleNumber: POINT_OF_SALE,
-    fiscalAddressId: fiscalAddress.id,
-    version: 0,
-    actorId: actor.id,
-  });
+  await configureRegisterPointOfSale(
+    { store: new DrizzleRegisterPointOfSaleStore(db, () => NOW), clock: { now: () => NOW } },
+    {
+      locationId,
+      registerId: register.id,
+      pointOfSaleNumber: POINT_OF_SALE,
+      fiscalAddressId: fiscalAddress.id,
+      version: 0,
+      actorId: actor.id,
+    },
+  );
 }
 
 async function failOnNoToken(taskIdentifier: string) {

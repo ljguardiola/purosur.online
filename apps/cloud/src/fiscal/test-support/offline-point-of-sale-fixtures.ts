@@ -89,7 +89,7 @@ export async function configureOfflinePointOfSale<TQueryResult extends PgQueryRe
     readAt: now,
   });
   const realTime = await configureRegisterPointOfSale(
-    new DrizzleRegisterPointOfSaleStore(db, () => now),
+    { store: new DrizzleRegisterPointOfSaleStore(db, () => now), clock: { now: () => now } },
     {
       ...base,
       pointOfSaleNumber: realTimePointOfSale,

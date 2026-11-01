@@ -85,6 +85,7 @@ test("lists the issued documents before the points of sale and the fiscal settin
   expect(labels).toEqual([
     "Tareas fiscales",
     "Comprobantes",
+    "Excepcionalidad",
     "Puntos de venta",
     "Configuración fiscal",
   ]);

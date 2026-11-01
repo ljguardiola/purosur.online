@@ -34,6 +34,12 @@ export interface RegisterPointOfSaleRecord {
   actorId: string;
 }
 
+export interface FiscalAddressAssignment {
+  registerId: string;
+  fiscalAddressId: string;
+  assignedAt: Date;
+}
+
 export type LockBranchRegisterResult = { kind: "not_found" } | { kind: "locked" };
 
 // Thrown by a write that loses a point-of-sale number to a concurrent claim by another register.
@@ -52,4 +58,5 @@ export interface RegisterPointOfSaleStoreTransaction {
   lockPointOfSaleClaim(pointOfSaleNumber: number): Promise<PointOfSaleHolder | undefined>;
   claimPointOfSale(claim: PointOfSaleClaim): Promise<void>;
   recordRegisterPointOfSale(record: RegisterPointOfSaleRecord): Promise<void>;
+  recordFiscalAddressAssignment(assignment: FiscalAddressAssignment): Promise<void>;
 }

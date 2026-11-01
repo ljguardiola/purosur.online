@@ -220,15 +220,27 @@ export function formatCalendarDayRange(first: string, last: string): string {
   return `del ${formatCalendarDay(first)} al ${formatCalendarDay(last)}`;
 }
 
-export function formatMonthName(month: number): string {
-  const name = new Intl.DateTimeFormat(LOCALE, { month: "long", timeZone: "UTC" }).format(
+export function formatMonthNameInSentence(month: number): string {
+  return new Intl.DateTimeFormat(LOCALE, { month: "long", timeZone: "UTC" }).format(
     Date.UTC(2000, month - 1, 1),
   );
+}
+
+export function formatMonthName(month: number): string {
+  const name = formatMonthNameInSentence(month);
   return name.charAt(0).toLocaleUpperCase(LOCALE) + name.slice(1);
 }
 
+export function formatYear(year: number): string {
+  return formatNumber(year, { useGrouping: false });
+}
+
 export function formatMonthAndYear(year: number, month: number): string {
-  return `${formatMonthName(month)} ${formatNumber(year, { useGrouping: false })}`;
+  return `${formatMonthName(month)} ${formatYear(year)}`;
+}
+
+export function formatMonthAndYearInSentence(year: number, month: number): string {
+  return `${formatMonthNameInSentence(month)} de ${formatYear(year)}`;
 }
 
 const relativeTime = new Intl.RelativeTimeFormat(LOCALE, { numeric: "always" });
