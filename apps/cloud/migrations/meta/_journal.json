@@ -1079,6 +1079,13 @@
       "when": 1793535191477,
       "tag": "0160_sale_line_promotion_kind",
       "breakpoints": true
+    },
+    {
+      "idx": 161,
+      "version": "7",
+      "when": 1793553095418,
+      "tag": "0161_return_line_resolution",
+      "breakpoints": true
     }
   ]
 }

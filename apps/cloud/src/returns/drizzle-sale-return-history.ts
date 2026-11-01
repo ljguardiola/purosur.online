@@ -4,7 +4,7 @@ import {
   REFUND_DISCARDED_STATE,
   type SaleReturnHistory,
 } from "@purosur/domain";
-import { and, eq, ne, sql } from "drizzle-orm";
+import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   branchSettings,
@@ -14,6 +14,7 @@ import {
   salePayments,
   sales,
 } from "../platform/db/schema.js";
+import { COUNTED_RETURN_RESOLUTIONS } from "./counted-return-resolutions.js";
 
 export async function saleReturnHistory<TQueryResult extends PgQueryResultHKT>(
   tx: PgDatabase<TQueryResult>,
@@ -38,7 +39,13 @@ export async function saleReturnHistory<TQueryResult extends PgQueryResultHKT>(
       returnedQuantity: sql<number>`coalesce(sum(${returnLines.quantity}), 0)::int`,
     })
     .from(saleLines)
-    .leftJoin(returnLines, eq(returnLines.saleLineId, saleLines.id))
+    .leftJoin(
+      returnLines,
+      and(
+        eq(returnLines.saleLineId, saleLines.id),
+        inArray(returnLines.resolution, COUNTED_RETURN_RESOLUTIONS),
+      ),
+    )
     .where(eq(saleLines.saleId, saleId))
     .groupBy(saleLines.id, saleLines.quantity);
   const payments = await tx
