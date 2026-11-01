@@ -6,11 +6,13 @@ import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { Button } from "../forms/button";
 import { ButtonLink } from "../forms/button-link";
+import { Checkbox } from "../forms/checkbox";
 import { ComboBox } from "../forms/combo-box";
 import { DateField } from "../forms/date-field";
 import { SegmentedControl } from "../forms/segmented-control";
 import { Select } from "../forms/select";
 import { TextField } from "../forms/text-field";
+import { Toggle } from "../forms/toggle";
 import { Modal } from "./modal";
 
 const CTRL_ENTER = "{Control>}{Enter}{/Control}";
@@ -113,6 +115,43 @@ test("lets the person type in the first field right after it opens", async () =>
   await userEvent.keyboard("Acme");
 
   await expect.element(screen.getByRole("textbox", { name: "Nombre" })).toHaveValue("Acme");
+});
+
+function ChoiceControls() {
+  const [confirmed, setConfirmed] = useState(false);
+  const [active, setActive] = useState(true);
+  return (
+    <>
+      <Checkbox name="confirmed" checked={confirmed} onCheckedChange={setConfirmed}>
+        Confirmo
+      </Checkbox>
+      <Toggle name="active" checked={active} onCheckedChange={setActive}>
+        Activa
+      </Toggle>
+      <input type="range" aria-label="Volumen" />
+    </>
+  );
+}
+
+test("opens focused on the first text field, past the checkboxes, switches and sliders before it", async () => {
+  const screen = await render(
+    <FormModal>
+      <ChoiceControls />
+      <NameField />
+    </FormModal>,
+  );
+
+  await expect.element(screen.getByRole("textbox", { name: "Nombre" })).toHaveFocus();
+});
+
+test("keeps the focus on the dialog when the body holds only checkboxes, switches and sliders", async () => {
+  const screen = await render(
+    <FormModal>
+      <ChoiceControls />
+    </FormModal>,
+  );
+
+  await expect.element(screen.getByRole("dialog")).toHaveFocus();
 });
 
 test("opens focused on a combobox when it is the first field", async () => {
@@ -261,22 +300,20 @@ test("sends with Ctrl+Enter from the first field it opened focused on", async ()
   expect(onSend).toHaveBeenCalledTimes(1);
 });
 
-test("focuses a stacked modal's first field and gives the focus back to the field below when it closes", async () => {
+test("focuses a stacked modal's first field and gives the focus back to the button that opened it when it closes", async () => {
   function Harness() {
     const [brandOpen, setBrandOpen] = useState(false);
     return (
-      <>
-        <FormModal title="Nuevo producto">
-          <NameField />
-          <NameField label="Marca" />
-          <Button variant="secondary" onPress={() => setBrandOpen(true)}>
-            Crear marca
-          </Button>
-          <FormModal open={brandOpen} onOpenChange={setBrandOpen} title="Nueva marca">
-            <NameField label="Nombre de la marca" />
-          </FormModal>
+      <FormModal title="Nuevo producto">
+        <NameField />
+        <NameField label="Marca" />
+        <Button variant="secondary" onPress={() => setBrandOpen(true)}>
+          Crear marca
+        </Button>
+        <FormModal open={brandOpen} onOpenChange={setBrandOpen} title="Nueva marca">
+          <NameField label="Nombre de la marca" />
         </FormModal>
-      </>
+      </FormModal>
     );
   }
 
@@ -296,9 +333,7 @@ test("focuses a stacked modal's first field and gives the focus back to the fiel
     .getByRole("button", { name: "Cancelar" })
     .click();
 
-  await expect
-    .element(screen.getByRole("button", { name: "Crear marca" }))
-    .toHaveFocus();
+  await expect.element(screen.getByRole("button", { name: "Crear marca" })).toHaveFocus();
 });
 
 test("gives the focus back to the combobox whose creation entry opened a stacked modal, when it closes", async () => {
