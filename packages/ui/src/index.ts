@@ -138,6 +138,8 @@ export type {
 export { SegmentedControl } from "./components/forms/segmented-control";
 export type { SelectProps } from "./components/forms/select";
 export { Select } from "./components/forms/select";
+export type { SpreadsheetDownloadButtonProps } from "./components/forms/spreadsheet-download-button";
+export { SpreadsheetDownloadButton } from "./components/forms/spreadsheet-download-button";
 export type {
   TextFieldAffix,
   TextFieldProps,

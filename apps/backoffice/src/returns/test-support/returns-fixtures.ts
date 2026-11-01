@@ -109,3 +109,8 @@ export const noReturnsReport: ReturnsReportBody = {
   typed: { rows: [], totals: { returns: 0, refunded: 0 } },
   scanned: { rows: [], totals: { returns: 0, refunded: 0 } },
 };
+
+export const scannedReturnWithoutLinesReport: ReturnsReportBody = {
+  ...noScannedReturnsReport,
+  scanned: { rows: [{ ...scanned, lines: [] }], totals: { returns: 1, refunded: 150_000 } },
+};

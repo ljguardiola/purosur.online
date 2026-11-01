@@ -1,5 +1,10 @@
 import { expect, test } from "vitest";
-import { returnLineDetail, returnSaleText } from "./returns-text";
+import {
+  returnLineDetail,
+  returnLineDispositionText,
+  returnLineReasonText,
+  returnSaleText,
+} from "./returns-text";
 
 test.each([
   ["change_of_mind", "restock", "Arrepentimiento · vuelve a la venta"],
@@ -21,4 +26,18 @@ test("leaves out the operation and the invoice a sale does not have", () => {
     operation: null,
     invoice: null,
   });
+});
+
+test.each([
+  ["change_of_mind", "Arrepentimiento"],
+  ["defective", "Defecto"],
+] as const)("names the %s reason of a returned line %s", (reason, text) => {
+  expect(returnLineReasonText(reason)).toBe(text);
+});
+
+test.each([
+  ["restock", "vuelve a la venta"],
+  ["discard", "se descarta"],
+] as const)("says a returned line's goods with the %s disposition %s", (disposition, text) => {
+  expect(returnLineDispositionText(disposition)).toBe(text);
 });

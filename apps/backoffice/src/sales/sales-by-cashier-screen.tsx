@@ -12,7 +12,10 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { Receipt } from "lucide-react";
+import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import { RegisterReportDownload } from "../shell/report-download";
+import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import { reportQueryOf } from "../shell/report-filters-search";
 import type { ReportRegisterField } from "../shell/report-register-field";
@@ -20,6 +23,7 @@ import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
 import type { SalesByCashierFilters } from "./sales-by-cashier-filters";
 import type { SalesByCashierScreenServices } from "./sales-by-cashier-services";
+import { salesByCashierSpreadsheet } from "./sales-by-cashier-spreadsheet";
 import { useSalesByCashierQuery } from "./sales-queries";
 
 export type SalesByCashierScreenProps = {
@@ -33,6 +37,8 @@ export type SalesByCashierScreenProps = {
 type CashierRow = SalesByCashierBody["rows"][number];
 
 const NO_ROWS: CashierRow[] = [];
+
+const SCREEN_TITLE = "Ventas por cajero";
 
 const UNIDENTIFIED = "Sin identificar";
 const NO_FIGURE = "—";
@@ -93,6 +99,7 @@ export function SalesByCashierScreen({
   services,
 }: SalesByCashierScreenProps) {
   const registerChosen = filters.register !== "ALL";
+  const [registerLabel, setRegisterLabel] = useState<string>();
   const data = useSalesByCashierQuery({
     query: reportQueryOf(filters),
     fetchSalesByCashier: services.fetchSalesByCashier,
@@ -111,7 +118,7 @@ export function SalesByCashierScreen({
 
   return (
     <ScreenLayout
-      topBar={<ScreenTopBar eyebrow="Reportes · Ventas" title="Ventas por cajero" />}
+      topBar={<ScreenTopBar eyebrow="Reportes · Ventas" title={SCREEN_TITLE} />}
       bodyClassName="gap-4 p-6"
     >
       <div className="flex flex-wrap items-end gap-3">
@@ -120,6 +127,23 @@ export function SalesByCashierScreen({
           onFiltersChange={onFiltersChange}
           answeredPeriod={shown?.range}
           registerFilter={registerFilter}
+          onRegisterLabelChange={setRegisterLabel}
+          trailing={
+            <RegisterReportDownload
+              dataStatus={data.status}
+              registerLabel={registerLabel}
+              workbook={(registerLabel) =>
+                shown
+                  ? salesByCashierSpreadsheet(
+                      shown,
+                      table.getRowModel().rows.map((row) => row.original),
+                      registerLabel,
+                    )
+                  : null
+              }
+              fileName={shown ? reportFileName(SCREEN_TITLE, shown.range) : ""}
+            />
+          }
         />
       </div>
       {data.status === "failed" ? null : (

@@ -12,9 +12,12 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { Receipt } from "lucide-react";
+import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { paymentMethodLabel } from "../platform/payment-method-label";
 import { shareOfTotal } from "../platform/share-of-total";
+import { RegisterReportDownload } from "../shell/report-download";
+import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import { reportQueryOf } from "../shell/report-filters-search";
 import type { ReportRegisterField } from "../shell/report-register-field";
@@ -23,6 +26,7 @@ import { ScreenTopBar } from "../shell/screen-top-bar";
 import { useSalesByPaymentMethodQuery } from "./payments-queries";
 import type { SalesByPaymentMethodFilters } from "./sales-by-payment-method-filters";
 import type { SalesByPaymentMethodScreenServices } from "./sales-by-payment-method-services";
+import { salesByPaymentMethodSpreadsheet } from "./sales-by-payment-method-spreadsheet";
 
 export type SalesByPaymentMethodScreenProps = {
   filters: SalesByPaymentMethodFilters;
@@ -33,6 +37,8 @@ export type SalesByPaymentMethodScreenProps = {
 };
 
 type SalesOfMethod = SalesByPaymentMethodBody["methods"][number];
+
+const SCREEN_TITLE = "Ventas por medio de pago";
 
 const NO_METHODS: SalesOfMethod[] = [];
 
@@ -78,6 +84,7 @@ export function SalesByPaymentMethodScreen({
   services,
 }: SalesByPaymentMethodScreenProps) {
   const registerChosen = filters.register !== "ALL";
+  const [registerLabel, setRegisterLabel] = useState<string>();
   const data = useSalesByPaymentMethodQuery({
     query: reportQueryOf(filters),
     fetchSalesByPaymentMethod: services.fetchSalesByPaymentMethod,
@@ -95,7 +102,7 @@ export function SalesByPaymentMethodScreen({
 
   return (
     <ScreenLayout
-      topBar={<ScreenTopBar eyebrow="Reportes · Ventas" title="Ventas por medio de pago" />}
+      topBar={<ScreenTopBar eyebrow="Reportes · Ventas" title={SCREEN_TITLE} />}
       bodyClassName="gap-4 p-6"
     >
       <ReportFilters
@@ -103,6 +110,23 @@ export function SalesByPaymentMethodScreen({
         onFiltersChange={onFiltersChange}
         answeredPeriod={shown?.range}
         registerFilter={registerFilter}
+        onRegisterLabelChange={setRegisterLabel}
+        trailing={
+          <RegisterReportDownload
+            dataStatus={data.status}
+            registerLabel={registerLabel}
+            workbook={(registerLabel) =>
+              shown
+                ? salesByPaymentMethodSpreadsheet(
+                    shown,
+                    table.getRowModel().rows.map((row) => row.original),
+                    registerLabel,
+                  )
+                : null
+            }
+            fileName={shown ? reportFileName(SCREEN_TITLE, shown.range) : ""}
+          />
+        }
       />
       {data.status === "failed" ? null : (
         <div className="grid grid-cols-3 gap-4">

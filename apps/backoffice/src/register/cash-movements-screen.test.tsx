@@ -1,17 +1,19 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations, tokenRgb } from "@purosur/ui/test";
 import { useState } from "react";
-import { expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
 import { type ReportFilters, reportFiltersSearch } from "../shell/report-filters-search";
 import { render } from "../shell/test-support/render-with-router";
 import { dateSegments } from "../shell/test-support/report-dates";
-import { FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
+import { BACK_REGISTER_ID, FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
 import {
   createReportRegisterFilterServices,
   type ReportRegisterFilterServices,
   reportRegisterFieldForTests,
 } from "../shell/test-support/report-register-filter";
+import { spyOnDownloads } from "../shell/test-support/spy-on-downloads";
 import { CashMovementsScreen } from "./cash-movements-screen";
 import type { CashMovementsScreenServices } from "./cash-movements-services";
 import {
@@ -285,4 +287,53 @@ test("ends the session when the cloud says it is over", async () => {
   await renderScreen(services, { onSessionEnded });
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+test("downloads a spreadsheet of the movements shown, with the applied register and the totals", async () => {
+  const downloads = spyOnDownloads();
+  const screen = await renderScreen(createServices(), {
+    filters: reportFiltersSearch.parse({ register: BACK_REGISTER_ID }),
+  });
+  await expect
+    .element(screen.getByRole("combobox", { name: /^Caja:/ }))
+    .toHaveValue("Caja del fondo");
+  await expect.element(screen.getByText("Retiro a caja fuerte")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
+
+  await expect
+    .poll(() => downloads.names)
+    .toEqual(["movimientos-de-caja-2026-10-01-2026-10-07.xlsx"]);
+  const file = await readDownloadedXlsx(downloads.blobs[0]);
+  expect(file.sheetNames).toEqual(["Resumen", "Movimientos de caja"]);
+  const summary = file.sheet(0);
+  expect(summary.get("B4")?.value).toBe("Caja del fondo");
+  expect(summary.get("B5")?.value).toBe("200");
+  expect(summary.get("B6")?.value).toBe("1");
+  expect(summary.get("B7")?.value).toBe("155.5");
+  const movements = file.sheet(1);
+  expect(movements.get("A2")).toMatchObject({ numberFormat: "dd/mm/yyyy hh:mm" });
+  expect(movements.get("B2")?.value).toBe("Retiro");
+  expect(movements.get("C2")?.value).toBe("Retiro a caja fuerte");
+  expect(movements.get("D2")?.value).toBe("Caja principal");
+  expect(movements.get("E2")).toMatchObject({ numberFormat: "dd/mm/yyyy hh:mm" });
+  expect(movements.get("F2")?.value).toBe("500");
+  expect(movements.get("F3")?.value).toBe("125.5");
+});
+
+test("has its download disabled while the report loads and after loading fails", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchCashMovements).mockReturnValue(new Promise(() => {}));
+  const loading = await renderScreen(services);
+  await expect.element(loading.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
+  await loading.unmount();
+
+  vi.mocked(services.fetchCashMovements).mockResolvedValue({ kind: "failed" });
+  const failed = await renderScreen(services);
+  await expect.element(failed.getByRole("button", { name: "Reintentar" })).toBeVisible();
+  await expect.element(failed.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
 });

@@ -2,7 +2,7 @@ import { pricesPastReviewDeadlineReportSchema } from "@purosur/contracts";
 import { formatDayAndTime } from "@purosur/ui";
 import { schemaText } from "../platform/schema-text";
 
-const REVIEW_TIME_ZONE = schemaText(
+export const REVIEW_TIME_ZONE = schemaText(
   pricesPastReviewDeadlineReportSchema.shape.prices.element.shape.last_reviewed_at.meta()?.[
     "timeZone"
   ],

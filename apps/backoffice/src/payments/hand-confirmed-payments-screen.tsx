@@ -1,8 +1,4 @@
-import {
-  type HandConfirmedPaymentsBody,
-  handConfirmedPaymentMethodSchema,
-  handConfirmedPaymentsSchema,
-} from "@purosur/contracts";
+import type { HandConfirmedPaymentsBody } from "@purosur/contracts";
 import {
   Card,
   dataColumn,
@@ -17,20 +13,24 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { Wallet } from "lucide-react";
-import { useId } from "react";
+import { useId, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { paymentMethodLabel } from "../platform/payment-method-label";
 import { reportMoment } from "../platform/report-moment";
-import { schemaText } from "../platform/schema-text";
+import { RegisterReportDownload } from "../shell/report-download";
+import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import type { ReportRegisterField } from "../shell/report-register-field";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
+import { CONFIRMED_TIME_ZONE } from "./hand-confirmed-payments-confirmed-time-zone";
 import {
   type HandConfirmedPaymentsFilters,
   handConfirmedPaymentsQueryOf,
 } from "./hand-confirmed-payments-filters";
+import { METHOD_OPTIONS } from "./hand-confirmed-payments-method-options";
 import type { HandConfirmedPaymentsScreenServices } from "./hand-confirmed-payments-services";
+import { handConfirmedPaymentsSpreadsheet } from "./hand-confirmed-payments-spreadsheet";
 import { useHandConfirmedPaymentsQuery } from "./payments-queries";
 
 export type HandConfirmedPaymentsScreenProps = {
@@ -48,20 +48,10 @@ type MethodTotal = HandConfirmedPaymentsBody["methods"][number];
 const NO_CASHIERS: CashierRow[] = [];
 const NO_PAYMENTS: PaymentRow[] = [];
 
-const CONFIRMED_TIME_ZONE = schemaText(
-  handConfirmedPaymentsSchema.shape.payments.element.shape.confirmed_at.meta()?.["timeZone"],
-);
-
 const UNIDENTIFIED = "Sin identificar";
 const NO_NAME = "—";
 
-const METHOD_OPTIONS = [
-  { value: "ALL", label: "Todos" },
-  ...handConfirmedPaymentMethodSchema.options.map((method) => ({
-    value: method,
-    label: paymentMethodLabel(method),
-  })),
-] as const;
+const SCREEN_TITLE = "Pagos confirmados a mano";
 
 function totalOf(methods: readonly MethodTotal[], method: MethodTotal["method"]) {
   return methods.find((total) => total.method === method) ?? { method, count: 0, amount: 0 };
@@ -163,6 +153,7 @@ export function HandConfirmedPaymentsScreen({
 }: HandConfirmedPaymentsScreenProps) {
   const cashiersHeadingId = useId();
   const paymentsHeadingId = useId();
+  const [registerLabel, setRegisterLabel] = useState<string>();
   const filtered = filters.register !== "ALL" || filters.method !== "ALL";
   const data = useHandConfirmedPaymentsQuery({
     query: handConfirmedPaymentsQueryOf(filters),
@@ -186,7 +177,7 @@ export function HandConfirmedPaymentsScreen({
 
   return (
     <ScreenLayout
-      topBar={<ScreenTopBar eyebrow="Reportes · Caja" title="Pagos confirmados a mano" />}
+      topBar={<ScreenTopBar eyebrow="Reportes · Caja" title={SCREEN_TITLE} />}
       bodyClassName="gap-4 p-6"
     >
       <div className="flex flex-wrap items-end gap-3">
@@ -195,6 +186,22 @@ export function HandConfirmedPaymentsScreen({
           onFiltersChange={onFiltersChange}
           answeredPeriod={shown?.range}
           registerFilter={registerFilter}
+          onRegisterLabelChange={setRegisterLabel}
+          trailing={
+            <RegisterReportDownload
+              dataStatus={data.status}
+              registerLabel={registerLabel}
+              workbook={(registerLabel) =>
+                shown
+                  ? handConfirmedPaymentsSpreadsheet(shown, filters.method, registerLabel, {
+                      cashiers: cashiersTable.getRowModel().rows.map((row) => row.original),
+                      payments: paymentsTable.getRowModel().rows.map((row) => row.original),
+                    })
+                  : null
+              }
+              fileName={shown ? reportFileName(SCREEN_TITLE, shown.range) : ""}
+            />
+          }
         />
         <ListFilter
           name="method"

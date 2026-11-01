@@ -7,6 +7,7 @@ import {
   formatStockQuantityLimit,
   parseStockQuantity,
   quantityFieldKind,
+  stockQuantityUnits,
 } from "./stock-quantity";
 
 test.each([
@@ -107,4 +108,10 @@ test.each([
 test("types kilos with three decimals and units with none", () => {
   expect(quantityFieldKind("KG")).toMatchObject({ decimals: 3 });
   expect(quantityFieldKind("UNIT")).not.toHaveProperty("decimals");
+});
+
+test("turns thousandths of a unit into units", () => {
+  expect(stockQuantityUnits(23_000)).toBe(23);
+  expect(stockQuantityUnits(-4000)).toBe(-4);
+  expect(stockQuantityUnits(250)).toBe(0.25);
 });

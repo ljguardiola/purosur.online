@@ -1,4 +1,4 @@
-import { type CashSessionClosesBody, cashSessionClosesSchema } from "@purosur/contracts";
+import type { CashSessionClosesBody } from "@purosur/contracts";
 import {
   Card,
   dataColumn,
@@ -11,9 +11,11 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { Calculator } from "lucide-react";
+import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { reportMoment } from "../platform/report-moment";
-import { schemaText } from "../platform/schema-text";
+import { RegisterReportDownload } from "../shell/report-download";
+import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import {
   type ReportFilters as ReportFiltersValue,
@@ -22,7 +24,10 @@ import {
 import type { ReportRegisterField } from "../shell/report-register-field";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
+import { CLOSED_TIME_ZONE } from "./cash-session-closes-closed-time-zone";
 import type { CashSessionClosesScreenServices } from "./cash-session-closes-services";
+import { cashSessionClosesSpreadsheet } from "./cash-session-closes-spreadsheet";
+import { cashiersWithDifferenceText, UNIDENTIFIED } from "./cash-session-closes-text";
 import { useCashSessionClosesQuery } from "./register-queries";
 
 export type CashSessionClosesScreenProps = {
@@ -37,11 +42,7 @@ type SessionRow = CashSessionClosesBody["sessions"][number];
 
 const NO_SESSIONS: SessionRow[] = [];
 
-const CLOSED_TIME_ZONE = schemaText(
-  cashSessionClosesSchema.shape.sessions.element.shape.closed_at.meta()?.["timeZone"],
-);
-
-const UNIDENTIFIED = "Sin identificar";
+const SCREEN_TITLE = "Cierres de sesión";
 
 function differenceCell(session: SessionRow) {
   if (!session.has_difference) {
@@ -103,16 +104,6 @@ const sessionColumns = [
   }),
 ] as const;
 
-function cashiersWithDifferenceText(totals: CashSessionClosesBody["totals"]): string | undefined {
-  return totals.cashiers.length === 0
-    ? undefined
-    : totals.cashiers
-        .map(
-          (cashier) => `${cashier.cashier_name ?? UNIDENTIFIED} ${formatNumber(cashier.sessions)}`,
-        )
-        .join(" · ");
-}
-
 export function CashSessionClosesScreen({
   filters,
   onFiltersChange,
@@ -120,6 +111,7 @@ export function CashSessionClosesScreen({
   registerFilter,
   services,
 }: CashSessionClosesScreenProps) {
+  const [registerLabel, setRegisterLabel] = useState<string>();
   const data = useCashSessionClosesQuery({
     query: reportQueryOf(filters),
     fetchCashSessionCloses: services.fetchCashSessionCloses,
@@ -134,7 +126,7 @@ export function CashSessionClosesScreen({
 
   return (
     <ScreenLayout
-      topBar={<ScreenTopBar eyebrow="Reportes · Caja" title="Cierres de sesión" />}
+      topBar={<ScreenTopBar eyebrow="Reportes · Caja" title={SCREEN_TITLE} />}
       bodyClassName="gap-4 p-6"
     >
       <ReportFilters
@@ -142,6 +134,23 @@ export function CashSessionClosesScreen({
         onFiltersChange={onFiltersChange}
         answeredPeriod={shown?.range}
         registerFilter={registerFilter}
+        onRegisterLabelChange={setRegisterLabel}
+        trailing={
+          <RegisterReportDownload
+            dataStatus={data.status}
+            registerLabel={registerLabel}
+            workbook={(registerLabel) =>
+              shown
+                ? cashSessionClosesSpreadsheet(
+                    shown,
+                    table.getRowModel().rows.map((row) => row.original),
+                    registerLabel,
+                  )
+                : null
+            }
+            fileName={shown ? reportFileName(SCREEN_TITLE, shown.range) : ""}
+          />
+        }
       />
       {data.status === "failed" ? null : (
         <div className="grid grid-cols-3 gap-4">
