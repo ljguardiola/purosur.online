@@ -1,5 +1,4 @@
 import {
-  createPackaging,
   createSupplier,
   type RegisterPurchaseInput,
   registerPurchase,
@@ -62,19 +61,6 @@ async function newSupplier(): Promise<string> {
   return outcome.supplier.id;
 }
 
-async function newPackaging(productId: string): Promise<string> {
-  const outcome = await createPackaging(store(), {
-    productId,
-    name: "Caja x 12",
-    quantityPerPackage: 12_000,
-    actorId,
-  });
-  if (outcome.kind !== "created") {
-    throw new Error(`test setup: creating the packaging ended as ${outcome.kind}`);
-  }
-  return outcome.packaging.id;
-}
-
 async function register(
   supplierId: string,
   lines: RegisterPurchaseInput["lines"],
@@ -106,14 +92,13 @@ describe("the purchases a purchasing store keeps", () => {
     const supplierId = await newSupplier();
     const yerba = await insertProduct(db, { name: "Yerba" });
     const harina = await insertProduct(db, { name: "Harina", saleUnit: "KG" });
-    const packagingId = await newPackaging(yerba.id);
 
     const purchase = await register(supplierId, [
       {
-        loadedBy: "packaging",
+        loadedBy: "packages",
         productId: yerba.id,
-        packagingId,
         packages: 2,
+        quantityPerPackage: 12_000,
         costPaidCents: 24_000,
         lotNumber: "L-77",
         expiresOn: "2027-03-01",
@@ -153,7 +138,7 @@ describe("the purchases a purchasing store keeps", () => {
       {
         position: 1,
         productId: yerba.id,
-        packagingId,
+        packagingId: null,
         packages: 2,
         quantity: 24_000,
         costPaidCents: 24_000,

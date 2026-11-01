@@ -26,33 +26,15 @@ function storeWithCatalog(): FakePurchasingStore {
   });
   store.seedProduct({ id: "product-a", name: "Yerba", saleUnit: "UNIT", active: true });
   store.seedProduct({ id: "product-b", name: "Harina", saleUnit: "KG", active: true });
-  store.seedPackaging({
-    id: "packaging-a",
-    productId: "product-a",
-    name: "Caja x 12",
-    quantityPerPackage: 12_000,
-    saleUnit: "UNIT",
-    active: true,
-    version: 1,
-  });
-  store.seedPackaging({
-    id: "packaging-b",
-    productId: "product-b",
-    name: "Bolsa x 25 kg",
-    quantityPerPackage: 25_000,
-    saleUnit: "KG",
-    active: true,
-    version: 1,
-  });
   return store;
 }
 
-function packagedLine(overrides: Partial<RegisterPurchaseLine> = {}): RegisterPurchaseLine {
+function packagesLine(overrides: Partial<RegisterPurchaseLine> = {}): RegisterPurchaseLine {
   return {
-    loadedBy: "packaging",
+    loadedBy: "packages",
     productId: "product-a",
-    packagingId: "packaging-a",
     packages: 2,
+    quantityPerPackage: 12_000,
     costPaidCents: 1_450_050,
     lotNumber: null,
     expiresOn: null,
@@ -79,7 +61,7 @@ function purchase(overrides: Partial<RegisterPurchaseInput> = {}): RegisterPurch
     receiptType: "factura_b",
     receiptNumber: "0001-00001234",
     note: "Entrega de la tarde",
-    lines: [packagedLine()],
+    lines: [packagesLine()],
     actorId: ACTOR,
     locationId: BRANCH,
     ...overrides,
@@ -87,7 +69,7 @@ function purchase(overrides: Partial<RegisterPurchaseInput> = {}): RegisterPurch
 }
 
 describe("registerPurchase", () => {
-  it("registers a line loaded by packaging with its quantity, its exact cost pair and its stock receipt", async () => {
+  it("registers a line loaded by packages with its quantity, its exact cost pair and its stock receipt", async () => {
     const store = storeWithCatalog();
 
     const outcome = await registerPurchase(
@@ -110,7 +92,7 @@ describe("registerPurchase", () => {
           {
             id: "purchase-line-2",
             productId: "product-a",
-            packagingId: "packaging-a",
+            packagingId: null,
             packages: 2,
             quantity: 24_000,
             costPaidCents: 1_450_050,
@@ -141,7 +123,7 @@ describe("registerPurchase", () => {
         purchaseId: "purchase-1",
         position: 1,
         productId: "product-a",
-        packagingId: "packaging-a",
+        packagingId: null,
         packages: 2,
         quantity: 24_000,
         costPaidCents: 1_450_050,
@@ -161,9 +143,9 @@ describe("registerPurchase", () => {
       purchase({
         lines: [
           quantityLine(),
-          packagedLine(),
-          packagedLine({ packages: 1 }),
-          packagedLine({ productId: "product-b", packagingId: "packaging-b" }),
+          packagesLine(),
+          packagesLine({ packages: 1 }),
+          packagesLine({ productId: "product-b", quantityPerPackage: 25_000 }),
         ],
       }),
     );
@@ -186,7 +168,7 @@ describe("registerPurchase", () => {
       { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
       purchase({
         lines: [
-          packagedLine(),
+          packagesLine(),
           quantityLine(),
           quantityLine({ productId: "product-a", quantity: 3_000 }),
         ],
@@ -232,19 +214,9 @@ describe("registerPurchase", () => {
 
   it("stores the exact cost pair without rounding it", async () => {
     const store = storeWithCatalog();
-    store.seedPackaging({
-      id: "packaging-c",
-      productId: "product-a",
-      name: "Pack x 3",
-      quantityPerPackage: 3_000,
-      saleUnit: "UNIT",
-      active: true,
-      version: 1,
-    });
-
     await registerPurchase(
       { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
-      purchase({ lines: [packagedLine({ packagingId: "packaging-c", costPaidCents: 10_001 })] }),
+      purchase({ lines: [packagesLine({ quantityPerPackage: 3_000, costPaidCents: 10_001 })] }),
     );
 
     const state = store.snapshot();
@@ -264,7 +236,7 @@ describe("registerPurchase", () => {
       purchase({
         purchasedOn: "2026-01-02",
         lines: [
-          packagedLine({ lotNumber: "L-17", expiresOn: "2027-01-31" }),
+          packagesLine({ lotNumber: "L-17", expiresOn: "2027-01-31" }),
           quantityLine({ lotNumber: null, expiresOn: null }),
         ],
       }),
@@ -305,7 +277,7 @@ describe("registerPurchase", () => {
 
     const outcome = await registerPurchase(
       { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
-      purchase({ purchasedOn: "2026-03-10", lines: [packagedLine({ expiresOn: "2020-01-01" })] }),
+      purchase({ purchasedOn: "2026-03-10", lines: [packagesLine({ expiresOn: "2020-01-01" })] }),
     );
 
     expect(outcome.kind).toBe("registered");
@@ -323,7 +295,7 @@ describe("registerPurchase", () => {
     expect(outcome.kind).toBe("registered");
   });
 
-  it("locks the supplier, then holds the products and locks the packagings, each in id order and once, and receives the stock last", async () => {
+  it("locks the supplier, then holds the products, each in id order and once, and receives the stock last", async () => {
     const store = storeWithCatalog();
 
     await registerPurchase(
@@ -331,9 +303,9 @@ describe("registerPurchase", () => {
       purchase({
         lines: [
           quantityLine(),
-          packagedLine({ productId: "product-b", packagingId: "packaging-b" }),
-          packagedLine(),
-          packagedLine({ packages: 1 }),
+          packagesLine({ productId: "product-b", quantityPerPackage: 25_000 }),
+          packagesLine(),
+          packagesLine({ packages: 1 }),
         ],
       }),
     );
@@ -342,8 +314,6 @@ describe("registerPurchase", () => {
       "supplier:supplier-a",
       "product:product-a",
       "product:product-b",
-      "packaging:packaging-a",
-      "packaging:packaging-b",
       "stock receipt",
     ]);
   });
@@ -417,7 +387,7 @@ describe("registerPurchase", () => {
 
       const outcome = await registerPurchase(
         { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
-        purchase({ lines: [packagedLine(), quantityLine({ productId: "missing" })] }),
+        purchase({ lines: [packagesLine(), quantityLine({ productId: "missing" })] }),
       );
 
       expect(outcome).toEqual({ kind: "product_not_found", lineIndex: 1 });
@@ -429,7 +399,7 @@ describe("registerPurchase", () => {
       const outcome = await registerPurchase(
         { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
         purchase({
-          lines: [packagedLine(), packagedLine(), quantityLine({ productId: "product-old" })],
+          lines: [packagesLine(), packagesLine(), quantityLine({ productId: "product-old" })],
         }),
       );
 
@@ -443,7 +413,7 @@ describe("registerPurchase", () => {
         { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
         purchase({
           lines: [
-            packagedLine(),
+            packagesLine(),
             quantityLine({ productId: "zzz" }),
             quantityLine({ productId: "aaa" }),
           ],
@@ -451,68 +421,6 @@ describe("registerPurchase", () => {
       );
 
       expect(outcome).toEqual({ kind: "product_not_found", lineIndex: 1 });
-    });
-
-    it("refuses a missing packaging, naming its line", async () => {
-      const store = storeWithCatalog();
-
-      const outcome = await registerPurchase(
-        { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
-        purchase({ lines: [quantityLine(), packagedLine({ packagingId: "missing" })] }),
-      );
-
-      expect(outcome).toEqual({ kind: "packaging_not_found", lineIndex: 1 });
-    });
-
-    it("refuses a packaging of another product", async () => {
-      const store = storeWithCatalog();
-
-      const outcome = await registerPurchase(
-        { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
-        purchase({ lines: [packagedLine({ packagingId: "packaging-b" })] }),
-      );
-
-      expect(outcome).toEqual({ kind: "packaging_not_found", lineIndex: 0 });
-    });
-
-    it("refuses a deactivated packaging", async () => {
-      const store = storeWithCatalog();
-      store.seedPackaging({
-        id: "packaging-old",
-        productId: "product-a",
-        name: "Vieja",
-        quantityPerPackage: 6_000,
-        saleUnit: "UNIT",
-        active: false,
-        version: 2,
-      });
-
-      const outcome = await registerPurchase(
-        { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
-        purchase({ lines: [packagedLine({ packagingId: "packaging-old" })] }),
-      );
-
-      expect(outcome).toEqual({ kind: "packaging_inactive", lineIndex: 0 });
-    });
-
-    it("refuses a packaging stated in a sale unit the product no longer has", async () => {
-      const store = storeWithCatalog();
-      store.seedPackaging({
-        id: "packaging-stale",
-        productId: "product-a",
-        name: "Por kilo",
-        quantityPerPackage: 5_000,
-        saleUnit: "KG",
-        active: true,
-        version: 1,
-      });
-
-      const outcome = await registerPurchase(
-        { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
-        purchase({ lines: [packagedLine({ packagingId: "packaging-stale" })] }),
-      );
-
-      expect(outcome).toEqual({ kind: "packaging_sale_unit_changed", lineIndex: 0 });
     });
 
     it.each([
@@ -526,7 +434,7 @@ describe("registerPurchase", () => {
 
       const outcome = await registerPurchase(
         { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
-        purchase({ lines: [packagedLine(), quantityLine({ productId, quantity })] }),
+        purchase({ lines: [packagesLine(), quantityLine({ productId, quantity })] }),
       );
 
       expect(outcome).toEqual({ kind: "invalid_quantity", lineIndex: 1 });
@@ -548,12 +456,47 @@ describe("registerPurchase", () => {
       expect(outcome.kind).toBe("registered");
     });
 
+    it.each([
+      ["a fractional unit", "product-a", 1_500],
+      ["zero", "product-b", 0],
+      ["a negative quantity", "product-b", -1_000],
+      ["a fraction of a thousandth", "product-b", 1.5],
+      ["more than a movement may hold", "product-b", MAX_STOCK_QUANTITY + 1],
+    ])("refuses packages holding %s each", async (_name, productId, quantityPerPackage) => {
+      const store = storeWithCatalog();
+
+      const outcome = await registerPurchase(
+        { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
+        purchase({
+          lines: [quantityLine(), packagesLine({ productId, packages: 1, quantityPerPackage })],
+        }),
+      );
+
+      expect(outcome).toEqual({ kind: "invalid_quantity", lineIndex: 1 });
+    });
+
+    it("registers packages of a product sold by the kilo holding a fraction of a kilo each", async () => {
+      const store = storeWithCatalog();
+
+      const outcome = await registerPurchase(
+        { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
+        purchase({
+          lines: [packagesLine({ productId: "product-b", packages: 4, quantityPerPackage: 500 })],
+        }),
+      );
+
+      expect(outcome).toMatchObject({
+        kind: "registered",
+        purchase: { lines: [{ packages: 4, quantity: 2_000, quantityPerPackage: 500 }] },
+      });
+    });
+
     it("refuses packages whose quantity is more than a movement may hold", async () => {
       const store = storeWithCatalog();
 
       const outcome = await registerPurchase(
         { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
-        purchase({ lines: [packagedLine({ packages: 200_000 })] }),
+        purchase({ lines: [packagesLine({ packages: 200_000 })] }),
       );
 
       expect(outcome).toEqual({ kind: "invalid_quantity", lineIndex: 0 });
@@ -575,7 +518,7 @@ describe("registerPurchase", () => {
 
       await registerPurchase(
         { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
-        purchase({ lines: [packagedLine(), quantityLine({ quantity: 0 })] }),
+        purchase({ lines: [packagesLine(), quantityLine({ quantity: 0 })] }),
       );
 
       const state = store.snapshot();
@@ -585,21 +528,17 @@ describe("registerPurchase", () => {
       expect(state.priceReviewPostponements).toEqual([]);
     });
 
-    it("keeps its checks in order: product, then packaging, then quantity", async () => {
+    it("keeps its checks in order: product, then quantity", async () => {
       const store = storeWithCatalog();
 
       const outcome = await registerPurchase(
         { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
         purchase({
-          lines: [
-            quantityLine({ quantity: 0 }),
-            packagedLine({ packagingId: "missing" }),
-            quantityLine({ productId: "missing" }),
-          ],
+          lines: [quantityLine({ quantity: 0 }), quantityLine({ productId: "missing" })],
         }),
       );
 
-      expect(outcome).toEqual({ kind: "product_not_found", lineIndex: 2 });
+      expect(outcome).toEqual({ kind: "product_not_found", lineIndex: 1 });
     });
   });
 
@@ -612,7 +551,7 @@ describe("registerPurchase", () => {
     const store = storeWithCatalog();
     const before = store.snapshot();
     store.failWriteAtCall(operation, call);
-    const twoLines = purchase({ lines: [packagedLine(), quantityLine()] });
+    const twoLines = purchase({ lines: [packagesLine(), quantityLine()] });
 
     await expect(
       registerPurchase({ zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK }, twoLines),
