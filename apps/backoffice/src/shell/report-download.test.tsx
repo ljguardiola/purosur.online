@@ -1,11 +1,11 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { afterEach, expect, test, vi } from "vitest";
+import { afterEach, expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { writeWorkbook } from "../platform/spreadsheet/spreadsheet-writer";
 import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
 import type { Workbook } from "../platform/spreadsheet/workbook";
-import { RegisterReportDownload } from "./report-download";
+import { RegisterReportDownload, type RegisterReportDownloadProps } from "./report-download";
 import { render } from "./test-support/render-with-router";
 import { renderDownload, workbook } from "./test-support/report-download";
 import { spyOnDownloads } from "./test-support/spy-on-downloads";
@@ -93,6 +93,10 @@ test("waits for the name of the register before the download of a report filtere
   const screen = await renderRegisterDownload(undefined, () => workbook);
 
   await expect.element(screen.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
+});
+
+test("takes no spreadsheet writer for a report filtered by register", () => {
+  expectTypeOf<"writeSpreadsheet">().not.toExtend<keyof RegisterReportDownloadProps>();
 });
 
 test("builds the workbook of a report filtered by register with the register's name", async () => {
