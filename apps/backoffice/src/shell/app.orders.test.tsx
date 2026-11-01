@@ -57,10 +57,6 @@ function ordersServices(capabilities: Capability[]) {
     kind: "ok",
     value: ORDER_SUGGESTION,
   });
-  vi.mocked(services.orderSuggestionScreen.fetchSuppliers).mockResolvedValue({
-    kind: "ok",
-    value: [],
-  });
   return services;
 }
 

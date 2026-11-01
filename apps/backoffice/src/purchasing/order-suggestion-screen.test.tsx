@@ -1,5 +1,4 @@
 import type { OrderSuggestion } from "@purosur/contracts";
-import { ANOTHER_FICTIONAL_CUIT, FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
@@ -9,9 +8,7 @@ import { type OrderSuggestionFilters, orderSuggestionFilters } from "./order-sug
 import { OrderSuggestionScreen } from "./order-suggestion-screen";
 import type { OrderSuggestionScreenServices } from "./order-suggestion-services";
 import { ORDER_SUGGESTION } from "./test-support/order-suggestion";
-import { suppliersWithCuits } from "./test-support/suppliers";
 
-const { andina, granos, cerealera } = suppliersWithCuits(FICTIONAL_CUIT, ANOTHER_FICTIONAL_CUIT);
 const [almonds, cookies] = ORDER_SUGGESTION.lines as [
   OrderSuggestion["lines"][number],
   OrderSuggestion["lines"][number],
@@ -29,7 +26,6 @@ function createServices(
 ): OrderSuggestionScreenServices {
   return {
     fetchOrderSuggestion: vi.fn(),
-    fetchSuppliers: vi.fn().mockResolvedValue({ kind: "ok", value: [andina, granos, cerealera] }),
     ...overrides,
   };
 }
@@ -115,6 +111,7 @@ test("shows a row for each product, with its description and category, sold, sto
 
 test("describes the product with its brand name and net content", async () => {
   const screen = await loaded(createServices(), {
+    ...ORDER_SUGGESTION,
     lines: [
       {
         ...almonds,
@@ -141,6 +138,9 @@ test("proposes the cheapest supplier with its packages, quantity, price per unit
   await expect.element(row.getByText("50 kg", { exact: true })).toBeVisible();
   await expect.element(row.getByText("$ 10.180,00 / kg", { exact: true })).toBeVisible();
   await expect.element(row.getByText("20/10/2026", { exact: true })).toBeVisible();
+  await expect
+    .element(screen.getByRole("columnheader", { name: "Por unidad de venta" }))
+    .toBeVisible();
 });
 
 test("writes a product sold by the unit with no unit in its price", async () => {
@@ -163,7 +163,7 @@ test("offers every priced supplier with its price per unit and list date, the ch
   expect(options).toEqual([
     "Frutos Secos Mendoza · $ 10.180,00 / kg · 20/10/2026El más barato",
     "Distribuidora del Sur · $ 10.640,00 / kg · 02/09/2026",
-    "Dejar fuera del pedido",
+    "Ninguno, fuera del pedido",
   ]);
 });
 
@@ -198,7 +198,7 @@ test("leaves a line out of the order, showing it as left out", async () => {
   const screen = await loaded(createServices());
 
   await userEvent.click(supplierSelect(screen, "Almendras peladas"));
-  await userEvent.click(screen.getByRole("option", { name: "Dejar fuera del pedido" }));
+  await userEvent.click(screen.getByRole("option", { name: "Ninguno, fuera del pedido" }));
 
   const row = screen.getByRole("row", { name: /Almendras peladas/ });
   await expect.element(row.getByText("Fuera del pedido", { exact: true })).toBeVisible();
@@ -209,7 +209,7 @@ test("leaves a line out of the order, showing it as left out", async () => {
 test("puts a line back in the order by choosing a supplier again", async () => {
   const screen = await loaded(createServices());
   await userEvent.click(supplierSelect(screen, "Almendras peladas"));
-  await userEvent.click(screen.getByRole("option", { name: "Dejar fuera del pedido" }));
+  await userEvent.click(screen.getByRole("option", { name: "Ninguno, fuera del pedido" }));
 
   await userEvent.click(supplierSelect(screen, "Almendras peladas"));
   await userEvent.click(screen.getByRole("option", { name: /Frutos Secos Mendoza/ }));
@@ -231,7 +231,7 @@ test("shows a product without a price as having no proposed supplier, with the q
     .toContain("Elegir proveedor");
 });
 
-test("offers the active suppliers and leaving out to a product without a price", async () => {
+test("offers the suppliers the cloud answers, by name, and leaving out to a product without a price", async () => {
   const screen = await loaded(createServices());
 
   await userEvent.click(supplierSelect(screen, "Galletas de avena integrales"));
@@ -240,7 +240,11 @@ test("offers the active suppliers and leaving out to a product without a price",
     .getByRole("option")
     .elements()
     .map((option) => option.textContent);
-  expect(options).toEqual(["Distribuidora Andina", "Granos del Valle", "Dejar fuera del pedido"]);
+  expect(options).toEqual([
+    "Distribuidora Andina",
+    "Granos del Valle",
+    "Ninguno, fuera del pedido",
+  ]);
 });
 
 test("keeps showing the quantity needed when a supplier is picked for a product without a price", async () => {
@@ -260,7 +264,7 @@ test("leaves a product without a price out of the order", async () => {
   const screen = await loaded(createServices());
 
   await userEvent.click(supplierSelect(screen, "Galletas de avena integrales"));
-  await userEvent.click(screen.getByRole("option", { name: "Dejar fuera del pedido" }));
+  await userEvent.click(screen.getByRole("option", { name: "Ninguno, fuera del pedido" }));
 
   await expect
     .element(
@@ -271,26 +275,43 @@ test("leaves a product without a price out of the order", async () => {
     .toBeVisible();
 });
 
-test("offers only leaving out to a product without a price while the suppliers are not read", async () => {
-  const screen = await loaded(
-    createServices({ fetchSuppliers: vi.fn().mockResolvedValue({ kind: "failed" }) }),
-  );
+const cookiesWithUnpricedOffer: OrderSuggestion = {
+  ...ORDER_SUGGESTION,
+  lines: [
+    {
+      ...cookies,
+      unpricedOffers: [
+        {
+          supplier: { id: "5a900000-0000-4000-8000-000000000005", name: "Granos del Valle" },
+          packageQuantity: 12_000,
+          saleUnit: "UNIT",
+          priceCents: 1_200_000,
+          listDate: "2026-09-15",
+          reason: "vat_rate_missing",
+          order: { packages: 3, quantity: 36_000 },
+        },
+      ],
+    },
+  ],
+};
+
+test("shows the packages the cloud states when a supplier whose offer has no price is picked", async () => {
+  const screen = await loaded(createServices(), cookiesWithUnpricedOffer);
 
   await userEvent.click(supplierSelect(screen, "Galletas de avena integrales"));
+  await userEvent.click(screen.getByRole("option", { name: "Granos del Valle" }));
 
-  expect(
-    screen
-      .getByRole("option")
-      .elements()
-      .map((option) => option.textContent),
-  ).toEqual(["Dejar fuera del pedido"]);
+  const row = screen.getByRole("row", { name: /Galletas de avena integrales/ });
+  await expect.element(row.getByText("3 × 12 u")).toBeVisible();
+  await expect.element(row.getByText("36 u", { exact: true })).toBeVisible();
 });
 
-test("does not read the suppliers when every product has a price", async () => {
-  const services = createServices();
-  await loaded(services, { lines: [almonds] });
+test("lists the offer without a price of a product with no priced offer, not saying it has none", async () => {
+  const screen = await loaded(createServices(), cookiesWithUnpricedOffer);
 
-  expect(services.fetchSuppliers).not.toHaveBeenCalled();
+  const row = screen.getByRole("row", { name: /Galletas de avena integrales/ });
+  await expect.element(row.getByText("Falta el IVA del ítem")).toBeVisible();
+  expect(row.getByText("Sin precio en ninguna lista cargada").query()).toBeNull();
 });
 
 test.each([
@@ -298,17 +319,19 @@ test.each([
   ["through a link that has to be made again", "link_outdated", "Hay que volver a vincularlo"],
 ] as const)("lists an offer %s as not selectable, with its reason", async (_name, reason, text) => {
   const screen = await loaded(createServices(), {
+    ...ORDER_SUGGESTION,
     lines: [
       {
         ...almonds,
         unpricedOffers: [
           {
             supplier: { id: "5a900000-0000-4000-8000-000000000009", name: "Mayorista Norte" },
-            quantity: 10_000,
+            packageQuantity: 10_000,
             saleUnit: "KG",
             priceCents: 9_900_000,
             listDate: "2026-08-15",
             reason,
+            order: null,
           },
         ],
       },
@@ -334,7 +357,7 @@ test("counts the products shown", async () => {
 });
 
 test("counts a single product in the singular", async () => {
-  const screen = await loaded(createServices(), { lines: [cookies] });
+  const screen = await loaded(createServices(), { ...ORDER_SUGGESTION, lines: [cookies] });
 
   await expect.element(screen.getByText("1 producto", { exact: true })).toBeVisible();
 });
@@ -368,7 +391,7 @@ test("says nothing matches when the search hides every product", async () => {
 });
 
 test("says no product needs ordering when the suggestion is empty", async () => {
-  const screen = await loaded(createServices(), { lines: [] });
+  const screen = await loaded(createServices(), { ...ORDER_SUGGESTION, lines: [] });
 
   await expect.element(screen.getByText("Ningún producto necesita pedirse")).toBeVisible();
 });

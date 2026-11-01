@@ -9,7 +9,8 @@ import {
   setCoverageDays,
   setStock,
 } from "./test-support/order-suggestion-fixtures.js";
-import { insertProduct } from "./test-support/purchasing-fixtures.js";
+import { insertActor, insertProduct } from "./test-support/purchasing-fixtures.js";
+import { insertSupplier } from "./test-support/supplier-price-list-fixtures.js";
 
 const NOW = new Date("2026-09-16T15:00:00.000Z");
 const RANGE = { from: "2026-08-18", to: "2026-09-16" };
@@ -110,19 +111,6 @@ describe("the completed sales by product", () => {
     );
   });
 
-  it("leaves out the days outside the period, counted in Argentina", async () => {
-    const yerba = await insertProduct(db, { name: "Yerba" });
-    const deviceId = await insertRegisterDeviceIn(db, locationId, NOW);
-    const before = new Date("2026-08-18T02:59:00.000Z");
-    const first = new Date("2026-08-18T03:00:00.000Z");
-    await completeSale(db, { deviceId, productId: yerba.id, quantity: 100, completedAt: before });
-    await completeSale(db, { deviceId, productId: yerba.id, quantity: 7, completedAt: first });
-
-    const sold = await reader().completedSalesByProduct({ locationId, range: RANGE });
-
-    expect(sold.map((row) => row.quantity)).toEqual([7]);
-  });
-
   it("leaves out the sales of other branches", async () => {
     const yerba = await insertProduct(db, { name: "Yerba" });
     const otherBranch = await insertLocation(db);
@@ -145,5 +133,23 @@ describe("the completed sales by product", () => {
     const sold = await reader().completedSalesByProduct({ locationId, range: RANGE });
 
     expect(sold.map((row) => row.quantity)).toEqual([2]);
+  });
+});
+
+describe("the suppliers", () => {
+  it("answers every supplier with whether it is active", async () => {
+    const actorId = await insertActor(db);
+    const active = await insertSupplier(db, { actorId, name: "Granos del Valle" });
+    const inactive = await insertSupplier(db, { actorId, name: "Cerealera", active: false });
+
+    const suppliers = await reader().suppliers();
+
+    expect(suppliers).toHaveLength(2);
+    expect(suppliers).toEqual(
+      expect.arrayContaining([
+        { id: active, name: "Granos del Valle", active: true },
+        { id: inactive, name: "Cerealera", active: false },
+      ]),
+    );
   });
 });

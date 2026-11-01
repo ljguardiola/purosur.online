@@ -35,12 +35,17 @@ function offer(
     listDate: string;
     pricesIncludeVat: boolean;
     vatRate: number | null;
+    relinkRequired: boolean;
   }> = {},
 ) {
   return {
     productId: fields.productId ?? "yerba",
     supplier: { id: fields.supplierId ?? "a", name: `Proveedor ${fields.supplierId ?? "a"}` },
-    link: { quantity: fields.quantity ?? 12_000, saleUnit: "UNIT" as const, relinkRequired: false },
+    link: {
+      quantity: fields.quantity ?? 12_000,
+      saleUnit: "UNIT" as const,
+      relinkRequired: fields.relinkRequired ?? false,
+    },
     priceCents: fields.priceCents ?? 12_000,
     pricesIncludeVat: fields.pricesIncludeVat ?? true,
     vatRate: fields.vatRate ?? null,
@@ -70,8 +75,10 @@ function readerWith(fields: {
   sold?: SoldLinesOfGroup[];
   stock?: { productId: string; quantity: number }[];
   coverage?: { productId: string; coverageDays: number }[];
+  suppliers?: { id: string; name: string; active: boolean }[];
 }) {
   const reader = new FakeOrderSuggestionReader(fields.products ?? [YERBA], fields.offers ?? []);
+  reader.supplierList = fields.suppliers ?? [];
   reader.sold = fields.sold ?? [];
   reader.stock = fields.stock ?? [];
   reader.coverage = fields.coverage ?? [
@@ -112,7 +119,7 @@ describe("listOrderSuggestion", () => {
       stock: [{ productId: "yerba", quantity: 12_000 }],
     });
 
-    const lines = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
+    const { lines } = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
 
     expect(lines).toEqual([
       {
@@ -154,7 +161,9 @@ describe("listOrderSuggestion", () => {
       stock: [{ productId: "yerba", quantity: 12_000 }],
     });
 
-    const [line] = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
+    const {
+      lines: [line],
+    } = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
 
     expect(
       line?.offers.map(({ supplier, cheapest, packages, quantity, listDate }) => ({
@@ -176,11 +185,63 @@ describe("listOrderSuggestion", () => {
       sold: [soldOf("yerba", 31)],
     });
 
-    const [line] = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
+    const {
+      lines: [line],
+    } = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
 
     expect(line?.offers).toEqual([]);
     expect(line?.unpricedOffers.map((entry) => entry.reason)).toEqual(["vat_rate_missing"]);
     expect(line?.neededQuantity).toBe(16_000);
+  });
+
+  it("answers the packages an offer missing its VAT rate covers, as its link states them", async () => {
+    const reader = readerWith({
+      offers: [offer({ quantity: 12_000, pricesIncludeVat: false, vatRate: null })],
+      sold: [soldOf("yerba", 120)],
+      stock: [{ productId: "yerba", quantity: 12_000 }],
+    });
+
+    const {
+      lines: [line],
+    } = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
+
+    expect(line?.unpricedOffers).toEqual([
+      {
+        supplier: { id: "a", name: "Proveedor a" },
+        packageQuantity: 12_000,
+        saleUnit: "UNIT",
+        priceCents: 12_000,
+        listDate: "2026-10-01",
+        reason: "vat_rate_missing",
+        order: { packages: 4, quantity: 48_000 },
+      },
+    ]);
+  });
+
+  it("answers no packages for an offer whose link has to be made again", async () => {
+    const reader = readerWith({
+      offers: [offer({ relinkRequired: true })],
+      sold: [soldOf("yerba", 120)],
+    });
+
+    const {
+      lines: [line],
+    } = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
+
+    expect(line?.unpricedOffers).toMatchObject([{ reason: "link_outdated", order: null }]);
+  });
+
+  it("offers only the suppliers that may be purchased from", async () => {
+    const reader = readerWith({
+      suppliers: [
+        { id: "a", name: "Proveedor a", active: true },
+        { id: "b", name: "Proveedor b", active: false },
+      ],
+    });
+
+    const { suppliers } = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
+
+    expect(suppliers).toEqual([{ id: "a", name: "Proveedor a" }]);
   });
 
   it("counts the thousandths sold of a product sold by weight", async () => {
@@ -190,7 +251,9 @@ describe("listOrderSuggestion", () => {
       stock: [{ productId: "queso", quantity: 500 }],
     });
 
-    const [line] = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
+    const {
+      lines: [line],
+    } = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
 
     expect(line).toMatchObject({ soldQuantity: 3_000, stock: 500, neededQuantity: 1_000 });
   });
@@ -198,7 +261,9 @@ describe("listOrderSuggestion", () => {
   it("adds up the sales of a product reported more than once", async () => {
     const reader = readerWith({ sold: [soldOf("yerba", 30), soldOf("yerba", 30)] });
 
-    const [line] = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
+    const {
+      lines: [line],
+    } = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
 
     expect(line?.soldQuantity).toBe(60_000);
   });
@@ -206,7 +271,9 @@ describe("listOrderSuggestion", () => {
   it("treats a product with no stock balance as having none", async () => {
     const reader = readerWith({ sold: [soldOf("yerba", 30)] });
 
-    const [line] = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
+    const {
+      lines: [line],
+    } = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
 
     expect(line).toMatchObject({ stock: 0, neededQuantity: 15_000 });
   });
@@ -214,7 +281,19 @@ describe("listOrderSuggestion", () => {
   it("suggests nothing for a product with no sales in the period", async () => {
     const reader = readerWith({ stock: [{ productId: "yerba", quantity: 0 }] });
 
-    expect(await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH })).toEqual([]);
+    expect((await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH })).lines).toEqual(
+      [],
+    );
+  });
+
+  it("counts a product with no sales in the period as sold none, still covering a negative stock", async () => {
+    const reader = readerWith({ stock: [{ productId: "yerba", quantity: -5_000 }] });
+
+    const { lines } = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
+
+    expect(lines).toMatchObject([
+      { id: "yerba", soldQuantity: 0, stock: -5_000, neededQuantity: 5_000 },
+    ]);
   });
 
   it("suggests nothing for a product whose stock already covers its coverage days", async () => {
@@ -223,7 +302,9 @@ describe("listOrderSuggestion", () => {
       stock: [{ productId: "yerba", quantity: 60_000 }],
     });
 
-    expect(await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH })).toEqual([]);
+    expect((await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH })).lines).toEqual(
+      [],
+    );
   });
 
   it("uses each product's own coverage days", async () => {
@@ -236,7 +317,7 @@ describe("listOrderSuggestion", () => {
       ],
     });
 
-    const lines = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
+    const { lines } = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
 
     expect(lines.map((line) => [line.id, line.coverageDays, line.neededQuantity])).toEqual([
       ["queso", 10, 10_000],
@@ -247,7 +328,9 @@ describe("listOrderSuggestion", () => {
   it("suggests nothing for a product whose coverage days are unknown", async () => {
     const reader = readerWith({ sold: [soldOf("yerba", 30)], coverage: [] });
 
-    expect(await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH })).toEqual([]);
+    expect((await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH })).lines).toEqual(
+      [],
+    );
   });
 
   it("ignores sales of something that is no longer a product or is not compared", async () => {
@@ -255,7 +338,9 @@ describe("listOrderSuggestion", () => {
       sold: [soldOf(null, 30), soldOf("retirado", 99)],
     });
 
-    expect(await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH })).toEqual([]);
+    expect((await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH })).lines).toEqual(
+      [],
+    );
   });
 
   it("sorts the lines by name like the comparison", async () => {
@@ -264,7 +349,7 @@ describe("listOrderSuggestion", () => {
       sold: [soldOf("yerba", 30), soldOf("queso", 30)],
     });
 
-    const lines = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
+    const { lines } = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
 
     expect(lines.map((line) => line.name)).toEqual(["Queso", "Yerba"]);
   });

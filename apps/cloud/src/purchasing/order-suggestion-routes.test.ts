@@ -163,6 +163,17 @@ describe("GET /order-suggestion", () => {
     ]);
   });
 
+  it("answers the suppliers a product without a priced offer may be ordered from", async () => {
+    const { headers } = await signedInWith(db, ["compare_prices_and_suggest_orders"], NOW);
+    const actorId = await insertActor(db);
+    const supplierId = await insertSupplier(db, { actorId, name: "Granos del Valle" });
+    await insertSupplier(db, { actorId, name: "Cerealera", active: false });
+
+    expect((await get(headers)).json().suppliers).toEqual([
+      { id: supplierId, name: "Granos del Valle" },
+    ]);
+  });
+
   it("answers nothing for a product whose stock covers its coverage days", async () => {
     const { headers, locationId } = await signedInWith(
       db,
@@ -174,7 +185,7 @@ describe("GET /order-suggestion", () => {
     await completeSale(db, { deviceId, productId, quantity: 30, completedAt: SOLD_AT });
     await setStock(db, { productId, locationId, quantity: 15_000 });
 
-    expect((await get(headers)).json()).toEqual({ lines: [] });
+    expect((await get(headers)).json().lines).toEqual([]);
   });
 
   it("counts only the sales and the stock of the session's branch", async () => {

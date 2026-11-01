@@ -1,6 +1,10 @@
 import type { OrderSuggestion } from "@purosur/contracts";
 
 export const ORDER_SUGGESTION: OrderSuggestion = {
+  suppliers: [
+    { id: "5a900000-0000-4000-8000-000000000005", name: "Granos del Valle" },
+    { id: "5a900000-0000-4000-8000-000000000004", name: "Distribuidora Andina" },
+  ],
   lines: [
     {
       id: "90d00000-0000-4000-8000-000000000041",

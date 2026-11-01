@@ -231,7 +231,6 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     },
     orderSuggestionScreen: {
       fetchOrderSuggestion: vi.fn().mockReturnValue(new Promise(() => {})),
-      fetchSuppliers: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     newPurchaseScreen: {
       fetchPurchaseChoices: vi.fn().mockReturnValue(new Promise(() => {})),

@@ -2,6 +2,7 @@ import type { SoldLinesOfGroup } from "../../../sales/index.js";
 import type {
   OrderSuggestionReader,
   OrderSuggestionSalesQuery,
+  OrderSuggestionSupplier,
   ProductCoverageDays,
   ProductStock,
 } from "../order-suggestion-reader.js";
@@ -15,6 +16,7 @@ export class FakeOrderSuggestionReader
   coverage: ProductCoverageDays[] = [];
   sold: SoldLinesOfGroup[] = [];
   stock: ProductStock[] = [];
+  supplierList: OrderSuggestionSupplier[] = [];
   readonly salesQueries: OrderSuggestionSalesQuery[] = [];
   readonly stockQueries: string[] = [];
 
@@ -34,5 +36,9 @@ export class FakeOrderSuggestionReader
   async currentStock(locationId: string): Promise<ProductStock[]> {
     this.stockQueries.push(locationId);
     return [...this.stock];
+  }
+
+  async suppliers(): Promise<OrderSuggestionSupplier[]> {
+    return [...this.supplierList];
   }
 }
