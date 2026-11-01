@@ -18,6 +18,7 @@ import { reportsAreaRoute } from "../shell/reports-area";
 import { refuseWithout } from "../shell/signed-in-route";
 import { stockAreaRoute } from "../shell/stock-area";
 import { aiCostReportFilters } from "./ai-cost-report-filters";
+import { orderSuggestionFilters } from "./order-suggestion-filters";
 import { supplierPriceComparisonFilters } from "./supplier-price-comparison-filters";
 import {
   supplierPriceListReviewFilters,
@@ -119,6 +120,15 @@ export const supplierPriceComparisonRoute = createRoute({
     () => import("./supplier-price-comparison-page"),
     "SupplierPriceComparisonPage",
   ),
+});
+
+export const orderSuggestionRoute = createRoute({
+  getParentRoute: () => ordersAreaRoute,
+  path: "order-suggestion",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canComparePrices),
+  validateSearch: orderSuggestionFilters,
+  search: { middlewares: [stripSearchParams(orderSuggestionFilters.parse({}))] },
+  component: lazyScreen(() => import("./order-suggestion-page"), "OrderSuggestionPage"),
 });
 
 export const freightReportRoute = createRoute({
