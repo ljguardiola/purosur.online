@@ -48,8 +48,6 @@ import { usePreviewReturnQuery } from "./returns-queries";
 const COMPLETE_FAILED = "No se pudo completar la devolución. Probá de nuevo.";
 const SALE_GONE = "Esa venta ya no se puede devolver.";
 const NOT_PERMITTED = "No tenés permiso para hacer devoluciones.";
-const NOTHING_TO_REFUND_TEXT =
-  "Los productos se cambian por otros iguales: no hay nada que reintegrar.";
 
 export type ReturnBuildStepProps = {
   sale: SaleForReturn;
@@ -325,9 +323,7 @@ export function ReturnBuildStep({
           variant="divided"
           rows={[{ label: "Líneas a devolver", value: String(lines.length) }]}
         />
-        {nothingToRefund ? (
-          <p className="text-detail text-text-subtle">{NOTHING_TO_REFUND_TEXT}</p>
-        ) : (
+        {nothingToRefund ? null : (
           <>
             <Eyebrow text="SE DEVUELVE POR EL MEDIO DEL PAGO" />
             <form.AppField name="refunds">

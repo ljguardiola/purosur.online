@@ -135,14 +135,10 @@ export function ReturnLinesTable({
       header: "Se resuelve con",
       render: (line: SaleLineForReturn) => {
         const drafted = draft[line.id];
-        if (drafted === undefined) {
+        if (drafted === undefined || drafted.reason === null) {
           return null;
         }
-        const offered =
-          drafted.reason === null
-            ? (["refund"] as const)
-            : sale.offered_resolutions[drafted.reason];
-        const [first, ...rest] = offered.map((value) => ({
+        const [first, ...rest] = sale.offered_resolutions[drafted.reason].map((value) => ({
           value,
           label: RESOLUTION_LABELS[value],
         }));
