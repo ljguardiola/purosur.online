@@ -74,6 +74,10 @@ const saleForReturnSchema = z.object({
     .object({ point_of_sale: pointOfSaleNumberSchema, number: z.int().positive() })
     .nullable(),
   windows: z.object({ change_of_mind: returnWindowSchema, defective: returnWindowSchema }),
+  offered_resolutions: z.object({
+    change_of_mind: z.array(returnResolutionSchema),
+    defective: z.array(returnResolutionSchema),
+  }),
   lines: z.array(
     z.object({
       id: z.string(),

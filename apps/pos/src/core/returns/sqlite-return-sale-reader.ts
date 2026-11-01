@@ -9,6 +9,7 @@ import type { ReturnSaleReader, SaleReturnSearch } from "@purosur/domain/returns
 import { readRecordedPayments } from "../payments/sqlite-sale-payments";
 import type { LocalDatabase } from "../platform/local-database";
 import { readSale } from "../sales/sqlite-open-sale";
+import { COUNTED_RETURN_RESOLUTIONS_SQL } from "./counted-return-resolutions";
 import { SqliteOwnReturnsOfSale } from "./sqlite-own-returns-of-sale";
 import { readRetainedBranchSale } from "./sqlite-retained-branch-sales";
 
@@ -98,7 +99,7 @@ function returnedFromLines(database: LocalDatabase, saleId: string): ReturnedFro
        FROM return_lines
        JOIN returns ON returns.id = return_lines.return_id
        JOIN sale_lines ON sale_lines.id = return_lines.sale_line_id
-       WHERE returns.sale_id = ?
+       WHERE returns.sale_id = ? AND return_lines.resolution IN (${COUNTED_RETURN_RESOLUTIONS_SQL})
        GROUP BY return_lines.sale_line_id
        ORDER BY sale_lines.position`,
     )

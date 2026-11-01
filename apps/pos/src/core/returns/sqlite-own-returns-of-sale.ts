@@ -1,3 +1,4 @@
+import type { ReturnResolution } from "@purosur/domain";
 import type { OwnReturnsOfSale } from "@purosur/domain/returns/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 
@@ -12,6 +13,7 @@ interface LineRow {
   sale_line_id: string;
   quantity: number;
   refunded_amount: number;
+  resolution: ReturnResolution;
 }
 
 interface RefundRow {
@@ -36,7 +38,7 @@ export class SqliteOwnReturnsOfSale implements OwnReturnsOfSale {
     const lines = this.database
       .prepare<[string], LineRow>(
         `SELECT return_lines.return_id, return_lines.sale_line_id, return_lines.quantity,
-                return_lines.refunded_amount
+                return_lines.refunded_amount, return_lines.resolution
          FROM return_lines JOIN returns ON returns.id = return_lines.return_id
          WHERE returns.sale_id = ?
          ORDER BY return_lines.rowid`,
@@ -58,6 +60,7 @@ export class SqliteOwnReturnsOfSale implements OwnReturnsOfSale {
           saleLineId: line.sale_line_id,
           quantity: line.quantity,
           refundedAmount: line.refunded_amount,
+          resolution: line.resolution,
         })),
       refunds: refunds
         .filter(({ return_id: returnId }) => returnId === id)

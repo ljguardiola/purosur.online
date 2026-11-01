@@ -845,6 +845,7 @@ export type {
 } from "./returns/index.js";
 export {
   countsAsReturned,
+  offeredResolutions,
   RETURN_DISPOSITIONS,
   RETURN_REASONS,
   RETURN_RESOLUTIONS,

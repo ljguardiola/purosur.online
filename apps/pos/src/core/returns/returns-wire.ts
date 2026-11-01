@@ -4,11 +4,12 @@ import type {
   FindSaleForReturnOutcome as WireFindSaleForReturnOutcome,
   PreviewReturnOutcome as WirePreviewReturnOutcome,
 } from "@purosur/contracts";
-import type {
-  RefundAllocationRefusal,
-  ReturnLineAssessment,
-  ReturnLineRefusal,
-  ZoneRules,
+import {
+  offeredResolutions,
+  type RefundAllocationRefusal,
+  type ReturnLineAssessment,
+  type ReturnLineRefusal,
+  type ZoneRules,
 } from "@purosur/domain";
 import type { SaleForReturnView } from "@purosur/domain/returns/use-cases";
 import { inArgentinaTime } from "../platform/argentina-time";
@@ -58,6 +59,10 @@ export function toWireSaleForReturn(sale: SaleForReturnView, rules: ZoneRules): 
       change_of_mind: toWireWindow(sale.windows.change_of_mind),
       defective: toWireWindow(sale.windows.defective),
     },
+    offered_resolutions: {
+      change_of_mind: [...offeredResolutions("change_of_mind")],
+      defective: [...offeredResolutions("defective")],
+    },
     lines: sale.lines.map((line) => ({
       id: line.id,
       product_id: line.productId,
@@ -91,6 +96,7 @@ export function toWirePreviewedLines(
     quantity: line.quantity,
     reason: line.reason,
     disposition: line.disposition,
+    resolution: line.resolution,
     refusal: line.refusal === null ? null : toWireLineRefusal(line.refusal),
     refund_amount: line.refundAmount,
   }));
