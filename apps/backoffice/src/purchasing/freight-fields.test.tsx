@@ -229,3 +229,12 @@ test("shows no notice when there is none", async () => {
 
   expect(screen.container.textContent).toBe("");
 });
+
+test("groups thousands and takes a typed dot as the decimal comma in the amount", async () => {
+  const screen = await render(<Harness />);
+  const field = screen.getByRole("textbox", { name: /^Monto/ });
+  await userEvent.clear(field);
+  await userEvent.type(field, "1234.5");
+
+  await expect.element(field).toHaveValue("1.234,5");
+});

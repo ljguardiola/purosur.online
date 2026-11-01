@@ -99,4 +99,12 @@ describe("ChangeLineWeightModal", () => {
     expect(onClose).toHaveBeenCalledOnce();
     expect(change).not.toHaveBeenCalled();
   });
+
+  it("groups thousands and takes a typed dot as the decimal comma", async () => {
+    const { field } = await renderModal();
+    await userEvent.clear(field);
+    await userEvent.type(field, "12.5");
+
+    await expect.element(field).toHaveValue("12,5");
+  });
 });

@@ -176,3 +176,12 @@ test("cancel closes the modal without calling the cloud", async () => {
   expect(onClose).toHaveBeenCalledTimes(1);
   expect(setSupplierPriceListRowPrice).not.toHaveBeenCalled();
 });
+
+test("groups thousands and takes a typed dot as the decimal comma in the price", async () => {
+  const screen = await renderModal();
+  const field = screen.getByRole("dialog").getByRole("textbox", { name: /^Precio/ });
+  await userEvent.clear(field);
+  await userEvent.type(field, "1234.5");
+
+  await expect.element(field).toHaveValue("1.234,5");
+});

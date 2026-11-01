@@ -576,3 +576,12 @@ test("has no accessibility violations", async () => {
 
   await expectNoAccessibilityViolations(document.body);
 });
+
+test("groups thousands and takes a typed dot as the decimal comma in the amount", async () => {
+  const { dialog } = await renderModal();
+  const field = dialog.getByRole("textbox", { name: /^Importe/ });
+  await userEvent.clear(field);
+  await userEvent.type(field, "1234.5");
+
+  await expect.element(field).toHaveValue("1.234,5");
+});

@@ -484,3 +484,17 @@ test("typing in the product offers only the matching products, and choosing one 
   await userEvent.click(screen.getByRole("option", { name: /Almendras peladas/ }));
   await expect.element(product).toHaveValue("Almendras peladas");
 });
+
+test("groups thousands and takes a typed dot as the decimal comma in a quantity by weight", async () => {
+  const rendered = await renderForm(createServices());
+  const { dialog } = rendered;
+  await userEvent.click(cardLabel(rendered, "Ajuste"));
+  await chooseProduct(rendered, "Almendras peladas");
+  await userEvent.click(cardLabel(rendered, "Error en una compra"));
+  await userEvent.click(cardLabel(rendered, "Resta"));
+  const field = dialog.getByRole("textbox", { name: /^Cantidad/ });
+  await userEvent.clear(field);
+  await userEvent.type(field, "12.5");
+
+  await expect.element(field).toHaveValue("12,5");
+});

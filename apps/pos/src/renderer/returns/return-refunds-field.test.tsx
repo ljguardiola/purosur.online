@@ -127,4 +127,13 @@ describe("ReturnRefundsField", () => {
 
     await expectNoAccessibilityViolations(screen.container);
   });
+
+  it("groups thousands and takes a typed dot as the decimal comma", async () => {
+    const screen = await renderField();
+    const field = screen.getByRole("textbox", { name: "Reintegro por Transferencia" });
+    await userEvent.clear(field);
+    await userEvent.type(field, "1234.5");
+
+    await expect.element(field).toHaveValue("1.234,5");
+  });
 });

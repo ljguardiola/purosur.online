@@ -833,3 +833,12 @@ test("does not save coverage days out of range, and says why", async () => {
     .toBeVisible();
   expect(services.editProduct).not.toHaveBeenCalled();
 });
+
+test("groups thousands and takes a typed dot as the decimal comma in the net content", async () => {
+  const { dialog } = await renderModal(honey, createServices());
+  const field = dialog.getByRole("textbox", { name: "Contenido neto" });
+  await userEvent.clear(field);
+  await userEvent.type(field, "1234.5");
+
+  await expect.element(field).toHaveValue("1.234,5");
+});

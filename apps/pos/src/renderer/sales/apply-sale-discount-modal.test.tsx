@@ -648,4 +648,14 @@ describe("ApplySaleDiscountModal previewing the discount", () => {
 
     await expect.element(screen.getByText("VENTA EN CURSO · 1.998 LÍNEAS")).toBeVisible();
   });
+
+  it("groups thousands and takes a typed dot as the decimal comma in an amount discount", async () => {
+    const { screen } = await renderModal();
+    await chooseKind(screen, "$");
+    const field = screen.getByRole("textbox", { name: "Monto de descuento" });
+    await userEvent.clear(field);
+    await userEvent.type(field, "1234.5");
+
+    await expect.element(field).toHaveValue("1.234,5");
+  });
 });

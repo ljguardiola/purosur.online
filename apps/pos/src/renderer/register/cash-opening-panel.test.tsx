@@ -267,4 +267,14 @@ describe("CashOpeningPanel", () => {
       .element(screen.getByText("No se pudo abrir la caja. Probá de nuevo.").first())
       .not.toBeInTheDocument();
   });
+
+  it("groups thousands and takes a typed dot as the decimal comma", async () => {
+    const { screen } = await renderPanel();
+    await startOpening(screen);
+    const field = screen.getByRole("textbox", { name: "Fondo inicial" });
+    await userEvent.clear(field);
+    await userEvent.type(field, "1234.5");
+
+    await expect.element(field).toHaveValue("1.234,5");
+  });
 });

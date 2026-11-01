@@ -708,4 +708,13 @@ describe("LockedCashCount", () => {
     expect(screen.router.state.location.pathname).toBe("/locked");
     expect(close).not.toHaveBeenCalled();
   });
+
+  it("groups thousands and takes a typed dot as the decimal comma", async () => {
+    const { screen } = await renderStep();
+    const field = screen.getByRole("textbox", { name: "Efectivo contado" });
+    await userEvent.clear(field);
+    await userEvent.type(field, "1234.5");
+
+    await expect.element(field).toHaveValue("1.234,5");
+  });
 });
