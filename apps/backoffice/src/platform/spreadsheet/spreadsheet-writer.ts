@@ -15,7 +15,16 @@ const MIN_COLUMN_WIDTH = 12;
 const MAX_COLUMN_WIDTH = 60;
 const NANO_USD_PER_USD = 1_000_000_000n;
 
-type StyleName = "general" | "header" | "count" | "weight" | "money" | "day" | "instant" | "percent" | "usd";
+type StyleName =
+  | "general"
+  | "header"
+  | "count"
+  | "weight"
+  | "money"
+  | "day"
+  | "instant"
+  | "percent"
+  | "usd";
 
 const STYLES: { name: StyleName; numFmtId: number; formatCode?: string; bold?: boolean }[] = [
   { name: "general", numFmtId: 0 },
