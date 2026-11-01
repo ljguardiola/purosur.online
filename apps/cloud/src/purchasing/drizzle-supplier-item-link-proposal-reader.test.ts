@@ -1,3 +1,4 @@
+import type { ProductActivityScope } from "@purosur/domain/catalog/use-cases";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { insertBrand } from "../catalog/test-support/catalog-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
@@ -113,14 +114,14 @@ describe("the row to propose a product for", () => {
   });
 });
 
-describe("the active products carrying a barcode", () => {
+describe("the products of a scope carrying a barcode", () => {
   it("answers the active products with exactly that active barcode", async () => {
     const { id } = await insertProduct(db, { name: "Yerba 1 kg" });
     await insertBarcode(db, { productId: id, code: "7790000000011" });
     const { id: other } = await insertProduct(db, { name: "Azúcar 1 kg" });
     await insertBarcode(db, { productId: other, code: "7790000000028" });
 
-    expect(await reader().activeProductsWithBarcode("7790000000011")).toEqual([
+    expect(await reader().productsWithBarcode("7790000000011", "active")).toEqual([
       { id, name: "Yerba 1 kg", brandName: null, netContent: null, saleUnit: "UNIT" },
     ]);
   });
@@ -134,7 +135,7 @@ describe("the active products carrying a barcode", () => {
     });
     await insertBarcode(db, { productId: id, code: "7790000000011" });
 
-    expect(await reader().activeProductsWithBarcode("7790000000011")).toEqual([
+    expect(await reader().productsWithBarcode("7790000000011", "active")).toEqual([
       {
         id,
         name: "Granola Berries",
@@ -153,7 +154,22 @@ describe("the active products carrying a barcode", () => {
     const { id: longer } = await insertProduct(db, { name: "Yerba 2 kg" });
     await insertBarcode(db, { productId: longer, code: "77900000000119" });
 
-    expect(await reader().activeProductsWithBarcode("7790000000011")).toEqual([]);
+    expect(await reader().productsWithBarcode("7790000000011", "active")).toEqual([]);
+  });
+
+  it("answers the products of the scope asked for", async () => {
+    const { id: active } = await insertProduct(db, { name: "Yerba 1 kg" });
+    await insertBarcode(db, { productId: active, code: "7790000000011" });
+    const { id: inactive } = await insertProduct(db, { name: "Yerba vieja", active: false });
+    await insertBarcode(db, { productId: inactive, code: "7790000000028" });
+
+    const ids = async (barcode: string, scope: ProductActivityScope) =>
+      (await reader().productsWithBarcode(barcode, scope)).map(({ id }) => id);
+
+    expect(await ids("7790000000011", "inactive")).toEqual([]);
+    expect(await ids("7790000000028", "inactive")).toEqual([inactive]);
+    expect(await ids("7790000000011", "any")).toEqual([active]);
+    expect(await ids("7790000000028", "any")).toEqual([inactive]);
   });
 
   it("answers a product once however many barcodes it carries", async () => {
@@ -161,13 +177,13 @@ describe("the active products carrying a barcode", () => {
     await insertBarcode(db, { productId: id, code: "7790000000011", position: 0 });
     await insertBarcode(db, { productId: id, code: "7790000000028", position: 1 });
 
-    expect(await reader().activeProductsWithBarcode("7790000000028")).toEqual([
+    expect(await reader().productsWithBarcode("7790000000028", "active")).toEqual([
       { id, name: "Yerba 1 kg", brandName: null, netContent: null, saleUnit: "UNIT" },
     ]);
   });
 });
 
-describe("the active products", () => {
+describe("the products of a scope", () => {
   it("answers the active products with their name, brand name and net content", async () => {
     const kos = await insertBrand(db, { name: "Kos" });
     const { id } = await insertProduct(db, {
@@ -178,7 +194,7 @@ describe("the active products", () => {
     const { id: plain } = await insertProduct(db, { name: "Yerba 1 kg" });
     await insertProduct(db, { name: "Producto retirado", active: false });
 
-    expect(await reader().activeProducts()).toEqual(
+    expect(await reader().products("active")).toEqual(
       expect.arrayContaining([
         {
           id,
@@ -190,13 +206,25 @@ describe("the active products", () => {
         { id: plain, name: "Yerba 1 kg", brandName: null, netContent: null, saleUnit: "UNIT" },
       ]),
     );
-    expect(await reader().activeProducts()).toHaveLength(2);
+    expect(await reader().products("active")).toHaveLength(2);
+  });
+
+  it("answers the products of the scope asked for", async () => {
+    const { id: active } = await insertProduct(db, { name: "Yerba 1 kg" });
+    const { id: inactive } = await insertProduct(db, { name: "Producto retirado", active: false });
+
+    const ids = async (scope: ProductActivityScope) =>
+      (await reader().products(scope)).map(({ id }) => id);
+
+    expect(await ids("inactive")).toEqual([inactive]);
+    expect(await ids("any")).toHaveLength(2);
+    expect(await ids("any")).toEqual(expect.arrayContaining([active, inactive]));
   });
 
   it("answers the sale unit of each product", async () => {
     const { id } = await insertProduct(db, { name: "Almendras peladas", saleUnit: "KG" });
 
-    expect(await reader().activeProducts()).toEqual([
+    expect(await reader().products("active")).toEqual([
       { id, name: "Almendras peladas", brandName: null, netContent: null, saleUnit: "KG" },
     ]);
   });

@@ -1,5 +1,6 @@
 import type { SaleUnit } from "../../catalog/index.js";
 import { isMovementQuantity } from "../../stock/index.js";
+import { mayBeLinkedToSupplierItem } from "../model/supplier-item.js";
 import { maySupplierPriceListRowBeLinked } from "../model/supplier-price-list.js";
 import { decideRowVatRate, linkRowAndRememberItem } from "./supplier-price-list-row-link-steps.js";
 import type { SupplierPriceListStore } from "./supplier-price-list-store.js";
@@ -50,7 +51,7 @@ export function linkSupplierPriceListRow(
     }
 
     const target = await tx.lockLinkableProduct(input.productId);
-    if (target.kind === "not_found" || !target.product.active) {
+    if (target.kind === "not_found" || !mayBeLinkedToSupplierItem(target.product)) {
       return { kind: "product_not_linkable" };
     }
     if (target.product.saleUnit !== input.saleUnit) {

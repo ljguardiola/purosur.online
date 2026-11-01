@@ -1,4 +1,5 @@
 import { SALE_UNITS } from "@purosur/domain";
+import type { ProductActivityScope } from "@purosur/domain/catalog/use-cases";
 import type {
   ProposalProduct,
   ProposalRow,
@@ -7,6 +8,7 @@ import type {
 import { and, eq, isNotNull, ne } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { netContentRow } from "../catalog/net-content-row.js";
+import { productActivityCondition } from "../catalog/product-activity-condition.js";
 import { brands, productBarcodes, products, supplierPriceListRows } from "../platform/db/schema.js";
 
 const PRODUCT_COLUMNS = {
@@ -84,7 +86,10 @@ export class DrizzleSupplierItemLinkProposalReader<TQueryResult extends PgQueryR
     };
   }
 
-  async activeProductsWithBarcode(barcode: string): Promise<ProposalProduct[]> {
+  async productsWithBarcode(
+    barcode: string,
+    scope: ProductActivityScope,
+  ): Promise<ProposalProduct[]> {
     const rows = await this.db
       .selectDistinct({ ...PRODUCT_COLUMNS })
       .from(products)
@@ -92,7 +97,7 @@ export class DrizzleSupplierItemLinkProposalReader<TQueryResult extends PgQueryR
       .leftJoin(brands, eq(brands.id, products.brandId))
       .where(
         and(
-          eq(products.active, true),
+          productActivityCondition(scope),
           eq(productBarcodes.active, true),
           eq(productBarcodes.code, barcode),
         ),
@@ -100,12 +105,12 @@ export class DrizzleSupplierItemLinkProposalReader<TQueryResult extends PgQueryR
     return rows.map(proposalProduct);
   }
 
-  async activeProducts(): Promise<ProposalProduct[]> {
+  async products(scope: ProductActivityScope): Promise<ProposalProduct[]> {
     const rows = await this.db
       .select({ ...PRODUCT_COLUMNS })
       .from(products)
       .leftJoin(brands, eq(brands.id, products.brandId))
-      .where(eq(products.active, true));
+      .where(productActivityCondition(scope));
     return rows.map(proposalProduct);
   }
 }

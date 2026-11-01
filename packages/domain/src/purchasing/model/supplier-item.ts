@@ -1,6 +1,16 @@
-import type { SaleUnit } from "../../catalog/index.js";
+import {
+  isInActivityScope,
+  type ProductActivityScope,
+  type SaleUnit,
+} from "../../catalog/index.js";
 import { type Fraction, foldedText } from "../../shared/index.js";
 import { STOCK_QUANTITY_PER_UNIT } from "../../stock/index.js";
+
+export const PRODUCTS_A_SUPPLIER_ITEM_MAY_BE_LINKED_TO: ProductActivityScope = "active";
+
+export function mayBeLinkedToSupplierItem(product: { active: boolean }): boolean {
+  return isInActivityScope(product.active, PRODUCTS_A_SUPPLIER_ITEM_MAY_BE_LINKED_TO);
+}
 
 export interface SupplierItemKey {
   kind: "code" | "description";

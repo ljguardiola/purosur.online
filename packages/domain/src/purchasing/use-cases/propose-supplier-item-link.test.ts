@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
+import { PRODUCTS_A_SUPPLIER_ITEM_MAY_BE_LINKED_TO } from "../model/supplier-item.js";
 import type { AiCallUsage } from "./ai-call-usage.js";
 import { proposeSupplierItemLink } from "./propose-supplier-item-link.js";
 import { FakeProductChooser } from "./test-support/fake-product-chooser.js";
@@ -117,6 +118,28 @@ describe("proposeSupplierItemLink", () => {
       });
     });
 
+    it("proposes by barcode only among the products a supplier item may be linked to", async () => {
+      const inactiveTwin = {
+        id: "product-3",
+        name: "Yerba Piragüé 500 g",
+        barcodes: ["7790001000012"],
+        active: false,
+      };
+      const { chooser, reader, ports } = setup({ barcode: "7790001000012" }, [
+        YERBA,
+        inactiveTwin,
+        AZUCAR,
+      ]);
+
+      expect(await proposeSupplierItemLink(ports, input)).toMatchObject({
+        kind: "proposed",
+        by: "barcode",
+        product: { id: "product-1" },
+      });
+      expect(reader.scopesAsked).toEqual([PRODUCTS_A_SUPPLIER_ITEM_MAY_BE_LINKED_TO]);
+      expect(chooser.asked).toEqual([]);
+    });
+
     it("asks the model when several active products carry the barcode", async () => {
       const twin = { id: "product-3", name: "Yerba Piragüé 500 g", barcodes: ["7790001000012"] };
       const { chooser, ports } = setup({ barcode: "7790001000012" }, [YERBA, twin, AZUCAR]);
@@ -162,6 +185,19 @@ describe("proposeSupplierItemLink", () => {
           ],
         },
       ]);
+    });
+
+    it("gives the model only the products a supplier item may be linked to", async () => {
+      const inactiveYerba = { id: "product-3", name: "Yerba Piragüé 500 g", active: false };
+      const { chooser, reader, ports } = setup({}, [YERBA, inactiveYerba, AZUCAR]);
+      chooser.answer = { kind: "none" };
+
+      await proposeSupplierItemLink(ports, input);
+
+      expect(chooser.asked.map(({ candidates }) => candidates.map(({ id }) => id))).toEqual([
+        ["product-1"],
+      ]);
+      expect(reader.scopesAsked).toEqual([PRODUCTS_A_SUPPLIER_ITEM_MAY_BE_LINKED_TO]);
     });
 
     it("proposes the product the model chose", async () => {

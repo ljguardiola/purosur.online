@@ -1,5 +1,6 @@
 import { productLinkCandidates } from "../../catalog/index.js";
 import type { ZoneRulesSource } from "../../shared/index.js";
+import { PRODUCTS_A_SUPPLIER_ITEM_MAY_BE_LINKED_TO } from "../model/supplier-item.js";
 import { type AiCallCollector, collectAiCalls } from "./ai-call-recording.js";
 import type { ProductChoice, ProductChoiceItem, ProductChooser } from "./product-chooser.js";
 import { linkableQuantityOrNull, readingOrUnavailable } from "./proposed-quantity.js";
@@ -79,7 +80,10 @@ export async function proposeSupplierItemLink(
   };
 
   if (row.barcode !== null) {
-    const [only, ...others] = await reader.activeProductsWithBarcode(row.barcode);
+    const [only, ...others] = await reader.productsWithBarcode(
+      row.barcode,
+      PRODUCTS_A_SUPPLIER_ITEM_MAY_BE_LINKED_TO,
+    );
     if (only && others.length === 0) {
       const reading = await readingOrUnavailable(() =>
         quantityReader.read(
@@ -100,7 +104,7 @@ export async function proposeSupplierItemLink(
   }
 
   const candidates = productLinkCandidates(
-    await reader.activeProducts(),
+    await reader.products(PRODUCTS_A_SUPPLIER_ITEM_MAY_BE_LINKED_TO),
     [row.description, row.presentation].join(" "),
   );
   if (candidates.length === 0) {
