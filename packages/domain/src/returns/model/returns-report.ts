@@ -164,10 +164,7 @@ function summarizedBy(
 ): { person: ReportPerson | null; totals: ReturnsReportTotals }[] {
   const people = new Map<string | null, ReportPerson | null>();
   const note = (person: ReportPerson | null) => {
-    const key = person === null ? null : person.id;
-    if (!people.has(key)) {
-      people.set(key, person);
-    }
+    people.set(person === null ? null : person.id, person);
   };
   for (const record of returns) note(returnPerson(record));
   for (const record of voids) note(voidPerson(record));
