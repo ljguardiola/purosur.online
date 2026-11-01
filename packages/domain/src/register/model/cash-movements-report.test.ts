@@ -55,6 +55,18 @@ describe("cashMovementsSummary", () => {
     expect(movements.map(({ id }) => id)).toEqual(["m", "a", "b", "z"]);
   });
 
+  it("breaks a tie of instants by the code units of the id", () => {
+    const at = new Date("2026-10-06T15:00:00.000Z");
+
+    const { movements } = cashMovementsSummary([
+      aMovement({ id: "a", occurredAt: at }),
+      aMovement({ id: "B", occurredAt: at }),
+      aMovement({ id: "a10", occurredAt: at }),
+    ]);
+
+    expect(movements.map(({ id }) => id)).toEqual(["B", "a", "a10"]);
+  });
+
   it("does not change the movements it is given", () => {
     const movements = [
       aMovement({ id: "a", occurredAt: new Date("2026-10-06T10:00:00.000Z") }),

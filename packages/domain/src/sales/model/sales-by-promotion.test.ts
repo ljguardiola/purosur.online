@@ -103,12 +103,21 @@ describe("salesOfPromotions", () => {
     ).toEqual(["b", "c", "a"]);
   });
 
-  it("orders promotions with the same amount by name, comparing code units", () => {
+  it("orders promotions with the same amount by name as a Spanish reader does", () => {
     expect(
-      salesOfPromotions([discounted("p1", "Ángel", 1, 100), discounted("p2", "Zoe", 1, 100)]).map(
+      salesOfPromotions([discounted("p1", "Zoe", 1, 100), discounted("p2", "Ángel", 1, 100)]).map(
         (row) => row.name,
       ),
-    ).toEqual(["Zoe", "Ángel"]);
+    ).toEqual(["Ángel", "Zoe"]);
+  });
+
+  it("orders the numbers inside promotion names by their value", () => {
+    expect(
+      salesOfPromotions([
+        discounted("p1", "Oferta 10", 1, 100),
+        discounted("p2", "Oferta 2", 1, 100),
+      ]).map((row) => row.name),
+    ).toEqual(["Oferta 2", "Oferta 10"]);
   });
 
   it("puts a promotion without a name after the named ones on a tie", () => {
@@ -165,7 +174,7 @@ describe("promotionDiscountTotals", () => {
     expect(promotionDiscountTotals(rows).mostUsed?.promotionId).toBe("p2");
   });
 
-  it("breaks a tie of lines and amount by name, comparing code units and a missing name last", () => {
+  it("breaks a tie of lines and amount by name as a Spanish reader does, a missing name last", () => {
     const rows = salesOfPromotions([
       discounted("p1", null, 3, 100),
       discounted("p2", "Zoe", 3, 100),

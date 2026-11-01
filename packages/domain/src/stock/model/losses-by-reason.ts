@@ -1,5 +1,5 @@
 import type { ProductBrandAndNetContent, SaleUnit } from "../../catalog/index.js";
-import { compareSpanishText } from "../../shared/index.js";
+import { compareCodeUnits, compareSpanishText } from "../../shared/index.js";
 import { RECORDED_LOSS_REASONS, type RecordedLossReason } from "./stock-movement-reason.js";
 
 export interface LossRecord {
@@ -23,7 +23,7 @@ export interface ReasonLosses {
 }
 
 function compareProducts(a: LostProduct, b: LostProduct): number {
-  return compareSpanishText(a.name, b.name) || compareSpanishText(a.id, b.id);
+  return compareSpanishText(a.name, b.name) || compareCodeUnits(a.id, b.id);
 }
 
 export function lossesByReason(records: readonly LossRecord[]): ReasonLosses[] {

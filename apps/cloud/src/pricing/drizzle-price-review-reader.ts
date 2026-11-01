@@ -59,7 +59,7 @@ function leafCategoryOptions(allCategories: CategoryTreeRow[]): PriceReviewCateg
   return allCategories
     .filter((category) => !parentIds.has(category.id))
     .map((category) => ({ id: category.id, name: pathLabel(category.id, new Set()) }))
-    .sort((a, b) => a.name.localeCompare(b.name, "es"));
+    .sort((a, b) => compareSpanishText(a.name, b.name));
 }
 
 export class DrizzlePriceReviewReader<TQueryResult extends PgQueryResultHKT>

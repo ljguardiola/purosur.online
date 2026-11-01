@@ -60,7 +60,16 @@ describe("weighedLinesByCashier", () => {
     expect(ids).toEqual(["u4", "u2", "u3", "u1"]);
   });
 
-  it("orders a tie by name comparing code units, unnamed last, then by id", () => {
+  it("orders the numbers inside cashier names by their value", () => {
+    const tie = (cashierId: string, cashierName: string) =>
+      group({ cashierId, cashierName, weightSource: "MANUAL", lines: 1 });
+
+    expect(
+      weighedLinesByCashier([tie("u1", "Caja 10"), tie("u2", "Caja 2")]).map((row) => row.name),
+    ).toEqual(["Caja 2", "Caja 10"]);
+  });
+
+  it("orders a tie by name as a Spanish reader does, unnamed last, then by id", () => {
     const tie = (cashierId: string, cashierName: string | null) =>
       group({ cashierId, cashierName, weightSource: "MANUAL", lines: 1 });
     const rows = [tie("u4", null), tie("u3", "Zoe"), tie("u2", "Ana"), tie("u1", "Ana")];

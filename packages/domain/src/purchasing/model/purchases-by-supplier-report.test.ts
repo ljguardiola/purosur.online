@@ -95,6 +95,24 @@ describe("purchasesBySupplier", () => {
     expect(report.totals).toMatchObject({ suppliers: 4, purchases: 4 });
   });
 
+  it("orders suppliers of one name by the code units of their id", () => {
+    const report = purchasesBySupplier([
+      aLine({ purchaseId: "a", supplierId: "s-9", supplierName: "Bodega" }),
+      aLine({ purchaseId: "b", supplierId: "s-10", supplierName: "Bodega" }),
+    ]);
+
+    expect(report.suppliers.map(({ supplierId }) => supplierId)).toEqual(["s-10", "s-9"]);
+  });
+
+  it("orders the numbers inside supplier names by their value", () => {
+    const report = purchasesBySupplier([
+      aLine({ purchaseId: "a", supplierId: "s-1", supplierName: "Bodega 10" }),
+      aLine({ purchaseId: "b", supplierId: "s-2", supplierName: "Bodega 2" }),
+    ]);
+
+    expect(report.suppliers.map(({ supplierId }) => supplierId)).toEqual(["s-2", "s-1"]);
+  });
+
   it("rounds a month's exact amount to cents once, half up", () => {
     const report = purchasesBySupplier([
       aLine({ purchaseId: "a", costPaidCents: 333, quantity: 2_500, quantityPerPackage: 1_000 }),

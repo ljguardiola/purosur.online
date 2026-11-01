@@ -274,6 +274,25 @@ describe("marginReport", () => {
     expect(report.rows.map((row) => row.id)).toEqual(["a", "z", "b"]);
   });
 
+  it("breaks a tie of amounts by the numbers in the path names by value", () => {
+    const report = marginReport([
+      line({ id: "ten", path: ["Piso 10"], amount: 100 }),
+      line({ id: "two", path: ["Piso 2"], amount: 100 }),
+    ]);
+
+    expect(report.rows.map((row) => row.id)).toEqual(["two", "ten"]);
+  });
+
+  it("breaks a tie of amounts and path by the code units of the id", () => {
+    const report = marginReport([
+      line({ id: "a9", path: ["Arroz"], amount: 100 }),
+      line({ id: "B1", path: ["Arroz"], amount: 100 }),
+      line({ id: "a10", path: ["Arroz"], amount: 100 }),
+    ]);
+
+    expect(report.rows.map((row) => row.id)).toEqual(["B1", "a10", "a9"]);
+  });
+
   it("breaks a tie of amounts by comparing the path name by name, a parent before its children", () => {
     const report = marginReport([
       line({ id: "child", path: ["Almacén", "Dulces"], amount: 100 }),

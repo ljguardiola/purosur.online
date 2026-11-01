@@ -1,5 +1,5 @@
+import { compareCodeUnits, compareOptionalNames } from "../../shared/index.js";
 import { cancelledBeforeCharge } from "./cancelled-before-charge.js";
-import { codeUnitOrder, nameOrder } from "./report-order.js";
 import type { SaleState } from "./sale.js";
 import { saleUnitOfWeightSource, soldQuantity } from "./sale-line.js";
 import type { WeightSource } from "./weight-source.js";
@@ -153,14 +153,14 @@ export function tallyRemovals({ removedLines, cancelledSales }: RemovalFacts): R
     cashiers: [...cashiers.values()].sort(
       (a, b) =>
         amountOf(b) - amountOf(a) ||
-        nameOrder(a.name, b.name) ||
-        codeUnitOrder(a.cashierId, b.cashierId),
+        compareOptionalNames(a.name, b.name) ||
+        compareCodeUnits(a.cashierId, b.cashierId),
     ),
     sessions: [...sessions.values()].sort(
       (a, b) =>
         amountOf(b) - amountOf(a) ||
         b.openedAt.getTime() - a.openedAt.getTime() ||
-        codeUnitOrder(a.sessionId, b.sessionId),
+        compareCodeUnits(a.sessionId, b.sessionId),
     ),
     totals,
   };
