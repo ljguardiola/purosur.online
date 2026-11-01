@@ -1,7 +1,6 @@
 import type { FreightByPeriodBody } from "@purosur/contracts";
 import { cell, type Workbook } from "../platform/spreadsheet/workbook";
 import { periodSummaryRows, summarySheet } from "../shell/report-summary-sheet";
-import { reportMonthText } from "./report-month-text";
 
 export function freightReportSpreadsheet(shown: FreightByPeriodBody): Workbook {
   return {
@@ -15,7 +14,7 @@ export function freightReportSpreadsheet(shown: FreightByPeriodBody): Workbook {
         name: "Flete por período",
         header: ["Mes", "Fletes", "Monto"],
         rows: shown.months.map((month) => [
-          cell.text(reportMonthText(month.month)),
+          cell.month(month.month),
           cell.count(month.freights),
           cell.money(month.amount),
         ]),

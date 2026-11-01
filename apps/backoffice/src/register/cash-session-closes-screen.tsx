@@ -14,7 +14,7 @@ import { Calculator } from "lucide-react";
 import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { reportMoment } from "../platform/report-moment";
-import { ReportDownload } from "../shell/report-download";
+import { RegisterReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import {
@@ -111,7 +111,7 @@ export function CashSessionClosesScreen({
   registerFilter,
   services,
 }: CashSessionClosesScreenProps) {
-  const [registerLabel, setRegisterLabel] = useState("Todas");
+  const [registerLabel, setRegisterLabel] = useState<string>();
   const data = useCashSessionClosesQuery({
     query: reportQueryOf(filters),
     fetchCashSessionCloses: services.fetchCashSessionCloses,
@@ -136,9 +136,10 @@ export function CashSessionClosesScreen({
         registerFilter={registerFilter}
         onRegisterLabelChange={setRegisterLabel}
         trailing={
-          <ReportDownload
+          <RegisterReportDownload
             dataStatus={data.status}
-            workbook={() =>
+            registerLabel={registerLabel}
+            workbook={(registerLabel) =>
               shown
                 ? cashSessionClosesSpreadsheet(
                     shown,

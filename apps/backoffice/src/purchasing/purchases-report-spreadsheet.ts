@@ -1,7 +1,6 @@
 import type { PurchasesBySupplierBody } from "@purosur/contracts";
 import { cell, type Workbook } from "../platform/spreadsheet/workbook";
 import { periodSummaryRows, summarySheet } from "../shell/report-summary-sheet";
-import { reportMonthText } from "./report-month-text";
 
 export function purchasesReportSpreadsheet(shown: PurchasesBySupplierBody): Workbook {
   return {
@@ -18,7 +17,7 @@ export function purchasesReportSpreadsheet(shown: PurchasesBySupplierBody): Work
         rows: shown.suppliers.flatMap((supplier) =>
           supplier.months.map((month) => [
             cell.text(supplier.name),
-            cell.text(reportMonthText(month.month)),
+            cell.month(month.month),
             cell.count(month.purchases),
             cell.money(month.amount),
           ]),

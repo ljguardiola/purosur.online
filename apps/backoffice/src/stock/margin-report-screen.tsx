@@ -18,7 +18,7 @@ import {
 import { Receipt, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
-import { ReportDownload } from "../shell/report-download";
+import { RegisterReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import { reportQueryOf } from "../shell/report-filters-search";
@@ -105,7 +105,7 @@ export function MarginReportScreen({
   services,
 }: MarginReportScreenProps) {
   const registerChosen = filters.register !== "ALL";
-  const [registerLabel, setRegisterLabel] = useState("Todas");
+  const [registerLabel, setRegisterLabel] = useState<string>();
   const [page, setPage] = useState(1);
   const data = useMarginReportQuery({
     query: { ...reportQueryOf(filters), group: filters.group },
@@ -143,9 +143,10 @@ export function MarginReportScreen({
           registerFilter={registerFilter}
           onRegisterLabelChange={setRegisterLabel}
           trailing={
-            <ReportDownload
+            <RegisterReportDownload
               dataStatus={data.status}
-              workbook={() =>
+              registerLabel={registerLabel}
+              workbook={(registerLabel) =>
                 shown
                   ? marginReportSpreadsheet(
                       shown,

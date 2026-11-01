@@ -1,12 +1,25 @@
 import type { ManualDiscountsBody } from "@purosur/contracts";
 import { formatOperationNumber } from "@purosur/ui";
-import { cell, type Workbook } from "../platform/spreadsheet/workbook";
+import { type Cell, cell, type Workbook } from "../platform/spreadsheet/workbook";
 import { periodSummaryRows, summarySheet } from "../shell/report-summary-sheet";
-import { manualDiscountKindText } from "./manual-discount-kind-text";
+import { manualDiscountKindName } from "./manual-discount-kind-text";
 import { MOMENT_TIME_ZONE } from "./manual-discount-moment";
 
 const UNIDENTIFIED = "Sin identificar";
 const CHOSEN_AUTHORIZER = "El elegido";
+
+type DiscountAdjustment = ManualDiscountsBody["rows"][number]["adjustment"];
+
+function adjustmentCell(adjustment: DiscountAdjustment): Cell {
+  switch (adjustment.kind) {
+    case "AMOUNT":
+      return cell.money(adjustment.value);
+    case "PERCENT":
+      return cell.percent(adjustment.value);
+    case "PRICE":
+      return cell.empty();
+  }
+}
 
 function authorizerName(name: string | null): string {
   return name ?? UNIDENTIFIED;
@@ -49,14 +62,24 @@ export function manualDiscountsSpreadsheet(
       ]),
       {
         name: "Descuentos manuales",
-        header: ["Fecha", "Venta", "Producto", "Tipo", "Motivo", "Autorizó", "Descontado"],
+        header: [
+          "Fecha",
+          "Venta",
+          "Producto",
+          "Tipo",
+          "Ajuste",
+          "Motivo",
+          "Autorizó",
+          "Descontado",
+        ],
         rows: shown.rows.map((row) => [
           cell.instant(row.completed_at, MOMENT_TIME_ZONE),
           row.operation_number === null
             ? cell.empty()
             : cell.text(`Operación ${formatOperationNumber(row.operation_number)}`),
           row.product_name === null ? cell.empty() : cell.text(row.product_name),
-          cell.text(manualDiscountKindText(row)),
+          cell.text(manualDiscountKindName(row)),
+          adjustmentCell(row.adjustment),
           cell.text(row.reason),
           cell.text(authorizerName(row.authorizer.name)),
           cell.money(row.discounted),

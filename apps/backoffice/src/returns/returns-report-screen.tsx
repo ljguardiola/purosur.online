@@ -16,7 +16,7 @@ import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { reportMoment } from "../platform/report-moment";
 import { saleUnitQuantityText } from "../platform/sale-unit-quantity";
-import { ReportDownload } from "../shell/report-download";
+import { RegisterReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import {
@@ -111,7 +111,7 @@ export function ReturnsReportScreen({
   registerFilter,
   services,
 }: ReturnsReportScreenProps) {
-  const [registerLabel, setRegisterLabel] = useState("Todas");
+  const [registerLabel, setRegisterLabel] = useState<string>();
   const typedHeadingId = useId();
   const scannedHeadingId = useId();
   const filtered = filters.register !== "ALL";
@@ -144,9 +144,12 @@ export function ReturnsReportScreen({
         registerFilter={registerFilter}
         onRegisterLabelChange={setRegisterLabel}
         trailing={
-          <ReportDownload
+          <RegisterReportDownload
             dataStatus={data.status}
-            workbook={() => (shown ? returnsReportSpreadsheet(shown, registerLabel) : null)}
+            registerLabel={registerLabel}
+            workbook={(registerLabel) =>
+              shown ? returnsReportSpreadsheet(shown, registerLabel) : null
+            }
             fileName={shown ? reportFileName(SCREEN_TITLE, shown.range) : ""}
           />
         }

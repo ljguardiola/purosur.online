@@ -14,7 +14,7 @@ import {
 import { HandCoins } from "lucide-react";
 import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
-import { ReportDownload } from "../shell/report-download";
+import { RegisterReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import type { ReportRegisterField } from "../shell/report-register-field";
@@ -101,7 +101,7 @@ export function ManualDiscountsScreen({
   services,
 }: ManualDiscountsScreenProps) {
   const authorizerChosen = filters.authorizedBy !== "ALL";
-  const [registerLabel, setRegisterLabel] = useState("Todas");
+  const [registerLabel, setRegisterLabel] = useState<string>();
   const filtered = filters.register !== "ALL" || authorizerChosen;
   const data = useManualDiscountsQuery({
     query: manualDiscountsQueryOf(filters),
@@ -129,9 +129,10 @@ export function ManualDiscountsScreen({
           registerFilter={registerFilter}
           onRegisterLabelChange={setRegisterLabel}
           trailing={
-            <ReportDownload
+            <RegisterReportDownload
               dataStatus={data.status}
-              workbook={() =>
+              registerLabel={registerLabel}
+              workbook={(registerLabel) =>
                 shown
                   ? manualDiscountsSpreadsheet(shown, filters.authorizedBy, registerLabel)
                   : null

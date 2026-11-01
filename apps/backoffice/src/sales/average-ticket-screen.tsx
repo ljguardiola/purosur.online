@@ -14,7 +14,7 @@ import {
 import { Receipt } from "lucide-react";
 import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
-import { ReportDownload } from "../shell/report-download";
+import { RegisterReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import { reportQueryOf } from "../shell/report-filters-search";
@@ -94,7 +94,7 @@ export function AverageTicketScreen({
   services,
 }: AverageTicketScreenProps) {
   const registerChosen = filters.register !== "ALL";
-  const [registerLabel, setRegisterLabel] = useState("Todas");
+  const [registerLabel, setRegisterLabel] = useState<string>();
   const data = useAverageTicketQuery({
     query: reportQueryOf(filters),
     fetchAverageTicket: services.fetchAverageTicket,
@@ -123,9 +123,10 @@ export function AverageTicketScreen({
           registerFilter={registerFilter}
           onRegisterLabelChange={setRegisterLabel}
           trailing={
-            <ReportDownload
+            <RegisterReportDownload
               dataStatus={data.status}
-              workbook={() =>
+              registerLabel={registerLabel}
+              workbook={(registerLabel) =>
                 shown
                   ? averageTicketSpreadsheet(
                       shown,

@@ -1,7 +1,6 @@
 import type { AverageTicketBody } from "@purosur/contracts";
 import { type Cell, cell, type Workbook } from "../platform/spreadsheet/workbook";
 import { periodSummaryRows, summarySheet } from "../shell/report-summary-sheet";
-import { reportPeriodText } from "./report-period-text";
 
 type WeekRow = AverageTicketBody["weeks"][number];
 
@@ -25,10 +24,12 @@ export function averageTicketSpreadsheet(
         ["Ventas", cell.count(shown.current.sales_count)],
         ["Período anterior", averageTicketCell(shown.previous?.average_ticket ?? null)],
         [
-          "Fechas del período anterior",
-          shown.previous_range === null
-            ? cell.empty()
-            : cell.text(reportPeriodText(shown.previous_range)),
+          "Desde (período anterior)",
+          shown.previous_range === null ? cell.empty() : cell.day(shown.previous_range.from),
+        ],
+        [
+          "Hasta (período anterior)",
+          shown.previous_range === null ? cell.empty() : cell.day(shown.previous_range.to),
         ],
         [
           "Diferencia",
@@ -39,9 +40,10 @@ export function averageTicketSpreadsheet(
       ]),
       {
         name: "Ticket promedio por semana",
-        header: ["Semana", "Ventas", "Importe", "Ticket promedio"],
+        header: ["Desde", "Hasta", "Ventas", "Importe", "Ticket promedio"],
         rows: weeks.map((row) => [
-          cell.text(reportPeriodText(row)),
+          cell.day(row.from),
+          cell.day(row.to),
           cell.count(row.sales_count),
           cell.money(row.total),
           averageTicketCell(row.average_ticket),

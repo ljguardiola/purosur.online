@@ -17,7 +17,7 @@ import { useId, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { paymentMethodLabel } from "../platform/payment-method-label";
 import { reportMoment } from "../platform/report-moment";
-import { ReportDownload } from "../shell/report-download";
+import { RegisterReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import type { ReportRegisterField } from "../shell/report-register-field";
@@ -153,7 +153,7 @@ export function HandConfirmedPaymentsScreen({
 }: HandConfirmedPaymentsScreenProps) {
   const cashiersHeadingId = useId();
   const paymentsHeadingId = useId();
-  const [registerLabel, setRegisterLabel] = useState("Todas");
+  const [registerLabel, setRegisterLabel] = useState<string>();
   const filtered = filters.register !== "ALL" || filters.method !== "ALL";
   const data = useHandConfirmedPaymentsQuery({
     query: handConfirmedPaymentsQueryOf(filters),
@@ -188,9 +188,10 @@ export function HandConfirmedPaymentsScreen({
           registerFilter={registerFilter}
           onRegisterLabelChange={setRegisterLabel}
           trailing={
-            <ReportDownload
+            <RegisterReportDownload
               dataStatus={data.status}
-              workbook={() =>
+              registerLabel={registerLabel}
+              workbook={(registerLabel) =>
                 shown
                   ? handConfirmedPaymentsSpreadsheet(shown, filters.method, registerLabel, {
                       cashiers: cashiersTable.getRowModel().rows.map((row) => row.original),

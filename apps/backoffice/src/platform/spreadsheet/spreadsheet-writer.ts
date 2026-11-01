@@ -13,6 +13,7 @@ const MS_PER_DAY = 86_400_000;
 const SPREADSHEET_DAY_ZERO_MS = Date.UTC(1899, 11, 30);
 const MIN_COLUMN_WIDTH = 12;
 const MAX_COLUMN_WIDTH = 60;
+const LONGEST_MONTH_LENGTH = "septiembre 2026".length;
 const NANO_USD_PER_USD = 1_000_000_000n;
 
 type StyleName =
@@ -22,6 +23,7 @@ type StyleName =
   | "weight"
   | "money"
   | "day"
+  | "month"
   | "instant"
   | "percent"
   | "usd";
@@ -36,6 +38,7 @@ const STYLES: { name: StyleName; numFmtId: number; formatCode?: string; bold?: b
   { name: "instant", numFmtId: 166, formatCode: "dd/mm/yyyy hh:mm" },
   { name: "percent", numFmtId: 167, formatCode: "0.0%" },
   { name: "usd", numFmtId: 168, formatCode: '"US$" #,##0.0000' },
+  { name: "month", numFmtId: 170, formatCode: "mmmm yyyy" },
 ];
 
 const styleIndex = (name: StyleName) => STYLES.findIndex((style) => style.name === name);
@@ -134,6 +137,8 @@ function cellXml(cell: Cell, reference: string): string {
       return numberCell(reference, "money", decimalFromScaledInteger(cell.cents, 100n, 2));
     case "day":
       return numberCell(reference, "day", String(daySerial(cell.day)));
+    case "month":
+      return numberCell(reference, "month", String(daySerial(`${cell.month}-01`)));
     case "instant":
       return numberCell(reference, "instant", String(instantSerial(cell.instant, cell.timeZone)));
     case "percent":
@@ -149,15 +154,20 @@ function cellXml(cell: Cell, reference: string): string {
   }
 }
 
+function shownLength(cell: Cell | undefined): number {
+  switch (cell?.kind) {
+    case "text":
+      return cell.value.length;
+    case "month":
+      return LONGEST_MONTH_LENGTH;
+    default:
+      return 0;
+  }
+}
+
 function columnWidths(sheet: Sheet): number[] {
   return sheet.header.map((header, column) => {
-    const longest = Math.max(
-      header.length,
-      ...sheet.rows.map((row) => {
-        const cell = row[column];
-        return cell?.kind === "text" ? cell.value.length : 0;
-      }),
-    );
+    const longest = Math.max(header.length, ...sheet.rows.map((row) => shownLength(row[column])));
     return Math.min(MAX_COLUMN_WIDTH, Math.max(MIN_COLUMN_WIDTH, longest + 2));
   });
 }

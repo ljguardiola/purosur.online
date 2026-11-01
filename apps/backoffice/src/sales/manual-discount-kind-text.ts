@@ -3,14 +3,21 @@ import { formatCents, formatNumber } from "@purosur/ui";
 
 type DiscountRow = ManualDiscountsBody["rows"][number];
 
-export function manualDiscountKindText({ kind, adjustment }: DiscountRow): string {
+export function manualDiscountKindName({ kind, adjustment }: DiscountRow): string {
   if (adjustment.kind === "PRICE") {
     return "Precio nuevo";
   }
-  const scope = kind === "SALE" ? "Sobre el total" : "De línea";
+  return kind === "SALE" ? "Sobre el total" : "De línea";
+}
+
+export function manualDiscountKindText(row: DiscountRow): string {
+  const { adjustment } = row;
+  if (adjustment.kind === "PRICE") {
+    return manualDiscountKindName(row);
+  }
   const off =
     adjustment.kind === "PERCENT"
       ? `${formatNumber(adjustment.value)} %`
       : formatCents(adjustment.value);
-  return `${scope} · ${off}`;
+  return `${manualDiscountKindName(row)} · ${off}`;
 }

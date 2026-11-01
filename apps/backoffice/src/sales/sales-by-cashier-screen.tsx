@@ -14,7 +14,7 @@ import {
 import { Receipt } from "lucide-react";
 import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
-import { ReportDownload } from "../shell/report-download";
+import { RegisterReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import { reportQueryOf } from "../shell/report-filters-search";
@@ -99,7 +99,7 @@ export function SalesByCashierScreen({
   services,
 }: SalesByCashierScreenProps) {
   const registerChosen = filters.register !== "ALL";
-  const [registerLabel, setRegisterLabel] = useState("Todas");
+  const [registerLabel, setRegisterLabel] = useState<string>();
   const data = useSalesByCashierQuery({
     query: reportQueryOf(filters),
     fetchSalesByCashier: services.fetchSalesByCashier,
@@ -129,9 +129,10 @@ export function SalesByCashierScreen({
           registerFilter={registerFilter}
           onRegisterLabelChange={setRegisterLabel}
           trailing={
-            <ReportDownload
+            <RegisterReportDownload
               dataStatus={data.status}
-              workbook={() =>
+              registerLabel={registerLabel}
+              workbook={(registerLabel) =>
                 shown
                   ? salesByCashierSpreadsheet(
                       shown,

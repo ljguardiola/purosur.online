@@ -14,7 +14,7 @@ import { ArrowLeftRight } from "lucide-react";
 import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { reportMoment } from "../platform/report-moment";
-import { ReportDownload } from "../shell/report-download";
+import { RegisterReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import {
@@ -98,7 +98,7 @@ export function CashMovementsScreen({
   registerFilter,
   services,
 }: CashMovementsScreenProps) {
-  const [registerLabel, setRegisterLabel] = useState("Todas");
+  const [registerLabel, setRegisterLabel] = useState<string>();
   const data = useCashMovementsQuery({
     query: reportQueryOf(filters),
     fetchCashMovements: services.fetchCashMovements,
@@ -124,9 +124,10 @@ export function CashMovementsScreen({
         registerFilter={registerFilter}
         onRegisterLabelChange={setRegisterLabel}
         trailing={
-          <ReportDownload
+          <RegisterReportDownload
             dataStatus={data.status}
-            workbook={() =>
+            registerLabel={registerLabel}
+            workbook={(registerLabel) =>
               shown
                 ? cashMovementsSpreadsheet(
                     shown,

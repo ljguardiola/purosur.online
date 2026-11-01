@@ -9,7 +9,7 @@ import {
 export type ReportRegisterFilterProps = {
   value: string;
   onChange: (register: string) => void;
-  onLabelChange?: (label: string) => void;
+  onLabelChange?: (label: string | undefined) => void;
   onSessionEnded: () => void;
   services?: ReportRegisterFilterServices | undefined;
 };
@@ -28,7 +28,7 @@ export function ReportRegisterFilter({
     onSessionEnded,
   });
   const reportChange = useEffectEvent(onChange);
-  const reportLabel = useEffectEvent((label: string) => onLabelChange?.(label));
+  const reportLabel = useEffectEvent((label: string | undefined) => onLabelChange?.(label));
   const registerChosen = value !== "ALL";
 
   const registersListed = registers.status === "loaded";
@@ -53,14 +53,12 @@ export function ReportRegisterFilter({
   }, [registersListed, registerOffered]);
 
   const shownLabel =
-    registerChosen && !registersListed
+    registerChosen && registers.status === "loading"
       ? undefined
       : registerOptions.find((option) => option.value === (registerOffered ? value : "ALL"))?.label;
 
   useEffect(() => {
-    if (shownLabel !== undefined) {
-      reportLabel(shownLabel);
-    }
+    reportLabel(shownLabel);
   }, [shownLabel]);
 
   return (

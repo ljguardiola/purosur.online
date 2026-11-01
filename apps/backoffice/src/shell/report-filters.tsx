@@ -10,7 +10,7 @@ export type ReportFiltersProps<Filters extends PeriodFilters> = {
   onFiltersChange: (filters: Filters) => void;
   answeredPeriod: { from: string; to: string } | undefined;
   registerFilter?: ReportRegisterField;
-  onRegisterLabelChange?: (label: string) => void;
+  onRegisterLabelChange?: (label: string | undefined) => void;
   trailing?: ReactNode;
 };
 

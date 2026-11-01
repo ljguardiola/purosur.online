@@ -53,3 +53,23 @@ export function ReportDownload({ dataStatus, workbook, fileName }: ReportDownloa
     </>
   );
 }
+
+export type RegisterReportDownloadProps = Omit<ReportDownloadProps, "workbook"> & {
+  registerLabel: string | undefined;
+  workbook: (registerLabel: string) => Workbook | null;
+};
+
+export function RegisterReportDownload({
+  registerLabel,
+  dataStatus,
+  workbook,
+  fileName,
+}: RegisterReportDownloadProps) {
+  return (
+    <ReportDownload
+      dataStatus={registerLabel === undefined ? "loading" : dataStatus}
+      workbook={() => (registerLabel === undefined ? null : workbook(registerLabel))}
+      fileName={fileName}
+    />
+  );
+}

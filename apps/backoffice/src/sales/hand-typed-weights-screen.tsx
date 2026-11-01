@@ -16,7 +16,7 @@ import { useId, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { reportMoment } from "../platform/report-moment";
-import { ReportDownload } from "../shell/report-download";
+import { RegisterReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import {
@@ -110,7 +110,7 @@ export function HandTypedWeightsScreen({
   services,
 }: HandTypedWeightsScreenProps) {
   const registerChosen = filters.register !== "ALL";
-  const [registerLabel, setRegisterLabel] = useState("Todas");
+  const [registerLabel, setRegisterLabel] = useState<string>();
   const cashiersHeadingId = useId();
   const sessionsHeadingId = useId();
   const data = useHandTypedWeightsQuery({
@@ -148,9 +148,12 @@ export function HandTypedWeightsScreen({
           registerFilter={registerFilter}
           onRegisterLabelChange={setRegisterLabel}
           trailing={
-            <ReportDownload
+            <RegisterReportDownload
               dataStatus={data.status}
-              workbook={() => (shown ? handTypedWeightsSpreadsheet(shown, registerLabel) : null)}
+              registerLabel={registerLabel}
+              workbook={(registerLabel) =>
+                shown ? handTypedWeightsSpreadsheet(shown, registerLabel) : null
+              }
               fileName={shown ? reportFileName(SCREEN_TITLE, shown.range) : ""}
             />
           }

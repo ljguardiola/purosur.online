@@ -17,7 +17,7 @@ import { FileText } from "lucide-react";
 import { useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { cloudTableState } from "../platform/cloud-table-state";
-import { ReportDownload } from "../shell/report-download";
+import { RegisterReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import {
@@ -88,7 +88,7 @@ export function IssuedFiscalDocumentsReportScreen({
   services,
 }: IssuedFiscalDocumentsReportScreenProps) {
   const filtered = filters.register !== "ALL";
-  const [registerLabel, setRegisterLabel] = useState("Todas");
+  const [registerLabel, setRegisterLabel] = useState<string>();
   const data = useIssuedFiscalDocumentsReportQuery({
     query: reportQueryOf(filters),
     fetchIssuedFiscalDocumentsReport: services.fetchIssuedFiscalDocumentsReport,
@@ -113,9 +113,10 @@ export function IssuedFiscalDocumentsReportScreen({
         registerFilter={registerFilter}
         onRegisterLabelChange={setRegisterLabel}
         trailing={
-          <ReportDownload
+          <RegisterReportDownload
             dataStatus={data.status}
-            workbook={() =>
+            registerLabel={registerLabel}
+            workbook={(registerLabel) =>
               shown
                 ? issuedFiscalDocumentsReportSpreadsheet(
                     shown,

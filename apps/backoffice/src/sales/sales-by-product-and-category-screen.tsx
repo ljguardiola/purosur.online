@@ -19,7 +19,7 @@ import { Receipt } from "lucide-react";
 import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { shareOfTotal } from "../platform/share-of-total";
-import { ReportDownload } from "../shell/report-download";
+import { RegisterReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import { reportQueryOf } from "../shell/report-filters-search";
@@ -95,7 +95,7 @@ export function SalesByProductAndCategoryScreen({
   services,
 }: SalesByProductAndCategoryScreenProps) {
   const registerChosen = filters.register !== "ALL";
-  const [registerLabel, setRegisterLabel] = useState("Todas");
+  const [registerLabel, setRegisterLabel] = useState<string>();
   const [page, setPage] = useState(1);
   const data = useSalesByProductAndCategoryQuery({
     query: { ...reportQueryOf(filters), group: filters.group },
@@ -134,9 +134,10 @@ export function SalesByProductAndCategoryScreen({
           registerFilter={registerFilter}
           onRegisterLabelChange={setRegisterLabel}
           trailing={
-            <ReportDownload
+            <RegisterReportDownload
               dataStatus={data.status}
-              workbook={() =>
+              registerLabel={registerLabel}
+              workbook={(registerLabel) =>
                 shown
                   ? salesByProductAndCategorySpreadsheet(
                       shown,
