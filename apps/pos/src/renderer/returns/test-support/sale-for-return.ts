@@ -83,6 +83,7 @@ export const SALE: SaleForReturn = {
     change_of_mind: { last_allowed_day: "2026-09-27", open: true },
     defective: { last_allowed_day: "2027-03-12", open: true },
   },
+  offered_resolutions: { change_of_mind: ["refund"], defective: ["refund", "exchange"] },
   lines: [PASTA, NIBS, HONEY, TEA],
   payments: [CASH, TRANSFER],
 };

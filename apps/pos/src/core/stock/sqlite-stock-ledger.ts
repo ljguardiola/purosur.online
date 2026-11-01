@@ -56,7 +56,8 @@ export function insertReturnStockMovement(
       id: movement.id,
       product_id: movement.productId,
       kind: movement.kind,
-      sale_line_id: movement.kind === "return" ? movement.saleLineId : null,
+      sale_line_id:
+        movement.kind === "return" || movement.kind === "exchange_out" ? movement.saleLineId : null,
       delta: movement.delta,
       occurred_at: movement.occurredAt.toISOString(),
     });

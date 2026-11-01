@@ -1,5 +1,5 @@
 {
-  "id": "e256e7d3-3f18-4341-8c57-7ac74a3d74ba",
+  "id": "fccdfce1-7ae8-40fa-929d-6aeebb894bd9",
   "prevId": "ad996e18-6c9c-42c2-9e82-dfc6ab924e85",
   "version": "7",
   "dialect": "postgresql",
@@ -2858,79 +2858,6 @@
         "discounts_weekdays_check": {
           "name": "discounts_weekdays_check",
           "value": "\"discounts\".\"weekdays\" <@ array[1, 2, 3, 4, 5, 6, 7]::smallint[]"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.exception_share_breaches": {
-      "name": "exception_share_breaches",
-      "schema": "",
-      "columns": {
-        "fiscal_address_id": {
-          "name": "fiscal_address_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "month": {
-          "name": "month",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "exception_count": {
-          "name": "exception_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "total_count": {
-          "name": "total_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "recorded_at": {
-          "name": "recorded_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "exception_share_breaches_fiscal_address_id_fiscal_addresses_id_fk": {
-          "name": "exception_share_breaches_fiscal_address_id_fiscal_addresses_id_fk",
-          "tableFrom": "exception_share_breaches",
-          "tableTo": "fiscal_addresses",
-          "columnsFrom": ["fiscal_address_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "exception_share_breaches_pkey": {
-          "name": "exception_share_breaches_pkey",
-          "columns": ["fiscal_address_id", "month"]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "exception_share_breaches_month_format": {
-          "name": "exception_share_breaches_month_format",
-          "value": "\"exception_share_breaches\".\"month\" ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'"
-        },
-        "exception_share_breaches_counts_consistent": {
-          "name": "exception_share_breaches_counts_consistent",
-          "value": "\"exception_share_breaches\".\"exception_count\" >= 0 and \"exception_share_breaches\".\"exception_count\" <= \"exception_share_breaches\".\"total_count\""
         }
       },
       "isRLSEnabled": false
@@ -9020,6 +8947,13 @@
           "primaryKey": false,
           "notNull": true
         },
+        "resolution": {
+          "name": "resolution",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'refund'"
+        },
         "disposition": {
           "name": "disposition",
           "type": "text",
@@ -9092,6 +9026,10 @@
         "return_lines_quantity_check": {
           "name": "return_lines_quantity_check",
           "value": "\"return_lines\".\"quantity\" > 0"
+        },
+        "return_lines_resolution_check": {
+          "name": "return_lines_resolution_check",
+          "value": "\"return_lines\".\"resolution\" in ('refund', 'exchange')"
         },
         "return_lines_reason_check": {
           "name": "return_lines_reason_check",
@@ -10818,15 +10756,15 @@
       "checkConstraints": {
         "stock_movements_kind_check": {
           "name": "stock_movements_kind_check",
-          "value": "\"stock_movements\".\"kind\" in ('loss', 'adjustment', 'count', 'sale', 'sale_void', 'return', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in', 'assembly_void')"
+          "value": "\"stock_movements\".\"kind\" in ('loss', 'adjustment', 'count', 'sale', 'sale_void', 'return', 'exchange_out', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in', 'assembly_void')"
         },
         "stock_movements_reason_unless_count_sale_or_receipt_check": {
           "name": "stock_movements_reason_unless_count_sale_or_receipt_check",
-          "value": "(\"stock_movements\".\"kind\" in ('count', 'sale', 'sale_void', 'return', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in', 'assembly_void')) = (\"stock_movements\".\"reason\" is null)"
+          "value": "(\"stock_movements\".\"kind\" in ('count', 'sale', 'sale_void', 'return', 'exchange_out', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in', 'assembly_void')) = (\"stock_movements\".\"reason\" is null)"
         },
         "stock_movements_sale_line_iff_sale_check": {
           "name": "stock_movements_sale_line_iff_sale_check",
-          "value": "(\"stock_movements\".\"kind\" in ('sale', 'sale_void', 'return') or (\"stock_movements\".\"kind\" = 'loss' and \"stock_movements\".\"reason\" = 'return_discard')) = (\"stock_movements\".\"sale_line_id\" is not null)"
+          "value": "(\"stock_movements\".\"kind\" in ('sale', 'sale_void', 'return', 'exchange_out') or (\"stock_movements\".\"kind\" = 'loss' and \"stock_movements\".\"reason\" = 'return_discard')) = (\"stock_movements\".\"sale_line_id\" is not null)"
         },
         "stock_movements_purchase_line_iff_receipt_check": {
           "name": "stock_movements_purchase_line_iff_receipt_check",

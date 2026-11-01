@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { codeUnitOrder, numericTextOrder, sortedItems, textOrder } from "./item-ordering";
+import { codeUnitOrder, sortedItems, textOrder } from "./item-ordering";
 
 type Node = { id: string; name: string; parentId: string | null };
 
@@ -25,6 +25,18 @@ describe("textOrder", () => {
       "Oliva",
     ]);
   });
+
+  it("compares the numbers inside the texts by their value", () => {
+    const order = textOrder((text: string) => text);
+
+    expect(["Caja 10", "Lote 12", "Caja 2", "Lote 9", "Caja 1"].sort(order)).toEqual([
+      "Caja 1",
+      "Caja 2",
+      "Caja 10",
+      "Lote 9",
+      "Lote 12",
+    ]);
+  });
 });
 
 describe("codeUnitOrder", () => {
@@ -45,19 +57,6 @@ describe("codeUnitOrder", () => {
     const order = codeUnitOrder((text: string) => text);
 
     expect(order("2026-10-31", "2026-10-31")).toBe(0);
-  });
-});
-
-describe("numericTextOrder", () => {
-  it("compares the numbers inside the texts by their value", () => {
-    const order = numericTextOrder((text: string) => text);
-
-    expect(["Aceite 100 ml", "Aceite 30 ml", "Aceite 5 ml", "árbol"].sort(order)).toEqual([
-      "Aceite 5 ml",
-      "Aceite 30 ml",
-      "Aceite 100 ml",
-      "árbol",
-    ]);
   });
 });
 

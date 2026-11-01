@@ -399,6 +399,7 @@ describe("forgetting the acknowledged events after a register session", () => {
         { state: "AUTHORIZED" },
         { state: "AWAITING_INVOICE" },
         { state: "AWAITING_INVOICE" },
+        { state: "AWAITING_INVOICE" },
         { state: "IN_PROGRESS" },
         { state: "ISSUED_OFFLINE" },
       ]);

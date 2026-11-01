@@ -177,7 +177,7 @@ describe("saleReturnedEventCreditNoteSchema", () => {
     );
   });
 
-  it.each([2, 3])(
+  it.each([2, 3, 4])(
     "reads a return of version %i, the versions whose return asks for a credit note",
     (schemaVersion) => {
       expect(eventWith({ schema_version: schemaVersion }).data?.schema_version).toBe(schemaVersion);
@@ -187,6 +187,7 @@ describe("saleReturnedEventCreditNoteSchema", () => {
   it.each([
     ["an event of another type", { event_type: "sale_voided" }],
     ["a return of an earlier version", { schema_version: 1 }],
+    ["a return of a version nobody emits yet", { schema_version: 5 }],
     [
       "a return that asks for no credit note",
       { payload: { ...returnedEvent.payload, credit_note: null } },

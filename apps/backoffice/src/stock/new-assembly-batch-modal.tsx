@@ -7,9 +7,9 @@ import {
   LoadFailure,
   LoadingPlaceholder,
   Modal,
-  numericTextOrder,
   SummaryRowGroup,
   sortedItems,
+  textOrder,
   useRequestForm,
 } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
@@ -63,7 +63,7 @@ type NewAssemblyBatchModalProps = {
   onSessionEnded: () => void;
 };
 
-const recipeDescriptionOrder = numericTextOrder((recipe: RecipeSummary) =>
+const recipeDescriptionOrder = textOrder((recipe: RecipeSummary) =>
   formatProductDescription({
     name: recipe.productName,
     brandName: recipe.brandName,

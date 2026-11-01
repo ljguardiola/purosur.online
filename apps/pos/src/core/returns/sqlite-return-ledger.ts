@@ -38,8 +38,8 @@ export function insertReturn(database: LocalDatabase, returned: RecordedReturn):
       occurred_at: returned.occurredAt.toISOString(),
     });
   const insertLine = database.prepare(
-    `INSERT INTO return_lines (return_id, sale_line_id, quantity, reason, disposition, refunded_amount)
-     VALUES (@return_id, @sale_line_id, @quantity, @reason, @disposition, @refunded_amount)`,
+    `INSERT INTO return_lines (return_id, sale_line_id, quantity, reason, disposition, resolution, refunded_amount)
+     VALUES (@return_id, @sale_line_id, @quantity, @reason, @disposition, @resolution, @refunded_amount)`,
   );
   for (const line of returned.lines) {
     insertLine.run({
@@ -48,6 +48,7 @@ export function insertReturn(database: LocalDatabase, returned: RecordedReturn):
       quantity: line.quantity,
       reason: line.reason,
       disposition: line.disposition,
+      resolution: line.resolution,
       refunded_amount: line.refundedAmount,
     });
   }

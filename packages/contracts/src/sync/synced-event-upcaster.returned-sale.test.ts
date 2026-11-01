@@ -121,6 +121,7 @@ describe("decoding a sale_returned event", () => {
               quantity: 2,
               reason: "defective",
               disposition: "discard",
+              resolution: "refund",
               refundedAmount: 5000,
             },
           ],
@@ -316,5 +317,74 @@ describe("decoding the refunds of a version 3 sale_returned event", () => {
     );
 
     expect(decoded).toMatchObject({ kind: "unreadable" });
+  });
+});
+
+describe("decoding the resolution of the lines of a sale_returned event", () => {
+  const EXCHANGED_LINE = {
+    sale_line_id: LINE,
+    product_id: "5d1a8f3c-9e47-4b02-8c6d-7a3f2e9b1c06",
+    quantity: 1,
+    reason: "defective",
+    disposition: "discard",
+    resolution: "exchange",
+    refunded_amount: 0,
+  };
+  const EXCHANGE_OUT = {
+    id: "0199b7a0-0000-7000-8000-000000000a0b",
+    sale_line_id: LINE,
+    product_id: "5d1a8f3c-9e47-4b02-8c6d-7a3f2e9b1c06",
+    kind: "exchange_out",
+    reason: null,
+    delta: -1000,
+    occurred_at: AT,
+  };
+  const exchanged = (change: Record<string, unknown> = {}) =>
+    returned(
+      {
+        credit_note: null,
+        lines: [EXCHANGED_LINE],
+        refunds: [],
+        cash_movements: [],
+        stock_movements: [EXCHANGE_OUT],
+        ...change,
+      },
+      4,
+    );
+
+  it.each([1, 2, 3])("reads the lines of a version %s return as refunded", (version) => {
+    const decoded = syncedEventUpcaster.decode(
+      returned(version === 1 ? {} : { credit_note: null }, version),
+    );
+
+    expect(decoded).toMatchObject({
+      kind: "fact",
+      fact: { saleReturn: { lines: [{ resolution: "refund" }] } },
+    });
+  });
+
+  it("reads the resolution a version 4 line carries, an exchange moving no money", () => {
+    expect(syncedEventUpcaster.decode(exchanged())).toMatchObject({
+      kind: "fact",
+      fact: {
+        kind: "sale_returned",
+        creditNote: null,
+        saleReturn: {
+          lines: [{ saleLineId: LINE, resolution: "exchange", refundedAmount: 0 }],
+          refunds: [],
+          cashMovements: [],
+          stockMovements: [{ kind: "exchange_out", reason: null, delta: -1000 }],
+        },
+      },
+    });
+  });
+
+  it("is unreadable when a version 4 line says nothing about its resolution", () => {
+    const { resolution: _resolution, ...without } = EXCHANGED_LINE;
+
+    expect(syncedEventUpcaster.decode(exchanged({ lines: [without] }))).toMatchObject({
+      kind: "unreadable",
+      reason: expect.stringContaining("resolution"),
+    });
   });
 });

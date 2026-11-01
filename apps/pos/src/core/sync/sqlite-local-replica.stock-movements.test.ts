@@ -1,7 +1,11 @@
 import type { SyncChange } from "@purosur/contracts";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
-import { addToStockBalance, insertSaleStockMovement } from "../stock/sqlite-stock-ledger";
+import {
+  addToStockBalance,
+  insertReturnStockMovement,
+  insertSaleStockMovement,
+} from "../stock/sqlite-stock-ledger";
 import type { RegisterPulledChange } from "./pulled-change";
 import type { SqliteLocalReplica } from "./sqlite-local-replica";
 import { openAdoptedReplica, savePulledChanges } from "./test-support/sqlite-local-replica";
@@ -155,6 +159,8 @@ describe("the stock movements a register pulls", () => {
     ["the output an assembled batch made", "assembly_in", 14_000, 24_000],
     ["a component a voided batch gives back", "assembly_void", 4000, 14_000],
     ["the output a voided batch takes back", "assembly_void", -14_000, -4000],
+    ["the replacement an exchange handed out", "exchange_out", -3000, 7000],
+    ["a replacement that leaves the count negative", "exchange_out", -12_000, -2000],
   ] as const)("replicate %s recorded at another register", async (_, kind, delta, expected) => {
     await save(stockMovementChange(1, "other-register-count", { kind, delta }));
 
@@ -162,6 +168,34 @@ describe("the stock movements a register pulls", () => {
     expect(
       database.prepare("SELECT kind, expires_on, withdraws_movement_id FROM stock_movements").all(),
     ).toEqual([{ kind, expires_on: null, withdraws_movement_id: null }]);
+  });
+
+  it("never count twice the replacement of an exchange the register made itself", async () => {
+    sellOwnLine("own-sale-movement", -3000);
+    insertReturnStockMovement(database, {
+      id: "own-exchange-movement",
+      returnId: "return-1",
+      saleLineId: "line-1",
+      productId: PRODUCT_ID,
+      kind: "exchange_out",
+      reason: null,
+      delta: -1000,
+      occurredAt: new Date(SOLD_AT),
+    });
+    addToStockBalance(database, PRODUCT_ID, -1000);
+
+    await save(
+      stockMovementChange(1, "own-exchange-movement", { kind: "exchange_out", delta: -1000 }),
+    );
+
+    expect(balance()).toBe(6000);
+    expect(
+      database
+        .prepare(
+          "SELECT kind, sale_line_id FROM stock_movements WHERE id = 'own-exchange-movement'",
+        )
+        .all(),
+    ).toEqual([{ kind: "exchange_out", sale_line_id: "line-1" }]);
   });
 
   it("adopt the delta the cloud applied to an initial count withdrawal the register recorded", async () => {

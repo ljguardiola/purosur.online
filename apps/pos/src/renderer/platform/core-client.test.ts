@@ -2392,7 +2392,13 @@ describe("createCoreClient", () => {
     const port = new FakePort();
     client.connect(port);
     const lines = [
-      { sale_line_id: "line-1", quantity: 2, reason: "defective" as const, disposition: null },
+      {
+        sale_line_id: "line-1",
+        quantity: 2,
+        reason: "defective" as const,
+        disposition: null,
+        resolution: null,
+      },
     ];
 
     const previewed = client.previewReturn("sale-1", lines);
@@ -2418,6 +2424,7 @@ describe("createCoreClient", () => {
         quantity: 2,
         reason: "change_of_mind" as const,
         disposition: "restock" as const,
+        resolution: "refund" as const,
       },
     ];
     const refunds = [{ payment_id: "pay-1", amount: 5000 }];

@@ -20,7 +20,11 @@ import {
 import { createReceiptPrintJobs } from "./receipt-print-jobs";
 import type { ReceiptRequestDeps } from "./receipt-requests";
 import { ControllableReceiptPrinter } from "./test-support/controllable-receipt-printer";
-import { insertCreditNote, insertVoidedSale } from "./test-support/credit-note-receipt-database";
+import {
+  insertCreditNote,
+  insertReturnCreditNote,
+  insertVoidedSale,
+} from "./test-support/credit-note-receipt-database";
 
 const PEPPER = Buffer.alloc(32, 7).toString("base64url");
 const CHAIN_KEY = Buffer.from("0123456789abcdef0123456789abcdef").toString("base64");
@@ -135,6 +139,34 @@ beforeEach(() => {
 
 afterEach(() => {
   database.close();
+});
+
+describe("printing the credit note of a return that exchanged one of its lines", () => {
+  it("prints only the line that was refunded, for what it refunded", async () => {
+    database.exec(
+      `UPDATE sales SET state = 'COMPLETED', voided_at = NULL;
+       DELETE FROM sale_credit_notes WHERE id = 'note-1';
+       DELETE FROM payment_refunds;`,
+    );
+    insertReturnCreditNote(database, { id: "note-return", returnId: "return-1" });
+    database.exec(
+      `INSERT INTO return_lines (return_id, sale_line_id, quantity, reason, disposition, resolution, refunded_amount)
+       VALUES ('return-1', 'line-1', 1, 'defective', 'discard', 'exchange', 0),
+              ('return-1', 'line-2', 1, 'defective', 'discard', 'refund', 350000);
+       INSERT INTO payment_refunds (id, payment_id, method, provider, amount, state, occurred_at, return_id)
+       VALUES ('refund-r1', 'pay-2', 'TRANSFER', 'NONE', 350000, 'APPROVED', '2026-10-01T10:00:00.000Z', 'return-1');`,
+    );
+
+    await printCreditNoteFor(deps(), { saleId: "sale-1", creditNoteId: "note-return" });
+    printer.becomeReady();
+
+    const lines = printoutOf(printer.handed[0] ?? new Uint8Array()).text.split("\n");
+    expect(lines.some((line) => line.includes("Yerba"))).toBe(true);
+    expect(lines.some((line) => line.includes("Alfajor"))).toBe(false);
+    expect(lines.filter((line) => line.includes("TOTAL"))).toEqual([
+      expect.stringContaining("3.500,00"),
+    ]);
+  });
 });
 
 describe("printing the credit note of a voided sale from its history", () => {

@@ -25,12 +25,14 @@ const YERBA: ReturnDraftLine = {
   quantity: 2,
   reason: "change_of_mind",
   disposition: "restock",
+  resolution: null,
 };
 const CHEESE: ReturnDraftLine = {
   saleLineId: "line-3",
   quantity: 250,
   reason: "defective",
   disposition: null,
+  resolution: "refund",
 };
 
 describe("previewReturn", () => {
@@ -38,7 +40,7 @@ describe("previewReturn", () => {
     expect(preview([YERBA, { ...CHEESE, disposition: "discard" }])).toEqual({
       kind: "previewed",
       lines: [
-        { ...YERBA, refusal: null, refundAmount: 5000 },
+        { ...YERBA, resolution: "refund", refusal: null, refundAmount: 5000 },
         { ...CHEESE, disposition: "discard", refusal: null, refundAmount: 2000 },
       ],
       refundableTotal: 7000,
@@ -51,6 +53,7 @@ describe("previewReturn", () => {
       quantity: 1,
       reason: "defective",
       disposition: "discard",
+      resolution: "refund",
     };
 
     expect(preview([promoted])).toMatchObject({
@@ -65,10 +68,38 @@ describe("previewReturn", () => {
     expect(preview([YERBA, CHEESE])).toEqual({
       kind: "previewed",
       lines: [
-        { ...YERBA, refusal: null, refundAmount: 5000 },
+        { ...YERBA, resolution: "refund", refusal: null, refundAmount: 5000 },
         { ...CHEESE, refusal: { kind: "missing_disposition" }, refundAmount: null },
       ],
       refundableTotal: 5000,
+    });
+  });
+
+  it("asks the cashier to choose between refunding and exchanging a defective line, with no default", () => {
+    const defective = { ...CHEESE, disposition: "discard", resolution: null } as const;
+
+    expect(preview([defective])).toMatchObject({
+      lines: [{ refusal: { kind: "missing_resolution" }, refundAmount: null }],
+      refundableTotal: 0,
+    });
+  });
+
+  it("previews an exchange as refunding nothing, and a change of mind as always a refund", () => {
+    const exchanged = { ...CHEESE, disposition: "discard", resolution: "exchange" } as const;
+
+    expect(preview([YERBA, exchanged])).toEqual({
+      kind: "previewed",
+      lines: [
+        { ...YERBA, resolution: "refund", refusal: null, refundAmount: 5000 },
+        { ...exchanged, refusal: null, refundAmount: 0 },
+      ],
+      refundableTotal: 5000,
+    });
+  });
+
+  it("refuses to exchange a change of mind", () => {
+    expect(preview([{ ...YERBA, resolution: "exchange" }])).toMatchObject({
+      lines: [{ refusal: { kind: "resolution_not_offered" }, refundAmount: null }],
     });
   });
 

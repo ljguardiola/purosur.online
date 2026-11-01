@@ -485,6 +485,73 @@ describe("applyRegisterStockMovements", () => {
       expect(remainingByLot(store)).toEqual({ soon: 0, late: 0, never: 3000 });
     });
 
+    it("takes the replacement of a defective item from the lots that expire soonest first, like a sale", async () => {
+      const store = storeWithProducts();
+      store.seedLot({ ...BREAD, id: "late", expiresOn: "2027-06-01", remaining: 4000 });
+      store.seedLot({ ...BREAD, id: "soon", expiresOn: "2027-01-01", remaining: 2000 });
+
+      const outcome = await apply(
+        store,
+        sale([
+          {
+            id: "exchange-1",
+            saleLineId: "sale-line-1",
+            productId: "product-bread",
+            kind: "exchange_out",
+            delta: -3000,
+          },
+        ]),
+      );
+
+      expect(outcome).toEqual({ kind: "applied" });
+      expect(store.balanceOf(BREAD)).toBe(7000);
+      expect(store.snapshot().allocations).toEqual([
+        { movementId: "exchange-1", lotId: "soon", quantity: -2000 },
+        { movementId: "exchange-1", lotId: "late", quantity: -1000 },
+      ]);
+    });
+
+    it("lets the replacement of a defective item leave the balance negative", async () => {
+      const store = storeWithProducts();
+
+      const outcome = await apply(
+        store,
+        sale([
+          {
+            id: "exchange-1",
+            saleLineId: "sale-line-1",
+            productId: "product-bread",
+            kind: "exchange_out",
+            delta: -12_000,
+          },
+        ]),
+      );
+
+      expect(outcome).toEqual({ kind: "applied" });
+      expect(store.balanceOf(BREAD)).toBe(-2000);
+    });
+
+    it("refuses a replacement in a quantity the product's unit can't be sold in, writing nothing", async () => {
+      const store = storeWithProducts();
+      const before = store.snapshot();
+
+      const outcome = await apply(
+        store,
+        sale([
+          {
+            id: "exchange-1",
+            saleLineId: "sale-line-1",
+            productId: "product-bread",
+            kind: "exchange_out",
+            delta: -1500,
+          },
+        ]),
+      );
+
+      expect(outcome).toEqual({ kind: "invalid_quantity", productId: "product-bread" });
+      expect(store.snapshot()).toEqual(before);
+    });
+
     it("applies a sale of a product holding an expired lot without refusing it, taking the expired lot first", async () => {
       const store = storeWithProducts();
       store.seedLot({ ...BREAD, id: "fresh", expiresOn: "2027-06-01", remaining: 4000 });
