@@ -2,11 +2,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { assemblyBatches } from "../platform/db/schema.js";
 import { insertAssemblyBatch } from "../stock/test-support/assembly-batch-fixtures.js";
-import {
-  insertInitialCountLot,
-  insertPurchasedLot,
-  insertTechnicalLot,
-} from "../stock/test-support/lot-fixtures.js";
+import { insertInitialCountLot, insertPurchasedLot } from "../stock/test-support/lot-fixtures.js";
 import { insertLocation } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
@@ -277,7 +273,7 @@ describe("the newest lots that count for the shelf life", () => {
     ]);
   });
 
-  it("ignores lots loaded by the initial count and technical lots", async () => {
+  it("ignores a lot loaded by the initial count", async () => {
     const yerba = await insertProduct(db, { name: "Yerba" });
     await purchased(yerba.id, "2026-08-01T12:00:00.000Z", "2026-12-01");
     await insertInitialCountLot(db, {
@@ -286,12 +282,6 @@ describe("the newest lots that count for the shelf life", () => {
       actorId: await insertActor(db),
       expiresOn: "2026-09-12",
       createdAt: new Date("2026-09-02T12:00:00.000Z"),
-    });
-    await insertTechnicalLot(db, {
-      productId: yerba.id,
-      locationId,
-      remaining: 1_000,
-      expiresOn: "2026-09-15",
     });
 
     expect(await reader().newestShelfLifeLots(locationId)).toMatchObject([

@@ -84,7 +84,7 @@ export async function insertPurchasedLot<TQueryResult extends PgQueryResultHKT>(
 
 export async function insertTechnicalLot<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
-  input: { productId: string; locationId: string; remaining: number; expiresOn?: string },
+  input: { productId: string; locationId: string; remaining: number },
 ): Promise<string> {
   const [lot] = await db
     .insert(lots)
@@ -92,7 +92,6 @@ export async function insertTechnicalLot<TQueryResult extends PgQueryResultHKT>(
       productId: input.productId,
       locationId: input.locationId,
       technical: true,
-      expiresOn: input.expiresOn ?? null,
       costIncomplete: true,
       quantityReceived: 0,
       remaining: input.remaining,
