@@ -15,9 +15,9 @@ describe("lotOriginOf", () => {
   });
 
   it("names a lot received on a purchase line a purchase", () => {
-    expect(
-      lotOriginOf({ technical: false, assemblyBatchId: null, purchaseLineId: "line-1" }),
-    ).toBe("purchase");
+    expect(lotOriginOf({ technical: false, assemblyBatchId: null, purchaseLineId: "line-1" })).toBe(
+      "purchase",
+    );
   });
 
   it("names a lot with neither a batch nor a purchase line the initial count", () => {

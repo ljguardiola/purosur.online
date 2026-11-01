@@ -125,9 +125,7 @@ export function OrderSuggestionScreen({
             {formatNumber(line.effectiveDays)}{" "}
             {plural(line.effectiveDays, { one: "día", other: "días" })}
           </span>
-          {line.cappedByExpiry ? (
-            <Tag tone="neutral">Tope por vencimiento</Tag>
-          ) : null}
+          {line.cappedByExpiry ? <Tag tone="neutral">Tope por vencimiento</Tag> : null}
         </div>
       ),
     }),
