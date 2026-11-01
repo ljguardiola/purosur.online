@@ -6,16 +6,11 @@ import {
   type SupplierSummary,
 } from "@purosur/contracts";
 import type { ReceiptType } from "@purosur/domain";
-import {
-  numericTextOrder,
-  parseAmountCents,
-  parseEsArNumber,
-  sortedItems,
-  textOrder,
-} from "@purosur/ui";
+import { numericTextOrder, parseAmountCents, sortedItems, textOrder } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { schemaLimit } from "../platform/schema-limit";
 import { parseStockQuantity, quantityMessage } from "../platform/stock-quantity";
+import { packageCountOf, quantityPerPackageOf } from "./package-count-form";
 import type { PurchaseLineRefusal } from "./purchases-api";
 import { receiptLabel } from "./receipt-label";
 
@@ -147,17 +142,6 @@ function saleUnitOf(products: PurchaseProducts, productId: string | null) {
   return products.find((product) => product.id === productId)?.saleUnit ?? "UNIT";
 }
 
-function packageCountOf(packages: string): number {
-  const digits = parseEsArNumber(packages, 0);
-  return digits ? Number(digits.whole) : Number.NaN;
-}
-
-function quantityPerPackageOf(line: PurchaseLineValues, products: PurchaseProducts): number {
-  return (
-    parseStockQuantity(line.quantityPerPackage, saleUnitOf(products, line.productId)) ?? Number.NaN
-  );
-}
-
 function quantityOf(line: PurchaseLineValues, products: PurchaseProducts): number {
   return parseStockQuantity(line.quantity, saleUnitOf(products, line.productId)) ?? Number.NaN;
 }
@@ -177,7 +161,10 @@ function lineRequestFrom(
         loadedBy: "packages",
         ...common,
         packages: packageCountOf(line.packages),
-        quantityPerPackage: quantityPerPackageOf(line, products),
+        quantityPerPackage: quantityPerPackageOf(
+          line.quantityPerPackage,
+          saleUnitOf(products, line.productId),
+        ),
       }
     : { loadedBy: "quantity", ...common, quantity: quantityOf(line, products) };
 }
@@ -208,7 +195,11 @@ function lineProblem(line: PurchaseLineValues, products: PurchaseProducts): stri
     if (Number.isNaN(packageCountOf(line.packages))) {
       return "Ingresá cuántos paquetes compraste, en un número entero.";
     }
-    if (Number.isNaN(quantityPerPackageOf(line, products))) {
+    if (
+      Number.isNaN(
+        quantityPerPackageOf(line.quantityPerPackage, saleUnitOf(products, line.productId)),
+      )
+    ) {
       return quantityMessage(saleUnitOf(products, line.productId));
     }
   } else if (Number.isNaN(quantityOf(line, products))) {
