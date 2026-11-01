@@ -5,14 +5,16 @@ export function fiscalAddressMonthScope(fiscalAddressId: string, month: string):
   return `${fiscalAddressId}:${month}`;
 }
 
-const FISCAL_ADDRESS_MONTH_SCOPE = /^([^:]+):(\d{4}-(?:0[1-9]|1[0-2]))$/;
+function fiscalAddressMonthScopeMatch(scope: string): RegExpExecArray | null {
+  return /^([^:]+):(\d{4}-(?:0[1-9]|1[0-2]))$/.exec(scope);
+}
 
 export function fiscalAddressMonthScopeFiscalAddressId(scope: string): string | undefined {
-  return FISCAL_ADDRESS_MONTH_SCOPE.exec(scope)?.[1];
+  return fiscalAddressMonthScopeMatch(scope)?.[1];
 }
 
 export function fiscalAddressMonthScopeDisplay(scope: string, fiscalAddressName: string): string {
-  const match = FISCAL_ADDRESS_MONTH_SCOPE.exec(scope);
+  const match = fiscalAddressMonthScopeMatch(scope);
   return match === null ? scope : `${fiscalAddressName}:${match[2]}`;
 }
 
