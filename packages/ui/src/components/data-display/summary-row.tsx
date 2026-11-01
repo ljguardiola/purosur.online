@@ -94,19 +94,31 @@ export function SummaryRow({
 export type StackedSummaryRowProps = {
   label: string;
   value: string;
-} & ({ subtle?: boolean; tone?: undefined } | { subtle?: false; tone: Extract<Tone, "error"> });
+} & (
+  | { subtle?: boolean; tone?: undefined; emphasized?: false }
+  | { subtle?: false; tone: Extract<Tone, "error">; emphasized?: false }
+  | { subtle?: false; tone?: undefined; emphasized: true }
+);
 
-export function StackedSummaryRow({ label, value, subtle = false, tone }: StackedSummaryRowProps) {
-  const valueColorClassName =
-    tone === undefined
-      ? subtle
-        ? "text-text-subtle"
-        : "text-text"
-      : toneClassName[tone].strongText;
+function stackedValueClassName({
+  subtle = false,
+  tone,
+  emphasized = false,
+}: Omit<StackedSummaryRowProps, "label" | "value">) {
+  if (emphasized) {
+    return "text-heading text-text-accent";
+  }
+  if (tone !== undefined) {
+    return `text-subheading ${toneClassName[tone].strongText}`;
+  }
+  return subtle ? "text-subheading text-text-subtle" : "text-subheading text-text";
+}
+
+export function StackedSummaryRow({ label, value, ...form }: StackedSummaryRowProps) {
   return (
     <div className="flex flex-col gap-1">
       <span className="text-detail text-text-subtle">{label}</span>
-      <span className={`text-subheading ${valueColorClassName}`}>{value}</span>
+      <span className={stackedValueClassName(form)}>{value}</span>
     </div>
   );
 }
