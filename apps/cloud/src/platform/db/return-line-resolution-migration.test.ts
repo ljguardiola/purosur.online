@@ -55,8 +55,8 @@ async function databaseBefore() {
     );
   const insertMovement = (kind: string, withSaleLine: boolean) =>
     database.query(
-      `insert into stock_movements (product_id, location_id, kind, delta, actor_id, sale_line_id)
-       values ($1, $2, $3, -1000, $4, $5)`,
+      `insert into stock_movements (product_id, location_id, kind, delta, actor_id, sale_line_id, occurred_at)
+       values ($1, $2, $3, -1000, $4, $5, now())`,
       [productId, locationId, kind, userId, withSaleLine ? saleLineId : null],
     );
   return { database, insertLine, insertMovement };
