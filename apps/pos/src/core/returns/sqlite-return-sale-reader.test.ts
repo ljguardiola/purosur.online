@@ -242,6 +242,22 @@ describe("the sale a return starts from", () => {
   });
 });
 
+describe("what an exchange leaves of a line", () => {
+  it("does not count an exchanged quantity as returned nor its amount as refunded", () => {
+    insertStoredReturn(database, "return-1", [
+      { saleLineId: "line-1", quantity: 1, refundedAmount: 2500 },
+      { saleLineId: "line-2", quantity: 2, refundedAmount: 0, resolution: "exchange" },
+    ]);
+    insertStoredReturn(database, "return-2", [
+      { saleLineId: "line-1", quantity: 1, refundedAmount: 0, resolution: "exchange" },
+    ]);
+
+    expect(reader.saleForReturn({ kind: "sale", saleId: "sale-1" })?.returned).toEqual([
+      { saleLineId: "line-1", quantity: 1, refundedAmount: 2500 },
+    ]);
+  });
+});
+
 describe("the days a good-condition return is accepted", () => {
   it("are the branch setting", () => {
     insertBranchSettings(database, 30);
@@ -384,6 +400,17 @@ describe("a sale of this register the cloud answered for", () => {
     expect(reader.saleForReturn({ kind: "sale", saleId: "sale-1" })?.returned).toEqual([
       { saleLineId: "line-1", quantity: 1, refundedAmount: 2500 },
       { saleLineId: "line-2", quantity: 2, refundedAmount: 2000 },
+    ]);
+  });
+
+  it("leaves out of it what this register exchanged and the cloud did not count yet", () => {
+    keepCloudCopy();
+    insertStoredReturn(database, "return-here", [
+      { saleLineId: "line-2", quantity: 2, refundedAmount: 0, resolution: "exchange" },
+    ]);
+
+    expect(reader.saleForReturn({ kind: "sale", saleId: "sale-1" })?.returned).toEqual([
+      { saleLineId: "line-1", quantity: 1, refundedAmount: 2500 },
     ]);
   });
 

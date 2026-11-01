@@ -12,8 +12,20 @@ export type {
 } from "./model/return-draft.js";
 export type { ReturnHistoryBreak, SaleReturnHistory } from "./model/return-history-breaks.js";
 export { returnHistoryBreaks } from "./model/return-history-breaks.js";
-export type { ReturnDisposition, ReturnReason, TicketSource } from "./model/return-reasons.js";
-export { RETURN_DISPOSITIONS, RETURN_REASONS, TICKET_SOURCES } from "./model/return-reasons.js";
+export { countsAsReturned } from "./model/return-line.js";
+export type {
+  ReturnDisposition,
+  ReturnReason,
+  ReturnResolution,
+  TicketSource,
+} from "./model/return-reasons.js";
+export {
+  offeredResolutions,
+  RETURN_DISPOSITIONS,
+  RETURN_REASONS,
+  RETURN_RESOLUTIONS,
+  TICKET_SOURCES,
+} from "./model/return-reasons.js";
 export type {
   ReturnedFromLine,
   ReturnStandingLine,

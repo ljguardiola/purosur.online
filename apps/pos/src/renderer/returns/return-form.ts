@@ -7,7 +7,11 @@ import {
   parseWeightThousandths,
 } from "@purosur/ui";
 import type { PaymentForReturn, SaleForReturn, SaleLineForReturn } from "./return-sale";
-import type { ReturnDispositionValue, ReturnReasonValue } from "./return-text";
+import type {
+  ReturnDispositionValue,
+  ReturnReasonValue,
+  ReturnResolutionValue,
+} from "./return-text";
 
 export const returnRequestSchema = completeReturnMessageSchema.pick({ lines: true, refunds: true });
 
@@ -15,6 +19,7 @@ export type ReturnDraftLine = {
   quantity: string;
   reason: ReturnReasonValue | null;
   disposition: ReturnDispositionValue | null;
+  resolution: ReturnResolutionValue | null;
 };
 
 export type ReturnDraft = Readonly<Record<string, ReturnDraftLine>>;
@@ -42,7 +47,12 @@ function quantityTextOf({
 export function checkLine(draft: ReturnDraft, line: SaleLineForReturn): ReturnDraft {
   return {
     ...draft,
-    [line.id]: { quantity: quantityTextOf(line), reason: null, disposition: null },
+    [line.id]: {
+      quantity: quantityTextOf(line),
+      reason: null,
+      disposition: null,
+      resolution: null,
+    },
   };
 }
 
@@ -56,7 +66,14 @@ export function changeLine(
   change: Partial<ReturnDraftLine>,
 ): ReturnDraft {
   const line = draft[lineId];
-  return line === undefined ? draft : { ...draft, [lineId]: { ...line, ...change } };
+  if (line === undefined) {
+    return draft;
+  }
+  const reasonChanged = change.reason !== undefined && change.reason !== line.reason;
+  return {
+    ...draft,
+    [lineId]: { ...line, ...(reasonChanged ? { resolution: null } : {}), ...change },
+  };
 }
 
 export function goesBackWhole(line: SaleLineForReturn, reason: ReturnReasonValue | null): boolean {
@@ -85,6 +102,7 @@ export function draftLinesFor(sale: SaleForReturn, draft: ReturnDraft): ReturnDr
             quantity: quantityOf(line, drafted),
             reason: drafted.reason,
             disposition: drafted.disposition,
+            resolution: drafted.resolution,
           },
         ];
   });

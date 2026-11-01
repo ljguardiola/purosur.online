@@ -538,8 +538,9 @@ function toDraftLine({
   quantity,
   reason,
   disposition,
+  resolution,
 }: ReturnDraftLineBody): ReturnDraftLine {
-  return { saleLineId, quantity, reason, disposition };
+  return { saleLineId, quantity, reason, disposition, resolution };
 }
 
 async function attemptPreviewReturn(

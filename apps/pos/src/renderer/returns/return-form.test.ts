@@ -25,12 +25,14 @@ describe("a return draft", () => {
   it("takes a checked unit line whole, with no reason and no destination chosen", () => {
     const draft = checkLine(EMPTY_RETURN_DRAFT, PASTA);
 
-    expect(draft).toEqual({ [PASTA.id]: { quantity: "3", reason: null, disposition: null } });
+    expect(draft).toEqual({
+      [PASTA.id]: { quantity: "3", reason: null, disposition: null, resolution: null },
+    });
   });
 
   it("takes a checked weighed line whole, as the weight is typed", () => {
     expect(checkLine(EMPTY_RETURN_DRAFT, NIBS)).toEqual({
-      [NIBS.id]: { quantity: "0,350", reason: null, disposition: null },
+      [NIBS.id]: { quantity: "0,350", reason: null, disposition: null, resolution: null },
     });
   });
 
@@ -45,7 +47,44 @@ describe("a return draft", () => {
       reason: "defective",
     });
 
-    expect(draft[PASTA.id]).toEqual({ quantity: "3", reason: "defective", disposition: null });
+    expect(draft[PASTA.id]).toEqual({
+      quantity: "3",
+      reason: "defective",
+      disposition: null,
+      resolution: null,
+    });
+  });
+
+  it("forgets the choice between refunding and exchanging when the reason changes", () => {
+    const chosen = changeLine(checkLine(EMPTY_RETURN_DRAFT, PASTA), PASTA.id, {
+      reason: "defective",
+      resolution: "exchange",
+    });
+
+    expect(
+      changeLine(chosen, PASTA.id, { reason: "change_of_mind" })[PASTA.id]?.resolution,
+    ).toBeNull();
+  });
+
+  it("keeps the choice between refunding and exchanging while the reason stays", () => {
+    const chosen = changeLine(checkLine(EMPTY_RETURN_DRAFT, PASTA), PASTA.id, {
+      reason: "defective",
+      resolution: "exchange",
+    });
+
+    expect(changeLine(chosen, PASTA.id, { quantity: "2" })[PASTA.id]?.resolution).toBe("exchange");
+    expect(changeLine(chosen, PASTA.id, { reason: "defective" })[PASTA.id]?.resolution).toBe(
+      "exchange",
+    );
+  });
+
+  it("takes the reason and the resolution chosen together", () => {
+    const chosen = changeLine(checkLine(EMPTY_RETURN_DRAFT, PASTA), PASTA.id, {
+      reason: "defective",
+      resolution: "refund",
+    });
+
+    expect(chosen[PASTA.id]).toMatchObject({ reason: "defective", resolution: "refund" });
   });
 
   it("changes nothing in a line that is not checked", () => {
@@ -58,14 +97,27 @@ describe("a return draft", () => {
         quantity: "0,200",
         reason: "defective",
         disposition: "discard",
+        resolution: "exchange",
       }),
       PASTA.id,
       { quantity: "2", reason: "change_of_mind", disposition: "restock" },
     );
 
     expect(draftLinesFor(SALE, draft)).toEqual([
-      { sale_line_id: PASTA.id, quantity: 2, reason: "change_of_mind", disposition: "restock" },
-      { sale_line_id: NIBS.id, quantity: 200, reason: "defective", disposition: "discard" },
+      {
+        sale_line_id: PASTA.id,
+        quantity: 2,
+        reason: "change_of_mind",
+        disposition: "restock",
+        resolution: null,
+      },
+      {
+        sale_line_id: NIBS.id,
+        quantity: 200,
+        reason: "defective",
+        disposition: "discard",
+        resolution: "exchange",
+      },
     ]);
   });
 
@@ -183,7 +235,13 @@ describe("the request a return is completed with", () => {
 
     expect(request).toEqual({
       lines: [
-        { sale_line_id: PASTA.id, quantity: 3, reason: "change_of_mind", disposition: "restock" },
+        {
+          sale_line_id: PASTA.id,
+          quantity: 3,
+          reason: "change_of_mind",
+          disposition: "restock",
+          resolution: null,
+        },
       ],
       refunds: [{ payment_id: CASH.payment_id, amount: 970_000 }],
     });

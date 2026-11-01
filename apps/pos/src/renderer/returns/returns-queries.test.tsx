@@ -11,6 +11,7 @@ const PASTA: ReturnDraftLineBody = {
   quantity: 3,
   reason: "change_of_mind",
   disposition: "restock",
+  resolution: "refund",
 };
 
 const PREVIEWED: PreviewReturnOutcome = {

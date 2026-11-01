@@ -78,6 +78,7 @@ describe("ReturnScreen asking someone with permission to authorize", () => {
     await chooseReturnLine(screen, "Pasta de maní 380 g", {
       reason: "Defecto",
       disposition: "Descarte",
+      resolution: "Reintegro",
     });
     await userEvent.click(screen.getByRole("button", { name: "Completar devolución" }));
 
@@ -126,6 +127,7 @@ describe("ReturnScreen asking someone with permission to authorize", () => {
     await chooseReturnLine(screen, "Pasta de maní 380 g", {
       reason: "Defecto",
       disposition: "Descarte",
+      resolution: "Reintegro",
     });
 
     await userEvent.click(screen.getByRole("button", { name: "Completar devolución" }));

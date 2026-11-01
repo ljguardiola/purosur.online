@@ -348,6 +348,36 @@ describe("the receipt of the credit note of a return", () => {
     ]);
   });
 
+  it("lists only the lines the return refunded, leaving out one exchanged in the same return", () => {
+    database.exec(
+      `INSERT INTO return_lines (return_id, sale_line_id, quantity, reason, disposition, resolution, refunded_amount)
+       VALUES ('return-1', 'line-2', 1, 'defective', 'discard', 'exchange', 0);`,
+    );
+    insertReturnCreditNote();
+
+    const receipt = readCreditNoteReceipt(database, "note-r1");
+
+    expect(receipt?.lines.map(({ productName }) => productName)).toEqual(["Alfajor"]);
+    expect(receipt?.totals).toEqual({ subtotal: 420000, saleDiscount: null, total: 420000 });
+  });
+
+  it("counts as returned before it only what earlier returns refunded, not what they exchanged", () => {
+    database.exec(
+      `UPDATE sale_lines SET sale_unit = 'KG', weight_source = 'SCALE', quantity = 300,
+         list_unit_price = 4003, discount_amount = 100, line_total = 1101 WHERE id = 'line-1';
+       UPDATE return_lines SET quantity = 100, refunded_amount = 367;
+       INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)
+       VALUES ('return-0', 'sale-1', 'r1', 'device-1', 's1', 'u1', 'QR', '2026-10-01T15:00:00.000Z');
+       INSERT INTO return_lines (return_id, sale_line_id, quantity, reason, disposition, resolution, refunded_amount)
+       VALUES ('return-0', 'line-1', 100, 'defective', 'discard', 'exchange', 0);`,
+    );
+    insertReturnCreditNote();
+
+    expect(readCreditNoteReceipt(database, "note-r1")?.lines).toMatchObject([
+      { saleUnit: "KG", quantity: 100, chargedUnitPrice: 4003, discountAmount: 33, lineTotal: 367 },
+    ]);
+  });
+
   it("leaves out what another return of the sale gave back", () => {
     database.exec(
       `INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, ticket_source, occurred_at)

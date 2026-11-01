@@ -8,6 +8,7 @@ import {
 } from "@purosur/domain";
 import { readCreditNoteById, type StoredCreditNote } from "../fiscal/sqlite-sale-credit-notes";
 import type { LocalDatabase } from "../platform/local-database";
+import { COUNTED_RETURN_RESOLUTIONS_SQL } from "../returns/counted-return-resolutions";
 import { readReceiptSource } from "./sqlite-receipt-source";
 
 type Refund = CreditNoteReceiptContent["refunds"][number];
@@ -91,12 +92,14 @@ function returnedContent(
               (SELECT COALESCE(SUM(earlier_lines.quantity), 0) FROM return_lines AS earlier_lines
                 JOIN returns AS earlier_returns ON earlier_returns.id = earlier_lines.return_id
                 WHERE earlier_lines.sale_line_id = return_lines.sale_line_id
+                  AND earlier_lines.resolution IN (${COUNTED_RETURN_RESOLUTIONS_SQL})
                   AND earlier_returns.occurred_at < returns.occurred_at) AS returned_before,
               return_lines.quantity AS quantity, return_lines.refunded_amount AS refunded_amount
        FROM return_lines
        JOIN returns ON returns.id = return_lines.return_id
        JOIN sale_lines ON sale_lines.id = return_lines.sale_line_id
        WHERE return_lines.return_id = ?
+         AND return_lines.resolution IN (${COUNTED_RETURN_RESOLUTIONS_SQL})
        ORDER BY sale_lines.position`,
     )
     .all(returnId)

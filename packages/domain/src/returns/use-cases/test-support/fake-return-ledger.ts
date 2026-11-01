@@ -8,6 +8,7 @@ import type {
   SaleInvoice,
 } from "../../../fiscal/index.js";
 import type { OutboxEventDraft } from "../../../shared/index.js";
+import { countsAsReturned } from "../../model/return-line.js";
 import type { SaleForReturn } from "../../model/return-sale.js";
 import type {
   RecordedReturn,
@@ -137,7 +138,7 @@ export class FakeReturnLedger implements ReturnLedger, ReturnSaleReader {
         this.failIfAsked("recordReturn");
         working.returns.push(returned);
         const sale = working.sales.find(({ sale: stored }) => stored.id === returned.saleId);
-        for (const line of returned.lines) {
+        for (const line of returned.lines.filter(countsAsReturned)) {
           const earlier = sale?.returned.find(({ saleLineId }) => saleLineId === line.saleLineId);
           if (earlier === undefined) {
             sale?.returned.push({

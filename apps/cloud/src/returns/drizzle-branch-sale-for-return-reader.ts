@@ -35,6 +35,7 @@ import {
   saleReturns,
   sales,
 } from "../platform/db/schema.js";
+import { COUNTED_RETURN_RESOLUTIONS } from "./counted-return-resolutions.js";
 
 function saleStateOf(state: string): SaleState {
   if (state === "COMPLETED" || state === "VOIDED") {
@@ -304,7 +305,12 @@ export class DrizzleBranchSaleForReturnReader<TQueryResult extends PgQueryResult
       })
       .from(returnLines)
       .innerJoin(saleReturns, eq(saleReturns.id, returnLines.returnId))
-      .where(eq(saleReturns.saleId, saleId))
+      .where(
+        and(
+          eq(saleReturns.saleId, saleId),
+          inArray(returnLines.resolution, COUNTED_RETURN_RESOLUTIONS),
+        ),
+      )
       .groupBy(returnLines.saleLineId);
   }
 

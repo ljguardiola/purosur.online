@@ -15,7 +15,12 @@ import type { ReturnDraft, ReturnDraftLine } from "./return-form";
 import { goesBackWhole } from "./return-form";
 import type { SaleForReturn, SaleLineForReturn } from "./return-sale";
 import type { ReturnReasonValue } from "./return-text";
-import { DISPOSITION_OPTIONS, quantityText, REASON_OPTIONS } from "./return-text";
+import {
+  DISPOSITION_OPTIONS,
+  quantityText,
+  REASON_OPTIONS,
+  RESOLUTION_LABELS,
+} from "./return-text";
 
 export type ReturnLinesTableProps = {
   sale: SaleForReturn;
@@ -128,8 +133,32 @@ export function ReturnLinesTable({
     dataColumn({
       id: "resolution",
       header: "Se resuelve con",
-      render: (line: SaleLineForReturn) =>
-        draft[line.id] === undefined ? null : <TableCellText>Reintegro</TableCellText>,
+      render: (line: SaleLineForReturn) => {
+        const drafted = draft[line.id];
+        if (drafted === undefined || drafted.reason === null) {
+          return null;
+        }
+        const [first, ...rest] = sale.offered_resolutions[drafted.reason].map((value) => ({
+          value,
+          label: RESOLUTION_LABELS[value],
+        }));
+        if (first === undefined) {
+          return null;
+        }
+        return rest.length === 0 ? (
+          <TableCellText>{first.label}</TableCellText>
+        ) : (
+          <Select
+            name={`resolution-${line.id}`}
+            label={`Resolución de ${line.product_name}`}
+            labelVisuallyHidden
+            placeholder="Elegí"
+            options={[first, ...rest]}
+            value={drafted.resolution}
+            onChange={(resolution) => onChange(line.id, { resolution })}
+          />
+        );
+      },
     }),
     dataColumn({
       id: "disposition",

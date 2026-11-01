@@ -545,6 +545,7 @@ describe("DrizzleSaleMarginReportReader with returns", () => {
             productId,
             quantity: 1,
             reason: "defective",
+            resolution: "refund",
             disposition,
             refundedAmount,
           },

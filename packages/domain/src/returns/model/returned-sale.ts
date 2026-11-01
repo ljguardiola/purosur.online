@@ -1,5 +1,10 @@
 import type { PlannedRefund } from "../../payments/index.js";
-import type { ReturnDisposition, ReturnReason, TicketSource } from "./return-reasons.js";
+import type {
+  ReturnDisposition,
+  ReturnReason,
+  ReturnResolution,
+  TicketSource,
+} from "./return-reasons.js";
 
 export interface ReturnedLine {
   saleLineId: string;
@@ -7,6 +12,7 @@ export interface ReturnedLine {
   quantity: number;
   reason: ReturnReason;
   disposition: ReturnDisposition;
+  resolution: ReturnResolution;
   refundedAmount: number;
 }
 
@@ -27,7 +33,7 @@ export interface ReturnedStockMovement {
   id: string;
   saleLineId: string;
   productId: string;
-  kind: "return" | "loss";
+  kind: "return" | "loss" | "exchange_out";
   reason: "return_discard" | null;
   delta: number;
 }

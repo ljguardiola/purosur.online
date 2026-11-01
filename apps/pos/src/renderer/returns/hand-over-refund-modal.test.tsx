@@ -11,6 +11,7 @@ const LINES: CompletedReturnLine[] = [
     name: "Pasta de maní 380 g",
     quantity: "3 u",
     disposition: "restock",
+    resolution: "refund",
     amount: 970_000,
   },
   {
@@ -18,9 +19,19 @@ const LINES: CompletedReturnLine[] = [
     name: "Nibs de cacao",
     quantity: "0,350 kg",
     disposition: "discard",
+    resolution: "refund",
     amount: 423_500,
   },
 ];
+
+const EXCHANGED: CompletedReturnLine = {
+  id: "line-honey",
+  name: "Miel pura de abeja 1 kg",
+  quantity: "2 u",
+  disposition: "discard",
+  resolution: "exchange",
+  amount: 0,
+};
 
 const PENDING_QR: PendingReturnRefund = {
   id: "pay-qr",
@@ -38,6 +49,7 @@ const PENDING_TRANSFER: PendingReturnRefund = {
 async function renderModal(
   cashToHandOver = 1_393_500,
   pendingRefunds: readonly PendingReturnRefund[] = [],
+  lines: readonly CompletedReturnLine[] = LINES,
 ) {
   await page.viewport(1280, 900);
   onTestFinished(() => page.viewport(414, 896));
@@ -46,7 +58,7 @@ async function renderModal(
     <HandOverRefundModal
       cashToHandOver={cashToHandOver}
       pendingRefunds={pendingRefunds}
-      lines={LINES}
+      lines={lines}
       onDone={onDone}
     />,
   );
@@ -133,6 +145,34 @@ describe("HandOverRefundModal", () => {
     await expect.element(screen.getByText("Nibs de cacao · 0,350 kg")).toBeVisible();
     await expect.element(screen.getByText("Reintegro · se descarta")).toBeVisible();
     await expect.element(screen.getByText("$ 4.235,00")).toBeVisible();
+  });
+
+  it("tells the cashier to hand over the exchanged units when nothing is refunded", async () => {
+    const { screen } = await renderModal(0, [], [EXCHANGED]);
+
+    await expect
+      .element(screen.getByRole("heading", { name: "Entregá el cambio al cliente" }))
+      .toBeVisible();
+    await expect.element(screen.getByText("Miel pura de abeja 1 kg · 2 u")).toBeVisible();
+    await expect.element(screen.getByText("Entregá 2 u en cambio · se descarta")).toBeVisible();
+    await expect.element(screen.getByText("Sin reintegro")).toBeVisible();
+    await expect.element(screen.getByText("No hay dinero para devolver")).not.toBeInTheDocument();
+  });
+
+  it("keeps handing over the money first when a return refunds some lines and exchanges others", async () => {
+    const { screen } = await renderModal(970_000, [], [LINES[0] as CompletedReturnLine, EXCHANGED]);
+
+    await expect
+      .element(screen.getByRole("heading", { name: "Entregá el dinero al cliente" }))
+      .toBeVisible();
+    await expect.element(screen.getByText("Reintegro · vuelve a la venta")).toBeVisible();
+    await expect.element(screen.getByText("Entregá 2 u en cambio · se descarta")).toBeVisible();
+  });
+
+  it("has no accessibility violations with an exchanged line", async () => {
+    await renderModal(0, [], [EXCHANGED]);
+
+    await expectNoAccessibilityViolations(document.body);
   });
 
   it("is done with the button", async () => {
