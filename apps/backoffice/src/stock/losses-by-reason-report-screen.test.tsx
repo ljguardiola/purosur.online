@@ -1,11 +1,13 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
-import { beforeEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { type ReportPeriodFilters, reportPeriodSearch } from "../shell/report-filters-search";
+import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
 import { render } from "../shell/test-support/render-with-router";
 import { dateSegments, typeDate } from "../shell/test-support/report-dates";
+import { spyOnDownloads } from "../shell/test-support/spy-on-downloads";
 import { LossesByReasonReportScreen } from "./losses-by-reason-report-screen";
 import type { LossesByReasonReportScreenServices } from "./losses-by-reason-report-services";
 import {
@@ -17,6 +19,10 @@ import {
 
 beforeEach(async () => {
   await page.viewport(1280, 900);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 function createServices(): LossesByReasonReportScreenServices {
@@ -97,12 +103,11 @@ test("keeps the reasons in the order the cloud answers them", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("offers no register filter and no export", async () => {
+test("offers no register filter", async () => {
   const screen = await renderScreen(listed());
   await expect.element(screen.getByRole("region", { name: "Mal estado" })).toBeVisible();
 
   expect(screen.getByText("Caja", { exact: false }).query()).toBeNull();
-  expect(screen.getByRole("button", { name: /Exportar/ }).query()).toBeNull();
 });
 
 test("shows the period the cloud answered while the URL names none", async () => {
@@ -232,4 +237,37 @@ test("sends the person to Mi cuenta when the cloud refuses the report", async ()
   await renderScreen(services);
 
   await expect.poll(() => window.location.pathname).toBe("/account");
+});
+
+test("downloads a spreadsheet with a sheet for each reason shown, for the period the report answered", async () => {
+  const downloads = spyOnDownloads();
+  const screen = await renderScreen(listed());
+  await expect.element(screen.getByRole("region", { name: "Mal estado" })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
+
+  await expect.poll(() => downloads.names).toEqual(["mermas-por-motivo-2026-10-01-2026-10-31.xlsx"]);
+  const file = await readDownloadedXlsx(downloads.blobs[0]);
+  expect(file.sheetNames).toEqual(["Resumen", "Mal estado", "Vencimiento"]);
+  const summary = file.sheet(0);
+  expect(summary.get("B4")?.value).toBe("4");
+  expect(summary.get("B5")?.value).toBe("2");
+  const spoiled = file.sheet(1);
+  expect(spoiled.get("A2")?.value).toBe("Queso cremoso");
+  expect(spoiled.get("C2")?.value).toBe("2.5");
+  expect(spoiled.get("B3")?.value).toBe("3");
+  expect(file.sheet(2).get("A2")?.value).toBe("Yogur natural");
+});
+
+test("has its download disabled while the report loads and after loading fails", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchLossesByReasonReport).mockReturnValue(new Promise(() => {}));
+  const loading = await renderScreen(services);
+  await expect.element(loading.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
+  await loading.unmount();
+
+  vi.mocked(services.fetchLossesByReasonReport).mockResolvedValue({ kind: "failed" });
+  const failed = await renderScreen(services);
+  await expect.element(failed.getByRole("button", { name: "Reintentar" })).toBeVisible();
+  await expect.element(failed.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
 });
