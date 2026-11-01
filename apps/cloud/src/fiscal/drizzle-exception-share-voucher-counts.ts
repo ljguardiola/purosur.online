@@ -1,7 +1,7 @@
 import { COUNTED_AS_ISSUED_STATE } from "@purosur/domain";
-import { and, eq, type SQL, sql } from "drizzle-orm";
+import { and, desc, eq, type SQL, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { registerPointsOfSale } from "../platform/db/schema.js";
+import { registerFiscalAddressAssignments } from "../platform/db/schema.js";
 import { issuedDocuments } from "./drizzle-issued-fiscal-documents-reader.js";
 
 interface StoredMonthlyVoucherCounts {
@@ -16,7 +16,19 @@ export async function monthlyVoucherCounts<TQueryResult extends PgQueryResultHKT
   condition: (columns: { fiscalAddressId: SQL<string>; month: SQL<string> }) => SQL,
 ): Promise<StoredMonthlyVoucherCounts[]> {
   const issued = issuedDocuments(db);
-  const fiscalAddressId = sql<string>`${registerPointsOfSale.fiscalAddressId}::text`;
+  const assignmentInForce = db
+    .select({ fiscalAddressId: registerFiscalAddressAssignments.fiscalAddressId })
+    .from(registerFiscalAddressAssignments)
+    .where(
+      and(
+        sql`${registerFiscalAddressAssignments.registerId}::text = ${issued.registerId}`,
+        sql`${registerFiscalAddressAssignments.assignedAt} <= ${issued.issuedAt}`,
+      ),
+    )
+    .orderBy(desc(registerFiscalAddressAssignments.assignedAt))
+    .limit(1)
+    .as("assignment_in_force");
+  const fiscalAddressId = sql<string>`${assignmentInForce.fiscalAddressId}::text`;
   const month = sql<string>`left(${issued.issuedOn}, 7)`;
   return db
     .select({
@@ -26,10 +38,7 @@ export async function monthlyVoucherCounts<TQueryResult extends PgQueryResultHKT
       totalCount: sql<number>`count(*)::int`,
     })
     .from(issued)
-    .innerJoin(
-      registerPointsOfSale,
-      sql`${registerPointsOfSale.registerId}::text = ${issued.registerId}`,
-    )
+    .innerJoinLateral(assignmentInForce, sql`true`)
     .where(and(eq(issued.state, COUNTED_AS_ISSUED_STATE), condition({ fiscalAddressId, month })))
     .groupBy(fiscalAddressId, month);
 }

@@ -1106,6 +1106,26 @@ export const registerPointsOfSale = pgTable(
   ],
 );
 
+// Append-only: the vouchers a register issued stay with the fiscal address it had when it issued them.
+export const registerFiscalAddressAssignments = pgTable(
+  "register_fiscal_address_assignments",
+  {
+    registerId: uuid("register_id")
+      .notNull()
+      .references(() => registers.id),
+    fiscalAddressId: uuid("fiscal_address_id")
+      .notNull()
+      .references(() => fiscalAddresses.id),
+    assignedAt: timestamp("assigned_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({
+      name: "register_fiscal_address_assignments_pkey",
+      columns: [table.registerId, table.assignedAt],
+    }),
+  ],
+);
+
 export const registerPointTerminals = pgTable(
   "register_point_terminals",
   {

@@ -180,6 +180,7 @@ export { configureRegisterOfflinePointOfSale } from "./configure-register-offlin
 export type {
   ConfigureRegisterPointOfSaleInput,
   ConfigureRegisterPointOfSaleOutcome,
+  ConfigureRegisterPointOfSalePorts,
 } from "./configure-register-point-of-sale.js";
 export { configureRegisterPointOfSale } from "./configure-register-point-of-sale.js";
 export type {
@@ -492,6 +493,7 @@ export type {
 } from "./register-offline-point-of-sale-store.js";
 export type {
   BranchRegisterPointOfSale,
+  FiscalAddressAssignment,
   LockBranchRegisterResult,
   PointOfSaleClaim,
   PointOfSaleHolder,

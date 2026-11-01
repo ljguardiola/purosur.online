@@ -73,14 +73,17 @@ export function registerRegisterPointOfSaleConfigurationRoute<
         return;
       }
 
-      const outcome = await configureRegisterPointOfSale(store, {
-        locationId: openSession.locationId,
-        registerId: ids.id,
-        pointOfSaleNumber: body.point_of_sale_number,
-        fiscalAddressId: body.fiscal_address_id,
-        version: body.version,
-        actorId: openSession.userId,
-      });
+      const outcome = await configureRegisterPointOfSale(
+        { store, clock: { now } },
+        {
+          locationId: openSession.locationId,
+          registerId: ids.id,
+          pointOfSaleNumber: body.point_of_sale_number,
+          fiscalAddressId: body.fiscal_address_id,
+          version: body.version,
+          actorId: openSession.userId,
+        },
+      );
 
       if (outcome.kind === "register_not_found") {
         await reply.code(404).send(REGISTER_NOT_FOUND_RESPONSE);
