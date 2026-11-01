@@ -154,6 +154,13 @@ describe("reportedLossReason", () => {
     expect(reportedLossReason({ kind: "exchange_out", reason: null })).toBe("defective_exchange");
   });
 
+  it.each(["sale", "return", "adjustment", "count"] as const)(
+    "answers nothing for a %s movement, even with a reason a loss carries",
+    (kind) => {
+      expect(reportedLossReason({ kind, reason: "spoiled" })).toBeNull();
+    },
+  );
+
   it.each([
     ["a reason outside the catalog", "lost_in_move"],
     ["no reason", null],
