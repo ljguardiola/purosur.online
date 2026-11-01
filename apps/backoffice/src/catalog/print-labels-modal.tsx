@@ -6,9 +6,9 @@ import {
   IconButton,
   InlineNotice,
   Modal,
-  numericTextOrder,
   plural,
   sortedItems,
+  textOrder,
 } from "@purosur/ui";
 import { Download, Minus, Package, Plus, Printer, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -54,7 +54,7 @@ function labelableProducts(
       : [{ product, code: product.labelCode, modules: product.labelModules }],
   );
   return sortedItems(labelable, {
-    order: numericTextOrder((labelableProduct: LabelableProduct) =>
+    order: textOrder((labelableProduct: LabelableProduct) =>
       productDescription(labelableProduct.product, brands),
     ),
     direction: "ascending",

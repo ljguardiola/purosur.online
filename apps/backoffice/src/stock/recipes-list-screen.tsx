@@ -4,11 +4,11 @@ import {
   Button,
   dataColumn,
   FloatingNotification,
-  numericTextOrder,
   SearchField,
   Table,
   TableCellText,
   type TableSort,
+  textOrder,
   useTableModel,
 } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
@@ -47,7 +47,7 @@ type ScreenNotice = { id: number; title: string; description: string };
 const NO_RECIPES: RecipeSummary[] = [];
 const NO_PRODUCTS: never[] = [];
 
-const productDescriptionOrder = numericTextOrder((recipe: RecipeSummary) =>
+const productDescriptionOrder = textOrder((recipe: RecipeSummary) =>
   formatProductDescription({
     name: recipe.productName,
     brandName: recipe.brandName,

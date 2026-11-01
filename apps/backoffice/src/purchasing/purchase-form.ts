@@ -6,13 +6,7 @@ import {
   type SupplierSummary,
 } from "@purosur/contracts";
 import type { ReceiptType } from "@purosur/domain";
-import {
-  numericTextOrder,
-  parseAmountCents,
-  parseEsArNumber,
-  sortedItems,
-  textOrder,
-} from "@purosur/ui";
+import { parseAmountCents, parseEsArNumber, sortedItems, textOrder } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { schemaLimit } from "../platform/schema-limit";
 import { parseStockQuantity, quantityMessage } from "../platform/stock-quantity";
@@ -267,7 +261,7 @@ export function withCreatedSupplier(
     : suppliers;
 }
 
-const productOrder = numericTextOrder((product: PurchaseProducts[number]) =>
+const productOrder = textOrder((product: PurchaseProducts[number]) =>
   formatProductDescription(product),
 );
 

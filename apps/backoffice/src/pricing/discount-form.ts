@@ -12,7 +12,6 @@ import {
 import type { DiscountBenefit, DiscountTargetKind } from "@purosur/domain";
 import {
   type ComboBoxOption,
-  numericTextOrder,
   type Option,
   type Options,
   sortedItems,
@@ -229,7 +228,7 @@ type CurrentTarget = {
 };
 type KeptTarget = CurrentTarget & { status: string };
 
-const productOrder = numericTextOrder(
+const productOrder = textOrder(
   (product: { name: string; brandName: string | null; netContent: NetContent | null }) =>
     formatProductDescription(product),
 );

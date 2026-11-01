@@ -5,7 +5,7 @@ import {
   recipeSaveBodySchema,
 } from "@purosur/contracts";
 import type { SaleUnit } from "@purosur/domain";
-import { numericTextOrder, sortedItems } from "@purosur/ui";
+import { sortedItems, textOrder } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { schemaLimit } from "../platform/schema-limit";
 import {
@@ -47,7 +47,7 @@ const RECIPE_COMPONENT_IS_PRODUCT =
 
 type ProductOption = { value: string; label: string };
 
-const productOrder = numericTextOrder((product: RecipeList["products"][number]) =>
+const productOrder = textOrder((product: RecipeList["products"][number]) =>
   formatProductDescription(product),
 );
 
