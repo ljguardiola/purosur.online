@@ -32,7 +32,6 @@ const EVERY_CAPABILITY: Record<Capability, true> = {
   stock_expiries: true,
   initial_inventory: true,
   suppliers: true,
-  purchase_packagings: true,
   purchases: true,
   recipes: true,
   batches: true,
