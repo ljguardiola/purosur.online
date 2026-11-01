@@ -1,5 +1,5 @@
+import { compareCodeUnits, compareOptionalNames } from "../../shared/index.js";
 import { averageTicket } from "./average-ticket.js";
-import { codeUnitOrder, nameOrder } from "./report-order.js";
 
 export interface SoldByCashier {
   cashierId: string;
@@ -24,8 +24,8 @@ function cashierOrder(a: SoldByCashier, b: SoldByCashier): number {
   return (
     b.salesCount - a.salesCount ||
     b.total - a.total ||
-    nameOrder(a.name, b.name) ||
-    codeUnitOrder(a.cashierId, b.cashierId)
+    compareOptionalNames(a.name, b.name) ||
+    compareCodeUnits(a.cashierId, b.cashierId)
   );
 }
 

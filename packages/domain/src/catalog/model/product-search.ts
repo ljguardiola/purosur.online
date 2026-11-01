@@ -1,4 +1,4 @@
-import { compareSpanishText } from "../../shared/index.js";
+import { compareCodeUnits, compareSpanishText } from "../../shared/index.js";
 import type { SaleUnit } from "./product.js";
 import { matchProductName, type NameMatch } from "./product-name-match.js";
 
@@ -37,6 +37,6 @@ function byMostSoldThenName(a: SearchableProduct, b: SearchableProduct): number 
   return (
     b.timesSoldHere - a.timesSoldHere ||
     compareSpanishText(a.name, b.name) ||
-    compareSpanishText(a.id, b.id)
+    compareCodeUnits(a.id, b.id)
   );
 }

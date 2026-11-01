@@ -1,6 +1,6 @@
 import type { ProductNetContent } from "../../catalog/index.js";
 import type { DiscountBenefit, DiscountTargetKind } from "../../pricing/index.js";
-import { codeUnitOrder, nameOrder } from "./report-order.js";
+import { compareCodeUnits, compareOptionalNames } from "../../shared/index.js";
 import { saleUnitOfWeightSource, soldQuantity } from "./sale-line.js";
 import type { WeightSource } from "./weight-source.js";
 
@@ -42,7 +42,7 @@ export interface PromotionDiscountTotals {
 }
 
 function byName(a: SalesOfPromotion, b: SalesOfPromotion): number {
-  return nameOrder(a.name, b.name) || codeUnitOrder(a.promotionId, b.promotionId);
+  return compareOptionalNames(a.name, b.name) || compareCodeUnits(a.promotionId, b.promotionId);
 }
 
 function promotionOrder(a: SalesOfPromotion, b: SalesOfPromotion): number {
