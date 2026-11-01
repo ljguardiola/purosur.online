@@ -272,9 +272,9 @@ test("focuses a stacked modal's first field and gives the focus back to the fiel
           <Button variant="secondary" onPress={() => setBrandOpen(true)}>
             Crear marca
           </Button>
-        </FormModal>
-        <FormModal open={brandOpen} onOpenChange={setBrandOpen} title="Nueva marca">
-          <NameField label="Nombre de la marca" />
+          <FormModal open={brandOpen} onOpenChange={setBrandOpen} title="Nueva marca">
+            <NameField label="Nombre de la marca" />
+          </FormModal>
         </FormModal>
       </>
     );
@@ -291,9 +291,47 @@ test("focuses a stacked modal's first field and gives the focus back to the fiel
   await userEvent.keyboard("Acme");
   await expect.element(brandName).toHaveValue("Acme");
 
-  await userEvent.keyboard("{Escape}");
+  await screen
+    .getByRole("dialog", { name: "Nueva marca" })
+    .getByRole("button", { name: "Cancelar" })
+    .click();
 
   await expect
     .element(screen.getByRole("button", { name: "Crear marca" }))
     .toHaveFocus();
+});
+
+test("gives the focus back to the combobox whose creation entry opened a stacked modal, when it closes", async () => {
+  function Harness() {
+    const [brandOpen, setBrandOpen] = useState(false);
+    const [value, setValue] = useState<"small" | "large" | null>(null);
+    return (
+      <FormModal title="Nuevo producto">
+        <NameField />
+        <ComboBox
+          label="Marca"
+          options={SIZE_OPTIONS}
+          creation={{ recordKind: "marca", onCreate: () => setBrandOpen(true) }}
+          value={value}
+          onChange={setValue}
+        />
+        <FormModal open={brandOpen} onOpenChange={setBrandOpen} title="Nueva marca">
+          <NameField label="Nombre de la marca" />
+        </FormModal>
+      </FormModal>
+    );
+  }
+
+  const screen = await render(<Harness />);
+  const brandSelector = screen.getByRole("combobox", { name: "Marca" });
+  await userEvent.fill(brandSelector, "Dulcor");
+  await screen.getByRole("option", { name: "Crear marca «Dulcor»" }).click();
+  await expect.element(screen.getByRole("textbox", { name: "Nombre de la marca" })).toHaveFocus();
+
+  await screen
+    .getByRole("dialog", { name: "Nueva marca" })
+    .getByRole("button", { name: "Cancelar" })
+    .click();
+
+  await expect.element(brandSelector).toHaveFocus();
 });
