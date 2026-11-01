@@ -38,6 +38,8 @@ export const orderSuggestionSchema = z.object({
       categoryName: z.string(),
       saleUnit: z.enum(SALE_UNITS),
       coverageDays: z.int(),
+      effectiveDays: z.int(),
+      cappedByExpiry: z.boolean(),
       soldQuantity: z.int(),
       stock: z.int(),
       neededQuantity: z.int(),
