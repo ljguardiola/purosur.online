@@ -214,6 +214,7 @@ describe("PUT /products/:id", () => {
         barcodes: ["111"],
         brandId: null,
         tagIds: [],
+        coverageDays: 15,
         version: product.version,
       },
     });
@@ -237,6 +238,7 @@ describe("PUT /products/:id", () => {
       barcodes: ["111"],
       brandId: null,
       tagIds: [],
+      coverageDays: 15,
       version: product.version,
     });
 
@@ -265,6 +267,7 @@ describe("PUT /products/:id", () => {
         barcodes: ["111"],
         brandId: null,
         tagIds: [],
+        coverageDays: 15,
         version: product.version,
       },
       { origin: "https://attacker.example" },
@@ -294,6 +297,7 @@ describe("PUT /products/:id", () => {
       barcodes: ["111"],
       brandId: null,
       tagIds: [],
+      coverageDays: 15,
       version: product.version,
     });
 
@@ -322,6 +326,7 @@ describe("PUT /products/:id", () => {
       barcodes: ["333"],
       brandId: null,
       tagIds: [],
+      coverageDays: 15,
       version: product.version,
     });
 
@@ -334,6 +339,7 @@ describe("PUT /products/:id", () => {
       saleUnit: "KG",
       barcodes: ["333"],
       netContent: null,
+      coverageDays: 15,
       active: true,
       labelCode: null,
       labelModules: null,
@@ -366,6 +372,7 @@ describe("PUT /products/:id", () => {
       barcodes: ["111"],
       brandId: null,
       tagIds: [],
+      coverageDays: 15,
       version: product.version,
     });
 
@@ -391,6 +398,7 @@ describe("PUT /products/:id", () => {
       barcodes: ["111", "2000000000015"],
       brandId: null,
       tagIds: [],
+      coverageDays: 15,
       version: product.version,
     });
 
@@ -420,6 +428,7 @@ describe("PUT /products/:id", () => {
       barcodes: ["111", "2000000000015"],
       brandId: null,
       tagIds: [],
+      coverageDays: 15,
       version: product.version,
     });
 
@@ -454,6 +463,7 @@ describe("PUT /products/:id", () => {
       barcodes: ["111"],
       brandId: null,
       tagIds: [],
+      coverageDays: 15,
       version: product.version,
     });
 
@@ -479,6 +489,7 @@ describe("PUT /products/:id", () => {
       barcodes: ["111"],
       brandId: null,
       tagIds: [],
+      coverageDays: 15,
       version: product.version,
       netContent: { quantity: 1.5, unit: "KG" },
     });
@@ -487,6 +498,71 @@ describe("PUT /products/:id", () => {
     expect(response.json()).toMatchObject({ netContent: { quantity: 1.5, unit: "KG" } });
     const edited = await db.select().from(products).where(eq(products.id, product.id));
     expect(edited).toMatchObject([{ netContentQuantity: 1.5, netContentUnit: "KG" }]);
+  });
+
+  it("stores the coverage days sent and leaves another product's untouched", async () => {
+    const categoryId = await insertCategory("Semillas");
+    const product = await insertProduct({
+      name: "Alpiste",
+      categoryId,
+      saleUnit: "KG",
+      barcodes: ["111"],
+    });
+    const other = await insertProduct({
+      name: "Girasol",
+      categoryId,
+      saleUnit: "KG",
+      barcodes: ["222"],
+    });
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await editProduct(rawSessionId, product.id, {
+      name: "Alpiste",
+      categoryId,
+      saleUnit: "KG",
+      barcodes: ["111"],
+      brandId: null,
+      tagIds: [],
+      coverageDays: 45,
+      version: product.version,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ coverageDays: 45 });
+    const stored = await db.select().from(products).orderBy(products.name);
+    expect(stored).toMatchObject([
+      { id: product.id, coverageDays: 45 },
+      { id: other.id, coverageDays: 15 },
+    ]);
+  });
+
+  it("refuses a request that leaves out the coverage days", async () => {
+    const categoryId = await insertCategory("Semillas");
+    const product = await insertProduct({
+      name: "Alpiste",
+      categoryId,
+      saleUnit: "KG",
+      barcodes: ["111"],
+    });
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await editProduct(rawSessionId, product.id, {
+      name: "Alpiste",
+      categoryId,
+      saleUnit: "KG",
+      barcodes: ["111"],
+      brandId: null,
+      tagIds: [],
+      version: product.version,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "coverageDays" }],
+    });
   });
 
   it("clears an existing net content when sent explicit null", async () => {
@@ -509,6 +585,7 @@ describe("PUT /products/:id", () => {
       barcodes: ["111"],
       brandId: null,
       tagIds: [],
+      coverageDays: 15,
       version: product.version,
       netContent: null,
     });
@@ -539,6 +616,7 @@ describe("PUT /products/:id", () => {
       barcodes: ["111"],
       brandId: null,
       tagIds: [],
+      coverageDays: 15,
       version: product.version,
     });
 
@@ -560,6 +638,7 @@ describe("PUT /products/:id", () => {
       barcodes: ["111"],
       brandId: null,
       tagIds: [],
+      coverageDays: 15,
       version: 1,
     });
 
@@ -585,6 +664,7 @@ describe("PUT /products/:id", () => {
       barcodes: ["111"],
       brandId: null,
       tagIds: [],
+      coverageDays: 15,
       version: 1,
     });
 
@@ -611,6 +691,7 @@ describe("PUT /products/:id", () => {
         barcodes: ["111"],
         brandId: null,
         tagIds: [],
+        coverageDays: 15,
         version: 1,
       });
 
@@ -640,6 +721,7 @@ describe("PUT /products/:id", () => {
       barcodes: ["111"],
       brandId: null,
       tagIds: [],
+      coverageDays: 15,
       version: product.version,
     });
 
@@ -670,6 +752,7 @@ describe("PUT /products/:id", () => {
       barcodes: ["111"],
       brandId: null,
       tagIds: [],
+      coverageDays: 15,
       version: product.version,
     });
 
@@ -702,6 +785,7 @@ describe("PUT /products/:id", () => {
       barcodes: ["111"],
       brandId: null,
       tagIds: [],
+      coverageDays: 15,
       version: product.version,
     });
 
@@ -731,6 +815,7 @@ describe("PUT /products/:id", () => {
       barcodes: ["111"],
       brandId: null,
       tagIds: [],
+      coverageDays: 15,
       version: product.version,
     });
 
@@ -758,6 +843,7 @@ describe("PUT /products/:id", () => {
       barcodes: ["111"],
       brandId: null,
       tagIds: [],
+      coverageDays: 15,
       version: product.version + 1,
     });
 
@@ -791,6 +877,7 @@ describe("PUT /products/:id", () => {
       barcodes: ["999"],
       brandId: null,
       tagIds: [],
+      coverageDays: 15,
       version: product.version,
     });
 
@@ -832,6 +919,7 @@ describe("PUT /products/:id", () => {
       barcodes: ["999"],
       brandId: null,
       tagIds: [],
+      coverageDays: 15,
       version: product.version,
     });
 
@@ -858,6 +946,7 @@ describe("PUT /products/:id", () => {
       barcodes: ["222"],
       brandId: null,
       tagIds: [],
+      coverageDays: 15,
       version: product.version,
     });
 
@@ -896,6 +985,7 @@ describe("PUT /products/:id", () => {
       barcodes: ["999"],
       brandId: null,
       tagIds: [],
+      coverageDays: 15,
       version: deactivated.version,
     });
 
@@ -927,6 +1017,7 @@ describe("PUT /products/:id", () => {
       saleUnit: "UNIT",
       barcodes: ["111"],
       tagIds: [],
+      coverageDays: 15,
       version: product.version,
     });
 
@@ -955,6 +1046,7 @@ describe("PUT /products/:id", () => {
       saleUnit: "UNIT",
       barcodes: ["111"],
       tagIds: [],
+      coverageDays: 15,
       version: product.version,
     });
 
@@ -981,6 +1073,7 @@ describe("PUT /products/:id", () => {
       saleUnit: "UNIT",
       barcodes: ["111"],
       tagIds: [],
+      coverageDays: 15,
       version: product.version,
     });
 
@@ -1012,6 +1105,7 @@ describe("PUT /products/:id", () => {
       saleUnit: "UNIT",
       barcodes: ["111"],
       tagIds: [],
+      coverageDays: 15,
       version: product.version,
     });
 
@@ -1042,6 +1136,7 @@ describe("PUT /products/:id", () => {
       saleUnit: "UNIT",
       barcodes: ["111"],
       tagIds: [],
+      coverageDays: 15,
       version: product.version,
     });
 
@@ -1077,6 +1172,7 @@ describe("PUT /products/:id", () => {
       saleUnit: "KG",
       barcodes: ["111"],
       tagIds: [],
+      coverageDays: 15,
       version: product.version,
     });
 
@@ -1114,6 +1210,7 @@ describe("PUT /products/:id", () => {
       saleUnit: "KG",
       barcodes: ["111"],
       tagIds: [],
+      coverageDays: 15,
       version: product.version,
     });
 
@@ -1152,6 +1249,7 @@ describe("PUT /products/:id", () => {
       saleUnit: "KG",
       barcodes: ["111"],
       tagIds: [],
+      coverageDays: 15,
       version: product.version,
     });
 
@@ -1181,6 +1279,7 @@ describe("PUT /products/:id", () => {
       saleUnit: "UNIT",
       barcodes: ["111"],
       tagIds: [],
+      coverageDays: 15,
       version: product.version,
     });
 

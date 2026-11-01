@@ -65,6 +65,7 @@ function newProduct(categoryId: string, barcodes: string[] = ["7790000000001"]) 
     barcodes,
     tagIds: [],
     netContent: null,
+    coverageDays: 15,
   };
 }
 
@@ -136,6 +137,7 @@ describe("createCatalogProduct", () => {
       categoryId,
       saleUnit: "KG",
       brandId: null,
+      coverageDays: 15,
       active: true,
     });
     const barcodes = await db
