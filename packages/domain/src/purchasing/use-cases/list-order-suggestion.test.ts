@@ -131,7 +131,6 @@ describe("listOrderSuggestion", () => {
         netContent: { quantity: 1, unit: "KG" },
         categoryName: "Almacén",
         saleUnit: "UNIT",
-        coverageDays: 15,
         effectiveDays: 15,
         cappedByExpiry: false,
         soldQuantity: 120_000,
@@ -323,7 +322,7 @@ describe("listOrderSuggestion", () => {
 
     const { lines } = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
 
-    expect(lines.map((line) => [line.id, line.coverageDays, line.neededQuantity])).toEqual([
+    expect(lines.map((line) => [line.id, line.effectiveDays, line.neededQuantity])).toEqual([
       ["queso", 10, 10_000],
       ["yerba", 30, 30_000],
     ]);
@@ -389,7 +388,6 @@ describe("listOrderSuggestion", () => {
       } = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
 
       expect(line).toMatchObject({
-        coverageDays: 15,
         effectiveDays: 10,
         cappedByExpiry: true,
         neededQuantity: 20_000,
@@ -425,6 +423,21 @@ describe("listOrderSuggestion", () => {
 
       expect(line).toMatchObject({ effectiveDays: 15, cappedByExpiry: false });
       expect(line?.offers).toMatchObject([{ packages: 4, quantity: 48_000 }]);
+    });
+
+    it("rounds down to the packages that sell before expiry even when the shelf life is longer than the coverage days", async () => {
+      const reader = readerWith({
+        ...fourADay,
+        offers: [offer({ quantity: 12_000 })],
+        shelfLifeLots: [lotOf("2026-09-20T15:00:00.000Z", "2026-10-06")],
+      });
+
+      const {
+        lines: [line],
+      } = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
+
+      expect(line).toMatchObject({ effectiveDays: 15, cappedByExpiry: false });
+      expect(line?.offers).toMatchObject([{ packages: 3, quantity: 36_000 }]);
     });
 
     it("counts the shelf life from the Argentine day the lot was created, not the UTC one", async () => {

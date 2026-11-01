@@ -29,7 +29,6 @@ const line = {
   netContent: { quantity: 500, unit: "G" },
   categoryName: "Almacén",
   saleUnit: "UNIT",
-  coverageDays: 15,
   effectiveDays: 10,
   cappedByExpiry: true,
   soldQuantity: 120_000,
@@ -175,7 +174,6 @@ describe("orderSuggestionSchema", () => {
   });
 
   it.each([
-    ["coverageDays", 1.5],
     ["soldQuantity", "5"],
     ["stock", 0.5],
     ["neededQuantity", null],

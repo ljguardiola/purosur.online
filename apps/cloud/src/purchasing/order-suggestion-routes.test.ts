@@ -121,7 +121,6 @@ describe("GET /order-suggestion", () => {
     expect(line).toMatchObject({
       id: productId,
       name: "Yerba 1 kg",
-      coverageDays: 15,
       effectiveDays: 15,
       cappedByExpiry: false,
       soldQuantity: 120_000,
