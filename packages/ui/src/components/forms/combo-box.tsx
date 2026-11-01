@@ -125,6 +125,18 @@ function CloseListWhenCreated({ createdCount }: { createdCount: number }) {
   return null;
 }
 
+// react-aria hands the focus back to an element by dispatching this event on it, and its combobox
+// cancels the event on the input, keeping only a virtual focus on the list: after a stacked modal
+// opened from the input closes, nothing would hold the focus.
+function takeFocusWhenRestored(input: HTMLInputElement | null) {
+  if (input === null) {
+    return;
+  }
+  const focus = () => input.focus();
+  input.addEventListener("react-aria-focus-scope-restore", focus);
+  return () => input.removeEventListener("react-aria-focus-scope-restore", focus);
+}
+
 export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
   const {
     label,
@@ -202,7 +214,11 @@ export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
       <div
         className={`${fieldBoxClassName} ${backofficeFieldHeightClassName} ${fieldBoxStateClassName({ disabled, invalid })}`}
       >
-        <AriaInput className={inputClassName} {...placeholderProps} />
+        <AriaInput
+          ref={takeFocusWhenRestored}
+          className={inputClassName}
+          {...placeholderProps}
+        />
         {chosen?.status !== undefined ? (
           <Tag tone="neutral" variant="status">
             {chosen.status}
