@@ -4,6 +4,7 @@ import {
   POINT_CARD_TYPES,
   RETURN_DISPOSITIONS,
   RETURN_REASONS,
+  RETURN_RESOLUTIONS,
   SALE_UNITS,
   TICKET_SOURCES,
 } from "@purosur/domain";
@@ -16,6 +17,7 @@ import {
 
 const returnReasonSchema = z.enum(RETURN_REASONS);
 const returnDispositionSchema = z.enum(RETURN_DISPOSITIONS);
+const returnResolutionSchema = z.enum(RETURN_RESOLUTIONS);
 export const ticketSourceSchema = z.enum(TICKET_SOURCES);
 
 const cents = z.int().nonnegative();
@@ -27,6 +29,7 @@ export const returnDraftLineSchema = z.object({
   quantity: z.int(),
   reason: returnReasonSchema.nullable(),
   disposition: returnDispositionSchema.nullable(),
+  resolution: returnResolutionSchema.nullable(),
 });
 export type ReturnDraftLineBody = z.infer<typeof returnDraftLineSchema>;
 
@@ -41,6 +44,8 @@ const returnLineRefusalSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("invalid_quantity") }),
   z.object({ kind: z.literal("missing_reason") }),
   z.object({ kind: z.literal("missing_disposition") }),
+  z.object({ kind: z.literal("missing_resolution") }),
+  z.object({ kind: z.literal("resolution_not_offered") }),
   z.object({ kind: z.literal("quantity_exceeds_returnable"), returnable: cents }),
   z.object({ kind: z.literal("promotion_whole_only"), returnable: cents }),
   z.object({
@@ -117,6 +122,7 @@ export const previewReturnOutcomeSchema = z.discriminatedUnion("kind", [
         quantity: z.int(),
         reason: returnReasonSchema.nullable(),
         disposition: returnDispositionSchema.nullable(),
+        resolution: returnResolutionSchema.nullable(),
         refusal: returnLineRefusalSchema.nullable(),
         refund_amount: cents.nullable(),
       }),

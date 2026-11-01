@@ -245,7 +245,8 @@ function voidedSale(payload: VoidedSalePayload): SyncedFact {
 type ReturnedSalePayload = SyncedEventPayloads[
   | "sale_returned@1"
   | "sale_returned@2"
-  | "sale_returned@3"];
+  | "sale_returned@3"
+  | "sale_returned@4"];
 
 function returnedSaleCreditNote(payload: ReturnedSalePayload): CreditNoteToIssue | null {
   const creditNote = "credit_note" in payload ? payload.credit_note : null;
@@ -294,6 +295,7 @@ function returnedSale(payload: ReturnedSalePayload): SyncedFact {
         quantity: line.quantity,
         reason: line.reason,
         disposition: line.disposition,
+        resolution: "resolution" in line ? line.resolution : "refund",
         refundedAmount: line.refunded_amount,
       })),
       refunds: payload.refunds.map((refund) => ({
@@ -591,6 +593,7 @@ const FACT_OF: {
   "sale_returned@1": returnedSale,
   "sale_returned@2": returnedSale,
   "sale_returned@3": returnedSale,
+  "sale_returned@4": returnedSale,
   "cash_session_opened@1": (payload, event) => ({
     kind: "cash_session_opened",
     session: {

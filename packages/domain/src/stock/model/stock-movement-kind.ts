@@ -19,6 +19,7 @@ export const STOCK_MOVEMENT_KINDS = [
   "sale",
   "sale_void",
   "return",
+  "exchange_out",
   "receipt",
   "opening_count",
   "opening_count_withdrawal",

@@ -13,7 +13,7 @@ export type RegisterStockMovement = {
   productId: string;
   delta: number;
 } & (
-  | { kind: "sale" | "sale_void" | "return"; saleLineId: string }
+  | { kind: "sale" | "sale_void" | "return" | "exchange_out"; saleLineId: string }
   | { kind: "loss"; reason: "return_discard"; saleLineId: string }
 );
 
@@ -44,7 +44,9 @@ export async function applyRegisterStockMovements(
         movement.productId === productId &&
         !isMovementQuantity(
           locked.saleUnit,
-          movement.kind === "sale" || movement.kind === "loss" ? -movement.delta : movement.delta,
+          movement.kind === "sale" || movement.kind === "exchange_out" || movement.kind === "loss"
+            ? -movement.delta
+            : movement.delta,
         ),
     );
     if (refused) {
@@ -108,6 +110,7 @@ async function plannedAllocations(
         .get(discardPairKey(movement))
         ?.map(({ lotId, quantity }) => ({ target: lotTarget(lotId), quantity: -quantity }));
     case "sale":
+    case "exchange_out":
       return undefined;
   }
 }

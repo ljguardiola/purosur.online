@@ -6,6 +6,14 @@ export const RETURN_DISPOSITIONS = ["restock", "discard"] as const;
 
 export type ReturnDisposition = (typeof RETURN_DISPOSITIONS)[number];
 
+export const RETURN_RESOLUTIONS = ["refund", "exchange"] as const;
+
+export type ReturnResolution = (typeof RETURN_RESOLUTIONS)[number];
+
+export function offeredResolutions(reason: ReturnReason): readonly ReturnResolution[] {
+  return reason === "defective" ? RETURN_RESOLUTIONS : ["refund"];
+}
+
 export const TICKET_SOURCES = ["QR", "TYPED"] as const;
 
 export type TicketSource = (typeof TICKET_SOURCES)[number];

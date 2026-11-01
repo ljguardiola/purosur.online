@@ -147,6 +147,7 @@ export async function completeReturn<Grant extends CompleteReturnGrant, Refusal>
       quantity: entry.quantity,
       reason: entry.reason,
       disposition: entry.disposition,
+      resolution: entry.resolution,
       refundedAmount: entry.refundAmount,
     }));
     const authorizedBy = grant.authorizedBy ?? null;
@@ -208,7 +209,7 @@ export async function completeReturn<Grant extends CompleteReturnGrant, Refusal>
     const stockMovements: ReturnStockMovement[] = [];
     for (const { line, entry } of returning) {
       const delta = returnStockDelta(line.saleUnit, entry.quantity);
-      for (const planned of returnStockMovements(entry.disposition, delta)) {
+      for (const planned of returnStockMovements(entry.disposition, delta, entry.resolution)) {
         const movement: ReturnStockMovement = {
           id: ids.next(),
           returnId,
@@ -317,6 +318,7 @@ function saleReturnedEvent(
       quantity: line.quantity,
       reason: line.reason,
       disposition: line.disposition,
+      resolution: line.resolution,
       refunded_amount: line.refundedAmount,
     })),
     refunds: refunds.map((refund) => ({
@@ -353,7 +355,7 @@ function saleReturnedEvent(
     aggregate_type: "Return",
     aggregate_id: record.id,
     event_type: SALE_RETURNED_EVENT_TYPE,
-    schema_version: 3,
+    schema_version: 4,
     payload,
     occurred_at: occurredAt,
     actor_id: record.actorId,
