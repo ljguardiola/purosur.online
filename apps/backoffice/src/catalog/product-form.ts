@@ -21,6 +21,7 @@ import {
   productRequestFrom,
 } from "../platform/product-form";
 import { schemaLimit } from "../platform/schema-limit";
+import { wholeNumberFrom } from "../platform/whole-number";
 
 const coverageDaysSchema = productCreationBodySchema.shape.coverageDays;
 
@@ -31,21 +32,16 @@ export const EMPTY_CATALOG_PRODUCT_FORM: CatalogProductFormValues = {
   coverageDays: String(coverageDaysSchema.parse(undefined)),
 };
 
-function wireWholeNumber(text: string): number {
-  const trimmed = text.trim();
-  return /^\d+$/.test(trimmed) ? Number(trimmed) : Number.NaN;
-}
-
 export function catalogProductRequestFrom(
   values: CatalogProductFormValues,
 ): ReturnType<typeof productRequestFrom> & { coverageDays: number } {
-  return { ...productRequestFrom(values), coverageDays: wireWholeNumber(values.coverageDays) };
+  return { ...productRequestFrom(values), coverageDays: wholeNumberFrom(values.coverageDays) };
 }
 
 export const CATALOG_PRODUCT_FIELDS = { ...PRODUCT_FIELDS, coverageDays: "coverageDays" } as const;
 
 function coverageDaysMessage({ coverageDays }: CatalogProductFormValues): string {
-  if (coverageDaysSchema.safeParse(wireWholeNumber(coverageDays)).success) {
+  if (coverageDaysSchema.safeParse(wholeNumberFrom(coverageDays)).success) {
     return "Revisá los días de cobertura.";
   }
   const limits = coverageDaysSchema.meta();

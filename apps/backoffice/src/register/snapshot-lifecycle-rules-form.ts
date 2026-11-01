@@ -1,5 +1,6 @@
 import { snapshotLifecycleRulesSchema } from "@purosur/contracts";
 import { schemaLimit } from "../platform/schema-limit";
+import { wholeNumberFrom } from "../platform/whole-number";
 import type { SnapshotLifecycleRules } from "./snapshot-backups-api";
 
 export type SnapshotLifecycleRulesFormValues = {
@@ -22,11 +23,6 @@ export function snapshotLifecycleRulesFormValuesFrom(
     daily: String(rules.daily),
     monthly: String(rules.monthly),
   };
-}
-
-function wholeNumberFrom(text: string): number {
-  const trimmed = text.trim();
-  return /^\d+$/.test(trimmed) ? Number(trimmed) : Number.NaN;
 }
 
 export function snapshotLifecycleRulesRequestFrom(
