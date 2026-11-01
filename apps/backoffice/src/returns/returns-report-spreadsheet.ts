@@ -33,7 +33,7 @@ function lineCells(line: ReturnLine): Cell[] {
 function returnRows(row: ReturnRow): Cell[][] {
   const { operation, invoice } = returnSaleText(row.sale);
   const lines = row.lines.length === 0 ? [NO_LINE_CELLS] : row.lines.map(lineCells);
-  return lines.map((line) => [
+  return lines.map((line, index) => [
     cell.instant(row.occurred_at, OCCURRED_TIME_ZONE),
     cell.text(row.register.name),
     operation === null ? cell.empty() : cell.text(operation),
@@ -41,7 +41,7 @@ function returnRows(row: ReturnRow): Cell[][] {
     cell.text(row.cashier.name ?? UNIDENTIFIED),
     row.authorizer === null ? cell.empty() : cell.text(row.authorizer.name ?? UNIDENTIFIED),
     ...line,
-    cell.money(row.refunded),
+    index === 0 ? cell.money(row.refunded) : cell.empty(),
   ]);
 }
 
