@@ -1,6 +1,8 @@
 import type { OrderSuggestion } from "@purosur/contracts";
 import {
+  Button,
   dataColumn,
+  FloatingNotification,
   formatNumber,
   formatPricePerSaleUnit,
   formatSaleUnitQuantity,
@@ -14,19 +16,31 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
+import { useMutation } from "@tanstack/react-query";
 import { deepEqual } from "@tanstack/react-router";
-import { ClipboardList, Search, SearchX } from "lucide-react";
+import { ClipboardList, FilePlus, Search, SearchX, ShieldX, TriangleAlert } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatDisplayDate } from "../platform/display-date";
+import { retryAfterDetail } from "../platform/retry-after-detail";
+import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { AreaTopBar } from "../shell/area-top-bar";
+import { type BackofficeAccess, canManagePurchaseOrders } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
-import { chosenOrder, chosenSupplierId, LEFT_OUT } from "./order-suggestion-choice";
+import {
+  chosenOrder,
+  chosenSupplierId,
+  LEFT_OUT,
+  purchaseOrderChoicesOf,
+} from "./order-suggestion-choice";
 import type { OrderSuggestionFilters } from "./order-suggestion-filters";
 import type { OrderSuggestionScreenServices } from "./order-suggestion-services";
-import { useOrderSuggestionQuery } from "./purchasing-queries";
+import type { BuildPurchaseOrdersRefusal } from "./purchase-orders-api";
+import { useOrderSuggestionQuery, useRefreshPurchasing } from "./purchasing-queries";
 
 export type OrderSuggestionScreenProps = {
+  access: BackofficeAccess;
+  onOrdersBuilt: () => void;
   filters: OrderSuggestionFilters;
   onFiltersChange: (filters: OrderSuggestionFilters) => void;
   onSessionEnded: () => void;
@@ -64,7 +78,49 @@ function withLeaveOut(
   return first === undefined ? [LEAVE_OUT_OPTION] : [first, ...rest, LEAVE_OUT_OPTION];
 }
 
+type BuildNotice =
+  | { kind: "refused"; reason: BuildPurchaseOrdersRefusal }
+  | { kind: "attemptFailed" }
+  | { kind: "rateLimited"; retryAfterSeconds: number };
+
+const REFUSALS = {
+  offer_unavailable: {
+    title: "Un proveedor ya no ofrece uno de los productos",
+    description:
+      "Actualizamos la sugerencia. Revisá los proveedores elegidos y volvé a armar los pedidos.",
+  },
+  supplier_not_purchasable: {
+    title: "Un proveedor ya no está disponible",
+    description: "Actualizamos la sugerencia. Elegí otro proveedor para sus productos.",
+  },
+  product_not_purchasable: {
+    title: "Un producto ya no está disponible",
+    description: "Actualizamos la sugerencia. Ya no se puede pedir.",
+  },
+} satisfies Record<BuildPurchaseOrdersRefusal, { title: string; description: string }>;
+
+function buildNoticeContent(notice: BuildNotice) {
+  switch (notice.kind) {
+    case "refused":
+      return { icon: <TriangleAlert />, ...REFUSALS[notice.reason] };
+    case "rateLimited":
+      return {
+        icon: <ShieldX />,
+        title: "Demasiadas solicitudes",
+        description: retryAfterDetail(notice.retryAfterSeconds),
+      };
+    case "attemptFailed":
+      return {
+        icon: <TriangleAlert />,
+        title: "No se armaron los pedidos",
+        description: "Volvé a intentarlo.",
+      };
+  }
+}
+
 export function OrderSuggestionScreen({
+  access,
+  onOrdersBuilt,
   filters,
   onFiltersChange,
   onSessionEnded,
@@ -78,6 +134,9 @@ export function OrderSuggestionScreen({
   const [search, setSearch] = useState(filters.search);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const reportFilters = useEffectEvent(onFiltersChange);
+  const sendToMyAccount = useSendToMyAccount();
+  const refreshPurchasing = useRefreshPurchasing();
+  const [buildNotice, setBuildNotice] = useState<BuildNotice | null>(null);
 
   useEffect(() => {
     const shown: OrderSuggestionFilters = { search };
@@ -91,6 +150,34 @@ export function OrderSuggestionScreen({
     { order: supplierNameOrder, direction: "ascending" },
   );
   const knownSupplierIds = new Set(supplierOptions.map((supplier) => supplier.value));
+  const choices = purchaseOrderChoicesOf(lines, drafts, knownSupplierIds);
+  const build = useMutation({
+    mutationFn: () => services.buildPurchaseOrders({ choices }),
+    onSuccess: (outcome) => {
+      switch (outcome.kind) {
+        case "ok":
+          void refreshPurchasing();
+          onOrdersBuilt();
+          return;
+        case "unauthenticated":
+          onSessionEnded();
+          return;
+        case "forbidden":
+          sendToMyAccount();
+          return;
+        case "refused":
+          setBuildNotice({ kind: "refused", reason: outcome.reason });
+          void refreshPurchasing();
+          return;
+        case "rate_limited":
+          setBuildNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
+          return;
+        case "validation_failed":
+        case "failed":
+          setBuildNotice({ kind: "attemptFailed" });
+      }
+    },
+  });
 
   const columns = [
     dataColumn({
@@ -230,39 +317,69 @@ export function OrderSuggestionScreen({
   const productCount = table.getRowModel().rows.length;
 
   return (
-    <ScreenLayout
-      topBar={<AreaTopBar eyebrow="Pedidos" title="Sugerencia de pedido" />}
-      bodyClassName="gap-4 p-6"
-    >
-      <div className="w-105">
-        <SearchField
-          value={search}
-          onChange={setSearch}
-          placeholder="Buscar un producto"
-          icon={<Search />}
+    <>
+      <ScreenLayout
+        topBar={
+          <AreaTopBar
+            eyebrow="Pedidos"
+            title="Sugerencia de pedido"
+            action={
+              canManagePurchaseOrders(access) ? (
+                <Button
+                  variant="primary"
+                  icon={<FilePlus />}
+                  dataStatus={data.status}
+                  disabled={choices.length === 0 || build.isPending}
+                  onPress={() => {
+                    setBuildNotice(null);
+                    build.mutate();
+                  }}
+                >
+                  Armar pedidos
+                </Button>
+              ) : undefined
+            }
+          />
+        }
+        bodyClassName="gap-4 p-6"
+      >
+        <div className="w-105">
+          <SearchField
+            value={search}
+            onChange={setSearch}
+            placeholder="Buscar un producto"
+            icon={<Search />}
+          />
+        </div>
+        <Table
+          aria-label="Sugerencia de pedido"
+          table={table}
+          {...cloudTableState(data, "la sugerencia de pedido")}
+          empty={
+            lines.length === 0
+              ? {
+                  icon: <ClipboardList />,
+                  title: "Ningún producto necesita pedirse",
+                  variant: "blank",
+                }
+              : { icon: <SearchX />, title: "Sin resultados", variant: "filtered" }
+          }
+          footer={
+            productCount === 0 ? undefined : (
+              <p className="text-text-subtle text-detail">
+                {`${formatNumber(productCount)} ${plural(productCount, { one: "producto", other: "productos" })}`}
+              </p>
+            )
+          }
         />
-      </div>
-      <Table
-        aria-label="Sugerencia de pedido"
-        table={table}
-        {...cloudTableState(data, "la sugerencia de pedido")}
-        empty={
-          lines.length === 0
-            ? {
-                icon: <ClipboardList />,
-                title: "Ningún producto necesita pedirse",
-                variant: "blank",
-              }
-            : { icon: <SearchX />, title: "Sin resultados", variant: "filtered" }
-        }
-        footer={
-          productCount === 0 ? undefined : (
-            <p className="text-text-subtle text-detail">
-              {`${formatNumber(productCount)} ${plural(productCount, { one: "producto", other: "productos" })}`}
-            </p>
-          )
-        }
-      />
-    </ScreenLayout>
+      </ScreenLayout>
+      {buildNotice === null ? null : (
+        <FloatingNotification
+          tone="error"
+          {...buildNoticeContent(buildNotice)}
+          onDismiss={() => setBuildNotice(null)}
+        />
+      )}
+    </>
   );
 }
