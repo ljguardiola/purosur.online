@@ -63,6 +63,25 @@ test("shows the scope of a fortnight's report it cannot read as it comes", () =>
   );
 });
 
+test("names the fiscal address and the month of an exception share breach", () => {
+  expect(alertScopeLabel("fiscalAddressMonth", "Local Centro:2026-09")).toBe(
+    "Local Centro · Septiembre 2026",
+  );
+});
+
+test("keeps the colons of a fiscal address name when naming the month of its breach", () => {
+  expect(alertScopeLabel("fiscalAddressMonth", "Local: Centro:2026-09")).toBe(
+    "Local: Centro · Septiembre 2026",
+  );
+});
+
+test("shows the scope of an exception share breach it cannot read as it comes", () => {
+  expect(alertScopeLabel("fiscalAddressMonth", "Local Centro")).toBe("Local Centro");
+  expect(alertScopeLabel("fiscalAddressMonth", "Local Centro:septiembre")).toBe(
+    "Local Centro:septiembre",
+  );
+});
+
 test("names the point of sale, the invoice class and the number of a voucher issued outside the system", () => {
   expect(alertScopeLabel("pointOfSaleDocumentNumber", "3:factura_c:41")).toBe(
     "Punto de venta 00003 · Factura C · 00000041",

@@ -1,5 +1,6 @@
 import type { AlertScopeKind } from "@purosur/domain";
 import { formatCalendarDayRange, formatInvoiceNumber, formatPointOfSaleNumber } from "@purosur/ui";
+import { yearMonthLabel } from "../platform/year-month-label";
 
 const ARCA_ENVIRONMENT_LABELS: ReadonlyMap<string, string> = new Map([
   ["production", "Producción"],
@@ -22,6 +23,15 @@ function pointOfSaleFortnightScopeLabel(scopeDisplay: string): string {
   return /^\d+$/.test(pointOfSale) && start !== "" && end !== ""
     ? `Punto de venta ${formatPointOfSaleNumber(Number(pointOfSale))} · ${formatCalendarDayRange(start, end)}`
     : scopeDisplay;
+}
+
+function fiscalAddressMonthScopeLabel(scopeDisplay: string): string {
+  const separator = scopeDisplay.lastIndexOf(":");
+  const month = scopeDisplay.slice(separator + 1);
+  const label = yearMonthLabel(month);
+  return separator <= 0 || label === month
+    ? scopeDisplay
+    : `${scopeDisplay.slice(0, separator)} · ${label}`;
 }
 
 function pointOfSaleDocumentNumberScopeLabel(scopeDisplay: string): string {
@@ -53,6 +63,9 @@ export function alertScopeLabel(scopeKind: string | null, scopeDisplay: string):
   }
   if (scopeKind === ("pointOfSaleFortnight" satisfies AlertScopeKind)) {
     return pointOfSaleFortnightScopeLabel(scopeDisplay);
+  }
+  if (scopeKind === ("fiscalAddressMonth" satisfies AlertScopeKind)) {
+    return fiscalAddressMonthScopeLabel(scopeDisplay);
   }
   return scopeKind === ("environment" satisfies AlertScopeKind)
     ? (ARCA_ENVIRONMENT_LABELS.get(scopeDisplay) ?? scopeDisplay)

@@ -1,5 +1,5 @@
 {
-  "id": "f364cf9e-6e24-40dc-acc8-0e14fa879163",
+  "id": "a1e53add-590b-4bad-bdf5-ba5f1260602a",
   "prevId": "fccdfce1-7ae8-40fa-929d-6aeebb894bd9",
   "version": "7",
   "dialect": "postgresql",
@@ -2858,6 +2858,79 @@
         "discounts_weekdays_check": {
           "name": "discounts_weekdays_check",
           "value": "\"discounts\".\"weekdays\" <@ array[1, 2, 3, 4, 5, 6, 7]::smallint[]"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.exception_share_breaches": {
+      "name": "exception_share_breaches",
+      "schema": "",
+      "columns": {
+        "fiscal_address_id": {
+          "name": "fiscal_address_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "month": {
+          "name": "month",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "exception_count": {
+          "name": "exception_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_count": {
+          "name": "total_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "recorded_at": {
+          "name": "recorded_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "exception_share_breaches_fiscal_address_id_fiscal_addresses_id_fk": {
+          "name": "exception_share_breaches_fiscal_address_id_fiscal_addresses_id_fk",
+          "tableFrom": "exception_share_breaches",
+          "tableTo": "fiscal_addresses",
+          "columnsFrom": ["fiscal_address_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "exception_share_breaches_pkey": {
+          "name": "exception_share_breaches_pkey",
+          "columns": ["fiscal_address_id", "month"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "exception_share_breaches_month_format": {
+          "name": "exception_share_breaches_month_format",
+          "value": "\"exception_share_breaches\".\"month\" ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'"
+        },
+        "exception_share_breaches_counts_consistent": {
+          "name": "exception_share_breaches_counts_consistent",
+          "value": "\"exception_share_breaches\".\"exception_count\" >= 0 and \"exception_share_breaches\".\"exception_count\" <= \"exception_share_breaches\".\"total_count\""
         }
       },
       "isRLSEnabled": false
@@ -6838,245 +6911,6 @@
         "purchase_lines_packages_quantity_check": {
           "name": "purchase_lines_packages_quantity_check",
           "value": "\"purchase_lines\".\"packages\" is null or (\"purchase_lines\".\"packages\" > 0 and \"purchase_lines\".\"quantity\" = \"purchase_lines\".\"packages\" * \"purchase_lines\".\"quantity_per_package\")"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.purchase_order_lines": {
-      "name": "purchase_order_lines",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "purchase_order_id": {
-          "name": "purchase_order_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "position": {
-          "name": "position",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "product_id": {
-          "name": "product_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "packages": {
-          "name": "packages",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "quantity_per_package": {
-          "name": "quantity_per_package",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "expected_package_price_cents": {
-          "name": "expected_package_price_cents",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "purchase_order_lines_purchase_order_id_purchase_orders_id_fk": {
-          "name": "purchase_order_lines_purchase_order_id_purchase_orders_id_fk",
-          "tableFrom": "purchase_order_lines",
-          "tableTo": "purchase_orders",
-          "columnsFrom": ["purchase_order_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "purchase_order_lines_product_id_products_id_fk": {
-          "name": "purchase_order_lines_product_id_products_id_fk",
-          "tableFrom": "purchase_order_lines",
-          "tableTo": "products",
-          "columnsFrom": ["product_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "purchase_order_lines_order_product_key": {
-          "name": "purchase_order_lines_order_product_key",
-          "nullsNotDistinct": false,
-          "columns": ["purchase_order_id", "product_id"]
-        },
-        "purchase_order_lines_order_position_key": {
-          "name": "purchase_order_lines_order_position_key",
-          "nullsNotDistinct": false,
-          "columns": ["purchase_order_id", "position"]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "purchase_order_lines_position_check": {
-          "name": "purchase_order_lines_position_check",
-          "value": "\"purchase_order_lines\".\"position\" > 0"
-        },
-        "purchase_order_lines_packages_check": {
-          "name": "purchase_order_lines_packages_check",
-          "value": "\"purchase_order_lines\".\"packages\" > 0"
-        },
-        "purchase_order_lines_quantity_per_package_check": {
-          "name": "purchase_order_lines_quantity_per_package_check",
-          "value": "\"purchase_order_lines\".\"quantity_per_package\" > 0"
-        },
-        "purchase_order_lines_expected_package_price_check": {
-          "name": "purchase_order_lines_expected_package_price_check",
-          "value": "\"purchase_order_lines\".\"expected_package_price_cents\" >= 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.purchase_orders": {
-      "name": "purchase_orders",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "supplier_id": {
-          "name": "supplier_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "location_id": {
-          "name": "location_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "state": {
-          "name": "state",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "actor_id": {
-          "name": "actor_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "cancelled_at": {
-          "name": "cancelled_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cancelled_by": {
-          "name": "cancelled_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "purchase_orders_location_id_state_created_at_idx": {
-          "name": "purchase_orders_location_id_state_created_at_idx",
-          "columns": [
-            {
-              "expression": "location_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "state",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "purchase_orders_supplier_id_suppliers_id_fk": {
-          "name": "purchase_orders_supplier_id_suppliers_id_fk",
-          "tableFrom": "purchase_orders",
-          "tableTo": "suppliers",
-          "columnsFrom": ["supplier_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "purchase_orders_location_id_locations_id_fk": {
-          "name": "purchase_orders_location_id_locations_id_fk",
-          "tableFrom": "purchase_orders",
-          "tableTo": "locations",
-          "columnsFrom": ["location_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "purchase_orders_actor_id_users_id_fk": {
-          "name": "purchase_orders_actor_id_users_id_fk",
-          "tableFrom": "purchase_orders",
-          "tableTo": "users",
-          "columnsFrom": ["actor_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "purchase_orders_cancelled_by_users_id_fk": {
-          "name": "purchase_orders_cancelled_by_users_id_fk",
-          "tableFrom": "purchase_orders",
-          "tableTo": "users",
-          "columnsFrom": ["cancelled_by"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "purchase_orders_state_check": {
-          "name": "purchase_orders_state_check",
-          "value": "\"purchase_orders\".\"state\" in ('DRAFT', 'CANCELLED')"
-        },
-        "purchase_orders_cancellation_check": {
-          "name": "purchase_orders_cancellation_check",
-          "value": "(\"purchase_orders\".\"state\" = 'CANCELLED') = (\"purchase_orders\".\"cancelled_at\" is not null and \"purchase_orders\".\"cancelled_by\" is not null) and (\"purchase_orders\".\"cancelled_at\" is null) = (\"purchase_orders\".\"cancelled_by\" is null)"
         }
       },
       "isRLSEnabled": false

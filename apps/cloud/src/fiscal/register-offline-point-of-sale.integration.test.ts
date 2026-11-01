@@ -86,14 +86,17 @@ describe("two registers claiming the same number under different mechanisms at o
     const { locationId, actorId, fiscalAddressId, firstRegisterId, secondRegisterId } =
       await seedTwoRegisters();
     const realTime = new DrizzleRegisterPointOfSaleStore(db, () => NOON);
-    await configureRegisterPointOfSale(realTime, {
-      locationId,
-      registerId: secondRegisterId,
-      pointOfSaleNumber: 61,
-      fiscalAddressId,
-      version: 0,
-      actorId,
-    });
+    await configureRegisterPointOfSale(
+      { store: realTime, clock: { now: () => NOON } },
+      {
+        locationId,
+        registerId: secondRegisterId,
+        pointOfSaleNumber: 61,
+        fiscalAddressId,
+        version: 0,
+        actorId,
+      },
+    );
 
     // A SHARE lock lets both registers read that the number is free but parks both claims, so the
     // loser meets the winner's claim in the database's primary key.
@@ -101,14 +104,17 @@ describe("two registers claiming the same number under different mechanisms at o
       adminSql,
       (holder) => holder.unsafe("lock table point_of_sale_claims in share mode"),
       () =>
-        configureRegisterPointOfSale(realTime, {
-          locationId,
-          registerId: firstRegisterId,
-          pointOfSaleNumber: 60,
-          fiscalAddressId,
-          version: 0,
-          actorId,
-        }),
+        configureRegisterPointOfSale(
+          { store: realTime, clock: { now: () => NOON } },
+          {
+            locationId,
+            registerId: firstRegisterId,
+            pointOfSaleNumber: 60,
+            fiscalAddressId,
+            version: 0,
+            actorId,
+          },
+        ),
       () =>
         configureRegisterOfflinePointOfSale(
           new DrizzleRegisterOfflinePointOfSaleStore(db, () => NOON),
@@ -250,14 +256,17 @@ describe("configuring and retiring the same offline point of sale at once on a r
   it("makes both wait for the number's lock and leaves a retired number unassigned whichever goes first", async () => {
     const { locationId, actorId, fiscalAddressId, firstRegisterId } = await seedTwoRegisters();
     const offlineStore = new DrizzleRegisterOfflinePointOfSaleStore(db, () => NOON);
-    await configureRegisterPointOfSale(new DrizzleRegisterPointOfSaleStore(db, () => NOON), {
-      locationId,
-      registerId: firstRegisterId,
-      pointOfSaleNumber: 80,
-      fiscalAddressId,
-      version: 0,
-      actorId,
-    });
+    await configureRegisterPointOfSale(
+      { store: new DrizzleRegisterPointOfSaleStore(db, () => NOON), clock: { now: () => NOON } },
+      {
+        locationId,
+        registerId: firstRegisterId,
+        pointOfSaleNumber: 80,
+        fiscalAddressId,
+        version: 0,
+        actorId,
+      },
+    );
     for (const [pointOfSaleNumber, version] of [
       [81, 0],
       [82, 1],

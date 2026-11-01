@@ -58,7 +58,7 @@ export async function configurePointOfSale(
   input: ConfigureRegisterPointOfSaleInput,
 ): Promise<void> {
   const outcome = await configureRegisterPointOfSale(
-    new DrizzleRegisterPointOfSaleStore(db, () => now),
+    { store: new DrizzleRegisterPointOfSaleStore(db, () => now), clock: { now: () => now } },
     input,
   );
   if (outcome.kind !== "configured") {

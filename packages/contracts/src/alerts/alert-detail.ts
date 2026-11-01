@@ -277,6 +277,16 @@ const deferredSaleDueDetailSchema = z.object({
   escalatesAt: z.string(),
 });
 
+const exceptionShareBreachDetailSchema = z.object({
+  fiscalAddressId: z.string(),
+  fiscalAddressName: z.string(),
+  month: z.string(),
+  exceptionCount: z.int(),
+  totalCount: z.int(),
+  nonCompliantMonths: z.array(z.string()),
+  nonCompliancePercent: z.int(),
+});
+
 const fortnightReportDocumentRejectedDetailSchema =
   fortnightReportNeedsRegularizationDetailSchema.extend({
     documentType: z.enum([FACTURA_C_DOCUMENT_TYPE, CREDIT_NOTE_C_DOCUMENT_TYPE]),
@@ -484,6 +494,11 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("deferred_sale_due" satisfies AlertKind),
     detail: deferredSaleDueDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("exception_share_breach" satisfies AlertKind),
+    detail: exceptionShareBreachDetailSchema,
   }),
 ] as const;
 

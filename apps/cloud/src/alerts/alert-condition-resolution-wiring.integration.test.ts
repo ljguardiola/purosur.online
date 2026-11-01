@@ -5,7 +5,15 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
 import { DrizzleOfflineAuthorizationCodeStore } from "../fiscal/drizzle-offline-authorization-code-store.js";
 import { insertDeferredSaleRow } from "../fiscal/test-support/deferred-sale-fixtures.js";
+import {
+  insertFiscalAddress,
+  insertRegisterAtFiscalAddress,
+} from "../fiscal/test-support/exception-share-fixtures.js";
 import { UNREACHABLE_WSFE_ENDPOINT } from "../fiscal/test-support/fake-wsfe-server.js";
+import {
+  insertCaeaDocument,
+  insertReceiptRequest,
+} from "../fiscal/test-support/issued-document-fixtures.js";
 import { configureOfflinePointOfSale } from "../fiscal/test-support/offline-point-of-sale-fixtures.js";
 import { insertRejectedDocumentRemedy } from "../fiscal/test-support/rejected-document-remedy-fixtures.js";
 import {
@@ -669,6 +677,63 @@ describe("the background worker the server sets up on a real Postgres", () => {
             detail: {
               lastVerifiedGenerationAt: null,
               firstChangeAt: firstChange.toISOString(),
+            },
+          });
+        },
+        { timeout: 20_000, interval: 100 },
+      );
+    } finally {
+      await backgroundJobs.close();
+    }
+  }, 60_000);
+
+  it("records the closed month that reached the exception share threshold and opens its alert", async () => {
+    const fiscalAddressId = await insertFiscalAddress(db, "Depósito Central");
+    const registerId = await insertRegisterAtFiscalAddress(
+      db,
+      fiscalAddressId,
+      "Caja del depósito",
+    );
+    await insertCaeaDocument(db, registerId, { issuedOn: "2019-12-12" });
+    await insertReceiptRequest(db, registerId, { issuedOn: "2019-12-13" });
+    const backgroundJobs = await setUpBackgroundJobs(
+      {
+        databaseUrl: integrationDb.databaseUrl,
+        emailSender: { transport: "log" },
+        emailFrom: FICTIONAL_RECOVERY_SENDER,
+        emailReplyTo: FICTIONAL_RECOVERY_REPLY_TO,
+        backofficeOrigin: "https://staging.purosur.online",
+        arcaCertificate: { environment: "production", notAfter: new Date("2126-09-01T19:42:17Z") },
+        arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
+      },
+      () => NOW,
+      fixedZoneRulesSource(),
+      { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
+    );
+
+    try {
+      await sql`select graphile_worker.add_job('alert-condition-resolution')`;
+
+      await vi.waitFor(
+        async () => {
+          const rows = await db
+            .select()
+            .from(alerts)
+            .where(eq(alerts.scope, `${fiscalAddressId}:2019-12`));
+          expect(rows).toHaveLength(1);
+          expect(rows[0]).toMatchObject({
+            kind: "exception_share_breach",
+            level: "critical",
+            audience: "all",
+            resolvedAt: null,
+            detail: {
+              fiscalAddressId,
+              fiscalAddressName: "Depósito Central",
+              month: "2019-12",
+              exceptionCount: 1,
+              totalCount: 2,
+              nonCompliantMonths: ["2019-12"],
+              nonCompliancePercent: 5,
             },
           });
         },

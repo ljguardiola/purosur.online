@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { configureRegisterPointOfSale } from "./configure-register-point-of-sale.js";
 import { FakeRegisterPointOfSaleStore } from "./test-support/fake-register-point-of-sale-store.js";
+import { FixedClock } from "./test-support/fixed-clock.js";
 
 const BRANCH = "branch-1";
 const ACTOR = "user-1";
+const NOW = new Date("2026-10-12T14:30:00.000Z");
 
 function storeWithRegisters(): FakeRegisterPointOfSaleStore {
   const store = new FakeRegisterPointOfSaleStore();
@@ -16,15 +18,18 @@ function storeWithRegisters(): FakeRegisterPointOfSaleStore {
 }
 
 function configure(store: FakeRegisterPointOfSaleStore, overrides: Record<string, unknown> = {}) {
-  return configureRegisterPointOfSale(store, {
-    locationId: BRANCH,
-    registerId: "register-1",
-    pointOfSaleNumber: 12,
-    fiscalAddressId: "address-1",
-    version: 0,
-    actorId: ACTOR,
-    ...overrides,
-  });
+  return configureRegisterPointOfSale(
+    { store, clock: new FixedClock(NOW) },
+    {
+      locationId: BRANCH,
+      registerId: "register-1",
+      pointOfSaleNumber: 12,
+      fiscalAddressId: "address-1",
+      version: 0,
+      actorId: ACTOR,
+      ...overrides,
+    },
+  );
 }
 
 describe("configureRegisterPointOfSale", () => {
@@ -64,6 +69,7 @@ describe("configureRegisterPointOfSale", () => {
       "lockPointOfSaleClaim",
       "claimPointOfSale",
       "recordRegisterPointOfSale",
+      "recordFiscalAddressAssignment",
     ]);
     expect(store.transactionCount).toBe(1);
   });
@@ -272,6 +278,70 @@ describe("configureRegisterPointOfSale", () => {
       setup: { pointOfSaleNumber: 12, fiscalAddressId: "address-2", version: 2 },
     });
     expect(store.operationOrder).not.toContain("claimPointOfSale");
+  });
+
+  it("records the register's first fiscal address as assigned at the moment it is configured", async () => {
+    const store = storeWithRegisters();
+
+    await configure(store);
+
+    expect(store.snapshot().fiscalAddressAssignments).toEqual([
+      { registerId: "register-1", fiscalAddressId: "address-1", assignedAt: NOW },
+    ]);
+  });
+
+  it("records a new fiscal address as assigned at the moment it changes, keeping the earlier assignment", async () => {
+    const store = storeWithRegisters();
+    const earlier = new Date("2026-09-01T12:00:00.000Z");
+    store.seedRegisterPointOfSale({
+      registerId: "register-1",
+      pointOfSaleNumber: 12,
+      fiscalAddressId: "address-1",
+      version: 1,
+    });
+    store.seedFiscalAddressAssignment({
+      registerId: "register-1",
+      fiscalAddressId: "address-1",
+      assignedAt: earlier,
+    });
+    store.seedPointOfSaleClaim({
+      pointOfSaleNumber: 12,
+      registerId: "register-1",
+      mechanism: "real_time",
+    });
+
+    await configure(store, { fiscalAddressId: "address-2", version: 1 });
+
+    expect(store.snapshot().fiscalAddressAssignments).toEqual([
+      { registerId: "register-1", fiscalAddressId: "address-1", assignedAt: earlier },
+      { registerId: "register-1", fiscalAddressId: "address-2", assignedAt: NOW },
+    ]);
+  });
+
+  it("records no fiscal address assignment when only the register's number changes", async () => {
+    const store = storeWithRegisters();
+    store.seedRegisterPointOfSale({
+      registerId: "register-1",
+      pointOfSaleNumber: 12,
+      fiscalAddressId: "address-1",
+      version: 1,
+    });
+
+    const outcome = await configure(store, { pointOfSaleNumber: 14, version: 1 });
+
+    expect(outcome.kind).toBe("configured");
+    expect(store.snapshot().fiscalAddressAssignments).toEqual([]);
+    expect(store.operationOrder).not.toContain("recordFiscalAddressAssignment");
+  });
+
+  it("leaves neither the setup nor the claim behind when recording the fiscal address assignment fails", async () => {
+    const store = storeWithRegisters();
+    store.failingWrites.add("recordFiscalAddressAssignment");
+    const before = store.snapshot();
+
+    await expect(configure(store)).rejects.toThrow("recordFiscalAddressAssignment failed");
+
+    expect(store.snapshot()).toEqual(before);
   });
 
   it("records nothing when the register already has that number and fiscal address", async () => {

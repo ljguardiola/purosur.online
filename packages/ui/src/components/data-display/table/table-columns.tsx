@@ -55,6 +55,18 @@ export function dataColumn<T extends RowData, const Id extends string>({
   };
 }
 
+export function groupColumn<T extends RowData, const Id extends string>({
+  id,
+  header,
+  columns,
+}: {
+  id: Id;
+  header: string;
+  columns: readonly [TableColumn<T>, ...TableColumn<T>[]];
+}): TableColumn<T, Id, false> {
+  return { id, header, columns: [...columns], enableSorting: false };
+}
+
 export function actionsColumn<T extends RowData, const Id extends string>({
   id,
   header,

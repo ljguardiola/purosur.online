@@ -1,9 +1,15 @@
+import type { Clock } from "../../shared/index.js";
 import { mayRegisterClaimPointOfSale } from "../model/point-of-sale.js";
 import {
   PointOfSaleClaimConflict,
   type RegisterPointOfSale,
   type RegisterPointOfSaleStore,
 } from "./register-point-of-sale-store.js";
+
+export interface ConfigureRegisterPointOfSalePorts {
+  store: RegisterPointOfSaleStore;
+  clock: Clock;
+}
 
 export interface ConfigureRegisterPointOfSaleInput {
   locationId: string;
@@ -23,7 +29,7 @@ export type ConfigureRegisterPointOfSaleOutcome =
   | { kind: "configured"; setup: RegisterPointOfSale };
 
 export async function configureRegisterPointOfSale(
-  store: RegisterPointOfSaleStore,
+  { store, clock }: ConfigureRegisterPointOfSalePorts,
   input: ConfigureRegisterPointOfSaleInput,
 ): Promise<ConfigureRegisterPointOfSaleOutcome> {
   try {
@@ -71,6 +77,13 @@ export async function configureRegisterPointOfSale(
         ...setup,
         actorId: input.actorId,
       });
+      if (current.fiscalAddressId !== input.fiscalAddressId) {
+        await tx.recordFiscalAddressAssignment({
+          registerId: input.registerId,
+          fiscalAddressId: input.fiscalAddressId,
+          assignedAt: clock.now(),
+        });
+      }
       return { kind: "configured", setup };
     });
   } catch (error) {

@@ -1,5 +1,6 @@
 import { FACTURA_C_DOCUMENT_TYPE } from "@purosur/domain";
 import type {
+  FiscalAddressAssignment,
   LockBranchRegisterResult,
   PointOfSaleClaim,
   PointOfSaleHolder,
@@ -10,7 +11,12 @@ import type {
 } from "@purosur/domain/fiscal/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { auditLog, fiscalAddresses, registerPointsOfSale } from "../platform/db/schema.js";
+import {
+  auditLog,
+  fiscalAddresses,
+  registerFiscalAddressAssignments,
+  registerPointsOfSale,
+} from "../platform/db/schema.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import {
   claimPointOfSale,
@@ -122,6 +128,10 @@ class DrizzleRegisterPointOfSaleStoreTransaction<TQueryResult extends PgQueryRes
       op: previous ? "update" : "insert",
     });
     await this.enqueueTaxAuthorityCount?.(this.tx, pointOfSaleNumber, FACTURA_C_DOCUMENT_TYPE);
+  }
+
+  async recordFiscalAddressAssignment(assignment: FiscalAddressAssignment): Promise<void> {
+    await this.tx.insert(registerFiscalAddressAssignments).values(assignment);
   }
 }
 

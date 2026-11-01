@@ -51,6 +51,7 @@ export type {
   DeferredSaleDeadlineDetectionPorts,
 } from "./deferred-sale-deadline-ports.js";
 export { detectDeferredSaleDeadlines } from "./detect-deferred-sale-deadlines.js";
+export { detectExceptionShareBreaches } from "./detect-exception-share-breaches.js";
 export { detectExpiringLots } from "./detect-expiring-lots.js";
 export { detectFortnightReportDeadlines } from "./detect-fortnight-report-deadlines.js";
 export { detectFortnightReportRegularizations } from "./detect-fortnight-report-regularizations.js";
@@ -62,6 +63,11 @@ export { detectRejectedFortnightDocuments } from "./detect-rejected-fortnight-do
 export type { DetectUnverifiedOffsiteDumpOutcome } from "./detect-unverified-offsite-dump.js";
 export { detectUnverifiedOffsiteDump } from "./detect-unverified-offsite-dump.js";
 export { escalateOverdueAlerts } from "./escalate-overdue-alerts.js";
+export type {
+  ExceptionShareBreachAlerts,
+  ExceptionShareBreachDetectionPorts,
+  RecordedExceptionShareBreachReader,
+} from "./exception-share-breach-ports.js";
 export type {
   BranchExpiringLotReader,
   BranchExpiryWindow,

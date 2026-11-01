@@ -1,6 +1,7 @@
 import {
   alertKindPolicy,
   alertScopeRecordId,
+  fiscalAddressMonthScopeDisplay,
   isAlertKind,
   pointOfSaleFortnightScopeDisplay,
   showsAlertScope,
@@ -36,5 +37,12 @@ export function scopeDisplay(
     return pointOfSaleFortnightScopeDisplay(alert.scope);
   }
   const recordId = alertScopeRecordId(alert);
+  if (
+    recordId !== undefined &&
+    isAlertKind(alert.kind) &&
+    alertKindPolicy(alert.kind).scopeKind === "fiscalAddressMonth"
+  ) {
+    return fiscalAddressMonthScopeDisplay(alert.scope, namesById.get(recordId) ?? recordId);
+  }
   return recordId === undefined ? alert.scope : (namesById.get(recordId) ?? recordId);
 }

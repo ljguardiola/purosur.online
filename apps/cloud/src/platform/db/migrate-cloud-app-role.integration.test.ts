@@ -323,6 +323,39 @@ describe("the cloud_app role runMigrations creates", () => {
     await expectPermissionDenied(cloudApp`truncate point_of_sale_claims`);
   });
 
+  it("appends register fiscal address assignments but never rewrites, removes or truncates them", async () => {
+    const [location] = await cloudApp<{ id: string }[]>`select id from locations limit 1`;
+    if (!location) {
+      throw new Error("test setup: reading the seeded location returned no row");
+    }
+    const [register] = await cloudApp<{ id: string }[]>`
+      insert into registers (location_id, name)
+      values (${location.id}, ${`Caja ${randomUUID()}`}) returning id
+    `;
+    const [fiscalAddress] = await cloudApp<{ id: string }[]>`
+      insert into fiscal_addresses (name, street_address)
+      values (${`Deposito ${randomUUID()}`}, 'Calle Ficticia 123') returning id
+    `;
+    if (!register || !fiscalAddress) {
+      throw new Error("test setup: seeding the register or the fiscal address returned no row");
+    }
+    await cloudApp`
+      insert into register_fiscal_address_assignments (register_id, fiscal_address_id, assigned_at)
+      values (${register.id}, ${fiscalAddress.id}, now())
+    `;
+
+    await expect(
+      cloudApp`select fiscal_address_id from register_fiscal_address_assignments where register_id = ${register.id}`,
+    ).resolves.toEqual([{ fiscal_address_id: fiscalAddress.id }]);
+    await expectPermissionDenied(
+      cloudApp`update register_fiscal_address_assignments set assigned_at = now() where register_id = ${register.id}`,
+    );
+    await expectPermissionDenied(
+      cloudApp`delete from register_fiscal_address_assignments where register_id = ${register.id}`,
+    );
+    await expectPermissionDenied(cloudApp`truncate register_fiscal_address_assignments`);
+  });
+
   it("appends offline point-of-sale retirements but never rewrites, removes or truncates them", async () => {
     const [location] = await cloudApp<{ id: string }[]>`select id from locations limit 1`;
     if (!location) {
