@@ -1,5 +1,6 @@
 import {
   CREDIT_NOTE_ROUTING_INVOICE_STATES,
+  DISCOUNT_BENEFIT_KINDS,
   PAYMENT_METHODS,
   POINT_CARD_TYPES,
   SALE_STATES_AFTER_COMPLETION,
@@ -77,6 +78,7 @@ export const branchSaleForReturnAnswerSchema = z.object({
         sale_unit: z.enum(SALE_UNITS),
         quantity,
         promotion_id: z.string().nullable(),
+        promotion_kind: z.enum(DISCOUNT_BENEFIT_KINDS).nullable(),
         line_total: cents,
       }),
     ),

@@ -1,4 +1,5 @@
 import type { ContingencyBackupOperation } from "@purosur/domain";
+import type { KeptBranchSale } from "@purosur/domain/returns/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   insertCompletedSale,
@@ -7,6 +8,7 @@ import {
   openFiscalDatabase,
 } from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
+import { SqliteRetainedBranchSales } from "../returns/sqlite-retained-branch-sales";
 import {
   insertBranchSettings,
   insertStoredRefund,
@@ -250,14 +252,39 @@ describe("reading what a ticket prints", () => {
     });
 
     describe("of a sale another register rang up", () => {
-      function keepBranchSale(ticket: object, saleId = "branch-sale"): void {
+      function keepBranchSale(ticket: KeptBranchSale["ticket"], saleId = "branch-sale"): void {
         database.prepare("UPDATE returns SET sale_id = ?").run(saleId);
-        database
-          .prepare("INSERT INTO branch_sales_for_return (sale_id, facts) VALUES (?, ?)")
-          .run(
-            saleId,
-            JSON.stringify({ ticket, sale: { occurredAt: "2026-09-12T18:30:00.000Z" } }),
-          );
+        new SqliteRetainedBranchSales(database).keep({
+          ticket,
+          sale: {
+            sale: {
+              id: saleId,
+              registerId: "register-2",
+              deviceId: "device-2",
+              sessionId: "session-2",
+              actorId: "cashier",
+              state: "COMPLETED",
+              lines: [
+                {
+                  id: "line-elsewhere",
+                  productId: "yerba",
+                  productName: "Yerba 1 kg",
+                  saleUnit: "UNIT",
+                  quantity: 1,
+                  promotionId: null,
+                  promotionKind: null,
+                  lineTotal: 1500,
+                },
+              ],
+            },
+            occurredAt: new Date("2026-09-12T18:30:00.000Z"),
+            invoice: null,
+            payments: [],
+            returned: [],
+          },
+          invoiceStanding: { fiscalDocuments: [], deferralPending: false },
+          countedReturnIds: [],
+        });
       }
 
       it("names the invoice the sale was found by", async () => {

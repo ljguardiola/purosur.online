@@ -5,6 +5,18 @@ interface RetainedRow {
   facts: string;
 }
 
+type KeptSale = KeptBranchSale["sale"];
+type KeptLine = KeptSale["sale"]["lines"][number];
+
+type StoredLine = Omit<KeptLine, "promotionKind"> & { promotionKind?: KeptLine["promotionKind"] };
+
+type StoredFacts = Omit<KeptBranchSale, "sale"> & {
+  sale: Omit<KeptSale, "sale" | "occurredAt"> & {
+    occurredAt: string;
+    sale: Omit<KeptSale["sale"], "lines"> & { lines: StoredLine[] };
+  };
+};
+
 export function readRetainedBranchSale(
   database: LocalDatabase,
   saleId: string,
@@ -15,8 +27,21 @@ export function readRetainedBranchSale(
   if (row === undefined) {
     return undefined;
   }
-  const facts: KeptBranchSale & { sale: { occurredAt: string } } = JSON.parse(row.facts);
-  return { ...facts, sale: { ...facts.sale, occurredAt: new Date(facts.sale.occurredAt) } };
+  const facts: StoredFacts = JSON.parse(row.facts);
+  return {
+    ...facts,
+    sale: {
+      ...facts.sale,
+      sale: {
+        ...facts.sale.sale,
+        lines: facts.sale.sale.lines.map((line) => ({
+          ...line,
+          promotionKind: line.promotionKind ?? null,
+        })),
+      },
+      occurredAt: new Date(facts.sale.occurredAt),
+    },
+  };
 }
 
 export class SqliteRetainedBranchSales implements RetainedBranchSales {

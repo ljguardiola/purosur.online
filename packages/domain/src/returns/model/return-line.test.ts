@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { lineRefundAmount, mustBeReturnedWhole, returnableQuantity } from "./return-line.js";
+import { lineRefundAmount, returnableQuantity, wholeOnlyReasons } from "./return-line.js";
 
 describe("returnableQuantity", () => {
   it("is what the line sold minus what was already returned from it", () => {
@@ -21,13 +21,25 @@ describe("returnableQuantity", () => {
   });
 });
 
-describe("mustBeReturnedWhole", () => {
-  it("is true for a line sold under a promotion", () => {
-    expect(mustBeReturnedWhole({ promotionId: "ten" })).toBe(true);
+describe("wholeOnlyReasons", () => {
+  it("is none for a line sold without a promotion", () => {
+    expect(wholeOnlyReasons({ promotionId: null, promotionKind: null })).toEqual([]);
   });
 
-  it("is false for a line sold without one", () => {
-    expect(mustBeReturnedWhole({ promotionId: null })).toBe(false);
+  it("is only a change of mind for a buy-N-pay-M line", () => {
+    expect(wholeOnlyReasons({ promotionId: "two-for-one", promotionKind: "BUY_N_PAY_M" })).toEqual([
+      "change_of_mind",
+    ]);
+  });
+
+  it("is none for a percentage-off line", () => {
+    expect(wholeOnlyReasons({ promotionId: "ten", promotionKind: "PERCENT_OFF" })).toEqual([]);
+  });
+
+  it("is only a change of mind for a promotion line whose kind is unknown", () => {
+    expect(wholeOnlyReasons({ promotionId: "ten", promotionKind: null })).toEqual([
+      "change_of_mind",
+    ]);
   });
 });
 
@@ -59,6 +71,14 @@ describe("lineRefundAmount", () => {
     const afterTwo = { ...LINE, returnedQuantity: 2, refundedAmount: 667 };
 
     expect(lineRefundAmount(afterTwo, 1)).toBe(333);
+  });
+
+  it("refunds one third of a buy-3-pay-2 line that charged two units, then only the difference for the next unit", () => {
+    const line = { soldQuantity: 3, chargedAmount: 20_000, returnedQuantity: 0, refundedAmount: 0 };
+    const first = lineRefundAmount(line, 1);
+
+    expect(first).toBe(6667);
+    expect(lineRefundAmount({ ...line, returnedQuantity: 1, refundedAmount: first }, 1)).toBe(6666);
   });
 
   it("refunds a weighed line in proportion to the weight returned", () => {

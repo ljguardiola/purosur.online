@@ -1,5 +1,6 @@
 import {
   type DeferredSaleState,
+  DISCOUNT_BENEFIT_KINDS,
   EXPIRED_DEFERRED_SALE_STATE,
   FACTURA_C_DOCUMENT_TYPE,
   isCreditNoteRoutingInvoice,
@@ -246,17 +247,19 @@ export class DrizzleBranchSaleForReturnReader<TQueryResult extends PgQueryResult
         saleUnit: products.saleUnit,
         quantity: saleLines.quantity,
         promotionId: saleLines.promotionId,
+        promotionKind: saleLines.promotionKind,
         lineTotal: saleLines.lineTotal,
       })
       .from(saleLines)
       .leftJoin(products, eq(products.id, saleLines.productId))
       .where(eq(saleLines.saleId, saleId));
-    return rows.map(({ saleUnit: stored, ...line }) => {
+    return rows.map(({ saleUnit: stored, promotionKind: storedKind, ...line }) => {
       const saleUnit = SALE_UNITS.find((known) => known === stored);
       if (saleUnit === undefined) {
         throw new Error(`product ${line.productId} of sale ${saleId} has no known sale unit`);
       }
-      return { ...line, saleUnit };
+      const promotionKind = DISCOUNT_BENEFIT_KINDS.find((known) => known === storedKind) ?? null;
+      return { ...line, saleUnit, promotionKind };
     });
   }
 

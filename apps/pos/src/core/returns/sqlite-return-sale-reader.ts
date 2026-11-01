@@ -1,4 +1,4 @@
-import type { ReturnedFromLine, SaleForReturn } from "@purosur/domain";
+import type { ReturnedFromLine, SaleForReturn, SaleWithLines } from "@purosur/domain";
 import {
   DEFAULT_GOOD_CONDITION_RETURN_DAYS,
   settledLines,
@@ -125,6 +125,13 @@ function readRetainedSaleForReturn(
   );
 }
 
+function withAppliedPromotionKinds(sale: SaleWithLines) {
+  return settledLines(sale).map((line) => ({
+    ...line,
+    promotionKind: line.promotions.find(({ id }) => id === line.promotionId)?.benefit.kind ?? null,
+  }));
+}
+
 export function readSaleForReturn(
   database: LocalDatabase,
   search: SaleReturnSearch,
@@ -145,7 +152,7 @@ export function readSaleForReturn(
   }
   const refunded = refundedByPayment(database, saleId);
   const held: SaleForReturn = {
-    sale: { ...sale, lines: settledLines(sale) },
+    sale: { ...sale, lines: withAppliedPromotionKinds(sale) },
     occurredAt: new Date(occurredAt),
     invoice: invoiceOf(database, saleId),
     payments: readRecordedPayments(database, saleId).map((payment) => ({

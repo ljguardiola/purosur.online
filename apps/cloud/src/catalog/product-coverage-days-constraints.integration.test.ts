@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { products } from "../platform/db/schema.js";
+import { constraintViolatedBy } from "../test-support/constraint-violated-by.js";
 import {
-  constraintViolatedBy,
   openProductConstraintsDatabase,
   type ProductConstraintsDatabase,
 } from "./test-support/product-constraints-database.js";

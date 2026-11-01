@@ -59,8 +59,13 @@ export function changeLine(
   return line === undefined ? draft : { ...draft, [lineId]: { ...line, ...change } };
 }
 
-function quantityOf(line: SaleLineForReturn, typed: string): number {
-  if (line.must_be_returned_whole) {
+export function goesBackWhole(line: SaleLineForReturn, reason: ReturnReasonValue | null): boolean {
+  return reason !== null && line.whole_only_reasons.includes(reason);
+}
+
+function quantityOf(line: SaleLineForReturn, drafted: ReturnDraftLine): number {
+  const typed = drafted.quantity;
+  if (goesBackWhole(line, drafted.reason)) {
     return line.returnable_quantity;
   }
   if (line.sale_unit === "KG") {
@@ -77,7 +82,7 @@ export function draftLinesFor(sale: SaleForReturn, draft: ReturnDraft): ReturnDr
       : [
           {
             sale_line_id: line.id,
-            quantity: quantityOf(line, drafted.quantity),
+            quantity: quantityOf(line, drafted),
             reason: drafted.reason,
             disposition: drafted.disposition,
           },

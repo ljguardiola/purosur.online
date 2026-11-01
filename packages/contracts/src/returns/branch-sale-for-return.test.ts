@@ -60,6 +60,7 @@ const answer = {
         sale_unit: "UNIT",
         quantity: 3,
         promotion_id: null,
+        promotion_kind: null,
         line_total: 7500,
       },
     ],
@@ -122,6 +123,33 @@ describe("branchSaleForReturnAnswerSchema", () => {
     expect(branchSaleForReturnAnswerSchema.parse(discounted).sale).not.toHaveProperty(
       "sale_discount",
     );
+  });
+
+  it.each(["PERCENT_OFF", "BUY_N_PAY_M"])("reads a line that applied a %s promotion", (kind) => {
+    const promoted = {
+      ...answer,
+      sale: {
+        ...answer.sale,
+        lines: [{ ...answer.sale.lines[0], promotion_id: "promo-1", promotion_kind: kind }],
+      },
+    };
+
+    expect(branchSaleForReturnAnswerSchema.parse(promoted)).toEqual(promoted);
+  });
+
+  it("refuses a line with a promotion kind the register does not know, or none stated", () => {
+    const withLine = (line: object) => ({
+      ...answer,
+      sale: { ...answer.sale, lines: [{ ...answer.sale.lines[0], ...line }] },
+    });
+
+    expect(
+      branchSaleForReturnAnswerSchema.safeParse(withLine({ promotion_kind: "FREE_SHIPPING" }))
+        .success,
+    ).toBe(false);
+    expect(
+      branchSaleForReturnAnswerSchema.safeParse(withLine({ promotion_kind: undefined })).success,
+    ).toBe(false);
   });
 
   it("reads a date the cloud sends with its time zone offset", () => {

@@ -53,6 +53,7 @@ function factsOf(answer: BranchSaleForReturnAnswer): BranchSaleFacts {
           saleUnit: line.sale_unit,
           quantity: line.quantity,
           promotionId: line.promotion_id,
+          promotionKind: line.promotion_kind,
           lineTotal: line.line_total,
         })),
       },

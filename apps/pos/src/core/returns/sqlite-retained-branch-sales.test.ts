@@ -22,6 +22,7 @@ const FACTS: KeptBranchSale = {
           saleUnit: "UNIT",
           quantity: 3,
           promotionId: null,
+          promotionKind: null,
           lineTotal: 7500,
         },
       ],
@@ -71,6 +72,29 @@ describe("the copy of a branch sale the cloud answered", () => {
     new SqliteRetainedBranchSales(database).keep(FACTS);
 
     expect(readRetainedBranchSale(database, "sale-9")).toEqual(FACTS);
+  });
+
+  it("reads a promoted line kept before lines carried their promotion's kind as of an unknown kind", () => {
+    const keptBefore = {
+      id: "line-9",
+      productId: "yerba",
+      productName: "Yerba 1 kg",
+      saleUnit: "UNIT",
+      quantity: 3,
+      promotionId: "two-for-one",
+      lineTotal: 7500,
+    };
+    database.prepare("INSERT INTO branch_sales_for_return (sale_id, facts) VALUES (?, ?)").run(
+      "sale-9",
+      JSON.stringify({
+        ...FACTS,
+        sale: { ...FACTS.sale, sale: { ...FACTS.sale.sale, lines: [keptBefore] } },
+      }),
+    );
+
+    expect(readRetainedBranchSale(database, "sale-9")?.sale.sale.lines).toEqual([
+      { ...keptBefore, promotionKind: null },
+    ]);
   });
 
   it("holds nothing for a sale that was never kept", () => {

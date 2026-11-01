@@ -1,5 +1,5 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { FileText, Scale } from "lucide-react";
+import { ClipboardList, FileText, Scale } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
 import { AreaTopBarAlertsCount } from "./area-top-bar-alerts-count";
 import {
@@ -21,6 +21,7 @@ function OrdersArea() {
   const matchRoute = useMatchRoute();
   const supplierPriceListsShown = Boolean(matchRoute({ to: "/supplier-price-lists", fuzzy: true }));
   const priceComparisonShown = Boolean(matchRoute({ to: "/price-comparison" }));
+  const orderSuggestionShown = Boolean(matchRoute({ to: "/order-suggestion" }));
   return (
     <AreaLayout
       area="orders"
@@ -49,6 +50,17 @@ function OrdersArea() {
                   icon={<Scale />}
                   search={priceComparisonShown ? true : {}}
                   active={priceComparisonShown}
+                />
+              </li>
+            )}
+            {canComparePrices(session) && (
+              <li>
+                <SectionLink
+                  to="/order-suggestion"
+                  label="Sugerencia de pedido"
+                  icon={<ClipboardList />}
+                  search={orderSuggestionShown ? true : {}}
+                  active={orderSuggestionShown}
                 />
               </li>
             )}

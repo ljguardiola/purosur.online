@@ -78,10 +78,28 @@ describe("a return draft", () => {
     expect(draftLinesFor(SALE, weighed).map(({ quantity }) => quantity)).toEqual([0, 0]);
   });
 
-  it("asks for all that remains of a line that goes back whole, whatever is typed", () => {
-    const draft = changeLine(checkLine(EMPTY_RETURN_DRAFT, HONEY), HONEY.id, { quantity: "1" });
+  it("asks for all that remains of a line that goes back whole for the chosen reason, whatever is typed", () => {
+    const draft = changeLine(checkLine(EMPTY_RETURN_DRAFT, HONEY), HONEY.id, {
+      quantity: "1",
+      reason: "change_of_mind",
+    });
 
     expect(draftLinesFor(SALE, draft).map(({ quantity }) => quantity)).toEqual([2]);
+  });
+
+  it("asks for what is typed of a line that goes back whole only for another reason", () => {
+    const draft = changeLine(checkLine(EMPTY_RETURN_DRAFT, HONEY), HONEY.id, {
+      quantity: "1",
+      reason: "defective",
+    });
+
+    expect(draftLinesFor(SALE, draft).map(({ quantity }) => quantity)).toEqual([1]);
+  });
+
+  it("asks for what is typed of a line that goes back whole for some reason while none is chosen", () => {
+    const draft = changeLine(checkLine(EMPTY_RETURN_DRAFT, HONEY), HONEY.id, { quantity: "1" });
+
+    expect(draftLinesFor(SALE, draft).map(({ quantity }) => quantity)).toEqual([1]);
   });
 
   it("leaves out a checked line the sale no longer has", () => {
