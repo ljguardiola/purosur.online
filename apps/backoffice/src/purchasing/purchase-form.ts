@@ -242,7 +242,7 @@ export function purchaseLineQuantityRefusal(
   products: PurchaseProducts,
 ): string {
   return line?.loadedBy === "packages"
-    ? "Los paquetes suman más de lo que admite una sola línea."
+    ? "Revisá la cantidad de paquetes y la cantidad por paquete."
     : quantityMessage(saleUnitOf(products, line?.productId ?? null));
 }
 
