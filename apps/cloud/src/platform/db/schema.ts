@@ -12,6 +12,7 @@ import {
   type CreditNoteReason,
   DEFAULT_EXPIRING_LOT_ALERT_DAYS,
   DEFAULT_GOOD_CONDITION_RETURN_DAYS,
+  DEFAULT_PRODUCT_COVERAGE_DAYS,
   DEFAULT_UNREVIEWED_PRICE_ALERT_DAYS,
   DEFERRED_SALE_STATES,
   type EventQuarantine,
@@ -28,6 +29,8 @@ import {
   POINT_CARD_TYPES,
   POINT_OF_SALE_NUMBER_MAX,
   type PointCardType,
+  PRODUCT_COVERAGE_DAYS_MAX,
+  PRODUCT_COVERAGE_DAYS_MIN,
   RECEIPT_TYPES,
   type RejectedDocumentRemedy,
   SNAPSHOT_CORRUPTION_STAGES,
@@ -331,6 +334,7 @@ export const products = pgTable(
       mode: "number",
     }),
     netContentUnit: text("net_content_unit"),
+    coverageDays: integer("coverage_days").notNull().default(DEFAULT_PRODUCT_COVERAGE_DAYS),
     version: integer("version").notNull().default(1),
   },
   (table) => [
@@ -345,6 +349,10 @@ export const products = pgTable(
       sql`(${table.netContentQuantity} is null) = (${table.netContentUnit} is null)`,
     ),
     check("products_net_content_quantity_positive_check", sql`${table.netContentQuantity} > 0`),
+    check(
+      "products_coverage_days_range_check",
+      sql`${table.coverageDays} between ${sql.raw(String(PRODUCT_COVERAGE_DAYS_MIN))} and ${sql.raw(String(PRODUCT_COVERAGE_DAYS_MAX))}`,
+    ),
   ],
 );
 

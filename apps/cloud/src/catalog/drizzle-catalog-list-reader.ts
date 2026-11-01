@@ -64,6 +64,7 @@ export class DrizzleCatalogListReader<TQueryResult extends PgQueryResultHKT>
         saleUnit: products.saleUnit,
         netContentQuantity: products.netContentQuantity,
         netContentUnit: products.netContentUnit,
+        coverageDays: products.coverageDays,
         active: products.active,
         version: products.version,
       })
@@ -88,6 +89,7 @@ export class DrizzleCatalogListReader<TQueryResult extends PgQueryResultHKT>
       barcodes: barcodes.get(row.id) ?? [],
       tagIds: tagIds.get(row.id) ?? [],
       netContent: netContentRow(row),
+      coverageDays: row.coverageDays,
       active: row.active,
       version: row.version,
     }));

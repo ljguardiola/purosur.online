@@ -2,6 +2,7 @@ import {
   ALERT_CONDITION_STABLE_CLEAR_MS,
   argentinaCalendarDay,
   argentinaInstant,
+  DEFAULT_PRODUCT_COVERAGE_DAYS,
   fortnightContaining,
   offlineAuthorizationCodeAcquisitionLevel,
   offlineAuthorizationCodeHeldObservation,
@@ -271,6 +272,7 @@ export async function loadSampleData<TQueryResult extends PgQueryResultHKT>(
                   return tagId;
                 }),
                 netContent: plan.netContent,
+                coverageDays: DEFAULT_PRODUCT_COVERAGE_DAYS,
               });
               const product = expectOutcome(productOutcome, "created", `product "${plan.name}"`);
               productIdByName.set(plan.name, product.product.id);
