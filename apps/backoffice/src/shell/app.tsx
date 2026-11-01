@@ -165,8 +165,8 @@ export type AppServices = {
   supplierPriceListReviewScreen: SupplierPriceListReviewScreenServices;
   supplierPriceComparisonScreen: SupplierPriceComparisonScreenServices;
   orderSuggestionScreen: OrderSuggestionScreenServices;
-  purchaseOrdersScreen?: PurchaseOrdersScreenServices;
-  purchaseOrderScreen?: PurchaseOrderScreenServices;
+  purchaseOrdersScreen: PurchaseOrdersScreenServices;
+  purchaseOrderScreen: PurchaseOrderScreenServices;
   recipesListScreen: RecipesListScreenServices;
   assemblyBatchesScreen: AssemblyBatchesScreenServices;
   newPurchaseScreen: NewPurchaseScreenServices;
