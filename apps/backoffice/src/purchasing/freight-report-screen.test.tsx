@@ -267,8 +267,8 @@ test("downloads a spreadsheet of the months shown, for the period the report ans
     .toEqual(["flete-por-periodo-2026-09-01-2026-10-31.xlsx"]);
   const file = await readDownloadedXlsx(downloads.blobs[0]);
   expect(file.sheetNames).toEqual(["Resumen", "Flete por período"]);
-  expect(file.sheet(0).get("B3")?.value).toBe("1750.5");
-  expect(file.sheet(0).get("B4")?.value).toBe("3");
+  expect(file.sheet(0).get("B4")?.value).toBe("1750.5");
+  expect(file.sheet(0).get("B5")?.value).toBe("3");
   const months = file.sheet(1);
   expect(months.get("A2")?.value).toBe("septiembre de 2026");
   expect(months.get("C3")?.value).toBe("1300.5");
