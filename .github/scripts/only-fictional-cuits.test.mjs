@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import {
   checkFiles,
   FICTIONAL_TAX_IDENTITIES_PATH,
@@ -10,7 +11,7 @@ import {
   findTrackedTextFiles,
 } from "./only-fictional-cuits.mjs";
 
-const repoRoot = join(dirname(new URL(import.meta.url).pathname), "../..");
+const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 
 test("finds a CUIT, hyphenated or not, with the line it is on", () => {
   const source = ['const a = "20-00000000-1";', "", 'const b = "CUIT 20123456786";'].join("\n");

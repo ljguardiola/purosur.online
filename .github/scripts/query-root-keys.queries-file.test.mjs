@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import { findQueriesFileProblems, QUERY_KEY_SOURCES } from "./query-root-keys.mjs";
 import { IMPORTS, projectWith } from "./test-support/query-root-keys.mjs";
 
-const repoRoot = join(dirname(new URL(import.meta.url).pathname), "../..");
+const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 
 function problemsIn(t, files) {
   return findQueriesFileProblems(
