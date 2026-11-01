@@ -1,5 +1,5 @@
 {
-  "id": "cee6c8ca-1637-473d-9e47-a67fdad05916",
+  "id": "fccdfce1-7ae8-40fa-929d-6aeebb894bd9",
   "prevId": "ad996e18-6c9c-42c2-9e82-dfc6ab924e85",
   "version": "7",
   "dialect": "postgresql",
@@ -6842,245 +6842,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.purchase_order_lines": {
-      "name": "purchase_order_lines",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "purchase_order_id": {
-          "name": "purchase_order_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "position": {
-          "name": "position",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "product_id": {
-          "name": "product_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "packages": {
-          "name": "packages",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "quantity_per_package": {
-          "name": "quantity_per_package",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "expected_package_price_cents": {
-          "name": "expected_package_price_cents",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "purchase_order_lines_purchase_order_id_purchase_orders_id_fk": {
-          "name": "purchase_order_lines_purchase_order_id_purchase_orders_id_fk",
-          "tableFrom": "purchase_order_lines",
-          "tableTo": "purchase_orders",
-          "columnsFrom": ["purchase_order_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "purchase_order_lines_product_id_products_id_fk": {
-          "name": "purchase_order_lines_product_id_products_id_fk",
-          "tableFrom": "purchase_order_lines",
-          "tableTo": "products",
-          "columnsFrom": ["product_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "purchase_order_lines_order_product_key": {
-          "name": "purchase_order_lines_order_product_key",
-          "nullsNotDistinct": false,
-          "columns": ["purchase_order_id", "product_id"]
-        },
-        "purchase_order_lines_order_position_key": {
-          "name": "purchase_order_lines_order_position_key",
-          "nullsNotDistinct": false,
-          "columns": ["purchase_order_id", "position"]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "purchase_order_lines_position_check": {
-          "name": "purchase_order_lines_position_check",
-          "value": "\"purchase_order_lines\".\"position\" > 0"
-        },
-        "purchase_order_lines_packages_check": {
-          "name": "purchase_order_lines_packages_check",
-          "value": "\"purchase_order_lines\".\"packages\" > 0"
-        },
-        "purchase_order_lines_quantity_per_package_check": {
-          "name": "purchase_order_lines_quantity_per_package_check",
-          "value": "\"purchase_order_lines\".\"quantity_per_package\" > 0"
-        },
-        "purchase_order_lines_expected_package_price_check": {
-          "name": "purchase_order_lines_expected_package_price_check",
-          "value": "\"purchase_order_lines\".\"expected_package_price_cents\" >= 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.purchase_orders": {
-      "name": "purchase_orders",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "supplier_id": {
-          "name": "supplier_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "location_id": {
-          "name": "location_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "state": {
-          "name": "state",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "actor_id": {
-          "name": "actor_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "cancelled_at": {
-          "name": "cancelled_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cancelled_by": {
-          "name": "cancelled_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "purchase_orders_location_id_state_created_at_idx": {
-          "name": "purchase_orders_location_id_state_created_at_idx",
-          "columns": [
-            {
-              "expression": "location_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "state",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "purchase_orders_supplier_id_suppliers_id_fk": {
-          "name": "purchase_orders_supplier_id_suppliers_id_fk",
-          "tableFrom": "purchase_orders",
-          "tableTo": "suppliers",
-          "columnsFrom": ["supplier_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "purchase_orders_location_id_locations_id_fk": {
-          "name": "purchase_orders_location_id_locations_id_fk",
-          "tableFrom": "purchase_orders",
-          "tableTo": "locations",
-          "columnsFrom": ["location_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "purchase_orders_actor_id_users_id_fk": {
-          "name": "purchase_orders_actor_id_users_id_fk",
-          "tableFrom": "purchase_orders",
-          "tableTo": "users",
-          "columnsFrom": ["actor_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "purchase_orders_cancelled_by_users_id_fk": {
-          "name": "purchase_orders_cancelled_by_users_id_fk",
-          "tableFrom": "purchase_orders",
-          "tableTo": "users",
-          "columnsFrom": ["cancelled_by"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "purchase_orders_state_check": {
-          "name": "purchase_orders_state_check",
-          "value": "\"purchase_orders\".\"state\" in ('DRAFT', 'CANCELLED')"
-        },
-        "purchase_orders_cancellation_check": {
-          "name": "purchase_orders_cancellation_check",
-          "value": "(\"purchase_orders\".\"state\" = 'CANCELLED') = (\"purchase_orders\".\"cancelled_at\" is not null and \"purchase_orders\".\"cancelled_by\" is not null) and (\"purchase_orders\".\"cancelled_at\" is null) = (\"purchase_orders\".\"cancelled_by\" is null)"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.purchases": {
       "name": "purchases",
       "schema": "",
@@ -9186,6 +8947,13 @@
           "primaryKey": false,
           "notNull": true
         },
+        "resolution": {
+          "name": "resolution",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'refund'"
+        },
         "disposition": {
           "name": "disposition",
           "type": "text",
@@ -9258,6 +9026,10 @@
         "return_lines_quantity_check": {
           "name": "return_lines_quantity_check",
           "value": "\"return_lines\".\"quantity\" > 0"
+        },
+        "return_lines_resolution_check": {
+          "name": "return_lines_resolution_check",
+          "value": "\"return_lines\".\"resolution\" in ('refund', 'exchange')"
         },
         "return_lines_reason_check": {
           "name": "return_lines_reason_check",
@@ -10984,15 +10756,15 @@
       "checkConstraints": {
         "stock_movements_kind_check": {
           "name": "stock_movements_kind_check",
-          "value": "\"stock_movements\".\"kind\" in ('loss', 'adjustment', 'count', 'sale', 'sale_void', 'return', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in', 'assembly_void')"
+          "value": "\"stock_movements\".\"kind\" in ('loss', 'adjustment', 'count', 'sale', 'sale_void', 'return', 'exchange_out', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in', 'assembly_void')"
         },
         "stock_movements_reason_unless_count_sale_or_receipt_check": {
           "name": "stock_movements_reason_unless_count_sale_or_receipt_check",
-          "value": "(\"stock_movements\".\"kind\" in ('count', 'sale', 'sale_void', 'return', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in', 'assembly_void')) = (\"stock_movements\".\"reason\" is null)"
+          "value": "(\"stock_movements\".\"kind\" in ('count', 'sale', 'sale_void', 'return', 'exchange_out', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in', 'assembly_void')) = (\"stock_movements\".\"reason\" is null)"
         },
         "stock_movements_sale_line_iff_sale_check": {
           "name": "stock_movements_sale_line_iff_sale_check",
-          "value": "(\"stock_movements\".\"kind\" in ('sale', 'sale_void', 'return') or (\"stock_movements\".\"kind\" = 'loss' and \"stock_movements\".\"reason\" = 'return_discard')) = (\"stock_movements\".\"sale_line_id\" is not null)"
+          "value": "(\"stock_movements\".\"kind\" in ('sale', 'sale_void', 'return', 'exchange_out') or (\"stock_movements\".\"kind\" = 'loss' and \"stock_movements\".\"reason\" = 'return_discard')) = (\"stock_movements\".\"sale_line_id\" is not null)"
         },
         "stock_movements_purchase_line_iff_receipt_check": {
           "name": "stock_movements_purchase_line_iff_receipt_check",

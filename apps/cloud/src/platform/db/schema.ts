@@ -604,15 +604,15 @@ export const stockMovements = pgTable(
   (table) => [
     check(
       "stock_movements_kind_check",
-      sql`${table.kind} in ('loss', 'adjustment', 'count', 'sale', 'sale_void', 'return', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in', 'assembly_void')`,
+      sql`${table.kind} in ('loss', 'adjustment', 'count', 'sale', 'sale_void', 'return', 'exchange_out', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in', 'assembly_void')`,
     ),
     check(
       "stock_movements_reason_unless_count_sale_or_receipt_check",
-      sql`(${table.kind} in ('count', 'sale', 'sale_void', 'return', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in', 'assembly_void')) = (${table.reason} is null)`,
+      sql`(${table.kind} in ('count', 'sale', 'sale_void', 'return', 'exchange_out', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in', 'assembly_void')) = (${table.reason} is null)`,
     ),
     check(
       "stock_movements_sale_line_iff_sale_check",
-      sql`(${table.kind} in ('sale', 'sale_void', 'return') or (${table.kind} = 'loss' and ${table.reason} = 'return_discard')) = (${table.saleLineId} is not null)`,
+      sql`(${table.kind} in ('sale', 'sale_void', 'return', 'exchange_out') or (${table.kind} = 'loss' and ${table.reason} = 'return_discard')) = (${table.saleLineId} is not null)`,
     ),
     check(
       "stock_movements_purchase_line_iff_receipt_check",
@@ -1949,11 +1949,13 @@ export const returnLines = pgTable(
       .references(() => saleLines.id),
     quantity: integer("quantity").notNull(),
     reason: text("reason").notNull(),
+    resolution: text("resolution").notNull().default("refund"),
     disposition: text("disposition").notNull(),
     refundedAmount: bigint("refunded_amount", { mode: "number" }).notNull(),
   },
   (table) => [
     check("return_lines_quantity_check", sql`${table.quantity} > 0`),
+    check("return_lines_resolution_check", sql`${table.resolution} in ('refund', 'exchange')`),
     check("return_lines_reason_check", sql`${table.reason} in ('change_of_mind', 'defective')`),
     check("return_lines_disposition_check", sql`${table.disposition} in ('restock', 'discard')`),
     check("return_lines_refunded_amount_check", sql`${table.refundedAmount} >= 0`),

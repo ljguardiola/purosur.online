@@ -62,6 +62,7 @@ function draftLine(overrides: Partial<ReturnDraftLine> = {}): ReturnDraftLine {
     quantity: 1,
     reason: "change_of_mind",
     disposition: "restock",
+    resolution: null,
     ...overrides,
   };
 }
@@ -83,6 +84,7 @@ describe("assessReturnDraft", () => {
           quantity: 250,
           reason: "defective",
           disposition: "discard",
+          resolution: "refund",
         }),
       ]),
     ).toEqual([
@@ -91,6 +93,7 @@ describe("assessReturnDraft", () => {
         quantity: 1,
         reason: "change_of_mind",
         disposition: "restock",
+        resolution: "refund",
         refusal: null,
         refundAmount: 2500,
       },
@@ -99,6 +102,7 @@ describe("assessReturnDraft", () => {
         quantity: 250,
         reason: "defective",
         disposition: "discard",
+        resolution: "refund",
         refusal: null,
         refundAmount: 2000,
       },
@@ -204,7 +208,7 @@ describe("assessReturnDraft", () => {
   it("accepts part of a buy-N-pay-M line when the reason is a defect, refunding its share of what was charged", () => {
     expect(
       assessReturnDraft(sale(WITHIN_WINDOW), [
-        draftLine({ saleLineId: "line-2", quantity: 3, reason: "defective" }),
+        draftLine({ saleLineId: "line-2", quantity: 3, reason: "defective", resolution: "refund" }),
       ])[0],
     ).toMatchObject({ refusal: null, refundAmount: 3000 });
   });
@@ -239,7 +243,7 @@ describe("assessReturnDraft", () => {
 
     expect(
       assessReturnDraft(sale(WITHIN_WINDOW, [unknown]), [
-        draftLine({ saleLineId: "line-2", quantity: 3, reason: "defective" }),
+        draftLine({ saleLineId: "line-2", quantity: 3, reason: "defective", resolution: "refund" }),
       ])[0],
     ).toMatchObject({ refusal: null, refundAmount: 3000 });
   });
@@ -250,7 +254,12 @@ describe("assessReturnDraft", () => {
       soldQuantity: 3,
       chargedAmount: 20_000,
     };
-    const defective = draftLine({ saleLineId: "line-2", quantity: 1, reason: "defective" });
+    const defective = draftLine({
+      saleLineId: "line-2",
+      quantity: 1,
+      reason: "defective",
+      resolution: "refund",
+    });
 
     expect(assessReturnDraft(sale(WITHIN_WINDOW, [threeForTwo]), [defective])[0]).toMatchObject({
       refusal: null,
@@ -288,11 +297,18 @@ describe("assessReturnDraft", () => {
   });
 
   it("still accepts that same line as defective", () => {
-    expect(refusalOf(sale(PAST_CHANGE_OF_MIND), draftLine({ reason: "defective" }))).toBeNull();
+    expect(
+      refusalOf(
+        sale(PAST_CHANGE_OF_MIND),
+        draftLine({ reason: "defective", resolution: "refund" }),
+      ),
+    ).toBeNull();
   });
 
   it("refuses a defect after six months, saying the last day it was allowed", () => {
-    expect(refusalOf(sale(PAST_DEFECT), draftLine({ reason: "defective" }))).toEqual({
+    expect(
+      refusalOf(sale(PAST_DEFECT), draftLine({ reason: "defective", resolution: "refund" })),
+    ).toEqual({
       saleLineId: "line-1",
       refusal: { kind: "outside_window", reason: "defective", lastAllowedDay: "2027-03-12" },
     });
@@ -312,6 +328,21 @@ describe("assessReturnDraft", () => {
     expect(
       refusalOf(sale(WITHIN_WINDOW), draftLine({ disposition: null, quantity: 99 }))?.refusal,
     ).toEqual({ kind: "missing_disposition" });
+  });
+
+  it("answers a missing disposition before a missing resolution, and both before the quantity", () => {
+    expect(
+      refusalOf(
+        sale(WITHIN_WINDOW),
+        draftLine({ reason: "defective", disposition: null, resolution: null, quantity: 99 }),
+      )?.refusal,
+    ).toEqual({ kind: "missing_disposition" });
+    expect(
+      refusalOf(
+        sale(WITHIN_WINDOW),
+        draftLine({ reason: "defective", resolution: null, quantity: 99 }),
+      )?.refusal,
+    ).toEqual({ kind: "missing_resolution" });
   });
 
   it("answers an invalid quantity before a missing reason", () => {
@@ -335,6 +366,98 @@ describe("assessReturnDraft", () => {
 
   it("assesses nothing for a draft with no lines", () => {
     expect(assessReturnDraft(sale(WITHIN_WINDOW), [])).toEqual([]);
+  });
+});
+
+describe("assessReturnDraft resolution", () => {
+  const defective = (overrides: Partial<ReturnDraftLine> = {}) =>
+    draftLine({ reason: "defective", ...overrides });
+
+  it("refuses a defective line until the cashier chooses to refund or exchange it, with no default", () => {
+    expect(refusalOf(sale(WITHIN_WINDOW), defective())).toEqual({
+      saleLineId: "line-1",
+      refusal: { kind: "missing_resolution" },
+    });
+  });
+
+  it("refunds a defective line the cashier chose to refund, at its share of what it charged", () => {
+    expect(assessReturnDraft(sale(WITHIN_WINDOW), [defective({ resolution: "refund" })])).toEqual([
+      {
+        saleLineId: "line-1",
+        quantity: 1,
+        reason: "defective",
+        disposition: "restock",
+        resolution: "refund",
+        refusal: null,
+        refundAmount: 2500,
+      },
+    ]);
+  });
+
+  it("accepts a defective line the cashier chose to exchange and refunds nothing for it", () => {
+    expect(assessReturnDraft(sale(WITHIN_WINDOW), [defective({ resolution: "exchange" })])).toEqual(
+      [
+        {
+          saleLineId: "line-1",
+          quantity: 1,
+          reason: "defective",
+          disposition: "restock",
+          resolution: "exchange",
+          refusal: null,
+          refundAmount: 0,
+        },
+      ],
+    );
+  });
+
+  it("always refunds a change of mind, whether or not the cashier chose", () => {
+    expect(
+      assessReturnDraft(sale(WITHIN_WINDOW), [draftLine({ resolution: null })])[0],
+    ).toMatchObject({ refusal: null, resolution: "refund", refundAmount: 2500 });
+    expect(
+      assessReturnDraft(sale(WITHIN_WINDOW), [draftLine({ resolution: "refund" })])[0],
+    ).toMatchObject({ refusal: null, resolution: "refund" });
+  });
+
+  it("refuses to exchange a change of mind", () => {
+    expect(refusalOf(sale(WITHIN_WINDOW), draftLine({ resolution: "exchange" }))).toEqual({
+      saleLineId: "line-1",
+      refusal: { kind: "resolution_not_offered" },
+    });
+  });
+
+  it("answers a resolution that is not offered before the quantity", () => {
+    expect(
+      refusalOf(sale(WITHIN_WINDOW), draftLine({ resolution: "exchange", quantity: 99 }))?.refusal,
+    ).toEqual({ kind: "resolution_not_offered" });
+  });
+
+  it("exchanges part of a buy-N-pay-M line without changing what the line has returned", () => {
+    const [assessed] = assessReturnDraft(sale(WITHIN_WINDOW), [
+      defective({ saleLineId: "line-2", quantity: 1, resolution: "exchange" }),
+    ]);
+
+    expect(assessed).toMatchObject({ refusal: null, refundAmount: 0 });
+  });
+
+  it("still keeps an exchanged quantity within what the line has left", () => {
+    expect(
+      refusalOf(
+        sale(WITHIN_WINDOW),
+        defective({ saleLineId: "line-3", quantity: 1001, resolution: "exchange" }),
+      )?.refusal,
+    ).toEqual({ kind: "quantity_exceeds_returnable", returnable: 1000 });
+  });
+
+  it("keeps an exchange out of the refundable total", () => {
+    expect(
+      refundableTotal(
+        assessReturnDraft(sale(WITHIN_WINDOW), [
+          defective({ quantity: 2, resolution: "exchange" }),
+          draftLine({ saleLineId: "line-3", quantity: 250 }),
+        ]),
+      ),
+    ).toBe(2000);
   });
 });
 
@@ -371,6 +494,7 @@ describe("acceptedLines", () => {
         quantity: 2,
         reason: "change_of_mind",
         disposition: "restock",
+        resolution: "refund",
         refusal: null,
         refundAmount: 5000,
       },

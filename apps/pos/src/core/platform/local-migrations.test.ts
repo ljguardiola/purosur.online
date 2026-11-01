@@ -944,6 +944,7 @@ describe("the register's local migrations", () => {
         "0091_register_condition_starts",
         "0092_redeliver_held_back_pulled_tables",
         "0093_sales_rebuilt_against_paid_orders",
+        "0094_exchanged_return_lines",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1060,6 +1061,7 @@ describe("the register's local migrations", () => {
         "0091_register_condition_starts",
         "0092_redeliver_held_back_pulled_tables",
         "0093_sales_rebuilt_against_paid_orders",
+        "0094_exchanged_return_lines",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1171,6 +1173,7 @@ describe("the register's local migrations", () => {
         "0091_register_condition_starts",
         "0092_redeliver_held_back_pulled_tables",
         "0093_sales_rebuilt_against_paid_orders",
+        "0094_exchanged_return_lines",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1281,6 +1284,7 @@ describe("the register's local migrations", () => {
         "0091_register_condition_starts",
         "0092_redeliver_held_back_pulled_tables",
         "0093_sales_rebuilt_against_paid_orders",
+        "0094_exchanged_return_lines",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1420,6 +1424,7 @@ describe("the register's local migrations", () => {
         "0091_register_condition_starts",
         "0092_redeliver_held_back_pulled_tables",
         "0093_sales_rebuilt_against_paid_orders",
+        "0094_exchanged_return_lines",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1549,6 +1554,7 @@ describe("the register's local migrations", () => {
         "0091_register_condition_starts",
         "0092_redeliver_held_back_pulled_tables",
         "0093_sales_rebuilt_against_paid_orders",
+        "0094_exchanged_return_lines",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1682,6 +1688,7 @@ describe("the register's local migrations", () => {
         "0091_register_condition_starts",
         "0092_redeliver_held_back_pulled_tables",
         "0093_sales_rebuilt_against_paid_orders",
+        "0094_exchanged_return_lines",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1823,6 +1830,7 @@ describe("the register's local migrations", () => {
         "0091_register_condition_starts",
         "0092_redeliver_held_back_pulled_tables",
         "0093_sales_rebuilt_against_paid_orders",
+        "0094_exchanged_return_lines",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1931,6 +1939,7 @@ describe("the register's local migrations", () => {
         "0091_register_condition_starts",
         "0092_redeliver_held_back_pulled_tables",
         "0093_sales_rebuilt_against_paid_orders",
+        "0094_exchanged_return_lines",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -9202,6 +9211,133 @@ describe("the sales rebuilt against paid orders migration", () => {
       expect(() => database.prepare("DELETE FROM sales WHERE id = 'sale-1'").run()).toThrow(
         /FOREIGN KEY/,
       );
+    });
+  });
+});
+
+describe("the exchanged return lines migration", () => {
+  const MIGRATION = "0094_exchanged_return_lines";
+
+  type Database = ReturnType<typeof openLocalDatabase>;
+
+  function withHeldReturnAndMovements(test: (database: Database) => void) {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < MIGRATION);
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(MIGRATION);
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:05:00.000Z');
+         INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total)
+         VALUES ('line-1', 'sale-1', 1, 'p1', 'Yerba', 2, 1500, 'list-1', 3000);
+         INSERT INTO returns (id, sale_id, register_id, device_id, session_id, actor_id, authorized_by, ticket_source, occurred_at)
+         VALUES ('return-1', 'sale-1', 'r1', 'device-a', 's1', 'u1', NULL, 'TYPED', '2026-10-12T12:00:00.000Z');
+         INSERT INTO return_lines (return_id, sale_line_id, quantity, reason, disposition, refunded_amount)
+         VALUES ('return-1', 'line-1', 1, 'defective', 'discard', 1500);
+         INSERT INTO stock_movements (id, product_id, kind, sale_line_id, delta, occurred_at)
+         VALUES ('movement-1', 'p1', 'return', 'line-1', 1, '2026-10-12T12:00:00.000Z'),
+                ('movement-2', 'p1', 'loss', NULL, -1, '2026-10-12T12:00:00.000Z');`,
+      );
+      before.close();
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      try {
+        test(after);
+      } finally {
+        after.close();
+      }
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  }
+
+  const insertLine = (database: Database, saleLineId: string, resolution: string) =>
+    database
+      .prepare(
+        `INSERT INTO return_lines (return_id, sale_line_id, quantity, reason, disposition, resolution, refunded_amount)
+         VALUES ('return-1', @sale_line_id, 1, 'defective', 'discard', @resolution, 0)`,
+      )
+      .run({ sale_line_id: saleLineId, resolution });
+
+  const insertMovement = (database: Database, values: Record<string, string | null> = {}) =>
+    database
+      .prepare(
+        `INSERT INTO stock_movements (id, product_id, kind, sale_line_id, delta, occurred_at)
+         VALUES (@id, 'p1', @kind, @sale_line_id, -1, '2026-10-13T12:00:00.000Z')`,
+      )
+      .run({ id: "movement-3", kind: "exchange_out", sale_line_id: "line-1", ...values });
+
+  it("keeps the lines a register holds, all refunded", () => {
+    withHeldReturnAndMovements((database) => {
+      expect(
+        database
+          .prepare("SELECT return_id, sale_line_id, resolution, refunded_amount FROM return_lines")
+          .all(),
+      ).toEqual([
+        {
+          return_id: "return-1",
+          sale_line_id: "line-1",
+          resolution: "refund",
+          refunded_amount: 1500,
+        },
+      ]);
+    });
+  });
+
+  it("holds a line resolved as a refund or as an exchange, and no other resolution", () => {
+    withHeldReturnAndMovements((database) => {
+      expect(() => insertLine(database, "line-2", "exchange")).not.toThrow();
+      expect(() => insertLine(database, "line-3", "refund")).not.toThrow();
+      expect(() => insertLine(database, "line-4", "voucher")).toThrow(/CHECK/);
+    });
+  });
+
+  it("keeps every stock movement a register holds and the index of the movements of a product", () => {
+    withHeldReturnAndMovements((database) => {
+      expect(
+        database.prepare("SELECT id, kind, sale_line_id FROM stock_movements ORDER BY id").all(),
+      ).toEqual([
+        { id: "movement-1", kind: "return", sale_line_id: "line-1" },
+        { id: "movement-2", kind: "loss", sale_line_id: null },
+      ]);
+      expect(
+        database
+          .prepare<[], { name: string }>(
+            "SELECT name FROM sqlite_schema WHERE type = 'index' AND tbl_name = 'stock_movements' AND name NOT LIKE 'sqlite_%'",
+          )
+          .all()
+          .map(({ name }) => name),
+      ).toEqual(["stock_movements_by_product"]);
+    });
+  });
+
+  it("records the replacement leaving stock for the sale line it exchanges", () => {
+    withHeldReturnAndMovements((database) => {
+      expect(() => insertMovement(database)).not.toThrow();
+    });
+  });
+
+  it("still refuses an unknown kind and a sale line on a movement that has none", () => {
+    withHeldReturnAndMovements((database) => {
+      expect(() => insertMovement(database, { kind: "exchange_in" })).toThrow(/CHECK/);
+      expect(() => insertMovement(database, { kind: "count", sale_line_id: "line-1" })).toThrow(
+        /CHECK/,
+      );
+    });
+  });
+
+  it("declares the stock movements for redelivery so a register held back from exchanges pulls them", () => {
+    withHeldReturnAndMovements((database) => {
+      expect(
+        database
+          .prepare(
+            "SELECT table_name, cursor FROM pulled_table_redeliveries WHERE table_name = 'stock_movements'",
+          )
+          .all(),
+      ).toEqual([{ table_name: "stock_movements", cursor: 0 }]);
     });
   });
 });

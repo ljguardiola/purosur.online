@@ -1,8 +1,10 @@
+import { countsAsReturned } from "./return-line.js";
+import type { ReturnResolution } from "./return-reasons.js";
 import type { ReturnedFromLine, SaleForReturn } from "./return-sale.js";
 
 export interface LocalReturnOfSale {
   id: string;
-  lines: ReturnedFromLine[];
+  lines: (ReturnedFromLine & { resolution: ReturnResolution })[];
   refunds: { paymentId: string; amount: number }[];
 }
 
@@ -14,10 +16,10 @@ export function withUncountedReturns(
   const uncounted = localReturns.filter(({ id }) => !countedReturnIds.includes(id));
   const returned = facts.returned.map((line) => ({ ...line }));
   for (const { lines } of uncounted) {
-    for (const line of lines) {
+    for (const { resolution: _resolution, ...line } of lines.filter(countsAsReturned)) {
       const earlier = returned.find(({ saleLineId }) => saleLineId === line.saleLineId);
       if (earlier === undefined) {
-        returned.push({ ...line });
+        returned.push(line);
       } else {
         earlier.quantity += line.quantity;
         earlier.refundedAmount += line.refundedAmount;

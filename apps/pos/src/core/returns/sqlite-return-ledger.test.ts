@@ -35,6 +35,8 @@ function ledger(chainKey: string | null = CHAIN_KEY): SqliteReturnLedger {
 function returnYerba(
   options: {
     disposition?: "restock" | "discard";
+    reason?: "change_of_mind" | "defective";
+    resolution?: "refund" | "exchange";
     chainKey?: string | null;
     authorizedBy?: string;
   } = {},
@@ -59,11 +61,12 @@ function returnYerba(
         {
           saleLineId: "line-1",
           quantity: 2,
-          reason: "change_of_mind",
+          reason: options.reason ?? "change_of_mind",
           disposition: options.disposition ?? "restock",
+          resolution: options.resolution ?? "refund",
         },
       ],
-      refunds: [{ paymentId: "pay-cash", amount: 5000 }],
+      refunds: options.resolution === "exchange" ? [] : [{ paymentId: "pay-cash", amount: 5000 }],
     },
   );
 }
@@ -136,7 +139,7 @@ describe("completing a return in the register", () => {
     expect(
       database
         .prepare(
-          "SELECT sale_line_id, quantity, reason, disposition, refunded_amount FROM return_lines",
+          "SELECT sale_line_id, quantity, reason, disposition, resolution, refunded_amount FROM return_lines",
         )
         .all(),
     ).toEqual([
@@ -145,9 +148,36 @@ describe("completing a return in the register", () => {
         quantity: 2,
         reason: "change_of_mind",
         disposition: "restock",
+        resolution: "refund",
         refunded_amount: 5000,
       },
     ]);
+  });
+
+  it("keeps a defective line exchanged for an identical unit, refunding nothing and moving no money", async () => {
+    const outcome = await returnYerba({ reason: "defective", resolution: "exchange" });
+
+    expect(outcome).toMatchObject({ kind: "completed", refundedInCash: 0 });
+    expect(
+      database.prepare("SELECT reason, resolution, refunded_amount FROM return_lines").all(),
+    ).toEqual([{ reason: "defective", resolution: "exchange", refunded_amount: 0 }]);
+    expect(count("payment_refunds")).toBe(0);
+    expect(count("cash_movements")).toBe(0);
+  });
+
+  it("hands the replacement out of stock as its own movement tied to the exchanged line, even leaving the count negative", async () => {
+    await returnYerba({ reason: "defective", resolution: "exchange", disposition: "discard" });
+
+    expect(
+      database
+        .prepare("SELECT product_id, kind, sale_line_id, delta FROM stock_movements ORDER BY rowid")
+        .all(),
+    ).toEqual([
+      { product_id: "yerba", kind: "return", sale_line_id: "line-1", delta: 2000 },
+      { product_id: "yerba", kind: "loss", sale_line_id: null, delta: -2000 },
+      { product_id: "yerba", kind: "exchange_out", sale_line_id: "line-1", delta: -2000 },
+    ]);
+    expect(balanceOf("yerba")).toBe(-2000);
   });
 
   it("pays the refund in cash out of the open session and imputes it to the chosen payment", async () => {
@@ -206,7 +236,7 @@ describe("completing a return in the register", () => {
         )
         .all(),
     ).toEqual([
-      { aggregate_type: "Return", event_type: "sale_returned", schema_version: 3, actor_id: "u1" },
+      { aggregate_type: "Return", event_type: "sale_returned", schema_version: 4, actor_id: "u1" },
     ]);
   });
 
@@ -271,6 +301,7 @@ describe("recording a return of a sale another register rang up", () => {
         quantity: 1,
         reason: "change_of_mind",
         disposition: "restock",
+        resolution: "refund",
         refundedAmount: 2500,
       },
     ],
@@ -328,6 +359,16 @@ describe("what the register knows of a sale after a return", () => {
 
     expect(found?.returned).toEqual([{ saleLineId: "line-1", quantity: 2, refundedAmount: 5000 }]);
     expect(found?.payments.find(({ id }) => id === "pay-cash")?.refundedAmount).toBe(5000);
+  });
+
+  it("leaves an exchanged line out of what the sale has returned", async () => {
+    await returnYerba({ reason: "defective", resolution: "exchange" });
+
+    const found = ledger().transaction((tx) =>
+      tx.saleForReturn({ kind: "sale", saleId: "sale-1" }),
+    );
+
+    expect(found?.returned).toEqual([]);
   });
 });
 
@@ -392,7 +433,7 @@ describe("the credit note of a return in the register", () => {
     await returnYerba();
 
     expect(returnedEvent()).toMatchObject({
-      version: 3,
+      version: 4,
       creditNote: { total: 5000, issued_on: "2026-09-20", corrects: { number: 41 } },
     });
   });
@@ -422,7 +463,7 @@ describe("the credit note of a return in the register", () => {
 
     expect(outcome).toMatchObject({ kind: "completed", creditNote: { kind: "none" } });
     expect(creditNotes()).toEqual([]);
-    expect(returnedEvent()).toMatchObject({ version: 3, creditNote: null });
+    expect(returnedEvent()).toMatchObject({ version: 4, creditNote: null });
   });
 
   it("is issued offline, held by the return, when the register is not online", async () => {

@@ -45,8 +45,8 @@ describe("this register's returns of a sale", () => {
       {
         id: "return-1",
         lines: [
-          { saleLineId: "line-1", quantity: 1, refundedAmount: 2500 },
-          { saleLineId: "line-2", quantity: 2, refundedAmount: 1000 },
+          { saleLineId: "line-1", quantity: 1, refundedAmount: 2500, resolution: "refund" },
+          { saleLineId: "line-2", quantity: 2, refundedAmount: 1000, resolution: "refund" },
         ],
         refunds: [
           { paymentId: "pay-cash", amount: 3000 },
@@ -55,9 +55,27 @@ describe("this register's returns of a sale", () => {
       },
       {
         id: "return-2",
-        lines: [{ saleLineId: "line-1", quantity: 1, refundedAmount: 2500 }],
+        lines: [{ saleLineId: "line-1", quantity: 1, refundedAmount: 2500, resolution: "refund" }],
         refunds: [{ paymentId: "pay-cash", amount: 2500 }],
       },
+    ]);
+  });
+
+  it("tells how each line was resolved", () => {
+    insertStoredReturn(database, "return-1", [
+      { saleLineId: "line-1", quantity: 1, refundedAmount: 0, resolution: "exchange" },
+      { saleLineId: "line-2", quantity: 1, refundedAmount: 1000 },
+    ]);
+
+    expect(
+      new SqliteOwnReturnsOfSale(database)
+        .returnsOfSale("sale-1")
+        .flatMap(({ lines }) =>
+          lines.map(({ saleLineId, resolution }) => [saleLineId, resolution]),
+        ),
+    ).toEqual([
+      ["line-1", "exchange"],
+      ["line-2", "refund"],
     ]);
   });
 
@@ -73,7 +91,9 @@ describe("this register's returns of a sale", () => {
     expect(new SqliteOwnReturnsOfSale(database).returnsOfSale("sale-elsewhere")).toEqual([
       {
         id: "return-9",
-        lines: [{ saleLineId: "line-elsewhere", quantity: 1, refundedAmount: 800 }],
+        lines: [
+          { saleLineId: "line-elsewhere", quantity: 1, refundedAmount: 800, resolution: "refund" },
+        ],
         refunds: [{ paymentId: "pay-elsewhere", amount: 800 }],
       },
     ]);
@@ -91,7 +111,7 @@ describe("this register's returns of a sale", () => {
     expect(own.returnsOfSale("sale-1")).toEqual([
       {
         id: "return-1",
-        lines: [{ saleLineId: "line-1", quantity: 1, refundedAmount: 2500 }],
+        lines: [{ saleLineId: "line-1", quantity: 1, refundedAmount: 2500, resolution: "refund" }],
         refunds: [],
       },
     ]);

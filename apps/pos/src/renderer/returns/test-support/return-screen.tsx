@@ -31,21 +31,27 @@ export function previewOf(lines: readonly ReturnDraftLineBody[]): PreviewReturnO
           ? ({ kind: "missing_reason" } as const)
           : line.disposition === null
             ? ({ kind: "missing_disposition" } as const)
-            : null;
+            : line.reason === "defective" && line.resolution === null
+              ? ({ kind: "missing_resolution" } as const)
+              : null;
+    const resolution = line.resolution ?? (line.reason === "defective" ? null : "refund");
     const refundAmount =
       refusal === null && sold !== undefined
-        ? Math.round((sold.charged_amount * line.quantity) / sold.sold_quantity)
+        ? resolution === "exchange"
+          ? 0
+          : Math.round((sold.charged_amount * line.quantity) / sold.sold_quantity)
         : null;
-    return { ...line, sale_line_id: line.sale_line_id, refusal, refund_amount: refundAmount };
+    return { ...line, resolution, refusal, refund_amount: refundAmount };
   });
   return {
     kind: "previewed",
     lines: previewed.map(
-      ({ sale_line_id, quantity, reason, disposition, refusal, refund_amount }) => ({
+      ({ sale_line_id, quantity, reason, disposition, resolution, refusal, refund_amount }) => ({
         sale_line_id,
         quantity,
         reason,
         disposition,
+        resolution,
         refusal,
         refund_amount,
       }),
@@ -153,12 +159,22 @@ export async function openReturn(screen: RenderedScreen) {
 export async function chooseReturnLine(
   screen: RenderedScreen,
   product: string,
-  { reason, disposition }: { reason?: string; disposition?: string } = {},
+  {
+    reason,
+    disposition,
+    resolution,
+  }: { reason?: string; disposition?: string; resolution?: string } = {},
 ) {
   await screen.getByRole("checkbox", { name: new RegExp(product) }).click({ force: true });
   if (reason !== undefined) {
     await userEvent.click(screen.getByRole("button", { name: new RegExp(`Motivo de ${product}`) }));
     await userEvent.click(screen.getByRole("option", { name: new RegExp(reason) }));
+  }
+  if (resolution !== undefined) {
+    await userEvent.click(
+      screen.getByRole("button", { name: new RegExp(`Resolución de ${product}`) }),
+    );
+    await userEvent.click(screen.getByRole("option", { name: resolution }));
   }
   if (disposition !== undefined) {
     await userEvent.click(

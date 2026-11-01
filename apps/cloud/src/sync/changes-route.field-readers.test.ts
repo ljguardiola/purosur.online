@@ -74,8 +74,11 @@ describe("what the cloud keeps from a register in the field", () => {
 });
 
 const WHAT_EACH_RELEASE_CANNOT_READ = {
-  "0.0.1271": { entities: ["brand", "zone_rules"], kinds: ["return", "assembly_void"] },
-  "1.0.1385": { entities: [], kinds: [] },
+  "0.0.1271": {
+    entities: ["brand", "zone_rules"],
+    kinds: ["return", "assembly_void", "exchange_out"],
+  },
+  "1.0.1385": { entities: [], kinds: ["exchange_out"] },
 } as const;
 
 type ReceivedChange = { entity: string; entity_id: string; row?: { kind?: string } };

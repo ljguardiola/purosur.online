@@ -6,6 +6,7 @@ import {
   lineRefusalNotice,
   quantityText,
   REASON_OPTIONS,
+  RESOLUTION_LABELS,
   refundRefusalText,
   windowTags,
 } from "./return-text";
@@ -24,6 +25,10 @@ describe("the options of a return line", () => {
       { value: "restock", label: "A la venta" },
       { value: "discard", label: "Descarte" },
     ]);
+  });
+
+  it("name the two ways a line is resolved", () => {
+    expect(RESOLUTION_LABELS).toEqual({ refund: "Reintegro", exchange: "Cambio por otra igual" });
   });
 
   it("say what happens to the merchandise of each destination", () => {
@@ -95,6 +100,18 @@ describe("the notice of a refused line", () => {
   it("asks for the reason of the line", () => {
     expect(lineRefusalNotice({ kind: "missing_reason" }, PASTA)).toBe(
       "Elegí el motivo de Pasta de maní 380 g.",
+    );
+  });
+
+  it("asks whether the line is refunded or exchanged", () => {
+    expect(lineRefusalNotice({ kind: "missing_resolution" }, PASTA)).toBe(
+      "Elegí si se reintegra o se cambia Pasta de maní 380 g.",
+    );
+  });
+
+  it("says the reason does not allow an exchange", () => {
+    expect(lineRefusalNotice({ kind: "resolution_not_offered" }, PASTA)).toBe(
+      "Pasta de maní 380 g: con este motivo no se puede cambiar por otra igual.",
     );
   });
 

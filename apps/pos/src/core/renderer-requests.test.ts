@@ -91,10 +91,16 @@ const NOTHING_PENDING = {
 };
 
 const RETURNED_LINES: ReturnDraftLineBody[] = [
-  { sale_line_id: "l1", quantity: 2, reason: "change_of_mind", disposition: "restock" },
+  {
+    sale_line_id: "l1",
+    quantity: 2,
+    reason: "change_of_mind",
+    disposition: "restock",
+    resolution: "refund",
+  },
 ];
 const UNDECIDED_RETURN_LINES: ReturnDraftLineBody[] = [
-  { sale_line_id: "l1", quantity: 2, reason: null, disposition: "discard" },
+  { sale_line_id: "l1", quantity: 2, reason: null, disposition: "discard", resolution: null },
 ];
 const RETURN_REFUNDS = [{ payment_id: "pay-1", amount: 5000 }];
 
@@ -3174,7 +3180,7 @@ describe("answerRendererRequest", () => {
         } as const,
         "completeReturn",
         "completing a return",
-        'complete-return s1 QR [{"saleLineId":"l1","quantity":2,"reason":"change_of_mind","disposition":"restock"}] [{"paymentId":"pay-1","amount":5000}] alone',
+        'complete-return s1 QR [{"saleLineId":"l1","quantity":2,"reason":"change_of_mind","disposition":"restock","resolution":"refund"}] [{"paymentId":"pay-1","amount":5000}] alone',
         "complete-return-result",
       ],
       [
@@ -3357,7 +3363,7 @@ describe("answerRendererRequest", () => {
       ).toEqual({ type: "preview-return-result", request_id: "r60", outcome });
       await answerRendererRequest(recording.deps, request);
       expect(recording.saleChanges).toEqual([
-        'preview-return s1 [{"saleLineId":"l1","quantity":2,"reason":null,"disposition":"discard"}]',
+        'preview-return s1 [{"saleLineId":"l1","quantity":2,"reason":null,"disposition":"discard","resolution":null}]',
       ]);
     });
 

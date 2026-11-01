@@ -9,6 +9,7 @@ const ENTITY_READABLE_SINCE: Readonly<Record<string, string>> = {
 const STOCK_MOVEMENT_KIND_READABLE_SINCE: Readonly<Partial<Record<StockMovementKind, string>>> = {
   return: "1.0.1284",
   assembly_void: "1.0.1322",
+  exchange_out: "1.0.1490",
 };
 
 function readsSince(readerVersion: string | null, since: string | undefined): boolean {

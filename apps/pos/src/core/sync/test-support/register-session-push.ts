@@ -969,6 +969,7 @@ export async function withRegisterSession<TResult>(
           quantity: 1,
           reason: "defective",
           disposition: "discard",
+          resolution: "refund",
         },
       ],
       refunds: [
@@ -985,6 +986,60 @@ export async function withRegisterSession<TResult>(
       authorization: { user_id: GRACE, pin: PIN },
     });
     expectOutcome("return the sale authorized by PIN", returned.kind, "completed");
+    nextStep();
+    const refundedItem = await scanProductFor(deps(), "7790001000011");
+    if (refundedItem.kind !== "added") {
+      throw new Error(
+        `The register session's "scan a product to refund" ended as "${refundedItem.kind}"`,
+      );
+    }
+    nextStep();
+    const exchangedItem = await scanProductFor(deps(), "7790001000028");
+    if (exchangedItem.kind !== "added") {
+      throw new Error(
+        `The register session's "scan a product to exchange" ended as "${exchangedItem.kind}"`,
+      );
+    }
+    nextStep();
+    const exchangeCharge = await chargeSaleInCashFor(deps(), {
+      saleId: exchangedItem.sale.id,
+      tendered: exchangedItem.sale.total,
+    });
+    expectOutcome("charge the sale to exchange from", exchangeCharge.kind, "completed");
+    nextStep();
+    const exchanged = await completeReturnFor(deps(), {
+      saleId: exchangedItem.sale.id,
+      ticketSource: "TYPED",
+      lines: [
+        {
+          saleLineId: exchangedItem.sale.lines[0]?.id ?? "",
+          quantity: 1,
+          reason: "defective",
+          disposition: "discard",
+          resolution: "refund",
+        },
+        {
+          saleLineId: exchangedItem.sale.lines[1]?.id ?? "",
+          quantity: 1,
+          reason: "defective",
+          disposition: "discard",
+          resolution: "exchange",
+        },
+      ],
+      refunds: [
+        {
+          paymentId:
+            database
+              .prepare<[string], { id: string }>(
+                "SELECT id FROM payment_transactions WHERE sale_id = ?",
+              )
+              .get(exchangedItem.sale.id)?.id ?? "",
+          amount: refundedItem.sale.total,
+        },
+      ],
+      authorization: { user_id: GRACE, pin: PIN },
+    });
+    expectOutcome("return one line and exchange another", exchanged.kind, "completed");
     nextStep();
     const transferToReturn = await scanProductFor(deps(), "7790001000028");
     if (transferToReturn.kind !== "added") {
@@ -1008,6 +1063,7 @@ export async function withRegisterSession<TResult>(
           quantity: 1,
           reason: "change_of_mind",
           disposition: "restock",
+          resolution: "refund",
         },
       ],
       refunds: [

@@ -1,12 +1,18 @@
 import type { DiscountBenefit } from "../../pricing/index.js";
 import type { ZoneRules } from "../../shared/index.js";
 import {
+  countsAsReturned,
   lineRefundAmount,
   type ReturnedLineStanding,
   returnableQuantity,
   wholeOnlyReasons,
 } from "./return-line.js";
-import type { ReturnDisposition, ReturnReason } from "./return-reasons.js";
+import {
+  offeredResolutions,
+  type ReturnDisposition,
+  type ReturnReason,
+  type ReturnResolution,
+} from "./return-reasons.js";
 import { isReturnWindowOpen, returnWindowLastDay } from "./return-window.js";
 
 export interface ReturnSaleLine extends ReturnedLineStanding {
@@ -28,6 +34,7 @@ export interface ReturnDraftLine {
   quantity: number;
   reason: ReturnReason | null;
   disposition: ReturnDisposition | null;
+  resolution: ReturnResolution | null;
 }
 
 export type ReturnLineRefusal =
@@ -36,6 +43,8 @@ export type ReturnLineRefusal =
   | { kind: "invalid_quantity" }
   | { kind: "missing_reason" }
   | { kind: "missing_disposition" }
+  | { kind: "missing_resolution" }
+  | { kind: "resolution_not_offered" }
   | { kind: "quantity_exceeds_returnable"; returnable: number }
   | { kind: "promotion_whole_only"; returnable: number }
   | { kind: "outside_window"; reason: ReturnReason; lastAllowedDay: string };
@@ -45,6 +54,7 @@ type AcceptedVerdict = {
   refundAmount: number;
   reason: ReturnReason;
   disposition: ReturnDisposition;
+  resolution: ReturnResolution;
 };
 
 type LineVerdict = AcceptedVerdict | { refusal: ReturnLineRefusal; refundAmount: null };
@@ -78,6 +88,14 @@ function verdictOf(
   if (draft.disposition === null) {
     return refused({ kind: "missing_disposition" });
   }
+  const offered = offeredResolutions(draft.reason);
+  const resolution = draft.resolution ?? (offered.length === 1 ? offered[0] : undefined);
+  if (resolution === undefined) {
+    return refused({ kind: "missing_resolution" });
+  }
+  if (!offered.includes(resolution)) {
+    return refused({ kind: "resolution_not_offered" });
+  }
   const returnable = returnableQuantity(line);
   if (draft.quantity > returnable) {
     return refused({ kind: "quantity_exceeds_returnable", returnable });
@@ -96,9 +114,10 @@ function verdictOf(
   }
   return {
     refusal: null,
-    refundAmount: lineRefundAmount(line, draft.quantity),
+    refundAmount: countsAsReturned({ resolution }) ? lineRefundAmount(line, draft.quantity) : 0,
     reason: draft.reason,
     disposition: draft.disposition,
+    resolution,
   };
 }
 

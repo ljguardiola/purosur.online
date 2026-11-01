@@ -9,7 +9,7 @@ import {
 const REGISTER = "register-1";
 const BRANCH = "branch-a";
 const PRICE_LIST = "price-list-a";
-const CURRENT_READER = "1.0.1385";
+const CURRENT_READER = "1.0.1490";
 
 describe("what a register may pull", () => {
   it("is its branch's settings, first cash session, users, stock movements, refund completions, price list and prices, its own register, points of sale, point terminal, QR point of sale and offline number blocks, the zone rules, and everything shared by every branch", () => {
@@ -93,7 +93,7 @@ describe("what a register of an older version may pull", () => {
   const register = { registerId: REGISTER, locationId: BRANCH, priceListId: PRICE_LIST };
 
   it.each([null, "unknown", "0.0.1271", "1.0.0"])(
-    "holds no brand and no zone rules, and no return or assembly void, when its version is %j",
+    "holds no brand and no zone rules, and no return, assembly void or exchange, when its version is %j",
     (version) => {
       const audience = pullAudienceOf(register, version);
 
@@ -102,7 +102,7 @@ describe("what a register of an older version may pull", () => {
       expect(audience.stock_movement).toEqual({
         kind: "rows_of_branch_except_stock_movement_kinds",
         locationId: BRANCH,
-        kinds: ["return", "assembly_void"],
+        kinds: ["return", "assembly_void", "exchange_out"],
       });
     },
   );
@@ -122,7 +122,7 @@ describe("what a register of an older version may pull", () => {
     expect(pullAudienceOf(register, "1.0.1300").stock_movement).toEqual({
       kind: "rows_of_branch_except_stock_movement_kinds",
       locationId: BRANCH,
-      kinds: ["assembly_void"],
+      kinds: ["assembly_void", "exchange_out"],
     });
   });
 
@@ -136,7 +136,7 @@ describe("what a register of an older version may pull", () => {
     expect(pullAudienceOfEntity(register, "stock_movement", "1.0.0").stock_movement).toEqual({
       kind: "rows_of_branch_except_stock_movement_kinds",
       locationId: BRANCH,
-      kinds: ["return", "assembly_void"],
+      kinds: ["return", "assembly_void", "exchange_out"],
     });
   });
 });

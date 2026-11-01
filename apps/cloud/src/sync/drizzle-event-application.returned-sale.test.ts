@@ -165,7 +165,7 @@ describe("recording the returns of applied events", () => {
     expect((await system.db.select().from(saleReturns))[0]?.ticketSource).toBe("TYPED");
   });
 
-  it("keeps each returned line with its quantity, reason, disposition and refunded amount", async () => {
+  it("keeps each returned line with its quantity, reason, resolution, disposition and refunded amount", async () => {
     const { saleReturn, completed } = await recordReturn();
 
     expect(await system.db.select().from(returnLines)).toEqual([
@@ -175,10 +175,43 @@ describe("recording the returns of applied events", () => {
         saleLineId: completed.lines[0]?.id,
         quantity: 1,
         reason: "change_of_mind",
+        resolution: "refund",
         disposition: "restock",
         refundedAmount: 2400,
       },
     ]);
+  });
+
+  it("keeps a defective line exchanged for an identical unit with no refund, and moves no money for it", async () => {
+    const setup = await setUp();
+    const base = aReturnOf(setup.completed, { sessionId: setup.returnSessionId });
+    const [line] = base.lines;
+    const saleReturn: ReturnedSale = {
+      ...base,
+      lines: [
+        {
+          ...(line as NonNullable<typeof line>),
+          reason: "defective",
+          resolution: "exchange",
+          refundedAmount: 0,
+        },
+      ],
+      refunds: [],
+      cashMovements: [],
+    };
+
+    await record(
+      { kind: "sale_returned", saleReturn, creditNote: null },
+      eventOf(setup.deviceId, "sale_returned", saleReturn.id),
+    );
+
+    expect(await system.db.select().from(returnLines)).toEqual([
+      expect.objectContaining({ reason: "defective", resolution: "exchange", refundedAmount: 0 }),
+    ]);
+    expect(await system.db.select().from(paymentRefunds)).toEqual([]);
+    expect(
+      (await system.db.select().from(cashMovements)).filter(({ type }) => type === "REFUND"),
+    ).toEqual([]);
   });
 
   it("keeps the cash refund as done and imputed to its payment, tied to the event that returned the sale", async () => {
@@ -453,6 +486,38 @@ describe("reading the history of a sale before a return", () => {
     });
   });
 
+  it("does not count a line exchanged for an identical unit as returned", async () => {
+    const setup = await setUp();
+    const base = aReturnOf(setup.completed, { sessionId: setup.returnSessionId });
+    const [line] = base.lines;
+    const exchange: ReturnedSale = {
+      ...base,
+      lines: [
+        {
+          ...(line as NonNullable<typeof line>),
+          reason: "defective",
+          resolution: "exchange",
+          refundedAmount: 0,
+        },
+      ],
+      refunds: [],
+      cashMovements: [],
+    };
+    await record(
+      { kind: "sale_returned", saleReturn: exchange, creditNote: null },
+      eventOf(setup.deviceId, "sale_returned", exchange.id),
+    );
+    const refund = aReturnOf(setup.completed, { sessionId: setup.returnSessionId });
+    await record(
+      { kind: "sale_returned", saleReturn: refund, creditNote: null },
+      eventOf(setup.deviceId, "sale_returned", refund.id),
+    );
+
+    expect(await history(setup.completed.id, setup.deviceId)).toMatchObject({
+      lines: [{ soldQuantity: 2, returnedQuantity: 1 }],
+    });
+  });
+
   it("counts what a refund of any other origin already gave back from a payment, and ignores a discarded one", async () => {
     const { completed, deviceId } = await setUp();
     const paymentId = completed.payments[0]?.id as string;
@@ -590,6 +655,98 @@ describe("putting a return's merchandise back in stock", () => {
         delta: 1000,
       },
     ]);
+  });
+
+  describe("handing the replacement of an exchanged line", () => {
+    async function exchangeOfStock() {
+      const setup = await setUp();
+      const saleLineId = setup.completed.lines[0]?.id as string;
+      const base = aReturnOf(setup.completed, { sessionId: setup.returnSessionId });
+      const [line] = base.lines;
+      const movementId = randomUUID();
+      const saleReturn: ReturnedSale = {
+        ...base,
+        lines: [
+          {
+            ...(line as NonNullable<typeof line>),
+            reason: "defective",
+            resolution: "exchange",
+            refundedAmount: 0,
+          },
+        ],
+        stockMovements: [
+          {
+            id: movementId,
+            saleLineId,
+            productId: setup.productId,
+            kind: "exchange_out",
+            reason: null,
+            delta: -1000,
+          },
+        ],
+      };
+      return { ...setup, saleReturn, saleLineId, movementId };
+    }
+
+    it("takes it off the balance as its own movement of the sale line, like a sale", async () => {
+      const { deviceId, saleReturn, productId, locationId, saleLineId, movementId } =
+        await exchangeOfStock();
+      await system.db.insert(stockBalances).values({ productId, locationId, quantity: 3000 });
+
+      const outcome = await applyStock(deviceId, saleReturn);
+
+      expect(outcome).toEqual({ kind: "applied" });
+      expect((await system.db.select().from(stockBalances))[0]?.quantity).toBe(2000);
+      expect(await system.db.select().from(stockMovements)).toEqual([
+        expect.objectContaining({
+          id: movementId,
+          kind: "exchange_out",
+          reason: null,
+          saleLineId,
+          delta: -1000,
+        }),
+      ]);
+    });
+
+    it("leaves the balance negative when the shelf has nothing to give", async () => {
+      const { deviceId, saleReturn } = await exchangeOfStock();
+
+      const outcome = await applyStock(deviceId, saleReturn);
+
+      expect(outcome).toEqual({ kind: "applied" });
+      expect((await system.db.select().from(stockBalances))[0]?.quantity).toBe(-1000);
+    });
+
+    it("takes it from the lot that expires first", async () => {
+      const { deviceId, saleReturn, productId, locationId } = await exchangeOfStock();
+      const soonLotId = await insertPurchasedLot(system.db, {
+        productId,
+        locationId,
+        actorId: CASHIER,
+        expiresOn: "2027-01-01",
+        remaining: 600,
+        createdAt: new Date("2026-10-03T12:00:00.000Z"),
+      });
+      const lateLotId = await insertPurchasedLot(system.db, {
+        productId,
+        locationId,
+        actorId: CASHIER,
+        expiresOn: "2027-06-01",
+        remaining: 800,
+        createdAt: new Date("2026-10-02T12:00:00.000Z"),
+      });
+      await system.db.insert(stockBalances).values({ productId, locationId, quantity: 1400 });
+
+      await applyStock(deviceId, saleReturn);
+
+      expect(
+        Object.fromEntries(
+          (await system.db.select({ id: lots.id, remaining: lots.remaining }).from(lots)).map(
+            (row) => [row.id, row.remaining],
+          ),
+        ),
+      ).toEqual({ [soonLotId]: 0, [lateLotId]: 400 });
+    });
   });
 
   describe("over the lots the sale took the merchandise from", () => {

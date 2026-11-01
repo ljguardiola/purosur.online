@@ -832,6 +832,7 @@ export type {
   ReturnReason,
   ReturnRecord,
   ReturnRecordLine,
+  ReturnResolution,
   ReturnRow,
   ReturnStandingLine,
   ReturnsGroup,
@@ -842,8 +843,11 @@ export type {
   TicketSource,
 } from "./returns/index.js";
 export {
+  countsAsReturned,
+  offeredResolutions,
   RETURN_DISPOSITIONS,
   RETURN_REASONS,
+  RETURN_RESOLUTIONS,
   returnedReceiptLine,
   TICKET_SOURCES,
   ticketReferenceFromQrText,

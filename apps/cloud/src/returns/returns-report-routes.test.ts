@@ -138,6 +138,7 @@ describe("GET /reports/returns", () => {
             productId: queso.productId,
             quantity: 300,
             reason: "defective",
+            resolution: "refund",
             disposition: "discard",
             refundedAmount: 1_200,
           },

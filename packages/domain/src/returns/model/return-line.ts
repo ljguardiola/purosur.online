@@ -1,6 +1,6 @@
 import type { DiscountBenefit } from "../../pricing/index.js";
 import { roundHalfUp } from "../../shared/index.js";
-import type { ReturnReason } from "./return-reasons.js";
+import type { ReturnReason, ReturnResolution } from "./return-reasons.js";
 
 export interface ReturnedLineStanding {
   soldQuantity: number;
@@ -33,6 +33,10 @@ export function wholeOnlyReasons({
     case null:
       return ["change_of_mind"];
   }
+}
+
+export function countsAsReturned({ resolution }: { resolution: ReturnResolution }): boolean {
+  return resolution === "refund";
 }
 
 export function lineRefundAmount(line: ReturnedLineStanding, quantity: number): number {
