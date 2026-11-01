@@ -310,18 +310,20 @@ describe("voidsAndReturnsByCashier", () => {
     expect(rows[1]).toEqual({ cashier: null, ...none, voids: 1, voided: 300 });
   });
 
-  it("orders cashiers by name in code units, a nameless one after the named, then by id", () => {
+  it("orders cashiers by name in Spanish order, a nameless one after the named, then by id", () => {
     const rows = voidsAndReturnsByCashier(
       [
         record({ returnId: "r1", cashier: { id: "u3", name: null } }),
-        record({ returnId: "r2", cashier: { id: "u2", name: "beto" } }),
-        record({ returnId: "r3", cashier: { id: "u1", name: "Beto" } }),
+        record({ returnId: "r2", cashier: { id: "u2", name: "Zoe" } }),
+        record({ returnId: "r3", cashier: { id: "u1", name: "álvaro" } }),
         record({ returnId: "r4", cashier: { id: "u0", name: null } }),
+        record({ returnId: "r5", cashier: { id: "u5", name: "Caja 10" } }),
+        record({ returnId: "r6", cashier: { id: "u4", name: "Caja 2" } }),
       ],
       [],
     );
 
-    expect(rows.map((row) => row.cashier?.id)).toEqual(["u1", "u2", "u0", "u3"]);
+    expect(rows.map((row) => row.cashier?.id)).toEqual(["u1", "u4", "u5", "u2", "u0", "u3"]);
   });
 
   it.each([
@@ -373,6 +375,20 @@ describe("voidsAndReturnsByCashier", () => {
 });
 
 describe("voidsAndReturnsByAuthorizer", () => {
+  it("orders authorizers by name in Spanish order, then by id, the operations needing nobody last", () => {
+    const rows = voidsAndReturnsByAuthorizer(
+      [record({ returnId: "r1", authorizer: null })],
+      [
+        voided({ authorizer: { id: "u2", name: "Zoe" } }),
+        voided({ authorizer: { id: "u1", name: "álvaro" } }),
+        voided({ authorizer: { id: "u4", name: "Caja 10" } }),
+        voided({ authorizer: { id: "u3", name: "Caja 2" } }),
+      ],
+    );
+
+    expect(rows.map((row) => row.authorizer?.id ?? null)).toEqual(["u1", "u3", "u4", "u2", null]);
+  });
+
   it("gives each authorizer what they authorized and the operations needing nobody their own row, last", () => {
     const rows = voidsAndReturnsByAuthorizer(
       [
