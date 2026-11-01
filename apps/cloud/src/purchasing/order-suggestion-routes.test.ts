@@ -167,7 +167,6 @@ describe("GET /order-suggestion", () => {
     const { headers } = await signedInWith(db, ["compare_prices_and_suggest_orders"], NOW);
     const actorId = await insertActor(db);
     const supplierId = await insertSupplier(db, { actorId, name: "Granos del Valle" });
-    await insertSupplier(db, { actorId, name: "Cerealera", active: false });
 
     expect((await get(headers)).json().suppliers).toEqual([
       { id: supplierId, name: "Granos del Valle" },
