@@ -196,6 +196,7 @@ describe("GET /reports/losses-by-reason", () => {
             productId,
             quantity: 2_000,
             reason: "defective",
+            resolution: "refund",
             disposition: "discard",
             refundedAmount: 4_000,
           },
