@@ -3,6 +3,8 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import type { BackofficeAccess } from "../shell/backoffice-access";
+import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import { type OrderSuggestionFilters, orderSuggestionFilters } from "./order-suggestion-filters";
 import { OrderSuggestionScreen } from "./order-suggestion-screen";
@@ -26,6 +28,7 @@ function createServices(
 ): OrderSuggestionScreenServices {
   return {
     fetchOrderSuggestion: vi.fn(),
+    buildPurchaseOrders: vi.fn(),
     ...overrides,
   };
 }
@@ -43,17 +46,23 @@ function screenElement(
   {
     filters = orderSuggestionFilters.parse({}),
     onFiltersChange = () => {},
+    onOrdersBuilt = () => {},
     onSessionEnded = () => {},
+    access = ADMINISTRATOR_ACCESS,
   }: {
     filters?: OrderSuggestionFilters;
     onFiltersChange?: (filters: OrderSuggestionFilters) => void;
+    onOrdersBuilt?: () => void;
     onSessionEnded?: () => void;
+    access?: BackofficeAccess;
   } = {},
 ) {
   return (
     <FieldSizeProvider size="backoffice">
       <main>
         <OrderSuggestionScreen
+          access={access}
+          onOrdersBuilt={onOrdersBuilt}
           services={services}
           filters={filters}
           onFiltersChange={onFiltersChange}
@@ -464,4 +473,148 @@ test("has no accessibility violations once loaded", async () => {
   const screen = await loaded(createServices());
 
   await expectNoAccessibilityViolations(screen.container);
+});
+
+const MENDOZA_ID = "5a900000-0000-4000-8000-000000000001";
+const SUR_ID = "5a900000-0000-4000-8000-000000000002";
+const LOS_TILOS_ID = "5a900000-0000-4000-8000-000000000003";
+
+function buildButton(screen: Screen) {
+  return screen.getByRole("button", { name: "Armar pedidos" });
+}
+
+test("offers Armar pedidos only to a person who manages purchase orders", async () => {
+  const withoutCapability = await loaded(createServices(), ORDER_SUGGESTION, {
+    access: accessWith("price_comparison"),
+  });
+  expect(buildButton(withoutCapability).query()).toBeNull();
+  await withoutCapability.unmount();
+
+  const withCapability = await loaded(createServices(), ORDER_SUGGESTION, {
+    access: accessWith("price_comparison", "purchase_orders"),
+  });
+  await expect.element(buildButton(withCapability)).toBeEnabled();
+});
+
+test("Armar pedidos sends the packages of the offer proposed for each line and goes to the orders", async () => {
+  const services = createServices();
+  vi.mocked(services.buildPurchaseOrders).mockResolvedValue({ kind: "ok", orderIds: ["o-1"] });
+  const onOrdersBuilt = vi.fn();
+  const screen = await loaded(services, ORDER_SUGGESTION, { onOrdersBuilt });
+
+  await userEvent.click(buildButton(screen));
+
+  expect(services.buildPurchaseOrders).toHaveBeenCalledWith({
+    choices: [
+      { productId: almonds.id, supplierId: MENDOZA_ID, packages: 2 },
+      { productId: ORDER_SUGGESTION.lines[2]?.id, supplierId: LOS_TILOS_ID, packages: 1 },
+    ],
+  });
+  await expect.poll(() => onOrdersBuilt.mock.calls.length).toBe(1);
+});
+
+test("Armar pedidos follows the supplier chosen and leaves out the lines left out of the order", async () => {
+  const services = createServices();
+  vi.mocked(services.buildPurchaseOrders).mockResolvedValue({ kind: "ok", orderIds: ["o-1"] });
+  const screen = await loaded(services);
+
+  await userEvent.click(supplierSelect(screen, "Almendras peladas"));
+  await userEvent.click(screen.getByRole("option", { name: /Distribuidora del Sur/ }));
+  await userEvent.click(supplierSelect(screen, "Miel pura de abeja 1 kg"));
+  await userEvent.click(screen.getByRole("option", { name: "Ninguno, fuera del pedido" }));
+  await userEvent.click(buildButton(screen));
+
+  expect(services.buildPurchaseOrders).toHaveBeenCalledWith({
+    choices: [{ productId: almonds.id, supplierId: SUR_ID, packages: 10 }],
+  });
+});
+
+test("Armar pedidos stays disabled when no line has a supplier with packages to order", async () => {
+  const screen = await loaded(createServices(), { ...ORDER_SUGGESTION, lines: [cookies] });
+
+  await expect.element(buildButton(screen)).toBeDisabled();
+});
+
+test("Armar pedidos stays disabled while the suggestion loads and after it fails", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchOrderSuggestion).mockResolvedValue({ kind: "failed" });
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("No pudimos abrir la sugerencia de pedido")).toBeVisible();
+  await expect.element(buildButton(screen)).toBeDisabled();
+});
+
+test.each([
+  [
+    { kind: "refused", reason: "offer_unavailable" },
+    "Un proveedor ya no ofrece uno de los productos",
+    "Actualizamos la sugerencia. Revisá los proveedores elegidos y volvé a armar los pedidos.",
+  ],
+  [
+    { kind: "refused", reason: "supplier_not_purchasable" },
+    "Un proveedor ya no está disponible",
+    "Actualizamos la sugerencia. Elegí otro proveedor para sus productos.",
+  ],
+  [
+    { kind: "refused", reason: "product_not_purchasable" },
+    "Un producto ya no está disponible",
+    "Actualizamos la sugerencia. Ya no se puede pedir.",
+  ],
+  [{ kind: "failed" }, "No se armaron los pedidos", "Volvé a intentarlo."],
+  [
+    { kind: "validation_failed", field: "packages" },
+    "No se armaron los pedidos",
+    "Volvé a intentarlo.",
+  ],
+  [
+    { kind: "rate_limited", retryAfterSeconds: 60 },
+    "Demasiadas solicitudes",
+    "Se puede volver a intentar en 1 minuto.",
+  ],
+] as const)("shows %j when building the orders", async (outcome, title, description) => {
+  const services = createServices();
+  vi.mocked(services.buildPurchaseOrders).mockResolvedValue(outcome);
+  const onOrdersBuilt = vi.fn();
+  const screen = await loaded(services, ORDER_SUGGESTION, { onOrdersBuilt });
+
+  await userEvent.click(buildButton(screen));
+
+  await expect.element(screen.getByText(title)).toBeVisible();
+  await expect.element(screen.getByText(description)).toBeVisible();
+  expect(onOrdersBuilt).not.toHaveBeenCalled();
+});
+
+test("reads the suggestion again when the cloud refuses an offer", async () => {
+  const services = createServices();
+  vi.mocked(services.buildPurchaseOrders).mockResolvedValue({
+    kind: "refused",
+    reason: "offer_unavailable",
+  });
+  const screen = await loaded(services);
+
+  await userEvent.click(buildButton(screen));
+
+  await expect.poll(() => vi.mocked(services.fetchOrderSuggestion).mock.calls.length).toBe(2);
+});
+
+test("ends the session when building the orders finds no open session", async () => {
+  const services = createServices();
+  vi.mocked(services.buildPurchaseOrders).mockResolvedValue({ kind: "unauthenticated" });
+  const onSessionEnded = vi.fn();
+  const screen = await loaded(services, ORDER_SUGGESTION, { onSessionEnded });
+
+  await userEvent.click(buildButton(screen));
+
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("navigates to Mi cuenta when building the orders comes back forbidden", async () => {
+  window.history.pushState(null, "", "/order-suggestion");
+  const services = createServices();
+  vi.mocked(services.buildPurchaseOrders).mockResolvedValue({ kind: "forbidden" });
+  const screen = await loaded(services);
+
+  await userEvent.click(buildButton(screen));
+
+  await expect.poll(() => window.location.pathname).toBe("/account");
 });
