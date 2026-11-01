@@ -88,6 +88,17 @@ describe("recordExceptionShareBreaches", () => {
     ]);
   });
 
+  it("records a breaching month of another address beside a recorded one", async () => {
+    const store = new FakeExceptionShareBreachStore(
+      [month("fa-1", "2026-08", 5, 100), month("fa-2", "2026-08", 6, 100)],
+      [month("fa-1", "2026-08", 5, 100)],
+    );
+
+    const outcome = await record(store, at("2026-10-02"));
+
+    expect(outcome).toEqual({ kind: "recorded", recorded: 1, updated: 0 });
+  });
+
   it("leaves a recorded month alone when its figures did not change", async () => {
     const recorded = month("fa-1", "2026-09", 5, 100);
     const store = new FakeExceptionShareBreachStore([recorded], [recorded]);

@@ -62,6 +62,8 @@ describe("exceptionShareYearSchema", () => {
   it.each([
     ["a state that is not known", { months: [{ ...month, state: "late" }] }],
     ["a month that is not a calendar month", { months: [{ ...month, month: "2026-13" }] }],
+    ["a month with text before it", { months: [{ ...month, month: "x2026-09" }] }],
+    ["a month with text after it", { months: [{ ...month, month: "2026-09x" }] }],
     ["a month without its zero", { months: [{ ...month, month: "2026-9" }] }],
     ["a negative exception count", { months: [{ ...month, exception_count: -1 }] }],
     ["a negative total", { months: [{ ...month, total_count: -1 }] }],
