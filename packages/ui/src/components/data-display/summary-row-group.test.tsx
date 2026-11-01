@@ -347,3 +347,48 @@ test("does not accept a form other than divided, filled or plain", () => {
     variant: "outlined";
   }>().not.toExtend<SummaryRowGroupProps>();
 });
+
+test("writes an emphasized horizontal row's value larger, in the accent color, beside rows in the regular form", async () => {
+  const screen = await render(
+    <SummaryRowGroup
+      variant="filled"
+      orientation="horizontal"
+      rows={[
+        { label: "Total de la venta", value: "$ 12.000,00" },
+        { label: "Pagado", value: "$ 2.000,00" },
+        { label: "A cobrar ahora", value: "$ 10.000,00", emphasized: true },
+      ]}
+    />,
+  );
+  const regular = screen.getByText("$ 12.000,00", { exact: true }).element() as HTMLElement;
+  const emphasized = screen.getByText("$ 10.000,00", { exact: true }).element() as HTMLElement;
+  const emphasizedLabel = screen.getByText("A cobrar ahora", { exact: true }).element() as HTMLElement;
+
+  expect(getComputedStyle(regular).fontSize).toBe("18px");
+  expect(getComputedStyle(regular).color).toBe(tokenRgb("text"));
+  expect(getComputedStyle(emphasized).fontSize).toBe("20px");
+  expect(getComputedStyle(emphasized).fontWeight).toBe("700");
+  expect(getComputedStyle(emphasized).color).toBe(tokenRgb("text-accent"));
+  expect(getComputedStyle(emphasizedLabel).fontSize).toBe("14px");
+  expect(getComputedStyle(emphasizedLabel).color).toBe(tokenRgb("text-subtle"));
+
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("does not accept an emphasized horizontal row that is also subtle or in a tone", () => {
+  expectTypeOf<{
+    rows: [{ label: string; value: string; emphasized: true }];
+    variant: "filled";
+    orientation: "horizontal";
+  }>().toExtend<SummaryRowGroupProps>();
+  expectTypeOf<{
+    rows: [{ label: string; value: string; emphasized: true; subtle: true }];
+    variant: "filled";
+    orientation: "horizontal";
+  }>().not.toExtend<SummaryRowGroupProps>();
+  expectTypeOf<{
+    rows: [{ label: string; value: string; emphasized: true; tone: "error" }];
+    variant: "filled";
+    orientation: "horizontal";
+  }>().not.toExtend<SummaryRowGroupProps>();
+});

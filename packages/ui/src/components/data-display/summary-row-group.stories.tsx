@@ -107,6 +107,25 @@ export const FilledHorizontal: Story = {
   },
 };
 
+export const FilledHorizontalEmphasized: Story = {
+  decorators: [
+    (Story) => (
+      <div className="bg-surface p-6">
+        <Story />
+      </div>
+    ),
+  ],
+  args: {
+    variant: "filled",
+    orientation: "horizontal",
+    rows: [
+      { label: "Total de la venta", value: "$ 12.000,00" },
+      { label: "Pagado", value: "$ 2.000,00" },
+      { label: "A cobrar ahora", value: "$ 10.000,00", emphasized: true },
+    ],
+  },
+};
+
 export const SingleRow: Story = {
   args: {
     rows: [{ label: "Total", value: "$120.000", strong: true }],
