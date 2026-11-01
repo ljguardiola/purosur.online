@@ -69,7 +69,7 @@ function stepsToOrder(shortfall: Fraction, step: number, cap: Fraction | null): 
     return Number(roundedUp);
   }
   const roundedDown = cap.numerator / (cap.denominator * BigInt(step));
-  return Number(roundedUp < roundedDown ? roundedUp : roundedDown);
+  return Math.min(Number(roundedUp), Number(roundedDown));
 }
 
 export function packagesToCover(
