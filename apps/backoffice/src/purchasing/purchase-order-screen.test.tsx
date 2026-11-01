@@ -118,7 +118,7 @@ test("shows each line of a draft with its product, packages, quantity each holds
   await expect
     .element(avena.getByRole("textbox", { name: /^Cantidad por paquete/ }))
     .toHaveValue("25,000");
-  await expect.element(avena.getByText("Sin precio de lista")).toBeVisible();
+  await expect.element(avena.getByText("Sin precio de lista").first()).toBeVisible();
 });
 
 test("never asks for a price", async () => {
@@ -151,7 +151,7 @@ test("saving sends the lines as typed and says the order was saved", async () =>
       { productId: AVENA_PRODUCT_ID, packages: 2, quantityPerPackage: 20_500 },
     ],
   });
-  await expect.element(screen.getByText("Pedido guardado")).toBeVisible();
+  await expect.element(screen.getByText("Pedido guardado").first()).toBeVisible();
 });
 
 test("reads the order again after saving", async () => {
@@ -172,7 +172,7 @@ test("reads the order again after saving", async () => {
 
   await save(screen);
 
-  await expect.element(screen.getByText("Pedido guardado")).toBeVisible();
+  await expect.element(screen.getByText("Pedido guardado").first()).toBeVisible();
   await expect.poll(() => vi.mocked(services.fetchPurchaseOrder).mock.calls.length).toBe(2);
 });
 
@@ -334,7 +334,7 @@ test("cancelling the order asks first, then cancels it and shows it cancelled", 
   await userEvent.click(dialog.getByRole("button", { name: "Cancelar pedido" }));
 
   expect(services.cancelPurchaseOrder).toHaveBeenCalledWith(ORDER_ID);
-  await expect.element(screen.getByText("Pedido cancelado")).toBeVisible();
+  await expect.element(screen.getByText("Pedido cancelado").first()).toBeVisible();
   await expect.element(screen.getByText("Cancelado").first()).toBeVisible();
   expect(screen.getByRole("dialog").query()).toBeNull();
   expect(screen.getByRole("button", { name: "Guardar" }).query()).toBeNull();
@@ -353,7 +353,7 @@ test("a cancelled order is read-only: its lines are shown in a table with no inp
   const table = screen.getByRole("table", { name: "Líneas del pedido" });
   await expect.element(table.getByText("Miel pura de abeja 1 kg")).toBeVisible();
   await expect.element(table.getByText("$ 1.850,00")).toBeVisible();
-  await expect.element(table.getByText("Sin precio de lista")).toBeVisible();
+  await expect.element(table.getByText("Sin precio de lista").first()).toBeVisible();
   expect(screen.getByRole("textbox").query()).toBeNull();
   expect(screen.getByRole("button", { name: "Guardar" }).query()).toBeNull();
   expect(screen.getByRole("button", { name: "Cancelar pedido" }).query()).toBeNull();

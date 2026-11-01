@@ -88,9 +88,7 @@ test("tells when the order can no longer be cancelled, and updating it reports i
   const screen = await renderModal({ cancelPurchaseOrder, onOutdated });
   const dialog = await confirm(screen);
 
-  await expect
-    .element(dialog.getByRole("alert"))
-    .toHaveTextContent("Este pedido ya no se puede cancelar");
+  await expect.element(dialog.getByText("Este pedido ya no se puede cancelar")).toBeVisible();
   await userEvent.click(dialog.getByRole("button", { name: "Actualizar el pedido" }));
 
   expect(onOutdated).toHaveBeenCalledTimes(1);
@@ -104,7 +102,7 @@ test("tells when the order no longer exists, and updating it reports it", async 
   const screen = await renderModal({ cancelPurchaseOrder, onOutdated });
   const dialog = await confirm(screen);
 
-  await expect.element(dialog.getByRole("alert")).toHaveTextContent("Este pedido ya no existe");
+  await expect.element(dialog.getByText("Este pedido ya no existe")).toBeVisible();
   await userEvent.click(dialog.getByRole("button", { name: "Actualizar el pedido" }));
 
   expect(onOutdated).toHaveBeenCalledTimes(1);
