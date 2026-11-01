@@ -1,4 +1,4 @@
-import type { NetContentUnit, SaleUnit } from "../../catalog/index.js";
+import type { NetContentUnit, ProductActivityScope, SaleUnit } from "../../catalog/index.js";
 
 export interface ProposalRow {
   description: string;
@@ -19,7 +19,7 @@ export interface ProposalProduct {
 export interface SupplierItemLinkProposalReader {
   // Undefined when the list has no such row.
   row(listId: string, rowId: string): Promise<ProposalRow | undefined>;
-  // The active products carrying exactly that barcode among their active barcodes.
-  activeProductsWithBarcode(barcode: string): Promise<ProposalProduct[]>;
-  activeProducts(): Promise<ProposalProduct[]>;
+  // The products of the scope carrying exactly that barcode among their active barcodes.
+  productsWithBarcode(barcode: string, scope: ProductActivityScope): Promise<ProposalProduct[]>;
+  products(scope: ProductActivityScope): Promise<ProposalProduct[]>;
 }
