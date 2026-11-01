@@ -74,6 +74,11 @@ export function productFormValues(product: ProductSummary): ProductEditFormValue
   };
 }
 
+export function productCloneFormValues(product: ProductSummary): CatalogProductFormValues {
+  const { version: _version, ...values } = productFormValues(product);
+  return { ...values, barcodes: { codes: [], scan: "" } };
+}
+
 export function productEditRequestFrom(values: ProductEditFormValues): ProductEditBody {
   return { ...catalogProductRequestFrom(values), version: values.version };
 }
