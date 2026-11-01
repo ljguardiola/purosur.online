@@ -110,7 +110,7 @@ describe("StandaloneTerminalChargeModal", () => {
   it("charges the amount the cashier typed", async () => {
     const { field, register, chargeSale } = await renderModal();
 
-    await userEvent.fill(field, "2.000,50");
+    await userEvent.fill(field, "2000,50");
     await userEvent.click(register);
 
     await expect.poll(() => chargeSale.mock.calls).toEqual([[200_050]]);
@@ -125,7 +125,7 @@ describe("StandaloneTerminalChargeModal", () => {
       pending: 276_000,
     }));
 
-    await userEvent.fill(field, "2.000,00");
+    await userEvent.fill(field, "2000,00");
     await userEvent.click(register);
 
     await expect.poll(() => callbacks.onPartiallyPaid.mock.calls.length).toBe(1);
@@ -143,7 +143,7 @@ describe("StandaloneTerminalChargeModal", () => {
     }));
     callbacks.onPartiallyPaid.mockReturnValue(backToMethods.promise);
 
-    await userEvent.fill(field, "2.000,00");
+    await userEvent.fill(field, "2000,00");
     await userEvent.click(register);
 
     await expect.poll(() => callbacks.onPartiallyPaid.mock.calls.length).toBe(1);
@@ -159,7 +159,7 @@ describe("StandaloneTerminalChargeModal", () => {
       { total: TOTAL, paid: 100_000, pending: 376_000 },
     );
 
-    await userEvent.fill(field, "5.000,00");
+    await userEvent.fill(field, "5000,00");
     await userEvent.click(register);
 
     await expect
@@ -182,7 +182,7 @@ describe("StandaloneTerminalChargeModal", () => {
   it("does not charge what is not an amount, and says so", async () => {
     const { screen, field, register, chargeSale } = await renderModal();
 
-    await userEvent.fill(field, "abc");
+    await userEvent.fill(field, "5,");
     await userEvent.click(register);
 
     await expect

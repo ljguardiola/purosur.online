@@ -131,13 +131,13 @@ describe("CashOpeningPanel", () => {
     );
     const { screen } = await renderPanel({ open });
 
-    await submitFloat(screen, "21.474.836,48");
+    await submitFloat(screen, "21474836,48");
 
     await expect.element(screen.getByText(INVALID_MESSAGE)).toBeVisible();
     expect(open).toHaveBeenCalledWith(2_147_483_648);
   });
 
-  it.each(["abc", "20.000,001"])(
+  it.each(["5,", "0,"])(
     "asks for a valid amount without sending anything when the float is %s",
     async (typed) => {
       const { screen, open } = await renderPanel();
@@ -151,10 +151,10 @@ describe("CashOpeningPanel", () => {
 
   it("keeps the message while the edited float is still invalid and clears it once it is valid", async () => {
     const { screen } = await renderPanel();
-    await submitFloat(screen, "abc");
+    await submitFloat(screen, "5,");
     await expect.element(screen.getByText(INVALID_MESSAGE)).toBeVisible();
 
-    await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), "abd");
+    await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), "6,");
     await expect.element(screen.getByText(INVALID_MESSAGE)).toBeVisible();
 
     await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), "100");
@@ -164,7 +164,7 @@ describe("CashOpeningPanel", () => {
   it("sends the float in cents when the button is pressed", async () => {
     const { screen, open } = await renderPanel();
 
-    await submitFloat(screen, "20.000,50");
+    await submitFloat(screen, "20000,50");
 
     expect(open).toHaveBeenCalledExactlyOnceWith(2_000_050);
   });

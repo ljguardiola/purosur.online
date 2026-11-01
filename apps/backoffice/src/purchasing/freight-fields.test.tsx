@@ -117,7 +117,7 @@ test("builds the request from the typed values and the purchases left chosen", a
 
   await fillFreight(screen.locator, {
     date: "12092026",
-    amount: "18.500,00",
+    amount: "18500,00",
     carrierName: "Expreso Sur",
     description: "Envío desde Buenos Aires",
     suppliers: ["Distribuidora Andina", "Molinos del Valle"],

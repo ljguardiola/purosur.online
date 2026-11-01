@@ -99,7 +99,7 @@ test("sends the typed pesos as cents for the lot and tells the screen it was sav
   vi.mocked(props.services.setLotReferenceCost).mockResolvedValue({ kind: "ok" });
   const screen = await renderModal(props);
 
-  await userEvent.fill(screen.getByLabelText("Costo de referencia por kg"), "10.180,50");
+  await userEvent.fill(screen.getByLabelText("Costo de referencia por kg"), "10180,50");
   await userEvent.click(screen.getByRole("button", { name: SAVE }));
 
   await expect

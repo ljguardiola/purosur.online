@@ -158,7 +158,7 @@ test("records the amount in cents and the day, reads the thresholds again, then 
   const reload = vi.fn<Reload>(() => Promise.resolve({ kind: "ok", value: overview(recorded) }));
   const onRecorded = vi.fn();
   const { dialog } = await renderModal({ services, reload, onRecorded });
-  await fillForm(dialog, "15.000,00", "01102026");
+  await fillForm(dialog, "15000,00", "01102026");
 
   await submit(dialog);
 
@@ -186,7 +186,7 @@ test("keeps the buttons disabled while the thresholds are read again after recor
   );
   const onRecorded = vi.fn();
   const { dialog } = await renderModal({ services, reload, onRecorded });
-  await fillForm(dialog, "15.000,00", "01102026");
+  await fillForm(dialog, "15000,00", "01102026");
 
   await submit(dialog);
 
@@ -209,7 +209,7 @@ test("opens the authorization modal on authorization_required, then authorizes a
   });
   const onRecorded = vi.fn();
   const { dialog } = await renderModal({ services, onRecorded });
-  await fillForm(dialog, "15.000,00", "01102026");
+  await fillForm(dialog, "15000,00", "01102026");
 
   await submit(dialog);
   await expect.element(dialog.getByRole("heading", { name: "Autorizá este cambio" })).toBeVisible();
@@ -235,7 +235,7 @@ test("cancelling the authorization records nothing and leaves the modal as it wa
   });
   const onRecorded = vi.fn();
   const { screen, dialog } = await renderModal({ services, onRecorded });
-  await fillForm(dialog, "15.000,00", "01102026");
+  await fillForm(dialog, "15000,00", "01102026");
   await submit(dialog);
   const authorization = screen.getByRole("heading", { name: "Autorizá este cambio" });
   await expect.element(authorization).toBeVisible();
@@ -256,7 +256,7 @@ test("a start before today lands on Vigente desde, naming today as read again fr
   const onRecorded = vi.fn();
   const reload = vi.fn<Reload>(() => Promise.resolve({ kind: "ok", value: overview(inEffect) }));
   const { dialog } = await renderModal({ services, reload, onRecorded });
-  await fillForm(dialog, "15.000,00", "01092026");
+  await fillForm(dialog, "15000,00", "01092026");
 
   await submit(dialog);
 
@@ -277,7 +277,7 @@ test("a start before today asks to review the day when the thresholds cannot be 
     services,
     reload: () => Promise.resolve({ kind: "failed" }),
   });
-  await fillForm(dialog, "15.000,00", "01092026");
+  await fillForm(dialog, "15000,00", "01092026");
 
   await submit(dialog);
 
@@ -290,7 +290,7 @@ test("the error on Vigente desde clears as soon as the day is edited", async () 
     kind: "before_today",
   });
   const { dialog } = await renderModal({ services });
-  await fillForm(dialog, "15.000,00", "01092026");
+  await fillForm(dialog, "15000,00", "01092026");
   await submit(dialog);
   await expect.element(dialog.getByText(/^Tiene que ser desde hoy/)).toBeVisible();
 
@@ -493,7 +493,7 @@ test("shows a field error from the cloud on the amount, and keeps the modal open
   });
   const onRecorded = vi.fn();
   const { dialog } = await renderModal({ services, onRecorded });
-  await fillForm(dialog, "15.000,00", "01102026");
+  await fillForm(dialog, "15000,00", "01102026");
 
   await submit(dialog);
 
@@ -508,7 +508,7 @@ test("shows the attempt-failed notice, and no field error, when the cloud names 
     field: "id",
   });
   const { dialog } = await renderModal({ services });
-  await fillForm(dialog, "15.000,00", "01102026");
+  await fillForm(dialog, "15000,00", "01102026");
 
   await submit(dialog);
 
@@ -520,7 +520,7 @@ test("shows the attempt-failed notice when recording fails, and keeps what was t
   const services = createServices();
   vi.mocked(services.recordBuyerIdentificationThreshold).mockResolvedValue({ kind: "failed" });
   const { dialog } = await renderModal({ services });
-  await fillForm(dialog, "15.000,00", "01102026");
+  await fillForm(dialog, "15000,00", "01102026");
 
   await submit(dialog);
 
@@ -534,7 +534,7 @@ test("sends to Mi cuenta when recording comes back forbidden", async () => {
   const services = createServices();
   vi.mocked(services.recordBuyerIdentificationThreshold).mockResolvedValue({ kind: "forbidden" });
   const { dialog } = await renderModal({ services });
-  await fillForm(dialog, "15.000,00", "01102026");
+  await fillForm(dialog, "15000,00", "01102026");
 
   await submit(dialog);
 
@@ -548,7 +548,7 @@ test("ends the session when recording comes back unauthenticated", async () => {
   });
   const onSessionEnded = vi.fn();
   const { dialog } = await renderModal({ services, onSessionEnded });
-  await fillForm(dialog, "15.000,00", "01102026");
+  await fillForm(dialog, "15000,00", "01102026");
 
   await submit(dialog);
 
@@ -557,7 +557,7 @@ test("ends the session when recording comes back unauthenticated", async () => {
 
 test("opens empty again after it was closed with values typed", async () => {
   const { screen, dialog } = await renderModal();
-  await fillForm(dialog, "15.000,00", "01102026");
+  await fillForm(dialog, "15000,00", "01102026");
 
   await screen.rerender(modalElement({ open: false }));
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();

@@ -86,7 +86,7 @@ describe("ReturnRefundsField", () => {
     const transfer = screen.getByRole("textbox", { name: "Reintegro por Transferencia" });
 
     await expect.element(transfer).not.toHaveAttribute("readonly");
-    await userEvent.fill(transfer, "1.000,00");
+    await userEvent.fill(transfer, "1000,00");
     await expect.element(transfer).toHaveValue("1.000,00");
   });
 
@@ -107,7 +107,7 @@ describe("ReturnRefundsField", () => {
     const screen = await renderField();
     const cash = screen.getByRole("textbox", { name: "Reintegro por Efectivo" });
 
-    await userEvent.fill(cash, "diez");
+    await userEvent.fill(cash, "5,");
     await userEvent.click(screen.getByRole("button", { name: "Completar" }));
 
     await expect.element(screen.getByText(INVALID_REFUND_MESSAGE)).toBeVisible();

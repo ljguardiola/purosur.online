@@ -170,7 +170,7 @@ describe("AdjustLineModal", () => {
 
   it("sends a typed price in cents with its reason and tells the screen the sale it returns", async () => {
     const { screen, adjust, onAdjusted } = await renderModal();
-    await typePrice(screen, "1.500,50");
+    await typePrice(screen, "1500,50");
     await typeReason(screen, "Vence pronto");
 
     await apply(screen);
@@ -188,7 +188,7 @@ describe("AdjustLineModal", () => {
     const { screen, onAdjusted } = await renderModal({
       adjustSaleLine: async () => ({ ...CHANGED, removed_sale_discount: true }),
     });
-    await typePrice(screen, "1.500");
+    await typePrice(screen, "1500");
     await typeReason(screen, "Vence pronto");
 
     await apply(screen);
@@ -230,7 +230,7 @@ describe("AdjustLineModal", () => {
 
   it("empties the value when the kind of adjustment changes", async () => {
     const { screen } = await renderModal();
-    await typePrice(screen, "1.500");
+    await typePrice(screen, "1500");
 
     await chooseKind(screen, "Descuento");
 
@@ -285,7 +285,7 @@ describe("AdjustLineModal", () => {
 
     it("asks for the reason", async () => {
       const { screen, adjust } = await renderModal();
-      await typePrice(screen, "1.500");
+      await typePrice(screen, "1500");
       await typeReason(screen, "   ");
 
       await apply(screen);
@@ -298,7 +298,7 @@ describe("AdjustLineModal", () => {
   it("keeps the button disabled while the core is answering, so it is asked once", async () => {
     const answer = deferred<AdjustSaleLineOutcome>();
     const { screen, adjust } = await renderModal({ adjustSaleLine: () => answer.promise });
-    await typePrice(screen, "1.500");
+    await typePrice(screen, "1500");
     await typeReason(screen, "Vence pronto");
 
     await apply(screen);
@@ -339,7 +339,7 @@ describe("AdjustLineModal", () => {
 
     it("sends who authorizes and their PIN", async () => {
       const { screen, adjust } = await renderModal({ authorizationRequired: true });
-      await typePrice(screen, "1.500");
+      await typePrice(screen, "1500");
       await typeReason(screen, "Vence pronto");
       await authorizeAs(screen, "Sofía", "1234");
 
@@ -362,7 +362,7 @@ describe("AdjustLineModal", () => {
           attempts_left: 6,
         }),
       });
-      await typePrice(screen, "1.500");
+      await typePrice(screen, "1500");
       await typeReason(screen, "Vence pronto");
       await authorizeAs(screen, "Sofía", "1234");
 
@@ -377,7 +377,7 @@ describe("AdjustLineModal", () => {
         authorizationRequired: true,
         adjustSaleLine: async () => ({ kind: "lacks_permission" }),
       });
-      await typePrice(screen, "1.500");
+      await typePrice(screen, "1500");
       await typeReason(screen, "Vence pronto");
       await authorizeAs(screen, "Sofía", "1234");
 
@@ -393,7 +393,7 @@ describe("AdjustLineModal", () => {
         authorizationRequired: true,
         adjustSaleLine: async () => ({ kind: "locked", consecutive_failures: 8 }),
       });
-      await typePrice(screen, "1.500");
+      await typePrice(screen, "1500");
       await typeReason(screen, "Vence pronto");
       await authorizeAs(screen, "Sofía", "1234");
 
@@ -408,7 +408,7 @@ describe("AdjustLineModal", () => {
       const { screen, onAdjusted } = await renderModal({
         adjustSaleLine: async () => ({ kind: "same_as_list_price" }),
       });
-      await typePrice(screen, "2.380");
+      await typePrice(screen, "2380");
       await typeReason(screen, "Motivo");
 
       await apply(screen);
@@ -440,7 +440,7 @@ describe("AdjustLineModal", () => {
       { kind: "sale_has_payments" },
     ] as const)("tells the screen the line is gone: $kind", async (outcome) => {
       const { screen, onSaleGone } = await renderModal({ adjustSaleLine: async () => outcome });
-      await typePrice(screen, "1.500");
+      await typePrice(screen, "1500");
       await typeReason(screen, "Motivo");
 
       await apply(screen);
@@ -454,7 +454,7 @@ describe("AdjustLineModal", () => {
         const { screen, onSessionInvalid } = await renderModal({
           adjustSaleLine: async () => outcome,
         });
-        await typePrice(screen, "1.500");
+        await typePrice(screen, "1500");
         await typeReason(screen, "Motivo");
 
         await apply(screen);
@@ -467,7 +467,7 @@ describe("AdjustLineModal", () => {
       const { screen } = await renderModal({
         adjustSaleLine: async () => ({ kind: "not_permitted" }),
       });
-      await typePrice(screen, "1.500");
+      await typePrice(screen, "1500");
       await typeReason(screen, "Motivo");
 
       await apply(screen);
@@ -481,7 +481,7 @@ describe("AdjustLineModal", () => {
       const { screen } = await renderModal({
         adjustSaleLine: async () => ({ kind: "lacks_permission" }),
       });
-      await typePrice(screen, "1.500");
+      await typePrice(screen, "1500");
       await typeReason(screen, "Motivo");
 
       await apply(screen);
@@ -495,7 +495,7 @@ describe("AdjustLineModal", () => {
       const { screen } = await renderModal({
         adjustSaleLine: async () => ({ kind: "unavailable" }),
       });
-      await typePrice(screen, "1.500");
+      await typePrice(screen, "1500");
       await typeReason(screen, "Motivo");
 
       await apply(screen);
@@ -510,7 +510,7 @@ describe("AdjustLineModal", () => {
       const { screen } = await renderModal({
         adjustSaleLine: () => Promise.reject(new Error("the connection was replaced")),
       });
-      await typePrice(screen, "1.500");
+      await typePrice(screen, "1500");
       await typeReason(screen, "Motivo");
 
       await apply(screen);
@@ -625,7 +625,7 @@ describe("AdjustLineModal previewing the adjustment", () => {
       previewAdjustment: async () => ({ kind: "preview", discount_amount: 0, line_total: 600_000 }),
     });
 
-    await typePrice(screen, "3.000");
+    await typePrice(screen, "3000");
 
     await expect.element(screen.getByText("$ 6.000,00")).toBeVisible();
     await expect.element(screen.getByText("Queda la línea en")).toBeVisible();
@@ -666,7 +666,7 @@ describe("AdjustLineModal previewing the adjustment", () => {
       previewAdjustment: async () => ({ kind: "same_as_list_price" }),
     });
 
-    await typePrice(screen, "2.380");
+    await typePrice(screen, "2380");
 
     await expect
       .element(screen.getByText("Ese es el precio de lista. Ingresá otro precio."))
@@ -680,7 +680,7 @@ describe("AdjustLineModal previewing the adjustment", () => {
     });
     await chooseKind(screen, "$");
 
-    await typeValue(screen, "Monto de descuento", "9.999");
+    await typeValue(screen, "Monto de descuento", "9999");
 
     await expect
       .element(screen.getByText("El descuento no puede ser mayor al total de la línea."))

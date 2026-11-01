@@ -154,7 +154,7 @@ describe("CashCountScreen", () => {
   it("follows what is typed, and warns when cash is missing", async () => {
     const { screen } = await renderScreen();
 
-    await count(screen, "45.800,00");
+    await count(screen, "45800,00");
 
     expect(cellOf(screen, "Contado")).toBe("Contado$ 45.800,00");
     expect(cellOf(screen, "Diferencia")).toBe("Diferencia− $ 400,00");
@@ -167,7 +167,7 @@ describe("CashCountScreen", () => {
     const { screen } = await renderScreen({ loadCashCountPreview });
     expect(loadCashCountPreview).not.toHaveBeenCalled();
 
-    await count(screen, "45.800,00");
+    await count(screen, "45800,00");
 
     await expect.poll(() => loadCashCountPreview.mock.calls).toEqual([[4_580_000]]);
   });
@@ -177,7 +177,7 @@ describe("CashCountScreen", () => {
       loadCashCountPreview: async () => ({ difference: 70_000 }),
     });
 
-    await count(screen, "45.800,00");
+    await count(screen, "45800,00");
 
     await expect.poll(() => cellOf(screen, "Diferencia")).toBe("Diferencia+ $ 700,00");
     await expect
@@ -197,10 +197,10 @@ describe("CashCountScreen", () => {
       loadCashCountPreview: (countedCash) =>
         countedCash === 4_580_000 ? answerPreview(countedCash) : next.promise,
     });
-    await count(screen, "45.800,00");
+    await count(screen, "45800,00");
     await expect.poll(() => cellOf(screen, "Diferencia")).toBe("Diferencia− $ 400,00");
 
-    await count(screen, "46.600,00");
+    await count(screen, "46600,00");
 
     expect(cellOf(screen, "Contado")).toBe("Contado$ 46.600,00");
     expect(cellOf(screen, "Diferencia")).toBe("Diferencia− $ 400,00");
@@ -211,7 +211,7 @@ describe("CashCountScreen", () => {
   it("shows no difference and no warning when the core cannot preview the count", async () => {
     const { screen } = await renderScreen({ loadCashCountPreview: async () => "unavailable" });
 
-    await count(screen, "45.800,00");
+    await count(screen, "45800,00");
 
     expect(cellOf(screen, "Contado")).toBe("Contado$ 45.800,00");
     expect(cellOf(screen, "Diferencia")).toBe("Diferencia—");
@@ -221,7 +221,7 @@ describe("CashCountScreen", () => {
   it("warns when there is cash left over", async () => {
     const { screen } = await renderScreen();
 
-    await count(screen, "46.600,00");
+    await count(screen, "46600,00");
 
     expect(cellOf(screen, "Diferencia")).toBe("Diferencia+ $ 400,00");
     await expect.element(screen.getByText(OVER_NOTICE).first()).toBeVisible();
@@ -230,7 +230,7 @@ describe("CashCountScreen", () => {
   it("shows no warning when the count matches the expected cash", async () => {
     const { screen } = await renderScreen();
 
-    await count(screen, "46.200,00");
+    await count(screen, "46200,00");
 
     expect(cellOf(screen, "Diferencia")).toBe("Diferencia$ 0,00");
     await expect.element(screen.getByText("Faltan", { exact: false })).not.toBeInTheDocument();
@@ -239,9 +239,9 @@ describe("CashCountScreen", () => {
 
   it("goes back to comparing nothing when what is typed stops being an amount", async () => {
     const { screen } = await renderScreen();
-    await count(screen, "45.800,00");
+    await count(screen, "45800,00");
 
-    await count(screen, "45.800,0a");
+    await count(screen, "5,");
 
     expect(cellOf(screen, "Contado")).toBe("Contado—");
     await expect.element(screen.getByText(SHORT_NOTICE).first()).not.toBeInTheDocument();
@@ -250,7 +250,7 @@ describe("CashCountScreen", () => {
   it("compares any amount it can read as a count, however large", async () => {
     const { screen } = await renderScreen();
 
-    await count(screen, "30.000.000,00");
+    await count(screen, "30000000,00");
 
     expect(cellOf(screen, "Contado")).toBe("Contado$ 30.000.000,00");
     await expect.element(screen.getByText("Sobran", { exact: false }).first()).toBeVisible();
@@ -261,7 +261,7 @@ describe("CashCountScreen", () => {
       kind: "invalid_counted_cash",
     }));
     const { screen } = await renderScreen({ closeCashSession });
-    await count(screen, "30.000.000,00");
+    await count(screen, "30000000,00");
 
     await submit(screen);
 
@@ -272,7 +272,7 @@ describe("CashCountScreen", () => {
   it("closes the session with the counted cash in cents", async () => {
     const { screen, closeCashSession } = await renderScreen();
 
-    await count(screen, "45.800,00");
+    await count(screen, "45800,00");
     await submit(screen);
 
     await expect.poll(() => vi.mocked(closeCashSession).mock.calls).toEqual([[4_580_000]]);
@@ -290,7 +290,7 @@ describe("CashCountScreen", () => {
   it("asks for a valid amount when what was typed is not one, without closing", async () => {
     const { screen, closeCashSession } = await renderScreen();
 
-    await count(screen, "abc");
+    await count(screen, "5,");
     await submit(screen);
 
     await expect.element(screen.getByText(INVALID_MESSAGE)).toBeVisible();
@@ -299,14 +299,14 @@ describe("CashCountScreen", () => {
 
   it("keeps the message while the edited count is still invalid and clears it once it is valid", async () => {
     const { screen } = await renderScreen();
-    await count(screen, "abc");
+    await count(screen, "5,");
     await submit(screen);
     await expect.element(screen.getByText(INVALID_MESSAGE)).toBeVisible();
 
-    await count(screen, "abd");
+    await count(screen, "6,");
     await expect.element(screen.getByText(INVALID_MESSAGE)).toBeVisible();
 
-    await count(screen, "45.800,00");
+    await count(screen, "45800,00");
     await expect.element(screen.getByText(INVALID_MESSAGE)).not.toBeInTheDocument();
   });
 
@@ -315,7 +315,7 @@ describe("CashCountScreen", () => {
       closeCashSession: async () => ({ kind: "invalid_counted_cash" }),
     });
 
-    await count(screen, "45.800,00");
+    await count(screen, "45800,00");
     await submit(screen);
 
     await expect.element(screen.getByText(INVALID_MESSAGE)).toBeVisible();
@@ -326,7 +326,7 @@ describe("CashCountScreen", () => {
       closeCashSession: async () => ({ kind: "open_sale", total: 3_434_000 }),
     });
 
-    await count(screen, "45.800,00");
+    await count(screen, "45800,00");
     await submit(screen);
 
     await expect.element(screen.getByText("Hay una venta abierta de $ 34.340,00")).toBeVisible();
@@ -342,7 +342,7 @@ describe("CashCountScreen", () => {
       closeCashSession: async () => ({ kind: "unavailable" }),
     });
 
-    await count(screen, "45.800,00");
+    await count(screen, "45800,00");
     await submit(screen);
 
     await expect.element(screen.getByText(FAILED_NOTICE).first()).toBeVisible();
@@ -353,7 +353,7 @@ describe("CashCountScreen", () => {
       closeCashSession: () => Promise.reject(new Error("the core connection was replaced")),
     });
 
-    await count(screen, "45.800,00");
+    await count(screen, "45800,00");
     await submit(screen);
 
     await expect.element(screen.getByText(FAILED_NOTICE).first()).toBeVisible();
@@ -364,7 +364,7 @@ describe("CashCountScreen", () => {
       closeCashSession: async () => ({ kind: "not_signed_in" }),
     });
 
-    await count(screen, "45.800,00");
+    await count(screen, "45800,00");
     await submit(screen);
 
     await expect.element(screen.getByText(FAILED_NOTICE).first()).toBeVisible();
@@ -375,7 +375,7 @@ describe("CashCountScreen", () => {
       closeCashSession: async () => ({ kind: "lacks_permission" }),
     });
 
-    await count(screen, "45.800,00");
+    await count(screen, "45800,00");
     await submit(screen);
 
     await expect
@@ -387,11 +387,11 @@ describe("CashCountScreen", () => {
     const { screen } = await renderScreen({
       closeCashSession: async () => ({ kind: "unavailable" }),
     });
-    await count(screen, "45.800,00");
+    await count(screen, "45800,00");
     await submit(screen);
     await expect.element(screen.getByText(FAILED_NOTICE).first()).toBeVisible();
 
-    await count(screen, "45.900,00");
+    await count(screen, "45900,00");
 
     await expect.element(screen.getByText(FAILED_NOTICE).first()).not.toBeInTheDocument();
   });

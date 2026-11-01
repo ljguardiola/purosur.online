@@ -109,7 +109,7 @@ test("sends the typed price in cents", async () => {
   vi.mocked(props.setPrice).mockResolvedValue({ kind: "failed" });
   const screen = await renderModal(props);
 
-  await userEvent.fill(screen.getByLabelText("Precio de venta por kilo"), "7.500,50");
+  await userEvent.fill(screen.getByLabelText("Precio de venta por kilo"), "7500,50");
   await userEvent.click(screen.getByRole("button", { name: "Guardar el precio nuevo" }));
 
   await expect.poll(() => vi.mocked(props.setPrice).mock.lastCall?.[1].unitPrice).toBe(750050);
@@ -316,7 +316,7 @@ test("the current price typed again is sent to the server, which decides it is u
   const screen = await renderModal(props);
   const dialog = screen.getByRole("dialog");
 
-  await userEvent.fill(dialog.getByLabelText("Precio de venta por kilo"), "7.500");
+  await userEvent.fill(dialog.getByLabelText("Precio de venta por kilo"), "7500");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar el precio nuevo" }));
 
   await expect

@@ -91,7 +91,7 @@ describe("QrChargeModal", () => {
   it("creates the order for the amount the cashier typed, once, and reports it shown", async () => {
     const { field, create, startCharge, callbacks } = await renderModal();
 
-    await userEvent.fill(field, "30.000,00");
+    await userEvent.fill(field, "30000,00");
     await userEvent.click(create);
 
     await expect.poll(() => callbacks.onOrderShown.mock.calls).toEqual([[ORDER_SHOWN]]);
@@ -107,7 +107,7 @@ describe("QrChargeModal", () => {
   it("does not create an order for what is not an amount, and says so", async () => {
     const { screen, field, create, startCharge } = await renderModal();
 
-    await userEvent.fill(field, "abc");
+    await userEvent.fill(field, "5,");
     await userEvent.click(create);
 
     await expect
@@ -122,7 +122,7 @@ describe("QrChargeModal", () => {
       pending: 4_070_000,
     }));
 
-    await userEvent.fill(field, "60.000,00");
+    await userEvent.fill(field, "60000,00");
     await userEvent.click(create);
 
     await expect

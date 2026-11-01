@@ -66,10 +66,9 @@ describe("ChangeLineWeightModal", () => {
 
   it.each([
     ["", INVALID_WEIGHT_MESSAGE],
-    ["abc", INVALID_WEIGHT_MESSAGE],
+    ["5,", INVALID_WEIGHT_MESSAGE],
     ["0", INVALID_WEIGHT_MESSAGE],
-    ["1,2345", INVALID_WEIGHT_MESSAGE],
-    ["3.000.000", ABOVE_LINE_LIMIT_MESSAGE],
+    ["3000000", ABOVE_LINE_LIMIT_MESSAGE],
   ])("refuses a typed weight of '%s' without changing the line", async (typed, message) => {
     const { screen, field, change } = await renderModal();
 

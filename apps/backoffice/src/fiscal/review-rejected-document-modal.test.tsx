@@ -311,7 +311,7 @@ test("corrects only what changed and closes when the correction is recorded", as
   const onRemedied = vi.fn();
   const { dialog } = await renderModal(services, { onClose, onRemedied });
   await chooseTheDocumentIsWrong(dialog);
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Total/ }), "18.000,00");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Total/ }), "18000,00");
 
   await submitPrinted(dialog);
 

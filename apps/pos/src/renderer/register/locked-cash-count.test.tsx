@@ -180,7 +180,7 @@ describe("LockedCashCount", () => {
   it("warns when cash is missing", async () => {
     const { screen } = await renderStep();
 
-    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45.800,00");
+    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45800,00");
 
     await expect.element(screen.getByText(SHORT_NOTICE).first()).toBeVisible();
   });
@@ -189,7 +189,7 @@ describe("LockedCashCount", () => {
     const loadCashCountPreview = vi.fn<LoadCashCountPreview>(async () => ({ difference: 70_000 }));
     const { screen } = await renderStep({ loadCashCountPreview });
 
-    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45.800,00");
+    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45800,00");
 
     await expect.poll(() => loadCashCountPreview.mock.calls).toEqual([[4_580_000]]);
     await expect
@@ -210,10 +210,10 @@ describe("LockedCashCount", () => {
         countedCash === 4_580_000 ? answerPreview(countedCash) : next.promise,
     });
     const field = screen.getByRole("textbox", { name: "Efectivo contado" });
-    await userEvent.fill(field, "45.800,00");
+    await userEvent.fill(field, "45800,00");
     await expect.element(screen.getByText(SHORT_NOTICE).first()).toBeVisible();
 
-    await userEvent.fill(field, "46.600,00");
+    await userEvent.fill(field, "46600,00");
 
     await expect.element(screen.getByText("$ 46.600,00")).toBeVisible();
     await expect.element(screen.getByText(SHORT_NOTICE).first()).toBeVisible();
@@ -224,10 +224,7 @@ describe("LockedCashCount", () => {
   it("compares any amount it can read as a count, however large", async () => {
     const { screen } = await renderStep();
 
-    await userEvent.fill(
-      screen.getByRole("textbox", { name: "Efectivo contado" }),
-      "30.000.000,00",
-    );
+    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "30000000,00");
 
     await expect.element(screen.getByText("$ 30.000.000,00")).toBeVisible();
     await expect.element(screen.getByText("Sobran", { exact: false }).first()).toBeVisible();
@@ -237,7 +234,7 @@ describe("LockedCashCount", () => {
     const close = vi.fn<Close>(async () => ({ kind: "invalid_counted_cash" }));
     const { screen } = await renderStep({ close });
 
-    await closeWith(screen, "30.000.000,00");
+    await closeWith(screen, "30000000,00");
 
     await expect.element(screen.getByText(INVALID_MESSAGE)).toBeVisible();
     expect(close).toHaveBeenCalledWith(3_000_000_000);
@@ -247,7 +244,7 @@ describe("LockedCashCount", () => {
     const close = vi.fn<Close>(async () => CLOSED);
     const { screen } = await renderStep({ close });
 
-    await closeWith(screen, "45.800,00");
+    await closeWith(screen, "45800,00");
 
     await expect.poll(() => close.mock.calls).toEqual([[4_580_000]]);
   });
@@ -263,20 +260,20 @@ describe("LockedCashCount", () => {
 
   it("keeps the message while the edited count is still invalid and clears it once it is valid", async () => {
     const { screen } = await renderStep();
-    await closeWith(screen, "abc");
+    await closeWith(screen, "5,");
     await expect.element(screen.getByText(INVALID_MESSAGE)).toBeVisible();
 
-    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "abd");
+    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "6,");
     await expect.element(screen.getByText(INVALID_MESSAGE)).toBeVisible();
 
-    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45.800,00");
+    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45800,00");
     await expect.element(screen.getByText(INVALID_MESSAGE)).not.toBeInTheDocument();
   });
 
   it("asks for a valid amount when the core refuses the counted cash", async () => {
     const { screen } = await renderStep({ close: async () => ({ kind: "invalid_counted_cash" }) });
 
-    await closeWith(screen, "45.800,00");
+    await closeWith(screen, "45800,00");
 
     await expect.element(screen.getByText(INVALID_MESSAGE)).toBeVisible();
   });
@@ -312,7 +309,7 @@ describe("LockedCashCount", () => {
     await expect.element(screen.getByText(OPEN_SALE_NOTICE)).not.toBeInTheDocument();
     await cancelled.getByRole("button", { name: "Listo" }).click();
     await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
-    await closeWith(screen, "45.800,00");
+    await closeWith(screen, "45800,00");
     await expect.poll(() => close).toHaveBeenCalledWith(4_580_000);
   });
 
@@ -357,7 +354,7 @@ describe("LockedCashCount", () => {
     await expect.element(screen.getByText(OPEN_SALE_NOTICE)).not.toBeInTheDocument();
     expect(cancelSale).toHaveBeenCalledWith(SALE_WITH_POINT_PAYMENT.id);
     await cancelled.getByRole("button", { name: "Listo" }).click();
-    await closeWith(screen, "45.800,00");
+    await closeWith(screen, "45800,00");
     await expect.poll(() => close).toHaveBeenCalledWith(4_580_000);
   });
 
@@ -436,7 +433,7 @@ describe("LockedCashCount", () => {
     const { screen } = await withOpenSale();
     await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
 
-    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45.800,00");
+    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45800,00");
 
     await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
     await expect.element(screen.getByRole("button", { name: "Cancelar la venta" })).toBeVisible();
@@ -451,7 +448,7 @@ describe("LockedCashCount", () => {
         .mockResolvedValue(CANCELLABLE_SALE),
     });
 
-    await closeWith(screen, "45.800,00");
+    await closeWith(screen, "45800,00");
 
     await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
     await expect.element(screen.getByRole("button", { name: "Cancelar la venta" })).toBeVisible();
@@ -466,7 +463,7 @@ describe("LockedCashCount", () => {
         .mockResolvedValue("unavailable"),
     });
 
-    await closeWith(screen, "45.800,00");
+    await closeWith(screen, "45800,00");
 
     await expect.element(screen.getByText("No se pudo leer la venta abierta")).toBeVisible();
   });
@@ -525,7 +522,7 @@ describe("LockedCashCount", () => {
     await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
     await expect.element(screen.getByText(OPEN_SALE_NOTICE)).not.toBeInTheDocument();
     expect(cancelSale).toHaveBeenCalledOnce();
-    await closeWith(screen, "45.800,00");
+    await closeWith(screen, "45800,00");
     await expect.poll(() => close).toHaveBeenCalledWith(4_580_000);
   });
 
@@ -681,7 +678,7 @@ describe("LockedCashCount", () => {
   ])("says the session could not be closed when %s", async (_case, close) => {
     const { screen } = await renderStep({ close });
 
-    await closeWith(screen, "45.800,00");
+    await closeWith(screen, "45800,00");
 
     await expect.element(screen.getByText(FAILED_NOTICE).first()).toBeVisible();
   });
@@ -695,7 +692,7 @@ describe("LockedCashCount", () => {
   ])("hands a refused closer back when the core answers $kind", async (refusal) => {
     const { screen, refused } = await renderStep({ close: async () => refusal });
 
-    await closeWith(screen, "45.800,00");
+    await closeWith(screen, "45800,00");
 
     await expect.poll(() => refused).toEqual([refusal]);
   });

@@ -84,7 +84,7 @@ test("saves the typed price in cents against the loaded version and reports it",
   const onSaved = vi.fn();
   const screen = await renderModal({ setSupplierPriceListRowPrice, onSaved });
 
-  await save(screen, "58.990,00");
+  await save(screen, "58990,00");
 
   expect(setSupplierPriceListRowPrice).toHaveBeenCalledWith("list-1", unpricedRow.id, {
     priceCents: 5_899_000,
@@ -98,7 +98,7 @@ test("asks for a valid price without calling the cloud", async () => {
     vi.fn<EditSupplierPriceListRowPriceModalServices["setSupplierPriceListRowPrice"]>();
   const screen = await renderModal({ setSupplierPriceListRowPrice });
 
-  const dialog = await save(screen, "abc");
+  const dialog = await save(screen, "5,");
 
   await expect.element(dialog.getByText("Ingresá un precio válido, como 1.234,50.")).toBeVisible();
   expect(setSupplierPriceListRowPrice).not.toHaveBeenCalled();
