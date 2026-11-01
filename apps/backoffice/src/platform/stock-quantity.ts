@@ -15,6 +15,10 @@ function formatMagnitude(quantity: number, saleUnit: SaleUnit): string {
     : `${formatNumber(units, { maximumFractionDigits: 0 })} u`;
 }
 
+export function stockQuantityUnits(quantity: number): number {
+  return quantity / STOCK_QUANTITY_PER_UNIT;
+}
+
 export function formatStockQuantity(quantity: number, saleUnit: SaleUnit): string {
   const magnitude = formatMagnitude(quantity, saleUnit);
   return quantity < 0 ? `${MINUS} ${magnitude}` : magnitude;
