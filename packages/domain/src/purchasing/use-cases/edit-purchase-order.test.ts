@@ -158,6 +158,23 @@ describe("editPurchaseOrder", () => {
     expect(store.transactionCount).toBe(0);
   });
 
+  it("refuses the lines when only some of them have a valid number of packages", async () => {
+    const store = storeWithDraft();
+
+    expect(
+      await editPurchaseOrder(
+        { store },
+        edit({
+          lines: [
+            { productId: "product-a", packages: 1, quantityPerPackage: 12_000 },
+            { productId: "product-b", packages: 0, quantityPerPackage: 10_000 },
+          ],
+        }),
+      ),
+    ).toEqual({ kind: "invalid_package_count" });
+    expect(store.orders()[0]?.lines[0]?.packages).toBe(3);
+  });
+
   it.each([0, -2, 2.5, MAX_STOCK_QUANTITY + 1])(
     "refuses %s as a number of packages",
     async (packages) => {

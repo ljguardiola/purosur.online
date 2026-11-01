@@ -154,6 +154,23 @@ describe("buildPurchaseOrders", () => {
     },
   );
 
+  it("refuses the choices when only some of them have a valid number of packages", async () => {
+    const store = storeWithCatalog();
+
+    expect(
+      await buildPurchaseOrders(
+        { store, clock: CLOCK },
+        build({
+          choices: [
+            { productId: "product-a", supplierId: "supplier-a", packages: 1 },
+            { productId: "product-b", supplierId: "supplier-a", packages: 0 },
+          ],
+        }),
+      ),
+    ).toEqual({ kind: "invalid_package_count" });
+    expect(store.orders()).toEqual([]);
+  });
+
   it("refuses a number of packages whose quantity is more than a movement can hold", async () => {
     const store = storeWithCatalog();
 

@@ -114,7 +114,9 @@ class FakePurchaseOrderStoreTransaction implements PurchaseOrderStoreTransaction
     this.beforeWrite("insertPurchaseOrderLine");
     const order = this.state.orders.find((row) => row.id === fields.purchaseOrderId);
     const { purchaseOrderId: _purchaseOrderId, position: _position, ...line } = fields;
-    order?.lines.push(line);
+    if (order) {
+      order.lines[fields.position - 1] = line;
+    }
   }
 
   async lockPurchaseOrder(locationId: string, orderId: string): Promise<LockPurchaseOrderResult> {
