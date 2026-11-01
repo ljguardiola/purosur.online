@@ -22,6 +22,7 @@ const YERBA: ReturnSaleLine = {
   id: "line-1",
   soldQuantity: 3,
   promotionId: null,
+  promotionKind: null,
   chargedAmount: 7500,
   returnedQuantity: 0,
   refundedAmount: 0,
@@ -30,6 +31,7 @@ const PROMOTED: ReturnSaleLine = {
   id: "line-2",
   soldQuantity: 4,
   promotionId: "two-for-one",
+  promotionKind: "BUY_N_PAY_M",
   chargedAmount: 4000,
   returnedQuantity: 0,
   refundedAmount: 0,
@@ -38,6 +40,7 @@ const CHEESE: ReturnSaleLine = {
   id: "line-3",
   soldQuantity: 1250,
   promotionId: null,
+  promotionKind: null,
   chargedAmount: 10_000,
   returnedQuantity: 250,
   refundedAmount: 2000,
@@ -189,13 +192,69 @@ describe("assessReturnDraft", () => {
     });
   });
 
-  it("returns a promotion line only whole, saying how much that is", () => {
+  it("returns a buy-N-pay-M line only whole for a change of mind, saying how much that is", () => {
     expect(
       refusalOf(sale(WITHIN_WINDOW), draftLine({ saleLineId: "line-2", quantity: 3 })),
     ).toEqual({
       saleLineId: "line-2",
       refusal: { kind: "promotion_whole_only", returnable: 4 },
     });
+  });
+
+  it("accepts part of a buy-N-pay-M line when the reason is a defect, refunding its share of what was charged", () => {
+    expect(
+      assessReturnDraft(sale(WITHIN_WINDOW), [
+        draftLine({ saleLineId: "line-2", quantity: 3, reason: "defective" }),
+      ])[0],
+    ).toMatchObject({ refusal: null, refundAmount: 3000 });
+  });
+
+  it("accepts part of a percentage-off line for any reason", () => {
+    const discounted = { ...PROMOTED, promotionId: "ten", promotionKind: "PERCENT_OFF" } as const;
+
+    expect(
+      refusalOf(
+        sale(WITHIN_WINDOW, [discounted]),
+        draftLine({ saleLineId: "line-2", quantity: 1, reason: "change_of_mind" }),
+      ),
+    ).toBeNull();
+  });
+
+  it.each(["change_of_mind", "defective"] as const)(
+    "returns whole, for a %s, a promotion line whose kind is unknown",
+    (reason) => {
+      const unknown = { ...PROMOTED, promotionKind: null };
+
+      expect(
+        refusalOf(
+          sale(WITHIN_WINDOW, [unknown]),
+          draftLine({ saleLineId: "line-2", quantity: 1, reason }),
+        ),
+      ).toEqual({
+        saleLineId: "line-2",
+        refusal: { kind: "promotion_whole_only", returnable: 4 },
+      });
+    },
+  );
+
+  it("refunds a buy-3-pay-2 line that charged $200 one third of that for the first unit, then only the difference for the next", () => {
+    const threeForTwo: ReturnSaleLine = {
+      ...PROMOTED,
+      soldQuantity: 3,
+      chargedAmount: 20_000,
+    };
+    const defective = draftLine({ saleLineId: "line-2", quantity: 1, reason: "defective" });
+
+    expect(assessReturnDraft(sale(WITHIN_WINDOW, [threeForTwo]), [defective])[0]).toMatchObject({
+      refusal: null,
+      refundAmount: 6667,
+    });
+    expect(
+      assessReturnDraft(
+        sale(WITHIN_WINDOW, [{ ...threeForTwo, returnedQuantity: 1, refundedAmount: 6667 }]),
+        [defective],
+      )[0],
+    ).toMatchObject({ refusal: null, refundAmount: 6666 });
   });
 
   it("refunds a promotion line whole as its share of what was charged, never its list price", () => {

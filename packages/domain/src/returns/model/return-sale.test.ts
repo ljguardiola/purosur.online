@@ -1,8 +1,11 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
+import type { DiscountBenefit } from "../../pricing/index.js";
 import type { SaleLine, SaleWithLines } from "../../sales/index.js";
 import { returnSaleLines, type SaleForReturn } from "./return-sale.js";
 
-function line(overrides: Partial<SaleLine> = {}): SaleLine {
+type LineForReturn = SaleLine & { promotionKind: DiscountBenefit["kind"] | null };
+
+function line(overrides: Partial<LineForReturn> = {}): LineForReturn {
   return {
     id: "line-1",
     productId: "yerba",
@@ -15,6 +18,7 @@ function line(overrides: Partial<SaleLine> = {}): SaleLine {
     promotions: [],
     manualAdjustment: null,
     promotionId: null,
+    promotionKind: null,
     discountAmount: 0,
     lineTotal: 7500,
     ...overrides,
@@ -22,7 +26,7 @@ function line(overrides: Partial<SaleLine> = {}): SaleLine {
 }
 
 function sale(
-  lines: SaleLine[],
+  lines: LineForReturn[],
   saleDiscount: SaleWithLines["saleDiscount"] = null,
 ): SaleWithLines {
   return {
@@ -43,7 +47,13 @@ describe("returnSaleLines", () => {
       returnSaleLines({
         sale: sale([
           line(),
-          line({ id: "line-2", quantity: 1250, lineTotal: 10_000, promotionId: "ten" }),
+          line({
+            id: "line-2",
+            quantity: 1250,
+            lineTotal: 10_000,
+            promotionId: "ten",
+            promotionKind: "PERCENT_OFF",
+          }),
         ]),
         returned: [],
       }),
@@ -55,6 +65,7 @@ describe("returnSaleLines", () => {
         saleUnit: "UNIT",
         soldQuantity: 3,
         promotionId: null,
+        promotionKind: null,
         chargedAmount: 7500,
         returnedQuantity: 0,
         refundedAmount: 0,
@@ -66,6 +77,7 @@ describe("returnSaleLines", () => {
         saleUnit: "UNIT",
         soldQuantity: 1250,
         promotionId: "ten",
+        promotionKind: "PERCENT_OFF",
         chargedAmount: 10_000,
         returnedQuantity: 0,
         refundedAmount: 0,
@@ -113,14 +125,23 @@ describe("returnSaleLines", () => {
               productName: "Yerba 1 kg",
               saleUnit: "UNIT",
               quantity: 3,
-              promotionId: null,
+              promotionId: "ten",
+              promotionKind: "BUY_N_PAY_M",
               lineTotal: 7500,
             },
           ],
         },
         returned: [],
       }),
-    ).toMatchObject([{ id: "line-1", soldQuantity: 3, chargedAmount: 7500 }]);
+    ).toMatchObject([
+      {
+        id: "line-1",
+        soldQuantity: 3,
+        chargedAmount: 7500,
+        promotionId: "ten",
+        promotionKind: "BUY_N_PAY_M",
+      },
+    ]);
   });
 });
 
