@@ -28,7 +28,7 @@ function line(overrides: Partial<LineForReturn> = {}): LineForReturn {
 function sale(
   lines: LineForReturn[],
   saleDiscount: SaleWithLines["saleDiscount"] = null,
-): SaleWithLines {
+): SaleWithLines & { lines: LineForReturn[] } {
   return {
     id: "sale-1",
     registerId: "register-1",
