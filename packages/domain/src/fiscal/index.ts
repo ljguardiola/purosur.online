@@ -89,6 +89,23 @@ export {
   deferredSaleSatisfiedEvent,
 } from "./model/deferred-sale-satisfied-event.js";
 export type {
+  ClosedMonthsWindow,
+  ExceptionShareCounts,
+  ExceptionShareMonthState,
+  RecordedExceptionShareBreach,
+} from "./model/exception-share.js";
+export {
+  closedMonthsWindow,
+  EXCEPTION_SHARE_MONTH_STATES,
+  exceptionShareMonthState,
+  exceptionShareTenthsOfPercent,
+  isExceptionShareBreach,
+  isMonthClosed,
+  monthOfDay,
+  monthsStartedInYear,
+  nonCompliantMonthsOfYear,
+} from "./model/exception-share.js";
+export type {
   AuthorizedCreditNoteC,
   AuthorizedFacturaC,
   CreditNoteCFiscalBlock,
