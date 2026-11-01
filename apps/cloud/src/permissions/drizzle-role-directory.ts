@@ -1,4 +1,4 @@
-import { compareCodeUnits, compareSpanishText } from "@purosur/domain";
+import { compareCodeUnits, compareOptionalNames, compareSpanishText } from "@purosur/domain";
 import type {
   RoleDirectory,
   RoleHolder,
@@ -23,7 +23,7 @@ class DrizzleRoleDirectory<TQueryResult extends PgQueryResultHKT> implements Rol
     roleRows.sort(
       (a, b) =>
         Number(b.isAdministrator) - Number(a.isAdministrator) ||
-        compareSpanishText(a.name ?? "", b.name ?? "") ||
+        compareOptionalNames(a.name, b.name) ||
         compareCodeUnits(a.id, b.id),
     );
 

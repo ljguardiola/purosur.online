@@ -999,6 +999,7 @@ export {
   argentinaCalendarDay,
   argentinaInstant,
   compareCodeUnits,
+  compareOptionalNames,
   compareSpanishText,
   FIXED_ARGENTINA_ZONE_RULES,
   isCalendarDay,
