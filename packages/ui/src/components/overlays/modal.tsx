@@ -83,28 +83,32 @@ function isCtrlEnter(event: CtrlEnterEvent): boolean {
   );
 }
 
-const fieldRoles = new Set([
-  "textbox",
-  "searchbox",
-  "combobox",
-  "spinbutton",
-  "slider",
-  "radio",
+const fieldRoles = new Set(["textbox", "searchbox", "combobox", "spinbutton", "radio"]);
+
+const nonFieldInputTypes = new Set([
   "checkbox",
-  "switch",
+  "range",
+  "file",
+  "color",
+  "button",
+  "submit",
+  "reset",
+  "image",
 ]);
 
 function isField(element: Element): boolean {
-  if (
-    element instanceof HTMLInputElement ||
-    element instanceof HTMLTextAreaElement ||
-    element instanceof HTMLSelectElement
-  ) {
+  // A select's trigger is a button that opens its list of options.
+  if (element.getAttribute("aria-haspopup") === "listbox") {
     return true;
   }
   const role = element.getAttribute("role");
-  // A select's trigger is a button that opens its list of options.
-  return (role !== null && fieldRoles.has(role)) || element.getAttribute("aria-haspopup") === "listbox";
+  if (role !== null) {
+    return fieldRoles.has(role);
+  }
+  if (element instanceof HTMLInputElement) {
+    return !nonFieldInputTypes.has(element.type);
+  }
+  return element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement;
 }
 
 // Runs before the dialog's own effect, which focuses the dialog only when nothing inside it holds
@@ -184,8 +188,8 @@ export function Modal(props: ModalProps) {
     ownFooter.querySelector<HTMLElement>('[data-variant="primary"]')?.click();
   }
 
-  // The dialog itself holds the focus until a field is chosen, and a key pressed there reaches none
-  // of the regions above.
+  // The dialog itself holds the focus in a modal with no field, and before a field that loads late
+  // appears; a key pressed there reaches none of the regions above.
   function listenToCtrlEnterOnDialog(dialog: HTMLElement | null) {
     if (dialog === null) {
       return;
