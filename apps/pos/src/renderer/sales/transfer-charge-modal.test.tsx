@@ -3,6 +3,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
+import { expectChargeSummaryInColumns } from "./test-support/charge-summary";
 import { TransferChargeModal } from "./transfer-charge-modal";
 
 const TOTAL = 476_000;
@@ -50,6 +51,12 @@ function deferred<T>() {
 }
 
 describe("TransferChargeModal", () => {
+  it("shows the sale total, what is paid and what is to be charged now side by side, the last one emphasized", async () => {
+    const { screen } = await renderModal();
+
+    await expectChargeSummaryInColumns(screen, ["Total de la venta", "Pagado", "A cobrar ahora"]);
+  });
+
   it("waits for the credit and shows what is owed", async () => {
     const { screen } = await renderModal();
 

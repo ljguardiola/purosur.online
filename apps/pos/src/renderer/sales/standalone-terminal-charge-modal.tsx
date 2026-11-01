@@ -151,10 +151,12 @@ export function StandaloneTerminalChargeModal({
     >
       <div className="flex flex-col gap-5">
         <SummaryRowGroup
+          variant="filled"
+          orientation="horizontal"
           rows={[
             { label: "Total de la venta", value: formatCents(total) },
             { label: "Pagado", value: formatCents(paid) },
-            { label: "A cobrar ahora", value: formatCents(pending) },
+            { label: "A cobrar ahora", value: formatCents(pending), emphasized: true },
           ]}
         />
         <InlineNotice

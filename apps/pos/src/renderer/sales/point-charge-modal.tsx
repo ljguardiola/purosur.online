@@ -160,10 +160,12 @@ export function PointChargeModal({
     >
       <div className="flex flex-col gap-5">
         <SummaryRowGroup
+          variant="filled"
+          orientation="horizontal"
           rows={[
             { label: "Total de la venta", value: formatCents(total) },
             { label: "Pagado", value: formatCents(paid) },
-            { label: "Saldo pendiente", value: formatCents(pending) },
+            { label: "Saldo pendiente", value: formatCents(pending), emphasized: true },
           ]}
         />
         <form.AppField name="amount" listeners={{ onChange: () => setNotice(undefined) }}>
