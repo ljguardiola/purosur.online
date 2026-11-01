@@ -1584,14 +1584,12 @@ test("takes the numeric keypad's dot as the decimal comma of a weight", async ()
     key: ".",
     text: ".",
     unmodifiedText: ".",
-    keyCode: 110,
     windowsVirtualKeyCode: 110,
   });
   await session.send("Input.dispatchKeyEvent", {
     type: "keyUp",
     code: "NumpadDecimal",
     key: ".",
-    keyCode: 110,
     windowsVirtualKeyCode: 110,
   });
   await userEvent.keyboard("5");
