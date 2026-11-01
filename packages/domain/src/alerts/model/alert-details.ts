@@ -250,6 +250,17 @@ interface ExceptionShareBreachDetail {
   nonCompliancePercent: number;
 }
 
+interface ExceptionShareSecondMonthAtRiskDetail {
+  fiscalAddressId: string;
+  fiscalAddressName: string;
+  month: string;
+  previousMonth: string;
+  exceptionCount: number;
+  totalCount: number;
+  shareTenthsOfPercent: number | null;
+  nonCompliancePercent: number;
+}
+
 export interface AlertDetails {
   backoffice_passkey_changed: PasskeyChangedDetail;
   backoffice_recovery_requested: RecoveryRequestedDetail;
@@ -287,6 +298,7 @@ export interface AlertDetails {
   fortnight_report_document_rejected: FortnightReportDocumentRejectedDetail;
   deferred_sale_due: DeferredSaleDueDetail;
   exception_share_breach: ExceptionShareBreachDetail;
+  exception_share_second_month_at_risk: ExceptionShareSecondMonthAtRiskDetail;
 }
 
 export type OpenAlertInput = {
