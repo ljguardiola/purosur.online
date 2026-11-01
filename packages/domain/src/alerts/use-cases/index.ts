@@ -53,6 +53,7 @@ export type {
 export { detectDeferredSaleDeadlines } from "./detect-deferred-sale-deadlines.js";
 export { detectExceptionShareBreaches } from "./detect-exception-share-breaches.js";
 export { detectExpiringLots } from "./detect-expiring-lots.js";
+export { detectSecondNonCompliantMonthRisks } from "./detect-second-month-risks.js";
 export { detectFortnightReportDeadlines } from "./detect-fortnight-report-deadlines.js";
 export { detectFortnightReportRegularizations } from "./detect-fortnight-report-regularizations.js";
 export { detectMissingOfflineAuthorizationCodes } from "./detect-missing-offline-authorization-codes.js";
@@ -92,6 +93,13 @@ export type {
   MissingOfflineAuthorizationCodeAlerts,
   MissingOfflineAuthorizationCodeDetectionPorts,
 } from "./missing-offline-authorization-code-ports.js";
+export type {
+  RunningExceptionShareCounts,
+  SecondMonthRiskAddress,
+  SecondMonthRiskAlerts,
+  SecondMonthRiskDetectionPorts,
+  SecondMonthRiskReader,
+} from "./second-month-risk-ports.js";
 export type { ObserveAlertConditionOutcome } from "./observe-alert-condition.js";
 export { observeAlertCondition } from "./observe-alert-condition.js";
 export type { OfflineAuthorizationCodeHoldingReader } from "./offline-authorization-code-holding-reader.js";
