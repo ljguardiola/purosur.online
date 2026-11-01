@@ -3,8 +3,8 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import { type ReportPeriodFilters, reportPeriodSearch } from "../shell/report-filters-search";
 import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
+import { type ReportPeriodFilters, reportPeriodSearch } from "../shell/report-filters-search";
 import { render } from "../shell/test-support/render-with-router";
 import { dateSegments, typeDate } from "../shell/test-support/report-dates";
 import { spyOnDownloads } from "../shell/test-support/spy-on-downloads";
@@ -246,7 +246,9 @@ test("downloads a spreadsheet with a sheet for each reason shown, for the period
 
   await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
 
-  await expect.poll(() => downloads.names).toEqual(["mermas-por-motivo-2026-10-01-2026-10-31.xlsx"]);
+  await expect
+    .poll(() => downloads.names)
+    .toEqual(["mermas-por-motivo-2026-10-01-2026-10-31.xlsx"]);
   const file = await readDownloadedXlsx(downloads.blobs[0]);
   expect(file.sheetNames).toEqual(["Resumen", "Mal estado", "Vencimiento"]);
   const summary = file.sheet(0);
