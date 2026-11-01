@@ -13,6 +13,7 @@ const purchaseOrderLineSchema = z.object({
   packages: z.int(),
   quantityPerPackage: z.int(),
   expectedPackagePriceCents: z.int().nullable(),
+  expectedTotalCents: z.int().nullable(),
 });
 
 export const purchaseOrderDetailSchema = z.object({
@@ -21,6 +22,10 @@ export const purchaseOrderDetailSchema = z.object({
   state: z.enum(PURCHASE_ORDER_STATES),
   createdAt: z.iso.datetime(),
   lines: z.array(purchaseOrderLineSchema),
+  expectedTotalCents: z.int(),
+  hasUnpricedLine: z.boolean(),
+  editable: z.boolean(),
+  cancellable: z.boolean(),
 });
 
 export type PurchaseOrderDetail = z.output<typeof purchaseOrderDetailSchema>;

@@ -454,7 +454,10 @@ export { orderSuggestionSchema } from "./purchasing/order-suggestion.js";
 export type { PurchaseChoices } from "./purchasing/purchase-choices.js";
 export { purchaseChoicesSchema } from "./purchasing/purchase-choices.js";
 export type { PurchaseOrderBuildBody } from "./purchasing/purchase-order-build.js";
-export { purchaseOrderBuildBodySchema } from "./purchasing/purchase-order-build.js";
+export {
+  purchaseOrderBuildBodySchema,
+  purchaseOrderBuildResponseSchema,
+} from "./purchasing/purchase-order-build.js";
 export type { PurchaseOrderDetail } from "./purchasing/purchase-order-detail.js";
 export { purchaseOrderDetailSchema } from "./purchasing/purchase-order-detail.js";
 export type { PurchaseOrderEditBody } from "./purchasing/purchase-order-edit.js";

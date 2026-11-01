@@ -15,6 +15,12 @@ export interface PricedOrderLine {
   expectedPackagePriceCents: number | null;
 }
 
+export function expectedLineTotal(line: PricedOrderLine): number | null {
+  return line.expectedPackagePriceCents === null
+    ? null
+    : line.packages * line.expectedPackagePriceCents;
+}
+
 export function expectedOrderTotal(lines: readonly PricedOrderLine[]): {
   expectedTotalCents: number;
   hasUnpricedLine: boolean;
@@ -22,10 +28,11 @@ export function expectedOrderTotal(lines: readonly PricedOrderLine[]): {
   let expectedTotalCents = 0;
   let hasUnpricedLine = false;
   for (const line of lines) {
-    if (line.expectedPackagePriceCents === null) {
+    const lineTotal = expectedLineTotal(line);
+    if (lineTotal === null) {
       hasUnpricedLine = true;
     } else {
-      expectedTotalCents += line.packages * line.expectedPackagePriceCents;
+      expectedTotalCents += lineTotal;
     }
   }
   return { expectedTotalCents, hasUnpricedLine };

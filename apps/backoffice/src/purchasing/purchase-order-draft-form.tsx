@@ -154,15 +154,17 @@ export function PurchaseOrderDraftForm({
         </form.AppField>
       </Card>
       <div className="flex items-center justify-end gap-3">
-        <Button
-          variant="secondary"
-          destructive
-          icon={<Trash2 />}
-          disabled={submitting}
-          onPress={onCancelOrder}
-        >
-          Cancelar pedido
-        </Button>
+        {order.cancellable ? (
+          <Button
+            variant="secondary"
+            destructive
+            icon={<Trash2 />}
+            disabled={submitting}
+            onPress={onCancelOrder}
+          >
+            Cancelar pedido
+          </Button>
+        ) : null}
         <Button
           variant="primary"
           icon={<Check />}

@@ -1,5 +1,6 @@
 import {
   purchaseOrderBuildBodySchema,
+  purchaseOrderBuildResponseSchema,
   purchaseOrderDetailSchema,
   purchaseOrderEditBodySchema,
   purchaseOrderListQuerySchema,
@@ -171,7 +172,9 @@ export function registerPurchaseOrdersRoutes<TQueryResult extends PgQueryResultH
       await sendRefusal(reply, outcome);
       return;
     }
-    await reply.code(201).send({ orderIds: outcome.orderIds });
+    await reply
+      .code(201)
+      .send(purchaseOrderBuildResponseSchema.parse({ orderIds: outcome.orderIds }));
   });
 
   app.put("/purchase-orders/:id/lines", writeGuard, async (request, reply) => {

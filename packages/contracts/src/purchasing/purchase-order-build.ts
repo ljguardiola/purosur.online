@@ -12,4 +12,6 @@ export const purchaseOrderBuildBodySchema = z.object({
   ),
 });
 
+export const purchaseOrderBuildResponseSchema = z.object({ orderIds: z.array(z.string()) });
+
 export type PurchaseOrderBuildBody = z.input<typeof purchaseOrderBuildBodySchema>;

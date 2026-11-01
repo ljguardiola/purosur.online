@@ -82,6 +82,7 @@ export type {
   NewFreightFields,
 } from "./freight-store.js";
 export type {
+  FoundPurchaseOrder,
   GetPurchaseOrderInput,
   GetPurchaseOrderOutcome,
 } from "./get-purchase-order.js";

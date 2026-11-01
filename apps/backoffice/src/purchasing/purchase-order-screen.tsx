@@ -25,7 +25,6 @@ import { CancelPurchaseOrderModal } from "./cancel-purchase-order-modal";
 import { PurchaseOrderDraftForm } from "./purchase-order-draft-form";
 import type { PurchaseOrderScreenServices } from "./purchase-order-services";
 import { purchaseOrderStatusOf } from "./purchase-order-status";
-import { lineTotalCents, orderTotalOf } from "./purchase-order-totals";
 import {
   usePurchaseChoicesQuery,
   usePurchaseOrderQuery,
@@ -101,8 +100,7 @@ export function PurchaseOrderScreen({
       header: "Total de la línea",
       align: "end",
       render: (line: OrderLine) => {
-        const total = lineTotalCents(line);
-        return total === null ? NO_PRICE : formatCents(total);
+        return line.expectedTotalCents === null ? NO_PRICE : formatCents(line.expectedTotalCents);
       },
     }),
   ] as const;
@@ -114,7 +112,6 @@ export function PurchaseOrderScreen({
   });
 
   const status = order === null ? null : purchaseOrderStatusOf(order.state);
-  const total = order === null ? null : orderTotalOf(order.lines);
 
   return (
     <>
@@ -137,7 +134,7 @@ export function PurchaseOrderScreen({
         {read?.kind === "not_found" && (
           <EmptyState icon={<FileX />} title="Este pedido ya no existe" variant="blank" />
         )}
-        {order !== null && status !== null && total !== null && (
+        {order !== null && status !== null && (
           <>
             <Card>
               <dl className="flex flex-wrap gap-x-10 gap-y-3">
@@ -158,8 +155,8 @@ export function PurchaseOrderScreen({
                 <div>
                   <dt className="text-detail text-text-subtle">Total esperado</dt>
                   <dd className="flex flex-col">
-                    <span>{formatCents(total.cents)}</span>
-                    {total.hasUnpricedLine ? (
+                    <span>{formatCents(order.expectedTotalCents)}</span>
+                    {order.hasUnpricedLine ? (
                       <span className="text-detail text-text-subtle">
                         Hay líneas sin precio de lista
                       </span>
@@ -168,7 +165,7 @@ export function PurchaseOrderScreen({
                 </div>
               </dl>
             </Card>
-            {order.state === "DRAFT" ? (
+            {order.editable ? (
               <PurchaseOrderDraftForm
                 order={order}
                 products={choices.status === "loaded" ? choices.value.products : NO_PRODUCTS}

@@ -14,7 +14,6 @@ import { creatableChoice } from "../platform/creatable-options";
 import { PackageCountInputs } from "./package-count-inputs";
 import { type PurchaseProducts, purchaseProductOptions } from "./purchase-form";
 import { emptyOrderLine, nextOrderLineId, type OrderLineValues } from "./purchase-order-form";
-import { lineTotalCents } from "./purchase-order-totals";
 
 type SavedLine = PurchaseOrderDetail["lines"][number];
 
@@ -138,7 +137,6 @@ function LinePricing({ saved }: { saved: SavedLine | undefined }) {
   if (saved === undefined) {
     return <p className="text-detail text-text-subtle">Se calcula al guardar</p>;
   }
-  const total = lineTotalCents(saved);
   return (
     <dl className="flex flex-wrap gap-x-8 gap-y-1 text-detail">
       <div>
@@ -151,7 +149,11 @@ function LinePricing({ saved }: { saved: SavedLine | undefined }) {
       </div>
       <div>
         <dt className="text-text-subtle">Total de la línea</dt>
-        <dd>{total === null ? "Sin precio de lista" : formatCents(total)}</dd>
+        <dd>
+          {saved.expectedTotalCents === null
+            ? "Sin precio de lista"
+            : formatCents(saved.expectedTotalCents)}
+        </dd>
       </div>
     </dl>
   );

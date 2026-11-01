@@ -4,10 +4,10 @@ import {
   type PurchaseOrderEditBody,
   type PurchaseOrderListQuery,
   type PurchaseOrderSummary,
+  purchaseOrderBuildResponseSchema,
   purchaseOrderDetailSchema,
   purchaseOrderListSchema,
 } from "@purosur/contracts";
-import { z } from "zod";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readCloudJson } from "../platform/read-cloud-json";
@@ -58,8 +58,6 @@ export type CancelPurchaseOrderOutcome =
   | { kind: "not_found" }
   | { kind: "not_cancellable" }
   | RequestRefusal;
-
-const purchaseOrdersBuiltSchema = z.object({ orderIds: z.array(z.string()) });
 
 function refusal(response: Response): RequestRefusal {
   if (response.status === 401) {
@@ -134,7 +132,9 @@ export async function buildPurchaseOrders(
     return { kind: "failed" };
   }
   if (response.ok) {
-    const built = purchaseOrdersBuiltSchema.safeParse(await response.json().catch(() => undefined));
+    const built = purchaseOrderBuildResponseSchema.safeParse(
+      await response.json().catch(() => undefined),
+    );
     return built.success ? { kind: "ok", orderIds: built.data.orderIds } : { kind: "failed" };
   }
   if (response.status === 400) {
