@@ -9,7 +9,7 @@ import {
 const REGISTER = "register-1";
 const BRANCH = "branch-a";
 const PRICE_LIST = "price-list-a";
-const CURRENT_READER = "1.0.1480";
+const CURRENT_READER = "1.0.1490";
 
 describe("what a register may pull", () => {
   it("is its branch's settings, first cash session, users, stock movements, refund completions, price list and prices, its own register, points of sale, point terminal, QR point of sale and offline number blocks, the zone rules, and everything shared by every branch", () => {
