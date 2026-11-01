@@ -1,16 +1,10 @@
 import type { ProductBrandAndNetContent, SaleUnit } from "../../catalog/index.js";
 import type { ReceiptType } from "../model/purchase.js";
-import type { Packaging, Supplier } from "./purchasing-store.js";
-
-export interface PackagingListing extends Packaging, ProductBrandAndNetContent {
-  productName: string;
-  productSaleUnit: SaleUnit;
-}
+import type { Supplier } from "./purchasing-store.js";
 
 export interface PurchaseLineListing {
   id: string;
   product: ProductBrandAndNetContent & { id: string; name: string; saleUnit: SaleUnit };
-  packaging: { id: string; name: string } | null;
   packages: number | null;
   quantity: number;
   costPaidCents: number;
@@ -32,8 +26,6 @@ export interface PurchaseListing {
 
 export interface PurchasingListReader {
   suppliers(): Promise<Supplier[]>;
-  packagings(): Promise<PackagingListing[]>;
-  packaging(packagingId: string): Promise<PackagingListing | undefined>;
   // The branch's purchases, most recently recorded first.
   purchases(locationId: string): Promise<PurchaseListing[]>;
   purchase(purchaseId: string): Promise<PurchaseListing | undefined>;

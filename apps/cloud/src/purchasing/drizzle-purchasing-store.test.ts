@@ -1,23 +1,18 @@
 import { ANOTHER_FICTIONAL_CUIT, FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import {
-  createPackaging,
   createSupplier,
-  deactivatePackaging,
   deactivateSupplier,
-  editPackaging,
   editSupplier,
-  PackagingNameConflict,
-  reactivatePackaging,
   reactivateSupplier,
   SupplierCuitConflict,
   SupplierNameConflict,
 } from "@purosur/domain/purchasing/use-cases";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { productPackagings, products, suppliers } from "../platform/db/schema.js";
+import { suppliers } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzlePurchasingStore } from "./drizzle-purchasing-store.js";
-import { insertActor, insertProduct } from "./test-support/purchasing-fixtures.js";
+import { insertActor } from "./test-support/purchasing-fixtures.js";
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -56,19 +51,6 @@ async function newSupplier(fields: { name?: string; cuit?: string | null } = {})
     throw new Error(`test setup: creating the supplier ended as ${outcome.kind}`);
   }
   return outcome.supplier;
-}
-
-async function newPackaging(productId: string, name = "Caja x 12", quantityPerPackage = 12_000) {
-  const outcome = await createPackaging(store(), {
-    productId,
-    name,
-    quantityPerPackage,
-    actorId,
-  });
-  if (outcome.kind !== "created") {
-    throw new Error(`test setup: creating the packaging ended as ${outcome.kind}`);
-  }
-  return outcome.packaging;
 }
 
 describe("the suppliers a purchasing store keeps", () => {
@@ -177,167 +159,6 @@ describe("the suppliers a purchasing store keeps", () => {
   });
 });
 
-describe("the purchase packagings a purchasing store keeps", () => {
-  it("stores a created packaging active at version 1 in its product's sale unit, written by the actor", async () => {
-    const product = await insertProduct(db, { name: "Arroz", saleUnit: "KG" });
-
-    const packaging = await newPackaging(product.id);
-
-    const [row] = await db
-      .select()
-      .from(productPackagings)
-      .where(eq(productPackagings.id, packaging.id));
-    expect(row).toMatchObject({
-      productId: product.id,
-      name: "Caja x 12",
-      quantityPerPackage: 12_000,
-      saleUnit: "KG",
-      active: true,
-      version: 1,
-      actorId,
-      updatedAt: CREATED_AT,
-    });
-  });
-
-  it("answers product_not_found for a product that does not exist", async () => {
-    const outcome = await createPackaging(store(), {
-      productId: "00000000-0000-4000-8000-000000000000",
-      name: "Caja",
-      quantityPerPackage: 12_000,
-      actorId,
-    });
-
-    expect(outcome).toEqual({ kind: "product_not_found" });
-  });
-
-  it("answers product_not_found for a deactivated product", async () => {
-    const product = await insertProduct(db, { name: "Retirado", active: false });
-
-    const outcome = await createPackaging(store(), {
-      productId: product.id,
-      name: "Caja",
-      quantityPerPackage: 12_000,
-      actorId,
-    });
-
-    expect(outcome).toEqual({ kind: "product_not_found" });
-    expect(await db.select().from(productPackagings)).toEqual([]);
-  });
-
-  it("refuses a name the product's other packaging has in another letter case, deactivated or not, but not another product's", async () => {
-    const arroz = await insertProduct(db, { name: "Arroz" });
-    const fideos = await insertProduct(db, { name: "Fideos" });
-    const first = await newPackaging(arroz.id);
-    await deactivatePackaging(store(), { id: first.id, actorId });
-
-    const sameProduct = await createPackaging(store(), {
-      productId: arroz.id,
-      name: "CAJA X 12",
-      quantityPerPackage: 6_000,
-      actorId,
-    });
-    const otherProduct = await createPackaging(store(), {
-      productId: fideos.id,
-      name: "Caja x 12",
-      quantityPerPackage: 6_000,
-      actorId,
-    });
-
-    expect(sameProduct).toEqual({ kind: "name_taken" });
-    expect(otherProduct.kind).toBe("created");
-  });
-
-  it("edits a packaging, bumping its version and answering a name its product already has as taken", async () => {
-    const product = await insertProduct(db, { name: "Arroz" });
-    const caja = await newPackaging(product.id);
-    await newPackaging(product.id, "Bolsa", 6_000);
-
-    const renamed = await editPackaging(store(), {
-      id: caja.id,
-      name: "Caja x 24",
-      quantityPerPackage: 24_000,
-      version: caja.version,
-      actorId,
-    });
-    const clashing = await editPackaging(store(), {
-      id: caja.id,
-      name: "bolsa",
-      quantityPerPackage: 24_000,
-      version: 2,
-      actorId,
-    });
-
-    expect(renamed).toMatchObject({
-      kind: "applied",
-      packaging: { name: "Caja x 24", version: 2 },
-    });
-    expect(clashing).toEqual({ kind: "name_taken" });
-    const [row] = await db
-      .select()
-      .from(productPackagings)
-      .where(eq(productPackagings.id, caja.id));
-    expect(row).toMatchObject({ name: "Caja x 24", quantityPerPackage: 24_000, version: 2 });
-  });
-
-  it("answers not_found when editing a packaging that does not exist", async () => {
-    const outcome = await editPackaging(store(), {
-      id: "00000000-0000-4000-8000-000000000000",
-      name: "Caja",
-      quantityPerPackage: 12_000,
-      version: 1,
-      actorId,
-    });
-
-    expect(outcome).toEqual({ kind: "not_found" });
-  });
-
-  it("deactivates and reactivates a packaging, bumping its version each time", async () => {
-    const product = await insertProduct(db, { name: "Arroz" });
-    const packaging = await newPackaging(product.id);
-
-    now = UPDATED_AT;
-    await deactivatePackaging(store(), { id: packaging.id, actorId });
-    const [deactivated] = await db
-      .select()
-      .from(productPackagings)
-      .where(eq(productPackagings.id, packaging.id));
-    await reactivatePackaging(store(), { id: packaging.id, actorId });
-    const [reactivated] = await db
-      .select()
-      .from(productPackagings)
-      .where(eq(productPackagings.id, packaging.id));
-
-    expect(deactivated).toMatchObject({ active: false, version: 2, updatedAt: UPDATED_AT });
-    expect(reactivated).toMatchObject({ active: true, version: 3 });
-  });
-
-  it("refuses reactivating a packaging stated in a sale unit its product no longer has, until an edit re-states it", async () => {
-    const product = await insertProduct(db, { name: "Arroz", saleUnit: "UNIT" });
-    const packaging = await newPackaging(product.id);
-    await deactivatePackaging(store(), { id: packaging.id, actorId });
-    await db.update(products).set({ saleUnit: "KG" }).where(eq(products.id, product.id));
-
-    const refused = await reactivatePackaging(store(), { id: packaging.id, actorId });
-    const edited = await editPackaging(store(), {
-      id: packaging.id,
-      name: packaging.name,
-      quantityPerPackage: packaging.quantityPerPackage,
-      version: 2,
-      actorId,
-    });
-    const reactivated = await reactivatePackaging(store(), { id: packaging.id, actorId });
-
-    expect(refused).toEqual({ kind: "sale_unit_changed" });
-    expect(edited).toMatchObject({ kind: "applied", packaging: { saleUnit: "KG", version: 3 } });
-    expect(reactivated).toEqual({ kind: "reactivated" });
-    const [row] = await db
-      .select()
-      .from(productPackagings)
-      .where(eq(productPackagings.id, packaging.id));
-    expect(row).toMatchObject({ saleUnit: "KG", active: true, version: 4 });
-  });
-});
-
 describe("a write that loses a uniqueness race", () => {
   it("raises SupplierNameConflict for a supplier name already stored in another letter case", async () => {
     await newSupplier();
@@ -407,41 +228,5 @@ describe("a write that loses a uniqueness race", () => {
         }),
       ),
     ).rejects.toBeInstanceOf(SupplierCuitConflict);
-  });
-
-  it("raises PackagingNameConflict for a packaging name its product already stores", async () => {
-    const product = await insertProduct(db, { name: "Arroz" });
-    await newPackaging(product.id);
-
-    await expect(
-      store().transaction((tx) =>
-        tx.insertPackaging({
-          productId: product.id,
-          name: "CAJA X 12",
-          quantityPerPackage: 6_000,
-          saleUnit: "UNIT",
-          actorId,
-        }),
-      ),
-    ).rejects.toBeInstanceOf(PackagingNameConflict);
-  });
-
-  it("raises PackagingNameConflict when an update renames a packaging onto its product's other name", async () => {
-    const product = await insertProduct(db, { name: "Arroz" });
-    await newPackaging(product.id);
-    const other = await newPackaging(product.id, "Bolsa", 6_000);
-
-    await expect(
-      store().transaction((tx) =>
-        tx.updatePackaging(other.id, {
-          name: "caja x 12",
-          quantityPerPackage: 6_000,
-          saleUnit: "UNIT",
-          active: true,
-          version: 2,
-          actorId,
-        }),
-      ),
-    ).rejects.toBeInstanceOf(PackagingNameConflict);
   });
 });

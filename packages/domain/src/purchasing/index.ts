@@ -22,11 +22,6 @@ export type {
   FreightToDistribute,
 } from "./model/freight-distribution.js";
 export { freightPerUnit } from "./model/freight-distribution.js";
-export {
-  isPackagingNameTooLong,
-  PACKAGING_NAME_MAX_LENGTH,
-  PRODUCTS_PACKAGINGS_MAY_BE_DEFINED_FOR,
-} from "./model/packaging.js";
 export type { ReceiptType } from "./model/purchase.js";
 export {
   hasPurchaseLines,

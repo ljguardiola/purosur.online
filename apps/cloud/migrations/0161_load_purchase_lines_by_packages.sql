@@ -1,0 +1,3 @@
+ALTER TABLE "purchase_lines" DROP CONSTRAINT "purchase_lines_packaging_iff_packages_check";--> statement-breakpoint
+ALTER TABLE "purchase_lines" ADD CONSTRAINT "purchase_lines_packaging_needs_packages_check" CHECK ("purchase_lines"."packaging_id" is null or "purchase_lines"."packages" is not null);--> statement-breakpoint
+DELETE FROM "role_permissions" WHERE "permission_key" = 'manage_purchase_presentations';
