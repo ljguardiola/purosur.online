@@ -15,6 +15,7 @@ export interface EventApplicationUnderTest {
   readonly db: TestDatabase["db"];
   readonly application: EventApplication;
   readonly refundFollowRequests: number;
+  asMigrator: TestDatabase["asMigrator"];
   enrollInstallation(options?: {
     registerName: string;
   }): ReturnType<typeof insertEnrolledInstallation>;
@@ -75,6 +76,9 @@ export function eventApplicationUnderTest(): EventApplicationUnderTest {
     },
     get refundFollowRequests() {
       return refundFollowRequests;
+    },
+    asMigrator(arrange) {
+      return testDatabase.asMigrator(arrange);
     },
     enrollInstallation(options) {
       return insertEnrolledInstallation(testDatabase.db, { now: APPLICATION_NOW, ...options });

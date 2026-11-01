@@ -164,11 +164,13 @@ describe("reading a sale of the branch to return it from another register", () =
         },
       ],
     };
-    await system.db.delete(saleLines).where(eq(saleLines.saleId, completed.id));
-    await system.db.insert(saleLines).values({
-      ...promoted,
-      saleId: completed.id,
-      promotionKind: "BUY_N_PAY_M",
+    await system.asMigrator(async () => {
+      await system.db.delete(saleLines).where(eq(saleLines.saleId, completed.id));
+      await system.db.insert(saleLines).values({
+        ...promoted,
+        saleId: completed.id,
+        promotionKind: "BUY_N_PAY_M",
+      });
     });
     await authorizeInvoice(selling.registerId, completed.id);
 
@@ -182,10 +184,12 @@ describe("reading a sale of the branch to return it from another register", () =
   it("leaves the kind unknown for a promoted line recorded before the kind was kept", async () => {
     const promotionId = randomUUID();
     const { asking, selling, completed } = await setUp();
-    await system.db
-      .update(saleLines)
-      .set({ promotionId, promotionKind: null })
-      .where(eq(saleLines.saleId, completed.id));
+    await system.asMigrator(() =>
+      system.db
+        .update(saleLines)
+        .set({ promotionId, promotionKind: null })
+        .where(eq(saleLines.saleId, completed.id)),
+    );
     await authorizeInvoice(selling.registerId, completed.id);
 
     const found = await reader().saleForReturnInBranchOf(asking.registerId, INVOICE);
