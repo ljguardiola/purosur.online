@@ -214,11 +214,7 @@ export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
       <div
         className={`${fieldBoxClassName} ${backofficeFieldHeightClassName} ${fieldBoxStateClassName({ disabled, invalid })}`}
       >
-        <AriaInput
-          ref={takeFocusWhenRestored}
-          className={inputClassName}
-          {...placeholderProps}
-        />
+        <AriaInput ref={takeFocusWhenRestored} className={inputClassName} {...placeholderProps} />
         {chosen?.status !== undefined ? (
           <Tag tone="neutral" variant="status">
             {chosen.status}
