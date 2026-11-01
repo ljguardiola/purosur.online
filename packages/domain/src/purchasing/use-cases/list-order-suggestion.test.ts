@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import { listOrderSuggestion } from "./list-order-suggestion.js";
+import type { ComparableProduct } from "./supplier-price-comparison-reader.js";
 import { FakeOrderSuggestionReader } from "./test-support/fake-order-suggestion-reader.js";
 
 const BRANCH = "branch-1";
@@ -59,7 +60,7 @@ function soldOf(productId: string, quantity: number, weightSource: "SCALE" | nul
 }
 
 function readerWith(fields: {
-  products?: (typeof YERBA | typeof QUESO)[];
+  products?: ComparableProduct[];
   offers?: ReturnType<typeof offer>[];
   sold?: ReturnType<typeof soldOf>[];
   stock?: { productId: string; quantity: number }[];
