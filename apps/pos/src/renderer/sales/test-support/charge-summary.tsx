@@ -8,7 +8,7 @@ type ChargeSummaryScreen = {
 
 const DRAWN_PROPERTIES = ["fontSize", "fontWeight", "color"] as const;
 
-function valueOf(label: Element): Element {
+function valueBeside(label: Element): Element {
   const value = label.nextElementSibling;
   expect(value).not.toBeNull();
   return value as Element;
@@ -19,7 +19,9 @@ export async function expectChargeSummaryInColumns(
   labels: readonly [string, string, string],
 ) {
   const shownLabels = labels.map((label) => screen.getByText(label, { exact: true }).element());
-  const boxes = shownLabels.map((label) => (label.parentElement as Element).getBoundingClientRect());
+  const boxes = shownLabels.map((label) =>
+    (label.parentElement as Element).getBoundingClientRect(),
+  );
   for (const [index, box] of boxes.entries()) {
     const previous = boxes[index - 1];
     if (previous !== undefined) {
@@ -42,10 +44,10 @@ export async function expectChargeSummaryInColumns(
     />,
   );
   for (const [index, label] of shownLabels.entries()) {
-    const referenceValue = valueOf(
+    const referenceValue = valueBeside(
       reference.getByText(referenceLabels[index] ?? "", { exact: true }).element(),
     );
-    const shownStyle = getComputedStyle(valueOf(label));
+    const shownStyle = getComputedStyle(valueBeside(label));
     const referenceStyle = getComputedStyle(referenceValue);
     for (const property of DRAWN_PROPERTIES) {
       expect(shownStyle[property], `${labels[index]} ${property}`).toBe(referenceStyle[property]);

@@ -3,8 +3,8 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
-import { TransferChargeModal } from "./transfer-charge-modal";
 import { expectChargeSummaryInColumns } from "./test-support/charge-summary";
+import { TransferChargeModal } from "./transfer-charge-modal";
 
 const TOTAL = 476_000;
 const COMPLETED: ChargeSaleByTransferOutcome = {

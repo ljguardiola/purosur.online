@@ -362,7 +362,9 @@ test("writes an emphasized horizontal row's value larger, in the accent color, b
   );
   const regular = screen.getByText("$ 12.000,00", { exact: true }).element() as HTMLElement;
   const emphasized = screen.getByText("$ 10.000,00", { exact: true }).element() as HTMLElement;
-  const emphasizedLabel = screen.getByText("A cobrar ahora", { exact: true }).element() as HTMLElement;
+  const emphasizedLabel = screen
+    .getByText("A cobrar ahora", { exact: true })
+    .element() as HTMLElement;
 
   expect(getComputedStyle(regular).fontSize).toBe("18px");
   expect(getComputedStyle(regular).color).toBe(tokenRgb("text"));
