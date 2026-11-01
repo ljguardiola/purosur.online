@@ -1,11 +1,11 @@
-import { PURCHASE_ORDER_STATES } from "@purosur/domain";
+import { ARGENTINA_TIME_ZONE, PURCHASE_ORDER_STATES } from "@purosur/domain";
 import { z } from "zod";
 
 export const purchaseOrderSummarySchema = z.object({
   id: z.string(),
   supplier: z.object({ id: z.string(), name: z.string() }),
   state: z.enum(PURCHASE_ORDER_STATES),
-  createdAt: z.iso.datetime(),
+  createdAt: z.iso.datetime().meta({ timeZone: ARGENTINA_TIME_ZONE }),
   lineCount: z.int(),
   expectedTotalCents: z.int(),
   hasUnpricedLine: z.boolean(),

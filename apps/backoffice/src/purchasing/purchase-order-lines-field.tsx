@@ -11,6 +11,7 @@ import {
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { Plus, Trash2 } from "lucide-react";
 import { creatableChoice } from "../platform/creatable-options";
+import { packageCountOf, quantityPerPackageOf } from "./package-count-form";
 import { PackageCountInputs } from "./package-count-inputs";
 import { type PurchaseProducts, purchaseProductOptions } from "./purchase-form";
 import { emptyOrderLine, nextOrderLineId, type OrderLineValues } from "./purchase-order-form";
@@ -109,7 +110,7 @@ export function PurchaseOrderLinesField({
                       change(line.id, { quantityPerPackage })
                     }
                   />
-                  <LinePricing saved={line.fromOrder ? saved : undefined} />
+                  <LinePricing line={line} saved={line.fromOrder ? saved : undefined} />
                 </Card>
               </fieldset>
             );
@@ -133,9 +134,18 @@ export function PurchaseOrderLinesField({
   );
 }
 
-function LinePricing({ saved }: { saved: SavedLine | undefined }) {
+const CALCULATED_ON_SAVING = "Se calcula al guardar";
+
+function keepsSavedQuantities(line: OrderLineValues, saved: SavedLine): boolean {
+  return (
+    packageCountOf(line.packages) === saved.packages &&
+    quantityPerPackageOf(line.quantityPerPackage, line.saleUnit) === saved.quantityPerPackage
+  );
+}
+
+function LinePricing({ line, saved }: { line: OrderLineValues; saved: SavedLine | undefined }) {
   if (saved === undefined) {
-    return <p className="text-detail text-text-subtle">Se calcula al guardar</p>;
+    return <p className="text-detail text-text-subtle">{CALCULATED_ON_SAVING}</p>;
   }
   return (
     <dl className="flex flex-wrap gap-x-8 gap-y-1 text-detail">
@@ -152,7 +162,9 @@ function LinePricing({ saved }: { saved: SavedLine | undefined }) {
         <dd>
           {saved.expectedTotalCents === null
             ? "Sin precio de lista"
-            : formatCents(saved.expectedTotalCents)}
+            : keepsSavedQuantities(line, saved)
+              ? formatCents(saved.expectedTotalCents)
+              : CALCULATED_ON_SAVING}
         </dd>
       </div>
     </dl>

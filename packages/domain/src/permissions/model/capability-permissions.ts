@@ -46,6 +46,7 @@ export const CAPABILITY_PERMISSIONS = {
   ],
   suppliers: ["manage_suppliers"],
   purchases: ["record_purchases"],
+  purchase_choices: ["record_purchases", "manage_purchase_orders"],
   freights: ["manage_freight"],
   recipes: ["manage_recipes"],
   batches: ["manage_batches"],

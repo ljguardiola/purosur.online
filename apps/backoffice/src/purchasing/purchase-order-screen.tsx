@@ -8,6 +8,7 @@ import {
   formatCents,
   formatNumber,
   formatSaleUnitQuantity,
+  InlineNotice,
   LoadFailure,
   LoadingPlaceholder,
   StatusIndicator,
@@ -15,13 +16,13 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
-import { ArrowLeft, Check, FileX } from "lucide-react";
+import { ArrowLeft, Check, FileX, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
-import { formatDisplayDate } from "../platform/display-date";
 import { AreaTopBar } from "../shell/area-top-bar";
 import { ScreenLayout } from "../shell/screen-layout";
 import { CancelPurchaseOrderModal } from "./cancel-purchase-order-modal";
+import { formatPurchaseOrderCreatedDay } from "./purchase-order-created-day";
 import { PurchaseOrderDraftForm } from "./purchase-order-draft-form";
 import type { PurchaseOrderScreenServices } from "./purchase-order-services";
 import { purchaseOrderStatusOf } from "./purchase-order-status";
@@ -63,6 +64,7 @@ export function PurchaseOrderScreen({
   const refreshPurchasing = useRefreshPurchasing();
   const [cancelTarget, setCancelTarget] = useState<PurchaseOrderDetail | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
+  const [editRefused, setEditRefused] = useState(false);
 
   const read = data.status === "loaded" ? data.value : null;
   const order = read?.kind === "found" ? read.order : null;
@@ -134,6 +136,14 @@ export function PurchaseOrderScreen({
         {read?.kind === "not_found" && (
           <EmptyState icon={<FileX />} title="Este pedido ya no existe" variant="blank" />
         )}
+        {editRefused ? (
+          <InlineNotice
+            tone="error"
+            icon={<TriangleAlert />}
+            title="Este pedido ya no se puede editar"
+            description="Actualizamos el pedido con su estado actual."
+          />
+        ) : null}
         {order !== null && status !== null && (
           <>
             <Card>
@@ -144,7 +154,7 @@ export function PurchaseOrderScreen({
                 </div>
                 <div>
                   <dt className="text-detail text-text-subtle">Fecha de creación</dt>
-                  <dd>{formatDisplayDate(order.createdAt)}</dd>
+                  <dd>{formatPurchaseOrderCreatedDay(order.createdAt)}</dd>
                 </div>
                 <div>
                   <dt className="text-detail text-text-subtle">Estado</dt>
@@ -171,7 +181,11 @@ export function PurchaseOrderScreen({
                 products={choices.status === "loaded" ? choices.value.products : NO_PRODUCTS}
                 productsStatus={choices.status}
                 services={services}
-                onSaved={() => setNotice("saved")}
+                onSaved={() => {
+                  setEditRefused(false);
+                  setNotice("saved");
+                }}
+                onNotEditable={() => setEditRefused(true)}
                 onCancelOrder={() => setCancelTarget(order)}
                 onSessionEnded={onSessionEnded}
               />

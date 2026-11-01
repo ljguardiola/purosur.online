@@ -11,12 +11,12 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
-import { ClipboardList, Eye } from "lucide-react";
+import { ClipboardList, Eye, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
-import { formatDisplayDate } from "../platform/display-date";
 import { AreaTopBar } from "../shell/area-top-bar";
 import { ScreenLayout } from "../shell/screen-layout";
+import { formatPurchaseOrderCreatedDay } from "./purchase-order-created-day";
 import { purchaseOrderStatusOf } from "./purchase-order-status";
 import type { PurchaseOrdersFilters } from "./purchase-orders-filters";
 import type { PurchaseOrdersScreenServices } from "./purchase-orders-services";
@@ -73,7 +73,7 @@ export function PurchaseOrdersScreen({
     dataColumn({
       id: "createdAt",
       header: "Fecha de creación",
-      render: (order: PurchaseOrderSummary) => formatDisplayDate(order.createdAt),
+      render: (order: PurchaseOrderSummary) => formatPurchaseOrderCreatedDay(order.createdAt),
     }),
     dataColumn({
       id: "lines",
@@ -140,11 +140,20 @@ export function PurchaseOrdersScreen({
         aria-label="Pedidos de compra"
         table={table}
         {...cloudTableState(data, "los pedidos")}
-        empty={{
-          icon: <ClipboardList />,
-          title: "Todavía no hay pedidos",
-          variant: "blank",
-        }}
+        empty={
+          stateFilter === "ALL"
+            ? {
+                icon: <ClipboardList />,
+                title: "Todavía no hay pedidos",
+                variant: "blank",
+              }
+            : {
+                icon: <Search />,
+                title: "Sin resultados",
+                description: "Probá con otro estado.",
+                variant: "filtered",
+              }
+        }
         footer={
           shownCount === 0 ? undefined : (
             <p className="text-text-subtle text-detail">

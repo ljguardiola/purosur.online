@@ -1,4 +1,4 @@
-import { cheapestOffer, type SaleUnit, supplierOfferPrice } from "@purosur/domain";
+import type { SaleUnit } from "@purosur/domain";
 import type {
   LockedPurchaseOrder,
   LockProductResult,
@@ -53,26 +53,16 @@ class DrizzlePurchaseOrderStoreTransaction<TQueryResult extends PgQueryResultHKT
       : { kind: "not_found" };
   }
 
-  async currentOffer(
-    supplierId: string,
-    productId: string,
-  ): Promise<SupplierProductOffer | undefined> {
-    const [product] = await this.tx
-      .select({ saleUnit: products.saleUnit })
-      .from(products)
-      .where(eq(products.id, productId));
-    if (!product) {
-      return undefined;
-    }
-    const offers = (await latestSupplierOffers(this.tx, [productId])).filter(
-      (offer) => offer.supplier.id === supplierId,
-    );
-    const priced = offers.flatMap((offer) => {
-      const price = supplierOfferPrice(offer, product.saleUnit as SaleUnit);
-      return price.kind === "priced" ? [{ offer, pricePerSaleUnit: price.pricePerSaleUnit }] : [];
-    });
-    const chosen = cheapestOffer(priced)?.offer ?? offers[0];
-    return chosen && { link: chosen.link, packagePriceCents: chosen.priceCents };
+  async supplierOffers(supplierId: string, productId: string): Promise<SupplierProductOffer[]> {
+    const offers = await latestSupplierOffers(this.tx, [productId]);
+    return offers
+      .filter((offer) => offer.supplier.id === supplierId)
+      .map(({ link, priceCents, pricesIncludeVat, vatRate }) => ({
+        link,
+        priceCents,
+        pricesIncludeVat,
+        vatRate,
+      }));
   }
 
   async insertDraftPurchaseOrder(fields: NewPurchaseOrderFields): Promise<{ id: string }> {

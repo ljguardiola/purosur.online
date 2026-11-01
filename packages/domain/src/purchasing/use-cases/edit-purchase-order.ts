@@ -3,7 +3,7 @@ import { isMovementQuantity } from "../../stock/index.js";
 import { mayBePurchased } from "../model/purchase.js";
 import { isPackageCount, packagedQuantity } from "../model/purchase-line.js";
 import { mayBeEdited } from "../model/purchase-order.js";
-import { isLinkCurrent } from "../model/supplier-item.js";
+import { supplierOfferToOrder } from "../model/supplier-offer.js";
 import type { PurchaseOrderLineFields, PurchaseOrderStore } from "./purchase-order-store.js";
 
 export interface EditedPurchaseOrderLine {
@@ -83,9 +83,11 @@ export async function editPurchaseOrder(
       }
       let expectedPackagePriceCents = keptPrices.get(productId) ?? null;
       if (!keptPrices.has(productId)) {
-        const offer = await tx.currentOffer(order.supplierId, productId);
-        expectedPackagePriceCents =
-          offer && isLinkCurrent(offer.link, saleUnit) ? offer.packagePriceCents : null;
+        const offer = supplierOfferToOrder(
+          await tx.supplierOffers(order.supplierId, productId),
+          saleUnit,
+        );
+        expectedPackagePriceCents = offer?.priceCents ?? null;
       }
       lines.push({ productId, packages, quantityPerPackage, expectedPackagePriceCents });
     }

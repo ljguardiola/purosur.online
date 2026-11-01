@@ -69,14 +69,25 @@ export function purchaseOrderEditRequestFrom({
   return { lines: lines.map(lineRequestFrom) };
 }
 
+const orderLineSchema = purchaseOrderEditBodySchema.shape.lines.element;
+
+function packagesProblem(packages: number): string | null {
+  if (Number.isNaN(packages)) {
+    return "Ingresá cuántos paquetes pedir, en un número entero.";
+  }
+  if (orderLineSchema.shape.packages.safeParse(packages).success) {
+    return null;
+  }
+  return packages < 1
+    ? "Ingresá cuántos paquetes pedir, en un número entero mayor a cero."
+    : "Ingresá menos paquetes; son más de los que se pueden pedir.";
+}
+
 function lineProblem(line: OrderLineValues): string {
   if (line.productId === null) {
     return "Elegí el producto.";
   }
-  if (Number.isNaN(packageCountOf(line.packages))) {
-    return "Ingresá cuántos paquetes pedir, en un número entero.";
-  }
-  return quantityMessage(line.saleUnit);
+  return packagesProblem(packageCountOf(line.packages)) ?? quantityMessage(line.saleUnit);
 }
 
 export function purchaseOrderLinesMessage({ lines }: PurchaseOrderFormValues): string {
@@ -84,8 +95,7 @@ export function purchaseOrderLinesMessage({ lines }: PurchaseOrderFormValues): s
     return "Agregá al menos una línea.";
   }
   const index = lines.findIndex(
-    (line) =>
-      !purchaseOrderEditBodySchema.shape.lines.element.safeParse(lineRequestFrom(line)).success,
+    (line) => !orderLineSchema.safeParse(lineRequestFrom(line)).success,
   );
   const failing = lines[index];
   return failing === undefined

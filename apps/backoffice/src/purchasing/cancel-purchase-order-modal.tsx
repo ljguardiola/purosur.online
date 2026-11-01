@@ -153,7 +153,7 @@ export function CancelPurchaseOrderModal({
             tone="error"
             icon={<TriangleAlert />}
             title="Este pedido ya no se puede cancelar"
-            description="Actualizamos el pedido con su estado actual."
+            description="Actualizá el pedido para ver su estado actual."
           />
         )}
         {notice?.kind === "notFound" && (

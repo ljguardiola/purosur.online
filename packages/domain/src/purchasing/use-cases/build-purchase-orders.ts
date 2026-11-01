@@ -3,7 +3,7 @@ import type { Clock } from "../../shared/index.js";
 import { isMovementQuantity } from "../../stock/index.js";
 import { mayBePurchased, mayBePurchasedFrom } from "../model/purchase.js";
 import { isPackageCount, packagedQuantity } from "../model/purchase-line.js";
-import { isLinkCurrent } from "../model/supplier-item.js";
+import { supplierOfferToOrder } from "../model/supplier-offer.js";
 import type { PurchaseOrderLineFields, PurchaseOrderStore } from "./purchase-order-store.js";
 
 export interface PurchaseOrderChoice {
@@ -77,8 +77,8 @@ export async function buildPurchaseOrders(
     const linesBySupplier = new Map<string, PurchaseOrderLineFields[]>();
     for (const { productId, supplierId, packages } of input.choices) {
       const { saleUnit } = products.get(productId) as { saleUnit: SaleUnit };
-      const offer = await tx.currentOffer(supplierId, productId);
-      if (!offer || !isLinkCurrent(offer.link, saleUnit)) {
+      const offer = supplierOfferToOrder(await tx.supplierOffers(supplierId, productId), saleUnit);
+      if (!offer) {
         return { kind: "offer_unavailable", productId, supplierId };
       }
       if (!isMovementQuantity(saleUnit, packagedQuantity(packages, offer.link.quantity))) {
@@ -89,7 +89,7 @@ export async function buildPurchaseOrders(
         productId,
         packages,
         quantityPerPackage: offer.link.quantity,
-        expectedPackagePriceCents: offer.packagePriceCents,
+        expectedPackagePriceCents: offer.priceCents,
       });
       linesBySupplier.set(supplierId, lines);
     }

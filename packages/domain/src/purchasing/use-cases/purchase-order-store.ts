@@ -21,11 +21,15 @@ export interface NewPurchaseOrderLineFields extends PurchaseOrderLineFields {
   position: number;
 }
 
-// What a supplier's confirmed lists say about the item it has linked to a product: the quantity
-// the link states for each package, and the package price as the list prints it.
+// What a supplier's confirmed lists say about an item it has linked to a product: the quantity
+// the link states for each package, and the package price of the item's latest list as the list
+// prints it.
 export interface SupplierProductOffer {
   link: { quantity: number; saleUnit: SaleUnit; relinkRequired: boolean };
-  packagePriceCents: number;
+  priceCents: number;
+  pricesIncludeVat: boolean;
+  // In basis points, null for an item whose list prices include VAT.
+  vatRate: number | null;
 }
 
 export interface LockedPurchaseOrder {
@@ -42,8 +46,8 @@ export type LockPurchaseOrderResult =
 export interface PurchaseOrderStoreTransaction {
   lockSupplier(supplierId: string): Promise<LockSupplierResult>;
   holdPurchasedProduct(productId: string): Promise<LockProductResult>;
-  // The offer is undefined when the supplier has no item linked to the product.
-  currentOffer(supplierId: string, productId: string): Promise<SupplierProductOffer | undefined>;
+  // One offer for each item the supplier has linked to the product, smallest package first.
+  supplierOffers(supplierId: string, productId: string): Promise<SupplierProductOffer[]>;
   insertDraftPurchaseOrder(fields: NewPurchaseOrderFields): Promise<{ id: string }>;
   insertPurchaseOrderLine(fields: NewPurchaseOrderLineFields): Promise<void>;
   // Holds the row of an order of the branch; an order of another branch is not found.

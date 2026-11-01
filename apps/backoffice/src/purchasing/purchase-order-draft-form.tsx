@@ -25,6 +25,7 @@ type PurchaseOrderDraftFormProps = {
   productsStatus: LoadStatus;
   services: PurchaseOrderDraftFormServices;
   onSaved: () => void;
+  onNotEditable: () => void;
   onCancelOrder: () => void;
   onSessionEnded: () => void;
 };
@@ -32,7 +33,6 @@ type PurchaseOrderDraftFormProps = {
 type Notice =
   | { kind: "attemptFailed" }
   | { kind: "rateLimited"; retryAfterSeconds: number }
-  | { kind: "notEditable" }
   | { kind: "notFound" }
   | { kind: "productNotPurchasable" };
 
@@ -42,6 +42,7 @@ export function PurchaseOrderDraftForm({
   productsStatus,
   services,
   onSaved,
+  onNotEditable,
   onCancelOrder,
   onSessionEnded,
 }: PurchaseOrderDraftFormProps) {
@@ -74,7 +75,7 @@ export function PurchaseOrderDraftForm({
           sendToMyAccount();
           return;
         case "not_editable":
-          setNotice({ kind: "notEditable" });
+          onNotEditable();
           void refreshPurchasing();
           return;
         case "not_found":
@@ -114,14 +115,6 @@ export function PurchaseOrderDraftForm({
           icon={<ShieldX />}
           title="Demasiadas solicitudes"
           description={retryAfterDetail(notice.retryAfterSeconds)}
-        />
-      )}
-      {notice?.kind === "notEditable" && (
-        <InlineNotice
-          tone="error"
-          icon={<TriangleAlert />}
-          title="Este pedido ya no se puede editar"
-          description="Actualizamos el pedido con su estado actual."
         />
       )}
       {notice?.kind === "notFound" && (
