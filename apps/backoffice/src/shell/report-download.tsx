@@ -70,7 +70,10 @@ export function ReportDownload({
   );
 }
 
-export type RegisterReportDownloadProps = Omit<ReportDownloadProps, "workbook"> & {
+export type RegisterReportDownloadProps = Omit<
+  ReportDownloadProps,
+  "workbook" | "writeSpreadsheet"
+> & {
   registerLabel: string | undefined;
   workbook: (registerLabel: string) => Workbook | null;
 };
