@@ -10,11 +10,14 @@ import {
 } from "@purosur/ui";
 import { Truck } from "lucide-react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import { ReportDownload } from "../shell/report-download";
+import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import type { ReportPeriodFilters } from "../shell/report-filters-search";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
 import type { FreightReportScreenServices } from "./freight-report-services";
+import { freightReportSpreadsheet } from "./freight-report-spreadsheet";
 import { useFreightReportQuery } from "./purchasing-queries";
 import { reportMonthText } from "./report-month-text";
 
@@ -24,6 +27,8 @@ export type FreightReportScreenProps = {
   onSessionEnded: () => void;
   services: FreightReportScreenServices;
 };
+
+const SCREEN_TITLE = "Flete por período";
 
 type FreightRow = FreightByPeriodBody["months"][number];
 
@@ -73,13 +78,20 @@ export function FreightReportScreen({
 
   return (
     <ScreenLayout
-      topBar={<ScreenTopBar eyebrow="Reportes · Compras" title="Flete por período" />}
+      topBar={<ScreenTopBar eyebrow="Reportes · Compras" title={SCREEN_TITLE} />}
       bodyClassName="gap-4 p-6"
     >
       <ReportFilters
         filters={filters}
         onFiltersChange={onFiltersChange}
         answeredPeriod={shown?.range}
+        trailing={
+          <ReportDownload
+            dataStatus={data.status}
+            workbook={() => (shown ? freightReportSpreadsheet(shown) : null)}
+            fileName={shown ? reportFileName(SCREEN_TITLE, shown.range) : ""}
+          />
+        }
       />
       {data.status === "failed" ? null : (
         <div className="grid grid-cols-2 gap-4">
@@ -95,7 +107,7 @@ export function FreightReportScreen({
         </div>
       )}
       <Table
-        aria-label="Flete por período"
+        aria-label={SCREEN_TITLE}
         table={table}
         {...cloudTableState(data, "el flete por período")}
         empty={{
