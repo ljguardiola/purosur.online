@@ -10,7 +10,7 @@ export type ItemsSort<T> = {
 type ItemParent<T> = (item: T) => string | null;
 
 export function textOrder<T>(text: (item: T) => string): ItemOrder<T> {
-  const collator = new Intl.Collator("es-AR");
+  const collator = new Intl.Collator("es-AR", { numeric: true });
   return (a, b) => collator.compare(text(a), text(b));
 }
 
