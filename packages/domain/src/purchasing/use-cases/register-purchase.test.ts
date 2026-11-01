@@ -472,6 +472,17 @@ describe("registerPurchase", () => {
       expect(outcome).toEqual({ kind: "invalid_quantity", lineIndex: 1 });
     });
 
+    it("refuses packages holding a fraction of a unit each although together they make whole units", async () => {
+      const store = storeWithCatalog();
+
+      const outcome = await registerPurchase(
+        { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
+        purchase({ lines: [packagesLine({ packages: 2, quantityPerPackage: 1_500 })] }),
+      );
+
+      expect(outcome).toEqual({ kind: "invalid_quantity", lineIndex: 0 });
+    });
+
     it("registers packages of a product sold by the kilo holding a fraction of a kilo each", async () => {
       const store = storeWithCatalog();
 
