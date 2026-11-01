@@ -168,11 +168,7 @@ describe("cashSessionClosesSummary", () => {
     const closes = [aClose({ id: "a" }), aClose({ id: "B" }), aClose({ id: "a10" })];
 
     for (const input of [closes, [...closes].reverse()]) {
-      expect(cashSessionClosesSummary(input).closes.map(({ id }) => id)).toEqual([
-        "B",
-        "a",
-        "a10",
-      ]);
+      expect(cashSessionClosesSummary(input).closes.map(({ id }) => id)).toEqual(["B", "a", "a10"]);
     }
   });
 

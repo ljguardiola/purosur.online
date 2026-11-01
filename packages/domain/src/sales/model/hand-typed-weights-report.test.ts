@@ -65,9 +65,7 @@ describe("weighedLinesByCashier", () => {
       group({ cashierId, cashierName, weightSource: "MANUAL", lines: 1 });
 
     expect(
-      weighedLinesByCashier([tie("u1", "Caja 10"), tie("u2", "Caja 2")]).map(
-        (row) => row.cashierName,
-      ),
+      weighedLinesByCashier([tie("u1", "Caja 10"), tie("u2", "Caja 2")]).map((row) => row.name),
     ).toEqual(["Caja 2", "Caja 10"]);
   });
 

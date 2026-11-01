@@ -169,9 +169,12 @@ describe("salesOfCashiers by name in every arrival order", () => {
     cashier("u1", "Ángel", 1, 1, 100),
   ];
 
-  it.each(permutationsOf(rows))("orders names as a Spanish reader does for arrival %#", (...arrival) => {
-    expect(salesOfCashiers(arrival).map((row) => row.name)).toEqual(["a", "Ángel", "B", "Zoe"]);
-  });
+  it.each(permutationsOf(rows))(
+    "orders names as a Spanish reader does for arrival %#",
+    (...arrival) => {
+      expect(salesOfCashiers(arrival).map((row) => row.name)).toEqual(["a", "Ángel", "B", "Zoe"]);
+    },
+  );
 });
 
 describe("cashierSalesTotals", () => {
