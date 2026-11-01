@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_PRODUCT_FORM } from "../platform/product-form";
+import { EMPTY_PRODUCT_FORM, NO_BRAND } from "../platform/product-form";
 import {
   CATALOG_PRODUCT_MESSAGES,
   catalogProductRequestFrom,
   EMPTY_CATALOG_PRODUCT_FORM,
   editedProductBarcodeProblemMessage,
   PRODUCT_EDIT_MESSAGES,
+  productCloneFormValues,
   productEditRequestFrom,
   productFormValues,
   reactivationBarcodeTakenError,
@@ -156,5 +157,83 @@ describe("a product's coverage days in the form", () => {
     expect(
       CATALOG_PRODUCT_MESSAGES.coverageDays({ ...EMPTY_CATALOG_PRODUCT_FORM, coverageDays: "30" }),
     ).toBe("Revisá los días de cobertura.");
+  });
+});
+
+describe("productCloneFormValues", () => {
+  const brand = {
+    id: "b2a40000-0000-4000-8000-000000000001",
+    name: "Vitora",
+    active: true,
+    version: 1,
+    productCount: 3,
+  };
+  const tag = {
+    id: "7a600000-0000-4000-8000-000000000001",
+    name: "Sin TACC",
+    active: true,
+    version: 1,
+    productCount: 5,
+  };
+  const retiredTag = {
+    id: "7a600000-0000-4000-8000-000000000002",
+    name: "Sin colorantes",
+    active: false,
+    version: 2,
+    productCount: 1,
+  };
+  const product = {
+    id: "90d00000-0000-4000-8000-000000000009",
+    name: "Limonada",
+    categoryId: "ca7e0000-0000-4000-8000-000000000001",
+    categoryName: "Bebidas",
+    brandId: brand.id,
+    saleUnit: "UNIT" as const,
+    barcodes: ["7790987000015", "7790987000022"],
+    tagIds: [tag.id],
+    netContent: { quantity: 1.5, unit: "L" as const },
+    coverageDays: 21,
+    active: true,
+    labelCode: null,
+    labelModules: null,
+    version: 4,
+  };
+  const offered = { brands: [brand], tags: [tag, retiredTag] };
+
+  it("carries the product's fields without its barcodes or version", () => {
+    const values = productCloneFormValues(product, offered);
+
+    expect(values).toEqual({
+      name: "Limonada",
+      categoryId: "ca7e0000-0000-4000-8000-000000000001",
+      brandId: "b2a40000-0000-4000-8000-000000000001",
+      saleUnit: "UNIT",
+      netContent: { quantity: "1,5", unit: "L" },
+      barcodes: { codes: [], scan: "" },
+      tagIds: ["7a600000-0000-4000-8000-000000000001"],
+      coverageDays: "21",
+    });
+  });
+
+  it("leaves the brand and net content empty for a product without them", () => {
+    const values = productCloneFormValues({ ...product, brandId: null, netContent: null }, offered);
+
+    expect(values.brandId).toBe(NO_BRAND);
+    expect(values.netContent).toEqual(EMPTY_CATALOG_PRODUCT_FORM.netContent);
+  });
+
+  it("leaves the brand empty when the product's brand is no longer active", () => {
+    const values = productCloneFormValues(product, {
+      ...offered,
+      brands: [{ ...brand, active: false }],
+    });
+
+    expect(values.brandId).toBe(NO_BRAND);
+  });
+
+  it("keeps only the product's tags that are still active", () => {
+    const values = productCloneFormValues({ ...product, tagIds: [retiredTag.id, tag.id] }, offered);
+
+    expect(values.tagIds).toEqual([tag.id]);
   });
 });

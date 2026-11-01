@@ -1,9 +1,8 @@
 import type { CategorySummary } from "@purosur/contracts";
-import { FieldSizeProvider } from "@purosur/ui";
 import { beforeEach, expect, test, vi } from "vitest";
 import { type Locator, page, userEvent } from "vitest/browser";
-import { render } from "../shell/test-support/render-with-router";
-import { NewProductModal, type NewProductModalServices } from "./new-product-modal";
+import type { NewProductModalServices } from "./new-product-modal";
+import { createServices, renderNewProductModal } from "./test-support/new-product-modal";
 import { driedFruits, groceries, honey } from "./test-support/products";
 
 beforeEach(async () => {
@@ -17,36 +16,11 @@ const coldCuts: CategorySummary = {
   parentId: null,
 };
 
-function createServices(): NewProductModalServices {
-  return {
-    createProduct: vi.fn(),
-    createBrand: vi.fn(),
-    createCategory: vi.fn(),
-    createTag: vi.fn(),
-    generateInternalBarcode: vi.fn(),
-  };
-}
-
 async function renderModal(
   services: NewProductModalServices,
   categories: CategorySummary[] = [groceries, driedFruits],
 ) {
-  const screen = await render(
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <NewProductModal
-          open
-          onClose={() => {}}
-          onCreated={() => {}}
-          onSessionEnded={() => {}}
-          categories={categories}
-          brands={[]}
-          tags={[]}
-          services={services}
-        />
-      </main>
-    </FieldSizeProvider>,
-  );
+  const screen = await renderNewProductModal(services, { categories });
   const dialog = screen.getByRole("dialog", { name: "Nuevo producto" });
   await expect.element(dialog).toBeVisible();
   return dialog;
