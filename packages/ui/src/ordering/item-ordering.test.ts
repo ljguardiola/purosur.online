@@ -25,6 +25,18 @@ describe("textOrder", () => {
       "Oliva",
     ]);
   });
+
+  it("compares the numbers inside the texts by their value", () => {
+    const order = textOrder((text: string) => text);
+
+    expect(["Caja 10", "Lote 12", "Caja 2", "Lote 9", "Caja 1"].sort(order)).toEqual([
+      "Caja 1",
+      "Caja 2",
+      "Caja 10",
+      "Lote 9",
+      "Lote 12",
+    ]);
+  });
 });
 
 describe("codeUnitOrder", () => {
