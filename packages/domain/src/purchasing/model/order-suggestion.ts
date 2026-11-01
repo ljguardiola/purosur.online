@@ -65,10 +65,11 @@ export function expiryCapQuantity({
 function stepsToOrder(shortfall: Fraction, step: number, cap: Fraction | null): number {
   const stepSize = shortfall.denominator * BigInt(step);
   const roundedUp = (shortfall.numerator + stepSize - 1n) / stepSize;
-  if (cap === null || roundedUp * BigInt(step) * cap.denominator <= cap.numerator) {
+  if (cap === null) {
     return Number(roundedUp);
   }
-  return Number(cap.numerator / (cap.denominator * BigInt(step)));
+  const roundedDown = cap.numerator / (cap.denominator * BigInt(step));
+  return Number(roundedUp < roundedDown ? roundedUp : roundedDown);
 }
 
 export function packagesToCover(
