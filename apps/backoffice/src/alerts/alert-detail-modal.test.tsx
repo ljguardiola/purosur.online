@@ -2506,7 +2506,7 @@ test("warns that the month in progress may become a second consecutive one, with
   await expect
     .element(
       screen.getByText(
-        "En noviembre de 2026 van 3 de 80 comprobantes de este domicilio fiscal emitidos por excepción (CAEA), el 3,7 %. El mes anterior, octubre de 2026, ya llegó al 5 % o más: si noviembre de 2026 también llega, serían dos meses consecutivos y ARCA puede restringir el uso del CAEA, lo que comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Este aviso termina cuando cierra el mes.",
+        "En noviembre de 2026 se emitieron por excepción (CAEA) 3 de 80 comprobantes de este domicilio fiscal, el 3,7 %. El mes anterior, octubre de 2026, ya llegó al 5 % o más: si noviembre de 2026 también llega, serían dos meses consecutivos y ARCA puede restringir el uso del CAEA, lo que comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Este aviso termina cuando cierra el mes.",
         { exact: true },
       ),
     )
@@ -2542,7 +2542,12 @@ test("says a single comprobante in the singular in the warning about a second mo
   const screen = await renderModal(services);
 
   await expect
-    .element(screen.getByText(/van 1 de 1 comprobante de este domicilio fiscal.*el 100,0 %\./))
+    .element(
+      screen.getByText(
+        "En noviembre de 2026 se emitieron por excepción (CAEA) 1 de 1 comprobante de este domicilio fiscal, el 100,0 %. El mes anterior, octubre de 2026, ya llegó al 5 % o más: si noviembre de 2026 también llega, serían dos meses consecutivos y ARCA puede restringir el uso del CAEA, lo que comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Este aviso termina cuando cierra el mes.",
+        { exact: true },
+      ),
+    )
     .toBeVisible();
 });
 
