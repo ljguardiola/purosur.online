@@ -1,0 +1,61 @@
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import {
+  fiscalAddresses,
+  pointOfSaleClaims,
+  registerPointsOfSale,
+  registers,
+  users,
+} from "../../platform/db/schema.js";
+import { seededLocationId } from "../../test-support/seeded-location.js";
+
+type Db = PgDatabase<PgQueryResultHKT>;
+
+let nextPointOfSale = 1;
+
+export async function insertFiscalAddress(db: Db, name: string): Promise<string> {
+  const [fiscalAddress] = await db
+    .insert(fiscalAddresses)
+    .values({ name, streetAddress: "Calle Ficticia 123, CABA" })
+    .returning({ id: fiscalAddresses.id });
+  if (!fiscalAddress) {
+    throw new Error("test setup: seeding the fiscal address returned no row");
+  }
+  return fiscalAddress.id;
+}
+
+export async function insertRegisterAtFiscalAddress(
+  db: Db,
+  fiscalAddressId: string,
+  registerName: string,
+): Promise<string> {
+  const locationId = await seededLocationId(db);
+  const [actor] = await db
+    .insert(users)
+    .values({
+      firstName: "Ada Lucero",
+      email: `${registerName.replaceAll(" ", "-")}-${nextPointOfSale}@example.com`,
+      locationId,
+    })
+    .returning({ id: users.id });
+  const [register] = await db
+    .insert(registers)
+    .values({ locationId, name: registerName })
+    .returning({ id: registers.id });
+  if (!actor || !register) {
+    throw new Error("test setup: seeding the register returned no row");
+  }
+  const pointOfSaleNumber = nextPointOfSale++;
+  await db.insert(pointOfSaleClaims).values({
+    pointOfSaleNumber,
+    registerId: register.id,
+    mechanism: "real_time",
+    claimedBy: actor.id,
+  });
+  await db.insert(registerPointsOfSale).values({
+    registerId: register.id,
+    pointOfSaleNumber,
+    fiscalAddressId,
+    version: 1,
+  });
+  return register.id;
+}

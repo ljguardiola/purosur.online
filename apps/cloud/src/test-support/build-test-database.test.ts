@@ -35,6 +35,7 @@ import {
   deferredSales,
   deviceState,
   discounts,
+  exceptionShareBreaches,
   fiscalAddresses,
   fiscalRequests,
   fiscalTasks,
@@ -988,6 +989,14 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
     await db
       .insert(buyerIdentificationThresholds)
       .values({ amount: 1_000_000, validFrom: "2026-10-01", recordedBy: user.id });
+    await db.insert(exceptionShareBreaches).values({
+      fiscalAddressId: fiscalAddress.id,
+      month: "2026-09",
+      exceptionCount: 1,
+      totalCount: 10,
+      recordedAt: new Date("2026-10-01T12:00:00.000Z"),
+      updatedAt: new Date("2026-10-01T12:00:00.000Z"),
+    });
     await db.insert(buyerTaxStatusSets).values({
       paramsVersion: 1,
       options: [{ code: 901, description: "Condicion de prueba A", invoiceClass: "A" }],
