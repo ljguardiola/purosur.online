@@ -9,8 +9,11 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { Receipt } from "lucide-react";
+import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatDisplayDate } from "../platform/display-date";
+import { ReportDownload } from "../shell/report-download";
+import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import {
   type ReportFilters as ReportFiltersValue,
@@ -20,6 +23,7 @@ import type { ReportRegisterField } from "../shell/report-register-field";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
 import type { SalesByDayScreenServices } from "./sales-by-day-services";
+import { salesByDaySpreadsheet } from "./sales-by-day-spreadsheet";
 import { useSalesReportQuery } from "./sales-queries";
 
 export type SalesByDayScreenProps = {
@@ -33,6 +37,8 @@ export type SalesByDayScreenProps = {
 type SalesOfDay = SalesReportBody["days"][number];
 
 const NO_DAYS: SalesOfDay[] = [];
+
+const SCREEN_TITLE = "Ventas por día o por rango";
 
 const columns = [
   dataColumn({
@@ -62,6 +68,7 @@ export function SalesByDayScreen({
   services,
 }: SalesByDayScreenProps) {
   const registerChosen = filters.register !== "ALL";
+  const [registerLabel, setRegisterLabel] = useState("Todas");
   const data = useSalesReportQuery({
     query: reportQueryOf(filters),
     fetchSalesReport: services.fetchSalesReport,
@@ -73,7 +80,7 @@ export function SalesByDayScreen({
 
   return (
     <ScreenLayout
-      topBar={<ScreenTopBar eyebrow="Reportes" title="Ventas por día o por rango" />}
+      topBar={<ScreenTopBar eyebrow="Reportes" title={SCREEN_TITLE} />}
       bodyClassName="gap-4 p-6"
     >
       <ReportFilters
@@ -81,6 +88,21 @@ export function SalesByDayScreen({
         onFiltersChange={onFiltersChange}
         answeredPeriod={shown?.range}
         registerFilter={registerFilter}
+        onRegisterLabelChange={setRegisterLabel}
+        trailing={
+          <ReportDownload
+            dataStatus={data.status}
+            workbook={() =>
+              shown
+                ? salesByDaySpreadsheet(
+                    { ...shown, days: table.getRowModel().rows.map((row) => row.original) },
+                    registerLabel,
+                  )
+                : null
+            }
+            fileName={shown ? reportFileName(SCREEN_TITLE, shown.range) : ""}
+          />
+        }
       />
       {data.status === "failed" ? null : (
         <Card>

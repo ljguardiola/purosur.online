@@ -92,7 +92,9 @@ test("the spreadsheet writer and fflate load in a chunk of their own, only when 
   expect(writerChunks).toHaveLength(1);
   expect(downloadedOnOpening).not.toContain(SPREADSHEET_WRITER);
   expect(downloadedOnOpening.some((moduleId) => /[\\/]fflate[\\/]/.test(moduleId))).toBe(false);
-  expect(modulesDownloadedFrom(writerChunks).some((moduleId) => /[\\/]fflate[\\/]/.test(moduleId))).toBe(true);
+  expect(
+    modulesDownloadedFrom(writerChunks).some((moduleId) => /[\\/]fflate[\\/]/.test(moduleId)),
+  ).toBe(true);
 });
 
 test("the build carries the design system's screen-reader texts only in Spanish", () => {
