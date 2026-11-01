@@ -96,7 +96,6 @@ export {
   EXCEPTION_SHARE_MONTH_STATES,
   EXCEPTION_SHARE_NON_COMPLIANCE_PERCENT,
   exceptionShareTenthsOfPercent,
-  monthOfDay,
   nonCompliantMonthsOfYear,
 } from "./model/exception-share.js";
 export type {
