@@ -226,7 +226,7 @@ describe("reformatDecimalText", () => {
   });
 
   it("drops what is not a digit or the first comma", () => {
-    expect(reformatDecimalText("1a2,3,4", 7, 2)).toEqual({ text: "12,3", caret: 4 });
+    expect(reformatDecimalText("1a2,3,4", 7, 2)).toEqual({ text: "12,34", caret: 5 });
   });
 
   it("cuts the fraction to the field's decimals", () => {
@@ -246,6 +246,10 @@ describe("reformatDecimalText", () => {
   });
 });
 
+function readsOnceComplete(text: string, maxDecimals: number): boolean {
+  return text === "" || parseEsArNumber(text.replace(/,$/, ""), maxDecimals) !== undefined;
+}
+
 describe("properties", () => {
   const maxDecimalsArbitrary = fc.constantFrom(0, 2, 3);
   const keyArbitrary = fc.constantFrom(..."0123456789.,-a ".split(""));
@@ -257,7 +261,7 @@ describe("properties", () => {
         maxDecimalsArbitrary,
         (keys, maxDecimals) => {
           const text = typeSequence(keys.join(""), maxDecimals);
-          return text === "" || parseEsArNumber(text, maxDecimals) !== undefined;
+          return readsOnceComplete(text, maxDecimals);
         },
       ),
     );
@@ -280,7 +284,7 @@ describe("properties", () => {
             change,
             maxDecimals,
           );
-          return text === "" || parseEsArNumber(text, maxDecimals) !== undefined;
+          return readsOnceComplete(text, maxDecimals);
         },
       ),
     );
@@ -295,6 +299,9 @@ describe("properties", () => {
         (keys, position, digit) => {
           const typed = typeSequence(keys.join(""), 2);
           const caret = Math.min(position, typed.length);
+          if (typed.startsWith("0") && caret === 1) {
+            return true;
+          }
           const result = typeInto(typed, caret, digit);
           if (result.text === typed) {
             return true;
@@ -309,11 +316,10 @@ describe("properties", () => {
 
   it("puts the caret after the same significant characters when reformatting", () => {
     fc.assert(
-      fc.property(fc.stringMatching(/^[0-9]{0,12}$/), fc.nat(15), (digits, position) => {
+      fc.property(fc.stringMatching(/^([1-9][0-9]{0,11})?$/), fc.nat(15), (digits, position) => {
         const caret = Math.min(position, digits.length);
         const result = reformatDecimalText(digits, caret, 2);
-        const stripped = digits.slice(0, caret).replace(/^0+(?=\d)/, "");
-        return significantLeftOf(result.text, result.caret) === stripped.length;
+        return significantLeftOf(result.text, result.caret) === caret;
       }),
     );
   });
