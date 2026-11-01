@@ -7,14 +7,62 @@ import type { TableModel, TableSortDirection, TableVariant } from "./table-types
 
 const SORT_DIRECTIONS = { asc: "ascending", desc: "descending" } as const;
 
-export function TableHeaderRow<T extends RowData>({
+function TableGroupHeaderRow<T extends RowData>({
+  table,
+  depth,
+  variant,
+}: {
+  table: TableModel<T>;
+  depth: number;
+  variant: TableVariant;
+}) {
+  const headers = table.getHeaderGroups()[depth]?.headers ?? [];
+  return (
+    <tr className={variant === "nested" ? "h-control-sm" : "h-control-lg bg-surface-subtle"}>
+      {headers.map((header) =>
+        header.isPlaceholder ? (
+          <td key={header.id} colSpan={header.colSpan} />
+        ) : (
+          <th
+            key={header.id}
+            colSpan={header.colSpan}
+            scope="colgroup"
+            className="border-border border-b px-1.5 text-center align-middle font-bold text-caption text-text-subtle uppercase"
+          >
+            {columnTitle(header.column)}
+          </th>
+        ),
+      )}
+    </tr>
+  );
+}
+
+export function TableHeaderRows<T extends RowData>({
   table,
   variant,
 }: {
   table: TableModel<T>;
   variant: TableVariant;
 }) {
-  const headers = table.getLeafHeaders();
+  const groupDepths = table.getHeaderGroups().slice(0, -1);
+  return (
+    <>
+      {groupDepths.map((group) => (
+        <TableGroupHeaderRow key={group.id} table={table} depth={group.depth} variant={variant} />
+      ))}
+      <TableHeaderRow table={table} variant={variant} />
+    </>
+  );
+}
+
+function TableHeaderRow<T extends RowData>({
+  table,
+  variant,
+}: {
+  table: TableModel<T>;
+  variant: TableVariant;
+}) {
+  const headers = table.getHeaderGroups().at(-1)?.headers ?? [];
   return (
     <tr className={variant === "nested" ? "h-control-sm" : "h-control-xl bg-surface-subtle"}>
       {headers.map(({ id, column }, index) => {
