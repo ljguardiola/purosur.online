@@ -484,6 +484,7 @@ describe("alertDetailSchema", () => {
         exceptionCount: 7,
         totalCount: 120,
         nonCompliantMonths: ["2026-03", "2026-09"],
+        nonCompliancePercent: 5,
       },
       fortnight_report_owed_elsewhere: {
         pointOfSaleNumber: 9,
@@ -533,6 +534,8 @@ describe("alertDetailSchema", () => {
       ["a fractional exception count", { exceptionCount: 1.5 }],
       ["a total as text", { totalCount: "120" }],
       ["a list that holds a number", { nonCompliantMonths: [9] }],
+      ["a threshold as text", { nonCompliancePercent: "5" }],
+      ["a fractional threshold", { nonCompliancePercent: 5.5 }],
       ["a fiscal address name that is not text", { fiscalAddressName: 1 }],
     ])("refuses an exception share alert with %s", (_case, change) => {
       const alert = {

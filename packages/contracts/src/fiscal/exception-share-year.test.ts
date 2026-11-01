@@ -6,8 +6,11 @@ describe("exceptionShareYearQuerySchema", () => {
     expect(exceptionShareYearQuerySchema.parse({ year: "2026" })).toEqual({ year: 2026 });
   });
 
+  it("accepts a query without a year", () => {
+    expect(exceptionShareYearQuerySchema.parse({}).year).toBeUndefined();
+  });
+
   it.each([
-    ["no year", {}],
     ["a year with fewer digits", { year: "26" }],
     ["a year with more digits", { year: "20260" }],
     ["a year starting with zero", { year: "0999" }],
@@ -29,6 +32,8 @@ const month = {
 const body = {
   fiscal_address: { id: "fa-1", name: "Local central" },
   year: 2026,
+  selectable_years: [2026, 2025, 2024],
+  non_compliance_percent: 5,
   months: [
     month,
     {
@@ -70,11 +75,20 @@ describe("exceptionShareYearSchema", () => {
     ["a fractional share", { months: [{ ...month, share_tenths_of_percent: 5.5 }] }],
     ["a listed month that is not a calendar month", { non_compliant_months: ["2026-00"] }],
     ["a year that is not a whole number", { year: 2026.5 }],
+    ["a selectable year that is not a whole number", { selectable_years: [2026.5] }],
+    ["a threshold that is not a whole number", { non_compliance_percent: 5.5 }],
   ])("refuses %s", (_name, change) => {
     expect(exceptionShareYearSchema.safeParse({ ...body, ...change }).success).toBe(false);
   });
 
-  it.each(["fiscal_address", "year", "months", "non_compliant_months"])(
+  it.each([
+    "fiscal_address",
+    "year",
+    "selectable_years",
+    "non_compliance_percent",
+    "months",
+    "non_compliant_months",
+  ])(
     "requires the %s",
     (field) => {
       const { [field as keyof typeof body]: _omitted, ...rest } = body;

@@ -60,6 +60,7 @@ describe("detectExceptionShareBreaches", () => {
           exceptionCount: 7,
           totalCount: 120,
           nonCompliantMonths: ["2026-02", "2026-09"],
+          nonCompliancePercent: 5,
         },
       },
       {
@@ -72,6 +73,7 @@ describe("detectExceptionShareBreaches", () => {
           exceptionCount: 6,
           totalCount: 100,
           nonCompliantMonths: ["2026-02", "2026-09"],
+          nonCompliancePercent: 5,
         },
       },
     ]);

@@ -596,6 +596,7 @@ describe("an exception share breach alert", () => {
         exceptionCount: number;
         totalCount: number;
         nonCompliantMonths: string[];
+        nonCompliancePercent: number;
       };
     }>().toExtend<OpenAlertInput>();
   });

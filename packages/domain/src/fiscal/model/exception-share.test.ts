@@ -2,6 +2,7 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
   closedMonthsWindow,
+  EXCEPTION_SHARE_NON_COMPLIANCE_PERCENT,
   exceptionShareMonthState,
   exceptionShareTenthsOfPercent,
   isExceptionShareBreach,
@@ -9,6 +10,7 @@ import {
   monthOfDay,
   monthsStartedInYear,
   nonCompliantMonthsOfYear,
+  selectableExceptionShareYears,
 } from "./exception-share.js";
 
 const counts = fc.integer({ min: 0, max: 100_000 }).chain((totalCount) =>
@@ -17,6 +19,19 @@ const counts = fc.integer({ min: 0, max: 100_000 }).chain((totalCount) =>
     totalCount: fc.constant(totalCount),
   }),
 );
+
+describe("EXCEPTION_SHARE_NON_COMPLIANCE_PERCENT", () => {
+  it("is five percent", () => {
+    expect(EXCEPTION_SHARE_NON_COMPLIANCE_PERCENT).toBe(5);
+  });
+});
+
+describe("selectableExceptionShareYears", () => {
+  it("offers the current year and the two before it, latest first", () => {
+    expect(selectableExceptionShareYears("2026-03-10")).toEqual([2026, 2025, 2024]);
+    expect(selectableExceptionShareYears("2031-12-31")).toEqual([2031, 2030, 2029]);
+  });
+});
 
 describe("isExceptionShareBreach", () => {
   it("is reached when the exceptions are exactly 5% of the total", () => {
@@ -37,7 +52,7 @@ describe("isExceptionShareBreach", () => {
     fc.assert(
       fc.property(counts, (each) => {
         expect(isExceptionShareBreach(each)).toBe(
-          each.totalCount > 0 && each.exceptionCount * 20 >= each.totalCount,
+          each.totalCount > 0 && each.exceptionCount * 100 >= each.totalCount * EXCEPTION_SHARE_NON_COMPLIANCE_PERCENT,
         );
       }),
     );

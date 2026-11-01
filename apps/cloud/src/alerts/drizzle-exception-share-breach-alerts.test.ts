@@ -38,6 +38,7 @@ function breachInput(nonCompliantMonths: string[] = ["2026-09"]): OpenAlertInput
       exceptionCount: 1,
       totalCount: 10,
       nonCompliantMonths,
+      nonCompliancePercent: 5,
     },
   };
 }
@@ -119,6 +120,7 @@ describe("DrizzleExceptionShareBreachAlerts openBreachAlert", () => {
           exceptionCount: 1,
           totalCount: 10,
           nonCompliantMonths: ["2026-03", "2026-09"],
+          nonCompliancePercent: 5,
         },
         openedAt: NOW,
         resolvedAt: null,

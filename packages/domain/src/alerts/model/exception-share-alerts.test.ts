@@ -71,6 +71,7 @@ describe("exceptionShareBreachAlert", () => {
         exceptionCount: 7,
         totalCount: 120,
         nonCompliantMonths: ["2026-09"],
+        nonCompliancePercent: 5,
       },
     });
   });

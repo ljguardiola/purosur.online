@@ -90,7 +90,6 @@ describe("GET /fiscal/exception-share/:fiscalAddressId access", () => {
 
 describe("GET /fiscal/exception-share/:fiscalAddressId requests", () => {
   it.each([
-    ["no year", ""],
     ["a year that is not a number", "?year=abcd"],
     ["a year with five digits", "?year=20260"],
   ])("answers 400 to %s", async (_name, query) => {
@@ -101,6 +100,29 @@ describe("GET /fiscal/exception-share/:fiscalAddressId requests", () => {
 
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ code: "validation_failed" });
+  });
+
+  it("answers the current year, the years to choose from and the threshold when no year is asked", async () => {
+    const fiscalAddressId = await insertFiscalAddress(db, "Depósito Central");
+    const { headers } = await signedInWith(db, ["view_fiscal_documents"], NOW);
+
+    const response = await read(headers, fiscalAddressId, "");
+
+    const body = exceptionShareYearSchema.parse(response.json());
+    expect(body.year).toBe(2026);
+    expect(body.selectable_years).toEqual([2026, 2025, 2024]);
+    expect(body.non_compliance_percent).toBe(5);
+  });
+
+  it("answers for the year asked", async () => {
+    const fiscalAddressId = await insertFiscalAddress(db, "Depósito Central");
+    const { headers } = await signedInWith(db, ["view_fiscal_documents"], NOW);
+
+    const response = await read(headers, fiscalAddressId, "?year=2025");
+
+    const body = exceptionShareYearSchema.parse(response.json());
+    expect(body.year).toBe(2025);
+    expect(body.months).toHaveLength(12);
   });
 
   it("answers 400 to an id that is not a record id", async () => {

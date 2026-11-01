@@ -19,7 +19,7 @@ function counts(month: string, exceptionCount: number, totalCount: number): Mont
 async function read(
   reader: FakeExceptionShareYearReader,
   now: Date,
-  year: number,
+  year: number | undefined,
   fiscalAddressId = FISCAL_ADDRESS.id,
 ) {
   return readExceptionShareYear(
@@ -47,6 +47,8 @@ describe("readExceptionShareYear", () => {
       kind: "read",
       fiscalAddress: FISCAL_ADDRESS,
       year: 2026,
+      selectableYears: [2026, 2025, 2024],
+      nonCompliancePercent: 5,
       months: [
         {
           month: "2026-01",
@@ -95,6 +97,27 @@ describe("readExceptionShareYear", () => {
     ]);
   });
 
+  it("answers for the current Argentina calendar year when no year is given", async () => {
+    const reader = new FakeExceptionShareYearReader([FISCAL_ADDRESS]);
+
+    const outcome = await read(reader, at("2027-01-05"), undefined);
+
+    expect(outcome.kind === "read" && outcome.year).toBe(2027);
+    expect(outcome.kind === "read" && outcome.selectableYears).toEqual([2027, 2026, 2025]);
+    expect(reader.queries).toEqual([
+      { fiscalAddressId: "fa-1", year: 2027 },
+      { fiscalAddressId: "fa-1", year: 2027 },
+    ]);
+  });
+
+  it("takes the current year from Argentina's calendar, not UTC's", async () => {
+    const reader = new FakeExceptionShareYearReader([FISCAL_ADDRESS]);
+
+    const outcome = await read(reader, new Date("2027-01-01T01:00:00Z"), undefined);
+
+    expect(outcome.kind === "read" && outcome.year).toBe(2026);
+  });
+
   it("lists no month of a year that has not started", async () => {
     const reader = new FakeExceptionShareYearReader([FISCAL_ADDRESS]);
 
@@ -104,6 +127,8 @@ describe("readExceptionShareYear", () => {
       kind: "read",
       fiscalAddress: FISCAL_ADDRESS,
       year: 2027,
+      selectableYears: [2026, 2025, 2024],
+      nonCompliancePercent: 5,
       months: [],
       nonCompliantMonths: [],
     });
