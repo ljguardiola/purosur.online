@@ -7,6 +7,7 @@ import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
 import { defaultClientConditions, defaultServerConditions } from "vite";
 import { configDefaults, defineConfig } from "vitest/config";
+import { globAwareModuleCache } from "./.github/scripts/glob-aware-module-cache.mjs";
 import { HeldRunReporter } from "./.github/scripts/held-run-reporter.mjs";
 import {
   ROOT_SLOW_TEST_THRESHOLD,
@@ -65,7 +66,7 @@ function playwrightServerConnectOptions() {
 }
 
 export default defineConfig({
-  plugins: [withoutPackageOutput(r("."))],
+  plugins: [withoutPackageOutput(r(".")), globAwareModuleCache()],
   resolve: {
     dedupe: ["react", "react-dom"],
     conditions: ["@purosur/source", ...defaultClientConditions],
