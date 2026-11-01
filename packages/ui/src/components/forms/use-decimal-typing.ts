@@ -10,7 +10,10 @@ function editOf(event: InputEvent): DecimalEdit | undefined {
       return event.data.length > 1
         ? { kind: "insert-paste", data: event.data }
         : { kind: "insert", data: event.data };
-    case "insertFromPaste": {
+    case "insertFromPaste":
+    case "insertFromDrop":
+    case "insertFromYank":
+    case "insertReplacementText": {
       const data = event.dataTransfer?.getData("text/plain") ?? event.data;
       return data === null ? undefined : { kind: "insert-paste", data };
     }

@@ -114,6 +114,25 @@ function pastedCharacters(data: string, maxDecimals: number): string | undefined
   return parsed.fraction === "" ? parsed.whole : `${parsed.whole},${parsed.fraction}`;
 }
 
+function pasteValue(
+  current: Digits,
+  start: number,
+  end: number,
+  data: string,
+  maxDecimals: number,
+): Digits | undefined {
+  const pasted = pastedCharacters(data, maxDecimals);
+  if (pasted === undefined) {
+    return undefined;
+  }
+  const digits = current.digits.slice(0, start) + pasted + current.digits.slice(end);
+  const commaIndex = digits.indexOf(",");
+  const fits =
+    commaIndex === -1 ||
+    (digits.indexOf(",", commaIndex + 1) === -1 && digits.length - commaIndex - 1 <= maxDecimals);
+  return fits ? { digits, caret: start + pasted.length } : undefined;
+}
+
 export function applyDecimalEdit(
   state: DecimalTypingState,
   edit: DecimalEdit,
@@ -136,11 +155,7 @@ export function applyDecimalEdit(
   }
 
   if (edit.kind === "insert-paste") {
-    const normalized = pastedCharacters(edit.data, maxDecimals);
-    if (normalized === undefined) {
-      return unchanged;
-    }
-    const pasted = insertCharacters(current, start.caret, end.caret, normalized, maxDecimals);
+    const pasted = pasteValue(current, start.caret, end.caret, edit.data, maxDecimals);
     return pasted === undefined ? unchanged : shownText(pasted);
   }
 
