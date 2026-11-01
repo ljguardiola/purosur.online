@@ -392,6 +392,35 @@ describe("completeReturn", () => {
       expect(store.state.returns).toMatchObject([{ refundedTotal: 4000 }]);
     });
 
+    it("refunds part of a buy-N-pay-M line returned for a defect as its share of what was charged", async () => {
+      const store = ledger();
+
+      const outcome = await complete(store, {
+        lines: [{ saleLineId: "line-2", quantity: 1, reason: "defective", disposition: "discard" }],
+        refunds: [{ paymentId: "pay-cash", amount: 1000 }],
+      });
+
+      expect(outcome).toMatchObject({ kind: "completed" });
+      expect(store.state.returns).toMatchObject([{ refundedTotal: 1000 }]);
+    });
+
+    it("refunds only the difference when the rest of a buy-N-pay-M line comes back for a defect after an earlier part", async () => {
+      const store = ledger({
+        sales: [
+          aSaleForReturn({
+            returned: [{ saleLineId: "line-2", quantity: 1, refundedAmount: 1000 }],
+          }),
+        ],
+      });
+
+      await complete(store, {
+        lines: [{ saleLineId: "line-2", quantity: 1, reason: "defective", disposition: "discard" }],
+        refunds: [{ paymentId: "pay-cash", amount: 1000 }],
+      });
+
+      expect(store.state.returns).toMatchObject([{ refundedTotal: 1000 }]);
+    });
+
     it("splits the refund among the cash payments the cashier chose, one refund each", async () => {
       const secondCash = { ...CASH_PAYMENT, id: "pay-cash-2", amount: 3000 };
       const store = ledger({

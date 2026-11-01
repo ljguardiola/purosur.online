@@ -113,9 +113,9 @@ describe("the notice of a refused line", () => {
     );
   });
 
-  it("says a promotion goes back whole", () => {
+  it("says a promotion goes back whole with the chosen reason", () => {
     expect(lineRefusalNotice({ kind: "promotion_whole_only", returnable: 2 }, PASTA)).toBe(
-      "Pasta de maní 380 g: la promoción se devuelve completa, 2 u.",
+      "Pasta de maní 380 g: con este motivo, la promoción se devuelve completa, 2 u.",
     );
   });
 

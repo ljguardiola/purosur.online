@@ -1,9 +1,10 @@
+import type { DiscountBenefit } from "../../pricing/index.js";
 import type { ZoneRules } from "../../shared/index.js";
 import {
   lineRefundAmount,
-  mustBeReturnedWhole,
   type ReturnedLineStanding,
   returnableQuantity,
+  wholeOnlyReasons,
 } from "./return-line.js";
 import type { ReturnDisposition, ReturnReason } from "./return-reasons.js";
 import { isReturnWindowOpen, returnWindowLastDay } from "./return-window.js";
@@ -11,6 +12,7 @@ import { isReturnWindowOpen, returnWindowLastDay } from "./return-window.js";
 export interface ReturnSaleLine extends ReturnedLineStanding {
   id: string;
   promotionId: string | null;
+  promotionKind: DiscountBenefit["kind"] | null;
 }
 
 export interface ReturnSaleContext {
@@ -80,7 +82,7 @@ function verdictOf(
   if (draft.quantity > returnable) {
     return refused({ kind: "quantity_exceeds_returnable", returnable });
   }
-  if (mustBeReturnedWhole(line) && draft.quantity !== returnable) {
+  if (wholeOnlyReasons(line).includes(draft.reason) && draft.quantity !== returnable) {
     return refused({ kind: "promotion_whole_only", returnable });
   }
   const lastAllowedDay = returnWindowLastDay(

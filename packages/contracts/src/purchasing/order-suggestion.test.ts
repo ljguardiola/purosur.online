@@ -29,7 +29,8 @@ const line = {
   netContent: { quantity: 500, unit: "G" },
   categoryName: "Almacén",
   saleUnit: "UNIT",
-  coverageDays: 15,
+  effectiveDays: 10,
+  cappedByExpiry: true,
   soldQuantity: 120_000,
   stock: 12_000,
   neededQuantity: 48_000,
@@ -104,6 +105,17 @@ describe("orderSuggestionSchema", () => {
     expect(orderSuggestionSchema.safeParse({ suppliers: [], lines: [rest] }).success).toBe(false);
   });
 
+  it.each([
+    ["effectiveDays", 10.5],
+    ["effectiveDays", "10"],
+    ["cappedByExpiry", "yes"],
+  ])("refuses a line with %s as %j", (field, value) => {
+    expect(
+      orderSuggestionSchema.safeParse({ suppliers: [], lines: [{ ...line, [field]: value }] })
+        .success,
+    ).toBe(false);
+  });
+
   it.each(Object.keys(offer))("requires %s in an offer", (field) => {
     const { [field as keyof typeof offer]: _omitted, ...rest } = offer;
 
@@ -162,7 +174,6 @@ describe("orderSuggestionSchema", () => {
   });
 
   it.each([
-    ["coverageDays", 1.5],
     ["soldQuantity", "5"],
     ["stock", 0.5],
     ["neededQuantity", null],

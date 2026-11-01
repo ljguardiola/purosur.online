@@ -208,12 +208,45 @@ describe("recording the sales of applied events", () => {
         listUnitPrice: line.listUnitPrice,
         priceListId: line.priceListId,
         promotionId: line.promotionId,
+        promotionKind: null,
         discountAmount: line.discountAmount,
         saleDiscountShare: 0,
         lineTotal: line.lineTotal,
       })),
     );
   });
+
+  it.each([
+    ["BUY_N_PAY_M", { kind: "BUY_N_PAY_M" as const, buyQty: 2, payQty: 1 }],
+    ["PERCENT_OFF", { kind: "PERCENT_OFF" as const, percent: 10 }],
+  ])(
+    "keeps the kind %s of the promotion a line applied, not of another it was a candidate for",
+    async (kind, benefit) => {
+      const { deviceId } = await system.enrollInstallation();
+      const sessionId = randomUUID();
+      await openSession(deviceId, sessionId);
+      const base = aCompletedSale({ sessionId });
+      const [unit] = base.lines;
+      if (!unit) {
+        throw new Error("test setup: the sale has no line");
+      }
+      const applied = randomUUID();
+      const candidate = randomUUID();
+      const promoted = {
+        ...unit,
+        promotionId: applied,
+        promotions: [
+          { discountId: candidate, benefit: { kind: "PERCENT_OFF" as const, percent: 5 } },
+          { discountId: applied, benefit },
+        ],
+      };
+
+      await record({ kind: "sale_completed", sale: { ...base, lines: [promoted] } }, { deviceId });
+
+      const [row] = await system.db.select().from(saleLines);
+      expect(row).toMatchObject({ promotionId: applied, promotionKind: kind });
+    },
+  );
 
   it("keeps the weight of a line sold by weight, in thousandths of a kilogram, and where it came from", async () => {
     const { deviceId } = await system.enrollInstallation();
