@@ -1365,6 +1365,7 @@ describe("wiring the purchasing routes", () => {
       app.inject({ method: "PUT", url: `/api/freights/${ID}`, headers: ORIGIN }),
       app.inject({ method: "GET", url: "/api/freights/linkable-purchases" }),
       app.inject({ method: "GET", url: "/api/supplier-price-comparison" }),
+      app.inject({ method: "GET", url: "/api/order-suggestion" }),
       app.inject({ method: "GET", url: "/api/supplier-price-lists" }),
       app.inject({ method: "GET", url: "/api/supplier-price-lists/link-choices" }),
       app.inject({ method: "GET", url: "/api/supplier-price-lists/product-categories" }),
@@ -2949,6 +2950,11 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/supplier-price-comparison",
+        access: capabilityAccess("price_comparison"),
+      },
+      {
+        method: "GET",
+        url: "/api/order-suggestion",
         access: capabilityAccess("price_comparison"),
       },
       {
