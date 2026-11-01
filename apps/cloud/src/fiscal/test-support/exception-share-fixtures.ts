@@ -1,7 +1,9 @@
+import { eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   fiscalAddresses,
   pointOfSaleClaims,
+  registerFiscalAddressAssignments,
   registerPointsOfSale,
   registers,
   users,
@@ -57,5 +59,23 @@ export async function insertRegisterAtFiscalAddress(
     fiscalAddressId,
     version: 1,
   });
+  await db
+    .insert(registerFiscalAddressAssignments)
+    .values({ registerId: register.id, fiscalAddressId, assignedAt: sql`'-infinity'` });
   return register.id;
+}
+
+export async function moveRegisterToFiscalAddress(
+  db: Db,
+  registerId: string,
+  fiscalAddressId: string,
+  at: Date,
+): Promise<void> {
+  await db
+    .update(registerPointsOfSale)
+    .set({ fiscalAddressId, version: sql`${registerPointsOfSale.version} + 1` })
+    .where(eq(registerPointsOfSale.registerId, registerId));
+  await db
+    .insert(registerFiscalAddressAssignments)
+    .values({ registerId, fiscalAddressId, assignedAt: at });
 }

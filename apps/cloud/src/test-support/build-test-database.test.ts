@@ -82,6 +82,7 @@ import {
   registerContingencyTicketKeys,
   registerEnrollmentAttempts,
   registerEnrollmentCodes,
+  registerFiscalAddressAssignments,
   registerInstallationBitlockerKeys,
   registerInstallations,
   registerOfflinePointsOfSale,
@@ -332,6 +333,11 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       pointOfSaleNumber: 3,
       fiscalAddressId: fiscalAddress.id,
       version: 1,
+    });
+    await db.insert(registerFiscalAddressAssignments).values({
+      registerId: register.id,
+      fiscalAddressId: fiscalAddress.id,
+      assignedAt: new Date("2026-01-05T12:00:00.000Z"),
     });
     await db
       .insert(registerPointTerminals)

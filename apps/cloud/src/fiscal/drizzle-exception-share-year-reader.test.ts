@@ -5,6 +5,7 @@ import { DrizzleExceptionShareYearReader } from "./drizzle-exception-share-year-
 import {
   insertFiscalAddress,
   insertRegisterAtFiscalAddress,
+  moveRegisterToFiscalAddress,
 } from "./test-support/exception-share-fixtures.js";
 import {
   insertCaeaDocument,
@@ -74,6 +75,55 @@ describe("DrizzleExceptionShareYearReader.monthlyVoucherCounts", () => {
     expect(counts).toHaveLength(2);
     expect(counts).toContainEqual({ month: "2026-09", exceptionCount: 1, totalCount: 2 });
     expect(counts).toContainEqual({ month: "2026-10", exceptionCount: 0, totalCount: 1 });
+  });
+});
+
+describe("DrizzleExceptionShareYearReader.monthlyVoucherCounts of a register that changed its fiscal address", () => {
+  const countsOf = (fiscalAddressId: string) =>
+    new DrizzleExceptionShareYearReader(db).monthlyVoucherCounts({ fiscalAddressId, year: 2026 });
+
+  it("keeps the vouchers the register issued before the change under its previous fiscal address", async () => {
+    const { fiscalAddressId, registerId } = await anAddressWithRegister();
+    const later = await insertFiscalAddress(db, "Local Norte");
+    await insertReceiptRequest(db, registerId, {
+      issuedOn: "2026-09-10",
+      receivedAt: new Date("2026-09-10T13:00:00.000Z"),
+    });
+    await insertCaeaDocument(db, registerId, {
+      issuedOn: "2026-09-11",
+      generatedAt: new Date("2026-09-11T15:00:00.000Z"),
+    });
+    await moveRegisterToFiscalAddress(db, registerId, later, new Date("2026-10-01T03:00:00.000Z"));
+    await insertOnlineCreditNote(db, registerId, {
+      issuedOn: "2026-10-02",
+      requestedAt: new Date("2026-10-02T14:00:00.000Z"),
+    });
+
+    expect(await countsOf(fiscalAddressId)).toEqual([
+      { month: "2026-09", exceptionCount: 1, totalCount: 2 },
+    ]);
+    expect(await countsOf(later)).toEqual([{ month: "2026-10", exceptionCount: 0, totalCount: 1 }]);
+  });
+
+  it("splits the vouchers of the day the fiscal address changed by the instant each was generated", async () => {
+    const { fiscalAddressId, registerId } = await anAddressWithRegister();
+    const later = await insertFiscalAddress(db, "Local Norte");
+    const movedAt = new Date("2026-09-15T15:00:00.000Z");
+    await moveRegisterToFiscalAddress(db, registerId, later, movedAt);
+    await insertReceiptRequest(db, registerId, {
+      issuedOn: "2026-09-15",
+      receivedAt: new Date("2026-09-15T14:59:59.999Z"),
+    });
+    await insertCaeaDocument(db, registerId, { issuedOn: "2026-09-15", generatedAt: movedAt });
+    await insertOnlineCreditNote(db, registerId, {
+      issuedOn: "2026-09-15",
+      requestedAt: new Date("2026-09-15T16:00:00.000Z"),
+    });
+
+    expect(await countsOf(fiscalAddressId)).toEqual([
+      { month: "2026-09", exceptionCount: 0, totalCount: 1 },
+    ]);
+    expect(await countsOf(later)).toEqual([{ month: "2026-09", exceptionCount: 1, totalCount: 2 }]);
   });
 });
 

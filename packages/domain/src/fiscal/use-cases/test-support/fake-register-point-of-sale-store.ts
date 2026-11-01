@@ -13,6 +13,7 @@ import type {
 } from "../register-offline-point-of-sale-store.js";
 import type {
   BranchRegisterPointOfSale,
+  FiscalAddressAssignment,
   LockBranchRegisterResult,
   PointOfSaleClaim,
   PointOfSaleHolder,
@@ -65,6 +66,7 @@ export interface FakeRegisterPointOfSaleState {
   registers: FakeBranchRegister[];
   fiscalAddressIds: string[];
   registerPointsOfSale: FakeRegisterPointOfSale[];
+  fiscalAddressAssignments: FiscalAddressAssignment[];
   registerOfflinePointsOfSale: FakeRegisterOfflinePointOfSale[];
   pointOfSaleClaims: FakePointOfSaleClaim[];
   pointOfSaleRetirements: FakePointOfSaleRetirement[];
@@ -77,6 +79,7 @@ export interface FakeRegisterPointOfSaleState {
 type WriteOperation =
   | "claimPointOfSale"
   | "recordRegisterPointOfSale"
+  | "recordFiscalAddressAssignment"
   | "recordRegisterOfflinePointOfSale"
   | "retirePointOfSale"
   | "recordOfflineNumberBlock";
@@ -157,6 +160,11 @@ class FakeRegisterPointOfSaleStoreTransaction implements RegisterPointOfSaleStor
       (candidate) => candidate.registerId !== record.registerId,
     );
     this.state.registerPointsOfSale.push({ ...row, recordedBy: actorId });
+  }
+
+  async recordFiscalAddressAssignment(assignment: FiscalAddressAssignment): Promise<void> {
+    this.beforeWrite("recordFiscalAddressAssignment");
+    this.state.fiscalAddressAssignments.push({ ...assignment });
   }
 
   protected beforeWrite(operation: WriteOperation): void {
@@ -303,6 +311,7 @@ export class FakeRegisterPointOfSaleStore
     registers: [],
     fiscalAddressIds: [],
     registerPointsOfSale: [],
+    fiscalAddressAssignments: [],
     registerOfflinePointsOfSale: [],
     pointOfSaleClaims: [],
     pointOfSaleRetirements: [],
@@ -329,6 +338,10 @@ export class FakeRegisterPointOfSaleStore
 
   seedRegisterPointOfSale(setup: Omit<RegisterPointOfSaleRecord, "actorId">): void {
     this.state.registerPointsOfSale.push({ ...setup, recordedBy: null });
+  }
+
+  seedFiscalAddressAssignment(assignment: FiscalAddressAssignment): void {
+    this.state.fiscalAddressAssignments.push({ ...assignment });
   }
 
   seedRegisterOfflinePointOfSale(setup: Omit<RegisterOfflinePointOfSaleRecord, "actorId">): void {

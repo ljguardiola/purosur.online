@@ -107,12 +107,15 @@ async function seedRegisterWithRealTime(pointOfSaleNumber: number, name: string)
     throw new Error("test setup: seeding the register returned no row");
   }
   const base = { locationId, registerId: register.id, actorId: actor.id };
-  await configureRegisterPointOfSale(new DrizzleRegisterPointOfSaleStore(db, () => NOON), {
-    ...base,
-    pointOfSaleNumber,
-    fiscalAddressId: fiscalAddress.id,
-    version: 0,
-  });
+  await configureRegisterPointOfSale(
+    { store: new DrizzleRegisterPointOfSaleStore(db, () => NOON), clock: { now: () => NOON } },
+    {
+      ...base,
+      pointOfSaleNumber,
+      fiscalAddressId: fiscalAddress.id,
+      version: 0,
+    },
+  );
   return base;
 }
 
