@@ -1,5 +1,5 @@
-import { averageTicket } from "./average-ticket.js";
 import { compareCodeUnits, compareOptionalNames } from "../../shared/index.js";
+import { averageTicket } from "./average-ticket.js";
 
 export interface SoldByCashier {
   cashierId: string;

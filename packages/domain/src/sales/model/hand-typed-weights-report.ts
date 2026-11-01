@@ -73,7 +73,9 @@ export function weighedLinesByCashier(groups: readonly SaleLinesGroup[]): Weighe
     (key, count) => ({ cashierId: key.id, name: key.name, ...count }),
   ).sort(
     (a, b) =>
-      moreTypedOrder(a, b) || compareOptionalNames(a.name, b.name) || compareCodeUnits(a.cashierId, b.cashierId),
+      moreTypedOrder(a, b) ||
+      compareOptionalNames(a.name, b.name) ||
+      compareCodeUnits(a.cashierId, b.cashierId),
   );
 }
 

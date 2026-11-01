@@ -81,8 +81,7 @@ export function purchasesBySupplier(lines: readonly PurchasedLine[]): PurchasesB
       amount: amountOf(tally),
     }))
     .sort(
-      (a, b) =>
-        compareSpanishText(a.name, b.name) || compareCodeUnits(a.supplierId, b.supplierId),
+      (a, b) => compareSpanishText(a.name, b.name) || compareCodeUnits(a.supplierId, b.supplierId),
     );
   return {
     suppliers,

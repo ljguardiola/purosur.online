@@ -1,5 +1,5 @@
-import { cancelledBeforeCharge } from "./cancelled-before-charge.js";
 import { compareCodeUnits, compareOptionalNames } from "../../shared/index.js";
+import { cancelledBeforeCharge } from "./cancelled-before-charge.js";
 import type { SaleState } from "./sale.js";
 import { saleUnitOfWeightSource, soldQuantity } from "./sale-line.js";
 import type { WeightSource } from "./weight-source.js";

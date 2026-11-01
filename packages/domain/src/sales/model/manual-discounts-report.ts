@@ -1,6 +1,6 @@
+import { compareCodeUnits, compareOptionalNames } from "../../shared/index.js";
 import { chargeLine } from "./line-pricing.js";
 import type { ManualAdjustmentValue } from "./manual-adjustment.js";
-import { compareCodeUnits, compareOptionalNames } from "../../shared/index.js";
 import type { SaleDiscountValue } from "./sale-discount.js";
 import { grossLineTotal, saleUnitOfWeightSource, soldQuantity } from "./sale-line.js";
 import type { WeightSource } from "./weight-source.js";
