@@ -44,7 +44,9 @@ function netContentFrom({ quantity, unit }: NetContentValue) {
   return { quantity: parseNetContentQuantity(quantity) ?? Number.NaN, unit };
 }
 
-export function productRequestFrom(values: ProductFormValues): ProductCreationBody {
+export function productRequestFrom(
+  values: ProductFormValues,
+): ProductCreationBody & { brandId: string | null; tagIds: string[] } {
   return {
     name: values.name,
     categoryId: values.categoryId ?? "",

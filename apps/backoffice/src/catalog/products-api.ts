@@ -28,6 +28,7 @@ export type CreateProductInput = {
   barcodes: string[];
   tagIds: string[];
   netContent: NetContent | null;
+  coverageDays: number;
 };
 
 export type CreateProductOutcome =
@@ -50,6 +51,7 @@ export type EditProductInput = {
   barcodes: string[];
   tagIds: string[];
   netContent: NetContent | null;
+  coverageDays: number;
   version: number;
 };
 
@@ -127,6 +129,7 @@ export async function createProduct(input: CreateProductInput): Promise<CreatePr
     barcodes: input.barcodes,
     tagIds: input.tagIds,
     netContent: input.netContent,
+    coverageDays: input.coverageDays,
   };
   let response: Response;
   try {
@@ -232,6 +235,7 @@ export async function editProduct(
     barcodes: input.barcodes,
     tagIds: input.tagIds,
     netContent: input.netContent,
+    coverageDays: input.coverageDays,
     version: input.version,
   };
   let response: Response;
