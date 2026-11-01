@@ -105,7 +105,7 @@ describe("lossesByReason", () => {
     expect(group?.products.map(({ id }) => id)).toEqual(["a", "d", "c", "e", "b"]);
   });
 
-  it("breaks a tie between products of one name by their id in Spanish order, whatever its case", () => {
+  it("breaks a tie between products of one name by the code units of their id", () => {
     const [group] = lossesByReason([
       loss({
         product: { id: "B", name: "Arroz", brandName: null, netContent: null, saleUnit: "UNIT" },
@@ -115,6 +115,6 @@ describe("lossesByReason", () => {
       }),
     ]);
 
-    expect(group?.products.map(({ id }) => id)).toEqual(["a", "B"]);
+    expect(group?.products.map(({ id }) => id)).toEqual(["B", "a"]);
   });
 });

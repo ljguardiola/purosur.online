@@ -230,6 +230,16 @@ describe("DrizzlePriceReviewReader", () => {
     ]);
   });
 
+  it("orders the numbers inside the leaves' paths by their value", async () => {
+    const ten = await insertCategory("Caja 10");
+    const two = await insertCategory("Caja 2");
+
+    expect((await pricesUnderReview()).categories).toEqual([
+      { id: two, name: "Caja 2" },
+      { id: ten, name: "Caja 10" },
+    ]);
+  });
+
   it("still answers when a corrupt parent chain loops back on itself", async () => {
     const first = await insertCategory("Almacén");
     const second = await insertCategory("Fiambres", first);
@@ -323,6 +333,14 @@ describe("DrizzlePriceReviewReader", () => {
     const walnutId = await insertProduct("Nuez mariposa", categoryId);
 
     expect(ids(await pricesUnderReview())).toEqual([walnutId, gnocchiId]);
+  });
+
+  it("orders products by the numbers in their names by value", async () => {
+    const categoryId = await insertCategory("Almacén");
+    const tenId = await insertProduct("Arroz 10", categoryId);
+    const twoId = await insertProduct("Arroz 2", categoryId);
+
+    expect(ids(await pricesUnderReview())).toEqual([twoId, tenId]);
   });
 
   it("marks each product pending against the branch's own window, and the pending filter keeps only those", async () => {

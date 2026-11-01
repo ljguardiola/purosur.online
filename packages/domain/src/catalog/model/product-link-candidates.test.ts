@@ -55,6 +55,22 @@ describe("productLinkCandidates", () => {
     ]);
   });
 
+  it("orders products with the same score by the numbers in their names by value", () => {
+    const products = [product("1", "Yerba 10"), product("2", "Yerba 2")];
+
+    expect(productLinkCandidates(products, "yerba").map(({ id }) => id)).toEqual(["2", "1"]);
+  });
+
+  it("orders products of one name by the code units of their id", () => {
+    const products = [product("a9", "Yerba"), product("B1", "Yerba"), product("a10", "Yerba")];
+
+    expect(productLinkCandidates(products, "yerba").map(({ id }) => id)).toEqual([
+      "B1",
+      "a10",
+      "a9",
+    ]);
+  });
+
   it("counts each word of the product once, however often the text repeats it", () => {
     const products = [product("1", "Sal"), product("2", "Sal fina")];
 

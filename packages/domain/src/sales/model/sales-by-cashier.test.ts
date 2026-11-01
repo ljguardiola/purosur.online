@@ -47,22 +47,31 @@ describe("salesOfCashiers", () => {
     expect(ids).toEqual(["u2", "u3", "u1"]);
   });
 
-  it("orders a tie of sales and amount by name, comparing code units", () => {
+  it("orders a tie of sales and amount by name as a Spanish reader does", () => {
     const names = salesOfCashiers([
-      cashier("u1", "Ángel", 1, 1, 100),
-      cashier("u2", "Zoe", 1, 1, 100),
+      cashier("u1", "Zoe", 1, 1, 100),
+      cashier("u2", "Ángel", 1, 1, 100),
     ]).map((row) => row.name);
 
-    expect(names).toEqual(["Zoe", "Ángel"]);
+    expect(names).toEqual(["Ángel", "Zoe"]);
   });
 
-  it("puts an uppercase name before a lowercase one, as code units do", () => {
+  it("ignores case when ordering names", () => {
     const names = salesOfCashiers([
-      cashier("u1", "a", 1, 1, 100),
-      cashier("u2", "B", 1, 1, 100),
+      cashier("u1", "Zoe", 1, 1, 100),
+      cashier("u2", "ana", 1, 1, 100),
     ]).map((row) => row.name);
 
-    expect(names).toEqual(["B", "a"]);
+    expect(names).toEqual(["ana", "Zoe"]);
+  });
+
+  it("orders the numbers inside names by their value", () => {
+    const names = salesOfCashiers([
+      cashier("u1", "Caja 10", 1, 1, 100),
+      cashier("u2", "Caja 2", 1, 1, 100),
+    ]).map((row) => row.name);
+
+    expect(names).toEqual(["Caja 2", "Caja 10"]);
   });
 
   it("puts a cashier without a name after the named ones on a tie", () => {

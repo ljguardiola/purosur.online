@@ -182,6 +182,20 @@ describe("tallyRemovals", () => {
     expect(report.cashiers.map((row) => row.cashierId)).toEqual(["u2", "u1", "u3", "u4", "u5"]);
   });
 
+  it("orders cashiers with the same total by name as a Spanish reader does", () => {
+    const report = tallyRemovals({
+      removedLines: [
+        removed({ cashierId: "u1", cashierName: "Zoe", amount: 100 }),
+        removed({ cashierId: "u2", cashierName: "Caja 10", amount: 100 }),
+        removed({ cashierId: "u3", cashierName: "Caja 2", amount: 100 }),
+        removed({ cashierId: "u4", cashierName: "ana", amount: 100 }),
+      ],
+      cancelledSales: [],
+    });
+
+    expect(report.cashiers.map((row) => row.cashierId)).toEqual(["u4", "u3", "u2", "u1"]);
+  });
+
   it("orders sessions by what was removed and cancelled in them, then newest first, then by id", () => {
     const earlier = new Date("2026-10-05T11:00:00.000Z");
     const report = tallyRemovals({
