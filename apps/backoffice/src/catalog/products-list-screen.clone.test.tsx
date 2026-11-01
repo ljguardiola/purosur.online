@@ -20,7 +20,7 @@ test("the row action opens the new-product form filled from the product, without
   await expect
     .element(dialog.getByRole("textbox", { name: /^Nombre/ }))
     .toHaveValue("Aceite de Almendras");
-  await expect.element(dialog.getByText("Vitora")).toBeVisible();
+  await expect.element(dialog.getByRole("combobox", { name: /^Marca/ })).toHaveValue("Vitora");
   expect(dialog.getByText("7790001234567").query()).toBeNull();
 });
 

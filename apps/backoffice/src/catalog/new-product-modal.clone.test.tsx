@@ -61,15 +61,13 @@ test("opens with the source product's fields filled and no barcode", async () =>
   await expect
     .element(dialog.getByRole("textbox", { name: /^Nombre/ }))
     .toHaveValue("Aceite de Almendras");
-  await expect
-    .element(dialog.getByRole("combobox", { name: /^Categoría/ }))
-    .toHaveTextContent("Almacén");
+  await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toHaveValue("Almacén");
   await expect.element(dialog.getByRole("radio", { name: "Por unidad" })).toBeChecked();
   await expect.element(dialog.getByRole("textbox", { name: "Contenido neto" })).toHaveValue("30");
   await expect
     .element(dialog.getByRole("textbox", { name: /^Días de cobertura/ }))
     .toHaveValue("21");
-  await expect.element(dialog.getByText("Vitora")).toBeVisible();
+  await expect.element(dialog.getByRole("combobox", { name: /^Marca/ })).toHaveValue("Vitora");
   await expect.element(dialog.getByText("Sin TACC")).toBeVisible();
   expect(dialog.getByText("7790001234567").query()).toBeNull();
   expect(dialog.getByText("7790001234574").query()).toBeNull();
