@@ -601,6 +601,10 @@ describe("alertConditionResolutionJobs", () => {
         detectOwedElsewherePresentations: vi.fn().mockResolvedValue(0),
         detectRejectedFortnightDocuments,
         detectOverdueRegisterBackups,
+        recordExceptionShareBreaches: vi
+          .fn()
+          .mockResolvedValue({ kind: "recorded", recorded: 0, updated: 0 }),
+        detectExceptionShareBreaches: vi.fn().mockResolvedValue(0),
       },
     );
     const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];
