@@ -29,6 +29,7 @@ export async function insertRegisterAtFiscalAddress(
   db: Db,
   fiscalAddressId: string,
   registerName: string,
+  pointOfSaleNumber: number = nextPointOfSale++,
 ): Promise<string> {
   const locationId = await seededLocationId(db);
   const [actor] = await db
@@ -46,7 +47,6 @@ export async function insertRegisterAtFiscalAddress(
   if (!actor || !register) {
     throw new Error("test setup: seeding the register returned no row");
   }
-  const pointOfSaleNumber = nextPointOfSale++;
   await db.insert(pointOfSaleClaims).values({
     pointOfSaleNumber,
     registerId: register.id,

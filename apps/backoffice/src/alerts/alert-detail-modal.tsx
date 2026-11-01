@@ -17,6 +17,7 @@ import {
   formatNumber,
   formatPercent,
   formatPointOfSaleNumber,
+  formatTenthsOfPercent,
   InlineNotice,
   isLocalAlertKind,
   LoadFailure,
@@ -174,6 +175,7 @@ function alertIcon(kind: string): Icon {
     case "fortnight_report_owed_elsewhere":
     case "fortnight_report_document_rejected":
     case "exception_share_breach":
+    case "exception_share_second_month_at_risk":
       return <TriangleAlert />;
     case "clock_corrected":
     case "clock_drift":
@@ -320,6 +322,26 @@ function exceptionShareBreachDescription({
     other: `${formatNumber(totalCount)} comprobantes`,
   });
   return `En ${yearMonthPhrase(month)} se emitieron por excepción (CAEA) ${formatNumber(exceptionCount)} de ${vouchers} de este domicilio fiscal, el ${formatPercent(nonCompliancePercent)} o más. ARCA puede restringir el uso del CAEA y lo comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Conviene revisar por qué se emitieron por contingencia y consultar el Domicilio Fiscal Electrónico.`;
+}
+
+function secondMonthAtRiskDescription({
+  month,
+  previousMonth,
+  exceptionCount,
+  totalCount,
+  shareTenthsOfPercent,
+  nonCompliancePercent,
+}: Extract<AlertDetail, { kind: "exception_share_second_month_at_risk" }>["detail"]): string {
+  const vouchers = plural(totalCount, {
+    one: `${formatNumber(totalCount)} comprobante`,
+    other: `${formatNumber(totalCount)} comprobantes`,
+  });
+  const issued = plural(exceptionCount, { one: "se emitió", other: "se emitieron" });
+  const running =
+    shareTenthsOfPercent === null
+      ? `En ${yearMonthPhrase(month)} todavía no se emitieron comprobantes en este domicilio fiscal.`
+      : `En ${yearMonthPhrase(month)} ${issued} por excepción (CAEA) ${formatNumber(exceptionCount)} de ${vouchers} de este domicilio fiscal, el ${formatTenthsOfPercent(shareTenthsOfPercent)}.`;
+  return `${running} El mes anterior, ${yearMonthPhrase(previousMonth)}, ya llegó al ${formatPercent(nonCompliancePercent)} o más: si ${yearMonthPhrase(month)} también llega, serían dos meses consecutivos y ARCA puede restringir el uso del CAEA, lo que comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Este aviso termina cuando cierra el mes.`;
 }
 
 function lotsExpiringDescription({
@@ -516,6 +538,7 @@ function alertTitle(alert: AlertDetail): string {
     case "register_backup_overdue":
     case "deferred_sale_due":
     case "exception_share_breach":
+    case "exception_share_second_month_at_risk":
       return alertKindLabel(alert.kind);
   }
 }
@@ -545,6 +568,9 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
   }
   if (alert.kind === "exception_share_breach") {
     return exceptionShareBreachDescription(alert.detail);
+  }
+  if (alert.kind === "exception_share_second_month_at_risk") {
+    return secondMonthAtRiskDescription(alert.detail);
   }
   const targetName = alert.scopeDisplay;
   if (targetName === null) {
