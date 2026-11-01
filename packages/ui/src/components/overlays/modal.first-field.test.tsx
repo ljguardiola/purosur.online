@@ -134,10 +134,7 @@ test("opens focused on a select when it is the first field", async () => {
     </FormModal>,
   );
 
-  await expect
-    .poll(() => document.activeElement?.getAttribute("aria-haspopup"))
-    .toBe("listbox");
-  expect(document.activeElement?.textContent).toContain("Tamaño");
+  await expect.element(screen.getByRole("button", { name: /Tamaño/ })).toHaveFocus();
 });
 
 test("opens focused on the first segment of a date field when it is the first field", async () => {
