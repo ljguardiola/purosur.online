@@ -1,5 +1,5 @@
-import { monthOfDay } from "../../fiscal/index.js";
-import { addCalendarMonths, argentinaCalendarDay } from "../../shared/index.js";
+import { monthAtRiskOfSecondConsecutiveBreach } from "../../fiscal/index.js";
+import { argentinaCalendarDay } from "../../shared/index.js";
 import { fiscalAddressMonthScope } from "../model/exception-share-alerts.js";
 import {
   secondMonthAtRiskObservation,
@@ -14,8 +14,7 @@ export async function detectSecondNonCompliantMonthRisks({
   zoneRules,
 }: SecondMonthRiskDetectionPorts): Promise<number> {
   const today = argentinaCalendarDay(clock.now(), zoneRules.zoneRules());
-  const month = monthOfDay(today);
-  const previousMonth = monthOfDay(addCalendarMonths(today, -1));
+  const { month, previousMonth } = monthAtRiskOfSecondConsecutiveBreach(today);
   const addresses = await risks.addressesWithRecordedBreach(previousMonth);
   const counts = await risks.runningCounts(month);
   const observedScopes = new Set<string>();

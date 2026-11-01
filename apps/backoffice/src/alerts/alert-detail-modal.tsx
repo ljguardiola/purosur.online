@@ -339,7 +339,7 @@ function secondMonthAtRiskDescription({
   const running =
     shareTenthsOfPercent === null
       ? `En ${yearMonthPhrase(month)} todavía no se emitieron comprobantes en este domicilio fiscal.`
-      : `En ${yearMonthPhrase(month)} van ${formatNumber(exceptionCount)} de ${vouchers} de este domicilio fiscal emitidos por excepción (CAEA), el ${formatTenthsOfPercent(shareTenthsOfPercent)}.`;
+      : `En ${yearMonthPhrase(month)} se emitieron por excepción (CAEA) ${formatNumber(exceptionCount)} de ${vouchers} de este domicilio fiscal, el ${formatTenthsOfPercent(shareTenthsOfPercent)}.`;
   return `${running} El mes anterior, ${yearMonthPhrase(previousMonth)}, ya llegó al ${formatPercent(nonCompliancePercent)} o más: si ${yearMonthPhrase(month)} también llega, serían dos meses consecutivos y ARCA puede restringir el uso del CAEA, lo que comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Este aviso termina cuando cierra el mes.`;
 }
 

@@ -341,6 +341,7 @@ export {
   issueOfflineSaleCreditNote,
   routeSaleCreditNote,
 } from "./model/sale-credit-note-route.js";
+export { monthAtRiskOfSecondConsecutiveBreach } from "./model/second-consecutive-breach.js";
 export {
   awaitsUnclearOutcomeDecision,
   recordedRequestDocumentState,
