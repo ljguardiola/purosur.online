@@ -35,10 +35,30 @@ test("has a sheet named after the table with each method's figures and share in 
     name: "Ventas por medio de pago",
     header: ["Medio de pago", "Ventas", "Importe", "Parte del total"],
     rows: [
-      [cell.text("QR de Mercado Pago"), cell.count(3), cell.money(300_000), cell.percent(300 / 14)],
-      [cell.text("Point integrada"), cell.count(2), cell.money(150_000), cell.percent(150 / 14)],
-      [cell.text("Efectivo"), cell.count(4), cell.money(900_000), cell.percent(900 / 14)],
-      [cell.text("Transferencia"), cell.count(1), cell.money(50_000), cell.percent(50 / 14)],
+      [
+        cell.text("QR de Mercado Pago"),
+        cell.count(3),
+        cell.money(300_000),
+        cell.percent((300_000 / 1_400_000) * 100),
+      ],
+      [
+        cell.text("Point integrada"),
+        cell.count(2),
+        cell.money(150_000),
+        cell.percent((150_000 / 1_400_000) * 100),
+      ],
+      [
+        cell.text("Efectivo"),
+        cell.count(4),
+        cell.money(900_000),
+        cell.percent((900_000 / 1_400_000) * 100),
+      ],
+      [
+        cell.text("Transferencia"),
+        cell.count(1),
+        cell.money(50_000),
+        cell.percent((50_000 / 1_400_000) * 100),
+      ],
     ],
   });
 });
