@@ -90,6 +90,15 @@ test("shows the heading under Pedidos and every order with its supplier, date, l
   expect(services.fetchPurchaseOrders).toHaveBeenCalledWith("ALL");
 });
 
+test("shows the day an order was created in Argentina", async () => {
+  const services = createServices();
+  const screen = await loaded(services, [
+    { ...PRICED_SUMMARY, createdAt: "2026-03-10T01:30:00.000Z" },
+  ]);
+
+  await expect.element(rowOf(screen, "Granos del Sur").getByText("09/03/2026")).toBeVisible();
+});
+
 test("says a line has no list price next to the total that leaves it out", async () => {
   const services = createServices();
   const screen = await loaded(services, [DRAFT_SUMMARY, PRICED_SUMMARY]);
@@ -161,7 +170,10 @@ test("says nothing matches when a state has no orders", async () => {
     filters: purchaseOrdersFilters.parse({ state: "CANCELLED" }),
   });
 
-  await expect.element(screen.getByText("Todavía no hay pedidos")).toBeVisible();
+  const table = screen.getByRole("table", { name: "Pedidos de compra" });
+  await expect.element(table.getByText("Sin resultados")).toBeVisible();
+  await expect.element(table.getByText("Probá con otro estado.")).toBeVisible();
+  expect(table.getByText("Todavía no hay pedidos").query()).toBeNull();
 });
 
 test("opens an order from its row", async () => {

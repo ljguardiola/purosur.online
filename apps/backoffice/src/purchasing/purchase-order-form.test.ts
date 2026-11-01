@@ -123,6 +123,24 @@ describe("purchaseOrderLinesMessage", () => {
     ).toBe("Línea 2: Ingresá cuántos paquetes pedir, en un número entero.");
   });
 
+  test("asks for at least one package when the line orders none", () => {
+    expect(
+      purchaseOrderLinesMessage({
+        lines: valid.map((line, index) => (index === 1 ? { ...line, packages: "0" } : line)),
+      }),
+    ).toBe("Línea 2: Ingresá cuántos paquetes pedir, en un número entero mayor a cero.");
+  });
+
+  test("asks for fewer packages when the line orders more than may be ordered", () => {
+    expect(
+      purchaseOrderLinesMessage({
+        lines: valid.map((line, index) =>
+          index === 0 ? { ...line, packages: "3.000.000.000" } : line,
+        ),
+      }),
+    ).toBe("Línea 1: Ingresá menos paquetes; son más de los que se pueden pedir.");
+  });
+
   test("tells how to type the quantity each package holds, by the line's sale unit", () => {
     expect(
       purchaseOrderLinesMessage({

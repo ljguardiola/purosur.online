@@ -89,6 +89,10 @@ test("tells when the order can no longer be cancelled, and updating it reports i
   const dialog = await confirm(screen);
 
   await expect.element(dialog.getByText("Este pedido ya no se puede cancelar")).toBeVisible();
+  await expect
+    .element(dialog.getByText("Actualizá el pedido para ver su estado actual."))
+    .toBeVisible();
+  expect(dialog.getByText("Actualizamos el pedido con su estado actual.").query()).toBeNull();
   await userEvent.click(dialog.getByRole("button", { name: "Actualizar el pedido" }));
 
   expect(onOutdated).toHaveBeenCalledTimes(1);

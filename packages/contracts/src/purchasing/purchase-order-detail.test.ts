@@ -1,3 +1,4 @@
+import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import { purchaseOrderDetailSchema } from "./purchase-order-detail.js";
 
@@ -68,5 +69,13 @@ describe("purchaseOrderDetailSchema", () => {
     expect(purchaseOrderDetailSchema.safeParse({ ...detail, lines: [withoutTotal] }).success).toBe(
       false,
     );
+  });
+});
+
+describe("purchaseOrderDetailSchema, declared time zone", () => {
+  it("declares the zone the creation instant is shown in", () => {
+    expect(purchaseOrderDetailSchema.shape.createdAt.meta()).toEqual({
+      timeZone: ARGENTINA_TIME_ZONE,
+    });
   });
 });

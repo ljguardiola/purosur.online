@@ -12,10 +12,12 @@ function supplier(id: string, active = true) {
   return { id, name: `Proveedor ${id}`, cuit: null, contact: null, note: null, active, version: 1 };
 }
 
-function currentOffer(quantity: number, packagePriceCents: number) {
+function currentOffer(quantity: number, priceCents: number) {
   return {
     link: { quantity, saleUnit: "UNIT" as const, relinkRequired: false },
-    packagePriceCents,
+    priceCents,
+    pricesIncludeVat: true,
+    vatRate: null,
   };
 }
 
@@ -217,6 +219,54 @@ describe("buildPurchaseOrders", () => {
     expect(store.orders()).toEqual([]);
   });
 
+  it("orders the supplier's item cheapest per sale unit when it has several linked to the product", async () => {
+    const store = storeWithCatalog();
+    store.seedOffer("supplier-b", "product-a", currentOffer(1_000, 200_000));
+    store.seedOffer("supplier-b", "product-a", currentOffer(12_000, 1_500_000));
+
+    await buildPurchaseOrders(
+      { store, clock: CLOCK },
+      build({ choices: [{ productId: "product-a", supplierId: "supplier-b", packages: 2 }] }),
+    );
+
+    expect(store.orders()[0]?.lines).toEqual([
+      {
+        productId: "product-a",
+        packages: 2,
+        quantityPerPackage: 12_000,
+        expectedPackagePriceCents: 1_500_000,
+      },
+    ]);
+  });
+
+  it("orders a current item without a comparable price, at its list price, over an outdated one", async () => {
+    const store = storeWithCatalog();
+    store.seedProduct({ id: "product-c", name: "Sal", saleUnit: "UNIT", active: true });
+    store.seedOffer("supplier-a", "product-c", {
+      ...currentOffer(1_000, 100),
+      link: { quantity: 1_000, saleUnit: "UNIT", relinkRequired: true },
+    });
+    store.seedOffer("supplier-a", "product-c", {
+      ...currentOffer(6_000, 4_800),
+      pricesIncludeVat: false,
+    });
+
+    const outcome = await buildPurchaseOrders(
+      { store, clock: CLOCK },
+      build({ choices: [{ productId: "product-c", supplierId: "supplier-a", packages: 2 }] }),
+    );
+
+    expect(outcome).toEqual({ kind: "created", orderIds: ["order-1"] });
+    expect(store.orders()[0]?.lines).toEqual([
+      {
+        productId: "product-c",
+        packages: 2,
+        quantityPerPackage: 6_000,
+        expectedPackagePriceCents: 4_800,
+      },
+    ]);
+  });
+
   it("refuses a product the supplier has no item linked to", async () => {
     const store = storeWithCatalog();
 
@@ -232,13 +282,13 @@ describe("buildPurchaseOrders", () => {
     const store = storeWithCatalog();
     store.seedProduct({ id: "product-kg", name: "Azúcar", saleUnit: "KG", active: true });
     store.seedOffer("supplier-a", "product-kg", {
+      ...currentOffer(1_000, 100),
       link: { quantity: 1_000, saleUnit: "UNIT", relinkRequired: false },
-      packagePriceCents: 100,
     });
     store.seedProduct({ id: "product-relink", name: "Sal", saleUnit: "UNIT", active: true });
     store.seedOffer("supplier-a", "product-relink", {
+      ...currentOffer(1_000, 100),
       link: { quantity: 1_000, saleUnit: "UNIT", relinkRequired: true },
-      packagePriceCents: 100,
     });
 
     for (const productId of ["product-kg", "product-relink"]) {

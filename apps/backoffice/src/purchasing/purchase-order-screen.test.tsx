@@ -105,6 +105,19 @@ test("shows the supplier, the creation date, the state and the expected total of
   await expect.element(screen.getByText("Hay líneas sin precio de lista")).toBeVisible();
 });
 
+test("shows the day the order was created in Argentina", async () => {
+  const screen = await loaded(
+    createServices({
+      fetchPurchaseOrder: vi.fn().mockResolvedValue({
+        kind: "ok",
+        value: { kind: "found", order: { ...DRAFT_ORDER, createdAt: "2026-03-10T01:30:00.000Z" } },
+      }),
+    }),
+  );
+
+  await expect.element(screen.getByText("09/03/2026")).toBeVisible();
+});
+
 test("shows each line of a draft with its product, packages, quantity each holds, expected package price and total", async () => {
   const screen = await loaded(createServices());
 
@@ -284,19 +297,23 @@ test.each([
   await expect.element(screen.getByText(description)).toBeVisible();
 });
 
-test("reads the order again when saving finds it changed", async () => {
+test("reads the order again when saving finds it no longer editable, and keeps saying why nothing was saved", async () => {
   const services = createServices();
   vi.mocked(services.editPurchaseOrderLines).mockResolvedValue({ kind: "not_editable" });
   const screen = await loaded(services);
   vi.mocked(services.fetchPurchaseOrder).mockResolvedValue({
     kind: "ok",
-    value: { kind: "found", order: CANCELLED_ORDER },
+    value: { kind: "found", order: { ...CANCELLED_ORDER, id: ORDER_ID } },
   });
 
   await save(screen);
 
   await expect.element(screen.getByText("Cancelado")).toBeVisible();
   expect(screen.getByRole("button", { name: "Guardar" }).query()).toBeNull();
+  await expect.element(screen.getByText("Este pedido ya no se puede editar")).toBeVisible();
+  await expect
+    .element(screen.getByText("Actualizamos el pedido con su estado actual."))
+    .toBeVisible();
 });
 
 test("ends the session when saving finds no open session", async () => {
@@ -489,7 +506,7 @@ test("navigates to Mi cuenta when the order comes back forbidden", async () => {
   await expect.poll(() => window.location.pathname).toBe("/account");
 });
 
-test("has no accessibility violations as a draft, with the cancel question open, and once cancelled", async () => {
+test("has no accessibility violations as a draft and with the cancel question open", async () => {
   const services = createServices();
   const screen = await loaded(services);
 

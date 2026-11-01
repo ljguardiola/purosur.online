@@ -37,11 +37,15 @@ function storeWithDraft(order = draft()): FakePurchaseOrderStore {
   store.seedProduct({ id: "product-kg", name: "Azúcar", saleUnit: "KG", active: true });
   store.seedOffer("supplier-a", "product-a", {
     link: { quantity: 12_000, saleUnit: "UNIT", relinkRequired: false },
-    packagePriceCents: 1_600_000,
+    priceCents: 1_600_000,
+    pricesIncludeVat: true,
+    vatRate: null,
   });
   store.seedOffer("supplier-a", "product-b", {
     link: { quantity: 10_000, saleUnit: "UNIT", relinkRequired: false },
-    packagePriceCents: 800_000,
+    priceCents: 800_000,
+    pricesIncludeVat: true,
+    vatRate: null,
   });
   store.seedOrder(order);
   return store;
@@ -90,12 +94,61 @@ describe("editPurchaseOrder", () => {
     ]);
   });
 
+  it("gives an added product the list price of the supplier's item cheapest per sale unit", async () => {
+    const store = storeWithDraft();
+    store.seedOffer("supplier-a", "product-b", {
+      link: { quantity: 1_000, saleUnit: "UNIT", relinkRequired: false },
+      priceCents: 90_000,
+      pricesIncludeVat: true,
+      vatRate: null,
+    });
+    store.seedOffer("supplier-a", "product-b", {
+      link: { quantity: 20_000, saleUnit: "UNIT", relinkRequired: false },
+      priceCents: 1_200_000,
+      pricesIncludeVat: true,
+      vatRate: null,
+    });
+
+    await editPurchaseOrder(
+      { store },
+      edit({ lines: [{ productId: "product-b", packages: 2, quantityPerPackage: 20_000 }] }),
+    );
+
+    expect(store.orders()[0]?.lines[0]?.expectedPackagePriceCents).toBe(1_200_000);
+  });
+
+  it("gives an added product the list price of a current item without a comparable price over an outdated one", async () => {
+    const store = storeWithDraft();
+    store.seedProduct({ id: "product-c", name: "Sal", saleUnit: "UNIT", active: true });
+    store.seedOffer("supplier-a", "product-c", {
+      link: { quantity: 1_000, saleUnit: "UNIT", relinkRequired: true },
+      priceCents: 100,
+      pricesIncludeVat: true,
+      vatRate: null,
+    });
+    store.seedOffer("supplier-a", "product-c", {
+      link: { quantity: 6_000, saleUnit: "UNIT", relinkRequired: false },
+      priceCents: 4_800,
+      pricesIncludeVat: false,
+      vatRate: null,
+    });
+
+    await editPurchaseOrder(
+      { store },
+      edit({ lines: [{ productId: "product-c", packages: 1, quantityPerPackage: 6_000 }] }),
+    );
+
+    expect(store.orders()[0]?.lines[0]?.expectedPackagePriceCents).toBe(4_800);
+  });
+
   it("leaves an added product without an expected price when the supplier has no current offer for it", async () => {
     const store = storeWithDraft();
     store.seedProduct({ id: "product-c", name: "Sal", saleUnit: "UNIT", active: true });
     store.seedOffer("supplier-a", "product-c", {
       link: { quantity: 1_000, saleUnit: "UNIT", relinkRequired: true },
-      packagePriceCents: 100,
+      priceCents: 100,
+      pricesIncludeVat: true,
+      vatRate: null,
     });
 
     const outcome = await editPurchaseOrder(

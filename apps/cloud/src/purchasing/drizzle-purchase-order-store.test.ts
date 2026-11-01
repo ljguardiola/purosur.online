@@ -274,8 +274,8 @@ describe("the draft purchase orders a purchase order store keeps", () => {
   });
 });
 
-describe("the current offer of a supplier for a product", () => {
-  it("is undefined when the supplier has no item linked to the product", async () => {
+describe("the offers of a supplier for a product", () => {
+  it("are none when the supplier has no item linked to the product", async () => {
     const supplierId = await insertSupplier(db, { actorId });
     const { id: productId } = await insertProduct(db, { name: "Yerba" });
     const other = await insertSupplier(db, { actorId });
@@ -287,12 +287,12 @@ describe("the current offer of a supplier for a product", () => {
       priceCents: 900,
     });
 
-    const offer = await store().transaction((tx) => tx.currentOffer(supplierId, productId));
+    const offers = await store().transaction((tx) => tx.supplierOffers(supplierId, productId));
 
-    expect(offer).toBeUndefined();
+    expect(offers).toEqual([]);
   });
 
-  it("takes the price of the supplier's latest list, a tie going to the list confirmed later", async () => {
+  it("take the price of the supplier's latest list, a tie going to the list confirmed later", async () => {
     const supplierId = await insertSupplier(db, { actorId });
     const { id: productId } = await insertProduct(db, { name: "Yerba" });
     const itemId = await insertOfferedItem(db, {
@@ -317,15 +317,57 @@ describe("the current offer of a supplier for a product", () => {
     await newer(11_500, "2026-04-02T12:00:00.000Z");
     await newer(9_000, "2026-03-20T12:00:00.000Z", "2026-03-15");
 
-    const offer = await store().transaction((tx) => tx.currentOffer(supplierId, productId));
+    const offers = await store().transaction((tx) => tx.supplierOffers(supplierId, productId));
 
-    expect(offer).toEqual({
-      link: { quantity: 6_000, saleUnit: "UNIT", relinkRequired: false },
-      packagePriceCents: 11_500,
-    });
+    expect(offers).toEqual([
+      {
+        link: { quantity: 6_000, saleUnit: "UNIT", relinkRequired: false },
+        priceCents: 11_500,
+        pricesIncludeVat: false,
+        vatRate: 2_100,
+      },
+    ]);
   });
 
-  it("is the cheapest per sale unit among the supplier's items for the product", async () => {
+  it("are every item of the supplier linked to the product, smallest package first, whatever its link's state", async () => {
+    const supplierId = await insertSupplier(db, { actorId });
+    const { id: productId } = await insertProduct(db, { name: "Yerba" });
+    await insertOfferedItem(db, {
+      supplierId,
+      productId,
+      actorId,
+      quantity: 12_000,
+      priceCents: 30_000,
+      vatRate: null,
+    });
+    await insertOfferedItem(db, {
+      supplierId,
+      productId,
+      actorId,
+      quantity: 1_000,
+      priceCents: 2_000,
+      relinkRequired: true,
+    });
+
+    const offers = await store().transaction((tx) => tx.supplierOffers(supplierId, productId));
+
+    expect(offers).toEqual([
+      {
+        link: { quantity: 1_000, saleUnit: "UNIT", relinkRequired: true },
+        priceCents: 2_000,
+        pricesIncludeVat: false,
+        vatRate: 2_100,
+      },
+      {
+        link: { quantity: 12_000, saleUnit: "UNIT", relinkRequired: false },
+        priceCents: 30_000,
+        pricesIncludeVat: false,
+        vatRate: null,
+      },
+    ]);
+  });
+
+  it("let an order take a current item without a comparable price over an outdated one", async () => {
     const supplierId = await insertSupplier(db, { actorId });
     const { id: productId } = await insertProduct(db, { name: "Yerba" });
     await insertOfferedItem(db, {
@@ -334,47 +376,27 @@ describe("the current offer of a supplier for a product", () => {
       actorId,
       quantity: 1_000,
       priceCents: 2_000,
-    });
-    await insertOfferedItem(db, {
-      supplierId,
-      productId,
-      actorId,
-      quantity: 6_000,
-      priceCents: 9_000,
-    });
-    await insertOfferedItem(db, {
-      supplierId,
-      productId,
-      actorId,
-      quantity: 12_000,
-      priceCents: 30_000,
-    });
-
-    const offer = await store().transaction((tx) => tx.currentOffer(supplierId, productId));
-
-    expect(offer).toEqual({
-      link: { quantity: 6_000, saleUnit: "UNIT", relinkRequired: false },
-      packagePriceCents: 9_000,
-    });
-  });
-
-  it("answers an item that needs relinking as it is, so the use case can refuse it", async () => {
-    const supplierId = await insertSupplier(db, { actorId });
-    const { id: productId } = await insertProduct(db, { name: "Yerba" });
-    await insertOfferedItem(db, {
-      supplierId,
-      productId,
-      actorId,
-      quantity: 6_000,
-      priceCents: 9_000,
       relinkRequired: true,
     });
-
-    const offer = await store().transaction((tx) => tx.currentOffer(supplierId, productId));
-
-    expect(offer).toEqual({
-      link: { quantity: 6_000, saleUnit: "UNIT", relinkRequired: true },
-      packagePriceCents: 9_000,
+    await insertOfferedItem(db, {
+      supplierId,
+      productId,
+      actorId,
+      quantity: 6_000,
+      priceCents: 9_000,
+      vatRate: null,
     });
+
+    const outcome = await build([{ productId, supplierId, packages: 2 }]);
+
+    expect(outcome.kind).toBe("created");
+    expect(
+      await db
+        .select({
+          quantityPerPackage: purchaseOrderLines.quantityPerPackage,
+          expectedPackagePriceCents: purchaseOrderLines.expectedPackagePriceCents,
+        })
+        .from(purchaseOrderLines),
+    ).toEqual([{ quantityPerPackage: 6_000, expectedPackagePriceCents: 9_000 }]);
   });
 });

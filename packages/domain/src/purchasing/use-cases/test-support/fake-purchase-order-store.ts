@@ -84,14 +84,10 @@ class FakePurchaseOrderStoreTransaction implements PurchaseOrderStoreTransaction
       : { kind: "not_found" };
   }
 
-  async currentOffer(
-    supplierId: string,
-    productId: string,
-  ): Promise<SupplierProductOffer | undefined> {
-    const row = this.state.offers.find(
-      (offer) => offer.supplierId === supplierId && offer.productId === productId,
-    );
-    return row && { ...row.offer, link: { ...row.offer.link } };
+  async supplierOffers(supplierId: string, productId: string): Promise<SupplierProductOffer[]> {
+    return this.state.offers
+      .filter((offer) => offer.supplierId === supplierId && offer.productId === productId)
+      .map((row) => ({ ...row.offer, link: { ...row.offer.link } }));
   }
 
   async insertDraftPurchaseOrder(fields: NewPurchaseOrderFields): Promise<{ id: string }> {

@@ -1,4 +1,4 @@
-import { PURCHASE_ORDER_STATES } from "@purosur/domain";
+import { ARGENTINA_TIME_ZONE, PURCHASE_ORDER_STATES } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
   purchaseOrderListQuerySchema,
@@ -54,5 +54,13 @@ describe("purchaseOrderListQuerySchema", () => {
   it("rejects a state that does not exist", () => {
     expect(purchaseOrderListQuerySchema.safeParse({ state: "SENT" }).success).toBe(false);
     expect(purchaseOrderListQuerySchema.safeParse({ state: "" }).success).toBe(false);
+  });
+});
+
+describe("purchaseOrderSummarySchema, declared time zone", () => {
+  it("declares the zone the creation instant is shown in", () => {
+    expect(purchaseOrderSummarySchema.shape.createdAt.meta()).toEqual({
+      timeZone: ARGENTINA_TIME_ZONE,
+    });
   });
 });
