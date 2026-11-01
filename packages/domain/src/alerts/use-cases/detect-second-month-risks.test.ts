@@ -199,6 +199,23 @@ describe("detectSecondNonCompliantMonthRisks", () => {
     ]);
   });
 
+  it("takes the running figures of the address even when another address is counted first", async () => {
+    const { alerts, outcome } = detect({
+      today: "2026-11-10",
+      breaches: [recorded("fa-1", "2026-10")],
+      counts: [running("fa-2", "2026-11", 9, 100), running("fa-1", "2026-11", 1, 50)],
+    });
+
+    expect(await outcome).toBe(1);
+    expect(alerts.observations).toEqual([
+      held("fa-1", "2026-11", "2026-10", {
+        exceptionCount: 1,
+        totalCount: 50,
+        shareTenthsOfPercent: 20,
+      }),
+    ]);
+  });
+
   it("reads the day in Argentina, not in UTC", async () => {
     const alerts = new FakeSecondMonthRiskAlerts();
     const outcome = detectSecondNonCompliantMonthRisks({
