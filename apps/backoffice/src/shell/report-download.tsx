@@ -6,19 +6,35 @@ import type { Workbook } from "../platform/spreadsheet/workbook";
 
 const SPREADSHEET_MIME_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
+type WriteSpreadsheet = (workbook: Workbook) => Promise<Uint8Array>;
+
 export type ReportDownloadProps = {
   dataStatus: LoadStatus;
   workbook: () => Workbook | null;
   fileName: string;
+  writeSpreadsheet?: WriteSpreadsheet;
 };
 
-async function downloadSpreadsheet(workbook: Workbook, fileName: string): Promise<void> {
+async function writeSpreadsheetOnDemand(workbook: Workbook): Promise<Uint8Array> {
   const { writeWorkbook } = await import("../platform/spreadsheet/spreadsheet-writer");
-  const file = writeWorkbook(workbook);
+  return writeWorkbook(workbook);
+}
+
+async function downloadSpreadsheet(
+  workbook: Workbook,
+  fileName: string,
+  writeSpreadsheet: WriteSpreadsheet,
+): Promise<void> {
+  const file = await writeSpreadsheet(workbook);
   downloadFile(new Blob([file.slice()], { type: SPREADSHEET_MIME_TYPE }), fileName);
 }
 
-export function ReportDownload({ dataStatus, workbook, fileName }: ReportDownloadProps) {
+export function ReportDownload({
+  dataStatus,
+  workbook,
+  fileName,
+  writeSpreadsheet = writeSpreadsheetOnDemand,
+}: ReportDownloadProps) {
   const [preparing, setPreparing] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -29,7 +45,7 @@ export function ReportDownload({ dataStatus, workbook, fileName }: ReportDownloa
     }
     setFailed(false);
     setPreparing(true);
-    downloadSpreadsheet(built, fileName).then(
+    downloadSpreadsheet(built, fileName, writeSpreadsheet).then(
       () => setPreparing(false),
       () => {
         setFailed(true);
