@@ -247,8 +247,8 @@ export default defineRailway((ctx) => {
   const offsiteDump =
     environment === "production"
       ? [
-          // Cron times are UTC: the dump runs early enough for the daily check at 10:00 UTC to
-          // find it, with hours to spare before the 15:00 UTC deadline. Connected as the
+          // Cron times are UTC: the dump runs early enough for the daily check at 08:17 UTC to
+          // find it, even though GitHub starts that check hours late. Connected as the
           // read-only `offsite_dump` role and holding only the age recipient (the public key) and
           // a storage credential that can create objects, never read or delete them.
           service("Offsite Dump", {
