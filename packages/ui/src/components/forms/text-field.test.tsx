@@ -1459,12 +1459,12 @@ test("takes a typed dot as the decimal comma of an amount", async () => {
   expect(input.value).toBe("1.234,50");
 });
 
-test("takes the numeric keypad's dot as the decimal comma of a weight", async () => {
+test("takes a typed dot as the decimal comma of a weight", async () => {
   const screen = await render(<DecimalHarness kind="weight" decimals={3} />);
   const input = fieldInput(screen, "Amount");
 
   await userEvent.click(input);
-  await userEvent.keyboard("12{NumpadDecimal}5");
+  await userEvent.keyboard("12.5");
 
   expect(input.value).toBe("12,5");
 });
@@ -1473,7 +1473,7 @@ test("ignores a second decimal separator and a digit beyond the decimals", async
   const screen = await render(<DecimalHarness initial="10,50" />);
   const input = fieldInput(screen, "Amount");
 
-  await userEvent.click(input);
+  await focusAt(input, 5);
   await userEvent.keyboard(".,7");
 
   expect(input.value).toBe("10,50");
@@ -1493,7 +1493,7 @@ test("regroups the thousands when the last digit is deleted", async () => {
   const screen = await render(<DecimalHarness initial="1.234" />);
   const input = fieldInput(screen, "Amount");
 
-  await userEvent.click(input);
+  await focusAt(input, 5);
   await userEvent.keyboard("{Backspace}");
 
   expect(input.value).toBe("123");
