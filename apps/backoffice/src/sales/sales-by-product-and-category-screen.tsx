@@ -15,12 +15,12 @@ import {
   textOrder,
   useTableModel,
 } from "@purosur/ui";
-import { formatProductDescription } from "@purosur/ui/formatters";
 import { Receipt } from "lucide-react";
 import { useState } from "react";
-import { categoryPathText } from "../platform/category-path";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { shareOfTotal } from "../platform/share-of-total";
+import { ReportDownload } from "../shell/report-download";
+import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import { reportQueryOf } from "../shell/report-filters-search";
 import type { ReportRegisterField } from "../shell/report-register-field";
@@ -28,8 +28,10 @@ import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
 import type { SalesByProductAndCategoryFilters } from "./sales-by-product-and-category-filters";
 import type { SalesByProductAndCategoryScreenServices } from "./sales-by-product-and-category-services";
+import { salesByProductAndCategorySpreadsheet } from "./sales-by-product-and-category-spreadsheet";
 import { useSalesByProductAndCategoryQuery } from "./sales-queries";
 import { soldQuantityText } from "./sold-quantity-text";
+import { soldRowLabel } from "./sold-row-label";
 
 export type SalesByProductAndCategoryScreenProps = {
   filters: SalesByProductAndCategoryFilters;
@@ -48,19 +50,9 @@ const GROUP_OPTIONS = [
   { value: "product" as const, label: "Por producto" },
 ] as const;
 
-const NO_CATEGORY = "Sin categoría";
+const SCREEN_TITLE = "Ventas por producto y por categoría";
 
-function rowLabel(row: SoldRow): string {
-  return row.id === null && row.path.length === 0
-    ? NO_CATEGORY
-    : formatProductDescription({
-        name: categoryPathText(row.path),
-        brandName: row.brandName,
-        netContent: row.netContent,
-      });
-}
-
-const labelOrder = textOrder(rowLabel);
+const labelOrder = textOrder(soldRowLabel);
 
 function soldColumns(group: SalesByProductAndCategoryBody["group"], total: number) {
   return [
@@ -68,7 +60,7 @@ function soldColumns(group: SalesByProductAndCategoryBody["group"], total: numbe
       id: "name",
       header: group === "product" ? "Producto" : "Categoría",
       sort: { order: labelOrder, firstDirection: "ascending" },
-      render: (row: SoldRow) => rowLabel(row),
+      render: (row: SoldRow) => soldRowLabel(row),
     }),
     dataColumn({
       id: "units",
@@ -103,6 +95,7 @@ export function SalesByProductAndCategoryScreen({
   services,
 }: SalesByProductAndCategoryScreenProps) {
   const registerChosen = filters.register !== "ALL";
+  const [registerLabel, setRegisterLabel] = useState("Todas");
   const [page, setPage] = useState(1);
   const data = useSalesByProductAndCategoryQuery({
     query: { ...reportQueryOf(filters), group: filters.group },
@@ -131,7 +124,7 @@ export function SalesByProductAndCategoryScreen({
   return (
     <ScreenLayout
       topBar={
-        <ScreenTopBar eyebrow="Reportes · Ventas" title="Ventas por producto y por categoría" />
+        <ScreenTopBar eyebrow="Reportes · Ventas" title={SCREEN_TITLE} />
       }
       bodyClassName="gap-4 p-6"
     >
@@ -141,6 +134,22 @@ export function SalesByProductAndCategoryScreen({
           onFiltersChange={changeFilters}
           answeredPeriod={shown?.range}
           registerFilter={registerFilter}
+          onRegisterLabelChange={setRegisterLabel}
+          trailing={
+            <ReportDownload
+              dataStatus={data.status}
+              workbook={() =>
+                shown
+                  ? salesByProductAndCategorySpreadsheet(
+                      shown,
+                      table.getPrePaginatedRowModel().rows.map((row) => row.original),
+                      registerLabel,
+                    )
+                  : null
+              }
+              fileName={shown ? reportFileName(SCREEN_TITLE, shown.range) : ""}
+            />
+          }
         />
         <ListFilter
           name="group"
@@ -172,7 +181,7 @@ export function SalesByProductAndCategoryScreen({
                 <FigureStat
                   size="heading"
                   label={group === "product" ? "Producto principal" : "Categoría principal"}
-                  value={topRow === undefined ? "—" : rowLabel(topRow)}
+                  value={topRow === undefined ? "—" : soldRowLabel(topRow)}
                   {...(topRow === undefined
                     ? {}
                     : { detail: topRowDetail(topRow, shown.totals.amount) })}
