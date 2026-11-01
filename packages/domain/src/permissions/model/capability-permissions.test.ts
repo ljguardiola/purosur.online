@@ -37,6 +37,7 @@ const CAPABILITIES_GRANTED_BY: readonly [PermissionKey, readonly Capability[]][]
   ["manage_expiration_dates", ["stock_expiries", "stock_area"]],
   ["manage_supplier_price_lists", ["orders_area", "supplier_price_lists"]],
   ["compare_prices_and_suggest_orders", ["orders_area", "price_comparison"]],
+  ["manage_purchase_orders", ["orders_area", "purchase_orders"]],
   ["view_reports", ["reports_area", "report_registers"]],
   ["view_returns_report", ["returns_report", "report_registers"]],
   ["confirm_refunds", ["refunds_area"]],
@@ -317,7 +318,7 @@ describe("grantedCapabilities", () => {
     expect(
       grantedCapabilities({
         isAdministrator: false,
-        permissionKeys: ["sell_and_charge", "reprint_receipt", "manage_purchase_orders"],
+        permissionKeys: ["sell_and_charge", "reprint_receipt"],
       }),
     ).toEqual([]);
   });
