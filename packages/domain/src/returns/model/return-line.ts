@@ -1,6 +1,6 @@
 import type { DiscountBenefit } from "../../pricing/index.js";
 import { roundHalfUp } from "../../shared/index.js";
-import { RETURN_REASONS, type ReturnReason } from "./return-reasons.js";
+import type { ReturnReason } from "./return-reasons.js";
 
 export interface ReturnedLineStanding {
   soldQuantity: number;
@@ -30,9 +30,8 @@ export function wholeOnlyReasons({
     case "PERCENT_OFF":
       return [];
     case "BUY_N_PAY_M":
-      return ["change_of_mind"];
     case null:
-      return RETURN_REASONS;
+      return ["change_of_mind"];
   }
 }
 

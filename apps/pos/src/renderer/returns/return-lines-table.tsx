@@ -25,7 +25,7 @@ export type ReturnLinesTableProps = {
   onChange: (lineId: string, change: Partial<ReturnDraftLine>) => void;
 };
 
-const PROMOTION_REASON = "Las promociones se devuelven completas";
+const PROMOTION_REASON = "Con este motivo, la promoción se devuelve completa";
 
 function descriptionOf(line: SaleLineForReturn): string {
   const sold = `${quantityText(line.sale_unit, line.sold_quantity)} · ${formatCents(line.charged_amount)}`;
