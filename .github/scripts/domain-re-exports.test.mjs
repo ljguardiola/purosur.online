@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import {
   checkFiles,
   checkScreenFiles,
@@ -229,7 +230,7 @@ test("checkScreenFiles reports each screen file that re-exports from domain", ()
   );
 });
 
-const repoRoot = join(dirname(new URL(import.meta.url).pathname), "../..");
+const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 
 function repoViolations() {
   return checkFiles(findScannedFiles(repoRoot), (path) =>

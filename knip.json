@@ -5,6 +5,7 @@
     "@secretlint/secretlint-rule-preset-recommend"
   ],
   "ignoreFiles": [
+    ".github/scripts/glob-aware-module-cache.d.mts",
     ".github/scripts/held-run-reporter.d.mts",
     ".github/scripts/slow-tests-reporter.d.mts",
     ".github/scripts/without-package-output.d.mts",
