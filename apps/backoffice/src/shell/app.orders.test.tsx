@@ -23,6 +23,7 @@ opensOnlyScreens([
   "/help",
   "/price-comparison",
   "/order-suggestion",
+  "/purchase-orders",
   "/supplier-price-lists",
   "/supplier-price-lists/$listId",
 ]);
@@ -244,6 +245,74 @@ test("opens the order suggestion from its section, marking it as the section sho
 test("sends a user who may not compare prices away from the order suggestion to Mi cuenta", async () => {
   const services = ordersServices(["supplier_price_lists", "orders_area"]);
   window.history.pushState(null, "", "/order-suggestion");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+});
+
+test("lists the purchase orders beside the other sections for whoever manages them", async () => {
+  const services = ordersServices(["supplier_price_lists", "purchase_orders", "orders_area"]);
+  window.history.pushState(null, "", "/supplier-price-lists");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Listas de proveedores", level: 1 }))
+    .toBeVisible();
+  const links = screen
+    .getByRole("navigation", { name: "Pedidos" })
+    .getByRole("link")
+    .elements()
+    .map((link) => link.textContent);
+  expect(links).toEqual(["Listas de proveedores", "Pedidos de compra"]);
+});
+
+test("opens the purchase orders from the rail's Pedidos item when it is all the user may open", async () => {
+  const services = ordersServices(["purchase_orders", "orders_area"]);
+  vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrders).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await userEvent.click(screen.getByRole("link", { name: "Pedidos", exact: true }));
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Pedidos de compra", level: 1 }))
+    .toBeVisible();
+  expect(window.location.pathname).toBe("/purchase-orders");
+});
+
+test.each([
+  ["supplier_price_lists", "/supplier-price-lists"],
+  ["price_comparison", "/price-comparison"],
+] as const)("opens %s first from the rail's Pedidos item", async (capability, path) => {
+  const services = ordersServices([capability, "purchase_orders", "orders_area"]);
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await userEvent.click(screen.getByRole("link", { name: "Pedidos", exact: true }));
+
+  await vi.waitFor(() => expect(window.location.pathname).toBe(path));
+});
+
+test("hides the purchase orders from whoever may only manage the lists", async () => {
+  const services = ordersServices(["supplier_price_lists", "orders_area"]);
+  window.history.pushState(null, "", "/supplier-price-lists");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Listas de proveedores", level: 1 }))
+    .toBeVisible();
+  expect(screen.getByRole("link", { name: "Pedidos de compra" }).query()).toBeNull();
+});
+
+test("sends a user who may not manage purchase orders away from them to Mi cuenta", async () => {
+  const services = ordersServices(["supplier_price_lists", "orders_area"]);
+  window.history.pushState(null, "", "/purchase-orders");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
