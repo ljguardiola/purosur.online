@@ -37,9 +37,9 @@ const optionalCoverageDaysSchema = coverageDaysSchema
   .default(DEFAULT_PRODUCT_COVERAGE_DAYS)
   .meta(COVERAGE_DAYS_LIMITS);
 
-export function productBodySchema(
+export function productBodySchema<TCoverageDays extends z.ZodType>(
   barcodes: ReturnType<typeof barcodeListSchema>,
-  coverageDays: typeof requiredCoverageDaysSchema | typeof optionalCoverageDaysSchema,
+  coverageDays: TCoverageDays,
 ) {
   return z
     .object({
