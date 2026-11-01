@@ -66,7 +66,6 @@ describe("ChangeLineWeightModal", () => {
 
   it.each([
     ["", INVALID_WEIGHT_MESSAGE],
-    ["5,", INVALID_WEIGHT_MESSAGE],
     ["0", INVALID_WEIGHT_MESSAGE],
     ["3000000", ABOVE_LINE_LIMIT_MESSAGE],
   ])("refuses a typed weight of '%s' without changing the line", async (typed, message) => {
@@ -76,6 +75,17 @@ describe("ChangeLineWeightModal", () => {
     await screen.getByRole("button", { name: "Cambiar peso" }).click();
 
     await expect.element(screen.getByText(message)).toBeVisible();
+    expect(change).not.toHaveBeenCalled();
+  });
+
+  it("refuses a weight typed with a trailing comma without changing the line", async () => {
+    const { screen, field, change } = await renderModal();
+
+    await userEvent.clear(field);
+    await userEvent.keyboard("5,");
+    await screen.getByRole("button", { name: "Cambiar peso" }).click();
+
+    await expect.element(screen.getByText(INVALID_WEIGHT_MESSAGE)).toBeVisible();
     expect(change).not.toHaveBeenCalled();
   });
 

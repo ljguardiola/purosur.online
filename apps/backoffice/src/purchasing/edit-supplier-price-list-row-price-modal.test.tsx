@@ -52,9 +52,14 @@ function renderModal({
   );
 }
 
-async function save(screen: Awaited<ReturnType<typeof renderModal>>, price: string) {
+async function save(screen: Awaited<ReturnType<typeof renderModal>>, price: string, keys = false) {
   const dialog = screen.getByRole("dialog");
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Precio/ }), price);
+  if (keys) {
+    await userEvent.clear(dialog.getByRole("textbox", { name: /^Precio/ }));
+    await userEvent.keyboard(price);
+  } else {
+    await userEvent.fill(dialog.getByRole("textbox", { name: /^Precio/ }), price);
+  }
   await userEvent.click(dialog.getByRole("button", { name: "Guardar el precio" }));
   return dialog;
 }
@@ -98,7 +103,7 @@ test("asks for a valid price without calling the cloud", async () => {
     vi.fn<EditSupplierPriceListRowPriceModalServices["setSupplierPriceListRowPrice"]>();
   const screen = await renderModal({ setSupplierPriceListRowPrice });
 
-  const dialog = await save(screen, "5,");
+  const dialog = await save(screen, "5,", true);
 
   await expect.element(dialog.getByText("Ingresá un precio válido, como 1.234,50.")).toBeVisible();
   expect(setSupplierPriceListRowPrice).not.toHaveBeenCalled();

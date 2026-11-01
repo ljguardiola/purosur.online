@@ -939,7 +939,8 @@ test("does not read a proposal for a net content that is not valid", async () =>
 
   vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   try {
-    await userEvent.fill(netContent, "5,");
+    await userEvent.clear(netContent);
+    await userEvent.keyboard("5,");
     await userEvent.click(radioLabel(dialog, "Por peso"));
     await vi.advanceTimersByTimeAsync(1_000);
     await userEvent.fill(netContent, "250");

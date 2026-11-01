@@ -158,7 +158,8 @@ describe("ReturnScreen completing the return", () => {
     await decideOnePasta(screen);
     const cash = screen.getByRole("textbox", { name: "Reintegro por Efectivo" });
 
-    await userEvent.fill(cash, "5,");
+    await userEvent.clear(cash);
+    await userEvent.keyboard("5,");
     await complete(screen);
 
     await expect

@@ -76,8 +76,13 @@ async function renderScreen(
 
 type Screen = Awaited<ReturnType<typeof renderScreen>>["screen"];
 
-async function count(screen: Screen, typed: string) {
-  await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), typed);
+async function count(screen: Screen, typed: string, keys = false) {
+  if (keys) {
+    await userEvent.clear(screen.getByRole("textbox", { name: "Efectivo contado" }));
+    await userEvent.keyboard(typed);
+  } else {
+    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), typed);
+  }
 }
 
 async function submit(screen: Screen) {
@@ -241,7 +246,7 @@ describe("CashCountScreen", () => {
     const { screen } = await renderScreen();
     await count(screen, "45800,00");
 
-    await count(screen, "5,");
+    await count(screen, "5,", true);
 
     expect(cellOf(screen, "Contado")).toBe("Contado—");
     await expect.element(screen.getByText(SHORT_NOTICE).first()).not.toBeInTheDocument();
@@ -290,7 +295,7 @@ describe("CashCountScreen", () => {
   it("asks for a valid amount when what was typed is not one, without closing", async () => {
     const { screen, closeCashSession } = await renderScreen();
 
-    await count(screen, "5,");
+    await count(screen, "5,", true);
     await submit(screen);
 
     await expect.element(screen.getByText(INVALID_MESSAGE)).toBeVisible();
@@ -299,11 +304,11 @@ describe("CashCountScreen", () => {
 
   it("keeps the message while the edited count is still invalid and clears it once it is valid", async () => {
     const { screen } = await renderScreen();
-    await count(screen, "5,");
+    await count(screen, "5,", true);
     await submit(screen);
     await expect.element(screen.getByText(INVALID_MESSAGE)).toBeVisible();
 
-    await count(screen, "6,");
+    await count(screen, "6,", true);
     await expect.element(screen.getByText(INVALID_MESSAGE)).toBeVisible();
 
     await count(screen, "45800,00");

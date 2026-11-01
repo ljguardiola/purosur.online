@@ -107,7 +107,8 @@ describe("ReturnRefundsField", () => {
     const screen = await renderField();
     const cash = screen.getByRole("textbox", { name: "Reintegro por Efectivo" });
 
-    await userEvent.fill(cash, "5,");
+    await userEvent.clear(cash);
+    await userEvent.keyboard("5,");
     await userEvent.click(screen.getByRole("button", { name: "Completar" }));
 
     await expect.element(screen.getByText(INVALID_REFUND_MESSAGE)).toBeVisible();

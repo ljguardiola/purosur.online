@@ -69,7 +69,6 @@ describe("AddWeighedProductModal", () => {
 
   it.each([
     ["", INVALID_WEIGHT_MESSAGE],
-    ["5,", INVALID_WEIGHT_MESSAGE],
     ["0", INVALID_WEIGHT_MESSAGE],
     ["3000000", ABOVE_LINE_LIMIT_MESSAGE],
   ])("refuses a typed weight of '%s' without adding it", async (typed, message) => {
@@ -79,6 +78,17 @@ describe("AddWeighedProductModal", () => {
     await screen.getByRole("button", { name: "Agregar" }).click();
 
     await expect.element(screen.getByText(message)).toBeVisible();
+    expect(add).not.toHaveBeenCalled();
+  });
+
+  it("refuses a weight typed with a trailing comma without adding it", async () => {
+    const { screen, field, add } = await renderModal();
+
+    await userEvent.clear(field);
+    await userEvent.keyboard("5,");
+    await screen.getByRole("button", { name: "Agregar" }).click();
+
+    await expect.element(screen.getByText(INVALID_WEIGHT_MESSAGE)).toBeVisible();
     expect(add).not.toHaveBeenCalled();
   });
 

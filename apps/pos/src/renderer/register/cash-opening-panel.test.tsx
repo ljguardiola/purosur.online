@@ -39,9 +39,15 @@ async function startOpening(screen: Awaited<ReturnType<typeof renderPanel>>["scr
 async function submitFloat(
   screen: Awaited<ReturnType<typeof renderPanel>>["screen"],
   typed: string,
+  keys = false,
 ) {
   await startOpening(screen);
-  await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), typed);
+  if (keys) {
+    await userEvent.clear(screen.getByRole("textbox", { name: "Fondo inicial" }));
+    await userEvent.keyboard(typed);
+  } else {
+    await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), typed);
+  }
   await userEvent.click(screen.getByRole("button", { name: "Abrir la caja" }));
 }
 
@@ -142,7 +148,7 @@ describe("CashOpeningPanel", () => {
     async (typed) => {
       const { screen, open } = await renderPanel();
 
-      await submitFloat(screen, typed);
+      await submitFloat(screen, typed, true);
 
       await expect.element(screen.getByText(INVALID_MESSAGE)).toBeVisible();
       expect(open).not.toHaveBeenCalled();
@@ -151,10 +157,11 @@ describe("CashOpeningPanel", () => {
 
   it("keeps the message while the edited float is still invalid and clears it once it is valid", async () => {
     const { screen } = await renderPanel();
-    await submitFloat(screen, "5,");
+    await submitFloat(screen, "5,", true);
     await expect.element(screen.getByText(INVALID_MESSAGE)).toBeVisible();
 
-    await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), "6,");
+    await userEvent.clear(screen.getByRole("textbox", { name: "Fondo inicial" }));
+    await userEvent.keyboard("6,");
     await expect.element(screen.getByText(INVALID_MESSAGE)).toBeVisible();
 
     await userEvent.fill(screen.getByRole("textbox", { name: "Fondo inicial" }), "100");

@@ -85,8 +85,13 @@ async function choose(screen: Screen, kind: "Ingreso" | "Gasto" | "Retiro") {
   await userEvent.click(screen.getByText(kind, { exact: true }));
 }
 
-async function fill(screen: Screen, amount: string, reason: string) {
-  await userEvent.fill(screen.getByRole("textbox", { name: "Importe" }), amount);
+async function fill(screen: Screen, amount: string, reason: string, keys = false) {
+  if (keys) {
+    await userEvent.clear(screen.getByRole("textbox", { name: "Importe" }));
+    await userEvent.keyboard(amount);
+  } else {
+    await userEvent.fill(screen.getByRole("textbox", { name: "Importe" }), amount);
+  }
   await userEvent.fill(screen.getByRole("textbox", { name: "Motivo" }), reason);
 }
 
@@ -221,11 +226,11 @@ describe("RecordCashMovementModal", () => {
   });
 
   it.each([
-    ["", "Ingresá el importe."],
-    ["5,", "Ingresá un importe válido, por ejemplo 5.000,00."],
-  ])("refuses the amount %j before recording anything", async (typed, message) => {
+    ["", "Ingresá el importe.", false],
+    ["5,", "Ingresá un importe válido, por ejemplo 5.000,00.", true],
+  ])("refuses the amount %j before recording anything", async (typed, message, keys) => {
     const { screen, recordCashMovement } = await renderModal();
-    await fill(screen, typed, "Cambio");
+    await fill(screen, typed, "Cambio", keys);
 
     await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
 
@@ -345,13 +350,14 @@ describe("RecordCashMovementModal", () => {
 
   it("keeps the amount's message while its edited value is still invalid and clears it once it is valid", async () => {
     const { screen } = await renderModal();
-    await fill(screen, "5,", "Cambio");
+    await fill(screen, "5,", "Cambio", true);
     await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
     const amount = screen.getByRole("textbox", { name: "Importe" });
     const invalidAmount = screen.getByText("Ingresá un importe válido, por ejemplo 5.000,00.");
     await expect.element(invalidAmount).toBeVisible();
 
-    await userEvent.fill(amount, "6,");
+    await userEvent.clear(amount);
+    await userEvent.keyboard("6,");
     await expect.element(invalidAmount).toBeVisible();
 
     await userEvent.fill(amount, "100");

@@ -182,7 +182,8 @@ describe("StandaloneTerminalChargeModal", () => {
   it("does not charge what is not an amount, and says so", async () => {
     const { screen, field, register, chargeSale } = await renderModal();
 
-    await userEvent.fill(field, "5,");
+    await userEvent.clear(field);
+    await userEvent.keyboard("5,");
     await userEvent.click(register);
 
     await expect

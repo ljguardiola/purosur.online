@@ -167,7 +167,8 @@ describe("TransferChargeModal", () => {
   it("does not charge what is not an amount, and says so", async () => {
     const { screen, field, seen, chargeSale } = await renderModal();
 
-    await userEvent.fill(field, "5,");
+    await userEvent.clear(field);
+    await userEvent.keyboard("5,");
     await userEvent.click(seen);
 
     await expect

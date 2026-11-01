@@ -145,8 +145,13 @@ function withOpenSale(options: { close?: Close; cancelSale?: CancelSale } = {}) 
 
 type Screen = Awaited<ReturnType<typeof renderStep>>["screen"];
 
-async function closeWith(screen: Screen, typed: string) {
-  await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), typed);
+async function closeWith(screen: Screen, typed: string, keys = false) {
+  if (keys) {
+    await userEvent.clear(screen.getByRole("textbox", { name: "Efectivo contado" }));
+    await userEvent.keyboard(typed);
+  } else {
+    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), typed);
+  }
   await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
 }
 
@@ -260,10 +265,11 @@ describe("LockedCashCount", () => {
 
   it("keeps the message while the edited count is still invalid and clears it once it is valid", async () => {
     const { screen } = await renderStep();
-    await closeWith(screen, "5,");
+    await closeWith(screen, "5,", true);
     await expect.element(screen.getByText(INVALID_MESSAGE)).toBeVisible();
 
-    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "6,");
+    await userEvent.clear(screen.getByRole("textbox", { name: "Efectivo contado" }));
+    await userEvent.keyboard("6,");
     await expect.element(screen.getByText(INVALID_MESSAGE)).toBeVisible();
 
     await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45800,00");

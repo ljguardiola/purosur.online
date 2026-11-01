@@ -220,7 +220,8 @@ describe("CashChargeModal", () => {
   it("says when what was typed is not an amount", async () => {
     const { screen, field, complete } = await renderModal();
 
-    await userEvent.fill(field, "5,");
+    await userEvent.clear(field);
+    await userEvent.keyboard("5,");
 
     await expect
       .element(screen.getByText("Ingresá un importe válido, por ejemplo 5.000,00."))
@@ -255,7 +256,8 @@ describe("CashChargeModal", () => {
   it("does not ask the core while nothing, or something that is not an amount, is typed", async () => {
     const { field, readCashCharge, screen } = await renderModal();
 
-    await userEvent.fill(field, "5,");
+    await userEvent.clear(field);
+    await userEvent.keyboard(",");
 
     await expect
       .element(screen.getByText("Ingresá un importe válido, por ejemplo 5.000,00."))

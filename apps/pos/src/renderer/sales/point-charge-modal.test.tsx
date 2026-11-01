@@ -128,7 +128,8 @@ describe("PointChargeModal", () => {
   it("does not send what is not an amount, and says so", async () => {
     const { screen, field, send, startCharge } = await renderModal();
 
-    await userEvent.fill(field, "5,");
+    await userEvent.clear(field);
+    await userEvent.keyboard("5,");
     await userEvent.click(send);
 
     await expect
