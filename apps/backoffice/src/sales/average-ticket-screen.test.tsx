@@ -1,16 +1,18 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
-import { expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
 import { render } from "../shell/test-support/render-with-router";
 import { dateSegments } from "../shell/test-support/report-dates";
-import { FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
+import { BACK_REGISTER_ID, FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
 import {
   createReportRegisterFilterServices,
   type ReportRegisterFilterServices,
   reportRegisterFieldForTests,
 } from "../shell/test-support/report-register-filter";
+import { spyOnDownloads } from "../shell/test-support/spy-on-downloads";
 import { type AverageTicketFilters, averageTicketFilters } from "./average-ticket-filters";
 import { AverageTicketScreen } from "./average-ticket-screen";
 import type { AverageTicketScreenServices } from "./average-ticket-services";
@@ -363,4 +365,65 @@ test("shows every week on one page, with no pages and no export", async () => {
 
   expect(screen.getByRole("navigation", { name: /Páginas/ }).query()).toBeNull();
   expect(screen.getByRole("button", { name: "Exportar" }).query()).toBeNull();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+test("downloads a spreadsheet of the weeks shown, with the applied register and the figures", async () => {
+  const downloads = spyOnDownloads();
+  const screen = await renderScreen(createServices(), {
+    filters: averageTicketFilters.parse({ register: BACK_REGISTER_ID }),
+  });
+  await expect
+    .element(screen.getByRole("combobox", { name: /^Caja:/ }))
+    .toHaveValue("Caja del fondo");
+  await expect.element(screen.getByText("Del 08/10/2026 al 14/10/2026")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
+
+  await expect
+    .poll(() => downloads.names)
+    .toEqual(["ticket-promedio-2026-09-24-2026-10-14.xlsx"]);
+  const file = await readDownloadedXlsx(downloads.blobs[0]);
+  expect(file.sheetNames).toEqual(["Resumen", "Ticket promedio por semana"]);
+  const summary = file.sheet(0);
+  expect(summary.get("B4")?.value).toBe("Caja del fondo");
+  expect(summary.get("B5")?.value).toBe("250");
+  expect(summary.get("B8")?.value).toBe("240");
+  expect(summary.get("B10")?.value).toBe("0.042");
+  const weeks = file.sheet(1);
+  expect(weeks.get("A2")?.value).toBe("Del 08/10/2026 al 14/10/2026");
+  expect(weeks.get("B2")?.value).toBe("40");
+  expect(weeks.get("C2")?.value).toBe("11000");
+  expect(weeks.get("D2")?.value).toBe("275");
+});
+
+test("downloads the weeks in the order the screen sorts them", async () => {
+  const downloads = spyOnDownloads();
+  const screen = await renderScreen(createServices(), {
+    filters: averageTicketFilters.parse({ sortBy: "week", sort: "ascending" }),
+  });
+  await expect.element(screen.getByText("Del 08/10/2026 al 14/10/2026")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
+
+  await expect.poll(() => downloads.blobs.length).toBe(1);
+  const weeks = (await readDownloadedXlsx(downloads.blobs[0])).sheet(1);
+  expect(weeks.get("A2")?.value).toBe("Del 24/09/2026 al 30/09/2026");
+  expect(weeks.get("A4")?.value).toBe("Del 08/10/2026 al 14/10/2026");
+});
+
+test("has its download disabled while the report loads and after loading fails", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAverageTicket).mockReturnValue(new Promise(() => {}));
+  const loading = await renderScreen(services);
+  await expect.element(loading.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
+  await loading.unmount();
+
+  vi.mocked(services.fetchAverageTicket).mockResolvedValue({ kind: "failed" });
+  const failed = await renderScreen(services);
+  await expect.element(failed.getByRole("button", { name: "Reintentar" })).toBeVisible();
+  await expect.element(failed.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
 });
