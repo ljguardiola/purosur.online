@@ -1,5 +1,6 @@
+import { compareCodeUnits, compareSpanishText } from "@purosur/domain";
 import type { DiscountReader, StoredDiscount } from "@purosur/domain/pricing/use-cases";
-import { asc, eq, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { netContentRow } from "../catalog/net-content-row.js";
 import { brands, categories, discounts, products, tags } from "../platform/db/schema.js";
@@ -68,8 +69,12 @@ export class DrizzleDiscountReader<TQueryResult extends PgQueryResultHKT>
           .leftJoin(brands, eq(brands.id, products.brandId))
           .leftJoin(categories, eq(categories.id, discounts.categoryId))
           .leftJoin(tags, eq(tags.id, discounts.tagId))
-          .where(discountId === undefined ? undefined : eq(discounts.id, discountId))
-          .orderBy(asc(discounts.name), asc(discounts.id));
+          .where(discountId === undefined ? undefined : eq(discounts.id, discountId));
+        rows.sort(
+          (a, b) =>
+            compareSpanishText(a.discount.name, b.discount.name) ||
+            compareCodeUnits(a.discount.id, b.discount.id),
+        );
 
         return rows.map(({ discount, targetName, ...product }) => ({
           id: discount.id,

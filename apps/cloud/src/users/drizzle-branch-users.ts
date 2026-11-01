@@ -1,9 +1,10 @@
+import { compareCodeUnits, compareSpanishText } from "@purosur/domain";
 import type {
   BranchUserActiveScope,
   BranchUserFacts,
   BranchUsers,
 } from "@purosur/domain/users/use-cases";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { passkeys, rolePermissions, roles, userRoles, users } from "../platform/db/schema.js";
 
@@ -57,11 +58,16 @@ class DrizzleBranchUsers<TQueryResult extends PgQueryResultHKT> implements Branc
       .leftJoin(passkeys, eq(passkeys.userId, users.id));
   }
 
-  branchUsers(locationId: string, activeScope: BranchUserActiveScope): Promise<BranchUserFacts[]> {
-    return this.selectBranchUsers()
+  async branchUsers(
+    locationId: string,
+    activeScope: BranchUserActiveScope,
+  ): Promise<BranchUserFacts[]> {
+    const rows = await this.selectBranchUsers()
       .where(and(eq(users.locationId, locationId), activeScopeCondition(activeScope)))
-      .groupBy(...BRANCH_USER_GROUP_BY)
-      .orderBy(asc(users.firstName));
+      .groupBy(...BRANCH_USER_GROUP_BY);
+    return rows.sort(
+      (a, b) => compareSpanishText(a.firstName, b.firstName) || compareCodeUnits(a.id, b.id),
+    );
   }
 
   async branchUser(
