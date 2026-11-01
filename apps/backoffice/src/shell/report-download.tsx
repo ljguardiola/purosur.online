@@ -12,35 +12,35 @@ export type ReportDownloadProps = {
   fileName: string;
 };
 
+async function downloadSpreadsheet(workbook: Workbook, fileName: string): Promise<void> {
+  const { writeWorkbook } = await import("../platform/spreadsheet/spreadsheet-writer");
+  const file = writeWorkbook(workbook);
+  downloadFile(new Blob([file.slice()], { type: SPREADSHEET_MIME_TYPE }), fileName);
+}
+
 export function ReportDownload({ dataStatus, workbook, fileName }: ReportDownloadProps) {
   const [preparing, setPreparing] = useState(false);
   const [failed, setFailed] = useState(false);
 
-  async function download() {
+  function download() {
     const built = workbook();
     if (built === null) {
       return;
     }
     setFailed(false);
     setPreparing(true);
-    try {
-      const { writeWorkbook } = await import("../platform/spreadsheet/spreadsheet-writer");
-      const file = writeWorkbook(built);
-      downloadFile(new Blob([file.slice()], { type: SPREADSHEET_MIME_TYPE }), fileName);
-    } catch {
-      setFailed(true);
-    } finally {
-      setPreparing(false);
-    }
+    downloadSpreadsheet(built, fileName).then(
+      () => setPreparing(false),
+      () => {
+        setFailed(true);
+        setPreparing(false);
+      },
+    );
   }
 
   return (
     <>
-      <SpreadsheetDownloadButton
-        dataStatus={dataStatus}
-        preparing={preparing}
-        onPress={() => void download()}
-      />
+      <SpreadsheetDownloadButton dataStatus={dataStatus} preparing={preparing} onPress={download} />
       {failed ? (
         <FloatingNotification
           tone="error"
