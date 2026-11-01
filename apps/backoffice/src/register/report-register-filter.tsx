@@ -9,6 +9,7 @@ import {
 export type ReportRegisterFilterProps = {
   value: string;
   onChange: (register: string) => void;
+  onLabelChange?: (label: string) => void;
   onSessionEnded: () => void;
   services?: ReportRegisterFilterServices | undefined;
 };
@@ -18,6 +19,7 @@ const registerOrder = textOrder((register: { label: string }) => register.label)
 export function ReportRegisterFilter({
   value,
   onChange,
+  onLabelChange,
   onSessionEnded,
   services,
 }: ReportRegisterFilterProps) {
@@ -26,6 +28,7 @@ export function ReportRegisterFilter({
     onSessionEnded,
   });
   const reportChange = useEffectEvent(onChange);
+  const reportLabel = useEffectEvent((label: string) => onLabelChange?.(label));
   const registerChosen = value !== "ALL";
 
   const registersListed = registers.status === "loaded";
@@ -48,6 +51,17 @@ export function ReportRegisterFilter({
       reportChange("ALL");
     }
   }, [registersListed, registerOffered]);
+
+  const shownLabel =
+    registerChosen && !registersListed
+      ? undefined
+      : registerOptions.find((option) => option.value === (registerOffered ? value : "ALL"))?.label;
+
+  useEffect(() => {
+    if (shownLabel !== undefined) {
+      reportLabel(shownLabel);
+    }
+  }, [shownLabel]);
 
   return (
     <ListFilter

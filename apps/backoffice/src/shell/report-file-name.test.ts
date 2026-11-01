@@ -8,7 +8,7 @@ test("slugs the screen title in Spanish and ends with the answered period", () =
 });
 
 test("drops accents and punctuation but keeps ñ's base letter", () => {
-  expect(reportFileName("Stock: año / ñandú (¡hoy!)", { from: "2026-10-07", to: "2026-10-07" })).toBe(
-    "stock-ano-nandu-hoy-2026-10-07-2026-10-07.xlsx",
-  );
+  expect(
+    reportFileName("Stock: año / ñandú (¡hoy!)", { from: "2026-10-07", to: "2026-10-07" }),
+  ).toBe("stock-ano-nandu-hoy-2026-10-07-2026-10-07.xlsx");
 });

@@ -2,13 +2,15 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { afterEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import { cell, type Workbook } from "../platform/spreadsheet/workbook";
 import { readXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
+import { cell, type Workbook } from "../platform/spreadsheet/workbook";
 import { ReportDownload } from "./report-download";
 import { render } from "./test-support/render-with-router";
 
 const workbook: Workbook = {
-  sheets: [{ name: "Ventas", header: ["Día", "Total"], rows: [[cell.day("2026-10-02"), cell.money(500)]] }],
+  sheets: [
+    { name: "Ventas", header: ["Día", "Total"], rows: [[cell.day("2026-10-02"), cell.money(500)]] },
+  ],
 };
 
 afterEach(() => {
@@ -77,9 +79,7 @@ test("is disabled while the data loads and after loading fails", async () => {
   for (const dataStatus of ["loading", "failed"] as const) {
     const screen = await renderDownload({ dataStatus });
 
-    await expect
-      .element(screen.getByRole("button", { name: "Descargar planilla" }))
-      .toBeDisabled();
+    await expect.element(screen.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
     await screen.unmount();
   }
 });
@@ -104,9 +104,7 @@ test("tells the person the file could not be prepared when it cannot be built, a
   await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
 
   await expect.element(screen.getByText("No se pudo preparar la planilla")).toBeVisible();
-  await expect
-    .element(screen.getByRole("button", { name: "Descargar planilla" }))
-    .toBeEnabled();
+  await expect.element(screen.getByRole("button", { name: "Descargar planilla" })).toBeEnabled();
 });
 
 test("does nothing when there is no workbook to build", async () => {

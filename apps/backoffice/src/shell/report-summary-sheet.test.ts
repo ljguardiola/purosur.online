@@ -1,5 +1,5 @@
-import { cell } from "../platform/spreadsheet/workbook";
 import { expect, test } from "vitest";
+import { cell } from "../platform/spreadsheet/workbook";
 import { periodSummaryRows, summarySheet } from "./report-summary-sheet";
 
 test("is the Resumen sheet, one row per label with its typed value", () => {
