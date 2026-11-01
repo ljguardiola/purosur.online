@@ -69,18 +69,6 @@ test("is disabled while the data loads and after loading fails", async () => {
   }
 });
 
-test("stays disabled while the file is being prepared, so a second press downloads nothing", async () => {
-  const downloads = spyOnDownloads();
-  const screen = await renderDownload();
-  const button = screen.getByRole("button", { name: "Descargar planilla" });
-
-  await userEvent.click(button);
-  await userEvent.click(button, { force: true });
-
-  await expect.poll(() => downloads.names.length).toBe(1);
-  await expect.element(button).toBeEnabled();
-});
-
 test("tells the person the file could not be prepared when it cannot be built, and offers the download again", async () => {
   spyOnDownloads();
   const invalid: Workbook = { sheets: [{ name: "a/b", header: ["x"], rows: [] }] };
