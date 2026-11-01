@@ -19,6 +19,7 @@ function createServices(): ReportRegisterFilterServices {
 type Handlers = {
   value?: string;
   onChange?: (register: string) => void;
+  onLabelChange?: (label: string) => void;
   onSessionEnded?: () => void;
 };
 
@@ -26,6 +27,7 @@ function ControlledFilter({
   services,
   value: initial = "ALL",
   onChange = () => {},
+  onLabelChange,
   onSessionEnded = () => {},
 }: Handlers & { services: ReportRegisterFilterServices }) {
   const [value, setValue] = useState(initial);
@@ -40,6 +42,7 @@ function ControlledFilter({
           }}
           onSessionEnded={onSessionEnded}
           services={services}
+          {...(onLabelChange === undefined ? {} : { onLabelChange })}
         />
       </main>
     </FieldSizeProvider>
@@ -138,4 +141,15 @@ test("typing in the register filter offers only the matching registers", async (
       .all()
       .map((option) => option.element().textContent?.trim()),
   ).toEqual(["Caja del fondo"]);
+});
+
+test("reports the label of the register shown, Todas first and the register's name once chosen", async () => {
+  const onLabelChange = vi.fn();
+  const screen = await renderFilter(createServices(), { onLabelChange });
+  await expect.poll(() => onLabelChange.mock.lastCall).toEqual(["Todas"]);
+
+  await userEvent.click(screen.getByRole("combobox", { name: /Caja:/ }));
+  await userEvent.click(screen.getByRole("option", { name: "Caja del fondo" }));
+
+  await expect.poll(() => onLabelChange.mock.lastCall).toEqual(["Caja del fondo"]);
 });
