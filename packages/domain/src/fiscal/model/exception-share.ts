@@ -41,7 +41,7 @@ export function isMonthClosed(month: string, today: string): boolean {
 function monthsOfYear(year: number): string[] {
   return Array.from(
     { length: MONTHS_IN_A_YEAR },
-    (_, index) => `${String(year).padStart(4, "0")}-${String(index + 1).padStart(2, "0")}`,
+    (_, index) => `${year}-${String(index + 1).padStart(2, "0")}`,
   );
 }
 
@@ -61,8 +61,8 @@ export function closedMonthsWindow(today: string): ClosedMonthsWindow {
   const throughYear = currentMonth === 1 ? year - 1 : year;
   const throughMonth = currentMonth === 1 ? MONTHS_IN_A_YEAR : currentMonth - 1;
   return {
-    from: `${String(year - 1).padStart(4, "0")}-01`,
-    through: `${String(throughYear).padStart(4, "0")}-${String(throughMonth).padStart(2, "0")}`,
+    from: `${year - 1}-01`,
+    through: `${throughYear}-${String(throughMonth).padStart(2, "0")}`,
   };
 }
 
@@ -85,6 +85,6 @@ export function exceptionShareMonthState({
 }
 
 export function nonCompliantMonthsOfYear(year: number, months: readonly string[]): string[] {
-  const prefix = `${String(year).padStart(4, "0")}-`;
+  const prefix = `${year}-`;
   return [...new Set(months.filter((month) => month.startsWith(prefix)))].sort();
 }
