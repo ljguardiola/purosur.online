@@ -732,6 +732,7 @@ describe("alertConditionResolutionJobs", () => {
         detectRejectedFortnightDocuments: vi.fn().mockResolvedValue(0),
         recordExceptionShareBreaches,
         detectExceptionShareBreaches,
+        detectSecondMonthRisks: vi.fn().mockResolvedValue(0),
       },
     );
     const task = jobs.taskList[ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER];

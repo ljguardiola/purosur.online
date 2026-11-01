@@ -745,11 +745,12 @@ describe("the background worker the server sets up on a real Postgres", () => {
   }, 60_000);
 
   it("warns that the month in progress may become a second consecutive one when the previous month is recorded", async () => {
-    const fiscalAddressId = await insertFiscalAddress(db, "Depósito Central");
+    const fiscalAddressId = await insertFiscalAddress(db, "Depósito Norte");
     const registerId = await insertRegisterAtFiscalAddress(
       db,
       fiscalAddressId,
-      "Caja del depósito",
+      "Caja del depósito norte",
+      4001,
     );
     await insertCaeaDocument(db, registerId, { issuedOn: "2019-12-12" });
     await insertReceiptRequest(db, registerId, { issuedOn: "2019-12-13" });
@@ -789,7 +790,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
             resolvedAt: null,
             detail: {
               fiscalAddressId,
-              fiscalAddressName: "Depósito Central",
+              fiscalAddressName: "Depósito Norte",
               month: "2020-01",
               previousMonth: "2019-12",
               exceptionCount: 1,
