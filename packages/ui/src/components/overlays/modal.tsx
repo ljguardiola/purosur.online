@@ -4,8 +4,11 @@ import {
   isValidElement,
   type KeyboardEvent,
   type ReactNode,
+  type RefObject,
+  useEffect,
   useRef,
 } from "react";
+import { FocusScope, useFocusManager } from "react-aria";
 import {
   Dialog as AriaDialog,
   Heading as AriaHeading,
@@ -80,6 +83,71 @@ function isCtrlEnter(event: CtrlEnterEvent): boolean {
   );
 }
 
+const fieldRoles = new Set([
+  "textbox",
+  "searchbox",
+  "combobox",
+  "spinbutton",
+  "slider",
+  "radio",
+  "checkbox",
+  "switch",
+]);
+
+function isField(element: Element): boolean {
+  if (
+    element instanceof HTMLInputElement ||
+    element instanceof HTMLTextAreaElement ||
+    element instanceof HTMLSelectElement
+  ) {
+    return true;
+  }
+  const role = element.getAttribute("role");
+  // A select's trigger is a button that opens its list of options.
+  return (role !== null && fieldRoles.has(role)) || element.getAttribute("aria-haspopup") === "listbox";
+}
+
+// Runs before the dialog's own effect, which focuses the dialog only when nothing inside it holds
+// the focus yet. A field that appears later, once its data loads, takes the focus only while the
+// dialog still holds it.
+function FocusFirstField({ bodyRef }: { bodyRef: RefObject<HTMLDivElement | null> }) {
+  const focusManager = useFocusManager();
+  useEffect(() => {
+    const body = bodyRef.current;
+    if (body === null || focusManager === undefined) {
+      return;
+    }
+    const focusFirstField = () => focusManager.focusFirst({ tabbable: true, accept: isField });
+    if (!body.contains(document.activeElement)) {
+      focusFirstField();
+    }
+    const dialog = body.closest('[role="dialog"]');
+    const observer = new MutationObserver(() => {
+      if (document.activeElement === dialog) {
+        focusFirstField();
+      }
+    });
+    observer.observe(body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [bodyRef, focusManager]);
+  return null;
+}
+
+function FieldFocusingContent({
+  bodyRef,
+  children,
+}: {
+  bodyRef: RefObject<HTMLDivElement | null>;
+  children: ReactNode;
+}) {
+  return (
+    <FocusScope>
+      {children}
+      <FocusFirstField bodyRef={bodyRef} />
+    </FocusScope>
+  );
+}
+
 export function Modal(props: ModalProps) {
   const {
     open,
@@ -95,6 +163,7 @@ export function Modal(props: ModalProps) {
     footer,
   } = props;
   const footerRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
 
   // Capturing, because react-aria's fields stop the keys they handle from bubbling; listening on the
   // body leaves the header's and footer's own buttons out. A field's list is portaled outside the
@@ -153,6 +222,7 @@ export function Modal(props: ModalProps) {
         >
           {props.headerLayout === "centered" ? (
             <div
+              ref={bodyRef}
               className="flex min-h-0 flex-1 flex-col items-center gap-3 overflow-y-auto p-6"
               onKeyDownCapture={sendWithCtrlEnter}
             >
@@ -171,7 +241,7 @@ export function Modal(props: ModalProps) {
               >
                 {title}
               </AriaHeading>
-              {children}
+              <FieldFocusingContent bodyRef={bodyRef}>{children}</FieldFocusingContent>
             </div>
           ) : (
             <>
@@ -198,6 +268,7 @@ export function Modal(props: ModalProps) {
               </div>
               {hasContent(children) && (
                 <div
+                  ref={bodyRef}
                   className={[
                     "min-h-0 flex-1 overflow-y-auto",
                     // A column, so a caller's own regions can size themselves against it and
@@ -207,7 +278,7 @@ export function Modal(props: ModalProps) {
                   ].join(" ")}
                   onKeyDownCapture={sendWithCtrlEnter}
                 >
-                  {children}
+                  <FieldFocusingContent bodyRef={bodyRef}>{children}</FieldFocusingContent>
                 </div>
               )}
             </>
