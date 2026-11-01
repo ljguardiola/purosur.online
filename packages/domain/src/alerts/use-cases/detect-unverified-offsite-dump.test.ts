@@ -95,6 +95,13 @@ describe("detectUnverifiedOffsiteDump", () => {
     expect(checks.reads).toEqual(["2026-10-14", "2026-10-13"]);
   });
 
+  it("reads the night of the day once when it is also the night due", async () => {
+    const { checks, outcome } = detect({}, new Date("2026-10-14T21:00:00.000Z"));
+
+    await outcome;
+    expect(checks.reads).toEqual(["2026-10-14"]);
+  });
+
   it("raises a failure the check reports in the morning at the next run, long before the deadline", async () => {
     const { outcome } = detect(
       {
