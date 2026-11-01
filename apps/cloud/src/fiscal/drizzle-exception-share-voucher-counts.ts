@@ -4,7 +4,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { registerPointsOfSale } from "../platform/db/schema.js";
 import { issuedDocuments } from "./drizzle-issued-fiscal-documents-reader.js";
 
-export interface StoredMonthlyVoucherCounts {
+interface StoredMonthlyVoucherCounts {
   fiscalAddressId: string;
   month: string;
   exceptionCount: number;

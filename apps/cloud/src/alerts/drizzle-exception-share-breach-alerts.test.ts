@@ -66,7 +66,12 @@ function breachAlerts() {
 describe("DrizzleExceptionShareBreachAlerts hasOpenedBreachAlert", () => {
   it("is false while no breach alert was opened for the scope", async () => {
     await insert(breachAlert({ scope: `${FISCAL_ADDRESS_ID}:2026-08` }));
-    await insert(breachAlert({ kind: "update_required", detail: {} }));
+    await insert(
+      breachAlert({
+        kind: "update_required",
+        detail: { deviceId: "device-1", appVersion: "0.9.0" },
+      }),
+    );
 
     await expect(breachAlerts().hasOpenedBreachAlert(SCOPE)).resolves.toBe(false);
   });
