@@ -25,7 +25,6 @@ const CAPABILITIES_GRANTED_BY: readonly [PermissionKey, readonly Capability[]][]
   ["view_bitlocker_key", ["registers_area", "bitlocker_recovery_key"]],
   ["release_quarantined_events", ["quarantined_events"]],
   ["manage_suppliers", ["suppliers", "stock_area"]],
-  ["manage_purchase_presentations", ["purchase_packagings", "stock_area"]],
   ["record_purchases", ["purchases", "stock_area"]],
   ["manage_freight", ["freights", "stock_area"]],
   ["manage_recipes", ["recipes", "stock_area"]],
@@ -353,7 +352,6 @@ describe("grantedCapabilities", () => {
 const STOCK_AND_PURCHASING_SCREENS = [
   "stock_balances",
   "suppliers",
-  "purchase_packagings",
   "purchases",
   "recipes",
   "batches",

@@ -14,7 +14,6 @@ const LINE = {
     netContent: { quantity: 500, unit: "G" as const },
     saleUnit: "UNIT" as const,
   },
-  packaging: { id: "k-1", name: "Caja x 12" },
   packages: 2,
   quantity: 24_000,
   costPaidCents: 24_000,

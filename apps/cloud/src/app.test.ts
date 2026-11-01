@@ -1346,7 +1346,7 @@ describe("wiring the purchasing routes", () => {
 
   async function purchasingResponses(app: ReturnType<typeof buildApp>): Promise<number[]> {
     const responses = await Promise.all([
-      ...["suppliers", "purchase-packagings"].flatMap((resource) => [
+      ...["suppliers"].flatMap((resource) => [
         app.inject({ method: "GET", url: `/api/${resource}` }),
         app.inject({ method: "POST", url: `/api/${resource}`, headers: ORIGIN }),
         app.inject({ method: "PUT", url: `/api/${resource}/${ID}`, headers: ORIGIN }),
@@ -2794,31 +2794,6 @@ describe("the route access inventory", () => {
         method: "DELETE",
         url: "/api/suppliers/:id/deactivation",
         access: capabilityAccess("suppliers"),
-      },
-      {
-        method: "GET",
-        url: "/api/purchase-packagings",
-        access: capabilityAccess("purchase_packagings"),
-      },
-      {
-        method: "POST",
-        url: "/api/purchase-packagings",
-        access: capabilityAccess("purchase_packagings"),
-      },
-      {
-        method: "PUT",
-        url: "/api/purchase-packagings/:id",
-        access: capabilityAccess("purchase_packagings"),
-      },
-      {
-        method: "PUT",
-        url: "/api/purchase-packagings/:id/deactivation",
-        access: capabilityAccess("purchase_packagings"),
-      },
-      {
-        method: "DELETE",
-        url: "/api/purchase-packagings/:id/deactivation",
-        access: capabilityAccess("purchase_packagings"),
       },
       { method: "GET", url: "/api/purchases", access: capabilityAccess("purchases") },
       { method: "POST", url: "/api/purchases", access: capabilityAccess("purchases") },

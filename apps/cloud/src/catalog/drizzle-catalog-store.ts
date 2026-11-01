@@ -33,7 +33,6 @@ import {
   categories,
   discounts,
   productBarcodes,
-  productPackagings,
   products,
   productTags,
   supplierItems,
@@ -159,14 +158,6 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
       })
       .from(discounts)
       .where(and(eq(discounts.productId, productId), eq(discounts.kind, "BUY_N_PAY_M")));
-  }
-
-  async activePackagingNamesOf(productId: string): Promise<string[]> {
-    const rows = await this.tx
-      .select({ name: productPackagings.name })
-      .from(productPackagings)
-      .where(and(eq(productPackagings.productId, productId), eq(productPackagings.active, true)));
-    return rows.map((row) => row.name);
   }
 
   async hasCurrentSupplierItemLink(productId: string, saleUnit: SaleUnit): Promise<boolean> {

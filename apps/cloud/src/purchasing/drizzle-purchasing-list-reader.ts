@@ -1,6 +1,5 @@
 import type { ReceiptType, SaleUnit } from "@purosur/domain";
 import type {
-  PackagingListing,
   PurchaseLineListing,
   PurchaseListing,
   PurchasingListReader,
@@ -9,47 +8,7 @@ import type {
 import { asc, desc, eq, inArray, type SQL } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { netContentRow } from "../catalog/net-content-row.js";
-import {
-  brands,
-  productPackagings,
-  products,
-  purchaseLines,
-  purchases,
-  suppliers,
-} from "../platform/db/schema.js";
-
-const packagingColumns = {
-  id: productPackagings.id,
-  productId: productPackagings.productId,
-  productName: products.name,
-  brandName: brands.name,
-  netContentQuantity: products.netContentQuantity,
-  netContentUnit: products.netContentUnit,
-  productSaleUnit: products.saleUnit,
-  name: productPackagings.name,
-  quantityPerPackage: productPackagings.quantityPerPackage,
-  saleUnit: productPackagings.saleUnit,
-  active: productPackagings.active,
-  version: productPackagings.version,
-};
-
-function toListing({
-  netContentQuantity,
-  netContentUnit,
-  ...row
-}: Omit<PackagingListing, "saleUnit" | "productSaleUnit" | "netContent"> & {
-  saleUnit: string;
-  productSaleUnit: string;
-  netContentQuantity: number | null;
-  netContentUnit: string | null;
-}): PackagingListing {
-  return {
-    ...row,
-    netContent: netContentRow({ netContentQuantity, netContentUnit }),
-    saleUnit: row.saleUnit as SaleUnit,
-    productSaleUnit: row.productSaleUnit as SaleUnit,
-  };
-}
+import { brands, products, purchaseLines, purchases, suppliers } from "../platform/db/schema.js";
 
 export class DrizzlePurchasingListReader<TQueryResult extends PgQueryResultHKT>
   implements PurchasingListReader
@@ -73,26 +32,6 @@ export class DrizzlePurchasingListReader<TQueryResult extends PgQueryResultHKT>
       })
       .from(suppliers)
       .orderBy(asc(suppliers.name));
-  }
-
-  async packagings(): Promise<PackagingListing[]> {
-    const rows = await this.db
-      .select(packagingColumns)
-      .from(productPackagings)
-      .innerJoin(products, eq(products.id, productPackagings.productId))
-      .leftJoin(brands, eq(brands.id, products.brandId))
-      .orderBy(asc(productPackagings.name));
-    return rows.map(toListing);
-  }
-
-  async packaging(packagingId: string): Promise<PackagingListing | undefined> {
-    const [row] = await this.db
-      .select(packagingColumns)
-      .from(productPackagings)
-      .innerJoin(products, eq(products.id, productPackagings.productId))
-      .leftJoin(brands, eq(brands.id, products.brandId))
-      .where(eq(productPackagings.id, packagingId));
-    return row ? toListing(row) : undefined;
   }
 
   purchases(locationId: string): Promise<PurchaseListing[]> {
@@ -134,8 +73,6 @@ export class DrizzlePurchasingListReader<TQueryResult extends PgQueryResultHKT>
         netContentQuantity: products.netContentQuantity,
         netContentUnit: products.netContentUnit,
         productSaleUnit: products.saleUnit,
-        packagingId: productPackagings.id,
-        packagingName: productPackagings.name,
         packages: purchaseLines.packages,
         quantity: purchaseLines.quantity,
         costPaidCents: purchaseLines.costPaidCents,
@@ -146,7 +83,6 @@ export class DrizzlePurchasingListReader<TQueryResult extends PgQueryResultHKT>
       .from(purchaseLines)
       .innerJoin(products, eq(products.id, purchaseLines.productId))
       .leftJoin(brands, eq(brands.id, products.brandId))
-      .leftJoin(productPackagings, eq(productPackagings.id, purchaseLines.packagingId))
       .where(
         inArray(
           purchaseLines.purchaseId,
@@ -169,10 +105,6 @@ export class DrizzlePurchasingListReader<TQueryResult extends PgQueryResultHKT>
           }),
           saleUnit: row.productSaleUnit as SaleUnit,
         },
-        packaging:
-          row.packagingId === null || row.packagingName === null
-            ? null
-            : { id: row.packagingId, name: row.packagingName },
         packages: row.packages,
         quantity: row.quantity,
         costPaidCents: row.costPaidCents,
