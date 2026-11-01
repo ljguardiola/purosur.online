@@ -111,7 +111,10 @@ async function configureRegisterWithOfflinePointOfSale(
   }
   const base = { locationId, registerId: register.id, actorId: actor.id };
   await configureRegisterPointOfSale(
-    new DrizzleRegisterPointOfSaleStore(testDatabase.db, () => NOW),
+    {
+      store: new DrizzleRegisterPointOfSaleStore(testDatabase.db, () => NOW),
+      clock: { now: () => NOW },
+    },
     { ...base, pointOfSaleNumber: 7, fiscalAddressId: fiscalAddress.id, version: 0 },
   );
   const outcome = await configureRegisterOfflinePointOfSale(

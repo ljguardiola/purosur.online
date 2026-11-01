@@ -58,6 +58,7 @@ import { retryAfterDetail } from "../platform/retry-after-detail";
 import { roleDisplayName } from "../platform/role-display-name";
 import { schemaText } from "../platform/schema-text";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
+import { monthNameOf, yearMonthPhrase, yearOf } from "../platform/year-month-label";
 import {
   type BackofficeAccess,
   canCloseAlertsManually,
@@ -172,6 +173,7 @@ function alertIcon(kind: string): Icon {
     case "fortnight_report_needs_regularization":
     case "fortnight_report_owed_elsewhere":
     case "fortnight_report_document_rejected":
+    case "exception_share_breach":
       return <TriangleAlert />;
     case "clock_corrected":
     case "clock_drift":
@@ -305,6 +307,19 @@ function offlineAuthorizationCodeMissingDescription({
     return `La quincena ${fortnight} ya empezó. Mientras ARCA no responda, las ventas de la caja quedan diferidas. Hay que conectarla a internet.`;
   }
   return `La quincena empieza el ${formatCalendarDay(detail.fortnightStart)}. Sin el CAEA, si ARCA no responde, la caja no puede emitir facturas y las ventas quedan diferidas. Hay que conectarla a internet hoy.`;
+}
+
+function exceptionShareBreachDescription({
+  month,
+  exceptionCount,
+  totalCount,
+  nonCompliancePercent,
+}: Extract<AlertDetail, { kind: "exception_share_breach" }>["detail"]): string {
+  const vouchers = plural(totalCount, {
+    one: `${formatNumber(totalCount)} comprobante`,
+    other: `${formatNumber(totalCount)} comprobantes`,
+  });
+  return `En ${yearMonthPhrase(month)} se emitieron por excepción (CAEA) ${formatNumber(exceptionCount)} de ${vouchers} de este domicilio fiscal, el ${formatPercent(nonCompliancePercent)} o más. ARCA puede restringir el uso del CAEA y lo comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Conviene revisar por qué se emitieron por contingencia y consultar el Domicilio Fiscal Electrónico.`;
 }
 
 function lotsExpiringDescription({
@@ -500,6 +515,7 @@ function alertTitle(alert: AlertDetail): string {
     case "clock_corrected":
     case "register_backup_overdue":
     case "deferred_sale_due":
+    case "exception_share_breach":
       return alertKindLabel(alert.kind);
   }
 }
@@ -526,6 +542,9 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
   }
   if (alert.kind === "offsite_dump_unverified") {
     return offsiteDumpUnverifiedDescription(alert.detail);
+  }
+  if (alert.kind === "exception_share_breach") {
+    return exceptionShareBreachDescription(alert.detail);
   }
   const targetName = alert.scopeDisplay;
   if (targetName === null) {
@@ -723,7 +742,28 @@ function DeferredSaleDueLines({
   );
 }
 
+function NonCompliantMonthsLine({
+  detail,
+}: {
+  detail: Extract<AlertDetail, { kind: "exception_share_breach" }>["detail"];
+}) {
+  return (
+    <p className="text-text text-detail">
+      Meses que incumplieron en {yearOf(detail.month)}:{" "}
+      {detail.nonCompliantMonths.map(monthNameOf).join(", ")}
+    </p>
+  );
+}
+
 function AlertDescription({ alert }: { alert: AlertDetail }) {
+  if (alert.kind === "exception_share_breach") {
+    return (
+      <>
+        <p className="text-text text-body">{alertDescription(alert)}</p>
+        <NonCompliantMonthsLine detail={alert.detail} />
+      </>
+    );
+  }
   if (alert.kind === "fiscal_rejected") {
     return (
       <>

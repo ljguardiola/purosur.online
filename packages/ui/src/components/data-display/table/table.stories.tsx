@@ -10,7 +10,7 @@ import {
 import { Button } from "../../forms/button";
 import { Eyebrow } from "../../layout/eyebrow";
 import { Table } from "./table";
-import { actionsColumn, dataColumn } from "./table-columns";
+import { actionsColumn, dataColumn, groupColumn } from "./table-columns";
 import { TablePagination } from "./table-pagination";
 import type { TableColumns, TableProps, TableSort } from "./table-types";
 import { useTableModel } from "./use-table-model";
@@ -405,6 +405,27 @@ const detailColumns = [
 
 export const WithCellDetail: Story = {
   render: () => <ProductsTable aria-label="Productos" columns={detailColumns} />,
+};
+
+const groupedColumns = [
+  dataColumn({ id: "name", header: "Producto", render: (item: Product) => item.name }),
+  groupColumn({
+    id: "inventory",
+    header: "Existencias",
+    columns: [
+      dataColumn({
+        id: "stock",
+        header: "Stock",
+        align: "end",
+        render: (item: Product) => item.stock,
+      }),
+      dataColumn({ id: "sku", header: "Código", render: (item: Product) => item.sku }),
+    ],
+  }),
+] as const;
+
+export const WithColumnGroup: Story = {
+  render: () => <ProductsTable aria-label="Productos" columns={groupedColumns} />,
 };
 
 export const LoadingInitial: Story = {

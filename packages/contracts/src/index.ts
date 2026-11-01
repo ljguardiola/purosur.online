@@ -190,6 +190,14 @@ export {
   fiscalRendererToCoreMessageSchema,
 } from "./fiscal/clock-guard-core-messages.js";
 export { deferredSaleUnclearDocumentEventSchema } from "./fiscal/deferred-sale-unclear-document.js";
+export type {
+  ExceptionShareYearBody,
+  ExceptionShareYearQuery,
+} from "./fiscal/exception-share-year.js";
+export {
+  exceptionShareYearQuerySchema,
+  exceptionShareYearSchema,
+} from "./fiscal/exception-share-year.js";
 export type { FiscalAddressBody } from "./fiscal/fiscal-address.js";
 export { fiscalAddressListSchema, fiscalAddressSchema } from "./fiscal/fiscal-address.js";
 export type { FiscalAddressCreationBody } from "./fiscal/fiscal-address-creation.js";

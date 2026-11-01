@@ -102,6 +102,32 @@ test("keys the detail of each issued document apart", () => {
   );
 });
 
+test("invalidating the fiscal key marks the exception share of a year stale", async () => {
+  const client = new QueryClient();
+  client.setQueryData(fiscalKeys.exceptionShareYear("fiscal-address-1", 2026), {});
+
+  await client.invalidateQueries({ queryKey: fiscalKey, refetchType: "none" });
+
+  expect(
+    client.getQueryState(fiscalKeys.exceptionShareYear("fiscal-address-1", 2026))?.isInvalidated,
+  ).toBe(true);
+});
+
+test("each fiscal address and year has its own exception share key", () => {
+  expect(fiscalKeys.exceptionShareYear("fiscal-address-1", 2026)).not.toEqual(
+    fiscalKeys.exceptionShareYear("fiscal-address-2", 2026),
+  );
+  expect(fiscalKeys.exceptionShareYear("fiscal-address-1", 2026)).not.toEqual(
+    fiscalKeys.exceptionShareYear("fiscal-address-1", 2025),
+  );
+});
+
+test("the exception share of the year the cloud chooses has its own key", () => {
+  expect(fiscalKeys.exceptionShareYear("fiscal-address-1", undefined)).not.toEqual(
+    fiscalKeys.exceptionShareYear("fiscal-address-1", 2026),
+  );
+});
+
 test("invalidating the fiscal key marks the issued documents report stale", async () => {
   const client = new QueryClient();
   client.setQueryData(fiscalKeys.issuedDocumentsReport({}), {});

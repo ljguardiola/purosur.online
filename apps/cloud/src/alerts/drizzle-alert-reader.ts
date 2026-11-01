@@ -23,6 +23,7 @@ import { containsText } from "../platform/contains-pattern.js";
 import {
   alertDeliveries,
   alerts,
+  fiscalAddresses,
   registerInstallations,
   registers,
   roles,
@@ -220,8 +221,15 @@ export class DrizzleAlertReader<TQueryResult extends PgQueryResultHKT> implement
       .from(registerInstallations)
       .innerJoin(registers, eq(registers.id, registerInstallations.registerId))
       .where(inArray(sql`${registerInstallations.id}::text`, [...ids]));
+    const fiscalAddressRows = await this.db
+      .select({ id: fiscalAddresses.id, name: fiscalAddresses.name })
+      .from(fiscalAddresses)
+      .where(inArray(sql`${fiscalAddresses.id}::text`, [...ids]));
     return new Map(
-      [...userRows, ...registerRows, ...installationRows].map((row) => [row.id, row.name]),
+      [...userRows, ...registerRows, ...installationRows, ...fiscalAddressRows].map((row) => [
+        row.id,
+        row.name,
+      ]),
     );
   }
 
