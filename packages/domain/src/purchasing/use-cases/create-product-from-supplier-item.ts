@@ -1,4 +1,8 @@
-import type { NetContentUnit, SaleUnit } from "../../catalog/index.js";
+import {
+  DEFAULT_PRODUCT_COVERAGE_DAYS,
+  type NetContentUnit,
+  type SaleUnit,
+} from "../../catalog/index.js";
 import { isMovementQuantity } from "../../stock/index.js";
 import {
   mayCreateProductFromRow,
@@ -79,6 +83,7 @@ export function createProductFromSupplierItem(
       barcodes: input.barcodes,
       tagIds: input.tagIds,
       netContent: input.netContent,
+      coverageDays: DEFAULT_PRODUCT_COVERAGE_DAYS,
     });
     if (product.kind !== "created") {
       return product;

@@ -14,6 +14,7 @@ export interface EditProductInput {
   barcodes: string[];
   tagIds: string[];
   netContent: CatalogNetContent | null;
+  coverageDays: number;
   version: number;
 }
 
@@ -123,6 +124,7 @@ export async function editProduct(
         brandId: input.brandId,
         saleUnit: input.saleUnit,
         netContent: input.netContent,
+        coverageDays: input.coverageDays,
         version: nextVersion,
       });
       await tx.replaceProductBarcodes(locked.product, input.barcodes);
@@ -140,6 +142,7 @@ export async function editProduct(
           barcodes: input.barcodes,
           tagIds: input.tagIds,
           netContent: input.netContent,
+          coverageDays: input.coverageDays,
           active: locked.product.active,
           version: nextVersion,
         },
