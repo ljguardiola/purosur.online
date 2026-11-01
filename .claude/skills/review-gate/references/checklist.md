@@ -49,43 +49,43 @@ how a new one is judged.
   namespace); it refuses correct code that reads alike or that its own hint
   suggests (a renumbering hint that sorts before the last migration); or it
   is narrowed while its own test still expects the removed cases to pass.
-- A decision or a result built from state other than one consistent moment
-  in effect when it applies: an answer computed from the session before the
-  operation changed it (`may_edit: true` to an Administrator who just left
-  the role), a check made before the lock and never again under it, rows
-  locked in the opposite order of another operation that touches them, a
-  report assembled from several reads with no shared snapshot (sale and line
-  discounts read in two statements, so a sale applied between them shows
-  half of its discounts), a choice among candidates made one item at a time
-  so an earlier pick binds the later ones, or a recorded condition cleared
-  only by a signal its source stops sending once the condition ends.
-- A failure path or an effect out of step with what it goes with: a handler
-  that replaces the error it caught, so its kind never reaches what reacts to
-  it; an outside call recorded as other than what happened (a timeout as one
-  that did nothing, a document refused locally before any request counted as
-  sent against a cap); a record kept alive only through a row a retention
-  job deletes on its own schedule; a failure whose effect reaches past or
-  stops short of the work it failed (one item's error halting a sweep over
-  many, a follow-up enqueued only on the path that succeeds); or a write
-  that moves one of two quantities kept equal and not the other.
+- A decision, a result or a recorded state out of step with the state in
+  effect when it applies: read before the operation changed it or outside
+  the lock that holds it, taken under locks another operation takes in the
+  opposite order, assembled from reads with no shared snapshot or one item
+  at a time where the whole set decides, or left standing after what it
+  records ended because only a signal the source stops sending clears it,
+  such as an answer computed from the session before the operation changed
+  it (`may_edit: true` to an Administrator who just left the role), sale and
+  line discounts read in two statements so a sale applied between them shows
+  half of its discounts, or rows locked in the opposite order of another
+  operation that touches them.
+- A failure path or an effect out of step with the work it goes with: an
+  error replaced so its kind never reaches what reacts to it, an outside
+  call recorded as other than what happened, an effect reaching past or
+  stopping short of the work it belongs to, so half-done work waits for
+  nothing or one of two quantities kept equal moves alone, or a record kept
+  alive only through something another job removes on its own schedule, such
+  as a document refused locally before any request counted as sent against a
+  cap, one item's error halting a sweep over many, or a follow-up enqueued
+  only on the path that succeeds.
 - A value one side of a boundary or a move produces or accepts that the
-  other side refuses or reads otherwise: a stricter shape in place of the
-  reader it replaced, a plain-object lookup of a received code that answers
-  for `constructor`, a limit two layers apply in different units, typed text
-  folded two ways by searches of the same app (Postgres `unaccent` in one
-  list, stripped NFD marks in another, so one finds a record the other
-  misses), or a detail the original rendered for some inputs left out of the
-  copy that now serves them.
-- A key, guard, bound or derived value wider or narrower than what it
-  identifies: an alert deduplicated by a scope wider than what it flags, a
-  recorded child row checked only by its foreign key, a check skipped on one
-  path into a store while a later step treats what that path stored as
-  checked (an event taken in above a hole without its link check, then
-  acknowledged by the push that fills the hole), a proof over a set that
-  holds when the set is empty, a flag for missing data that reads only the
-  data present, a list derived from a predicate the change widened
-  elsewhere, a share of a total that is not the sum of its parts, a
-  computation left unbounded over an open-ended range, or a "latest" record
+  other side refuses or reads otherwise: a reader replaced by a stricter
+  one, a received code, a limit or typed text read differently by each layer
+  or each search of the same app, or a detail the original rendered for some
+  inputs left out of the copy that now serves them, such as a plain-object
+  lookup of a received code that answers for `constructor`, a limit two
+  layers apply in different units, or typed text folded by Postgres
+  `unaccent` in one list and by stripped NFD marks in another, so one finds
+  a record the other misses.
+- A key, guard, bound or derived value taken over another set than the one
+  it stands for: wider or narrower than what it identifies, applied on only
+  some of the paths into what it guards, true of an empty set or blind to
+  what is missing, built on a predicate the change widened elsewhere, a
+  share of a total other than the sum of its parts, or left unbounded over
+  an open-ended range, such as an alert deduplicated by a scope wider than
+  what it flags, an event taken in above a hole without its link check and
+  then acknowledged by the push that fills the hole, or a "latest" record
   picked by wall-clock time, so a clock set back hides the newest.
 
 ### Structure
