@@ -1,16 +1,18 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
-import { expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
 import { render } from "../shell/test-support/render-with-router";
 import { dateSegments } from "../shell/test-support/report-dates";
-import { FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
+import { BACK_REGISTER_ID, FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
 import {
   createReportRegisterFilterServices,
   type ReportRegisterFilterServices,
   reportRegisterFieldForTests,
 } from "../shell/test-support/report-register-filter";
+import { spyOnDownloads } from "../shell/test-support/spy-on-downloads";
 import { type ManualDiscountsFilters, manualDiscountsFilters } from "./manual-discounts-filters";
 import { ManualDiscountsScreen } from "./manual-discounts-screen";
 import type { ManualDiscountsScreenServices } from "./manual-discounts-services";
@@ -407,4 +409,49 @@ test("shows every discount on one page, with no pages and no export", async () =
 
   expect(screen.getByRole("navigation", { name: /Páginas/ }).query()).toBeNull();
   expect(screen.getByRole("button", { name: "Exportar" }).query()).toBeNull();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+test("downloads a spreadsheet of the discounts shown, with the applied register and authorizer", async () => {
+  const downloads = spyOnDownloads();
+  const screen = await renderScreen(createServices(), {
+    filters: manualDiscountsFilters.parse({ register: BACK_REGISTER_ID, authorizedBy: BETO_USER_ID }),
+  });
+  await expect
+    .element(screen.getByRole("combobox", { name: /^Caja:/ }))
+    .toHaveValue("Caja del fondo");
+  await expect.element(screen.getByText("Cliente frecuente")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
+
+  await expect
+    .poll(() => downloads.names)
+    .toEqual(["descuentos-manuales-y-sobre-el-total-2026-10-01-2026-10-07.xlsx"]);
+  const file = await readDownloadedXlsx(downloads.blobs[0]);
+  expect(file.sheetNames).toEqual(["Resumen", "Descuentos manuales"]);
+  const summary = file.sheet(0);
+  expect(summary.get("B4")?.value).toBe("Caja del fondo");
+  expect(summary.get("B5")?.value).toBe("Beto");
+  expect(summary.get("B6")?.value).toBe("1550");
+  const discounts = file.sheet(1);
+  expect(discounts.get("A2")).toMatchObject({ numberFormat: "dd/mm/yyyy hh:mm" });
+  expect(discounts.get("B2")?.value).toBe("Operación 000012");
+  expect(discounts.get("D2")?.value).toBe("Sobre el total · $ 700,00");
+  expect(discounts.get("G2")?.value).toBe("700");
+});
+
+test("has its download disabled while the report loads and after loading fails", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchManualDiscounts).mockReturnValue(new Promise(() => {}));
+  const loading = await renderScreen(services);
+  await expect.element(loading.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
+  await loading.unmount();
+
+  vi.mocked(services.fetchManualDiscounts).mockResolvedValue({ kind: "failed" });
+  const failed = await renderScreen(services);
+  await expect.element(failed.getByRole("button", { name: "Reintentar" })).toBeVisible();
+  await expect.element(failed.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
 });
