@@ -1,6 +1,6 @@
 import { isCalendarDay } from "../../shared/index.js";
 
-const VERIFICATION_DEADLINE_HOUR_UTC = 15;
+const UNREPORTED_NIGHT_DEADLINE_HOUR_UTC = 21;
 const HOUR_MS = 60 * 60 * 1000;
 
 export function isOffsiteDumpNight(value: string): boolean {
@@ -8,7 +8,11 @@ export function isOffsiteDumpNight(value: string): boolean {
 }
 
 export function dueOffsiteDumpNight(now: Date): string {
-  return new Date(now.getTime() - VERIFICATION_DEADLINE_HOUR_UTC * HOUR_MS)
+  return new Date(now.getTime() - UNREPORTED_NIGHT_DEADLINE_HOUR_UTC * HOUR_MS)
     .toISOString()
     .slice(0, 10);
+}
+
+export function offsiteDumpNightOf(now: Date): string {
+  return now.toISOString().slice(0, 10);
 }
