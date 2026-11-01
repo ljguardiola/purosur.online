@@ -125,30 +125,32 @@ describe("detectUnverifiedOffsiteDump", () => {
     "2026-10-14T15:00:00.000Z",
     "2026-10-14T16:00:00.000Z",
     "2026-10-14T20:59:59.999Z",
-  ])("keeps the previous verified night as the one judged at %s while the day's night has no report", async (now) => {
-    const { outcome } = detect(
-      { "2026-10-13": { status: "verified", sizeBytes: 1_000 } },
-      new Date(now),
-    );
+  ])(
+    "keeps the previous verified night as the one judged at %s while the day's night has no report",
+    async (now) => {
+      const { outcome } = detect(
+        { "2026-10-13": { status: "verified", sizeBytes: 1_000 } },
+        new Date(now),
+      );
 
-    await expect(outcome).resolves.toEqual({ kind: "verified", night: "2026-10-13" });
-  });
+      await expect(outcome).resolves.toEqual({ kind: "verified", night: "2026-10-13" });
+    },
+  );
 
-  it.each([
-    "2026-10-14T17:00:00.000Z",
-    "2026-10-14T21:00:00.000Z",
-    "2026-10-14T23:00:00.000Z",
-  ])("judges the day's night verified at %s once a check started hours late verifies it", async (now) => {
-    const { outcome } = detect(
-      {
-        "2026-10-13": { status: "verified", sizeBytes: 1_000 },
-        "2026-10-14": { status: "verified", sizeBytes: 1_000 },
-      },
-      new Date(now),
-    );
+  it.each(["2026-10-14T17:00:00.000Z", "2026-10-14T21:00:00.000Z", "2026-10-14T23:00:00.000Z"])(
+    "judges the day's night verified at %s once a check started hours late verifies it",
+    async (now) => {
+      const { outcome } = detect(
+        {
+          "2026-10-13": { status: "verified", sizeBytes: 1_000 },
+          "2026-10-14": { status: "verified", sizeBytes: 1_000 },
+        },
+        new Date(now),
+      );
 
-    await expect(outcome).resolves.toEqual({ kind: "verified", night: "2026-10-14" });
-  });
+      await expect(outcome).resolves.toEqual({ kind: "verified", night: "2026-10-14" });
+    },
+  );
 
   it("opens the alert as not reported at the deadline when the day's night still has no report", async () => {
     const { outcome } = detect(
