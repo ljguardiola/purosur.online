@@ -26,7 +26,7 @@ export function ReportDownload({ dataStatus, workbook, fileName }: ReportDownloa
     try {
       const { writeWorkbook } = await import("../platform/spreadsheet/spreadsheet-writer");
       const file = writeWorkbook(built);
-      downloadFile(new Blob([file], { type: SPREADSHEET_MIME_TYPE }), fileName);
+      downloadFile(new Blob([file.slice()], { type: SPREADSHEET_MIME_TYPE }), fileName);
     } catch {
       setFailed(true);
     } finally {

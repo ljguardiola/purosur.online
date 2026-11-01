@@ -2,7 +2,7 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { afterEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import { readXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
+import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
 import { cell, type Workbook } from "../platform/spreadsheet/workbook";
 import { ReportDownload } from "./report-download";
 import { render } from "./test-support/render-with-router";
@@ -55,7 +55,7 @@ test("downloads the workbook as an xlsx file under the given name when pressed",
   await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
 
   await expect.poll(() => downloads.names).toEqual(["ventas-2026-10-01-2026-10-07.xlsx"]);
-  const file = readXlsx(new Uint8Array(await downloads.blobs[0]?.arrayBuffer()));
+  const file = await readDownloadedXlsx(downloads.blobs[0]);
   expect(file.sheetNames).toEqual(["Ventas"]);
   expect(file.sheet(0).get("B2")?.value).toBe("5");
   expect(downloads.blobs[0]?.type).toBe(

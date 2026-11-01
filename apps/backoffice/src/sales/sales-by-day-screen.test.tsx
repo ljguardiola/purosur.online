@@ -3,7 +3,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
 import { afterEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import { readXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
+import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
 import { type ReportFilters, reportFiltersSearch } from "../shell/report-filters-search";
 import { render } from "../shell/test-support/render-with-router";
 import { dateSegments } from "../shell/test-support/report-dates";
@@ -261,7 +261,7 @@ test("downloads a spreadsheet of the days shown, with the applied period and reg
   await expect
     .poll(() => downloads.names)
     .toEqual(["ventas-por-dia-o-por-rango-2026-10-01-2026-10-07.xlsx"]);
-  const file = readXlsx(new Uint8Array(await downloads.blobs[0]?.arrayBuffer()));
+  const file = await readDownloadedXlsx(downloads.blobs[0]);
   expect(file.sheetNames).toEqual(["Resumen", "Ventas por día"]);
   const summary = file.sheet(0);
   expect(summary.get("A4")?.value).toBe("Caja");

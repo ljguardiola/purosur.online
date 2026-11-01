@@ -74,3 +74,10 @@ export function readXlsx(file: Uint8Array) {
 
   return { parts, documents, sheetNames, sheet };
 }
+
+export async function readDownloadedXlsx(blob: Blob | undefined) {
+  if (blob === undefined) {
+    throw new Error("Nothing was downloaded");
+  }
+  return readXlsx(new Uint8Array(await blob.arrayBuffer()));
+}

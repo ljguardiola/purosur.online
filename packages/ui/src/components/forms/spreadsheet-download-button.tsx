@@ -17,7 +17,7 @@ export function SpreadsheetDownloadButton({
     <Button
       variant="secondary"
       icon={<Download aria-hidden="true" />}
-      onPress={onPress}
+      {...(onPress === undefined ? {} : { onPress })}
       disabled={preparing}
       {...(disabledReason === undefined ? {} : { disabledReason })}
       {...(dataStatus === undefined ? {} : { dataStatus })}
