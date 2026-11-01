@@ -75,6 +75,7 @@ describe("exceptionShareYearSchema", () => {
     ["a fractional share", { months: [{ ...month, share_tenths_of_percent: 5.5 }] }],
     ["a listed month that is not a calendar month", { non_compliant_months: ["2026-00"] }],
     ["a year that is not a whole number", { year: 2026.5 }],
+    ["no year to choose from", { selectable_years: [] }],
     ["a selectable year that is not a whole number", { selectable_years: [2026.5] }],
     ["a threshold that is not a whole number", { non_compliance_percent: 5.5 }],
   ])("refuses %s", (_name, change) => {
@@ -88,12 +89,9 @@ describe("exceptionShareYearSchema", () => {
     "non_compliance_percent",
     "months",
     "non_compliant_months",
-  ])(
-    "requires the %s",
-    (field) => {
-      const { [field as keyof typeof body]: _omitted, ...rest } = body;
+  ])("requires the %s", (field) => {
+    const { [field as keyof typeof body]: _omitted, ...rest } = body;
 
-      expect(exceptionShareYearSchema.safeParse(rest).success).toBe(false);
-    },
-  );
+    expect(exceptionShareYearSchema.safeParse(rest).success).toBe(false);
+  });
 });
