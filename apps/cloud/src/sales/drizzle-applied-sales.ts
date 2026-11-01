@@ -75,6 +75,9 @@ async function recordSaleParts<TQueryResult extends PgQueryResultHKT>(
     await tx.insert(saleLines).values(
       lines.map(({ manualAdjustment, ...line }) => ({
         ...line,
+        promotionKind:
+          line.promotions.find(({ discountId }) => discountId === line.promotionId)?.benefit.kind ??
+          null,
         ...manualAdjustmentColumns(manualAdjustment),
         saleId: sale.id,
       })),

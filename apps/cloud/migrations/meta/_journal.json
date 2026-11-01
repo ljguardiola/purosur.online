@@ -1072,6 +1072,13 @@
       "when": 1793495239733,
       "tag": "0159_product_coverage_days",
       "breakpoints": true
+    },
+    {
+      "idx": 160,
+      "version": "7",
+      "when": 1793535191477,
+      "tag": "0160_sale_line_promotion_kind",
+      "breakpoints": true
     }
   ]
 }

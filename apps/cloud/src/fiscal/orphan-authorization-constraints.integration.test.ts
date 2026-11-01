@@ -3,6 +3,7 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { creditNotes, fiscalTasks, users } from "../platform/db/schema.js";
+import { constraintViolatedBy } from "../test-support/constraint-violated-by.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -30,18 +31,6 @@ afterAll(async () => {
   await sql.end({ timeout: 1 });
   await integrationDb.close();
 });
-
-function constraintViolatedBy(error: unknown, name: string): boolean {
-  let current: unknown = error;
-  while (current instanceof Error) {
-    const { constraint_name: constraintName } = current as { constraint_name?: unknown };
-    if (constraintName === name) {
-      return true;
-    }
-    current = current.cause;
-  }
-  return false;
-}
 
 function insertTask(overrides: Partial<typeof fiscalTasks.$inferInsert>) {
   seeded += 1;

@@ -3,10 +3,12 @@ import { describe, expect, it } from "vitest";
 import { shiftCalendarDay } from "../../shared/index.js";
 import {
   canExpireWithStock,
+  countsForShelfLife,
   daysToExpiry,
   expiryReportPeriodOf,
   expiryWindowEnd,
   isExpired,
+  lotShelfLifeDays,
 } from "./lot-expiry.js";
 
 const day = fc
@@ -132,5 +134,63 @@ describe("expiryReportPeriodOf", () => {
       from: "2026-10-13",
       to: "2026-10-13",
     });
+  });
+});
+
+describe("lotShelfLifeDays", () => {
+  it("counts the calendar days from the day the lot was created to its expiry day", () => {
+    expect(lotShelfLifeDays("2026-10-01", "2026-10-11")).toBe(10);
+    expect(lotShelfLifeDays("2026-12-25", "2027-01-05")).toBe(11);
+  });
+
+  it("is 0 for a lot that expires the day it was created", () => {
+    expect(lotShelfLifeDays("2026-10-01", "2026-10-01")).toBe(0);
+  });
+
+  it("is never below 0, even for a lot created after its expiry day", () => {
+    expect(lotShelfLifeDays("2026-10-05", "2026-10-01")).toBe(0);
+  });
+
+  it("matches the days between the two days for any days", () => {
+    fc.assert(
+      fc.property(day, fc.integer({ min: 0, max: 4000 }), (created, days) => {
+        expect(lotShelfLifeDays(created, shiftCalendarDay(created, days))).toBe(days);
+        expect(lotShelfLifeDays(shiftCalendarDay(created, days), created)).toBe(0);
+      }),
+    );
+  });
+});
+
+describe("countsForShelfLife", () => {
+  const purchased = { expiresOn: "2026-10-11", origin: "purchase" as const, batchVoided: false };
+
+  it("counts a lot with an expiry day that came from a purchase", () => {
+    expect(countsForShelfLife(purchased)).toBe(true);
+  });
+
+  it("counts a lot with an expiry day that came from an assembly batch that was not voided", () => {
+    expect(countsForShelfLife({ ...purchased, origin: "assembly_batch" })).toBe(true);
+  });
+
+  it("does not count a lot from a voided assembly batch", () => {
+    expect(countsForShelfLife({ ...purchased, origin: "assembly_batch", batchVoided: true })).toBe(
+      false,
+    );
+  });
+
+  it("counts a purchased lot whatever its batch flag says", () => {
+    expect(countsForShelfLife({ ...purchased, batchVoided: true })).toBe(true);
+  });
+
+  it("does not count a lot loaded by the initial count", () => {
+    expect(countsForShelfLife({ ...purchased, origin: "initial_count" })).toBe(false);
+  });
+
+  it("does not count a technical lot", () => {
+    expect(countsForShelfLife({ ...purchased, origin: "technical" })).toBe(false);
+  });
+
+  it("does not count a lot without an expiry day", () => {
+    expect(countsForShelfLife({ ...purchased, expiresOn: null })).toBe(false);
   });
 });

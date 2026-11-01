@@ -203,7 +203,12 @@ describe("GET /devices/current/returns/sale", () => {
 
     expect(response.statusCode).toBe(200);
     expect(branchSaleForReturnAnswerSchema.parse(response.json())).toMatchObject({
-      sale: { id: completed.id, register_id: selling.registerId, state: "COMPLETED" },
+      sale: {
+        id: completed.id,
+        register_id: selling.registerId,
+        state: "COMPLETED",
+        lines: [{ promotion_id: null, promotion_kind: null }],
+      },
       invoice: { point_of_sale: 7, number: 42 },
       invoice_standing: {
         fiscal_documents: [
