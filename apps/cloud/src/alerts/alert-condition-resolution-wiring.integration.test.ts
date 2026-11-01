@@ -689,7 +689,11 @@ describe("the background worker the server sets up on a real Postgres", () => {
 
   it("records the closed month that reached the exception share threshold and opens its alert", async () => {
     const fiscalAddressId = await insertFiscalAddress(db, "Depósito Central");
-    const registerId = await insertRegisterAtFiscalAddress(db, fiscalAddressId, "Caja del depósito");
+    const registerId = await insertRegisterAtFiscalAddress(
+      db,
+      fiscalAddressId,
+      "Caja del depósito",
+    );
     await insertCaeaDocument(db, registerId, { issuedOn: "2019-12-12" });
     await insertReceiptRequest(db, registerId, { issuedOn: "2019-12-13" });
     const backgroundJobs = await setUpBackgroundJobs(
