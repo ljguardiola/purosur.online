@@ -161,6 +161,7 @@ describe("ReturnScreen choosing what the customer returns", () => {
           quantity: 3,
           reason: "change_of_mind",
           disposition: "restock",
+          resolution: null,
         },
       ]),
     );
@@ -242,6 +243,7 @@ describe("ReturnScreen choosing what the customer returns", () => {
           quantity: 2,
           reason: "change_of_mind",
           disposition: "restock",
+          resolution: null,
         },
       ]),
     );
@@ -262,7 +264,13 @@ describe("ReturnScreen choosing what the customer returns", () => {
 
     await vi.waitFor(() =>
       expect(previewReturn).toHaveBeenLastCalledWith("sale-1", [
-        { sale_line_id: "line-honey", quantity: 1, reason: "defective", disposition: "discard" },
+        {
+          sale_line_id: "line-honey",
+          quantity: 1,
+          reason: "defective",
+          disposition: "discard",
+          resolution: null,
+        },
       ]),
     );
   });

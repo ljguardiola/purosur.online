@@ -34,6 +34,7 @@ describe("ReturnScreen completing the return", () => {
           quantity: 3,
           reason: "change_of_mind",
           disposition: "restock",
+          resolution: null,
         },
       ],
       refunds: [{ payment_id: "pay-cash", amount: 970_000 }],
