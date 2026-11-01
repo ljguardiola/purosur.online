@@ -115,7 +115,11 @@ describe("detectSecondNonCompliantMonthRisks", () => {
 
     expect(await outcome).toBe(1);
     expect(alerts.observations).toEqual([
-      held("fa-1", "2026-12", "2026-11", { exceptionCount: 0, totalCount: 0, shareTenthsOfPercent: null }),
+      held("fa-1", "2026-12", "2026-11", {
+        exceptionCount: 0,
+        totalCount: 0,
+        shareTenthsOfPercent: null,
+      }),
       { holds: false, kind: "exception_share_second_month_at_risk", scope: "fa-1:2026-11" },
     ]);
   });
@@ -154,7 +158,11 @@ describe("detectSecondNonCompliantMonthRisks", () => {
 
     expect(await outcome).toBe(1);
     expect(alerts.observations).toEqual([
-      held("fa-1", "2027-01", "2026-12", { exceptionCount: 2, totalCount: 40, shareTenthsOfPercent: 50 }),
+      held("fa-1", "2027-01", "2026-12", {
+        exceptionCount: 2,
+        totalCount: 40,
+        shareTenthsOfPercent: 50,
+      }),
     ]);
   });
 
@@ -166,7 +174,11 @@ describe("detectSecondNonCompliantMonthRisks", () => {
 
     expect(await outcome).toBe(1);
     expect(alerts.observations).toEqual([
-      held("fa-1", "2026-11", "2026-10", { exceptionCount: 0, totalCount: 0, shareTenthsOfPercent: null }),
+      held("fa-1", "2026-11", "2026-10", {
+        exceptionCount: 0,
+        totalCount: 0,
+        shareTenthsOfPercent: null,
+      }),
     ]);
   });
 
@@ -179,7 +191,11 @@ describe("detectSecondNonCompliantMonthRisks", () => {
 
     expect(await outcome).toBe(1);
     expect(alerts.observations).toEqual([
-      held("fa-1", "2026-11", "2026-10", { exceptionCount: 1, totalCount: 100, shareTenthsOfPercent: 10 }),
+      held("fa-1", "2026-11", "2026-10", {
+        exceptionCount: 1,
+        totalCount: 100,
+        shareTenthsOfPercent: 10,
+      }),
     ]);
   });
 

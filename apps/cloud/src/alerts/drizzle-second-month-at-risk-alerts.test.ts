@@ -98,9 +98,7 @@ describe("DrizzleSecondMonthAtRiskAlerts", () => {
       },
     });
 
-    expect(await new DrizzleSecondMonthAtRiskAlerts(db, () => NOW).atRiskAlertScopes()).toEqual(
-      [],
-    );
+    expect(await new DrizzleSecondMonthAtRiskAlerts(db, () => NOW).atRiskAlertScopes()).toEqual([]);
   });
 
   it("records that the condition cleared when the month is no longer at risk", async () => {
