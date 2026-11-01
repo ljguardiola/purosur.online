@@ -13,7 +13,7 @@ function closedByCell(session: SessionRow) {
 }
 
 function differenceCell(session: SessionRow) {
-  return session.has_difference ? cell.money(session.difference) : cell.text("Sin diferencia");
+  return session.has_difference ? cell.money(session.difference) : cell.money(0);
 }
 
 export function cashSessionClosesSpreadsheet(
