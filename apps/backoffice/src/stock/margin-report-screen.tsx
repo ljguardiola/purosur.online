@@ -15,11 +15,11 @@ import {
   textOrder,
   useTableModel,
 } from "@purosur/ui";
-import { formatProductDescription } from "@purosur/ui/formatters";
 import { Receipt, TriangleAlert } from "lucide-react";
 import { useState } from "react";
-import { categoryPathText } from "../platform/category-path";
 import { cloudTableState } from "../platform/cloud-table-state";
+import { ReportDownload } from "../shell/report-download";
+import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import { reportQueryOf } from "../shell/report-filters-search";
 import type { ReportRegisterField } from "../shell/report-register-field";
@@ -27,6 +27,8 @@ import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
 import type { MarginReportFilters } from "./margin-report-filters";
 import type { MarginReportScreenServices } from "./margin-report-services";
+import { marginReportSpreadsheet } from "./margin-report-spreadsheet";
+import { marginRowLabel } from "./margin-row-label";
 import { useMarginReportQuery } from "./stock-queries";
 
 export type MarginReportScreenProps = {
@@ -46,19 +48,9 @@ const GROUP_OPTIONS = [
   { value: "product" as const, label: "Por producto" },
 ] as const;
 
-const NO_CATEGORY = "Sin categoría";
+const SCREEN_TITLE = "Margen por producto y por categoría";
 
-function rowLabel(row: MarginRow): string {
-  return row.id === null && row.path.length === 0
-    ? NO_CATEGORY
-    : formatProductDescription({
-        name: categoryPathText(row.path),
-        brandName: row.brandName,
-        netContent: row.netContent,
-      });
-}
-
-const labelOrder = textOrder(rowLabel);
+const labelOrder = textOrder(marginRowLabel);
 
 function incompleteSalesText(sales: number): string {
   return plural(sales, {
@@ -73,7 +65,7 @@ function marginColumns(group: MarginReportBody["group"]) {
       id: "name",
       header: group === "product" ? "Producto" : "Categoría",
       sort: { order: labelOrder, firstDirection: "ascending" },
-      render: (row: MarginRow) => rowLabel(row),
+      render: (row: MarginRow) => marginRowLabel(row),
     }),
     dataColumn({
       id: "amount",
@@ -113,6 +105,7 @@ export function MarginReportScreen({
   services,
 }: MarginReportScreenProps) {
   const registerChosen = filters.register !== "ALL";
+  const [registerLabel, setRegisterLabel] = useState("Todas");
   const [page, setPage] = useState(1);
   const data = useMarginReportQuery({
     query: { ...reportQueryOf(filters), group: filters.group },
@@ -139,12 +132,7 @@ export function MarginReportScreen({
 
   return (
     <ScreenLayout
-      topBar={
-        <ScreenTopBar
-          eyebrow="Reportes · Rentabilidad"
-          title="Margen por producto y por categoría"
-        />
-      }
+      topBar={<ScreenTopBar eyebrow="Reportes · Rentabilidad" title={SCREEN_TITLE} />}
       bodyClassName="gap-4 p-6"
     >
       <div className="flex flex-wrap items-end gap-3">
@@ -153,6 +141,22 @@ export function MarginReportScreen({
           onFiltersChange={changeFilters}
           answeredPeriod={shown?.range}
           registerFilter={registerFilter}
+          onRegisterLabelChange={setRegisterLabel}
+          trailing={
+            <ReportDownload
+              dataStatus={data.status}
+              workbook={() =>
+                shown
+                  ? marginReportSpreadsheet(
+                      shown,
+                      table.getPrePaginatedRowModel().rows.map((row) => row.original),
+                      registerLabel,
+                    )
+                  : null
+              }
+              fileName={shown ? reportFileName(SCREEN_TITLE, shown.range) : ""}
+            />
+          }
         />
         <ListFilter
           name="group"
@@ -209,7 +213,7 @@ export function MarginReportScreen({
         </>
       )}
       <Table
-        aria-label="Margen por producto y por categoría"
+        aria-label={SCREEN_TITLE}
         table={table}
         {...cloudTableState(data, "el reporte de margen por producto y por categoría")}
         empty={{
