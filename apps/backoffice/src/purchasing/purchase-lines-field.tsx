@@ -1,5 +1,4 @@
 import type { CalendarDate } from "@internationalized/date";
-import type { PackagingSummary } from "@purosur/contracts";
 import type { SaleUnit } from "@purosur/domain";
 import {
   Button,
@@ -23,23 +22,20 @@ import { quantityFieldKind } from "../platform/stock-quantity";
 import {
   type BackofficeAccess,
   canManageProductsAndCategories,
-  canManagePurchasePackagings,
   canSeePricesArea,
 } from "../shell/backoffice-access";
-import { NewPackagingModal, type NewPackagingModalServices } from "./new-packaging-modal";
-import { packagingProductOptions } from "./packaging-form";
 import {
   emptyPurchaseLine,
   nextPurchaseLineId,
   type PurchaseLineValues,
   type PurchaseProducts,
-  purchasePackagingOptions,
+  purchaseProductOptions,
 } from "./purchase-form";
 import { useMarkPurchasingStale, useRefreshPurchasing } from "./purchasing-queries";
 
 const LOADED_BY_OPTIONS = [
   { value: "quantity" as const, label: "Cantidad" },
-  { value: "packaging" as const, label: "Presentación" },
+  { value: "packages" as const, label: "Paquetes" },
 ] as const;
 
 type PurchaseLinesFieldProps = {
@@ -47,10 +43,8 @@ type PurchaseLinesFieldProps = {
   products: PurchaseProducts;
   productCreationModal: ProductCreationModal;
   onProductCreated: (product: CreatedProduct) => void;
-  packagings: readonly PackagingSummary[];
   refusals: Readonly<Record<number, string>>;
   onLinesChange: () => void;
-  services: NewPackagingModalServices;
   onSessionEnded: () => void;
 };
 
@@ -59,10 +53,8 @@ export function PurchaseLinesField({
   products,
   productCreationModal: ProductCreation,
   onProductCreated,
-  packagings,
   refusals,
   onLinesChange,
-  services,
   onSessionEnded,
 }: PurchaseLinesFieldProps) {
   const field = useFieldContext<PurchaseLineValues[]>();
@@ -72,39 +64,19 @@ export function PurchaseLinesField({
     field.handleChange(lines.map((line) => (line.id === id ? { ...line, ...patch } : line)));
   }
 
-  const productOptions = packagingProductOptions(products);
+  const productOptions = purchaseProductOptions(products);
   const markPurchasingStale = useMarkPurchasingStale();
   const refreshPurchasing = useRefreshPurchasing();
-  const [creatingFor, setCreatingFor] = useState<{ lineId: number; productId: string } | null>(
-    null,
-  );
   const [creatingProductFor, setCreatingProductFor] = useState<number | null>(null);
   const productCreation = useStackedCreation<CreatedProduct>(
     (product) => {
       onProductCreated(product);
       if (creatingProductFor !== null) {
-        change(creatingProductFor, { productId: product.id, packagingId: null });
+        change(creatingProductFor, { productId: product.id });
       }
     },
     { markStale: markPurchasingStale, refresh: refreshPurchasing },
   );
-  const [createdPackagings, setCreatedPackagings] = useState<PackagingSummary[]>([]);
-  const packagingCreation = useStackedCreation<PackagingSummary>(
-    (packaging) => {
-      setCreatedPackagings([...createdPackagings, packaging]);
-      if (creatingFor !== null) {
-        change(creatingFor.lineId, { packagingId: packaging.id });
-      }
-    },
-    { markStale: markPurchasingStale, refresh: refreshPurchasing },
-  );
-  const offeredPackagings = [
-    ...packagings,
-    ...createdPackagings.filter(
-      (created) => !packagings.some((packaging) => packaging.id === created.id),
-    ),
-  ];
-
   if (!productOptions && !canManageProductsAndCategories(access)) {
     return (
       <EmptyState
@@ -125,7 +97,6 @@ export function PurchaseLinesField({
           className="flex min-w-0 flex-col gap-3"
         >
           {lines.map((line, index) => {
-            const productId = line.productId;
             return (
               <PurchaseLineFields
                 key={line.id}
@@ -134,21 +105,12 @@ export function PurchaseLinesField({
                 number={index + 1}
                 productOptions={productOptions}
                 products={products}
-                packagings={offeredPackagings}
                 refusal={refusals[index]}
                 onCreateProduct={
                   canManageProductsAndCategories(access)
                     ? (typedName) => {
                         setCreatingProductFor(line.id);
                         productCreation.start(typedName);
-                      }
-                    : null
-                }
-                onCreatePackaging={
-                  canManagePurchasePackagings(access) && productId !== null
-                    ? (typedName) => {
-                        setCreatingFor({ lineId: line.id, productId });
-                        packagingCreation.start(typedName);
                       }
                     : null
                 }
@@ -180,16 +142,6 @@ export function PurchaseLinesField({
             onClose={productCreation.close}
             onSessionEnded={onSessionEnded}
           />
-          <NewPackagingModal
-            open={packagingCreation.open}
-            products={[...products]}
-            {...(creatingFor === null ? {} : { productId: creatingFor.productId })}
-            initialName={packagingCreation.initialName}
-            services={services}
-            onCreated={packagingCreation.select}
-            onClose={packagingCreation.close}
-            onSessionEnded={onSessionEnded}
-          />
         </fieldset>
       )}
     </SharedFieldError>
@@ -197,8 +149,8 @@ export function PurchaseLinesField({
 }
 
 function costLabel(loadedBy: PurchaseLineValues["loadedBy"], saleUnit: SaleUnit): string {
-  if (loadedBy === "packaging") {
-    return "Costo por presentación ($)";
+  if (loadedBy === "packages") {
+    return "Costo por paquete ($)";
   }
   return saleUnit === "KG" ? "Costo por kg ($)" : "Costo por unidad ($)";
 }
@@ -207,12 +159,10 @@ type PurchaseLineFieldsProps = {
   line: PurchaseLineValues;
   offersPriceReview: boolean;
   number: number;
-  productOptions: ReturnType<typeof packagingProductOptions>;
+  productOptions: ReturnType<typeof purchaseProductOptions>;
   products: PurchaseProducts;
-  packagings: readonly PackagingSummary[];
   refusal: string | undefined;
   onCreateProduct: ((typedName: string) => void) | null;
-  onCreatePackaging: ((typedName: string) => void) | null;
   removable: boolean;
   onChange: (patch: Partial<PurchaseLineValues>) => void;
   onRemove: () => void;
@@ -224,26 +174,16 @@ function PurchaseLineFields({
   number,
   productOptions,
   products,
-  packagings,
   refusal,
   onCreateProduct,
-  onCreatePackaging,
   removable,
   onChange,
   onRemove,
 }: PurchaseLineFieldsProps) {
   const saleUnit = products.find((product) => product.id === line.productId)?.saleUnit ?? "UNIT";
-  const packagingOptions = purchasePackagingOptions(packagings, line.productId);
-  const [firstPackaging, ...otherPackagings] = packagingOptions;
   const productChoice = creatableChoice(
     productOptions,
     onCreateProduct === null ? undefined : { recordKind: "producto", onCreate: onCreateProduct },
-  );
-  const packagingChoice = creatableChoice(
-    firstPackaging ? [firstPackaging, ...otherPackagings] : undefined,
-    onCreatePackaging === null
-      ? undefined
-      : { recordKind: "presentación", onCreate: onCreatePackaging },
   );
 
   return (
@@ -256,7 +196,7 @@ function PurchaseLineFields({
                 label="Producto"
                 placeholder="Elegí un producto"
                 value={line.productId}
-                onChange={(productId) => onChange({ productId, packagingId: null })}
+                onChange={(productId) => onChange({ productId })}
                 required
                 {...productChoice}
               />
@@ -272,32 +212,23 @@ function PurchaseLineFields({
             Quitar línea
           </Button>
         </div>
-        {line.loadedBy === "packaging" ? (
+        {line.loadedBy === "packages" ? (
           <div className="flex items-start gap-4">
-            <div className="min-w-0 flex-1">
-              {packagingChoice ? (
-                <ComboBox
-                  label="Presentación"
-                  placeholder="Elegí una presentación"
-                  value={line.packagingId}
-                  onChange={(packagingId) => onChange({ packagingId })}
-                  required
-                  {...packagingChoice}
-                />
-              ) : (
-                <InlineNotice
-                  tone="info"
-                  icon={<Package />}
-                  title="Este producto no tiene presentaciones activas"
-                />
-              )}
-            </div>
             <div className="min-w-0 flex-1">
               <TextField
                 kind="plain-text"
-                label="Cantidad de presentaciones"
+                label="Cantidad de paquetes"
                 value={line.packages}
                 onChange={(packages) => onChange({ packages })}
+                required
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <TextField
+                {...quantityFieldKind(saleUnit)}
+                label="Cantidad por paquete"
+                value={line.quantityPerPackage}
+                onChange={(quantityPerPackage) => onChange({ quantityPerPackage })}
                 required
               />
             </div>

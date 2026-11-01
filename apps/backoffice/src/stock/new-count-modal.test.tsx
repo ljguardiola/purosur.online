@@ -623,7 +623,7 @@ test("asks for a quantity of a lot written the way it expects, registering nothi
   const services = createServices();
   const rendered = await renderModal(services);
   await countByLot(rendered, services);
-  await userEvent.fill(rendered.dialog.getByRole("textbox", { name: FIRST_LOT }), "mucho");
+  await userEvent.type(rendered.dialog.getByRole("textbox", { name: FIRST_LOT }), "5,");
 
   await userEvent.click(rendered.dialog.getByRole("button", { name: REGISTER }));
 

@@ -208,7 +208,7 @@ export function EditLotCostModal({
                 kind="price"
                 label={referenceCostLabel(lot.saleUnit)}
                 prefix="$"
-                inputMode="decimal"
+                decimals={2}
                 description={lotDescription}
                 required
               />

@@ -109,7 +109,7 @@ test("sends the typed price in cents", async () => {
   vi.mocked(props.setPrice).mockResolvedValue({ kind: "failed" });
   const screen = await renderModal(props);
 
-  await userEvent.fill(screen.getByLabelText("Precio de venta por kilo"), "7.500,50");
+  await userEvent.fill(screen.getByLabelText("Precio de venta por kilo"), "7500,50");
   await userEvent.click(screen.getByRole("button", { name: "Guardar el precio nuevo" }));
 
   await expect.poll(() => vi.mocked(props.setPrice).mock.lastCall?.[1].unitPrice).toBe(750050);
@@ -316,7 +316,7 @@ test("the current price typed again is sent to the server, which decides it is u
   const screen = await renderModal(props);
   const dialog = screen.getByRole("dialog");
 
-  await userEvent.fill(dialog.getByLabelText("Precio de venta por kilo"), "7.500");
+  await userEvent.fill(dialog.getByLabelText("Precio de venta por kilo"), "7500");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar el precio nuevo" }));
 
   await expect
@@ -529,4 +529,13 @@ test("asks for the margin of the typed price and shows it", async () => {
   } finally {
     vi.useRealTimers();
   }
+});
+
+test("groups thousands and takes a typed dot as the decimal comma in the price", async () => {
+  const screen = await renderModal(createProps());
+  const field = screen.getByLabelText("Precio de venta por kilo");
+  await userEvent.clear(field);
+  await userEvent.type(field, "1234.5");
+
+  await expect.element(field).toHaveValue("1.234,5");
 });

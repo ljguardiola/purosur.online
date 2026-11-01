@@ -91,7 +91,7 @@ describe("QrChargeModal", () => {
   it("creates the order for the amount the cashier typed, once, and reports it shown", async () => {
     const { field, create, startCharge, callbacks } = await renderModal();
 
-    await userEvent.fill(field, "30.000,00");
+    await userEvent.fill(field, "30000,00");
     await userEvent.click(create);
 
     await expect.poll(() => callbacks.onOrderShown.mock.calls).toEqual([[ORDER_SHOWN]]);
@@ -107,7 +107,8 @@ describe("QrChargeModal", () => {
   it("does not create an order for what is not an amount, and says so", async () => {
     const { screen, field, create, startCharge } = await renderModal();
 
-    await userEvent.fill(field, "abc");
+    await userEvent.clear(field);
+    await userEvent.keyboard("5,");
     await userEvent.click(create);
 
     await expect
@@ -122,7 +123,7 @@ describe("QrChargeModal", () => {
       pending: 4_070_000,
     }));
 
-    await userEvent.fill(field, "60.000,00");
+    await userEvent.fill(field, "60000,00");
     await userEvent.click(create);
 
     await expect
@@ -237,5 +238,13 @@ describe("QrChargeModal", () => {
 
     expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
     expect(startCharge).not.toHaveBeenCalled();
+  });
+
+  it("groups thousands and takes a typed dot as the decimal comma", async () => {
+    const { field } = await renderModal();
+    await userEvent.clear(field);
+    await userEvent.type(field, "1234.5");
+
+    await expect.element(field).toHaveValue("1.234,5");
   });
 });

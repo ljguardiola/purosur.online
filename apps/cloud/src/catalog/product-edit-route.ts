@@ -37,12 +37,6 @@ const SALE_UNIT_HELD_BY_DISCOUNT_RESPONSE = {
   message: "a product cannot be sold by weight while a live buy-n-pay-m discount targets it",
 } as const;
 
-const SALE_UNIT_HELD_BY_PACKAGING_RESPONSE = {
-  code: "sale_unit_held_by_packaging",
-  message:
-    "a product cannot change its sale unit while an active purchase packaging is defined for it",
-} as const;
-
 const SALE_UNIT_HELD_BY_SUPPLIER_ITEM_RESPONSE = {
   code: "sale_unit_held_by_supplier_item",
   message: "a product cannot change its sale unit while a supplier item is linked to it",
@@ -128,12 +122,6 @@ export function registerProductEditRoute<TQueryResult extends PgQueryResultHKT>(
       }
       if (outcome.kind === "tag_inactive") {
         await reply.code(409).send({ ...TAG_INACTIVE_RESPONSE, tagId: outcome.tagId });
-        return;
-      }
-      if (outcome.kind === "sale_unit_held_by_packaging") {
-        await reply
-          .code(409)
-          .send({ ...SALE_UNIT_HELD_BY_PACKAGING_RESPONSE, packagingName: outcome.packagingName });
         return;
       }
       if (outcome.kind === "sale_unit_held_by_supplier_item") {

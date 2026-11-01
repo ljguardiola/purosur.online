@@ -175,7 +175,9 @@ test("refuses an unreadable quantity, saying how to type it", async () => {
   const saveRecipe = vi.fn<EditRecipeModalServices["saveRecipe"]>();
   const screen = await renderModal({ saveRecipe });
   const dialog = screen.getByRole("dialog");
-  await userEvent.fill(dialog.getByRole("textbox", { name: "Cantidad de Almendras" }), "mucho");
+  const quantity = dialog.getByRole("textbox", { name: "Cantidad de Almendras" });
+  await userEvent.clear(quantity);
+  await userEvent.type(quantity, "5,");
 
   await save(screen);
 

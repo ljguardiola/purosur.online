@@ -1003,3 +1003,13 @@ test("clears the proposed quantity when another product is chosen, and does not 
 
   await expect.element(quantityField(screen)).toHaveValue("");
 });
+
+test("takes a typed dot as the decimal comma in the kilos of a product sold by weight", async () => {
+  const screen = await renderModal();
+  await chooseProduct(screen, "Pasas de uva");
+  const field = screen.getByRole("dialog").getByRole("textbox", { name: /^Cantidad que trae/ });
+
+  await userEvent.type(field, "12.5");
+
+  await expect.element(field).toHaveValue("12,5");
+});

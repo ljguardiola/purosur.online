@@ -33,7 +33,7 @@ export function ReturnRefundsField({ texts, disabled }: ReturnRefundsFieldProps)
                   prefix="$"
                   label={label}
                   labelVisuallyHidden
-                  inputMode="decimal"
+                  decimals={2}
                   value={text}
                   disabled={disabled}
                   errorMessage={

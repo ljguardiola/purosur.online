@@ -142,9 +142,15 @@ describe("FREIGHT_FIELD_MESSAGES", () => {
     );
   });
 
-  it("explains how to write an amount that is not a number", () => {
-    expect(FREIGHT_FIELD_MESSAGES.amount(values({ amount: "mucho" }))).toBe(
-      "Escribí el monto con coma para los centavos, por ejemplo 1.250,50.",
+  it("asks for the amount when it is empty", () => {
+    expect(FREIGHT_FIELD_MESSAGES.amount(values({ amount: "" }))).toBe(
+      "Ingresá el monto del flete.",
+    );
+  });
+
+  it("asks for the cents after a comma with nothing after it", () => {
+    expect(FREIGHT_FIELD_MESSAGES.amount(values({ amount: "12," }))).toBe(
+      "Completá los centavos del monto después de la coma, por ejemplo 1.250,50.",
     );
   });
 

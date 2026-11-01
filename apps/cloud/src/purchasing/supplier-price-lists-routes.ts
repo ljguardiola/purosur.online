@@ -24,7 +24,7 @@ import {
   tagListSchema,
 } from "@purosur/contracts";
 import {
-  PRODUCTS_PACKAGINGS_MAY_BE_DEFINED_FOR,
+  PRODUCTS_PURCHASES_MAY_BE_REGISTERED_FOR,
   SUPPLIER_PRICE_LIST_PDF_MAX_BYTES,
 } from "@purosur/domain";
 import { listBrands, listTags } from "@purosur/domain/catalog/use-cases";
@@ -418,7 +418,7 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
   });
 
   app.get("/supplier-price-lists/link-choices", readGuard, async (_request, reply) => {
-    const products = await catalog.products(PRODUCTS_PACKAGINGS_MAY_BE_DEFINED_FOR);
+    const products = await catalog.products(PRODUCTS_PURCHASES_MAY_BE_REGISTERED_FOR);
     const choices = listSupplierItemLinkChoices(products, await listBrands({ catalog }));
     await reply.code(200).send(supplierItemLinkChoicesSchema.parse(choices));
   });

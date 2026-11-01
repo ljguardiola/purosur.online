@@ -52,9 +52,14 @@ function renderModal({
   );
 }
 
-async function save(screen: Awaited<ReturnType<typeof renderModal>>, price: string) {
+async function save(screen: Awaited<ReturnType<typeof renderModal>>, price: string, keys = false) {
   const dialog = screen.getByRole("dialog");
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Precio/ }), price);
+  if (keys) {
+    await userEvent.clear(dialog.getByRole("textbox", { name: /^Precio/ }));
+    await userEvent.keyboard(price);
+  } else {
+    await userEvent.fill(dialog.getByRole("textbox", { name: /^Precio/ }), price);
+  }
   await userEvent.click(dialog.getByRole("button", { name: "Guardar el precio" }));
   return dialog;
 }
@@ -84,7 +89,7 @@ test("saves the typed price in cents against the loaded version and reports it",
   const onSaved = vi.fn();
   const screen = await renderModal({ setSupplierPriceListRowPrice, onSaved });
 
-  await save(screen, "58.990,00");
+  await save(screen, "58990,00");
 
   expect(setSupplierPriceListRowPrice).toHaveBeenCalledWith("list-1", unpricedRow.id, {
     priceCents: 5_899_000,
@@ -98,7 +103,7 @@ test("asks for a valid price without calling the cloud", async () => {
     vi.fn<EditSupplierPriceListRowPriceModalServices["setSupplierPriceListRowPrice"]>();
   const screen = await renderModal({ setSupplierPriceListRowPrice });
 
-  const dialog = await save(screen, "abc");
+  const dialog = await save(screen, "5,", true);
 
   await expect.element(dialog.getByText("Ingresá un precio válido, como 1.234,50.")).toBeVisible();
   expect(setSupplierPriceListRowPrice).not.toHaveBeenCalled();
@@ -175,4 +180,13 @@ test("cancel closes the modal without calling the cloud", async () => {
 
   expect(onClose).toHaveBeenCalledTimes(1);
   expect(setSupplierPriceListRowPrice).not.toHaveBeenCalled();
+});
+
+test("groups thousands and takes a typed dot as the decimal comma in the price", async () => {
+  const screen = await renderModal();
+  const field = screen.getByRole("dialog").getByRole("textbox", { name: /^Precio/ });
+  await userEvent.clear(field);
+  await userEvent.type(field, "1234.5");
+
+  await expect.element(field).toHaveValue("1.234,5");
 });

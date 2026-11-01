@@ -54,7 +54,7 @@ async function storedPurchase(fields: Partial<typeof purchases.$inferInsert> = {
 }
 
 describe("DrizzlePurchasingListReader purchases", () => {
-  it("lists a purchase with the supplier's, products' and packagings' names, one entry per line", async () => {
+  it("lists a purchase with the supplier's and products' names, one entry per line", async () => {
     const yerba = await insertProduct(db, {
       name: "Yerba",
       brandName: "Piragüé",
@@ -121,7 +121,6 @@ describe("DrizzlePurchasingListReader purchases", () => {
         netContent: { quantity: 500, unit: "G" },
         saleUnit: "UNIT",
       },
-      packaging: { id: packaging?.id, name: "Caja x 12" },
       packages: 2,
       quantity: 24_000,
       costPaidCents: 24_000,
@@ -132,7 +131,6 @@ describe("DrizzlePurchasingListReader purchases", () => {
     expect(listed[0]?.lines).toContainEqual({
       id: expect.any(String),
       product: { id: harina.id, name: "Harina", brandName: null, netContent: null, saleUnit: "KG" },
-      packaging: null,
       packages: null,
       quantity: 2_500,
       costPaidCents: 1_000,

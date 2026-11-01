@@ -1,19 +1,21 @@
 import type { CalendarDate } from "@internationalized/date";
 import {
-  type PackagingSummary,
   type PurchaseChoices,
   type PurchaseRegistrationBody,
   purchaseRegistrationBodySchema,
   type SupplierSummary,
 } from "@purosur/contracts";
 import type { ReceiptType } from "@purosur/domain";
-import { parseAmountCents, parseEsArNumber, sortedItems, textOrder } from "@purosur/ui";
-import { schemaLimit } from "../platform/schema-limit";
 import {
-  formatStockQuantity,
-  parseStockQuantity,
-  quantityMessage,
-} from "../platform/stock-quantity";
+  numericTextOrder,
+  parseAmountCents,
+  parseEsArNumber,
+  sortedItems,
+  textOrder,
+} from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
+import { schemaLimit } from "../platform/schema-limit";
+import { parseStockQuantity, quantityMessage } from "../platform/stock-quantity";
 import type { PurchaseLineRefusal } from "./purchases-api";
 import { receiptLabel } from "./receipt-label";
 
@@ -25,9 +27,9 @@ export type PurchaseProducts = PurchaseChoices["products"];
 export type PurchaseLineValues = {
   id: number;
   productId: string | null;
-  loadedBy: "packaging" | "quantity";
-  packagingId: string | null;
+  loadedBy: "packages" | "quantity";
   packages: string;
+  quantityPerPackage: string;
   quantity: string;
   cost: string;
   lotNumber: string;
@@ -49,8 +51,8 @@ export function emptyPurchaseLine(id: number): PurchaseLineValues {
     id,
     productId: null,
     loadedBy: "quantity",
-    packagingId: null,
     packages: "",
+    quantityPerPackage: "",
     quantity: "",
     cost: "",
     lotNumber: "",
@@ -113,10 +115,6 @@ export const PURCHASE_RECEIPT_TYPE_REQUIRED = "Elegí el tipo de comprobante.";
 export const PURCHASE_LINE_REFUSALS = {
   product_not_found: "Este producto ya no está disponible.",
   product_inactive: "Este producto ya no está activo.",
-  packaging_not_found: "Esta presentación ya no está disponible.",
-  packaging_inactive: "Esta presentación ya no está activa.",
-  packaging_sale_unit_changed:
-    "La presentación no coincide con la unidad de venta actual del producto.",
 } satisfies Record<PurchaseLineRefusal, string>;
 
 export function purchaseDateMessage({ purchasedOn }: PurchaseFormValues): string {
@@ -154,6 +152,12 @@ function packageCountOf(packages: string): number {
   return digits ? Number(digits.whole) : Number.NaN;
 }
 
+function quantityPerPackageOf(line: PurchaseLineValues, products: PurchaseProducts): number {
+  return (
+    parseStockQuantity(line.quantityPerPackage, saleUnitOf(products, line.productId)) ?? Number.NaN
+  );
+}
+
 function quantityOf(line: PurchaseLineValues, products: PurchaseProducts): number {
   return parseStockQuantity(line.quantity, saleUnitOf(products, line.productId)) ?? Number.NaN;
 }
@@ -168,12 +172,12 @@ function lineRequestFrom(
     lotNumber: line.lotNumber.trim(),
     expiresOn: line.expiresOn?.toString() ?? "",
   };
-  return line.loadedBy === "packaging"
+  return line.loadedBy === "packages"
     ? {
-        loadedBy: "packaging",
+        loadedBy: "packages",
         ...common,
-        packagingId: line.packagingId ?? "",
         packages: packageCountOf(line.packages),
+        quantityPerPackage: quantityPerPackageOf(line, products),
       }
     : { loadedBy: "quantity", ...common, quantity: quantityOf(line, products) };
 }
@@ -200,12 +204,12 @@ function lineProblem(line: PurchaseLineValues, products: PurchaseProducts): stri
   if (line.productId === null) {
     return "Elegí el producto.";
   }
-  if (line.loadedBy === "packaging") {
-    if (line.packagingId === null) {
-      return "Elegí la presentación.";
-    }
+  if (line.loadedBy === "packages") {
     if (Number.isNaN(packageCountOf(line.packages))) {
-      return "Ingresá cuántas presentaciones compraste, en un número entero.";
+      return "Ingresá cuántos paquetes compraste, en un número entero.";
+    }
+    if (Number.isNaN(quantityPerPackageOf(line, products))) {
+      return quantityMessage(saleUnitOf(products, line.productId));
     }
   } else if (Number.isNaN(quantityOf(line, products))) {
     return quantityMessage(saleUnitOf(products, line.productId));
@@ -237,8 +241,8 @@ export function purchaseLineQuantityRefusal(
   line: PurchaseLineValues | undefined,
   products: PurchaseProducts,
 ): string {
-  return line?.loadedBy === "packaging"
-    ? "Son demasiadas presentaciones para una sola línea."
+  return line?.loadedBy === "packages"
+    ? "Revisá la cantidad de paquetes y la cantidad por paquete."
     : quantityMessage(saleUnitOf(products, line?.productId ?? null));
 }
 
@@ -263,14 +267,16 @@ export function withCreatedSupplier(
     : suppliers;
 }
 
-export function purchasePackagingOptions(
-  packagings: readonly PackagingSummary[],
-  productId: string | null,
-): { value: string; label: string }[] {
-  return packagings
-    .filter((packaging) => packaging.productId === productId)
-    .map((packaging) => ({
-      value: packaging.id,
-      label: `${packaging.name} (${formatStockQuantity(packaging.quantityPerPackage, packaging.saleUnit)})`,
-    }));
+const productOrder = numericTextOrder((product: PurchaseProducts[number]) =>
+  formatProductDescription(product),
+);
+
+export function purchaseProductOptions(
+  products: PurchaseProducts,
+): [{ value: string; label: string }, ...{ value: string; label: string }[]] | undefined {
+  const [first, ...rest] = sortedItems(products, {
+    order: productOrder,
+    direction: "ascending",
+  }).map((product) => ({ value: product.id, label: formatProductDescription(product) }));
+  return first && [first, ...rest];
 }

@@ -819,8 +819,8 @@ export const purchaseLines = pgTable(
     check("purchase_lines_quantity_check", sql`${table.quantity} > 0`),
     check("purchase_lines_cost_paid_check", sql`${table.costPaidCents} >= 0`),
     check(
-      "purchase_lines_packaging_iff_packages_check",
-      sql`(${table.packagingId} is null) = (${table.packages} is null)`,
+      "purchase_lines_packaging_needs_packages_check",
+      sql`${table.packagingId} is null or ${table.packages} is not null`,
     ),
     check(
       "purchase_lines_packages_quantity_check",

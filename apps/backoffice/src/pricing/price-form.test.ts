@@ -4,8 +4,8 @@ import { amountMessage, EMPTY_PRICE_FORM, typedUnitPrice } from "./price-form";
 test.each([
   { amount: "", reason: "Ingresá el precio nuevo." },
   {
-    amount: "12.50",
-    reason: "Escribí el precio con coma para los decimales, por ejemplo 7.500,50.",
+    amount: "12,",
+    reason: "Completá los decimales del precio después de la coma, por ejemplo 7.500,50.",
   },
   { amount: "0", reason: "Ingresá un precio mayor a cero, de hasta $ 21.474.836,47." },
   { amount: "21.474.836,48", reason: "Ingresá un precio mayor a cero, de hasta $ 21.474.836,47." },

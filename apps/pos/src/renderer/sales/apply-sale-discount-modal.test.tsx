@@ -248,7 +248,7 @@ describe("ApplySaleDiscountModal", () => {
   it("sends a fixed amount in cents", async () => {
     const { screen, apply } = await renderModal();
     await chooseKind(screen, "$");
-    await typeValue(screen, "Monto de descuento", "2.700,50");
+    await typeValue(screen, "Monto de descuento", "2700,50");
     await typeReason(screen, "Compra grande");
 
     await submit(screen);
@@ -384,7 +384,7 @@ describe("ApplySaleDiscountModal", () => {
         applySaleDiscount: async () => ({ kind: "discount_exceeds_sale" }),
       });
       await chooseKind(screen, "$");
-      await typeValue(screen, "Monto de descuento", "99.999");
+      await typeValue(screen, "Monto de descuento", "99999");
       await typeReason(screen, "Motivo");
 
       await submit(screen);
@@ -525,7 +525,7 @@ describe("ApplySaleDiscountModal previewing the discount", () => {
     });
     await chooseKind(screen, "$");
 
-    await typeValue(screen, "Monto de descuento", "2.700");
+    await typeValue(screen, "Monto de descuento", "2700");
 
     await expect.element(screen.getByText("− $ 2.700,00")).toBeVisible();
     await expect.element(screen.getByText("$ 48.000,00")).toBeVisible();
@@ -585,7 +585,7 @@ describe("ApplySaleDiscountModal previewing the discount", () => {
     });
     await chooseKind(screen, "$");
 
-    await typeValue(screen, "Monto de descuento", "99.999");
+    await typeValue(screen, "Monto de descuento", "99999");
 
     await expect
       .element(screen.getByText("El descuento no puede ser mayor al total de la venta."))
@@ -647,5 +647,15 @@ describe("ApplySaleDiscountModal previewing the discount", () => {
     const { screen } = await renderModal({ lineCount: 1998 });
 
     await expect.element(screen.getByText("VENTA EN CURSO · 1.998 LÍNEAS")).toBeVisible();
+  });
+
+  it("groups thousands and takes a typed dot as the decimal comma in an amount discount", async () => {
+    const { screen } = await renderModal();
+    await chooseKind(screen, "$");
+    const field = screen.getByRole("textbox", { name: "Monto de descuento" });
+    await userEvent.clear(field);
+    await userEvent.type(field, "1234.5");
+
+    await expect.element(field).toHaveValue("1.234,5");
   });
 });

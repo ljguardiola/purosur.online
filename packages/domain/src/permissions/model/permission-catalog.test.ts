@@ -18,7 +18,7 @@ const AREA_ORDER_WITH_COUNTS: readonly [string, number][] = [
   ["returns", 2],
   ["checkout", 1],
   ["stock", 5],
-  ["purchasing", 9],
+  ["purchasing", 8],
   ["catalog", 3],
   ["assembledProducts", 2],
   ["users", 3],
@@ -31,8 +31,8 @@ const AREA_ORDER_WITH_COUNTS: readonly [string, number][] = [
 ];
 
 describe("PERMISSION_CATALOG", () => {
-  it("holds exactly 52 permissions", () => {
-    expect(PERMISSION_CATALOG).toHaveLength(52);
+  it("holds exactly 51 permissions", () => {
+    expect(PERMISSION_CATALOG).toHaveLength(51);
   });
 
   it("has a unique key for every permission", () => {
@@ -76,7 +76,7 @@ describe("PERMISSION_CATALOG", () => {
 
   it("leaves every remaining permission with no register marker", () => {
     const none = PERMISSION_CATALOG.filter((permission) => permission.registerMarker === "none");
-    expect(none).toHaveLength(52 - 6 - 11);
+    expect(none).toHaveLength(51 - 6 - 11);
   });
 
   it("exports PERMISSION_AREAS in the exact drawn area order, the role editor's areas pane order", () => {

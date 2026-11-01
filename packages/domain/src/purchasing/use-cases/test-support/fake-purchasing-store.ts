@@ -1,40 +1,26 @@
-import type { ProductNetContent, SaleUnit } from "../../../catalog/index.js";
+import type { SaleUnit } from "../../../catalog/index.js";
 import type { PriceReviewPostponement } from "../../../pricing/index.js";
 import type { PurchaseReceipt } from "../../../stock/index.js";
 import type {
-  LockPackagingResult,
   LockProductResult,
   LockSupplierResult,
-  NewPackagingFields,
   NewPurchaseFields,
   NewPurchaseLineFields,
   NewSupplierFields,
-  Packaging,
-  PackagingFields,
   PurchasingStore,
   PurchasingStoreTransaction,
   Supplier,
   SupplierFields,
 } from "../purchasing-store.js";
-import {
-  PackagingNameConflict,
-  SupplierCuitConflict,
-  SupplierNameConflict,
-} from "../purchasing-store.js";
+import { SupplierCuitConflict, SupplierNameConflict } from "../purchasing-store.js";
 
 interface FakeSupplierRow extends Supplier {
-  writtenBy: string | null;
-}
-
-interface FakePackagingRow extends Packaging {
   writtenBy: string | null;
 }
 
 export interface FakeProductRow {
   id: string;
   name: string;
-  brandName?: string | null;
-  netContent?: ProductNetContent | null;
   saleUnit: SaleUnit;
   active: boolean;
 }
@@ -55,7 +41,6 @@ export type FakePurchasingWrite =
 
 export interface FakePurchasingState {
   suppliers: FakeSupplierRow[];
-  packagings: FakePackagingRow[];
   products: FakeProductRow[];
   purchases: FakePurchaseRow[];
   purchaseLines: FakePurchaseLineRow[];
@@ -67,7 +52,6 @@ export interface FakePurchasingState {
 function cloneState(state: FakePurchasingState): FakePurchasingState {
   return {
     suppliers: state.suppliers.map((row) => ({ ...row })),
-    packagings: state.packagings.map((row) => ({ ...row })),
     products: state.products.map((row) => ({ ...row })),
     purchases: state.purchases.map((row) => ({ ...row, recordedAt: new Date(row.recordedAt) })),
     purchaseLines: state.purchaseLines.map((row) => ({ ...row })),
@@ -150,74 +134,10 @@ class FakePurchasingStoreTransaction implements PurchasingStoreTransaction {
     }
   }
 
-  async lockProduct(productId: string): Promise<LockProductResult> {
-    this.store.lockCallOrder.push("lockProduct");
-    this.store.lockLog.push(`product:${productId}`);
-    return this.lockedProduct(productId);
-  }
-
   async holdPurchasedProduct(productId: string): Promise<LockProductResult> {
     this.store.lockCallOrder.push("holdPurchasedProduct");
     this.store.lockLog.push(`product:${productId}`);
     return this.lockedProduct(productId);
-  }
-
-  async lockProductOfPackaging(packagingId: string): Promise<LockProductResult> {
-    this.store.lockCallOrder.push("lockProductOfPackaging");
-    const packaging = this.state.packagings.find((row) => row.id === packagingId);
-    return packaging ? this.lockedProduct(packaging.productId) : { kind: "not_found" };
-  }
-
-  async lockPackaging(packagingId: string): Promise<LockPackagingResult> {
-    this.store.lockCallOrder.push("lockPackaging");
-    this.store.lockLog.push(`packaging:${packagingId}`);
-    const row = this.state.packagings.find((packaging) => packaging.id === packagingId);
-    if (!row || this.store.packagingsGoneOnceTheirProductIsLocked.has(packagingId)) {
-      return { kind: "not_found" };
-    }
-    const { writtenBy: _writtenBy, ...packaging } = row;
-    return { kind: "locked", packaging };
-  }
-
-  async packagingNameTaken(
-    productId: string,
-    name: string,
-    excludingPackagingId?: string,
-  ): Promise<boolean> {
-    return this.state.packagings.some(
-      (row) =>
-        row.productId === productId && sameText(row.name, name) && row.id !== excludingPackagingId,
-    );
-  }
-
-  async insertPackaging(fields: NewPackagingFields): Promise<{ id: string }> {
-    this.raisePackagingConflict(fields.name);
-    const id = `packaging-${this.state.nextId++}`;
-    this.state.packagings.push({
-      id,
-      productId: fields.productId,
-      name: fields.name,
-      quantityPerPackage: fields.quantityPerPackage,
-      saleUnit: fields.saleUnit,
-      active: true,
-      version: 1,
-      writtenBy: fields.actorId,
-    });
-    return { id };
-  }
-
-  async updatePackaging(packagingId: string, fields: PackagingFields): Promise<void> {
-    this.raisePackagingConflict(fields.name);
-    for (const row of this.state.packagings) {
-      if (row.id === packagingId) {
-        row.name = fields.name;
-        row.quantityPerPackage = fields.quantityPerPackage;
-        row.saleUnit = fields.saleUnit;
-        row.active = fields.active;
-        row.version = fields.version;
-        row.writtenBy = fields.actorId;
-      }
-    }
   }
 
   async insertPurchase(fields: NewPurchaseFields): Promise<{ id: string }> {
@@ -272,18 +192,11 @@ class FakePurchasingStoreTransaction implements PurchasingStoreTransaction {
       throw new SupplierCuitConflict();
     }
   }
-
-  private raisePackagingConflict(name: string): void {
-    if (this.store.packagingNameConflicts.has(name.toLowerCase())) {
-      throw new PackagingNameConflict();
-    }
-  }
 }
 
 export class FakePurchasingStore implements PurchasingStore {
   private state: FakePurchasingState = {
     suppliers: [],
-    packagings: [],
     products: [],
     purchases: [],
     purchaseLines: [],
@@ -296,9 +209,6 @@ export class FakePurchasingStore implements PurchasingStore {
   // same-transaction check found, to model a concurrent write that committed first.
   supplierNameConflicts = new Set<string>();
   supplierCuitConflicts = new Set<string>();
-  packagingNameConflicts = new Set<string>();
-
-  packagingsGoneOnceTheirProductIsLocked = new Set<string>();
 
   private readonly failingCalls = new Map<FakePurchasingWrite, number>();
   private readonly writeCalls = new Map<FakePurchasingWrite, number>();
@@ -313,10 +223,6 @@ export class FakePurchasingStore implements PurchasingStore {
 
   seedProduct(product: FakeProductRow): void {
     this.state.products.push({ ...product });
-  }
-
-  seedPackaging(packaging: Packaging): void {
-    this.state.packagings.push({ ...packaging, writtenBy: null });
   }
 
   failWriteAtCall(operation: FakePurchasingWrite, call: number): void {

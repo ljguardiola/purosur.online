@@ -161,7 +161,7 @@ describe("ChargeScreen", () => {
   it("charges the sale in cash and shows it as completed with the change", async () => {
     const { screen, chargeSaleInCash } = await renderScreen();
 
-    await chargeInCash(screen, "5.000,00");
+    await chargeInCash(screen, "5000,00");
 
     await expect.element(screen.getByText("VENTA COMPLETADA")).toBeVisible();
     await expect.element(screen.getByRole("heading", { name: "Entregá el vuelto" })).toBeVisible();
@@ -171,7 +171,7 @@ describe("ChargeScreen", () => {
   it("asks the core for the print status of the sale it completed, after a cash charge", async () => {
     const { screen, receiptPrintStatus } = await renderScreen();
 
-    await chargeInCash(screen, "5.000,00");
+    await chargeInCash(screen, "5000,00");
 
     await expect.element(screen.getByText("Impreso")).toBeVisible();
     expect(receiptPrintStatus).toHaveBeenCalledWith("sale-1");
@@ -182,7 +182,7 @@ describe("ChargeScreen", () => {
       contingencyBackupTicketOfSale: async () => ({ kind: "read", ticket: { standing: "kept" } }),
     });
 
-    await chargeInCash(screen, "5.000,00");
+    await chargeInCash(screen, "5000,00");
 
     await expect.element(screen.getByText("Ticket de respaldo de contingencia")).toBeVisible();
     expect(contingencyBackupTicketOfSale).toHaveBeenCalledWith("sale-1");
@@ -209,7 +209,7 @@ describe("ChargeScreen", () => {
       }),
     });
 
-    await chargeInCash(screen, "5.000,00");
+    await chargeInCash(screen, "5000,00");
 
     await expect.element(screen.getByText("La impresora se quedó sin papel")).toBeVisible();
     await expect
@@ -223,7 +223,7 @@ describe("ChargeScreen", () => {
       receiptPrintStatus: async () => FAILED_PRINT,
     });
 
-    await chargeInCash(screen, "5.000,00");
+    await chargeInCash(screen, "5000,00");
 
     await expect.element(screen.getByRole("button", { name: "Cambiar impresora" })).toBeVisible();
   });
@@ -231,7 +231,7 @@ describe("ChargeScreen", () => {
   it("does not offer to change the printer on a failed print to a person who may not configure it", async () => {
     const { screen } = await renderScreen({ receiptPrintStatus: async () => FAILED_PRINT });
 
-    await chargeInCash(screen, "5.000,00");
+    await chargeInCash(screen, "5000,00");
 
     await expect.element(screen.getByText("No se pudo imprimir el ticket")).toBeVisible();
     await expect
@@ -242,7 +242,7 @@ describe("ChargeScreen", () => {
   it("shows the sale as paid behind the completed sale, with no way back to it", async () => {
     const { screen } = await renderScreen();
 
-    await chargeInCash(screen, "5.000,00");
+    await chargeInCash(screen, "5000,00");
 
     const panel = screen.getByRole("complementary", {
       name: "Panel de cobro",
@@ -283,7 +283,7 @@ describe("ChargeScreen", () => {
     await chooseCash(screen);
     await userEvent.fill(
       screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
-      "4.000,00",
+      "4000,00",
     );
     await userEvent.click(screen.getByRole("button", { name: "Registrar pago parcial" }));
 
@@ -320,7 +320,7 @@ describe("ChargeScreen", () => {
     await chooseCash(screen);
     await userEvent.fill(
       screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
-      "4.000,00",
+      "4000,00",
     );
     await userEvent.click(screen.getByRole("button", { name: "Registrar pago parcial" }));
 
@@ -351,7 +351,7 @@ describe("ChargeScreen", () => {
     await chooseTransfer(screen);
     await userEvent.fill(
       screen.getByRole("textbox", { name: "Importe a cobrar con este medio" }),
-      "2.000,00",
+      "2000,00",
     );
     await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
 
@@ -382,7 +382,7 @@ describe("ChargeScreen", () => {
     await chooseCash(screen);
     await userEvent.fill(
       screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
-      "4.000,00",
+      "4000,00",
     );
     await userEvent.click(screen.getByRole("button", { name: "Registrar pago parcial" }));
 
@@ -412,7 +412,7 @@ describe("ChargeScreen", () => {
     await chooseTransfer(screen);
     await userEvent.fill(
       screen.getByRole("textbox", { name: "Importe a cobrar con este medio" }),
-      "2.000,00",
+      "2000,00",
     );
     await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
 
@@ -447,7 +447,7 @@ describe("ChargeScreen", () => {
     await chooseTransfer(screen);
     await userEvent.fill(
       screen.getByRole("textbox", { name: "Importe a cobrar con este medio" }),
-      "2.000,00",
+      "2000,00",
     );
     await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
 
@@ -463,7 +463,7 @@ describe("ChargeScreen", () => {
   it("starts a new sale from Nueva venta by going back to the sale screen", async () => {
     const { screen } = await renderScreen();
 
-    await chargeInCash(screen, "5.000,00");
+    await chargeInCash(screen, "5000,00");
     await userEvent.click(screen.getByRole("button", { name: "Nueva venta" }));
 
     await expect.poll(() => screen.router.state.location.pathname).toBe("/session");
@@ -474,7 +474,7 @@ describe("ChargeScreen", () => {
     async (kind) => {
       const { screen } = await renderScreen({ chargeSaleInCash: async () => ({ kind }) });
 
-      await chargeInCash(screen, "5.000,00");
+      await chargeInCash(screen, "5000,00");
 
       await expect.poll(() => screen.router.state.location.pathname).toBe("/session");
     },
@@ -486,7 +486,7 @@ describe("ChargeScreen", () => {
   ] as const)("goes back to the sale when the core answers %j", async (outcome) => {
     const { screen } = await renderScreen({ chargeSaleInCash: async () => outcome });
 
-    await chargeInCash(screen, "5.000,00");
+    await chargeInCash(screen, "5000,00");
 
     await expect.poll(() => screen.router.state.location.pathname).toBe("/session");
   });
@@ -498,7 +498,7 @@ describe("ChargeScreen", () => {
         chargeSaleInCash: async () => ({ kind }),
       });
 
-      await chargeInCash(screen, "5.000,00");
+      await chargeInCash(screen, "5000,00");
 
       await expect.poll(() => onSessionInvalid.mock.calls.length).toBe(1);
     },

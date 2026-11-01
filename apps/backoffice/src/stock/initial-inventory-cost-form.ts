@@ -11,7 +11,8 @@ import type { InitialInventoryLot } from "./edit-lot-cost-modal";
 import { formatStockUnitCost } from "./stock-cost";
 
 const COST_REQUIRED = "Ingresá el costo de referencia.";
-const COST_MALFORMED = "Escribí el costo con coma para los decimales, por ejemplo 10.180,50.";
+const COST_MALFORMED =
+  "Completá los decimales del costo después de la coma, por ejemplo 10.180,50.";
 const UNIT_COST_SCHEMA = lotReferenceCostBodySchema.options[0].shape.unitCostCents;
 const COST_OUT_OF_RANGE = `Ingresá un costo mayor a cero, de hasta ${formatCents(schemaLimit(UNIT_COST_SCHEMA.meta()?.["maxValue"]))}.`;
 const COST_REVIEW = "Revisá el costo.";

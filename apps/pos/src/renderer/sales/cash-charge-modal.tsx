@@ -212,7 +212,7 @@ export function CashChargeModal({
               kind="amount"
               prefix="$"
               label="Importe entregado por el cliente"
-              inputMode="decimal"
+              decimals={2}
               value={field.state.value}
               onChange={field.handleChange}
               disabled={submitting}

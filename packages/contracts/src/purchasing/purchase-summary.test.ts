@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { purchaseListSchema, purchaseSummarySchema } from "./purchase-summary.js";
 
-const packagedLine = {
+const packagesLine = {
   id: "line-1",
   product: {
     id: "p-1",
@@ -10,7 +10,6 @@ const packagedLine = {
     netContent: { quantity: 500, unit: "G" },
     saleUnit: "UNIT",
   },
-  packaging: { id: "k-1", name: "Caja x 12" },
   packages: 2,
   quantity: 24_000,
   costPaidCents: 1_450_050,
@@ -22,7 +21,6 @@ const packagedLine = {
 const quantityLine = {
   id: "line-2",
   product: { id: "p-2", name: "Harina", brandName: null, netContent: null, saleUnit: "KG" },
-  packaging: null,
   packages: null,
   quantity: 2_500,
   costPaidCents: 90_000,
@@ -39,11 +37,11 @@ const purchase = {
   receiptNumber: "0001-00001234",
   note: "Entrega de la tarde",
   recordedAt: "2026-03-10T15:00:00.000Z",
-  lines: [packagedLine, quantityLine],
+  lines: [packagesLine, quantityLine],
 };
 
 describe("purchaseSummarySchema", () => {
-  it("accepts a purchase with a line loaded by packaging and one loaded by quantity", () => {
+  it("accepts a purchase with a line loaded by packages and one loaded by quantity", () => {
     expect(purchaseSummarySchema.safeParse(purchase).data).toEqual(purchase);
   });
 
@@ -55,6 +53,14 @@ describe("purchaseSummarySchema", () => {
       note: null,
     };
     expect(purchaseSummarySchema.safeParse(bare).data).toEqual(bare);
+  });
+
+  it("strips a packaging from a line", () => {
+    const parsed = purchaseSummarySchema.safeParse({
+      ...purchase,
+      lines: [{ ...quantityLine, packaging: { id: "k-1", name: "Caja x 12" } }],
+    });
+    expect(parsed.data).toEqual({ ...purchase, lines: [quantityLine] });
   });
 
   it("strips keys it does not define", () => {
@@ -98,7 +104,6 @@ describe("purchaseSummarySchema", () => {
   it.each([
     "id",
     "product",
-    "packaging",
     "packages",
     "quantity",
     "costPaidCents",
@@ -107,18 +112,17 @@ describe("purchaseSummarySchema", () => {
     "lotNumber",
     "expiresOn",
   ])("requires a line's %s", (field) => {
-    const { [field as keyof typeof packagedLine]: _omitted, ...line } = packagedLine;
+    const { [field as keyof typeof packagesLine]: _omitted, ...line } = packagesLine;
 
     expect(purchaseSummarySchema.safeParse({ ...purchase, lines: [line] }).success).toBe(false);
   });
 
   it.each([
     ["id", 1],
-    ["product", { ...packagedLine.product, saleUnit: "LITER" }],
-    ["product", { ...packagedLine.product, brandName: undefined }],
-    ["product", { ...packagedLine.product, netContent: undefined }],
-    ["product", { ...packagedLine.product, netContent: { quantity: 500, unit: "BOX" } }],
-    ["packaging", { id: "k-1" }],
+    ["product", { ...packagesLine.product, saleUnit: "LITER" }],
+    ["product", { ...packagesLine.product, brandName: undefined }],
+    ["product", { ...packagesLine.product, netContent: undefined }],
+    ["product", { ...packagesLine.product, netContent: { quantity: 500, unit: "BOX" } }],
     ["packages", 1.5],
     ["quantity", 1.5],
     ["costPaidCents", "100"],
@@ -130,7 +134,7 @@ describe("purchaseSummarySchema", () => {
     expect(
       purchaseSummarySchema.safeParse({
         ...purchase,
-        lines: [{ ...packagedLine, [field]: value }],
+        lines: [{ ...packagesLine, [field]: value }],
       }).success,
     ).toBe(false);
   });

@@ -4,7 +4,7 @@ import { formatNumber, parseEsArNumber } from "@purosur/ui";
 import { schemaLimit } from "./schema-limit";
 
 const quantityUnits = stockCountBodySchema.shape.counted.meta();
-const KG_DECIMALS = schemaLimit(quantityUnits?.["decimals"]);
+export const KG_DECIMALS = schemaLimit(quantityUnits?.["decimals"]);
 const STOCK_QUANTITY_PER_UNIT = schemaLimit(quantityUnits?.["perUnit"]);
 const MINUS = "−";
 
@@ -62,7 +62,7 @@ export function quantityFieldKind(saleUnit: SaleUnit) {
   return {
     kind: "plain-text" as const,
     suffix: saleUnit === "KG" ? "kg" : "u",
-    ...(saleUnit === "KG" ? { inputMode: "decimal" as const } : {}),
+    ...(saleUnit === "KG" ? { decimals: KG_DECIMALS } : {}),
   };
 }
 

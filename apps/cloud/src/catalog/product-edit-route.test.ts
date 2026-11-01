@@ -1185,7 +1185,7 @@ describe("PUT /products/:id", () => {
     expect(await db.select().from(products)).toMatchObject([{ saleUnit: "UNIT", version: 1 }]);
   });
 
-  it("rejects changing the sale unit of a product an active purchase packaging holds with 409 sale_unit_held_by_packaging naming it, changing nothing", async () => {
+  it("changes the sale unit of a product that has an active packaging row from a previous release", async () => {
     const categoryId = await insertCategory("Almacén");
     const product = await insertProduct({
       name: "Galletitas",
@@ -1214,14 +1214,8 @@ describe("PUT /products/:id", () => {
       version: product.version,
     });
 
-    expect(response.statusCode).toBe(409);
-    expect(response.json()).toEqual({
-      code: "sale_unit_held_by_packaging",
-      message:
-        "a product cannot change its sale unit while an active purchase packaging is defined for it",
-      packagingName: "Caja x 12",
-    });
-    expect(await db.select().from(products)).toMatchObject([{ saleUnit: "UNIT", version: 1 }]);
+    expect(response.statusCode).toBe(200);
+    expect(await db.select().from(products)).toMatchObject([{ saleUnit: "KG", version: 2 }]);
   });
 
   it("rejects changing the sale unit of a product a supplier item is linked to with 409 sale_unit_held_by_supplier_item, changing nothing", async () => {

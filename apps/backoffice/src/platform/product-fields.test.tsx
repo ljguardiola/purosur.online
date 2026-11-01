@@ -359,3 +359,12 @@ test("typing in the brand offers only the brands that match, and Sin marca only 
   await userEvent.click(page.getByRole("option", { name: "Granuz" }));
   await expect.element(brand).toHaveValue("Granuz");
 });
+
+test("groups thousands and takes a typed dot as the decimal comma in the net content", async () => {
+  const fields = await renderFields();
+  const field = fields.getByRole("textbox", { name: "Contenido neto" });
+  await userEvent.clear(field);
+  await userEvent.type(field, "1234.5");
+
+  await expect.element(field).toHaveValue("1.234,5");
+});

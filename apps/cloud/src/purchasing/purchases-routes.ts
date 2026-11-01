@@ -81,27 +81,6 @@ async function sendRefusal(reply: FastifyReply, refusal: Refusal): Promise<void>
         details: lineDetails(refusal.lineIndex),
       });
       return;
-    case "packaging_not_found":
-      await reply.code(404).send({
-        code: "packaging_not_found",
-        message: "no purchase packaging of that product with that id",
-        details: lineDetails(refusal.lineIndex),
-      });
-      return;
-    case "packaging_inactive":
-      await reply.code(409).send({
-        code: "packaging_inactive",
-        message: "the purchase packaging is deactivated",
-        details: lineDetails(refusal.lineIndex),
-      });
-      return;
-    case "packaging_sale_unit_changed":
-      await reply.code(409).send({
-        code: "packaging_sale_unit_changed",
-        message: "the product's sale unit changed since the packaging's quantity was stated",
-        details: lineDetails(refusal.lineIndex),
-      });
-      return;
     case "invalid_quantity":
       await reply.code(400).send({
         code: "validation_failed",
@@ -174,7 +153,6 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
           netContent,
           saleUnit,
         })),
-        packagings: choices.packagings,
         today: choices.today,
       }),
     );
