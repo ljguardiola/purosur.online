@@ -1107,6 +1107,13 @@
       "when": 1793564261478,
       "tag": "0164_register_fiscal_address_assignments",
       "breakpoints": true
+    },
+    {
+      "idx": 165,
+      "version": "7",
+      "when": 1793566812181,
+      "tag": "0165_sale_voided_by",
+      "breakpoints": true
     }
   ]
 }
