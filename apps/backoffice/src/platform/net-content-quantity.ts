@@ -3,7 +3,7 @@ import { formatNumber, parseEsArNumber } from "@purosur/ui";
 import { schemaLimit } from "./schema-limit";
 
 const MAX_QUANTITY = schemaLimit(netContentQuantitySchema.meta()?.["maxValue"]);
-const MAX_DECIMALS = schemaLimit(netContentQuantitySchema.meta()?.["maxDecimals"]);
+export const MAX_DECIMALS = schemaLimit(netContentQuantitySchema.meta()?.["maxDecimals"]);
 
 export function parseNetContentQuantity(value: string): number | undefined {
   const digits = parseEsArNumber(value, MAX_DECIMALS);

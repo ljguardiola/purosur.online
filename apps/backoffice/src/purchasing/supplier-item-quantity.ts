@@ -2,7 +2,7 @@ import { supplierPriceListRowLinkBodySchema } from "@purosur/contracts";
 import type { SaleUnit } from "@purosur/domain";
 import { formatNumber, parseWeightQuantity } from "@purosur/ui";
 import { schemaLimit } from "../platform/schema-limit";
-import { parseStockQuantity, quantityMessage } from "../platform/stock-quantity";
+import { KG_DECIMALS, parseStockQuantity, quantityMessage } from "../platform/stock-quantity";
 
 export type SupplierItemQuantityUnit = "KG" | "G";
 
@@ -60,7 +60,7 @@ export function supplierItemQuantityFieldKind(
   }
   return quantityUnit === "G"
     ? { kind: "plain-text" as const, suffix: "g", inputMode: "numeric" as const }
-    : { kind: "plain-text" as const, suffix: "kg", inputMode: "decimal" as const };
+    : { kind: "plain-text" as const, suffix: "kg", decimals: KG_DECIMALS };
 }
 
 export function supplierItemQuantityMessage({

@@ -93,7 +93,7 @@ function OpeningForm({
               kind="amount"
               prefix="$"
               label="Fondo inicial"
-              inputMode="decimal"
+              decimals={2}
               disabled={submitting}
             />
           )}

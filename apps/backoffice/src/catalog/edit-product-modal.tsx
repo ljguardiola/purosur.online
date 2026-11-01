@@ -13,6 +13,7 @@ import { barcodeTakenError } from "../platform/barcode-list";
 import type { createBrand } from "../platform/brand-creation-api";
 import { categorySelectOptions, withCreatedCategory } from "../platform/category-path";
 import { creatableChoice } from "../platform/creatable-options";
+import { MAX_DECIMALS } from "../platform/net-content-quantity";
 import { NewBrandModal } from "../platform/new-brand-modal";
 import { NewTagModal } from "../platform/new-tag-modal";
 import { brandFieldHelp, brandOptions, withCreatedBrand } from "../platform/product-brand-field";
@@ -386,6 +387,7 @@ export function EditProductModal({
                 label="Contenido neto"
                 options={NET_CONTENT_UNIT_OPTIONS}
                 unitLabel="Unidad"
+                decimals={MAX_DECIMALS}
               />
             )}
           </form.AppField>

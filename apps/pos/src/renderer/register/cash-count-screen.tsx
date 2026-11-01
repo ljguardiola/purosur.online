@@ -134,7 +134,7 @@ export function CashCountScreen({
                     kind="counted-cash"
                     prefix="$"
                     label="Efectivo contado"
-                    inputMode="decimal"
+                    decimals={2}
                     disabled={submitting}
                   />
                 )}
