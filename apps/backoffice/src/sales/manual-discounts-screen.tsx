@@ -12,15 +12,20 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { HandCoins } from "lucide-react";
+import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import { RegisterReportDownload } from "../shell/report-download";
+import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import type { ReportRegisterField } from "../shell/report-register-field";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
+import { manualDiscountKindText } from "./manual-discount-kind-text";
 import { manualDiscountMoment } from "./manual-discount-moment";
 import { ManualDiscountsAuthorizerFilter } from "./manual-discounts-authorizer-filter";
 import { type ManualDiscountsFilters, manualDiscountsQueryOf } from "./manual-discounts-filters";
 import type { ManualDiscountsScreenServices } from "./manual-discounts-services";
+import { manualDiscountsSpreadsheet } from "./manual-discounts-spreadsheet";
 import { useManualDiscountsQuery } from "./sales-queries";
 
 export type ManualDiscountsScreenProps = {
@@ -37,21 +42,10 @@ const NO_ROWS: DiscountRow[] = [];
 
 const UNIDENTIFIED = "Sin identificar";
 const NO_FIGURE = "—";
+const SCREEN_TITLE = "Descuentos manuales y sobre el total";
 
 function authorizerName(name: string | null): string {
   return name ?? UNIDENTIFIED;
-}
-
-function kindText({ kind, adjustment }: DiscountRow): string {
-  if (adjustment.kind === "PRICE") {
-    return "Precio nuevo";
-  }
-  const scope = kind === "SALE" ? "Sobre el total" : "De línea";
-  const off =
-    adjustment.kind === "PERCENT"
-      ? `${formatNumber(adjustment.value)} %`
-      : formatCents(adjustment.value);
-  return `${scope} · ${off}`;
 }
 
 const discountColumns = [
@@ -77,7 +71,7 @@ const discountColumns = [
   dataColumn({
     id: "kind",
     header: "Tipo",
-    render: (row: DiscountRow) => kindText(row),
+    render: (row: DiscountRow) => manualDiscountKindText(row),
   }),
   dataColumn({
     id: "reason",
@@ -107,6 +101,7 @@ export function ManualDiscountsScreen({
   services,
 }: ManualDiscountsScreenProps) {
   const authorizerChosen = filters.authorizedBy !== "ALL";
+  const [registerLabel, setRegisterLabel] = useState<string>();
   const filtered = filters.register !== "ALL" || authorizerChosen;
   const data = useManualDiscountsQuery({
     query: manualDiscountsQueryOf(filters),
@@ -123,9 +118,7 @@ export function ManualDiscountsScreen({
 
   return (
     <ScreenLayout
-      topBar={
-        <ScreenTopBar eyebrow="Reportes · Ventas" title="Descuentos manuales y sobre el total" />
-      }
+      topBar={<ScreenTopBar eyebrow="Reportes · Ventas" title={SCREEN_TITLE} />}
       bodyClassName="gap-4 p-6"
     >
       <div className="flex flex-wrap items-end gap-3">
@@ -134,6 +127,19 @@ export function ManualDiscountsScreen({
           onFiltersChange={onFiltersChange}
           answeredPeriod={shown?.range}
           registerFilter={registerFilter}
+          onRegisterLabelChange={setRegisterLabel}
+          trailing={
+            <RegisterReportDownload
+              dataStatus={data.status}
+              registerLabel={registerLabel}
+              workbook={(registerLabel) =>
+                shown
+                  ? manualDiscountsSpreadsheet(shown, filters.authorizedBy, registerLabel)
+                  : null
+              }
+              fileName={shown ? reportFileName(SCREEN_TITLE, shown.range) : ""}
+            />
+          }
         />
         <ManualDiscountsAuthorizerFilter
           value={filters.authorizedBy}

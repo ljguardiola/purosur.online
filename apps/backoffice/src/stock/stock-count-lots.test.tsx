@@ -103,7 +103,7 @@ test("keeps the quantity typed for each lot apart", async () => {
 
 test("shows the lots' message once below them and marks every lot's field with it", async () => {
   const screen = await renderLots();
-  await userEvent.fill(screen.getByRole("textbox", { name: FIRST_LOT }), "mucho");
+  await userEvent.type(screen.getByRole("textbox", { name: FIRST_LOT }), "5,");
 
   await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
 

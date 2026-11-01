@@ -8,12 +8,12 @@ import {
   formatSignedCents,
   type ItemOrder,
   ListFilter,
-  numericTextOrder,
   PercentBar,
   plural,
   Table,
   TableCellText,
   Tag,
+  textOrder,
   useTableModel,
 } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
@@ -22,11 +22,14 @@ import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { shareOfTotal } from "../platform/share-of-total";
 import { formatStockQuantity } from "../platform/stock-quantity";
+import { ReportDownload } from "../shell/report-download";
+import { reportFileName } from "../shell/report-file-name";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
 import type { CurrentStockReportFilters } from "./current-stock-report-filters";
 import { CurrentStockReportLots } from "./current-stock-report-lots";
 import type { CurrentStockReportScreenServices } from "./current-stock-report-services";
+import { currentStockReportSpreadsheet } from "./current-stock-report-spreadsheet";
 import { formatStockValue } from "./stock-cost";
 import { useCurrentStockReportQuery } from "./stock-queries";
 import { categoryFilterOptions } from "./stock-screen-parts";
@@ -42,7 +45,7 @@ type Product = CurrentStockReportBody["products"][number];
 
 const NO_PRODUCTS: Product[] = [];
 
-const productDescriptionOrder = numericTextOrder((product: Product) =>
+const productDescriptionOrder = textOrder((product: Product) =>
   formatProductDescription({
     name: product.name,
     brandName: product.brand_name,
@@ -51,6 +54,8 @@ const productDescriptionOrder = numericTextOrder((product: Product) =>
 );
 
 const ALL_CATEGORIES = "ALL";
+
+const SCREEN_TITLE = "Stock actual valorizado";
 
 function numberOrder(value: (product: Product) => number | null): ItemOrder<Product> {
   return (a, b) => (value(a) ?? Number.NEGATIVE_INFINITY) - (value(b) ?? Number.NEGATIVE_INFINITY);
@@ -142,6 +147,8 @@ export function CurrentStockReportScreen({
     (shown?.categories ?? []).map(({ id, name }) => ({ categoryId: id, categoryName: name })),
   );
   const categoryIsOffered = categoryOptions.some(({ value }) => value === filters.category);
+  const categoryLabel =
+    categoryOptions.find(({ value }) => value === filters.category)?.label ?? "Todas";
 
   useEffect(() => {
     if (data.status === "loaded" && !categoryIsOffered) {
@@ -239,7 +246,7 @@ export function CurrentStockReportScreen({
 
   return (
     <ScreenLayout
-      topBar={<ScreenTopBar eyebrow="Reportes · Stock" title="Stock actual valorizado" />}
+      topBar={<ScreenTopBar eyebrow="Reportes · Stock" title={SCREEN_TITLE} />}
       bodyClassName="gap-4 p-6"
     >
       <div className="flex flex-wrap items-end gap-3">
@@ -251,6 +258,21 @@ export function CurrentStockReportScreen({
           value={categoryIsOffered ? filters.category : ALL_CATEGORIES}
           onChange={(category) => onFiltersChange({ ...filters, category })}
         />
+        <div className="ml-auto">
+          <ReportDownload
+            dataStatus={data.status}
+            workbook={() =>
+              shown
+                ? currentStockReportSpreadsheet(
+                    shown,
+                    table.getPrePaginatedRowModel().rows.map((row) => row.original),
+                    categoryLabel,
+                  )
+                : null
+            }
+            fileName={reportFileName(SCREEN_TITLE)}
+          />
+        </div>
       </div>
       {data.status === "failed" ? null : (
         <SummaryCards report={data.status === "loaded" ? data.value : undefined} />

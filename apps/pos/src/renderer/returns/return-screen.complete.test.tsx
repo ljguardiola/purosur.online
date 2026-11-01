@@ -64,7 +64,7 @@ describe("ReturnScreen completing the return", () => {
 
     await userEvent.fill(
       screen.getByRole("textbox", { name: "Reintegro por Efectivo" }),
-      "5.000,00",
+      "5000,00",
     );
     await complete(screen);
 
@@ -79,11 +79,11 @@ describe("ReturnScreen completing the return", () => {
 
     await userEvent.fill(
       screen.getByRole("textbox", { name: "Reintegro por Efectivo" }),
-      "5.000,00",
+      "5000,00",
     );
     await userEvent.fill(
       screen.getByRole("textbox", { name: "Reintegro por Transferencia" }),
-      "4.700,00",
+      "4700,00",
     );
     await complete(screen);
 
@@ -158,7 +158,8 @@ describe("ReturnScreen completing the return", () => {
     await decideOnePasta(screen);
     const cash = screen.getByRole("textbox", { name: "Reintegro por Efectivo" });
 
-    await userEvent.fill(cash, "diez");
+    await userEvent.clear(cash);
+    await userEvent.keyboard("5,");
     await complete(screen);
 
     await expect

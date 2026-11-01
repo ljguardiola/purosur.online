@@ -11,6 +11,7 @@ import { useEffect, useRef } from "react";
 import {
   addWeighedProductRequestSchema,
   EMPTY_WEIGHT_FORM,
+  WEIGHT_DECIMALS,
   weightMessage,
   weightRequestFrom,
 } from "./weight-form";
@@ -93,7 +94,7 @@ export function AddWeighedProductModal({
               kind="weight"
               suffix="kg"
               label="Peso en kg"
-              inputMode="decimal"
+              decimals={WEIGHT_DECIMALS}
               value={field.state.value}
               onChange={field.handleChange}
               disabled={submitting}

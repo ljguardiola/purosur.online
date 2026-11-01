@@ -2,7 +2,7 @@ import type { ComponentType, ReactNode } from "react";
 import type { ReportRegisterFilterProps } from "../register/report-register-filter";
 
 export type ReportRegisterField = (
-  field: Pick<ReportRegisterFilterProps, "value" | "onChange">,
+  field: Pick<ReportRegisterFilterProps, "value" | "onChange" | "onLabelChange">,
 ) => ReactNode;
 
 export function reportRegisterFieldOf({

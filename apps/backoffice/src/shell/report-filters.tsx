@@ -1,7 +1,7 @@
 import type { CalendarDate } from "@internationalized/date";
 import { reportQuerySchema } from "@purosur/contracts";
 import { DateField } from "@purosur/ui";
-import { Suspense, useState } from "react";
+import { type ReactNode, Suspense, useState } from "react";
 import { calendarDateOf, dayOf, hasFourDigitYear } from "./report-day";
 import type { ReportRegisterField } from "./report-register-field";
 
@@ -10,6 +10,8 @@ export type ReportFiltersProps<Filters extends PeriodFilters> = {
   onFiltersChange: (filters: Filters) => void;
   answeredPeriod: { from: string; to: string } | undefined;
   registerFilter?: ReportRegisterField;
+  onRegisterLabelChange?: (label: string | undefined) => void;
+  trailing?: ReactNode;
 };
 
 export type PeriodFilters = { from: string; to: string; register?: string };
@@ -28,6 +30,8 @@ export function ReportFilters<Filters extends PeriodFilters>({
   onFiltersChange,
   answeredPeriod,
   registerFilter,
+  onRegisterLabelChange,
+  trailing,
 }: ReportFiltersProps<Filters>) {
   const [draft, setDraft] = useState<RangeDraft | null>(null);
 
@@ -74,8 +78,10 @@ export function ReportFilters<Filters extends PeriodFilters>({
         {registerFilter?.({
           value: filters.register ?? "ALL",
           onChange: (register) => onFiltersChange({ ...filters, register }),
+          ...(onRegisterLabelChange === undefined ? {} : { onLabelChange: onRegisterLabelChange }),
         })}
       </Suspense>
+      {trailing === undefined ? null : <div className="ml-auto">{trailing}</div>}
     </div>
   );
 }

@@ -1,6 +1,7 @@
-import type { NetContentUnit, SaleUnit } from "../../catalog/index.js";
+import type { NetContentUnit, ProductActivityScope, SaleUnit } from "../../catalog/index.js";
 import {
   DEFAULT_SUPPLIER_ITEM_VAT_RATE,
+  PRODUCTS_A_SUPPLIER_ITEM_MAY_BE_LINKED_TO,
   SUPPLIER_ITEM_VAT_RATES,
   type SupplierItemVatRate,
 } from "../model/supplier-item.js";
@@ -18,16 +19,23 @@ export interface SupplierItemLinkChoices {
   vatRates: { offered: SupplierItemVatRate[]; default: SupplierItemVatRate };
 }
 
-export function listSupplierItemLinkChoices(
-  products: {
-    id: string;
-    name: string;
-    saleUnit: SaleUnit;
-    brandId: string | null;
-    netContent: { quantity: number; unit: NetContentUnit } | null;
-  }[],
+export interface LinkChoiceProduct {
+  id: string;
+  name: string;
+  saleUnit: SaleUnit;
+  brandId: string | null;
+  netContent: { quantity: number; unit: NetContentUnit } | null;
+}
+
+export interface LinkChoiceProductReader {
+  products(scope: ProductActivityScope): Promise<LinkChoiceProduct[]>;
+}
+
+export async function listSupplierItemLinkChoices(
+  catalog: LinkChoiceProductReader,
   brands: readonly { id: string; name: string }[],
-): SupplierItemLinkChoices {
+): Promise<SupplierItemLinkChoices> {
+  const products = await catalog.products(PRODUCTS_A_SUPPLIER_ITEM_MAY_BE_LINKED_TO);
   return {
     products: products.map(({ id, name, saleUnit, brandId, netContent }) => ({
       id,

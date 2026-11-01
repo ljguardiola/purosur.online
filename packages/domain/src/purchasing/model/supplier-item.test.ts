@@ -9,8 +9,10 @@ import {
   keepingRememberedVatRate,
   lastRowOfEachItem,
   latestEarlierPrice,
+  mayBeLinkedToSupplierItem,
   needsReview,
   normalizeSupplierItemDescription,
+  PRODUCTS_A_SUPPLIER_ITEM_MAY_BE_LINKED_TO,
   pricePerSaleUnit,
   requiresVatRate,
   SUPPLIER_ITEM_VAT_RATES,
@@ -21,6 +23,19 @@ import {
   supplierItemKey,
   supplierPriceListRowStatus,
 } from "./supplier-item.js";
+
+describe("PRODUCTS_A_SUPPLIER_ITEM_MAY_BE_LINKED_TO", () => {
+  it("is the active products", () => {
+    expect(PRODUCTS_A_SUPPLIER_ITEM_MAY_BE_LINKED_TO).toBe("active");
+  });
+});
+
+describe("mayBeLinkedToSupplierItem", () => {
+  it("lets a supplier item be linked to an active product only", () => {
+    expect(mayBeLinkedToSupplierItem({ active: true })).toBe(true);
+    expect(mayBeLinkedToSupplierItem({ active: false })).toBe(false);
+  });
+});
 
 describe("normalizeSupplierItemDescription", () => {
   it("lowers the case, removes accents and collapses spaces", () => {

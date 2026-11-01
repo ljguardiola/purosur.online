@@ -34,6 +34,7 @@ type BaseFieldProps = {
   unitLabel: string;
   description?: string;
   disabled?: boolean;
+  decimals?: number;
 };
 
 function baseProps(overrides: Partial<BaseFieldProps> = {}): BaseFieldProps {
@@ -130,9 +131,17 @@ test("shows the quantity value left-aligned, and the unit beside a chevron-down 
   expect(chevron.getAttribute("aria-hidden")).toBe("true");
 });
 
-function QuantityHarness({ initial = "" }: { initial?: string }) {
+function QuantityHarness({ initial = "", decimals }: { initial?: string; decimals?: number }) {
   const [quantity, setQuantity] = useState(initial);
-  return <QuantityUnitField {...baseProps({ quantity, onQuantityChange: setQuantity })} />;
+  return (
+    <QuantityUnitField
+      {...baseProps({
+        quantity,
+        onQuantityChange: setQuantity,
+        ...(decimals !== undefined ? { decimals } : {}),
+      })}
+    />
+  );
 }
 
 test("reports exactly what was typed into the quantity input, unformatted", async () => {
@@ -469,4 +478,40 @@ test("names the quantity input and the unit select after the field's name", asyn
 
 test("requires a name", () => {
   expectTypeOf<QuantityUnitFieldProps<Unit>["name"]>().toEqualTypeOf<string>();
+});
+
+test("groups the thousands and takes a typed dot as the decimal comma when it has decimals", async () => {
+  const screen = await render(<QuantityHarness decimals={3} />);
+
+  await userEvent.click(quantityInput(screen));
+  await userEvent.keyboard("1234.5678");
+
+  expect(quantityInput(screen).value).toBe("1.234,567");
+});
+
+test("regroups the thousands when a digit of the quantity is deleted", async () => {
+  const screen = await render(<QuantityHarness decimals={3} initial="1.234" />);
+
+  await userEvent.click(quantityInput(screen));
+  await userEvent.keyboard("{Backspace}");
+
+  expect(quantityInput(screen).value).toBe("123");
+});
+
+test("keeps the caret after a digit typed in the middle of the quantity", async () => {
+  const screen = await render(<QuantityHarness decimals={3} initial="1.234" />);
+  const input = quantityInput(screen);
+
+  await userEvent.click(input);
+  input.setSelectionRange(2, 2);
+  await userEvent.keyboard("9");
+
+  expect(input.value).toBe("19.234");
+  expect(input.selectionStart).toBe(2);
+});
+
+test("keeps the decimal keyboard when it has no decimals", async () => {
+  const screen = await render(<QuantityHarness />);
+
+  expect(quantityInput(screen).inputMode).toBe("decimal");
 });

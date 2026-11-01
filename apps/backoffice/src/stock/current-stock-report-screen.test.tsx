@@ -1,9 +1,11 @@
 import { FieldSizeProvider, formatCents, formatPercent, formatSignedCents } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
-import { beforeEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
 import { render } from "../shell/test-support/render-with-router";
+import { spyOnDownloads } from "../shell/test-support/spy-on-downloads";
 import {
   type CurrentStockReportFilters,
   currentStockReportFilters,
@@ -22,6 +24,10 @@ import {
 
 beforeEach(async () => {
   await page.viewport(1280, 900);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 function createServices(): CurrentStockReportScreenServices {
@@ -388,4 +394,59 @@ test("shows the product counts with the thousands separator", async () => {
   await expect.element(screen.getByText("1.998 productos")).toBeVisible();
   await expect.element(screen.getByText("1.500 productos")).toBeVisible();
   await expect.element(screen.getByText("1.200 productos")).toBeVisible();
+});
+
+test("downloads a spreadsheet of the products shown, in the order the screen sorts them, with their lots", async () => {
+  const downloads = spyOnDownloads();
+  const screen = await renderScreen(listed(), {
+    initial: currentStockReportFilters.parse({ sortBy: "product", sort: "ascending" }),
+  });
+  await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
+
+  await expect.poll(() => downloads.names).toEqual(["stock-actual-valorizado.xlsx"]);
+  const file = await readDownloadedXlsx(downloads.blobs[0]);
+  expect(file.sheetNames).toEqual(["Resumen", "Stock actual valorizado", "Lotes"]);
+  const summary = file.sheet(0);
+  expect(summary.get("B2")?.value).toBe("Todas");
+  expect(summary.get("B3")?.value).toBe("157601");
+  expect(summary.get("B4")?.value).toBe("4");
+  const products = file.sheet(1);
+  expect(products.get("A2")?.value).toBe("Almendras peladas");
+  expect(products.get("A3")?.value).toBe("Galletas de arroz");
+  expect(products.get("A5")?.value).toBe("Yerba mate 1 kg");
+  expect(products.get("E2")?.value).toBe("12.15");
+  expect(products.get("D5")?.value).toBe("24");
+  expect(file.sheet(2).get("C2")?.value).toBe("L-2312");
+});
+
+test("downloads only the category the screen is filtered by", async () => {
+  const downloads = spyOnDownloads();
+  const services = listed(currentStockReport([almondsProduct]));
+  const screen = await renderScreen(services, {
+    initial: currentStockReportFilters.parse({ category: NUTS_CATEGORY_ID }),
+  });
+  await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
+
+  await expect.poll(() => downloads.blobs.length).toBe(1);
+  const file = await readDownloadedXlsx(downloads.blobs[0]);
+  expect(file.sheet(0).get("B2")?.value).toBe("Frutos secos");
+  expect(file.sheet(1).get("A2")?.value).toBe("Almendras peladas");
+  expect(file.sheet(1).get("A3")).toBeUndefined();
+});
+
+test("has its download disabled while the report loads and after loading fails", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchCurrentStockReport).mockReturnValue(new Promise(() => {}));
+  const loading = await renderScreen(services);
+  await expect.element(loading.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
+  await loading.unmount();
+
+  vi.mocked(services.fetchCurrentStockReport).mockResolvedValue({ kind: "failed" });
+  const failed = await renderScreen(services);
+  await expect.element(failed.getByRole("button", { name: "Reintentar" })).toBeVisible();
+  await expect.element(failed.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
 });

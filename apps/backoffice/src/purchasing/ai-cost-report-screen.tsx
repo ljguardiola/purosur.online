@@ -11,12 +11,15 @@ import {
 import { Bot } from "lucide-react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatDisplayDate } from "../platform/display-date";
+import { ReportDownload } from "../shell/report-download";
+import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
 import { AiCostAmount } from "./ai-cost-amount";
 import type { AiCostReportFilters } from "./ai-cost-report-filters";
 import type { AiCostReportScreenServices } from "./ai-cost-report-services";
+import { aiCostReportSpreadsheet } from "./ai-cost-report-spreadsheet";
 import { incompleteAiCostText } from "./ai-cost-text";
 import { useAiCostReportQuery } from "./purchasing-queries";
 
@@ -26,6 +29,8 @@ export type AiCostReportScreenProps = {
   onSessionEnded: () => void;
   services: AiCostReportScreenServices;
 };
+
+const SCREEN_TITLE = "Costo de IA por período";
 
 type Grouping = AiCostReportFilters["group"];
 type CostGroup = AiCostByPeriodBody["groups"][number];
@@ -101,7 +106,7 @@ export function AiCostReportScreen({
 
   return (
     <ScreenLayout
-      topBar={<ScreenTopBar eyebrow="Reportes · Compras" title="Costo de IA por período" />}
+      topBar={<ScreenTopBar eyebrow="Reportes · Compras" title={SCREEN_TITLE} />}
       bodyClassName="gap-4 p-6"
     >
       <div className="flex flex-wrap items-end gap-3">
@@ -109,6 +114,13 @@ export function AiCostReportScreen({
           filters={filters}
           onFiltersChange={onFiltersChange}
           answeredPeriod={shown?.range}
+          trailing={
+            <ReportDownload
+              dataStatus={data.status}
+              workbook={() => (shown ? aiCostReportSpreadsheet(shown, filters.group) : null)}
+              fileName={shown ? reportFileName(SCREEN_TITLE, shown.range) : ""}
+            />
+          }
         />
         <ListFilter
           name="group"
@@ -143,7 +155,7 @@ export function AiCostReportScreen({
         </div>
       )}
       <Table
-        aria-label="Costo de IA por período"
+        aria-label={SCREEN_TITLE}
         table={table}
         {...cloudTableState(data, "el costo de IA por período")}
         empty={{

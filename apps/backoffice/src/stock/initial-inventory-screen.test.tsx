@@ -253,7 +253,7 @@ test("closes the modal, reads the lots again and says the cost was saved", async
   await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
   const dialog = await openEdit(screen, "Té verde en hebras 100 g");
 
-  await userEvent.fill(dialog.getByLabelText("Costo de referencia por unidad"), "1.250");
+  await userEvent.fill(dialog.getByLabelText("Costo de referencia por unidad"), "1250");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar el costo" }));
 
   await expect
@@ -328,7 +328,7 @@ test("names the lot's product by its brand and net content when editing its cost
   await expect.element(screen.getByText("Aceite de Almendras Vitora 30 ml")).toBeVisible();
   const dialog = await openEdit(screen, "Aceite de Almendras Vitora 30 ml");
 
-  await userEvent.fill(dialog.getByLabelText("Costo de referencia por unidad"), "1.250");
+  await userEvent.fill(dialog.getByLabelText("Costo de referencia por unidad"), "1250");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar el costo" }));
 
   await expect

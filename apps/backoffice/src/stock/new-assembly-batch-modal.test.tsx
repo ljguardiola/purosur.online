@@ -511,7 +511,9 @@ test("refuses a used quantity that cannot be read, saying how to type it", async
   const registerAssemblyBatch = vi.fn<NewAssemblyBatchModalServices["registerAssemblyBatch"]>();
   const screen = await renderModal({ services: createServices({ registerAssemblyBatch }) });
   await prepareMix(screen);
-  await userEvent.fill(screen.getByRole("textbox", { name: "Usado de Nueces" }), "x");
+  const used = screen.getByRole("textbox", { name: "Usado de Nueces" });
+  await userEvent.clear(used);
+  await userEvent.type(used, "5,");
 
   const dialog = await submit(screen);
 

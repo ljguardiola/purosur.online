@@ -66,10 +66,8 @@ describe("ChangeLineWeightModal", () => {
 
   it.each([
     ["", INVALID_WEIGHT_MESSAGE],
-    ["abc", INVALID_WEIGHT_MESSAGE],
     ["0", INVALID_WEIGHT_MESSAGE],
-    ["1,2345", INVALID_WEIGHT_MESSAGE],
-    ["3.000.000", ABOVE_LINE_LIMIT_MESSAGE],
+    ["3000000", ABOVE_LINE_LIMIT_MESSAGE],
   ])("refuses a typed weight of '%s' without changing the line", async (typed, message) => {
     const { screen, field, change } = await renderModal();
 
@@ -77,6 +75,17 @@ describe("ChangeLineWeightModal", () => {
     await screen.getByRole("button", { name: "Cambiar peso" }).click();
 
     await expect.element(screen.getByText(message)).toBeVisible();
+    expect(change).not.toHaveBeenCalled();
+  });
+
+  it("refuses a weight typed with a trailing comma without changing the line", async () => {
+    const { screen, field, change } = await renderModal();
+
+    await userEvent.clear(field);
+    await userEvent.keyboard("5,");
+    await screen.getByRole("button", { name: "Cambiar peso" }).click();
+
+    await expect.element(screen.getByText(INVALID_WEIGHT_MESSAGE)).toBeVisible();
     expect(change).not.toHaveBeenCalled();
   });
 
@@ -98,5 +107,13 @@ describe("ChangeLineWeightModal", () => {
 
     expect(onClose).toHaveBeenCalledOnce();
     expect(change).not.toHaveBeenCalled();
+  });
+
+  it("groups thousands and takes a typed dot as the decimal comma", async () => {
+    const { field } = await renderModal();
+    await userEvent.clear(field);
+    await userEvent.type(field, "1234.5");
+
+    await expect.element(field).toHaveValue("1.234,5");
   });
 });

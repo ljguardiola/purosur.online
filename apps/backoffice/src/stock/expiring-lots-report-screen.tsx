@@ -16,11 +16,14 @@ import { formatProductDescription } from "@purosur/ui/formatters";
 import { CalendarClock } from "lucide-react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatStockQuantity } from "../platform/stock-quantity";
+import { ReportDownload } from "../shell/report-download";
+import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import type { ReportPeriodFilters } from "../shell/report-filters-search";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
 import type { ExpiringLotsReportScreenServices } from "./expiring-lots-report-services";
+import { expiringLotsReportSpreadsheet } from "./expiring-lots-report-spreadsheet";
 import { formatStockValue } from "./stock-cost";
 import { useExpiringLotsReportQuery } from "./stock-queries";
 
@@ -34,6 +37,8 @@ export type ExpiringLotsReportScreenProps = {
 type Lot = ExpiringLotsReportBody["lots"][number];
 
 const NO_LOTS: Lot[] = [];
+
+const SCREEN_TITLE = "Lotes por vencer";
 
 function lotsText(count: number): string {
   return plural(count, { one: "1 lote", other: `${formatNumber(count)} lotes` });
@@ -169,7 +174,7 @@ export function ExpiringLotsReportScreen({
 
   return (
     <ScreenLayout
-      topBar={<ScreenTopBar eyebrow="Reportes · Stock" title="Lotes por vencer" />}
+      topBar={<ScreenTopBar eyebrow="Reportes · Stock" title={SCREEN_TITLE} />}
       bodyClassName="gap-4 p-6"
     >
       <div className="flex flex-wrap items-end gap-3">
@@ -177,6 +182,13 @@ export function ExpiringLotsReportScreen({
           filters={filters}
           onFiltersChange={onFiltersChange}
           answeredPeriod={shown?.period}
+          trailing={
+            <ReportDownload
+              dataStatus={data.status}
+              workbook={() => (shown ? expiringLotsReportSpreadsheet(shown) : null)}
+              fileName={shown ? reportFileName(SCREEN_TITLE, shown.period) : ""}
+            />
+          }
         />
       </div>
       {data.status === "failed" || shown === undefined ? null : (

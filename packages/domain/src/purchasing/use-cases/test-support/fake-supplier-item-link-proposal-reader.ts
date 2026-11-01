@@ -1,3 +1,4 @@
+import { isInActivityScope, type ProductActivityScope } from "../../../catalog/index.js";
 import type {
   ProposalProduct,
   ProposalRow,
@@ -9,6 +10,7 @@ export interface FakeProposalData {
   products?: (Pick<ProposalProduct, "id" | "name"> &
     Partial<Pick<ProposalProduct, "brandName" | "netContent" | "saleUnit">> & {
       barcodes?: string[];
+      active?: boolean;
     })[];
 }
 
@@ -30,7 +32,7 @@ function proposalProduct({
 
 export class FakeSupplierItemLinkProposalReader implements SupplierItemLinkProposalReader {
   readonly barcodeLookups: string[] = [];
-  activeProductReads = 0;
+  readonly scopesAsked: ProductActivityScope[] = [];
   private readonly data: Required<FakeProposalData>;
 
   constructor(data: FakeProposalData = {}) {
@@ -60,15 +62,23 @@ export class FakeSupplierItemLinkProposalReader implements SupplierItemLinkPropo
       : undefined;
   }
 
-  async activeProductsWithBarcode(barcode: string): Promise<ProposalProduct[]> {
+  async productsWithBarcode(
+    barcode: string,
+    scope: ProductActivityScope,
+  ): Promise<ProposalProduct[]> {
     this.barcodeLookups.push(barcode);
-    return this.data.products
+    this.scopesAsked.push(scope);
+    return this.inScope(scope)
       .filter((product) => product.barcodes?.includes(barcode))
       .map(proposalProduct);
   }
 
-  async activeProducts(): Promise<ProposalProduct[]> {
-    this.activeProductReads += 1;
-    return this.data.products.map(proposalProduct);
+  async products(scope: ProductActivityScope): Promise<ProposalProduct[]> {
+    this.scopesAsked.push(scope);
+    return this.inScope(scope).map(proposalProduct);
+  }
+
+  private inScope(scope: ProductActivityScope) {
+    return this.data.products.filter((product) => isInActivityScope(product.active ?? true, scope));
   }
 }

@@ -86,7 +86,7 @@ describe("ReturnRefundsField", () => {
     const transfer = screen.getByRole("textbox", { name: "Reintegro por Transferencia" });
 
     await expect.element(transfer).not.toHaveAttribute("readonly");
-    await userEvent.fill(transfer, "1.000,00");
+    await userEvent.fill(transfer, "1000,00");
     await expect.element(transfer).toHaveValue("1.000,00");
   });
 
@@ -107,7 +107,8 @@ describe("ReturnRefundsField", () => {
     const screen = await renderField();
     const cash = screen.getByRole("textbox", { name: "Reintegro por Efectivo" });
 
-    await userEvent.fill(cash, "diez");
+    await userEvent.clear(cash);
+    await userEvent.keyboard("5,");
     await userEvent.click(screen.getByRole("button", { name: "Completar" }));
 
     await expect.element(screen.getByText(INVALID_REFUND_MESSAGE)).toBeVisible();
@@ -126,5 +127,14 @@ describe("ReturnRefundsField", () => {
     const screen = await renderField();
 
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("groups thousands and takes a typed dot as the decimal comma", async () => {
+    const screen = await renderField();
+    const field = screen.getByRole("textbox", { name: "Reintegro por Transferencia" });
+    await userEvent.clear(field);
+    await userEvent.type(field, "1234.5");
+
+    await expect.element(field).toHaveValue("1.234,5");
   });
 });

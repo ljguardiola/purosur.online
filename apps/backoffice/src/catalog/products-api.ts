@@ -160,7 +160,10 @@ export async function createProduct(input: CreateProductInput): Promise<CreatePr
         ? { kind: "tag_inactive", tagId: body.tagId }
         : { kind: "failed" };
     }
-    return { kind: "barcode_taken", codes: await readBarcodeTakenCodes(response) };
+    if (body?.code === "barcode_taken") {
+      return { kind: "barcode_taken", codes: await readBarcodeTakenCodes(response) };
+    }
+    return { kind: "failed" };
   }
   if (response.status === 401) {
     return { kind: "unauthenticated" };
@@ -287,10 +290,13 @@ export async function editProduct(
     if (body?.code === "sale_unit_held_by_supplier_item") {
       return { kind: "sale_unit_held_by_supplier_item" };
     }
-    const codes = Array.isArray(body?.codes)
-      ? body.codes.filter((code): code is string => typeof code === "string")
-      : [];
-    return { kind: "barcode_taken", codes };
+    if (body?.code === "barcode_taken") {
+      const codes = Array.isArray(body.codes)
+        ? body.codes.filter((code): code is string => typeof code === "string")
+        : [];
+      return { kind: "barcode_taken", codes };
+    }
+    return { kind: "failed" };
   }
   if (response.status === 401) {
     return { kind: "unauthenticated" };

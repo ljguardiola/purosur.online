@@ -10,11 +10,14 @@ import {
 } from "@purosur/ui";
 import { ShoppingCart } from "lucide-react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import { ReportDownload } from "../shell/report-download";
+import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import type { ReportPeriodFilters } from "../shell/report-filters-search";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
 import type { PurchasesReportScreenServices } from "./purchases-report-services";
+import { purchasesReportSpreadsheet } from "./purchases-report-spreadsheet";
 import { usePurchasesReportQuery } from "./purchasing-queries";
 import { reportMonthText } from "./report-month-text";
 
@@ -24,6 +27,8 @@ export type PurchasesReportScreenProps = {
   onSessionEnded: () => void;
   services: PurchasesReportScreenServices;
 };
+
+const SCREEN_TITLE = "Compras por proveedor";
 
 type PurchasesRow = {
   id: string;
@@ -103,13 +108,20 @@ export function PurchasesReportScreen({
 
   return (
     <ScreenLayout
-      topBar={<ScreenTopBar eyebrow="Reportes · Compras" title="Compras por proveedor" />}
+      topBar={<ScreenTopBar eyebrow="Reportes · Compras" title={SCREEN_TITLE} />}
       bodyClassName="gap-4 p-6"
     >
       <ReportFilters
         filters={filters}
         onFiltersChange={onFiltersChange}
         answeredPeriod={shown?.range}
+        trailing={
+          <ReportDownload
+            dataStatus={data.status}
+            workbook={() => (shown ? purchasesReportSpreadsheet(shown) : null)}
+            fileName={shown ? reportFileName(SCREEN_TITLE, shown.range) : ""}
+          />
+        }
       />
       {data.status === "failed" ? null : (
         <div className="grid grid-cols-3 gap-4">
@@ -125,7 +137,7 @@ export function PurchasesReportScreen({
         </div>
       )}
       <Table
-        aria-label="Compras por proveedor"
+        aria-label={SCREEN_TITLE}
         table={table}
         {...cloudTableState(data, "las compras por proveedor")}
         empty={{

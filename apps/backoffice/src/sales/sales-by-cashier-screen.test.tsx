@@ -1,16 +1,18 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
-import { expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
 import { render } from "../shell/test-support/render-with-router";
 import { dateSegments } from "../shell/test-support/report-dates";
-import { FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
+import { BACK_REGISTER_ID, FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
 import {
   createReportRegisterFilterServices,
   type ReportRegisterFilterServices,
   reportRegisterFieldForTests,
 } from "../shell/test-support/report-register-filter";
+import { spyOnDownloads } from "../shell/test-support/spy-on-downloads";
 import { type SalesByCashierFilters, salesByCashierFilters } from "./sales-by-cashier-filters";
 import { SalesByCashierScreen } from "./sales-by-cashier-screen";
 import type { SalesByCashierScreenServices } from "./sales-by-cashier-services";
@@ -343,10 +345,69 @@ test("navigates to Mi cuenta when the report request comes back forbidden", asyn
   await expect.poll(() => window.location.pathname).toBe("/account");
 });
 
-test("shows every cashier on one page, with no pages and no export", async () => {
+test("shows every cashier on one page, with no pages", async () => {
   const screen = await renderScreen(createServices());
   await expect.element(screen.getByRole("table").getByText("Beto")).toBeVisible();
 
   expect(screen.getByRole("navigation", { name: /Páginas/ }).query()).toBeNull();
-  expect(screen.getByRole("button", { name: "Exportar" }).query()).toBeNull();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+test("downloads a spreadsheet of the cashiers shown, with the applied register and the figures", async () => {
+  const downloads = spyOnDownloads();
+  const screen = await renderScreen(createServices(), {
+    filters: salesByCashierFilters.parse({ register: BACK_REGISTER_ID }),
+  });
+  await expect
+    .element(screen.getByRole("combobox", { name: /^Caja:/ }))
+    .toHaveValue("Caja del fondo");
+  await expect.element(screen.getByText("Beto").first()).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
+
+  await expect
+    .poll(() => downloads.names)
+    .toEqual(["ventas-por-cajero-2026-10-01-2026-10-07.xlsx"]);
+  const file = await readDownloadedXlsx(downloads.blobs[0]);
+  expect(file.sheetNames).toEqual(["Resumen", "Ventas por cajero"]);
+  const summary = file.sheet(0);
+  expect(summary.get("B4")?.value).toBe("Caja del fondo");
+  expect(summary.get("B5")?.value).toBe("3");
+  expect(summary.get("B7")?.value).toBe("250");
+  const cashiers = file.sheet(1);
+  expect(cashiers.get("A2")?.value).toBe("Ana");
+  expect(cashiers.get("C2")?.value).toBe("40");
+  expect(cashiers.get("D2")?.value).toBe("8000");
+  expect(cashiers.get("A4")?.value).toBe("Sin identificar");
+});
+
+test("downloads the rows in the order the screen sorts them", async () => {
+  const downloads = spyOnDownloads();
+  const screen = await renderScreen(createServices(), {
+    filters: salesByCashierFilters.parse({ sortBy: "amount", sort: "descending" }),
+  });
+  await expect.element(screen.getByText("Beto").first()).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
+
+  await expect.poll(() => downloads.blobs.length).toBe(1);
+  const cashiers = (await readDownloadedXlsx(downloads.blobs[0])).sheet(1);
+  expect(cashiers.get("A2")?.value).toBe("Beto");
+  expect(cashiers.get("A3")?.value).toBe("Ana");
+});
+
+test("has its download disabled while the report loads and after loading fails", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchSalesByCashier).mockReturnValue(new Promise(() => {}));
+  const loading = await renderScreen(services);
+  await expect.element(loading.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
+  await loading.unmount();
+
+  vi.mocked(services.fetchSalesByCashier).mockResolvedValue({ kind: "failed" });
+  const failed = await renderScreen(services);
+  await expect.element(failed.getByRole("button", { name: "Reintentar" })).toBeVisible();
+  await expect.element(failed.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
 });

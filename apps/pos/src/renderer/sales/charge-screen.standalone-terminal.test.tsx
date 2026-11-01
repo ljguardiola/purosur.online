@@ -111,7 +111,7 @@ describe("ChargeScreen · terminal independiente", () => {
     });
 
     await chooseStandaloneTerminal(screen);
-    await userEvent.fill(screen.getByRole("textbox", { name: AMOUNT_FIELD }), "2.000,00");
+    await userEvent.fill(screen.getByRole("textbox", { name: AMOUNT_FIELD }), "2000,00");
     await userEvent.click(screen.getByRole("button", { name: REGISTER }));
 
     await expect
