@@ -77,6 +77,7 @@ function editToWeight(product: {
         netContent: null,
         tagIds: [],
         version: product.version,
+        coverageDays: 15,
       },
     );
 }

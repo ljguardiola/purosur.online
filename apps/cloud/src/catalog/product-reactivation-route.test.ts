@@ -88,6 +88,7 @@ async function newProduct(name: string, barcodes: string[]): Promise<string> {
     barcodes,
     tagIds: [],
     netContent: null,
+    coverageDays: 15,
   });
   if (outcome.kind !== "created") {
     throw new Error(`test setup: creating the product ended as ${outcome.kind}`);

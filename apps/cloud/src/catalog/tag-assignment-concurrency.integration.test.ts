@@ -59,6 +59,7 @@ function newProductOf(tagId: string, categoryId: string) {
       barcodes: [randomUUID()],
       tagIds: [tagId],
       netContent: null,
+      coverageDays: 15,
     });
 }
 
@@ -112,6 +113,7 @@ describe("creating two products with the same tags listed in opposite orders at 
         barcodes: [randomUUID()],
         tagIds,
         netContent: null,
+        coverageDays: 15,
       });
 
     const outcomes = await runQueuedBehindHeldLock(

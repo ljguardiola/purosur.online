@@ -308,6 +308,7 @@ describe("productCreationBodySchema, order and unknown keys", () => {
       barcodes: ["111"],
       tagIds: [],
       netContent: null,
+      coverageDays: 15,
     });
   });
 

@@ -59,6 +59,7 @@ function newProductOf(brandId: string, categoryId: string) {
       barcodes: [randomUUID()],
       tagIds: [],
       netContent: null,
+      coverageDays: 15,
     });
 }
 

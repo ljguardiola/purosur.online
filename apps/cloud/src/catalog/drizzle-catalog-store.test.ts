@@ -90,6 +90,7 @@ async function newProduct(categoryId: string, barcodes = ["7790001000011", "7790
     barcodes,
     netContent: null,
     tagIds: [],
+    coverageDays: 15,
   });
   if (outcome.kind !== "created") {
     throw new Error(`test setup: creating the product ended as ${outcome.kind}`);
@@ -146,6 +147,7 @@ describe("the catalog changes a pull hands to the registers", () => {
         netContent: null,
         tagIds: [],
         version: product.version,
+        coverageDays: 15,
       },
     );
 
@@ -288,6 +290,7 @@ describe("the catalog changes a pull hands to the registers", () => {
         netContent: null,
         tagIds: [tag.tag.id],
         version: product.version,
+        coverageDays: 15,
       },
     );
 
@@ -313,6 +316,7 @@ describe("the catalog changes a pull hands to the registers", () => {
         netContent: null,
         tagIds: [],
         version: product.version + 1,
+        coverageDays: 15,
       },
     );
     const refusedCreation = await createProduct(store(), {
@@ -323,6 +327,7 @@ describe("the catalog changes a pull hands to the registers", () => {
       barcodes: ["7790001000011"],
       netContent: null,
       tagIds: [],
+      coverageDays: 15,
     });
     const refusedCategory = await createCategory(store(), { name: "Almacén", parentId: null });
 
@@ -403,6 +408,7 @@ describe("changing a product to sold by weight", () => {
         netContent: null,
         tagIds: [],
         version: product.version,
+        coverageDays: 15,
       },
     );
   }
@@ -494,6 +500,7 @@ describe("changing the sale unit of a product with purchase packagings", () => {
         netContent: null,
         tagIds: [],
         version: product.version,
+        coverageDays: 15,
       },
     );
   }
@@ -618,6 +625,7 @@ describe("changing the sale unit of a product with a linked supplier item", () =
         netContent: null,
         tagIds: [],
         version: product.version,
+        coverageDays: 15,
       },
     );
   }

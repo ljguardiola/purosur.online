@@ -147,6 +147,7 @@ describe("giving a category a product and a subcategory concurrently on a real P
             barcodes: [randomUUID()],
             tagIds: [],
             netContent: null,
+            coverageDays: 15,
           }),
         () =>
           createCategory(new DrizzleCatalogStore(db), {
@@ -178,6 +179,7 @@ describe("giving a category a product and a subcategory concurrently on a real P
         barcodes: [randomUUID()],
         tagIds: [],
         netContent: null,
+        coverageDays: 15,
       });
       if (seeded.kind !== "created") {
         throw new Error("test setup: expected the product to be created");
@@ -204,6 +206,7 @@ describe("giving a category a product and a subcategory concurrently on a real P
               tagIds: [],
               netContent: null,
               version: product.version,
+              coverageDays: 15,
             },
           ),
         () =>

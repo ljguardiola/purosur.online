@@ -278,6 +278,7 @@ describe("clearSampleData", () => {
       barcodes: ["7791234567890"],
       tagIds: [realTagOutcome.tag.id],
       netContent: null,
+      coverageDays: 15,
     });
     if (realProductOutcome.kind !== "created") throw new Error("test setup: real product collided");
     const realDiscountOutcome = await createDiscount(
@@ -358,6 +359,7 @@ describe("clearSampleData", () => {
       barcodes: ["7791234567890"],
       tagIds: [],
       netContent: null,
+      coverageDays: 15,
     });
     if (realProduct.kind !== "created") throw new Error("test setup: real product collided");
 
@@ -395,6 +397,7 @@ describe("clearSampleData", () => {
       barcodes: ["7791234567890"],
       tagIds: [],
       netContent: null,
+      coverageDays: 15,
     });
     if (realProduct.kind !== "created") throw new Error("test setup: real product collided");
     const beforeClear = await sampleDataSnapshot(db);
@@ -771,6 +774,7 @@ describe("clearSampleData", () => {
       barcodes: ["7791234567890"],
       tagIds: [],
       netContent: null,
+      coverageDays: 15,
     });
     if (realProduct.kind !== "created") throw new Error("test setup: real product collided");
     const realPrice = await setPrice(pricingPorts(db), {
@@ -1056,6 +1060,7 @@ describe("clearSampleData", () => {
       barcodes: ["7791234567890"],
       tagIds: [sampleTag.id],
       netContent: null,
+      coverageDays: 15,
     });
     if (realProduct.kind !== "created") throw new Error("test setup: real product collided");
     const beforeClear = await sampleDataSnapshot(db);

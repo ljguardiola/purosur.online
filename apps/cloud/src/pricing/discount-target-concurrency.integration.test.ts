@@ -52,6 +52,7 @@ async function tagAndProduct() {
     barcodes: [randomUUID()],
     tagIds: [],
     netContent: null,
+    coverageDays: 15,
   });
   if (product.kind !== "created") {
     throw new Error("test setup: expected the product to be created");

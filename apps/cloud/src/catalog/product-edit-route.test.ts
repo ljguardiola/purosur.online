@@ -1310,6 +1310,7 @@ describe("PUT /products/:id", () => {
       saleUnit: "UNIT",
       barcodes: ["111"],
       tagIds,
+      coverageDays: 15,
       version: product.version,
     });
   }

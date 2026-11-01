@@ -48,6 +48,7 @@ async function unitProductWithSwitchedOffDiscount() {
     barcodes: [randomUUID()],
     tagIds: [],
     netContent: null,
+    coverageDays: 15,
   });
   if (created.kind !== "created") {
     throw new Error("test setup: expected the product to be created");
@@ -93,6 +94,7 @@ function editToWeight(
         netContent: null,
         tagIds: [],
         version: product.version,
+        coverageDays: 15,
       },
     );
 }

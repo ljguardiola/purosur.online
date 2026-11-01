@@ -456,6 +456,7 @@ describe("GET /changes carrying the catalog and the prices", () => {
       barcodes,
       netContent: { quantity: 1, unit: "KG" },
       tagIds,
+      coverageDays: 15,
     });
     if (outcome.kind !== "created") {
       throw new Error(`test setup: creating the product ended as ${outcome.kind}`);
@@ -645,6 +646,7 @@ describe("GET /changes carrying the catalog and the prices", () => {
         netContent: null,
         tagIds: [],
         version: 1,
+        coverageDays: 15,
       },
     );
     await deactivateProduct(catalogStore(), product.id);
