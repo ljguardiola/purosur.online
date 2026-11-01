@@ -1,5 +1,5 @@
+import type { ClosedMonthsWindow } from "../../model/exception-share.js";
 import type {
-  ClosedMonthsWindow,
   ExceptionShareBreachStore,
   ExceptionShareBreachTransaction,
   ExceptionShareMonth,

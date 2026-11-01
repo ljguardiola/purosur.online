@@ -8,11 +8,19 @@ import type {
 export class FakeExceptionShareYearReader implements ExceptionShareYearReader {
   readonly queries: ExceptionShareYearQuery[] = [];
 
+  private readonly fiscalAddresses: readonly ExceptionShareFiscalAddress[];
+  private readonly counts: readonly MonthlyVoucherCounts[];
+  private readonly recordedMonths: readonly string[];
+
   constructor(
-    private readonly fiscalAddresses: readonly ExceptionShareFiscalAddress[],
-    private readonly counts: readonly MonthlyVoucherCounts[] = [],
-    private readonly recordedMonths: readonly string[] = [],
-  ) {}
+    fiscalAddresses: readonly ExceptionShareFiscalAddress[],
+    counts: readonly MonthlyVoucherCounts[] = [],
+    recordedMonths: readonly string[] = [],
+  ) {
+    this.fiscalAddresses = fiscalAddresses;
+    this.counts = counts;
+    this.recordedMonths = recordedMonths;
+  }
 
   async fiscalAddress(fiscalAddressId: string): Promise<ExceptionShareFiscalAddress | undefined> {
     return this.fiscalAddresses.find((each) => each.id === fiscalAddressId);
