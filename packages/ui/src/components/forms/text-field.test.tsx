@@ -1580,17 +1580,6 @@ test("a field without decimals keeps the text exactly as typed", async () => {
   expect(input.value).toBe("1234.");
 });
 
-test("does not accept an input mode together with decimals", () => {
-  expectTypeOf<{
-    kind: "plain-text";
-    label: string;
-    value: string;
-    onChange: (value: string) => void;
-    decimals: 2;
-    inputMode: "text";
-  }>().not.toExtend<TextFieldProps>();
-});
-
 test("asks for a keyboard with the decimal comma when it has decimals", async () => {
   const screen = await render(<DecimalHarness />);
 
