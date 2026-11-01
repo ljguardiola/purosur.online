@@ -12,19 +12,19 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { BadgePercent } from "lucide-react";
+import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
-import {
-  discountBenefitText,
-  discountTargetLine,
-  weekdaysText,
-} from "../platform/discount-terms-text";
+import { ReportDownload } from "../shell/report-download";
+import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import { reportQueryOf } from "../shell/report-filters-search";
 import type { ReportRegisterField } from "../shell/report-register-field";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
+import { promotionTermsText } from "./promotion-terms-text";
 import type { SalesByPromotionFilters } from "./sales-by-promotion-filters";
 import type { SalesByPromotionScreenServices } from "./sales-by-promotion-services";
+import { salesByPromotionSpreadsheet } from "./sales-by-promotion-spreadsheet";
 import { useSalesByPromotionQuery } from "./sales-queries";
 import { soldQuantityText } from "./sold-quantity-text";
 
@@ -42,23 +42,10 @@ const NO_ROWS: PromotionRow[] = [];
 
 const UNKNOWN_PROMOTION = "Promoción desconocida";
 const NO_FIGURE = "—";
-const EVERY_WEEKDAY = 7;
+const SCREEN_TITLE = "Descuentos por promoción";
 
 function promotionName(name: string | null): string {
   return name ?? UNKNOWN_PROMOTION;
-}
-
-function termsText({ terms }: PromotionRow): string | null {
-  if (terms === null) {
-    return null;
-  }
-  const weekdays =
-    terms.weekdays.length === 0 || terms.weekdays.length === EVERY_WEEKDAY
-      ? []
-      : [weekdaysText(terms.weekdays)];
-  return [discountTargetLine(terms.target), discountBenefitText(terms.benefit), ...weekdays].join(
-    " · ",
-  );
 }
 
 const promotionColumns = [
@@ -69,14 +56,15 @@ const promotionColumns = [
       order: textOrder((row: PromotionRow) => promotionName(row.name)),
       firstDirection: "ascending",
     },
-    render: (row: PromotionRow) => (
-      <div className="flex flex-col">
-        <span>{promotionName(row.name)}</span>
-        {termsText(row) === null ? null : (
-          <span className="text-text-subtle text-detail">{termsText(row)}</span>
-        )}
-      </div>
-    ),
+    render: (row: PromotionRow) => {
+      const terms = promotionTermsText(row.terms);
+      return (
+        <div className="flex flex-col">
+          <span>{promotionName(row.name)}</span>
+          {terms === null ? null : <span className="text-text-subtle text-detail">{terms}</span>}
+        </div>
+      );
+    },
   }),
   dataColumn({
     id: "lines",
@@ -114,6 +102,7 @@ export function SalesByPromotionScreen({
   services,
 }: SalesByPromotionScreenProps) {
   const registerChosen = filters.register !== "ALL";
+  const [registerLabel, setRegisterLabel] = useState("Todas");
   const data = useSalesByPromotionQuery({
     query: reportQueryOf(filters),
     fetchSalesByPromotion: services.fetchSalesByPromotion,
@@ -132,7 +121,7 @@ export function SalesByPromotionScreen({
 
   return (
     <ScreenLayout
-      topBar={<ScreenTopBar eyebrow="Reportes · Ventas" title="Descuentos por promoción" />}
+      topBar={<ScreenTopBar eyebrow="Reportes · Ventas" title={SCREEN_TITLE} />}
       bodyClassName="gap-4 p-6"
     >
       <div className="flex flex-wrap items-end gap-3">
@@ -141,6 +130,22 @@ export function SalesByPromotionScreen({
           onFiltersChange={onFiltersChange}
           answeredPeriod={shown?.range}
           registerFilter={registerFilter}
+          onRegisterLabelChange={setRegisterLabel}
+          trailing={
+            <ReportDownload
+              dataStatus={data.status}
+              workbook={() =>
+                shown
+                  ? salesByPromotionSpreadsheet(
+                      shown,
+                      table.getRowModel().rows.map((row) => row.original),
+                      registerLabel,
+                    )
+                  : null
+              }
+              fileName={shown ? reportFileName(SCREEN_TITLE, shown.range) : ""}
+            />
+          }
         />
       </div>
       {data.status === "failed" ? null : (
