@@ -326,13 +326,13 @@ describe("purchaseLineQuantityRefusal", () => {
     ).toBe("Escribí una cantidad entera de unidades, por ejemplo 16.");
   });
 
-  it("says a line loaded by packages adds up to more than a line may hold", () => {
+  it("asks to review both quantities of a line loaded by packages", () => {
     expect(
       purchaseLineQuantityRefusal(
         line({ productId: MIEL_PRODUCT_ID, loadedBy: "packages" }),
         purchasableProducts,
       ),
-    ).toBe("Los paquetes suman más de lo que admite una sola línea.");
+    ).toBe("Revisá la cantidad de paquetes y la cantidad por paquete.");
   });
 });
 

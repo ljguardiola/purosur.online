@@ -707,6 +707,8 @@ test("types the quantity of each package in the product's sale unit, in kilos fo
 test("loading a line by packages asks for the number of packages and the quantity of each, with no packaging to choose", async () => {
   const screen = await opened();
   const group = line(screen, 1);
+  const loadedBy = group.getByRole("radiogroup", { name: /^Cargar por/ });
+  await expect.element(loadedBy.getByRole("radio", { name: "Paquetes" })).toBeInTheDocument();
 
   await userEvent.click(group.getByText("Paquetes", { exact: true }).last());
 

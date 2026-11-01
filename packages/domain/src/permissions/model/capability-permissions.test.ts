@@ -328,6 +328,17 @@ describe("grantedCapabilities", () => {
     );
   });
 
+  it("lists none for every permission outside those that grant a capability", () => {
+    const granting = new Set(CAPABILITIES_GRANTED_BY.map(([permission]) => permission));
+
+    for (const permission of PERMISSION_KEYS.filter((key) => !granting.has(key))) {
+      expect(
+        grantedCapabilities({ isAdministrator: false, permissionKeys: [permission] }),
+        permission,
+      ).toEqual([]);
+    }
+  });
+
   it("lists the union of what each held permission grants, once each", () => {
     expect(
       grantedCapabilities({

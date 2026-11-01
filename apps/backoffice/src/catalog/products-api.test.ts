@@ -433,6 +433,14 @@ test("editProduct returns sale_unit_held_by_supplier_item on a 409 carrying that
   });
 });
 
+test("editProduct no longer knows a sale unit held by a packaging, reading that 409 as a barcode taken with no code named", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(409, { code: "sale_unit_held_by_packaging", packagingName: "Caja x 12" }),
+  );
+
+  expect(await editProduct("product-1", editInput)).toEqual({ kind: "barcode_taken", codes: [] });
+});
+
 test("editProduct returns category_not_leaf on a 409 carrying that code", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "category_not_leaf" }));
 
