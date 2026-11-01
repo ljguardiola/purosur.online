@@ -4,7 +4,18 @@ import {
   reportPeriodOf,
   type ZoneRulesSource,
 } from "../../shared/index.js";
-import { type ReturnsGroup, returnsReportGroups } from "../model/returns-report.js";
+import {
+  type AuthorizerReturnsAndVoids,
+  type CashierReturnsAndVoids,
+  type ReturnsGroup,
+  type ReturnsReportTotals,
+  returnsReportGroups,
+  returnsReportTotals,
+  type VoidsGroup,
+  voidedSalesGroup,
+  voidsAndReturnsByAuthorizer,
+  voidsAndReturnsByCashier,
+} from "../model/returns-report.js";
 import type { ReturnsReportReader } from "./returns-report-reader.js";
 
 export interface ReadReturnsReportInput {
@@ -17,6 +28,10 @@ export interface ReturnsReport {
   range: ReportPeriod;
   typed: ReturnsGroup;
   scanned: ReturnsGroup;
+  voids: VoidsGroup;
+  totals: ReturnsReportTotals;
+  byCashier: CashierReturnsAndVoids[];
+  byAuthorizer: AuthorizerReturnsAndVoids[];
 }
 
 export async function readReturnsReport(
@@ -29,5 +44,13 @@ export async function readReturnsReport(
 ): Promise<ReturnsReport> {
   const range = reportPeriodOf(asked, clock.now(), zoneRules.zoneRules());
   const records = await reader.returnsMade({ locationId, range, registerId });
-  return { range, ...returnsReportGroups(records) };
+  const voided = await reader.salesVoided({ locationId, range, registerId });
+  return {
+    range,
+    ...returnsReportGroups(records),
+    voids: voidedSalesGroup(voided),
+    totals: returnsReportTotals(records, voided),
+    byCashier: voidsAndReturnsByCashier(records, voided),
+    byAuthorizer: voidsAndReturnsByAuthorizer(records, voided),
+  };
 }

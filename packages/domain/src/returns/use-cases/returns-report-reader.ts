@@ -1,5 +1,5 @@
 import type { ReportPeriod } from "../../shared/index.js";
-import type { ReturnRecord } from "../model/returns-report.js";
+import type { ReturnRecord, VoidedSaleRecord } from "../model/returns-report.js";
 
 export interface ReturnsReportQuery {
   locationId: string;
@@ -9,4 +9,5 @@ export interface ReturnsReportQuery {
 
 export interface ReturnsReportReader {
   returnsMade(query: ReturnsReportQuery): Promise<ReturnRecord[]>;
+  salesVoided(query: ReturnsReportQuery): Promise<VoidedSaleRecord[]>;
 }

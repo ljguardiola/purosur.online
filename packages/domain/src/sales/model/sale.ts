@@ -6,6 +6,8 @@ import type { WeightSource } from "./weight-source.js";
 
 export type SaleState = "OPEN" | "COMPLETED" | "VOIDED" | "CANCELLED";
 
+export const VOIDED_SALE_STATE = "VOIDED" satisfies SaleState;
+
 export const SALE_STATES_AFTER_COMPLETION = [
   "COMPLETED",
   "VOIDED",

@@ -51,7 +51,7 @@ export { CANCELLED_SALES_REPORT_SALE_STATE } from "./model/removed-lines-and-can
 export type { RemovedSaleLine } from "./model/removed-sale-line.js";
 export { replenishedPrintAttempt } from "./model/replenished-printed-document.js";
 export type { LinePromotion, Sale, SaleLine, SaleState, SaleWithLines } from "./model/sale.js";
-export { SALE_STATES_AFTER_COMPLETION } from "./model/sale.js";
+export { SALE_STATES_AFTER_COMPLETION, VOIDED_SALE_STATE } from "./model/sale.js";
 export type {
   SaleDiscount,
   SaleDiscountValue,

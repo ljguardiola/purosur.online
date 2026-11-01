@@ -4,10 +4,13 @@ import {
   LISTED_ONLINE_DOCUMENT_STATES,
   RETURN_DISPOSITIONS,
   RETURN_REASONS,
+  RETURN_RESOLUTIONS,
   type ReturnRecord,
   type ReturnRecordLine,
   saleUnitOfWeightSource,
   TICKET_SOURCES,
+  VOIDED_SALE_STATE,
+  type VoidedSaleRecord,
 } from "@purosur/domain";
 import type { ReturnsReportQuery, ReturnsReportReader } from "@purosur/domain/returns/use-cases";
 import { and, asc, eq, inArray, isNull, or, type SQL, sql } from "drizzle-orm";
@@ -38,6 +41,8 @@ const authorizedOnline = or(
   ),
 ) as SQL;
 
+const voidDay = sql<string>`to_char(${sales.voidedAt} at time zone ${ARGENTINA_TIME_ZONE}, 'YYYY-MM-DD')`;
+
 const returnDay = sql<string>`to_char(${saleReturns.occurredAt} at time zone ${ARGENTINA_TIME_ZONE}, 'YYYY-MM-DD')`;
 
 function known<T extends string>(options: readonly T[], stored: string, what: string): T {
@@ -65,6 +70,69 @@ export class DrizzleReturnsReportReader<TQueryResult extends PgQueryResultHKT>
       accessMode: "read only",
     });
   }
+
+  salesVoided(query: ReturnsReportQuery): Promise<VoidedSaleRecord[]> {
+    return this.db.transaction(async (tx) => voidedSalesOf(tx, query), {
+      isolationLevel: "repeatable read",
+      accessMode: "read only",
+    });
+  }
+}
+
+async function voidedSalesOf<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  { locationId, range, registerId }: ReturnsReportQuery,
+): Promise<VoidedSaleRecord[]> {
+  const voider = alias(users, "voider");
+  const authorizer = alias(users, "authorizer");
+  const voided = await db
+    .select({
+      saleId: sales.id,
+      operationNumber: sales.operationNumber,
+      voidedAt: sales.voidedAt,
+      registerId: registers.id,
+      registerName: registers.name,
+      voiderId: sales.voidedBy,
+      voiderName: voider.firstName,
+      authorizerId: sales.voidAuthorizedBy,
+      authorizerName: authorizer.firstName,
+      total: sales.total,
+    })
+    .from(sales)
+    .innerJoin(registers, eq(registers.id, sales.registerId))
+    .leftJoin(voider, sql`${voider.id}::text = ${sales.voidedBy}`)
+    .leftJoin(authorizer, sql`${authorizer.id}::text = ${sales.voidAuthorizedBy}`)
+    .where(
+      and(
+        eq(sales.locationId, locationId),
+        eq(sales.state, VOIDED_SALE_STATE),
+        registerId === undefined ? undefined : eq(sales.registerId, registerId),
+        sql`${voidDay} >= ${range.from}`,
+        sql`${voidDay} <= ${range.to}`,
+      ),
+    );
+  if (voided.length === 0) {
+    return [];
+  }
+  const invoiceBySale = await invoicesOf(db, [...new Set(voided.map((row) => row.saleId))]);
+  return voided.map((row) => {
+    if (row.voidedAt === null) {
+      throw new Error(`A voided sale has no voiding moment: ${row.saleId}`);
+    }
+    return {
+      sale: {
+        id: row.saleId,
+        operationNumber: row.operationNumber,
+        invoice: invoiceBySale.get(row.saleId) ?? null,
+      },
+      voidedAt: row.voidedAt,
+      register: { id: row.registerId, name: row.registerName },
+      cashier: row.voiderId === null ? null : { id: row.voiderId, name: row.voiderName },
+      authorizer:
+        row.authorizerId === null ? null : { id: row.authorizerId, name: row.authorizerName },
+      total: row.total,
+    };
+  });
 }
 
 async function returnsOf<TQueryResult extends PgQueryResultHKT>(
@@ -138,6 +206,7 @@ async function linesOf<TQueryResult extends PgQueryResultHKT>(
       quantity: returnLines.quantity,
       reason: returnLines.reason,
       disposition: returnLines.disposition,
+      resolution: returnLines.resolution,
       refunded: returnLines.refundedAmount,
     })
     .from(returnLines)
@@ -154,6 +223,7 @@ async function linesOf<TQueryResult extends PgQueryResultHKT>(
       quantity: row.quantity,
       reason: known(RETURN_REASONS, row.reason, "reason"),
       disposition: known(RETURN_DISPOSITIONS, row.disposition, "disposition"),
+      resolution: known(RETURN_RESOLUTIONS, row.resolution, "resolution"),
       refunded: row.refunded,
     });
     byReturn.set(row.returnId, lines);
