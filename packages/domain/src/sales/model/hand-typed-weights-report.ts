@@ -1,4 +1,4 @@
-import { codeUnitOrder, nameOrder } from "./report-order.js";
+import { compareCodeUnits, compareOptionalNames } from "../../shared/index.js";
 import type { WeightSource } from "./weight-source.js";
 
 export interface SaleLinesGroup {
@@ -73,7 +73,7 @@ export function weighedLinesByCashier(groups: readonly SaleLinesGroup[]): Weighe
     (key, count) => ({ cashierId: key.id, name: key.name, ...count }),
   ).sort(
     (a, b) =>
-      moreTypedOrder(a, b) || nameOrder(a.name, b.name) || codeUnitOrder(a.cashierId, b.cashierId),
+      moreTypedOrder(a, b) || compareOptionalNames(a.name, b.name) || compareCodeUnits(a.cashierId, b.cashierId),
   );
 }
 
@@ -95,7 +95,7 @@ export function weighedLinesBySession(groups: readonly SaleLinesGroup[]): Weighe
     (a, b) =>
       moreTypedOrder(a, b) ||
       b.openedAt.getTime() - a.openedAt.getTime() ||
-      codeUnitOrder(a.sessionId, b.sessionId),
+      compareCodeUnits(a.sessionId, b.sessionId),
   );
 }
 

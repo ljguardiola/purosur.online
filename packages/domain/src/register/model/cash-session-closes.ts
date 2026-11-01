@@ -1,4 +1,4 @@
-import { compareSpanishText } from "../../shared/index.js";
+import { compareCodeUnits, compareOptionalNames } from "../../shared/index.js";
 
 export interface CashSessionClose {
   id: string;
@@ -41,21 +41,14 @@ export function hasCashDifference(difference: number): boolean {
 }
 
 function closeOrder(a: CashSessionClose, b: CashSessionClose): number {
-  return b.closedAt.getTime() - a.closedAt.getTime() || compareSpanishText(a.id, b.id);
-}
-
-function nameOrder(a: string | null, b: string | null): number {
-  if (a === null || b === null) {
-    return Number(a === null) - Number(b === null);
-  }
-  return compareSpanishText(a, b);
+  return b.closedAt.getTime() - a.closedAt.getTime() || compareCodeUnits(a.id, b.id);
 }
 
 function cashierOrder(a: CashierWithDifferences, b: CashierWithDifferences): number {
   return (
     b.sessions - a.sessions ||
-    nameOrder(a.cashierName, b.cashierName) ||
-    compareSpanishText(a.cashierId, b.cashierId)
+    compareOptionalNames(a.cashierName, b.cashierName) ||
+    compareCodeUnits(a.cashierId, b.cashierId)
   );
 }
 

@@ -1,5 +1,5 @@
 import type { ProductBrandAndNetContent } from "../../catalog/index.js";
-import { compareSpanishText } from "../../shared/index.js";
+import { compareCodeUnits, compareSpanishPaths } from "../../shared/index.js";
 import { isLotCostIncomplete, type LotCost, lotValueCents } from "./lot-value.js";
 
 export interface MarginAllocation {
@@ -74,20 +74,11 @@ function hasIncompleteCost(allocations: readonly MarginAllocation[]): boolean {
   );
 }
 
-function comparePaths(a: readonly string[], b: readonly string[]): number {
-  const [firstOfA, ...restOfA] = a;
-  const [firstOfB, ...restOfB] = b;
-  if (firstOfA === undefined || firstOfB === undefined) {
-    return a.length - b.length;
-  }
-  return compareSpanishText(firstOfA, firstOfB) || comparePaths(restOfA, restOfB);
-}
-
 function rowOrder(a: MarginOfGroup, b: MarginOfGroup): number {
   return (
     b.amount - a.amount ||
-    comparePaths(a.path, b.path) ||
-    compareSpanishText(String(a.id), String(b.id))
+    compareSpanishPaths(a.path, b.path) ||
+    compareCodeUnits(String(a.id), String(b.id))
   );
 }
 

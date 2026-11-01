@@ -1,6 +1,7 @@
 import type { ProductBrandAndNetContent, SaleUnit } from "../../catalog/index.js";
 import {
   cheapestOffer,
+  compareCodeUnits,
   compareFractions,
   compareSpanishText,
   type Fraction,
@@ -74,7 +75,7 @@ export async function listSupplierPriceComparison(
 ): Promise<ComparedProduct[]> {
   const [products, offers] = await Promise.all([reader.activeProducts(), reader.offers()]);
   return [...products]
-    .sort((a, b) => compareSpanishText(a.name, b.name) || compareSpanishText(a.id, b.id))
+    .sort((a, b) => compareSpanishText(a.name, b.name) || compareCodeUnits(a.id, b.id))
     .map((product) => {
       const answered = offers
         .filter((offer) => offer.productId === product.id)
