@@ -1,7 +1,9 @@
 import type { ContingencyBackupOperation, FiscalEmissionMode } from "@purosur/domain";
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import { createTicketedOperations } from "./ticketed-operation";
 import {
+  type SaleCompletingRequests,
+  type SaleTickets,
   type TicketableRendererRequests,
   ticketedRendererRequests,
 } from "./ticketed-renderer-requests";
@@ -226,5 +228,35 @@ describe("the renderer requests that leave a contingency backup ticket", () => {
     expect(ticketedRequests.initialCount?.read).toBe(requests.initialCount?.read);
     expect(ticketedRequests.initialCount?.find).toBe(requests.initialCount?.find);
     expect(ticketedRequests.clockGuard?.read).toBe(requests.clockGuard?.read);
+  });
+});
+
+describe("the renderer requests whose outcome completes a sale", () => {
+  type CompletedSale = { kind: "completed"; sale_id: string };
+  type Requests = {
+    completesSale: (() => Promise<CompletedSale | { kind: "refused" }>) | undefined;
+    settlesAnAlreadyPaidSale: () => Promise<
+      | { kind: "already_paid"; settlement: CompletedSale | { kind: "not_pending" } }
+      | { kind: "replaced" }
+    >;
+    completesAReturn: () => Promise<{ kind: "completed"; return_id: string }>;
+    readsASale: () => Promise<{ kind: "found"; sale_id: string }>;
+    signOut: () => void;
+  };
+
+  it("are every request whose outcome carries the sale it completed, settled already or not", () => {
+    expectTypeOf<SaleCompletingRequests<Requests>>().toEqualTypeOf<
+      "completesSale" | "settlesAnAlreadyPaidSale"
+    >();
+  });
+
+  it("each need their ticket, so a set missing one does not compile", () => {
+    expectTypeOf<{
+      completesSale: Requests["completesSale"];
+    }>().not.toExtend<SaleTickets<Requests>>();
+    expectTypeOf<{
+      completesSale: Requests["completesSale"];
+      settlesAnAlreadyPaidSale: Requests["settlesAnAlreadyPaidSale"];
+    }>().toExtend<SaleTickets<Requests>>();
   });
 });
