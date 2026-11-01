@@ -3,14 +3,29 @@ import { completedSaleId } from "../platform/completed-sale-id";
 import type { RendererRequestDeps } from "../renderer-requests";
 import type { TicketedOperations } from "./ticketed-operation";
 
+type CompletesSale<TOutcome> = TOutcome extends { kind: "completed"; sale_id: string }
+  ? true
+  : TOutcome extends { kind: "already_paid"; settlement: infer TSettlement }
+    ? CompletesSale<TSettlement>
+    : never;
+
+type OutcomeOf<TRequest> = TRequest extends (...args: never[]) => Promise<infer TOutcome>
+  ? TOutcome
+  : never;
+
+export type SaleCompletingRequests<TRequests> = {
+  [K in keyof TRequests]-?: [CompletesSale<OutcomeOf<NonNullable<TRequests[K]>>>] extends [never]
+    ? never
+    : K;
+}[keyof TRequests];
+
+export type SaleTickets<TRequests> = {
+  [K in SaleCompletingRequests<TRequests>]: TRequests[K];
+};
+
 export type TicketableRendererRequests = Pick<
   RendererRequestDeps,
-  | "chargeSaleInCash"
-  | "chargeSaleByTransfer"
-  | "chargeSaleOnStandaloneTerminal"
-  | "chargeSaleWithPaidOrder"
-  | "followMercadoPagoCharge"
-  | "abandonMercadoPagoCharge"
+  | SaleCompletingRequests<RendererRequestDeps>
   | "cancelPaidSale"
   | "voidSale"
   | "completeReturn"
@@ -36,8 +51,7 @@ export function ticketedRendererRequests<TRequests extends TicketableRendererReq
   const saleOfRequest = ([request]: [{ saleId: string }, ...unknown[]]) => request.saleId;
   const saleOfChargeRequest = ([request]: [{ paymentTransactionId: string }]) =>
     saleOfCharge(request.paymentTransactionId);
-  return {
-    ...requests,
+  const saleTickets: SaleTickets<RendererRequestDeps> = {
     chargeSaleInCash: ticketed("sale", requests.chargeSaleInCash, completedSale),
     chargeSaleByTransfer: ticketed("sale", requests.chargeSaleByTransfer, completedSale),
     chargeSaleOnStandaloneTerminal: ticketed(
@@ -56,6 +70,10 @@ export function ticketedRendererRequests<TRequests extends TicketableRendererReq
       requests.abandonMercadoPagoCharge,
       saleOfChargeRequest,
     ),
+  };
+  return {
+    ...requests,
+    ...saleTickets,
     cancelPaidSale: ticketed(
       "paid_sale_cancellation",
       requests.cancelPaidSale,
