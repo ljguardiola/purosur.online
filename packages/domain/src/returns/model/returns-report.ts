@@ -1,5 +1,5 @@
 import type { SaleUnit } from "../../catalog/index.js";
-import { compareCodeUnits } from "../../shared/index.js";
+import { compareCodeUnits, compareOptionalNames } from "../../shared/index.js";
 import type {
   ReturnDisposition,
   ReturnReason,
@@ -147,16 +147,10 @@ export function returnsReportTotals(
 }
 
 function personOrder(a: ReportPerson | null, b: ReportPerson | null): number {
-  if (a === null) {
-    return 1;
+  if (a === null || b === null) {
+    return Number(a === null) - Number(b === null);
   }
-  if (b === null) {
-    return -1;
-  }
-  if (a.name === null || b.name === null) {
-    return Number(a.name === null) - Number(b.name === null) || compareCodeUnits(a.id, b.id);
-  }
-  return compareCodeUnits(a.name, b.name) || compareCodeUnits(a.id, b.id);
+  return compareOptionalNames(a.name, b.name) || compareCodeUnits(a.id, b.id);
 }
 
 function summarizedBy(
