@@ -76,9 +76,11 @@ function readerWith(fields: {
   stock?: { productId: string; quantity: number }[];
   coverage?: { productId: string; coverageDays: number }[];
   suppliers?: { id: string; name: string; active: boolean }[];
+  shelfLifeLots?: { productId: string; createdAt: Date; expiresOn: string }[];
 }) {
   const reader = new FakeOrderSuggestionReader(fields.products ?? [YERBA], fields.offers ?? []);
   reader.supplierList = fields.suppliers ?? [];
+  reader.shelfLifeLots = fields.shelfLifeLots ?? [];
   reader.sold = fields.sold ?? [];
   reader.stock = fields.stock ?? [];
   reader.coverage = fields.coverage ?? [
@@ -352,5 +354,151 @@ describe("listOrderSuggestion", () => {
     const { lines } = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
 
     expect(lines.map((line) => line.name)).toEqual(["Queso", "Yerba"]);
+  });
+
+  describe("with the shelf life of the newest lot", () => {
+    const lotOf = (createdAt: string, expiresOn: string, productId = "yerba") => ({
+      productId,
+      createdAt: new Date(createdAt),
+      expiresOn,
+    });
+    const fourADay = {
+      sold: [soldOf("yerba", 120)],
+      stock: [{ productId: "yerba", quantity: 20_000 }],
+    };
+
+    it("asks for the newest lots of the branch", async () => {
+      const reader = readerWith({});
+
+      await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
+
+      expect(reader.shelfLifeQueries).toEqual([BRANCH]);
+    });
+
+    it("uses the shelf life instead of the coverage days and rounds down to the packages that sell before expiry", async () => {
+      const reader = readerWith({
+        ...fourADay,
+        offers: [offer({ quantity: 12_000 })],
+        shelfLifeLots: [lotOf("2026-09-26T15:00:00.000Z", "2026-10-06")],
+      });
+
+      const {
+        lines: [line],
+      } = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
+
+      expect(line).toMatchObject({
+        coverageDays: 15,
+        effectiveDays: 10,
+        cappedByExpiry: true,
+        neededQuantity: 20_000,
+      });
+      expect(line?.offers).toMatchObject([{ packages: 1, quantity: 12_000 }]);
+    });
+
+    it("suggests the packages of the coverage days when no lot gives a shelf life", async () => {
+      const reader = readerWith({ ...fourADay, offers: [offer({ quantity: 12_000 })] });
+
+      const {
+        lines: [line],
+      } = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
+
+      expect(line).toMatchObject({
+        effectiveDays: 15,
+        cappedByExpiry: false,
+        neededQuantity: 40_000,
+      });
+      expect(line?.offers).toMatchObject([{ packages: 4, quantity: 48_000 }]);
+    });
+
+    it("uses the coverage days when the shelf life is longer", async () => {
+      const reader = readerWith({
+        ...fourADay,
+        offers: [offer({ quantity: 12_000 })],
+        shelfLifeLots: [lotOf("2026-08-27T15:00:00.000Z", "2026-10-06")],
+      });
+
+      const {
+        lines: [line],
+      } = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
+
+      expect(line).toMatchObject({ effectiveDays: 15, cappedByExpiry: false });
+      expect(line?.offers).toMatchObject([{ packages: 4, quantity: 48_000 }]);
+    });
+
+    it("counts the shelf life from the Argentine day the lot was created, not the UTC one", async () => {
+      const reader = readerWith({
+        ...fourADay,
+        shelfLifeLots: [lotOf("2026-09-27T01:00:00.000Z", "2026-10-06")],
+      });
+
+      const {
+        lines: [line],
+      } = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
+
+      expect(line).toMatchObject({ effectiveDays: 10, cappedByExpiry: true });
+    });
+
+    it("keeps an offer at zero packages when its package holds more than can sell before expiry", async () => {
+      const reader = readerWith({
+        ...fourADay,
+        offers: [
+          offer({ supplierId: "a", quantity: 12_000, priceCents: 12_000 }),
+          offer({ supplierId: "b", quantity: 48_000, priceCents: 40_000 }),
+          offer({ supplierId: "c", quantity: 48_000, pricesIncludeVat: false, vatRate: null }),
+        ],
+        shelfLifeLots: [lotOf("2026-09-26T15:00:00.000Z", "2026-10-06")],
+      });
+
+      const {
+        lines: [line],
+      } = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
+
+      expect(
+        line?.offers.map(({ supplier, packages, quantity }) => [supplier.id, packages, quantity]),
+      ).toEqual([
+        ["b", 0, 0],
+        ["a", 1, 12_000],
+      ]);
+      expect(line?.unpricedOffers).toMatchObject([{ order: { packages: 0, quantity: 0 } }]);
+    });
+
+    it("caps the quantity to order without a supplier at what sells before expiry", async () => {
+      const reader = readerWith({
+        sold: [soldOf("yerba", 31)],
+        shelfLifeLots: [lotOf("2026-09-26T15:00:00.000Z", "2026-10-06")],
+      });
+
+      const {
+        lines: [line],
+      } = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
+
+      expect(line?.neededQuantity).toBe(10_000);
+    });
+
+    it("suggests nothing for a lot that expires the day it was created and no stock to cover", async () => {
+      const reader = readerWith({
+        sold: [soldOf("yerba", 31)],
+        shelfLifeLots: [lotOf("2026-10-06T15:00:00.000Z", "2026-10-06")],
+      });
+
+      expect(
+        (await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH })).lines,
+      ).toEqual([]);
+    });
+
+    it("caps each product by its own newest lot", async () => {
+      const reader = readerWith({
+        products: [YERBA, { ...QUESO, saleUnit: "UNIT" }],
+        sold: [soldOf("yerba", 120), soldOf("queso", 120)],
+        shelfLifeLots: [lotOf("2026-09-26T15:00:00.000Z", "2026-10-06", "queso")],
+      });
+
+      const { lines } = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
+
+      expect(lines.map((line) => [line.id, line.effectiveDays, line.cappedByExpiry])).toEqual([
+        ["queso", 10, true],
+        ["yerba", 15, false],
+      ]);
+    });
   });
 });
