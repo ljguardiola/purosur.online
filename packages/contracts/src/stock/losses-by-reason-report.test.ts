@@ -61,7 +61,14 @@ describe("lossesByReasonReportSchema", () => {
     expect(lossesByReasonReportSchema.parse(empty)).toEqual(empty);
   });
 
-  it.each(["broken_or_spilled", "spoiled", "theft", "expired", "return_discard"])(
+  it.each([
+    "broken_or_spilled",
+    "spoiled",
+    "theft",
+    "expired",
+    "return_discard",
+    "defective_exchange",
+  ])(
     "accepts the reason %s",
     (name) => {
       expect(

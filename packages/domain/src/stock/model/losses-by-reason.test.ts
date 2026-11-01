@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { type LossRecord, lossesByReason } from "./losses-by-reason.js";
+import {
+  LOSS_REPORT_MOVEMENT_KINDS,
+  type LossRecord,
+  lossesByReason,
+  reportedLossReason,
+} from "./losses-by-reason.js";
 
 function loss(overrides: Partial<LossRecord> = {}): LossRecord {
   return {
@@ -84,6 +89,20 @@ describe("lossesByReason", () => {
     ]);
   });
 
+  it("lists the exchange of a defective item after the reasons the system assigns", () => {
+    const groups = lossesByReason(
+      (["defective_exchange", "return_discard", "theft"] as const).map((reason) =>
+        loss({ reason }),
+      ),
+    );
+
+    expect(groups.map(({ reason }) => reason)).toEqual([
+      "theft",
+      "return_discard",
+      "defective_exchange",
+    ]);
+  });
+
   it("leaves out the reasons with no loss", () => {
     const groups = lossesByReason([loss({ reason: "return_discard" })]);
 
@@ -116,5 +135,30 @@ describe("lossesByReason", () => {
     ]);
 
     expect(group?.products.map(({ id }) => id)).toEqual(["B", "a"]);
+  });
+});
+
+describe("LOSS_REPORT_MOVEMENT_KINDS", () => {
+  it("lists the movements the losses report reads: losses and the replacements of exchanges", () => {
+    expect(LOSS_REPORT_MOVEMENT_KINDS).toEqual(["loss", "exchange_out"]);
+  });
+});
+
+describe("reportedLossReason", () => {
+  it("reports a loss under the reason it was recorded with", () => {
+    expect(reportedLossReason({ kind: "loss", reason: "spoiled" })).toBe("spoiled");
+    expect(reportedLossReason({ kind: "loss", reason: "return_discard" })).toBe("return_discard");
+  });
+
+  it("reports the replacement of an exchange as an exchange of a defective item", () => {
+    expect(reportedLossReason({ kind: "exchange_out", reason: null })).toBe("defective_exchange");
+  });
+
+  it.each([
+    ["a reason outside the catalog", "lost_in_move"],
+    ["no reason", null],
+    ["the reason only an exchange is reported with", "defective_exchange"],
+  ])("answers nothing for a loss recorded with %s", (_name, reason) => {
+    expect(reportedLossReason({ kind: "loss", reason })).toBeNull();
   });
 });

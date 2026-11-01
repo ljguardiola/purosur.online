@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { type MarginAllocation, type MarginSaleLine, marginReport } from "./margin-report.js";
+import {
+  COST_OF_SALE_MOVEMENT_KINDS,
+  isCostOfSaleMovementKind,
+  type MarginAllocation,
+  type MarginSaleLine,
+  marginReport,
+} from "./margin-report.js";
 
 const lot = {
   technical: false,
@@ -343,4 +349,23 @@ describe("marginReport", () => {
       netContent: { quantity: 30, unit: "ML" },
     });
   });
+});
+
+describe("COST_OF_SALE_MOVEMENT_KINDS", () => {
+  it("lists the movements whose cost is cost of sale: the sale and the return of its units", () => {
+    expect(COST_OF_SALE_MOVEMENT_KINDS).toEqual(["sale", "return"]);
+  });
+});
+
+describe("isCostOfSaleMovementKind", () => {
+  it.each(["sale", "return"])("counts the cost of a %s movement", (kind) => {
+    expect(isCostOfSaleMovementKind(kind)).toBe(true);
+  });
+
+  it.each(["exchange_out", "loss", "sale_void", "receipt"])(
+    "never counts the cost of a %s movement",
+    (kind) => {
+      expect(isCostOfSaleMovementKind(kind)).toBe(false);
+    },
+  );
 });

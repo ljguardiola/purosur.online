@@ -6,6 +6,7 @@ import {
   lossDelta,
   RECORDED_LOSS_REASONS,
   RECORDED_STOCK_MOVEMENT_REASONS,
+  REPORTED_LOSS_REASONS,
   STOCK_DIRECTIONS,
   SYSTEM_LOSS_REASONS,
   signedDelta,
@@ -36,6 +37,17 @@ describe("SYSTEM_LOSS_REASONS", () => {
 describe("RECORDED_LOSS_REASONS", () => {
   it("lists every reason a loss is recorded with, the ones a person picks first", () => {
     expect(RECORDED_LOSS_REASONS).toEqual([...LOSS_REASONS, ...SYSTEM_LOSS_REASONS]);
+  });
+});
+
+describe("REPORTED_LOSS_REASONS", () => {
+  it("lists every reason the losses report shows, the exchange of a defective item after the recorded ones", () => {
+    expect(REPORTED_LOSS_REASONS).toEqual([...RECORDED_LOSS_REASONS, "defective_exchange"]);
+  });
+
+  it("is not a reason a movement is recorded with", () => {
+    expect(RECORDED_LOSS_REASONS).not.toContain("defective_exchange");
+    expect(RECORDED_STOCK_MOVEMENT_REASONS).not.toContain("defective_exchange");
   });
 });
 

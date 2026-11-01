@@ -4,6 +4,7 @@ import { render } from "../shell/test-support/render-with-router";
 import { LossesByReasonReportReasonSection } from "./losses-by-reason-report-reason-section";
 import {
   almondOilReason,
+  defectiveExchangeReason,
   expiredReason,
   returnDiscardReason,
   spoiledReason,
@@ -50,6 +51,13 @@ test("shows a reason the system assigns like one recorded by hand", async () => 
 
   const discard = screen.getByRole("region", { name: "Descarte de devolución" });
   await expect.element(discard.getByText("0,400 kg")).toBeVisible();
+});
+
+test("titles the replacements of defective exchanges with their own label", async () => {
+  const screen = await renderSection(defectiveExchangeReason);
+
+  const exchange = screen.getByRole("region", { name: "Cambio por defectuoso" });
+  await expect.element(exchange.getByText("1 kg")).toBeVisible();
 });
 
 test("marks its table busy while the report reads again", async () => {

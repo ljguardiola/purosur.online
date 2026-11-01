@@ -231,6 +231,47 @@ describe("DrizzleLossReader.lossesRecorded", () => {
     expect(losses.map(({ quantity }) => quantity)).toEqual([1_000]);
   });
 
+  it("answers the replacement of an exchange under its own reason, with its quantity, beside the discarded unit it replaces", async () => {
+    const { actorId, locationId } = await seededActor();
+    const { productId } = await insertProduct(db);
+    const occurredAt = new Date("2026-10-05T15:00:00.000Z");
+    const saleLineId = await soldLineOf(productId, new Date("2026-10-01T15:00:00.000Z"));
+    await insertMovement(db, {
+      productId,
+      locationId,
+      actorId,
+      kind: "exchange_out",
+      reason: null,
+      saleLineId,
+      delta: -2_000,
+      occurredAt,
+    });
+    await insertMovement(db, {
+      productId,
+      locationId,
+      actorId,
+      kind: "loss",
+      reason: "return_discard",
+      saleLineId,
+      delta: -2_000,
+      occurredAt,
+    });
+
+    const losses = await new DrizzleLossReader(db).lossesRecorded({
+      locationId,
+      range: wholeOctober,
+    });
+
+    expect(
+      losses.map(({ reason, quantity }) => ({ reason, quantity })).sort((a, b) =>
+        a.reason.localeCompare(b.reason),
+      ),
+    ).toEqual([
+      { reason: "defective_exchange", quantity: 2_000 },
+      { reason: "return_discard", quantity: 2_000 },
+    ]);
+  });
+
   it("refuses a stored loss whose reason is not in the catalog", async () => {
     const { actorId, locationId } = await seededActor();
     const { productId } = await insertProduct(db);
