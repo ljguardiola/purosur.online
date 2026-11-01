@@ -12,10 +12,16 @@ interface MonthCounts extends ExceptionShareCounts {
 }
 
 export class FakeSecondMonthRiskReader implements SecondMonthRiskReader {
+  private readonly breaches: readonly RecordedExceptionShareBreach[];
+  private readonly counts: readonly MonthCounts[];
+
   constructor(
-    private readonly breaches: readonly RecordedExceptionShareBreach[],
-    private readonly counts: readonly MonthCounts[] = [],
-  ) {}
+    breaches: readonly RecordedExceptionShareBreach[],
+    counts: readonly MonthCounts[] = [],
+  ) {
+    this.breaches = breaches;
+    this.counts = counts;
+  }
 
   async addressesWithRecordedBreach(month: string) {
     return this.breaches
