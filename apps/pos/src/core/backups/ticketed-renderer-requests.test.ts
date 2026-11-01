@@ -1,9 +1,11 @@
 import type { ContingencyBackupOperation, FiscalEmissionMode } from "@purosur/domain";
 import { describe, expect, expectTypeOf, it } from "vitest";
+import type { RendererRequestDeps } from "../renderer-requests";
 import { createTicketedOperations } from "./ticketed-operation";
 import {
   type SaleCompletingRequests,
   type SaleTickets,
+  type saleTicketsOf,
   type TicketableRendererRequests,
   ticketedRendererRequests,
 } from "./ticketed-renderer-requests";
@@ -258,5 +260,11 @@ describe("the renderer requests whose outcome completes a sale", () => {
       completesSale: Requests["completesSale"];
       settlesAnAlreadyPaidSale: Requests["settlesAnAlreadyPaidSale"];
     }>().toExtend<SaleTickets<Requests>>();
+  });
+
+  it("are each wrapped in their ticket by the register", () => {
+    expectTypeOf<keyof ReturnType<typeof saleTicketsOf>>().toEqualTypeOf<
+      SaleCompletingRequests<RendererRequestDeps>
+    >();
   });
 });
