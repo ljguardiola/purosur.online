@@ -1,6 +1,6 @@
+import { compareCodeUnits, compareOptionalNames } from "../../shared/index.js";
 import { chargeLine } from "./line-pricing.js";
 import type { ManualAdjustmentValue } from "./manual-adjustment.js";
-import { codeUnitOrder, nameOrder } from "./report-order.js";
 import type { SaleDiscountValue } from "./sale-discount.js";
 import { grossLineTotal, saleUnitOfWeightSource, soldQuantity } from "./sale-line.js";
 import type { WeightSource } from "./weight-source.js";
@@ -114,8 +114,8 @@ function lineKey(row: ManualDiscountRow): string {
 function newestFirst(a: ManualDiscountRow, b: ManualDiscountRow): number {
   return (
     b.completedAt.getTime() - a.completedAt.getTime() ||
-    codeUnitOrder(a.saleId, b.saleId) ||
-    codeUnitOrder(lineKey(a), lineKey(b))
+    compareCodeUnits(a.saleId, b.saleId) ||
+    compareCodeUnits(lineKey(a), lineKey(b))
   );
 }
 
@@ -129,7 +129,7 @@ export function manualDiscountRows({
 }
 
 function byName(a: DiscountAuthorizer, b: DiscountAuthorizer): number {
-  return nameOrder(a.name, b.name) || codeUnitOrder(a.id, b.id);
+  return compareOptionalNames(a.name, b.name) || compareCodeUnits(a.id, b.id);
 }
 
 export function manualDiscountAuthorizers(

@@ -1,4 +1,4 @@
-import { compareSpanishText } from "../../shared/index.js";
+import { compareCodeUnits, compareSpanishText } from "../../shared/index.js";
 import type { AiCallPurpose } from "./ai-call.js";
 
 export const AI_COST_GROUPINGS = ["day", "supplier", "person"] as const;
@@ -83,7 +83,7 @@ function costliestFirst(a: AiCostGroup, b: AiCostGroup): number {
   return (
     b.total.costNanoUsd - a.total.costNanoUsd ||
     compareSpanishText(a.name ?? a.key, b.name ?? b.key) ||
-    compareSpanishText(a.key, b.key)
+    compareCodeUnits(a.key, b.key)
   );
 }
 
@@ -106,7 +106,7 @@ export function aiCostByPeriod(
   return {
     groups:
       groupBy === "day"
-        ? groups.sort((a, b) => compareSpanishText(a.key, b.key))
+        ? groups.sort((a, b) => compareCodeUnits(a.key, b.key))
         : groups.sort(costliestFirst),
     total: aiCostOf(calls),
   };

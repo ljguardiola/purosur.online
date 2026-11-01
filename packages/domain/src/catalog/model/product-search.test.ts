@@ -49,6 +49,18 @@ describe("rankProductSearch", () => {
     expect(ids(products, "te")).toEqual(["3", "1", "2"]);
   });
 
+  it("orders products sold the same number of times by the numbers in their names by value", () => {
+    const products = [product("1", "Arroz 10"), product("2", "Arroz 2")];
+
+    expect(ids(products, "arr")).toEqual(["2", "1"]);
+  });
+
+  it("orders products with the same name and sales by the code units of their id", () => {
+    const names = [product("a9", "Arroz"), product("B1", "Arroz"), product("a10", "Arroz")];
+
+    expect(ids(names, "arr")).toEqual(["B1", "a10", "a9"]);
+  });
+
   it("orders products with the same name and sales by id", () => {
     const names = [product("b", "Arroz"), product("c", "Arroz"), product("a", "Arroz")];
 
