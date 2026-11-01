@@ -6,11 +6,13 @@ import {
 } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
-import { beforeEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
 import { type ReportPeriodFilters, reportPeriodSearch } from "../shell/report-filters-search";
 import { render } from "../shell/test-support/render-with-router";
 import { dateSegments, typeDate } from "../shell/test-support/report-dates";
+import { spyOnDownloads } from "../shell/test-support/spy-on-downloads";
 import { ExpiringLotsReportScreen } from "./expiring-lots-report-screen";
 import type { ExpiringLotsReportScreenServices } from "./expiring-lots-report-services";
 import {
@@ -23,6 +25,10 @@ import {
 
 beforeEach(async () => {
   await page.viewport(1280, 900);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 function createServices(): ExpiringLotsReportScreenServices {
@@ -298,4 +304,40 @@ test("shows the lot counts with the thousands separator", async () => {
 
   await expect.element(screen.getByText("1.998 lotes", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("1.500 lotes", { exact: true })).toBeVisible();
+});
+
+test("downloads a spreadsheet of the lots shown for the period the report answered", async () => {
+  const downloads = spyOnDownloads();
+  const screen = await renderScreen(listed(expiringLotsReport([cheeseLot, breadLot])));
+  await expect.element(screen.getByText("Queso cremoso")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
+
+  await expect.poll(() => downloads.names).toEqual(["lotes-por-vencer-2026-10-13-2026-11-12.xlsx"]);
+  const file = await readDownloadedXlsx(downloads.blobs[0]);
+  expect(file.sheetNames).toEqual(["Resumen", "Lotes por vencer"]);
+  const summary = file.sheet(0);
+  expect(summary.get("B4")?.value).toBe("30");
+  expect(summary.get("B5")?.value).toBe("2");
+  expect(summary.get("B6")?.value).toBe("43774");
+  expect(summary.get("B7")?.value).toBe("1");
+  const lots = file.sheet(1);
+  expect(lots.get("A2")?.value).toBe("Queso cremoso");
+  expect(lots.get("G2")?.value).toBe("4.3");
+  expect(lots.get("A3")?.value).toBe("Pan lactal");
+  expect(lots.get("F3")?.value).toBe("12");
+  expect(lots.get("A4")).toBeUndefined();
+});
+
+test("has its download disabled while the report loads and after loading fails", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchExpiringLotsReport).mockReturnValue(new Promise(() => {}));
+  const loading = await renderScreen(services);
+  await expect.element(loading.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
+  await loading.unmount();
+
+  vi.mocked(services.fetchExpiringLotsReport).mockResolvedValue({ kind: "failed" });
+  const failed = await renderScreen(services);
+  await expect.element(failed.getByRole("button", { name: "Reintentar" })).toBeVisible();
+  await expect.element(failed.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
 });
