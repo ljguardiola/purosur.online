@@ -55,7 +55,7 @@ export async function insertOfferedItem<TQueryResult extends PgQueryResultHKT>(
     priceCents: input.priceCents,
     listDate: input.listDate ?? "2026-03-01",
     pricesIncludeVat: input.pricesIncludeVat ?? false,
-    confirmedAt: input.confirmedAt,
+    ...(input.confirmedAt === undefined ? {} : { confirmedAt: input.confirmedAt }),
   });
   return itemId;
 }
@@ -66,7 +66,7 @@ export async function insertOfferedProduct<TQueryResult extends PgQueryResultHKT
 ): Promise<{ productId: string; supplierId: string }> {
   const { id: productId } = await insertProduct(db, {
     name: input.name,
-    saleUnit: input.saleUnit,
+    ...(input.saleUnit === undefined ? {} : { saleUnit: input.saleUnit }),
   });
   const supplierId = input.supplierId ?? (await insertSupplier(db, { actorId: input.actorId }));
   await insertOfferedItem(db, { ...input, productId, supplierId });
