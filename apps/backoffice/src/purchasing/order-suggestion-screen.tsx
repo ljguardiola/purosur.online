@@ -9,6 +9,7 @@ import {
   Select,
   sortedItems,
   Table,
+  Tag,
   textOrder,
   useTableModel,
 } from "@purosur/ui";
@@ -125,7 +126,7 @@ export function OrderSuggestionScreen({
             {plural(line.effectiveDays, { one: "día", other: "días" })}
           </span>
           {line.cappedByExpiry ? (
-            <span className="text-detail text-text-subtle">Tope por vencimiento</span>
+            <Tag tone="neutral">Tope por vencimiento</Tag>
           ) : null}
         </div>
       ),

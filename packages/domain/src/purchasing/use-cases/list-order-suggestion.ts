@@ -40,7 +40,6 @@ export interface SuggestedUnpricedOffer extends Omit<UnpricedOffer, "quantity"> 
 }
 
 export interface OrderSuggestionLine extends Omit<ComparedProduct, "offers" | "unpricedOffers"> {
-  coverageDays: number;
   // The coverage days, or the shelf life of the newest lot when it is shorter.
   effectiveDays: number;
   cappedByExpiry: boolean;
@@ -125,7 +124,6 @@ export async function listOrderSuggestion(
     return [
       {
         ...shown,
-        coverageDays,
         effectiveDays,
         cappedByExpiry,
         soldQuantity,
