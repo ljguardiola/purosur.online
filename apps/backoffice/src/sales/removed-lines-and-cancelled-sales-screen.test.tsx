@@ -1,17 +1,19 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
-import { expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { type ReportFilters, reportFiltersSearch } from "../shell/report-filters-search";
+import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
 import { render } from "../shell/test-support/render-with-router";
 import { dateSegments } from "../shell/test-support/report-dates";
-import { FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
+import { BACK_REGISTER_ID, FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
 import {
   createReportRegisterFilterServices,
   type ReportRegisterFilterServices,
   reportRegisterFieldForTests,
 } from "../shell/test-support/report-register-filter";
+import { spyOnDownloads } from "../shell/test-support/spy-on-downloads";
 import { RemovedLinesAndCancelledSalesScreen } from "./removed-lines-and-cancelled-sales-screen";
 import type { RemovedLinesAndCancelledSalesScreenServices } from "./removed-lines-and-cancelled-sales-services";
 import {
@@ -323,4 +325,53 @@ test("navigates to Mi cuenta when the report request comes back forbidden", asyn
   await renderScreen(services);
 
   await expect.poll(() => window.location.pathname).toBe("/account");
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+test("downloads a spreadsheet of both tables, with the applied register and the figures", async () => {
+  const downloads = spyOnDownloads();
+  const screen = await renderScreen(createServices(), {
+    filters: reportFiltersSearch.parse({ register: BACK_REGISTER_ID }),
+  });
+  await expect
+    .element(screen.getByRole("combobox", { name: /^Caja:/ }))
+    .toHaveValue("Caja del fondo");
+  await expect.element(screen.getByText("Caja principal")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
+
+  await expect
+    .poll(() => downloads.names)
+    .toEqual(["lineas-quitadas-y-ventas-canceladas-2026-10-01-2026-10-07.xlsx"]);
+  const file = await readDownloadedXlsx(downloads.blobs[0]);
+  expect(file.sheetNames).toEqual(["Resumen", "Por cajero", "Por sesión"]);
+  const summary = file.sheet(0);
+  expect(summary.get("B4")?.value).toBe("Caja del fondo");
+  expect(summary.get("B5")?.value).toBe("5");
+  expect(summary.get("B7")?.value).toBe("1.75");
+  expect(summary.get("B8")?.value).toBe("15900");
+  const cashiers = file.sheet(1);
+  expect(cashiers.get("A2")?.value).toBe("Beto");
+  expect(cashiers.get("E2")?.value).toBe("15000");
+  expect(cashiers.get("A3")?.value).toBe("Sin identificar");
+  const sessions = file.sheet(2);
+  expect(sessions.get("A2")?.value).toBe("Caja principal");
+  expect(sessions.get("B2")).toMatchObject({ numberFormat: "dd/mm/yyyy hh:mm" });
+  expect(sessions.get("E2")?.value).toBe("11000");
+});
+
+test("has its download disabled while the report loads and after loading fails", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRemovedLinesAndCancelledSales).mockReturnValue(new Promise(() => {}));
+  const loading = await renderScreen(services);
+  await expect.element(loading.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
+  await loading.unmount();
+
+  vi.mocked(services.fetchRemovedLinesAndCancelledSales).mockResolvedValue({ kind: "failed" });
+  const failed = await renderScreen(services);
+  await expect.element(failed.getByRole("button", { name: "Reintentar" })).toBeVisible();
+  await expect.element(failed.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
 });
