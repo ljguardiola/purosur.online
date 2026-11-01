@@ -1,6 +1,7 @@
 import {
   type BrandSummary,
   type CategorySummary,
+  type ProductSummary,
   productCreationBodySchema,
   type TagSummary,
 } from "@purosur/contracts";
@@ -37,6 +38,7 @@ import {
   categoryNameOf,
   EMPTY_CATALOG_PRODUCT_FORM,
   PRODUCT_CATEGORY_NOT_LEAF_ERROR,
+  productCloneFormValues,
 } from "./product-form";
 import type { createProduct } from "./products-api";
 
@@ -51,6 +53,7 @@ export type NewProductModalServices = {
 type NewProductModalProps = {
   open: boolean;
   initialName?: string;
+  source?: ProductSummary;
   onClose: () => void;
   onCreated: (product: CreatedProduct) => void;
   onSessionEnded: () => void;
@@ -63,6 +66,7 @@ type NewProductModalProps = {
 export function NewProductModal({
   open,
   initialName = "",
+  source,
   onClose,
   onCreated,
   onSessionEnded,
@@ -179,7 +183,11 @@ export function NewProductModal({
 
   useEffect(() => {
     if (open) {
-      reset({ ...EMPTY_CATALOG_PRODUCT_FORM, name: initialName });
+      reset(
+        source
+          ? productCloneFormValues(source)
+          : { ...EMPTY_CATALOG_PRODUCT_FORM, name: initialName },
+      );
       chips.reset();
       setNotice(null);
       generate.reset();
@@ -190,6 +198,7 @@ export function NewProductModal({
   }, [
     open,
     initialName,
+    source,
     reset,
     chips.reset,
     generate.reset,
@@ -216,7 +225,7 @@ export function NewProductModal({
       tone="info"
       icon={<PackagePlus />}
       context="Catálogo · Productos"
-      title="Nuevo producto"
+      title={source ? "Clonar producto" : "Nuevo producto"}
       closable
       footer={
         <>
