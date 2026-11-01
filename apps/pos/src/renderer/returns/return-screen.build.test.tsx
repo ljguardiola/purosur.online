@@ -123,7 +123,13 @@ describe("ReturnScreen choosing what the customer returns", () => {
 
     await vi.waitFor(() =>
       expect(previewReturn).toHaveBeenLastCalledWith("sale-1", [
-        { sale_line_id: "line-pasta", quantity: 3, reason: null, disposition: null },
+        {
+          sale_line_id: "line-pasta",
+          quantity: 3,
+          reason: null,
+          disposition: null,
+          resolution: null,
+        },
       ]),
     );
     await expect

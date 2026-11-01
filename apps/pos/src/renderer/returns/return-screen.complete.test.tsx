@@ -43,15 +43,16 @@ describe("ReturnScreen completing the return", () => {
   });
 
   it("completes the exchange of a defective line without refunding any payment, and tells to hand over the exchanged units", async () => {
-    const { screen, completeReturn } = await renderScreen({
-      completeReturn: async () => ({
+    const completeReturn = vi.fn(
+      async (): Promise<CompleteReturnOutcome> => ({
         kind: "completed",
         return_id: "return-1",
         refunded_in_cash: 0,
         refunds: [],
         authorized_by: null,
       }),
-    });
+    );
+    const { screen } = await renderScreen({ completeReturn });
     await openReturn(screen);
     await chooseReturnLine(screen, "Pasta de maní 380 g", {
       reason: "Defecto",
