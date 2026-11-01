@@ -449,6 +449,8 @@ export {
   linkablePurchaseListSchema,
   linkablePurchaseSummarySchema,
 } from "./purchasing/linkable-purchase-summary.js";
+export type { OrderSuggestion } from "./purchasing/order-suggestion.js";
+export { orderSuggestionSchema } from "./purchasing/order-suggestion.js";
 export type { PurchaseChoices } from "./purchasing/purchase-choices.js";
 export { purchaseChoicesSchema } from "./purchasing/purchase-choices.js";
 export type { PurchaseRegistrationBody } from "./purchasing/purchase-registration.js";

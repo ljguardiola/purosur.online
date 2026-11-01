@@ -22,6 +22,10 @@ export const MIGRATION_TESTS = [
 
 export const ROUTE_INVENTORY_TEST = "apps/cloud/src/app.test.ts";
 
+export const APP_OPTIONS_TEST = "apps/cloud/src/server.test.ts";
+
+const CLOUD_APP = "apps/cloud/src/app.ts";
+
 const CLOUD_SOURCE = "apps/cloud/src/";
 
 function stemOf(path) {
@@ -82,11 +86,16 @@ function routeInventoryTestOfChangedRoutes(changedFiles) {
   return changedFiles.some(isCloudRouteFile) ? [ROUTE_INVENTORY_TEST] : [];
 }
 
+function appOptionsTestOfChangedApp(changedFiles) {
+  return changedFiles.includes(CLOUD_APP) ? [APP_OPTIONS_TEST] : [];
+}
+
 export function testsToRun({ testFiles, changedFiles, requestedFiles }) {
   const known = new Set(testFiles);
   const named = [
     ...testsApplyingChangedMigrations(changedFiles),
     ...routeInventoryTestOfChangedRoutes(changedFiles),
+    ...appOptionsTestOfChangedApp(changedFiles),
     ...requestedFiles,
   ];
   for (const testFile of named) {

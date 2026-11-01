@@ -3,6 +3,7 @@ import { statSync } from "node:fs";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import {
+  APP_OPTIONS_TEST,
   changedFilesSince,
   MIGRATION_TESTS,
   projectsOfSpecifications,
@@ -279,6 +280,54 @@ test("names a test file of the repository as the cloud's route inventory test", 
     statSync(`${root}${ROUTE_INVENTORY_TEST}`).isFile(),
     `${ROUTE_INVENTORY_TEST} is missing`,
   );
+});
+
+const CLOUD_APP_OPTIONS_TEST = "apps/cloud/src/server.test.ts";
+const TEST_FILES_WITH_APP_OPTIONS_TEST = [...TEST_FILES, CLOUD_APP_OPTIONS_TEST];
+
+test("runs the cloud's app options test when the cloud's app file is added, changed or removed", () => {
+  assert.deepEqual(
+    testsToRun({
+      testFiles: TEST_FILES_WITH_APP_OPTIONS_TEST,
+      changedFiles: ["apps/cloud/src/app.ts"],
+      requestedFiles: [],
+    }),
+    [CLOUD_APP_OPTIONS_TEST],
+  );
+});
+
+test("runs no app options test when only files other than the cloud's app file change", () => {
+  assert.deepEqual(
+    testsToRun({
+      testFiles: TEST_FILES_WITH_APP_OPTIONS_TEST,
+      changedFiles: [
+        "apps/cloud/src/app.test.ts",
+        "apps/cloud/src/catalog/app.ts",
+        "apps/cloud/src/test-support/app.ts",
+        "apps/pos/src/app.ts",
+      ],
+      requestedFiles: [],
+    }),
+    [],
+  );
+});
+
+test("refuses an app options test that is no longer a test file", () => {
+  assert.throws(
+    () =>
+      testsToRun({
+        testFiles: TEST_FILES,
+        changedFiles: ["apps/cloud/src/app.ts"],
+        requestedFiles: [],
+      }),
+    /apps\/cloud\/src\/server\.test\.ts is not a test file/,
+  );
+});
+
+test("names a test file of the repository as the cloud's app options test", () => {
+  const root = fileURLToPath(new URL("../../", import.meta.url));
+  assert.equal(APP_OPTIONS_TEST, CLOUD_APP_OPTIONS_TEST);
+  assert.ok(statSync(`${root}${APP_OPTIONS_TEST}`).isFile(), `${APP_OPTIONS_TEST} is missing`);
 });
 
 test("runs each project's files in a run of their own, one project after another", async () => {

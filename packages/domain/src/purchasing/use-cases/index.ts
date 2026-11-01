@@ -70,6 +70,14 @@ export type { ListedFreights } from "./list-freights.js";
 export { listFreights } from "./list-freights.js";
 export type { LinkablePurchase, LinkablePurchasesQuery } from "./list-linkable-purchases.js";
 export { listLinkablePurchases } from "./list-linkable-purchases.js";
+export type {
+  ListOrderSuggestionInput,
+  OrderSuggestion,
+  OrderSuggestionLine,
+  SuggestedOffer,
+  SuggestedUnpricedOffer,
+} from "./list-order-suggestion.js";
+export { listOrderSuggestion } from "./list-order-suggestion.js";
 export type { PurchaseChoices } from "./list-purchase-choices.js";
 export { listPurchaseChoices } from "./list-purchase-choices.js";
 export type { ListedPurchase, ListedPurchaseLine } from "./list-purchases.js";
@@ -96,6 +104,13 @@ export type {
   MarkSupplierPriceListRowReviewedOutcome,
 } from "./mark-supplier-price-list-row-reviewed.js";
 export { markSupplierPriceListRowReviewed } from "./mark-supplier-price-list-row-reviewed.js";
+export type {
+  OrderSuggestionReader,
+  OrderSuggestionSalesQuery,
+  OrderSuggestionSupplier,
+  ProductCoverageDays,
+  ProductStock,
+} from "./order-suggestion-reader.js";
 export type {
   ExtractedPriceListRow,
   PriceListExtraction,

@@ -1365,6 +1365,7 @@ describe("wiring the purchasing routes", () => {
       app.inject({ method: "PUT", url: `/api/freights/${ID}`, headers: ORIGIN }),
       app.inject({ method: "GET", url: "/api/freights/linkable-purchases" }),
       app.inject({ method: "GET", url: "/api/supplier-price-comparison" }),
+      app.inject({ method: "GET", url: "/api/order-suggestion" }),
       app.inject({ method: "GET", url: "/api/supplier-price-lists" }),
       app.inject({ method: "GET", url: "/api/supplier-price-lists/link-choices" }),
       app.inject({ method: "GET", url: "/api/supplier-price-lists/product-categories" }),
@@ -1430,7 +1431,7 @@ describe("wiring the purchasing routes", () => {
   it("does not register the purchasing routes when no purchasing option is given", async () => {
     const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
-    expect(await purchasingResponses(app)).toEqual(Array(32).fill(404));
+    expect(await purchasingResponses(app)).toEqual(Array(33).fill(404));
   });
 
   it("registers the purchasing routes when a purchasing option is given", async () => {
@@ -1444,7 +1445,7 @@ describe("wiring the purchasing routes", () => {
       },
     });
 
-    expect(await purchasingResponses(app)).toEqual(Array(32).fill(401));
+    expect(await purchasingResponses(app)).toEqual(Array(33).fill(401));
   });
 });
 
@@ -2924,6 +2925,11 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/supplier-price-comparison",
+        access: capabilityAccess("price_comparison"),
+      },
+      {
+        method: "GET",
+        url: "/api/order-suggestion",
         access: capabilityAccess("price_comparison"),
       },
       {

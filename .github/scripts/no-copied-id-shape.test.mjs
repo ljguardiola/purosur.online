@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import {
   checkFiles,
   findIdShapeCopies,
@@ -9,7 +10,7 @@ import {
   ID_SHAPE_PATH,
 } from "./no-copied-id-shape.mjs";
 
-const repoRoot = join(dirname(new URL(import.meta.url).pathname), "../..");
+const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 
 const PLATFORM_PATTERN = "/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i";
 

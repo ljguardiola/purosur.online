@@ -7,6 +7,7 @@ import type {
   FreightByPeriodQuery,
   FreightList,
   LinkablePurchaseList,
+  OrderSuggestion,
   PurchaseChoices,
   PurchaseSummary,
   PurchasesBySupplierBody,
@@ -33,6 +34,7 @@ import type {
   fetchFreights,
   fetchLinkablePurchases,
 } from "./freights-api";
+import type { fetchOrderSuggestion } from "./order-suggestion-api";
 import type { fetchPurchaseChoices, fetchPurchases } from "./purchases-api";
 import type { fetchPurchasesReport } from "./purchases-report-api";
 import type {
@@ -72,6 +74,7 @@ export const purchasingKeys = {
   productCreationBrands: [...purchasingKey, "product-creation-brands"] as const,
   productCreationTags: [...purchasingKey, "product-creation-tags"] as const,
   supplierPriceComparison: [...purchasingKey, "supplier-price-comparison"] as const,
+  orderSuggestion: [...purchasingKey, "order-suggestion"] as const,
 };
 
 export function purchasesReportKey(query: PurchasesBySupplierQuery) {
@@ -453,6 +456,19 @@ export function useSupplierPriceComparisonQuery(params: {
   return useCloudQuery<SupplierPriceComparison>({
     queryKey: purchasingKeys.supplierPriceComparison,
     read: params.fetchSupplierPriceComparison,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useOrderSuggestionQuery(params: {
+  fetchOrderSuggestion: typeof fetchOrderSuggestion;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<OrderSuggestion>({
+    queryKey: purchasingKeys.orderSuggestion,
+    read: params.fetchOrderSuggestion,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

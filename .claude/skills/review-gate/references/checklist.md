@@ -49,25 +49,44 @@ how a new one is judged.
   namespace); it refuses correct code that reads alike or that its own hint
   suggests (a renumbering hint that sorts before the last migration); or it
   is narrowed while its own test still expects the removed cases to pass.
-- A decision made from state other than the one in effect when it applies:
-  an answer computed from the session before the operation changed it
-  (`may_edit: true` to an Administrator who just left the role), a check
-  made before the lock and never again under it, or rows locked in the
-  opposite order of another operation that touches them.
-- A failure path out of step with what failed: a handler that replaces the
-  error it caught, so its kind never reaches what reacts to it; an outside
-  call whose outcome is unknown (a timeout) recorded as one that did nothing;
-  or a failure whose effect reaches past or stops short of the work it
-  failed (one item's error halting a sweep over many, a follow-up enqueued
-  only on the path that succeeds, so half-done work waits for nothing).
-- A value one side of a boundary produces or accepts that the other side
-  refuses or reads otherwise: a stricter shape in place of the reader it
-  replaced, a plain-object lookup of a received code that answers for
-  `constructor`, or a limit two layers apply in different units.
-- A key, guard or bound wider or narrower than what it identifies: an alert
-  deduplicated by a scope wider than what it flags, a recorded child row
-  checked only by its foreign key, or a "latest" record picked by wall-clock
-  time, so a clock set back hides the newest.
+- A decision, a result or a recorded state out of step with the state in
+  effect when it applies: read before the operation changed it or outside
+  the lock that holds it, taken under locks another operation takes in the
+  opposite order, assembled from reads with no shared snapshot or one item
+  at a time where the whole set decides, or left standing after what it
+  records ended because only a signal the source stops sending clears it,
+  such as an answer computed from the session before the operation changed
+  it (`may_edit: true` to an Administrator who just left the role), sale and
+  line discounts read in two statements so a sale applied between them shows
+  half of its discounts, or rows locked in the opposite order of another
+  operation that touches them.
+- A failure path or an effect out of step with the work it goes with: an
+  error replaced so its kind never reaches what reacts to it, an outside
+  call recorded as other than what happened, an effect reaching past or
+  stopping short of the work it belongs to, so half-done work waits for
+  nothing or one of two quantities kept equal moves alone, or a record kept
+  alive only through something another job removes on its own schedule, such
+  as a document refused locally before any request counted as sent against a
+  cap, one item's error halting a sweep over many, or a follow-up enqueued
+  only on the path that succeeds.
+- A value one side of a boundary or a move produces or accepts that the
+  other side refuses or reads otherwise: a reader replaced by a stricter
+  one, a received code, a limit or typed text read differently by each layer
+  or each search of the same app, or a detail the original rendered for some
+  inputs left out of the copy that now serves them, such as a plain-object
+  lookup of a received code that answers for `constructor`, a limit two
+  layers apply in different units, or typed text folded by Postgres
+  `unaccent` in one list and by stripped NFD marks in another, so one finds
+  a record the other misses.
+- A key, guard, bound or derived value taken over another set than the one
+  it stands for: wider or narrower than what it identifies, applied on only
+  some of the paths into what it guards, true of an empty set or blind to
+  what is missing, built on a predicate the change widened elsewhere, a
+  share of a total other than the sum of its parts, or left unbounded over
+  an open-ended range, such as an alert deduplicated by a scope wider than
+  what it flags, an event taken in above a hole without its link check and
+  then acknowledged by the push that fills the hole, or a "latest" record
+  picked by wall-clock time, so a clock set back hides the newest.
 
 ### Structure
 
@@ -85,19 +104,26 @@ how a new one is judged.
 
 ### Business rules and boundaries
 
-- A screen out of step with what the cloud or the core answers: an action
-  hidden from a row's flag (`isAdministrator`) while the cloud decides it
-  with a domain predicate (`isRoleEditable`), a refund's state read from its
-  method instead of its `state`, or an action offered to everyone who
-  reaches the screen while its route requires another permission.
+- A screen deriving, ignoring or contradicting what the cloud or the core
+  answers: an action hidden from a row's flag (`isAdministrator`) while the
+  cloud decides it with a domain predicate (`isRoleEditable`), a picker
+  offering every record while the answer carries each one's flag
+  (`may_remove_passkey` dropped when mapping the list), a summary taken from
+  the list's first row instead of the one the answer names, or an action
+  offered to everyone who reaches the screen while its route requires
+  another permission.
 - A screen deciding about its own form through a contracts shape other than
   the one it validates the form with, or using a request shape's parse only
   as a yes/no while it sends a body built separately.
-- A read of another concept declared as a port of the concept that needs it
-  instead of a read port of its own concept.
+- A read of another concept whose adapter decides its business meaning
+  itself: a condition written in the query where the owning concept has the
+  domain function that answers it (an alert detector comparing a code's
+  expiry with `now()` in SQL instead of applying the owner's validity
+  function).
 - A business outcome decided outside the predicate that owns it: an answer
-  about what an operation allows computed by another predicate than the
-  operation applies, an adapter turning what a port records into another
+  about what an operation allows computed by another predicate, or from
+  fewer facts, than the operation applies (a sale's voidability read from
+  its first fiscal document while the void weighs all of them), an adapter turning what a port records into another
   concept's outcome, or a scope the model declares applied only where a list
   offers its options while the use case that writes accepts any (packagings
   offered for active products while creating one accepts a deactivated
@@ -105,14 +131,17 @@ how a new one is judged.
 
 ### Screens
 
-- A screen hand-writing what a `packages/ui` piece named in build-screen
-  covers, such as a panel total as `Eyebrow` plus a `text-display` figure
-  where `FigureStat` exists.
+- A screen out of step with the `packages/ui` pieces: hand-writing what a
+  piece named in build-screen covers (a panel total as `Eyebrow` plus a
+  `text-display` figure where `FigureStat` exists), or giving a piece more
+  items than its layout is made for (an unbounded list of supplier prices in
+  `OptionCardGroup`'s non-wrapping row).
 - A screen standing in for an answer it does not have: an action the cloud
   answers for shown disabled from a defaulted flag while the record loads, a
   URL filter rewritten as not offered because its options failed to load, or
   an item shown as being checked, with a busy indicator, while the only
-  attempt already failed.
+  attempt already failed, or a row action left enabled that does nothing,
+  with no request or notice, while another row's request is out.
 - A query out of step with what changes it: a value left stale by an
   operation that changes it (a register status no charge outcome
   invalidates); a key invalidated again beside one that already contains
@@ -122,8 +151,10 @@ how a new one is judged.
   its next opening, a late success whose list refresh is dropped, or a late
   callback resetting a later opening.
 - A guard out of step with what it guards: every route to a screen refused
-  while the core refuses only one action, or a person sent back to the
-  screen they are leaving.
+  while the core refuses only one action, a person sent back to the screen
+  they are leaving, or an action left pressable while its own request is
+  out, so a second press sends it again and its refusal replaces the first
+  answer's notice.
 
 ### User-facing text
 
@@ -186,8 +217,11 @@ how a new one is judged.
 - A migration that leaves data or rights other than the schema means: a
   backfill that guesses what old rows cannot prove (every recovery link
   marked sent while some failed and await a retry), a column for a shown
-  value added with no backfill from what the database already records, or a
-  table the schema calls append-only left writable by `cloud_app`.
+  value added with no backfill from what the database already records, a new
+  record of what the system does shown for work done before it existed as if
+  nothing happened (a list read with AI before the cost table existed shown
+  as costing US$ 0 with no mark), or a table the schema calls append-only
+  left writable by `cloud_app`.
 
 ### Data
 

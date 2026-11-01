@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import { dirname, join } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import { findQueryRootKeyProblems, QUERY_KEY_SOURCES } from "./query-root-keys.mjs";
 import { IMPORTS, projectWith, TSCONFIG } from "./test-support/query-root-keys.mjs";
 
-const repoRoot = join(dirname(new URL(import.meta.url).pathname), "../..");
+const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 
 function problemsIn(t, files, foldersOutsideConcepts = []) {
   return findQueryRootKeyProblems(
