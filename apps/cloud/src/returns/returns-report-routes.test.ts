@@ -4,6 +4,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { insertRegisterOf } from "../fiscal/test-support/issued-document-fixtures.js";
 import { users } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { applyVoidedSale } from "../sales/test-support/applied-sales.js";
 import { aSoldLine } from "../sales/test-support/sold-lines.js";
 import {
   BACKOFFICE_ORIGIN,
@@ -113,6 +114,18 @@ describe("GET /reports/returns", () => {
       range: { from: "2026-10-06", to: "2026-10-06" },
       typed: { rows: [], totals: { returns: 0, refunded: 0 } },
       scanned: { rows: [], totals: { returns: 0, refunded: 0 } },
+      voids: { rows: [], totals: { voids: 0, voided: 0 } },
+      totals: {
+        voids: 0,
+        voided: 0,
+        returns: 0,
+        refunded: 0,
+        refunded_lines: 0,
+        exchanged_lines: 0,
+        typed_returns: 0,
+      },
+      by_cashier: [],
+      by_authorizer: [],
     });
   });
 
@@ -173,6 +186,7 @@ describe("GET /reports/returns", () => {
                 quantity: 300,
                 reason: "defective",
                 disposition: "discard",
+                resolution: "refund",
                 refunded: 1_200,
               },
             ],
@@ -185,6 +199,40 @@ describe("GET /reports/returns", () => {
         rows: [expect.objectContaining({ return_id: scanned.saleReturn.id })],
         totals: { returns: 1, refunded: 2_400 },
       },
+      voids: { rows: [], totals: { voids: 0, voided: 0 } },
+      totals: {
+        voids: 0,
+        voided: 0,
+        returns: 2,
+        refunded: 3_600,
+        refunded_lines: 2,
+        exchanged_lines: 0,
+        typed_returns: 1,
+      },
+      by_cashier: [
+        {
+          cashier: { id: cashierId, name: "Ana" },
+          voids: 0,
+          voided: 0,
+          returns: 2,
+          refunded: 3_600,
+          refunded_lines: 2,
+          exchanged_lines: 0,
+          typed_returns: 1,
+        },
+      ],
+      by_authorizer: [
+        {
+          authorizer: null,
+          voids: 0,
+          voided: 0,
+          returns: 2,
+          refunded: 3_600,
+          refunded_lines: 2,
+          exchanged_lines: 0,
+          typed_returns: 1,
+        },
+      ],
     });
   });
 
@@ -222,5 +270,76 @@ describe("GET /reports/returns", () => {
     expect(response.json().scanned.rows.map((row: { return_id: string }) => row.return_id)).toEqual(
       [wanted.saleReturn.id],
     );
+  });
+
+  it("reports a voided sale as the wire describes it, with the totals and summaries it feeds", async () => {
+    const { headers, locationId } = await signedInWith(db, ["view_returns_report"], NOW);
+    const { deviceId, registerId } = await aRegister("Caja 1");
+    const voiderId = randomUUID();
+    const authorizerId = randomUUID();
+    await db.insert(users).values([
+      { id: voiderId, firstName: "Ana", email: "ana@example.com", locationId },
+      { id: authorizerId, firstName: "Beto", email: "beto@example.com", locationId },
+    ]);
+    const voided = await applyVoidedSale(db, {
+      deviceId,
+      completedAt: SOLD,
+      voidedAt: RETURNED,
+      completed: { operationNumber: 9, total: 5_000 },
+      voided: { authorizedBy: authorizerId },
+      voidedBy: voiderId,
+    });
+
+    const response = await returnsReport(headers, range);
+
+    const summary = {
+      voids: 1,
+      voided: 5_000,
+      returns: 0,
+      refunded: 0,
+      refunded_lines: 0,
+      exchanged_lines: 0,
+      typed_returns: 0,
+    };
+    expect(response.json()).toMatchObject({
+      voids: {
+        rows: [
+          {
+            sale: { id: voided.id, operation_number: 9, invoice: null },
+            voided_at: "2026-10-06T14:00:00.000Z",
+            register: { id: registerId, name: "Caja 1" },
+            cashier: { id: voiderId, name: "Ana" },
+            authorizer: { id: authorizerId, name: "Beto" },
+            total: 5_000,
+          },
+        ],
+        totals: { voids: 1, voided: 5_000 },
+      },
+      totals: summary,
+      by_cashier: [{ cashier: { id: voiderId, name: "Ana" }, ...summary }],
+      by_authorizer: [{ authorizer: { id: authorizerId, name: "Beto" }, ...summary }],
+    });
+  });
+
+  it("reports only the voided sales of the branch of the session and of the register asked for", async () => {
+    const { headers } = await signedInWith(db, ["view_returns_report"], NOW);
+    const first = await aRegister("Caja 1");
+    const second = await aRegister("Caja 2", first.locationId);
+    const elsewhere = await aRegister("Caja otra", await insertLocation(db));
+    for (const { deviceId } of [first, elsewhere]) {
+      await applyVoidedSale(db, { deviceId, completedAt: SOLD, voidedAt: RETURNED, completed: {} });
+    }
+    const wanted = await applyVoidedSale(db, {
+      deviceId: second.deviceId,
+      completedAt: SOLD,
+      voidedAt: RETURNED,
+      completed: {},
+    });
+
+    const response = await returnsReport(headers, `${range}&register_id=${second.registerId}`);
+
+    expect(
+      response.json().voids.rows.map((voidRow: { sale: { id: string } }) => voidRow.sale.id),
+    ).toEqual([wanted.id]);
   });
 });
