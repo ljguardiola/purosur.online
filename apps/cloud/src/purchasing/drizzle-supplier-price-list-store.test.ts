@@ -10,6 +10,7 @@ import {
   supplierPriceListExtractionCaps,
   supplierPriceListRows,
 } from "../platform/db/schema.js";
+import { constraintViolatedBy } from "../test-support/constraint-violated-by.js";
 import {
   NOW,
   supplierPriceListStoreDatabase,
@@ -1060,17 +1061,6 @@ describe("linking and reviewing a row", () => {
     ]);
   });
 });
-
-function constraintViolatedBy(error: unknown, name: string): boolean {
-  let current: unknown = error;
-  while (current instanceof Error) {
-    if ((current as { constraint?: unknown }).constraint === name) {
-      return true;
-    }
-    current = current.cause;
-  }
-  return false;
-}
 
 describe("recording the AI calls of an operation", () => {
   const record = (overrides: Partial<AiCallRecord> & { listId: string }): AiCallRecord => ({

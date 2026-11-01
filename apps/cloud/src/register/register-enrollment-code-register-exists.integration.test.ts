@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import { registerEnrollmentCodes } from "../platform/db/schema.js";
+import { constraintViolatedBy } from "../test-support/constraint-violated-by.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
@@ -37,9 +37,7 @@ describe("the register enrollment codes table on a real Postgres", () => {
         expiresAt: new Date(issuedAt.getTime() + 60_000),
       }),
     ).rejects.toSatisfy((error) =>
-      postgresErrorChain(error).some(
-        (link) => link.constraint === "register_enrollment_codes_register_id_registers_id_fk",
-      ),
+      constraintViolatedBy(error, "register_enrollment_codes_register_id_registers_id_fk"),
     );
   });
 });
