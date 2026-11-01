@@ -57,7 +57,7 @@ test("titles the replacements of defective exchanges with their own label", asyn
   const screen = await renderSection(defectiveExchangeReason);
 
   const exchange = screen.getByRole("region", { name: "Cambio por defectuoso" });
-  await expect.element(exchange.getByText("1 kg")).toBeVisible();
+  await expect.element(exchange.getByText("1,000 kg")).toBeVisible();
 });
 
 test("marks its table busy while the report reads again", async () => {
