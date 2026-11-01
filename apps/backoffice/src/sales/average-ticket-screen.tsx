@@ -12,7 +12,10 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { Receipt } from "lucide-react";
+import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import { ReportDownload } from "../shell/report-download";
+import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import { reportQueryOf } from "../shell/report-filters-search";
 import type { ReportRegisterField } from "../shell/report-register-field";
@@ -20,6 +23,7 @@ import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
 import type { AverageTicketFilters } from "./average-ticket-filters";
 import type { AverageTicketScreenServices } from "./average-ticket-services";
+import { averageTicketSpreadsheet } from "./average-ticket-spreadsheet";
 import { reportPeriodText } from "./report-period-text";
 import { useAverageTicketQuery } from "./sales-queries";
 
@@ -36,6 +40,7 @@ type WeekRow = AverageTicketBody["weeks"][number];
 const NO_WEEKS: WeekRow[] = [];
 
 const NO_FIGURE = "—";
+const SCREEN_TITLE = "Ticket promedio";
 
 function averageTicketText(averageTicket: number | null): string {
   return averageTicket === null ? NO_FIGURE : formatCents(averageTicket);
@@ -89,6 +94,7 @@ export function AverageTicketScreen({
   services,
 }: AverageTicketScreenProps) {
   const registerChosen = filters.register !== "ALL";
+  const [registerLabel, setRegisterLabel] = useState("Todas");
   const data = useAverageTicketQuery({
     query: reportQueryOf(filters),
     fetchAverageTicket: services.fetchAverageTicket,
@@ -106,7 +112,7 @@ export function AverageTicketScreen({
 
   return (
     <ScreenLayout
-      topBar={<ScreenTopBar eyebrow="Reportes · Ventas" title="Ticket promedio" />}
+      topBar={<ScreenTopBar eyebrow="Reportes · Ventas" title={SCREEN_TITLE} />}
       bodyClassName="gap-4 p-6"
     >
       <div className="flex flex-wrap items-end gap-3">
@@ -115,6 +121,22 @@ export function AverageTicketScreen({
           onFiltersChange={onFiltersChange}
           answeredPeriod={shown?.range}
           registerFilter={registerFilter}
+          onRegisterLabelChange={setRegisterLabel}
+          trailing={
+            <ReportDownload
+              dataStatus={data.status}
+              workbook={() =>
+                shown
+                  ? averageTicketSpreadsheet(
+                      shown,
+                      table.getRowModel().rows.map((row) => row.original),
+                      registerLabel,
+                    )
+                  : null
+              }
+              fileName={shown ? reportFileName(SCREEN_TITLE, shown.range) : ""}
+            />
+          }
         />
       </div>
       {data.status === "failed" ? null : (
