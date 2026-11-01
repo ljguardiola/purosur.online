@@ -333,6 +333,7 @@ export function aReturnedSaleFact(
           quantity: 1,
           reason: "change_of_mind",
           disposition: "restock",
+          resolution: "refund",
           refundedAmount: 1000,
         },
       ],

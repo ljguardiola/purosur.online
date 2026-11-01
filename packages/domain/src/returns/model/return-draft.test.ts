@@ -208,7 +208,7 @@ describe("assessReturnDraft", () => {
   it("accepts part of a buy-N-pay-M line when the reason is a defect, refunding its share of what was charged", () => {
     expect(
       assessReturnDraft(sale(WITHIN_WINDOW), [
-        draftLine({ saleLineId: "line-2", quantity: 3, reason: "defective" }),
+        draftLine({ saleLineId: "line-2", quantity: 3, reason: "defective", resolution: "refund" }),
       ])[0],
     ).toMatchObject({ refusal: null, refundAmount: 3000 });
   });
@@ -243,7 +243,7 @@ describe("assessReturnDraft", () => {
 
     expect(
       assessReturnDraft(sale(WITHIN_WINDOW, [unknown]), [
-        draftLine({ saleLineId: "line-2", quantity: 3, reason: "defective" }),
+        draftLine({ saleLineId: "line-2", quantity: 3, reason: "defective", resolution: "refund" }),
       ])[0],
     ).toMatchObject({ refusal: null, refundAmount: 3000 });
   });
@@ -254,7 +254,12 @@ describe("assessReturnDraft", () => {
       soldQuantity: 3,
       chargedAmount: 20_000,
     };
-    const defective = draftLine({ saleLineId: "line-2", quantity: 1, reason: "defective" });
+    const defective = draftLine({
+      saleLineId: "line-2",
+      quantity: 1,
+      reason: "defective",
+      resolution: "refund",
+    });
 
     expect(assessReturnDraft(sale(WITHIN_WINDOW, [threeForTwo]), [defective])[0]).toMatchObject({
       refusal: null,
@@ -292,11 +297,18 @@ describe("assessReturnDraft", () => {
   });
 
   it("still accepts that same line as defective", () => {
-    expect(refusalOf(sale(PAST_CHANGE_OF_MIND), draftLine({ reason: "defective" }))).toBeNull();
+    expect(
+      refusalOf(
+        sale(PAST_CHANGE_OF_MIND),
+        draftLine({ reason: "defective", resolution: "refund" }),
+      ),
+    ).toBeNull();
   });
 
   it("refuses a defect after six months, saying the last day it was allowed", () => {
-    expect(refusalOf(sale(PAST_DEFECT), draftLine({ reason: "defective" }))).toEqual({
+    expect(
+      refusalOf(sale(PAST_DEFECT), draftLine({ reason: "defective", resolution: "refund" })),
+    ).toEqual({
       saleLineId: "line-1",
       refusal: { kind: "outside_window", reason: "defective", lastAllowedDay: "2027-03-12" },
     });

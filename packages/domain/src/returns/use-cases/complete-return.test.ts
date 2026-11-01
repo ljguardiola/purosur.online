@@ -1133,7 +1133,7 @@ describe("completeReturn resolution", () => {
         delta: -2000,
       }),
     ]);
-    expect(store.state.stockBalances.yerba).toBe(1000);
+    expect(store.state.stockBalances["yerba"]).toBe(1000);
   });
 
   it("throws the returned unit away as a loss when it is discarded and still sends the replacement out", async () => {
@@ -1148,7 +1148,7 @@ describe("completeReturn resolution", () => {
       ["loss", "return_discard", -2000],
       ["exchange_out", null, -2000],
     ]);
-    expect(store.state.stockBalances.yerba).toBe(-1000);
+    expect(store.state.stockBalances["yerba"]).toBe(-1000);
   });
 
   it("sends the same weight out for a line sold by weight", async () => {
@@ -1173,7 +1173,7 @@ describe("completeReturn resolution", () => {
 
     expect(outcome).toMatchObject({ kind: "completed" });
     expect(store.state.stockMovements.at(-1)).toMatchObject({ kind: "exchange_out", delta: -2000 });
-    expect(store.state.stockBalances.yerba).toBe(-2000);
+    expect(store.state.stockBalances["yerba"]).toBe(-2000);
   });
 
   it("issues no credit note when every line was exchanged", async () => {
