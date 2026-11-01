@@ -123,9 +123,7 @@ export function SalesByProductAndCategoryScreen({
 
   return (
     <ScreenLayout
-      topBar={
-        <ScreenTopBar eyebrow="Reportes · Ventas" title={SCREEN_TITLE} />
-      }
+      topBar={<ScreenTopBar eyebrow="Reportes · Ventas" title={SCREEN_TITLE} />}
       bodyClassName="gap-4 p-6"
     >
       <div className="flex flex-wrap items-end gap-3">

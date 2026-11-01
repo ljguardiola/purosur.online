@@ -1,6 +1,6 @@
 import type { SalesByProductAndCategoryBody } from "@purosur/contracts";
-import { type Cell, cell, type Workbook } from "../platform/spreadsheet/workbook";
 import { shareOfTotal } from "../platform/share-of-total";
+import { type Cell, cell, type Workbook } from "../platform/spreadsheet/workbook";
 import { periodSummaryRows, summarySheet } from "../shell/report-summary-sheet";
 import { soldRowLabel } from "./sold-row-label";
 
@@ -36,15 +36,13 @@ export function salesByProductAndCategorySpreadsheet(
           "Importe",
           "Parte del total",
         ],
-        rows: rows.map(
-          (row): Cell[] => [
-            cell.text(soldRowLabel(row)),
-            cell.count(row.units),
-            cell.weight(row.thousandths),
-            cell.money(row.amount),
-            cell.percent(shareOfTotal(row.amount, shown.totals.amount) * 100),
-          ],
-        ),
+        rows: rows.map((row): Cell[] => [
+          cell.text(soldRowLabel(row)),
+          cell.count(row.units),
+          cell.weight(row.thousandths),
+          cell.money(row.amount),
+          cell.percent(shareOfTotal(row.amount, shown.totals.amount) * 100),
+        ]),
       },
     ],
   };
