@@ -1,5 +1,5 @@
 import type { ProductBrandAndNetContent } from "../../catalog/index.js";
-import { codeUnitOrder } from "./report-order.js";
+import { compareCodeUnits, compareSpanishPaths } from "../../shared/index.js";
 import { saleUnitOfWeightSource, soldQuantity } from "./sale-line.js";
 import type { WeightSource } from "./weight-source.js";
 
@@ -22,13 +22,11 @@ export interface SalesOfGroup extends SoldTotals, ProductBrandAndNetContent {
   path: readonly string[];
 }
 
-const PATH_ORDER_SEPARATOR = "\u0000";
-
 function groupOrder(a: SalesOfGroup, b: SalesOfGroup): number {
   return (
     b.amount - a.amount ||
-    codeUnitOrder(a.path.join(PATH_ORDER_SEPARATOR), b.path.join(PATH_ORDER_SEPARATOR)) ||
-    codeUnitOrder(String(a.id), String(b.id))
+    compareSpanishPaths(a.path, b.path) ||
+    compareCodeUnits(String(a.id), String(b.id))
   );
 }
 

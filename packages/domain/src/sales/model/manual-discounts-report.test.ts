@@ -270,6 +270,19 @@ describe("manualDiscountRows", () => {
 });
 
 describe("manualDiscountAuthorizers", () => {
+  it("orders authorizers by name as a Spanish reader does", () => {
+    const rows = manualDiscountRows(
+      recordsOf([
+        saleDiscount("s1", { actorId: "a", actorName: "Zoe" }),
+        saleDiscount("s2", { actorId: "b", actorName: "Caja 10" }),
+        saleDiscount("s3", { actorId: "c", actorName: "Caja 2" }),
+        saleDiscount("s4", { actorId: "d", actorName: "ana" }),
+      ]),
+    );
+
+    expect(manualDiscountAuthorizers(rows).map((row) => row.id)).toEqual(["d", "c", "b", "a"]);
+  });
+
   it("lists each person who authorized a discount once, ordered by name and then id", () => {
     const rows = manualDiscountRows(
       recordsOf([
@@ -353,7 +366,7 @@ describe("manualDiscountTotals", () => {
     expect(manualDiscountTotals(rows).mostAuthorized?.id).toBe("b");
   });
 
-  it("breaks a tie of discounts and amount by name, comparing code units and a missing name last", () => {
+  it("breaks a tie of discounts and amount by name as a Spanish reader does, a missing name last", () => {
     const rows = manualDiscountRows(
       recordsOf([
         saleDiscount("s1", { actorId: "a", actorName: null }),

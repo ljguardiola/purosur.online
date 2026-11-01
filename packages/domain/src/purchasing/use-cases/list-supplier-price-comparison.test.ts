@@ -256,6 +256,29 @@ describe("listSupplierPriceComparison", () => {
     ]);
   });
 
+  it("orders products of one name by the code units of their id", async () => {
+    const reader = new FakeSupplierPriceComparisonReader([
+      { ...YERBA, id: "a9", name: "Yerba" },
+      { ...YERBA, id: "B1", name: "Yerba" },
+      { ...YERBA, id: "a10", name: "Yerba" },
+    ]);
+
+    const products = await listSupplierPriceComparison(reader);
+
+    expect(products.map((product) => product.id)).toEqual(["B1", "a10", "a9"]);
+  });
+
+  it("orders the numbers inside product names by their value", async () => {
+    const reader = new FakeSupplierPriceComparisonReader([
+      { ...YERBA, id: "1", name: "Yerba 10" },
+      { ...YERBA, id: "2", name: "Yerba 2" },
+    ]);
+
+    const products = await listSupplierPriceComparison(reader);
+
+    expect(products.map((product) => product.id)).toEqual(["2", "1"]);
+  });
+
   it("orders the products by name, ignoring accents and case, then by id", async () => {
     const reader = new FakeSupplierPriceComparisonReader([
       { ...YERBA, id: "3", name: "yerba" },

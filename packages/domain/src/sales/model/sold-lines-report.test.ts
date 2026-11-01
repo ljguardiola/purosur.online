@@ -142,7 +142,7 @@ describe("salesOfGroups", () => {
     ).toEqual(["a", "m1", "m2", "z"]);
   });
 
-  it("orders groups of the same amount by the code units of their path, whatever the locale", () => {
+  it("orders groups of the same amount by their path as a Spanish reader does", () => {
     expect(
       salesOfGroups([
         unitLines("lower", ["a"], 1, 100),
@@ -150,7 +150,26 @@ describe("salesOfGroups", () => {
         unitLines("enye", ["Ñandú"], 1, 100),
         unitLines("n", ["Nuez"], 1, 100),
       ]).map((sales) => sales.id),
-    ).toEqual(["upper", "n", "lower", "enye"]);
+    ).toEqual(["lower", "upper", "n", "enye"]);
+  });
+
+  it("orders the numbers inside a path by their value", () => {
+    expect(
+      salesOfGroups([
+        unitLines("ten", ["Piso 10"], 1, 100),
+        unitLines("two", ["Piso 2"], 1, 100),
+      ]).map((sales) => sales.id),
+    ).toEqual(["two", "ten"]);
+  });
+
+  it("orders groups of the same amount and path by the code units of their id", () => {
+    expect(
+      salesOfGroups([
+        unitLines("a9", ["Queso"], 1, 100),
+        unitLines("B1", ["Queso"], 1, 100),
+        unitLines("a10", ["Queso"], 1, 100),
+      ]).map((sales) => sales.id),
+    ).toEqual(["B1", "a10", "a9"]);
   });
 
   it("orders a group of the same amount right after its parent, before a sibling of the parent sharing its name", () => {
