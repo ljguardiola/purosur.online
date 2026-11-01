@@ -2382,6 +2382,78 @@ test("does not announce an escalation for a deferred sale alert that already esc
   await expect.element(screen.getByText(/Escala a crítica/)).not.toBeInTheDocument();
 });
 
+function exceptionShareBreachAlert(nonCompliantMonths: string[]) {
+  return baseDetail({
+    kind: "exception_share_breach",
+    level: "critical",
+    audience: "all",
+    scope: "fiscal-address-1:2026-09",
+    scopeDisplay: "Local Centro:2026-09",
+    scopeKind: "fiscalAddressMonth",
+    closing: "by_hand",
+    detail: {
+      fiscalAddressId: "fiscal-address-1",
+      fiscalAddressName: "Local Centro",
+      month: "2026-09",
+      exceptionCount: 6,
+      totalCount: 100,
+      nonCompliantMonths,
+    },
+  });
+}
+
+test("tells that ARCA may restrict the offline authorization of a fiscal address and that nothing is restricted at the counter, without saying it was lost", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(exceptionShareBreachAlert(["2026-03", "2026-09"])),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(screen.getByText("Límite de comprobantes por excepción alcanzado", { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "En septiembre de 2026 se emitieron por excepción (CAEA) 6 de 100 comprobantes de este domicilio fiscal, el 5 % o más. ARCA puede restringir el uso del CAEA y lo comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Conviene revisar por qué se emitieron por contingencia y consultar el Domicilio Fiscal Electrónico.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect.element(screen.getByText(/perdi/i)).not.toBeInTheDocument();
+  await expect
+    .element(screen.getByText("Local Centro · Septiembre 2026", { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(screen.getByText("Meses que incumplieron en 2026: marzo, septiembre", { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText("No se cierra sola: se cierra a mano después de revisarla.", {
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("says a single comprobante in the singular when a fiscal address issued only one", async () => {
+  const services = createServices();
+  const alert = exceptionShareBreachAlert(["2026-09"]);
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      alert.kind === "exception_share_breach"
+        ? { ...alert, detail: { ...alert.detail, exceptionCount: 1, totalCount: 1 } }
+        : alert,
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByText(/se emitieron por excepción \(CAEA\) 1 de 1 comprobante de este/)).toBeVisible();
+});
+
 test("says a register has never had a verified backup when it has none to name", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(

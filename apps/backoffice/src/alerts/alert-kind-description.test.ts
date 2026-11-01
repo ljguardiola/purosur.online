@@ -154,6 +154,12 @@ test("describes a presentation whose document ARCA rejected and that waits for i
   );
 });
 
+test("describes a month in which a fiscal address reached the share of vouchers issued by exception", () => {
+  expect(alertKindDescription("exception_share_breach")).toBe(
+    "Un domicilio fiscal emitió en un mes el 5 % o más de sus comprobantes por excepción (CAEA)",
+  );
+});
+
 test("describes a deferred sale that is not invoiced yet and nears the day it can no longer be", () => {
   expect(alertKindDescription("deferred_sale_due")).toBe(
     "Una venta diferida todavía no se facturó y se acerca el día en que ya no podrá facturarse.",
