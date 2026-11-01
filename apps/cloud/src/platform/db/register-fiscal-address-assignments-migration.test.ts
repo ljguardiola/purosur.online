@@ -191,7 +191,7 @@ describe("the register fiscal address assignments migration applied over a datab
     const addressId = (name: string) => rows.find((row) => row.name === name)?.id ?? "";
     const countsOf = async (name: string) =>
       (await reader.monthlyVoucherCounts({ fiscalAddressId: addressId(name), year: 2026 })).sort(
-        (a, b) => a.month.localeCompare(b.month),
+        (a, b) => (a.month < b.month ? -1 : 1),
       );
 
     expect(await countsOf("Deposito Central")).toEqual([
