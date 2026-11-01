@@ -317,6 +317,7 @@ describe("createProduct", () => {
       brandId: null,
       saleUnit: "UNIT" as const,
       netContent: null,
+      coverageDays: 15,
       tagIds: [],
     };
 
@@ -546,6 +547,7 @@ describe("createProduct", () => {
       saleUnit: "UNIT" as const,
       barcodes: ["111"],
       netContent: null,
+      coverageDays: 15,
     };
 
     expect(

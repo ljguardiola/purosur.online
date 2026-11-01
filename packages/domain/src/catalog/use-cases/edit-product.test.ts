@@ -268,6 +268,7 @@ describe("editProduct", () => {
           barcodes,
           tagIds: [],
           netContent: null,
+          coverageDays: 15,
           version,
         },
       );
@@ -1396,6 +1397,7 @@ describe("editProduct", () => {
           barcodes: ["111"],
           tagIds: [],
           netContent: null,
+          coverageDays: 15,
           version,
         },
       );
