@@ -83,7 +83,7 @@ async function offerFrom(
   });
 }
 
-const get = (headers?: Record<string, string>) =>
+const get = (headers: Record<string, string> = {}) =>
   app.inject({ method: "GET", url: "/order-suggestion", headers });
 
 describe("GET /order-suggestion", () => {
