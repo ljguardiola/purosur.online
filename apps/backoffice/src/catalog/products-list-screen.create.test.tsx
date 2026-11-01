@@ -38,6 +38,7 @@ test("creates a product and shows it in the list", async () => {
     barcodes: ["7790000000099"],
     tagIds: [],
     netContent: null,
+    coverageDays: 15,
     active: true,
     labelCode: null,
     labelModules: null,
@@ -74,6 +75,7 @@ test("creates a product and shows it in the list", async () => {
     barcodes: ["7790000000099"],
     tagIds: [],
     netContent: null,
+    coverageDays: 15,
   });
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.element(screen.getByText("Pasta de maní 380 g")).toBeVisible();

@@ -351,6 +351,7 @@ test("shows a stale-version conflict banner, and reloading restores the fresh pr
     barcodes: ["7790987000015"],
     tagIds: [],
     netContent: null,
+    coverageDays: 15,
     version: 2,
   });
 });
@@ -435,6 +436,7 @@ test("saving an edit includes a code typed in the scan input but not yet confirm
     barcodes: ["7790987000015", "7790000000099"],
     tagIds: [],
     netContent: null,
+    coverageDays: 15,
     version: 1,
   });
 });

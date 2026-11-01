@@ -458,6 +458,7 @@ test("creating includes a code typed in the scan input but not yet confirmed wit
     barcodes: ["7790000000099"],
     tagIds: [],
     netContent: null,
+    coverageDays: 15,
   });
 });
 
@@ -516,6 +517,7 @@ test("generates an internal code, adds it to the list, and saves the product wit
     barcodes: ["2000000000015"],
     tagIds: [],
     netContent: null,
+    coverageDays: 15,
   });
 });
 
@@ -732,6 +734,7 @@ test("creates a brand in a modal stacked over the product form, then selects it 
     barcodes: ["111"],
     tagIds: [],
     netContent: null,
+    coverageDays: 15,
   });
   await expect.poll(() => onCreated.mock.calls.length).toBe(1);
   expect(onCreated).toHaveBeenCalledWith({ ...honey, brandId: dulcor.id, brandName: "Dulcor" });

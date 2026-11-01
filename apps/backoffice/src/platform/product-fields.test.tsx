@@ -7,6 +7,7 @@ import { FieldSizeProvider, useRequestForm } from "@purosur/ui";
 import type { ComponentProps } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { z } from "zod";
 import { render } from "../shell/test-support/render-with-router";
 import {
   PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED,
@@ -24,6 +25,9 @@ import {
 import type { StackedTagCreation } from "./product-tags-field";
 import type { StackedCreation } from "./stacked-creation";
 import { organico, sinColorantes, sinTacc } from "./test-support/tags";
+
+const { coverageDays: _coverageDays, ...sharedProductShape } = productCreationBodySchema.shape;
+const sharedProductSchema = z.object(sharedProductShape);
 
 type FieldsProps = ComponentProps<typeof ProductFields>;
 type Choices = Pick<FieldsProps, "categories" | "brands" | "tags">;
@@ -96,7 +100,7 @@ const LOADED: Choices = {
 function Harness(choices: Choices) {
   const { form, values } = useRequestForm({
     defaultValues: EMPTY_PRODUCT_FORM,
-    request: { schema: productCreationBodySchema, from: productRequestFrom },
+    request: { schema: sharedProductSchema, from: productRequestFrom },
     fields: PRODUCT_FIELDS,
     messages: PRODUCT_MESSAGES,
     onSubmit: async () => {},
