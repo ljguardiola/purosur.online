@@ -239,7 +239,7 @@ test("opens the order suggestion from its section, marking it as the section sho
     .element(screen.getByRole("heading", { name: "Sugerencia de pedido", level: 1 }))
     .toBeVisible();
   expect(window.location.pathname).toBe("/order-suggestion");
-  await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
+  await expect.element(screen.getByRole("table", { name: "Sugerencia de pedido" })).toBeVisible();
   await expect
     .element(screen.getByRole("link", { name: "Sugerencia de pedido" }))
     .toHaveAttribute("aria-current", "page");

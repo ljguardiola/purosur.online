@@ -1,8 +1,8 @@
 import type { OrderSuggestion } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { beforeEach, expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { type OrderSuggestionFilters, orderSuggestionFilters } from "./order-suggestion-filters";
 import { OrderSuggestionScreen } from "./order-suggestion-screen";
@@ -16,9 +16,12 @@ const [almonds, cookies] = ORDER_SUGGESTION.lines as [
   OrderSuggestion["lines"][number],
 ];
 
-beforeEach(() => {
+beforeEach(async () => {
   window.history.pushState(null, "", "/");
+  await page.viewport(1440, 900);
 });
+
+afterEach(() => page.viewport(414, 896));
 
 function createServices(
   overrides: Partial<OrderSuggestionScreenServices> = {},
@@ -121,20 +124,22 @@ test("describes the product with its brand name and net content", async () => {
     ],
   });
 
-  await expect.element(screen.getByText("Aceite de Almendras Vitora 30 ml")).toBeVisible();
+  await expect
+    .element(screen.getByText("Aceite de Almendras Vitora 30 ml", { exact: true }))
+    .toBeVisible();
 });
 
 test("proposes the cheapest supplier with its packages, quantity, price per unit and list date", async () => {
   const screen = await loaded(createServices());
 
   await expect
-    .element(supplierSelect(screen, "Almendras peladas"))
-    .toHaveTextContent("Frutos Secos Mendoza");
+    .poll(() => supplierSelect(screen, "Almendras peladas").element().textContent)
+    .toContain("Frutos Secos Mendoza");
   const row = screen.getByRole("row", { name: /Almendras peladas/ });
   await expect.element(row.getByText("2 × 25 kg")).toBeVisible();
   await expect.element(row.getByText("50 kg", { exact: true })).toBeVisible();
-  await expect.element(row.getByText("$ 10.180,00 / kg")).toBeVisible();
-  await expect.element(row.getByText("20/10/2026")).toBeVisible();
+  await expect.element(row.getByText("$ 10.180,00 / kg", { exact: true })).toBeVisible();
+  await expect.element(row.getByText("20/10/2026", { exact: true })).toBeVisible();
 });
 
 test("writes a product sold by the unit with no unit in its price", async () => {
@@ -169,12 +174,12 @@ test("shows the packages, quantity, price per unit and date of the supplier chos
 
   const row = screen.getByRole("row", { name: /Almendras peladas/ });
   await expect
-    .element(supplierSelect(screen, "Almendras peladas"))
-    .toHaveTextContent("Distribuidora del Sur");
+    .poll(() => supplierSelect(screen, "Almendras peladas").element().textContent)
+    .toContain("Distribuidora del Sur");
   await expect.element(row.getByText("10 × 5 kg")).toBeVisible();
-  await expect.element(row.getByText("$ 10.640,00 / kg")).toBeVisible();
-  await expect.element(row.getByText("02/09/2026")).toBeVisible();
-  expect(row.getByText("20/10/2026").query()).toBeNull();
+  await expect.element(row.getByText("$ 10.640,00 / kg", { exact: true })).toBeVisible();
+  await expect.element(row.getByText("02/09/2026", { exact: true })).toBeVisible();
+  expect(row.getByText("20/10/2026", { exact: true }).query()).toBeNull();
 });
 
 test("changing the supplier of a line leaves the other lines as they were", async () => {
@@ -184,10 +189,8 @@ test("changing the supplier of a line leaves the other lines as they were", asyn
   await userEvent.click(screen.getByRole("option", { name: /Distribuidora del Sur/ }));
 
   await expect
-    .element(
-      screen.getByRole("row", { name: /Miel pura de abeja 1 kg/ }).getByText("Apícola Los Tilos"),
-    )
-    .toBeVisible();
+    .poll(() => supplierSelect(screen, "Miel pura de abeja 1 kg").element().textContent)
+    .toContain("Apícola Los Tilos");
 });
 
 test("leaves a line out of the order, showing it as left out", async () => {
@@ -197,9 +200,9 @@ test("leaves a line out of the order, showing it as left out", async () => {
   await userEvent.click(screen.getByRole("option", { name: "Dejar fuera del pedido" }));
 
   const row = screen.getByRole("row", { name: /Almendras peladas/ });
-  await expect.element(row.getByText("Fuera del pedido")).toBeVisible();
+  await expect.element(row.getByText("Fuera del pedido", { exact: true })).toBeVisible();
   expect(row.getByText("2 × 25 kg").query()).toBeNull();
-  expect(row.getByText("20/10/2026").query()).toBeNull();
+  expect(row.getByText("20/10/2026", { exact: true }).query()).toBeNull();
 });
 
 test("puts a line back in the order by choosing a supplier again", async () => {
@@ -223,8 +226,8 @@ test("shows a product without a price as having no proposed supplier, with the q
   await expect.element(row.getByText("Sin precio en ninguna lista cargada")).toBeVisible();
   await expect.element(row.getByText("30 u", { exact: true })).toBeVisible();
   await expect
-    .element(supplierSelect(screen, "Galletas de avena integrales"))
-    .toHaveTextContent("Elegir proveedor");
+    .poll(() => supplierSelect(screen, "Galletas de avena integrales").element().textContent)
+    .toContain("Elegir proveedor");
 });
 
 test("offers the active suppliers and leaving out to a product without a price", async () => {
@@ -247,8 +250,8 @@ test("keeps showing the quantity needed when a supplier is picked for a product 
 
   const row = screen.getByRole("row", { name: /Galletas de avena integrales/ });
   await expect
-    .element(supplierSelect(screen, "Galletas de avena integrales"))
-    .toHaveTextContent("Granos del Valle");
+    .poll(() => supplierSelect(screen, "Galletas de avena integrales").element().textContent)
+    .toContain("Granos del Valle");
   await expect.element(row.getByText("30 u", { exact: true })).toBeVisible();
 });
 
@@ -262,7 +265,7 @@ test("leaves a product without a price out of the order", async () => {
     .element(
       screen
         .getByRole("row", { name: /Galletas de avena integrales/ })
-        .getByText("Fuera del pedido"),
+        .getByText("Fuera del pedido", { exact: true }),
     )
     .toBeVisible();
 });
@@ -312,7 +315,7 @@ test.each([
   });
 
   const row = screen.getByRole("row", { name: /Almendras peladas/ });
-  await expect.element(row.getByText("Mayorista Norte")).toBeVisible();
+  await expect.element(row.getByText("Mayorista Norte", { exact: true })).toBeVisible();
   await expect.element(row.getByText(text)).toBeVisible();
   await userEvent.click(supplierSelect(screen, "Almendras peladas"));
   expect(
@@ -342,7 +345,7 @@ test("searches the products by name and reports the search", async () => {
   await userEvent.fill(screen.getByPlaceholder("Buscar un producto"), "miel");
 
   await expect.poll(() => lineRows(screen)).toHaveLength(1);
-  await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
+  await expect.element(screen.getByText("Miel pura de abeja 1 kg", { exact: true })).toBeVisible();
   await expect.poll(() => onFiltersChange.mock.lastCall?.[0]).toEqual({ search: "miel" });
 });
 
@@ -379,7 +382,7 @@ test("shows the table loading until the suggestion arrives", async () => {
     .element(screen.getByRole("table", { name: "Sugerencia de pedido" }))
     .toHaveAttribute("aria-busy", "true");
   pending.resolve({ kind: "ok", value: ORDER_SUGGESTION });
-  await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
+  await expect.element(screen.getByText("Almendras peladas", { exact: true })).toBeVisible();
 });
 
 test("shows a load error with a retry action that starts again from the loading placeholder", async () => {
@@ -397,7 +400,7 @@ test("shows a load error with a retry action that starts again from the loading 
     .element(screen.getByRole("table", { name: "Sugerencia de pedido" }))
     .toHaveAttribute("aria-busy", "true");
   retry.resolve({ kind: "ok", value: ORDER_SUGGESTION });
-  await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
+  await expect.element(screen.getByText("Almendras peladas", { exact: true })).toBeVisible();
 });
 
 test("ends the session when the suggestion comes back unauthenticated", async () => {
