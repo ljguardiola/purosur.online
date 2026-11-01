@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { MAX_STOCK_QUANTITY } from "../../stock/index.js";
 import { type EditPurchaseOrderInput, editPurchaseOrder } from "./edit-purchase-order.js";
 import {
-  FakePurchaseOrderStore,
   type FakePurchaseOrderRow,
+  FakePurchaseOrderStore,
 } from "./test-support/fake-purchase-order-store.js";
 
 const BRANCH = "branch-1";
@@ -158,16 +158,19 @@ describe("editPurchaseOrder", () => {
     expect(store.transactionCount).toBe(0);
   });
 
-  it.each([0, -2, 2.5, MAX_STOCK_QUANTITY + 1])("refuses %s as a number of packages", async (packages) => {
-    const store = storeWithDraft();
+  it.each([0, -2, 2.5, MAX_STOCK_QUANTITY + 1])(
+    "refuses %s as a number of packages",
+    async (packages) => {
+      const store = storeWithDraft();
 
-    expect(
-      await editPurchaseOrder(
-        { store },
-        edit({ lines: [{ productId: "product-a", packages, quantityPerPackage: 12_000 }] }),
-      ),
-    ).toEqual({ kind: "invalid_package_count" });
-  });
+      expect(
+        await editPurchaseOrder(
+          { store },
+          edit({ lines: [{ productId: "product-a", packages, quantityPerPackage: 12_000 }] }),
+        ),
+      ).toEqual({ kind: "invalid_package_count" });
+    },
+  );
 
   it.each([0, -1_000, 500.5])(
     "refuses %s as the quantity each package holds",

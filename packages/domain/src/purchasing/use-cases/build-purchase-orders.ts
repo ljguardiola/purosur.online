@@ -1,9 +1,9 @@
 import type { SaleUnit } from "../../catalog/index.js";
 import type { Clock } from "../../shared/index.js";
 import { isMovementQuantity } from "../../stock/index.js";
-import { isLinkCurrent } from "../model/supplier-item.js";
 import { mayBePurchased, mayBePurchasedFrom } from "../model/purchase.js";
 import { isPackageCount, packagedQuantity } from "../model/purchase-line.js";
+import { isLinkCurrent } from "../model/supplier-item.js";
 import type { PurchaseOrderLineFields, PurchaseOrderStore } from "./purchase-order-store.js";
 
 export interface PurchaseOrderChoice {

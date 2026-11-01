@@ -52,7 +52,10 @@ export interface PurchaseOrderStoreTransaction {
     orderId: string,
     lines: readonly PurchaseOrderLineFields[],
   ): Promise<void>;
-  cancelPurchaseOrder(orderId: string, cancellation: { cancelledAt: Date; actorId: string }): Promise<void>;
+  cancelPurchaseOrder(
+    orderId: string,
+    cancellation: { cancelledAt: Date; actorId: string },
+  ): Promise<void>;
 }
 
 export interface PurchaseOrderStore {

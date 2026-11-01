@@ -37,13 +37,13 @@ export {
   RECEIPT_NUMBER_MAX_LENGTH,
   RECEIPT_TYPES,
 } from "./model/purchase.js";
-export type { PurchaseOrderState } from "./model/purchase-order.js";
-export { PURCHASE_ORDER_STATES } from "./model/purchase-order.js";
 export {
   isCostPaid,
   isPackageCount,
   ONE_SALE_UNIT_QUANTITY,
 } from "./model/purchase-line.js";
+export type { PurchaseOrderState } from "./model/purchase-order.js";
+export { PURCHASE_ORDER_STATES } from "./model/purchase-order.js";
 export type { PurchasedLine } from "./model/purchases-by-supplier-report.js";
 export {
   isSupplierContactTooLong,

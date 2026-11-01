@@ -49,7 +49,10 @@ function cloneState(state: FakePurchaseOrderState): FakePurchaseOrderState {
   return {
     suppliers: state.suppliers.map((row) => ({ ...row })),
     products: state.products.map((row) => ({ ...row })),
-    offers: state.offers.map((row) => ({ ...row, offer: { ...row.offer, link: { ...row.offer.link } } })),
+    offers: state.offers.map((row) => ({
+      ...row,
+      offer: { ...row.offer, link: { ...row.offer.link } },
+    })),
     orders: state.orders.map(cloneOrder),
     nextId: state.nextId,
   };

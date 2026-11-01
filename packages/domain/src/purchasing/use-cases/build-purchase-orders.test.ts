@@ -84,15 +84,17 @@ describe("buildPurchaseOrders", () => {
 
     expect(outcome).toEqual({ kind: "created", orderIds: ["order-1", "order-2"] });
     expect(
-      store.orders().map(({ supplierId, lines }) => [
-        supplierId,
-        lines.map(({ productId, packages, quantityPerPackage, expectedPackagePriceCents }) => [
-          productId,
-          packages,
-          quantityPerPackage,
-          expectedPackagePriceCents,
+      store
+        .orders()
+        .map(({ supplierId, lines }) => [
+          supplierId,
+          lines.map(({ productId, packages, quantityPerPackage, expectedPackagePriceCents }) => [
+            productId,
+            packages,
+            quantityPerPackage,
+            expectedPackagePriceCents,
+          ]),
         ]),
-      ]),
     ).toEqual([
       [
         "supplier-a",
@@ -159,7 +161,9 @@ describe("buildPurchaseOrders", () => {
       await buildPurchaseOrders(
         { store, clock: CLOCK },
         build({
-          choices: [{ productId: "product-a", supplierId: "supplier-a", packages: MAX_STOCK_QUANTITY }],
+          choices: [
+            { productId: "product-a", supplierId: "supplier-a", packages: MAX_STOCK_QUANTITY },
+          ],
         }),
       ),
     ).toEqual({ kind: "invalid_package_count" });

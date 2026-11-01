@@ -1,9 +1,9 @@
+import type { PurchaseOrderState } from "../../model/purchase-order.js";
 import type {
   PurchaseOrderDetailListing,
   PurchaseOrderListing,
   PurchaseOrderReader,
 } from "../purchase-order-reader.js";
-import type { PurchaseOrderState } from "../../model/purchase-order.js";
 
 export type FakePurchaseOrder = PurchaseOrderDetailListing & { locationId: string };
 

@@ -21,7 +21,13 @@ function order(overrides: Partial<FakePurchaseOrder> = {}): FakePurchaseOrder {
 
 function line(packages: number, expectedPackagePriceCents: number | null) {
   return {
-    product: { id: `product-${packages}`, name: "Yerba", saleUnit: "UNIT" as const, brandName: null, netContent: null },
+    product: {
+      id: `product-${packages}`,
+      name: "Yerba",
+      saleUnit: "UNIT" as const,
+      brandName: null,
+      netContent: null,
+    },
     packages,
     quantityPerPackage: 12_000,
     expectedPackagePriceCents,
@@ -30,9 +36,7 @@ function line(packages: number, expectedPackagePriceCents: number | null) {
 
 describe("listPurchaseOrders", () => {
   it("summarizes each order with its line count and expected total", async () => {
-    const reader = new FakePurchaseOrderReader([
-      order({ lines: [line(3, 1_250), line(2, 400)] }),
-    ]);
+    const reader = new FakePurchaseOrderReader([order({ lines: [line(3, 1_250), line(2, 400)] })]);
 
     expect(await listPurchaseOrders(reader, { locationId: BRANCH })).toEqual([
       {
@@ -52,7 +56,11 @@ describe("listPurchaseOrders", () => {
 
     const [summary] = await listPurchaseOrders(reader, { locationId: BRANCH });
 
-    expect(summary).toMatchObject({ lineCount: 2, expectedTotalCents: 3_750, hasUnpricedLine: true });
+    expect(summary).toMatchObject({
+      lineCount: 2,
+      expectedTotalCents: 3_750,
+      hasUnpricedLine: true,
+    });
   });
 
   it("lists the branch's orders only, most recent first, every state or the one asked for", async () => {
@@ -62,9 +70,10 @@ describe("listPurchaseOrders", () => {
       order({ id: "other-branch", locationId: "branch-2" }),
     ]);
 
-    expect(
-      (await listPurchaseOrders(reader, { locationId: BRANCH })).map(({ id }) => id),
-    ).toEqual(["new", "old"]);
+    expect((await listPurchaseOrders(reader, { locationId: BRANCH })).map(({ id }) => id)).toEqual([
+      "new",
+      "old",
+    ]);
     expect(
       (await listPurchaseOrders(reader, { locationId: BRANCH, state: "DRAFT" })).map(
         ({ id }) => id,

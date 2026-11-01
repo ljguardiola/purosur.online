@@ -1,8 +1,8 @@
 import type { SaleUnit } from "../../catalog/index.js";
 import { isMovementQuantity } from "../../stock/index.js";
-import { mayBeEdited } from "../model/purchase-order.js";
 import { mayBePurchased } from "../model/purchase.js";
 import { isPackageCount, packagedQuantity } from "../model/purchase-line.js";
+import { mayBeEdited } from "../model/purchase-order.js";
 import { isLinkCurrent } from "../model/supplier-item.js";
 import type { PurchaseOrderLineFields, PurchaseOrderStore } from "./purchase-order-store.js";
 
