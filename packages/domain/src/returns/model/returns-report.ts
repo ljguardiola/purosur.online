@@ -147,8 +147,11 @@ export function returnsReportTotals(
 }
 
 function personOrder(a: ReportPerson | null, b: ReportPerson | null): number {
-  if (a === null || b === null) {
-    return Number(a === null) - Number(b === null);
+  if (a === null) {
+    return 1;
+  }
+  if (b === null) {
+    return -1;
   }
   if (a.name === null || b.name === null) {
     return Number(a.name === null) - Number(b.name === null) || compareCodeUnits(a.id, b.id);
