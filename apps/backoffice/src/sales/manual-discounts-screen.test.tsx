@@ -418,7 +418,10 @@ afterEach(() => {
 test("downloads a spreadsheet of the discounts shown, with the applied register and authorizer", async () => {
   const downloads = spyOnDownloads();
   const screen = await renderScreen(createServices(), {
-    filters: manualDiscountsFilters.parse({ register: BACK_REGISTER_ID, authorizedBy: BETO_USER_ID }),
+    filters: manualDiscountsFilters.parse({
+      register: BACK_REGISTER_ID,
+      authorizedBy: BETO_USER_ID,
+    }),
   });
   await expect
     .element(screen.getByRole("combobox", { name: /^Caja:/ }))

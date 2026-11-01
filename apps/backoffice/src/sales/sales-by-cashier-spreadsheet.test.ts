@@ -35,7 +35,13 @@ test("has a sheet named after the table with each cashier's figures in the given
     name: "Ventas por cajero",
     header: ["Cajero", "Sesiones", "Ventas", "Importe", "Ticket promedio"],
     rows: [
-      [cell.text("Sin identificar"), cell.count(2), cell.count(5), cell.money(75_000), cell.money(15_000)],
+      [
+        cell.text("Sin identificar"),
+        cell.count(2),
+        cell.count(5),
+        cell.money(75_000),
+        cell.money(15_000),
+      ],
       [cell.text("Beto"), cell.count(4), cell.count(25), cell.money(875_000), cell.money(35_000)],
       [cell.text("Ana"), cell.count(1), cell.count(40), cell.money(800_000), cell.money(20_000)],
     ],

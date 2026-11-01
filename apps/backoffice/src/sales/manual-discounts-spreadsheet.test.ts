@@ -11,7 +11,11 @@ import {
 const ARGENTINA_TIME_ZONE = "America/Argentina/Buenos_Aires";
 
 test("has a Resumen sheet with the period, the register, the authorizer filter and the figures the screen shows", () => {
-  const [summary] = manualDiscountsSpreadsheet(manualDiscountsReport, "ALL", "Caja del fondo").sheets;
+  const [summary] = manualDiscountsSpreadsheet(
+    manualDiscountsReport,
+    "ALL",
+    "Caja del fondo",
+  ).sheets;
 
   expect(summary).toEqual({
     name: "Resumen",

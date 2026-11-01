@@ -72,13 +72,20 @@ test("names products with their brand and net content, and the main product", ()
   expect(sheets[1]?.name).toBe("Por producto");
   expect(sheets[1]?.header[0]).toBe("Producto");
   expect(sheets[1]?.rows[1]?.[0]).toEqual(cell.text("Yerba mate Hoja Alta 1 kg"));
-  expect(sheets[0]?.rows.at(-1)).toEqual([cell.text("Producto principal"), cell.text("Queso cremoso")]);
+  expect(sheets[0]?.rows.at(-1)).toEqual([
+    cell.text("Producto principal"),
+    cell.text("Queso cremoso"),
+  ]);
 });
 
 test("writes the rows it is given in the given order, not the response's", () => {
   const reversed = [...categoryProductsReport.rows].reverse();
 
-  const sheets = salesByProductAndCategorySpreadsheet(categoryProductsReport, reversed, "Todas").sheets;
+  const sheets = salesByProductAndCategorySpreadsheet(
+    categoryProductsReport,
+    reversed,
+    "Todas",
+  ).sheets;
 
   expect(sheets[1]?.rows.map((row) => row[0])).toEqual([
     cell.text("Sin categoría"),

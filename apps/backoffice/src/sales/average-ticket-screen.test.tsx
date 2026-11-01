@@ -383,9 +383,7 @@ test("downloads a spreadsheet of the weeks shown, with the applied register and 
 
   await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
 
-  await expect
-    .poll(() => downloads.names)
-    .toEqual(["ticket-promedio-2026-09-24-2026-10-14.xlsx"]);
+  await expect.poll(() => downloads.names).toEqual(["ticket-promedio-2026-09-24-2026-10-14.xlsx"]);
   const file = await readDownloadedXlsx(downloads.blobs[0]);
   expect(file.sheetNames).toEqual(["Resumen", "Ticket promedio por semana"]);
   const summary = file.sheet(0);

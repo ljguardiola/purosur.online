@@ -59,8 +59,18 @@ test("has a sheet named after the table with each week in the given order", () =
     header: ["Semana", "Ventas", "Importe", "Ticket promedio"],
     rows: [
       [cell.text("Del 24/09/2026 al 30/09/2026"), cell.count(0), cell.money(0), cell.empty()],
-      [cell.text("Del 01/10/2026 al 07/10/2026"), cell.count(10), cell.money(500_000), cell.money(50_000)],
-      [cell.text("Del 08/10/2026 al 14/10/2026"), cell.count(40), cell.money(1_100_000), cell.money(27_500)],
+      [
+        cell.text("Del 01/10/2026 al 07/10/2026"),
+        cell.count(10),
+        cell.money(500_000),
+        cell.money(50_000),
+      ],
+      [
+        cell.text("Del 08/10/2026 al 14/10/2026"),
+        cell.count(40),
+        cell.money(1_100_000),
+        cell.money(27_500),
+      ],
     ],
   });
 });
