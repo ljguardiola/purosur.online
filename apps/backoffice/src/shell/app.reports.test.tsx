@@ -243,7 +243,13 @@ test("keeps the returns report's filters in the address", async () => {
   const services = reportsServices(["returns_report"]);
   window.history.pushState(null, "", "/reports/returns");
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await expect.element(screen.getByRole("table").first().getByText("Beto")).toBeVisible();
+  await expect
+    .element(
+      screen
+        .getByRole("table", { name: "Devoluciones iniciadas con el número tipeado" })
+        .getByText("Beto"),
+    )
+    .toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: /Caja:/ }));
   await userEvent.click(screen.getByRole("option", { name: "Caja principal" }));

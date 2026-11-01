@@ -44,7 +44,9 @@ export function ReportsIndexScreen({
         <ReportRow to="/reports/hand-confirmed-payments" label="Pagos confirmados a mano" />
         <ReportRow to="/reports/cash-session-closes" label="Cierres de sesión" />
         <ReportRow to="/reports/cash-movements" label="Movimientos de caja" />
-        {returnsShown ? <ReportRow to="/reports/returns" label="Devoluciones" /> : null}
+        {returnsShown ? (
+          <ReportRow to="/reports/returns" label="Anulaciones y devoluciones" />
+        ) : null}
       </LinkListCard>
       <LinkListCard title="Fiscal" icon={<FileText />}>
         <ReportRow to="/reports/fiscal-documents" label="Comprobantes emitidos" />
