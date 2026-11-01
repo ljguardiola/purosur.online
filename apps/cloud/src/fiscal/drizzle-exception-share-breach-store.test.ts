@@ -56,6 +56,10 @@ describe("DrizzleExceptionShareBreachStore.lockMonthlyVoucherCounts", () => {
     await insertCaeaDocument(db, registerId, {
       issuedOn: "2026-09-13",
       documentType: "credit_note_c",
+      creditNoteId: crypto.randomUUID(),
+      correctedVoucherType: 11,
+      correctedPointOfSale: 8,
+      correctedNumber: 5,
     });
 
     expect(await lockedCounts()).toEqual([
