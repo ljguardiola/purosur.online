@@ -31,6 +31,7 @@ describe("allocatesToLots", () => {
     "sale",
     "sale_void",
     "return",
+    "exchange_out",
     "loss",
     "adjustment",
     "assembly_out",

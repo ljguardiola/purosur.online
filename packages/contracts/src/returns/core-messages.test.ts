@@ -125,6 +125,7 @@ const DRAFT_LINE = {
   quantity: 2,
   reason: "change_of_mind",
   disposition: "restock",
+  resolution: null,
 };
 
 describe("previewing a return", () => {
@@ -136,7 +137,16 @@ describe("previewing a return", () => {
   });
 
   it("carries the lines the cashier entered, including those with no reason or disposition yet", () => {
-    const message = preview([DRAFT_LINE, { ...DRAFT_LINE, reason: null, disposition: null }]);
+    const message = preview([
+      DRAFT_LINE,
+      { ...DRAFT_LINE, reason: null, disposition: null, resolution: null },
+    ]);
+
+    expect(returnsRendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each(["refund", "exchange"])("accepts a line the cashier resolves as a %s", (resolution) => {
+    const message = preview([{ ...DRAFT_LINE, reason: "defective", resolution }]);
 
     expect(returnsRendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
@@ -146,6 +156,8 @@ describe("previewing a return", () => {
     ["a quantity that is text", { quantity: "2" }],
     ["a reason nobody gives", { reason: "wrong_size" }],
     ["a disposition nobody chooses", { disposition: "donate" }],
+    ["a resolution nobody offers", { resolution: "store_credit" }],
+    ["no resolution", { resolution: undefined }],
     ["no line", { sale_line_id: undefined }],
   ])("rejects a line with %s", (_case, change) => {
     expect(
@@ -219,6 +231,8 @@ const LINE_REFUSALS = [
   { kind: "invalid_quantity" },
   { kind: "missing_reason" },
   { kind: "missing_disposition" },
+  { kind: "missing_resolution" },
+  { kind: "resolution_not_offered" },
   { kind: "quantity_exceeds_returnable", returnable: 3 },
   { kind: "promotion_whole_only", returnable: 4 },
   { kind: "outside_window", reason: "change_of_mind", last_allowed_day: "2026-09-27" },
@@ -407,6 +421,7 @@ describe("the answer to previewing a return", () => {
         quantity: 2,
         reason: "change_of_mind",
         disposition: "restock",
+        resolution: "refund",
         refusal: null,
         refund_amount: 5000,
       },
@@ -415,6 +430,7 @@ describe("the answer to previewing a return", () => {
         quantity: 250,
         reason: null,
         disposition: null,
+        resolution: null,
         refusal: { kind: "missing_reason" },
         refund_amount: null,
       },
