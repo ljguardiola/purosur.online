@@ -254,7 +254,7 @@ const FOUND = {
         returnable_quantity: 3,
         charged_amount: 7500,
         refunded_amount: 0,
-        must_be_returned_whole: false,
+        whole_only_reasons: [],
       },
     ],
     payments: [
@@ -304,7 +304,13 @@ describe("the answer to finding the sale to return", () => {
       ...FOUND,
       sale: {
         ...FOUND.sale,
-        lines: [{ ...FOUND.sale.lines[0], must_be_returned_whole: true, sale_unit: "KG" }],
+        lines: [
+          {
+            ...FOUND.sale.lines[0],
+            whole_only_reasons: ["change_of_mind", "defective"],
+            sale_unit: "KG",
+          },
+        ],
       },
     },
     { kind: "not_found" },
@@ -336,6 +342,20 @@ describe("the answer to finding the sale to return", () => {
     { kind: "found" },
     { ...FOUND, sale: { ...FOUND.sale, occurred_at: "yesterday" } },
     { ...FOUND, sale: { ...FOUND.sale, total: 10.5 } },
+    {
+      ...FOUND,
+      sale: {
+        ...FOUND.sale,
+        lines: [{ ...FOUND.sale.lines[0], whole_only_reasons: ["exchange"] }],
+      },
+    },
+    {
+      ...FOUND,
+      sale: {
+        ...FOUND.sale,
+        lines: [{ ...FOUND.sale.lines[0], whole_only_reasons: undefined }],
+      },
+    },
     {
       ...FOUND,
       sale: {

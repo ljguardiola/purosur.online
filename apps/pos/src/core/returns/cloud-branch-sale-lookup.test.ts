@@ -18,7 +18,8 @@ const ANSWER = {
         product_name: "Yerba 1 kg",
         sale_unit: "UNIT",
         quantity: 3,
-        promotion_id: null,
+        promotion_id: "two-for-one",
+        promotion_kind: "BUY_N_PAY_M",
         line_total: 7500,
       },
     ],
@@ -126,7 +127,8 @@ describe("finding a sale of another register of the branch in the cloud", () => 
               productName: "Yerba 1 kg",
               saleUnit: "UNIT",
               quantity: 3,
-              promotionId: null,
+              promotionId: "two-for-one",
+              promotionKind: "BUY_N_PAY_M",
               lineTotal: 7500,
             },
           ],
@@ -175,6 +177,19 @@ describe("finding a sale of another register of the branch in the cloud", () => 
     expect(await lookup.saleForReturn(DEFERRED)).toMatchObject({
       kind: "found",
       sale: { invoice: null },
+    });
+  });
+
+  it("keeps the promotion kind unknown when the cloud does not know it", async () => {
+    const line = { ...ANSWER.sale.lines[0], promotion_kind: null };
+    const { lookup } = lookupWith({
+      kind: "ok",
+      body: { ...ANSWER, sale: { ...ANSWER.sale, lines: [line] } },
+    });
+
+    expect(await lookup.saleForReturn(DEFERRED)).toMatchObject({
+      kind: "found",
+      sale: { sale: { lines: [{ promotionId: "two-for-one", promotionKind: null }] } },
     });
   });
 

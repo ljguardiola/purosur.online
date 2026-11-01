@@ -154,6 +154,7 @@ const BRANCH_SALE: Extract<BranchSaleLookupAnswer, { kind: "found" }> = {
           saleUnit: "UNIT",
           quantity: 3,
           promotionId: null,
+          promotionKind: null,
           lineTotal: 7500,
         },
       ],
@@ -235,7 +236,7 @@ describe("finding the sale to return", () => {
         returnable_quantity: 3,
         charged_amount: 7500,
         refunded_amount: 0,
-        must_be_returned_whole: false,
+        whole_only_reasons: [],
       },
       {
         id: "line-2",
@@ -247,7 +248,7 @@ describe("finding the sale to return", () => {
         returnable_quantity: 4,
         charged_amount: 4000,
         refunded_amount: 0,
-        must_be_returned_whole: true,
+        whole_only_reasons: ["change_of_mind"],
       },
     ]);
     expect(outcome.sale.payments).toEqual([

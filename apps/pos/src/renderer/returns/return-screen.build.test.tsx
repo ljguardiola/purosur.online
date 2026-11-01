@@ -223,18 +223,46 @@ describe("ReturnScreen choosing what the customer returns", () => {
       .toBeDisabled();
   });
 
-  it("returns a promotion's line whole, and asks the core for all of it", async () => {
+  it("returns a promotion's line whole for a change of mind, and asks the core for all of it", async () => {
     const { screen, previewReturn } = await renderScreen();
     await openReturn(screen);
 
-    await chooseReturnLine(screen, "Miel pura de abeja 1 kg");
+    await chooseReturnLine(screen, "Miel pura de abeja 1 kg", {
+      reason: "Arrepentimiento",
+      disposition: "A la venta",
+    });
 
     await expect
       .element(screen.getByRole("textbox", { name: "Cantidad de Miel pura de abeja 1 kg" }))
       .toHaveValue("2");
     await vi.waitFor(() =>
       expect(previewReturn).toHaveBeenLastCalledWith("sale-1", [
-        { sale_line_id: "line-honey", quantity: 2, reason: null, disposition: null },
+        {
+          sale_line_id: "line-honey",
+          quantity: 2,
+          reason: "change_of_mind",
+          disposition: "restock",
+        },
+      ]),
+    );
+  });
+
+  it("lets the cashier return part of a promotion's line for a defect", async () => {
+    const { screen, previewReturn } = await renderScreen();
+    await openReturn(screen);
+
+    await chooseReturnLine(screen, "Miel pura de abeja 1 kg", {
+      reason: "Defecto",
+      disposition: "Descarte",
+    });
+    await userEvent.fill(
+      screen.getByRole("textbox", { name: "Cantidad de Miel pura de abeja 1 kg" }),
+      "1",
+    );
+
+    await vi.waitFor(() =>
+      expect(previewReturn).toHaveBeenLastCalledWith("sale-1", [
+        { sale_line_id: "line-honey", quantity: 1, reason: "defective", disposition: "discard" },
       ]),
     );
   });

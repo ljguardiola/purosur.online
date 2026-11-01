@@ -22,6 +22,7 @@ const FACTS: KeptBranchSale = {
           saleUnit: "UNIT",
           quantity: 3,
           promotionId: null,
+          promotionKind: null,
           lineTotal: 7500,
         },
       ],

@@ -10,7 +10,7 @@ export const PASTA: SaleLineForReturn = {
   returnable_quantity: 3,
   charged_amount: 970_000,
   refunded_amount: 0,
-  must_be_returned_whole: false,
+  whole_only_reasons: [],
 };
 
 export const NIBS: SaleLineForReturn = {
@@ -23,7 +23,7 @@ export const NIBS: SaleLineForReturn = {
   returnable_quantity: 350,
   charged_amount: 423_500,
   refunded_amount: 0,
-  must_be_returned_whole: false,
+  whole_only_reasons: [],
 };
 
 export const HONEY: SaleLineForReturn = {
@@ -36,7 +36,7 @@ export const HONEY: SaleLineForReturn = {
   returnable_quantity: 2,
   charged_amount: 840_000,
   refunded_amount: 0,
-  must_be_returned_whole: true,
+  whole_only_reasons: ["change_of_mind"],
 };
 
 export const TEA: SaleLineForReturn = {
@@ -49,7 +49,7 @@ export const TEA: SaleLineForReturn = {
   returnable_quantity: 0,
   charged_amount: 300_000,
   refunded_amount: 300_000,
-  must_be_returned_whole: false,
+  whole_only_reasons: [],
 };
 
 export const CASH: PaymentForReturn = {
