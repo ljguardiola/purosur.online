@@ -1,9 +1,11 @@
 import {
+  type BrandSummary,
   type CategorySummary,
   type ProductEditBody,
   type ProductSummary,
   productCreationBodySchema,
   productEditBarcodesSchema,
+  type TagSummary,
 } from "@purosur/contracts";
 import { plural } from "@purosur/ui";
 import {
@@ -74,9 +76,21 @@ export function productFormValues(product: ProductSummary): ProductEditFormValue
   };
 }
 
-export function productCloneFormValues(product: ProductSummary): CatalogProductFormValues {
+function isOfferedActive(items: { id: string; active: boolean }[], id: string): boolean {
+  return items.some((item) => item.id === id && item.active);
+}
+
+export function productCloneFormValues(
+  product: ProductSummary,
+  offered: { brands: BrandSummary[]; tags: TagSummary[] },
+): CatalogProductFormValues {
   const { version: _version, ...values } = productFormValues(product);
-  return { ...values, barcodes: { codes: [], scan: "" } };
+  return {
+    ...values,
+    brandId: isOfferedActive(offered.brands, values.brandId) ? values.brandId : NO_BRAND,
+    tagIds: values.tagIds.filter((id) => isOfferedActive(offered.tags, id)),
+    barcodes: { codes: [], scan: "" },
+  };
 }
 
 export function productEditRequestFrom(values: ProductEditFormValues): ProductEditBody {

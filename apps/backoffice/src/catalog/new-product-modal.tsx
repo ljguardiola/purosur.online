@@ -7,7 +7,7 @@ import {
 } from "@purosur/contracts";
 import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import { Check, PackagePlus, ShieldX, TriangleAlert, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import {
   PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED,
   useBarcodeChips,
@@ -34,6 +34,7 @@ import { NewCategoryModal } from "./new-category-modal";
 import {
   CATALOG_PRODUCT_FIELDS,
   CATALOG_PRODUCT_MESSAGES,
+  type CatalogProductFormValues,
   catalogProductRequestFrom,
   categoryNameOf,
   EMPTY_CATALOG_PRODUCT_FORM,
@@ -181,13 +182,16 @@ export function NewProductModal({
     onClose();
   };
 
+  const openingValues = useEffectEvent(
+    (cloned: ProductSummary | undefined, name: string): CatalogProductFormValues =>
+      cloned
+        ? productCloneFormValues(cloned, { brands, tags })
+        : { ...EMPTY_CATALOG_PRODUCT_FORM, name },
+  );
+
   useEffect(() => {
     if (open) {
-      reset(
-        source
-          ? productCloneFormValues(source)
-          : { ...EMPTY_CATALOG_PRODUCT_FORM, name: initialName },
-      );
+      reset(openingValues(source, initialName));
       chips.reset();
       setNotice(null);
       generate.reset();
