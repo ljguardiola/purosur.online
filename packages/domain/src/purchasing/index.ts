@@ -37,6 +37,8 @@ export {
   RECEIPT_NUMBER_MAX_LENGTH,
   RECEIPT_TYPES,
 } from "./model/purchase.js";
+export type { PurchaseOrderState } from "./model/purchase-order.js";
+export { PURCHASE_ORDER_STATES } from "./model/purchase-order.js";
 export {
   isCostPaid,
   isPackageCount,
