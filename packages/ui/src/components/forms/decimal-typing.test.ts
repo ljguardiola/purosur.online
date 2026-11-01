@@ -212,10 +212,21 @@ describe("pasting", () => {
     ).toEqual({ text: "1.000", caret: 5 });
   });
 
-  it("inserts a pasted value that is not Argentine text unchanged", () => {
-    expect(paste("", 0, "12.5")).toEqual({ text: "12.5", caret: 4 });
-    expect(paste("1", 1, "abc")).toEqual({ text: "1abc", caret: 4 });
-    expect(paste("", 0, "1,234", 2)).toEqual({ text: "1,234", caret: 5 });
+  it("ignores a pasted value that is not Argentine text", () => {
+    expect(paste("", 0, "12.5")).toEqual({ text: "", caret: 0 });
+    expect(paste("1", 1, "abc")).toEqual({ text: "1", caret: 1 });
+    expect(paste("1.234", 2, "1,234", 2)).toEqual({ text: "1.234", caret: 2 });
+    expect(paste("7", 1, "", 2)).toEqual({ text: "7", caret: 1 });
+  });
+
+  it("keeps the selection's text when the pasted value is ignored", () => {
+    expect(
+      applyDecimalEdit(
+        { text: "99", selectionStart: 0, selectionEnd: 2 },
+        { kind: "insert-paste", data: "12.5" },
+        2,
+      ),
+    ).toEqual({ text: "99", caret: 2 });
   });
 });
 

@@ -1560,6 +1560,45 @@ test("reads a pasted value as Argentine text", async () => {
   expect(input.selectionStart).toBe(8);
 });
 
+test("ignores a pasted value that is not Argentine text", async () => {
+  const screen = await render(<DecimalHarness />);
+  const input = fieldInput(screen, "Amount");
+
+  await userEvent.click(input);
+  pasteInto(input, "12.5");
+  await userEvent.keyboard("7");
+
+  expect(input.value).toBe("7");
+});
+
+test("takes the numeric keypad's dot as the decimal comma of a weight", async () => {
+  const screen = await render(<DecimalHarness kind="weight" decimals={3} />);
+  const input = fieldInput(screen, "Amount");
+  const session = cdp();
+
+  await userEvent.click(input);
+  await userEvent.keyboard("12");
+  await session.send("Input.dispatchKeyEvent", {
+    type: "keyDown",
+    code: "NumpadDecimal",
+    key: ".",
+    text: ".",
+    unmodifiedText: ".",
+    keyCode: 110,
+    windowsVirtualKeyCode: 110,
+  });
+  await session.send("Input.dispatchKeyEvent", {
+    type: "keyUp",
+    code: "NumpadDecimal",
+    key: ".",
+    keyCode: 110,
+    windowsVirtualKeyCode: 110,
+  });
+  await userEvent.keyboard("5");
+
+  expect(input.value).toBe("12,5");
+});
+
 test("regroups text changed by an edit it does not intercept", async () => {
   const screen = await render(<DecimalHarness />);
   const input = fieldInput(screen, "Amount");
