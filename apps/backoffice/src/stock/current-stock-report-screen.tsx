@@ -8,12 +8,12 @@ import {
   formatSignedCents,
   type ItemOrder,
   ListFilter,
-  numericTextOrder,
   PercentBar,
   plural,
   Table,
   TableCellText,
   Tag,
+  textOrder,
   useTableModel,
 } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
@@ -45,7 +45,7 @@ type Product = CurrentStockReportBody["products"][number];
 
 const NO_PRODUCTS: Product[] = [];
 
-const productDescriptionOrder = numericTextOrder((product: Product) =>
+const productDescriptionOrder = textOrder((product: Product) =>
   formatProductDescription({
     name: product.name,
     brandName: product.brand_name,
