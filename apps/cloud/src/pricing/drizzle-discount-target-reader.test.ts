@@ -4,7 +4,7 @@ import {
   insertProductWithTags,
   insertTag,
 } from "../catalog/test-support/catalog-route-fixtures.js";
-import { categories } from "../platform/db/schema.js";
+import { categories, products } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleDiscountTargetReader } from "./drizzle-discount-target-reader.js";
 
@@ -122,6 +122,96 @@ describe("DrizzleDiscountTargetReader", () => {
     expect(tags).toEqual([
       { id: artesanal.id, name: "Artesanal", active: false },
       { id: vegano.id, name: "Vegano", active: true },
+    ]);
+  });
+
+  it("reads products, categories and tags with numbers by value, case and accents ignored and ñ after n", async () => {
+    for (const name of [
+      "Zoe",
+      "Caja 10",
+      "ñandú",
+      "Banco",
+      "oso",
+      "árbol",
+      "Caja 2",
+      "ana",
+      "nube",
+    ]) {
+      await insertProductWithTags(db, { name, tagIds: [], categoryName: `Rubro ${name}` });
+      await insertTag(db, { name });
+    }
+
+    const { products: listedProducts, tags } = await new DrizzleDiscountTargetReader(
+      db,
+    ).targetCandidates();
+
+    expect(listedProducts.map(({ name }) => name)).toEqual([
+      "ana",
+      "árbol",
+      "Banco",
+      "Caja 2",
+      "Caja 10",
+      "nube",
+      "ñandú",
+      "oso",
+      "Zoe",
+    ]);
+    expect(tags.map(({ name }) => name)).toEqual([
+      "ana",
+      "árbol",
+      "Banco",
+      "Caja 2",
+      "Caja 10",
+      "nube",
+      "ñandú",
+      "oso",
+      "Zoe",
+    ]);
+  });
+
+  it("reads categories with numbers by value, case and accents ignored and ñ after n", async () => {
+    await db
+      .insert(categories)
+      .values(
+        ["Zoe", "Caja 10", "ñandú", "Banco", "oso", "árbol", "Caja 2", "ana", "nube"].map(
+          (name) => ({ name }),
+        ),
+      );
+
+    const { categories: listed } = await new DrizzleDiscountTargetReader(db).targetCandidates();
+
+    expect(listed.map(({ name }) => name)).toEqual([
+      "ana",
+      "árbol",
+      "Banco",
+      "Caja 2",
+      "Caja 10",
+      "nube",
+      "ñandú",
+      "oso",
+      "Zoe",
+    ]);
+  });
+
+  it("reads products of the same name in the order of their ids", async () => {
+    const [category] = await db
+      .insert(categories)
+      .values({ name: "Almacén" })
+      .returning({ id: categories.id });
+    await db.insert(products).values(
+      ["b", "a"].map((last) => ({
+        id: `00000000-0000-4000-8000-00000000000${last}`,
+        name: "Miel",
+        categoryId: category?.id ?? "",
+        saleUnit: "UNIT",
+      })),
+    );
+
+    const { products: listed } = await new DrizzleDiscountTargetReader(db).targetCandidates();
+
+    expect(listed.map(({ id }) => id)).toEqual([
+      "00000000-0000-4000-8000-00000000000a",
+      "00000000-0000-4000-8000-00000000000b",
     ]);
   });
 });

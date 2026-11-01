@@ -163,6 +163,37 @@ describe("branchRegisters of DrizzleBranchRegisterStore", () => {
     ]);
   });
 
+  it("lists the registers with numbers by value, case and accents ignored and ñ after n", async () => {
+    const locationId = await seededLocationId(db);
+    for (const name of [
+      "Zoe",
+      "Caja 10",
+      "ñandú",
+      "Banco",
+      "oso",
+      "árbol",
+      "Caja 2",
+      "ana",
+      "nube",
+    ]) {
+      await insertRegister(locationId, name);
+    }
+
+    const listed = await new DrizzleBranchRegisterStore(db, () => NOW).branchRegisters(locationId);
+
+    expect(listed.map((register) => register.name)).toEqual([
+      "ana",
+      "árbol",
+      "Banco",
+      "Caja 2",
+      "Caja 10",
+      "nube",
+      "ñandú",
+      "oso",
+      "Zoe",
+    ]);
+  });
+
   it("lists every installation of each of the branch's registers, without repeating a register", async () => {
     const locationId = await seededLocationId(db);
     const caja1 = await insertRegister(locationId, "Caja 1");

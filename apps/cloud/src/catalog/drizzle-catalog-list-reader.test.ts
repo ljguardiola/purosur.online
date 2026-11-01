@@ -60,6 +60,7 @@ async function insertTag(name: string, active = true): Promise<string> {
 }
 
 async function insertProduct(input: {
+  id?: string;
   name: string;
   categoryId: string;
   active?: boolean;
@@ -72,6 +73,7 @@ async function insertProduct(input: {
   const [row] = await db
     .insert(products)
     .values({
+      id: input.id,
       name: input.name,
       categoryId: input.categoryId,
       brandId: input.brandId,
@@ -305,5 +307,82 @@ describe("DrizzleCatalogListReader", () => {
     it("counts no tagged product when none is tagged", async () => {
       expect(await reader.taggedProductCount("any")).toBe(0);
     });
+  });
+});
+
+describe("DrizzleCatalogListReader name order", () => {
+  const unsortedNames = [
+    "Zoe",
+    "Caja 10",
+    "ñandú",
+    "Banco",
+    "oso",
+    "árbol",
+    "Caja 2",
+    "ana",
+    "nube",
+  ];
+  const sortedNames = ["ana", "árbol", "Banco", "Caja 2", "Caja 10", "nube", "ñandú", "oso", "Zoe"];
+
+  it("answers products with numbers by value, case and accents ignored and ñ after n", async () => {
+    const categoryId = await insertCategory();
+    for (const name of unsortedNames) {
+      await insertProduct({ name, categoryId });
+    }
+
+    expect((await reader.products("any")).map((product) => product.name)).toEqual(sortedNames);
+  });
+
+  it("answers products with the same name by id", async () => {
+    const categoryId = await insertCategory();
+    const later = await insertProduct({
+      id: "00000000-0000-4000-8000-00000000000b",
+      name: "Miel",
+      categoryId,
+    });
+    const earlier = await insertProduct({
+      id: "00000000-0000-4000-8000-00000000000a",
+      name: "Miel",
+      categoryId,
+    });
+
+    expect((await reader.products("any")).map((product) => product.id)).toEqual([earlier, later]);
+  });
+
+  it("answers categories with numbers by value, case and accents ignored and ñ after n", async () => {
+    for (const name of unsortedNames) {
+      await insertCategory(name);
+    }
+
+    expect((await reader.categories()).map((category) => category.name)).toEqual(sortedNames);
+  });
+
+  it("answers brands with numbers by value, case and accents ignored and ñ after n", async () => {
+    for (const name of unsortedNames) {
+      await insertBrand(name);
+    }
+
+    expect((await reader.brands("any")).map((brand) => brand.name)).toEqual(sortedNames);
+  });
+
+  it("answers tags with numbers by value, case and accents ignored and ñ after n", async () => {
+    for (const name of unsortedNames) {
+      await insertTag(name);
+    }
+
+    expect((await reader.tags("any")).map((tag) => tag.name)).toEqual(sortedNames);
+  });
+
+  it("answers the tag ids of a product with numbers by value, case and accents ignored and ñ after n", async () => {
+    const categoryId = await insertCategory();
+    const tagIdByName = new Map<string, string>();
+    for (const name of unsortedNames) {
+      tagIdByName.set(name, await insertTag(name));
+    }
+    await insertProduct({ name: "Miel", categoryId, tagIds: [...tagIdByName.values()] });
+
+    const [product] = await reader.products("any");
+
+    expect(product?.tagIds).toEqual(sortedNames.map((name) => tagIdByName.get(name)));
   });
 });
