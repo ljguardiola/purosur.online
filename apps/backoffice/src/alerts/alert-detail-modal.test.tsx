@@ -2451,7 +2451,9 @@ test("says a single comprobante in the singular when a fiscal address issued onl
 
   const screen = await renderModal(services);
 
-  await expect.element(screen.getByText(/se emitieron por excepción \(CAEA\) 1 de 1 comprobante de este/)).toBeVisible();
+  await expect
+    .element(screen.getByText(/se emitieron por excepción \(CAEA\) 1 de 1 comprobante de este/))
+    .toBeVisible();
 });
 
 test("says a register has never had a verified backup when it has none to name", async () => {

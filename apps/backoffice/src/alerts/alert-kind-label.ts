@@ -36,6 +36,7 @@ const ALERT_KIND_LABELS = {
   tz_rules_mismatch: "Reglas de zona horaria distintas de la nube",
   register_replenishment_failed: "Caja sin poder ponerse al día",
   deferred_sale_due: "Venta diferida por vencer",
+  exception_share_breach: "Límite de comprobantes por excepción alcanzado",
 } satisfies Record<AlertKind, string>;
 
 export function alertKindLabel(kind: string): string {

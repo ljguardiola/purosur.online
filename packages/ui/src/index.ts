@@ -201,6 +201,8 @@ export {
   formatDate,
   formatDayAndTime,
   formatInvoiceNumber,
+  formatMonthAndYear,
+  formatMonthName,
   formatNumber,
   formatOperationNumber,
   formatPercent,

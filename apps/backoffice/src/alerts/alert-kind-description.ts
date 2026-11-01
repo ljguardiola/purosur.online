@@ -49,6 +49,8 @@ const ALERT_KIND_DESCRIPTIONS = {
     "Una caja restaurada no puede ponerse al día con la nube y no puede vender",
   deferred_sale_due:
     "Una venta diferida todavía no se facturó y se acerca el día en que ya no podrá facturarse.",
+  exception_share_breach:
+    "Un domicilio fiscal emitió en un mes el 5 % o más de sus comprobantes por excepción (CAEA)",
 } satisfies Record<AlertKind, string>;
 
 export const DESCRIBED_ALERT_KINDS: readonly string[] = Object.keys(ALERT_KIND_DESCRIPTIONS);
