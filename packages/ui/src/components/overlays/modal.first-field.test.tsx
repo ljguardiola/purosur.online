@@ -154,6 +154,20 @@ test("keeps the focus on the dialog when the body holds only checkboxes, switche
   await expect.element(screen.getByRole("dialog")).toHaveFocus();
 });
 
+test.each(["file", "color", "button", "submit", "reset", "image"])(
+  "opens focused on the first text field, past an input of type %s before it",
+  async (type) => {
+    const screen = await render(
+      <FormModal>
+        <input type={type} aria-label="Otro control" />
+        <NameField />
+      </FormModal>,
+    );
+
+    await expect.element(screen.getByRole("textbox", { name: "Nombre" })).toHaveFocus();
+  },
+);
+
 test("opens focused on a combobox when it is the first field", async () => {
   const screen = await render(
     <FormModal>
