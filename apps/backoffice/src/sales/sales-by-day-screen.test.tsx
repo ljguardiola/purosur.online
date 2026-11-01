@@ -1,8 +1,9 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
-import { expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { readXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
 import { type ReportFilters, reportFiltersSearch } from "../shell/report-filters-search";
 import { render } from "../shell/test-support/render-with-router";
 import { dateSegments } from "../shell/test-support/report-dates";
@@ -219,4 +220,69 @@ test("still reports the sales when the registers cannot be listed, offering only
   await userEvent.click(screen.getByRole("combobox", { name: /Caja:/ }));
   await expect.element(screen.getByRole("option", { name: "Todas" })).toBeVisible();
   expect(screen.getByRole("option").elements()).toHaveLength(1);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+function spyOnDownloads() {
+  const blobs: Blob[] = [];
+  const names: string[] = [];
+  vi.spyOn(URL, "createObjectURL").mockImplementation((blob) => {
+    blobs.push(blob as Blob);
+    return "blob:mock-url";
+  });
+  vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+    this: HTMLAnchorElement,
+  ) {
+    names.push(this.download);
+  });
+  return { blobs, names };
+}
+
+test("downloads a spreadsheet of the days shown, with the applied period and register and the totals", async () => {
+  const downloads = spyOnDownloads();
+  const screen = await renderScreen(createServices(), {
+    filters: reportFiltersSearch.parse({
+      from: "2026-10-01",
+      to: "2026-10-07",
+      register: BACK_REGISTER_ID,
+    }),
+  });
+  await expect
+    .element(screen.getByRole("combobox", { name: /^Caja:/ }))
+    .toHaveValue("Caja del fondo");
+  await expect.element(screen.getByText("02/10/2026")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
+
+  await expect
+    .poll(() => downloads.names)
+    .toEqual(["ventas-por-dia-o-por-rango-2026-10-01-2026-10-07.xlsx"]);
+  const file = readXlsx(new Uint8Array(await downloads.blobs[0]?.arrayBuffer()));
+  expect(file.sheetNames).toEqual(["Resumen", "Ventas por día"]);
+  const summary = file.sheet(0);
+  expect(summary.get("A3")?.value).toBe("Caja");
+  expect(summary.get("B3")?.value).toBe("Caja del fondo");
+  expect(summary.get("A4")?.value).toBe("Total vendido");
+  expect(summary.get("B4")?.value).toBe("13480.5");
+  const days = file.sheet(1);
+  expect(days.get("B2")?.value).toBe("3");
+  expect(days.get("C2")?.value).toBe("12500.5");
+  expect(days.get("C3")?.value).toBe("980");
+});
+
+test("is disabled while the report loads and after loading fails", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchSalesReport).mockReturnValue(new Promise(() => {}));
+  const loading = await renderScreen(services);
+  await expect.element(loading.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
+  await loading.unmount();
+
+  vi.mocked(services.fetchSalesReport).mockResolvedValue({ kind: "failed" });
+  const failed = await renderScreen(services);
+  await expect.element(failed.getByRole("button", { name: "Reintentar" })).toBeVisible();
+  await expect.element(failed.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
 });

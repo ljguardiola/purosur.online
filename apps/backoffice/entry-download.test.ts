@@ -5,6 +5,8 @@ import { beforeAll, expect, test } from "vitest";
 const BACKOFFICE_ROOT = fileURLToPath(new URL(".", import.meta.url));
 const UI_COMPONENTS = fileURLToPath(new URL("../../packages/ui/src/components/", import.meta.url));
 const SIGN_IN_PAGE = `${BACKOFFICE_ROOT}src/sessions/sign-in-page.tsx`;
+const SALES_BY_DAY_PAGE = `${BACKOFFICE_ROOT}src/sales/sales-by-day-page.tsx`;
+const SPREADSHEET_WRITER = `${BACKOFFICE_ROOT}src/platform/spreadsheet/spreadsheet-writer.ts`;
 const BRANDS_LIST_PAGE = `${BACKOFFICE_ROOT}src/catalog/brands-list-page.tsx`;
 
 let chunks: Map<string, Rolldown.OutputChunk>;
@@ -76,6 +78,21 @@ test("opening a screen downloads its services and its API client with it", () =>
 
   expect(modules).toContain(`${BACKOFFICE_ROOT}src/catalog/brands-list-services.ts`);
   expect(modules).toContain(`${BACKOFFICE_ROOT}src/catalog/brands-api.ts`);
+});
+
+test("the spreadsheet writer and fflate load in a chunk of their own, only when a download is requested", () => {
+  const writerChunks = [...chunks.values()].filter((chunk) =>
+    chunk.moduleIds.includes(SPREADSHEET_WRITER),
+  );
+  const salesByDayPage = [...chunks.values()].filter(
+    (chunk) => chunk.facadeModuleId === SALES_BY_DAY_PAGE,
+  );
+  const downloadedOnOpening = modulesDownloadedFrom([...entryChunks(), ...salesByDayPage]);
+
+  expect(writerChunks).toHaveLength(1);
+  expect(downloadedOnOpening).not.toContain(SPREADSHEET_WRITER);
+  expect(downloadedOnOpening.some((moduleId) => /[\\/]fflate[\\/]/.test(moduleId))).toBe(false);
+  expect(modulesDownloadedFrom(writerChunks).some((moduleId) => /[\\/]fflate[\\/]/.test(moduleId))).toBe(true);
 });
 
 test("the build carries the design system's screen-reader texts only in Spanish", () => {
