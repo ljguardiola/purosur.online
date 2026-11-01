@@ -204,6 +204,9 @@ export function PurchaseOrderScreen({
           tone="success"
           icon={<Check />}
           title={notice === "saved" ? "Pedido guardado" : "Pedido cancelado"}
+          description={
+            notice === "saved" ? "Los cambios quedaron en el borrador." : "Ya no se puede editar."
+          }
           onDismiss={() => setNotice(null)}
         />
       )}

@@ -116,20 +116,18 @@ describe("purchaseOrderLinesMessage", () => {
   });
 
   test("names the first line whose packages are not a whole number", () => {
-    const [first, second] = valid;
     expect(
       purchaseOrderLinesMessage({
-        lines: [first, { ...second, packages: "1,5" }].flatMap((line) => (line ? [line] : [])),
+        lines: valid.map((line, index) => (index === 1 ? { ...line, packages: "1,5" } : line)),
       }),
     ).toBe("Línea 2: Ingresá cuántos paquetes pedir, en un número entero.");
   });
 
   test("tells how to type the quantity each package holds, by the line's sale unit", () => {
-    const [first, second] = valid;
     expect(
       purchaseOrderLinesMessage({
-        lines: [first, { ...second, quantityPerPackage: "" }].flatMap((line) =>
-          line ? [line] : [],
+        lines: valid.map((line, index) =>
+          index === 1 ? { ...line, quantityPerPackage: "" } : line,
         ),
       }),
     ).toBe("Línea 2: Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.");

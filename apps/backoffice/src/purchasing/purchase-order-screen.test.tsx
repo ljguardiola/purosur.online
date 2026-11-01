@@ -79,7 +79,12 @@ async function loaded(services: PurchaseOrderScreenServices, options = {}) {
   return screen;
 }
 
-async function chooseFromComboBox(screen: Screen, scope: Screen, label: RegExp, name: string) {
+async function chooseFromComboBox(
+  screen: Screen,
+  scope: Pick<Screen, "getByRole">,
+  label: RegExp,
+  name: string,
+) {
   await userEvent.click(scope.getByRole("combobox", { name: label }));
   await expect.element(screen.getByRole("option", { name })).toBeVisible();
   (screen.getByRole("option", { name }).element() as HTMLElement).click();
