@@ -32,16 +32,59 @@ export function shortfallToCover({
   return numerator > 0n ? { numerator, denominator: BigInt(ORDER_SUGGESTION_SALES_DAYS) } : null;
 }
 
-function stepsToCover({ numerator, denominator }: Fraction, step: number): number {
-  const stepSize = denominator * BigInt(step);
-  return Number((numerator + stepSize - 1n) / stepSize);
+export function effectiveCoverageDays(
+  coverageDays: number,
+  shelfLifeDays: number | null,
+): { days: number; cappedByExpiry: boolean } {
+  return shelfLifeDays !== null && shelfLifeDays < coverageDays
+    ? { days: shelfLifeDays, cappedByExpiry: true }
+    : { days: coverageDays, cappedByExpiry: false };
 }
 
-export function packagesToCover(shortfall: Fraction, packageQuantity: number): number {
-  return stepsToCover(shortfall, packageQuantity);
+// In thousandths of the sale unit: the most that sells over the shelf life beyond the stock, or
+// null when no lot gives a shelf life.
+export function expiryCapQuantity({
+  soldThousandths: sold,
+  shelfLifeDays,
+  stockThousandths,
+}: {
+  soldThousandths: number;
+  shelfLifeDays: number | null;
+  stockThousandths: number;
+}): Fraction | null {
+  return shelfLifeDays === null
+    ? null
+    : {
+        numerator:
+          BigInt(sold) * BigInt(shelfLifeDays) -
+          BigInt(stockThousandths) * BigInt(ORDER_SUGGESTION_SALES_DAYS),
+        denominator: BigInt(ORDER_SUGGESTION_SALES_DAYS),
+      };
 }
 
-export function quantityToOrderWithoutSupplier(shortfall: Fraction, saleUnit: SaleUnit): number {
+function stepsToOrder(shortfall: Fraction, step: number, cap: Fraction | null): number {
+  const stepSize = shortfall.denominator * BigInt(step);
+  const roundedUp = (shortfall.numerator + stepSize - 1n) / stepSize;
+  if (cap === null) {
+    return Number(roundedUp);
+  }
+  const roundedDown = cap.numerator / (cap.denominator * BigInt(step));
+  return Math.min(Number(roundedUp), Number(roundedDown));
+}
+
+export function packagesToCover(
+  shortfall: Fraction,
+  packageQuantity: number,
+  cap: Fraction | null = null,
+): number {
+  return stepsToOrder(shortfall, packageQuantity, cap);
+}
+
+export function quantityToOrderWithoutSupplier(
+  shortfall: Fraction,
+  saleUnit: SaleUnit,
+  cap: Fraction | null = null,
+): number {
   const step = saleUnit === "UNIT" ? STOCK_QUANTITY_PER_UNIT : 1;
-  return stepsToCover(shortfall, step) * step;
+  return stepsToOrder(shortfall, step, cap) * step;
 }

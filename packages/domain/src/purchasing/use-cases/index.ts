@@ -114,6 +114,7 @@ export type {
 } from "./mark-supplier-price-list-row-reviewed.js";
 export { markSupplierPriceListRowReviewed } from "./mark-supplier-price-list-row-reviewed.js";
 export type {
+  NewestShelfLifeLot,
   OrderSuggestionReader,
   OrderSuggestionSalesQuery,
   OrderSuggestionSupplier,

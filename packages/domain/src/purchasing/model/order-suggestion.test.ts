@@ -1,6 +1,8 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
+  effectiveCoverageDays,
+  expiryCapQuantity,
   ORDER_SUGGESTION_SALES_DAYS,
   orderSuggestionPeriod,
   packagesToCover,
@@ -141,5 +143,101 @@ describe("quantityToOrderWithoutSupplier", () => {
   it("rounds a product sold by weight up to the thousandth", () => {
     expect(quantityToOrderWithoutSupplier({ numerator: 100n, denominator: 30n }, "KG")).toBe(4);
     expect(quantityToOrderWithoutSupplier({ numerator: 90n, denominator: 30n }, "KG")).toBe(3);
+  });
+});
+
+describe("effectiveCoverageDays", () => {
+  it("is the coverage days when no lot gives a shelf life", () => {
+    expect(effectiveCoverageDays(15, null)).toEqual({ days: 15, cappedByExpiry: false });
+  });
+
+  it("is the shelf life when it is shorter than the coverage days", () => {
+    expect(effectiveCoverageDays(15, 10)).toEqual({ days: 10, cappedByExpiry: true });
+    expect(effectiveCoverageDays(15, 0)).toEqual({ days: 0, cappedByExpiry: true });
+  });
+
+  it("is the coverage days when the shelf life is as long or longer", () => {
+    expect(effectiveCoverageDays(15, 15)).toEqual({ days: 15, cappedByExpiry: false });
+    expect(effectiveCoverageDays(15, 40)).toEqual({ days: 15, cappedByExpiry: false });
+  });
+});
+
+describe("expiryCapQuantity", () => {
+  it("is what the average daily sales need over the shelf life beyond the stock", () => {
+    expect(
+      expiryCapQuantity({ soldThousandths: 120_000, shelfLifeDays: 10, stockThousandths: 20_000 }),
+    ).toEqual({ numerator: 600_000n, denominator: 30n });
+  });
+
+  it("is null when no lot gives a shelf life", () => {
+    expect(
+      expiryCapQuantity({ soldThousandths: 120_000, shelfLifeDays: null, stockThousandths: 0 }),
+    ).toBeNull();
+  });
+});
+
+describe("packagesToCover with an expiry cap", () => {
+  const shortfall = { numerator: 600_000n, denominator: 30n };
+
+  it("rounds down when rounding up would exceed the cap", () => {
+    expect(packagesToCover(shortfall, 12_000, shortfall)).toBe(1);
+  });
+
+  it("rounds up when the rounded-up quantity does not exceed the cap", () => {
+    expect(packagesToCover(shortfall, 10_000, shortfall)).toBe(2);
+    expect(packagesToCover(shortfall, 12_000, { numerator: 720_000n, denominator: 30n })).toBe(2);
+  });
+
+  it("rounds down to no packages when one package holds more than the cap", () => {
+    expect(packagesToCover(shortfall, 48_000, shortfall)).toBe(0);
+  });
+
+  it("never orders more than the cap holds, nor less than the packages that fit in it", () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1, max: 2_000_000_000 }),
+        fc.integer({ min: 0, max: 2_000_000_000 }),
+        fc.integer({ min: 1, max: 1_000_000 }),
+        (shortfallNumerator, slack, packageQuantity) => {
+          const need = { numerator: BigInt(shortfallNumerator), denominator: 30n };
+          const cap = { numerator: need.numerator + BigInt(slack), denominator: 30n };
+          const packages = BigInt(packagesToCover(need, packageQuantity, cap));
+          const size = BigInt(packageQuantity) * 30n;
+          const roundedUp = (need.numerator + size - 1n) / size;
+          const rounding = roundedUp * size <= cap.numerator ? roundedUp : cap.numerator / size;
+          expect(packages).toBe(rounding);
+          expect(packages * size <= cap.numerator).toBe(true);
+        },
+      ),
+    );
+  });
+});
+
+describe("quantityToOrderWithoutSupplier with an expiry cap", () => {
+  const shortfall = { numerator: 600_000n, denominator: 30n };
+
+  it("rounds a product sold by the unit down to whole units when rounding up would exceed the cap", () => {
+    const cap = { numerator: 100_001n, denominator: 30n };
+
+    expect(quantityToOrderWithoutSupplier(cap, "UNIT", cap)).toBe(3_000);
+  });
+
+  it("rounds a product sold by weight down to the thousandth when rounding up would exceed the cap", () => {
+    expect(
+      quantityToOrderWithoutSupplier({ numerator: 100n, denominator: 30n }, "KG", {
+        numerator: 100n,
+        denominator: 30n,
+      }),
+    ).toBe(3);
+  });
+
+  it("keeps the rounded-up quantity when it fits in the cap", () => {
+    expect(quantityToOrderWithoutSupplier(shortfall, "UNIT", shortfall)).toBe(20_000);
+    expect(
+      quantityToOrderWithoutSupplier({ numerator: 100n, denominator: 30n }, "UNIT", {
+        numerator: 30_000n,
+        denominator: 30n,
+      }),
+    ).toBe(1_000);
   });
 });
