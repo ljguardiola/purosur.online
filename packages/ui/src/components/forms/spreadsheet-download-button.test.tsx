@@ -55,6 +55,6 @@ test("says why it is disabled when given a reason", async () => {
 
   const button = screen.getByRole("button", { name: "Descargar planilla" });
   await expect.element(button).toHaveAttribute("aria-disabled", "true");
-  await userEvent.click(button);
+  await userEvent.click(button, { force: true });
   expect(onPress).not.toHaveBeenCalled();
 });

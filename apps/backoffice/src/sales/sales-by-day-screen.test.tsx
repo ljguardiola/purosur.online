@@ -264,10 +264,10 @@ test("downloads a spreadsheet of the days shown, with the applied period and reg
   const file = readXlsx(new Uint8Array(await downloads.blobs[0]?.arrayBuffer()));
   expect(file.sheetNames).toEqual(["Resumen", "Ventas por día"]);
   const summary = file.sheet(0);
-  expect(summary.get("A3")?.value).toBe("Caja");
-  expect(summary.get("B3")?.value).toBe("Caja del fondo");
-  expect(summary.get("A4")?.value).toBe("Total vendido");
-  expect(summary.get("B4")?.value).toBe("13480.5");
+  expect(summary.get("A4")?.value).toBe("Caja");
+  expect(summary.get("B4")?.value).toBe("Caja del fondo");
+  expect(summary.get("A5")?.value).toBe("Total vendido");
+  expect(summary.get("B5")?.value).toBe("13480.5");
   const days = file.sheet(1);
   expect(days.get("B2")?.value).toBe("3");
   expect(days.get("C2")?.value).toBe("12500.5");

@@ -3,7 +3,10 @@ import { writeWorkbook } from "./spreadsheet-writer";
 import { readXlsx } from "./test-support/read-xlsx";
 import { type Cell, cell, type Workbook } from "./workbook";
 
-function workbookOf(rows: Cell[][], header: string[] = ["Columna"]): Workbook {
+function workbookOf(
+  rows: Cell[][],
+  header: string[] = (rows[0] ?? [cell.empty()]).map((_, column) => `Columna ${column + 1}`),
+): Workbook {
   return { sheets: [{ name: "Hoja", header, rows }] };
 }
 
