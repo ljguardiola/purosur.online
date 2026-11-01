@@ -12,6 +12,7 @@ export const productSummarySchema = z.object({
   barcodes: z.array(z.string()),
   tagIds: z.array(z.string()),
   netContent: netContentSchema.nullable(),
+  coverageDays: z.int(),
   active: z.boolean(),
   labelCode: z.string().nullable(),
   labelModules: z.string().nullable(),
