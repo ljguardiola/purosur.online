@@ -57,6 +57,13 @@ function offerOption(offer: Offer, line: SuggestedLine): SupplierOption {
   };
 }
 
+function withLeaveOut(
+  candidates: readonly SupplierOption[],
+): [SupplierOption, ...SupplierOption[]] {
+  const [first, ...rest] = candidates;
+  return first === undefined ? [LEAVE_OUT_OPTION] : [first, ...rest, LEAVE_OUT_OPTION];
+}
+
 export function OrderSuggestionScreen({
   filters,
   onFiltersChange,
@@ -139,12 +146,9 @@ export function OrderSuggestionScreen({
               label={`Proveedor de ${formatProductDescription(line)}`}
               labelVisuallyHidden
               placeholder="Elegir proveedor"
-              options={[
-                ...(hasPrice
-                  ? line.offers.map((offer) => offerOption(offer, line))
-                  : activeSuppliers),
-                LEAVE_OUT_OPTION,
-              ]}
+              options={withLeaveOut(
+                hasPrice ? line.offers.map((offer) => offerOption(offer, line)) : activeSuppliers,
+              )}
               value={chosen}
               onChange={(value) => setDrafts((current) => ({ ...current, [line.id]: value }))}
             />
