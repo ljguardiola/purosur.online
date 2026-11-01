@@ -113,6 +113,7 @@ test("creates a product with a net content", async () => {
     barcodes: ["7790000000099"],
     tagIds: [],
     netContent: { quantity: 1.5, unit: "KG" },
+    coverageDays: 15,
   });
   await expect.poll(() => onCreated.mock.calls.length).toBe(1);
   expect(onCreated).toHaveBeenCalledWith({ ...honey, brandName: null });
@@ -855,5 +856,44 @@ test("Ctrl+Enter pressed in the stacked brand modal creates the brand and not th
   await expect.poll(() => vi.mocked(services.createBrand).mock.calls.length).toBe(1);
   expect(services.createBrand).toHaveBeenCalledWith({ name: "Serenísima" });
   await expect.element(brandSelect(dialog)).toHaveValue("Serenísima");
+  expect(services.createProduct).not.toHaveBeenCalled();
+});
+
+test("offers 15 coverage days for a new product", async () => {
+  const { dialog } = await renderModal(createServices());
+
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Días de cobertura/ }))
+    .toHaveValue("15");
+});
+
+test("creates a product with the coverage days typed", async () => {
+  const services = createServices();
+  vi.mocked(services.createProduct).mockResolvedValue({ kind: "ok", product: honey });
+  const { dialog } = await renderModal(services);
+  await fillNewProductFieldsExceptBarcodes(dialog);
+  await scanCode(scanInputOf(dialog), "7790000000099");
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Días de cobertura/ }), "30");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+
+  await expect.poll(() => vi.mocked(services.createProduct).mock.calls.length).toBe(1);
+  expect(services.createProduct).toHaveBeenCalledWith(
+    expect.objectContaining({ coverageDays: 30 }),
+  );
+});
+
+test("does not create a product whose coverage days are out of range, and says why", async () => {
+  const services = createServices();
+  const { dialog } = await renderModal(services);
+  await fillNewProductFieldsExceptBarcodes(dialog);
+  await scanCode(scanInputOf(dialog), "7790000000099");
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Días de cobertura/ }), "400");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+
+  await expect
+    .element(dialog.getByText("Ingresá un número entero de días, de 1 a 365."))
+    .toBeVisible();
   expect(services.createProduct).not.toHaveBeenCalled();
 });
