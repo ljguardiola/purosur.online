@@ -31,3 +31,20 @@ export function canExpireWithStock<
 >(lot: Lot): lot is Lot & { expiresOn: string } {
   return lot.expiresOn !== null && !lot.technical && lot.remaining > 0;
 }
+
+export function lotShelfLifeDays(createdOn: string, expiresOn: string): number {
+  return Math.max(0, daysToExpiry(expiresOn, createdOn));
+}
+
+export function countsForShelfLife<
+  Lot extends {
+    expiresOn: string | null;
+    origin: "purchase" | "assembly_batch" | "initial_count" | "technical";
+    batchVoided: boolean;
+  },
+>(lot: Lot): lot is Lot & { expiresOn: string } {
+  return (
+    lot.expiresOn !== null &&
+    (lot.origin === "purchase" || (lot.origin === "assembly_batch" && !lot.batchVoided))
+  );
+}

@@ -1076,8 +1076,15 @@
     {
       "idx": 160,
       "version": "7",
-      "when": 1793501991218,
-      "tag": "0160_load_purchase_lines_by_packages",
+      "when": 1793535191477,
+      "tag": "0160_sale_line_promotion_kind",
+      "breakpoints": true
+    },
+    {
+      "idx": 161,
+      "version": "7",
+      "when": 1793549355478,
+      "tag": "0161_load_purchase_lines_by_packages",
       "breakpoints": true
     }
   ]

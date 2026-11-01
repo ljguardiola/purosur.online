@@ -114,6 +114,7 @@ export async function insertInitialCountLot<TQueryResult extends PgQueryResultHK
     expiresOn?: string | null;
     withdrawn?: boolean;
     unitCostCents?: number;
+    createdAt?: Date;
   },
 ): Promise<{ lotId: string; movementId: string }> {
   const counted = input.counted ?? 6_000;
@@ -145,6 +146,7 @@ export async function insertInitialCountLot<TQueryResult extends PgQueryResultHK
       costQuantity: input.unitCostCents === undefined ? null : 1_000,
       quantityReceived: counted,
       remaining: input.remaining ?? counted,
+      ...(input.createdAt ? { createdAt: input.createdAt } : {}),
     })
     .returning({ id: lots.id });
   if (!lot) {

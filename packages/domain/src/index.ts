@@ -1032,6 +1032,7 @@ export {
   adjustmentDirections,
   assemblyBatchStatus,
   countResult,
+  countsForShelfLife,
   DEFAULT_STOCK_PERIOD_DAYS,
   expectedBalance,
   INITIAL_COUNT_COST_FILTERS,

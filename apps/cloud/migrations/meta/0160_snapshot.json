@@ -1,5 +1,5 @@
 {
-  "id": "f70ad7e9-9bfb-4ff4-a99c-dd2daa194f1b",
+  "id": "fc1de1c7-cca8-4fd2-b0af-43e11d781846",
   "prevId": "af664d06-5f4b-419a-b556-64079daf9fc6",
   "version": "7",
   "dialect": "postgresql",
@@ -6831,9 +6831,9 @@
           "name": "purchase_lines_cost_paid_check",
           "value": "\"purchase_lines\".\"cost_paid_cents\" >= 0"
         },
-        "purchase_lines_packaging_needs_packages_check": {
-          "name": "purchase_lines_packaging_needs_packages_check",
-          "value": "\"purchase_lines\".\"packaging_id\" is null or \"purchase_lines\".\"packages\" is not null"
+        "purchase_lines_packaging_iff_packages_check": {
+          "name": "purchase_lines_packaging_iff_packages_check",
+          "value": "(\"purchase_lines\".\"packaging_id\" is null) = (\"purchase_lines\".\"packages\" is null)"
         },
         "purchase_lines_packages_quantity_check": {
           "name": "purchase_lines_packages_quantity_check",
@@ -9251,6 +9251,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "promotion_kind": {
+          "name": "promotion_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "discount_amount": {
           "name": "discount_amount",
           "type": "bigint",
@@ -9320,6 +9326,10 @@
         "sale_lines_sale_discount_share_check": {
           "name": "sale_lines_sale_discount_share_check",
           "value": "\"sale_lines\".\"sale_discount_share\" >= 0"
+        },
+        "sale_lines_promotion_kind_check": {
+          "name": "sale_lines_promotion_kind_check",
+          "value": "\"sale_lines\".\"promotion_kind\" IS NULL OR (\"sale_lines\".\"promotion_id\" IS NOT NULL AND \"sale_lines\".\"promotion_kind\" IN ('PERCENT_OFF', 'BUY_N_PAY_M'))"
         },
         "sale_lines_weight_source_check": {
           "name": "sale_lines_weight_source_check",

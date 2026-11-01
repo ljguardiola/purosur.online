@@ -4,7 +4,7 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import type { ReturnDraft } from "./return-form";
-import { checkLine, EMPTY_RETURN_DRAFT } from "./return-form";
+import { changeLine, checkLine, EMPTY_RETURN_DRAFT } from "./return-form";
 import { ReturnLinesTable } from "./return-lines-table";
 import type { SaleForReturn } from "./return-sale";
 import { HONEY, NIBS, PASTA, SALE, TEA } from "./test-support/sale-for-return";
@@ -151,17 +151,40 @@ describe("ReturnLinesTable", () => {
       .not.toHaveTextContent("ArrepentimientoVencido");
   });
 
-  it("returns a line that must go back whole in all its remaining quantity, with the reason it cannot change", async () => {
-    const { screen } = await renderTable({ draft: checkLine(EMPTY_RETURN_DRAFT, HONEY) });
+  it("returns a line that must go back whole for the chosen reason in all its remaining quantity, with the reason it cannot change", async () => {
+    const { screen } = await renderTable({
+      draft: changeLine(checkLine(EMPTY_RETURN_DRAFT, HONEY), HONEY.id, {
+        reason: "change_of_mind",
+      }),
+    });
 
     const quantity = screen.getByRole("textbox", { name: "Cantidad de Miel pura de abeja 1 kg" });
     await expect.element(quantity).toHaveValue("2");
     await expect.element(quantity).toHaveAttribute("readonly");
     await userEvent.hover(quantity);
     await expect
-      .element(screen.getByRole("tooltip", { name: "Las promociones se devuelven completas" }))
+      .element(
+        screen.getByRole("tooltip", { name: "Con este motivo, la promoción se devuelve completa" }),
+      )
       .toBeVisible();
   });
+
+  it.each([
+    ["defective", { reason: "defective" as const }],
+    ["no reason", {}],
+  ])(
+    "lets the cashier type the quantity of a line that goes back whole only for another reason, with %s chosen",
+    async (_name, change) => {
+      const { screen, onChange } = await renderTable({
+        draft: changeLine(checkLine(EMPTY_RETURN_DRAFT, HONEY), HONEY.id, change),
+      });
+
+      const quantity = screen.getByRole("textbox", { name: "Cantidad de Miel pura de abeja 1 kg" });
+      await expect.element(quantity).not.toHaveAttribute("readonly");
+      await userEvent.fill(quantity, "1");
+      expect(onChange).toHaveBeenLastCalledWith(HONEY.id, { quantity: "1" });
+    },
+  );
 
   it("offers no checkbox for a line already returned in full, and says it was", async () => {
     const { screen } = await renderTable();
@@ -205,7 +228,9 @@ describe("ReturnLinesTable", () => {
 
   it("has no accessibility violations", async () => {
     const { screen } = await renderTable({
-      draft: checkLine(checkLine(EMPTY_RETURN_DRAFT, PASTA), HONEY),
+      draft: changeLine(checkLine(checkLine(EMPTY_RETURN_DRAFT, PASTA), HONEY), HONEY.id, {
+        reason: "change_of_mind",
+      }),
     });
 
     await expectNoAccessibilityViolations(screen.container);
