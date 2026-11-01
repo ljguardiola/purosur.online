@@ -1,4 +1,4 @@
-import { type CashMovementsBody, cashMovementsSchema } from "@purosur/contracts";
+import type { CashMovementsBody } from "@purosur/contracts";
 import {
   Card,
   dataColumn,
@@ -11,9 +11,11 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { ArrowLeftRight } from "lucide-react";
+import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { reportMoment } from "../platform/report-moment";
-import { schemaText } from "../platform/schema-text";
+import { ReportDownload } from "../shell/report-download";
+import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import {
   type ReportFilters as ReportFiltersValue,
@@ -22,7 +24,11 @@ import {
 import type { ReportRegisterField } from "../shell/report-register-field";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
+import { KIND_LABELS } from "./cash-movements-kind-labels";
 import type { CashMovementsScreenServices } from "./cash-movements-services";
+import { cashMovementsSpreadsheet } from "./cash-movements-spreadsheet";
+import { OCCURRED_TIME_ZONE, OPENED_TIME_ZONE } from "./cash-movements-time-zones";
+import { TOTAL_CARDS } from "./cash-movements-total-cards";
 import { useCashMovementsQuery } from "./register-queries";
 
 export type CashMovementsScreenProps = {
@@ -37,15 +43,7 @@ type MovementRow = CashMovementsBody["movements"][number];
 
 const NO_MOVEMENTS: MovementRow[] = [];
 
-const movementShape = cashMovementsSchema.shape.movements.element.shape;
-const OCCURRED_TIME_ZONE = schemaText(movementShape.occurred_at.meta()?.["timeZone"]);
-const OPENED_TIME_ZONE = schemaText(movementShape.session_opened_at.meta()?.["timeZone"]);
-
-const KIND_LABELS: Record<MovementRow["kind"], string> = {
-  CASH_IN: "Ingreso",
-  CASH_OUT: "Gasto",
-  WITHDRAWAL: "Retiro",
-};
+const SCREEN_TITLE = "Movimientos de caja";
 
 const movementColumns = [
   dataColumn({
@@ -93,14 +91,6 @@ function countText(movements: number): string {
   });
 }
 
-type KindTotal = CashMovementsBody["totals"]["cash_in"];
-
-const TOTAL_CARDS = [
-  { label: "Ingresos", totalOf: (totals: CashMovementsBody["totals"]) => totals.cash_in },
-  { label: "Gastos", totalOf: (totals: CashMovementsBody["totals"]) => totals.cash_out },
-  { label: "Retiros", totalOf: (totals: CashMovementsBody["totals"]) => totals.withdrawal },
-] satisfies { label: string; totalOf: (totals: CashMovementsBody["totals"]) => KindTotal }[];
-
 export function CashMovementsScreen({
   filters,
   onFiltersChange,
@@ -108,6 +98,7 @@ export function CashMovementsScreen({
   registerFilter,
   services,
 }: CashMovementsScreenProps) {
+  const [registerLabel, setRegisterLabel] = useState("Todas");
   const data = useCashMovementsQuery({
     query: reportQueryOf(filters),
     fetchCashMovements: services.fetchCashMovements,
@@ -123,7 +114,7 @@ export function CashMovementsScreen({
 
   return (
     <ScreenLayout
-      topBar={<ScreenTopBar eyebrow="Reportes · Caja" title="Movimientos de caja" />}
+      topBar={<ScreenTopBar eyebrow="Reportes · Caja" title={SCREEN_TITLE} />}
       bodyClassName="gap-4 p-6"
     >
       <ReportFilters
@@ -131,6 +122,22 @@ export function CashMovementsScreen({
         onFiltersChange={onFiltersChange}
         answeredPeriod={shown?.range}
         registerFilter={registerFilter}
+        onRegisterLabelChange={setRegisterLabel}
+        trailing={
+          <ReportDownload
+            dataStatus={data.status}
+            workbook={() =>
+              shown
+                ? cashMovementsSpreadsheet(
+                    shown,
+                    table.getRowModel().rows.map((row) => row.original),
+                    registerLabel,
+                  )
+                : null
+            }
+            fileName={shown ? reportFileName(SCREEN_TITLE, shown.range) : ""}
+          />
+        }
       />
       {data.status === "failed" ? null : (
         <div className="grid grid-cols-3 gap-4">
