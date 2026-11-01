@@ -132,6 +132,8 @@ describe("listOrderSuggestion", () => {
         categoryName: "Almacén",
         saleUnit: "UNIT",
         coverageDays: 15,
+        effectiveDays: 15,
+        cappedByExpiry: false,
         soldQuantity: 120_000,
         stock: 12_000,
         neededQuantity: 48_000,
