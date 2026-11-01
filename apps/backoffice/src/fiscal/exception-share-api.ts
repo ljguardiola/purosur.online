@@ -11,12 +11,12 @@ export async function fetchExceptionShareYear({
   year,
 }: {
   fiscalAddressId: string;
-  year: number;
+  year?: number | undefined;
 }): Promise<FetchExceptionShareYearOutcome> {
   let response: Response;
   try {
     response = await fetch(
-      `/api/fiscal/exception-share/${encodeURIComponent(fiscalAddressId)}?year=${year}`,
+      `/api/fiscal/exception-share/${encodeURIComponent(fiscalAddressId)}${year === undefined ? "" : `?year=${year}`}`,
     );
   } catch {
     return { kind: "failed" };

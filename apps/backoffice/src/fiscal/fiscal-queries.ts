@@ -65,7 +65,7 @@ export const fiscalKeys = {
   fiscalTasks: [...fiscalKey, "tasks"] as const,
   unbilledDeferredSales: [...fiscalKey, "unbilled-deferred-sales"] as const,
   zoneRules: [...fiscalKey, "zone-rules"] as const,
-  exceptionShareYear: (fiscalAddressId: string, year: number) =>
+  exceptionShareYear: (fiscalAddressId: string, year: number | undefined) =>
     [...fiscalKey, "exception-share", fiscalAddressId, year] as const,
   issuedDocument: (voucher: IssuedFiscalDocumentVoucher) =>
     [
@@ -353,7 +353,7 @@ export function useIssuedFiscalDocumentQuery(params: {
 
 export function useExceptionShareYearQuery(params: {
   fiscalAddressId: string | undefined;
-  year: number;
+  year: number | undefined;
   fetchExceptionShareYear: typeof fetchExceptionShareYear;
   onSessionEnded: () => void;
 }) {
@@ -361,6 +361,7 @@ export function useExceptionShareYearQuery(params: {
   const { fiscalAddressId, year } = params;
   return useCloudQuery<ExceptionShareYearRead>({
     queryKey: fiscalKeys.exceptionShareYear(fiscalAddressId ?? "", year),
+    keepPreviousData: true,
     enabled: fiscalAddressId !== undefined,
     read: async () => {
       if (fiscalAddressId === undefined) {

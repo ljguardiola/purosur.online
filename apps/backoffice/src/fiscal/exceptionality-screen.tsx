@@ -2,6 +2,7 @@ import type { ExceptionShareYearBody } from "@purosur/contracts";
 import {
   dataColumn,
   formatNumber,
+  formatPercent,
   formatTenthsOfPercent,
   groupColumn,
   ListFilter,
@@ -12,13 +13,12 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { FileSearch, Percent } from "lucide-react";
-import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import type { CloudData } from "../platform/use-cloud-query";
 import { monthNameOf, yearMonthLabel } from "../platform/year-month-label";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
-import { type ExceptionalityFilters, exceptionalityYears } from "./exceptionality-filters";
+import type { ExceptionalityFilters } from "./exceptionality-filters";
 import type { ExceptionalityScreenServices } from "./exceptionality-services";
 import { useExceptionShareYearQuery, useFiscalAddressesQuery } from "./fiscal-queries";
 
@@ -115,14 +115,12 @@ export function ExceptionalityScreen({
   onSessionEnded,
   services,
 }: ExceptionalityScreenProps) {
-  const [years] = useState(exceptionalityYears);
   const addresses = useFiscalAddressesQuery({
     fetchFiscalAddresses: services.fetchFiscalAddresses,
     onSessionEnded,
   });
   const [firstAddress, ...otherAddresses] = addresses.status === "loaded" ? addresses.value : [];
   const fiscalAddressId = filters.fiscalAddress === "" ? firstAddress?.id : filters.fiscalAddress;
-  const [firstYear, ...otherYears] = years;
   const read = useExceptionShareYearQuery({
     fiscalAddressId: addresses.status === "loaded" ? fiscalAddressId : undefined,
     year: filters.year,
@@ -134,6 +132,8 @@ export function ExceptionalityScreen({
     addresses.status === "loaded" && !noFiscalAddresses ? read : addresses;
   const shown =
     read.status === "loaded" && read.value.kind === "found" ? read.value.year : undefined;
+  const lastRead = read.status === "loaded" ? undefined : read.lastValue;
+  const answered = shown ?? (lastRead?.kind === "found" ? lastRead.year : undefined);
   const table = useTableModel({
     items: shown?.months ?? NO_MONTHS,
     id: (month) => month.month,
@@ -154,19 +154,27 @@ export function ExceptionalityScreen({
             value={fiscalAddressId ?? ""}
             onChange={(fiscalAddress) => onFiltersChange({ ...filters, fiscalAddress })}
           />
-          <ListFilter
-            name="year"
-            label="Año:"
-            options={[yearOption(firstYear), ...otherYears.map(yearOption)]}
-            value={String(filters.year)}
-            onChange={(year) => onFiltersChange({ ...filters, year: Number(year) })}
-          />
+          {answered === undefined ? null : (
+            <ListFilter
+              name="year"
+              label="Año:"
+              options={[
+                yearOption(answered.selectable_years[0]),
+                ...answered.selectable_years.slice(1).map(yearOption),
+              ]}
+              value={String(answered.year)}
+              onChange={(year) => onFiltersChange({ ...filters, year: Number(year) })}
+            />
+          )}
         </div>
       )}
-      <p className="text-text-subtle text-detail">
-        Un mes incumple al llegar al 5 % de comprobantes emitidos por excepción (CAEA). ARCA puede
-        restringir el uso del CAEA; en el mostrador no se restringe nada.
-      </p>
+      {answered === undefined ? null : (
+        <p className="text-text-subtle text-detail">
+          Un mes incumple al llegar al {formatPercent(answered.non_compliance_percent)} de
+          comprobantes emitidos por excepción (CAEA). ARCA puede restringir el uso del CAEA; en el
+          mostrador no se restringe nada.
+        </p>
+      )}
       {shown === undefined ? null : (
         <p className="font-bold text-detail">{nonCompliantMonthsText(shown)}</p>
       )}

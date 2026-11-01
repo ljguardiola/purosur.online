@@ -313,12 +313,13 @@ function exceptionShareBreachDescription({
   month,
   exceptionCount,
   totalCount,
+  nonCompliancePercent,
 }: Extract<AlertDetail, { kind: "exception_share_breach" }>["detail"]): string {
   const vouchers = plural(totalCount, {
     one: `${formatNumber(totalCount)} comprobante`,
     other: `${formatNumber(totalCount)} comprobantes`,
   });
-  return `En ${yearMonthPhrase(month)} se emitieron por excepción (CAEA) ${formatNumber(exceptionCount)} de ${vouchers} de este domicilio fiscal, el 5 % o más. ARCA puede restringir el uso del CAEA y lo comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Conviene revisar por qué se emitieron por contingencia y consultar el Domicilio Fiscal Electrónico.`;
+  return `En ${yearMonthPhrase(month)} se emitieron por excepción (CAEA) ${formatNumber(exceptionCount)} de ${vouchers} de este domicilio fiscal, el ${formatPercent(nonCompliancePercent)} o más. ARCA puede restringir el uso del CAEA y lo comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Conviene revisar por qué se emitieron por contingencia y consultar el Domicilio Fiscal Electrónico.`;
 }
 
 function lotsExpiringDescription({
