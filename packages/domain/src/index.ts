@@ -48,6 +48,7 @@ export {
   escalatesAt,
   externalBillingObservation,
   FORTNIGHT_REPORT_PENDING_REASONS,
+  fiscalAddressMonthScopeDisplay,
   fiscalRejectionAlertObservation,
   fiscalUnknownAlertKey,
   invoiceAlreadyCreditedObservation,

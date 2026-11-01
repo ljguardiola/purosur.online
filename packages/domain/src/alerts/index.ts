@@ -74,6 +74,7 @@ export {
   canSeeAlert,
   isAlertOfViewerBranch,
 } from "./model/alert-visibility.js";
+export { fiscalAddressMonthScopeDisplay } from "./model/exception-share-alerts.js";
 export type { FiscalUnknownAlertKey } from "./model/fiscal-unknown-alert.js";
 export { fiscalUnknownAlertKey } from "./model/fiscal-unknown-alert.js";
 export { pointOfSaleFortnightScopeDisplay } from "./model/fortnight-report-alerts.js";

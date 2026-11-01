@@ -209,9 +209,9 @@ describe("a deferred sale scope", () => {
 describe("a fiscal address month scope", () => {
   it("names the fiscal address of the scope, whose month is no record", () => {
     expect(kindsScopedTo("fiscalAddressMonth")).toEqual(["exception_share_breach"]);
-    expect(
-      alertScopeRecordId({ kind: "exception_share_breach", scope: `${SCOPE}:2026-09` }),
-    ).toBe(SCOPE);
+    expect(alertScopeRecordId({ kind: "exception_share_breach", scope: `${SCOPE}:2026-09` })).toBe(
+      SCOPE,
+    );
     expect(
       alertNamedRecordIds({
         kind: "exception_share_breach",
