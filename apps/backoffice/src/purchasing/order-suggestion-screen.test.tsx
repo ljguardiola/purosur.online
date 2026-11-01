@@ -112,10 +112,7 @@ test("shows a row for each product, with its description and category, sold, sto
 test("shows the effective days as the coverage and says when the expiry capped them", async () => {
   const screen = await loaded(createServices(), {
     ...ORDER_SUGGESTION,
-    lines: [
-      { ...almonds, coverageDays: 15, effectiveDays: 10, cappedByExpiry: true },
-      cookies,
-    ],
+    lines: [{ ...almonds, coverageDays: 15, effectiveDays: 10, cappedByExpiry: true }, cookies],
   });
 
   await expect.poll(() => lineRows(screen)).toHaveLength(2);

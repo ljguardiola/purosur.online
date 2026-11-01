@@ -118,8 +118,17 @@ export function OrderSuggestionScreen({
       id: "coverage",
       header: "Cobertura",
       align: "end",
-      render: (line: SuggestedLine) =>
-        `${formatNumber(line.coverageDays)} ${plural(line.coverageDays, { one: "día", other: "días" })}`,
+      render: (line: SuggestedLine) => (
+        <div className="flex flex-col items-end">
+          <span>
+            {formatNumber(line.effectiveDays)}{" "}
+            {plural(line.effectiveDays, { one: "día", other: "días" })}
+          </span>
+          {line.cappedByExpiry ? (
+            <span className="text-detail text-text-subtle">Tope por vencimiento</span>
+          ) : null}
+        </div>
+      ),
     }),
     dataColumn({
       id: "supplier",
