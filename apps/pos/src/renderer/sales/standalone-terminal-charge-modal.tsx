@@ -171,7 +171,7 @@ export function StandaloneTerminalChargeModal({
               prefix="$"
               label="Importe a cobrar con este medio"
               description={`Hasta el saldo pendiente, ${formatCents(pending)}. Si cobrás menos, el resto queda pendiente para otro medio.`}
-              inputMode="decimal"
+              decimals={2}
               value={field.state.value}
               onChange={field.handleChange}
               disabled={submitting}

@@ -136,7 +136,7 @@ export function totalMessage({ total }: RemedyFormValues): string {
     return "Ingresá el total del comprobante.";
   }
   return parseAmountCents(total) === undefined
-    ? "Escribí el total con coma para los decimales, por ejemplo 7.500,50."
+    ? "Completá los decimales del total después de la coma, por ejemplo 7.500,50."
     : "Revisá el total.";
 }
 

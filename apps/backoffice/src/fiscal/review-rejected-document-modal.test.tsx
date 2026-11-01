@@ -311,7 +311,7 @@ test("corrects only what changed and closes when the correction is recorded", as
   const onRemedied = vi.fn();
   const { dialog } = await renderModal(services, { onClose, onRemedied });
   await chooseTheDocumentIsWrong(dialog);
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Total/ }), "18.000,00");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Total/ }), "18000,00");
 
   await submitPrinted(dialog);
 
@@ -606,4 +606,14 @@ test("correcting the report does not wait for the tax statuses", async () => {
   const { dialog } = await renderModal(services);
 
   await expect.element(dialog.getByRole("button", { name: "Corregir el informe" })).toBeEnabled();
+});
+
+test("groups thousands and takes a typed dot as the decimal comma in the total", async () => {
+  const { dialog } = await renderModal(createServices());
+  await chooseTheDocumentIsWrong(dialog);
+  const field = dialog.getByRole("textbox", { name: /^Total/ });
+  await userEvent.clear(field);
+  await userEvent.type(field, "1234.5");
+
+  await expect.element(field).toHaveValue("1.234,5");
 });

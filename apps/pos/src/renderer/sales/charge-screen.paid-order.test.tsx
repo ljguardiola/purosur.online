@@ -175,7 +175,7 @@ describe("ChargeScreen · pago de Mercado Pago de una venta armada", () => {
     await chooseCash(screen);
     await userEvent.fill(
       screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
-      "5.000,00",
+      "5000,00",
     );
     await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
 

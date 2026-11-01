@@ -1,16 +1,18 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
-import { expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
 import { render } from "../shell/test-support/render-with-router";
 import { dateSegments } from "../shell/test-support/report-dates";
-import { FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
+import { BACK_REGISTER_ID, FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
 import {
   createReportRegisterFilterServices,
   type ReportRegisterFilterServices,
   reportRegisterFieldForTests,
 } from "../shell/test-support/report-register-filter";
+import { spyOnDownloads } from "../shell/test-support/spy-on-downloads";
 import { type MarginReportFilters, marginReportFilters } from "./margin-report-filters";
 import { MarginReportScreen } from "./margin-report-screen";
 import type { MarginReportScreenServices } from "./margin-report-services";
@@ -21,6 +23,10 @@ import {
   noMarginReport,
   productMarginReport,
 } from "./test-support/margin-report-fixtures";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 function createServices(): MarginReportScreenServices {
   const services = { fetchMarginReport: vi.fn() };
@@ -445,4 +451,84 @@ test("goes back to the first page when the grouping changes", async () => {
   await userEvent.click(screen.getByRole("option", { name: "Por categoría" }));
 
   await expect.element(screen.getByRole("table").getByText("Producto 01")).toBeVisible();
+});
+
+test("downloads a spreadsheet of the categories shown, with the applied register and grouping", async () => {
+  const downloads = spyOnDownloads();
+  const screen = await renderScreen(createServices(), {
+    filters: marginReportFilters.parse({ register: BACK_REGISTER_ID }),
+  });
+  await expect
+    .element(screen.getByRole("combobox", { name: /^Caja:/ }))
+    .toHaveValue("Caja del fondo");
+  await expect.element(screen.getByText("Fiambres").first()).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
+
+  await expect
+    .poll(() => downloads.names)
+    .toEqual(["margen-por-producto-y-por-categoria-2026-10-01-2026-10-07.xlsx"]);
+  const file = await readDownloadedXlsx(downloads.blobs[0]);
+  expect(file.sheetNames).toEqual(["Resumen", "Por categoría"]);
+  const summary = file.sheet(0);
+  expect(summary.get("B4")?.value).toBe("Caja del fondo");
+  expect(summary.get("B5")?.value).toBe("Por categoría");
+  expect(summary.get("B6")?.value).toBe("10000");
+  expect(summary.get("B9")?.value).toBe("2");
+  const categories = file.sheet(1);
+  expect(categories.get("A2")?.value).toBe("Almacén › Dulces");
+  expect(categories.get("E2")?.value).toBe("1600");
+  expect(categories.get("D3")?.value).toBe("2");
+});
+
+test("downloads every row of the report, not only the page on screen", async () => {
+  const downloads = spyOnDownloads();
+  const services = createServices();
+  vi.mocked(services.fetchMarginReport).mockResolvedValue({
+    kind: "ok",
+    value: manyMarginRowsReport(30),
+  });
+  const screen = await renderScreen(services, {
+    filters: marginReportFilters.parse({ group: "product", sortBy: "name", sort: "ascending" }),
+  });
+  await expect.element(screen.getByRole("table").getByText("Producto 01")).toBeVisible();
+  expect(screen.getByRole("table").getByText("Producto 26").query()).toBeNull();
+
+  await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
+
+  await expect.poll(() => downloads.blobs.length).toBe(1);
+  const products = (await readDownloadedXlsx(downloads.blobs[0])).sheet(1);
+  expect(products.get("A2")?.value).toBe("Producto 01");
+  expect(products.get("A26")?.value).toBe("Producto 25");
+  expect(products.get("A27")?.value).toBe("Producto 26");
+  expect(products.get("A31")?.value).toBe("Producto 30");
+  expect(products.get("A32")).toBeUndefined();
+});
+
+test("downloads the rows in the order the screen sorts them", async () => {
+  const downloads = spyOnDownloads();
+  const screen = await renderScreen(createServices(), {
+    filters: marginReportFilters.parse({ sortBy: "name", sort: "descending" }),
+  });
+  await expect.element(screen.getByText("Fiambres").first()).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
+
+  await expect.poll(() => downloads.blobs.length).toBe(1);
+  const categories = (await readDownloadedXlsx(downloads.blobs[0])).sheet(1);
+  expect(categories.get("A2")?.value).toBe("Sin categoría");
+  expect(categories.get("A5")?.value).toBe("Almacén › Dulces");
+});
+
+test("has its download disabled while the report loads and after loading fails", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchMarginReport).mockReturnValue(new Promise(() => {}));
+  const loading = await renderScreen(services);
+  await expect.element(loading.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
+  await loading.unmount();
+
+  vi.mocked(services.fetchMarginReport).mockResolvedValue({ kind: "failed" });
+  const failed = await renderScreen(services);
+  await expect.element(failed.getByRole("button", { name: "Reintentar" })).toBeVisible();
+  await expect.element(failed.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
 });

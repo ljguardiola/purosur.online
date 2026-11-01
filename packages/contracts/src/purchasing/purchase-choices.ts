@@ -1,12 +1,19 @@
-import { isCalendarDay } from "@purosur/domain";
+import { isCalendarDay, SALE_UNITS } from "@purosur/domain";
 import { z } from "zod";
-import { packagingListSchema, packagingSummarySchema } from "./packaging-summary.js";
+import { netContentSchema } from "../shared/index.js";
 import { supplierListSchema } from "./supplier-summary.js";
 
 export const purchaseChoicesSchema = z.object({
   suppliers: supplierListSchema,
-  products: packagingListSchema.shape.products,
-  packagings: z.array(packagingSummarySchema),
+  products: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      brandName: z.string().nullable(),
+      netContent: netContentSchema.nullable(),
+      saleUnit: z.enum(SALE_UNITS),
+    }),
+  ),
   today: z.string().refine(isCalendarDay),
 });
 

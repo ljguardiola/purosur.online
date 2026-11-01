@@ -1,17 +1,23 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations, tokenRgb } from "@purosur/ui/test";
 import { useState } from "react";
-import { beforeEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
 import { type ReportPeriodFilters, reportPeriodSearch } from "../shell/report-filters-search";
 import { render } from "../shell/test-support/render-with-router";
 import { dateSegments, typeDate } from "../shell/test-support/report-dates";
+import { spyOnDownloads } from "../shell/test-support/spy-on-downloads";
 import { FreightReportScreen } from "./freight-report-screen";
 import type { FreightReportScreenServices } from "./freight-report-services";
 import { emptyFreightReport, quarterFreightReport } from "./test-support/freight-report-fixtures";
 
 beforeEach(async () => {
   await page.viewport(1280, 900);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 function createServices(): FreightReportScreenServices {
@@ -247,4 +253,36 @@ test("sends the person to Mi cuenta when the cloud refuses the report", async ()
   await renderScreen(services);
 
   await expect.poll(() => window.location.pathname).toBe("/account");
+});
+
+test("downloads a spreadsheet of the months shown, for the period the report answered", async () => {
+  const downloads = spyOnDownloads();
+  const screen = await renderScreen(createServices());
+  await expect.element(freightTable(screen).getByText("octubre de 2026")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
+
+  await expect
+    .poll(() => downloads.names)
+    .toEqual(["flete-por-periodo-2026-09-01-2026-10-31.xlsx"]);
+  const file = await readDownloadedXlsx(downloads.blobs[0]);
+  expect(file.sheetNames).toEqual(["Resumen", "Flete por período"]);
+  expect(file.sheet(0).get("B4")?.value).toBe("1750.5");
+  expect(file.sheet(0).get("B5")?.value).toBe("3");
+  const months = file.sheet(1);
+  expect(months.get("A2")?.value).toBe("46266");
+  expect(months.get("C3")?.value).toBe("1300.5");
+});
+
+test("has its download disabled while the report loads and after loading fails", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchFreightReport).mockReturnValue(new Promise(() => {}));
+  const loading = await renderScreen(services);
+  await expect.element(loading.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
+  await loading.unmount();
+
+  vi.mocked(services.fetchFreightReport).mockResolvedValue({ kind: "failed" });
+  const failed = await renderScreen(services);
+  await expect.element(failed.getByRole("button", { name: "Reintentar" })).toBeVisible();
+  await expect.element(failed.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
 });

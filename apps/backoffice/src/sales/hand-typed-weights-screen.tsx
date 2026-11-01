@@ -1,5 +1,4 @@
 import type { HandTypedWeightsBody } from "@purosur/contracts";
-import { handTypedWeightsSchema } from "@purosur/contracts";
 import {
   Card,
   dataColumn,
@@ -13,11 +12,12 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { Scale } from "lucide-react";
-import { useId } from "react";
+import { useId, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { reportMoment } from "../platform/report-moment";
-import { schemaText } from "../platform/schema-text";
+import { RegisterReportDownload } from "../shell/report-download";
+import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import {
   type ReportFilters as ReportFiltersValue,
@@ -26,7 +26,9 @@ import {
 import type { ReportRegisterField } from "../shell/report-register-field";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
+import { OPENED_TIME_ZONE } from "./hand-typed-weights-opened-time-zone";
 import type { HandTypedWeightsScreenServices } from "./hand-typed-weights-services";
+import { handTypedWeightsSpreadsheet } from "./hand-typed-weights-spreadsheet";
 import { useHandTypedWeightsQuery } from "./sales-queries";
 
 export type HandTypedWeightsScreenProps = {
@@ -43,9 +45,7 @@ type SessionRow = HandTypedWeightsBody["sessions"][number];
 const NO_CASHIERS: CashierRow[] = [];
 const NO_SESSIONS: SessionRow[] = [];
 
-const OPENED_TIME_ZONE = schemaText(
-  handTypedWeightsSchema.shape.sessions.element.shape.opened_at.meta()?.["timeZone"],
-);
+const SCREEN_TITLE = "Pesos tipeados a mano";
 
 const UNIDENTIFIED = "Sin identificar";
 const NO_FIGURE = "—";
@@ -110,6 +110,7 @@ export function HandTypedWeightsScreen({
   services,
 }: HandTypedWeightsScreenProps) {
   const registerChosen = filters.register !== "ALL";
+  const [registerLabel, setRegisterLabel] = useState<string>();
   const cashiersHeadingId = useId();
   const sessionsHeadingId = useId();
   const data = useHandTypedWeightsQuery({
@@ -136,7 +137,7 @@ export function HandTypedWeightsScreen({
 
   return (
     <ScreenLayout
-      topBar={<ScreenTopBar eyebrow="Reportes · Ventas" title="Pesos tipeados a mano" />}
+      topBar={<ScreenTopBar eyebrow="Reportes · Ventas" title={SCREEN_TITLE} />}
       bodyClassName="gap-4 p-6"
     >
       <div className="flex flex-wrap items-end gap-3">
@@ -145,6 +146,17 @@ export function HandTypedWeightsScreen({
           onFiltersChange={onFiltersChange}
           answeredPeriod={shown?.range}
           registerFilter={registerFilter}
+          onRegisterLabelChange={setRegisterLabel}
+          trailing={
+            <RegisterReportDownload
+              dataStatus={data.status}
+              registerLabel={registerLabel}
+              workbook={(registerLabel) =>
+                shown ? handTypedWeightsSpreadsheet(shown, registerLabel) : null
+              }
+              fileName={shown ? reportFileName(SCREEN_TITLE, shown.range) : ""}
+            />
+          }
         />
       </div>
       {data.status === "failed" ? (

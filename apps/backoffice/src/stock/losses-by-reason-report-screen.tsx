@@ -9,6 +9,8 @@ import {
 } from "@purosur/ui";
 import { PackageX } from "lucide-react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
+import { ReportDownload } from "../shell/report-download";
+import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import type { ReportPeriodFilters } from "../shell/report-filters-search";
 import { ScreenLayout } from "../shell/screen-layout";
@@ -16,6 +18,7 @@ import { ScreenTopBar } from "../shell/screen-top-bar";
 import { lossCountText } from "./loss-count-text";
 import { LossesByReasonReportReasonSection } from "./losses-by-reason-report-reason-section";
 import type { LossesByReasonReportScreenServices } from "./losses-by-reason-report-services";
+import { lossesByReasonReportSpreadsheet } from "./losses-by-reason-report-spreadsheet";
 import { useLossesByReasonReportQuery } from "./stock-queries";
 
 export type LossesByReasonReportScreenProps = {
@@ -24,6 +27,8 @@ export type LossesByReasonReportScreenProps = {
   onSessionEnded: () => void;
   services: LossesByReasonReportScreenServices;
 };
+
+const SCREEN_TITLE = "Mermas por motivo";
 
 const FAILURE_SUBJECT = "las mermas por motivo";
 
@@ -69,13 +74,20 @@ export function LossesByReasonReportScreen({
 
   return (
     <ScreenLayout
-      topBar={<ScreenTopBar eyebrow="Reportes · Stock" title="Mermas por motivo" />}
+      topBar={<ScreenTopBar eyebrow="Reportes · Stock" title={SCREEN_TITLE} />}
       bodyClassName="gap-4 p-6"
     >
       <ReportFilters
         filters={filters}
         onFiltersChange={onFiltersChange}
         answeredPeriod={data.status === "loaded" ? data.value.range : data.lastValue?.range}
+        trailing={
+          <ReportDownload
+            dataStatus={data.status}
+            workbook={() => (report ? lossesByReasonReportSpreadsheet(report) : null)}
+            fileName={report ? reportFileName(SCREEN_TITLE, report.range) : ""}
+          />
+        }
       />
       {data.status === "failed" ? (
         <LoadFailure {...cloudLoadFailure(data, FAILURE_SUBJECT)} />

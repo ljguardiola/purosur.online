@@ -226,7 +226,8 @@ test("refuses a component without a readable quantity, saying how to type it", a
   const saveRecipe = vi.fn<NewRecipeModalServices["saveRecipe"]>();
   const screen = await renderModal({ saveRecipe });
   await chooseProduct(screen, "Avena con pasas");
-  await addComponent(screen, "Almendras", "x");
+  await addComponent(screen, "Almendras", "");
+  await userEvent.type(screen.getByRole("textbox", { name: "Cantidad de Almendras" }), "5,");
 
   const dialog = await submit(screen);
 

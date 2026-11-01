@@ -1,10 +1,12 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations, tokenRgb } from "@purosur/ui/test";
 import { useState } from "react";
-import { beforeEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
 import { render } from "../shell/test-support/render-with-router";
 import { dateSegments, typeDate } from "../shell/test-support/report-dates";
+import { spyOnDownloads } from "../shell/test-support/spy-on-downloads";
 import { type AiCostReportFilters, aiCostReportFilters } from "./ai-cost-report-filters";
 import { AiCostReportScreen } from "./ai-cost-report-screen";
 import type { AiCostReportScreenServices } from "./ai-cost-report-services";
@@ -18,6 +20,10 @@ import {
 
 beforeEach(async () => {
   await page.viewport(1280, 900);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 function createServices(): AiCostReportScreenServices {
@@ -308,4 +314,65 @@ test("sends the person to Mi cuenta when the cloud refuses the report", async ()
   await renderScreen(services);
 
   await expect.poll(() => window.location.pathname).toBe("/account");
+});
+
+test("downloads a spreadsheet of the groups shown, for the grouping and the period applied", async () => {
+  const downloads = spyOnDownloads();
+  const services = createServices();
+  vi.mocked(services.fetchAiCostReport).mockResolvedValue({
+    kind: "ok",
+    value: INCOMPLETE_AI_COST_BY_SUPPLIER,
+  });
+  const screen = await renderScreen(services, {
+    filters: aiCostReportFilters.parse({ group: "supplier" }),
+  });
+  await expect.element(costTable(screen).getByText("Distribuidora Andina")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
+
+  await expect
+    .poll(() => downloads.names)
+    .toEqual(["costo-de-ia-por-periodo-2026-10-01-2026-10-31.xlsx"]);
+  const file = await readDownloadedXlsx(downloads.blobs[0]);
+  expect(file.sheetNames).toEqual(["Resumen", "Costo de IA por período"]);
+  expect(file.sheet(0).get("B4")?.value).toBe("Proveedor");
+  expect(file.sheet(0).get("B5")?.value).toBe("3");
+  expect(file.sheet(0).get("B9")?.value).toBe("3");
+  const costs = file.sheet(1);
+  expect(costs.get("A2")?.value).toBe("Distribuidora Andina");
+  expect(costs.get("B2")?.value).toBe("1");
+  expect(costs.get("C2")?.value).toBe("0.5");
+  expect(costs.get("F2")?.value).toBe("3");
+  expect(costs.get("A3")?.value).toBe("Almacén del Sur");
+});
+
+test("downloads the days of a report grouped by day as dates", async () => {
+  const downloads = spyOnDownloads();
+  const services = createServices();
+  vi.mocked(services.fetchAiCostReport).mockResolvedValue({ kind: "ok", value: AI_COST_BY_DAY });
+  const screen = await renderScreen(services, {
+    filters: aiCostReportFilters.parse({ group: "day" }),
+  });
+  await expect.element(costTable(screen).getByText("03/10/2026")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
+
+  await expect.poll(() => downloads.blobs.length).toBe(1);
+  const file = await readDownloadedXlsx(downloads.blobs[0]);
+  expect(file.sheet(0).get("B4")?.value).toBe("Día");
+  expect(file.sheet(1).get("A1")?.value).toBe("Día");
+  expect(file.sheet(1).get("A2")).toMatchObject({ numberFormat: "dd/mm/yyyy" });
+});
+
+test("has its download disabled while the report loads and after loading fails", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAiCostReport).mockReturnValue(new Promise(() => {}));
+  const loading = await renderScreen(services);
+  await expect.element(loading.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
+  await loading.unmount();
+
+  vi.mocked(services.fetchAiCostReport).mockResolvedValue({ kind: "failed" });
+  const failed = await renderScreen(services);
+  await expect.element(failed.getByRole("button", { name: "Reintentar" })).toBeVisible();
+  await expect.element(failed.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
 });

@@ -147,12 +147,9 @@ export interface CatalogStoreTransaction {
   // Read only, never locking: a caller holds the product's row lock first, and the discount
   // creation that could race it takes that same product row before inserting.
   buyNPayMDiscountsOn(productId: string): Promise<BuyNPayMDiscount[]>;
-  // Read only, never locking, like the discounts: a caller holds the product's row lock first, and
-  // every write that can leave a packaging of the product active takes that same row first.
-  activePackagingNamesOf(productId: string): Promise<string[]>;
   // Whether a supplier item, or a row of a supplier price list that can still be linked, refers
   // to the product through a link that is current for the sale unit given. Read only, never
-  // locking, like the packagings: a caller holds the product's row lock first, and every write
+  // locking, like the discounts: a caller holds the product's row lock first, and every write
   // of such a link takes that same row first.
   hasCurrentSupplierItemLink(productId: string, saleUnit: SaleUnit): Promise<boolean>;
   lockCategory(categoryId: string): Promise<LockCategoryResult>;

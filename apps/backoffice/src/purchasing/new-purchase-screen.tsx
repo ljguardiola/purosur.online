@@ -65,7 +65,7 @@ export type NewPurchaseScreenProps = {
 
 type Notice = { kind: "attemptFailed" } | { kind: "rateLimited"; retryAfterSeconds: number };
 
-const NO_CHOICES: Omit<PurchaseChoices, "today"> = { suppliers: [], products: [], packagings: [] };
+const NO_CHOICES: Omit<PurchaseChoices, "today"> = { suppliers: [], products: [] };
 
 export function NewPurchaseScreen({
   access,
@@ -83,11 +83,8 @@ export function NewPurchaseScreen({
   const [notice, setNotice] = useState<Notice | null>(null);
   const [lineRefusals, setLineRefusals] = useState<Record<number, string>>({});
   const [createdProducts, setCreatedProducts] = useState<CreatedProduct[]>([]);
-  const {
-    suppliers,
-    products: storedProducts,
-    packagings,
-  } = data.status === "loaded" ? data.value : NO_CHOICES;
+  const { suppliers, products: storedProducts } =
+    data.status === "loaded" ? data.value : NO_CHOICES;
   const products = withCreatedProducts(storedProducts, createdProducts);
 
   const today = data.status === "loaded" ? data.value.today : null;
@@ -320,10 +317,8 @@ export function NewPurchaseScreen({
                   products={products}
                   productCreationModal={productCreationModal}
                   onProductCreated={(product) => setCreatedProducts([...createdProducts, product])}
-                  packagings={packagings}
                   refusals={lineRefusals}
                   onLinesChange={() => setLineRefusals({})}
-                  services={services}
                   onSessionEnded={onSessionEnded}
                 />
               )}

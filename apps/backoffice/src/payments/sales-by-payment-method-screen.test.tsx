@@ -1,16 +1,18 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
-import { expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
 import { render } from "../shell/test-support/render-with-router";
 import { dateSegments } from "../shell/test-support/report-dates";
-import { FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
+import { BACK_REGISTER_ID, FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
 import {
   createReportRegisterFilterServices,
   type ReportRegisterFilterServices,
   reportRegisterFieldForTests,
 } from "../shell/test-support/report-register-filter";
+import { spyOnDownloads } from "../shell/test-support/spy-on-downloads";
 import {
   type SalesByPaymentMethodFilters,
   salesByPaymentMethodFilters,
@@ -326,4 +328,67 @@ test("ends the session when the cloud says it is over", async () => {
   await renderScreen(services, { onSessionEnded });
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+test("downloads a spreadsheet of the methods shown, with the applied register and the figures", async () => {
+  const downloads = spyOnDownloads();
+  const screen = await renderScreen(createServices(), {
+    filters: salesByPaymentMethodFilters.parse({ register: BACK_REGISTER_ID }),
+  });
+  await expect
+    .element(screen.getByRole("combobox", { name: /^Caja:/ }))
+    .toHaveValue("Caja del fondo");
+  await expect.element(screen.getByText("Efectivo")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
+
+  await expect
+    .poll(() => downloads.names)
+    .toEqual(["ventas-por-medio-de-pago-2026-10-01-2026-10-07.xlsx"]);
+  const file = await readDownloadedXlsx(downloads.blobs[0]);
+  expect(file.sheetNames).toEqual(["Resumen", "Ventas por medio de pago"]);
+  const summary = file.sheet(0);
+  expect(summary.get("B4")?.value).toBe("Caja del fondo");
+  expect(summary.get("B5")?.value).toBe("14000");
+  expect(summary.get("B6")?.value).toBe("6");
+  expect(summary.get("B7")?.value).toBe("2333.33");
+  const methods = file.sheet(1);
+  expect(methods.get("A2")?.value).toBe("Efectivo");
+  expect(methods.get("B2")?.value).toBe("4");
+  expect(methods.get("C2")?.value).toBe("9000");
+  expect(methods.get("A5")?.value).toBe("Transferencia");
+});
+
+test("downloads the rows in the order the screen sorts them", async () => {
+  const downloads = spyOnDownloads();
+  const screen = await renderScreen(createServices(), {
+    filters: salesByPaymentMethodFilters.parse({ sortBy: "method", sort: "ascending" }),
+  });
+  await expect.element(screen.getByText("Efectivo")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
+
+  await expect.poll(() => downloads.blobs.length).toBe(1);
+  const methods = (await readDownloadedXlsx(downloads.blobs[0])).sheet(1);
+  expect(methods.get("A2")?.value).toBe("Efectivo");
+  expect(methods.get("A3")?.value).toBe("Point integrada");
+  expect(methods.get("A4")?.value).toBe("QR de Mercado Pago");
+  expect(methods.get("A5")?.value).toBe("Transferencia");
+});
+
+test("has its download disabled while the report loads and after loading fails", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchSalesByPaymentMethod).mockReturnValue(new Promise(() => {}));
+  const loading = await renderScreen(services);
+  await expect.element(loading.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
+  await loading.unmount();
+
+  vi.mocked(services.fetchSalesByPaymentMethod).mockResolvedValue({ kind: "failed" });
+  const failed = await renderScreen(services);
+  await expect.element(failed.getByRole("button", { name: "Reintentar" })).toBeVisible();
+  await expect.element(failed.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
 });

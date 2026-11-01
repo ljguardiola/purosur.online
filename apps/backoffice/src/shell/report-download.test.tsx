@@ -1,0 +1,136 @@
+import { FieldSizeProvider } from "@purosur/ui";
+import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { afterEach, expect, expectTypeOf, test, vi } from "vitest";
+import { userEvent } from "vitest/browser";
+import { writeWorkbook } from "../platform/spreadsheet/spreadsheet-writer";
+import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
+import type { Workbook } from "../platform/spreadsheet/workbook";
+import { RegisterReportDownload, type RegisterReportDownloadProps } from "./report-download";
+import { render } from "./test-support/render-with-router";
+import { renderDownload, workbook } from "./test-support/report-download";
+import { spyOnDownloads } from "./test-support/spy-on-downloads";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+test("downloads the workbook as an xlsx file under the given name when pressed", async () => {
+  const downloads = spyOnDownloads();
+  const screen = await renderDownload();
+
+  await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
+
+  await expect.poll(() => downloads.names).toEqual(["ventas-2026-10-01-2026-10-07.xlsx"]);
+  const file = await readDownloadedXlsx(downloads.blobs[0]);
+  expect(file.sheetNames).toEqual(["Ventas"]);
+  expect(file.sheet(0).get("B2")?.value).toBe("5");
+  expect(downloads.blobs[0]?.type).toBe(
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  );
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("builds the workbook only when pressed", async () => {
+  spyOnDownloads();
+  const build = vi.fn(() => workbook);
+  const screen = await renderDownload({ workbook: build });
+
+  expect(build).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
+
+  await expect.poll(() => build.mock.calls.length).toBe(1);
+});
+
+test("is disabled while the data loads and after loading fails", async () => {
+  for (const dataStatus of ["loading", "failed"] as const) {
+    const screen = await renderDownload({ dataStatus });
+
+    await expect.element(screen.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
+    await screen.unmount();
+  }
+});
+
+test("tells the person the file could not be prepared when it cannot be built, and offers the download again", async () => {
+  spyOnDownloads();
+  const invalid: Workbook = { sheets: [{ name: "a/b", header: ["x"], rows: [] }] };
+  const screen = await renderDownload({ workbook: () => invalid });
+
+  await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
+
+  await expect.element(screen.getByText("No se pudo preparar la planilla")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Descargar planilla" })).toBeEnabled();
+});
+
+test("does nothing when there is no workbook to build", async () => {
+  const downloads = spyOnDownloads();
+  const screen = await renderDownload({ workbook: () => null });
+
+  await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
+
+  expect(downloads.names).toEqual([]);
+  expect(screen.getByText("No se pudo preparar la planilla").query()).toBeNull();
+});
+
+function renderRegisterDownload(
+  registerLabel: string | undefined,
+  build: (registerLabel: string) => Workbook | null,
+) {
+  return render(
+    <FieldSizeProvider size="backoffice">
+      <main>
+        <RegisterReportDownload
+          dataStatus="loaded"
+          registerLabel={registerLabel}
+          workbook={build}
+          fileName="ventas-2026-10-01-2026-10-07.xlsx"
+        />
+      </main>
+    </FieldSizeProvider>,
+  );
+}
+
+test("waits for the name of the register before the download of a report filtered by register", async () => {
+  const screen = await renderRegisterDownload(undefined, () => workbook);
+
+  await expect.element(screen.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
+});
+
+test("takes no spreadsheet writer for a report filtered by register", () => {
+  expectTypeOf<"writeSpreadsheet">().not.toExtend<keyof RegisterReportDownloadProps>();
+});
+
+test("builds the workbook of a report filtered by register with the register's name", async () => {
+  const downloads = spyOnDownloads();
+  const build = vi.fn(() => workbook);
+  const screen = await renderRegisterDownload("Caja del fondo", build);
+
+  await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
+
+  await expect.poll(() => downloads.names.length).toBe(1);
+  expect(build).toHaveBeenCalledWith("Caja del fondo");
+});
+
+test("stays disabled while the file is being prepared, so a second press downloads nothing", async () => {
+  const downloads = spyOnDownloads();
+  const build = vi.fn(() => workbook);
+  let release = () => {};
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const writeSpreadsheet = vi.fn(async (book: Workbook) => {
+    await held;
+    return writeWorkbook(book);
+  });
+  const screen = await renderDownload({ workbook: build, writeSpreadsheet });
+  const button = screen.getByRole("button", { name: "Descargar planilla" });
+
+  await userEvent.click(button);
+  await expect.element(button).toBeDisabled();
+  await userEvent.click(button, { force: true });
+  release();
+
+  await expect.element(button).toBeEnabled();
+  expect(build).toHaveBeenCalledTimes(1);
+  expect(writeSpreadsheet).toHaveBeenCalledTimes(1);
+  expect(downloads.names).toEqual(["ventas-2026-10-01-2026-10-07.xlsx"]);
+});

@@ -13,13 +13,17 @@ import {
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { TagX } from "lucide-react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import { ReportDownload } from "../shell/report-download";
+import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import type { ReportPeriodFilters } from "../shell/report-filters-search";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
 import { formatCentsWithUnit } from "./money";
 import { lastReviewedText } from "./prices-past-review-deadline-moments";
+import { REASON_TEXT } from "./prices-past-review-deadline-reason-text";
 import type { PricesPastReviewDeadlineReportScreenServices } from "./prices-past-review-deadline-report-services";
+import { pricesPastReviewDeadlineReportSpreadsheet } from "./prices-past-review-deadline-report-spreadsheet";
 import { usePricesPastReviewDeadlineReportQuery } from "./pricing-queries";
 
 export type PricesPastReviewDeadlineReportScreenProps = {
@@ -33,11 +37,7 @@ type Price = PricesPastReviewDeadlineReportBody["prices"][number];
 
 const NO_PRICES: Price[] = [];
 
-const REASON_TEXT: Record<Price["reason"], string> = {
-  overdue: "Plazo vencido",
-  postponed: "Postergado en una compra",
-  never_reviewed: "Nunca revisado",
-};
+const SCREEN_TITLE = "Precios sin revisar";
 
 function windowText(windowDays: number): string {
   return `Plazo de revisión: ${plural(windowDays, { one: "1 día", other: `${windowDays} días` })}`;
@@ -127,7 +127,7 @@ export function PricesPastReviewDeadlineReportScreen({
 
   return (
     <ScreenLayout
-      topBar={<ScreenTopBar eyebrow="Reportes · Precios" title="Precios sin revisar" />}
+      topBar={<ScreenTopBar eyebrow="Reportes · Precios" title={SCREEN_TITLE} />}
       bodyClassName="gap-4 p-6"
     >
       <div className="flex flex-wrap items-end gap-3">
@@ -135,6 +135,13 @@ export function PricesPastReviewDeadlineReportScreen({
           filters={filters}
           onFiltersChange={onFiltersChange}
           answeredPeriod={shown?.period}
+          trailing={
+            <ReportDownload
+              dataStatus={data.status}
+              workbook={() => (shown ? pricesPastReviewDeadlineReportSpreadsheet(shown) : null)}
+              fileName={shown ? reportFileName(SCREEN_TITLE, shown.period) : ""}
+            />
+          }
         />
       </div>
       {data.status === "failed" || shown === undefined ? null : (
@@ -159,7 +166,7 @@ export function PricesPastReviewDeadlineReportScreen({
         </div>
       )}
       <Table
-        aria-label="Precios sin revisar"
+        aria-label={SCREEN_TITLE}
         table={table}
         {...cloudTableState(data, "los precios sin revisar")}
         empty={{

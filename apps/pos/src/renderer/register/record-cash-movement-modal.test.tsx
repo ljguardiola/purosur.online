@@ -85,8 +85,13 @@ async function choose(screen: Screen, kind: "Ingreso" | "Gasto" | "Retiro") {
   await userEvent.click(screen.getByText(kind, { exact: true }));
 }
 
-async function fill(screen: Screen, amount: string, reason: string) {
-  await userEvent.fill(screen.getByRole("textbox", { name: "Importe" }), amount);
+async function fill(screen: Screen, amount: string, reason: string, keys = false) {
+  if (keys) {
+    await userEvent.clear(screen.getByRole("textbox", { name: "Importe" }));
+    await userEvent.keyboard(amount);
+  } else {
+    await userEvent.fill(screen.getByRole("textbox", { name: "Importe" }), amount);
+  }
   await userEvent.fill(screen.getByRole("textbox", { name: "Motivo" }), reason);
 }
 
@@ -191,7 +196,7 @@ describe("RecordCashMovementModal", () => {
   it("records the typed amount and the reason as typed, then reports it", async () => {
     const { screen, recordCashMovement, onRecorded } = await renderModal();
     await choose(screen, "Gasto");
-    await fill(screen, "5.000,50", "  Flete  ");
+    await fill(screen, "5000,50", "  Flete  ");
 
     await userEvent.click(screen.getByRole("button", { name: "Registrar gasto" }));
 
@@ -207,7 +212,7 @@ describe("RecordCashMovementModal", () => {
   it("records the movement with Ctrl+Enter pressed from the field being typed in", async () => {
     const { screen, recordCashMovement, onRecorded } = await renderModal();
     await choose(screen, "Gasto");
-    await fill(screen, "5.000,50", "Flete");
+    await fill(screen, "5000,50", "Flete");
 
     await userEvent.keyboard("{Control>}{Enter}{/Control}");
 
@@ -221,11 +226,11 @@ describe("RecordCashMovementModal", () => {
   });
 
   it.each([
-    ["", "Ingresá el importe."],
-    ["abc", "Ingresá un importe válido, por ejemplo 5.000,00."],
-  ])("refuses the amount %j before recording anything", async (typed, message) => {
+    ["", "Ingresá el importe.", false],
+    ["5,", "Ingresá un importe válido, por ejemplo 5.000,00.", true],
+  ])("refuses the amount %j before recording anything", async (typed, message, keys) => {
     const { screen, recordCashMovement } = await renderModal();
-    await fill(screen, typed, "Cambio");
+    await fill(screen, typed, "Cambio", keys);
 
     await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
 
@@ -284,7 +289,7 @@ describe("RecordCashMovementModal", () => {
       outcome: { kind: "exceeds_expected_cash", expected: 4_200_000 },
     });
     await choose(screen, "Retiro");
-    await fill(screen, "50.000", "Caja fuerte");
+    await fill(screen, "50000", "Caja fuerte");
 
     await userEvent.click(screen.getByRole("button", { name: "Registrar retiro" }));
 
@@ -300,14 +305,14 @@ describe("RecordCashMovementModal", () => {
       outcome: { kind: "exceeds_expected_cash", expected: 4_200_000 },
     });
     await choose(screen, "Retiro");
-    await fill(screen, "50.000", "Caja fuerte");
+    await fill(screen, "50000", "Caja fuerte");
 
     await userEvent.click(screen.getByRole("button", { name: "Registrar retiro" }));
     await expect
       .element(screen.getByText("No hay tanto efectivo en la caja: se esperan $ 42.000,00."))
       .toBeVisible();
 
-    await userEvent.fill(screen.getByRole("textbox", { name: "Importe" }), "40.000");
+    await userEvent.fill(screen.getByRole("textbox", { name: "Importe" }), "40000");
 
     await expect
       .element(screen.getByText("Hay $ 42.000,00 en la caja antes de este retiro."))
@@ -322,7 +327,7 @@ describe("RecordCashMovementModal", () => {
       outcome: { kind: "exceeds_expected_cash", expected: 4_200_000 },
     });
     await choose(screen, "Retiro");
-    await fill(screen, "50.000", "Caja fuerte");
+    await fill(screen, "50000", "Caja fuerte");
     await userEvent.click(screen.getByRole("button", { name: "Registrar retiro" }));
     const refusal = screen.getByText("No hay tanto efectivo en la caja: se esperan $ 42.000,00.");
     await expect.element(refusal).toBeVisible();
@@ -345,13 +350,14 @@ describe("RecordCashMovementModal", () => {
 
   it("keeps the amount's message while its edited value is still invalid and clears it once it is valid", async () => {
     const { screen } = await renderModal();
-    await fill(screen, "abc", "Cambio");
+    await fill(screen, "5,", "Cambio", true);
     await userEvent.click(screen.getByRole("button", { name: "Registrar ingreso" }));
     const amount = screen.getByRole("textbox", { name: "Importe" });
     const invalidAmount = screen.getByText("Ingresá un importe válido, por ejemplo 5.000,00.");
     await expect.element(invalidAmount).toBeVisible();
 
-    await userEvent.fill(amount, "abd");
+    await userEvent.clear(amount);
+    await userEvent.keyboard("6,");
     await expect.element(invalidAmount).toBeVisible();
 
     await userEvent.fill(amount, "100");
@@ -665,5 +671,14 @@ describe("RecordCashMovementModal", () => {
       await expect.element(screen.getByText(/Ya no tenés permiso/)).not.toBeInTheDocument();
       expect(onRecorded).not.toHaveBeenCalled();
     });
+  });
+
+  it("groups thousands and takes a typed dot as the decimal comma", async () => {
+    const { screen } = await renderModal();
+    const field = screen.getByRole("textbox", { name: "Importe" });
+    await userEvent.clear(field);
+    await userEvent.type(field, "1234.5");
+
+    await expect.element(field).toHaveValue("1.234,5");
   });
 });

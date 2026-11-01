@@ -1,4 +1,4 @@
-import { type ReturnsReportBody, returnsReportSchema } from "@purosur/contracts";
+import type { ReturnsReportBody } from "@purosur/contracts";
 import {
   Card,
   dataColumn,
@@ -11,12 +11,13 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { Undo2 } from "lucide-react";
-import { useId } from "react";
+import { useId, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { reportMoment } from "../platform/report-moment";
 import { saleUnitQuantityText } from "../platform/sale-unit-quantity";
-import { schemaText } from "../platform/schema-text";
+import { RegisterReportDownload } from "../shell/report-download";
+import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import {
   type ReportFilters as ReportFiltersValue,
@@ -26,8 +27,10 @@ import type { ReportRegisterField } from "../shell/report-register-field";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
 import { useReturnsReportQuery } from "./returns-queries";
+import { OCCURRED_TIME_ZONE } from "./returns-report-occurred-time-zone";
 import type { ReturnsReportScreenServices } from "./returns-report-services";
-import { returnLineDetail, returnSaleText } from "./returns-text";
+import { returnsReportSpreadsheet } from "./returns-report-spreadsheet";
+import { returnLineDetail, returnSaleText, UNIDENTIFIED } from "./returns-text";
 
 export type ReturnsReportScreenProps = {
   filters: ReportFiltersValue;
@@ -41,11 +44,8 @@ type ReturnRow = ReturnsReportBody["typed"]["rows"][number];
 
 const NO_ROWS: ReturnRow[] = [];
 
-const OCCURRED_TIME_ZONE = schemaText(
-  returnsReportSchema.shape.typed.shape.rows.element.shape.occurred_at.meta()?.["timeZone"],
-);
+const SCREEN_TITLE = "Devoluciones";
 
-const UNIDENTIFIED = "Sin identificar";
 const NO_FIGURE = "—";
 const NO_RETURNS = "No hay devoluciones en este período";
 const NO_REGISTER_RETURNS = "No hay devoluciones de esta caja en este período";
@@ -111,6 +111,7 @@ export function ReturnsReportScreen({
   registerFilter,
   services,
 }: ReturnsReportScreenProps) {
+  const [registerLabel, setRegisterLabel] = useState<string>();
   const typedHeadingId = useId();
   const scannedHeadingId = useId();
   const filtered = filters.register !== "ALL";
@@ -133,7 +134,7 @@ export function ReturnsReportScreen({
 
   return (
     <ScreenLayout
-      topBar={<ScreenTopBar eyebrow="Reportes · Caja" title="Devoluciones" />}
+      topBar={<ScreenTopBar eyebrow="Reportes · Caja" title={SCREEN_TITLE} />}
       bodyClassName="gap-4 p-6"
     >
       <ReportFilters
@@ -141,6 +142,17 @@ export function ReturnsReportScreen({
         onFiltersChange={onFiltersChange}
         answeredPeriod={shown?.range}
         registerFilter={registerFilter}
+        onRegisterLabelChange={setRegisterLabel}
+        trailing={
+          <RegisterReportDownload
+            dataStatus={data.status}
+            registerLabel={registerLabel}
+            workbook={(registerLabel) =>
+              shown ? returnsReportSpreadsheet(shown, registerLabel) : null
+            }
+            fileName={shown ? reportFileName(SCREEN_TITLE, shown.range) : ""}
+          />
+        }
       />
       {data.status === "failed" ? (
         <LoadFailure {...cloudLoadFailure(data, "el reporte de devoluciones")} />

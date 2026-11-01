@@ -1,9 +1,11 @@
 import {
+  type BrandSummary,
   type CategorySummary,
   type ProductEditBody,
   type ProductSummary,
   productCreationBodySchema,
   productEditBarcodesSchema,
+  type TagSummary,
 } from "@purosur/contracts";
 import { plural } from "@purosur/ui";
 import {
@@ -74,6 +76,23 @@ export function productFormValues(product: ProductSummary): ProductEditFormValue
   };
 }
 
+function isOfferedActive(items: { id: string; active: boolean }[], id: string): boolean {
+  return items.some((item) => item.id === id && item.active);
+}
+
+export function productCloneFormValues(
+  product: ProductSummary,
+  offered: { brands: BrandSummary[]; tags: TagSummary[] },
+): CatalogProductFormValues {
+  const { version: _version, ...values } = productFormValues(product);
+  return {
+    ...values,
+    brandId: isOfferedActive(offered.brands, values.brandId) ? values.brandId : NO_BRAND,
+    tagIds: values.tagIds.filter((id) => isOfferedActive(offered.tags, id)),
+    barcodes: { codes: [], scan: "" },
+  };
+}
+
 export function productEditRequestFrom(values: ProductEditFormValues): ProductEditBody {
   return { ...catalogProductRequestFrom(values), version: values.version };
 }
@@ -104,10 +123,6 @@ export const PRODUCT_INTERNAL_BARCODE_ON_PRODUCT_WITH_BARCODES_ERROR =
 
 export function saleUnitHeldByDiscountError(discountName: string): string {
   return `No se puede vender por peso mientras la promoción "${discountName}" no esté desactivada o terminada.`;
-}
-
-export function saleUnitHeldByPackagingError(packagingName: string): string {
-  return `No se puede cambiar la unidad de venta mientras la presentación de compra "${packagingName}" esté activa.`;
 }
 
 export const saleUnitHeldBySupplierItemError =

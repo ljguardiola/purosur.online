@@ -181,3 +181,49 @@ test("reports the range typed without a register when it offers no register filt
     .poll(() => onFiltersChange.mock.lastCall?.[0])
     .toEqual({ from: "2026-10-02", to: "2026-10-07" });
 });
+
+test("places the trailing content at the end of the filter row", async () => {
+  const screen = await render(
+    <FieldSizeProvider size="backoffice">
+      <main>
+        <ReportFilters
+          filters={reportFiltersSearch.parse({})}
+          onFiltersChange={() => {}}
+          answeredPeriod={ANSWERED}
+          trailing={<button type="button">Al final</button>}
+        />
+      </main>
+    </FieldSizeProvider>,
+  );
+
+  const trailing = screen.getByRole("button", { name: "Al final" });
+  await expect.element(trailing).toBeVisible();
+  const row = (trailing.element() as HTMLElement).parentElement as HTMLElement;
+  const rowBox = row.getBoundingClientRect();
+  const trailingBox = (trailing.element() as HTMLElement).getBoundingClientRect();
+  expect(Math.round(rowBox.right - trailingBox.right)).toBe(0);
+});
+
+test("hands the register field a way to report the label of the register shown", async () => {
+  const onRegisterLabelChange = vi.fn();
+  const labels: unknown[] = [];
+
+  await render(
+    <FieldSizeProvider size="backoffice">
+      <main>
+        <ReportFilters
+          filters={reportFiltersSearch.parse({})}
+          onFiltersChange={() => {}}
+          answeredPeriod={ANSWERED}
+          onRegisterLabelChange={onRegisterLabelChange}
+          registerFilter={(field) => {
+            labels.push(field.onLabelChange);
+            return null;
+          }}
+        />
+      </main>
+    </FieldSizeProvider>,
+  );
+
+  expect(labels).toContain(onRegisterLabelChange);
+});

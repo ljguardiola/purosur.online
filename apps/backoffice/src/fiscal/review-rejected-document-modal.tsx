@@ -327,7 +327,7 @@ export function ReviewRejectedDocumentModal({
                   </form.AppField>
                   <form.AppField name="total">
                     {(field) => (
-                      <field.TextField kind="price" label="Total" prefix="$" inputMode="decimal" />
+                      <field.TextField kind="price" label="Total" prefix="$" decimals={2} />
                     )}
                   </form.AppField>
                 </div>

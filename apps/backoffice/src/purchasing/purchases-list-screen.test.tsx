@@ -88,7 +88,7 @@ test("lists each purchase with its date, supplier and receipt, followed by its l
     .poll(() => rowTexts(screen))
     .toEqual([
       "14/09/2026Distribuidora AndinaFactura B 0001-00001234",
-      "Miel pura de abeja 1 kg2 × Caja x 12 (24 u)$ 7.200,00 por Caja x 12$ 600,00 por uL-1731/01/2027",
+      "Miel pura de abeja 1 kg2 × 12 u (24 u)$ 7.200,00 por paquete$ 600,00 por uL-1731/01/2027",
       "10/09/2026Granos del ValleSin comprobante",
       "Avena arrollada12,500 kg$ 2.000,00 por kg$ 2.000,00 por kg",
     ]);
@@ -114,7 +114,27 @@ test("writes a line's count of packages the way every amount reads", async () =>
   });
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("1.500 × Caja x 12 (18.000 u)")).toBeVisible();
+  await expect.element(screen.getByText("1.500 × 12 u (18.000 u)")).toBeVisible();
+});
+
+test("writes a line of a product sold by weight with each package's weight in kilos", async () => {
+  const [line] = compraDeAvena.lines;
+  if (!line) {
+    throw new Error("test setup: the purchase has no line");
+  }
+  const services = createServices();
+  vi.mocked(services.fetchPurchases).mockResolvedValue({
+    kind: "ok",
+    value: [
+      {
+        ...compraDeAvena,
+        lines: [{ ...line, packages: 3, quantityPerPackage: 2_500, quantity: 7_500 }],
+      },
+    ],
+  });
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("3 × 2,500 kg (7,500 kg)")).toBeVisible();
 });
 
 test("shows the blank empty state when there are no purchases yet", async () => {

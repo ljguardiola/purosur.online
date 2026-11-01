@@ -1,16 +1,18 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
-import { expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
 import { render } from "../shell/test-support/render-with-router";
 import { dateSegments } from "../shell/test-support/report-dates";
-import { FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
+import { BACK_REGISTER_ID, FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
 import {
   createReportRegisterFilterServices,
   type ReportRegisterFilterServices,
   reportRegisterFieldForTests,
 } from "../shell/test-support/report-register-filter";
+import { spyOnDownloads } from "../shell/test-support/spy-on-downloads";
 import {
   type HandConfirmedPaymentsFilters,
   handConfirmedPaymentsFilters,
@@ -337,4 +339,55 @@ test("ends the session when the cloud says it is over", async () => {
   await renderScreen(services, { onSessionEnded });
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+test("downloads a spreadsheet of the payments shown, with the applied register and method", async () => {
+  const downloads = spyOnDownloads();
+  const screen = await renderScreen(createServices(), {
+    filters: handConfirmedPaymentsFilters.parse({ register: BACK_REGISTER_ID, method: "TRANSFER" }),
+  });
+  await expect
+    .element(screen.getByRole("combobox", { name: /^Caja:/ }))
+    .toHaveValue("Caja del fondo");
+  await expect.element(screen.getByText("Beto").first()).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
+
+  await expect
+    .poll(() => downloads.names)
+    .toEqual(["pagos-confirmados-a-mano-2026-10-01-2026-10-07.xlsx"]);
+  const file = await readDownloadedXlsx(downloads.blobs[0]);
+  expect(file.sheetNames).toEqual(["Resumen", "Por cajero", "Detalle de pagos"]);
+  const summary = file.sheet(0);
+  expect(summary.get("B4")?.value).toBe("Caja del fondo");
+  expect(summary.get("B5")?.value).toBe("Transferencia");
+  expect(summary.get("B6")?.value).toBe("3");
+  expect(summary.get("B7")?.value).toBe("1900");
+  const cashiers = file.sheet(1);
+  expect(cashiers.get("A2")?.value).toBe("Ana");
+  expect(cashiers.get("C2")?.value).toBe("1000");
+  expect(cashiers.get("G2")?.value).toBe("1400");
+  expect(cashiers.get("A3")?.value).toBe("Sin identificar");
+  const payments = file.sheet(2);
+  expect(payments.get("A2")).toMatchObject({ numberFormat: "dd/mm/yyyy hh:mm" });
+  expect(payments.get("C2")?.value).toBe("Operación 000007");
+  expect(payments.get("F2")?.value).toBe("1000");
+  expect(payments.get("B4")?.value).toBe("Terminal independiente");
+});
+
+test("has its download disabled while the report loads and after loading fails", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchHandConfirmedPayments).mockReturnValue(new Promise(() => {}));
+  const loading = await renderScreen(services);
+  await expect.element(loading.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
+  await loading.unmount();
+
+  vi.mocked(services.fetchHandConfirmedPayments).mockResolvedValue({ kind: "failed" });
+  const failed = await renderScreen(services);
+  await expect.element(failed.getByRole("button", { name: "Reintentar" }).first()).toBeVisible();
+  await expect.element(failed.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
 });

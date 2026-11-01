@@ -1,17 +1,19 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
-import { expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
 import { type ReportFilters, reportFiltersSearch } from "../shell/report-filters-search";
 import { render } from "../shell/test-support/render-with-router";
 import { dateSegments } from "../shell/test-support/report-dates";
-import { FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
+import { BACK_REGISTER_ID, FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
 import {
   createReportRegisterFilterServices,
   type ReportRegisterFilterServices,
   reportRegisterFieldForTests,
 } from "../shell/test-support/report-register-filter";
+import { spyOnDownloads } from "../shell/test-support/spy-on-downloads";
 import { ReturnsReportScreen } from "./returns-report-screen";
 import type { ReturnsReportScreenServices } from "./returns-report-services";
 import {
@@ -19,6 +21,10 @@ import {
   noScannedReturnsReport,
   returnsReport,
 } from "./test-support/returns-fixtures";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 const TYPED_TABLE = "Devoluciones iniciadas con el número tipeado";
 const SCANNED_TABLE = "Devoluciones iniciadas escaneando el QR";
@@ -358,4 +364,50 @@ test("navigates to Mi cuenta when the report request comes back forbidden", asyn
   await renderScreen(services);
 
   await expect.poll(() => window.location.pathname).toBe("/account");
+});
+
+test("downloads a spreadsheet with a sheet for each way a return starts, for the register and period applied", async () => {
+  const downloads = spyOnDownloads();
+  const screen = await renderScreen(createServices(), {
+    filters: reportFiltersSearch.parse({ register: BACK_REGISTER_ID }),
+  });
+  await expect
+    .element(screen.getByRole("combobox", { name: /^Caja:/ }))
+    .toHaveValue("Caja del fondo");
+  await expect
+    .element(screen.getByRole("table", { name: TYPED_TABLE }).getByText("Beto"))
+    .toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
+
+  await expect.poll(() => downloads.names).toEqual(["devoluciones-2026-10-01-2026-10-07.xlsx"]);
+  const file = await readDownloadedXlsx(downloads.blobs[0]);
+  expect(file.sheetNames).toEqual([
+    "Resumen",
+    "Iniciadas con el número tipeado",
+    "Iniciadas escaneando el QR",
+  ]);
+  expect(file.sheet(0).get("B4")?.value).toBe("Caja del fondo");
+  expect(file.sheet(0).get("B5")?.value).toBe("3");
+  expect(file.sheet(0).get("B6")?.value).toBe("5750");
+  const typed = file.sheet(1);
+  expect(typed.get("A2")).toMatchObject({ numberFormat: "dd/mm/yyyy hh:mm" });
+  expect(typed.get("G2")?.value).toBe("Yerba 1 kg");
+  expect(typed.get("H2")?.value).toBe("2");
+  expect(typed.get("I3")?.value).toBe("0.35");
+  expect(typed.get("L4")?.value).toBe("800");
+  expect(file.sheet(2).get("G2")?.value).toBe("Azúcar 1 kg");
+});
+
+test("has its download disabled while the report loads and after loading fails", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchReturnsReport).mockReturnValue(new Promise(() => {}));
+  const loading = await renderScreen(services);
+  await expect.element(loading.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
+  await loading.unmount();
+
+  vi.mocked(services.fetchReturnsReport).mockResolvedValue({ kind: "failed" });
+  const failed = await renderScreen(services);
+  await expect.element(failed.getByRole("button", { name: "Reintentar" })).toBeVisible();
+  await expect.element(failed.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
 });

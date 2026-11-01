@@ -124,6 +124,9 @@ importers:
       '@tanstack/react-router':
         specifier: ^1.170.45
         version: 1.170.45(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
       jsqr:
         specifier: 1.4.0
         version: 1.4.0

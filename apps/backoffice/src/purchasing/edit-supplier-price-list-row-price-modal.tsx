@@ -141,13 +141,7 @@ export function EditSupplierPriceListRowPriceModal({
           <SupplierPriceListChangeNotices notice={notice} failedTitle="No se guardó el precio" />
           <form.AppField name="price">
             {(field) => (
-              <field.TextField
-                kind="price"
-                prefix="$"
-                label="Precio"
-                inputMode="decimal"
-                required
-              />
+              <field.TextField kind="price" prefix="$" label="Precio" decimals={2} required />
             )}
           </form.AppField>
         </div>

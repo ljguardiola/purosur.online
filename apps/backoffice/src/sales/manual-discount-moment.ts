@@ -2,7 +2,7 @@ import { manualDiscountsSchema } from "@purosur/contracts";
 import { formatDate } from "@purosur/ui";
 import { schemaText } from "../platform/schema-text";
 
-const MOMENT_TIME_ZONE = schemaText(
+export const MOMENT_TIME_ZONE = schemaText(
   manualDiscountsSchema.shape.rows.element.options[0].shape.completed_at.meta()?.["timeZone"],
 );
 

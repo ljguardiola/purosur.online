@@ -13,7 +13,6 @@ const purchaseLineSummarySchema = z.object({
     netContent: netContentSchema.nullable(),
     saleUnit: saleUnitSchema,
   }),
-  packaging: z.object({ id: z.string(), name: z.string() }).nullable(),
   packages: z.int().nullable(),
   quantity: z.int(),
   costPaidCents: z.int(),
