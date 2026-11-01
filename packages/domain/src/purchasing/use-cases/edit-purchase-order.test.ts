@@ -167,7 +167,7 @@ describe("editPurchaseOrder", () => {
         edit({
           lines: [
             { productId: "product-a", packages: 1, quantityPerPackage: 12_000 },
-            { productId: "product-b", packages: 0, quantityPerPackage: 10_000 },
+            { productId: "product-b", packages: 1.5, quantityPerPackage: 10_000 },
           ],
         }),
       ),

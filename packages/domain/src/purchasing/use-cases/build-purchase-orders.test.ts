@@ -163,7 +163,7 @@ describe("buildPurchaseOrders", () => {
         build({
           choices: [
             { productId: "product-a", supplierId: "supplier-a", packages: 1 },
-            { productId: "product-b", supplierId: "supplier-a", packages: 0 },
+            { productId: "product-b", supplierId: "supplier-a", packages: 1.5 },
           ],
         }),
       ),
