@@ -25,7 +25,11 @@ export { SummaryRowGroup } from "./components/data-display/summary-row-group";
 export { Table } from "./components/data-display/table/table";
 export type { TableCellTextProps } from "./components/data-display/table/table-cell-text";
 export { TableCellText } from "./components/data-display/table/table-cell-text";
-export { actionsColumn, dataColumn } from "./components/data-display/table/table-columns";
+export {
+  actionsColumn,
+  dataColumn,
+  groupColumn,
+} from "./components/data-display/table/table-columns";
 export type { TablePaginationProps } from "./components/data-display/table/table-pagination";
 export { TablePagination } from "./components/data-display/table/table-pagination";
 export type {

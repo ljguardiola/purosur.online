@@ -15,6 +15,7 @@ import type { AccountRecoveryScreenServices } from "../credentials/account-recov
 import type { MyAccountScreenServices } from "../credentials/my-account-services";
 import type { RegisterPasskeyScreenServices } from "../credentials/register-passkey-services";
 import type { UserCredentialSectionsServices } from "../credentials/user-credential-sections-services";
+import type { ExceptionalityScreenServices } from "../fiscal/exceptionality-services";
 import type { FiscalConfigurationScreenServices } from "../fiscal/fiscal-configuration-services";
 import type { FiscalTasksScreenServices } from "../fiscal/fiscal-tasks-services";
 import type { IssuedFiscalDocumentsReportScreenServices } from "../fiscal/issued-fiscal-documents-report-services";
@@ -170,6 +171,7 @@ export type AppServices = {
   initialInventoryScreen: InitialInventoryScreenServices;
   fiscalConfigurationScreen: FiscalConfigurationScreenServices;
   fiscalTasksScreen: FiscalTasksScreenServices;
+  exceptionalityScreen: ExceptionalityScreenServices;
   issuedFiscalDocumentsScreen: IssuedFiscalDocumentsScreenServices;
   pointsOfSaleScreen: PointsOfSaleScreenServices;
   accountFooter: AccountFooterServices;

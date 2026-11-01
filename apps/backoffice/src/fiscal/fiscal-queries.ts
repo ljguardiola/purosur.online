@@ -1,4 +1,5 @@
 import type {
+  ExceptionShareYearBody,
   FiscalTasks,
   IssuedFiscalDocumentDetailBody,
   IssuedFiscalDocumentsBody,
@@ -19,6 +20,7 @@ import type {
 } from "./buyer-identification-threshold-api";
 import type { BuyerTaxStatus, fetchBuyerTaxStatuses } from "./buyer-tax-statuses-api";
 import type { ClockCorrection, fetchClockCorrections } from "./clock-corrections-api";
+import type { fetchExceptionShareYear } from "./exception-share-api";
 import type { FiscalAddress, fetchFiscalAddresses } from "./fiscal-addresses-api";
 import type { fetchFiscalTasks } from "./fiscal-tasks-api";
 import type {
@@ -45,6 +47,10 @@ export type IssuedFiscalDocumentRead =
   | { kind: "found"; document: IssuedFiscalDocumentDetailBody }
   | { kind: "not_found" };
 
+export type ExceptionShareYearRead =
+  | { kind: "found"; year: ExceptionShareYearBody }
+  | { kind: "not_found" };
+
 export const fiscalKey = ["fiscal"] as const;
 
 export const fiscalKeys = {
@@ -59,6 +65,8 @@ export const fiscalKeys = {
   fiscalTasks: [...fiscalKey, "tasks"] as const,
   unbilledDeferredSales: [...fiscalKey, "unbilled-deferred-sales"] as const,
   zoneRules: [...fiscalKey, "zone-rules"] as const,
+  exceptionShareYear: (fiscalAddressId: string, year: number) =>
+    [...fiscalKey, "exception-share", fiscalAddressId, year] as const,
   issuedDocument: (voucher: IssuedFiscalDocumentVoucher) =>
     [
       ...fiscalKey,
@@ -338,6 +346,32 @@ export function useIssuedFiscalDocumentQuery(params: {
   return useCloudQuery<IssuedFiscalDocumentRead>({
     queryKey: fiscalKeys.issuedDocument(params.voucher),
     read: () => readIssuedFiscalDocument(params.voucher, params.fetchIssuedFiscalDocument),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useExceptionShareYearQuery(params: {
+  fiscalAddressId: string | undefined;
+  year: number;
+  fetchExceptionShareYear: typeof fetchExceptionShareYear;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  const { fiscalAddressId, year } = params;
+  return useCloudQuery<ExceptionShareYearRead>({
+    queryKey: fiscalKeys.exceptionShareYear(fiscalAddressId ?? "", year),
+    enabled: fiscalAddressId !== undefined,
+    read: async () => {
+      if (fiscalAddressId === undefined) {
+        return { kind: "failed" };
+      }
+      const outcome = await params.fetchExceptionShareYear({ fiscalAddressId, year });
+      if (outcome.kind === "ok") {
+        return { kind: "ok", value: { kind: "found", year: outcome.value } };
+      }
+      return outcome.kind === "not_found" ? { kind: "ok", value: { kind: "not_found" } } : outcome;
+    },
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });
