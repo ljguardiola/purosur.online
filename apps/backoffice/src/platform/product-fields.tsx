@@ -3,6 +3,7 @@ import { FieldGroup, type Option, withFieldGroup } from "@purosur/ui";
 import type { ReactNode } from "react";
 import { BarcodeChips } from "./barcode-chips";
 import type { CreatableChoice } from "./creatable-options";
+import { MAX_DECIMALS } from "./net-content-quantity";
 import { brandFieldHelp, brandOptions, withCreatedBrand } from "./product-brand-field";
 import { EMPTY_PRODUCT_FORM, NET_CONTENT_UNIT_OPTIONS } from "./product-form";
 import { type StackedTagCreation, TagsField, withCreatedTags } from "./product-tags-field";
@@ -87,6 +88,7 @@ export const ProductFields = withFieldGroup({
               label="Contenido neto"
               options={NET_CONTENT_UNIT_OPTIONS}
               unitLabel="Unidad"
+              decimals={MAX_DECIMALS}
             />
           )}
         </group.AppField>

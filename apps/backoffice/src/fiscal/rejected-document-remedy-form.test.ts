@@ -202,8 +202,8 @@ test.each([
 test.each([
   { total: "", reason: "Ingresá el total del comprobante." },
   {
-    total: "12.50",
-    reason: "Escribí el total con coma para los decimales, por ejemplo 7.500,50.",
+    total: "12,",
+    reason: "Completá los decimales del total después de la coma, por ejemplo 7.500,50.",
   },
   { total: "100,00", reason: "Revisá el total." },
 ])("a typed total of '$total' can't be sent: $reason", ({ total, reason }) => {

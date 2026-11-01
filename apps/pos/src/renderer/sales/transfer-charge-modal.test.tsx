@@ -95,7 +95,7 @@ describe("TransferChargeModal", () => {
   it("charges the amount the cashier typed", async () => {
     const { field, seen, chargeSale } = await renderModal();
 
-    await userEvent.fill(field, "2.000,50");
+    await userEvent.fill(field, "2000,50");
     await userEvent.click(seen);
 
     await expect.poll(() => chargeSale.mock.calls).toEqual([[200_050]]);
@@ -110,7 +110,7 @@ describe("TransferChargeModal", () => {
       pending: 276_000,
     }));
 
-    await userEvent.fill(field, "2.000,00");
+    await userEvent.fill(field, "2000,00");
     await userEvent.click(seen);
 
     await expect.poll(() => callbacks.onPartiallyPaid.mock.calls.length).toBe(1);
@@ -128,7 +128,7 @@ describe("TransferChargeModal", () => {
     }));
     callbacks.onPartiallyPaid.mockReturnValue(backToMethods.promise);
 
-    await userEvent.fill(field, "2.000,00");
+    await userEvent.fill(field, "2000,00");
     await userEvent.click(seen);
 
     await expect.poll(() => callbacks.onPartiallyPaid.mock.calls.length).toBe(1);
@@ -144,7 +144,7 @@ describe("TransferChargeModal", () => {
       { total: TOTAL, paid: 100_000, pending: 376_000 },
     );
 
-    await userEvent.fill(field, "5.000,00");
+    await userEvent.fill(field, "5000,00");
     await userEvent.click(seen);
 
     await expect
@@ -167,7 +167,8 @@ describe("TransferChargeModal", () => {
   it("does not charge what is not an amount, and says so", async () => {
     const { screen, field, seen, chargeSale } = await renderModal();
 
-    await userEvent.fill(field, "abc");
+    await userEvent.clear(field);
+    await userEvent.keyboard("5,");
     await userEvent.click(seen);
 
     await expect
@@ -331,5 +332,13 @@ describe("TransferChargeModal", () => {
     await expect
       .element(screen.getByRole("alert"))
       .toHaveTextContent("No se pudo cobrar la venta. Probá de nuevo.");
+  });
+
+  it("groups thousands and takes a typed dot as the decimal comma", async () => {
+    const { field } = await renderModal();
+    await userEvent.clear(field);
+    await userEvent.type(field, "1234.5");
+
+    await expect.element(field).toHaveValue("1.234,5");
   });
 });

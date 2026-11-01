@@ -2152,7 +2152,7 @@ describe("App", () => {
     await userEvent.click(screen.getByText("Efectivo", { exact: true }));
     await userEvent.fill(
       screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
-      "2.500,00",
+      "2500,00",
     );
     await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
 
@@ -2237,7 +2237,7 @@ describe("App", () => {
     await userEvent.click(screen.getByText("Efectivo", { exact: true }));
     await userEvent.fill(
       screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
-      "2.500,00",
+      "2500,00",
     );
 
     await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
@@ -2358,7 +2358,7 @@ describe("App", () => {
     await userEvent.click(screen.getByText("Efectivo", { exact: true }));
     await userEvent.fill(
       screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
-      "2.500,00",
+      "2500,00",
     );
     await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
     await expect.element(screen.getByRole("heading", { name: "Entregá el vuelto" })).toBeVisible();
@@ -3206,7 +3206,7 @@ describe("App", () => {
       await userEvent.click(screen.getByRole("link", { name: "Caja" }));
       await expect.element(screen.getByText("$ 46.200,00", { exact: true })).toBeVisible();
       await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
-      await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45.800,00");
+      await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45800,00");
     }
 
     it("opens the cash screen from the rail and keeps the person there", async () => {
@@ -3387,7 +3387,7 @@ describe("App", () => {
           .getByRole("dialog", { name: "¿Cerrar la caja o dejarla bloqueada?" })
           .getByRole("button", { name: "Cerrar caja" }),
       );
-      await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45.800,00");
+      await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45800,00");
 
       await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
 
@@ -3409,7 +3409,7 @@ describe("App", () => {
           .getByRole("dialog", { name: "¿Cerrar la caja o dejarla bloqueada?" })
           .getByRole("button", { name: "Cerrar caja" }),
       );
-      await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45.800,00");
+      await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45800,00");
 
       await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
 
@@ -3483,7 +3483,7 @@ describe("App", () => {
       await expect
         .element(screen.getByRole("complementary").getByText("$ 46.200,00", { exact: true }))
         .toBeVisible();
-      await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45.800,00");
+      await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45800,00");
       await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
       return identified;
     }
@@ -3815,7 +3815,7 @@ describe("App", () => {
       await userEvent.click(screen.getByText("Efectivo", { exact: true }));
       await userEvent.fill(
         screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
-        "2.500,00",
+        "2500,00",
       );
       await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
 

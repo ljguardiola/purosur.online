@@ -117,7 +117,7 @@ test("builds the request from the typed values and the purchases left chosen", a
 
   await fillFreight(screen.locator, {
     date: "12092026",
-    amount: "18.500,00",
+    amount: "18500,00",
     carrierName: "Expreso Sur",
     description: "Envío desde Buenos Aires",
     suppliers: ["Distribuidora Andina", "Molinos del Valle"],
@@ -176,9 +176,7 @@ test("refuses an empty form under each field without submitting it", async () =>
   await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
 
   await expect.element(screen.getByText("Ingresá la fecha del flete.")).toBeVisible();
-  await expect
-    .element(screen.getByText("Escribí el monto con coma para los centavos, por ejemplo 1.250,50."))
-    .toBeVisible();
+  await expect.element(screen.getByText("Ingresá el monto del flete.")).toBeVisible();
   await expect.element(screen.getByText("Ingresá el medio del flete.")).toBeVisible();
   await expect.element(screen.getByText("Ingresá la descripción del flete.")).toBeVisible();
   await expect.element(screen.getByText("Elegí al menos una compra.")).toBeVisible();
@@ -228,4 +226,13 @@ test("shows no notice when there is none", async () => {
   const screen = await render(<FreightNotices notice={null} failedTitle="No se guardó el flete" />);
 
   expect(screen.container.textContent).toBe("");
+});
+
+test("groups thousands and takes a typed dot as the decimal comma in the amount", async () => {
+  const screen = await render(<Harness />);
+  const field = screen.getByRole("textbox", { name: /^Monto/ });
+  await userEvent.clear(field);
+  await userEvent.type(field, "1234.5");
+
+  await expect.element(field).toHaveValue("1.234,5");
 });

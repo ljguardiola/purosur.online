@@ -381,7 +381,7 @@ test("editing a price saves it, reads the list again and says so", async () => {
     screen.getByRole("button", { name: "Editar el precio de Pasas de uva sultanitas x 10 kg" }),
   );
   const dialog = screen.getByRole("dialog");
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Precio/ }), "58.990,00");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Precio/ }), "58990,00");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar el precio" }));
 
   expect(services.setSupplierPriceListRowPrice).toHaveBeenCalledWith(

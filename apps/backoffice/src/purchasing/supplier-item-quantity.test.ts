@@ -84,7 +84,7 @@ describe("supplierItemQuantityFieldKind", () => {
     expect(supplierItemQuantityFieldKind("KG", "KG")).toEqual({
       kind: "plain-text",
       suffix: "kg",
-      inputMode: "decimal",
+      decimals: 3,
     });
     expect(supplierItemQuantityFieldKind("KG", "G")).toEqual({
       kind: "plain-text",

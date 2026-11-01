@@ -104,7 +104,7 @@ test.each([
   },
 );
 
-test("asks for a keyboard with the decimal comma for kilos and for none for units", () => {
-  expect(quantityFieldKind("KG")).toMatchObject({ inputMode: "decimal" });
-  expect(quantityFieldKind("UNIT")).not.toHaveProperty("inputMode");
+test("types kilos with three decimals and units with none", () => {
+  expect(quantityFieldKind("KG")).toMatchObject({ decimals: 3 });
+  expect(quantityFieldKind("UNIT")).not.toHaveProperty("decimals");
 });

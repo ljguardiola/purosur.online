@@ -555,7 +555,7 @@ test("recording a threshold closes the modal, shows the threshold the read after
   await expect.element(screen.getByText("$ 10.000.000,00")).toBeVisible();
   await userEvent.click(screen.getByRole("button", { name: "Cargar un umbral nuevo" }));
   const dialog = screen.getByRole("dialog");
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Importe/ }), "15.000.000,00");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Importe/ }), "15000000,00");
   await userEvent.click(
     dialog
       .getByRole("group", { name: /^Vigente desde/ })
@@ -588,7 +588,7 @@ test("keeps the threshold modal open with what was typed, asking to review the d
   await expect.element(screen.getByText("$ 10.000.000,00")).toBeVisible();
   await userEvent.click(screen.getByRole("button", { name: "Cargar un umbral nuevo" }));
   const dialog = screen.getByRole("dialog");
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Importe/ }), "15.000.000,00");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Importe/ }), "15000000,00");
   await userEvent.click(
     dialog
       .getByRole("group", { name: /^Vigente desde/ })

@@ -2250,7 +2250,7 @@ describe("the register's router", () => {
     await userEvent.click(screen.getByText("Efectivo", { exact: true }));
     await userEvent.fill(
       screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
-      "2.380,00",
+      "2380,00",
     );
     await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
 
@@ -2310,7 +2310,7 @@ describe("the register's router", () => {
     await userEvent.click(screen.getByText("Efectivo", { exact: true }));
     await userEvent.fill(
       screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
-      "2.380,00",
+      "2380,00",
     );
     await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
 
@@ -2424,7 +2424,7 @@ describe("the register's router", () => {
       .element(screen.getByRole("complementary").getByText("$ 46.200,00", { exact: true }))
       .toBeVisible();
 
-    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45.800,00");
+    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45800,00");
     await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
 
     await expect.poll(() => closed).toEqual([["u2", "s1", 4_580_000]]);
@@ -2453,7 +2453,7 @@ describe("the register's router", () => {
       .element(screen.getByRole("complementary").getByText("$ 46.200,00", { exact: true }))
       .toBeVisible();
 
-    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45.800,00");
+    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45800,00");
     await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
 
     await expect.poll(() => closed).toEqual([leaving]);
@@ -2670,7 +2670,7 @@ describe("the register's router", () => {
       .element(screen.getByRole("complementary").getByText("$ 46.200,00", { exact: true }))
       .toBeVisible();
 
-    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45.800,00");
+    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45800,00");
     await userEvent.click(screen.getByRole("button", { name: "Cerrar caja" }));
 
     expect(identified).toEqual([{ user_id: "u3", pin: "1234" }]);

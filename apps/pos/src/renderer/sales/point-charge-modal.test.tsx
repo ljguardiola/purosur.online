@@ -112,7 +112,7 @@ describe("PointChargeModal", () => {
   it("sends the amount the cashier typed to the terminal, once, and reports the order shown", async () => {
     const { field, send, startCharge, callbacks } = await renderModal();
 
-    await userEvent.fill(field, "30.000,00");
+    await userEvent.fill(field, "30000,00");
     await userEvent.click(send);
 
     await expect.poll(() => callbacks.onOrderShown.mock.calls).toEqual([[ORDER_SHOWN]]);
@@ -128,7 +128,8 @@ describe("PointChargeModal", () => {
   it("does not send what is not an amount, and says so", async () => {
     const { screen, field, send, startCharge } = await renderModal();
 
-    await userEvent.fill(field, "abc");
+    await userEvent.clear(field);
+    await userEvent.keyboard("5,");
     await userEvent.click(send);
 
     await expect
@@ -143,7 +144,7 @@ describe("PointChargeModal", () => {
       pending: 4_070_000,
     }));
 
-    await userEvent.fill(field, "60.000,00");
+    await userEvent.fill(field, "60000,00");
     await userEvent.click(send);
 
     await expect
@@ -280,5 +281,13 @@ describe("PointChargeModal", () => {
 
     expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
     expect(startCharge).not.toHaveBeenCalled();
+  });
+
+  it("groups thousands and takes a typed dot as the decimal comma", async () => {
+    const { field } = await renderModal();
+    await userEvent.clear(field);
+    await userEvent.type(field, "1234.5");
+
+    await expect.element(field).toHaveValue("1.234,5");
   });
 });

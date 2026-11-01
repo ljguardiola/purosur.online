@@ -8,7 +8,12 @@ import {
 } from "@purosur/ui";
 import { Check, Scale } from "lucide-react";
 import { useEffect, useRef } from "react";
-import { changeLineWeightRequestSchema, weightMessage, weightRequestFrom } from "./weight-form";
+import {
+  changeLineWeightRequestSchema,
+  WEIGHT_DECIMALS,
+  weightMessage,
+  weightRequestFrom,
+} from "./weight-form";
 
 export type ChangeLineWeightModalProps = {
   productName: string;
@@ -85,7 +90,7 @@ export function ChangeLineWeightModal({
               kind="weight"
               suffix="kg"
               label="Peso en kg"
-              inputMode="decimal"
+              decimals={WEIGHT_DECIMALS}
               value={field.state.value}
               onChange={field.handleChange}
               disabled={submitting}
