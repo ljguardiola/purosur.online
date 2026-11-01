@@ -10,7 +10,7 @@ export type ReadCell = {
 const PARSER = new DOMParser();
 const BUILT_IN_NUMBER_FORMATS: Record<string, string> = { "0": "General", "3": "#,##0" };
 
-export function parseXml(text: string): Document {
+function parseXml(text: string): Document {
   const document = PARSER.parseFromString(text, "application/xml");
   const error = document.querySelector("parsererror");
   if (error) {
