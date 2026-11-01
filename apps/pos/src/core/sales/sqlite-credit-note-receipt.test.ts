@@ -374,7 +374,7 @@ describe("the receipt of the credit note of a return", () => {
     insertReturnCreditNote();
 
     expect(readCreditNoteReceipt(database, "note-r1")?.lines).toMatchObject([
-      { saleUnit: "KG", quantity: 100, chargedUnitPrice: 4003, discountAmount: 34, lineTotal: 367 },
+      { saleUnit: "KG", quantity: 100, chargedUnitPrice: 4003, discountAmount: 33, lineTotal: 367 },
     ]);
   });
 

@@ -944,6 +944,7 @@ describe("the register's local migrations", () => {
         "0091_register_condition_starts",
         "0092_redeliver_held_back_pulled_tables",
         "0093_sales_rebuilt_against_paid_orders",
+        "0094_exchanged_return_lines",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1060,6 +1061,7 @@ describe("the register's local migrations", () => {
         "0091_register_condition_starts",
         "0092_redeliver_held_back_pulled_tables",
         "0093_sales_rebuilt_against_paid_orders",
+        "0094_exchanged_return_lines",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1171,6 +1173,7 @@ describe("the register's local migrations", () => {
         "0091_register_condition_starts",
         "0092_redeliver_held_back_pulled_tables",
         "0093_sales_rebuilt_against_paid_orders",
+        "0094_exchanged_return_lines",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1281,6 +1284,7 @@ describe("the register's local migrations", () => {
         "0091_register_condition_starts",
         "0092_redeliver_held_back_pulled_tables",
         "0093_sales_rebuilt_against_paid_orders",
+        "0094_exchanged_return_lines",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1420,6 +1424,7 @@ describe("the register's local migrations", () => {
         "0091_register_condition_starts",
         "0092_redeliver_held_back_pulled_tables",
         "0093_sales_rebuilt_against_paid_orders",
+        "0094_exchanged_return_lines",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1549,6 +1554,7 @@ describe("the register's local migrations", () => {
         "0091_register_condition_starts",
         "0092_redeliver_held_back_pulled_tables",
         "0093_sales_rebuilt_against_paid_orders",
+        "0094_exchanged_return_lines",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1682,6 +1688,7 @@ describe("the register's local migrations", () => {
         "0091_register_condition_starts",
         "0092_redeliver_held_back_pulled_tables",
         "0093_sales_rebuilt_against_paid_orders",
+        "0094_exchanged_return_lines",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1823,6 +1830,7 @@ describe("the register's local migrations", () => {
         "0091_register_condition_starts",
         "0092_redeliver_held_back_pulled_tables",
         "0093_sales_rebuilt_against_paid_orders",
+        "0094_exchanged_return_lines",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1931,6 +1939,7 @@ describe("the register's local migrations", () => {
         "0091_register_condition_starts",
         "0092_redeliver_held_back_pulled_tables",
         "0093_sales_rebuilt_against_paid_orders",
+        "0094_exchanged_return_lines",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -9245,13 +9254,13 @@ describe("the exchanged return lines migration", () => {
     }
   }
 
-  const insertLine = (database: Database, resolution: string) =>
+  const insertLine = (database: Database, saleLineId: string, resolution: string) =>
     database
       .prepare(
         `INSERT INTO return_lines (return_id, sale_line_id, quantity, reason, disposition, resolution, refunded_amount)
-         VALUES ('return-1', 'line-1', 1, 'defective', 'discard', @resolution, 0)`,
+         VALUES ('return-1', @sale_line_id, 1, 'defective', 'discard', @resolution, 0)`,
       )
-      .run({ resolution });
+      .run({ sale_line_id: saleLineId, resolution });
 
   const insertMovement = (database: Database, values: Record<string, string | null> = {}) =>
     database
@@ -9280,9 +9289,9 @@ describe("the exchanged return lines migration", () => {
 
   it("holds a line resolved as a refund or as an exchange, and no other resolution", () => {
     withHeldReturnAndMovements((database) => {
-      expect(() => insertLine(database, "exchange")).not.toThrow();
-      expect(() => insertLine(database, "refund")).not.toThrow();
-      expect(() => insertLine(database, "voucher")).toThrow(/CHECK/);
+      expect(() => insertLine(database, "line-2", "exchange")).not.toThrow();
+      expect(() => insertLine(database, "line-3", "refund")).not.toThrow();
+      expect(() => insertLine(database, "line-4", "voucher")).toThrow(/CHECK/);
     });
   });
 

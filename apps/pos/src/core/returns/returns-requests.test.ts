@@ -884,7 +884,7 @@ describe("the credit note of a completed return", () => {
     expect(calls).toMatchObject([
       {
         pointOfSale: 12,
-        saleEvent: { event_type: "sale_returned", schema_version: 3 },
+        saleEvent: { event_type: "sale_returned", schema_version: 4 },
         invoice: { voucher: { number: 41 }, buyerTaxStatusCode: expect.any(Number) },
       },
     ]);
