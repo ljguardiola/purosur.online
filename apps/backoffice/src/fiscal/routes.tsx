@@ -5,6 +5,7 @@ import { lazyScreen } from "../shell/lazy-screen";
 import { reportFiltersSearch } from "../shell/report-filters-search";
 import { reportsAreaRoute } from "../shell/reports-area";
 import { refuseWithout } from "../shell/signed-in-route";
+import { exceptionalityFilters } from "./exceptionality-filters";
 import { issuedFiscalDocumentsFilters } from "./issued-fiscal-documents-filters";
 
 export const fiscalConfigurationRoute = createRoute({
@@ -38,6 +39,15 @@ export const issuedFiscalDocumentsRoute = createRoute({
     () => import("./issued-fiscal-documents-page"),
     "IssuedFiscalDocumentsPage",
   ),
+});
+
+export const exceptionalityRoute = createRoute({
+  getParentRoute: () => cashAndFiscalAreaRoute,
+  path: "exceptionality",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeFiscalInformation),
+  validateSearch: exceptionalityFilters,
+  search: { middlewares: [stripSearchParams(exceptionalityFilters.parse({}))] },
+  component: lazyScreen(() => import("./exceptionality-page"), "ExceptionalityPage"),
 });
 
 export const issuedFiscalDocumentsReportRoute = createRoute({

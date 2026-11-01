@@ -1,6 +1,11 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { lineRefundAmount, returnableQuantity, wholeOnlyReasons } from "./return-line.js";
+import {
+  countsAsReturned,
+  lineRefundAmount,
+  returnableQuantity,
+  wholeOnlyReasons,
+} from "./return-line.js";
 
 describe("returnableQuantity", () => {
   it("is what the line sold minus what was already returned from it", () => {
@@ -129,5 +134,15 @@ describe("lineRefundAmount", () => {
         },
       ),
     );
+  });
+});
+
+describe("countsAsReturned", () => {
+  it("counts a refunded line toward what the sale line has returned", () => {
+    expect(countsAsReturned({ resolution: "refund" })).toBe(true);
+  });
+
+  it("leaves an exchanged line out, because the customer keeps an identical unit", () => {
+    expect(countsAsReturned({ resolution: "exchange" })).toBe(false);
   });
 });

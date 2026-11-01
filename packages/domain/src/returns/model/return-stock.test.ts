@@ -29,13 +29,13 @@ describe("returnStockDelta", () => {
 
 describe("returnStockMovements", () => {
   it("puts an item back on the shelf with a single movement", () => {
-    expect(returnStockMovements("restock", 3000)).toEqual([
+    expect(returnStockMovements("restock", 3000, "refund")).toEqual([
       { kind: "return", reason: null, delta: 3000 },
     ]);
   });
 
   it("puts an item back and then takes it out as a loss for return_discard when it is thrown away", () => {
-    expect(returnStockMovements("discard", 3000)).toEqual([
+    expect(returnStockMovements("discard", 3000, "refund")).toEqual([
       { kind: "return", reason: null, delta: 3000 },
       { kind: "loss", reason: "return_discard", delta: -3000 },
     ]);
@@ -47,12 +47,46 @@ describe("returnStockMovements", () => {
         fc.constantFrom("restock", "discard"),
         fc.integer({ min: 1, max: 100_000 }),
         (disposition, delta) => {
-          const net = returnStockMovements(disposition, delta).reduce(
+          const net = returnStockMovements(disposition, delta, "refund").reduce(
             (sum, movement) => sum + movement.delta,
             0,
           );
 
           expect(net).toBe(disposition === "restock" ? delta : 0);
+        },
+      ),
+    );
+  });
+});
+
+describe("returnStockMovements for an exchange", () => {
+  it("puts the defective unit back and sends an identical replacement out like a sale", () => {
+    expect(returnStockMovements("restock", 3000, "exchange")).toEqual([
+      { kind: "return", reason: null, delta: 3000 },
+      { kind: "exchange_out", reason: null, delta: -3000 },
+    ]);
+  });
+
+  it("puts the defective unit back, throws it away and sends the replacement out, in that order", () => {
+    expect(returnStockMovements("discard", 250, "exchange")).toEqual([
+      { kind: "return", reason: null, delta: 250 },
+      { kind: "loss", reason: "return_discard", delta: -250 },
+      { kind: "exchange_out", reason: null, delta: -250 },
+    ]);
+  });
+
+  it("leaves the stock count lower by exactly the replacement, whatever happened to the returned unit", () => {
+    fc.assert(
+      fc.property(
+        fc.constantFrom("restock", "discard"),
+        fc.integer({ min: 1, max: 100_000 }),
+        (disposition, delta) => {
+          const net = returnStockMovements(disposition, delta, "exchange").reduce(
+            (sum, movement) => sum + movement.delta,
+            0,
+          );
+
+          expect(net).toBe(disposition === "restock" ? 0 : -delta);
         },
       ),
     );

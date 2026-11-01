@@ -21,6 +21,7 @@ export function allocatesToLots(kind: StockMovementKind): boolean {
     kind === "sale" ||
     kind === "sale_void" ||
     kind === "return" ||
+    kind === "exchange_out" ||
     kind === "loss" ||
     kind === "adjustment" ||
     kind === "assembly_out" ||

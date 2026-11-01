@@ -78,6 +78,7 @@ test("lists the fiscal tasks after the refunds in the TAREAS group", async () =>
     "Reembolsos sin API",
     "Tareas fiscales",
     "Comprobantes",
+    "Excepcionalidad",
   ]);
 });
 

@@ -21,6 +21,7 @@ import {
   PRINTED_DOCUMENTS,
   RETURN_DISPOSITIONS,
   RETURN_REASONS,
+  RETURN_RESOLUTIONS,
   receiptReprintReason,
   TICKET_SOURCES,
   WEIGHT_SOURCES,
@@ -588,6 +589,19 @@ const saleReturnedV3Schema = saleReturnedV2Schema.extend({
   refunds: z.array(saleRefundWithMercadoPagoSchema),
 });
 
+const saleReturnedV4Schema = saleReturnedV3Schema.extend({
+  lines: z
+    .array(
+      saleReturnedV1Schema.shape.lines.element.extend({ resolution: z.enum(RETURN_RESOLUTIONS) }),
+    )
+    .min(1),
+  stock_movements: z.array(
+    saleReturnedV1Schema.shape.stock_movements.element.extend({
+      kind: z.enum(["return", "loss", "exchange_out"]),
+    }),
+  ),
+});
+
 const cashSessionOpenedSchema = z.object({
   opened_by: text,
   opened_at: instant,
@@ -772,6 +786,7 @@ const PAYLOAD_SCHEMAS = {
   "sale_returned@1": saleReturnedV1Schema,
   "sale_returned@2": saleReturnedV2Schema,
   "sale_returned@3": saleReturnedV3Schema,
+  "sale_returned@4": saleReturnedV4Schema,
   "cash_session_opened@1": cashSessionOpenedSchema,
   "cash_session_closed@1": cashSessionClosedSchema,
   "cash_movement_recorded@1": cashMovementRecordedSchema,

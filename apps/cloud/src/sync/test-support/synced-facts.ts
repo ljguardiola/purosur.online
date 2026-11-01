@@ -417,6 +417,7 @@ export function aReturnOf(
         productId: line.productId,
         quantity: 1,
         reason: "change_of_mind",
+        resolution: "refund",
         disposition: "restock",
         refundedAmount: 2400,
       },

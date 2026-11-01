@@ -18,17 +18,7 @@ import {
   tags,
 } from "../platform/db/schema.js";
 import { netContentRow } from "./net-content-row.js";
-
-function productActivityCondition(scope: ProductActivityScope) {
-  switch (scope) {
-    case "active":
-      return eq(products.active, true);
-    case "inactive":
-      return eq(products.active, false);
-    case "any":
-      return undefined;
-  }
-}
+import { productActivityCondition } from "./product-activity-condition.js";
 
 function groupByProductId(rows: { productId: string; value: string }[]): Map<string, string[]> {
   const grouped = new Map<string, string[]>();

@@ -10,7 +10,7 @@ import {
 import { versionAtLeast } from "./register-version.js";
 
 const LATER_ADDED_ENTITIES = ["brand", "zone_rules"] as const;
-const LATER_ADDED_KINDS = ["return", "assembly_void"] as const;
+const LATER_ADDED_KINDS = ["return", "assembly_void", "exchange_out"] as const;
 
 const part = fc.nat({ max: 5000 });
 const aVersion = fc.tuple(part, part, part).map((parts) => parts.join("."));
@@ -67,11 +67,13 @@ describe("the entities a register version reads", () => {
 
 describe("the stock movement kinds a register version cannot read", () => {
   it.each([
-    ["1.0.1283", ["return", "assembly_void"]],
-    ["1.0.1284", ["assembly_void"]],
-    ["1.0.1321", ["assembly_void"]],
-    ["1.0.1322", []],
-    ["1.0.1385", []],
+    ["1.0.1283", ["return", "assembly_void", "exchange_out"]],
+    ["1.0.1284", ["assembly_void", "exchange_out"]],
+    ["1.0.1321", ["assembly_void", "exchange_out"]],
+    ["1.0.1322", ["exchange_out"]],
+    ["1.0.1385", ["exchange_out"]],
+    ["1.0.1489", ["exchange_out"]],
+    ["1.0.1490", []],
     ["2.0.0", []],
   ] as const)("is %s's: %j", (version, unreadable) => {
     expect([...unreadableStockMovementKinds(version)].sort()).toEqual([...unreadable].sort());

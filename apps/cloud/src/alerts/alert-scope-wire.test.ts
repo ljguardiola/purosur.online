@@ -58,6 +58,34 @@ describe("scopeDisplay", () => {
     ).toBe("register-1");
   });
 
+  it("shows the name of the fiscal address before the month of a fiscal address month scope", () => {
+    const names = new Map([["fiscal-address-1", "Local central"]]);
+
+    expect(
+      scopeDisplay(
+        {
+          kind: "exception_share_breach",
+          scope: "fiscal-address-1:2026-09",
+          resolvedAt: null,
+        },
+        names,
+      ),
+    ).toBe("Local central:2026-09");
+  });
+
+  it("keeps the id of a fiscal address the map doesn't name before the month of its scope", () => {
+    expect(
+      scopeDisplay(
+        {
+          kind: "exception_share_breach",
+          scope: "fiscal-address-1:2026-09",
+          resolvedAt: null,
+        },
+        new Map<string, string>(),
+      ),
+    ).toBe("fiscal-address-1:2026-09");
+  });
+
   it("falls back to the raw scope when the id isn't in the map", () => {
     expect(
       scopeDisplay(

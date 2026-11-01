@@ -643,6 +643,37 @@ describe("reading a sale of the branch to return it from another register", () =
       });
     });
 
+    it("does not count a line exchanged for an identical unit as returned, though its return is counted", async () => {
+      const { asking, selling, completed, sessionId } = await setUp();
+      await authorizeInvoice(selling.registerId, completed.id);
+      const base = aReturnOf(completed, { sessionId });
+      const [line] = base.lines;
+      const exchange = {
+        ...base,
+        lines: [
+          {
+            ...(line as NonNullable<typeof line>),
+            reason: "defective" as const,
+            resolution: "exchange" as const,
+            refundedAmount: 0,
+          },
+        ],
+        refunds: [],
+        cashMovements: [],
+      };
+      await record(
+        { kind: "sale_returned", saleReturn: exchange, creditNote: null },
+        eventOf(selling.deviceId, "sale_returned", exchange.id),
+      );
+
+      const found = await reader().saleForReturnInBranchOf(asking.registerId, INVOICE);
+
+      expect(found).toMatchObject({
+        sale: { returned: [], payments: [{ refundedAmount: 0 }] },
+        countedReturnIds: [exchange.id],
+      });
+    });
+
     it("counts a refund of another origin that is not discarded and ignores a discarded one", async () => {
       const { asking, selling, completed } = await setUp();
       await authorizeInvoice(selling.registerId, completed.id);

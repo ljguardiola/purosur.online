@@ -173,6 +173,7 @@ describe("replenishing a return into a restored register", () => {
           quantity: 1,
           reason: "defective",
           disposition: "discard",
+          resolution: "refund",
           refundedAmount: 1000,
         },
       ],
@@ -204,6 +205,49 @@ describe("replenishing a return into a restored register", () => {
       { id: "movement-2", kind: "return", sale_line_id: "line-1", delta: 1000 },
       { id: "movement-3", kind: "loss", sale_line_id: null, delta: -1000 },
     ]);
+    expect(rows("SELECT quantity FROM stock_balances")).toEqual([{ quantity: 10 }]);
+  });
+
+  it("keeps an exchanged line as exchanged, with the replacement leaving stock for that line", () => {
+    returnSale({
+      cashMovements: [],
+      lines: [
+        {
+          saleLineId: "line-1",
+          productId: "product-1",
+          quantity: 1,
+          reason: "defective",
+          disposition: "restock",
+          resolution: "exchange",
+          refundedAmount: 0,
+        },
+      ],
+      stockMovements: [
+        {
+          id: "movement-2",
+          saleLineId: "line-1",
+          productId: "product-1",
+          kind: "return",
+          reason: null,
+          delta: 1000,
+        },
+        {
+          id: "movement-3",
+          saleLineId: "line-1",
+          productId: "product-1",
+          kind: "exchange_out",
+          reason: null,
+          delta: -1000,
+        },
+      ],
+    });
+
+    expect(rows("SELECT sale_line_id, resolution, refunded_amount FROM return_lines")).toEqual([
+      { sale_line_id: "line-1", resolution: "exchange", refunded_amount: 0 },
+    ]);
+    expect(
+      rows("SELECT id, kind, sale_line_id, delta FROM stock_movements WHERE id = 'movement-3'"),
+    ).toEqual([{ id: "movement-3", kind: "exchange_out", sale_line_id: "line-1", delta: -1000 }]);
     expect(rows("SELECT quantity FROM stock_balances")).toEqual([{ quantity: 10 }]);
   });
 

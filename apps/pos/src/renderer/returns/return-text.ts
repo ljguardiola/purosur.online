@@ -9,6 +9,7 @@ import type { SaleForReturn, SaleLineForReturn } from "./return-sale";
 
 export type ReturnReasonValue = NonNullable<ReturnDraftLineBody["reason"]>;
 export type ReturnDispositionValue = NonNullable<ReturnDraftLineBody["disposition"]>;
+export type ReturnResolutionValue = NonNullable<ReturnDraftLineBody["resolution"]>;
 
 export const REASON_OPTIONS = [
   { value: "change_of_mind", label: "Arrepentimiento" },
@@ -19,6 +20,11 @@ export const DISPOSITION_OPTIONS = [
   { value: "restock", label: "A la venta" },
   { value: "discard", label: "Descarte" },
 ] as const satisfies readonly { value: ReturnDispositionValue; label: string }[];
+
+export const RESOLUTION_LABELS: Record<ReturnResolutionValue, string> = {
+  refund: "Reintegro",
+  exchange: "Cambio por otra igual",
+};
 
 const REASON_WINDOW_NAMES: Record<ReturnReasonValue, string> = {
   change_of_mind: "arrepentimiento",
@@ -83,6 +89,10 @@ export function lineRefusalNotice(
       return `Elegí el motivo de ${name}.`;
     case "missing_disposition":
       return `Elegí qué pasa con la mercadería de ${name}.`;
+    case "missing_resolution":
+      return `Elegí si se reintegra o se cambia ${name}.`;
+    case "resolution_not_offered":
+      return `${name}: con este motivo no se puede cambiar por otra igual.`;
     case "quantity_exceeds_returnable":
       return `${name}: se pueden devolver hasta ${quantityText(saleUnit, refusal.returnable)}.`;
     case "promotion_whole_only":

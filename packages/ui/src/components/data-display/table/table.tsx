@@ -3,7 +3,7 @@ import { Fragment, type ReactElement } from "react";
 import { EmptyState } from "../../feedback/empty-state";
 import { LoadFailure } from "../../feedback/load-failure";
 import { TableCell } from "./table-cell";
-import { TableHeaderRow } from "./table-header-row";
+import { TableColumnWidths, TableHeaderRows } from "./table-header-row";
 import { TablePlaceholderRows } from "./table-placeholder-rows";
 import { rowBoxShadowClassName, rowStateClassName, tableContainerClassName } from "./table-styles";
 import type { TableLoadingState, TableProps } from "./table-types";
@@ -62,8 +62,9 @@ export function Table<T extends RowData>({
           aria-busy={loading ? true : undefined}
           className="w-full table-fixed"
         >
+          <TableColumnWidths table={table} variant={variant} />
           <thead>
-            <TableHeaderRow table={table} variant={variant} />
+            <TableHeaderRows table={table} variant={variant} />
           </thead>
           <tbody aria-hidden={showingPlaceholders ? true : undefined}>
             {showingPlaceholders && <TablePlaceholderRows columns={columns} />}

@@ -374,14 +374,17 @@ beforeAll(async () => {
     [9, registerB],
   ] as const) {
     expectOutcome(
-      await configureRegisterPointOfSale(pointsOfSale, {
-        locationId: installation.locationId,
-        registerId: installation.registerId,
-        pointOfSaleNumber: number,
-        fiscalAddressId: fiscalAddress.fiscalAddress.id,
-        version: 0,
-        actorId: actorA,
-      }),
+      await configureRegisterPointOfSale(
+        { store: pointsOfSale, clock: { now: () => NOW } },
+        {
+          locationId: installation.locationId,
+          registerId: installation.registerId,
+          pointOfSaleNumber: number,
+          fiscalAddressId: fiscalAddress.fiscalAddress.id,
+          version: 0,
+          actorId: actorA,
+        },
+      ),
       "configured",
     );
   }

@@ -240,6 +240,16 @@ interface DeferredSaleDueDetail {
   escalatesAt: string;
 }
 
+interface ExceptionShareBreachDetail {
+  fiscalAddressId: string;
+  fiscalAddressName: string;
+  month: string;
+  exceptionCount: number;
+  totalCount: number;
+  nonCompliantMonths: string[];
+  nonCompliancePercent: number;
+}
+
 export interface AlertDetails {
   backoffice_passkey_changed: PasskeyChangedDetail;
   backoffice_recovery_requested: RecoveryRequestedDetail;
@@ -276,6 +286,7 @@ export interface AlertDetails {
   register_backup_overdue: RegisterBackupOverdueDetail;
   fortnight_report_document_rejected: FortnightReportDocumentRejectedDetail;
   deferred_sale_due: DeferredSaleDueDetail;
+  exception_share_breach: ExceptionShareBreachDetail;
 }
 
 export type OpenAlertInput = {

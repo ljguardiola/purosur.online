@@ -1,6 +1,6 @@
 import { Button, Eyebrow, FigureStat, formatCents, Modal } from "@purosur/ui";
 import { Check, CircleCheck, Undo2 } from "lucide-react";
-import type { ReturnDispositionValue } from "./return-text";
+import type { ReturnDispositionValue, ReturnResolutionValue } from "./return-text";
 import { dispositionOutcomeText } from "./return-text";
 
 export type CompletedReturnLine = {
@@ -8,6 +8,7 @@ export type CompletedReturnLine = {
   name: string;
   quantity: string;
   disposition: ReturnDispositionValue;
+  resolution: ReturnResolutionValue;
   amount: number;
 };
 
@@ -29,13 +30,23 @@ export type HandOverRefundModalProps = CompletedReturn & { onDone: () => void };
 function handOverTitle(
   cashToHandOver: number,
   pendingRefunds: readonly PendingReturnRefund[],
+  lines: readonly CompletedReturnLine[],
 ): string {
   if (cashToHandOver > 0) {
     return "Entregá el dinero al cliente";
   }
-  return pendingRefunds.length > 0
-    ? "El dinero vuelve por cada medio de pago"
+  if (pendingRefunds.length > 0) {
+    return "El dinero vuelve por cada medio de pago";
+  }
+  return lines.some(({ resolution }) => resolution === "exchange")
+    ? "Entregá el cambio al cliente"
     : "No hay dinero para devolver";
+}
+
+function lineOutcomeText(line: CompletedReturnLine): string {
+  return line.resolution === "exchange"
+    ? `Entregá ${line.quantity} en cambio · ${dispositionOutcomeText(line.disposition)}`
+    : `Reintegro · ${dispositionOutcomeText(line.disposition)}`;
 }
 
 export function HandOverRefundModal({
@@ -56,7 +67,7 @@ export function HandOverRefundModal({
       tone="success"
       icon={<CircleCheck />}
       context="DEVOLUCIÓN COMPLETADA"
-      title={handOverTitle(cashToHandOver, pendingRefunds)}
+      title={handOverTitle(cashToHandOver, pendingRefunds, lines)}
       footer={
         <Button size="large" icon={<Check />} fullWidth onPress={onDone}>
           Listo
@@ -98,11 +109,11 @@ export function HandOverRefundModal({
               <Undo2 aria-hidden className="size-icon-md shrink-0 text-text-accent" />
               <div className="flex min-w-0 flex-1 flex-col">
                 <span className="text-body font-bold text-text">{`${line.name} · ${line.quantity}`}</span>
-                <span className="text-detail text-text-subtle">
-                  {`Reintegro · ${dispositionOutcomeText(line.disposition)}`}
-                </span>
+                <span className="text-detail text-text-subtle">{lineOutcomeText(line)}</span>
               </div>
-              <span className="text-body font-bold text-text">{formatCents(line.amount)}</span>
+              <span className="text-body font-bold text-text">
+                {line.resolution === "exchange" ? "Sin reintegro" : formatCents(line.amount)}
+              </span>
             </li>
           ))}
         </ul>

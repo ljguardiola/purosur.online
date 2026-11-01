@@ -603,15 +603,15 @@ export const stockMovements = pgTable(
   (table) => [
     check(
       "stock_movements_kind_check",
-      sql`${table.kind} in ('loss', 'adjustment', 'count', 'sale', 'sale_void', 'return', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in', 'assembly_void')`,
+      sql`${table.kind} in ('loss', 'adjustment', 'count', 'sale', 'sale_void', 'return', 'exchange_out', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in', 'assembly_void')`,
     ),
     check(
       "stock_movements_reason_unless_count_sale_or_receipt_check",
-      sql`(${table.kind} in ('count', 'sale', 'sale_void', 'return', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in', 'assembly_void')) = (${table.reason} is null)`,
+      sql`(${table.kind} in ('count', 'sale', 'sale_void', 'return', 'exchange_out', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in', 'assembly_void')) = (${table.reason} is null)`,
     ),
     check(
       "stock_movements_sale_line_iff_sale_check",
-      sql`(${table.kind} in ('sale', 'sale_void', 'return') or (${table.kind} = 'loss' and ${table.reason} = 'return_discard')) = (${table.saleLineId} is not null)`,
+      sql`(${table.kind} in ('sale', 'sale_void', 'return', 'exchange_out') or (${table.kind} = 'loss' and ${table.reason} = 'return_discard')) = (${table.saleLineId} is not null)`,
     ),
     check(
       "stock_movements_purchase_line_iff_receipt_check",
@@ -1017,6 +1017,36 @@ export const fiscalAddresses = pgTable(
   (table) => [uniqueIndex("fiscal_addresses_name_lower_key").on(sql`lower(${table.name})`)],
 );
 
+// The month is the "YYYY-MM" the domain names it by, the calendar month of the vouchers' issue day in
+// Argentina.
+export const exceptionShareBreaches = pgTable(
+  "exception_share_breaches",
+  {
+    fiscalAddressId: uuid("fiscal_address_id")
+      .notNull()
+      .references(() => fiscalAddresses.id),
+    month: text("month").notNull(),
+    exceptionCount: integer("exception_count").notNull(),
+    totalCount: integer("total_count").notNull(),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({
+      name: "exception_share_breaches_pkey",
+      columns: [table.fiscalAddressId, table.month],
+    }),
+    check(
+      "exception_share_breaches_month_format",
+      sql`${table.month} ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'`,
+    ),
+    check(
+      "exception_share_breaches_counts_consistent",
+      sql`${table.exceptionCount} >= 0 and ${table.exceptionCount} <= ${table.totalCount}`,
+    ),
+  ],
+);
+
 export const pointOfSaleMechanism = pgEnum("point_of_sale_mechanism", ["real_time", "offline"]);
 
 // Append-only: a number once claimed by a register stays that register's, even after the register
@@ -1072,6 +1102,26 @@ export const registerPointsOfSale = pgTable(
         pointOfSaleClaims.registerId,
         pointOfSaleClaims.mechanism,
       ],
+    }),
+  ],
+);
+
+// Append-only: the vouchers a register issued stay with the fiscal address it had when it issued them.
+export const registerFiscalAddressAssignments = pgTable(
+  "register_fiscal_address_assignments",
+  {
+    registerId: uuid("register_id")
+      .notNull()
+      .references(() => registers.id),
+    fiscalAddressId: uuid("fiscal_address_id")
+      .notNull()
+      .references(() => fiscalAddresses.id),
+    assignedAt: timestamp("assigned_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({
+      name: "register_fiscal_address_assignments_pkey",
+      columns: [table.registerId, table.assignedAt],
     }),
   ],
 );
@@ -1885,11 +1935,13 @@ export const returnLines = pgTable(
       .references(() => saleLines.id),
     quantity: integer("quantity").notNull(),
     reason: text("reason").notNull(),
+    resolution: text("resolution").notNull().default("refund"),
     disposition: text("disposition").notNull(),
     refundedAmount: bigint("refunded_amount", { mode: "number" }).notNull(),
   },
   (table) => [
     check("return_lines_quantity_check", sql`${table.quantity} > 0`),
+    check("return_lines_resolution_check", sql`${table.resolution} in ('refund', 'exchange')`),
     check("return_lines_reason_check", sql`${table.reason} in ('change_of_mind', 'defective')`),
     check("return_lines_disposition_check", sql`${table.disposition} in ('restock', 'discard')`),
     check("return_lines_refunded_amount_check", sql`${table.refundedAmount} >= 0`),

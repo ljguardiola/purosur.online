@@ -50,7 +50,12 @@ export function insertBranchSettings(
 export function insertStoredReturn(
   database: LocalDatabase,
   returnId: string,
-  lines: { saleLineId: string; quantity: number; refundedAmount: number }[],
+  lines: {
+    saleLineId: string;
+    quantity: number;
+    refundedAmount: number;
+    resolution?: "refund" | "exchange";
+  }[],
 ): void {
   database
     .prepare(
@@ -61,10 +66,16 @@ export function insertStoredReturn(
   for (const line of lines) {
     database
       .prepare(
-        `INSERT INTO return_lines (return_id, sale_line_id, quantity, reason, disposition, refunded_amount)
-         VALUES (?, ?, ?, 'change_of_mind', 'restock', ?)`,
+        `INSERT INTO return_lines (return_id, sale_line_id, quantity, reason, disposition, resolution, refunded_amount)
+         VALUES (?, ?, ?, 'change_of_mind', 'restock', ?, ?)`,
       )
-      .run(returnId, line.saleLineId, line.quantity, line.refundedAmount);
+      .run(
+        returnId,
+        line.saleLineId,
+        line.quantity,
+        line.resolution ?? "refund",
+        line.refundedAmount,
+      );
   }
 }
 

@@ -77,14 +77,20 @@ export async function insertRegisterWithPointOfSale<TQueryResult extends PgQuery
   if (!actor || !fiscalAddress || !register) {
     throw new Error("test setup: seeding the register returned no row");
   }
-  await configureRegisterPointOfSale(new DrizzleRegisterPointOfSaleStore(db, () => RECEIVED_AT), {
-    locationId,
-    registerId: register.id,
-    pointOfSaleNumber,
-    fiscalAddressId: fiscalAddress.id,
-    version: 0,
-    actorId: actor.id,
-  });
+  await configureRegisterPointOfSale(
+    {
+      store: new DrizzleRegisterPointOfSaleStore(db, () => RECEIVED_AT),
+      clock: { now: () => RECEIVED_AT },
+    },
+    {
+      locationId,
+      registerId: register.id,
+      pointOfSaleNumber,
+      fiscalAddressId: fiscalAddress.id,
+      version: 0,
+      actorId: actor.id,
+    },
+  );
   return register.id;
 }
 

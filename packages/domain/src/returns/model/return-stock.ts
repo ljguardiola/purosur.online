@@ -1,9 +1,9 @@
 import type { SaleUnit } from "../../catalog/index.js";
 import { soldStockDelta } from "../../stock/index.js";
-import type { ReturnDisposition } from "./return-reasons.js";
+import type { ReturnDisposition, ReturnResolution } from "./return-reasons.js";
 
 export interface ReturnStockMovementPlan {
-  kind: "return" | "loss";
+  kind: "return" | "loss" | "exchange_out";
   reason: "return_discard" | null;
   delta: number;
 }
@@ -17,9 +17,12 @@ export function returnStockDelta(saleUnit: SaleUnit, quantity: number): number {
 export function returnStockMovements(
   disposition: ReturnDisposition,
   delta: number,
+  resolution: ReturnResolution,
 ): ReturnStockMovementPlan[] {
   const back: ReturnStockMovementPlan = { kind: "return", reason: null, delta };
+  const replacement: ReturnStockMovementPlan[] =
+    resolution === "exchange" ? [{ kind: "exchange_out", reason: null, delta: -delta }] : [];
   return disposition === "restock"
-    ? [back]
-    : [back, { kind: "loss", reason: "return_discard", delta: -delta }];
+    ? [back, ...replacement]
+    : [back, { kind: "loss", reason: "return_discard", delta: -delta }, ...replacement];
 }

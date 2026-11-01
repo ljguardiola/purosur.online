@@ -259,6 +259,9 @@ describe("alertDetailSchema", () => {
     expectTypeOf<WireDetail<"deferred_sale_due">["registerName"]>().toEqualTypeOf<
       string | undefined
     >();
+    expectTypeOf<WireDetail<"exception_share_breach">>().toEqualTypeOf<
+      AlertDetails["exception_share_breach"]
+    >();
     expectTypeOf<WireDetail<"fortnight_report_owed_elsewhere">>().toEqualTypeOf<
       AlertDetails["fortnight_report_owed_elsewhere"]
     >();
@@ -474,6 +477,15 @@ describe("alertDetailSchema", () => {
         expiresOn: "2026-10-15",
         escalatesAt: "2026-10-14T03:00:00.000Z",
       },
+      exception_share_breach: {
+        fiscalAddressId: "fiscal-address-1",
+        fiscalAddressName: "Local central",
+        month: "2026-09",
+        exceptionCount: 7,
+        totalCount: 120,
+        nonCompliantMonths: ["2026-03", "2026-09"],
+        nonCompliancePercent: 5,
+      },
       fortnight_report_owed_elsewhere: {
         pointOfSaleNumber: 9,
         fortnightStart: "2026-09-01",
@@ -516,6 +528,23 @@ describe("alertDetailSchema", () => {
       };
 
       expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
+    });
+
+    it.each([
+      ["a fractional exception count", { exceptionCount: 1.5 }],
+      ["a total as text", { totalCount: "120" }],
+      ["a list that holds a number", { nonCompliantMonths: [9] }],
+      ["a threshold as text", { nonCompliancePercent: "5" }],
+      ["a fractional threshold", { nonCompliancePercent: 5.5 }],
+      ["a fiscal address name that is not text", { fiscalAddressName: 1 }],
+    ])("refuses an exception share alert with %s", (_case, change) => {
+      const alert = {
+        ...base,
+        kind: "exception_share_breach",
+        detail: { ...detailOf.exception_share_breach, ...change },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).success).toBe(false);
     });
 
     it.each([

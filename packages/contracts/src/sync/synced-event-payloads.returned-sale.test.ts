@@ -99,7 +99,7 @@ describe("sale_returned v1", () => {
 
   it.each([
     ["version zero", 0],
-    ["a version nobody emitted", 4],
+    ["a version nobody emitted", 5],
   ])("has no schema for %s", (_case, schemaVersion) => {
     expect(syncedEventPayloadKey("sale_returned", schemaVersion)).toBeUndefined();
   });
@@ -297,5 +297,59 @@ describe("sale_returned v3", () => {
     const { credit_note: _removed, ...withoutCreditNote } = RETURNED_V3;
 
     expect(acceptsV3(withoutCreditNote)).toBe(false);
+  });
+});
+
+describe("sale_returned v4", () => {
+  const LINES = RETURNED["lines"] as Payload[];
+  const RETURNED_V4: Payload = {
+    ...RETURNED,
+    credit_note: null,
+    lines: LINES.map((line) => ({ ...line, resolution: "refund" })),
+  };
+  const acceptsV4 = (payload: unknown) =>
+    syncedEventPayloadSchema("sale_returned@4").safeParse(payload).success;
+  const exchanging = (resolution: unknown, change: Payload = {}): Payload => ({
+    ...RETURNED_V4,
+    lines: [{ ...LINES[1], resolution, refunded_amount: 0, ...change }],
+    refunds: [],
+    cash_movements: [],
+    stock_movements: [
+      {
+        ...(RETURNED["stock_movements"] as Payload[])[1],
+        kind: "exchange_out",
+        reason: null,
+        delta: -250,
+      },
+    ],
+  });
+
+  it("is a version the cloud reads", () => {
+    expect(syncedEventPayloadKey("sale_returned", 4)).toBe("sale_returned@4");
+    expect(READABLE_EVENT_VERSIONS).toContain("sale_returned@4");
+  });
+
+  it("accepts a return whose every line says whether it was refunded", () => {
+    expect(acceptsV4(RETURNED_V4)).toBe(true);
+  });
+
+  it("accepts an exchanged line, with the replacement leaving stock and no money moved", () => {
+    expect(acceptsV4(exchanging("exchange"))).toBe(true);
+  });
+
+  it("refuses a line without its resolution", () => {
+    const { resolution: _removed, ...without } = (RETURNED_V4["lines"] as Payload[])[0] ?? {};
+
+    expect(acceptsV4({ ...RETURNED_V4, lines: [without] })).toBe(false);
+  });
+
+  it.each(["store_credit", null, ""])("refuses the resolution %s", (resolution) => {
+    expect(acceptsV4(exchanging(resolution))).toBe(false);
+  });
+
+  it("refuses the replacement of version 3, which could not name it", () => {
+    expect(
+      syncedEventPayloadSchema("sale_returned@3").safeParse(exchanging("exchange")).success,
+    ).toBe(false);
   });
 });

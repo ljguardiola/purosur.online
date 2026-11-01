@@ -1,6 +1,7 @@
 import { isAlertKind } from "./alert-catalog.js";
 import { alertKindPolicy } from "./alert-kind-policy.js";
 
+import { fiscalAddressMonthScopeFiscalAddressId } from "./exception-share-alerts.js";
 import { registerFortnightScopeRegisterId } from "./register-fortnight-scope.js";
 
 export function alertScopeRecordId(alert: { kind: string; scope: string }): string | undefined {
@@ -10,6 +11,9 @@ export function alertScopeRecordId(alert: { kind: string; scope: string }): stri
   const { scopeKind } = alertKindPolicy(alert.kind);
   if (scopeKind === "user" || scopeKind === "register" || scopeKind === "syncDevice") {
     return alert.scope;
+  }
+  if (scopeKind === "fiscalAddressMonth") {
+    return fiscalAddressMonthScopeFiscalAddressId(alert.scope);
   }
   return scopeKind === "registerFortnight"
     ? registerFortnightScopeRegisterId(alert.scope)

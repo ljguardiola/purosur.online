@@ -86,6 +86,12 @@ test("names the alert of a presentation whose document ARCA rejected", () => {
   );
 });
 
+test("names the alert of a fiscal address month that reached the share of vouchers issued by exception", () => {
+  expect(alertKindLabel("exception_share_breach")).toBe(
+    "Límite de comprobantes por excepción alcanzado",
+  );
+});
+
 test("names the alert of a deferred sale that is close to the end of its time to be invoiced", () => {
   expect(alertKindLabel("deferred_sale_due")).toBe("Venta diferida por vencer");
 });

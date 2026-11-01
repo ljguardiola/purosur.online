@@ -10,6 +10,7 @@ import {
 } from "../catalog/routes";
 import { accountRecoveryRoute, myAccountRoute, registerPasskeyRoute } from "../credentials/routes";
 import {
+  exceptionalityRoute,
   fiscalConfigurationRoute,
   fiscalTasksRoute,
   issuedFiscalDocumentsReportRoute,
@@ -140,6 +141,7 @@ const routeTree = rootRoute.addChildren([
       outsideRefundsRoute,
       fiscalTasksRoute,
       issuedFiscalDocumentsRoute,
+      exceptionalityRoute,
     ]),
     reportsAreaRoute.addChildren([
       reportsIndexRoute,

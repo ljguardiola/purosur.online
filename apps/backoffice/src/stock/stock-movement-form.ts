@@ -6,7 +6,7 @@ import {
   stockLossBodySchema,
 } from "@purosur/contracts";
 import type { AdjustmentReason, LossReason, StockDirection } from "@purosur/domain";
-import { numericTextOrder, sortedItems } from "@purosur/ui";
+import { sortedItems, textOrder } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { ADJUSTMENT_REASON_LABELS, LOSS_REASON_LABELS } from "./stock-reason-labels";
 
@@ -17,7 +17,7 @@ export const REASONS_OF_KIND = {
   adjustment: stockAdjustmentBodySchema.shape.reason.options,
 } satisfies Record<MovementKind, readonly StockMovement["reason"][]>;
 
-const productOrder = numericTextOrder((product: StockProduct) => formatProductDescription(product));
+const productOrder = textOrder((product: StockProduct) => formatProductDescription(product));
 
 const DEACTIVATED_STATUS = "Desactivado";
 
