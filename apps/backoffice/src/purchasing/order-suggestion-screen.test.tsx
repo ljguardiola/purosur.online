@@ -1,4 +1,5 @@
 import type { OrderSuggestion } from "@purosur/contracts";
+import { ANOTHER_FICTIONAL_CUIT, FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
@@ -10,7 +11,7 @@ import type { OrderSuggestionScreenServices } from "./order-suggestion-services"
 import { ORDER_SUGGESTION } from "./test-support/order-suggestion";
 import { suppliersWithCuits } from "./test-support/suppliers";
 
-const { andina, granos, cerealera } = suppliersWithCuits("30-70000001-1", "30-70000002-9");
+const { andina, granos, cerealera } = suppliersWithCuits(FICTIONAL_CUIT, ANOTHER_FICTIONAL_CUIT);
 const [almonds, cookies] = ORDER_SUGGESTION.lines as [
   OrderSuggestion["lines"][number],
   OrderSuggestion["lines"][number],
