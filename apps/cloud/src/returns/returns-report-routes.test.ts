@@ -172,7 +172,6 @@ describe("GET /reports/returns", () => {
                 sale_unit: "KG",
                 quantity: 300,
                 reason: "defective",
-                resolution: "refund",
                 disposition: "discard",
                 refunded: 1_200,
               },

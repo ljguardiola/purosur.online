@@ -83,7 +83,7 @@ describe("ReturnLinesTable", () => {
     expect(onCheck).toHaveBeenCalledExactlyOnceWith(PASTA, false);
   });
 
-  it("asks a checked line for its quantity, reason and destination, with nothing chosen", async () => {
+  it("asks a checked line for its quantity, reason and destination, with nothing chosen and no resolution before its reason", async () => {
     const { screen } = await renderTable({ draft: checkLine(EMPTY_RETURN_DRAFT, PASTA) });
 
     await expect
@@ -95,7 +95,10 @@ describe("ReturnLinesTable", () => {
     await expect
       .element(screen.getByRole("button", { name: /Destino de Pasta de maní 380 g/ }))
       .toHaveTextContent("Elegí");
-    await expect.element(screen.getByText("Reintegro")).toBeVisible();
+    await expect.element(screen.getByText("Reintegro")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: /Resolución de Pasta de maní 380 g/ }))
+      .not.toBeInTheDocument();
   });
 
   it("offers a line returned for a defect the choice between a refund and an exchange, with nothing chosen", async () => {

@@ -211,7 +211,7 @@ describe("ReturnScreen choosing what the customer returns", () => {
       .not.toBeInTheDocument();
   });
 
-  it("asks the core about an exchanged line, which refunds nothing and needs no payment to refund", async () => {
+  it("asks the core about an exchanged line, showing nothing to refund with no line of its own and asking for no payment to refund", async () => {
     const { screen, previewReturn } = await renderScreen();
     await openReturn(screen);
 
@@ -232,11 +232,8 @@ describe("ReturnScreen choosing what the customer returns", () => {
         },
       ]),
     );
-    await expect
-      .element(
-        screen.getByText("Los productos se cambian por otros iguales: no hay nada que reintegrar."),
-      )
-      .toBeVisible();
+    await expect.element(screen.getByText("$ 0,00")).toBeVisible();
+    await expect.element(screen.getByText(/no hay nada que reintegrar/)).not.toBeInTheDocument();
     await expect
       .element(screen.getByText("SE DEVUELVE POR EL MEDIO DEL PAGO"))
       .not.toBeInTheDocument();
