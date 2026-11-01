@@ -27,6 +27,7 @@ import {
   fieldWrapperClassName,
 } from "./field-styles";
 import { isOptionValue, type NarrowedOption, type Options } from "./option";
+import { useDecimalTyping } from "./use-decimal-typing";
 
 type QuantityUnitFieldCommonProps<U extends string> = {
   name: string;
@@ -41,6 +42,7 @@ type QuantityUnitFieldCommonProps<U extends string> = {
   unitLabel: string;
   description?: string;
   disabled?: boolean;
+  decimals?: number;
 };
 
 export type QuantityUnitFieldProps<U extends string> = QuantityUnitFieldCommonProps<U> &
@@ -87,7 +89,9 @@ export function QuantityUnitField<U extends string>(props: QuantityUnitFieldProp
     unitLabel,
     description,
     disabled = false,
+    decimals,
   } = props;
+  const [attachInput, onDecimalChange] = useDecimalTyping(decimals, onQuantityChange);
   const { invalid, errorMessage, errorMessageId: explicitMessageId } = fieldError(props);
 
   const [unitOpen, setUnitOpen] = useState(false);
@@ -107,7 +111,7 @@ export function QuantityUnitField<U extends string>(props: QuantityUnitFieldProp
     <AriaTextField
       name={`${name}.quantity`}
       value={quantity}
-      onChange={onQuantityChange}
+      onChange={onDecimalChange}
       isDisabled={disabled}
       isInvalid={invalid}
       {...describedByProps}
@@ -117,7 +121,7 @@ export function QuantityUnitField<U extends string>(props: QuantityUnitFieldProp
       <div
         className={`${boxBaseClassName} ${fieldBoxStateClassName({ disabled, invalid, forcedFocus: unitOpen })}`}
       >
-        <AriaInput inputMode="decimal" className={valueClassName} />
+        <AriaInput ref={attachInput} inputMode="decimal" className={valueClassName} />
         <AriaSelect
           name={`${name}.unit`}
           selectedKey={unit}
