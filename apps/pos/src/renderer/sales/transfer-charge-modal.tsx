@@ -145,10 +145,12 @@ export function TransferChargeModal({
     >
       <div className="flex flex-col gap-5">
         <SummaryRowGroup
+          variant="filled"
+          orientation="horizontal"
           rows={[
             { label: "Total de la venta", value: formatCents(total) },
             { label: "Pagado", value: formatCents(paid) },
-            { label: "A cobrar ahora", value: formatCents(pending) },
+            { label: "A cobrar ahora", value: formatCents(pending), emphasized: true },
           ]}
         />
         <form.AppField name="amount" listeners={{ onChange: () => setNotice(undefined) }}>
