@@ -5,6 +5,7 @@ import { aPendingLatePaymentRefund } from "../payments/test-support/late-payment
 import {
   alertDeliveries,
   alerts,
+  fiscalAddresses,
   locations,
   registers,
   roles,
@@ -516,6 +517,20 @@ describe("DrizzleAlertReader displayNames", () => {
     const names = await new DrizzleAlertReader(db).displayNames([deviceId]);
 
     expect(names).toEqual(new Map([[deviceId, "Caja 4"]]));
+  });
+
+  it("maps a fiscal address id to its name", async () => {
+    const [fiscalAddress] = await db
+      .insert(fiscalAddresses)
+      .values({ name: "Local central", streetAddress: "Calle 1" })
+      .returning({ id: fiscalAddresses.id });
+    if (!fiscalAddress) {
+      throw new Error("test setup: inserting the fiscal address returned no row");
+    }
+
+    const names = await new DrizzleAlertReader(db).displayNames([fiscalAddress.id]);
+
+    expect(names).toEqual(new Map([[fiscalAddress.id, "Local central"]]));
   });
 
   it("names no register for a refund id", async () => {

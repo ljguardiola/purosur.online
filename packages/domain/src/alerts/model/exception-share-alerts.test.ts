@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { exceptionShareBreachAlert, fiscalAddressMonthScope } from "./exception-share-alerts.js";
+import {
+  exceptionShareBreachAlert,
+  fiscalAddressMonthScope,
+  fiscalAddressMonthScopeDisplay,
+  fiscalAddressMonthScopeFiscalAddressId,
+} from "./exception-share-alerts.js";
 
 const BREACH = {
   fiscalAddressId: "fa-1",
@@ -22,6 +27,32 @@ describe("fiscalAddressMonthScope", () => {
     ];
 
     expect(new Set(scopes).size).toBe(3);
+  });
+});
+
+describe("fiscalAddressMonthScopeFiscalAddressId", () => {
+  it("reads the fiscal address back from the scope of an address and a month", () => {
+    expect(fiscalAddressMonthScopeFiscalAddressId(fiscalAddressMonthScope("fa-1", "2026-09"))).toBe(
+      "fa-1",
+    );
+  });
+
+  it("reads nothing from a scope without a month", () => {
+    expect(fiscalAddressMonthScopeFiscalAddressId("fa-1")).toBeUndefined();
+    expect(fiscalAddressMonthScopeFiscalAddressId("fa-1:september")).toBeUndefined();
+    expect(fiscalAddressMonthScopeFiscalAddressId(":2026-09")).toBeUndefined();
+  });
+});
+
+describe("fiscalAddressMonthScopeDisplay", () => {
+  it("puts the name of the fiscal address before the month of the scope", () => {
+    expect(fiscalAddressMonthScopeDisplay("fa-1:2026-09", "Local central")).toBe(
+      "Local central:2026-09",
+    );
+  });
+
+  it("keeps the scope as it comes when it holds no month", () => {
+    expect(fiscalAddressMonthScopeDisplay("fa-1", "Local central")).toBe("fa-1");
   });
 });
 

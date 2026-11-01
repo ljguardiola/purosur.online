@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   alerts,
+  fiscalAddresses,
   locations,
   registers,
   rolePermissions,
@@ -376,6 +377,29 @@ describe("GET /alerts", () => {
         scope: registerId,
         scopeDisplay: "Caja 1",
         scopeKind: "register",
+      }),
+    ]);
+  });
+
+  it("shows a fiscal address month alert's scopeDisplay as the fiscal address's name and the month", async () => {
+    const rawSessionId = await signedInViewer();
+    const [fiscalAddress] = await db
+      .insert(fiscalAddresses)
+      .values({ name: "Local central", streetAddress: "Calle 1" })
+      .returning({ id: fiscalAddresses.id });
+    if (!fiscalAddress) throw new Error("test setup: inserting the fiscal address returned no row");
+    await insertAlert({
+      kind: "exception_share_breach",
+      scope: `${fiscalAddress.id}:2026-09`,
+      audience: "all",
+    });
+
+    const body = listBody(await getAlerts(rawSessionId)).alerts;
+
+    expect(body).toEqual([
+      expect.objectContaining({
+        scopeDisplay: "Local central:2026-09",
+        scopeKind: "fiscalAddressMonth",
       }),
     ]);
   });

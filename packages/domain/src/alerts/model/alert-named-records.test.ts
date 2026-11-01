@@ -207,14 +207,21 @@ describe("a deferred sale scope", () => {
 });
 
 describe("a fiscal address month scope", () => {
-  it("names no record, since the scope is the fiscal address and the month", () => {
+  it("names the fiscal address of the scope, whose month is no record", () => {
     expect(kindsScopedTo("fiscalAddressMonth")).toEqual(["exception_share_breach"]);
+    expect(
+      alertScopeRecordId({ kind: "exception_share_breach", scope: `${SCOPE}:2026-09` }),
+    ).toBe(SCOPE);
     expect(
       alertNamedRecordIds({
         kind: "exception_share_breach",
         scope: `${SCOPE}:2026-09`,
         detail: { fiscalAddressId: SCOPE, registerId: ACTOR_ID },
       }),
-    ).toEqual([]);
+    ).toEqual([SCOPE]);
+  });
+
+  it("names nothing for a scope that holds no month", () => {
+    expect(alertScopeRecordId({ kind: "exception_share_breach", scope: SCOPE })).toBeUndefined();
   });
 });
