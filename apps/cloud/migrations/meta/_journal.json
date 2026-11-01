@@ -1065,6 +1065,13 @@
       "when": 1793442185436,
       "tag": "0158_link_by_quantity",
       "breakpoints": true
+    },
+    {
+      "idx": 159,
+      "version": "7",
+      "when": 1793495239733,
+      "tag": "0159_product_coverage_days",
+      "breakpoints": true
     }
   ]
 }

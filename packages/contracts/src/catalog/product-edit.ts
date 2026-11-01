@@ -6,11 +6,14 @@ import {
   requiredBrandIdSchema,
   requiredTagIdsSchema,
 } from "../shared/index.js";
-import { productBodySchema } from "./product-creation.js";
+import { productBodySchema, requiredCoverageDaysSchema } from "./product-creation.js";
 
 export const productEditBarcodesSchema = barcodeListSchema(barcodeListProblem);
 
-export const productEditBodySchema = productBodySchema(productEditBarcodesSchema).and(
+export const productEditBodySchema = productBodySchema(
+  productEditBarcodesSchema,
+  requiredCoverageDaysSchema,
+).and(
   z.object({
     brandId: requiredBrandIdSchema,
     tagIds: requiredTagIdsSchema,

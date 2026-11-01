@@ -1,7 +1,8 @@
 import {
   type CategorySummary,
-  type ProductCreationBody,
+  type ProductEditBody,
   type ProductSummary,
+  productCreationBodySchema,
   productEditBarcodesSchema,
 } from "@purosur/contracts";
 import { plural } from "@purosur/ui";
@@ -19,8 +20,40 @@ import {
   type ProductFormValues,
   productRequestFrom,
 } from "../platform/product-form";
+import { schemaLimit } from "../platform/schema-limit";
+import { wholeNumberFrom } from "../platform/whole-number";
 
-export type ProductEditFormValues = ProductFormValues & { version: number };
+const coverageDaysSchema = productCreationBodySchema.shape.coverageDays;
+
+export type CatalogProductFormValues = ProductFormValues & { coverageDays: string };
+
+export const EMPTY_CATALOG_PRODUCT_FORM: CatalogProductFormValues = {
+  ...EMPTY_PRODUCT_FORM,
+  coverageDays: String(coverageDaysSchema.parse(undefined)),
+};
+
+export function catalogProductRequestFrom(
+  values: CatalogProductFormValues,
+): ReturnType<typeof productRequestFrom> & { coverageDays: number } {
+  return { ...productRequestFrom(values), coverageDays: wholeNumberFrom(values.coverageDays) };
+}
+
+export const CATALOG_PRODUCT_FIELDS = { ...PRODUCT_FIELDS, coverageDays: "coverageDays" } as const;
+
+function coverageDaysMessage({ coverageDays }: CatalogProductFormValues): string {
+  if (coverageDaysSchema.safeParse(wholeNumberFrom(coverageDays)).success) {
+    return "Revisá los días de cobertura.";
+  }
+  const limits = coverageDaysSchema.meta();
+  return `Ingresá un número entero de días, de ${schemaLimit(limits?.["minimum"])} a ${schemaLimit(limits?.["maximum"])}.`;
+}
+
+export const CATALOG_PRODUCT_MESSAGES = {
+  ...PRODUCT_MESSAGES,
+  coverageDays: coverageDaysMessage,
+};
+
+export type ProductEditFormValues = CatalogProductFormValues & { version: number };
 
 export function productFormValues(product: ProductSummary): ProductEditFormValues {
   return {
@@ -36,24 +69,23 @@ export function productFormValues(product: ProductSummary): ProductEditFormValue
       : EMPTY_PRODUCT_FORM.netContent,
     barcodes: { codes: product.barcodes, scan: "" },
     tagIds: product.tagIds,
+    coverageDays: String(product.coverageDays),
     version: product.version,
   };
 }
 
-export function productEditRequestFrom(
-  values: ProductEditFormValues,
-): ProductCreationBody & { version: number } {
-  return { ...productRequestFrom(values), version: values.version };
+export function productEditRequestFrom(values: ProductEditFormValues): ProductEditBody {
+  return { ...catalogProductRequestFrom(values), version: values.version };
 }
 
-export const PRODUCT_EDIT_FIELDS = { ...PRODUCT_FIELDS, version: null } as const;
+export const PRODUCT_EDIT_FIELDS = { ...CATALOG_PRODUCT_FIELDS, version: null } as const;
 
 export function editedProductBarcodeProblemMessage(codes: string[]): string | undefined {
   return barcodeProblemMessageOf(productEditBarcodesSchema, codes);
 }
 
 export const PRODUCT_EDIT_MESSAGES = {
-  ...PRODUCT_MESSAGES,
+  ...CATALOG_PRODUCT_MESSAGES,
   barcodes: ({ barcodes }: ProductFormValues) =>
     barcodeListMessageOf(barcodes, editedProductBarcodeProblemMessage),
 };

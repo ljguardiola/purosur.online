@@ -80,6 +80,7 @@ describe("a pull run as the role the deployed cloud connects with", () => {
       barcodes: ["7790001000011"],
       netContent: null,
       tagIds: [tag.tag.id],
+      coverageDays: 15,
     });
     const [actor] = await db
       .insert(users)

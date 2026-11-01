@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { productEditBodySchema } from "./product-edit.js";
+import { describe, expect, expectTypeOf, it } from "vitest";
+import { type ProductEditBody, productEditBodySchema } from "./product-edit.js";
 
 function validBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
@@ -9,6 +9,7 @@ function validBody(overrides: Record<string, unknown> = {}): Record<string, unkn
     saleUnit: "UNIT",
     barcodes: ["111"],
     tagIds: [],
+    coverageDays: 15,
     version: 1,
     ...overrides,
   };
@@ -48,7 +49,34 @@ describe("productEditBodySchema", () => {
       barcodes: ["111"],
       tagIds: [],
       netContent: { quantity: 2, unit: "L" },
+      coverageDays: 15,
       version: 4,
+    });
+  });
+
+  it("keeps the coverage days sent", () => {
+    expect(productEditBodySchema.safeParse(validBody({ coverageDays: 40 })).data).toMatchObject({
+      coverageDays: 40,
+    });
+  });
+
+  it("requires the coverageDays key so a client that omits it cannot reset a configured value", () => {
+    const { coverageDays: _omitted, ...withoutCoverageDays } = validBody();
+
+    expect(firstFailure(withoutCoverageDays)).toEqual({
+      field: "coverageDays",
+      message: "coverageDays must be an integer from 1 to 365",
+    });
+  });
+
+  it("types an edit body without coverage days as an invalid body", () => {
+    expectTypeOf<Omit<ProductEditBody, "coverageDays">>().not.toExtend<ProductEditBody>();
+  });
+
+  it.each([0, 366, 1.5, "15", null])("rejects the coverageDays %j", (coverageDays) => {
+    expect(firstFailure(validBody({ coverageDays }))).toEqual({
+      field: "coverageDays",
+      message: "coverageDays must be an integer from 1 to 365",
     });
   });
 

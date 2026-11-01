@@ -11,6 +11,7 @@ export interface CreateProductInput {
   barcodes: string[];
   tagIds: string[];
   netContent: CatalogNetContent | null;
+  coverageDays: number;
 }
 
 export type CreateProductOutcome =
@@ -65,6 +66,7 @@ export async function createProduct(
         brandId: input.brandId,
         saleUnit: input.saleUnit,
         netContent: input.netContent,
+        coverageDays: input.coverageDays,
       });
       await tx.insertProductBarcodes(created.id, input.barcodes);
       await tx.insertProductTags(created.id, input.tagIds);
@@ -81,6 +83,7 @@ export async function createProduct(
           barcodes: input.barcodes,
           tagIds: input.tagIds,
           netContent: input.netContent,
+          coverageDays: input.coverageDays,
           active: true,
           version: 1,
         },

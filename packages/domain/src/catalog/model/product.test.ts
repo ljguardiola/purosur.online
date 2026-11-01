@@ -5,9 +5,11 @@ import {
   BARCODE_MAX_LENGTH,
   barcodeLength,
   barcodeListProblem,
+  DEFAULT_PRODUCT_COVERAGE_DAYS,
   isBarcodeTooLong,
   isNetContentUnit,
   isProductNameTooLong,
+  isValidCoverageDays,
   isValidNetContentQuantity,
   mayGenerateInternalBarcodeFor,
   NET_CONTENT_QUANTITY_MAX,
@@ -15,6 +17,8 @@ import {
   NET_CONTENT_UNITS,
   newProductBarcodeListProblem,
   PRODUCT_BARCODES_MAX_COUNT,
+  PRODUCT_COVERAGE_DAYS_MAX,
+  PRODUCT_COVERAGE_DAYS_MIN,
   PRODUCT_NAME_MAX_LENGTH,
   productNameLength,
 } from "./product.js";
@@ -367,5 +371,42 @@ describe("addsInternalBarcodeToProductWithBarcodes", () => {
         ["7790987000015"],
       ),
     ).toBe(false);
+  });
+});
+
+describe("product coverage days", () => {
+  it("defaults to 15 days", () => {
+    expect(DEFAULT_PRODUCT_COVERAGE_DAYS).toBe(15);
+  });
+
+  it("accepts the default and both bounds, 1 and 365", () => {
+    expect(PRODUCT_COVERAGE_DAYS_MIN).toBe(1);
+    expect(PRODUCT_COVERAGE_DAYS_MAX).toBe(365);
+    expect(isValidCoverageDays(DEFAULT_PRODUCT_COVERAGE_DAYS)).toBe(true);
+    expect(isValidCoverageDays(1)).toBe(true);
+    expect(isValidCoverageDays(365)).toBe(true);
+  });
+
+  it("rejects a count below 1 or above 365", () => {
+    expect(isValidCoverageDays(0)).toBe(false);
+    expect(isValidCoverageDays(-1)).toBe(false);
+    expect(isValidCoverageDays(366)).toBe(false);
+  });
+
+  it("rejects a count that is not a whole number", () => {
+    expect(isValidCoverageDays(1.5)).toBe(false);
+    expect(isValidCoverageDays(Number.NaN)).toBe(false);
+    expect(isValidCoverageDays(Number.POSITIVE_INFINITY)).toBe(false);
+  });
+
+  it("accepts every whole number within the bounds", () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: PRODUCT_COVERAGE_DAYS_MIN, max: PRODUCT_COVERAGE_DAYS_MAX }),
+        (days) => {
+          expect(isValidCoverageDays(days)).toBe(true);
+        },
+      ),
+    );
   });
 });

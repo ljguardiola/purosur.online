@@ -120,6 +120,7 @@ test("changes a product's net content on edit", async () => {
     barcodes: ["7790987000015"],
     tagIds: [],
     netContent: { quantity: 500, unit: "G" },
+    coverageDays: 15,
     version: 1,
   });
   await expect.poll(() => onSaved.mock.calls.length).toBe(1);
@@ -143,6 +144,7 @@ test("clears a product's net content by emptying the quantity on edit", async ()
     barcodes: ["7790987000015"],
     tagIds: [],
     netContent: null,
+    coverageDays: 15,
     version: 1,
   });
 });
@@ -349,6 +351,7 @@ test("shows a stale-version conflict banner, and reloading restores the fresh pr
     barcodes: ["7790987000015"],
     tagIds: [],
     netContent: null,
+    coverageDays: 15,
     version: 2,
   });
 });
@@ -433,6 +436,7 @@ test("saving an edit includes a code typed in the scan input but not yet confirm
     barcodes: ["7790987000015", "7790000000099"],
     tagIds: [],
     netContent: null,
+    coverageDays: 15,
     version: 1,
   });
 });
@@ -777,4 +781,55 @@ test("retitles the modal with the fresh product's brand and net content after a 
   await expect
     .element(dialog.getByRole("heading", { name: "Aceite de Almendras Vitora 60 ml" }))
     .toBeVisible();
+});
+
+test("loads the coverage days the product has", async () => {
+  const { dialog } = await renderModal({ ...honey, coverageDays: 40 }, createServices());
+
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Días de cobertura/ }))
+    .toHaveValue("40");
+});
+
+test("saves the coverage days changed", async () => {
+  const services = createServices();
+  vi.mocked(services.editProduct).mockResolvedValue({ kind: "ok" });
+  const { dialog } = await renderModal({ ...honey, coverageDays: 40 }, services);
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Días de cobertura/ }), "21");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => vi.mocked(services.editProduct).mock.calls.length).toBe(1);
+  expect(services.editProduct).toHaveBeenCalledWith(
+    "90d00000-0000-4000-8000-000000000001",
+    expect.objectContaining({ coverageDays: 21 }),
+  );
+});
+
+test("keeps the coverage days the product has when saving another change", async () => {
+  const services = createServices();
+  vi.mocked(services.editProduct).mockResolvedValue({ kind: "ok" });
+  const { dialog } = await renderModal({ ...honey, coverageDays: 40 }, services);
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Contenido neto" }), "500");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => vi.mocked(services.editProduct).mock.calls.length).toBe(1);
+  expect(services.editProduct).toHaveBeenCalledWith(
+    "90d00000-0000-4000-8000-000000000001",
+    expect.objectContaining({ coverageDays: 40 }),
+  );
+});
+
+test("does not save coverage days out of range, and says why", async () => {
+  const services = createServices();
+  const { dialog } = await renderModal(honey, services);
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Días de cobertura/ }), "0");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect
+    .element(dialog.getByText("Ingresá un número entero de días, de 1 a 365."))
+    .toBeVisible();
+  expect(services.editProduct).not.toHaveBeenCalled();
 });

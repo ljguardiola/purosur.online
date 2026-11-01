@@ -54,6 +54,7 @@ describe("creating two products with the same barcode concurrently on a real Pos
         barcodes: [code],
         tagIds: [],
         netContent: null,
+        coverageDays: 15,
       }),
       createProduct(new DrizzleCatalogStore(db), {
         name: "Maceta B",
@@ -63,6 +64,7 @@ describe("creating two products with the same barcode concurrently on a real Pos
         barcodes: [code],
         tagIds: [],
         netContent: null,
+        coverageDays: 15,
       }),
     ]);
 
@@ -103,6 +105,7 @@ describe("reactivating a product while another takes its barcode on a real Postg
       barcodes: [code],
       tagIds: [],
       netContent: null,
+      coverageDays: 15,
     });
     if (created.kind !== "created") {
       throw new Error(`test setup: creating the product ended as ${created.kind}`);
@@ -139,6 +142,7 @@ describe("reactivating a product while another takes its barcode on a real Postg
         barcodes: [code],
         tagIds: [],
         netContent: null,
+        coverageDays: 15,
       }),
     ]);
 
@@ -175,6 +179,7 @@ describe("reactivating a product while another takes its barcode on a real Postg
           tagIds: [],
           netContent: null,
           version: edited.version,
+          coverageDays: 15,
         },
       ),
     ]);

@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { EMPTY_PRODUCT_FORM } from "../platform/product-form";
 import {
+  CATALOG_PRODUCT_MESSAGES,
+  catalogProductRequestFrom,
+  EMPTY_CATALOG_PRODUCT_FORM,
   editedProductBarcodeProblemMessage,
   PRODUCT_EDIT_MESSAGES,
+  productEditRequestFrom,
   productFormValues,
   reactivationBarcodeTakenError,
   saleUnitHeldByDiscountError,
@@ -36,6 +40,7 @@ describe("the product's brand", () => {
       barcodes: ["111"],
       tagIds: [],
       netContent: null,
+      coverageDays: 15,
       active: true,
       labelCode: null,
       labelModules: null,
@@ -87,5 +92,69 @@ describe("reactivationBarcodeTakenError", () => {
     expect(reactivationBarcodeTakenError([])).toBe(
       "Alguno de los códigos ya es de otro producto. Revisá los códigos de este producto y volvé a intentarlo.",
     );
+  });
+});
+
+describe("a product's coverage days in the form", () => {
+  const product = {
+    id: "product-1",
+    name: "Miel",
+    categoryId: "category-1",
+    categoryName: "Almacén",
+    brandId: null,
+    saleUnit: "UNIT" as const,
+    barcodes: ["111"],
+    tagIds: [],
+    netContent: null,
+    active: true,
+    labelCode: null,
+    labelModules: null,
+    version: 1,
+  };
+
+  it("starts a new product at 15 days", () => {
+    expect(EMPTY_CATALOG_PRODUCT_FORM.coverageDays).toBe("15");
+  });
+
+  it("loads the days a product has", () => {
+    expect(productFormValues({ ...product, coverageDays: 40 }).coverageDays).toBe("40");
+  });
+
+  it("sends the days typed as a number", () => {
+    expect(
+      catalogProductRequestFrom({ ...EMPTY_CATALOG_PRODUCT_FORM, coverageDays: " 30 " })
+        .coverageDays,
+    ).toBe(30);
+    expect(
+      productEditRequestFrom({
+        ...productFormValues({ ...product, coverageDays: 40 }),
+        coverageDays: "21",
+      }),
+    ).toMatchObject({ coverageDays: 21, version: 1 });
+  });
+
+  it.each(["", "abc", "1,5", "-3", "1.5"])("sends %j as not a number", (typed) => {
+    expect(
+      catalogProductRequestFrom({ ...EMPTY_CATALOG_PRODUCT_FORM, coverageDays: typed })
+        .coverageDays,
+    ).toBeNaN();
+  });
+
+  it.each(["", "0", "366", "1,5"])(
+    "asks for a whole number of days from 1 to 365 for %j",
+    (typed) => {
+      expect(
+        CATALOG_PRODUCT_MESSAGES.coverageDays({
+          ...EMPTY_CATALOG_PRODUCT_FORM,
+          coverageDays: typed,
+        }),
+      ).toBe("Ingresá un número entero de días, de 1 a 365.");
+    },
+  );
+
+  it("asks to review the days when the typed number is valid", () => {
+    expect(
+      CATALOG_PRODUCT_MESSAGES.coverageDays({ ...EMPTY_CATALOG_PRODUCT_FORM, coverageDays: "30" }),
+    ).toBe("Revisá los días de cobertura.");
   });
 });

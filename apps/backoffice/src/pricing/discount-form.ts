@@ -24,6 +24,7 @@ import { createElement } from "react";
 import { categoriesInTreeOrder, categoryPathLabels } from "../platform/category-path";
 import { DISCOUNT_TARGET_KIND_LABELS } from "../platform/discount-terms-text";
 import { schemaLimit } from "../platform/schema-limit";
+import { wholeNumberFrom } from "../platform/whole-number";
 import { DISCOUNT_KIND_LABELS } from "./discount-texts";
 
 export type DiscountFormValues = {
@@ -51,11 +52,6 @@ export const EMPTY_DISCOUNT_FORM: DiscountFormValues = {
   validTo: null,
   weekdays: [],
 };
-
-function wholeNumberFrom(text: string): number {
-  const trimmed = text.trim();
-  return /^\d+$/.test(trimmed) ? Number(trimmed) : Number.NaN;
-}
 
 function benefitFrom(values: DiscountFormValues): DiscountBenefit {
   return values.benefitKind === "PERCENT_OFF"

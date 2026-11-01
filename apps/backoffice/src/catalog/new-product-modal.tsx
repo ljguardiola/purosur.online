@@ -21,14 +21,7 @@ import type { generateInternalBarcode } from "../platform/internal-barcodes-api"
 import { NewBrandModal } from "../platform/new-brand-modal";
 import { NewTagModal } from "../platform/new-tag-modal";
 import { PRODUCT_GROUP_FIELDS, ProductFields } from "../platform/product-fields";
-import {
-  EMPTY_PRODUCT_FORM,
-  PRODUCT_BRAND_INACTIVE_ERROR,
-  PRODUCT_FIELDS,
-  PRODUCT_MESSAGES,
-  productRequestFrom,
-  tagInactiveError,
-} from "../platform/product-form";
+import { PRODUCT_BRAND_INACTIVE_ERROR, tagInactiveError } from "../platform/product-form";
 import { useStackedTagCreation } from "../platform/product-tags-field";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
@@ -37,7 +30,14 @@ import type { createTag } from "../platform/tag-creation-api";
 import { useMarkCatalogStale, useRefreshCatalog } from "./catalog-queries";
 import type { createCategory } from "./categories-api";
 import { NewCategoryModal } from "./new-category-modal";
-import { categoryNameOf, PRODUCT_CATEGORY_NOT_LEAF_ERROR } from "./product-form";
+import {
+  CATALOG_PRODUCT_FIELDS,
+  CATALOG_PRODUCT_MESSAGES,
+  catalogProductRequestFrom,
+  categoryNameOf,
+  EMPTY_CATALOG_PRODUCT_FORM,
+  PRODUCT_CATEGORY_NOT_LEAF_ERROR,
+} from "./product-form";
 import type { createProduct } from "./products-api";
 
 export type NewProductModalServices = {
@@ -80,10 +80,10 @@ export function NewProductModal({
     | null
   >(null);
   const { form, submit, submitting, values, reset } = useRequestForm({
-    defaultValues: EMPTY_PRODUCT_FORM,
-    request: { schema: productCreationBodySchema, from: productRequestFrom },
-    fields: PRODUCT_FIELDS,
-    messages: PRODUCT_MESSAGES,
+    defaultValues: EMPTY_CATALOG_PRODUCT_FORM,
+    request: { schema: productCreationBodySchema, from: catalogProductRequestFrom },
+    fields: CATALOG_PRODUCT_FIELDS,
+    messages: CATALOG_PRODUCT_MESSAGES,
     onSubmit: async (_request, { parsed, showFieldError, showWireFieldError }) => {
       if (!parsed) {
         setNotice({ kind: "attemptFailed" });
@@ -179,7 +179,7 @@ export function NewProductModal({
 
   useEffect(() => {
     if (open) {
-      reset({ ...EMPTY_PRODUCT_FORM, name: initialName });
+      reset({ ...EMPTY_CATALOG_PRODUCT_FORM, name: initialName });
       chips.reset();
       setNotice(null);
       generate.reset();
@@ -269,6 +269,9 @@ export function NewProductModal({
           generation={generate.generation}
           disabled={submitting}
         />
+        <form.AppField name="coverageDays">
+          {(field) => <field.TextField kind="plain-text" label="Días de cobertura" suffix="días" />}
+        </form.AppField>
         <NewBrandModal
           open={brandCreation.open}
           initialName={brandCreation.initialName}

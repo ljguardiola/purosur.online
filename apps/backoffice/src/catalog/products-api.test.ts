@@ -34,6 +34,7 @@ const honey: ProductSummary = {
   barcodes: ["7790987000015"],
   tagIds: [],
   netContent: null,
+  coverageDays: 15,
   active: true,
   labelCode: null,
   labelModules: null,
@@ -105,6 +106,7 @@ const createInput = {
   barcodes: ["7790987000015"],
   tagIds: [],
   netContent: null,
+  coverageDays: 15,
 };
 
 test("createProduct posts the fields and returns ok on 201", async () => {
@@ -141,6 +143,18 @@ test("createProduct posts a given net content", async () => {
   });
 });
 
+test("createProduct posts the coverage days given", async () => {
+  const withCoverageDays = { ...createInput, coverageDays: 30 };
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(201, { ...honey, coverageDays: 30 }));
+
+  await createProduct(withCoverageDays);
+
+  expect(fetch).toHaveBeenCalledWith(
+    "/api/products",
+    expect.objectContaining({ body: JSON.stringify(withCoverageDays) }),
+  );
+});
+
 test("createProduct posts only the fields the cloud reads", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(201, honey));
   const withExtraFields = { ...createInput, active: false };
@@ -150,6 +164,18 @@ test("createProduct posts only the fields the cloud reads", async () => {
   expect(fetch).toHaveBeenCalledWith(
     "/api/products",
     expect.objectContaining({ body: JSON.stringify(createInput) }),
+  );
+});
+
+test("editProduct puts the coverage days given", async () => {
+  const withCoverageDays = { ...editInput, coverageDays: 45 };
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { ...honey, coverageDays: 45 }));
+
+  await editProduct("product-1", withCoverageDays);
+
+  expect(fetch).toHaveBeenCalledWith(
+    "/api/products/product-1",
+    expect.objectContaining({ body: JSON.stringify(withCoverageDays) }),
   );
 });
 

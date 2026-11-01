@@ -1,0 +1,2 @@
+ALTER TABLE "products" ADD COLUMN "coverage_days" integer DEFAULT 15 NOT NULL;--> statement-breakpoint
+ALTER TABLE "products" ADD CONSTRAINT "products_coverage_days_range_check" CHECK ("products"."coverage_days" between 1 and 365);

@@ -12,6 +12,7 @@ export interface CreateCatalogProductInput {
   barcodes: string[];
   tagIds: string[];
   netContent: { quantity: number; unit: NetContentUnit } | null;
+  coverageDays: number;
 }
 
 export type CreateCatalogProductOutcome =

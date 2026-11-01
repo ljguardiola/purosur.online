@@ -61,6 +61,7 @@ test("edits a product and shows the updated data in the list", async () => {
     barcodes: ["7790987000015"],
     tagIds: [],
     netContent: null,
+    coverageDays: 15,
     version: 1,
   });
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();

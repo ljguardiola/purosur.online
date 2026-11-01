@@ -225,6 +225,7 @@ describe("POST /products", () => {
       barcodes: ["222", "111"],
       tagIds: [],
       netContent: null,
+      coverageDays: 15,
       active: true,
       labelCode: null,
       labelModules: null,
@@ -415,6 +416,43 @@ describe("POST /products", () => {
     expect(response.json()).toMatchObject({ netContent: { quantity: 1.5, unit: "KG" } });
     const created = await db.select().from(products).where(eq(products.id, response.json().id));
     expect(created).toMatchObject([{ netContentQuantity: 1.5, netContentUnit: "KG" }]);
+  });
+
+  it("creates the product with 15 coverage days when none are sent", async () => {
+    const categoryId = await insertCategory("Macetas");
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await createProduct(rawSessionId, {
+      name: "Maceta",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({ coverageDays: 15 });
+    const created = await db.select().from(products).where(eq(products.id, response.json().id));
+    expect(created).toMatchObject([{ coverageDays: 15 }]);
+  });
+
+  it("creates the product with the coverage days sent", async () => {
+    const categoryId = await insertCategory("Macetas");
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await createProduct(rawSessionId, {
+      name: "Maceta",
+      categoryId,
+      saleUnit: "UNIT",
+      barcodes: ["111"],
+      coverageDays: 30,
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({ coverageDays: 30 });
+    const created = await db.select().from(products).where(eq(products.id, response.json().id));
+    expect(created).toMatchObject([{ coverageDays: 30 }]);
   });
 
   it("creates the product with no net content when the field is absent", async () => {

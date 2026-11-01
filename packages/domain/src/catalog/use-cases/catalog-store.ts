@@ -16,6 +16,7 @@ export interface CatalogProduct {
   barcodes: string[];
   tagIds: string[];
   netContent: CatalogNetContent | null;
+  coverageDays: number;
   active: boolean;
   version: number;
 }
@@ -115,6 +116,7 @@ export interface NewProductFields {
   brandId: string | null;
   saleUnit: SaleUnit;
   netContent: CatalogNetContent | null;
+  coverageDays: number;
 }
 
 export interface ProductFields {
@@ -123,6 +125,7 @@ export interface ProductFields {
   brandId: string | null;
   saleUnit: SaleUnit;
   netContent: CatalogNetContent | null;
+  coverageDays: number;
   version: number;
 }
 

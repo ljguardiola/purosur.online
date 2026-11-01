@@ -12,6 +12,7 @@ export function catalogProduct(overrides: Partial<CatalogListProduct> = {}): Cat
     barcodes: [],
     tagIds: [],
     netContent: null,
+    coverageDays: 15,
     active: true,
     version: 1,
     ...overrides,

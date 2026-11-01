@@ -114,3 +114,13 @@ export function isValidNetContentQuantity(quantity: number): boolean {
   const scale = 10 ** NET_CONTENT_QUANTITY_MAX_DECIMALS;
   return Math.round(quantity * scale) / scale === quantity;
 }
+
+export const DEFAULT_PRODUCT_COVERAGE_DAYS = 15;
+export const PRODUCT_COVERAGE_DAYS_MIN = 1;
+export const PRODUCT_COVERAGE_DAYS_MAX = 365;
+
+export function isValidCoverageDays(days: number): boolean {
+  return (
+    Number.isInteger(days) && days >= PRODUCT_COVERAGE_DAYS_MIN && days <= PRODUCT_COVERAGE_DAYS_MAX
+  );
+}

@@ -1,6 +1,7 @@
 import { type BranchSettingsEditBody, branchSettingsEditBodySchema } from "@purosur/contracts";
 import { failedRules } from "../platform/failed-rules";
 import { schemaLimit } from "../platform/schema-limit";
+import { wholeNumberFrom } from "../platform/whole-number";
 import type { BranchDay, BranchSettings } from "./branch-settings-api";
 
 export type RangeValues = { id: number; opensAt: string; closesAt: string };
@@ -84,11 +85,6 @@ function wireHours({ closed, ranges }: DayValues): BranchSettingsEditBody["monda
       }));
 }
 
-function wireWholeNumber(text: string): number {
-  const trimmed = text.trim();
-  return /^\d+$/.test(trimmed) ? Number(trimmed) : Number.NaN;
-}
-
 export function requestFrom(values: BranchSettingsValues): BranchSettingsEditBody {
   return {
     address: values.address,
@@ -101,10 +97,10 @@ export function requestFrom(values: BranchSettingsValues): BranchSettingsEditBod
     friday_hours: wireHours(values.friday),
     saturday_hours: wireHours(values.saturday),
     sunday_hours: wireHours(values.sunday),
-    expiring_lot_alert_days: wireWholeNumber(values.expiringLotAlertDays),
-    unreviewed_price_alert_days: wireWholeNumber(values.unreviewedPriceAlertDays),
-    good_condition_return_days: wireWholeNumber(values.goodConditionReturnDays),
-    supplier_price_list_daily_extraction_cap: wireWholeNumber(
+    expiring_lot_alert_days: wholeNumberFrom(values.expiringLotAlertDays),
+    unreviewed_price_alert_days: wholeNumberFrom(values.unreviewedPriceAlertDays),
+    good_condition_return_days: wholeNumberFrom(values.goodConditionReturnDays),
+    supplier_price_list_daily_extraction_cap: wholeNumberFrom(
       values.supplierPriceListDailyExtractionCap,
     ),
     version: values.version,
@@ -159,7 +155,7 @@ const DAYS_WIRE_FIELDS = {
 
 function daysMessage(field: DaysField) {
   return (values: BranchSettingsValues): string => {
-    const days = wireWholeNumber(values[field]);
+    const days = wholeNumberFrom(values[field]);
     const result = branchSettingsEditBodySchema.shape[DAYS_WIRE_FIELDS[field]].safeParse(days);
     if (result.success) {
       return "Revisá el número de días.";
@@ -174,7 +170,7 @@ function daysMessage(field: DaysField) {
 function extractionCapMessage(values: BranchSettingsValues): string {
   const shape = branchSettingsEditBodySchema.shape.supplier_price_list_daily_extraction_cap;
   const limits = shape.meta();
-  return shape.safeParse(wireWholeNumber(values.supplierPriceListDailyExtractionCap)).success
+  return shape.safeParse(wholeNumberFrom(values.supplierPriceListDailyExtractionCap)).success
     ? "Revisá la cantidad de listas por día."
     : `Ingresá un número entero de listas, de ${schemaLimit(limits?.["minimum"])} a ${schemaLimit(limits?.["maximum"])}.`;
 }

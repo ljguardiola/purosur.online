@@ -17,7 +17,6 @@ import { NewBrandModal } from "../platform/new-brand-modal";
 import { NewTagModal } from "../platform/new-tag-modal";
 import { brandFieldHelp, brandOptions, withCreatedBrand } from "../platform/product-brand-field";
 import {
-  EMPTY_PRODUCT_FORM,
   NET_CONTENT_UNIT_OPTIONS,
   PRODUCT_BRAND_INACTIVE_ERROR,
   tagInactiveError,
@@ -34,6 +33,7 @@ import { NewCategoryModal } from "./new-category-modal";
 import { productDescription } from "./product-description";
 import {
   categoryNameOf,
+  EMPTY_CATALOG_PRODUCT_FORM,
   editedProductBarcodeProblemMessage,
   PRODUCT_CATEGORY_NOT_LEAF_ERROR,
   PRODUCT_EDIT_FIELDS,
@@ -92,7 +92,7 @@ export function EditProductModal({
   const [notice, setNotice] = useState<EditNotice | null>(null);
   const [reloading, setReloading] = useState(false);
   const { form, submit, submitting, values, reset } = useRequestForm({
-    defaultValues: { ...EMPTY_PRODUCT_FORM, version: 1 },
+    defaultValues: { ...EMPTY_CATALOG_PRODUCT_FORM, version: 1 },
     request: { schema: productEditBodySchema, from: productEditRequestFrom },
     fields: PRODUCT_EDIT_FIELDS,
     messages: PRODUCT_EDIT_MESSAGES,
@@ -410,6 +410,11 @@ export function EditProductModal({
             </form.AppField>
           </FieldGroup>
           <form.AppField name="barcodes">{() => <BarcodeChips chips={chips} />}</form.AppField>
+          <form.AppField name="coverageDays">
+            {(field) => (
+              <field.TextField kind="plain-text" label="Días de cobertura" suffix="días" />
+            )}
+          </form.AppField>
           <NewBrandModal
             open={brandCreation.open}
             initialName={brandCreation.initialName}

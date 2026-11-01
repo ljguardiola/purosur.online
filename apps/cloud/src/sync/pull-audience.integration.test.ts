@@ -278,6 +278,7 @@ beforeAll(async () => {
       barcodes: ["7790001000011"],
       netContent: null,
       tagIds: [tag.tag.id],
+      coverageDays: 15,
     }),
     "created",
   );

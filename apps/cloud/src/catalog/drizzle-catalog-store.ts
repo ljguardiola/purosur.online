@@ -263,6 +263,7 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
         saleUnit: fields.saleUnit,
         netContentQuantity: fields.netContent?.quantity,
         netContentUnit: fields.netContent?.unit,
+        coverageDays: fields.coverageDays,
       })
       .returning({ id: products.id, version: products.version });
     if (!product) {
@@ -291,6 +292,7 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
         saleUnit: fields.saleUnit,
         netContentQuantity: fields.netContent?.quantity ?? null,
         netContentUnit: fields.netContent?.unit ?? null,
+        coverageDays: fields.coverageDays,
         version: fields.version,
       })
       .where(eq(products.id, productId));

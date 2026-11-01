@@ -96,6 +96,7 @@ describe("editProduct", () => {
         barcodes: ["111"],
         tagIds: [],
         netContent: null,
+        coverageDays: 15,
         version: 1,
       },
     );
@@ -120,6 +121,7 @@ describe("editProduct", () => {
         barcodes: ["111"],
         tagIds: [],
         netContent: null,
+        coverageDays: 15,
         version: 1,
       },
     );
@@ -143,6 +145,7 @@ describe("editProduct", () => {
         barcodes: ["111"],
         tagIds: [],
         netContent: null,
+        coverageDays: 15,
         version: 1,
       },
     );
@@ -167,6 +170,7 @@ describe("editProduct", () => {
         barcodes: ["111"],
         tagIds: [],
         netContent: null,
+        coverageDays: 15,
         version: 1,
       },
     );
@@ -203,6 +207,7 @@ describe("editProduct", () => {
         barcodes: ["222"],
         tagIds: [],
         netContent: null,
+        coverageDays: 15,
         version: 1,
       },
     );
@@ -226,6 +231,7 @@ describe("editProduct", () => {
         barcodes: ["111"],
         tagIds: [],
         netContent: null,
+        coverageDays: 15,
         version: 1,
       },
     );
@@ -262,6 +268,7 @@ describe("editProduct", () => {
           barcodes,
           tagIds: [],
           netContent: null,
+          coverageDays: 15,
           version,
         },
       );
@@ -343,6 +350,7 @@ describe("editProduct", () => {
         barcodes: ["222"],
         tagIds: [],
         netContent: null,
+        coverageDays: 15,
         version: 1,
       },
     );
@@ -386,6 +394,7 @@ describe("editProduct", () => {
         barcodes: ["333"],
         tagIds: [],
         netContent: { quantity: 0.5, unit: "KG" },
+        coverageDays: 45,
         version: 1,
       },
     );
@@ -402,6 +411,7 @@ describe("editProduct", () => {
         barcodes: ["333"],
         tagIds: [],
         netContent: { quantity: 0.5, unit: "KG" },
+        coverageDays: 45,
         active: true,
         version: 2,
       },
@@ -414,6 +424,7 @@ describe("editProduct", () => {
         brandId: null,
         saleUnit: "KG",
         netContent: { quantity: 1, unit: "L" },
+        coverageDays: 15,
         active: true,
         version: 7,
       },
@@ -424,6 +435,7 @@ describe("editProduct", () => {
         brandId: null,
         saleUnit: "KG",
         netContent: { quantity: 0.5, unit: "KG" },
+        coverageDays: 45,
         active: true,
         version: 2,
       },
@@ -457,6 +469,7 @@ describe("editProduct", () => {
         barcodes: ["111"],
         tagIds: [],
         netContent: null,
+        coverageDays: 15,
         version: 1,
       },
     );
@@ -481,6 +494,7 @@ describe("editProduct", () => {
         barcodes: ["111"],
         tagIds: [],
         netContent: null,
+        coverageDays: 15,
         version: 1,
       },
     );
@@ -507,6 +521,7 @@ describe("editProduct", () => {
         barcodes: ["111"],
         tagIds: [],
         netContent: null,
+        coverageDays: 15,
         version: 1,
       },
     );
@@ -533,6 +548,7 @@ describe("editProduct", () => {
         barcodes: ["111"],
         tagIds: [],
         netContent: null,
+        coverageDays: 15,
         version: 1,
       },
     );
@@ -564,6 +580,7 @@ describe("editProduct", () => {
         barcodes: ["111"],
         tagIds: [],
         netContent: null,
+        coverageDays: 15,
         version: 1,
       },
     );
@@ -591,6 +608,7 @@ describe("editProduct", () => {
         barcodes: ["111"],
         tagIds: [],
         netContent: null,
+        coverageDays: 15,
         version: 1,
       },
     );
@@ -614,6 +632,7 @@ describe("editProduct", () => {
         barcodes: ["111"],
         tagIds: [],
         netContent: null,
+        coverageDays: 15,
         version: 1,
       },
     );
@@ -638,6 +657,7 @@ describe("editProduct", () => {
         barcodes: ["900"],
         tagIds: [],
         netContent: null,
+        coverageDays: 15,
         version: 1,
       },
     );
@@ -664,6 +684,7 @@ describe("editProduct", () => {
         barcodes: ["111", "222", "333"],
         tagIds: [],
         netContent: null,
+        coverageDays: 15,
         version: 1,
       },
     );
@@ -688,6 +709,7 @@ describe("editProduct", () => {
           barcodes: ["111"],
           tagIds: [],
           netContent: null,
+          coverageDays: 15,
           version: 1,
         },
       ),
@@ -710,6 +732,7 @@ describe("editProduct", () => {
         barcodes: ["111"],
         tagIds: [],
         netContent: null,
+        coverageDays: 15,
         version: 1,
       },
     );
@@ -764,6 +787,7 @@ describe("editProduct", () => {
         barcodes: ["111"],
         tagIds: ["tag-3", "tag-2"],
         netContent: null,
+        coverageDays: 15,
         version: 1,
       },
     );
@@ -801,6 +825,7 @@ describe("editProduct", () => {
         barcodes: ["111"],
         tagIds: [],
         netContent: null,
+        coverageDays: 15,
         version: 1,
       },
     );
@@ -828,6 +853,7 @@ describe("editProduct", () => {
         barcodes: ["111"],
         tagIds: ["tag-1", "tag-2"],
         netContent: null,
+        coverageDays: 15,
         version: 1,
       },
     );
@@ -857,6 +883,7 @@ describe("editProduct", () => {
         barcodes: ["111"],
         tagIds: ["tag-1", "tag-2"],
         netContent: null,
+        coverageDays: 15,
         version: 1,
       },
     );
@@ -882,6 +909,7 @@ describe("editProduct", () => {
         barcodes: ["111"],
         tagIds: ["missing"],
         netContent: null,
+        coverageDays: 15,
         version: 1,
       },
     );
@@ -901,6 +929,7 @@ describe("editProduct", () => {
       saleUnit: "UNIT" as const,
       barcodes: ["900"],
       netContent: null,
+      coverageDays: 15,
       version: 1,
     };
 
@@ -951,6 +980,7 @@ describe("editProduct", () => {
         barcodes: ["111"],
         tagIds: ["tag-1"],
         netContent: null,
+        coverageDays: 15,
         version: 1,
       },
     );
@@ -1001,6 +1031,7 @@ describe("editProduct", () => {
           barcodes: ["111"],
           tagIds: [],
           netContent: null,
+          coverageDays: 15,
           version: 1,
         },
       );
@@ -1177,6 +1208,7 @@ describe("editProduct", () => {
           barcodes: ["111"],
           tagIds: [],
           netContent: null,
+          coverageDays: 15,
           version: 9,
         },
       );
@@ -1228,6 +1260,7 @@ describe("editProduct", () => {
           barcodes: ["111"],
           tagIds: [],
           netContent: null,
+          coverageDays: 15,
           version: 1,
         },
       );
@@ -1316,6 +1349,7 @@ describe("editProduct", () => {
           barcodes: ["111"],
           tagIds: [],
           netContent: null,
+          coverageDays: 15,
           version: 9,
         },
       );
@@ -1363,6 +1397,7 @@ describe("editProduct", () => {
           barcodes: ["111"],
           tagIds: [],
           netContent: null,
+          coverageDays: 15,
           version,
         },
       );

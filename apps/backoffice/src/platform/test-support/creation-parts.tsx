@@ -62,6 +62,7 @@ function createdProductNamed(name: string): CreatedProduct {
     barcodes: [],
     tagIds: [],
     netContent: null,
+    coverageDays: 15,
     active: true,
     labelCode: null,
     labelModules: null,

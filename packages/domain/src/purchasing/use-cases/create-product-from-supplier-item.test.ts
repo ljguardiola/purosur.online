@@ -63,6 +63,7 @@ describe("createProductFromSupplierItem", () => {
         barcodes: ["7790001000012"],
         tagIds: [],
         netContent: null,
+        coverageDays: 15,
       },
     ]);
     expect(state.lists.rows[0]).toMatchObject({
