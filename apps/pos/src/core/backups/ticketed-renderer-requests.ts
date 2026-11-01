@@ -42,16 +42,15 @@ export interface TicketedRendererRequestsDeps {
   saleOfCharge: (paymentTransactionId: string) => string | null;
 }
 
-export function ticketedRendererRequests<TRequests extends TicketableRendererRequests>(
-  requests: TRequests,
+export function saleTicketsOf(
+  requests: Pick<RendererRequestDeps, SaleCompletingRequests<RendererRequestDeps>>,
   { ticketed, saleOfCharge }: TicketedRendererRequestsDeps,
-): TRequests {
+) {
   const completedSale = (_args: unknown, outcome: { kind: string }) =>
     completedSaleId(outcome) ?? null;
-  const saleOfRequest = ([request]: [{ saleId: string }, ...unknown[]]) => request.saleId;
   const saleOfChargeRequest = ([request]: [{ paymentTransactionId: string }]) =>
     saleOfCharge(request.paymentTransactionId);
-  const saleTickets: SaleTickets<RendererRequestDeps> = {
+  return {
     chargeSaleInCash: ticketed("sale", requests.chargeSaleInCash, completedSale),
     chargeSaleByTransfer: ticketed("sale", requests.chargeSaleByTransfer, completedSale),
     chargeSaleOnStandaloneTerminal: ticketed(
@@ -71,6 +70,15 @@ export function ticketedRendererRequests<TRequests extends TicketableRendererReq
       saleOfChargeRequest,
     ),
   };
+}
+
+export function ticketedRendererRequests<TRequests extends TicketableRendererRequests>(
+  requests: TRequests,
+  deps: TicketedRendererRequestsDeps,
+): TRequests {
+  const { ticketed } = deps;
+  const saleOfRequest = ([request]: [{ saleId: string }, ...unknown[]]) => request.saleId;
+  const saleTickets: SaleTickets<RendererRequestDeps> = saleTicketsOf(requests, deps);
   return {
     ...requests,
     ...saleTickets,
