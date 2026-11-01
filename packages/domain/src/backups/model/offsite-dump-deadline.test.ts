@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { dueOffsiteDumpNight, isOffsiteDumpNight } from "./offsite-dump-deadline.js";
+import {
+  dueOffsiteDumpNight,
+  isOffsiteDumpNight,
+  offsiteDumpNightOf,
+} from "./offsite-dump-deadline.js";
 
 describe("isOffsiteDumpNight", () => {
   it.each(["2026-10-14", "2028-02-29"])("accepts the calendar day %s", (night) => {
@@ -16,11 +20,11 @@ describe("isOffsiteDumpNight", () => {
 
 describe("dueOffsiteDumpNight", () => {
   it("is the night whose deadline is exactly now", () => {
-    expect(dueOffsiteDumpNight(new Date("2026-10-14T15:00:00.000Z"))).toBe("2026-10-14");
+    expect(dueOffsiteDumpNight(new Date("2026-10-14T21:00:00.000Z"))).toBe("2026-10-14");
   });
 
   it("is still the previous night one millisecond before a deadline", () => {
-    expect(dueOffsiteDumpNight(new Date("2026-10-14T14:59:59.999Z"))).toBe("2026-10-13");
+    expect(dueOffsiteDumpNight(new Date("2026-10-14T20:59:59.999Z"))).toBe("2026-10-13");
   });
 
   it("stays on the night until the next deadline", () => {
@@ -30,6 +34,18 @@ describe("dueOffsiteDumpNight", () => {
 
   it("crosses month and year boundaries", () => {
     expect(dueOffsiteDumpNight(new Date("2027-01-01T10:00:00.000Z"))).toBe("2026-12-31");
-    expect(dueOffsiteDumpNight(new Date("2026-03-01T14:00:00.000Z"))).toBe("2026-02-28");
+    expect(dueOffsiteDumpNight(new Date("2026-03-01T20:00:00.000Z"))).toBe("2026-02-28");
+  });
+});
+
+describe("offsiteDumpNightOf", () => {
+  it("is the calendar day in UTC of the moment, from its first to its last millisecond", () => {
+    expect(offsiteDumpNightOf(new Date("2026-10-14T00:00:00.000Z"))).toBe("2026-10-14");
+    expect(offsiteDumpNightOf(new Date("2026-10-14T23:59:59.999Z"))).toBe("2026-10-14");
+  });
+
+  it("crosses month and year boundaries", () => {
+    expect(offsiteDumpNightOf(new Date("2027-01-01T00:00:00.000Z"))).toBe("2027-01-01");
+    expect(offsiteDumpNightOf(new Date("2026-02-28T23:59:59.999Z"))).toBe("2026-02-28");
   });
 });
