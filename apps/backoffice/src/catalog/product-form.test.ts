@@ -6,6 +6,7 @@ import {
   EMPTY_CATALOG_PRODUCT_FORM,
   editedProductBarcodeProblemMessage,
   PRODUCT_EDIT_MESSAGES,
+  productCloneFormValues,
   productEditRequestFrom,
   productFormValues,
   reactivationBarcodeTakenError,
@@ -156,5 +157,46 @@ describe("a product's coverage days in the form", () => {
     expect(
       CATALOG_PRODUCT_MESSAGES.coverageDays({ ...EMPTY_CATALOG_PRODUCT_FORM, coverageDays: "30" }),
     ).toBe("Revisá los días de cobertura.");
+  });
+});
+
+describe("productCloneFormValues", () => {
+  const product = {
+    id: "90d00000-0000-4000-8000-000000000009",
+    name: "Limonada",
+    categoryId: "ca7e0000-0000-4000-8000-000000000001",
+    categoryName: "Bebidas",
+    brandId: "b2a40000-0000-4000-8000-000000000001",
+    saleUnit: "UNIT" as const,
+    barcodes: ["7790987000015", "7790987000022"],
+    tagIds: ["7a600000-0000-4000-8000-000000000001"],
+    netContent: { quantity: 1.5, unit: "L" as const },
+    coverageDays: 21,
+    active: true,
+    labelCode: null,
+    labelModules: null,
+    version: 4,
+  };
+
+  it("carries the product's fields without its barcodes or version", () => {
+    const values = productCloneFormValues(product);
+
+    expect(values).toEqual({
+      name: "Limonada",
+      categoryId: "ca7e0000-0000-4000-8000-000000000001",
+      brandId: "b2a40000-0000-4000-8000-000000000001",
+      saleUnit: "UNIT",
+      netContent: { quantity: "1,5", unit: "L" },
+      barcodes: { codes: [], scan: "" },
+      tagIds: ["7a600000-0000-4000-8000-000000000001"],
+      coverageDays: "21",
+    });
+  });
+
+  it("leaves the brand and net content empty for a product without them", () => {
+    const values = productCloneFormValues({ ...product, brandId: null, netContent: null });
+
+    expect(values.brandId).toBe(productFormValues({ ...product, brandId: null }).brandId);
+    expect(values.netContent).toEqual(EMPTY_CATALOG_PRODUCT_FORM.netContent);
   });
 });
