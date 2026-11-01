@@ -4,6 +4,7 @@ export type Cell =
   | { kind: "money"; cents: number }
   | { kind: "day"; day: string }
   | { kind: "instant"; instant: string; timeZone: string }
+  | { kind: "weight"; thousandths: number }
   | { kind: "percent"; percent: number }
   | { kind: "usd"; nanoUsd: number }
   | { kind: "empty" };
@@ -18,6 +19,7 @@ export const cell = {
   money: (cents: number): Cell => ({ kind: "money", cents }),
   day: (day: string): Cell => ({ kind: "day", day }),
   instant: (instant: string, timeZone: string): Cell => ({ kind: "instant", instant, timeZone }),
+  weight: (thousandths: number): Cell => ({ kind: "weight", thousandths }),
   percent: (percent: number): Cell => ({ kind: "percent", percent }),
   usd: (nanoUsd: number): Cell => ({ kind: "usd", nanoUsd }),
   empty: (): Cell => ({ kind: "empty" }),

@@ -15,12 +15,13 @@ const MIN_COLUMN_WIDTH = 12;
 const MAX_COLUMN_WIDTH = 60;
 const NANO_USD_PER_USD = 1_000_000_000n;
 
-type StyleName = "general" | "header" | "count" | "money" | "day" | "instant" | "percent" | "usd";
+type StyleName = "general" | "header" | "count" | "weight" | "money" | "day" | "instant" | "percent" | "usd";
 
 const STYLES: { name: StyleName; numFmtId: number; formatCode?: string; bold?: boolean }[] = [
   { name: "general", numFmtId: 0 },
   { name: "header", numFmtId: 0, bold: true },
   { name: "count", numFmtId: 3 },
+  { name: "weight", numFmtId: 169, formatCode: "#,##0.000" },
   { name: "money", numFmtId: 164, formatCode: '"$" #,##0.00' },
   { name: "day", numFmtId: 165, formatCode: "dd/mm/yyyy" },
   { name: "instant", numFmtId: 166, formatCode: "dd/mm/yyyy hh:mm" },
@@ -118,6 +119,8 @@ function cellXml(cell: Cell, reference: string): string {
       return textCell(reference, "general", cell.value);
     case "count":
       return numberCell(reference, "count", String(cell.value));
+    case "weight":
+      return numberCell(reference, "weight", decimalFromScaledInteger(cell.thousandths, 1000n, 3));
     case "money":
       return numberCell(reference, "money", decimalFromScaledInteger(cell.cents, 100n, 2));
     case "day":
