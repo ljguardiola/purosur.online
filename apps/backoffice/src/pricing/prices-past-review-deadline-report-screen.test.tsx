@@ -1,11 +1,13 @@
 import { FieldSizeProvider, formatCalendarDayNumeric } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
-import { beforeEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
 import { type ReportPeriodFilters, reportPeriodSearch } from "../shell/report-filters-search";
 import { render } from "../shell/test-support/render-with-router";
 import { dateSegments, typeDate } from "../shell/test-support/report-dates";
+import { spyOnDownloads } from "../shell/test-support/spy-on-downloads";
 import { formatCentsWithUnit } from "./money";
 import { PricesPastReviewDeadlineReportScreen } from "./prices-past-review-deadline-report-screen";
 import type { PricesPastReviewDeadlineReportScreenServices } from "./prices-past-review-deadline-report-services";
@@ -18,6 +20,10 @@ import {
 
 beforeEach(async () => {
   await page.viewport(1280, 900);
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 function createServices(): PricesPastReviewDeadlineReportScreenServices {
@@ -284,4 +290,41 @@ test("counts the prices past their deadline with the thousands separator", async
   const screen = await renderScreen(listed({ ...report, summary: { price_count: 1998 } }));
 
   await expect.element(screen.getByText("1.998 precios", { exact: true })).toBeVisible();
+});
+
+test("downloads a spreadsheet of the prices shown for the period the report answered", async () => {
+  const downloads = spyOnDownloads();
+  const screen = await renderScreen(listed());
+  await expect.element(screen.getByText("Queso cremoso")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
+
+  await expect
+    .poll(() => downloads.names)
+    .toEqual(["precios-sin-revisar-2026-08-31-2026-10-13.xlsx"]);
+  const file = await readDownloadedXlsx(downloads.blobs[0]);
+  expect(file.sheetNames).toEqual(["Resumen", "Precios sin revisar"]);
+  const summary = file.sheet(0);
+  expect(summary.get("B4")?.value).toBe("30");
+  expect(summary.get("B5")?.value).toBe("2");
+  const prices = file.sheet(1);
+  expect(prices.get("A2")?.value).toBe("Aceite de Almendras Vitora 30 ml");
+  expect(prices.get("G2")?.value).toBe("Nunca revisado");
+  expect(prices.get("A3")?.value).toBe("Queso cremoso");
+  expect(prices.get("D3")?.value).toBe("12500");
+  expect(prices.get("E3")).toMatchObject({ numberFormat: "dd/mm/yyyy hh:mm" });
+  expect(prices.get("A4")).toBeUndefined();
+});
+
+test("has its download disabled while the report loads and after loading fails", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPricesPastReviewDeadlineReport).mockReturnValue(new Promise(() => {}));
+  const loading = await renderScreen(services);
+  await expect.element(loading.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
+  await loading.unmount();
+
+  vi.mocked(services.fetchPricesPastReviewDeadlineReport).mockResolvedValue({ kind: "failed" });
+  const failed = await renderScreen(services);
+  await expect.element(failed.getByRole("button", { name: "Reintentar" })).toBeVisible();
+  await expect.element(failed.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
 });
