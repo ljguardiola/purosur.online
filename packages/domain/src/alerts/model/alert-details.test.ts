@@ -583,3 +583,34 @@ describe("a deferred sale due alert", () => {
     }>().not.toExtend<OpenAlertInput>();
   });
 });
+
+describe("an exception share breach alert", () => {
+  it("accepts the fiscal address, the month, its counts and the year's non-compliant months", () => {
+    expectTypeOf<{
+      kind: "exception_share_breach";
+      scope: string;
+      detail: {
+        fiscalAddressId: string;
+        fiscalAddressName: string;
+        month: string;
+        exceptionCount: number;
+        totalCount: number;
+        nonCompliantMonths: string[];
+      };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses one without the year's non-compliant months", () => {
+    expectTypeOf<{
+      kind: "exception_share_breach";
+      scope: string;
+      detail: {
+        fiscalAddressId: string;
+        fiscalAddressName: string;
+        month: string;
+        exceptionCount: number;
+        totalCount: number;
+      };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+});

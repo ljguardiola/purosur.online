@@ -18,7 +18,8 @@ const kindsScopedTo = (
     | "syncDevice"
     | "branch"
     | "pointOfSaleFortnight"
-    | "deferredSale",
+    | "deferredSale"
+    | "fiscalAddressMonth",
 ) => ALERT_KINDS.filter((kind) => alertKindPolicy(kind).scopeKind === scopeKind);
 
 describe("alertNamedRecordIds", () => {
@@ -202,5 +203,18 @@ describe("a deferred sale scope", () => {
         detail: { registerId: ACTOR_ID },
       }),
     ).toEqual([ACTOR_ID]);
+  });
+});
+
+describe("a fiscal address month scope", () => {
+  it("names no record, since the scope is the fiscal address and the month", () => {
+    expect(kindsScopedTo("fiscalAddressMonth")).toEqual(["exception_share_breach"]);
+    expect(
+      alertNamedRecordIds({
+        kind: "exception_share_breach",
+        scope: `${SCOPE}:2026-09`,
+        detail: { fiscalAddressId: SCOPE, registerId: ACTOR_ID },
+      }),
+    ).toEqual([]);
   });
 });

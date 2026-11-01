@@ -11,14 +11,12 @@ import {
   nonCompliantMonthsOfYear,
 } from "./exception-share.js";
 
-const counts = fc
-  .integer({ min: 0, max: 100_000 })
-  .chain((totalCount) =>
-    fc.record({
-      exceptionCount: fc.integer({ min: 0, max: totalCount }),
-      totalCount: fc.constant(totalCount),
-    }),
-  );
+const counts = fc.integer({ min: 0, max: 100_000 }).chain((totalCount) =>
+  fc.record({
+    exceptionCount: fc.integer({ min: 0, max: totalCount }),
+    totalCount: fc.constant(totalCount),
+  }),
+);
 
 describe("isExceptionShareBreach", () => {
   it("is reached when the exceptions are exactly 5% of the total", () => {
