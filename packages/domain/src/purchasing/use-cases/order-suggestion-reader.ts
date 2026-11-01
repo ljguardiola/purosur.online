@@ -18,10 +18,16 @@ export interface OrderSuggestionSalesQuery {
   range: ReportPeriod;
 }
 
-// The active products and the supplier offers are those of the price comparison.
+export interface OrderSuggestionSupplier {
+  id: string;
+  name: string;
+  active: boolean;
+}
+
 export interface OrderSuggestionReader extends SupplierPriceComparisonReader {
   coverageDays(): Promise<ProductCoverageDays[]>;
   completedSalesByProduct(query: OrderSuggestionSalesQuery): Promise<SoldLinesOfGroup[]>;
   // The branch's current stock of each product that has a balance there.
   currentStock(locationId: string): Promise<ProductStock[]>;
+  suppliers(): Promise<OrderSuggestionSupplier[]>;
 }

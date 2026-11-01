@@ -79,8 +79,10 @@ export type { LinkablePurchase, LinkablePurchasesQuery } from "./list-linkable-p
 export { listLinkablePurchases } from "./list-linkable-purchases.js";
 export type {
   ListOrderSuggestionInput,
+  OrderSuggestion,
   OrderSuggestionLine,
   SuggestedOffer,
+  SuggestedUnpricedOffer,
 } from "./list-order-suggestion.js";
 export { listOrderSuggestion } from "./list-order-suggestion.js";
 export type { ListedPackaging } from "./list-packagings.js";
@@ -114,6 +116,7 @@ export { markSupplierPriceListRowReviewed } from "./mark-supplier-price-list-row
 export type {
   OrderSuggestionReader,
   OrderSuggestionSalesQuery,
+  OrderSuggestionSupplier,
   ProductCoverageDays,
   ProductStock,
 } from "./order-suggestion-reader.js";

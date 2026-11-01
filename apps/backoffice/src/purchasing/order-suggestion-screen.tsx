@@ -20,10 +20,10 @@ import { cloudTableState } from "../platform/cloud-table-state";
 import { formatDisplayDate } from "../platform/display-date";
 import { AreaTopBar } from "../shell/area-top-bar";
 import { ScreenLayout } from "../shell/screen-layout";
-import { chosenSupplierId, LEFT_OUT } from "./order-suggestion-choice";
+import { chosenOrder, chosenSupplierId, LEFT_OUT } from "./order-suggestion-choice";
 import type { OrderSuggestionFilters } from "./order-suggestion-filters";
 import type { OrderSuggestionScreenServices } from "./order-suggestion-services";
-import { useOrderSuggestionQuery, useSuppliersQuery } from "./purchasing-queries";
+import { useOrderSuggestionQuery } from "./purchasing-queries";
 
 export type OrderSuggestionScreenProps = {
   filters: OrderSuggestionFilters;
@@ -37,15 +37,14 @@ type Offer = SuggestedLine["offers"][number];
 type UnpricedOffer = SuggestedLine["unpricedOffers"][number];
 type SupplierOption = { value: string; label: string; status?: string };
 
-const NO_LINES: SuggestedLine[] = [];
-const NO_SUPPLIERS: SupplierOption[] = [];
+const NO_SUGGESTION: OrderSuggestion = { lines: [], suppliers: [] };
 
 const UNPRICED_REASONS: Record<UnpricedOffer["reason"], string> = {
   vat_rate_missing: "Falta el IVA del ítem",
   link_outdated: "Hay que volver a vincularlo",
 };
 
-const LEAVE_OUT_OPTION: SupplierOption = { value: LEFT_OUT, label: "Dejar fuera del pedido" };
+const LEAVE_OUT_OPTION: SupplierOption = { value: LEFT_OUT, label: "Ninguno, fuera del pedido" };
 
 const supplierNameOrder = textOrder((option: SupplierOption) => option.label);
 
@@ -74,12 +73,7 @@ export function OrderSuggestionScreen({
     fetchOrderSuggestion: services.fetchOrderSuggestion,
     onSessionEnded,
   });
-  const lines = data.status === "loaded" ? data.value.lines : NO_LINES;
-  const suppliers = useSuppliersQuery({
-    fetchSuppliers: services.fetchSuppliers,
-    enabled: lines.some((line) => line.offers.length === 0),
-    onSessionEnded,
-  });
+  const { lines, suppliers } = data.status === "loaded" ? data.value : NO_SUGGESTION;
   const [search, setSearch] = useState(filters.search);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const reportFilters = useEffectEvent(onFiltersChange);
@@ -91,16 +85,11 @@ export function OrderSuggestionScreen({
     }
   }, [search, filters]);
 
-  const activeSuppliers =
-    suppliers.status === "loaded"
-      ? sortedItems(
-          suppliers.value
-            .filter((supplier) => supplier.active)
-            .map((supplier) => ({ value: supplier.id, label: supplier.name })),
-          { order: supplierNameOrder, direction: "ascending" },
-        )
-      : NO_SUPPLIERS;
-  const knownSupplierIds = new Set(activeSuppliers.map((supplier) => supplier.value));
+  const supplierOptions = sortedItems(
+    suppliers.map((supplier) => ({ value: supplier.id, label: supplier.name })),
+    { order: supplierNameOrder, direction: "ascending" },
+  );
+  const knownSupplierIds = new Set(supplierOptions.map((supplier) => supplier.value));
 
   const columns = [
     dataColumn({
@@ -147,12 +136,12 @@ export function OrderSuggestionScreen({
               labelVisuallyHidden
               placeholder="Elegir proveedor"
               options={withLeaveOut(
-                hasPrice ? line.offers.map((offer) => offerOption(offer, line)) : activeSuppliers,
+                hasPrice ? line.offers.map((offer) => offerOption(offer, line)) : supplierOptions,
               )}
               value={chosen}
               onChange={(value) => setDrafts((current) => ({ ...current, [line.id]: value }))}
             />
-            {hasPrice ? null : (
+            {hasPrice || line.unpricedOffers.length > 0 ? null : (
               <span className="text-detail text-text-subtle">
                 Sin precio en ninguna lista cargada
               </span>
@@ -172,10 +161,10 @@ export function OrderSuggestionScreen({
       header: "Paquetes",
       align: "end",
       render: (line: SuggestedLine) => {
-        const offer = chosenOffer(line);
-        return offer === undefined
+        const order = chosenOrderOf(line);
+        return order === undefined
           ? null
-          : `${formatNumber(offer.packages)} × ${formatSaleUnitQuantity(offer.packageQuantity, offer.saleUnit)}`;
+          : `${formatNumber(order.packages)} × ${formatSaleUnitQuantity(order.packageQuantity, order.saleUnit)}`;
       },
     }),
     dataColumn({
@@ -187,14 +176,14 @@ export function OrderSuggestionScreen({
           return <span className="text-text-subtle">Fuera del pedido</span>;
         }
         return formatSaleUnitQuantity(
-          chosenOffer(line)?.quantity ?? line.neededQuantity,
+          chosenOrderOf(line)?.quantity ?? line.neededQuantity,
           line.saleUnit,
         );
       },
     }),
     dataColumn({
       id: "perSaleUnit",
-      header: "Precio por unidad",
+      header: "Por unidad de venta",
       align: "end",
       render: (line: SuggestedLine) => {
         const offer = chosenOffer(line);
@@ -218,6 +207,10 @@ export function OrderSuggestionScreen({
   function chosenOffer(line: SuggestedLine): Offer | undefined {
     const chosen = chosenSupplierId(line, drafts[line.id], knownSupplierIds);
     return line.offers.find((offer) => offer.supplier.id === chosen);
+  }
+
+  function chosenOrderOf(line: SuggestedLine) {
+    return chosenOrder(line, chosenSupplierId(line, drafts[line.id], knownSupplierIds));
   }
 
   const table = useTableModel({

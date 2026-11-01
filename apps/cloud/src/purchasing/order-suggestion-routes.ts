@@ -25,12 +25,13 @@ export function registerOrderSuggestionRoutes<TQueryResult extends PgQueryResult
   };
 
   app.get("/order-suggestion", readGuard, async (request, reply) => {
-    const lines = await listOrderSuggestion(
+    const { lines, suppliers } = await listOrderSuggestion(
       { reader, clock: { now: options.now }, zoneRules: options.zoneRules },
       { locationId: openSessionOf(request).locationId },
     );
     await reply.code(200).send(
       orderSuggestionSchema.parse({
+        suppliers,
         lines: lines.map((line) => ({
           ...line,
           offers: line.offers.map((offer) => ({

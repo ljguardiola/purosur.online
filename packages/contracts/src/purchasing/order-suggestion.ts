@@ -19,14 +19,16 @@ const suggestedOfferSchema = z.object({
 
 const unpricedOfferSchema = z.object({
   supplier: supplierSchema,
-  quantity: z.int(),
+  packageQuantity: z.int(),
   saleUnit: z.enum(SALE_UNITS),
   priceCents: z.int(),
   listDate: z.string(),
   reason: z.enum(SUPPLIER_OFFER_UNPRICED_REASONS),
+  order: z.object({ packages: z.int(), quantity: z.int() }).nullable(),
 });
 
 export const orderSuggestionSchema = z.object({
+  suppliers: z.array(supplierSchema),
   lines: z.array(
     z.object({
       id: z.string(),
