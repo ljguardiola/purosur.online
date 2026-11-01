@@ -4,6 +4,7 @@ import { z } from "zod";
 import {
   canComparePrices,
   canManageFreights,
+  canManagePurchaseOrders,
   canManageSupplierPriceLists,
   canManageSuppliers,
   canRecordPurchases,
@@ -18,6 +19,7 @@ import { refuseWithout } from "../shell/signed-in-route";
 import { stockAreaRoute } from "../shell/stock-area";
 import { aiCostReportFilters } from "./ai-cost-report-filters";
 import { orderSuggestionFilters } from "./order-suggestion-filters";
+import { purchaseOrdersFilters } from "./purchase-orders-filters";
 import { supplierPriceComparisonFilters } from "./supplier-price-comparison-filters";
 import {
   supplierPriceListReviewFilters,
@@ -111,6 +113,22 @@ export const orderSuggestionRoute = createRoute({
   validateSearch: orderSuggestionFilters,
   search: { middlewares: [stripSearchParams(orderSuggestionFilters.parse({}))] },
   component: lazyScreen(() => import("./order-suggestion-page"), "OrderSuggestionPage"),
+});
+
+export const purchaseOrdersRoute = createRoute({
+  getParentRoute: () => ordersAreaRoute,
+  path: "purchase-orders",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canManagePurchaseOrders),
+  validateSearch: purchaseOrdersFilters,
+  search: { middlewares: [stripSearchParams(purchaseOrdersFilters.parse({}))] },
+  component: lazyScreen(() => import("./purchase-orders-page"), "PurchaseOrdersPage"),
+});
+
+export const purchaseOrderRoute = createRoute({
+  getParentRoute: () => ordersAreaRoute,
+  path: "purchase-orders/$orderId",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canManagePurchaseOrders),
+  component: lazyScreen(() => import("./purchase-order-page"), "PurchaseOrderPage"),
 });
 
 export const freightReportRoute = createRoute({
