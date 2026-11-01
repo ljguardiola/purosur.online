@@ -20,6 +20,10 @@ export const RECORDED_LOSS_REASONS = [
   ...SYSTEM_LOSS_REASONS,
 ] as const satisfies readonly RecordedLossReason[];
 
+export const REPORTED_LOSS_REASONS = [...RECORDED_LOSS_REASONS, "defective_exchange"] as const;
+
+export type ReportedLossReason = (typeof REPORTED_LOSS_REASONS)[number];
+
 export const ADJUSTMENT_REASONS = [
   "purchase_correction",
   "supplier_return",

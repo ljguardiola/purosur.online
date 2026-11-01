@@ -1,5 +1,7 @@
 import {
   ARGENTINA_TIME_ZONE,
+  COST_OF_SALE_MOVEMENT_KINDS,
+  isCostOfSaleMovementKind,
   type MarginAllocation,
   type MarginSaleLine,
   SALES_REPORT_SALE_STATE,
@@ -125,7 +127,12 @@ export class DrizzleSaleMarginReportReader<TQueryResult extends PgQueryResultHKT
       .innerJoin(lots, eq(lots.id, lotAllocations.lotId))
       .innerJoin(saleLines, eq(saleLines.id, stockMovements.saleLineId))
       .innerJoin(sales, eq(sales.id, saleLines.saleId))
-      .where(and(this.completedSalesOf(query), inArray(stockMovements.kind, ["sale", "return"])))
+      .where(
+        and(
+          this.completedSalesOf(query),
+          inArray(stockMovements.kind, COST_OF_SALE_MOVEMENT_KINDS),
+        ),
+      )
       .groupBy(
         stockMovements.saleLineId,
         lotAllocations.lotId,
@@ -137,10 +144,7 @@ export class DrizzleSaleMarginReportReader<TQueryResult extends PgQueryResultHKT
       );
     const bySaleLine = new Map<string, MarginAllocation[]>();
     for (const row of rows) {
-      if (
-        row.saleLineId === null ||
-        (row.movementKind !== "sale" && row.movementKind !== "return")
-      ) {
+      if (row.saleLineId === null || !isCostOfSaleMovementKind(row.movementKind)) {
         continue;
       }
       const allocations = bySaleLine.get(row.saleLineId) ?? [];

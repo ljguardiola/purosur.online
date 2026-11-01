@@ -68,15 +68,12 @@ describe("lossesByReasonReportSchema", () => {
     "expired",
     "return_discard",
     "defective_exchange",
-  ])(
-    "accepts the reason %s",
-    (name) => {
-      expect(
-        lossesByReasonReportSchema.safeParse({ ...report, reasons: [{ ...reason, reason: name }] })
-          .success,
-      ).toBe(true);
-    },
-  );
+  ])("accepts the reason %s", (name) => {
+    expect(
+      lossesByReasonReportSchema.safeParse({ ...report, reasons: [{ ...reason, reason: name }] })
+        .success,
+    ).toBe(true);
+  });
 
   it.each([
     ["a reason that is not in the catalog", { reason: "lost_in_move" }],

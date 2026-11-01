@@ -1,18 +1,23 @@
-import { ARGENTINA_TIME_ZONE, RECORDED_LOSS_REASONS, type SaleUnit } from "@purosur/domain";
+import {
+  ARGENTINA_TIME_ZONE,
+  LOSS_REPORT_MOVEMENT_KINDS,
+  reportedLossReason,
+  type SaleUnit,
+} from "@purosur/domain";
 import type { LossQuery, LossReader, LossRecord } from "@purosur/domain/stock/use-cases";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { netContentRow } from "../catalog/net-content-row.js";
 import { brands, products, stockMovements } from "../platform/db/schema.js";
 
 const lossDay = sql<string>`to_char(${stockMovements.occurredAt} at time zone ${ARGENTINA_TIME_ZONE}, 'YYYY-MM-DD')`;
 
-function knownReason(stored: string | null): LossRecord["reason"] {
-  const found = RECORDED_LOSS_REASONS.find((reason) => reason === stored);
-  if (found === undefined) {
-    throw new Error(`A stored loss has an unknown reason: ${stored}`);
+function reasonOf(row: { kind: string; reason: string | null }): LossRecord["reason"] {
+  const reason = reportedLossReason(row);
+  if (reason === null) {
+    throw new Error(`A stored loss has an unknown reason: ${row.reason}`);
   }
-  return found;
+  return reason;
 }
 
 export class DrizzleLossReader<TQueryResult extends PgQueryResultHKT> implements LossReader {
@@ -27,6 +32,7 @@ export class DrizzleLossReader<TQueryResult extends PgQueryResultHKT> implements
       async (tx) => {
         const rows = await tx
           .select({
+            kind: stockMovements.kind,
             reason: stockMovements.reason,
             delta: stockMovements.delta,
             productId: products.id,
@@ -42,13 +48,13 @@ export class DrizzleLossReader<TQueryResult extends PgQueryResultHKT> implements
           .where(
             and(
               eq(stockMovements.locationId, locationId),
-              eq(stockMovements.kind, "loss"),
+              inArray(stockMovements.kind, LOSS_REPORT_MOVEMENT_KINDS),
               sql`${lossDay} >= ${range.from}`,
               sql`${lossDay} <= ${range.to}`,
             ),
           );
         return rows.map((row) => ({
-          reason: knownReason(row.reason),
+          reason: reasonOf(row),
           product: {
             id: row.productId,
             name: row.productName,

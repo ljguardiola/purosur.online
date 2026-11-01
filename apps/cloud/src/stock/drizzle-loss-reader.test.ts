@@ -263,9 +263,9 @@ describe("DrizzleLossReader.lossesRecorded", () => {
     });
 
     expect(
-      losses.map(({ reason, quantity }) => ({ reason, quantity })).sort((a, b) =>
-        a.reason.localeCompare(b.reason),
-      ),
+      losses
+        .map(({ reason, quantity }) => ({ reason, quantity }))
+        .sort((a, b) => a.reason.localeCompare(b.reason)),
     ).toEqual([
       { reason: "defective_exchange", quantity: 2_000 },
       { reason: "return_discard", quantity: 2_000 },

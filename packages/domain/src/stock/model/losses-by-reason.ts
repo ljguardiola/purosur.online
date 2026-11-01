@@ -1,9 +1,32 @@
 import type { ProductBrandAndNetContent, SaleUnit } from "../../catalog/index.js";
 import { compareCodeUnits, compareSpanishText } from "../../shared/index.js";
-import { RECORDED_LOSS_REASONS, type RecordedLossReason } from "./stock-movement-reason.js";
+import type { StockMovementKind } from "./stock-movement-kind.js";
+import {
+  RECORDED_LOSS_REASONS,
+  REPORTED_LOSS_REASONS,
+  type ReportedLossReason,
+} from "./stock-movement-reason.js";
+
+export const LOSS_REPORT_MOVEMENT_KINDS = [
+  "loss",
+  "exchange_out",
+] as const satisfies readonly StockMovementKind[];
+
+export function reportedLossReason(movement: {
+  kind: string;
+  reason: string | null;
+}): ReportedLossReason | null {
+  if (movement.kind === "exchange_out") {
+    return "defective_exchange";
+  }
+  if (movement.kind !== "loss") {
+    return null;
+  }
+  return RECORDED_LOSS_REASONS.find((reason) => reason === movement.reason) ?? null;
+}
 
 export interface LossRecord {
-  reason: RecordedLossReason;
+  reason: ReportedLossReason;
   product: ProductBrandAndNetContent & { id: string; name: string; saleUnit: SaleUnit };
   quantity: number;
 }
@@ -17,7 +40,7 @@ export interface LostProduct extends ProductBrandAndNetContent {
 }
 
 export interface ReasonLosses {
-  reason: RecordedLossReason;
+  reason: ReportedLossReason;
   lossCount: number;
   products: LostProduct[];
 }
@@ -27,7 +50,7 @@ function compareProducts(a: LostProduct, b: LostProduct): number {
 }
 
 export function lossesByReason(records: readonly LossRecord[]): ReasonLosses[] {
-  return RECORDED_LOSS_REASONS.flatMap((reason) => {
+  return REPORTED_LOSS_REASONS.flatMap((reason) => {
     const products = new Map<string, LostProduct>();
     let lossCount = 0;
     for (const record of records) {
