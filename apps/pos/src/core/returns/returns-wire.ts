@@ -68,7 +68,7 @@ export function toWireSaleForReturn(sale: SaleForReturnView, rules: ZoneRules): 
       returnable_quantity: line.returnableQuantity,
       charged_amount: line.chargedAmount,
       refunded_amount: line.refundedAmount,
-      must_be_returned_whole: line.mustBeReturnedWhole,
+      whole_only_reasons: [...line.wholeOnlyReasons],
     })),
     payments: sale.payments.map((payment) => ({
       payment_id: payment.paymentId,

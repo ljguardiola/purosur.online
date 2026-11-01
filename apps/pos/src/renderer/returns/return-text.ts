@@ -86,7 +86,7 @@ export function lineRefusalNotice(
     case "quantity_exceeds_returnable":
       return `${name}: se pueden devolver hasta ${quantityText(saleUnit, refusal.returnable)}.`;
     case "promotion_whole_only":
-      return `${name}: la promoción se devuelve completa, ${quantityText(saleUnit, refusal.returnable)}.`;
+      return `${name}: con este motivo, la promoción se devuelve completa, ${quantityText(saleUnit, refusal.returnable)}.`;
     case "outside_window":
       return `Venció el plazo por ${REASON_WINDOW_NAMES[refusal.reason]}: se podía hasta el ${formatCalendarDayNumeric(refusal.last_allowed_day)}.`;
     case "unknown_line":

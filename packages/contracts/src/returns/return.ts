@@ -80,7 +80,7 @@ const saleForReturnSchema = z.object({
       returnable_quantity: cents,
       charged_amount: cents,
       refunded_amount: cents,
-      must_be_returned_whole: z.boolean(),
+      whole_only_reasons: z.array(returnReasonSchema),
     }),
   ),
   payments: z.array(

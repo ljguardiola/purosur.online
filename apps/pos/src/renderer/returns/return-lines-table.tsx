@@ -12,6 +12,7 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import type { ReturnDraft, ReturnDraftLine } from "./return-form";
+import { goesBackWhole } from "./return-form";
 import type { SaleForReturn, SaleLineForReturn } from "./return-sale";
 import type { ReturnReasonValue } from "./return-text";
 import { DISPOSITION_OPTIONS, quantityText, REASON_OPTIONS } from "./return-text";
@@ -24,7 +25,7 @@ export type ReturnLinesTableProps = {
   onChange: (lineId: string, change: Partial<ReturnDraftLine>) => void;
 };
 
-const PROMOTION_REASON = "Las promociones se devuelven completas";
+const PROMOTION_REASON = "Con este motivo, la promoción se devuelve completa";
 
 function descriptionOf(line: SaleLineForReturn): string {
   const sold = `${quantityText(line.sale_unit, line.sold_quantity)} · ${formatCents(line.charged_amount)}`;
@@ -84,7 +85,7 @@ export function ReturnLinesTable({
           return null;
         }
         const label = `Cantidad de ${line.product_name}`;
-        return line.must_be_returned_whole ? (
+        return goesBackWhole(line, drafted.reason) ? (
           <TextField
             kind="plain-text"
             label={label}

@@ -14,6 +14,7 @@ import {
   paymentRefunds,
   products,
   registers,
+  saleLines,
   sales,
   users,
 } from "../platform/db/schema.js";
@@ -148,6 +149,54 @@ async function authorizeInvoice(
 const INVOICE = { kind: "invoice", pointOfSale: 7, number: 42 } as const;
 
 describe("reading a sale of the branch to return it from another register", () => {
+  it("names the kind of the promotion each line applied", async () => {
+    const promotionId = randomUUID();
+    const { asking, selling, completed } = await setUp();
+    const [unit] = completed.lines;
+    const promoted = {
+      ...(unit as NonNullable<typeof unit>),
+      id: randomUUID(),
+      promotionId,
+      promotions: [
+        {
+          discountId: promotionId,
+          benefit: { kind: "BUY_N_PAY_M" as const, buyQty: 2, payQty: 1 },
+        },
+      ],
+    };
+    await system.asMigrator(async () => {
+      await system.db.delete(saleLines).where(eq(saleLines.saleId, completed.id));
+      await system.db.insert(saleLines).values({
+        ...promoted,
+        saleId: completed.id,
+        promotionKind: "BUY_N_PAY_M",
+      });
+    });
+    await authorizeInvoice(selling.registerId, completed.id);
+
+    const found = await reader().saleForReturnInBranchOf(asking.registerId, INVOICE);
+
+    expect(found?.sale.sale.lines).toMatchObject([
+      { id: promoted.id, promotionId, promotionKind: "BUY_N_PAY_M" },
+    ]);
+  });
+
+  it("leaves the kind unknown for a promoted line recorded before the kind was kept", async () => {
+    const promotionId = randomUUID();
+    const { asking, selling, completed } = await setUp();
+    await system.asMigrator(() =>
+      system.db
+        .update(saleLines)
+        .set({ promotionId, promotionKind: null })
+        .where(eq(saleLines.saleId, completed.id)),
+    );
+    await authorizeInvoice(selling.registerId, completed.id);
+
+    const found = await reader().saleForReturnInBranchOf(asking.registerId, INVOICE);
+
+    expect(found?.sale.sale.lines).toMatchObject([{ promotionId, promotionKind: null }]);
+  });
+
   it("holds the facts of a sale rung up on another register of the asking register's branch", async () => {
     const { asking, selling, completed, sessionId } = await setUp();
     await authorizeInvoice(selling.registerId, completed.id);
@@ -171,6 +220,7 @@ describe("reading a sale of the branch to return it from another register", () =
               saleUnit: "UNIT",
               quantity: 2,
               promotionId: null,
+              promotionKind: null,
               lineTotal: 4800,
             },
           ],

@@ -23,6 +23,7 @@ function facts(overrides: Partial<SaleForReturn> = {}): SaleForReturn {
           saleUnit: "UNIT",
           quantity: 3,
           promotionId: null,
+          promotionKind: null,
           lineTotal: 7500,
         },
         {
@@ -32,6 +33,7 @@ function facts(overrides: Partial<SaleForReturn> = {}): SaleForReturn {
           saleUnit: "UNIT",
           quantity: 4,
           promotionId: "two-for-one",
+          promotionKind: "BUY_N_PAY_M",
           lineTotal: 4000,
         },
       ],
@@ -99,8 +101,13 @@ describe("saleForReturnOutcome", () => {
           defective: { lastAllowedDay: "2027-03-12", open: true },
         },
         lines: [
-          { id: "line-1", returnedQuantity: 1, returnableQuantity: 2, mustBeReturnedWhole: false },
-          { id: "line-2", returnedQuantity: 0, returnableQuantity: 4, mustBeReturnedWhole: true },
+          { id: "line-1", returnedQuantity: 1, returnableQuantity: 2, wholeOnlyReasons: [] },
+          {
+            id: "line-2",
+            returnedQuantity: 0,
+            returnableQuantity: 4,
+            wholeOnlyReasons: ["change_of_mind"],
+          },
         ],
         payments: [{ paymentId: "pay-cash", remaining: 11_500, eligible: true }],
       },
@@ -121,7 +128,7 @@ describe("saleForReturnOutcome", () => {
         returnableQuantity: 3,
         chargedAmount: 7500,
         refundedAmount: 0,
-        mustBeReturnedWhole: false,
+        wholeOnlyReasons: [],
       },
       {
         id: "line-2",
@@ -133,7 +140,7 @@ describe("saleForReturnOutcome", () => {
         returnableQuantity: 4,
         chargedAmount: 4000,
         refundedAmount: 0,
-        mustBeReturnedWhole: true,
+        wholeOnlyReasons: ["change_of_mind"],
       },
     ]);
   });

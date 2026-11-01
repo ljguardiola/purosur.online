@@ -45,6 +45,22 @@ describe("previewReturn", () => {
     });
   });
 
+  it("accepts part of a buy-N-pay-M line for a defect and refuses it for a change of mind", () => {
+    const promoted: ReturnDraftLine = {
+      saleLineId: "line-2",
+      quantity: 1,
+      reason: "defective",
+      disposition: "discard",
+    };
+
+    expect(preview([promoted])).toMatchObject({
+      lines: [{ refusal: null, refundAmount: 1000 }],
+    });
+    expect(preview([{ ...promoted, reason: "change_of_mind" }])).toMatchObject({
+      lines: [{ refusal: { kind: "promotion_whole_only", returnable: 4 }, refundAmount: null }],
+    });
+  });
+
   it("tells which line is refused and why while the others still count, leaving the missing disposition for the cashier to choose", () => {
     expect(preview([YERBA, CHEESE])).toEqual({
       kind: "previewed",

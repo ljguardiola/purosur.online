@@ -1,3 +1,4 @@
+import type { DiscountBenefit } from "../../../pricing/index.js";
 import type { SaleLine } from "../../../sales/index.js";
 import { argentinaInstant, FIXED_ARGENTINA_ZONE_RULES } from "../../../shared/index.js";
 import type { ReturnablePayment } from "../../model/refund-allocation.js";
@@ -8,7 +9,9 @@ export const RETURNED_AT = new Date(
   argentinaInstant("2026-09-20", "10:00", FIXED_ARGENTINA_ZONE_RULES),
 );
 
-export const YERBA_LINE: SaleLine = {
+type LineForReturn = SaleLine & { promotionKind: DiscountBenefit["kind"] | null };
+
+export const YERBA_LINE: LineForReturn = {
   id: "line-1",
   productId: "yerba",
   productName: "Yerba 1 kg",
@@ -20,11 +23,12 @@ export const YERBA_LINE: SaleLine = {
   promotions: [],
   manualAdjustment: null,
   promotionId: null,
+  promotionKind: null,
   discountAmount: 0,
   lineTotal: 7500,
 };
 
-const PROMOTED_LINE: SaleLine = {
+const PROMOTED_LINE: LineForReturn = {
   ...YERBA_LINE,
   id: "line-2",
   productId: "galletitas",
@@ -39,11 +43,12 @@ const PROMOTED_LINE: SaleLine = {
     },
   ],
   promotionId: "two-for-one",
+  promotionKind: "BUY_N_PAY_M",
   discountAmount: 2000,
   lineTotal: 4000,
 };
 
-const CHEESE_LINE: SaleLine = {
+const CHEESE_LINE: LineForReturn = {
   ...YERBA_LINE,
   id: "line-3",
   productId: "queso",
