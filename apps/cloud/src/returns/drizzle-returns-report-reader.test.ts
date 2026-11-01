@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { syncedEventUpcaster } from "@purosur/contracts";
+import type { ReturnsReportQuery } from "@purosur/domain/returns/use-cases";
 import { applyPendingEvents } from "@purosur/domain/sync/use-cases";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -48,6 +49,12 @@ beforeEach(async () => {
 
 const reader = () => new DrizzleReturnsReportReader(db);
 
+const returnsMade = async (query: ReturnsReportQuery) =>
+  (await reader().returnsAndVoidsMade(query)).returns;
+
+const salesVoided = async (query: ReturnsReportQuery) =>
+  (await reader().returnsAndVoidsMade(query)).voids;
+
 async function aRegister(name = "Caja 1", locationId?: string) {
   if (locationId === undefined) {
     return insertEnrolledInstallation(db, { now: NOW, registerName: name });
@@ -90,7 +97,7 @@ describe("the returns a branch made", () => {
       saleReturn: { actorId: cashier, authorizedBy: authorizer, ticketSource: "TYPED" },
     });
 
-    const records = await reader().returnsMade({
+    const records = await returnsMade({
       locationId,
       range: thatDay,
       registerId: undefined,
@@ -114,7 +121,7 @@ describe("the returns a branch made", () => {
     const { deviceId, locationId } = await aRegister();
     await returnAt(deviceId, RETURNED, "QR");
 
-    const [record] = await reader().returnsMade({
+    const [record] = await returnsMade({
       locationId,
       range: thatDay,
       registerId: undefined,
@@ -127,7 +134,7 @@ describe("the returns a branch made", () => {
     const { deviceId, locationId } = await aRegister();
     const { saleReturn } = await returnAt(deviceId, RETURNED);
 
-    const [record] = await reader().returnsMade({
+    const [record] = await returnsMade({
       locationId,
       range: thatDay,
       registerId: undefined,
@@ -173,7 +180,7 @@ describe("the returns a branch made", () => {
       },
     });
 
-    const [record] = await reader().returnsMade({
+    const [record] = await returnsMade({
       locationId,
       range: thatDay,
       registerId: undefined,
@@ -230,7 +237,7 @@ describe("the returns a branch made", () => {
       },
     });
 
-    const [record] = await reader().returnsMade({
+    const [record] = await returnsMade({
       locationId,
       range: thatDay,
       registerId: undefined,
@@ -247,7 +254,7 @@ describe("the returns a branch made", () => {
     await returnAt(elsewhere.deviceId, RETURNED);
     const { saleReturn } = await returnAt(here.deviceId, RETURNED);
 
-    const records = await reader().returnsMade({
+    const records = await returnsMade({
       locationId: here.locationId,
       range: thatDay,
       registerId: undefined,
@@ -262,7 +269,7 @@ describe("the returns a branch made", () => {
     await returnAt(first.deviceId, RETURNED);
     const { saleReturn } = await returnAt(second.deviceId, RETURNED);
 
-    const records = await reader().returnsMade({
+    const records = await returnsMade({
       locationId: first.locationId,
       range: thatDay,
       registerId: second.registerId,
@@ -280,7 +287,7 @@ describe("the returns a branch made", () => {
     const { deviceId, locationId } = await aRegister();
     await returnAt(deviceId, new Date(moment));
 
-    const records = await reader().returnsMade({
+    const records = await returnsMade({
       locationId,
       range: thatDay,
       registerId: undefined,
@@ -297,7 +304,7 @@ describe("the invoice of the returned sale", () => {
     const { deviceId, locationId, registerId } = await aRegister();
     const { completed } = await returnAt(deviceId, RETURNED);
     await prepare(registerId, completed.id);
-    const [record] = await reader().returnsMade({
+    const [record] = await returnsMade({
       locationId,
       range: thatDay,
       registerId: undefined,
@@ -390,7 +397,7 @@ describe("the sales voided in a branch", () => {
       number: 312,
     });
 
-    const records = await reader().salesVoided({
+    const records = await salesVoided({
       locationId,
       range: thatDay,
       registerId: undefined,
@@ -420,7 +427,7 @@ describe("the sales voided in a branch", () => {
       voidedBy: voider,
     });
 
-    const [record] = await reader().salesVoided({
+    const [record] = await salesVoided({
       locationId,
       range: thatDay,
       registerId: undefined,
@@ -433,7 +440,7 @@ describe("the sales voided in a branch", () => {
     const { deviceId, locationId } = await aRegister();
     const { authorizedBy } = await voidAt(deviceId, VOIDED);
 
-    const [record] = await reader().salesVoided({
+    const [record] = await salesVoided({
       locationId,
       range: thatDay,
       registerId: undefined,
@@ -447,7 +454,7 @@ describe("the sales voided in a branch", () => {
     const voided = await voidAt(deviceId, VOIDED);
     await db.update(sales).set({ voidedBy: null }).where(eq(sales.id, voided.id));
 
-    const [record] = await reader().salesVoided({
+    const [record] = await salesVoided({
       locationId,
       range: thatDay,
       registerId: undefined,
@@ -466,7 +473,7 @@ describe("the sales voided in a branch", () => {
     });
     await db.update(sales).set({ voidAuthorizedBy: null }).where(eq(sales.id, voided.id));
 
-    const [record] = await reader().salesVoided({
+    const [record] = await salesVoided({
       locationId,
       range: thatDay,
       registerId: undefined,
@@ -479,7 +486,7 @@ describe("the sales voided in a branch", () => {
     const { deviceId, locationId } = await aRegister();
     await applyCompletedSale(db, { deviceId, completedAt: VOIDED, total: 1_000 });
 
-    const records = await reader().salesVoided({
+    const records = await salesVoided({
       locationId,
       range: thatDay,
       registerId: undefined,
@@ -494,7 +501,7 @@ describe("the sales voided in a branch", () => {
     await voidAt(elsewhere.deviceId, VOIDED);
     const mine = await voidAt(here.deviceId, VOIDED);
 
-    const records = await reader().salesVoided({
+    const records = await salesVoided({
       locationId: here.locationId,
       range: thatDay,
       registerId: undefined,
@@ -509,7 +516,7 @@ describe("the sales voided in a branch", () => {
     await voidAt(first.deviceId, VOIDED);
     const wanted = await voidAt(second.deviceId, VOIDED);
 
-    const records = await reader().salesVoided({
+    const records = await salesVoided({
       locationId: first.locationId,
       range: thatDay,
       registerId: second.registerId,
@@ -527,7 +534,7 @@ describe("the sales voided in a branch", () => {
     const { deviceId, locationId } = await aRegister();
     await voidAt(deviceId, new Date(moment));
 
-    const records = await reader().salesVoided({
+    const records = await salesVoided({
       locationId,
       range: thatDay,
       registerId: undefined,
@@ -549,7 +556,7 @@ describe("the sales voided in a branch", () => {
     });
     const query = { locationId, range: thatDay, registerId: undefined };
 
-    const before = await reader().salesVoided(query);
+    const before = await salesVoided(query);
     await applyPendingEvents(
       {
         zoneRules: fixedZoneRulesSource(),
@@ -564,7 +571,7 @@ describe("the sales voided in a branch", () => {
       },
       { limit: 10 },
     );
-    const after = await reader().salesVoided(query);
+    const after = await salesVoided(query);
 
     expect(before).toEqual([]);
     expect(after).toEqual([

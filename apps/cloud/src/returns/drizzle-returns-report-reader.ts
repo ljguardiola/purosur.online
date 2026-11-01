@@ -12,7 +12,11 @@ import {
   VOIDED_SALE_STATE,
   type VoidedSaleRecord,
 } from "@purosur/domain";
-import type { ReturnsReportQuery, ReturnsReportReader } from "@purosur/domain/returns/use-cases";
+import type {
+  ReturnsAndVoids,
+  ReturnsReportQuery,
+  ReturnsReportReader,
+} from "@purosur/domain/returns/use-cases";
 import { and, asc, eq, inArray, isNull, or, type SQL, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { alias } from "drizzle-orm/pg-core";
@@ -64,18 +68,14 @@ export class DrizzleReturnsReportReader<TQueryResult extends PgQueryResultHKT>
     this.db = db;
   }
 
-  returnsMade(query: ReturnsReportQuery): Promise<ReturnRecord[]> {
-    return this.db.transaction(async (tx) => returnsOf(tx, query), {
-      isolationLevel: "repeatable read",
-      accessMode: "read only",
-    });
-  }
-
-  salesVoided(query: ReturnsReportQuery): Promise<VoidedSaleRecord[]> {
-    return this.db.transaction(async (tx) => voidedSalesOf(tx, query), {
-      isolationLevel: "repeatable read",
-      accessMode: "read only",
-    });
+  returnsAndVoidsMade(query: ReturnsReportQuery): Promise<ReturnsAndVoids> {
+    return this.db.transaction(
+      async (tx) => ({
+        returns: await returnsOf(tx, query),
+        voids: await voidedSalesOf(tx, query),
+      }),
+      { isolationLevel: "repeatable read", accessMode: "read only" },
+    );
   }
 }
 

@@ -132,27 +132,6 @@ describe("readReturnsReport", () => {
     expect(report.typed.totals).toEqual({ returns: 2, refunded: 2_000 });
   });
 
-  it("asks for the voided sales of the same range, register and branch", async () => {
-    const reader = new FakeReturnsReportReader();
-
-    await readReturnsReport(
-      { zoneRules: new FakeZoneRulesSource(), reader, clock },
-      {
-        locationId: "branch-2",
-        asked: { from: "2026-10-01", to: "2026-10-06" },
-        registerId: "reg-9",
-      },
-    );
-
-    expect(reader.voidReads).toEqual([
-      {
-        locationId: "branch-2",
-        range: { from: "2026-10-01", to: "2026-10-06" },
-        registerId: "reg-9",
-      },
-    ]);
-  });
-
   it("answers the voided sales with their totals and the summaries by cashier and by authorizer", async () => {
     const reader = new FakeReturnsReportReader(
       [

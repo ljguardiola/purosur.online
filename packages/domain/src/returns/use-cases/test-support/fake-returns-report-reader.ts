@@ -1,10 +1,12 @@
 import type { ReturnRecord, VoidedSaleRecord } from "../../model/returns-report.js";
-import type { ReturnsReportQuery, ReturnsReportReader } from "../returns-report-reader.js";
+import type {
+  ReturnsAndVoids,
+  ReturnsReportQuery,
+  ReturnsReportReader,
+} from "../returns-report-reader.js";
 
 export class FakeReturnsReportReader implements ReturnsReportReader {
   readonly reads: ReturnsReportQuery[] = [];
-
-  readonly voidReads: ReturnsReportQuery[] = [];
 
   private readonly records: readonly ReturnRecord[];
 
@@ -15,13 +17,11 @@ export class FakeReturnsReportReader implements ReturnsReportReader {
     this.voids = voids;
   }
 
-  async returnsMade(query: ReturnsReportQuery): Promise<ReturnRecord[]> {
+  async returnsAndVoidsMade(query: ReturnsReportQuery): Promise<ReturnsAndVoids> {
     this.reads.push({ ...query, range: { ...query.range } });
-    return this.records.map((record) => ({ ...record }));
-  }
-
-  async salesVoided(query: ReturnsReportQuery): Promise<VoidedSaleRecord[]> {
-    this.voidReads.push({ ...query, range: { ...query.range } });
-    return this.voids.map((record) => ({ ...record }));
+    return {
+      returns: this.records.map((record) => ({ ...record })),
+      voids: this.voids.map((record) => ({ ...record })),
+    };
   }
 }

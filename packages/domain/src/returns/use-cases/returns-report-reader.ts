@@ -7,7 +7,11 @@ export interface ReturnsReportQuery {
   registerId: string | undefined;
 }
 
+export interface ReturnsAndVoids {
+  returns: ReturnRecord[];
+  voids: VoidedSaleRecord[];
+}
+
 export interface ReturnsReportReader {
-  returnsMade(query: ReturnsReportQuery): Promise<ReturnRecord[]>;
-  salesVoided(query: ReturnsReportQuery): Promise<VoidedSaleRecord[]>;
+  returnsAndVoidsMade(query: ReturnsReportQuery): Promise<ReturnsAndVoids>;
 }

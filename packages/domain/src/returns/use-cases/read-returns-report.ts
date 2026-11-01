@@ -43,8 +43,11 @@ export async function readReturnsReport(
   { locationId, asked, registerId }: ReadReturnsReportInput,
 ): Promise<ReturnsReport> {
   const range = reportPeriodOf(asked, clock.now(), zoneRules.zoneRules());
-  const records = await reader.returnsMade({ locationId, range, registerId });
-  const voided = await reader.salesVoided({ locationId, range, registerId });
+  const { returns: records, voids: voided } = await reader.returnsAndVoidsMade({
+    locationId,
+    range,
+    registerId,
+  });
   return {
     range,
     ...returnsReportGroups(records),
