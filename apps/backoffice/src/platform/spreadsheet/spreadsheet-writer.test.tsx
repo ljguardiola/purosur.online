@@ -89,6 +89,14 @@ test("writes a count as a number with a thousands format", () => {
   expect(cells.get("B2")).toMatchObject({ type: null, value: "1234", numberFormat: "#,##0" });
 });
 
+test("writes a weight as kilograms from the integer thousandths with three decimals", () => {
+  const cells = cellsOf(workbookOf([[cell.weight(186_400), cell.weight(5), cell.weight(0)]]));
+
+  expect(cells.get("A2")).toMatchObject({ type: null, value: "186.4", numberFormat: "#,##0.000" });
+  expect(cells.get("B2")?.value).toBe("0.005");
+  expect(cells.get("C2")?.value).toBe("0");
+});
+
 test("writes money as pesos from the integer cents with no float error", () => {
   const cells = cellsOf(
     workbookOf([
