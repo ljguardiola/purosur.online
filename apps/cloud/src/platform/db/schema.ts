@@ -31,6 +31,7 @@ import {
   type PointCardType,
   PRODUCT_COVERAGE_DAYS_MAX,
   PRODUCT_COVERAGE_DAYS_MIN,
+  PURCHASE_ORDER_STATES,
   RECEIPT_TYPES,
   type RejectedDocumentRemedy,
   SNAPSHOT_CORRUPTION_STAGES,
@@ -828,6 +829,69 @@ export const purchaseLines = pgTable(
     ),
     unique("purchase_lines_purchase_id_position_key").on(table.purchaseId, table.position),
     index("purchase_lines_purchase_id_idx").on(table.purchaseId),
+  ],
+);
+
+export const purchaseOrders = pgTable(
+  "purchase_orders",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    supplierId: uuid("supplier_id")
+      .notNull()
+      .references(() => suppliers.id),
+    locationId: uuid("location_id")
+      .notNull()
+      .references(() => locations.id),
+    state: text("state").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => users.id),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    cancelledBy: uuid("cancelled_by").references(() => users.id),
+  },
+  (table) => [
+    check(
+      "purchase_orders_state_check",
+      sql`${table.state} in (${quotedList(PURCHASE_ORDER_STATES)})`,
+    ),
+    check(
+      "purchase_orders_cancellation_check",
+      sql`(${table.state} = 'CANCELLED') = (${table.cancelledAt} is not null and ${table.cancelledBy} is not null) and (${table.cancelledAt} is null) = (${table.cancelledBy} is null)`,
+    ),
+    index("purchase_orders_location_id_state_created_at_idx").on(
+      table.locationId,
+      table.state,
+      table.createdAt,
+    ),
+  ],
+);
+
+export const purchaseOrderLines = pgTable(
+  "purchase_order_lines",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    purchaseOrderId: uuid("purchase_order_id")
+      .notNull()
+      .references(() => purchaseOrders.id),
+    position: integer("position").notNull(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id),
+    packages: integer("packages").notNull(),
+    quantityPerPackage: bigint("quantity_per_package", { mode: "number" }).notNull(),
+    expectedPackagePriceCents: bigint("expected_package_price_cents", { mode: "number" }),
+  },
+  (table) => [
+    check("purchase_order_lines_position_check", sql`${table.position} > 0`),
+    check("purchase_order_lines_packages_check", sql`${table.packages} > 0`),
+    check("purchase_order_lines_quantity_per_package_check", sql`${table.quantityPerPackage} > 0`),
+    check(
+      "purchase_order_lines_expected_package_price_check",
+      sql`${table.expectedPackagePriceCents} >= 0`,
+    ),
+    unique("purchase_order_lines_order_product_key").on(table.purchaseOrderId, table.productId),
+    unique("purchase_order_lines_order_position_key").on(table.purchaseOrderId, table.position),
   ],
 );
 
