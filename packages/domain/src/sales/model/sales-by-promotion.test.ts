@@ -174,7 +174,7 @@ describe("promotionDiscountTotals", () => {
     expect(promotionDiscountTotals(rows).mostUsed?.promotionId).toBe("p2");
   });
 
-  it("breaks a tie of lines and amount by name, comparing code units and a missing name last", () => {
+  it("breaks a tie of lines and amount by name as a Spanish reader does, a missing name last", () => {
     const rows = salesOfPromotions([
       discounted("p1", null, 3, 100),
       discounted("p2", "Zoe", 3, 100),

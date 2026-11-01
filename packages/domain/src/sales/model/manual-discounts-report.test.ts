@@ -366,7 +366,7 @@ describe("manualDiscountTotals", () => {
     expect(manualDiscountTotals(rows).mostAuthorized?.id).toBe("b");
   });
 
-  it("breaks a tie of discounts and amount by name, comparing code units and a missing name last", () => {
+  it("breaks a tie of discounts and amount by name as a Spanish reader does, a missing name last", () => {
     const rows = manualDiscountRows(
       recordsOf([
         saleDiscount("s1", { actorId: "a", actorName: null }),
