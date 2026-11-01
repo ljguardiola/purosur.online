@@ -1,16 +1,18 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
-import { expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
 import { render } from "../shell/test-support/render-with-router";
 import { dateSegments } from "../shell/test-support/report-dates";
-import { FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
+import { BACK_REGISTER_ID, FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
 import {
   createReportRegisterFilterServices,
   type ReportRegisterFilterServices,
   reportRegisterFieldForTests,
 } from "../shell/test-support/report-register-filter";
+import { spyOnDownloads } from "../shell/test-support/spy-on-downloads";
 import {
   type SalesByPromotionFilters,
   salesByPromotionFilters,
@@ -403,4 +405,67 @@ test("shows every promotion on one page, with no pages and no export", async () 
 
   expect(screen.getByRole("navigation", { name: /Páginas/ }).query()).toBeNull();
   expect(screen.getByRole("button", { name: "Exportar" }).query()).toBeNull();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+test("downloads a spreadsheet of the promotions shown, with the applied register and the figures", async () => {
+  const downloads = spyOnDownloads();
+  const screen = await renderScreen(createServices(), {
+    filters: salesByPromotionFilters.parse({ register: BACK_REGISTER_ID }),
+  });
+  await expect
+    .element(screen.getByRole("combobox", { name: /^Caja:/ }))
+    .toHaveValue("Caja del fondo");
+  await expect.element(screen.getByRole("table").getByText("Finde de yerbas")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
+
+  await expect
+    .poll(() => downloads.names)
+    .toEqual(["descuentos-por-promocion-2026-10-01-2026-10-07.xlsx"]);
+  const file = await readDownloadedXlsx(downloads.blobs[0]);
+  expect(file.sheetNames).toEqual(["Resumen", "Descuentos por promoción"]);
+  const summary = file.sheet(0);
+  expect(summary.get("B4")?.value).toBe("Caja del fondo");
+  expect(summary.get("B5")?.value).toBe("2130");
+  expect(summary.get("B7")?.value).toBe("Tres por dos");
+  const promotions = file.sheet(1);
+  expect(promotions.get("A2")?.value).toBe("Finde de yerbas");
+  expect(promotions.get("B2")?.value).toBe(
+    "Categoría · Almacén › Yerbas · 15 % de descuento · Sábado y domingo",
+  );
+  expect(promotions.get("F2")?.value).toBe("1200");
+  expect(promotions.get("E3")?.value).toBe("2.5");
+});
+
+test("downloads the promotions in the order the screen sorts them", async () => {
+  const downloads = spyOnDownloads();
+  const screen = await renderScreen(createServices(), {
+    filters: salesByPromotionFilters.parse({ sortBy: "lines", sort: "descending" }),
+  });
+  await expect.element(screen.getByRole("table").getByText("Finde de yerbas")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
+
+  await expect.poll(() => downloads.blobs.length).toBe(1);
+  const promotions = (await readDownloadedXlsx(downloads.blobs[0])).sheet(1);
+  expect(promotions.get("A2")?.value).toBe("Tres por dos");
+  expect(promotions.get("A3")?.value).toBe("Finde de yerbas");
+  expect(promotions.get("A4")?.value).toBe("Promoción desconocida");
+});
+
+test("has its download disabled while the report loads and after loading fails", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchSalesByPromotion).mockReturnValue(new Promise(() => {}));
+  const loading = await renderScreen(services);
+  await expect.element(loading.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
+  await loading.unmount();
+
+  vi.mocked(services.fetchSalesByPromotion).mockResolvedValue({ kind: "failed" });
+  const failed = await renderScreen(services);
+  await expect.element(failed.getByRole("button", { name: "Reintentar" })).toBeVisible();
+  await expect.element(failed.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
 });
