@@ -6,7 +6,7 @@ import {
   SALE_VOIDED_REFUND_ORIGIN,
   type SaleDiscount,
 } from "@purosur/domain";
-import type { SyncedFact } from "@purosur/domain/sync/use-cases";
+import type { SyncedFact, UnappliedEvent } from "@purosur/domain/sync/use-cases";
 import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
@@ -168,11 +168,13 @@ export async function recordAppliedVoidedSale<TQueryResult extends PgQueryResult
   tx: PgDatabase<TQueryResult>,
   { registerId }: AppliedOrigin,
   { sale }: Extract<SyncedFact, { kind: "sale_voided" }>,
-  eventId: string,
+  { eventId, actorId }: Pick<UnappliedEvent, "eventId" | "actorId">,
 ): Promise<void> {
   const [voided] = await tx
     .update(sales)
-    .set({ state: "VOIDED", voidedAt: sale.voidedAt, voidAuthorizedBy: sale.authorizedBy })
+    .set({ state: "VOIDED", voidedAt: sale.voidedAt, voidAuthorizedBy: sale.authorizedBy,
+      voidedBy: actorId,
+    })
     .where(
       and(
         eq(sales.id, sale.id),
