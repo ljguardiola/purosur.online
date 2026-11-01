@@ -4,7 +4,12 @@ import { applyDecimalEdit, type DecimalEdit, reformatDecimalText } from "./decim
 function editOf(event: InputEvent): DecimalEdit | undefined {
   switch (event.inputType) {
     case "insertText":
-      return event.data === null ? undefined : { kind: "insert", data: event.data };
+      if (event.data === null) {
+        return undefined;
+      }
+      return event.data.length > 1
+        ? { kind: "insert-paste", data: event.data }
+        : { kind: "insert", data: event.data };
     case "insertFromPaste": {
       const data = event.dataTransfer?.getData("text/plain") ?? event.data;
       return data === null ? undefined : { kind: "insert-paste", data };
