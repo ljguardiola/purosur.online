@@ -1,7 +1,7 @@
 import { CalendarDate } from "@internationalized/date";
 import { purchaseRegistrationBodySchema } from "@purosur/contracts";
 import { ANOTHER_FICTIONAL_CUIT, FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   emptyPurchaseForm,
   emptyPurchaseLine,
@@ -13,6 +13,7 @@ import {
   priceReviewProductIds,
   purchaseLineQuantityRefusal,
   purchaseLinesMessage,
+  purchaseProductOptions,
   purchaseReceiptNumberMessage,
   purchaseRegistrationRequestFrom,
   purchaseSupplierOptions,
@@ -21,6 +22,7 @@ import {
 } from "./purchase-form";
 import {
   AVENA_PRODUCT_ID,
+  aceiteDeAlmendras,
   MIEL_PRODUCT_ID,
   purchasableProducts,
 } from "./test-support/purchase-products";
@@ -181,18 +183,21 @@ describe("purchaseRegistrationRequestFrom", () => {
     ["no quantity per package", { packages: "2", quantityPerPackage: "" }],
     ["a quantity per package of zero", { packages: "2", quantityPerPackage: "0" }],
     ["a fraction of a unit per package", { packages: "2", quantityPerPackage: "1,5" }],
-  ] as const)("builds a line loaded by packages the contract refuses with %s", (_name, overrides) => {
-    const request = purchaseRegistrationRequestFrom(
-      form({
-        lines: [
-          line({ productId: MIEL_PRODUCT_ID, loadedBy: "packages", cost: "5", ...overrides }),
-        ],
-      }),
-      purchasableProducts,
-    );
+  ] as const)(
+    "builds a line loaded by packages the contract refuses with %s",
+    (_name, overrides) => {
+      const request = purchaseRegistrationRequestFrom(
+        form({
+          lines: [
+            line({ productId: MIEL_PRODUCT_ID, loadedBy: "packages", cost: "5", ...overrides }),
+          ],
+        }),
+        purchasableProducts,
+      );
 
-    expect(purchaseRegistrationBodySchema.safeParse(request).success).toBe(false);
-  });
+      expect(purchaseRegistrationBodySchema.safeParse(request).success).toBe(false);
+    },
+  );
 
   it("types the quantity per package in kilos for a product sold by weight", () => {
     const request = purchaseRegistrationRequestFrom(
@@ -277,9 +282,7 @@ describe("purchaseLinesMessage", () => {
       message([
         line({ productId: AVENA_PRODUCT_ID, loadedBy: "packages", cost: "5", packages: "2" }),
       ]),
-    ).toBe(
-      "Línea 1: Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.",
-    );
+    ).toBe("Línea 1: Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.");
   });
 
   it("tells how to type the quantity in the product's sale unit", () => {
@@ -357,6 +360,42 @@ describe("purchaseSupplierOptions", () => {
 
   it("offers nothing when there is no supplier", () => {
     expect(purchaseSupplierOptions([])).toBeUndefined();
+  });
+});
+
+describe("purchaseProductOptions", () => {
+  it("takes only products that carry their brand name and net content", () => {
+    expectTypeOf<{ id: string; name: string; saleUnit: "UNIT" }[]>().not.toExtend<
+      Parameters<typeof purchaseProductOptions>[0]
+    >();
+  });
+
+  it("offers the products by name, or none when there is none", () => {
+    expect(
+      purchaseProductOptions([...purchasableProducts].reverse())?.map((option) => option.label),
+    ).toEqual(["Almendras peladas", "Avena arrollada", "Miel pura de abeja 1 kg"]);
+    expect(purchaseProductOptions([])).toBeUndefined();
+  });
+
+  it("describes each product with its brand name and net content", () => {
+    expect(
+      purchaseProductOptions([aceiteDeAlmendras, ...purchasableProducts])?.map(
+        (option) => option.label,
+      ),
+    ).toEqual([
+      "Aceite de Almendras Vitora 30 ml",
+      "Almendras peladas",
+      "Avena arrollada",
+      "Miel pura de abeja 1 kg",
+    ]);
+  });
+
+  it("orders two presentations of one name by their net content", () => {
+    const larger = { ...aceiteDeAlmendras, netContent: { quantity: 100, unit: "ML" } } as const;
+
+    expect(
+      purchaseProductOptions([larger, aceiteDeAlmendras])?.map((option) => option.label),
+    ).toEqual(["Aceite de Almendras Vitora 30 ml", "Aceite de Almendras Vitora 100 ml"]);
   });
 });
 

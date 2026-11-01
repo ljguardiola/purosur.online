@@ -711,7 +711,5 @@ test("loading a line by packages asks for the number of packages and the quantit
   await userEvent.click(group.getByText("Paquetes", { exact: true }).last());
 
   expect(group.getByText("Presentación").query()).toBeNull();
-  await expect
-    .element(group.getByRole("textbox", { name: /^Cantidad por paquete/ }))
-    .toBeVisible();
+  await expect.element(group.getByRole("textbox", { name: /^Cantidad por paquete/ })).toBeVisible();
 });
