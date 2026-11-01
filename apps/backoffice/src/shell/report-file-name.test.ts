@@ -12,3 +12,7 @@ test("drops accents and punctuation but keeps ñ's base letter", () => {
     reportFileName("Stock: año / ñandú (¡hoy!)", { from: "2026-10-07", to: "2026-10-07" }),
   ).toBe("stock-ano-nandu-hoy-2026-10-07-2026-10-07.xlsx");
 });
+
+test("ends with the title alone for a report that answers no period", () => {
+  expect(reportFileName("Stock actual valorizado")).toBe("stock-actual-valorizado.xlsx");
+});

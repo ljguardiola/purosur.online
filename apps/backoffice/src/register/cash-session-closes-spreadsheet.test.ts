@@ -74,7 +74,7 @@ test("has a sheet named after the table with each close, naming who closed only 
         cell.text("Beto"),
         cell.money(60_000),
         cell.money(60_000),
-        cell.text("Sin diferencia"),
+        cell.money(0),
       ],
     ],
   });
