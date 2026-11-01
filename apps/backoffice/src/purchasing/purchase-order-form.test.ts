@@ -15,6 +15,7 @@ describe("purchaseOrderFormValuesOf", () => {
     expect(purchaseOrderFormValuesOf(DRAFT_ORDER).lines).toEqual([
       {
         id: 1,
+        fromOrder: true,
         productId: MIEL_PRODUCT_ID,
         saleUnit: "UNIT",
         packages: "3",
@@ -22,6 +23,7 @@ describe("purchaseOrderFormValuesOf", () => {
       },
       {
         id: 2,
+        fromOrder: true,
         productId: AVENA_PRODUCT_ID,
         saleUnit: "KG",
         packages: "2",
@@ -46,6 +48,7 @@ describe("purchaseOrderEditRequestFrom", () => {
       lines: [
         {
           id: 1,
+          fromOrder: true,
           productId: AVENA_PRODUCT_ID,
           saleUnit: "KG",
           packages: "4",
@@ -71,9 +74,10 @@ describe("purchaseOrderEditRequestFrom", () => {
 });
 
 describe("emptyOrderLine and nextOrderLineId", () => {
-  test("an empty line has no product and nothing typed", () => {
+  test("an empty line is a new one, with no product and nothing typed", () => {
     expect(emptyOrderLine(7)).toEqual({
       id: 7,
+      fromOrder: false,
       productId: null,
       saleUnit: "UNIT",
       packages: "",
