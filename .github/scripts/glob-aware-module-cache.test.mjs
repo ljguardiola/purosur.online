@@ -3,8 +3,21 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
+import { loadConfigFromFile } from "vite";
 import { startVitest } from "vitest/node";
-import { globAwareModuleCache } from "./glob-aware-module-cache.mjs";
+
+const REPOSITORY_CONFIG = fileURLToPath(new URL("../../vitest.config.ts", import.meta.url));
+
+async function repositoryPlugins() {
+  const loaded = await loadConfigFromFile(
+    { command: "serve", mode: "test" },
+    REPOSITORY_CONFIG,
+    undefined,
+    "silent",
+  );
+  return loaded.config.plugins;
+}
 
 const GLOB_MODULE = [
   'const entries = import.meta.glob<string>("./entries/*.txt", {',
@@ -42,7 +55,7 @@ async function runVitest(root, cacheFolder) {
       fsModuleCachePath: cacheFolder,
       reporters: [{}],
     },
-    { plugins: [globAwareModuleCache()] },
+    { plugins: await repositoryPlugins() },
   );
   process.exitCode = previousExitCode;
   try {
