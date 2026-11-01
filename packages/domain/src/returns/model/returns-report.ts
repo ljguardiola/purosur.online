@@ -146,10 +146,7 @@ export function returnsReportTotals(
   };
 }
 
-function personOrder(a: ReportPerson | null, b: ReportPerson | null): number {
-  if (a === null || b === null) {
-    return Number(a === null) - Number(b === null);
-  }
+function personOrder(a: ReportPerson, b: ReportPerson): number {
   return compareOptionalNames(a.name, b.name) || compareCodeUnits(a.id, b.id);
 }
 
@@ -166,15 +163,18 @@ function summarizedBy(
   for (const record of returns) note(returnPerson(record));
   for (const record of voids) note(voidPerson(record));
   const idOf = (person: ReportPerson | null) => (person === null ? null : person.id);
-  return [...people.values()]
-    .map((person) => ({
-      person,
-      totals: returnsReportTotals(
-        returns.filter((record) => idOf(returnPerson(record)) === idOf(person)),
-        voids.filter((record) => idOf(voidPerson(record)) === idOf(person)),
-      ),
-    }))
-    .sort((a, b) => personOrder(a.person, b.person));
+  const summaries = [...people.values()].map((person) => ({
+    person,
+    totals: returnsReportTotals(
+      returns.filter((record) => idOf(returnPerson(record)) === idOf(person)),
+      voids.filter((record) => idOf(voidPerson(record)) === idOf(person)),
+    ),
+  }));
+  const attributed = summaries.flatMap(({ person, totals }) =>
+    person === null ? [] : [{ person, totals }],
+  );
+  const unattributed = summaries.filter(({ person }) => person === null);
+  return [...attributed.sort((a, b) => personOrder(a.person, b.person)), ...unattributed];
 }
 
 export function voidsAndReturnsByCashier(
