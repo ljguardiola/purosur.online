@@ -176,9 +176,7 @@ test("refuses an empty form under each field without submitting it", async () =>
   await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
 
   await expect.element(screen.getByText("Ingresá la fecha del flete.")).toBeVisible();
-  await expect
-    .element(screen.getByText("Escribí el monto con coma para los centavos, por ejemplo 1.250,50."))
-    .toBeVisible();
+  await expect.element(screen.getByText("Ingresá el monto del flete.")).toBeVisible();
   await expect.element(screen.getByText("Ingresá el medio del flete.")).toBeVisible();
   await expect.element(screen.getByText("Ingresá la descripción del flete.")).toBeVisible();
   await expect.element(screen.getByText("Elegí al menos una compra.")).toBeVisible();

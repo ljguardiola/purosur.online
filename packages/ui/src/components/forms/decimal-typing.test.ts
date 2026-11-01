@@ -219,6 +219,33 @@ describe("pasting", () => {
     expect(paste("7", 1, "", 2)).toEqual({ text: "7", caret: 1 });
   });
 
+  it("inserts a pasted whole number among the digits and regroups", () => {
+    expect(paste("1.234", 1, "5")).toEqual({ text: "15.234", caret: 2 });
+  });
+
+  it("ignores a pasted value whose comma would leave more digits than the decimals after it", () => {
+    expect(paste("1.234", 1, "5,50")).toEqual({ text: "1.234", caret: 1 });
+    expect(paste("100", 0, "12,50")).toEqual({ text: "100", caret: 0 });
+  });
+
+  it("ignores a pasted value with a comma when the field already has one", () => {
+    expect(paste("10,5", 2, "3,25")).toEqual({ text: "10,5", caret: 2 });
+  });
+
+  it("ignores a pasted value that would push the fraction beyond the decimals", () => {
+    expect(paste("10,50", 5, "7")).toEqual({ text: "10,50", caret: 5 });
+  });
+
+  it("takes a pasted value with a comma that replaces the whole text", () => {
+    expect(
+      applyDecimalEdit(
+        { text: "1.234", selectionStart: 0, selectionEnd: 5 },
+        { kind: "insert-paste", data: "5,50" },
+        2,
+      ),
+    ).toEqual({ text: "5,50", caret: 4 });
+  });
+
   it("keeps the selection's text when the pasted value is ignored", () => {
     expect(
       applyDecimalEdit(

@@ -31,8 +31,8 @@ test("builds a request the contract refuses when the typed cost is not an amount
 test.each([
   { cost: "", reason: "Ingresá el costo de referencia." },
   {
-    cost: "12.50",
-    reason: "Escribí el costo con coma para los decimales, por ejemplo 10.180,50.",
+    cost: "12,",
+    reason: "Completá los decimales del costo después de la coma, por ejemplo 10.180,50.",
   },
   { cost: "0", reason: "Ingresá un costo mayor a cero, de hasta $ 21.474.836,47." },
   {

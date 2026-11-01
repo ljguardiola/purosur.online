@@ -494,7 +494,7 @@ test("groups thousands and takes a typed dot as the decimal comma in a quantity 
   await userEvent.click(cardLabel(rendered, "Resta"));
   const field = dialog.getByRole("textbox", { name: /^Cantidad/ });
   await userEvent.clear(field);
-  await userEvent.type(field, "12.5");
+  await userEvent.type(field, "1234.5");
 
-  await expect.element(field).toHaveValue("12,5");
+  await expect.element(field).toHaveValue("1.234,5");
 });

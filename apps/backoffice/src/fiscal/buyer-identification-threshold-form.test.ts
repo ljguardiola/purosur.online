@@ -38,8 +38,8 @@ test.each([
 test.each([
   { amount: "", reason: "Ingresá el importe del umbral." },
   {
-    amount: "12.50",
-    reason: "Escribí el importe con coma para los decimales, por ejemplo 7.500,50.",
+    amount: "12,",
+    reason: "Completá los decimales del importe después de la coma, por ejemplo 7.500,50.",
   },
   { amount: "0", reason: "Ingresá un importe mayor a cero." },
 ])("a typed amount of '$amount' can't be saved: $reason", ({ amount, reason }) => {

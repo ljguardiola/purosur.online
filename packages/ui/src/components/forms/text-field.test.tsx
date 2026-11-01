@@ -1434,6 +1434,16 @@ function pasteInto(input: HTMLInputElement, text: string) {
   );
 }
 
+async function dropInto(input: HTMLInputElement, text: string) {
+  const box = input.getBoundingClientRect();
+  const point = { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+  const data = { items: [{ mimeType: "text/plain", data: text }], dragOperationsMask: 1 };
+  const session = cdp();
+  for (const type of ["dragEnter", "dragOver", "drop"] as const) {
+    await session.send("Input.dispatchDragEvent", { type, ...point, data });
+  }
+}
+
 async function focusAt(input: HTMLInputElement, caret: number) {
   await userEvent.click(input);
   input.setSelectionRange(caret, caret);
@@ -1569,6 +1579,38 @@ test("ignores a pasted value that is not Argentine text", async () => {
   await userEvent.keyboard("7");
 
   expect(input.value).toBe("7");
+});
+
+test("ignores a pasted value whose decimals would land among the existing digits", async () => {
+  const screen = await render(<DecimalHarness initial="1.234" />);
+  const input = fieldInput(screen, "Amount");
+
+  await focusAt(input, 1);
+  pasteInto(input, "5,50");
+  await userEvent.keyboard("9");
+
+  expect(input.value).toBe("19.234");
+});
+
+test("ignores a dropped value that is not Argentine text", async () => {
+  const screen = await render(<DecimalHarness />);
+  const input = fieldInput(screen, "Amount");
+
+  await userEvent.click(input);
+  await dropInto(input, "12.5");
+  await userEvent.keyboard("7");
+
+  expect(input.value).toBe("7");
+});
+
+test("reads a dropped value as Argentine text", async () => {
+  const screen = await render(<DecimalHarness />);
+  const input = fieldInput(screen, "Amount");
+
+  await userEvent.click(input);
+  await dropInto(input, "1.234,50");
+
+  await expect.poll(() => input.value).toBe("1.234,50");
 });
 
 test("takes the numeric keypad's dot as the decimal comma of a weight", async () => {

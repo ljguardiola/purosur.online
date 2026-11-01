@@ -122,8 +122,8 @@ describe("AddWeighedProductModal", () => {
   it("groups thousands and takes a typed dot as the decimal comma", async () => {
     const { field } = await renderModal();
     await userEvent.clear(field);
-    await userEvent.type(field, "12.5");
+    await userEvent.type(field, "1234.5");
 
-    await expect.element(field).toHaveValue("12,5");
+    await expect.element(field).toHaveValue("1.234,5");
   });
 });
