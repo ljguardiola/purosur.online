@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { SoldLinesOfGroup } from "../../sales/index.js";
 import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import { listOrderSuggestion } from "./list-order-suggestion.js";
 import type { ComparableProduct } from "./supplier-price-comparison-reader.js";
@@ -47,10 +48,14 @@ function offer(
   };
 }
 
-function soldOf(productId: string, quantity: number, weightSource: "SCALE" | null = null) {
+function soldOf(
+  productId: string | null,
+  quantity: number,
+  weightSource: "SCALE" | null = null,
+): SoldLinesOfGroup {
   return {
     id: productId,
-    path: [productId],
+    path: [String(productId)],
     brandName: null,
     netContent: null,
     weightSource,
@@ -62,7 +67,7 @@ function soldOf(productId: string, quantity: number, weightSource: "SCALE" | nul
 function readerWith(fields: {
   products?: ComparableProduct[];
   offers?: ReturnType<typeof offer>[];
-  sold?: ReturnType<typeof soldOf>[];
+  sold?: SoldLinesOfGroup[];
   stock?: { productId: string; quantity: number }[];
   coverage?: { productId: string; coverageDays: number }[];
 }) {
@@ -247,7 +252,7 @@ describe("listOrderSuggestion", () => {
 
   it("ignores sales of something that is no longer a product or is not compared", async () => {
     const reader = readerWith({
-      sold: [{ ...soldOf("yerba", 30), id: null }, soldOf("retirado", 99)],
+      sold: [soldOf(null, 30), soldOf("retirado", 99)],
     });
 
     expect(await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH })).toEqual([]);
