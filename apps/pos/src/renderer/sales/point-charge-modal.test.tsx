@@ -4,6 +4,7 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { PointChargeModal } from "./point-charge-modal";
+import { expectChargeSummaryInColumns } from "./test-support/charge-summary";
 
 const TOTAL = 5_070_000;
 const PAYMENT_ID = "019a0000-0000-7000-8000-0000000000b1";
@@ -58,6 +59,12 @@ describe("PointChargeModal", () => {
     const { screen } = await renderModal(undefined, WHOLE_SALE, "CREDIT");
 
     await expect.element(screen.getByText("POINT · CRÉDITO")).toBeVisible();
+  });
+
+  it("shows the sale total, what is paid and what is to be charged now side by side, the last one emphasized", async () => {
+    const { screen } = await renderModal();
+
+    await expectChargeSummaryInColumns(screen, ["Total de la venta", "Pagado", "Saldo pendiente"]);
   });
 
   it("asks how much is charged on the terminal and shows what is owed", async () => {
