@@ -366,37 +366,4 @@ describe("the offers of a supplier for a product", () => {
       },
     ]);
   });
-
-  it("let an order take a current item without a comparable price over an outdated one", async () => {
-    const supplierId = await insertSupplier(db, { actorId });
-    const { id: productId } = await insertProduct(db, { name: "Yerba" });
-    await insertOfferedItem(db, {
-      supplierId,
-      productId,
-      actorId,
-      quantity: 1_000,
-      priceCents: 2_000,
-      relinkRequired: true,
-    });
-    await insertOfferedItem(db, {
-      supplierId,
-      productId,
-      actorId,
-      quantity: 6_000,
-      priceCents: 9_000,
-      vatRate: null,
-    });
-
-    const outcome = await build([{ productId, supplierId, packages: 2 }]);
-
-    expect(outcome.kind).toBe("created");
-    expect(
-      await db
-        .select({
-          quantityPerPackage: purchaseOrderLines.quantityPerPackage,
-          expectedPackagePriceCents: purchaseOrderLines.expectedPackagePriceCents,
-        })
-        .from(purchaseOrderLines),
-    ).toEqual([{ quantityPerPackage: 6_000, expectedPackagePriceCents: 9_000 }]);
-  });
 });

@@ -28,7 +28,7 @@ export interface SupplierProductOffer {
   link: { quantity: number; saleUnit: SaleUnit; relinkRequired: boolean };
   priceCents: number;
   pricesIncludeVat: boolean;
-  // In basis points, null for an item whose list prices include VAT.
+  // In basis points, null when the item has none.
   vatRate: number | null;
 }
 

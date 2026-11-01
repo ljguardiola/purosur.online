@@ -1000,7 +1000,6 @@ export {
   areZoneTransitionsOrdered,
   argentinaCalendarDay,
   argentinaInstant,
-  cheapestOffer,
   compareCodeUnits,
   compareSpanishText,
   FIXED_ARGENTINA_ZONE_RULES,
