@@ -92,7 +92,6 @@ describe("registerPurchase", () => {
           {
             id: "purchase-line-2",
             productId: "product-a",
-            packagingId: null,
             packages: 2,
             quantity: 24_000,
             costPaidCents: 1_450_050,
@@ -123,7 +122,6 @@ describe("registerPurchase", () => {
         purchaseId: "purchase-1",
         position: 1,
         productId: "product-a",
-        packagingId: null,
         packages: 2,
         quantity: 24_000,
         costPaidCents: 1_450_050,
@@ -184,7 +182,7 @@ describe("registerPurchase", () => {
     ]);
   });
 
-  it("registers a line loaded by quantity paid per sale unit, with no packaging", async () => {
+  it("registers a line loaded by quantity paid per sale unit", async () => {
     const store = storeWithCatalog();
 
     const outcome = await registerPurchase(
@@ -198,7 +196,6 @@ describe("registerPurchase", () => {
         lines: [
           {
             productId: "product-b",
-            packagingId: null,
             packages: null,
             quantity: 2_500,
             costPaidCents: 90_000,
