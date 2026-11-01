@@ -53,7 +53,6 @@ export type {
 export { detectDeferredSaleDeadlines } from "./detect-deferred-sale-deadlines.js";
 export { detectExceptionShareBreaches } from "./detect-exception-share-breaches.js";
 export { detectExpiringLots } from "./detect-expiring-lots.js";
-export { detectSecondNonCompliantMonthRisks } from "./detect-second-month-risks.js";
 export { detectFortnightReportDeadlines } from "./detect-fortnight-report-deadlines.js";
 export { detectFortnightReportRegularizations } from "./detect-fortnight-report-regularizations.js";
 export { detectMissingOfflineAuthorizationCodes } from "./detect-missing-offline-authorization-codes.js";
@@ -61,6 +60,7 @@ export { detectOwedElsewherePresentations } from "./detect-owed-elsewhere-presen
 export type { QuietRegisterDetectionPorts } from "./detect-quiet-registers.js";
 export { detectQuietRegisters } from "./detect-quiet-registers.js";
 export { detectRejectedFortnightDocuments } from "./detect-rejected-fortnight-documents.js";
+export { detectSecondNonCompliantMonthRisks } from "./detect-second-month-risks.js";
 export type { DetectUnverifiedOffsiteDumpOutcome } from "./detect-unverified-offsite-dump.js";
 export { detectUnverifiedOffsiteDump } from "./detect-unverified-offsite-dump.js";
 export { escalateOverdueAlerts } from "./escalate-overdue-alerts.js";
@@ -93,13 +93,6 @@ export type {
   MissingOfflineAuthorizationCodeAlerts,
   MissingOfflineAuthorizationCodeDetectionPorts,
 } from "./missing-offline-authorization-code-ports.js";
-export type {
-  RunningExceptionShareCounts,
-  SecondMonthRiskAddress,
-  SecondMonthRiskAlerts,
-  SecondMonthRiskDetectionPorts,
-  SecondMonthRiskReader,
-} from "./second-month-risk-ports.js";
 export type { ObserveAlertConditionOutcome } from "./observe-alert-condition.js";
 export { observeAlertCondition } from "./observe-alert-condition.js";
 export type { OfflineAuthorizationCodeHoldingReader } from "./offline-authorization-code-holding-reader.js";
@@ -128,6 +121,13 @@ export type {
 export type { ResolveAlertOutcome } from "./resolve-alert.js";
 export { resolveAlert } from "./resolve-alert.js";
 export { resolveStablyClearedAlerts } from "./resolve-stably-cleared-alerts.js";
+export type {
+  RunningExceptionShareCounts,
+  SecondMonthRiskAddress,
+  SecondMonthRiskAlerts,
+  SecondMonthRiskDetectionPorts,
+  SecondMonthRiskReader,
+} from "./second-month-risk-ports.js";
 export type {
   UnclearDocumentWithoutAlert,
   UnclearOutcomeAlertStore,
