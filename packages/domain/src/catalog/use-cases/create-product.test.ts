@@ -18,6 +18,7 @@ describe("createProduct", () => {
       barcodes: ["111"],
       tagIds: [],
       netContent: null,
+      coverageDays: 15,
     });
 
     expect(outcome).toEqual({ kind: "category_not_found" });
@@ -36,6 +37,7 @@ describe("createProduct", () => {
       barcodes: ["111"],
       tagIds: [],
       netContent: null,
+      coverageDays: 15,
     });
 
     expect(outcome).toEqual({ kind: "category_not_leaf" });
@@ -66,6 +68,7 @@ describe("createProduct", () => {
       barcodes: ["111"],
       tagIds: [],
       netContent: null,
+      coverageDays: 15,
     });
 
     expect(outcome).toEqual({ kind: "barcode_taken", codes: ["111"] });
@@ -96,6 +99,7 @@ describe("createProduct", () => {
       barcodes: ["111"],
       tagIds: [],
       netContent: null,
+      coverageDays: 15,
     });
 
     expect(outcome.kind).toBe("created");
@@ -114,6 +118,7 @@ describe("createProduct", () => {
       barcodes: ["111"],
       tagIds: [],
       netContent: null,
+      coverageDays: 15,
     });
 
     expect(outcome).toEqual({ kind: "barcode_taken", codes: ["111"] });
@@ -132,6 +137,7 @@ describe("createProduct", () => {
       barcodes: ["111", "222"],
       tagIds: [],
       netContent: { quantity: 0.5, unit: "KG" },
+      coverageDays: 30,
     });
 
     expect(outcome).toEqual({
@@ -146,6 +152,7 @@ describe("createProduct", () => {
         barcodes: ["111", "222"],
         tagIds: [],
         netContent: { quantity: 0.5, unit: "KG" },
+        coverageDays: 30,
         active: true,
         version: 1,
       },
@@ -158,6 +165,7 @@ describe("createProduct", () => {
         brandId: null,
         saleUnit: "KG",
         netContent: { quantity: 0.5, unit: "KG" },
+        coverageDays: 30,
         active: true,
         version: 1,
       },
@@ -179,6 +187,7 @@ describe("createProduct", () => {
       barcodes: ["111"],
       tagIds: [],
       netContent: null,
+      coverageDays: 15,
     });
 
     expect(outcome).toMatchObject({ kind: "created", product: { brandId: "brand-1" } });
@@ -204,6 +213,7 @@ describe("createProduct", () => {
       barcodes: ["111"],
       tagIds: [],
       netContent: null,
+      coverageDays: 15,
     });
 
     expect(outcome).toMatchObject({ kind: "created", product: { brandId: null } });
@@ -223,6 +233,7 @@ describe("createProduct", () => {
       barcodes: ["111"],
       tagIds: [],
       netContent: null,
+      coverageDays: 15,
     });
 
     expect(outcome).toEqual({ kind: "brand_not_found" });
@@ -242,6 +253,7 @@ describe("createProduct", () => {
       barcodes: ["111"],
       tagIds: [],
       netContent: null,
+      coverageDays: 15,
     });
 
     expect(outcome).toEqual({ kind: "brand_inactive" });
@@ -259,6 +271,7 @@ describe("createProduct", () => {
       barcodes: ["111"],
       tagIds: [],
       netContent: null,
+      coverageDays: 15,
     });
 
     expect(outcome).toEqual({ kind: "category_not_found" });
@@ -289,6 +302,7 @@ describe("createProduct", () => {
       barcodes: ["111"],
       tagIds: [],
       netContent: null,
+      coverageDays: 15,
     });
 
     expect(outcome).toEqual({ kind: "brand_not_found" });
@@ -326,6 +340,7 @@ describe("createProduct", () => {
       barcodes: ["111"],
       tagIds: [],
       netContent: null,
+      coverageDays: 15,
     });
 
     expect(store.lockCallOrder).toEqual(["lockLeafCategory"]);
@@ -344,6 +359,7 @@ describe("createProduct", () => {
         barcodes: ["111"],
         tagIds: [],
         netContent: null,
+        coverageDays: 15,
       }),
     ).rejects.toThrow("connection lost");
   });
@@ -360,6 +376,7 @@ describe("createProduct", () => {
       barcodes: ["111"],
       tagIds: [],
       netContent: null,
+      coverageDays: 15,
     });
 
     expect(store.transactionCount).toBe(1);
@@ -378,6 +395,7 @@ describe("createProduct", () => {
       barcodes: ["111", "222"],
       tagIds: [],
       netContent: null,
+      coverageDays: 15,
     });
 
     expect(store.snapshot().products).toEqual([]);
@@ -399,6 +417,7 @@ describe("createProduct", () => {
       barcodes: ["111"],
       tagIds: ["tag-9", "tag-2"],
       netContent: null,
+      coverageDays: 15,
     });
 
     expect(outcome).toMatchObject({ kind: "created", product: { tagIds: ["tag-9", "tag-2"] } });
@@ -430,6 +449,7 @@ describe("createProduct", () => {
       barcodes: ["111"],
       tagIds: ["tag-3", "tag-1", "tag-2"],
       netContent: null,
+      coverageDays: 15,
     });
 
     expect(store.lockCallOrder).toEqual([
@@ -454,6 +474,7 @@ describe("createProduct", () => {
       barcodes: ["111"],
       tagIds: [],
       netContent: null,
+      coverageDays: 15,
     });
 
     expect(outcome).toMatchObject({ kind: "created", product: { tagIds: [] } });
@@ -474,6 +495,7 @@ describe("createProduct", () => {
       barcodes: ["111"],
       tagIds: ["tag-1", "missing"],
       netContent: null,
+      coverageDays: 15,
     });
 
     expect(outcome).toEqual({ kind: "tag_not_found" });
@@ -495,6 +517,7 @@ describe("createProduct", () => {
       barcodes: ["111"],
       tagIds: ["tag-1", "tag-2"],
       netContent: null,
+      coverageDays: 15,
     });
 
     expect(outcome).toEqual({ kind: "tag_inactive", tagId: "tag-2" });

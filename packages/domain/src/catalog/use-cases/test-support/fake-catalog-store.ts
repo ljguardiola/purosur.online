@@ -1,4 +1,4 @@
-import type { SaleUnit } from "../../model/product.js";
+import { DEFAULT_PRODUCT_COVERAGE_DAYS, type SaleUnit } from "../../model/product.js";
 import type {
   BrandFields,
   BuyNPayMDiscount,
@@ -52,9 +52,13 @@ export interface FakeProductRow {
   brandId: string | null;
   saleUnit: SaleUnit;
   netContent: CatalogNetContent | null;
+  coverageDays: number;
   active: boolean;
   version: number;
 }
+
+export type SeededProductRow = Omit<FakeProductRow, "coverageDays"> &
+  Partial<Pick<FakeProductRow, "coverageDays">>;
 
 export interface FakeDiscountRow {
   id: string;
@@ -281,6 +285,7 @@ class FakeCatalogStoreTransaction implements CatalogStoreTransaction {
       brandId: fields.brandId,
       saleUnit: fields.saleUnit,
       netContent: fields.netContent,
+      coverageDays: fields.coverageDays,
       active: true,
       version: 1,
     });
@@ -304,6 +309,7 @@ class FakeCatalogStoreTransaction implements CatalogStoreTransaction {
         product.brandId = fields.brandId;
         product.saleUnit = fields.saleUnit;
         product.netContent = fields.netContent;
+        product.coverageDays = fields.coverageDays;
         product.version = fields.version;
       }
     }
@@ -523,11 +529,14 @@ export class FakeCatalogStore implements CatalogStore {
   }
 
   seedProduct(
-    product: FakeProductRow,
+    product: SeededProductRow,
     barcodes: readonly { code: string; active?: boolean }[],
     tagIds: readonly string[] = [],
   ): void {
-    this.state.products.push({ ...product });
+    this.state.products.push({
+      coverageDays: DEFAULT_PRODUCT_COVERAGE_DAYS,
+      ...product,
+    });
     for (const tagId of tagIds) {
       this.state.productTags.push({ productId: product.id, tagId });
     }
