@@ -19,7 +19,7 @@ function createServices(): ReportRegisterFilterServices {
 type Handlers = {
   value?: string;
   onChange?: (register: string) => void;
-  onLabelChange?: (label: string) => void;
+  onLabelChange?: (label: string | undefined) => void;
   onSessionEnded?: () => void;
 };
 
@@ -152,4 +152,24 @@ test("reports the label of the register shown, Todas first and the register's na
   await userEvent.click(screen.getByRole("option", { name: "Caja del fondo" }));
 
   await expect.poll(() => onLabelChange.mock.lastCall).toEqual(["Caja del fondo"]);
+});
+
+test("reports no label while the name of the register it is given loads", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchReportRegisters).mockReturnValue(new Promise(() => {}));
+  const onLabelChange = vi.fn();
+
+  await renderFilter(services, { value: BACK_REGISTER_ID, onLabelChange });
+
+  await expect.poll(() => onLabelChange.mock.lastCall).toEqual([undefined]);
+});
+
+test("reports the label it shows for the register it is given when the registers cannot be listed", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchReportRegisters).mockResolvedValue({ kind: "failed" });
+  const onLabelChange = vi.fn();
+
+  await renderFilter(services, { value: BACK_REGISTER_ID, onLabelChange });
+
+  await expect.poll(() => onLabelChange.mock.lastCall).toEqual(["La elegida"]);
 });

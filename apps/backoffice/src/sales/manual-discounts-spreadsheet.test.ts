@@ -45,7 +45,7 @@ test("names the chosen authorizer and leaves out Más autorizó, as the screen d
   expect(summary?.rows.map(([label]) => label)).not.toContainEqual(cell.text("Más autorizó"));
 });
 
-test("has a sheet named after the table with each discount as the screen shows it", () => {
+test("has a sheet named after the table with each discount, its adjustment as an amount or a percentage", () => {
   const sheets = manualDiscountsSpreadsheet(manualDiscountsReport, "ALL", "Todas").sheets;
 
   expect(sheets[1]?.name).toBe("Descuentos manuales");
@@ -54,6 +54,7 @@ test("has a sheet named after the table with each discount as the screen shows i
     "Venta",
     "Producto",
     "Tipo",
+    "Ajuste",
     "Motivo",
     "Autorizó",
     "Descontado",
@@ -63,7 +64,8 @@ test("has a sheet named after the table with each discount as the screen shows i
       cell.instant("2026-10-07T14:30:00.000Z", ARGENTINA_TIME_ZONE),
       cell.text("Operación 000012"),
       cell.empty(),
-      cell.text("Sobre el total · $ 700,00"),
+      cell.text("Sobre el total"),
+      cell.money(70_000),
       cell.text("Cliente frecuente"),
       cell.text("Beto"),
       cell.money(70_000),
@@ -72,7 +74,8 @@ test("has a sheet named after the table with each discount as the screen shows i
       cell.instant("2026-10-07T13:00:00.000Z", ARGENTINA_TIME_ZONE),
       cell.text("Operación 000011"),
       cell.text("Yerba 1 kg"),
-      cell.text("De línea · 10 %"),
+      cell.text("De línea"),
+      cell.percent(10),
       cell.text("Envase dañado"),
       cell.text("Ana"),
       cell.money(20_000),
@@ -81,7 +84,8 @@ test("has a sheet named after the table with each discount as the screen shows i
       cell.instant("2026-10-07T13:00:00.000Z", ARGENTINA_TIME_ZONE),
       cell.text("Operación 000011"),
       cell.text("Azúcar 1 kg"),
-      cell.text("De línea · $ 500,00"),
+      cell.text("De línea"),
+      cell.money(50_000),
       cell.text("Regateo"),
       cell.text("Ana"),
       cell.money(50_000),
@@ -91,6 +95,7 @@ test("has a sheet named after the table with each discount as the screen shows i
       cell.empty(),
       cell.text("Aceite 900 ml"),
       cell.text("Precio nuevo"),
+      cell.empty(),
       cell.text("Vencimiento cercano"),
       cell.text("Sin identificar"),
       cell.money(15_000),

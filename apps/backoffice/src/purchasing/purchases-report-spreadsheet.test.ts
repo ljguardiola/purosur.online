@@ -29,24 +29,9 @@ test("has a sheet named after the table with a row for each month of each suppli
     name: "Compras por proveedor",
     header: ["Proveedor", "Mes", "Compras", "Importe"],
     rows: [
-      [
-        cell.text("Lácteos del Sur"),
-        cell.text("septiembre de 2026"),
-        cell.count(1),
-        cell.money(45_000),
-      ],
-      [
-        cell.text("Lácteos del Sur"),
-        cell.text("octubre de 2026"),
-        cell.count(2),
-        cell.money(130_050),
-      ],
-      [
-        cell.text("Panificados Norte"),
-        cell.text("octubre de 2026"),
-        cell.count(1),
-        cell.money(82_500),
-      ],
+      [cell.text("Lácteos del Sur"), cell.month("2026-09"), cell.count(1), cell.money(45_000)],
+      [cell.text("Lácteos del Sur"), cell.month("2026-10"), cell.count(2), cell.money(130_050)],
+      [cell.text("Panificados Norte"), cell.month("2026-10"), cell.count(1), cell.money(82_500)],
     ],
   });
 });

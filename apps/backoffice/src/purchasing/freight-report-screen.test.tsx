@@ -270,7 +270,7 @@ test("downloads a spreadsheet of the months shown, for the period the report ans
   expect(file.sheet(0).get("B4")?.value).toBe("1750.5");
   expect(file.sheet(0).get("B5")?.value).toBe("3");
   const months = file.sheet(1);
-  expect(months.get("A2")?.value).toBe("septiembre de 2026");
+  expect(months.get("A2")?.value).toBe("46266");
   expect(months.get("C3")?.value).toBe("1300.5");
 });
 

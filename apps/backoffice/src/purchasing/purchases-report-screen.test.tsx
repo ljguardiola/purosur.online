@@ -298,7 +298,7 @@ test("downloads a spreadsheet of the suppliers and months shown, for the period 
   expect(file.sheet(0).get("B6")?.value).toBe("2");
   const months = file.sheet(1);
   expect(months.get("A2")?.value).toBe("Lácteos del Sur");
-  expect(months.get("B2")?.value).toBe("septiembre de 2026");
+  expect(months.get("B2")?.value).toBe("46266");
   expect(months.get("D4")?.value).toBe("825");
   expect(file.sheet(2).get("C2")?.value).toBe("1750.5");
 });

@@ -403,12 +403,11 @@ test("navigates to Mi cuenta when the report request comes back forbidden", asyn
   await expect.poll(() => window.location.pathname).toBe("/account");
 });
 
-test("shows every discount on one page, with no pages and no export", async () => {
+test("shows every discount on one page, with no pages", async () => {
   const screen = await renderScreen(createServices());
   await expect.element(screen.getByRole("table").getByText("Cliente frecuente")).toBeVisible();
 
   expect(screen.getByRole("navigation", { name: /Páginas/ }).query()).toBeNull();
-  expect(screen.getByRole("button", { name: "Exportar" }).query()).toBeNull();
 });
 
 afterEach(() => {
@@ -442,8 +441,9 @@ test("downloads a spreadsheet of the discounts shown, with the applied register 
   const discounts = file.sheet(1);
   expect(discounts.get("A2")).toMatchObject({ numberFormat: "dd/mm/yyyy hh:mm" });
   expect(discounts.get("B2")?.value).toBe("Operación 000012");
-  expect(discounts.get("D2")?.value).toBe("Sobre el total · $ 700,00");
-  expect(discounts.get("G2")?.value).toBe("700");
+  expect(discounts.get("D2")?.value).toBe("Sobre el total");
+  expect(discounts.get("E2")).toMatchObject({ value: "700", numberFormat: '"$" #,##0.00' });
+  expect(discounts.get("H2")?.value).toBe("700");
 });
 
 test("has its download disabled while the report loads and after loading fails", async () => {

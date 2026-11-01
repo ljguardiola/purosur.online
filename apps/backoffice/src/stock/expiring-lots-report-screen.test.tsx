@@ -169,12 +169,11 @@ test("lists the lots in the order the cloud answers them, soonest first", async 
   expect(names).toEqual(["Yogur natural", "Queso cremoso", "Pan lactal"]);
 });
 
-test("offers no register filter and no export", async () => {
+test("offers no register filter", async () => {
   const screen = await renderScreen(listed());
   await expect.element(screen.getByText("Queso cremoso")).toBeVisible();
 
   expect(screen.getByText("Caja", { exact: false }).query()).toBeNull();
-  expect(screen.getByRole("button", { name: /Exportar/ }).query()).toBeNull();
 });
 
 test("shows the period the cloud answered while the URL names none", async () => {

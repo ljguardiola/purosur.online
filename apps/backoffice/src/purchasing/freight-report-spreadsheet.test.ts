@@ -18,15 +18,15 @@ test("has a Resumen sheet with the period and the figures the screen shows", () 
   });
 });
 
-test("has a sheet named after the table with a row for each month, as the screen reads it", () => {
+test("has a sheet named after the table with a row for each month, each month a date", () => {
   const sheets = freightReportSpreadsheet(quarterFreightReport).sheets;
 
   expect(sheets[1]).toEqual({
     name: "Flete por período",
     header: ["Mes", "Fletes", "Monto"],
     rows: [
-      [cell.text("septiembre de 2026"), cell.count(1), cell.money(45_000)],
-      [cell.text("octubre de 2026"), cell.count(2), cell.money(130_050)],
+      [cell.month("2026-09"), cell.count(1), cell.money(45_000)],
+      [cell.month("2026-10"), cell.count(2), cell.money(130_050)],
     ],
   });
 });

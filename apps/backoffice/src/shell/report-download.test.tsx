@@ -4,8 +4,9 @@ import { afterEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
 import { cell, type Workbook } from "../platform/spreadsheet/workbook";
-import { ReportDownload } from "./report-download";
+import { RegisterReportDownload, ReportDownload } from "./report-download";
 import { render } from "./test-support/render-with-router";
+import { spyOnDownloads } from "./test-support/spy-on-downloads";
 
 const workbook: Workbook = {
   sheets: [
@@ -16,22 +17,6 @@ const workbook: Workbook = {
 afterEach(() => {
   vi.restoreAllMocks();
 });
-
-function spyOnDownloads() {
-  const blobs: Blob[] = [];
-  const names: string[] = [];
-  vi.spyOn(URL, "createObjectURL").mockImplementation((blob) => {
-    blobs.push(blob as Blob);
-    return "blob:mock-url";
-  });
-  vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
-  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
-    this: HTMLAnchorElement,
-  ) {
-    names.push(this.download);
-  });
-  return { blobs, names };
-}
 
 function renderDownload(props: Partial<Parameters<typeof ReportDownload>[0]> = {}) {
   return render(
@@ -115,4 +100,39 @@ test("does nothing when there is no workbook to build", async () => {
 
   expect(downloads.names).toEqual([]);
   expect(screen.getByText("No se pudo preparar la planilla").query()).toBeNull();
+});
+
+function renderRegisterDownload(
+  registerLabel: string | undefined,
+  build: (registerLabel: string) => Workbook | null,
+) {
+  return render(
+    <FieldSizeProvider size="backoffice">
+      <main>
+        <RegisterReportDownload
+          dataStatus="loaded"
+          registerLabel={registerLabel}
+          workbook={build}
+          fileName="ventas-2026-10-01-2026-10-07.xlsx"
+        />
+      </main>
+    </FieldSizeProvider>,
+  );
+}
+
+test("waits for the name of the register before the download of a report filtered by register", async () => {
+  const screen = await renderRegisterDownload(undefined, () => workbook);
+
+  await expect.element(screen.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
+});
+
+test("builds the workbook of a report filtered by register with the register's name", async () => {
+  const downloads = spyOnDownloads();
+  const build = vi.fn(() => workbook);
+  const screen = await renderRegisterDownload("Caja del fondo", build);
+
+  await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
+
+  await expect.poll(() => downloads.names.length).toBe(1);
+  expect(build).toHaveBeenCalledWith("Caja del fondo");
 });

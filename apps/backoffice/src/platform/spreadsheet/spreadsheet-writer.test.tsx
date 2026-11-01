@@ -126,6 +126,13 @@ test("writes a calendar day as a date serial counted from 1899-12-30", () => {
   expect(cells.get("C2")?.value).toBe("0");
 });
 
+test("writes a month as the date serial of its first day, shown as the month and its year", () => {
+  const cells = cellsOf(workbookOf([[cell.month("2026-10"), cell.month("1900-03")]]));
+
+  expect(cells.get("A2")).toMatchObject({ type: null, value: "46296", numberFormat: "mmmm yyyy" });
+  expect(cells.get("B2")?.value).toBe("61");
+});
+
 test("writes an instant as the date and time on the wall clock of the time zone it is given", () => {
   const zone = "America/Argentina/Buenos_Aires";
   const cells = cellsOf(
@@ -201,6 +208,15 @@ test("freezes the header row and widens each column to fit its header and text",
   );
   expect(widths[0]).toBeGreaterThanOrEqual(40);
   expect(widths[1]).toBeGreaterThanOrEqual("Una cabecera bastante larga".length);
+});
+
+test("makes a month column wide enough for the longest month and its year", () => {
+  const file = readXlsx(writeWorkbook(workbookOf([[cell.month("2026-09")]], ["Mes"])));
+
+  const width = Number(
+    file.documents["xl/worksheets/sheet1.xml"]?.querySelector("cols > col")?.getAttribute("width"),
+  );
+  expect(width).toBeGreaterThanOrEqual("septiembre 2026".length + 2);
 });
 
 test("refuses a sheet name Excel would reject", () => {

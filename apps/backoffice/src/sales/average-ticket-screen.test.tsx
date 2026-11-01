@@ -359,12 +359,11 @@ test("navigates to Mi cuenta when the report request comes back forbidden", asyn
   await expect.poll(() => window.location.pathname).toBe("/account");
 });
 
-test("shows every week on one page, with no pages and no export", async () => {
+test("shows every week on one page, with no pages", async () => {
   const screen = await renderScreen(createServices());
   await expect.element(screen.getByRole("table").getByText(NEWEST_WEEK)).toBeVisible();
 
   expect(screen.getByRole("navigation", { name: /Páginas/ }).query()).toBeNull();
-  expect(screen.getByRole("button", { name: "Exportar" }).query()).toBeNull();
 });
 
 afterEach(() => {
@@ -390,12 +389,15 @@ test("downloads a spreadsheet of the weeks shown, with the applied register and 
   expect(summary.get("B4")?.value).toBe("Caja del fondo");
   expect(summary.get("B5")?.value).toBe("250");
   expect(summary.get("B7")?.value).toBe("240");
-  expect(summary.get("B9")?.value).toBe("0.042");
+  expect(summary.get("B8")?.value).toBe("46268");
+  expect(summary.get("B9")?.value).toBe("46288");
+  expect(summary.get("B10")?.value).toBe("0.042");
   const weeks = file.sheet(1);
-  expect(weeks.get("A2")?.value).toBe("Del 08/10/2026 al 14/10/2026");
-  expect(weeks.get("B2")?.value).toBe("40");
-  expect(weeks.get("C2")?.value).toBe("11000");
-  expect(weeks.get("D2")?.value).toBe("275");
+  expect(weeks.get("A2")?.value).toBe("46303");
+  expect(weeks.get("B2")?.value).toBe("46309");
+  expect(weeks.get("C2")?.value).toBe("40");
+  expect(weeks.get("D2")?.value).toBe("11000");
+  expect(weeks.get("E2")?.value).toBe("275");
 });
 
 test("downloads the weeks in the order the screen sorts them", async () => {
@@ -409,8 +411,8 @@ test("downloads the weeks in the order the screen sorts them", async () => {
 
   await expect.poll(() => downloads.blobs.length).toBe(1);
   const weeks = (await readDownloadedXlsx(downloads.blobs[0])).sheet(1);
-  expect(weeks.get("A2")?.value).toBe("Del 24/09/2026 al 30/09/2026");
-  expect(weeks.get("A4")?.value).toBe("Del 08/10/2026 al 14/10/2026");
+  expect(weeks.get("A2")?.value).toBe("46289");
+  expect(weeks.get("A4")?.value).toBe("46303");
 });
 
 test("has its download disabled while the report loads and after loading fails", async () => {

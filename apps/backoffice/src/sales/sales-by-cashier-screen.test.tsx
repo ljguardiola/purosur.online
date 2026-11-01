@@ -345,12 +345,11 @@ test("navigates to Mi cuenta when the report request comes back forbidden", asyn
   await expect.poll(() => window.location.pathname).toBe("/account");
 });
 
-test("shows every cashier on one page, with no pages and no export", async () => {
+test("shows every cashier on one page, with no pages", async () => {
   const screen = await renderScreen(createServices());
   await expect.element(screen.getByRole("table").getByText("Beto")).toBeVisible();
 
   expect(screen.getByRole("navigation", { name: /Páginas/ }).query()).toBeNull();
-  expect(screen.getByRole("button", { name: "Exportar" }).query()).toBeNull();
 });
 
 afterEach(() => {
