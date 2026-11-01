@@ -172,7 +172,10 @@ export async function recordAppliedVoidedSale<TQueryResult extends PgQueryResult
 ): Promise<void> {
   const [voided] = await tx
     .update(sales)
-    .set({ state: "VOIDED", voidedAt: sale.voidedAt, voidAuthorizedBy: sale.authorizedBy,
+    .set({
+      state: "VOIDED",
+      voidedAt: sale.voidedAt,
+      voidAuthorizedBy: sale.authorizedBy,
       voidedBy: actorId,
     })
     .where(
