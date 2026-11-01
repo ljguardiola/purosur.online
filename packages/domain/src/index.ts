@@ -317,6 +317,7 @@ export {
   deferredSaleRegularizationTask,
   deferredSaleSatisfiedEvent,
   deferredSaleSettlement,
+  EXCEPTION_SHARE_MONTH_STATES,
   EXCHANGE_RATE_PESOS,
   EXPIRED_DEFERRED_SALE_STATE,
   earliestThresholdStartDay,

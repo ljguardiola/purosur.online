@@ -393,6 +393,19 @@ export type {
   ReadArcaOnlineStatusInput,
 } from "./read-arca-online-status.js";
 export { readArcaOnlineStatus } from "./read-arca-online-status.js";
+export type {
+  ExceptionShareYearMonth,
+  ReadExceptionShareYearInput,
+  ReadExceptionShareYearOutcome,
+} from "./read-exception-share-year.js";
+export { readExceptionShareYear } from "./read-exception-share-year.js";
+export type {
+  ExceptionShareFiscalAddress,
+  ExceptionShareYearQuery,
+  ExceptionShareYearReader,
+  MonthlyVoucherCounts,
+  ReadExceptionShareYearPorts,
+} from "./read-exception-share-year-ports.js";
 export { readFiscalEmissionMode } from "./read-fiscal-emission-mode.js";
 export type {
   IssuedFiscalDocumentsListing,
@@ -447,6 +460,14 @@ export type {
 } from "./record-buyer-tax-status-set.js";
 export { recordBuyerTaxStatusSet } from "./record-buyer-tax-status-set.js";
 export type { DeferredSaleRecording } from "./record-deferred-sale.js";
+export type { RecordExceptionShareBreachesOutcome } from "./record-exception-share-breaches.js";
+export { recordExceptionShareBreaches } from "./record-exception-share-breaches.js";
+export type {
+  ExceptionShareBreachStore,
+  ExceptionShareBreachTransaction,
+  ExceptionShareMonth,
+  RecordExceptionShareBreachesPorts,
+} from "./record-exception-share-breaches-ports.js";
 export type { RecordRegisterHealthCheckOutcome } from "./record-register-health-check.js";
 export { recordRegisterHealthCheck } from "./record-register-health-check.js";
 export type {
