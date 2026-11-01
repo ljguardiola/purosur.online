@@ -53,6 +53,24 @@ test("finds the pathname destructured from the module's URL", () => {
   assert.deepEqual(lines(source), [1, 2, 4]);
 });
 
+test("finds the pathname of a URL resolved against a URL of the module", () => {
+  const source = [
+    'const DIR = new URL("./r/", import.meta.url);',
+    'readFileSync(new URL("x", DIR).pathname);',
+    'const root = new URL("..", new URL(".", import.meta.url)).pathname;',
+    'const file = new URL("x.json", DIR);',
+    "readFileSync(file.pathname);",
+  ].join("\n");
+
+  assert.deepEqual(lines(source), [2, 3, 5]);
+});
+
+test("finds the pathname of a URL built from a string holding the module's URL", () => {
+  const source = ["const u = import.meta.url;", "const root = new URL(u).pathname;"].join("\n");
+
+  assert.deepEqual(lines(source), [2]);
+});
+
 test("finds the pathname in TypeScript files", () => {
   assert.deepEqual(lines("const root = (new URL(import.meta.url) as URL).pathname;", "x.ts"), [1]);
 });
@@ -79,6 +97,20 @@ test("finds nothing in the pathname of a URL that is not the module's", () => {
   ].join("\n");
 
   assert.deepEqual(lines(source), []);
+});
+
+test("finds nothing in the pathname of another URL sharing a name with the module's URL", () => {
+  const read = [
+    'const url = new URL("./r/", import.meta.url);',
+    "function h(request) { const url = new URL(request.url); return url.pathname; }",
+  ].join("\n");
+  const destructured = [
+    'const url = new URL("./r/", import.meta.url);',
+    "function h(request) { const url = new URL(request.url); const { pathname } = url; return pathname; }",
+  ].join("\n");
+
+  assert.deepEqual(lines(read), []);
+  assert.deepEqual(lines(destructured), []);
 });
 
 test("checkFiles reports each finding with its path", () => {
