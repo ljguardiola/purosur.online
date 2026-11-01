@@ -12,6 +12,7 @@ import {
 } from "@purosur/ui";
 import { Download, Minus, Package, Plus, Printer, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { downloadFile } from "../platform/download-file";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { groupedEan13Digits, LabelPreviewBars } from "./label-preview-bars";
@@ -59,9 +60,6 @@ function labelableProducts(
     direction: "ascending",
   });
 }
-
-// Long enough for any browser to finish handing the blob to its download before it's released.
-const DOWNLOAD_URL_LIFETIME_MS = 60_000;
 
 type PrintNotice =
   | { kind: "attemptFailed" }
@@ -140,16 +138,7 @@ export function PrintLabelsModal({
       return;
     }
     if (outcome.kind === "ok") {
-      const url = URL.createObjectURL(outcome.blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "etiquetas.pdf";
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      // Revoking right after click() can cancel the download in Firefox and Safari, which read
-      // the blob asynchronously.
-      setTimeout(() => URL.revokeObjectURL(url), DOWNLOAD_URL_LIFETIME_MS);
+      downloadFile(outcome.blob, "etiquetas.pdf");
       setPrinting(false);
       onClose();
       return;

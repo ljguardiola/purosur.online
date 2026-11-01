@@ -21,10 +21,7 @@ export function parseXml(text: string): Document {
 
 export function readXlsx(file: Uint8Array) {
   const parts = Object.fromEntries(
-    Object.entries(unzipSync(file)).map(([name, bytes]) => [
-      name,
-      new TextDecoder().decode(bytes),
-    ]),
+    Object.entries(unzipSync(file)).map(([name, bytes]) => [name, new TextDecoder().decode(bytes)]),
   );
   const documents = Object.fromEntries(
     Object.entries(parts).map(([name, text]) => [name, parseXml(text)]),
@@ -51,8 +48,9 @@ export function readXlsx(file: Uint8Array) {
     };
   };
 
-  const sheetNames = [...(documents["xl/workbook.xml"]?.querySelectorAll("sheets > sheet") ?? [])]
-    .map((sheet) => sheet.getAttribute("name") ?? "");
+  const sheetNames = [
+    ...(documents["xl/workbook.xml"]?.querySelectorAll("sheets > sheet") ?? []),
+  ].map((sheet) => sheet.getAttribute("name") ?? "");
 
   function sheet(index: number): Map<string, ReadCell> {
     const document = documents[`xl/worksheets/sheet${index + 1}.xml`];

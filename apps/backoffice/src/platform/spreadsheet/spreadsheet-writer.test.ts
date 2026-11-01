@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
-import { type Cell, cell, type Workbook } from "./workbook";
-import { readXlsx } from "./test-support/read-xlsx";
 import { writeWorkbook } from "./spreadsheet-writer";
+import { readXlsx } from "./test-support/read-xlsx";
+import { type Cell, cell, type Workbook } from "./workbook";
 
 function workbookOf(rows: Cell[][], header: string[] = ["Columna"]): Workbook {
   return { sheets: [{ name: "Hoja", header, rows }] };
@@ -36,16 +36,25 @@ test("names each sheet in order and links it to its worksheet part", () => {
 
   expect(file.sheetNames).toEqual(["Resumen", "Ventas por día"]);
   const relationships = [
-    ...file.documents["xl/_rels/workbook.xml.rels"]?.querySelectorAll("Relationship") ?? [],
+    ...(file.documents["xl/_rels/workbook.xml.rels"]?.querySelectorAll("Relationship") ?? []),
   ];
   const sheetIds = [...(file.documents["xl/workbook.xml"]?.querySelectorAll("sheet") ?? [])].map(
-    (sheet) => sheet.getAttribute("r:id") ?? sheet.getAttributeNS("http://schemas.openxmlformats.org/officeDocument/2006/relationships", "id"),
+    (sheet) =>
+      sheet.getAttribute("r:id") ??
+      sheet.getAttributeNS(
+        "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+        "id",
+      ),
   );
-  const targets = sheetIds.map(
-    (id) => relationships.find((relationship) => relationship.getAttribute("Id") === id)?.getAttribute("Target"),
+  const targets = sheetIds.map((id) =>
+    relationships
+      .find((relationship) => relationship.getAttribute("Id") === id)
+      ?.getAttribute("Target"),
   );
   expect(targets).toEqual(["worksheets/sheet1.xml", "worksheets/sheet2.xml"]);
-  expect(file.documents["[Content_Types].xml"]?.querySelectorAll("Override").length).toBeGreaterThanOrEqual(4);
+  expect(
+    file.documents["[Content_Types].xml"]?.querySelectorAll("Override").length,
+  ).toBeGreaterThanOrEqual(4);
 });
 
 test("writes the header row as bold text cells", () => {
@@ -56,7 +65,9 @@ test("writes the header row as bold text cells", () => {
 });
 
 test("writes text exactly, escaping markup characters and keeping surrounding spaces", () => {
-  const cells = cellsOf(workbookOf([[cell.text('  Tom & "Jerry" <b>'), cell.text("Ñandú ¿qué? 🧀")]]));
+  const cells = cellsOf(
+    workbookOf([[cell.text('  Tom & "Jerry" <b>'), cell.text("Ñandú ¿qué? 🧀")]]),
+  );
 
   expect(cells.get("A2")).toMatchObject({ type: "inlineStr", value: '  Tom & "Jerry" <b>' });
   expect(cells.get("B2")).toMatchObject({ type: "inlineStr", value: "Ñandú ¿qué? 🧀" });
@@ -83,7 +94,11 @@ test("writes money as pesos from the integer cents with no float error", () => {
     ]),
   );
 
-  expect(cells.get("A2")).toMatchObject({ type: null, value: "12500.5", numberFormat: '"$" #,##0.00' });
+  expect(cells.get("A2")).toMatchObject({
+    type: null,
+    value: "12500.5",
+    numberFormat: '"$" #,##0.00',
+  });
   expect(cells.get("B2")?.value).toBe("0.05");
   expect(cells.get("C2")?.value).toBe("0");
   expect(cells.get("D2")?.value).toBe("-19.99");
@@ -91,7 +106,9 @@ test("writes money as pesos from the integer cents with no float error", () => {
 });
 
 test("writes a calendar day as a date serial counted from 1899-12-30", () => {
-  const cells = cellsOf(workbookOf([[cell.day("1900-03-01"), cell.day("2026-10-02"), cell.day("1899-12-30")]]));
+  const cells = cellsOf(
+    workbookOf([[cell.day("1900-03-01"), cell.day("2026-10-02"), cell.day("1899-12-30")]]),
+  );
 
   expect(cells.get("A2")).toMatchObject({ type: null, value: "61", numberFormat: "dd/mm/yyyy" });
   expect(cells.get("B2")?.value).toBe("46297");
@@ -129,7 +146,11 @@ test("writes a percentage as a fraction shown with one decimal", () => {
 test("writes US dollars as dollars from the integer nano-USD", () => {
   const cells = cellsOf(workbookOf([[cell.usd(1_234_500_000), cell.usd(1), cell.usd(0)]]));
 
-  expect(cells.get("A2")).toMatchObject({ type: null, value: "1.2345", numberFormat: '"US$" #,##0.0000' });
+  expect(cells.get("A2")).toMatchObject({
+    type: null,
+    value: "1.2345",
+    numberFormat: '"US$" #,##0.0000',
+  });
   expect(cells.get("B2")?.value).toBe("0.000000001");
   expect(cells.get("C2")?.value).toBe("0");
 });
@@ -154,12 +175,19 @@ test("addresses columns past Z with letters", () => {
 
 test("freezes the header row and widens each column to fit its header and text", () => {
   const file = readXlsx(
-    writeWorkbook(workbookOf([[cell.text("x".repeat(40)), cell.count(1)]], ["Corta", "Una cabecera bastante larga"])),
+    writeWorkbook(
+      workbookOf(
+        [[cell.text("x".repeat(40)), cell.count(1)]],
+        ["Corta", "Una cabecera bastante larga"],
+      ),
+    ),
   );
   const worksheet = file.documents["xl/worksheets/sheet1.xml"];
 
   expect(worksheet?.querySelector("pane")?.getAttribute("state")).toBe("frozen");
-  const widths = [...(worksheet?.querySelectorAll("cols > col") ?? [])].map((column) => Number(column.getAttribute("width")));
+  const widths = [...(worksheet?.querySelectorAll("cols > col") ?? [])].map((column) =>
+    Number(column.getAttribute("width")),
+  );
   expect(widths[0]).toBeGreaterThanOrEqual(40);
   expect(widths[1]).toBeGreaterThanOrEqual("Una cabecera bastante larga".length);
 });
@@ -167,7 +195,19 @@ test("freezes the header row and widens each column to fit its header and text",
 test("refuses a sheet name Excel would reject", () => {
   const named = (name: string): Workbook => ({ sheets: [{ name, header: ["a"], rows: [] }] });
 
-  for (const invalid of ["", "x".repeat(32), "a[b", "a]b", "a:b", "a*b", "a?b", "a/b", "a\\b", "'a", "a'"]) {
+  for (const invalid of [
+    "",
+    "x".repeat(32),
+    "a[b",
+    "a]b",
+    "a:b",
+    "a*b",
+    "a?b",
+    "a/b",
+    "a\\b",
+    "'a",
+    "a'",
+  ]) {
     expect(() => writeWorkbook(named(invalid)), invalid).toThrow();
   }
   expect(() => writeWorkbook(named("x".repeat(31)))).not.toThrow();
