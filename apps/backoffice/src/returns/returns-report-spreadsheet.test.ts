@@ -52,7 +52,7 @@ test("has a sheet for each way a return starts, named after its heading, typed f
   expect(sheets[2]?.header).toEqual(HEADER);
 });
 
-test("has a row for each returned line, repeating what belongs to the return and splitting the quantity by unit", () => {
+test("has a row for each returned line, repeating what belongs to the return but its refund, and splitting the quantity by unit", () => {
   const typed = returnsReportSpreadsheet(returnsReport, "Todas").sheets[1];
 
   expect(typed?.rows).toEqual([
@@ -82,7 +82,7 @@ test("has a row for each returned line, repeating what belongs to the return and
       cell.weight(350),
       cell.text("Arrepentimiento"),
       cell.text("vuelve a la venta"),
-      cell.money(345_000),
+      cell.empty(),
     ],
     [
       cell.instant("2026-10-06T15:45:00.000Z", OCCURRED_TIME_ZONE),
@@ -140,4 +140,14 @@ test("has no rows in the table sheets when there are no returns", () => {
   const sheets = returnsReportSpreadsheet(noReturnsReport, "Todas").sheets;
 
   expect(sheets.slice(1).map(({ rows }) => rows)).toEqual([[], []]);
+});
+
+test("writes each return's refund once, so the column adds up to the refunded total", () => {
+  const typed = returnsReportSpreadsheet(returnsReport, "Todas").sheets[1];
+
+  expect(typed?.rows.map((row) => row[11])).toEqual([
+    cell.money(345_000),
+    cell.empty(),
+    cell.money(80_000),
+  ]);
 });
