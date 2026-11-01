@@ -379,6 +379,19 @@ test("decides whether the lines are editable from the cloud's answer, not from t
   expect(screen.getByRole("button", { name: "Cancelar pedido" }).query()).toBeNull();
 });
 
+test("offers no cancellation when the cloud answers the order cannot be cancelled", async () => {
+  const services = createServices({
+    fetchPurchaseOrder: vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: { kind: "found", order: { ...DRAFT_ORDER, cancellable: false } },
+    }),
+  });
+  const screen = await loaded(services);
+
+  await expect.element(screen.getByRole("button", { name: "Guardar" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Cancelar pedido" }).query()).toBeNull();
+});
+
 test("shows the totals the cloud answers", async () => {
   const services = createServices({
     fetchPurchaseOrder: vi.fn().mockResolvedValue({
