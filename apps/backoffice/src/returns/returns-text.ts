@@ -4,6 +4,8 @@ import { formatInvoiceNumber, formatOperationNumber, formatPointOfSaleNumber } f
 type ReturnRow = ReturnsReportBody["typed"]["rows"][number];
 type ReturnLine = ReturnRow["lines"][number];
 
+export const UNIDENTIFIED = "Sin identificar";
+
 const REASON_TEXT: Record<ReturnLine["reason"], string> = {
   change_of_mind: "Arrepentimiento",
   defective: "Defecto",
@@ -14,11 +16,19 @@ const DISPOSITION_TEXT: Record<ReturnLine["disposition"], string> = {
   discard: "se descarta",
 };
 
+export function returnLineReasonText(reason: ReturnLine["reason"]): string {
+  return REASON_TEXT[reason];
+}
+
+export function returnLineDispositionText(disposition: ReturnLine["disposition"]): string {
+  return DISPOSITION_TEXT[disposition];
+}
+
 export function returnLineDetail({
   reason,
   disposition,
 }: Pick<ReturnLine, "reason" | "disposition">): string {
-  return `${REASON_TEXT[reason]} · ${DISPOSITION_TEXT[disposition]}`;
+  return `${returnLineReasonText(reason)} · ${returnLineDispositionText(disposition)}`;
 }
 
 export function returnSaleText({
