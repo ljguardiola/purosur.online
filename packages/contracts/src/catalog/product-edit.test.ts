@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { productEditBodySchema } from "./product-edit.js";
+import { describe, expect, expectTypeOf, it } from "vitest";
+import { type ProductEditBody, productEditBodySchema } from "./product-edit.js";
 
 function validBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
@@ -67,6 +67,10 @@ describe("productEditBodySchema", () => {
       field: "coverageDays",
       message: "coverageDays must be an integer from 1 to 365",
     });
+  });
+
+  it("types an edit body without coverage days as an invalid body", () => {
+    expectTypeOf<Omit<ProductEditBody, "coverageDays">>().not.toExtend<ProductEditBody>();
   });
 
   it.each([0, 366, 1.5, "15", null])("rejects the coverageDays %j", (coverageDays) => {

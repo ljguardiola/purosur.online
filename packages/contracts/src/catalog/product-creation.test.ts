@@ -1,6 +1,6 @@
 import { BARCODE_MAX_LENGTH, PRODUCT_BARCODES_MAX_COUNT, SALE_UNITS } from "@purosur/domain";
-import { describe, expect, it } from "vitest";
-import { productCreationBodySchema } from "./product-creation.js";
+import { describe, expect, expectTypeOf, it } from "vitest";
+import { type ProductCreationBody, productCreationBodySchema } from "./product-creation.js";
 
 const CATEGORY_ID = "11111111-1111-1111-1111-111111111111";
 
@@ -204,6 +204,10 @@ describe("productCreationBodySchema, coverageDays", () => {
       });
     },
   );
+
+  it("types a creation body without coverage days as a valid body", () => {
+    expectTypeOf<Omit<ProductCreationBody, "coverageDays">>().toExtend<ProductCreationBody>();
+  });
 
   it("exposes the bounds in the schema's meta", () => {
     expect(productCreationBodySchema.shape.coverageDays.meta()).toEqual({

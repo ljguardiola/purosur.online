@@ -67,6 +67,7 @@ async function insertProduct(input: {
   tagIds?: string[];
   barcodes?: string[];
   netContent?: { quantity: number; unit: string };
+  coverageDays?: number;
 }): Promise<string> {
   const [row] = await db
     .insert(products)
@@ -77,6 +78,7 @@ async function insertProduct(input: {
       saleUnit: "UNIT",
       netContentQuantity: input.netContent?.quantity,
       netContentUnit: input.netContent?.unit,
+      coverageDays: input.coverageDays,
       active: input.active ?? true,
     })
     .returning({ id: products.id });
@@ -138,9 +140,19 @@ describe("DrizzleCatalogListReader", () => {
         barcodes: ["111", "222"],
         tagIds: [organic, vegan],
         netContent: null,
+        coverageDays: 15,
         active: true,
         version: 1,
       });
+    });
+
+    it("answers the coverage days stored for a product", async () => {
+      const categoryId = await insertCategory("Almacén");
+      await insertProduct({ name: "Yerba", categoryId, coverageDays: 30 });
+
+      const [product] = await reader.products("active");
+
+      expect(product).toMatchObject({ coverageDays: 30 });
     });
 
     it("answers the net content of a product and no brand name when it has none", async () => {

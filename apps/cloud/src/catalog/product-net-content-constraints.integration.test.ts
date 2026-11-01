@@ -1,55 +1,27 @@
-import { randomUUID } from "node:crypto";
-import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { categories, products } from "../platform/db/schema.js";
+import { products } from "../platform/db/schema.js";
 import {
-  createIntegrationDatabase,
-  type IntegrationDatabase,
-} from "../test-support/integration-database.js";
+  constraintViolatedBy,
+  openProductConstraintsDatabase,
+  type ProductConstraintsDatabase,
+} from "./test-support/product-constraints-database.js";
 
-let integrationDb: IntegrationDatabase;
-let sql: ReturnType<typeof postgres>;
-let db: PostgresJsDatabase<Record<string, never>>;
-let categoryId: string;
+let database: ProductConstraintsDatabase;
 
 beforeAll(async () => {
-  integrationDb = await createIntegrationDatabase("product_net_content_constraints");
-  sql = postgres(integrationDb.databaseUrl, { max: 1 });
-  db = drizzle(sql);
-  const [category] = await db
-    .insert(categories)
-    .values({ name: `Macetas ${randomUUID()}` })
-    .returning({ id: categories.id });
-  if (!category) {
-    throw new Error("test setup: seeding the category returned no row");
-  }
-  categoryId = category.id;
+  database = await openProductConstraintsDatabase("product_net_content_constraints");
 }, 60_000);
 
 afterAll(async () => {
-  await sql.end({ timeout: 1 });
-  await integrationDb.close();
+  await database.close();
 });
-
-function constraintViolatedBy(error: unknown, name: string): boolean {
-  let current: unknown = error;
-  while (current instanceof Error) {
-    const { constraint_name: constraintName } = current as { constraint_name?: unknown };
-    if (constraintName === name) {
-      return true;
-    }
-    current = current.cause;
-  }
-  return false;
-}
 
 describe("the products table's net content constraints on a real Postgres", () => {
   it("rejects a quantity set without a unit", async () => {
     await expect(
-      db.insert(products).values({
+      database.db.insert(products).values({
         name: "Alpiste",
-        categoryId,
+        categoryId: database.categoryId,
         saleUnit: "KG",
         netContentQuantity: 1.5,
         netContentUnit: null,
@@ -61,9 +33,9 @@ describe("the products table's net content constraints on a real Postgres", () =
 
   it("rejects a unit set without a quantity", async () => {
     await expect(
-      db.insert(products).values({
+      database.db.insert(products).values({
         name: "Alpiste",
-        categoryId,
+        categoryId: database.categoryId,
         saleUnit: "KG",
         netContentQuantity: null,
         netContentUnit: "KG",
@@ -75,9 +47,9 @@ describe("the products table's net content constraints on a real Postgres", () =
 
   it("rejects a non-positive quantity", async () => {
     await expect(
-      db.insert(products).values({
+      database.db.insert(products).values({
         name: "Alpiste",
-        categoryId,
+        categoryId: database.categoryId,
         saleUnit: "KG",
         netContentQuantity: 0,
         netContentUnit: "KG",
@@ -89,9 +61,9 @@ describe("the products table's net content constraints on a real Postgres", () =
 
   it("rejects an unknown unit", async () => {
     await expect(
-      db.insert(products).values({
+      database.db.insert(products).values({
         name: "Alpiste",
-        categoryId,
+        categoryId: database.categoryId,
         saleUnit: "KG",
         netContentQuantity: 1.5,
         netContentUnit: "LB",
