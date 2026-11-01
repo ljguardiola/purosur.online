@@ -389,8 +389,8 @@ test("downloads a spreadsheet of the weeks shown, with the applied register and 
   const summary = file.sheet(0);
   expect(summary.get("B4")?.value).toBe("Caja del fondo");
   expect(summary.get("B5")?.value).toBe("250");
-  expect(summary.get("B8")?.value).toBe("240");
-  expect(summary.get("B10")?.value).toBe("0.042");
+  expect(summary.get("B7")?.value).toBe("240");
+  expect(summary.get("B9")?.value).toBe("0.042");
   const weeks = file.sheet(1);
   expect(weeks.get("A2")?.value).toBe("Del 08/10/2026 al 14/10/2026");
   expect(weeks.get("B2")?.value).toBe("40");

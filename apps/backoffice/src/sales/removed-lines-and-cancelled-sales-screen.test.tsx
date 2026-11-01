@@ -360,7 +360,7 @@ test("downloads a spreadsheet of both tables, with the applied register and the 
   const sessions = file.sheet(2);
   expect(sessions.get("A2")?.value).toBe("Caja principal");
   expect(sessions.get("B2")).toMatchObject({ numberFormat: "dd/mm/yyyy hh:mm" });
-  expect(sessions.get("E2")?.value).toBe("11000");
+  expect(sessions.get("F2")?.value).toBe("11000");
 });
 
 test("has its download disabled while the report loads and after loading fails", async () => {
