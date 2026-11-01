@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { insertPurchasedLot } from "../stock/test-support/lot-fixtures.js";
 import {
   BACKOFFICE_ORIGIN,
   insertLocation,
@@ -121,6 +122,8 @@ describe("GET /order-suggestion", () => {
       id: productId,
       name: "Yerba 1 kg",
       coverageDays: 15,
+      effectiveDays: 15,
+      cappedByExpiry: false,
       soldQuantity: 120_000,
       stock: 12_000,
       neededQuantity: 48_000,
@@ -142,6 +145,38 @@ describe("GET /order-suggestion", () => {
       quantity: 48_000,
       pricePerSaleUnit: { numerator: "1000", denominator: "1" },
     });
+  });
+
+  it("caps the days and the packages by the shelf life of the newest lot", async () => {
+    const { headers, locationId, userId } = await signedInWith(
+      db,
+      ["compare_prices_and_suggest_orders"],
+      NOW,
+    );
+    const deviceId = await insertRegisterDeviceIn(db, locationId, NOW);
+    const { id: productId } = await insertProduct(db, { name: "Yerba 1 kg" });
+    await offerFrom("Alfa", productId, { priceCents: 12_000, quantity: 12_000 });
+    await completeSale(db, { deviceId, productId, quantity: 120, completedAt: SOLD_AT });
+    await setStock(db, { productId, locationId, quantity: 20_000 });
+    await insertPurchasedLot(db, {
+      productId,
+      locationId,
+      actorId: userId,
+      expiresOn: "2026-09-11",
+      createdAt: new Date("2026-09-01T15:00:00.000Z"),
+    });
+
+    const response = await get(headers);
+
+    expect(response.json().lines).toMatchObject([
+      {
+        id: productId,
+        effectiveDays: 10,
+        cappedByExpiry: true,
+        neededQuantity: 20_000,
+        offers: [{ packages: 1, quantity: 12_000 }],
+      },
+    ]);
   });
 
   it("answers a product nobody offers with the units it needs and no offers", async () => {

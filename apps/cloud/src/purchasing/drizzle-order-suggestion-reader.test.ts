@@ -1,4 +1,12 @@
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { assemblyBatches } from "../platform/db/schema.js";
+import { insertAssemblyBatch } from "../stock/test-support/assembly-batch-fixtures.js";
+import {
+  insertInitialCountLot,
+  insertPurchasedLot,
+  insertTechnicalLot,
+} from "../stock/test-support/lot-fixtures.js";
 import { insertLocation } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
@@ -151,5 +159,161 @@ describe("the suppliers", () => {
         { id: inactive, name: "Cerealera", active: false },
       ]),
     );
+  });
+});
+
+describe("the newest lots that count for the shelf life", () => {
+  async function purchased(
+    productId: string,
+    createdAt: string,
+    expiresOn: string | null,
+    branch = locationId,
+  ) {
+    return insertPurchasedLot(db, {
+      productId,
+      locationId: branch,
+      actorId: await insertActor(db),
+      createdAt: new Date(createdAt),
+      expiresOn,
+    });
+  }
+
+  it("answers the most recent lot of each product with when it was created and when it expires", async () => {
+    const yerba = await insertProduct(db, { name: "Yerba" });
+    const harina = await insertProduct(db, { name: "Harina" });
+    await purchased(yerba.id, "2026-08-01T12:00:00.000Z", "2026-12-01");
+    await purchased(yerba.id, "2026-09-01T12:00:00.000Z", "2026-09-20");
+    await purchased(harina.id, "2026-09-05T12:00:00.000Z", "2026-10-05");
+
+    const lotsFound = await reader().newestShelfLifeLots(locationId);
+
+    expect(lotsFound).toHaveLength(2);
+    expect(lotsFound).toEqual(
+      expect.arrayContaining([
+        {
+          productId: yerba.id,
+          createdAt: new Date("2026-09-01T12:00:00.000Z"),
+          expiresOn: "2026-09-20",
+        },
+        {
+          productId: harina.id,
+          createdAt: new Date("2026-09-05T12:00:00.000Z"),
+          expiresOn: "2026-10-05",
+        },
+      ]),
+    );
+  });
+
+  it("prefers the newest lot even when an older one lives longer", async () => {
+    const yerba = await insertProduct(db, { name: "Yerba" });
+    await purchased(yerba.id, "2026-09-01T12:00:00.000Z", "2026-09-20");
+    await purchased(yerba.id, "2026-08-01T12:00:00.000Z", "2027-08-01");
+
+    expect(await reader().newestShelfLifeLots(locationId)).toMatchObject([
+      { expiresOn: "2026-09-20" },
+    ]);
+  });
+
+  it("prefers the newest lot even when an older one expires sooner", async () => {
+    const yerba = await insertProduct(db, { name: "Yerba" });
+    await purchased(yerba.id, "2026-08-01T12:00:00.000Z", "2026-08-10");
+    await purchased(yerba.id, "2026-09-01T12:00:00.000Z", "2027-09-01");
+
+    expect(await reader().newestShelfLifeLots(locationId)).toMatchObject([
+      { expiresOn: "2027-09-01" },
+    ]);
+  });
+
+  it("breaks a tie on the creation moment by the greater lot id", async () => {
+    const yerba = await insertProduct(db, { name: "Yerba" });
+    const first = await purchased(yerba.id, "2026-09-01T12:00:00.000Z", "2026-09-20");
+    const second = await purchased(yerba.id, "2026-09-01T12:00:00.000Z", "2026-10-20");
+
+    const [found] = await reader().newestShelfLifeLots(locationId);
+
+    expect(found?.expiresOn).toBe(first > second ? "2026-09-20" : "2026-10-20");
+  });
+
+  it("counts a lot that came from an assembly batch", async () => {
+    const yerba = await insertProduct(db, { name: "Yerba" });
+    await purchased(yerba.id, "2026-08-01T12:00:00.000Z", "2026-12-01");
+    await insertAssemblyBatch(db, {
+      productId: yerba.id,
+      locationId,
+      actorId: await insertActor(db),
+      assembledAt: new Date("2026-09-02T12:00:00.000Z"),
+      expiresOn: "2026-09-12",
+      lotCreatedAt: new Date("2026-09-02T12:00:00.000Z"),
+    });
+
+    expect(await reader().newestShelfLifeLots(locationId)).toEqual([
+      {
+        productId: yerba.id,
+        createdAt: new Date("2026-09-02T12:00:00.000Z"),
+        expiresOn: "2026-09-12",
+      },
+    ]);
+  });
+
+  it("ignores a lot from a voided assembly batch", async () => {
+    const yerba = await insertProduct(db, { name: "Yerba" });
+    const actorId = await insertActor(db);
+    await purchased(yerba.id, "2026-08-01T12:00:00.000Z", "2026-12-01");
+    const { batchId } = await insertAssemblyBatch(db, {
+      productId: yerba.id,
+      locationId,
+      actorId,
+      assembledAt: new Date("2026-09-02T12:00:00.000Z"),
+      expiresOn: "2026-09-12",
+      lotCreatedAt: new Date("2026-09-02T12:00:00.000Z"),
+    });
+    await db
+      .update(assemblyBatches)
+      .set({ voidedAt: new Date("2026-09-03T12:00:00.000Z"), voidedBy: actorId })
+      .where(eq(assemblyBatches.id, batchId));
+
+    expect(await reader().newestShelfLifeLots(locationId)).toMatchObject([
+      { expiresOn: "2026-12-01" },
+    ]);
+  });
+
+  it("ignores lots loaded by the initial count and technical lots", async () => {
+    const yerba = await insertProduct(db, { name: "Yerba" });
+    await purchased(yerba.id, "2026-08-01T12:00:00.000Z", "2026-12-01");
+    await insertInitialCountLot(db, {
+      productId: yerba.id,
+      locationId,
+      actorId: await insertActor(db),
+      expiresOn: "2026-09-12",
+      createdAt: new Date("2026-09-02T12:00:00.000Z"),
+    });
+    await insertTechnicalLot(db, {
+      productId: yerba.id,
+      locationId,
+      remaining: 1_000,
+      expiresOn: "2026-09-15",
+    });
+
+    expect(await reader().newestShelfLifeLots(locationId)).toMatchObject([
+      { expiresOn: "2026-12-01" },
+    ]);
+  });
+
+  it("ignores a lot without an expiry date", async () => {
+    const yerba = await insertProduct(db, { name: "Yerba" });
+    await purchased(yerba.id, "2026-08-01T12:00:00.000Z", "2026-12-01");
+    await purchased(yerba.id, "2026-09-01T12:00:00.000Z", null);
+
+    expect(await reader().newestShelfLifeLots(locationId)).toMatchObject([
+      { expiresOn: "2026-12-01" },
+    ]);
+  });
+
+  it("leaves out the lots of other branches and answers nothing for a product with no lot that counts", async () => {
+    const yerba = await insertProduct(db, { name: "Yerba" });
+    const otherBranch = await insertLocation(db);
+    await purchased(yerba.id, "2026-09-01T12:00:00.000Z", "2026-09-20", otherBranch);
+
+    expect(await reader().newestShelfLifeLots(locationId)).toEqual([]);
   });
 });
