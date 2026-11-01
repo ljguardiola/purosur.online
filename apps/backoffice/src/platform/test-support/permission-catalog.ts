@@ -34,7 +34,6 @@ const rows: [PermissionArea, PermissionKey, Marker, PermissionKey[]?, Permission
   ["stock", "adjust_stock", NONE, VIEW_BALANCES],
   ["stock", "record_stock_losses", NONE, VIEW_BALANCES],
   ["purchasing", "manage_suppliers", NONE],
-  ["purchasing", "manage_purchase_presentations", NONE],
   ["purchasing", "record_purchases", NONE],
   ["purchasing", "manage_freight", NONE],
   ["purchasing", "manage_expiration_dates", NONE],

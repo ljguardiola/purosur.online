@@ -1,5 +1,5 @@
 import type { PurchaseChoices, PurchaseSummary, SupplierSummary } from "@purosur/contracts";
-import { bolsaDeAvena, cajaDeMiel, packagableProducts } from "./packagings";
+import { purchasableProducts } from "./purchase-products";
 
 export const compraDeMiel: PurchaseSummary = {
   id: "c0a00000-0000-4000-8000-000000000001",
@@ -19,7 +19,6 @@ export const compraDeMiel: PurchaseSummary = {
         netContent: null,
         saleUnit: "UNIT",
       },
-      packaging: { id: "9ac00000-0000-4000-8000-000000000001", name: "Caja x 12" },
       packages: 2,
       quantity: 24_000,
       costPaidCents: 7_200_00,
@@ -49,7 +48,6 @@ export const compraDeAvena: PurchaseSummary = {
         netContent: null,
         saleUnit: "KG",
       },
-      packaging: null,
       packages: null,
       quantity: 12_500,
       costPaidCents: 2_000_00,
@@ -64,8 +62,7 @@ export const compraDeAvena: PurchaseSummary = {
 export function purchaseChoicesFrom(suppliers: SupplierSummary[]): PurchaseChoices {
   return {
     suppliers,
-    products: packagableProducts,
-    packagings: [cajaDeMiel, bolsaDeAvena],
+    products: purchasableProducts,
     today: "2026-09-16",
   };
 }

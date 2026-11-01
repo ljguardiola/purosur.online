@@ -70,12 +70,6 @@ export interface FakeDiscountRow {
   validTo: string;
 }
 
-export interface FakePackagingRow {
-  productId: string;
-  name: string;
-  active: boolean;
-}
-
 export interface FakeSupplierItemLinkRow {
   productId: string;
   saleUnit: SaleUnit;
@@ -101,7 +95,6 @@ export interface FakeCatalogState {
   barcodes: FakeBarcodeRow[];
   productTags: FakeProductTagRow[];
   discounts: FakeDiscountRow[];
-  packagings: FakePackagingRow[];
   supplierItemLinks: FakeSupplierItemLinkRow[];
   nextId: number;
 }
@@ -115,7 +108,6 @@ function emptyState(): FakeCatalogState {
     barcodes: [],
     productTags: [],
     discounts: [],
-    packagings: [],
     supplierItemLinks: [],
     nextId: 1,
   };
@@ -133,7 +125,6 @@ function cloneState(state: FakeCatalogState): FakeCatalogState {
     barcodes: state.barcodes.map((row) => ({ ...row })),
     productTags: state.productTags.map((row) => ({ ...row })),
     discounts: state.discounts.map((row) => ({ ...row })),
-    packagings: state.packagings.map((row) => ({ ...row })),
     supplierItemLinks: state.supplierItemLinks.map((row) => ({ ...row })),
     nextId: state.nextId,
   };
@@ -215,13 +206,6 @@ class FakeCatalogStoreTransaction implements CatalogStoreTransaction {
     return this.state.discounts
       .filter((row) => row.kind === "BUY_N_PAY_M" && sameId(row.productId, productId))
       .map(({ name, active, validFrom, validTo }) => ({ name, active, validFrom, validTo }));
-  }
-
-  async activePackagingNamesOf(productId: string): Promise<string[]> {
-    this.store.lockCallOrder.push("activePackagingNamesOf");
-    return this.state.packagings
-      .filter((row) => row.active && sameId(row.productId, productId))
-      .map((row) => row.name);
   }
 
   async hasCurrentSupplierItemLink(productId: string, saleUnit: SaleUnit): Promise<boolean> {
@@ -518,10 +502,6 @@ export class FakeCatalogStore implements CatalogStore {
 
   seedDiscount(discount: FakeDiscountRow): void {
     this.state.discounts.push({ ...discount });
-  }
-
-  seedPackaging(packaging: FakePackagingRow): void {
-    this.state.packagings.push({ ...packaging });
   }
 
   seedSupplierItemLink(link: Partial<FakeSupplierItemLinkRow> & { productId: string }): void {

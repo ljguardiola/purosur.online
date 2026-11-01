@@ -20,13 +20,7 @@ type RequestRefusal =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-const LINE_REFUSALS = [
-  "product_not_found",
-  "product_inactive",
-  "packaging_not_found",
-  "packaging_inactive",
-  "packaging_sale_unit_changed",
-] as const;
+const LINE_REFUSALS = ["product_not_found", "product_inactive"] as const;
 
 export type PurchaseLineRefusal = (typeof LINE_REFUSALS)[number];
 

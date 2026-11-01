@@ -125,10 +125,6 @@ export function saleUnitHeldByDiscountError(discountName: string): string {
   return `No se puede vender por peso mientras la promoción "${discountName}" no esté desactivada o terminada.`;
 }
 
-export function saleUnitHeldByPackagingError(packagingName: string): string {
-  return `No se puede cambiar la unidad de venta mientras la presentación de compra "${packagingName}" esté activa.`;
-}
-
 export const saleUnitHeldBySupplierItemError =
   "No se puede cambiar la unidad de venta mientras un ítem de proveedor esté vinculado al producto.";
 

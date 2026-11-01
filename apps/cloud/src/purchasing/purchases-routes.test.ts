@@ -10,7 +10,6 @@ import {
   lots,
   priceReviews,
   prices,
-  productPackagings,
   purchaseLines,
   purchases,
   stockBalances,
@@ -72,25 +71,6 @@ async function storedSupplier(actorId: string, fields: { active?: boolean; name?
     .values({ name: "Distribuidora Sur", actorId, ...fields })
     .returning({ id: suppliers.id });
   return supplier?.id as string;
-}
-
-async function storedPackaging(
-  productId: string,
-  actorId: string,
-  fields: { active?: boolean; name?: string; saleUnit?: "UNIT" | "KG" } = {},
-) {
-  const [packaging] = await db
-    .insert(productPackagings)
-    .values({
-      productId,
-      name: "Caja x 12",
-      quantityPerPackage: 12_000,
-      saleUnit: "UNIT",
-      actorId,
-      ...fields,
-    })
-    .returning({ id: productPackagings.id });
-  return packaging?.id as string;
 }
 
 function quantityLine(productId: string, quantity = 3_000) {
@@ -195,7 +175,6 @@ describe("POST /purchases", () => {
       brandName: "Piragüé",
       netContent: { quantity: 500, unit: "G" },
     });
-    const packagingId = await storedPackaging(productId, userId);
 
     const response = await app.inject({
       method: "POST",
@@ -205,10 +184,10 @@ describe("POST /purchases", () => {
         supplierId,
         [
           {
-            loadedBy: "packaging",
+            loadedBy: "packages",
             productId,
-            packagingId,
             packages: 2,
+            quantityPerPackage: 12_000,
             costPaidCents: 24_000,
             lotNumber: "L-77",
             expiresOn: "2027-03-01",
@@ -238,7 +217,6 @@ describe("POST /purchases", () => {
             netContent: { quantity: 500, unit: "G" },
             saleUnit: "UNIT",
           },
-          packaging: { id: packagingId, name: "Caja x 12" },
           packages: 2,
           quantity: 24_000,
           costPaidCents: 24_000,
@@ -249,8 +227,15 @@ describe("POST /purchases", () => {
         },
       ],
     });
+    expect(response.json().lines[0]).not.toHaveProperty("packaging");
     const [stored] = await db.select().from(purchases).where(eq(purchases.id, summary.id));
     expect(stored).toMatchObject({ locationId, actorId: userId });
+    const [storedLine] = await db.select().from(purchaseLines);
+    expect(storedLine).toMatchObject({
+      packagingId: null,
+      packages: 2,
+      quantityPerPackage: 12_000,
+    });
     const [balance] = await db.select().from(stockBalances);
     expect(balance).toMatchObject({ productId, locationId, quantity: 24_000 });
   });
@@ -403,69 +388,29 @@ describe("POST /purchases", () => {
     await nothingWasStored();
   });
 
-  it("answers 404 with the line of a packaging that does not exist, storing nothing", async () => {
+  it("answers 400 with the line whose packages hold a quantity its product cannot have, storing nothing", async () => {
     const { headers, userId } = await buyer();
     const supplierId = await storedSupplier(userId);
-    const { productId } = await insertProduct(db);
+    const { productId } = await insertProduct(db, { saleUnit: "UNIT" });
 
     const response = await app.inject({
       method: "POST",
       url: "/purchases",
       headers,
       payload: bodyWith(supplierId, [
-        { ...quantityLine(productId), loadedBy: "packaging", packagingId: MISSING_ID, packages: 1 },
+        {
+          ...quantityLine(productId),
+          loadedBy: "packages",
+          packages: 2,
+          quantityPerPackage: 1_500,
+        },
       ]),
     });
 
-    expect(response.statusCode).toBe(404);
-    expect(response.json()).toMatchObject({
-      code: "packaging_not_found",
-      details: [{ field: "lines", lineIndex: 0 }],
-    });
-    await nothingWasStored();
-  });
-
-  it("answers 409 with the line of a deactivated packaging, storing nothing", async () => {
-    const { headers, userId } = await buyer();
-    const supplierId = await storedSupplier(userId);
-    const { productId } = await insertProduct(db);
-    const packagingId = await storedPackaging(productId, userId, { active: false });
-
-    const response = await app.inject({
-      method: "POST",
-      url: "/purchases",
-      headers,
-      payload: bodyWith(supplierId, [
-        { ...quantityLine(productId), loadedBy: "packaging", packagingId, packages: 1 },
-      ]),
-    });
-
-    expect(response.statusCode).toBe(409);
-    expect(response.json()).toMatchObject({
-      code: "packaging_inactive",
-      details: [{ field: "lines", lineIndex: 0 }],
-    });
-    await nothingWasStored();
-  });
-
-  it("answers 409 with the line of a packaging stated in a sale unit its product no longer has, storing nothing", async () => {
-    const { headers, userId } = await buyer();
-    const supplierId = await storedSupplier(userId);
-    const { productId } = await insertProduct(db, { saleUnit: "KG" });
-    const packagingId = await storedPackaging(productId, userId);
-
-    const response = await app.inject({
-      method: "POST",
-      url: "/purchases",
-      headers,
-      payload: bodyWith(supplierId, [
-        { ...quantityLine(productId), loadedBy: "packaging", packagingId, packages: 1 },
-      ]),
-    });
-
-    expect(response.statusCode).toBe(409);
-    expect(response.json()).toMatchObject({
-      code: "packaging_sale_unit_changed",
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      code: "validation_failed",
+      message: "the line's quantity is not one its product may be received in",
       details: [{ field: "lines", lineIndex: 0 }],
     });
     await nothingWasStored();
@@ -513,7 +458,7 @@ describe("GET /purchase-choices", () => {
     expect(response.json()).toMatchObject({ code: "forbidden" });
   });
 
-  it("answers only the suppliers, products and packagings a purchase may be registered with", async () => {
+  it("answers only the suppliers and products a purchase may be registered with", async () => {
     const { headers, userId } = await buyer();
     const supplierId = await storedSupplier(userId, { name: "Distribuidora Sur" });
     await storedSupplier(userId, { name: "Cerrada", active: false });
@@ -523,9 +468,6 @@ describe("GET /purchase-choices", () => {
       netContent: { quantity: 500, unit: "G" },
     });
     await insertProduct(db, { name: "Antiguo", active: false });
-    const packagingId = await storedPackaging(productId, userId, { name: "Caja x 12" });
-    await storedPackaging(productId, userId, { name: "Vieja", active: false });
-    await storedPackaging(productId, userId, { name: "Por kilo", saleUnit: "KG" });
 
     const response = await app.inject({ method: "GET", url: "/purchase-choices", headers });
 
@@ -541,10 +483,7 @@ describe("GET /purchase-choices", () => {
         saleUnit: "UNIT",
       },
     ]);
-    expect(choices.packagings).toMatchObject([
-      { brandName: "Piragüé", netContent: { quantity: 500, unit: "G" } },
-    ]);
-    expect(choices.packagings.map((packaging) => packaging.id)).toEqual([packagingId]);
+    expect(response.json()).not.toHaveProperty("packagings");
   });
 
   it("answers today's day in Argentina, which purchases are dated by", async () => {

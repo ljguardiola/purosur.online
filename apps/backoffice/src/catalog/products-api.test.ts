@@ -423,17 +423,6 @@ test.each([
   },
 );
 
-test("editProduct returns sale_unit_held_by_packaging with the packaging's name on a 409 carrying that code", async () => {
-  vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(409, { code: "sale_unit_held_by_packaging", packagingName: "Caja x 12" }),
-  );
-
-  expect(await editProduct("product-1", editInput)).toEqual({
-    kind: "sale_unit_held_by_packaging",
-    packagingName: "Caja x 12",
-  });
-});
-
 test("editProduct returns sale_unit_held_by_supplier_item on a 409 carrying that code", async () => {
   vi.mocked(fetch).mockResolvedValue(
     jsonResponse(409, { code: "sale_unit_held_by_supplier_item" }),
@@ -444,17 +433,13 @@ test("editProduct returns sale_unit_held_by_supplier_item on a 409 carrying that
   });
 });
 
-test.each([
-  { code: "sale_unit_held_by_packaging" },
-  { code: "sale_unit_held_by_packaging", packagingName: 2 },
-])(
-  "editProduct fails on a sale_unit_held_by_packaging 409 that does not name the packaging: %o",
-  async (body) => {
-    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, body));
+test("editProduct no longer knows a sale unit held by a packaging, reading that 409 as a barcode taken with no code named", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(409, { code: "sale_unit_held_by_packaging", packagingName: "Caja x 12" }),
+  );
 
-    expect(await editProduct("product-1", editInput)).toEqual({ kind: "failed" });
-  },
-);
+  expect(await editProduct("product-1", editInput)).toEqual({ kind: "barcode_taken", codes: [] });
+});
 
 test("editProduct returns category_not_leaf on a 409 carrying that code", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "category_not_leaf" }));

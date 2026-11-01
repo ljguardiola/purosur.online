@@ -459,7 +459,7 @@ describe("changing a product to sold by weight", () => {
   });
 });
 
-describe("changing the sale unit of a product with purchase packagings", () => {
+describe("changing the sale unit of a product with a packaging row of a previous release", () => {
   async function packagingOn(
     productId: string,
     overrides: Partial<typeof productPackagings.$inferInsert> = {},
@@ -513,39 +513,15 @@ describe("changing the sale unit of a product with purchase packagings", () => {
     return row?.saleUnit;
   }
 
-  it("is refused naming the first active packaging by name, leaving the sale unit unchanged", async () => {
+  it("is saved while the product has an active packaging", async () => {
     const category = await newCategory();
     const product = await newProduct(category.id);
-    await packagingOn(product.id, { name: "Zeta" });
-    await packagingOn(product.id, { name: "Alfa" });
-    await packagingOn(product.id, { name: "Beta", active: false });
-
-    const outcome = await editSaleUnit(product, category.id, "KG");
-
-    expect(outcome).toEqual({ kind: "sale_unit_held_by_packaging", packagingName: "Alfa" });
-    expect(await storedSaleUnit(product.id)).toBe("UNIT");
-  });
-
-  it("is saved when its only packaging is deactivated", async () => {
-    const category = await newCategory();
-    const product = await newProduct(category.id);
-    await packagingOn(product.id, { active: false });
+    await packagingOn(product.id);
 
     const outcome = await editSaleUnit(product, category.id, "KG");
 
     expect(outcome.kind).toBe("applied");
     expect(await storedSaleUnit(product.id)).toBe("KG");
-  });
-
-  it("is saved when the active packaging belongs to another product", async () => {
-    const category = await newCategory();
-    const product = await newProduct(category.id);
-    const other = await newProduct(category.id, ["7790001000035"]);
-    await packagingOn(other.id);
-
-    const outcome = await editSaleUnit(product, category.id, "KG");
-
-    expect(outcome.kind).toBe("applied");
   });
 });
 

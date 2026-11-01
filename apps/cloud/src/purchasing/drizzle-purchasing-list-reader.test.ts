@@ -1,9 +1,9 @@
 import { ANOTHER_FICTIONAL_CUIT, FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { productPackagings, suppliers } from "../platform/db/schema.js";
+import { suppliers } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzlePurchasingListReader } from "./drizzle-purchasing-list-reader.js";
-import { insertActor, insertProduct } from "./test-support/purchasing-fixtures.js";
+import { insertActor } from "./test-support/purchasing-fixtures.js";
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -59,90 +59,5 @@ describe("DrizzlePurchasingListReader", () => {
         version: 1,
       },
     ]);
-  });
-
-  it("lists every packaging with the sale unit it is stated in and its product's name and current sale unit, those of a deactivated product included", async () => {
-    const arroz = await insertProduct(db, {
-      name: "Arroz",
-      saleUnit: "UNIT",
-      brandName: "Vitora",
-      netContent: { quantity: 500, unit: "G" },
-    });
-    const harina = await insertProduct(db, { name: "Harina", saleUnit: "KG", active: false });
-    await db.insert(productPackagings).values([
-      {
-        productId: harina.id,
-        name: "Bolsa",
-        quantityPerPackage: 25_000,
-        saleUnit: "UNIT",
-        active: false,
-        actorId,
-      },
-      { productId: arroz.id, name: "Caja", quantityPerPackage: 12_000, saleUnit: "UNIT", actorId },
-    ]);
-
-    const listed = await new DrizzlePurchasingListReader(db).packagings();
-
-    expect(listed).toEqual([
-      {
-        id: expect.any(String),
-        productId: harina.id,
-        productName: "Harina",
-        brandName: null,
-        netContent: null,
-        productSaleUnit: "KG",
-        saleUnit: "UNIT",
-        name: "Bolsa",
-        quantityPerPackage: 25_000,
-        active: false,
-        version: 1,
-      },
-      {
-        id: expect.any(String),
-        productId: arroz.id,
-        productName: "Arroz",
-        brandName: "Vitora",
-        netContent: { quantity: 500, unit: "G" },
-        productSaleUnit: "UNIT",
-        saleUnit: "UNIT",
-        name: "Caja",
-        quantityPerPackage: 12_000,
-        active: true,
-        version: 1,
-      },
-    ]);
-  });
-
-  it("finds one packaging with its product's name and current sale unit, and none that does not exist", async () => {
-    const arroz = await insertProduct(db, {
-      name: "Arroz",
-      brandName: "Vitora",
-      netContent: { quantity: 500, unit: "G" },
-    });
-    const [caja] = await db
-      .insert(productPackagings)
-      .values([
-        { productId: arroz.id, name: "Caja", quantityPerPackage: 12_000, saleUnit: "KG", actorId },
-        {
-          productId: arroz.id,
-          name: "Bolsa",
-          quantityPerPackage: 6_000,
-          saleUnit: "UNIT",
-          actorId,
-        },
-      ])
-      .returning({ id: productPackagings.id });
-    const reader = new DrizzlePurchasingListReader(db);
-
-    expect(await reader.packaging(caja?.id ?? "")).toMatchObject({
-      id: caja?.id,
-      name: "Caja",
-      productName: "Arroz",
-      brandName: "Vitora",
-      netContent: { quantity: 500, unit: "G" },
-      productSaleUnit: "UNIT",
-      saleUnit: "KG",
-    });
-    expect(await reader.packaging("00000000-0000-4000-8000-000000000000")).toBeUndefined();
   });
 });

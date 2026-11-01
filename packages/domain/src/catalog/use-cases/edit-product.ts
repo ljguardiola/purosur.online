@@ -27,7 +27,6 @@ export type EditProductOutcome =
   | { kind: "brand_inactive" }
   | { kind: "tag_not_found" }
   | { kind: "tag_inactive"; tagId: string }
-  | { kind: "sale_unit_held_by_packaging"; packagingName: string }
   | { kind: "sale_unit_held_by_supplier_item" }
   | { kind: "sale_unit_held_by_discount"; discountName: string }
   | { kind: "internal_barcode_on_product_with_barcodes" }
@@ -59,10 +58,6 @@ export async function editProduct(
       }
 
       if (locked.product.saleUnit !== input.saleUnit) {
-        const [holdingPackaging] = (await tx.activePackagingNamesOf(id)).sort();
-        if (holdingPackaging !== undefined) {
-          return { kind: "sale_unit_held_by_packaging", packagingName: holdingPackaging };
-        }
         if (await tx.hasCurrentSupplierItemLink(id, locked.product.saleUnit)) {
           return { kind: "sale_unit_held_by_supplier_item" };
         }

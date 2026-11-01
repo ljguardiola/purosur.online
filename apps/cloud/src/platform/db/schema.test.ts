@@ -1323,12 +1323,6 @@ describe("purchases", () => {
     ["a quantity of zero", false, { quantity: 0 }, "purchase_lines_quantity_check"],
     ["a position of zero", false, { position: 0 }, "purchase_lines_position_check"],
     ["a negative cost", false, { costPaidCents: -1 }, "purchase_lines_cost_paid_check"],
-    [
-      "packages without a packaging",
-      false,
-      { packages: 12 },
-      "purchase_lines_packaging_iff_packages_check",
-    ],
     ["zero packages", true, { packages: 0 }, "purchase_lines_packages_quantity_check"],
     [
       "a quantity that is not the packages times the quantity per package",
@@ -1362,13 +1356,31 @@ describe("purchases", () => {
     ).resolves.toBeDefined();
   });
 
+  it("keeps a line loaded by packages with no packaging", async () => {
+    const { purchaseId, productId } = await seedPurchase();
+
+    const [line] = await db
+      .insert(purchaseLines)
+      .values({
+        purchaseId,
+        productId,
+        packages: 12,
+        ...LINE,
+        quantity: 144_000,
+        quantityPerPackage: 12_000,
+      })
+      .returning();
+
+    expect(line).toMatchObject({ packagingId: null, packages: 12, quantity: 144_000 });
+  });
+
   it("rejects a packaging without its packages", async () => {
     const { purchaseId, productId, packagingId } = await seedPurchase();
 
     await expect(
       db.insert(purchaseLines).values({ purchaseId, productId, packagingId, ...LINE }),
     ).rejects.toMatchObject({
-      cause: { constraint: "purchase_lines_packaging_iff_packages_check" },
+      cause: { constraint: "purchase_lines_packaging_needs_packages_check" },
     });
   });
 

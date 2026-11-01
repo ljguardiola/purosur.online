@@ -25,7 +25,6 @@ opensOnlyScreens([
   "/inventory",
   "/inventory-adjustments",
   "/inventory-counts",
-  "/purchase-packagings",
   "/purchases",
   "/purchases/new",
   "/recipes",
@@ -70,10 +69,6 @@ function stockServices(capabilities: Capability[]) {
     kind: "ok",
     value: [],
   });
-  vi.mocked(services.packagingsListScreen.fetchPackagings).mockResolvedValue({
-    kind: "ok",
-    value: { packagings: [], products: [] },
-  });
   vi.mocked(services.recipesListScreen.fetchRecipes).mockResolvedValue({
     kind: "ok",
     value: { recipes: [], products: [] },
@@ -92,7 +87,7 @@ function stockServices(capabilities: Capability[]) {
   });
   vi.mocked(services.newPurchaseScreen.fetchPurchaseChoices).mockResolvedValue({
     kind: "ok",
-    value: { suppliers: [], products: [], packagings: [], today: "2026-09-16" },
+    value: { suppliers: [], products: [], today: "2026-09-16" },
   });
   return services;
 }
@@ -102,7 +97,6 @@ const SECTION_LABELS = [
   "Recuentos",
   "Ajustes y pérdidas",
   "Proveedores",
-  "Presentaciones de compra",
   "Compras",
   "Vencimientos",
   "Flete",
@@ -117,7 +111,6 @@ test.each([
   ["stock_losses", "Ajustes y pérdidas", "/inventory-adjustments"],
   ["stock_adjustments", "Ajustes y pérdidas", "/inventory-adjustments"],
   ["suppliers", "Proveedores", "/suppliers"],
-  ["purchase_packagings", "Presentaciones de compra", "/purchase-packagings"],
   ["purchases", "Compras", "/purchases"],
   ["stock_expiries", "Vencimientos", "/expiring-lots"],
   ["freights", "Flete", "/freights"],
@@ -230,8 +223,7 @@ test.each([
   ["/inventory", "stock_counts"],
   ["/inventory-counts", "stock_balances"],
   ["/inventory-adjustments", "stock_counts"],
-  ["/suppliers", "purchase_packagings"],
-  ["/purchase-packagings", "suppliers"],
+  ["/suppliers", "purchases"],
   ["/purchases", "suppliers"],
   ["/purchases/new", "suppliers"],
   ["/expiring-lots", "suppliers"],
@@ -295,7 +287,6 @@ const STOCK_SCREENS = [
   ["/inventory-counts", "Recuentos"],
   ["/inventory-adjustments", "Ajustes y pérdidas"],
   ["/suppliers", "Proveedores"],
-  ["/purchase-packagings", "Presentaciones de compra"],
   ["/purchases", "Compras"],
   ["/purchases/new", "Registrar compra"],
   ["/expiring-lots", "Vencimientos"],

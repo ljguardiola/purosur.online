@@ -42,7 +42,7 @@ describe("ONE_SALE_UNIT_QUANTITY", () => {
 });
 
 describe("packagedQuantity", () => {
-  it("multiplies the packages by the packaging's quantity per package", () => {
+  it("multiplies the packages bought by the quantity each package holds", () => {
     expect(packagedQuantity(2, 12_000)).toBe(24_000);
     expect(packagedQuantity(3, 25_000)).toBe(75_000);
   });

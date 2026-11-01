@@ -17,38 +17,29 @@ const product = {
   netContent: { quantity: 500, unit: "G" },
   saleUnit: "UNIT",
 };
-const packaging = {
-  id: "k-1",
-  productId: "p-1",
-  productName: "Yerba",
-  brandName: "Piragüé",
-  netContent: { quantity: 500, unit: "G" },
-  productSaleUnit: "UNIT",
-  saleUnit: "UNIT",
-  saleUnitChanged: false,
-  name: "Caja x 12",
-  quantityPerPackage: 12_000,
-  active: true,
-  version: 1,
-};
 const choices = {
   suppliers: [supplier],
   products: [product],
-  packagings: [packaging],
   today: "2026-09-16",
 };
 
 describe("purchaseChoicesSchema", () => {
-  it("accepts the suppliers, products and packagings a purchase may be registered with, and today", () => {
+  it("accepts the suppliers and products a purchase may be registered with, and today", () => {
     expect(purchaseChoicesSchema.safeParse(choices).data).toEqual(choices);
   });
 
+  it("strips the packagings of a previous release", () => {
+    expect(
+      purchaseChoicesSchema.safeParse({ ...choices, packagings: [{ id: "k-1" }] }).data,
+    ).toEqual(choices);
+  });
+
   it("accepts nothing to choose", () => {
-    const none = { suppliers: [], products: [], packagings: [], today: "2026-09-16" };
+    const none = { suppliers: [], products: [], today: "2026-09-16" };
     expect(purchaseChoicesSchema.safeParse(none).data).toEqual(none);
   });
 
-  it.each(["suppliers", "products", "packagings", "today"])("refuses choices without %s", (key) => {
+  it.each(["suppliers", "products", "today"])("refuses choices without %s", (key) => {
     const { [key as keyof typeof choices]: _missing, ...rest } = choices;
     expect(purchaseChoicesSchema.safeParse(rest).success).toBe(false);
   });
@@ -56,7 +47,6 @@ describe("purchaseChoicesSchema", () => {
   it.each([
     ["a supplier", { suppliers: [{ ...supplier, active: "yes" }] }],
     ["a product", { products: [{ ...product, saleUnit: "LITRE" }] }],
-    ["a packaging", { packagings: [{ ...packaging, quantityPerPackage: 1.5 }] }],
   ])("refuses %s that does not match its shape", (_name, broken) => {
     expect(purchaseChoicesSchema.safeParse({ ...choices, ...broken }).success).toBe(false);
   });

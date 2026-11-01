@@ -7,7 +7,6 @@ import {
   ClipboardList,
   Container,
   CookingPot,
-  Package,
   Scale,
   ShoppingCart,
   Truck,
@@ -17,7 +16,6 @@ import { AreaTopBarAlertsCount } from "./area-top-bar-alerts-count";
 import {
   canManageBatches,
   canManageFreights,
-  canManagePurchasePackagings,
   canManageRecipes,
   canManageSuppliers,
   canPerformStockCounts,
@@ -44,7 +42,6 @@ function StockArea() {
   const countsShown = Boolean(matchRoute({ to: "/inventory-counts" }));
   const movementsShown = Boolean(matchRoute({ to: "/inventory-adjustments" }));
   const suppliersShown = Boolean(matchRoute({ to: "/suppliers" }));
-  const packagingsShown = Boolean(matchRoute({ to: "/purchase-packagings" }));
   const purchasesShown = Boolean(matchRoute({ to: "/purchases", fuzzy: true }));
   const expiringLotsShown = Boolean(matchRoute({ to: "/expiring-lots" }));
   const freightsShown = Boolean(matchRoute({ to: "/freights" }));
@@ -101,17 +98,6 @@ function StockArea() {
                   icon={<Truck />}
                   search={suppliersShown ? true : {}}
                   active={suppliersShown}
-                />
-              </li>
-            )}
-            {canManagePurchasePackagings(session) && (
-              <li>
-                <SectionLink
-                  to="/purchase-packagings"
-                  label="Presentaciones de compra"
-                  icon={<Package />}
-                  search={packagingsShown ? true : {}}
-                  active={packagingsShown}
                 />
               </li>
             )}

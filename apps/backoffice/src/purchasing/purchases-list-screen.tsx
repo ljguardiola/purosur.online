@@ -53,9 +53,9 @@ function parentIdOf(row: PurchaseRow): string | null {
 
 function quantityOf(line: PurchaseLine): string {
   const quantity = formatStockQuantity(line.quantity, line.product.saleUnit);
-  return line.packaging === null || line.packages === null
+  return line.packages === null
     ? quantity
-    : `${formatNumber(line.packages)} × ${line.packaging.name} (${quantity})`;
+    : `${formatNumber(line.packages)} × ${formatStockQuantity(line.quantityPerPackage, line.product.saleUnit)} (${quantity})`;
 }
 
 function saleUnitName(line: PurchaseLine): string {
@@ -67,7 +67,7 @@ function unitCostOf(line: PurchaseLine): string {
 }
 
 function costPaidOf(line: PurchaseLine): string {
-  return `${formatCents(line.costPaidCents)} por ${line.packaging?.name ?? saleUnitName(line)}`;
+  return `${formatCents(line.costPaidCents)} por ${line.packages === null ? saleUnitName(line) : "paquete"}`;
 }
 
 function ofPurchase(row: PurchaseRow, render: (purchase: PurchaseSummary) => string): string {

@@ -13,13 +13,12 @@ import { purchaseRegistrationBodySchema } from "./purchase-registration.js";
 
 const SUPPLIER_ID = "11111111-1111-1111-1111-111111111111";
 const PRODUCT_ID = "22222222-2222-2222-2222-222222222222";
-const PACKAGING_ID = "33333333-3333-3333-3333-333333333333";
 
-const packagedLine = {
-  loadedBy: "packaging",
+const packagesLine = {
+  loadedBy: "packages",
   productId: PRODUCT_ID,
-  packagingId: PACKAGING_ID,
   packages: 2,
+  quantityPerPackage: 12_000,
   costPaidCents: 1_450_050,
   lotNumber: "L-17",
   expiresOn: "2027-01-31",
@@ -38,7 +37,7 @@ const purchase = {
   receiptType: "factura_b",
   receiptNumber: "0001-00001234",
   note: "Entrega de la tarde",
-  lines: [packagedLine, quantityLine],
+  lines: [packagesLine, quantityLine],
 };
 
 function firstFailure(body: unknown): { path: unknown[]; message: string } | undefined {
@@ -52,7 +51,7 @@ function withLine(line: unknown) {
 }
 
 describe("purchaseRegistrationBodySchema", () => {
-  it("accepts a purchase with a line loaded by packaging and one loaded by quantity", () => {
+  it("accepts a purchase with a line loaded by packages and one loaded by quantity", () => {
     expect(purchaseRegistrationBodySchema.safeParse(purchase).data).toEqual(purchase);
   });
 
@@ -197,7 +196,7 @@ describe("purchaseRegistrationBodySchema", () => {
 });
 
 describe("a line of purchaseRegistrationBodySchema", () => {
-  it.each([undefined, "", "other", "Packaging"])("rejects the way of loading %j", (loadedBy) => {
+  it.each([undefined, "", "other", "packaging"])("rejects the way of loading %j", (loadedBy) => {
     expect(
       purchaseRegistrationBodySchema.safeParse(withLine({ ...quantityLine, loadedBy })).success,
     ).toBe(false);
@@ -210,17 +209,10 @@ describe("a line of purchaseRegistrationBodySchema", () => {
     });
   });
 
-  it.each([undefined, "", "nope"])("rejects the packaging id %j", (packagingId) => {
-    expect(firstFailure(withLine({ ...packagedLine, packagingId }))).toEqual({
-      path: ["lines", 0, "packagingId"],
-      message: "packagingId must be a packaging's id",
-    });
-  });
-
   it("accepts the smallest and the largest number of packages", () => {
     for (const packages of [1, MAX_STOCK_QUANTITY]) {
       expect(
-        purchaseRegistrationBodySchema.safeParse(withLine({ ...packagedLine, packages })).success,
+        purchaseRegistrationBodySchema.safeParse(withLine({ ...packagesLine, packages })).success,
       ).toBe(true);
     }
   });
@@ -228,9 +220,28 @@ describe("a line of purchaseRegistrationBodySchema", () => {
   it.each([undefined, null, "2", 0, -1, 1.5, MAX_STOCK_QUANTITY + 1, Number.NaN])(
     "rejects %j packages",
     (packages) => {
-      expect(firstFailure(withLine({ ...packagedLine, packages }))).toEqual({
+      expect(firstFailure(withLine({ ...packagesLine, packages }))).toEqual({
         path: ["lines", 0, "packages"],
         message: "packages must be a positive whole number",
+      });
+    },
+  );
+
+  it("accepts the smallest and the largest quantity per package a stock movement may carry", () => {
+    for (const quantityPerPackage of [1, MAX_STOCK_QUANTITY]) {
+      expect(
+        purchaseRegistrationBodySchema.safeParse(withLine({ ...packagesLine, quantityPerPackage }))
+          .success,
+      ).toBe(true);
+    }
+  });
+
+  it.each([undefined, null, "12000", 0, -1000, 1.5, MAX_STOCK_QUANTITY + 1, Number.NaN])(
+    "rejects the quantity per package %j",
+    (quantityPerPackage) => {
+      expect(firstFailure(withLine({ ...packagesLine, quantityPerPackage }))).toEqual({
+        path: ["lines", 0, "quantityPerPackage"],
+        message: "quantityPerPackage must be a positive integer number of thousandths",
       });
     },
   );
@@ -254,12 +265,16 @@ describe("a line of purchaseRegistrationBodySchema", () => {
   );
 
   it("declares the quantity's units", () => {
-    const [packaging, quantity] = purchaseRegistrationBodySchema.shape.lines.element.options;
+    const [packages, quantity] = purchaseRegistrationBodySchema.shape.lines.element.options;
     expect(quantity.shape.quantity.meta()).toEqual({
       decimals: STOCK_QUANTITY_DECIMALS,
       perUnit: STOCK_QUANTITY_PER_UNIT,
     });
-    expect(packaging.shape.lotNumber.meta()).toEqual({ maxLength: LOT_NUMBER_MAX_LENGTH });
+    expect(packages.shape.quantityPerPackage.meta()).toEqual({
+      decimals: STOCK_QUANTITY_DECIMALS,
+      perUnit: STOCK_QUANTITY_PER_UNIT,
+    });
+    expect(packages.shape.lotNumber.meta()).toEqual({ maxLength: LOT_NUMBER_MAX_LENGTH });
   });
 
   it("accepts a cost of nothing and the largest cost a cash amount may hold", () => {
@@ -323,14 +338,14 @@ describe("a line of purchaseRegistrationBodySchema", () => {
     });
   });
 
-  it("strips a packaging from a line loaded by quantity and a quantity from one loaded by packaging", () => {
+  it("strips the packages from a line loaded by quantity and a quantity from one loaded by packages", () => {
     const parsed = purchaseRegistrationBodySchema.parse({
       ...purchase,
       lines: [
-        { ...quantityLine, packagingId: PACKAGING_ID, packages: 3 },
-        { ...packagedLine, quantity: 5_000 },
+        { ...quantityLine, packages: 3, quantityPerPackage: 6_000 },
+        { ...packagesLine, quantity: 5_000 },
       ],
     });
-    expect(parsed.lines).toEqual([quantityLine, packagedLine]);
+    expect(parsed.lines).toEqual([quantityLine, packagesLine]);
   });
 });

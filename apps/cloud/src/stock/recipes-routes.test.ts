@@ -53,7 +53,6 @@ function withoutRecipesPermission() {
     [
       "view_stock_balances",
       "manage_suppliers",
-      "manage_purchase_presentations",
       "record_purchases",
       "perform_stock_counts",
       "record_stock_losses",

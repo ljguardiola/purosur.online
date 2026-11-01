@@ -171,9 +171,6 @@ describe("registerPurchase", () => {
   test.each([
     [404, "product_not_found"],
     [409, "product_inactive"],
-    [404, "packaging_not_found"],
-    [409, "packaging_inactive"],
-    [409, "packaging_sale_unit_changed"],
   ] as const)("answers a %i %s as a refusal of its line", async (status, code) => {
     vi.mocked(fetch).mockResolvedValue(
       jsonResponse(status, { code, details: [{ field: "lines", lineIndex: 1 }] }),

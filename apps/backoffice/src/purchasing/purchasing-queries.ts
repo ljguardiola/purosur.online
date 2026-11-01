@@ -8,8 +8,6 @@ import type {
   FreightList,
   LinkablePurchaseList,
   OrderSuggestion,
-  PackagingList,
-  PackagingSummary,
   PurchaseChoices,
   PurchaseSummary,
   PurchasesBySupplierBody,
@@ -37,7 +35,6 @@ import type {
   fetchLinkablePurchases,
 } from "./freights-api";
 import type { fetchOrderSuggestion } from "./order-suggestion-api";
-import type { fetchPackagings } from "./packagings-api";
 import type { fetchPurchaseChoices, fetchPurchases } from "./purchases-api";
 import type { fetchPurchasesReport } from "./purchases-report-api";
 import type {
@@ -63,7 +60,6 @@ export const purchasingKey = ["purchasing"] as const;
 
 export const purchasingKeys = {
   suppliers: [...purchasingKey, "suppliers"] as const,
-  packagings: [...purchasingKey, "packagings"] as const,
   purchases: [...purchasingKey, "purchases"] as const,
   purchaseChoices: [...purchasingKey, "purchase-choices"] as const,
   freights: [...purchasingKey, "freights"] as const,
@@ -171,19 +167,6 @@ export function useAiCostReportQuery(params: {
     queryKey: aiCostReportKey(params.query),
     keepPreviousData: true,
     read: () => params.fetchAiCostReport(params.query),
-    onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
-  });
-}
-
-export function usePackagingsQuery(params: {
-  fetchPackagings: typeof fetchPackagings;
-  onSessionEnded: () => void;
-}) {
-  const sendToMyAccount = useSendToMyAccount();
-  return useCloudQuery<PackagingList>({
-    queryKey: purchasingKeys.packagings,
-    read: params.fetchPackagings,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });
@@ -526,28 +509,5 @@ export function useReloadSupplier(params: {
     }
     const supplier = listed.value.find((listedSupplier) => listedSupplier.id === id);
     return supplier ? { kind: "found", supplier } : { kind: "not_found" };
-  };
-}
-
-export type PackagingReload =
-  | { kind: "found"; packaging: PackagingSummary }
-  | { kind: "not_found" }
-  | { kind: "list_failed" };
-
-export function useReloadPackaging(params: {
-  fetchPackagings: typeof fetchPackagings;
-}): (id: string) => Promise<PackagingReload> {
-  const client = useQueryClient();
-  return async (id) => {
-    void client.invalidateQueries({ queryKey: purchasingKey });
-    const listed = await fetchCloudQuery(client, {
-      queryKey: purchasingKeys.packagings,
-      read: params.fetchPackagings,
-    });
-    if (listed.kind !== "ok") {
-      return { kind: "list_failed" };
-    }
-    const packaging = listed.value.packagings.find((listed) => listed.id === id);
-    return packaging ? { kind: "found", packaging } : { kind: "not_found" };
   };
 }

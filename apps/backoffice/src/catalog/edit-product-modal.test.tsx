@@ -221,26 +221,6 @@ test("shows on the sale unit field the discount that keeps the product sold by t
   expect(dialog.getByText("No se pudo guardar el cambio").query()).toBeNull();
 });
 
-test("shows on the sale unit field the purchase packaging that keeps the product's sale unit", async () => {
-  const services = createServices();
-  vi.mocked(services.editProduct).mockResolvedValue({
-    kind: "sale_unit_held_by_packaging",
-    packagingName: "Caja x 12",
-  });
-  const { dialog } = await renderModal(honey, services);
-
-  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
-
-  await expect
-    .element(
-      dialog.getByText(
-        'No se puede cambiar la unidad de venta mientras la presentación de compra "Caja x 12" esté activa.',
-      ),
-    )
-    .toBeVisible();
-  expect(dialog.getByText("No se pudo guardar el cambio").query()).toBeNull();
-});
-
 test("shows on the sale unit field that a supplier item linked to the product keeps its sale unit", async () => {
   const services = createServices();
   vi.mocked(services.editProduct).mockResolvedValue({ kind: "sale_unit_held_by_supplier_item" });
