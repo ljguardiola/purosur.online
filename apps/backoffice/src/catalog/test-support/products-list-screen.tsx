@@ -95,6 +95,12 @@ export async function openEditProductModal(screen: Screen, product: ProductSumma
   return screen.getByRole("dialog");
 }
 
+export async function openCloneProductModal(screen: Screen, product: ProductSummary) {
+  await expect.element(screen.getByText(product.name)).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: `Clonar el producto ${product.name}` }));
+  return screen.getByRole("dialog");
+}
+
 export async function openDeactivateProductModal(screen: Screen, product: ProductSummary) {
   await expect.element(screen.getByText(product.name)).toBeVisible();
   await userEvent.click(
