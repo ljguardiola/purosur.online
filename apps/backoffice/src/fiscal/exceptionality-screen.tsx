@@ -4,6 +4,7 @@ import {
   formatNumber,
   formatPercent,
   formatTenthsOfPercent,
+  formatYear,
   groupColumn,
   ListFilter,
   StatusIndicator,
@@ -12,9 +13,11 @@ import {
   type Tone,
   useTableModel,
 } from "@purosur/ui";
+import { deepEqual } from "@tanstack/react-router";
 import { FileSearch, Percent } from "lucide-react";
+import { useEffect, useEffectEvent } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
-import type { CloudData } from "../platform/use-cloud-query";
+import { combineCloudData } from "../platform/combine-cloud-data";
 import { monthNameOf, yearMonthLabel } from "../platform/year-month-label";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
@@ -87,8 +90,8 @@ const columns = [
 
 function nonCompliantMonthsText(year: ExceptionShareYearBody): string {
   return year.non_compliant_months.length === 0
-    ? `Ningún mes incumplió en ${year.year}`
-    : `Meses que incumplieron en ${year.year}: ${year.non_compliant_months.map(monthNameOf).join(", ")}`;
+    ? `Ningún mes incumplió en ${formatYear(year.year)}`
+    : `Meses que incumplieron en ${formatYear(year.year)}: ${year.non_compliant_months.map(monthNameOf).join(", ")}`;
 }
 
 function addressOption({ id, name }: { id: string; name: string }) {
@@ -96,7 +99,7 @@ function addressOption({ id, name }: { id: string; name: string }) {
 }
 
 function yearOption(year: number) {
-  return { value: String(year), label: String(year) };
+  return { value: String(year), label: formatYear(year) };
 }
 
 function emptyStateOf(noFiscalAddresses: boolean) {
@@ -119,8 +122,14 @@ export function ExceptionalityScreen({
     fetchFiscalAddresses: services.fetchFiscalAddresses,
     onSessionEnded,
   });
-  const [firstAddress, ...otherAddresses] = addresses.status === "loaded" ? addresses.value : [];
-  const fiscalAddressId = filters.fiscalAddress === "" ? firstAddress?.id : filters.fiscalAddress;
+  const reportFilters = useEffectEvent(onFiltersChange);
+  const listedAddresses = addresses.status === "loaded" ? addresses.value : [];
+  const [firstAddress, ...otherAddresses] = listedAddresses;
+  const fiscalAddressFilter =
+    addresses.status === "loaded" && !listedAddresses.some(({ id }) => id === filters.fiscalAddress)
+      ? ""
+      : filters.fiscalAddress;
+  const fiscalAddressId = fiscalAddressFilter === "" ? firstAddress?.id : fiscalAddressFilter;
   const read = useExceptionShareYearQuery({
     fiscalAddressId: addresses.status === "loaded" ? fiscalAddressId : undefined,
     year: filters.year,
@@ -128,12 +137,30 @@ export function ExceptionalityScreen({
     onSessionEnded,
   });
   const noFiscalAddresses = addresses.status === "loaded" && firstAddress === undefined;
-  const data: CloudData<unknown> =
-    addresses.status === "loaded" && !noFiscalAddresses ? read : addresses;
+  const data =
+    addresses.status !== "loaded" || noFiscalAddresses
+      ? addresses
+      : combineCloudData(addresses, read);
   const shown =
     read.status === "loaded" && read.value.kind === "found" ? read.value.year : undefined;
   const lastRead = read.status === "loaded" ? undefined : read.lastValue;
   const answered = shown ?? (lastRead?.kind === "found" ? lastRead.year : undefined);
+  const yearFilter =
+    shown !== undefined &&
+    filters.year !== undefined &&
+    !shown.selectable_years.includes(filters.year)
+      ? undefined
+      : filters.year;
+
+  useEffect(() => {
+    const shownFilters: ExceptionalityFilters = {
+      fiscalAddress: fiscalAddressFilter,
+      ...(yearFilter === undefined ? {} : { year: yearFilter }),
+    };
+    if (!deepEqual(shownFilters, filters)) {
+      reportFilters(shownFilters);
+    }
+  }, [fiscalAddressFilter, yearFilter, filters]);
   const table = useTableModel({
     items: shown?.months ?? NO_MONTHS,
     id: (month) => month.month,

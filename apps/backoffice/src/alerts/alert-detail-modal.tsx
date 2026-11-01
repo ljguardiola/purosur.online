@@ -58,7 +58,7 @@ import { retryAfterDetail } from "../platform/retry-after-detail";
 import { roleDisplayName } from "../platform/role-display-name";
 import { schemaText } from "../platform/schema-text";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
-import { monthNameOf, yearMonthPhrase } from "../platform/year-month-label";
+import { monthNameOf, yearMonthPhrase, yearOf } from "../platform/year-month-label";
 import {
   type BackofficeAccess,
   canCloseAlertsManually,
@@ -747,10 +747,10 @@ function NonCompliantMonthsLine({
 }: {
   detail: Extract<AlertDetail, { kind: "exception_share_breach" }>["detail"];
 }) {
-  const year = detail.month.slice(0, 4);
   return (
     <p className="text-text text-detail">
-      Meses que incumplieron en {year}: {detail.nonCompliantMonths.map(monthNameOf).join(", ")}
+      Meses que incumplieron en {yearOf(detail.month)}:{" "}
+      {detail.nonCompliantMonths.map(monthNameOf).join(", ")}
     </p>
   );
 }

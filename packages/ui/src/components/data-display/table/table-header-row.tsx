@@ -1,6 +1,6 @@
 import type { RowData } from "@tanstack/react-table";
 import { actionsContentWidth, headerColumnWidthStyle } from "./table-actions";
-import { columnActionCount, columnAlign, columnTitle } from "./table-column";
+import { columnActionCount, columnAlign, columnTitle, type TableColumnOf } from "./table-column";
 import { SortableColumnHeader } from "./table-sort-header";
 import { alignClassName, cellHorizontalPaddingClassName } from "./table-styles";
 import type { TableModel, TableSortDirection, TableVariant } from "./table-types";
@@ -34,6 +34,41 @@ function TableGroupHeaderRow<T extends RowData>({
         ),
       )}
     </tr>
+  );
+}
+
+function leafColumnWidthStyle<T extends RowData>(
+  column: TableColumnOf<T>,
+  first: boolean,
+  last: boolean,
+  variant: TableVariant,
+) {
+  const actionCount = columnActionCount(column);
+  return headerColumnWidthStyle(
+    actionCount === undefined ? column.columnDef.meta?.width : actionsContentWidth(actionCount),
+    first,
+    last,
+    variant,
+  );
+}
+
+export function TableColumnWidths<T extends RowData>({
+  table,
+  variant,
+}: {
+  table: TableModel<T>;
+  variant: TableVariant;
+}) {
+  const columns = table.getAllLeafColumns();
+  return (
+    <colgroup>
+      {columns.map((column, index) => (
+        <col
+          key={column.id}
+          style={leafColumnWidthStyle(column, index === 0, index === columns.length - 1, variant)}
+        />
+      ))}
+    </colgroup>
   );
 }
 
@@ -79,14 +114,7 @@ function TableHeaderRow<T extends RowData>({
             key={id}
             scope="col"
             aria-sort={sortable ? (direction ?? "none") : undefined}
-            style={headerColumnWidthStyle(
-              actionCount === undefined
-                ? column.columnDef.meta?.width
-                : actionsContentWidth(actionCount),
-              first,
-              last,
-              variant,
-            )}
+            style={leafColumnWidthStyle(column, first, last, variant)}
             className={[
               // A cell's explicit height is a floor, not a cap, so h-full on a sortable
               // header's button always has an actual, resolved height to track.

@@ -1,4 +1,9 @@
-import { formatMonthAndYear, formatMonthName } from "@purosur/ui";
+import {
+  formatMonthAndYear,
+  formatMonthAndYearInSentence,
+  formatMonthNameInSentence,
+  formatYear,
+} from "@purosur/ui";
 
 function parseYearMonth(yearMonth: string): { year: number; month: number } | undefined {
   const match = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(yearMonth);
@@ -12,12 +17,15 @@ export function yearMonthLabel(yearMonth: string): string {
 
 export function monthNameOf(yearMonth: string): string {
   const parsed = parseYearMonth(yearMonth);
-  return parsed === undefined
-    ? yearMonth
-    : formatMonthName(parsed.month).toLocaleLowerCase("es-AR");
+  return parsed === undefined ? yearMonth : formatMonthNameInSentence(parsed.month);
 }
 
 export function yearMonthPhrase(yearMonth: string): string {
   const parsed = parseYearMonth(yearMonth);
-  return parsed === undefined ? yearMonth : `${monthNameOf(yearMonth)} de ${parsed.year}`;
+  return parsed === undefined ? yearMonth : formatMonthAndYearInSentence(parsed.year, parsed.month);
+}
+
+export function yearOf(yearMonth: string): string {
+  const parsed = parseYearMonth(yearMonth);
+  return parsed === undefined ? yearMonth : formatYear(parsed.year);
 }
