@@ -25,29 +25,35 @@ beforeEach(async () => {
   await testDatabase.clear();
 });
 
-const holding: AlertConditionObservation = {
-  holds: true,
-  alert: {
-    kind: "exception_share_second_month_at_risk",
-    scope: SCOPE,
-    detail: {
-      fiscalAddressId: FISCAL_ADDRESS_ID,
-      fiscalAddressName: "Depósito Central",
-      month: "2026-11",
-      previousMonth: "2026-10",
-      exceptionCount: 1,
-      totalCount: 10,
-      shareTenthsOfPercent: 100,
-      nonCompliancePercent: 5,
-    },
+function holdingWith(
+  figures: { exceptionCount: number; totalCount: number; shareTenthsOfPercent: number } = {
+    exceptionCount: 1,
+    totalCount: 10,
+    shareTenthsOfPercent: 100,
   },
-};
+): AlertConditionObservation {
+  return {
+    holds: true,
+    alert: {
+      kind: "exception_share_second_month_at_risk",
+      scope: SCOPE,
+      detail: {
+        fiscalAddressId: FISCAL_ADDRESS_ID,
+        fiscalAddressName: "Depósito Central",
+        month: "2026-11",
+        previousMonth: "2026-10",
+        nonCompliancePercent: 5,
+        ...figures,
+      },
+    },
+  };
+}
 
 describe("DrizzleSecondMonthAtRiskAlerts", () => {
   it("opens a warning for everyone with the detail it is handed and lists its scope while it is open", async () => {
     const atRisk = new DrizzleSecondMonthAtRiskAlerts(db, () => NOW);
 
-    await atRisk.observeAlertCondition(holding);
+    await atRisk.observeAlertCondition(holdingWith());
 
     expect(await atRisk.atRiskAlertScopes()).toEqual([SCOPE]);
     const [row] = await db.select().from(alerts);
@@ -57,30 +63,25 @@ describe("DrizzleSecondMonthAtRiskAlerts", () => {
       level: "warning",
       audience: "all",
       resolvedAt: null,
-      detail: holding.holds ? holding.alert.detail : undefined,
+      detail: {
+        fiscalAddressId: FISCAL_ADDRESS_ID,
+        fiscalAddressName: "Depósito Central",
+        month: "2026-11",
+        previousMonth: "2026-10",
+        exceptionCount: 1,
+        totalCount: 10,
+        shareTenthsOfPercent: 100,
+        nonCompliancePercent: 5,
+      },
     });
   });
 
   it("refreshes the running figures of the warning that is already open", async () => {
     const atRisk = new DrizzleSecondMonthAtRiskAlerts(db, () => NOW);
-    await atRisk.observeAlertCondition(holding);
+    await atRisk.observeAlertCondition(holdingWith());
 
     await atRisk.observeAlertCondition(
-      holding.holds
-        ? {
-            holds: true,
-            alert: {
-              kind: "exception_share_second_month_at_risk",
-              scope: SCOPE,
-              detail: {
-                ...holding.alert.detail,
-                exceptionCount: 3,
-                totalCount: 12,
-                shareTenthsOfPercent: 250,
-              },
-            },
-          }
-        : holding,
+      holdingWith({ exceptionCount: 3, totalCount: 12, shareTenthsOfPercent: 250 }),
     );
 
     const rows = await db.select().from(alerts);
@@ -103,7 +104,7 @@ describe("DrizzleSecondMonthAtRiskAlerts", () => {
 
   it("records that the condition cleared when the month is no longer at risk", async () => {
     const atRisk = new DrizzleSecondMonthAtRiskAlerts(db, () => NOW);
-    await atRisk.observeAlertCondition(holding);
+    await atRisk.observeAlertCondition(holdingWith());
 
     await atRisk.observeAlertCondition({
       holds: false,
