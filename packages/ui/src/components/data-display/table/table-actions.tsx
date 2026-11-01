@@ -13,8 +13,8 @@ const ACTIONS_CONTENT_WIDTH_PX: Record<1 | 2 | 3 | 4 | 5, number> = {
 const CELL_EDGE_PADDING_PX = 16;
 const CELL_INNER_PADDING_PX = 6;
 
-// table-fixed reads a column's width only from its header cell, whose padding shares the same
-// border-box as the declared width, so it has to be added on top of the content width here.
+// table-fixed reads a column's width from its <col>, ahead of any group header row, and the cell's
+// padding shares that width, so it has to be added on top of the content width here.
 export function headerColumnWidthStyle(
   contentWidth: number | undefined,
   first: boolean,

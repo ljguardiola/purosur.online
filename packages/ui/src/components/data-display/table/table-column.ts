@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import type { tableModelFeatures } from "./table-features";
 import type { TableColumnAlign } from "./table-types";
 
-type TableColumnOf<T extends RowData> = Column<typeof tableModelFeatures, T, unknown>;
+export type TableColumnOf<T extends RowData> = Column<typeof tableModelFeatures, T, unknown>;
 type TableCellOf<T extends RowData> = Cell<typeof tableModelFeatures, T, unknown>;
 
 export function columnTitle<T extends RowData>(column: TableColumnOf<T>): string {

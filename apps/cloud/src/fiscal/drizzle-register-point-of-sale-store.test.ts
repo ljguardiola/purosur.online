@@ -9,6 +9,7 @@ import {
   fiscalAddresses,
   locations,
   pointOfSaleClaims,
+  registerFiscalAddressAssignments,
   registerPointsOfSale,
   registers,
   users,
@@ -77,15 +78,21 @@ async function insertOtherLocation(): Promise<string> {
   return location.id;
 }
 
-function configure(input: {
-  locationId: string;
-  registerId: string;
-  pointOfSaleNumber: number;
-  fiscalAddressId: string;
-  version: number;
-  actorId: string;
-}) {
-  return configureRegisterPointOfSale(new DrizzleRegisterPointOfSaleStore(db, () => NOON), input);
+function configure(
+  input: {
+    locationId: string;
+    registerId: string;
+    pointOfSaleNumber: number;
+    fiscalAddressId: string;
+    version: number;
+    actorId: string;
+  },
+  at = NOON,
+) {
+  return configureRegisterPointOfSale(
+    { store: new DrizzleRegisterPointOfSaleStore(db, () => at), clock: { now: () => at } },
+    input,
+  );
 }
 
 describe("configuring a register's point of sale through DrizzleRegisterPointOfSaleStore", () => {
@@ -116,6 +123,36 @@ describe("configuring a register's point of sale through DrizzleRegisterPointOfS
     ]);
   });
 
+  it("stores the register's fiscal address assignments at the instant each fiscal address was given, none for a change of number alone", async () => {
+    const locationId = await seededLocationId(db);
+    const actorId = await insertActor(locationId);
+    const registerId = await insertRegister(locationId, "Caja 1");
+    const fiscalAddressId = await insertFiscalAddress();
+    const otherFiscalAddressId = await insertFiscalAddress("Sucursal Sur");
+    const moved = new Date("2026-02-10T15:30:00.000Z");
+    const base = { locationId, registerId, actorId };
+
+    await configure({ ...base, pointOfSaleNumber: 7, fiscalAddressId, version: 0 });
+    await configure(
+      { ...base, pointOfSaleNumber: 8, fiscalAddressId, version: 1 },
+      new Date("2026-01-20T10:00:00.000Z"),
+    );
+    await configure(
+      { ...base, pointOfSaleNumber: 8, fiscalAddressId: otherFiscalAddressId, version: 2 },
+      moved,
+    );
+
+    expect(
+      await db
+        .select()
+        .from(registerFiscalAddressAssignments)
+        .orderBy(registerFiscalAddressAssignments.assignedAt),
+    ).toEqual([
+      { registerId, fiscalAddressId, assignedAt: NOON },
+      { registerId, fiscalAddressId: otherFiscalAddressId, assignedAt: moved },
+    ]);
+  });
+
   it("audits the actor with no previous value the first time and the replaced values after", async () => {
     const locationId = await seededLocationId(db);
     const actorId = await insertActor(locationId);
@@ -131,14 +168,17 @@ describe("configuring a register's point of sale through DrizzleRegisterPointOfS
       version: 0,
       actorId,
     });
-    await configure({
-      locationId,
-      registerId,
-      pointOfSaleNumber: 8,
-      fiscalAddressId: otherFiscalAddressId,
-      version: 1,
-      actorId,
-    });
+    await configure(
+      {
+        locationId,
+        registerId,
+        pointOfSaleNumber: 8,
+        fiscalAddressId: otherFiscalAddressId,
+        version: 1,
+        actorId,
+      },
+      new Date("2026-01-06T12:00:00.000Z"),
+    );
 
     const entries = await db.select().from(auditLog);
     expect(entries).toMatchObject([

@@ -14,7 +14,9 @@ import {
   formatDayAndTime,
   formatInvoiceNumber,
   formatMonthAndYear,
+  formatMonthAndYearInSentence,
   formatMonthName,
+  formatMonthNameInSentence,
   formatNetContent,
   formatNumber,
   formatOperationNumber,
@@ -30,6 +32,7 @@ import {
   formatUsd,
   formatWeight,
   formatWeightInput,
+  formatYear,
   parseInvoiceNumber,
   parsePointOfSaleNumber,
   plural,
@@ -213,6 +216,30 @@ describe("formatMonthAndYear", () => {
 
   it("writes a year of five digits without a thousands separator", () => {
     expect(formatMonthAndYear(10000, 1)).toBe("Enero 10000");
+  });
+});
+
+describe("formatMonthNameInSentence", () => {
+  it("writes the month's full name in lower case, as it reads inside a sentence", () => {
+    expect(formatMonthNameInSentence(1)).toBe("enero");
+    expect(formatMonthNameInSentence(9)).toBe("septiembre");
+  });
+});
+
+describe("formatMonthAndYearInSentence", () => {
+  it("writes the month in lower case joined to its year by de", () => {
+    expect(formatMonthAndYearInSentence(2026, 9)).toBe("septiembre de 2026");
+  });
+
+  it("writes a year of five digits without a thousands separator", () => {
+    expect(formatMonthAndYearInSentence(10000, 1)).toBe("enero de 10000");
+  });
+});
+
+describe("formatYear", () => {
+  it("writes a year without a thousands separator", () => {
+    expect(formatYear(2026)).toBe("2026");
+    expect(formatYear(10000)).toBe("10000");
   });
 });
 

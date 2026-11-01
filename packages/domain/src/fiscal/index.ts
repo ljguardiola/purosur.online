@@ -88,6 +88,12 @@ export {
   type DeferredSaleSatisfiedFact,
   deferredSaleSatisfiedEvent,
 } from "./model/deferred-sale-satisfied-event.js";
+export type { RecordedExceptionShareBreach } from "./model/exception-share.js";
+export {
+  EXCEPTION_SHARE_MONTH_STATES,
+  EXCEPTION_SHARE_NON_COMPLIANCE_PERCENT,
+  nonCompliantMonthsOfYear,
+} from "./model/exception-share.js";
 export type {
   AuthorizedCreditNoteC,
   AuthorizedFacturaC,

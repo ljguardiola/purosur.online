@@ -75,14 +75,17 @@ describe("two registers configured at once with the same point-of-sale number on
     const { locationId, actorId, fiscalAddressId, firstRegisterId, secondRegisterId } =
       await seedTwoRegisters();
     const configure = (registerId: string) => () =>
-      configureRegisterPointOfSale(new DrizzleRegisterPointOfSaleStore(db, () => NOON), {
-        locationId,
-        registerId,
-        pointOfSaleNumber: 42,
-        fiscalAddressId,
-        version: 0,
-        actorId,
-      });
+      configureRegisterPointOfSale(
+        { store: new DrizzleRegisterPointOfSaleStore(db, () => NOON), clock: { now: () => NOON } },
+        {
+          locationId,
+          registerId,
+          pointOfSaleNumber: 42,
+          fiscalAddressId,
+          version: 0,
+          actorId,
+        },
+      );
 
     // A SHARE lock lets both registers read that the number is free but parks both claims, so the
     // loser meets the winner's claim in the database's primary key.

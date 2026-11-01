@@ -4,6 +4,7 @@ import {
   HandCoins,
   Landmark,
   ListChecks,
+  Percent,
   Receipt,
   SlidersHorizontal,
 } from "lucide-react";
@@ -24,6 +25,7 @@ function CashAndFiscalArea() {
   const outsideRefundsShown = Boolean(matchRoute({ to: "/refunds/outside-the-system" }));
   const fiscalTasksShown = Boolean(matchRoute({ to: "/fiscal-tasks" }));
   const issuedDocumentsShown = Boolean(matchRoute({ to: "/fiscal-documents" }));
+  const exceptionalityShown = Boolean(matchRoute({ to: "/exceptionality" }));
   const pointsOfSaleShown = Boolean(matchRoute({ to: "/points-of-sale" }));
   const fiscalSettingsShown = Boolean(matchRoute({ to: "/fiscal-settings" }));
   return (
@@ -86,6 +88,16 @@ function CashAndFiscalArea() {
                       label="Comprobantes"
                       icon={<FileText />}
                       active={issuedDocumentsShown}
+                    />
+                  </li>
+                )}
+                {canSeeFiscalInformation(session) && (
+                  <li>
+                    <SectionLink
+                      to="/exceptionality"
+                      label="Excepcionalidad"
+                      icon={<Percent />}
+                      active={exceptionalityShown}
                     />
                   </li>
                 )}

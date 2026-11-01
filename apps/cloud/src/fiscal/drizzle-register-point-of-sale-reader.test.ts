@@ -76,14 +76,17 @@ describe("DrizzleRegisterPointOfSaleReader", () => {
     const neverConfiguredId = await insertRegister(locationId, "Caja 1");
     await insertRegister(await insertOtherLocation(), "Caja 3");
     const fiscalAddressId = await insertFiscalAddress();
-    await configureRegisterPointOfSale(new DrizzleRegisterPointOfSaleStore(db, () => NOON), {
-      locationId,
-      registerId: configuredId,
-      pointOfSaleNumber: 7,
-      fiscalAddressId,
-      version: 0,
-      actorId: await insertActor(locationId),
-    });
+    await configureRegisterPointOfSale(
+      { store: new DrizzleRegisterPointOfSaleStore(db, () => NOON), clock: { now: () => NOON } },
+      {
+        locationId,
+        registerId: configuredId,
+        pointOfSaleNumber: 7,
+        fiscalAddressId,
+        version: 0,
+        actorId: await insertActor(locationId),
+      },
+    );
 
     const listed = await new DrizzleRegisterPointOfSaleReader(db).listBranchRegisterPointsOfSale(
       locationId,
@@ -116,14 +119,17 @@ describe("DrizzleRegisterPointOfSaleReader", () => {
     const registerId = await insertRegister(locationId, "Caja 1");
     const actorId = await insertActor(locationId);
     const fiscalAddressId = await insertFiscalAddress();
-    await configureRegisterPointOfSale(new DrizzleRegisterPointOfSaleStore(db, () => NOON), {
-      locationId,
-      registerId,
-      pointOfSaleNumber: 7,
-      fiscalAddressId,
-      version: 0,
-      actorId,
-    });
+    await configureRegisterPointOfSale(
+      { store: new DrizzleRegisterPointOfSaleStore(db, () => NOON), clock: { now: () => NOON } },
+      {
+        locationId,
+        registerId,
+        pointOfSaleNumber: 7,
+        fiscalAddressId,
+        version: 0,
+        actorId,
+      },
+    );
     await configureRegisterOfflinePointOfSale(
       new DrizzleRegisterOfflinePointOfSaleStore(db, () => NOON),
       { locationId, registerId, pointOfSaleNumber: 8, version: 0, actorId },

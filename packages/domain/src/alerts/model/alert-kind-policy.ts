@@ -19,7 +19,8 @@ export type AlertScopeKind =
   | "syncDevice"
   | "branch"
   | "pointOfSaleFortnight"
-  | "deferredSale";
+  | "deferredSale"
+  | "fiscalAddressMonth";
 
 type AlertEscalationRule =
   | { kind: "afterOpening"; delayMs: number }
@@ -325,6 +326,14 @@ const ALERT_KIND_POLICIES = {
     scopeKind: "deferredSale",
     deduplicates: true,
     resolvesAfterStableClear: true,
+  },
+  exception_share_breach: {
+    level: "critical",
+    escalation: null,
+    audience: "all",
+    scopeKind: "fiscalAddressMonth",
+    deduplicates: true,
+    resolvesAfterStableClear: false,
   },
 } as const satisfies Record<AlertKind, AlertKindPolicy>;
 

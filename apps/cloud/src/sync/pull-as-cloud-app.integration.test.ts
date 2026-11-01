@@ -165,7 +165,7 @@ describe("a pull run as the role the deployed cloud connects with", () => {
       throw new Error("test setup: the fiscal address was not created");
     }
     const pointOfSale = await configureRegisterPointOfSale(
-      new DrizzleRegisterPointOfSaleStore(db, () => NOW),
+      { store: new DrizzleRegisterPointOfSaleStore(db, () => NOW), clock: { now: () => NOW } },
       {
         locationId,
         registerId,

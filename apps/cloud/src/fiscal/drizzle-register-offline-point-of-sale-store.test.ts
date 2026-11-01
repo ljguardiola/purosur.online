@@ -95,7 +95,10 @@ async function configureRealTime(input: {
   version: number;
   actorId: string;
 }) {
-  return configureRegisterPointOfSale(new DrizzleRegisterPointOfSaleStore(db, () => NOON), input);
+  return configureRegisterPointOfSale(
+    { store: new DrizzleRegisterPointOfSaleStore(db, () => NOON), clock: { now: () => NOON } },
+    input,
+  );
 }
 
 let enqueuedCounts: [pointOfSale: number, documentType: string][];

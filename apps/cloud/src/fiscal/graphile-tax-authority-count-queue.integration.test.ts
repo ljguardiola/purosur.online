@@ -109,14 +109,17 @@ describe("the tax authority count jobs on a real Postgres", () => {
       enqueueTaxAuthorityCountJob,
     );
 
-    const outcome = await configureRegisterPointOfSale(store, {
-      locationId,
-      registerId: registerIds[0] as string,
-      pointOfSaleNumber: 21,
-      fiscalAddressId,
-      version: 0,
-      actorId,
-    });
+    const outcome = await configureRegisterPointOfSale(
+      { store: store, clock: { now: () => NOW } },
+      {
+        locationId,
+        registerId: registerIds[0] as string,
+        pointOfSaleNumber: 21,
+        fiscalAddressId,
+        version: 0,
+        actorId,
+      },
+    );
 
     expect(outcome.kind).toBe("configured");
     expect(await pendingCountJobs()).toEqual([
@@ -164,31 +167,40 @@ describe("the tax authority count jobs on a real Postgres", () => {
       enqueueTaxAuthorityCountJob,
     );
     const registerId = registerIds[0] as string;
-    await configureRegisterPointOfSale(store, {
-      locationId,
-      registerId,
-      pointOfSaleNumber: 23,
-      fiscalAddressId,
-      version: 0,
-      actorId,
-    });
+    await configureRegisterPointOfSale(
+      { store: store, clock: { now: () => NOW } },
+      {
+        locationId,
+        registerId,
+        pointOfSaleNumber: 23,
+        fiscalAddressId,
+        version: 0,
+        actorId,
+      },
+    );
 
-    await configureRegisterPointOfSale(store, {
-      locationId,
-      registerId,
-      pointOfSaleNumber: 24,
-      fiscalAddressId,
-      version: 1,
-      actorId,
-    });
-    await configureRegisterPointOfSale(store, {
-      locationId,
-      registerId,
-      pointOfSaleNumber: 23,
-      fiscalAddressId,
-      version: 2,
-      actorId,
-    });
+    await configureRegisterPointOfSale(
+      { store: store, clock: { now: () => NOW } },
+      {
+        locationId,
+        registerId,
+        pointOfSaleNumber: 24,
+        fiscalAddressId,
+        version: 1,
+        actorId,
+      },
+    );
+    await configureRegisterPointOfSale(
+      { store: store, clock: { now: () => NOW } },
+      {
+        locationId,
+        registerId,
+        pointOfSaleNumber: 23,
+        fiscalAddressId,
+        version: 2,
+        actorId,
+      },
+    );
 
     expect((await pendingCountJobs()).map((job) => [job.pointOfSale, job.documentType])).toEqual([
       [23, "factura_c"],
@@ -199,22 +211,28 @@ describe("the tax authority count jobs on a real Postgres", () => {
   it("enqueues, at startup, the count of every claimed point of sale, real-time or offline, that has none yet, and the credit note count of every offline one that has none", async () => {
     const { locationId, actorId, fiscalAddressId, registerIds } = await seedRegisters(2);
     const store = new DrizzleRegisterPointOfSaleStore(db, () => NOW);
-    await configureRegisterPointOfSale(store, {
-      locationId,
-      registerId: registerIds[0] as string,
-      pointOfSaleNumber: 31,
-      fiscalAddressId,
-      version: 0,
-      actorId,
-    });
-    await configureRegisterPointOfSale(store, {
-      locationId,
-      registerId: registerIds[1] as string,
-      pointOfSaleNumber: 32,
-      fiscalAddressId,
-      version: 0,
-      actorId,
-    });
+    await configureRegisterPointOfSale(
+      { store: store, clock: { now: () => NOW } },
+      {
+        locationId,
+        registerId: registerIds[0] as string,
+        pointOfSaleNumber: 31,
+        fiscalAddressId,
+        version: 0,
+        actorId,
+      },
+    );
+    await configureRegisterPointOfSale(
+      { store: store, clock: { now: () => NOW } },
+      {
+        locationId,
+        registerId: registerIds[1] as string,
+        pointOfSaleNumber: 32,
+        fiscalAddressId,
+        version: 0,
+        actorId,
+      },
+    );
     await configureRegisterOfflinePointOfSale(
       new DrizzleRegisterOfflinePointOfSaleStore(db, () => NOW),
       {
@@ -246,14 +264,17 @@ describe("the tax authority count jobs on a real Postgres", () => {
     const { locationId, actorId, fiscalAddressId, registerIds } = await seedRegisters(2);
     const offlineStore = new DrizzleRegisterOfflinePointOfSaleStore(db, () => NOW);
     for (const [index, registerId] of registerIds.entries()) {
-      await configureRegisterPointOfSale(new DrizzleRegisterPointOfSaleStore(db, () => NOW), {
-        locationId,
-        registerId,
-        pointOfSaleNumber: 51 + index,
-        fiscalAddressId,
-        version: 0,
-        actorId,
-      });
+      await configureRegisterPointOfSale(
+        { store: new DrizzleRegisterPointOfSaleStore(db, () => NOW), clock: { now: () => NOW } },
+        {
+          locationId,
+          registerId,
+          pointOfSaleNumber: 51 + index,
+          fiscalAddressId,
+          version: 0,
+          actorId,
+        },
+      );
       await configureRegisterOfflinePointOfSale(offlineStore, {
         locationId,
         registerId,
@@ -301,14 +322,17 @@ describe("the tax authority count jobs on a real Postgres", () => {
     async function registerWithRealTimePointOfSale() {
       const seeded = await seedRegisters(1);
       const registerId = seeded.registerIds[0] as string;
-      await configureRegisterPointOfSale(new DrizzleRegisterPointOfSaleStore(db, () => NOW), {
-        locationId: seeded.locationId,
-        registerId,
-        pointOfSaleNumber: 41,
-        fiscalAddressId: seeded.fiscalAddressId,
-        version: 0,
-        actorId: seeded.actorId,
-      });
+      await configureRegisterPointOfSale(
+        { store: new DrizzleRegisterPointOfSaleStore(db, () => NOW), clock: { now: () => NOW } },
+        {
+          locationId: seeded.locationId,
+          registerId,
+          pointOfSaleNumber: 41,
+          fiscalAddressId: seeded.fiscalAddressId,
+          version: 0,
+          actorId: seeded.actorId,
+        },
+      );
       return { ...seeded, registerId };
     }
 
@@ -372,14 +396,17 @@ describe("the tax authority count jobs on a real Postgres", () => {
     async function configuredRegisterWithCount(pointOfSaleNumber: number) {
       const { locationId, actorId, fiscalAddressId, registerIds } = await seedRegisters(1);
       const registerId = registerIds[0] as string;
-      await configureRegisterPointOfSale(new DrizzleRegisterPointOfSaleStore(db, () => NOW), {
-        locationId,
-        registerId,
-        pointOfSaleNumber,
-        fiscalAddressId,
-        version: 0,
-        actorId,
-      });
+      await configureRegisterPointOfSale(
+        { store: new DrizzleRegisterPointOfSaleStore(db, () => NOW), clock: { now: () => NOW } },
+        {
+          locationId,
+          registerId,
+          pointOfSaleNumber,
+          fiscalAddressId,
+          version: 0,
+          actorId,
+        },
+      );
       await db
         .insert(taxAuthorityLastAuthorizedNumbers)
         .values({ pointOfSaleNumber, documentType: "factura_c", lastAuthorized: 11, readAt: NOW });
@@ -407,14 +434,17 @@ describe("the tax authority count jobs on a real Postgres", () => {
     it("forgets both counts of the offline point of sale of the register and enqueues the read of each, beside its real-time one", async () => {
       const { locationId, actorId, fiscalAddressId, registerIds } = await seedRegisters(1);
       const registerId = registerIds[0] as string;
-      await configureRegisterPointOfSale(new DrizzleRegisterPointOfSaleStore(db, () => NOW), {
-        locationId,
-        registerId,
-        pointOfSaleNumber: 60,
-        fiscalAddressId,
-        version: 0,
-        actorId,
-      });
+      await configureRegisterPointOfSale(
+        { store: new DrizzleRegisterPointOfSaleStore(db, () => NOW), clock: { now: () => NOW } },
+        {
+          locationId,
+          registerId,
+          pointOfSaleNumber: 60,
+          fiscalAddressId,
+          version: 0,
+          actorId,
+        },
+      );
       await configureRegisterOfflinePointOfSale(
         new DrizzleRegisterOfflinePointOfSaleStore(db, () => NOW),
         { locationId, registerId, pointOfSaleNumber: 61, version: 0, actorId },

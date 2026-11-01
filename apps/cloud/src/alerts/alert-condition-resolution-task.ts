@@ -1,6 +1,7 @@
 import { ALERT_CONDITION_EVALUATION_INTERVAL_MS, type ZoneRulesSource } from "@purosur/domain";
 import {
   detectDeferredSaleDeadlines,
+  detectExceptionShareBreaches,
   detectExpiringLots,
   detectFortnightReportDeadlines,
   detectFortnightReportRegularizations,
@@ -12,7 +13,10 @@ import {
   resolveStablyClearedAlerts,
 } from "@purosur/domain/alerts/use-cases";
 import { detectOverdueRegisterBackups } from "@purosur/domain/backups/use-cases";
-import { regularizeUninvoiceableDeferredSales } from "@purosur/domain/fiscal/use-cases";
+import {
+  recordExceptionShareBreaches,
+  regularizeUninvoiceableDeferredSales,
+} from "@purosur/domain/fiscal/use-cases";
 import { openOverdueRefundTaskAlerts } from "@purosur/domain/payments/use-cases";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -21,6 +25,7 @@ import { DrizzleRegisterBackupStandingReader } from "../backups/drizzle-register
 import { DrizzleBranchExpiryWindowReader } from "../branch/drizzle-branch-expiry-window-reader.js";
 import { DrizzleBranchHoursReader } from "../branch/drizzle-branch-hours-reader.js";
 import { DrizzleDeferredSaleExpiryStore } from "../fiscal/drizzle-deferred-sale-expiry-store.js";
+import { DrizzleExceptionShareBreachStore } from "../fiscal/drizzle-exception-share-breach-store.js";
 import { DrizzleFortnightRegularizationReader } from "../fiscal/drizzle-fortnight-regularization-reader.js";
 import { DrizzleOfflineAuthorizationCodeHoldingReader } from "../fiscal/drizzle-offline-authorization-code-holding-reader.js";
 import { DrizzleOwedElsewherePresentationReader } from "../fiscal/drizzle-owed-elsewhere-presentation-reader.js";
@@ -38,11 +43,13 @@ import { hashSourceAddress } from "../sessions/sign-in-lockout.js";
 import { DrizzleExpiringLotReader } from "../stock/drizzle-expiring-lot-reader.js";
 import { DrizzleAlertStore } from "./drizzle-alert-store.js";
 import { DrizzleDeferredSaleDueAlerts } from "./drizzle-deferred-sale-due-alerts.js";
+import { DrizzleExceptionShareBreachAlerts } from "./drizzle-exception-share-breach-alerts.js";
 import { DrizzleExpiringLotAlerts } from "./drizzle-expiring-lot-alerts.js";
 import { DrizzleFortnightReportDeadlineAlerts } from "./drizzle-fortnight-report-deadline-alerts.js";
 import { DrizzleFortnightReportRegularizationAlerts } from "./drizzle-fortnight-report-regularization-alerts.js";
 import { DrizzleMissingOfflineAuthorizationCodeAlerts } from "./drizzle-missing-offline-authorization-code-alerts.js";
 import { DrizzleOwedElsewhereAlerts } from "./drizzle-owed-elsewhere-alerts.js";
+import { DrizzleRecordedExceptionShareBreachReader } from "./drizzle-recorded-exception-share-breach-reader.js";
 import { DrizzleRejectedFortnightDocumentAlerts } from "./drizzle-rejected-fortnight-document-alerts.js";
 import { DrizzleUnclearOutcomeAlertStore } from "./drizzle-unclear-outcome-alert-store.js";
 import { observeAlertCondition } from "./observe-alert-condition.js";
@@ -206,6 +213,27 @@ async function detectDeferredSaleDeadlinesTask<TQueryResult extends PgQueryResul
   );
 }
 
+function recordExceptionShareBreachesTask<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  deps: AlertTaskDeps,
+) {
+  return recordExceptionShareBreaches({
+    store: new DrizzleExceptionShareBreachStore(db, deps.now),
+    clock: { now: deps.now },
+    zoneRules: deps.zoneRules,
+  });
+}
+
+function detectExceptionShareBreachesTask<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  deps: AlertTaskDeps,
+): Promise<number> {
+  return detectExceptionShareBreaches({
+    breaches: new DrizzleRecordedExceptionShareBreachReader(db),
+    alerts: new DrizzleExceptionShareBreachAlerts(db, deps.now),
+  });
+}
+
 export interface AlertConditionResolutionJobsDeps {
   createDatabase?: (client: PoolClient) => NodePgDatabase<Record<string, never>>;
   resolve?: typeof resolveClearedConditionAlertsTask;
@@ -221,6 +249,8 @@ export interface AlertConditionResolutionJobsDeps {
   detectOverdueRegisterBackups?: typeof detectOverdueRegisterBackupsTask;
   regularizeUninvoiceableDeferredSales?: typeof regularizeUninvoiceableDeferredSalesTask;
   detectDeferredSaleDeadlines?: typeof detectDeferredSaleDeadlinesTask;
+  recordExceptionShareBreaches?: typeof recordExceptionShareBreachesTask;
+  detectExceptionShareBreaches?: typeof detectExceptionShareBreachesTask;
 }
 
 export function alertConditionResolutionJobs(
@@ -249,6 +279,10 @@ export function alertConditionResolutionJobs(
     deps.regularizeUninvoiceableDeferredSales ?? regularizeUninvoiceableDeferredSalesTask;
   const doDetectDeferredSaleDeadlines =
     deps.detectDeferredSaleDeadlines ?? detectDeferredSaleDeadlinesTask;
+  const doRecordExceptionShareBreaches =
+    deps.recordExceptionShareBreaches ?? recordExceptionShareBreachesTask;
+  const doDetectExceptionShareBreaches =
+    deps.detectExceptionShareBreaches ?? detectExceptionShareBreachesTask;
   return {
     taskList: {
       [ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER]: async (_payload, helpers) => {
@@ -285,6 +319,14 @@ export function alertConditionResolutionJobs(
             zoneRules: options.zoneRules,
           });
           await doDetectDeferredSaleDeadlines(db, {
+            now: options.now,
+            zoneRules: options.zoneRules,
+          });
+          await doRecordExceptionShareBreaches(db, {
+            now: options.now,
+            zoneRules: options.zoneRules,
+          });
+          await doDetectExceptionShareBreaches(db, {
             now: options.now,
             zoneRules: options.zoneRules,
           });
