@@ -262,6 +262,9 @@ describe("alertDetailSchema", () => {
     expectTypeOf<WireDetail<"exception_share_breach">>().toEqualTypeOf<
       AlertDetails["exception_share_breach"]
     >();
+    expectTypeOf<WireDetail<"exception_share_second_month_at_risk">>().toEqualTypeOf<
+      AlertDetails["exception_share_second_month_at_risk"]
+    >();
     expectTypeOf<WireDetail<"fortnight_report_owed_elsewhere">>().toEqualTypeOf<
       AlertDetails["fortnight_report_owed_elsewhere"]
     >();
@@ -486,6 +489,16 @@ describe("alertDetailSchema", () => {
         nonCompliantMonths: ["2026-03", "2026-09"],
         nonCompliancePercent: 5,
       },
+      exception_share_second_month_at_risk: {
+        fiscalAddressId: "fiscal-address-1",
+        fiscalAddressName: "Local central",
+        month: "2026-10",
+        previousMonth: "2026-09",
+        exceptionCount: 3,
+        totalCount: 80,
+        shareTenthsOfPercent: 37,
+        nonCompliancePercent: 5,
+      },
       fortnight_report_owed_elsewhere: {
         pointOfSaleNumber: 9,
         fortnightStart: "2026-09-01",
@@ -542,6 +555,39 @@ describe("alertDetailSchema", () => {
         ...base,
         kind: "exception_share_breach",
         detail: { ...detailOf.exception_share_breach, ...change },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).success).toBe(false);
+    });
+
+    it("accepts a second month at risk alert that has no share yet", () => {
+      const alert = {
+        ...base,
+        kind: "exception_share_second_month_at_risk",
+        detail: {
+          ...detailOf.exception_share_second_month_at_risk,
+          exceptionCount: 0,
+          totalCount: 0,
+          shareTenthsOfPercent: null,
+        },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
+    });
+
+    it.each([
+      ["a fractional exception count", { exceptionCount: 1.5 }],
+      ["a total as text", { totalCount: "80" }],
+      ["a share as text", { shareTenthsOfPercent: "37" }],
+      ["a fractional share", { shareTenthsOfPercent: 3.7 }],
+      ["a missing share", { shareTenthsOfPercent: undefined }],
+      ["a previous month that is not text", { previousMonth: 9 }],
+      ["a threshold as text", { nonCompliancePercent: "5" }],
+    ])("refuses a second month at risk alert with %s", (_case, change) => {
+      const alert = {
+        ...base,
+        kind: "exception_share_second_month_at_risk",
+        detail: { ...detailOf.exception_share_second_month_at_risk, ...change },
       };
 
       expect(alertDetailSchema.safeParse(alert).success).toBe(false);
