@@ -179,6 +179,35 @@ test("opens focused on a combobox when it is the first field", async () => {
   await expect.element(screen.getByRole("combobox", { name: "Tamaño" })).toHaveFocus();
 });
 
+test("opens focused on a combobox without opening its list", async () => {
+  const screen = await render(
+    <FormModal>
+      <SizeComboBox />
+      <NameField />
+    </FormModal>,
+  );
+  const size = screen.getByRole("combobox", { name: "Tamaño" });
+  await expect.element(size).toHaveFocus();
+
+  await expect.element(size).toHaveAttribute("aria-expanded", "false");
+});
+
+test("opens a combobox's list when the person moves the focus to it", async () => {
+  const screen = await render(
+    <FormModal>
+      <NameField />
+      <SizeComboBox />
+    </FormModal>,
+  );
+  await expect.element(screen.getByRole("textbox", { name: "Nombre" })).toHaveFocus();
+
+  await userEvent.tab();
+
+  const size = screen.getByRole("combobox", { name: "Tamaño" });
+  await expect.element(size).toHaveFocus();
+  await expect.element(size).toHaveAttribute("aria-expanded", "true");
+});
+
 test("opens focused on a select when it is the first field", async () => {
   const screen = await render(
     <FormModal>
@@ -234,6 +263,20 @@ test("keeps the focus on the dialog when the body holds only text", async () => 
   await expect.element(screen.getByRole("dialog")).toHaveFocus();
 });
 
+function RendersNothing() {
+  return null;
+}
+
+test("opens focused on the dialog when the body's content renders nothing", async () => {
+  const screen = await render(
+    <FormModal>
+      <RendersNothing />
+    </FormModal>,
+  );
+
+  await expect.element(screen.getByRole("dialog", { name: "Nueva marca" })).toHaveFocus();
+});
+
 function LateField({ shown }: { shown: boolean }) {
   return shown ? <NameField /> : <p>Cargando…</p>;
 }
@@ -253,6 +296,29 @@ test("moves the focus to a field that appears after opening while the dialog sti
   );
 
   await expect.element(screen.getByRole("textbox", { name: "Nombre" })).toHaveFocus();
+});
+
+function LateComboBox({ shown }: { shown: boolean }) {
+  return shown ? <SizeComboBox /> : <p>Cargando…</p>;
+}
+
+test("moves the focus to a combobox that appears after opening without opening its list", async () => {
+  const screen = await render(
+    <FormModal>
+      <LateComboBox shown={false} />
+    </FormModal>,
+  );
+  await expect.element(screen.getByRole("dialog")).toHaveFocus();
+
+  await screen.rerender(
+    <FormModal>
+      <LateComboBox shown />
+    </FormModal>,
+  );
+
+  const size = screen.getByRole("combobox", { name: "Tamaño" });
+  await expect.element(size).toHaveFocus();
+  await expect.element(size).toHaveAttribute("aria-expanded", "false");
 });
 
 test("leaves the focus where the person moved it when a field appears later", async () => {
@@ -383,4 +449,5 @@ test("gives the focus back to the combobox whose creation entry opened a stacked
     .click();
 
   await expect.element(brandSelector).toHaveFocus();
+  await expect.element(brandSelector).toHaveAttribute("aria-expanded", "false");
 });
