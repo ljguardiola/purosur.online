@@ -34,7 +34,7 @@
     "fastify": "^5.12.7",
     "graphile-worker": "^0.18.0",
     "htmlparser2": "12.0.0",
-    "node-forge": "^1.4.0",
+    "node-forge": "^1.4.1",
     "pdf-lib": "1.17.1",
     "pdfkit": "^0.20.2",
     "pg": "^8.23.0",
