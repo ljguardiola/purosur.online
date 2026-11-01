@@ -45,7 +45,7 @@ export interface FakeTagRow {
   version: number;
 }
 
-export interface FakeProductRow {
+interface FakeProductRow {
   id: string;
   name: string;
   categoryId: string;
