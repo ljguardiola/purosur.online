@@ -324,6 +324,49 @@ describe("voidsAndReturnsByCashier", () => {
     expect(rows.map((row) => row.cashier?.id)).toEqual(["u1", "u2", "u0", "u3"]);
   });
 
+  it.each([
+    ["the unknown voider first", [null, "named", "nameless"]],
+    ["the unknown voider last", ["nameless", "named", null]],
+    ["the unknown voider between", ["named", null, "nameless"]],
+    ["the nameless cashier first", ["nameless", null, "named"]],
+  ] as const)(
+    "lists named cashiers, then nameless ones, then the unknown voider, whatever the order they come in (%s)",
+    (_name, order) => {
+      const cashiers = {
+        named: { id: "u2", name: "Ana" },
+        nameless: { id: "u1", name: null },
+      };
+
+      const rows = voidsAndReturnsByCashier(
+        [],
+        order.map((key) => voided({ cashier: key === null ? null : cashiers[key] })),
+      );
+
+      expect(rows.map((row) => row.cashier)).toEqual([cashiers.named, cashiers.nameless, null]);
+    },
+  );
+
+  it.each([
+    ["u1 then u2", ["u1", "u2"]],
+    ["u2 then u1", ["u2", "u1"]],
+  ])("orders cashiers with the same name by id (%s)", (_name, ids) => {
+    const rows = voidsAndReturnsByCashier(
+      [],
+      ids.map((id) => voided({ cashier: { id, name: "Ana" } })),
+    );
+
+    expect(rows.map((row) => row.cashier?.id)).toEqual(["u1", "u2"]);
+  });
+
+  it("orders nameless cashiers by id", () => {
+    const rows = voidsAndReturnsByCashier(
+      [],
+      ["u2", "u1"].map((id) => voided({ cashier: { id, name: null } })),
+    );
+
+    expect(rows.map((row) => row.cashier?.id)).toEqual(["u1", "u2"]);
+  });
+
   it("answers nothing without returns or voids", () => {
     expect(voidsAndReturnsByCashier([], [])).toEqual([]);
   });
