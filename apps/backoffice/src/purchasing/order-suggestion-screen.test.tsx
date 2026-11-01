@@ -109,6 +109,24 @@ test("shows a row for each product, with its description and category, sold, sto
   await expect.element(row.getByText("15 días")).toBeVisible();
 });
 
+test("shows the effective days as the coverage and says when the expiry capped them", async () => {
+  const screen = await loaded(createServices(), {
+    ...ORDER_SUGGESTION,
+    lines: [
+      { ...almonds, coverageDays: 15, effectiveDays: 10, cappedByExpiry: true },
+      cookies,
+    ],
+  });
+
+  await expect.poll(() => lineRows(screen)).toHaveLength(2);
+  const capped = screen.getByRole("row", { name: /Almendras peladas/ });
+  await expect.element(capped.getByText("10 días")).toBeVisible();
+  await expect.element(capped.getByText("Tope por vencimiento")).toBeVisible();
+  const uncapped = screen.getByRole("row", { name: /Galletas/ });
+  await expect.element(uncapped.getByText("20 días")).toBeVisible();
+  await expect.element(uncapped.getByText("Tope por vencimiento")).not.toBeInTheDocument();
+});
+
 test("describes the product with its brand name and net content", async () => {
   const screen = await loaded(createServices(), {
     ...ORDER_SUGGESTION,
