@@ -236,7 +236,7 @@ export function ApplySaleDiscountModal({
                     label={valueLabel(kind)}
                     labelVisuallyHidden
                     description="Se suma a las promociones y a los descuentos de línea."
-                    inputMode={kind === "PERCENT" ? "numeric" : "decimal"}
+                    {...(kind === "PERCENT" ? { inputMode: "numeric" } : { decimals: 2 })}
                     value={field.state.value}
                     onChange={field.handleChange}
                     disabled={submitting}

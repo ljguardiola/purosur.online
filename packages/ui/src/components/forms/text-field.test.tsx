@@ -1389,3 +1389,297 @@ test("does not accept a type or an input mode it does not offer", () => {
     inputMode: "tel";
   }>().not.toExtend<TextFieldProps>();
 });
+
+function DecimalHarness({
+  kind = "amount",
+  decimals = 2,
+  initial = "",
+}: {
+  kind?: "amount" | "weight";
+  decimals?: number;
+  initial?: string;
+}) {
+  const [value, setValue] = useState(initial);
+  return kind === "amount" ? (
+    <TextField
+      kind="amount"
+      label="Amount"
+      value={value}
+      onChange={setValue}
+      prefix="$"
+      decimals={decimals}
+    />
+  ) : (
+    <TextField
+      kind="weight"
+      label="Amount"
+      value={value}
+      onChange={setValue}
+      suffix="kg"
+      decimals={decimals}
+    />
+  );
+}
+
+function pasteInto(input: HTMLInputElement, text: string) {
+  const dataTransfer = new DataTransfer();
+  dataTransfer.setData("text/plain", text);
+  input.dispatchEvent(
+    new InputEvent("beforeinput", {
+      inputType: "insertFromPaste",
+      dataTransfer,
+      bubbles: true,
+      cancelable: true,
+    }),
+  );
+}
+
+async function dropInto(input: HTMLInputElement, text: string) {
+  const box = input.getBoundingClientRect();
+  const point = { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+  const data = { items: [{ mimeType: "text/plain", data: text }], dragOperationsMask: 1 };
+  const session = cdp();
+  for (const type of ["dragEnter", "dragOver", "drop"] as const) {
+    await session.send("Input.dispatchDragEvent", { type, ...point, data });
+  }
+}
+
+async function focusAt(input: HTMLInputElement, caret: number) {
+  await userEvent.click(input);
+  input.setSelectionRange(caret, caret);
+}
+
+test("groups the thousands of a decimal field as the person types", async () => {
+  const screen = await render(<DecimalHarness />);
+  const input = fieldInput(screen, "Amount");
+
+  await userEvent.click(input);
+  await userEvent.keyboard("1234567");
+
+  expect(input.value).toBe("1.234.567");
+});
+
+test("takes a typed dot as the decimal comma of an amount", async () => {
+  const screen = await render(<DecimalHarness />);
+  const input = fieldInput(screen, "Amount");
+
+  await userEvent.click(input);
+  await userEvent.keyboard("1234.50");
+
+  expect(input.value).toBe("1.234,50");
+});
+
+test("takes a typed dot as the decimal comma of a weight", async () => {
+  const screen = await render(<DecimalHarness kind="weight" decimals={3} />);
+  const input = fieldInput(screen, "Amount");
+
+  await userEvent.click(input);
+  await userEvent.keyboard("12.5");
+
+  expect(input.value).toBe("12,5");
+});
+
+test("ignores a second decimal separator and a digit beyond the decimals", async () => {
+  const screen = await render(<DecimalHarness initial="10,50" />);
+  const input = fieldInput(screen, "Amount");
+
+  await focusAt(input, 5);
+  await userEvent.keyboard(".,7");
+
+  expect(input.value).toBe("10,50");
+});
+
+test("ignores letters typed into a decimal field", async () => {
+  const screen = await render(<DecimalHarness />);
+  const input = fieldInput(screen, "Amount");
+
+  await userEvent.click(input);
+  await userEvent.keyboard("1a-2 ");
+
+  expect(input.value).toBe("12");
+});
+
+test("regroups the thousands when the last digit is deleted", async () => {
+  const screen = await render(<DecimalHarness initial="1.234" />);
+  const input = fieldInput(screen, "Amount");
+
+  await focusAt(input, 5);
+  await userEvent.keyboard("{Backspace}");
+
+  expect(input.value).toBe("123");
+});
+
+test("keeps the caret after a digit typed in the middle of the whole part", async () => {
+  const screen = await render(<DecimalHarness initial="1.234" />);
+  const input = fieldInput(screen, "Amount");
+
+  await focusAt(input, 2);
+  await userEvent.keyboard("9");
+
+  expect(input.value).toBe("19.234");
+  expect(input.selectionStart).toBe(2);
+  expect(input.selectionEnd).toBe(2);
+
+  await userEvent.keyboard("8");
+
+  expect(input.value).toBe("198.234");
+  expect(input.selectionStart).toBe(3);
+});
+
+test("deletes the digit before a grouping dot when backspacing across it", async () => {
+  const screen = await render(<DecimalHarness initial="1.234" />);
+  const input = fieldInput(screen, "Amount");
+
+  await focusAt(input, 2);
+  await userEvent.keyboard("{Backspace}");
+
+  expect(input.value).toBe("234");
+  expect(input.selectionStart).toBe(0);
+});
+
+test("deletes the digit after a grouping dot when deleting forward across it", async () => {
+  const screen = await render(<DecimalHarness initial="1.234" />);
+  const input = fieldInput(screen, "Amount");
+
+  await focusAt(input, 1);
+  await userEvent.keyboard("{Delete}");
+
+  expect(input.value).toBe("134");
+  expect(input.selectionStart).toBe(1);
+});
+
+test("replaces a selection with the typed digit", async () => {
+  const screen = await render(<DecimalHarness initial="1.234.567" />);
+  const input = fieldInput(screen, "Amount");
+
+  await userEvent.click(input);
+  input.setSelectionRange(2, 5);
+  await userEvent.keyboard("9");
+
+  expect(input.value).toBe("19.567");
+});
+
+test("reads a pasted value as Argentine text", async () => {
+  const screen = await render(<DecimalHarness />);
+  const input = fieldInput(screen, "Amount");
+
+  await userEvent.click(input);
+  pasteInto(input, "1.234,50");
+
+  await expect.poll(() => input.value).toBe("1.234,50");
+  expect(input.selectionStart).toBe(8);
+});
+
+test("ignores a pasted value that is not Argentine text", async () => {
+  const screen = await render(<DecimalHarness />);
+  const input = fieldInput(screen, "Amount");
+
+  await userEvent.click(input);
+  pasteInto(input, "12.5");
+  await userEvent.keyboard("7");
+
+  expect(input.value).toBe("7");
+});
+
+test("ignores a pasted value whose decimals would land among the existing digits", async () => {
+  const screen = await render(<DecimalHarness initial="1.234" />);
+  const input = fieldInput(screen, "Amount");
+
+  await focusAt(input, 1);
+  pasteInto(input, "5,50");
+  await userEvent.keyboard("9");
+
+  expect(input.value).toBe("19.234");
+});
+
+test("ignores a dropped value that is not Argentine text", async () => {
+  const screen = await render(<DecimalHarness />);
+  const input = fieldInput(screen, "Amount");
+
+  await userEvent.click(input);
+  await dropInto(input, "12.5");
+  await userEvent.keyboard("7");
+
+  expect(input.value).toBe("7");
+});
+
+test("reads a dropped value as Argentine text", async () => {
+  const screen = await render(<DecimalHarness />);
+  const input = fieldInput(screen, "Amount");
+
+  await userEvent.click(input);
+  await dropInto(input, "1.234,50");
+
+  await expect.poll(() => input.value).toBe("1.234,50");
+});
+
+test("takes the numeric keypad's dot as the decimal comma of a weight", async () => {
+  const screen = await render(<DecimalHarness kind="weight" decimals={3} />);
+  const input = fieldInput(screen, "Amount");
+  const session = cdp();
+
+  await userEvent.click(input);
+  await userEvent.keyboard("12");
+  await session.send("Input.dispatchKeyEvent", {
+    type: "keyDown",
+    code: "NumpadDecimal",
+    key: ".",
+    text: ".",
+    unmodifiedText: ".",
+    windowsVirtualKeyCode: 110,
+  });
+  await session.send("Input.dispatchKeyEvent", {
+    type: "keyUp",
+    code: "NumpadDecimal",
+    key: ".",
+    windowsVirtualKeyCode: 110,
+  });
+  await userEvent.keyboard("5");
+
+  expect(input.value).toBe("12,5");
+});
+
+test("reads a value inserted all at once as Argentine text", async () => {
+  const screen = await render(<DecimalHarness />);
+  const input = fieldInput(screen, "Amount");
+
+  await userEvent.fill(input, "45.800,00");
+
+  expect(input.value).toBe("45.800,00");
+});
+
+test("ignores a value inserted all at once that is not Argentine text", async () => {
+  const screen = await render(<DecimalHarness />);
+  const input = fieldInput(screen, "Amount");
+
+  await userEvent.fill(input, "12.5");
+
+  expect(input.value).toBe("");
+});
+
+test("regroups text changed by an edit it does not intercept", async () => {
+  const screen = await render(<DecimalHarness initial="1.234.567" />);
+  const input = fieldInput(screen, "Amount");
+
+  await userEvent.click(input);
+  input.setSelectionRange(2, 5);
+  await userEvent.keyboard("{Control>}x{/Control}");
+
+  expect(input.value).toBe("1.567");
+});
+
+test("a field without decimals keeps the text exactly as typed", async () => {
+  const screen = await render(<PlainTextHarness />);
+  const input = fieldInput(screen, "Reason");
+
+  await userEvent.click(input);
+  await userEvent.keyboard("1234.");
+
+  expect(input.value).toBe("1234.");
+});
+
+test("asks for a keyboard with the decimal comma when it has decimals", async () => {
+  const screen = await render(<DecimalHarness />);
+
+  expect(fieldInput(screen, "Amount").inputMode).toBe("decimal");
+});

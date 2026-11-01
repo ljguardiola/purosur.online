@@ -17,7 +17,6 @@ import {
   canManageBatches,
   canManageFreights,
   canManageProductsAndCategories,
-  canManagePurchasePackagings,
   canManageRecipes,
   canManageSuppliers,
   canPerformStockCounts,
@@ -77,19 +76,17 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
         ? "/inventory-adjustments"
         : canManageSuppliers(session)
           ? "/suppliers"
-          : canManagePurchasePackagings(session)
-            ? "/purchase-packagings"
-            : canRecordPurchases(session)
-              ? "/purchases"
-              : canSeeExpiringLots(session)
-                ? "/expiring-lots"
-                : canManageFreights(session)
-                  ? "/freights"
-                  : canManageRecipes(session)
-                    ? "/recipes"
-                    : canManageBatches(session)
-                      ? "/assembly-batches"
-                      : "/initial-inventory";
+          : canRecordPurchases(session)
+            ? "/purchases"
+            : canSeeExpiringLots(session)
+              ? "/expiring-lots"
+              : canManageFreights(session)
+                ? "/freights"
+                : canManageRecipes(session)
+                  ? "/recipes"
+                  : canManageBatches(session)
+                    ? "/assembly-batches"
+                    : "/initial-inventory";
   const cashTarget = canSeeCashArea(session)
     ? "/points-of-sale"
     : canSeeRefundsArea(session)

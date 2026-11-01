@@ -21,7 +21,6 @@ const PERMISSION_KEY_LIST = [
   "adjust_stock",
   "record_stock_losses",
   "manage_suppliers",
-  "manage_purchase_presentations",
   "record_purchases",
   "manage_freight",
   "manage_expiration_dates",
@@ -168,7 +167,6 @@ export const PERMISSION_CATALOG = [
   { key: "record_stock_losses", area: "stock", registerMarker: "none" },
 
   { key: "manage_suppliers", area: "purchasing", registerMarker: "none" },
-  { key: "manage_purchase_presentations", area: "purchasing", registerMarker: "none" },
   { key: "record_purchases", area: "purchasing", registerMarker: "none" },
   { key: "manage_freight", area: "purchasing", registerMarker: "none" },
   { key: "manage_expiration_dates", area: "purchasing", registerMarker: "none" },

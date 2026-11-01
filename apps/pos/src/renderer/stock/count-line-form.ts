@@ -16,7 +16,7 @@ export const countLineRequestSchema = recordInitialCountLineMessageSchema.pick({
 
 export const EXPIRY_MESSAGE = "Elegí un vencimiento válido.";
 
-const KG_DECIMALS = 3;
+export const KG_DECIMALS = 3;
 const THOUSANDTHS_PER_UNIT = 1000;
 
 function countedThousandths(text: string, saleUnit: SaleUnit): number {

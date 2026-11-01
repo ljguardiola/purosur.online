@@ -131,10 +131,6 @@ export function canManageSuppliers(access: BackofficeAccess): boolean {
   return grants(access, "suppliers");
 }
 
-export function canManagePurchasePackagings(access: BackofficeAccess): boolean {
-  return grants(access, "purchase_packagings");
-}
-
 export function canSeeReports(access: BackofficeAccess): boolean {
   return grants(access, "reports_area");
 }

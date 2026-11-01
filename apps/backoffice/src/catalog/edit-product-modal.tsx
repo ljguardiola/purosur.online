@@ -13,6 +13,7 @@ import { barcodeTakenError } from "../platform/barcode-list";
 import type { createBrand } from "../platform/brand-creation-api";
 import { categorySelectOptions, withCreatedCategory } from "../platform/category-path";
 import { creatableChoice } from "../platform/creatable-options";
+import { MAX_DECIMALS } from "../platform/net-content-quantity";
 import { NewBrandModal } from "../platform/new-brand-modal";
 import { NewTagModal } from "../platform/new-tag-modal";
 import { brandFieldHelp, brandOptions, withCreatedBrand } from "../platform/product-brand-field";
@@ -42,7 +43,6 @@ import {
   productEditRequestFrom,
   productFormValues,
   saleUnitHeldByDiscountError,
-  saleUnitHeldByPackagingError,
   saleUnitHeldBySupplierItemError,
 } from "./product-form";
 import type { editProduct } from "./products-api";
@@ -152,10 +152,6 @@ export function EditProductModal({
       }
       if (outcome.kind === "tag_inactive") {
         showFieldError("tagIds", tagInactiveError(tags, outcome.tagId));
-        return;
-      }
-      if (outcome.kind === "sale_unit_held_by_packaging") {
-        showFieldError("saleUnit", saleUnitHeldByPackagingError(outcome.packagingName));
         return;
       }
       if (outcome.kind === "sale_unit_held_by_supplier_item") {
@@ -386,6 +382,7 @@ export function EditProductModal({
                 label="Contenido neto"
                 options={NET_CONTENT_UNIT_OPTIONS}
                 unitLabel="Unidad"
+                decimals={MAX_DECIMALS}
               />
             )}
           </form.AppField>

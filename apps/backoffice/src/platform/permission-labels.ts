@@ -39,7 +39,6 @@ export const PERMISSION_LABELS = {
   adjust_stock: "Ajustes",
   record_stock_losses: "Pérdidas",
   manage_suppliers: "Proveedores",
-  manage_purchase_presentations: "Presentaciones de compra",
   record_purchases: "Registrar compras",
   manage_freight: "Flete",
   manage_expiration_dates: "Vencimientos",

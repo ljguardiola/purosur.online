@@ -1,15 +1,14 @@
-import type { PackagingSummary, SupplierSummary } from "@purosur/contracts";
+import type { SupplierSummary } from "@purosur/contracts";
 import { ANOTHER_FICTIONAL_CUIT, FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { FieldSizeProvider } from "@purosur/ui";
 import { beforeEach, expect, test, vi } from "vitest";
-import { type Locator, page, userEvent } from "vitest/browser";
+import { type Locator, userEvent } from "vitest/browser";
 import { StubProductCreationModal } from "../platform/test-support/creation-parts";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import { NewPurchaseScreen } from "./new-purchase-screen";
 import type { NewPurchaseScreenServices } from "./new-purchase-services";
-import { cajaDeMiel } from "./test-support/packagings";
 import { purchaseChoicesFrom } from "./test-support/purchases";
 import { suppliersWithCuits } from "./test-support/suppliers";
 
@@ -19,13 +18,6 @@ const distribuidoraSur: SupplierSummary = {
   ...granos,
   id: "5a900000-0000-4000-8000-000000000010",
   name: "Distribuidora Sur",
-};
-
-const cajaX6: PackagingSummary = {
-  ...cajaDeMiel,
-  id: "9ac00000-0000-4000-8000-000000000010",
-  name: "Caja x 6",
-  quantityPerPackage: 6000,
 };
 
 beforeEach(() => {
@@ -42,7 +34,6 @@ function createServices(
     }),
     registerPurchase: vi.fn(),
     createSupplier: vi.fn(),
-    createPackaging: vi.fn(),
   };
 }
 
@@ -73,14 +64,6 @@ type ScreenOf = Awaited<ReturnType<typeof render>>;
 
 async function typeSupplier(screen: Screen, text: string) {
   await userEvent.fill(screen.getByRole("combobox", { name: /^Proveedor/ }), text);
-}
-
-async function openPackagingSelectorOfFirstLine(screen: Screen) {
-  const group = screen.getByRole("group", { name: "Línea 1" });
-  await userEvent.click(group.getByRole("combobox", { name: /^Producto/ }));
-  (page.getByRole("option", { name: "Miel pura de abeja 1 kg" }).element() as HTMLElement).click();
-  await userEvent.click(group.getByText("Presentación", { exact: true }).last());
-  return group;
 }
 
 test("typing a supplier that does not exist offers to create it, opening the supplier modal with the typed name", async () => {
@@ -128,55 +111,6 @@ test("offers no supplier creation to a person who cannot manage suppliers", asyn
 
   await expect.element(screen.getByText("Sin resultados")).toBeVisible();
   expect(screen.getByRole("option", { name: /^Crear proveedor/ }).query()).toBeNull();
-});
-
-test("typing a packaging that does not exist offers to create it for the line's product with the typed name", async () => {
-  const screen = await opened(createServices(), ADMINISTRATOR_ACCESS);
-  const group = await openPackagingSelectorOfFirstLine(screen);
-
-  await userEvent.fill(group.getByRole("combobox", { name: /^Presentación/ }), "Caja x 6");
-  await userEvent.click(screen.getByRole("option", { name: "Crear presentación «Caja x 6»" }));
-
-  const packagingDialog = screen.getByRole("dialog", { name: "Nueva presentación" });
-  await expect
-    .element(packagingDialog.getByRole("textbox", { name: /^Nombre/ }))
-    .toHaveValue("Caja x 6");
-  await expect
-    .element(packagingDialog.getByText("Producto: Miel pura de abeja 1 kg"))
-    .toBeVisible();
-});
-
-test("saving the stacked packaging selects it in that line", async () => {
-  const services = createServices();
-  vi.mocked(services.createPackaging).mockResolvedValue({ kind: "ok", packaging: cajaX6 });
-  const screen = await opened(services, ADMINISTRATOR_ACCESS);
-  const group = await openPackagingSelectorOfFirstLine(screen);
-  await userEvent.fill(group.getByRole("combobox", { name: /^Presentación/ }), "Caja x 6");
-  await userEvent.click(screen.getByRole("option", { name: "Crear presentación «Caja x 6»" }));
-  const packagingDialog = screen.getByRole("dialog", { name: "Nueva presentación" });
-  await userEvent.fill(
-    packagingDialog.getByRole("textbox", { name: /^Cantidad por presentación/ }),
-    "6",
-  );
-
-  await userEvent.click(packagingDialog.getByRole("button", { name: "Crear la presentación" }));
-
-  await expect
-    .poll(() => screen.getByRole("dialog", { name: "Nueva presentación" }).query())
-    .toBeNull();
-  await expect
-    .element(group.getByRole("combobox", { name: /^Presentación/ }))
-    .toHaveValue("Caja x 6 (6 u)");
-});
-
-test("offers no packaging creation to a person who cannot manage purchase packagings", async () => {
-  const screen = await opened(createServices(), accessWith("purchases", "suppliers"));
-  const group = await openPackagingSelectorOfFirstLine(screen);
-
-  await userEvent.fill(group.getByRole("combobox", { name: /^Presentación/ }), "Caja x 6");
-
-  await expect.element(screen.getByText("Sin resultados")).toBeVisible();
-  expect(screen.getByRole("option", { name: /^Crear presentación/ }).query()).toBeNull();
 });
 
 async function typeProductOfFirstLine(screen: Screen, text: string) {
@@ -281,39 +215,4 @@ test("with no products at all and no way to create one, shows the empty state", 
   );
 
   await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
-});
-
-test("a product with no active packagings still offers creating one in the line, selected once saved", async () => {
-  const services = createServices({ packagings: [] });
-  vi.mocked(services.createPackaging).mockResolvedValue({ kind: "ok", packaging: cajaX6 });
-  const screen = await opened(services, ADMINISTRATOR_ACCESS);
-  const group = await openPackagingSelectorOfFirstLine(screen);
-
-  await userEvent.fill(group.getByRole("combobox", { name: /^Presentación/ }), "Caja x 6");
-  await userEvent.click(screen.getByRole("option", { name: "Crear presentación «Caja x 6»" }));
-  const packagingDialog = screen.getByRole("dialog", { name: "Nueva presentación" });
-  await userEvent.fill(
-    packagingDialog.getByRole("textbox", { name: /^Cantidad por presentación/ }),
-    "6",
-  );
-  await userEvent.click(packagingDialog.getByRole("button", { name: "Crear la presentación" }));
-
-  await expect
-    .element(group.getByRole("combobox", { name: /^Presentación/ }))
-    .toHaveValue("Caja x 6 (6 u)");
-});
-
-test("a product with no active packagings shows the notice to a person who cannot manage purchase packagings", async () => {
-  const screen = await opened(
-    createServices({ packagings: [] }),
-    accessWith("purchases", "suppliers"),
-  );
-  const group = screen.getByRole("group", { name: "Línea 1" });
-  await userEvent.click(group.getByRole("combobox", { name: /^Producto/ }));
-  (page.getByRole("option", { name: "Miel pura de abeja 1 kg" }).element() as HTMLElement).click();
-  await userEvent.click(group.getByText("Presentación", { exact: true }).last());
-
-  await expect
-    .element(group.getByText("Este producto no tiene presentaciones activas").first())
-    .toBeVisible();
 });

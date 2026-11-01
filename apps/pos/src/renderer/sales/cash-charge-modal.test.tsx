@@ -112,7 +112,7 @@ describe("CashChargeModal", () => {
 
     await userEvent.keyboard("5000");
 
-    await expect.element(field).toHaveValue("5000");
+    await expect.element(field).toHaveValue("5.000");
   });
 
   it("shows what has been paid and what is to be charged now when part of the sale is already paid", async () => {
@@ -139,7 +139,7 @@ describe("CashChargeModal", () => {
   it("offers to register a partial payment, and shows what stays pending and no change, while the amount does not cover the pending balance", async () => {
     const { screen, field } = await renderModal();
 
-    await userEvent.fill(field, "4.000,00");
+    await userEvent.fill(field, "4000,00");
 
     await expect
       .element(screen.getByRole("button", { name: "Registrar pago parcial" }))
@@ -163,7 +163,7 @@ describe("CashChargeModal", () => {
     };
     const { screen, field, chargeSale, callbacks } = await renderModal(async () => outcome);
 
-    await userEvent.fill(field, "4.000,00");
+    await userEvent.fill(field, "4000,00");
     await userEvent.click(screen.getByRole("button", { name: "Registrar pago parcial" }));
 
     await expect.poll(() => callbacks.onPartiallyPaid.mock.calls.length).toBe(1);
@@ -182,7 +182,7 @@ describe("CashChargeModal", () => {
     }));
     callbacks.onPartiallyPaid.mockReturnValue(backToMethods.promise);
 
-    await userEvent.fill(field, "4.000,00");
+    await userEvent.fill(field, "4000,00");
     await userEvent.click(screen.getByRole("button", { name: "Registrar pago parcial" }));
 
     await expect.poll(() => callbacks.onPartiallyPaid.mock.calls.length).toBe(1);
@@ -199,7 +199,7 @@ describe("CashChargeModal", () => {
   it("shows the change to hand over once the amount covers the total", async () => {
     const { screen, field, complete } = await renderModal();
 
-    await userEvent.fill(field, "5.000,00");
+    await userEvent.fill(field, "5000,00");
 
     await expect.element(complete).toBeEnabled();
     await expect.element(screen.getByText("VUELTO A ENTREGAR")).toBeVisible();
@@ -210,7 +210,7 @@ describe("CashChargeModal", () => {
   it("shows a change of zero when the amount is exactly the total", async () => {
     const { screen, field, complete } = await renderModal();
 
-    await userEvent.fill(field, "4.760,00");
+    await userEvent.fill(field, "4760,00");
 
     await expect.element(complete).toBeEnabled();
     await expect.element(screen.getByText("$ 4.760,00 − $ 4.760,00")).toBeVisible();
@@ -220,7 +220,8 @@ describe("CashChargeModal", () => {
   it("says when what was typed is not an amount", async () => {
     const { screen, field, complete } = await renderModal();
 
-    await userEvent.fill(field, "5.000,001");
+    await userEvent.clear(field);
+    await userEvent.keyboard("5,");
 
     await expect
       .element(screen.getByText("Ingresá un importe válido, por ejemplo 5.000,00."))
@@ -228,7 +229,7 @@ describe("CashChargeModal", () => {
     await expect.element(complete).toBeDisabled();
   });
 
-  it.each([["0"], ["30.000.000,00"]])(
+  it.each([["0"], ["30000000,00"]])(
     "says %s is not an amount it can charge, and shows no change",
     async (typed) => {
       const { screen, field, complete } = await renderModal();
@@ -246,7 +247,7 @@ describe("CashChargeModal", () => {
   it("asks the core about the exact cents typed", async () => {
     const { field, readCashCharge, screen } = await renderModal();
 
-    await userEvent.fill(field, "5.000,05");
+    await userEvent.fill(field, "5000,05");
 
     await expect.element(screen.getByText("VUELTO A ENTREGAR")).toBeVisible();
     expect(readCashCharge).toHaveBeenCalledExactlyOnceWith(500_005);
@@ -255,7 +256,8 @@ describe("CashChargeModal", () => {
   it("does not ask the core while nothing, or something that is not an amount, is typed", async () => {
     const { field, readCashCharge, screen } = await renderModal();
 
-    await userEvent.fill(field, "5.000,001");
+    await userEvent.clear(field);
+    await userEvent.keyboard(",");
 
     await expect
       .element(screen.getByText("Ingresá un importe válido, por ejemplo 5.000,00."))
@@ -267,7 +269,7 @@ describe("CashChargeModal", () => {
     const answer = deferred<CashChargeAnswer>();
     const { screen, field, complete } = await renderModal(undefined, () => answer.promise);
 
-    await userEvent.fill(field, "5.000,00");
+    await userEvent.fill(field, "5000,00");
 
     await expect.element(screen.getByText("Cargando…")).toBeInTheDocument();
     await expect.element(complete).toBeDisabled();
@@ -296,7 +298,7 @@ describe("CashChargeModal", () => {
       }
       return next();
     });
-    await userEvent.fill(field, "5.000,00");
+    await userEvent.fill(field, "5000,00");
     await expect.element(screen.getByText("No se pudo calcular el vuelto")).toBeVisible();
 
     await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
@@ -323,7 +325,7 @@ describe("CashChargeModal", () => {
       undefined,
       readCharge,
     );
-    await userEvent.fill(field, "5.000,00");
+    await userEvent.fill(field, "5000,00");
     await expect.element(screen.getByText("$ 240,00")).toBeVisible();
 
     await screen.rerender(
@@ -356,7 +358,7 @@ describe("CashChargeModal", () => {
       return answer;
     });
 
-    await userEvent.fill(field, "5.000,00");
+    await userEvent.fill(field, "5000,00");
 
     await expect.element(screen.getByText("No se pudo calcular el vuelto")).toBeVisible();
     await expect.element(complete).toBeDisabled();
@@ -369,7 +371,7 @@ describe("CashChargeModal", () => {
     async (answer) => {
       const { field, callbacks } = await renderModal(undefined, async () => answer);
 
-      await userEvent.fill(field, "5.000,00");
+      await userEvent.fill(field, "5000,00");
 
       await expect.poll(() => callbacks.onSaleUnavailable.mock.calls.length).toBeGreaterThan(0);
     },
@@ -378,7 +380,7 @@ describe("CashChargeModal", () => {
   it("charges the exact cents typed and reports the completed sale", async () => {
     const { field, complete, chargeSale, callbacks } = await renderModal();
 
-    await userEvent.fill(field, "5.000,05");
+    await userEvent.fill(field, "5000,05");
     await userEvent.click(complete);
 
     await expect.poll(() => callbacks.onCompleted.mock.calls).toEqual([[COMPLETED]]);
@@ -388,7 +390,7 @@ describe("CashChargeModal", () => {
   it("does not charge when Enter is pressed in the field, as a scanned barcode ends with one", async () => {
     const { field, complete, chargeSale } = await renderModal();
 
-    await userEvent.fill(field, "5.000,00");
+    await userEvent.fill(field, "5000,00");
     await userEvent.keyboard("{Enter}");
     await userEvent.click(complete);
 
@@ -399,7 +401,7 @@ describe("CashChargeModal", () => {
     const pending = deferred<ChargeSaleInCashOutcome>();
     const { field, complete, chargeSale } = await renderModal(() => pending.promise);
 
-    await userEvent.fill(field, "5.000,00");
+    await userEvent.fill(field, "5000,00");
     await userEvent.click(complete);
 
     await expect.element(complete).toBeDisabled();
@@ -421,7 +423,7 @@ describe("CashChargeModal", () => {
       kind: "invalid_amount",
     }));
 
-    await userEvent.fill(field, "5.000,00");
+    await userEvent.fill(field, "5000,00");
     await userEvent.click(complete);
 
     await expect
@@ -435,7 +437,7 @@ describe("CashChargeModal", () => {
   ] as const)("leaves the charge for the sale screen when the core answers %j", async (outcome) => {
     const { field, complete, callbacks } = await renderModal(async () => outcome);
 
-    await userEvent.fill(field, "5.000,00");
+    await userEvent.fill(field, "5000,00");
     await userEvent.click(complete);
 
     await expect.poll(() => callbacks.onSaleUnavailable.mock.calls.length).toBe(1);
@@ -447,7 +449,7 @@ describe("CashChargeModal", () => {
     async (kind) => {
       const { field, complete, callbacks } = await renderModal(async () => ({ kind }));
 
-      await userEvent.fill(field, "5.000,00");
+      await userEvent.fill(field, "5000,00");
       await userEvent.click(complete);
 
       await expect.poll(() => callbacks.onSaleUnavailable.mock.calls.length).toBe(1);
@@ -460,7 +462,7 @@ describe("CashChargeModal", () => {
     async (kind) => {
       const { field, complete, callbacks } = await renderModal(async () => ({ kind }));
 
-      await userEvent.fill(field, "5.000,00");
+      await userEvent.fill(field, "5000,00");
       await userEvent.click(complete);
 
       await expect.poll(() => callbacks.onSessionInvalid.mock.calls.length).toBe(1);
@@ -477,7 +479,7 @@ describe("CashChargeModal", () => {
       return answer;
     });
 
-    await userEvent.fill(field, "5.000,00");
+    await userEvent.fill(field, "5000,00");
     await userEvent.click(complete);
 
     await expect
@@ -493,7 +495,7 @@ describe("CashChargeModal", () => {
       kind: "mercado_pago_charge_in_progress",
     }));
 
-    await userEvent.fill(field, "5.000,00");
+    await userEvent.fill(field, "5000,00");
     await userEvent.click(complete);
 
     await expect
@@ -507,7 +509,7 @@ describe("CashChargeModal", () => {
       kind: "paid_order_not_applied",
     }));
 
-    await userEvent.fill(field, "5.000,00");
+    await userEvent.fill(field, "5000,00");
     await userEvent.click(complete);
 
     await expect
@@ -521,12 +523,20 @@ describe("CashChargeModal", () => {
       throw new Error("the core connection was replaced");
     });
 
-    await userEvent.fill(field, "5.000,00");
+    await userEvent.fill(field, "5000,00");
     await userEvent.click(complete);
 
     await expect
       .element(screen.getByRole("alert"))
       .toHaveTextContent("No se pudo cobrar la venta. Probá de nuevo.");
     await expect.element(complete).toBeEnabled();
+  });
+
+  it("groups thousands and takes a typed dot as the decimal comma", async () => {
+    const { field } = await renderModal();
+    await userEvent.clear(field);
+    await userEvent.type(field, "1234.5");
+
+    await expect.element(field).toHaveValue("1.234,5");
   });
 });

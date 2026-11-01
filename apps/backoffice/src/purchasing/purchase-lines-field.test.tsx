@@ -1,6 +1,6 @@
 import { purchaseRegistrationBodySchema } from "@purosur/contracts";
 import { FieldSizeProvider, useRequestForm } from "@purosur/ui";
-import { expect, test, vi } from "vitest";
+import { expect, test } from "vitest";
 import { userEvent } from "vitest/browser";
 import { StubProductCreationModal } from "../platform/test-support/creation-parts";
 import { ADMINISTRATOR_ACCESS } from "../shell/test-support/backoffice-access";
@@ -17,10 +17,10 @@ import {
   purchaseRegistrationRequestFrom,
 } from "./purchase-form";
 import { PurchaseLinesField } from "./purchase-lines-field";
-import { aceiteDeAlmendras } from "./test-support/packagings";
+import { aceiteDeAlmendras } from "./test-support/purchase-products";
 import { purchaseChoicesFrom } from "./test-support/purchases";
 
-const { products: offeredProducts, packagings } = purchaseChoicesFrom([]);
+const { products: offeredProducts } = purchaseChoicesFrom([]);
 
 function Harness({ products = offeredProducts }: { products?: typeof offeredProducts }) {
   const { form } = useRequestForm({
@@ -48,12 +48,10 @@ function Harness({ products = offeredProducts }: { products?: typeof offeredProd
             <PurchaseLinesField
               access={ADMINISTRATOR_ACCESS}
               products={products}
-              packagings={packagings}
               refusals={{}}
               onLinesChange={() => {}}
               productCreationModal={StubProductCreationModal}
               onProductCreated={() => {}}
-              services={{ createPackaging: vi.fn() }}
               onSessionEnded={() => {}}
             />
           )}

@@ -1,6 +1,5 @@
 import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import { isMovementQuantity } from "../../stock/index.js";
-import { hasProductSaleUnitChanged } from "../model/packaging.js";
 import {
   hasPurchaseLines,
   isPurchaseDateInFuture,
@@ -9,11 +8,7 @@ import {
   type ReceiptType,
 } from "../model/purchase.js";
 import { ONE_SALE_UNIT_QUANTITY, packagedQuantity } from "../model/purchase-line.js";
-import type {
-  LockPackagingResult,
-  LockProductResult,
-  PurchasingStore,
-} from "./purchasing-store.js";
+import type { LockProductResult, PurchasingStore } from "./purchasing-store.js";
 
 interface PurchaseLineBase {
   productId: string;
@@ -24,7 +19,7 @@ interface PurchaseLineBase {
 
 export type RegisterPurchaseLine = PurchaseLineBase &
   (
-    | { loadedBy: "packaging"; packagingId: string; packages: number }
+    | { loadedBy: "packages"; packages: number; quantityPerPackage: number }
     | { loadedBy: "quantity"; quantity: number }
   );
 
@@ -48,7 +43,6 @@ export interface RegisterPurchasePorts {
 export interface RegisteredPurchaseLine {
   id: string;
   productId: string;
-  packagingId: string | null;
   packages: number | null;
   quantity: number;
   costPaidCents: number;
@@ -76,19 +70,14 @@ export type RegisterPurchaseOutcome =
   | { kind: "supplier_inactive" }
   | { kind: "product_not_found"; lineIndex: number }
   | { kind: "product_inactive"; lineIndex: number }
-  | { kind: "packaging_not_found"; lineIndex: number }
-  | { kind: "packaging_inactive"; lineIndex: number }
-  | { kind: "packaging_sale_unit_changed"; lineIndex: number }
   | { kind: "invalid_quantity"; lineIndex: number }
   | { kind: "registered"; purchase: RegisteredPurchase };
 
 type LockedProduct = Extract<LockProductResult, { kind: "locked" }>["product"];
-type LockedPackaging = Extract<LockPackagingResult, { kind: "locked" }>["packaging"];
 type LineRefusal = Exclude<RegisterPurchaseOutcome, { kind: "registered" }>;
 
 interface ResolvedLine {
   line: RegisterPurchaseLine;
-  packagingId: string | null;
   packages: number | null;
   quantity: number;
   quantityPerPackage: number;
@@ -102,7 +91,6 @@ function resolveLine(
   line: RegisterPurchaseLine,
   lineIndex: number,
   product: LockedProduct,
-  packagings: ReadonlyMap<string, LockedPackaging | undefined>,
 ): ResolvedLine | LineRefusal {
   if (line.loadedBy === "quantity") {
     if (!isMovementQuantity(product.saleUnit, line.quantity)) {
@@ -110,33 +98,24 @@ function resolveLine(
     }
     return {
       line,
-      packagingId: null,
       packages: null,
       quantity: line.quantity,
       quantityPerPackage: ONE_SALE_UNIT_QUANTITY,
     };
   }
 
-  const packaging = packagings.get(line.packagingId);
-  if (!packaging || packaging.productId !== line.productId) {
-    return { kind: "packaging_not_found", lineIndex };
+  if (!isMovementQuantity(product.saleUnit, line.quantityPerPackage)) {
+    return { kind: "invalid_quantity", lineIndex };
   }
-  if (!packaging.active) {
-    return { kind: "packaging_inactive", lineIndex };
-  }
-  if (hasProductSaleUnitChanged(packaging.saleUnit, product.saleUnit)) {
-    return { kind: "packaging_sale_unit_changed", lineIndex };
-  }
-  const quantity = packagedQuantity(line.packages, packaging.quantityPerPackage);
+  const quantity = packagedQuantity(line.packages, line.quantityPerPackage);
   if (!isMovementQuantity(product.saleUnit, quantity)) {
     return { kind: "invalid_quantity", lineIndex };
   }
   return {
     line,
-    packagingId: packaging.id,
     packages: line.packages,
     quantity,
-    quantityPerPackage: packaging.quantityPerPackage,
+    quantityPerPackage: line.quantityPerPackage,
   };
 }
 
@@ -177,18 +156,10 @@ export async function registerPurchase(
       lockedProducts.push(locked.product);
     }
 
-    const packagings = new Map<string, LockedPackaging | undefined>();
-    const packagingIds = input.lines.flatMap((line) =>
-      line.loadedBy === "packaging" ? [line.packagingId] : [],
-    );
-    for (const packagingId of sortedDistinct(packagingIds)) {
-      const locked = await tx.lockPackaging(packagingId);
-      packagings.set(packagingId, locked.kind === "locked" ? locked.packaging : undefined);
-    }
     const resolved: ResolvedLine[] = [];
     for (const [lineIndex, line] of input.lines.entries()) {
       const product = lockedProducts[lineIndex] as LockedProduct;
-      const result = resolveLine(line, lineIndex, product, packagings);
+      const result = resolveLine(line, lineIndex, product);
       if ("kind" in result) {
         return result;
       }
@@ -208,10 +179,9 @@ export async function registerPurchase(
 
     const lines: RegisteredPurchaseLine[] = [];
     for (const [index, resolvedLine] of resolved.entries()) {
-      const { line, packagingId, packages, quantity, quantityPerPackage } = resolvedLine;
+      const { line, packages, quantity, quantityPerPackage } = resolvedLine;
       const registered = {
         productId: line.productId,
-        packagingId,
         packages,
         quantity,
         costPaidCents: line.costPaidCents,

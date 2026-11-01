@@ -27,6 +27,7 @@ import {
   fieldHelperClassName,
   fieldWrapperClassName,
 } from "./field-styles";
+import { useDecimalTyping } from "./use-decimal-typing";
 
 export type TextFieldValueKind =
   | "amount"
@@ -59,6 +60,7 @@ type TextFieldCommonProps = {
   labelVisuallyHidden?: boolean;
   type?: "text" | "password";
   inputMode?: "text" | "numeric" | "decimal";
+  decimals?: number;
 };
 
 type TextFieldKindProps =
@@ -155,8 +157,10 @@ export function TextField(props: TextFieldProps | TextFieldReadOnlyReasonProps) 
     labelVisuallyHidden = false,
     type = "text",
     inputMode,
+    decimals,
     kind,
   } = props;
+  const [attachInput, onDecimalChange] = useDecimalTyping(decimals, onChange);
   const { readOnlyReason } = props;
   const { invalid, errorMessage, errorMessageId } = fieldError(props);
   const prefix =
@@ -203,7 +207,12 @@ export function TextField(props: TextFieldProps | TextFieldReadOnlyReasonProps) 
   ]
     .filter((id) => id !== undefined)
     .join(" ");
-  const inputModeProps = inputMode !== undefined ? { inputMode } : {};
+  const inputModeProps =
+    decimals !== undefined
+      ? { inputMode: "decimal" as const }
+      : inputMode !== undefined
+        ? { inputMode }
+        : {};
   const describedByProps = describedBy !== "" ? { "aria-describedby": describedBy } : {};
 
   // react-aria's useTextField wires the input's accessible name to this label through its own
@@ -262,7 +271,7 @@ export function TextField(props: TextFieldProps | TextFieldReadOnlyReasonProps) 
           </span>
         </>
       ) : (
-        <AriaInput className={inputClassName} {...labelledByProps} />
+        <AriaInput ref={attachInput} className={inputClassName} {...labelledByProps} />
       )}
       {suffix !== undefined && (
         <span
@@ -285,7 +294,7 @@ export function TextField(props: TextFieldProps | TextFieldReadOnlyReasonProps) 
   return (
     <AriaTextField
       value={value}
-      onChange={onChange}
+      onChange={onDecimalChange}
       isDisabled={disabled}
       isReadOnly={readOnly}
       isRequired={required}

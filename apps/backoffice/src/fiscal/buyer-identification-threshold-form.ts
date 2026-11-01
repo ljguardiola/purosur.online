@@ -23,7 +23,7 @@ export function amountMessage({ amount }: ThresholdFormValues): string {
   }
   const cents = parseAmountCents(amount);
   if (cents === undefined) {
-    return "Escribí el importe con coma para los decimales, por ejemplo 7.500,50.";
+    return "Completá los decimales del importe después de la coma, por ejemplo 7.500,50.";
   }
   return cents > 0 ? "Revisá el importe." : "Ingresá un importe mayor a cero.";
 }

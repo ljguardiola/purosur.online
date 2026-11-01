@@ -9,6 +9,8 @@ export const changeLineWeightRequestSchema = changeLineWeightMessageSchema.pick(
   weight_thousandths: true,
 });
 
+export const WEIGHT_DECIMALS = 3;
+
 export type WeightFormValues = { weight: string };
 
 export const EMPTY_WEIGHT_FORM: WeightFormValues = { weight: "" };

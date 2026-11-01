@@ -77,9 +77,12 @@ function freightDateMessage({ date }: FreightFormValues): string {
 }
 
 function freightAmountMessage({ amount }: FreightFormValues): string {
+  if (amount.trim() === "") {
+    return "Ingresá el monto del flete.";
+  }
   const cents = parseAmountCents(amount);
   if (cents === undefined) {
-    return "Escribí el monto con coma para los centavos, por ejemplo 1.250,50.";
+    return "Completá los centavos del monto después de la coma, por ejemplo 1.250,50.";
   }
   return cents <= 0 ? "El monto tiene que ser mayor a cero." : "El monto es demasiado grande.";
 }

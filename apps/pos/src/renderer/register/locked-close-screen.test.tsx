@@ -135,7 +135,7 @@ describe("LockedCloseScreen", () => {
       .element(screen.getByRole("complementary").getByText("$ 46.200,00", { exact: true }))
       .toBeVisible();
 
-    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45.800,00");
+    await userEvent.fill(screen.getByRole("textbox", { name: "Efectivo contado" }), "45800,00");
 
     await expect.poll(() => loadCashCountPreview.mock.calls).toEqual([[4_580_000]]);
   });
@@ -146,7 +146,7 @@ describe("LockedCloseScreen", () => {
 
     await identifySofia(screen);
     await expect.element(screen.getByText("Cierra Sofía. La sesión es de Grace.")).toBeVisible();
-    await closeWith(screen, "45.800,00");
+    await closeWith(screen, "45800,00");
 
     await expect
       .poll(() => close.mock.calls)
@@ -157,7 +157,7 @@ describe("LockedCloseScreen", () => {
     const { screen } = await renderScreen({ close: async () => ({ kind: "lacks_permission" }) });
 
     await identifySofia(screen);
-    await closeWith(screen, "45.800,00");
+    await closeWith(screen, "45800,00");
 
     await expect
       .element(screen.getByRole("heading", { name: "¿Quién cierra la caja?" }))

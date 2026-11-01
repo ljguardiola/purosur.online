@@ -1,5 +1,5 @@
 {
-  "id": "f7b0c04c-a295-43a0-9c61-221f96a3cc9d",
+  "id": "ad996e18-6c9c-42c2-9e82-dfc6ab924e85",
   "prevId": "fc1de1c7-cca8-4fd2-b0af-43e11d781846",
   "version": "7",
   "dialect": "postgresql",
@@ -6831,9 +6831,9 @@
           "name": "purchase_lines_cost_paid_check",
           "value": "\"purchase_lines\".\"cost_paid_cents\" >= 0"
         },
-        "purchase_lines_packaging_iff_packages_check": {
-          "name": "purchase_lines_packaging_iff_packages_check",
-          "value": "(\"purchase_lines\".\"packaging_id\" is null) = (\"purchase_lines\".\"packages\" is null)"
+        "purchase_lines_packaging_needs_packages_check": {
+          "name": "purchase_lines_packaging_needs_packages_check",
+          "value": "\"purchase_lines\".\"packaging_id\" is null or \"purchase_lines\".\"packages\" is not null"
         },
         "purchase_lines_packages_quantity_check": {
           "name": "purchase_lines_packages_quantity_check",
@@ -8947,13 +8947,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "resolution": {
-          "name": "resolution",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'refund'"
-        },
         "disposition": {
           "name": "disposition",
           "type": "text",
@@ -9026,10 +9019,6 @@
         "return_lines_quantity_check": {
           "name": "return_lines_quantity_check",
           "value": "\"return_lines\".\"quantity\" > 0"
-        },
-        "return_lines_resolution_check": {
-          "name": "return_lines_resolution_check",
-          "value": "\"return_lines\".\"resolution\" in ('refund', 'exchange')"
         },
         "return_lines_reason_check": {
           "name": "return_lines_reason_check",
@@ -10756,15 +10745,15 @@
       "checkConstraints": {
         "stock_movements_kind_check": {
           "name": "stock_movements_kind_check",
-          "value": "\"stock_movements\".\"kind\" in ('loss', 'adjustment', 'count', 'sale', 'sale_void', 'return', 'exchange_out', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in', 'assembly_void')"
+          "value": "\"stock_movements\".\"kind\" in ('loss', 'adjustment', 'count', 'sale', 'sale_void', 'return', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in', 'assembly_void')"
         },
         "stock_movements_reason_unless_count_sale_or_receipt_check": {
           "name": "stock_movements_reason_unless_count_sale_or_receipt_check",
-          "value": "(\"stock_movements\".\"kind\" in ('count', 'sale', 'sale_void', 'return', 'exchange_out', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in', 'assembly_void')) = (\"stock_movements\".\"reason\" is null)"
+          "value": "(\"stock_movements\".\"kind\" in ('count', 'sale', 'sale_void', 'return', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in', 'assembly_void')) = (\"stock_movements\".\"reason\" is null)"
         },
         "stock_movements_sale_line_iff_sale_check": {
           "name": "stock_movements_sale_line_iff_sale_check",
-          "value": "(\"stock_movements\".\"kind\" in ('sale', 'sale_void', 'return', 'exchange_out') or (\"stock_movements\".\"kind\" = 'loss' and \"stock_movements\".\"reason\" = 'return_discard')) = (\"stock_movements\".\"sale_line_id\" is not null)"
+          "value": "(\"stock_movements\".\"kind\" in ('sale', 'sale_void', 'return') or (\"stock_movements\".\"kind\" = 'loss' and \"stock_movements\".\"reason\" = 'return_discard')) = (\"stock_movements\".\"sale_line_id\" is not null)"
         },
         "stock_movements_purchase_line_iff_receipt_check": {
           "name": "stock_movements_purchase_line_iff_receipt_check",

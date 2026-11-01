@@ -136,7 +136,8 @@ test("reports an invalid net content quantity on the first submit even without a
   const { dialog } = await renderModal(services);
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Producto nuevo");
-  await userEvent.fill(dialog.getByRole("textbox", { name: "Contenido neto" }), "abc");
+  await userEvent.clear(dialog.getByRole("textbox", { name: "Contenido neto" }));
+  await userEvent.keyboard("5,");
   await scanCode(scanInputOf(dialog), "12345");
 
   await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));

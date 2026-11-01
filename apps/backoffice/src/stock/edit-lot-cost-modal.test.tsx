@@ -99,7 +99,7 @@ test("sends the typed pesos as cents for the lot and tells the screen it was sav
   vi.mocked(props.services.setLotReferenceCost).mockResolvedValue({ kind: "ok" });
   const screen = await renderModal(props);
 
-  await userEvent.fill(screen.getByLabelText("Costo de referencia por kg"), "10.180,50");
+  await userEvent.fill(screen.getByLabelText("Costo de referencia por kg"), "10180,50");
   await userEvent.click(screen.getByRole("button", { name: SAVE }));
 
   await expect
@@ -339,3 +339,12 @@ test.each([
     expect(props.onOutdated).toHaveBeenCalledWith(initialLotAlmonds);
   },
 );
+
+test("groups thousands and takes a typed dot as the decimal comma in the cost", async () => {
+  const screen = await renderModal(createProps());
+  const field = screen.getByLabelText("Costo de referencia por kg");
+  await userEvent.clear(field);
+  await userEvent.type(field, "1234.5");
+
+  await expect.element(field).toHaveValue("1.234,5");
+});

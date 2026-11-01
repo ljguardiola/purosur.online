@@ -15,6 +15,7 @@ import {
   countLineRequestSchema,
   EMPTY_COUNT_LINE_FORM,
   EXPIRY_MESSAGE,
+  KG_DECIMALS,
 } from "./count-line-form";
 import type { CountableProduct } from "./countable-product";
 
@@ -178,7 +179,7 @@ export function CountLineModal({
                 kind="weight"
                 suffix="kg"
                 label="Cantidad contada"
-                inputMode="decimal"
+                decimals={KG_DECIMALS}
                 description="Podés pesarlo en la balanza o escribir el peso."
                 disabled={submitting}
               />

@@ -258,7 +258,7 @@ function MovementModal({
               kind="amount"
               prefix="$"
               label="Importe"
-              inputMode="decimal"
+              decimals={2}
               disabled={submitting}
               {...(expectedCash === undefined || presentation.cashBefore === undefined
                 ? {}

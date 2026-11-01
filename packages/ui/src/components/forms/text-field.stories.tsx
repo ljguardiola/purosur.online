@@ -52,6 +52,17 @@ export const DecimalAmount: Story = {
   },
 };
 
+export const GroupedDecimalAmount: Story = {
+  args: {
+    kind: "amount",
+    label: "Monto",
+    value: "1.234.567,50",
+    onChange: () => {},
+    prefix: "$",
+    decimals: 2,
+  },
+};
+
 export const CountedCash: Story = {
   args: {
     kind: "counted-cash",

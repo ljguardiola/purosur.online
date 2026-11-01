@@ -21,6 +21,8 @@ import { optionalLimitedTextSchema, optionalTextSchema } from "./optional-text.j
 
 const CALENDAR_DAY_MESSAGE = "must be a calendar day in the form YYYY-MM-DD";
 const PACKAGES_MESSAGE = "packages must be a positive whole number";
+const QUANTITY_PER_PACKAGE_MESSAGE =
+  "quantityPerPackage must be a positive integer number of thousandths";
 const QUANTITY_MESSAGE = "quantity must be a positive integer number of thousandths";
 const COST_MESSAGE = "costPaidCents must be a whole number of cents, not negative";
 const RECEIPT_NUMBER_MESSAGE =
@@ -33,11 +35,14 @@ const lineFields = {
   expiresOn: optionalTextSchema(`expiresOn ${CALENDAR_DAY_MESSAGE}`, isCalendarDay),
 };
 
-const packagingLineSchema = z.object({
-  loadedBy: z.literal("packaging"),
+const packagesLineSchema = z.object({
+  loadedBy: z.literal("packages"),
   ...lineFields,
-  packagingId: recordIdSchema("packagingId must be a packaging's id"),
   packages: z.number({ error: PACKAGES_MESSAGE }).refine(isPackageCount, PACKAGES_MESSAGE),
+  quantityPerPackage: z
+    .number({ error: QUANTITY_PER_PACKAGE_MESSAGE })
+    .refine(mayBeMovementQuantity, QUANTITY_PER_PACKAGE_MESSAGE)
+    .meta({ decimals: STOCK_QUANTITY_DECIMALS, perUnit: STOCK_QUANTITY_PER_UNIT }),
 });
 
 const quantityLineSchema = z.object({
@@ -63,7 +68,7 @@ export const purchaseRegistrationBodySchema = z
     ),
     note: optionalLimitedTextSchema("note", PURCHASE_NOTE_MAX_LENGTH, isPurchaseNoteTooLong),
     lines: z
-      .array(z.discriminatedUnion("loadedBy", [packagingLineSchema, quantityLineSchema]))
+      .array(z.discriminatedUnion("loadedBy", [packagesLineSchema, quantityLineSchema]))
       .min(MIN_PURCHASE_LINES),
   })
   .refine((body) => hasValidReceiptNumber(body.receiptType, body.receiptNumber), {
