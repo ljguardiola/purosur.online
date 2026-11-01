@@ -98,6 +98,61 @@ describe("ReturnLinesTable", () => {
     await expect.element(screen.getByText("Reintegro")).toBeVisible();
   });
 
+  it("offers a line returned for a defect the choice between a refund and an exchange, with nothing chosen", async () => {
+    const { screen, onChange } = await renderTable({
+      draft: changeLine(checkLine(EMPTY_RETURN_DRAFT, PASTA), PASTA.id, { reason: "defective" }),
+    });
+
+    const resolution = screen.getByRole("button", { name: /Resolución de Pasta de maní 380 g/ });
+    await expect.element(resolution).toHaveTextContent("Elegí");
+    await userEvent.click(resolution);
+    await expect.element(screen.getByRole("option", { name: "Reintegro" })).toBeVisible();
+    await userEvent.click(screen.getByRole("option", { name: "Cambio por otra igual" }));
+
+    expect(onChange).toHaveBeenLastCalledWith(PASTA.id, { resolution: "exchange" });
+  });
+
+  it("shows the resolution chosen for a defective line", async () => {
+    const { screen } = await renderTable({
+      draft: changeLine(checkLine(EMPTY_RETURN_DRAFT, PASTA), PASTA.id, {
+        reason: "defective",
+        resolution: "exchange",
+      }),
+    });
+
+    await expect
+      .element(screen.getByRole("button", { name: /Resolución de Pasta de maní 380 g/ }))
+      .toHaveTextContent("Cambio por otra igual");
+  });
+
+  it("resolves a line returned for a change of mind with a refund, offering no choice", async () => {
+    const { screen } = await renderTable({
+      draft: changeLine(checkLine(EMPTY_RETURN_DRAFT, PASTA), PASTA.id, {
+        reason: "change_of_mind",
+      }),
+    });
+
+    await expect.element(screen.getByText("Reintegro")).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: /Resolución de Pasta de maní 380 g/ }))
+      .not.toBeInTheDocument();
+  });
+
+  it("offers the choices the sale says the reason has", async () => {
+    const { screen } = await renderTable({
+      sale: {
+        ...SALE,
+        offered_resolutions: { change_of_mind: ["refund"], defective: ["exchange"] },
+      },
+      draft: changeLine(checkLine(EMPTY_RETURN_DRAFT, PASTA), PASTA.id, { reason: "defective" }),
+    });
+
+    await expect.element(screen.getByText("Cambio por otra igual")).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: /Resolución de Pasta de maní 380 g/ }))
+      .not.toBeInTheDocument();
+  });
+
   it("tells the screen the quantity the cashier types", async () => {
     const { screen, onChange } = await renderTable({ draft: checkLine(EMPTY_RETURN_DRAFT, PASTA) });
 

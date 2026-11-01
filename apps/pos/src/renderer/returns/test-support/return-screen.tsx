@@ -172,7 +172,7 @@ export async function chooseReturnLine(
   }
   if (resolution !== undefined) {
     await userEvent.click(
-      screen.getByRole("button", { name: new RegExp(`Se resuelve ${product}`) }),
+      screen.getByRole("button", { name: new RegExp(`Resolución de ${product}`) }),
     );
     await userEvent.click(screen.getByRole("option", { name: resolution }));
   }

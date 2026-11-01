@@ -61,7 +61,9 @@ describe("a return draft", () => {
       resolution: "exchange",
     });
 
-    expect(changeLine(chosen, PASTA.id, { reason: "change_of_mind" })[PASTA.id]?.resolution).toBeNull();
+    expect(
+      changeLine(chosen, PASTA.id, { reason: "change_of_mind" })[PASTA.id]?.resolution,
+    ).toBeNull();
   });
 
   it("keeps the choice between refunding and exchanging while the reason stays", () => {

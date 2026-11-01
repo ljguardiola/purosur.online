@@ -42,6 +42,70 @@ describe("ReturnScreen completing the return", () => {
     });
   });
 
+  it("completes the exchange of a defective line without refunding any payment, and tells to hand over the exchanged units", async () => {
+    const { screen, completeReturn } = await renderScreen({
+      completeReturn: async () => ({
+        kind: "completed",
+        return_id: "return-1",
+        refunded_in_cash: 0,
+        refunds: [],
+        authorized_by: null,
+      }),
+    });
+    await openReturn(screen);
+    await chooseReturnLine(screen, "Pasta de maní 380 g", {
+      reason: "Defecto",
+      disposition: "Descarte",
+      resolution: "Cambio por otra igual",
+    });
+    await expect
+      .element(screen.getByRole("button", { name: "Completar devolución" }))
+      .toBeEnabled();
+
+    await complete(screen);
+
+    expect(completeReturn).toHaveBeenCalledExactlyOnceWith({
+      saleId: "sale-1",
+      ticketSource: "TYPED",
+      lines: [
+        {
+          sale_line_id: "line-pasta",
+          quantity: 3,
+          reason: "defective",
+          disposition: "discard",
+          resolution: "exchange",
+        },
+      ],
+      refunds: [],
+      authorization: undefined,
+    });
+    await expect
+      .element(screen.getByRole("heading", { name: "Entregá el cambio al cliente" }))
+      .toBeVisible();
+    await expect.element(screen.getByText("Entregá 3 u en cambio · se descarta")).toBeVisible();
+  });
+
+  it("says the exchange is not allowed when the core refuses it for the reason", async () => {
+    const { screen } = await renderScreen({
+      completeReturn: async () => ({
+        kind: "line_refused",
+        sale_line_id: "line-pasta",
+        refusal: { kind: "resolution_not_offered" },
+      }),
+    });
+    await decideOnePasta(screen);
+
+    await complete(screen);
+
+    await expect
+      .element(
+        screen
+          .getByText("Pasta de maní 380 g: con este motivo no se puede cambiar por otra igual.")
+          .first(),
+      )
+      .toBeVisible();
+  });
+
   it("records a ticket the reader scanned as scanned", async () => {
     const { screen, completeReturn, readBarcode } = await renderScreen();
     readBarcode(QR_TEXT);
@@ -49,6 +113,7 @@ describe("ReturnScreen completing the return", () => {
     await chooseReturnLine(screen, "Pasta de maní 380 g", {
       reason: "Defecto",
       disposition: "Descarte",
+      resolution: "Reintegro",
     });
     await expect
       .element(screen.getByRole("button", { name: "Completar devolución" }))

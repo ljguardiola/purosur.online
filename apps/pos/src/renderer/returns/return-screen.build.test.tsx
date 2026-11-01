@@ -174,6 +174,119 @@ describe("ReturnScreen choosing what the customer returns", () => {
       .toBeEnabled();
   });
 
+  it("asks whether a defective line is refunded or exchanged before it can be completed", async () => {
+    const { screen } = await renderScreen();
+    await openReturn(screen);
+
+    await chooseReturnLine(screen, "Pasta de maní 380 g", {
+      reason: "Defecto",
+      disposition: "Descarte",
+    });
+
+    await expect
+      .element(screen.getByText("Elegí si se reintegra o se cambia Pasta de maní 380 g.").first())
+      .toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: "Completar devolución" }))
+      .toBeDisabled();
+  });
+
+  it("offers no exchange for a change of mind", async () => {
+    const { screen } = await renderScreen();
+    await openReturn(screen);
+
+    await chooseReturnLine(screen, "Pasta de maní 380 g", {
+      reason: "Arrepentimiento",
+      disposition: "A la venta",
+    });
+
+    await expect
+      .element(screen.getByRole("button", { name: /Resolución de Pasta de maní 380 g/ }))
+      .not.toBeInTheDocument();
+  });
+
+  it("asks the core about an exchanged line, which refunds nothing and needs no payment to refund", async () => {
+    const { screen, previewReturn } = await renderScreen();
+    await openReturn(screen);
+
+    await chooseReturnLine(screen, "Pasta de maní 380 g", {
+      reason: "Defecto",
+      disposition: "Descarte",
+      resolution: "Cambio por otra igual",
+    });
+
+    await vi.waitFor(() =>
+      expect(previewReturn).toHaveBeenLastCalledWith("sale-1", [
+        {
+          sale_line_id: "line-pasta",
+          quantity: 3,
+          reason: "defective",
+          disposition: "discard",
+          resolution: "exchange",
+        },
+      ]),
+    );
+    await expect
+      .element(
+        screen.getByText("Los productos se cambian por otros iguales: no hay nada que reintegrar."),
+      )
+      .toBeVisible();
+    await expect
+      .element(screen.getByText("SE DEVUELVE POR EL MEDIO DEL PAGO"))
+      .not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("textbox", { name: "Reintegro por Efectivo" }))
+      .not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: "Completar devolución" }))
+      .toBeEnabled();
+  });
+
+  it("forgets an exchange chosen when the reason becomes a change of mind", async () => {
+    const { screen, previewReturn } = await renderScreen();
+    await openReturn(screen);
+    await chooseReturnLine(screen, "Pasta de maní 380 g", {
+      reason: "Defecto",
+      disposition: "Descarte",
+      resolution: "Cambio por otra igual",
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Motivo de Pasta de maní 380 g/ }));
+    await userEvent.click(screen.getByRole("option", { name: /Arrepentimiento/ }));
+
+    await vi.waitFor(() =>
+      expect(previewReturn).toHaveBeenLastCalledWith("sale-1", [
+        {
+          sale_line_id: "line-pasta",
+          quantity: 3,
+          reason: "change_of_mind",
+          disposition: "discard",
+          resolution: null,
+        },
+      ]),
+    );
+    await expect.element(screen.getByText("SE DEVUELVE POR EL MEDIO DEL PAGO")).toBeVisible();
+  });
+
+  it("keeps asking for the payments to refund while another line is refunded", async () => {
+    const { screen } = await renderScreen();
+    await openReturn(screen);
+    await chooseReturnLine(screen, "Pasta de maní 380 g", {
+      reason: "Defecto",
+      disposition: "Descarte",
+      resolution: "Cambio por otra igual",
+    });
+    await chooseReturnLine(screen, "Nibs de cacao", {
+      reason: "Defecto",
+      disposition: "Descarte",
+      resolution: "Reintegro",
+    });
+
+    await expect
+      .element(screen.getByRole("textbox", { name: "Reintegro por Efectivo" }))
+      .toHaveValue("4.235,00");
+  });
+
   it("counts the lines to return", async () => {
     const { screen } = await renderScreen();
     await openReturn(screen);
