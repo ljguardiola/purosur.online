@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { findQueriesFileProblems, QUERY_KEY_SOURCES } from "./query-root-keys.mjs";

@@ -37,8 +37,42 @@ function unwrapped(expression) {
   return inner;
 }
 
-function isModuleUrl(expression) {
+function checkerOf(sourceFile) {
+  const host = {
+    getSourceFile: () => sourceFile,
+    writeFile: () => {},
+    getDefaultLibFileName: () => "lib.d.ts",
+    useCaseSensitiveFileNames: () => true,
+    getCanonicalFileName: (fileName) => fileName,
+    getCurrentDirectory: () => "",
+    getNewLine: () => "\n",
+    fileExists: (fileName) => fileName === sourceFile.fileName,
+    readFile: () => undefined,
+  };
+  const options = { noLib: true, noResolve: true, allowJs: true, types: [] };
+  return ts.createProgram([sourceFile.fileName], options, host).getTypeChecker();
+}
+
+function initializerOf(identifier, checker) {
+  const declaration = checker.getSymbolAtLocation(identifier)?.valueDeclaration;
+  if (
+    declaration === undefined ||
+    !ts.isVariableDeclaration(declaration) ||
+    !ts.isIdentifier(declaration.name) ||
+    declaration.initializer === undefined
+  ) {
+    return undefined;
+  }
+  return declaration.initializer;
+}
+
+function isModuleUrl(expression, checker, seen = new Set()) {
   const inner = unwrapped(expression);
+  if (ts.isIdentifier(inner)) {
+    const initializer = initializerOf(inner, checker);
+    if (initializer === undefined || seen.has(initializer)) return false;
+    return isModuleUrl(initializer, checker, new Set(seen).add(initializer));
+  }
   return (
     ts.isPropertyAccessExpression(inner) &&
     inner.name.text === "url" &&
@@ -47,14 +81,20 @@ function isModuleUrl(expression) {
   );
 }
 
-function isUrlOfModule(expression, aliases) {
+function isUrlOfModule(expression, checker, seen = new Set()) {
   const inner = unwrapped(expression);
-  if (ts.isIdentifier(inner)) return aliases.has(inner.text);
+  if (ts.isIdentifier(inner)) {
+    const initializer = initializerOf(inner, checker);
+    if (initializer === undefined || seen.has(initializer)) return false;
+    return isUrlOfModule(initializer, checker, new Set(seen).add(initializer));
+  }
   return (
     ts.isNewExpression(inner) &&
     ts.isIdentifier(inner.expression) &&
     inner.expression.text === "URL" &&
-    (inner.arguments ?? []).some(isModuleUrl)
+    (inner.arguments ?? []).some(
+      (argument) => isModuleUrl(argument, checker) || isUrlOfModule(argument, checker, seen),
+    )
   );
 }
 
@@ -67,36 +107,15 @@ function memberName(expression) {
   return undefined;
 }
 
-function moduleUrlAliases(sourceFile) {
-  const declarations = descendants(sourceFile).filter(
-    (node) =>
-      ts.isVariableDeclaration(node) &&
-      ts.isIdentifier(node.name) &&
-      node.initializer !== undefined,
-  );
-  const aliases = new Set();
-  let grew = true;
-  while (grew) {
-    grew = false;
-    for (const declaration of declarations) {
-      const name = declaration.name.text;
-      if (aliases.has(name) || !isUrlOfModule(declaration.initializer, aliases)) continue;
-      aliases.add(name);
-      grew = true;
-    }
-  }
-  return aliases;
-}
-
-function readsPathname(node, aliases) {
+function readsPathname(node, checker) {
   if (ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node)) {
-    return memberName(node) === "pathname" && isUrlOfModule(node.expression, aliases);
+    return memberName(node) === "pathname" && isUrlOfModule(node.expression, checker);
   }
   if (
     ts.isVariableDeclaration(node) &&
     ts.isObjectBindingPattern(node.name) &&
     node.initializer !== undefined &&
-    isUrlOfModule(node.initializer, aliases)
+    isUrlOfModule(node.initializer, checker)
   ) {
     return node.name.elements.some((element) => {
       const property = element.propertyName ?? element.name;
@@ -112,10 +131,10 @@ function readsPathname(node, aliases) {
 export function findUndecodedModulePaths(source, fileName) {
   if (!source.includes("import.meta.url") || !source.includes("pathname")) return [];
   const sourceFile = parse(source, fileName);
-  const aliases = moduleUrlAliases(sourceFile);
+  const checker = checkerOf(sourceFile);
   const lineStarts = sourceFile.getLineStarts();
   return descendants(sourceFile)
-    .filter((node) => readsPathname(node, aliases))
+    .filter((node) => readsPathname(node, checker))
     .map((node) => {
       const index = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line;
       const text = source.slice(lineStarts[index], lineStarts[index + 1] ?? source.length);
