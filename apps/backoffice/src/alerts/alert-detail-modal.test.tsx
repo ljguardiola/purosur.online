@@ -2382,7 +2382,7 @@ test("does not announce an escalation for a deferred sale alert that already esc
   await expect.element(screen.getByText(/Escala a crítica/)).not.toBeInTheDocument();
 });
 
-function exceptionShareBreachAlert(nonCompliantMonths: string[]) {
+function exceptionShareBreachAlert(nonCompliantMonths: string[], nonCompliancePercent = 5) {
   return baseDetail({
     kind: "exception_share_breach",
     level: "critical",
@@ -2398,9 +2398,19 @@ function exceptionShareBreachAlert(nonCompliantMonths: string[]) {
       exceptionCount: 6,
       totalCount: 100,
       nonCompliantMonths,
+      nonCompliancePercent,
     },
   });
 }
+
+test("states the threshold the alert carries", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(ok(exceptionShareBreachAlert(["2026-09"], 10)));
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByText(/de este domicilio fiscal, el 10 % o más\./)).toBeVisible();
+});
 
 test("tells that ARCA may restrict the offline authorization of a fiscal address and that nothing is restricted at the counter, without saying it was lost", async () => {
   const services = createServices();

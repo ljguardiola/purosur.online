@@ -156,7 +156,7 @@ test("describes a presentation whose document ARCA rejected and that waits for i
 
 test("describes a month in which a fiscal address reached the share of vouchers issued by exception", () => {
   expect(alertKindDescription("exception_share_breach")).toBe(
-    "Un domicilio fiscal emitió en un mes el 5 % o más de sus comprobantes por excepción (CAEA)",
+    "Un domicilio fiscal alcanzó en un mes el límite de comprobantes emitidos por excepción (CAEA)",
   );
 });
 

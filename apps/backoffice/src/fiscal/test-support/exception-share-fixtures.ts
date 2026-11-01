@@ -20,6 +20,8 @@ export const fiscalAddresses: FiscalAddress[] = [centralFiscalAddress, warehouse
 export const exceptionShareOf2026: ExceptionShareYearBody = {
   fiscal_address: { id: centralFiscalAddress.id, name: centralFiscalAddress.name },
   year: 2026,
+  selectable_years: [2026, 2025, 2024],
+  non_compliance_percent: 5,
   months: [
     {
       month: "2026-01",

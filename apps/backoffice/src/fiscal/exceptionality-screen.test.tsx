@@ -1,7 +1,7 @@
 import { FieldSizeProvider, formatNumber } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
-import { afterEach, beforeEach, expect, onTestFinished, test, vi } from "vitest";
+import { beforeEach, expect, onTestFinished, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { deferred } from "../platform/test-support/deferred";
 import { render } from "../shell/test-support/render-with-router";
@@ -21,12 +21,6 @@ beforeEach(async () => {
   window.history.pushState(null, "", "/");
   await page.viewport(1280, 800);
   onTestFinished(() => page.viewport(414, 896));
-  vi.useFakeTimers({ toFake: ["Date"] });
-  vi.setSystemTime(new Date("2026-10-15T15:00:00.000Z"));
-});
-
-afterEach(() => {
-  vi.useRealTimers();
 });
 
 function createServices(): ExceptionalityScreenServices {
@@ -102,7 +96,26 @@ test("shows the eyebrow, the heading and the explanation that nothing is restric
   expect(screen.getByText(/perdi/i).query()).toBeNull();
 });
 
-test("reads the year of the first fiscal address and the current year when none is chosen", async () => {
+test("explains the threshold the cloud answered", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchExceptionShareYear).mockResolvedValue({
+    kind: "ok",
+    value: { ...exceptionShareOf2026, non_compliance_percent: 10 },
+  });
+
+  const screen = await renderScreen(services);
+
+  await expect
+    .element(
+      screen.getByText(
+        "Un mes incumple al llegar al 10 % de comprobantes emitidos por excepción (CAEA). ARCA puede restringir el uso del CAEA; en el mostrador no se restringe nada.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+});
+
+test("reads the year of the first fiscal address, asking for no year when none is chosen", async () => {
   const services = createServices();
 
   const screen = await renderScreen(services);
@@ -110,7 +123,6 @@ test("reads the year of the first fiscal address and the current year when none 
   await expect.element(screen.getByText("Enero 2026")).toBeVisible();
   expect(services.fetchExceptionShareYear).toHaveBeenCalledWith({
     fiscalAddressId: centralFiscalAddress.id,
-    year: 2026,
   });
   await expect
     .element(screen.getByRole("button", { name: /Domicilio fiscal:/ }))
@@ -221,17 +233,18 @@ test("offers the fiscal addresses and chooses the one picked", async () => {
   }
   await userEvent.click(screen.getByRole("option", { name: "Depósito norte" }));
 
-  expect(onFiltersChange).toHaveBeenCalledWith({
-    fiscalAddress: warehouseFiscalAddress.id,
-    year: 2026,
-  });
+  expect(onFiltersChange).toHaveBeenCalledWith({ fiscalAddress: warehouseFiscalAddress.id });
   await expect
     .poll(() => vi.mocked(services.fetchExceptionShareYear).mock.lastCall)
-    .toEqual([{ fiscalAddressId: warehouseFiscalAddress.id, year: 2026 }]);
+    .toEqual([{ fiscalAddressId: warehouseFiscalAddress.id }]);
 });
 
-test("offers the current year and the two before it and chooses the one picked", async () => {
+test("offers the years the cloud lists and chooses the one picked", async () => {
   const services = createServices();
+  vi.mocked(services.fetchExceptionShareYear).mockResolvedValue({
+    kind: "ok",
+    value: { ...exceptionShareOf2026, selectable_years: [2026, 2025, 2022] },
+  });
   const onFiltersChange = vi.fn();
   const screen = await renderScreen(services, { onFiltersChange });
   await expect.element(screen.getByText("Enero 2026")).toBeVisible();
@@ -241,7 +254,7 @@ test("offers the current year and the two before it and chooses the one picked",
     .getByRole("option")
     .all()
     .map((option) => option.element().textContent?.trim());
-  expect(years).toEqual(["2026", "2025", "2024"]);
+  expect(years).toEqual(["2026", "2025", "2022"]);
   await userEvent.click(screen.getByRole("option", { name: "2025" }));
 
   expect(onFiltersChange).toHaveBeenCalledWith({ fiscalAddress: "", year: 2025 });

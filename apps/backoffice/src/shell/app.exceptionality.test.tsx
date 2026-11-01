@@ -101,7 +101,7 @@ test("keeps the fiscal address and the year chosen in the address, and reads tha
     .toEqual([{ fiscalAddressId: "fiscal-address-warehouse", year: 2025 }]);
 });
 
-test("writes a chosen fiscal address into the address and leaves the default year out of it", async () => {
+test("writes a chosen fiscal address into the address and asks for no year", async () => {
   const services = servicesFor(["fiscal_information"]);
   window.history.pushState(null, "", "/exceptionality");
 
@@ -113,14 +113,14 @@ test("writes a chosen fiscal address into the address and leaves the default yea
   await expect.poll(() => window.location.search).toBe("?fiscalAddress=fiscal-address-warehouse");
 });
 
-test("replaces a year the screen does not offer with the current one in the address", async () => {
+test("drops a year that is not a year from the address and asks the cloud for its current one", async () => {
   const services = servicesFor(["fiscal_information"]);
-  window.history.pushState(null, "", "/exceptionality?year=2019");
+  window.history.pushState(null, "", "/exceptionality?year=abc");
 
   await render(<App help={emptyHelp} services={services} />);
 
   await expect.poll(() => window.location.search).toBe("");
   await expect
     .poll(() => vi.mocked(services.exceptionalityScreen.fetchExceptionShareYear).mock.lastCall)
-    .toEqual([{ fiscalAddressId: "fiscal-address-central", year: 2026 }]);
+    .toEqual([{ fiscalAddressId: "fiscal-address-central" }]);
 });

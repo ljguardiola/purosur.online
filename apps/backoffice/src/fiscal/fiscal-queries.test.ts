@@ -122,6 +122,12 @@ test("each fiscal address and year has its own exception share key", () => {
   );
 });
 
+test("the exception share of the year the cloud chooses has its own key", () => {
+  expect(fiscalKeys.exceptionShareYear("fiscal-address-1", undefined)).not.toEqual(
+    fiscalKeys.exceptionShareYear("fiscal-address-1", 2026),
+  );
+});
+
 test("invalidating the fiscal key marks the issued documents report stale", async () => {
   const client = new QueryClient();
   client.setQueryData(fiscalKeys.issuedDocumentsReport({}), {});

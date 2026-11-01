@@ -31,6 +31,14 @@ test("reads the year of the fiscal address asked for", async () => {
   );
 });
 
+test("asks for no year when none is given, so the cloud answers the current one", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, exceptionShareOf2026));
+
+  await fetchExceptionShareYear({ fiscalAddressId: "fiscal-address-central" });
+
+  expect(fetch).toHaveBeenCalledWith("/api/fiscal/exception-share/fiscal-address-central");
+});
+
 test("encodes the id of the fiscal address in the path", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, exceptionShareOf2026));
 
