@@ -163,7 +163,9 @@ describe("ReturnLinesTable", () => {
     await expect.element(quantity).toHaveAttribute("readonly");
     await userEvent.hover(quantity);
     await expect
-      .element(screen.getByRole("tooltip", { name: "Las promociones se devuelven completas" }))
+      .element(
+        screen.getByRole("tooltip", { name: "Con este motivo, la promoción se devuelve completa" }),
+      )
       .toBeVisible();
   });
 

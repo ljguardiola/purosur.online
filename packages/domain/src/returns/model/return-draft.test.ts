@@ -220,22 +220,29 @@ describe("assessReturnDraft", () => {
     ).toBeNull();
   });
 
-  it.each(["change_of_mind", "defective"] as const)(
-    "returns whole, for a %s, a promotion line whose kind is unknown",
-    (reason) => {
-      const unknown = { ...PROMOTED, promotionKind: null };
+  it("returns a promotion line whose kind is unknown only whole for a change of mind", () => {
+    const unknown = { ...PROMOTED, promotionKind: null };
 
-      expect(
-        refusalOf(
-          sale(WITHIN_WINDOW, [unknown]),
-          draftLine({ saleLineId: "line-2", quantity: 1, reason }),
-        ),
-      ).toEqual({
-        saleLineId: "line-2",
-        refusal: { kind: "promotion_whole_only", returnable: 4 },
-      });
-    },
-  );
+    expect(
+      refusalOf(
+        sale(WITHIN_WINDOW, [unknown]),
+        draftLine({ saleLineId: "line-2", quantity: 1, reason: "change_of_mind" }),
+      ),
+    ).toEqual({
+      saleLineId: "line-2",
+      refusal: { kind: "promotion_whole_only", returnable: 4 },
+    });
+  });
+
+  it("accepts part of a promotion line whose kind is unknown when the reason is a defect, refunding its share of what was charged", () => {
+    const unknown = { ...PROMOTED, promotionKind: null };
+
+    expect(
+      assessReturnDraft(sale(WITHIN_WINDOW, [unknown]), [
+        draftLine({ saleLineId: "line-2", quantity: 3, reason: "defective" }),
+      ])[0],
+    ).toMatchObject({ refusal: null, refundAmount: 3000 });
+  });
 
   it("refunds a buy-3-pay-2 line that charged $200 one third of that for the first unit, then only the difference for the next", () => {
     const threeForTwo: ReturnSaleLine = {

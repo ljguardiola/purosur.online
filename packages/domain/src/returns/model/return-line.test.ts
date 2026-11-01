@@ -36,10 +36,9 @@ describe("wholeOnlyReasons", () => {
     expect(wholeOnlyReasons({ promotionId: "ten", promotionKind: "PERCENT_OFF" })).toEqual([]);
   });
 
-  it("is every reason for a promotion line whose kind is unknown", () => {
+  it("is only a change of mind for a promotion line whose kind is unknown", () => {
     expect(wholeOnlyReasons({ promotionId: "ten", promotionKind: null })).toEqual([
       "change_of_mind",
-      "defective",
     ]);
   });
 });
