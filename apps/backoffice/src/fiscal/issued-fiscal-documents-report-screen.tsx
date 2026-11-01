@@ -14,8 +14,11 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { FileText } from "lucide-react";
+import { useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { cloudTableState } from "../platform/cloud-table-state";
+import { ReportDownload } from "../shell/report-download";
+import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import {
   type ReportFilters as ReportFiltersValue,
@@ -27,6 +30,7 @@ import { ScreenTopBar } from "../shell/screen-top-bar";
 import { useIssuedFiscalDocumentsReportQuery } from "./fiscal-queries";
 import { voucherTypeText } from "./issued-fiscal-document-text";
 import type { IssuedFiscalDocumentsReportScreenServices } from "./issued-fiscal-documents-report-services";
+import { issuedFiscalDocumentsReportSpreadsheet } from "./issued-fiscal-documents-report-spreadsheet";
 
 export type IssuedFiscalDocumentsReportScreenProps = {
   filters: ReportFiltersValue;
@@ -39,6 +43,8 @@ export type IssuedFiscalDocumentsReportScreenProps = {
 type ReportRow = IssuedFiscalDocumentsReportBody["rows"][number];
 
 const NO_ROWS: ReportRow[] = [];
+
+const SCREEN_TITLE = "Comprobantes emitidos";
 
 const NO_FIGURE = "—";
 const NO_DOCUMENTS = "No se emitieron comprobantes en este período";
@@ -82,6 +88,7 @@ export function IssuedFiscalDocumentsReportScreen({
   services,
 }: IssuedFiscalDocumentsReportScreenProps) {
   const filtered = filters.register !== "ALL";
+  const [registerLabel, setRegisterLabel] = useState("Todas");
   const data = useIssuedFiscalDocumentsReportQuery({
     query: reportQueryOf(filters),
     fetchIssuedFiscalDocumentsReport: services.fetchIssuedFiscalDocumentsReport,
@@ -96,7 +103,7 @@ export function IssuedFiscalDocumentsReportScreen({
 
   return (
     <ScreenLayout
-      topBar={<ScreenTopBar eyebrow="Reportes · Fiscal" title="Comprobantes emitidos" />}
+      topBar={<ScreenTopBar eyebrow="Reportes · Fiscal" title={SCREEN_TITLE} />}
       bodyClassName="gap-4 p-6"
     >
       <ReportFilters
@@ -104,6 +111,22 @@ export function IssuedFiscalDocumentsReportScreen({
         onFiltersChange={onFiltersChange}
         answeredPeriod={shown?.range}
         registerFilter={registerFilter}
+        onRegisterLabelChange={setRegisterLabel}
+        trailing={
+          <ReportDownload
+            dataStatus={data.status}
+            workbook={() =>
+              shown
+                ? issuedFiscalDocumentsReportSpreadsheet(
+                    shown,
+                    table.getRowModel().rows.map((row) => row.original),
+                    registerLabel,
+                  )
+                : null
+            }
+            fileName={shown ? reportFileName(SCREEN_TITLE, shown.range) : ""}
+          />
+        }
       />
       {data.status === "failed" ? (
         <LoadFailure {...cloudLoadFailure(data, "el reporte de comprobantes emitidos")} />
