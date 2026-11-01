@@ -8,12 +8,15 @@ export const exceptionShareYearQuerySchema = z.object({
   year: z
     .string()
     .regex(/^[1-9]\d{3}$/)
-    .transform(Number),
+    .transform(Number)
+    .optional(),
 });
 
 export const exceptionShareYearSchema = z.object({
   fiscal_address: z.object({ id: z.string(), name: z.string() }),
   year: z.int(),
+  selectable_years: z.tuple([z.int()], z.int()),
+  non_compliance_percent: z.int(),
   months: z.array(
     z.object({
       month,

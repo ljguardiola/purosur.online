@@ -52,7 +52,8 @@ describe("isExceptionShareBreach", () => {
     fc.assert(
       fc.property(counts, (each) => {
         expect(isExceptionShareBreach(each)).toBe(
-          each.totalCount > 0 && each.exceptionCount * 100 >= each.totalCount * EXCEPTION_SHARE_NON_COMPLIANCE_PERCENT,
+          each.totalCount > 0 &&
+            each.exceptionCount * 100 >= each.totalCount * EXCEPTION_SHARE_NON_COMPLIANCE_PERCENT,
         );
       }),
     );

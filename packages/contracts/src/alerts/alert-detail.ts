@@ -284,6 +284,7 @@ const exceptionShareBreachDetailSchema = z.object({
   exceptionCount: z.int(),
   totalCount: z.int(),
   nonCompliantMonths: z.array(z.string()),
+  nonCompliancePercent: z.int(),
 });
 
 const fortnightReportDocumentRejectedDetailSchema =

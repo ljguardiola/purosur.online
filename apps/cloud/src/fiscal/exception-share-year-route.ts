@@ -61,6 +61,8 @@ export function registerExceptionShareYearRoute<TQueryResult extends PgQueryResu
         exceptionShareYearSchema.parse({
           fiscal_address: outcome.fiscalAddress,
           year: outcome.year,
+          selectable_years: outcome.selectableYears,
+          non_compliance_percent: outcome.nonCompliancePercent,
           months: outcome.months.map((month) => ({
             month: month.month,
             exception_count: month.exceptionCount,

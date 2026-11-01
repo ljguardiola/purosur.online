@@ -1,6 +1,8 @@
 import { lastDayOfMonth } from "../../shared/index.js";
 
-const BREACH_DENOMINATOR = 20;
+export const EXCEPTION_SHARE_NON_COMPLIANCE_PERCENT = 5;
+const PERCENT = 100;
+const SELECTABLE_YEARS = 3;
 const TENTHS_OF_A_PERCENT = 1_000;
 const MONTHS_IN_A_YEAR = 12;
 
@@ -20,7 +22,10 @@ export const EXCEPTION_SHARE_MONTH_STATES = ["non_compliant", "compliant", "in_p
 export type ExceptionShareMonthState = (typeof EXCEPTION_SHARE_MONTH_STATES)[number];
 
 export function isExceptionShareBreach({ exceptionCount, totalCount }: ExceptionShareCounts) {
-  return totalCount > 0 && exceptionCount * BREACH_DENOMINATOR >= totalCount;
+  return (
+    totalCount > 0 &&
+    exceptionCount * PERCENT >= totalCount * EXCEPTION_SHARE_NON_COMPLIANCE_PERCENT
+  );
 }
 
 export function exceptionShareTenthsOfPercent({
@@ -28,6 +33,11 @@ export function exceptionShareTenthsOfPercent({
   totalCount,
 }: ExceptionShareCounts): number | null {
   return totalCount === 0 ? null : Math.floor((exceptionCount * TENTHS_OF_A_PERCENT) / totalCount);
+}
+
+export function selectableExceptionShareYears(today: string): number[] {
+  const currentYear = Number(today.slice(0, 4));
+  return Array.from({ length: SELECTABLE_YEARS }, (_, index) => currentYear - index);
 }
 
 export function monthOfDay(day: string): string {

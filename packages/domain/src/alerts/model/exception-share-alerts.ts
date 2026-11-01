@@ -1,4 +1,8 @@
-import { nonCompliantMonthsOfYear, type RecordedExceptionShareBreach } from "../../fiscal/index.js";
+import {
+  EXCEPTION_SHARE_NON_COMPLIANCE_PERCENT,
+  nonCompliantMonthsOfYear,
+  type RecordedExceptionShareBreach,
+} from "../../fiscal/index.js";
 import type { OpenAlertInput } from "./alert-details.js";
 
 export function fiscalAddressMonthScope(fiscalAddressId: string, month: string): string {
@@ -41,6 +45,7 @@ export function exceptionShareBreachAlert(
         Number(month.slice(0, 4)),
         fiscalAddressBreachMonths,
       ),
+      nonCompliancePercent: EXCEPTION_SHARE_NON_COMPLIANCE_PERCENT,
     },
   };
 }

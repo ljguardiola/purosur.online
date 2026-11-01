@@ -247,6 +247,7 @@ interface ExceptionShareBreachDetail {
   exceptionCount: number;
   totalCount: number;
   nonCompliantMonths: string[];
+  nonCompliancePercent: number;
 }
 
 export interface AlertDetails {
