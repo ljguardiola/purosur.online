@@ -32,12 +32,14 @@ const YERBA_BACK = {
   quantity: 2,
   reason: "change_of_mind",
   disposition: "restock",
+  resolution: null,
 } as const;
 const CHEESE_THROWN_AWAY = {
   saleLineId: "line-3",
   quantity: 250,
   reason: "defective",
   disposition: "discard",
+  resolution: "refund",
 } as const;
 
 const INPUT: CompleteReturnInput = {
@@ -98,6 +100,7 @@ const RETURN_RECORD = {
       quantity: 2,
       reason: "change_of_mind",
       disposition: "restock",
+      resolution: "refund",
       refundedAmount: 5000,
     },
     {
@@ -106,6 +109,7 @@ const RETURN_RECORD = {
       quantity: 250,
       reason: "defective",
       disposition: "discard",
+      resolution: "refund",
       refundedAmount: 2000,
     },
   ],
@@ -235,7 +239,7 @@ describe("completeReturn", () => {
           aggregate_type: "Return",
           aggregate_id: "id-1",
           event_type: "sale_returned",
-          schema_version: 3,
+          schema_version: 4,
           occurred_at: RETURNED_AT.toISOString(),
           actor_id: "cashier",
           payload: {
@@ -256,6 +260,7 @@ describe("completeReturn", () => {
                 quantity: 2,
                 reason: "change_of_mind",
                 disposition: "restock",
+                resolution: "refund",
                 refunded_amount: 5000,
               },
               {
@@ -264,6 +269,7 @@ describe("completeReturn", () => {
                 quantity: 250,
                 reason: "defective",
                 disposition: "discard",
+                resolution: "refund",
                 refunded_amount: 2000,
               },
             ],
@@ -384,7 +390,13 @@ describe("completeReturn", () => {
 
       await complete(store, {
         lines: [
-          { saleLineId: "line-2", quantity: 4, reason: "change_of_mind", disposition: "restock" },
+          {
+            saleLineId: "line-2",
+            quantity: 4,
+            reason: "change_of_mind",
+            disposition: "restock",
+            resolution: null,
+          },
         ],
         refunds: [{ paymentId: "pay-cash", amount: 4000 }],
       });
@@ -396,7 +408,15 @@ describe("completeReturn", () => {
       const store = ledger();
 
       const outcome = await complete(store, {
-        lines: [{ saleLineId: "line-2", quantity: 1, reason: "defective", disposition: "discard" }],
+        lines: [
+          {
+            saleLineId: "line-2",
+            quantity: 1,
+            reason: "defective",
+            disposition: "discard",
+            resolution: "refund",
+          },
+        ],
         refunds: [{ paymentId: "pay-cash", amount: 1000 }],
       });
 
@@ -414,7 +434,15 @@ describe("completeReturn", () => {
       });
 
       await complete(store, {
-        lines: [{ saleLineId: "line-2", quantity: 1, reason: "defective", disposition: "discard" }],
+        lines: [
+          {
+            saleLineId: "line-2",
+            quantity: 1,
+            reason: "defective",
+            disposition: "discard",
+            resolution: "refund",
+          },
+        ],
         refunds: [{ paymentId: "pay-cash", amount: 1000 }],
       });
 
@@ -603,7 +631,7 @@ describe("completeReturn", () => {
       const outcome = await complete(
         store,
         {
-          lines: [{ ...YERBA_BACK, reason: "defective" }],
+          lines: [{ ...YERBA_BACK, reason: "defective", resolution: "refund" }],
           refunds: [{ paymentId: "pay-cash", amount: 5000 }],
         },
         OWN_GRANT,
@@ -786,7 +814,7 @@ describe("completeReturn", () => {
 
       const outcome = await complete(
         store,
-        { lines: [{ ...YERBA_BACK, reason: "defective" }] },
+        { lines: [{ ...YERBA_BACK, reason: "defective", resolution: "refund" }] },
         OWN_GRANT,
         new Date(argentinaInstant("2027-03-13", "09:00", FIXED_ARGENTINA_ZONE_RULES)),
       );
@@ -993,6 +1021,282 @@ const RETURN_CREDIT_NOTE_PAYLOAD = {
   issued_on: "2026-09-20",
 };
 
+describe("completeReturn resolution", () => {
+  const YERBA_EXCHANGED = {
+    saleLineId: "line-1",
+    quantity: 2,
+    reason: "defective",
+    disposition: "discard",
+    resolution: "exchange",
+  } as const;
+  const CHEESE_EXCHANGED = {
+    saleLineId: "line-3",
+    quantity: 250,
+    reason: "defective",
+    disposition: "discard",
+    resolution: "exchange",
+  } as const;
+  const INVOICE = {
+    fiscalDocuments: [INVOICE_OF_SALE],
+    fiscalOnlineEvidence: ONLINE,
+  };
+
+  it("refuses a defective line with no choice between refunding and exchanging it", async () => {
+    const store = ledger();
+
+    const outcome = await complete(store, {
+      lines: [{ ...YERBA_EXCHANGED, resolution: null }],
+      refunds: [],
+    });
+
+    expect(outcome).toEqual({
+      kind: "line_refused",
+      saleLineId: "line-1",
+      refusal: { kind: "missing_resolution" },
+    });
+    expect(store.state.returns).toEqual([]);
+  });
+
+  it("refuses to exchange a line returned for a change of mind", async () => {
+    const store = ledger();
+
+    const outcome = await complete(store, {
+      lines: [{ ...YERBA_BACK, resolution: "exchange" }],
+      refunds: [],
+    });
+
+    expect(outcome).toEqual({
+      kind: "line_refused",
+      saleLineId: "line-1",
+      refusal: { kind: "resolution_not_offered" },
+    });
+  });
+
+  it("refunds a change of mind without being told to", async () => {
+    const store = ledger();
+
+    await complete(store, {
+      lines: [YERBA_BACK],
+      refunds: [{ paymentId: "pay-cash", amount: 5000 }],
+    });
+
+    expect(store.state.returns[0]?.lines).toMatchObject([{ resolution: "refund" }]);
+  });
+
+  it("moves no money for an exchanged line: no refund, no cash movement, nothing refunded to the line", async () => {
+    const store = ledger();
+
+    const outcome = await complete(store, { lines: [YERBA_EXCHANGED], refunds: [] });
+
+    expect(outcome).toMatchObject({
+      kind: "completed",
+      refundedInCash: 0,
+      refunds: [],
+      creditNote: { kind: "none" },
+    });
+    expect(store.state.returns).toMatchObject([
+      {
+        refundedTotal: 0,
+        lines: [{ saleLineId: "line-1", resolution: "exchange", refundedAmount: 0 }],
+      },
+    ]);
+    expect(store.state.refunds).toEqual([]);
+    expect(store.state.cashMovements).toEqual([]);
+    expect(store.state.sales[0]?.payments.map(({ refundedAmount }) => refundedAmount)).toEqual([
+      0, 0,
+    ]);
+  });
+
+  it("refuses a refund imputed to a payment when every line was exchanged", async () => {
+    const store = ledger();
+
+    const outcome = await complete(store, {
+      lines: [YERBA_EXCHANGED],
+      refunds: [{ paymentId: "pay-cash", amount: 100 }],
+    });
+
+    expect(outcome).toMatchObject({ kind: "refund_refused" });
+  });
+
+  it("sends the replacement of the same product and quantity out of stock like a sale, after taking the returned unit back", async () => {
+    const store = ledger();
+
+    await complete(store, { lines: [{ ...YERBA_EXCHANGED, disposition: "restock" }], refunds: [] });
+
+    expect(store.state.stockMovements).toEqual([
+      expect.objectContaining({ productId: "yerba", kind: "return", reason: null, delta: 2000 }),
+      expect.objectContaining({
+        productId: "yerba",
+        saleLineId: "line-1",
+        kind: "exchange_out",
+        reason: null,
+        delta: -2000,
+      }),
+    ]);
+    expect(store.state.stockBalances.yerba).toBe(1000);
+  });
+
+  it("throws the returned unit away as a loss when it is discarded and still sends the replacement out", async () => {
+    const store = ledger();
+
+    await complete(store, { lines: [YERBA_EXCHANGED], refunds: [] });
+
+    expect(
+      store.state.stockMovements.map(({ kind, reason, delta }) => [kind, reason, delta]),
+    ).toEqual([
+      ["return", null, 2000],
+      ["loss", "return_discard", -2000],
+      ["exchange_out", null, -2000],
+    ]);
+    expect(store.state.stockBalances.yerba).toBe(-1000);
+  });
+
+  it("sends the same weight out for a line sold by weight", async () => {
+    const store = ledger();
+
+    await complete(store, {
+      lines: [{ ...CHEESE_EXCHANGED, disposition: "restock" }],
+      refunds: [],
+    });
+
+    expect(store.state.stockMovements.at(-1)).toMatchObject({
+      productId: "queso",
+      kind: "exchange_out",
+      delta: -250,
+    });
+  });
+
+  it("records the replacement even when there is no stock left, leaving the balance negative", async () => {
+    const store = ledger({ stockBalances: { yerba: 0, queso: 0 } });
+
+    const outcome = await complete(store, { lines: [YERBA_EXCHANGED], refunds: [] });
+
+    expect(outcome).toMatchObject({ kind: "completed" });
+    expect(store.state.stockMovements.at(-1)).toMatchObject({ kind: "exchange_out", delta: -2000 });
+    expect(store.state.stockBalances.yerba).toBe(-2000);
+  });
+
+  it("issues no credit note when every line was exchanged", async () => {
+    const store = ledger(INVOICE);
+
+    const outcome = await complete(store, {
+      lines: [YERBA_EXCHANGED, CHEESE_EXCHANGED],
+      refunds: [],
+    });
+
+    expect(outcome).toMatchObject({ creditNote: { kind: "none" } });
+    expect(store.state.creditNotes).toEqual([]);
+    expect(store.state.outbox[0]).toMatchObject({ payload: { credit_note: null } });
+  });
+
+  it("issues the credit note for the refunded lines only when the return mixes both", async () => {
+    const store = ledger(INVOICE);
+
+    const outcome = await complete(store, {
+      lines: [YERBA_EXCHANGED, { ...CHEESE_THROWN_AWAY }],
+      refunds: [{ paymentId: "pay-cash", amount: 2000 }],
+    });
+
+    expect(outcome).toMatchObject({ creditNote: { kind: "pending" }, refundedInCash: 2000 });
+    expect(store.state.creditNotes).toMatchObject([{ total: 2000 }]);
+    expect(store.state.returns).toMatchObject([{ refundedTotal: 2000 }]);
+  });
+
+  it("reports each line's resolution and the replacement's movement in the event", async () => {
+    const store = ledger();
+
+    await complete(store, {
+      lines: [{ ...YERBA_EXCHANGED, disposition: "restock" }, CHEESE_THROWN_AWAY],
+      refunds: [{ paymentId: "pay-cash", amount: 2000 }],
+    });
+
+    expect(store.state.outbox[0]).toMatchObject({
+      schema_version: 4,
+      payload: {
+        lines: [
+          { sale_line_id: "line-1", resolution: "exchange", refunded_amount: 0 },
+          { sale_line_id: "line-3", resolution: "refund", refunded_amount: 2000 },
+        ],
+        stock_movements: [
+          { product_id: "yerba", kind: "return", delta: 2000 },
+          { product_id: "yerba", kind: "exchange_out", reason: null, delta: -2000 },
+          { product_id: "queso", kind: "return", delta: 250 },
+          { product_id: "queso", kind: "loss", delta: -250 },
+        ],
+      },
+    });
+  });
+
+  describe("a buy-3-pay-2 line", () => {
+    const THREE_FOR_TWO = {
+      ...YERBA_LINE,
+      id: "line-4",
+      quantity: 3,
+      promotions: [
+        {
+          id: "three-for-two",
+          name: "Tres por dos",
+          benefit: { kind: "BUY_N_PAY_M", buyQty: 3, payQty: 2 },
+        },
+      ],
+      promotionId: "three-for-two",
+      promotionKind: "BUY_N_PAY_M",
+      discountAmount: 2500,
+      lineTotal: 5000,
+    } as const;
+    const EXCHANGE_ONE = {
+      saleLineId: "line-4",
+      quantity: 1,
+      reason: "defective",
+      disposition: "discard",
+      resolution: "exchange",
+    } as const;
+
+    function promoted(): FakeReturnLedger {
+      const sale = aSaleForReturn();
+      sale.sale.lines = [THREE_FOR_TWO];
+      return ledger({ sales: [sale] });
+    }
+
+    it("leaves the line's returned quantity and refunded amount untouched when part of it is exchanged", async () => {
+      const store = promoted();
+
+      await complete(store, { lines: [EXCHANGE_ONE], refunds: [] });
+
+      expect(store.state.sales[0]?.returned).toEqual([]);
+    });
+
+    it("lets a later return refund the whole line as if nothing had been exchanged", async () => {
+      const store = promoted();
+      await complete(store, { lines: [EXCHANGE_ONE], refunds: [] });
+
+      const outcome = await complete(store, {
+        lines: [{ ...EXCHANGE_ONE, quantity: 3, resolution: "refund" }],
+        refunds: [{ paymentId: "pay-cash", amount: 5000 }],
+      });
+
+      expect(outcome).toMatchObject({ kind: "completed" });
+      expect(store.state.returns[1]).toMatchObject({
+        refundedTotal: 5000,
+        lines: [{ quantity: 3, refundedAmount: 5000 }],
+      });
+    });
+
+    it("keeps refunding by the line's own price once a unit was refunded after an exchange", async () => {
+      const store = promoted();
+      await complete(store, { lines: [EXCHANGE_ONE], refunds: [] });
+      await complete(store, {
+        lines: [{ ...EXCHANGE_ONE, resolution: "refund" }],
+        refunds: [{ paymentId: "pay-cash", amount: 1667 }],
+      });
+
+      expect(store.state.sales[0]?.returned).toEqual([
+        { saleLineId: "line-4", quantity: 1, refundedAmount: 1667 },
+      ]);
+    });
+  });
+});
+
 describe("completeReturn credit note", () => {
   function invoiced(state: Partial<FakeReturnLedgerState> = {}): FakeReturnLedger {
     return ledger({
@@ -1050,7 +1354,7 @@ describe("completeReturn credit note", () => {
       expect(store.state.outbox).toHaveLength(1);
       expect(store.state.outbox[0]).toMatchObject({
         event_id: "id-8",
-        schema_version: 3,
+        schema_version: 4,
         payload: { credit_note: RETURN_CREDIT_NOTE_PAYLOAD },
       });
     });

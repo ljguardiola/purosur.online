@@ -125,7 +125,14 @@ describe("findBranchSaleForReturn", () => {
         "sale-1": [
           {
             id: "return-local",
-            lines: [{ saleLineId: "line-1", quantity: 1, refundedAmount: 2500 }],
+            lines: [
+              {
+                saleLineId: "line-1",
+                quantity: 1,
+                refundedAmount: 2500,
+                resolution: "refund",
+              },
+            ],
             refunds: [{ paymentId: "pay-cash", amount: 2500 }],
           },
         ],
@@ -309,7 +316,14 @@ describe("findBranchSaleForReturn", () => {
         "sale-elsewhere": [
           {
             id: "return-local",
-            lines: [{ saleLineId: "line-1", quantity: 2, refundedAmount: 5000 }],
+            lines: [
+              {
+                saleLineId: "line-1",
+                quantity: 2,
+                refundedAmount: 5000,
+                resolution: "refund",
+              },
+            ],
             refunds: [{ paymentId: "pay-cash", amount: 5000 }],
           },
         ],
@@ -333,7 +347,14 @@ describe("findBranchSaleForReturn", () => {
         "sale-elsewhere": [
           {
             id: "return-local",
-            lines: [{ saleLineId: "line-1", quantity: 2, refundedAmount: 5000 }],
+            lines: [
+              {
+                saleLineId: "line-1",
+                quantity: 2,
+                refundedAmount: 5000,
+                resolution: "refund",
+              },
+            ],
             refunds: [],
           },
         ],

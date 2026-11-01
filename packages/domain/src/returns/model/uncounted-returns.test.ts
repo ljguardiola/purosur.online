@@ -47,7 +47,7 @@ function facts(): SaleForReturn {
 function localReturn(overrides: Partial<LocalReturnOfSale> = {}): LocalReturnOfSale {
   return {
     id: "return-local",
-    lines: [{ saleLineId: "line-1", quantity: 2, refundedAmount: 2000 }],
+    lines: [{ saleLineId: "line-1", quantity: 2, refundedAmount: 2000, resolution: "refund" }],
     refunds: [{ paymentId: "pay-cash", amount: 2000 }],
     ...overrides,
   };
@@ -64,11 +64,32 @@ describe("withUncountedReturns", () => {
     ]);
   });
 
+  it("leaves an exchanged line out, because it did not take anything back from the line", () => {
+    const outcome = withUncountedReturns(
+      facts(),
+      [],
+      [
+        localReturn({
+          lines: [
+            { saleLineId: "line-1", quantity: 2, refundedAmount: 0, resolution: "exchange" },
+            { saleLineId: "line-2", quantity: 1, refundedAmount: 0, resolution: "exchange" },
+          ],
+        }),
+      ],
+    );
+
+    expect(outcome.returned).toEqual([{ saleLineId: "line-1", quantity: 1, refundedAmount: 1000 }]);
+  });
+
   it("adds a line no earlier return touched", () => {
     const returned = withUncountedReturns(
       facts(),
       [],
-      [localReturn({ lines: [{ saleLineId: "line-2", quantity: 1, refundedAmount: 500 }] })],
+      [
+        localReturn({
+          lines: [{ saleLineId: "line-2", quantity: 1, refundedAmount: 500, resolution: "refund" }],
+        }),
+      ],
     ).returned;
 
     expect(returned).toEqual([
