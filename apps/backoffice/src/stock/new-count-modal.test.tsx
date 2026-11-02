@@ -630,9 +630,7 @@ test("asks for a quantity of a lot written the way it expects, registering nothi
 
   await expect
     .element(
-      rendered.dialog.getByText(
-        "Escribí los kilos con hasta 3 decimales, por ejemplo 12,150.",
-      ),
+      rendered.dialog.getByText("Escribí los kilos con hasta 3 decimales, por ejemplo 12,150."),
     )
     .toBeVisible();
   expect(services.registerCount).not.toHaveBeenCalled();

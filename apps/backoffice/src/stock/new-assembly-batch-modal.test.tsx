@@ -519,9 +519,7 @@ test("refuses a used quantity that cannot be read, saying how to type it", async
 
   await expect
     .element(
-      dialog.getByText(
-        "Nueces: escribí los kilos con hasta 3 decimales, por ejemplo 12,150.",
-      ),
+      dialog.getByText("Nueces: escribí los kilos con hasta 3 decimales, por ejemplo 12,150."),
     )
     .toBeVisible();
   expect(registerAssemblyBatch).not.toHaveBeenCalled();
@@ -536,9 +534,7 @@ test("shows a quantity the cloud refused next to its component", async () => {
 
   await expect
     .element(
-      dialog
-        .getByText("Escribí los kilos con hasta 3 decimales, por ejemplo 12,150.")
-        .first(),
+      dialog.getByText("Escribí los kilos con hasta 3 decimales, por ejemplo 12,150.").first(),
     )
     .toBeVisible();
 });

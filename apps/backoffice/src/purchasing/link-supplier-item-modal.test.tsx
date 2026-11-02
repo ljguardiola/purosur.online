@@ -735,11 +735,7 @@ test("shows the quantity the cloud refused on its own field", async () => {
   const dialog = await linkPasas(screen);
 
   await expect
-    .element(
-      dialog.getByText(
-        "Escribí los kilos con hasta 3 decimales, por ejemplo 12,150.",
-      ),
-    )
+    .element(dialog.getByText("Escribí los kilos con hasta 3 decimales, por ejemplo 12,150."))
     .toBeVisible();
 });
 

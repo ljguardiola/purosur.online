@@ -150,9 +150,7 @@ describe("recipeComponentsMessage", () => {
   it("tells how to type the quantity in the unit of the first component that is wrong", () => {
     expect(
       recipeComponentsMessage({ ...EMPTY_RECIPE_FORM, components: [{ ...kgRow, quantity: "x" }] }),
-    ).toBe(
-      "Almendras: escribí los kilos con hasta 3 decimales, por ejemplo 12,150.",
-    );
+    ).toBe("Almendras: escribí los kilos con hasta 3 decimales, por ejemplo 12,150.");
     expect(
       recipeComponentsMessage({
         ...EMPTY_RECIPE_FORM,
