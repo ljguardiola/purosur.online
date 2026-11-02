@@ -192,6 +192,35 @@ test("opens focused on a combobox without opening its list", async () => {
   await expect.element(size).toHaveAttribute("aria-expanded", "false");
 });
 
+test("opens the list of the combobox it opened focused on when the person clicks it", async () => {
+  const screen = await render(
+    <FormModal>
+      <SizeComboBox />
+    </FormModal>,
+  );
+  const size = screen.getByRole("combobox", { name: "Tamaño" });
+  await expect.element(size).toHaveFocus();
+
+  await size.click();
+
+  await expect.element(size).toHaveAttribute("aria-expanded", "true");
+  await expect.element(screen.getByRole("option", { name: "Grande" })).toBeVisible();
+});
+
+test("opens the list of the combobox it opened focused on when the person presses ArrowDown", async () => {
+  const screen = await render(
+    <FormModal>
+      <SizeComboBox />
+    </FormModal>,
+  );
+  const size = screen.getByRole("combobox", { name: "Tamaño" });
+  await expect.element(size).toHaveFocus();
+
+  await userEvent.keyboard("{ArrowDown}");
+
+  await expect.element(size).toHaveAttribute("aria-expanded", "true");
+});
+
 test("opens a combobox's list when the person moves the focus to it", async () => {
   const screen = await render(
     <FormModal>
