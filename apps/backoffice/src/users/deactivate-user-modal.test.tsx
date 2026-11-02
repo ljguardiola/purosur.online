@@ -2,6 +2,8 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { BranchUser } from "../platform/branch-users-api";
+import { ReleaseMonitorContext } from "../platform/release-monitor";
+import { fakeReleaseMonitor } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import { DeactivateUserModal, type DeactivateUserModalServices } from "./deactivate-user-modal";
 
@@ -57,21 +59,24 @@ type Handlers = {
   onDeactivated?: () => void;
   onVanished?: () => void;
   onSessionEnded?: () => void;
+  outdatedTab?: boolean;
 };
 
 async function renderModal(services: DeactivateUserModalServices, handlers: Handlers = {}) {
   const screen = await render(
-    <main>
-      <DeactivateUserModal
-        open
-        user={lucia}
-        onClose={handlers.onClose ?? (() => {})}
-        onDeactivated={handlers.onDeactivated ?? (() => {})}
-        onVanished={handlers.onVanished ?? (() => {})}
-        onSessionEnded={handlers.onSessionEnded ?? (() => {})}
-        services={services}
-      />
-    </main>,
+    <ReleaseMonitorContext value={fakeReleaseMonitor(handlers.outdatedTab ?? false)}>
+      <main>
+        <DeactivateUserModal
+          open
+          user={lucia}
+          onClose={handlers.onClose ?? (() => {})}
+          onDeactivated={handlers.onDeactivated ?? (() => {})}
+          onVanished={handlers.onVanished ?? (() => {})}
+          onSessionEnded={handlers.onSessionEnded ?? (() => {})}
+          services={services}
+        />
+      </main>
+    </ReleaseMonitorContext>,
   );
   return { screen, dialog: screen.getByRole("dialog", { name: "¿Desactivar a Lucía?" }) };
 }
@@ -194,6 +199,17 @@ test("shows an attempt-failed notice inside the deactivate modal on any other fa
   await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
 
   await expect.element(dialog.getByText("No se pudo desactivar el usuario")).toBeVisible();
+});
+
+test("tells an outdated tab that the backoffice was updated when the deactivation is refused", async () => {
+  const services = createServices();
+  vi.mocked(services.deactivateUser).mockResolvedValue({ kind: "failed" });
+  const { dialog } = await renderModal(services, { outdatedTab: true });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
+
+  await expect.element(dialog.getByText("Se actualizó el backoffice")).toBeVisible();
+  expect(dialog.getByText("No se pudo desactivar el usuario").query()).toBeNull();
 });
 
 test("has no accessibility violations with the deactivate modal open", async () => {

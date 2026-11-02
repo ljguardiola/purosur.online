@@ -1,6 +1,8 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { ReleaseMonitorContext } from "../platform/release-monitor";
+import { fakeReleaseMonitor } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import {
   ReleaseQuarantinedEventModal,
@@ -20,24 +22,28 @@ function renderModal({
   onOutdated = () => {},
   onClose = () => {},
   onSessionEnded = () => {},
+  outdatedTab = false,
 }: {
   releaseQuarantinedEvent?: Release;
   onReleased?: () => void;
   onOutdated?: (reason: "not_quarantined" | "not_found") => void;
   onClose?: () => void;
   onSessionEnded?: () => void;
+  outdatedTab?: boolean;
 } = {}) {
   return render(
-    <main>
-      <ReleaseQuarantinedEventModal
-        target={quarantinedSale}
-        onClose={onClose}
-        onReleased={onReleased}
-        onOutdated={onOutdated}
-        onSessionEnded={onSessionEnded}
-        services={{ releaseQuarantinedEvent }}
-      />
-    </main>,
+    <ReleaseMonitorContext value={fakeReleaseMonitor(outdatedTab)}>
+      <main>
+        <ReleaseQuarantinedEventModal
+          target={quarantinedSale}
+          onClose={onClose}
+          onReleased={onReleased}
+          onOutdated={onOutdated}
+          onSessionEnded={onSessionEnded}
+          services={{ releaseQuarantinedEvent }}
+        />
+      </main>
+    </ReleaseMonitorContext>,
   );
 }
 
@@ -145,4 +151,13 @@ test("ends the session when the release finds no open session", async () => {
   await confirm(screen);
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("tells an outdated tab that the backoffice was updated when the release is refused", async () => {
+  const releaseQuarantinedEvent = vi.fn<Release>().mockResolvedValue({ kind: "failed" });
+  const screen = await renderModal({ releaseQuarantinedEvent, outdatedTab: true });
+  const dialog = await confirm(screen);
+
+  await expect.element(dialog.getByText("Se actualizó el backoffice")).toBeVisible();
+  expect(dialog.getByText("No pudimos liberar el evento").query()).toBeNull();
 });

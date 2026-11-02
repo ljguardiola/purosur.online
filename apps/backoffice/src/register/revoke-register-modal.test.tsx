@@ -2,6 +2,8 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { ReleaseMonitorContext } from "../platform/release-monitor";
+import { fakeReleaseMonitor } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import type { RegisterSummary, RevokeRegisterOutcome } from "./registers-api";
 import type { RegistersListScreenServices } from "./registers-list-services";
@@ -24,20 +26,23 @@ type Handlers = {
   onRevoked?: () => void;
   onOutdated?: () => void;
   onSessionEnded?: () => void;
+  outdatedTab?: boolean;
 };
 
 function modalFor(services: RegistersListScreenServices, handlers: Handlers = {}) {
   return (
-    <main>
-      <RevokeRegisterModal
-        target={handlers.target === undefined ? enrolledRegister : handlers.target}
-        onClose={handlers.onClose ?? (() => {})}
-        onRevoked={handlers.onRevoked ?? (() => {})}
-        onOutdated={handlers.onOutdated ?? (() => {})}
-        onSessionEnded={handlers.onSessionEnded ?? (() => {})}
-        services={services}
-      />
-    </main>
+    <ReleaseMonitorContext value={fakeReleaseMonitor(handlers.outdatedTab ?? false)}>
+      <main>
+        <RevokeRegisterModal
+          target={handlers.target === undefined ? enrolledRegister : handlers.target}
+          onClose={handlers.onClose ?? (() => {})}
+          onRevoked={handlers.onRevoked ?? (() => {})}
+          onOutdated={handlers.onOutdated ?? (() => {})}
+          onSessionEnded={handlers.onSessionEnded ?? (() => {})}
+          services={services}
+        />
+      </main>
+    </ReleaseMonitorContext>
   );
 }
 
@@ -380,4 +385,15 @@ test("ends the session when the revocation finds no open session", async () => {
   await confirm(dialog);
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("tells an outdated tab that the backoffice was updated when the revocation is refused", async () => {
+  const services = createServices();
+  vi.mocked(services.revokeRegister).mockResolvedValue({ kind: "failed" });
+  const { dialog } = await renderModal(services, { outdatedTab: true });
+
+  await confirm(dialog);
+
+  await expect.element(dialog.getByText("Se actualizó el backoffice")).toBeVisible();
+  expect(dialog.getByText("No se pudo revocar la caja").query()).toBeNull();
 });
