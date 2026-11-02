@@ -2,6 +2,7 @@ import type { ReturnsReportBody } from "@purosur/contracts";
 import {
   Card,
   dataColumn,
+  EmptyState,
   FigureStat,
   formatCents,
   formatNumber,
@@ -264,6 +265,12 @@ export function ReturnsReportScreen({
     columns: returnColumns,
   });
 
+  const noReturns =
+    data.status === "loaded" &&
+    typedTable.getRowModel().rows.length === 0 &&
+    scannedTable.getRowModel().rows.length === 0;
+  const nothingToReport = noReturns && voidsTable.getRowModel().rows.length === 0;
+
   return (
     <ScreenLayout
       topBar={<ScreenTopBar eyebrow="Reportes · Caja" title={SCREEN_TITLE} />}
@@ -350,81 +357,91 @@ export function ReturnsReportScreen({
               </>
             )}
           </div>
-          <section aria-labelledby={cashiersHeadingId} className="flex flex-col gap-3">
-            <h2 id={cashiersHeadingId} className="text-subheading text-text">
-              Por cajero
-            </h2>
-            <Table
-              aria-label="Anulaciones y devoluciones por cajero"
-              table={cashiersTable}
-              {...cloudTableState(data, REPORT_NAME)}
-              empty={{
-                icon: <Ban />,
-                title: filtered ? NO_REGISTER_ACTIVITY : NO_ACTIVITY,
-                variant: filtered ? "filtered" : "blank",
-              }}
+          {nothingToReport ? (
+            <EmptyState
+              icon={<Ban />}
+              title={filtered ? NO_REGISTER_ACTIVITY : NO_ACTIVITY}
+              variant={filtered ? "filtered" : "blank"}
             />
-          </section>
-          <section aria-labelledby={authorizersHeadingId} className="flex flex-col gap-3">
-            <h2 id={authorizersHeadingId} className="text-subheading text-text">
-              Por quién autorizó
-            </h2>
-            <Table
-              aria-label="Anulaciones y devoluciones por quién autorizó"
-              table={authorizersTable}
-              {...cloudTableState(data, REPORT_NAME)}
-              empty={{
-                icon: <Ban />,
-                title: filtered ? NO_REGISTER_ACTIVITY : NO_ACTIVITY,
-                variant: filtered ? "filtered" : "blank",
-              }}
-            />
-          </section>
-          <section aria-labelledby={voidsHeadingId} className="flex flex-col gap-3">
-            <h2 id={voidsHeadingId} className="text-subheading text-text">
-              Anulaciones
-            </h2>
-            <Table
-              aria-label="Anulaciones"
-              table={voidsTable}
-              {...cloudTableState(data, REPORT_NAME)}
-              empty={{
-                icon: <Ban />,
-                title: filtered ? NO_REGISTER_VOIDS : NO_VOIDS_TEXT,
-                variant: filtered ? "filtered" : "blank",
-              }}
-            />
-          </section>
-          <section aria-labelledby={typedHeadingId} className="flex flex-col gap-3">
-            <h2 id={typedHeadingId} className="text-subheading text-text">
-              Iniciadas con el número tipeado
-            </h2>
-            <Table
-              aria-label="Devoluciones iniciadas con el número tipeado"
-              table={typedTable}
-              {...cloudTableState(data, REPORT_NAME)}
-              empty={{
-                icon: <Undo2 />,
-                title: filtered ? NO_REGISTER_RETURNS : NO_RETURNS,
-                variant: filtered ? "filtered" : "blank",
-              }}
-            />
-          </section>
-          <section aria-labelledby={scannedHeadingId} className="flex flex-col gap-3">
-            <h2 id={scannedHeadingId} className="text-subheading text-text">
-              Iniciadas escaneando el QR
-            </h2>
-            <Table
-              aria-label="Devoluciones iniciadas escaneando el QR"
-              table={scannedTable}
-              {...cloudTableState(data, REPORT_NAME)}
-              empty={{
-                icon: <Undo2 />,
-                title: filtered ? NO_REGISTER_RETURNS : NO_RETURNS,
-                variant: filtered ? "filtered" : "blank",
-              }}
-            />
-          </section>
+          ) : (
+            <>
+              <section aria-labelledby={cashiersHeadingId} className="flex flex-col gap-3">
+                <h2 id={cashiersHeadingId} className="text-subheading text-text">
+                  Por cajero
+                </h2>
+                <Table
+                  aria-label="Anulaciones y devoluciones por cajero"
+                  table={cashiersTable}
+                  {...cloudTableState(data, REPORT_NAME)}
+                />
+              </section>
+              <section aria-labelledby={authorizersHeadingId} className="flex flex-col gap-3">
+                <h2 id={authorizersHeadingId} className="text-subheading text-text">
+                  Por quién autorizó
+                </h2>
+                <Table
+                  aria-label="Anulaciones y devoluciones por quién autorizó"
+                  table={authorizersTable}
+                  {...cloudTableState(data, REPORT_NAME)}
+                />
+              </section>
+              <section aria-labelledby={voidsHeadingId} className="flex flex-col gap-3">
+                <h2 id={voidsHeadingId} className="text-subheading text-text">
+                  Anulaciones
+                </h2>
+                <Table
+                  aria-label="Anulaciones"
+                  table={voidsTable}
+                  {...cloudTableState(data, REPORT_NAME)}
+                  empty={{
+                    icon: <Ban />,
+                    title: filtered ? NO_REGISTER_VOIDS : NO_VOIDS_TEXT,
+                    variant: filtered ? "filtered" : "blank",
+                  }}
+                />
+              </section>
+              {noReturns ? (
+                <EmptyState
+                  icon={<Undo2 />}
+                  title={filtered ? NO_REGISTER_RETURNS : NO_RETURNS}
+                  variant={filtered ? "filtered" : "blank"}
+                />
+              ) : (
+                <>
+                  <section aria-labelledby={typedHeadingId} className="flex flex-col gap-3">
+                    <h2 id={typedHeadingId} className="text-subheading text-text">
+                      Iniciadas con el número tipeado
+                    </h2>
+                    <Table
+                      aria-label="Devoluciones iniciadas con el número tipeado"
+                      table={typedTable}
+                      {...cloudTableState(data, REPORT_NAME)}
+                      empty={{
+                        icon: <Undo2 />,
+                        title: filtered ? NO_REGISTER_RETURNS : NO_RETURNS,
+                        variant: filtered ? "filtered" : "blank",
+                      }}
+                    />
+                  </section>
+                  <section aria-labelledby={scannedHeadingId} className="flex flex-col gap-3">
+                    <h2 id={scannedHeadingId} className="text-subheading text-text">
+                      Iniciadas escaneando el QR
+                    </h2>
+                    <Table
+                      aria-label="Devoluciones iniciadas escaneando el QR"
+                      table={scannedTable}
+                      {...cloudTableState(data, REPORT_NAME)}
+                      empty={{
+                        icon: <Undo2 />,
+                        title: filtered ? NO_REGISTER_RETURNS : NO_RETURNS,
+                        variant: filtered ? "filtered" : "blank",
+                      }}
+                    />
+                  </section>
+                </>
+              )}
+            </>
+          )}
         </>
       )}
     </ScreenLayout>
