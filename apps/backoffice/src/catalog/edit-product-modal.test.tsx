@@ -2,6 +2,8 @@ import type { BrandSummary, CategorySummary, ProductSummary, TagSummary } from "
 import { FieldSizeProvider } from "@purosur/ui";
 import { beforeEach, expect, test, vi } from "vitest";
 import { type Locator, page, userEvent } from "vitest/browser";
+import { ReleaseMonitorContext } from "../platform/release-monitor";
+import { fakeReleaseMonitor } from "../platform/test-support/release-monitor";
 import { organico, sinColorantes, sinTacc, vegano } from "../platform/test-support/tags";
 import { render } from "../shell/test-support/render-with-router";
 import type { ProductReload } from "./catalog-queries";
@@ -35,6 +37,7 @@ type ModalOptions = {
   onClose?: () => void;
   onSaved?: () => void;
   onSessionEnded?: () => void;
+  outdatedTab?: boolean;
 };
 
 function modalElement(
@@ -43,21 +46,23 @@ function modalElement(
   options: ModalOptions,
 ) {
   return (
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <EditProductModal
-          target={target}
-          onClose={options.onClose ?? (() => {})}
-          onSaved={options.onSaved ?? (() => {})}
-          onSessionEnded={options.onSessionEnded ?? (() => {})}
-          reload={options.reload ?? vi.fn()}
-          categories={options.categories ?? [groceries, driedFruits]}
-          brands={options.brands ?? []}
-          tags={options.tags ?? []}
-          services={services}
-        />
-      </main>
-    </FieldSizeProvider>
+    <ReleaseMonitorContext value={fakeReleaseMonitor(options.outdatedTab ?? false)}>
+      <FieldSizeProvider size="backoffice">
+        <main>
+          <EditProductModal
+            target={target}
+            onClose={options.onClose ?? (() => {})}
+            onSaved={options.onSaved ?? (() => {})}
+            onSessionEnded={options.onSessionEnded ?? (() => {})}
+            reload={options.reload ?? vi.fn()}
+            categories={options.categories ?? [groceries, driedFruits]}
+            brands={options.brands ?? []}
+            tags={options.tags ?? []}
+            services={services}
+          />
+        </main>
+      </FieldSizeProvider>
+    </ReleaseMonitorContext>
   );
 }
 
@@ -821,4 +826,18 @@ test("groups thousands and takes a typed dot as the decimal comma in the net con
   await userEvent.type(field, "1234.5");
 
   await expect.element(field).toHaveValue("1.234,5");
+});
+
+test("tells an outdated tab that the backoffice was updated and the change was not saved when saving is refused", async () => {
+  const services = createServices();
+  vi.mocked(services.editProduct).mockResolvedValue({ kind: "failed" });
+  const { dialog } = await renderModal(honey, services, { outdatedTab: true });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(dialog.getByText("Se actualizó el backoffice")).toBeVisible();
+  await expect
+    .element(dialog.getByText("Recargá la página para seguir: este cambio no se guardó."))
+    .toBeVisible();
+  expect(dialog.getByText("No se pudo guardar el cambio").query()).toBeNull();
 });
