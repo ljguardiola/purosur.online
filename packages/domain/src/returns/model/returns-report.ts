@@ -92,7 +92,7 @@ export interface VoidedSaleRecord {
   sale: ReturnRecord["sale"];
   voidedAt: Date;
   register: { id: string; name: string };
-  cashier: ReportPerson | null;
+  cashier: ReportPerson;
   authorizer: ReportPerson | null;
   total: number;
 }
@@ -113,7 +113,7 @@ export interface ReturnsReportTotals {
 }
 
 export interface CashierReturnsAndVoids extends ReturnsReportTotals {
-  cashier: ReportPerson | null;
+  cashier: ReportPerson;
 }
 
 export interface AuthorizerReturnsAndVoids extends ReturnsReportTotals {
@@ -150,14 +150,14 @@ function personOrder(a: ReportPerson, b: ReportPerson): number {
   return compareOptionalNames(a.name, b.name) || compareCodeUnits(a.id, b.id);
 }
 
-function summarizedBy(
+function summarizedBy<Person extends ReportPerson | null>(
   returns: readonly ReturnRecord[],
   voids: readonly VoidedSaleRecord[],
-  returnPerson: (record: ReturnRecord) => ReportPerson | null,
-  voidPerson: (record: VoidedSaleRecord) => ReportPerson | null,
-): { person: ReportPerson | null; totals: ReturnsReportTotals }[] {
-  const people = new Map<string | null, ReportPerson | null>();
-  const note = (person: ReportPerson | null) => {
+  returnPerson: (record: ReturnRecord) => Person,
+  voidPerson: (record: VoidedSaleRecord) => Person,
+): { person: Person; totals: ReturnsReportTotals }[] {
+  const people = new Map<string | null, Person>();
+  const note = (person: Person) => {
     people.set(person === null ? null : person.id, person);
   };
   for (const record of returns) note(returnPerson(record));

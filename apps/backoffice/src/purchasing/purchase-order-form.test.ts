@@ -148,7 +148,7 @@ describe("purchaseOrderLinesMessage", () => {
           index === 1 ? { ...line, quantityPerPackage: "" } : line,
         ),
       }),
-    ).toBe("Línea 2: Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.");
+    ).toBe("Línea 2: Escribí los kilos con hasta 3 decimales, por ejemplo 12,150.");
     expect(
       purchaseOrderLinesMessage({
         lines: valid.map((line, index) =>

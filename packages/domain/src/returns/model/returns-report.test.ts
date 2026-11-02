@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import {
+  type CashierReturnsAndVoids,
   type ReturnRecord,
   type ReturnRecordLine,
   returnRows,
@@ -182,7 +183,7 @@ describe("voidedSalesGroup", () => {
 
   it("keeps everything else the record says and totals nothing without voids", () => {
     const original = voided({
-      cashier: null,
+      cashier: { id: "ana", name: null },
       authorizer: { id: "beto", name: null },
       sale: { id: "v1", operationNumber: null, invoice: { pointOfSale: 3, number: 45 } },
     });
@@ -248,16 +249,6 @@ describe("returnsReportTotals", () => {
 });
 
 describe("voidsAndReturnsByCashier", () => {
-  const none = {
-    voids: 0,
-    voided: 0,
-    returns: 0,
-    refunded: 0,
-    refundedLines: 0,
-    exchangedLines: 0,
-    typedReturns: 0,
-  };
-
   it("gives each cashier the returns they made and the sales they voided", () => {
     const rows = voidsAndReturnsByCashier(
       [
@@ -300,14 +291,9 @@ describe("voidsAndReturnsByCashier", () => {
     ]);
   });
 
-  it("gives a void whose voider is unknown its own row, listed last", () => {
-    const rows = voidsAndReturnsByCashier(
-      [],
-      [voided({ cashier: null, total: 300 }), voided({ cashier: { id: "zeta", name: "Zeta" } })],
-    );
-
-    expect(rows.map((row) => row.cashier)).toEqual([{ id: "zeta", name: "Zeta" }, null]);
-    expect(rows[1]).toEqual({ cashier: null, ...none, voids: 1, voided: 300 });
+  it("refuses a void or a summary row without who voided it", () => {
+    expectTypeOf<null>().not.toExtend<VoidedSaleRecord["cashier"]>();
+    expectTypeOf<null>().not.toExtend<CashierReturnsAndVoids["cashier"]>();
   });
 
   it("orders cashiers by name in Spanish order, a nameless one after the named, then by id", () => {
@@ -325,28 +311,6 @@ describe("voidsAndReturnsByCashier", () => {
 
     expect(rows.map((row) => row.cashier?.id)).toEqual(["u1", "u4", "u5", "u2", "u0", "u3"]);
   });
-
-  it.each([
-    ["the unknown voider first", [null, "named", "nameless"]],
-    ["the unknown voider last", ["nameless", "named", null]],
-    ["the unknown voider between", ["named", null, "nameless"]],
-    ["the nameless cashier first", ["nameless", null, "named"]],
-  ] as const)(
-    "lists named cashiers, then nameless ones, then the unknown voider, whatever the order they come in (%s)",
-    (_name, order) => {
-      const cashiers = {
-        named: { id: "u2", name: "Ana" },
-        nameless: { id: "u1", name: null },
-      };
-
-      const rows = voidsAndReturnsByCashier(
-        [],
-        order.map((key) => voided({ cashier: key === null ? null : cashiers[key] })),
-      );
-
-      expect(rows.map((row) => row.cashier)).toEqual([cashiers.named, cashiers.nameless, null]);
-    },
-  );
 
   it.each([
     ["u1 then u2", ["u1", "u2"]],
@@ -375,6 +339,32 @@ describe("voidsAndReturnsByCashier", () => {
 });
 
 describe("voidsAndReturnsByAuthorizer", () => {
+  it.each([
+    ["the operation needing nobody first", [null, "named", "nameless"]],
+    ["the operation needing nobody last", ["nameless", "named", null]],
+    ["the operation needing nobody between", ["named", null, "nameless"]],
+    ["the nameless authorizer first", ["nameless", null, "named"]],
+  ] as const)(
+    "lists named authorizers, then nameless ones, then the operations needing nobody, whatever the order they come in (%s)",
+    (_name, order) => {
+      const authorizers = {
+        named: { id: "u2", name: "Ana" },
+        nameless: { id: "u1", name: null },
+      };
+
+      const rows = voidsAndReturnsByAuthorizer(
+        [],
+        order.map((key) => voided({ authorizer: key === null ? null : authorizers[key] })),
+      );
+
+      expect(rows.map((row) => row.authorizer)).toEqual([
+        authorizers.named,
+        authorizers.nameless,
+        null,
+      ]);
+    },
+  );
+
   it("orders authorizers by name in Spanish order, then by id, the operations needing nobody last", () => {
     const rows = voidsAndReturnsByAuthorizer(
       [record({ returnId: "r1", authorizer: null })],

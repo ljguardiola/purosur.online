@@ -521,7 +521,7 @@ test("shows how to type the quantity at the line the cloud refused it", async ()
   await expect
     .element(
       line(screen, 1)
-        .getByText("Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.")
+        .getByText("Escribí los kilos con hasta 3 decimales, por ejemplo 12,150.")
         .first(),
     )
     .toBeVisible();

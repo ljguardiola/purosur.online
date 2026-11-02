@@ -232,7 +232,6 @@ describe("POST /purchases", () => {
     expect(stored).toMatchObject({ locationId, actorId: userId });
     const [storedLine] = await db.select().from(purchaseLines);
     expect(storedLine).toMatchObject({
-      packagingId: null,
       packages: 2,
       quantityPerPackage: 12_000,
     });

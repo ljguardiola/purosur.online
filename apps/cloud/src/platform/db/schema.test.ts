@@ -23,7 +23,6 @@ import {
   priceReviewPostponements,
   priceReviews,
   prices,
-  productPackagings,
   products,
   productTags,
   purchaseLines,
@@ -650,121 +649,6 @@ describe("suppliers", () => {
   });
 });
 
-describe("product_packagings", () => {
-  async function seedProductAndActor(): Promise<{ productId: string; actorId: string }> {
-    const actor = await insertUser("ada@example.com");
-    const [category] = await db
-      .insert(categories)
-      .values({ name: "Almacén" })
-      .returning({ id: categories.id });
-    if (!category) {
-      throw new Error("test setup: seeding the category returned no row");
-    }
-    const [product] = await db
-      .insert(products)
-      .values({ name: "Arroz", categoryId: category.id, saleUnit: "UNIT" })
-      .returning({ id: products.id });
-    if (!product) {
-      throw new Error("test setup: seeding the product returned no row");
-    }
-    return { productId: product.id, actorId: actor.id };
-  }
-
-  it("starts a packaging active at version 1", async () => {
-    const { productId, actorId } = await seedProductAndActor();
-
-    const [packaging] = await db
-      .insert(productPackagings)
-      .values({ productId, name: "Caja x 12", quantityPerPackage: 12, saleUnit: "UNIT", actorId })
-      .returning();
-
-    expect(packaging).toMatchObject({
-      productId,
-      name: "Caja x 12",
-      quantityPerPackage: 12,
-      saleUnit: "UNIT",
-      active: true,
-      version: 1,
-    });
-  });
-
-  it("rejects a packaging stated in a sale unit no product is sold in", async () => {
-    const { productId, actorId } = await seedProductAndActor();
-
-    await expect(
-      db
-        .insert(productPackagings)
-        .values({ productId, name: "Caja", quantityPerPackage: 12, saleUnit: "LITER", actorId }),
-    ).rejects.toMatchObject({ cause: { constraint: "product_packagings_sale_unit_check" } });
-  });
-
-  it("rejects a second packaging of the same product with the same name in another letter case, even when the first is deactivated", async () => {
-    const { productId, actorId } = await seedProductAndActor();
-    await db.insert(productPackagings).values({
-      productId,
-      name: "Caja x 12",
-      quantityPerPackage: 12,
-      saleUnit: "UNIT",
-      active: false,
-      actorId,
-    });
-
-    await expect(
-      db
-        .insert(productPackagings)
-        .values({ productId, name: "caja X 12", quantityPerPackage: 6, saleUnit: "UNIT", actorId }),
-    ).rejects.toMatchObject({
-      cause: { constraint: "product_packagings_product_id_name_lower_key" },
-    });
-  });
-
-  it("accepts the same packaging name on another product", async () => {
-    const { productId, actorId } = await seedProductAndActor();
-    const [category] = await db.select({ id: categories.id }).from(categories);
-    const [other] = await db
-      .insert(products)
-      .values({ name: "Fideos", categoryId: category?.id ?? "", saleUnit: "UNIT" })
-      .returning({ id: products.id });
-    await db
-      .insert(productPackagings)
-      .values({ productId, name: "Caja x 12", quantityPerPackage: 12, saleUnit: "UNIT", actorId });
-
-    await db.insert(productPackagings).values({
-      productId: other?.id ?? "",
-      name: "Caja x 12",
-      quantityPerPackage: 12,
-      saleUnit: "UNIT",
-      actorId,
-    });
-  });
-
-  it.each([0, -3])("rejects a packaging holding %d", async (quantityPerPackage) => {
-    const { productId, actorId } = await seedProductAndActor();
-
-    await expect(
-      db
-        .insert(productPackagings)
-        .values({ productId, name: "Caja", quantityPerPackage, saleUnit: "UNIT", actorId }),
-    ).rejects.toMatchObject({ cause: { constraint: "product_packagings_quantity_check" } });
-  });
-
-  it("rejects a packaging of a product that doesn't exist", async () => {
-    const { actorId } = await seedProductAndActor();
-
-    await expect(
-      db.insert(productPackagings).values({
-        productId: "00000000-0000-0000-0000-000000000000",
-        name: "Caja",
-        quantityPerPackage: 1,
-        saleUnit: "UNIT",
-        actorId,
-      }),
-    ).rejects.toMatchObject({
-      cause: { constraint: "product_packagings_product_id_products_id_fk" },
-    });
-  });
-});
-
 describe("recipes", () => {
   async function seedProducts(): Promise<{
     assembledId: string;
@@ -1213,16 +1097,6 @@ describe("purchases", () => {
       .insert(products)
       .values({ name: "Arroz", categoryId: category?.id as string, saleUnit: "UNIT" })
       .returning({ id: products.id });
-    const [packaging] = await db
-      .insert(productPackagings)
-      .values({
-        productId: product?.id as string,
-        name: "Caja x 12",
-        quantityPerPackage: 12_000,
-        saleUnit: "UNIT",
-        actorId: actor.id,
-      })
-      .returning({ id: productPackagings.id });
     const [purchase] = await db
       .insert(purchases)
       .values({
@@ -1240,7 +1114,6 @@ describe("purchases", () => {
       locationId: location?.id as string,
       supplierId: supplier?.id as string,
       productId: product?.id as string,
-      packagingId: packaging?.id as string,
       purchaseId: purchase?.id as string,
     };
   }
@@ -1288,56 +1161,28 @@ describe("purchases", () => {
     expect(purchaseId).toBeDefined();
   });
 
-  it("keeps a line loaded by packaging with its packages and the quantity they make", async () => {
-    const { purchaseId, productId, packagingId } = await seedPurchase();
-
-    const [line] = await db
-      .insert(purchaseLines)
-      .values({
-        purchaseId,
-        productId,
-        packagingId,
-        packages: 12,
-        ...LINE,
-        quantity: 144_000,
-        quantityPerPackage: 12_000,
-      })
-      .returning();
-
-    expect(line).toMatchObject({
-      packagingId,
-      packages: 12,
-      quantity: 144_000,
-      lotNumber: null,
-      expiresOn: null,
-    });
-  });
-
   it.each([
     [
       "a quantity per package of zero",
-      false,
       { quantityPerPackage: 0 },
       "purchase_lines_quantity_per_package_check",
     ],
-    ["a quantity of zero", false, { quantity: 0 }, "purchase_lines_quantity_check"],
-    ["a position of zero", false, { position: 0 }, "purchase_lines_position_check"],
-    ["a negative cost", false, { costPaidCents: -1 }, "purchase_lines_cost_paid_check"],
-    ["zero packages", true, { packages: 0 }, "purchase_lines_packages_quantity_check"],
+    ["a quantity of zero", { quantity: 0 }, "purchase_lines_quantity_check"],
+    ["a position of zero", { position: 0 }, "purchase_lines_position_check"],
+    ["a negative cost", { costPaidCents: -1 }, "purchase_lines_cost_paid_check"],
+    ["zero packages", { packages: 0 }, "purchase_lines_packages_quantity_check"],
     [
       "a quantity that is not the packages times the quantity per package",
-      true,
       { packages: 2, quantity: 5_000, quantityPerPackage: 12_000 },
       "purchase_lines_packages_quantity_check",
     ],
-  ])("rejects a line with %s", async (_label, withPackaging, fields, constraint) => {
-    const { purchaseId, productId, packagingId } = await seedPurchase();
+  ])("rejects a line with %s", async (_label, fields, constraint) => {
+    const { purchaseId, productId } = await seedPurchase();
 
     await expect(
       db.insert(purchaseLines).values({
         purchaseId,
         productId,
-        packagingId: withPackaging ? packagingId : null,
         ...LINE,
         ...fields,
       }),
@@ -1356,7 +1201,7 @@ describe("purchases", () => {
     ).resolves.toBeDefined();
   });
 
-  it("keeps a line loaded by packages with no packaging", async () => {
+  it("keeps a line loaded by packages", async () => {
     const { purchaseId, productId } = await seedPurchase();
 
     const [line] = await db
@@ -1371,17 +1216,7 @@ describe("purchases", () => {
       })
       .returning();
 
-    expect(line).toMatchObject({ packagingId: null, packages: 12, quantity: 144_000 });
-  });
-
-  it("rejects a packaging without its packages", async () => {
-    const { purchaseId, productId, packagingId } = await seedPurchase();
-
-    await expect(
-      db.insert(purchaseLines).values({ purchaseId, productId, packagingId, ...LINE }),
-    ).rejects.toMatchObject({
-      cause: { constraint: "purchase_lines_packaging_needs_packages_check" },
-    });
+    expect(line).toMatchObject({ packages: 12, quantity: 144_000 });
   });
 
   it("keeps one lot per purchase line, with the line's exact cost pair", async () => {

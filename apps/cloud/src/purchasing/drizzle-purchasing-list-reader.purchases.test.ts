@@ -1,11 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import {
-  locations,
-  productPackagings,
-  purchaseLines,
-  purchases,
-  suppliers,
-} from "../platform/db/schema.js";
+import { locations, purchaseLines, purchases, suppliers } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzlePurchasingListReader } from "./drizzle-purchasing-list-reader.js";
@@ -61,16 +55,6 @@ describe("DrizzlePurchasingListReader purchases", () => {
       netContent: { quantity: 500, unit: "G" },
     });
     const harina = await insertProduct(db, { name: "Harina", saleUnit: "KG" });
-    const [packaging] = await db
-      .insert(productPackagings)
-      .values({
-        productId: yerba.id,
-        name: "Caja x 12",
-        quantityPerPackage: 12_000,
-        saleUnit: "UNIT",
-        actorId,
-      })
-      .returning({ id: productPackagings.id });
     const purchaseId = await storedPurchase({
       receiptType: "factura_b",
       receiptNumber: "0001-00000042",
@@ -81,7 +65,6 @@ describe("DrizzlePurchasingListReader purchases", () => {
         purchaseId,
         position: 1,
         productId: yerba.id,
-        packagingId: packaging?.id as string,
         packages: 2,
         quantity: 24_000,
         costPaidCents: 24_000,

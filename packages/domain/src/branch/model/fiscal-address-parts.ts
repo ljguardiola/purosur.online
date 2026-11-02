@@ -40,3 +40,13 @@ export function fiscalAddressPartsOf(
     ];
   });
 }
+
+export function fiscalAddressAt(
+  instant: Date,
+  assignments: readonly FiscalAddressAssignment[],
+): string | null {
+  const [first] = fiscalAddressPartsOf({ start: instant, end: null }, assignments);
+  return first !== undefined && first.start.getTime() === instant.getTime()
+    ? first.fiscalAddressId
+    : null;
+}

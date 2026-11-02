@@ -96,13 +96,13 @@ describe("lotsTotal", () => {
 describe("lotsMessage", () => {
   it("explains how to write the quantity when one cannot be read", () => {
     expect(lotsMessage({ [ALMONDS_FIRST_LOT_ID]: "x" }, lots, "KG")).toBe(
-      "Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.",
+      "Escribí los kilos con hasta 3 decimales, por ejemplo 12,150.",
     );
   });
 
   it("explains how to write the quantity when one is over the largest accepted quantity", () => {
     expect(lotsMessage({ [ALMONDS_FIRST_LOT_ID]: "9.999.999" }, lots, "KG")).toBe(
-      "Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.",
+      "Escribí los kilos con hasta 3 decimales, por ejemplo 12,150.",
     );
   });
 
@@ -113,7 +113,7 @@ describe("lotsMessage", () => {
         lots,
         "KG",
       ),
-    ).toBe("Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.");
+    ).toBe("Escribí los kilos con hasta 3 decimales, por ejemplo 12,150.");
   });
 
   it("says the lots changed when every quantity can be read", () => {

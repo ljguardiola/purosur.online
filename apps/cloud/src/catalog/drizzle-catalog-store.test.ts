@@ -21,7 +21,6 @@ import {
   discounts,
   locations,
   productBarcodes,
-  productPackagings,
   products,
   supplierItems,
   supplierPriceListRows,
@@ -456,72 +455,6 @@ describe("changing a product to sold by weight", () => {
     const outcome = await editToWeight(product, category.id);
 
     expect(outcome.kind).toBe("applied");
-  });
-});
-
-describe("changing the sale unit of a product with a packaging row of a previous release", () => {
-  async function packagingOn(
-    productId: string,
-    overrides: Partial<typeof productPackagings.$inferInsert> = {},
-  ) {
-    const [location] = await db.select({ id: locations.id }).from(locations);
-    const [actor] = await db
-      .insert(users)
-      .values({
-        firstName: "Ada",
-        email: `ada-${crypto.randomUUID()}@example.com`,
-        locationId: location?.id ?? "",
-      })
-      .returning({ id: users.id });
-    await db.insert(productPackagings).values({
-      productId,
-      name: "Caja x 12",
-      quantityPerPackage: 12,
-      saleUnit: "UNIT",
-      actorId: actor?.id ?? "",
-      ...overrides,
-    });
-  }
-
-  function editSaleUnit(
-    product: { id: string; name: string; version: number },
-    categoryId: string,
-    saleUnit: "UNIT" | "KG",
-  ) {
-    return editProduct(
-      { zoneRules: fixedZoneRulesSource(), store: store(), clock },
-      {
-        id: product.id,
-        name: product.name,
-        categoryId,
-        brandId: null,
-        saleUnit,
-        barcodes: ["7790001000011", "7790001000028"],
-        netContent: null,
-        tagIds: [],
-        version: product.version,
-        coverageDays: 15,
-      },
-    );
-  }
-
-  async function storedSaleUnit(productId: string) {
-    const [row] = await db
-      .select({ saleUnit: products.saleUnit })
-      .from(products)
-      .where(eq(products.id, productId));
-    return row?.saleUnit;
-  }
-
-  it("is saved while the product has an active packaging", async () => {
-    const category = await newCategory();
-    const product = await newProduct(category.id);
-    await packagingOn(product.id);
-
-    const outcome = await editSaleUnit(product, category.id, "KG");
-
-    expect(outcome.kind).toBe("applied");
-    expect(await storedSaleUnit(product.id)).toBe("KG");
   });
 });
 

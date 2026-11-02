@@ -119,6 +119,9 @@ async function voidedSalesOf<TQueryResult extends PgQueryResultHKT>(
     if (row.voidedAt === null) {
       throw new Error(`A voided sale has no voiding moment: ${row.saleId}`);
     }
+    if (row.voiderId === null) {
+      throw new Error(`A voided sale has no one who voided it: ${row.saleId}`);
+    }
     return {
       sale: {
         id: row.saleId,
@@ -127,7 +130,7 @@ async function voidedSalesOf<TQueryResult extends PgQueryResultHKT>(
       },
       voidedAt: row.voidedAt,
       register: { id: row.registerId, name: row.registerName },
-      cashier: row.voiderId === null ? null : { id: row.voiderId, name: row.voiderName },
+      cashier: { id: row.voiderId, name: row.voiderName },
       authorizer:
         row.authorizerId === null ? null : { id: row.authorizerId, name: row.authorizerName },
       total: row.total,
