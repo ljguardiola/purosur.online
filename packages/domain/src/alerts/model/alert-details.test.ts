@@ -630,8 +630,30 @@ describe("an exception share second month at risk alert", () => {
         totalCount: number;
         shareTenthsOfPercent: number | null;
         nonCompliancePercent: number;
+        previousMonthNonCompliantOn: ("exception_share" | "contingency_time")[];
+        contingencyShareTenthsOfPercent: number | null;
+        contingencyNonCompliancePercent: number;
       };
     }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses one without the running contingency share", () => {
+    expectTypeOf<{
+      kind: "exception_share_second_month_at_risk";
+      scope: string;
+      detail: {
+        fiscalAddressId: string;
+        fiscalAddressName: string;
+        month: string;
+        previousMonth: string;
+        exceptionCount: number;
+        totalCount: number;
+        shareTenthsOfPercent: number | null;
+        nonCompliancePercent: number;
+        previousMonthNonCompliantOn: ("exception_share" | "contingency_time")[];
+        contingencyNonCompliancePercent: number;
+      };
+    }>().not.toExtend<OpenAlertInput>();
   });
 
   it("refuses one without the running share", () => {
@@ -646,6 +668,9 @@ describe("an exception share second month at risk alert", () => {
         exceptionCount: number;
         totalCount: number;
         nonCompliancePercent: number;
+        previousMonthNonCompliantOn: ("exception_share" | "contingency_time")[];
+        contingencyShareTenthsOfPercent: number | null;
+        contingencyNonCompliancePercent: number;
       };
     }>().not.toExtend<OpenAlertInput>();
   });

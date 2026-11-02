@@ -19,11 +19,11 @@ interface MonthCounts extends ExceptionShareCounts {
 }
 
 interface FakeSecondMonthRiskData {
-  breaches?: readonly RecordedExceptionShareBreach[];
-  counts?: readonly MonthCounts[];
-  addresses?: readonly SecondMonthRiskAddress[];
-  runs?: readonly ArcaAvailabilityRun[];
-  contingency?: ReadonlyMap<string, ContingencyIntervalsOfAddress>;
+  breaches?: readonly RecordedExceptionShareBreach[] | undefined;
+  counts?: readonly MonthCounts[] | undefined;
+  addresses?: readonly SecondMonthRiskAddress[] | undefined;
+  runs?: readonly ArcaAvailabilityRun[] | undefined;
+  contingency?: ReadonlyMap<string, ContingencyIntervalsOfAddress> | undefined;
 }
 
 interface ContingencyIntervalsOfAddress {
