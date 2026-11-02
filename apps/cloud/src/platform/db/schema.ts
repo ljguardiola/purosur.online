@@ -1188,6 +1188,10 @@ export const registerFiscalAddressAssignments = pgTable(
       name: "register_fiscal_address_assignments_pkey",
       columns: [table.registerId, table.assignedAt],
     }),
+    check(
+      "register_fiscal_address_assignments_assigned_at_on_milliseconds",
+      sql`${table.assignedAt} = date_trunc('milliseconds', ${table.assignedAt})`,
+    ),
   ],
 );
 
