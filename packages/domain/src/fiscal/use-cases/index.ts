@@ -184,13 +184,6 @@ export type {
 } from "./configure-register-point-of-sale.js";
 export { configureRegisterPointOfSale } from "./configure-register-point-of-sale.js";
 export type {
-  ContingencyIntervalsAtFiscalAddress,
-  ContingencyIntervalsQuery,
-  ContingencyIntervalsReader,
-  RegisterContingencyPart,
-  RegisterContingencyReporting,
-} from "./contingency-intervals-ports.js";
-export type {
   CorrectRegisterClockGrant,
   CorrectRegisterClockOutcome,
   CorrectRegisterClockPorts,
