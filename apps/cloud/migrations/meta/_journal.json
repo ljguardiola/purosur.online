@@ -1156,6 +1156,13 @@
       "when": 1793652774750,
       "tag": "0171_fiscal_address_assignments_on_milliseconds",
       "breakpoints": true
+    },
+    {
+      "idx": 172,
+      "version": "7",
+      "when": 1793654096828,
+      "tag": "0172_drop_purchase_packagings_links",
+      "breakpoints": true
     }
   ]
 }
