@@ -1,6 +1,7 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { AccountFooter, type AccountFooterServices } from "./account-footer";
 import { render } from "./test-support/render-with-router";
 
@@ -150,4 +151,23 @@ test("does not carry a failure notice into the next time the modal is opened", a
 
   await expect.element(screen.getByRole("dialog")).toBeVisible();
   expect(screen.getByText("No se pudo salir").query()).toBeNull();
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when signing out is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices({ signOut: vi.fn().mockResolvedValue({ kind: "failed" }) });
+  const onSignedOut = vi.fn();
+  const screen = await renderInRail({ displayName: "Lucas Medrano", onSignedOut, services });
+
+  await userEvent.click(screen.getByRole("button", { name: "Salir" }));
+  const dialog = screen.getByRole("dialog");
+  await userEvent.click(dialog.getByRole("button", { name: "Salir" }));
+
+  await expect.element(screen.getByText("No se pudo salir")).toBeVisible();
+  await expect.element(screen.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  expect(screen.getByText("Probá de nuevo.").query()).toBeNull();
+  expect(onSignedOut).not.toHaveBeenCalled();
+  await expect.element(dialog.getByRole("button", { name: "Salir" })).not.toBeDisabled();
+
+  await expectNoAccessibilityViolations(document.body);
 });

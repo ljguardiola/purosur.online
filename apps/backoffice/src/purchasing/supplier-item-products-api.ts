@@ -10,6 +10,7 @@ import {
   type TagList,
   tagListSchema,
 } from "@purosur/contracts";
+import { cloudFetch } from "../platform/cloud-fetch";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import {
   type GenerateInternalBarcodeOutcome,
@@ -135,7 +136,7 @@ export async function createProductFromSupplierItem(
   };
   let response: Response;
   try {
-    response = await fetch(`/api/supplier-price-lists/${listId}/rows/${rowId}/product`, {
+    response = await cloudFetch(`/api/supplier-price-lists/${listId}/rows/${rowId}/product`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),

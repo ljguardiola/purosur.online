@@ -1,4 +1,5 @@
 import { type BrandCreationBody, type BrandSummary, brandSummarySchema } from "@purosur/contracts";
+import { cloudFetch } from "./cloud-fetch";
 import { rateLimitOutcome } from "./rate-limit-outcome";
 import { readValidationFailedField } from "./validation-failed-field";
 
@@ -31,7 +32,7 @@ export async function createBrand(input: { name: string }): Promise<CreateBrandO
   const requestBody: BrandCreationBody = { name: input.name };
   let response: Response;
   try {
-    response = await fetch("/api/brands", {
+    response = await cloudFetch("/api/brands", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(requestBody),

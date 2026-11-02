@@ -5,6 +5,8 @@ import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import type { CloudReadOutcome } from "./cloud-read-outcome";
 import { createQueryClient } from "./query-client";
+import { ReleaseMonitorContext } from "./release-monitor";
+import { fakeReleaseMonitor } from "./test-support/release-monitor";
 import { type CloudData, fetchCloudQuery, useCloudQuery } from "./use-cloud-query";
 
 function deferred<T>() {
@@ -24,7 +26,7 @@ function describeData(data: CloudData<string>): string {
   if (data.status === "loaded") {
     return `loaded:${data.value}${data.refreshing ? ":refreshing" : ""}`;
   }
-  return `failed${data.retryAfterSeconds === undefined ? "" : `:${data.retryAfterSeconds}`}`;
+  return `failed${data.retryAfterSeconds === undefined ? "" : `:${data.retryAfterSeconds}`}${data.outdated ? ":outdated" : ""}`;
 }
 
 type ProbeProps = {
@@ -89,6 +91,26 @@ test("shows loading until the read answers, then the value", async () => {
 
 test("a failed read is reported as failed", async () => {
   const screen = await render(<Probe read={() => Promise.resolve({ kind: "failed" })} />);
+
+  await expect.element(screen.getByText("failed", { exact: true })).toBeVisible();
+});
+
+test("a failed read of an outdated tab is reported as outdated", async () => {
+  const screen = await render(
+    <ReleaseMonitorContext value={fakeReleaseMonitor(true)}>
+      <Probe read={() => Promise.resolve({ kind: "failed" })} />
+    </ReleaseMonitorContext>,
+  );
+
+  await expect.element(screen.getByText("failed:outdated")).toBeVisible();
+});
+
+test("a failed read of a tab running the deployed release is not reported as outdated", async () => {
+  const screen = await render(
+    <ReleaseMonitorContext value={fakeReleaseMonitor(false)}>
+      <Probe read={() => Promise.resolve({ kind: "failed" })} />
+    </ReleaseMonitorContext>,
+  );
 
   await expect.element(screen.getByText("failed", { exact: true })).toBeVisible();
 });

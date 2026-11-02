@@ -1,5 +1,6 @@
 import type { ProductSummary } from "@purosur/contracts";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { defaultReleaseMonitor } from "../platform/release-monitor";
 import {
   createProduct,
   deactivateProduct,
@@ -8,6 +9,17 @@ import {
   printLabels,
   reactivateProduct,
 } from "./products-api";
+
+vi.mock("../platform/release-monitor", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../platform/release-monitor")>();
+  return {
+    ...actual,
+    defaultReleaseMonitor: actual.createReleaseMonitor({
+      running: "aaa",
+      readDeployedRelease: async () => undefined,
+    }),
+  };
+});
 
 function jsonResponse(status: number, body?: unknown, headers?: Record<string, string>): Response {
   return new Response(
@@ -693,3 +705,25 @@ test("editProduct returns ok on 200 whatever the body says, since the change is 
 
   expect(await editProduct("product-1", editInput)).toEqual({ kind: "ok" });
 });
+
+test.each([
+  ["fetchProducts", () => fetchProducts()],
+  ["createProduct", () => createProduct({} as never)],
+  ["editProduct", () => editProduct("product-1", {} as never)],
+  ["deactivateProduct", () => deactivateProduct("product-1")],
+  ["reactivateProduct", () => reactivateProduct("product-1")],
+  ["printLabels", () => printLabels([])],
+])(
+  "%s makes the tab outdated when its response names another deployed release",
+  async (_name, send) => {
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse(400, undefined, { "X-Purosur-Release": "bbb" }),
+    );
+    const observe = vi.spyOn(defaultReleaseMonitor, "observe");
+    observe.mockClear();
+
+    await send();
+
+    expect(observe).toHaveBeenCalledWith("bbb");
+  },
+);

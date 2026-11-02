@@ -6,6 +6,7 @@ import {
   purchaseListSchema,
   purchaseSummarySchema,
 } from "@purosur/contracts";
+import { cloudFetch } from "../platform/cloud-fetch";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
@@ -66,7 +67,7 @@ function isLineRefusal(code: unknown): code is PurchaseLineRefusal {
 export async function fetchPurchases(): Promise<FetchPurchasesOutcome> {
   let response: Response;
   try {
-    response = await fetch("/api/purchases");
+    response = await cloudFetch("/api/purchases");
   } catch {
     return { kind: "failed" };
   }
@@ -80,7 +81,7 @@ export async function fetchPurchases(): Promise<FetchPurchasesOutcome> {
 export async function fetchPurchaseChoices(): Promise<FetchPurchaseChoicesOutcome> {
   let response: Response;
   try {
-    response = await fetch("/api/purchase-choices");
+    response = await cloudFetch("/api/purchase-choices");
   } catch {
     return { kind: "failed" };
   }
@@ -123,7 +124,7 @@ export async function registerPurchase(
 ): Promise<RegisterPurchaseOutcome> {
   let response: Response;
   try {
-    response = await fetch("/api/purchases", {
+    response = await cloudFetch("/api/purchases", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),

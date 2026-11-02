@@ -1,6 +1,7 @@
 import { Button, InlineNotice, Modal } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
-import { Check, KeyRound, RotateCcw, ShieldX, TriangleAlert } from "lucide-react";
+import { Check, KeyRound, RotateCcw, ShieldX } from "lucide-react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { groupedCode } from "../platform/grouped-code";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import type {
@@ -72,12 +73,7 @@ export function EmitUserPinCodeModal({
         {emission.kind === "issuing" && <p role="status">Emitiendo el código…</p>}
         {emission.kind === "attemptFailed" && (
           <>
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No se pudo emitir el código"
-              description="Probá de nuevo."
-            />
+            <ActionFailureNotice title="No se pudo emitir el código" />
             <Button variant="secondary" icon={<RotateCcw />} onPress={onRetry}>
               Reintentar
             </Button>

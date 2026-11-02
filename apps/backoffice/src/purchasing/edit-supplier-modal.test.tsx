@@ -3,6 +3,7 @@ import { ANOTHER_FICTIONAL_CUIT, FICTIONAL_CUIT } from "@purosur/domain/fiscal/t
 import { FieldSizeProvider } from "@purosur/ui";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import { EditSupplierModal, type EditSupplierModalServices } from "./edit-supplier-modal";
 import type { SupplierReload } from "./purchasing-queries";
@@ -269,4 +270,18 @@ test("cancel closes the modal without calling the API", async () => {
 
   expect(onClose).toHaveBeenCalledTimes(1);
   expect(editSupplier).not.toHaveBeenCalled();
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when saving is refused", async () => {
+  openAsOutdatedTab();
+  const editSupplier = vi
+    .fn<EditSupplierModalServices["editSupplier"]>()
+    .mockResolvedValue({ kind: "failed" });
+  const screen = await renderModal({ editSupplier });
+
+  const dialog = await save(screen);
+
+  await expect.element(dialog.getByText("No se guardó el proveedor")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  expect(dialog.getByText("Volvé a intentarlo.").query()).toBeNull();
 });

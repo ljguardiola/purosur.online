@@ -1,7 +1,8 @@
-import { AreaNavButton, Button, InlineNotice, Modal } from "@purosur/ui";
+import { AreaNavButton, Button, Modal } from "@purosur/ui";
 import { Link } from "@tanstack/react-router";
-import { LogOut, TriangleAlert, X } from "lucide-react";
+import { LogOut, X } from "lucide-react";
 import { useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { signOut } from "../sessions/session-api";
 
 export type AccountFooterServices = {
@@ -84,14 +85,7 @@ export function AccountFooter({ displayName, onSignedOut, services }: AccountFoo
           </>
         }
       >
-        {failed ? (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title="No se pudo salir"
-            description="Probá de nuevo."
-          />
-        ) : null}
+        {failed ? <ActionFailureNotice title="No se pudo salir" /> : null}
       </Modal>
     </>
   );

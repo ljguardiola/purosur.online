@@ -9,6 +9,7 @@ import type {
   PublicKeyCredentialCreationOptionsJSON,
   RegistrationResponseJSON,
 } from "@simplewebauthn/browser";
+import { cloudFetch } from "../platform/cloud-fetch";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
 
@@ -38,7 +39,7 @@ type RegistrationOptions = {
 };
 
 function postJson(path: string, body: unknown): Promise<Response> {
-  return fetch(path, {
+  return cloudFetch(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

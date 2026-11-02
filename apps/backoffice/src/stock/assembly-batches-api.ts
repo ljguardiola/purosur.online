@@ -14,6 +14,7 @@ import {
   assemblyBatchVoidResultSchema,
   type StockPeriodDays,
 } from "@purosur/contracts";
+import { cloudFetch } from "../platform/cloud-fetch";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
@@ -60,7 +61,7 @@ async function read<T>(
 ): Promise<CloudReadOutcome<T>> {
   let response: Response;
   try {
-    response = await fetch(path);
+    response = await cloudFetch(path);
   } catch {
     return { kind: "failed" };
   }
@@ -117,7 +118,7 @@ export async function registerAssemblyBatch(
 ): Promise<RegisterAssemblyBatchOutcome> {
   let response: Response;
   try {
-    response = await fetch("/api/assembly-batches", {
+    response = await cloudFetch("/api/assembly-batches", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -149,7 +150,7 @@ export async function registerAssemblyBatch(
 export async function voidAssemblyBatch(batchId: string): Promise<VoidAssemblyBatchOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/api/assembly-batches/${batchId}/void`, { method: "POST" });
+    response = await cloudFetch(`/api/assembly-batches/${batchId}/void`, { method: "POST" });
   } catch {
     return { kind: "failed" };
   }

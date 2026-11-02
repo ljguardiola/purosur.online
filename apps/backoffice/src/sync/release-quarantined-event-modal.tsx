@@ -1,6 +1,7 @@
 import { Button, InlineNotice, Modal } from "@purosur/ui";
-import { LockOpen, ShieldX, TriangleAlert, X } from "lucide-react";
+import { LockOpen, ShieldX, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { quarantinedEventSentenceText } from "./quarantined-event-labels";
@@ -119,12 +120,7 @@ export function ReleaseQuarantinedEventModal({
           </p>
         ) : null}
         {notice?.kind === "attemptFailed" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title="No pudimos liberar el evento"
-            description="Probá de nuevo."
-          />
+          <ActionFailureNotice title="No pudimos liberar el evento" />
         )}
         {notice?.kind === "rateLimited" && (
           <InlineNotice

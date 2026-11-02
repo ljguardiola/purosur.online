@@ -1,4 +1,5 @@
 import { type InternalBarcodeGenerationBody, internalBarcodeSchema } from "@purosur/contracts";
+import { cloudFetch } from "./cloud-fetch";
 import { rateLimitOutcome } from "./rate-limit-outcome";
 
 export type GenerateInternalBarcodeOutcome =
@@ -9,7 +10,7 @@ export type GenerateInternalBarcodeOutcome =
   | { kind: "failed" };
 
 function postJson(path: string, body: unknown): Promise<Response> {
-  return fetch(path, {
+  return cloudFetch(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

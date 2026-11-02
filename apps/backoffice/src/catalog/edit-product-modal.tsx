@@ -8,6 +8,7 @@ import {
 import { Button, FieldGroup, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import { Check, Pencil, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { BarcodeChips, useBarcodeChips } from "../platform/barcode-chips";
 import { barcodeTakenError } from "../platform/barcode-list";
 import type { createBrand } from "../platform/brand-creation-api";
@@ -319,12 +320,7 @@ export function EditProductModal({
       {target ? (
         <div className="flex flex-col gap-4">
           {notice?.kind === "attemptFailed" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No se pudo guardar el cambio"
-              description="Probá de nuevo."
-            />
+            <ActionFailureNotice title="No se pudo guardar el cambio" />
           )}
           {notice?.kind === "rateLimited" && (
             <InlineNotice
@@ -350,12 +346,7 @@ export function EditProductModal({
             />
           )}
           {notice?.kind === "reloadFailed" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No se pudieron recargar los datos"
-              description="Probá de nuevo."
-            />
+            <ActionFailureNotice title="No se pudieron recargar los datos" />
           )}
           <form.AppField name="name">
             {(field) => <field.TextField kind="plain-text" label="Nombre" required />}

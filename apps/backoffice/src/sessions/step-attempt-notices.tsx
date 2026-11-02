@@ -1,5 +1,6 @@
 import { InlineNotice } from "@purosur/ui";
 import { ShieldX, TriangleAlert } from "lucide-react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import type { AttemptNotice } from "../platform/use-authorized-attempt";
 
@@ -14,14 +15,7 @@ export function StepAttemptNotices({
 }) {
   switch (notice?.kind) {
     case "attemptFailed":
-      return (
-        <InlineNotice
-          tone="error"
-          icon={<TriangleAlert />}
-          title={failedTitle}
-          description="Probá de nuevo."
-        />
-      );
+      return <ActionFailureNotice title={failedTitle} />;
     case "rateLimited":
       return (
         <InlineNotice

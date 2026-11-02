@@ -92,3 +92,26 @@ test("a failure that names no wait time names none", () => {
     ),
   ).not.toHaveProperty("retryAfterSeconds");
 });
+
+test("a failure of an outdated tab stays outdated when combined with another", () => {
+  const outdated: CloudData<never> = { status: "failed", retry: () => {}, outdated: true };
+
+  expect(
+    combineCloudData(
+      failed(() => {}),
+      outdated,
+    ),
+  ).toMatchObject({ outdated: true });
+  expect(
+    combineCloudData(
+      outdated,
+      failed(() => {}),
+    ),
+  ).toMatchObject({ outdated: true });
+  expect(
+    combineCloudData(
+      failed(() => {}),
+      failed(() => {}),
+    ),
+  ).not.toHaveProperty("outdated");
+});

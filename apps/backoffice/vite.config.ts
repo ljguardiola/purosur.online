@@ -31,6 +31,7 @@ export default defineConfig(({ mode }) => {
   };
 
   return {
+    define: { __BACKOFFICE_RELEASE__: JSON.stringify(env["APP_VERSION"] ?? "") },
     resolve: { conditions: ["@purosur/source", ...defaultClientConditions] },
     plugins: [
       withoutPackageOutput(REPO_ROOT),

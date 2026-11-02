@@ -1,4 +1,5 @@
 import { type BrandEditBody, type BrandSummary, brandListSchema } from "@purosur/contracts";
+import { cloudFetch } from "../platform/cloud-fetch";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
@@ -28,7 +29,7 @@ export type ChangeBrandActivationOutcome =
   | RequestRefusal;
 
 function sendJson(method: "POST" | "PUT", path: string, body?: unknown): Promise<Response> {
-  return fetch(path, {
+  return cloudFetch(path, {
     method,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body ?? {}),
@@ -56,7 +57,7 @@ function refusal(response: Response): RequestRefusal {
 export async function fetchBrands(): Promise<FetchBrandsOutcome> {
   let response: Response;
   try {
-    response = await fetch("/api/brands");
+    response = await cloudFetch("/api/brands");
   } catch {
     return { kind: "failed" };
   }
@@ -100,7 +101,7 @@ async function changeBrandActivation(
 ): Promise<ChangeBrandActivationOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/api/brands/${id}/deactivation`, { method });
+    response = await cloudFetch(`/api/brands/${id}/deactivation`, { method });
   } catch {
     return { kind: "failed" };
   }

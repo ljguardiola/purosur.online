@@ -3,6 +3,7 @@ import { Button, InlineNotice, Modal } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { Ban, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { formatStockQuantity } from "../platform/stock-quantity";
@@ -134,12 +135,7 @@ export function VoidAssemblyBatchModal({
           {`Los componentes vuelven al stock, se descuentan ${formatStockQuantity(batch.output, batch.saleUnit)} de ${product} y el lote de la tanda queda en cero.`}
         </p>
         {notice?.kind === "attemptFailed" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title="No se anuló la tanda"
-            description="Volvé a intentarlo."
-          />
+          <ActionFailureNotice title="No se anuló la tanda" description="Volvé a intentarlo." />
         )}
         {notice?.kind === "outdated" && (
           <InlineNotice

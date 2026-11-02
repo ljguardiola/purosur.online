@@ -1,8 +1,9 @@
 import { fiscalAddressCreationBodySchema } from "@purosur/contracts";
 import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
-import { Check, Landmark, ShieldX, TriangleAlert, X } from "lucide-react";
+import { Check, Landmark, ShieldX, X } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { useAuthorization } from "../platform/authorization-modal";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
@@ -155,12 +156,7 @@ export function NewFiscalAddressModal({
       >
         <div className="flex flex-col gap-4">
           {notice?.kind === "attemptFailed" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No se pudo crear el domicilio fiscal"
-              description="Probá de nuevo."
-            />
+            <ActionFailureNotice title="No se pudo crear el domicilio fiscal" />
           )}
           {notice?.kind === "rateLimited" && (
             <InlineNotice

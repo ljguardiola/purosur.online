@@ -7,6 +7,7 @@ import { UserCredentialSections } from "../../credentials/user-credential-sectio
 import { UnbilledDeferredSalesPill } from "../../fiscal/unbilled-deferred-sales-pill";
 import { CreateRoleFromSelectorModal } from "../../permissions/create-role-from-selector-modal";
 import { permissionCatalogFixture } from "../../platform/test-support/permission-catalog";
+import { fakeReleaseMonitor } from "../../platform/test-support/release-monitor";
 import { ARGENTINA_ZONE_RULES } from "../../platform/test-support/zone-rules";
 import { ReportRegisterFilter } from "../../register/report-register-filter";
 import { EndEverySessionSection } from "../../sessions/end-every-session-section";
@@ -426,6 +427,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     },
     accountFooter: { signOut: vi.fn().mockResolvedValue({ kind: "ok" }) },
     screenFailure: { isOnline: vi.fn(), reloadPage: vi.fn() },
+    releaseMonitor: fakeReleaseMonitor(false),
     homeScreen: {
       fetchAlertsOverview: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchRegisterSyncStatus: vi.fn().mockReturnValue(new Promise(() => {})),

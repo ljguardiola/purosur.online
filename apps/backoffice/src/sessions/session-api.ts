@@ -9,6 +9,7 @@ import type {
   AuthenticationResponseJSON,
   PublicKeyCredentialRequestOptionsJSON,
 } from "@simplewebauthn/browser";
+import { cloudFetch } from "../platform/cloud-fetch";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 
 export type SessionOutcome =
@@ -51,7 +52,7 @@ export type AuthenticateOutcome =
 export type SignOutOutcome = { kind: "ok" } | { kind: "failed" };
 
 function postJson(path: string, body?: unknown): Promise<Response> {
-  return fetch(path, {
+  return cloudFetch(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body ?? {}),
@@ -61,7 +62,7 @@ function postJson(path: string, body?: unknown): Promise<Response> {
 export async function fetchSession(): Promise<SessionOutcome> {
   let response: Response;
   try {
-    response = await fetch("/api/sessions/current");
+    response = await cloudFetch("/api/sessions/current");
   } catch {
     return { kind: "failed" };
   }
@@ -93,7 +94,7 @@ export async function fetchSession(): Promise<SessionOutcome> {
 export async function checkSessionStatus(): Promise<SessionStatusOutcome> {
   let response: Response;
   try {
-    response = await fetch("/api/sessions/current/expiration");
+    response = await cloudFetch("/api/sessions/current/expiration");
   } catch {
     return { kind: "failed" };
   }
@@ -161,7 +162,7 @@ export async function authenticate(
 export async function signOut(): Promise<SignOutOutcome> {
   let response: Response;
   try {
-    response = await fetch("/api/sessions/current", { method: "DELETE" });
+    response = await cloudFetch("/api/sessions/current", { method: "DELETE" });
   } catch {
     return { kind: "failed" };
   }
@@ -174,7 +175,7 @@ export async function signOut(): Promise<SignOutOutcome> {
 export async function endEverySession(): Promise<EndEverySessionOutcome> {
   let response: Response;
   try {
-    response = await fetch("/api/sessions", { method: "DELETE" });
+    response = await cloudFetch("/api/sessions", { method: "DELETE" });
   } catch {
     return { kind: "failed" };
   }

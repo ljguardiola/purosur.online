@@ -1,5 +1,9 @@
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import {
+  OUTDATED_TAB_ADVICE,
+  releaseMonitorThatTurnsOutdated,
+} from "../platform/test-support/release-monitor";
 import type { PricesListScreenServices } from "./prices-list-services";
 import {
   createServices,
@@ -560,4 +564,32 @@ test("a rate-limited notice leaves once its retry window has passed", async () =
   } finally {
     vi.useRealTimers();
   }
+});
+
+test("a tab that learns it is outdated while a price confirmation is refused tells the person to reload", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockResolvedValue({
+    kind: "ok",
+    value: {
+      products: [rice],
+      pendingCount: 1,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [],
+    },
+  });
+  const release = releaseMonitorThatTurnsOutdated();
+  vi.mocked(services.confirmPrice).mockImplementation(() => {
+    release.turnOutdated();
+    return Promise.resolve({ kind: "failed" });
+  });
+  const screen = await renderScreen(services, undefined, { releaseMonitor: release.monitor });
+
+  await userEvent.click(
+    screen.getByRole("button", { name: "Confirmar el precio de Arroz sin cambios" }),
+  );
+
+  await expect.element(screen.getByText("No se pudo confirmar el precio de Arroz")).toBeVisible();
+  await expect.element(screen.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  expect(screen.getByText("Probá de nuevo.").query()).toBeNull();
 });

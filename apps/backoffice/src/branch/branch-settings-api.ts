@@ -4,6 +4,7 @@ import {
   branchSettingsReadSchema,
   type EditableBranchSettingsBody,
 } from "@purosur/contracts";
+import { cloudFetch } from "../platform/cloud-fetch";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
@@ -99,7 +100,7 @@ function branchSettingsFromWire(row: BranchSettingsReadBody): BranchSettings {
 export async function fetchBranchSettings(): Promise<FetchBranchSettingsOutcome> {
   let response: Response;
   try {
-    response = await fetch("/api/locations/current/settings");
+    response = await cloudFetch("/api/locations/current/settings");
   } catch {
     return { kind: "failed" };
   }
@@ -127,7 +128,7 @@ export async function saveBranchSettings(
 ): Promise<SaveBranchSettingsOutcome> {
   let response: Response;
   try {
-    response = await fetch("/api/locations/current/settings", {
+    response = await cloudFetch("/api/locations/current/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(requestBody),

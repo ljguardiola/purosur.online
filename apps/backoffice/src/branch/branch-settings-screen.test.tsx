@@ -8,6 +8,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useIsFetching } from "@tanstack/react-query";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import type { BranchSettings } from "./branch-settings-api";
 import { BranchSettingsScreen } from "./branch-settings-screen";
@@ -1465,4 +1466,24 @@ test("draws the same separator line above Lunes as above every other day", async
   expect(monday.borderTopStyle).toBe(tuesday.borderTopStyle);
   expect(monday.borderTopColor).toBe(tuesday.borderTopColor);
   expect(monday.paddingTop).toBe(tuesday.paddingTop);
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when saving the branch is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices();
+  vi.mocked(services.fetchBranchSettings).mockResolvedValue({ kind: "ok", value: loaded });
+  vi.mocked(services.saveBranchSettings).mockResolvedValue({
+    kind: "validation_failed",
+    field: "version",
+  });
+  const screen = await renderScreen(services);
+  await expect
+    .element(screen.getByRole("textbox", { name: "Dirección" }))
+    .toHaveValue("Av. Belgrano 1450, CABA");
+
+  await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(screen.getByText("No se pudo guardar la sucursal")).toBeVisible();
+  await expect.element(screen.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  expect(screen.getByText(TEXT_TOO_LONG).query()).toBeNull();
 });

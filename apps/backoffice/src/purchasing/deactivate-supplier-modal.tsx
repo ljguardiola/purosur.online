@@ -2,6 +2,7 @@ import type { SupplierSummary } from "@purosur/contracts";
 import { Button, InlineNotice, Modal } from "@purosur/ui";
 import { Ban, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import type { deactivateSupplier } from "./suppliers-api";
@@ -140,9 +141,7 @@ export function DeactivateSupplierModal({
           está.
         </p>
         {notice?.kind === "attemptFailed" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
+          <ActionFailureNotice
             title="No se desactivó el proveedor"
             description="Volvé a intentarlo."
           />

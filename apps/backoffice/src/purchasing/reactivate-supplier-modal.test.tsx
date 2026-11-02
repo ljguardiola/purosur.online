@@ -2,6 +2,7 @@ import type { SupplierSummary } from "@purosur/contracts";
 import { ANOTHER_FICTIONAL_CUIT, FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import {
   ReactivateSupplierModal,
@@ -159,4 +160,18 @@ test("ends the session when the change finds no open session", async () => {
   await confirm(screen);
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when reactivating is refused", async () => {
+  openAsOutdatedTab();
+  const reactivateSupplier = vi
+    .fn<ReactivateSupplierModalServices["reactivateSupplier"]>()
+    .mockResolvedValue({ kind: "failed" });
+  const screen = await renderModal({ reactivateSupplier });
+  const dialog = await confirm(screen);
+
+  await expect.element(dialog.getByText("No se reactivó el proveedor")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  expect(dialog.getByText("Volvé a intentarlo.").query()).toBeNull();
+  await expect.element(dialog.getByRole("button", { name: "Reactivar" })).toBeEnabled();
 });

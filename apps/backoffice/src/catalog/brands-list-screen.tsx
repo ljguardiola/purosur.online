@@ -32,6 +32,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { brandNameMessage } from "../platform/brand-name";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { BRAND_NAME_TAKEN, NewBrandModal } from "../platform/new-brand-modal";
@@ -254,12 +255,7 @@ function EditBrandModal({
       {target ? (
         <div className="flex flex-col gap-4">
           {notice?.kind === "attemptFailed" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No se guardó la marca"
-              description="Volvé a intentarlo."
-            />
+            <ActionFailureNotice title="No se guardó la marca" description="Volvé a intentarlo." />
           )}
           {notice?.kind === "rateLimited" && (
             <InlineNotice
@@ -454,12 +450,7 @@ function BrandActivationModal({
       <div className="flex flex-col gap-4">
         <p className="text-body text-text">{texts.description}</p>
         {notice?.kind === "attemptFailed" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title={texts.failed}
-            description="Volvé a intentarlo."
-          />
+          <ActionFailureNotice title={texts.failed} description="Volvé a intentarlo." />
         )}
         {notice?.kind === "alreadyChanged" && (
           <InlineNotice tone="error" icon={<TriangleAlert />} title={texts.alreadyChanged} />

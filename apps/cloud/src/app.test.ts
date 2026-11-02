@@ -522,6 +522,46 @@ describe("the edge origin guard", () => {
   });
 });
 
+describe("the deployed release", () => {
+  function appAnsweringEveryKindOfResponse() {
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
+    app.get("/refused", { config: { access: PUBLIC_ACCESS } }, async (_request, reply) =>
+      reply.code(400).send({ code: "validation_failed" }),
+    );
+    app.get("/boom", { config: { access: PUBLIC_ACCESS } }, async () => {
+      throw new Error("boom");
+    });
+    return app;
+  }
+
+  it.each([
+    ["a route", "/api/health", 200],
+    ["a refused request", "/refused", 400],
+    ["a path that matches nothing", "/missing", 404],
+    ["a route that throws", "/boom", 500],
+  ])("is named on the response to %s", async (_case, url, statusCode) => {
+    const app = appAnsweringEveryKindOfResponse();
+
+    const response = await app.inject({ method: "GET", url });
+
+    expect(response.statusCode).toBe(statusCode);
+    expect(response.headers["x-purosur-release"]).toBe("abc1234");
+  });
+
+  it("is named on the refusal of a request that did not come through the edge", async () => {
+    const app = buildRealApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      edgeOriginSecret: TEST_EDGE_ORIGIN_SECRET,
+    });
+
+    const response = await app.inject({ method: "GET", url: "/some-route" });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.headers["x-purosur-release"]).toBe("abc1234");
+  });
+});
+
 describe("Strict-Transport-Security", () => {
   const TWO_YEARS_INCLUDING_SUBDOMAINS = "max-age=63072000; includeSubDomains";
 

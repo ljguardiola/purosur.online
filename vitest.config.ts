@@ -50,7 +50,11 @@ function compiledReactProject() {
     optimizeDeps: { include: ["react/compiler-runtime"] },
     // The browser has no `process`, yet react-aria's virtualizer reads `process.env` on every
     // layout, and it only virtualizes under NODE_ENV "test" when VIRT_ON is set.
-    define: { "process.env.NODE_ENV": '"test"', "process.env.VIRT_ON": '"true"' },
+    define: {
+      "process.env.NODE_ENV": '"test"',
+      "process.env.VIRT_ON": '"true"',
+      __BACKOFFICE_RELEASE__: '""',
+    },
   };
 }
 
@@ -105,6 +109,7 @@ export default defineConfig({
     ],
     projects: [
       {
+        define: { __BACKOFFICE_RELEASE__: '""' },
         test: {
           name: "node",
           include: [

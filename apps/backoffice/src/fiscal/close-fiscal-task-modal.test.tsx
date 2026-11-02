@@ -3,7 +3,9 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
 import { expect, test, vi } from "vitest";
 import { type Locator, userEvent } from "vitest/browser";
+import { ReleaseMonitorContext } from "../platform/release-monitor";
 import { deferred } from "../platform/test-support/deferred";
+import { fakeReleaseMonitor, OUTDATED_TAB_ADVICE } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import { CloseFiscalTaskModal, type CloseFiscalTaskModalServices } from "./close-fiscal-task-modal";
 import type { CloseFiscalTaskOutcome } from "./fiscal-tasks-api";
@@ -18,22 +20,25 @@ type Handlers = {
   onClosed?: () => void;
   reload?: () => Promise<unknown>;
   onSessionEnded?: () => void;
+  outdatedTab?: boolean;
 };
 
 async function renderModal(services: CloseFiscalTaskModalServices, handlers: Handlers = {}) {
   const screen = await render(
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <CloseFiscalTaskModal
-          target={externalInvoicingTask}
-          onClose={handlers.onClose ?? (() => {})}
-          onClosed={handlers.onClosed ?? (() => {})}
-          reload={handlers.reload ?? (() => Promise.resolve())}
-          onSessionEnded={handlers.onSessionEnded ?? (() => {})}
-          services={services}
-        />
-      </main>
-    </FieldSizeProvider>,
+    <ReleaseMonitorContext value={fakeReleaseMonitor(handlers.outdatedTab ?? false)}>
+      <FieldSizeProvider size="backoffice">
+        <main>
+          <CloseFiscalTaskModal
+            target={externalInvoicingTask}
+            onClose={handlers.onClose ?? (() => {})}
+            onClosed={handlers.onClosed ?? (() => {})}
+            reload={handlers.reload ?? (() => Promise.resolve())}
+            onSessionEnded={handlers.onSessionEnded ?? (() => {})}
+            services={services}
+          />
+        </main>
+      </FieldSizeProvider>
+    </ReleaseMonitorContext>,
   );
   const dialog = screen.getByRole("dialog", { name: "Cerrar tarea fiscal" });
   await expect.element(dialog).toBeVisible();
@@ -293,4 +298,15 @@ test("a success from an earlier opening reloads the list and leaves the next ope
 
   await expect.poll(() => reload.mock.calls.length).toBe(1);
   await expect.element(dialog).toBeVisible();
+});
+
+test("tells an outdated tab that the backoffice was updated when closing the task is refused", async () => {
+  const services = createServices();
+  vi.mocked(services.closeFiscalTask).mockResolvedValue({ kind: "failed" });
+  const { dialog } = await renderModal(services, { outdatedTab: true });
+
+  await closeWith(dialog, "Listo");
+
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  await expect.element(dialog.getByText("No se pudo cerrar la tarea")).toBeVisible();
 });

@@ -2,6 +2,7 @@ import { type TagSummary, tagEditBodySchema } from "@purosur/contracts";
 import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import { Check, Pencil, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { TAG_NAME_TAKEN, tagNameMessage } from "../platform/tag-name";
@@ -166,9 +167,7 @@ export function EditTagModal({
       {target ? (
         <div className="flex flex-col gap-4">
           {notice?.kind === "attemptFailed" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
+            <ActionFailureNotice
               title="No se guardó el distintivo"
               description="Volvé a intentarlo."
             />

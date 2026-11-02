@@ -3,6 +3,7 @@ import { ANOTHER_FICTIONAL_CUIT, FICTIONAL_CUIT } from "@purosur/domain/fiscal/t
 import { FieldSizeProvider } from "@purosur/ui";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import { NewSupplierModal, type NewSupplierModalServices } from "./new-supplier-modal";
 import { suppliersWithCuits } from "./test-support/suppliers";
@@ -236,4 +237,18 @@ test("opens with the initial name already in the name field, still editable", as
   expect(createSupplier).toHaveBeenCalledWith(
     expect.objectContaining({ name: "Distribuidora Sur SA" }),
   );
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when saving is refused", async () => {
+  openAsOutdatedTab();
+  const createSupplier = vi
+    .fn<NewSupplierModalServices["createSupplier"]>()
+    .mockResolvedValue({ kind: "failed" });
+  const screen = await renderModal({ createSupplier });
+
+  const dialog = await submit(screen);
+
+  await expect.element(dialog.getByText("No se guardó el proveedor")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  expect(dialog.getByText("Volvé a intentarlo.").query()).toBeNull();
 });

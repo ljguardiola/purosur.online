@@ -2,6 +2,7 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import { EditLotCostModal, type EditLotCostModalProps } from "./edit-lot-cost-modal";
 import {
@@ -347,4 +348,17 @@ test("groups thousands and takes a typed dot as the decimal comma in the cost", 
   await userEvent.type(field, "1234.5");
 
   await expect.element(field).toHaveValue("1.234,5");
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when saving the cost fails", async () => {
+  openAsOutdatedTab();
+  const props = createProps();
+  vi.mocked(props.services.setLotReferenceCost).mockRejectedValue(new Error("network down"));
+  const screen = await renderModal(props);
+
+  await userEvent.fill(screen.getByLabelText("Costo de referencia por kg"), "100");
+  await userEvent.click(screen.getByRole("button", { name: SAVE }));
+
+  await expect.element(screen.getByText("No se pudo guardar el costo")).toBeVisible();
+  await expect.element(screen.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
 });

@@ -8,6 +8,7 @@ import {
   discountSummarySchema,
   discountTargetsSchema,
 } from "@purosur/contracts";
+import { cloudFetch } from "../platform/cloud-fetch";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
@@ -51,7 +52,7 @@ export type EditDiscountOutcome =
   | RequestRefusal;
 
 function sendJson(method: "POST" | "PUT", path: string, body: unknown): Promise<Response> {
-  return fetch(path, {
+  return cloudFetch(path, {
     method,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -86,7 +87,7 @@ function refusal(response: Response): RequestRefusal {
 export async function fetchDiscounts(): Promise<FetchDiscountsOutcome> {
   let response: Response;
   try {
-    response = await fetch("/api/discounts");
+    response = await cloudFetch("/api/discounts");
   } catch {
     return { kind: "failed" };
   }
@@ -100,7 +101,7 @@ export async function fetchDiscounts(): Promise<FetchDiscountsOutcome> {
 export async function fetchDiscountTargets(): Promise<FetchDiscountTargetsOutcome> {
   let response: Response;
   try {
-    response = await fetch("/api/discount-targets");
+    response = await cloudFetch("/api/discount-targets");
   } catch {
     return { kind: "failed" };
   }

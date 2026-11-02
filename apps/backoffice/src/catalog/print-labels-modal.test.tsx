@@ -3,6 +3,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import { PrintLabelsModal, type PrintLabelsModalServices } from "./print-labels-modal";
 import { almondOil, almonds, honey, vitora } from "./test-support/products";
@@ -775,4 +776,20 @@ test("previews the label with the product's name, brand and net content", async 
   await expect
     .element(preview.getByText("Aceite de Almendras Vitora 30 ml", { exact: true }))
     .toBeVisible();
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when printing is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices();
+  vi.mocked(services.printLabels).mockResolvedValue({ kind: "failed" });
+  const screen = await renderModal(services, { products: [honeyWithInternalBarcode] });
+  const dialog = await openPrintLabelsModal(screen);
+  await userEvent.click(
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
+  );
+
+  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
+
+  await expect.element(dialog.getByText("No se pudo generar la hoja")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
 });

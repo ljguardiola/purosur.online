@@ -1,6 +1,7 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import {
   RotateSnapshotKeyModal,
@@ -231,4 +232,17 @@ test("ends the session when the rotation finds no open session", async () => {
   await confirm(dialog);
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when rotating the key is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices();
+  vi.mocked(services.rotateSnapshotKey).mockResolvedValue({ kind: "failed" });
+  const { dialog } = await renderModal(services);
+
+  await confirm(dialog);
+
+  await expect.element(dialog.getByText("No se pudo rotar la clave")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  expect(dialog.getByText("Probá de nuevo.").query()).toBeNull();
 });

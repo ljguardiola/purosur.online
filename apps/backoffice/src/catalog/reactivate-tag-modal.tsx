@@ -2,6 +2,7 @@ import type { TagSummary } from "@purosur/contracts";
 import { Button, InlineNotice, Modal } from "@purosur/ui";
 import { RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import type { reactivateTag } from "./tags-api";
@@ -136,9 +137,7 @@ export function ReactivateTagModal({
       <div className="flex flex-col gap-4">
         <p className="text-body text-text">Vuelve a ofrecerse para asignarlo a productos nuevos.</p>
         {notice?.kind === "attemptFailed" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
+          <ActionFailureNotice
             title="No se reactivó el distintivo"
             description="Volvé a intentarlo."
           />

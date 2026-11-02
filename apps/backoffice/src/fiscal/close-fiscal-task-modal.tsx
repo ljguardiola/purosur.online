@@ -1,8 +1,9 @@
 import type { FiscalTaskItem } from "@purosur/contracts";
 import { fiscalTaskClosingBodySchema } from "@purosur/contracts";
 import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
-import { Check, CircleCheck, ShieldX, TriangleAlert, X } from "lucide-react";
+import { Check, CircleCheck, ShieldX, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import {
@@ -147,14 +148,7 @@ export function CloseFiscalTaskModal({
       {target ? (
         <div className="flex flex-col gap-4">
           <p className="text-body">{fiscalTaskDescription(target)}</p>
-          {notice?.kind === "failed" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No se pudo cerrar la tarea"
-              description="Probá de nuevo."
-            />
-          )}
+          {notice?.kind === "failed" && <ActionFailureNotice title="No se pudo cerrar la tarea" />}
           {notice?.kind === "rateLimited" && (
             <InlineNotice
               tone="error"

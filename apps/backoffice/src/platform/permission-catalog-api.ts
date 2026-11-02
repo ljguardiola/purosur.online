@@ -1,11 +1,12 @@
 import { type PermissionCatalogWire, permissionCatalogSchema } from "@purosur/contracts";
+import { cloudFetch } from "./cloud-fetch";
 import type { CloudReadOutcome } from "./cloud-read-outcome";
 import { rateLimitOutcome } from "./rate-limit-outcome";
 
 export async function fetchPermissionCatalog(): Promise<CloudReadOutcome<PermissionCatalogWire>> {
   let response: Response;
   try {
-    response = await fetch("/api/permission-catalog");
+    response = await cloudFetch("/api/permission-catalog");
   } catch {
     return { kind: "failed" };
   }

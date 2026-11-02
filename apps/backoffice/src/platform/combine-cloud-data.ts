@@ -12,6 +12,7 @@ export function combineCloudData<A, B>(a: CloudData<A>, b: CloudData<B>): CloudD
     return {
       status: "failed",
       ...(waits.length > 0 ? { retryAfterSeconds: Math.max(...waits) } : {}),
+      ...(failures.some((failure) => failure.outdated) ? { outdated: true as const } : {}),
       retry: () => {
         for (const failure of failures) {
           failure.retry();

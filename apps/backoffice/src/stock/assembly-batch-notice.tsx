@@ -1,5 +1,6 @@
 import { InlineNotice } from "@purosur/ui";
 import { ShieldX, TriangleAlert } from "lucide-react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 
 export type AssemblyBatchNotice =
@@ -12,12 +13,7 @@ export function AssemblyBatchNotice({ notice }: { notice: AssemblyBatchNotice })
   switch (notice.kind) {
     case "attemptFailed":
       return (
-        <InlineNotice
-          tone="error"
-          icon={<TriangleAlert />}
-          title="No se registró la tanda"
-          description="Volvé a intentarlo."
-        />
+        <ActionFailureNotice title="No se registró la tanda" description="Volvé a intentarlo." />
       );
     case "rateLimited":
       return (

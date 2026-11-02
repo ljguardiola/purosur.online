@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 import { render } from "vitest-browser-react";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { StepAttemptNotices } from "./step-attempt-notices";
 
 function renderNotice(notice: Parameters<typeof StepAttemptNotices>[0]["notice"]) {
@@ -42,4 +43,12 @@ test("says the chosen account cannot be the caller's own", async () => {
   const screen = await renderNotice({ kind: "ownAccount" });
 
   await expect.element(screen.getByText("No podés elegir tu propia cuenta")).toBeVisible();
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when the attempt failed", async () => {
+  openAsOutdatedTab();
+  const screen = await renderNotice({ kind: "attemptFailed" });
+
+  await expect.element(screen.getByText("No se pudo hacer la prueba")).toBeVisible();
+  await expect.element(screen.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
 });

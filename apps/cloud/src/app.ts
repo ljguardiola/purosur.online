@@ -536,6 +536,11 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
     response.setHeader("Strict-Transport-Security", STRICT_TRANSPORT_SECURITY);
   });
 
+  app.addHook("onSend", async (_request, reply, payload) => {
+    reply.header("X-Purosur-Release", options.version);
+    return payload;
+  });
+
   registerEdgeOriginGuard(app, options.edgeOriginSecret);
 
   const { now } = options;

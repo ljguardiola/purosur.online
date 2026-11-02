@@ -2,6 +2,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import type { RevokeEveryInstallationOutcome } from "./registers-api";
 import type { RegistersListScreenServices } from "./registers-list-services";
@@ -300,4 +301,17 @@ test("reports the list outdated when no installation in service is found after t
   await screen.rerender(element);
 
   await expect.poll(() => onOutdated.mock.calls.length).toBe(1);
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when revoking the installations is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices();
+  vi.mocked(services.revokeEveryInstallation).mockResolvedValue({ kind: "failed" });
+  const { dialog } = await renderModal(services);
+
+  await confirm(dialog);
+
+  await expect.element(dialog.getByText("No se pudieron revocar las instalaciones")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  expect(dialog.getByText("Probá de nuevo.").query()).toBeNull();
 });

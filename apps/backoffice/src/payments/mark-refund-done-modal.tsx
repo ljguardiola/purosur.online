@@ -2,6 +2,7 @@ import type { PendingRefundsBody } from "@purosur/contracts";
 import { Button, formatCents, InlineNotice, Modal } from "@purosur/ui";
 import { CircleCheck, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { paymentLabelInSentence } from "../platform/payment-label";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
@@ -150,9 +151,7 @@ export function MarkRefundDoneModal({
           </p>
         ) : null}
         {notice?.kind === "attemptFailed" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
+          <ActionFailureNotice
             title="No se marcó el reembolso como hecho"
             description="Volvé a intentarlo."
           />

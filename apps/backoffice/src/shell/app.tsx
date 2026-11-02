@@ -35,6 +35,11 @@ import type {
   RoleCreationModal,
 } from "../platform/creation-parts";
 import { createQueryClient } from "../platform/query-client";
+import {
+  defaultReleaseMonitor,
+  type ReleaseMonitor,
+  ReleaseMonitorContext,
+} from "../platform/release-monitor";
 import type { DiscountsListScreenServices } from "../pricing/discounts-list-services";
 import type { PricesListScreenServices } from "../pricing/prices-list-services";
 import type { PricesPastReviewDeadlineReportScreenServices } from "../pricing/prices-past-review-deadline-report-services";
@@ -90,6 +95,8 @@ import { type AccountFooterServices, defaultAccountFooterServices } from "./acco
 import { createAppRouter } from "./app-router";
 import type { HomeScreenServices } from "./home-screen-services";
 import { lazyScreen } from "./lazy-screen";
+import { NewReleaseNotice } from "./new-release-notice";
+import { useReleaseWatcher } from "./release-watcher";
 import {
   SessionCheckPendingContext,
   type SettledSession,
@@ -178,6 +185,7 @@ export type AppServices = {
   pointsOfSaleScreen: PointsOfSaleScreenServices;
   accountFooter: AccountFooterServices;
   screenFailure: ScreenFailureServices;
+  releaseMonitor: ReleaseMonitor;
   homeScreen: HomeScreenServices;
   areaTopBarAlertsCount: ComponentType<AlertsOpenCountLinkProps>;
   areaTopBarUnbilledDeferredSales: ComponentType<UnbilledDeferredSalesPillProps>;
@@ -199,7 +207,8 @@ type ShellServiceName =
   | "productCreationModal"
   | "roleCreationModal"
   | "accountFooter"
-  | "screenFailure";
+  | "screenFailure"
+  | "releaseMonitor";
 
 export type RouteServices = Pick<AppServices, ShellServiceName> &
   Partial<Omit<AppServices, ShellServiceName>>;
@@ -241,6 +250,7 @@ const defaultRouteServices: RouteServices = {
   ),
   accountFooter: defaultAccountFooterServices,
   screenFailure: defaultScreenFailureServices,
+  releaseMonitor: defaultReleaseMonitor,
 };
 
 export type AppProps = {
@@ -421,6 +431,8 @@ function AppContent({ help, services: givenServices, reportError = () => {} }: A
     ...(session.kind === "signed-in" ? { initialExpiresAt: session.expiresAt } : {}),
   });
 
+  useReleaseWatcher({ monitor: services.releaseMonitor });
+
   useSessionActivityReporter({
     active: session.kind === "signed-in",
     touchSession: services.fetchSession,
@@ -445,10 +457,13 @@ function AppContent({ help, services: givenServices, reportError = () => {} }: A
   }
 
   return (
-    <SessionCheckPendingContext value={session.kind === "loading"}>
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>
-    </SessionCheckPendingContext>
+    <ReleaseMonitorContext value={services.releaseMonitor}>
+      <SessionCheckPendingContext value={session.kind === "loading"}>
+        <QueryClientProvider client={queryClient}>
+          <RouterProvider router={router} />
+        </QueryClientProvider>
+      </SessionCheckPendingContext>
+      <NewReleaseNotice reloadPage={services.screenFailure.reloadPage} />
+    </ReleaseMonitorContext>
   );
 }

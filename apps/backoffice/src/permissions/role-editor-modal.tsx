@@ -19,6 +19,7 @@ import {
 import { startAuthentication } from "@simplewebauthn/browser";
 import { Check, RotateCcw, Shield, ShieldOff, ShieldX, TriangleAlert, X } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { useAuthorization } from "../platform/authorization-modal";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { combineCloudData } from "../platform/combine-cloud-data";
@@ -354,12 +355,7 @@ function RoleEditorSession({
         {notice ? (
           <NoticeSlot>
             {notice.kind === "attemptFailed" && (
-              <InlineNotice
-                tone="error"
-                icon={<TriangleAlert />}
-                title="No se pudo guardar el rol"
-                description="Probá de nuevo."
-              />
+              <ActionFailureNotice title="No se pudo guardar el rol" />
             )}
             {notice.kind === "rateLimited" && (
               <InlineNotice

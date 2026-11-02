@@ -1,6 +1,7 @@
 import { Button, InlineNotice, Modal } from "@purosur/ui";
-import { CircleCheck, ShieldX, TriangleAlert, X } from "lucide-react";
+import { CircleCheck, ShieldX, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import type {
@@ -113,12 +114,7 @@ export function FinishTicketRecoveryModal({
           Los tickets que se escaneen después no van a llegar a la caja restaurada.
         </p>
         {notice?.kind === "attemptFailed" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title="No se pudo terminar el rescate"
-            description="Probá de nuevo."
-          />
+          <ActionFailureNotice title="No se pudo terminar el rescate" />
         )}
         {notice?.kind === "rateLimited" && (
           <InlineNotice

@@ -1,4 +1,5 @@
 import { type BranchUserWire, branchUserListSchema } from "@purosur/contracts";
+import { cloudFetch } from "./cloud-fetch";
 import type { CloudReadOutcome } from "./cloud-read-outcome";
 import { rateLimitOutcome } from "./rate-limit-outcome";
 
@@ -35,7 +36,7 @@ export function branchUserFromWire(row: BranchUserWire) {
 export async function fetchUsers(): Promise<FetchUsersOutcome> {
   let response: Response;
   try {
-    response = await fetch("/api/users");
+    response = await cloudFetch("/api/users");
   } catch {
     return { kind: "failed" };
   }

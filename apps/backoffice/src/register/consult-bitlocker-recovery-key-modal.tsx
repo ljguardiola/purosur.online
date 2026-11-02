@@ -2,6 +2,7 @@ import { Button, InlineNotice, LoadingPlaceholder, Modal } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { Check, Info, KeyRound, ShieldX, TriangleAlert } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import type {
   authorizeSession,
@@ -159,12 +160,7 @@ export function ConsultBitlockerRecoveryKeyModal({
             />
           )}
           {notice?.kind === "attemptFailed" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No se pudo consultar la clave"
-              description="Probá de nuevo."
-            />
+            <ActionFailureNotice title="No se pudo consultar la clave" />
           )}
           {notice?.kind === "rateLimited" && (
             <InlineNotice

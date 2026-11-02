@@ -2,6 +2,7 @@ import { Button, InlineNotice } from "@purosur/ui";
 import { type ErrorComponentProps, useRouter } from "@tanstack/react-router";
 import { TriangleAlert } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useFailureText } from "../platform/action-failure-notice";
 import { ScreenDownloadFailure } from "./lazy-screen";
 import { ScreenLayout } from "./screen-layout";
 import { ScreenPending } from "./screen-pending";
@@ -40,6 +41,7 @@ export function ScreenFailure({ error }: ErrorComponentProps) {
   const [reloading, setReloading] = useState(downloadFailure !== null);
   const [offlineOnRetry, setOfflineOnRetry] = useState(false);
   const handledFailure = useRef<ScreenDownloadFailure | null>(null);
+  const retryAdvice = useFailureText("Probá de nuevo en unos minutos.");
 
   useEffect(() => {
     if (downloadFailure === null) {
@@ -96,9 +98,7 @@ export function ScreenFailure({ error }: ErrorComponentProps) {
         tone="error"
         icon={<TriangleAlert />}
         description={
-          offlineOnRetry
-            ? "Revisá la conexión a internet y probá de nuevo."
-            : "Probá de nuevo en unos minutos."
+          offlineOnRetry ? "Revisá la conexión a internet y probá de nuevo." : retryAdvice
         }
       />
       <Button variant="secondary" onPress={() => void retry()}>

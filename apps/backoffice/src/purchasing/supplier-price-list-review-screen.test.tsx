@@ -1,6 +1,7 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { supplierPriceListReviewFilters } from "./supplier-price-lists-filters";
 import { LINK_CHOICES, NO_PROPOSAL, PROPOSED_BY_BARCODE } from "./test-support/supplier-item-links";
@@ -1018,4 +1019,18 @@ test("offers the way to create a product from the link modal to a session that m
   await expect
     .element(screen.getByRole("dialog").getByRole("button", { name: "Crear producto" }))
     .toBeVisible();
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when marking an item as reviewed is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices();
+  vi.mocked(services.markSupplierPriceListRowReviewed).mockResolvedValue({ kind: "failed" });
+  const screen = await loaded(services, extracted);
+
+  await userEvent.click(
+    screen.getByRole("button", { name: "Marcar como revisado Almendra pelada Nonpareil x 25 kg" }),
+  );
+
+  await expect.element(screen.getByText("No se marcó el ítem")).toBeVisible();
+  await expect.element(screen.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
 });

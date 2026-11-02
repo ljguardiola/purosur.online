@@ -1,6 +1,7 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { ACCOUNT_ID, account, runbook } from "./test-support/compromise-response";
 import {
   createServices,
@@ -401,4 +402,17 @@ test("has no accessibility violations", async () => {
   await expect.element(screen.getByRole("heading", { name: STEP_TITLES[0] ?? "" })).toBeVisible();
 
   await expectNoAccessibilityViolations(screen.container);
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when starting is refused", async () => {
+  openAsOutdatedTab();
+  const services = servicesWith(null);
+  vi.mocked(services.startCompromiseResponse).mockResolvedValue({ kind: "failed" });
+  const screen = await renderScreen(services);
+
+  await userEvent.click(screen.getByRole("button", { name: "Comenzar" }));
+
+  await expect.element(screen.getByText("No se pudo comenzar")).toBeVisible();
+  await expect.element(screen.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Comenzar" })).toBeEnabled();
 });

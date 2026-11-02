@@ -3,6 +3,7 @@ import {
   type CompromiseResponseSessionsAndPasskeysBody,
   compromiseResponseSchema,
 } from "@purosur/contracts";
+import { cloudFetch } from "../platform/cloud-fetch";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 
@@ -87,7 +88,7 @@ function runbookFromWire(body: CompromiseResponseBody): CompromiseResponse {
 }
 
 function post(path: string, body?: unknown): Promise<Response> {
-  return fetch(path, {
+  return cloudFetch(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body ?? {}),
@@ -142,7 +143,7 @@ async function runStep(path: string, body?: unknown): Promise<StepOutcome> {
 export async function fetchCompromiseResponse(): Promise<FetchCompromiseResponseOutcome> {
   let response: Response;
   try {
-    response = await fetch("/api/compromise-responses/current");
+    response = await cloudFetch("/api/compromise-responses/current");
   } catch {
     return { kind: "failed" };
   }

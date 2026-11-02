@@ -2,18 +2,7 @@ import { afterEach, expect, test, vi } from "vitest";
 import { renderHook } from "vitest-browser-react";
 import type { SessionStatusOutcome } from "../sessions/session-api";
 import { type SessionWatcherOptions, useSessionWatcher } from "./session-watcher";
-
-// The *Async variant of advanceTimersByTime also flushes the microtasks a check's own await needs.
-async function usingFakeTimers(steps: () => Promise<void>): Promise<void> {
-  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
-  try {
-    await steps();
-  } finally {
-    // Not runAllTimers(): a still-running setInterval would keep rescheduling itself forever.
-    vi.clearAllTimers();
-    vi.useRealTimers();
-  }
-}
+import { setVisibilityState, usingFakeTimers } from "./test-support/page-timing";
 
 function renderWatcher(initialProps: SessionWatcherOptions) {
   return renderHook((props?: SessionWatcherOptions) => useSessionWatcher(props ?? initialProps), {
@@ -24,30 +13,6 @@ function renderWatcher(initialProps: SessionWatcherOptions) {
 // window.setTimeout's delay overflows its 32-bit signed int past ~24.8 days, firing almost
 // immediately, so deadlines below stay one day out to avoid tripping it.
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-
-function findVisibilityStateDescriptor(): PropertyDescriptor | undefined {
-  for (
-    let target: object | null = document;
-    target !== null;
-    target = Object.getPrototypeOf(target)
-  ) {
-    const descriptor = Object.getOwnPropertyDescriptor(target, "visibilityState");
-    if (descriptor) {
-      return descriptor;
-    }
-  }
-  return undefined;
-}
-
-function setVisibilityState(value: DocumentVisibilityState): () => void {
-  const original = findVisibilityStateDescriptor();
-  Object.defineProperty(document, "visibilityState", { configurable: true, get: () => value });
-  return () => {
-    if (original) {
-      Object.defineProperty(document, "visibilityState", original);
-    }
-  };
-}
 
 let hooks: Array<{ unmount: () => Promise<void> }> = [];
 

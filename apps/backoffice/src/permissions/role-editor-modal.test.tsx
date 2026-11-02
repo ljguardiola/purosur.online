@@ -6,6 +6,7 @@ import { page, userEvent } from "vitest/browser";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import type { RoleSummary } from "../platform/roles-api";
 import { permissionCatalogFixture } from "../platform/test-support/permission-catalog";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import { useRefreshPermissions } from "./permissions-queries";
 import {
@@ -1197,4 +1198,20 @@ test("reopening the editor after a Recargar also reads the role again before sho
   await screen.rerender(modalFor({ kind: "edit", roleId: "role-stock" }, services));
 
   await expectTheFreshRoleAsksToConfirm(screen, services, fresh);
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when saving the role is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices();
+  vi.mocked(services.createRole).mockResolvedValue({
+    kind: "validation_failed",
+    field: "permissions",
+  });
+  const screen = await renderModal({ kind: "new" }, services);
+
+  await userEvent.fill(screen.getByRole("textbox", { name: /^Nombre del rol/ }), "Depósito");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar el rol" }));
+
+  await expect.element(screen.getByText("No se pudo guardar el rol")).toBeVisible();
+  await expect.element(screen.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
 });

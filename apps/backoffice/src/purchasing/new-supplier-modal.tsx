@@ -1,7 +1,8 @@
 import { type SupplierSummary, supplierCreationBodySchema } from "@purosur/contracts";
 import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
-import { Check, ShieldX, TriangleAlert, Truck, X } from "lucide-react";
+import { Check, ShieldX, Truck, X } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import {
@@ -127,9 +128,7 @@ export function NewSupplierModal({
     >
       <div className="flex flex-col gap-4">
         {notice?.kind === "attemptFailed" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
+          <ActionFailureNotice
             title="No se guardó el proveedor"
             description="Volvé a intentarlo."
           />

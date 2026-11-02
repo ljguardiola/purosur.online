@@ -2,6 +2,7 @@ import { formatPointOfSaleNumber } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import type { OfflinePointOfSale } from "./offline-points-of-sale-api";
 import {
@@ -254,4 +255,17 @@ test("ends the session when the cloud no longer knows it", async () => {
   await confirm(dialog);
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when retiring the point of sale is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices();
+  vi.mocked(services.retireOfflinePointOfSale).mockResolvedValue({ kind: "failed" });
+  const { dialog } = await renderModal(services);
+
+  await confirm(dialog);
+
+  await expect.element(dialog.getByText("No se pudo dar de baja el punto de venta")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  expect(dialog.getByText("Probá de nuevo.").query()).toBeNull();
 });

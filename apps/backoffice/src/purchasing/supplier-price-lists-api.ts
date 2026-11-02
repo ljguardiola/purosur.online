@@ -18,6 +18,7 @@ import {
   supplierPriceListReviewSchema,
   supplierPriceListUploadedSchema,
 } from "@purosur/contracts";
+import { cloudFetch } from "../platform/cloud-fetch";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readCloudJson } from "../platform/read-cloud-json";
@@ -156,7 +157,7 @@ export async function fetchSupplierPriceListReview(
 ): Promise<FetchSupplierPriceListReviewOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/api/supplier-price-lists/${id}`);
+    response = await cloudFetch(`/api/supplier-price-lists/${id}`);
   } catch {
     return { kind: "failed" };
   }
@@ -181,7 +182,7 @@ export async function uploadSupplierPriceList(
   const search = new URLSearchParams({ supplierId: query.supplierId, fileName: query.fileName });
   let response: Response;
   try {
-    response = await fetch(`/api/supplier-price-lists?${search}`, {
+    response = await cloudFetch(`/api/supplier-price-lists?${search}`, {
       method: "POST",
       headers: { "Content-Type": "application/pdf" },
       body: file,
@@ -224,7 +225,7 @@ export async function uploadSupplierPriceList(
 
 async function sendWebPage(path: string, init: RequestInit): Promise<Response | undefined> {
   try {
-    return await fetch(path, init);
+    return await cloudFetch(path, init);
   } catch {
     return undefined;
   }
@@ -311,7 +312,7 @@ async function changeReview<Conflict extends string>(
 ): Promise<{ kind: "ok" } | { kind: Conflict } | ReviewChangeRefusal> {
   let response: Response;
   try {
-    response = await fetch(path, {
+    response = await cloudFetch(path, {
       method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),

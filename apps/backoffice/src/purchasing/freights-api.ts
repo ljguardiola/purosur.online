@@ -8,6 +8,7 @@ import {
   type LinkablePurchaseList,
   linkablePurchaseListSchema,
 } from "@purosur/contracts";
+import { cloudFetch } from "../platform/cloud-fetch";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
@@ -69,7 +70,7 @@ export async function fetchFreights({
   }
   let response: Response;
   try {
-    response = await fetch(`/api/freights?${query.toString()}`);
+    response = await cloudFetch(`/api/freights?${query.toString()}`);
   } catch {
     return { kind: "failed" };
   }
@@ -90,7 +91,7 @@ export async function fetchLinkablePurchases({
   }
   let response: Response;
   try {
-    response = await fetch(`/api/freights/linkable-purchases?${query.toString()}`);
+    response = await cloudFetch(`/api/freights/linkable-purchases?${query.toString()}`);
   } catch {
     return { kind: "failed" };
   }
@@ -126,7 +127,7 @@ async function sendFreight(
 ): Promise<{ kind: "ok"; freight: Freight } | FreightRefusal | { kind: "not_found" }> {
   let response: Response;
   try {
-    response = await fetch(path, {
+    response = await cloudFetch(path, {
       method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),

@@ -19,6 +19,7 @@ import {
 } from "@purosur/ui";
 import { ShieldX, ShoppingCart, TriangleAlert } from "lucide-react";
 import type { z } from "zod";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { formatDisplayDate } from "../platform/display-date";
 import { retryAfterDetail } from "../platform/retry-after-detail";
@@ -64,14 +65,7 @@ export function FreightNotices({
 }) {
   switch (notice?.kind) {
     case "attemptFailed":
-      return (
-        <InlineNotice
-          tone="error"
-          icon={<TriangleAlert />}
-          title={failedTitle}
-          description="Volvé a intentarlo."
-        />
-      );
+      return <ActionFailureNotice title={failedTitle} description="Volvé a intentarlo." />;
     case "rateLimited":
       return (
         <InlineNotice

@@ -3,6 +3,7 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { type Locator, page, userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import type { RejectedDocument } from "./fortnight-presentations-api";
 import type { RemedyTarget } from "./rejected-document-remedy-form";
@@ -616,4 +617,17 @@ test("groups thousands and takes a typed dot as the decimal comma in the total",
   await userEvent.type(field, "1234.5");
 
   await expect.element(field).toHaveValue("1.234,5");
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when correcting the report is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices();
+  vi.mocked(services.remedyRejectedDocument).mockResolvedValue({ kind: "failed" });
+  const { dialog } = await renderModal(services);
+
+  await submitReport(dialog);
+
+  await expect.element(dialog.getByText("No se pudo corregir el informe")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  expect(dialog.getByText("Probá de nuevo.").query()).toBeNull();
 });

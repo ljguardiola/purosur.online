@@ -12,6 +12,7 @@ import {
 } from "@purosur/ui";
 import { Download, Minus, Package, Plus, Printer, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { downloadFile } from "../platform/download-file";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
@@ -216,12 +217,7 @@ export function PrintLabelsModal({
     >
       <div className="flex flex-col gap-4">
         {notice?.kind === "attemptFailed" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title="No se pudo generar la hoja"
-            description="Probá de nuevo."
-          />
+          <ActionFailureNotice title="No se pudo generar la hoja" />
         )}
         {notice?.kind === "rateLimited" && (
           <InlineNotice

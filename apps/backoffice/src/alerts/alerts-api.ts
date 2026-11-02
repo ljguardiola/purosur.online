@@ -7,6 +7,7 @@ import {
   alertsOverviewSchema,
 } from "@purosur/contracts";
 import type { AlertLevel } from "@purosur/domain";
+import { cloudFetch } from "../platform/cloud-fetch";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 
@@ -56,7 +57,7 @@ function queryString(listQuery: AlertListQuery): string {
 export async function fetchAlerts(listQuery: AlertListQuery = {}): Promise<FetchAlertsOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/api/alerts${queryString(listQuery)}`);
+    response = await cloudFetch(`/api/alerts${queryString(listQuery)}`);
   } catch {
     return { kind: "failed" };
   }
@@ -79,7 +80,7 @@ export async function fetchAlerts(listQuery: AlertListQuery = {}): Promise<Fetch
 export async function fetchAlertsOverview(): Promise<FetchAlertsOverviewOutcome> {
   let response: Response;
   try {
-    response = await fetch("/api/alerts/overview");
+    response = await cloudFetch("/api/alerts/overview");
   } catch {
     return { kind: "failed" };
   }
@@ -102,7 +103,7 @@ export async function fetchAlertsOverview(): Promise<FetchAlertsOverviewOutcome>
 export async function fetchAlert(id: string): Promise<FetchAlertOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/api/alerts/${id}`);
+    response = await cloudFetch(`/api/alerts/${id}`);
   } catch {
     return { kind: "failed" };
   }
@@ -128,7 +129,7 @@ export async function fetchAlert(id: string): Promise<FetchAlertOutcome> {
 export async function closeAlert(id: string): Promise<CloseAlertOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/api/alerts/${id}/closure`, {
+    response = await cloudFetch(`/api/alerts/${id}/closure`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({}),

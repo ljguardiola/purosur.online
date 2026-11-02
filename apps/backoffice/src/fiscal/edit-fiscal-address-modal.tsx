@@ -1,8 +1,9 @@
 import { fiscalAddressEditBodySchema } from "@purosur/contracts";
 import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
-import { Check, Landmark, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
+import { Check, Landmark, RotateCcw, ShieldX, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { useAuthorization } from "../platform/authorization-modal";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { retryAfterDetail } from "../platform/retry-after-detail";
@@ -202,12 +203,7 @@ export function EditFiscalAddressModal({
         {target ? (
           <div className="flex flex-col gap-4">
             {notice?.kind === "attemptFailed" && (
-              <InlineNotice
-                tone="error"
-                icon={<TriangleAlert />}
-                title="No se pudo guardar el cambio"
-                description="Probá de nuevo."
-              />
+              <ActionFailureNotice title="No se pudo guardar el cambio" />
             )}
             {notice?.kind === "rateLimited" && (
               <InlineNotice

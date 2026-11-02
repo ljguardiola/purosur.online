@@ -2,6 +2,7 @@ import { Button, formatNumber, InlineNotice, Modal, plural } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { ShieldX, Trash2, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { useAuthorization } from "../platform/authorization-modal";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
@@ -146,12 +147,7 @@ export function RemoveEveryUserPasskeyModal({
             {`${subject} de servir para entrar y se cierran sus sesiones abiertas. Para volver a entrar, ${userName} va a tener que pedir el enlace de recuperación por correo.`}
           </p>
           {notice?.kind === "attemptFailed" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No se pudieron dar de baja las passkeys"
-              description="Probá de nuevo."
-            />
+            <ActionFailureNotice title="No se pudieron dar de baja las passkeys" />
           )}
           {notice?.kind === "ownAccount" && (
             <InlineNotice

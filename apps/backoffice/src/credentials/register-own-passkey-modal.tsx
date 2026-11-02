@@ -5,8 +5,9 @@ import type {
   startAuthentication,
   startRegistration,
 } from "@simplewebauthn/browser";
-import { KeyRound, ShieldX, TriangleAlert, X } from "lucide-react";
+import { KeyRound, ShieldX, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { useAuthorization } from "../platform/authorization-modal";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import type {
@@ -194,14 +195,7 @@ export function RegisterOwnPasskeyModal({
         }
       >
         <div className="flex flex-col gap-4">
-          {attemptFailed ? (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No se pudo registrar la passkey"
-              description="Probá de nuevo."
-            />
-          ) : null}
+          {attemptFailed ? <ActionFailureNotice title="No se pudo registrar la passkey" /> : null}
           {rateLimitedSeconds !== null && (
             <InlineNotice
               tone="error"

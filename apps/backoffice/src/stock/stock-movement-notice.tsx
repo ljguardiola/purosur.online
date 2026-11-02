@@ -1,5 +1,6 @@
 import { InlineNotice } from "@purosur/ui";
 import { ShieldX, TriangleAlert } from "lucide-react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 
 export type StockMovementNotice =
@@ -11,12 +12,7 @@ export function StockMovementNotice({ notice }: { notice: StockMovementNotice })
   return (
     <>
       {notice.kind === "attemptFailed" && (
-        <InlineNotice
-          tone="error"
-          icon={<TriangleAlert />}
-          title="No se pudo guardar el movimiento"
-          description="Probá de nuevo."
-        />
+        <ActionFailureNotice title="No se pudo guardar el movimiento" />
       )}
       {notice.kind === "rateLimited" && (
         <InlineNotice
