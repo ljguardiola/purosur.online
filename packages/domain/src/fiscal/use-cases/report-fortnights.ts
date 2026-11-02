@@ -1,5 +1,5 @@
-import { argentinaCalendarDay, argentinaInstant, shiftCalendarDay } from "../../shared/index.js";
-import { isInstallationActiveDuring, streamReachesPast } from "../../sync/index.js";
+import { argentinaCalendarDay, shiftCalendarDay } from "../../shared/index.js";
+import { isInstallationActiveDuring } from "../../sync/index.js";
 import type { TaxAuthorityRejection } from "../model/fiscal-rejection-standing.js";
 import {
   CREDIT_NOTE_C_DOCUMENT_TYPE,
@@ -7,7 +7,6 @@ import {
 } from "../model/fiscal-voucher-type.js";
 import {
   type DocumentTypeReportState,
-  fortnightClosesAt,
   fortnightReportStateOfDocumentTypes,
   isFortnightReportRetryDue,
   isHeldForInvoiceReport,
@@ -33,6 +32,10 @@ import {
   rejectedDocumentCreditNote,
   remedyAwaitsResend,
 } from "../model/rejected-document-remedy.js";
+import {
+  fortnightPeriod,
+  streamReachesPastOnceConfirmed,
+} from "../model/revoked-installation-confirmation.js";
 import type {
   FortnightReportPorts,
   HeldFortnightReport,
@@ -320,23 +323,24 @@ async function presentFortnight(
 }
 
 async function reachesPastClose(
-  { streams, zoneRules }: FortnightReportPorts,
+  { streams, confirmations, zoneRules }: FortnightReportPorts,
   listed: ListedOwedPresentation[],
   owed: OwedFortnightReport,
 ): Promise<boolean> {
   const { fortnight } = owed.code;
   const installations = await streams.installationsOf(owed.registerId);
-  const period = {
-    from: new Date(argentinaInstant(fortnight.start, "00:00", zoneRules.zoneRules())),
-    until: fortnightClosesAt(fortnight, zoneRules.zoneRules()),
-  };
+  const confirmed = await confirmations.confirmedInstallations({
+    pointOfSaleNumber: owed.pointOfSaleNumber,
+    fortnight,
+  });
+  const period = fortnightPeriod(fortnight, zoneRules.zoneRules());
   if (
     listsOwedPresentation(listed, keyOf(owed)) &&
     !installations.some((installation) => isInstallationActiveDuring(installation, period))
   ) {
     return false;
   }
-  return streamReachesPast(installations, period);
+  return streamReachesPastOnceConfirmed(installations, period, confirmed);
 }
 
 async function presentUnreportedDocuments(

@@ -127,6 +127,10 @@ export interface RegisterEventStreams {
   installationsOf(registerId: string): Promise<InstallationStreamReach[]>;
 }
 
+export interface RevokedInstallationConfirmations {
+  confirmedInstallations(key: FortnightReportKey): Promise<string[]>;
+}
+
 export interface NoMovementDeclarationCall {
   token: WsaaToken;
   pointOfSaleNumber: number;
@@ -190,6 +194,7 @@ export interface FortnightReportPorts {
   reports: FortnightReportStore;
   documents: OfflineDocumentsOfFortnight;
   streams: RegisterEventStreams;
+  confirmations: RevokedInstallationConfirmations;
   declarations: TaxAuthorityNoMovementDeclarations;
   documentReports: TaxAuthorityOfflineDocumentReports;
   codeStore: OfflineAuthorizationCodeStore;

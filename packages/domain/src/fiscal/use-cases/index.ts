@@ -302,6 +302,7 @@ export type {
   RecordedDocumentTypeReport,
   RecordedFortnightReport,
   RegisterEventStreams,
+  RevokedInstallationConfirmations,
   TaxAuthorityNoMovementDeclarations,
   TaxAuthorityOfflineDocumentReports,
 } from "./fortnight-report-ports.js";
