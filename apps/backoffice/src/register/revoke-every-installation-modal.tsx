@@ -1,6 +1,7 @@
 import { Button, InlineNotice, Modal } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { Ban, ShieldOff, ShieldX, TriangleAlert, X } from "lucide-react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import type {
   authorizeSession,
@@ -116,12 +117,7 @@ export function RevokeEveryInstallationModal({
             />
           )}
           {notice?.kind === "attemptFailed" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No se pudieron revocar las instalaciones"
-              description="Probá de nuevo."
-            />
+            <ActionFailureNotice title="No se pudieron revocar las instalaciones" />
           )}
           {notice?.kind === "rateLimited" && (
             <InlineNotice

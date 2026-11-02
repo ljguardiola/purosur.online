@@ -16,6 +16,7 @@ import { formatProductDescription } from "@purosur/ui/formatters";
 import { deepEqual } from "@tanstack/react-router";
 import { CalendarClock, Check, Search, Trash2, TriangleAlert } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useRetryAdvice } from "../platform/action-failure-notice";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
@@ -110,12 +111,13 @@ function discardedNotice(lot: ExpiringLot, result: ExpiredLotDiscardResult) {
 
 function refusedNotice(
   outcome: Exclude<DiscardExpiredLotOutcome, { kind: "ok" | "unauthenticated" | "forbidden" }>,
+  retryAdvice: string,
 ) {
   const description =
     outcome.kind === "rate_limited"
       ? retryAfterDetail(outcome.retryAfterSeconds)
       : outcome.kind === "failed" || outcome.kind === "validation_failed"
-        ? "Probá de nuevo."
+        ? retryAdvice
         : REFUSAL_REASONS[outcome.kind];
   return { tone: "error" as const, title: "No se pudo dar de baja el lote", description };
 }
@@ -135,6 +137,7 @@ export function ExpiringLotsScreen({
   const reportFilters = useEffectEvent(onFiltersChange);
   const refreshStock = useRefreshStock();
   const sendToMyAccount = useSendToMyAccount();
+  const retryAdvice = useRetryAdvice();
 
   useEffect(() => {
     const shown: ExpiringLotsFilters = { search, category, expiry };
@@ -181,7 +184,7 @@ export function ExpiringLotsScreen({
       await refreshStock();
       return;
     }
-    showNotice(refusedNotice(outcome));
+    showNotice(refusedNotice(outcome, retryAdvice));
     if (outcome.kind !== "failed" && outcome.kind !== "rate_limited") {
       await refreshStock();
     }

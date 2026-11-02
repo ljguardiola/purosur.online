@@ -1,7 +1,8 @@
 import { Button, InlineNotice, Modal } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
-import { RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
+import { RotateCcw, ShieldX, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { useAuthorization } from "../platform/authorization-modal";
 import type { BranchUser } from "../platform/branch-users-api";
 import { retryAfterDetail } from "../platform/retry-after-detail";
@@ -135,14 +136,7 @@ export function ReactivateUserModal({
           <p className="text-center text-body text-text-subtle">
             Vuelve a entrar a la caja y al backoffice con su mismo correo, rol y passkeys.
           </p>
-          {attemptFailed ? (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No se pudo reactivar el usuario"
-              description="Probá de nuevo."
-            />
-          ) : null}
+          {attemptFailed ? <ActionFailureNotice title="No se pudo reactivar el usuario" /> : null}
           {rateLimitedSeconds !== null && (
             <InlineNotice
               tone="error"

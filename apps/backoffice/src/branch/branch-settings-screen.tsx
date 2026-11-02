@@ -9,6 +9,7 @@ import {
 } from "@purosur/ui";
 import { Check, RotateCcw, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { ScreenLayout } from "../shell/screen-layout";
@@ -139,12 +140,7 @@ export function BranchSettingsScreen({ onSessionEnded, services }: BranchSetting
       {data.status === "loading" && <LoadingPlaceholder variant="form" fields={6} />}
       {data.status === "failed" && <LoadFailure {...cloudLoadFailure(data, "la sucursal")} />}
       {notice?.kind === "attemptFailed" && (
-        <InlineNotice
-          tone="error"
-          icon={<TriangleAlert />}
-          title="No se pudo guardar la sucursal"
-          description="Probá de nuevo."
-        />
+        <ActionFailureNotice title="No se pudo guardar la sucursal" />
       )}
       {notice?.kind === "staleVersion" && (
         <InlineNotice

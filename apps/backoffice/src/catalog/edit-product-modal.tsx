@@ -346,12 +346,7 @@ export function EditProductModal({
             />
           )}
           {notice?.kind === "reloadFailed" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No se pudieron recargar los datos"
-              description="Probá de nuevo."
-            />
+            <ActionFailureNotice title="No se pudieron recargar los datos" />
           )}
           <form.AppField name="name">
             {(field) => <field.TextField kind="plain-text" label="Nombre" required />}

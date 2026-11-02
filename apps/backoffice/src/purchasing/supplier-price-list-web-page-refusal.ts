@@ -1,3 +1,4 @@
+import { RETRY_ADVICE_LATER } from "../platform/action-failure-notice";
 import type { WebPageRefusalReason } from "./supplier-price-lists-api";
 
 const WEB_PAGE_REFUSAL_MESSAGES = {
@@ -9,8 +10,7 @@ const WEB_PAGE_REFUSAL_MESSAGES = {
   too_large: "La página es demasiado pesada.",
   too_slow: "La página tardó demasiado en responder.",
   unsupported_content: "La dirección no es un PDF ni una página web.",
-  store_catalog_unavailable:
-    "La tienda no entregó su lista de productos. Probá de nuevo más tarde.",
+  store_catalog_unavailable: `La tienda no entregó su lista de productos. ${RETRY_ADVICE_LATER}`,
   unreachable: "La página no respondió. Revisá la dirección.",
 } satisfies Record<WebPageRefusalReason, string>;
 

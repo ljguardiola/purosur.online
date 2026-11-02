@@ -7,6 +7,7 @@ import type {
 } from "@simplewebauthn/browser";
 import { KeyRound, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { RETRY_ADVICE } from "../platform/action-failure-notice";
 import { useAuthorization } from "../platform/authorization-modal";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import type {
@@ -199,7 +200,7 @@ export function RegisterOwnPasskeyModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No se pudo registrar la passkey"
-              description="Probá de nuevo."
+              description={RETRY_ADVICE}
             />
           ) : null}
           {rateLimitedSeconds !== null && (

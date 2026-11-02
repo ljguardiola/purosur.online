@@ -23,6 +23,7 @@ import {
 } from "@purosur/ui";
 import { Check, ClipboardCheck, Layers, Package, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { creatableChoice } from "../platform/creatable-options";
 import { withCreatedProducts } from "../platform/created-products";
@@ -309,12 +310,7 @@ export function NewCountModal({
       {products.status === "loaded" && rules !== undefined && productChoice ? (
         <div className="flex flex-col gap-4">
           {notice?.kind === "attemptFailed" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No se pudo guardar el recuento"
-              description="Probá de nuevo."
-            />
+            <ActionFailureNotice title="No se pudo guardar el recuento" />
           )}
           {notice?.kind === "rateLimited" && (
             <InlineNotice

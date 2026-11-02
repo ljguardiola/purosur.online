@@ -2,6 +2,7 @@ import type { BrandSummary, ProductSummary } from "@purosur/contracts";
 import { Button, InlineNotice, Modal } from "@purosur/ui";
 import { Ban, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { productDescription } from "./product-description";
@@ -147,12 +148,7 @@ export function DeactivateProductModal({
           Deja de ofrecerse en el catálogo y en las cajas. Las ventas que ya lo incluyen no cambian.
         </p>
         {notice?.kind === "attemptFailed" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title="No se pudo desactivar el producto"
-            description="Probá de nuevo."
-          />
+          <ActionFailureNotice title="No se pudo desactivar el producto" />
         )}
         {notice?.kind === "alreadyChanged" && (
           <InlineNotice tone="error" icon={<TriangleAlert />} title="Ya estaba desactivado" />

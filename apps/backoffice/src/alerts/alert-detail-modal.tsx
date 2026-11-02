@@ -50,6 +50,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import { type ReactElement, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { ALERT_LEVEL_LABELS } from "../platform/alert-level-label";
 import { ALERT_LEVEL_TONE } from "../platform/alert-level-tone";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
@@ -1007,12 +1008,7 @@ function OpenAlertDetailModal({
     >
       <div className="flex flex-col gap-4">
         {notice?.kind === "attemptFailed" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title="No se pudo cerrar la alerta"
-            description="Probá de nuevo."
-          />
+          <ActionFailureNotice title="No se pudo cerrar la alerta" />
         )}
         {notice?.kind === "alreadyClosed" && (
           <InlineNotice

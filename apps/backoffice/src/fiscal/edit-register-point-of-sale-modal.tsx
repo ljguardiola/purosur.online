@@ -10,8 +10,9 @@ import {
   useRequestForm,
 } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
-import { Check, Info, Landmark, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
+import { Check, Info, Landmark, RotateCcw, ShieldX, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { useAuthorization } from "../platform/authorization-modal";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { creatableChoice } from "../platform/creatable-options";
@@ -272,12 +273,7 @@ export function EditRegisterPointOfSaleModal({
         {target ? (
           <div className="flex flex-col gap-4">
             {notice?.kind === "attemptFailed" && (
-              <InlineNotice
-                tone="error"
-                icon={<TriangleAlert />}
-                title="No se pudo guardar el cambio"
-                description="Probá de nuevo."
-              />
+              <ActionFailureNotice title="No se pudo guardar el cambio" />
             )}
             {notice?.kind === "rateLimited" && (
               <InlineNotice

@@ -7,6 +7,7 @@ import {
 } from "@purosur/contracts";
 import type { SaleUnit } from "@purosur/domain";
 import { formatProductDescription } from "@purosur/ui/formatters";
+import { RETRY_ADVICE } from "../platform/action-failure-notice";
 import { schemaLimit } from "../platform/schema-limit";
 import {
   formatStockQuantityInput,
@@ -188,7 +189,7 @@ export function batchSizeMessage(size: string, saleUnit: SaleUnit, proposed: boo
   }
   return proposed
     ? "Revisá el tamaño de la tanda."
-    : "Todavía no se calcularon las cantidades de la tanda. Probá de nuevo.";
+    : `Todavía no se calcularon las cantidades de la tanda. ${RETRY_ADVICE}`;
 }
 
 export function batchUsedMessage(

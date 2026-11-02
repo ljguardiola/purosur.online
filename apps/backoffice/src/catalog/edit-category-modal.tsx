@@ -2,6 +2,7 @@ import { type CategorySummary, categoryEditBodySchema } from "@purosur/contracts
 import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import { Check, RotateCcw, ShieldX, Tags, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { selfAndDescendantIds, withCreatedCategory } from "../platform/category-path";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
@@ -205,12 +206,7 @@ export function EditCategoryModal({
       {target ? (
         <div className="flex flex-col gap-4">
           {notice?.kind === "attemptFailed" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No se pudo guardar el cambio"
-              description="Probá de nuevo."
-            />
+            <ActionFailureNotice title="No se pudo guardar el cambio" />
           )}
           {notice?.kind === "rateLimited" && (
             <InlineNotice

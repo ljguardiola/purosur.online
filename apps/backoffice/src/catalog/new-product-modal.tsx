@@ -6,8 +6,9 @@ import {
   type TagSummary,
 } from "@purosur/contracts";
 import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
-import { Check, PackagePlus, ShieldX, TriangleAlert, X } from "lucide-react";
+import { Check, PackagePlus, ShieldX, X } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
+import { ActionFailureNotice, useFailureText } from "../platform/action-failure-notice";
 import {
   PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED,
   useBarcodeChips,
@@ -157,7 +158,7 @@ export function NewProductModal({
       setNotice((current) =>
         current?.kind === "rateLimited" && current.raisedByGenerate ? null : current,
       ),
-    PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED,
+    useFailureText(PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED),
   );
 
   const markCatalogStale = useMarkCatalogStale();
@@ -257,12 +258,7 @@ export function NewProductModal({
     >
       <div className="flex flex-col gap-4">
         {notice?.kind === "attemptFailed" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title="No se pudo crear el producto"
-            description="Probá de nuevo."
-          />
+          <ActionFailureNotice title="No se pudo crear el producto" />
         )}
         {notice?.kind === "rateLimited" && (
           <InlineNotice

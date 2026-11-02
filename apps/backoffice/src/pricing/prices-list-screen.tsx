@@ -29,6 +29,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useRetryAdvice } from "../platform/action-failure-notice";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
@@ -120,6 +121,7 @@ export function PricesListScreen({
   } | null>(null);
   const [walk, setWalk] = useState<{ queue: PriceProduct[]; index: number } | null>(null);
   const [notice, setNotice] = useState<(ScreenNotice & { id: number }) | null>(null);
+  const retryAdvice = useRetryAdvice();
   const lastNoticeId = useRef(0);
   const [screenRequestInFlight, setScreenRequestInFlight] = useState(false);
   const [purchaseReview, setPurchaseReview] = useState<readonly string[] | null>(() =>
@@ -219,7 +221,7 @@ export function PricesListScreen({
   const reviewStartFailedNotice: ScreenNotice = {
     tone: "error",
     title: "No se pudo empezar la revisión",
-    description: "Probá de nuevo.",
+    description: retryAdvice,
   };
 
   function rateLimitedNotice(retryAfterSeconds: number): ScreenNotice {
@@ -234,7 +236,7 @@ export function PricesListScreen({
   const purchaseReviewStartFailedNotice: ScreenNotice = {
     tone: "error",
     title: "No se pudo empezar la revisión de lo comprado",
-    description: "Probá de nuevo.",
+    description: retryAdvice,
   };
 
   async function startReview(productIds?: readonly string[]) {
@@ -361,7 +363,7 @@ export function PricesListScreen({
     return {
       tone: "error",
       title: `No se pudo confirmar el precio de ${formatProductDescription(item)}`,
-      description: "Probá de nuevo.",
+      description: retryAdvice,
     };
   }
 

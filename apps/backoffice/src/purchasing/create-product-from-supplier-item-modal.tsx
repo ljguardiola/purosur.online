@@ -16,6 +16,7 @@ import {
 } from "@purosur/ui";
 import { Check, PackagePlus, RotateCcw, ShieldX, Tags, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useFailureText } from "../platform/action-failure-notice";
 import {
   PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED,
   useBarcodeChips,
@@ -279,7 +280,7 @@ export function CreateProductFromSupplierItemModal({
     onSessionEnded,
     setGenerateRateLimit,
     () => setGenerateRateLimit(null),
-    PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED,
+    useFailureText(PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED),
   );
 
   const catalog = useProductCreationChoicesRefresh();

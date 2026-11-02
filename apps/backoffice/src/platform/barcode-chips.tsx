@@ -2,12 +2,12 @@ import type { InternalBarcodeGenerationBody } from "@purosur/contracts";
 import { FieldGroup, fieldErrorMessage, IconButton, useFieldContext } from "@purosur/ui";
 import { Barcode, ScanBarcode, X } from "lucide-react";
 import { type KeyboardEvent, useId, useRef, useState } from "react";
+import { RETRY_ADVICE } from "./action-failure-notice";
 import { type BarcodeListValue, internalBarcodeGenerationRequestFrom } from "./barcode-list";
 import type { generateInternalBarcode } from "./internal-barcodes-api";
 import { useSendToMyAccount } from "./send-to-my-account";
 
-export const PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED =
-  "No se pudo generar el código interno. Probá de nuevo.";
+export const PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED = `No se pudo generar el código interno. ${RETRY_ADVICE}`;
 
 const barcodeActionClassName =
   "flex h-control-xl flex-1 items-center justify-center gap-2 rounded-lg px-3 text-body font-bold " +

@@ -2,6 +2,7 @@ import { Button, InlineNotice, ScreenHeader } from "@purosur/ui";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/browser";
 import { Clock, KeyRound, LifeBuoy, ShieldX, TriangleAlert } from "lucide-react";
 import { useState } from "react";
+import { RETRY_ADVICE, RETRY_ADVICE_IN_A_FEW_MINUTES } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { AccessFooterLink, AccessLayout } from "../shell/access-layout";
 import type { SignInScreenServices } from "./sign-in-services";
@@ -96,7 +97,7 @@ export function SignInScreen({ openingNotice, onSignedIn, services }: SignInScre
           tone="warning"
           icon={<TriangleAlert />}
           title="No pudimos verificar tu sesión"
-          description="Probá de nuevo en unos minutos."
+          description={RETRY_ADVICE_IN_A_FEW_MINUTES}
         />
       )}
       {notice?.kind === "rate_limited" && (
@@ -112,7 +113,7 @@ export function SignInScreen({ openingNotice, onSignedIn, services }: SignInScre
           tone="error"
           icon={<TriangleAlert />}
           title="No se pudo ingresar"
-          description="Probá de nuevo."
+          description={RETRY_ADVICE}
         />
       )}
       <Button
