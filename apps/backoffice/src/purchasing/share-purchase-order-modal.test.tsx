@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
@@ -60,6 +61,51 @@ async function renderModal(
     </main>,
   );
   return screen.getByRole("dialog");
+}
+
+function ClosingHost({
+  services,
+  onShared = () => {},
+}: {
+  services: SharePurchaseOrderModalServices;
+  onShared?: (order: typeof SENT_ORDER) => void;
+}) {
+  const [target, setTarget] = useState<typeof DRAFT_ORDER | null>(DRAFT_ORDER);
+  return (
+    <main>
+      <button type="button" onClick={() => setTarget(DRAFT_ORDER)}>
+        Abrir otra vez
+      </button>
+      <SharePurchaseOrderModal
+        target={target}
+        services={services}
+        onShared={onShared}
+        onOutdated={() => setTarget(null)}
+        onClose={() => setTarget(null)}
+        onSessionEnded={() => {}}
+      />
+    </main>
+  );
+}
+
+function deferred<T>() {
+  let resolve: (value: T) => void = () => {};
+  const promise = new Promise<T>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+}
+
+function recordDownloads() {
+  vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:mock-url");
+  vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+  const downloadedFileNames: string[] = [];
+  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+    this: HTMLAnchorElement,
+  ) {
+    downloadedFileNames.push(this.download);
+  });
+  return downloadedFileNames;
 }
 
 test("shows the order text the cloud answers and says the branch sends it itself", async () => {
@@ -420,4 +466,94 @@ test("Cerrar closes the modal without calling the cloud to share", async () => {
 
   expect(onClose).toHaveBeenCalled();
   expect(services.sharePurchaseOrder).not.toHaveBeenCalled();
+});
+
+test("downloads nothing when the PDF arrives after updating the order closed the modal", async () => {
+  const pdf =
+    deferred<Awaited<ReturnType<SharePurchaseOrderModalServices["fetchPurchaseOrderPdf"]>>>();
+  const services = createServices({
+    fetchPurchaseOrderText: vi
+      .fn()
+      .mockResolvedValue({ kind: "ok", value: { kind: "not_shareable" } }),
+    fetchPurchaseOrderPdf: vi.fn().mockReturnValue(pdf.promise),
+  });
+  const downloadedFileNames = recordDownloads();
+  const screen = await render(<ClosingHost services={services} />);
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Descargar PDF" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Actualizar el pedido" }));
+  await expect.element(dialog).not.toBeInTheDocument();
+  pdf.resolve({ kind: "ok", blob: new Blob(["%PDF-1.7"], { type: "application/pdf" }) });
+  await pdf.promise;
+  await new Promise((settle) => setTimeout(settle));
+
+  expect(downloadedFileNames).toEqual([]);
+});
+
+test("shows no PDF failure in the next opening when it arrives after updating the order closed the modal", async () => {
+  const pdf =
+    deferred<Awaited<ReturnType<SharePurchaseOrderModalServices["fetchPurchaseOrderPdf"]>>>();
+  const services = createServices({
+    fetchPurchaseOrderText: vi
+      .fn()
+      .mockResolvedValue({ kind: "ok", value: { kind: "not_shareable" } }),
+    fetchPurchaseOrderPdf: vi.fn().mockReturnValue(pdf.promise),
+  });
+  const screen = await render(<ClosingHost services={services} />);
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Descargar PDF" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Actualizar el pedido" }));
+  await expect.element(dialog).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Abrir otra vez" }));
+  pdf.resolve({ kind: "failed" });
+  await pdf.promise;
+  await new Promise((settle) => setTimeout(settle));
+
+  await expect.element(dialog.getByText("Este pedido ya no se puede compartir")).toBeVisible();
+  expect(dialog.getByText("No se pudo generar el PDF").query()).toBeNull();
+});
+
+test("reports nothing shared when marking arrives after updating the order closed the modal", async () => {
+  const text =
+    deferred<Awaited<ReturnType<SharePurchaseOrderModalServices["fetchPurchaseOrderText"]>>>();
+  const share =
+    deferred<Awaited<ReturnType<SharePurchaseOrderModalServices["sharePurchaseOrder"]>>>();
+  const services = createServices({
+    fetchPurchaseOrderText: vi.fn().mockReturnValue(text.promise),
+    sharePurchaseOrder: vi.fn().mockReturnValue(share.promise),
+  });
+  const onShared = vi.fn();
+  const screen = await render(<ClosingHost services={services} onShared={onShared} />);
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Marcar como enviado" }));
+  text.resolve({ kind: "ok", value: { kind: "not_shareable" } });
+  await userEvent.click(dialog.getByRole("button", { name: "Actualizar el pedido" }));
+  await expect.element(dialog).not.toBeInTheDocument();
+  share.resolve({ kind: "ok", order: SENT_ORDER });
+  await share.promise;
+  await new Promise((settle) => setTimeout(settle));
+
+  expect(onShared).not.toHaveBeenCalled();
+});
+
+test("says nothing was copied in the next opening when the copy settles after Cerrar closed the modal", async () => {
+  const copy = deferred<void>();
+  vi.spyOn(navigator.clipboard, "writeText").mockReturnValue(copy.promise);
+  const screen = await render(<ClosingHost services={createServices()} />);
+  const dialog = screen.getByRole("dialog");
+  await expect.element(dialog.getByText(/3 x Miel pura de abeja 1 kg/)).toBeVisible();
+
+  await userEvent.click(dialog.getByRole("button", { name: "Copiar texto" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Cerrar" }).first());
+  await expect.element(dialog).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole("button", { name: "Abrir otra vez" }));
+  copy.resolve();
+  await copy.promise;
+  await new Promise((settle) => setTimeout(settle));
+
+  await expect.element(dialog.getByText(/3 x Miel pura de abeja 1 kg/)).toBeVisible();
+  expect(dialog.getByText("Texto copiado").query()).toBeNull();
 });
