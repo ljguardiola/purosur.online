@@ -1209,7 +1209,7 @@ export const registerContingencyIntervals = pgTable(
   ],
 );
 
-// The first report a register makes of its contingency stays as it was received.
+// Append-only: the first report a register makes of its contingency stays as it was received.
 export const registerContingencyReporting = pgTable("register_contingency_reporting", {
   registerId: uuid("register_id")
     .primaryKey()

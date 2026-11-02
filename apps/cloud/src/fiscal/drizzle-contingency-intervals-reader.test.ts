@@ -119,11 +119,12 @@ describe("DrizzleContingencyIntervalsReader", () => {
 
     const { registers } = await read(central);
 
-    expect([...registers].sort((a, b) => a.registerId.localeCompare(b.registerId))).toEqual(
-      [
+    expect(registers).toHaveLength(2);
+    expect(registers).toEqual(
+      expect.arrayContaining([
         { registerId: reporting, reportingSince: at("08:00") },
         { registerId: silent, reportingSince: null },
-      ].sort((a, b) => a.registerId.localeCompare(b.registerId)),
+      ]),
     );
   });
 
