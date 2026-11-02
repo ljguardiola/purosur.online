@@ -206,7 +206,7 @@ function lineProblem(line: PurchaseLineValues, products: PurchaseProducts): stri
     return quantityMessage(saleUnitOf(products, line.productId));
   }
   if (parseAmountCents(line.cost) === undefined) {
-    return "Escribí el costo pagado con coma para los centavos, por ejemplo 1.250,50.";
+    return "Escribí el costo pagado con hasta 2 decimales, por ejemplo 1.250,50.";
   }
   return "Revisá los valores.";
 }

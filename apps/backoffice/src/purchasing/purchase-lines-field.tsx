@@ -237,7 +237,7 @@ function PurchaseLineFields({
             <TextField
               kind="plain-text"
               label={costLabel(line.loadedBy, saleUnit)}
-              inputMode="decimal"
+              decimals={2}
               value={line.cost}
               onChange={(cost) => onChange({ cost })}
               required

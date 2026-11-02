@@ -103,7 +103,7 @@ describe("supplierItemQuantityMessage", () => {
       supplierItemQuantityMessage({ quantity: "1,5", saleUnit: "UNIT", quantityUnit: "KG" }),
     ).toBe("Escribí una cantidad entera de unidades, por ejemplo 16.");
     expect(supplierItemQuantityMessage({ quantity: "x", saleUnit: "KG", quantityUnit: "KG" })).toBe(
-      "Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.",
+      "Escribí los kilos con hasta 3 decimales, por ejemplo 12,150.",
     );
     expect(supplierItemQuantityMessage({ quantity: "x", saleUnit: "KG", quantityUnit: "G" })).toBe(
       "Escribí los gramos como un número entero, por ejemplo 500.",

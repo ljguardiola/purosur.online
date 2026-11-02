@@ -211,7 +211,7 @@ describe("ASSEMBLY_BATCH_FIELDS", () => {
 });
 
 describe("messages", () => {
-  const KG_MESSAGE = "Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.";
+  const KG_MESSAGE = "Escribí los kilos con hasta 3 decimales, por ejemplo 12,150.";
 
   it("asks for the size when it is blank and explains the format when it is unreadable", () => {
     expect(batchSizeMessage("", "KG", true)).toBe("Ingresá el tamaño de la tanda.");
