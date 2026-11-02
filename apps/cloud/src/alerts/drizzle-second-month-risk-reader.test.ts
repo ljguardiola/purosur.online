@@ -133,7 +133,7 @@ describe("DrizzleSecondMonthRiskReader.fiscalAddresses", () => {
 describe("DrizzleSecondMonthRiskReader.availabilityRuns", () => {
   it("answers the runs of reachability checks of the window", async () => {
     const first = new Date("2026-10-10T12:00:00.000Z");
-    const last = new Date("2026-10-10T12:05:00.000Z");
+    const last = new Date("2026-10-10T12:00:30.000Z");
     await db.insert(arcaVitalityChecks).values([
       { checkedAt: first, ok: true },
       { checkedAt: last, ok: true },
