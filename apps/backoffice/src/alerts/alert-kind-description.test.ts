@@ -160,6 +160,12 @@ test("describes a month in which a fiscal address reached the share of vouchers 
   );
 });
 
+test("describes a month that follows a non-compliant one and may become the second consecutive one", () => {
+  expect(alertKindDescription("exception_share_second_month_at_risk")).toBe(
+    "El mes anterior de un domicilio fiscal alcanzó el límite de comprobantes emitidos por excepción (CAEA) y el mes en curso puede ser el segundo consecutivo",
+  );
+});
+
 test("describes a deferred sale that is not invoiced yet and nears the day it can no longer be", () => {
   expect(alertKindDescription("deferred_sale_due")).toBe(
     "Una venta diferida todavía no se facturó y se acerca el día en que ya no podrá facturarse.",

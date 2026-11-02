@@ -124,6 +124,37 @@ describe("DrizzleDiscountReader", () => {
     expect(read.map(({ id }) => id)).toEqual([first.id, second.id].sort());
   });
 
+  it("reads discounts with numbers by value, case and accents ignored and ñ after n", async () => {
+    const category = await insertCategory(db, "Infusiones");
+    for (const name of [
+      "Zoe",
+      "Caja 10",
+      "ñandú",
+      "Banco",
+      "oso",
+      "árbol",
+      "Caja 2",
+      "ana",
+      "nube",
+    ]) {
+      await insertDiscount(db, { now: NOW, name, categoryId: category });
+    }
+
+    const read = await new DrizzleDiscountReader(db).discounts();
+
+    expect(read.map(({ name }) => name)).toEqual([
+      "ana",
+      "árbol",
+      "Banco",
+      "Caja 2",
+      "Caja 10",
+      "nube",
+      "ñandú",
+      "oso",
+      "Zoe",
+    ]);
+  });
+
   it("reads a buy-N-pay-M discount with its quantities", async () => {
     const product = await insertProductWithTags(db, { name: "Alfajor", tagIds: [] });
     const discount = await insertDiscount(db, {

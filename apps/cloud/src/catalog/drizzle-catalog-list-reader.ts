@@ -1,4 +1,4 @@
-import type { SaleUnit } from "@purosur/domain";
+import { compareCodeUnits, compareSpanishText, type SaleUnit } from "@purosur/domain";
 import type {
   CatalogBrandSummary,
   CatalogCategory,
@@ -19,6 +19,10 @@ import {
 } from "../platform/db/schema.js";
 import { netContentRow } from "./net-content-row.js";
 import { productActivityCondition } from "./product-activity-condition.js";
+
+function byNameThenId(a: { name: string; id: string }, b: { name: string; id: string }): number {
+  return compareSpanishText(a.name, b.name) || compareCodeUnits(a.id, b.id);
+}
 
 function groupByProductId(rows: { productId: string; value: string }[]): Map<string, string[]> {
   const grouped = new Map<string, string[]>();
@@ -61,8 +65,8 @@ export class DrizzleCatalogListReader<TQueryResult extends PgQueryResultHKT>
       .from(products)
       .innerJoin(categories, eq(products.categoryId, categories.id))
       .leftJoin(brands, eq(brands.id, products.brandId))
-      .where(productActivityCondition(scope))
-      .orderBy(asc(products.name));
+      .where(productActivityCondition(scope));
+    rows.sort(byNameThenId);
 
     const productIds = rows.map((row) => row.id);
     const barcodes = await this.barcodesByProductId(productIds);
@@ -85,20 +89,20 @@ export class DrizzleCatalogListReader<TQueryResult extends PgQueryResultHKT>
     }));
   }
 
-  categories(): Promise<CatalogCategory[]> {
-    return this.db
+  async categories(): Promise<CatalogCategory[]> {
+    const rows = await this.db
       .select({
         id: categories.id,
         name: categories.name,
         version: categories.version,
         parentId: categories.parentId,
       })
-      .from(categories)
-      .orderBy(asc(categories.name));
+      .from(categories);
+    return rows.sort(byNameThenId);
   }
 
-  brands(countedProducts: ProductActivityScope): Promise<CatalogBrandSummary[]> {
-    return this.selectBrandSummaries(countedProducts).orderBy(asc(brands.name));
+  async brands(countedProducts: ProductActivityScope): Promise<CatalogBrandSummary[]> {
+    return (await this.selectBrandSummaries(countedProducts)).sort(byNameThenId);
   }
 
   async brand(
@@ -111,8 +115,8 @@ export class DrizzleCatalogListReader<TQueryResult extends PgQueryResultHKT>
     return row;
   }
 
-  tags(countedProducts: ProductActivityScope): Promise<CatalogTagSummary[]> {
-    return this.selectTagSummaries(countedProducts).orderBy(asc(tags.name));
+  async tags(countedProducts: ProductActivityScope): Promise<CatalogTagSummary[]> {
+    return (await this.selectTagSummaries(countedProducts)).sort(byNameThenId);
   }
 
   async tag(
@@ -186,11 +190,14 @@ export class DrizzleCatalogListReader<TQueryResult extends PgQueryResultHKT>
       return new Map();
     }
     const rows = await this.db
-      .select({ productId: productTags.productId, value: productTags.tagId })
+      .select({ productId: productTags.productId, value: productTags.tagId, name: tags.name })
       .from(productTags)
       .innerJoin(tags, eq(tags.id, productTags.tagId))
-      .where(inArray(productTags.productId, productIds))
-      .orderBy(asc(tags.name));
-    return groupByProductId(rows);
+      .where(inArray(productTags.productId, productIds));
+    return groupByProductId(
+      rows.sort((a, b) =>
+        byNameThenId({ name: a.name, id: a.value }, { name: b.name, id: b.value }),
+      ),
+    );
   }
 }

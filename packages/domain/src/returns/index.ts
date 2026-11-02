@@ -41,10 +41,15 @@ export type {
   ReturnedStockMovement,
 } from "./model/returned-sale.js";
 export type {
+  AuthorizerReturnsAndVoids,
+  CashierReturnsAndVoids,
   ReturnRecord,
   ReturnRecordLine,
   ReturnRow,
   ReturnsGroup,
+  ReturnsReportTotals,
+  VoidedSaleRecord,
+  VoidsGroup,
 } from "./model/returns-report.js";
 export type { TicketReference } from "./model/ticket-reference.js";
 export { ticketReferenceFromQrText } from "./model/ticket-reference.js";

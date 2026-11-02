@@ -88,10 +88,14 @@ export {
   type DeferredSaleSatisfiedFact,
   deferredSaleSatisfiedEvent,
 } from "./model/deferred-sale-satisfied-event.js";
-export type { RecordedExceptionShareBreach } from "./model/exception-share.js";
+export type {
+  ExceptionShareCounts,
+  RecordedExceptionShareBreach,
+} from "./model/exception-share.js";
 export {
   EXCEPTION_SHARE_MONTH_STATES,
   EXCEPTION_SHARE_NON_COMPLIANCE_PERCENT,
+  exceptionShareTenthsOfPercent,
   nonCompliantMonthsOfYear,
 } from "./model/exception-share.js";
 export type {
@@ -336,6 +340,7 @@ export {
   issueOfflineSaleCreditNote,
   routeSaleCreditNote,
 } from "./model/sale-credit-note-route.js";
+export { monthAtRiskOfSecondConsecutiveBreach } from "./model/second-consecutive-breach.js";
 export {
   awaitsUnclearOutcomeDecision,
   recordedRequestDocumentState,

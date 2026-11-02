@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { deviceState, locations, registers } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleBranchRegisterSyncReader } from "./drizzle-branch-register-sync-reader.js";
 import { insertEnrolledInstallation } from "./test-support/enrolled-installation.js";
 
@@ -105,5 +106,49 @@ describe("DrizzleBranchRegisterSyncReader", () => {
     ).lastSuccessfulSyncOfBranchRegisters(otherLocation.id);
 
     expect(listed).toEqual([]);
+  });
+
+  it("lists the branch's registers with numbers by value, case and accents ignored and ñ after n", async () => {
+    const locationId = await seededLocationId(db);
+    await db
+      .insert(registers)
+      .values(
+        ["Zoe", "Caja 10", "ñandú", "Banco", "oso", "árbol", "Caja 2", "ana", "nube"].map(
+          (name) => ({ locationId, name }),
+        ),
+      );
+
+    const listed = await new DrizzleBranchRegisterSyncReader(
+      db,
+    ).lastSuccessfulSyncOfBranchRegisters(locationId);
+
+    expect(listed.map((register) => register.name)).toEqual([
+      "ana",
+      "árbol",
+      "Banco",
+      "Caja 2",
+      "Caja 10",
+      "nube",
+      "ñandú",
+      "oso",
+      "Zoe",
+    ]);
+  });
+
+  it("lists the branch's registers whose names order the same in the order of their ids", async () => {
+    const locationId = await seededLocationId(db);
+    await db.insert(registers).values([
+      { id: "00000000-0000-4000-8000-00000000000b", locationId, name: "Caja 1" },
+      { id: "00000000-0000-4000-8000-00000000000a", locationId, name: "Caja 01" },
+    ]);
+
+    const listed = await new DrizzleBranchRegisterSyncReader(
+      db,
+    ).lastSuccessfulSyncOfBranchRegisters(locationId);
+
+    expect(listed.map((register) => register.id)).toEqual([
+      "00000000-0000-4000-8000-00000000000a",
+      "00000000-0000-4000-8000-00000000000b",
+    ]);
   });
 });

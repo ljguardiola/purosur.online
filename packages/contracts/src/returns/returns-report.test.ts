@@ -31,6 +31,7 @@ const line = {
   quantity: 2,
   reason: "defective",
   disposition: "discard",
+  resolution: "refund",
   refunded: 2_000,
 };
 
@@ -51,10 +52,33 @@ const row = {
 
 const totals = { returns: 1, refunded: 2_000 };
 
+const voidRow = {
+  sale: row.sale,
+  voided_at: "2026-10-06T15:00:00.000Z",
+  register: row.register,
+  cashier: row.cashier,
+  authorizer: row.authorizer,
+  total: 5_000,
+};
+
+const summary = {
+  voids: 1,
+  voided: 5_000,
+  returns: 1,
+  refunded: 2_000,
+  refunded_lines: 1,
+  exchanged_lines: 0,
+  typed_returns: 1,
+};
+
 const report = {
   range: { from: "2026-10-05", to: "2026-10-06" },
   typed: { rows: [row], totals },
   scanned: { rows: [], totals: { returns: 0, refunded: 0 } },
+  voids: { rows: [voidRow], totals: { voids: 1, voided: 5_000 } },
+  totals: summary,
+  by_cashier: [{ cashier: row.cashier, ...summary }],
+  by_authorizer: [{ authorizer: row.authorizer, ...summary }],
 };
 
 describe("returnsReportSchema", () => {
@@ -81,6 +105,86 @@ describe("returnsReportSchema", () => {
     expect(
       returnsReportSchema.parse({ ...report, typed: { rows: [changed], totals } }).typed.rows,
     ).toEqual([changed]);
+  });
+
+  it.each(["refund", "exchange"])("accepts %s as a resolution", (resolution) => {
+    const changed = { ...row, lines: [{ ...line, resolution }] };
+
+    expect(
+      returnsReportSchema.parse({ ...report, typed: { rows: [changed], totals } }).typed.rows,
+    ).toEqual([changed]);
+  });
+
+  it("accepts a voided sale without a known voider, an authorizer, an operation number or an invoice", () => {
+    const bare = {
+      ...voidRow,
+      sale: { id: row.sale.id, operation_number: null, invoice: null },
+      cashier: null,
+      authorizer: null,
+    };
+    const parsed = returnsReportSchema.parse({
+      ...report,
+      voids: { rows: [bare], totals: { voids: 1, voided: 5_000 } },
+      by_cashier: [{ cashier: null, ...summary }],
+      by_authorizer: [{ authorizer: null, ...summary }],
+    });
+
+    expect(parsed.voids.rows).toEqual([bare]);
+    expect(parsed.by_cashier[0]?.cashier).toBeNull();
+    expect(parsed.by_authorizer[0]?.authorizer).toBeNull();
+  });
+
+  it("declares the zone the instant of a void is shown in", () => {
+    expect(returnsReportSchema.shape.voids.shape.rows.element.shape.voided_at.meta()).toEqual({
+      timeZone: ARGENTINA_TIME_ZONE,
+    });
+  });
+
+  it.each([
+    ["a report without voids", { voids: undefined }],
+    ["a report without overall totals", { totals: undefined }],
+    ["a report without the summary by cashier", { by_cashier: undefined }],
+    ["a report without the summary by authorizer", { by_authorizer: undefined }],
+    [
+      "a negative number of voids",
+      { voids: { rows: [voidRow], totals: { voids: -1, voided: 0 } } },
+    ],
+    [
+      "a voided amount with decimals",
+      { voids: { rows: [voidRow], totals: { voids: 1, voided: 1.5 } } },
+    ],
+    ["a negative voided total", { voids: { rows: [voidRow], totals: { voids: 1, voided: -1 } } }],
+    ["a negative exchanged line count", { totals: { ...summary, exchanged_lines: -1 } }],
+    ["exchanged lines with decimals", { totals: { ...summary, exchanged_lines: 0.5 } }],
+    ["a negative refunded line count", { totals: { ...summary, refunded_lines: -1 } }],
+    ["a negative typed return count", { totals: { ...summary, typed_returns: -1 } }],
+    ["a summary row without a cashier field", { by_cashier: [summary] }],
+    ["a summary row without an authorizer field", { by_authorizer: [summary] }],
+    [
+      "a summary row with a negative count",
+      { by_cashier: [{ cashier: null, ...summary, voids: -1 }] },
+    ],
+  ])("refuses %s", (_name, change) => {
+    expect(returnsReportSchema.safeParse({ ...report, ...change }).success).toBe(false);
+  });
+
+  it.each([
+    ["something that is not an instant", { ...voidRow, voided_at: "ayer" }],
+    ["a negative total", { ...voidRow, total: -1 }],
+    ["a total with decimals", { ...voidRow, total: 1.5 }],
+    ["a sale with an empty id", { ...voidRow, sale: { ...row.sale, id: "" } }],
+    ["a register without a name", { ...voidRow, register: { id: REGISTER_ID } }],
+    ["a cashier with an empty id", { ...voidRow, cashier: { id: "", name: "Ana" } }],
+    ["a missing cashier field", { ...voidRow, cashier: undefined }],
+    ["an authorizer with an empty id", { ...voidRow, authorizer: { id: "", name: "Beto" } }],
+    ["a missing authorizer field", { ...voidRow, authorizer: undefined }],
+  ])("refuses a voided sale with %s", (_name, bad) => {
+    expect(
+      returnsReportSchema.safeParse({
+        ...report,
+        voids: { rows: [bad], totals: { voids: 1, voided: 5_000 } },
+      }).success,
+    ).toBe(false);
   });
 
   it.each(["restock", "discard"])("accepts %s as a disposition", (disposition) => {
@@ -161,6 +265,8 @@ describe("returnsReportSchema", () => {
     ["a line without a reason", { ...row, lines: [{ ...line, reason: undefined }] }],
     ["a disposition that does not exist", { ...row, lines: [{ ...line, disposition: "sell" }] }],
     ["a line without a disposition", { ...row, lines: [{ ...line, disposition: undefined }] }],
+    ["a resolution that does not exist", { ...row, lines: [{ ...line, resolution: "gift" }] }],
+    ["a line without a resolution", { ...row, lines: [{ ...line, resolution: undefined }] }],
     ["a negative refunded line", { ...row, lines: [{ ...line, refunded: -1 }] }],
     ["a refunded line with decimals", { ...row, lines: [{ ...line, refunded: 1.5 }] }],
   ])("refuses %s", (_name, bad) => {

@@ -5,6 +5,7 @@ type ReturnRow = ReturnsReportBody["typed"]["rows"][number];
 type ReturnLine = ReturnRow["lines"][number];
 
 export const UNIDENTIFIED = "Sin identificar";
+export const NO_CASHIER = "Sin dato";
 
 const REASON_TEXT: Record<ReturnLine["reason"], string> = {
   change_of_mind: "Arrepentimiento",
@@ -16,6 +17,11 @@ const DISPOSITION_TEXT: Record<ReturnLine["disposition"], string> = {
   discard: "se descarta",
 };
 
+const RESOLUTION_TEXT: Record<ReturnLine["resolution"], string> = {
+  refund: "Reintegro",
+  exchange: "Cambio",
+};
+
 export function returnLineReasonText(reason: ReturnLine["reason"]): string {
   return REASON_TEXT[reason];
 }
@@ -24,11 +30,16 @@ export function returnLineDispositionText(disposition: ReturnLine["disposition"]
   return DISPOSITION_TEXT[disposition];
 }
 
+export function returnLineResolutionText(resolution: ReturnLine["resolution"]): string {
+  return RESOLUTION_TEXT[resolution];
+}
+
 export function returnLineDetail({
   reason,
   disposition,
-}: Pick<ReturnLine, "reason" | "disposition">): string {
-  return `${returnLineReasonText(reason)} · ${returnLineDispositionText(disposition)}`;
+  resolution,
+}: Pick<ReturnLine, "reason" | "disposition" | "resolution">): string {
+  return `${returnLineReasonText(reason)} · ${returnLineDispositionText(disposition)} · ${returnLineResolutionText(resolution)}`;
 }
 
 export function returnSaleText({

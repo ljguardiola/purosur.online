@@ -138,7 +138,12 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
     await reply.code(201).send(summaryOf(purchase));
   });
 
-  app.get("/purchase-choices", readGuard, async (_request, reply) => {
+  const choicesGuard = {
+    preHandler: sameOriginGuard(options.backofficeOrigin),
+    config: { access: capabilityAccess("purchase_choices"), sessionSource },
+  };
+
+  app.get("/purchase-choices", choicesGuard, async (_request, reply) => {
     const [choices, products] = await Promise.all([
       listPurchaseChoices(reader, ports.clock, ports.zoneRules),
       catalog.products(PRODUCTS_PURCHASES_MAY_BE_REGISTERED_FOR),

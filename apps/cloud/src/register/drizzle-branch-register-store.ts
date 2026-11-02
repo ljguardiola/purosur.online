@@ -1,3 +1,4 @@
+import { compareCodeUnits, compareSpanishText } from "@purosur/domain";
 import {
   type BranchRegister,
   type BranchRegisterStore,
@@ -11,7 +12,7 @@ import {
   type RegisterCreation,
   RegisterNameConflict,
 } from "@purosur/domain/register/use-cases";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import {
@@ -192,8 +193,8 @@ export class DrizzleBranchRegisterStore<TQueryResult extends PgQueryResultHKT>
       .leftJoin(registerPointsOfSale, eq(registerPointsOfSale.registerId, registers.id))
       .leftJoin(registerPointTerminals, eq(registerPointTerminals.registerId, registers.id))
       .leftJoin(registerQrPointsOfSale, eq(registerQrPointsOfSale.registerId, registers.id))
-      .where(eq(registers.locationId, locationId))
-      .orderBy(asc(registers.name));
+      .where(eq(registers.locationId, locationId));
+    rows.sort((a, b) => compareSpanishText(a.name, b.name) || compareCodeUnits(a.id, b.id));
     const installations = await this.db
       .select({
         registerId: registerInstallations.registerId,

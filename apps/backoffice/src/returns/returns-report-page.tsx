@@ -11,7 +11,7 @@ export function ReturnsReportPage(): ReactElement {
   const { services, sessionActions } = route.useRouteContext();
   const filters = route.useSearch();
   const navigate = route.useNavigate();
-  useDocumentTitle("Devoluciones · Puro Sur");
+  useDocumentTitle("Anulaciones y devoluciones · Puro Sur");
   return (
     <ReturnsReportScreen
       filters={filters}

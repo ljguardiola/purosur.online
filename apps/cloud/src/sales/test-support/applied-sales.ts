@@ -123,9 +123,11 @@ export async function applyVoidedSale<TQueryResult extends PgQueryResultHKT>(
     completedAt: Date;
     voidedAt: Date;
     completed: Partial<CompletedSale>;
+    voided?: Partial<VoidedSale>;
+    voidedBy?: string;
   },
 ): Promise<VoidedSale> {
-  const { deviceId, completedAt, voidedAt, completed: overrides } = sale;
+  const { deviceId, completedAt, voidedAt, completed: overrides, voidedBy } = sale;
   const application = new DrizzleEventApplication(
     db,
     () => voidedAt,
@@ -139,8 +141,13 @@ export async function applyVoidedSale<TQueryResult extends PgQueryResultHKT>(
     cashMovements: [],
     ...overrides,
   });
-  const voided = aVoidedSaleOf(completed, { voidedAt });
-  const eventOf = (aggregateType: string, aggregateId: string, eventType: string) =>
+  const voided = aVoidedSaleOf(completed, { voidedAt, ...sale.voided });
+  const eventOf = (
+    aggregateType: string,
+    aggregateId: string,
+    eventType: string,
+    actorId = completed.actorId,
+  ) =>
     unappliedEventOf(
       {
         event_id: randomUUID(),
@@ -151,7 +158,7 @@ export async function applyVoidedSale<TQueryResult extends PgQueryResultHKT>(
         schema_version: 1,
         payload: {},
         occurred_at: voidedAt.toISOString(),
-        actor_id: completed.actorId,
+        actor_id: actorId,
         chain_hmac: "hmac",
       },
       { deviceId },
@@ -167,7 +174,7 @@ export async function applyVoidedSale<TQueryResult extends PgQueryResultHKT>(
     );
     await tx.record(
       { kind: "sale_voided", creditNote: null, sale: voided },
-      eventOf("Sale", completed.id, "sale_voided"),
+      eventOf("Sale", completed.id, "sale_voided", voidedBy),
     );
   });
   return voided;

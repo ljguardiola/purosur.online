@@ -1,9 +1,13 @@
-import { lastSuccessfulSyncOfRegister } from "@purosur/domain";
+import {
+  compareCodeUnits,
+  compareSpanishText,
+  lastSuccessfulSyncOfRegister,
+} from "@purosur/domain";
 import type {
   BranchRegisterLastSync,
   BranchRegisterSyncReader,
 } from "@purosur/domain/register/use-cases";
-import { asc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { deviceState, registerInstallations, registers } from "../platform/db/schema.js";
 
@@ -26,8 +30,10 @@ export class DrizzleBranchRegisterSyncReader<TQueryResult extends PgQueryResultH
       .from(registers)
       .leftJoin(registerInstallations, eq(registerInstallations.registerId, registers.id))
       .leftJoin(deviceState, eq(deviceState.deviceId, registerInstallations.id))
-      .where(eq(registers.locationId, locationId))
-      .orderBy(asc(registers.name));
+      .where(eq(registers.locationId, locationId));
+    installations.sort(
+      (a, b) => compareSpanishText(a.name, b.name) || compareCodeUnits(a.id, b.id),
+    );
     const registerNames = new Map(installations.map(({ id, name }) => [id, name]));
     return [...registerNames].map(([id, name]) => ({
       id,

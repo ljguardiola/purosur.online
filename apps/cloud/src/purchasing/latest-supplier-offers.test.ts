@@ -172,4 +172,37 @@ describe("latestSupplierOffers", () => {
 
     expect(asked.map((offer) => offer.supplierItemId)).toEqual([yerba.itemId]);
   });
+
+  it("orders the offers by supplier name with numbers by value, case and accents ignored and ñ after n", async () => {
+    const { id: productId } = await insertProduct(db, { name: "Yerba 1 kg" });
+    for (const name of [
+      "Zoe",
+      "Caja 10",
+      "ñandú",
+      "Banco",
+      "oso",
+      "árbol",
+      "Caja 2",
+      "ana",
+      "nube",
+    ]) {
+      const supplierId = await insertSupplier(db, { actorId, name });
+      const { itemId } = await linkedItem(supplierId, productId);
+      await insertSupplierItemPrice(db, { itemId, listId: await confirmedList(supplierId) });
+    }
+
+    const offers = await latestSupplierOffers(db);
+
+    expect(offers.map((offer) => offer.supplier.name)).toEqual([
+      "ana",
+      "árbol",
+      "Banco",
+      "Caja 2",
+      "Caja 10",
+      "nube",
+      "ñandú",
+      "oso",
+      "Zoe",
+    ]);
+  });
 });

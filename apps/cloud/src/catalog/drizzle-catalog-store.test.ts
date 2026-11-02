@@ -659,3 +659,59 @@ describe("changing the sale unit of a product with a linked supplier item", () =
     expect((await editSaleUnit(product, category.id, "KG")).kind).toBe("applied");
   });
 });
+
+describe("the tag ids the store reads for a product", () => {
+  it("come with numbers by value, case and accents ignored and ñ after n", async () => {
+    const unsortedNames = [
+      "Zoe",
+      "Caja 10",
+      "ñandú",
+      "Banco",
+      "oso",
+      "árbol",
+      "Caja 2",
+      "ana",
+      "nube",
+    ];
+    const sortedNames = [
+      "ana",
+      "árbol",
+      "Banco",
+      "Caja 2",
+      "Caja 10",
+      "nube",
+      "ñandú",
+      "oso",
+      "Zoe",
+    ];
+    const tagIdByName = new Map<string, string>();
+    for (const name of unsortedNames) {
+      const created = await createTag(store(), { name });
+      if (created.kind !== "created") {
+        throw new Error("test setup: the tag was not created");
+      }
+      tagIdByName.set(name, created.tag.id);
+    }
+    const category = await newCategory();
+    const created = await createProduct(store(), {
+      name: "Arroz",
+      categoryId: category.id,
+      brandId: null,
+      saleUnit: "UNIT",
+      barcodes: ["7790001000011"],
+      netContent: null,
+      tagIds: [...tagIdByName.values()],
+      coverageDays: 15,
+    });
+    if (created.kind !== "created") {
+      throw new Error(`test setup: creating the product ended as ${created.kind}`);
+    }
+
+    const locked = await store().transaction((tx) => tx.lockProduct(created.product.id));
+
+    expect(locked).toMatchObject({
+      kind: "locked",
+      product: { tagIds: sortedNames.map((name) => tagIdByName.get(name)) },
+    });
+  });
+});

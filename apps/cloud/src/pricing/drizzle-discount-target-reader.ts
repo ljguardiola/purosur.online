@@ -1,4 +1,4 @@
-import type { SaleUnit } from "@purosur/domain";
+import { compareCodeUnits, compareSpanishText, type SaleUnit } from "@purosur/domain";
 import type {
   DiscountTargetCandidates,
   DiscountTargetReader,
@@ -7,6 +7,10 @@ import { asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { netContentRow } from "../catalog/net-content-row.js";
 import { brands, categories, productBarcodes, products, tags } from "../platform/db/schema.js";
+
+function byNameThenId(a: { name: string; id: string }, b: { name: string; id: string }): number {
+  return compareSpanishText(a.name, b.name) || compareCodeUnits(a.id, b.id);
+}
 
 export class DrizzleDiscountTargetReader<TQueryResult extends PgQueryResultHKT>
   implements DiscountTargetReader
@@ -34,8 +38,7 @@ export class DrizzleDiscountTargetReader<TQueryResult extends PgQueryResultHKT>
               netContentUnit: products.netContentUnit,
             })
             .from(products)
-            .leftJoin(brands, eq(brands.id, products.brandId))
-            .orderBy(asc(products.name)),
+            .leftJoin(brands, eq(brands.id, products.brandId)),
           tx
             .select({ productId: productBarcodes.productId, code: productBarcodes.code })
             .from(productBarcodes)
@@ -43,13 +46,12 @@ export class DrizzleDiscountTargetReader<TQueryResult extends PgQueryResultHKT>
             .orderBy(asc(productBarcodes.position)),
           tx
             .select({ id: categories.id, name: categories.name, parentId: categories.parentId })
-            .from(categories)
-            .orderBy(asc(categories.name)),
-          tx
-            .select({ id: tags.id, name: tags.name, active: tags.active })
-            .from(tags)
-            .orderBy(asc(tags.name)),
+            .from(categories),
+          tx.select({ id: tags.id, name: tags.name, active: tags.active }).from(tags),
         ]);
+        productRows.sort(byNameThenId);
+        categoryRows.sort(byNameThenId);
+        tagRows.sort(byNameThenId);
         const barcodesByProduct = new Map<string, string[]>();
         for (const { productId, code } of barcodeRows) {
           barcodesByProduct.set(productId, [...(barcodesByProduct.get(productId) ?? []), code]);
