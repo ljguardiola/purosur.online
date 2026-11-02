@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { renderedTextRuns } from "../platform/test-support/rendered-pdf.js";
 import { purchaseOrderDocument } from "./purchase-order-document.js";
 import { renderPurchaseOrderPdf } from "./purchase-order-pdf.js";
 import { documentSource } from "./test-support/purchase-order-document-fixtures.js";
@@ -18,7 +19,7 @@ describe("renderPurchaseOrderPdf", () => {
     expect(pageCount(pdf)).toBe(1);
   });
 
-  it("renders names far longer than a line and characters outside Latin-1", async () => {
+  it("renders names far longer than a line, and characters outside Latin-1 as real glyphs of an embedded bold font", async () => {
     const [line] = documentSource().lines;
     if (!line) {
       throw new Error("the fixture has a line");
@@ -36,8 +37,14 @@ describe("renderPurchaseOrderPdf", () => {
     });
 
     const pdf = await renderPurchaseOrderPdf(purchaseOrderDocument(source), CREATED_AT);
+    const runs = renderedTextRuns(pdf);
 
-    expect(pdf.subarray(0, 5).toString("latin1")).toBe("%PDF-");
+    expect(runs.map((run) => run.text).join("")).toContain("ő ≈ Ω");
+    for (const run of runs) {
+      expect(run.font.embedded).toBe(true);
+      expect(run.font.baseFont).toMatch(/\+LiberationSans-Bold$/);
+      expect(run.text).not.toContain("�");
+    }
   });
 
   it("continues on more pages when the lines do not fit one", async () => {

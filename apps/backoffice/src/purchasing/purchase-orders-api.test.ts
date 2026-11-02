@@ -370,6 +370,20 @@ describe("fetchPurchaseOrderPdf", () => {
     expect(await fetchPurchaseOrderPdf(ORDER_ID)).toEqual({ kind: "not_found" });
   });
 
+  test("reports an order that can no longer be shared", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse(409, { code: "purchase_order_document_not_shareable" }),
+    );
+
+    expect(await fetchPurchaseOrderPdf(ORDER_ID)).toEqual({ kind: "not_shareable" });
+  });
+
+  test("returns failed for a 409 it does not know", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "other" }));
+
+    expect(await fetchPurchaseOrderPdf(ORDER_ID)).toEqual({ kind: "failed" });
+  });
+
   test.each(refusals)("answers a %i as %j", async (status, outcome) => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
 
@@ -403,6 +417,23 @@ describe("fetchPurchaseOrderText", () => {
       kind: "ok",
       value: { kind: "not_found" },
     });
+  });
+
+  test("reports an order that can no longer be shared", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse(409, { code: "purchase_order_document_not_shareable" }),
+    );
+
+    expect(await fetchPurchaseOrderText(ORDER_ID)).toEqual({
+      kind: "ok",
+      value: { kind: "not_shareable" },
+    });
+  });
+
+  test("returns failed for a 409 it does not know", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "other" }));
+
+    expect(await fetchPurchaseOrderText(ORDER_ID)).toEqual({ kind: "failed" });
   });
 
   test.each(refusals)("answers a %i as %j", async (status, outcome) => {

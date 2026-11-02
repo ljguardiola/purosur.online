@@ -5,6 +5,7 @@ import {
   mayBeCancelled,
   mayBeEdited,
   mayBeShared,
+  mayBeSharedAsDocument,
   PURCHASE_ORDER_STATES,
 } from "./purchase-order.js";
 
@@ -27,6 +28,14 @@ describe("mayBeShared", () => {
     expect(mayBeShared("DRAFT")).toBe(true);
     expect(mayBeShared("SENT")).toBe(false);
     expect(mayBeShared("CANCELLED")).toBe(false);
+  });
+});
+
+describe("mayBeSharedAsDocument", () => {
+  it("allows sharing the document of a draft or a sent order but not of a cancelled one", () => {
+    expect(mayBeSharedAsDocument("DRAFT")).toBe(true);
+    expect(mayBeSharedAsDocument("SENT")).toBe(true);
+    expect(mayBeSharedAsDocument("CANCELLED")).toBe(false);
   });
 });
 

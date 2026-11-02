@@ -617,7 +617,7 @@ describe("the documents of a purchase order", () => {
   ] as const;
 
   it.each(documents)(
-    "GET /purchase-orders/:id/document.$extension answers the document in every state, changing nothing",
+    "GET /purchase-orders/:id/document.$extension answers the document of a draft and of a sent order, changing nothing",
     async ({ extension, contentType }) => {
       const { headers, userId, locationId } = await orderer();
       const { orderId } = await draftOf(userId, locationId);
@@ -627,24 +627,42 @@ describe("the documents of a purchase order", () => {
           url: `/purchase-orders/${orderId}/document.${extension}`,
           headers,
         });
-      const statusIn = async (change: Partial<typeof purchaseOrders.$inferInsert>) => {
-        await db.update(purchaseOrders).set(change).where(eq(purchaseOrders.id, orderId));
-        return (await fetchDocument()).statusCode;
-      };
 
       const draft = (await fetchDocument()).statusCode;
-      const sent = await statusIn({ state: "SENT", sentAt: NOW, sentBy: userId });
-      const cancelled = await statusIn({
-        state: "CANCELLED",
-        cancelledAt: NOW,
-        cancelledBy: userId,
-      });
-
+      await db
+        .update(purchaseOrders)
+        .set({ state: "SENT", sentAt: NOW, sentBy: userId })
+        .where(eq(purchaseOrders.id, orderId));
       const response = await fetchDocument();
-      expect([draft, sent, cancelled]).toEqual([200, 200, 200]);
+
+      expect([draft, response.statusCode]).toEqual([200, 200]);
       expect(response.headers["content-type"]).toBe(contentType);
       const [order] = await db.select().from(purchaseOrders);
-      expect(order).toMatchObject({ state: "CANCELLED", sentAt: NOW, cancelledAt: NOW });
+      expect(order).toMatchObject({ state: "SENT", sentAt: NOW, cancelledAt: null });
+    },
+  );
+
+  it.each(documents)(
+    "GET /purchase-orders/:id/document.$extension answers 409 to a cancelled order",
+    async ({ extension }) => {
+      const { headers, userId, locationId } = await orderer();
+      const { orderId } = await draftOf(userId, locationId);
+      await db
+        .update(purchaseOrders)
+        .set({ state: "CANCELLED", cancelledAt: NOW, cancelledBy: userId })
+        .where(eq(purchaseOrders.id, orderId));
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/purchase-orders/${orderId}/document.${extension}`,
+        headers,
+      });
+
+      expect(response.statusCode).toBe(409);
+      expect(response.json()).toEqual({
+        code: "purchase_order_document_not_shareable",
+        message: "this purchase order can no longer be shared",
+      });
     },
   );
 

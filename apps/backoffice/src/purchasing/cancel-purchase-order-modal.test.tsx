@@ -45,7 +45,7 @@ async function confirm(screen: Awaited<ReturnType<typeof renderModal>>) {
   return dialog;
 }
 
-test("asks about the order by its supplier, saying it can no longer be edited", async () => {
+test("asks about the order by its supplier, saying the cancellation cannot be undone", async () => {
   const screen = await renderModal();
   const dialog = screen.getByRole("dialog");
 
@@ -53,7 +53,7 @@ test("asks about the order by its supplier, saying it can no longer be edited", 
     .element(dialog.getByRole("heading", { name: "¿Cancelar el pedido a Distribuidora Andina?" }))
     .toBeVisible();
   await expect
-    .element(dialog.getByText("El pedido queda cancelado y ya no se puede editar."))
+    .element(dialog.getByText("El pedido queda cancelado y no se puede deshacer."))
     .toBeVisible();
 });
 

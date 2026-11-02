@@ -80,6 +80,7 @@ export const DRAFT_ORDER: PurchaseOrderDetail = {
   hasUnpricedLine: true,
   editable: true,
   shareable: true,
+  documentShareable: true,
   cancellable: true,
 };
 
@@ -97,5 +98,6 @@ export const CANCELLED_ORDER: PurchaseOrderDetail = {
   state: "CANCELLED",
   editable: false,
   shareable: false,
+  documentShareable: false,
   cancellable: false,
 };

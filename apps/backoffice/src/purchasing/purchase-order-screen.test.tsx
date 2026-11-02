@@ -363,6 +363,7 @@ test("cancelling the order asks first, then cancels it and shows it cancelled", 
 
   expect(services.cancelPurchaseOrder).toHaveBeenCalledWith(ORDER_ID);
   await expect.element(screen.getByText("Pedido cancelado").first()).toBeVisible();
+  await expect.element(screen.getByText("Ya no se puede compartir.")).toBeVisible();
   await expect.element(screen.getByText("Cancelado").first()).toBeVisible();
   expect(screen.getByRole("dialog").query()).toBeNull();
   expect(screen.getByRole("button", { name: "Guardar" }).query()).toBeNull();
@@ -569,6 +570,7 @@ test("cancelling a sent order asks first, then cancels it and shows it cancelled
 
   expect(services.cancelPurchaseOrder).toHaveBeenCalledWith(ORDER_ID);
   await expect.element(screen.getByText("Pedido cancelado").first()).toBeVisible();
+  await expect.element(screen.getByText("Ya no se puede compartir.")).toBeVisible();
   await expect.element(screen.getByText("Cancelado").first()).toBeVisible();
 });
 
@@ -586,7 +588,7 @@ test("offers no cancellation of a read-only order the cloud answers cannot be ca
   expect(screen.getByRole("button", { name: "Cancelar pedido" }).query()).toBeNull();
 });
 
-test("Compartir pedido opens the sharing of the order, in every state", async () => {
+test("Compartir pedido opens the sharing of a draft", async () => {
   const draft = await loaded(createServices());
   await userEvent.click(draft.getByRole("button", { name: "Compartir pedido" }));
   await expect
@@ -595,7 +597,17 @@ test("Compartir pedido opens the sharing of the order, in every state", async ()
   await expect.element(draft.getByText(/Pedido a Distribuidora Andina/).last()).toBeVisible();
 });
 
-test("a cancelled order can still be shared as a document, but not marked as sent", async () => {
+test("Compartir pedido opens the sharing of a sent order, which offers no marking as sent", async () => {
+  const screen = await loaded(sentServices());
+
+  await userEvent.click(screen.getByRole("button", { name: "Compartir pedido" }));
+
+  const dialog = screen.getByRole("dialog");
+  await expect.element(dialog.getByRole("button", { name: "Descargar PDF" })).toBeVisible();
+  expect(dialog.getByRole("button", { name: "Marcar como enviado" }).query()).toBeNull();
+});
+
+test("a cancelled order offers no sharing", async () => {
   const screen = await loaded(
     createServices({
       fetchPurchaseOrder: vi.fn().mockResolvedValue({
@@ -605,11 +617,22 @@ test("a cancelled order can still be shared as a document, but not marked as sen
     }),
   );
 
-  await userEvent.click(screen.getByRole("button", { name: "Compartir pedido" }));
+  await expect.element(screen.getByText("Cancelado")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Compartir pedido" }).query()).toBeNull();
+});
 
-  const dialog = screen.getByRole("dialog");
-  await expect.element(dialog.getByRole("button", { name: "Descargar PDF" })).toBeVisible();
-  expect(dialog.getByRole("button", { name: "Marcar como enviado" }).query()).toBeNull();
+test("decides whether the order may be shared from the cloud's answer, not from the state", async () => {
+  const screen = await loaded(
+    sentServices({
+      fetchPurchaseOrder: vi.fn().mockResolvedValue({
+        kind: "ok",
+        value: { kind: "found", order: { ...SENT_ORDER, documentShareable: false } },
+      }),
+    }),
+  );
+
+  await expect.element(screen.getByText("Enviado")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Compartir pedido" }).query()).toBeNull();
 });
 
 test("marking as sent closes the sharing, says so and shows the order sent", async () => {
@@ -628,6 +651,7 @@ test("marking as sent closes the sharing, says so and shows the order sent", asy
 
   expect(services.sharePurchaseOrder).toHaveBeenCalledWith(ORDER_ID);
   await expect.element(screen.getByText("Pedido marcado como enviado")).toBeVisible();
+  await expect.element(screen.getByText("Ya no se puede editar.")).toBeVisible();
   await expect.element(screen.getByText("Enviado").first()).toBeVisible();
   expect(screen.getByRole("dialog").query()).toBeNull();
   expect(screen.getByRole("button", { name: "Guardar" }).query()).toBeNull();
@@ -656,9 +680,9 @@ test("shows the supplier's item under each product of a read-only order that has
 
   const table = screen.getByRole("table", { name: "Líneas del pedido" });
   await expect
-    .element(table.getByText("Proveedor: MIEL-1K · Miel pura x 12 frascos"))
+    .element(table.getByText("Artículo del proveedor: MIEL-1K · Miel pura x 12 frascos"))
     .toBeVisible();
-  expect(table.getByText(/^Proveedor:/).elements()).toHaveLength(1);
+  expect(table.getByText(/^Artículo del proveedor:/).elements()).toHaveLength(1);
 });
 
 test("shows only the description when the supplier's item has no code", async () => {
@@ -684,7 +708,7 @@ test("shows only the description when the supplier's item has no code", async ()
     }),
   );
 
-  await expect.element(screen.getByText("Proveedor: Miel x frasco")).toBeVisible();
+  await expect.element(screen.getByText("Artículo del proveedor: Miel x frasco")).toBeVisible();
 });
 
 test("has no accessibility violations as a sent order and with the sharing open", async () => {

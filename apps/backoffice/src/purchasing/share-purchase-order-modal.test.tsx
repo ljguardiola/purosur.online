@@ -88,6 +88,28 @@ test("offers no text action while the text has not loaded", async () => {
   await expect.element(dialog.getByRole("button", { name: "Copiar texto" })).toBeDisabled();
 });
 
+test("shows a card-shaped placeholder with its lines while the text loads", async () => {
+  const screen = await render(
+    <main>
+      <SharePurchaseOrderModal
+        target={DRAFT_ORDER}
+        services={createServices({
+          fetchPurchaseOrderText: vi.fn().mockReturnValue(new Promise(() => {})),
+        })}
+        onShared={() => {}}
+        onOutdated={() => {}}
+        onClose={() => {}}
+        onSessionEnded={() => {}}
+      />
+    </main>,
+  );
+  const status = screen.getByRole("dialog").getByRole("status");
+
+  await expect.element(status).toHaveTextContent("Cargando…");
+  const shapes = status.element().parentElement?.querySelector('[aria-hidden="true"]');
+  expect(shapes?.children.length).toBeGreaterThan(1);
+});
+
 test("shows a load error with a retry that reads the text again", async () => {
   const fetchPurchaseOrderText = vi
     .fn<SharePurchaseOrderModalServices["fetchPurchaseOrderText"]>()
@@ -113,6 +135,23 @@ test("tells when the order no longer exists, and updating it reports it", async 
   );
 
   await expect.element(dialog.getByText("Este pedido ya no existe")).toBeVisible();
+  await userEvent.click(dialog.getByRole("button", { name: "Actualizar el pedido" }));
+
+  expect(onOutdated).toHaveBeenCalledTimes(1);
+});
+
+test("tells when the order can no longer be shared, and updating it reports it", async () => {
+  const onOutdated = vi.fn();
+  const dialog = await renderModal(
+    createServices({
+      fetchPurchaseOrderText: vi
+        .fn()
+        .mockResolvedValue({ kind: "ok", value: { kind: "not_shareable" } }),
+    }),
+    { onOutdated },
+  );
+
+  await expect.element(dialog.getByText("Este pedido ya no se puede compartir")).toBeVisible();
   await userEvent.click(dialog.getByRole("button", { name: "Actualizar el pedido" }));
 
   expect(onOutdated).toHaveBeenCalledTimes(1);
@@ -214,6 +253,39 @@ test("tells when the order no longer exists if the PDF finds none", async () => 
   await userEvent.click(dialog.getByRole("button", { name: "Actualizar el pedido" }));
 
   expect(onOutdated).toHaveBeenCalledTimes(1);
+});
+
+test("tells when the order can no longer be shared if the PDF is refused", async () => {
+  const onOutdated = vi.fn();
+  const dialog = await renderModal(
+    createServices({
+      fetchPurchaseOrderPdf: vi.fn().mockResolvedValue({ kind: "not_shareable" }),
+    }),
+    { onOutdated },
+  );
+
+  await userEvent.click(dialog.getByRole("button", { name: "Descargar PDF" }));
+  await expect.element(dialog.getByText("Este pedido ya no se puede compartir")).toBeVisible();
+  await userEvent.click(dialog.getByRole("button", { name: "Actualizar el pedido" }));
+
+  expect(onOutdated).toHaveBeenCalledTimes(1);
+});
+
+test("stays open while the PDF is being prepared", async () => {
+  const onClose = vi.fn();
+  const dialog = await renderModal(
+    createServices({ fetchPurchaseOrderPdf: vi.fn().mockReturnValue(new Promise(() => {})) }),
+    { onClose },
+  );
+
+  await userEvent.click(dialog.getByRole("button", { name: "Descargar PDF" }));
+  await expect.element(dialog.getByRole("button", { name: "Descargar PDF" })).toBeDisabled();
+  await userEvent.keyboard("{Escape}");
+
+  expect(onClose).not.toHaveBeenCalled();
+  for (const close of dialog.getByRole("button", { name: "Cerrar" }).elements()) {
+    expect(close).toBeDisabled();
+  }
 });
 
 test("ends the session when the PDF finds no open session", async () => {

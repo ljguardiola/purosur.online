@@ -142,7 +142,7 @@ describe("the purchase orders of a branch", () => {
   it("answers an order with each line's product, brand and net content in the order of its positions", async () => {
     const { id: yerbaId } = await insertProduct(db, {
       name: "Yerba",
-      brandName: "Taragüí",
+      brandName: "Piragüé",
       netContent: { quantity: 1_000, unit: "G" },
     });
     const { id: azucarId } = await insertProduct(db, { name: "Azúcar", saleUnit: "KG" });
@@ -154,7 +154,7 @@ describe("the purchase orders of a branch", () => {
       quantity: 6_000,
       priceCents: 7_000,
       keyValue: "YER-6",
-      description: "Yerba Taragüí 1 kg x6",
+      description: "Yerba Piragüé 1 kg x6",
     });
     await insertOfferedItem(db, {
       supplierId,
@@ -210,14 +210,14 @@ describe("the purchase orders of a branch", () => {
           product: {
             id: yerbaId,
             name: "Yerba",
-            brandName: "Taragüí",
+            brandName: "Piragüé",
             netContent: { quantity: 1_000, unit: "G" },
             saleUnit: "UNIT",
           },
           packages: 1,
           quantityPerPackage: 6_000,
           expectedPackagePriceCents: 7_000,
-          supplierItem: { code: "YER-6", description: "Yerba Taragüí 1 kg x6" },
+          supplierItem: { code: "YER-6", description: "Yerba Piragüé 1 kg x6" },
         },
       ],
     });
@@ -282,31 +282,50 @@ describe("the supplier item a purchase order line answers", () => {
     expect(order?.lines[0]?.supplierItem).toBeNull();
   });
 
-  it("is the first by key kind and value when several items match", async () => {
+  it("is none when the link is stated in another sale unit than the product's", async () => {
+    const { id: productId } = await insertProduct(db, { name: "Yerba" });
+    const supplierId = await insertSupplier(db, { actorId, name: "Alfa" });
+    await offer(supplierId, productId, { quantity: 6_000, keyValue: "A-1", description: "Yerba" });
+    const orderId = await draftFor("2026-09-01T10:00:00.000Z", {
+      locationId,
+      supplierId,
+      productId,
+    });
+    await db.update(supplierItems).set({ saleUnit: "KG" });
+
+    const order = await reader().order(locationId, orderId);
+
+    expect(order?.lines[0]?.supplierItem).toBeNull();
+  });
+
+  it("is the one cheapest per sale unit when several items match", async () => {
     const { id: productId } = await insertProduct(db, { name: "Yerba" });
     const supplierId = await insertSupplier(db, { actorId, name: "Alfa" });
     await offer(supplierId, productId, {
       quantity: 6_000,
-      keyKind: "description",
-      keyValue: "A yerba",
-      description: "A yerba",
+      keyKind: "code",
+      keyValue: "A-1",
+      description: "Yerba A",
+      priceCents: 9_000,
     });
     await offer(supplierId, productId, {
       quantity: 6_000,
       keyKind: "code",
       keyValue: "Z-9",
       description: "Yerba Z",
+      priceCents: 6_000,
     });
     await offer(supplierId, productId, {
       quantity: 6_000,
-      keyKind: "code",
-      keyValue: "B-2",
-      description: "Yerba B",
+      keyKind: "description",
+      keyValue: "B yerba",
+      description: "B yerba",
+      priceCents: 8_000,
     });
 
     expect(await supplierItemOfDraft(supplierId, productId)).toEqual({
-      code: "B-2",
-      description: "Yerba B",
+      code: "Z-9",
+      description: "Yerba Z",
     });
   });
 

@@ -34,6 +34,7 @@ const detail = {
   hasUnpricedLine: true,
   editable: true,
   shareable: true,
+  documentShareable: true,
   cancellable: true,
 };
 
@@ -86,13 +87,17 @@ describe("purchaseOrderDetailSchema", () => {
     );
   });
 
-  it.each(["expectedTotalCents", "hasUnpricedLine", "editable", "shareable", "cancellable"])(
-    "rejects an order without %s",
-    (field) => {
-      const { [field]: _omitted, ...without } = detail as Record<string, unknown>;
-      expect(purchaseOrderDetailSchema.safeParse(without).success).toBe(false);
-    },
-  );
+  it.each([
+    "expectedTotalCents",
+    "hasUnpricedLine",
+    "editable",
+    "shareable",
+    "documentShareable",
+    "cancellable",
+  ])("rejects an order without %s", (field) => {
+    const { [field]: _omitted, ...without } = detail as Record<string, unknown>;
+    expect(purchaseOrderDetailSchema.safeParse(without).success).toBe(false);
+  });
 
   it("rejects a line without its expected total", () => {
     const { expectedTotalCents: _total, ...withoutTotal } = priced;

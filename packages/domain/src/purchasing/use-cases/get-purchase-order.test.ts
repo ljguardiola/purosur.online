@@ -40,6 +40,7 @@ describe("getPurchaseOrder", () => {
         editable: true,
         cancellable: true,
         shareable: true,
+        documentShareable: true,
       },
     });
   });
@@ -68,7 +69,7 @@ describe("getPurchaseOrder", () => {
     });
   });
 
-  it("answers that a cancelled order can be neither edited, shared nor cancelled", async () => {
+  it("answers that a cancelled order can be neither edited, shared, sent as a document nor cancelled", async () => {
     const reader = new FakePurchaseOrderReader([{ ...detail, state: "CANCELLED" }]);
 
     const outcome = await getPurchaseOrder(reader, { locationId: "branch-1", orderId: "order-1" });
@@ -76,11 +77,12 @@ describe("getPurchaseOrder", () => {
     expect(outcome.kind === "found" && outcome.order).toMatchObject({
       editable: false,
       shareable: false,
+      documentShareable: false,
       cancellable: false,
     });
   });
 
-  it("answers that a sent order can only be cancelled", async () => {
+  it("answers that a sent order can only be sent as a document again and cancelled", async () => {
     const reader = new FakePurchaseOrderReader([{ ...detail, state: "SENT" }]);
 
     const outcome = await getPurchaseOrder(reader, { locationId: "branch-1", orderId: "order-1" });
@@ -88,6 +90,7 @@ describe("getPurchaseOrder", () => {
     expect(outcome.kind === "found" && outcome.order).toMatchObject({
       editable: false,
       shareable: false,
+      documentShareable: true,
       cancellable: true,
     });
   });
