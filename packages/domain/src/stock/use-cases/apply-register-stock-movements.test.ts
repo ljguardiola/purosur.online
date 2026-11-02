@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   type ApplyRegisterStockMovementsInput,
   applyRegisterStockMovements,
+  type RegisterStockMovement,
 } from "./apply-register-stock-movements.js";
 import { FakeStockStore } from "./test-support/fake-stock-store.js";
 
@@ -1104,5 +1105,32 @@ describe("applyRegisterStockMovements", () => {
       expect(outcome).toEqual({ kind: "invalid_quantity", productId: "product-bread" });
       expect(store.snapshot()).toEqual(before);
     });
+  });
+});
+
+describe("RegisterStockMovement", () => {
+  type Line = { id: string; productId: string; delta: number; saleLineId: string };
+
+  it("takes a sale or a voided sale belonging to no return", () => {
+    expectTypeOf<Line & { kind: "sale" }>().toExtend<RegisterStockMovement>();
+    expectTypeOf<Line & { kind: "sale_void" }>().toExtend<RegisterStockMovement>();
+  });
+
+  it("takes a return, an exchange's replacement and a discarded unit with the return they belong to", () => {
+    expectTypeOf<Line & { kind: "return"; returnId: string }>().toExtend<RegisterStockMovement>();
+    expectTypeOf<
+      Line & { kind: "exchange_out"; returnId: string }
+    >().toExtend<RegisterStockMovement>();
+    expectTypeOf<
+      Line & { kind: "loss"; reason: "return_discard"; returnId: string }
+    >().toExtend<RegisterStockMovement>();
+  });
+
+  it("refuses a return, an exchange's replacement or a discarded unit without the return they belong to", () => {
+    expectTypeOf<Line & { kind: "return" }>().not.toExtend<RegisterStockMovement>();
+    expectTypeOf<Line & { kind: "exchange_out" }>().not.toExtend<RegisterStockMovement>();
+    expectTypeOf<
+      Line & { kind: "loss"; reason: "return_discard" }
+    >().not.toExtend<RegisterStockMovement>();
   });
 });
