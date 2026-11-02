@@ -232,12 +232,16 @@ describe("SqliteContingencyLedger", () => {
 
     database.prepare("DELETE FROM outbox").run();
     database.prepare("DELETE FROM contingency_reporting_start").run();
+    database.prepare("UPDATE sync_state SET device_id = NULL").run();
     recordRegisterSeenUnenrolled({ ledger: ledger(undefined) });
+    database.prepare("UPDATE sync_state SET device_id = 'device-1'").run();
     start();
     expect(startedFromEnrollment()).toEqual([{ from_enrollment: 1 }]);
   });
 
   it("remembers once that the register was seen before it was enrolled, with no outbox chain key", () => {
+    database.prepare("UPDATE sync_state SET device_id = NULL").run();
+
     expect(recordRegisterSeenUnenrolled({ ledger: ledger(undefined) })).toEqual({
       kind: "recorded",
     });

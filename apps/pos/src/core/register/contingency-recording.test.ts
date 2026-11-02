@@ -60,6 +60,23 @@ function recording() {
   });
 }
 
+function enrollLocally(): void {
+  database
+    .prepare(
+      "INSERT INTO own_register (id, name, version, removed) VALUES ('register-1', 'Caja 1', 1, 0)",
+    )
+    .run();
+  database.prepare("UPDATE sync_state SET device_id = 'device-1' WHERE id = 1").run();
+}
+
+function forgetLocalEnrollment(): void {
+  database.exec("DELETE FROM own_register; UPDATE sync_state SET device_id = NULL WHERE id = 1;");
+}
+
+function seenUnenrolledMarks() {
+  return database.prepare("SELECT count(*) AS total FROM register_seen_unenrolled").get();
+}
+
 function openSession(): void {
   database
     .prepare(
@@ -121,12 +138,7 @@ function intervals() {
 
 beforeEach(() => {
   database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
-  database
-    .prepare(
-      "INSERT INTO own_register (id, name, version, removed) VALUES ('register-1', 'Caja 1', 1, 0)",
-    )
-    .run();
-  database.prepare("UPDATE sync_state SET device_id = 'device-1' WHERE id = 1").run();
+  enrollLocally();
   mode = REAL_TIME;
   moment = new Date("2026-10-12T12:00:00.000Z");
   credentials = ENROLLED;
@@ -165,9 +177,11 @@ describe("createContingencyRecording", () => {
   });
 
   it("reports that it recorded contingency from its enrollment when it was checked before it was enrolled", async () => {
+    forgetLocalEnrollment();
     credentials = undefined;
     const contingency = recording();
     await contingency.startup();
+    enrollLocally();
     credentials = ENROLLED;
     moment = new Date("2026-10-12T12:00:05.000Z");
 
@@ -187,9 +201,7 @@ describe("createContingencyRecording", () => {
     expect(reportingStartedPayloads()).toEqual([
       { since: "2026-10-12T12:00:00.000Z", from_enrollment: false },
     ]);
-    expect(
-      database.prepare("SELECT count(*) AS total FROM register_seen_unenrolled").get(),
-    ).toEqual({ total: 0 });
+    expect(seenUnenrolledMarks()).toEqual({ total: 0 });
   });
 
   it("does not claim it recorded contingency from its enrollment when it was enrolled before its keys could be read", async () => {
@@ -204,13 +216,28 @@ describe("createContingencyRecording", () => {
     expect(reportingStartedPayloads()).toEqual([
       { since: "2026-10-12T12:00:05.000Z", from_enrollment: false },
     ]);
-    expect(
-      database.prepare("SELECT count(*) AS total FROM register_seen_unenrolled").get(),
-    ).toEqual({ total: 0 });
+    expect(seenUnenrolledMarks()).toEqual({ total: 0 });
+    expect(failures).toEqual([]);
+  });
+
+  it("does not claim it recorded contingency from its enrollment when its credentials could not be read while its database already knew it was enrolled", async () => {
+    credentials = undefined;
+    const contingency = recording();
+    await contingency.startup();
+    credentials = ENROLLED;
+    moment = new Date("2026-10-12T12:00:05.000Z");
+
+    await contingency.check();
+
+    expect(reportingStartedPayloads()).toEqual([
+      { since: "2026-10-12T12:00:05.000Z", from_enrollment: false },
+    ]);
+    expect(seenUnenrolledMarks()).toEqual({ total: 0 });
     expect(failures).toEqual([]);
   });
 
   it("remembers it was seen before enrollment once, however many checks it makes", async () => {
+    forgetLocalEnrollment();
     credentials = undefined;
     const contingency = recording();
 
@@ -218,16 +245,16 @@ describe("createContingencyRecording", () => {
     await contingency.check();
     await contingency.check();
 
-    expect(
-      database.prepare("SELECT count(*) AS total FROM register_seen_unenrolled").get(),
-    ).toEqual({ total: 1 });
+    expect(seenUnenrolledMarks()).toEqual({ total: 1 });
     expect(failures).toEqual([]);
   });
 
   it("reports no start of its own when the replaced register's start was replenished, even if it was seen before enrollment", async () => {
+    forgetLocalEnrollment();
     credentials = undefined;
     const contingency = recording();
     await contingency.startup();
+    enrollLocally();
     const replacedStart = new Date("2026-10-01T09:00:00.000Z");
     applyReplenishedContingencyFact(
       database,
