@@ -385,8 +385,16 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
         movements: saleReturn.stockMovements.map(
           ({ id, productId, saleLineId, kind, delta }): RegisterStockMovement =>
             kind === "loss"
-              ? { id, productId, delta, kind, saleLineId, reason: "return_discard" }
-              : { id, productId, delta, kind, saleLineId },
+              ? {
+                  id,
+                  productId,
+                  delta,
+                  kind,
+                  saleLineId,
+                  returnId: saleReturn.id,
+                  reason: "return_discard",
+                }
+              : { id, productId, delta, kind, saleLineId, returnId: saleReturn.id },
         ),
       },
     );
