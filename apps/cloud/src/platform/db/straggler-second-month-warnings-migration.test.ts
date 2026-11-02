@@ -184,6 +184,55 @@ describe("the straggler second month warnings migration applied over a database 
     expect(audit).toEqual([]);
   });
 
+  it("keeps an open old-kind warning open beside a resolved current one for the same fiscal address and month", async () => {
+    const database = await databaseBeforeMigration(MIGRATION);
+    await anAlert(database, {
+      kind: KIND_AFTER,
+      scope: "fa-1:2026-11",
+      detail: detailWithTheMeasurements,
+      resolvedAt: "2026-11-01T03:00:00Z",
+    });
+    const straggler = await anAlert(database, {
+      kind: KIND_BEFORE,
+      scope: "fa-1:2026-11",
+      detail: detailBeforeTheMeasurements,
+    });
+
+    const migrated = await database.applyMigration();
+
+    const { rows } = await migrated.query(
+      "select kind, resolved_at is null as open from alerts where id = $1",
+      [straggler],
+    );
+    expect(rows).toEqual([{ kind: KIND_AFTER, open: true }]);
+    const { rows: audit } = await migrated.query("select id from audit_log");
+    expect(audit).toEqual([]);
+  });
+
+  it("keeps an open old-kind warning open beside an open current one for another month", async () => {
+    const database = await databaseBeforeMigration(MIGRATION);
+    await anAlert(database, {
+      kind: KIND_AFTER,
+      scope: "fa-1:2026-10",
+      detail: { ...detailWithTheMeasurements, month: "2026-10", previousMonth: "2026-09" },
+    });
+    const straggler = await anAlert(database, {
+      kind: KIND_BEFORE,
+      scope: "fa-1:2026-11",
+      detail: detailBeforeTheMeasurements,
+    });
+
+    const migrated = await database.applyMigration();
+
+    const { rows } = await migrated.query(
+      "select kind, resolved_at is null as open from alerts where id = $1",
+      [straggler],
+    );
+    expect(rows).toEqual([{ kind: KIND_AFTER, open: true }]);
+    const { rows: audit } = await migrated.query("select id from audit_log");
+    expect(audit).toEqual([]);
+  });
+
   it("changes nothing when no warning is left with the old kind", async () => {
     const database = await databaseBeforeMigration(MIGRATION);
     await anAlert(database, {
