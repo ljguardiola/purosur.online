@@ -9457,3 +9457,33 @@ describe("the contingency intervals migration", () => {
     });
   });
 });
+
+describe("the register seen unenrolled migration", () => {
+  const MIGRATION = "0096_register_seen_unenrolled";
+
+  it("starts a register on a database that already holds data without having been seen unenrolled", () => {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < MIGRATION);
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(MIGRATION);
+      openLocalDatabase(path, previous, migrationClock).close();
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      try {
+        expect(
+          after.prepare("SELECT count(*) AS total FROM register_seen_unenrolled").get(),
+        ).toEqual({ total: 0 });
+        const insert = (id: number) =>
+          after.prepare("INSERT INTO register_seen_unenrolled (id) VALUES (?)").run(id);
+
+        expect(() => insert(1)).not.toThrow();
+        expect(() => insert(1)).toThrow(/UNIQUE/);
+        expect(() => insert(2)).toThrow(/CHECK/);
+      } finally {
+        after.close();
+      }
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+});

@@ -80,6 +80,15 @@ function fromTheReplacedRegister(occurredAt: Date) {
   return { eventId: `event-${occurredAt.toISOString()}`, deviceId: "device-old", occurredAt };
 }
 
+function reportingStartedPayloads(): unknown[] {
+  return database
+    .prepare<[], { payload: string }>(
+      "SELECT payload FROM outbox WHERE event_type = 'contingency_reporting_started' ORDER BY device_seq",
+    )
+    .all()
+    .map((row) => JSON.parse(row.payload));
+}
+
 function contingencyLeftEnds(): string[] {
   return database
     .prepare<[], { ended_at: string }>(
@@ -139,6 +148,71 @@ describe("createContingencyRecording", () => {
     await contingency.check();
 
     expect(eventTypes()).toEqual(["contingency_reporting_started"]);
+  });
+
+  it("reports that it recorded contingency from its enrollment when it was checked before it was enrolled", async () => {
+    chainKey = undefined;
+    const contingency = recording();
+    await contingency.startup();
+    chainKey = CHAIN_KEY;
+    moment = new Date("2026-10-12T12:00:05.000Z");
+
+    await contingency.check();
+
+    expect(reportingStartedPayloads()).toEqual([
+      { since: "2026-10-12T12:00:05.000Z", from_enrollment: true },
+    ]);
+  });
+
+  it("does not claim it recorded contingency from its enrollment when it was already enrolled before it recorded", async () => {
+    const contingency = recording();
+
+    await contingency.startup();
+    await contingency.check();
+
+    expect(reportingStartedPayloads()).toEqual([
+      { since: "2026-10-12T12:00:00.000Z", from_enrollment: false },
+    ]);
+    expect(
+      database.prepare("SELECT count(*) AS total FROM register_seen_unenrolled").get(),
+    ).toEqual({ total: 0 });
+  });
+
+  it("remembers it was seen before enrollment once, however many checks it makes", async () => {
+    chainKey = undefined;
+    const contingency = recording();
+
+    await contingency.startup();
+    await contingency.check();
+    await contingency.check();
+
+    expect(
+      database.prepare("SELECT count(*) AS total FROM register_seen_unenrolled").get(),
+    ).toEqual({ total: 1 });
+    expect(failures).toEqual([]);
+  });
+
+  it("reports no start of its own when the replaced register's start was replenished, even if it was seen before enrollment", async () => {
+    chainKey = undefined;
+    const contingency = recording();
+    await contingency.startup();
+    const replacedStart = new Date("2026-10-01T09:00:00.000Z");
+    applyReplenishedContingencyFact(
+      database,
+      {
+        kind: "contingency_reporting_started",
+        reporting: { since: replacedStart, fromEnrollment: true },
+      },
+      { eventId: "event-replaced", deviceId: "device-old", occurredAt: replacedStart },
+    );
+    chainKey = CHAIN_KEY;
+
+    await contingency.check();
+
+    expect(reportingStartedPayloads()).toEqual([]);
+    expect(database.prepare("SELECT since FROM contingency_reporting_start").all()).toEqual([
+      { since: replacedStart.toISOString() },
+    ]);
   });
 
   it("opens one interval for a register that goes offline and is checked again and again", async () => {

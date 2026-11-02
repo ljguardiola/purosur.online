@@ -216,6 +216,26 @@ describe("SqliteContingencyLedger", () => {
     expect(eventTypes()).toEqual(["contingency_reporting_started"]);
   });
 
+  it("starts reporting from enrollment only when the register was seen before it was enrolled", () => {
+    const start = () =>
+      startContingencyReporting({ ledger: ledger(), clock: { now: () => T3 }, ids: ids() });
+    const startedFromEnrollment = () =>
+      database
+        .prepare<[], { from_enrollment: number }>(
+          "SELECT json_extract(payload, '$.from_enrollment') AS from_enrollment FROM outbox",
+        )
+        .all();
+
+    start();
+    expect(startedFromEnrollment()).toEqual([{ from_enrollment: 0 }]);
+
+    database.prepare("DELETE FROM outbox").run();
+    database.prepare("DELETE FROM contingency_reporting_start").run();
+    database.prepare("INSERT INTO register_seen_unenrolled (id) VALUES (1)").run();
+    start();
+    expect(startedFromEnrollment()).toEqual([{ from_enrollment: 1 }]);
+  });
+
   it("keeps the order of the events in the register's outbox chain", () => {
     openSession();
     change(OFFLINE, T1);
