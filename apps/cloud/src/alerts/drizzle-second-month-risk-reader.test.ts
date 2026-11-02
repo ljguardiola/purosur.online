@@ -42,14 +42,14 @@ async function recordBreach(fiscalAddressId: string, month: string) {
   });
 }
 
-describe("DrizzleSecondMonthRiskReader.addressesWithRecordedBreach", () => {
+describe("DrizzleSecondMonthRiskReader.fiscalAddressesWithRecordedBreach", () => {
   it("answers nothing while no breach was recorded", async () => {
     await expect(
-      new DrizzleSecondMonthRiskReader(db).addressesWithRecordedBreach("2026-10"),
+      new DrizzleSecondMonthRiskReader(db).fiscalAddressesWithRecordedBreach("2026-10"),
     ).resolves.toEqual([]);
   });
 
-  it("answers the id and the name of the fiscal addresses with a breach recorded in that month only", async () => {
+  it("answers the ids of the fiscal addresses with a breach recorded in that month only", async () => {
     const central = await anAddressWithRegister("Depósito Central");
     const north = await anAddressWithRegister("Local Norte");
     const south = await anAddressWithRegister("Local Sur");
@@ -58,19 +58,13 @@ describe("DrizzleSecondMonthRiskReader.addressesWithRecordedBreach", () => {
     await recordBreach(south.fiscalAddressId, "2026-10");
     await recordBreach(south.fiscalAddressId, "2026-09");
 
-    const addresses = await new DrizzleSecondMonthRiskReader(db).addressesWithRecordedBreach(
-      "2026-10",
-    );
+    const fiscalAddressIds = await new DrizzleSecondMonthRiskReader(
+      db,
+    ).fiscalAddressesWithRecordedBreach("2026-10");
 
-    expect(addresses).toHaveLength(2);
-    expect(addresses).toContainEqual({
-      fiscalAddressId: central.fiscalAddressId,
-      fiscalAddressName: "Depósito Central",
-    });
-    expect(addresses).toContainEqual({
-      fiscalAddressId: south.fiscalAddressId,
-      fiscalAddressName: "Local Sur",
-    });
+    expect(fiscalAddressIds).toHaveLength(2);
+    expect(fiscalAddressIds).toContain(central.fiscalAddressId);
+    expect(fiscalAddressIds).toContain(south.fiscalAddressId);
   });
 });
 

@@ -2540,7 +2540,7 @@ test("warns that the month in progress may become a second consecutive one, with
   await expect
     .element(
       screen.getByText(
-        "En noviembre de 2026 se emitieron por excepción (CAEA) 3 de 80 comprobantes de este domicilio fiscal, el 3,7 %. En noviembre de 2026 estuvo en contingencia el 2,2 % del tiempo de este domicilio fiscal. El mes anterior, octubre de 2026, ya llegó al 5 % o más de comprobantes por excepción (CAEA): si noviembre de 2026 también queda fuera del límite en alguna de las dos mediciones, serían dos meses consecutivos y ARCA puede restringir el uso del CAEA, lo que comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Este aviso termina cuando cierra el mes.",
+        "En noviembre de 2026 se emitieron por excepción (CAEA) 3 de 80 comprobantes de este domicilio fiscal, el 3,7 %. En noviembre de 2026 estuvo en contingencia el 2,2 % del tiempo en que ARCA estuvo disponible. El mes anterior, octubre de 2026, ya llegó al 5 % o más de comprobantes por excepción (CAEA): si noviembre de 2026 también queda fuera del límite en alguna de las dos mediciones, serían dos meses consecutivos y ARCA puede restringir el uso del CAEA, lo que comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Este aviso termina cuando cierra el mes.",
         { exact: true },
       ),
     )
@@ -2560,7 +2560,7 @@ test("says the month has no vouchers yet instead of a share when the fiscal addr
   await expect
     .element(
       screen.getByText(
-        "En noviembre de 2026 todavía no se emitieron comprobantes en este domicilio fiscal. En noviembre de 2026 estuvo en contingencia el 2,2 % del tiempo de este domicilio fiscal. El mes anterior, octubre de 2026, ya llegó al 5 % o más de comprobantes por excepción (CAEA): si noviembre de 2026 también queda fuera del límite en alguna de las dos mediciones, serían dos meses consecutivos y ARCA puede restringir el uso del CAEA, lo que comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Este aviso termina cuando cierra el mes.",
+        "En noviembre de 2026 todavía no se emitieron comprobantes en este domicilio fiscal. En noviembre de 2026 estuvo en contingencia el 2,2 % del tiempo en que ARCA estuvo disponible. El mes anterior, octubre de 2026, ya llegó al 5 % o más de comprobantes por excepción (CAEA): si noviembre de 2026 también queda fuera del límite en alguna de las dos mediciones, serían dos meses consecutivos y ARCA puede restringir el uso del CAEA, lo que comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Este aviso termina cuando cierra el mes.",
         { exact: true },
       ),
     )
@@ -2578,7 +2578,7 @@ test("says the share of time in contingency has no data yet instead of a share",
   await expect
     .element(
       screen.getByText(
-        "En noviembre de 2026 se emitieron por excepción (CAEA) 3 de 80 comprobantes de este domicilio fiscal, el 3,7 %. Del tiempo en contingencia de noviembre de 2026 todavía no hay datos (Sin datos). El mes anterior, octubre de 2026, ya llegó al 5 % o más de comprobantes por excepción (CAEA): si noviembre de 2026 también queda fuera del límite en alguna de las dos mediciones, serían dos meses consecutivos y ARCA puede restringir el uso del CAEA, lo que comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Este aviso termina cuando cierra el mes.",
+        "En noviembre de 2026 se emitieron por excepción (CAEA) 3 de 80 comprobantes de este domicilio fiscal, el 3,7 %. Tiempo en contingencia en noviembre de 2026: Sin datos. El mes anterior, octubre de 2026, ya llegó al 5 % o más de comprobantes por excepción (CAEA): si noviembre de 2026 también queda fuera del límite en alguna de las dos mediciones, serían dos meses consecutivos y ARCA puede restringir el uso del CAEA, lo que comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Este aviso termina cuando cierra el mes.",
         { exact: true },
       ),
     )
@@ -2596,7 +2596,7 @@ test("says the previous month passed the limit of time in contingency when that 
   await expect
     .element(
       screen.getByText(
-        "En noviembre de 2026 se emitieron por excepción (CAEA) 3 de 80 comprobantes de este domicilio fiscal, el 3,7 %. En noviembre de 2026 estuvo en contingencia el 2,2 % del tiempo de este domicilio fiscal. El mes anterior, octubre de 2026, ya superó el 5 % del tiempo en contingencia: si noviembre de 2026 también queda fuera del límite en alguna de las dos mediciones, serían dos meses consecutivos y ARCA puede restringir el uso del CAEA, lo que comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Este aviso termina cuando cierra el mes.",
+        "En noviembre de 2026 se emitieron por excepción (CAEA) 3 de 80 comprobantes de este domicilio fiscal, el 3,7 %. En noviembre de 2026 estuvo en contingencia el 2,2 % del tiempo en que ARCA estuvo disponible. El mes anterior, octubre de 2026, ya estuvo en contingencia más del 5 % del tiempo en que ARCA estuvo disponible: si noviembre de 2026 también queda fuera del límite en alguna de las dos mediciones, serían dos meses consecutivos y ARCA puede restringir el uso del CAEA, lo que comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Este aviso termina cuando cierra el mes.",
         { exact: true },
       ),
     )
@@ -2618,7 +2618,7 @@ test("says the previous month passed both limits when it failed both measurement
   await expect
     .element(
       screen.getByText(
-        /El mes anterior, octubre de 2026, ya llegó al 5 % o más de comprobantes por excepción \(CAEA\) y superó el 5 % del tiempo en contingencia: si noviembre de 2026/,
+        /El mes anterior, octubre de 2026, ya llegó al 5 % o más de comprobantes por excepción \(CAEA\) y estuvo en contingencia más del 5 % del tiempo en que ARCA estuvo disponible: si noviembre de 2026/,
       ),
     )
     .toBeVisible();
@@ -2635,7 +2635,7 @@ test("says a single comprobante issued by exception in the singular in the warni
   await expect
     .element(
       screen.getByText(
-        "En noviembre de 2026 se emitió por excepción (CAEA) 1 de 1 comprobante de este domicilio fiscal, el 100,0 %. En noviembre de 2026 estuvo en contingencia el 2,2 % del tiempo de este domicilio fiscal. El mes anterior, octubre de 2026, ya llegó al 5 % o más de comprobantes por excepción (CAEA): si noviembre de 2026 también queda fuera del límite en alguna de las dos mediciones, serían dos meses consecutivos y ARCA puede restringir el uso del CAEA, lo que comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Este aviso termina cuando cierra el mes.",
+        "En noviembre de 2026 se emitió por excepción (CAEA) 1 de 1 comprobante de este domicilio fiscal, el 100,0 %. En noviembre de 2026 estuvo en contingencia el 2,2 % del tiempo en que ARCA estuvo disponible. El mes anterior, octubre de 2026, ya llegó al 5 % o más de comprobantes por excepción (CAEA): si noviembre de 2026 también queda fuera del límite en alguna de las dos mediciones, serían dos meses consecutivos y ARCA puede restringir el uso del CAEA, lo que comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Este aviso termina cuando cierra el mes.",
         { exact: true },
       ),
     )
@@ -2653,7 +2653,7 @@ test("says one comprobante issued by exception in the singular out of several in
   await expect
     .element(
       screen.getByText(
-        "En noviembre de 2026 se emitió por excepción (CAEA) 1 de 80 comprobantes de este domicilio fiscal, el 1,2 %. En noviembre de 2026 estuvo en contingencia el 2,2 % del tiempo de este domicilio fiscal. El mes anterior, octubre de 2026, ya llegó al 5 % o más de comprobantes por excepción (CAEA): si noviembre de 2026 también queda fuera del límite en alguna de las dos mediciones, serían dos meses consecutivos y ARCA puede restringir el uso del CAEA, lo que comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Este aviso termina cuando cierra el mes.",
+        "En noviembre de 2026 se emitió por excepción (CAEA) 1 de 80 comprobantes de este domicilio fiscal, el 1,2 %. En noviembre de 2026 estuvo en contingencia el 2,2 % del tiempo en que ARCA estuvo disponible. El mes anterior, octubre de 2026, ya llegó al 5 % o más de comprobantes por excepción (CAEA): si noviembre de 2026 también queda fuera del límite en alguna de las dos mediciones, serían dos meses consecutivos y ARCA puede restringir el uso del CAEA, lo que comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Este aviso termina cuando cierra el mes.",
         { exact: true },
       ),
     )

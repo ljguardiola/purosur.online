@@ -58,10 +58,10 @@ export class FakeSecondMonthRiskReader implements SecondMonthRiskReader {
     this.contingency = contingency;
   }
 
-  async addressesWithRecordedBreach(month: string) {
+  async fiscalAddressesWithRecordedBreach(month: string): Promise<string[]> {
     return this.breaches
       .filter((breach) => breach.month === month)
-      .map(({ fiscalAddressId, fiscalAddressName }) => ({ fiscalAddressId, fiscalAddressName }));
+      .map(({ fiscalAddressId }) => fiscalAddressId);
   }
 
   async runningCounts(month: string): Promise<RunningExceptionShareCounts[]> {
