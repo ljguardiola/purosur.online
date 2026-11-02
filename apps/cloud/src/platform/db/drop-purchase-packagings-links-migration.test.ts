@@ -144,6 +144,17 @@ describe("the drop purchase packagings links migration", { timeout: 30_000 }, ()
     expect(rows).toEqual([]);
   });
 
+  it("no longer keeps the function that derived a quantity from a packaging", async () => {
+    const { database } = await databaseHoldingPackagings();
+    const migrated = await database.applyMigration();
+
+    const { rows } = await migrated.query<{ proname: string }>(
+      "select proname from pg_proc where proname = 'link_quantity_from_packaging'",
+    );
+
+    expect(rows).toEqual([]);
+  });
+
   it("accepts a line that names a packaging without stating its packages", async () => {
     const { database, purchaseId, yerbaId } = await databaseHoldingPackagings();
     const migrated = await database.applyMigration();
@@ -161,7 +172,7 @@ describe("the drop purchase packagings links migration", { timeout: 30_000 }, ()
   });
 
   it("accepts a packaging id that points at no packaging", async () => {
-    const { database, listId, supplierId } = await databaseHoldingPackagings();
+    const { database, listId, supplierId, purchaseId, yerbaId } = await databaseHoldingPackagings();
     const migrated = await database.applyMigration();
     const missing = randomUUID();
 
@@ -176,6 +187,12 @@ describe("the drop purchase packagings links migration", { timeout: 30_000 }, ()
       [supplierId, missing],
     );
 
-    expect([row.rows.length, item.rows.length]).toEqual([1, 1]);
+    const line = await migrated.query(
+      `insert into purchase_lines (purchase_id, position, product_id, packaging_id, packages, quantity, cost_paid_cents, quantity_per_package)
+       values ($1, 4, $2, $3, 1, 12000, 12000, 12000) returning id`,
+      [purchaseId, yerbaId, missing],
+    );
+
+    expect([row.rows.length, item.rows.length, line.rows.length]).toEqual([1, 1, 1]);
   });
 });
