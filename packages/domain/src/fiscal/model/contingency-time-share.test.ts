@@ -49,10 +49,12 @@ function reporting(
   presence: { startMinute: number; endMinute: number }[] = [
     { startMinute: 0, endMinute: MONTH_MS / MINUTE },
   ],
+  firstEnrolledAtMinute: number | null = -DAY / MINUTE,
 ): ContingencyReportingRegister {
   return {
     registerId,
     reportingSince: reportingSinceMinute === null ? null : minute(reportingSinceMinute),
+    firstEnrolledAt: firstEnrolledAtMinute === null ? null : minute(firstEnrolledAtMinute),
     presence: presence.map(({ startMinute, endMinute }) => ({
       start: minute(startMinute),
       end: minute(endMinute),
@@ -376,6 +378,49 @@ describe("contingencyTimeMeasurement", () => {
 
     expect(
       measure({ registers: [reporting("register-1"), reporting("register-2", null, stays)] }).state,
+    ).toBe("compliant");
+  });
+
+  it("counts a register enrolled mid-month from its first enrollment", () => {
+    const wholeMonth = [{ startMinute: 0, endMinute: MONTH_MS / MINUTE }];
+
+    expect(measure({ registers: [reporting("register-1", 1_000, wholeMonth, 1_000)] }).state).toBe(
+      "compliant",
+    );
+    expect(measure({ registers: [reporting("register-1", 1_001, wholeMonth, 1_000)] }).state).toBe(
+      "no_data",
+    );
+  });
+
+  it("counts a register enrolled between two stays from the start of the later stay", () => {
+    const presence = [
+      { startMinute: 0, endMinute: 100 },
+      { startMinute: 5_000, endMinute: 6_000 },
+    ];
+
+    expect(measure({ registers: [reporting("register-1", 5_000, presence, 200)] }).state).toBe(
+      "compliant",
+    );
+    expect(measure({ registers: [reporting("register-1", 5_001, presence, 200)] }).state).toBe(
+      "no_data",
+    );
+  });
+
+  it("ignores a register first enrolled when its stay at the address ended", () => {
+    const presence = [{ startMinute: 0, endMinute: 1_000 }];
+
+    expect(
+      measure({
+        registers: [reporting("register-1"), reporting("register-2", null, presence, 1_000)],
+      }).state,
+    ).toBe("compliant");
+  });
+
+  it("ignores a register at the address that was never enrolled", () => {
+    expect(
+      measure({
+        registers: [reporting("register-1"), reporting("register-2", null, undefined, null)],
+      }).state,
     ).toBe("compliant");
   });
 

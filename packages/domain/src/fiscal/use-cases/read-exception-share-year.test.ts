@@ -36,6 +36,7 @@ const NO_DATA = {
 const REPORTING_THROUGHOUT: ContingencyReportingRegister = {
   registerId: "register-1",
   reportingSince: at("2025-12-01"),
+  firstEnrolledAt: at("2025-12-01"),
   presence: [{ start: at("2025-12-01"), end: at("2027-01-01") }],
 };
 

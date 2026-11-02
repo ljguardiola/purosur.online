@@ -128,8 +128,18 @@ describe("DrizzleContingencyIntervalsReader", () => {
     expect(registers).toHaveLength(2);
     expect(registers).toEqual(
       expect.arrayContaining([
-        { registerId: reporting, reportingSince: at("08:00"), presence: [WHOLE_PERIOD] },
-        { registerId: silent, reportingSince: null, presence: [WHOLE_PERIOD] },
+        {
+          registerId: reporting,
+          reportingSince: at("08:00"),
+          firstEnrolledAt: BEFORE_THE_PERIOD,
+          presence: [WHOLE_PERIOD],
+        },
+        {
+          registerId: silent,
+          reportingSince: null,
+          firstEnrolledAt: BEFORE_THE_PERIOD,
+          presence: [WHOLE_PERIOD],
+        },
       ]),
     );
   });
@@ -150,8 +160,6 @@ describe("DrizzleContingencyIntervalsReader", () => {
   it("answers the parts of the period during which each register belonged to the address", async () => {
     const mover = await insertRegisterAtFiscalAddress(db, central, "Caja 1");
     const returner = await insertRegisterAtFiscalAddress(db, central, "Caja 2");
-    await enrollRegister(db, mover, BEFORE_THE_PERIOD);
-    await enrollRegister(db, returner, BEFORE_THE_PERIOD);
     await moveRegisterToFiscalAddress(db, mover, norte, at("11:00"));
     await moveRegisterToFiscalAddress(db, returner, norte, at("06:00"));
     await moveRegisterToFiscalAddress(db, returner, central, at("18:00"));
@@ -176,7 +184,7 @@ describe("DrizzleContingencyIntervalsReader", () => {
     expect(atNorte.get(returner)).toEqual([{ start: at("06:00"), end: at("18:00") }]);
   });
 
-  it("counts a register's presence at the address from its first enrollment, and none while it was never enrolled", async () => {
+  it("answers when each register was first enrolled, or that it never was, beside its whole presence at the address", async () => {
     const enrolledLater = await insertRegisterAtFiscalAddress(db, central, "Caja 1");
     const reEnrolled = await insertRegisterAtFiscalAddress(db, central, "Caja 2");
     const neverEnrolled = await insertRegisterAtFiscalAddress(db, central, "Caja 3");
@@ -184,12 +192,30 @@ describe("DrizzleContingencyIntervalsReader", () => {
     await enrollRegister(db, reEnrolled, at("08:00"), at("12:00"));
     await enrollRegister(db, reEnrolled, at("12:00"));
 
-    const presence = new Map(
-      (await read(central)).registers.map(({ registerId, presence }) => [registerId, presence]),
-    );
+    const { registers } = await read(central);
 
-    expect(presence.get(enrolledLater)).toEqual([{ start: at("10:00"), end: PERIOD.to }]);
-    expect(presence.get(reEnrolled)).toEqual([{ start: at("08:00"), end: PERIOD.to }]);
-    expect(presence.get(neverEnrolled)).toEqual([]);
+    expect(registers).toHaveLength(3);
+    expect(registers).toEqual(
+      expect.arrayContaining([
+        {
+          registerId: enrolledLater,
+          reportingSince: null,
+          firstEnrolledAt: at("10:00"),
+          presence: [WHOLE_PERIOD],
+        },
+        {
+          registerId: reEnrolled,
+          reportingSince: null,
+          firstEnrolledAt: at("08:00"),
+          presence: [WHOLE_PERIOD],
+        },
+        {
+          registerId: neverEnrolled,
+          reportingSince: null,
+          firstEnrolledAt: null,
+          presence: [WHOLE_PERIOD],
+        },
+      ]),
+    );
   });
 });
