@@ -1142,6 +1142,13 @@
       "when": 1793640147909,
       "tag": "0169_second_month_risk_measurements",
       "breakpoints": true
+    },
+    {
+      "idx": 170,
+      "version": "7",
+      "when": 1793651562313,
+      "tag": "0170_straggler_second_month_warnings",
+      "breakpoints": true
     }
   ]
 }
