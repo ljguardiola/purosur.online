@@ -1,55 +1,71 @@
 import type { OutboxEventDraft } from "../../shared/index.js";
 
-export const CONTINGENCY_ENTERED_EVENT_TYPE = "contingency_entered";
-export const CONTINGENCY_LEFT_EVENT_TYPE = "contingency_left";
-export const CONTINGENCY_REPORTING_STARTED_EVENT_TYPE = "contingency_reporting_started";
-
 interface RegisterEventInput {
   eventId: string;
   registerId: string;
 }
 
-function registerEvent(
-  { eventId, registerId }: RegisterEventInput,
-  eventType: string,
-  occurredAt: Date,
-  payload: OutboxEventDraft["payload"],
-): OutboxEventDraft {
+export function contingencyEnteredEvent({
+  eventId,
+  registerId,
+  intervalId,
+  startedAt,
+}: RegisterEventInput & { intervalId: string; startedAt: Date }): OutboxEventDraft {
+  const startedAtIso = startedAt.toISOString();
   return {
     event_id: eventId,
     aggregate_type: "Register",
     aggregate_id: registerId,
-    event_type: eventType,
+    event_type: "contingency_entered",
     schema_version: 1,
-    payload,
-    occurred_at: occurredAt.toISOString(),
+    payload: { interval_id: intervalId, started_at: startedAtIso },
+    occurred_at: startedAtIso,
     actor_id: registerId,
   };
 }
 
-export function contingencyEnteredEvent(
-  input: RegisterEventInput & { intervalId: string; startedAt: Date },
-): OutboxEventDraft {
-  return registerEvent(input, CONTINGENCY_ENTERED_EVENT_TYPE, input.startedAt, {
-    interval_id: input.intervalId,
-    started_at: input.startedAt.toISOString(),
-  });
+export function contingencyLeftEvent({
+  eventId,
+  registerId,
+  intervalId,
+  startedAt,
+  endedAt,
+}: RegisterEventInput & {
+  intervalId: string;
+  startedAt: Date;
+  endedAt: Date;
+}): OutboxEventDraft {
+  const endedAtIso = endedAt.toISOString();
+  return {
+    event_id: eventId,
+    aggregate_type: "Register",
+    aggregate_id: registerId,
+    event_type: "contingency_left",
+    schema_version: 1,
+    payload: {
+      interval_id: intervalId,
+      started_at: startedAt.toISOString(),
+      ended_at: endedAtIso,
+    },
+    occurred_at: endedAtIso,
+    actor_id: registerId,
+  };
 }
 
-export function contingencyLeftEvent(
-  input: RegisterEventInput & { intervalId: string; startedAt: Date; endedAt: Date },
-): OutboxEventDraft {
-  return registerEvent(input, CONTINGENCY_LEFT_EVENT_TYPE, input.endedAt, {
-    interval_id: input.intervalId,
-    started_at: input.startedAt.toISOString(),
-    ended_at: input.endedAt.toISOString(),
-  });
-}
-
-export function contingencyReportingStartedEvent(
-  input: RegisterEventInput & { since: Date },
-): OutboxEventDraft {
-  return registerEvent(input, CONTINGENCY_REPORTING_STARTED_EVENT_TYPE, input.since, {
-    since: input.since.toISOString(),
-  });
+export function contingencyReportingStartedEvent({
+  eventId,
+  registerId,
+  since,
+}: RegisterEventInput & { since: Date }): OutboxEventDraft {
+  const sinceIso = since.toISOString();
+  return {
+    event_id: eventId,
+    aggregate_type: "Register",
+    aggregate_id: registerId,
+    event_type: "contingency_reporting_started",
+    schema_version: 1,
+    payload: { since: sinceIso },
+    occurred_at: sinceIso,
+    actor_id: registerId,
+  };
 }
