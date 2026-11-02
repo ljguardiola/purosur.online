@@ -1,5 +1,10 @@
 import { describe, expect, test } from "vitest";
-import { chosenOrder, chosenSupplierId, LEFT_OUT } from "./order-suggestion-choice";
+import {
+  chosenOrder,
+  chosenSupplierId,
+  LEFT_OUT,
+  purchaseOrderChoicesOf,
+} from "./order-suggestion-choice";
 import { ORDER_SUGGESTION } from "./test-support/order-suggestion";
 
 const [almonds, cookies] = ORDER_SUGGESTION.lines as [
@@ -99,5 +104,57 @@ describe("chosenOrder", () => {
 
   test.each([null, LEFT_OUT])("answers no packages when the choice is %j", (chosen) => {
     expect(chosenOrder(almonds, chosen)).toBeUndefined();
+  });
+});
+
+describe("purchaseOrderChoicesOf", () => {
+  const [, , honey] = ORDER_SUGGESTION.lines as [
+    (typeof ORDER_SUGGESTION.lines)[number],
+    (typeof ORDER_SUGGESTION.lines)[number],
+    (typeof ORDER_SUGGESTION.lines)[number],
+  ];
+  const losTilos = "5a900000-0000-4000-8000-000000000003";
+  const granos = "5a900000-0000-4000-8000-000000000005";
+  const unpriced = {
+    supplier: { id: granos, name: "Granos del Valle" },
+    packageQuantity: 12_000,
+    saleUnit: "UNIT" as const,
+    priceCents: 1_200_000,
+    listDate: "2026-09-15",
+    reason: "vat_rate_missing" as const,
+    order: { packages: 3, quantity: 36_000 },
+  };
+
+  test("takes, for each line with a proposed supplier, the packages of that supplier's offer", () => {
+    expect(purchaseOrderChoicesOf(ORDER_SUGGESTION.lines, {}, known)).toEqual([
+      { productId: almonds.id, supplierId: mendoza, packages: 2 },
+      { productId: honey.id, supplierId: losTilos, packages: 1 },
+    ]);
+  });
+
+  test("follows the supplier chosen for a line", () => {
+    expect(purchaseOrderChoicesOf([almonds], { [almonds.id]: sur }, known)).toEqual([
+      { productId: almonds.id, supplierId: sur, packages: 10 },
+    ]);
+  });
+
+  test("leaves out a line left out of the order and a line with no supplier", () => {
+    expect(purchaseOrderChoicesOf([almonds, cookies], { [almonds.id]: LEFT_OUT }, known)).toEqual(
+      [],
+    );
+  });
+
+  test("takes the packages the cloud states for a supplier whose offer has no price", () => {
+    const line = { ...cookies, unpricedOffers: [unpriced] };
+
+    expect(purchaseOrderChoicesOf([line], { [line.id]: granos }, new Set([granos]))).toEqual([
+      { productId: line.id, supplierId: granos, packages: 3 },
+    ]);
+  });
+
+  test("skips a choice that states no packages", () => {
+    const line = { ...cookies, unpricedOffers: [{ ...unpriced, order: null }] };
+
+    expect(purchaseOrderChoicesOf([line], { [line.id]: granos }, new Set([granos]))).toEqual([]);
   });
 });

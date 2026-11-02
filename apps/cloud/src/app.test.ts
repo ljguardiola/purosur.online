@@ -1366,6 +1366,11 @@ describe("wiring the purchasing routes", () => {
       app.inject({ method: "GET", url: "/api/freights/linkable-purchases" }),
       app.inject({ method: "GET", url: "/api/supplier-price-comparison" }),
       app.inject({ method: "GET", url: "/api/order-suggestion" }),
+      app.inject({ method: "GET", url: "/api/purchase-orders" }),
+      app.inject({ method: "GET", url: `/api/purchase-orders/${ID}` }),
+      app.inject({ method: "POST", url: "/api/purchase-orders", headers: ORIGIN }),
+      app.inject({ method: "PUT", url: `/api/purchase-orders/${ID}/lines`, headers: ORIGIN }),
+      app.inject({ method: "POST", url: `/api/purchase-orders/${ID}/cancel`, headers: ORIGIN }),
       app.inject({ method: "GET", url: "/api/supplier-price-lists" }),
       app.inject({ method: "GET", url: "/api/supplier-price-lists/link-choices" }),
       app.inject({ method: "GET", url: "/api/supplier-price-lists/product-categories" }),
@@ -1431,7 +1436,7 @@ describe("wiring the purchasing routes", () => {
   it("does not register the purchasing routes when no purchasing option is given", async () => {
     const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
-    expect(await purchasingResponses(app)).toEqual(Array(33).fill(404));
+    expect(await purchasingResponses(app)).toEqual(Array(38).fill(404));
   });
 
   it("registers the purchasing routes when a purchasing option is given", async () => {
@@ -1445,7 +1450,7 @@ describe("wiring the purchasing routes", () => {
       },
     });
 
-    expect(await purchasingResponses(app)).toEqual(Array(33).fill(401));
+    expect(await purchasingResponses(app)).toEqual(Array(38).fill(401));
   });
 });
 
@@ -2799,7 +2804,11 @@ describe("the route access inventory", () => {
       },
       { method: "GET", url: "/api/purchases", access: capabilityAccess("purchases") },
       { method: "POST", url: "/api/purchases", access: capabilityAccess("purchases") },
-      { method: "GET", url: "/api/purchase-choices", access: capabilityAccess("purchases") },
+      {
+        method: "GET",
+        url: "/api/purchase-choices",
+        access: capabilityAccess("purchase_choices"),
+      },
       {
         method: "GET",
         url: "/api/reports/purchases-by-supplier",
@@ -2932,6 +2941,31 @@ describe("the route access inventory", () => {
         method: "GET",
         url: "/api/order-suggestion",
         access: capabilityAccess("price_comparison"),
+      },
+      {
+        method: "GET",
+        url: "/api/purchase-orders",
+        access: capabilityAccess("purchase_orders"),
+      },
+      {
+        method: "GET",
+        url: "/api/purchase-orders/:id",
+        access: capabilityAccess("purchase_orders"),
+      },
+      {
+        method: "POST",
+        url: "/api/purchase-orders",
+        access: capabilityAccess("purchase_orders"),
+      },
+      {
+        method: "PUT",
+        url: "/api/purchase-orders/:id/lines",
+        access: capabilityAccess("purchase_orders"),
+      },
+      {
+        method: "POST",
+        url: "/api/purchase-orders/:id/cancel",
+        access: capabilityAccess("purchase_orders"),
       },
       {
         method: "GET",

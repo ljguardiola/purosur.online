@@ -25,7 +25,7 @@ const CAPABILITIES_GRANTED_BY: readonly [PermissionKey, readonly Capability[]][]
   ["view_bitlocker_key", ["registers_area", "bitlocker_recovery_key"]],
   ["release_quarantined_events", ["quarantined_events"]],
   ["manage_suppliers", ["suppliers", "stock_area"]],
-  ["record_purchases", ["purchases", "stock_area"]],
+  ["record_purchases", ["purchases", "purchase_choices", "stock_area"]],
   ["manage_freight", ["freights", "stock_area"]],
   ["manage_recipes", ["recipes", "stock_area"]],
   ["manage_batches", ["batches", "stock_area"]],
@@ -37,6 +37,7 @@ const CAPABILITIES_GRANTED_BY: readonly [PermissionKey, readonly Capability[]][]
   ["manage_expiration_dates", ["stock_expiries", "stock_area"]],
   ["manage_supplier_price_lists", ["orders_area", "supplier_price_lists"]],
   ["compare_prices_and_suggest_orders", ["orders_area", "price_comparison"]],
+  ["manage_purchase_orders", ["orders_area", "purchase_orders", "purchase_choices"]],
   ["view_reports", ["reports_area", "report_registers"]],
   ["view_returns_report", ["returns_report", "report_registers"]],
   ["confirm_refunds", ["refunds_area"]],
@@ -317,7 +318,7 @@ describe("grantedCapabilities", () => {
     expect(
       grantedCapabilities({
         isAdministrator: false,
-        permissionKeys: ["sell_and_charge", "reprint_receipt", "manage_purchase_orders"],
+        permissionKeys: ["sell_and_charge", "reprint_receipt"],
       }),
     ).toEqual([]);
   });
@@ -432,6 +433,34 @@ describe("the price comparison capability", () => {
       grantsCapability(
         { isAdministrator: false, permissionKeys: ["manage_supplier_price_lists"] },
         "price_comparison",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("the purchase_choices capability", () => {
+  it.each(["record_purchases", "manage_purchase_orders"] as const)(
+    "is granted to whoever holds only %s",
+    (permission) => {
+      expect(
+        grantsCapability(
+          { isAdministrator: false, permissionKeys: [permission] },
+          "purchase_choices",
+        ),
+      ).toBe(true);
+    },
+  );
+
+  it("is granted to no one holding every other permission", () => {
+    expect(
+      grantsCapability(
+        {
+          isAdministrator: false,
+          permissionKeys: PERMISSION_KEYS.filter(
+            (key) => key !== "record_purchases" && key !== "manage_purchase_orders",
+          ),
+        },
+        "purchase_choices",
       ),
     ).toBe(false);
   });

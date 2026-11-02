@@ -92,6 +92,12 @@ test("names the alert of a fiscal address month that reached the share of vouche
   );
 });
 
+test("names the alert of a month that follows a non-compliant one and may become a second consecutive one", () => {
+  expect(alertKindLabel("exception_share_second_month_at_risk")).toBe(
+    "Riesgo de un segundo mes consecutivo por excepción",
+  );
+});
+
 test("names the alert of a deferred sale that is close to the end of its time to be invoiced", () => {
   expect(alertKindLabel("deferred_sale_due")).toBe("Venta diferida por vencer");
 });

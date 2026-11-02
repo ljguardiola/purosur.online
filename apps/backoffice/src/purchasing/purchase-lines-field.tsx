@@ -24,6 +24,7 @@ import {
   canManageProductsAndCategories,
   canSeePricesArea,
 } from "../shell/backoffice-access";
+import { PackageCountInputs } from "./package-count-inputs";
 import {
   emptyPurchaseLine,
   nextPurchaseLineId,
@@ -213,26 +214,13 @@ function PurchaseLineFields({
           </Button>
         </div>
         {line.loadedBy === "packages" ? (
-          <div className="flex items-start gap-4">
-            <div className="min-w-0 flex-1">
-              <TextField
-                kind="plain-text"
-                label="Cantidad de paquetes"
-                value={line.packages}
-                onChange={(packages) => onChange({ packages })}
-                required
-              />
-            </div>
-            <div className="min-w-0 flex-1">
-              <TextField
-                {...quantityFieldKind(saleUnit)}
-                label="Cantidad por paquete"
-                value={line.quantityPerPackage}
-                onChange={(quantityPerPackage) => onChange({ quantityPerPackage })}
-                required
-              />
-            </div>
-          </div>
+          <PackageCountInputs
+            saleUnit={saleUnit}
+            packages={line.packages}
+            quantityPerPackage={line.quantityPerPackage}
+            onPackagesChange={(packages) => onChange({ packages })}
+            onQuantityPerPackageChange={(quantityPerPackage) => onChange({ quantityPerPackage })}
+          />
         ) : (
           <div className="w-48">
             <TextField

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { supplierOfferPrice } from "./supplier-offer.js";
+import { supplierOfferPrice, supplierOfferToOrder } from "./supplier-offer.js";
 
 const offer = {
   link: { quantity: 6_000, saleUnit: "UNIT" as const, relinkRequired: false },
@@ -49,5 +49,50 @@ describe("supplierOfferPrice", () => {
     expect(
       supplierOfferPrice({ ...offer, pricesIncludeVat: false, vatRate: 2_100 }, "UNIT"),
     ).toEqual({ kind: "priced", pricePerSaleUnit: { numerator: 1_210n, denominator: 1n } });
+  });
+});
+
+describe("supplierOfferToOrder", () => {
+  const item = (quantity: number, priceCents: number, overrides = {}) => ({
+    ...offer,
+    link: { ...offer.link, quantity },
+    priceCents,
+    ...overrides,
+  });
+
+  it("takes the item cheapest per sale unit among those priced", () => {
+    const dearer = item(1_000, 2_000);
+    const cheapest = item(6_000, 9_000);
+    const bulk = item(12_000, 30_000);
+
+    expect(supplierOfferToOrder([dearer, cheapest, bulk], "UNIT")).toBe(cheapest);
+  });
+
+  it("prefers a priced item to a current one without a comparable price", () => {
+    const withoutVatRate = item(1_000, 100, { pricesIncludeVat: false });
+    const priced = item(6_000, 9_000);
+
+    expect(supplierOfferToOrder([withoutVatRate, priced], "UNIT")).toBe(priced);
+  });
+
+  it("takes a current item without a comparable price over one whose link is outdated", () => {
+    const outdated = item(1_000, 100, { link: { ...offer.link, relinkRequired: true } });
+    const withoutVatRate = item(6_000, 9_000, { pricesIncludeVat: false });
+    const laterWithoutVatRate = item(12_000, 9_000, { pricesIncludeVat: false });
+
+    expect(supplierOfferToOrder([outdated, withoutVatRate, laterWithoutVatRate], "UNIT")).toBe(
+      withoutVatRate,
+    );
+  });
+
+  it("takes none when every item's link is outdated or there is none", () => {
+    expect(
+      supplierOfferToOrder(
+        [item(1_000, 100, { link: { ...offer.link, relinkRequired: true } })],
+        "UNIT",
+      ),
+    ).toBeUndefined();
+    expect(supplierOfferToOrder([item(1_000, 100)], "KG")).toBeUndefined();
+    expect(supplierOfferToOrder([], "UNIT")).toBeUndefined();
   });
 });

@@ -1,0 +1,36 @@
+import {
+  EXCEPTION_SHARE_NON_COMPLIANCE_PERCENT,
+  type ExceptionShareCounts,
+  exceptionShareTenthsOfPercent,
+} from "../../fiscal/index.js";
+import type { AlertConditionObservation } from "./alert-condition-observation.js";
+import { fiscalAddressMonthScope } from "./exception-share-alerts.js";
+
+export function secondMonthAtRiskObservation(
+  address: { fiscalAddressId: string; fiscalAddressName: string },
+  month: string,
+  previousMonth: string,
+  counts: ExceptionShareCounts,
+): AlertConditionObservation {
+  return {
+    holds: true,
+    alert: {
+      kind: "exception_share_second_month_at_risk",
+      scope: fiscalAddressMonthScope(address.fiscalAddressId, month),
+      detail: {
+        fiscalAddressId: address.fiscalAddressId,
+        fiscalAddressName: address.fiscalAddressName,
+        month,
+        previousMonth,
+        exceptionCount: counts.exceptionCount,
+        totalCount: counts.totalCount,
+        shareTenthsOfPercent: exceptionShareTenthsOfPercent(counts),
+        nonCompliancePercent: EXCEPTION_SHARE_NON_COMPLIANCE_PERCENT,
+      },
+    },
+  };
+}
+
+export function secondMonthNoLongerAtRiskObservation(scope: string): AlertConditionObservation {
+  return { holds: false, kind: "exception_share_second_month_at_risk", scope };
+}

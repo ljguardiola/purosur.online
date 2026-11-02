@@ -42,6 +42,8 @@ export {
   isPackageCount,
   ONE_SALE_UNIT_QUANTITY,
 } from "./model/purchase-line.js";
+export type { PurchaseOrderState } from "./model/purchase-order.js";
+export { PURCHASE_ORDER_STATES } from "./model/purchase-order.js";
 export type { PurchasedLine } from "./model/purchases-by-supplier-report.js";
 export {
   isSupplierContactTooLong,

@@ -11,7 +11,7 @@ import {
   useProductCreationChoicesRefresh,
 } from "./purchasing-queries";
 
-test("invalidating the purchasing key marks the suppliers, the purchases, the purchase choices, the freights, the linkable purchases, the supplier price lists, each review, each list's AI cost, each proposal, each quantity proposal, the link choices, the categories a created product is filed under and the price comparison, each purchases report, each freight report and each AI cost report stale", async () => {
+test("invalidating the purchasing key marks the suppliers, the purchases, the purchase choices, the freights, the linkable purchases, the supplier price lists, each review, each list's AI cost, each proposal, each quantity proposal, the link choices, the categories a created product is filed under and the price comparison, each list of purchase orders, each purchase order, each purchases report, each freight report and each AI cost report stale", async () => {
   const client = new QueryClient();
   const keys = [
     purchasingKeys.suppliers,
@@ -27,6 +27,8 @@ test("invalidating the purchasing key marks the suppliers, the purchases, the pu
     purchasingKeys.supplierItemLinkChoices,
     purchasingKeys.productCreationCategories,
     purchasingKeys.supplierPriceComparison,
+    [...purchasingKeys.purchaseOrders, "ALL"],
+    [...purchasingKeys.purchaseOrder, "order-1"],
     purchasesReportKey({ from: "2026-10-01", to: "2026-10-07" }),
     freightReportKey({ from: "2026-10-01", to: "2026-10-07" }),
     aiCostReportKey({ from: "2026-10-01", to: "2026-10-07", group_by: "supplier" }),

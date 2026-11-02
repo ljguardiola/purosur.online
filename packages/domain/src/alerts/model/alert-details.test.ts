@@ -615,3 +615,38 @@ describe("an exception share breach alert", () => {
     }>().not.toExtend<OpenAlertInput>();
   });
 });
+
+describe("an exception share second month at risk alert", () => {
+  it("accepts the fiscal address, the month in progress, the previous month and the running figures", () => {
+    expectTypeOf<{
+      kind: "exception_share_second_month_at_risk";
+      scope: string;
+      detail: {
+        fiscalAddressId: string;
+        fiscalAddressName: string;
+        month: string;
+        previousMonth: string;
+        exceptionCount: number;
+        totalCount: number;
+        shareTenthsOfPercent: number | null;
+        nonCompliancePercent: number;
+      };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses one without the running share", () => {
+    expectTypeOf<{
+      kind: "exception_share_second_month_at_risk";
+      scope: string;
+      detail: {
+        fiscalAddressId: string;
+        fiscalAddressName: string;
+        month: string;
+        previousMonth: string;
+        exceptionCount: number;
+        totalCount: number;
+        nonCompliancePercent: number;
+      };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+});

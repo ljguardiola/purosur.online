@@ -1,4 +1,4 @@
-import { dueOffsiteDumpNight } from "../../backups/index.js";
+import { dueOffsiteDumpNight, offsiteDumpNightOf } from "../../backups/index.js";
 import {
   offsiteDumpUnverifiedObservation,
   offsiteDumpVerifiedObservation,
@@ -14,8 +14,15 @@ export async function detectUnverifiedOffsiteDump(
   { checks, alerts, clock }: UnverifiedOffsiteDumpDetectionPorts,
   { environment }: { environment: string },
 ): Promise<DetectUnverifiedOffsiteDumpOutcome> {
-  const night = dueOffsiteDumpNight(clock.now());
-  const check = await checks.offsiteDumpCheckOf(night);
+  const now = clock.now();
+  const nightOfTheDay = offsiteDumpNightOf(now);
+  const checkOfTheDay = await checks.offsiteDumpCheckOf(nightOfTheDay);
+  const dueNight = dueOffsiteDumpNight(now);
+  const night = checkOfTheDay === undefined ? dueNight : nightOfTheDay;
+  const check =
+    checkOfTheDay !== undefined || dueNight === nightOfTheDay
+      ? checkOfTheDay
+      : await checks.offsiteDumpCheckOf(dueNight);
   if (check?.status === "verified") {
     await alerts.observeAlertCondition(offsiteDumpVerifiedObservation(environment));
     return { kind: "verified", night };
