@@ -97,6 +97,11 @@ export type {
 } from "./close-interrupted-contingency.js";
 export { closeInterruptedContingency } from "./close-interrupted-contingency.js";
 export type {
+  ClosePredecessorContingencyOutcome,
+  ClosePredecessorContingencyPorts,
+} from "./close-predecessor-contingency.js";
+export { closePredecessorContingency } from "./close-predecessor-contingency.js";
+export type {
   ConsultBitlockerRecoveryKeyInput,
   ConsultBitlockerRecoveryKeyOutcome,
 } from "./consult-bitlocker-recovery-key.js";

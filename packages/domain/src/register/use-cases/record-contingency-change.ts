@@ -1,6 +1,7 @@
 import { countsAsContingencyTime, type FiscalEmissionMode } from "../../fiscal/index.js";
 import type { Clock } from "../../shared/index.js";
 import { contingencyEnteredEvent, contingencyLeftEvent } from "../model/contingency-events.js";
+import { contingencyIntervalEnd } from "../model/contingency-interval.js";
 import type { IdGenerator } from "./cash-ledger.js";
 import type { ContingencyLedger } from "./contingency-ledger.js";
 
@@ -46,17 +47,18 @@ export function recordContingencyChange(
       return { kind: "entered", intervalId };
     }
     if (counts) {
-      tx.recordIntervalSeen(open.id, now);
+      tx.recordIntervalSeen(open.id, new Date(Math.max(now.getTime(), open.lastSeenAt.getTime())));
       return { kind: "refreshed", intervalId: open.id };
     }
-    tx.recordClosedInterval(open.id, now);
+    const endedAt = contingencyIntervalEnd(open.startedAt, now);
+    tx.recordClosedInterval(open.id, endedAt);
     tx.appendOutboxEvent(
       contingencyLeftEvent({
         eventId: ids.next(),
         registerId,
         intervalId: open.id,
         startedAt: open.startedAt,
-        endedAt: now,
+        endedAt,
       }),
     );
     return { kind: "left", intervalId: open.id };

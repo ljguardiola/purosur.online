@@ -33,6 +33,15 @@ export class SqliteContingencyLedger implements ContingencyLedger {
       registerId: () => readRegisterIdentity(database)?.registerId,
       cashSessionOpen: () => readOpenSession(database) !== undefined,
       openInterval: () => readOpenInterval(database),
+      predecessorOpenIntervals: () =>
+        database
+          .prepare<[], OpenIntervalRow>(
+            `SELECT interval_id, started_at, last_seen_at
+             FROM contingency_intervals WHERE ended_at IS NULL AND predecessor = 1
+             ORDER BY started_at, interval_id`,
+          )
+          .all()
+          .map(openIntervalOf),
       reportingStartedAt: () => {
         const row = database
           .prepare<[], { since: string }>("SELECT since FROM contingency_reporting_start")
@@ -78,14 +87,16 @@ function readOpenInterval(database: LocalDatabase): OpenContingencyInterval | un
   const row = database
     .prepare<[], OpenIntervalRow>(
       `SELECT interval_id, started_at, last_seen_at
-       FROM contingency_intervals WHERE ended_at IS NULL`,
+       FROM contingency_intervals WHERE ended_at IS NULL AND predecessor = 0`,
     )
     .get();
-  return row === undefined
-    ? undefined
-    : {
-        id: row.interval_id,
-        startedAt: new Date(row.started_at),
-        lastSeenAt: new Date(row.last_seen_at),
-      };
+  return row === undefined ? undefined : openIntervalOf(row);
+}
+
+function openIntervalOf(row: OpenIntervalRow): OpenContingencyInterval {
+  return {
+    id: row.interval_id,
+    startedAt: new Date(row.started_at),
+    lastSeenAt: new Date(row.last_seen_at),
+  };
 }

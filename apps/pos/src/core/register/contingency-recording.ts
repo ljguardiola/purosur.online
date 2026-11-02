@@ -2,6 +2,7 @@ import type { FiscalEmissionMode } from "@purosur/domain";
 import {
   type Clock,
   closeInterruptedContingency,
+  closePredecessorContingency,
   type IdGenerator,
   recordContingencyChange,
   startContingencyReporting,
@@ -49,6 +50,7 @@ export function createContingencyRecording({
 
   function check(ledger: SqliteContingencyLedger): void {
     const clock = { now };
+    closePredecessorContingency({ ledger, ids });
     startContingencyReporting({ ledger, clock, ids });
     recordContingencyChange({ ledger, clock, ids }, { mode: readMode() });
   }

@@ -1,4 +1,5 @@
 import { contingencyLeftEvent } from "../model/contingency-events.js";
+import { contingencyIntervalEnd } from "../model/contingency-interval.js";
 import type { IdGenerator } from "./cash-ledger.js";
 import type { ContingencyLedger } from "./contingency-ledger.js";
 
@@ -25,14 +26,15 @@ export function closeInterruptedContingency({
     if (open === undefined) {
       return { kind: "none_open" };
     }
-    tx.recordClosedInterval(open.id, open.lastSeenAt);
+    const endedAt = contingencyIntervalEnd(open.startedAt, open.lastSeenAt);
+    tx.recordClosedInterval(open.id, endedAt);
     tx.appendOutboxEvent(
       contingencyLeftEvent({
         eventId: ids.next(),
         registerId,
         intervalId: open.id,
         startedAt: open.startedAt,
-        endedAt: open.lastSeenAt,
+        endedAt,
       }),
     );
     return { kind: "closed", intervalId: open.id };

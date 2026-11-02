@@ -87,15 +87,12 @@ import {
 import {
   cashBalanceFor,
   cashCountPreviewFor,
-  closeCashSessionFor,
-  closeLockedCashSessionFor,
   currentCashSession,
   identifyLockedCloserFor,
   lockedClosersFor,
-  openCashSessionFor,
   sessionOpenSaleFor,
 } from "./register/cash-session-requests";
-import { createContingencyRecording } from "./register/contingency-recording";
+import { createContingencyRecordingWiring } from "./register/contingency-recording-wiring";
 import { coreFailureReporters } from "./register/core-failure-reporters";
 import {
   prepareLocalDataFolder,
@@ -760,24 +757,18 @@ const fiscalModeWatch =
         read: () => readFiscalEmissionModeIn(localDatabase, now(), zoneRules).kind,
         onChanged: () => rendererConnection.tell(FISCAL_MODE_CHANGED_NOTICE),
       });
-const contingencyRecording =
-  localDatabase === undefined
-    ? undefined
-    : createContingencyRecording({
-        database: localDatabase,
-        now,
-        ids: uuidV7Ids,
-        readMode: () => readFiscalEmissionModeIn(localDatabase, now(), zoneRules),
-        readOutboxChainKey: async () =>
-          (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
-        reportFailure: (error) => reportFailure("recording the register's contingency", error),
-      });
-void contingencyRecording?.startup();
-const checkContingencyAfter = async <Answer>(request: Promise<Answer>): Promise<Answer> => {
-  const answer = await request;
-  void contingencyRecording?.check();
-  return answer;
-};
+const contingencyRecording = createContingencyRecordingWiring({
+  database: localDatabase,
+  gate: actionGate,
+  zoneRules,
+  now,
+  ids: uuidV7Ids,
+  readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+  readMode: (database) => readFiscalEmissionModeIn(database, now(), zoneRules),
+  restorationOf,
+  reportFailure: (error) => reportFailure("recording the register's contingency", error),
+});
+void contingencyRecording.startup();
 const restorationStandingWatch =
   localDatabase === undefined
     ? undefined
@@ -827,7 +818,7 @@ const enrollmentWatch = createInstallationEnrollmentWatch({
   onChanged: () => rendererConnection.tell(ENROLLMENT_STANDING_CHANGED_NOTICE),
 });
 function checkEnrollmentStanding(): void {
-  void contingencyRecording?.check();
+  void contingencyRecording.check();
   enrollmentWatch
     .check()
     .catch((error: unknown) => reportFailure("watching the enrollment standing", error));
@@ -873,7 +864,7 @@ const receiptPrinting = createReceiptPrinting({
   beforePrinting: async (saleId) => {
     await realTimeAuthorization.authorizeSale(saleId);
     fiscalModeWatch?.check();
-    void contingencyRecording?.check();
+    void contingencyRecording.check();
   },
   reportFailure,
   syncNow: () => {
@@ -1129,61 +1120,9 @@ const rendererRequestDeps: RendererRequestDeps = {
       userId,
     ),
   signOut: () => signedInPerson.clear(),
-  openCashSession:
-    localDatabase === undefined || actionGate === undefined
-      ? undefined
-      : (openingFloat) =>
-          checkContingencyAfter(
-            openCashSessionFor(
-              {
-                zoneRules,
-                database: localDatabase,
-                restoration: restorationOf(localDatabase),
-                gate: actionGate,
-                readOutboxChainKey: async () =>
-                  (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
-                now,
-                ids: uuidV7Ids,
-              },
-              openingFloat,
-            ),
-          ),
-  closeCashSession:
-    localDatabase === undefined || actionGate === undefined
-      ? undefined
-      : (sessionId, countedCash) =>
-          checkContingencyAfter(
-            closeCashSessionFor(
-              {
-                zoneRules,
-                database: localDatabase,
-                gate: actionGate,
-                readOutboxChainKey: async () =>
-                  (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
-                now,
-                ids: uuidV7Ids,
-              },
-              { sessionId, countedCash },
-            ),
-          ),
-  closeLockedCashSession:
-    localDatabase === undefined || actionGate === undefined
-      ? undefined
-      : (sessionId, countedCash, closer) =>
-          checkContingencyAfter(
-            closeLockedCashSessionFor(
-              {
-                zoneRules,
-                database: localDatabase,
-                gate: actionGate,
-                readOutboxChainKey: async () =>
-                  (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
-                now,
-                ids: uuidV7Ids,
-              },
-              { sessionId, countedCash, closer },
-            ),
-          ),
+  openCashSession: contingencyRecording.openCashSession,
+  closeCashSession: contingencyRecording.closeCashSession,
+  closeLockedCashSession: contingencyRecording.closeLockedCashSession,
   cancelLockedSale:
     localDatabase === undefined || actionGate === undefined
       ? undefined
@@ -1755,7 +1694,7 @@ startRegisterHealthChecks({
   reportFailure: (error) => reportFailure("the register health check", error),
   afterCheck: () => {
     fiscalModeWatch?.check();
-    void contingencyRecording?.check();
+    void contingencyRecording.check();
   },
   ids: uuidV7Ids,
   shortCodes: cryptoShortCodes,

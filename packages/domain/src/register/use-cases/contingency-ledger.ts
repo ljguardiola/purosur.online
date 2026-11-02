@@ -14,6 +14,7 @@ export interface ContingencyLedgerTransaction {
   registerId(): string | undefined;
   cashSessionOpen(): boolean;
   openInterval(): OpenContingencyInterval | undefined;
+  predecessorOpenIntervals(): OpenContingencyInterval[];
   reportingStartedAt(): Date | undefined;
   recordOpenedInterval(interval: { id: string; startedAt: Date }): void;
   recordIntervalSeen(intervalId: string, seenAt: Date): void;

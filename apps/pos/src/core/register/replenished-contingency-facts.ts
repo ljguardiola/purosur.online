@@ -14,8 +14,8 @@ export function applyReplenishedContingencyFact(
     case "contingency_entered":
       database
         .prepare(
-          `INSERT OR IGNORE INTO contingency_intervals (interval_id, started_at, ended_at, last_seen_at)
-           VALUES (?, ?, NULL, ?)`,
+          `INSERT OR IGNORE INTO contingency_intervals (interval_id, started_at, ended_at, last_seen_at, predecessor)
+           VALUES (?, ?, NULL, ?, 1)`,
         )
         .run(
           fact.interval.intervalId,
@@ -26,8 +26,8 @@ export function applyReplenishedContingencyFact(
     case "contingency_left":
       database
         .prepare(
-          `INSERT INTO contingency_intervals (interval_id, started_at, ended_at, last_seen_at)
-           VALUES (?, ?, ?, ?)
+          `INSERT INTO contingency_intervals (interval_id, started_at, ended_at, last_seen_at, predecessor)
+           VALUES (?, ?, ?, ?, 1)
            ON CONFLICT (interval_id) DO UPDATE SET ended_at = excluded.ended_at`,
         )
         .run(
