@@ -506,6 +506,31 @@ describe("the register's store for replenishing a restored register", () => {
       expect(count("pre_emission_gate_outcomes")).toBe(1);
     });
 
+    it("applies the contingency facts with the contingency writers", async () => {
+      const startedAt = new Date("2026-10-07T10:00:00.000Z");
+      const facts: SyncedFact[] = [
+        { kind: "contingency_reporting_started", reporting: { since: startedAt } },
+        { kind: "contingency_entered", interval: { intervalId: "interval-1", startedAt } },
+        {
+          kind: "contingency_left",
+          interval: {
+            intervalId: "interval-1",
+            startedAt,
+            endedAt: new Date("2026-10-07T10:20:00.000Z"),
+          },
+        },
+      ];
+
+      for (const fact of facts) {
+        expect(await store.transaction((tx) => tx.applyFact(fact, SOURCE))).toBe("applied");
+      }
+
+      expect(count("contingency_reporting_start")).toBe(1);
+      expect(
+        database.prepare("SELECT interval_id, ended_at FROM contingency_intervals").all(),
+      ).toEqual([{ interval_id: "interval-1", ended_at: "2026-10-07T10:20:00.000Z" }]);
+    });
+
     it("applies an offline fiscal document that carries its invoice with the live issuing writer", async () => {
       await store.transaction((tx) => tx.applyFact(aCompletedSaleFact({ id: "sale-1" }), SOURCE));
       const fact: SyncedFact = {

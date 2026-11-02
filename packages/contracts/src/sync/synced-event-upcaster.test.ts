@@ -2016,6 +2016,73 @@ describe("decoding the events the registers pushed", () => {
     });
   });
 
+  describe("a register's contingency", () => {
+    const REGISTER = "0b6f8d3a-2c41-4e9b-a7d5-3f1e9c8b6a20";
+    const INTERVAL = "01a1414f-0002-7c2d-9e3f-5a6b7c8d9e02";
+
+    function decoded(eventType: string, payload: Record<string, string>) {
+      return upcaster.decode(
+        unappliedEventOf(
+          pushed({
+            aggregate_type: "Register",
+            aggregate_id: REGISTER,
+            actor_id: REGISTER,
+            event_type: eventType,
+            schema_version: 1,
+            payload,
+          }),
+        ),
+      );
+    }
+
+    it("reads the entry into contingency as the start of an interval", () => {
+      expect(
+        decoded("contingency_entered", {
+          interval_id: INTERVAL,
+          started_at: "2026-10-06T11:00:00.000Z",
+        }),
+      ).toEqual({
+        kind: "fact",
+        fact: {
+          kind: "contingency_entered",
+          interval: { intervalId: INTERVAL, startedAt: new Date("2026-10-06T11:00:00.000Z") },
+        },
+      });
+    });
+
+    it("reads the exit from contingency as the end of an interval", () => {
+      expect(
+        decoded("contingency_left", {
+          interval_id: INTERVAL,
+          started_at: "2026-10-06T11:00:00.000Z",
+          ended_at: "2026-10-06T11:40:00.000Z",
+        }),
+      ).toEqual({
+        kind: "fact",
+        fact: {
+          kind: "contingency_left",
+          interval: {
+            intervalId: INTERVAL,
+            startedAt: new Date("2026-10-06T11:00:00.000Z"),
+            endedAt: new Date("2026-10-06T11:40:00.000Z"),
+          },
+        },
+      });
+    });
+
+    it("reads the first report of contingency as the moment the register started reporting it", () => {
+      expect(
+        decoded("contingency_reporting_started", { since: "2026-10-06T11:00:00.000Z" }),
+      ).toEqual({
+        kind: "fact",
+        fact: {
+          kind: "contingency_reporting_started",
+          reporting: { since: new Date("2026-10-06T11:00:00.000Z") },
+        },
+      });
+    });
+  });
+
   it("reads a deferred sale record of the first version as one that left no document waiting", () => {
     const decoded = upcaster.decode(
       unappliedEventOf(
