@@ -150,6 +150,31 @@ describe("aiCostByPeriod", () => {
     expect(report.groups.map(({ key }) => key)).toEqual(["s-1", "s-2", "s-3"]);
   });
 
+  it("orders groups of the same cost and name by the code units of their key", () => {
+    const report = aiCostByPeriod(
+      [
+        anAiCall({ supplierId: "a9", supplierName: "Álamo", costNanoUsd: 7 }),
+        anAiCall({ supplierId: "B1", supplierName: "Álamo", costNanoUsd: 7 }),
+        anAiCall({ supplierId: "a10", supplierName: "Álamo", costNanoUsd: 7 }),
+      ],
+      "supplier",
+    );
+
+    expect(report.groups.map(({ key }) => key)).toEqual(["B1", "a10", "a9"]);
+  });
+
+  it("orders the numbers inside group names by their value", () => {
+    const report = aiCostByPeriod(
+      [
+        anAiCall({ supplierId: "s-1", supplierName: "Proveedor 10", costNanoUsd: 7 }),
+        anAiCall({ supplierId: "s-2", supplierName: "Proveedor 2", costNanoUsd: 7 }),
+      ],
+      "supplier",
+    );
+
+    expect(report.groups.map(({ key }) => key)).toEqual(["s-2", "s-1"]);
+  });
+
   it("keeps a group of calls without a price, counting them as unpriced", () => {
     const report = aiCostByPeriod(
       [anAiCall({ costNanoUsd: null }), anAiCall({ costNanoUsd: 30 })],

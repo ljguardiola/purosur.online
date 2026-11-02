@@ -1,4 +1,5 @@
 import { offsiteDumpManifestSchema } from "@purosur/contracts";
+import { offsiteDumpNightOf } from "@purosur/domain";
 import { AwsClient } from "aws4fetch";
 import type { DumpedFile } from "./offsite-dump-pipeline.js";
 
@@ -113,7 +114,7 @@ async function sha256Hex(text: string): Promise<string> {
 }
 
 async function ship(config: OffsiteDumpConfig, deps: OffsiteDumpDeps): Promise<void> {
-  const night = deps.now().toISOString().slice(0, 10);
+  const night = offsiteDumpNightOf(deps.now());
   const workspace = await deps.workspace();
   try {
     const dumped = await deps.dumpToFile({

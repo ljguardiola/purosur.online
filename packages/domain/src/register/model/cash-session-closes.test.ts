@@ -115,6 +115,15 @@ describe("cashSessionClosesSummary", () => {
     ]);
   });
 
+  it("orders the numbers inside cashier names by their value", () => {
+    const { totals } = cashSessionClosesSummary([
+      aClose({ id: "a", cashierId: "u1", cashierName: "Caja 10", difference: 1 }),
+      aClose({ id: "b", cashierId: "u2", cashierName: "Caja 2", difference: 1 }),
+    ]);
+
+    expect(totals.cashiersWithDifference.map(({ cashierId }) => cashierId)).toEqual(["u2", "u1"]);
+  });
+
   it("puts the cashier with more closes with a difference first whatever their names", () => {
     const closes = [
       aClose({ id: "a", cashierId: "u1", cashierName: "Ana", difference: 1 }),
@@ -155,15 +164,15 @@ describe("cashSessionClosesSummary", () => {
     }
   });
 
-  it("orders closes of the same instant by id as a Spanish reader does, whatever its case", () => {
-    const closes = [aClose({ id: "B" }), aClose({ id: "a" })];
+  it("orders closes of the same instant by the code units of their id", () => {
+    const closes = [aClose({ id: "a" }), aClose({ id: "B" }), aClose({ id: "a10" })];
 
     for (const input of [closes, [...closes].reverse()]) {
-      expect(cashSessionClosesSummary(input).closes.map(({ id }) => id)).toEqual(["a", "B"]);
+      expect(cashSessionClosesSummary(input).closes.map(({ id }) => id)).toEqual(["B", "a", "a10"]);
     }
   });
 
-  it("orders cashiers of the same count and name by id as a Spanish reader does, whatever its case", () => {
+  it("orders cashiers of the same count and name by the code units of their id", () => {
     const closes = [
       aClose({ id: "a", cashierId: "B", cashierName: "Ana", difference: 1 }),
       aClose({ id: "b", cashierId: "a", cashierName: "Ana", difference: 1 }),
@@ -172,7 +181,7 @@ describe("cashSessionClosesSummary", () => {
     for (const input of [closes, [...closes].reverse()]) {
       const { totals } = cashSessionClosesSummary(input);
 
-      expect(totals.cashiersWithDifference.map(({ cashierId }) => cashierId)).toEqual(["a", "B"]);
+      expect(totals.cashiersWithDifference.map(({ cashierId }) => cashierId)).toEqual(["B", "a"]);
     }
   });
 

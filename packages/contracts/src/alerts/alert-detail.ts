@@ -287,6 +287,17 @@ const exceptionShareBreachDetailSchema = z.object({
   nonCompliancePercent: z.int(),
 });
 
+const exceptionShareSecondMonthAtRiskDetailSchema = z.object({
+  fiscalAddressId: z.string(),
+  fiscalAddressName: z.string(),
+  month: z.string(),
+  previousMonth: z.string(),
+  exceptionCount: z.int(),
+  totalCount: z.int(),
+  shareTenthsOfPercent: z.int().nullable(),
+  nonCompliancePercent: z.int(),
+});
+
 const fortnightReportDocumentRejectedDetailSchema =
   fortnightReportNeedsRegularizationDetailSchema.extend({
     documentType: z.enum([FACTURA_C_DOCUMENT_TYPE, CREDIT_NOTE_C_DOCUMENT_TYPE]),
@@ -499,6 +510,11 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("exception_share_breach" satisfies AlertKind),
     detail: exceptionShareBreachDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("exception_share_second_month_at_risk" satisfies AlertKind),
+    detail: exceptionShareSecondMonthAtRiskDetailSchema,
   }),
 ] as const;
 

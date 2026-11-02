@@ -1,4 +1,4 @@
-import { compareSpanishText } from "../../shared/index.js";
+import { compareCodeUnits, compareOptionalNames } from "../../shared/index.js";
 import { CONFIRMED_BY_HAND_METHODS, type ConfirmedByHandMethod } from "./payment.js";
 
 export interface HandConfirmedPayment {
@@ -44,21 +44,11 @@ function totalsByMethod(payments: readonly HandConfirmedPayment[]): HandConfirme
   });
 }
 
-function compareNames(a: string | null, b: string | null): number {
-  if (a === null) {
-    return b === null ? 0 : 1;
-  }
-  if (b === null) {
-    return -1;
-  }
-  return compareSpanishText(a, b);
-}
-
 function compareCashiers(a: HandConfirmedCashierTotal, b: HandConfirmedCashierTotal): number {
   return (
     b.amount - a.amount ||
-    compareNames(a.cashierName, b.cashierName) ||
-    compareSpanishText(a.cashierId, b.cashierId)
+    compareOptionalNames(a.cashierName, b.cashierName) ||
+    compareCodeUnits(a.cashierId, b.cashierId)
   );
 }
 

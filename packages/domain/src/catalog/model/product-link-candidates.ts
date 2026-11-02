@@ -1,4 +1,4 @@
-import { compareSpanishText, foldedText } from "../../shared/index.js";
+import { compareCodeUnits, compareSpanishText, foldedText } from "../../shared/index.js";
 import { isNetContentMentioned, netContentMentions } from "./net-content-mention.js";
 import type { NetContentUnit } from "./product.js";
 import { wordsOf } from "./text-words.js";
@@ -56,7 +56,7 @@ export function productLinkCandidates<
         Number(b.byName) - Number(a.byName) ||
         b.score - a.score ||
         compareSpanishText(a.product.name, b.product.name) ||
-        compareSpanishText(a.product.id, b.product.id),
+        compareCodeUnits(a.product.id, b.product.id),
     )
     .slice(0, limit)
     .map(({ product }) => product);

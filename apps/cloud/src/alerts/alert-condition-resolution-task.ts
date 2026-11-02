@@ -9,6 +9,7 @@ import {
   detectOwedElsewherePresentations,
   detectQuietRegisters,
   detectRejectedFortnightDocuments,
+  detectSecondNonCompliantMonthRisks,
   openOverdueUnclearOutcomeAlerts,
   resolveStablyClearedAlerts,
 } from "@purosur/domain/alerts/use-cases";
@@ -51,6 +52,8 @@ import { DrizzleMissingOfflineAuthorizationCodeAlerts } from "./drizzle-missing-
 import { DrizzleOwedElsewhereAlerts } from "./drizzle-owed-elsewhere-alerts.js";
 import { DrizzleRecordedExceptionShareBreachReader } from "./drizzle-recorded-exception-share-breach-reader.js";
 import { DrizzleRejectedFortnightDocumentAlerts } from "./drizzle-rejected-fortnight-document-alerts.js";
+import { DrizzleSecondMonthAtRiskAlerts } from "./drizzle-second-month-at-risk-alerts.js";
+import { DrizzleSecondMonthRiskReader } from "./drizzle-second-month-risk-reader.js";
 import { DrizzleUnclearOutcomeAlertStore } from "./drizzle-unclear-outcome-alert-store.js";
 import { observeAlertCondition } from "./observe-alert-condition.js";
 
@@ -234,6 +237,18 @@ function detectExceptionShareBreachesTask<TQueryResult extends PgQueryResultHKT>
   });
 }
 
+function detectSecondMonthRisksTask<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult>,
+  deps: AlertTaskDeps,
+): Promise<number> {
+  return detectSecondNonCompliantMonthRisks({
+    risks: new DrizzleSecondMonthRiskReader(db),
+    alerts: new DrizzleSecondMonthAtRiskAlerts(db, deps.now),
+    clock: { now: deps.now },
+    zoneRules: deps.zoneRules,
+  });
+}
+
 export interface AlertConditionResolutionJobsDeps {
   createDatabase?: (client: PoolClient) => NodePgDatabase<Record<string, never>>;
   resolve?: typeof resolveClearedConditionAlertsTask;
@@ -251,6 +266,7 @@ export interface AlertConditionResolutionJobsDeps {
   detectDeferredSaleDeadlines?: typeof detectDeferredSaleDeadlinesTask;
   recordExceptionShareBreaches?: typeof recordExceptionShareBreachesTask;
   detectExceptionShareBreaches?: typeof detectExceptionShareBreachesTask;
+  detectSecondMonthRisks?: typeof detectSecondMonthRisksTask;
 }
 
 export function alertConditionResolutionJobs(
@@ -283,6 +299,7 @@ export function alertConditionResolutionJobs(
     deps.recordExceptionShareBreaches ?? recordExceptionShareBreachesTask;
   const doDetectExceptionShareBreaches =
     deps.detectExceptionShareBreaches ?? detectExceptionShareBreachesTask;
+  const doDetectSecondMonthRisks = deps.detectSecondMonthRisks ?? detectSecondMonthRisksTask;
   return {
     taskList: {
       [ALERT_CONDITION_RESOLUTION_TASK_IDENTIFIER]: async (_payload, helpers) => {
@@ -327,6 +344,10 @@ export function alertConditionResolutionJobs(
             zoneRules: options.zoneRules,
           });
           await doDetectExceptionShareBreaches(db, {
+            now: options.now,
+            zoneRules: options.zoneRules,
+          });
+          await doDetectSecondMonthRisks(db, {
             now: options.now,
             zoneRules: options.zoneRules,
           });

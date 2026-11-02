@@ -1,4 +1,4 @@
-import { compareSpanishText } from "../../shared/index.js";
+import { compareCodeUnits } from "../../shared/index.js";
 import { reportMonthOf } from "./report-month.js";
 
 export interface RegisteredFreight {
@@ -33,7 +33,7 @@ export function freightByPeriod(freights: readonly RegisteredFreight[]): Freight
   }
   return {
     months: [...byMonth.entries()]
-      .sort(([a], [b]) => compareSpanishText(a, b))
+      .sort(([a], [b]) => compareCodeUnits(a, b))
       .map(([month, tally]) => ({ month, ...tally })),
     totals: { freights: count, amount },
   };

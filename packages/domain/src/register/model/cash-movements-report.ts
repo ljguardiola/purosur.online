@@ -1,4 +1,4 @@
-import { compareSpanishText } from "../../shared/index.js";
+import { compareCodeUnits } from "../../shared/index.js";
 import type { CashMovementKind } from "./cash-movement-kind.js";
 
 export interface ReportedCashMovement {
@@ -23,7 +23,7 @@ export interface CashMovementsSummary {
 }
 
 function movementOrder(a: ReportedCashMovement, b: ReportedCashMovement): number {
-  return b.occurredAt.getTime() - a.occurredAt.getTime() || compareSpanishText(a.id, b.id);
+  return b.occurredAt.getTime() - a.occurredAt.getTime() || compareCodeUnits(a.id, b.id);
 }
 
 function totalOfKind(

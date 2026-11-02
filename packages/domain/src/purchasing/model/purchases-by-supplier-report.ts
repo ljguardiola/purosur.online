@@ -1,4 +1,4 @@
-import { compareSpanishText } from "../../shared/index.js";
+import { compareCodeUnits, compareSpanishText } from "../../shared/index.js";
 import { purchaseValueCents } from "./freight-distribution.js";
 import type { PurchaseLineCost } from "./purchase-line.js";
 import { reportMonthOf } from "./report-month.js";
@@ -71,7 +71,7 @@ export function purchasesBySupplier(lines: readonly PurchasedLine[]): PurchasesB
       supplierId,
       name: tally.name,
       months: [...tally.months.entries()]
-        .sort(([a], [b]) => compareSpanishText(a, b))
+        .sort(([a], [b]) => compareCodeUnits(a, b))
         .map(([month, monthTally]) => ({
           month,
           purchases: monthTally.purchaseIds.size,
@@ -81,8 +81,7 @@ export function purchasesBySupplier(lines: readonly PurchasedLine[]): PurchasesB
       amount: amountOf(tally),
     }))
     .sort(
-      (a, b) =>
-        compareSpanishText(a.name, b.name) || compareSpanishText(a.supplierId, b.supplierId),
+      (a, b) => compareSpanishText(a.name, b.name) || compareCodeUnits(a.supplierId, b.supplierId),
     );
   return {
     suppliers,
