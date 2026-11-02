@@ -68,7 +68,9 @@ test("shows no notice to a tab running the deployed release, and its failures re
   } as never);
   const screen = await render(<App help={emptyHelp} services={services} reportError={vi.fn()} />);
 
-  await expect.element(screen.getByText("Probá de nuevo en unos minutos.")).toBeVisible();
+  await expect
+    .element(screen.getByRole("alert"))
+    .toHaveTextContent("Probá de nuevo en unos minutos.");
   expect(screen.getByText("Hay una versión nueva del backoffice").query()).toBeNull();
   expect(screen.getByRole("button", { name: "Recargar" }).query()).toBeNull();
 });
