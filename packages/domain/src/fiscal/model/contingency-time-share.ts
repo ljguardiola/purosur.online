@@ -89,20 +89,17 @@ function lengthOf(spans: readonly Millis[]): number {
 }
 
 function intersectionLength(a: readonly Millis[], b: readonly Millis[]): number {
-  let total = 0;
-  let indexA = 0;
-  let indexB = 0;
-  while (indexA < a.length && indexB < b.length) {
-    const spanA = a[indexA] as Millis;
-    const spanB = b[indexB] as Millis;
-    total += Math.max(0, Math.min(spanA.end, spanB.end) - Math.max(spanA.start, spanB.start));
-    if (spanA.end < spanB.end) {
-      indexA += 1;
-    } else {
-      indexB += 1;
-    }
-  }
-  return total;
+  return a.reduce(
+    (total, spanA) =>
+      total +
+      b.reduce(
+        (subtotal, spanB) =>
+          subtotal +
+          Math.max(0, Math.min(spanA.end, spanB.end) - Math.max(spanA.start, spanB.start)),
+        0,
+      ),
+    0,
+  );
 }
 
 export function arcaAvailableSpans(runs: readonly ArcaAvailabilityRun[]): TimeSpan[] {
