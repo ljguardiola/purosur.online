@@ -154,6 +154,24 @@ test("keeps the focus on the dialog when the body holds only checkboxes, switche
   await expect.element(screen.getByRole("dialog")).toHaveFocus();
 });
 
+test("opens focused on the first field the person can type in, past a read-only one before it", async () => {
+  const screen = await render(
+    <FormModal>
+      <TextField
+        kind="plain-text"
+        label="Rol"
+        value="Administrador"
+        onChange={() => {}}
+        readOnly
+        readOnlyReason="Es el único Administrador activo."
+      />
+      <NameField />
+    </FormModal>,
+  );
+
+  await expect.element(screen.getByRole("textbox", { name: "Nombre" })).toHaveFocus();
+});
+
 test.each(["file", "color", "button", "submit", "reset", "image"])(
   "opens focused on the first text field, past an input of type %s before it",
   async (type) => {
