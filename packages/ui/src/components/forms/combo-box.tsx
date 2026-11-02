@@ -151,6 +151,24 @@ function CloseListOpenedWithoutThePerson() {
   return null;
 }
 
+// A click on the input that already holds the focus moves no focus, so react-aria opens nothing
+// for it, as when a modal opened focused on the field.
+function ComboBoxInput({ placeholder }: { placeholder: string | undefined }) {
+  const state = useContext(AriaComboBoxStateContext);
+  return (
+    <AriaInput
+      ref={takeFocusWhenRestored}
+      className={inputClassName}
+      {...(placeholder !== undefined ? { placeholder } : {})}
+      onClick={() => {
+        if (state !== null && !state.isOpen) {
+          state.open(null, "manual");
+        }
+      }}
+    />
+  );
+}
+
 export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
   const {
     label,
@@ -195,8 +213,6 @@ export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
           gap: listMetrics.gap,
         };
 
-  const placeholderProps = placeholder !== undefined ? { placeholder } : {};
-
   return (
     <AriaComboBox
       {...comboBoxProps}
@@ -229,7 +245,7 @@ export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
       <div
         className={`${fieldBoxClassName} ${backofficeFieldHeightClassName} ${fieldBoxStateClassName({ disabled, invalid })}`}
       >
-        <AriaInput ref={takeFocusWhenRestored} className={inputClassName} {...placeholderProps} />
+        <ComboBoxInput placeholder={placeholder} />
         {chosen?.status !== undefined ? (
           <Tag tone="neutral" variant="status">
             {chosen.status}
