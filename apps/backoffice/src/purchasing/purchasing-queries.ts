@@ -9,6 +9,7 @@ import type {
   LinkablePurchaseList,
   OrderSuggestion,
   PurchaseChoices,
+  PurchaseOrderSummary,
   PurchaseSummary,
   PurchasesBySupplierBody,
   PurchasesBySupplierQuery,
@@ -35,6 +36,12 @@ import type {
   fetchLinkablePurchases,
 } from "./freights-api";
 import type { fetchOrderSuggestion } from "./order-suggestion-api";
+import type {
+  fetchPurchaseOrder,
+  fetchPurchaseOrders,
+  PurchaseOrderRead,
+  PurchaseOrderStateFilter,
+} from "./purchase-orders-api";
 import type { fetchPurchaseChoices, fetchPurchases } from "./purchases-api";
 import type { fetchPurchasesReport } from "./purchases-report-api";
 import type {
@@ -74,6 +81,8 @@ export const purchasingKeys = {
   productCreationBrands: [...purchasingKey, "product-creation-brands"] as const,
   productCreationTags: [...purchasingKey, "product-creation-tags"] as const,
   supplierPriceComparison: [...purchasingKey, "supplier-price-comparison"] as const,
+  purchaseOrders: [...purchasingKey, "purchase-orders"] as const,
+  purchaseOrder: [...purchasingKey, "purchase-order"] as const,
   orderSuggestion: [...purchasingKey, "order-suggestion"] as const,
 };
 
@@ -510,4 +519,33 @@ export function useReloadSupplier(params: {
     const supplier = listed.value.find((listedSupplier) => listedSupplier.id === id);
     return supplier ? { kind: "found", supplier } : { kind: "not_found" };
   };
+}
+
+export function usePurchaseOrdersQuery(params: {
+  state: PurchaseOrderStateFilter;
+  fetchPurchaseOrders: typeof fetchPurchaseOrders;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<PurchaseOrderSummary[]>({
+    queryKey: [...purchasingKeys.purchaseOrders, params.state],
+    keepPreviousData: true,
+    read: () => params.fetchPurchaseOrders(params.state),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function usePurchaseOrderQuery(params: {
+  orderId: string;
+  fetchPurchaseOrder: typeof fetchPurchaseOrder;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<PurchaseOrderRead>({
+    queryKey: [...purchasingKeys.purchaseOrder, params.orderId],
+    read: () => params.fetchPurchaseOrder(params.orderId),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
 }

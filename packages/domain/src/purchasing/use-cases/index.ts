@@ -2,6 +2,19 @@ export type { AiCallRecord } from "./ai-call-recording.js";
 export type { AiCallUsage, OnAiCall } from "./ai-call-usage.js";
 export type { AiCostReportQuery, AiCostReportReader } from "./ai-cost-report-reader.js";
 export type {
+  BuildPurchaseOrdersInput,
+  BuildPurchaseOrdersOutcome,
+  BuildPurchaseOrdersPorts,
+  PurchaseOrderChoice,
+} from "./build-purchase-orders.js";
+export { buildPurchaseOrders } from "./build-purchase-orders.js";
+export type {
+  CancelPurchaseOrderInput,
+  CancelPurchaseOrderOutcome,
+  CancelPurchaseOrderPorts,
+} from "./cancel-purchase-order.js";
+export { cancelPurchaseOrder } from "./cancel-purchase-order.js";
+export type {
   ConfirmSupplierPriceListInput,
   ConfirmSupplierPriceListOutcome,
 } from "./confirm-supplier-price-list.js";
@@ -22,6 +35,13 @@ export type {
 export { discardSupplierPriceList } from "./discard-supplier-price-list.js";
 export type { EditFreightInput, EditFreightOutcome } from "./edit-freight.js";
 export { editFreight } from "./edit-freight.js";
+export type {
+  EditedPurchaseOrderLine,
+  EditPurchaseOrderInput,
+  EditPurchaseOrderOutcome,
+  EditPurchaseOrderPorts,
+} from "./edit-purchase-order.js";
+export { editPurchaseOrder } from "./edit-purchase-order.js";
 export type { EditSupplierInput, EditSupplierOutcome } from "./edit-supplier.js";
 export { editSupplier } from "./edit-supplier.js";
 export type {
@@ -62,6 +82,12 @@ export type {
   NewFreightFields,
 } from "./freight-store.js";
 export type {
+  FoundPurchaseOrder,
+  GetPurchaseOrderInput,
+  GetPurchaseOrderOutcome,
+} from "./get-purchase-order.js";
+export { getPurchaseOrder } from "./get-purchase-order.js";
+export type {
   LinkSupplierPriceListRowInput,
   LinkSupplierPriceListRowOutcome,
 } from "./link-supplier-price-list-row.js";
@@ -80,6 +106,11 @@ export type {
 export { listOrderSuggestion } from "./list-order-suggestion.js";
 export type { PurchaseChoices } from "./list-purchase-choices.js";
 export { listPurchaseChoices } from "./list-purchase-choices.js";
+export type {
+  ListedPurchaseOrder,
+  ListPurchaseOrdersInput,
+} from "./list-purchase-orders.js";
+export { listPurchaseOrders } from "./list-purchase-orders.js";
 export type { ListedPurchase, ListedPurchaseLine } from "./list-purchases.js";
 export { findPurchaseListing, listPurchases } from "./list-purchases.js";
 export type { SupplierItemLinkChoice } from "./list-supplier-item-link-choices.js";
@@ -136,6 +167,22 @@ export type {
   ProposeSupplierItemQuantityPorts,
 } from "./propose-supplier-item-quantity.js";
 export { proposeSupplierItemQuantity } from "./propose-supplier-item-quantity.js";
+export type {
+  PurchaseOrderDetailListing,
+  PurchaseOrderLineListing,
+  PurchaseOrderListing,
+  PurchaseOrderReader,
+} from "./purchase-order-reader.js";
+export type {
+  LockedPurchaseOrder,
+  LockPurchaseOrderResult,
+  NewPurchaseOrderFields,
+  NewPurchaseOrderLineFields,
+  PurchaseOrderLineFields,
+  PurchaseOrderStore,
+  PurchaseOrderStoreTransaction,
+  SupplierProductOffer,
+} from "./purchase-order-store.js";
 export type {
   PurchasesReportQuery,
   PurchasesReportReader,

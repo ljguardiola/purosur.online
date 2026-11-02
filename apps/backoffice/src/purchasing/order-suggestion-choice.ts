@@ -1,4 +1,4 @@
-import type { OrderSuggestion } from "@purosur/contracts";
+import type { OrderSuggestion, PurchaseOrderBuildBody } from "@purosur/contracts";
 
 export const LEFT_OUT = "left-out";
 
@@ -41,4 +41,21 @@ export function chosenOrder(line: SuggestedLine, chosen: string | null): ChosenO
     packageQuantity: unpriced.packageQuantity,
     saleUnit: unpriced.saleUnit,
   };
+}
+
+export function purchaseOrderChoicesOf(
+  lines: readonly SuggestedLine[],
+  drafts: Readonly<Record<string, string>>,
+  knownSupplierIds: ReadonlySet<string>,
+): PurchaseOrderBuildBody["choices"] {
+  return lines.flatMap((line) => {
+    const supplierId = chosenSupplierId(line, drafts[line.id], knownSupplierIds);
+    if (supplierId === null || supplierId === LEFT_OUT) {
+      return [];
+    }
+    const order = chosenOrder(line, supplierId);
+    return order === undefined
+      ? []
+      : [{ productId: line.id, supplierId, packages: order.packages }];
+  });
 }

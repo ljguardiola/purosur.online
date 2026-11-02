@@ -4,6 +4,7 @@ import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { FetchAlertsOverviewOutcome } from "../alerts/alerts-api";
 import { ORDER_SUGGESTION } from "../purchasing/test-support/order-suggestion";
+import { DRAFT_ORDER, DRAFT_SUMMARY, ORDER_ID } from "../purchasing/test-support/purchase-orders";
 import { PRICE_COMPARISON } from "../purchasing/test-support/supplier-price-comparison";
 import {
   EXTRACTED_ROWS,
@@ -23,6 +24,8 @@ opensOnlyScreens([
   "/help",
   "/price-comparison",
   "/order-suggestion",
+  "/purchase-orders",
+  "/purchase-orders/$orderId",
   "/supplier-price-lists",
   "/supplier-price-lists/$listId",
 ]);
@@ -248,4 +251,134 @@ test("sends a user who may not compare prices away from the order suggestion to 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+});
+
+test("lists the purchase orders beside the other sections for whoever manages them", async () => {
+  const services = ordersServices(["supplier_price_lists", "purchase_orders", "orders_area"]);
+  window.history.pushState(null, "", "/supplier-price-lists");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Listas de proveedores", level: 1 }))
+    .toBeVisible();
+  const links = screen
+    .getByRole("navigation", { name: "Pedidos" })
+    .getByRole("link")
+    .elements()
+    .map((link) => link.textContent);
+  expect(links).toEqual(["Listas de proveedores", "Pedidos de compra"]);
+});
+
+test("opens the purchase orders from the rail's Pedidos item when it is all the user may open", async () => {
+  const services = ordersServices(["purchase_orders", "orders_area"]);
+  vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrders).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await userEvent.click(screen.getByRole("link", { name: "Pedidos", exact: true }));
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Pedidos de compra", level: 1 }))
+    .toBeVisible();
+  expect(window.location.pathname).toBe("/purchase-orders");
+});
+
+test.each([
+  ["supplier_price_lists", "/supplier-price-lists"],
+  ["price_comparison", "/price-comparison"],
+] as const)("opens %s first from the rail's Pedidos item", async (capability, path) => {
+  const services = ordersServices([capability, "purchase_orders", "orders_area"]);
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await userEvent.click(screen.getByRole("link", { name: "Pedidos", exact: true }));
+
+  await vi.waitFor(() => expect(window.location.pathname).toBe(path));
+});
+
+test("hides the purchase orders from whoever may only manage the lists", async () => {
+  const services = ordersServices(["supplier_price_lists", "orders_area"]);
+  window.history.pushState(null, "", "/supplier-price-lists");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Listas de proveedores", level: 1 }))
+    .toBeVisible();
+  expect(screen.getByRole("link", { name: "Pedidos de compra" }).query()).toBeNull();
+});
+
+test("sends a user who may not manage purchase orders away from them to Mi cuenta", async () => {
+  const services = ordersServices(["supplier_price_lists", "orders_area"]);
+  window.history.pushState(null, "", "/purchase-orders");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+});
+
+test("sends a user who may not manage purchase orders away from an order to Mi cuenta", async () => {
+  const services = ordersServices(["supplier_price_lists", "orders_area"]);
+  window.history.pushState(null, "", `/purchase-orders/${ORDER_ID}`);
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  expect(services.purchaseOrderScreen.fetchPurchaseOrder).not.toHaveBeenCalled();
+});
+
+test("opens an order from the purchase orders, and goes back to them from it", async () => {
+  const services = ordersServices(["purchase_orders", "orders_area"]);
+  vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrders).mockResolvedValue({
+    kind: "ok",
+    value: [DRAFT_SUMMARY],
+  });
+  vi.mocked(services.purchaseOrderScreen.fetchPurchaseOrder).mockResolvedValue({
+    kind: "ok",
+    value: { kind: "found", order: DRAFT_ORDER },
+  });
+  window.history.pushState(null, "", "/purchase-orders");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Abrir el pedido de Distribuidora Andina" }),
+  );
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Pedido a Distribuidora Andina", level: 1 }))
+    .toBeVisible();
+  expect(window.location.pathname).toBe(`/purchase-orders/${ORDER_ID}`);
+  expect(services.purchaseOrderScreen.fetchPurchaseOrder).toHaveBeenCalledWith(ORDER_ID);
+
+  await userEvent.click(screen.getByRole("button", { name: "Volver a los pedidos" }));
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Pedidos de compra", level: 1 }))
+    .toBeVisible();
+  expect(window.location.pathname).toBe("/purchase-orders");
+});
+
+test("goes to the purchase orders once they are built from the order suggestion", async () => {
+  const services = ordersServices(["price_comparison", "purchase_orders", "orders_area"]);
+  vi.mocked(services.orderSuggestionScreen.buildPurchaseOrders).mockResolvedValue({
+    kind: "ok",
+    orderIds: [ORDER_ID],
+  });
+  vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrders).mockResolvedValue({
+    kind: "ok",
+    value: [DRAFT_SUMMARY],
+  });
+  window.history.pushState(null, "", "/order-suggestion");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await userEvent.click(screen.getByRole("button", { name: "Armar pedidos" }));
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Pedidos de compra", level: 1 }))
+    .toBeVisible();
+  expect(window.location.pathname).toBe("/purchase-orders");
 });
