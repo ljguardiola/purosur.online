@@ -2,6 +2,7 @@ import type { Fortnight } from "@purosur/domain/fiscal/use-cases";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { locations, pointOfSaleClaims, registers, users } from "../platform/db/schema.js";
+import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
@@ -21,6 +22,7 @@ import {
   insertRejectedDocumentRemedy,
   WITHOUT_CREDIT_NOTES,
 } from "./test-support/rejected-document-remedy-fixtures.js";
+import { confirmRevokedInstallation } from "./test-support/revoked-installation-fixtures.js";
 
 const OCTOBER_FIRST_HALF = { start: "2026-10-01", end: "2026-10-15" };
 const OCTOBER_SECOND_HALF = { start: "2026-10-16", end: "2026-10-31" };
@@ -172,6 +174,7 @@ describe("DrizzleFortnightPresentationReader.branchPresentations", () => {
         refusal: null,
         documentCount: 0,
         rejectedDocument: null,
+        revokedInstallations: [],
       },
     ]);
   });
@@ -508,5 +511,82 @@ describe("DrizzleFortnightPresentationReader.branchPresentations", () => {
         },
       ]);
     });
+  });
+});
+
+describe("DrizzleFortnightPresentationReader.branchPresentations for the installations a fortnight waits on", () => {
+  const REVOKED_AT = new Date("2026-10-10T12:00:00.000Z");
+  const ENROLLED_AT = new Date("2026-10-05T12:00:00.000Z");
+
+  async function blockedFortnight() {
+    const registerId = await seedOfflinePointOfSale(db);
+    await claimedBeforeEveryFortnight(OFFLINE_POINT_OF_SALE);
+    await keepCode(OCTOBER_FIRST_HALF, "36123456789012", "2026-10-20");
+    await record(OFFLINE_POINT_OF_SALE, OCTOBER_FIRST_HALF, "blocked");
+    return registerId;
+  }
+
+  function revokedInstallation(registerId: string) {
+    return insertEnrolledInstallation(db, {
+      now: AT,
+      existingRegisterId: registerId,
+      enrolledAt: ENROLLED_AT,
+      revokedAt: REVOKED_AT,
+    });
+  }
+
+  it("answers the revoked installations that never synced past the close, with when each was revoked", async () => {
+    const registerId = await blockedFortnight();
+    const { deviceId } = await revokedInstallation(registerId);
+
+    const [presentation] = await presentations("2026-10-16");
+
+    expect(presentation?.revokedInstallations).toEqual([
+      { installationId: deviceId, revokedAt: REVOKED_AT },
+    ]);
+  });
+
+  it("answers them on every row of the presentation", async () => {
+    const registerId = await blockedFortnight();
+    await issueFacturaC(registerId, OCTOBER_FIRST_HALF, [1]);
+    await recordFacturaC(OCTOBER_FIRST_HALF, { state: "refused", reportedThrough: 0 });
+    await revokedInstallation(registerId);
+
+    const listed = await presentations("2026-10-16");
+
+    expect(listed.length).toBeGreaterThan(0);
+    expect(listed.map(({ revokedInstallations }) => revokedInstallations.length)).toEqual(
+      listed.map(() => 1),
+    );
+  });
+
+  it("answers them even while an installation still active has not synced past the close either", async () => {
+    const registerId = await blockedFortnight();
+    const { deviceId } = await revokedInstallation(registerId);
+    await insertEnrolledInstallation(db, {
+      now: AT,
+      existingRegisterId: registerId,
+      enrolledAt: ENROLLED_AT,
+    });
+
+    const [presentation] = await presentations("2026-10-16");
+
+    expect(presentation?.revokedInstallations).toEqual([
+      { installationId: deviceId, revokedAt: REVOKED_AT },
+    ]);
+  });
+
+  it("leaves out a revoked installation already confirmed", async () => {
+    const registerId = await blockedFortnight();
+    const { deviceId } = await revokedInstallation(registerId);
+    await confirmRevokedInstallation(db, {
+      pointOfSaleNumber: OFFLINE_POINT_OF_SALE,
+      fortnight: OCTOBER_FIRST_HALF,
+      installationId: deviceId,
+    });
+
+    const [presentation] = await presentations("2026-10-16");
+
+    expect(presentation?.revokedInstallations).toEqual([]);
   });
 });
