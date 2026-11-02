@@ -59,7 +59,7 @@ const voidRow = z.object({
   sale,
   voided_at: z.iso.datetime().meta({ timeZone: ARGENTINA_TIME_ZONE }),
   register,
-  cashier: person.nullable(),
+  cashier: person,
   authorizer: person.nullable(),
   total: cents,
 });
@@ -83,7 +83,7 @@ export const returnsReportSchema = z.object({
     totals: z.object({ voids: count, voided: cents }),
   }),
   totals: z.object(summary),
-  by_cashier: z.array(z.object({ cashier: person.nullable(), ...summary })),
+  by_cashier: z.array(z.object({ cashier: person, ...summary })),
   by_authorizer: z.array(z.object({ authorizer: person.nullable(), ...summary })),
 });
 
