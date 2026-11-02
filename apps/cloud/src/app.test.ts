@@ -1410,6 +1410,9 @@ describe("wiring the purchasing routes", () => {
       app.inject({ method: "GET", url: `/api/purchase-orders/${ID}` }),
       app.inject({ method: "POST", url: "/api/purchase-orders", headers: ORIGIN }),
       app.inject({ method: "PUT", url: `/api/purchase-orders/${ID}/lines`, headers: ORIGIN }),
+      app.inject({ method: "POST", url: `/api/purchase-orders/${ID}/share`, headers: ORIGIN }),
+      app.inject({ method: "GET", url: `/api/purchase-orders/${ID}/document.pdf` }),
+      app.inject({ method: "GET", url: `/api/purchase-orders/${ID}/document.txt` }),
       app.inject({ method: "POST", url: `/api/purchase-orders/${ID}/cancel`, headers: ORIGIN }),
       app.inject({ method: "GET", url: "/api/supplier-price-lists" }),
       app.inject({ method: "GET", url: "/api/supplier-price-lists/link-choices" }),
@@ -3000,6 +3003,21 @@ describe("the route access inventory", () => {
       {
         method: "PUT",
         url: "/api/purchase-orders/:id/lines",
+        access: capabilityAccess("purchase_orders"),
+      },
+      {
+        method: "POST",
+        url: "/api/purchase-orders/:id/share",
+        access: capabilityAccess("purchase_orders"),
+      },
+      {
+        method: "GET",
+        url: "/api/purchase-orders/:id/document.pdf",
+        access: capabilityAccess("purchase_orders"),
+      },
+      {
+        method: "GET",
+        url: "/api/purchase-orders/:id/document.txt",
         access: capabilityAccess("purchase_orders"),
       },
       {
