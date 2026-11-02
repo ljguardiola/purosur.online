@@ -64,7 +64,7 @@ describe("fetchPurchaseOrders", () => {
   });
 
   test("returns failed when a listed order does not have the expected shape", async () => {
-    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [{ ...DRAFT_SUMMARY, state: "SENT" }]));
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [{ ...DRAFT_SUMMARY, state: "OTHER" }]));
 
     expect(await fetchPurchaseOrders("ALL")).toEqual({ kind: "failed" });
   });

@@ -592,7 +592,7 @@ test("Compartir pedido opens the sharing of the order, in every state", async ()
   await expect
     .element(draft.getByRole("dialog").getByRole("heading", { name: "Compartir pedido" }))
     .toBeVisible();
-  await expect.element(draft.getByText("Pedido a Distribuidora Andina").last()).toBeVisible();
+  await expect.element(draft.getByText(/Pedido a Distribuidora Andina/).last()).toBeVisible();
 });
 
 test("a cancelled order can still be shared as a document, but not marked as sent", async () => {

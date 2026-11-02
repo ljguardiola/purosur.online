@@ -67,8 +67,8 @@ test("shows the order text the cloud answers and says the branch sends it itself
   const dialog = await renderModal(services);
 
   await expect.element(dialog.getByRole("heading", { name: "Compartir pedido" })).toBeVisible();
-  await expect.element(dialog.getByText("Pedido a Distribuidora Andina").first()).toBeVisible();
-  await expect.element(dialog.getByText("3 x Miel pura de abeja 1 kg")).toBeVisible();
+  await expect.element(dialog.getByText(/Pedido a Distribuidora Andina/).first()).toBeVisible();
+  await expect.element(dialog.getByText(/3 x Miel pura de abeja 1 kg/)).toBeVisible();
   await expect
     .element(
       dialog.getByText(
@@ -98,7 +98,7 @@ test("shows a load error with a retry that reads the text again", async () => {
   await expect.element(dialog.getByText("No pudimos abrir el texto del pedido")).toBeVisible();
   await userEvent.click(dialog.getByRole("button", { name: "Reintentar" }));
 
-  await expect.element(dialog.getByText("3 x Miel pura de abeja 1 kg")).toBeVisible();
+  await expect.element(dialog.getByText(/3 x Miel pura de abeja 1 kg/)).toBeVisible();
 });
 
 test("tells when the order no longer exists, and updating it reports it", async () => {
@@ -133,18 +133,18 @@ test("ends the session when the text comes back unauthenticated", async () => {
 test("copies the text and says it was copied", async () => {
   const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
   const dialog = await renderModal(createServices());
-  await expect.element(dialog.getByText("3 x Miel pura de abeja 1 kg")).toBeVisible();
+  await expect.element(dialog.getByText(/3 x Miel pura de abeja 1 kg/)).toBeVisible();
 
   await userEvent.click(dialog.getByRole("button", { name: "Copiar texto" }));
 
   expect(writeText).toHaveBeenCalledWith(ORDER_TEXT);
-  await expect.element(dialog.getByText("Texto copiado")).toBeVisible();
+  await expect.element(dialog.getByText("Texto copiado").first()).toBeVisible();
 });
 
 test("says the text could not be copied when the browser refuses", async () => {
   vi.spyOn(navigator.clipboard, "writeText").mockRejectedValue(new Error("denied"));
   const dialog = await renderModal(createServices());
-  await expect.element(dialog.getByText("3 x Miel pura de abeja 1 kg")).toBeVisible();
+  await expect.element(dialog.getByText(/3 x Miel pura de abeja 1 kg/)).toBeVisible();
 
   await userEvent.click(dialog.getByRole("button", { name: "Copiar texto" }));
 
