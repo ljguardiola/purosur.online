@@ -36,8 +36,18 @@ export {
 export { CONTINGENCY_KINDS, contingencyOf, isConnectivityGap } from "./model/connectivity-gap.js";
 export { selectConsumerBuyerTaxStatus } from "./model/consumer-buyer-tax-status.js";
 export { countsAsContingencyTime } from "./model/contingency-time.js";
-export type { ArcaAvailabilityRun } from "./model/contingency-time-share.js";
-export { CONTINGENCY_TIME_MONTH_STATES } from "./model/contingency-time-share.js";
+export type {
+  ArcaAvailabilityRun,
+  ContingencyPart,
+  ContingencyReportingRegister,
+  ContingencyTimeMeasurement,
+} from "./model/contingency-time-share.js";
+export {
+  CONTINGENCY_TIME_MONTH_STATES,
+  CONTINGENCY_TIME_NON_COMPLIANCE_PERCENT,
+  contingencyTimeMeasurement,
+  monthWindow,
+} from "./model/contingency-time-share.js";
 export type { CreditNoteReason } from "./model/credit-note.js";
 export {
   CREDIT_NOTE_C_VOUCHER_TYPE,
@@ -346,7 +356,12 @@ export {
   issueOfflineSaleCreditNote,
   routeSaleCreditNote,
 } from "./model/sale-credit-note-route.js";
-export { monthAtRiskOfSecondConsecutiveBreach } from "./model/second-consecutive-breach.js";
+export type { NonCompliantMeasurement } from "./model/second-consecutive-breach.js";
+export {
+  monthAtRiskOfSecondConsecutiveBreach,
+  NON_COMPLIANT_MEASUREMENTS,
+  nonCompliantMeasurementsOfMonth,
+} from "./model/second-consecutive-breach.js";
 export {
   awaitsUnclearOutcomeDecision,
   recordedRequestDocumentState,
