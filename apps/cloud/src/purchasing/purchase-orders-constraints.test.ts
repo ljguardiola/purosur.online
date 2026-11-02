@@ -24,7 +24,13 @@ beforeEach(async () => {
   actorId = await insertActor(db);
 });
 
-async function insertOrder(fields: { state?: string; cancelledAt?: Date; cancelledBy?: string }) {
+async function insertOrder(fields: {
+  state?: string;
+  cancelledAt?: Date;
+  cancelledBy?: string;
+  sentAt?: Date;
+  sentBy?: string;
+}) {
   const [order] = await db
     .insert(purchaseOrders)
     .values({
@@ -35,6 +41,8 @@ async function insertOrder(fields: { state?: string; cancelledAt?: Date; cancell
       actorId,
       cancelledAt: fields.cancelledAt,
       cancelledBy: fields.cancelledBy,
+      sentAt: fields.sentAt,
+      sentBy: fields.sentBy,
     })
     .returning({ id: purchaseOrders.id });
   return order?.id as string;
@@ -62,6 +70,41 @@ describe("the constraints of purchase orders", () => {
 
     expect(constraintViolatedBy(cancelledWithout, "purchase_orders_cancellation_check")).toBe(true);
     expect(constraintViolatedBy(draftWith, "purchase_orders_cancellation_check")).toBe(true);
+  });
+
+  it.each(["DRAFT", "SENT", "CANCELLED"])("accepts the state %s", async (state) => {
+    const cancellation =
+      state === "CANCELLED" ? { cancelledAt: new Date(), cancelledBy: actorId } : {};
+    const sending = state === "SENT" ? { sentAt: new Date(), sentBy: actorId } : {};
+
+    await expect(insertOrder({ state, ...cancellation, ...sending })).resolves.toEqual(
+      expect.any(String),
+    );
+  });
+
+  it("accepts a cancelled order that was sent before and one that never was", async () => {
+    const cancellation = { state: "CANCELLED", cancelledAt: new Date(), cancelledBy: actorId };
+
+    await expect(
+      insertOrder({ ...cancellation, sentAt: new Date(), sentBy: actorId }),
+    ).resolves.toEqual(expect.any(String));
+    await expect(insertOrder(cancellation)).resolves.toEqual(expect.any(String));
+  });
+
+  it("refuses a sent order without who and when, and a draft with them", async () => {
+    const sentWithout = await violation(insertOrder({ state: "SENT" }));
+    const draftWith = await violation(insertOrder({ sentAt: new Date(), sentBy: actorId }));
+
+    expect(constraintViolatedBy(sentWithout, "purchase_orders_sending_check")).toBe(true);
+    expect(constraintViolatedBy(draftWith, "purchase_orders_sending_check")).toBe(true);
+  });
+
+  it("refuses a sending time without who sent it and the other way round", async () => {
+    const withoutWho = await violation(insertOrder({ sentAt: new Date() }));
+    const withoutWhen = await violation(insertOrder({ sentBy: actorId }));
+
+    expect(constraintViolatedBy(withoutWho, "purchase_orders_sending_check")).toBe(true);
+    expect(constraintViolatedBy(withoutWhen, "purchase_orders_sending_check")).toBe(true);
   });
 
   it("refuses a line with no packages or no quantity per package", async () => {

@@ -1,4 +1,4 @@
-export const PURCHASE_ORDER_STATES = ["DRAFT", "CANCELLED"] as const;
+export const PURCHASE_ORDER_STATES = ["DRAFT", "SENT", "CANCELLED"] as const;
 
 export type PurchaseOrderState = (typeof PURCHASE_ORDER_STATES)[number];
 
@@ -6,8 +6,16 @@ export function mayBeEdited(state: PurchaseOrderState): boolean {
   return state === "DRAFT";
 }
 
-export function mayBeCancelled(state: PurchaseOrderState): boolean {
+export function mayBeShared(state: PurchaseOrderState): boolean {
   return state === "DRAFT";
+}
+
+export function mayBeSharedAsDocument(state: PurchaseOrderState): boolean {
+  return state === "DRAFT" || state === "SENT";
+}
+
+export function mayBeCancelled(state: PurchaseOrderState): boolean {
+  return state === "DRAFT" || state === "SENT";
 }
 
 export interface PricedOrderLine {

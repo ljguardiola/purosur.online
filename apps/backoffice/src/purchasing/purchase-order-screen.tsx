@@ -13,10 +13,11 @@ import {
   LoadingPlaceholder,
   StatusIndicator,
   Table,
+  TableCellText,
   useTableModel,
 } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
-import { ArrowLeft, Check, FileX, TriangleAlert } from "lucide-react";
+import { ArrowLeft, Check, FileX, Send, Trash2, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { AreaTopBar } from "../shell/area-top-bar";
@@ -31,6 +32,7 @@ import {
   usePurchaseOrderQuery,
   useRefreshPurchasing,
 } from "./purchasing-queries";
+import { SharePurchaseOrderModal } from "./share-purchase-order-modal";
 
 export type PurchaseOrderScreenProps = {
   orderId: string;
@@ -41,9 +43,21 @@ export type PurchaseOrderScreenProps = {
 
 type OrderLine = PurchaseOrderDetail["lines"][number];
 
-type Notice = "saved" | "cancelled";
+type Notice = "saved" | "cancelled" | "sent";
+
+const NOTICES = {
+  saved: { title: "Pedido guardado", description: "Los cambios quedaron en el borrador." },
+  cancelled: { title: "Pedido cancelado", description: "Ya no se puede compartir." },
+  sent: { title: "Pedido marcado como enviado", description: "Ya no se puede editar." },
+} satisfies Record<Notice, { title: string; description: string }>;
 
 const NO_PRODUCTS: never[] = [];
+function supplierItemText(item: NonNullable<OrderLine["supplierItem"]>): string {
+  return item.code === null
+    ? `Artículo del proveedor: ${item.description}`
+    : `Artículo del proveedor: ${item.code} · ${item.description}`;
+}
+
 const NO_PRICE = "Sin precio de lista";
 
 export function PurchaseOrderScreen({
@@ -63,6 +77,7 @@ export function PurchaseOrderScreen({
   });
   const refreshPurchasing = useRefreshPurchasing();
   const [cancelTarget, setCancelTarget] = useState<PurchaseOrderDetail | null>(null);
+  const [shareTarget, setShareTarget] = useState<PurchaseOrderDetail | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [editRefused, setEditRefused] = useState(false);
 
@@ -73,7 +88,13 @@ export function PurchaseOrderScreen({
     dataColumn({
       id: "product",
       header: "Producto",
-      render: (line: OrderLine) => formatProductDescription(line.product),
+      render: (line: OrderLine) => (
+        <TableCellText
+          description={line.supplierItem === null ? null : supplierItemText(line.supplierItem)}
+        >
+          {formatProductDescription(line.product)}
+        </TableCellText>
+      ),
     }),
     dataColumn({
       id: "packages",
@@ -175,6 +196,23 @@ export function PurchaseOrderScreen({
                 </div>
               </dl>
             </Card>
+            <div className="flex justify-end gap-2">
+              {order.editable || !order.cancellable ? null : (
+                <Button
+                  variant="secondary"
+                  destructive
+                  icon={<Trash2 />}
+                  onPress={() => setCancelTarget(order)}
+                >
+                  Cancelar pedido
+                </Button>
+              )}
+              {order.editable || !order.documentShareable ? null : (
+                <Button variant="secondary" icon={<Send />} onPress={() => setShareTarget(order)}>
+                  Compartir pedido
+                </Button>
+              )}
+            </div>
             {order.editable ? (
               <PurchaseOrderDraftForm
                 order={order}
@@ -187,6 +225,7 @@ export function PurchaseOrderScreen({
                 }}
                 onNotEditable={() => setEditRefused(true)}
                 onCancelOrder={() => setCancelTarget(order)}
+                onShareOrder={() => setShareTarget(order)}
                 onSessionEnded={onSessionEnded}
               />
             ) : (
@@ -210,14 +249,27 @@ export function PurchaseOrderScreen({
         onClose={() => setCancelTarget(null)}
         onSessionEnded={onSessionEnded}
       />
+      <SharePurchaseOrderModal
+        target={shareTarget}
+        services={services}
+        onShared={() => {
+          setShareTarget(null);
+          setNotice("sent");
+          void refreshPurchasing();
+        }}
+        onOutdated={() => {
+          setShareTarget(null);
+          void refreshPurchasing();
+        }}
+        onClose={() => setShareTarget(null)}
+        onSessionEnded={onSessionEnded}
+      />
       {notice === null ? null : (
         <FloatingNotification
           tone="success"
           icon={<Check />}
-          title={notice === "saved" ? "Pedido guardado" : "Pedido cancelado"}
-          description={
-            notice === "saved" ? "Los cambios quedaron en el borrador." : "Ya no se puede editar."
-          }
+          title={NOTICES[notice].title}
+          description={NOTICES[notice].description}
           onDismiss={() => setNotice(null)}
         />
       )}

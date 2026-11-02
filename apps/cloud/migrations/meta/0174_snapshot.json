@@ -1,5 +1,5 @@
 {
-  "id": "0607b2f8-c64b-4597-a609-4d135b46bb88",
+  "id": "8ea38f30-bd95-485c-b748-54b293a5c494",
   "prevId": "437bd0d0-1d3d-489f-8fd7-ad464c165b88",
   "version": "7",
   "dialect": "postgresql",
@@ -6930,6 +6930,18 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
+        },
+        "sent_at": {
+          "name": "sent_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sent_by": {
+          "name": "sent_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -6997,6 +7009,15 @@
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
+        },
+        "purchase_orders_sent_by_users_id_fk": {
+          "name": "purchase_orders_sent_by_users_id_fk",
+          "tableFrom": "purchase_orders",
+          "tableTo": "users",
+          "columnsFrom": ["sent_by"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -7005,11 +7026,15 @@
       "checkConstraints": {
         "purchase_orders_state_check": {
           "name": "purchase_orders_state_check",
-          "value": "\"purchase_orders\".\"state\" in ('DRAFT', 'CANCELLED')"
+          "value": "\"purchase_orders\".\"state\" in ('DRAFT', 'SENT', 'CANCELLED')"
         },
         "purchase_orders_cancellation_check": {
           "name": "purchase_orders_cancellation_check",
           "value": "(\"purchase_orders\".\"state\" = 'CANCELLED') = (\"purchase_orders\".\"cancelled_at\" is not null and \"purchase_orders\".\"cancelled_by\" is not null) and (\"purchase_orders\".\"cancelled_at\" is null) = (\"purchase_orders\".\"cancelled_by\" is null)"
+        },
+        "purchase_orders_sending_check": {
+          "name": "purchase_orders_sending_check",
+          "value": "(\"purchase_orders\".\"sent_at\" is null) = (\"purchase_orders\".\"sent_by\" is null) and (\"purchase_orders\".\"state\" <> 'SENT' or \"purchase_orders\".\"sent_at\" is not null) and (\"purchase_orders\".\"state\" <> 'DRAFT' or \"purchase_orders\".\"sent_at\" is null)"
         }
       },
       "isRLSEnabled": false
@@ -9363,82 +9388,6 @@
           "value": "\"return_lines\".\"refunded_amount\" >= 0"
         }
       },
-      "isRLSEnabled": false
-    },
-    "public.revoked_installation_confirmations": {
-      "name": "revoked_installation_confirmations",
-      "schema": "",
-      "columns": {
-        "point_of_sale_number": {
-          "name": "point_of_sale_number",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "fortnight_start": {
-          "name": "fortnight_start",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "installation_id": {
-          "name": "installation_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "confirmed_by": {
-          "name": "confirmed_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "confirmed_at": {
-          "name": "confirmed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "revoked_installation_confirmations_point_of_sale_number_point_of_sale_claims_point_of_sale_number_fk": {
-          "name": "revoked_installation_confirmations_point_of_sale_number_point_of_sale_claims_point_of_sale_number_fk",
-          "tableFrom": "revoked_installation_confirmations",
-          "tableTo": "point_of_sale_claims",
-          "columnsFrom": ["point_of_sale_number"],
-          "columnsTo": ["point_of_sale_number"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "revoked_installation_confirmations_installation_id_register_installations_id_fk": {
-          "name": "revoked_installation_confirmations_installation_id_register_installations_id_fk",
-          "tableFrom": "revoked_installation_confirmations",
-          "tableTo": "register_installations",
-          "columnsFrom": ["installation_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "revoked_installation_confirmations_confirmed_by_users_id_fk": {
-          "name": "revoked_installation_confirmations_confirmed_by_users_id_fk",
-          "tableFrom": "revoked_installation_confirmations",
-          "tableTo": "users",
-          "columnsFrom": ["confirmed_by"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "revoked_installation_confirmations_pkey": {
-          "name": "revoked_installation_confirmations_pkey",
-          "columns": ["point_of_sale_number", "fortnight_start", "installation_id"]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.role_permissions": {

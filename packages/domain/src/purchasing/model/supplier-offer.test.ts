@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { supplierOfferPrice, supplierOfferToOrder } from "./supplier-offer.js";
+import {
+  supplierOfferOfOrderLine,
+  supplierOfferPrice,
+  supplierOfferToOrder,
+} from "./supplier-offer.js";
 
 const offer = {
   link: { quantity: 6_000, saleUnit: "UNIT" as const, relinkRequired: false },
@@ -94,5 +98,35 @@ describe("supplierOfferToOrder", () => {
     ).toBeUndefined();
     expect(supplierOfferToOrder([item(1_000, 100)], "KG")).toBeUndefined();
     expect(supplierOfferToOrder([], "UNIT")).toBeUndefined();
+  });
+});
+
+describe("supplierOfferOfOrderLine", () => {
+  const item = (quantity: number, priceCents: number, overrides = {}) => ({
+    ...offer,
+    link: { ...offer.link, quantity },
+    priceCents,
+    ...overrides,
+  });
+
+  it("takes, among the items at the line's quantity per package, the one an order takes", () => {
+    const dearer = item(6_000, 9_000);
+    const cheapest = item(6_000, 6_000);
+    const otherQuantity = item(12_000, 100);
+
+    expect(supplierOfferOfOrderLine([dearer, otherQuantity, cheapest], "UNIT", 6_000)).toBe(
+      cheapest,
+    );
+  });
+
+  it("takes none when no item is at the line's quantity per package", () => {
+    expect(supplierOfferOfOrderLine([item(12_000, 100)], "UNIT", 6_000)).toBeUndefined();
+  });
+
+  it("takes none when the item at the line's quantity has a link that is not current", () => {
+    const relink = item(6_000, 100, { link: { ...offer.link, relinkRequired: true } });
+
+    expect(supplierOfferOfOrderLine([relink], "UNIT", 6_000)).toBeUndefined();
+    expect(supplierOfferOfOrderLine([item(6_000, 100)], "KG", 6_000)).toBeUndefined();
   });
 });

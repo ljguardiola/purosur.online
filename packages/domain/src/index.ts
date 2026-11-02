@@ -693,6 +693,7 @@ export {
   SUPPLIER_PRICE_LIST_WEB_PAGE_TIME_LIMIT_MS,
   sameSupplierItemKey,
   supplierItemKey,
+  supplierOfferOfOrderLine,
   supplierOfferPrice,
 } from "./purchasing/index.js";
 export type {

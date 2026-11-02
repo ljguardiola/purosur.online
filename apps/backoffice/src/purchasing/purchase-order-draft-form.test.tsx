@@ -25,6 +25,7 @@ function renderForm({
   onSaved = () => {},
   onNotEditable = () => {},
   onCancelOrder = () => {},
+  onShareOrder = () => {},
   onSessionEnded = () => {},
 }: {
   order?: PurchaseOrderDetail;
@@ -32,6 +33,7 @@ function renderForm({
   onSaved?: () => void;
   onNotEditable?: () => void;
   onCancelOrder?: () => void;
+  onShareOrder?: () => void;
   onSessionEnded?: () => void;
 } = {}) {
   return render(
@@ -45,6 +47,7 @@ function renderForm({
           onSaved={onSaved}
           onNotEditable={onNotEditable}
           onCancelOrder={onCancelOrder}
+          onShareOrder={onShareOrder}
           onSessionEnded={onSessionEnded}
         />
       </main>
@@ -223,6 +226,41 @@ test("offers no cancellation when the cloud answers the order cannot be cancelle
 
   await expect.element(screen.getByRole("button", { name: "Guardar" })).toBeVisible();
   expect(screen.getByRole("button", { name: "Cancelar pedido" }).query()).toBeNull();
+});
+
+test("asks the screen to share the order", async () => {
+  const onShareOrder = vi.fn();
+  const screen = await renderForm({ onShareOrder });
+
+  await userEvent.click(screen.getByRole("button", { name: "Compartir pedido" }));
+
+  expect(onShareOrder).toHaveBeenCalledTimes(1);
+});
+
+test("keeps sharing locked, saying why, while the lines hold unsaved changes", async () => {
+  const onShareOrder = vi.fn();
+  const screen = await renderForm({ onShareOrder });
+
+  await userEvent.fill(
+    line(screen, 1).getByRole("textbox", { name: /^Cantidad de paquetes/ }),
+    "5",
+  );
+  const share = screen.getByRole("button", { name: "Compartir pedido" });
+  await expect.element(share).toHaveAttribute("aria-disabled", "true");
+  share.element().dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  (share.element() as HTMLElement).focus();
+
+  await expect
+    .element(screen.getByRole("tooltip"))
+    .toHaveTextContent("Guardá los cambios antes de compartir el pedido.");
+  expect(onShareOrder).not.toHaveBeenCalled();
+});
+
+test("offers no sharing when the cloud answers the order cannot be shared", async () => {
+  const screen = await renderForm({ order: { ...DRAFT_ORDER, documentShareable: false } });
+
+  await expect.element(screen.getByRole("button", { name: "Guardar" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Compartir pedido" }).query()).toBeNull();
 });
 
 test("tells an outdated tab to reload because the backoffice was updated when saving is refused", async () => {

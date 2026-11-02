@@ -87,12 +87,15 @@ const WRITES = [
     url: `/purchase-orders/${MISSING_ID}/lines`,
     payload: { lines: [] },
   },
+  { method: "POST", url: `/purchase-orders/${MISSING_ID}/share`, payload: {} },
   { method: "POST", url: `/purchase-orders/${MISSING_ID}/cancel`, payload: {} },
 ] as const;
 
 const READS = [
   { method: "GET", url: "/purchase-orders" },
   { method: "GET", url: `/purchase-orders/${MISSING_ID}` },
+  { method: "GET", url: `/purchase-orders/${MISSING_ID}/document.pdf` },
+  { method: "GET", url: `/purchase-orders/${MISSING_ID}/document.txt` },
 ] as const;
 
 describe("the purchase order routes' access", () => {
@@ -195,11 +198,13 @@ describe("GET /purchase-orders/:id", () => {
           packages: 2,
           quantityPerPackage: 6_000,
           expectedTotalCents: 24_000,
+          supplierItem: { code: expect.any(String), description: "Yerba 1 kg" },
         },
       ],
       expectedTotalCents: 24_000,
       hasUnpricedLine: false,
       editable: true,
+      shareable: true,
       cancellable: true,
     });
   });
@@ -478,6 +483,7 @@ describe("POST /purchase-orders/:id/cancel", () => {
     expect(purchaseOrderDetailSchema.parse(response.json())).toMatchObject({
       state: "CANCELLED",
       editable: false,
+      shareable: false,
       cancellable: false,
     });
     const [order] = await db.select().from(purchaseOrders);
@@ -518,4 +524,194 @@ describe("POST /purchase-orders/:id/cancel", () => {
     expect(response.statusCode).toBe(409);
     expect(response.json()).toMatchObject({ code: "purchase_order_not_cancellable" });
   });
+});
+
+describe("POST /purchase-orders/:id/share", () => {
+  it("marks a draft as sent, recording who did it, and answers 200 with the order", async () => {
+    const { headers, userId, locationId } = await orderer();
+    const { orderId } = await draftOf(userId, locationId);
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/purchase-orders/${orderId}/share`,
+      headers,
+      payload: {},
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(purchaseOrderDetailSchema.parse(response.json())).toMatchObject({
+      state: "SENT",
+      editable: false,
+      shareable: false,
+      cancellable: true,
+    });
+    const [order] = await db.select().from(purchaseOrders);
+    expect(order).toMatchObject({ state: "SENT", sentAt: NOW, sentBy: userId });
+  });
+
+  it("answers 404 to an order that does not exist or belongs to another branch", async () => {
+    const { headers, userId } = await orderer();
+    const otherLocationId = await insertLocation(db);
+    const { orderId } = await draftOf(userId, otherLocationId);
+    const share = (id: string) =>
+      app.inject({ method: "POST", url: `/purchase-orders/${id}/share`, headers, payload: {} });
+
+    const unknown = await share(MISSING_ID);
+    const foreign = await share(orderId);
+
+    expect(unknown.statusCode).toBe(404);
+    expect(unknown.json()).toMatchObject({ code: "purchase_order_not_found" });
+    expect(foreign.statusCode).toBe(404);
+    const [order] = await db.select().from(purchaseOrders);
+    expect(order?.state).toBe("DRAFT");
+  });
+
+  it("answers 409 to an order already sent", async () => {
+    const { headers, userId, locationId } = await orderer();
+    const { orderId } = await draftOf(userId, locationId);
+    const share = () =>
+      app.inject({
+        method: "POST",
+        url: `/purchase-orders/${orderId}/share`,
+        headers,
+        payload: {},
+      });
+    await share();
+
+    const response = await share();
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toEqual({
+      code: "purchase_order_not_shareable",
+      message: "only a draft purchase order can be shared",
+    });
+  });
+
+  it("lets a sent order be cancelled", async () => {
+    const { headers, userId, locationId } = await orderer();
+    const { orderId } = await draftOf(userId, locationId);
+    await app.inject({
+      method: "POST",
+      url: `/purchase-orders/${orderId}/share`,
+      headers,
+      payload: {},
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/purchase-orders/${orderId}/cancel`,
+      headers,
+      payload: {},
+    });
+
+    expect(response.statusCode).toBe(200);
+    const [order] = await db.select().from(purchaseOrders);
+    expect(order).toMatchObject({ state: "CANCELLED", sentAt: NOW, sentBy: userId });
+  });
+});
+
+describe("the documents of a purchase order", () => {
+  const documents = [
+    { extension: "pdf", contentType: "application/pdf" },
+    { extension: "txt", contentType: "text/plain; charset=utf-8" },
+  ] as const;
+
+  it.each(documents)(
+    "GET /purchase-orders/:id/document.$extension answers the document of a draft and of a sent order, changing nothing",
+    async ({ extension, contentType }) => {
+      const { headers, userId, locationId } = await orderer();
+      const { orderId } = await draftOf(userId, locationId);
+      const fetchDocument = () =>
+        app.inject({
+          method: "GET",
+          url: `/purchase-orders/${orderId}/document.${extension}`,
+          headers,
+        });
+
+      const draft = (await fetchDocument()).statusCode;
+      await db
+        .update(purchaseOrders)
+        .set({ state: "SENT", sentAt: NOW, sentBy: userId })
+        .where(eq(purchaseOrders.id, orderId));
+      const response = await fetchDocument();
+
+      expect([draft, response.statusCode]).toEqual([200, 200]);
+      expect(response.headers["content-type"]).toBe(contentType);
+      const [order] = await db.select().from(purchaseOrders);
+      expect(order).toMatchObject({ state: "SENT", sentAt: NOW, cancelledAt: null });
+    },
+  );
+
+  it.each(documents)(
+    "GET /purchase-orders/:id/document.$extension answers 409 to a cancelled order",
+    async ({ extension }) => {
+      const { headers, userId, locationId } = await orderer();
+      const { orderId } = await draftOf(userId, locationId);
+      await db
+        .update(purchaseOrders)
+        .set({ state: "CANCELLED", cancelledAt: NOW, cancelledBy: userId })
+        .where(eq(purchaseOrders.id, orderId));
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/purchase-orders/${orderId}/document.${extension}`,
+        headers,
+      });
+
+      expect(response.statusCode).toBe(409);
+      expect(response.json()).toEqual({
+        code: "purchase_order_document_not_shareable",
+        message: "this purchase order can no longer be shared",
+      });
+    },
+  );
+
+  it("GET /purchase-orders/:id/document.pdf answers a PDF to download created now", async () => {
+    const { headers, userId, locationId } = await orderer();
+    const { orderId } = await draftOf(userId, locationId);
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/purchase-orders/${orderId}/document.pdf`,
+      headers,
+    });
+
+    expect(response.headers["content-disposition"]).toBe("attachment");
+    expect(response.rawPayload.subarray(0, 5).toString("latin1")).toBe("%PDF-");
+    expect(response.rawPayload.toString("latin1")).toContain("(D:20261005150000Z)");
+  });
+
+  it("GET /purchase-orders/:id/document.txt answers the order as text without prices", async () => {
+    const { headers, userId, locationId } = await orderer();
+    const { orderId } = await draftOf(userId, locationId);
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/purchase-orders/${orderId}/document.txt`,
+      headers,
+    });
+
+    expect(response.body).toMatch(
+      /^Pedido a .+\nFecha: 05\/10\/2026\n\n1\. Yerba\n {3}2 paquetes de 6 u/,
+    );
+    expect(response.body).not.toMatch(/\$|120|240/);
+  });
+
+  it.each(documents)(
+    "GET /purchase-orders/:id/document.$extension answers 404 to an order that does not exist or belongs to another branch",
+    async ({ extension }) => {
+      const { headers, userId } = await orderer();
+      const otherLocationId = await insertLocation(db);
+      const { orderId } = await draftOf(userId, otherLocationId);
+      const fetchDocument = (id: string) =>
+        app.inject({ method: "GET", url: `/purchase-orders/${id}/document.${extension}`, headers });
+
+      const unknown = await fetchDocument(MISSING_ID);
+      const foreign = await fetchDocument(orderId);
+
+      expect(unknown.statusCode).toBe(404);
+      expect(unknown.json()).toMatchObject({ code: "purchase_order_not_found" });
+      expect(foreign.statusCode).toBe(404);
+    },
+  );
 });

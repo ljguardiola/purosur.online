@@ -14,6 +14,7 @@ const priced = {
   quantityPerPackage: 12_000,
   expectedPackagePriceCents: 1_500_000,
   expectedTotalCents: 4_500_000,
+  supplierItem: { code: "YER-500", description: "Yerba mate 500 g x12" },
 };
 const unpriced = {
   product: { id: "p-2", name: "Harina", brandName: null, netContent: null, saleUnit: "KG" },
@@ -21,6 +22,7 @@ const unpriced = {
   quantityPerPackage: 25_000,
   expectedPackagePriceCents: null,
   expectedTotalCents: null,
+  supplierItem: null,
 };
 const detail = {
   id: "order-1",
@@ -31,6 +33,8 @@ const detail = {
   expectedTotalCents: 4_500_000,
   hasUnpricedLine: true,
   editable: true,
+  shareable: true,
+  documentShareable: true,
   cancellable: true,
 };
 
@@ -39,8 +43,35 @@ describe("purchaseOrderDetailSchema", () => {
     expect(purchaseOrderDetailSchema.safeParse(detail).data).toEqual(detail);
   });
 
+  it.each(["DRAFT", "SENT", "CANCELLED"])("accepts the state %s", (state) => {
+    expect(purchaseOrderDetailSchema.safeParse({ ...detail, state }).success).toBe(true);
+  });
+
+  it("accepts a supplier item without a code", () => {
+    const line = { ...priced, supplierItem: { code: null, description: "Yerba mate" } };
+    expect(purchaseOrderDetailSchema.safeParse({ ...detail, lines: [line] }).success).toBe(true);
+  });
+
+  it("rejects a supplier item without its description or with a code that is not text", () => {
+    for (const supplierItem of [{ code: "YER-500" }, { code: 7, description: "Yerba mate" }]) {
+      expect(
+        purchaseOrderDetailSchema.safeParse({ ...detail, lines: [{ ...priced, supplierItem }] })
+          .success,
+      ).toBe(false);
+    }
+  });
+
+  it("rejects a line without the supplier item field", () => {
+    const { supplierItem: _supplierItem, ...without } = priced;
+    expect(purchaseOrderDetailSchema.safeParse({ ...detail, lines: [without] }).success).toBe(
+      false,
+    );
+  });
+
   it("rejects an unknown state and a fractional price", () => {
-    expect(purchaseOrderDetailSchema.safeParse({ ...detail, state: "SENT" }).success).toBe(false);
+    expect(purchaseOrderDetailSchema.safeParse({ ...detail, state: "SHIPPED" }).success).toBe(
+      false,
+    );
     expect(
       purchaseOrderDetailSchema.safeParse({
         ...detail,
@@ -56,13 +87,17 @@ describe("purchaseOrderDetailSchema", () => {
     );
   });
 
-  it.each(["expectedTotalCents", "hasUnpricedLine", "editable", "cancellable"])(
-    "rejects an order without %s",
-    (field) => {
-      const { [field]: _omitted, ...without } = detail as Record<string, unknown>;
-      expect(purchaseOrderDetailSchema.safeParse(without).success).toBe(false);
-    },
-  );
+  it.each([
+    "expectedTotalCents",
+    "hasUnpricedLine",
+    "editable",
+    "shareable",
+    "documentShareable",
+    "cancellable",
+  ])("rejects an order without %s", (field) => {
+    const { [field]: _omitted, ...without } = detail as Record<string, unknown>;
+    expect(purchaseOrderDetailSchema.safeParse(without).success).toBe(false);
+  });
 
   it("rejects a line without its expected total", () => {
     const { expectedTotalCents: _total, ...withoutTotal } = priced;

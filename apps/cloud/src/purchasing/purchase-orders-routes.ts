@@ -15,6 +15,8 @@ import {
   editPurchaseOrder,
   getPurchaseOrder,
   listPurchaseOrders,
+  type SharePurchaseOrderOutcome,
+  sharePurchaseOrder,
 } from "@purosur/domain/purchasing/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply } from "fastify";
@@ -29,15 +31,26 @@ import {
 } from "../sessions/route-access.js";
 import { DrizzlePurchaseOrderReader } from "./drizzle-purchase-order-reader.js";
 import { DrizzlePurchaseOrderStore } from "./drizzle-purchase-order-store.js";
+import { purchaseOrderDocument } from "./purchase-order-document.js";
+import { renderPurchaseOrderPdf } from "./purchase-order-pdf.js";
+import { renderPurchaseOrderText } from "./purchase-order-text.js";
 import type { PurchasingRouteOptions } from "./purchasing-route-options.js";
 
 type Refusal =
   | Exclude<BuildPurchaseOrdersOutcome, { kind: "created" }>
   | Exclude<EditPurchaseOrderOutcome, { kind: "edited" }>
-  | Exclude<CancelPurchaseOrderOutcome, { kind: "cancelled" }>;
+  | Exclude<CancelPurchaseOrderOutcome, { kind: "cancelled" }>
+  | Exclude<SharePurchaseOrderOutcome, { kind: "shared" }>;
 
 function invalid(reply: FastifyReply, message: string, field: string) {
   return reply.code(400).send({ code: "validation_failed", message, details: [{ field }] });
+}
+
+async function sendDocumentNotShareable(reply: FastifyReply): Promise<void> {
+  await reply.code(409).send({
+    code: "purchase_order_document_not_shareable",
+    message: "this purchase order can no longer be shared",
+  });
 }
 
 async function sendRefusal(reply: FastifyReply, refusal: Refusal): Promise<void> {
@@ -74,6 +87,12 @@ async function sendRefusal(reply: FastifyReply, refusal: Refusal): Promise<void>
       await reply.code(409).send({
         code: "purchase_order_not_editable",
         message: "only a draft purchase order can be edited",
+      });
+      return;
+    case "not_shareable":
+      await reply.code(409).send({
+        code: "purchase_order_not_shareable",
+        message: "only a draft purchase order can be shared",
       });
       return;
     case "not_cancellable":
@@ -156,6 +175,54 @@ export function registerPurchaseOrdersRoutes<TQueryResult extends PgQueryResultH
     await sendOrder(reply, openSessionOf(request).locationId, ids.id);
   });
 
+  app.get("/purchase-orders/:id/document.pdf", readGuard, async (request, reply) => {
+    const ids = await readRecordIds(reply, request.params, ["id"]);
+    if (!ids) {
+      return;
+    }
+    const found = await getPurchaseOrder(reader, {
+      locationId: openSessionOf(request).locationId,
+      orderId: ids.id,
+    });
+    if (found.kind === "not_found") {
+      await sendRefusal(reply, found);
+      return;
+    }
+    if (!found.order.documentShareable) {
+      await sendDocumentNotShareable(reply);
+      return;
+    }
+    const pdf = await renderPurchaseOrderPdf(purchaseOrderDocument(found.order), now());
+    await reply
+      .header("Content-Disposition", "attachment")
+      .type("application/pdf")
+      .code(200)
+      .send(pdf);
+  });
+
+  app.get("/purchase-orders/:id/document.txt", readGuard, async (request, reply) => {
+    const ids = await readRecordIds(reply, request.params, ["id"]);
+    if (!ids) {
+      return;
+    }
+    const found = await getPurchaseOrder(reader, {
+      locationId: openSessionOf(request).locationId,
+      orderId: ids.id,
+    });
+    if (found.kind === "not_found") {
+      await sendRefusal(reply, found);
+      return;
+    }
+    if (!found.order.documentShareable) {
+      await sendDocumentNotShareable(reply);
+      return;
+    }
+    await reply
+      .type("text/plain; charset=utf-8")
+      .code(200)
+      .send(renderPurchaseOrderText(purchaseOrderDocument(found.order)));
+  });
+
   app.post("/purchase-orders", writeGuard, async (request, reply) => {
     const body = await readValidatedBody(reply, purchaseOrderBuildBodySchema, request.body);
     if (!body) {
@@ -191,6 +258,25 @@ export function registerPurchaseOrdersRoutes<TQueryResult extends PgQueryResultH
     const outcome = await editPurchaseOrder({ store }, { ...body, locationId, orderId: ids.id });
 
     if (outcome.kind !== "edited") {
+      await sendRefusal(reply, outcome);
+      return;
+    }
+    await sendOrder(reply, locationId, ids.id);
+  });
+
+  app.post("/purchase-orders/:id/share", writeGuard, async (request, reply) => {
+    const ids = await readRecordIds(reply, request.params, ["id"]);
+    if (!ids) {
+      return;
+    }
+    const { locationId, userId } = openSessionOf(request);
+
+    const outcome = await sharePurchaseOrder(
+      { store, clock: { now } },
+      { locationId, orderId: ids.id, actorId: userId },
+    );
+
+    if (outcome.kind !== "shared") {
       await sendRefusal(reply, outcome);
       return;
     }

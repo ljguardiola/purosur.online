@@ -235,6 +235,9 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchPurchaseChoices: vi.fn().mockReturnValue(new Promise(() => {})),
       editPurchaseOrderLines: vi.fn(),
       cancelPurchaseOrder: vi.fn(),
+      sharePurchaseOrder: vi.fn(),
+      fetchPurchaseOrderPdf: vi.fn(),
+      fetchPurchaseOrderText: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     newPurchaseScreen: {
       fetchPurchaseChoices: vi.fn().mockReturnValue(new Promise(() => {})),

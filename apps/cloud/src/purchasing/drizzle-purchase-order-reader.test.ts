@@ -1,5 +1,6 @@
 import { buildPurchaseOrders, cancelPurchaseOrder } from "@purosur/domain/purchasing/use-cases";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { supplierItems } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzlePurchaseOrderReader } from "./drizzle-purchase-order-reader.js";
@@ -9,7 +10,7 @@ import {
   insertOfferedItem,
 } from "./test-support/purchase-order-fixtures.js";
 import { insertActor, insertProduct } from "./test-support/purchasing-fixtures.js";
-import { insertSupplier } from "./test-support/supplier-price-list-fixtures.js";
+import { insertSupplier, insertSupplierItem } from "./test-support/supplier-price-list-fixtures.js";
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -141,7 +142,7 @@ describe("the purchase orders of a branch", () => {
   it("answers an order with each line's product, brand and net content in the order of its positions", async () => {
     const { id: yerbaId } = await insertProduct(db, {
       name: "Yerba",
-      brandName: "Taragüí",
+      brandName: "Piragüé",
       netContent: { quantity: 1_000, unit: "G" },
     });
     const { id: azucarId } = await insertProduct(db, { name: "Azúcar", saleUnit: "KG" });
@@ -152,6 +153,8 @@ describe("the purchase orders of a branch", () => {
       actorId,
       quantity: 6_000,
       priceCents: 7_000,
+      keyValue: "YER-6",
+      description: "Yerba Piragüé 1 kg x6",
     });
     await insertOfferedItem(db, {
       supplierId,
@@ -160,6 +163,9 @@ describe("the purchase orders of a branch", () => {
       quantity: 10_000,
       priceCents: 4_000,
       saleUnit: "KG",
+      keyKind: "description",
+      keyValue: "Azúcar bolsa 10 kg",
+      description: "Azúcar bolsa 10 kg",
     });
     const outcome = await buildPurchaseOrders(
       {
@@ -198,20 +204,143 @@ describe("the purchase orders of a branch", () => {
           packages: 2,
           quantityPerPackage: 10_000,
           expectedPackagePriceCents: 4_000,
+          supplierItem: { code: null, description: "Azúcar bolsa 10 kg" },
         },
         {
           product: {
             id: yerbaId,
             name: "Yerba",
-            brandName: "Taragüí",
+            brandName: "Piragüé",
             netContent: { quantity: 1_000, unit: "G" },
             saleUnit: "UNIT",
           },
           packages: 1,
           quantityPerPackage: 6_000,
           expectedPackagePriceCents: 7_000,
+          supplierItem: { code: "YER-6", description: "Yerba Piragüé 1 kg x6" },
         },
       ],
     });
+  });
+});
+
+describe("the supplier item a purchase order line answers", () => {
+  async function supplierItemOfDraft(supplierId: string, productId: string) {
+    const orderId = await draftFor("2026-09-01T10:00:00.000Z", {
+      locationId,
+      supplierId,
+      productId,
+    });
+    const order = await reader().order(locationId, orderId);
+    return order?.lines[0]?.supplierItem;
+  }
+
+  function offer(
+    supplierId: string,
+    productId: string,
+    item: { quantity: number; keyValue: string; description: string } & Partial<
+      Parameters<typeof insertOfferedItem>[1]
+    >,
+  ) {
+    return insertOfferedItem(db, { supplierId, productId, actorId, priceCents: 7_000, ...item });
+  }
+
+  it("is the item of the order's supplier linked to the product at the line's quantity", async () => {
+    const { id: productId } = await insertProduct(db, { name: "Yerba" });
+    const alfa = await insertSupplier(db, { actorId, name: "Alfa" });
+    const beta = await insertSupplier(db, { actorId, name: "Beta" });
+    await offer(alfa, productId, { quantity: 6_000, keyValue: "ALFA-6", description: "Yerba x6" });
+    await insertSupplierItem(db, {
+      supplierId: alfa,
+      keyValue: "ALFA-12",
+      description: "Yerba x12",
+      productId,
+      quantity: 12_000,
+      saleUnit: "UNIT",
+    });
+    await offer(beta, productId, { quantity: 6_000, keyValue: "BETA-6", description: "Yerba B" });
+
+    expect(await supplierItemOfDraft(alfa, productId)).toEqual({
+      code: "ALFA-6",
+      description: "Yerba x6",
+    });
+  });
+
+  it("is none when the link asks to be reviewed again", async () => {
+    const { id: productId } = await insertProduct(db, { name: "Yerba" });
+    const supplierId = await insertSupplier(db, { actorId, name: "Alfa" });
+    await offer(supplierId, productId, { quantity: 6_000, keyValue: "A-1", description: "Yerba" });
+    const orderId = await draftFor("2026-09-01T10:00:00.000Z", {
+      locationId,
+      supplierId,
+      productId,
+    });
+    await db.update(supplierItems).set({ relinkRequired: true });
+
+    const order = await reader().order(locationId, orderId);
+
+    expect(order?.lines[0]?.supplierItem).toBeNull();
+  });
+
+  it("is none when the link is stated in another sale unit than the product's", async () => {
+    const { id: productId } = await insertProduct(db, { name: "Yerba" });
+    const supplierId = await insertSupplier(db, { actorId, name: "Alfa" });
+    await offer(supplierId, productId, { quantity: 6_000, keyValue: "A-1", description: "Yerba" });
+    const orderId = await draftFor("2026-09-01T10:00:00.000Z", {
+      locationId,
+      supplierId,
+      productId,
+    });
+    await db.update(supplierItems).set({ saleUnit: "KG" });
+
+    const order = await reader().order(locationId, orderId);
+
+    expect(order?.lines[0]?.supplierItem).toBeNull();
+  });
+
+  it("is the one cheapest per sale unit when several items match", async () => {
+    const { id: productId } = await insertProduct(db, { name: "Yerba" });
+    const supplierId = await insertSupplier(db, { actorId, name: "Alfa" });
+    await offer(supplierId, productId, {
+      quantity: 6_000,
+      keyKind: "code",
+      keyValue: "A-1",
+      description: "Yerba A",
+      priceCents: 9_000,
+    });
+    await offer(supplierId, productId, {
+      quantity: 6_000,
+      keyKind: "code",
+      keyValue: "Z-9",
+      description: "Yerba Z",
+      priceCents: 6_000,
+    });
+    await offer(supplierId, productId, {
+      quantity: 6_000,
+      keyKind: "description",
+      keyValue: "B yerba",
+      description: "B yerba",
+      priceCents: 8_000,
+    });
+
+    expect(await supplierItemOfDraft(supplierId, productId)).toEqual({
+      code: "Z-9",
+      description: "Yerba Z",
+    });
+  });
+
+  it("is none when the supplier has no item for the product any more", async () => {
+    const { id: productId } = await insertProduct(db, { name: "Yerba" });
+    const supplierId = await offeredBySupplier("Alfa", productId);
+    const orderId = await draftFor("2026-09-01T10:00:00.000Z", {
+      locationId,
+      supplierId,
+      productId,
+    });
+    await db.update(supplierItems).set({ productId: null, quantity: null, saleUnit: null });
+
+    const order = await reader().order(locationId, orderId);
+
+    expect(order?.lines[0]?.supplierItem).toBeNull();
   });
 });

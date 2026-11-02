@@ -1,6 +1,6 @@
 import { type PurchaseOrderDetail, purchaseOrderEditBodySchema } from "@purosur/contracts";
 import { Button, Card, InlineNotice, type LoadStatus, useRequestForm } from "@purosur/ui";
-import { Check, ShieldX, Trash2, TriangleAlert } from "lucide-react";
+import { Check, Send, ShieldX, Trash2, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
@@ -28,6 +28,7 @@ type PurchaseOrderDraftFormProps = {
   onSaved: () => void;
   onNotEditable: () => void;
   onCancelOrder: () => void;
+  onShareOrder: () => void;
   onSessionEnded: () => void;
 };
 
@@ -45,13 +46,14 @@ export function PurchaseOrderDraftForm({
   onSaved,
   onNotEditable,
   onCancelOrder,
+  onShareOrder,
   onSessionEnded,
 }: PurchaseOrderDraftFormProps) {
   const sendToMyAccount = useSendToMyAccount();
   const refreshPurchasing = useRefreshPurchasing();
   const [notice, setNotice] = useState<Notice | null>(null);
 
-  const { form, submit, submitting, reset } = useRequestForm({
+  const { form, submit, submitting, dirty, reset } = useRequestForm({
     defaultValues: purchaseOrderFormValuesOf(order),
     request: { schema: purchaseOrderEditBodySchema, from: purchaseOrderEditRequestFrom },
     fields: PURCHASE_ORDER_FIELDS,
@@ -152,6 +154,19 @@ export function PurchaseOrderDraftForm({
             onPress={onCancelOrder}
           >
             Cancelar pedido
+          </Button>
+        ) : null}
+        {order.documentShareable ? (
+          <Button
+            variant="secondary"
+            icon={<Send />}
+            disabled={submitting}
+            {...(dirty
+              ? { disabledReason: "Guardá los cambios antes de compartir el pedido." }
+              : {})}
+            onPress={onShareOrder}
+          >
+            Compartir pedido
           </Button>
         ) : null}
         <Button
