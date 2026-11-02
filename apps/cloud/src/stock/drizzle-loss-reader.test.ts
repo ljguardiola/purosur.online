@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { ReturnResolution } from "@purosur/domain";
+import { compareCodeUnits, type ReturnResolution } from "@purosur/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { users } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
@@ -349,7 +349,7 @@ describe("DrizzleLossReader.lossesRecorded", () => {
       await returnOf(cashier, productId, { resolution: "exchange", disposition: "discard", sale });
 
       expect(
-        (await lossesOfBranch(cashier.locationId)).sort((a, b) => a.reason.localeCompare(b.reason)),
+        (await lossesOfBranch(cashier.locationId)).sort((a, b) => compareCodeUnits(a.reason, b.reason)),
       ).toEqual([
         { reason: "defective_exchange", quantity: 1_000 },
         { reason: "return_discard", quantity: 1_000 },
