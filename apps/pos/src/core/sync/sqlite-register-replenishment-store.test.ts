@@ -33,7 +33,11 @@ const PEPPER = Buffer.alloc(32, 9).toString("base64url");
 const PIN_HASH = "argon2id$v=19$m=65536,t=3,p=4$c2FsdA$aGFzaC1vZi10aGUtcGlu";
 const SALT = encodePinHash(new Uint8Array(16).fill(1));
 const A_SALE_RECEIPT = { document: "sale_receipt", saleId: "sale-1" } as const;
-const SOURCE = { eventId: "event-1", deviceId: "device-old" };
+const SOURCE = {
+  eventId: "event-1",
+  deviceId: "device-old",
+  occurredAt: new Date("2026-10-07T09:00:00.000Z"),
+};
 
 let database: LocalDatabase;
 let generated = 0;
@@ -504,6 +508,53 @@ describe("the register's store for replenishing a restored register", () => {
       expect(database.prepare("SELECT state FROM sales").get()).toEqual({ state: "VOIDED" });
       expect(count("sale_reprints")).toBe(1);
       expect(count("pre_emission_gate_outcomes")).toBe(1);
+    });
+
+    it("applies the contingency facts with the contingency writers", async () => {
+      const startedAt = new Date("2026-10-07T10:00:00.000Z");
+      const facts: SyncedFact[] = [
+        { kind: "contingency_reporting_started", reporting: { since: startedAt } },
+        { kind: "contingency_entered", interval: { intervalId: "interval-1", startedAt } },
+        {
+          kind: "contingency_left",
+          interval: {
+            intervalId: "interval-1",
+            startedAt,
+            endedAt: new Date("2026-10-07T10:20:00.000Z"),
+          },
+        },
+      ];
+
+      for (const fact of facts) {
+        expect(await store.transaction((tx) => tx.applyFact(fact, SOURCE))).toBe("applied");
+      }
+
+      expect(count("contingency_reporting_start")).toBe(1);
+      expect(
+        database.prepare("SELECT interval_id, ended_at FROM contingency_intervals").all(),
+      ).toEqual([{ interval_id: "interval-1", ended_at: "2026-10-07T10:20:00.000Z" }]);
+    });
+
+    it("takes every fact of a replaced register as evidence it was running when the fact happened", async () => {
+      const startedAt = new Date("2026-10-07T10:00:00.000Z");
+      await store.transaction((tx) =>
+        tx.applyFact(
+          { kind: "contingency_entered", interval: { intervalId: "interval-1", startedAt } },
+          { ...SOURCE, occurredAt: startedAt },
+        ),
+      );
+
+      await store.transaction((tx) =>
+        tx.applyFact(aCompletedSaleFact({ id: "sale-1" }), {
+          eventId: "event-2",
+          deviceId: "device-old",
+          occurredAt: new Date("2026-10-07T10:40:00.000Z"),
+        }),
+      );
+
+      expect(
+        database.prepare("SELECT interval_id, last_seen_at FROM contingency_intervals").all(),
+      ).toEqual([{ interval_id: "interval-1", last_seen_at: "2026-10-07T10:40:00.000Z" }]);
     });
 
     it("applies an offline fiscal document that carries its invoice with the live issuing writer", async () => {

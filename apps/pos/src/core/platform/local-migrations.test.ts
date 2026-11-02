@@ -945,6 +945,7 @@ describe("the register's local migrations", () => {
         "0092_redeliver_held_back_pulled_tables",
         "0093_sales_rebuilt_against_paid_orders",
         "0094_exchanged_return_lines",
+        "0095_contingency_intervals",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1062,6 +1063,7 @@ describe("the register's local migrations", () => {
         "0092_redeliver_held_back_pulled_tables",
         "0093_sales_rebuilt_against_paid_orders",
         "0094_exchanged_return_lines",
+        "0095_contingency_intervals",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1174,6 +1176,7 @@ describe("the register's local migrations", () => {
         "0092_redeliver_held_back_pulled_tables",
         "0093_sales_rebuilt_against_paid_orders",
         "0094_exchanged_return_lines",
+        "0095_contingency_intervals",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1285,6 +1288,7 @@ describe("the register's local migrations", () => {
         "0092_redeliver_held_back_pulled_tables",
         "0093_sales_rebuilt_against_paid_orders",
         "0094_exchanged_return_lines",
+        "0095_contingency_intervals",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1425,6 +1429,7 @@ describe("the register's local migrations", () => {
         "0092_redeliver_held_back_pulled_tables",
         "0093_sales_rebuilt_against_paid_orders",
         "0094_exchanged_return_lines",
+        "0095_contingency_intervals",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1555,6 +1560,7 @@ describe("the register's local migrations", () => {
         "0092_redeliver_held_back_pulled_tables",
         "0093_sales_rebuilt_against_paid_orders",
         "0094_exchanged_return_lines",
+        "0095_contingency_intervals",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1689,6 +1695,7 @@ describe("the register's local migrations", () => {
         "0092_redeliver_held_back_pulled_tables",
         "0093_sales_rebuilt_against_paid_orders",
         "0094_exchanged_return_lines",
+        "0095_contingency_intervals",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1831,6 +1838,7 @@ describe("the register's local migrations", () => {
         "0092_redeliver_held_back_pulled_tables",
         "0093_sales_rebuilt_against_paid_orders",
         "0094_exchanged_return_lines",
+        "0095_contingency_intervals",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1940,6 +1948,7 @@ describe("the register's local migrations", () => {
         "0092_redeliver_held_back_pulled_tables",
         "0093_sales_rebuilt_against_paid_orders",
         "0094_exchanged_return_lines",
+        "0095_contingency_intervals",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -9338,6 +9347,113 @@ describe("the exchanged return lines migration", () => {
           )
           .all(),
       ).toEqual([{ table_name: "stock_movements", cursor: 0 }]);
+    });
+  });
+});
+
+describe("the contingency intervals migration", () => {
+  const MIGRATION = "0095_contingency_intervals";
+
+  type Database = ReturnType<typeof openLocalDatabase>;
+
+  function withMigratedRegister(test: (database: Database) => void) {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < MIGRATION);
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(MIGRATION);
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.close();
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      try {
+        test(after);
+      } finally {
+        after.close();
+      }
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  }
+
+  const insertInterval = (database: Database, intervalId: string, endedAt: string | null) =>
+    database
+      .prepare(
+        `INSERT INTO contingency_intervals (interval_id, started_at, ended_at, last_seen_at)
+         VALUES (@interval_id, '2026-10-12T12:00:00.000Z', @ended_at, '2026-10-12T12:30:00.000Z')`,
+      )
+      .run({ interval_id: intervalId, ended_at: endedAt });
+
+  it("starts a register on a database that already holds data without any interval or reporting start", () => {
+    withMigratedRegister((database) => {
+      expect(database.prepare("SELECT count(*) AS total FROM contingency_intervals").get()).toEqual(
+        { total: 0 },
+      );
+      expect(
+        database.prepare("SELECT count(*) AS total FROM contingency_reporting_start").get(),
+      ).toEqual({ total: 0 });
+    });
+  });
+
+  it("holds any number of closed intervals but at most one open one", () => {
+    withMigratedRegister((database) => {
+      expect(() =>
+        insertInterval(database, "interval-1", "2026-10-12T13:00:00.000Z"),
+      ).not.toThrow();
+      expect(() =>
+        insertInterval(database, "interval-2", "2026-10-12T14:00:00.000Z"),
+      ).not.toThrow();
+      expect(() => insertInterval(database, "interval-3", null)).not.toThrow();
+      expect(() => insertInterval(database, "interval-4", null)).toThrow(/UNIQUE/);
+    });
+  });
+
+  it("holds the intervals the replaced registers left open beside the register's own open one", () => {
+    withMigratedRegister((database) => {
+      const insertPredecessorInterval = (intervalId: string) =>
+        database
+          .prepare(
+            `INSERT INTO contingency_intervals (interval_id, started_at, ended_at, last_seen_at, predecessor)
+             VALUES (?, '2026-10-12T11:00:00.000Z', NULL, '2026-10-12T11:00:00.000Z', 1)`,
+          )
+          .run(intervalId);
+      insertInterval(database, "interval-own", null);
+
+      expect(() => insertPredecessorInterval("interval-1")).not.toThrow();
+      expect(() => insertPredecessorInterval("interval-2")).not.toThrow();
+      expect(
+        database
+          .prepare(
+            "SELECT interval_id, predecessor FROM contingency_intervals ORDER BY interval_id",
+          )
+          .all(),
+      ).toEqual([
+        { interval_id: "interval-1", predecessor: 1 },
+        { interval_id: "interval-2", predecessor: 1 },
+        { interval_id: "interval-own", predecessor: 0 },
+      ]);
+    });
+  });
+
+  it("holds an interval id only once", () => {
+    withMigratedRegister((database) => {
+      insertInterval(database, "interval-1", "2026-10-12T13:00:00.000Z");
+
+      expect(() => insertInterval(database, "interval-1", "2026-10-12T13:00:00.000Z")).toThrow(
+        /UNIQUE/,
+      );
+    });
+  });
+
+  it("remembers the reporting start once", () => {
+    withMigratedRegister((database) => {
+      const insert = (id: number) =>
+        database
+          .prepare("INSERT INTO contingency_reporting_start (id, since) VALUES (?, ?)")
+          .run(id, "2026-10-12T12:00:00.000Z");
+
+      expect(() => insert(1)).not.toThrow();
+      expect(() => insert(1)).toThrow(/UNIQUE/);
+      expect(() => insert(2)).toThrow(/CHECK/);
     });
   });
 });

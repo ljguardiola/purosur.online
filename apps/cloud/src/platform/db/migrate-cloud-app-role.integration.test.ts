@@ -356,6 +356,63 @@ describe("the cloud_app role runMigrations creates", () => {
     await expectPermissionDenied(cloudApp`truncate register_fiscal_address_assignments`);
   });
 
+  it("keeps the first contingency reporting start of a register and never rewrites, removes or truncates it", async () => {
+    const [location] = await cloudApp<{ id: string }[]>`select id from locations limit 1`;
+    if (!location) {
+      throw new Error("test setup: reading the seeded location returned no row");
+    }
+    const [register] = await cloudApp<{ id: string }[]>`
+      insert into registers (location_id, name)
+      values (${location.id}, ${`Caja ${randomUUID()}`}) returning id
+    `;
+    if (!register) {
+      throw new Error("test setup: seeding the register returned no row");
+    }
+    await cloudApp`
+      insert into register_contingency_reporting (register_id, since)
+      values (${register.id}, '2026-10-06T11:00:00Z')
+    `;
+
+    await expect(
+      cloudApp`select since from register_contingency_reporting where register_id = ${register.id}`,
+    ).resolves.toHaveLength(1);
+    await expectPermissionDenied(
+      cloudApp`update register_contingency_reporting set since = now() where register_id = ${register.id}`,
+    );
+    await expectPermissionDenied(
+      cloudApp`delete from register_contingency_reporting where register_id = ${register.id}`,
+    );
+    await expectPermissionDenied(cloudApp`truncate register_contingency_reporting`);
+  });
+
+  it("ends a contingency interval that was recorded open", async () => {
+    const [location] = await cloudApp<{ id: string }[]>`select id from locations limit 1`;
+    if (!location) {
+      throw new Error("test setup: reading the seeded location returned no row");
+    }
+    const [register] = await cloudApp<{ id: string }[]>`
+      insert into registers (location_id, name)
+      values (${location.id}, ${`Caja ${randomUUID()}`}) returning id
+    `;
+    if (!register) {
+      throw new Error("test setup: seeding the register returned no row");
+    }
+    const intervalId = randomUUID();
+    await cloudApp`
+      insert into register_contingency_intervals (interval_id, register_id, started_at)
+      values (${intervalId}, ${register.id}, '2026-10-06T11:00:00Z')
+    `;
+
+    await cloudApp`
+      update register_contingency_intervals set ended_at = '2026-10-06T11:40:00Z'
+      where interval_id = ${intervalId}
+    `;
+
+    await expect(
+      cloudApp`select ended_at from register_contingency_intervals where interval_id = ${intervalId}`,
+    ).resolves.toHaveLength(1);
+  });
+
   it("appends offline point-of-sale retirements but never rewrites, removes or truncates them", async () => {
     const [location] = await cloudApp<{ id: string }[]>`select id from locations limit 1`;
     if (!location) {

@@ -26,6 +26,10 @@ import { applyReplenishedOfflineFiscalDocument } from "../fiscal/replenished-off
 import type { LocalDatabase } from "../platform/local-database";
 import { registerVersionOf } from "../register/register-version";
 import { applyReplenishedCashFact } from "../register/replenished-cash-facts";
+import {
+  applyReplenishedContingencyFact,
+  recordReplenishedRunningEvidence,
+} from "../register/replenished-contingency-facts";
 import { applyReplenishedReturnFact } from "../returns/replenished-return-facts";
 import {
   applyReplenishedReceiptFact,
@@ -181,7 +185,9 @@ export class SqliteRegisterReplenishmentStore implements RegisterReplenishmentSt
         );
       },
       async applyFact(fact, source) {
-        return applyFact(database, ids, fact, source);
+        const application = applyFact(database, ids, fact, source);
+        recordReplenishedRunningEvidence(database, fact, source);
+        return application;
       },
       async recordCreditNoteAnswer(creditNote, answer) {
         recordReplenishedCreditNoteAnswer(database, creditNote, answer);
@@ -253,5 +259,10 @@ function applyFact(
       return applyReplenishedDeferredSale(database, fact);
     case "deferred_sale_satisfied":
       return applyReplenishedDeferredSaleSatisfaction(database, fact);
+    case "contingency_entered":
+    case "contingency_left":
+    case "contingency_reporting_started":
+      applyReplenishedContingencyFact(database, fact, source);
+      return "applied";
   }
 }

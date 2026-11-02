@@ -130,7 +130,11 @@ async function applyPage<TFailure>(
         await tx.recordEventApplied(event.event_id);
         continue;
       }
-      const application = await tx.applyFact(fact, { eventId: event.event_id, deviceId });
+      const application = await tx.applyFact(fact, {
+        eventId: event.event_id,
+        deviceId,
+        occurredAt: new Date(event.occurred_at),
+      });
       if (application === "not_yet_applicable") {
         unapplied += 1;
         continue;

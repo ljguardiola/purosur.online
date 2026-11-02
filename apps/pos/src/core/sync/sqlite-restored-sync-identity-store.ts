@@ -70,6 +70,14 @@ export class SqliteRestoredSyncIdentityStore implements RestoredSyncIdentityStor
           )
           .run(predecessor.deviceId, predecessor.lastAcknowledgedSeq);
       },
+      async handOpenContingencyToPredecessor(predecessorDeviceId) {
+        database
+          .prepare(
+            `UPDATE contingency_intervals SET predecessor = 1, device_id = ?
+             WHERE ended_at IS NULL AND predecessor = 0`,
+          )
+          .run(predecessorDeviceId);
+      },
       async discardCarriedOutboxEvents() {
         database.exec("DELETE FROM outbox");
       },

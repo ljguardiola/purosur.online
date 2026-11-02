@@ -1,0 +1,58 @@
+{
+  "outbox_chain_key": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=",
+  "push": {
+    "app_version": "0.0.0",
+    "telemetry": {
+      "wal_size_bytes": 4120032,
+      "disk_free_bytes": 182536847360,
+      "disk_free_ratio": 0.38
+    },
+    "events": [
+      {
+        "event_id": "01a1414f-0001-7b1c-8d2e-4f5a6b7c8d01",
+        "device_seq": 1,
+        "aggregate_type": "Register",
+        "aggregate_id": "0b6f8d3a-2c41-4e9b-a7d5-3f1e9c8b6a20",
+        "event_type": "contingency_reporting_started",
+        "schema_version": 1,
+        "payload": {
+          "since": "2026-10-06T11:00:00.000Z"
+        },
+        "occurred_at": "2026-10-06T11:00:00.000Z",
+        "actor_id": "0b6f8d3a-2c41-4e9b-a7d5-3f1e9c8b6a20",
+        "chain_hmac": "JGyIyxefY95Goqsq9Zm343xkqacXHo938vpldu2zM3k="
+      },
+      {
+        "event_id": "01a1414f-0003-7d3e-8f40-6b7c8d9eaf03",
+        "device_seq": 2,
+        "aggregate_type": "Register",
+        "aggregate_id": "0b6f8d3a-2c41-4e9b-a7d5-3f1e9c8b6a20",
+        "event_type": "contingency_entered",
+        "schema_version": 1,
+        "payload": {
+          "interval_id": "01a1414f-0002-7c2d-9e3f-5a6b7c8d9e02",
+          "started_at": "2026-10-06T11:00:00.000Z"
+        },
+        "occurred_at": "2026-10-06T11:00:00.000Z",
+        "actor_id": "0b6f8d3a-2c41-4e9b-a7d5-3f1e9c8b6a20",
+        "chain_hmac": "qzXt60AOHXYerkwvScaFKgbgWN0Nz6Mq2ptLiJkmmW0="
+      },
+      {
+        "event_id": "01a1414f-0004-7e4f-9051-7c8d9eafb004",
+        "device_seq": 3,
+        "aggregate_type": "Register",
+        "aggregate_id": "0b6f8d3a-2c41-4e9b-a7d5-3f1e9c8b6a20",
+        "event_type": "contingency_left",
+        "schema_version": 1,
+        "payload": {
+          "ended_at": "2026-10-06T11:40:00.000Z",
+          "interval_id": "01a1414f-0002-7c2d-9e3f-5a6b7c8d9e02",
+          "started_at": "2026-10-06T11:00:00.000Z"
+        },
+        "occurred_at": "2026-10-06T11:40:00.000Z",
+        "actor_id": "0b6f8d3a-2c41-4e9b-a7d5-3f1e9c8b6a20",
+        "chain_hmac": "nH0xyWe3J/45IgGQ+BDUKbLAuWc5YG6K4NHeRL3V5uY="
+      }
+    ]
+  }
+}

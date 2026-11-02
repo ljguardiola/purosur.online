@@ -32,6 +32,7 @@ export {
 } from "./model/clock-correction.js";
 export { CONTINGENCY_KINDS, contingencyOf, isConnectivityGap } from "./model/connectivity-gap.js";
 export { selectConsumerBuyerTaxStatus } from "./model/consumer-buyer-tax-status.js";
+export { countsAsContingencyTime } from "./model/contingency-time.js";
 export type { CreditNoteReason } from "./model/credit-note.js";
 export {
   CREDIT_NOTE_C_VOUCHER_TYPE,

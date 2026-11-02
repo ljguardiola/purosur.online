@@ -278,6 +278,25 @@ export const AN_OPENING_COUNT_WITHDRAWN_FACT: SyncedFact = {
   },
 };
 
+export const A_CONTINGENCY_ENTERED_FACT: SyncedFact = {
+  kind: "contingency_entered",
+  interval: { intervalId: "interval-1", startedAt: new Date("2026-10-07T10:00:00.000Z") },
+};
+
+export const A_CONTINGENCY_LEFT_FACT: SyncedFact = {
+  kind: "contingency_left",
+  interval: {
+    intervalId: "interval-1",
+    startedAt: new Date("2026-10-07T10:00:00.000Z"),
+    endedAt: new Date("2026-10-07T10:40:00.000Z"),
+  },
+};
+
+export const A_CONTINGENCY_REPORTING_STARTED_FACT: SyncedFact = {
+  kind: "contingency_reporting_started",
+  reporting: { since: new Date("2026-10-07T10:00:00.000Z") },
+};
+
 type DeferredSaleSatisfied = Extract<SyncedFact, { kind: "deferred_sale_satisfied" }>;
 
 type InvoiceIssuer = Omit<DeferredSaleSatisfied["satisfaction"]["document"]["issuer"], "version">;

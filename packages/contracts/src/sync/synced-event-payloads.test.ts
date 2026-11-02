@@ -1,5 +1,8 @@
 import {
   clockCorrectedEvent,
+  contingencyEnteredEvent,
+  contingencyLeftEvent,
+  contingencyReportingStartedEvent,
   DEFERRAL_REASONS,
   deferredSaleRecordedEvent,
   deferredSaleSatisfiedEvent,
@@ -205,6 +208,9 @@ describe("synced event payloads", () => {
       "cash_session_opened@1",
       "clock_corrected@1",
       "clock_corrected@2",
+      "contingency_entered@1",
+      "contingency_left@1",
+      "contingency_reporting_started@1",
       "deferred_sale_recorded@1",
       "deferred_sale_recorded@2",
       "deferred_sale_satisfied@1",
@@ -346,6 +352,9 @@ describe("synced event payloads", () => {
     ["a fiscal_gate_failed version nobody emitted", "fiscal_gate_failed", 2],
     ["a deferred_sale_recorded version nobody emitted", "deferred_sale_recorded", 3],
     ["a qr_payment_replaced version nobody emitted", "qr_payment_replaced", 2],
+    ["a contingency_entered version nobody emitted", "contingency_entered", 2],
+    ["a contingency_left version nobody emitted", "contingency_left", 2],
+    ["a contingency_reporting_started version nobody emitted", "contingency_reporting_started", 2],
     ["a prototype property name", "constructor", 1],
     ["a prototype property name as the version", "sale_completed", Number.NaN],
   ])("has no schema for %s", (_case, eventType, schemaVersion) => {
@@ -357,6 +366,9 @@ describe("synced event payloads", () => {
     ["cash_session_closed", 1],
     ["cash_movement_recorded", 1],
     ["fiscal_gate_failed", 1],
+    ["contingency_entered", 1],
+    ["contingency_left", 1],
+    ["contingency_reporting_started", 1],
     ["qr_payment_replaced", 1],
     ["sale_completed", 1],
     ["sale_completed", 2],
@@ -377,6 +389,9 @@ describe("synced event payloads", () => {
     ["cash_session_closed", 1],
     ["cash_movement_recorded", 1],
     ["fiscal_gate_failed", 1],
+    ["contingency_entered", 1],
+    ["contingency_left", 1],
+    ["contingency_reporting_started", 1],
     ["qr_payment_replaced", 1],
     ["sale_completed", 1],
     ["sale_completed", 2],
@@ -396,6 +411,9 @@ describe("synced event payloads", () => {
     ["cash_session_closed", 1],
     ["cash_movement_recorded", 1],
     ["fiscal_gate_failed", 1],
+    ["contingency_entered", 1],
+    ["contingency_left", 1],
+    ["contingency_reporting_started", 1],
     ["qr_payment_replaced", 1],
     ["sale_completed", 1],
     ["sale_completed", 2],
@@ -506,6 +524,54 @@ describe("synced event payloads", () => {
 
     it("refuses a date that is not ISO", () => {
       expect(accepts("fiscal_gate_failed", 1, { ...failed(), evaluated_at: "now" })).toBe(false);
+    });
+  });
+
+  describe("the contingency events", () => {
+    it.each([
+      ["contingency_entered", "started_at"],
+      ["contingency_left", "started_at"],
+      ["contingency_left", "ended_at"],
+      ["contingency_reporting_started", "since"],
+    ])("refuses %s with a %s that is not an instant", (eventType, field) => {
+      expect(
+        accepts(eventType, 1, { ...recordedPayload(eventType, 1), [field]: "yesterday" }),
+      ).toBe(false);
+    });
+
+    it.each([["contingency_entered"], ["contingency_left"]])(
+      "refuses %s with an empty interval id",
+      (eventType) => {
+        expect(accepts(eventType, 1, { ...recordedPayload(eventType, 1), interval_id: "" })).toBe(
+          false,
+        );
+      },
+    );
+
+    const STARTED_AT = new Date("2026-10-06T11:00:00.000Z");
+    const ENDED_AT = new Date("2026-10-06T11:40:00.000Z");
+    const identity = { eventId: "event-1", registerId: "register-1" };
+
+    it.each([
+      [
+        "contingency_entered",
+        contingencyEnteredEvent({ ...identity, intervalId: "interval-1", startedAt: STARTED_AT }),
+      ],
+      [
+        "contingency_left",
+        contingencyLeftEvent({
+          ...identity,
+          intervalId: "interval-1",
+          startedAt: STARTED_AT,
+          endedAt: ENDED_AT,
+        }),
+      ],
+      [
+        "contingency_reporting_started",
+        contingencyReportingStartedEvent({ ...identity, since: STARTED_AT }),
+      ],
+    ])("describes the %s the domain builds", (eventType, event) => {
+      expect(accepts(eventType, 1, event.payload)).toBe(true);
     });
   });
 

@@ -16,10 +16,12 @@ export interface RestoredRegisterState {
   pullCursor: number;
   pinVerifiers: string[];
   wrongPinAttempts: number;
+  openContingencyIntervals: { intervalId: string; predecessorDeviceId: string | null }[];
 }
 
 export type FakeStoreOperation =
   | "recordPredecessor"
+  | "handOpenContingencyToPredecessor"
   | "discardCarriedOutboxEvents"
   | "adoptInstallationIdentity"
   | "discardCarriedPinVerifiers";
@@ -37,6 +39,7 @@ export function aSnapshotOfAnOldInstallation(): RestoredRegisterState {
     pullCursor: 4_321,
     pinVerifiers: ["verifier-1", "verifier-2"],
     wrongPinAttempts: 3,
+    openContingencyIntervals: [{ intervalId: "interval-1", predecessorDeviceId: null }],
   };
 }
 
@@ -67,6 +70,13 @@ export class FakeRestoredSyncIdentityStore implements RestoredSyncIdentityStore 
       recordPredecessor: async (predecessor) => {
         failIf("recordPredecessor");
         working.predecessor = { ...predecessor };
+      },
+      handOpenContingencyToPredecessor: async (predecessorDeviceId) => {
+        failIf("handOpenContingencyToPredecessor");
+        working.openContingencyIntervals = working.openContingencyIntervals.map((interval) => ({
+          ...interval,
+          predecessorDeviceId,
+        }));
       },
       discardCarriedOutboxEvents: async () => {
         failIf("discardCarriedOutboxEvents");

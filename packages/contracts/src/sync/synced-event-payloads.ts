@@ -634,6 +634,21 @@ const fiscalGateFailedSchema = z.object({
   evaluated_at: instant,
 });
 
+const contingencyEnteredSchema = z.object({
+  interval_id: text,
+  started_at: instant,
+});
+
+const contingencyLeftSchema = z.object({
+  interval_id: text,
+  started_at: instant,
+  ended_at: instant,
+});
+
+const contingencyReportingStartedSchema = z.object({
+  since: instant,
+});
+
 const deferredSaleRecordedSchema = z.object({
   id: text,
   sale_id: text,
@@ -791,6 +806,9 @@ const PAYLOAD_SCHEMAS = {
   "cash_session_closed@1": cashSessionClosedSchema,
   "cash_movement_recorded@1": cashMovementRecordedSchema,
   "fiscal_gate_failed@1": fiscalGateFailedSchema,
+  "contingency_entered@1": contingencyEnteredSchema,
+  "contingency_left@1": contingencyLeftSchema,
+  "contingency_reporting_started@1": contingencyReportingStartedSchema,
   "deferred_sale_recorded@1": deferredSaleRecordedSchema,
   "deferred_sale_recorded@2": deferredSaleRecordedV2Schema,
   "deferred_sale_satisfied@1": deferredSaleSatisfiedSchema,

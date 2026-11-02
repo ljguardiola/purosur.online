@@ -11,7 +11,11 @@ import { addToStockBalance } from "../stock/sqlite-stock-ledger";
 import { applyReplenishedSaleFact } from "./replenished-sale-facts";
 import { applyReplenishedSaleVoidFact } from "./replenished-sale-void-facts";
 
-const SOURCE = { eventId: "event-1", deviceId: "device-old" };
+const SOURCE = {
+  eventId: "event-1",
+  deviceId: "device-old",
+  occurredAt: new Date("2026-10-07T09:00:00.000Z"),
+};
 
 let database: LocalDatabase;
 

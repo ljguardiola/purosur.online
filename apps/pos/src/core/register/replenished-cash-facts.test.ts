@@ -12,7 +12,11 @@ type CashFact = Extract<
   { kind: "cash_session_opened" | "cash_session_closed" | "cash_movement_recorded" }
 >;
 
-const SOURCE = { eventId: "event-1", deviceId: "device-old" };
+const SOURCE = {
+  eventId: "event-1",
+  deviceId: "device-old",
+  occurredAt: new Date("2026-10-07T09:00:00.000Z"),
+};
 const OPENED_AT = new Date("2026-10-05T08:00:00.000Z");
 const CLOSED_AT = new Date("2026-10-05T20:00:00.000Z");
 

@@ -660,6 +660,22 @@ const FACT_OF: {
       evaluatedAt: new Date(payload.evaluated_at),
     },
   }),
+  "contingency_entered@1": (payload) => ({
+    kind: "contingency_entered",
+    interval: { intervalId: payload.interval_id, startedAt: new Date(payload.started_at) },
+  }),
+  "contingency_left@1": (payload) => ({
+    kind: "contingency_left",
+    interval: {
+      intervalId: payload.interval_id,
+      startedAt: new Date(payload.started_at),
+      endedAt: new Date(payload.ended_at),
+    },
+  }),
+  "contingency_reporting_started@1": (payload) => ({
+    kind: "contingency_reporting_started",
+    reporting: { since: new Date(payload.since) },
+  }),
   "deferred_sale_recorded@1": (payload) => deferredSaleRecorded(payload, null),
   "deferred_sale_recorded@2": (payload) =>
     deferredSaleRecorded(

@@ -12,6 +12,9 @@ import type {
   CashMovementRecordedFact,
   CashSessionClosedFact,
   CashSessionOpenedFact,
+  ContingencyEnteredFact,
+  ContingencyLeftFact,
+  ContingencyReportingStartedFact,
 } from "../../register/index.js";
 import type { ReturnedSale } from "../../returns/index.js";
 import {
@@ -54,7 +57,10 @@ export type SyncedFact =
       deferredSale: DeferredSale;
       unclearDocument: UnclearDeferralDocument | null;
     }
-  | { kind: "deferred_sale_satisfied"; satisfaction: DeferredSaleSatisfiedFact };
+  | { kind: "deferred_sale_satisfied"; satisfaction: DeferredSaleSatisfiedFact }
+  | { kind: "contingency_entered"; interval: ContingencyEnteredFact }
+  | { kind: "contingency_left"; interval: ContingencyLeftFact }
+  | { kind: "contingency_reporting_started"; reporting: ContingencyReportingStartedFact };
 
 export interface AggregateKey {
   aggregateType: string;
