@@ -1,5 +1,5 @@
 import { argentinaCalendarDay, shiftCalendarDay } from "../../shared/index.js";
-import { isInstallationActiveDuring } from "../../sync/index.js";
+import { isInstallationActiveDuring, streamReachesPastOnceConfirmed } from "../../sync/index.js";
 import type { TaxAuthorityRejection } from "../model/fiscal-rejection-standing.js";
 import {
   CREDIT_NOTE_C_DOCUMENT_TYPE,
@@ -7,6 +7,7 @@ import {
 } from "../model/fiscal-voucher-type.js";
 import {
   type DocumentTypeReportState,
+  fortnightPeriod,
   fortnightReportStateOfDocumentTypes,
   isFortnightReportRetryDue,
   isHeldForInvoiceReport,
@@ -32,10 +33,6 @@ import {
   rejectedDocumentCreditNote,
   remedyAwaitsResend,
 } from "../model/rejected-document-remedy.js";
-import {
-  fortnightPeriod,
-  streamReachesPastOnceConfirmed,
-} from "../model/revoked-installation-confirmation.js";
 import type {
   FortnightReportPorts,
   HeldFortnightReport,

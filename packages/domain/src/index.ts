@@ -342,6 +342,7 @@ export {
   fortnightAfter,
   fortnightClosesAt,
   fortnightContaining,
+  fortnightPeriod,
   fortnightPresentationRows,
   fortnightReportDeadline,
   fortnightsWithinRequestWindowOn,
@@ -1121,6 +1122,7 @@ export {
   heldReplenishmentFailure,
   INSTALLATION_REQUEST_LIMITS,
   installationEnrollment,
+  isHeldBackOnlyByRevokedInstallations,
   isLeftBehindByMinimum,
   isPageAfter,
   isPullCursor,
@@ -1133,8 +1135,10 @@ export {
   pullAudienceOf,
   REPLENISHMENT_PAGE_MAX_EVENTS,
   replenishmentFailedReportOf,
+  revokedInstallationsAwaitingConfirmation,
   SALES_DENIED_FOR_DAMAGED_LOCAL_DATABASE,
   salesDeniedReportOf,
+  streamReachesPastOnceConfirmed,
 } from "./sync/index.js";
 export {
   isEmailAddress,

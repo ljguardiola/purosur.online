@@ -7,6 +7,7 @@ import {
   documentTypePresentationState,
   type FortnightReportState,
   fortnightClosesAt,
+  fortnightPeriod,
   fortnightPresentationRows,
   fortnightReportDeadline,
   fortnightReportStanding,
@@ -1136,5 +1137,16 @@ describe("the awaiting invoice report state", () => {
     expect(documentTypePresentationState("awaiting_invoice_report", null)).toBe(
       "awaiting_invoice_report",
     );
+  });
+});
+
+describe("fortnightPeriod", () => {
+  it("runs from midnight of the first day to the fortnight's close, Argentina time", () => {
+    expect(
+      fortnightPeriod({ start: "2026-09-16", end: "2026-09-30" }, FIXED_ARGENTINA_ZONE_RULES),
+    ).toEqual({
+      from: new Date("2026-09-16T03:00:00.000Z"),
+      until: new Date("2026-10-01T03:00:00.000Z"),
+    });
   });
 });

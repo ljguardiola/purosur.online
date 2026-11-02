@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
-import type { InstallationStreamReach } from "../../sync/index.js";
 import {
-  fortnightPeriod,
   isHeldBackOnlyByRevokedInstallations,
   revokedInstallationsAwaitingConfirmation,
   streamReachesPastOnceConfirmed,
-} from "./revoked-installation-confirmation.js";
+} from "./confirmed-stream-reach.js";
+import type { InstallationStreamReach } from "./event-stream-reach.js";
 
-const FORTNIGHT = { start: "2026-09-16", end: "2026-09-30" };
-const PERIOD = fortnightPeriod(FORTNIGHT, FIXED_ARGENTINA_ZONE_RULES);
+const PERIOD = {
+  from: new Date("2026-09-16T03:00:00.000Z"),
+  until: new Date("2026-10-01T03:00:00.000Z"),
+};
 
 function installation(overrides: Partial<InstallationStreamReach> = {}): InstallationStreamReach {
   return {
@@ -33,15 +33,6 @@ function revokedMidFortnight(
     ...overrides,
   });
 }
-
-describe("fortnightPeriod", () => {
-  it("runs from midnight of the first day to the fortnight's close, Argentina time", () => {
-    expect(PERIOD).toEqual({
-      from: new Date("2026-09-16T03:00:00.000Z"),
-      until: new Date("2026-10-01T03:00:00.000Z"),
-    });
-  });
-});
 
 describe("revokedInstallationsAwaitingConfirmation", () => {
   it("lists a revoked installation active in the fortnight that never reached past the close", () => {

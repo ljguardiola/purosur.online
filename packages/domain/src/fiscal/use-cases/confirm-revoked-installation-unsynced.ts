@@ -1,9 +1,6 @@
-import { isFortnightReportOutstanding } from "../model/fortnight-report.js";
+import { revokedInstallationsAwaitingConfirmation } from "../../sync/index.js";
+import { fortnightPeriod, isFortnightReportOutstanding } from "../model/fortnight-report.js";
 import { fortnightContaining } from "../model/offline-authorization-code.js";
-import {
-  fortnightPeriod,
-  revokedInstallationsAwaitingConfirmation,
-} from "../model/revoked-installation-confirmation.js";
 import type { ConfirmRevokedInstallationUnsyncedPorts } from "./confirm-revoked-installation-unsynced-ports.js";
 
 export interface ConfirmRevokedInstallationUnsyncedInput {

@@ -1,28 +1,18 @@
-import { argentinaInstant, type ZoneRules } from "../../shared/index.js";
 import {
   type InstallationStreamReach,
   installationReachesPast,
   isInstallationActiveDuring,
   streamReachesPast,
-} from "../../sync/index.js";
-import { fortnightClosesAt } from "./fortnight-report.js";
-import type { Fortnight } from "./offline-authorization-code.js";
+} from "./event-stream-reach.js";
 
-export interface FortnightPeriod {
+interface StreamPeriod {
   from: Date;
   until: Date;
 }
 
-export function fortnightPeriod(fortnight: Fortnight, rules: ZoneRules): FortnightPeriod {
-  return {
-    from: new Date(argentinaInstant(fortnight.start, "00:00", rules)),
-    until: fortnightClosesAt(fortnight, rules),
-  };
-}
-
 function holdingBack(
   installations: readonly InstallationStreamReach[],
-  period: FortnightPeriod,
+  period: StreamPeriod,
   confirmedInstallationIds: readonly string[],
 ): InstallationStreamReach[] {
   return installations.filter(
@@ -35,7 +25,7 @@ function holdingBack(
 
 export function revokedInstallationsAwaitingConfirmation(
   installations: readonly InstallationStreamReach[],
-  period: FortnightPeriod,
+  period: StreamPeriod,
   confirmedInstallationIds: readonly string[],
 ): InstallationStreamReach[] {
   return holdingBack(installations, period, confirmedInstallationIds).filter(
@@ -45,7 +35,7 @@ export function revokedInstallationsAwaitingConfirmation(
 
 export function isHeldBackOnlyByRevokedInstallations(
   installations: readonly InstallationStreamReach[],
-  period: FortnightPeriod,
+  period: StreamPeriod,
   confirmedInstallationIds: readonly string[],
 ): boolean {
   const blocking = holdingBack(installations, period, confirmedInstallationIds);
@@ -54,7 +44,7 @@ export function isHeldBackOnlyByRevokedInstallations(
 
 export function streamReachesPastOnceConfirmed(
   installations: readonly InstallationStreamReach[],
-  period: FortnightPeriod,
+  period: StreamPeriod,
   confirmedInstallationIds: readonly string[],
 ): boolean {
   return streamReachesPast(
