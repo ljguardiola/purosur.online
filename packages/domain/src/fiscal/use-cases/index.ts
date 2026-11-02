@@ -187,8 +187,6 @@ export type {
   ContingencyIntervalsAtFiscalAddress,
   ContingencyIntervalsQuery,
   ContingencyIntervalsReader,
-  RegisterContingencyPart,
-  RegisterContingencyReporting,
 } from "./contingency-intervals-ports.js";
 export type {
   CorrectRegisterClockGrant,

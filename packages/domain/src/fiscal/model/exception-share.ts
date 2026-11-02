@@ -28,11 +28,15 @@ export function isExceptionShareBreach({ exceptionCount, totalCount }: Exception
   );
 }
 
+export function flooredTenthsOfPercent(part: number, whole: number): number | null {
+  return whole === 0 ? null : Math.floor((part * TENTHS_OF_A_PERCENT) / whole);
+}
+
 export function exceptionShareTenthsOfPercent({
   exceptionCount,
   totalCount,
 }: ExceptionShareCounts): number | null {
-  return totalCount === 0 ? null : Math.floor((exceptionCount * TENTHS_OF_A_PERCENT) / totalCount);
+  return flooredTenthsOfPercent(exceptionCount, totalCount);
 }
 
 export function selectableExceptionShareYears(today: string): number[] {

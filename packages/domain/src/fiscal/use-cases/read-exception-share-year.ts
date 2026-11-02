@@ -71,6 +71,7 @@ export async function readExceptionShareYear(
       totalCount: 0,
     };
     const counts = { exceptionCount, totalCount };
+    const closed = isMonthClosed(month, today);
     const window = monthWindow(month, zoneRules.zoneRules());
     const { start: from, end: to } = window;
     months.push({
@@ -79,12 +80,13 @@ export async function readExceptionShareYear(
       shareTenthsOfPercent: exceptionShareTenthsOfPercent(counts),
       state: exceptionShareMonthState({
         counts,
-        closed: isMonthClosed(month, today),
+        closed,
         recorded: recorded.has(month),
       }),
       contingencyTime: contingencyTimeMeasurement({
         window,
         now,
+        closed,
         runs: await availability.availabilityRuns({ from, to }),
         ...(await contingency.contingencyIntervalsAtFiscalAddress({ fiscalAddressId, from, to })),
       }),

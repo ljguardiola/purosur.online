@@ -1,9 +1,9 @@
 import { addCalendarMonths, argentinaInstant, type ZoneRules } from "../../shared/index.js";
 import { ARCA_REACHABILITY_HORIZON_MS } from "./arca-reachability.js";
+import { flooredTenthsOfPercent } from "./exception-share.js";
 
 export const CONTINGENCY_TIME_NON_COMPLIANCE_PERCENT = 5;
 const PERCENT = 100;
-const TENTHS_OF_A_PERCENT = 1_000;
 
 export const CONTINGENCY_TIME_MONTH_STATES = [
   "non_compliant",
@@ -12,7 +12,7 @@ export const CONTINGENCY_TIME_MONTH_STATES = [
   "no_data",
 ] as const;
 
-export type ContingencyTimeMonthState = (typeof CONTINGENCY_TIME_MONTH_STATES)[number];
+type ContingencyTimeMonthState = (typeof CONTINGENCY_TIME_MONTH_STATES)[number];
 
 export interface TimeSpan {
   start: Date;
@@ -47,6 +47,10 @@ export interface ContingencyTimeMeasurement {
 interface Millis {
   start: number;
   end: number;
+}
+
+function millisOf({ start, end }: TimeSpan): Millis {
+  return { start: start.getTime(), end: end.getTime() };
 }
 
 function spansOfRuns(runs: readonly ArcaAvailabilityRun[]): (Millis & { ok: boolean })[] {
@@ -119,10 +123,7 @@ function firstReportingIsLate(
   { reportingSince, presence }: ContingencyReportingRegister,
   window: Millis,
 ): boolean {
-  const stays = clippedTo(
-    presence.map(({ start, end }) => ({ start: start.getTime(), end: end.getTime() })),
-    window,
-  ).filter(({ start, end }) => start < end);
+  const stays = clippedTo(presence.map(millisOf), window).filter(({ start, end }) => start < end);
   if (stays.length === 0) {
     return false;
   }
@@ -157,12 +158,14 @@ function stateOf({
 export function contingencyTimeMeasurement({
   window,
   now,
+  closed,
   runs,
   parts,
   registers,
 }: {
   window: TimeSpan;
   now: Date;
+  closed: boolean;
   runs: readonly ArcaAvailabilityRun[];
   parts: readonly ContingencyPart[];
   registers: readonly ContingencyReportingRegister[];
@@ -173,7 +176,7 @@ export function contingencyTimeMeasurement({
     end: Math.min(window.end.getTime(), nowMs),
   };
   const answered = clippedTo(spansOfRuns(runs), measured).filter(({ start, end }) => start < end);
-  const available = unionOf(answered.filter(({ ok }) => ok));
+  const available = clippedTo(arcaAvailableSpans(runs).map(millisOf), measured);
   const contingency = unionOf(
     clippedTo(
       parts.map(({ start, end }) => ({
@@ -190,7 +193,7 @@ export function contingencyTimeMeasurement({
     reportingIsComplete: !registers.some((each) =>
       firstReportingIsLate(each, { start: measured.start, end: window.end.getTime() }),
     ),
-    closed: nowMs >= window.end.getTime(),
+    closed,
     contingencyMs,
     availableMs,
   });
@@ -198,9 +201,7 @@ export function contingencyTimeMeasurement({
     contingencyMs,
     availableMs,
     shareTenthsOfPercent:
-      state === "no_data" || availableMs === 0
-        ? null
-        : Math.floor((contingencyMs * TENTHS_OF_A_PERCENT) / availableMs),
+      state === "no_data" ? null : flooredTenthsOfPercent(contingencyMs, availableMs),
     state,
   };
 }

@@ -9,13 +9,9 @@ export interface ContingencyIntervalsQuery {
   to: Date;
 }
 
-export type RegisterContingencyPart = ContingencyPart;
-
-export type RegisterContingencyReporting = ContingencyReportingRegister;
-
 export interface ContingencyIntervalsAtFiscalAddress {
-  parts: RegisterContingencyPart[];
-  registers: RegisterContingencyReporting[];
+  parts: ContingencyPart[];
+  registers: ContingencyReportingRegister[];
 }
 
 export interface ContingencyIntervalsReader {

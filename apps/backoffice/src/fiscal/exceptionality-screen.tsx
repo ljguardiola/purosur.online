@@ -140,8 +140,8 @@ const columns = [
 
 function nonCompliantMonthsText(year: ExceptionShareYearBody): string {
   return year.non_compliant_months.length === 0
-    ? `Ningún mes incumplió en ${formatYear(year.year)}`
-    : `Meses que incumplieron en ${formatYear(year.year)}: ${year.non_compliant_months.map(monthNameOf).join(", ")}`;
+    ? `Ningún mes incumplió por comprobantes por excepción en ${formatYear(year.year)}`
+    : `Meses que incumplieron por comprobantes por excepción en ${formatYear(year.year)}: ${year.non_compliant_months.map(monthNameOf).join(", ")}`;
 }
 
 function nonCompliantContingencyMonthsText(year: ExceptionShareYearBody): string {

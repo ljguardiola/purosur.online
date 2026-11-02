@@ -4,12 +4,13 @@ import type {
   ContingencyIntervalsQuery,
   ContingencyIntervalsReader,
 } from "@purosur/domain/fiscal/use-cases";
-import { and, asc, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, isNull, lt, min, or, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   registerContingencyIntervals,
   registerContingencyReporting,
   registerFiscalAddressAssignments,
+  registerInstallations,
 } from "../platform/db/schema.js";
 
 const ASSIGNED_AT_ISO = sql<
@@ -84,12 +85,29 @@ export class DrizzleContingencyIntervalsReader<TQueryResult extends PgQueryResul
       .from(registerContingencyReporting)
       .where(inArray(registerContingencyReporting.registerId, registerIds));
     const sinceOf = new Map(reporting.map(({ registerId, since }) => [registerId, since]));
+    const enrollments = await this.db
+      .select({
+        registerId: registerInstallations.registerId,
+        firstEnrolledAt: min(registerInstallations.enrolledAt),
+      })
+      .from(registerInstallations)
+      .where(inArray(registerInstallations.registerId, registerIds))
+      .groupBy(registerInstallations.registerId);
+    const firstEnrolledAtOf = new Map(
+      enrollments.map(({ registerId, firstEnrolledAt }) => [registerId, firstEnrolledAt]),
+    );
     return {
       parts,
       registers: registerIds.map((registerId) => ({
         registerId,
         reportingSince: sinceOf.get(registerId) ?? null,
-        presence: presenceAt(assignments, registerId, fiscalAddressId, period),
+        presence: presenceAt(
+          assignments,
+          registerId,
+          fiscalAddressId,
+          period,
+          firstEnrolledAtOf.get(registerId) ?? null,
+        ),
       })),
     };
   }
@@ -142,10 +160,16 @@ function presenceAt(
   registerId: string,
   fiscalAddressId: string,
   period: { start: Date; end: Date },
+  firstEnrolledAt: Date | null,
 ): { start: Date; end: Date }[] {
-  return fiscalAddressPartsOf(period, assignmentsOf(assignments, registerId)).flatMap((part) =>
-    part.fiscalAddressId === fiscalAddressId && part.end !== null
-      ? [{ start: part.start, end: part.end }]
-      : [],
-  );
+  if (firstEnrolledAt === null) {
+    return [];
+  }
+  return fiscalAddressPartsOf(period, assignmentsOf(assignments, registerId)).flatMap((part) => {
+    if (part.fiscalAddressId !== fiscalAddressId || part.end === null) {
+      return [];
+    }
+    const start = part.start > firstEnrolledAt ? part.start : firstEnrolledAt;
+    return start < part.end ? [{ start, end: part.end }] : [];
+  });
 }
