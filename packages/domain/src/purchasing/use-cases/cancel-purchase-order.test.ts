@@ -18,6 +18,8 @@ function order(overrides: Partial<FakePurchaseOrderRow> = {}): FakePurchaseOrder
     createdAt: new Date("2026-03-01T10:00:00Z"),
     actorId: "person-1",
     cancelledAt: null,
+    sentAt: null,
+    sentBy: null,
     lines: [],
     ...overrides,
   };
@@ -52,6 +54,21 @@ describe("cancelPurchaseOrder", () => {
       await cancelPurchaseOrder({ store, clock: CLOCK }, { ...input, orderId: "order-none" }),
     ).toEqual({ kind: "not_found" });
     expect(store.orders()[0]?.state).toBe("DRAFT");
+  });
+
+  it("moves a sent order to cancelled and keeps when it was sent", async () => {
+    const sentAt = new Date("2026-03-05T09:00:00Z");
+    const store = storeWith(order({ state: "SENT", sentAt, sentBy: "person-1" }));
+
+    expect(await cancelPurchaseOrder({ store, clock: CLOCK }, input)).toEqual({
+      kind: "cancelled",
+    });
+    expect(store.orders()[0]).toMatchObject({
+      state: "CANCELLED",
+      cancelledAt: NOW,
+      sentAt,
+      sentBy: "person-1",
+    });
   });
 
   it("refuses to cancel an order already cancelled", async () => {

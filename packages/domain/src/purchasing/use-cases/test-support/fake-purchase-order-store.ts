@@ -19,6 +19,8 @@ export interface FakePurchaseOrderRow {
   createdAt: Date;
   actorId: string;
   cancelledAt: Date | null;
+  sentAt: Date | null;
+  sentBy: string | null;
   lines: PurchaseOrderLineFields[];
 }
 
@@ -34,13 +36,15 @@ export type FakePurchaseOrderWrite =
   | "insertDraftPurchaseOrder"
   | "insertPurchaseOrderLine"
   | "replacePurchaseOrderLines"
-  | "cancelPurchaseOrder";
+  | "cancelPurchaseOrder"
+  | "markPurchaseOrderSent";
 
 function cloneOrder(order: FakePurchaseOrderRow): FakePurchaseOrderRow {
   return {
     ...order,
     createdAt: new Date(order.createdAt),
     cancelledAt: order.cancelledAt && new Date(order.cancelledAt),
+    sentAt: order.sentAt && new Date(order.sentAt),
     lines: order.lines.map((line) => ({ ...line })),
   };
 }
@@ -101,6 +105,8 @@ class FakePurchaseOrderStoreTransaction implements PurchaseOrderStoreTransaction
       createdAt: fields.createdAt,
       actorId: fields.actorId,
       cancelledAt: null,
+      sentAt: null,
+      sentBy: null,
       lines: [],
     });
     return { id };
@@ -154,6 +160,20 @@ class FakePurchaseOrderStoreTransaction implements PurchaseOrderStoreTransaction
       if (order.id === orderId) {
         order.state = "CANCELLED";
         order.cancelledAt = cancellation.cancelledAt;
+      }
+    }
+  }
+
+  async markPurchaseOrderSent(
+    orderId: string,
+    sending: { sentAt: Date; actorId: string },
+  ): Promise<void> {
+    this.beforeWrite("markPurchaseOrderSent");
+    for (const order of this.state.orders) {
+      if (order.id === orderId) {
+        order.state = "SENT";
+        order.sentAt = sending.sentAt;
+        order.sentBy = sending.actorId;
       }
     }
   }

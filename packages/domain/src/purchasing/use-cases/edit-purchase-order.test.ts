@@ -18,6 +18,8 @@ function draft(overrides: Partial<FakePurchaseOrderRow> = {}): FakePurchaseOrder
     createdAt: NOW,
     actorId: "person-1",
     cancelledAt: null,
+    sentAt: null,
+    sentBy: null,
     lines: [
       {
         productId: "product-a",
