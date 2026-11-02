@@ -233,9 +233,7 @@ test("refuses a component without a readable quantity, saying how to type it", a
 
   await expect
     .element(
-      dialog.getByText(
-        "Almendras: escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.",
-      ),
+      dialog.getByText("Almendras: escribí los kilos con hasta 3 decimales, por ejemplo 12,150."),
     )
     .toBeVisible();
   expect(saveRecipe).not.toHaveBeenCalled();
@@ -300,9 +298,7 @@ test("shows a quantity the cloud refused next to its component", async () => {
 
   await expect
     .element(
-      dialog
-        .getByText("Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.")
-        .first(),
+      dialog.getByText("Escribí los kilos con hasta 3 decimales, por ejemplo 12,150.").first(),
     )
     .toBeVisible();
 });

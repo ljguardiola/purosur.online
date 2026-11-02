@@ -107,14 +107,14 @@ test("shows the lots' message once below them and marks every lot's field with i
 
   await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
 
-  const message = "Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.";
+  const message = "Escribí los kilos con hasta 3 decimales, por ejemplo 12,150.";
   await expect.element(screen.getByText(message)).toBeVisible();
   await expect.element(screen.getByRole("textbox", { name: FIRST_LOT })).toBeInvalid();
   await expect
     .element(screen.getByRole("textbox", { name: FIRST_LOT }))
-    .toHaveAccessibleDescription(/Escribí los kilos con coma/);
+    .toHaveAccessibleDescription(/Escribí los kilos con hasta 3 decimales/);
   await expect.element(screen.getByRole("textbox", { name: SECOND_LOT })).toBeInvalid();
   await expect
     .element(screen.getByRole("textbox", { name: SECOND_LOT }))
-    .toHaveAccessibleDescription(/Escribí los kilos con coma/);
+    .toHaveAccessibleDescription(/Escribí los kilos con hasta 3 decimales/);
 });

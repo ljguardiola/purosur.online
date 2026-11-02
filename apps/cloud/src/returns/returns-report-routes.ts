@@ -71,7 +71,7 @@ function voidOnTheWire(record: VoidedSaleRecord) {
     sale: saleOnTheWire(record.sale),
     voided_at: record.voidedAt.toISOString(),
     register: record.register,
-    cashier: optionalPerson(record.cashier),
+    cashier: person(record.cashier),
     authorizer: optionalPerson(record.authorizer),
     total: record.total,
   };
@@ -125,7 +125,7 @@ export function registerReturnsReportRoutes<TQueryResult extends PgQueryResultHK
           voids: { rows: report.voids.rows.map(voidOnTheWire), totals: report.voids.totals },
           totals: summaryOnTheWire(report.totals),
           by_cashier: report.byCashier.map(({ cashier, ...totals }) => ({
-            cashier: optionalPerson(cashier),
+            cashier: person(cashier),
             ...summaryOnTheWire(totals),
           })),
           by_authorizer: report.byAuthorizer.map(({ authorizer, ...totals }) => ({

@@ -115,22 +115,20 @@ describe("returnsReportSchema", () => {
     ).toEqual([changed]);
   });
 
-  it("accepts a voided sale without a known voider, an authorizer, an operation number or an invoice", () => {
+  it("accepts a voided sale by a nameless voider, without an authorizer, an operation number or an invoice", () => {
     const bare = {
       ...voidRow,
       sale: { id: row.sale.id, operation_number: null, invoice: null },
-      cashier: null,
+      cashier: { id: row.cashier.id, name: null },
       authorizer: null,
     };
     const parsed = returnsReportSchema.parse({
       ...report,
       voids: { rows: [bare], totals: { voids: 1, voided: 5_000 } },
-      by_cashier: [{ cashier: null, ...summary }],
       by_authorizer: [{ authorizer: null, ...summary }],
     });
 
     expect(parsed.voids.rows).toEqual([bare]);
-    expect(parsed.by_cashier[0]?.cashier).toBeNull();
     expect(parsed.by_authorizer[0]?.authorizer).toBeNull();
   });
 
@@ -159,10 +157,11 @@ describe("returnsReportSchema", () => {
     ["a negative refunded line count", { totals: { ...summary, refunded_lines: -1 } }],
     ["a negative typed return count", { totals: { ...summary, typed_returns: -1 } }],
     ["a summary row without a cashier field", { by_cashier: [summary] }],
+    ["a summary row without a cashier", { by_cashier: [{ cashier: null, ...summary }] }],
     ["a summary row without an authorizer field", { by_authorizer: [summary] }],
     [
       "a summary row with a negative count",
-      { by_cashier: [{ cashier: null, ...summary, voids: -1 }] },
+      { by_cashier: [{ cashier: row.cashier, ...summary, voids: -1 }] },
     ],
   ])("refuses %s", (_name, change) => {
     expect(returnsReportSchema.safeParse({ ...report, ...change }).success).toBe(false);
@@ -176,6 +175,7 @@ describe("returnsReportSchema", () => {
     ["a register without a name", { ...voidRow, register: { id: REGISTER_ID } }],
     ["a cashier with an empty id", { ...voidRow, cashier: { id: "", name: "Ana" } }],
     ["a missing cashier field", { ...voidRow, cashier: undefined }],
+    ["no cashier", { ...voidRow, cashier: null }],
     ["an authorizer with an empty id", { ...voidRow, authorizer: { id: "", name: "Beto" } }],
     ["a missing authorizer field", { ...voidRow, authorizer: undefined }],
   ])("refuses a voided sale with %s", (_name, bad) => {

@@ -1,5 +1,5 @@
 {
-  "id": "464218c6-c49d-48b2-83ee-73ad14e3544e",
+  "id": "71631786-5ac2-4e88-9c40-d1c07c8e1bb1",
   "prevId": "42c506ee-bdee-4d57-9442-ad60f7923451",
   "version": "7",
   "dialect": "postgresql",
@@ -8187,12 +8187,7 @@
       },
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "register_fiscal_address_assignments_assigned_at_on_milliseconds": {
-          "name": "register_fiscal_address_assignments_assigned_at_on_milliseconds",
-          "value": "\"register_fiscal_address_assignments\".\"assigned_at\" = date_trunc('milliseconds', \"register_fiscal_address_assignments\".\"assigned_at\")"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.register_installation_bitlocker_keys": {
@@ -10427,6 +10422,10 @@
         "sales_void_authorizer_only_when_voided_check": {
           "name": "sales_void_authorizer_only_when_voided_check",
           "value": "\"sales\".\"void_authorized_by\" is null or \"sales\".\"state\" = 'VOIDED'"
+        },
+        "sales_voided_by_only_when_voided_check": {
+          "name": "sales_voided_by_only_when_voided_check",
+          "value": "(\"sales\".\"state\" = 'VOIDED') = (\"sales\".\"voided_by\" is not null)"
         }
       },
       "isRLSEnabled": false

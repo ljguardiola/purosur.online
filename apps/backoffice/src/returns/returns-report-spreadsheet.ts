@@ -8,7 +8,6 @@ import {
 } from "./returns-person-summary";
 import { OCCURRED_TIME_ZONE } from "./returns-report-occurred-time-zone";
 import {
-  NO_CASHIER,
   returnLineDispositionText,
   returnLineReasonText,
   returnLineResolutionText,
@@ -90,7 +89,7 @@ function voidRow(row: VoidRow): Cell[] {
     cell.text(row.register.name),
     operation === null ? cell.empty() : cell.text(operation),
     invoice === null ? cell.empty() : cell.text(invoice),
-    cell.text(row.cashier === null ? NO_CASHIER : (row.cashier.name ?? UNIDENTIFIED)),
+    cell.text(row.cashier.name ?? UNIDENTIFIED),
     row.authorizer === null ? cell.empty() : cell.text(row.authorizer.name ?? UNIDENTIFIED),
     cell.money(row.total),
   ];
