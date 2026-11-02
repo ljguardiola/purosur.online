@@ -28,10 +28,7 @@ class DrizzleExceptionShareBreachTransaction<TQueryResult extends PgQueryResultH
     await this.tx.execute(
       sql`select pg_advisory_xact_lock(hashtextextended(${EXCEPTION_SHARE_BREACH_LOCK_KEY}, 0))`,
     );
-    return monthlyVoucherCounts(
-      this.tx,
-      ({ month }) => sql`${month} >= ${window.from} and ${month} <= ${window.through}`,
-    );
+    return monthlyVoucherCounts(this.tx, { months: window });
   }
 
   recordedBreaches(window: { from: string; through: string }): Promise<ExceptionShareMonth[]> {

@@ -204,12 +204,12 @@ test("shows each void with its day and time, register, sale, cashier, authorizer
   await expect.element(row.getByText("$ 5.200,00", { exact: true })).toBeVisible();
 });
 
-test("marks a void with no cashier as Sin dato and one nobody authorized with a dash", async () => {
+test("marks a void nobody authorized with a dash, and calls a cashier without a name Sin identificar", async () => {
   const screen = await renderScreen(createServices());
 
   const table = screen.getByRole("table", { name: VOIDS_TABLE });
   const row = table.getByRole("row", { name: /Caja del fondo/ });
-  await expect.element(cellUnder(table, row, "Cajero")).toHaveTextContent("Sin dato");
+  await expect.element(cellUnder(table, row, "Cajero")).toHaveTextContent("Sin identificar");
   await expect.element(cellUnder(table, row, "Autorizó")).toHaveTextContent("—");
   await expect.element(cellUnder(table, row, "Total")).toHaveTextContent("$ 3.100,00");
 });

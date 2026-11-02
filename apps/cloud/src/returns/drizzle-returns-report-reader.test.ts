@@ -449,10 +449,15 @@ describe("the sales voided in a branch", () => {
     expect(record?.authorizer).toEqual({ id: authorizedBy, name: null });
   });
 
-  it("has no cashier when the voiding was applied without knowing who voided it", async () => {
+  it("names a voider who is no longer known as nobody", async () => {
     const { deviceId, locationId } = await aRegister();
-    const voided = await voidAt(deviceId, VOIDED);
-    await db.update(sales).set({ voidedBy: null }).where(eq(sales.id, voided.id));
+    const voided = await applyVoidedSale(db, {
+      deviceId,
+      completedAt: SOLD,
+      voidedAt: VOIDED,
+      completed: {},
+      voidedBy: "voider-no-longer-known",
+    });
 
     const [record] = await salesVoided({
       locationId,
@@ -460,7 +465,10 @@ describe("the sales voided in a branch", () => {
       registerId: undefined,
     });
 
-    expect(record).toMatchObject({ sale: { id: voided.id }, cashier: null });
+    expect(record).toMatchObject({
+      sale: { id: voided.id },
+      cashier: { id: "voider-no-longer-known", name: null },
+    });
   });
 
   it("has no authorizer when the voiding needed none", async () => {

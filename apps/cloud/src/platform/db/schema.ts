@@ -1156,6 +1156,10 @@ export const registerFiscalAddressAssignments = pgTable(
       name: "register_fiscal_address_assignments_pkey",
       columns: [table.registerId, table.assignedAt],
     }),
+    check(
+      "register_fiscal_address_assignments_assigned_at_on_milliseconds",
+      sql`${table.assignedAt} = date_trunc('milliseconds', ${table.assignedAt})`,
+    ),
   ],
 );
 
@@ -1690,6 +1694,10 @@ export const sales = pgTable(
     check(
       "sales_void_authorizer_only_when_voided_check",
       sql`${table.voidAuthorizedBy} is null or ${table.state} = 'VOIDED'`,
+    ),
+    check(
+      "sales_voided_by_only_when_voided_check",
+      sql`(${table.state} = 'VOIDED') = (${table.voidedBy} is not null)`,
     ),
   ],
 );

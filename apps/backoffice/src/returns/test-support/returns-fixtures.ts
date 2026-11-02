@@ -130,7 +130,7 @@ const voidedByCarla: VoidRow = {
   total: 520_000,
 };
 
-const voidedWithoutPeople: VoidRow = {
+const voidedWithoutAuthorizer: VoidRow = {
   sale: {
     id: "a3a3a3a3-a3a3-4a3a-8a3a-a3a3a3a3a3a3",
     operation_number: null,
@@ -138,7 +138,7 @@ const voidedWithoutPeople: VoidRow = {
   },
   voided_at: "2026-10-04T16:00:00.000Z",
   register: { id: REGISTER_ID, name: "Caja del fondo" },
-  cashier: null,
+  cashier: { id: NAMELESS_CASHIER_ID, name: null },
   authorizer: null,
   total: 310_000,
 };
@@ -151,7 +151,7 @@ export const returnsReport: ReturnsReportBody = {
   },
   scanned: { rows: [scanned], totals: { returns: 1, refunded: 150_000 } },
   voids: {
-    rows: [voidedByCarla, voidedWithoutPeople],
+    rows: [voidedByCarla, voidedWithoutAuthorizer],
     totals: { voids: 2, voided: 830_000 },
   },
   totals: {
@@ -185,12 +185,13 @@ export const returnsReport: ReturnsReportBody = {
     {
       cashier: { id: NAMELESS_CASHIER_ID, name: null },
       ...figures,
+      voids: 1,
+      voided: 310_000,
       returns: 1,
       refunded: 80_000,
       refunded_lines: 1,
       typed_returns: 1,
     },
-    { cashier: null, ...figures, voids: 1, voided: 310_000 },
   ],
   by_authorizer: [
     {

@@ -134,7 +134,7 @@ describe("SUPPLIER_ITEM_PRODUCT_MESSAGES", () => {
     );
     expect(
       SUPPLIER_ITEM_PRODUCT_MESSAGES.quantity({ ...FILLED, saleUnit: "KG", quantity: "x" }),
-    ).toBe("Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.");
+    ).toBe("Escribí los kilos con hasta 3 decimales, por ejemplo 12,150.");
     expect(
       SUPPLIER_ITEM_PRODUCT_MESSAGES.quantity({
         ...FILLED,

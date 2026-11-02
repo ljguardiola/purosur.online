@@ -12,7 +12,7 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import type { ReturnDraft, ReturnDraftLine } from "./return-form";
-import { goesBackWhole } from "./return-form";
+import { goesBackWhole, RETURNED_WEIGHT_DECIMALS } from "./return-form";
 import type { SaleForReturn, SaleLineForReturn } from "./return-sale";
 import type { ReturnReasonValue } from "./return-text";
 import {
@@ -105,7 +105,9 @@ export function ReturnLinesTable({
             kind="plain-text"
             label={label}
             labelVisuallyHidden
-            inputMode={line.sale_unit === "KG" ? "decimal" : "numeric"}
+            {...(line.sale_unit === "KG"
+              ? { decimals: RETURNED_WEIGHT_DECIMALS }
+              : { inputMode: "numeric" as const })}
             value={drafted.quantity}
             onChange={(quantity) => onChange(line.id, { quantity })}
           />
