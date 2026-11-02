@@ -26,5 +26,6 @@ export interface ContingencyLedgerTransaction {
   recordIntervalSeen(intervalId: string, seenAt: Date): void;
   recordClosedInterval(intervalId: string, endedAt: Date): void;
   recordReportingStarted(since: Date): void;
+  recordSeenUnenrolled(): void;
   appendOutboxEvent(draft: OutboxEventDraft): void;
 }

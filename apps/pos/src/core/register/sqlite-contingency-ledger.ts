@@ -80,6 +80,9 @@ export class SqliteContingencyLedger implements ContingencyLedger {
           .prepare("INSERT INTO contingency_reporting_start (id, since) VALUES (1, ?)")
           .run(since.toISOString());
       },
+      recordSeenUnenrolled: () => {
+        database.prepare("INSERT INTO register_seen_unenrolled (id) VALUES (1)").run();
+      },
       appendOutboxEvent: (draft) => this.appendOutboxEvent(draft),
     };
   }
@@ -90,10 +93,6 @@ export class SqliteContingencyLedger implements ContingencyLedger {
     }
     appendOutboxEvent(this.database, this.outboxChainKey, draft);
   }
-}
-
-export function recordSeenUnenrolled(database: LocalDatabase): void {
-  database.prepare("INSERT OR IGNORE INTO register_seen_unenrolled (id) VALUES (1)").run();
 }
 
 function readOpenInterval(database: LocalDatabase): OpenContingencyInterval | undefined {

@@ -2,6 +2,7 @@ import type {
   Authorization,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
+  DeviceCredentials,
   OpenCashSessionOutcome,
 } from "@purosur/contracts";
 import type { FiscalEmissionMode, ZoneRulesSource } from "@purosur/domain";
@@ -27,6 +28,7 @@ export interface ContingencyRecordingWiringDeps {
   now: Clock["now"];
   ids: IdGenerator;
   readOutboxChainKey: () => Promise<string | undefined>;
+  readCredentials: () => Promise<DeviceCredentials | undefined>;
   readMode: (database: LocalDatabase) => FiscalEmissionMode;
   restorationOf: (database: LocalDatabase) => RestorationProtocolEvidence;
   reportFailure: (error: unknown) => void;
@@ -61,6 +63,7 @@ export function createContingencyRecordingWiring({
   now,
   ids,
   readOutboxChainKey,
+  readCredentials,
   readMode,
   restorationOf,
   reportFailure,
@@ -75,7 +78,7 @@ export function createContingencyRecordingWiring({
           now,
           ids,
           readMode: () => readMode(database),
-          readOutboxChainKey,
+          readCredentials,
           reportFailure,
         });
   const startup = async () => recording?.startup();

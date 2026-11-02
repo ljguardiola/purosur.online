@@ -763,6 +763,7 @@ const contingencyRecording = createContingencyRecordingWiring({
   now,
   ids: uuidV7Ids,
   readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+  readCredentials: () => mainRequests.readCredentials(),
   readMode: (database) => readFiscalEmissionModeIn(database, now(), zoneRules),
   restorationOf,
   reportFailure: (error) => reportFailure("recording the register's contingency", error),
