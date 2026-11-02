@@ -17,12 +17,13 @@ export const warehouseFiscalAddress: FiscalAddress = {
 
 export const fiscalAddresses: FiscalAddress[] = [centralFiscalAddress, warehouseFiscalAddress];
 
-const withoutContingencyData: ExceptionShareYearBody["months"][number]["contingency_time"] = {
-  contingency_ms: 0,
-  available_ms: 0,
-  share_tenths_of_percent: null,
-  state: "no_data",
-};
+export const withoutContingencyData: ExceptionShareYearBody["months"][number]["contingency_time"] =
+  {
+    contingency_ms: 0,
+    available_ms: 0,
+    share_tenths_of_percent: null,
+    state: "no_data",
+  };
 
 export const exceptionShareOf2026: ExceptionShareYearBody = {
   fiscal_address: { id: centralFiscalAddress.id, name: centralFiscalAddress.name },

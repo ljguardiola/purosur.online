@@ -16,6 +16,7 @@ import {
   exceptionShareOf2026WithoutBreaches,
   fiscalAddresses,
   warehouseFiscalAddress,
+  withoutContingencyData,
 } from "./test-support/exception-share-fixtures";
 import { createExceptionalityServices } from "./test-support/exceptionality-screen-services";
 
@@ -259,6 +260,7 @@ test("shows the months of a year without vouchers with zero vouchers and no shar
           total_count: 0,
           share_tenths_of_percent: null,
           state: "compliant",
+          contingency_time: withoutContingencyData,
         },
       ],
       non_compliant_months: [],
