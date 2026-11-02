@@ -53,6 +53,16 @@ export {
   clockOffsetMs,
   isClockDrifted,
 } from "./model/clock-drift.js";
+export {
+  contingencyEnteredEvent,
+  contingencyLeftEvent,
+  contingencyReportingStartedEvent,
+} from "./model/contingency-events.js";
+export type {
+  ContingencyEnteredFact,
+  ContingencyLeftFact,
+  ContingencyReportingStartedFact,
+} from "./model/contingency-facts.js";
 export type { CriticalBatteryAction } from "./model/critical-battery-action.js";
 export {
   CRITICAL_BATTERY_ACTIONS,
