@@ -724,7 +724,41 @@ describe("alertDetailSchema", () => {
       expect(alertDetailSchema.safeParse(rejected("factura_a")).success).toBe(false);
     });
 
-    it.each(["blocked", "missing_document", "refused", "pending"])(
+    it("accepts a pending fortnight report alert naming the revoked installations awaiting confirmation", () => {
+      const alert = {
+        ...base,
+        kind: "fortnight_report_pending",
+        detail: {
+          ...detailOf.fortnight_report_pending,
+          reason: "revoked_installation",
+          revokedInstallations: [
+            { installationId: "installation-1", revokedAt: "2026-09-10T15:30:00.000Z" },
+          ],
+        },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
+    });
+
+    it.each([
+      ["an installation without its id", [{ revokedAt: "2026-09-10T15:30:00.000Z" }]],
+      ["an installation without when it was revoked", [{ installationId: "installation-1" }]],
+      ["a list that is not one", "installation-1"],
+    ])("refuses revoked installations with %s", (_case, revokedInstallations) => {
+      const alert = {
+        ...base,
+        kind: "fortnight_report_pending",
+        detail: {
+          ...detailOf.fortnight_report_pending,
+          reason: "revoked_installation",
+          revokedInstallations,
+        },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).success).toBe(false);
+    });
+
+    it.each(["blocked", "missing_document", "refused", "pending", "revoked_installation"])(
       "accepts a pending fortnight report alert waiting for the reason %s",
       (reason) => {
         const alert = {
@@ -738,7 +772,7 @@ describe("alertDetailSchema", () => {
     );
 
     it.each([
-      ["a reason outside the four it can have", { reason: "unknown" }],
+      ["a reason outside the five it can have", { reason: "unknown" }],
       ["days left as text", { daysLeft: "3" }],
       ["fractional days left", { daysLeft: 1.5 }],
       ["a fractional point of sale", { pointOfSaleNumber: 4.5 }],
