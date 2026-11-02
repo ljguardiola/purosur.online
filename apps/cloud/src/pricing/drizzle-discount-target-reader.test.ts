@@ -193,6 +193,34 @@ describe("DrizzleDiscountTargetReader", () => {
     ]);
   });
 
+  it("reads categories of the same name under different parents in the order of their ids", async () => {
+    await db.insert(categories).values([
+      { id: "00000000-0000-4000-8000-000000000001", name: "Almacén" },
+      { id: "00000000-0000-4000-8000-000000000002", name: "Bebidas" },
+    ]);
+    await db.insert(categories).values([
+      {
+        id: "00000000-0000-4000-8000-00000000000b",
+        name: "Varios",
+        parentId: "00000000-0000-4000-8000-000000000002",
+      },
+      {
+        id: "00000000-0000-4000-8000-00000000000a",
+        name: "Varios",
+        parentId: "00000000-0000-4000-8000-000000000001",
+      },
+    ]);
+
+    const { categories: listed } = await new DrizzleDiscountTargetReader(db).targetCandidates();
+
+    expect(listed.map(({ id }) => id)).toEqual([
+      "00000000-0000-4000-8000-000000000001",
+      "00000000-0000-4000-8000-000000000002",
+      "00000000-0000-4000-8000-00000000000a",
+      "00000000-0000-4000-8000-00000000000b",
+    ]);
+  });
+
   it("reads products of the same name in the order of their ids", async () => {
     const [category] = await db
       .insert(categories)

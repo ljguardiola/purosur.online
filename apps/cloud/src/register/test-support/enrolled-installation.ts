@@ -35,6 +35,7 @@ export async function insertEnrolledInstallation<TQueryResult extends PgQueryRes
   db: PgDatabase<TQueryResult>,
   options: {
     now: Date;
+    deviceId?: string;
     revokedAt?: Date;
     enrolledAt?: Date;
     tokenIssuedAt?: Date;
@@ -51,6 +52,7 @@ export async function insertEnrolledInstallation<TQueryResult extends PgQueryRes
   const [installation] = await db
     .insert(registerInstallations)
     .values({
+      id: options.deviceId,
       registerId,
       tokenLookupPrefix: lookupPrefix,
       tokenHash,

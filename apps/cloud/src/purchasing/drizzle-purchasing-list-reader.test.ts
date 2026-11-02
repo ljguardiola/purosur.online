@@ -60,4 +60,28 @@ describe("DrizzlePurchasingListReader", () => {
       },
     ]);
   });
+
+  it("lists suppliers with numbers by value, case and accents ignored and ñ after n", async () => {
+    await db
+      .insert(suppliers)
+      .values(
+        ["Zoe", "Caja 10", "ñandú", "Banco", "oso", "árbol", "Caja 2", "ana", "nube"].map(
+          (name) => ({ name, actorId }),
+        ),
+      );
+
+    const listed = await new DrizzlePurchasingListReader(db).suppliers();
+
+    expect(listed.map(({ name }) => name)).toEqual([
+      "ana",
+      "árbol",
+      "Banco",
+      "Caja 2",
+      "Caja 10",
+      "nube",
+      "ñandú",
+      "oso",
+      "Zoe",
+    ]);
+  });
 });

@@ -45,6 +45,17 @@ async function insertActor(): Promise<string> {
   return actor.id;
 }
 
+const SORTED_NAMES = ["ana", "árbol", "Banco", "Caja 2", "Caja 10", "nube", "ñandú", "oso", "Zoe"];
+
+async function insertUnsortedFiscalAddresses(): Promise<void> {
+  await db.insert(fiscalAddresses).values(
+    ["Zoe", "Caja 10", "ñandú", "Banco", "oso", "árbol", "Caja 2", "ana", "nube"].map((name) => ({
+      name,
+      streetAddress: "Calle Ficticia 1, CABA",
+    })),
+  );
+}
+
 function ports() {
   return { store: new DrizzleFiscalAddressStore(db, () => NOON) };
 }
@@ -218,6 +229,15 @@ describe("DrizzleFiscalAddressStore", () => {
 
     await expect(update).rejects.toBeInstanceOf(FiscalAddressNameConflict);
   });
+
+  it("lists fiscal addresses with numbers by value, case and accents ignored and ñ after n", async () => {
+    await insertUnsortedFiscalAddresses();
+    const store = new DrizzleFiscalAddressStore(db, () => NOON);
+
+    const listed = await store.transaction((tx) => tx.listFiscalAddresses());
+
+    expect(listed.map(({ name }) => name)).toEqual(SORTED_NAMES);
+  });
 });
 
 describe("DrizzleFiscalAddressReader", () => {
@@ -236,6 +256,14 @@ describe("DrizzleFiscalAddressReader", () => {
       streetAddress: "Calle Ficticia 2, CABA",
       version: 1,
     });
+  });
+
+  it("lists fiscal addresses with numbers by value, case and accents ignored and ñ after n", async () => {
+    await insertUnsortedFiscalAddresses();
+
+    const listed = await new DrizzleFiscalAddressReader(db).listFiscalAddresses();
+
+    expect(listed.map(({ name }) => name)).toEqual(SORTED_NAMES);
   });
 });
 

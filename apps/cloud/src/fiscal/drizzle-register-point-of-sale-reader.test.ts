@@ -151,4 +151,37 @@ describe("DrizzleRegisterPointOfSaleReader", () => {
       },
     ]);
   });
+
+  it("lists the branch's registers with numbers by value, case and accents ignored and ñ after n", async () => {
+    const locationId = await seededLocationId(db);
+    for (const name of [
+      "Zoe",
+      "Caja 10",
+      "ñandú",
+      "Banco",
+      "oso",
+      "árbol",
+      "Caja 2",
+      "ana",
+      "nube",
+    ]) {
+      await insertRegister(locationId, name);
+    }
+
+    const listed = await new DrizzleRegisterPointOfSaleReader(db).listBranchRegisterPointsOfSale(
+      locationId,
+    );
+
+    expect(listed.map((register) => register.registerName)).toEqual([
+      "ana",
+      "árbol",
+      "Banco",
+      "Caja 2",
+      "Caja 10",
+      "nube",
+      "ñandú",
+      "oso",
+      "Zoe",
+    ]);
+  });
 });

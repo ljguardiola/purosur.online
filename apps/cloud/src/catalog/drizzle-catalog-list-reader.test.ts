@@ -357,6 +357,32 @@ describe("DrizzleCatalogListReader name order", () => {
     expect((await reader.categories()).map((category) => category.name)).toEqual(sortedNames);
   });
 
+  it("answers categories with the same name under different parents by id", async () => {
+    await db.insert(categories).values([
+      { id: "00000000-0000-4000-8000-000000000001", name: "Almacén" },
+      { id: "00000000-0000-4000-8000-000000000002", name: "Bebidas" },
+    ]);
+    await db.insert(categories).values([
+      {
+        id: "00000000-0000-4000-8000-00000000000b",
+        name: "Varios",
+        parentId: "00000000-0000-4000-8000-000000000002",
+      },
+      {
+        id: "00000000-0000-4000-8000-00000000000a",
+        name: "Varios",
+        parentId: "00000000-0000-4000-8000-000000000001",
+      },
+    ]);
+
+    expect((await reader.categories()).map((category) => category.id)).toEqual([
+      "00000000-0000-4000-8000-000000000001",
+      "00000000-0000-4000-8000-000000000002",
+      "00000000-0000-4000-8000-00000000000a",
+      "00000000-0000-4000-8000-00000000000b",
+    ]);
+  });
+
   it("answers brands with numbers by value, case and accents ignored and ñ after n", async () => {
     for (const name of unsortedNames) {
       await insertBrand(name);
