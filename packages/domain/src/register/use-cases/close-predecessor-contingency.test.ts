@@ -12,6 +12,7 @@ const PREDECESSOR_INTERVAL = {
   id: "interval-1",
   startedAt: STARTED,
   lastSeenAt: SEEN,
+  sessionClosedAt: null,
   endedAt: null,
   predecessor: true,
 };
@@ -44,6 +45,30 @@ describe("closePredecessorContingency", () => {
         actor_id: "register-1",
       },
     ]);
+  });
+
+  it("ends an interval when the replaced register closed its cash session, though it ran later", () => {
+    const sessionClosedAt = new Date("2026-10-02T13:00:00.000Z");
+    const closedSession = { ...PREDECESSOR_INTERVAL, sessionClosedAt };
+    const { ledger } = close({ intervals: [closedSession] });
+
+    expect(ledger.state.intervals).toEqual([{ ...closedSession, endedAt: sessionClosedAt }]);
+    expect(ledger.state.outbox).toEqual([
+      expect.objectContaining({
+        payload: expect.objectContaining({ ended_at: sessionClosedAt.toISOString() }),
+      }),
+    ]);
+  });
+
+  it("leaves every interval open while the replaced register's events are still being replenished", () => {
+    const { ledger, outcome } = close({
+      intervals: [PREDECESSOR_INTERVAL],
+      replenishmentPending: true,
+    });
+
+    expect(outcome).toEqual({ kind: "awaiting_replenishment" });
+    expect(ledger.state.intervals).toEqual([PREDECESSOR_INTERVAL]);
+    expect(ledger.state.outbox).toEqual([]);
   });
 
   it("ends every interval the replaced registers left open, each with its own event", () => {

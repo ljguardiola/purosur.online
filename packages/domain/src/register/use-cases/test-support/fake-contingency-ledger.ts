@@ -8,11 +8,13 @@ import type {
 interface RecordedContingencyInterval extends OpenContingencyInterval {
   endedAt: Date | null;
   predecessor?: boolean;
+  sessionClosedAt?: Date | null;
 }
 
 export interface FakeContingencyLedgerState {
   registerId: string | undefined;
   cashSessionOpen: boolean;
+  replenishmentPending: boolean;
   intervals: RecordedContingencyInterval[];
   reportingStartedAt: Date | undefined;
   outbox: OutboxEventDraft[];
@@ -34,6 +36,7 @@ export class FakeContingencyLedger implements ContingencyLedger {
     this.state = {
       registerId: "register-1",
       cashSessionOpen: true,
+      replenishmentPending: false,
       intervals: [],
       reportingStartedAt: undefined,
       outbox: [],
@@ -47,6 +50,7 @@ export class FakeContingencyLedger implements ContingencyLedger {
     const outcome = work({
       registerId: () => working.registerId,
       cashSessionOpen: () => working.cashSessionOpen,
+      replenishmentPending: () => working.replenishmentPending,
       openInterval: () => {
         const open = working.intervals.find(
           (interval) => interval.endedAt === null && interval.predecessor !== true,
@@ -56,7 +60,12 @@ export class FakeContingencyLedger implements ContingencyLedger {
       predecessorOpenIntervals: () =>
         working.intervals
           .filter((interval) => interval.endedAt === null && interval.predecessor === true)
-          .map(({ id, startedAt, lastSeenAt }) => ({ id, startedAt, lastSeenAt })),
+          .map(({ id, startedAt, lastSeenAt, sessionClosedAt }) => ({
+            id,
+            startedAt,
+            lastSeenAt,
+            sessionClosedAt: sessionClosedAt ?? null,
+          })),
       reportingStartedAt: () => working.reportingStartedAt,
       recordOpenedInterval: ({ id, startedAt }) => {
         this.failIfAsked("recordOpenedInterval");

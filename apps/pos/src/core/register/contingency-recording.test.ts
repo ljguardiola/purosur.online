@@ -1,11 +1,15 @@
 import type { FiscalEmissionMode } from "@purosur/domain";
+import { aCompletedSaleFact } from "@purosur/domain/sync/test-support";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { createContingencyRecording } from "./contingency-recording";
-import { applyReplenishedContingencyFact } from "./replenished-contingency-facts";
+import {
+  applyReplenishedContingencyFact,
+  recordReplenishedRunningEvidence,
+} from "./replenished-contingency-facts";
 
 const CHAIN_KEY = Buffer.from("0123456789abcdef0123456789abcdef").toString("base64");
 const OFFLINE: FiscalEmissionMode = { kind: "offline_code", cause: "no_connectivity" };
@@ -166,26 +170,53 @@ describe("createContingencyRecording", () => {
     ]);
   });
 
-  it("ends, at the next check, an interval the replaced register left open at the last moment it was known running", async () => {
+  it("ends an interval the replaced register left open at the last moment it was known running, once its events are replenished", async () => {
     openSession();
     mode = OFFLINE;
     const contingency = recording();
     await contingency.startup();
-    applyReplenishedContingencyFact(database, {
-      kind: "contingency_entered",
-      interval: {
-        intervalId: "interval-replaced",
-        startedAt: new Date("2026-10-12T10:00:00.000Z"),
-      },
+    database
+      .prepare(
+        "INSERT INTO register_predecessor (device_id, last_acknowledged_seq) VALUES ('device-old', 4)",
+      )
+      .run();
+    const startedAt = new Date("2026-10-12T10:00:00.000Z");
+    const fromReplaced = (occurredAt: Date) => ({
+      eventId: `event-${occurredAt.toISOString()}`,
+      deviceId: "device-old",
+      occurredAt,
     });
+    applyReplenishedContingencyFact(
+      database,
+      { kind: "contingency_entered", interval: { intervalId: "interval-replaced", startedAt } },
+      fromReplaced(startedAt),
+    );
+    recordReplenishedRunningEvidence(
+      database,
+      aCompletedSaleFact(),
+      fromReplaced(new Date("2026-10-12T10:30:00.000Z")),
+    );
 
+    await contingency.check();
+
+    expect(intervals()).toEqual([
+      expect.objectContaining({ interval_id: "id-2", ended_at: null }),
+      expect.objectContaining({ interval_id: "interval-replaced", ended_at: null }),
+    ]);
+
+    recordReplenishedRunningEvidence(
+      database,
+      aCompletedSaleFact(),
+      fromReplaced(new Date("2026-10-12T10:50:00.000Z")),
+    );
+    database.prepare("DELETE FROM register_predecessor").run();
     await contingency.check();
 
     expect(intervals()).toEqual([
       expect.objectContaining({ interval_id: "id-2", ended_at: null }),
       expect.objectContaining({
         interval_id: "interval-replaced",
-        ended_at: "2026-10-12T10:00:00.000Z",
+        ended_at: "2026-10-12T10:50:00.000Z",
       }),
     ]);
     expect(eventTypes()).toEqual([

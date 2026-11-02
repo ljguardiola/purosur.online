@@ -166,6 +166,44 @@ describe("SqliteContingencyLedger", () => {
     expect(change(OFFLINE, T2)).toEqual({ kind: "refreshed", intervalId: "id-1" });
   });
 
+  it("ends an interval the replaced register left open when that register closed its cash session", () => {
+    database
+      .prepare(
+        `INSERT INTO contingency_intervals (interval_id, started_at, ended_at, last_seen_at, predecessor, session_closed_at)
+         VALUES ('interval-replaced', '2026-10-12T11:00:00.000Z', NULL, '2026-10-12T11:40:00.000Z', 1, '2026-10-12T11:20:00.000Z')`,
+      )
+      .run();
+
+    closePredecessorContingency({ ledger: ledger(), ids: ids() });
+
+    expect(intervals()).toEqual([
+      expect.objectContaining({
+        interval_id: "interval-replaced",
+        ended_at: "2026-10-12T11:20:00.000Z",
+      }),
+    ]);
+  });
+
+  it("leaves an interval the replaced register left open while its events are still being replenished", () => {
+    database
+      .prepare(
+        `INSERT INTO contingency_intervals (interval_id, started_at, ended_at, last_seen_at, predecessor)
+         VALUES ('interval-replaced', '2026-10-12T11:00:00.000Z', NULL, '2026-10-12T11:10:00.000Z', 1)`,
+      )
+      .run();
+    database
+      .prepare(
+        "INSERT INTO register_predecessor (device_id, last_acknowledged_seq) VALUES ('device-old', 4)",
+      )
+      .run();
+
+    const outcome = closePredecessorContingency({ ledger: ledger(), ids: ids() });
+
+    expect(outcome).toEqual({ kind: "awaiting_replenishment" });
+    expect(intervals()).toEqual([expect.objectContaining({ ended_at: null })]);
+    expect(eventTypes()).toEqual([]);
+  });
+
   it("starts reporting once", () => {
     const ports = { ledger: ledger(), clock: { now: () => T3 }, ids: ids() };
 

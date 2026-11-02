@@ -24,7 +24,11 @@ type SaleFact = Extract<
   { kind: "sale_completed" | "sale_cancelled" | "qr_payment_replaced" }
 >;
 
-const SOURCE = { eventId: "event-1", deviceId: "device-old" };
+const SOURCE = {
+  eventId: "event-1",
+  deviceId: "device-old",
+  occurredAt: new Date("2026-10-07T09:00:00.000Z"),
+};
 const SOLD_AT = new Date("2026-10-07T10:00:00.000Z");
 
 let database: LocalDatabase;
