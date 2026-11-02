@@ -4,6 +4,9 @@ import { dependenciesOf, invariantBreaksOf } from "./synced-fact.js";
 import {
   A_CASH_MOVEMENT_FACT,
   A_CLOCK_CORRECTED_FACT,
+  A_CONTINGENCY_ENTERED_FACT,
+  A_CONTINGENCY_LEFT_FACT,
+  A_CONTINGENCY_REPORTING_STARTED_FACT,
   A_GATE_FAILED_FACT,
   A_SESSION_CLOSED_FACT,
   A_SESSION_OPENED_FACT,
@@ -59,6 +62,14 @@ describe("what a synced fact needs applied before it", () => {
   it("is nothing for a failed fiscal gate", () => {
     expect(dependenciesOf(A_GATE_FAILED_FACT)).toEqual([]);
     expect(dependenciesOf(A_CLOCK_CORRECTED_FACT)).toEqual([]);
+  });
+
+  it.each([
+    ["an entry into contingency", A_CONTINGENCY_ENTERED_FACT],
+    ["an exit from contingency", A_CONTINGENCY_LEFT_FACT],
+    ["the start of contingency reporting", A_CONTINGENCY_REPORTING_STARTED_FACT],
+  ])("is nothing for %s", (_case, fact) => {
+    expect(dependenciesOf(fact)).toEqual([]);
   });
 
   it("is nothing for a line of the initial count", () => {
@@ -217,6 +228,14 @@ describe("what a synced fact breaks that only its own history shows", () => {
     expect(invariantBreaksOf(A_CASH_MOVEMENT_FACT)).toEqual([]);
     expect(invariantBreaksOf(A_GATE_FAILED_FACT)).toEqual([]);
     expect(invariantBreaksOf(A_CLOCK_CORRECTED_FACT)).toEqual([]);
+  });
+
+  it.each([
+    ["an entry into contingency", A_CONTINGENCY_ENTERED_FACT],
+    ["an exit from contingency", A_CONTINGENCY_LEFT_FACT],
+    ["the start of contingency reporting", A_CONTINGENCY_REPORTING_STARTED_FACT],
+  ])("is nothing for %s", (_case, fact) => {
+    expect(invariantBreaksOf(fact)).toEqual([]);
   });
 
   it("never flags a sale whose lines' frozen prices differ from any price list, since the fact holds no current price to compare", () => {
