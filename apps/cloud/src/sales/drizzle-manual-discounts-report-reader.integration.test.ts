@@ -79,7 +79,7 @@ describe("reading the manual discounts while a sale is voided, on a real Postgre
       await writer`lock table sale_lines in access exclusive mode`;
       read = reader.completedManualDiscounts(query);
       await waitForLockWaiters(adminSql, 1);
-      await writer`update sales set state = 'VOIDED', voided_at = ${VOIDED} where id = ${saleId}`;
+      await writer`update sales set state = 'VOIDED', voided_at = ${VOIDED}, voided_by = 'voider-1' where id = ${saleId}`;
       await writer`commit`;
     } catch (error) {
       await writer`rollback`;
