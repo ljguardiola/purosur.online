@@ -8,6 +8,7 @@ import {
   FakeFortnightReportStore,
   FakeOfflineDocumentsOfFortnight,
   FakeRegisterEventStreams,
+  FakeRevokedInstallationConfirmations,
   FakeTaxAuthorityNoMovementDeclarations,
   FakeTaxAuthorityOfflineDocumentReports,
 } from "./fake-fortnight-reports.js";
@@ -41,6 +42,7 @@ export function reachingInstallation(
   overrides: Partial<InstallationStreamReach> = {},
 ): InstallationStreamReach {
   return {
+    installationId: "installation-1",
     enrolledAt: new Date("2026-01-01T12:00:00.000Z"),
     revokedAt: null,
     latestOccurredAt: new Date("2026-10-02T12:00:00.000Z"),
@@ -75,6 +77,7 @@ export function setUpReportFortnights({
   reports.realTimePointsOfSale.set(REGISTER_ID, REAL_TIME_POINT_OF_SALE);
   const streams = new FakeRegisterEventStreams(operations);
   streams.installations.set(REGISTER_ID, [reachingInstallation()]);
+  const confirmations = new FakeRevokedInstallationConfirmations(operations);
   const declarations = new FakeTaxAuthorityNoMovementDeclarations(reports, operations);
   const documentReports = new FakeTaxAuthorityOfflineDocumentReports(reports, operations);
   const clock = new ManualClock(now);
@@ -84,6 +87,7 @@ export function setUpReportFortnights({
       reports,
       documents,
       streams,
+      confirmations,
       declarations,
       documentReports,
       codeStore,
@@ -100,6 +104,7 @@ export function setUpReportFortnights({
     reports,
     documents,
     streams,
+    confirmations,
     declarations,
     documentReports,
     clock,
