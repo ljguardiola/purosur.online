@@ -31,6 +31,7 @@ function line(packages: number, expectedPackagePriceCents: number | null) {
     packages,
     quantityPerPackage: 12_000,
     expectedPackagePriceCents,
+    supplierItem: null,
   };
 }
 

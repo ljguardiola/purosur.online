@@ -1,4 +1,4 @@
-import type { SaleUnit } from "@purosur/domain";
+import { type SaleUnit, supplierOfferOfOrderLine } from "@purosur/domain";
 import type {
   PurchaseOrderDetailListing,
   PurchaseOrderLineListing,
@@ -13,8 +13,10 @@ import {
   products,
   purchaseOrderLines,
   purchaseOrders,
+  supplierItems,
   suppliers,
 } from "../platform/db/schema.js";
+import { latestSupplierOffers } from "./latest-supplier-offers.js";
 
 type OrderState = PurchaseOrderListing["state"];
 
@@ -109,18 +111,53 @@ export class DrizzlePurchaseOrderReader<TQueryResult extends PgQueryResultHKT>
       .leftJoin(brands, eq(brands.id, products.brandId))
       .where(eq(purchaseOrderLines.purchaseOrderId, orderId))
       .orderBy(asc(purchaseOrderLines.position));
-    const lines: PurchaseOrderLineListing[] = lineRows.map((line) => ({
-      product: {
-        id: line.productId,
-        name: line.productName,
-        brandName: line.brandName,
-        netContent: netContentRow(line),
-        saleUnit: line.saleUnit as SaleUnit,
-      },
-      packages: line.packages,
-      quantityPerPackage: line.quantityPerPackage,
-      expectedPackagePriceCents: line.expectedPackagePriceCents,
-    }));
+    const offers = (
+      await latestSupplierOffers(
+        this.db,
+        lineRows.map(({ productId }) => productId),
+      )
+    ).filter((offer) => offer.supplier.id === row.supplierId);
+    const lineOffers = lineRows.map((line) =>
+      supplierOfferOfOrderLine(
+        offers.filter((offer) => offer.productId === line.productId),
+        line.saleUnit as SaleUnit,
+        line.quantityPerPackage,
+      ),
+    );
+    const itemIds = lineOffers.flatMap((offer) => (offer ? [offer.supplierItemId] : []));
+    const items =
+      itemIds.length === 0
+        ? []
+        : await this.db
+            .select({
+              id: supplierItems.id,
+              keyKind: supplierItems.keyKind,
+              keyValue: supplierItems.keyValue,
+              description: supplierItems.description,
+            })
+            .from(supplierItems)
+            .where(inArray(supplierItems.id, itemIds));
+    const lines: PurchaseOrderLineListing[] = lineRows.map((line, index) => {
+      const item = items.find(({ id }) => id === lineOffers[index]?.supplierItemId);
+      return {
+        product: {
+          id: line.productId,
+          name: line.productName,
+          brandName: line.brandName,
+          netContent: netContentRow(line),
+          saleUnit: line.saleUnit as SaleUnit,
+        },
+        packages: line.packages,
+        quantityPerPackage: line.quantityPerPackage,
+        expectedPackagePriceCents: line.expectedPackagePriceCents,
+        supplierItem: item
+          ? {
+              code: item.keyKind === "code" ? item.keyValue : null,
+              description: item.description,
+            }
+          : null,
+      };
+    });
     return {
       id: row.id,
       supplier: { id: row.supplierId, name: row.supplierName },

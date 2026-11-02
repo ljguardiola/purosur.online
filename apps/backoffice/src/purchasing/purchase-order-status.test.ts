@@ -8,3 +8,7 @@ test("a draft is a warning that reads Borrador", () => {
 test("a cancelled order is neutral and reads Cancelado", () => {
   expect(purchaseOrderStatusOf("CANCELLED")).toEqual({ tone: "neutral", label: "Cancelado" });
 });
+
+test("a sent order is informative and reads Enviado", () => {
+  expect(purchaseOrderStatusOf("SENT")).toEqual({ tone: "info", label: "Enviado" });
+});

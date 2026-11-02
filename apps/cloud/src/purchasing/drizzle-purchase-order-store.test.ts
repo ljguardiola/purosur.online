@@ -2,6 +2,7 @@ import {
   buildPurchaseOrders,
   cancelPurchaseOrder,
   editPurchaseOrder,
+  sharePurchaseOrder,
 } from "@purosur/domain/purchasing/use-cases";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -27,6 +28,7 @@ let actorId: string;
 let locationId: string;
 
 const CREATED_AT = new Date("2026-09-16T15:00:00.000Z");
+const SENT_AT = new Date("2026-09-16T18:00:00.000Z");
 const CANCELLED_AT = new Date("2026-09-17T15:00:00.000Z");
 
 const store = () => new DrizzlePurchaseOrderStore(db);
@@ -97,6 +99,8 @@ describe("the draft purchase orders a purchase order store keeps", () => {
           actorId,
           cancelledAt: null,
           cancelledBy: null,
+          sentAt: null,
+          sentBy: null,
         }),
       ]),
     );
@@ -216,6 +220,45 @@ describe("the draft purchase orders a purchase order store keeps", () => {
       state: "CANCELLED",
       cancelledAt: CANCELLED_AT,
       cancelledBy: canceller,
+    });
+  });
+
+  it("marks a draft as sent, recording when and by whom, and cancelling it keeps that", async () => {
+    const yerba = await insertOfferedProduct(db, {
+      actorId,
+      name: "Yerba",
+      quantity: 6_000,
+      priceCents: 12_000,
+    });
+    const created = await build([{ ...yerba, packages: 2 }]);
+    if (created.kind !== "created") {
+      throw new Error(`test setup: building ended as ${created.kind}`);
+    }
+    const [orderId] = created.orderIds as [string];
+    const sender = await insertActor(db);
+
+    const shared = await sharePurchaseOrder(
+      { store: store(), clock: { now: () => SENT_AT } },
+      { locationId, orderId, actorId: sender },
+    );
+    const [sent] = await db.select().from(purchaseOrders).where(eq(purchaseOrders.id, orderId));
+    const cancelled = await cancelPurchaseOrder(
+      { store: store(), clock: { now: () => CANCELLED_AT } },
+      { locationId, orderId, actorId: sender },
+    );
+    const [afterwards] = await db
+      .select()
+      .from(purchaseOrders)
+      .where(eq(purchaseOrders.id, orderId));
+
+    expect(shared).toEqual({ kind: "shared" });
+    expect(sent).toMatchObject({ state: "SENT", sentAt: SENT_AT, sentBy: sender });
+    expect(cancelled).toEqual({ kind: "cancelled" });
+    expect(afterwards).toMatchObject({
+      state: "CANCELLED",
+      cancelledAt: CANCELLED_AT,
+      sentAt: SENT_AT,
+      sentBy: sender,
     });
   });
 

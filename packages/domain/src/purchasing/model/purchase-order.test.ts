@@ -4,25 +4,45 @@ import {
   expectedOrderTotal,
   mayBeCancelled,
   mayBeEdited,
+  mayBeShared,
+  mayBeSharedAsDocument,
   PURCHASE_ORDER_STATES,
 } from "./purchase-order.js";
 
 describe("PURCHASE_ORDER_STATES", () => {
   it("names the states an order can be in", () => {
-    expect(PURCHASE_ORDER_STATES).toEqual(["DRAFT", "CANCELLED"]);
+    expect(PURCHASE_ORDER_STATES).toEqual(["DRAFT", "SENT", "CANCELLED"]);
   });
 });
 
 describe("mayBeEdited", () => {
   it("allows editing a draft only", () => {
     expect(mayBeEdited("DRAFT")).toBe(true);
+    expect(mayBeEdited("SENT")).toBe(false);
     expect(mayBeEdited("CANCELLED")).toBe(false);
   });
 });
 
+describe("mayBeShared", () => {
+  it("allows sharing a draft only", () => {
+    expect(mayBeShared("DRAFT")).toBe(true);
+    expect(mayBeShared("SENT")).toBe(false);
+    expect(mayBeShared("CANCELLED")).toBe(false);
+  });
+});
+
+describe("mayBeSharedAsDocument", () => {
+  it("allows sharing the document of a draft or a sent order but not of a cancelled one", () => {
+    expect(mayBeSharedAsDocument("DRAFT")).toBe(true);
+    expect(mayBeSharedAsDocument("SENT")).toBe(true);
+    expect(mayBeSharedAsDocument("CANCELLED")).toBe(false);
+  });
+});
+
 describe("mayBeCancelled", () => {
-  it("allows cancelling a draft but not an order already cancelled", () => {
+  it("allows cancelling a draft or a sent order but not one already cancelled", () => {
     expect(mayBeCancelled("DRAFT")).toBe(true);
+    expect(mayBeCancelled("SENT")).toBe(true);
     expect(mayBeCancelled("CANCELLED")).toBe(false);
   });
 });

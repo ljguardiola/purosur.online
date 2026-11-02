@@ -29,6 +29,9 @@ export interface OfferedItem {
   relinkRequired?: boolean;
   vatRate?: number | null;
   pricesIncludeVat?: boolean;
+  keyKind?: "code" | "description";
+  keyValue?: string;
+  description?: string;
 }
 
 export async function insertOfferedItem<TQueryResult extends PgQueryResultHKT>(
@@ -43,6 +46,9 @@ export async function insertOfferedItem<TQueryResult extends PgQueryResultHKT>(
     saleUnit: input.saleUnit ?? "UNIT",
     relinkRequired: input.relinkRequired ?? false,
     vatRate: input.vatRate === undefined ? 2_100 : input.vatRate,
+    ...(input.keyKind === undefined ? {} : { keyKind: input.keyKind }),
+    ...(input.keyValue === undefined ? {} : { keyValue: input.keyValue }),
+    ...(input.description === undefined ? {} : { description: input.description }),
   });
   await insertSupplierItemPrice(db, {
     itemId,

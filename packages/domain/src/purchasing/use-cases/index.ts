@@ -262,6 +262,12 @@ export type {
 } from "./set-supplier-price-list-row-price.js";
 export { setSupplierPriceListRowPrice } from "./set-supplier-price-list-row-price.js";
 export { settleAbandonedSupplierPriceListReadings } from "./settle-abandoned-supplier-price-list-readings.js";
+export type {
+  SharePurchaseOrderInput,
+  SharePurchaseOrderOutcome,
+  SharePurchaseOrderPorts,
+} from "./share-purchase-order.js";
+export { sharePurchaseOrder } from "./share-purchase-order.js";
 export type { StoreCatalogReading, StoreCatalogs } from "./store-catalogs.js";
 export type {
   ProposalProduct,

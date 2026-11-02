@@ -36,6 +36,11 @@ export const CANCELLED_SUMMARY: PurchaseOrderSummary = {
   hasUnpricedLine: false,
 };
 
+export const SENT_SUMMARY: PurchaseOrderSummary = {
+  ...DRAFT_SUMMARY,
+  state: "SENT",
+};
+
 export const DRAFT_ORDER: PurchaseOrderDetail = {
   id: ORDER_ID,
   supplier: { id: SUPPLIER_ID, name: "Distribuidora Andina" },
@@ -54,6 +59,7 @@ export const DRAFT_ORDER: PurchaseOrderDetail = {
       quantityPerPackage: 12_000,
       expectedPackagePriceCents: 185_000,
       expectedTotalCents: 555_000,
+      supplierItem: { code: "MIEL-1K", description: "Miel pura x 12 frascos" },
     },
     {
       product: {
@@ -67,11 +73,22 @@ export const DRAFT_ORDER: PurchaseOrderDetail = {
       quantityPerPackage: 25_000,
       expectedPackagePriceCents: null,
       expectedTotalCents: null,
+      supplierItem: null,
     },
   ],
   expectedTotalCents: 555_000,
   hasUnpricedLine: true,
   editable: true,
+  shareable: true,
+  documentShareable: true,
+  cancellable: true,
+};
+
+export const SENT_ORDER: PurchaseOrderDetail = {
+  ...DRAFT_ORDER,
+  state: "SENT",
+  editable: false,
+  shareable: false,
   cancellable: true,
 };
 
@@ -80,5 +97,7 @@ export const CANCELLED_ORDER: PurchaseOrderDetail = {
   id: CANCELLED_ORDER_ID,
   state: "CANCELLED",
   editable: false,
+  shareable: false,
+  documentShareable: false,
   cancellable: false,
 };

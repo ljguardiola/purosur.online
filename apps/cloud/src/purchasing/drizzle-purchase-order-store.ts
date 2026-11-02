@@ -126,6 +126,16 @@ class DrizzlePurchaseOrderStoreTransaction<TQueryResult extends PgQueryResultHKT
     );
   }
 
+  async markPurchaseOrderSent(
+    orderId: string,
+    { sentAt, actorId }: { sentAt: Date; actorId: string },
+  ): Promise<void> {
+    await this.tx
+      .update(purchaseOrders)
+      .set({ state: "SENT", sentAt, sentBy: actorId })
+      .where(eq(purchaseOrders.id, orderId));
+  }
+
   async cancelPurchaseOrder(
     orderId: string,
     { cancelledAt, actorId }: { cancelledAt: Date; actorId: string },

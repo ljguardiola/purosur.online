@@ -60,6 +60,25 @@ export type CancelPurchaseOrderOutcome =
   | { kind: "not_cancellable" }
   | RequestRefusal;
 
+export type SharePurchaseOrderOutcome =
+  | { kind: "ok"; order: PurchaseOrderDetail }
+  | { kind: "not_found" }
+  | { kind: "not_shareable" }
+  | RequestRefusal;
+
+export type FetchPurchaseOrderPdfOutcome =
+  | { kind: "ok"; blob: Blob }
+  | { kind: "not_found" }
+  | { kind: "not_shareable" }
+  | RequestRefusal;
+
+export type PurchaseOrderTextRead =
+  | { kind: "found"; text: string }
+  | { kind: "not_found" }
+  | { kind: "not_shareable" };
+
+export type FetchPurchaseOrderTextOutcome = CloudReadOutcome<PurchaseOrderTextRead>;
+
 function refusal(response: Response): RequestRefusal {
   if (response.status === 401) {
     return { kind: "unauthenticated" };
@@ -199,4 +218,74 @@ export async function cancelPurchaseOrder(orderId: string): Promise<CancelPurcha
     return { kind: "not_cancellable" };
   }
   return refusal(response);
+}
+
+export async function sharePurchaseOrder(orderId: string): Promise<SharePurchaseOrderOutcome> {
+  const response = await send(`/api/purchase-orders/${orderId}/share`, { method: "POST" });
+  if (response === undefined) {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    const order = await readOrder(response);
+    return order ? { kind: "ok", order } : { kind: "failed" };
+  }
+  const code = await codeOf(response.clone());
+  if (response.status === 404 && code === "purchase_order_not_found") {
+    return { kind: "not_found" };
+  }
+  if (response.status === 409 && code === "purchase_order_not_shareable") {
+    return { kind: "not_shareable" };
+  }
+  return refusal(response);
+}
+
+async function documentNotShareable(response: Response): Promise<boolean> {
+  return (
+    response.status === 409 &&
+    (await codeOf(response.clone())) === "purchase_order_document_not_shareable"
+  );
+}
+
+export async function fetchPurchaseOrderPdf(
+  orderId: string,
+): Promise<FetchPurchaseOrderPdfOutcome> {
+  let response: Response;
+  try {
+    response = await cloudFetch(`/api/purchase-orders/${orderId}/document.pdf`);
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.status === 404) {
+    return { kind: "not_found" };
+  }
+  if (await documentNotShareable(response)) {
+    return { kind: "not_shareable" };
+  }
+  if (!response.ok) {
+    return refusal(response);
+  }
+  const blob = await response.blob().catch(() => undefined);
+  return blob === undefined ? { kind: "failed" } : { kind: "ok", blob };
+}
+
+export async function fetchPurchaseOrderText(
+  orderId: string,
+): Promise<FetchPurchaseOrderTextOutcome> {
+  let response: Response;
+  try {
+    response = await cloudFetch(`/api/purchase-orders/${orderId}/document.txt`);
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.status === 404) {
+    return { kind: "ok", value: { kind: "not_found" } };
+  }
+  if (await documentNotShareable(response)) {
+    return { kind: "ok", value: { kind: "not_shareable" } };
+  }
+  if (!response.ok) {
+    return refusal(response);
+  }
+  const text = await response.text().catch(() => undefined);
+  return text === undefined ? { kind: "failed" } : { kind: "ok", value: { kind: "found", text } };
 }

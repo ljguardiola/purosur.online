@@ -7,7 +7,12 @@ import { render } from "../shell/test-support/render-with-router";
 import { type PurchaseOrdersFilters, purchaseOrdersFilters } from "./purchase-orders-filters";
 import { PurchaseOrdersScreen } from "./purchase-orders-screen";
 import type { PurchaseOrdersScreenServices } from "./purchase-orders-services";
-import { CANCELLED_SUMMARY, DRAFT_SUMMARY, PRICED_SUMMARY } from "./test-support/purchase-orders";
+import {
+  CANCELLED_SUMMARY,
+  DRAFT_SUMMARY,
+  PRICED_SUMMARY,
+  SENT_SUMMARY,
+} from "./test-support/purchase-orders";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
@@ -144,7 +149,7 @@ test("the state filter asks the cloud for that state and reports the filters", a
   await expect.poll(() => onFiltersChange.mock.lastCall?.[0]).toEqual({ state: "CANCELLED" });
 });
 
-test("the state filter offers Todos, Borradores and Cancelados", async () => {
+test("the state filter offers Todos, Borradores, Enviados and Cancelados", async () => {
   const services = createServices();
   const screen = await loaded(services, [DRAFT_SUMMARY]);
 
@@ -152,7 +157,25 @@ test("the state filter offers Todos, Borradores and Cancelados", async () => {
 
   await expect.element(screen.getByRole("option", { name: "Todos" })).toBeVisible();
   await expect.element(screen.getByRole("option", { name: "Borradores" })).toBeVisible();
+  await expect.element(screen.getByRole("option", { name: "Enviados" })).toBeVisible();
   await expect.element(screen.getByRole("option", { name: "Cancelados" })).toBeVisible();
+});
+
+test("lists a sent order as Enviado", async () => {
+  const services = createServices();
+  const screen = await loaded(services, [SENT_SUMMARY]);
+
+  await expect.element(rowOf(screen, "Distribuidora Andina").getByText("Enviado")).toBeVisible();
+});
+
+test("the state filter offers Enviados and asks the cloud for them", async () => {
+  const services = createServices();
+  const screen = await loaded(services, [DRAFT_SUMMARY]);
+
+  await userEvent.click(screen.getByRole("button", { name: /Estado:/ }));
+  await userEvent.click(screen.getByRole("option", { name: "Enviados" }));
+
+  await expect.poll(() => services.fetchPurchaseOrders).toHaveBeenCalledWith("SENT");
 });
 
 test("opens on the filter the URL carries", async () => {

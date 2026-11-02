@@ -58,6 +58,8 @@ describe("buildPurchaseOrders", () => {
         createdAt: NOW,
         actorId: ACTOR,
         cancelledAt: null,
+        sentAt: null,
+        sentBy: null,
         lines: [
           {
             productId: "product-a",

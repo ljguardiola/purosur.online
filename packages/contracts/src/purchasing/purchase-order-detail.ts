@@ -14,6 +14,7 @@ const purchaseOrderLineSchema = z.object({
   quantityPerPackage: z.int(),
   expectedPackagePriceCents: z.int().nullable(),
   expectedTotalCents: z.int().nullable(),
+  supplierItem: z.object({ code: z.string().nullable(), description: z.string() }).nullable(),
 });
 
 export const purchaseOrderDetailSchema = z.object({
@@ -25,6 +26,8 @@ export const purchaseOrderDetailSchema = z.object({
   expectedTotalCents: z.int(),
   hasUnpricedLine: z.boolean(),
   editable: z.boolean(),
+  shareable: z.boolean(),
+  documentShareable: z.boolean(),
   cancellable: z.boolean(),
 });
 

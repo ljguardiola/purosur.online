@@ -3,6 +3,8 @@ import {
   expectedOrderTotal,
   mayBeCancelled,
   mayBeEdited,
+  mayBeShared,
+  mayBeSharedAsDocument,
 } from "../model/purchase-order.js";
 import type { PurchaseOrderDetailListing, PurchaseOrderReader } from "./purchase-order-reader.js";
 
@@ -16,6 +18,8 @@ export type FoundPurchaseOrder = Omit<PurchaseOrderDetailListing, "lines"> & {
   expectedTotalCents: number;
   hasUnpricedLine: boolean;
   editable: boolean;
+  shareable: boolean;
+  documentShareable: boolean;
   cancellable: boolean;
 };
 
@@ -38,6 +42,8 @@ export async function getPurchaseOrder(
       lines: order.lines.map((line) => ({ ...line, expectedTotalCents: expectedLineTotal(line) })),
       ...expectedOrderTotal(order.lines),
       editable: mayBeEdited(order.state),
+      shareable: mayBeShared(order.state),
+      documentShareable: mayBeSharedAsDocument(order.state),
       cancellable: mayBeCancelled(order.state),
     },
   };

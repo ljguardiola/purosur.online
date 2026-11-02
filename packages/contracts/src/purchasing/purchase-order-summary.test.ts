@@ -26,7 +26,7 @@ describe("purchaseOrderSummarySchema", () => {
   });
 
   it("rejects an unknown state, a date that is not an instant and a fractional total", () => {
-    expect(purchaseOrderSummarySchema.safeParse({ ...summary, state: "SENT" }).success).toBe(false);
+    expect(purchaseOrderSummarySchema.safeParse({ ...summary, state: "LOST" }).success).toBe(false);
     expect(
       purchaseOrderSummarySchema.safeParse({ ...summary, createdAt: "yesterday" }).success,
     ).toBe(false);
@@ -52,7 +52,7 @@ describe("purchaseOrderListQuerySchema", () => {
   });
 
   it("rejects a state that does not exist", () => {
-    expect(purchaseOrderListQuerySchema.safeParse({ state: "SENT" }).success).toBe(false);
+    expect(purchaseOrderListQuerySchema.safeParse({ state: "LOST" }).success).toBe(false);
     expect(purchaseOrderListQuerySchema.safeParse({ state: "" }).success).toBe(false);
   });
 });
