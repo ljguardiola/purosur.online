@@ -21,6 +21,9 @@ const EVENT_TYPE_NAMES: Readonly<Record<SyncedEventType, string>> = {
   opening_count_recorded: "línea del inventario inicial",
   opening_count_withdrawn: "línea del inventario inicial quitada",
   clock_corrected: "corrección de reloj",
+  contingency_entered: "entrada en contingencia",
+  contingency_left: "salida de contingencia",
+  contingency_reporting_started: "inicio del registro de contingencia",
   deferred_sale_recorded: "venta diferida registrada",
   deferred_sale_satisfied: "venta diferida facturada",
 };

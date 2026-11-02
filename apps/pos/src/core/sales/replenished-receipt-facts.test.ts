@@ -88,6 +88,7 @@ beforeEach(() => {
   applyReplenishedSaleFact(database, aCompletedSaleFact({ operationNumber: 1 }), {
     eventId: "event-1",
     deviceId: "device-old",
+    occurredAt: new Date("2026-10-07T09:00:00.000Z"),
   });
 });
 

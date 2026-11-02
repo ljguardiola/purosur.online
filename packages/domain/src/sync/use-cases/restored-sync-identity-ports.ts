@@ -6,6 +6,7 @@ export interface CarriedSyncIdentity {
 export interface RestoredSyncIdentityTransaction {
   carriedIdentity(): Promise<CarriedSyncIdentity>;
   recordPredecessor(predecessor: CarriedSyncIdentity): Promise<void>;
+  handOpenContingencyToPredecessor(predecessorDeviceId: string): Promise<void>;
   discardCarriedOutboxEvents(): Promise<void>;
   // Outbox sequence counter and acknowledged sequence at zero, a fresh event chain, the pull cursor untouched.
   adoptInstallationIdentity(deviceId: string): Promise<void>;

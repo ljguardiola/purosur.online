@@ -18,6 +18,7 @@ export async function resetRestoredSyncIdentity(
       return { kind: "already_reset" };
     }
     await tx.recordPredecessor(carried);
+    await tx.handOpenContingencyToPredecessor(carried.deviceId);
     await tx.discardCarriedOutboxEvents();
     await tx.adoptInstallationIdentity(deviceId);
     await tx.discardCarriedPinVerifiers();

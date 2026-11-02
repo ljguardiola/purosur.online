@@ -35,6 +35,11 @@ import {
 import { recordAppliedClockCorrection } from "../fiscal/drizzle-applied-clock-corrections.js";
 import { recordAppliedOfflineFiscalDocument } from "../fiscal/drizzle-applied-offline-fiscal-documents.js";
 import {
+  recordAppliedContingencyEntered,
+  recordAppliedContingencyLeft,
+  recordAppliedContingencyReportingStarted,
+} from "../fiscal/drizzle-applied-register-contingency.js";
+import {
   recordAppliedDeferredSale,
   recordAppliedDeferredSaleCancellation,
   recordAppliedDeferredSaleSatisfaction,
@@ -246,6 +251,12 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
         return recordAppliedDeferredSale(this.tx, await this.originOf(event), fact);
       case "deferred_sale_satisfied":
         return recordAppliedDeferredSaleSatisfaction(this.tx, fact, this.now());
+      case "contingency_entered":
+        return recordAppliedContingencyEntered(this.tx, await this.originOf(event), fact);
+      case "contingency_left":
+        return recordAppliedContingencyLeft(this.tx, await this.originOf(event), fact);
+      case "contingency_reporting_started":
+        return recordAppliedContingencyReportingStarted(this.tx, await this.originOf(event), fact);
       case "opening_count_recorded":
       case "opening_count_withdrawn":
       case "fiscal_gate_failed":

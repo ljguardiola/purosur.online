@@ -29,6 +29,16 @@ describe("resetRestoredSyncIdentity", () => {
     expect(store.state.predecessor).toEqual({ deviceId: "old-device", lastAcknowledgedSeq: 52 });
   });
 
+  it("hands every contingency interval the snapshot left open to the old installation", async () => {
+    const store = new FakeRestoredSyncIdentityStore();
+
+    await resetRestoredSyncIdentity({ store }, { deviceId: NEW_DEVICE });
+
+    expect(store.state.openContingencyIntervals).toEqual([
+      { intervalId: "interval-1", predecessorDeviceId: "old-device" },
+    ]);
+  });
+
   it("makes the identity the new installation's with both sequences at zero and a fresh event chain", async () => {
     const store = new FakeRestoredSyncIdentityStore();
 
@@ -97,6 +107,7 @@ describe("resetRestoredSyncIdentity", () => {
 
   it.each<FakeStoreOperation>([
     "recordPredecessor",
+    "handOpenContingencyToPredecessor",
     "discardCarriedOutboxEvents",
     "adoptInstallationIdentity",
     "discardCarriedPinVerifiers",

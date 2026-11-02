@@ -55,7 +55,6 @@ import {
   cloudCreditNotes,
   createRealTimeAuthorization,
   settleInterruptedAuthorizations,
-  startRegisterHealthChecks,
 } from "./fiscal/real-time-authorization-wiring";
 import { readFiscalEmissionModeIn } from "./fiscal/sqlite-fiscal-emission-mode";
 import { readLatestPreEmissionGateOutcome } from "./fiscal/sqlite-pre-emission-gate";
@@ -87,14 +86,12 @@ import {
 import {
   cashBalanceFor,
   cashCountPreviewFor,
-  closeCashSessionFor,
-  closeLockedCashSessionFor,
   currentCashSession,
   identifyLockedCloserFor,
   lockedClosersFor,
-  openCashSessionFor,
   sessionOpenSaleFor,
 } from "./register/cash-session-requests";
+import { createContingencyRecordingWiring } from "./register/contingency-recording-wiring";
 import { coreFailureReporters } from "./register/core-failure-reporters";
 import {
   prepareLocalDataFolder,
@@ -576,7 +573,7 @@ async function pushOutboxToCloud() {
   });
   cloudReachability = nextCloudReachability(cloudReachability, attempt);
   restorationStandingWatch?.check();
-  checkEnrollmentStanding();
+  contingencyRecording.checkEnrollmentStanding();
   const warning = pushWarningOf(attempt);
   if (warning !== undefined) {
     console.warn(warning, attempt);
@@ -735,7 +732,7 @@ const syncSchedule = createSyncSchedule({
     interruptedCharges.afterEachSync();
     paidOrderDiscovery.afterEachSync();
     restorationStandingWatch?.check();
-    checkEnrollmentStanding();
+    contingencyRecording.checkEnrollmentStanding();
   },
 });
 
@@ -759,6 +756,24 @@ const fiscalModeWatch =
         read: () => readFiscalEmissionModeIn(localDatabase, now(), zoneRules).kind,
         onChanged: () => rendererConnection.tell(FISCAL_MODE_CHANGED_NOTICE),
       });
+const contingencyRecording = createContingencyRecordingWiring({
+  database: localDatabase,
+  gate: actionGate,
+  zoneRules,
+  now,
+  ids: uuidV7Ids,
+  readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+  readMode: (database) => readFiscalEmissionModeIn(database, now(), zoneRules),
+  restorationOf,
+  reportFailure: (error) => reportFailure("recording the register's contingency", error),
+  authorizeSale: (saleId) => realTimeAuthorization.authorizeSale(saleId),
+  checkEnrollmentStanding: () => {
+    enrollmentWatch
+      .check()
+      .catch((error: unknown) => reportFailure("watching the enrollment standing", error));
+  },
+});
+void contingencyRecording.startup();
 const restorationStandingWatch =
   localDatabase === undefined
     ? undefined
@@ -807,11 +822,6 @@ const enrollmentWatch = createInstallationEnrollmentWatch({
   read: readEnrollmentStanding,
   onChanged: () => rendererConnection.tell(ENROLLMENT_STANDING_CHANGED_NOTICE),
 });
-function checkEnrollmentStanding(): void {
-  enrollmentWatch
-    .check()
-    .catch((error: unknown) => reportFailure("watching the enrollment standing", error));
-}
 enrollmentWatch
   .start()
   .catch((error: unknown) => reportFailure("reading the enrollment standing", error));
@@ -851,7 +861,7 @@ const receiptPrinting = createReceiptPrinting({
   signedInUserId: () => signedInPerson.userId(),
   deferredSaleInvoicing,
   beforePrinting: async (saleId) => {
-    await realTimeAuthorization.authorizeSale(saleId);
+    await contingencyRecording.authorizeSale(saleId);
     fiscalModeWatch?.check();
   },
   reportFailure,
@@ -994,7 +1004,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       typedCode,
     );
     if (outcome.kind === "enrolled") {
-      checkEnrollmentStanding();
+      contingencyRecording.checkEnrollmentStanding();
       afterEnrollment({
         pending: restorePending,
         restartCore,
@@ -1108,55 +1118,9 @@ const rendererRequestDeps: RendererRequestDeps = {
       userId,
     ),
   signOut: () => signedInPerson.clear(),
-  openCashSession:
-    localDatabase === undefined || actionGate === undefined
-      ? undefined
-      : (openingFloat) =>
-          openCashSessionFor(
-            {
-              zoneRules,
-              database: localDatabase,
-              restoration: restorationOf(localDatabase),
-              gate: actionGate,
-              readOutboxChainKey: async () =>
-                (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
-              now,
-              ids: uuidV7Ids,
-            },
-            openingFloat,
-          ),
-  closeCashSession:
-    localDatabase === undefined || actionGate === undefined
-      ? undefined
-      : (sessionId, countedCash) =>
-          closeCashSessionFor(
-            {
-              zoneRules,
-              database: localDatabase,
-              gate: actionGate,
-              readOutboxChainKey: async () =>
-                (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
-              now,
-              ids: uuidV7Ids,
-            },
-            { sessionId, countedCash },
-          ),
-  closeLockedCashSession:
-    localDatabase === undefined || actionGate === undefined
-      ? undefined
-      : (sessionId, countedCash, closer) =>
-          closeLockedCashSessionFor(
-            {
-              zoneRules,
-              database: localDatabase,
-              gate: actionGate,
-              readOutboxChainKey: async () =>
-                (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
-              now,
-              ids: uuidV7Ids,
-            },
-            { sessionId, countedCash, closer },
-          ),
+  openCashSession: contingencyRecording.openCashSession,
+  closeCashSession: contingencyRecording.closeCashSession,
+  closeLockedCashSession: contingencyRecording.closeLockedCashSession,
   cancelLockedSale:
     localDatabase === undefined || actionGate === undefined
       ? undefined
@@ -1715,7 +1679,7 @@ const answeredRendererRequestDeps: RendererRequestDeps = ticketedRendererRequest
   },
 );
 
-startRegisterHealthChecks({
+contingencyRecording.startHealthChecks({
   zoneRules,
   database: localDatabase,
   cloudClient,

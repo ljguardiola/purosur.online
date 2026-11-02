@@ -45,6 +45,7 @@ export interface RegisterReplenishmentFeed<TFailure> {
 export interface ReplenishedEventSource {
   eventId: string;
   deviceId: string;
+  occurredAt: Date;
 }
 
 export type ReplenishedEventApplication = "applied" | "not_yet_applicable";

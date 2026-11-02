@@ -135,7 +135,11 @@ describe("replenishRestoredRegister", () => {
 
     expect(outcome).toEqual({ kind: "replenished" });
     expect(store.state.facts.map(({ source }) => source)).toEqual(
-      events.map(({ deviceId, event }) => ({ eventId: event.event_id, deviceId })),
+      events.map(({ deviceId, event }) => ({
+        eventId: event.event_id,
+        deviceId,
+        occurredAt: new Date(event.occurred_at),
+      })),
     );
     expect(store.state.facts[1]?.fact).toEqual(A_CLOCK_CORRECTED_FACT);
     expect(store.state.appliedEventIds).toEqual(events.map(({ event }) => event.event_id));

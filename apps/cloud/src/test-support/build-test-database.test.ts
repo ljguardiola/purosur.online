@@ -81,6 +81,8 @@ import {
   recoveryRejectedAttemptAccumulator,
   recoveryTokens,
   refusedEvents,
+  registerContingencyIntervals,
+  registerContingencyReporting,
   registerContingencyTicketKeys,
   registerEnrollmentAttempts,
   registerEnrollmentCodes,
@@ -340,6 +342,15 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       registerId: register.id,
       fiscalAddressId: fiscalAddress.id,
       assignedAt: new Date("2026-01-05T12:00:00.000Z"),
+    });
+    await db.insert(registerContingencyIntervals).values({
+      intervalId: "0190f5a4-1b2c-7d3e-8f40-5a6b7c8d9e30",
+      registerId: register.id,
+      startedAt: new Date("2026-01-05T12:00:00.000Z"),
+    });
+    await db.insert(registerContingencyReporting).values({
+      registerId: register.id,
+      since: new Date("2026-01-05T12:00:00.000Z"),
     });
     await db
       .insert(registerPointTerminals)

@@ -19,6 +19,14 @@ describe("the Spanish names of synced events", () => {
     expect(syncedEventTypeName("sale_line_removed")).toBe("línea de venta quitada");
   });
 
+  test("names the entry into and the exit from contingency and the start of its record", () => {
+    expect(syncedEventTypeName("contingency_entered")).toBe("entrada en contingencia");
+    expect(syncedEventTypeName("contingency_left")).toBe("salida de contingencia");
+    expect(syncedEventTypeName("contingency_reporting_started")).toBe(
+      "inicio del registro de contingencia",
+    );
+  });
+
   test("names the return of a sale's merchandise", () => {
     expect(syncedEventTypeName("sale_returned")).toBe("devolución");
   });

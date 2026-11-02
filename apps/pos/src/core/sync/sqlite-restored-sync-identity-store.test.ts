@@ -152,6 +152,43 @@ describe("the restored sync identity store", () => {
     ).toEqual([{ device_id: OLD_DEVICE, last_acknowledged_seq: 4 }]);
   });
 
+  it("hands every contingency interval the copy left open to the old installation, leaving the ended ones as they were", async () => {
+    carryOldInstallation(5);
+    database.exec(`
+      INSERT INTO contingency_intervals (interval_id, started_at, ended_at, last_seen_at)
+        VALUES ('interval-ended', '2026-10-01T08:00:00.000Z', '2026-10-01T08:30:00.000Z',
+                '2026-10-01T08:20:00.000Z');
+      INSERT INTO contingency_intervals (interval_id, started_at, ended_at, last_seen_at)
+        VALUES ('interval-open', '2026-10-01T10:00:00.000Z', NULL, '2026-10-01T10:10:00.000Z');
+    `);
+
+    await resetRestoredSyncIdentity({ store }, { deviceId: NEW_DEVICE });
+
+    expect(
+      database
+        .prepare(
+          `SELECT interval_id, ended_at, last_seen_at, predecessor, device_id
+             FROM contingency_intervals ORDER BY interval_id`,
+        )
+        .all(),
+    ).toEqual([
+      {
+        interval_id: "interval-ended",
+        ended_at: "2026-10-01T08:30:00.000Z",
+        last_seen_at: "2026-10-01T08:20:00.000Z",
+        predecessor: 0,
+        device_id: null,
+      },
+      {
+        interval_id: "interval-open",
+        ended_at: null,
+        last_seen_at: "2026-10-01T10:10:00.000Z",
+        predecessor: 1,
+        device_id: OLD_DEVICE,
+      },
+    ]);
+  });
+
   it("marks the register's point of sale as awaiting its numbering from the cloud when it adopts the new identity", async () => {
     carryOldInstallation(5);
     database.exec(`

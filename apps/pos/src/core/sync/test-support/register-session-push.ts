@@ -1,4 +1,5 @@
 import { encodePinHash } from "@purosur/contracts";
+import type { FiscalEmissionMode } from "@purosur/domain";
 import {
   FICTIONAL_CUIT,
   FICTIONAL_GROSS_INCOME_REGISTRATION,
@@ -26,6 +27,7 @@ import { migrationClock } from "../../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../../platform/test-support/open-local-database";
 import { recordCashMovementFor } from "../../register/cash-movement-requests";
 import { closeCashSessionFor, openCashSessionFor } from "../../register/cash-session-requests";
+import { createContingencyRecording } from "../../register/contingency-recording";
 import { SqliteRestorationEvidence } from "../../register/sqlite-restoration-evidence";
 import { uuidV7Ids } from "../../register/uuid-v7-ids";
 import { completeReturnFor } from "../../returns/returns-requests";
@@ -530,6 +532,22 @@ export async function withRegisterSession<TResult>(
       authorization: { user_id: GRACE, pin: PIN },
     });
     expectOutcome("record a withdrawal authorized by PIN", withdrawal.kind, "recorded");
+    let fiscalMode: FiscalEmissionMode = { kind: "offline_code", cause: "no_connectivity" };
+    const contingency = createContingencyRecording({
+      database,
+      now,
+      ids: uuidV7Ids,
+      readMode: () => fiscalMode,
+      readOutboxChainKey: async () => OUTBOX_CHAIN_KEY,
+      reportFailure: (error) => {
+        throw error;
+      },
+    });
+    nextStep();
+    await contingency.check();
+    nextStep();
+    fiscalMode = { kind: "real_time" };
+    await contingency.check();
     nextStep();
     const firstScan = await scanProductFor(deps(), "7790001000011");
     expectOutcome("scan the first product", firstScan.kind, "added");
