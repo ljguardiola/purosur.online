@@ -1,5 +1,6 @@
 import { InlineNotice } from "@purosur/ui";
 import { ShieldX, TriangleAlert } from "lucide-react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 
 export type RecipeSaveNotice =
@@ -12,12 +13,7 @@ export function RecipeSaveNotice({ notice }: { notice: RecipeSaveNotice }) {
   return (
     <>
       {notice.kind === "attemptFailed" && (
-        <InlineNotice
-          tone="error"
-          icon={<TriangleAlert />}
-          title="No se guardó la receta"
-          description="Volvé a intentarlo."
-        />
+        <ActionFailureNotice title="No se guardó la receta" description="Volvé a intentarlo." />
       )}
       {notice.kind === "rateLimited" && (
         <InlineNotice

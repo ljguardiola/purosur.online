@@ -4,6 +4,7 @@ import { readDeployedRelease } from "./deployed-release-api";
 export type ReleaseMonitor = {
   outdated: () => boolean;
   check: () => Promise<void>;
+  observe: (deployed: string) => void;
   subscribe: (listener: () => void) => () => void;
 };
 
@@ -20,6 +21,16 @@ export function createReleaseMonitor({
   let isOutdated = false;
   let reading: Promise<void> | undefined;
 
+  function observe(deployed: string) {
+    if (running === "" || isOutdated || deployed === running) {
+      return;
+    }
+    isOutdated = true;
+    for (const listener of listeners) {
+      listener();
+    }
+  }
+
   function check(): Promise<void> {
     if (running === "" || isOutdated) {
       return Promise.resolve();
@@ -27,11 +38,8 @@ export function createReleaseMonitor({
     reading ??= read()
       .catch(() => undefined)
       .then((deployed) => {
-        if (deployed !== undefined && deployed !== running) {
-          isOutdated = true;
-          for (const listener of listeners) {
-            listener();
-          }
+        if (deployed !== undefined) {
+          observe(deployed);
         }
       })
       .finally(() => {
@@ -43,6 +51,7 @@ export function createReleaseMonitor({
   return {
     outdated: () => isOutdated,
     check,
+    observe,
     subscribe(listener) {
       listeners.add(listener);
       return () => {

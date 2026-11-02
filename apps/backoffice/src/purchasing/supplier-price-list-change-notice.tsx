@@ -1,5 +1,6 @@
 import { InlineNotice } from "@purosur/ui";
 import { ShieldX, TriangleAlert } from "lucide-react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import type { CreateProductFromSupplierItemOutcome } from "./supplier-item-products-api";
 import type {
@@ -100,14 +101,7 @@ export function SupplierPriceListChangeNotices({
     case "vatMissing":
       return null;
     case "attemptFailed":
-      return (
-        <InlineNotice
-          tone="error"
-          icon={<TriangleAlert />}
-          title={failedTitle}
-          description="Volvé a intentarlo."
-        />
-      );
+      return <ActionFailureNotice title={failedTitle} description="Volvé a intentarlo." />;
     case "rateLimited":
       return (
         <InlineNotice

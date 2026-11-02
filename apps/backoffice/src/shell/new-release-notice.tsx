@@ -11,7 +11,6 @@ export function NewReleaseNotice({ reloadPage }: { reloadPage: () => void }) {
       tone="info"
       icon={<Info />}
       title="Hay una versión nueva del backoffice"
-      description="Recargá la página para usarla. Guardá antes lo que estés cargando."
       action={{ label: "Recargar", onPress: reloadPage }}
     />
   );

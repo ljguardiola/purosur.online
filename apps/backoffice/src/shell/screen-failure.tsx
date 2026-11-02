@@ -2,7 +2,7 @@ import { Button, InlineNotice } from "@purosur/ui";
 import { type ErrorComponentProps, useRouter } from "@tanstack/react-router";
 import { TriangleAlert } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { useReleaseOutdated } from "../platform/release-monitor";
+import { useFailureText } from "../platform/action-failure-notice";
 import { ScreenDownloadFailure } from "./lazy-screen";
 import { ScreenLayout } from "./screen-layout";
 import { ScreenPending } from "./screen-pending";
@@ -41,7 +41,7 @@ export function ScreenFailure({ error }: ErrorComponentProps) {
   const [reloading, setReloading] = useState(downloadFailure !== null);
   const [offlineOnRetry, setOfflineOnRetry] = useState(false);
   const handledFailure = useRef<ScreenDownloadFailure | null>(null);
-  const outdated = useReleaseOutdated();
+  const retryAdvice = useFailureText("Probá de nuevo en unos minutos.");
 
   useEffect(() => {
     if (downloadFailure === null) {
@@ -73,10 +73,6 @@ export function ScreenFailure({ error }: ErrorComponentProps) {
   }
 
   const retry = async () => {
-    if (outdated) {
-      reloadPage();
-      return;
-    }
     if (downloadFailure !== null) {
       if (isOnline()) {
         claimReloadFor(downloadFailure.module);
@@ -101,16 +97,9 @@ export function ScreenFailure({ error }: ErrorComponentProps) {
       <InlineNotice
         tone="error"
         icon={<TriangleAlert />}
-        {...(outdated
-          ? {
-              title: "Se actualizó el backoffice",
-              description: "Recargá la página para seguir.",
-            }
-          : {
-              description: offlineOnRetry
-                ? "Revisá la conexión a internet y probá de nuevo."
-                : "Probá de nuevo en unos minutos.",
-            })}
+        description={
+          offlineOnRetry ? "Revisá la conexión a internet y probá de nuevo." : retryAdvice
+        }
       />
       <Button variant="secondary" onPress={() => void retry()}>
         Reintentar

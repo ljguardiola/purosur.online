@@ -8,7 +8,7 @@ export type NotificationCardProps = {
   tone: NoticeTone;
   icon: Icon;
   title: string;
-  description: string;
+  description?: string;
   whatToDo?: string;
   time?: string;
   onClose?: () => void;
@@ -59,7 +59,7 @@ export function NotificationCard({
       }
     >
       <p className="text-body font-bold text-text">{title}</p>
-      <p className="text-detail text-text-subtle">{description}</p>
+      {description ? <p className="text-detail text-text-subtle">{description}</p> : null}
       {whatToDo ? <p className="text-detail font-semibold text-text">{whatToDo}</p> : null}
       {time ? <p className="text-caption text-text-subtle">{time}</p> : null}
     </NoticeFrame>

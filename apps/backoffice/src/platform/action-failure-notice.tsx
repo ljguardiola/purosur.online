@@ -1,8 +1,8 @@
 import { InlineNotice } from "@purosur/ui";
-import { RefreshCw, TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
 import { useReleaseOutdated } from "./release-monitor";
 
-const OUTDATED_ADVICE = "Recargá la página para seguir.";
+export const OUTDATED_TAB_ADVICE = "Se actualizó el backoffice: recargá la página para seguir.";
 
 type ActionFailureNoticeProps = {
   title: string;
@@ -13,25 +13,21 @@ export function ActionFailureNotice({
   title,
   description = "Probá de nuevo.",
 }: ActionFailureNoticeProps) {
-  if (useReleaseOutdated()) {
-    return (
-      <InlineNotice
-        tone="error"
-        icon={<RefreshCw />}
-        title="Se actualizó el backoffice"
-        description="Recargá la página para seguir."
-      />
-    );
-  }
+  const shownDescription = useFailureText(description);
   return (
-    <InlineNotice tone="error" icon={<TriangleAlert />} title={title} description={description} />
+    <InlineNotice
+      tone="error"
+      icon={<TriangleAlert />}
+      title={title}
+      description={shownDescription}
+    />
   );
 }
 
 export function useFailureText(text: string): string {
-  return useReleaseOutdated() ? "Se actualizó el backoffice. Recargá la página para seguir." : text;
+  return useReleaseOutdated() ? OUTDATED_TAB_ADVICE : text;
 }
 
 export function useRetryAdvice(): string {
-  return useReleaseOutdated() ? OUTDATED_ADVICE : "Probá de nuevo.";
+  return useFailureText("Probá de nuevo.");
 }

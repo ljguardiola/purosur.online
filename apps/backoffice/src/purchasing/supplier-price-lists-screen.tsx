@@ -23,7 +23,7 @@ import { AreaTopBar } from "../shell/area-top-bar";
 import { type BackofficeAccess, canManageSuppliers } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { useRefreshPurchasing, useSupplierPriceListsQuery } from "./purchasing-queries";
-import { type ReadNotice, readNoticeContent } from "./supplier-price-list-read-notice";
+import { type ReadNotice, useReadNoticeContent } from "./supplier-price-list-read-notice";
 import { supplierPriceListOriginOf } from "./supplier-price-list-source";
 import { supplierPriceListStatusOf } from "./supplier-price-list-status";
 import type { RefreshSupplierPriceListOutcome } from "./supplier-price-lists-api";
@@ -105,6 +105,7 @@ export function SupplierPriceListsScreen({
   const [stateFilter, setStateFilter] = useState<StateFilter>(filters.state);
   const [upload, setUpload] = useState<{ supplierId: string | null } | null>(null);
   const [notice, setNotice] = useState<ReadNotice | "loaded" | null>(null);
+  const readNotice = useReadNoticeContent(notice === "loaded" ? null : notice);
   const [refreshing, setRefreshing] = useState<ReadonlySet<string>>(new Set());
   const refresh = useMutation({
     mutationFn: (listId: string) => services.refreshSupplierPriceList(listId),
@@ -331,8 +332,8 @@ export function SupplierPriceListsScreen({
           description="Se está leyendo. Cuando termine, se puede revisar."
           onDismiss={() => setNotice(null)}
         />
-      ) : notice === null ? null : (
-        <FloatingNotification {...readNoticeContent(notice)} onDismiss={() => setNotice(null)} />
+      ) : readNotice === null ? null : (
+        <FloatingNotification {...readNotice} onDismiss={() => setNotice(null)} />
       )}
     </>
   );

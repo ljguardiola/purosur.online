@@ -1,5 +1,6 @@
 import type { Icon, NoticeTone } from "@purosur/ui";
 import { Check, ShieldX, TriangleAlert } from "lucide-react";
+import { useFailureText } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { webPageRefusalMessage } from "./supplier-price-list-web-page-refusal";
 import type { WebPageRefusalReason } from "./supplier-price-lists-api";
@@ -30,7 +31,12 @@ function problem(title: string, description: string): ReadNoticeContent {
   return { tone: "error", icon: <TriangleAlert />, title, description };
 }
 
-export function readNoticeContent(notice: ReadNotice): ReadNoticeContent {
+export function useReadNoticeContent(notice: ReadNotice | null): ReadNoticeContent | null {
+  const retryAdvice = useFailureText("Volvé a intentarlo.");
+  return notice === null ? null : readNoticeContent(notice, retryAdvice);
+}
+
+export function readNoticeContent(notice: ReadNotice, retryAdvice: string): ReadNoticeContent {
   switch (notice.kind) {
     case "rereadStarted":
       return {
@@ -81,6 +87,6 @@ export function readNoticeContent(notice: ReadNotice): ReadNoticeContent {
         description: retryAfterDetail(notice.retryAfterSeconds),
       };
     case "attemptFailed":
-      return problem("No se cargó la lista", "Volvé a intentarlo.");
+      return problem("No se cargó la lista", retryAdvice);
   }
 }

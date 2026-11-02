@@ -6,7 +6,7 @@ export type PersistentNotificationProps = Omit<NotificationCardProps, "onClose" 
 
 export function PersistentNotification(card: PersistentNotificationProps) {
   return createPortal(
-    <div className="fixed right-6 bottom-6 z-overlay w-97 rounded-lg shadow-md">
+    <div className="fixed top-6 left-1/2 z-overlay w-97 -translate-x-1/2 rounded-lg shadow-md">
       <NotificationCard {...card} />
     </div>,
     document.body,

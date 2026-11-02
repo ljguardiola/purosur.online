@@ -20,6 +20,7 @@ import { useMutation } from "@tanstack/react-query";
 import { deepEqual } from "@tanstack/react-router";
 import { ClipboardList, FilePlus, Search, SearchX, ShieldX, TriangleAlert } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
+import { useFailureText } from "../platform/action-failure-notice";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatDisplayDate } from "../platform/display-date";
 import { retryAfterDetail } from "../platform/retry-after-detail";
@@ -99,7 +100,7 @@ const REFUSALS = {
   },
 } satisfies Record<BuildPurchaseOrdersRefusal, { title: string; description: string }>;
 
-function buildNoticeContent(notice: BuildNotice) {
+function buildNoticeContent(notice: BuildNotice, retryAdvice: string) {
   switch (notice.kind) {
     case "refused":
       return { icon: <TriangleAlert />, ...REFUSALS[notice.reason] };
@@ -113,7 +114,7 @@ function buildNoticeContent(notice: BuildNotice) {
       return {
         icon: <TriangleAlert />,
         title: "No se armaron los pedidos",
-        description: "Volvé a intentarlo.",
+        description: retryAdvice,
       };
   }
 }
@@ -126,6 +127,7 @@ export function OrderSuggestionScreen({
   onSessionEnded,
   services,
 }: OrderSuggestionScreenProps) {
+  const retryAdvice = useFailureText("Volvé a intentarlo.");
   const data = useOrderSuggestionQuery({
     fetchOrderSuggestion: services.fetchOrderSuggestion,
     onSessionEnded,
@@ -376,7 +378,7 @@ export function OrderSuggestionScreen({
       {buildNotice === null ? null : (
         <FloatingNotification
           tone="error"
-          {...buildNoticeContent(buildNotice)}
+          {...buildNoticeContent(buildNotice, retryAdvice)}
           onDismiss={() => setBuildNotice(null)}
         />
       )}

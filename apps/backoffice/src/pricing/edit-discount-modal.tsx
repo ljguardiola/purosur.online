@@ -14,6 +14,7 @@ import {
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { Check, Info, Pencil, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { creatableChoice } from "../platform/creatable-options";
 import { DISCOUNT_TARGET_KIND_LABELS } from "../platform/discount-terms-text";
 import { retryAfterDetail } from "../platform/retry-after-detail";
@@ -264,9 +265,7 @@ export function EditDiscountModal({
       {target ? (
         <div className="flex flex-col gap-4">
           {notice?.kind === "attemptFailed" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
+            <ActionFailureNotice
               title="No se guardó la promoción"
               description="Volvé a intentarlo."
             />

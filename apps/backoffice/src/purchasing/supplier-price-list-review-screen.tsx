@@ -32,6 +32,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
+import { useFailureText } from "../platform/action-failure-notice";
 import { cloudTableState } from "../platform/cloud-table-state";
 import type { CategoryCreationModal, ProductCreationModal } from "../platform/creation-parts";
 import { formatDisplayDate } from "../platform/display-date";
@@ -118,7 +119,7 @@ const ERROR_NOTICES = {
     title: "La lista cambió",
     description: "La actualizamos. Volvé a intentarlo.",
   },
-  rowNotReviewed: { title: "No se marcó el ítem", description: "Volvé a intentarlo." },
+  rowNotReviewed: { title: "No se marcó el ítem", description: null },
 } as const;
 
 function footerText(
@@ -162,6 +163,7 @@ export function SupplierPriceListReviewScreen({
   });
   const refreshPurchasing = useRefreshPurchasing();
   const sendToMyAccount = useSendToMyAccount();
+  const retryAdvice = useFailureText("Volvé a intentarlo.");
   const [search, setSearch] = useState(filters.search);
   const [show, setShow] = useState<ShowFilter>(filters.show);
   const [page, setPage] = useState(1);
@@ -559,7 +561,7 @@ export function SupplierPriceListReviewScreen({
           tone="error"
           icon={<TriangleAlert />}
           title={ERROR_NOTICES[errorNotice].title}
-          description={ERROR_NOTICES[errorNotice].description}
+          description={ERROR_NOTICES[errorNotice].description ?? retryAdvice}
           onDismiss={() => setErrorNotice(null)}
         />
       )}
