@@ -6,7 +6,6 @@ import {
   categories,
   changes,
   productBarcodes,
-  productPackagings,
   products,
   productTags,
   tags,
@@ -51,7 +50,6 @@ async function catalogRowCounts() {
   return {
     products: (await db.select().from(products)).length,
     barcodes: (await db.select().from(productBarcodes)).length,
-    packagings: (await db.select().from(productPackagings)).length,
     changes: (await db.select().from(changes)).length,
   };
 }

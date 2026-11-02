@@ -7,7 +7,6 @@ import {
   categories,
   discounts,
   productBarcodes,
-  productPackagings,
   products,
   productTags,
   rolePermissions,
@@ -1183,39 +1182,6 @@ describe("PUT /products/:id", () => {
       discountName: "3x2 Galletitas",
     });
     expect(await db.select().from(products)).toMatchObject([{ saleUnit: "UNIT", version: 1 }]);
-  });
-
-  it("changes the sale unit of a product that has an active packaging row from a previous release", async () => {
-    const categoryId = await insertCategory("Almacén");
-    const product = await insertProduct({
-      name: "Galletitas",
-      categoryId,
-      saleUnit: "UNIT",
-      barcodes: ["111"],
-    });
-    const userId = await insertUserWithPermission();
-    await db.insert(productPackagings).values({
-      productId: product.id,
-      name: "Caja x 12",
-      quantityPerPackage: 12,
-      saleUnit: "UNIT",
-      actorId: userId,
-    });
-    const rawSessionId = await insertSession(userId);
-
-    const response = await editProduct(rawSessionId, product.id, {
-      name: "Galletitas",
-      categoryId,
-      brandId: null,
-      saleUnit: "KG",
-      barcodes: ["111"],
-      tagIds: [],
-      coverageDays: 15,
-      version: product.version,
-    });
-
-    expect(response.statusCode).toBe(200);
-    expect(await db.select().from(products)).toMatchObject([{ saleUnit: "KG", version: 2 }]);
   });
 
   it("rejects changing the sale unit of a product a supplier item is linked to with 409 sale_unit_held_by_supplier_item, changing nothing", async () => {

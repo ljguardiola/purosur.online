@@ -129,7 +129,6 @@ describe("the purchases a purchasing store keeps", () => {
       {
         position: 2,
         productId: harina.id,
-        packagingId: null,
         packages: null,
         quantity: 2_500,
         costPaidCents: 1_000,
@@ -138,7 +137,6 @@ describe("the purchases a purchasing store keeps", () => {
       {
         position: 1,
         productId: yerba.id,
-        packagingId: null,
         packages: 2,
         quantity: 24_000,
         costPaidCents: 24_000,
