@@ -1064,7 +1064,6 @@ export {
   mayBeCountedTogether,
   mayBeMovementQuantity,
   PRODUCTS_A_RECIPE_MAY_USE,
-  RECORDED_LOSS_REASONS,
   RECORDED_STOCK_MOVEMENT_REASONS,
   REPORTED_LOSS_REASONS,
   reportedLossReason,
