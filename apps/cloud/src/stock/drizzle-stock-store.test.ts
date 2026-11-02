@@ -206,6 +206,7 @@ describe("DrizzleStockStore", () => {
         actorId,
         supersededByCountId: null,
         assemblyBatchId: null,
+        returnId: null,
       },
     ]);
   });
