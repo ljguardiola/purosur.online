@@ -39,8 +39,10 @@ import type { fetchOrderSuggestion } from "./order-suggestion-api";
 import type {
   fetchPurchaseOrder,
   fetchPurchaseOrders,
+  fetchPurchaseOrderText,
   PurchaseOrderRead,
   PurchaseOrderStateFilter,
+  PurchaseOrderTextRead,
 } from "./purchase-orders-api";
 import type { fetchPurchaseChoices, fetchPurchases } from "./purchases-api";
 import type { fetchPurchasesReport } from "./purchases-report-api";
@@ -83,6 +85,7 @@ export const purchasingKeys = {
   supplierPriceComparison: [...purchasingKey, "supplier-price-comparison"] as const,
   purchaseOrders: [...purchasingKey, "purchase-orders"] as const,
   purchaseOrder: [...purchasingKey, "purchase-order"] as const,
+  purchaseOrderText: [...purchasingKey, "purchase-order-text"] as const,
   orderSuggestion: [...purchasingKey, "order-suggestion"] as const,
 };
 
@@ -545,6 +548,26 @@ export function usePurchaseOrderQuery(params: {
   return useCloudQuery<PurchaseOrderRead>({
     queryKey: [...purchasingKeys.purchaseOrder, params.orderId],
     read: () => params.fetchPurchaseOrder(params.orderId),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function usePurchaseOrderTextQuery(params: {
+  orderId: string | null;
+  fetchPurchaseOrderText: typeof fetchPurchaseOrderText;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  const { orderId } = params;
+  return useCloudQuery<PurchaseOrderTextRead>({
+    queryKey: [...purchasingKeys.purchaseOrderText, orderId],
+    enabled: orderId !== null,
+    gcTime: 0,
+    read: () =>
+      orderId === null
+        ? Promise.resolve({ kind: "failed" })
+        : params.fetchPurchaseOrderText(orderId),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });
