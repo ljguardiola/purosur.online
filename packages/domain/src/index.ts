@@ -201,6 +201,7 @@ export {
   recoveryRateLimitWindowStart,
 } from "./credentials/index.js";
 export type {
+  ArcaAvailabilityRun,
   AuthorizedCreditNoteC,
   AuthorizedFacturaC,
   AwaitingCreditNote,
@@ -281,8 +282,10 @@ export type {
   VoucherReference,
 } from "./fiscal/index.js";
 export {
+  ARCA_REACHABILITY_HORIZON_MS,
   ARCA_VITALITY_CHECK_INTERVAL_MS,
   AUTHORIZATION_CODE_TYPE_CAE,
+  arcaAvailableSpans,
   awaitsNumberingDiagnosis,
   awaitsRemedy,
   awaitsUnclearOutcomeDecision,
@@ -294,6 +297,8 @@ export {
   CLOCK_PREVIOUS_READING_SOURCES,
   CLOSED_FISCAL_TASK_STATE,
   CONTINGENCY_KINDS,
+  CONTINGENCY_TIME_MONTH_STATES,
+  CONTINGENCY_TIME_NON_COMPLIANCE_PERCENT,
   COUNTED_AS_ISSUED_STATE,
   CREDIT_NOTE_C_DOCUMENT_TYPE,
   CREDIT_NOTE_C_VOUCHER_TYPE,
