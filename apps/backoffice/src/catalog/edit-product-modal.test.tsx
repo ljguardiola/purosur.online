@@ -843,7 +843,7 @@ test("tells an outdated tab that the backoffice was updated and the change was n
 
   await expect.element(dialog.getByText("Se actualizó el backoffice")).toBeVisible();
   await expect
-    .element(dialog.getByText("Recargá la página para seguir: este cambio no se guardó."))
+    .element(dialog.getByText("Recargá la página para seguir."))
     .toBeVisible();
   expect(dialog.getByText("No se pudo guardar el cambio").query()).toBeNull();
 });
@@ -861,6 +861,6 @@ test("tells a tab that turns outdated while saving is refused that the change wa
 
   await expect.element(dialog.getByText("Se actualizó el backoffice")).toBeVisible();
   await expect
-    .element(dialog.getByText("Recargá la página para seguir: este cambio no se guardó."))
+    .element(dialog.getByText("Recargá la página para seguir."))
     .toBeVisible();
 });

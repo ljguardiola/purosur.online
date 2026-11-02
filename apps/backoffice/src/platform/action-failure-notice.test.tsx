@@ -33,7 +33,7 @@ test("an outdated tab's failure notice says the backoffice was updated and the c
 
   await expect.element(screen.getByText("Se actualizó el backoffice")).toBeVisible();
   await expect
-    .element(screen.getByText("Recargá la página para seguir: este cambio no se guardó."))
+    .element(screen.getByText("Recargá la página para seguir."))
     .toBeVisible();
   expect(screen.getByText("No se pudo guardar el cambio").query()).toBeNull();
   expect(screen.getByText("Revisá los datos.").query()).toBeNull();
