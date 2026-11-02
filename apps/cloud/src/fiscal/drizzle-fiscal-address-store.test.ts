@@ -265,6 +265,28 @@ describe("DrizzleFiscalAddressReader", () => {
 
     expect(listed.map(({ name }) => name)).toEqual(SORTED_NAMES);
   });
+
+  it("lists fiscal addresses whose names order the same in the order of their ids", async () => {
+    await db.insert(fiscalAddresses).values([
+      {
+        id: "00000000-0000-4000-8000-00000000000b",
+        name: "Depósito 1",
+        streetAddress: "Calle Ficticia 1, CABA",
+      },
+      {
+        id: "00000000-0000-4000-8000-00000000000a",
+        name: "Depósito 01",
+        streetAddress: "Calle Ficticia 2, CABA",
+      },
+    ]);
+
+    const listed = await new DrizzleFiscalAddressReader(db).listFiscalAddresses();
+
+    expect(listed.map(({ id }) => id)).toEqual([
+      "00000000-0000-4000-8000-00000000000a",
+      "00000000-0000-4000-8000-00000000000b",
+    ]);
+  });
 });
 
 describe("DrizzleFiscalAddressStore's clock", () => {

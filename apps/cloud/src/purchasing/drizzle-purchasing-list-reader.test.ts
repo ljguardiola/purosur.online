@@ -84,4 +84,18 @@ describe("DrizzlePurchasingListReader", () => {
       "Zoe",
     ]);
   });
+
+  it("lists suppliers whose names order the same in the order of their ids", async () => {
+    await db.insert(suppliers).values([
+      { id: "00000000-0000-4000-8000-00000000000b", name: "Proveedor 1", actorId },
+      { id: "00000000-0000-4000-8000-00000000000a", name: "Proveedor 01", actorId },
+    ]);
+
+    const listed = await new DrizzlePurchasingListReader(db).suppliers();
+
+    expect(listed.map(({ id }) => id)).toEqual([
+      "00000000-0000-4000-8000-00000000000a",
+      "00000000-0000-4000-8000-00000000000b",
+    ]);
+  });
 });
