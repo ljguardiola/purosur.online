@@ -17,7 +17,10 @@ export interface EventApplicationUnderTest {
   readonly refundFollowRequests: number;
   asMigrator: TestDatabase["asMigrator"];
   enrollInstallation(options?: {
-    registerName: string;
+    registerName?: string;
+    existingRegisterId?: string;
+    enrolledAt?: Date;
+    revokedAt?: Date;
   }): ReturnType<typeof insertEnrolledInstallation>;
   record(fact: SyncedFact, overrides: Partial<UnappliedEvent>): Promise<void>;
   openSession(deviceId: string, sessionId?: string): Promise<string>;
