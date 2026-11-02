@@ -95,6 +95,8 @@ import { type AccountFooterServices, defaultAccountFooterServices } from "./acco
 import { createAppRouter } from "./app-router";
 import type { HomeScreenServices } from "./home-screen-services";
 import { lazyScreen } from "./lazy-screen";
+import { NewReleaseNotice } from "./new-release-notice";
+import { useReleaseWatcher } from "./release-watcher";
 import {
   SessionCheckPendingContext,
   type SettledSession,
@@ -429,6 +431,8 @@ function AppContent({ help, services: givenServices, reportError = () => {} }: A
     ...(session.kind === "signed-in" ? { initialExpiresAt: session.expiresAt } : {}),
   });
 
+  useReleaseWatcher({ monitor: services.releaseMonitor });
+
   useSessionActivityReporter({
     active: session.kind === "signed-in",
     touchSession: services.fetchSession,
@@ -459,6 +463,7 @@ function AppContent({ help, services: givenServices, reportError = () => {} }: A
           <RouterProvider router={router} />
         </QueryClientProvider>
       </SessionCheckPendingContext>
+      <NewReleaseNotice reloadPage={services.screenFailure.reloadPage} />
     </ReleaseMonitorContext>
   );
 }
