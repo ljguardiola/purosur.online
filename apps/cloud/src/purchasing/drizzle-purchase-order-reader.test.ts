@@ -10,7 +10,7 @@ import {
   insertOfferedItem,
 } from "./test-support/purchase-order-fixtures.js";
 import { insertActor, insertProduct } from "./test-support/purchasing-fixtures.js";
-import { insertSupplier } from "./test-support/supplier-price-list-fixtures.js";
+import { insertSupplier, insertSupplierItem } from "./test-support/supplier-price-list-fixtures.js";
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -250,10 +250,13 @@ describe("the supplier item a purchase order line answers", () => {
     const alfa = await insertSupplier(db, { actorId, name: "Alfa" });
     const beta = await insertSupplier(db, { actorId, name: "Beta" });
     await offer(alfa, productId, { quantity: 6_000, keyValue: "ALFA-6", description: "Yerba x6" });
-    await offer(alfa, productId, {
-      quantity: 12_000,
+    await insertSupplierItem(db, {
+      supplierId: alfa,
       keyValue: "ALFA-12",
       description: "Yerba x12",
+      productId,
+      quantity: 12_000,
+      saleUnit: "UNIT",
     });
     await offer(beta, productId, { quantity: 6_000, keyValue: "BETA-6", description: "Yerba B" });
 
