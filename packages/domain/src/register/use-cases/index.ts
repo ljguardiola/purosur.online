@@ -110,6 +110,7 @@ export type {
   ContingencyLedger,
   ContingencyLedgerTransaction,
   OpenContingencyInterval,
+  PredecessorOpenContingencyInterval,
 } from "./contingency-ledger.js";
 export type { CreateRegisterInput, CreateRegisterOutcome } from "./create-register.js";
 export { createRegister } from "./create-register.js";

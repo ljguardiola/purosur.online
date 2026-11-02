@@ -55,7 +55,6 @@ import {
   cloudCreditNotes,
   createRealTimeAuthorization,
   settleInterruptedAuthorizations,
-  startRegisterHealthChecks,
 } from "./fiscal/real-time-authorization-wiring";
 import { readFiscalEmissionModeIn } from "./fiscal/sqlite-fiscal-emission-mode";
 import { readLatestPreEmissionGateOutcome } from "./fiscal/sqlite-pre-emission-gate";
@@ -574,7 +573,7 @@ async function pushOutboxToCloud() {
   });
   cloudReachability = nextCloudReachability(cloudReachability, attempt);
   restorationStandingWatch?.check();
-  checkEnrollmentStanding();
+  contingencyRecording.checkEnrollmentStanding();
   const warning = pushWarningOf(attempt);
   if (warning !== undefined) {
     console.warn(warning, attempt);
@@ -733,7 +732,7 @@ const syncSchedule = createSyncSchedule({
     interruptedCharges.afterEachSync();
     paidOrderDiscovery.afterEachSync();
     restorationStandingWatch?.check();
-    checkEnrollmentStanding();
+    contingencyRecording.checkEnrollmentStanding();
   },
 });
 
@@ -767,6 +766,12 @@ const contingencyRecording = createContingencyRecordingWiring({
   readMode: (database) => readFiscalEmissionModeIn(database, now(), zoneRules),
   restorationOf,
   reportFailure: (error) => reportFailure("recording the register's contingency", error),
+  authorizeSale: (saleId) => realTimeAuthorization.authorizeSale(saleId),
+  checkEnrollmentStanding: () => {
+    enrollmentWatch
+      .check()
+      .catch((error: unknown) => reportFailure("watching the enrollment standing", error));
+  },
 });
 void contingencyRecording.startup();
 const restorationStandingWatch =
@@ -817,12 +822,6 @@ const enrollmentWatch = createInstallationEnrollmentWatch({
   read: readEnrollmentStanding,
   onChanged: () => rendererConnection.tell(ENROLLMENT_STANDING_CHANGED_NOTICE),
 });
-function checkEnrollmentStanding(): void {
-  void contingencyRecording.check();
-  enrollmentWatch
-    .check()
-    .catch((error: unknown) => reportFailure("watching the enrollment standing", error));
-}
 enrollmentWatch
   .start()
   .catch((error: unknown) => reportFailure("reading the enrollment standing", error));
@@ -862,9 +861,8 @@ const receiptPrinting = createReceiptPrinting({
   signedInUserId: () => signedInPerson.userId(),
   deferredSaleInvoicing,
   beforePrinting: async (saleId) => {
-    await realTimeAuthorization.authorizeSale(saleId);
+    await contingencyRecording.authorizeSale(saleId);
     fiscalModeWatch?.check();
-    void contingencyRecording.check();
   },
   reportFailure,
   syncNow: () => {
@@ -1006,7 +1004,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       typedCode,
     );
     if (outcome.kind === "enrolled") {
-      checkEnrollmentStanding();
+      contingencyRecording.checkEnrollmentStanding();
       afterEnrollment({
         pending: restorePending,
         restartCore,
@@ -1681,7 +1679,7 @@ const answeredRendererRequestDeps: RendererRequestDeps = ticketedRendererRequest
   },
 );
 
-startRegisterHealthChecks({
+contingencyRecording.startHealthChecks({
   zoneRules,
   database: localDatabase,
   cloudClient,
@@ -1692,10 +1690,7 @@ startRegisterHealthChecks({
     return () => clearTimeout(timer);
   },
   reportFailure: (error) => reportFailure("the register health check", error),
-  afterCheck: () => {
-    fiscalModeWatch?.check();
-    void contingencyRecording.check();
-  },
+  afterCheck: () => fiscalModeWatch?.check(),
   ids: uuidV7Ids,
   shortCodes: cryptoShortCodes,
   readOutboxChainKey: async () => (await mainRequests.readCredentials())?.keys?.outbox_chain_key,

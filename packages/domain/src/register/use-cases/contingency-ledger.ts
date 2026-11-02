@@ -6,6 +6,10 @@ export interface OpenContingencyInterval {
   lastSeenAt: Date;
 }
 
+export interface PredecessorOpenContingencyInterval extends OpenContingencyInterval {
+  sessionClosedAt: Date | null;
+}
+
 export interface ContingencyLedger {
   transaction<TOutcome>(work: (tx: ContingencyLedgerTransaction) => TOutcome): TOutcome;
 }
@@ -13,8 +17,9 @@ export interface ContingencyLedger {
 export interface ContingencyLedgerTransaction {
   registerId(): string | undefined;
   cashSessionOpen(): boolean;
+  replenishmentPending(): boolean;
   openInterval(): OpenContingencyInterval | undefined;
-  predecessorOpenIntervals(): OpenContingencyInterval[];
+  predecessorOpenIntervals(): PredecessorOpenContingencyInterval[];
   reportingStartedAt(): Date | undefined;
   recordOpenedInterval(interval: { id: string; startedAt: Date }): void;
   recordIntervalSeen(intervalId: string, seenAt: Date): void;

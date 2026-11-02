@@ -10,6 +10,7 @@ import type {
   IdGenerator,
   RestorationProtocolEvidence,
 } from "@purosur/domain/register/use-cases";
+import { startRegisterHealthChecks } from "../fiscal/real-time-authorization-wiring";
 import type { LocalDatabase } from "../platform/local-database";
 import type { ActionGate } from "../sessions/action-gate";
 import {
@@ -29,11 +30,17 @@ export interface ContingencyRecordingWiringDeps {
   readMode: (database: LocalDatabase) => FiscalEmissionMode;
   restorationOf: (database: LocalDatabase) => RestorationProtocolEvidence;
   reportFailure: (error: unknown) => void;
+  authorizeSale: (saleId: string) => Promise<void>;
+  checkEnrollmentStanding: () => void;
 }
+
+type RegisterHealthChecksDeps = Parameters<typeof startRegisterHealthChecks>[0];
 
 export interface ContingencyRecordingWiring {
   startup(): Promise<void>;
-  check(): Promise<void>;
+  startHealthChecks(healthChecks: RegisterHealthChecksDeps): (() => void) | undefined;
+  authorizeSale(saleId: string): Promise<void>;
+  checkEnrollmentStanding(): void;
   openCashSession: ((openingFloat: number) => Promise<OpenCashSessionOutcome>) | undefined;
   closeCashSession:
     | ((sessionId: string, countedCash: number) => Promise<CloseCashSessionOutcome>)
@@ -57,6 +64,8 @@ export function createContingencyRecordingWiring({
   readMode,
   restorationOf,
   reportFailure,
+  authorizeSale,
+  checkEnrollmentStanding,
 }: ContingencyRecordingWiringDeps): ContingencyRecordingWiring {
   const recording =
     database === undefined
@@ -76,10 +85,25 @@ export function createContingencyRecordingWiring({
     void check();
     return answer;
   };
+  const followers = {
+    startHealthChecks: (healthChecks: RegisterHealthChecksDeps) =>
+      startRegisterHealthChecks({
+        ...healthChecks,
+        afterCheck: () => {
+          healthChecks.afterCheck?.();
+          void check();
+        },
+      }),
+    authorizeSale: (saleId: string) => checkAfter(authorizeSale(saleId)),
+    checkEnrollmentStanding: () => {
+      void check();
+      checkEnrollmentStanding();
+    },
+  };
   if (database === undefined || gate === undefined) {
     return {
       startup,
-      check,
+      ...followers,
       openCashSession: undefined,
       closeCashSession: undefined,
       closeLockedCashSession: undefined,
@@ -88,7 +112,7 @@ export function createContingencyRecordingWiring({
   const requestDeps = { zoneRules, database, gate, readOutboxChainKey, now, ids };
   return {
     startup,
-    check,
+    ...followers,
     openCashSession: (openingFloat) =>
       checkAfter(
         openCashSessionFor({ ...requestDeps, restoration: restorationOf(database) }, openingFloat),

@@ -1,5 +1,5 @@
 import { contingencyLeftEvent } from "../model/contingency-events.js";
-import { contingencyIntervalEnd } from "../model/contingency-interval.js";
+import { replacedRegisterContingencyEnd } from "../model/contingency-interval.js";
 import type { IdGenerator } from "./cash-ledger.js";
 import type { ContingencyLedger } from "./contingency-ledger.js";
 
@@ -10,6 +10,7 @@ export interface ClosePredecessorContingencyPorts {
 
 export type ClosePredecessorContingencyOutcome =
   | { kind: "unavailable" }
+  | { kind: "awaiting_replenishment" }
   | { kind: "closed"; intervalIds: string[] };
 
 export function closePredecessorContingency({
@@ -21,9 +22,12 @@ export function closePredecessorContingency({
     if (registerId === undefined) {
       return { kind: "unavailable" };
     }
+    if (tx.replenishmentPending()) {
+      return { kind: "awaiting_replenishment" };
+    }
     const intervalIds: string[] = [];
     for (const open of tx.predecessorOpenIntervals()) {
-      const endedAt = contingencyIntervalEnd(open.startedAt, open.lastSeenAt);
+      const endedAt = replacedRegisterContingencyEnd(open);
       tx.recordClosedInterval(open.id, endedAt);
       tx.appendOutboxEvent(
         contingencyLeftEvent({

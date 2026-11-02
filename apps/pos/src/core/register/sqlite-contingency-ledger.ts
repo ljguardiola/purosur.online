@@ -3,6 +3,7 @@ import type {
   ContingencyLedger,
   ContingencyLedgerTransaction,
   OpenContingencyInterval,
+  PredecessorOpenContingencyInterval,
 } from "@purosur/domain/register/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
@@ -12,6 +13,10 @@ interface OpenIntervalRow {
   interval_id: string;
   started_at: string;
   last_seen_at: string;
+}
+
+interface PredecessorOpenIntervalRow extends OpenIntervalRow {
+  session_closed_at: string | null;
 }
 
 export class SqliteContingencyLedger implements ContingencyLedger {
@@ -32,16 +37,18 @@ export class SqliteContingencyLedger implements ContingencyLedger {
     return {
       registerId: () => readRegisterIdentity(database)?.registerId,
       cashSessionOpen: () => readOpenSession(database) !== undefined,
+      replenishmentPending: () =>
+        database.prepare("SELECT 1 FROM register_predecessor").get() !== undefined,
       openInterval: () => readOpenInterval(database),
       predecessorOpenIntervals: () =>
         database
-          .prepare<[], OpenIntervalRow>(
-            `SELECT interval_id, started_at, last_seen_at
+          .prepare<[], PredecessorOpenIntervalRow>(
+            `SELECT interval_id, started_at, last_seen_at, session_closed_at
              FROM contingency_intervals WHERE ended_at IS NULL AND predecessor = 1
              ORDER BY started_at, interval_id`,
           )
           .all()
-          .map(openIntervalOf),
+          .map(predecessorOpenIntervalOf),
       reportingStartedAt: () => {
         const row = database
           .prepare<[], { since: string }>("SELECT since FROM contingency_reporting_start")
@@ -98,5 +105,14 @@ function openIntervalOf(row: OpenIntervalRow): OpenContingencyInterval {
     id: row.interval_id,
     startedAt: new Date(row.started_at),
     lastSeenAt: new Date(row.last_seen_at),
+  };
+}
+
+function predecessorOpenIntervalOf(
+  row: PredecessorOpenIntervalRow,
+): PredecessorOpenContingencyInterval {
+  return {
+    ...openIntervalOf(row),
+    sessionClosedAt: row.session_closed_at === null ? null : new Date(row.session_closed_at),
   };
 }
