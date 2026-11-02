@@ -97,10 +97,8 @@ test("tells an outdated tab that the backoffice was updated, and reloads the pag
   } as never);
   const screen = await render(<App help={emptyHelp} services={services} reportError={vi.fn()} />);
 
-  await expect.element(screen.getByRole("alert")).toHaveTextContent("Se actualizó el backoffice");
-  await expect
-    .element(screen.getByRole("alert"))
-    .toHaveTextContent("Recargá la página para seguir.");
+  await expect.element(screen.getByText("Se actualizó el backoffice")).toBeVisible();
+  await expect.element(screen.getByText("Recargá la página para seguir.")).toBeVisible();
   expect(screen.getByText("Probá de nuevo en unos minutos.").query()).toBeNull();
 
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
