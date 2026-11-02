@@ -55,6 +55,8 @@ export class SqliteContingencyLedger implements ContingencyLedger {
           .get();
         return row === undefined ? undefined : new Date(row.since);
       },
+      seenUnenrolled: () =>
+        database.prepare("SELECT 1 FROM register_seen_unenrolled").get() !== undefined,
       recordOpenedInterval: ({ id, startedAt }) => {
         database
           .prepare(
@@ -88,6 +90,10 @@ export class SqliteContingencyLedger implements ContingencyLedger {
     }
     appendOutboxEvent(this.database, this.outboxChainKey, draft);
   }
+}
+
+export function recordSeenUnenrolled(database: LocalDatabase): void {
+  database.prepare("INSERT OR IGNORE INTO register_seen_unenrolled (id) VALUES (1)").run();
 }
 
 function readOpenInterval(database: LocalDatabase): OpenContingencyInterval | undefined {

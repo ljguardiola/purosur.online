@@ -8,7 +8,7 @@ import {
   startContingencyReporting,
 } from "@purosur/domain/register/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
-import { SqliteContingencyLedger } from "./sqlite-contingency-ledger";
+import { recordSeenUnenrolled, SqliteContingencyLedger } from "./sqlite-contingency-ledger";
 
 export interface ContingencyRecordingDeps {
   database: LocalDatabase;
@@ -40,6 +40,8 @@ export function createContingencyRecording({
         const outboxChainKey = await readOutboxChainKey();
         if (outboxChainKey !== undefined) {
           work(new SqliteContingencyLedger(database, outboxChainKey));
+        } else {
+          recordSeenUnenrolled(database);
         }
       } catch (error) {
         reportFailure(error);
