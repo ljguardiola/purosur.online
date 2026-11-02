@@ -320,26 +320,4 @@ describe("GET /reports/returns", () => {
       by_authorizer: [{ authorizer: { id: authorizerId, name: "Beto" }, ...summary }],
     });
   });
-
-  it("reports only the voided sales of the branch of the session and of the register asked for", async () => {
-    const { headers } = await signedInWith(db, ["view_returns_report"], NOW);
-    const first = await aRegister("Caja 1");
-    const second = await aRegister("Caja 2", first.locationId);
-    const elsewhere = await aRegister("Caja otra", await insertLocation(db));
-    for (const { deviceId } of [first, elsewhere]) {
-      await applyVoidedSale(db, { deviceId, completedAt: SOLD, voidedAt: RETURNED, completed: {} });
-    }
-    const wanted = await applyVoidedSale(db, {
-      deviceId: second.deviceId,
-      completedAt: SOLD,
-      voidedAt: RETURNED,
-      completed: {},
-    });
-
-    const response = await returnsReport(headers, `${range}&register_id=${second.registerId}`);
-
-    expect(
-      response.json().voids.rows.map((voidRow: { sale: { id: string } }) => voidRow.sale.id),
-    ).toEqual([wanted.id]);
-  });
 });

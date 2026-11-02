@@ -226,6 +226,12 @@ export const noVoidsReport: ReturnsReportBody = {
   voids: { rows: [], totals: { voids: 0, voided: 0 } },
 };
 
+export const voidsOnlyReport: ReturnsReportBody = {
+  ...returnsReport,
+  typed: { rows: [], totals: { returns: 0, refunded: 0 } },
+  scanned: { rows: [], totals: { returns: 0, refunded: 0 } },
+};
+
 export const noReturnsReport: ReturnsReportBody = {
   range: { from: "2026-10-07", to: "2026-10-07" },
   typed: { rows: [], totals: { returns: 0, refunded: 0 } },

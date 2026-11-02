@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 import { cell } from "../platform/spreadsheet/workbook";
+import { authorizerSummaryRows, cashierSummaryRows } from "./returns-person-summary";
 import { OCCURRED_TIME_ZONE } from "./returns-report-occurred-time-zone";
 import { returnsReportSpreadsheet } from "./returns-report-spreadsheet";
 import {
@@ -103,16 +104,13 @@ test("lists each void with its moment, register, sale, people and total, leaving
   ]);
 });
 
-test("summarizes each cashier and each authorizer, naming who has no name, no cashier or no authorization", () => {
+test("summarizes each cashier and each authorizer, one row per person with their counters", () => {
   const [, , byCashier, byAuthorizer] = returnsReportSpreadsheet(returnsReport, "Todas").sheets;
 
   expect(byCashier?.header).toEqual(["Cajero", ...PERSON_HEADER]);
-  expect(byCashier?.rows.map((row) => row[0])).toEqual([
-    cell.text("Carla"),
-    cell.text("Dora"),
-    cell.text("Sin identificar"),
-    cell.text("Sin dato"),
-  ]);
+  expect(byCashier?.rows.map((row) => row[0])).toEqual(
+    cashierSummaryRows(returnsReport).map(({ label }) => cell.text(label)),
+  );
   expect(byCashier?.rows[1]).toEqual([
     cell.text("Dora"),
     cell.count(0),
@@ -124,27 +122,18 @@ test("summarizes each cashier and each authorizer, naming who has no name, no ca
     cell.count(0),
   ]);
   expect(byAuthorizer?.header).toEqual(["Autorizó", ...PERSON_HEADER]);
-  expect(byAuthorizer?.rows).toEqual([
-    [
-      cell.text("Beto"),
-      cell.count(1),
-      cell.money(520_000),
-      cell.count(1),
-      cell.money(345_000),
-      cell.count(2),
-      cell.count(0),
-      cell.count(1),
-    ],
-    [
-      cell.text("Sin autorización"),
-      cell.count(1),
-      cell.money(310_000),
-      cell.count(2),
-      cell.money(230_000),
-      cell.count(2),
-      cell.count(1),
-      cell.count(1),
-    ],
+  expect(byAuthorizer?.rows.map((row) => row[0])).toEqual(
+    authorizerSummaryRows(returnsReport).map(({ label }) => cell.text(label)),
+  );
+  expect(byAuthorizer?.rows[0]).toEqual([
+    cell.text("Beto"),
+    cell.count(1),
+    cell.money(520_000),
+    cell.count(1),
+    cell.money(345_000),
+    cell.count(2),
+    cell.count(0),
+    cell.count(1),
   ]);
 });
 

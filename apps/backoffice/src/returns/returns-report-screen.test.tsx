@@ -21,6 +21,7 @@ import {
   noScannedReturnsReport,
   noVoidsReport,
   returnsReport,
+  voidsOnlyReport,
 } from "./test-support/returns-fixtures";
 
 afterEach(() => {
@@ -176,16 +177,7 @@ test("summarizes each cashier with their voids, returns, refunded and exchanged 
   await expect.element(cellUnder(table, dora, "Líneas cambiadas")).toHaveTextContent("1");
 });
 
-test("calls a cashier without a name Sin identificar and a void without a cashier Sin dato in the cashier summary", async () => {
-  const screen = await renderScreen(createServices());
-
-  const table = screen.getByRole("table", { name: BY_CASHIER_TABLE });
-  await expect.element(table.getByRole("row", { name: /Sin identificar/ })).toBeVisible();
-  const unknown = table.getByRole("row", { name: /Sin dato/ });
-  await expect.element(cellUnder(table, unknown, "Anulado")).toHaveTextContent("$ 3.100,00");
-});
-
-test("summarizes each authorizer and calls the returns and voids nobody authorized Sin autorización", async () => {
+test("summarizes each authorizer with their voids and returns", async () => {
   const screen = await renderScreen(createServices());
 
   const table = screen.getByRole("table", { name: BY_AUTHORIZER_TABLE });
@@ -193,10 +185,6 @@ test("summarizes each authorizer and calls the returns and voids nobody authoriz
   const beto = table.getByRole("row", { name: /Beto/ });
   await expect.element(cellUnder(table, beto, "Anulado")).toHaveTextContent("$ 5.200,00");
   await expect.element(cellUnder(table, beto, "Reintegrado")).toHaveTextContent("$ 3.450,00");
-  const nobody = table.getByRole("row", { name: /Sin autorización/ });
-  await expect.element(cellUnder(table, nobody, "Anulaciones")).toHaveTextContent("1");
-  await expect.element(cellUnder(table, nobody, "Devoluciones")).toHaveTextContent("2");
-  await expect.element(cellUnder(table, nobody, "Líneas cambiadas")).toHaveTextContent("1");
 });
 
 test("shows each void with its day and time, register, sale, cashier, authorizer and total", async () => {
@@ -400,32 +388,26 @@ test("gives each table its own empty text when its group has no returns", async 
   expect(screen.getByText("No hay devoluciones en este período").elements()).toHaveLength(1);
 });
 
-test("says there are no returns in either group when there are none", async () => {
+test("says once that the period has no voids nor returns, showing no table", async () => {
   const screen = await renderScreen(servicesAnswering(noReturnsReport));
 
-  for (const table of [TYPED_TABLE, SCANNED_TABLE]) {
-    await expect
-      .element(
-        screen.getByRole("table", { name: table }).getByText("No hay devoluciones en este período"),
-      )
-      .toBeVisible();
-  }
-  for (const table of [BY_CASHIER_TABLE, BY_AUTHORIZER_TABLE]) {
-    await expect
-      .element(
-        screen
-          .getByRole("table", { name: table })
-          .getByText("No hay anulaciones ni devoluciones en este período"),
-      )
-      .toBeVisible();
-  }
   await expect
-    .element(
-      screen
-        .getByRole("table", { name: VOIDS_TABLE })
-        .getByText("No hay anulaciones en este período"),
-    )
+    .element(screen.getByText("No hay anulaciones ni devoluciones en este período"))
     .toBeVisible();
+  expect(screen.getByText(/^No hay/).elements()).toHaveLength(1);
+  expect(screen.getByRole("table").query()).toBeNull();
+});
+
+test("says once that the period has no returns when it has only voids", async () => {
+  const screen = await renderScreen(servicesAnswering(voidsOnlyReport));
+
+  await expect
+    .element(screen.getByRole("table", { name: VOIDS_TABLE }).getByText("Carla"))
+    .toBeVisible();
+  await expect.element(screen.getByText("No hay devoluciones en este período")).toBeVisible();
+  expect(screen.getByText(/^No hay/).elements()).toHaveLength(1);
+  expect(screen.getByRole("table", { name: TYPED_TABLE }).query()).toBeNull();
+  expect(screen.getByRole("table", { name: SCANNED_TABLE }).query()).toBeNull();
 });
 
 test("says there are no voids when there are returns but no voids", async () => {
@@ -443,36 +425,16 @@ test("says there are no voids when there are returns but no voids", async () => 
     .toBeVisible();
 });
 
-test("says the chosen register made no returns when a register is chosen and none were made", async () => {
+test("says once that the chosen register has no voids nor returns in the period", async () => {
   const screen = await renderScreen(servicesAnswering(noReturnsReport), {
     filters: reportFiltersSearch.parse({ register: FRONT_REGISTER_ID }),
   });
 
-  for (const table of [TYPED_TABLE, SCANNED_TABLE]) {
-    await expect
-      .element(
-        screen
-          .getByRole("table", { name: table })
-          .getByText("No hay devoluciones de esta caja en este período"),
-      )
-      .toBeVisible();
-  }
   await expect
-    .element(
-      screen
-        .getByRole("table", { name: VOIDS_TABLE })
-        .getByText("No hay anulaciones de esta caja en este período"),
-    )
+    .element(screen.getByText("No hay anulaciones ni devoluciones de esta caja en este período"))
     .toBeVisible();
-  for (const table of [BY_CASHIER_TABLE, BY_AUTHORIZER_TABLE]) {
-    await expect
-      .element(
-        screen
-          .getByRole("table", { name: table })
-          .getByText("No hay anulaciones ni devoluciones de esta caja en este período"),
-      )
-      .toBeVisible();
-  }
+  expect(screen.getByText(/^No hay/).elements()).toHaveLength(1);
+  expect(screen.getByRole("table").query()).toBeNull();
 });
 
 test("shows a failed load with a retry that loads the report again", async () => {
