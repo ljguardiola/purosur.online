@@ -209,7 +209,10 @@ describe("contingencyTimeMeasurement", () => {
   });
 
   it("holds the last answer no further than now", () => {
-    const result = measure({ runs: [run(true, 0, 10)], now: new Date(minute(10).getTime() + 1_000) });
+    const result = measure({
+      runs: [run(true, 0, 10)],
+      now: new Date(minute(10).getTime() + 1_000),
+    });
 
     expect(result.availableMs).toBe(10 * MINUTE + 1_000);
   });
@@ -245,7 +248,9 @@ describe("contingencyTimeMeasurement", () => {
   it("is non-compliant by a single millisecond above the limit", () => {
     const result = measure({
       runs: [answeredBetween(true, 0, 2_000)],
-      parts: [{ registerId: "register-1", start: minute(0), end: new Date(minute(100).getTime() + 1) }],
+      parts: [
+        { registerId: "register-1", start: minute(0), end: new Date(minute(100).getTime() + 1) },
+      ],
     });
 
     expect(result.state).toBe("non_compliant");
@@ -327,13 +332,13 @@ describe("contingencyTimeMeasurement", () => {
     expect(measure({ registers: [reporting("register-1", 200, presence)] }).state).toBe(
       "compliant",
     );
-    expect(measure({ registers: [reporting("register-1", 201, presence)] }).state).toBe(
-      "no_data",
-    );
+    expect(measure({ registers: [reporting("register-1", 201, presence)] }).state).toBe("no_data");
   });
 
   it("ignores a register that was not at the address at any time of the month", () => {
-    const result = measure({ registers: [reporting("register-1"), reporting("register-2", null, [])] });
+    const result = measure({
+      registers: [reporting("register-1"), reporting("register-2", null, [])],
+    });
 
     expect(result.state).toBe("compliant");
   });
@@ -341,7 +346,9 @@ describe("contingencyTimeMeasurement", () => {
   it("ignores a stay that left no time in the month", () => {
     const stays = [{ startMinute: 50, endMinute: 50 }];
 
-    expect(measure({ registers: [reporting("register-1"), reporting("register-2", null, stays)] }).state).toBe("compliant");
+    expect(
+      measure({ registers: [reporting("register-1"), reporting("register-2", null, stays)] }).state,
+    ).toBe("compliant");
   });
 
   it("prefers having no data over the month being in progress", () => {
@@ -390,8 +397,10 @@ describe("contingencyTimeMeasurement", () => {
               total +
               Math.max(
                 0,
-                Math.min(end === null ? AFTER_THE_MONTH.getTime() : end.getTime(), WINDOW.end.getTime()) -
-                  Math.max(start.getTime(), MONTH_START),
+                Math.min(
+                  end === null ? AFTER_THE_MONTH.getTime() : end.getTime(),
+                  WINDOW.end.getTime(),
+                ) - Math.max(start.getTime(), MONTH_START),
               ),
             0,
           );
@@ -433,7 +442,8 @@ describe("contingencyTimeMeasurement", () => {
             return;
           }
           expect(result.state === "non_compliant").toBe(
-            result.contingencyMs * 100 > result.availableMs * CONTINGENCY_TIME_NON_COMPLIANCE_PERCENT,
+            result.contingencyMs * 100 >
+              result.availableMs * CONTINGENCY_TIME_NON_COMPLIANCE_PERCENT,
           );
         }),
       );
