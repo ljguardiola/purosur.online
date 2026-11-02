@@ -508,6 +508,7 @@ describe("DrizzleFortnightPresentationReader.branchPresentations", () => {
           refusal: null,
           documentCount: 2,
           rejectedDocument: null,
+          revokedInstallations: [],
         },
       ]);
     });
