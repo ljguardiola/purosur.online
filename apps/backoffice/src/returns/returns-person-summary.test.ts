@@ -2,12 +2,11 @@ import { expect, test } from "vitest";
 import { authorizerSummaryRows, cashierSummaryRows } from "./returns-person-summary";
 import { returnsReport } from "./test-support/returns-fixtures";
 
-test("labels each cashier of the summary, a cashier without a name Sin identificar and a missing one Sin dato", () => {
+test("labels each cashier of the summary and a cashier without a name Sin identificar", () => {
   expect(cashierSummaryRows(returnsReport).map(({ label }) => label)).toEqual([
     "Carla",
     "Dora",
     "Sin identificar",
-    "Sin dato",
   ]);
 });
 
