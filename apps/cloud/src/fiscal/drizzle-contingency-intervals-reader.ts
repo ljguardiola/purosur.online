@@ -61,10 +61,7 @@ export class DrizzleContingencyIntervalsReader<TQueryResult extends PgQueryResul
       )
       .orderBy(asc(registerContingencyIntervals.startedAt));
     const parts = intervals.flatMap(({ registerId, startedAt, endedAt }) =>
-      fiscalAddressPartsOf(
-        { start: startedAt, end: endedAt },
-        historyOf(assignments, registerId),
-      )
+      fiscalAddressPartsOf({ start: startedAt, end: endedAt }, historyOf(assignments, registerId))
         .filter(
           (part) =>
             part.fiscalAddressId === fiscalAddressId &&
