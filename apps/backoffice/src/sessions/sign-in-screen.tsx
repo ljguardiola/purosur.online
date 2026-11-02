@@ -2,6 +2,7 @@ import { Button, InlineNotice, ScreenHeader } from "@purosur/ui";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/browser";
 import { Clock, KeyRound, LifeBuoy, ShieldX, TriangleAlert } from "lucide-react";
 import { useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { AccessFooterLink, AccessLayout } from "../shell/access-layout";
 import type { SignInScreenServices } from "./sign-in-services";
@@ -107,14 +108,7 @@ export function SignInScreen({ openingNotice, onSignedIn, services }: SignInScre
           description={retryAfterDetail(notice.retryAfterSeconds)}
         />
       )}
-      {notice?.kind === "failed" && (
-        <InlineNotice
-          tone="error"
-          icon={<TriangleAlert />}
-          title="No se pudo ingresar"
-          description="Probá de nuevo."
-        />
-      )}
+      {notice?.kind === "failed" && <ActionFailureNotice title="No se pudo ingresar" />}
       <Button
         variant="primary"
         size="large"
