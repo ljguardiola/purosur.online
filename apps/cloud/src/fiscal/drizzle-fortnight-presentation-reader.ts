@@ -1,17 +1,25 @@
 import {
   compareCodeUnits,
+  fortnightPeriod,
   fortnightPresentationRows,
   fortnightReportDeadline,
+  revokedInstallationsAwaitingConfirmation,
   type ZoneRulesSource,
 } from "@purosur/domain";
 import type {
   BranchFortnightPresentation,
   FortnightPresentationReader,
 } from "@purosur/domain/fiscal/use-cases";
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { fortnightDocumentReports, offlineFiscalDocuments } from "../platform/db/schema.js";
+import {
+  fortnightDocumentReports,
+  offlineFiscalDocuments,
+  registerInstallations,
+} from "../platform/db/schema.js";
+import { installationStreamReaches } from "../sync/drizzle-register-event-streams.js";
 import { recordedRemedies, remedyKey } from "./drizzle-rejected-document-remedies.js";
+import { DrizzleRevokedInstallationConfirmations } from "./drizzle-revoked-installation-confirmations.js";
 import { closedFortnightPresentations } from "./owed-fortnight-reports.js";
 
 export class DrizzleFortnightPresentationReader<TQueryResult extends PgQueryResultHKT>
@@ -72,6 +80,29 @@ export class DrizzleFortnightPresentationReader<TQueryResult extends PgQueryResu
             .from(fortnightDocumentReports)
             .where(inArray(fortnightDocumentReports.pointOfSaleNumber, pointsOfSale));
     const { corrections, remedyOf } = await recordedRemedies(this.db, { pointsOfSale });
+    const confirmations = new DrizzleRevokedInstallationConfirmations(this.db);
+    const revokedInstallationsOf = new Map(
+      await Promise.all(
+        presentations.map(async ({ owed: { pointOfSaleNumber, registerId, code } }) => {
+          const installations = await installationStreamReaches(
+            this.db,
+            eq(registerInstallations.registerId, registerId),
+          );
+          const confirmed = await confirmations.confirmedInstallations({
+            pointOfSaleNumber,
+            fortnight: code.fortnight,
+          });
+          const awaiting = revokedInstallationsAwaitingConfirmation(
+            installations,
+            fortnightPeriod(code.fortnight, this.zoneRules.zoneRules()),
+            confirmed,
+          ).flatMap(({ installationId, revokedAt }) =>
+            revokedAt ? [{ installationId, revokedAt }] : [],
+          );
+          return [`${pointOfSaleNumber}:${code.fortnight.start}`, awaiting] as const;
+        }),
+      ),
+    );
     return presentations
       .flatMap(({ owed: { pointOfSaleNumber, registerId, code }, state, movement, listed }) => {
         const isOfThisPresentation = (row: { pointOfSale: number; fortnightStart: string }) =>
@@ -101,7 +132,8 @@ export class DrizzleFortnightPresentationReader<TQueryResult extends PgQueryResu
           ...row,
           registerId,
           pointOfSaleNumber,
-          revokedInstallations: [],
+          revokedInstallations:
+            revokedInstallationsOf.get(`${pointOfSaleNumber}:${code.fortnight.start}`) ?? [],
           fortnight: code.fortnight,
           deadline: fortnightReportDeadline(code.fortnight, code.reportDeadline),
         }));

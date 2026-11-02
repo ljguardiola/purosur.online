@@ -3,9 +3,7 @@ import { eq, type SQL, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { deviceState, inbox, registerInstallations } from "../platform/db/schema.js";
 
-type InstallationStreamReach = Awaited<
-  ReturnType<RegisterEventStreams["installationsOf"]>
->[number];
+type InstallationStreamReach = Awaited<ReturnType<RegisterEventStreams["installationsOf"]>>[number];
 
 export function installationStreamReaches<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
