@@ -946,6 +946,7 @@ describe("the register's local migrations", () => {
         "0093_sales_rebuilt_against_paid_orders",
         "0094_exchanged_return_lines",
         "0095_contingency_intervals",
+        "0096_register_seen_unenrolled",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1064,6 +1065,7 @@ describe("the register's local migrations", () => {
         "0093_sales_rebuilt_against_paid_orders",
         "0094_exchanged_return_lines",
         "0095_contingency_intervals",
+        "0096_register_seen_unenrolled",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1177,6 +1179,7 @@ describe("the register's local migrations", () => {
         "0093_sales_rebuilt_against_paid_orders",
         "0094_exchanged_return_lines",
         "0095_contingency_intervals",
+        "0096_register_seen_unenrolled",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1289,6 +1292,7 @@ describe("the register's local migrations", () => {
         "0093_sales_rebuilt_against_paid_orders",
         "0094_exchanged_return_lines",
         "0095_contingency_intervals",
+        "0096_register_seen_unenrolled",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1430,6 +1434,7 @@ describe("the register's local migrations", () => {
         "0093_sales_rebuilt_against_paid_orders",
         "0094_exchanged_return_lines",
         "0095_contingency_intervals",
+        "0096_register_seen_unenrolled",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1561,6 +1566,7 @@ describe("the register's local migrations", () => {
         "0093_sales_rebuilt_against_paid_orders",
         "0094_exchanged_return_lines",
         "0095_contingency_intervals",
+        "0096_register_seen_unenrolled",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1696,6 +1702,7 @@ describe("the register's local migrations", () => {
         "0093_sales_rebuilt_against_paid_orders",
         "0094_exchanged_return_lines",
         "0095_contingency_intervals",
+        "0096_register_seen_unenrolled",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1839,6 +1846,7 @@ describe("the register's local migrations", () => {
         "0093_sales_rebuilt_against_paid_orders",
         "0094_exchanged_return_lines",
         "0095_contingency_intervals",
+        "0096_register_seen_unenrolled",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1949,6 +1957,7 @@ describe("the register's local migrations", () => {
         "0093_sales_rebuilt_against_paid_orders",
         "0094_exchanged_return_lines",
         "0095_contingency_intervals",
+        "0096_register_seen_unenrolled",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
