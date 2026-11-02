@@ -4,6 +4,7 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { BranchUser } from "../platform/branch-users-api";
 import { StubRoleCreationModal } from "../platform/test-support/creation-parts";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import { usersListFilters } from "./routes";
@@ -1126,4 +1127,21 @@ test("shows the user count and a passkey count with the thousands separator", as
 
   await expect.element(screen.getByText("1.000 usuarios")).toBeVisible();
   await expect.element(screen.getByText("1.000 registradas").first()).toBeVisible();
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when creating the user is refused", async () => {
+  openAsOutdatedTab();
+  const services = createUsersListServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
+  const screen = await renderUsersList(services);
+  await expect.element(screen.getByText("1 usuario")).toBeVisible();
+  const dialog = await openNewUserModal(screen);
+  vi.mocked(services.createUser).mockResolvedValue({ kind: "validation_failed", field: "other" });
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Martina Gómez");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
+
+  await expect.element(dialog.getByText("No se pudo crear el usuario")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
 });

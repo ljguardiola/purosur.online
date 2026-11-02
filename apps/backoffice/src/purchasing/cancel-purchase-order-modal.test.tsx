@@ -1,5 +1,6 @@
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import {
   CancelPurchaseOrderModal,
@@ -156,4 +157,17 @@ test("navigates to Mi cuenta when cancelling comes back forbidden", async () => 
   await confirm(screen);
 
   await expect.poll(() => window.location.pathname).toBe("/account");
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when cancelling is refused", async () => {
+  openAsOutdatedTab();
+  const cancelPurchaseOrder = vi
+    .fn<CancelPurchaseOrderModalServices["cancelPurchaseOrder"]>()
+    .mockResolvedValue({ kind: "failed" });
+  const screen = await renderModal({ cancelPurchaseOrder });
+  const dialog = await confirm(screen);
+
+  await expect.element(dialog.getByText("No se canceló el pedido")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  await expect.element(dialog.getByRole("button", { name: "Cancelar pedido" })).toBeEnabled();
 });

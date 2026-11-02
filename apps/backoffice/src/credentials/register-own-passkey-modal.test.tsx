@@ -2,7 +2,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { ReleaseMonitorContext } from "../platform/release-monitor";
-import { fakeReleaseMonitor } from "../platform/test-support/release-monitor";
+import { fakeReleaseMonitor, OUTDATED_TAB_ADVICE } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import {
   RegisterOwnPasskeyModal,
@@ -399,6 +399,6 @@ test("tells an outdated tab that the backoffice was updated when registering the
   await userEvent.fill(dialog.getByRole("textbox"), "Teléfono de Lucía");
   await userEvent.click(dialog.getByRole("button", { name: "Registrar la passkey" }));
 
-  await expect.element(dialog.getByText("Se actualizó el backoffice")).toBeVisible();
-  expect(dialog.getByText("No se pudo registrar la passkey").query()).toBeNull();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  await expect.element(dialog.getByText("No se pudo registrar la passkey")).toBeVisible();
 });

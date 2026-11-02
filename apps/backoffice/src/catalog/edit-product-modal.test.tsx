@@ -5,6 +5,7 @@ import { type Locator, page, userEvent } from "vitest/browser";
 import { type ReleaseMonitor, ReleaseMonitorContext } from "../platform/release-monitor";
 import {
   fakeReleaseMonitor,
+  OUTDATED_TAB_ADVICE,
   releaseMonitorThatTurnsOutdated,
 } from "../platform/test-support/release-monitor";
 import { organico, sinColorantes, sinTacc, vegano } from "../platform/test-support/tags";
@@ -834,21 +835,18 @@ test("groups thousands and takes a typed dot as the decimal comma in the net con
   await expect.element(field).toHaveValue("1.234,5");
 });
 
-test("tells an outdated tab that the backoffice was updated and the change was not saved when saving is refused", async () => {
+test("tells an outdated tab to reload because the backoffice was updated when saving is refused", async () => {
   const services = createServices();
   vi.mocked(services.editProduct).mockResolvedValue({ kind: "failed" });
   const { dialog } = await renderModal(honey, services, { outdatedTab: true });
 
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
-  await expect.element(dialog.getByText("Se actualizó el backoffice")).toBeVisible();
-  await expect
-    .element(dialog.getByText("Recargá la página para seguir."))
-    .toBeVisible();
-  expect(dialog.getByText("No se pudo guardar el cambio").query()).toBeNull();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  await expect.element(dialog.getByText("No se pudo guardar el cambio")).toBeVisible();
 });
 
-test("tells a tab that turns outdated while saving is refused that the change was not saved", async () => {
+test("tells a tab that turns outdated while saving is refused to reload because the backoffice was updated", async () => {
   const release = releaseMonitorThatTurnsOutdated();
   const services = createServices();
   vi.mocked(services.editProduct).mockImplementation(() => {
@@ -859,8 +857,5 @@ test("tells a tab that turns outdated while saving is refused that the change wa
 
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
-  await expect.element(dialog.getByText("Se actualizó el backoffice")).toBeVisible();
-  await expect
-    .element(dialog.getByText("Recargá la página para seguir."))
-    .toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
 });

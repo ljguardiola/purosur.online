@@ -1,5 +1,6 @@
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import {
   ReactivateProductModal,
@@ -184,4 +185,19 @@ test("titles the modal with the product's name, brand and net content", async ()
   await expect
     .element(screen.getByRole("dialog", { name: "¿Reactivar Aceite de Almendras Vitora 30 ml?" }))
     .toBeVisible();
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when reactivating is refused", async () => {
+  openAsOutdatedTab();
+  const reactivateProduct = vi
+    .fn<ReactivateProductModalServices["reactivateProduct"]>()
+    .mockResolvedValue({ kind: "failed" });
+  const dialog = await renderModal(reactivateProduct);
+
+  await confirm(dialog);
+
+  await expect.element(dialog.getByText("No se reactivó el producto")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  expect(dialog.getByText("Volvé a intentarlo.").query()).toBeNull();
+  await expect.element(dialog.getByRole("button", { name: "Reactivar" })).toBeEnabled();
 });

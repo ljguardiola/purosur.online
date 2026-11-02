@@ -88,20 +88,25 @@ test("keeps focus on the failure's title when trying again fails again", async (
     .toHaveTextContent("Probá de nuevo en unos minutos.");
 });
 
-test("tells an outdated tab that the backoffice was updated, and reloads the page to try again", async () => {
+test("tells an outdated tab to reload because the backoffice was updated, and Reintentar shows the screen again", async () => {
   window.history.pushState(null, "", "/alerts");
   const services = createAppServices({ releaseMonitor: fakeReleaseMonitor(true) });
   vi.mocked(services.alertsListScreen.fetchAlerts).mockResolvedValue({
     kind: "ok",
     value: { alerts: null, total: 0, pageSize: 25, openCount: 0, openCriticalCount: 0 },
   } as never);
-  const screen = await render(<App help={emptyHelp} services={services} reportError={vi.fn()} />);
+  const reportError = vi.fn();
+  const screen = await render(
+    <App help={emptyHelp} services={services} reportError={reportError} />,
+  );
 
-  await expect.element(screen.getByText("Se actualizó el backoffice")).toBeVisible();
-  await expect.element(screen.getByText("Recargá la página para seguir.")).toBeVisible();
+  await expect
+    .element(screen.getByRole("alert"))
+    .toHaveTextContent("Se actualizó el backoffice: recargá la página para seguir.");
   expect(screen.getByText("Probá de nuevo en unos minutos.").query()).toBeNull();
 
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
-  expect(services.screenFailure.reloadPage).toHaveBeenCalledTimes(1);
+  await expect.poll(() => reportError.mock.calls.length).toBeGreaterThan(1);
+  expect(services.screenFailure.reloadPage).not.toHaveBeenCalled();
 });

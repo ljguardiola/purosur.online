@@ -1,6 +1,18 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { z } from "zod";
 import { readCloudJson } from "./read-cloud-json";
+import { defaultReleaseMonitor } from "./release-monitor";
+
+vi.mock("./release-monitor", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./release-monitor")>();
+  return {
+    ...actual,
+    defaultReleaseMonitor: actual.createReleaseMonitor({
+      running: "aaa",
+      readDeployedRelease: async () => undefined,
+    }),
+  };
+});
 
 const schema = z.object({ name: z.string() });
 
@@ -76,4 +88,12 @@ test("answers failed when the request cannot be sent", async () => {
   vi.mocked(fetch).mockRejectedValue(new TypeError("offline"));
 
   expect(await readCloudJson("/api/thing", schema)).toEqual({ kind: "failed" });
+});
+
+test("a response naming another deployed release makes the tab outdated", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(400, undefined, { "X-Purosur-Release": "bbb" }));
+
+  await readCloudJson("/api/thing", schema);
+
+  expect(defaultReleaseMonitor.outdated()).toBe(true);
 });

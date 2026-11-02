@@ -23,7 +23,9 @@ function servicesRunning(running: string, deployed: string | undefined) {
 test("tells a signed-in tab that a newer release is deployed, with an action to reload", async () => {
   const screen = await render(<App help={emptyHelp} services={servicesRunning("aaa", "bbb")} />);
 
-  await expect.element(screen.getByText("Hay una versión nueva del backoffice")).toBeVisible();
+  await expect
+    .element(screen.getByText("Hay una versión nueva del backoffice").first())
+    .toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Recargar" })).toBeVisible();
 });
 
@@ -34,7 +36,9 @@ test("tells a signed-out tab too", async () => {
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByText("Hay una versión nueva del backoffice")).toBeVisible();
+  await expect
+    .element(screen.getByText("Hay una versión nueva del backoffice").first())
+    .toBeVisible();
 });
 
 test("never reloads by itself: what the person typed stays until they use Recargar", async () => {
@@ -44,7 +48,9 @@ test("never reloads by itself: what the person typed stays until they use Recarg
   const screen = await render(<App help={emptyHelp} services={services} />);
   await userEvent.fill(screen.getByRole("textbox"), "ana@example.com");
 
-  await expect.element(screen.getByText("Hay una versión nueva del backoffice")).toBeVisible();
+  await expect
+    .element(screen.getByText("Hay una versión nueva del backoffice").first())
+    .toBeVisible();
 
   expect(services.screenFailure.reloadPage).not.toHaveBeenCalled();
   await expect.element(screen.getByRole("textbox")).toHaveValue("ana@example.com");

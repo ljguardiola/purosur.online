@@ -18,6 +18,7 @@ import type {
 import { type ReleaseMonitor, ReleaseMonitorContext } from "./release-monitor";
 import {
   fakeReleaseMonitor,
+  OUTDATED_TAB_ADVICE,
   releaseMonitorThatTurnsOutdated,
 } from "./test-support/release-monitor";
 
@@ -510,7 +511,5 @@ test("tells a tab that turns outdated while the generation is refused to reload"
 
   await userEvent.click(generateButtonOf(chips));
 
-  await expect
-    .element(chips.getByRole("alert"))
-    .toHaveTextContent("Se actualizó el backoffice. Recargá la página para seguir.");
+  await expect.element(chips.getByRole("alert")).toHaveTextContent(OUTDATED_TAB_ADVICE);
 });

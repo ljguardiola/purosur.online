@@ -3,7 +3,7 @@ import { useState } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { ReleaseMonitorContext } from "../platform/release-monitor";
-import { fakeReleaseMonitor } from "../platform/test-support/release-monitor";
+import { fakeReleaseMonitor, OUTDATED_TAB_ADVICE } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import type { RegisterSummary, RevokeRegisterOutcome } from "./registers-api";
 import type { RegistersListScreenServices } from "./registers-list-services";
@@ -394,6 +394,6 @@ test("tells an outdated tab that the backoffice was updated when the revocation 
 
   await confirm(dialog);
 
-  await expect.element(dialog.getByText("Se actualizó el backoffice")).toBeVisible();
-  expect(dialog.getByText("No se pudo revocar la caja").query()).toBeNull();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  await expect.element(dialog.getByText("No se pudo revocar la caja")).toBeVisible();
 });

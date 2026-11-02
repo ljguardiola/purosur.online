@@ -104,3 +104,46 @@ test("a tab that does not know its own release never reads the deployed one and 
   expect(read).not.toHaveBeenCalled();
   expect(monitor.outdated()).toBe(false);
 });
+
+test("a tab told a deployed release other than its own is outdated at once, and tells its subscribers", () => {
+  const read = vi.fn();
+  const monitor = createReleaseMonitor({ running: "aaa", readDeployedRelease: read });
+  const listener = vi.fn();
+  monitor.subscribe(listener);
+
+  monitor.observe("bbb");
+
+  expect(monitor.outdated()).toBe(true);
+  expect(listener).toHaveBeenCalledTimes(1);
+  expect(read).not.toHaveBeenCalled();
+});
+
+test("a tab told the release it runs stays current", () => {
+  const monitor = createReleaseMonitor({ running: "aaa", readDeployedRelease: vi.fn() });
+  const listener = vi.fn();
+  monitor.subscribe(listener);
+
+  monitor.observe("aaa");
+
+  expect(monitor.outdated()).toBe(false);
+  expect(listener).not.toHaveBeenCalled();
+});
+
+test("an outdated tab told another release again tells its subscribers only once", () => {
+  const monitor = createReleaseMonitor({ running: "aaa", readDeployedRelease: vi.fn() });
+  const listener = vi.fn();
+  monitor.subscribe(listener);
+
+  monitor.observe("bbb");
+  monitor.observe("ccc");
+
+  expect(listener).toHaveBeenCalledTimes(1);
+});
+
+test("a tab that does not know its own release is never outdated by a release it is told", () => {
+  const monitor = createReleaseMonitor({ running: "", readDeployedRelease: vi.fn() });
+
+  monitor.observe("bbb");
+
+  expect(monitor.outdated()).toBe(false);
+});

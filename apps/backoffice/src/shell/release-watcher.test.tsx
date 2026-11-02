@@ -9,6 +9,7 @@ function createMonitor() {
   const monitor: ReleaseMonitor = {
     outdated: () => outdated,
     check: vi.fn(() => Promise.resolve()),
+    observe: () => {},
     subscribe: () => () => {},
   };
   return {

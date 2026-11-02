@@ -3,6 +3,7 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import { BrandsListScreen } from "./brands-list-screen";
 import type { BrandsListScreenServices } from "./brands-list-services";
@@ -658,4 +659,32 @@ test("has no accessibility violations once loaded, and with the create modal ope
   await expectNoAccessibilityViolations(screen.container);
   await openNewBrandModal(screen);
   await expectNoAccessibilityViolations(document.body);
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when editing a brand is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices();
+  vi.mocked(services.editBrand).mockResolvedValue({ kind: "failed" });
+  const screen = await loaded(services, [granuz]);
+  await userEvent.click(screen.getByRole("button", { name: "Editar la marca Granuz" }));
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(dialog.getByText("No se guardó la marca")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when deactivating a brand is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices();
+  vi.mocked(services.deactivateBrand).mockResolvedValue({ kind: "failed" });
+  const screen = await loaded(services, [granuz]);
+  await userEvent.click(screen.getByRole("button", { name: "Desactivar la marca Granuz" }));
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
+
+  await expect.element(dialog.getByText("No se desactivó la marca")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
 });

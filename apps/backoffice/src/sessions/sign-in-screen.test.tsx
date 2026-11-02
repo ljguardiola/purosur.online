@@ -2,7 +2,11 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { ReleaseMonitorContext } from "../platform/release-monitor";
-import { fakeReleaseMonitor } from "../platform/test-support/release-monitor";
+import {
+  fakeReleaseMonitor,
+  OUTDATED_TAB_ADVICE,
+  openAsOutdatedTab,
+} from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import { SignInScreen } from "./sign-in-screen";
 import type { SignInScreenServices } from "./sign-in-services";
@@ -261,6 +265,20 @@ test("tells an outdated tab that the backoffice was updated when the sign-in end
 
   await userEvent.click(screen.getByRole("button", { name: "Ingresar con passkey" }));
 
-  await expect.element(screen.getByText("Se actualizó el backoffice")).toBeVisible();
-  expect(screen.getByText("No se pudo ingresar").query()).toBeNull();
+  await expect.element(screen.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  await expect.element(screen.getByText("No se pudo ingresar")).toBeVisible();
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when its session could not be checked", async () => {
+  openAsOutdatedTab();
+  const screen = await render(
+    <SignInScreen
+      openingNotice={{ kind: "check_failed" }}
+      onSignedIn={() => {}}
+      services={createServices()}
+    />,
+  );
+
+  await expect.element(screen.getByText("No pudimos verificar tu sesión")).toBeVisible();
+  await expect.element(screen.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
 });

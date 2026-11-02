@@ -1,6 +1,9 @@
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import { releaseMonitorThatTurnsOutdated } from "../platform/test-support/release-monitor";
+import {
+  OUTDATED_TAB_ADVICE,
+  releaseMonitorThatTurnsOutdated,
+} from "../platform/test-support/release-monitor";
 import type { PricesListScreenServices } from "./prices-list-services";
 import {
   createServices,
@@ -587,6 +590,6 @@ test("a tab that learns it is outdated while a price confirmation is refused tel
   );
 
   await expect.element(screen.getByText("No se pudo confirmar el precio de Arroz")).toBeVisible();
-  await expect.element(screen.getByText("Recargá la página para seguir.")).toBeVisible();
+  await expect.element(screen.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
   expect(screen.getByText("Probá de nuevo.").query()).toBeNull();
 });

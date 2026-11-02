@@ -1,6 +1,7 @@
 import type { ComponentProps } from "react";
 import { beforeEach, expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import {
   FinishTicketRecoveryModal,
@@ -158,4 +159,18 @@ test("ends the session when finishing finds no open session", async () => {
 test("refuses to render without the services the screen composes", () => {
   type Props = ComponentProps<typeof FinishTicketRecoveryModal>;
   expectTypeOf<Omit<Props, "services">>().not.toExtend<Props>();
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when finishing the rescue is refused", async () => {
+  openAsOutdatedTab();
+  const finishContingencyTicketRecovery = vi
+    .fn<FinishTicketRecoveryModalServices["finishContingencyTicketRecovery"]>()
+    .mockResolvedValue({ kind: "failed" });
+  const screen = await renderModal({ finishContingencyTicketRecovery });
+  const dialog = await confirm(screen);
+
+  await expect.element(dialog.getByText("No se pudo terminar el rescate")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  expect(dialog.getByText("Probá de nuevo.").query()).toBeNull();
+  await expect.element(dialog.getByRole("button", { name: "Terminar el rescate" })).toBeEnabled();
 });

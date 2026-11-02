@@ -1,4 +1,5 @@
 import { expect, test } from "vitest";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import {
   SupplierPriceListChangeNotices,
@@ -97,4 +98,17 @@ test("shows nothing without a notice, and leaves a missing date to its field", a
     />,
   );
   expect(date.getByRole("alert").query()).toBeNull();
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when a change failed", async () => {
+  openAsOutdatedTab();
+  const screen = await render(
+    <SupplierPriceListChangeNotices
+      notice={{ kind: "attemptFailed" }}
+      failedTitle="No se guardó el cambio"
+    />,
+  );
+
+  await expect.element(screen.getByText("No se guardó el cambio")).toBeVisible();
+  await expect.element(screen.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
 });

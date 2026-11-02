@@ -49,12 +49,12 @@ test("does not accept a notification without a title", () => {
   }>().not.toExtend<NotificationCardProps>();
 });
 
-test("does not accept a notification without a description", () => {
+test("accepts a notification without a description", () => {
   expectTypeOf<{
     tone: "success";
     icon: Icon;
     title: string;
-  }>().not.toExtend<NotificationCardProps>();
+  }>().toExtend<NotificationCardProps>();
 });
 
 test("exposes the notice's text to assistive technology exactly once", async () => {
@@ -228,6 +228,13 @@ test("omits the what-to-do and time lines when the caller does not supply them",
   );
 
   await expect.poll(() => screen.container.textContent).toBe("TitleDetailTitle Detail");
+});
+
+test("shows only its title when it has no description", async () => {
+  const screen = await render(<NotificationCard tone="info" icon={<Info />} title="Title" />);
+
+  await expect.element(screen.getByText("Title", { exact: true }).first()).toBeVisible();
+  expect(screen.container.querySelectorAll("p")).toHaveLength(1);
 });
 
 test("takes its container's width by default", async () => {

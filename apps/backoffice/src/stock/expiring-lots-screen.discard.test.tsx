@@ -2,7 +2,10 @@ import type { ExpiringLotList } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import { releaseMonitorThatTurnsOutdated } from "../platform/test-support/release-monitor";
+import {
+  OUTDATED_TAB_ADVICE,
+  releaseMonitorThatTurnsOutdated,
+} from "../platform/test-support/release-monitor";
 import {
   almondOilExpiredLot,
   chiaExpiredLot,
@@ -178,6 +181,6 @@ test("a tab that learns it is outdated while a discard is refused tells the pers
   await userEvent.click(screen.getByRole("button", { name: "Dar de baja el lote L-SC02" }));
 
   await expect.element(screen.getByText("No se pudo dar de baja el lote")).toBeVisible();
-  await expect.element(screen.getByText("Recargá la página para seguir.")).toBeVisible();
+  await expect.element(screen.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
   expect(screen.getByText("Probá de nuevo.").query()).toBeNull();
 });

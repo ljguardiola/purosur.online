@@ -3,6 +3,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
 import { expect, test, vi } from "vitest";
 import { type Locator, userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import {
   EditFiscalAddressModal,
@@ -269,4 +270,17 @@ test("shows a stale-version notice, and Recargar reads the data again so the sec
     street_address: "Calle Ficticia 123, CABA",
     version: 5,
   });
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when saving the fiscal address is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices();
+  vi.mocked(services.editFiscalAddress).mockResolvedValue({ kind: "failed" });
+  const { dialog } = await renderModal({ services });
+
+  await save(dialog);
+
+  await expect.element(dialog.getByText("No se pudo guardar el cambio")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  expect(dialog.getByText("Probá de nuevo.").query()).toBeNull();
 });

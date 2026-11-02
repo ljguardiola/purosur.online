@@ -1,5 +1,15 @@
 import { expect, test } from "vitest";
-import { type ReadNotice, readNoticeContent } from "./supplier-price-list-read-notice";
+import { render } from "vitest-browser-react";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
+import {
+  type ReadNotice,
+  readNoticeContent,
+  useReadNoticeContent,
+} from "./supplier-price-list-read-notice";
+
+function ReadNoticeDescription({ notice }: { notice: ReadNotice }) {
+  return <p>{useReadNoticeContent(notice)?.description}</p>;
+}
 
 test.each([
   [
@@ -68,6 +78,23 @@ test.each([
 ] as const satisfies readonly (readonly [ReadNotice, string, string, string])[])(
   "tells %j",
   (notice, tone, title, description) => {
-    expect(readNoticeContent(notice)).toMatchObject({ tone, title, description });
+    expect(readNoticeContent(notice, "Volvé a intentarlo.")).toMatchObject({
+      tone,
+      title,
+      description,
+    });
   },
 );
+
+test("tells a tab running the deployed release to try loading the list again", async () => {
+  const screen = await render(<ReadNoticeDescription notice={{ kind: "attemptFailed" }} />);
+
+  await expect.element(screen.getByText("Volvé a intentarlo.")).toBeVisible();
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when loading the list failed", async () => {
+  openAsOutdatedTab();
+  const screen = await render(<ReadNoticeDescription notice={{ kind: "attemptFailed" }} />);
+
+  await expect.element(screen.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+});

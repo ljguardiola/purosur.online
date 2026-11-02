@@ -2,7 +2,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { ReleaseMonitorContext } from "../platform/release-monitor";
-import { fakeReleaseMonitor } from "../platform/test-support/release-monitor";
+import { fakeReleaseMonitor, OUTDATED_TAB_ADVICE } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import {
   ReleaseQuarantinedEventModal,
@@ -158,6 +158,6 @@ test("tells an outdated tab that the backoffice was updated when the release is 
   const screen = await renderModal({ releaseQuarantinedEvent, outdatedTab: true });
   const dialog = await confirm(screen);
 
-  await expect.element(dialog.getByText("Se actualizó el backoffice")).toBeVisible();
-  expect(dialog.getByText("No pudimos liberar el evento").query()).toBeNull();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  await expect.element(dialog.getByText("No pudimos liberar el evento")).toBeVisible();
 });

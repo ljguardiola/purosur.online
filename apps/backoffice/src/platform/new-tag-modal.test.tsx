@@ -4,6 +4,7 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { NewTagModal, type NewTagModalServices } from "./new-tag-modal";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "./test-support/release-monitor";
 import { vegano } from "./test-support/tags";
 
 beforeEach(() => {
@@ -166,4 +167,18 @@ test("opens with the name it is given already typed", async () => {
   await expect
     .element(screen.getByRole("dialog").getByRole("textbox", { name: /^Nombre/ }))
     .toHaveValue("Orgánico");
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when creating the tag is refused", async () => {
+  openAsOutdatedTab();
+  const createTag = vi.fn<NewTagModalServices["createTag"]>().mockResolvedValue({
+    kind: "failed",
+  });
+  const screen = await renderModal({ createTag });
+
+  const dialog = await submitName(screen, "Vegano");
+
+  await expect.element(dialog.getByText("No se guardó el distintivo")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  expect(dialog.getByText("Volvé a intentarlo.").query()).toBeNull();
 });

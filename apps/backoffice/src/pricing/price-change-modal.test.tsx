@@ -2,6 +2,7 @@ import type { PriceProduct } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import { PriceChangeModal, type PriceChangeModalProps } from "./price-change-modal";
 
@@ -538,4 +539,22 @@ test("groups thousands and takes a typed dot as the decimal comma in the price",
   await userEvent.type(field, "1234.5");
 
   await expect.element(field).toHaveValue("1.234,5");
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when saving the price is refused", async () => {
+  openAsOutdatedTab();
+  const props = createProps();
+  vi.mocked(props.setPrice).mockResolvedValue({
+    kind: "validation_failed",
+    field: "something_new",
+  });
+  const screen = await renderModal(props);
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.fill(dialog.getByLabelText("Precio de venta por kilo"), "8000");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar el precio nuevo" }));
+
+  await expect.element(dialog.getByText("No se pudo guardar el precio")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  expect(dialog.getByText("Revisá el precio.").query()).toBeNull();
 });

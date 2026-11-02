@@ -2,6 +2,7 @@ import type { TagSummary } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { organico, sinTacc } from "../platform/test-support/tags";
 import { render } from "../shell/test-support/render-with-router";
 import type { TagReload } from "./catalog-queries";
@@ -231,4 +232,16 @@ test("cancel closes the modal without calling the API", async () => {
 
   expect(onClose).toHaveBeenCalledTimes(1);
   expect(editTag).not.toHaveBeenCalled();
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when saving is refused", async () => {
+  openAsOutdatedTab();
+  const editTag = vi.fn<EditTagModalServices["editTag"]>().mockResolvedValue({ kind: "failed" });
+  const screen = await renderModal({ editTag });
+
+  const dialog = await save(screen);
+
+  await expect.element(dialog.getByText("No se guardó el distintivo")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  expect(dialog.getByText("Volvé a intentarlo.").query()).toBeNull();
 });

@@ -3,6 +3,7 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { drinks, groceries, spreads } from "../platform/test-support/categories";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import type { createCategory } from "./categories-api";
 import { NewCategoryModal } from "./new-category-modal";
@@ -291,4 +292,21 @@ test("typing a parent category that does not exist offers to create it in a moda
   await expect
     .element(dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }))
     .toHaveValue("Gaseosas");
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when creating the category is refused", async () => {
+  openAsOutdatedTab();
+  const create = vi.fn<typeof createCategory>().mockResolvedValue({
+    kind: "validation_failed",
+    field: "version",
+  });
+  const screen = await renderModal({ categories: [], create });
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }), "Snacks");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la categoría" }));
+
+  await expect.element(dialog.getByText("No se pudo crear la categoría")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  expect(dialog.getByText("Ingresá el nombre de la categoría.").query()).toBeNull();
 });

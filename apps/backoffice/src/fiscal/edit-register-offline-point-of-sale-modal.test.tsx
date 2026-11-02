@@ -3,6 +3,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
 import { expect, test, vi } from "vitest";
 import { type Locator, userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import {
   EditRegisterOfflinePointOfSaleModal,
@@ -324,4 +325,17 @@ test("shows a stale-version notice, and Recargar brings the offline number and v
     point_of_sale_number: 31,
     version: 6,
   });
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when saving the offline point of sale is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices();
+  vi.mocked(services.configureRegisterOfflinePointOfSale).mockResolvedValue({ kind: "failed" });
+  const { dialog } = await renderModal({ services });
+
+  await save(dialog);
+
+  await expect.element(dialog.getByText("No se pudo guardar el cambio")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  expect(dialog.getByText("Probá de nuevo.").query()).toBeNull();
 });

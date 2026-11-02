@@ -1,5 +1,6 @@
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import type { Passkey } from "./passkey-list";
 import {
@@ -227,4 +228,16 @@ test("navigates to Mi cuenta when the removal retried after the authorization co
   );
 
   await expect.poll(() => window.location.pathname).toBe("/account");
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when the removal is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices();
+  vi.mocked(services.removeUserPasskey).mockResolvedValue({ kind: "failed" });
+  const { dialog } = await renderModal(services);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
+
+  await expect.element(dialog.getByText("No se pudo dar de baja la passkey")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
 });

@@ -5,7 +5,7 @@ import { expect, test, vi } from "vitest";
 import { type Locator, userEvent } from "vitest/browser";
 import { ReleaseMonitorContext } from "../platform/release-monitor";
 import { deferred } from "../platform/test-support/deferred";
-import { fakeReleaseMonitor } from "../platform/test-support/release-monitor";
+import { fakeReleaseMonitor, OUTDATED_TAB_ADVICE } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import { CloseFiscalTaskModal, type CloseFiscalTaskModalServices } from "./close-fiscal-task-modal";
 import type { CloseFiscalTaskOutcome } from "./fiscal-tasks-api";
@@ -307,6 +307,6 @@ test("tells an outdated tab that the backoffice was updated when closing the tas
 
   await closeWith(dialog, "Listo");
 
-  await expect.element(dialog.getByText("Se actualizó el backoffice")).toBeVisible();
-  expect(dialog.getByText("No se pudo cerrar la tarea").query()).toBeNull();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  await expect.element(dialog.getByText("No se pudo cerrar la tarea")).toBeVisible();
 });

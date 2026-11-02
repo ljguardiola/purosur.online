@@ -3,7 +3,7 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { BranchUser } from "../platform/branch-users-api";
 import { ReleaseMonitorContext } from "../platform/release-monitor";
-import { fakeReleaseMonitor } from "../platform/test-support/release-monitor";
+import { fakeReleaseMonitor, OUTDATED_TAB_ADVICE } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import { DeactivateUserModal, type DeactivateUserModalServices } from "./deactivate-user-modal";
 
@@ -208,8 +208,8 @@ test("tells an outdated tab that the backoffice was updated when the deactivatio
 
   await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
 
-  await expect.element(dialog.getByText("Se actualizó el backoffice")).toBeVisible();
-  expect(dialog.getByText("No se pudo desactivar el usuario").query()).toBeNull();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  await expect.element(dialog.getByText("No se pudo desactivar el usuario")).toBeVisible();
 });
 
 test("has no accessibility violations with the deactivate modal open", async () => {

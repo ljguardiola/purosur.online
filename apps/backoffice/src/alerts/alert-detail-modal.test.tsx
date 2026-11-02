@@ -13,6 +13,7 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { permissionCatalogFixture } from "../platform/test-support/permission-catalog";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import {
   ADMINISTRATOR_ACCESS,
@@ -3102,4 +3103,18 @@ test("tells ARCA lists a fortnight of a point of sale this system does not run a
     .toBeVisible();
   expect(screen.getByText(/No se cierra sola/).query()).toBeNull();
   await expectNoAccessibilityViolations(document.body);
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when closing the alert is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(ok(baseDetail()));
+  vi.mocked(services.closeAlert).mockResolvedValue({ kind: "failed" });
+  const screen = await renderModal(services);
+  await expect.element(screen.getByRole("button", { name: "Cerrar la alerta" })).toBeEnabled();
+
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar la alerta" }));
+
+  await expect.element(screen.getByText("No se pudo cerrar la alerta")).toBeVisible();
+  await expect.element(screen.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
 });

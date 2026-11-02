@@ -1,7 +1,7 @@
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { ReleaseMonitorContext } from "../platform/release-monitor";
-import { fakeReleaseMonitor } from "../platform/test-support/release-monitor";
+import { fakeReleaseMonitor, OUTDATED_TAB_ADVICE } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import { EndEverySessionModal, type EndEverySessionModalServices } from "./end-every-session-modal";
 
@@ -149,6 +149,6 @@ test("tells an outdated tab that the backoffice was updated when ending the sess
 
   await userEvent.click(dialog.getByRole("button", { name: "Cerrar todas las sesiones" }));
 
-  await expect.element(dialog.getByText("Se actualizó el backoffice")).toBeVisible();
-  expect(dialog.getByText("No se pudieron cerrar las sesiones").query()).toBeNull();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  await expect.element(dialog.getByText("No se pudieron cerrar las sesiones")).toBeVisible();
 });

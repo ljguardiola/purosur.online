@@ -3,6 +3,7 @@ import { expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
+import { FloatingNotification } from "./floating-notification";
 import {
   PersistentNotification,
   type PersistentNotificationProps,
@@ -29,7 +30,7 @@ test("does not accept a notification without an action", () => {
   }>().not.toExtend<PersistentNotificationProps>();
 });
 
-test("shows its text and floats at the bottom-right corner in a portal on the page body", async () => {
+test("shows its text and floats at the top centre of the page in a portal on the page body", async () => {
   const screen = await render(notification());
   const card = screen.getByText("New version").element();
   const floating = Array.from(document.body.children).find((child) => child.contains(card));
@@ -38,8 +39,47 @@ test("shows its text and floats at the bottom-right corner in a portal on the pa
   await expect.element(screen.getByText("Reload to use it")).toBeVisible();
   expect(screen.container.contains(card)).toBe(false);
   expect(getComputedStyle(floating as HTMLElement).position).toBe("fixed");
-  expect(window.innerWidth - rect.right).toBeCloseTo(24, 0);
-  expect(window.innerHeight - rect.bottom).toBeCloseTo(24, 0);
+  expect(rect.top).toBeCloseTo(24, 0);
+  expect(rect.left + rect.width / 2).toBeCloseTo(window.innerWidth / 2, 0);
+});
+
+test("stays reachable while a notification that never expires is shown", async () => {
+  const onPress = vi.fn();
+  const screen = await render(
+    <>
+      {notification(onPress)}
+      <FloatingNotification
+        tone="error"
+        icon={<Info />}
+        title="Could not save"
+        description="Try again"
+        whatToDo="Check the connection"
+        onDismiss={() => {}}
+      />
+    </>,
+  );
+  const reload = screen.getByRole("button", { name: "Reload" }).element();
+  const rect = reload.getBoundingClientRect();
+
+  const reached = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+
+  expect(reload.contains(reached)).toBe(true);
+});
+
+test("shows only its title and action when it has no description", async () => {
+  const screen = await render(
+    <PersistentNotification
+      tone="info"
+      icon={<Info />}
+      title="New version"
+      action={{ label: "Reload", onPress: () => {} }}
+    />,
+  );
+
+  await expect.element(screen.getByRole("button", { name: "Reload" })).toBeVisible();
+  const action = screen.getByRole("button", { name: "Reload" }).element();
+  const floating = Array.from(document.body.children).find((child) => child.contains(action));
+  expect(floating?.querySelectorAll("p")).toHaveLength(1);
 });
 
 test("runs its action when the action button is pressed", async () => {

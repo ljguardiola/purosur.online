@@ -20,13 +20,14 @@ test("shows nothing while the tab runs the deployed release", async () => {
   expect(screen.getByRole("button", { name: "Recargar" }).query()).toBeNull();
 });
 
-test("tells an outdated tab that a new version is available and to save what it is typing", async () => {
+test("tells an outdated tab only that a new version is available, beside Recargar", async () => {
   const screen = await render(notice(true));
 
-  await expect.element(screen.getByText("Hay una versión nueva del backoffice")).toBeVisible();
-  await expect
-    .element(screen.getByText("Recargá la página para usarla. Guardá antes lo que estés cargando."))
-    .toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Recargar" })).toBeVisible();
+  const action = screen.getByRole("button", { name: "Recargar" }).element();
+  const card = Array.from(document.body.children).find((child) => child.contains(action));
+  expect(card?.querySelector("p")?.textContent).toBe("Hay una versión nueva del backoffice");
+  expect(card?.querySelectorAll("p")).toHaveLength(1);
 });
 
 test("reloads the page only when the person uses Recargar", async () => {

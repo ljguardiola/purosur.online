@@ -2,6 +2,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { StrictMode, useState } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import { RegisterPasskeyScreen } from "./register-passkey-screen";
 import type { RegisterPasskeyScreenServices } from "./register-passkey-services";
@@ -715,4 +716,24 @@ test("a later visit reads a new challenge instead of showing the one of the earl
   await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
   expect(screen.getByRole("button", { name: "Registrar la passkey" }).query()).toBeNull();
   expect(fetchRegistrationOptions).toHaveBeenCalledTimes(2);
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when redeeming the link is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices({
+    fetchRegistrationOptions: vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: { displayName: "Lucía Pérez", options: registrationOptions },
+    }),
+    startRegistration: vi.fn().mockResolvedValue(registrationResponse),
+    redeemRecovery: vi.fn().mockResolvedValue({ kind: "failed" }),
+  });
+
+  const screen = await render(<RegisterPasskeyScreen services={services} />);
+  await fillName(screen, PASSKEY_NAME);
+  await userEvent.click(screen.getByRole("button", { name: "Registrar la passkey" }));
+
+  await expect.element(screen.getByText("No se pudo registrar la passkey")).toBeVisible();
+  await expect.element(screen.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  expect(services.signalUnknownCredential).not.toHaveBeenCalled();
 });
