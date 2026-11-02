@@ -11,4 +11,5 @@ export interface ContingencyLeftFact {
 
 export interface ContingencyReportingStartedFact {
   since: Date;
+  fromEnrollment: boolean;
 }
