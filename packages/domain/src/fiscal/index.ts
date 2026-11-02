@@ -31,6 +31,7 @@ export {
   replayedClockMark,
 } from "./model/clock-correction.js";
 export { CONTINGENCY_KINDS, contingencyOf, isConnectivityGap } from "./model/connectivity-gap.js";
+export { countsAsContingencyTime } from "./model/contingency-time.js";
 export { selectConsumerBuyerTaxStatus } from "./model/consumer-buyer-tax-status.js";
 export type { CreditNoteReason } from "./model/credit-note.js";
 export {

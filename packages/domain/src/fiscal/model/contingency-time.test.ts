@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { countsAsContingencyTime } from "./contingency-time.js";
-import {
-  DEFERRAL_REASONS,
-  OFFLINE_AUTHORIZATION_CAUSES,
-} from "./real-time-authorization.js";
+import { DEFERRAL_REASONS, OFFLINE_AUTHORIZATION_CAUSES } from "./real-time-authorization.js";
 
 describe("countsAsContingencyTime", () => {
   it("does not count while the register authorizes in real time", () => {
