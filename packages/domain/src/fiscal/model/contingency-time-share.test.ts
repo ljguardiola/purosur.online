@@ -139,6 +139,16 @@ describe("arcaAvailableSpans", () => {
     expect(arcaAvailableSpans([...runs].reverse())).toEqual(arcaAvailableSpans(runs));
   });
 
+  it("merges the spans of runs that follow one another without a gap", () => {
+    expect(arcaAvailableSpans([answeredBetween(true, 0, 60), run(true, 60)])).toEqual([
+      { start: minute(0), end: new Date(minute(60).getTime() + ARCA_REACHABILITY_HORIZON_MS) },
+    ]);
+  });
+
+  it("leaves out the answer of a probe that another probe at the same instant replaced", () => {
+    expect(arcaAvailableSpans([run(true, 0), run(false, 0)])).toEqual([]);
+  });
+
   it("answers nothing without runs", () => {
     expect(arcaAvailableSpans([])).toEqual([]);
   });
@@ -175,6 +185,15 @@ describe("contingencyTimeMeasurement", () => {
     const result = measure({ runs: [run(true, 0), run(true, 10)] });
 
     expect(result.availableMs).toBe(2 * ARCA_REACHABILITY_HORIZON_MS);
+  });
+
+  it("counts only the contingency that falls within a later span of availability", () => {
+    const result = measure({
+      runs: [answeredBetween(true, 0, 100), answeredBetween(true, 200, 300)],
+      parts: [part("register-1", 220, 280)],
+    });
+
+    expect(result.contingencyMs).toBe(60 * MINUTE);
   });
 
   it("clips contingency that began before the month or runs past it", () => {
@@ -270,6 +289,10 @@ describe("contingencyTimeMeasurement", () => {
       shareTenthsOfPercent: null,
       state: "no_data",
     });
+  });
+
+  it("has no data when the last probe before the month stops holding exactly when it begins", () => {
+    expect(measure({ runs: [answeredBetween(true, -10, 0)] }).state).toBe("no_data");
   });
 
   it("has no data when the only probes of the month lie outside it", () => {
