@@ -93,8 +93,8 @@ test("names the alert of a fiscal address month that reached the share of vouche
 });
 
 test("names the alert of a month that follows a non-compliant one and may become a second consecutive one", () => {
-  expect(alertKindLabel("exception_share_second_month_at_risk")).toBe(
-    "Riesgo de un segundo mes consecutivo por excepción",
+  expect(alertKindLabel("second_non_compliant_month_at_risk")).toBe(
+    "Riesgo de un segundo mes consecutivo fuera del límite",
   );
 });
 

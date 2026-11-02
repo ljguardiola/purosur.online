@@ -9,8 +9,8 @@ import {
 } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { act } from "react";
-import { beforeEach, expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { beforeEach, expect, onTestFinished, test, vi } from "vitest";
+import { page, userEvent } from "vitest/browser";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { permissionCatalogFixture } from "../platform/test-support/permission-catalog";
 import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
@@ -2491,14 +2491,16 @@ test("agrees the verb with a single comprobante issued by exception among severa
 });
 
 function secondMonthAtRiskAlert(
-  figures: { exceptionCount: number; totalCount: number; shareTenthsOfPercent: number | null } = {
-    exceptionCount: 3,
-    totalCount: 80,
-    shareTenthsOfPercent: 37,
-  },
+  figures: {
+    exceptionCount?: number;
+    totalCount?: number;
+    exceptionShareTenthsOfPercent?: number | null;
+    previousMonthNonCompliantOn?: ("exception_share" | "contingency_time")[];
+    contingencyShareTenthsOfPercent?: number | null;
+  } = {},
 ) {
   return baseDetail({
-    kind: "exception_share_second_month_at_risk",
+    kind: "second_non_compliant_month_at_risk",
     level: "warning",
     audience: "all",
     scope: "fiscal-address-1:2026-11",
@@ -2510,13 +2512,21 @@ function secondMonthAtRiskAlert(
       fiscalAddressName: "Local Centro",
       month: "2026-11",
       previousMonth: "2026-10",
-      nonCompliancePercent: 5,
+      exceptionShareNonCompliancePercent: 5,
+      contingencyNonCompliancePercent: 5,
+      exceptionCount: 3,
+      totalCount: 80,
+      exceptionShareTenthsOfPercent: 37,
+      previousMonthNonCompliantOn: ["exception_share"],
+      contingencyShareTenthsOfPercent: 22,
       ...figures,
     },
   });
 }
 
 test("warns that the month in progress may become a second consecutive one, with its running share and without saying anything was restricted", async () => {
+  await page.viewport(1280, 900);
+  onTestFinished(() => page.viewport(414, 896));
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(ok(secondMonthAtRiskAlert()));
 
@@ -2524,13 +2534,13 @@ test("warns that the month in progress may become a second consecutive one, with
 
   await expect
     .element(
-      screen.getByText("Riesgo de un segundo mes consecutivo por excepción", { exact: true }),
+      screen.getByText("Riesgo de un segundo mes consecutivo fuera del límite", { exact: true }),
     )
     .toBeVisible();
   await expect
     .element(
       screen.getByText(
-        "En noviembre de 2026 se emitieron por excepción (CAEA) 3 de 80 comprobantes de este domicilio fiscal, el 3,7 %. El mes anterior, octubre de 2026, ya llegó al 5 % o más: si noviembre de 2026 también llega, serían dos meses consecutivos y ARCA puede restringir el uso del CAEA, lo que comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Este aviso termina cuando cierra el mes.",
+        "En noviembre de 2026 se emitieron por excepción (CAEA) 3 de 80 comprobantes de este domicilio fiscal, el 3,7 %. En noviembre de 2026 estuvo en contingencia el 2,2 % del tiempo en que ARCA estuvo disponible. El mes anterior, octubre de 2026, ya llegó al 5 % o más de comprobantes por excepción (CAEA): si noviembre de 2026 también queda fuera del límite en alguna de las dos mediciones, serían dos meses consecutivos y ARCA puede restringir el uso del CAEA, lo que comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Este aviso termina cuando cierra el mes.",
         { exact: true },
       ),
     )
@@ -2542,7 +2552,13 @@ test("warns that the month in progress may become a second consecutive one, with
 test("says the month has no vouchers yet instead of a share when the fiscal address issued none", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(
-    ok(secondMonthAtRiskAlert({ exceptionCount: 0, totalCount: 0, shareTenthsOfPercent: null })),
+    ok(
+      secondMonthAtRiskAlert({
+        exceptionCount: 0,
+        totalCount: 0,
+        exceptionShareTenthsOfPercent: null,
+      }),
+    ),
   );
 
   const screen = await renderModal(services);
@@ -2550,8 +2566,65 @@ test("says the month has no vouchers yet instead of a share when the fiscal addr
   await expect
     .element(
       screen.getByText(
-        "En noviembre de 2026 todavía no se emitieron comprobantes en este domicilio fiscal. El mes anterior, octubre de 2026, ya llegó al 5 % o más: si noviembre de 2026 también llega, serían dos meses consecutivos y ARCA puede restringir el uso del CAEA, lo que comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Este aviso termina cuando cierra el mes.",
+        "En noviembre de 2026 todavía no se emitieron comprobantes en este domicilio fiscal. En noviembre de 2026 estuvo en contingencia el 2,2 % del tiempo en que ARCA estuvo disponible. El mes anterior, octubre de 2026, ya llegó al 5 % o más de comprobantes por excepción (CAEA): si noviembre de 2026 también queda fuera del límite en alguna de las dos mediciones, serían dos meses consecutivos y ARCA puede restringir el uso del CAEA, lo que comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Este aviso termina cuando cierra el mes.",
         { exact: true },
+      ),
+    )
+    .toBeVisible();
+});
+
+test("says the share of time in contingency has no data yet instead of a share", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(secondMonthAtRiskAlert({ contingencyShareTenthsOfPercent: null })),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(
+      screen.getByText(
+        "En noviembre de 2026 se emitieron por excepción (CAEA) 3 de 80 comprobantes de este domicilio fiscal, el 3,7 %. Tiempo en contingencia en noviembre de 2026: Sin datos. El mes anterior, octubre de 2026, ya llegó al 5 % o más de comprobantes por excepción (CAEA): si noviembre de 2026 también queda fuera del límite en alguna de las dos mediciones, serían dos meses consecutivos y ARCA puede restringir el uso del CAEA, lo que comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Este aviso termina cuando cierra el mes.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+});
+
+test("says the previous month passed the limit of time in contingency when that was its only measurement", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(secondMonthAtRiskAlert({ previousMonthNonCompliantOn: ["contingency_time"] })),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(
+      screen.getByText(
+        "En noviembre de 2026 se emitieron por excepción (CAEA) 3 de 80 comprobantes de este domicilio fiscal, el 3,7 %. En noviembre de 2026 estuvo en contingencia el 2,2 % del tiempo en que ARCA estuvo disponible. El mes anterior, octubre de 2026, ya estuvo en contingencia más del 5 % del tiempo en que ARCA estuvo disponible: si noviembre de 2026 también queda fuera del límite en alguna de las dos mediciones, serían dos meses consecutivos y ARCA puede restringir el uso del CAEA, lo que comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Este aviso termina cuando cierra el mes.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+});
+
+test("says the previous month passed both limits when it failed both measurements", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      secondMonthAtRiskAlert({
+        previousMonthNonCompliantOn: ["exception_share", "contingency_time"],
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(
+      screen.getByText(
+        /El mes anterior, octubre de 2026, ya llegó al 5 % o más de comprobantes por excepción \(CAEA\) y estuvo en contingencia más del 5 % del tiempo en que ARCA estuvo disponible: si noviembre de 2026/,
       ),
     )
     .toBeVisible();
@@ -2560,7 +2633,13 @@ test("says the month has no vouchers yet instead of a share when the fiscal addr
 test("says a single comprobante issued by exception in the singular in the warning about a second month", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(
-    ok(secondMonthAtRiskAlert({ exceptionCount: 1, totalCount: 1, shareTenthsOfPercent: 1000 })),
+    ok(
+      secondMonthAtRiskAlert({
+        exceptionCount: 1,
+        totalCount: 1,
+        exceptionShareTenthsOfPercent: 1000,
+      }),
+    ),
   );
 
   const screen = await renderModal(services);
@@ -2568,7 +2647,7 @@ test("says a single comprobante issued by exception in the singular in the warni
   await expect
     .element(
       screen.getByText(
-        "En noviembre de 2026 se emitió por excepción (CAEA) 1 de 1 comprobante de este domicilio fiscal, el 100,0 %. El mes anterior, octubre de 2026, ya llegó al 5 % o más: si noviembre de 2026 también llega, serían dos meses consecutivos y ARCA puede restringir el uso del CAEA, lo que comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Este aviso termina cuando cierra el mes.",
+        "En noviembre de 2026 se emitió por excepción (CAEA) 1 de 1 comprobante de este domicilio fiscal, el 100,0 %. En noviembre de 2026 estuvo en contingencia el 2,2 % del tiempo en que ARCA estuvo disponible. El mes anterior, octubre de 2026, ya llegó al 5 % o más de comprobantes por excepción (CAEA): si noviembre de 2026 también queda fuera del límite en alguna de las dos mediciones, serían dos meses consecutivos y ARCA puede restringir el uso del CAEA, lo que comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Este aviso termina cuando cierra el mes.",
         { exact: true },
       ),
     )
@@ -2578,7 +2657,13 @@ test("says a single comprobante issued by exception in the singular in the warni
 test("says one comprobante issued by exception in the singular out of several in the warning about a second month", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(
-    ok(secondMonthAtRiskAlert({ exceptionCount: 1, totalCount: 80, shareTenthsOfPercent: 12 })),
+    ok(
+      secondMonthAtRiskAlert({
+        exceptionCount: 1,
+        totalCount: 80,
+        exceptionShareTenthsOfPercent: 12,
+      }),
+    ),
   );
 
   const screen = await renderModal(services);
@@ -2586,7 +2671,7 @@ test("says one comprobante issued by exception in the singular out of several in
   await expect
     .element(
       screen.getByText(
-        "En noviembre de 2026 se emitió por excepción (CAEA) 1 de 80 comprobantes de este domicilio fiscal, el 1,2 %. El mes anterior, octubre de 2026, ya llegó al 5 % o más: si noviembre de 2026 también llega, serían dos meses consecutivos y ARCA puede restringir el uso del CAEA, lo que comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Este aviso termina cuando cierra el mes.",
+        "En noviembre de 2026 se emitió por excepción (CAEA) 1 de 80 comprobantes de este domicilio fiscal, el 1,2 %. En noviembre de 2026 estuvo en contingencia el 2,2 % del tiempo en que ARCA estuvo disponible. El mes anterior, octubre de 2026, ya llegó al 5 % o más de comprobantes por excepción (CAEA): si noviembre de 2026 también queda fuera del límite en alguna de las dos mediciones, serían dos meses consecutivos y ARCA puede restringir el uso del CAEA, lo que comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Este aviso termina cuando cierra el mes.",
         { exact: true },
       ),
     )

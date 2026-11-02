@@ -7,6 +7,7 @@ import {
   FACTURA_C_DOCUMENT_TYPE,
   FORTNIGHT_REPORT_PENDING_REASONS,
   MERCADO_PAGO_PAYMENT_METHODS,
+  NON_COMPLIANT_MEASUREMENTS,
   OFFSITE_DUMP_UNVERIFIED_REASONS,
   PRE_EMISSION_GATE_FAILURE_REASONS,
   REJECTION_CLASSES,
@@ -287,15 +288,18 @@ const exceptionShareBreachDetailSchema = z.object({
   nonCompliancePercent: z.int(),
 });
 
-const exceptionShareSecondMonthAtRiskDetailSchema = z.object({
+const secondNonCompliantMonthAtRiskDetailSchema = z.object({
   fiscalAddressId: z.string(),
   fiscalAddressName: z.string(),
   month: z.string(),
   previousMonth: z.string(),
   exceptionCount: z.int(),
   totalCount: z.int(),
-  shareTenthsOfPercent: z.int().nullable(),
-  nonCompliancePercent: z.int(),
+  exceptionShareTenthsOfPercent: z.int().nullable(),
+  exceptionShareNonCompliancePercent: z.int(),
+  previousMonthNonCompliantOn: z.array(z.enum(NON_COMPLIANT_MEASUREMENTS)).min(1),
+  contingencyShareTenthsOfPercent: z.int().nullable(),
+  contingencyNonCompliancePercent: z.int(),
 });
 
 const fortnightReportDocumentRejectedDetailSchema =
@@ -513,8 +517,8 @@ const alertDetailKinds = [
   }),
   z.object({
     ...alertBase,
-    kind: z.literal("exception_share_second_month_at_risk" satisfies AlertKind),
-    detail: exceptionShareSecondMonthAtRiskDetailSchema,
+    kind: z.literal("second_non_compliant_month_at_risk" satisfies AlertKind),
+    detail: secondNonCompliantMonthAtRiskDetailSchema,
   }),
 ] as const;
 

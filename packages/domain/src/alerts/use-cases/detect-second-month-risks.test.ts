@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { RecordedExceptionShareBreach } from "../../fiscal/index.js";
+import type {
+  ArcaAvailabilityRun,
+  ContingencyPart,
+  RecordedExceptionShareBreach,
+} from "../../fiscal/index.js";
 import { argentinaInstant, FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
 import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import { detectSecondNonCompliantMonthRisks } from "./detect-second-month-risks.js";
@@ -32,43 +36,82 @@ function running(
   return { fiscalAddressId, month, exceptionCount, totalCount };
 }
 
+const HOUR_MS = 3_600_000;
+
+function availableSince(day: string, until: string): ArcaAvailabilityRun[] {
+  return [{ ok: true, firstCheckedAt: at(day), lastCheckedAt: at(until) }];
+}
+
+function contingencyOf(
+  fiscalAddressId: string,
+  day: string,
+  hours: number,
+): [string, { parts: ContingencyPart[]; registers: [] }] {
+  const start = at(day);
+  return [
+    fiscalAddressId,
+    {
+      parts: [
+        { registerId: "r-1", start, end: new Date(start.getTime() + Math.round(hours * HOUR_MS)) },
+      ],
+      registers: [],
+    },
+  ];
+}
+
 function detect({
   today,
   breaches = [],
   counts = [],
   alerts = new FakeSecondMonthRiskAlerts(),
+  addresses,
+  runs,
+  contingency,
 }: {
   today: string;
   breaches?: RecordedExceptionShareBreach[];
   counts?: ReturnType<typeof running>[];
   alerts?: FakeSecondMonthRiskAlerts;
+  addresses?: { fiscalAddressId: string; fiscalAddressName: string }[];
+  runs?: ArcaAvailabilityRun[];
+  contingency?: ReadonlyMap<string, { parts: ContingencyPart[]; registers: [] }>;
 }) {
+  const risks = new FakeSecondMonthRiskReader({ breaches, counts, addresses, runs, contingency });
   const outcome = detectSecondNonCompliantMonthRisks({
-    risks: new FakeSecondMonthRiskReader(breaches, counts),
+    risks,
     alerts,
     clock: new FixedClock(at(today)),
     zoneRules: new FakeZoneRulesSource(),
   });
-  return { alerts, outcome };
+  return { alerts, outcome, risks };
 }
 
 function held(
   fiscalAddressId: string,
   month: string,
   previousMonth: string,
-  figures: { exceptionCount: number; totalCount: number; shareTenthsOfPercent: number | null },
+  figures: {
+    exceptionCount: number;
+    totalCount: number;
+    exceptionShareTenthsOfPercent: number | null;
+    previousMonthNonCompliantOn?: string[];
+    contingencyShareTenthsOfPercent?: number | null;
+  },
 ) {
   return {
     holds: true,
     alert: {
-      kind: "exception_share_second_month_at_risk",
+      kind: "second_non_compliant_month_at_risk",
       scope: `${fiscalAddressId}:${month}`,
       detail: {
         fiscalAddressId,
         fiscalAddressName: `Address ${fiscalAddressId}`,
         month,
         previousMonth,
-        nonCompliancePercent: 5,
+        exceptionShareNonCompliancePercent: 5,
+        contingencyNonCompliancePercent: 5,
+        previousMonthNonCompliantOn: ["exception_share"],
+        contingencyShareTenthsOfPercent: null,
         ...figures,
       },
     },
@@ -88,7 +131,7 @@ describe("detectSecondNonCompliantMonthRisks", () => {
       held("fa-1", "2026-11", "2026-10", {
         exceptionCount: 3,
         totalCount: 80,
-        shareTenthsOfPercent: 37,
+        exceptionShareTenthsOfPercent: 37,
       }),
     ]);
   });
@@ -118,9 +161,9 @@ describe("detectSecondNonCompliantMonthRisks", () => {
       held("fa-1", "2026-12", "2026-11", {
         exceptionCount: 0,
         totalCount: 0,
-        shareTenthsOfPercent: null,
+        exceptionShareTenthsOfPercent: null,
       }),
-      { holds: false, kind: "exception_share_second_month_at_risk", scope: "fa-1:2026-11" },
+      { holds: false, kind: "second_non_compliant_month_at_risk", scope: "fa-1:2026-11" },
     ]);
   });
 
@@ -131,7 +174,7 @@ describe("detectSecondNonCompliantMonthRisks", () => {
 
     expect(await outcome).toBe(0);
     expect(alerts.observations).toEqual([
-      { holds: false, kind: "exception_share_second_month_at_risk", scope: "fa-1:2026-12" },
+      { holds: false, kind: "second_non_compliant_month_at_risk", scope: "fa-1:2026-12" },
     ]);
   });
 
@@ -161,7 +204,7 @@ describe("detectSecondNonCompliantMonthRisks", () => {
       held("fa-1", "2027-01", "2026-12", {
         exceptionCount: 2,
         totalCount: 40,
-        shareTenthsOfPercent: 50,
+        exceptionShareTenthsOfPercent: 50,
       }),
     ]);
   });
@@ -177,7 +220,7 @@ describe("detectSecondNonCompliantMonthRisks", () => {
       held("fa-1", "2026-11", "2026-10", {
         exceptionCount: 0,
         totalCount: 0,
-        shareTenthsOfPercent: null,
+        exceptionShareTenthsOfPercent: null,
       }),
     ]);
   });
@@ -194,7 +237,7 @@ describe("detectSecondNonCompliantMonthRisks", () => {
       held("fa-1", "2026-11", "2026-10", {
         exceptionCount: 1,
         totalCount: 100,
-        shareTenthsOfPercent: 10,
+        exceptionShareTenthsOfPercent: 10,
       }),
     ]);
   });
@@ -211,15 +254,168 @@ describe("detectSecondNonCompliantMonthRisks", () => {
       held("fa-1", "2026-11", "2026-10", {
         exceptionCount: 1,
         totalCount: 50,
-        shareTenthsOfPercent: 20,
+        exceptionShareTenthsOfPercent: 20,
       }),
     ]);
+  });
+
+  describe("on either measurement", () => {
+    const runs = availableSince("2026-10-01", "2026-11-10");
+    const address = [{ fiscalAddressId: "fa-1", fiscalAddressName: "Address fa-1" }];
+
+    it("warns when the previous month is non-compliant only for its time in contingency", async () => {
+      const { alerts, outcome } = detect({
+        today: "2026-11-10",
+        addresses: address,
+        runs,
+        contingency: new Map([contingencyOf("fa-1", "2026-10-05", 40)]),
+        counts: [running("fa-1", "2026-11", 1, 100)],
+      });
+
+      expect(await outcome).toBe(1);
+      expect(alerts.observations).toEqual([
+        held("fa-1", "2026-11", "2026-10", {
+          exceptionCount: 1,
+          totalCount: 100,
+          exceptionShareTenthsOfPercent: 10,
+          previousMonthNonCompliantOn: ["contingency_time"],
+          contingencyShareTenthsOfPercent: 0,
+        }),
+      ]);
+    });
+
+    it("warns when the previous month is non-compliant only for its exception share", async () => {
+      const { alerts, outcome } = detect({
+        today: "2026-11-10",
+        breaches: [recorded("fa-1", "2026-10")],
+        runs,
+        contingency: new Map([contingencyOf("fa-1", "2026-10-05", 10)]),
+      });
+
+      expect(await outcome).toBe(1);
+      expect(alerts.observations).toMatchObject([
+        { alert: { detail: { previousMonthNonCompliantOn: ["exception_share"] } } },
+      ]);
+    });
+
+    it("lists both measurements when the previous month failed both", async () => {
+      const { alerts, outcome } = detect({
+        today: "2026-11-10",
+        breaches: [recorded("fa-1", "2026-10")],
+        runs,
+        contingency: new Map([contingencyOf("fa-1", "2026-10-05", 40)]),
+      });
+
+      expect(await outcome).toBe(1);
+      expect(alerts.observations).toMatchObject([
+        {
+          alert: {
+            detail: { previousMonthNonCompliantOn: ["exception_share", "contingency_time"] },
+          },
+        },
+      ]);
+    });
+
+    it("does not warn when the previous month is exactly at the contingency limit", async () => {
+      const { alerts, outcome } = detect({
+        today: "2026-11-10",
+        addresses: address,
+        runs,
+        contingency: new Map([contingencyOf("fa-1", "2026-10-05", 36.6)]),
+      });
+
+      expect(await outcome).toBe(0);
+      expect(alerts.observations).toEqual([]);
+    });
+
+    it("does not warn when the previous month is compliant on both, however far the current month runs", async () => {
+      const { alerts, outcome } = detect({
+        today: "2026-11-10",
+        addresses: address,
+        runs,
+        contingency: new Map([contingencyOf("fa-1", "2026-11-02", 100)]),
+        counts: [running("fa-1", "2026-11", 9, 100)],
+      });
+
+      expect(await outcome).toBe(0);
+      expect(alerts.observations).toEqual([]);
+    });
+
+    it("shows no share of time in contingency while the month in progress has no data", async () => {
+      const { alerts, outcome } = detect({
+        today: "2026-11-10",
+        breaches: [recorded("fa-1", "2026-10")],
+      });
+
+      expect(await outcome).toBe(1);
+      expect(alerts.observations).toMatchObject([
+        { alert: { detail: { contingencyShareTenthsOfPercent: null } } },
+      ]);
+    });
+
+    it("warns about a second month after an exception breach while contingency runs past its limit", async () => {
+      const { alerts, outcome } = detect({
+        today: "2026-11-10",
+        breaches: [recorded("fa-1", "2026-10")],
+        runs,
+        contingency: new Map([contingencyOf("fa-1", "2026-11-02", 22.8)]),
+        counts: [running("fa-1", "2026-11", 2, 100)],
+      });
+
+      expect(await outcome).toBe(1);
+      expect(alerts.observations).toEqual([
+        held("fa-1", "2026-11", "2026-10", {
+          exceptionCount: 2,
+          totalCount: 100,
+          exceptionShareTenthsOfPercent: 20,
+          previousMonthNonCompliantOn: ["exception_share"],
+          contingencyShareTenthsOfPercent: 100,
+        }),
+      ]);
+    });
+
+    it("warns about a second month after a contingency breach while the exception share runs past its limit", async () => {
+      const { alerts, outcome } = detect({
+        today: "2026-11-10",
+        addresses: address,
+        runs,
+        contingency: new Map([contingencyOf("fa-1", "2026-10-05", 40)]),
+        counts: [running("fa-1", "2026-11", 7, 100)],
+      });
+
+      expect(await outcome).toBe(1);
+      expect(alerts.observations).toEqual([
+        held("fa-1", "2026-11", "2026-10", {
+          exceptionCount: 7,
+          totalCount: 100,
+          exceptionShareTenthsOfPercent: 70,
+          previousMonthNonCompliantOn: ["contingency_time"],
+          contingencyShareTenthsOfPercent: 0,
+        }),
+      ]);
+    });
+
+    it("measures each address on its own contingency and reads availability once per window", async () => {
+      const { alerts, outcome, risks } = detect({
+        today: "2026-11-10",
+        addresses: [
+          { fiscalAddressId: "fa-1", fiscalAddressName: "Address fa-1" },
+          { fiscalAddressId: "fa-2", fiscalAddressName: "Address fa-2" },
+        ],
+        runs,
+        contingency: new Map([contingencyOf("fa-2", "2026-10-05", 40)]),
+      });
+
+      expect(await outcome).toBe(1);
+      expect(alerts.observations).toMatchObject([{ alert: { scope: "fa-2:2026-11" } }]);
+      expect(risks.availabilityWindows).toHaveLength(2);
+    });
   });
 
   it("reads the day in Argentina, not in UTC", async () => {
     const alerts = new FakeSecondMonthRiskAlerts();
     const outcome = detectSecondNonCompliantMonthRisks({
-      risks: new FakeSecondMonthRiskReader([recorded("fa-1", "2026-10")]),
+      risks: new FakeSecondMonthRiskReader({ breaches: [recorded("fa-1", "2026-10")] }),
       alerts,
       clock: new FixedClock(new Date("2026-12-01T01:00:00Z")),
       zoneRules: new FakeZoneRulesSource(),

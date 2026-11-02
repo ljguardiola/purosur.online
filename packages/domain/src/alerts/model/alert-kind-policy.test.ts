@@ -75,7 +75,7 @@ describe("alertKindPolicy", () => {
     ["fortnight_report_document_rejected", "critical", null, "all", "pointOfSaleFortnight", true],
     ["deferred_sale_due", "warning", null, "all", "deferredSale", true],
     ["exception_share_breach", "critical", null, "all", "fiscalAddressMonth", true],
-    ["exception_share_second_month_at_risk", "warning", null, "all", "fiscalAddressMonth", true],
+    ["second_non_compliant_month_at_risk", "warning", null, "all", "fiscalAddressMonth", true],
     ["update_required", "critical", null, "all", "register", true],
     ["clock_corrected", "critical", null, "all", "register", false],
     ["invoice_already_credited", "critical", null, "all", "pointOfSaleDocumentNumber", true],
@@ -145,7 +145,7 @@ describe("alertKindPolicy", () => {
       "register_backup_overdue",
       "fortnight_report_document_rejected",
       "deferred_sale_due",
-      "exception_share_second_month_at_risk",
+      "second_non_compliant_month_at_risk",
     ]);
   });
 
@@ -197,7 +197,7 @@ describe("alertClosing", () => {
       fortnight_report_document_rejected: "by_itself",
       deferred_sale_due: "by_itself",
       exception_share_breach: "by_hand",
-      exception_share_second_month_at_risk: "by_itself",
+      second_non_compliant_month_at_risk: "by_itself",
     });
   });
 
@@ -264,7 +264,7 @@ describe("alertKindsWithScope", () => {
     expect(alertKindsWithScope("deferredSale")).toEqual(["deferred_sale_due"]);
     expect(alertKindsWithScope("fiscalAddressMonth")).toEqual([
       "exception_share_breach",
-      "exception_share_second_month_at_risk",
+      "second_non_compliant_month_at_risk",
     ]);
   });
 });

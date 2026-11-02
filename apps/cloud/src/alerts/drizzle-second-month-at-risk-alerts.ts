@@ -19,7 +19,7 @@ export class DrizzleSecondMonthAtRiskAlerts<TQueryResult extends PgQueryResultHK
 
   atRiskAlertScopes(): Promise<string[]> {
     return new DrizzleAlertStore(this.db, this.now).scopesOfOpenAlerts(
-      "exception_share_second_month_at_risk",
+      "second_non_compliant_month_at_risk",
     );
   }
 

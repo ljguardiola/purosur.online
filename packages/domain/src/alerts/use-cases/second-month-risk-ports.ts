@@ -1,4 +1,9 @@
-import type { ExceptionShareCounts } from "../../fiscal/index.js";
+import type {
+  ArcaAvailabilityRun,
+  ContingencyPart,
+  ContingencyReportingRegister,
+  ExceptionShareCounts,
+} from "../../fiscal/index.js";
 import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import type { AlertConditionObservation } from "../model/alert-condition-observation.js";
 
@@ -12,8 +17,15 @@ export interface RunningExceptionShareCounts extends ExceptionShareCounts {
 }
 
 export interface SecondMonthRiskReader {
-  addressesWithRecordedBreach(month: string): Promise<SecondMonthRiskAddress[]>;
+  fiscalAddressesWithRecordedBreach(month: string): Promise<string[]>;
   runningCounts(month: string): Promise<RunningExceptionShareCounts[]>;
+  fiscalAddresses(): Promise<SecondMonthRiskAddress[]>;
+  availabilityRuns(window: { from: Date; to: Date }): Promise<ArcaAvailabilityRun[]>;
+  contingencyIntervalsAtFiscalAddress(query: {
+    fiscalAddressId: string;
+    from: Date;
+    to: Date;
+  }): Promise<{ parts: ContingencyPart[]; registers: ContingencyReportingRegister[] }>;
 }
 
 export interface SecondMonthRiskAlerts {

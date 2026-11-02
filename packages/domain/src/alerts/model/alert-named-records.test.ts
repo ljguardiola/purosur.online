@@ -210,7 +210,7 @@ describe("a fiscal address month scope", () => {
   it("names the fiscal address of the scope, whose month is no record", () => {
     expect(kindsScopedTo("fiscalAddressMonth")).toEqual([
       "exception_share_breach",
-      "exception_share_second_month_at_risk",
+      "second_non_compliant_month_at_risk",
     ]);
     expect(alertScopeRecordId({ kind: "exception_share_breach", scope: `${SCOPE}:2026-09` })).toBe(
       SCOPE,

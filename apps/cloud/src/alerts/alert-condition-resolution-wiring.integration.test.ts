@@ -784,7 +784,7 @@ describe("the background worker the server sets up on a real Postgres", () => {
             .where(eq(alerts.scope, `${fiscalAddressId}:2020-01`));
           expect(rows).toHaveLength(1);
           expect(rows[0]).toMatchObject({
-            kind: "exception_share_second_month_at_risk",
+            kind: "second_non_compliant_month_at_risk",
             level: "warning",
             audience: "all",
             resolvedAt: null,
@@ -795,8 +795,8 @@ describe("the background worker the server sets up on a real Postgres", () => {
               previousMonth: "2019-12",
               exceptionCount: 1,
               totalCount: 4,
-              shareTenthsOfPercent: 250,
-              nonCompliancePercent: 5,
+              exceptionShareTenthsOfPercent: 250,
+              exceptionShareNonCompliancePercent: 5,
             },
           });
         },

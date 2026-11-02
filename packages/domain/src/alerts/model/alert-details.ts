@@ -2,6 +2,7 @@ import type {
   ClockPreviousReadingSource,
   FiscalDocumentType,
   FiscalTaskDocumentType,
+  NonCompliantMeasurement,
   PreEmissionGateFailureReason,
   RejectionClass,
   TaxAuthorityRejection,
@@ -250,15 +251,18 @@ interface ExceptionShareBreachDetail {
   nonCompliancePercent: number;
 }
 
-interface ExceptionShareSecondMonthAtRiskDetail {
+interface SecondNonCompliantMonthAtRiskDetail {
   fiscalAddressId: string;
   fiscalAddressName: string;
   month: string;
   previousMonth: string;
   exceptionCount: number;
   totalCount: number;
-  shareTenthsOfPercent: number | null;
-  nonCompliancePercent: number;
+  exceptionShareTenthsOfPercent: number | null;
+  exceptionShareNonCompliancePercent: number;
+  previousMonthNonCompliantOn: NonCompliantMeasurement[];
+  contingencyShareTenthsOfPercent: number | null;
+  contingencyNonCompliancePercent: number;
 }
 
 export interface AlertDetails {
@@ -298,7 +302,7 @@ export interface AlertDetails {
   fortnight_report_document_rejected: FortnightReportDocumentRejectedDetail;
   deferred_sale_due: DeferredSaleDueDetail;
   exception_share_breach: ExceptionShareBreachDetail;
-  exception_share_second_month_at_risk: ExceptionShareSecondMonthAtRiskDetail;
+  second_non_compliant_month_at_risk: SecondNonCompliantMonthAtRiskDetail;
 }
 
 export type OpenAlertInput = {

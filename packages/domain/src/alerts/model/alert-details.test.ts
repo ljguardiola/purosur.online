@@ -616,10 +616,10 @@ describe("an exception share breach alert", () => {
   });
 });
 
-describe("an exception share second month at risk alert", () => {
+describe("a second non-compliant month at risk alert", () => {
   it("accepts the fiscal address, the month in progress, the previous month and the running figures", () => {
     expectTypeOf<{
-      kind: "exception_share_second_month_at_risk";
+      kind: "second_non_compliant_month_at_risk";
       scope: string;
       detail: {
         fiscalAddressId: string;
@@ -628,15 +628,18 @@ describe("an exception share second month at risk alert", () => {
         previousMonth: string;
         exceptionCount: number;
         totalCount: number;
-        shareTenthsOfPercent: number | null;
-        nonCompliancePercent: number;
+        exceptionShareTenthsOfPercent: number | null;
+        exceptionShareNonCompliancePercent: number;
+        previousMonthNonCompliantOn: ("exception_share" | "contingency_time")[];
+        contingencyShareTenthsOfPercent: number | null;
+        contingencyNonCompliancePercent: number;
       };
     }>().toExtend<OpenAlertInput>();
   });
 
-  it("refuses one without the running share", () => {
+  it("refuses one without the running contingency share", () => {
     expectTypeOf<{
-      kind: "exception_share_second_month_at_risk";
+      kind: "second_non_compliant_month_at_risk";
       scope: string;
       detail: {
         fiscalAddressId: string;
@@ -645,7 +648,29 @@ describe("an exception share second month at risk alert", () => {
         previousMonth: string;
         exceptionCount: number;
         totalCount: number;
-        nonCompliancePercent: number;
+        exceptionShareTenthsOfPercent: number | null;
+        exceptionShareNonCompliancePercent: number;
+        previousMonthNonCompliantOn: ("exception_share" | "contingency_time")[];
+        contingencyNonCompliancePercent: number;
+      };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+
+  it("refuses one without the running exception share", () => {
+    expectTypeOf<{
+      kind: "second_non_compliant_month_at_risk";
+      scope: string;
+      detail: {
+        fiscalAddressId: string;
+        fiscalAddressName: string;
+        month: string;
+        previousMonth: string;
+        exceptionCount: number;
+        totalCount: number;
+        exceptionShareNonCompliancePercent: number;
+        previousMonthNonCompliantOn: ("exception_share" | "contingency_time")[];
+        contingencyShareTenthsOfPercent: number | null;
+        contingencyNonCompliancePercent: number;
       };
     }>().not.toExtend<OpenAlertInput>();
   });
