@@ -1,8 +1,12 @@
-import { COUNTED_AS_ISSUED_STATE } from "@purosur/domain";
-import { and, desc, eq, type SQL, sql } from "drizzle-orm";
+import { COUNTED_AS_ISSUED_STATE, fiscalAddressAt } from "@purosur/domain";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { registerFiscalAddressAssignments } from "../platform/db/schema.js";
 import { issuedDocuments } from "./drizzle-issued-fiscal-documents-reader.js";
+import {
+  fiscalAddressHistories,
+  historyOf,
+  registersEverAt,
+} from "./drizzle-register-fiscal-address-histories.js";
 
 interface StoredMonthlyVoucherCounts {
   fiscalAddressId: string;
@@ -11,34 +15,57 @@ interface StoredMonthlyVoucherCounts {
   totalCount: number;
 }
 
+export interface VoucherCountsQuery {
+  months: { from: string; through: string };
+  fiscalAddressId?: string;
+}
+
 export async function monthlyVoucherCounts<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
-  condition: (columns: { fiscalAddressId: SQL<string>; month: SQL<string> }) => SQL,
+  { months, fiscalAddressId }: VoucherCountsQuery,
 ): Promise<StoredMonthlyVoucherCounts[]> {
   const issued = issuedDocuments(db);
-  const assignmentInForce = db
-    .select({ fiscalAddressId: registerFiscalAddressAssignments.fiscalAddressId })
-    .from(registerFiscalAddressAssignments)
-    .where(
-      and(
-        sql`${registerFiscalAddressAssignments.registerId}::text = ${issued.registerId}`,
-        sql`${registerFiscalAddressAssignments.assignedAt} <= ${issued.issuedAt}`,
-      ),
-    )
-    .orderBy(desc(registerFiscalAddressAssignments.assignedAt))
-    .limit(1)
-    .as("assignment_in_force");
-  const fiscalAddressId = sql<string>`${assignmentInForce.fiscalAddressId}::text`;
   const month = sql<string>`left(${issued.issuedOn}, 7)`;
-  return db
+  const documents = await db
     .select({
-      fiscalAddressId,
+      registerId: issued.registerId,
+      issuedAt: sql<Date>`${issued.issuedAt}`.mapWith((stored: string | Date) => new Date(stored)),
       month,
-      exceptionCount: sql<number>`(count(*) filter (where ${issued.authorizationKind} = 'caea'))::int`,
-      totalCount: sql<number>`count(*)::int`,
+      exception: sql<boolean>`${issued.authorizationKind} is not distinct from 'caea'`,
     })
     .from(issued)
-    .innerJoinLateral(assignmentInForce, sql`true`)
-    .where(and(eq(issued.state, COUNTED_AS_ISSUED_STATE), condition({ fiscalAddressId, month })))
-    .groupBy(fiscalAddressId, month);
+    .where(
+      and(
+        eq(issued.state, COUNTED_AS_ISSUED_STATE),
+        sql`${month} between ${months.from} and ${months.through}`,
+        fiscalAddressId === undefined
+          ? undefined
+          : inArray(sql`${issued.registerId}::uuid`, registersEverAt(db, fiscalAddressId)),
+      ),
+    );
+  const histories = await fiscalAddressHistories(db, fiscalAddressId);
+  const counts = new Map<string, StoredMonthlyVoucherCounts>();
+  for (const document of documents) {
+    const attributedTo = fiscalAddressAt(
+      document.issuedAt,
+      historyOf(histories, document.registerId),
+    );
+    if (
+      attributedTo === null ||
+      (fiscalAddressId !== undefined && attributedTo !== fiscalAddressId)
+    ) {
+      continue;
+    }
+    const key = JSON.stringify([attributedTo, document.month]);
+    const count = counts.get(key) ?? {
+      fiscalAddressId: attributedTo,
+      month: document.month,
+      exceptionCount: 0,
+      totalCount: 0,
+    };
+    count.totalCount += 1;
+    count.exceptionCount += document.exception ? 1 : 0;
+    counts.set(key, count);
+  }
+  return [...counts.values()];
 }

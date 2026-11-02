@@ -30,11 +30,10 @@ export class DrizzleExceptionShareYearReader<TQueryResult extends PgQueryResultH
     fiscalAddressId,
     year,
   }: ExceptionShareYearQuery): Promise<MonthlyVoucherCounts[]> {
-    const counts = await monthlyVoucherCounts(
-      this.db,
-      (columns) =>
-        sql`${columns.fiscalAddressId} = ${fiscalAddressId} and ${columns.month} like ${`${year}-%`}`,
-    );
+    const counts = await monthlyVoucherCounts(this.db, {
+      months: { from: `${year}-01`, through: `${year}-12` },
+      fiscalAddressId,
+    });
     return counts.map(({ month, exceptionCount, totalCount }) => ({
       month,
       exceptionCount,
