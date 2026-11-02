@@ -1,6 +1,6 @@
-import { readFileSync } from "node:fs";
 import type { LabelSheetItem } from "@purosur/domain/catalog/use-cases";
 import PDFDocument from "pdfkit";
+import { BOLD_FONT, BOLD_FONT_FILE } from "../platform/pdf-fonts.js";
 import {
   BAR_HEIGHT_MM,
   DIGITS_PER_GROUP,
@@ -37,14 +37,6 @@ const CUT_LINE_COLOR = "#999999";
 const DIGIT_GROUP_WIDTH_MM = DIGITS_PER_GROUP * MODULES_PER_DIGIT * MODULE_WIDTH_MM;
 const FIRST_DIGIT_BOX_WIDTH_MM = QUIET_ZONE_LEFT_MODULES * MODULE_WIDTH_MM;
 
-// pdfkit's built-in Helvetica-Bold only encodes WinAnsi, silently garbling any other character
-// (Greek, Cyrillic, "ő", "≈"); Liberation Sans Bold is metric-compatible with it and covers them.
-const NAME_FONT = "LiberationSans-Bold";
-const NAME_FONT_FILE = readFileSync(
-  // `fonts/` sits beside both `src/` and `dist/` and ships through package.json's `files`.
-  new URL("../../fonts/LiberationSans-Bold.ttf", import.meta.url),
-);
-
 function mm(valueMm: number): number {
   return valueMm * PT_PER_MM;
 }
@@ -77,7 +69,7 @@ const CONTENT_WIDTH_MM = LABEL_WIDTH_MM - 2 * PADDING_LEFT_RIGHT_MM;
 // Measured with pdfkit's own `heightOfString` and the same line spacing `drawName` renders with:
 // a height from any other per-line estimate would under- or over-shoot pdfkit's real wrapping.
 function measuredNameHeightMm(doc: PDFKit.PDFDocument, name: string): number {
-  doc.font(NAME_FONT).fontSize(NAME_FONT_SIZE_PT);
+  doc.font(BOLD_FONT).fontSize(NAME_FONT_SIZE_PT);
   const maxHeightPt = NAME_LINE_HEIGHT_PT * NAME_MAX_LINES;
   const naturalHeightPt = doc.heightOfString(name, {
     width: mm(CONTENT_WIDTH_MM),
@@ -92,7 +84,7 @@ function nameLineGapPt(doc: PDFKit.PDFDocument): number {
 }
 
 function drawName(doc: PDFKit.PDFDocument, label: PositionedLabel, topMm: number): void {
-  doc.font(NAME_FONT).fontSize(NAME_FONT_SIZE_PT).fillColor("#000000");
+  doc.font(BOLD_FONT).fontSize(NAME_FONT_SIZE_PT).fillColor("#000000");
   // pdfkit's wrapper ellipsizes from the font's own line height, ignoring `lineGap`: this height
   // lets exactly `NAME_MAX_LINES` lines through before it ellipsizes the last.
   const wrapHeightPt =
@@ -165,7 +157,7 @@ export function renderLabelSheetPdf(items: LabelSheetItem[], createdAt: Date): P
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
-    doc.registerFont(NAME_FONT, NAME_FONT_FILE);
+    doc.registerFont(BOLD_FONT, BOLD_FONT_FILE);
 
     for (const page of layoutLabelSheet(items)) {
       doc.addPage();

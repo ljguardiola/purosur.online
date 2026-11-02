@@ -10,6 +10,10 @@ export function mayBeShared(state: PurchaseOrderState): boolean {
   return state === "DRAFT";
 }
 
+export function mayBeSharedAsDocument(state: PurchaseOrderState): boolean {
+  return state === "DRAFT" || state === "SENT";
+}
+
 export function mayBeCancelled(state: PurchaseOrderState): boolean {
   return state === "DRAFT" || state === "SENT";
 }

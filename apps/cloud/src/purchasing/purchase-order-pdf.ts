@@ -1,5 +1,5 @@
-import { readFileSync } from "node:fs";
 import PDFDocument from "pdfkit";
+import { BOLD_FONT, BOLD_FONT_FILE } from "../platform/pdf-fonts.js";
 import type { PurchaseOrderDocument } from "./purchase-order-document.js";
 
 const MARGIN_PT = 50;
@@ -11,14 +11,6 @@ const LINE_GAP_PT = 14;
 const DETAIL_INDENT_PT = 18;
 const TEXT_COLOR = "#000000";
 const DETAIL_COLOR = "#444444";
-
-// pdfkit's built-in fonts only encode WinAnsi and silently garble any other character; Liberation
-// Sans covers them.
-const FONT = "LiberationSans-Bold";
-const FONT_FILE = readFileSync(
-  // `fonts/` sits beside both `src/` and `dist/` and ships through package.json's `files`.
-  new URL("../../fonts/LiberationSans-Bold.ttf", import.meta.url),
-);
 
 export function renderPurchaseOrderPdf(
   { title, createdDay, lines }: PurchaseOrderDocument,
@@ -34,14 +26,14 @@ export function renderPurchaseOrderPdf(
     doc.on("data", (chunk: Buffer) => chunks.push(chunk));
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
-    doc.registerFont(FONT, FONT_FILE);
+    doc.registerFont(BOLD_FONT, BOLD_FONT_FILE);
 
     const contentWidth = doc.page.width - 2 * MARGIN_PT;
     const detailWidth = contentWidth - DETAIL_INDENT_PT;
     const pageBottom = () => doc.page.height - MARGIN_PT;
 
     doc
-      .font(FONT)
+      .font(BOLD_FONT)
       .fontSize(TITLE_SIZE_PT)
       .fillColor(TEXT_COLOR)
       .text(title, { width: contentWidth });

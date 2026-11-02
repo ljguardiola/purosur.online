@@ -13,6 +13,7 @@ import {
   LoadingPlaceholder,
   StatusIndicator,
   Table,
+  TableCellText,
   useTableModel,
 } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
@@ -46,18 +47,15 @@ type Notice = "saved" | "cancelled" | "sent";
 
 const NOTICES = {
   saved: { title: "Pedido guardado", description: "Los cambios quedaron en el borrador." },
-  cancelled: { title: "Pedido cancelado", description: "Ya no se puede editar." },
-  sent: {
-    title: "Pedido marcado como enviado",
-    description: "Quedó registrado como enviado al proveedor.",
-  },
+  cancelled: { title: "Pedido cancelado", description: "Ya no se puede compartir." },
+  sent: { title: "Pedido marcado como enviado", description: "Ya no se puede editar." },
 } satisfies Record<Notice, { title: string; description: string }>;
 
 const NO_PRODUCTS: never[] = [];
 function supplierItemText(item: NonNullable<OrderLine["supplierItem"]>): string {
   return item.code === null
-    ? `Proveedor: ${item.description}`
-    : `Proveedor: ${item.code} · ${item.description}`;
+    ? `Artículo del proveedor: ${item.description}`
+    : `Artículo del proveedor: ${item.code} · ${item.description}`;
 }
 
 const NO_PRICE = "Sin precio de lista";
@@ -91,14 +89,11 @@ export function PurchaseOrderScreen({
       id: "product",
       header: "Producto",
       render: (line: OrderLine) => (
-        <span className="flex flex-col">
-          <span>{formatProductDescription(line.product)}</span>
-          {line.supplierItem === null ? null : (
-            <span className="text-detail text-text-subtle">
-              {supplierItemText(line.supplierItem)}
-            </span>
-          )}
-        </span>
+        <TableCellText
+          description={line.supplierItem === null ? null : supplierItemText(line.supplierItem)}
+        >
+          {formatProductDescription(line.product)}
+        </TableCellText>
       ),
     }),
     dataColumn({
@@ -212,9 +207,11 @@ export function PurchaseOrderScreen({
                   Cancelar pedido
                 </Button>
               )}
-              <Button variant="secondary" icon={<Send />} onPress={() => setShareTarget(order)}>
-                Compartir pedido
-              </Button>
+              {order.editable || !order.documentShareable ? null : (
+                <Button variant="secondary" icon={<Send />} onPress={() => setShareTarget(order)}>
+                  Compartir pedido
+                </Button>
+              )}
             </div>
             {order.editable ? (
               <PurchaseOrderDraftForm
@@ -228,6 +225,7 @@ export function PurchaseOrderScreen({
                 }}
                 onNotEditable={() => setEditRefused(true)}
                 onCancelOrder={() => setCancelTarget(order)}
+                onShareOrder={() => setShareTarget(order)}
                 onSessionEnded={onSessionEnded}
               />
             ) : (

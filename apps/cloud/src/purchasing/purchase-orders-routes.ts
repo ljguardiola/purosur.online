@@ -46,6 +46,13 @@ function invalid(reply: FastifyReply, message: string, field: string) {
   return reply.code(400).send({ code: "validation_failed", message, details: [{ field }] });
 }
 
+async function sendDocumentNotShareable(reply: FastifyReply): Promise<void> {
+  await reply.code(409).send({
+    code: "purchase_order_document_not_shareable",
+    message: "this purchase order can no longer be shared",
+  });
+}
+
 async function sendRefusal(reply: FastifyReply, refusal: Refusal): Promise<void> {
   switch (refusal.kind) {
     case "no_choices":
@@ -181,6 +188,10 @@ export function registerPurchaseOrdersRoutes<TQueryResult extends PgQueryResultH
       await sendRefusal(reply, found);
       return;
     }
+    if (!found.order.documentShareable) {
+      await sendDocumentNotShareable(reply);
+      return;
+    }
     const pdf = await renderPurchaseOrderPdf(purchaseOrderDocument(found.order), now());
     await reply
       .header("Content-Disposition", "attachment")
@@ -200,6 +211,10 @@ export function registerPurchaseOrdersRoutes<TQueryResult extends PgQueryResultH
     });
     if (found.kind === "not_found") {
       await sendRefusal(reply, found);
+      return;
+    }
+    if (!found.order.documentShareable) {
+      await sendDocumentNotShareable(reply);
       return;
     }
     await reply

@@ -27,6 +27,7 @@ export const purchaseOrderDetailSchema = z.object({
   hasUnpricedLine: z.boolean(),
   editable: z.boolean(),
   shareable: z.boolean(),
+  documentShareable: z.boolean(),
   cancellable: z.boolean(),
 });
 

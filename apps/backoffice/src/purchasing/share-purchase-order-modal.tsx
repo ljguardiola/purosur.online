@@ -1,5 +1,12 @@
 import type { PurchaseOrderDetail } from "@purosur/contracts";
-import { Button, InlineNotice, LoadFailure, LoadingPlaceholder, Modal } from "@purosur/ui";
+import {
+  Button,
+  InlineNotice,
+  LoadFailure,
+  LoadingPlaceholder,
+  Modal,
+  TextPreview,
+} from "@purosur/ui";
 import { Check, Copy, Download, RotateCcw, Send, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
@@ -36,6 +43,7 @@ type Notice =
   | { kind: "shareFailed" }
   | { kind: "rateLimited"; retryAfterSeconds: number }
   | { kind: "notShareable" }
+  | { kind: "documentNotShareable" }
   | { kind: "notFound" };
 
 const PDF_FILE_NAME = "pedido.pdf";
@@ -66,8 +74,13 @@ export function SharePurchaseOrderModal({
 
   const read = text.status === "loaded" ? text.value : null;
   const orderText = read?.kind === "found" ? read.text : null;
+  const documentNotShareable =
+    notice?.kind === "documentNotShareable" || read?.kind === "not_shareable";
   const outdated =
-    notice?.kind === "notShareable" || notice?.kind === "notFound" || read?.kind === "not_found";
+    notice?.kind === "notShareable" ||
+    notice?.kind === "notFound" ||
+    read?.kind === "not_found" ||
+    documentNotShareable;
 
   async function handleCopy() {
     if (orderText === null) {
@@ -81,7 +94,11 @@ export function SharePurchaseOrderModal({
     }
   }
 
-  function refuse(outcome: { kind: string; retryAfterSeconds?: number }, failure: Notice) {
+  function refuse(
+    outcome: { kind: string; retryAfterSeconds?: number },
+    failure: Notice,
+    notShareable: Notice,
+  ) {
     if (outcome.kind === "unauthenticated") {
       onSessionEnded();
     } else if (outcome.kind === "forbidden") {
@@ -91,7 +108,7 @@ export function SharePurchaseOrderModal({
     } else if (outcome.kind === "not_found") {
       setNotice({ kind: "notFound" });
     } else if (outcome.kind === "not_shareable") {
-      setNotice({ kind: "notShareable" });
+      setNotice(notShareable);
     } else {
       setNotice(failure);
     }
@@ -109,7 +126,7 @@ export function SharePurchaseOrderModal({
       setBusy(false);
       return;
     }
-    refuse(outcome, { kind: "pdfFailed" });
+    refuse(outcome, { kind: "pdfFailed" }, { kind: "documentNotShareable" });
     setBusy(false);
   }
 
@@ -124,7 +141,7 @@ export function SharePurchaseOrderModal({
       onShared(outcome.order);
       return;
     }
-    refuse(outcome, { kind: "shareFailed" });
+    refuse(outcome, { kind: "shareFailed" }, { kind: "notShareable" });
     setBusy(false);
   }
 
@@ -141,7 +158,7 @@ export function SharePurchaseOrderModal({
       icon={<Send />}
       context="Compras · Pedidos"
       title="Compartir pedido"
-      closable
+      closable={!busy}
       footer={
         <>
           <Button variant="secondary" size="large" icon={<X />} disabled={busy} onPress={onClose}>
@@ -180,15 +197,12 @@ export function SharePurchaseOrderModal({
         {text.status === "failed" && (
           <LoadFailure {...cloudLoadFailure(text, "el texto del pedido")} />
         )}
-        {orderText !== null && (
-          <pre className="whitespace-pre-wrap rounded-lg bg-surface-subtle p-3 font-mono text-detail text-text">
-            {orderText}
-          </pre>
-        )}
+        {orderText !== null && <TextPreview text={orderText} />}
         <div className="flex gap-2">
           <Button
             variant="secondary"
             icon={<Copy />}
+            dataStatus={text.status}
             disabled={orderText === null}
             onPress={() => void handleCopy()}
           >
@@ -235,6 +249,14 @@ export function SharePurchaseOrderModal({
             description="Actualizá el pedido para ver su estado actual."
           />
         )}
+        {documentNotShareable ? (
+          <InlineNotice
+            tone="error"
+            icon={<TriangleAlert />}
+            title="Este pedido ya no se puede compartir"
+            description="Actualizá el pedido para ver su estado actual."
+          />
+        ) : null}
         {(notice?.kind === "notFound" || read?.kind === "not_found") && (
           <InlineNotice
             tone="error"

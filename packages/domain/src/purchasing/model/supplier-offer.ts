@@ -52,3 +52,16 @@ export function supplierOfferToOrder<TOffer extends PricedSupplierOffer>(
     offers.find((offer) => isLinkCurrent(offer.link, productSaleUnit))
   );
 }
+
+// The supplier's item an order line refers to: of the items linked at the line's quantity per
+// package, the one an order takes.
+export function supplierOfferOfOrderLine<TOffer extends PricedSupplierOffer>(
+  offers: readonly TOffer[],
+  productSaleUnit: SaleUnit,
+  quantityPerPackage: number,
+): TOffer | undefined {
+  return supplierOfferToOrder(
+    offers.filter((offer) => offer.link.quantity === quantityPerPackage),
+    productSaleUnit,
+  );
+}

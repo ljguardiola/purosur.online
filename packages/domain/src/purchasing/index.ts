@@ -70,7 +70,7 @@ export {
   sameSupplierItemKey,
   supplierItemKey,
 } from "./model/supplier-item.js";
-export { supplierOfferPrice } from "./model/supplier-offer.js";
+export { supplierOfferOfOrderLine, supplierOfferPrice } from "./model/supplier-offer.js";
 export type {
   SupplierPriceListContentKind,
   SupplierPriceListReadFailure,

@@ -132,7 +132,7 @@ export function CancelPurchaseOrderModal({
       }
     >
       <div className="flex flex-col gap-4">
-        <p className="text-body text-text">El pedido queda cancelado y ya no se puede editar.</p>
+        <p className="text-body text-text">El pedido queda cancelado y no se puede deshacer.</p>
         {notice?.kind === "attemptFailed" && (
           <ActionFailureNotice title="No se canceló el pedido" description="Volvé a intentarlo." />
         )}

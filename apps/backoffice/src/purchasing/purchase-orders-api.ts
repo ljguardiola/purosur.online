@@ -69,9 +69,13 @@ export type SharePurchaseOrderOutcome =
 export type FetchPurchaseOrderPdfOutcome =
   | { kind: "ok"; blob: Blob }
   | { kind: "not_found" }
+  | { kind: "not_shareable" }
   | RequestRefusal;
 
-export type PurchaseOrderTextRead = { kind: "found"; text: string } | { kind: "not_found" };
+export type PurchaseOrderTextRead =
+  | { kind: "found"; text: string }
+  | { kind: "not_found" }
+  | { kind: "not_shareable" };
 
 export type FetchPurchaseOrderTextOutcome = CloudReadOutcome<PurchaseOrderTextRead>;
 
@@ -235,6 +239,13 @@ export async function sharePurchaseOrder(orderId: string): Promise<SharePurchase
   return refusal(response);
 }
 
+async function documentNotShareable(response: Response): Promise<boolean> {
+  return (
+    response.status === 409 &&
+    (await codeOf(response.clone())) === "purchase_order_document_not_shareable"
+  );
+}
+
 export async function fetchPurchaseOrderPdf(
   orderId: string,
 ): Promise<FetchPurchaseOrderPdfOutcome> {
@@ -246,6 +257,9 @@ export async function fetchPurchaseOrderPdf(
   }
   if (response.status === 404) {
     return { kind: "not_found" };
+  }
+  if (await documentNotShareable(response)) {
+    return { kind: "not_shareable" };
   }
   if (!response.ok) {
     return refusal(response);
@@ -265,6 +279,9 @@ export async function fetchPurchaseOrderText(
   }
   if (response.status === 404) {
     return { kind: "ok", value: { kind: "not_found" } };
+  }
+  if (await documentNotShareable(response)) {
+    return { kind: "ok", value: { kind: "not_shareable" } };
   }
   if (!response.ok) {
     return refusal(response);
