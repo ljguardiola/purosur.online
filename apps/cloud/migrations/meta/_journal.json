@@ -1163,6 +1163,13 @@
       "when": 1793654096828,
       "tag": "0172_drop_purchase_packagings_links",
       "breakpoints": true
+    },
+    {
+      "idx": 173,
+      "version": "7",
+      "when": 1793655635812,
+      "tag": "0173_straggler_second_month_warnings",
+      "breakpoints": true
     }
   ]
 }
