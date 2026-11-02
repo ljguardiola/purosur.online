@@ -325,6 +325,13 @@ export type {
   RestoredUnclearDeferral,
 } from "./model/restored-unclear-deferral.js";
 export { rebuiltUnclearDeferral } from "./model/restored-unclear-deferral.js";
+export type { FortnightPeriod } from "./model/revoked-installation-confirmation.js";
+export {
+  fortnightPeriod,
+  isHeldBackOnlyByRevokedInstallations,
+  revokedInstallationsAwaitingConfirmation,
+  streamReachesPastOnceConfirmed,
+} from "./model/revoked-installation-confirmation.js";
 export type {
   AwaitingCreditNote,
   CreditNoteAnswer,
