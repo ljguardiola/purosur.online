@@ -20,6 +20,7 @@ const detail = {
       packages: 3,
       quantityPerPackage: 12_000,
       expectedPackagePriceCents: null,
+      supplierItem: { code: "YER-500", description: "Yerba mate 500 g x12" },
     },
   ],
 };
@@ -38,6 +39,7 @@ describe("getPurchaseOrder", () => {
         hasUnpricedLine: true,
         editable: true,
         cancellable: true,
+        shareable: true,
       },
     });
   });
@@ -66,15 +68,42 @@ describe("getPurchaseOrder", () => {
     });
   });
 
-  it("answers that a cancelled order can be neither edited nor cancelled", async () => {
+  it("answers that a cancelled order can be neither edited, shared nor cancelled", async () => {
     const reader = new FakePurchaseOrderReader([{ ...detail, state: "CANCELLED" }]);
 
     const outcome = await getPurchaseOrder(reader, { locationId: "branch-1", orderId: "order-1" });
 
     expect(outcome.kind === "found" && outcome.order).toMatchObject({
       editable: false,
+      shareable: false,
       cancellable: false,
     });
+  });
+
+  it("answers that a sent order can only be cancelled", async () => {
+    const reader = new FakePurchaseOrderReader([{ ...detail, state: "SENT" }]);
+
+    const outcome = await getPurchaseOrder(reader, { locationId: "branch-1", orderId: "order-1" });
+
+    expect(outcome.kind === "found" && outcome.order).toMatchObject({
+      editable: false,
+      shareable: false,
+      cancellable: true,
+    });
+  });
+
+  it("answers a line without an item of the supplier linked to its product", async () => {
+    const [line] = detail.lines;
+    if (!line) {
+      throw new Error("the fixture has a line");
+    }
+    const reader = new FakePurchaseOrderReader([
+      { ...detail, lines: [{ ...line, supplierItem: null }] },
+    ]);
+
+    const outcome = await getPurchaseOrder(reader, { locationId: "branch-1", orderId: "order-1" });
+
+    expect(outcome.kind === "found" && outcome.order.lines[0]?.supplierItem).toBeNull();
   });
 
   it("does not find an order of another branch or one that does not exist", async () => {
