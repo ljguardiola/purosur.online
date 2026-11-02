@@ -8,6 +8,7 @@ import type { FortnightPresentation, RejectedDocument } from "./fortnight-presen
 import { FortnightReportsSection } from "./fortnight-reports-section";
 import type { RegisterPointOfSale } from "./register-points-of-sale-api";
 import type { RemedyTarget } from "./rejected-document-remedy-form";
+import type { RevokedInstallationTarget } from "./revoked-installation-target";
 
 const register: RegisterPointOfSale = {
   registerId: "register-1",
@@ -41,6 +42,7 @@ function presentation(overrides: Partial<FortnightPresentation> = {}): Fortnight
     movement: null,
     refusal: null,
     state: null,
+    revokedInstallations: [],
     ...overrides,
   };
 }
@@ -55,10 +57,11 @@ function loaded(
 function sectionFor(
   data: CloudData<[FortnightPresentation[], RegisterPointOfSale[]]>,
   onReview: (target: RemedyTarget) => void = () => {},
+  onConfirmRevoked: (target: RevokedInstallationTarget) => void = () => {},
 ) {
   return (
     <main>
-      <FortnightReportsSection data={data} onReview={onReview} />
+      <FortnightReportsSection data={data} onReview={onReview} onConfirmRevoked={onConfirmRevoked} />
     </main>
   );
 }
@@ -180,6 +183,82 @@ test("warns above the table of each blocked presentation which register still ha
     )
     .toBeVisible();
   expect(screen.getByText(/No se puede presentar/).query()).toBeNull();
+});
+
+const firstRevocation = { installationId: "inst-1", revokedAt: "2026-09-10T15:30:00.000Z" };
+const secondRevocation = { installationId: "inst-2", revokedAt: "2026-09-12T09:00:00.000Z" };
+
+test("names the register and when its installation was revoked instead of asking to wait for a sync", async () => {
+  const screen = await render(
+    sectionFor(loaded([presentation({ state: "blocked", revokedInstallations: [firstRevocation] })])),
+  );
+
+  await expect
+    .element(
+      screen.getByText("Caja 1 tiene una instalación revocada el 10/09/2026 · 12:30", {
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        `El informe ${formatCalendarDayRange("2026-09-01", "2026-09-15")} del punto de venta 00004 sigue cuando alguien confirme que esa instalación no emitió comprobantes sin conexión que haya dejado sin sincronizar.`,
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  expect(screen.getByText(/terminó de sincronizar/).query()).toBeNull();
+});
+
+test("names each revoked installation of a blocked presentation", async () => {
+  const screen = await render(
+    sectionFor(
+      loaded([
+        presentation({
+          state: "blocked",
+          revokedInstallations: [firstRevocation, secondRevocation],
+        }),
+      ]),
+    ),
+  );
+
+  await expect
+    .element(screen.getByText("Caja 1 tiene una instalación revocada el 10/09/2026 · 12:30"))
+    .toBeVisible();
+  await expect
+    .element(screen.getByText("Caja 1 tiene una instalación revocada el 12/09/2026 · 06:00"))
+    .toBeVisible();
+});
+
+const confirmRevokedButton = `Confirmar la instalación revocada de Caja 1 del informe ${formatCalendarDayRange("2026-09-01", "2026-09-15")} del punto de venta 00004`;
+
+test("a presentation with a revoked installation offers to confirm it, with the register, fortnight and installation", async () => {
+  const onConfirmRevoked = vi.fn();
+  const screen = await render(
+    sectionFor(
+      loaded([presentation({ state: "blocked", revokedInstallations: [firstRevocation] })]),
+      () => {},
+      onConfirmRevoked,
+    ),
+  );
+
+  await userEvent.click(screen.getByRole("button", { name: confirmRevokedButton }));
+
+  expect(onConfirmRevoked).toHaveBeenCalledWith({
+    registerName: "Caja 1",
+    pointOfSaleNumber: 4,
+    fortnight: septemberFirstHalf,
+    installationId: "inst-1",
+    revokedAt: "2026-09-10T15:30:00.000Z",
+  });
+});
+
+test("a presentation without revoked installations offers no confirmation", async () => {
+  const screen = await render(sectionFor(loaded([presentation({ state: "blocked" })])));
+
+  await expect.element(screen.getByRole("table")).toBeVisible();
+  expect(screen.getByRole("button", { name: /Confirmar la instalación revocada/ }).query()).toBeNull();
 });
 
 test("explains above the table why the credit notes of a presentation wait", async () => {
