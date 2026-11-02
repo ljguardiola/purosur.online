@@ -61,7 +61,11 @@ function sectionFor(
 ) {
   return (
     <main>
-      <FortnightReportsSection data={data} onReview={onReview} onConfirmRevoked={onConfirmRevoked} />
+      <FortnightReportsSection
+        data={data}
+        onReview={onReview}
+        onConfirmRevoked={onConfirmRevoked}
+      />
     </main>
   );
 }
@@ -190,7 +194,9 @@ const secondRevocation = { installationId: "inst-2", revokedAt: "2026-09-12T09:0
 
 test("names the register and when its installation was revoked instead of asking to wait for a sync", async () => {
   const screen = await render(
-    sectionFor(loaded([presentation({ state: "blocked", revokedInstallations: [firstRevocation] })])),
+    sectionFor(
+      loaded([presentation({ state: "blocked", revokedInstallations: [firstRevocation] })]),
+    ),
   );
 
   await expect
@@ -258,7 +264,9 @@ test("a presentation without revoked installations offers no confirmation", asyn
   const screen = await render(sectionFor(loaded([presentation({ state: "blocked" })])));
 
   await expect.element(screen.getByRole("table")).toBeVisible();
-  expect(screen.getByRole("button", { name: /Confirmar la instalación revocada/ }).query()).toBeNull();
+  expect(
+    screen.getByRole("button", { name: /Confirmar la instalación revocada/ }).query(),
+  ).toBeNull();
 });
 
 test("explains above the table why the credit notes of a presentation wait", async () => {

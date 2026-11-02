@@ -82,7 +82,9 @@ test("names the register and when its installation was revoked, asks to confirm 
     .toBeVisible();
   await expect
     .element(
-      dialog.getByText("Si emitió alguno, el informe a ARCA quedaría incompleto.", { exact: true }),
+      dialog
+        .getByText("Si emitió alguno, el informe a ARCA quedaría incompleto.", { exact: true })
+        .first(),
     )
     .toBeVisible();
 });

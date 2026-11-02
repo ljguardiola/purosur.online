@@ -1,9 +1,9 @@
 import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
+  confirmRevokedInstallation,
   type FortnightPresentation,
   fetchFortnightPresentations,
-  confirmRevokedInstallation,
   remedyRejectedDocument,
 } from "./fortnight-presentations-api";
 

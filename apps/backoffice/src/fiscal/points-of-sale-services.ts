@@ -4,6 +4,7 @@ import {
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
 import { fetchBuyerTaxStatuses } from "./buyer-tax-statuses-api";
+import type { ConfirmRevokedInstallationModalServices } from "./confirm-revoked-installation-modal";
 import type { EditFiscalAddressModalServices } from "./edit-fiscal-address-modal";
 import type { EditRegisterOfflinePointOfSaleModalServices } from "./edit-register-offline-point-of-sale-modal";
 import type { EditRegisterPointOfSaleModalServices } from "./edit-register-point-of-sale-modal";
@@ -12,7 +13,11 @@ import {
   editFiscalAddress,
   fetchFiscalAddresses,
 } from "./fiscal-addresses-api";
-import { fetchFortnightPresentations, remedyRejectedDocument } from "./fortnight-presentations-api";
+import {
+  confirmRevokedInstallation,
+  fetchFortnightPresentations,
+  remedyRejectedDocument,
+} from "./fortnight-presentations-api";
 import type { NewFiscalAddressModalServices } from "./new-fiscal-address-modal";
 import { fetchOfflinePointsOfSale, retireOfflinePointOfSale } from "./offline-points-of-sale-api";
 import {
@@ -28,7 +33,8 @@ export type PointsOfSaleScreenServices = EditRegisterPointOfSaleModalServices &
   NewFiscalAddressModalServices &
   EditFiscalAddressModalServices &
   RetireOfflinePointOfSaleModalServices &
-  ReviewRejectedDocumentModalServices & {
+  ReviewRejectedDocumentModalServices &
+  ConfirmRevokedInstallationModalServices & {
     fetchRegisterPointsOfSale: typeof fetchRegisterPointsOfSale;
     fetchFiscalAddresses: typeof fetchFiscalAddresses;
     fetchFortnightPresentations: typeof fetchFortnightPresentations;
@@ -42,6 +48,7 @@ export const defaultPointsOfSaleScreenServices: PointsOfSaleScreenServices = {
   fetchOfflinePointsOfSale,
   retireOfflinePointOfSale,
   remedyRejectedDocument,
+  confirmRevokedInstallation,
   fetchBuyerTaxStatuses,
   configureRegisterPointOfSale,
   configureRegisterOfflinePointOfSale,
