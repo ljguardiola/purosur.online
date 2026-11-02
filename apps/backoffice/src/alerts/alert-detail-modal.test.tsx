@@ -3061,6 +3061,91 @@ test("tells a blocked report waits for its register to finish syncing even when 
     .toBeVisible();
 });
 
+const WAITING_FOR_CONFIRMATION = (what: string) =>
+  `Se puede presentar cuando alguien confirme, en Puntos de venta y CAEA, que ${what} no emitió comprobantes sin conexión que haya dejado sin sincronizar.`;
+
+test("tells which installation of the register was revoked and when, and that the report waits for someone to confirm it issued nothing it did not sync", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      pendingReportAlert({
+        reason: "revoked_installation",
+        revokedInstallations: [{ installationId: "inst-1", revokedAt: "2026-09-10T15:30:00.000Z" }],
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(
+      screen.getByText("Una instalación de la caja «Caja 1» se revocó el 10/09/2026 · 12:30.", {
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await expect
+    .element(screen.getByText(WAITING_FOR_CONFIRMATION("esa instalación"), { exact: true }))
+    .toBeVisible();
+  expect(screen.getByText(/termine de sincronizar/).query()).toBeNull();
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("tells each revoked installation of the register and that all of them are to be confirmed", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      pendingReportAlert({
+        reason: "revoked_installation",
+        registerName: undefined,
+        revokedInstallations: [
+          { installationId: "inst-1", revokedAt: "2026-09-10T15:30:00.000Z" },
+          { installationId: "inst-2", revokedAt: "2026-09-12T09:00:00.000Z" },
+        ],
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(
+      screen.getByText("Una instalación de la caja se revocó el 10/09/2026 · 12:30.", {
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText("Una instalación de la caja se revocó el 12/09/2026 · 06:00.", {
+        exact: true,
+      }),
+    )
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "Se puede presentar cuando alguien confirme, en Puntos de venta y CAEA, que esas instalaciones no emitieron comprobantes sin conexión que hayan dejado sin sincronizar.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+});
+
+test("tells a report waits for the confirmation of a revoked installation even when the alert records none", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(pendingReportAlert({ reason: "revoked_installation" })),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(screen.getByText(WAITING_FOR_CONFIRMATION("la instalación revocada"), { exact: true }))
+    .toBeVisible();
+  expect(screen.getByText(/se revocó el/).query()).toBeNull();
+});
+
 test("tells that a pending report closes by itself once it is presented", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(ok(pendingReportAlert({})));
