@@ -101,8 +101,8 @@ function printed(
 const HEAD = [
   "[init]",
   "[codepage PC850]",
-  "[feed dots 24]",
-  "[logo 576x280]",
+  "[logo 576x255]",
+  "[logo 576x25]",
   "[feed dots 16]",
   "[small]                       Av. Belgrano 1450[/small]",
   "[small]              WhatsApp 11 5555-0100  ·  @puro.sur[/small]",
@@ -141,7 +141,7 @@ const VOIDED_SALE = [
 ];
 
 const AUTHORIZATION = [
-  "[feed dots 16]",
+  "[feed dots 9]",
   "[align center]",
   "[qr model 2]",
   "[qr module 8]",
@@ -149,7 +149,7 @@ const AUTHORIZATION = [
   `[qr store ${QR_TEXT}]`,
   "[qr print]",
   "[align left]",
-  "[feed dots 8]",
+  "[feed dots 5]",
   "[small]                     Comprobante autorizado[/small]",
   "[small]             CAE 71234567890999  ·  Vto. 12/10/2026[/small]",
 ];
