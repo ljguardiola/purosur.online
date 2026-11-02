@@ -1121,6 +1121,13 @@
       "when": 1793579757711,
       "tag": "0166_sale_voided_by",
       "breakpoints": true
+    },
+    {
+      "idx": 167,
+      "version": "7",
+      "when": 1793584283177,
+      "tag": "0167_stock_movement_return",
+      "breakpoints": true
     }
   ]
 }

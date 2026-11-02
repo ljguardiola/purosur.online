@@ -591,6 +591,7 @@ export const stockMovements = pgTable(
     saleLineId: uuid("sale_line_id").references(() => saleLines.id),
     purchaseLineId: uuid("purchase_line_id").references(() => purchaseLines.id),
     assemblyBatchId: uuid("assembly_batch_id").references(() => assemblyBatches.id),
+    returnId: uuid("return_id").references(() => saleReturns.id),
     delta: bigint("delta", { mode: "number" }).notNull(),
     occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
