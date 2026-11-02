@@ -1,5 +1,6 @@
 import { Info } from "lucide-react";
 import { expect, expectTypeOf, test, vi } from "vitest";
+import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { AA_TEXT_CONTRAST, contrastRatio, NON_TEXT_CONTRAST } from "../../styles/contrast";
 import { expectNoAccessibilityViolations } from "../../test/axe";
@@ -354,4 +355,29 @@ test("announces success and warning tones politely, after the current speech end
 
 test("does not name its secondary text detail", () => {
   expectTypeOf<NotificationCardProps>().not.toHaveProperty("detail");
+});
+
+test("runs the action it offers when its button is pressed", async () => {
+  const onPress = vi.fn();
+  const screen = await render(
+    <NotificationCard
+      tone="info"
+      icon={<Info />}
+      title="New version"
+      description="Reload to use it"
+      action={{ label: "Reload", onPress }}
+    />,
+  );
+
+  await userEvent.click(screen.getByRole("button", { name: "Reload" }));
+
+  expect(onPress).toHaveBeenCalledTimes(1);
+});
+
+test("shows no button when it offers no action", async () => {
+  const screen = await render(
+    <NotificationCard tone="info" icon={<Info />} title="New version" description="Reload" />,
+  );
+
+  expect(screen.getByRole("button").query()).toBeNull();
 });

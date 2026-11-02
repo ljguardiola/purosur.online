@@ -51,3 +51,12 @@ export const WithTime: Story = {
 export const Closable: Story = {
   args: { tone: "success", onClose: () => {} },
 };
+
+export const WithAction: Story = {
+  args: {
+    tone: "info",
+    title: "Hay una versión nueva",
+    description: "Recargá la página para usarla.",
+    action: { label: "Recargar", onPress: () => {} },
+  },
+};
