@@ -172,6 +172,17 @@ test("opens focused on the first field the person can type in, past a read-only 
   await expect.element(screen.getByRole("textbox", { name: "Nombre" })).toHaveFocus();
 });
 
+test("opens focused on the first field the person can type in, past a read-only text area before it", async () => {
+  const screen = await render(
+    <FormModal>
+      <textarea aria-label="Notas" value="Sin cambios" readOnly />
+      <NameField />
+    </FormModal>,
+  );
+
+  await expect.element(screen.getByRole("textbox", { name: "Nombre" })).toHaveFocus();
+});
+
 test.each(["file", "color", "button", "submit", "reset", "image"])(
   "opens focused on the first text field, past an input of type %s before it",
   async (type) => {
@@ -220,6 +231,39 @@ test("opens the list of the combobox it opened focused on when the person clicks
   await expect.element(size).toHaveFocus();
 
   await size.click();
+
+  await expect.element(size).toHaveAttribute("aria-expanded", "true");
+  await expect.element(screen.getByRole("option", { name: "Grande" })).toBeVisible();
+});
+
+test("opens the list of the combobox it opened focused on when assistive technology clicks it", async () => {
+  const screen = await render(
+    <FormModal>
+      <SizeComboBox />
+    </FormModal>,
+  );
+  const size = screen.getByRole("combobox", { name: "Tamaño" });
+  await expect.element(size).toHaveFocus();
+
+  size.element().click();
+
+  await expect.element(size).toHaveAttribute("aria-expanded", "true");
+  await expect.element(screen.getByRole("option", { name: "Grande" })).toBeVisible();
+});
+
+test("opens the list of the combobox it opened focused on when assistive technology clicks its button", async () => {
+  const screen = await render(
+    <FormModal>
+      <SizeComboBox />
+    </FormModal>,
+  );
+  const size = screen.getByRole("combobox", { name: "Tamaño" });
+  await expect.element(size).toHaveFocus();
+
+  screen
+    .getByRole("button", { name: /Tamaño/ })
+    .element()
+    .click();
 
   await expect.element(size).toHaveAttribute("aria-expanded", "true");
   await expect.element(screen.getByRole("option", { name: "Grande" })).toBeVisible();
