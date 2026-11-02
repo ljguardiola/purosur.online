@@ -176,6 +176,21 @@ describe("confirmRevokedInstallationUnsynced", () => {
     await expect(confirm(store)).resolves.toEqual({ kind: "not_holding_back" });
   });
 
+  it("answers holds unapplied events, recording nothing, for a revoked installation whose events are not all applied", async () => {
+    const store = setUp(revoked({ holdsUnappliedEvents: true }));
+
+    await expect(confirm(store)).resolves.toEqual({ kind: "holds_unapplied_events" });
+    expect(store.snapshot()).toEqual({ confirmations: [], audits: [] });
+  });
+
+  it("answers not holding back for an installation revoked before the fortnight began that holds events not yet applied", async () => {
+    const store = setUp(
+      revoked({ revokedAt: new Date("2026-09-10T12:00:00.000Z"), holdsUnappliedEvents: true }),
+    );
+
+    await expect(confirm(store)).resolves.toEqual({ kind: "not_holding_back" });
+  });
+
   it("rolls back the confirmation when its audit cannot be recorded", async () => {
     const store = setUp();
     store.failingWrites.add("recordConfirmationAudit");

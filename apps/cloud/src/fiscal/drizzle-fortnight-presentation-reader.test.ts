@@ -561,9 +561,9 @@ describe("DrizzleFortnightPresentationReader.branchPresentations for the install
     );
   });
 
-  it("answers them even while an installation still active has not synced past the close either", async () => {
+  it("answers none while an installation still active has not synced past the close either", async () => {
     const registerId = await blockedFortnight();
-    const { deviceId } = await revokedInstallation(registerId);
+    await revokedInstallation(registerId);
     await insertEnrolledInstallation(db, {
       now: AT,
       existingRegisterId: registerId,
@@ -572,10 +572,23 @@ describe("DrizzleFortnightPresentationReader.branchPresentations for the install
 
     const [presentation] = await presentations("2026-10-16");
 
-    expect(presentation?.revokedInstallations).toEqual([
-      { installationId: deviceId, revokedAt: REVOKED_AT },
-    ]);
+    expect(presentation?.revokedInstallations).toEqual([]);
   });
+
+  it.each(["accepted", "needs_regularization"] as const)(
+    "answers none once the report is %s",
+    async (state) => {
+      const registerId = await seedOfflinePointOfSale(db);
+      await claimedBeforeEveryFortnight(OFFLINE_POINT_OF_SALE);
+      await keepCode(OCTOBER_FIRST_HALF, "36123456789012", "2026-10-20");
+      await record(OFFLINE_POINT_OF_SALE, OCTOBER_FIRST_HALF, state, "none");
+      await revokedInstallation(registerId);
+
+      const [presentation] = await presentations("2026-10-16");
+
+      expect(presentation?.revokedInstallations).toEqual([]);
+    },
+  );
 
   it("leaves out a revoked installation already confirmed", async () => {
     const registerId = await blockedFortnight();

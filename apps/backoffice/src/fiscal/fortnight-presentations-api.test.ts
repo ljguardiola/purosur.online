@@ -389,6 +389,7 @@ test.each([
   ["already_presented", { kind: "already_presented" }],
   ["not_revoked", { kind: "not_revoked" }],
   ["not_holding_back", { kind: "not_holding_back" }],
+  ["holds_unapplied_events", { kind: "holds_unapplied_events" }],
   ["something_else", { kind: "failed" }],
 ] as const)("confirmRevokedInstallation maps the 409 reason %s", async (code, outcome) => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code }));

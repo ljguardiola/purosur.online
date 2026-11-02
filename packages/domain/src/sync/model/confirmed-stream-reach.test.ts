@@ -92,6 +92,16 @@ describe("revokedInstallationsAwaitingConfirmation", () => {
     ).toEqual([]);
   });
 
+  it("leaves out a revoked installation that still holds events not yet applied", () => {
+    expect(
+      revokedInstallationsAwaitingConfirmation(
+        [revokedMidFortnight({ holdsUnappliedEvents: true })],
+        PERIOD,
+        [],
+      ),
+    ).toEqual([]);
+  });
+
   it("leaves out a revoked installation whose confirmation exists", () => {
     expect(
       revokedInstallationsAwaitingConfirmation([revokedMidFortnight()], PERIOD, ["revoked-1"]),
@@ -132,6 +142,26 @@ describe("isHeldBackOnlyByRevokedInstallations", () => {
         [installation({ latestOccurredAt: null }), revokedMidFortnight()],
         PERIOD,
         [],
+      ),
+    ).toBe(false);
+  });
+
+  it("fails when a revoked installation still holds events not yet applied", () => {
+    expect(
+      isHeldBackOnlyByRevokedInstallations(
+        [installation(), revokedMidFortnight({ holdsUnappliedEvents: true })],
+        PERIOD,
+        [],
+      ),
+    ).toBe(false);
+  });
+
+  it("fails when a confirmed revoked installation still holds events not yet applied", () => {
+    expect(
+      isHeldBackOnlyByRevokedInstallations(
+        [revokedMidFortnight({ holdsUnappliedEvents: true })],
+        PERIOD,
+        ["revoked-1"],
       ),
     ).toBe(false);
   });
@@ -178,6 +208,16 @@ describe("streamReachesPastOnceConfirmed", () => {
     expect(
       streamReachesPastOnceConfirmed(
         [installation({ latestOccurredAt: null }), revokedMidFortnight()],
+        PERIOD,
+        ["revoked-1"],
+      ),
+    ).toBe(false);
+  });
+
+  it("fails while a confirmed revoked installation still holds events not yet applied", () => {
+    expect(
+      streamReachesPastOnceConfirmed(
+        [installation(), revokedMidFortnight({ holdsUnappliedEvents: true })],
         PERIOD,
         ["revoked-1"],
       ),

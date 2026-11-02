@@ -166,11 +166,15 @@ test("asks for the passkey on authorization_required, then authorizes and retrie
 });
 
 test.each([
-  ["already_confirmed", "Este informe ya siguió su curso."],
+  ["already_confirmed", "Alguien ya confirmó esta instalación para este informe."],
   ["already_presented", "Este informe ya siguió su curso."],
   ["not_revoked", "Esta instalación ya no frena el informe."],
   ["not_holding_back", "Esta instalación ya no frena el informe."],
   ["not_found", "Esta instalación ya no frena el informe."],
+  [
+    "holds_unapplied_events",
+    "La nube todavía no terminó de procesar lo que esta instalación sincronizó.",
+  ],
 ] as const)(
   "explains the %s refusal, keeps the modal open and asks the screen to refresh",
   async (kind, message) => {

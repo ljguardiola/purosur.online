@@ -253,6 +253,21 @@ describe("POST /registers/fortnight-presentations/revoked-installation-confirmat
     expect(await confirmations()).toEqual([]);
   });
 
+  it("answers 409 holds_unapplied_events for a revoked installation whose received events are not all applied", async () => {
+    const { installationId } = await seedRevokedInstallation();
+    await insertInboxEvent(db, installationId, {
+      occurredAt: new Date("2026-10-09T12:00:00.000Z"),
+      appliedAt: null,
+    });
+    const session = await sessionWith(["change_fiscal_configuration"]);
+
+    const response = await confirmation(session.headers, installationId);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "holds_unapplied_events" });
+    expect(await confirmations()).toEqual([]);
+  });
+
   it("records the confirmation of a revoked installation, audited under the actor with its register and when it was revoked", async () => {
     const { registerId, installationId } = await seedRevokedInstallation();
     const session = await sessionWith(["change_fiscal_configuration"]);
