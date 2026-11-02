@@ -2020,7 +2020,11 @@ describe("decoding the events the registers pushed", () => {
     const REGISTER = "0b6f8d3a-2c41-4e9b-a7d5-3f1e9c8b6a20";
     const INTERVAL = "01a1414f-0002-7c2d-9e3f-5a6b7c8d9e02";
 
-    function decoded(eventType: string, payload: Record<string, string>) {
+    function decoded(
+      eventType: string,
+      payload: Record<string, string | boolean>,
+      schemaVersion = 1,
+    ) {
       return upcaster.decode(
         unappliedEventOf(
           pushed({
@@ -2028,7 +2032,7 @@ describe("decoding the events the registers pushed", () => {
             aggregate_id: REGISTER,
             actor_id: REGISTER,
             event_type: eventType,
-            schema_version: 1,
+            schema_version: schemaVersion,
             payload,
           }),
         ),
@@ -2077,10 +2081,29 @@ describe("decoding the events the registers pushed", () => {
         kind: "fact",
         fact: {
           kind: "contingency_reporting_started",
-          reporting: { since: new Date("2026-10-06T11:00:00.000Z") },
+          reporting: { since: new Date("2026-10-06T11:00:00.000Z"), fromEnrollment: false },
         },
       });
     });
+
+    it.each([true, false])(
+      "reads a first report of contingency that says it is from enrollment: %s",
+      (fromEnrollment) => {
+        expect(
+          decoded(
+            "contingency_reporting_started",
+            { since: "2026-10-20T12:00:05.000Z", from_enrollment: fromEnrollment },
+            2,
+          ),
+        ).toEqual({
+          kind: "fact",
+          fact: {
+            kind: "contingency_reporting_started",
+            reporting: { since: new Date("2026-10-20T12:00:05.000Z"), fromEnrollment },
+          },
+        });
+      },
+    );
   });
 
   it("reads a deferred sale record of the first version as one that left no document waiting", () => {

@@ -294,7 +294,7 @@ export const A_CONTINGENCY_LEFT_FACT: SyncedFact = {
 
 export const A_CONTINGENCY_REPORTING_STARTED_FACT: SyncedFact = {
   kind: "contingency_reporting_started",
-  reporting: { since: new Date("2026-10-07T10:00:00.000Z") },
+  reporting: { since: new Date("2026-10-07T10:00:00.000Z"), fromEnrollment: false },
 };
 
 type DeferredSaleSatisfied = Extract<SyncedFact, { kind: "deferred_sale_satisfied" }>;
