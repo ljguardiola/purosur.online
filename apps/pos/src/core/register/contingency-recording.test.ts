@@ -1,3 +1,4 @@
+import type { DeviceCredentials } from "@purosur/contracts";
 import type { FiscalEmissionMode } from "@purosur/domain";
 import { aCompletedSaleFact } from "@purosur/domain/sync/test-support";
 import { resetRestoredSyncIdentity } from "@purosur/domain/sync/use-cases";
@@ -14,13 +15,26 @@ import {
 } from "./replenished-contingency-facts";
 
 const CHAIN_KEY = Buffer.from("0123456789abcdef0123456789abcdef").toString("base64");
+const ENROLLED_WITHOUT_KEYS: DeviceCredentials = {
+  device_id: "device-1",
+  device_token: "prefix.secret",
+  pepper: Buffer.alloc(32, 7).toString("base64url"),
+};
+const ENROLLED: DeviceCredentials = {
+  ...ENROLLED_WITHOUT_KEYS,
+  keys: {
+    snapshot_key_versions: [{ version: 1, key: Buffer.alloc(32, 1).toString("base64") }],
+    contingency_ticket_key: { version: 1, key: Buffer.alloc(32, 2).toString("base64") },
+    outbox_chain_key: CHAIN_KEY,
+  },
+};
 const OFFLINE: FiscalEmissionMode = { kind: "offline_code", cause: "no_connectivity" };
 const REAL_TIME: FiscalEmissionMode = { kind: "real_time" };
 
 let database: LocalDatabase;
 let mode: FiscalEmissionMode;
 let moment: Date;
-let chainKey: string | undefined;
+let credentials: DeviceCredentials | undefined;
 let failures: unknown[];
 let nextId: number;
 let modeUnreadable: boolean;
@@ -41,7 +55,7 @@ function recording() {
       }
       return mode;
     },
-    readOutboxChainKey: async () => chainKey,
+    readCredentials: async () => credentials,
     reportFailure: (error) => failures.push(error),
   });
 }
@@ -115,7 +129,7 @@ beforeEach(() => {
   database.prepare("UPDATE sync_state SET device_id = 'device-1' WHERE id = 1").run();
   mode = REAL_TIME;
   moment = new Date("2026-10-12T12:00:00.000Z");
-  chainKey = CHAIN_KEY;
+  credentials = ENROLLED;
   failures = [];
   nextId = 0;
   modeUnreadable = false;
@@ -127,7 +141,7 @@ afterEach(() => {
 
 describe("createContingencyRecording", () => {
   it("records nothing before the register can write to its outbox", async () => {
-    chainKey = undefined;
+    credentials = undefined;
     mode = OFFLINE;
     openSession();
 
@@ -139,10 +153,10 @@ describe("createContingencyRecording", () => {
   });
 
   it("reports that it started recording contingency once, at the first check after enrollment", async () => {
-    chainKey = undefined;
+    credentials = undefined;
     const contingency = recording();
     await contingency.check();
-    chainKey = CHAIN_KEY;
+    credentials = ENROLLED;
 
     await contingency.check();
     await contingency.check();
@@ -151,10 +165,10 @@ describe("createContingencyRecording", () => {
   });
 
   it("reports that it recorded contingency from its enrollment when it was checked before it was enrolled", async () => {
-    chainKey = undefined;
+    credentials = undefined;
     const contingency = recording();
     await contingency.startup();
-    chainKey = CHAIN_KEY;
+    credentials = ENROLLED;
     moment = new Date("2026-10-12T12:00:05.000Z");
 
     await contingency.check();
@@ -178,8 +192,26 @@ describe("createContingencyRecording", () => {
     ).toEqual({ total: 0 });
   });
 
+  it("does not claim it recorded contingency from its enrollment when it was enrolled before its keys could be read", async () => {
+    credentials = ENROLLED_WITHOUT_KEYS;
+    const contingency = recording();
+    await contingency.startup();
+    credentials = ENROLLED;
+    moment = new Date("2026-10-12T12:00:05.000Z");
+
+    await contingency.check();
+
+    expect(reportingStartedPayloads()).toEqual([
+      { since: "2026-10-12T12:00:05.000Z", from_enrollment: false },
+    ]);
+    expect(
+      database.prepare("SELECT count(*) AS total FROM register_seen_unenrolled").get(),
+    ).toEqual({ total: 0 });
+    expect(failures).toEqual([]);
+  });
+
   it("remembers it was seen before enrollment once, however many checks it makes", async () => {
-    chainKey = undefined;
+    credentials = undefined;
     const contingency = recording();
 
     await contingency.startup();
@@ -193,7 +225,7 @@ describe("createContingencyRecording", () => {
   });
 
   it("reports no start of its own when the replaced register's start was replenished, even if it was seen before enrollment", async () => {
-    chainKey = undefined;
+    credentials = undefined;
     const contingency = recording();
     await contingency.startup();
     const replacedStart = new Date("2026-10-01T09:00:00.000Z");
@@ -205,7 +237,7 @@ describe("createContingencyRecording", () => {
       },
       { eventId: "event-replaced", deviceId: "device-old", occurredAt: replacedStart },
     );
-    chainKey = CHAIN_KEY;
+    credentials = ENROLLED;
 
     await contingency.check();
 

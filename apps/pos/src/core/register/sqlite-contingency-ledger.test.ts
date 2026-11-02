@@ -3,6 +3,7 @@ import {
   closePredecessorContingency,
   type IdGenerator,
   recordContingencyChange,
+  recordRegisterSeenUnenrolled,
   startContingencyReporting,
 } from "@purosur/domain/register/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -231,9 +232,20 @@ describe("SqliteContingencyLedger", () => {
 
     database.prepare("DELETE FROM outbox").run();
     database.prepare("DELETE FROM contingency_reporting_start").run();
-    database.prepare("INSERT INTO register_seen_unenrolled (id) VALUES (1)").run();
+    recordRegisterSeenUnenrolled({ ledger: ledger(undefined) });
     start();
     expect(startedFromEnrollment()).toEqual([{ from_enrollment: 1 }]);
+  });
+
+  it("remembers once that the register was seen before it was enrolled, with no outbox chain key", () => {
+    expect(recordRegisterSeenUnenrolled({ ledger: ledger(undefined) })).toEqual({
+      kind: "recorded",
+    });
+    expect(recordRegisterSeenUnenrolled({ ledger: ledger(undefined) })).toEqual({
+      kind: "already_recorded",
+    });
+
+    expect(database.prepare("SELECT id FROM register_seen_unenrolled").all()).toEqual([{ id: 1 }]);
   });
 
   it("keeps the order of the events in the register's outbox chain", () => {

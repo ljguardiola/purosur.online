@@ -26,6 +26,7 @@ export type FakeContingencyLedgerWrite =
   | "recordIntervalSeen"
   | "recordClosedInterval"
   | "recordReportingStarted"
+  | "recordSeenUnenrolled"
   | "appendOutboxEvent";
 
 export class FakeContingencyLedger implements ContingencyLedger {
@@ -93,6 +94,10 @@ export class FakeContingencyLedger implements ContingencyLedger {
       recordReportingStarted: (since) => {
         this.failIfAsked("recordReportingStarted");
         working.reportingStartedAt = since;
+      },
+      recordSeenUnenrolled: () => {
+        this.failIfAsked("recordSeenUnenrolled");
+        working.seenUnenrolled = true;
       },
       appendOutboxEvent: (draft) => {
         this.failIfAsked("appendOutboxEvent");

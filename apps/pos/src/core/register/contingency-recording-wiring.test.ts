@@ -1,4 +1,4 @@
-import { encodePinHash } from "@purosur/contracts";
+import { type DeviceCredentials, encodePinHash } from "@purosur/contracts";
 import type { FiscalEmissionMode } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { derivePinVerifier } from "../credentials/pin-verifier";
@@ -29,6 +29,16 @@ import { restorationOf } from "./test-support/restoration-of";
 const CHAIN_KEY = Buffer.from("0123456789abcdef0123456789abcdef").toString("base64");
 const NOW = new Date("2026-10-12T12:00:00.000Z");
 const PEPPER = Buffer.alloc(32, 7).toString("base64url");
+const CREDENTIALS: DeviceCredentials = {
+  device_id: "device-1",
+  device_token: "prefix.secret",
+  pepper: PEPPER,
+  keys: {
+    snapshot_key_versions: [{ version: 1, key: Buffer.alloc(32, 1).toString("base64") }],
+    contingency_ticket_key: { version: 1, key: Buffer.alloc(32, 2).toString("base64") },
+    outbox_chain_key: CHAIN_KEY,
+  },
+};
 const PIN_HASH = "argon2id$v=19$m=65536,t=3,p=4$c2FsdA$aGFzaC1vZi10aGUtcGlu";
 const CLOSER_PIN = "1234";
 const OFFLINE: FiscalEmissionMode = { kind: "offline_code", cause: "no_connectivity" };
@@ -59,6 +69,7 @@ function wiring(overrides: Partial<ContingencyRecordingWiringDeps> = {}) {
       },
     },
     readOutboxChainKey: async () => CHAIN_KEY,
+    readCredentials: async () => CREDENTIALS,
     readMode: () => mode,
     restorationOf,
     reportFailure: (error) => failures.push(error),
