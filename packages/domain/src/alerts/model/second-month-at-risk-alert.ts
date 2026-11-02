@@ -1,7 +1,9 @@
 import {
+  CONTINGENCY_TIME_NON_COMPLIANCE_PERCENT,
   EXCEPTION_SHARE_NON_COMPLIANCE_PERCENT,
   type ExceptionShareCounts,
   exceptionShareTenthsOfPercent,
+  type NonCompliantMeasurement,
 } from "../../fiscal/index.js";
 import type { AlertConditionObservation } from "./alert-condition-observation.js";
 import { fiscalAddressMonthScope } from "./exception-share-alerts.js";
@@ -11,6 +13,13 @@ export function secondMonthAtRiskObservation(
   month: string,
   previousMonth: string,
   counts: ExceptionShareCounts,
+  {
+    previousMonthNonCompliantOn,
+    contingencyShareTenthsOfPercent,
+  }: {
+    previousMonthNonCompliantOn: NonCompliantMeasurement[];
+    contingencyShareTenthsOfPercent: number | null;
+  },
 ): AlertConditionObservation {
   return {
     holds: true,
@@ -26,6 +35,9 @@ export function secondMonthAtRiskObservation(
         totalCount: counts.totalCount,
         shareTenthsOfPercent: exceptionShareTenthsOfPercent(counts),
         nonCompliancePercent: EXCEPTION_SHARE_NON_COMPLIANCE_PERCENT,
+        previousMonthNonCompliantOn,
+        contingencyShareTenthsOfPercent,
+        contingencyNonCompliancePercent: CONTINGENCY_TIME_NON_COMPLIANCE_PERCENT,
       },
     },
   };

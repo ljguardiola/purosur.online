@@ -2,6 +2,7 @@ import type {
   ClockPreviousReadingSource,
   FiscalDocumentType,
   FiscalTaskDocumentType,
+  NonCompliantMeasurement,
   PreEmissionGateFailureReason,
   RejectionClass,
   TaxAuthorityRejection,
@@ -259,6 +260,9 @@ interface ExceptionShareSecondMonthAtRiskDetail {
   totalCount: number;
   shareTenthsOfPercent: number | null;
   nonCompliancePercent: number;
+  previousMonthNonCompliantOn: NonCompliantMeasurement[];
+  contingencyShareTenthsOfPercent: number | null;
+  contingencyNonCompliancePercent: number;
 }
 
 export interface AlertDetails {
