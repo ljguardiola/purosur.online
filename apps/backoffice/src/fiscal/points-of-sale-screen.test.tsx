@@ -689,7 +689,7 @@ test("confirming the installation reads the presentations again and announces it
   await expect
     .element(
       screen.getByText(
-        "Caja 1: el informe del 1 al 15 de septiembre del punto de venta 00013 sigue su curso.",
+        "Caja 1, revocada el 10/09/2026 · 12:30, para el informe del 1 al 15 de septiembre del punto de venta 00013.",
       ),
     )
     .toBeVisible();
