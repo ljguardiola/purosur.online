@@ -16,6 +16,8 @@ RUN pnpm --filter @purosur/cloud build
 RUN pnpm --filter @purosur/cloud deploy --prod /deploy/cloud
 
 FROM base AS build-backoffice
+# The release the backoffice bundle carries, so an open tab can tell it is outdated.
+ARG APP_VERSION
 COPY . .
 RUN pnpm install --frozen-lockfile --filter @purosur/backoffice...
 RUN pnpm --filter @purosur/backoffice build

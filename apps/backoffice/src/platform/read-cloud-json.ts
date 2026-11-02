@@ -1,3 +1,4 @@
+import { cloudFetch } from "./cloud-fetch";
 import type { CloudReadOutcome } from "./cloud-read-outcome";
 import { rateLimitOutcome } from "./rate-limit-outcome";
 
@@ -25,8 +26,8 @@ export async function readCloudJson<T>(
   try {
     response =
       request === undefined
-        ? await fetch(path)
-        : await fetch(path, {
+        ? await cloudFetch(path)
+        : await cloudFetch(path, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(request.body),
