@@ -40,7 +40,6 @@ export type {
   ArcaAvailabilityRun,
   ContingencyPart,
   ContingencyReportingRegister,
-  ContingencyTimeMeasurement,
 } from "./model/contingency-time-share.js";
 export {
   CONTINGENCY_TIME_MONTH_STATES,
