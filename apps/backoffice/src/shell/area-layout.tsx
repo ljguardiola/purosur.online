@@ -14,10 +14,13 @@ import type { ReactNode } from "react";
 import { AccountFooter } from "./account-footer";
 import { AreaTopBarUnbilledDeferredSales } from "./area-top-bar-unbilled-deferred-sales";
 import {
+  canComparePrices,
   canManageBatches,
   canManageFreights,
   canManageProductsAndCategories,
+  canManagePurchaseOrders,
   canManageRecipes,
+  canManageSupplierPriceLists,
   canManageSuppliers,
   canPerformStockCounts,
   canRecordPurchases,
@@ -93,6 +96,13 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
       ? "/refunds/mercado-pago"
       : "/fiscal-tasks";
   const reportsTarget = canSeeReports(session) ? "/reports" : "/reports/returns";
+  const ordersTarget = canManageSupplierPriceLists(session)
+    ? "/supplier-price-lists"
+    : canComparePrices(session)
+      ? "/price-comparison"
+      : canManagePurchaseOrders(session)
+        ? "/purchase-orders"
+        : "/supplier-price-lists";
   const stockTargetShown = Boolean(matchRoute({ to: stockTarget }));
   return (
     <Shell
@@ -120,7 +130,7 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
           )}
           {canSeeOrdersArea(session) && (
             <AreaLink
-              to="/supplier-price-lists"
+              to={ordersTarget}
               label="Pedidos"
               icon={<ClipboardList />}
               active={area === "orders"}

@@ -458,6 +458,14 @@ describe("GET /purchase-choices", () => {
     expect(response.json()).toMatchObject({ code: "forbidden" });
   });
 
+  it("answers the choices to a user who may only manage purchase orders", async () => {
+    const { headers } = await signedInWith(db, ["manage_purchase_orders"], NOW);
+
+    const response = await app.inject({ method: "GET", url: "/purchase-choices", headers });
+
+    expect(response.statusCode).toBe(200);
+  });
+
   it("answers only the suppliers and products a purchase may be registered with", async () => {
     const { headers, userId } = await buyer();
     const supplierId = await storedSupplier(userId, { name: "Distribuidora Sur" });

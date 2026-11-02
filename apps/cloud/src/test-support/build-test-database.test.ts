@@ -72,6 +72,8 @@ import {
   products,
   productTags,
   purchaseLines,
+  purchaseOrderLines,
+  purchaseOrders,
   purchases,
   recipeComponents,
   recipes,
@@ -907,6 +909,24 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
         quantityPerPackage: 1000,
       })
       .returning({ id: purchaseLines.id });
+    const [purchaseOrder] = await db
+      .insert(purchaseOrders)
+      .values({
+        supplierId: supplier?.id as string,
+        locationId: await seededLocationId(db),
+        state: "DRAFT",
+        createdAt: new Date("2026-01-04T12:00:00.000Z"),
+        actorId: user.id,
+      })
+      .returning({ id: purchaseOrders.id });
+    await db.insert(purchaseOrderLines).values({
+      purchaseOrderId: purchaseOrder?.id as string,
+      position: 1,
+      productId: product.id,
+      packages: 2,
+      quantityPerPackage: 1000,
+      expectedPackagePriceCents: null,
+    });
     const [lot] = await db
       .insert(lots)
       .values({
