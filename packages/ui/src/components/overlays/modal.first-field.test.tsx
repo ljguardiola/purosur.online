@@ -245,7 +245,7 @@ test("opens the list of the combobox it opened focused on when assistive technol
   const size = screen.getByRole("combobox", { name: "Tamaño" });
   await expect.element(size).toHaveFocus();
 
-  size.element().click();
+  (size.element() as HTMLElement).click();
 
   await expect.element(size).toHaveAttribute("aria-expanded", "true");
   await expect.element(screen.getByRole("option", { name: "Grande" })).toBeVisible();
@@ -260,10 +260,7 @@ test("opens the list of the combobox it opened focused on when assistive technol
   const size = screen.getByRole("combobox", { name: "Tamaño" });
   await expect.element(size).toHaveFocus();
 
-  screen
-    .getByRole("button", { name: /Tamaño/ })
-    .element()
-    .click();
+  (screen.getByRole("button", { name: /Tamaño/ }).element() as HTMLElement).click();
 
   await expect.element(size).toHaveAttribute("aria-expanded", "true");
   await expect.element(screen.getByRole("option", { name: "Grande" })).toBeVisible();
