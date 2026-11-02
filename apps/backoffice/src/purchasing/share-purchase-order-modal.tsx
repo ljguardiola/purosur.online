@@ -176,7 +176,7 @@ export function SharePurchaseOrderModal({
         <p className="text-body text-text">
           Enviáselo al proveedor por el canal que uses (WhatsApp, correo…). El sistema no lo envía.
         </p>
-        {text.status === "loading" && <LoadingPlaceholder variant="card" />}
+        {text.status === "loading" && <LoadingPlaceholder variant="card" lines={3} />}
         {text.status === "failed" && (
           <LoadFailure {...cloudLoadFailure(text, "el texto del pedido")} />
         )}
