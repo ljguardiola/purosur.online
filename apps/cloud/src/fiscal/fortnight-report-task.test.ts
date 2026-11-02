@@ -26,11 +26,13 @@ import { DrizzleOfflineAuthorizationCodeStore } from "./drizzle-offline-authoriz
 import { FORTNIGHT_REPORT_TASK_IDENTIFIER, fortnightReportJobs } from "./fortnight-report-task.js";
 import { insertOfflineFiscalDocument } from "./test-support/offline-fiscal-document-fixtures.js";
 import { seedOfflinePointOfSale } from "./test-support/offline-point-of-sale-fixtures.js";
+import { confirmRevokedInstallation } from "./test-support/revoked-installation-fixtures.js";
 
 const NOW = new Date("2026-10-16T15:00:00.000Z");
 const FINGERPRINT = "AB:CD:EF";
 const OCTOBER_FIRST_HALF = { start: "2026-10-01", end: "2026-10-15" };
 const OFFLINE_POINT_OF_SALE = 8;
+const REVOKED_AT = new Date("2026-10-15T21:00:00.000Z");
 
 let testDatabase: TestDatabase;
 
@@ -117,7 +119,13 @@ async function issueDocuments(registerId: string, numbers: number[]) {
   }
 }
 
-async function owedFortnight({ syncedPastClose }: { syncedPastClose: boolean }) {
+async function owedFortnight({
+  syncedPastClose,
+  revokedAt,
+}: {
+  syncedPastClose: boolean;
+  revokedAt?: Date;
+}) {
   const registerId = await seedOfflinePointOfSale(testDatabase.db);
   await testDatabase.asMigrator(() =>
     testDatabase.db
@@ -141,13 +149,14 @@ async function owedFortnight({ syncedPastClose }: { syncedPastClose: boolean }) 
   const { deviceId } = await insertEnrolledInstallation(testDatabase.db, {
     now: NOW,
     existingRegisterId: registerId,
+    ...(revokedAt && { revokedAt }),
   });
   const occurredAt = new Date(
     syncedPastClose ? "2026-10-16T10:00:00.000Z" : "2026-10-15T20:00:00.000Z",
   );
   await insertInboxEvent(testDatabase.db, deviceId, { occurredAt, appliedAt: occurredAt });
   await issueWsaaToken();
-  return registerId;
+  return { registerId, installationId: deviceId };
 }
 
 function taskUnderTest(
@@ -218,8 +227,72 @@ describe("fortnightReportJobs", () => {
     ).toEqual([{ state: "blocked" }]);
   });
 
+  it("keeps the fortnight blocked while the only installation holding it back is revoked and nobody confirmed it", async () => {
+    await owedFortnight({ syncedPastClose: false, revokedAt: REVOKED_AT });
+    const declarations = new FakeDeclarations();
+    const { task } = taskUnderTest(declarations);
+
+    await task({}, buildJobHelpers().helpers);
+
+    expect(declarations.declared).toEqual([]);
+    expect(
+      await testDatabase.db.select({ state: fortnightReports.state }).from(fortnightReports),
+    ).toEqual([{ state: "blocked" }]);
+  });
+
+  it("declares the fortnight without movement once the only installation holding it back, revoked, is confirmed as having issued nothing it did not sync", async () => {
+    const { installationId } = await owedFortnight({
+      syncedPastClose: false,
+      revokedAt: REVOKED_AT,
+    });
+    await confirmRevokedInstallation(testDatabase.db, {
+      pointOfSaleNumber: OFFLINE_POINT_OF_SALE,
+      fortnight: OCTOBER_FIRST_HALF,
+      installationId,
+    });
+    const declarations = new FakeDeclarations();
+    const { task } = taskUnderTest(declarations);
+
+    await task({}, buildJobHelpers().helpers);
+
+    expect(declarations.declared.map(({ pointOfSaleNumber }) => pointOfSaleNumber)).toEqual([8]);
+    expect(
+      await testDatabase.db.select({ state: fortnightReports.state }).from(fortnightReports),
+    ).toEqual([{ state: "accepted" }]);
+  });
+
+  it("reports what the register's other installations synced once the revoked one is confirmed", async () => {
+    const { registerId, installationId } = await owedFortnight({
+      syncedPastClose: false,
+      revokedAt: REVOKED_AT,
+    });
+    const replacement = await insertEnrolledInstallation(testDatabase.db, {
+      now: NOW,
+      existingRegisterId: registerId,
+    });
+    const syncedAt = new Date("2026-10-16T10:00:00.000Z");
+    await insertInboxEvent(testDatabase.db, replacement.deviceId, {
+      occurredAt: syncedAt,
+      appliedAt: syncedAt,
+    });
+    await issueDocuments(registerId, [1, 2]);
+    await confirmRevokedInstallation(testDatabase.db, {
+      pointOfSaleNumber: OFFLINE_POINT_OF_SALE,
+      fortnight: OCTOBER_FIRST_HALF,
+      installationId,
+    });
+    const documentReports = new FakeDocumentReports();
+    const { task } = taskUnderTest(new FakeDeclarations(), vi.fn(), documentReports);
+
+    await task({}, buildJobHelpers().helpers);
+
+    expect(
+      documentReports.reported.map(({ documents }) => documents.map(({ number }) => number)),
+    ).toEqual([[1, 2]]);
+  });
+
   it("reports a closed fortnight's documents through a client borrowed from the worker and records each document type as reported", async () => {
-    const registerId = await owedFortnight({ syncedPastClose: true });
+    const { registerId } = await owedFortnight({ syncedPastClose: true });
     await issueDocuments(registerId, [1, 2]);
     const declarations = new FakeDeclarations();
     const documentReports = new FakeDocumentReports();
@@ -252,7 +325,7 @@ describe("fortnightReportJobs", () => {
   });
 
   it("marks a fortnight declared without movement as needing regularization when documents sync in afterwards, and reports nothing", async () => {
-    const registerId = await owedFortnight({ syncedPastClose: true });
+    const { registerId } = await owedFortnight({ syncedPastClose: true });
     const declarations = new FakeDeclarations();
     const documentReports = new FakeDocumentReports();
     const { task } = taskUnderTest(declarations, vi.fn(), documentReports);
@@ -334,7 +407,7 @@ describe("the log and the error report of a fortnight report run", () => {
   });
 
   it("names the document type of a presentation in its log line", async () => {
-    const registerId = await owedFortnight({ syncedPastClose: true });
+    const { registerId } = await owedFortnight({ syncedPastClose: true });
     await issueDocuments(registerId, [1]);
     const { task } = taskUnderTest(new FakeDeclarations());
     const { helpers, logs } = buildJobHelpers();
@@ -351,7 +424,7 @@ describe("the log and the error report of a fortnight report run", () => {
   });
 
   it("logs a presentation that needs manual regularization at info level without reporting it", async () => {
-    const registerId = await owedFortnight({ syncedPastClose: true });
+    const { registerId } = await owedFortnight({ syncedPastClose: true });
     const { task, report } = taskUnderTest(new FakeDeclarations());
     await task({}, buildJobHelpers().helpers);
     await issueDocuments(registerId, [1]);
@@ -370,7 +443,7 @@ describe("the log and the error report of a fortnight report run", () => {
   });
 
   it("reports a document the tax authority rejected with its document type, its number and its rejections", async () => {
-    const registerId = await owedFortnight({ syncedPastClose: true });
+    const { registerId } = await owedFortnight({ syncedPastClose: true });
     await issueDocuments(registerId, [1, 2]);
     const documentReports = new FakeDocumentReports();
     documentReports.reportAnswer = {
@@ -396,7 +469,7 @@ describe("the log and the error report of a fortnight report run", () => {
   });
 
   it("reports a gap in the numbers of a document type with the number the tax authority expects next", async () => {
-    const registerId = await owedFortnight({ syncedPastClose: true });
+    const { registerId } = await owedFortnight({ syncedPastClose: true });
     await issueDocuments(registerId, [3, 4]);
     const { task, report } = taskUnderTest(new FakeDeclarations());
 
@@ -415,7 +488,7 @@ describe("the log and the error report of a fortnight report run", () => {
   });
 
   it("logs a presentation whose rejected document awaits its remedy at debug level only, without reporting it or asking ARCA again", async () => {
-    const registerId = await owedFortnight({ syncedPastClose: true });
+    const { registerId } = await owedFortnight({ syncedPastClose: true });
     await issueDocuments(registerId, [1, 2]);
     const documentReports = new FakeDocumentReports();
     documentReports.reportAnswer = {
