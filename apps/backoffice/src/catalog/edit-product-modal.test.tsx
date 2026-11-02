@@ -2,8 +2,11 @@ import type { BrandSummary, CategorySummary, ProductSummary, TagSummary } from "
 import { FieldSizeProvider } from "@purosur/ui";
 import { beforeEach, expect, test, vi } from "vitest";
 import { type Locator, page, userEvent } from "vitest/browser";
-import { ReleaseMonitorContext } from "../platform/release-monitor";
-import { fakeReleaseMonitor } from "../platform/test-support/release-monitor";
+import { type ReleaseMonitor, ReleaseMonitorContext } from "../platform/release-monitor";
+import {
+  fakeReleaseMonitor,
+  releaseMonitorThatTurnsOutdated,
+} from "../platform/test-support/release-monitor";
 import { organico, sinColorantes, sinTacc, vegano } from "../platform/test-support/tags";
 import { render } from "../shell/test-support/render-with-router";
 import type { ProductReload } from "./catalog-queries";
@@ -38,6 +41,7 @@ type ModalOptions = {
   onSaved?: () => void;
   onSessionEnded?: () => void;
   outdatedTab?: boolean;
+  releaseMonitor?: ReleaseMonitor;
 };
 
 function modalElement(
@@ -46,7 +50,9 @@ function modalElement(
   options: ModalOptions,
 ) {
   return (
-    <ReleaseMonitorContext value={fakeReleaseMonitor(options.outdatedTab ?? false)}>
+    <ReleaseMonitorContext
+      value={options.releaseMonitor ?? fakeReleaseMonitor(options.outdatedTab ?? false)}
+    >
       <FieldSizeProvider size="backoffice">
         <main>
           <EditProductModal
@@ -840,4 +846,21 @@ test("tells an outdated tab that the backoffice was updated and the change was n
     .element(dialog.getByText("Recargá la página para seguir: este cambio no se guardó."))
     .toBeVisible();
   expect(dialog.getByText("No se pudo guardar el cambio").query()).toBeNull();
+});
+
+test("tells a tab that turns outdated while saving is refused that the change was not saved", async () => {
+  const release = releaseMonitorThatTurnsOutdated();
+  const services = createServices();
+  vi.mocked(services.editProduct).mockImplementation(() => {
+    release.turnOutdated();
+    return Promise.resolve({ kind: "failed" });
+  });
+  const { dialog } = await renderModal(honey, services, { releaseMonitor: release.monitor });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(dialog.getByText("Se actualizó el backoffice")).toBeVisible();
+  await expect
+    .element(dialog.getByText("Recargá la página para seguir: este cambio no se guardó."))
+    .toBeVisible();
 });
