@@ -22,7 +22,12 @@ let database: LocalDatabase;
 
 function ids(): IdGenerator {
   let count = 0;
-  return { next: () => `id-${(count += 1)}` };
+  return {
+    next: () => {
+      count += 1;
+      return `id-${count}`;
+    },
+  };
 }
 
 function ledger(chainKey: string | undefined = CHAIN_KEY): SqliteContingencyLedger {
@@ -46,7 +51,9 @@ function openSession(): void {
 }
 
 function closeSession(): void {
-  database.prepare("UPDATE cash_sessions SET state = 'CLOSED'").run();
+  database
+    .prepare("UPDATE cash_sessions SET state = 'CLOSED', closed_at = '2026-10-12T12:10:00.000Z'")
+    .run();
 }
 
 function intervals() {
