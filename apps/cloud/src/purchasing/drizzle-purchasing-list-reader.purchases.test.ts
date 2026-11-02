@@ -1,10 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import {
-  locations,
-  purchaseLines,
-  purchases,
-  suppliers,
-} from "../platform/db/schema.js";
+import { locations, purchaseLines, purchases, suppliers } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzlePurchasingListReader } from "./drizzle-purchasing-list-reader.js";

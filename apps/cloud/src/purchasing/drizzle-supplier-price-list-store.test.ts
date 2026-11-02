@@ -7,7 +7,6 @@ import {
   supplierItems,
   supplierPriceListAiCalls,
   supplierPriceListExtractionCaps,
-  supplierPriceListRows,
 } from "../platform/db/schema.js";
 import { constraintViolatedBy } from "../test-support/constraint-violated-by.js";
 import {
