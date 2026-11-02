@@ -7,6 +7,7 @@ import {
   FACTURA_C_DOCUMENT_TYPE,
   FORTNIGHT_REPORT_PENDING_REASONS,
   MERCADO_PAGO_PAYMENT_METHODS,
+  NON_COMPLIANT_MEASUREMENTS,
   OFFSITE_DUMP_UNVERIFIED_REASONS,
   PRE_EMISSION_GATE_FAILURE_REASONS,
   REJECTION_CLASSES,
@@ -296,6 +297,9 @@ const exceptionShareSecondMonthAtRiskDetailSchema = z.object({
   totalCount: z.int(),
   shareTenthsOfPercent: z.int().nullable(),
   nonCompliancePercent: z.int(),
+  previousMonthNonCompliantOn: z.array(z.enum(NON_COMPLIANT_MEASUREMENTS)).min(1),
+  contingencyShareTenthsOfPercent: z.int().nullable(),
+  contingencyNonCompliancePercent: z.int(),
 });
 
 const fortnightReportDocumentRejectedDetailSchema =

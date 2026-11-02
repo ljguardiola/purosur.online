@@ -384,6 +384,7 @@ export {
   latestIssuedOn,
   latestIssuerIdentification,
   mustHoldOfflineAuthorizationCode,
+  NON_COMPLIANT_MEASUREMENTS,
   NUMBER_CONSUMING_STATES,
   NUMBERING_CONFLICT_REASK_INTERVAL_MS,
   nextBuyerTaxStatusFetchAt,
