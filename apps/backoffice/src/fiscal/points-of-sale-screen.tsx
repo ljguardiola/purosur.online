@@ -34,6 +34,7 @@ import { RegisterPointOfSaleSection } from "./register-point-of-sale-section";
 import type { RemedyTarget } from "./rejected-document-remedy-form";
 import { RetireOfflinePointOfSaleModal } from "./retire-offline-point-of-sale-modal";
 import { ReviewRejectedDocumentModal } from "./review-rejected-document-modal";
+import { revokedInstallationDayAndTime } from "./revoked-installation-moments";
 import type { RevokedInstallationTarget } from "./revoked-installation-target";
 
 export type PointsOfSaleScreenProps = {
@@ -194,11 +195,11 @@ export function PointsOfSaleScreen({ onSessionEnded, services }: PointsOfSaleScr
       <ConfirmRevokedInstallationModal
         target={confirmingRevoked}
         onClose={() => setConfirmingRevoked(null)}
-        onConfirmed={({ registerName, pointOfSaleNumber, fortnight }) => {
+        onConfirmed={({ registerName, revokedAt, pointOfSaleNumber, fortnight }) => {
           void reloadFortnightPresentations();
           announce(
             "Instalación confirmada",
-            `${registerName}: el informe ${formatCalendarDayRange(fortnight.start, fortnight.end)} del punto de venta ${formatPointOfSaleNumber(pointOfSaleNumber)} sigue su curso.`,
+            `${registerName}, revocada el ${revokedInstallationDayAndTime(revokedAt)}, para el informe ${formatCalendarDayRange(fortnight.start, fortnight.end)} del punto de venta ${formatPointOfSaleNumber(pointOfSaleNumber)}.`,
           );
         }}
         onOutdated={() => void reloadFortnightPresentations()}
