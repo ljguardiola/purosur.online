@@ -32,31 +32,35 @@ test("sends the request it is given and answers the response", async () => {
   expect(monitor.check).not.toHaveBeenCalled();
 });
 
-test.each([
-  400, 404, 409, 422, 500,
-])("a response refused with %i is answered only after the tab has checked its release", async (status) => {
-  const order: string[] = [];
-  const response = new Response(null, { status });
-  vi.mocked(fetch).mockImplementation(async () => {
-    order.push("responded");
-    return response;
-  });
+test.each([400, 404, 409, 422])(
+  "a response refused with %i is answered only after the tab has checked its release",
+  async (status) => {
+    const order: string[] = [];
+    const response = new Response(null, { status });
+    vi.mocked(fetch).mockImplementation(async () => {
+      order.push("responded");
+      return response;
+    });
 
-  const answered = await createCloudFetch(monitorChecking(order))("/api/thing");
-  order.push("answered");
+    const answered = await createCloudFetch(monitorChecking(order))("/api/thing");
+    order.push("answered");
 
-  expect(answered).toBe(response);
-  expect(order).toEqual(["responded", "checked", "answered"]);
-});
+    expect(answered).toBe(response);
+    expect(order).toEqual(["responded", "checked", "answered"]);
+  },
+);
 
-test.each([401, 403, 429])("a response refused with %i does not make the tab check", async (status) => {
-  vi.mocked(fetch).mockResolvedValue(new Response(null, { status }));
-  const monitor = monitorChecking([]);
+test.each([401, 403, 429, 500])(
+  "a response refused with %i does not make the tab check",
+  async (status) => {
+    vi.mocked(fetch).mockResolvedValue(new Response(null, { status }));
+    const monitor = monitorChecking([]);
 
-  await createCloudFetch(monitor)("/api/thing");
+    await createCloudFetch(monitor)("/api/thing");
 
-  expect(monitor.check).not.toHaveBeenCalled();
-});
+    expect(monitor.check).not.toHaveBeenCalled();
+  },
+);
 
 test("a failed network request propagates unchanged", async () => {
   const failure = new TypeError("offline");
