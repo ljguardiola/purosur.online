@@ -2648,6 +2648,8 @@ export const rejectedDocumentRemedies = pgTable(
   ],
 );
 
+// Append-only: a confirmation records who decided, and when, that a revoked installation issued
+// nothing it did not sync, so none is rewritten or removed.
 export const revokedInstallationConfirmations = pgTable(
   "revoked_installation_confirmations",
   {
