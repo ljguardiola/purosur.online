@@ -7,7 +7,6 @@ import {
   useRequestForm,
 } from "@purosur/ui";
 import { Check, Info, Scale } from "lucide-react";
-import { useEffect, useRef } from "react";
 import {
   addWeighedProductRequestSchema,
   EMPTY_WEIGHT_FORM,
@@ -29,7 +28,6 @@ export function AddWeighedProductModal({
   addWeighedProduct,
   onClose,
 }: AddWeighedProductModalProps) {
-  const content = useRef<HTMLFormElement>(null);
   const { form, submit, submitting } = useRequestForm({
     defaultValues: EMPTY_WEIGHT_FORM,
     request: { schema: addWeighedProductRequestSchema, from: weightRequestFrom },
@@ -42,10 +40,6 @@ export function AddWeighedProductModal({
       }
     },
   });
-
-  useEffect(() => {
-    content.current?.querySelector("input")?.focus();
-  }, []);
 
   return (
     <Modal
@@ -78,7 +72,6 @@ export function AddWeighedProductModal({
       }
     >
       <form
-        ref={content}
         noValidate
         onSubmit={(event) => {
           event.preventDefault();

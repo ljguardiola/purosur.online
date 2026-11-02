@@ -1,5 +1,5 @@
 import { Check } from "lucide-react";
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useLayoutEffect, useState } from "react";
 import {
   Button as AriaButton,
   ComboBox as AriaComboBox,
@@ -14,6 +14,7 @@ import {
   Virtualizer as AriaVirtualizer,
 } from "react-aria-components";
 import { Tag } from "../data-display/tag";
+import { focusMovedWithoutThePerson, moveFocus } from "../shared/moved-focus";
 import { type FieldErrorProps, fieldError } from "./field-error";
 import {
   backofficeFieldHeightClassName,
@@ -125,6 +126,49 @@ function CloseListWhenCreated({ createdCount }: { createdCount: number }) {
   return null;
 }
 
+// react-aria hands the focus back to an element by dispatching this event on it, and its combobox
+// cancels the event on the input, keeping only a virtual focus on the list: after a stacked modal
+// opened from the input closes, nothing would hold the focus.
+function takeFocusWhenRestored(input: HTMLInputElement | null) {
+  if (input === null) {
+    return;
+  }
+  const focus = () => moveFocus(() => input.focus());
+  input.addEventListener("react-aria-focus-scope-restore", focus);
+  return () => input.removeEventListener("react-aria-focus-scope-restore", focus);
+}
+
+// react-aria opens the list whenever the input takes the focus, but only the person moving the
+// focus there asks for it. Closing before the list is painted keeps it from showing at all.
+function CloseListOpenedWithoutThePerson() {
+  const state = useContext(AriaComboBoxStateContext);
+  const isOpen = state?.isOpen ?? false;
+  useLayoutEffect(() => {
+    if (isOpen && focusMovedWithoutThePerson()) {
+      state?.close();
+    }
+  }, [isOpen, state]);
+  return null;
+}
+
+// A click on the input that already holds the focus moves no focus, so react-aria opens nothing
+// for it, as when a modal opened focused on the field.
+function ComboBoxInput({ placeholder }: { placeholder: string | undefined }) {
+  const state = useContext(AriaComboBoxStateContext);
+  return (
+    <AriaInput
+      ref={takeFocusWhenRestored}
+      className={inputClassName}
+      {...(placeholder !== undefined ? { placeholder } : {})}
+      onClick={() => {
+        if (state !== null && !state.isOpen) {
+          state.open(null, "manual");
+        }
+      }}
+    />
+  );
+}
+
 export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
   const {
     label,
@@ -169,8 +213,6 @@ export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
           gap: listMetrics.gap,
         };
 
-  const placeholderProps = placeholder !== undefined ? { placeholder } : {};
-
   return (
     <AriaComboBox
       {...comboBoxProps}
@@ -196,13 +238,14 @@ export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
       className={wrapperClassName}
     >
       <CloseListWhenCreated createdCount={createdCount} />
+      <CloseListOpenedWithoutThePerson />
       <AriaLabel className={required ? requiredLabelClassName : baseLabelClassName}>
         {label}
       </AriaLabel>
       <div
         className={`${fieldBoxClassName} ${backofficeFieldHeightClassName} ${fieldBoxStateClassName({ disabled, invalid })}`}
       >
-        <AriaInput className={inputClassName} {...placeholderProps} />
+        <ComboBoxInput placeholder={placeholder} />
         {chosen?.status !== undefined ? (
           <Tag tone="neutral" variant="status">
             {chosen.status}

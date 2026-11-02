@@ -32,6 +32,10 @@ function baseProps(overrides: Partial<ModalProps> = {}): ModalProps {
   } as ModalProps;
 }
 
+function bodyBetweenHeaderAndFooter(dialog: Element): HTMLElement {
+  return dialog.children[1] as HTMLElement;
+}
+
 const widths: Record<ModalWidth, number> = {
   confirmation: 560,
   standard: 640,
@@ -218,9 +222,7 @@ test("gives the body 24px padding", async () => {
   const screen = await render(
     <Modal {...baseProps({ children: <p>Are you sure you want to void this sale?</p> })} />,
   );
-  const body = screen
-    .getByText("Are you sure you want to void this sale?", { exact: true })
-    .element().parentElement as HTMLElement;
+  const body = bodyBetweenHeaderAndFooter(screen.getByRole("dialog").element());
   const style = getComputedStyle(body);
 
   expect(style.paddingTop).toBe("24px");
@@ -238,9 +240,7 @@ test('gives the body no padding at all when bodyPadding is "none", for a caller 
       })}
     />,
   );
-  const body = screen
-    .getByText("Areas pane and detail pane, flush to the panel's edges", { exact: true })
-    .element().parentElement as HTMLElement;
+  const body = bodyBetweenHeaderAndFooter(screen.getByRole("dialog").element());
   const style = getComputedStyle(body);
 
   expect(style.paddingTop).toBe("0px");
@@ -358,7 +358,7 @@ test('lays a flush body out as a column its content can fill, so an inner region
       />,
     );
     const inner = screen.getByTestId("inner-region").element() as HTMLElement;
-    const body = inner.parentElement as HTMLElement;
+    const body = bodyBetweenHeaderAndFooter(screen.getByRole("dialog").element());
 
     expect(body.scrollHeight).toBe(body.clientHeight);
     expect(inner.scrollHeight).toBeGreaterThan(inner.clientHeight);
@@ -416,11 +416,10 @@ test("shows the body between the header and the footer once there is something t
     />,
   );
   const dialog = screen.getByRole("dialog").element() as HTMLElement;
-  const body = screen.getByText("Signing out failed.", { exact: true }).element()
-    .parentElement as HTMLElement;
+  const text = screen.getByText("Signing out failed.", { exact: true }).element();
 
   expect(dialog.children).toHaveLength(3);
-  expect(dialog.children[1]).toBe(body);
+  expect(bodyBetweenHeaderAndFooter(dialog).contains(text)).toBe(true);
 });
 
 test("gives the footer a bone background, its padding, top border and 12px gap", async () => {
