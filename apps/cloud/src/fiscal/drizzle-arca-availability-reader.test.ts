@@ -84,13 +84,13 @@ describe("DrizzleArcaAvailabilityReader", () => {
   it("includes the probe just before the period, whose answer may still hold into it, and no older one", async () => {
     await probe(-ARCA_REACHABILITY_HORIZON_MS / SECOND - 1, true);
     await probe(-ARCA_REACHABILITY_HORIZON_MS / SECOND, true);
-    await probe(30, true);
+    await probe(0, true);
 
     expect(await read()).toEqual([
       {
         ok: true,
         firstCheckedAt: second(-ARCA_REACHABILITY_HORIZON_MS / SECOND),
-        lastCheckedAt: second(30),
+        lastCheckedAt: second(0),
       },
     ]);
   });
