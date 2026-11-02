@@ -71,6 +71,8 @@ export type { NotificationCardProps } from "./components/feedback/notification-c
 export { NotificationCard } from "./components/feedback/notification-card";
 export type { NotificationPanelProps } from "./components/feedback/notification-panel";
 export { NotificationPanel } from "./components/feedback/notification-panel";
+export type { PersistentNotificationProps } from "./components/feedback/persistent-notification";
+export { PersistentNotification } from "./components/feedback/persistent-notification";
 export type { PillProps, PillTone } from "./components/feedback/pill";
 export { Pill } from "./components/feedback/pill";
 export type { PillLinkProps } from "./components/feedback/pill-link";
