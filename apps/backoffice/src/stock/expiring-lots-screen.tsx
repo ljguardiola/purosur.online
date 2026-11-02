@@ -44,7 +44,7 @@ type ScreenNotice = {
   id: number;
   tone: "success" | "error";
   title: string;
-  description: string;
+  description: string | null;
 };
 
 const NO_LOTS: ExpiringLot[] = [];
@@ -111,13 +111,12 @@ function discardedNotice(lot: ExpiringLot, result: ExpiredLotDiscardResult) {
 
 function refusedNotice(
   outcome: Exclude<DiscardExpiredLotOutcome, { kind: "ok" | "unauthenticated" | "forbidden" }>,
-  retryAdvice: string,
 ) {
   const description =
     outcome.kind === "rate_limited"
       ? retryAfterDetail(outcome.retryAfterSeconds)
       : outcome.kind === "failed" || outcome.kind === "validation_failed"
-        ? retryAdvice
+        ? null
         : REFUSAL_REASONS[outcome.kind];
   return { tone: "error" as const, title: "No se pudo dar de baja el lote", description };
 }
@@ -184,7 +183,7 @@ export function ExpiringLotsScreen({
       await refreshStock();
       return;
     }
-    showNotice(refusedNotice(outcome, retryAdvice));
+    showNotice(refusedNotice(outcome));
     if (outcome.kind !== "failed" && outcome.kind !== "rate_limited") {
       await refreshStock();
     }
@@ -338,7 +337,7 @@ export function ExpiringLotsScreen({
           tone={notice.tone}
           icon={notice.tone === "success" ? <Check /> : <TriangleAlert />}
           title={notice.title}
-          description={notice.description}
+          description={notice.description ?? retryAdvice}
           onDismiss={() => setNotice(null)}
         />
       ) : null}

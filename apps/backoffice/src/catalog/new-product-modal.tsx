@@ -8,7 +8,7 @@ import {
 import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import { Check, PackagePlus, ShieldX, X } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
-import { ActionFailureNotice, useFailureText } from "../platform/action-failure-notice";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import {
   PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED,
   useBarcodeChips,
@@ -158,7 +158,7 @@ export function NewProductModal({
       setNotice((current) =>
         current?.kind === "rateLimited" && current.raisedByGenerate ? null : current,
       ),
-    useFailureText(PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED),
+    PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED,
   );
 
   const markCatalogStale = useMarkCatalogStale();
