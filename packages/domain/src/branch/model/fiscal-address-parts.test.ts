@@ -139,9 +139,9 @@ describe("fiscalAddressAt", () => {
   });
 
   it("belongs to the address the register has had since ever", () => {
-    expect(
-      fiscalAddressAt(at("08:00"), [{ assignedAt: null, fiscalAddressId: "address-a" }]),
-    ).toBe("address-a");
+    expect(fiscalAddressAt(at("08:00"), [{ assignedAt: null, fiscalAddressId: "address-a" }])).toBe(
+      "address-a",
+    );
   });
 
   it("belongs to no address when the register never had one", () => {
