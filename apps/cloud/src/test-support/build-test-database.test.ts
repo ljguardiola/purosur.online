@@ -101,6 +101,7 @@ import {
   rejectedDocumentRemedies,
   removedSaleLines,
   returnLines,
+  revokedInstallationConfirmations,
   rolePermissions,
   roles,
   saleCreditNoteRefusals,
@@ -421,6 +422,13 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
     if (!installation) {
       throw new Error("seeding the installation returned no row");
     }
+    await db.insert(revokedInstallationConfirmations).values({
+      pointOfSaleNumber: 4,
+      fortnightStart: "2026-01-01",
+      installationId: installation.id,
+      confirmedBy: user.id,
+      confirmedAt: new Date("2026-01-05T12:00:00.000Z"),
+    });
     await db.insert(deviceState).values({
       deviceId: installation.id,
       lastPullSince: 0,
