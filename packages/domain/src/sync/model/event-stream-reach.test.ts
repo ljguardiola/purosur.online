@@ -2,6 +2,7 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
   type InstallationStreamReach,
+  installationReachesPast,
   isInstallationActiveDuring,
   streamReachesPast,
 } from "./event-stream-reach.js";
@@ -13,6 +14,7 @@ const PERIOD = {
 
 function installation(overrides: Partial<InstallationStreamReach> = {}): InstallationStreamReach {
   return {
+    installationId: "installation-1",
     enrolledAt: new Date("2026-08-01T12:00:00.000Z"),
     revokedAt: null,
     latestOccurredAt: new Date("2026-09-16T03:00:00.001Z"),
@@ -264,6 +266,36 @@ describe("isInstallationActiveDuring", () => {
 
   it("fails for an installation revoked at or before the start of the period", () => {
     expect(isInstallationActiveDuring(installation({ revokedAt: PERIOD.from }), PERIOD)).toBe(
+      false,
+    );
+  });
+});
+
+describe("installationReachesPast", () => {
+  it("holds when the applied events end after the end of the period", () => {
+    expect(installationReachesPast(installation(), PERIOD)).toBe(true);
+  });
+
+  it("holds when the installation was caught up after the end of the period", () => {
+    expect(
+      installationReachesPast(
+        installation({ latestOccurredAt: null, caughtUpAt: new Date("2026-09-20T12:00:00.000Z") }),
+        PERIOD,
+      ),
+    ).toBe(true);
+  });
+
+  it("fails when neither its events nor its catch-up go past the end of the period", () => {
+    expect(
+      installationReachesPast(
+        installation({ latestOccurredAt: PERIOD.until, caughtUpAt: PERIOD.until }),
+        PERIOD,
+      ),
+    ).toBe(false);
+  });
+
+  it("fails when it still holds events not applied", () => {
+    expect(installationReachesPast(installation({ holdsUnappliedEvents: true }), PERIOD)).toBe(
       false,
     );
   });
