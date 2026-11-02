@@ -13,9 +13,5 @@ export {
   DEFAULT_GOOD_CONDITION_RETURN_DAYS,
   DEFAULT_UNREVIEWED_PRICE_ALERT_DAYS,
 } from "./model/branch-settings.js";
-export type {
-  FiscalAddressAssignment,
-  FiscalAddressPart,
-  TimeInterval,
-} from "./model/fiscal-address-parts.js";
+export type { FiscalAddressAssignment } from "./model/fiscal-address-parts.js";
 export { fiscalAddressPartsOf } from "./model/fiscal-address-parts.js";

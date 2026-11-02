@@ -5,7 +5,7 @@ import type {
   OpenContingencyInterval,
 } from "../contingency-ledger.js";
 
-export interface RecordedContingencyInterval extends OpenContingencyInterval {
+interface RecordedContingencyInterval extends OpenContingencyInterval {
   endedAt: Date | null;
 }
 
