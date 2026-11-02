@@ -1,24 +1,21 @@
-import { type FiscalAddressAssignment, fiscalAddressPartsOf } from "@purosur/domain";
+import { fiscalAddressPartsOf } from "@purosur/domain";
 import type {
   ContingencyIntervalsAtFiscalAddress,
   ContingencyIntervalsQuery,
   ContingencyIntervalsReader,
 } from "@purosur/domain/fiscal/use-cases";
-import { and, asc, eq, gt, inArray, isNull, lt, min, or, sql } from "drizzle-orm";
+import { and, asc, gt, inArray, isNull, lt, min, or } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   registerContingencyIntervals,
   registerContingencyReporting,
-  registerFiscalAddressAssignments,
   registerInstallations,
 } from "../platform/db/schema.js";
-
-const ASSIGNED_AT_ISO = sql<
-  string | null
->`case when ${registerFiscalAddressAssignments.assignedAt} = '-infinity'
-  then null
-  else to_char(${registerFiscalAddressAssignments.assignedAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
-  end`;
+import {
+  type FiscalAddressHistories,
+  fiscalAddressHistories,
+  historyOf,
+} from "./drizzle-register-fiscal-address-histories.js";
 
 export class DrizzleContingencyIntervalsReader<TQueryResult extends PgQueryResultHKT>
   implements ContingencyIntervalsReader
@@ -34,10 +31,10 @@ export class DrizzleContingencyIntervalsReader<TQueryResult extends PgQueryResul
     from,
     to,
   }: ContingencyIntervalsQuery): Promise<ContingencyIntervalsAtFiscalAddress> {
-    const assignments = await this.assignmentsOfRegistersEverAt(fiscalAddressId);
+    const assignments = await fiscalAddressHistories(this.db, fiscalAddressId);
     const period = { start: from, end: to };
     const registerIds = [...assignments.keys()].filter((registerId) =>
-      fiscalAddressPartsOf(period, assignmentsOf(assignments, registerId)).some(
+      fiscalAddressPartsOf(period, historyOf(assignments, registerId)).some(
         (part) => part.fiscalAddressId === fiscalAddressId,
       ),
     );
@@ -66,7 +63,7 @@ export class DrizzleContingencyIntervalsReader<TQueryResult extends PgQueryResul
     const parts = intervals.flatMap(({ registerId, startedAt, endedAt }) =>
       fiscalAddressPartsOf(
         { start: startedAt, end: endedAt },
-        assignmentsOf(assignments, registerId),
+        historyOf(assignments, registerId),
       )
         .filter(
           (part) =>
@@ -106,57 +103,15 @@ export class DrizzleContingencyIntervalsReader<TQueryResult extends PgQueryResul
       })),
     };
   }
-
-  private async assignmentsOfRegistersEverAt(
-    fiscalAddressId: string,
-  ): Promise<Map<string, FiscalAddressAssignment[]>> {
-    const rows = await this.db
-      .select({
-        registerId: registerFiscalAddressAssignments.registerId,
-        fiscalAddressId: registerFiscalAddressAssignments.fiscalAddressId,
-        assignedAt: ASSIGNED_AT_ISO,
-      })
-      .from(registerFiscalAddressAssignments)
-      .where(
-        inArray(
-          registerFiscalAddressAssignments.registerId,
-          this.db
-            .select({ registerId: registerFiscalAddressAssignments.registerId })
-            .from(registerFiscalAddressAssignments)
-            .where(eq(registerFiscalAddressAssignments.fiscalAddressId, fiscalAddressId)),
-        ),
-      )
-      .orderBy(
-        asc(registerFiscalAddressAssignments.registerId),
-        asc(registerFiscalAddressAssignments.assignedAt),
-      );
-    const byRegister = new Map<string, FiscalAddressAssignment[]>();
-    for (const { registerId, fiscalAddressId: assignedTo, assignedAt } of rows) {
-      const history = byRegister.get(registerId) ?? [];
-      history.push({
-        assignedAt: assignedAt === null ? null : new Date(assignedAt),
-        fiscalAddressId: assignedTo,
-      });
-      byRegister.set(registerId, history);
-    }
-    return byRegister;
-  }
-}
-
-function assignmentsOf(
-  assignments: Map<string, FiscalAddressAssignment[]>,
-  registerId: string,
-): FiscalAddressAssignment[] {
-  return assignments.get(registerId) ?? [];
 }
 
 function presenceAt(
-  assignments: Map<string, FiscalAddressAssignment[]>,
+  assignments: FiscalAddressHistories,
   registerId: string,
   fiscalAddressId: string,
   period: { start: Date; end: Date },
 ): { start: Date; end: Date }[] {
-  return fiscalAddressPartsOf(period, assignmentsOf(assignments, registerId)).flatMap((part) =>
+  return fiscalAddressPartsOf(period, historyOf(assignments, registerId)).flatMap((part) =>
     part.fiscalAddressId === fiscalAddressId && part.end !== null
       ? [{ start: part.start, end: part.end }]
       : [],
