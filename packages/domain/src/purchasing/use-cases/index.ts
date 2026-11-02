@@ -82,6 +82,12 @@ export type {
   NewFreightFields,
 } from "./freight-store.js";
 export type {
+  SharePurchaseOrderInput,
+  SharePurchaseOrderOutcome,
+  SharePurchaseOrderPorts,
+} from "./share-purchase-order.js";
+export { sharePurchaseOrder } from "./share-purchase-order.js";
+export type {
   FoundPurchaseOrder,
   GetPurchaseOrderInput,
   GetPurchaseOrderOutcome,

@@ -56,6 +56,10 @@ export interface PurchaseOrderStoreTransaction {
     orderId: string,
     lines: readonly PurchaseOrderLineFields[],
   ): Promise<void>;
+  markPurchaseOrderSent(
+    orderId: string,
+    sending: { sentAt: Date; actorId: string },
+  ): Promise<void>;
   cancelPurchaseOrder(
     orderId: string,
     cancellation: { cancelledAt: Date; actorId: string },
