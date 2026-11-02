@@ -12,6 +12,10 @@ const FEED_LINES = 5;
 const CENTER_ALIGNMENT = 1;
 const LEFT_ALIGNMENT = 0;
 const QR_STORE_OVERHEAD = 3;
+const HEAD_DOTS_PER_INCH = 203;
+const MOTION_UNITS_PER_INCH = 360;
+const MAX_FEED_UNITS = 255;
+const MAX_RASTER_STRIP_ROWS = 255;
 const QR_MAX_MODULE_DOTS = 16;
 const QR_CORRECTION_LEVELS = { L: 0x30, M: 0x31 } as const;
 const QR_BYTE_CAPACITY_AT_LEVEL_L = [
@@ -63,22 +67,30 @@ export class EscPosWriter {
   }
 
   feed(dots: number): void {
-    this.command(ESC, 0x4a, dots);
+    let units = Math.round((dots * MOTION_UNITS_PER_INCH) / HEAD_DOTS_PER_INCH);
+    while (units > 0) {
+      const step = Math.min(units, MAX_FEED_UNITS);
+      this.command(ESC, 0x4a, step);
+      units -= step;
+    }
   }
 
   rasterImage({ widthDots, heightDots, rows }: RasterImage): void {
     const widthBytes = widthDots / 8;
-    this.command(
-      GS,
-      0x76,
-      0x30,
-      0,
-      widthBytes & 0xff,
-      widthBytes >> 8,
-      heightDots & 0xff,
-      heightDots >> 8,
-    );
-    this.chunks.push(rows);
+    for (let top = 0; top < heightDots; top += MAX_RASTER_STRIP_ROWS) {
+      const stripRows = Math.min(MAX_RASTER_STRIP_ROWS, heightDots - top);
+      this.command(
+        GS,
+        0x76,
+        0x30,
+        0,
+        widthBytes & 0xff,
+        widthBytes >> 8,
+        stripRows & 0xff,
+        stripRows >> 8,
+      );
+      this.chunks.push(rows.subarray(top * widthBytes, (top + stripRows) * widthBytes));
+    }
   }
 
   qr(text: string, size: QrSize): void {

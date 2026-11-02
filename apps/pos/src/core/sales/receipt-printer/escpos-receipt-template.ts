@@ -27,6 +27,7 @@ import {
   centered,
   concatenated,
   EscPosWriter,
+  type RasterImage,
   RULE,
   row,
   SMALL_COLUMNS,
@@ -38,13 +39,14 @@ type InvoiceBlock = Extract<NonNullable<ReceiptContent["fiscal"]>, { invoiceClas
 type SaleTotals = Pick<ReceiptContent["totals"], "subtotal" | "saleDiscount" | "total">;
 type OfflineInvoiceBlock = Extract<InvoiceBlock, { fortnight: unknown }>;
 
-const TEMPLATE_VERSION = "1";
+const TEMPLATE_VERSION = "2";
 const QR_SIDE_DOTS = 244;
-const QR_TOP_MARGIN_DOTS = 16;
-const QR_BOTTOM_MARGIN_DOTS = 8;
+const QR_TOP_MARGIN_DOTS = 9;
+const QR_BOTTOM_MARGIN_DOTS = 5;
 const VOUCHER_CODE_DIGITS = 3;
-const LOGO_TOP_MARGIN_DOTS = 24;
 const LOGO_BOTTOM_MARGIN_DOTS = 16;
+const FIRST_VERSION_LOGO_START = Uint8Array.of(0x1b, 0x4a, 24, 0x1d, 0x76, 0x30, 0);
+const FIRST_VERSION_LOGO_BOTTOM_FEED_BYTES = 3;
 
 const REFUND_NAMES = {
   CASH: "Reintegro en efectivo",
@@ -71,15 +73,18 @@ function smallRow(left: string, right: string): string[] {
   return row(left, right, "", SMALL_COLUMNS);
 }
 
+function logoImage(out: EscPosWriter, image: RasterImage): void {
+  out.rasterImage(image);
+  out.feed(LOGO_BOTTOM_MARGIN_DOTS);
+}
+
 function logo(out: EscPosWriter): void {
   const { widthDots, heightDots, rows } = RECEIPT_LOGO;
-  out.feed(LOGO_TOP_MARGIN_DOTS);
-  out.rasterImage({
+  logoImage(out, {
     widthDots,
     heightDots,
     rows: concatenated(rows.map((encoded) => Uint8Array.from(Buffer.from(encoded, "base64")))),
   });
-  out.feed(LOGO_BOTTOM_MARGIN_DOTS);
 }
 
 function branch(
@@ -315,12 +320,45 @@ function renderCreditNote(content: CreditNoteReceiptContent, rules: ZoneRules): 
   return { templateVersion: TEMPLATE_VERSION, head: head.bytes(), body: body.bytes() };
 }
 
-const DUPLICATE_LEGENDS: Record<string, (orderNumber: number) => Uint8Array> = {
-  [TEMPLATE_VERSION]: (orderNumber) => {
-    const out = new EscPosWriter();
-    out.bold(centered(`COPIA DUPLICADA Nº ${orderNumber}`));
-    return out.bytes();
-  },
+function duplicateLegend(orderNumber: number): Uint8Array {
+  const out = new EscPosWriter();
+  out.bold(centered(`COPIA DUPLICADA Nº ${orderNumber}`));
+  return out.bytes();
+}
+
+function firstVersionHeadWithCurrentLogo(head: Uint8Array): Uint8Array {
+  const start = Buffer.from(head.buffer, head.byteOffset, head.byteLength).indexOf(
+    FIRST_VERSION_LOGO_START,
+  );
+  if (start === -1) {
+    throw new Error("receipt template version 1 head holds no logo");
+  }
+  const size = new DataView(head.buffer, head.byteOffset + start + FIRST_VERSION_LOGO_START.length);
+  const widthBytes = size.getUint16(0, true);
+  const heightDots = size.getUint16(2, true);
+  const rowsStart = start + FIRST_VERSION_LOGO_START.length + 4;
+  const rowsEnd = rowsStart + widthBytes * heightDots;
+  const out = new EscPosWriter();
+  logoImage(out, {
+    widthDots: widthBytes * 8,
+    heightDots,
+    rows: head.subarray(rowsStart, rowsEnd),
+  });
+  return concatenated([
+    head.subarray(0, start),
+    out.bytes(),
+    head.subarray(rowsEnd + FIRST_VERSION_LOGO_BOTTOM_FEED_BYTES),
+  ]);
+}
+
+interface StoredLayout {
+  head: (stored: Uint8Array) => Uint8Array;
+  legend: (orderNumber: number) => Uint8Array;
+}
+
+const DUPLICATE_LAYOUTS: Record<string, StoredLayout> = {
+  "1": { head: firstVersionHeadWithCurrentLogo, legend: duplicateLegend },
+  [TEMPLATE_VERSION]: { head: (head) => head, legend: duplicateLegend },
 };
 
 function render(content: ReceiptContent, rules: ZoneRules): StoredReceipt {
@@ -357,11 +395,11 @@ function printable(stored: StoredReceipt, copy: ReceiptCopy): Uint8Array {
   if (copy.kind === "original") {
     return concatenated([stored.head, stored.body]);
   }
-  const legend = DUPLICATE_LEGENDS[stored.templateVersion];
-  if (legend === undefined) {
+  const layout = DUPLICATE_LAYOUTS[stored.templateVersion];
+  if (layout === undefined) {
     throw new Error(`unknown receipt template version ${stored.templateVersion}`);
   }
-  return concatenated([stored.head, legend(copy.orderNumber), stored.body]);
+  return concatenated([layout.head(stored.head), layout.legend(copy.orderNumber), stored.body]);
 }
 
 export function escPosReceiptTemplate(zoneRules: ZoneRulesSource): ReceiptTemplate {

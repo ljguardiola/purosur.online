@@ -72,10 +72,10 @@ describe("a readable printout of ESC/POS bytes", () => {
     ]);
   });
 
-  it("shows a feed of dots apart from a feed of lines", () => {
-    const printout = printoutOf(Uint8Array.from([ESC, 0x4a, 24, ESC, 0x64, 3]));
+  it("shows a feed in 1/360-inch motion units as the dots of a 203-dpi head, apart from a feed of lines", () => {
+    const printout = printoutOf(Uint8Array.from([ESC, 0x4a, 28, ESC, 0x4a, 9, ESC, 0x64, 3]));
 
-    expect(printout.text).toBe(["[feed dots 24]", "[feed 3]"].join("\n"));
+    expect(printout.text).toBe(["[feed dots 16]", "[feed dots 5]", "[feed 3]"].join("\n"));
   });
 
   it("shows a raster image as its size", () => {

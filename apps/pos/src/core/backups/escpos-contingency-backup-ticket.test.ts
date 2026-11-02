@@ -84,7 +84,7 @@ describe("the contingency backup ticket", () => {
       "2 de 3",
       "3 de 3",
     ]);
-    expect(text.match(/\[feed dots 16\]/g)).toHaveLength(2);
+    expect(text.match(/\[feed dots 9\]/g)).toHaveLength(2);
   });
 
   it("prints the time of the register's own zone", () => {

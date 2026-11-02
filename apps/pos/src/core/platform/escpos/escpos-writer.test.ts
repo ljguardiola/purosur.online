@@ -53,25 +53,54 @@ describe("writing ESC/POS printer commands", () => {
     ]);
   });
 
-  it("feeds the paper by a number of dots", () => {
-    expect(written((out) => out.feed(24))).toEqual([ESC, 0x4a, 24]);
+  it.each([
+    [16, 28],
+    [9, 16],
+    [5, 9],
+  ])(
+    "feeds %i dots of a 203-dpi head in the printer's default 1/360-inch motion units",
+    (dots, units) => {
+      expect(written((out) => out.feed(dots))).toEqual([ESC, 0x4a, units]);
+    },
+  );
+
+  it("feeds a distance longer than one command can carry in several commands", () => {
+    expect(written((out) => out.feed(200))).toEqual([ESC, 0x4a, 255, ESC, 0x4a, 100]);
   });
 
   it("prints a raster image with its width in bytes and its height in dots", () => {
     const rows = Uint8Array.of(0xff, 0x00, 0x81, 0x7e);
-    expect(written((out) => out.rasterImage({ widthDots: 2056, heightDots: 300, rows }))).toEqual([
+    expect(written((out) => out.rasterImage({ widthDots: 16, heightDots: 2, rows }))).toEqual([
       GS,
       0x76,
       0x30,
       0,
-      0x01,
-      0x01,
-      0x2c,
-      0x01,
+      0x02,
+      0x00,
+      0x02,
+      0x00,
       0xff,
       0x00,
       0x81,
       0x7e,
+    ]);
+  });
+
+  it("carries the width's high byte for an image 256 bytes wide or more", () => {
+    const rows = Uint8Array.from({ length: 257 * 2 }, (_, index) => index & 0xff);
+    expect(written((out) => out.rasterImage({ widthDots: 2056, heightDots: 2, rows }))).toEqual([
+      ...[GS, 0x76, 0x30, 0, 0x01, 0x01, 0x02, 0x00],
+      ...rows,
+    ]);
+  });
+
+  it("prints an image taller than 255 dots as consecutive strips of at most 255 rows", () => {
+    const rows = Uint8Array.from({ length: 280 }, (_, index) => index & 0xff);
+    expect(written((out) => out.rasterImage({ widthDots: 8, heightDots: 280, rows }))).toEqual([
+      ...[GS, 0x76, 0x30, 0, 0x01, 0x00, 0xff, 0x00],
+      ...rows.subarray(0, 255),
+      ...[GS, 0x76, 0x30, 0, 0x01, 0x00, 0x19, 0x00],
+      ...rows.subarray(255),
     ]);
   });
 
@@ -86,7 +115,7 @@ describe("writing ESC/POS printer commands", () => {
         out.lines(["a"]);
         out.feed(16);
       }),
-    ).toEqual([ESC, 0x4a, 8, ...text("a"), LINE_FEED, ESC, 0x4a, 16]);
+    ).toEqual([ESC, 0x4a, 14, ...text("a"), LINE_FEED, ESC, 0x4a, 28]);
   });
 });
 

@@ -4,6 +4,8 @@ const ESC = 0x1b;
 const GS = 0x1d;
 const LINE_FEED = 0x0a;
 const PC850_TABLE = 2;
+const HEAD_DOTS_PER_INCH = 203;
+const MOTION_UNITS_PER_INCH = 360;
 const ALIGNMENTS = ["left", "center", "right"];
 const QR_CORRECTION_LEVELS = ["L", "M", "Q", "H"];
 const STYLE_MARKER = /\[\/?(bold|small)\]/g;
@@ -67,7 +69,7 @@ export function printoutOf(bytes: Uint8Array): Printout {
         const alignment = take();
         marker(`[align ${ALIGNMENTS[alignment] ?? alignment}]`);
       } else if (command === 0x4a) {
-        marker(`[feed dots ${take()}]`);
+        marker(`[feed dots ${Math.round((take() * HEAD_DOTS_PER_INCH) / MOTION_UNITS_PER_INCH)}]`);
       } else if (command === 0x64) {
         marker(`[feed ${take()}]`);
       } else {
