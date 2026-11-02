@@ -8,6 +8,7 @@ import {
   insertCaeaDocument,
   insertReceiptRequest,
 } from "../fiscal/test-support/issued-document-fixtures.js";
+import { arcaVitalityChecks, registerContingencyIntervals } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleSecondMonthRiskReader } from "./drizzle-second-month-risk-reader.js";
 
@@ -103,5 +104,77 @@ describe("DrizzleSecondMonthRiskReader.runningCounts", () => {
     await expect(new DrizzleSecondMonthRiskReader(db).runningCounts("2026-11")).resolves.toEqual(
       [],
     );
+  });
+});
+
+describe("DrizzleSecondMonthRiskReader.fiscalAddresses", () => {
+  it("answers nothing while there are no fiscal addresses", async () => {
+    await expect(new DrizzleSecondMonthRiskReader(db).fiscalAddresses()).resolves.toEqual([]);
+  });
+
+  it("answers the id and the name of every fiscal address", async () => {
+    const central = await anAddressWithRegister("Depósito Central");
+    const north = await anAddressWithRegister("Local Norte");
+
+    const addresses = await new DrizzleSecondMonthRiskReader(db).fiscalAddresses();
+
+    expect(addresses).toHaveLength(2);
+    expect(addresses).toContainEqual({
+      fiscalAddressId: central.fiscalAddressId,
+      fiscalAddressName: "Depósito Central",
+    });
+    expect(addresses).toContainEqual({
+      fiscalAddressId: north.fiscalAddressId,
+      fiscalAddressName: "Local Norte",
+    });
+  });
+});
+
+describe("DrizzleSecondMonthRiskReader.availabilityRuns", () => {
+  it("answers the runs of reachability checks of the window", async () => {
+    const first = new Date("2026-10-10T12:00:00.000Z");
+    const last = new Date("2026-10-10T12:05:00.000Z");
+    await db.insert(arcaVitalityChecks).values([
+      { checkedAt: first, ok: true },
+      { checkedAt: last, ok: true },
+    ]);
+
+    await expect(
+      new DrizzleSecondMonthRiskReader(db).availabilityRuns({
+        from: new Date("2026-10-01T03:00:00.000Z"),
+        to: new Date("2026-11-01T03:00:00.000Z"),
+      }),
+    ).resolves.toEqual([{ ok: true, firstCheckedAt: first, lastCheckedAt: last }]);
+  });
+});
+
+describe("DrizzleSecondMonthRiskReader.contingencyIntervalsAtFiscalAddress", () => {
+  it("answers the contingency of the registers at that fiscal address only", async () => {
+    const central = await anAddressWithRegister("Depósito Central");
+    const north = await anAddressWithRegister("Local Norte");
+    const start = new Date("2026-10-10T12:00:00.000Z");
+    const end = new Date("2026-10-10T13:00:00.000Z");
+    await db.insert(registerContingencyIntervals).values([
+      {
+        intervalId: crypto.randomUUID(),
+        registerId: central.registerId,
+        startedAt: start,
+        endedAt: end,
+      },
+      {
+        intervalId: crypto.randomUUID(),
+        registerId: north.registerId,
+        startedAt: start,
+        endedAt: end,
+      },
+    ]);
+
+    const answer = await new DrizzleSecondMonthRiskReader(db).contingencyIntervalsAtFiscalAddress({
+      fiscalAddressId: central.fiscalAddressId,
+      from: new Date("2026-10-01T03:00:00.000Z"),
+      to: new Date("2026-11-01T03:00:00.000Z"),
+    });
+
+    expect(answer.parts).toEqual([{ registerId: central.registerId, start, end }]);
   });
 });
