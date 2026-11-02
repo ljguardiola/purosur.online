@@ -214,6 +214,18 @@ describe("ReturnLinesTable", () => {
     expect(returnedQuantities()).toEqual([1500]);
   });
 
+  it("keeps a weighed line's quantity to three decimals", async () => {
+    const { screen, returnedQuantities } = await renderTypedTable(
+      checkLine(EMPTY_RETURN_DRAFT, NIBS),
+    );
+    const quantity = screen.getByRole("textbox", { name: "Cantidad de Nibs de cacao" });
+    await userEvent.clear(quantity);
+    await userEvent.type(quantity, "1.5005");
+
+    await expect.element(quantity).toHaveValue("1,500");
+    expect(returnedQuantities()).toEqual([1500]);
+  });
+
   it("tells the screen the reason and the destination the cashier chooses", async () => {
     const { screen, onChange } = await renderTable({ draft: checkLine(EMPTY_RETURN_DRAFT, PASTA) });
 

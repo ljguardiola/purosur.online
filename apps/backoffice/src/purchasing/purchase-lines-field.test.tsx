@@ -77,6 +77,14 @@ test("groups thousands and takes a typed dot as the decimal comma in a line's co
   await expect.element(cost).toHaveValue("1.234,50");
 });
 
+test("keeps a line's cost to two decimals", async () => {
+  const screen = await render(<Harness />);
+  const cost = screen.getByRole("textbox", { name: /^Costo por/ });
+  await userEvent.type(cost, "1234.567");
+
+  await expect.element(cost).toHaveValue("1.234,56");
+});
+
 test("lists each product with its brand name and net content", async () => {
   const screen = await render(<Harness products={[...offeredProducts, aceiteDeAlmendras]} />);
 
