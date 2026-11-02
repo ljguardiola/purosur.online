@@ -8,6 +8,7 @@ import {
   productSummarySchema,
 } from "@purosur/contracts";
 import type { NetContentUnit } from "@purosur/domain";
+import { cloudFetch } from "../platform/cloud-fetch";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
@@ -73,7 +74,7 @@ export type EditProductOutcome =
   | { kind: "failed" };
 
 function sendJson(method: "POST" | "PUT", path: string, body: unknown): Promise<Response> {
-  return fetch(path, {
+  return cloudFetch(path, {
     method,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -96,7 +97,7 @@ export async function fetchProducts(
 ): Promise<FetchProductsOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/api/products?status=${status}`);
+    response = await cloudFetch(`/api/products?status=${status}`);
   } catch {
     return { kind: "failed" };
   }
@@ -322,7 +323,7 @@ export type DeactivateProductOutcome =
 export async function deactivateProduct(id: string): Promise<DeactivateProductOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/api/products/${id}/deactivation`, { method: "PUT" });
+    response = await cloudFetch(`/api/products/${id}/deactivation`, { method: "PUT" });
   } catch {
     return { kind: "failed" };
   }
@@ -362,7 +363,7 @@ export type ReactivateProductOutcome =
 export async function reactivateProduct(id: string): Promise<ReactivateProductOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/api/products/${id}/deactivation`, { method: "DELETE" });
+    response = await cloudFetch(`/api/products/${id}/deactivation`, { method: "DELETE" });
   } catch {
     return { kind: "failed" };
   }
