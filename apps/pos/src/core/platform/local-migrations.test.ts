@@ -9407,6 +9407,33 @@ describe("the contingency intervals migration", () => {
     });
   });
 
+  it("holds the intervals the replaced registers left open beside the register's own open one", () => {
+    withMigratedRegister((database) => {
+      const insertPredecessorInterval = (intervalId: string) =>
+        database
+          .prepare(
+            `INSERT INTO contingency_intervals (interval_id, started_at, ended_at, last_seen_at, predecessor)
+             VALUES (?, '2026-10-12T11:00:00.000Z', NULL, '2026-10-12T11:00:00.000Z', 1)`,
+          )
+          .run(intervalId);
+      insertInterval(database, "interval-own", null);
+
+      expect(() => insertPredecessorInterval("interval-1")).not.toThrow();
+      expect(() => insertPredecessorInterval("interval-2")).not.toThrow();
+      expect(
+        database
+          .prepare(
+            "SELECT interval_id, predecessor FROM contingency_intervals ORDER BY interval_id",
+          )
+          .all(),
+      ).toEqual([
+        { interval_id: "interval-1", predecessor: 1 },
+        { interval_id: "interval-2", predecessor: 1 },
+        { interval_id: "interval-own", predecessor: 0 },
+      ]);
+    });
+  });
+
   it("holds an interval id only once", () => {
     withMigratedRegister((database) => {
       insertInterval(database, "interval-1", "2026-10-12T13:00:00.000Z");

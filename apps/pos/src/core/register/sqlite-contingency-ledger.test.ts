@@ -1,5 +1,6 @@
 import {
   closeInterruptedContingency,
+  closePredecessorContingency,
   type IdGenerator,
   recordContingencyChange,
   startContingencyReporting,
@@ -139,6 +140,30 @@ describe("SqliteContingencyLedger", () => {
     expect(outcome).toEqual({ kind: "closed", intervalId: "id-1" });
     expect(intervals()).toEqual([expect.objectContaining({ ended_at: T2.toISOString() })]);
     expect(eventTypes()).toEqual(["contingency_entered", "contingency_left"]);
+  });
+
+  it("closes an interval the replaced register left open, leaving the register's own one running", () => {
+    openSession();
+    change(OFFLINE, T1);
+    database
+      .prepare(
+        `INSERT INTO contingency_intervals (interval_id, started_at, ended_at, last_seen_at, predecessor)
+         VALUES ('interval-replaced', '2026-10-12T11:00:00.000Z', NULL, '2026-10-12T11:10:00.000Z', 1)`,
+      )
+      .run();
+
+    const outcome = closePredecessorContingency({ ledger: ledger(), ids: ids() });
+
+    expect(outcome).toEqual({ kind: "closed", intervalIds: ["interval-replaced"] });
+    expect(intervals()).toEqual([
+      expect.objectContaining({ interval_id: "id-1", ended_at: null }),
+      expect.objectContaining({
+        interval_id: "interval-replaced",
+        ended_at: "2026-10-12T11:10:00.000Z",
+      }),
+    ]);
+    expect(eventTypes()).toEqual(["contingency_entered", "contingency_left"]);
+    expect(change(OFFLINE, T2)).toEqual({ kind: "refreshed", intervalId: "id-1" });
   });
 
   it("starts reporting once", () => {

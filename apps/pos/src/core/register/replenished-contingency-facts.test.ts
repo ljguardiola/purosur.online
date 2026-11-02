@@ -52,6 +52,28 @@ describe("applyReplenishedContingencyFact", () => {
     ]);
   });
 
+  it("holds an interval the replaced register left open as that register's, beside this register's own open one", () => {
+    database
+      .prepare(
+        `INSERT INTO contingency_intervals (interval_id, started_at, ended_at, last_seen_at)
+         VALUES ('interval-own', '2026-10-06T12:00:00.000Z', NULL, '2026-10-06T12:00:00.000Z')`,
+      )
+      .run();
+
+    applyReplenishedContingencyFact(database, entered);
+
+    expect(
+      database
+        .prepare(
+          "SELECT interval_id, ended_at, predecessor FROM contingency_intervals ORDER BY interval_id",
+        )
+        .all(),
+    ).toEqual([
+      { interval_id: "interval-1", ended_at: null, predecessor: 1 },
+      { interval_id: "interval-own", ended_at: null, predecessor: 0 },
+    ]);
+  });
+
   it("keeps the row of an interval it already holds", () => {
     database
       .prepare(

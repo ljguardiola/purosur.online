@@ -85,6 +85,32 @@ describe("recordContingencyChange", () => {
     expect(ledger.state.outbox).toEqual([]);
   });
 
+  it("keeps the last moment seen when the clock was set back while the register stays offline", () => {
+    const seenLater = { ...OPEN_INTERVAL, lastSeenAt: new Date("2026-10-02T16:00:00.000Z") };
+    const { ledger, outcome } = record(OFFLINE, { intervals: [seenLater] });
+
+    expect(outcome).toEqual({ kind: "refreshed", intervalId: "interval-1" });
+    expect(ledger.state.intervals).toEqual([seenLater]);
+  });
+
+  it("ends the interval at its start when the clock was set back before it started", () => {
+    const LATER = new Date("2026-10-02T16:00:00.000Z");
+    const startedLater = { ...OPEN_INTERVAL, startedAt: LATER, lastSeenAt: LATER };
+    const { ledger, outcome } = record(REAL_TIME, { intervals: [startedLater] });
+
+    expect(outcome).toEqual({ kind: "left", intervalId: "interval-1" });
+    expect(ledger.state.intervals).toEqual([{ ...startedLater, endedAt: LATER }]);
+    expect(ledger.state.outbox).toEqual([
+      expect.objectContaining({
+        payload: {
+          interval_id: "interval-1",
+          started_at: LATER.toISOString(),
+          ended_at: LATER.toISOString(),
+        },
+      }),
+    ]);
+  });
+
   it("emits one event when the register is checked again and again while offline", () => {
     const ledger = new FakeContingencyLedger();
     const ports = { ledger, clock: new FixedClock(NOW), ids: new SequentialIds() };

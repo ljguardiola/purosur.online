@@ -40,6 +40,22 @@ describe("closeInterruptedContingency", () => {
     ]);
   });
 
+  it("ends an interval last seen before it started at its start", () => {
+    const seenEarlier = { ...OPEN_INTERVAL, lastSeenAt: new Date("2026-10-02T11:00:00.000Z") };
+    const { ledger } = close({ intervals: [seenEarlier] });
+
+    expect(ledger.state.intervals).toEqual([{ ...seenEarlier, endedAt: STARTED }]);
+    expect(ledger.state.outbox).toEqual([
+      expect.objectContaining({
+        payload: {
+          interval_id: "interval-1",
+          started_at: STARTED.toISOString(),
+          ended_at: STARTED.toISOString(),
+        },
+      }),
+    ]);
+  });
+
   it("does nothing when no interval was left open", () => {
     const { ledger, outcome } = close({ intervals: [{ ...OPEN_INTERVAL, endedAt: SEEN }] });
 

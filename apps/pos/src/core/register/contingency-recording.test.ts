@@ -5,6 +5,7 @@ import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import { createContingencyRecording } from "./contingency-recording";
+import { applyReplenishedContingencyFact } from "./replenished-contingency-facts";
 
 const CHAIN_KEY = Buffer.from("0123456789abcdef0123456789abcdef").toString("base64");
 const OFFLINE: FiscalEmissionMode = { kind: "offline_code", cause: "no_connectivity" };
@@ -162,6 +163,35 @@ describe("createContingencyRecording", () => {
       "contingency_entered",
       "contingency_left",
       "contingency_entered",
+    ]);
+  });
+
+  it("ends, at the next check, an interval the replaced register left open at the last moment it was known running", async () => {
+    openSession();
+    mode = OFFLINE;
+    const contingency = recording();
+    await contingency.startup();
+    applyReplenishedContingencyFact(database, {
+      kind: "contingency_entered",
+      interval: {
+        intervalId: "interval-replaced",
+        startedAt: new Date("2026-10-12T10:00:00.000Z"),
+      },
+    });
+
+    await contingency.check();
+
+    expect(intervals()).toEqual([
+      expect.objectContaining({ interval_id: "id-2", ended_at: null }),
+      expect.objectContaining({
+        interval_id: "interval-replaced",
+        ended_at: "2026-10-12T10:00:00.000Z",
+      }),
+    ]);
+    expect(eventTypes()).toEqual([
+      "contingency_reporting_started",
+      "contingency_entered",
+      "contingency_left",
     ]);
   });
 

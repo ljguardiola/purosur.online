@@ -7,6 +7,7 @@ import type {
 
 interface RecordedContingencyInterval extends OpenContingencyInterval {
   endedAt: Date | null;
+  predecessor?: boolean;
 }
 
 export interface FakeContingencyLedgerState {
@@ -47,9 +48,15 @@ export class FakeContingencyLedger implements ContingencyLedger {
       registerId: () => working.registerId,
       cashSessionOpen: () => working.cashSessionOpen,
       openInterval: () => {
-        const open = working.intervals.find((interval) => interval.endedAt === null);
+        const open = working.intervals.find(
+          (interval) => interval.endedAt === null && interval.predecessor !== true,
+        );
         return open && { id: open.id, startedAt: open.startedAt, lastSeenAt: open.lastSeenAt };
       },
+      predecessorOpenIntervals: () =>
+        working.intervals
+          .filter((interval) => interval.endedAt === null && interval.predecessor === true)
+          .map(({ id, startedAt, lastSeenAt }) => ({ id, startedAt, lastSeenAt })),
       reportingStartedAt: () => working.reportingStartedAt,
       recordOpenedInterval: ({ id, startedAt }) => {
         this.failIfAsked("recordOpenedInterval");
