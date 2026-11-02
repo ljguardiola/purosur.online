@@ -1,19 +1,17 @@
+import type {
+  ContingencyPart,
+  ContingencyReportingRegister,
+} from "../model/contingency-time-share.js";
+
 export interface ContingencyIntervalsQuery {
   fiscalAddressId: string;
   from: Date;
   to: Date;
 }
 
-export interface RegisterContingencyPart {
-  registerId: string;
-  start: Date;
-  end: Date | null;
-}
+export type RegisterContingencyPart = ContingencyPart;
 
-export interface RegisterContingencyReporting {
-  registerId: string;
-  reportingSince: Date | null;
-}
+export type RegisterContingencyReporting = ContingencyReportingRegister;
 
 export interface ContingencyIntervalsAtFiscalAddress {
   parts: RegisterContingencyPart[];

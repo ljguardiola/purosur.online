@@ -408,6 +408,8 @@ export type {
 } from "./read-exception-share-year.js";
 export { readExceptionShareYear } from "./read-exception-share-year.js";
 export type {
+  ArcaAvailabilityQuery,
+  ArcaAvailabilityReader,
   ExceptionShareFiscalAddress,
   ExceptionShareYearQuery,
   ExceptionShareYearReader,
