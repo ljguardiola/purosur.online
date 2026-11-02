@@ -490,6 +490,54 @@ describe("the cloud_app role runMigrations creates", () => {
     await expectPermissionDenied(cloudApp`truncate rejected_document_remedies`);
   });
 
+  it("appends revoked installation confirmations but never rewrites, removes or truncates them", async () => {
+    const [location] = await cloudApp<{ id: string }[]>`select id from locations limit 1`;
+    if (!location) {
+      throw new Error("test setup: reading the seeded location returned no row");
+    }
+    const [user] = await cloudApp<{ id: string }[]>`
+      insert into users (first_name, email, location_id)
+      values ('Cloud App Role Test', ${`cloud-app-role-test-${randomUUID()}@example.com`}, ${location.id})
+      returning id
+    `;
+    const [register] = await cloudApp<{ id: string }[]>`
+      insert into registers (location_id, name)
+      values (${location.id}, ${`Caja ${randomUUID()}`}) returning id
+    `;
+    if (!user || !register) {
+      throw new Error("test setup: seeding the user or the register returned no row");
+    }
+    const [installation] = await cloudApp<{ id: string }[]>`
+      insert into register_installations
+        (register_id, token_lookup_prefix, token_hash, token_issued_at, hostname, windows_version, enrolled_at, revoked_at, revocation_reason)
+      values (${register.id}, ${randomUUID()}, 'hash', now(), 'CAJA', 'Windows 11', now(), now(), 'replaced')
+      returning id
+    `;
+    if (!installation) {
+      throw new Error("test setup: seeding the installation returned no row");
+    }
+    await cloudApp`
+      insert into point_of_sale_claims (point_of_sale_number, register_id, mechanism, claimed_by)
+      values (903, ${register.id}, 'offline', ${user.id})
+    `;
+    await cloudApp`
+      insert into revoked_installation_confirmations
+        (point_of_sale_number, fortnight_start, installation_id, confirmed_by, confirmed_at)
+      values (903, '2026-10-01', ${installation.id}, ${user.id}, now())
+    `;
+
+    await expect(
+      cloudApp`select point_of_sale_number from revoked_installation_confirmations where point_of_sale_number = 903`,
+    ).resolves.toEqual([{ point_of_sale_number: 903 }]);
+    await expectPermissionDenied(
+      cloudApp`update revoked_installation_confirmations set confirmed_at = now() where point_of_sale_number = 903`,
+    );
+    await expectPermissionDenied(
+      cloudApp`delete from revoked_installation_confirmations where point_of_sale_number = 903`,
+    );
+    await expectPermissionDenied(cloudApp`truncate revoked_installation_confirmations`);
+  });
+
   it("appends sale-void credit note refusals but never rewrites, removes or truncates them", async () => {
     const [location] = await cloudApp<{ id: string }[]>`select id from locations limit 1`;
     if (!location) {
