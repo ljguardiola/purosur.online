@@ -13,7 +13,7 @@ import { brands, products, stockMovements } from "../platform/db/schema.js";
 const lossDay = sql<string>`to_char(${stockMovements.occurredAt} at time zone ${ARGENTINA_TIME_ZONE}, 'YYYY-MM-DD')`;
 
 function reasonOf(row: { kind: string; reason: string | null }): LossRecord["reason"] {
-  const reason = reportedLossReason(row);
+  const reason = reportedLossReason({ ...row, exchanged: false });
   if (reason === null) {
     throw new Error(`A stored loss has an unknown reason: ${row.reason}`);
   }

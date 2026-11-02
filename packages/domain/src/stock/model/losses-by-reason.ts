@@ -7,22 +7,18 @@ import {
   type ReportedLossReason,
 } from "./stock-movement-reason.js";
 
-export const LOSS_REPORT_MOVEMENT_KINDS = [
-  "loss",
-  "exchange_out",
-] as const satisfies readonly StockMovementKind[];
+export const LOSS_REPORT_MOVEMENT_KINDS = ["loss"] as const satisfies readonly StockMovementKind[];
 
 export function reportedLossReason(movement: {
   kind: string;
   reason: string | null;
+  exchanged: boolean;
 }): ReportedLossReason | null {
-  if (movement.kind === "exchange_out") {
-    return "defective_exchange";
-  }
   if (movement.kind !== "loss") {
     return null;
   }
-  return RECORDED_LOSS_REASONS.find((reason) => reason === movement.reason) ?? null;
+  const recorded = RECORDED_LOSS_REASONS.find((reason) => reason === movement.reason) ?? null;
+  return recorded === "return_discard" && movement.exchanged ? "defective_exchange" : recorded;
 }
 
 export interface LossRecord {

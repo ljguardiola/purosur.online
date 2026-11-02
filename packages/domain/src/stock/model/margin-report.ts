@@ -6,6 +6,7 @@ import type { StockMovementKind } from "./stock-movement-kind.js";
 export const COST_OF_SALE_MOVEMENT_KINDS = [
   "sale",
   "return",
+  "exchange_out",
 ] as const satisfies readonly StockMovementKind[];
 
 export type CostOfSaleMovementKind = (typeof COST_OF_SALE_MOVEMENT_KINDS)[number];
