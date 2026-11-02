@@ -34,6 +34,7 @@ export interface ContingencyPart {
 export interface ContingencyReportingRegister {
   registerId: string;
   reportingSince: Date | null;
+  firstEnrolledAt: Date | null;
   presence: TimeSpan[];
 }
 
@@ -119,11 +120,21 @@ export function monthWindow(month: string, rules: ZoneRules): TimeSpan {
   return { start: instantOf(first), end: instantOf(addCalendarMonths(first, 1)) };
 }
 
-function firstReportingIsLate(
-  { reportingSince, presence }: ContingencyReportingRegister,
-  window: Millis,
-): boolean {
-  const stays = clippedTo(presence.map(millisOf), window).filter(({ start, end }) => start < end);
+function enrolledPresenceOf({ firstEnrolledAt, presence }: ContingencyReportingRegister): Millis[] {
+  if (firstEnrolledAt === null) {
+    return [];
+  }
+  return clippedTo(presence.map(millisOf), {
+    start: firstEnrolledAt.getTime(),
+    end: Number.POSITIVE_INFINITY,
+  });
+}
+
+function firstReportingIsLate(register: ContingencyReportingRegister, window: Millis): boolean {
+  const { reportingSince } = register;
+  const stays = clippedTo(enrolledPresenceOf(register), window).filter(
+    ({ start, end }) => start < end,
+  );
   if (stays.length === 0) {
     return false;
   }

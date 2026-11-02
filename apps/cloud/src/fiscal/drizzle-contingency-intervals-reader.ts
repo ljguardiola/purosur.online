@@ -101,13 +101,8 @@ export class DrizzleContingencyIntervalsReader<TQueryResult extends PgQueryResul
       registers: registerIds.map((registerId) => ({
         registerId,
         reportingSince: sinceOf.get(registerId) ?? null,
-        presence: presenceAt(
-          assignments,
-          registerId,
-          fiscalAddressId,
-          period,
-          firstEnrolledAtOf.get(registerId) ?? null,
-        ),
+        firstEnrolledAt: firstEnrolledAtOf.get(registerId) ?? null,
+        presence: presenceAt(assignments, registerId, fiscalAddressId, period),
       })),
     };
   }
@@ -160,16 +155,10 @@ function presenceAt(
   registerId: string,
   fiscalAddressId: string,
   period: { start: Date; end: Date },
-  firstEnrolledAt: Date | null,
 ): { start: Date; end: Date }[] {
-  if (firstEnrolledAt === null) {
-    return [];
-  }
-  return fiscalAddressPartsOf(period, assignmentsOf(assignments, registerId)).flatMap((part) => {
-    if (part.fiscalAddressId !== fiscalAddressId || part.end === null) {
-      return [];
-    }
-    const start = part.start > firstEnrolledAt ? part.start : firstEnrolledAt;
-    return start < part.end ? [{ start, end: part.end }] : [];
-  });
+  return fiscalAddressPartsOf(period, assignmentsOf(assignments, registerId)).flatMap((part) =>
+    part.fiscalAddressId === fiscalAddressId && part.end !== null
+      ? [{ start: part.start, end: part.end }]
+      : [],
+  );
 }
