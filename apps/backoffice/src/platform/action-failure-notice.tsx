@@ -2,11 +2,6 @@ import { InlineNotice } from "@purosur/ui";
 import { RefreshCw, TriangleAlert } from "lucide-react";
 import { useReleaseOutdated } from "./release-monitor";
 
-export const RETRY_ADVICE = "Probá de nuevo.";
-export const RETRY_ADVICE_IN_A_FEW_MINUTES = "Probá de nuevo en unos minutos.";
-export const RETRY_ADVICE_LATER = "Probá de nuevo más tarde.";
-export const CHECK_CONNECTION_THEN_RETRY_ADVICE = "Revisá la conexión a internet y probá de nuevo.";
-
 const OUTDATED_ADVICE = "Recargá la página para seguir.";
 
 type ActionFailureNoticeProps = {
@@ -16,7 +11,7 @@ type ActionFailureNoticeProps = {
 
 export function ActionFailureNotice({
   title,
-  description = RETRY_ADVICE,
+  description = "Probá de nuevo.",
 }: ActionFailureNoticeProps) {
   if (useReleaseOutdated()) {
     return (
@@ -38,5 +33,5 @@ export function useFailureText(text: string): string {
 }
 
 export function useRetryAdvice(): string {
-  return useReleaseOutdated() ? OUTDATED_ADVICE : RETRY_ADVICE;
+  return useReleaseOutdated() ? OUTDATED_ADVICE : "Probá de nuevo.";
 }

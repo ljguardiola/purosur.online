@@ -2,10 +2,7 @@ import { recoveryRequestBodySchema } from "@purosur/contracts";
 import { Button, InlineNotice, ScreenHeader, useRequestForm } from "@purosur/ui";
 import { ArrowLeft, MailCheck, Send, ShieldX } from "lucide-react";
 import { type FormEvent, useState } from "react";
-import {
-  ActionFailureNotice,
-  RETRY_ADVICE_IN_A_FEW_MINUTES,
-} from "../platform/action-failure-notice";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { emailFieldMessage } from "../platform/email-field-message";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { AccessFooterLink, AccessLayout } from "../shell/access-layout";
@@ -84,7 +81,7 @@ export function AccountRecoveryScreen({ services }: AccountRecoveryScreenProps) 
       {notice?.kind === "error" && (
         <ActionFailureNotice
           title="No pudimos enviar el enlace"
-          description={RETRY_ADVICE_IN_A_FEW_MINUTES}
+          description="Probá de nuevo en unos minutos."
         />
       )}
       <form className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>

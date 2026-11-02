@@ -1,7 +1,6 @@
 import { FloatingNotification, type LoadStatus, SpreadsheetDownloadButton } from "@purosur/ui";
 import { TriangleAlert } from "lucide-react";
 import { useState } from "react";
-import { RETRY_ADVICE } from "../platform/action-failure-notice";
 import { downloadFile } from "../platform/download-file";
 import type { Workbook } from "../platform/spreadsheet/workbook";
 
@@ -63,7 +62,7 @@ export function ReportDownload({
           tone="error"
           icon={<TriangleAlert />}
           title="No se pudo preparar la planilla"
-          description={RETRY_ADVICE}
+          description="Probá de nuevo."
           onDismiss={() => setFailed(false)}
         />
       ) : null}

@@ -1,6 +1,5 @@
 import type { LoadFailureProps } from "@purosur/ui";
 import { RefreshCw, ShieldX, TriangleAlert } from "lucide-react";
-import { RETRY_ADVICE_IN_A_FEW_MINUTES } from "./action-failure-notice";
 import { retryAfterDetail } from "./retry-after-detail";
 import type { CloudData } from "./use-cloud-query";
 
@@ -32,7 +31,7 @@ export function cloudLoadFailure(
   return {
     icon: <TriangleAlert />,
     title: `No pudimos abrir ${subject}`,
-    description: RETRY_ADVICE_IN_A_FEW_MINUTES,
+    description: "Probá de nuevo en unos minutos.",
     onRetry: data.retry,
   };
 }

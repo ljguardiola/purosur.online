@@ -3,7 +3,6 @@ import type { AuthenticationResponseJSON } from "@simplewebauthn/browser";
 import { startAuthentication } from "@simplewebauthn/browser";
 import { Fingerprint, ShieldX, TriangleAlert, X } from "lucide-react";
 import { type ReactNode, useRef, useState } from "react";
-import { RETRY_ADVICE } from "./action-failure-notice";
 import { retryAfterDetail } from "./retry-after-detail";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./session-authorization-api";
 
@@ -91,7 +90,7 @@ function AuthorizationModal({
             tone="error"
             icon={<TriangleAlert />}
             title="No se pudo confirmar con tu passkey"
-            description={RETRY_ADVICE}
+            description="Probá de nuevo."
           />
         )}
         {notice?.kind === "rateLimited" && (

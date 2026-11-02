@@ -2,10 +2,6 @@ import { Button, InlineNotice } from "@purosur/ui";
 import { type ErrorComponentProps, useRouter } from "@tanstack/react-router";
 import { TriangleAlert } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import {
-  CHECK_CONNECTION_THEN_RETRY_ADVICE,
-  RETRY_ADVICE_IN_A_FEW_MINUTES,
-} from "../platform/action-failure-notice";
 import { useReleaseOutdated } from "../platform/release-monitor";
 import { ScreenDownloadFailure } from "./lazy-screen";
 import { ScreenLayout } from "./screen-layout";
@@ -112,8 +108,8 @@ export function ScreenFailure({ error }: ErrorComponentProps) {
             }
           : {
               description: offlineOnRetry
-                ? CHECK_CONNECTION_THEN_RETRY_ADVICE
-                : RETRY_ADVICE_IN_A_FEW_MINUTES,
+                ? "Revisá la conexión a internet y probá de nuevo."
+                : "Probá de nuevo en unos minutos.",
             })}
       />
       <Button variant="secondary" onPress={() => void retry()}>
