@@ -8,12 +8,20 @@ import type { LossQuery, LossReader, LossRecord } from "@purosur/domain/stock/us
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { netContentRow } from "../catalog/net-content-row.js";
-import { brands, products, stockMovements } from "../platform/db/schema.js";
+import { brands, products, returnLines, stockMovements } from "../platform/db/schema.js";
 
 const lossDay = sql<string>`to_char(${stockMovements.occurredAt} at time zone ${ARGENTINA_TIME_ZONE}, 'YYYY-MM-DD')`;
 
-function reasonOf(row: { kind: string; reason: string | null }): LossRecord["reason"] {
-  const reason = reportedLossReason({ ...row, exchanged: false });
+function reasonOf(row: {
+  kind: string;
+  reason: string | null;
+  resolution: string | null;
+}): LossRecord["reason"] {
+  const reason = reportedLossReason({
+    kind: row.kind,
+    reason: row.reason,
+    exchanged: row.resolution === "exchange",
+  });
   if (reason === null) {
     throw new Error(`A stored loss has an unknown reason: ${row.reason}`);
   }
@@ -34,6 +42,7 @@ export class DrizzleLossReader<TQueryResult extends PgQueryResultHKT> implements
           .select({
             kind: stockMovements.kind,
             reason: stockMovements.reason,
+            resolution: returnLines.resolution,
             delta: stockMovements.delta,
             productId: products.id,
             productName: products.name,
@@ -45,6 +54,13 @@ export class DrizzleLossReader<TQueryResult extends PgQueryResultHKT> implements
           .from(stockMovements)
           .innerJoin(products, eq(products.id, stockMovements.productId))
           .leftJoin(brands, eq(brands.id, products.brandId))
+          .leftJoin(
+            returnLines,
+            and(
+              eq(returnLines.returnId, stockMovements.returnId),
+              eq(returnLines.saleLineId, stockMovements.saleLineId),
+            ),
+          )
           .where(
             and(
               eq(stockMovements.locationId, locationId),
