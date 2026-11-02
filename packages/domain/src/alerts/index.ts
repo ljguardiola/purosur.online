@@ -77,7 +77,6 @@ export {
 export { fiscalAddressMonthScopeDisplay } from "./model/exception-share-alerts.js";
 export type { FiscalUnknownAlertKey } from "./model/fiscal-unknown-alert.js";
 export { fiscalUnknownAlertKey } from "./model/fiscal-unknown-alert.js";
-export type { RevokedInstallationAwaitingConfirmation } from "./model/fortnight-report-alerts.js";
 export { pointOfSaleFortnightScopeDisplay } from "./model/fortnight-report-alerts.js";
 export {
   acquisitionUrgencyAlertLevel,

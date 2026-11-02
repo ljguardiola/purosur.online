@@ -182,7 +182,6 @@ export {
   voucherTypeOfDocumentType,
 } from "./model/fiscal-voucher-type.js";
 export type {
-  FortnightPeriod,
   FortnightPresentationRefusal,
   FortnightPresentationState,
   FortnightReportMovement,
