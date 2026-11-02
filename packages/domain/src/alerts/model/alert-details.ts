@@ -225,7 +225,7 @@ interface FortnightReportOverdueDetail extends FortnightReportNeedsRegularizatio
 interface FortnightReportPendingDetail extends FortnightReportOverdueDetail {
   daysLeft: number;
   reason: FortnightReportPendingReason;
-  revokedInstallations?: { installationId: string; revokedAt: string }[];
+  revokedInstallations?: { installationId: string; revokedAt: string }[] | undefined;
 }
 
 interface FortnightReportDocumentRejectedDetail extends FortnightReportNeedsRegularizationDetail {

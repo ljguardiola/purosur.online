@@ -105,6 +105,7 @@ describe("fortnightReportPendingObservation", () => {
         daysLeft: 5,
         pressing: false,
         state: null,
+        revokedInstallations: [],
       }),
     ).toEqual({
       holds: true,
@@ -171,6 +172,7 @@ describe("fortnightReportPendingObservation", () => {
         daysLeft: 1,
         pressing: true,
         state: "refused",
+        revokedInstallations: [],
       }),
     ).toMatchObject({
       level: "critical",
@@ -185,6 +187,7 @@ describe("fortnightReportPendingObservation", () => {
         daysLeft: 6,
         pressing: false,
         state: "blocked",
+        revokedInstallations: [],
       }),
     ).toMatchObject({ level: "critical", alert: { detail: { reason: "blocked" } } });
   });
@@ -196,6 +199,7 @@ describe("fortnightReportPendingObservation", () => {
         daysLeft: 6,
         pressing: false,
         state: "missing_document",
+        revokedInstallations: [],
       }),
     ).toMatchObject({ level: "critical", alert: { detail: { reason: "missing_document" } } });
   });

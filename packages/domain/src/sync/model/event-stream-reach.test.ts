@@ -210,6 +210,7 @@ describe("streamReachesPast", () => {
       .integer({ min: 0, max: 40 })
       .map((hours) => new Date(PERIOD.from.getTime() + (hours - 10) * 12 * 60 * 60 * 1000));
     const anInstallation = fc.record({
+      installationId: fc.string(),
       enrolledAt: moment,
       revokedAt: fc.option(moment, { nil: null }),
       latestOccurredAt: fc.option(moment, { nil: null }),
