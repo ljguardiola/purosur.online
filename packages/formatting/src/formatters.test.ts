@@ -12,6 +12,7 @@ import {
   formatCountdown,
   formatDate,
   formatDayAndTime,
+  formatDuration,
   formatInvoiceNumber,
   formatMonthAndYear,
   formatMonthAndYearInSentence,
@@ -553,5 +554,25 @@ describe("formatSaleUnitQuantity", () => {
         expect(formatSaleUnitQuantity(units * 1_000, "UNIT")).toBe(`${units} u`);
       }),
     );
+  });
+});
+
+describe("formatDuration", () => {
+  const MINUTE = 60_000;
+  const HOUR = 60 * MINUTE;
+
+  it.each([
+    [0, "0 min"],
+    [MINUTE - 1, "0 min"],
+    [MINUTE, "1 min"],
+    [45 * MINUTE + 59_999, "45 min"],
+    [HOUR - 1, "59 min"],
+    [HOUR, "1 h"],
+    [2 * HOUR, "2 h"],
+    [3 * HOUR + 25 * MINUTE, "3 h 25 min"],
+    [3 * HOUR + MINUTE, "3 h 1 min"],
+    [1234 * HOUR + 5 * MINUTE, "1.234 h 5 min"],
+  ])("writes %i milliseconds as %s", (milliseconds, text) => {
+    expect(formatDuration(milliseconds)).toBe(text);
   });
 });
