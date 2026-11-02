@@ -3,7 +3,7 @@ import { formatProductDescription } from "@purosur/ui/formatters";
 import { type Cell, cell, type Workbook } from "../platform/spreadsheet/workbook";
 import { periodSummaryRows, summarySheet } from "../shell/report-summary-sheet";
 import { stockQuantityCells } from "./stock-quantity-cells";
-import { REASON_LABELS } from "./stock-reason-labels";
+import { REPORTED_LOSS_REASON_LABELS } from "./stock-reason-labels";
 
 export function lossesByReasonReportSpreadsheet(shown: LossesByReasonReportBody): Workbook {
   return {
@@ -17,11 +17,11 @@ export function lossesByReasonReportSpreadsheet(shown: LossesByReasonReportBody)
         ["Motivos", cell.count(shown.reasons.length)],
         ...shown.reasons.map(
           ({ reason, loss_count }) =>
-            [`${REASON_LABELS[reason]} (pérdidas)`, cell.count(loss_count)] as const,
+            [`${REPORTED_LOSS_REASON_LABELS[reason]} (pérdidas)`, cell.count(loss_count)] as const,
         ),
       ]),
       ...shown.reasons.map((losses) => ({
-        name: REASON_LABELS[losses.reason],
+        name: REPORTED_LOSS_REASON_LABELS[losses.reason],
         header: ["Producto", "Cantidad (u)", "Cantidad (kg)", "Pérdidas"],
         rows: losses.products.map((product): Cell[] => [
           cell.text(

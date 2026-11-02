@@ -135,6 +135,7 @@ describe("applying the stock a completed sale moved", () => {
         recordedAt: expect.any(Date),
         actorId: CASHIER,
         supersededByCountId: null,
+        returnId: null,
         assemblyBatchId: null,
       },
     ]);

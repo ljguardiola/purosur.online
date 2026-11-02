@@ -2,6 +2,7 @@ export type { AssemblyBatchStatus } from "./model/assembly-batch.js";
 export { ASSEMBLY_BATCH_STATUSES, assemblyBatchStatus } from "./model/assembly-batch.js";
 export type { InitialCountCostFilter } from "./model/initial-count.js";
 export { INITIAL_COUNT_COST_FILTERS } from "./model/initial-count.js";
+export { LOSS_REPORT_MOVEMENT_KINDS, reportedLossReason } from "./model/losses-by-reason.js";
 export {
   canExpireWithStock,
   countsForShelfLife,
@@ -11,7 +12,15 @@ export {
 export { isReferenceUnitCost } from "./model/lot-reference-cost.js";
 export type { LotCost } from "./model/lot-value.js";
 export { isLotCostIncomplete, isLotInStock, knownLotCost } from "./model/lot-value.js";
-export type { MarginAllocation, MarginSaleLine } from "./model/margin-report.js";
+export type {
+  CostOfSaleMovementKind,
+  MarginAllocation,
+  MarginSaleLine,
+} from "./model/margin-report.js";
+export {
+  COST_OF_SALE_MOVEMENT_KINDS,
+  isCostOfSaleMovementKind,
+} from "./model/margin-report.js";
 export type {
   OpeningCountRecordedFact,
   OpeningCountWithdrawnFact,
@@ -37,6 +46,7 @@ export {
 export type {
   AdjustmentReason,
   LossReason,
+  ReportedLossReason,
   StockDirection,
 } from "./model/stock-movement-reason.js";
 export {
@@ -44,8 +54,8 @@ export {
   adjustmentDirections,
   LOSS_REASONS,
   lossDelta,
-  RECORDED_LOSS_REASONS,
   RECORDED_STOCK_MOVEMENT_REASONS,
+  REPORTED_LOSS_REASONS,
   STOCK_DIRECTIONS,
   SYSTEM_LOSS_REASONS,
 } from "./model/stock-movement-reason.js";

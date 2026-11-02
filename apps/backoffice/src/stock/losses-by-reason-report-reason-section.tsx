@@ -4,7 +4,7 @@ import { formatProductDescription } from "@purosur/ui/formatters";
 import { useId } from "react";
 import { formatStockQuantity } from "../platform/stock-quantity";
 import { lossCountText } from "./loss-count-text";
-import { REASON_LABELS } from "./stock-reason-labels";
+import { REPORTED_LOSS_REASON_LABELS } from "./stock-reason-labels";
 
 type ReasonLosses = LossesByReasonReportBody["reasons"][number];
 type LostProduct = ReasonLosses["products"][number];
@@ -53,7 +53,7 @@ export function LossesByReasonReportReasonSection({
   refreshing: boolean;
 }) {
   const headingId = useId();
-  const label = REASON_LABELS[losses.reason];
+  const label = REPORTED_LOSS_REASON_LABELS[losses.reason];
   const table = useTableModel({
     items: losses.products,
     id: (product) => product.id,

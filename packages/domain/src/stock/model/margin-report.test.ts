@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { type MarginAllocation, type MarginSaleLine, marginReport } from "./margin-report.js";
+import {
+  COST_OF_SALE_MOVEMENT_KINDS,
+  isCostOfSaleMovementKind,
+  type MarginAllocation,
+  type MarginSaleLine,
+  marginReport,
+} from "./margin-report.js";
 
 const lot = {
   technical: false,
@@ -110,6 +116,55 @@ describe("marginReport", () => {
     ]);
 
     expect(report.rows[0]).toMatchObject({ amount: 0, cost: 0, margin: 0, incompleteSales: 0 });
+  });
+
+  it("keeps the cost of a line whose unit was exchanged for one of the same lot", () => {
+    const exchanged = marginReport([
+      line({
+        allocations: [
+          allocation({ quantity: -2_000 }),
+          allocation({ movementKind: "return", quantity: 1_000 }),
+          allocation({ movementKind: "exchange_out", quantity: -1_000 }),
+        ],
+      }),
+    ]);
+    const untouched = marginReport([line({ allocations: [allocation({ quantity: -2_000 })] })]);
+
+    expect(exchanged).toEqual(untouched);
+  });
+
+  it("keeps the cost of a line whose unit was exchanged for one of another lot of the same cost", () => {
+    const exchanged = marginReport([
+      line({
+        allocations: [
+          allocation({ quantity: -2_000 }),
+          allocation({ movementKind: "return", quantity: 1_000 }),
+          allocation({ movementKind: "exchange_out", lotId: "lot-2", quantity: -1_000 }),
+        ],
+      }),
+    ]);
+    const untouched = marginReport([line({ allocations: [allocation({ quantity: -2_000 })] })]);
+
+    expect(exchanged).toEqual(untouched);
+  });
+
+  it("moves the cost of an exchanged line by the difference of the replacement's lot cost", () => {
+    const report = marginReport([
+      line({
+        allocations: [
+          allocation({ quantity: -2_000 }),
+          allocation({ movementKind: "return", quantity: 1_000 }),
+          allocation({
+            movementKind: "exchange_out",
+            lotId: "dear",
+            quantity: -1_000,
+            cost: { totalCents: 7_000, quantity: 1_000 },
+          }),
+        ],
+      }),
+    ]);
+
+    expect(report.rows[0]).toMatchObject({ cost: 12_000, margin: -3_000, incompleteSales: 0 });
   });
 
   it("values a line whose sale took from no lot at no cost and flags the sale", () => {
@@ -342,5 +397,21 @@ describe("marginReport", () => {
       brandName: "Vitora",
       netContent: { quantity: 30, unit: "ML" },
     });
+  });
+});
+
+describe("COST_OF_SALE_MOVEMENT_KINDS", () => {
+  it("lists the movements whose cost is cost of sale: the sale, the return of its units and their replacement", () => {
+    expect(COST_OF_SALE_MOVEMENT_KINDS).toEqual(["sale", "return", "exchange_out"]);
+  });
+});
+
+describe("isCostOfSaleMovementKind", () => {
+  it.each(["sale", "return", "exchange_out"])("counts the cost of a %s movement", (kind) => {
+    expect(isCostOfSaleMovementKind(kind)).toBe(true);
+  });
+
+  it.each(["loss", "sale_void", "receipt"])("never counts the cost of a %s movement", (kind) => {
+    expect(isCostOfSaleMovementKind(kind)).toBe(false);
   });
 });

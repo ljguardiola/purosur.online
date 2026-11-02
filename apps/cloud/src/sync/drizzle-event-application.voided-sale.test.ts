@@ -439,6 +439,7 @@ describe("returning the stock of a voided sale", () => {
         recordedAt: expect.any(Date),
         actorId: CASHIER,
         supersededByCountId: null,
+        returnId: null,
         assemblyBatchId: null,
       },
     ]);

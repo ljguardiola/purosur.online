@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   type ApplyRegisterStockMovementsInput,
   applyRegisterStockMovements,
+  type RegisterStockMovement,
 } from "./apply-register-stock-movements.js";
 import { FakeStockStore } from "./test-support/fake-stock-store.js";
 
@@ -496,6 +497,7 @@ describe("applyRegisterStockMovements", () => {
           {
             id: "exchange-1",
             saleLineId: "sale-line-1",
+            returnId: "return-1",
             productId: "product-bread",
             kind: "exchange_out",
             delta: -3000,
@@ -520,6 +522,7 @@ describe("applyRegisterStockMovements", () => {
           {
             id: "exchange-1",
             saleLineId: "sale-line-1",
+            returnId: "return-1",
             productId: "product-bread",
             kind: "exchange_out",
             delta: -12_000,
@@ -541,6 +544,7 @@ describe("applyRegisterStockMovements", () => {
           {
             id: "exchange-1",
             saleLineId: "sale-line-1",
+            returnId: "return-1",
             productId: "product-bread",
             kind: "exchange_out",
             delta: -1500,
@@ -668,6 +672,7 @@ describe("applyRegisterStockMovements", () => {
         {
           id,
           saleLineId: "sale-line-1",
+          returnId: "return-1",
           productId: "product-bread",
           kind: "return",
           delta,
@@ -681,6 +686,7 @@ describe("applyRegisterStockMovements", () => {
         {
           id: "return-movement-2",
           saleLineId: "sale-line-1",
+          returnId: "return-1",
           productId: "product-bread",
           kind: "loss",
           reason: "return_discard",
@@ -709,6 +715,7 @@ describe("applyRegisterStockMovements", () => {
           id: "return-movement-1",
           ...BREAD,
           saleLineId: "sale-line-1",
+          returnId: "return-1",
           kind: "return",
           reason: null,
           delta: 3000,
@@ -727,9 +734,10 @@ describe("applyRegisterStockMovements", () => {
       expect(outcome).toEqual({ kind: "applied" });
       expect(store.balanceOf(BREAD)).toBe(10_000);
       expect(
-        store.snapshot().movements.map(({ id, saleLineId, kind, reason, delta }) => ({
+        store.snapshot().movements.map(({ id, saleLineId, returnId, kind, reason, delta }) => ({
           id,
           saleLineId,
+          returnId,
           kind,
           reason,
           delta,
@@ -738,6 +746,7 @@ describe("applyRegisterStockMovements", () => {
         {
           id: "return-movement-1",
           saleLineId: "sale-line-1",
+          returnId: "return-1",
           kind: "return",
           reason: null,
           delta: 3000,
@@ -745,6 +754,7 @@ describe("applyRegisterStockMovements", () => {
         {
           id: "return-movement-2",
           saleLineId: "sale-line-1",
+          returnId: "return-1",
           kind: "loss",
           reason: "return_discard",
           delta: -3000,
@@ -907,6 +917,7 @@ describe("applyRegisterStockMovements", () => {
           {
             id: "return-movement-4",
             saleLineId: "sale-line-1",
+            returnId: "return-1",
             productId: "product-bread",
             kind: "loss",
             reason: "return_discard",
@@ -936,6 +947,7 @@ describe("applyRegisterStockMovements", () => {
           {
             id: "return-movement-5",
             saleLineId: "sale-line-2",
+            returnId: "return-1",
             productId: "product-bread",
             kind: "return",
             delta: 1000,
@@ -943,6 +955,7 @@ describe("applyRegisterStockMovements", () => {
           {
             id: "return-movement-6",
             saleLineId: "sale-line-1",
+            returnId: "return-1",
             productId: "product-bread",
             kind: "loss",
             reason: "return_discard",
@@ -965,6 +978,7 @@ describe("applyRegisterStockMovements", () => {
           {
             id: "return-movement-7",
             saleLineId: "sale-line-1",
+            returnId: "return-1",
             productId: "product-cheese",
             kind: "loss",
             reason: "return_discard",
@@ -992,6 +1006,7 @@ describe("applyRegisterStockMovements", () => {
           {
             id: "return-movement-6",
             saleLineId: "sale-line-1",
+            returnId: "return-1",
             productId: "product-bread",
             kind: "loss",
             reason: "return_discard",
@@ -1013,6 +1028,7 @@ describe("applyRegisterStockMovements", () => {
       const returnId = store.seedMovement({
         ...BREAD,
         saleLineId: "sale-line-1",
+        returnId: "return-1",
         kind: "return",
         reason: null,
         delta: 2000,
@@ -1089,5 +1105,32 @@ describe("applyRegisterStockMovements", () => {
       expect(outcome).toEqual({ kind: "invalid_quantity", productId: "product-bread" });
       expect(store.snapshot()).toEqual(before);
     });
+  });
+});
+
+describe("RegisterStockMovement", () => {
+  type Line = { id: string; productId: string; delta: number; saleLineId: string };
+
+  it("takes a sale or a voided sale belonging to no return", () => {
+    expectTypeOf<Line & { kind: "sale" }>().toExtend<RegisterStockMovement>();
+    expectTypeOf<Line & { kind: "sale_void" }>().toExtend<RegisterStockMovement>();
+  });
+
+  it("takes a return, an exchange's replacement and a discarded unit with the return they belong to", () => {
+    expectTypeOf<Line & { kind: "return"; returnId: string }>().toExtend<RegisterStockMovement>();
+    expectTypeOf<
+      Line & { kind: "exchange_out"; returnId: string }
+    >().toExtend<RegisterStockMovement>();
+    expectTypeOf<
+      Line & { kind: "loss"; reason: "return_discard"; returnId: string }
+    >().toExtend<RegisterStockMovement>();
+  });
+
+  it("refuses a return, an exchange's replacement or a discarded unit without the return they belong to", () => {
+    expectTypeOf<Line & { kind: "return" }>().not.toExtend<RegisterStockMovement>();
+    expectTypeOf<Line & { kind: "exchange_out" }>().not.toExtend<RegisterStockMovement>();
+    expectTypeOf<
+      Line & { kind: "loss"; reason: "return_discard" }
+    >().not.toExtend<RegisterStockMovement>();
   });
 });

@@ -1,10 +1,23 @@
 import type { ProductBrandAndNetContent } from "../../catalog/index.js";
 import { compareCodeUnits, compareSpanishPaths } from "../../shared/index.js";
 import { isLotCostIncomplete, type LotCost, lotValueCents } from "./lot-value.js";
+import type { StockMovementKind } from "./stock-movement-kind.js";
+
+export const COST_OF_SALE_MOVEMENT_KINDS = [
+  "sale",
+  "return",
+  "exchange_out",
+] as const satisfies readonly StockMovementKind[];
+
+export type CostOfSaleMovementKind = (typeof COST_OF_SALE_MOVEMENT_KINDS)[number];
+
+export function isCostOfSaleMovementKind(kind: string): kind is CostOfSaleMovementKind {
+  return COST_OF_SALE_MOVEMENT_KINDS.some((costOfSaleKind) => costOfSaleKind === kind);
+}
 
 export interface MarginAllocation {
   lotId: string;
-  movementKind: "sale" | "return";
+  movementKind: CostOfSaleMovementKind;
   quantity: number;
   technical: boolean;
   costIncomplete: boolean;
