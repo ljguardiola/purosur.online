@@ -8,10 +8,13 @@ import {
   FICTIONAL_GROSS_INCOME_REGISTRATION,
   FICTIONAL_LEGAL_NAME,
 } from "@purosur/domain/fiscal/test-support";
+import type { StoredReceipt } from "@purosur/domain/sales/use-cases";
 import { describe, expect, it } from "vitest";
+import { centered, SMALL_COLUMNS } from "../../platform/escpos/escpos-writer";
 import { printoutOf } from "../../platform/escpos/test-support/escpos-printout";
 import { fixedZoneRulesSource } from "../../platform/test-support/fixed-zone-rules-source";
 import { escPosReceiptTemplate } from "./escpos-receipt-template";
+import { firstVersionHead } from "./test-support/first-version-head";
 
 const RULE = "─".repeat(48);
 const QR_TEXT = "https://www.arca.gob.ar/fe/qr/?p=eyJ0aXBvQ21wIjoxM30=";
@@ -236,6 +239,41 @@ describe("the ESC/POS credit note of a voided sale", () => {
       ].join("\n"),
     );
     expect(original.text).not.toContain("COPIA DUPLICADA");
+  });
+
+  it("prints a duplicate of a credit note stored by the template's first version with the logo laid out as today", () => {
+    const template = escPosReceiptTemplate(fixedZoneRulesSource());
+    const current = template.renderCreditNote(creditNote());
+    const stored: StoredReceipt = {
+      templateVersion: "1",
+      head: firstVersionHead({
+        afterLogo: (out) => {
+          out.small([
+            ...centered("Av. Belgrano 1450", SMALL_COLUMNS),
+            ...centered("WhatsApp 11 5555-0100  ·  @puro.sur", SMALL_COLUMNS),
+          ]);
+          out.lines([RULE]);
+          out.bold(centered("NOTA DE CRÉDITO C"));
+          out.small(centered("Cód. 013  ·  A consumidor final", SMALL_COLUMNS));
+        },
+      }),
+      body: current.body,
+    };
+    const copy = { kind: "duplicate", orderNumber: 2 } as const;
+
+    const duplicate = template.printable(stored, copy);
+
+    expect(printoutOf(duplicate).text).toBe(
+      [
+        ...HEAD,
+        "[bold]              COPIA DUPLICADA Nº 2[/bold]",
+        ...OPERATION,
+        ...VOIDED_SALE,
+        ...AUTHORIZATION,
+        ...CLOSING,
+      ].join("\n"),
+    );
+    expect(Array.from(duplicate)).toEqual(Array.from(template.printable(current, copy)));
   });
 
   it("keeps the rendered credit note as a head and a body that join into the original", () => {

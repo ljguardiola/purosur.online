@@ -12,9 +12,11 @@ import {
 import type { StoredReceipt } from "@purosur/domain/sales/use-cases";
 import { formatPercent } from "@purosur/ui/formatters";
 import { describe, expect, it } from "vitest";
+import { centered, SMALL_COLUMNS } from "../../platform/escpos/escpos-writer";
 import { printoutOf } from "../../platform/escpos/test-support/escpos-printout";
 import { fixedZoneRulesSource } from "../../platform/test-support/fixed-zone-rules-source";
 import { escPosReceiptTemplate } from "./escpos-receipt-template";
+import { firstVersionHead } from "./test-support/first-version-head";
 
 const RULE = "─".repeat(48);
 const ORIGINAL: ReceiptCopy = { kind: "original" };
@@ -773,7 +775,7 @@ describe("the ESC/POS receipt template", () => {
   it("renders the version of the template with the head and the body apart", () => {
     const stored = escPosReceiptTemplate(fixedZoneRulesSource()).render(receipt());
 
-    expect(stored.templateVersion).toBe("1");
+    expect(stored.templateVersion).toBe("2");
     expect(printoutOf(stored.head).text).toBe(HEAD.join("\n"));
     expect(printoutOf(stored.body).text).toBe(BODY_OF_MIXED_SALE.join("\n"));
   });
@@ -804,9 +806,35 @@ describe("the ESC/POS receipt template", () => {
     expect(Array.from(duplicate.slice(start, end))).toContain(0xa7);
   });
 
+  it("prints a duplicate of a receipt stored by the template's first version with the logo laid out as today", () => {
+    const template = escPosReceiptTemplate(fixedZoneRulesSource());
+    const current = template.render(receipt());
+    const stored: StoredReceipt = {
+      templateVersion: "1",
+      head: firstVersionHead({
+        afterLogo: (out) =>
+          out.small([
+            ...centered("Av. Belgrano 1450", SMALL_COLUMNS),
+            ...centered("WhatsApp 11 5555-0100  ·  @puro.sur", SMALL_COLUMNS),
+          ]),
+      }),
+      body: current.body,
+    };
+    const copy: ReceiptCopy = { kind: "duplicate", orderNumber: 3 };
+
+    const duplicate = template.printable(stored, copy);
+
+    expect(printoutOf(duplicate).text).toBe(
+      [...HEAD, "[bold]              COPIA DUPLICADA Nº 3[/bold]", ...BODY_OF_MIXED_SALE].join(
+        "\n",
+      ),
+    );
+    expect(Array.from(duplicate)).toEqual(Array.from(template.printable(current, copy)));
+  });
+
   it("refuses to print a receipt stored by a version of the template it does not know", () => {
     const stored: StoredReceipt = {
-      templateVersion: "2",
+      templateVersion: "3",
       head: new Uint8Array(),
       body: new Uint8Array(),
     };
@@ -816,7 +844,7 @@ describe("the ESC/POS receipt template", () => {
         kind: "duplicate",
         orderNumber: 1,
       }),
-    ).toThrow(/2/);
+    ).toThrow(/3/);
   });
 
   describe("an authorized factura C", () => {
@@ -1029,6 +1057,36 @@ describe("the ESC/POS receipt of a deferred sale", () => {
         "\n",
       ),
     );
+  });
+
+  it("prints a duplicate stored by the template's first version with the logo laid out as today, under the mark", () => {
+    const template = escPosReceiptTemplate(fixedZoneRulesSource());
+    const current = template.render(receipt({ fiscal: DEFERRED_BLOCK }));
+    const stored: StoredReceipt = {
+      templateVersion: "1",
+      head: firstVersionHead({
+        beforeLogo: (out) => {
+          out.bold([...centered("X"), ...centered("DOCUMENTO NO VALIDO COMO FACTURA")]);
+          out.lines([RULE]);
+        },
+        afterLogo: (out) =>
+          out.small([
+            ...centered("Av. Belgrano 1450", SMALL_COLUMNS),
+            ...centered("WhatsApp 11 5555-0100  ·  @puro.sur", SMALL_COLUMNS),
+          ]),
+      }),
+      body: current.body,
+    };
+    const copy: ReceiptCopy = { kind: "duplicate", orderNumber: 2 };
+
+    const duplicate = template.printable(stored, copy);
+
+    expect(printoutOf(duplicate).text).toBe(
+      [...DEFERRED_HEAD, "[bold]              COPIA DUPLICADA Nº 2[/bold]", ...DEFERRED_BODY].join(
+        "\n",
+      ),
+    );
+    expect(Array.from(duplicate)).toEqual(Array.from(template.printable(current, copy)));
   });
 
   it("keeps every row within the paper's width", () => {

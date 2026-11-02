@@ -86,6 +86,14 @@ describe("writing ESC/POS printer commands", () => {
     ]);
   });
 
+  it("carries the width's high byte for an image 256 bytes wide or more", () => {
+    const rows = Uint8Array.from({ length: 257 * 2 }, (_, index) => index & 0xff);
+    expect(written((out) => out.rasterImage({ widthDots: 2056, heightDots: 2, rows }))).toEqual([
+      ...[GS, 0x76, 0x30, 0, 0x01, 0x01, 0x02, 0x00],
+      ...rows,
+    ]);
+  });
+
   it("prints an image taller than 255 dots as consecutive strips of at most 255 rows", () => {
     const rows = Uint8Array.from({ length: 280 }, (_, index) => index & 0xff);
     expect(written((out) => out.rasterImage({ widthDots: 8, heightDots: 280, rows }))).toEqual([
