@@ -37,6 +37,7 @@ const NO_ORDERS: PurchaseOrderSummary[] = [];
 const STATE_FILTER_OPTIONS = [
   { value: "ALL" as const, label: "Todos" },
   { value: "DRAFT" as const, label: "Borradores" },
+  { value: "SENT" as const, label: "Enviados" },
   { value: "CANCELLED" as const, label: "Cancelados" },
 ] as const;
 
