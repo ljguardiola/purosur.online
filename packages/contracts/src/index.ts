@@ -268,8 +268,14 @@ export {
   registerPointOfSaleOverviewSchema,
   registerPointOfSaleSchema,
 } from "./fiscal/register-point-of-sale.js";
-export type { RejectedDocumentRemedyBody } from "./fiscal/rejected-document-remedy.js";
-export { rejectedDocumentRemedyBodySchema } from "./fiscal/rejected-document-remedy.js";
+export type {
+  RejectedDocumentRemedyBody,
+  RevokedInstallationConfirmationBody,
+} from "./fiscal/rejected-document-remedy.js";
+export {
+  rejectedDocumentRemedyBodySchema,
+  revokedInstallationConfirmationBodySchema,
+} from "./fiscal/rejected-document-remedy.js";
 export type { RestoredRegisterOrphanSweepResponseBody } from "./fiscal/restored-register-orphan-sweep.js";
 export { restoredRegisterOrphanSweepResponseSchema } from "./fiscal/restored-register-orphan-sweep.js";
 export type {

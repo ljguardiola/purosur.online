@@ -315,6 +315,9 @@ const fortnightReportOverdueDetailSchema = fortnightReportNeedsRegularizationDet
 const fortnightReportPendingDetailSchema = fortnightReportOverdueDetailSchema.extend({
   daysLeft: z.int(),
   reason: z.enum(FORTNIGHT_REPORT_PENDING_REASONS),
+  revokedInstallations: z
+    .array(z.object({ installationId: z.string(), revokedAt: z.string() }))
+    .optional(),
 });
 
 const ALERT_INSTANT = { timeZone: ARGENTINA_TIME_ZONE };
