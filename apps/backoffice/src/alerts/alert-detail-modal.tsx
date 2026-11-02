@@ -338,8 +338,8 @@ function secondMonthAtRiskDescription({
   previousMonth,
   exceptionCount,
   totalCount,
-  shareTenthsOfPercent,
-  nonCompliancePercent,
+  exceptionShareTenthsOfPercent,
+  exceptionShareNonCompliancePercent,
   previousMonthNonCompliantOn,
   contingencyShareTenthsOfPercent,
   contingencyNonCompliancePercent,
@@ -350,15 +350,15 @@ function secondMonthAtRiskDescription({
   });
   const issued = plural(exceptionCount, { one: "se emitió", other: "se emitieron" });
   const running =
-    shareTenthsOfPercent === null
+    exceptionShareTenthsOfPercent === null
       ? `En ${yearMonthPhrase(month)} todavía no se emitieron comprobantes en este domicilio fiscal.`
-      : `En ${yearMonthPhrase(month)} ${issued} por excepción (CAEA) ${formatNumber(exceptionCount)} de ${vouchers} de este domicilio fiscal, el ${formatTenthsOfPercent(shareTenthsOfPercent)}.`;
+      : `En ${yearMonthPhrase(month)} ${issued} por excepción (CAEA) ${formatNumber(exceptionCount)} de ${vouchers} de este domicilio fiscal, el ${formatTenthsOfPercent(exceptionShareTenthsOfPercent)}.`;
   const runningContingency =
     contingencyShareTenthsOfPercent === null
       ? `Tiempo en contingencia en ${yearMonthPhrase(month)}: Sin datos.`
       : `En ${yearMonthPhrase(month)} estuvo en contingencia el ${formatTenthsOfPercent(contingencyShareTenthsOfPercent)} del tiempo en que ARCA estuvo disponible.`;
   const limits = {
-    exception_share: formatPercent(nonCompliancePercent),
+    exception_share: formatPercent(exceptionShareNonCompliancePercent),
     contingency_time: formatPercent(contingencyNonCompliancePercent),
   };
   const previousFailures = previousMonthNonCompliantOn

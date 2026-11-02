@@ -258,8 +258,8 @@ interface SecondNonCompliantMonthAtRiskDetail {
   previousMonth: string;
   exceptionCount: number;
   totalCount: number;
-  shareTenthsOfPercent: number | null;
-  nonCompliancePercent: number;
+  exceptionShareTenthsOfPercent: number | null;
+  exceptionShareNonCompliancePercent: number;
   previousMonthNonCompliantOn: NonCompliantMeasurement[];
   contingencyShareTenthsOfPercent: number | null;
   contingencyNonCompliancePercent: number;
