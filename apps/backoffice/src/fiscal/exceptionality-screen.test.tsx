@@ -98,7 +98,7 @@ test("shows the eyebrow, the heading and the explanation that nothing is restric
   await expect
     .element(
       screen.getByText(
-        "Un mes incumple al llegar al 5 % de comprobantes emitidos por excepción (CAEA). ARCA puede restringir el uso del CAEA; en el mostrador no se restringe nada.",
+        "Un mes incumple al llegar al 5 % de comprobantes emitidos por excepción (CAEA), o cuando el tiempo en contingencia supera el 5 % del tiempo en que ARCA estuvo disponible. ARCA puede restringir el uso del CAEA; en el mostrador no se restringe nada.",
         { exact: true },
       ),
     )
@@ -106,11 +106,15 @@ test("shows the eyebrow, the heading and the explanation that nothing is restric
   expect(screen.getByText(/perdi/i).query()).toBeNull();
 });
 
-test("explains the threshold the cloud answered", async () => {
+test("explains the thresholds the cloud answered", async () => {
   const services = createServices();
   vi.mocked(services.fetchExceptionShareYear).mockResolvedValue({
     kind: "ok",
-    value: { ...exceptionShareOf2026, non_compliance_percent: 10 },
+    value: {
+      ...exceptionShareOf2026,
+      non_compliance_percent: 10,
+      contingency_non_compliance_percent: 3,
+    },
   });
 
   const screen = await renderScreen(services);
@@ -118,7 +122,7 @@ test("explains the threshold the cloud answered", async () => {
   await expect
     .element(
       screen.getByText(
-        "Un mes incumple al llegar al 10 % de comprobantes emitidos por excepción (CAEA). ARCA puede restringir el uso del CAEA; en el mostrador no se restringe nada.",
+        "Un mes incumple al llegar al 10 % de comprobantes emitidos por excepción (CAEA), o cuando el tiempo en contingencia supera el 3 % del tiempo en que ARCA estuvo disponible. ARCA puede restringir el uso del CAEA; en el mostrador no se restringe nada.",
         { exact: true },
       ),
     )
@@ -195,7 +199,7 @@ test("falls back to the year the cloud answers and reports it when the filters c
   ]);
 });
 
-test("groups the voucher counts under Comprobantes por excepción next to the month", async () => {
+test("groups the voucher counts and the contingency time under their own headings next to the month", async () => {
   const screen = await renderScreen(createServices());
 
   await expect.element(screen.getByText("Enero 2026")).toBeVisible();
@@ -206,27 +210,93 @@ test("groups the voucher counts under Comprobantes por excepción next to the mo
     .getByRole("columnheader")
     .all()
     .map((header) => header.element().textContent?.trim());
-  expect(headers).toEqual(["Mes", "Por excepción (CAEA)", "Total", "Porcentaje", "Estado"]);
+  expect(headers).toEqual([
+    "Mes",
+    "Por excepción (CAEA)",
+    "Total",
+    "Porcentaje",
+    "Estado",
+    "En contingencia",
+    "ARCA disponible",
+    "Porcentaje",
+    "Estado",
+  ]);
+  const timeGroup = screen.getByText("Tiempo en contingencia", { exact: true });
+  await expect.element(timeGroup).toBeVisible();
+  expect(timeGroup.element().getAttribute("colspan")).toBe("4");
 });
 
-test("shows each month with its vouchers by exception, its total, its share and its state", async () => {
+test("shows each month with its vouchers by exception and its contingency time, each with its share and its state", async () => {
   const screen = await renderScreen(createServices());
 
   await expect.element(screen.getByText("Enero 2026")).toBeVisible();
   const [january, february, march, april, may] = rowTexts(screen);
-  expect(january).toBe(`Enero 2026${formatNumber(7)}${formatNumber(100)}7,0 %Incumple`);
-  expect(february).toBe(`Febrero 2026${formatNumber(1)}${formatNumber(50)}2,0 %Dentro del límite`);
+  expect(january).toBe(
+    `Enero 2026${formatNumber(7)}${formatNumber(100)}7,0 %Incumple3 h 25 min40 h8,5 %Incumple`,
+  );
+  expect(february).toBe(
+    `Febrero 2026${formatNumber(1)}${formatNumber(50)}2,0 %Dentro del límite45 min672 h0,1 %Dentro del límite`,
+  );
   expect(march).toContain("Marzo 2026");
   expect(march).toContain("6,2 %");
   expect(march).toContain("Incumple");
-  expect(april).toBe(`Abril 2026${formatNumber(2)}${formatNumber(40)}5,0 %En curso`);
-  expect(may).toBe(`Mayo 2026${formatNumber(0)}${formatNumber(0)}—En curso`);
+  expect(march).toMatch(/———Sin datos$/);
+  expect(april).toBe(
+    `Abril 2026${formatNumber(2)}${formatNumber(40)}5,0 %En curso2 h100 h2,0 %En curso`,
+  );
+  expect(may).toBe(`Mayo 2026${formatNumber(0)}${formatNumber(0)}—En curso———Sin datos`);
   await expectNoAccessibilityViolations(screen.container);
 });
 
 test("lists the months of the year that did not comply above the table", async () => {
   const screen = await renderScreen(createServices());
 
+  await expect
+    .element(screen.getByText("Meses que incumplieron en 2026: enero, marzo", { exact: true }))
+    .toBeVisible();
+});
+
+test("lists the months that did not comply on contingency time apart from the voucher ones", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchExceptionShareYear).mockResolvedValue({
+    kind: "ok",
+    value: {
+      ...exceptionShareOf2026,
+      contingency_non_compliant_months: ["2026-02", "2026-04"],
+    },
+  });
+
+  const screen = await renderScreen(services);
+
+  await expect
+    .element(
+      screen.getByText(
+        "Meses que incumplieron por tiempo en contingencia en 2026: febrero, abril",
+        {
+          exact: true,
+        },
+      ),
+    )
+    .toBeVisible();
+  await expect
+    .element(screen.getByText("Meses que incumplieron en 2026: enero, marzo", { exact: true }))
+    .toBeVisible();
+});
+
+test("says no month did not comply on contingency time when the cloud records none", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchExceptionShareYear).mockResolvedValue({
+    kind: "ok",
+    value: { ...exceptionShareOf2026, contingency_non_compliant_months: [] },
+  });
+
+  const screen = await renderScreen(services);
+
+  await expect
+    .element(
+      screen.getByText("Ningún mes incumplió por tiempo en contingencia en 2026", { exact: true }),
+    )
+    .toBeVisible();
   await expect
     .element(screen.getByText("Meses que incumplieron en 2026: enero, marzo", { exact: true }))
     .toBeVisible();
@@ -271,7 +341,7 @@ test("shows the months of a year without vouchers with zero vouchers and no shar
 
   await expect.element(screen.getByText("Enero 2026")).toBeVisible();
   expect(rowTexts(screen)).toEqual([
-    `Enero 2026${formatNumber(0)}${formatNumber(0)}—Dentro del límite`,
+    `Enero 2026${formatNumber(0)}${formatNumber(0)}—Dentro del límite———Sin datos`,
   ]);
 });
 
