@@ -60,7 +60,7 @@ test("has only the Resumen sheet when there are no losses", () => {
   ]);
 });
 
-test("names the sheet and the summary row of the replacements of defective exchanges as Cambio por defectuoso", () => {
+test("names the sheet and the summary row of the discarded units of defective exchanges as Cambio por defectuoso", () => {
   const [summary, sheet] = lossesByReasonReportSpreadsheet(
     lossesByReasonReport([defectiveExchangeReason]),
   ).sheets;

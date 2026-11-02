@@ -53,7 +53,7 @@ test("shows a reason the system assigns like one recorded by hand", async () => 
   await expect.element(discard.getByText("0,400 kg")).toBeVisible();
 });
 
-test("titles the replacements of defective exchanges with their own label", async () => {
+test("titles the discarded units of defective exchanges with their own label", async () => {
   const screen = await renderSection(defectiveExchangeReason);
 
   const exchange = screen.getByRole("region", { name: "Cambio por defectuoso" });

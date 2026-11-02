@@ -411,10 +411,7 @@ describe("isCostOfSaleMovementKind", () => {
     expect(isCostOfSaleMovementKind(kind)).toBe(true);
   });
 
-  it.each(["loss", "sale_void", "receipt"])(
-    "never counts the cost of a %s movement",
-    (kind) => {
-      expect(isCostOfSaleMovementKind(kind)).toBe(false);
-    },
-  );
+  it.each(["loss", "sale_void", "receipt"])("never counts the cost of a %s movement", (kind) => {
+    expect(isCostOfSaleMovementKind(kind)).toBe(false);
+  });
 });
