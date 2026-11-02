@@ -106,6 +106,7 @@ export function fortnightReportJobs(
       }),
       documents: new DrizzleOfflineDocumentsOfFortnight(db),
       streams: new DrizzleRegisterEventStreams(db),
+      confirmations: { confirmedInstallations: async () => [] },
       declarations,
       documentReports,
       codeStore: new DrizzleOfflineAuthorizationCodeStore(db),

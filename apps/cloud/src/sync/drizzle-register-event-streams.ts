@@ -15,6 +15,7 @@ export class DrizzleRegisterEventStreams<TQueryResult extends PgQueryResultHKT>
   async installationsOf(registerId: string) {
     return this.db
       .select({
+        installationId: registerInstallations.id,
         enrolledAt: registerInstallations.enrolledAt,
         revokedAt: registerInstallations.revokedAt,
         latestOccurredAt:

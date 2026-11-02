@@ -26,6 +26,7 @@ export class DrizzleOwedFortnightPresentationReader<TQueryResult extends PgQuery
       taxAuthorityDeadline: code.reportDeadline,
       state: owedFortnightPresentationState({ state, listed }),
       listed,
+      revokedInstallations: [],
     }));
   }
 }

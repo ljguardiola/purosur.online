@@ -101,6 +101,7 @@ export class DrizzleFortnightPresentationReader<TQueryResult extends PgQueryResu
           ...row,
           registerId,
           pointOfSaleNumber,
+          revokedInstallations: [],
           fortnight: code.fortnight,
           deadline: fortnightReportDeadline(code.fortnight, code.reportDeadline),
         }));
