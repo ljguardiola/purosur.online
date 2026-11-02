@@ -1,4 +1,4 @@
-import { type AlertKind, isAlertKind } from "@purosur/domain";
+import { ALERT_KINDS, type AlertKind, isAlertKind } from "@purosur/domain";
 import {
   AlertAlreadyOpenError,
   type AlertClosure,
@@ -236,7 +236,13 @@ class DrizzleAlertStoreTransaction<TQueryResult extends PgQueryResultHKT>
         conditionClearedAt: sql`${alerts.conditionClearedAt}`.mapWith(alerts.conditionClearedAt),
       })
       .from(alerts)
-      .where(and(openAlertCondition(), isNotNull(alerts.conditionClearedAt)))
+      .where(
+        and(
+          openAlertCondition(),
+          isNotNull(alerts.conditionClearedAt),
+          inArray(alerts.kind, [...ALERT_KINDS]),
+        ),
+      )
       .for("update");
     return rows.map((row) => {
       if (!isAlertKind(row.kind)) {
