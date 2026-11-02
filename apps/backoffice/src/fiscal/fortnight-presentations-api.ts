@@ -75,7 +75,7 @@ const CONFIRMATION_REFUSALS = [
   "holds_unapplied_events",
 ] as const;
 
-export type RevokedInstallation = { installationId: string; revokedAt: string };
+type RevokedInstallation = { installationId: string; revokedAt: string };
 
 export type FortnightPresentation = {
   registerId: string;
