@@ -127,6 +127,7 @@ export async function insertSaleOfRegister<TQueryResult extends PgQueryResultHKT
     completedAt: state === "CANCELLED" ? null : RECEIVED_AT,
     cancelledAt: state === "CANCELLED" ? RECEIVED_AT : null,
     voidedAt: state === "VOIDED" ? RECEIVED_AT : null,
+    voidedBy: state === "VOIDED" ? actorId : null,
     total: 1500,
     appliedAt: RECEIVED_AT,
   });

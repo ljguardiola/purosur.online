@@ -25,7 +25,7 @@ import {
 
 const kgRow = { productId: almendras.id, name: almendras.name, saleUnit: "KG" as const };
 const unitRow = { productId: teVerde.id, name: teVerde.name, saleUnit: "UNIT" as const };
-const KG_MESSAGE = "Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.";
+const KG_MESSAGE = "Escribí los kilos con hasta 3 decimales, por ejemplo 12,150.";
 
 describe("recipeFormValuesOf", () => {
   it("fills each component's quantity in its own unit", () => {
@@ -150,9 +150,7 @@ describe("recipeComponentsMessage", () => {
   it("tells how to type the quantity in the unit of the first component that is wrong", () => {
     expect(
       recipeComponentsMessage({ ...EMPTY_RECIPE_FORM, components: [{ ...kgRow, quantity: "x" }] }),
-    ).toBe(
-      "Almendras: escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.",
-    );
+    ).toBe("Almendras: escribí los kilos con hasta 3 decimales, por ejemplo 12,150.");
     expect(
       recipeComponentsMessage({
         ...EMPTY_RECIPE_FORM,

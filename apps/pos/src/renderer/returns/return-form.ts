@@ -29,6 +29,8 @@ export type ReturnFormValues = {
   refunds: Readonly<Record<string, string>>;
 };
 
+export const RETURNED_WEIGHT_DECIMALS = 3;
+
 export const EMPTY_RETURN_DRAFT: ReturnDraft = {};
 
 export const EMPTY_RETURN_FORM: ReturnFormValues = { lines: EMPTY_RETURN_DRAFT, refunds: {} };

@@ -5,7 +5,6 @@ type ReturnRow = ReturnsReportBody["typed"]["rows"][number];
 type ReturnLine = ReturnRow["lines"][number];
 
 export const UNIDENTIFIED = "Sin identificar";
-export const NO_CASHIER = "Sin dato";
 
 const REASON_TEXT: Record<ReturnLine["reason"], string> = {
   change_of_mind: "Arrepentimiento",

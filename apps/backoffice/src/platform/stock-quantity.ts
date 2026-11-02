@@ -68,6 +68,6 @@ export function quantityFieldKind(saleUnit: SaleUnit) {
 
 export function quantityMessage(saleUnit: SaleUnit): string {
   return saleUnit === "KG"
-    ? "Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150."
+    ? "Escribí los kilos con hasta 3 decimales, por ejemplo 12,150."
     : "Escribí una cantidad entera de unidades, por ejemplo 16.";
 }

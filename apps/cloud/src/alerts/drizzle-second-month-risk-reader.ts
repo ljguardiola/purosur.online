@@ -26,10 +26,7 @@ export class DrizzleSecondMonthRiskReader<TQueryResult extends PgQueryResultHKT>
   }
 
   async runningCounts(month: string): ReturnType<SecondMonthRiskReader["runningCounts"]> {
-    const counts = await monthlyVoucherCounts(
-      this.db,
-      (columns) => sql`${columns.month} = ${month}`,
-    );
+    const counts = await monthlyVoucherCounts(this.db, { months: { from: month, through: month } });
     return counts.map(({ fiscalAddressId, exceptionCount, totalCount }) => ({
       fiscalAddressId,
       exceptionCount,

@@ -1,5 +1,5 @@
 {
-  "id": "b025e1b4-9b50-446c-a07f-7552366988e4",
+  "id": "71631786-5ac2-4e88-9c40-d1c07c8e1bb1",
   "prevId": "42c506ee-bdee-4d57-9442-ad60f7923451",
   "version": "7",
   "dialect": "postgresql",
@@ -7070,18 +7070,6 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
-        },
-        "sent_at": {
-          "name": "sent_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sent_by": {
-          "name": "sent_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {
@@ -7149,15 +7137,6 @@
           "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
-        },
-        "purchase_orders_sent_by_users_id_fk": {
-          "name": "purchase_orders_sent_by_users_id_fk",
-          "tableFrom": "purchase_orders",
-          "tableTo": "users",
-          "columnsFrom": ["sent_by"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -7166,15 +7145,11 @@
       "checkConstraints": {
         "purchase_orders_state_check": {
           "name": "purchase_orders_state_check",
-          "value": "\"purchase_orders\".\"state\" in ('DRAFT', 'SENT', 'CANCELLED')"
+          "value": "\"purchase_orders\".\"state\" in ('DRAFT', 'CANCELLED')"
         },
         "purchase_orders_cancellation_check": {
           "name": "purchase_orders_cancellation_check",
           "value": "(\"purchase_orders\".\"state\" = 'CANCELLED') = (\"purchase_orders\".\"cancelled_at\" is not null and \"purchase_orders\".\"cancelled_by\" is not null) and (\"purchase_orders\".\"cancelled_at\" is null) = (\"purchase_orders\".\"cancelled_by\" is null)"
-        },
-        "purchase_orders_sending_check": {
-          "name": "purchase_orders_sending_check",
-          "value": "(\"purchase_orders\".\"sent_at\" is null) = (\"purchase_orders\".\"sent_by\" is null) and (\"purchase_orders\".\"state\" <> 'SENT' or \"purchase_orders\".\"sent_at\" is not null) and (\"purchase_orders\".\"state\" <> 'DRAFT' or \"purchase_orders\".\"sent_at\" is null)"
         }
       },
       "isRLSEnabled": false
@@ -10447,6 +10422,10 @@
         "sales_void_authorizer_only_when_voided_check": {
           "name": "sales_void_authorizer_only_when_voided_check",
           "value": "\"sales\".\"void_authorized_by\" is null or \"sales\".\"state\" = 'VOIDED'"
+        },
+        "sales_voided_by_only_when_voided_check": {
+          "name": "sales_voided_by_only_when_voided_check",
+          "value": "(\"sales\".\"state\" = 'VOIDED') = (\"sales\".\"voided_by\" is not null)"
         }
       },
       "isRLSEnabled": false
