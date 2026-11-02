@@ -37,8 +37,14 @@ beforeEach(async () => {
   registerId = await insertRegisterAtFiscalAddress(db, fiscalAddressId, "Caja 1");
 });
 
-const entered = { intervalId: INTERVAL, startedAt: STARTED };
-const left = { intervalId: INTERVAL, startedAt: STARTED, endedAt: ENDED };
+const entered = {
+  kind: "contingency_entered",
+  interval: { intervalId: INTERVAL, startedAt: STARTED },
+} as const;
+const left = {
+  kind: "contingency_left",
+  interval: { intervalId: INTERVAL, startedAt: STARTED, endedAt: ENDED },
+} as const;
 
 const intervals = () => db.select().from(registerContingencyIntervals);
 
@@ -95,7 +101,7 @@ describe("recording the contingency intervals of applied events", () => {
       { registerId },
       {
         ...left,
-        endedAt: new Date("2026-10-06T12:00:00.000Z"),
+        interval: { ...left.interval, endedAt: new Date("2026-10-06T12:00:00.000Z") },
       },
     );
 
@@ -109,8 +115,11 @@ describe("recording the contingency intervals of applied events", () => {
       db,
       { registerId },
       {
-        intervalId: "01a1414f-0009-7c2d-9e3f-5a6b7c8d9e09",
-        startedAt: new Date("2026-10-06T13:00:00.000Z"),
+        kind: "contingency_entered",
+        interval: {
+          intervalId: "01a1414f-0009-7c2d-9e3f-5a6b7c8d9e09",
+          startedAt: new Date("2026-10-06T13:00:00.000Z"),
+        },
       },
     );
 
@@ -121,13 +130,21 @@ describe("recording the contingency intervals of applied events", () => {
   });
 
   it("keeps the moment a register started reporting contingency, the first one received", async () => {
-    await recordAppliedContingencyReportingStarted(db, { registerId }, { since: STARTED });
+    await recordAppliedContingencyReportingStarted(
+      db,
+      { registerId },
+      {
+        kind: "contingency_reporting_started",
+        reporting: { since: STARTED },
+      },
+    );
 
     await recordAppliedContingencyReportingStarted(
       db,
       { registerId },
       {
-        since: new Date("2026-10-07T08:00:00.000Z"),
+        kind: "contingency_reporting_started",
+        reporting: { since: new Date("2026-10-07T08:00:00.000Z") },
       },
     );
 
