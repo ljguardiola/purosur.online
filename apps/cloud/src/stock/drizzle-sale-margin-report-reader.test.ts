@@ -643,4 +643,95 @@ describe("DrizzleSaleMarginReportReader with returns", () => {
     });
     expect(ofDiscarded.totals).toEqual(ofRestocked.totals);
   });
+
+  it.each(["restock", "discard"] as const)(
+    "answers the same cost of sales and margin for a line exchanged for an identical item, whose defective unit was %sed, as without the exchange",
+    async (disposition) => {
+      async function soldSugar(registerName: string, exchanged: boolean) {
+        const own = await aRegister(registerName);
+        const cashierId = await aCashier(own.locationId);
+        const categoryId = await insertCategoryNamed(db, `Almacén ${registerName}`);
+        const productId = await insertProductIn(db, categoryId, "Azúcar 1 kg");
+        const lotId = await insertPurchasedLot(db, {
+          productId,
+          locationId: own.locationId,
+          actorId: cashierId,
+          remaining: 8_000,
+        });
+        const line = aSoldLine(productId, "Azúcar 1 kg", 2, 20_000);
+        const afterSale = async () => {
+          await insertSaleMovement(db, {
+            productId,
+            locationId: own.locationId,
+            actorId: cashierId,
+            saleLineId: line.id,
+            allocations: [{ lotId, quantity: -2_000 }],
+          });
+        };
+        if (!exchanged) {
+          await sold(own.deviceId, [line]);
+          await afterSale();
+          return own;
+        }
+        const movement = (
+          kind: "return" | "loss" | "exchange_out",
+          delta: number,
+          reason: "return_discard" | null = null,
+        ) => ({ id: randomUUID(), saleLineId: line.id, productId, kind, reason, delta });
+        await applyReturn(db, {
+          deviceId: own.deviceId,
+          soldAt: SOLD,
+          returnedAt: RETURNED_LATER,
+          applyStock: true,
+          sale: { actorId: cashierId, total: 20_000, lines: [line] },
+          saleReturn: {
+            actorId: cashierId,
+            lines: [
+              {
+                saleLineId: line.id,
+                productId,
+                quantity: 1,
+                reason: "defective",
+                resolution: "exchange",
+                disposition,
+                refundedAmount: 0,
+              },
+            ],
+            refunds: [],
+            cashMovements: [],
+            stockMovements: [
+              movement("return", 1_000),
+              ...(disposition === "discard" ? [movement("loss", -1_000, "return_discard")] : []),
+              movement("exchange_out", -1_000),
+            ],
+          },
+          afterSale,
+        });
+        return own;
+      }
+      const exchanged = await soldSugar("Caja 1", true);
+      const untouched = await soldSugar("Caja 2", false);
+      const margin = (registerId: string) =>
+        readMarginReport(
+          { reader: reader(), clock: { now: () => NOW }, zoneRules: fixedZoneRulesSource() },
+          {
+            locationId: exchanged.locationId,
+            asked: wholeOctober,
+            registerId,
+            group: "product",
+          },
+        );
+
+      const ofExchanged = await margin(exchanged.registerId);
+      const ofUntouched = await margin(untouched.registerId);
+
+      expect(ofUntouched.totals).toEqual({
+        amount: 20_000,
+        cost: 10_000,
+        margin: 10_000,
+        incompleteSales: 0,
+      });
+      expect(ofExchanged.totals).toEqual(ofUntouched.totals);
+    },
+  );
 });

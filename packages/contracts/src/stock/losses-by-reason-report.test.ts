@@ -61,15 +61,19 @@ describe("lossesByReasonReportSchema", () => {
     expect(lossesByReasonReportSchema.parse(empty)).toEqual(empty);
   });
 
-  it.each(["broken_or_spilled", "spoiled", "theft", "expired", "return_discard"])(
-    "accepts the reason %s",
-    (name) => {
-      expect(
-        lossesByReasonReportSchema.safeParse({ ...report, reasons: [{ ...reason, reason: name }] })
-          .success,
-      ).toBe(true);
-    },
-  );
+  it.each([
+    "broken_or_spilled",
+    "spoiled",
+    "theft",
+    "expired",
+    "return_discard",
+    "defective_exchange",
+  ])("accepts the reason %s", (name) => {
+    expect(
+      lossesByReasonReportSchema.safeParse({ ...report, reasons: [{ ...reason, reason: name }] })
+        .success,
+    ).toBe(true);
+  });
 
   it.each([
     ["a reason that is not in the catalog", { reason: "lost_in_move" }],

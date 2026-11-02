@@ -15,7 +15,7 @@ import {
   useRequestForm,
 } from "@purosur/ui";
 import { ArrowLeft, Banknote, Check, TriangleAlert } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   cashChargeRequestFrom,
   chargeSaleInCashRequestSchema,
@@ -61,7 +61,6 @@ export function CashChargeModal({
   onSaleUnavailable,
   onSessionInvalid,
 }: CashChargeModalProps) {
-  const content = useRef<HTMLDivElement>(null);
   const [notice, setNotice] = useState<string>();
   const { form, submit, submitting, values } = useRequestForm({
     defaultValues: EMPTY_CASH_CHARGE_FORM,
@@ -106,10 +105,6 @@ export function CashChargeModal({
       }
     },
   });
-
-  useEffect(() => {
-    content.current?.querySelector("input")?.focus();
-  }, []);
 
   const isBlank = values.tendered.trim() === "";
   const tendered = isBlank ? undefined : parseAmountCents(values.tendered);
@@ -192,7 +187,7 @@ export function CashChargeModal({
         </>
       }
     >
-      <div ref={content} className="flex flex-col gap-5">
+      <div className="flex flex-col gap-5">
         <SummaryRowGroup
           variant="filled"
           orientation="horizontal"

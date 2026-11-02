@@ -17,6 +17,7 @@ export async function applyReturn<TQueryResult extends PgQueryResultHKT>(
     soldAt: Date;
     returnedAt: Date;
     sale?: Partial<CompletedSale>;
+    alreadySold?: CompletedSale;
     saleReturn?: Partial<ReturnedSale>;
     applyStock?: boolean;
     afterSale?: (completed: CompletedSale) => Promise<void>;
@@ -30,11 +31,13 @@ export async function applyReturn<TQueryResult extends PgQueryResultHKT>(
   );
   const saleSessionId = randomUUID();
   const returnSessionId = randomUUID();
-  const completed = aCompletedSale({
-    sessionId: saleSessionId,
-    completedAt: soldAt,
-    ...input.sale,
-  });
+  const completed =
+    input.alreadySold ??
+    aCompletedSale({
+      sessionId: saleSessionId,
+      completedAt: soldAt,
+      ...input.sale,
+    });
   const saleReturn = aReturnOf(completed, {
     sessionId: returnSessionId,
     actorId: completed.actorId,
@@ -63,17 +66,19 @@ export async function applyReturn<TQueryResult extends PgQueryResultHKT>(
       },
       { deviceId },
     );
-  await application.transaction(async (tx) => {
-    await tx.record(
-      aCashSessionOpenedFact({ id: saleSessionId, openedAt: soldAt }),
-      eventOf("CashSession", saleSessionId, "cash_session_opened", soldAt),
-    );
-    await tx.record(
-      { kind: "sale_completed", sale: completed },
-      eventOf("Sale", completed.id, "sale_completed", soldAt),
-    );
-  });
-  await input.afterSale?.(completed);
+  if (!input.alreadySold) {
+    await application.transaction(async (tx) => {
+      await tx.record(
+        aCashSessionOpenedFact({ id: saleSessionId, openedAt: soldAt }),
+        eventOf("CashSession", saleSessionId, "cash_session_opened", soldAt),
+      );
+      await tx.record(
+        { kind: "sale_completed", sale: completed },
+        eventOf("Sale", completed.id, "sale_completed", soldAt),
+      );
+    });
+    await input.afterSale?.(completed);
+  }
   await application.transaction(async (tx) => {
     await tx.record(
       aCashSessionOpenedFact({ id: returnSessionId, openedAt: returnedAt }),

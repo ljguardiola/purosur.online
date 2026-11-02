@@ -3,6 +3,7 @@ import { cell } from "../platform/spreadsheet/workbook";
 import { lossesByReasonReportSpreadsheet } from "./losses-by-reason-report-spreadsheet";
 import {
   almondOilReason,
+  defectiveExchangeReason,
   expiredReason,
   lossesByReasonReport,
   spoiledReason,
@@ -57,4 +58,20 @@ test("has only the Resumen sheet when there are no losses", () => {
     [cell.text("Pérdidas"), cell.count(0)],
     [cell.text("Motivos"), cell.count(0)],
   ]);
+});
+
+test("names the sheet and the summary row of the discarded units of defective exchanges as Cambio por defectuoso", () => {
+  const [summary, sheet] = lossesByReasonReportSpreadsheet(
+    lossesByReasonReport([defectiveExchangeReason]),
+  ).sheets;
+
+  expect(summary?.rows.at(-1)).toEqual([
+    cell.text("Cambio por defectuoso (pérdidas)"),
+    cell.count(1),
+  ]);
+  expect(sheet).toEqual({
+    name: "Cambio por defectuoso",
+    header: ["Producto", "Cantidad (u)", "Cantidad (kg)", "Pérdidas"],
+    rows: [[cell.text("Queso cremoso"), cell.empty(), cell.weight(1_000), cell.count(1)]],
+  });
 });

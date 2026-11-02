@@ -1,8 +1,11 @@
 import { randomUUID } from "node:crypto";
+import { compareCodeUnits, type ReturnResolution } from "@purosur/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { users } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { applyReturn } from "../returns/test-support/applied-returns.js";
 import { applyCompletedSale } from "../sales/test-support/applied-sales.js";
-import { aCompletedSale } from "../sync/test-support/synced-facts.js";
+import { aCompletedSale, type CompletedSale } from "../sync/test-support/synced-facts.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleLossReader } from "./drizzle-loss-reader.js";
 import {
@@ -229,6 +232,131 @@ describe("DrizzleLossReader.lossesRecorded", () => {
     });
 
     expect(losses.map(({ quantity }) => quantity)).toEqual([1_000]);
+  });
+
+  describe("the units of a customer's return that are discarded", () => {
+    const returnedAt = new Date("2026-10-05T15:00:00.000Z");
+
+    async function returnOf(
+      { deviceId, cashierId }: { deviceId: string; cashierId: string },
+      productId: string,
+      options: {
+        resolution: ReturnResolution;
+        disposition: "restock" | "discard";
+        sale?: CompletedSale;
+      },
+    ): Promise<CompletedSale> {
+      const [line] = aCompletedSale().lines;
+      const sold = options.sale
+        ? undefined
+        : { ...(line as NonNullable<typeof line>), id: randomUUID(), productId, quantity: 4 };
+      const saleLineId = (options.sale?.lines[0] ?? sold)?.id as string;
+      const movement = (
+        kind: "return" | "loss" | "exchange_out",
+        delta: number,
+        reason: "return_discard" | null = null,
+      ) => ({ id: randomUUID(), saleLineId, productId, kind, reason, delta });
+      const exchanged = options.resolution === "exchange";
+      const { completed } = await applyReturn(db, {
+        deviceId,
+        soldAt: new Date("2026-10-01T15:00:00.000Z"),
+        returnedAt,
+        applyStock: true,
+        ...(options.sale
+          ? { alreadySold: options.sale }
+          : { sale: { actorId: cashierId, lines: [sold as never] } }),
+        saleReturn: {
+          actorId: cashierId,
+          lines: [
+            {
+              saleLineId,
+              productId,
+              quantity: 1,
+              reason: exchanged ? "defective" : "change_of_mind",
+              resolution: options.resolution,
+              disposition: options.disposition,
+              refundedAmount: exchanged ? 0 : 2_400,
+            },
+          ],
+          ...(exchanged ? { refunds: [], cashMovements: [] } : {}),
+          stockMovements: [
+            movement("return", 1_000),
+            ...(options.disposition === "discard"
+              ? [movement("loss", -1_000, "return_discard")]
+              : []),
+            ...(exchanged ? [movement("exchange_out", -1_000)] : []),
+          ],
+        },
+      });
+      return completed;
+    }
+
+    async function lossesOfBranch(locationId: string) {
+      const losses = await new DrizzleLossReader(db).lossesRecorded({
+        locationId,
+        range: wholeOctober,
+      });
+      return losses.map(({ reason, quantity }) => ({ reason, quantity }));
+    }
+
+    async function register() {
+      const { locationId } = await seededActor();
+      const cashierId = randomUUID();
+      await db
+        .insert(users)
+        .values({ id: cashierId, firstName: "Ana", email: "ana@example.com", locationId });
+      const { deviceId } = await insertEnrolledInstallation(db, {
+        now: new Date("2026-10-01T12:00:00.000Z"),
+      });
+      return { deviceId, cashierId, locationId };
+    }
+
+    it("answers the discarded unit of an exchange under its own reason, with its quantity, and not as a discarded return", async () => {
+      const cashier = await register();
+      const { productId } = await insertProduct(db);
+      await returnOf(cashier, productId, { resolution: "exchange", disposition: "discard" });
+
+      expect(await lossesOfBranch(cashier.locationId)).toEqual([
+        { reason: "defective_exchange", quantity: 1_000 },
+      ]);
+    });
+
+    it("answers no loss for an exchange whose returned unit went back to stock", async () => {
+      const cashier = await register();
+      const { productId } = await insertProduct(db);
+      await returnOf(cashier, productId, { resolution: "exchange", disposition: "restock" });
+
+      expect(await lossesOfBranch(cashier.locationId)).toEqual([]);
+    });
+
+    it("answers the discarded unit of a refunded return as a discarded return", async () => {
+      const cashier = await register();
+      const { productId } = await insertProduct(db);
+      await returnOf(cashier, productId, { resolution: "refund", disposition: "discard" });
+
+      expect(await lossesOfBranch(cashier.locationId)).toEqual([
+        { reason: "return_discard", quantity: 1_000 },
+      ]);
+    });
+
+    it("answers each return of the same sale line under the reason of its own resolution", async () => {
+      const cashier = await register();
+      const { productId } = await insertProduct(db);
+      const sale = await returnOf(cashier, productId, {
+        resolution: "refund",
+        disposition: "discard",
+      });
+      await returnOf(cashier, productId, { resolution: "exchange", disposition: "discard", sale });
+
+      expect(
+        (await lossesOfBranch(cashier.locationId)).sort((a, b) =>
+          compareCodeUnits(a.reason, b.reason),
+        ),
+      ).toEqual([
+        { reason: "defective_exchange", quantity: 1_000 },
+        { reason: "return_discard", quantity: 1_000 },
+      ]);
+    });
   });
 
   it("refuses a stored loss whose reason is not in the catalog", async () => {

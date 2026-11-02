@@ -59,6 +59,22 @@ export const returnDiscardReason: ReasonLosses = {
   ],
 };
 
+export const defectiveExchangeReason: ReasonLosses = {
+  reason: "defective_exchange",
+  loss_count: 1,
+  products: [
+    {
+      id: "11111111-1111-4111-8111-111111111111",
+      name: "Queso cremoso",
+      brand_name: null,
+      net_content: null,
+      sale_unit: "KG",
+      quantity: 1_000,
+      loss_count: 1,
+    },
+  ],
+};
+
 export function lossesByReasonReport(
   reasons: ReasonLosses[] = [spoiledReason, expiredReason],
   range: LossesByReasonReportBody["range"] = { from: "2026-10-01", to: "2026-10-31" },

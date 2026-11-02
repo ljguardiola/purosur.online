@@ -13,8 +13,9 @@ export type RegisterStockMovement = {
   productId: string;
   delta: number;
 } & (
-  | { kind: "sale" | "sale_void" | "return" | "exchange_out"; saleLineId: string }
-  | { kind: "loss"; reason: "return_discard"; saleLineId: string }
+  | { kind: "sale" | "sale_void"; saleLineId: string }
+  | { kind: "return" | "exchange_out"; saleLineId: string; returnId: string }
+  | { kind: "loss"; reason: "return_discard"; saleLineId: string; returnId: string }
 );
 
 export interface ApplyRegisterStockMovementsInput {
@@ -67,6 +68,7 @@ export async function applyRegisterStockMovements(
         kind: movement.kind,
         reason: movement.kind === "loss" ? movement.reason : null,
         saleLineId: movement.saleLineId,
+        ...("returnId" in movement ? { returnId: movement.returnId } : {}),
         delta: movement.delta,
         occurredAt: input.occurredAt,
         actorId: input.actorId,
