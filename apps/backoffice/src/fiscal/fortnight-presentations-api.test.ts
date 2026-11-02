@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
   type FortnightPresentation,
   fetchFortnightPresentations,
+  confirmRevokedInstallation,
   remedyRejectedDocument,
 } from "./fortnight-presentations-api";
 
@@ -32,6 +33,7 @@ const blockedWire = {
   movement: "documents",
   refusal: null,
   state: "blocked",
+  revoked_installations: [],
 };
 
 const pendingWire = {
@@ -54,6 +56,7 @@ const blocked: FortnightPresentation = {
   movement: "documents",
   refusal: null,
   state: "blocked",
+  revokedInstallations: [],
 };
 
 const pending: FortnightPresentation = {
@@ -92,6 +95,41 @@ test("fetchFortnightPresentations returns the branch's presentations with their 
     value: [blocked, pending],
   });
   expect(fetch).toHaveBeenCalledWith("/api/registers/fortnight-presentations");
+});
+
+test("fetchFortnightPresentations reads the revoked installations awaiting confirmation with when each was revoked", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, [
+      {
+        ...blockedWire,
+        revoked_installations: [
+          { installation_id: "inst-1", revoked_at: "2026-09-10T15:30:00.000Z" },
+          { installation_id: "inst-2", revoked_at: "2026-09-12T09:00:00.000Z" },
+        ],
+      },
+    ]),
+  );
+
+  expect(await fetchFortnightPresentations()).toEqual({
+    kind: "ok",
+    value: [
+      {
+        ...blocked,
+        revokedInstallations: [
+          { installationId: "inst-1", revokedAt: "2026-09-10T15:30:00.000Z" },
+          { installationId: "inst-2", revokedAt: "2026-09-12T09:00:00.000Z" },
+        ],
+      },
+    ],
+  });
+});
+
+test("fetchFortnightPresentations returns failed on 200 with a row missing its revoked installations", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, [{ ...blockedWire, revoked_installations: undefined }]),
+  );
+
+  expect(await fetchFortnightPresentations()).toEqual({ kind: "failed" });
 });
 
 test("fetchFortnightPresentations reads how a presentation was refused, the rejected document and the documents left unprocessed after it", async () => {
@@ -305,4 +343,83 @@ test("remedyRejectedDocument returns failed when the network call throws", async
   vi.mocked(fetch).mockRejectedValue(new Error("offline"));
 
   expect(await remedyRejectedDocument(reportRemedy)).toEqual({ kind: "failed" });
+});
+
+const installationConfirmation = {
+  point_of_sale_number: 4,
+  fortnight_start: "2026-09-01",
+  installation_id: "inst-1",
+};
+
+test("confirmRevokedInstallation posts the confirmation and answers ok on 204", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(204));
+
+  expect(await confirmRevokedInstallation(installationConfirmation)).toEqual({ kind: "ok" });
+  expect(fetch).toHaveBeenCalledWith(
+    "/api/registers/fortnight-presentations/revoked-installation-confirmations",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(installationConfirmation),
+    },
+  );
+});
+
+test("confirmRevokedInstallation names the field the cloud refused on 400", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(400, { code: "validation_failed", details: [{ field: "installation_id" }] }),
+  );
+
+  expect(await confirmRevokedInstallation(installationConfirmation)).toEqual({
+    kind: "validation_failed",
+    field: "installation_id",
+  });
+});
+
+test("confirmRevokedInstallation returns not_found on 404", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(404, { code: "not_found" }));
+
+  expect(await confirmRevokedInstallation(installationConfirmation)).toEqual({
+    kind: "not_found",
+  });
+});
+
+test.each([
+  ["already_confirmed", { kind: "already_confirmed" }],
+  ["already_presented", { kind: "already_presented" }],
+  ["not_revoked", { kind: "not_revoked" }],
+  ["not_holding_back", { kind: "not_holding_back" }],
+  ["something_else", { kind: "failed" }],
+] as const)("confirmRevokedInstallation maps the 409 reason %s", async (code, outcome) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code }));
+
+  expect(await confirmRevokedInstallation(installationConfirmation)).toEqual(outcome);
+});
+
+test.each([
+  [401, { code: "unauthenticated" }, { kind: "unauthenticated" }],
+  [401, { code: "authorization_required" }, { kind: "authorization_required" }],
+  [403, { code: "forbidden" }, { kind: "forbidden" }],
+  [500, undefined, { kind: "failed" }],
+])("confirmRevokedInstallation maps %s %j", async (status, body, outcome) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(status, body));
+
+  expect(await confirmRevokedInstallation(installationConfirmation)).toEqual(outcome);
+});
+
+test("confirmRevokedInstallation returns rate_limited with the Retry-After header on 429", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    new Response(null, { status: 429, headers: { "Retry-After": "45" } }),
+  );
+
+  expect(await confirmRevokedInstallation(installationConfirmation)).toEqual({
+    kind: "rate_limited",
+    retryAfterSeconds: 45,
+  });
+});
+
+test("confirmRevokedInstallation returns failed when the network call throws", async () => {
+  vi.mocked(fetch).mockRejectedValue(new Error("offline"));
+
+  expect(await confirmRevokedInstallation(installationConfirmation)).toEqual({ kind: "failed" });
 });
