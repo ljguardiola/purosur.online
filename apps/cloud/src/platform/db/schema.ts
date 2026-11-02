@@ -2648,6 +2648,31 @@ export const rejectedDocumentRemedies = pgTable(
   ],
 );
 
+// Append-only: a confirmation records who decided, and when, that a revoked installation issued
+// nothing it did not sync, so none is rewritten or removed.
+export const revokedInstallationConfirmations = pgTable(
+  "revoked_installation_confirmations",
+  {
+    pointOfSaleNumber: integer("point_of_sale_number")
+      .notNull()
+      .references(() => pointOfSaleClaims.pointOfSaleNumber),
+    fortnightStart: date("fortnight_start", { mode: "string" }).notNull(),
+    installationId: uuid("installation_id")
+      .notNull()
+      .references(() => registerInstallations.id),
+    confirmedBy: uuid("confirmed_by")
+      .notNull()
+      .references(() => users.id),
+    confirmedAt: timestamp("confirmed_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({
+      name: "revoked_installation_confirmations_pkey",
+      columns: [table.pointOfSaleNumber, table.fortnightStart, table.installationId],
+    }),
+  ],
+);
+
 export const offlineAuthorizationCodeAcquisitionReports = pgTable(
   "offline_authorization_code_acquisition_reports",
   {

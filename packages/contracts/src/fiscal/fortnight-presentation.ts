@@ -1,4 +1,5 @@
 import {
+  ARGENTINA_TIME_ZONE,
   CREDIT_NOTE_C_DOCUMENT_TYPE,
   FACTURA_C_DOCUMENT_TYPE,
   type FortnightPresentationRefusal,
@@ -48,6 +49,11 @@ const rejectedDocumentSchema = z.object({
   remedies: z.array(z.enum(["report", "printed"])),
 });
 
+const revokedInstallationAwaitingConfirmationSchema = z.object({
+  installation_id: z.string(),
+  revoked_at: z.iso.datetime().meta({ timeZone: ARGENTINA_TIME_ZONE }),
+});
+
 export const fortnightPresentationSchema = z.object({
   register_id: z.string(),
   point_of_sale_number: pointOfSaleNumberSchema,
@@ -60,6 +66,7 @@ export const fortnightPresentationSchema = z.object({
   movement: fortnightReportMovementSchema.nullable(),
   refusal: fortnightPresentationRefusalSchema.nullable(),
   state: fortnightPresentationStateSchema.nullable(),
+  revoked_installations: z.array(revokedInstallationAwaitingConfirmationSchema),
 });
 
 export const fortnightPresentationListSchema = z.array(fortnightPresentationSchema);

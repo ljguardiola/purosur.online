@@ -4,11 +4,13 @@ import type {
   FortnightReportMovement,
   RejectedDocumentRemedyState,
 } from "@purosur/domain";
+import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
 import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   type FortnightPresentationBody,
   fortnightPresentationListSchema,
+  fortnightPresentationSchema,
 } from "./fortnight-presentation.js";
 
 const FICTIONAL_CUIT_NUMBER = Number(FICTIONAL_CUIT.replaceAll("-", ""));
@@ -25,6 +27,7 @@ const presentation = {
   movement: "documents",
   refusal: null,
   state: "blocked",
+  revoked_installations: [],
 };
 
 describe("fortnightPresentationListSchema", () => {
@@ -68,9 +71,38 @@ describe("fortnightPresentationListSchema", () => {
     "rejected_document",
     "movement",
     "refusal",
+    "revoked_installations",
   ])("refuses a presentation without its %s", (field) => {
     expect(
       fortnightPresentationListSchema.safeParse([{ ...presentation, [field]: undefined }]).success,
+    ).toBe(false);
+  });
+
+  it("reads the revoked installations awaiting confirmation with when each was revoked", () => {
+    const list = [
+      {
+        ...presentation,
+        revoked_installations: [
+          {
+            installation_id: "3f0d1a52-0f7e-4a53-9f4c-2a7d2f1c9b11",
+            revoked_at: "2026-09-10T15:30:00.000Z",
+          },
+        ],
+      },
+    ];
+
+    expect(fortnightPresentationListSchema.parse(list)).toEqual(list);
+  });
+
+  it.each([
+    { installation_id: "x", revoked_at: undefined },
+    { installation_id: undefined, revoked_at: "2026-09-10T15:30:00.000Z" },
+    { installation_id: "x", revoked_at: "yesterday" },
+  ])("refuses the revoked installation %j", (revoked) => {
+    expect(
+      fortnightPresentationListSchema.safeParse([
+        { ...presentation, revoked_installations: [revoked] },
+      ]).success,
     ).toBe(false);
   });
 
@@ -195,5 +227,13 @@ describe("fortnightPresentationListSchema", () => {
     expectTypeOf<
       FortnightPresentationBody["refusal"]
     >().toEqualTypeOf<FortnightPresentationRefusal | null>();
+  });
+});
+
+describe("fortnightPresentationSchema, declared time zone", () => {
+  it("declares the zone a revoked installation's revoked_at is shown in", () => {
+    expect(
+      fortnightPresentationSchema.shape.revoked_installations.element.shape.revoked_at.meta(),
+    ).toEqual({ timeZone: ARGENTINA_TIME_ZONE });
   });
 });

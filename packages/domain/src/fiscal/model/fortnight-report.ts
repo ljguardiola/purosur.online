@@ -59,6 +59,18 @@ export function fortnightClosesAt({ end }: Fortnight, rules: ZoneRules): Date {
   return new Date(argentinaInstant(shiftCalendarDay(end, 1), "00:00", rules));
 }
 
+export interface FortnightPeriod {
+  from: Date;
+  until: Date;
+}
+
+export function fortnightPeriod(fortnight: Fortnight, rules: ZoneRules): FortnightPeriod {
+  return {
+    from: new Date(argentinaInstant(fortnight.start, "00:00", rules)),
+    until: fortnightClosesAt(fortnight, rules),
+  };
+}
+
 export function fortnightReportDeadline(
   fortnight: Fortnight,
   taxAuthorityDeadline: string,

@@ -9,7 +9,7 @@ import {
   Table,
   useTableModel,
 } from "@purosur/ui";
-import { CircleAlert, FileSearch, FileText, TriangleAlert } from "lucide-react";
+import { CircleAlert, FileSearch, FileText, ShieldCheck, TriangleAlert } from "lucide-react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import type { CloudData } from "../platform/use-cloud-query";
 import {
@@ -20,10 +20,13 @@ import {
 import type { FortnightPresentation } from "./fortnight-presentations-api";
 import type { RegisterPointOfSale } from "./register-points-of-sale-api";
 import type { RemedyTarget } from "./rejected-document-remedy-form";
+import { revokedInstallationDayAndTime } from "./revoked-installation-moments";
+import type { RevokedInstallationTarget } from "./revoked-installation-target";
 
 type FortnightReportsSectionProps = {
   data: CloudData<[FortnightPresentation[], RegisterPointOfSale[]]>;
   onReview: (target: RemedyTarget) => void;
+  onConfirmRevoked: (target: RevokedInstallationTarget) => void;
 };
 
 const NO_PRESENTATIONS: FortnightPresentation[] = [];
@@ -37,7 +40,11 @@ function presentationKey(item: FortnightPresentation) {
   return `${item.pointOfSaleNumber}:${item.fortnight.start}:${item.documentType ?? "none"}`;
 }
 
-export function FortnightReportsSection({ data, onReview }: FortnightReportsSectionProps) {
+export function FortnightReportsSection({
+  data,
+  onReview,
+  onConfirmRevoked,
+}: FortnightReportsSectionProps) {
   const [presentations, registers] = data.status === "loaded" ? data.value : [NO_PRESENTATIONS, []];
   const registerNameOf = (registerId: string) =>
     registers.find((register) => register.registerId === registerId)?.registerName ??
@@ -101,6 +108,23 @@ export function FortnightReportsSection({ data, onReview }: FortnightReportsSect
               }
             : undefined;
         },
+        (item: FortnightPresentation) => {
+          const [revoked] = item.revokedInstallations;
+          return revoked
+            ? {
+                icon: <ShieldCheck />,
+                "aria-label": `Confirmar la instalación revocada de ${registerNameOf(item.registerId)} del informe ${fortnightOf(item)} del punto de venta ${formatPointOfSaleNumber(item.pointOfSaleNumber)}`,
+                onPress: () =>
+                  onConfirmRevoked({
+                    registerName: registerNameOf(item.registerId),
+                    pointOfSaleNumber: item.pointOfSaleNumber,
+                    fortnight: item.fortnight,
+                    installationId: revoked.installationId,
+                    revokedAt: revoked.revokedAt,
+                  }),
+              }
+            : undefined;
+        },
       ],
     }),
   ] as const;
@@ -119,15 +143,30 @@ export function FortnightReportsSection({ data, onReview }: FortnightReportsSect
 
   return (
     <section className="flex flex-col gap-3">
-      {blocked.map((item) => (
-        <InlineNotice
-          key={presentationKey(item)}
-          tone="error"
-          icon={<TriangleAlert />}
-          title={`${registerNameOf(item.registerId)} todavía no terminó de sincronizar`}
-          description={`El informe ${formatCalendarDayRange(item.fortnight.start, item.fortnight.end)} del punto de venta ${formatPointOfSaleNumber(item.pointOfSaleNumber)} se puede presentar cuando termine.`}
-        />
-      ))}
+      {blocked
+        .filter(({ revokedInstallations }) => revokedInstallations.length > 0)
+        .flatMap((item) =>
+          item.revokedInstallations.map(({ installationId, revokedAt }) => (
+            <InlineNotice
+              key={`${presentationKey(item)}:${installationId}`}
+              tone="error"
+              icon={<TriangleAlert />}
+              title={`${registerNameOf(item.registerId)} tiene una instalación revocada el ${revokedInstallationDayAndTime(revokedAt)}`}
+              description={`El informe ${fortnightOf(item)} del punto de venta ${formatPointOfSaleNumber(item.pointOfSaleNumber)} sigue cuando alguien confirme que esa instalación no emitió comprobantes sin conexión que haya dejado sin sincronizar.`}
+            />
+          )),
+        )}
+      {blocked
+        .filter(({ revokedInstallations }) => revokedInstallations.length === 0)
+        .map((item) => (
+          <InlineNotice
+            key={presentationKey(item)}
+            tone="error"
+            icon={<TriangleAlert />}
+            title={`${registerNameOf(item.registerId)} todavía no terminó de sincronizar`}
+            description={`El informe ${formatCalendarDayRange(item.fortnight.start, item.fortnight.end)} del punto de venta ${formatPointOfSaleNumber(item.pointOfSaleNumber)} se puede presentar cuando termine.`}
+          />
+        ))}
       {awaitingInvoiceReport.map((item) => (
         <InlineNotice
           key={presentationKey(item)}

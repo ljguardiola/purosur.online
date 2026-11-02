@@ -191,10 +191,12 @@ export type {
 } from "./model/fortnight-report.js";
 export {
   fortnightClosesAt,
+  fortnightPeriod,
   fortnightPresentationRows,
   fortnightReportDeadline,
   fortnightReportStanding,
   isFortnightPresentationOwed,
+  isFortnightReportOutstanding,
   isOfflineDocumentReported,
   owedFortnightPresentationState,
   owesFortnightReport,

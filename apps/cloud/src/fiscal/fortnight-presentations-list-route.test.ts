@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { locations, pointOfSaleClaims, registers, users } from "../platform/db/schema.js";
+import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import {
   BACKOFFICE_ORIGIN,
   openBackofficeSession,
@@ -157,6 +158,7 @@ describe("GET /registers/fortnight-presentations", () => {
         movement: null,
         refusal: "whole",
         state: "refused",
+        revoked_installations: [],
       },
     ]);
   });
@@ -259,6 +261,44 @@ describe("GET /registers/fortnight-presentations", () => {
       {
         document_type: "credit_note_c",
         rejected_document: { number: 2, remedy: "awaiting_remedy", remedies: ["report"] },
+      },
+    ]);
+  });
+
+  it("names the revoked installations a presentation waits for a confirmation of, with when each was revoked", async () => {
+    const registerId = await configureOfflinePointOfSale(db, {
+      registerName: "caja-1",
+      realTimePointOfSale: 7,
+      offlinePointOfSale: OFFLINE_POINT_OF_SALE,
+      now: SESSION_NOON,
+    });
+    await keepDecemberCode(OFFLINE_POINT_OF_SALE);
+    await new DrizzleFortnightReportStore(db, WITHOUT_CREDIT_NOTES).holdReport(
+      { pointOfSaleNumber: OFFLINE_POINT_OF_SALE, fortnight: DECEMBER_SECOND_HALF },
+      (report) => report.record({ state: "blocked", at: SESSION_NOON }),
+    );
+    const { deviceId } = await insertEnrolledInstallation(db, {
+      now: SESSION_NOON,
+      existingRegisterId: registerId,
+      enrolledAt: new Date("2025-12-17T12:00:00.000Z"),
+      revokedAt: new Date("2025-12-20T12:00:00.000Z"),
+    });
+    const session = await openBackofficeSession(db, {
+      now: SESSION_NOON,
+      locationId: await seededLocationId(db),
+      permissionKeys: ["change_fiscal_configuration"],
+      passkeyAuthorized: false,
+    });
+
+    const response = await listPresentations(session.headers);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject([
+      {
+        state: "blocked",
+        revoked_installations: [
+          { installation_id: deviceId, revoked_at: "2025-12-20T12:00:00.000Z" },
+        ],
       },
     ]);
   });

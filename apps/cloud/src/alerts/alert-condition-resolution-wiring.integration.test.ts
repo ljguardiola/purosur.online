@@ -3,6 +3,7 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { AccessEmailSender } from "../credentials/recovery-email-sender.js";
+import { DrizzleFortnightReportStore } from "../fiscal/drizzle-fortnight-report-store.js";
 import { DrizzleOfflineAuthorizationCodeStore } from "../fiscal/drizzle-offline-authorization-code-store.js";
 import { insertDeferredSaleRow } from "../fiscal/test-support/deferred-sale-fixtures.js";
 import {
@@ -15,7 +16,10 @@ import {
   insertReceiptRequest,
 } from "../fiscal/test-support/issued-document-fixtures.js";
 import { configureOfflinePointOfSale } from "../fiscal/test-support/offline-point-of-sale-fixtures.js";
-import { insertRejectedDocumentRemedy } from "../fiscal/test-support/rejected-document-remedy-fixtures.js";
+import {
+  insertRejectedDocumentRemedy,
+  WITHOUT_CREDIT_NOTES,
+} from "../fiscal/test-support/rejected-document-remedy-fixtures.js";
 import {
   alerts,
   branchHours,
@@ -452,6 +456,85 @@ describe("the background worker the server sets up on a real Postgres", () => {
           expect(
             rows.find(({ kind }) => kind === "fortnight_report_pending")?.conditionClearedAt,
           ).toEqual(currentTime);
+        },
+        { timeout: 20_000, interval: 100 },
+      );
+    } finally {
+      await backgroundJobs.close();
+    }
+  }, 90_000);
+
+  it("names the revoked installation that alone holds a blocked fortnight report back in its pending alert", async () => {
+    const registerId = await configureOfflinePointOfSale(db, {
+      registerName: "Caja con instalacion revocada",
+      realTimePointOfSale: 26,
+      offlinePointOfSale: 27,
+      now: NOW,
+    });
+    const admin = postgres(integrationDb.adminDatabaseUrl, { max: 1 });
+    try {
+      await admin`update point_of_sale_claims set claimed_at = ${"2019-10-10T12:00:00.000Z"}::timestamptz where point_of_sale_number = 27`;
+    } finally {
+      await admin.end({ timeout: 1 });
+    }
+    const fortnight = { start: "2019-10-16", end: "2019-10-31" };
+    await new DrizzleOfflineAuthorizationCodeStore(db).holdAcquisition(fortnight, (acquisition) =>
+      acquisition.keep({
+        code: { code: "36123456789097", fortnight, reportDeadline: "2020-01-20" },
+        obtainedAt: new Date("2019-10-10T12:00:00.000Z"),
+        obtainedThrough: "requested",
+      }),
+    );
+    await new DrizzleFortnightReportStore(db, WITHOUT_CREDIT_NOTES).holdReport(
+      { pointOfSaleNumber: 27, fortnight },
+      (report) => report.record({ state: "blocked", at: new Date("2019-11-01T12:00:00.000Z") }),
+    );
+    const revokedAt = new Date("2019-10-20T12:00:00.000Z");
+    const { deviceId } = await insertEnrolledInstallation(db, {
+      now: NOW,
+      existingRegisterId: registerId,
+      enrolledAt: new Date("2019-10-12T12:00:00.000Z"),
+      revokedAt,
+    });
+    const backgroundJobs = await setUpBackgroundJobs(
+      {
+        databaseUrl: integrationDb.databaseUrl,
+        emailSender: { transport: "log" },
+        emailFrom: FICTIONAL_RECOVERY_SENDER,
+        emailReplyTo: FICTIONAL_RECOVERY_REPLY_TO,
+        backofficeOrigin: "https://staging.purosur.online",
+        arcaCertificate: { environment: "production", notAfter: new Date("2126-09-01T19:42:17Z") },
+        arcaVitality: { endpoint: UNREACHABLE_WSFE_ENDPOINT },
+      },
+      () => new Date("2019-11-05T12:00:00.000Z"),
+      fixedZoneRulesSource(),
+      { emailSender: UNUSED_EMAIL_SENDER, schedules: false },
+    );
+
+    try {
+      await sql`select graphile_worker.add_job('alert-condition-resolution')`;
+      await vi.waitFor(
+        async () => {
+          const rows = await db.select().from(alerts).where(eq(alerts.scope, "27:2019-10-16"));
+          expect(rows).toMatchObject([
+            {
+              kind: "fortnight_report_pending",
+              level: "critical",
+              resolvedAt: null,
+              detail: {
+                pointOfSaleNumber: 27,
+                registerId,
+                fortnightStart: "2019-10-16",
+                fortnightEnd: "2019-10-31",
+                deadline: "2019-11-08",
+                daysLeft: 3,
+                reason: "revoked_installation",
+                revokedInstallations: [
+                  { installationId: deviceId, revokedAt: revokedAt.toISOString() },
+                ],
+              },
+            },
+          ]);
         },
         { timeout: 20_000, interval: 100 },
       );

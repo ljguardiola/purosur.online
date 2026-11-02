@@ -2,6 +2,8 @@ import type { Fortnight } from "@purosur/domain/fiscal/use-cases";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { pointOfSaleClaims } from "../platform/db/schema.js";
+import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { insertInboxEvent } from "../sync/test-support/inbox-events.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { DrizzleFortnightReportStore } from "./drizzle-fortnight-report-store.js";
@@ -13,6 +15,7 @@ import {
   seedOfflinePointOfSale,
 } from "./test-support/offline-point-of-sale-fixtures.js";
 import { WITHOUT_CREDIT_NOTES } from "./test-support/rejected-document-remedy-fixtures.js";
+import { confirmRevokedInstallation } from "./test-support/revoked-installation-fixtures.js";
 
 const OCTOBER_FIRST_HALF = { start: "2026-10-01", end: "2026-10-15" };
 const OCTOBER_SECOND_HALF = { start: "2026-10-16", end: "2026-10-31" };
@@ -83,6 +86,7 @@ describe("DrizzleOwedFortnightPresentationReader.owedPresentations", () => {
         taxAuthorityDeadline: "2026-10-20",
         state: null,
         listed: false,
+        revokedInstallations: [],
       },
     ]);
   });
@@ -142,6 +146,7 @@ describe("DrizzleOwedFortnightPresentationReader.owedPresentations for the prese
         taxAuthorityDeadline: "2026-10-20",
         state: null,
         listed: true,
+        revokedInstallations: [],
       },
     ]);
   });
@@ -202,5 +207,79 @@ describe("DrizzleOwedFortnightPresentationReader.owedPresentations for a retired
     expect(owed.map(({ fortnight, listed }) => [fortnight.start, listed])).toEqual([
       ["2026-10-16", true],
     ]);
+  });
+});
+
+describe("DrizzleOwedFortnightPresentationReader.owedPresentations for the installations a fortnight waits on", () => {
+  const REVOKED_AT = new Date("2026-10-15T18:00:00.000Z");
+
+  async function blockedFortnight() {
+    const registerId = await seedOfflinePointOfSale(db);
+    await claimedBeforeEveryFortnight();
+    await keepCode(OCTOBER_FIRST_HALF, "36123456789012", "2026-10-20");
+    await record(OCTOBER_FIRST_HALF, "blocked");
+    return registerId;
+  }
+
+  it("answers the revoked installation that never synced past the close and alone holds the fortnight back, with when it was revoked", async () => {
+    const registerId = await blockedFortnight();
+    const { deviceId } = await insertEnrolledInstallation(db, {
+      now: AT,
+      existingRegisterId: registerId,
+      revokedAt: REVOKED_AT,
+    });
+
+    const [owed] = await reader().owedPresentations("2026-10-16");
+
+    expect(owed?.revokedInstallations).toEqual([
+      { installationId: deviceId, revokedAt: REVOKED_AT },
+    ]);
+  });
+
+  it("answers none once the revoked installation is confirmed as having issued nothing it did not sync", async () => {
+    const registerId = await blockedFortnight();
+    const { deviceId } = await insertEnrolledInstallation(db, {
+      now: AT,
+      existingRegisterId: registerId,
+      revokedAt: REVOKED_AT,
+    });
+    await confirmRevokedInstallation(db, {
+      pointOfSaleNumber: OFFLINE_POINT_OF_SALE,
+      fortnight: OCTOBER_FIRST_HALF,
+      installationId: deviceId,
+    });
+
+    const [owed] = await reader().owedPresentations("2026-10-16");
+
+    expect(owed?.revokedInstallations).toEqual([]);
+  });
+
+  it("answers none while an installation still active has not synced past the close either, since waiting for it is what holds the fortnight back", async () => {
+    const registerId = await blockedFortnight();
+    await insertEnrolledInstallation(db, {
+      now: AT,
+      existingRegisterId: registerId,
+      revokedAt: REVOKED_AT,
+    });
+    await insertEnrolledInstallation(db, { now: AT, existingRegisterId: registerId });
+
+    const [owed] = await reader().owedPresentations("2026-10-16");
+
+    expect(owed?.revokedInstallations).toEqual([]);
+  });
+
+  it("answers none for a revoked installation whose stream already reaches past the close", async () => {
+    const registerId = await blockedFortnight();
+    const { deviceId } = await insertEnrolledInstallation(db, {
+      now: AT,
+      existingRegisterId: registerId,
+      revokedAt: REVOKED_AT,
+    });
+    const syncedAt = new Date("2026-10-16T05:00:00.000Z");
+    await insertInboxEvent(db, deviceId, { occurredAt: syncedAt, appliedAt: syncedAt });
+
+    const [owed] = await reader().owedPresentations("2026-10-16");
+
+    expect(owed?.revokedInstallations).toEqual([]);
   });
 });

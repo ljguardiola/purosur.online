@@ -48,6 +48,12 @@ function toWire(presentation: BranchFortnightPresentation) {
     movement: presentation.movement,
     refusal: presentation.refusal,
     state: presentation.state,
+    revoked_installations: presentation.revokedInstallations.map(
+      ({ installationId, revokedAt }) => ({
+        installation_id: installationId,
+        revoked_at: revokedAt.toISOString(),
+      }),
+    ),
   };
 }
 

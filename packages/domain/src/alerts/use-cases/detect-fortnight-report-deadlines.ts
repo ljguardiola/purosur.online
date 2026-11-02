@@ -17,7 +17,7 @@ export async function detectFortnightReportDeadlines({
   const today = argentinaCalendarDay(clock.now(), zoneRules.zoneRules());
   const pendingScopes = new Set<string>();
   for (const owed of await presentations.owedPresentations(today)) {
-    const { pointOfSaleNumber, registerId, fortnight, state } = owed;
+    const { pointOfSaleNumber, registerId, fortnight, state, revokedInstallations } = owed;
     const deadline = fortnightReportDeadline(fortnight, owed.taxAuthorityDeadline);
     const standing = fortnightReportStanding({ fortnight, deadline, state }, today);
     const scope = pointOfSaleFortnightScope(pointOfSaleNumber, fortnight.start);
@@ -32,6 +32,7 @@ export async function detectFortnightReportDeadlines({
           daysLeft: standing.daysLeft,
           pressing: standing.pressing,
           state,
+          revokedInstallations,
         }),
       );
     } else if (

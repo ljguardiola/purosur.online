@@ -34,6 +34,7 @@ import type {
   RecordedDocumentTypeReport,
   RecordedFortnightReport,
   RegisterEventStreams,
+  RevokedInstallationConfirmations,
   TaxAuthorityNoMovementDeclarations,
   TaxAuthorityOfflineDocumentReports,
 } from "../fortnight-report-ports.js";
@@ -338,6 +339,25 @@ export class FakeRegisterEventStreams implements RegisterEventStreams {
   async installationsOf(registerId: string): Promise<InstallationStreamReach[]> {
     this.operations.push("installationsOf");
     return this.installations.get(registerId) ?? [];
+  }
+}
+
+export class FakeRevokedInstallationConfirmations implements RevokedInstallationConfirmations {
+  readonly confirmed = new Map<string, string[]>();
+  private readonly operations: string[];
+
+  constructor(operations: string[]) {
+    this.operations = operations;
+  }
+
+  async confirmedInstallations(key: FortnightReportKey): Promise<string[]> {
+    this.operations.push("confirmedInstallations");
+    return this.confirmed.get(typeKeyOf(key, "confirmed")) ?? [];
+  }
+
+  confirm(key: FortnightReportKey, installationId: string): void {
+    const id = typeKeyOf(key, "confirmed");
+    this.confirmed.set(id, [...(this.confirmed.get(id) ?? []), installationId]);
   }
 }
 

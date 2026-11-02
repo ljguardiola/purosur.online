@@ -23,6 +23,7 @@ function createServices(
     fetchOfflinePointsOfSale: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     retireOfflinePointOfSale: vi.fn(),
     remedyRejectedDocument: vi.fn(),
+    confirmRevokedInstallation: vi.fn(),
     fetchBuyerTaxStatuses: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     configureRegisterPointOfSale: vi.fn(),
     configureRegisterOfflinePointOfSale: vi.fn(),
@@ -373,6 +374,7 @@ test("lists the fortnight reports of each offline point of sale between the regi
         movement: null,
         refusal: null,
         state: "blocked",
+        revokedInstallations: [],
       },
     ],
   });
@@ -521,6 +523,7 @@ const partlyRejectedPresentation = {
   movement: "documents",
   refusal: "partial",
   state: "refused",
+  revokedInstallations: [],
 };
 
 const reviewRejectionButton =
@@ -618,5 +621,102 @@ test("a document that is no longer rejected reads the presentations again and ke
     .toBe(2);
   await expect
     .element(dialog.getByText("ARCA ya no tiene rechazado este comprobante.").first())
+    .toBeVisible();
+});
+
+const blockedByRevokedInstallation = {
+  registerId: configuredRegister.registerId,
+  pointOfSaleNumber: 13,
+  fortnight: { start: "2026-09-01", end: "2026-09-15" },
+  deadline: "2026-09-23",
+  documentType: "factura_c",
+  documentCount: 20,
+  rejectedDocument: null,
+  movement: "documents",
+  refusal: null,
+  state: "blocked",
+  revokedInstallations: [{ installationId: "inst-1", revokedAt: "2026-09-10T15:30:00.000Z" }],
+};
+
+const confirmRevokedButton =
+  "Confirmar la instalación revocada de Caja 1 del informe del 1 al 15 de septiembre del punto de venta 00013";
+
+function withRevokedInstallation() {
+  const services = serving([configuredRegister], [depot]);
+  vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
+    kind: "ok",
+    value: { challenge: "session-auth" } as never,
+  });
+  vi.mocked(services.startAuthentication).mockResolvedValue({ id: "existing-cred" } as never);
+  vi.mocked(services.authorizeSession).mockResolvedValue({ kind: "ok" });
+  vi.mocked(services.fetchFortnightPresentations).mockResolvedValue({
+    kind: "ok",
+    value: [blockedByRevokedInstallation] as never,
+  });
+  return services;
+}
+
+test("the row of a report held back by a revoked installation opens its confirmation naming the register and the revocation", async () => {
+  const screen = await renderScreen(withRevokedInstallation());
+
+  await userEvent.click(screen.getByRole("button", { name: confirmRevokedButton }));
+
+  const dialog = screen.getByRole("dialog", { name: "Confirmar la instalación revocada" });
+  await expect
+    .element(dialog.getByText(/La instalación de Caja 1 se revocó el 10\/09\/2026 · 12:30/))
+    .toBeVisible();
+});
+
+test("confirming the installation reads the presentations again and announces it", async () => {
+  const services = withRevokedInstallation();
+  vi.mocked(services.fetchFortnightPresentations)
+    .mockResolvedValueOnce({ kind: "ok", value: [blockedByRevokedInstallation] as never })
+    .mockResolvedValue({
+      kind: "ok",
+      value: [
+        { ...blockedByRevokedInstallation, revokedInstallations: [], state: "accepted" },
+      ] as never,
+    });
+  vi.mocked(services.confirmRevokedInstallation).mockResolvedValue({ kind: "ok" });
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: confirmRevokedButton }));
+  const dialog = screen.getByRole("dialog", { name: "Confirmar la instalación revocada" });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Confirmar", exact: true }));
+
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.element(screen.getByText("Instalación confirmada")).toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "Caja 1, revocada el 10/09/2026 · 12:30, para el informe del 1 al 15 de septiembre del punto de venta 00013.",
+      ),
+    )
+    .toBeVisible();
+  await expect.element(screen.getByText("Aceptado")).toBeVisible();
+  expect(services.confirmRevokedInstallation).toHaveBeenCalledWith({
+    point_of_sale_number: 13,
+    fortnight_start: "2026-09-01",
+    installation_id: "inst-1",
+  });
+});
+
+test("an installation that no longer holds the report back reads the presentations again and keeps the confirmation open", async () => {
+  const services = withRevokedInstallation();
+  vi.mocked(services.fetchFortnightPresentations)
+    .mockResolvedValueOnce({ kind: "ok", value: [blockedByRevokedInstallation] as never })
+    .mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.confirmRevokedInstallation).mockResolvedValue({ kind: "not_holding_back" });
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: confirmRevokedButton }));
+  const dialog = screen.getByRole("dialog", { name: "Confirmar la instalación revocada" });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Confirmar", exact: true }));
+
+  await expect
+    .poll(() => vi.mocked(services.fetchFortnightPresentations).mock.calls.length)
+    .toBe(2);
+  await expect
+    .element(dialog.getByText("Esta instalación ya no frena el informe.").first())
     .toBeVisible();
 });

@@ -119,6 +119,7 @@ import {
   type RestoredRegisterOrphanSweepRouteOptions,
   registerRestoredRegisterOrphanSweepRoute,
 } from "./fiscal/restored-register-orphan-sweep-route.js";
+import { registerRevokedInstallationConfirmationRoute } from "./fiscal/revoked-installation-confirmation-route.js";
 import { registerUnbilledDeferredSalesRoute } from "./fiscal/unbilled-deferred-sales-route.js";
 import {
   registerUnclearOutcomeRoute,
@@ -821,6 +822,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerExceptionShareYearRoute(api, { ...options.registersPointsOfSale, now });
         registerFiscalRegistersRoute(api, { ...options.registersPointsOfSale, now });
         registerRejectedDocumentRemedyRoute(api, { ...options.registersPointsOfSale, now });
+        registerRevokedInstallationConfirmationRoute(api, {
+          ...options.registersPointsOfSale,
+          now,
+        });
         registerBuyerTaxStatusesListRoute(api, { ...options.registersPointsOfSale, now });
         registerClockCorrectionsListRoute(api, { ...options.registersPointsOfSale, now });
         registerRegisterPointOfSaleConfigurationRoute(api, {

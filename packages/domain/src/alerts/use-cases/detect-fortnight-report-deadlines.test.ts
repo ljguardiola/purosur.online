@@ -25,6 +25,7 @@ function owed(overrides: Partial<OwedFortnightPresentation> = {}): OwedFortnight
     taxAuthorityDeadline: "2026-09-25",
     state: null,
     listed: false,
+    revokedInstallations: [],
     ...overrides,
   };
 }
@@ -140,6 +141,30 @@ describe("detectFortnightReportDeadlines", () => {
     await outcome;
 
     expect(alerts.observations).toEqual([pending("critical", { reason: "blocked" })]);
+  });
+
+  it("names the revoked installations when only they hold a blocked presentation back", async () => {
+    const { alerts, outcome } = detect(
+      [
+        owed({
+          state: "blocked",
+          revokedInstallations: [
+            { installationId: "installation-1", revokedAt: new Date("2026-09-10T15:30:00.000Z") },
+          ],
+        }),
+      ],
+      at("2026-09-16"),
+    );
+    await outcome;
+
+    expect(alerts.observations).toEqual([
+      pending("critical", {
+        reason: "revoked_installation",
+        revokedInstallations: [
+          { installationId: "installation-1", revokedAt: "2026-09-10T15:30:00.000Z" },
+        ],
+      }),
+    ]);
   });
 
   it("says a presentation the tax authority refused is refused", async () => {

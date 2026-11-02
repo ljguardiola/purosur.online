@@ -333,7 +333,24 @@ describe("OpenAlertInput of a fortnight report", () => {
     }>().toExtend<OpenAlertInput>();
   });
 
-  it("refuses a pending alert with a reason outside the four it can have", () => {
+  it("accepts the revoked installations awaiting confirmation for the revoked installation reason", () => {
+    expectTypeOf<{
+      kind: "fortnight_report_pending";
+      scope: string;
+      detail: {
+        pointOfSaleNumber: number;
+        registerId: string;
+        fortnightStart: string;
+        fortnightEnd: string;
+        deadline: string;
+        daysLeft: number;
+        reason: "revoked_installation";
+        revokedInstallations: { installationId: string; revokedAt: string }[];
+      };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses a pending alert with a reason outside the five it can have", () => {
     expectTypeOf<{
       kind: "fortnight_report_pending";
       scope: string;

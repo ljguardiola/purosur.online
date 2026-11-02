@@ -1,9 +1,14 @@
 export type { JsonValue, OutboxEvent, OutboxEventDraft } from "../shared/index.js";
 export { canonicalOutboxEvent, canonicalOutboxPayload } from "../shared/index.js";
+export {
+  isHeldBackOnlyByRevokedInstallations,
+  revokedInstallationsAwaitingConfirmation,
+  streamReachesPastOnceConfirmed,
+} from "./model/confirmed-stream-reach.js";
 export type { EventInvariantBreaks } from "./model/event-invariant-breaks.js";
 export type { EventQuarantine } from "./model/event-quarantine.js";
 export type { InstallationStreamReach } from "./model/event-stream-reach.js";
-export { isInstallationActiveDuring, streamReachesPast } from "./model/event-stream-reach.js";
+export { isInstallationActiveDuring } from "./model/event-stream-reach.js";
 export type { InstallationEnrollment } from "./model/installation-enrollment.js";
 export { installationEnrollment } from "./model/installation-enrollment.js";
 export { INSTALLATION_REQUEST_LIMITS } from "./model/installation-request-limit.js";

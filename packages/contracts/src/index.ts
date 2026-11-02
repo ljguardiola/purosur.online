@@ -272,6 +272,8 @@ export type { RejectedDocumentRemedyBody } from "./fiscal/rejected-document-reme
 export { rejectedDocumentRemedyBodySchema } from "./fiscal/rejected-document-remedy.js";
 export type { RestoredRegisterOrphanSweepResponseBody } from "./fiscal/restored-register-orphan-sweep.js";
 export { restoredRegisterOrphanSweepResponseSchema } from "./fiscal/restored-register-orphan-sweep.js";
+export type { RevokedInstallationConfirmationBody } from "./fiscal/revoked-installation-confirmation.js";
+export { revokedInstallationConfirmationBodySchema } from "./fiscal/revoked-installation-confirmation.js";
 export type {
   SaleVoidCreditNoteRequestBody,
   SaleVoidCreditNoteResponseBody,

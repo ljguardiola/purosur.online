@@ -20,6 +20,7 @@ import { DrizzleFortnightReportStore } from "./drizzle-fortnight-report-store.js
 import { DrizzleOfflineAuthorizationCodeStore } from "./drizzle-offline-authorization-code-store.js";
 import { DrizzleOfflineDocumentsOfFortnight } from "./drizzle-offline-documents-of-fortnight.js";
 import { DrizzleOwedPresentationList } from "./drizzle-owed-presentation-list.js";
+import { DrizzleRevokedInstallationConfirmations } from "./drizzle-revoked-installation-confirmations.js";
 import { DrizzleWsaaTokenSource } from "./drizzle-wsaa-token-source.js";
 import { enqueueCreditNoteJob } from "./graphile-credit-note-queue.js";
 import { rejectionsText } from "./offline-authorization-code-acquisition-description.js";
@@ -106,6 +107,7 @@ export function fortnightReportJobs(
       }),
       documents: new DrizzleOfflineDocumentsOfFortnight(db),
       streams: new DrizzleRegisterEventStreams(db),
+      confirmations: new DrizzleRevokedInstallationConfirmations(db),
       declarations,
       documentReports,
       codeStore: new DrizzleOfflineAuthorizationCodeStore(db),

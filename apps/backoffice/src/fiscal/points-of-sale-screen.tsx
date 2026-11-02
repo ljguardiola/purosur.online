@@ -1,6 +1,7 @@
 import {
   Button,
   FloatingNotification,
+  formatCalendarDayRange,
   formatInvoiceNumber,
   formatPointOfSaleNumber,
 } from "@purosur/ui";
@@ -9,6 +10,7 @@ import { useRef, useState } from "react";
 import { combineCloudData } from "../platform/combine-cloud-data";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
+import { ConfirmRevokedInstallationModal } from "./confirm-revoked-installation-modal";
 import { EditFiscalAddressModal } from "./edit-fiscal-address-modal";
 import { EditRegisterOfflinePointOfSaleModal } from "./edit-register-offline-point-of-sale-modal";
 import { EditRegisterPointOfSaleModal } from "./edit-register-point-of-sale-modal";
@@ -32,6 +34,8 @@ import { RegisterPointOfSaleSection } from "./register-point-of-sale-section";
 import type { RemedyTarget } from "./rejected-document-remedy-form";
 import { RetireOfflinePointOfSaleModal } from "./retire-offline-point-of-sale-modal";
 import { ReviewRejectedDocumentModal } from "./review-rejected-document-modal";
+import { revokedInstallationDayAndTime } from "./revoked-installation-moments";
+import type { RevokedInstallationTarget } from "./revoked-installation-target";
 
 export type PointsOfSaleScreenProps = {
   onSessionEnded: () => void;
@@ -55,6 +59,9 @@ export function PointsOfSaleScreen({ onSessionEnded, services }: PointsOfSaleScr
   const reloadOfflinePointsOfSale = useReloadOfflinePointsOfSale();
   const reloadFortnightPresentations = useReloadFortnightPresentations();
   const [reviewing, setReviewing] = useState<RemedyTarget | null>(null);
+  const [confirmingRevoked, setConfirmingRevoked] = useState<RevokedInstallationTarget | null>(
+    null,
+  );
   const [retiring, setRetiring] = useState<OfflinePointOfSale | null>(null);
   const reloadRegisters = useReloadRegisterPointsOfSale({ fetchRegisterPointsOfSale });
   const reloadFiscalAddresses = useReloadFiscalAddresses({ fetchFiscalAddresses });
@@ -104,6 +111,7 @@ export function PointsOfSaleScreen({ onSessionEnded, services }: PointsOfSaleScr
         <FortnightReportsSection
           data={combineCloudData(presentations, registers)}
           onReview={setReviewing}
+          onConfirmRevoked={setConfirmingRevoked}
         />
         <FiscalAddressesSection
           data={fiscalAddresses}
@@ -178,6 +186,20 @@ export function PointsOfSaleScreen({ onSessionEnded, services }: PointsOfSaleScr
           announce(
             "Informe corregido",
             `Nº ${formatInvoiceNumber(rejectedDocument.number)} del punto de venta ${formatPointOfSaleNumber(pointOfSaleNumber)}: se vuelve a presentar con el mismo número.`,
+          );
+        }}
+        onOutdated={() => void reloadFortnightPresentations()}
+        onSessionEnded={onSessionEnded}
+        services={services}
+      />
+      <ConfirmRevokedInstallationModal
+        target={confirmingRevoked}
+        onClose={() => setConfirmingRevoked(null)}
+        onConfirmed={({ registerName, revokedAt, pointOfSaleNumber, fortnight }) => {
+          void reloadFortnightPresentations();
+          announce(
+            "Instalación confirmada",
+            `${registerName}, revocada el ${revokedInstallationDayAndTime(revokedAt)}, para el informe ${formatCalendarDayRange(fortnight.start, fortnight.end)} del punto de venta ${formatPointOfSaleNumber(pointOfSaleNumber)}.`,
           );
         }}
         onOutdated={() => void reloadFortnightPresentations()}

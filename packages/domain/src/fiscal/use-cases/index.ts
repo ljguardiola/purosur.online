@@ -184,6 +184,19 @@ export type {
 } from "./configure-register-point-of-sale.js";
 export { configureRegisterPointOfSale } from "./configure-register-point-of-sale.js";
 export type {
+  ConfirmRevokedInstallationUnsyncedInput,
+  ConfirmRevokedInstallationUnsyncedOutcome,
+} from "./confirm-revoked-installation-unsynced.js";
+export { confirmRevokedInstallationUnsynced } from "./confirm-revoked-installation-unsynced.js";
+export type {
+  ConfirmRevokedInstallationStore,
+  ConfirmRevokedInstallationStoreTransaction,
+  ConfirmRevokedInstallationUnsyncedPorts,
+  InstallationOfFortnightReport,
+  RevokedInstallationConfirmationAudit,
+  RevokedInstallationConfirmationRecord,
+} from "./confirm-revoked-installation-unsynced-ports.js";
+export type {
   ContingencyIntervalsAtFiscalAddress,
   ContingencyIntervalsQuery,
   ContingencyIntervalsReader,
@@ -302,6 +315,7 @@ export type {
   RecordedDocumentTypeReport,
   RecordedFortnightReport,
   RegisterEventStreams,
+  RevokedInstallationConfirmations,
   TaxAuthorityNoMovementDeclarations,
   TaxAuthorityOfflineDocumentReports,
 } from "./fortnight-report-ports.js";

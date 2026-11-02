@@ -35,10 +35,11 @@ describe("DrizzleRegisterEventStreams.installationsOf", () => {
   });
 
   it("answers an installation that never synced an event with no latest occurrence", async () => {
-    const { registerId } = await insertEnrolledInstallation(db, { now: NOW });
+    const { registerId, deviceId } = await insertEnrolledInstallation(db, { now: NOW });
 
     expect(await new DrizzleRegisterEventStreams(db).installationsOf(registerId)).toEqual([
       {
+        installationId: deviceId,
         enrolledAt: A_DAY_BEFORE,
         revokedAt: null,
         latestOccurredAt: null,
@@ -60,6 +61,7 @@ describe("DrizzleRegisterEventStreams.installationsOf", () => {
 
     expect(await new DrizzleRegisterEventStreams(db).installationsOf(registerId)).toEqual([
       {
+        installationId: deviceId,
         enrolledAt: A_DAY_BEFORE,
         revokedAt: null,
         latestOccurredAt: latest,
@@ -77,6 +79,7 @@ describe("DrizzleRegisterEventStreams.installationsOf", () => {
 
     expect(await new DrizzleRegisterEventStreams(db).installationsOf(registerId)).toEqual([
       {
+        installationId: deviceId,
         enrolledAt: A_DAY_BEFORE,
         revokedAt: null,
         latestOccurredAt: applied,
@@ -95,6 +98,7 @@ describe("DrizzleRegisterEventStreams.installationsOf", () => {
 
     expect(await new DrizzleRegisterEventStreams(db).installationsOf(registerId)).toEqual([
       {
+        installationId: deviceId,
         enrolledAt: A_DAY_BEFORE,
         revokedAt: null,
         latestOccurredAt: null,
@@ -111,6 +115,7 @@ describe("DrizzleRegisterEventStreams.installationsOf", () => {
 
     expect(await new DrizzleRegisterEventStreams(db).installationsOf(registerId)).toEqual([
       {
+        installationId: deviceId,
         enrolledAt: A_DAY_BEFORE,
         revokedAt: null,
         latestOccurredAt: null,
@@ -146,6 +151,7 @@ describe("DrizzleRegisterEventStreams.installationsOf", () => {
     expect(installations).toEqual(
       expect.arrayContaining([
         {
+          installationId: revoked.deviceId,
           enrolledAt: A_DAY_BEFORE,
           revokedAt,
           latestOccurredAt: revokedLatest,
@@ -153,6 +159,7 @@ describe("DrizzleRegisterEventStreams.installationsOf", () => {
           holdsUnappliedEvents: false,
         },
         {
+          installationId: active.deviceId,
           enrolledAt: A_DAY_BEFORE,
           revokedAt: null,
           latestOccurredAt: activeLatest,
@@ -165,11 +172,12 @@ describe("DrizzleRegisterEventStreams.installationsOf", () => {
 
   it("leaves out the installations of other registers", async () => {
     const other = await insertEnrolledInstallation(db, { now: NOW, registerName: "Caja 2" });
-    const { registerId } = await insertEnrolledInstallation(db, { now: NOW });
+    const { registerId, deviceId } = await insertEnrolledInstallation(db, { now: NOW });
     await insertInboxEvent(db, other.deviceId);
 
     expect(await new DrizzleRegisterEventStreams(db).installationsOf(registerId)).toEqual([
       {
+        installationId: deviceId,
         enrolledAt: A_DAY_BEFORE,
         revokedAt: null,
         latestOccurredAt: null,

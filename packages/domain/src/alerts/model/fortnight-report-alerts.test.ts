@@ -22,6 +22,11 @@ const PRESENTATION = {
   deadline: "2026-09-23",
 };
 
+const REVOKED_INSTALLATION = {
+  installationId: "installation-1",
+  revokedAt: new Date("2026-09-10T15:30:00.000Z"),
+};
+
 describe("pointOfSaleFortnightScope", () => {
   it("joins the point of sale and the day the fortnight starts", () => {
     expect(pointOfSaleFortnightScope(4, "2026-09-01")).toBe("4:2026-09-01");
@@ -71,6 +76,25 @@ describe("fortnightReportPendingReason", () => {
   ] as const)("is %s -> %s", (state, reason) => {
     expect(fortnightReportPendingReason(state)).toBe(reason);
   });
+
+  it("is revoked_installation while blocked with revoked installations awaiting confirmation", () => {
+    expect(fortnightReportPendingReason("blocked", [REVOKED_INSTALLATION])).toBe(
+      "revoked_installation",
+    );
+  });
+
+  it.each(["refused", "missing_document", "submitting", null] as const)(
+    "ignores the revoked installations when the state is %s",
+    (state) => {
+      expect(fortnightReportPendingReason(state, [REVOKED_INSTALLATION])).toBe(
+        fortnightReportPendingReason(state),
+      );
+    },
+  );
+
+  it("is blocked when no revoked installation awaits confirmation", () => {
+    expect(fortnightReportPendingReason("blocked", [])).toBe("blocked");
+  });
 });
 
 describe("fortnightReportPendingObservation", () => {
@@ -81,6 +105,7 @@ describe("fortnightReportPendingObservation", () => {
         daysLeft: 5,
         pressing: false,
         state: null,
+        revokedInstallations: [],
       }),
     ).toEqual({
       holds: true,
@@ -101,6 +126,45 @@ describe("fortnightReportPendingObservation", () => {
     });
   });
 
+  it("names the revoked installations awaiting confirmation, at the critical level, when only they hold the report back", () => {
+    expect(
+      fortnightReportPendingObservation({
+        ...PRESENTATION,
+        daysLeft: 6,
+        pressing: false,
+        state: "blocked",
+        revokedInstallations: [
+          REVOKED_INSTALLATION,
+          { installationId: "installation-2", revokedAt: new Date("2026-09-12T10:00:00.000Z") },
+        ],
+      }),
+    ).toMatchObject({
+      level: "critical",
+      alert: {
+        detail: {
+          reason: "revoked_installation",
+          revokedInstallations: [
+            { installationId: "installation-1", revokedAt: "2026-09-10T15:30:00.000Z" },
+            { installationId: "installation-2", revokedAt: "2026-09-12T10:00:00.000Z" },
+          ],
+        },
+      },
+    });
+  });
+
+  it("carries no revoked installations in the detail of any other reason", () => {
+    const observation = fortnightReportPendingObservation({
+      ...PRESENTATION,
+      daysLeft: 6,
+      pressing: false,
+      state: "blocked",
+      revokedInstallations: [],
+    });
+
+    expect(observation).toMatchObject({ alert: { detail: { reason: "blocked" } } });
+    expect(observation).not.toHaveProperty("alert.detail.revokedInstallations");
+  });
+
   it("raises it to critical when the deadline is pressing", () => {
     expect(
       fortnightReportPendingObservation({
@@ -108,6 +172,7 @@ describe("fortnightReportPendingObservation", () => {
         daysLeft: 1,
         pressing: true,
         state: "refused",
+        revokedInstallations: [],
       }),
     ).toMatchObject({
       level: "critical",
@@ -122,6 +187,7 @@ describe("fortnightReportPendingObservation", () => {
         daysLeft: 6,
         pressing: false,
         state: "blocked",
+        revokedInstallations: [],
       }),
     ).toMatchObject({ level: "critical", alert: { detail: { reason: "blocked" } } });
   });
@@ -133,6 +199,7 @@ describe("fortnightReportPendingObservation", () => {
         daysLeft: 6,
         pressing: false,
         state: "missing_document",
+        revokedInstallations: [],
       }),
     ).toMatchObject({ level: "critical", alert: { detail: { reason: "missing_document" } } });
   });

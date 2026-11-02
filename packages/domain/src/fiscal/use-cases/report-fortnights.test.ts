@@ -49,6 +49,7 @@ describe("reportFortnights", () => {
         `hold ${KEY}`,
         "tax authority lookUp",
         "installationsOf",
+        "confirmedInstallations",
         "documentsOn",
         "record submitting",
         "tax authority declare",
@@ -325,6 +326,93 @@ describe("reportFortnights", () => {
 
       expect(presentationOutcomes(result)[0]?.outcome).toEqual({ kind: "blocked" });
       expect(declarations.declarations).toEqual([]);
+    });
+  });
+
+  describe("with a revoked installation that never synced past the fortnight's close", () => {
+    const REVOKED_ID = "revoked-installation";
+    const key = { pointOfSaleNumber: POINT_OF_SALE, fortnight: SEPTEMBER_SECOND_HALF };
+
+    function revokedInstallation(installationId = REVOKED_ID) {
+      return reachingInstallation({
+        installationId,
+        revokedAt: new Date("2026-09-20T12:00:00.000Z"),
+        latestOccurredAt: new Date("2026-09-19T12:00:00.000Z"),
+      });
+    }
+
+    it("stays blocked, declaring nothing, while nobody confirmed it", async () => {
+      const { streams, declarations, confirmations, run } = setUp();
+      streams.installations.set(REGISTER_ID, [reachingInstallation(), revokedInstallation()]);
+
+      const result = await run();
+
+      expect(presentationOutcomes(result)[0]?.outcome).toEqual({ kind: "blocked" });
+      expect(declarations.declarations).toEqual([]);
+      expect(confirmations.confirmed.size).toBe(0);
+    });
+
+    it("declares the fortnight without movement once it is confirmed and nothing was issued", async () => {
+      const { streams, declarations, confirmations, run } = setUp();
+      streams.installations.set(REGISTER_ID, [reachingInstallation(), revokedInstallation()]);
+      confirmations.confirm(key, REVOKED_ID);
+
+      const result = await run();
+
+      expect(presentationOutcomes(result)[0]?.outcome).toEqual({ kind: "accepted" });
+      expect(declarations.declarations).toHaveLength(1);
+    });
+
+    it("presents the documents the other installations synced once it is confirmed", async () => {
+      const { streams, documents, documentReports, confirmations, run } = setUp();
+      streams.installations.set(REGISTER_ID, [reachingInstallation(), revokedInstallation()]);
+      documents.add(POINT_OF_SALE, SEPTEMBER_SECOND_HALF, offlineDocument(1));
+      confirmations.confirm(key, REVOKED_ID);
+
+      const result = await run();
+
+      expect(presentationOutcomes(result)[0]?.outcome).toEqual({ kind: "accepted" });
+      expect(documentReports.reports).toHaveLength(1);
+    });
+
+    it("stays blocked when the confirmation is of another installation", async () => {
+      const { streams, declarations, confirmations, run } = setUp();
+      streams.installations.set(REGISTER_ID, [reachingInstallation(), revokedInstallation()]);
+      confirmations.confirm(key, "another-installation");
+
+      const result = await run();
+
+      expect(presentationOutcomes(result)[0]?.outcome).toEqual({ kind: "blocked" });
+      expect(declarations.declarations).toEqual([]);
+    });
+
+    it("stays blocked when it is confirmed but another installation has not reached past the close", async () => {
+      const { streams, declarations, confirmations, run } = setUp();
+      streams.installations.set(REGISTER_ID, [
+        reachingInstallation({ installationId: "live", latestOccurredAt: null }),
+        revokedInstallation(),
+      ]);
+      confirmations.confirm(key, REVOKED_ID);
+
+      const result = await run();
+
+      expect(presentationOutcomes(result)[0]?.outcome).toEqual({ kind: "blocked" });
+      expect(declarations.declarations).toEqual([]);
+    });
+
+    it("asks for the confirmations of the fortnight being reported", async () => {
+      const { streams, confirmations, run } = setUp();
+      streams.installations.set(REGISTER_ID, [revokedInstallation()]);
+      const asked: unknown[] = [];
+      const confirmed = confirmations.confirmedInstallations.bind(confirmations);
+      confirmations.confirmedInstallations = async (asking) => {
+        asked.push(asking);
+        return confirmed(asking);
+      };
+
+      await run();
+
+      expect(asked).toEqual([key]);
     });
   });
 
