@@ -17,6 +17,13 @@ export const warehouseFiscalAddress: FiscalAddress = {
 
 export const fiscalAddresses: FiscalAddress[] = [centralFiscalAddress, warehouseFiscalAddress];
 
+const withoutContingencyData: ExceptionShareYearBody["months"][number]["contingency_time"] = {
+  contingency_ms: 0,
+  available_ms: 0,
+  share_tenths_of_percent: null,
+  state: "no_data",
+};
+
 export const exceptionShareOf2026: ExceptionShareYearBody = {
   fiscal_address: { id: centralFiscalAddress.id, name: centralFiscalAddress.name },
   year: 2026,
@@ -29,6 +36,7 @@ export const exceptionShareOf2026: ExceptionShareYearBody = {
       total_count: 100,
       share_tenths_of_percent: 70,
       state: "non_compliant",
+      contingency_time: withoutContingencyData,
     },
     {
       month: "2026-02",
@@ -36,6 +44,7 @@ export const exceptionShareOf2026: ExceptionShareYearBody = {
       total_count: 50,
       share_tenths_of_percent: 20,
       state: "compliant",
+      contingency_time: withoutContingencyData,
     },
     {
       month: "2026-03",
@@ -43,6 +52,7 @@ export const exceptionShareOf2026: ExceptionShareYearBody = {
       total_count: 80,
       share_tenths_of_percent: 62,
       state: "non_compliant",
+      contingency_time: withoutContingencyData,
     },
     {
       month: "2026-04",
@@ -50,6 +60,7 @@ export const exceptionShareOf2026: ExceptionShareYearBody = {
       total_count: 40,
       share_tenths_of_percent: 50,
       state: "in_progress",
+      contingency_time: withoutContingencyData,
     },
     {
       month: "2026-05",
@@ -57,9 +68,12 @@ export const exceptionShareOf2026: ExceptionShareYearBody = {
       total_count: 0,
       share_tenths_of_percent: null,
       state: "in_progress",
+      contingency_time: withoutContingencyData,
     },
   ],
   non_compliant_months: ["2026-01", "2026-03"],
+  contingency_non_compliance_percent: 5,
+  contingency_non_compliant_months: [],
 };
 
 export const exceptionShareOf2026WithoutBreaches: ExceptionShareYearBody = {

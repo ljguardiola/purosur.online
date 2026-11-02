@@ -11,6 +11,8 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../sessions/route-access.js";
+import { DrizzleArcaAvailabilityReader } from "./drizzle-arca-availability-reader.js";
+import { DrizzleContingencyIntervalsReader } from "./drizzle-contingency-intervals-reader.js";
 import { DrizzleExceptionShareYearReader } from "./drizzle-exception-share-year-reader.js";
 
 export interface ExceptionShareYearRouteOptions<TQueryResult extends PgQueryResultHKT> {
@@ -33,6 +35,8 @@ export function registerExceptionShareYearRoute<TQueryResult extends PgQueryResu
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const reader = new DrizzleExceptionShareYearReader(options.db);
+  const availability = new DrizzleArcaAvailabilityReader(options.db);
+  const contingency = new DrizzleContingencyIntervalsReader(options.db);
 
   app.get(
     "/fiscal/exception-share/:fiscalAddressId",
@@ -50,7 +54,7 @@ export function registerExceptionShareYearRoute<TQueryResult extends PgQueryResu
         return;
       }
       const outcome = await readExceptionShareYear(
-        { reader, clock: { now }, zoneRules: options.zoneRules },
+        { reader, availability, contingency, clock: { now }, zoneRules: options.zoneRules },
         { fiscalAddressId: ids.fiscalAddressId, year: query.year },
       );
       if (outcome.kind === "fiscal_address_not_found") {
@@ -69,8 +73,16 @@ export function registerExceptionShareYearRoute<TQueryResult extends PgQueryResu
             total_count: month.totalCount,
             share_tenths_of_percent: month.shareTenthsOfPercent,
             state: month.state,
+            contingency_time: {
+              contingency_ms: month.contingencyTime.contingencyMs,
+              available_ms: month.contingencyTime.availableMs,
+              share_tenths_of_percent: month.contingencyTime.shareTenthsOfPercent,
+              state: month.contingencyTime.state,
+            },
           })),
           non_compliant_months: outcome.nonCompliantMonths,
+          contingency_non_compliance_percent: outcome.contingencyNonCompliancePercent,
+          contingency_non_compliant_months: outcome.contingencyNonCompliantMonths,
         }),
       );
     },

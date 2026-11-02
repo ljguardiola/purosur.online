@@ -1,4 +1,4 @@
-import { EXCEPTION_SHARE_MONTH_STATES } from "@purosur/domain";
+import { CONTINGENCY_TIME_MONTH_STATES, EXCEPTION_SHARE_MONTH_STATES } from "@purosur/domain";
 import { z } from "zod";
 
 const count = z.int().nonnegative();
@@ -24,9 +24,17 @@ export const exceptionShareYearSchema = z.object({
       total_count: count,
       share_tenths_of_percent: z.int().nullable(),
       state: z.enum(EXCEPTION_SHARE_MONTH_STATES),
+      contingency_time: z.object({
+        contingency_ms: count,
+        available_ms: count,
+        share_tenths_of_percent: z.int().nullable(),
+        state: z.enum(CONTINGENCY_TIME_MONTH_STATES),
+      }),
     }),
   ),
   non_compliant_months: z.array(month),
+  contingency_non_compliance_percent: z.int(),
+  contingency_non_compliant_months: z.array(month),
 });
 
 export type ExceptionShareYearQuery = z.output<typeof exceptionShareYearQuerySchema>;
