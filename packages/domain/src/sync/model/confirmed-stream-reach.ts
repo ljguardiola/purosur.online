@@ -10,6 +10,20 @@ interface StreamPeriod {
   until: Date;
 }
 
+function awaitsConfirmation({ revokedAt, holdsUnappliedEvents }: InstallationStreamReach): boolean {
+  return revokedAt !== null && !holdsUnappliedEvents;
+}
+
+function isConfirmed(
+  installation: InstallationStreamReach,
+  confirmedInstallationIds: readonly string[],
+): boolean {
+  return (
+    awaitsConfirmation(installation) &&
+    confirmedInstallationIds.includes(installation.installationId)
+  );
+}
+
 function holdingBack(
   installations: readonly InstallationStreamReach[],
   period: StreamPeriod,
@@ -19,7 +33,7 @@ function holdingBack(
     (installation) =>
       isInstallationActiveDuring(installation, period) &&
       !installationReachesPast(installation, period) &&
-      !confirmedInstallationIds.includes(installation.installationId),
+      !isConfirmed(installation, confirmedInstallationIds),
   );
 }
 
@@ -28,9 +42,7 @@ export function revokedInstallationsAwaitingConfirmation(
   period: StreamPeriod,
   confirmedInstallationIds: readonly string[],
 ): InstallationStreamReach[] {
-  return holdingBack(installations, period, confirmedInstallationIds).filter(
-    ({ revokedAt }) => revokedAt !== null,
-  );
+  return holdingBack(installations, period, confirmedInstallationIds).filter(awaitsConfirmation);
 }
 
 export function isHeldBackOnlyByRevokedInstallations(
@@ -39,7 +51,7 @@ export function isHeldBackOnlyByRevokedInstallations(
   confirmedInstallationIds: readonly string[],
 ): boolean {
   const blocking = holdingBack(installations, period, confirmedInstallationIds);
-  return blocking.length > 0 && blocking.every(({ revokedAt }) => revokedAt !== null);
+  return blocking.length > 0 && blocking.every(awaitsConfirmation);
 }
 
 export function streamReachesPastOnceConfirmed(
@@ -48,9 +60,7 @@ export function streamReachesPastOnceConfirmed(
   confirmedInstallationIds: readonly string[],
 ): boolean {
   return streamReachesPast(
-    installations.filter(
-      ({ installationId }) => !confirmedInstallationIds.includes(installationId),
-    ),
+    installations.filter((installation) => !isConfirmed(installation, confirmedInstallationIds)),
     period,
   );
 }

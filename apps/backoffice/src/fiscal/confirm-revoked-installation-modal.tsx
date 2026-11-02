@@ -50,7 +50,7 @@ export function ConfirmRevokedInstallationModal({
     modal,
   } = useAuthorizedAttempt<
     Awaited<ReturnType<typeof confirmRevokedInstallation>>,
-    "reportMovedOn" | "noLongerHoldsBack" | "invalid"
+    "reportMovedOn" | "alreadyConfirmed" | "stillProcessing" | "noLongerHoldsBack" | "invalid"
   >({
     open,
     actionName: "Confirmar la instalación revocada",
@@ -74,8 +74,14 @@ export function ConfirmRevokedInstallationModal({
           onConfirmed(item);
         } else if (outcome.kind === "validation_failed") {
           opening.showNotice("invalid");
-        } else if (outcome.kind === "already_confirmed" || outcome.kind === "already_presented") {
+        } else if (outcome.kind === "already_presented") {
           opening.showNotice("reportMovedOn");
+          onOutdated();
+        } else if (outcome.kind === "already_confirmed") {
+          opening.showNotice("alreadyConfirmed");
+          onOutdated();
+        } else if (outcome.kind === "holds_unapplied_events") {
+          opening.showNotice("stillProcessing");
           onOutdated();
         } else {
           opening.showNotice("noLongerHoldsBack");
@@ -130,6 +136,20 @@ export function ConfirmRevokedInstallationModal({
               tone="error"
               icon={<TriangleAlert />}
               title="Este informe ya siguió su curso."
+            />
+          )}
+          {notice?.kind === "alreadyConfirmed" && (
+            <InlineNotice
+              tone="error"
+              icon={<TriangleAlert />}
+              title="Alguien ya confirmó esta instalación para este informe."
+            />
+          )}
+          {notice?.kind === "stillProcessing" && (
+            <InlineNotice
+              tone="error"
+              icon={<TriangleAlert />}
+              title="La nube todavía no terminó de procesar lo que esta instalación sincronizó."
             />
           )}
           {notice?.kind === "noLongerHoldsBack" && (

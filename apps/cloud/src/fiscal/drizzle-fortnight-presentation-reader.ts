@@ -3,6 +3,8 @@ import {
   fortnightPeriod,
   fortnightPresentationRows,
   fortnightReportDeadline,
+  isFortnightReportOutstanding,
+  isHeldBackOnlyByRevokedInstallations,
   revokedInstallationsAwaitingConfirmation,
   type ZoneRulesSource,
 } from "@purosur/domain";
@@ -83,24 +85,37 @@ export class DrizzleFortnightPresentationReader<TQueryResult extends PgQueryResu
     const confirmations = new DrizzleRevokedInstallationConfirmations(this.db);
     const revokedInstallationsOf = new Map(
       await Promise.all(
-        presentations.map(async ({ owed: { pointOfSaleNumber, registerId, code } }) => {
-          const installations = await installationStreamReaches(
-            this.db,
-            eq(registerInstallations.registerId, registerId),
-          );
-          const confirmed = await confirmations.confirmedInstallations({
-            pointOfSaleNumber,
-            fortnight: code.fortnight,
-          });
-          const awaiting = revokedInstallationsAwaitingConfirmation(
-            installations,
-            fortnightPeriod(code.fortnight, this.zoneRules.zoneRules()),
-            confirmed,
-          ).flatMap(({ installationId, revokedAt }) =>
-            revokedAt ? [{ installationId, revokedAt }] : [],
-          );
-          return [`${pointOfSaleNumber}:${code.fortnight.start}`, awaiting] as const;
-        }),
+        presentations.map(
+          async ({
+            owed: { pointOfSaleNumber, registerId, code },
+            state,
+          }): Promise<[string, BranchFortnightPresentation["revokedInstallations"]]> => {
+            const key = `${pointOfSaleNumber}:${code.fortnight.start}`;
+            if (!isFortnightReportOutstanding(state)) {
+              return [key, []];
+            }
+            const installations = await installationStreamReaches(
+              this.db,
+              eq(registerInstallations.registerId, registerId),
+            );
+            const confirmed = await confirmations.confirmedInstallations({
+              pointOfSaleNumber,
+              fortnight: code.fortnight,
+            });
+            const period = fortnightPeriod(code.fortnight, this.zoneRules.zoneRules());
+            if (!isHeldBackOnlyByRevokedInstallations(installations, period, confirmed)) {
+              return [key, []];
+            }
+            const awaiting = revokedInstallationsAwaitingConfirmation(
+              installations,
+              period,
+              confirmed,
+            ).flatMap(({ installationId, revokedAt }) =>
+              revokedAt ? [{ installationId, revokedAt }] : [],
+            );
+            return [key, awaiting];
+          },
+        ),
       ),
     );
     return presentations

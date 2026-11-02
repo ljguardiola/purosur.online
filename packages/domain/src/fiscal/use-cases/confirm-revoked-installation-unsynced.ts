@@ -1,4 +1,7 @@
-import { revokedInstallationsAwaitingConfirmation } from "../../sync/index.js";
+import {
+  isInstallationActiveDuring,
+  revokedInstallationsAwaitingConfirmation,
+} from "../../sync/index.js";
 import { fortnightPeriod, isFortnightReportOutstanding } from "../model/fortnight-report.js";
 import { fortnightContaining } from "../model/offline-authorization-code.js";
 import type { ConfirmRevokedInstallationUnsyncedPorts } from "./confirm-revoked-installation-unsynced-ports.js";
@@ -17,6 +20,7 @@ export type ConfirmRevokedInstallationUnsyncedOutcome =
   | { kind: "already_presented" }
   | { kind: "not_revoked" }
   | { kind: "not_holding_back" }
+  | { kind: "holds_unapplied_events" }
   | { kind: "confirmed" };
 
 export function confirmRevokedInstallationUnsynced(
@@ -50,7 +54,9 @@ export function confirmRevokedInstallationUnsynced(
     }
     const period = fortnightPeriod(fortnight, zoneRules.zoneRules());
     if (revokedInstallationsAwaitingConfirmation([installation], period, confirmed).length === 0) {
-      return { kind: "not_holding_back" };
+      return installation.holdsUnappliedEvents && isInstallationActiveDuring(installation, period)
+        ? { kind: "holds_unapplied_events" }
+        : { kind: "not_holding_back" };
     }
 
     const at = clock.now();

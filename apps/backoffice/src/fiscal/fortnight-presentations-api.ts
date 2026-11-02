@@ -64,6 +64,7 @@ export type ConfirmRevokedInstallationOutcome =
   | { kind: "already_presented" }
   | { kind: "not_revoked" }
   | { kind: "not_holding_back" }
+  | { kind: "holds_unapplied_events" }
   | WriteFailure;
 
 const CONFIRMATION_REFUSALS = [
@@ -71,6 +72,7 @@ const CONFIRMATION_REFUSALS = [
   "already_presented",
   "not_revoked",
   "not_holding_back",
+  "holds_unapplied_events",
 ] as const;
 
 export type RevokedInstallation = { installationId: string; revokedAt: string };

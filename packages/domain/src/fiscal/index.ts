@@ -196,6 +196,7 @@ export {
   fortnightReportDeadline,
   fortnightReportStanding,
   isFortnightPresentationOwed,
+  isFortnightReportOutstanding,
   isOfflineDocumentReported,
   owedFortnightPresentationState,
   owesFortnightReport,

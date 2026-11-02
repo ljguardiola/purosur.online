@@ -434,7 +434,7 @@ function revokedInstallationsText({
       ({ revokedAt }) =>
         `Una instalación de la caja${registerName === undefined ? "" : ` «${registerName}»`} se revocó el ${formatDayAndTime(revokedAt, ALERT_TIME_ZONE)}.`,
     ),
-    `Se puede presentar cuando alguien confirme, en Puntos de venta y CAEA, que ${confirmation}.`,
+    `Se puede presentar cuando alguien confirme, en Puntos de venta, que ${confirmation}.`,
   ];
 }
 

@@ -366,6 +366,7 @@ export {
   isFiscalAddressStreetAddressTooLong,
   isFiscalTaskClosingNoteTooLong,
   isFortnightPresentationOwed,
+  isFortnightReportOutstanding,
   isInDeferredBacklog,
   isIssuerIdentificationActivityStartDate,
   isIssuerIdentificationGrossIncomeRegistrationTooLong,

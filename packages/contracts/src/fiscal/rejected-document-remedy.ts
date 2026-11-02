@@ -47,13 +47,3 @@ export const rejectedDocumentRemedyBodySchema = z.object({
 });
 
 export type RejectedDocumentRemedyBody = z.input<typeof rejectedDocumentRemedyBodySchema>;
-
-export const revokedInstallationConfirmationBodySchema = z.object({
-  point_of_sale_number: pointOfSaleNumberSchema,
-  fortnight_start: calendarDaySchema,
-  installation_id: z.uuid(),
-});
-
-export type RevokedInstallationConfirmationBody = z.input<
-  typeof revokedInstallationConfirmationBodySchema
->;

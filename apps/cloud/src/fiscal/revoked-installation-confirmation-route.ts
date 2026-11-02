@@ -48,6 +48,11 @@ const NOT_HOLDING_BACK_RESPONSE = {
   message: "that installation is not holding that fortnight's report back",
 } as const;
 
+const HOLDS_UNAPPLIED_EVENTS_RESPONSE = {
+  code: "holds_unapplied_events",
+  message: "that installation still holds received events not yet applied",
+} as const;
+
 export function registerRevokedInstallationConfirmationRoute<TQueryResult extends PgQueryResultHKT>(
   app: FastifyInstance,
   options: RevokedInstallationConfirmationRouteOptions<TQueryResult>,
@@ -104,6 +109,9 @@ export function registerRevokedInstallationConfirmationRoute<TQueryResult extend
           return;
         case "not_holding_back":
           await reply.code(409).send(NOT_HOLDING_BACK_RESPONSE);
+          return;
+        case "holds_unapplied_events":
+          await reply.code(409).send(HOLDS_UNAPPLIED_EVENTS_RESPONSE);
           return;
         case "confirmed":
           await reply.code(204).send();
