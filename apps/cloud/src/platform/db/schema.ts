@@ -1191,6 +1191,32 @@ export const registerFiscalAddressAssignments = pgTable(
   ],
 );
 
+export const registerContingencyIntervals = pgTable(
+  "register_contingency_intervals",
+  {
+    intervalId: uuid("interval_id").primaryKey(),
+    registerId: uuid("register_id")
+      .notNull()
+      .references(() => registers.id),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+  },
+  (table) => [
+    check(
+      "register_contingency_intervals_ended_after_started",
+      sql`${table.endedAt} >= ${table.startedAt}`,
+    ),
+  ],
+);
+
+// The first report a register makes of its contingency stays as it was received.
+export const registerContingencyReporting = pgTable("register_contingency_reporting", {
+  registerId: uuid("register_id")
+    .primaryKey()
+    .references(() => registers.id),
+  since: timestamp("since", { withTimezone: true }).notNull(),
+});
+
 export const registerPointTerminals = pgTable(
   "register_point_terminals",
   {
