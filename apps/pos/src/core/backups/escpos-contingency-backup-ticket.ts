@@ -36,7 +36,7 @@ export interface ContingencyBackupTicketPrintout {
   qrCodes: readonly string[];
 }
 
-const BETWEEN_QR_CODES_DOTS = 16;
+const BETWEEN_QR_CODES_DOTS = 9;
 const QR_MODULE_DOTS = 4;
 
 const OPERATION_NAMES = {

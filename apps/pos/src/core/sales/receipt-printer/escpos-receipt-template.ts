@@ -40,10 +40,9 @@ type OfflineInvoiceBlock = Extract<InvoiceBlock, { fortnight: unknown }>;
 
 const TEMPLATE_VERSION = "1";
 const QR_SIDE_DOTS = 244;
-const QR_TOP_MARGIN_DOTS = 16;
-const QR_BOTTOM_MARGIN_DOTS = 8;
+const QR_TOP_MARGIN_DOTS = 9;
+const QR_BOTTOM_MARGIN_DOTS = 5;
 const VOUCHER_CODE_DIGITS = 3;
-const LOGO_TOP_MARGIN_DOTS = 24;
 const LOGO_BOTTOM_MARGIN_DOTS = 16;
 
 const REFUND_NAMES = {
@@ -73,7 +72,6 @@ function smallRow(left: string, right: string): string[] {
 
 function logo(out: EscPosWriter): void {
   const { widthDots, heightDots, rows } = RECEIPT_LOGO;
-  out.feed(LOGO_TOP_MARGIN_DOTS);
   out.rasterImage({
     widthDots,
     heightDots,
