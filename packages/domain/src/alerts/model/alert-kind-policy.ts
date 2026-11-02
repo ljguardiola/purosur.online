@@ -335,7 +335,7 @@ const ALERT_KIND_POLICIES = {
     deduplicates: true,
     resolvesAfterStableClear: false,
   },
-  exception_share_second_month_at_risk: {
+  second_non_compliant_month_at_risk: {
     level: "warning",
     escalation: null,
     audience: "all",

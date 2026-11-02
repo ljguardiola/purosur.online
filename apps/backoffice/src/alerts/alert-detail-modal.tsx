@@ -176,7 +176,7 @@ function alertIcon(kind: string): Icon {
     case "fortnight_report_owed_elsewhere":
     case "fortnight_report_document_rejected":
     case "exception_share_breach":
-    case "exception_share_second_month_at_risk":
+    case "second_non_compliant_month_at_risk":
       return <TriangleAlert />;
     case "clock_corrected":
     case "clock_drift":
@@ -343,7 +343,7 @@ function secondMonthAtRiskDescription({
   previousMonthNonCompliantOn,
   contingencyShareTenthsOfPercent,
   contingencyNonCompliancePercent,
-}: Extract<AlertDetail, { kind: "exception_share_second_month_at_risk" }>["detail"]): string {
+}: Extract<AlertDetail, { kind: "second_non_compliant_month_at_risk" }>["detail"]): string {
   const vouchers = plural(totalCount, {
     one: `${formatNumber(totalCount)} comprobante`,
     other: `${formatNumber(totalCount)} comprobantes`,
@@ -561,7 +561,7 @@ function alertTitle(alert: AlertDetail): string {
     case "register_backup_overdue":
     case "deferred_sale_due":
     case "exception_share_breach":
-    case "exception_share_second_month_at_risk":
+    case "second_non_compliant_month_at_risk":
       return alertKindLabel(alert.kind);
   }
 }
@@ -592,7 +592,7 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
   if (alert.kind === "exception_share_breach") {
     return exceptionShareBreachDescription(alert.detail);
   }
-  if (alert.kind === "exception_share_second_month_at_risk") {
+  if (alert.kind === "second_non_compliant_month_at_risk") {
     return secondMonthAtRiskDescription(alert.detail);
   }
   const targetName = alert.scopeDisplay;

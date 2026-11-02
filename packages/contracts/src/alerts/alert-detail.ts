@@ -288,7 +288,7 @@ const exceptionShareBreachDetailSchema = z.object({
   nonCompliancePercent: z.int(),
 });
 
-const exceptionShareSecondMonthAtRiskDetailSchema = z.object({
+const secondNonCompliantMonthAtRiskDetailSchema = z.object({
   fiscalAddressId: z.string(),
   fiscalAddressName: z.string(),
   month: z.string(),
@@ -517,8 +517,8 @@ const alertDetailKinds = [
   }),
   z.object({
     ...alertBase,
-    kind: z.literal("exception_share_second_month_at_risk" satisfies AlertKind),
-    detail: exceptionShareSecondMonthAtRiskDetailSchema,
+    kind: z.literal("second_non_compliant_month_at_risk" satisfies AlertKind),
+    detail: secondNonCompliantMonthAtRiskDetailSchema,
   }),
 ] as const;
 

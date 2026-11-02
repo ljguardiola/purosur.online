@@ -251,7 +251,7 @@ interface ExceptionShareBreachDetail {
   nonCompliancePercent: number;
 }
 
-interface ExceptionShareSecondMonthAtRiskDetail {
+interface SecondNonCompliantMonthAtRiskDetail {
   fiscalAddressId: string;
   fiscalAddressName: string;
   month: string;
@@ -302,7 +302,7 @@ export interface AlertDetails {
   fortnight_report_document_rejected: FortnightReportDocumentRejectedDetail;
   deferred_sale_due: DeferredSaleDueDetail;
   exception_share_breach: ExceptionShareBreachDetail;
-  exception_share_second_month_at_risk: ExceptionShareSecondMonthAtRiskDetail;
+  second_non_compliant_month_at_risk: SecondNonCompliantMonthAtRiskDetail;
 }
 
 export type OpenAlertInput = {

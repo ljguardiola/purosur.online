@@ -24,7 +24,7 @@ export function secondMonthAtRiskObservation(
   return {
     holds: true,
     alert: {
-      kind: "exception_share_second_month_at_risk",
+      kind: "second_non_compliant_month_at_risk",
       scope: fiscalAddressMonthScope(address.fiscalAddressId, month),
       detail: {
         fiscalAddressId: address.fiscalAddressId,
@@ -44,5 +44,5 @@ export function secondMonthAtRiskObservation(
 }
 
 export function secondMonthNoLongerAtRiskObservation(scope: string): AlertConditionObservation {
-  return { holds: false, kind: "exception_share_second_month_at_risk", scope };
+  return { holds: false, kind: "second_non_compliant_month_at_risk", scope };
 }

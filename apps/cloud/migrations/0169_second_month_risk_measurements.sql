@@ -1,1 +1,2 @@
-UPDATE "alerts" SET "detail" = "detail" || '{"previousMonthNonCompliantOn": ["exception_share"], "contingencyShareTenthsOfPercent": null, "contingencyNonCompliancePercent": 5}'::jsonb WHERE "kind" = 'exception_share_second_month_at_risk' AND NOT ("detail" ? 'previousMonthNonCompliantOn');
+UPDATE "alerts" SET "detail" = "detail" || '{"previousMonthNonCompliantOn": ["exception_share"], "contingencyShareTenthsOfPercent": null, "contingencyNonCompliancePercent": 5}'::jsonb WHERE "kind" = 'exception_share_second_month_at_risk' AND NOT ("detail" ? 'previousMonthNonCompliantOn');--> statement-breakpoint
+UPDATE "alerts" SET "kind" = 'second_non_compliant_month_at_risk' WHERE "kind" = 'exception_share_second_month_at_risk';
