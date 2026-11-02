@@ -811,7 +811,6 @@ describe("remembering an item", () => {
         keyValue: "yerba 1 kg",
         description: "Yerba 1 Kg",
         productId: link.productId,
-        packagingId: null,
         quantity: 10_000,
         saleUnit: "UNIT",
         relinkRequired: false,
