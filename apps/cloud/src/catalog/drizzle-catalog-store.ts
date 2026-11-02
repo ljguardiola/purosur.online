@@ -1,4 +1,6 @@
 import {
+  compareCodeUnits,
+  compareSpanishText,
   isLinkCurrent,
   maySupplierPriceListRowBeLinked,
   type SaleUnit,
@@ -524,12 +526,13 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
 
   private async tagIdsOf(productId: string): Promise<string[]> {
     const rows = await this.tx
-      .select({ tagId: productTags.tagId })
+      .select({ id: tags.id, name: tags.name })
       .from(productTags)
       .innerJoin(tags, eq(tags.id, productTags.tagId))
-      .where(eq(productTags.productId, productId))
-      .orderBy(asc(tags.name));
-    return rows.map((row) => row.tagId);
+      .where(eq(productTags.productId, productId));
+    return rows
+      .sort((a, b) => compareSpanishText(a.name, b.name) || compareCodeUnits(a.id, b.id))
+      .map((row) => row.id);
   }
 
   private async writeBarcodes(

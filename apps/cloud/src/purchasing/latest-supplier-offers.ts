@@ -1,6 +1,6 @@
-import type { SaleUnit } from "@purosur/domain";
+import { compareCodeUnits, compareSpanishText, type SaleUnit } from "@purosur/domain";
 import type { SupplierOffer } from "@purosur/domain/purchasing/use-cases";
-import { asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { desc, eq, inArray, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { products, supplierItemPrices, supplierItems, suppliers } from "../platform/db/schema.js";
 
@@ -42,10 +42,13 @@ export async function latestSupplierOffers<TQueryResult extends PgQueryResultHKT
       desc(supplierItemPrices.confirmedAt),
     )
     .as("latest_item_price");
-  const rows = await db
-    .select()
-    .from(latest)
-    .orderBy(asc(latest.supplierName), asc(latest.supplierId), asc(latest.quantity));
+  const rows = await db.select().from(latest);
+  rows.sort(
+    (a, b) =>
+      compareSpanishText(a.supplierName, b.supplierName) ||
+      compareCodeUnits(a.supplierId, b.supplierId) ||
+      a.quantity - b.quantity,
+  );
   return rows.map(({ supplierId, supplierName, quantity, saleUnit, relinkRequired, ...offer }) => ({
     ...offer,
     supplier: { id: supplierId, name: supplierName },

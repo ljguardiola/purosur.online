@@ -53,6 +53,7 @@ async function insertRole(name: string): Promise<string> {
 }
 
 async function insertUser(input: {
+  id?: string;
   firstName: string;
   email: string;
   roleId: string;
@@ -62,6 +63,7 @@ async function insertUser(input: {
   const [user] = await db
     .insert(users)
     .values({
+      id: input.id,
       firstName: input.firstName,
       email: input.email,
       locationId: input.locationId ?? branch,
@@ -143,6 +145,60 @@ describe("drizzleBranchUsers", () => {
           roleIsAdministrator: false,
           passkeyCount: 2,
         },
+      ]);
+    });
+
+    it("lists users with numbers by value, case and accents ignored and ñ after n", async () => {
+      const cashier = await insertRole("Cajero");
+      for (const firstName of [
+        "Zoe",
+        "Caja 10",
+        "ñandú",
+        "Banco",
+        "oso",
+        "árbol",
+        "Caja 2",
+        "ana",
+        "nube",
+      ]) {
+        await insertUser({
+          firstName,
+          email: `${firstName.replaceAll(" ", "-")}@example.test`,
+          roleId: cashier,
+        });
+      }
+
+      const listed = await drizzleBranchUsers(db).branchUsers(branch, "any");
+
+      expect(listed.map((user) => user.firstName)).toEqual([
+        "ana",
+        "árbol",
+        "Banco",
+        "Caja 2",
+        "Caja 10",
+        "nube",
+        "ñandú",
+        "oso",
+        "Zoe",
+      ]);
+    });
+
+    it("lists users with the same first name in the order of their ids", async () => {
+      const cashier = await insertRole("Cajero");
+      for (const last of ["b", "a"]) {
+        await insertUser({
+          id: `00000000-0000-4000-8000-00000000000${last}`,
+          firstName: "Ana",
+          email: `ana.${last}@example.test`,
+          roleId: cashier,
+        });
+      }
+
+      const listed = await drizzleBranchUsers(db).branchUsers(branch, "any");
+
+      expect(listed.map((user) => user.id)).toEqual([
+        "00000000-0000-4000-8000-00000000000a",
+        "00000000-0000-4000-8000-00000000000b",
       ]);
     });
 

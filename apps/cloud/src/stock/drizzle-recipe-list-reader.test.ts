@@ -132,6 +132,38 @@ describe("DrizzleRecipeListReader", () => {
     ]);
   });
 
+  it("lists the assembled products with numbers by value, case and accents ignored and ñ after n", async () => {
+    const bag = await insertProduct(db, { name: "Bolsa" });
+    for (const name of [
+      "Zoe",
+      "Caja 10",
+      "ñandú",
+      "Banco",
+      "oso",
+      "árbol",
+      "Caja 2",
+      "ana",
+      "nube",
+    ]) {
+      const assembled = await insertProduct(db, { name });
+      await save(assembled.productId, [{ id: bag.productId, quantity: 1_000 }]);
+    }
+
+    const recipes = await new DrizzleRecipeListReader(db).recipes(locationId);
+
+    expect(recipes.map((recipe) => recipe.productName)).toEqual([
+      "ana",
+      "árbol",
+      "Banco",
+      "Caja 2",
+      "Caja 10",
+      "nube",
+      "ñandú",
+      "oso",
+      "Zoe",
+    ]);
+  });
+
   it("finds the recipe of one product and answers undefined for a product without one", async () => {
     const mix = await insertProduct(db, { name: "Mix", saleUnit: "KG" });
     const nuts = await insertProduct(db, { name: "Nueces", saleUnit: "KG" });
