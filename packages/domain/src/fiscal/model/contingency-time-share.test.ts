@@ -65,13 +65,15 @@ function measure({
   parts = [],
   registers = [reporting("register-1")],
   now = AFTER_THE_MONTH,
+  closed = true,
 }: {
   runs?: ArcaAvailabilityRun[];
   parts?: ContingencyPart[];
   registers?: ContingencyReportingRegister[];
   now?: Date;
+  closed?: boolean;
 }) {
-  return contingencyTimeMeasurement({ window: WINDOW, now, runs, parts, registers });
+  return contingencyTimeMeasurement({ window: WINDOW, now, closed, runs, parts, registers });
 }
 
 describe("monthWindow", () => {
@@ -210,6 +212,7 @@ describe("contingencyTimeMeasurement", () => {
       runs: [answeredBetween(true, 0, 1_000)],
       parts: [part("register-1", 400, null)],
       now: minute(1_000),
+      closed: false,
     });
 
     expect(result.availableMs).toBe(1_000 * MINUTE);
@@ -222,6 +225,7 @@ describe("contingencyTimeMeasurement", () => {
       runs: [answeredBetween(true, 0, MONTH_MS / MINUTE)],
       parts: [part("register-1", 100, 300)],
       now: minute(1_000),
+      closed: false,
     });
 
     expect(result.availableMs).toBe(1_000 * MINUTE);
@@ -231,6 +235,7 @@ describe("contingencyTimeMeasurement", () => {
     const result = measure({
       runs: [run(true, 0, 10)],
       now: new Date(minute(10).getTime() + 1_000),
+      closed: false,
     });
 
     expect(result.availableMs).toBe(10 * MINUTE + 1_000);
@@ -375,7 +380,7 @@ describe("contingencyTimeMeasurement", () => {
   });
 
   it("prefers having no data over the month being in progress", () => {
-    expect(measure({ runs: [], now: minute(1_000) }).state).toBe("no_data");
+    expect(measure({ runs: [], now: minute(1_000), closed: false }).state).toBe("no_data");
   });
 
   it("reports the month in progress, with its figures, while it has not closed", () => {
@@ -383,14 +388,10 @@ describe("contingencyTimeMeasurement", () => {
       runs: [answeredBetween(true, 0, 1_000)],
       parts: [part("register-1", 0, 900)],
       now: minute(1_000),
+      closed: false,
     });
 
     expect(result).toMatchObject({ shareTenthsOfPercent: 900, state: "in_progress" });
-  });
-
-  it("closes the month at the instant it ends", () => {
-    expect(measure({ now: WINDOW.end }).state).toBe("compliant");
-    expect(measure({ now: new Date(WINDOW.end.getTime() - 1) }).state).toBe("in_progress");
   });
 
   describe("for every input", () => {

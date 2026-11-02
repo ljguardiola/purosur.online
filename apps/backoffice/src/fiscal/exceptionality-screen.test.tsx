@@ -252,7 +252,12 @@ test("lists the months of the year that did not comply above the table", async (
   const screen = await renderScreen(createServices());
 
   await expect
-    .element(screen.getByText("Meses que incumplieron en 2026: enero, marzo", { exact: true }))
+    .element(
+      screen.getByText(
+        "Meses que incumplieron por comprobantes por excepción en 2026: enero, marzo",
+        { exact: true },
+      ),
+    )
     .toBeVisible();
 });
 
@@ -279,7 +284,12 @@ test("lists the months that did not comply on contingency time apart from the vo
     )
     .toBeVisible();
   await expect
-    .element(screen.getByText("Meses que incumplieron en 2026: enero, marzo", { exact: true }))
+    .element(
+      screen.getByText(
+        "Meses que incumplieron por comprobantes por excepción en 2026: enero, marzo",
+        { exact: true },
+      ),
+    )
     .toBeVisible();
 });
 
@@ -298,7 +308,12 @@ test("says no month did not comply on contingency time when the cloud records no
     )
     .toBeVisible();
   await expect
-    .element(screen.getByText("Meses que incumplieron en 2026: enero, marzo", { exact: true }))
+    .element(
+      screen.getByText(
+        "Meses que incumplieron por comprobantes por excepción en 2026: enero, marzo",
+        { exact: true },
+      ),
+    )
     .toBeVisible();
 });
 
@@ -312,7 +327,11 @@ test("says no month did not comply when the cloud records none", async () => {
   const screen = await renderScreen(services);
 
   await expect
-    .element(screen.getByText("Ningún mes incumplió en 2026", { exact: true }))
+    .element(
+      screen.getByText("Ningún mes incumplió por comprobantes por excepción en 2026", {
+        exact: true,
+      }),
+    )
     .toBeVisible();
   expect(screen.getByText(/Meses que incumplieron/).query()).toBeNull();
 });

@@ -1,7 +1,12 @@
-import { ARCA_REACHABILITY_HORIZON_MS, arcaAvailableSpans } from "@purosur/domain";
+import { ARCA_REACHABILITY_HORIZON_MS, type ArcaAvailabilityRun } from "@purosur/domain";
+import {
+  type ArcaAvailabilityReader,
+  readExceptionShareYear,
+} from "@purosur/domain/fiscal/use-cases";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { arcaVitalityChecks } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { DrizzleArcaAvailabilityReader } from "./drizzle-arca-availability-reader.js";
 
 const SECOND = 1_000;
@@ -34,6 +39,29 @@ async function probe(offset: number, ok: boolean) {
 
 function read(period = PERIOD) {
   return new DrizzleArcaAvailabilityReader(db).availabilityRuns(period);
+}
+
+async function availableTimeOfTheMonth(availability: ArcaAvailabilityReader) {
+  const outcome = await readExceptionShareYear(
+    {
+      reader: {
+        fiscalAddress: async (id) => ({ id, name: "Depósito Central" }),
+        monthlyVoucherCounts: async () => [],
+        recordedBreachMonths: async () => [],
+      },
+      availability,
+      contingency: {
+        contingencyIntervalsAtFiscalAddress: async () => ({ parts: [], registers: [] }),
+      },
+      clock: { now: () => PERIOD.to },
+      zoneRules: fixedZoneRulesSource(),
+    },
+    { fiscalAddressId: "fiscal-address", year: 2026 },
+  );
+  if (outcome.kind !== "read") {
+    throw new Error("test setup: the fiscal address was not found");
+  }
+  return outcome.months.find(({ month }) => month === "2026-10")?.contingencyTime.availableMs;
 }
 
 describe("DrizzleArcaAvailabilityReader", () => {
@@ -122,16 +150,15 @@ describe("DrizzleArcaAvailabilityReader", () => {
     }
     await db.insert(arcaVitalityChecks).values(everyProbe);
 
-    const runs = await read();
-    const spansOfEveryProbe = arcaAvailableSpans(
-      everyProbe.map(({ checkedAt, ok: answer }) => ({
-        ok: answer,
-        firstCheckedAt: checkedAt,
-        lastCheckedAt: checkedAt,
-      })),
-    );
+    const runOfEveryProbe: ArcaAvailabilityRun[] = everyProbe.map(({ checkedAt, ok: answer }) => ({
+      ok: answer,
+      firstCheckedAt: checkedAt,
+      lastCheckedAt: checkedAt,
+    }));
 
-    expect(runs.length).toBeLessThan(everyProbe.length);
-    expect(arcaAvailableSpans(runs)).toEqual(spansOfEveryProbe);
+    expect((await read()).length).toBeLessThan(everyProbe.length);
+    expect(await availableTimeOfTheMonth(new DrizzleArcaAvailabilityReader(db))).toBe(
+      await availableTimeOfTheMonth({ availabilityRuns: async () => runOfEveryProbe }),
+    );
   });
 });

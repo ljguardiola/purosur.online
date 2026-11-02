@@ -6,6 +6,7 @@ import {
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleContingencyIntervalsReader } from "./drizzle-contingency-intervals-reader.js";
 import {
+  enrollRegister,
   insertFiscalAddress,
   insertRegisterAtFiscalAddress,
   moveRegisterToFiscalAddress,
@@ -15,6 +16,7 @@ const at = (time: string) => new Date(`2026-10-06T${time}:00.000Z`);
 const PERIOD = { from: at("00:00"), to: new Date("2026-10-07T00:00:00.000Z") };
 
 const WHOLE_PERIOD = { start: PERIOD.from, end: PERIOD.to };
+const BEFORE_THE_PERIOD = new Date("2026-01-01T00:00:00.000Z");
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -115,6 +117,8 @@ describe("DrizzleContingencyIntervalsReader", () => {
   it("answers when each register at the address started reporting its contingency, or that it has not", async () => {
     const reporting = await insertRegisterAtFiscalAddress(db, central, "Caja 1");
     const silent = await insertRegisterAtFiscalAddress(db, central, "Caja 2");
+    await enrollRegister(db, reporting, BEFORE_THE_PERIOD);
+    await enrollRegister(db, silent, BEFORE_THE_PERIOD);
     await db
       .insert(registerContingencyReporting)
       .values({ registerId: reporting, since: at("08:00") });
@@ -146,6 +150,8 @@ describe("DrizzleContingencyIntervalsReader", () => {
   it("answers the parts of the period during which each register belonged to the address", async () => {
     const mover = await insertRegisterAtFiscalAddress(db, central, "Caja 1");
     const returner = await insertRegisterAtFiscalAddress(db, central, "Caja 2");
+    await enrollRegister(db, mover, BEFORE_THE_PERIOD);
+    await enrollRegister(db, returner, BEFORE_THE_PERIOD);
     await moveRegisterToFiscalAddress(db, mover, norte, at("11:00"));
     await moveRegisterToFiscalAddress(db, returner, norte, at("06:00"));
     await moveRegisterToFiscalAddress(db, returner, central, at("18:00"));
@@ -168,5 +174,22 @@ describe("DrizzleContingencyIntervalsReader", () => {
     ]);
     expect(atNorte.get(mover)).toEqual([{ start: at("11:00"), end: PERIOD.to }]);
     expect(atNorte.get(returner)).toEqual([{ start: at("06:00"), end: at("18:00") }]);
+  });
+
+  it("counts a register's presence at the address from its first enrollment, and none while it was never enrolled", async () => {
+    const enrolledLater = await insertRegisterAtFiscalAddress(db, central, "Caja 1");
+    const reEnrolled = await insertRegisterAtFiscalAddress(db, central, "Caja 2");
+    const neverEnrolled = await insertRegisterAtFiscalAddress(db, central, "Caja 3");
+    await enrollRegister(db, enrolledLater, at("10:00"));
+    await enrollRegister(db, reEnrolled, at("08:00"), at("12:00"));
+    await enrollRegister(db, reEnrolled, at("12:00"));
+
+    const presence = new Map(
+      (await read(central)).registers.map(({ registerId, presence }) => [registerId, presence]),
+    );
+
+    expect(presence.get(enrolledLater)).toEqual([{ start: at("10:00"), end: PERIOD.to }]);
+    expect(presence.get(reEnrolled)).toEqual([{ start: at("08:00"), end: PERIOD.to }]);
+    expect(presence.get(neverEnrolled)).toEqual([]);
   });
 });

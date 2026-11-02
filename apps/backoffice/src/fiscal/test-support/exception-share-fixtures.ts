@@ -30,21 +30,21 @@ type ContingencyTime = ExceptionShareYearBody["months"][number]["contingency_tim
 const HOUR_MS = 3_600_000;
 const MINUTE_MS = 60_000;
 
-export const nonCompliantContingencyTime: ContingencyTime = {
+const nonCompliantContingencyTime: ContingencyTime = {
   contingency_ms: 3 * HOUR_MS + 25 * MINUTE_MS,
   available_ms: 40 * HOUR_MS,
   share_tenths_of_percent: 85,
   state: "non_compliant",
 };
 
-export const compliantContingencyTime: ContingencyTime = {
+const compliantContingencyTime: ContingencyTime = {
   contingency_ms: 45 * MINUTE_MS,
   available_ms: 672 * HOUR_MS,
   share_tenths_of_percent: 1,
   state: "compliant",
 };
 
-export const inProgressContingencyTime: ContingencyTime = {
+const inProgressContingencyTime: ContingencyTime = {
   contingency_ms: 2 * HOUR_MS,
   available_ms: 100 * HOUR_MS,
   share_tenths_of_percent: 20,

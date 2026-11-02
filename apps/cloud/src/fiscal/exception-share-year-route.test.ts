@@ -269,25 +269,4 @@ describe("GET /fiscal/exception-share/:fiscalAddressId", () => {
     expect(body.contingency_non_compliant_months).toEqual(["2026-09"]);
     expect(body.non_compliant_months).toEqual([]);
   });
-
-  it("answers a month without data, never a share, when a register at the address had not started reporting", async () => {
-    const fiscalAddressId = await insertFiscalAddress(db, "Depósito Central");
-    const registerId = await insertRegisterAtFiscalAddress(db, fiscalAddressId, "Caja 1");
-    await insertRegisterAtFiscalAddress(db, fiscalAddressId, "Caja 2");
-    await db
-      .insert(registerContingencyReporting)
-      .values({ registerId, since: new Date("2026-08-01T00:00:00.000Z") });
-    await probesEveryMinute("2026-09-10T12:00:00.000Z", 120);
-    await contingencyBetween(registerId, "2026-09-10T12:30:00.000Z", "2026-09-10T13:00:00.000Z");
-    const { headers } = await signedInWith(db, ["view_fiscal_documents"], NOW);
-
-    const response = await read(headers, fiscalAddressId);
-
-    const body = exceptionShareYearSchema.parse(response.json());
-    expect(body.months.find(({ month }) => month === "2026-09")?.contingency_time).toMatchObject({
-      share_tenths_of_percent: null,
-      state: "no_data",
-    });
-    expect(body.contingency_non_compliant_months).toEqual([]);
-  });
 });
