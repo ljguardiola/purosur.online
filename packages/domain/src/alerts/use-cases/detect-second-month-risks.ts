@@ -1,5 +1,6 @@
 import {
   contingencyTimeMeasurement,
+  isMonthClosed,
   monthAtRiskOfSecondConsecutiveBreach,
   monthWindow,
   nonCompliantMeasurementsOfMonth,
@@ -47,7 +48,7 @@ export async function detectSecondNonCompliantMonthRisks({
       contingencyTime: contingencyTimeMeasurement({
         window: previousWindow,
         now,
-        closed: true,
+        closed: isMonthClosed(previousMonth, today),
         runs: previousRuns,
         ...previousContingency,
       }),
@@ -60,7 +61,7 @@ export async function detectSecondNonCompliantMonthRisks({
     const { shareTenthsOfPercent } = contingencyTimeMeasurement({
       window: currentWindow,
       now,
-      closed: false,
+      closed: isMonthClosed(month, today),
       runs: currentRuns,
       ...(await risks.contingencyIntervalsAtFiscalAddress({
         fiscalAddressId: address.fiscalAddressId,
