@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fiscalAddressPartsOf } from "./fiscal-address-parts.js";
+import { fiscalAddressAt, fiscalAddressPartsOf } from "./fiscal-address-parts.js";
 
 const at = (time: string) => new Date(`2026-10-01T${time}:00.000Z`);
 
@@ -113,5 +113,38 @@ describe("fiscalAddressPartsOf", () => {
 
   it("has no part when the register never had an address", () => {
     expect(fiscalAddressPartsOf({ start: at("10:00"), end: at("11:00") }, [])).toEqual([]);
+  });
+});
+
+describe("fiscalAddressAt", () => {
+  const history = [
+    { assignedAt: at("09:00"), fiscalAddressId: "address-a" },
+    { assignedAt: at("11:00"), fiscalAddressId: "address-b" },
+  ];
+
+  it("belongs to the address the register reached at that very instant", () => {
+    expect(fiscalAddressAt(at("11:00"), history)).toBe("address-b");
+  });
+
+  it("belongs to the address the register had between two moves", () => {
+    expect(fiscalAddressAt(at("10:00"), history)).toBe("address-a");
+  });
+
+  it("belongs to the latest address once the register stopped moving", () => {
+    expect(fiscalAddressAt(at("12:00"), history)).toBe("address-b");
+  });
+
+  it("belongs to no address before the register's first address", () => {
+    expect(fiscalAddressAt(at("08:00"), history)).toBeNull();
+  });
+
+  it("belongs to the address the register has had since ever", () => {
+    expect(
+      fiscalAddressAt(at("08:00"), [{ assignedAt: null, fiscalAddressId: "address-a" }]),
+    ).toBe("address-a");
+  });
+
+  it("belongs to no address when the register never had one", () => {
+    expect(fiscalAddressAt(at("10:00"), [])).toBeNull();
   });
 });
