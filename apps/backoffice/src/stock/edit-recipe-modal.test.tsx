@@ -184,7 +184,7 @@ test("refuses an unreadable quantity, saying how to type it", async () => {
   await expect
     .element(
       dialog.getByText(
-        "Almendras: escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.",
+        "Almendras: escribí los kilos con hasta 3 decimales, por ejemplo 12,150.",
       ),
     )
     .toBeVisible();

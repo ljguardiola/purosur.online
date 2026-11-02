@@ -69,6 +69,14 @@ test("asks for a keyboard with the decimal comma for a line's cost", async () =>
     .toHaveAttribute("inputmode", "decimal");
 });
 
+test("groups thousands and takes a typed dot as the decimal comma in a line's cost", async () => {
+  const screen = await render(<Harness />);
+  const cost = screen.getByRole("textbox", { name: /^Costo por/ });
+  await userEvent.type(cost, "1234.50");
+
+  await expect.element(cost).toHaveValue("1.234,50");
+});
+
 test("lists each product with its brand name and net content", async () => {
   const screen = await render(<Harness products={[...offeredProducts, aceiteDeAlmendras]} />);
 

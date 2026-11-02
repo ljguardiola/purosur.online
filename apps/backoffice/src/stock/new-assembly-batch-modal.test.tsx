@@ -520,7 +520,7 @@ test("refuses a used quantity that cannot be read, saying how to type it", async
   await expect
     .element(
       dialog.getByText(
-        "Nueces: escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.",
+        "Nueces: escribí los kilos con hasta 3 decimales, por ejemplo 12,150.",
       ),
     )
     .toBeVisible();
@@ -537,7 +537,7 @@ test("shows a quantity the cloud refused next to its component", async () => {
   await expect
     .element(
       dialog
-        .getByText("Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.")
+        .getByText("Escribí los kilos con hasta 3 decimales, por ejemplo 12,150.")
         .first(),
     )
     .toBeVisible();

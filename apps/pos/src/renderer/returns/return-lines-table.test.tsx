@@ -1,10 +1,11 @@
 import type { ReturnLineRefusalBody } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { useState } from "react";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import type { ReturnDraft } from "./return-form";
-import { changeLine, checkLine, EMPTY_RETURN_DRAFT } from "./return-form";
+import { changeLine, checkLine, draftLinesFor, EMPTY_RETURN_DRAFT } from "./return-form";
 import { ReturnLinesTable } from "./return-lines-table";
 import type { SaleForReturn } from "./return-sale";
 import { HONEY, NIBS, PASTA, SALE, TEA } from "./test-support/sale-for-return";
@@ -34,6 +35,29 @@ async function renderTable({
     />,
   );
   return { screen, onCheck, onChange };
+}
+
+async function renderTypedTable(initial: ReturnDraft) {
+  await page.viewport(1280, 900);
+  onTestFinished(() => page.viewport(414, 896));
+  let typed = initial;
+  function TypedTable() {
+    const [draft, setDraft] = useState(initial);
+    return (
+      <ReturnLinesTable
+        sale={SALE}
+        draft={draft}
+        refusals={{}}
+        onCheck={() => {}}
+        onChange={(lineId, change) => {
+          typed = changeLine(draft, lineId, change);
+          setDraft(typed);
+        }}
+      />
+    );
+  }
+  const screen = await render(<TypedTable />);
+  return { screen, returnedQuantities: () => draftLinesFor(SALE, typed).map((l) => l.quantity) };
 }
 
 describe("ReturnLinesTable", () => {
@@ -173,6 +197,21 @@ describe("ReturnLinesTable", () => {
     await expect
       .element(screen.getByRole("textbox", { name: "Cantidad de Nibs de cacao" }))
       .toHaveValue("0,350");
+  });
+
+  it.each([
+    ["1.5", "1,5"],
+    ["1.500", "1,500"],
+  ])("takes a dot typed in a weighed line's quantity as the decimal comma: %s", async (keys, shown) => {
+    const { screen, returnedQuantities } = await renderTypedTable(
+      checkLine(EMPTY_RETURN_DRAFT, NIBS),
+    );
+    const quantity = screen.getByRole("textbox", { name: "Cantidad de Nibs de cacao" });
+    await userEvent.clear(quantity);
+    await userEvent.type(quantity, keys);
+
+    await expect.element(quantity).toHaveValue(shown);
+    expect(returnedQuantities()).toEqual([1500]);
   });
 
   it("tells the screen the reason and the destination the cashier chooses", async () => {

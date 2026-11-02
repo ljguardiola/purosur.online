@@ -358,7 +358,7 @@ test.each([
   ],
   [
     { kind: "validation_failed", field: "counted" },
-    "Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.",
+    "Escribí los kilos con hasta 3 decimales, por ejemplo 12,150.",
   ],
   [{ kind: "validation_failed", field: "notes" }, "No se pudo guardar el recuento"],
   [{ kind: "failed" }, "No se pudo guardar el recuento"],
@@ -631,7 +631,7 @@ test("asks for a quantity of a lot written the way it expects, registering nothi
   await expect
     .element(
       rendered.dialog.getByText(
-        "Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.",
+        "Escribí los kilos con hasta 3 decimales, por ejemplo 12,150.",
       ),
     )
     .toBeVisible();
