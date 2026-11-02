@@ -4,13 +4,17 @@ import {
   cancelPurchaseOrder,
   editPurchaseOrderLines,
   fetchPurchaseOrder,
+  fetchPurchaseOrderPdf,
   fetchPurchaseOrders,
+  fetchPurchaseOrderText,
+  sharePurchaseOrder,
 } from "./purchase-orders-api";
 import {
   CANCELLED_SUMMARY,
   DRAFT_ORDER,
   DRAFT_SUMMARY,
   ORDER_ID,
+  SENT_ORDER,
   SUPPLIER_ID,
 } from "./test-support/purchase-orders";
 import { AVENA_PRODUCT_ID, MIEL_PRODUCT_ID } from "./test-support/purchase-products";
@@ -295,5 +299,119 @@ describe("cancelPurchaseOrder", () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
 
     expect(await cancelPurchaseOrder(ORDER_ID)).toEqual(outcome);
+  });
+});
+
+describe("sharePurchaseOrder", () => {
+  test("posts the sharing and returns the order as saved", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, SENT_ORDER));
+
+    expect(await sharePurchaseOrder(ORDER_ID)).toEqual({ kind: "ok", order: SENT_ORDER });
+    expect(fetch).toHaveBeenCalledWith(`/api/purchase-orders/${ORDER_ID}/share`, {
+      method: "POST",
+    });
+  });
+
+  test("returns failed when the saved order does not have the expected shape", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { ...SENT_ORDER, state: "OTHER" }));
+
+    expect(await sharePurchaseOrder(ORDER_ID)).toEqual({ kind: "failed" });
+  });
+
+  test("reports an order that does not exist", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(404, { code: "purchase_order_not_found" }));
+
+    expect(await sharePurchaseOrder(ORDER_ID)).toEqual({ kind: "not_found" });
+  });
+
+  test("reports an order that can no longer be shared", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "purchase_order_not_shareable" }));
+
+    expect(await sharePurchaseOrder(ORDER_ID)).toEqual({ kind: "not_shareable" });
+  });
+
+  test("returns failed for a 404 or 409 it does not know", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(404, { code: "other" }));
+    expect(await sharePurchaseOrder(ORDER_ID)).toEqual({ kind: "failed" });
+
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(409, { code: "other" }));
+    expect(await sharePurchaseOrder(ORDER_ID)).toEqual({ kind: "failed" });
+  });
+
+  test.each(refusals)("answers a %i as %j", async (status, outcome) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
+
+    expect(await sharePurchaseOrder(ORDER_ID)).toEqual(outcome);
+  });
+
+  test("returns failed when the request cannot be sent", async () => {
+    vi.mocked(fetch).mockRejectedValue(new TypeError("offline"));
+
+    expect(await sharePurchaseOrder(ORDER_ID)).toEqual({ kind: "failed" });
+  });
+});
+
+describe("fetchPurchaseOrderPdf", () => {
+  test("returns the PDF the cloud answers", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response("%PDF-1.7", { status: 200, headers: { "Content-Type": "application/pdf" } }),
+    );
+
+    const outcome = await fetchPurchaseOrderPdf(ORDER_ID);
+
+    expect(outcome.kind).toBe("ok");
+    expect(outcome.kind === "ok" && (await outcome.blob.text())).toBe("%PDF-1.7");
+    expect(fetch).toHaveBeenCalledWith(`/api/purchase-orders/${ORDER_ID}/document.pdf`);
+  });
+
+  test("reports an order that does not exist", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(404, { code: "purchase_order_not_found" }));
+
+    expect(await fetchPurchaseOrderPdf(ORDER_ID)).toEqual({ kind: "not_found" });
+  });
+
+  test.each(refusals)("answers a %i as %j", async (status, outcome) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
+
+    expect(await fetchPurchaseOrderPdf(ORDER_ID)).toEqual(outcome);
+  });
+
+  test("returns failed when the request cannot be sent", async () => {
+    vi.mocked(fetch).mockRejectedValue(new TypeError("offline"));
+
+    expect(await fetchPurchaseOrderPdf(ORDER_ID)).toEqual({ kind: "failed" });
+  });
+});
+
+describe("fetchPurchaseOrderText", () => {
+  test("returns the text the cloud answers", async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response("Pedido a Distribuidora Andina", { status: 200 }));
+
+    expect(await fetchPurchaseOrderText(ORDER_ID)).toEqual({
+      kind: "ok",
+      value: { kind: "found", text: "Pedido a Distribuidora Andina" },
+    });
+    expect(fetch).toHaveBeenCalledWith(`/api/purchase-orders/${ORDER_ID}/document.txt`);
+  });
+
+  test("reports an order that does not exist", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(404, { code: "purchase_order_not_found" }));
+
+    expect(await fetchPurchaseOrderText(ORDER_ID)).toEqual({
+      kind: "ok",
+      value: { kind: "not_found" },
+    });
+  });
+
+  test.each(refusals)("answers a %i as %j", async (status, outcome) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
+
+    expect(await fetchPurchaseOrderText(ORDER_ID)).toEqual(outcome);
+  });
+
+  test("returns failed when the request cannot be sent", async () => {
+    vi.mocked(fetch).mockRejectedValue(new TypeError("offline"));
+
+    expect(await fetchPurchaseOrderText(ORDER_ID)).toEqual({ kind: "failed" });
   });
 });
