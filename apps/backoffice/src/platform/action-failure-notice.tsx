@@ -19,7 +19,7 @@ export function ActionFailureNotice({
         tone="error"
         icon={<RefreshCw />}
         title="Se actualizó el backoffice"
-        description="Recargá la página para seguir: este cambio no se guardó."
+        description="Recargá la página para seguir."
       />
     );
   }
