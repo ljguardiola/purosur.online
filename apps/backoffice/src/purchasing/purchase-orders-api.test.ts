@@ -385,7 +385,9 @@ describe("fetchPurchaseOrderPdf", () => {
 
 describe("fetchPurchaseOrderText", () => {
   test("returns the text the cloud answers", async () => {
-    vi.mocked(fetch).mockResolvedValue(new Response("Pedido a Distribuidora Andina", { status: 200 }));
+    vi.mocked(fetch).mockResolvedValue(
+      new Response("Pedido a Distribuidora Andina", { status: 200 }),
+    );
 
     expect(await fetchPurchaseOrderText(ORDER_ID)).toEqual({
       kind: "ok",

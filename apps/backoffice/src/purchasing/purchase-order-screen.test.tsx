@@ -5,7 +5,7 @@ import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { PurchaseOrderScreen } from "./purchase-order-screen";
 import type { PurchaseOrderScreenServices } from "./purchase-order-services";
-import { CANCELLED_ORDER, DRAFT_ORDER, ORDER_ID } from "./test-support/purchase-orders";
+import { CANCELLED_ORDER, DRAFT_ORDER, ORDER_ID, SENT_ORDER } from "./test-support/purchase-orders";
 import {
   AVENA_PRODUCT_ID,
   MIEL_PRODUCT_ID,
@@ -32,6 +32,12 @@ function createServices(
     }),
     editPurchaseOrderLines: vi.fn(),
     cancelPurchaseOrder: vi.fn(),
+    sharePurchaseOrder: vi.fn(),
+    fetchPurchaseOrderPdf: vi.fn(),
+    fetchPurchaseOrderText: vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: { kind: "found", text: "Pedido a Distribuidora Andina" },
+    }),
     ...overrides,
   };
 }
@@ -525,4 +531,169 @@ test("has no accessibility violations once cancelled", async () => {
   const screen = await loaded(services);
 
   await expectNoAccessibilityViolations(screen.container);
+});
+
+function sentServices(overrides: Partial<PurchaseOrderScreenServices> = {}) {
+  return createServices({
+    fetchPurchaseOrder: vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: { kind: "found", order: SENT_ORDER },
+    }),
+    ...overrides,
+  });
+}
+
+test("a sent order reads Enviado, is read-only and offers its cancellation", async () => {
+  const screen = await loaded(sentServices());
+
+  await expect.element(screen.getByText("Enviado")).toBeVisible();
+  await expect.element(screen.getByRole("table", { name: "Líneas del pedido" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Guardar" }).query()).toBeNull();
+  await expect.element(screen.getByRole("button", { name: "Cancelar pedido" })).toBeVisible();
+});
+
+test("cancelling a sent order asks first, then cancels it and shows it cancelled", async () => {
+  const services = sentServices();
+  vi.mocked(services.cancelPurchaseOrder).mockResolvedValue({ kind: "ok", order: CANCELLED_ORDER });
+  const screen = await loaded(services);
+  vi.mocked(services.fetchPurchaseOrder).mockResolvedValue({
+    kind: "ok",
+    value: { kind: "found", order: { ...CANCELLED_ORDER, id: ORDER_ID } },
+  });
+
+  await userEvent.click(screen.getByRole("button", { name: "Cancelar pedido" }));
+  expect(services.cancelPurchaseOrder).not.toHaveBeenCalled();
+  await userEvent.click(
+    screen.getByRole("dialog").getByRole("button", { name: "Cancelar pedido" }),
+  );
+
+  expect(services.cancelPurchaseOrder).toHaveBeenCalledWith(ORDER_ID);
+  await expect.element(screen.getByText("Pedido cancelado").first()).toBeVisible();
+  await expect.element(screen.getByText("Cancelado").first()).toBeVisible();
+});
+
+test("offers no cancellation of a read-only order the cloud answers cannot be cancelled", async () => {
+  const screen = await loaded(
+    sentServices({
+      fetchPurchaseOrder: vi.fn().mockResolvedValue({
+        kind: "ok",
+        value: { kind: "found", order: { ...SENT_ORDER, cancellable: false } },
+      }),
+    }),
+  );
+
+  await expect.element(screen.getByRole("table", { name: "Líneas del pedido" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Cancelar pedido" }).query()).toBeNull();
+});
+
+test("Compartir pedido opens the sharing of the order, in every state", async () => {
+  const draft = await loaded(createServices());
+  await userEvent.click(draft.getByRole("button", { name: "Compartir pedido" }));
+  await expect
+    .element(draft.getByRole("dialog").getByRole("heading", { name: "Compartir pedido" }))
+    .toBeVisible();
+  await expect.element(draft.getByText("Pedido a Distribuidora Andina").last()).toBeVisible();
+});
+
+test("a cancelled order can still be shared as a document, but not marked as sent", async () => {
+  const screen = await loaded(
+    createServices({
+      fetchPurchaseOrder: vi.fn().mockResolvedValue({
+        kind: "ok",
+        value: { kind: "found", order: CANCELLED_ORDER },
+      }),
+    }),
+  );
+
+  await userEvent.click(screen.getByRole("button", { name: "Compartir pedido" }));
+
+  const dialog = screen.getByRole("dialog");
+  await expect.element(dialog.getByRole("button", { name: "Descargar PDF" })).toBeVisible();
+  expect(dialog.getByRole("button", { name: "Marcar como enviado" }).query()).toBeNull();
+});
+
+test("marking as sent closes the sharing, says so and shows the order sent", async () => {
+  const services = createServices();
+  vi.mocked(services.sharePurchaseOrder).mockResolvedValue({ kind: "ok", order: SENT_ORDER });
+  const screen = await loaded(services);
+  vi.mocked(services.fetchPurchaseOrder).mockResolvedValue({
+    kind: "ok",
+    value: { kind: "found", order: SENT_ORDER },
+  });
+
+  await userEvent.click(screen.getByRole("button", { name: "Compartir pedido" }));
+  await userEvent.click(
+    screen.getByRole("dialog").getByRole("button", { name: "Marcar como enviado" }),
+  );
+
+  expect(services.sharePurchaseOrder).toHaveBeenCalledWith(ORDER_ID);
+  await expect.element(screen.getByText("Pedido marcado como enviado")).toBeVisible();
+  await expect.element(screen.getByText("Enviado").first()).toBeVisible();
+  expect(screen.getByRole("dialog").query()).toBeNull();
+  expect(screen.getByRole("button", { name: "Guardar" }).query()).toBeNull();
+});
+
+test("reads the order again when sharing finds it no longer shareable", async () => {
+  const services = createServices();
+  vi.mocked(services.sharePurchaseOrder).mockResolvedValue({ kind: "not_shareable" });
+  const screen = await loaded(services);
+  vi.mocked(services.fetchPurchaseOrder).mockResolvedValue({
+    kind: "ok",
+    value: { kind: "found", order: SENT_ORDER },
+  });
+
+  await userEvent.click(screen.getByRole("button", { name: "Compartir pedido" }));
+  const dialog = screen.getByRole("dialog");
+  await userEvent.click(dialog.getByRole("button", { name: "Marcar como enviado" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Actualizar el pedido" }));
+
+  await expect.element(screen.getByText("Enviado").first()).toBeVisible();
+  expect(screen.getByRole("dialog").query()).toBeNull();
+});
+
+test("shows the supplier's item under each product of a read-only order that has one", async () => {
+  const screen = await loaded(sentServices());
+
+  const table = screen.getByRole("table", { name: "Líneas del pedido" });
+  await expect
+    .element(table.getByText("Proveedor: MIEL-1K · Miel pura x 12 frascos"))
+    .toBeVisible();
+  expect(table.getByText(/^Proveedor:/).elements()).toHaveLength(1);
+});
+
+test("shows only the description when the supplier's item has no code", async () => {
+  const [first, second] = DRAFT_ORDER.lines;
+  if (!first || !second) {
+    throw new Error("fixture needs two lines");
+  }
+  const screen = await loaded(
+    sentServices({
+      fetchPurchaseOrder: vi.fn().mockResolvedValue({
+        kind: "ok",
+        value: {
+          kind: "found",
+          order: {
+            ...SENT_ORDER,
+            lines: [
+              { ...first, supplierItem: { code: null, description: "Miel x frasco" } },
+              second,
+            ],
+          },
+        },
+      }),
+    }),
+  );
+
+  await expect.element(screen.getByText("Proveedor: Miel x frasco")).toBeVisible();
+});
+
+test("has no accessibility violations as a sent order and with the sharing open", async () => {
+  const screen = await loaded(sentServices());
+
+  await expectNoAccessibilityViolations(screen.container);
+  await userEvent.click(screen.getByRole("button", { name: "Compartir pedido" }));
+  await expect
+    .element(screen.getByRole("dialog").getByText("Pedido a Distribuidora Andina"))
+    .toBeVisible();
+  await expectNoAccessibilityViolations(document.body);
 });
