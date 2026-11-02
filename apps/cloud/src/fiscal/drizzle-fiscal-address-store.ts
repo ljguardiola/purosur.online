@@ -6,11 +6,14 @@ import {
   type FiscalAddressStoreTransaction,
   type NewFiscalAddress,
 } from "@purosur/domain/fiscal/use-cases";
-import { asc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import { auditLog, fiscalAddresses } from "../platform/db/schema.js";
-import { storedFiscalAddress } from "./drizzle-fiscal-address-reader.js";
+import {
+  DrizzleFiscalAddressReader,
+  storedFiscalAddress,
+} from "./drizzle-fiscal-address-reader.js";
 
 const UNIQUE_VIOLATION = "23505";
 const FISCAL_ADDRESS_NAME_UNIQUE_INDEX = "fiscal_addresses_name_lower_key";
@@ -38,10 +41,7 @@ class DrizzleFiscalAddressStoreTransaction<TQueryResult extends PgQueryResultHKT
   }
 
   listFiscalAddresses(): Promise<FiscalAddress[]> {
-    return this.tx
-      .select(storedFiscalAddress)
-      .from(fiscalAddresses)
-      .orderBy(asc(fiscalAddresses.name));
+    return new DrizzleFiscalAddressReader(this.tx).listFiscalAddresses();
   }
 
   async lockFiscalAddress(fiscalAddressId: string): Promise<FiscalAddress | undefined> {
