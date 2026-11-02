@@ -1723,6 +1723,10 @@ export const sales = pgTable(
       "sales_void_authorizer_only_when_voided_check",
       sql`${table.voidAuthorizedBy} is null or ${table.state} = 'VOIDED'`,
     ),
+    check(
+      "sales_voided_by_only_when_voided_check",
+      sql`(${table.state} = 'VOIDED') = (${table.voidedBy} is not null)`,
+    ),
   ],
 );
 
