@@ -7,11 +7,18 @@ import {
 } from "@tanstack/react-query";
 import { useEffect, useEffectEvent, useState } from "react";
 import type { CloudReadOutcome } from "./cloud-read-outcome";
+import { useReleaseOutdated } from "./release-monitor";
 
 export type CloudData<T> =
   | { status: "loading"; lastValue?: T }
   | { status: "loaded"; value: T; refreshing: boolean }
-  | { status: "failed"; retryAfterSeconds?: number; retry: () => void; lastValue?: T };
+  | {
+      status: "failed";
+      retryAfterSeconds?: number;
+      outdated?: true;
+      retry: () => void;
+      lastValue?: T;
+    };
 
 type RefusedRead = Exclude<CloudReadOutcome<unknown>, { kind: "ok" }>;
 
@@ -77,6 +84,7 @@ export function useCloudQuery<T>({
   const endSession = useEffectEvent(onSessionEnded);
   const handleForbidden = useEffectEvent(() => onForbidden?.());
   const queryClient = useQueryClient();
+  const outdated = useReleaseOutdated();
   const query = useQuery({
     queryKey,
     queryFn: cloudQueryFn(read),
@@ -132,6 +140,7 @@ export function useCloudQuery<T>({
     return {
       status: "failed",
       ...(refusal?.kind === "rate_limited" ? { retryAfterSeconds: refusal.retryAfterSeconds } : {}),
+      ...(outdated ? { outdated: true as const } : {}),
       retry: () => void query.refetch(),
       ...kept,
     };

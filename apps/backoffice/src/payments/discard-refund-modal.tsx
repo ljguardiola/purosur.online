@@ -2,6 +2,7 @@ import type { PendingRefundsBody } from "@purosur/contracts";
 import { Button, formatCents, InlineNotice, Modal } from "@purosur/ui";
 import { CircleX, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import type { discardRefund } from "./refunds-api";
@@ -145,9 +146,7 @@ export function DiscardRefundModal({
           </p>
         ) : null}
         {notice?.kind === "attemptFailed" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
+          <ActionFailureNotice
             title="No se descartó el reembolso"
             description="Volvé a intentarlo."
           />

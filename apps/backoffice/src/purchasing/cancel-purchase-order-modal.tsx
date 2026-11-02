@@ -2,6 +2,7 @@ import type { PurchaseOrderDetail } from "@purosur/contracts";
 import { Button, InlineNotice, Modal } from "@purosur/ui";
 import { RotateCcw, ShieldX, Trash2, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import type { cancelPurchaseOrder } from "./purchase-orders-api";
@@ -133,12 +134,7 @@ export function CancelPurchaseOrderModal({
       <div className="flex flex-col gap-4">
         <p className="text-body text-text">El pedido queda cancelado y ya no se puede editar.</p>
         {notice?.kind === "attemptFailed" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title="No se canceló el pedido"
-            description="Volvé a intentarlo."
-          />
+          <ActionFailureNotice title="No se canceló el pedido" description="Volvé a intentarlo." />
         )}
         {notice?.kind === "rateLimited" && (
           <InlineNotice

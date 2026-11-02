@@ -21,7 +21,7 @@ import {
   useRefreshPurchasing,
   useSuppliersQuery,
 } from "./purchasing-queries";
-import { type ReadNotice, readNoticeContent } from "./supplier-price-list-read-notice";
+import { type ReadNotice, useReadNoticeContent } from "./supplier-price-list-read-notice";
 import { webPageRefusalHint, webPageRefusalMessage } from "./supplier-price-list-web-page-refusal";
 import type {
   loadSupplierPriceListWebPage,
@@ -70,7 +70,8 @@ const SOURCE_OPTIONS = [
 ] as const;
 
 function UploadNotice({ notice }: { notice: ReadNotice | null }) {
-  return notice === null ? null : <InlineNotice {...readNoticeContent(notice)} />;
+  const content = useReadNoticeContent(notice);
+  return content === null ? null : <InlineNotice {...content} />;
 }
 
 export function UploadSupplierPriceListModal({

@@ -2,6 +2,7 @@ import { type PurchaseOrderDetail, purchaseOrderEditBodySchema } from "@purosur/
 import { Button, Card, InlineNotice, type LoadStatus, useRequestForm } from "@purosur/ui";
 import { Check, ShieldX, Trash2, TriangleAlert } from "lucide-react";
 import { useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import type { PurchaseProducts } from "./purchase-form";
@@ -102,12 +103,7 @@ export function PurchaseOrderDraftForm({
   return (
     <>
       {notice?.kind === "attemptFailed" && (
-        <InlineNotice
-          tone="error"
-          icon={<TriangleAlert />}
-          title="No se guardó el pedido"
-          description="Volvé a intentarlo."
-        />
+        <ActionFailureNotice title="No se guardó el pedido" description="Volvé a intentarlo." />
       )}
       {notice?.kind === "rateLimited" && (
         <InlineNotice

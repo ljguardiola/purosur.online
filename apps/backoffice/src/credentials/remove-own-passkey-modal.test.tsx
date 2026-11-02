@@ -1,6 +1,7 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import type { Passkey } from "./passkey-list";
 import {
@@ -182,4 +183,16 @@ test("has no accessibility violations with the remove modal open", async () => {
   await renderModal(services);
 
   await expectNoAccessibilityViolations(document.body);
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when the removal is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices();
+  vi.mocked(services.removePasskey).mockResolvedValue({ kind: "failed" });
+  const { dialog } = await renderModal(services);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
+
+  await expect.element(dialog.getByText("No se pudo dar de baja la passkey")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
 });

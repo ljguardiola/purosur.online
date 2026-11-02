@@ -17,6 +17,7 @@ import {
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { ArrowRight, FilePen, FileX, Info, Receipt, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import type {
@@ -278,12 +279,7 @@ export function ReviewRejectedDocumentModal({
               />
             )}
             {notice?.kind === "attemptFailed" && (
-              <InlineNotice
-                tone="error"
-                icon={<TriangleAlert />}
-                title="No se pudo corregir el informe"
-                description="Probá de nuevo."
-              />
+              <ActionFailureNotice title="No se pudo corregir el informe" />
             )}
             {notice?.kind === "rateLimited" && (
               <InlineNotice

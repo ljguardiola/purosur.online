@@ -4,6 +4,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { radioLabel } from "../platform/test-support/radio-label";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import { countMomentNow } from "./count-moment";
 import { NewCountModal } from "./new-count-modal";
@@ -651,5 +652,20 @@ test("shows the refusal of the lots the cloud reports, keeping the modal open", 
       rendered.dialog.getByText("Los lotes del producto cambiaron. Elegí el producto de nuevo."),
     )
     .toBeVisible();
+  expect(onRegistered).not.toHaveBeenCalled();
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when saving the count is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices();
+  vi.mocked(services.registerCount).mockRejectedValue(new Error("network down"));
+  const onRegistered = vi.fn();
+  const rendered = await renderModal(services, { onRegistered });
+  await count(rendered, "Almendras peladas", "12,150");
+
+  await userEvent.click(rendered.dialog.getByRole("button", { name: REGISTER }));
+
+  await expect.element(rendered.dialog.getByText("No se pudo guardar el recuento")).toBeVisible();
+  await expect.element(rendered.dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
   expect(onRegistered).not.toHaveBeenCalled();
 });

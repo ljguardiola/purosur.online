@@ -1,5 +1,6 @@
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import {
   RemoveEveryUserPasskeyModal,
@@ -259,4 +260,19 @@ test("counts the passkeys with the thousands separator", async () => {
   const { dialog } = await renderModal(createServices(), {}, { passkeyCount: 1998 });
 
   await expect.element(dialog.getByText(/^Sus 1\.998 passkeys dejan de servir/)).toBeVisible();
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when removing the passkeys is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices();
+  vi.mocked(services.removeEveryUserPasskey).mockResolvedValue({ kind: "failed" });
+  const onRemoved = vi.fn();
+  const { dialog } = await renderModal(services, { onRemoved });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Dar de baja todas" }));
+
+  await expect.element(dialog.getByText("No se pudieron dar de baja las passkeys")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  expect(dialog.getByText("Probá de nuevo.").query()).toBeNull();
+  expect(onRemoved).not.toHaveBeenCalled();
 });

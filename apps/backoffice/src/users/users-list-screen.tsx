@@ -31,6 +31,7 @@ import {
   X,
 } from "lucide-react";
 import { type ComponentType, Suspense, useEffect, useEffectEvent, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { useAuthorization } from "../platform/authorization-modal";
 import type { BranchUser, BranchUserRole } from "../platform/branch-users-api";
 import { cloudTableState } from "../platform/cloud-table-state";
@@ -253,12 +254,7 @@ function NewUserModal({
       >
         <div className="flex flex-col gap-4">
           {notice?.kind === "attemptFailed" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No se pudo crear el usuario"
-              description="Probá de nuevo."
-            />
+            <ActionFailureNotice title="No se pudo crear el usuario" />
           )}
           {notice?.kind === "unknownRole" && (
             <InlineNotice

@@ -1,7 +1,8 @@
 import { Button, InlineNotice, Modal } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
-import { ShieldX, TriangleAlert, UserX, X } from "lucide-react";
+import { ShieldX, UserX, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { useAuthorization } from "../platform/authorization-modal";
 import type { BranchUser } from "../platform/branch-users-api";
 import { retryAfterDetail } from "../platform/retry-after-detail";
@@ -138,14 +139,7 @@ export function DeactivateUserModal({
       >
         <div className="flex flex-col gap-4">
           <p className="text-body text-text">Se puede reactivar más adelante.</p>
-          {attemptFailed ? (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No se pudo desactivar el usuario"
-              description="Probá de nuevo."
-            />
-          ) : null}
+          {attemptFailed ? <ActionFailureNotice title="No se pudo desactivar el usuario" /> : null}
           {rateLimitedSeconds !== null && (
             <InlineNotice
               tone="error"

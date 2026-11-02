@@ -5,6 +5,7 @@ import {
   roleDetailSchema,
   roleSummarySchema,
 } from "@purosur/contracts";
+import { cloudFetch } from "../platform/cloud-fetch";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { type RoleSummary, roleSummaryFromWire } from "../platform/roles-api";
@@ -39,7 +40,7 @@ export type EditRoleOutcome =
   | { kind: "failed" };
 
 function sendJson(method: "POST" | "PUT", path: string, body: unknown): Promise<Response> {
-  return fetch(path, {
+  return cloudFetch(path, {
     method,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -104,7 +105,7 @@ function roleDetailFromWire(row: RoleDetailWire) {
 export async function fetchRole(id: string): Promise<FetchRoleOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/api/roles/${id}`);
+    response = await cloudFetch(`/api/roles/${id}`);
   } catch {
     return { kind: "failed" };
   }

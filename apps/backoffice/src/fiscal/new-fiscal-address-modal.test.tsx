@@ -2,6 +2,7 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { type Locator, userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import type { FiscalAddress } from "./fiscal-addresses-api";
 import {
@@ -241,4 +242,17 @@ test("opens with the initial name already in the name field, still editable", as
     name: "Local Sur 2",
     street_address: "Calle Ficticia 123, CABA",
   });
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when creating the fiscal address is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices();
+  vi.mocked(services.createFiscalAddress).mockResolvedValue({ kind: "failed" });
+  const { dialog } = await renderModal(services);
+
+  await fillAndSave(dialog, "Depósito Central", "Calle Ficticia 123, CABA");
+
+  await expect.element(dialog.getByText("No se pudo crear el domicilio fiscal")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  expect(dialog.getByText("Probá de nuevo.").query()).toBeNull();
 });

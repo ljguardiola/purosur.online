@@ -1,6 +1,7 @@
 import { Button, formatPointOfSaleNumber, InlineNotice, Modal } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { ShieldX, Trash2, TriangleAlert, X } from "lucide-react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import type {
   authorizeSession,
@@ -140,12 +141,7 @@ export function RetireOfflinePointOfSaleModal({
             />
           )}
           {notice?.kind === "attemptFailed" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No se pudo dar de baja el punto de venta"
-              description="Probá de nuevo."
-            />
+            <ActionFailureNotice title="No se pudo dar de baja el punto de venta" />
           )}
           {notice?.kind === "rateLimited" && (
             <InlineNotice

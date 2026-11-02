@@ -1,7 +1,8 @@
 import { Button, InlineNotice, Modal } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
-import { ShieldX, Trash2, TriangleAlert, X } from "lucide-react";
+import { ShieldX, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { useAuthorization } from "../platform/authorization-modal";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import type {
@@ -133,12 +134,7 @@ export function RemoveOwnPasskeyModal({
                 : ""}
             </p>
             {attemptFailed ? (
-              <InlineNotice
-                tone="error"
-                icon={<TriangleAlert />}
-                title="No se pudo dar de baja la passkey"
-                description="Probá de nuevo."
-              />
+              <ActionFailureNotice title="No se pudo dar de baja la passkey" />
             ) : null}
             {rateLimitedSeconds !== null && (
               <InlineNotice

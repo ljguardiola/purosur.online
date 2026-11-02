@@ -4,6 +4,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { StubProductCreationModal } from "../platform/test-support/creation-parts";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
@@ -714,4 +715,19 @@ test("loading a line by packages asks for the number of packages and the quantit
 
   expect(group.getByText("Presentación").query()).toBeNull();
   await expect.element(group.getByRole("textbox", { name: /^Cantidad por paquete/ })).toBeVisible();
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when registering the purchase is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices();
+  vi.mocked(services.registerPurchase).mockResolvedValue({ kind: "failed" });
+  const screen = await opened(services);
+  await fillHeader(screen);
+  await fillQuantityLine(screen);
+
+  await register(screen);
+
+  await expect.element(screen.getByText("No se registró la compra")).toBeVisible();
+  await expect.element(screen.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  expect(screen.getByText("Volvé a intentarlo.").query()).toBeNull();
 });

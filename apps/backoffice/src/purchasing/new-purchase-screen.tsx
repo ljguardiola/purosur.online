@@ -14,8 +14,9 @@ import {
   useRequestForm,
 } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
-import { Check, ShieldX, TriangleAlert, Truck, X } from "lucide-react";
+import { Check, ShieldX, Truck, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { creatableChoice } from "../platform/creatable-options";
 import { withCreatedProducts } from "../platform/created-products";
@@ -238,12 +239,7 @@ export function NewPurchaseScreen({
         <LoadFailure {...cloudLoadFailure(data, "el formulario de compra")} />
       )}
       {notice?.kind === "attemptFailed" && (
-        <InlineNotice
-          tone="error"
-          icon={<TriangleAlert />}
-          title="No se registró la compra"
-          description="Volvé a intentarlo."
-        />
+        <ActionFailureNotice title="No se registró la compra" description="Volvé a intentarlo." />
       )}
       {notice?.kind === "rateLimited" && (
         <InlineNotice

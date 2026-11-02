@@ -15,6 +15,12 @@ import type {
   GenerateInternalBarcodeOutcome,
   generateInternalBarcode,
 } from "./internal-barcodes-api";
+import { type ReleaseMonitor, ReleaseMonitorContext } from "./release-monitor";
+import {
+  fakeReleaseMonitor,
+  OUTDATED_TAB_ADVICE,
+  releaseMonitorThatTurnsOutdated,
+} from "./test-support/release-monitor";
 
 function scanInputOf(dialog: Locator) {
   return dialog.getByRole("textbox", { name: "Escanear otro código" });
@@ -69,17 +75,21 @@ async function renderChips({
   initialCodes = [],
   generate = vi.fn<typeof generateInternalBarcode>(),
   onSessionEnded = () => {},
+  releaseMonitor = fakeReleaseMonitor(false),
 }: {
   initialCodes?: string[];
   generate?: typeof generateInternalBarcode;
   onSessionEnded?: () => void;
+  releaseMonitor?: ReleaseMonitor;
 } = {}) {
   const screen = await render(
-    <Harness
-      initialCodes={initialCodes}
-      generateInternalBarcode={generate}
-      onSessionEnded={onSessionEnded}
-    />,
+    <ReleaseMonitorContext value={releaseMonitor}>
+      <Harness
+        initialCodes={initialCodes}
+        generateInternalBarcode={generate}
+        onSessionEnded={onSessionEnded}
+      />
+    </ReleaseMonitorContext>,
   );
   return screen.locator;
 }
@@ -489,4 +499,17 @@ test("announces a generate failure as an alert", async () => {
   await expect
     .element(chips.getByRole("alert"))
     .toHaveTextContent("No se pudo generar el código interno. Probá de nuevo.");
+});
+
+test("tells a tab that turns outdated while the generation is refused to reload", async () => {
+  const release = releaseMonitorThatTurnsOutdated();
+  const generate = vi.fn<typeof generateInternalBarcode>().mockImplementation(() => {
+    release.turnOutdated();
+    return Promise.resolve({ kind: "failed" });
+  });
+  const chips = await renderChips({ generate, releaseMonitor: release.monitor });
+
+  await userEvent.click(generateButtonOf(chips));
+
+  await expect.element(chips.getByRole("alert")).toHaveTextContent(OUTDATED_TAB_ADVICE);
 });

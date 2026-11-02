@@ -2,6 +2,7 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import type { MovementKind } from "./stock-movement-form";
 import { StockMovementModal } from "./stock-movement-modal";
@@ -497,4 +498,18 @@ test("groups thousands and takes a typed dot as the decimal comma in a quantity 
   await userEvent.type(field, "1234.5");
 
   await expect.element(field).toHaveValue("1.234,5");
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when registering the movement is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices();
+  vi.mocked(services.recordLoss).mockResolvedValue({ kind: "failed" });
+  const rendered = await renderForm(services);
+  await userEvent.click(cardLabel(rendered, "Pérdida"));
+  await fillLoss(rendered);
+
+  await userEvent.click(rendered.dialog.getByRole("button", { name: "Registrar la pérdida" }));
+
+  await expect.element(rendered.dialog.getByText("No se pudo guardar el movimiento")).toBeVisible();
+  await expect.element(rendered.dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
 });

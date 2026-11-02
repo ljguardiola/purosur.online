@@ -4,6 +4,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { radioLabel } from "../platform/test-support/radio-label";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import { EditDiscountModal, type EditDiscountModalServices } from "./edit-discount-modal";
 import type { DiscountReload } from "./pricing-queries";
@@ -744,4 +745,18 @@ test("typing in the category target offers only the matching categories", async 
       .all()
       .map((option) => option.element().textContent),
   ).toEqual(["Almacén › Yerbas"]);
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when saving is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices();
+  vi.mocked(services.editDiscount).mockResolvedValue({ kind: "failed" });
+  const { dialog } = await renderModal(services);
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Otro nombre");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(dialog.getByText("No se guardó la promoción")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  await expect.element(dialog.getByRole("textbox", { name: /^Nombre/ })).toHaveValue("Otro nombre");
 });

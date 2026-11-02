@@ -8,6 +8,7 @@ import {
   purchaseOrderDetailSchema,
   purchaseOrderListSchema,
 } from "@purosur/contracts";
+import { cloudFetch } from "../platform/cloud-fetch";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readCloudJson } from "../platform/read-cloud-json";
@@ -84,7 +85,7 @@ async function validationFailed(response: Response): Promise<ValidationFailed | 
 
 async function send(path: string, init: RequestInit): Promise<Response | undefined> {
   try {
-    return await fetch(path, init);
+    return await cloudFetch(path, init);
   } catch {
     return undefined;
   }
@@ -105,7 +106,7 @@ export function fetchPurchaseOrders(
 export async function fetchPurchaseOrder(id: string): Promise<FetchPurchaseOrderOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/api/purchase-orders/${id}`);
+    response = await cloudFetch(`/api/purchase-orders/${id}`);
   } catch {
     return { kind: "failed" };
   }

@@ -11,6 +11,7 @@ import {
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { Check, Pencil, RotateCcw, ShieldX, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { formatCentsWithUnit } from "./money";
@@ -328,20 +329,10 @@ export function PriceChangeModal({
             />
           )}
           {notice?.kind === "attemptFailed" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No se pudo guardar el precio"
-              description="Probá de nuevo."
-            />
+            <ActionFailureNotice title="No se pudo guardar el precio" />
           )}
           {notice?.kind === "confirmFailed" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No se pudo confirmar el precio"
-              description="Probá de nuevo."
-            />
+            <ActionFailureNotice title="No se pudo confirmar el precio" />
           )}
           {notice?.kind === "rateLimited" && (
             <InlineNotice
@@ -370,12 +361,7 @@ export function PriceChangeModal({
             <InlineNotice tone="error" icon={<TriangleAlert />} title="Producto desactivado" />
           )}
           {notice?.kind === "reloadFailed" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No se pudieron recargar los datos"
-              description="Probá de nuevo."
-            />
+            <ActionFailureNotice title="No se pudieron recargar los datos" />
           )}
           {offersReload ? (
             <Button

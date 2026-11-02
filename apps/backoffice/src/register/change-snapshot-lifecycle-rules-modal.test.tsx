@@ -2,6 +2,7 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import {
   ChangeSnapshotLifecycleRulesModal,
@@ -283,4 +284,17 @@ test("ends the session when the change finds no open session", async () => {
   await submit(dialog);
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when changing the rules is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices();
+  vi.mocked(services.changeSnapshotLifecycleRules).mockResolvedValue({ kind: "failed" });
+  const { dialog } = await renderModal(services);
+
+  await submit(dialog);
+
+  await expect.element(dialog.getByText("No se pudieron cambiar las reglas")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  expect(dialog.getByText("Probá de nuevo.").query()).toBeNull();
 });

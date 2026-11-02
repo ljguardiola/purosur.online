@@ -3,6 +3,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
 import { expect, test, vi } from "vitest";
 import { type Locator, page, userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import {
   EditRegisterPointOfSaleModal,
@@ -420,4 +421,17 @@ test("typing part of an existing fiscal address offers it and no creation entry"
 
   await expect.element(page.getByRole("option", { name: "Local Norte" })).toBeVisible();
   expect(page.getByRole("option", { name: /^Crear domicilio fiscal/ }).query()).toBeNull();
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when saving the point of sale is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices();
+  vi.mocked(services.configureRegisterPointOfSale).mockResolvedValue({ kind: "failed" });
+  const { dialog } = await renderModal({ services });
+
+  await save(dialog);
+
+  await expect.element(dialog.getByText("No se pudo guardar el cambio")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  expect(dialog.getByText("Probá de nuevo.").query()).toBeNull();
 });

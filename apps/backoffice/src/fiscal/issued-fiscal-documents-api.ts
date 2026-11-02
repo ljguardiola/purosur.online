@@ -7,6 +7,7 @@ import {
   type ReportRegisterListBody,
   reportRegisterListSchema,
 } from "@purosur/contracts";
+import { cloudFetch } from "../platform/cloud-fetch";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readCloudJson } from "../platform/read-cloud-json";
@@ -42,7 +43,7 @@ export async function fetchIssuedFiscalDocument(voucher: {
   const path = `/api/fiscal/documents/${voucher.voucher_type}/${voucher.point_of_sale}/${voucher.number}`;
   let response: Response;
   try {
-    response = await fetch(path);
+    response = await cloudFetch(path);
   } catch {
     return { kind: "failed" };
   }

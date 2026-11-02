@@ -3,13 +3,13 @@ import {
   ButtonLink,
   EmptyState,
   FloatingNotification,
-  InlineNotice,
   LoadFailure,
   LoadingPlaceholder,
 } from "@purosur/ui";
 import { createLink } from "@tanstack/react-router";
-import { Ban, Check, Laptop, LogOut, Play, ShieldAlert, TriangleAlert } from "lucide-react";
+import { Ban, Check, Laptop, LogOut, Play, ShieldAlert } from "lucide-react";
 import { useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { ScreenLayout } from "../shell/screen-layout";
@@ -241,14 +241,7 @@ export function CompromiseResponseScreen({
       {data.status === "failed" && (
         <LoadFailure {...cloudLoadFailure(data, "la respuesta ante un compromiso")} />
       )}
-      {notice?.kind === "startFailed" && (
-        <InlineNotice
-          tone="error"
-          icon={<TriangleAlert />}
-          title="No se pudo comenzar"
-          description="Probá de nuevo."
-        />
-      )}
+      {notice?.kind === "startFailed" && <ActionFailureNotice title="No se pudo comenzar" />}
       <StepAttemptNotices
         notice={notice?.kind === "startFailed" ? null : (notice ?? null)}
         failedTitle="No se pudo marcar como hecho"

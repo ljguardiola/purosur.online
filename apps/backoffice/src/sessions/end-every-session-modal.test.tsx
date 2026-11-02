@@ -1,5 +1,7 @@
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { ReleaseMonitorContext } from "../platform/release-monitor";
+import { fakeReleaseMonitor, OUTDATED_TAB_ADVICE } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import { EndEverySessionModal, type EndEverySessionModalServices } from "./end-every-session-modal";
 
@@ -16,6 +18,7 @@ beforeEach(() => {
 type Handlers = {
   onClose?: () => void;
   onSessionEnded?: () => void;
+  outdatedTab?: boolean;
 };
 
 async function renderModal(
@@ -24,14 +27,16 @@ async function renderModal(
   open = true,
 ) {
   const screen = await render(
-    <main>
-      <EndEverySessionModal
-        open={open}
-        onClose={handlers.onClose ?? (() => {})}
-        onSessionEnded={handlers.onSessionEnded ?? (() => {})}
-        services={services}
-      />
-    </main>,
+    <ReleaseMonitorContext value={fakeReleaseMonitor(handlers.outdatedTab ?? false)}>
+      <main>
+        <EndEverySessionModal
+          open={open}
+          onClose={handlers.onClose ?? (() => {})}
+          onSessionEnded={handlers.onSessionEnded ?? (() => {})}
+          services={services}
+        />
+      </main>
+    </ReleaseMonitorContext>,
   );
   return {
     screen,
@@ -135,4 +140,15 @@ test("shows an inline failure and keeps the modal open when the sessions could n
   await expect.element(dialog.getByText("No se pudieron cerrar las sesiones")).toBeVisible();
   await expect.element(dialog.getByText("Probá de nuevo.")).toBeVisible();
   expect(onSessionEnded).not.toHaveBeenCalled();
+});
+
+test("tells an outdated tab that the backoffice was updated when ending the sessions is refused", async () => {
+  const services = createServices();
+  vi.mocked(services.endEverySession).mockResolvedValue({ kind: "failed" });
+  const { dialog } = await renderModal(services, { outdatedTab: true });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Cerrar todas las sesiones" }));
+
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  await expect.element(dialog.getByText("No se pudieron cerrar las sesiones")).toBeVisible();
 });

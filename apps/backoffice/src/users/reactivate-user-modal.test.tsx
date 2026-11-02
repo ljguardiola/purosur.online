@@ -2,6 +2,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { BranchUser } from "../platform/branch-users-api";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import { ReactivateUserModal, type ReactivateUserModalServices } from "./reactivate-user-modal";
 
@@ -164,4 +165,16 @@ test("has no accessibility violations with the reactivate modal open", async () 
   await expect.element(dialog).toBeVisible();
 
   await expectNoAccessibilityViolations(document.body);
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when reactivating is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices();
+  vi.mocked(services.reactivateUser).mockResolvedValue({ kind: "failed" });
+  const { dialog } = await renderModal(services);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Reactivar" }));
+
+  await expect.element(dialog.getByText("No se pudo reactivar el usuario")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
 });

@@ -2,17 +2,11 @@ import {
   type BuyerIdentificationThresholdRecordBody,
   buyerIdentificationThresholdRecordBodySchema,
 } from "@purosur/contracts";
-import {
-  Button,
-  formatCents,
-  InlineNotice,
-  Modal,
-  type RequestSubmission,
-  useRequestForm,
-} from "@purosur/ui";
+import { Button, formatCents, Modal, type RequestSubmission, useRequestForm } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { Check, Landmark, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { useAuthorization } from "../platform/authorization-modal";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { formatDisplayDate } from "../platform/display-date";
@@ -218,14 +212,7 @@ export function RecordBuyerIdentificationThresholdModal({
         }
       >
         <div className="flex flex-col gap-4">
-          {attemptFailed ? (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No se pudo cargar el umbral"
-              description="Probá de nuevo."
-            />
-          ) : null}
+          {attemptFailed ? <ActionFailureNotice title="No se pudo cargar el umbral" /> : null}
           <form.AppField name="amount">
             {(field) => (
               <field.TextField kind="price" label="Importe" prefix="$" decimals={2} required />

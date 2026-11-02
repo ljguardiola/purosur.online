@@ -2,12 +2,12 @@ import type { InternalBarcodeGenerationBody } from "@purosur/contracts";
 import { FieldGroup, fieldErrorMessage, IconButton, useFieldContext } from "@purosur/ui";
 import { Barcode, ScanBarcode, X } from "lucide-react";
 import { type KeyboardEvent, useId, useRef, useState } from "react";
+import { useFailureText } from "./action-failure-notice";
 import { type BarcodeListValue, internalBarcodeGenerationRequestFrom } from "./barcode-list";
 import type { generateInternalBarcode } from "./internal-barcodes-api";
 import { useSendToMyAccount } from "./send-to-my-account";
 
-export const PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED =
-  "No se pudo generar el código interno. Probá de nuevo.";
+export const PRODUCT_GENERATE_INTERNAL_BARCODE_FAILED = `No se pudo generar el código interno. Probá de nuevo.`;
 
 const barcodeActionClassName =
   "flex h-control-xl flex-1 items-center justify-center gap-2 rounded-lg px-3 text-body font-bold " +
@@ -184,17 +184,18 @@ export function useGenerateInternalBarcode(
 ) {
   const sendToMyAccount = useSendToMyAccount();
   const [generating, setGenerating] = useState(false);
-  const [generateError, setGenerateError] = useState<string | undefined>(undefined);
+  const [generateFailed, setGenerateFailed] = useState(false);
+  const generateError = useFailureText(generateFailedMessage);
   const requestIdRef = useRef(0);
 
   const reset = () => {
     requestIdRef.current += 1;
     setGenerating(false);
-    setGenerateError(undefined);
+    setGenerateFailed(false);
   };
 
   async function generateFor(request: InternalBarcodeGenerationBody) {
-    setGenerateError(undefined);
+    setGenerateFailed(false);
     clearRateLimited();
     setGenerating(true);
     requestIdRef.current += 1;
@@ -220,14 +221,14 @@ export function useGenerateInternalBarcode(
       onRateLimited(outcome.retryAfterSeconds);
       return;
     }
-    setGenerateError(generateFailedMessage);
+    setGenerateFailed(true);
   }
 
   const request = generating ? undefined : internalBarcodeGenerationRequestFrom(chips.codes);
   const generation: InternalBarcodeGeneration = {
     start: request === undefined ? undefined : () => void generateFor(request),
     generating,
-    error: generateError,
+    error: generateFailed ? generateError : undefined,
   };
 
   return { generation, reset };

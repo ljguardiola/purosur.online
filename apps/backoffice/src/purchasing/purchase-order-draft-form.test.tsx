@@ -2,6 +2,7 @@ import type { PurchaseOrderDetail } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import { PurchaseOrderDraftForm } from "./purchase-order-draft-form";
 import type { PurchaseOrderScreenServices } from "./purchase-order-services";
@@ -222,4 +223,17 @@ test("offers no cancellation when the cloud answers the order cannot be cancelle
 
   await expect.element(screen.getByRole("button", { name: "Guardar" })).toBeVisible();
   expect(screen.getByRole("button", { name: "Cancelar pedido" }).query()).toBeNull();
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when saving is refused", async () => {
+  openAsOutdatedTab();
+  const editPurchaseOrderLines = vi
+    .fn<EditPurchaseOrderLines>()
+    .mockResolvedValue({ kind: "failed" });
+  const screen = await renderForm({ editPurchaseOrderLines });
+
+  await save(screen);
+
+  await expect.element(screen.getByText("No se guardó el pedido")).toBeVisible();
+  await expect.element(screen.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
 });

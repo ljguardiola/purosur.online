@@ -5,6 +5,7 @@ import {
   contingencyTicketRecoveryFinishResponseSchema,
 } from "@purosur/contracts";
 import type { z } from "zod";
+import { cloudFetch } from "../platform/cloud-fetch";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 
@@ -44,7 +45,7 @@ async function readOutcome<T>(
 
 export function fetchContingencyTicketRecoveries(): Promise<FetchContingencyTicketRecoveriesOutcome> {
   return readOutcome(
-    () => fetch("/api/contingency-backup-tickets/recoveries"),
+    () => cloudFetch("/api/contingency-backup-tickets/recoveries"),
     contingencyTicketRecoveriesResponseSchema,
   );
 }
@@ -54,7 +55,7 @@ export function finishContingencyTicketRecovery(
 ): Promise<FinishContingencyTicketRecoveryOutcome> {
   return readOutcome(
     () =>
-      fetch(`/api/contingency-backup-tickets/recoveries/${recoveryId}/finish`, {
+      cloudFetch(`/api/contingency-backup-tickets/recoveries/${recoveryId}/finish`, {
         method: "POST",
       }),
     contingencyTicketRecoveryFinishResponseSchema,

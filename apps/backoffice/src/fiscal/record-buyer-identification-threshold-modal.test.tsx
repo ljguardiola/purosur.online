@@ -3,6 +3,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { type Locator, page, userEvent } from "vitest/browser";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import type { BuyerIdentificationThresholds } from "./buyer-identification-threshold-api";
 import {
@@ -584,4 +585,19 @@ test("groups thousands and takes a typed dot as the decimal comma in the amount"
   await userEvent.type(field, "1234.5");
 
   await expect.element(field).toHaveValue("1.234,5");
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when recording the threshold is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices();
+  vi.mocked(services.recordBuyerIdentificationThreshold).mockResolvedValue({ kind: "failed" });
+  const { dialog } = await renderModal({ services });
+  await fillForm(dialog, "15000,00", "01102026");
+
+  await submit(dialog);
+
+  await expect.element(dialog.getByText("No se pudo cargar el umbral")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  expect(dialog.getByText("Probá de nuevo.").query()).toBeNull();
+  await expect.element(dialog.getByRole("textbox", { name: /^Importe/ })).toHaveValue("15.000,00");
 });

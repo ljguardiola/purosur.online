@@ -1,3 +1,4 @@
+import { Button } from "../forms/button";
 import { CloseButton } from "../shared/close-button";
 import type { Icon } from "../shared/icon";
 import { type NoticeTone, toneClassName } from "../shared/tone";
@@ -7,10 +8,11 @@ export type NotificationCardProps = {
   tone: NoticeTone;
   icon: Icon;
   title: string;
-  description: string;
+  description?: string;
   whatToDo?: string;
   time?: string;
   onClose?: () => void;
+  action?: { label: string; onPress: () => void };
 };
 
 export function NotificationCard({
@@ -21,6 +23,7 @@ export function NotificationCard({
   whatToDo,
   time,
   onClose,
+  action,
 }: NotificationCardProps) {
   const className = [
     "flex w-full items-start gap-3 rounded-lg border-l-4 bg-surface p-4",
@@ -40,6 +43,13 @@ export function NotificationCard({
       iconSize="md"
       iconBadgeClassName={circleClassName}
       announcement={[title, description, whatToDo, time]}
+      actions={
+        action ? (
+          <Button variant="secondary" size="small" onPress={action.onPress}>
+            {action.label}
+          </Button>
+        ) : undefined
+      }
       trailing={
         onClose ? (
           <span className="ml-auto">
@@ -49,7 +59,7 @@ export function NotificationCard({
       }
     >
       <p className="text-body font-bold text-text">{title}</p>
-      <p className="text-detail text-text-subtle">{description}</p>
+      {description ? <p className="text-detail text-text-subtle">{description}</p> : null}
       {whatToDo ? <p className="text-detail font-semibold text-text">{whatToDo}</p> : null}
       {time ? <p className="text-caption text-text-subtle">{time}</p> : null}
     </NoticeFrame>

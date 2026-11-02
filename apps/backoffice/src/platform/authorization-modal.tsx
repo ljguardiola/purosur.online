@@ -1,8 +1,9 @@
 import { Button, InlineNotice, Modal } from "@purosur/ui";
 import type { AuthenticationResponseJSON } from "@simplewebauthn/browser";
 import { startAuthentication } from "@simplewebauthn/browser";
-import { Fingerprint, ShieldX, TriangleAlert, X } from "lucide-react";
+import { Fingerprint, ShieldX, X } from "lucide-react";
 import { type ReactNode, useRef, useState } from "react";
+import { ActionFailureNotice } from "./action-failure-notice";
 import { retryAfterDetail } from "./retry-after-detail";
 import { authorizeSession, fetchSessionAuthorizationOptions } from "./session-authorization-api";
 
@@ -86,12 +87,7 @@ function AuthorizationModal({
           {`${actionName} necesita tu autorización. Confirmala con tu passkey.`}
         </p>
         {notice?.kind === "attemptFailed" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title="No se pudo confirmar con tu passkey"
-            description="Probá de nuevo."
-          />
+          <ActionFailureNotice title="No se pudo confirmar con tu passkey" />
         )}
         {notice?.kind === "rateLimited" && (
           <InlineNotice

@@ -1,7 +1,8 @@
 import { type CategorySummary, categoryCreationBodySchema } from "@purosur/contracts";
 import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
-import { Check, ShieldX, Tags, TriangleAlert, X } from "lucide-react";
+import { Check, ShieldX, Tags, X } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { withCreatedCategory } from "../platform/category-path";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
@@ -160,12 +161,7 @@ export function NewCategoryModal({
     >
       <div className="flex flex-col gap-4">
         {notice?.kind === "attemptFailed" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title="No se pudo crear la categoría"
-            description="Probá de nuevo."
-          />
+          <ActionFailureNotice title="No se pudo crear la categoría" />
         )}
         {notice?.kind === "rateLimited" && (
           <InlineNotice

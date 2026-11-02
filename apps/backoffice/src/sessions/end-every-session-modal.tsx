@@ -1,6 +1,7 @@
 import { Button, InlineNotice, Modal } from "@purosur/ui";
-import { LogOut, ShieldX, TriangleAlert, X } from "lucide-react";
+import { LogOut, ShieldX, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import type { endEverySession } from "./session-api";
@@ -98,12 +99,7 @@ export function EndEverySessionModal({
           También se cierra la tuya, y volvés a la pantalla de ingreso.
         </p>
         {notice?.kind === "failed" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title="No se pudieron cerrar las sesiones"
-            description="Probá de nuevo."
-          />
+          <ActionFailureNotice title="No se pudieron cerrar las sesiones" />
         )}
         {notice?.kind === "rateLimited" && (
           <InlineNotice

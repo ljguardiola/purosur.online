@@ -1,5 +1,6 @@
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import {
   DeactivateProductModal,
@@ -133,4 +134,16 @@ test("titles the modal with the product's name, brand and net content", async ()
   await expect
     .element(screen.getByRole("dialog", { name: "¿Desactivar Aceite de Almendras Vitora 30 ml?" }))
     .toBeVisible();
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when deactivating is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices();
+  vi.mocked(services.deactivateProduct).mockResolvedValue({ kind: "failed" });
+  const dialog = await renderModal(services);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
+
+  await expect.element(dialog.getByText("No se pudo desactivar el producto")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
 });

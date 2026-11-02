@@ -1,5 +1,6 @@
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import { NewRegisterModal, type NewRegisterModalServices } from "./new-register-modal";
 
@@ -233,4 +234,17 @@ test("opens the authorization modal on create's authorization_required, then aut
   await expect
     .poll(() => screen.getByRole("dialog", { name: "Autorizá este cambio" }).query())
     .toBeNull();
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when creating the register is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices();
+  vi.mocked(services.createRegister).mockResolvedValue({ kind: "failed" });
+  const { dialog } = await renderModal(services);
+
+  await submitName(dialog, "Caja 1");
+
+  await expect.element(dialog.getByText("No se pudo crear la caja")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  expect(dialog.getByText("Probá de nuevo.").query()).toBeNull();
 });

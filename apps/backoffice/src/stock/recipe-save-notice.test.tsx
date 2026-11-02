@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 import { render } from "vitest-browser-react";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { RecipeSaveNotice } from "./recipe-save-notice";
 
 const TITLES = [
@@ -38,3 +39,11 @@ test.each([
     }
   },
 );
+
+test("tells an outdated tab to reload because the backoffice was updated when saving the recipe failed", async () => {
+  openAsOutdatedTab();
+  const screen = await render(<RecipeSaveNotice notice={{ kind: "attemptFailed" }} />);
+
+  await expect.element(screen.getByText("No se guardó la receta")).toBeVisible();
+  await expect.element(screen.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+});

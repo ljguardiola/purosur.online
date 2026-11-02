@@ -2,6 +2,7 @@ import type { PriceCategory, PriceProduct } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expect, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { type ReleaseMonitor, ReleaseMonitorContext } from "../../platform/release-monitor";
 import { render } from "../../shell/test-support/render-with-router";
 import { PricesListScreen } from "../prices-list-screen";
 import type { PricesListScreenServices } from "../prices-list-services";
@@ -90,14 +91,16 @@ export function screenElement(
     onFiltersChange = () => {},
     purchasedProductsToReview = [],
     onPurchaseReviewTaken = () => {},
+    releaseMonitor,
   }: {
     filters?: PricesListFilters;
     onFiltersChange?: (filters: PricesListFilters) => void;
     purchasedProductsToReview?: readonly string[];
     onPurchaseReviewTaken?: () => void;
+    releaseMonitor?: ReleaseMonitor;
   } = {},
 ) {
-  return (
+  const screen = (
     <FieldSizeProvider size="backoffice">
       <main>
         <PricesListScreen
@@ -110,6 +113,11 @@ export function screenElement(
         />
       </main>
     </FieldSizeProvider>
+  );
+  return releaseMonitor ? (
+    <ReleaseMonitorContext value={releaseMonitor}>{screen}</ReleaseMonitorContext>
+  ) : (
+    screen
   );
 }
 

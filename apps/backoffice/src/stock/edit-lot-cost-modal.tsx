@@ -3,6 +3,7 @@ import { Button, InlineNotice, Modal, type RequestSubmission, useRequestForm } f
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { Check, Pencil, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { formatStockQuantity } from "../platform/stock-quantity";
@@ -148,12 +149,7 @@ export function EditLotCostModal({
     >
       <div className="flex flex-col gap-4">
         {notice?.kind === "attemptFailed" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title="No se pudo guardar el costo"
-            description="Probá de nuevo."
-          />
+          <ActionFailureNotice title="No se pudo guardar el costo" />
         )}
         {notice?.kind === "rateLimited" && (
           <InlineNotice

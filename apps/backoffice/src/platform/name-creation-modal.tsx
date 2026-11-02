@@ -1,7 +1,8 @@
 import { Button, type Icon, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import type { StandardSchemaV1 } from "@tanstack/react-form";
-import { Check, ShieldX, TriangleAlert, X } from "lucide-react";
+import { Check, ShieldX, X } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
+import { ActionFailureNotice } from "./action-failure-notice";
 import { retryAfterDetail } from "./retry-after-detail";
 import { useSendToMyAccount } from "./send-to-my-account";
 
@@ -138,12 +139,7 @@ export function NameCreationModal<Created>({
     >
       <div className="flex flex-col gap-4">
         {notice?.kind === "attemptFailed" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title={texts.failed}
-            description="Volvé a intentarlo."
-          />
+          <ActionFailureNotice title={texts.failed} description="Volvé a intentarlo." />
         )}
         {notice?.kind === "rateLimited" && (
           <InlineNotice

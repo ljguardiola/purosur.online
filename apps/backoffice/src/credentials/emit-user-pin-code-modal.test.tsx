@@ -1,6 +1,7 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import { type EmissionState, EmitUserPinCodeModal } from "./emit-user-pin-code-modal";
 
@@ -114,4 +115,18 @@ test("renders nothing while closed", async () => {
   const screen = await render(modalFor({ kind: "closed" }));
 
   expect(screen.getByRole("dialog").query()).toBeNull();
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when emitting the code is refused", async () => {
+  openAsOutdatedTab();
+  const onRetry = vi.fn();
+  const screen = await render(modalFor({ kind: "attemptFailed", user: lucia }, { onRetry }));
+  const dialog = screen.getByRole("dialog", { name: "Código para reiniciar el PIN" });
+
+  await expect.element(dialog.getByText("No se pudo emitir el código")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  expect(dialog.getByText("Probá de nuevo.").query()).toBeNull();
+  await userEvent.click(dialog.getByRole("button", { name: "Reintentar" }));
+
+  expect(onRetry).toHaveBeenCalledTimes(1);
 });

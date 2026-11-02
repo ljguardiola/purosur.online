@@ -2,6 +2,7 @@ import { pointTerminalAssignmentBodySchema } from "@purosur/contracts";
 import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import { Check, CreditCard, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import {
@@ -216,12 +217,7 @@ export function AssignPointTerminalModal({
       {target ? (
         <div className="flex flex-col gap-4">
           {notice?.kind === "attemptFailed" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No se pudo guardar la terminal"
-              description="Probá de nuevo."
-            />
+            <ActionFailureNotice title="No se pudo guardar la terminal" />
           )}
           {notice?.kind === "rateLimited" && (
             <InlineNotice
@@ -248,12 +244,7 @@ export function AssignPointTerminalModal({
             />
           )}
           {notice?.kind === "reloadFailed" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No se pudieron recargar los datos"
-              description="Probá de nuevo."
-            />
+            <ActionFailureNotice title="No se pudieron recargar los datos" />
           )}
           <form.AppField name="terminalId">
             {(field) => (

@@ -3,6 +3,7 @@ import {
   quarantinedEventsListSchema,
   releaseQuarantinedEventErrorSchema,
 } from "@purosur/contracts";
+import { cloudFetch } from "../platform/cloud-fetch";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 
@@ -22,7 +23,7 @@ export type ReleaseQuarantinedEventOutcome =
 export async function fetchQuarantinedEvents(): Promise<FetchQuarantinedEventsOutcome> {
   let response: Response;
   try {
-    response = await fetch("/api/synced-events/quarantined");
+    response = await cloudFetch("/api/synced-events/quarantined");
   } catch {
     return { kind: "failed" };
   }
@@ -61,7 +62,7 @@ export async function releaseQuarantinedEvent(
 ): Promise<ReleaseQuarantinedEventOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/api/synced-events/${eventId}/release`, { method: "POST" });
+    response = await cloudFetch(`/api/synced-events/${eventId}/release`, { method: "POST" });
   } catch {
     return { kind: "failed" };
   }

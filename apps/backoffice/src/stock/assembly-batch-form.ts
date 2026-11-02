@@ -188,7 +188,7 @@ export function batchSizeMessage(size: string, saleUnit: SaleUnit, proposed: boo
   }
   return proposed
     ? "Revisá el tamaño de la tanda."
-    : "Todavía no se calcularon las cantidades de la tanda. Probá de nuevo.";
+    : `Todavía no se calcularon las cantidades de la tanda. Probá de nuevo.`;
 }
 
 export function batchUsedMessage(

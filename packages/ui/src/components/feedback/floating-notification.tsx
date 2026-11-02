@@ -5,6 +5,7 @@ import type { NoticeTone } from "../shared/tone";
 import { NotificationCard, type NotificationCardProps } from "./notification-card";
 
 export type FloatingNotificationProps = Omit<NotificationCardProps, "onClose"> & {
+  description: string;
   onDismiss: () => void;
   expiresAfterSeconds?: number | undefined;
 };

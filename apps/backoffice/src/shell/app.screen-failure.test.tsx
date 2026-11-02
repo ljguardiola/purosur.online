@@ -1,6 +1,7 @@
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import { fakeReleaseMonitor } from "../platform/test-support/release-monitor";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
@@ -85,4 +86,27 @@ test("keeps focus on the failure's title when trying again fails again", async (
   await expect
     .element(screen.getByRole("alert"))
     .toHaveTextContent("Probá de nuevo en unos minutos.");
+});
+
+test("tells an outdated tab to reload because the backoffice was updated, and Reintentar shows the screen again", async () => {
+  window.history.pushState(null, "", "/alerts");
+  const services = createAppServices({ releaseMonitor: fakeReleaseMonitor(true) });
+  vi.mocked(services.alertsListScreen.fetchAlerts).mockResolvedValue({
+    kind: "ok",
+    value: { alerts: null, total: 0, pageSize: 25, openCount: 0, openCriticalCount: 0 },
+  } as never);
+  const reportError = vi.fn();
+  const screen = await render(
+    <App help={emptyHelp} services={services} reportError={reportError} />,
+  );
+
+  await expect
+    .element(screen.getByRole("alert"))
+    .toHaveTextContent("Se actualizó el backoffice: recargá la página para seguir.");
+  expect(screen.getByText("Probá de nuevo en unos minutos.").query()).toBeNull();
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.poll(() => reportError.mock.calls.length).toBeGreaterThan(1);
+  expect(services.screenFailure.reloadPage).not.toHaveBeenCalled();
 });

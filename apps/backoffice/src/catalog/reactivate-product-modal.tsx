@@ -2,6 +2,7 @@ import type { BrandSummary, ProductSummary } from "@purosur/contracts";
 import { Button, InlineNotice, Modal } from "@purosur/ui";
 import { RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { productDescription } from "./product-description";
@@ -147,9 +148,7 @@ export function ReactivateProductModal({
       <div className="flex flex-col gap-4">
         <p className="text-body text-text">Vuelve a venderse en el catálogo y en las cajas.</p>
         {notice?.kind === "attemptFailed" && (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
+          <ActionFailureNotice
             title="No se reactivó el producto"
             description="Volvé a intentarlo."
           />

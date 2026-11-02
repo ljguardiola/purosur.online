@@ -1,5 +1,6 @@
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import { mixBatch } from "./test-support/assembly-batches";
 import {
@@ -197,4 +198,18 @@ test("ends the session when the change finds no open session", async () => {
   await confirm(screen);
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when voiding is refused", async () => {
+  openAsOutdatedTab();
+  const voidAssemblyBatch = vi
+    .fn<VoidAssemblyBatchModalServices["voidAssemblyBatch"]>()
+    .mockResolvedValue({ kind: "failed" });
+  const screen = await renderModal({ voidAssemblyBatch });
+  const dialog = await confirm(screen);
+
+  await expect.element(dialog.getByText("No se anuló la tanda")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  expect(dialog.getByText("Volvé a intentarlo.").query()).toBeNull();
+  await expect.element(dialog.getByRole("button", { name: "Anular tanda" })).toBeEnabled();
 });

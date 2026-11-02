@@ -1,4 +1,5 @@
 import { userPinCodeSchema } from "@purosur/contracts";
+import { cloudFetch } from "../platform/cloud-fetch";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { type Passkey, passkeyListFromWire } from "./passkey-list";
@@ -72,7 +73,7 @@ async function forbiddenOrOwnAccount(
 export async function fetchUserPasskeys(id: string): Promise<FetchUserPasskeysOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/api/users/${id}/passkeys`);
+    response = await cloudFetch(`/api/users/${id}/passkeys`);
   } catch {
     return { kind: "failed" };
   }
@@ -105,7 +106,7 @@ export async function removeUserPasskey(
 ): Promise<RemoveUserPasskeyOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/api/users/${id}/passkeys/${passkeyId}`, { method: "DELETE" });
+    response = await cloudFetch(`/api/users/${id}/passkeys/${passkeyId}`, { method: "DELETE" });
   } catch {
     return { kind: "failed" };
   }
@@ -124,7 +125,7 @@ export async function removeUserPasskey(
 export async function removeEveryUserPasskey(id: string): Promise<RemoveEveryUserPasskeyOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/api/users/${id}/passkeys`, { method: "DELETE" });
+    response = await cloudFetch(`/api/users/${id}/passkeys`, { method: "DELETE" });
   } catch {
     return { kind: "failed" };
   }
@@ -147,7 +148,7 @@ export async function removeEveryUserPasskey(id: string): Promise<RemoveEveryUse
 export async function emitUserPinCode(id: string): Promise<EmitUserPinCodeOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/api/users/${id}/pin-codes`, { method: "POST" });
+    response = await cloudFetch(`/api/users/${id}/pin-codes`, { method: "POST" });
   } catch {
     return { kind: "failed" };
   }

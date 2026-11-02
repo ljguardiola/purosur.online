@@ -3,6 +3,7 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
@@ -617,4 +618,16 @@ test("navigates to Mi cuenta when building the orders comes back forbidden", asy
   await userEvent.click(buildButton(screen));
 
   await expect.poll(() => window.location.pathname).toBe("/account");
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when building the orders is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices();
+  vi.mocked(services.buildPurchaseOrders).mockResolvedValue({ kind: "failed" });
+  const screen = await loaded(services, ORDER_SUGGESTION);
+
+  await userEvent.click(buildButton(screen));
+
+  await expect.element(screen.getByText("No se armaron los pedidos")).toBeVisible();
+  await expect.element(screen.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
 });

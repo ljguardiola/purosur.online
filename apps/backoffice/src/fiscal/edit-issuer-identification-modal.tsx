@@ -9,8 +9,9 @@ import {
   useRequestForm,
 } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
-import { Check, Info, Landmark, RotateCcw, TriangleAlert, X } from "lucide-react";
+import { Check, Info, Landmark, RotateCcw, X } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { useAuthorization } from "../platform/authorization-modal";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
@@ -222,12 +223,7 @@ function LoadedEditIssuerIdentificationModal({
         {target ? (
           <div className="flex flex-col gap-4">
             {notice?.kind === "attemptFailed" && (
-              <InlineNotice
-                tone="error"
-                icon={<TriangleAlert />}
-                title="No se pudo guardar el cambio"
-                description="Probá de nuevo."
-              />
+              <ActionFailureNotice title="No se pudo guardar el cambio" />
             )}
             {notice?.kind === "staleVersion" && (
               <InlineNotice

@@ -7,6 +7,7 @@ import {
   recipeSaveRefusalSchema,
   recipeSummarySchema,
 } from "@purosur/contracts";
+import { cloudFetch } from "../platform/cloud-fetch";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
@@ -46,7 +47,7 @@ function refusal(response: Response): RequestRefusal {
 export async function fetchRecipes(): Promise<FetchRecipesOutcome> {
   let response: Response;
   try {
-    response = await fetch("/api/recipes");
+    response = await cloudFetch("/api/recipes");
   } catch {
     return { kind: "failed" };
   }
@@ -83,7 +84,7 @@ export async function saveRecipe(
   };
   let response: Response;
   try {
-    response = await fetch(`/api/recipes/${productId}`, {
+    response = await cloudFetch(`/api/recipes/${productId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(requestBody),

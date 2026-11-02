@@ -6,6 +6,7 @@ import type {
   AuthenticationResponseJSON,
   PublicKeyCredentialRequestOptionsJSON,
 } from "@simplewebauthn/browser";
+import { cloudFetch } from "./cloud-fetch";
 import { rateLimitOutcome } from "./rate-limit-outcome";
 
 export type SessionAuthorizationOptionsOutcome =
@@ -22,7 +23,7 @@ export type AuthorizeSessionOutcome =
   | { kind: "failed" };
 
 function sendJson(method: "POST" | "PUT", path: string, body?: unknown): Promise<Response> {
-  return fetch(path, {
+  return cloudFetch(path, {
     method,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body ?? {}),

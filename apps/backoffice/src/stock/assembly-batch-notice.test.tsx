@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 import { render } from "vitest-browser-react";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { AssemblyBatchNotice } from "./assembly-batch-notice";
 
 const TITLES = [
@@ -38,3 +39,11 @@ test.each([
     }
   },
 );
+
+test("tells an outdated tab to reload because the backoffice was updated when registering the batch failed", async () => {
+  openAsOutdatedTab();
+  const screen = await render(<AssemblyBatchNotice notice={{ kind: "attemptFailed" }} />);
+
+  await expect.element(screen.getByText("No se registró la tanda")).toBeVisible();
+  await expect.element(screen.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+});

@@ -3,6 +3,7 @@ import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { Check, Info, ShieldX, TriangleAlert, Upload, X } from "lucide-react";
 import { useEffect } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import type {
   authorizeSession,
@@ -169,12 +170,7 @@ export function LoadBitlockerRecoveryKeyModal({
             />
           )}
           {notice?.kind === "attemptFailed" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No se pudo guardar la clave"
-              description="Probá de nuevo."
-            />
+            <ActionFailureNotice title="No se pudo guardar la clave" />
           )}
           {notice?.kind === "rateLimited" && (
             <InlineNotice

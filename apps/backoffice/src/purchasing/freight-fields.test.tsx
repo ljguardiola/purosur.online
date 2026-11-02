@@ -4,6 +4,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import type { CloudData } from "../platform/use-cloud-query";
 import {
   FreightFields,
@@ -235,4 +236,15 @@ test("groups thousands and takes a typed dot as the decimal comma in the amount"
   await userEvent.type(field, "1234.5");
 
   await expect.element(field).toHaveValue("1.234,5");
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when saving the freight failed", async () => {
+  openAsOutdatedTab();
+  const screen = await render(
+    <FreightNotices notice={{ kind: "attemptFailed" }} failedTitle="No se guardó el flete" />,
+  );
+
+  await expect
+    .element(screen.getByRole("alert"))
+    .toHaveTextContent(`No se guardó el flete ${OUTDATED_TAB_ADVICE}`);
 });

@@ -9,6 +9,7 @@ import {
 } from "@purosur/ui";
 import { ArrowLeft, KeyRound, ShieldCheck, ShieldX, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { AccessFooterLink, AccessLayout } from "../shell/access-layout";
@@ -265,9 +266,7 @@ function RegistrationOfToken({
         description="Con ella vas a ingresar de ahora en adelante."
       />
       {attemptFailed ? (
-        <InlineNotice
-          tone="error"
-          icon={<TriangleAlert />}
+        <ActionFailureNotice
           title="No se pudo registrar la passkey"
           description="Podés volver a intentarlo con este mismo enlace."
         />

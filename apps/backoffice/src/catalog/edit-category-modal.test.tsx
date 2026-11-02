@@ -3,6 +3,7 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { drinks, groceries, jams, spreads } from "../platform/test-support/categories";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import type { CategoryReload } from "./catalog-queries";
 import type { createCategory, editCategory } from "./categories-api";
@@ -313,4 +314,21 @@ test("typing a parent category that does not exist offers to create it, then sel
   await expect
     .element(dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }))
     .toHaveValue("Untables");
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when saving the category is refused", async () => {
+  openAsOutdatedTab();
+  const edit = vi.fn<typeof editCategory>().mockResolvedValue({
+    kind: "validation_failed",
+    field: "version",
+  });
+  const screen = await renderModal({ target: groceries, categories: [groceries], edit });
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(dialog.getByText("No se pudo guardar el cambio")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  expect(dialog.getByText("Ingresá el nombre de la categoría.").query()).toBeNull();
+  expect(dialog.getByText("Revisá el nombre de la categoría.").query()).toBeNull();
 });

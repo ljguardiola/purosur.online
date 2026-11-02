@@ -62,6 +62,7 @@ test("the entry downloads only the API clients the frame itself needs, and no sc
   const modules = modulesDownloadedFrom(entryChunks()).filter(screenWiring);
 
   expect(modules.sort()).toEqual([
+    `${BACKOFFICE_ROOT}src/platform/deployed-release-api.ts`,
     `${BACKOFFICE_ROOT}src/platform/error-reporting-configuration-api.ts`,
     `${BACKOFFICE_ROOT}src/sessions/session-api.ts`,
   ]);

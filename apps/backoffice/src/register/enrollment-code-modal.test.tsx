@@ -1,5 +1,6 @@
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import { type EmissionState, EnrollmentCodeModal } from "./enrollment-code-modal";
 import type { RegisterSummary } from "./registers-api";
@@ -108,6 +109,22 @@ test("a rate-limited emission says when to try again, and Reintentar retries for
 
   await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
   await expect.element(dialog.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
+  await userEvent.click(dialog.getByRole("button", { name: "Reintentar" }));
+
+  expect(onRetry).toHaveBeenCalledWith(register1);
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when emitting the code is refused", async () => {
+  openAsOutdatedTab();
+  const onRetry = vi.fn();
+  const screen = await render(
+    modalFor({ kind: "attemptFailed", register: register1 }, { onRetry }),
+  );
+  const dialog = screen.getByRole("dialog", { name: "Código de alta" });
+
+  await expect.element(dialog.getByText("No se pudo emitir el código")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  expect(dialog.getByText("Probá de nuevo.").query()).toBeNull();
   await userEvent.click(dialog.getByRole("button", { name: "Reintentar" }));
 
   expect(onRetry).toHaveBeenCalledWith(register1);

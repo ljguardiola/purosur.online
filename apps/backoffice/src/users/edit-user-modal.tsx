@@ -3,6 +3,7 @@ import { Button, InlineNotice, Modal, TextField, useRequestForm } from "@purosur
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { Check, RotateCcw, ShieldX, TriangleAlert, UserPen, X } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
+import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { useAuthorization } from "../platform/authorization-modal";
 import type { BranchUser, BranchUserRole } from "../platform/branch-users-api";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
@@ -203,12 +204,7 @@ export function EditUserModal({
       >
         <div className="flex flex-col gap-4">
           {notice?.kind === "attemptFailed" && (
-            <InlineNotice
-              tone="error"
-              icon={<TriangleAlert />}
-              title="No se pudo guardar el cambio"
-              description="Probá de nuevo."
-            />
+            <ActionFailureNotice title="No se pudo guardar el cambio" />
           )}
           {notice?.kind === "rateLimited" && (
             <InlineNotice

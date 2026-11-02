@@ -6,6 +6,7 @@ import type {
   PublicKeyCredentialCreationOptionsJSON,
   RegistrationResponseJSON,
 } from "@simplewebauthn/browser";
+import { cloudFetch } from "../platform/cloud-fetch";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
@@ -38,7 +39,7 @@ export type RegisterPasskeyOutcome =
 export type RemovePasskeyOutcome = { kind: "ok" } | { kind: "not_found" } | GatedActionErrorOutcome;
 
 function postJson(path: string, body?: unknown): Promise<Response> {
-  return fetch(path, {
+  return cloudFetch(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body ?? {}),
@@ -49,7 +50,7 @@ function postJson(path: string, body?: unknown): Promise<Response> {
 export async function fetchPasskeys(): Promise<FetchPasskeysOutcome> {
   let response: Response;
   try {
-    response = await fetch("/api/account/passkeys");
+    response = await cloudFetch("/api/account/passkeys");
   } catch {
     return { kind: "failed" };
   }
@@ -137,7 +138,7 @@ export async function registerPasskey(
 export async function removePasskey(id: string): Promise<RemovePasskeyOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/api/account/passkeys/${id}`, { method: "DELETE" });
+    response = await cloudFetch(`/api/account/passkeys/${id}`, { method: "DELETE" });
   } catch {
     return { kind: "failed" };
   }

@@ -3,6 +3,7 @@ import { page, userEvent } from "vitest/browser";
 import type { BranchUser } from "../platform/branch-users-api";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import type { RoleSummary } from "../platform/roles-api";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import { EditUserModal, type EditUserModalServices } from "./edit-user-modal";
 import type { UserRead } from "./users-queries";
@@ -540,4 +541,16 @@ test("typing in the Rol offers only the matching roles, and choosing one selects
   ).toEqual(["Cajero"]);
   await userEvent.click(screen.getByRole("option", { name: "Cajero" }));
   await expect.element(role).toHaveValue("Cajero");
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when saving the user is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices();
+  const { dialog } = await renderModal(services);
+  vi.mocked(services.editUser).mockResolvedValue({ kind: "validation_failed", field: "other" });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(dialog.getByText("No se pudo guardar el cambio")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
 });

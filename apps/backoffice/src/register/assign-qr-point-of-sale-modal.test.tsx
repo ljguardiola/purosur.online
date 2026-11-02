@@ -2,6 +2,7 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { type Locator, userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import {
   AssignQrPointOfSaleModal,
@@ -326,4 +327,17 @@ test("removing after a reload sends the reloaded version", async () => {
     external_pos_id: null,
     version: 5,
   });
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when saving the QR register is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices();
+  vi.mocked(services.assignQrPointOfSale).mockResolvedValue({ kind: "failed" });
+  const { dialog } = await renderModal({ services });
+
+  await save(dialog);
+
+  await expect.element(dialog.getByText("No se pudo guardar la caja QR")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  expect(dialog.getByText("Probá de nuevo.").query()).toBeNull();
 });

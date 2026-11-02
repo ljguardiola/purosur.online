@@ -29,6 +29,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useRetryAdvice } from "../platform/action-failure-notice";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
@@ -94,6 +95,8 @@ function emptyTableState(params: {
   };
 }
 
+type RaisedNotice = Omit<ScreenNotice, "description"> & { description: string | null };
+
 export function PricesListScreen({
   filters,
   onFiltersChange,
@@ -119,7 +122,8 @@ export function PricesListScreen({
     previousProductNotice: ScreenNotice | null;
   } | null>(null);
   const [walk, setWalk] = useState<{ queue: PriceProduct[]; index: number } | null>(null);
-  const [notice, setNotice] = useState<(ScreenNotice & { id: number }) | null>(null);
+  const [notice, setNotice] = useState<(RaisedNotice & { id: number }) | null>(null);
+  const retryAdvice = useRetryAdvice();
   const lastNoticeId = useRef(0);
   const [screenRequestInFlight, setScreenRequestInFlight] = useState(false);
   const [purchaseReview, setPurchaseReview] = useState<readonly string[] | null>(() =>
@@ -142,7 +146,7 @@ export function PricesListScreen({
 
   // Each notice gets a fresh id: an unchanged id would leave the live region's text identical, and
   // screen readers don't re-announce a live region that already holds that text.
-  function showScreenNotice(shown: ScreenNotice) {
+  function showScreenNotice(shown: RaisedNotice) {
     lastNoticeId.current += 1;
     setNotice({ ...shown, id: lastNoticeId.current });
   }
@@ -216,10 +220,10 @@ export function PricesListScreen({
     { value: "all" as const, label: "Todos" },
   ] as const;
 
-  const reviewStartFailedNotice: ScreenNotice = {
+  const reviewStartFailedNotice: RaisedNotice = {
     tone: "error",
     title: "No se pudo empezar la revisión",
-    description: "Probá de nuevo.",
+    description: null,
   };
 
   function rateLimitedNotice(retryAfterSeconds: number): ScreenNotice {
@@ -231,10 +235,10 @@ export function PricesListScreen({
     };
   }
 
-  const purchaseReviewStartFailedNotice: ScreenNotice = {
+  const purchaseReviewStartFailedNotice: RaisedNotice = {
     tone: "error",
     title: "No se pudo empezar la revisión de lo comprado",
-    description: "Probá de nuevo.",
+    description: null,
   };
 
   async function startReview(productIds?: readonly string[]) {
@@ -253,7 +257,7 @@ export function PricesListScreen({
 
   function handleReviewReadOutcome(
     outcome: Awaited<ReturnType<typeof readReviewQueue>>,
-    failedNotice: ScreenNotice,
+    failedNotice: RaisedNotice,
   ) {
     if (outcome.kind === "ok") {
       const [first] = outcome.value.products;
@@ -357,11 +361,11 @@ export function PricesListScreen({
     setScreenRequestInFlight(false);
   }
 
-  function rowConfirmFailedNotice(item: PriceProduct): ScreenNotice {
+  function rowConfirmFailedNotice(item: PriceProduct): RaisedNotice {
     return {
       tone: "error",
       title: `No se pudo confirmar el precio de ${formatProductDescription(item)}`,
-      description: "Probá de nuevo.",
+      description: null,
     };
   }
 
@@ -622,7 +626,7 @@ export function PricesListScreen({
           tone={notice.tone}
           icon={notice.tone === "success" ? <Check /> : <TriangleAlert />}
           title={notice.title}
-          description={notice.description}
+          description={notice.description ?? retryAdvice}
           expiresAfterSeconds={notice.retryAfterSeconds}
           onDismiss={() => setNotice(null)}
         />

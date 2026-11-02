@@ -4,6 +4,7 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { type Locator, page, userEvent } from "vitest/browser";
 import type { GenerateInternalBarcodeOutcome } from "../platform/internal-barcodes-api";
 import { radioLabel } from "../platform/test-support/radio-label";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import type { NewProductModalServices } from "./new-product-modal";
 import {
   createServices,
@@ -864,4 +865,21 @@ test("does not create a product whose coverage days are out of range, and says w
     .element(dialog.getByText("Ingresá un número entero de días, de 1 a 365."))
     .toBeVisible();
   expect(services.createProduct).not.toHaveBeenCalled();
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when creating the product is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices();
+  vi.mocked(services.createProduct).mockResolvedValue({
+    kind: "validation_failed",
+    field: "version",
+  });
+  const { dialog } = await renderModal(services);
+  await fillNewProductFieldsExceptBarcodes(dialog);
+  await scanCode(scanInputOf(dialog), "12345");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el producto" }));
+
+  await expect.element(dialog.getByText("No se pudo crear el producto")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
 });

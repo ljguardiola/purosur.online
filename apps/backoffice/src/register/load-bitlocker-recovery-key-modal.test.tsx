@@ -1,6 +1,7 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import { LoadBitlockerRecoveryKeyModal } from "./load-bitlocker-recovery-key-modal";
 import type { RegisterSummary } from "./registers-api";
@@ -282,4 +283,17 @@ test("ends the session when the save finds no open session", async () => {
   await typeAndSave(dialog, KEY, "1A2B3C4D");
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when saving the key is refused", async () => {
+  openAsOutdatedTab();
+  const services = createServices();
+  vi.mocked(services.loadBitlockerRecoveryKey).mockResolvedValue({ kind: "failed" });
+  const { dialog } = await renderModal(services);
+
+  await typeAndSave(dialog, KEY, "1A2B3C4D");
+
+  await expect.element(dialog.getByText("No se pudo guardar la clave")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+  expect(dialog.getByText("Probá de nuevo.").query()).toBeNull();
 });
