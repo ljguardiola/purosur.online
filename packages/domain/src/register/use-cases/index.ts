@@ -92,10 +92,20 @@ export type {
 } from "./close-cash-session.js";
 export { closeCashSession } from "./close-cash-session.js";
 export type {
+  CloseInterruptedContingencyOutcome,
+  CloseInterruptedContingencyPorts,
+} from "./close-interrupted-contingency.js";
+export { closeInterruptedContingency } from "./close-interrupted-contingency.js";
+export type {
   ConsultBitlockerRecoveryKeyInput,
   ConsultBitlockerRecoveryKeyOutcome,
 } from "./consult-bitlocker-recovery-key.js";
 export { consultBitlockerRecoveryKey } from "./consult-bitlocker-recovery-key.js";
+export type {
+  ContingencyLedger,
+  ContingencyLedgerTransaction,
+  OpenContingencyInterval,
+} from "./contingency-ledger.js";
 export type { CreateRegisterInput, CreateRegisterOutcome } from "./create-register.js";
 export { createRegister } from "./create-register.js";
 export type {
@@ -209,6 +219,12 @@ export type {
   RecordCashMovementPorts,
 } from "./record-cash-movement.js";
 export { recordCashMovement } from "./record-cash-movement.js";
+export type {
+  RecordContingencyChangeInput,
+  RecordContingencyChangeOutcome,
+  RecordContingencyChangePorts,
+} from "./record-contingency-change.js";
+export { recordContingencyChange } from "./record-contingency-change.js";
 export type {
   RecordSnapshotCopyFailureInput,
   RecordSnapshotCopyFailureOutcome,
@@ -402,6 +418,11 @@ export type {
   SnapshotDeclarationAnswer,
   SnapshotUploadCloud,
 } from "./snapshot-upload-ports.js";
+export type {
+  StartContingencyReportingOutcome,
+  StartContingencyReportingPorts,
+} from "./start-contingency-reporting.js";
+export { startContingencyReporting } from "./start-contingency-reporting.js";
 export type {
   SnapshotUploadTally,
   UploadPendingSnapshotGenerationsOutcome,

@@ -1,0 +1,64 @@
+import { countsAsContingencyTime, type FiscalEmissionMode } from "../../fiscal/index.js";
+import type { Clock } from "../../shared/index.js";
+import { contingencyEnteredEvent, contingencyLeftEvent } from "../model/contingency-events.js";
+import type { IdGenerator } from "./cash-ledger.js";
+import type { ContingencyLedger } from "./contingency-ledger.js";
+
+export interface RecordContingencyChangePorts {
+  ledger: ContingencyLedger;
+  clock: Clock;
+  ids: IdGenerator;
+}
+
+export interface RecordContingencyChangeInput {
+  mode: FiscalEmissionMode;
+}
+
+export type RecordContingencyChangeOutcome =
+  | { kind: "unavailable" }
+  | { kind: "entered"; intervalId: string }
+  | { kind: "left"; intervalId: string }
+  | { kind: "refreshed"; intervalId: string }
+  | { kind: "unchanged" };
+
+export function recordContingencyChange(
+  { ledger, clock, ids }: RecordContingencyChangePorts,
+  { mode }: RecordContingencyChangeInput,
+): RecordContingencyChangeOutcome {
+  return ledger.transaction<RecordContingencyChangeOutcome>((tx) => {
+    const registerId = tx.registerId();
+    if (registerId === undefined) {
+      return { kind: "unavailable" };
+    }
+    const counts = countsAsContingencyTime(mode) && tx.cashSessionOpen();
+    const open = tx.openInterval();
+    const now = clock.now();
+
+    if (open === undefined) {
+      if (!counts) {
+        return { kind: "unchanged" };
+      }
+      const intervalId = ids.next();
+      tx.recordOpenedInterval({ id: intervalId, startedAt: now });
+      tx.appendOutboxEvent(
+        contingencyEnteredEvent({ eventId: ids.next(), registerId, intervalId, startedAt: now }),
+      );
+      return { kind: "entered", intervalId };
+    }
+    if (counts) {
+      tx.recordIntervalSeen(open.id, now);
+      return { kind: "refreshed", intervalId: open.id };
+    }
+    tx.recordClosedInterval(open.id, now);
+    tx.appendOutboxEvent(
+      contingencyLeftEvent({
+        eventId: ids.next(),
+        registerId,
+        intervalId: open.id,
+        startedAt: open.startedAt,
+        endedAt: now,
+      }),
+    );
+    return { kind: "left", intervalId: open.id };
+  });
+}
