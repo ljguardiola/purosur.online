@@ -326,6 +326,12 @@ function exceptionShareBreachDescription({
   return `En ${yearMonthPhrase(month)} ${issued} por excepción (CAEA) ${formatNumber(exceptionCount)} de ${vouchers} de este domicilio fiscal, el ${formatPercent(nonCompliancePercent)} o más. ARCA puede restringir el uso del CAEA y lo comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Conviene revisar por qué ${issued} por contingencia y consultar el Domicilio Fiscal Electrónico.`;
 }
 
+const PREVIOUS_MONTH_FAILURE_PHRASES = {
+  exception_share: (limit: string) =>
+    `llegó al ${limit} o más de comprobantes por excepción (CAEA)`,
+  contingency_time: (limit: string) => `superó el ${limit} del tiempo en contingencia`,
+} as const;
+
 function secondMonthAtRiskDescription({
   month,
   previousMonth,
@@ -333,6 +339,9 @@ function secondMonthAtRiskDescription({
   totalCount,
   shareTenthsOfPercent,
   nonCompliancePercent,
+  previousMonthNonCompliantOn,
+  contingencyShareTenthsOfPercent,
+  contingencyNonCompliancePercent,
 }: Extract<AlertDetail, { kind: "exception_share_second_month_at_risk" }>["detail"]): string {
   const vouchers = plural(totalCount, {
     one: `${formatNumber(totalCount)} comprobante`,
@@ -343,7 +352,18 @@ function secondMonthAtRiskDescription({
     shareTenthsOfPercent === null
       ? `En ${yearMonthPhrase(month)} todavía no se emitieron comprobantes en este domicilio fiscal.`
       : `En ${yearMonthPhrase(month)} ${issued} por excepción (CAEA) ${formatNumber(exceptionCount)} de ${vouchers} de este domicilio fiscal, el ${formatTenthsOfPercent(shareTenthsOfPercent)}.`;
-  return `${running} El mes anterior, ${yearMonthPhrase(previousMonth)}, ya llegó al ${formatPercent(nonCompliancePercent)} o más: si ${yearMonthPhrase(month)} también llega, serían dos meses consecutivos y ARCA puede restringir el uso del CAEA, lo que comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Este aviso termina cuando cierra el mes.`;
+  const runningContingency =
+    contingencyShareTenthsOfPercent === null
+      ? `Del tiempo en contingencia de ${yearMonthPhrase(month)} todavía no hay datos (Sin datos).`
+      : `En ${yearMonthPhrase(month)} estuvo en contingencia el ${formatTenthsOfPercent(contingencyShareTenthsOfPercent)} del tiempo de este domicilio fiscal.`;
+  const limits = {
+    exception_share: formatPercent(nonCompliancePercent),
+    contingency_time: formatPercent(contingencyNonCompliancePercent),
+  };
+  const previousFailures = previousMonthNonCompliantOn
+    .map((measurement) => PREVIOUS_MONTH_FAILURE_PHRASES[measurement](limits[measurement]))
+    .join(" y ");
+  return `${running} ${runningContingency} El mes anterior, ${yearMonthPhrase(previousMonth)}, ya ${previousFailures}: si ${yearMonthPhrase(month)} también queda fuera del límite en alguna de las dos mediciones, serían dos meses consecutivos y ARCA puede restringir el uso del CAEA, lo que comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Este aviso termina cuando cierra el mes.`;
 }
 
 function lotsExpiringDescription({

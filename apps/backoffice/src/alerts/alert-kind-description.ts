@@ -52,7 +52,7 @@ const ALERT_KIND_DESCRIPTIONS = {
   exception_share_breach:
     "Un domicilio fiscal alcanzó en un mes el límite de comprobantes emitidos por excepción (CAEA)",
   exception_share_second_month_at_risk:
-    "El mes anterior de un domicilio fiscal alcanzó el límite de comprobantes emitidos por excepción (CAEA) y el mes en curso puede ser el segundo consecutivo",
+    "El mes anterior de un domicilio fiscal quedó fuera del límite de comprobantes emitidos por excepción (CAEA) o del límite de tiempo en contingencia, y el mes en curso puede ser el segundo consecutivo",
 } satisfies Record<AlertKind, string>;
 
 export const DESCRIBED_ALERT_KINDS: readonly string[] = Object.keys(ALERT_KIND_DESCRIPTIONS);

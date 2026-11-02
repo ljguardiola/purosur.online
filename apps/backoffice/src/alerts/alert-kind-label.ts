@@ -37,7 +37,7 @@ const ALERT_KIND_LABELS = {
   register_replenishment_failed: "Caja sin poder ponerse al día",
   deferred_sale_due: "Venta diferida por vencer",
   exception_share_breach: "Límite de comprobantes por excepción alcanzado",
-  exception_share_second_month_at_risk: "Riesgo de un segundo mes consecutivo por excepción",
+  exception_share_second_month_at_risk: "Riesgo de un segundo mes consecutivo fuera del límite",
 } satisfies Record<AlertKind, string>;
 
 export function alertKindLabel(kind: string): string {
