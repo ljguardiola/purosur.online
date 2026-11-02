@@ -1620,6 +1620,7 @@ export const sales = pgTable(
     cancellationAuthorizedBy: text("cancellation_authorized_by"),
     voidedAt: timestamp("voided_at", { withTimezone: true }),
     voidAuthorizedBy: text("void_authorized_by"),
+    voidedBy: text("voided_by"),
     total: bigint("total", { mode: "number" }).notNull(),
     saleDiscountKind: text("sale_discount_kind"),
     saleDiscountValue: bigint("sale_discount_value", { mode: "number" }),

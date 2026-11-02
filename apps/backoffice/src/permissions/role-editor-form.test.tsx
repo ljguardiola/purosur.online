@@ -82,6 +82,14 @@ test("the Dispositivos area offers loading and consulting the BitLocker recovery
     .toBeVisible();
 });
 
+test("the Reportes area names the permission that opens the voids and returns report", async () => {
+  const screen = await render(<Harness initialArea="reports" />);
+
+  await expect
+    .element(screen.getByRole("checkbox", { name: "Ver el reporte de anulaciones y devoluciones" }))
+    .toBeVisible();
+});
+
 test("selecting another area on the left shows its own title and permissions on the right", async () => {
   const screen = await render(<Harness />);
 

@@ -2,6 +2,7 @@ import {
   ARGENTINA_TIME_ZONE,
   RETURN_DISPOSITIONS,
   RETURN_REASONS,
+  RETURN_RESOLUTIONS,
   SALE_UNITS,
 } from "@purosur/domain";
 import { z } from "zod";
@@ -24,20 +25,25 @@ const line = z.object({
   quantity: z.int().positive(),
   reason: z.enum(RETURN_REASONS),
   disposition: z.enum(RETURN_DISPOSITIONS),
+  resolution: z.enum(RETURN_RESOLUTIONS),
   refunded: cents,
+});
+
+const register = z.object({ id: z.string().min(1), name: z.string() });
+
+const sale = z.object({
+  id: z.string().min(1),
+  operation_number: z.int().positive().nullable(),
+  invoice: z
+    .object({ point_of_sale: pointOfSaleNumberSchema, number: z.int().positive() })
+    .nullable(),
 });
 
 const row = z.object({
   return_id: z.string().min(1),
   occurred_at: z.iso.datetime().meta({ timeZone: ARGENTINA_TIME_ZONE }),
-  register: z.object({ id: z.string().min(1), name: z.string() }),
-  sale: z.object({
-    id: z.string().min(1),
-    operation_number: z.int().positive().nullable(),
-    invoice: z
-      .object({ point_of_sale: pointOfSaleNumberSchema, number: z.int().positive() })
-      .nullable(),
-  }),
+  register,
+  sale,
   cashier: person,
   authorizer: person.nullable(),
   lines: z.array(line),
@@ -49,10 +55,36 @@ const group = z.object({
   totals: z.object({ returns: count, refunded: cents }),
 });
 
+const voidRow = z.object({
+  sale,
+  voided_at: z.iso.datetime().meta({ timeZone: ARGENTINA_TIME_ZONE }),
+  register,
+  cashier: person.nullable(),
+  authorizer: person.nullable(),
+  total: cents,
+});
+
+const summary = {
+  voids: count,
+  voided: cents,
+  returns: count,
+  refunded: cents,
+  refunded_lines: count,
+  exchanged_lines: count,
+  typed_returns: count,
+};
+
 export const returnsReportSchema = z.object({
   range: answeredRangeSchema,
   typed: group,
   scanned: group,
+  voids: z.object({
+    rows: z.array(voidRow),
+    totals: z.object({ voids: count, voided: cents }),
+  }),
+  totals: z.object(summary),
+  by_cashier: z.array(z.object({ cashier: person.nullable(), ...summary })),
+  by_authorizer: z.array(z.object({ authorizer: person.nullable(), ...summary })),
 });
 
 export type ReturnsReportQuery = z.output<typeof returnsReportQuerySchema>;

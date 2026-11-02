@@ -211,7 +211,7 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
         );
       case "sale_voided": {
         const origin = await this.originOf(event);
-        await recordAppliedVoidedSale(this.tx, origin, fact, event.eventId);
+        await recordAppliedVoidedSale(this.tx, origin, fact, event);
         return recordAppliedDeferredSaleCancellation(this.tx, origin, fact, this.now());
       }
       case "sale_returned":

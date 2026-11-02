@@ -816,6 +816,8 @@ export {
   walOversized,
 } from "./register/index.js";
 export type {
+  AuthorizerReturnsAndVoids,
+  CashierReturnsAndVoids,
   PaymentIneligibleReason,
   PaymentRefundability,
   RefundAllocation,
@@ -839,11 +841,14 @@ export type {
   ReturnRow,
   ReturnStandingLine,
   ReturnsGroup,
+  ReturnsReportTotals,
   ReturnWindow,
   SaleForReturn,
   SaleReturnHistory,
   TicketReference,
   TicketSource,
+  VoidedSaleRecord,
+  VoidsGroup,
 } from "./returns/index.js";
 export {
   countsAsReturned,
@@ -948,6 +953,7 @@ export {
   settledLines,
   startedReceiptPrint,
   UNPRINTED_SALE_STANDINGS,
+  VOIDED_SALE_STATE,
   WEIGHT_SOURCES,
 } from "./sales/index.js";
 export type {

@@ -282,7 +282,7 @@ function ReportsArea() {
               <li>
                 <SectionLink
                   to="/reports/returns"
-                  label="Devoluciones"
+                  label="Anulaciones y devoluciones"
                   icon={<Undo2 />}
                   search={returnsShown ? true : {}}
                   active={returnsShown}

@@ -116,14 +116,14 @@ test("lists the returns report as a link to it in the Caja card when it is shown
   const cash = screen.getByRole("region", { name: "Caja" });
   expect(cash.getByRole("link").elements()).toHaveLength(4);
   await expect
-    .element(cash.getByRole("link", { name: "Devoluciones" }))
+    .element(cash.getByRole("link", { name: "Anulaciones y devoluciones" }))
     .toHaveAttribute("href", "/reports/returns");
 });
 
 test("leaves the returns report out when it is not shown", async () => {
   const screen = await renderScreen();
 
-  expect(screen.getByRole("link", { name: "Devoluciones" }).query()).toBeNull();
+  expect(screen.getByRole("link", { name: "Anulaciones y devoluciones" }).query()).toBeNull();
 });
 
 test("groups the fiscal reports in a card titled Fiscal", async () => {
