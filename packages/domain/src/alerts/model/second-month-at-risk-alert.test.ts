@@ -27,7 +27,7 @@ describe("secondMonthAtRiskObservation", () => {
     ).toEqual({
       holds: true,
       alert: {
-        kind: "exception_share_second_month_at_risk",
+        kind: "second_non_compliant_month_at_risk",
         scope: "fa-1:2026-11",
         detail: {
           fiscalAddressId: "fa-1",
@@ -79,7 +79,7 @@ describe("secondMonthNoLongerAtRiskObservation", () => {
   it("no longer holds for the scope", () => {
     expect(secondMonthNoLongerAtRiskObservation("fa-1:2026-10")).toEqual({
       holds: false,
-      kind: "exception_share_second_month_at_risk",
+      kind: "second_non_compliant_month_at_risk",
       scope: "fa-1:2026-10",
     });
   });

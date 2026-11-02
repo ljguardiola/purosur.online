@@ -2500,7 +2500,7 @@ function secondMonthAtRiskAlert(
   } = {},
 ) {
   return baseDetail({
-    kind: "exception_share_second_month_at_risk",
+    kind: "second_non_compliant_month_at_risk",
     level: "warning",
     audience: "all",
     scope: "fiscal-address-1:2026-11",

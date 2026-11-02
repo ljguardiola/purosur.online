@@ -161,7 +161,7 @@ test("describes a month in which a fiscal address reached the share of vouchers 
 });
 
 test("describes a month that follows a non-compliant one and may become the second consecutive one", () => {
-  expect(alertKindDescription("exception_share_second_month_at_risk")).toBe(
+  expect(alertKindDescription("second_non_compliant_month_at_risk")).toBe(
     "El mes anterior de un domicilio fiscal quedó fuera del límite de comprobantes emitidos por excepción (CAEA) o del límite de tiempo en contingencia, y el mes en curso puede ser el segundo consecutivo",
   );
 });

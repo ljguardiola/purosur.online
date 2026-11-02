@@ -35,7 +35,7 @@ function holdingWith(
   return {
     holds: true,
     alert: {
-      kind: "exception_share_second_month_at_risk",
+      kind: "second_non_compliant_month_at_risk",
       scope: SCOPE,
       detail: {
         fiscalAddressId: FISCAL_ADDRESS_ID,
@@ -61,7 +61,7 @@ describe("DrizzleSecondMonthAtRiskAlerts", () => {
     expect(await atRisk.atRiskAlertScopes()).toEqual([SCOPE]);
     const [row] = await db.select().from(alerts);
     expect(row).toMatchObject({
-      kind: "exception_share_second_month_at_risk",
+      kind: "second_non_compliant_month_at_risk",
       scope: SCOPE,
       level: "warning",
       audience: "all",
@@ -111,14 +111,14 @@ describe("DrizzleSecondMonthAtRiskAlerts", () => {
 
     await atRisk.observeAlertCondition({
       holds: false,
-      kind: "exception_share_second_month_at_risk",
+      kind: "second_non_compliant_month_at_risk",
       scope: SCOPE,
     });
 
     const [row] = await db
       .select()
       .from(alerts)
-      .where(eq(alerts.kind, "exception_share_second_month_at_risk"));
+      .where(eq(alerts.kind, "second_non_compliant_month_at_risk"));
     expect(row?.conditionClearedAt).toEqual(NOW);
   });
 });

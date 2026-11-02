@@ -262,8 +262,8 @@ describe("alertDetailSchema", () => {
     expectTypeOf<WireDetail<"exception_share_breach">>().toEqualTypeOf<
       AlertDetails["exception_share_breach"]
     >();
-    expectTypeOf<WireDetail<"exception_share_second_month_at_risk">>().toEqualTypeOf<
-      AlertDetails["exception_share_second_month_at_risk"]
+    expectTypeOf<WireDetail<"second_non_compliant_month_at_risk">>().toEqualTypeOf<
+      AlertDetails["second_non_compliant_month_at_risk"]
     >();
     expectTypeOf<WireDetail<"fortnight_report_owed_elsewhere">>().toEqualTypeOf<
       AlertDetails["fortnight_report_owed_elsewhere"]
@@ -489,7 +489,7 @@ describe("alertDetailSchema", () => {
         nonCompliantMonths: ["2026-03", "2026-09"],
         nonCompliancePercent: 5,
       },
-      exception_share_second_month_at_risk: {
+      second_non_compliant_month_at_risk: {
         fiscalAddressId: "fiscal-address-1",
         fiscalAddressName: "Local central",
         month: "2026-10",
@@ -566,9 +566,9 @@ describe("alertDetailSchema", () => {
     it("accepts a second month at risk alert naming both measurements and no contingency data yet", () => {
       const alert = {
         ...base,
-        kind: "exception_share_second_month_at_risk",
+        kind: "second_non_compliant_month_at_risk",
         detail: {
-          ...detailOf.exception_share_second_month_at_risk,
+          ...detailOf.second_non_compliant_month_at_risk,
           previousMonthNonCompliantOn: ["exception_share", "contingency_time"],
           contingencyShareTenthsOfPercent: null,
         },
@@ -580,9 +580,9 @@ describe("alertDetailSchema", () => {
     it("accepts a second month at risk alert that has no share yet", () => {
       const alert = {
         ...base,
-        kind: "exception_share_second_month_at_risk",
+        kind: "second_non_compliant_month_at_risk",
         detail: {
-          ...detailOf.exception_share_second_month_at_risk,
+          ...detailOf.second_non_compliant_month_at_risk,
           exceptionCount: 0,
           totalCount: 0,
           shareTenthsOfPercent: null,
@@ -611,8 +611,8 @@ describe("alertDetailSchema", () => {
     ])("refuses a second month at risk alert with %s", (_case, change) => {
       const alert = {
         ...base,
-        kind: "exception_share_second_month_at_risk",
-        detail: { ...detailOf.exception_share_second_month_at_risk, ...change },
+        kind: "second_non_compliant_month_at_risk",
+        detail: { ...detailOf.second_non_compliant_month_at_risk, ...change },
       };
 
       expect(alertDetailSchema.safeParse(alert).success).toBe(false);

@@ -101,7 +101,7 @@ function held(
   return {
     holds: true,
     alert: {
-      kind: "exception_share_second_month_at_risk",
+      kind: "second_non_compliant_month_at_risk",
       scope: `${fiscalAddressId}:${month}`,
       detail: {
         fiscalAddressId,
@@ -163,7 +163,7 @@ describe("detectSecondNonCompliantMonthRisks", () => {
         totalCount: 0,
         shareTenthsOfPercent: null,
       }),
-      { holds: false, kind: "exception_share_second_month_at_risk", scope: "fa-1:2026-11" },
+      { holds: false, kind: "second_non_compliant_month_at_risk", scope: "fa-1:2026-11" },
     ]);
   });
 
@@ -174,7 +174,7 @@ describe("detectSecondNonCompliantMonthRisks", () => {
 
     expect(await outcome).toBe(0);
     expect(alerts.observations).toEqual([
-      { holds: false, kind: "exception_share_second_month_at_risk", scope: "fa-1:2026-12" },
+      { holds: false, kind: "second_non_compliant_month_at_risk", scope: "fa-1:2026-12" },
     ]);
   });
 
