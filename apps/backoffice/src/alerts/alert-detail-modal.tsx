@@ -419,11 +419,32 @@ function fortnightReportDeadlineText(deadline: string, daysLeft: number): string
   return `Vence el ${formatCalendarDay(deadline)}. ${left}`;
 }
 
-function fortnightReportWaitingText({
-  reason,
+function revokedInstallationsText({
   registerName,
+  revokedInstallations = [],
 }: Extract<AlertDetail, { kind: "fortnight_report_pending" }>["detail"]): string[] {
+  const confirmation =
+    revokedInstallations.length > 1
+      ? "esas instalaciones no emitieron comprobantes sin conexión que hayan dejado sin sincronizar"
+      : revokedInstallations.length === 1
+        ? "esa instalación no emitió comprobantes sin conexión que haya dejado sin sincronizar"
+        : "la instalación revocada no emitió comprobantes sin conexión que haya dejado sin sincronizar";
+  return [
+    ...revokedInstallations.map(
+      ({ revokedAt }) =>
+        `Una instalación de la caja${registerName === undefined ? "" : ` «${registerName}»`} se revocó el ${formatDayAndTime(revokedAt, ALERT_TIME_ZONE)}.`,
+    ),
+    `Se puede presentar cuando alguien confirme, en Puntos de venta y CAEA, que ${confirmation}.`,
+  ];
+}
+
+function fortnightReportWaitingText(
+  detail: Extract<AlertDetail, { kind: "fortnight_report_pending" }>["detail"],
+): string[] {
+  const { reason, registerName } = detail;
   switch (reason) {
+    case "revoked_installation":
+      return revokedInstallationsText(detail);
     case "blocked":
       return [
         `Se puede presentar cuando la caja${registerName === undefined ? "" : ` «${registerName}»`} termine de sincronizar.`,
