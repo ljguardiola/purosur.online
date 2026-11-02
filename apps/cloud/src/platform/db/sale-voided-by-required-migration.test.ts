@@ -15,8 +15,8 @@ describe("the migration that requires who voided a sale applied over a database 
     const voidedSale = await insertSale("VOIDED");
     await insertEvent(voidedSale, "someone-else", null);
     await insertEvent(voidedSale, "someone-else-too", "2026-10-06T11:30:00Z", "sale_completed");
-    await insertEvent(voidedSale, VOIDER, "2026-10-06T11:40:05Z");
     await insertEvent(voidedSale, "replayed-later", "2026-10-06T11:50:00Z");
+    await insertEvent(voidedSale, VOIDER, "2026-10-06T11:40:05Z");
 
     const migrated = await database.applyMigration();
 
@@ -36,7 +36,9 @@ describe("the migration that requires who voided a sale applied over a database 
 
     const migrated = await database.applyMigration();
 
-    const { rows } = await migrated.query("select voided_by from sales where id = $1", [voidedSale]);
+    const { rows } = await migrated.query("select voided_by from sales where id = $1", [
+      voidedSale,
+    ]);
     expect(rows).toEqual([{ voided_by: "recorded-voider" }]);
   });
 
