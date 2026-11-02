@@ -14,6 +14,8 @@ import {
 const at = (time: string) => new Date(`2026-10-06T${time}:00.000Z`);
 const PERIOD = { from: at("00:00"), to: new Date("2026-10-07T00:00:00.000Z") };
 
+const WHOLE_PERIOD = { start: PERIOD.from, end: PERIOD.to };
+
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
 let central: string;
@@ -122,8 +124,8 @@ describe("DrizzleContingencyIntervalsReader", () => {
     expect(registers).toHaveLength(2);
     expect(registers).toEqual(
       expect.arrayContaining([
-        { registerId: reporting, reportingSince: at("08:00") },
-        { registerId: silent, reportingSince: null },
+        { registerId: reporting, reportingSince: at("08:00"), presence: [WHOLE_PERIOD] },
+        { registerId: silent, reportingSince: null, presence: [WHOLE_PERIOD] },
       ]),
     );
   });
@@ -139,5 +141,32 @@ describe("DrizzleContingencyIntervalsReader", () => {
 
     expect(atCentral).toEqual([mover]);
     expect(atNorte.sort()).toEqual([mover, gone].sort());
+  });
+
+  it("answers the parts of the period during which each register belonged to the address", async () => {
+    const mover = await insertRegisterAtFiscalAddress(db, central, "Caja 1");
+    const returner = await insertRegisterAtFiscalAddress(db, central, "Caja 2");
+    await moveRegisterToFiscalAddress(db, mover, norte, at("11:00"));
+    await moveRegisterToFiscalAddress(db, returner, norte, at("06:00"));
+    await moveRegisterToFiscalAddress(db, returner, central, at("18:00"));
+
+    const presenceAt = async (fiscalAddressId: string) =>
+      new Map(
+        (await read(fiscalAddressId)).registers.map(({ registerId, presence }) => [
+          registerId,
+          presence,
+        ]),
+      );
+
+    const atCentral = await presenceAt(central);
+    const atNorte = await presenceAt(norte);
+
+    expect(atCentral.get(mover)).toEqual([{ start: PERIOD.from, end: at("11:00") }]);
+    expect(atCentral.get(returner)).toEqual([
+      { start: PERIOD.from, end: at("06:00") },
+      { start: at("18:00"), end: PERIOD.to },
+    ]);
+    expect(atNorte.get(mover)).toEqual([{ start: at("11:00"), end: PERIOD.to }]);
+    expect(atNorte.get(returner)).toEqual([{ start: at("06:00"), end: at("18:00") }]);
   });
 });
