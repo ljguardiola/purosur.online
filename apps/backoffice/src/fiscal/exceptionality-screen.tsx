@@ -1,6 +1,7 @@
 import type { ExceptionShareYearBody } from "@purosur/contracts";
 import {
   dataColumn,
+  formatDuration,
   formatNumber,
   formatPercent,
   formatTenthsOfPercent,
@@ -41,6 +42,17 @@ const STATES = {
   compliant: { tone: "success", label: "Dentro del límite" },
   in_progress: { tone: "neutral", label: "En curso" },
 } as const satisfies Record<MonthShare["state"], { tone: Tone; label: string }>;
+
+type ContingencyTime = MonthShare["contingency_time"];
+
+const CONTINGENCY_STATES = {
+  ...STATES,
+  no_data: { tone: "neutral", label: "Sin datos" },
+} as const satisfies Record<ContingencyTime["state"], { tone: Tone; label: string }>;
+
+function contingencyFigure(month: MonthShare, figure: (time: ContingencyTime) => string): string {
+  return month.contingency_time.state === "no_data" ? "—" : figure(month.contingency_time);
+}
 
 const columns = [
   dataColumn({
@@ -86,12 +98,56 @@ const columns = [
       }),
     ],
   }),
+  groupColumn({
+    id: "contingencyTime",
+    header: "Tiempo en contingencia",
+    columns: [
+      dataColumn({
+        id: "contingencyDuration",
+        header: "En contingencia",
+        align: "end",
+        render: (month: MonthShare) =>
+          contingencyFigure(month, ({ contingency_ms }) => formatDuration(contingency_ms)),
+      }),
+      dataColumn({
+        id: "availableDuration",
+        header: "ARCA disponible",
+        align: "end",
+        render: (month: MonthShare) =>
+          contingencyFigure(month, ({ available_ms }) => formatDuration(available_ms)),
+      }),
+      dataColumn({
+        id: "contingencyShare",
+        header: "Porcentaje",
+        align: "end",
+        render: (month: MonthShare) =>
+          contingencyFigure(month, ({ share_tenths_of_percent }) =>
+            share_tenths_of_percent === null ? "—" : formatTenthsOfPercent(share_tenths_of_percent),
+          ),
+      }),
+      dataColumn({
+        id: "contingencyState",
+        header: "Estado",
+        render: (month: MonthShare) => (
+          <StatusIndicator tone={CONTINGENCY_STATES[month.contingency_time.state].tone}>
+            {CONTINGENCY_STATES[month.contingency_time.state].label}
+          </StatusIndicator>
+        ),
+      }),
+    ],
+  }),
 ] as const;
 
 function nonCompliantMonthsText(year: ExceptionShareYearBody): string {
   return year.non_compliant_months.length === 0
     ? `Ningún mes incumplió en ${formatYear(year.year)}`
     : `Meses que incumplieron en ${formatYear(year.year)}: ${year.non_compliant_months.map(monthNameOf).join(", ")}`;
+}
+
+function nonCompliantContingencyMonthsText(year: ExceptionShareYearBody): string {
+  return year.contingency_non_compliant_months.length === 0
+    ? `Ningún mes incumplió por tiempo en contingencia en ${formatYear(year.year)}`
+    : `Meses que incumplieron por tiempo en contingencia en ${formatYear(year.year)}: ${year.contingency_non_compliant_months.map(monthNameOf).join(", ")}`;
 }
 
 function addressOption({ id, name }: { id: string; name: string }) {
@@ -198,12 +254,16 @@ export function ExceptionalityScreen({
       {answered === undefined ? null : (
         <p className="text-text-subtle text-detail">
           Un mes incumple al llegar al {formatPercent(answered.non_compliance_percent)} de
-          comprobantes emitidos por excepción (CAEA). ARCA puede restringir el uso del CAEA; en el
-          mostrador no se restringe nada.
+          comprobantes emitidos por excepción (CAEA), o cuando el tiempo en contingencia supera el{" "}
+          {formatPercent(answered.contingency_non_compliance_percent)} del tiempo en que ARCA estuvo
+          disponible. ARCA puede restringir el uso del CAEA; en el mostrador no se restringe nada.
         </p>
       )}
       {shown === undefined ? null : (
-        <p className="font-bold text-detail">{nonCompliantMonthsText(shown)}</p>
+        <>
+          <p className="font-bold text-detail">{nonCompliantMonthsText(shown)}</p>
+          <p className="font-bold text-detail">{nonCompliantContingencyMonthsText(shown)}</p>
+        </>
       )}
       <Table
         aria-label="Excepcionalidad por mes"
