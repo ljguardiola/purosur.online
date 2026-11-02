@@ -3,6 +3,7 @@ import {
   registerContingencyIntervals,
   registerContingencyReporting,
 } from "../platform/db/schema.js";
+import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import {
   recordAppliedContingencyEntered,
@@ -17,10 +18,12 @@ import {
 const INTERVAL = "01a1414f-0002-7c2d-9e3f-5a6b7c8d9e02";
 const STARTED = new Date("2026-10-06T11:00:00.000Z");
 const ENDED = new Date("2026-10-06T11:40:00.000Z");
+const ENROLLED = new Date("2026-10-06T10:59:55.000Z");
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
 let registerId: string;
+let deviceId: string;
 
 beforeAll(async () => {
   testDatabase = await buildTestDatabase();
@@ -35,6 +38,11 @@ beforeEach(async () => {
   await testDatabase.clear();
   const fiscalAddressId = await insertFiscalAddress(db, "Depósito Central");
   registerId = await insertRegisterAtFiscalAddress(db, fiscalAddressId, "Caja 1");
+  ({ deviceId } = await insertEnrolledInstallation(db, {
+    now: STARTED,
+    existingRegisterId: registerId,
+    enrolledAt: ENROLLED,
+  }));
 });
 
 const entered = {
@@ -132,24 +140,39 @@ describe("recording the contingency intervals of applied events", () => {
   it("keeps the moment a register started reporting contingency, the first one received", async () => {
     await recordAppliedContingencyReportingStarted(
       db,
-      { registerId },
+      { registerId, deviceId },
       {
         kind: "contingency_reporting_started",
-        reporting: { since: STARTED },
+        reporting: { since: STARTED, fromEnrollment: false },
       },
     );
 
     await recordAppliedContingencyReportingStarted(
       db,
-      { registerId },
+      { registerId, deviceId },
       {
         kind: "contingency_reporting_started",
-        reporting: { since: new Date("2026-10-07T08:00:00.000Z") },
+        reporting: { since: new Date("2026-10-07T08:00:00.000Z"), fromEnrollment: false },
       },
     );
 
     expect(await db.select().from(registerContingencyReporting)).toEqual([
       { registerId, since: STARTED },
+    ]);
+  });
+
+  it("keeps the enrollment of the reporting installation when the register reports from its enrollment", async () => {
+    await recordAppliedContingencyReportingStarted(
+      db,
+      { registerId, deviceId },
+      {
+        kind: "contingency_reporting_started",
+        reporting: { since: STARTED, fromEnrollment: true },
+      },
+    );
+
+    expect(await db.select().from(registerContingencyReporting)).toEqual([
+      { registerId, since: ENROLLED },
     ]);
   });
 });

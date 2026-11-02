@@ -211,6 +211,7 @@ describe("synced event payloads", () => {
       "contingency_entered@1",
       "contingency_left@1",
       "contingency_reporting_started@1",
+      "contingency_reporting_started@2",
       "deferred_sale_recorded@1",
       "deferred_sale_recorded@2",
       "deferred_sale_satisfied@1",
@@ -354,7 +355,7 @@ describe("synced event payloads", () => {
     ["a qr_payment_replaced version nobody emitted", "qr_payment_replaced", 2],
     ["a contingency_entered version nobody emitted", "contingency_entered", 2],
     ["a contingency_left version nobody emitted", "contingency_left", 2],
-    ["a contingency_reporting_started version nobody emitted", "contingency_reporting_started", 2],
+    ["a contingency_reporting_started version nobody emitted", "contingency_reporting_started", 3],
     ["a prototype property name", "constructor", 1],
     ["a prototype property name as the version", "sale_completed", Number.NaN],
   ])("has no schema for %s", (_case, eventType, schemaVersion) => {
@@ -369,6 +370,7 @@ describe("synced event payloads", () => {
     ["contingency_entered", 1],
     ["contingency_left", 1],
     ["contingency_reporting_started", 1],
+    ["contingency_reporting_started", 2],
     ["qr_payment_replaced", 1],
     ["sale_completed", 1],
     ["sale_completed", 2],
@@ -392,6 +394,7 @@ describe("synced event payloads", () => {
     ["contingency_entered", 1],
     ["contingency_left", 1],
     ["contingency_reporting_started", 1],
+    ["contingency_reporting_started", 2],
     ["qr_payment_replaced", 1],
     ["sale_completed", 1],
     ["sale_completed", 2],
@@ -414,6 +417,7 @@ describe("synced event payloads", () => {
     ["contingency_entered", 1],
     ["contingency_left", 1],
     ["contingency_reporting_started", 1],
+    ["contingency_reporting_started", 2],
     ["qr_payment_replaced", 1],
     ["sale_completed", 1],
     ["sale_completed", 2],
@@ -539,6 +543,24 @@ describe("synced event payloads", () => {
       ).toBe(false);
     });
 
+    it("refuses contingency_reporting_started v2 with a since that is not an instant", () => {
+      expect(
+        accepts("contingency_reporting_started", 2, {
+          ...recordedPayload("contingency_reporting_started", 2),
+          since: "yesterday",
+        }),
+      ).toBe(false);
+    });
+
+    it("refuses contingency_reporting_started v2 whose from_enrollment is not a boolean", () => {
+      expect(
+        accepts("contingency_reporting_started", 2, {
+          ...recordedPayload("contingency_reporting_started", 2),
+          from_enrollment: "yes",
+        }),
+      ).toBe(false);
+    });
+
     it.each([["contingency_entered"], ["contingency_left"]])(
       "refuses %s with an empty interval id",
       (eventType) => {
@@ -568,10 +590,14 @@ describe("synced event payloads", () => {
       ],
       [
         "contingency_reporting_started",
-        contingencyReportingStartedEvent({ ...identity, since: STARTED_AT }),
+        contingencyReportingStartedEvent({
+          ...identity,
+          since: STARTED_AT,
+          fromEnrollment: true,
+        }),
       ],
     ])("describes the %s the domain builds", (eventType, event) => {
-      expect(accepts(eventType, 1, event.payload)).toBe(true);
+      expect(accepts(eventType, event.schema_version, event.payload)).toBe(true);
     });
   });
 

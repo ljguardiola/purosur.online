@@ -3,6 +3,7 @@ import {
   closePredecessorContingency,
   type IdGenerator,
   recordContingencyChange,
+  recordRegisterSeenUnenrolled,
   startContingencyReporting,
 } from "@purosur/domain/register/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -214,6 +215,41 @@ describe("SqliteContingencyLedger", () => {
       { id: 1, since: T3.toISOString() },
     ]);
     expect(eventTypes()).toEqual(["contingency_reporting_started"]);
+  });
+
+  it("starts reporting from enrollment only when the register was seen before it was enrolled", () => {
+    const start = () =>
+      startContingencyReporting({ ledger: ledger(), clock: { now: () => T3 }, ids: ids() });
+    const startedFromEnrollment = () =>
+      database
+        .prepare<[], { from_enrollment: number }>(
+          "SELECT json_extract(payload, '$.from_enrollment') AS from_enrollment FROM outbox",
+        )
+        .all();
+
+    start();
+    expect(startedFromEnrollment()).toEqual([{ from_enrollment: 0 }]);
+
+    database.prepare("DELETE FROM outbox").run();
+    database.prepare("DELETE FROM contingency_reporting_start").run();
+    database.prepare("UPDATE sync_state SET device_id = NULL").run();
+    recordRegisterSeenUnenrolled({ ledger: ledger(undefined) });
+    database.prepare("UPDATE sync_state SET device_id = 'device-1'").run();
+    start();
+    expect(startedFromEnrollment()).toEqual([{ from_enrollment: 1 }]);
+  });
+
+  it("remembers once that the register was seen before it was enrolled, with no outbox chain key", () => {
+    database.prepare("UPDATE sync_state SET device_id = NULL").run();
+
+    expect(recordRegisterSeenUnenrolled({ ledger: ledger(undefined) })).toEqual({
+      kind: "recorded",
+    });
+    expect(recordRegisterSeenUnenrolled({ ledger: ledger(undefined) })).toEqual({
+      kind: "already_recorded",
+    });
+
+    expect(database.prepare("SELECT id FROM register_seen_unenrolled").all()).toEqual([{ id: 1 }]);
   });
 
   it("keeps the order of the events in the register's outbox chain", () => {

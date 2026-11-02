@@ -21,9 +21,11 @@ export interface ContingencyLedgerTransaction {
   openInterval(): OpenContingencyInterval | undefined;
   predecessorOpenIntervals(): PredecessorOpenContingencyInterval[];
   reportingStartedAt(): Date | undefined;
+  seenUnenrolled(): boolean;
   recordOpenedInterval(interval: { id: string; startedAt: Date }): void;
   recordIntervalSeen(intervalId: string, seenAt: Date): void;
   recordClosedInterval(intervalId: string, endedAt: Date): void;
   recordReportingStarted(since: Date): void;
+  recordSeenUnenrolled(): void;
   appendOutboxEvent(draft: OutboxEventDraft): void;
 }

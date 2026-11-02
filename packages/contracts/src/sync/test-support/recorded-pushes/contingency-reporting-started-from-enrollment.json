@@ -1,0 +1,28 @@
+{
+  "outbox_chain_key": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=",
+  "push": {
+    "app_version": "0.0.0",
+    "telemetry": {
+      "wal_size_bytes": 4120032,
+      "disk_free_bytes": 182536847360,
+      "disk_free_ratio": 0.38
+    },
+    "events": [
+      {
+        "event_id": "01a1414f-0011-7b1c-8d2e-4f5a6b7c8d11",
+        "device_seq": 1,
+        "aggregate_type": "Register",
+        "aggregate_id": "0b6f8d3a-2c41-4e9b-a7d5-3f1e9c8b6a20",
+        "event_type": "contingency_reporting_started",
+        "schema_version": 2,
+        "payload": {
+          "from_enrollment": true,
+          "since": "2026-10-20T12:00:05.000Z"
+        },
+        "occurred_at": "2026-10-20T12:00:05.000Z",
+        "actor_id": "0b6f8d3a-2c41-4e9b-a7d5-3f1e9c8b6a20",
+        "chain_hmac": "rNGP8UIQhkuXRXUter8a3Z8NlqqM9Mf1O70elDHwyL0="
+      }
+    ]
+  }
+}

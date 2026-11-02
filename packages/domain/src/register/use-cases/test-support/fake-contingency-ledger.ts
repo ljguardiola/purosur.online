@@ -17,6 +17,7 @@ export interface FakeContingencyLedgerState {
   replenishmentPending: boolean;
   intervals: RecordedContingencyInterval[];
   reportingStartedAt: Date | undefined;
+  seenUnenrolled: boolean;
   outbox: OutboxEventDraft[];
 }
 
@@ -25,6 +26,7 @@ export type FakeContingencyLedgerWrite =
   | "recordIntervalSeen"
   | "recordClosedInterval"
   | "recordReportingStarted"
+  | "recordSeenUnenrolled"
   | "appendOutboxEvent";
 
 export class FakeContingencyLedger implements ContingencyLedger {
@@ -39,6 +41,7 @@ export class FakeContingencyLedger implements ContingencyLedger {
       replenishmentPending: false,
       intervals: [],
       reportingStartedAt: undefined,
+      seenUnenrolled: false,
       outbox: [],
       ...state,
     };
@@ -67,6 +70,7 @@ export class FakeContingencyLedger implements ContingencyLedger {
             sessionClosedAt: sessionClosedAt ?? null,
           })),
       reportingStartedAt: () => working.reportingStartedAt,
+      seenUnenrolled: () => working.seenUnenrolled,
       recordOpenedInterval: ({ id, startedAt }) => {
         this.failIfAsked("recordOpenedInterval");
         working.intervals.push({ id, startedAt, lastSeenAt: startedAt, endedAt: null });
@@ -90,6 +94,10 @@ export class FakeContingencyLedger implements ContingencyLedger {
       recordReportingStarted: (since) => {
         this.failIfAsked("recordReportingStarted");
         working.reportingStartedAt = since;
+      },
+      recordSeenUnenrolled: () => {
+        this.failIfAsked("recordSeenUnenrolled");
+        working.seenUnenrolled = true;
       },
       appendOutboxEvent: (draft) => {
         this.failIfAsked("appendOutboxEvent");

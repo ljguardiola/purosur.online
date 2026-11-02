@@ -1,9 +1,10 @@
 import type { SyncedFact } from "@purosur/domain/sync/use-cases";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   registerContingencyIntervals,
   registerContingencyReporting,
+  registerInstallations,
 } from "../platform/db/schema.js";
 
 interface AppliedRegister {
@@ -47,11 +48,26 @@ export async function recordAppliedContingencyReportingStarted<
   TQueryResult extends PgQueryResultHKT,
 >(
   tx: Tx<TQueryResult>,
-  { registerId }: AppliedRegister,
+  { registerId, deviceId }: AppliedRegister & { deviceId: string },
   { reporting }: Extract<SyncedFact, { kind: "contingency_reporting_started" }>,
 ): Promise<void> {
+  const since = reporting.fromEnrollment ? await enrolledAt(tx, deviceId) : reporting.since;
   await tx
     .insert(registerContingencyReporting)
-    .values({ registerId, since: reporting.since })
+    .values({ registerId, since })
     .onConflictDoNothing({ target: registerContingencyReporting.registerId });
+}
+
+async function enrolledAt<TQueryResult extends PgQueryResultHKT>(
+  tx: Tx<TQueryResult>,
+  installationId: string,
+): Promise<Date> {
+  const [installation] = await tx
+    .select({ enrolledAt: registerInstallations.enrolledAt })
+    .from(registerInstallations)
+    .where(eq(registerInstallations.id, installationId));
+  if (!installation) {
+    throw new Error(`installation ${installationId} is not a known register`);
+  }
+  return installation.enrolledAt;
 }

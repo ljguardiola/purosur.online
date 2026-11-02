@@ -513,7 +513,10 @@ describe("the register's store for replenishing a restored register", () => {
     it("applies the contingency facts with the contingency writers", async () => {
       const startedAt = new Date("2026-10-07T10:00:00.000Z");
       const facts: SyncedFact[] = [
-        { kind: "contingency_reporting_started", reporting: { since: startedAt } },
+        {
+          kind: "contingency_reporting_started",
+          reporting: { since: startedAt, fromEnrollment: false },
+        },
         { kind: "contingency_entered", interval: { intervalId: "interval-1", startedAt } },
         {
           kind: "contingency_left",

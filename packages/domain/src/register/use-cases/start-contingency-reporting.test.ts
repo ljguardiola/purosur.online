@@ -33,11 +33,24 @@ describe("startContingencyReporting", () => {
         aggregate_type: "Register",
         aggregate_id: "register-1",
         event_type: "contingency_reporting_started",
-        schema_version: 1,
-        payload: { since: NOW.toISOString() },
+        schema_version: 2,
+        payload: { since: NOW.toISOString(), from_enrollment: false },
         occurred_at: NOW.toISOString(),
         actor_id: "register-1",
       },
+    ]);
+  });
+
+  it("reports that the register has been recording since its enrollment when it was seen before enrolling", () => {
+    const ledger = ledgerWith({ seenUnenrolled: true });
+
+    expect(start(ledger)).toEqual({ kind: "started", since: NOW });
+    expect(ledger.state.outbox).toEqual([
+      expect.objectContaining({
+        event_type: "contingency_reporting_started",
+        schema_version: 2,
+        payload: { since: NOW.toISOString(), from_enrollment: true },
+      }),
     ]);
   });
 
@@ -53,7 +66,7 @@ describe("startContingencyReporting", () => {
 
   it("does not report again when it had started before", () => {
     const earlier = new Date("2026-09-01T00:00:00.000Z");
-    const ledger = ledgerWith({ reportingStartedAt: earlier });
+    const ledger = ledgerWith({ reportingStartedAt: earlier, seenUnenrolled: true });
 
     expect(start(ledger)).toEqual({ kind: "already_started" });
     expect(ledger.state.reportingStartedAt).toEqual(earlier);

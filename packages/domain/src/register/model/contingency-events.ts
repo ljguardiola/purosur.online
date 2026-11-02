@@ -56,15 +56,16 @@ export function contingencyReportingStartedEvent({
   eventId,
   registerId,
   since,
-}: RegisterEventInput & { since: Date }): OutboxEventDraft {
+  fromEnrollment,
+}: RegisterEventInput & { since: Date; fromEnrollment: boolean }): OutboxEventDraft {
   const sinceIso = since.toISOString();
   return {
     event_id: eventId,
     aggregate_type: "Register",
     aggregate_id: registerId,
     event_type: "contingency_reporting_started",
-    schema_version: 1,
-    payload: { since: sinceIso },
+    schema_version: 2,
+    payload: { since: sinceIso, from_enrollment: fromEnrollment },
     occurred_at: sinceIso,
     actor_id: registerId,
   };

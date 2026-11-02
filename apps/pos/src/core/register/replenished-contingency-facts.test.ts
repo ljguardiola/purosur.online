@@ -24,7 +24,7 @@ const left: Extract<SyncedFact, { kind: "contingency_left" }> = {
 };
 const reportingStarted: Extract<SyncedFact, { kind: "contingency_reporting_started" }> = {
   kind: "contingency_reporting_started",
-  reporting: { since: STARTED },
+  reporting: { since: STARTED, fromEnrollment: false },
 };
 
 let database: LocalDatabase;

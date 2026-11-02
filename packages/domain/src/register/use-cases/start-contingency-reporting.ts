@@ -30,7 +30,12 @@ export function startContingencyReporting({
     const since = clock.now();
     tx.recordReportingStarted(since);
     tx.appendOutboxEvent(
-      contingencyReportingStartedEvent({ eventId: ids.next(), registerId, since }),
+      contingencyReportingStartedEvent({
+        eventId: ids.next(),
+        registerId,
+        since,
+        fromEnrollment: tx.seenUnenrolled(),
+      }),
     );
     return { kind: "started", since };
   });

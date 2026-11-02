@@ -674,7 +674,11 @@ const FACT_OF: {
   }),
   "contingency_reporting_started@1": (payload) => ({
     kind: "contingency_reporting_started",
-    reporting: { since: new Date(payload.since) },
+    reporting: { since: new Date(payload.since), fromEnrollment: false },
+  }),
+  "contingency_reporting_started@2": (payload) => ({
+    kind: "contingency_reporting_started",
+    reporting: { since: new Date(payload.since), fromEnrollment: payload.from_enrollment },
   }),
   "deferred_sale_recorded@1": (payload) => deferredSaleRecorded(payload, null),
   "deferred_sale_recorded@2": (payload) =>

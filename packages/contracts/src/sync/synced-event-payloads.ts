@@ -649,6 +649,11 @@ const contingencyReportingStartedSchema = z.object({
   since: instant,
 });
 
+const contingencyReportingStartedV2Schema = z.object({
+  since: instant,
+  from_enrollment: z.boolean(),
+});
+
 const deferredSaleRecordedSchema = z.object({
   id: text,
   sale_id: text,
@@ -809,6 +814,7 @@ const PAYLOAD_SCHEMAS = {
   "contingency_entered@1": contingencyEnteredSchema,
   "contingency_left@1": contingencyLeftSchema,
   "contingency_reporting_started@1": contingencyReportingStartedSchema,
+  "contingency_reporting_started@2": contingencyReportingStartedV2Schema,
   "deferred_sale_recorded@1": deferredSaleRecordedSchema,
   "deferred_sale_recorded@2": deferredSaleRecordedV2Schema,
   "deferred_sale_satisfied@1": deferredSaleSatisfiedSchema,

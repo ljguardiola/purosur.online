@@ -232,6 +232,11 @@ export type {
 } from "./record-contingency-change.js";
 export { recordContingencyChange } from "./record-contingency-change.js";
 export type {
+  RecordRegisterSeenUnenrolledOutcome,
+  RecordRegisterSeenUnenrolledPorts,
+} from "./record-register-seen-unenrolled.js";
+export { recordRegisterSeenUnenrolled } from "./record-register-seen-unenrolled.js";
+export type {
   RecordSnapshotCopyFailureInput,
   RecordSnapshotCopyFailureOutcome,
   RecordSnapshotCopyFailurePorts,

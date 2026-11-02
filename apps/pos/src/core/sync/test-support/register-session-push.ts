@@ -1,4 +1,4 @@
-import { encodePinHash } from "@purosur/contracts";
+import { type DeviceCredentials, encodePinHash } from "@purosur/contracts";
 import type { FiscalEmissionMode } from "@purosur/domain";
 import {
   FICTIONAL_CUIT,
@@ -100,6 +100,16 @@ const CANCELLED_PAID_ORDER = "0199b7a0-0000-7000-8000-000000000c02";
 const ORDERS_OWN_SALE = "0199b7a0-0000-7000-8000-000000000c03";
 const OFFLINE_POINT_OF_SALE = 31;
 const PEPPER = Buffer.alloc(32, 9).toString("base64url");
+const CREDENTIALS: DeviceCredentials = {
+  device_id: DEVICE,
+  device_token: "prefix.secret",
+  pepper: PEPPER,
+  keys: {
+    snapshot_key_versions: [{ version: 1, key: Buffer.alloc(32, 1).toString("base64") }],
+    contingency_ticket_key: { version: 1, key: Buffer.alloc(32, 2).toString("base64") },
+    outbox_chain_key: OUTBOX_CHAIN_KEY,
+  },
+};
 const PIN = "4826";
 const PIN_HASH = "hash-of-the-pin";
 
@@ -538,7 +548,7 @@ export async function withRegisterSession<TResult>(
       now,
       ids: uuidV7Ids,
       readMode: () => fiscalMode,
-      readOutboxChainKey: async () => OUTBOX_CHAIN_KEY,
+      readCredentials: async () => CREDENTIALS,
       reportFailure: (error) => {
         throw error;
       },

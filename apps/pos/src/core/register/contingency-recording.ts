@@ -1,3 +1,4 @@
+import type { DeviceCredentials } from "@purosur/contracts";
 import type { FiscalEmissionMode } from "@purosur/domain";
 import {
   type Clock,
@@ -5,6 +6,7 @@ import {
   closePredecessorContingency,
   type IdGenerator,
   recordContingencyChange,
+  recordRegisterSeenUnenrolled,
   startContingencyReporting,
 } from "@purosur/domain/register/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
@@ -15,7 +17,7 @@ export interface ContingencyRecordingDeps {
   now: Clock["now"];
   ids: IdGenerator;
   readMode: () => FiscalEmissionMode;
-  readOutboxChainKey: () => Promise<string | undefined>;
+  readCredentials: () => Promise<DeviceCredentials | undefined>;
   reportFailure: (error: unknown) => void;
 }
 
@@ -29,7 +31,7 @@ export function createContingencyRecording({
   now,
   ids,
   readMode,
-  readOutboxChainKey,
+  readCredentials,
   reportFailure,
 }: ContingencyRecordingDeps): ContingencyRecording {
   let queue: Promise<void> = Promise.resolve();
@@ -37,9 +39,13 @@ export function createContingencyRecording({
   function serialized(work: (ledger: SqliteContingencyLedger) => void): Promise<void> {
     queue = queue.then(async () => {
       try {
-        const outboxChainKey = await readOutboxChainKey();
-        if (outboxChainKey !== undefined) {
-          work(new SqliteContingencyLedger(database, outboxChainKey));
+        const credentials = await readCredentials();
+        if (credentials === undefined) {
+          recordRegisterSeenUnenrolled({
+            ledger: new SqliteContingencyLedger(database, undefined),
+          });
+        } else if (credentials.keys !== undefined) {
+          work(new SqliteContingencyLedger(database, credentials.keys.outbox_chain_key));
         }
       } catch (error) {
         reportFailure(error);
