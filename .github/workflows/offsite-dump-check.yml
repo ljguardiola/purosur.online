@@ -1,10 +1,11 @@
 name: Check the nightly offsite dump
 
-# The dump runs at 06:00 UTC (.railway/railway.ts); this finds it four hours later, well before the
-# 15:00 UTC deadline after which the cloud raises an alert for a night nobody verified.
+# The dump runs at 06:00 UTC (.railway/railway.ts). GitHub starts scheduled runs hours late, up to
+# seven hours late so far, so this is scheduled early and off the hour to keep its late start well
+# before 21:00 UTC, when the cloud raises an alert for a night nobody verified.
 on:
   schedule:
-    - cron: "0 10 * * *"
+    - cron: "17 8 * * *"
   workflow_dispatch:
 
 concurrency:

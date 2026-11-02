@@ -3,7 +3,6 @@ import {
   isCalendarDay,
   isCostPaid,
   isLotNumberTooLong,
-  isPackageCount,
   isPurchaseNoteTooLong,
   isReceiptNumberTooLong,
   LOT_NUMBER_MAX_LENGTH,
@@ -18,11 +17,9 @@ import {
 import { z } from "zod";
 import { recordIdSchema } from "../shared/index.js";
 import { optionalLimitedTextSchema, optionalTextSchema } from "./optional-text.js";
+import { packageCountFields } from "./package-count-fields.js";
 
 const CALENDAR_DAY_MESSAGE = "must be a calendar day in the form YYYY-MM-DD";
-const PACKAGES_MESSAGE = "packages must be a positive whole number";
-const QUANTITY_PER_PACKAGE_MESSAGE =
-  "quantityPerPackage must be a positive integer number of thousandths";
 const QUANTITY_MESSAGE = "quantity must be a positive integer number of thousandths";
 const COST_MESSAGE = "costPaidCents must be a whole number of cents, not negative";
 const RECEIPT_NUMBER_MESSAGE =
@@ -38,11 +35,7 @@ const lineFields = {
 const packagesLineSchema = z.object({
   loadedBy: z.literal("packages"),
   ...lineFields,
-  packages: z.number({ error: PACKAGES_MESSAGE }).refine(isPackageCount, PACKAGES_MESSAGE),
-  quantityPerPackage: z
-    .number({ error: QUANTITY_PER_PACKAGE_MESSAGE })
-    .refine(mayBeMovementQuantity, QUANTITY_PER_PACKAGE_MESSAGE)
-    .meta({ decimals: STOCK_QUANTITY_DECIMALS, perUnit: STOCK_QUANTITY_PER_UNIT }),
+  ...packageCountFields,
 });
 
 const quantityLineSchema = z.object({

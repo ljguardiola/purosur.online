@@ -60,6 +60,7 @@ export { detectOwedElsewherePresentations } from "./detect-owed-elsewhere-presen
 export type { QuietRegisterDetectionPorts } from "./detect-quiet-registers.js";
 export { detectQuietRegisters } from "./detect-quiet-registers.js";
 export { detectRejectedFortnightDocuments } from "./detect-rejected-fortnight-documents.js";
+export { detectSecondNonCompliantMonthRisks } from "./detect-second-month-risks.js";
 export type { DetectUnverifiedOffsiteDumpOutcome } from "./detect-unverified-offsite-dump.js";
 export { detectUnverifiedOffsiteDump } from "./detect-unverified-offsite-dump.js";
 export { escalateOverdueAlerts } from "./escalate-overdue-alerts.js";
@@ -120,6 +121,13 @@ export type {
 export type { ResolveAlertOutcome } from "./resolve-alert.js";
 export { resolveAlert } from "./resolve-alert.js";
 export { resolveStablyClearedAlerts } from "./resolve-stably-cleared-alerts.js";
+export type {
+  RunningExceptionShareCounts,
+  SecondMonthRiskAddress,
+  SecondMonthRiskAlerts,
+  SecondMonthRiskDetectionPorts,
+  SecondMonthRiskReader,
+} from "./second-month-risk-ports.js";
 export type {
   UnclearDocumentWithoutAlert,
   UnclearOutcomeAlertStore,

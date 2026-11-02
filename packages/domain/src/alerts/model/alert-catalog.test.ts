@@ -48,6 +48,7 @@ describe("ALERT_KINDS", () => {
       "fortnight_report_document_rejected",
       "deferred_sale_due",
       "exception_share_breach",
+      "exception_share_second_month_at_risk",
     ]);
   });
 });

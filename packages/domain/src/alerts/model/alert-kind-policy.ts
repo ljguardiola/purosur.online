@@ -335,6 +335,14 @@ const ALERT_KIND_POLICIES = {
     deduplicates: true,
     resolvesAfterStableClear: false,
   },
+  exception_share_second_month_at_risk: {
+    level: "warning",
+    escalation: null,
+    audience: "all",
+    scopeKind: "fiscalAddressMonth",
+    deduplicates: true,
+    resolvesAfterStableClear: true,
+  },
 } as const satisfies Record<AlertKind, AlertKindPolicy>;
 
 export function alertKindPolicy(kind: AlertKind): AlertKindPolicy {

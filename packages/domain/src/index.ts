@@ -103,6 +103,7 @@ export {
   OFFSITE_DUMP_FAILURE_REASONS,
   OFFSITE_DUMP_REPORTED_FAILURE_REASONS,
   OFFSITE_DUMP_SHRINK_THRESHOLD_PERCENT,
+  offsiteDumpNightOf,
   paidSaleCancellationLeavesBackupTicket,
 } from "./backups/index.js";
 export type { BranchWeeklyHoursRange } from "./branch/index.js";
@@ -592,6 +593,7 @@ export type {
   FreightPeriodDays,
   PricedAiCall,
   PurchasedLine,
+  PurchaseOrderState,
   ReceiptType,
   RecordedAiCall,
   RegisteredFreight,
@@ -655,6 +657,7 @@ export {
   PRICE_LIST_EXTRACTION_MAX_SHORT_TEXT_LENGTH,
   PRODUCTS_PURCHASES_MAY_BE_REGISTERED_FOR,
   PURCHASE_NOTE_MAX_LENGTH,
+  PURCHASE_ORDER_STATES,
   RECEIPT_NUMBER_MAX_LENGTH,
   RECEIPT_TYPES,
   rereadCountsTowardDailyExtractionCap,

@@ -7,12 +7,14 @@ import { defaultOrderSuggestionScreenServices } from "./order-suggestion-service
 const route = getRouteApi("/signed-in/orders-area/order-suggestion");
 
 export function OrderSuggestionPage(): ReactElement {
-  const { services, sessionActions } = route.useRouteContext();
+  const { services, session, sessionActions } = route.useRouteContext();
   const filters = route.useSearch();
   const navigate = route.useNavigate();
   useDocumentTitle("Sugerencia de pedido · Puro Sur");
   return (
     <OrderSuggestionScreen
+      access={session}
+      onOrdersBuilt={() => void navigate({ to: "/purchase-orders" })}
       filters={filters}
       onFiltersChange={(next) => void navigate({ search: next, replace: true })}
       onSessionEnded={sessionActions.sessionEnded}
