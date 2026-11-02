@@ -13,6 +13,7 @@ import {
   products,
   purchaseOrderLines,
   purchaseOrders,
+  supplierItems,
   suppliers,
 } from "../platform/db/schema.js";
 
@@ -109,18 +110,53 @@ export class DrizzlePurchaseOrderReader<TQueryResult extends PgQueryResultHKT>
       .leftJoin(brands, eq(brands.id, products.brandId))
       .where(eq(purchaseOrderLines.purchaseOrderId, orderId))
       .orderBy(asc(purchaseOrderLines.position));
-    const lines: PurchaseOrderLineListing[] = lineRows.map((line) => ({
-      product: {
-        id: line.productId,
-        name: line.productName,
-        brandName: line.brandName,
-        netContent: netContentRow(line),
-        saleUnit: line.saleUnit as SaleUnit,
-      },
-      packages: line.packages,
-      quantityPerPackage: line.quantityPerPackage,
-      expectedPackagePriceCents: line.expectedPackagePriceCents,
-    }));
+    const items =
+      lineRows.length === 0
+        ? []
+        : await this.db
+            .select({
+              productId: supplierItems.productId,
+              quantity: supplierItems.quantity,
+              keyKind: supplierItems.keyKind,
+              keyValue: supplierItems.keyValue,
+              description: supplierItems.description,
+            })
+            .from(supplierItems)
+            .where(
+              and(
+                eq(supplierItems.supplierId, row.supplierId),
+                inArray(
+                  supplierItems.productId,
+                  lineRows.map(({ productId }) => productId),
+                ),
+                eq(supplierItems.relinkRequired, false),
+              ),
+            )
+            .orderBy(asc(supplierItems.keyKind), asc(supplierItems.keyValue));
+    const lines: PurchaseOrderLineListing[] = lineRows.map((line) => {
+      const item = items.find(
+        ({ productId, quantity }) =>
+          productId === line.productId && quantity === line.quantityPerPackage,
+      );
+      return {
+        product: {
+          id: line.productId,
+          name: line.productName,
+          brandName: line.brandName,
+          netContent: netContentRow(line),
+          saleUnit: line.saleUnit as SaleUnit,
+        },
+        packages: line.packages,
+        quantityPerPackage: line.quantityPerPackage,
+        expectedPackagePriceCents: line.expectedPackagePriceCents,
+        supplierItem: item
+          ? {
+              code: item.keyKind === "code" ? item.keyValue : null,
+              description: item.description,
+            }
+          : null,
+      };
+    });
     return {
       id: row.id,
       supplier: { id: row.supplierId, name: row.supplierName },

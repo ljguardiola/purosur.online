@@ -850,6 +850,8 @@ export const purchaseOrders = pgTable(
       .references(() => users.id),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
     cancelledBy: uuid("cancelled_by").references(() => users.id),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    sentBy: uuid("sent_by").references(() => users.id),
   },
   (table) => [
     check(
@@ -859,6 +861,10 @@ export const purchaseOrders = pgTable(
     check(
       "purchase_orders_cancellation_check",
       sql`(${table.state} = 'CANCELLED') = (${table.cancelledAt} is not null and ${table.cancelledBy} is not null) and (${table.cancelledAt} is null) = (${table.cancelledBy} is null)`,
+    ),
+    check(
+      "purchase_orders_sending_check",
+      sql`(${table.sentAt} is null) = (${table.sentBy} is null) and (${table.state} <> 'SENT' or ${table.sentAt} is not null) and (${table.state} <> 'DRAFT' or ${table.sentAt} is null)`,
     ),
     index("purchase_orders_location_id_state_created_at_idx").on(
       table.locationId,
