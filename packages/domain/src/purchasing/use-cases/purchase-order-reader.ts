@@ -14,6 +14,8 @@ export interface PurchaseOrderLineListing {
   packages: number;
   quantityPerPackage: number;
   expectedPackagePriceCents: number | null;
+  // The supplier's own item for the product at this quantity per package, when it has one.
+  supplierItem: { code: string | null; description: string } | null;
 }
 
 export interface PurchaseOrderDetailListing {
