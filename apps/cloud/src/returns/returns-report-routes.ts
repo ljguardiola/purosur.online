@@ -1,5 +1,11 @@
 import { returnsReportQuerySchema, returnsReportSchema } from "@purosur/contracts";
-import type { ReturnRow, ReturnsGroup, ZoneRulesSource } from "@purosur/domain";
+import type {
+  ReturnRow,
+  ReturnsGroup,
+  ReturnsReportTotals,
+  VoidedSaleRecord,
+  ZoneRulesSource,
+} from "@purosur/domain";
 import { readReturnsReport } from "@purosur/domain/returns/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -22,21 +28,26 @@ export interface ReturnsReportRouteOptions<TQueryResult extends PgQueryResultHKT
 
 const person = ({ id, name }: { id: string; name: string | null }) => ({ id, name });
 
+const invoiceOnTheWire = (invoice: { pointOfSale: number; number: number } | null) =>
+  invoice === null ? null : { point_of_sale: invoice.pointOfSale, number: invoice.number };
+
+const saleOnTheWire = (sale: ReturnRow["sale"]) => ({
+  id: sale.id,
+  operation_number: sale.operationNumber,
+  invoice: invoiceOnTheWire(sale.invoice),
+});
+
+const optionalPerson = (value: { id: string; name: string | null } | null) =>
+  value === null ? null : person(value);
+
 function rowOnTheWire(row: ReturnRow) {
   return {
     return_id: row.returnId,
     occurred_at: row.occurredAt.toISOString(),
     register: row.register,
-    sale: {
-      id: row.sale.id,
-      operation_number: row.sale.operationNumber,
-      invoice:
-        row.sale.invoice === null
-          ? null
-          : { point_of_sale: row.sale.invoice.pointOfSale, number: row.sale.invoice.number },
-    },
+    sale: saleOnTheWire(row.sale),
     cashier: person(row.cashier),
-    authorizer: row.authorizer === null ? null : person(row.authorizer),
+    authorizer: optionalPerson(row.authorizer),
     lines: row.lines.map((line) => ({
       sale_line_id: line.saleLineId,
       product_name: line.productName,
@@ -44,6 +55,7 @@ function rowOnTheWire(row: ReturnRow) {
       quantity: line.quantity,
       reason: line.reason,
       disposition: line.disposition,
+      resolution: line.resolution,
       refunded: line.refunded,
     })),
     refunded: row.refunded,
@@ -52,6 +64,29 @@ function rowOnTheWire(row: ReturnRow) {
 
 function groupOnTheWire(group: ReturnsGroup) {
   return { rows: group.rows.map(rowOnTheWire), totals: group.totals };
+}
+
+function voidOnTheWire(record: VoidedSaleRecord) {
+  return {
+    sale: saleOnTheWire(record.sale),
+    voided_at: record.voidedAt.toISOString(),
+    register: record.register,
+    cashier: optionalPerson(record.cashier),
+    authorizer: optionalPerson(record.authorizer),
+    total: record.total,
+  };
+}
+
+function summaryOnTheWire(totals: ReturnsReportTotals) {
+  return {
+    voids: totals.voids,
+    voided: totals.voided,
+    returns: totals.returns,
+    refunded: totals.refunded,
+    refunded_lines: totals.refundedLines,
+    exchanged_lines: totals.exchangedLines,
+    typed_returns: totals.typedReturns,
+  };
 }
 
 export function registerReturnsReportRoutes<TQueryResult extends PgQueryResultHKT>(
@@ -87,6 +122,16 @@ export function registerReturnsReportRoutes<TQueryResult extends PgQueryResultHK
           range: report.range,
           typed: groupOnTheWire(report.typed),
           scanned: groupOnTheWire(report.scanned),
+          voids: { rows: report.voids.rows.map(voidOnTheWire), totals: report.voids.totals },
+          totals: summaryOnTheWire(report.totals),
+          by_cashier: report.byCashier.map(({ cashier, ...totals }) => ({
+            cashier: optionalPerson(cashier),
+            ...summaryOnTheWire(totals),
+          })),
+          by_authorizer: report.byAuthorizer.map(({ authorizer, ...totals }) => ({
+            authorizer: optionalPerson(authorizer),
+            ...summaryOnTheWire(totals),
+          })),
         }),
       );
     },

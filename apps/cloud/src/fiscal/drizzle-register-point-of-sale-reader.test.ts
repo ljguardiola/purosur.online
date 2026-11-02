@@ -151,4 +151,54 @@ describe("DrizzleRegisterPointOfSaleReader", () => {
       },
     ]);
   });
+
+  it("lists the branch's registers with numbers by value, case and accents ignored and ñ after n", async () => {
+    const locationId = await seededLocationId(db);
+    for (const name of [
+      "Zoe",
+      "Caja 10",
+      "ñandú",
+      "Banco",
+      "oso",
+      "árbol",
+      "Caja 2",
+      "ana",
+      "nube",
+    ]) {
+      await insertRegister(locationId, name);
+    }
+
+    const listed = await new DrizzleRegisterPointOfSaleReader(db).listBranchRegisterPointsOfSale(
+      locationId,
+    );
+
+    expect(listed.map((register) => register.registerName)).toEqual([
+      "ana",
+      "árbol",
+      "Banco",
+      "Caja 2",
+      "Caja 10",
+      "nube",
+      "ñandú",
+      "oso",
+      "Zoe",
+    ]);
+  });
+
+  it("lists the branch's registers whose names order the same in the order of their ids", async () => {
+    const locationId = await seededLocationId(db);
+    await db.insert(registers).values([
+      { id: "00000000-0000-4000-8000-00000000000b", locationId, name: "Caja 1" },
+      { id: "00000000-0000-4000-8000-00000000000a", locationId, name: "Caja 01" },
+    ]);
+
+    const listed = await new DrizzleRegisterPointOfSaleReader(db).listBranchRegisterPointsOfSale(
+      locationId,
+    );
+
+    expect(listed.map((register) => register.registerId)).toEqual([
+      "00000000-0000-4000-8000-00000000000a",
+      "00000000-0000-4000-8000-00000000000b",
+    ]);
+  });
 });

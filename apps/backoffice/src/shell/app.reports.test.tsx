@@ -158,10 +158,12 @@ test("lists the returns report beside the others for someone who can see both", 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   const sections = screen.getByRole("navigation", { name: "Reportes" });
-  await expect.element(sections.getByRole("link", { name: "Devoluciones" })).toBeVisible();
+  await expect
+    .element(sections.getByRole("link", { name: "Anulaciones y devoluciones" }))
+    .toBeVisible();
   await expect.element(sections.getByRole("link", { name: "Todos los reportes" })).toBeVisible();
   await expect
-    .element(screen.getByRole("main").getByRole("link", { name: "Devoluciones" }))
+    .element(screen.getByRole("main").getByRole("link", { name: "Anulaciones y devoluciones" }))
     .toBeVisible();
 });
 
@@ -170,10 +172,12 @@ test("opens the returns report from the list and reads it from the cloud", async
   window.history.pushState(null, "", "/reports");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await userEvent.click(screen.getByRole("main").getByRole("link", { name: "Devoluciones" }));
+  await userEvent.click(
+    screen.getByRole("main").getByRole("link", { name: "Anulaciones y devoluciones" }),
+  );
 
   await expect
-    .element(screen.getByRole("heading", { name: "Devoluciones", level: 1 }))
+    .element(screen.getByRole("heading", { name: "Anulaciones y devoluciones", level: 1 }))
     .toBeVisible();
   expect(window.location.pathname).toBe("/reports/returns");
   await expect
@@ -184,7 +188,7 @@ test("opens the returns report from the list and reads it from the cloud", async
     )
     .toBeVisible();
   expect(services.returnsReportScreen.fetchReturnsReport).toHaveBeenCalledWith({});
-  expect(document.title).toBe("Devoluciones · Puro Sur");
+  expect(document.title).toBe("Anulaciones y devoluciones · Puro Sur");
 });
 
 test("opens the issued fiscal documents report from the list and reads it from the cloud", async () => {
@@ -239,7 +243,13 @@ test("keeps the returns report's filters in the address", async () => {
   const services = reportsServices(["returns_report"]);
   window.history.pushState(null, "", "/reports/returns");
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await expect.element(screen.getByRole("table").first().getByText("Beto")).toBeVisible();
+  await expect
+    .element(
+      screen
+        .getByRole("table", { name: "Devoluciones iniciadas con el número tipeado" })
+        .getByText("Beto"),
+    )
+    .toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: /Caja:/ }));
   await userEvent.click(screen.getByRole("option", { name: "Caja principal" }));
@@ -257,11 +267,13 @@ test("takes someone who can only see the returns report to it from the rail's Re
   await userEvent.click(screen.getByRole("link", { name: "Reportes" }));
 
   await expect
-    .element(screen.getByRole("heading", { name: "Devoluciones", level: 1 }))
+    .element(screen.getByRole("heading", { name: "Anulaciones y devoluciones", level: 1 }))
     .toBeVisible();
   expect(window.location.pathname).toBe("/reports/returns");
   const sections = screen.getByRole("navigation", { name: "Reportes" });
-  await expect.element(sections.getByRole("link", { name: "Devoluciones" })).toBeVisible();
+  await expect
+    .element(sections.getByRole("link", { name: "Anulaciones y devoluciones" }))
+    .toBeVisible();
   expect(sections.getByRole("link", { name: "Todos los reportes" }).query()).toBeNull();
   expect(sections.getByRole("link", { name: "Ventas por cajero" }).query()).toBeNull();
   expect(sections.getByRole("link", { name: "Stock actual valorizado" }).query()).toBeNull();
@@ -289,7 +301,7 @@ test("leaves the returns report out of the list for someone without its permissi
       }),
     )
     .toBeVisible();
-  expect(screen.getByRole("link", { name: "Devoluciones" }).query()).toBeNull();
+  expect(screen.getByRole("link", { name: "Anulaciones y devoluciones" }).query()).toBeNull();
 });
 
 test("sends someone with the reports permission but not the returns one away from the returns report", async () => {

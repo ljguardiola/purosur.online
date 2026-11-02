@@ -2462,7 +2462,30 @@ test("says a single comprobante in the singular when a fiscal address issued onl
   const screen = await renderModal(services);
 
   await expect
-    .element(screen.getByText(/se emitieron por excepción \(CAEA\) 1 de 1 comprobante de este/))
+    .element(screen.getByText(/se emitió por excepción \(CAEA\) 1 de 1 comprobante de este/))
+    .toBeVisible();
+});
+
+test("agrees the verb with a single comprobante issued by exception among several", async () => {
+  const services = createServices();
+  const alert = exceptionShareBreachAlert(["2026-09"]);
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      alert.kind === "exception_share_breach"
+        ? { ...alert, detail: { ...alert.detail, exceptionCount: 1, totalCount: 20 } }
+        : alert,
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(
+      screen.getByText(
+        "En septiembre de 2026 se emitió por excepción (CAEA) 1 de 20 comprobantes de este domicilio fiscal, el 5 % o más. ARCA puede restringir el uso del CAEA y lo comunica en el Domicilio Fiscal Electrónico. Mientras no lo haga, el negocio sigue usándolo y no se restringe nada en el mostrador. Conviene revisar por qué se emitió por contingencia y consultar el Domicilio Fiscal Electrónico.",
+        { exact: true },
+      ),
+    )
     .toBeVisible();
 });
 

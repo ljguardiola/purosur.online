@@ -48,12 +48,18 @@ async function insertRole(name: string, permissionKeys: string[] = []): Promise<
   return role.id;
 }
 
-async function insertHolder(roleId: string, firstName: string, active = true): Promise<string> {
+async function insertHolder(
+  roleId: string,
+  firstName: string,
+  active = true,
+  identity: { id?: string; email?: string } = {},
+): Promise<string> {
   const [user] = await db
     .insert(users)
     .values({
+      id: identity.id,
       firstName,
-      email: `${firstName.toLowerCase()}@example.test`,
+      email: identity.email ?? `${firstName.toLowerCase()}@example.test`,
       locationId: await seededLocationId(db),
       active,
     })
@@ -99,6 +105,29 @@ describe("drizzleRoleDirectory", () => {
         },
       ]);
     });
+
+    it("lists the roles after the Administrator role with numbers by value, case and accents ignored and ñ after n", async () => {
+      for (const name of [
+        "Zoe",
+        "Caja 10",
+        "ñandú",
+        "Banco",
+        "oso",
+        "árbol",
+        "Caja 2",
+        "ana",
+        "nube",
+      ]) {
+        await insertRole(name);
+      }
+
+      const listed = await drizzleRoleDirectory(db).roles();
+
+      expect(listed.map((role) => role.name)).toEqual([
+        null,
+        ...["ana", "árbol", "Banco", "Caja 2", "Caja 10", "nube", "ñandú", "oso", "Zoe"],
+      ]);
+    });
   });
 
   describe("role", () => {
@@ -131,6 +160,56 @@ describe("drizzleRoleDirectory", () => {
       expect(await drizzleRoleDirectory(db).activeRoleHolders(cashier)).toEqual([
         { id: ana, name: "Ana" },
         { id: zoe, name: "Zoe" },
+      ]);
+    });
+
+    it("lists the holders with numbers by value, case and accents ignored and ñ after n", async () => {
+      const cashier = await insertRole("Cajero");
+      for (const name of [
+        "Zoe",
+        "Caja 10",
+        "ñandú",
+        "Banco",
+        "oso",
+        "árbol",
+        "Caja 2",
+        "ana",
+        "nube",
+      ]) {
+        await insertHolder(cashier, name);
+      }
+
+      const holders = await drizzleRoleDirectory(db).activeRoleHolders(cashier);
+
+      expect(holders.map((holder) => holder.name)).toEqual([
+        "ana",
+        "árbol",
+        "Banco",
+        "Caja 2",
+        "Caja 10",
+        "nube",
+        "ñandú",
+        "oso",
+        "Zoe",
+      ]);
+    });
+
+    it("lists holders with the same first name in the order of their ids", async () => {
+      const cashier = await insertRole("Cajero");
+      await insertHolder(cashier, "Ana", true, {
+        id: "00000000-0000-4000-8000-00000000000b",
+        email: "ana.b@example.test",
+      });
+      await insertHolder(cashier, "Ana", true, {
+        id: "00000000-0000-4000-8000-00000000000a",
+        email: "ana.a@example.test",
+      });
+
+      const holders = await drizzleRoleDirectory(db).activeRoleHolders(cashier);
+
+      expect(holders.map((holder) => holder.id)).toEqual([
+        "00000000-0000-4000-8000-00000000000a",
+        "00000000-0000-4000-8000-00000000000b",
       ]);
     });
   });

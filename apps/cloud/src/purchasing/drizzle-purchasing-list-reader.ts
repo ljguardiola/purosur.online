@@ -1,4 +1,9 @@
-import type { ReceiptType, SaleUnit } from "@purosur/domain";
+import {
+  compareCodeUnits,
+  compareSpanishText,
+  type ReceiptType,
+  type SaleUnit,
+} from "@purosur/domain";
 import type {
   PurchaseLineListing,
   PurchaseListing,
@@ -19,8 +24,8 @@ export class DrizzlePurchasingListReader<TQueryResult extends PgQueryResultHKT>
     this.db = db;
   }
 
-  suppliers(): Promise<Supplier[]> {
-    return this.db
+  async suppliers(): Promise<Supplier[]> {
+    const rows = await this.db
       .select({
         id: suppliers.id,
         name: suppliers.name,
@@ -30,8 +35,8 @@ export class DrizzlePurchasingListReader<TQueryResult extends PgQueryResultHKT>
         active: suppliers.active,
         version: suppliers.version,
       })
-      .from(suppliers)
-      .orderBy(asc(suppliers.name));
+      .from(suppliers);
+    return rows.sort((a, b) => compareSpanishText(a.name, b.name) || compareCodeUnits(a.id, b.id));
   }
 
   purchases(locationId: string): Promise<PurchaseListing[]> {

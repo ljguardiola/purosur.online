@@ -1,14 +1,27 @@
 import { randomUUID } from "node:crypto";
+import { syncedEventUpcaster } from "@purosur/contracts";
+import type { ReturnsReportQuery } from "@purosur/domain/returns/use-cases";
+import { applyPendingEvents } from "@purosur/domain/sync/use-cases";
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   insertCaeaDocument,
   insertReceiptRequest,
 } from "../fiscal/test-support/issued-document-fixtures.js";
-import { registers, users } from "../platform/db/schema.js";
+import { registers, sales, users } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { applyCompletedSale, applyVoidedSale } from "../sales/test-support/applied-sales.js";
 import { aSoldLine } from "../sales/test-support/sold-lines.js";
 import { insertLocation } from "../stock/test-support/stock-route-fixtures.js";
+import { DrizzleEventApplication } from "../sync/drizzle-event-application.js";
+import {
+  AMOUNT,
+  CASHIER,
+  pushSaleThenItsVoiding,
+  SUPERVISOR,
+} from "../sync/test-support/voided-sale-push.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { DrizzleReturnsReportReader } from "./drizzle-returns-report-reader.js";
 import { applyReturn } from "./test-support/applied-returns.js";
 
@@ -35,6 +48,12 @@ beforeEach(async () => {
 });
 
 const reader = () => new DrizzleReturnsReportReader(db);
+
+const returnsMade = async (query: ReturnsReportQuery) =>
+  (await reader().returnsAndVoidsMade(query)).returns;
+
+const salesVoided = async (query: ReturnsReportQuery) =>
+  (await reader().returnsAndVoidsMade(query)).voids;
 
 async function aRegister(name = "Caja 1", locationId?: string) {
   if (locationId === undefined) {
@@ -78,7 +97,7 @@ describe("the returns a branch made", () => {
       saleReturn: { actorId: cashier, authorizedBy: authorizer, ticketSource: "TYPED" },
     });
 
-    const records = await reader().returnsMade({
+    const records = await returnsMade({
       locationId,
       range: thatDay,
       registerId: undefined,
@@ -102,7 +121,7 @@ describe("the returns a branch made", () => {
     const { deviceId, locationId } = await aRegister();
     await returnAt(deviceId, RETURNED, "QR");
 
-    const [record] = await reader().returnsMade({
+    const [record] = await returnsMade({
       locationId,
       range: thatDay,
       registerId: undefined,
@@ -115,7 +134,7 @@ describe("the returns a branch made", () => {
     const { deviceId, locationId } = await aRegister();
     const { saleReturn } = await returnAt(deviceId, RETURNED);
 
-    const [record] = await reader().returnsMade({
+    const [record] = await returnsMade({
       locationId,
       range: thatDay,
       registerId: undefined,
@@ -161,7 +180,7 @@ describe("the returns a branch made", () => {
       },
     });
 
-    const [record] = await reader().returnsMade({
+    const [record] = await returnsMade({
       locationId,
       range: thatDay,
       registerId: undefined,
@@ -178,6 +197,7 @@ describe("the returns a branch made", () => {
           quantity: 1,
           reason: "defective",
           disposition: "discard",
+          resolution: "refund",
           refunded: 2_000,
         },
         {
@@ -187,10 +207,45 @@ describe("the returns a branch made", () => {
           quantity: 300,
           reason: "change_of_mind",
           disposition: "restock",
+          resolution: "refund",
           refunded: 1_200,
         },
       ]),
     );
+  });
+
+  it("reports a line the customer exchanged as an exchange that refunded nothing", async () => {
+    const { deviceId, locationId } = await aRegister();
+    const yerba = aSoldLine(productId, "Yerba 1 kg", 2, 4_000);
+    await applyReturn(db, {
+      deviceId,
+      soldAt: SOLD,
+      returnedAt: RETURNED,
+      sale: { total: 4_000, lines: [yerba] },
+      saleReturn: {
+        lines: [
+          {
+            saleLineId: yerba.id,
+            productId: yerba.productId,
+            quantity: 1,
+            reason: "defective",
+            resolution: "exchange",
+            disposition: "discard",
+            refundedAmount: 0,
+          },
+        ],
+      },
+    });
+
+    const [record] = await returnsMade({
+      locationId,
+      range: thatDay,
+      registerId: undefined,
+    });
+
+    expect(record?.lines).toEqual([
+      expect.objectContaining({ saleLineId: yerba.id, resolution: "exchange", refunded: 0 }),
+    ]);
   });
 
   it("does not list the returns of another branch", async () => {
@@ -199,7 +254,7 @@ describe("the returns a branch made", () => {
     await returnAt(elsewhere.deviceId, RETURNED);
     const { saleReturn } = await returnAt(here.deviceId, RETURNED);
 
-    const records = await reader().returnsMade({
+    const records = await returnsMade({
       locationId: here.locationId,
       range: thatDay,
       registerId: undefined,
@@ -214,7 +269,7 @@ describe("the returns a branch made", () => {
     await returnAt(first.deviceId, RETURNED);
     const { saleReturn } = await returnAt(second.deviceId, RETURNED);
 
-    const records = await reader().returnsMade({
+    const records = await returnsMade({
       locationId: first.locationId,
       range: thatDay,
       registerId: second.registerId,
@@ -232,7 +287,7 @@ describe("the returns a branch made", () => {
     const { deviceId, locationId } = await aRegister();
     await returnAt(deviceId, new Date(moment));
 
-    const records = await reader().returnsMade({
+    const records = await returnsMade({
       locationId,
       range: thatDay,
       registerId: undefined,
@@ -249,7 +304,7 @@ describe("the invoice of the returned sale", () => {
     const { deviceId, locationId, registerId } = await aRegister();
     const { completed } = await returnAt(deviceId, RETURNED);
     await prepare(registerId, completed.id);
-    const [record] = await reader().returnsMade({
+    const [record] = await returnsMade({
       locationId,
       range: thatDay,
       registerId: undefined,
@@ -309,5 +364,224 @@ describe("the invoice of the returned sale", () => {
     );
 
     expect(invoice).toBeNull();
+  });
+});
+
+describe("the sales voided in a branch", () => {
+  const VOIDED = RETURNED;
+
+  function voidAt(
+    deviceId: string,
+    voidedAt: Date,
+    completed: Parameters<typeof applyVoidedSale>[1]["completed"] = {},
+  ) {
+    return applyVoidedSale(db, { deviceId, completedAt: SOLD, voidedAt, completed });
+  }
+
+  it("lists a voided sale with its register, its voider, its authorizer, its invoice and the amount it refunded", async () => {
+    const { deviceId, locationId, registerId } = await aRegister("Caja 2");
+    const seller = await aUser("Sofi", locationId);
+    const voider = await aUser("Ana", locationId);
+    const authorizer = await aUser("Beto", locationId);
+    const voided = await applyVoidedSale(db, {
+      deviceId,
+      completedAt: SOLD,
+      voidedAt: VOIDED,
+      completed: { actorId: seller, operationNumber: 41, total: 7_200 },
+      voided: { authorizedBy: authorizer },
+      voidedBy: voider,
+    });
+    await insertReceiptRequest(db, registerId, {
+      saleId: voided.id,
+      pointOfSale: 7,
+      number: 312,
+    });
+
+    const records = await salesVoided({
+      locationId,
+      range: thatDay,
+      registerId: undefined,
+    });
+
+    expect(records).toEqual([
+      {
+        sale: { id: voided.id, operationNumber: 41, invoice: { pointOfSale: 7, number: 312 } },
+        voidedAt: VOIDED,
+        register: { id: registerId, name: "Caja 2" },
+        cashier: { id: voider, name: "Ana" },
+        authorizer: { id: authorizer, name: "Beto" },
+        total: 7_200,
+      },
+    ]);
+  });
+
+  it("names the person who voided it, not the seller", async () => {
+    const { deviceId, locationId } = await aRegister();
+    const seller = await aUser("Sofi", locationId);
+    const voider = await aUser("Ana", locationId);
+    await applyVoidedSale(db, {
+      deviceId,
+      completedAt: SOLD,
+      voidedAt: VOIDED,
+      completed: { actorId: seller },
+      voidedBy: voider,
+    });
+
+    const [record] = await salesVoided({
+      locationId,
+      range: thatDay,
+      registerId: undefined,
+    });
+
+    expect(record?.cashier).toEqual({ id: voider, name: "Ana" });
+  });
+
+  it("names a person who is no longer known as nobody", async () => {
+    const { deviceId, locationId } = await aRegister();
+    const { authorizedBy } = await voidAt(deviceId, VOIDED);
+
+    const [record] = await salesVoided({
+      locationId,
+      range: thatDay,
+      registerId: undefined,
+    });
+
+    expect(record?.authorizer).toEqual({ id: authorizedBy, name: null });
+  });
+
+  it("has no cashier when the voiding was applied without knowing who voided it", async () => {
+    const { deviceId, locationId } = await aRegister();
+    const voided = await voidAt(deviceId, VOIDED);
+    await db.update(sales).set({ voidedBy: null }).where(eq(sales.id, voided.id));
+
+    const [record] = await salesVoided({
+      locationId,
+      range: thatDay,
+      registerId: undefined,
+    });
+
+    expect(record).toMatchObject({ sale: { id: voided.id }, cashier: null });
+  });
+
+  it("has no authorizer when the voiding needed none", async () => {
+    const { deviceId, locationId } = await aRegister();
+    const voided = await applyVoidedSale(db, {
+      deviceId,
+      completedAt: SOLD,
+      voidedAt: VOIDED,
+      completed: {},
+    });
+    await db.update(sales).set({ voidAuthorizedBy: null }).where(eq(sales.id, voided.id));
+
+    const [record] = await salesVoided({
+      locationId,
+      range: thatDay,
+      registerId: undefined,
+    });
+
+    expect(record?.authorizer).toBeNull();
+  });
+
+  it("does not list a sale that was not voided", async () => {
+    const { deviceId, locationId } = await aRegister();
+    await applyCompletedSale(db, { deviceId, completedAt: VOIDED, total: 1_000 });
+
+    const records = await salesVoided({
+      locationId,
+      range: thatDay,
+      registerId: undefined,
+    });
+
+    expect(records).toEqual([]);
+  });
+
+  it("does not list the voided sales of another branch", async () => {
+    const here = await aRegister();
+    const elsewhere = await aRegister("Caja otra", await insertLocation(db));
+    await voidAt(elsewhere.deviceId, VOIDED);
+    const mine = await voidAt(here.deviceId, VOIDED);
+
+    const records = await salesVoided({
+      locationId: here.locationId,
+      range: thatDay,
+      registerId: undefined,
+    });
+
+    expect(records.map((record) => record.sale.id)).toEqual([mine.id]);
+  });
+
+  it("lists only the voided sales of the register asked for", async () => {
+    const first = await aRegister("Caja 1");
+    const second = await aRegister("Caja 2", first.locationId);
+    await voidAt(first.deviceId, VOIDED);
+    const wanted = await voidAt(second.deviceId, VOIDED);
+
+    const records = await salesVoided({
+      locationId: first.locationId,
+      range: thatDay,
+      registerId: second.registerId,
+    });
+
+    expect(records.map((record) => record.sale.id)).toEqual([wanted.id]);
+  });
+
+  it.each([
+    ["23:30 in Argentina on the last day", "2026-10-07T02:30:00.000Z", true],
+    ["00:10 in Argentina the day after the range", "2026-10-07T03:10:00.000Z", false],
+    ["00:10 in Argentina on the first day", "2026-10-06T03:10:00.000Z", true],
+    ["23:30 in Argentina the day before the range", "2026-10-06T02:30:00.000Z", false],
+  ])("treats a voiding at %s by the Argentine calendar day", async (_name, moment, listed) => {
+    const { deviceId, locationId } = await aRegister();
+    await voidAt(deviceId, new Date(moment));
+
+    const records = await salesVoided({
+      locationId,
+      range: thatDay,
+      registerId: undefined,
+    });
+
+    expect(records).toHaveLength(listed ? 1 : 0);
+  });
+
+  it("includes a voiding from the moment its event is applied", async () => {
+    const { deviceId, locationId } = await aRegister("Caja 3");
+    const saleId = randomUUID();
+    await pushSaleThenItsVoiding(db, {
+      deviceId,
+      locationId,
+      saleId,
+      paymentId: randomUUID(),
+      method: "TRANSFER",
+      authorizedBy: SUPERVISOR,
+    });
+    const query = { locationId, range: thatDay, registerId: undefined };
+
+    const before = await salesVoided(query);
+    await applyPendingEvents(
+      {
+        zoneRules: fixedZoneRulesSource(),
+        eventApplication: new DrizzleEventApplication(
+          db,
+          () => NOW,
+          async () => {},
+        ),
+        upcaster: syncedEventUpcaster,
+        clock: { now: () => NOW },
+        quarantineNotices: { quarantined: () => {} },
+      },
+      { limit: 10 },
+    );
+    const after = await salesVoided(query);
+
+    expect(before).toEqual([]);
+    expect(after).toEqual([
+      expect.objectContaining({
+        sale: expect.objectContaining({ id: saleId }),
+        register: { id: expect.any(String), name: "Caja 3" },
+        cashier: { id: CASHIER, name: "Ada" },
+        authorizer: { id: SUPERVISOR, name: null },
+        total: AMOUNT,
+      }),
+    ]);
   });
 });

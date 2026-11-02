@@ -1,4 +1,9 @@
-import { lotUnitCostCents, type SaleUnit } from "@purosur/domain";
+import {
+  compareCodeUnits,
+  compareSpanishText,
+  lotUnitCostCents,
+  type SaleUnit,
+} from "@purosur/domain";
 import type {
   RecipeComponentListing,
   RecipeLastBatch,
@@ -55,8 +60,12 @@ export class DrizzleRecipeListReader<TQueryResult extends PgQueryResultHKT>
       .innerJoin(products, eq(recipes.productId, products.id))
       .innerJoin(categories, eq(products.categoryId, categories.id))
       .leftJoin(brands, eq(brands.id, products.brandId))
-      .where(productId === undefined ? undefined : eq(recipes.productId, productId))
-      .orderBy(asc(products.name), asc(products.id));
+      .where(productId === undefined ? undefined : eq(recipes.productId, productId));
+    rows.sort(
+      (a, b) =>
+        compareSpanishText(a.productName, b.productName) ||
+        compareCodeUnits(a.productId, b.productId),
+    );
     const productIds = rows.map((row) => row.productId);
     const components = await this.componentsOf(productIds);
     const lastBatches = await this.lastBatchesOf(productIds, locationId);

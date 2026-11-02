@@ -1,9 +1,14 @@
-import { isLeftBehindByMinimum, isOutOfService } from "@purosur/domain";
+import {
+  compareCodeUnits,
+  compareSpanishText,
+  isLeftBehindByMinimum,
+  isOutOfService,
+} from "@purosur/domain";
 import type {
   InstallationLeftBehind,
   InstallationsLeftBehindReader,
 } from "@purosur/domain/sync/use-cases";
-import { asc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { deviceState, registerInstallations, registers } from "../platform/db/schema.js";
 
@@ -19,15 +24,20 @@ export class DrizzleInstallationsLeftBehindReader<TQueryResult extends PgQueryRe
   async installationsLeftBehindBy(minimum: string): Promise<InstallationLeftBehind[]> {
     const rows = await this.db
       .select({
+        installationId: registerInstallations.id,
         registerName: registers.name,
         appVersion: deviceState.appVersion,
         revokedAt: registerInstallations.revokedAt,
       })
       .from(registerInstallations)
       .innerJoin(registers, eq(registers.id, registerInstallations.registerId))
-      .leftJoin(deviceState, eq(deviceState.deviceId, registerInstallations.id))
-      .orderBy(asc(registers.name), asc(registerInstallations.id));
+      .leftJoin(deviceState, eq(deviceState.deviceId, registerInstallations.id));
     return rows
+      .sort(
+        (a, b) =>
+          compareSpanishText(a.registerName, b.registerName) ||
+          compareCodeUnits(a.installationId, b.installationId),
+      )
       .filter((row) => !isOutOfService(row) && isLeftBehindByMinimum(row.appVersion, minimum))
       .map(({ registerName, appVersion }) => ({ registerName, appVersion }));
   }

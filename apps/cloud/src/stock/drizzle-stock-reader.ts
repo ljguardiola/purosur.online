@@ -1,5 +1,7 @@
 import {
   type AdjustmentReason,
+  compareCodeUnits,
+  compareSpanishText,
   isListedInStockBalances,
   isLotInStock,
   type LossReason,
@@ -21,7 +23,7 @@ import type {
   StockPeriodQuery,
   StockProduct,
 } from "@purosur/domain/stock/use-cases";
-import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { netContentRow } from "../catalog/net-content-row.js";
 import {
@@ -125,8 +127,8 @@ export class DrizzleStockReader<TQueryResult extends PgQueryResultHKT>
       .select(stockProductColumns)
       .from(products)
       .innerJoin(categories, eq(products.categoryId, categories.id))
-      .leftJoin(brands, eq(brands.id, products.brandId))
-      .orderBy(asc(products.name), asc(products.id));
+      .leftJoin(brands, eq(brands.id, products.brandId));
+    rows.sort((a, b) => compareSpanishText(a.name, b.name) || compareCodeUnits(a.id, b.id));
     return rows.map((row) => ({ ...withNetContent(row), saleUnit: row.saleUnit as SaleUnit }));
   }
 
@@ -147,8 +149,8 @@ export class DrizzleStockReader<TQueryResult extends PgQueryResultHKT>
       .leftJoin(
         stockBalances,
         and(eq(stockBalances.productId, products.id), eq(stockBalances.locationId, locationId)),
-      )
-      .orderBy(asc(products.name), asc(products.id));
+      );
+    rows.sort((a, b) => compareSpanishText(a.name, b.name) || compareCodeUnits(a.id, b.id));
     const lotsByProduct = new Map<string, LotInStock[]>();
     for (const { productId, ...lot } of await this.lotsInStockAt(locationId)) {
       lotsByProduct.set(productId, [...(lotsByProduct.get(productId) ?? []), lot]);

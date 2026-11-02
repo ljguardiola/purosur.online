@@ -3,16 +3,27 @@ import {
   returnLineDetail,
   returnLineDispositionText,
   returnLineReasonText,
+  returnLineResolutionText,
   returnSaleText,
 } from "./returns-text";
 
 test.each([
-  ["change_of_mind", "restock", "Arrepentimiento · vuelve a la venta"],
-  ["change_of_mind", "discard", "Arrepentimiento · se descarta"],
-  ["defective", "restock", "Defecto · vuelve a la venta"],
-  ["defective", "discard", "Defecto · se descarta"],
-] as const)("writes a %s return whose goods %s as %s", (reason, disposition, text) => {
-  expect(returnLineDetail({ reason, disposition })).toBe(text);
+  ["change_of_mind", "restock", "refund", "Arrepentimiento · vuelve a la venta · Reintegro"],
+  ["change_of_mind", "discard", "exchange", "Arrepentimiento · se descarta · Cambio"],
+  ["defective", "restock", "exchange", "Defecto · vuelve a la venta · Cambio"],
+  ["defective", "discard", "refund", "Defecto · se descarta · Reintegro"],
+] as const)(
+  "writes a %s return whose goods %s and is resolved as %s as %s",
+  (reason, disposition, resolution, text) => {
+    expect(returnLineDetail({ reason, disposition, resolution })).toBe(text);
+  },
+);
+
+test.each([
+  ["refund", "Reintegro"],
+  ["exchange", "Cambio"],
+] as const)("names the %s resolution of a returned line %s", (resolution, text) => {
+  expect(returnLineResolutionText(resolution)).toBe(text);
 });
 
 test("writes the operation number of a sale and its invoice", () => {

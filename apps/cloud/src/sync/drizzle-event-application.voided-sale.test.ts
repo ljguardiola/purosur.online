@@ -46,6 +46,7 @@ function eventOf(
   eventType: string,
   aggregateId: string,
   eventId = randomUUID(),
+  actorId = CASHIER,
 ): UnappliedEvent {
   return unappliedEventOf(
     {
@@ -57,7 +58,7 @@ function eventOf(
       schema_version: 1,
       payload: {},
       occurred_at: COMPLETED_AT.toISOString(),
-      actor_id: CASHIER,
+      actor_id: actorId,
       chain_hmac: "hmac",
     },
     { deviceId },
@@ -134,6 +135,7 @@ describe("recording the voided sales of applied events", () => {
       cancellationAuthorizedBy: null,
       voidedAt: voided.voidedAt,
       voidAuthorizedBy: SUPERVISOR,
+      voidedBy: CASHIER,
       total: 4800,
       saleDiscountKind: null,
       saleDiscountValue: null,
@@ -149,6 +151,22 @@ describe("recording the voided sales of applied events", () => {
       deferredInvoicePrintAttemptedAt: null,
       deferredInvoicePrintedAt: null,
     });
+  });
+
+  it("records who voided the sale as the actor of the event, apart from the seller", async () => {
+    const { deviceId } = await system.enrollInstallation();
+    const completed = await completedSaleOfOpenSession(deviceId);
+    const voider = randomUUID();
+    const voided = aVoidedSaleOf(completed);
+
+    await record(
+      { kind: "sale_voided", creditNote: null, sale: voided },
+      eventOf(deviceId, "sale_voided", voided.id, randomUUID(), voider),
+    );
+
+    const [row] = await system.db.select().from(sales);
+    expect(voider).not.toBe(completed.actorId);
+    expect(row).toMatchObject({ state: "VOIDED", actorId: completed.actorId, voidedBy: voider });
   });
 
   it("keeps a sale voided by someone who held the permission with no authorizer", async () => {

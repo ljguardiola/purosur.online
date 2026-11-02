@@ -251,6 +251,42 @@ describe("DrizzleStockReader.products", () => {
   });
 });
 
+const UNSORTED_NAMES = [
+  "Zoe",
+  "Caja 10",
+  "ñandú",
+  "Banco",
+  "oso",
+  "árbol",
+  "Caja 2",
+  "ana",
+  "nube",
+];
+const SORTED_NAMES = ["ana", "árbol", "Banco", "Caja 2", "Caja 10", "nube", "ñandú", "oso", "Zoe"];
+
+describe("DrizzleStockReader name order", () => {
+  it("answers products with numbers by value, case and accents ignored and ñ after n", async () => {
+    for (const name of UNSORTED_NAMES) {
+      await insertProduct(db, { name });
+    }
+
+    const products = await new DrizzleStockReader(db).products();
+
+    expect(products.map((product) => product.name)).toEqual(SORTED_NAMES);
+  });
+
+  it("answers every stock level with numbers by value, case and accents ignored and ñ after n", async () => {
+    const locationId = await insertLocation(db);
+    for (const name of UNSORTED_NAMES) {
+      await insertProduct(db, { name });
+    }
+
+    const levels = await new DrizzleStockReader(db).everyStockLevel(locationId);
+
+    expect(levels.map((level) => level.name)).toEqual(SORTED_NAMES);
+  });
+});
+
 describe("DrizzleStockReader.stockLevels", () => {
   it("leaves out a deactivated product with no stock at the location", async () => {
     const locationId = await insertLocation(db);

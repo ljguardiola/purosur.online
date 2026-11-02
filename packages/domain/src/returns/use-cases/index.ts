@@ -45,4 +45,8 @@ export type {
   ReturnTransaction,
   SaleReturnSearch,
 } from "./return-ports.js";
-export type { ReturnsReportQuery, ReturnsReportReader } from "./returns-report-reader.js";
+export type {
+  ReturnsAndVoids,
+  ReturnsReportQuery,
+  ReturnsReportReader,
+} from "./returns-report-reader.js";

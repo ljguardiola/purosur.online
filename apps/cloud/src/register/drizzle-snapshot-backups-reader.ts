@@ -1,10 +1,10 @@
-import type { SnapshotLifecycleRules } from "@purosur/domain";
+import { compareCodeUnits, compareSpanishText, type SnapshotLifecycleRules } from "@purosur/domain";
 import type {
   SnapshotBackupGenerationFacts,
   SnapshotBackupRegister,
   SnapshotBackupsReader,
 } from "@purosur/domain/register/use-cases";
-import { and, asc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   registerSnapshotGenerations,
@@ -21,11 +21,9 @@ export class DrizzleSnapshotBackupsReader<TQueryResult extends PgQueryResultHKT>
     this.db = db;
   }
 
-  registersForBackups(): Promise<SnapshotBackupRegister[]> {
-    return this.db
-      .select({ id: registers.id, name: registers.name })
-      .from(registers)
-      .orderBy(asc(registers.name));
+  async registersForBackups(): Promise<SnapshotBackupRegister[]> {
+    const rows = await this.db.select({ id: registers.id, name: registers.name }).from(registers);
+    return rows.sort((a, b) => compareSpanishText(a.name, b.name) || compareCodeUnits(a.id, b.id));
   }
 
   async registerExists(registerId: string): Promise<boolean> {

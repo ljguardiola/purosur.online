@@ -1,8 +1,9 @@
+import { compareCodeUnits, compareSpanishText } from "@purosur/domain";
 import type {
   BranchRegisterPointOfSale,
   RegisterPointOfSaleReader,
 } from "@purosur/domain/fiscal/use-cases";
-import { asc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   registerOfflinePointsOfSale,
@@ -37,8 +38,12 @@ export class DrizzleRegisterPointOfSaleReader<TQueryResult extends PgQueryResult
         registerOfflinePointsOfSale,
         eq(registerOfflinePointsOfSale.registerId, registers.id),
       )
-      .where(eq(registers.locationId, locationId))
-      .orderBy(asc(registers.name));
+      .where(eq(registers.locationId, locationId));
+    rows.sort(
+      (a, b) =>
+        compareSpanishText(a.registerName, b.registerName) ||
+        compareCodeUnits(a.registerId, b.registerId),
+    );
     return rows.map(({ version, offlineVersion, ...row }) => ({
       ...row,
       version: version ?? NEVER_CONFIGURED_VERSION,
