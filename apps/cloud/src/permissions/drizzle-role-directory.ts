@@ -1,10 +1,11 @@
+import { compareCodeUnits, compareOptionalNames, compareSpanishText } from "@purosur/domain";
 import type {
   RoleDirectory,
   RoleHolder,
   RoleListing,
   StoredRole,
 } from "@purosur/domain/permissions/use-cases";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { rolePermissions, roles, userRoles, users } from "../platform/db/schema.js";
 
@@ -18,8 +19,13 @@ class DrizzleRoleDirectory<TQueryResult extends PgQueryResultHKT> implements Rol
   async roles(): Promise<RoleListing[]> {
     const roleRows = await this.db
       .select({ id: roles.id, name: roles.name, isAdministrator: roles.isAdministrator })
-      .from(roles)
-      .orderBy(desc(roles.isAdministrator), asc(roles.name));
+      .from(roles);
+    roleRows.sort(
+      (a, b) =>
+        Number(b.isAdministrator) - Number(a.isAdministrator) ||
+        compareOptionalNames(a.name, b.name) ||
+        compareCodeUnits(a.id, b.id),
+    );
 
     const permissionRows = await this.db
       .select({ roleId: rolePermissions.roleId, permissionKey: rolePermissions.permissionKey })
@@ -67,13 +73,15 @@ class DrizzleRoleDirectory<TQueryResult extends PgQueryResultHKT> implements Rol
     return { ...role, storedPermissionKeys: permissionRows.map((row) => row.permissionKey) };
   }
 
-  activeRoleHolders(roleId: string): Promise<RoleHolder[]> {
-    return this.db
+  async activeRoleHolders(roleId: string): Promise<RoleHolder[]> {
+    const holders = await this.db
       .select({ id: users.id, name: users.firstName })
       .from(userRoles)
       .innerJoin(users, eq(users.id, userRoles.userId))
-      .where(and(eq(userRoles.roleId, roleId), eq(users.active, true)))
-      .orderBy(asc(users.firstName), asc(users.id));
+      .where(and(eq(userRoles.roleId, roleId), eq(users.active, true)));
+    return holders.sort(
+      (a, b) => compareSpanishText(a.name, b.name) || compareCodeUnits(a.id, b.id),
+    );
   }
 }
 

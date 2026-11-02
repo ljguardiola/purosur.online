@@ -1,5 +1,5 @@
+import { compareCodeUnits, compareSpanishText } from "@purosur/domain";
 import type { FiscalAddress, FiscalAddressReader } from "@purosur/domain/fiscal/use-cases";
-import { asc } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { fiscalAddresses } from "../platform/db/schema.js";
 
@@ -19,10 +19,8 @@ export class DrizzleFiscalAddressReader<TQueryResult extends PgQueryResultHKT>
     this.db = db;
   }
 
-  listFiscalAddresses(): Promise<FiscalAddress[]> {
-    return this.db
-      .select(storedFiscalAddress)
-      .from(fiscalAddresses)
-      .orderBy(asc(fiscalAddresses.name));
+  async listFiscalAddresses(): Promise<FiscalAddress[]> {
+    const rows = await this.db.select(storedFiscalAddress).from(fiscalAddresses);
+    return rows.sort((a, b) => compareSpanishText(a.name, b.name) || compareCodeUnits(a.id, b.id));
   }
 }
