@@ -1,6 +1,7 @@
 import type { ExpiringLot } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { vi } from "vitest";
+import { type ReleaseMonitor, ReleaseMonitorContext } from "../../platform/release-monitor";
 import { render } from "../../shell/test-support/render-with-router";
 import { ExpiringLotsScreen } from "../expiring-lots-screen";
 import type { ExpiringLotsScreenServices } from "../expiring-lots-services";
@@ -41,13 +42,15 @@ export function renderScreen(
     filters = expiringLotsFilters.parse({}),
     onFiltersChange = () => {},
     onSessionEnded = () => {},
+    releaseMonitor,
   }: {
     filters?: ExpiringLotsFilters;
     onFiltersChange?: (filters: ExpiringLotsFilters) => void;
     onSessionEnded?: () => void;
+    releaseMonitor?: ReleaseMonitor;
   } = {},
 ) {
-  return render(
+  const screen = (
     <FieldSizeProvider size="backoffice">
       <main>
         <ExpiringLotsScreen
@@ -57,7 +60,14 @@ export function renderScreen(
           onSessionEnded={onSessionEnded}
         />
       </main>
-    </FieldSizeProvider>,
+    </FieldSizeProvider>
+  );
+  return render(
+    releaseMonitor ? (
+      <ReleaseMonitorContext value={releaseMonitor}>{screen}</ReleaseMonitorContext>
+    ) : (
+      screen
+    ),
   );
 }
 

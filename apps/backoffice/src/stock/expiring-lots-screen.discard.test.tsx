@@ -2,6 +2,7 @@ import type { ExpiringLotList } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { releaseMonitorThatTurnsOutdated } from "../platform/test-support/release-monitor";
 import {
   almondOilExpiredLot,
   chiaExpiredLot,
@@ -163,4 +164,20 @@ test("names the lot to discard and the lot discarded by its product's brand and 
   await expect
     .element(screen.getByText("Aceite de Almendras Vitora 30 ml: 1 u como merma por vencimiento."))
     .toBeVisible();
+});
+
+test("a tab that learns it is outdated while a discard is refused tells the person to reload", async () => {
+  const services = servicesListing(expiringLotList(EVERY_LOT));
+  const release = releaseMonitorThatTurnsOutdated();
+  vi.mocked(services.discardExpiredLot).mockImplementation(() => {
+    release.turnOutdated();
+    return Promise.resolve({ kind: "failed" });
+  });
+  const screen = await renderScreen(services, { releaseMonitor: release.monitor });
+
+  await userEvent.click(screen.getByRole("button", { name: "Dar de baja el lote L-SC02" }));
+
+  await expect.element(screen.getByText("No se pudo dar de baja el lote")).toBeVisible();
+  await expect.element(screen.getByText("Recargá la página para seguir.")).toBeVisible();
+  expect(screen.getByText("Probá de nuevo.").query()).toBeNull();
 });
