@@ -4,11 +4,13 @@ import type {
   FortnightReportMovement,
   RejectedDocumentRemedyState,
 } from "@purosur/domain";
+import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
 import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   type FortnightPresentationBody,
   fortnightPresentationListSchema,
+  fortnightPresentationSchema,
 } from "./fortnight-presentation.js";
 
 const FICTIONAL_CUIT_NUMBER = Number(FICTIONAL_CUIT.replaceAll("-", ""));
@@ -225,5 +227,13 @@ describe("fortnightPresentationListSchema", () => {
     expectTypeOf<
       FortnightPresentationBody["refusal"]
     >().toEqualTypeOf<FortnightPresentationRefusal | null>();
+  });
+});
+
+describe("fortnightPresentationSchema, declared time zone", () => {
+  it("declares the zone a revoked installation's revoked_at is shown in", () => {
+    expect(
+      fortnightPresentationSchema.shape.revoked_installations.element.shape.revoked_at.meta(),
+    ).toEqual({ timeZone: ARGENTINA_TIME_ZONE });
   });
 });
