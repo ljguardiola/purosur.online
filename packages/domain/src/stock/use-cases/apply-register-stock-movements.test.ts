@@ -496,6 +496,7 @@ describe("applyRegisterStockMovements", () => {
           {
             id: "exchange-1",
             saleLineId: "sale-line-1",
+            returnId: "return-1",
             productId: "product-bread",
             kind: "exchange_out",
             delta: -3000,
@@ -520,6 +521,7 @@ describe("applyRegisterStockMovements", () => {
           {
             id: "exchange-1",
             saleLineId: "sale-line-1",
+            returnId: "return-1",
             productId: "product-bread",
             kind: "exchange_out",
             delta: -12_000,
@@ -541,6 +543,7 @@ describe("applyRegisterStockMovements", () => {
           {
             id: "exchange-1",
             saleLineId: "sale-line-1",
+            returnId: "return-1",
             productId: "product-bread",
             kind: "exchange_out",
             delta: -1500,
@@ -668,6 +671,7 @@ describe("applyRegisterStockMovements", () => {
         {
           id,
           saleLineId: "sale-line-1",
+          returnId: "return-1",
           productId: "product-bread",
           kind: "return",
           delta,
@@ -681,6 +685,7 @@ describe("applyRegisterStockMovements", () => {
         {
           id: "return-movement-2",
           saleLineId: "sale-line-1",
+          returnId: "return-1",
           productId: "product-bread",
           kind: "loss",
           reason: "return_discard",
@@ -709,6 +714,7 @@ describe("applyRegisterStockMovements", () => {
           id: "return-movement-1",
           ...BREAD,
           saleLineId: "sale-line-1",
+          returnId: "return-1",
           kind: "return",
           reason: null,
           delta: 3000,
@@ -727,9 +733,10 @@ describe("applyRegisterStockMovements", () => {
       expect(outcome).toEqual({ kind: "applied" });
       expect(store.balanceOf(BREAD)).toBe(10_000);
       expect(
-        store.snapshot().movements.map(({ id, saleLineId, kind, reason, delta }) => ({
+        store.snapshot().movements.map(({ id, saleLineId, returnId, kind, reason, delta }) => ({
           id,
           saleLineId,
+          returnId,
           kind,
           reason,
           delta,
@@ -738,6 +745,7 @@ describe("applyRegisterStockMovements", () => {
         {
           id: "return-movement-1",
           saleLineId: "sale-line-1",
+          returnId: "return-1",
           kind: "return",
           reason: null,
           delta: 3000,
@@ -745,6 +753,7 @@ describe("applyRegisterStockMovements", () => {
         {
           id: "return-movement-2",
           saleLineId: "sale-line-1",
+          returnId: "return-1",
           kind: "loss",
           reason: "return_discard",
           delta: -3000,
@@ -907,6 +916,7 @@ describe("applyRegisterStockMovements", () => {
           {
             id: "return-movement-4",
             saleLineId: "sale-line-1",
+            returnId: "return-1",
             productId: "product-bread",
             kind: "loss",
             reason: "return_discard",
@@ -936,6 +946,7 @@ describe("applyRegisterStockMovements", () => {
           {
             id: "return-movement-5",
             saleLineId: "sale-line-2",
+            returnId: "return-1",
             productId: "product-bread",
             kind: "return",
             delta: 1000,
@@ -943,6 +954,7 @@ describe("applyRegisterStockMovements", () => {
           {
             id: "return-movement-6",
             saleLineId: "sale-line-1",
+            returnId: "return-1",
             productId: "product-bread",
             kind: "loss",
             reason: "return_discard",
@@ -965,6 +977,7 @@ describe("applyRegisterStockMovements", () => {
           {
             id: "return-movement-7",
             saleLineId: "sale-line-1",
+            returnId: "return-1",
             productId: "product-cheese",
             kind: "loss",
             reason: "return_discard",
@@ -992,6 +1005,7 @@ describe("applyRegisterStockMovements", () => {
           {
             id: "return-movement-6",
             saleLineId: "sale-line-1",
+            returnId: "return-1",
             productId: "product-bread",
             kind: "loss",
             reason: "return_discard",
@@ -1013,6 +1027,7 @@ describe("applyRegisterStockMovements", () => {
       const returnId = store.seedMovement({
         ...BREAD,
         saleLineId: "sale-line-1",
+        returnId: "return-1",
         kind: "return",
         reason: null,
         delta: 2000,

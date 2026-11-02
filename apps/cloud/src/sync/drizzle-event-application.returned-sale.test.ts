@@ -595,9 +595,11 @@ describe("putting a return's merchandise back in stock", () => {
   }
 
   function applyStock(deviceId: string, saleReturn: ReturnedSale) {
-    return system.application.transaction((tx) =>
-      tx.applyReturnStock(saleReturn, eventOf(deviceId, "sale_returned", saleReturn.id)),
-    );
+    return system.application.transaction(async (tx) => {
+      const event = eventOf(deviceId, "sale_returned", saleReturn.id);
+      await tx.record({ kind: "sale_returned", saleReturn, creditNote: null }, event);
+      return tx.applyReturnStock(saleReturn, event);
+    });
   }
 
   it("adds a restocked line to the balance of the register's branch, as a return of its sale line under the register's id", async () => {
@@ -620,6 +622,7 @@ describe("putting a return's merchandise back in stock", () => {
         kind: "return",
         reason: null,
         saleLineId,
+        returnId: saleReturn.id,
         delta: 1000,
         occurredAt: RETURNED_AT,
         actorId: CASHIER,
@@ -641,17 +644,26 @@ describe("putting a return's merchandise back in stock", () => {
           kind: stockMovements.kind,
           reason: stockMovements.reason,
           saleLineId: stockMovements.saleLineId,
+          returnId: stockMovements.returnId,
           delta: stockMovements.delta,
         })
         .from(stockMovements)
         .orderBy(asc(stockMovements.delta)),
     ).toEqual([
-      { id: lossId, kind: "loss", reason: "return_discard", saleLineId, delta: -1000 },
+      {
+        id: lossId,
+        kind: "loss",
+        reason: "return_discard",
+        saleLineId,
+        returnId: saleReturn.id,
+        delta: -1000,
+      },
       {
         id: saleReturn.stockMovements[0]?.id,
         kind: "return",
         reason: null,
         saleLineId: saleReturn.stockMovements[0]?.saleLineId,
+        returnId: saleReturn.id,
         delta: 1000,
       },
     ]);
@@ -703,6 +715,7 @@ describe("putting a return's merchandise back in stock", () => {
           kind: "exchange_out",
           reason: null,
           saleLineId,
+          returnId: saleReturn.id,
           delta: -1000,
         }),
       ]);
@@ -839,6 +852,8 @@ describe("putting a return's merchandise back in stock", () => {
       await applyStock(deviceId, {
         ...saleReturn,
         id: randomUUID(),
+        refunds: [],
+        cashMovements: [],
         stockMovements: [{ ...(returned as NonNullable<typeof returned>), id: randomUUID() }],
       });
 
