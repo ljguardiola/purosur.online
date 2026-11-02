@@ -496,8 +496,8 @@ describe("alertDetailSchema", () => {
         previousMonth: "2026-09",
         exceptionCount: 3,
         totalCount: 80,
-        shareTenthsOfPercent: 37,
-        nonCompliancePercent: 5,
+        exceptionShareTenthsOfPercent: 37,
+        exceptionShareNonCompliancePercent: 5,
         previousMonthNonCompliantOn: ["exception_share"],
         contingencyShareTenthsOfPercent: 42,
         contingencyNonCompliancePercent: 5,
@@ -563,7 +563,7 @@ describe("alertDetailSchema", () => {
       expect(alertDetailSchema.safeParse(alert).success).toBe(false);
     });
 
-    it("accepts a second month at risk alert naming both measurements and no contingency data yet", () => {
+    it("accepts a second non-compliant month at risk alert naming both measurements and no contingency data yet", () => {
       const alert = {
         ...base,
         kind: "second_non_compliant_month_at_risk",
@@ -577,7 +577,7 @@ describe("alertDetailSchema", () => {
       expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
     });
 
-    it("accepts a second month at risk alert that has no share yet", () => {
+    it("accepts a second non-compliant month at risk alert that has no exception share yet", () => {
       const alert = {
         ...base,
         kind: "second_non_compliant_month_at_risk",
@@ -585,7 +585,7 @@ describe("alertDetailSchema", () => {
           ...detailOf.second_non_compliant_month_at_risk,
           exceptionCount: 0,
           totalCount: 0,
-          shareTenthsOfPercent: null,
+          exceptionShareTenthsOfPercent: null,
         },
       };
 
@@ -595,11 +595,11 @@ describe("alertDetailSchema", () => {
     it.each([
       ["a fractional exception count", { exceptionCount: 1.5 }],
       ["a total as text", { totalCount: "80" }],
-      ["a share as text", { shareTenthsOfPercent: "37" }],
-      ["a fractional share", { shareTenthsOfPercent: 3.7 }],
-      ["a missing share", { shareTenthsOfPercent: undefined }],
+      ["an exception share as text", { exceptionShareTenthsOfPercent: "37" }],
+      ["a fractional exception share", { exceptionShareTenthsOfPercent: 3.7 }],
+      ["a missing exception share", { exceptionShareTenthsOfPercent: undefined }],
       ["a previous month that is not text", { previousMonth: 9 }],
-      ["a threshold as text", { nonCompliancePercent: "5" }],
+      ["an exception share threshold as text", { exceptionShareNonCompliancePercent: "5" }],
       ["no measurement the previous month failed", { previousMonthNonCompliantOn: [] }],
       ["an unknown measurement", { previousMonthNonCompliantOn: ["share_of_sales"] }],
       ["missing measurements", { previousMonthNonCompliantOn: undefined }],
@@ -608,7 +608,7 @@ describe("alertDetailSchema", () => {
       ["a missing contingency share", { contingencyShareTenthsOfPercent: undefined }],
       ["a contingency threshold as text", { contingencyNonCompliancePercent: "5" }],
       ["a missing contingency threshold", { contingencyNonCompliancePercent: undefined }],
-    ])("refuses a second month at risk alert with %s", (_case, change) => {
+    ])("refuses a second non-compliant month at risk alert with %s", (_case, change) => {
       const alert = {
         ...base,
         kind: "second_non_compliant_month_at_risk",

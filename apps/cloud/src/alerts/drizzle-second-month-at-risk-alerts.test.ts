@@ -26,10 +26,10 @@ beforeEach(async () => {
 });
 
 function holdingWith(
-  figures: { exceptionCount: number; totalCount: number; shareTenthsOfPercent: number } = {
+  figures: { exceptionCount: number; totalCount: number; exceptionShareTenthsOfPercent: number } = {
     exceptionCount: 1,
     totalCount: 10,
-    shareTenthsOfPercent: 100,
+    exceptionShareTenthsOfPercent: 100,
   },
 ): AlertConditionObservation {
   return {
@@ -42,7 +42,7 @@ function holdingWith(
         fiscalAddressName: "Depósito Central",
         month: "2026-11",
         previousMonth: "2026-10",
-        nonCompliancePercent: 5,
+        exceptionShareNonCompliancePercent: 5,
         previousMonthNonCompliantOn: ["exception_share"],
         contingencyShareTenthsOfPercent: null,
         contingencyNonCompliancePercent: 5,
@@ -73,8 +73,8 @@ describe("DrizzleSecondMonthAtRiskAlerts", () => {
         previousMonth: "2026-10",
         exceptionCount: 1,
         totalCount: 10,
-        shareTenthsOfPercent: 100,
-        nonCompliancePercent: 5,
+        exceptionShareTenthsOfPercent: 100,
+        exceptionShareNonCompliancePercent: 5,
       },
     });
   });
@@ -84,7 +84,7 @@ describe("DrizzleSecondMonthAtRiskAlerts", () => {
     await atRisk.observeAlertCondition(holdingWith());
 
     await atRisk.observeAlertCondition(
-      holdingWith({ exceptionCount: 3, totalCount: 12, shareTenthsOfPercent: 250 }),
+      holdingWith({ exceptionCount: 3, totalCount: 12, exceptionShareTenthsOfPercent: 250 }),
     );
 
     const rows = await db.select().from(alerts);

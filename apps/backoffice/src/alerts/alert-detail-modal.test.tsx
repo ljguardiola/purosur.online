@@ -2494,7 +2494,7 @@ function secondMonthAtRiskAlert(
   figures: {
     exceptionCount?: number;
     totalCount?: number;
-    shareTenthsOfPercent?: number | null;
+    exceptionShareTenthsOfPercent?: number | null;
     previousMonthNonCompliantOn?: ("exception_share" | "contingency_time")[];
     contingencyShareTenthsOfPercent?: number | null;
   } = {},
@@ -2512,11 +2512,11 @@ function secondMonthAtRiskAlert(
       fiscalAddressName: "Local Centro",
       month: "2026-11",
       previousMonth: "2026-10",
-      nonCompliancePercent: 5,
+      exceptionShareNonCompliancePercent: 5,
       contingencyNonCompliancePercent: 5,
       exceptionCount: 3,
       totalCount: 80,
-      shareTenthsOfPercent: 37,
+      exceptionShareTenthsOfPercent: 37,
       previousMonthNonCompliantOn: ["exception_share"],
       contingencyShareTenthsOfPercent: 22,
       ...figures,
@@ -2552,7 +2552,13 @@ test("warns that the month in progress may become a second consecutive one, with
 test("says the month has no vouchers yet instead of a share when the fiscal address issued none", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(
-    ok(secondMonthAtRiskAlert({ exceptionCount: 0, totalCount: 0, shareTenthsOfPercent: null })),
+    ok(
+      secondMonthAtRiskAlert({
+        exceptionCount: 0,
+        totalCount: 0,
+        exceptionShareTenthsOfPercent: null,
+      }),
+    ),
   );
 
   const screen = await renderModal(services);
@@ -2627,7 +2633,13 @@ test("says the previous month passed both limits when it failed both measurement
 test("says a single comprobante issued by exception in the singular in the warning about a second month", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(
-    ok(secondMonthAtRiskAlert({ exceptionCount: 1, totalCount: 1, shareTenthsOfPercent: 1000 })),
+    ok(
+      secondMonthAtRiskAlert({
+        exceptionCount: 1,
+        totalCount: 1,
+        exceptionShareTenthsOfPercent: 1000,
+      }),
+    ),
   );
 
   const screen = await renderModal(services);
@@ -2645,7 +2657,13 @@ test("says a single comprobante issued by exception in the singular in the warni
 test("says one comprobante issued by exception in the singular out of several in the warning about a second month", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(
-    ok(secondMonthAtRiskAlert({ exceptionCount: 1, totalCount: 80, shareTenthsOfPercent: 12 })),
+    ok(
+      secondMonthAtRiskAlert({
+        exceptionCount: 1,
+        totalCount: 80,
+        exceptionShareTenthsOfPercent: 12,
+      }),
+    ),
   );
 
   const screen = await renderModal(services);

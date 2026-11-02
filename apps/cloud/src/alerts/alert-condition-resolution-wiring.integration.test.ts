@@ -795,8 +795,8 @@ describe("the background worker the server sets up on a real Postgres", () => {
               previousMonth: "2019-12",
               exceptionCount: 1,
               totalCount: 4,
-              shareTenthsOfPercent: 250,
-              nonCompliancePercent: 5,
+              exceptionShareTenthsOfPercent: 250,
+              exceptionShareNonCompliancePercent: 5,
             },
           });
         },

@@ -36,8 +36,8 @@ describe("secondMonthAtRiskObservation", () => {
           previousMonth: "2026-10",
           exceptionCount: 3,
           totalCount: 80,
-          shareTenthsOfPercent: 37,
-          nonCompliancePercent: 5,
+          exceptionShareTenthsOfPercent: 37,
+          exceptionShareNonCompliancePercent: 5,
           previousMonthNonCompliantOn: ["exception_share", "contingency_time"],
           contingencyShareTenthsOfPercent: 62,
           contingencyNonCompliancePercent: 5,
@@ -56,7 +56,7 @@ describe("secondMonthAtRiskObservation", () => {
     );
 
     expect(observation).toMatchObject({
-      alert: { detail: { exceptionCount: 0, totalCount: 0, shareTenthsOfPercent: null } },
+      alert: { detail: { exceptionCount: 0, totalCount: 0, exceptionShareTenthsOfPercent: null } },
     });
   });
 });

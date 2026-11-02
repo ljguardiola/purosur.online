@@ -93,7 +93,7 @@ function held(
   figures: {
     exceptionCount: number;
     totalCount: number;
-    shareTenthsOfPercent: number | null;
+    exceptionShareTenthsOfPercent: number | null;
     previousMonthNonCompliantOn?: string[];
     contingencyShareTenthsOfPercent?: number | null;
   },
@@ -108,7 +108,7 @@ function held(
         fiscalAddressName: `Address ${fiscalAddressId}`,
         month,
         previousMonth,
-        nonCompliancePercent: 5,
+        exceptionShareNonCompliancePercent: 5,
         contingencyNonCompliancePercent: 5,
         previousMonthNonCompliantOn: ["exception_share"],
         contingencyShareTenthsOfPercent: null,
@@ -131,7 +131,7 @@ describe("detectSecondNonCompliantMonthRisks", () => {
       held("fa-1", "2026-11", "2026-10", {
         exceptionCount: 3,
         totalCount: 80,
-        shareTenthsOfPercent: 37,
+        exceptionShareTenthsOfPercent: 37,
       }),
     ]);
   });
@@ -161,7 +161,7 @@ describe("detectSecondNonCompliantMonthRisks", () => {
       held("fa-1", "2026-12", "2026-11", {
         exceptionCount: 0,
         totalCount: 0,
-        shareTenthsOfPercent: null,
+        exceptionShareTenthsOfPercent: null,
       }),
       { holds: false, kind: "second_non_compliant_month_at_risk", scope: "fa-1:2026-11" },
     ]);
@@ -204,7 +204,7 @@ describe("detectSecondNonCompliantMonthRisks", () => {
       held("fa-1", "2027-01", "2026-12", {
         exceptionCount: 2,
         totalCount: 40,
-        shareTenthsOfPercent: 50,
+        exceptionShareTenthsOfPercent: 50,
       }),
     ]);
   });
@@ -220,7 +220,7 @@ describe("detectSecondNonCompliantMonthRisks", () => {
       held("fa-1", "2026-11", "2026-10", {
         exceptionCount: 0,
         totalCount: 0,
-        shareTenthsOfPercent: null,
+        exceptionShareTenthsOfPercent: null,
       }),
     ]);
   });
@@ -237,7 +237,7 @@ describe("detectSecondNonCompliantMonthRisks", () => {
       held("fa-1", "2026-11", "2026-10", {
         exceptionCount: 1,
         totalCount: 100,
-        shareTenthsOfPercent: 10,
+        exceptionShareTenthsOfPercent: 10,
       }),
     ]);
   });
@@ -254,7 +254,7 @@ describe("detectSecondNonCompliantMonthRisks", () => {
       held("fa-1", "2026-11", "2026-10", {
         exceptionCount: 1,
         totalCount: 50,
-        shareTenthsOfPercent: 20,
+        exceptionShareTenthsOfPercent: 20,
       }),
     ]);
   });
@@ -277,7 +277,7 @@ describe("detectSecondNonCompliantMonthRisks", () => {
         held("fa-1", "2026-11", "2026-10", {
           exceptionCount: 1,
           totalCount: 100,
-          shareTenthsOfPercent: 10,
+          exceptionShareTenthsOfPercent: 10,
           previousMonthNonCompliantOn: ["contingency_time"],
           contingencyShareTenthsOfPercent: 0,
         }),
@@ -367,7 +367,7 @@ describe("detectSecondNonCompliantMonthRisks", () => {
         held("fa-1", "2026-11", "2026-10", {
           exceptionCount: 2,
           totalCount: 100,
-          shareTenthsOfPercent: 20,
+          exceptionShareTenthsOfPercent: 20,
           previousMonthNonCompliantOn: ["exception_share"],
           contingencyShareTenthsOfPercent: 100,
         }),
@@ -388,7 +388,7 @@ describe("detectSecondNonCompliantMonthRisks", () => {
         held("fa-1", "2026-11", "2026-10", {
           exceptionCount: 7,
           totalCount: 100,
-          shareTenthsOfPercent: 70,
+          exceptionShareTenthsOfPercent: 70,
           previousMonthNonCompliantOn: ["contingency_time"],
           contingencyShareTenthsOfPercent: 0,
         }),
