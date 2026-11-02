@@ -2,6 +2,7 @@ import {
   type FortnightPresentationBody,
   fortnightPresentationListSchema,
   type RejectedDocumentRemedyBody,
+  type RevokedInstallationConfirmationBody,
 } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
@@ -55,6 +56,25 @@ function isCorrectionRefusal(value: unknown): value is CorrectionRefusal {
   return CORRECTION_REFUSALS.some((refusal) => refusal === value);
 }
 
+export type ConfirmRevokedInstallationOutcome =
+  | { kind: "ok" }
+  | { kind: "validation_failed"; field: string }
+  | { kind: "not_found" }
+  | { kind: "already_confirmed" }
+  | { kind: "already_presented" }
+  | { kind: "not_revoked" }
+  | { kind: "not_holding_back" }
+  | WriteFailure;
+
+const CONFIRMATION_REFUSALS = [
+  "already_confirmed",
+  "already_presented",
+  "not_revoked",
+  "not_holding_back",
+] as const;
+
+export type RevokedInstallation = { installationId: string; revokedAt: string };
+
 export type FortnightPresentation = {
   registerId: string;
   pointOfSaleNumber: number;
@@ -66,6 +86,7 @@ export type FortnightPresentation = {
   movement: FortnightPresentationBody["movement"];
   refusal: FortnightPresentationBody["refusal"];
   state: FortnightPresentationBody["state"];
+  revokedInstallations: RevokedInstallation[];
 };
 
 export type FetchFortnightPresentationsOutcome = CloudReadOutcome<FortnightPresentation[]>;
@@ -96,6 +117,10 @@ function fortnightPresentationFromWire(row: FortnightPresentationBody): Fortnigh
     movement: row.movement,
     refusal: row.refusal,
     state: row.state,
+    revokedInstallations: row.revoked_installations.map((installation) => ({
+      installationId: installation.installation_id,
+      revokedAt: installation.revoked_at,
+    })),
   };
 }
 
@@ -146,4 +171,33 @@ async function correctionRefusalOf(response: Response): Promise<RemedyRejectedDo
   return body?.code === "correction_refused" && isCorrectionRefusal(refusal)
     ? { kind: "correction_refused", refusal }
     : { kind: "failed" };
+}
+
+export async function confirmRevokedInstallation(
+  body: RevokedInstallationConfirmationBody,
+): Promise<ConfirmRevokedInstallationOutcome> {
+  const response = await sendJson(
+    "POST",
+    "/api/registers/fortnight-presentations/revoked-installation-confirmations",
+    body,
+  );
+  if (response === undefined) {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    return { kind: "ok" };
+  }
+  if (response.status === 400) {
+    const field = await readValidationFailedField(response);
+    return field === undefined ? { kind: "failed" } : { kind: "validation_failed", field };
+  }
+  if (response.status === 404) {
+    return { kind: "not_found" };
+  }
+  if (response.status === 409) {
+    const code = await errorCodeOf(response);
+    const refusal = CONFIRMATION_REFUSALS.find((candidate) => candidate === code);
+    return refusal === undefined ? { kind: "failed" } : { kind: refusal };
+  }
+  return writeFailureOf(response);
 }
