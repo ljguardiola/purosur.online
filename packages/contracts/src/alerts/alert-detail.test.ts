@@ -498,6 +498,9 @@ describe("alertDetailSchema", () => {
         totalCount: 80,
         shareTenthsOfPercent: 37,
         nonCompliancePercent: 5,
+        previousMonthNonCompliantOn: ["exception_share"],
+        contingencyShareTenthsOfPercent: 42,
+        contingencyNonCompliancePercent: 5,
       },
       fortnight_report_owed_elsewhere: {
         pointOfSaleNumber: 9,
@@ -560,6 +563,20 @@ describe("alertDetailSchema", () => {
       expect(alertDetailSchema.safeParse(alert).success).toBe(false);
     });
 
+    it("accepts a second month at risk alert naming both measurements and no contingency data yet", () => {
+      const alert = {
+        ...base,
+        kind: "exception_share_second_month_at_risk",
+        detail: {
+          ...detailOf.exception_share_second_month_at_risk,
+          previousMonthNonCompliantOn: ["exception_share", "contingency_time"],
+          contingencyShareTenthsOfPercent: null,
+        },
+      };
+
+      expect(alertDetailSchema.safeParse(alert).data).toEqual(alert);
+    });
+
     it("accepts a second month at risk alert that has no share yet", () => {
       const alert = {
         ...base,
@@ -583,6 +600,14 @@ describe("alertDetailSchema", () => {
       ["a missing share", { shareTenthsOfPercent: undefined }],
       ["a previous month that is not text", { previousMonth: 9 }],
       ["a threshold as text", { nonCompliancePercent: "5" }],
+      ["no measurement the previous month failed", { previousMonthNonCompliantOn: [] }],
+      ["an unknown measurement", { previousMonthNonCompliantOn: ["share_of_sales"] }],
+      ["missing measurements", { previousMonthNonCompliantOn: undefined }],
+      ["a contingency share as text", { contingencyShareTenthsOfPercent: "42" }],
+      ["a fractional contingency share", { contingencyShareTenthsOfPercent: 4.2 }],
+      ["a missing contingency share", { contingencyShareTenthsOfPercent: undefined }],
+      ["a contingency threshold as text", { contingencyNonCompliancePercent: "5" }],
+      ["a missing contingency threshold", { contingencyNonCompliancePercent: undefined }],
     ])("refuses a second month at risk alert with %s", (_case, change) => {
       const alert = {
         ...base,
