@@ -2,6 +2,7 @@ import { ANOTHER_FICTIONAL_CUIT, FICTIONAL_CUIT } from "@purosur/domain/fiscal/t
 import { FieldSizeProvider } from "@purosur/ui";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import { suppliersWithCuits } from "./test-support/suppliers";
 import {
@@ -219,6 +220,18 @@ test.each([
   await expect.element(dialog.getByText(title)).toBeVisible();
   await expect.element(dialog.getByText(description)).toBeVisible();
   await expect.element(dialog.getByRole("button", { name: "Leer la lista" })).toBeEnabled();
+});
+
+test("tells an outdated tab to reload because the backoffice was updated when reading the list fails", async () => {
+  openAsOutdatedTab();
+  const services = createServices();
+  vi.mocked(services.uploadSupplierPriceList).mockResolvedValue({ kind: "failed" });
+  const screen = await renderModal({ services });
+
+  const dialog = await submit(screen);
+
+  await expect.element(dialog.getByText("No se cargó la lista")).toBeVisible();
+  await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
 });
 
 test("refuses a file whose name is too long without calling the cloud, saying so on the file", async () => {
