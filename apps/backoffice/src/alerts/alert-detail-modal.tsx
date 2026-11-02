@@ -329,7 +329,8 @@ function exceptionShareBreachDescription({
 const PREVIOUS_MONTH_FAILURE_PHRASES = {
   exception_share: (limit: string) =>
     `llegó al ${limit} o más de comprobantes por excepción (CAEA)`,
-  contingency_time: (limit: string) => `superó el ${limit} del tiempo en contingencia`,
+  contingency_time: (limit: string) =>
+    `estuvo en contingencia más del ${limit} del tiempo en que ARCA estuvo disponible`,
 } as const;
 
 function secondMonthAtRiskDescription({
@@ -354,8 +355,8 @@ function secondMonthAtRiskDescription({
       : `En ${yearMonthPhrase(month)} ${issued} por excepción (CAEA) ${formatNumber(exceptionCount)} de ${vouchers} de este domicilio fiscal, el ${formatTenthsOfPercent(shareTenthsOfPercent)}.`;
   const runningContingency =
     contingencyShareTenthsOfPercent === null
-      ? `Del tiempo en contingencia de ${yearMonthPhrase(month)} todavía no hay datos (Sin datos).`
-      : `En ${yearMonthPhrase(month)} estuvo en contingencia el ${formatTenthsOfPercent(contingencyShareTenthsOfPercent)} del tiempo de este domicilio fiscal.`;
+      ? `Tiempo en contingencia en ${yearMonthPhrase(month)}: Sin datos.`
+      : `En ${yearMonthPhrase(month)} estuvo en contingencia el ${formatTenthsOfPercent(contingencyShareTenthsOfPercent)} del tiempo en que ARCA estuvo disponible.`;
   const limits = {
     exception_share: formatPercent(nonCompliancePercent),
     contingency_time: formatPercent(contingencyNonCompliancePercent),

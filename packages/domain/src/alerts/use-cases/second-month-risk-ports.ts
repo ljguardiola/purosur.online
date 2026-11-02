@@ -17,7 +17,7 @@ export interface RunningExceptionShareCounts extends ExceptionShareCounts {
 }
 
 export interface SecondMonthRiskReader {
-  addressesWithRecordedBreach(month: string): Promise<SecondMonthRiskAddress[]>;
+  fiscalAddressesWithRecordedBreach(month: string): Promise<string[]>;
   runningCounts(month: string): Promise<RunningExceptionShareCounts[]>;
   fiscalAddresses(): Promise<SecondMonthRiskAddress[]>;
   availabilityRuns(window: { from: Date; to: Date }): Promise<ArcaAvailabilityRun[]>;

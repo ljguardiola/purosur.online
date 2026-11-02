@@ -24,9 +24,7 @@ export async function detectSecondNonCompliantMonthRisks({
   const { month, previousMonth } = monthAtRiskOfSecondConsecutiveBreach(today);
   const previousWindow = monthWindow(previousMonth, zoneRules.zoneRules());
   const currentWindow = monthWindow(month, zoneRules.zoneRules());
-  const recorded = new Set(
-    (await risks.addressesWithRecordedBreach(previousMonth)).map((each) => each.fiscalAddressId),
-  );
+  const recorded = new Set(await risks.fiscalAddressesWithRecordedBreach(previousMonth));
   const counts = await risks.runningCounts(month);
   const previousRuns = await risks.availabilityRuns({
     from: previousWindow.start,

@@ -15,17 +15,14 @@ export class DrizzleSecondMonthRiskReader<TQueryResult extends PgQueryResultHKT>
     this.db = db;
   }
 
-  addressesWithRecordedBreach(
+  async fiscalAddressesWithRecordedBreach(
     month: string,
-  ): ReturnType<SecondMonthRiskReader["addressesWithRecordedBreach"]> {
-    return this.db
-      .select({
-        fiscalAddressId: sql<string>`${exceptionShareBreaches.fiscalAddressId}::text`,
-        fiscalAddressName: fiscalAddresses.name,
-      })
+  ): ReturnType<SecondMonthRiskReader["fiscalAddressesWithRecordedBreach"]> {
+    const breaches = await this.db
+      .select({ fiscalAddressId: sql<string>`${exceptionShareBreaches.fiscalAddressId}::text` })
       .from(exceptionShareBreaches)
-      .innerJoin(fiscalAddresses, eq(fiscalAddresses.id, exceptionShareBreaches.fiscalAddressId))
       .where(eq(exceptionShareBreaches.month, month));
+    return breaches.map(({ fiscalAddressId }) => fiscalAddressId);
   }
 
   async runningCounts(month: string): ReturnType<SecondMonthRiskReader["runningCounts"]> {
