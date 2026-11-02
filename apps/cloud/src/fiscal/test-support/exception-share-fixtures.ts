@@ -4,6 +4,7 @@ import {
   fiscalAddresses,
   pointOfSaleClaims,
   registerFiscalAddressAssignments,
+  registerInstallations,
   registerPointsOfSale,
   registers,
   users,
@@ -78,4 +79,23 @@ export async function moveRegisterToFiscalAddress(
   await db
     .insert(registerFiscalAddressAssignments)
     .values({ registerId, fiscalAddressId, assignedAt: at });
+}
+
+export async function enrollRegister(
+  db: Db,
+  registerId: string,
+  enrolledAt: Date,
+  revokedAt: Date | null = null,
+): Promise<void> {
+  await db.insert(registerInstallations).values({
+    registerId,
+    tokenLookupPrefix: crypto.randomUUID(),
+    tokenHash: "hash",
+    tokenIssuedAt: enrolledAt,
+    hostname: "CAJA-MOSTRADOR",
+    windowsVersion: "Windows 11 Pro 10.0.26100",
+    enrolledAt,
+    revokedAt,
+    revocationReason: revokedAt === null ? null : "replaced",
+  });
 }

@@ -1,6 +1,11 @@
 import { exceptionShareYearSchema } from "@purosur/contracts";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import {
+  arcaVitalityChecks,
+  registerContingencyIntervals,
+  registerContingencyReporting,
+} from "../platform/db/schema.js";
 import { BACKOFFICE_ORIGIN, signedInWith } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
@@ -16,6 +21,12 @@ import {
 } from "./test-support/issued-document-fixtures.js";
 
 const NOW = new Date("2026-10-07T15:00:00.000Z");
+const NO_DATA = {
+  contingency_ms: 0,
+  available_ms: 0,
+  share_tenths_of_percent: null,
+  state: "no_data",
+};
 const MISSING_ID = "0d9c4f6e-2b1a-4c3d-8e5f-6a7b8c9d0e1f";
 
 let testDatabase: TestDatabase;
@@ -112,6 +123,7 @@ describe("GET /fiscal/exception-share/:fiscalAddressId requests", () => {
     expect(body.year).toBe(2026);
     expect(body.selectable_years).toEqual([2026, 2025, 2024]);
     expect(body.non_compliance_percent).toBe(5);
+    expect(body.contingency_non_compliance_percent).toBe(5);
   });
 
   it("answers for the year asked", async () => {
@@ -177,6 +189,7 @@ describe("GET /fiscal/exception-share/:fiscalAddressId", () => {
       total_count: 20,
       share_tenths_of_percent: 50,
       state: "non_compliant",
+      contingency_time: NO_DATA,
     });
     expect(body.months.find(({ month }) => month === "2026-10")).toEqual({
       month: "2026-10",
@@ -184,6 +197,7 @@ describe("GET /fiscal/exception-share/:fiscalAddressId", () => {
       total_count: 1,
       share_tenths_of_percent: 0,
       state: "in_progress",
+      contingency_time: NO_DATA,
     });
     expect(body.months.find(({ month }) => month === "2026-03")).toEqual({
       month: "2026-03",
@@ -191,6 +205,7 @@ describe("GET /fiscal/exception-share/:fiscalAddressId", () => {
       total_count: 0,
       share_tenths_of_percent: null,
       state: "compliant",
+      contingency_time: NO_DATA,
     });
     expect(body.non_compliant_months).toEqual(["2026-09"]);
   });
@@ -210,5 +225,48 @@ describe("GET /fiscal/exception-share/:fiscalAddressId", () => {
     const response = await read(headers, fiscalAddressId);
 
     expect(response.json()).toMatchObject({ non_compliant_months: ["2026-02"] });
+  });
+
+  async function probesEveryMinute(from: string, minutes: number) {
+    const start = new Date(from).getTime();
+    await db.insert(arcaVitalityChecks).values(
+      Array.from({ length: minutes + 1 }, (_, index) => ({
+        checkedAt: new Date(start + index * 60_000),
+        ok: true,
+      })),
+    );
+  }
+
+  async function contingencyBetween(registerId: string, startedAt: string, endedAt: string) {
+    await db.insert(registerContingencyIntervals).values({
+      intervalId: crypto.randomUUID(),
+      registerId,
+      startedAt: new Date(startedAt),
+      endedAt: new Date(endedAt),
+    });
+  }
+
+  it("answers a month's contingency time against the time ARCA was available, listing it apart from the exception share's months", async () => {
+    const fiscalAddressId = await insertFiscalAddress(db, "Depósito Central");
+    const registerId = await insertRegisterAtFiscalAddress(db, fiscalAddressId, "Caja 1");
+    await db
+      .insert(registerContingencyReporting)
+      .values({ registerId, since: new Date("2026-08-01T00:00:00.000Z") });
+    await probesEveryMinute("2026-09-10T12:00:00.000Z", 120);
+    await contingencyBetween(registerId, "2026-09-10T12:30:00.000Z", "2026-09-10T13:00:00.000Z");
+    const { headers } = await signedInWith(db, ["view_fiscal_documents"], NOW);
+
+    const response = await read(headers, fiscalAddressId);
+
+    const body = exceptionShareYearSchema.parse(response.json());
+    expect(body.months.find(({ month }) => month === "2026-09")?.contingency_time).toEqual({
+      contingency_ms: 1_800_000,
+      available_ms: 7_290_000,
+      share_tenths_of_percent: 246,
+      state: "non_compliant",
+    });
+    expect(body.months.find(({ month }) => month === "2026-08")?.contingency_time).toEqual(NO_DATA);
+    expect(body.contingency_non_compliant_months).toEqual(["2026-09"]);
+    expect(body.non_compliant_months).toEqual([]);
   });
 });

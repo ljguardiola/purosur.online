@@ -184,6 +184,11 @@ export type {
 } from "./configure-register-point-of-sale.js";
 export { configureRegisterPointOfSale } from "./configure-register-point-of-sale.js";
 export type {
+  ContingencyIntervalsAtFiscalAddress,
+  ContingencyIntervalsQuery,
+  ContingencyIntervalsReader,
+} from "./contingency-intervals-ports.js";
+export type {
   CorrectRegisterClockGrant,
   CorrectRegisterClockOutcome,
   CorrectRegisterClockPorts,
@@ -401,6 +406,8 @@ export type {
 } from "./read-exception-share-year.js";
 export { readExceptionShareYear } from "./read-exception-share-year.js";
 export type {
+  ArcaAvailabilityQuery,
+  ArcaAvailabilityReader,
   ExceptionShareFiscalAddress,
   ExceptionShareYearQuery,
   ExceptionShareYearReader,

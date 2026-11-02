@@ -106,7 +106,7 @@ export {
   offsiteDumpNightOf,
   paidSaleCancellationLeavesBackupTicket,
 } from "./backups/index.js";
-export type { BranchWeeklyHoursRange } from "./branch/index.js";
+export type { BranchWeeklyHoursRange, FiscalAddressAssignment } from "./branch/index.js";
 export {
   BRANCH_HOURS_RANGES_PER_DAY_MAX,
   BRANCH_SETTINGS_DAYS_MAX,
@@ -115,6 +115,7 @@ export {
   DEFAULT_EXPIRING_LOT_ALERT_DAYS,
   DEFAULT_GOOD_CONDITION_RETURN_DAYS,
   DEFAULT_UNREVIEWED_PRICE_ALERT_DAYS,
+  fiscalAddressPartsOf,
   isBranchHoursRangeOrdered,
   isBranchHoursTime,
 } from "./branch/index.js";
@@ -200,6 +201,7 @@ export {
   recoveryRateLimitWindowStart,
 } from "./credentials/index.js";
 export type {
+  ArcaAvailabilityRun,
   AuthorizedCreditNoteC,
   AuthorizedFacturaC,
   AwaitingCreditNote,
@@ -280,6 +282,7 @@ export type {
   VoucherReference,
 } from "./fiscal/index.js";
 export {
+  ARCA_REACHABILITY_HORIZON_MS,
   ARCA_VITALITY_CHECK_INTERVAL_MS,
   AUTHORIZATION_CODE_TYPE_CAE,
   awaitsNumberingDiagnosis,
@@ -293,6 +296,7 @@ export {
   CLOCK_PREVIOUS_READING_SOURCES,
   CLOSED_FISCAL_TASK_STATE,
   CONTINGENCY_KINDS,
+  CONTINGENCY_TIME_MONTH_STATES,
   COUNTED_AS_ISSUED_STATE,
   CREDIT_NOTE_C_DOCUMENT_TYPE,
   CREDIT_NOTE_C_VOUCHER_TYPE,
