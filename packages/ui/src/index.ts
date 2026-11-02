@@ -206,6 +206,7 @@ export {
   formatCountdown,
   formatDate,
   formatDayAndTime,
+  formatDuration,
   formatInvoiceNumber,
   formatMonthAndYear,
   formatMonthAndYearInSentence,

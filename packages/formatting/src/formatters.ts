@@ -250,6 +250,19 @@ const SECONDS_PER_HOUR = 60 * SECONDS_PER_MINUTE;
 const SECONDS_PER_DAY = 24 * SECONDS_PER_HOUR;
 const DAYS_PER_MONTH = 30;
 
+const MILLISECONDS_PER_MINUTE = 60_000;
+const MINUTES_PER_HOUR = 60;
+
+export function formatDuration(milliseconds: number): string {
+  const totalMinutes = Math.floor(milliseconds / MILLISECONDS_PER_MINUTE);
+  const hours = Math.floor(totalMinutes / MINUTES_PER_HOUR);
+  const minutes = totalMinutes % MINUTES_PER_HOUR;
+  if (hours === 0) {
+    return `${minutes} min`;
+  }
+  return minutes === 0 ? `${formatNumber(hours)} h` : `${formatNumber(hours)} h ${minutes} min`;
+}
+
 export function formatTimeAgoInHours(seconds: number): string {
   if (seconds >= SECONDS_PER_HOUR) {
     return relativeTime.format(-Math.floor(seconds / SECONDS_PER_HOUR), "hour");
