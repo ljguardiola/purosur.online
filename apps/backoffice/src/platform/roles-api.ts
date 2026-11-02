@@ -1,4 +1,5 @@
 import { type RoleSummaryWire, roleListSchema } from "@purosur/contracts";
+import { cloudFetch } from "./cloud-fetch";
 import type { CloudReadOutcome } from "./cloud-read-outcome";
 import { rateLimitOutcome } from "./rate-limit-outcome";
 
@@ -20,7 +21,7 @@ export function roleSummaryFromWire(row: RoleSummaryWire) {
 export async function fetchRoles(): Promise<FetchRolesOutcome> {
   let response: Response;
   try {
-    response = await fetch("/api/roles");
+    response = await cloudFetch("/api/roles");
   } catch {
     return { kind: "failed" };
   }

@@ -1,4 +1,5 @@
 import { type TagCreationBody, type TagSummary, tagSummarySchema } from "@purosur/contracts";
+import { cloudFetch } from "./cloud-fetch";
 import { rateLimitOutcome } from "./rate-limit-outcome";
 import { readValidationFailedField } from "./validation-failed-field";
 
@@ -31,7 +32,7 @@ export async function createTag(input: { name: string }): Promise<CreateTagOutco
   const requestBody: TagCreationBody = { name: input.name };
   let response: Response;
   try {
-    response = await fetch("/api/tags", {
+    response = await cloudFetch("/api/tags", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(requestBody),

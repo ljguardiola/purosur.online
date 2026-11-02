@@ -6,6 +6,7 @@ import {
   buyerIdentificationThresholdSchema,
 } from "@purosur/contracts";
 import type { BuyerIdentificationThreshold } from "@purosur/domain";
+import { cloudFetch } from "../platform/cloud-fetch";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
@@ -40,7 +41,7 @@ function thresholdFromWire(
 export async function fetchBuyerIdentificationThresholds(): Promise<FetchBuyerIdentificationThresholdsOutcome> {
   let response: Response;
   try {
-    response = await fetch("/api/buyer-identification-thresholds");
+    response = await cloudFetch("/api/buyer-identification-thresholds");
   } catch {
     return { kind: "failed" };
   }
@@ -86,7 +87,7 @@ export async function recordBuyerIdentificationThreshold(
 ): Promise<RecordBuyerIdentificationThresholdOutcome> {
   let response: Response;
   try {
-    response = await fetch("/api/buyer-identification-thresholds", {
+    response = await cloudFetch("/api/buyer-identification-thresholds", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(requestBody),

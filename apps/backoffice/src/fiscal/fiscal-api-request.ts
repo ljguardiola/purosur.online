@@ -1,3 +1,4 @@
+import { cloudFetch } from "../platform/cloud-fetch";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 
@@ -14,7 +15,7 @@ export async function readCloudList<Value>(
 ): Promise<CloudReadOutcome<Value>> {
   let response: Response;
   try {
-    response = await fetch(path);
+    response = await cloudFetch(path);
   } catch {
     return { kind: "failed" };
   }
@@ -40,7 +41,7 @@ export async function sendJson(
   body: unknown,
 ): Promise<Response | undefined> {
   try {
-    return await fetch(path, {
+    return await cloudFetch(path, {
       method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),

@@ -5,6 +5,7 @@ import {
   categoryListSchema,
   categorySummarySchema,
 } from "@purosur/contracts";
+import { cloudFetch } from "../platform/cloud-fetch";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
@@ -39,7 +40,7 @@ export type EditCategoryOutcome =
   | { kind: "failed" };
 
 function sendJson(method: "POST" | "PUT", path: string, body?: unknown): Promise<Response> {
-  return fetch(path, {
+  return cloudFetch(path, {
     method,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body ?? {}),
@@ -53,7 +54,7 @@ function postJson(path: string, body?: unknown): Promise<Response> {
 export async function fetchCategories(): Promise<FetchCategoriesOutcome> {
   let response: Response;
   try {
-    response = await fetch("/api/categories");
+    response = await cloudFetch("/api/categories");
   } catch {
     return { kind: "failed" };
   }

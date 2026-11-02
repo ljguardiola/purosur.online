@@ -3,6 +3,7 @@ import {
   type IssuerIdentificationEditBody,
   issuerIdentificationSchema,
 } from "@purosur/contracts";
+import { cloudFetch } from "../platform/cloud-fetch";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
@@ -43,7 +44,7 @@ function issuerIdentificationFromWire(row: IssuerIdentificationBody): IssuerIden
 export async function fetchIssuerIdentification(): Promise<FetchIssuerIdentificationOutcome> {
   let response: Response;
   try {
-    response = await fetch("/api/fiscal-settings/issuer-identification");
+    response = await cloudFetch("/api/fiscal-settings/issuer-identification");
   } catch {
     return { kind: "failed" };
   }
@@ -73,7 +74,7 @@ export async function saveIssuerIdentification(
 ): Promise<SaveIssuerIdentificationOutcome> {
   let response: Response;
   try {
-    response = await fetch("/api/fiscal-settings/issuer-identification", {
+    response = await cloudFetch("/api/fiscal-settings/issuer-identification", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(requestBody),

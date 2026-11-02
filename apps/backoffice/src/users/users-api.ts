@@ -1,5 +1,6 @@
 import { branchUserSchema, type UserCreationBody, type UserEditBody } from "@purosur/contracts";
 import { type BranchUser, branchUserFromWire } from "../platform/branch-users-api";
+import { cloudFetch } from "../platform/cloud-fetch";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
@@ -51,7 +52,7 @@ export type CreateUserOutcome =
   | { kind: "failed" };
 
 function sendJson(method: "POST" | "PUT", path: string, body: unknown): Promise<Response> {
-  return fetch(path, {
+  return cloudFetch(path, {
     method,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -123,7 +124,7 @@ export async function createUser(input: UserCreationBody): Promise<CreateUserOut
 export async function fetchUser(id: string): Promise<FetchUserOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/api/users/${id}`);
+    response = await cloudFetch(`/api/users/${id}`);
   } catch {
     return { kind: "failed" };
   }
@@ -183,7 +184,7 @@ export async function editUser(id: string, input: UserEditBody): Promise<EditUse
 export async function deactivateUser(id: string): Promise<DeactivateUserOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/api/users/${id}/deactivation`, { method: "PUT" });
+    response = await cloudFetch(`/api/users/${id}/deactivation`, { method: "PUT" });
   } catch {
     return { kind: "failed" };
   }
@@ -200,7 +201,7 @@ export async function deactivateUser(id: string): Promise<DeactivateUserOutcome>
 export async function reactivateUser(id: string): Promise<ReactivateUserOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/api/users/${id}/deactivation`, { method: "DELETE" });
+    response = await cloudFetch(`/api/users/${id}/deactivation`, { method: "DELETE" });
   } catch {
     return { kind: "failed" };
   }

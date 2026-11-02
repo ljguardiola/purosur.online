@@ -28,6 +28,7 @@ import {
   stockProductBalanceSchema,
   stockProductListSchema,
 } from "@purosur/contracts";
+import { cloudFetch } from "../platform/cloud-fetch";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
@@ -64,7 +65,7 @@ async function read<T>(
 ): Promise<CloudReadOutcome<T> | { kind: "not_found" }> {
   let response: Response;
   try {
-    response = await fetch(path);
+    response = await cloudFetch(path);
   } catch {
     return { kind: "failed" };
   }
@@ -136,7 +137,7 @@ async function post<T, Refusal extends { kind: string }>(
 ): Promise<WriteOutcome<T, Refusal>> {
   let response: Response;
   try {
-    response = await fetch(path, {
+    response = await cloudFetch(path, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -228,7 +229,7 @@ export async function setLotReferenceCost(
 ): Promise<SetLotReferenceCostOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/api/initial-inventory-lots/${lotId}/reference-cost`, {
+    response = await cloudFetch(`/api/initial-inventory-lots/${lotId}/reference-cost`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),

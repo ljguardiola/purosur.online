@@ -6,6 +6,7 @@ import {
   priceListSchema,
   priceMarginSchema,
 } from "@purosur/contracts";
+import { cloudFetch } from "../platform/cloud-fetch";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
@@ -50,7 +51,7 @@ export type ConfirmPriceOutcome =
   | { kind: "failed" };
 
 function sendJson(method: "POST" | "PUT", path: string, body: unknown): Promise<Response> {
-  return fetch(path, {
+  return cloudFetch(path, {
     method,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -76,7 +77,7 @@ export async function fetchPrices(input: FetchPricesInput): Promise<FetchPricesO
 
   let response: Response;
   try {
-    response = await fetch(`/api/prices?${query.toString()}`);
+    response = await cloudFetch(`/api/prices?${query.toString()}`);
   } catch {
     return { kind: "failed" };
   }
@@ -102,7 +103,7 @@ export async function fetchPriceMargin(
 ): Promise<FetchPriceMarginOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/api/prices/${productId}/margin?unitPrice=${unitPrice}`);
+    response = await cloudFetch(`/api/prices/${productId}/margin?unitPrice=${unitPrice}`);
   } catch {
     return { kind: "failed" };
   }

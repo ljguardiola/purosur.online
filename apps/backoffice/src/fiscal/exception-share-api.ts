@@ -1,4 +1,5 @@
 import { type ExceptionShareYearBody, exceptionShareYearSchema } from "@purosur/contracts";
+import { cloudFetch } from "../platform/cloud-fetch";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 
@@ -15,7 +16,7 @@ export async function fetchExceptionShareYear({
 }): Promise<FetchExceptionShareYearOutcome> {
   let response: Response;
   try {
-    response = await fetch(
+    response = await cloudFetch(
       `/api/fiscal/exception-share/${encodeURIComponent(fiscalAddressId)}${year === undefined ? "" : `?year=${year}`}`,
     );
   } catch {

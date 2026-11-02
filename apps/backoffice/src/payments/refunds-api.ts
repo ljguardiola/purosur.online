@@ -6,6 +6,7 @@ import {
   type PendingRefundsBody,
   pendingRefundsSchema,
 } from "@purosur/contracts";
+import { cloudFetch } from "../platform/cloud-fetch";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 
@@ -72,7 +73,7 @@ function refusal(response: Response): RequestRefusal {
 export async function fetchPendingRefunds(): Promise<CloudReadOutcome<PendingRefundsBody>> {
   let response: Response;
   try {
-    response = await fetch("/api/refunds/pending");
+    response = await cloudFetch("/api/refunds/pending");
   } catch {
     return { kind: "failed" };
   }
@@ -86,7 +87,7 @@ export async function fetchPendingRefunds(): Promise<CloudReadOutcome<PendingRef
 export async function markRefundDone(refundId: string): Promise<MarkRefundDoneOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/api/refunds/${refundId}/completion`, { method: "POST" });
+    response = await cloudFetch(`/api/refunds/${refundId}/completion`, { method: "POST" });
   } catch {
     return { kind: "failed" };
   }
@@ -110,7 +111,7 @@ export async function markRefundDone(refundId: string): Promise<MarkRefundDoneOu
 export async function discardRefund(refundId: string): Promise<DiscardRefundOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/api/refunds/${refundId}/discard`, { method: "POST" });
+    response = await cloudFetch(`/api/refunds/${refundId}/discard`, { method: "POST" });
   } catch {
     return { kind: "failed" };
   }
@@ -143,7 +144,7 @@ export async function discardRefund(refundId: string): Promise<DiscardRefundOutc
 export async function confirmRefund(refundId: string): Promise<ConfirmRefundOutcome> {
   let response: Response;
   try {
-    response = await fetch(`/api/refunds/${refundId}/confirmation`, { method: "POST" });
+    response = await cloudFetch(`/api/refunds/${refundId}/confirmation`, { method: "POST" });
   } catch {
     return { kind: "failed" };
   }

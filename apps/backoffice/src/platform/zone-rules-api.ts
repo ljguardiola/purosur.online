@@ -1,12 +1,13 @@
 import { currentZoneRulesSchema } from "@purosur/contracts";
 import type { ZoneRules } from "@purosur/domain";
+import { cloudFetch } from "./cloud-fetch";
 import type { CloudReadOutcome } from "./cloud-read-outcome";
 import { rateLimitOutcome } from "./rate-limit-outcome";
 
 export async function fetchCurrentZoneRules(): Promise<CloudReadOutcome<ZoneRules>> {
   let response: Response;
   try {
-    response = await fetch("/api/zone-rules/current");
+    response = await cloudFetch("/api/zone-rules/current");
   } catch {
     return { kind: "failed" };
   }
