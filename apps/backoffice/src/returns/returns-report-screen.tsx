@@ -36,7 +36,7 @@ import { useReturnsReportQuery } from "./returns-queries";
 import { OCCURRED_TIME_ZONE } from "./returns-report-occurred-time-zone";
 import type { ReturnsReportScreenServices } from "./returns-report-services";
 import { returnsReportSpreadsheet } from "./returns-report-spreadsheet";
-import { NO_CASHIER, returnLineDetail, returnSaleText, UNIDENTIFIED } from "./returns-text";
+import { returnLineDetail, returnSaleText, UNIDENTIFIED } from "./returns-text";
 
 export type ReturnsReportScreenProps = {
   filters: ReportFiltersValue;
@@ -148,8 +148,7 @@ const voidColumns = [
   dataColumn({
     id: "cashier",
     header: "Cajero",
-    render: (row: VoidRow) =>
-      row.cashier === null ? NO_CASHIER : (row.cashier.name ?? UNIDENTIFIED),
+    render: (row: VoidRow) => row.cashier.name ?? UNIDENTIFIED,
   }),
   dataColumn({
     id: "authorizer",

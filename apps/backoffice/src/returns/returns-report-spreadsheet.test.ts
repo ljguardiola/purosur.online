@@ -97,7 +97,7 @@ test("lists each void with its moment, register, sale, people and total, leaving
       cell.text("Caja del fondo"),
       cell.empty(),
       cell.empty(),
-      cell.text("Sin dato"),
+      cell.text("Sin identificar"),
       cell.empty(),
       cell.money(310_000),
     ],

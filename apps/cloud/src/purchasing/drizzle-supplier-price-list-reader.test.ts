@@ -271,7 +271,7 @@ describe("what a review says about the link and the earlier price of each row", 
     ]);
   });
 
-  it("gives a linked row its product, packaging and VAT rate", async () => {
+  it("gives a linked row its product and VAT rate", async () => {
     const { id: productId } = await insertProduct(db, {
       name: "Yerba",
       saleUnit: "UNIT",

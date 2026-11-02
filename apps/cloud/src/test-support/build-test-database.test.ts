@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import { unaccent } from "@electric-sql/pglite/contrib/unaccent";
+import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, inject, it, onTestFinished, vi } from "vitest";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import {
@@ -68,7 +69,6 @@ import {
   priceReviews,
   prices,
   productBarcodes,
-  productPackagings,
   products,
   productTags,
   purchaseLines,
@@ -899,13 +899,10 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       .insert(suppliers)
       .values({ name: "Distribuidora Sur", actorId: user.id })
       .returning({ id: suppliers.id });
-    await db.insert(productPackagings).values({
-      productId: product.id,
-      name: "Caja x 12",
-      quantityPerPackage: 12,
-      saleUnit: "UNIT",
-      actorId: user.id,
-    });
+    await db.execute(
+      sql`insert into product_packagings (product_id, name, quantity_per_package, sale_unit, actor_id)
+        values (${product.id}, 'Caja x 12', 12, 'UNIT', ${user.id})`,
+    );
     const [purchase] = await db
       .insert(purchases)
       .values({

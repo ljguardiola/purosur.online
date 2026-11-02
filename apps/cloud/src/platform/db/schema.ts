@@ -653,33 +653,6 @@ export const suppliers = pgTable(
   ],
 );
 
-export const productPackagings = pgTable(
-  "product_packagings",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    productId: uuid("product_id")
-      .notNull()
-      .references(() => products.id),
-    name: text("name").notNull(),
-    quantityPerPackage: bigint("quantity_per_package", { mode: "number" }).notNull(),
-    saleUnit: text("sale_unit").notNull(),
-    active: boolean("active").notNull().default(true),
-    version: integer("version").notNull().default(1),
-    actorId: uuid("actor_id")
-      .notNull()
-      .references(() => users.id),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (table) => [
-    uniqueIndex("product_packagings_product_id_name_lower_key").on(
-      table.productId,
-      sql`lower(${table.name})`,
-    ),
-    check("product_packagings_quantity_check", sql`${table.quantityPerPackage} > 0`),
-    check("product_packagings_sale_unit_check", sql`${table.saleUnit} in ('UNIT', 'KG')`),
-  ],
-);
-
 export const recipes = pgTable("recipes", {
   productId: uuid("product_id")
     .primaryKey()
@@ -807,7 +780,6 @@ export const purchaseLines = pgTable(
     productId: uuid("product_id")
       .notNull()
       .references(() => products.id),
-    packagingId: uuid("packaging_id").references(() => productPackagings.id),
     packages: integer("packages"),
     quantity: bigint("quantity", { mode: "number" }).notNull(),
     costPaidCents: bigint("cost_paid_cents", { mode: "number" }).notNull(),
@@ -820,10 +792,6 @@ export const purchaseLines = pgTable(
     check("purchase_lines_position_check", sql`${table.position} > 0`),
     check("purchase_lines_quantity_check", sql`${table.quantity} > 0`),
     check("purchase_lines_cost_paid_check", sql`${table.costPaidCents} >= 0`),
-    check(
-      "purchase_lines_packaging_needs_packages_check",
-      sql`${table.packagingId} is null or ${table.packages} is not null`,
-    ),
     check(
       "purchase_lines_packages_quantity_check",
       sql`${table.packages} is null or (${table.packages} > 0 and ${table.quantity} = ${table.packages} * ${table.quantityPerPackage})`,
@@ -1188,6 +1156,10 @@ export const registerFiscalAddressAssignments = pgTable(
       name: "register_fiscal_address_assignments_pkey",
       columns: [table.registerId, table.assignedAt],
     }),
+    check(
+      "register_fiscal_address_assignments_assigned_at_on_milliseconds",
+      sql`${table.assignedAt} = date_trunc('milliseconds', ${table.assignedAt})`,
+    ),
   ],
 );
 
@@ -1722,6 +1694,10 @@ export const sales = pgTable(
     check(
       "sales_void_authorizer_only_when_voided_check",
       sql`${table.voidAuthorizedBy} is null or ${table.state} = 'VOIDED'`,
+    ),
+    check(
+      "sales_voided_by_only_when_voided_check",
+      sql`(${table.state} = 'VOIDED') = (${table.voidedBy} is not null)`,
     ),
   ],
 );
@@ -3416,7 +3392,6 @@ export const supplierPriceListRows = pgTable(
     page: integer("page"),
     barcode: text("barcode"),
     productId: uuid("product_id").references(() => products.id),
-    packagingId: uuid("packaging_id").references(() => productPackagings.id),
     quantity: bigint("quantity", { mode: "number" }),
     saleUnit: text("sale_unit"),
     relinkRequired: boolean("relink_required").notNull().default(false),
@@ -3525,7 +3500,6 @@ export const supplierItems = pgTable(
     keyValue: text("key_value").notNull(),
     description: text("description").notNull(),
     productId: uuid("product_id").references(() => products.id),
-    packagingId: uuid("packaging_id").references(() => productPackagings.id),
     quantity: bigint("quantity", { mode: "number" }),
     saleUnit: text("sale_unit"),
     relinkRequired: boolean("relink_required").notNull().default(false),

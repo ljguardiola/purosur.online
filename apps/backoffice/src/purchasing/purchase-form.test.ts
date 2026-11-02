@@ -282,12 +282,40 @@ describe("purchaseLinesMessage", () => {
       message([
         line({ productId: AVENA_PRODUCT_ID, loadedBy: "packages", cost: "5", packages: "2" }),
       ]),
-    ).toBe("Línea 1: Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.");
+    ).toBe("Línea 1: Escribí los kilos con hasta 3 decimales, por ejemplo 12,150.");
+  });
+
+  it("asks for at least one package when a line loaded by packages counts none", () => {
+    const packaged = line({
+      productId: MIEL_PRODUCT_ID,
+      loadedBy: "packages",
+      packages: "0",
+      quantityPerPackage: "12",
+      cost: "5",
+    });
+
+    expect(message([packaged])).toBe(
+      "Línea 1: Ingresá cuántos paquetes compraste, en un número entero mayor a cero.",
+    );
+  });
+
+  it("asks for fewer packages when a line counts more than may be recorded", () => {
+    const packaged = line({
+      productId: MIEL_PRODUCT_ID,
+      loadedBy: "packages",
+      packages: "3.000.000.000",
+      quantityPerPackage: "1",
+      cost: "5",
+    });
+
+    expect(message([packaged])).toBe(
+      "Línea 1: Ingresá menos paquetes; son más de los que se pueden registrar.",
+    );
   });
 
   it("tells how to type the quantity in the product's sale unit", () => {
     expect(message([line({ productId: AVENA_PRODUCT_ID, quantity: "x", cost: "1" })])).toBe(
-      "Línea 1: Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.",
+      "Línea 1: Escribí los kilos con hasta 3 decimales, por ejemplo 12,150.",
     );
     expect(message([line({ productId: MIEL_PRODUCT_ID, quantity: "x", cost: "1" })])).toBe(
       "Línea 1: Escribí una cantidad entera de unidades, por ejemplo 16.",
@@ -296,7 +324,7 @@ describe("purchaseLinesMessage", () => {
 
   it("tells how to type the cost paid", () => {
     expect(message([line({ productId: AVENA_PRODUCT_ID, quantity: "1", cost: "" })])).toBe(
-      "Línea 1: Escribí el costo pagado con coma para los centavos, por ejemplo 1.250,50.",
+      "Línea 1: Escribí el costo pagado con hasta 2 decimales, por ejemplo 1.250,50.",
     );
   });
 
@@ -320,7 +348,7 @@ describe("purchaseLineQuantityRefusal", () => {
   it("tells how to type the quantity of a line loaded by quantity, in its product's sale unit", () => {
     expect(
       purchaseLineQuantityRefusal(line({ productId: AVENA_PRODUCT_ID }), purchasableProducts),
-    ).toBe("Escribí los kilos con coma para los decimales, hasta 3, por ejemplo 12,150.");
+    ).toBe("Escribí los kilos con hasta 3 decimales, por ejemplo 12,150.");
     expect(
       purchaseLineQuantityRefusal(line({ productId: MIEL_PRODUCT_ID }), purchasableProducts),
     ).toBe("Escribí una cantidad entera de unidades, por ejemplo 16.");

@@ -1,5 +1,5 @@
 {
-  "id": "2205c189-939d-476a-9aeb-ab33d05b1a93",
+  "id": "71631786-5ac2-4e88-9c40-d1c07c8e1bb1",
   "prevId": "42c506ee-bdee-4d57-9442-ad60f7923451",
   "version": "7",
   "dialect": "postgresql",
@@ -9500,82 +9500,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.revoked_installation_confirmations": {
-      "name": "revoked_installation_confirmations",
-      "schema": "",
-      "columns": {
-        "point_of_sale_number": {
-          "name": "point_of_sale_number",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "fortnight_start": {
-          "name": "fortnight_start",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "installation_id": {
-          "name": "installation_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "confirmed_by": {
-          "name": "confirmed_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "confirmed_at": {
-          "name": "confirmed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "revoked_installation_confirmations_point_of_sale_number_point_of_sale_claims_point_of_sale_number_fk": {
-          "name": "revoked_installation_confirmations_point_of_sale_number_point_of_sale_claims_point_of_sale_number_fk",
-          "tableFrom": "revoked_installation_confirmations",
-          "tableTo": "point_of_sale_claims",
-          "columnsFrom": ["point_of_sale_number"],
-          "columnsTo": ["point_of_sale_number"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "revoked_installation_confirmations_installation_id_register_installations_id_fk": {
-          "name": "revoked_installation_confirmations_installation_id_register_installations_id_fk",
-          "tableFrom": "revoked_installation_confirmations",
-          "tableTo": "register_installations",
-          "columnsFrom": ["installation_id"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "revoked_installation_confirmations_confirmed_by_users_id_fk": {
-          "name": "revoked_installation_confirmations_confirmed_by_users_id_fk",
-          "tableFrom": "revoked_installation_confirmations",
-          "tableTo": "users",
-          "columnsFrom": ["confirmed_by"],
-          "columnsTo": ["id"],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "revoked_installation_confirmations_pkey": {
-          "name": "revoked_installation_confirmations_pkey",
-          "columns": ["point_of_sale_number", "fortnight_start", "installation_id"]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.role_permissions": {
       "name": "role_permissions",
       "schema": "",
@@ -10498,6 +10422,10 @@
         "sales_void_authorizer_only_when_voided_check": {
           "name": "sales_void_authorizer_only_when_voided_check",
           "value": "\"sales\".\"void_authorized_by\" is null or \"sales\".\"state\" = 'VOIDED'"
+        },
+        "sales_voided_by_only_when_voided_check": {
+          "name": "sales_voided_by_only_when_voided_check",
+          "value": "(\"sales\".\"state\" = 'VOIDED') = (\"sales\".\"voided_by\" is not null)"
         }
       },
       "isRLSEnabled": false

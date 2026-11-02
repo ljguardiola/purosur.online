@@ -115,6 +115,7 @@ export {
   DEFAULT_EXPIRING_LOT_ALERT_DAYS,
   DEFAULT_GOOD_CONDITION_RETURN_DAYS,
   DEFAULT_UNREVIEWED_PRICE_ALERT_DAYS,
+  fiscalAddressAt,
   fiscalAddressPartsOf,
   isBranchHoursRangeOrdered,
   isBranchHoursTime,

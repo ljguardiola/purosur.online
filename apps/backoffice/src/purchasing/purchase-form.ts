@@ -187,13 +187,34 @@ export function purchaseRegistrationRequestFrom(
   };
 }
 
+const purchaseLineSchema = purchaseRegistrationBodySchema.shape.lines.element;
+
+function packagesRefused(line: PurchaseLineValues, products: PurchaseProducts): boolean {
+  const checked = purchaseLineSchema.safeParse(lineRequestFrom(line, products));
+  return checked.error?.issues.some((issue) => issue.path[0] === "packages") ?? false;
+}
+
+function packagesProblem(line: PurchaseLineValues, products: PurchaseProducts): string | null {
+  const packages = packageCountOf(line.packages);
+  if (Number.isNaN(packages)) {
+    return "Ingresá cuántos paquetes compraste, en un número entero.";
+  }
+  if (!packagesRefused(line, products)) {
+    return null;
+  }
+  return packages < 1
+    ? "Ingresá cuántos paquetes compraste, en un número entero mayor a cero."
+    : "Ingresá menos paquetes; son más de los que se pueden registrar.";
+}
+
 function lineProblem(line: PurchaseLineValues, products: PurchaseProducts): string {
   if (line.productId === null) {
     return "Elegí el producto.";
   }
   if (line.loadedBy === "packages") {
-    if (Number.isNaN(packageCountOf(line.packages))) {
-      return "Ingresá cuántos paquetes compraste, en un número entero.";
+    const packages = packagesProblem(line, products);
+    if (packages !== null) {
+      return packages;
     }
     if (
       Number.isNaN(
@@ -206,7 +227,7 @@ function lineProblem(line: PurchaseLineValues, products: PurchaseProducts): stri
     return quantityMessage(saleUnitOf(products, line.productId));
   }
   if (parseAmountCents(line.cost) === undefined) {
-    return "Escribí el costo pagado con coma para los centavos, por ejemplo 1.250,50.";
+    return "Escribí el costo pagado con hasta 2 decimales, por ejemplo 1.250,50.";
   }
   return "Revisá los valores.";
 }
@@ -220,7 +241,7 @@ export function purchaseLinesMessage(
   }
   const request = lines.map((line) => lineRequestFrom(line, products));
   const index = lines.findIndex((_, position) => {
-    const checked = purchaseRegistrationBodySchema.shape.lines.element.safeParse(request[position]);
+    const checked = purchaseLineSchema.safeParse(request[position]);
     return !checked.success;
   });
   const position = index === -1 ? 0 : index;

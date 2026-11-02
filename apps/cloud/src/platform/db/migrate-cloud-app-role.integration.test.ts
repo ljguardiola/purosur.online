@@ -341,7 +341,7 @@ describe("the cloud_app role runMigrations creates", () => {
     }
     await cloudApp`
       insert into register_fiscal_address_assignments (register_id, fiscal_address_id, assigned_at)
-      values (${register.id}, ${fiscalAddress.id}, now())
+      values (${register.id}, ${fiscalAddress.id}, date_trunc('milliseconds', now()))
     `;
 
     await expect(
