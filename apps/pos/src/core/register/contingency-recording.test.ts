@@ -1,10 +1,12 @@
 import type { FiscalEmissionMode } from "@purosur/domain";
 import { aCompletedSaleFact } from "@purosur/domain/sync/test-support";
+import { resetRestoredSyncIdentity } from "@purosur/domain/sync/use-cases";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
+import { SqliteRestoredSyncIdentityStore } from "../sync/sqlite-restored-sync-identity-store";
 import { createContingencyRecording } from "./contingency-recording";
 import {
   applyReplenishedContingencyFact,
@@ -58,6 +60,34 @@ function eventTypes(): string[] {
     .prepare<[], { event_type: string }>("SELECT event_type FROM outbox ORDER BY device_seq")
     .all()
     .map((row) => row.event_type);
+}
+
+async function restoreACopyOfTheReplacedRegisterInContingency(): Promise<void> {
+  database.exec(`
+    UPDATE sync_state SET device_id = 'device-old', last_device_seq = 4 WHERE id = 1;
+    INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+      VALUES ('session-1', 'register-1', 'device-old', 'u1', '2026-10-12T09:00:00.000Z', 0, 'OPEN');
+    INSERT INTO contingency_intervals (interval_id, started_at, ended_at, last_seen_at)
+      VALUES ('interval-copied', '2026-10-12T10:00:00.000Z', NULL, '2026-10-12T10:10:00.000Z');
+  `);
+  await resetRestoredSyncIdentity(
+    { store: new SqliteRestoredSyncIdentityStore(database) },
+    { deviceId: "device-1" },
+  );
+}
+
+function fromTheReplacedRegister(occurredAt: Date) {
+  return { eventId: `event-${occurredAt.toISOString()}`, deviceId: "device-old", occurredAt };
+}
+
+function contingencyLeftEnds(): string[] {
+  return database
+    .prepare<[], { ended_at: string }>(
+      `SELECT json_extract(payload, '$.ended_at') AS ended_at FROM outbox
+        WHERE event_type = 'contingency_left' ORDER BY device_seq`,
+    )
+    .all()
+    .map((row) => row.ended_at);
 }
 
 function intervals() {
@@ -224,6 +254,57 @@ describe("createContingencyRecording", () => {
       "contingency_entered",
       "contingency_left",
     ]);
+  });
+
+  it("ends an interval a restored copy left open at the replaced register's last replenished moment, never at the copy's last moment seen", async () => {
+    await restoreACopyOfTheReplacedRegisterInContingency();
+    moment = new Date("2026-10-12T13:00:00.000Z");
+    const contingency = recording();
+
+    await contingency.startup();
+    recordReplenishedRunningEvidence(
+      database,
+      aCompletedSaleFact(),
+      fromTheReplacedRegister(new Date("2026-10-12T11:59:00.000Z")),
+    );
+    await contingency.check();
+    database.prepare("DELETE FROM register_predecessor").run();
+    await contingency.check();
+
+    expect(contingencyLeftEnds()).toEqual(["2026-10-12T11:59:00.000Z"]);
+  });
+
+  it("ends an interval a restored copy left open when the replaced register closed its cash session, when that came first", async () => {
+    await restoreACopyOfTheReplacedRegisterInContingency();
+    moment = new Date("2026-10-12T13:00:00.000Z");
+    const contingency = recording();
+
+    await contingency.startup();
+    const closedAt = new Date("2026-10-12T11:30:00.000Z");
+    recordReplenishedRunningEvidence(
+      database,
+      {
+        kind: "cash_session_closed",
+        session: {
+          id: "session-1",
+          closedBy: "u1",
+          closedAt,
+          expectedCash: 0,
+          countedCash: 0,
+          difference: 0,
+        },
+      },
+      fromTheReplacedRegister(closedAt),
+    );
+    recordReplenishedRunningEvidence(
+      database,
+      aCompletedSaleFact(),
+      fromTheReplacedRegister(new Date("2026-10-12T11:59:00.000Z")),
+    );
+    database.prepare("DELETE FROM register_predecessor").run();
+    await contingency.check();
+
+    expect(contingencyLeftEnds()).toEqual(["2026-10-12T11:30:00.000Z"]);
   });
 
   it("reports a failure and keeps checking afterwards", async () => {
