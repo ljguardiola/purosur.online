@@ -18,6 +18,7 @@ import {
 import { Eyebrow } from "../layout/eyebrow";
 import { CloseButton } from "../shared/close-button";
 import { type Icon, iconSlotClassName } from "../shared/icon";
+import { moveFocus } from "../shared/moved-focus";
 import { type NoticeTone, type Tone, toneClassName } from "../shared/tone";
 
 export type ModalWidth = "confirmation" | "standard" | "wide" | "editor";
@@ -121,7 +122,8 @@ function FocusFirstField({ bodyRef }: { bodyRef: RefObject<HTMLDivElement | null
     if (body === null || focusManager === undefined) {
       return;
     }
-    const focusFirstField = () => focusManager.focusFirst({ tabbable: true, accept: isField });
+    const focusFirstField = () =>
+      moveFocus(() => focusManager.focusFirst({ tabbable: true, accept: isField }));
     if (!body.contains(document.activeElement)) {
       focusFirstField();
     }
@@ -146,7 +148,9 @@ function FieldFocusingContent({
 }) {
   return (
     <FocusScope>
-      {children}
+      {/* react-aria's focusFirst fails on a scope with no element in it, as when the body's content
+          renders nothing. */}
+      <div className="contents">{children}</div>
       <FocusFirstField bodyRef={bodyRef} />
     </FocusScope>
   );

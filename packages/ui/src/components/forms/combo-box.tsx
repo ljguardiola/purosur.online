@@ -1,5 +1,5 @@
 import { Check } from "lucide-react";
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useLayoutEffect, useState } from "react";
 import {
   Button as AriaButton,
   ComboBox as AriaComboBox,
@@ -14,6 +14,7 @@ import {
   Virtualizer as AriaVirtualizer,
 } from "react-aria-components";
 import { Tag } from "../data-display/tag";
+import { focusMovedWithoutThePerson, moveFocus } from "../shared/moved-focus";
 import { type FieldErrorProps, fieldError } from "./field-error";
 import {
   backofficeFieldHeightClassName,
@@ -132,9 +133,22 @@ function takeFocusWhenRestored(input: HTMLInputElement | null) {
   if (input === null) {
     return;
   }
-  const focus = () => input.focus();
+  const focus = () => moveFocus(() => input.focus());
   input.addEventListener("react-aria-focus-scope-restore", focus);
   return () => input.removeEventListener("react-aria-focus-scope-restore", focus);
+}
+
+// react-aria opens the list whenever the input takes the focus, but only the person moving the
+// focus there asks for it. Closing before the list is painted keeps it from showing at all.
+function CloseListOpenedWithoutThePerson() {
+  const state = useContext(AriaComboBoxStateContext);
+  const isOpen = state?.isOpen ?? false;
+  useLayoutEffect(() => {
+    if (isOpen && focusMovedWithoutThePerson()) {
+      state?.close();
+    }
+  }, [isOpen, state]);
+  return null;
 }
 
 export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
@@ -208,6 +222,7 @@ export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
       className={wrapperClassName}
     >
       <CloseListWhenCreated createdCount={createdCount} />
+      <CloseListOpenedWithoutThePerson />
       <AriaLabel className={required ? requiredLabelClassName : baseLabelClassName}>
         {label}
       </AriaLabel>
