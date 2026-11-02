@@ -8,7 +8,7 @@ import {
   TextPreview,
 } from "@purosur/ui";
 import { Check, Copy, Download, RotateCcw, Send, ShieldX, TriangleAlert, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { downloadFile } from "../platform/download-file";
@@ -64,12 +64,16 @@ export function SharePurchaseOrderModal({
   });
   const [notice, setNotice] = useState<Notice | null>(null);
   const [busy, setBusy] = useState(false);
+  const opening = useRef(0);
 
   useEffect(() => {
     if (target) {
       setNotice(null);
       setBusy(false);
     }
+    return () => {
+      opening.current += 1;
+    };
   }, [target]);
 
   const read = text.status === "loaded" ? text.value : null;
@@ -86,12 +90,15 @@ export function SharePurchaseOrderModal({
     if (orderText === null) {
       return;
     }
-    try {
-      await navigator.clipboard.writeText(orderText);
-      setNotice({ kind: "copied" });
-    } catch {
-      setNotice({ kind: "copyFailed" });
+    const thisOpening = opening.current;
+    const copied = await navigator.clipboard.writeText(orderText).then(
+      () => true,
+      () => false,
+    );
+    if (thisOpening !== opening.current) {
+      return;
     }
+    setNotice({ kind: copied ? "copied" : "copyFailed" });
   }
 
   function refuse(
@@ -120,7 +127,11 @@ export function SharePurchaseOrderModal({
     }
     setNotice(null);
     setBusy(true);
+    const thisOpening = opening.current;
     const outcome = await services.fetchPurchaseOrderPdf(target.id);
+    if (thisOpening !== opening.current) {
+      return;
+    }
     if (outcome.kind === "ok") {
       downloadFile(outcome.blob, PDF_FILE_NAME);
       setBusy(false);
@@ -136,7 +147,11 @@ export function SharePurchaseOrderModal({
     }
     setNotice(null);
     setBusy(true);
+    const thisOpening = opening.current;
     const outcome = await services.sharePurchaseOrder(target.id);
+    if (thisOpening !== opening.current) {
+      return;
+    }
     if (outcome.kind === "ok") {
       onShared(outcome.order);
       return;
