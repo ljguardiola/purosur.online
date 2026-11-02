@@ -349,7 +349,9 @@ describe("DrizzleLossReader.lossesRecorded", () => {
       await returnOf(cashier, productId, { resolution: "exchange", disposition: "discard", sale });
 
       expect(
-        (await lossesOfBranch(cashier.locationId)).sort((a, b) => compareCodeUnits(a.reason, b.reason)),
+        (await lossesOfBranch(cashier.locationId)).sort((a, b) =>
+          compareCodeUnits(a.reason, b.reason),
+        ),
       ).toEqual([
         { reason: "defective_exchange", quantity: 1_000 },
         { reason: "return_discard", quantity: 1_000 },
