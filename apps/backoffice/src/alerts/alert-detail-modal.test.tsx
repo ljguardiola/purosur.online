@@ -9,8 +9,8 @@ import {
 } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { act } from "react";
-import { beforeEach, expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { beforeEach, expect, onTestFinished, test, vi } from "vitest";
+import { page, userEvent } from "vitest/browser";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { permissionCatalogFixture } from "../platform/test-support/permission-catalog";
 import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
@@ -2525,6 +2525,8 @@ function secondMonthAtRiskAlert(
 }
 
 test("warns that the month in progress may become a second consecutive one, with its running share and without saying anything was restricted", async () => {
+  await page.viewport(1280, 900);
+  onTestFinished(() => page.viewport(414, 896));
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(ok(secondMonthAtRiskAlert()));
 
