@@ -4,6 +4,8 @@ import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { type AuthorizationServices, useAuthorization } from "./authorization-modal";
+import { ReleaseMonitorContext } from "./release-monitor";
+import { fakeReleaseMonitor } from "./test-support/release-monitor";
 
 type FakeOutcome =
   | { kind: "ok"; value: string }
@@ -308,4 +310,28 @@ test("has no accessibility violations with the authorization modal open", async 
   await expect.element(screen.getByRole("dialog")).toBeVisible();
 
   await expectNoAccessibilityViolations(document.body);
+});
+
+test("tells an outdated tab that the backoffice was updated when confirming with the passkey fails", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
+    kind: "ok",
+    value: authorizationOptions,
+  });
+  vi.mocked(services.startAuthentication).mockRejectedValue(new Error("NotAllowedError"));
+  const attempt = vi
+    .fn<() => Promise<FakeOutcome>>()
+    .mockResolvedValue({ kind: "authorization_required" });
+  const screen = await render(
+    <ReleaseMonitorContext value={fakeReleaseMonitor(true)}>
+      <Harness attempt={attempt} services={services} />
+    </ReleaseMonitorContext>,
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Run" }));
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Usar mi passkey" }));
+
+  await expect.element(dialog.getByText("Se actualizó el backoffice")).toBeVisible();
+  expect(dialog.getByText("No se pudo confirmar con tu passkey").query()).toBeNull();
 });

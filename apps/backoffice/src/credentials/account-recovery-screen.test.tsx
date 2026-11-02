@@ -1,6 +1,8 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { ReleaseMonitorContext } from "../platform/release-monitor";
+import { fakeReleaseMonitor } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import { AccountRecoveryScreen } from "./account-recovery-screen";
 import type { AccountRecoveryScreenServices } from "./account-recovery-services";
@@ -150,4 +152,21 @@ test("shows a generic error notice on any other failure", async () => {
   await expect.element(screen.getByText("Probá de nuevo en unos minutos.")).toBeVisible();
 
   await expectNoAccessibilityViolations(screen.container);
+});
+
+test("tells an outdated tab that the backoffice was updated when sending the link fails", async () => {
+  const services = createServices({
+    requestRecoveryLink: vi.fn().mockResolvedValue({ kind: "failed" }),
+  });
+  const screen = await render(
+    <ReleaseMonitorContext value={fakeReleaseMonitor(true)}>
+      <AccountRecoveryScreen services={services} />
+    </ReleaseMonitorContext>,
+  );
+
+  await fillEmail(screen, "lucia.perez@example.com");
+  await userEvent.click(screen.getByRole("button", { name: "Enviar el enlace" }));
+
+  await expect.element(screen.getByText("Se actualizó el backoffice")).toBeVisible();
+  expect(screen.getByText("No pudimos enviar el enlace").query()).toBeNull();
 });

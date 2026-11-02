@@ -1,6 +1,8 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { ReleaseMonitorContext } from "../platform/release-monitor";
+import { fakeReleaseMonitor } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import {
   RegisterOwnPasskeyModal,
@@ -374,4 +376,29 @@ test("has no accessibility violations with the register modal open", async () =>
   await renderModal(services);
 
   await expectNoAccessibilityViolations(document.body);
+});
+
+test("tells an outdated tab that the backoffice was updated when registering the passkey fails", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPasskeyRegistrationChallenge).mockResolvedValue({ kind: "failed" });
+  const screen = await render(
+    <ReleaseMonitorContext value={fakeReleaseMonitor(true)}>
+      <main>
+        <RegisterOwnPasskeyModal
+          open
+          onClose={() => {}}
+          onRegistered={() => {}}
+          onSessionEnded={() => {}}
+          services={services}
+        />
+      </main>
+    </ReleaseMonitorContext>,
+  );
+  const dialog = screen.getByRole("dialog", { name: "Registrar una passkey" });
+
+  await userEvent.fill(dialog.getByRole("textbox"), "Teléfono de Lucía");
+  await userEvent.click(dialog.getByRole("button", { name: "Registrar la passkey" }));
+
+  await expect.element(dialog.getByText("Se actualizó el backoffice")).toBeVisible();
+  expect(dialog.getByText("No se pudo registrar la passkey").query()).toBeNull();
 });
