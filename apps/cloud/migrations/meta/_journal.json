@@ -1135,6 +1135,13 @@
       "when": 1793621536306,
       "tag": "0168_register_contingency",
       "breakpoints": true
+    },
+    {
+      "idx": 169,
+      "version": "7",
+      "when": 1793640147909,
+      "tag": "0169_second_month_risk_measurements",
+      "breakpoints": true
     }
   ]
 }
