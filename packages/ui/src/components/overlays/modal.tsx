@@ -98,6 +98,12 @@ const nonFieldInputTypes = new Set([
 ]);
 
 function isField(element: Element): boolean {
+  if (
+    (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) &&
+    element.readOnly
+  ) {
+    return false;
+  }
   // A select's trigger is a button that opens its list of options.
   if (element.getAttribute("aria-haspopup") === "listbox") {
     return true;
