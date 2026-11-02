@@ -27,6 +27,12 @@ const month = {
   total_count: 120,
   share_tenths_of_percent: 58,
   state: "non_compliant",
+  contingency_time: {
+    contingency_ms: 1_800_000,
+    available_ms: 7_290_000,
+    share_tenths_of_percent: 246,
+    state: "non_compliant",
+  },
 };
 
 const body = {
@@ -42,9 +48,17 @@ const body = {
       total_count: 0,
       share_tenths_of_percent: null,
       state: "in_progress",
+      contingency_time: {
+        contingency_ms: 0,
+        available_ms: 0,
+        share_tenths_of_percent: null,
+        state: "no_data",
+      },
     },
   ],
   non_compliant_months: ["2026-09"],
+  contingency_non_compliance_percent: 5,
+  contingency_non_compliant_months: ["2026-09"],
 };
 
 describe("exceptionShareYearSchema", () => {
@@ -53,7 +67,12 @@ describe("exceptionShareYearSchema", () => {
   });
 
   it("accepts a year that has no month yet", () => {
-    const empty = { ...body, months: [], non_compliant_months: [] };
+    const empty = {
+      ...body,
+      months: [],
+      non_compliant_months: [],
+      contingency_non_compliant_months: [],
+    };
 
     expect(exceptionShareYearSchema.parse(empty)).toEqual(empty);
   });
@@ -62,6 +81,69 @@ describe("exceptionShareYearSchema", () => {
     const withState = { ...body, months: [{ ...month, state }] };
 
     expect(exceptionShareYearSchema.safeParse(withState).success).toBe(true);
+  });
+
+  it.each(["non_compliant", "compliant", "in_progress", "no_data"])(
+    "accepts the %s state of a month's contingency time",
+    (state) => {
+      const withState = {
+        ...body,
+        months: [{ ...month, contingency_time: { ...month.contingency_time, state } }],
+      };
+
+      expect(exceptionShareYearSchema.safeParse(withState).success).toBe(true);
+    },
+  );
+
+  it("accepts a contingency time without a share", () => {
+    const withoutShare = {
+      ...body,
+      months: [
+        {
+          ...month,
+          contingency_time: { ...month.contingency_time, share_tenths_of_percent: null },
+        },
+      ],
+    };
+
+    expect(exceptionShareYearSchema.safeParse(withoutShare).success).toBe(true);
+  });
+
+  it.each([
+    ["a state that is not known", { state: "late" }],
+    ["a negative contingency time", { contingency_ms: -1 }],
+    ["a fractional contingency time", { contingency_ms: 1.5 }],
+    ["a negative available time", { available_ms: -1 }],
+    ["a fractional available time", { available_ms: 1.5 }],
+    ["a fractional share", { share_tenths_of_percent: 5.5 }],
+  ])("refuses a month's contingency time with %s", (_name, change) => {
+    const refused = {
+      ...body,
+      months: [{ ...month, contingency_time: { ...month.contingency_time, ...change } }],
+    };
+
+    expect(exceptionShareYearSchema.safeParse(refused).success).toBe(false);
+  });
+
+  it.each(["contingency_ms", "available_ms", "share_tenths_of_percent", "state"])(
+    "requires the %s of a month's contingency time",
+    (field) => {
+      const { [field as keyof typeof month.contingency_time]: _omitted, ...rest } =
+        month.contingency_time;
+
+      expect(
+        exceptionShareYearSchema.safeParse({
+          ...body,
+          months: [{ ...month, contingency_time: rest }],
+        }).success,
+      ).toBe(false);
+    },
+  );
+
+  it("requires a month's contingency time", () => {
+    const { contingency_time: _omitted, ...rest } = month;
+
+    expect(exceptionShareYearSchema.safeParse({ ...body, months: [rest] }).success).toBe(false);
   });
 
   it.each([
@@ -78,6 +160,14 @@ describe("exceptionShareYearSchema", () => {
     ["no year to choose from", { selectable_years: [] }],
     ["a selectable year that is not a whole number", { selectable_years: [2026.5] }],
     ["a threshold that is not a whole number", { non_compliance_percent: 5.5 }],
+    [
+      "a contingency threshold that is not a whole number",
+      { contingency_non_compliance_percent: 5.5 },
+    ],
+    [
+      "a listed contingency month that is not a calendar month",
+      { contingency_non_compliant_months: ["2026-00"] },
+    ],
   ])("refuses %s", (_name, change) => {
     expect(exceptionShareYearSchema.safeParse({ ...body, ...change }).success).toBe(false);
   });
@@ -89,6 +179,8 @@ describe("exceptionShareYearSchema", () => {
     "non_compliance_percent",
     "months",
     "non_compliant_months",
+    "contingency_non_compliance_percent",
+    "contingency_non_compliant_months",
   ])("requires the %s", (field) => {
     const { [field as keyof typeof body]: _omitted, ...rest } = body;
 
