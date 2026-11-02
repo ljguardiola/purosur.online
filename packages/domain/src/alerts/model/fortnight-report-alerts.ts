@@ -38,9 +38,18 @@ export function rejectedDocumentScope(
   return `${pointOfSaleFortnightScope(pointOfSaleNumber, fortnightStart)}:${documentType}`;
 }
 
+export interface RevokedInstallationAwaitingConfirmation {
+  installationId: string;
+  revokedAt: Date;
+}
+
 export function fortnightReportPendingReason(
   state: FortnightReportState | null,
+  revokedInstallations: readonly RevokedInstallationAwaitingConfirmation[] = [],
 ): FortnightReportPendingReason {
+  if (state === "blocked" && revokedInstallations.length > 0) {
+    return "revoked_installation";
+  }
   return state === "blocked" || state === "missing_document" || state === "refused"
     ? state
     : "pending";
@@ -65,24 +74,41 @@ export function fortnightReportPendingObservation({
   daysLeft,
   pressing,
   state,
+  revokedInstallations,
   ...presentation
 }: FortnightReportPresentation & {
   daysLeft: number;
   pressing: boolean;
   state: FortnightReportState | null;
+  revokedInstallations: readonly RevokedInstallationAwaitingConfirmation[];
 }): AlertConditionObservation {
-  const reason = fortnightReportPendingReason(state);
+  const reason = fortnightReportPendingReason(state, revokedInstallations);
   return {
     holds: true,
     level:
-      pressing || reason === "blocked" || reason === "missing_document" ? "critical" : "warning",
+      pressing ||
+      reason === "blocked" ||
+      reason === "missing_document" ||
+      reason === "revoked_installation"
+        ? "critical"
+        : "warning",
     alert: {
       kind: "fortnight_report_pending",
       scope: pointOfSaleFortnightScope(
         presentation.pointOfSaleNumber,
         presentation.fortnight.start,
       ),
-      detail: { ...presentationDetail(presentation), daysLeft, reason },
+      detail: {
+        ...presentationDetail(presentation),
+        daysLeft,
+        reason,
+        ...(reason === "revoked_installation" && {
+          revokedInstallations: revokedInstallations.map(({ installationId, revokedAt }) => ({
+            installationId,
+            revokedAt: revokedAt.toISOString(),
+          })),
+        }),
+      },
     },
   };
 }

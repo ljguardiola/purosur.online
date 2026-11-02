@@ -203,6 +203,7 @@ export const FORTNIGHT_REPORT_PENDING_REASONS = [
   "missing_document",
   "refused",
   "pending",
+  "revoked_installation",
 ] as const;
 
 export type FortnightReportPendingReason = (typeof FORTNIGHT_REPORT_PENDING_REASONS)[number];
@@ -224,6 +225,7 @@ interface FortnightReportOverdueDetail extends FortnightReportNeedsRegularizatio
 interface FortnightReportPendingDetail extends FortnightReportOverdueDetail {
   daysLeft: number;
   reason: FortnightReportPendingReason;
+  revokedInstallations?: { installationId: string; revokedAt: string }[];
 }
 
 interface FortnightReportDocumentRejectedDetail extends FortnightReportNeedsRegularizationDetail {

@@ -2,6 +2,7 @@ import type { Fortnight, FortnightReportState } from "../../fiscal/index.js";
 import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import type { AlertConditionObservation } from "../model/alert-condition-observation.js";
 import type { OpenAlertInput } from "../model/alert-details.js";
+import type { RevokedInstallationAwaitingConfirmation } from "../model/fortnight-report-alerts.js";
 
 export interface OwedFortnightPresentation {
   pointOfSaleNumber: number;
@@ -10,6 +11,7 @@ export interface OwedFortnightPresentation {
   taxAuthorityDeadline: string;
   state: FortnightReportState | null;
   listed: boolean;
+  revokedInstallations: RevokedInstallationAwaitingConfirmation[];
 }
 
 export interface OwedFortnightPresentationReader {
