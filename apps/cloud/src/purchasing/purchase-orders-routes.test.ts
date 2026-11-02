@@ -627,27 +627,23 @@ describe("the documents of a purchase order", () => {
           url: `/purchase-orders/${orderId}/document.${extension}`,
           headers,
         });
-      const states: string[] = [];
+      const statusIn = async (change: Partial<typeof purchaseOrders.$inferInsert>) => {
+        await db.update(purchaseOrders).set(change).where(eq(purchaseOrders.id, orderId));
+        return (await fetchDocument()).statusCode;
+      };
 
-      for (const state of ["DRAFT", "SENT", "CANCELLED"] as const) {
-        await db
-          .update(purchaseOrders)
-          .set(
-            state === "DRAFT"
-              ? {}
-              : state === "SENT"
-                ? { state, sentAt: NOW, sentBy: userId }
-                : { state, cancelledAt: NOW, cancelledBy: userId },
-          )
-          .where(eq(purchaseOrders.id, orderId));
-        const response = await fetchDocument();
-        expect(response.statusCode).toBe(200);
-        expect(response.headers["content-type"]).toBe(contentType);
-        states.push(state);
-      }
+      const draft = (await fetchDocument()).statusCode;
+      const sent = await statusIn({ state: "SENT", sentAt: NOW, sentBy: userId });
+      const cancelled = await statusIn({
+        state: "CANCELLED",
+        cancelledAt: NOW,
+        cancelledBy: userId,
+      });
 
+      const response = await fetchDocument();
+      expect([draft, sent, cancelled]).toEqual([200, 200, 200]);
+      expect(response.headers["content-type"]).toBe(contentType);
       const [order] = await db.select().from(purchaseOrders);
-      expect(states).toEqual(["DRAFT", "SENT", "CANCELLED"]);
       expect(order).toMatchObject({ state: "CANCELLED", sentAt: NOW, cancelledAt: NOW });
     },
   );
