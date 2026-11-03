@@ -1205,6 +1205,13 @@
       "when": 1793725873593,
       "tag": "0178_lot_codes_and_name_order",
       "breakpoints": true
+    },
+    {
+      "idx": 179,
+      "version": "7",
+      "when": 1793737459547,
+      "tag": "0179_drop_purchase_packagings_storage",
+      "breakpoints": true
     }
   ]
 }
