@@ -4,7 +4,6 @@ import {
   handTypedWeightsSchema,
   manualDiscountsQuerySchema,
   manualDiscountsSchema,
-  removedLinesAndCancelledSalesSchema,
   reportQuerySchema,
   salesByCashierSchema,
   salesByProductAndCategoryQuerySchema,
@@ -18,7 +17,6 @@ import {
   readCashRounding,
   readHandTypedWeights,
   readManualDiscounts,
-  readRemovedLinesAndCancelledSales,
   readSalesByCashier,
   readSalesByDay,
   readSalesByProductAndCategory,
@@ -40,7 +38,6 @@ import { DrizzleHandTypedWeightsReportReader } from "./drizzle-hand-typed-weight
 import { DrizzleManualDiscountsReportReader } from "./drizzle-manual-discounts-report-reader.js";
 import { DrizzleProductSalesReportReader } from "./drizzle-product-sales-report-reader.js";
 import { DrizzlePromotionSalesReportReader } from "./drizzle-promotion-sales-report-reader.js";
-import { DrizzleRemovedLinesAndCancelledSalesReportReader } from "./drizzle-removed-lines-and-cancelled-sales-report-reader.js";
 import { DrizzleSalesReportReader } from "./drizzle-sales-report-reader.js";
 
 function adjustmentOnTheWire(adjustment: ManualAdjustmentValue): { kind: string; value: number } {
@@ -75,9 +72,6 @@ export function registerSalesReportRoutes<TQueryResult extends PgQueryResultHKT>
   const manualDiscountsReader = new DrizzleManualDiscountsReportReader(options.db);
   const cashRoundingReader = new DrizzleCashRoundingReportReader(options.db);
   const handTypedWeightsReader = new DrizzleHandTypedWeightsReportReader(options.db);
-  const removedLinesAndCancelledSalesReader = new DrizzleRemovedLinesAndCancelledSalesReportReader(
-    options.db,
-  );
   const preHandler = sameOriginGuard(options.backofficeOrigin);
   const config = { access: capabilityAccess("reports_area"), sessionSource };
 
@@ -210,48 +204,6 @@ export function registerSalesReportRoutes<TQueryResult extends PgQueryResultHKT>
       }),
     );
   });
-
-  app.get(
-    "/reports/removed-lines-and-cancelled-sales",
-    { preHandler, config },
-    async (request, reply) => {
-      const query = await readValidatedBody(reply, reportQuerySchema, request.query);
-      if (!query) {
-        return;
-      }
-      const report = await readRemovedLinesAndCancelledSales(
-        {
-          reader: removedLinesAndCancelledSalesReader,
-          clock: { now },
-          zoneRules: options.zoneRules,
-        },
-        {
-          locationId: openSessionOf(request).locationId,
-          asked: { from: query.from, to: query.to },
-          registerId: query.register_id,
-        },
-      );
-      await reply.code(200).send(
-        removedLinesAndCancelledSalesSchema.parse({
-          range: report.range,
-          cashiers: report.cashiers.map((row) => ({
-            cashier_id: row.cashierId,
-            name: row.name,
-            removed: row.removed,
-            cancelled: row.cancelled,
-          })),
-          sessions: report.sessions.map((row) => ({
-            session_id: row.sessionId,
-            register_name: row.registerName,
-            opened_at: row.openedAt.toISOString(),
-            removed: row.removed,
-            cancelled: row.cancelled,
-          })),
-          totals: report.totals,
-        }),
-      );
-    },
-  );
 
   app.get("/reports/sales-by-promotion", { preHandler, config }, async (request, reply) => {
     const query = await readValidatedBody(reply, reportQuerySchema, request.query);

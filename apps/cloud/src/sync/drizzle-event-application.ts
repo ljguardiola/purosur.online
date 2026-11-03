@@ -58,7 +58,6 @@ import {
 } from "../register/drizzle-applied-cash-sessions.js";
 import { recordAppliedReturn } from "../returns/drizzle-applied-returns.js";
 import { saleReturnHistory } from "../returns/drizzle-sale-return-history.js";
-import { recordAppliedRemovedSaleLine } from "../sales/drizzle-applied-removed-sale-lines.js";
 import {
   recordAppliedPrintState,
   recordAppliedReprint,
@@ -206,14 +205,6 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
           event.eventId,
           this.now(),
         );
-      case "sale_line_removed":
-        return recordAppliedRemovedSaleLine(
-          this.tx,
-          await this.originOf(event),
-          fact,
-          event.eventId,
-          this.now(),
-        );
       case "sale_voided": {
         const origin = await this.originOf(event);
         await recordAppliedVoidedSale(this.tx, origin, fact, event);
@@ -260,6 +251,7 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
       case "opening_count_recorded":
       case "opening_count_withdrawn":
       case "fiscal_gate_failed":
+      case "sale_line_removed":
         return;
     }
   }
