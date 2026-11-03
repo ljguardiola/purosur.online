@@ -12,8 +12,8 @@ import { DrizzlePurchaseOrderStore } from "../drizzle-purchase-order-store.js";
 import { insertOfferedProduct } from "./purchase-order-fixtures.js";
 import { insertSupplier } from "./supplier-price-list-fixtures.js";
 
-export const ORDERED_AT = new Date("2026-03-01T10:00:00.000Z");
-export const SENT_AT = new Date("2026-03-02T10:00:00.000Z");
+const ORDERED_AT = new Date("2026-03-01T10:00:00.000Z");
+const SENT_AT = new Date("2026-03-02T10:00:00.000Z");
 export const RECEIVED_AT = new Date("2026-03-10T12:00:00.000Z");
 
 export interface OrderedProduct {
