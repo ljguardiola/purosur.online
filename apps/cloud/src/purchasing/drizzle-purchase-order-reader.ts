@@ -4,14 +4,18 @@ import type {
   PurchaseOrderLineListing,
   PurchaseOrderListing,
   PurchaseOrderReader,
+  PurchaseOrderReceiptListing,
+  ReceivableOrderListing,
 } from "@purosur/domain/purchasing/use-cases";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { netContentRow } from "../catalog/net-content-row.js";
 import {
   brands,
   products,
   purchaseOrderLines,
+  purchaseOrderReceiptLines,
+  purchaseOrderReceipts,
   purchaseOrders,
   supplierItems,
   suppliers,
@@ -96,6 +100,7 @@ export class DrizzlePurchaseOrderReader<TQueryResult extends PgQueryResultHKT>
     }
     const lineRows = await this.db
       .select({
+        id: purchaseOrderLines.id,
         productId: products.id,
         productName: products.name,
         brandName: brands.name,
@@ -111,19 +116,8 @@ export class DrizzlePurchaseOrderReader<TQueryResult extends PgQueryResultHKT>
       .leftJoin(brands, eq(brands.id, products.brandId))
       .where(eq(purchaseOrderLines.purchaseOrderId, orderId))
       .orderBy(asc(purchaseOrderLines.position));
-    const offers = (
-      await latestSupplierOffers(
-        this.db,
-        lineRows.map(({ productId }) => productId),
-      )
-    ).filter((offer) => offer.supplier.id === row.supplierId);
-    const lineOffers = lineRows.map((line) =>
-      supplierOfferOfOrderLine(
-        offers.filter((offer) => offer.productId === line.productId),
-        line.saleUnit as SaleUnit,
-        line.quantityPerPackage,
-      ),
-    );
+    const lineOffers = await this.offersOfLines(row.supplierId, lineRows);
+    const receivedByLine = await this.receivedQuantities(orderId);
     const itemIds = lineOffers.flatMap((offer) => (offer ? [offer.supplierItemId] : []));
     const items =
       itemIds.length === 0
@@ -150,6 +144,7 @@ export class DrizzlePurchaseOrderReader<TQueryResult extends PgQueryResultHKT>
         packages: line.packages,
         quantityPerPackage: line.quantityPerPackage,
         expectedPackagePriceCents: line.expectedPackagePriceCents,
+        receivedQuantity: receivedByLine.get(line.id) ?? 0,
         supplierItem: item
           ? {
               code: item.keyKind === "code" ? item.keyValue : null,
@@ -164,6 +159,149 @@ export class DrizzlePurchaseOrderReader<TQueryResult extends PgQueryResultHKT>
       state: row.state as OrderState,
       createdAt: row.createdAt,
       lines,
+      receipts: await this.receipts(orderId),
     };
+  }
+
+  async receivableOrder(
+    locationId: string,
+    orderId: string,
+  ): Promise<ReceivableOrderListing | undefined> {
+    const [row] = await this.db
+      .select({
+        id: purchaseOrders.id,
+        supplierId: suppliers.id,
+        supplierName: suppliers.name,
+        state: purchaseOrders.state,
+      })
+      .from(purchaseOrders)
+      .innerJoin(suppliers, eq(suppliers.id, purchaseOrders.supplierId))
+      .where(and(eq(purchaseOrders.id, orderId), eq(purchaseOrders.locationId, locationId)));
+    if (!row) {
+      return undefined;
+    }
+    const lineRows = await this.db
+      .select({
+        id: purchaseOrderLines.id,
+        productId: products.id,
+        productName: products.name,
+        brandName: brands.name,
+        netContentQuantity: products.netContentQuantity,
+        netContentUnit: products.netContentUnit,
+        saleUnit: products.saleUnit,
+        packages: purchaseOrderLines.packages,
+        quantityPerPackage: purchaseOrderLines.quantityPerPackage,
+      })
+      .from(purchaseOrderLines)
+      .innerJoin(products, eq(products.id, purchaseOrderLines.productId))
+      .leftJoin(brands, eq(brands.id, products.brandId))
+      .where(eq(purchaseOrderLines.purchaseOrderId, orderId))
+      .orderBy(asc(purchaseOrderLines.position));
+    const lineOffers = await this.offersOfLines(row.supplierId, lineRows);
+    const receivedByLine = await this.receivedQuantities(orderId);
+    return {
+      id: row.id,
+      supplier: { id: row.supplierId, name: row.supplierName },
+      state: row.state as OrderState,
+      lines: lineRows.map((line, index) => {
+        const offer = lineOffers[index];
+        return {
+          product: {
+            id: line.productId,
+            name: line.productName,
+            brandName: line.brandName,
+            netContent: netContentRow(line),
+            saleUnit: line.saleUnit as SaleUnit,
+          },
+          packages: line.packages,
+          quantityPerPackage: line.quantityPerPackage,
+          receivedQuantity: receivedByLine.get(line.id) ?? 0,
+          supplierOffer: offer
+            ? {
+                link: offer.link,
+                priceCents: offer.priceCents,
+                pricesIncludeVat: offer.pricesIncludeVat,
+                vatRate: offer.vatRate,
+              }
+            : null,
+        };
+      }),
+    };
+  }
+
+  private async offersOfLines(
+    supplierId: string,
+    lineRows: readonly { productId: string; saleUnit: string; quantityPerPackage: number }[],
+  ) {
+    const offers = (
+      await latestSupplierOffers(
+        this.db,
+        lineRows.map(({ productId }) => productId),
+      )
+    ).filter((offer) => offer.supplier.id === supplierId);
+    return lineRows.map((line) =>
+      supplierOfferOfOrderLine(
+        offers.filter((offer) => offer.productId === line.productId),
+        line.saleUnit as SaleUnit,
+        line.quantityPerPackage,
+      ),
+    );
+  }
+
+  private async receivedQuantities(orderId: string): Promise<Map<string, number>> {
+    const rows = await this.db
+      .select({
+        purchaseOrderLineId: purchaseOrderReceiptLines.purchaseOrderLineId,
+        receivedQuantity: sql<string>`sum(${purchaseOrderReceiptLines.receivedQuantity})`,
+      })
+      .from(purchaseOrderReceiptLines)
+      .innerJoin(
+        purchaseOrderReceipts,
+        eq(purchaseOrderReceipts.id, purchaseOrderReceiptLines.purchaseOrderReceiptId),
+      )
+      .where(eq(purchaseOrderReceipts.purchaseOrderId, orderId))
+      .groupBy(purchaseOrderReceiptLines.purchaseOrderLineId);
+    return new Map(rows.map((row) => [row.purchaseOrderLineId, Number(row.receivedQuantity)]));
+  }
+
+  private async receipts(orderId: string): Promise<PurchaseOrderReceiptListing[]> {
+    const receiptRows = await this.db
+      .select({
+        id: purchaseOrderReceipts.id,
+        receivedAt: purchaseOrderReceipts.receivedAt,
+        purchaseId: purchaseOrderReceipts.purchaseId,
+      })
+      .from(purchaseOrderReceipts)
+      .where(eq(purchaseOrderReceipts.purchaseOrderId, orderId))
+      .orderBy(asc(purchaseOrderReceipts.receivedAt), asc(purchaseOrderReceipts.id));
+    if (receiptRows.length === 0) {
+      return [];
+    }
+    const lineRows = await this.db
+      .select({
+        receiptId: purchaseOrderReceiptLines.purchaseOrderReceiptId,
+        productId: purchaseOrderLines.productId,
+        receivedQuantity: purchaseOrderReceiptLines.receivedQuantity,
+        missingQuantity: purchaseOrderReceiptLines.missingQuantity,
+        priceDifferenceCents: purchaseOrderReceiptLines.priceDifferenceCents,
+      })
+      .from(purchaseOrderReceiptLines)
+      .innerJoin(
+        purchaseOrderLines,
+        eq(purchaseOrderLines.id, purchaseOrderReceiptLines.purchaseOrderLineId),
+      )
+      .where(
+        inArray(
+          purchaseOrderReceiptLines.purchaseOrderReceiptId,
+          receiptRows.map(({ id }) => id),
+        ),
+      )
+      .orderBy(asc(purchaseOrderLines.position));
+    return receiptRows.map((receipt) => ({
+      ...receipt,
+      lines: lineRows
+        .filter((line) => line.receiptId === receipt.id)
+        .map(({ receiptId: _receiptId, ...line }) => line),
+    }));
   }
 }
