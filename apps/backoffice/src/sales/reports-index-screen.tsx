@@ -39,6 +39,7 @@ export function ReportsIndexScreen({
         <ReportRow to="/reports/average-ticket" label="Ticket promedio" />
         <ReportRow to="/reports/sales-by-promotion" label="Descuentos por promoción" />
         <ReportRow to="/reports/manual-discounts" label="Descuentos manuales y sobre el total" />
+        <ReportRow to="/reports/cash-rounding" label="Redondeo en efectivo" />
       </LinkListCard>
       <LinkListCard title="Caja" icon={<Wallet />}>
         <ReportRow to="/reports/hand-confirmed-payments" label="Pagos confirmados a mano" />
