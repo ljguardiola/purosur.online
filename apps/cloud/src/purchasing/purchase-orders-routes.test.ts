@@ -704,10 +704,16 @@ describe("the documents of a purchase order", () => {
       headers,
     });
 
-    expect(response.body).toMatch(
-      /^Pedido a .+\nFecha: 05\/10\/2026\n\n1\. Yerba\n {3}2 paquetes de 6 u/,
+    expect(response.body).toBe(
+      [
+        "Pedido a Distribuidora 1240",
+        "Fecha: 05/10/2026",
+        "",
+        "1. Yerba",
+        "   2 paquetes de 6 u",
+        "   Artículo del proveedor: YER-120 - Yerba 1 kg",
+      ].join("\n"),
     );
-    expect(response.body).not.toMatch(/\$|120|240/);
   });
 
   it.each(documents)(
