@@ -65,6 +65,15 @@ export const manualDiscountsRoute = createRoute({
   component: lazyScreen(() => import("./manual-discounts-page"), "ManualDiscountsPage"),
 });
 
+export const cashRoundingRoute = createRoute({
+  getParentRoute: () => reportsAreaRoute,
+  path: "reports/cash-rounding",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
+  validateSearch: reportFiltersSearch,
+  search: { middlewares: [stripSearchParams(reportFiltersSearch.parse({}))] },
+  component: lazyScreen(() => import("./cash-rounding-page"), "CashRoundingPage"),
+});
+
 export const averageTicketRoute = createRoute({
   getParentRoute: () => reportsAreaRoute,
   path: "reports/average-ticket",

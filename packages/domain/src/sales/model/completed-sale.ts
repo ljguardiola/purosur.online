@@ -69,6 +69,7 @@ export interface CompletedSale {
   total: number;
   saleDiscount: SaleDiscount | null;
   saleDiscountAmount: number;
+  cashRounding: number;
   lines: CompletedSaleLine[];
   payments: CompletedSalePayment[];
   cashMovements: CompletedSaleCashMovement[];

@@ -157,6 +157,7 @@ describe("recording the sales of applied events", () => {
       voidAuthorizedBy: null,
       voidedBy: null,
       total: 4800,
+      cashRounding: 0,
       saleDiscountKind: null,
       saleDiscountValue: null,
       saleDiscountAmount: null,
@@ -505,6 +506,35 @@ describe("recording the sales of applied events", () => {
     expect(line).toMatchObject({ saleDiscountShare: 480 });
   });
 
+  it("keeps the cash rounding of a sale apart from its total", async () => {
+    const { deviceId } = await system.enrollInstallation();
+    const sessionId = randomUUID();
+    await openSession(deviceId, sessionId);
+    const completed = aCompletedSale({ sessionId, total: 320000, cashRounding: 7000 });
+
+    await record({ kind: "sale_completed", sale: completed }, { deviceId });
+
+    const [row] = await system.db.select().from(sales);
+    expect(row).toMatchObject({ total: 320000, cashRounding: 7000, saleDiscountAmount: null });
+  });
+
+  it("keeps the discount on a sale's total and its cash rounding apart", async () => {
+    const { deviceId } = await system.enrollInstallation();
+    const sessionId = randomUUID();
+    await openSession(deviceId, sessionId);
+    const completed = aCompletedSale({
+      sessionId,
+      saleDiscount: { kind: "AMOUNT", amount: 500, reason: "Rotura", authorizedBy: null },
+      saleDiscountAmount: 500,
+      cashRounding: 3000,
+    });
+
+    await record({ kind: "sale_completed", sale: completed }, { deviceId });
+
+    const [row] = await system.db.select().from(sales);
+    expect(row).toMatchObject({ saleDiscountAmount: 500, cashRounding: 3000 });
+  });
+
   it("keeps a sale that has no line", async () => {
     const { deviceId } = await system.enrollInstallation();
     const sessionId = randomUUID();
@@ -714,6 +744,7 @@ describe("recording the cancelled sales of applied events", () => {
       voidAuthorizedBy: null,
       voidedBy: null,
       total: 4800,
+      cashRounding: 0,
       saleDiscountKind: null,
       saleDiscountValue: null,
       saleDiscountAmount: null,
