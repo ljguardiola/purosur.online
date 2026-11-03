@@ -39,6 +39,7 @@ import {
   searchProductsOutcomeSchema,
   shownLineQuantitySchema,
   voidSaleOutcomeSchema,
+  weighLineOutcomeSchema,
   weighProductOutcomeSchema,
 } from "./sale.js";
 import {
@@ -153,6 +154,15 @@ const weighProductMessageSchema = z.object({
   type: z.literal("weigh-product"),
   request_id: requestId,
   product_id: z.string(),
+  take: z.boolean(),
+});
+
+const weighLineMessageSchema = z.object({
+  type: z.literal("weigh-line"),
+  request_id: requestId,
+  line_id: z.string(),
+  expected_weight_thousandths: shownLineQuantitySchema,
+  take: z.boolean(),
 });
 
 const receiptPrintStatusMessageSchema = z.object({
@@ -269,6 +279,7 @@ export const salesRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   addProductMessageSchema,
   addWeighedProductMessageSchema,
   weighProductMessageSchema,
+  weighLineMessageSchema,
   saleRequestMessageSchema,
   chargeSaleInCashMessageSchema,
   chargeSaleByTransferMessageSchema,
@@ -429,6 +440,11 @@ export const salesCoreToRendererMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("weigh-product-result"),
     request_id: requestId,
     outcome: weighProductOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("weigh-line-result"),
+    request_id: requestId,
+    outcome: weighLineOutcomeSchema,
   }),
   z.object({
     type: z.literal("charge-sale-in-cash-result"),
