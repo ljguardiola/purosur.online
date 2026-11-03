@@ -336,6 +336,7 @@ describe("CashChargeModal", () => {
         total={490_000}
         paid={0}
         pending={490_000}
+        {...NO_DISCOUNT_OFFERED}
         readCharge={readCharge}
         charge={chargeSale}
         {...callbacks}

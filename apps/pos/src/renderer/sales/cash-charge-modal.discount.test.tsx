@@ -21,7 +21,7 @@ it("shows the amount to charge and the change with the discount typed beside the
   await expect.poll(() => valueBeside(screen, "A cobrar ahora")).toBe("$ 9.500,00");
   await expect.element(screen.getByText("VUELTO A ENTREGAR")).toBeVisible();
   await expect.element(screen.getByText("$ 500,00", { exact: true })).toBeVisible();
-  expect(valueBeside(screen, "Descuento por falta de cambio")).toBe("− $ 100,00");
+  expect(valueBeside(screen, "Descuento sobre el total")).toBe("− $ 100,00");
   await expect.element(complete).toBeEnabled();
 
   await userEvent.click(complete);
@@ -65,12 +65,8 @@ it("warns that the discount typed replaces the one already applied on the total"
   await userEvent.fill(discountField, "100");
 
   await expect
-    .element(
-      screen.getByText("Reemplaza el descuento sobre el total ya aplicado ($ 200,00)", {
-        exact: true,
-      }),
-    )
-    .toBeVisible();
+    .element(screen.getByRole("status"))
+    .toHaveTextContent("Reemplaza el descuento sobre el total ya aplicado ($ 200,00)");
 });
 
 it("shows no replacement warning when the sale has no discount on its total", async () => {

@@ -1,20 +1,25 @@
 import type {
   AbandonMercadoPagoChargeOutcome,
+  Authorization,
   CashChargeAnswer,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
+  ChargeSaleInCashWithChangeDiscountOutcome,
   ChargeSaleOnStandaloneTerminalOutcome,
   ChargeSaleWithPaidOrderOutcome,
   CurrentSaleAnswer,
   FollowMercadoPagoChargeOutcome,
   OpenSale,
   PaymentMethodAvailability,
+  PreviewSaleDiscountOutcome,
   ReadContingencyBackupTicketOfSaleOutcome,
   ReadContingencyBackupTicketsOutcome,
   ReceiptPrintStatusOutcome,
+  SaleDiscountRequest,
+  SignInUser,
   StartMercadoPagoChargeOutcome,
 } from "@purosur/contracts";
-import type { PointCardType } from "@purosur/domain";
+import type { AuthorizablePermissionKey, PointCardType } from "@purosur/domain";
 import {
   formatCents,
   formatNumber,
@@ -103,8 +108,20 @@ export type ChargeScreenProps = {
   registerName: string | null;
   lock: () => void;
   currentSale: () => Promise<CurrentSaleAnswer>;
-  cashCharge: (saleId: string, tendered: number) => Promise<CashChargeAnswer>;
+  cashCharge: (
+    saleId: string,
+    tendered: number,
+    saleDiscount?: number,
+  ) => Promise<CashChargeAnswer>;
   chargeSaleInCash: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
+  chargeSaleInCashWithChangeDiscount: (
+    saleId: string,
+    tendered: number,
+    discountAmount: number,
+    authorization: Authorization | undefined,
+  ) => Promise<ChargeSaleInCashWithChangeDiscountOutcome>;
+  previewSaleDiscount: (discount: SaleDiscountRequest) => Promise<PreviewSaleDiscountOutcome>;
+  loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   chargeSaleByTransfer: (saleId: string, amount: number) => Promise<ChargeSaleByTransferOutcome>;
   chargeSaleOnStandaloneTerminal: (
     saleId: string,
@@ -139,6 +156,9 @@ export function ChargeScreen({
   currentSale,
   cashCharge,
   chargeSaleInCash,
+  chargeSaleInCashWithChangeDiscount,
+  previewSaleDiscount,
+  loadAuthorizers,
   chargeSaleByTransfer,
   chargeSaleOnStandaloneTerminal,
   chargeSaleWithPaidOrder,
@@ -283,8 +303,22 @@ export function ChargeScreen({
           total={sale.total}
           paid={sale.paid}
           pending={sale.pending}
-          readCharge={(tendered) => cashCharge(sale.id, tendered)}
+          subtotal={sale.subtotal}
+          discountOffered={sale.sale_discount_refusal === null && sale.lines_lock === null}
+          appliedDiscountAmount={sale.sale_discount?.amount ?? null}
+          authorizationRequired={sale.sale_discount_authorization_required}
+          person={person}
+          loadAuthorizers={loadAuthorizers}
+          previewSaleDiscount={previewSaleDiscount}
+          readCharge={(tendered, saleDiscount) =>
+            saleDiscount === undefined
+              ? cashCharge(sale.id, tendered)
+              : cashCharge(sale.id, tendered, saleDiscount)
+          }
           charge={(tendered) => chargeSaleInCash(sale.id, tendered)}
+          chargeWithDiscount={(tendered, discountAmount, authorization) =>
+            chargeSaleInCashWithChangeDiscount(sale.id, tendered, discountAmount, authorization)
+          }
           onChooseAnotherMethod={() => setStep({ name: "methods" })}
           onCompleted={(charge) =>
             setStep({ name: "completed", payment: { method: "CASH", charge }, sale })

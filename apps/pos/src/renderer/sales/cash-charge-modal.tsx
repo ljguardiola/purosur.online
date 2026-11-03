@@ -1,4 +1,13 @@
-import type { CashChargeAnswer, ChargeSaleInCashOutcome } from "@purosur/contracts";
+import type {
+  Authorization,
+  CashChargeAnswer,
+  ChargeSaleInCashOutcome,
+  ChargeSaleInCashWithChangeDiscountOutcome,
+  PreviewSaleDiscountOutcome,
+  SaleDiscountRequest,
+  SignInUser,
+} from "@purosur/contracts";
+import type { AuthorizablePermissionKey } from "@purosur/domain";
 import {
   Button,
   Card,
@@ -16,19 +25,28 @@ import {
 } from "@purosur/ui";
 import { ArrowLeft, Banknote, Check, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
+import { AuthorizationSection } from "../shell/authorization-section";
+import type { SignedInPerson } from "../shell/signed-in-person";
+import { useAuthorization } from "../shell/use-authorization";
 import {
   cashChargeRequestFrom,
   chargeSaleInCashRequestSchema,
   EMPTY_CASH_CHARGE_FORM,
   INVALID_AMOUNT_MESSAGE,
+  typedChangeDiscount,
 } from "./cash-charge-form";
 import {
   CHARGE_IN_PROGRESS_MESSAGE,
   PAID_ORDER_NOT_APPLIED_MESSAGE,
 } from "./mercado-pago-charge-messages";
-import { useCashChargeQuery } from "./sales-queries";
+import { saleDiscountValueMessage } from "./sale-discount-form";
+import { useCashChargeQuery, useSaleDiscountPreviewQuery } from "./sales-queries";
 
 const FAILED_MESSAGE = "No se pudo cobrar la venta. Probá de nuevo.";
+
+const DISCOUNT_EXCEEDS_SALE_MESSAGE = "El descuento no puede ser mayor al total de la venta.";
+const AUTHORIZING = "descontar sobre el total";
+const PERMISSION: AuthorizablePermissionKey = "apply_total_discount";
 
 const PARTIAL_PAYMENT_HINT = "Con menos de lo que falta, el resto queda pendiente.";
 
@@ -39,8 +57,20 @@ export type CashChargeModalProps = {
   total: number;
   paid: number;
   pending: number;
-  readCharge: (tendered: number) => Promise<CashChargeAnswer>;
+  subtotal: number;
+  discountOffered: boolean;
+  appliedDiscountAmount: number | null;
+  authorizationRequired: boolean;
+  person: SignedInPerson;
+  loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
+  previewSaleDiscount: (discount: SaleDiscountRequest) => Promise<PreviewSaleDiscountOutcome>;
+  readCharge: (tendered: number, saleDiscount?: number) => Promise<CashChargeAnswer>;
   charge: (tendered: number) => Promise<ChargeSaleInCashOutcome>;
+  chargeWithDiscount: (
+    tendered: number,
+    discountAmount: number,
+    authorization: Authorization | undefined,
+  ) => Promise<ChargeSaleInCashWithChangeDiscountOutcome>;
   onChooseAnotherMethod: () => void;
   onCompleted: (charge: CompletedCharge) => void;
   onPartiallyPaid: () => Promise<void>;
@@ -53,8 +83,16 @@ export function CashChargeModal({
   total,
   paid,
   pending,
+  subtotal,
+  discountOffered,
+  appliedDiscountAmount,
+  authorizationRequired,
+  person,
+  loadAuthorizers,
+  previewSaleDiscount,
   readCharge,
   charge,
+  chargeWithDiscount,
   onChooseAnotherMethod,
   onCompleted,
   onPartiallyPaid,
@@ -65,14 +103,16 @@ export function CashChargeModal({
   const { form, submit, submitting, values } = useRequestForm({
     defaultValues: EMPTY_CASH_CHARGE_FORM,
     request: { schema: chargeSaleInCashRequestSchema, from: cashChargeRequestFrom },
-    fields: { tendered: "tendered" },
-    messages: { tendered: INVALID_AMOUNT_MESSAGE },
+    fields: { tendered: "tendered", discount: "discount" },
+    messages: { tendered: INVALID_AMOUNT_MESSAGE, discount: saleDiscountValueMessage("AMOUNT") },
     onSubmit: async (request, { showFieldError }) => {
-      const outcome = await charge(request.tendered).catch(
-        (): ChargeSaleInCashOutcome => ({ kind: "unavailable" }),
-      );
+      const outcome = await (request.discount === undefined
+        ? charge(request.tendered)
+        : chargeWithDiscount(request.tendered, request.discount.value, authorization.value)
+      ).catch((): ChargeSaleInCashWithChangeDiscountOutcome => ({ kind: "unavailable" }));
       switch (outcome.kind) {
         case "completed":
+          authorization.performed();
           onCompleted(outcome);
           break;
         case "partially_paid":
@@ -81,6 +121,22 @@ export function CashChargeModal({
         case "invalid_amount":
           showFieldError("tendered", INVALID_AMOUNT_MESSAGE);
           break;
+        case "discount_exceeds_sale":
+          showFieldError("discount", DISCOUNT_EXCEEDS_SALE_MESSAGE);
+          break;
+        case "wrong_pin":
+        case "rate_limited":
+        case "locked":
+        case "lacks_permission":
+          if (authorization.required) {
+            authorization.refuse(outcome);
+          } else if (outcome.kind === "lacks_permission") {
+            setNotice(`Ya no tenés permiso para ${AUTHORIZING}.`);
+          } else {
+            setNotice(FAILED_MESSAGE);
+          }
+          break;
+        case "sale_has_payments":
         case "empty_sale":
         case "zero_total":
         case "reaches_buyer_identification_threshold":
@@ -108,23 +164,54 @@ export function CashChargeModal({
 
   const isBlank = values.tendered.trim() === "";
   const tendered = isBlank ? undefined : parseAmountCents(values.tendered);
-  const answer = useCashChargeQuery({ saleId, pending, tendered, read: readCharge });
+  const typedDiscount = typedChangeDiscount(values.discount);
+  const discountInvalid = values.discount.trim() !== "" && typedDiscount === undefined;
+  const authorization = useAuthorization({
+    person,
+    permission: PERMISSION,
+    required: authorizationRequired && typedDiscount !== undefined,
+    loadAuthorizers,
+  });
+  const answer = useCashChargeQuery({
+    saleId,
+    pending,
+    tendered,
+    saleDiscount: typedDiscount?.value,
+    read: readCharge,
+  });
+  const preview = useSaleDiscountPreviewQuery({
+    subtotal,
+    discount: typedDiscount,
+    read: previewSaleDiscount,
+  });
+  const previewed = preview.status === "loaded" ? preview.value : undefined;
+  const previewedTotal = previewed?.kind === "preview" ? previewed : undefined;
   const loaded = answer.status === "loaded" ? answer : undefined;
   const answered =
     loaded === undefined || loaded.value === null || loaded.value === "not_permitted"
       ? undefined
       : loaded.value;
-  const saleUnavailable = loaded !== undefined && answered === undefined;
+  const saleUnavailable =
+    loaded !== undefined && (answered === undefined || answered.kind === "sale_has_payments");
+  const discountExceedsSale =
+    typedDiscount !== undefined &&
+    (answered?.kind === "discount_exceeds_sale" || previewed?.kind === "discount_exceeds_sale");
   const answeredMessage =
     tendered !== undefined && answered?.kind === "invalid_amount"
       ? INVALID_AMOUNT_MESSAGE
       : undefined;
   const covered =
-    tendered !== undefined && answered?.kind === "covered" && !loaded?.refreshing
+    tendered !== undefined &&
+    !discountInvalid &&
+    answered?.kind === "covered" &&
+    !loaded?.refreshing
       ? { tendered, ...answered }
       : undefined;
   const partial =
-    tendered !== undefined && answered?.kind === "partial" && !loaded?.refreshing
+    tendered !== undefined &&
+    !discountInvalid &&
+    answered?.kind === "partial" &&
+    !loaded?.refreshing
       ? answered
       : undefined;
 
@@ -140,8 +227,14 @@ export function CashChargeModal({
       : undefined;
   }
 
+  function discountMessage(typed: string): string | undefined {
+    return typed.trim() !== "" && typedChangeDiscount(typed) === undefined
+      ? saleDiscountValueMessage("AMOUNT")
+      : undefined;
+  }
+
   function handleSubmit() {
-    if (covered === undefined && partial === undefined) {
+    if ((covered === undefined && partial === undefined) || !authorization.ready) {
       return;
     }
     setNotice(undefined);
@@ -179,7 +272,7 @@ export function CashChargeModal({
             fullWidth
             icon={<Check />}
             dataStatus={submitting ? "loading" : answer.status}
-            disabled={covered === undefined && partial === undefined}
+            disabled={(covered === undefined && partial === undefined) || !authorization.ready}
             onPress={handleSubmit}
           >
             {partial === undefined ? "Completar venta" : "Registrar pago parcial"}
@@ -193,8 +286,21 @@ export function CashChargeModal({
           orientation="horizontal"
           rows={[
             { label: "Total de la venta", value: formatCents(total) },
+            ...(previewedTotal === undefined
+              ? []
+              : [
+                  {
+                    label: "Descuento sobre el total",
+                    value: `− ${formatCents(previewedTotal.discount_amount)}`,
+                    tone: "error" as const,
+                  },
+                ]),
             { label: "Pagado", value: formatCents(paid) },
-            { label: "A cobrar ahora", value: formatCents(pending), emphasized: true },
+            {
+              label: "A cobrar ahora",
+              value: formatCents(previewedTotal?.total ?? pending),
+              emphasized: true,
+            },
           ]}
         />
         <form.AppField
@@ -216,6 +322,36 @@ export function CashChargeModal({
             />
           )}
         </form.AppField>
+        {discountOffered ? (
+          <form.AppField
+            name="discount"
+            validators={{ onChange: ({ value }) => discountMessage(value) }}
+            listeners={{ onChange: () => setNotice(undefined) }}
+          >
+            {(field) => (
+              <TextField
+                kind="amount"
+                prefix="$"
+                label="Descuento por falta de cambio"
+                decimals={2}
+                value={field.state.value}
+                onChange={field.handleChange}
+                disabled={submitting}
+                errorMessage={
+                  fieldErrorMessage(field.state.meta.errors) ??
+                  (discountExceedsSale ? DISCOUNT_EXCEEDS_SALE_MESSAGE : undefined)
+                }
+              />
+            )}
+          </form.AppField>
+        ) : null}
+        {discountOffered && appliedDiscountAmount !== null && typedDiscount !== undefined ? (
+          <InlineNotice
+            tone="warning"
+            icon={<TriangleAlert />}
+            title={`Reemplaza el descuento sobre el total ya aplicado (${formatCents(appliedDiscountAmount)})`}
+          />
+        ) : null}
         {tendered !== undefined && answer.status === "loading" ? (
           <LoadingPlaceholder variant="card" lines={2} />
         ) : null}
@@ -245,6 +381,13 @@ export function CashChargeModal({
             />
           </Card>
         )}
+        {discountOffered ? (
+          <AuthorizationSection
+            authorization={authorization}
+            action={AUTHORIZING}
+            disabled={submitting}
+          />
+        ) : null}
         {notice === undefined ? null : (
           <InlineNotice tone="error" icon={<TriangleAlert />} title={notice} />
         )}
