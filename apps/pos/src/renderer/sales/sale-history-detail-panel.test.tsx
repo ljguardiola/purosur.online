@@ -3,6 +3,12 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { SaleDetail } from "../shell/sale-receipt-text";
+import {
+  RegisterWindow,
+  STORE_NOTEBOOK_WINDOW,
+  showInStoreNotebookWindow,
+  windowOverflow,
+} from "../shell/test-support/register-window";
 import { render } from "../shell/test-support/render-with-router";
 import { SaleHistoryDetailPanel } from "./sale-history-detail-panel";
 
@@ -57,10 +63,14 @@ async function renderPanel(
   options: {
     saleId?: string | undefined;
     read?: (saleId: string) => Promise<SaleHistoryDetailOutcome>;
+    inStoreNotebookWindow?: boolean;
   } = {},
 ) {
   await page.viewport(1280, 1000);
   onTestFinished(() => page.viewport(414, 896));
+  if (options.inStoreNotebookWindow === true) {
+    await showInStoreNotebookWindow();
+  }
   const read = vi.fn(
     options.read ??
       (async (): Promise<SaleHistoryDetailOutcome> => ({ kind: "found", detail: FISCAL_SALE })),
@@ -71,7 +81,7 @@ async function renderPanel(
   const onPrintCreditNote = vi.fn();
   const onReprintCreditNote = vi.fn();
   const onReprintDeferredInvoice = vi.fn();
-  const screen = await render(
+  const panel = (
     <SaleHistoryDetailPanel
       saleId={"saleId" in options ? options.saleId : "sale-1"}
       readDetail={read}
@@ -81,7 +91,10 @@ async function renderPanel(
       onPrintCreditNote={onPrintCreditNote}
       onReprintCreditNote={onReprintCreditNote}
       onReprintDeferredInvoice={onReprintDeferredInvoice}
-    />,
+    />
+  );
+  const screen = await render(
+    options.inStoreNotebookWindow === true ? <RegisterWindow>{panel}</RegisterWindow> : panel,
   );
   return {
     screen,
@@ -226,6 +239,32 @@ describe("SaleHistoryDetailPanel", () => {
 
     expect(onPrintOriginal).toHaveBeenCalledExactlyOnceWith(original);
     expect(onReprint).not.toHaveBeenCalled();
+  });
+
+  it("keeps a sale's detail longer than the window inside the panel, at the window's height, with its actions in view", async () => {
+    const { screen } = await renderPanel({
+      inStoreNotebookWindow: true,
+      read: async () => ({
+        kind: "found",
+        detail: {
+          ...FISCAL_SALE,
+          payments: Array.from({ length: 30 }, () => ({
+            method: "CASH" as const,
+            card_type: null,
+            amount: 169_000,
+          })),
+        },
+      }),
+    });
+
+    const panel = screen.getByRole("complementary", { name: "Detalle de la venta" });
+    await expect.element(panel.getByText("PAGOS")).toBeInTheDocument();
+    expect(windowOverflow()).toEqual({ vertical: 0, horizontal: 0 });
+    expect(panel.element().getBoundingClientRect().height).toBe(STORE_NOTEBOOK_WINDOW.height);
+    await expect
+      .element(panel.getByRole("button", { name: "Reimprimir duplicado" }))
+      .toBeInViewport();
+    await expect.element(panel.getByRole("button", { name: "Anular venta" })).toBeInViewport();
   });
 
   it("offers voiding a voidable sale next to the print button, and hands the sale over", async () => {

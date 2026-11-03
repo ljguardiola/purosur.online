@@ -79,13 +79,26 @@ test("sits its footer at the bottom edge, 32px above it, in a tall container", a
   expect(footer.bottom).toBeCloseTo(panel.bottom - 32, 0);
 });
 
-test("scrolls a body taller than the panel inside itself, keeping the footer at the bottom edge", async () => {
+function scrollToTheEndAround(element: Element) {
+  let area = element.parentElement;
+  while (area !== null && area.scrollHeight <= area.clientHeight) {
+    area = area.parentElement;
+  }
+  if (area === null) {
+    throw new Error("No area around the element scrolls");
+  }
+  area.scrollTop = area.scrollHeight;
+}
+
+const FORTY_LINES = Array.from({ length: 40 }, (_, index) => `Línea ${index + 1}`).map((line) => (
+  <p key={line}>{line}</p>
+));
+
+test("scrolls a body taller than the panel inside itself, ending 16px above the footer, which stays at the bottom edge", async () => {
   const screen = await render(
     <div style={{ display: "flex", height: "600px" }}>
       <SidePanel label="Panel" footer={<button type="button">Cancelar</button>}>
-        {Array.from({ length: 40 }, (_, index) => (
-          <p key={index}>{`Línea ${index + 1}`}</p>
-        ))}
+        {FORTY_LINES}
       </SidePanel>
     </div>,
   );
@@ -95,11 +108,25 @@ test("scrolls a body taller than the panel inside itself, keeping the footer at 
 
   expect(panel.height).toBe(600);
   expect(footer.bottom).toBeCloseTo(panel.bottom - 32, 0);
-  lastLine.scrollIntoView({ block: "end" });
-  expect(lastLine.getBoundingClientRect().bottom).toBeLessThanOrEqual(footer.top);
+  scrollToTheEndAround(lastLine);
+  expect(footer.top - lastLine.getBoundingClientRect().bottom).toBeCloseTo(16, 0);
   expect(
     screen.getByRole("button", { name: "Cancelar" }).element().getBoundingClientRect(),
   ).toEqual(footer);
+});
+
+test("scrolls a body taller than the panel and without a footer inside itself, ending 32px above the bottom edge", async () => {
+  const screen = await render(
+    <div style={{ display: "flex", height: "600px" }}>
+      <SidePanel label="Panel">{FORTY_LINES}</SidePanel>
+    </div>,
+  );
+  const panel = screen.getByRole("complementary").element().getBoundingClientRect();
+  const lastLine = screen.getByText("Línea 40", { exact: true }).element();
+
+  expect(panel.height).toBe(600);
+  scrollToTheEndAround(lastLine);
+  expect(panel.bottom - lastLine.getBoundingClientRect().bottom).toBeCloseTo(32, 0);
 });
 
 test("stacks the footer's own children 16px apart", async () => {

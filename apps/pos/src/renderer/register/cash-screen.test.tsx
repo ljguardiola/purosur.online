@@ -9,9 +9,9 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { SignedInPerson } from "../shell/signed-in-person";
 import {
-  overflowsItsOwnHeight,
   RegisterWindow,
   STORE_NOTEBOOK_WINDOW,
+  scrollTheAreaHoldingItToItsEnd,
   showInStoreNotebookWindow,
   windowOverflow,
 } from "../shell/test-support/register-window";
@@ -94,17 +94,29 @@ async function renderScreen(
 }
 
 describe("CashScreen", () => {
-  it("scrolls a page of movements longer than the window inside the list's own area, with the menu and the expected cash filling the window's height", async () => {
+  it("scrolls a page of movements longer than the window inside the list's own area, with the heading, the clock guard, the filter, the menu and the expected cash in place", async () => {
     const movements = Array.from({ length: 25 }, (_, index) => ({
       ...FLETE,
       id: `m${index + 2}`,
     }));
-    const screen = await renderScreen({ loadCashMovements: async () => [OPENING, ...movements] });
+    const screen = await renderScreen({
+      loadCashMovements: async () => [OPENING, ...movements],
+      clockGuard: <p>Aviso del reloj</p>,
+    });
     await showInStoreNotebookWindow();
+    const table = screen.getByRole("table", { name: "Movimientos de la sesión" });
+    const lastMovement = table.getByText("Flete").last();
+    await expect.element(lastMovement).toBeInTheDocument();
 
-    await expect.element(screen.getByText("Flete").first()).toBeInTheDocument();
+    scrollTheAreaHoldingItToItsEnd(lastMovement.element());
+
+    await expect.element(lastMovement).toBeInViewport();
+    await expect
+      .element(screen.getByRole("heading", { name: "Movimientos de efectivo", exact: true }))
+      .toBeInViewport();
+    await expect.element(screen.getByText("Aviso del reloj")).toBeInViewport();
+    await expect.element(screen.getByRole("button", { name: "Tipo: Todos" })).toBeInViewport();
     expect(windowOverflow()).toEqual({ vertical: 0, horizontal: 0 });
-    expect(overflowsItsOwnHeight(screen.getByRole("main").element())).toBe(true);
     const menu = screen.getByRole("navigation", { name: "Menú de la caja" }).element();
     expect(menu.getBoundingClientRect().height).toBe(STORE_NOTEBOOK_WINDOW.height);
     const panel = screen.getByRole("complementary").element();

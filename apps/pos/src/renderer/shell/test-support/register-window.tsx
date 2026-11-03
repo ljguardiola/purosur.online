@@ -31,6 +31,20 @@ export function windowOverflow() {
   };
 }
 
-export function overflowsItsOwnHeight(element: Element) {
-  return element.scrollHeight > element.clientHeight;
+export function scrollTheAreaHoldingItToItsEnd(element: Element) {
+  let area = element.parentElement;
+  while (area !== null && !scrollsVertically(area)) {
+    area = area.parentElement;
+  }
+  if (area === null) {
+    throw new Error("No area around the element scrolls");
+  }
+  area.scrollTop = area.scrollHeight;
+}
+
+function scrollsVertically(element: Element) {
+  const { overflowY } = getComputedStyle(element);
+  return (
+    (overflowY === "auto" || overflowY === "scroll") && element.scrollHeight > element.clientHeight
+  );
 }
