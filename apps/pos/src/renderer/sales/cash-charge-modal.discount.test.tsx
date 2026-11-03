@@ -1,11 +1,19 @@
 import { expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
-import type { DiscountModal } from "./test-support/cash-charge-modal";
-import { DISCOUNT_FIELD, renderDiscountModal, valueBeside } from "./test-support/cash-charge-modal";
+import type { CashChargeModalScreen } from "./test-support/cash-charge-modal";
+import {
+  DISCOUNT_FIELD,
+  renderCashChargeModal,
+  valueBeside,
+} from "./test-support/cash-charge-modal";
 
 const PIN_ARGS = { user_id: "u3", pin: "1234" };
 
-async function authorizeAs(screen: DiscountModal["screen"], firstName: string, pin: string) {
+async function authorizeAs(
+  screen: CashChargeModalScreen["screen"],
+  firstName: string,
+  pin: string,
+) {
   await userEvent.click(screen.getByRole("button", { name: /Persona que autoriza/ }));
   await userEvent.click(screen.getByRole("option", { name: firstName }));
   await userEvent.type(screen.getByLabelText("PIN"), pin);
@@ -13,7 +21,7 @@ async function authorizeAs(screen: DiscountModal["screen"], firstName: string, p
 
 it("shows the amount to charge and the change with the discount typed beside the amount received, and one confirmation charges both", async () => {
   const { screen, field, discountField, complete, chargeSaleWithDiscount, callbacks, chargeSale } =
-    await renderDiscountModal();
+    await renderCashChargeModal();
 
   await userEvent.fill(field, "10000");
   await userEvent.fill(discountField, "100");
@@ -33,7 +41,7 @@ it("shows the amount to charge and the change with the discount typed beside the
 
 it("returns to the sale's amounts and charges without the discount once the discount is emptied", async () => {
   const { screen, field, discountField, complete, chargeSale, chargeSaleWithDiscount, callbacks } =
-    await renderDiscountModal();
+    await renderCashChargeModal();
   await userEvent.fill(field, "10000");
   await userEvent.fill(discountField, "100");
   await expect.poll(() => valueBeside(screen, "A cobrar ahora")).toBe("$ 9.500,00");
@@ -49,7 +57,7 @@ it("returns to the sale's amounts and charges without the discount once the disc
 });
 
 it("does not offer the discount when the screen does not offer it", async () => {
-  const { screen } = await renderDiscountModal({ discountOffered: false });
+  const { screen } = await renderCashChargeModal({ discountOffered: false });
 
   await expect
     .element(screen.getByRole("textbox", { name: DISCOUNT_FIELD }))
@@ -57,7 +65,7 @@ it("does not offer the discount when the screen does not offer it", async () => 
 });
 
 it("warns that the discount typed replaces the one already applied on the total", async () => {
-  const { screen, discountField } = await renderDiscountModal({ appliedDiscountAmount: 20_000 });
+  const { screen, discountField } = await renderCashChargeModal({ appliedDiscountAmount: 20_000 });
 
   await expect
     .element(screen.getByText(/Reemplaza el descuento sobre el total ya aplicado/))
@@ -70,7 +78,7 @@ it("warns that the discount typed replaces the one already applied on the total"
 });
 
 it("shows no replacement warning when the sale has no discount on its total", async () => {
-  const { screen, discountField } = await renderDiscountModal();
+  const { screen, discountField } = await renderCashChargeModal();
 
   await userEvent.fill(discountField, "100");
 
@@ -80,7 +88,7 @@ it("shows no replacement warning when the sale has no discount on its total", as
 });
 
 it("shows the discount refusal on the field when the core says it exceeds the sale", async () => {
-  const { screen, field, discountField } = await renderDiscountModal({
+  const { screen, field, discountField } = await renderCashChargeModal({
     readCharge: async (tendered, discount) =>
       discount === undefined
         ? { kind: "covered", applied: 960_000, change: tendered - 960_000 }
@@ -97,7 +105,7 @@ it("shows the discount refusal on the field when the core says it exceeds the sa
 });
 
 it("shows the discount refusal on the field when charging says it exceeds the sale", async () => {
-  const { screen, field, discountField, complete, callbacks } = await renderDiscountModal({
+  const { screen, field, discountField, complete, callbacks } = await renderCashChargeModal({
     chargeWithDiscount: async () => ({ kind: "discount_exceeds_sale" }),
   });
   await userEvent.fill(field, "10000");
@@ -113,7 +121,7 @@ it("shows the discount refusal on the field when charging says it exceeds the sa
 });
 
 it("leaves the modal for the sale when charging says the sale has payments", async () => {
-  const { field, discountField, complete, callbacks } = await renderDiscountModal({
+  const { field, discountField, complete, callbacks } = await renderCashChargeModal({
     chargeWithDiscount: async () => ({ kind: "sale_has_payments" }),
   });
   await userEvent.fill(field, "10000");
@@ -126,7 +134,7 @@ it("leaves the modal for the sale when charging says the sale has payments", asy
 });
 
 it("asks for no authorization until a discount is typed, and then asks for it in the same modal", async () => {
-  const { screen, discountField, requestedAuthorizers } = await renderDiscountModal({
+  const { screen, discountField, requestedAuthorizers } = await renderCashChargeModal({
     authorizationRequired: true,
   });
 
@@ -139,7 +147,7 @@ it("asks for no authorization until a discount is typed, and then asks for it in
 
 it("waits for the authorizer and sends who authorizes with the PIN", async () => {
   const { screen, field, discountField, complete, chargeSaleWithDiscount, callbacks } =
-    await renderDiscountModal({ authorizationRequired: true });
+    await renderCashChargeModal({ authorizationRequired: true });
   await userEvent.fill(field, "10000");
   await userEvent.fill(discountField, "100");
   await expect.element(complete).toBeDisabled();
@@ -153,7 +161,7 @@ it("waits for the authorizer and sends who authorizes with the PIN", async () =>
 });
 
 it("shows a refused PIN and stays open", async () => {
-  const { screen, field, discountField, complete, callbacks } = await renderDiscountModal({
+  const { screen, field, discountField, complete, callbacks } = await renderCashChargeModal({
     authorizationRequired: true,
     chargeWithDiscount: async () => ({
       kind: "wrong_pin",
@@ -169,4 +177,44 @@ it("shows a refused PIN and stays open", async () => {
 
   await expect.element(screen.getByText("PIN incorrecto")).toBeVisible();
   expect(callbacks.onCompleted).not.toHaveBeenCalled();
+});
+
+it("works out what stays pending from the amount to charge with the discount typed", async () => {
+  const { screen, field, discountField } = await renderCashChargeModal();
+
+  await userEvent.fill(field, "5000");
+  await userEvent.fill(discountField, "100");
+
+  await expect.element(screen.getByText("QUEDA PENDIENTE")).toBeVisible();
+  await expect.element(screen.getByText("$ 9.500,00 − $ 5.000,00")).toBeVisible();
+  await expect.element(screen.getByText("$ 4.500,00", { exact: true })).toBeVisible();
+});
+
+it("shows the amount before the discount on the total as the base of the discount typed when it replaces one already applied", async () => {
+  const { screen, discountField } = await renderCashChargeModal({
+    sale: { total: 864_000, paid: 0, pending: 864_000, subtotal: 960_000 },
+    appliedDiscountAmount: 96_000,
+  });
+  expect(valueBeside(screen, "Total de la venta")).toBe("$ 8.640,00");
+
+  await userEvent.fill(discountField, "100");
+
+  await expect.poll(() => valueBeside(screen, "A cobrar ahora")).toBe("$ 9.500,00");
+  expect(valueBeside(screen, "Después de promociones")).toBe("$ 9.600,00");
+  expect(valueBeside(screen, "Descuento sobre el total")).toBe("− $ 100,00");
+  await expect
+    .element(screen.getByText("Total de la venta", { exact: true }))
+    .not.toBeInTheDocument();
+});
+
+it("shows nothing pending until the amount to charge with the discount typed is known", async () => {
+  const { screen, field, discountField, readCashCharge } = await renderCashChargeModal({
+    previewSaleDiscount: () => new Promise(() => {}),
+  });
+
+  await userEvent.fill(field, "5000");
+  await userEvent.fill(discountField, "100");
+
+  await expect.poll(() => readCashCharge).toHaveBeenCalledWith(500_000, 10_000);
+  await expect.element(screen.getByText("QUEDA PENDIENTE")).not.toBeInTheDocument();
 });

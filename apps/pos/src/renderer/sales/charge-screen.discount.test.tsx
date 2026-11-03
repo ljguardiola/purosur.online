@@ -74,3 +74,29 @@ it("asks for the authorization in the cash charge when the sale requires it for 
 
   await expect.element(screen.getByLabelText("PIN")).toBeVisible();
 });
+
+it("shows the total charged with the discount typed once the charge is completed", async () => {
+  const { screen } = await renderScreen({
+    cashCharge: async () => ({ kind: "covered", applied: 475_000, change: 25_000 }),
+    chargeSaleInCashWithChangeDiscount: async () => ({
+      kind: "completed",
+      sale_id: "sale-1",
+      total: 475_000,
+      tendered: 500_000,
+      change: 25_000,
+    }),
+  });
+  await chooseCash(screen);
+  await userEvent.fill(
+    screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
+    "5000",
+  );
+  await userEvent.fill(screen.getByRole("textbox", { name: DISCOUNT_FIELD }), "10");
+  await expect.element(screen.getByRole("button", { name: "Completar venta" })).toBeEnabled();
+
+  await userEvent.click(screen.getByRole("button", { name: "Completar venta" }));
+
+  const panel = screen.getByRole("complementary", { name: "Panel de cobro" });
+  await expect.element(panel.getByText("$ 4.750,00").first()).toBeVisible();
+  await expect.element(panel.getByText("$ 4.760,00")).not.toBeInTheDocument();
+});

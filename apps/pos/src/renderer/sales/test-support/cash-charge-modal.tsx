@@ -20,19 +20,6 @@ export const DISCOUNT_FIELD = "Descuento por falta de cambio";
 const PERSON: SignedInPerson = { user_id: "u1", first_name: "Ada", abilities: [] };
 const AUTHORIZERS: SignInUser[] = [{ id: "u3", first_name: "Sofía" }];
 
-export const NO_DISCOUNT_OFFERED = {
-  discountOffered: false,
-  subtotal: 960_000,
-  appliedDiscountAmount: null,
-  authorizationRequired: false,
-  person: PERSON,
-  loadAuthorizers: async (): Promise<SignInUser[]> => AUTHORIZERS,
-  previewSaleDiscount: async (): Promise<PreviewSaleDiscountOutcome> => ({ kind: "no_open_sale" }),
-  chargeWithDiscount: async (): Promise<ChargeSaleInCashWithChangeDiscountOutcome> => ({
-    kind: "no_open_sale",
-  }),
-} satisfies Partial<CashChargeModalProps>;
-
 const COMPLETED: ChargeSaleInCashOutcome = {
   kind: "completed",
   sale_id: "sale-1",
@@ -41,7 +28,9 @@ const COMPLETED: ChargeSaleInCashOutcome = {
   change: 50_000,
 };
 
-const SALE_OF_9600 = { total: 960_000, paid: 0, pending: 960_000 };
+const SALE_OF_9600 = { total: 960_000, paid: 0, pending: 960_000, subtotal: 960_000 };
+
+type ModalSale = { total: number; paid: number; pending: number; subtotal: number };
 
 function previewOf(discount: number): PreviewSaleDiscountOutcome {
   return {
@@ -60,6 +49,7 @@ async function answerLikeTheCore(tendered: number, discount?: number): Promise<C
 }
 
 export type ModalOptions = {
+  sale?: ModalSale;
   authorizationRequired?: boolean;
   appliedDiscountAmount?: number | null;
   discountOffered?: boolean;
@@ -73,7 +63,8 @@ export type ModalOptions = {
   previewSaleDiscount?: (discount: SaleDiscountRequest) => Promise<PreviewSaleDiscountOutcome>;
 };
 
-export async function renderDiscountModal({
+export async function renderCashChargeModal({
+  sale = SALE_OF_9600,
   authorizationRequired = false,
   appliedDiscountAmount = null,
   discountOffered = true,
@@ -96,26 +87,24 @@ export async function renderDiscountModal({
     onSaleUnavailable: vi.fn(),
     onSessionInvalid: vi.fn(),
   };
-  const screen = await render(
-    <CashChargeModal
-      saleId="sale-1"
-      {...SALE_OF_9600}
-      subtotal={960_000}
-      discountOffered={discountOffered}
-      appliedDiscountAmount={appliedDiscountAmount}
-      authorizationRequired={authorizationRequired}
-      person={PERSON}
-      loadAuthorizers={async (permission) => {
-        requestedAuthorizers.push(permission);
-        return AUTHORIZERS;
-      }}
-      previewSaleDiscount={preview}
-      readCharge={readCashCharge}
-      charge={chargeSale}
-      chargeWithDiscount={chargeSaleWithDiscount}
-      {...callbacks}
-    />,
-  );
+  const propsFor = (shown: ModalSale): CashChargeModalProps => ({
+    saleId: "sale-1",
+    ...shown,
+    discountOffered,
+    appliedDiscountAmount,
+    authorizationRequired,
+    person: PERSON,
+    loadAuthorizers: async (permission) => {
+      requestedAuthorizers.push(permission);
+      return AUTHORIZERS;
+    },
+    previewSaleDiscount: preview,
+    readCharge: readCashCharge,
+    charge: chargeSale,
+    chargeWithDiscount: chargeSaleWithDiscount,
+    ...callbacks,
+  });
+  const screen = await render(<CashChargeModal {...propsFor(sale)} />);
   return {
     screen,
     readCashCharge,
@@ -124,14 +113,15 @@ export async function renderDiscountModal({
     preview,
     requestedAuthorizers,
     callbacks,
+    showSale: (shown: ModalSale) => screen.rerender(<CashChargeModal {...propsFor(shown)} />),
     field: screen.getByRole("textbox", { name: AMOUNT_FIELD }),
     discountField: screen.getByRole("textbox", { name: DISCOUNT_FIELD }),
     complete: screen.getByRole("button", { name: "Completar venta" }),
   };
 }
 
-export type DiscountModal = Awaited<ReturnType<typeof renderDiscountModal>>;
+export type CashChargeModalScreen = Awaited<ReturnType<typeof renderCashChargeModal>>;
 
-export function valueBeside(screen: DiscountModal["screen"], label: string): string | null {
+export function valueBeside(screen: CashChargeModalScreen["screen"], label: string): string | null {
   return screen.getByText(label, { exact: true }).element().nextElementSibling?.textContent ?? null;
 }
