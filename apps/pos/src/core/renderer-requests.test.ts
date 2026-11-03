@@ -54,6 +54,7 @@ import type {
   SignInLookupOutcome,
   SignInOutcome,
   VoidSaleOutcome,
+  WeighLineOutcome,
   WeighProductOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
@@ -473,9 +474,22 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         weighedAdditions.push([productId, weightThousandths].join(" "));
         return { kind: "product_unavailable" };
       },
-      weighProduct: async (productId: string): Promise<WeighProductOutcome> => {
-        weighings.push(productId);
+      weighProduct: async (
+        productId: string,
+        confirmedWeightThousandths: number | null,
+      ): Promise<WeighProductOutcome> => {
+        weighings.push(`${productId} ${confirmedWeightThousandths}`);
         return { kind: "weighing" };
+      },
+      weighLine: async (
+        lineId: string,
+        expectedWeightThousandths: number,
+        confirmedWeightThousandths: number | null,
+      ): Promise<WeighLineOutcome> => {
+        saleChanges.push(
+          ["weigh", lineId, expectedWeightThousandths, confirmedWeightThousandths].join(" "),
+        );
+        return { kind: "unknown_line" };
       },
       initialCount: undefined,
       clockGuard: undefined,
@@ -2017,9 +2031,10 @@ describe("answerRendererRequest", () => {
         type: "weigh-product",
         request_id: "r90",
         product_id: "p7",
+        confirmed_weight_thousandths: 1250,
       }),
     ).toEqual({ type: "weigh-product-result", request_id: "r90", outcome: { kind: "weighing" } });
-    expect(weighings).toEqual(["p7"]);
+    expect(weighings).toEqual(["p7 1250"]);
   });
 
   it("answers that weighing a product is unavailable when it fails or is not possible, and reports why", async () => {
@@ -2035,7 +2050,12 @@ describe("answerRendererRequest", () => {
       request_id: "r91",
       outcome: { kind: "unavailable" },
     };
-    const request = { type: "weigh-product", request_id: "r91", product_id: "p2" } as const;
+    const request = {
+      type: "weigh-product",
+      request_id: "r91",
+      product_id: "p2",
+      confirmed_weight_thousandths: null,
+    } as const;
 
     expect(await answerRendererRequest(failing.deps, request)).toEqual(unavailable);
     expect(failing.failures).toEqual([{ context: "weighing a product on the scale", error }]);
@@ -3035,6 +3055,19 @@ describe("answerRendererRequest", () => {
         "changing a line's weight",
         "weight l1 2000 1500",
         "change-line-weight-result",
+      ],
+      [
+        "weigh-line",
+        {
+          type: "weigh-line",
+          line_id: "l1",
+          expected_weight_thousandths: 1500,
+          confirmed_weight_thousandths: 1400,
+        } as const,
+        "weighLine",
+        "weighing a line on the scale",
+        "weigh l1 1500 1400",
+        "weigh-line-result",
       ],
       [
         "adjust-sale-line",

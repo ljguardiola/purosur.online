@@ -1,5 +1,6 @@
 import {
   isCalendarDay,
+  mayBeCountedQuantity,
   mayBeMovementQuantity,
   SALE_UNITS,
   SEARCH_RESULT_LIMIT,
@@ -47,6 +48,7 @@ const weighCountedProductMessageSchema = z.object({
   type: z.literal("weigh-counted-product"),
   request_id: requestId,
   product_id: z.string(),
+  confirmed_weight_thousandths: z.int().nonnegative().nullable(),
 });
 
 export const stockRendererToCoreMessageSchema = z.discriminatedUnion("type", [
@@ -149,8 +151,13 @@ const searchCountableProductsOutcomeSchema = z.discriminatedUnion("kind", [
 export type SearchCountableProductsOutcome = z.infer<typeof searchCountableProductsOutcomeSchema>;
 
 const weighCountedProductOutcomeSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("weighed"), weight_thousandths: countedQuantitySchema }),
+  z.object({
+    kind: z.literal("weighed"),
+    weight_thousandths: z.int().refine(mayBeCountedQuantity),
+  }),
+  z.object({ kind: z.literal("confirmed"), weight_thousandths: countedQuantitySchema }),
   z.object({ kind: z.literal("weighing") }),
+  z.object({ kind: z.literal("zero_weight") }),
   z.object({ kind: z.literal("scale_unavailable") }),
   z.object({ kind: z.literal("unknown_product") }),
   z.object({ kind: z.literal("not_sold_by_weight") }),
