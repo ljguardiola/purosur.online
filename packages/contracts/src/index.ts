@@ -409,6 +409,14 @@ export {
 } from "./pricing/price-list.js";
 export type { PriceMargin } from "./pricing/price-margin.js";
 export { priceMarginQuerySchema, priceMarginSchema } from "./pricing/price-margin.js";
+export type {
+  PriceRecommendation,
+  PriceRecommendationQuery,
+} from "./pricing/price-recommendation.js";
+export {
+  priceRecommendationQuerySchema,
+  priceRecommendationSchema,
+} from "./pricing/price-recommendation.js";
 export type { PriceSetBody } from "./pricing/price-set.js";
 export { priceSetBodySchema } from "./pricing/price-set.js";
 export type {
