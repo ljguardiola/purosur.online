@@ -26,7 +26,10 @@ export interface InitialCountRequests {
   withdraw: (movementId: string) => Promise<WithdrawInitialCountLineOutcome>;
   find: (code: string) => Promise<FindCountableProductOutcome>;
   search: (query: string) => Promise<SearchCountableProductsOutcome>;
-  weigh: (productId: string) => Promise<WeighCountedProductOutcome>;
+  weigh: (
+    productId: string,
+    confirmedWeightThousandths: number | null,
+  ) => Promise<WeighCountedProductOutcome>;
 }
 
 export function createInitialCountRequests(
@@ -38,7 +41,8 @@ export function createInitialCountRequests(
     withdraw: (movementId) => withdrawInitialCountLineFor(deps, movementId),
     find: (code) => findCountableProductFor(deps, code),
     search: (query) => searchCountableProductsFor(deps, query),
-    weigh: (productId) => weighCountedProductFor(deps, productId),
+    weigh: (productId, confirmedWeightThousandths) =>
+      weighCountedProductFor(deps, productId, confirmedWeightThousandths),
   };
 }
 
@@ -132,7 +136,8 @@ export async function answerInitialCountRequest(
         outcome: await attempt(
           reportFailure,
           "weighing a product to count on the scale",
-          initialCount && (() => initialCount.weigh(message.product_id)),
+          initialCount &&
+            (() => initialCount.weigh(message.product_id, message.confirmed_weight_thousandths)),
         ),
       };
   }

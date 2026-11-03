@@ -49,6 +49,7 @@ export type AlertsListScreenProps = {
 };
 
 const NO_ALERTS: AlertSummary[] = [];
+const LOADING_PAST_LAST_PAGE: CloudData<AlertListPage> = { status: "loading" };
 
 // Every search is a request against the backoffice's own hourly rate limit, so one is sent only
 // once typing pauses, not per keystroke.
@@ -192,7 +193,7 @@ export function AlertsListScreen({
       setPage(settledLastPage);
     }
   }, [settledLastPage, page]);
-  const data: CloudData<AlertListPage> = isPastLastPage ? { status: "loading" } : read;
+  const data = isPastLastPage ? LOADING_PAST_LAST_PAGE : read;
 
   const alerts = data.status === "loaded" ? data.value.alerts : NO_ALERTS;
   const openCount = data.status === "loaded" ? data.value.openCount : 0;

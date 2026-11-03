@@ -237,6 +237,7 @@ describe("synced event payloads", () => {
       "sale_cancelled@9",
       "sale_completed@1",
       "sale_completed@10",
+      "sale_completed@11",
       "sale_completed@2",
       "sale_completed@3",
       "sale_completed@4",
@@ -257,6 +258,7 @@ describe("synced event payloads", () => {
       "sale_voided@2",
       "sale_voided@3",
       "sale_voided@4",
+      "sale_voided@5",
     ]);
   });
 
@@ -342,10 +344,10 @@ describe("synced event payloads", () => {
 
   it.each([
     ["an unknown event type", "sale_opened", 1],
-    ["a sale_completed version nobody emitted", "sale_completed", 11],
+    ["a sale_completed version nobody emitted", "sale_completed", 12],
     ["a sale_cancelled version nobody emitted", "sale_cancelled", 11],
     ["a sale_line_removed version nobody emitted", "sale_line_removed", 2],
-    ["a sale_voided version nobody emitted", "sale_voided", 5],
+    ["a sale_voided version nobody emitted", "sale_voided", 6],
     ["version zero", "sale_completed", 0],
     ["a cash_session_opened version nobody emitted", "cash_session_opened", 2],
     ["a cash_session_closed version nobody emitted", "cash_session_closed", 2],
@@ -1154,6 +1156,50 @@ describe("synced event payloads", () => {
         false,
       );
       expect(accepts("qr_payment_replaced", 1, { ...replaced(), sale_id: "" })).toBe(false);
+    });
+  });
+
+  describe("the cash rounding of a sale", () => {
+    const rounded = {
+      sale_completed: (cashRounding: unknown) => ({
+        ...recordedPayload("sale_completed", 11),
+        cash_rounding: cashRounding,
+      }),
+      sale_voided: (cashRounding: unknown) => ({
+        ...recordedPayload("sale_voided", 5),
+        cash_rounding: cashRounding,
+      }),
+    };
+    const versions = { sale_completed: 11, sale_voided: 5 } as const;
+
+    it.each(["sale_completed", "sale_voided"] as const)(
+      "accepts a %s that names a rounding between nothing and a cent short of the smallest bill",
+      (eventType) => {
+        expect(accepts(eventType, versions[eventType], rounded[eventType](0))).toBe(true);
+        expect(accepts(eventType, versions[eventType], rounded[eventType](7000))).toBe(true);
+        expect(accepts(eventType, versions[eventType], rounded[eventType](9999))).toBe(true);
+      },
+    );
+
+    it.each([
+      ["a rounding of the smallest bill", 10000],
+      ["a negative rounding", -1],
+      ["a fractional rounding", 1.5],
+      ["a rounding that is not a number", "7000"],
+      ["no rounding", undefined],
+    ])("refuses a sale with %s", (_case, cashRounding) => {
+      for (const eventType of ["sale_completed", "sale_voided"] as const) {
+        expect(accepts(eventType, versions[eventType], rounded[eventType](cashRounding))).toBe(
+          false,
+        );
+      }
+    });
+
+    it.each([
+      ["sale_completed", 10],
+      ["sale_voided", 4],
+    ])("keeps reading a %s v%i, which names no rounding", (eventType, version) => {
+      expect(accepts(eventType, version, recordedPayload(eventType, version))).toBe(true);
     });
   });
 

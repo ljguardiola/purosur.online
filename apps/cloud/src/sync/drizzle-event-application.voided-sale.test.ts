@@ -137,6 +137,7 @@ describe("recording the voided sales of applied events", () => {
       voidAuthorizedBy: SUPERVISOR,
       voidedBy: CASHIER,
       total: 4800,
+      cashRounding: 0,
       saleDiscountKind: null,
       saleDiscountValue: null,
       saleDiscountAmount: null,
@@ -151,6 +152,13 @@ describe("recording the voided sales of applied events", () => {
       deferredInvoicePrintAttemptedAt: null,
       deferredInvoicePrintedAt: null,
     });
+  });
+
+  it("keeps the cash rounding the sale was completed with", async () => {
+    await recordVoided({ sale: { cashRounding: 7000 } });
+
+    const [row] = await system.db.select().from(sales);
+    expect(row).toMatchObject({ state: "VOIDED", cashRounding: 7000 });
   });
 
   it("records who voided the sale as the actor of the event, apart from the seller", async () => {

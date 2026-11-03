@@ -906,7 +906,7 @@ describe("createCoreClient", () => {
     const port = new FakePort();
     client.connect(port);
 
-    const weighed = client.weighProduct("p2");
+    const weighed = client.weighProduct("p2", 1250);
     port.answer({
       type: "weigh-product-result",
       request_id: "request-1",
@@ -915,7 +915,36 @@ describe("createCoreClient", () => {
 
     expect(await weighed).toEqual({ kind: "weighing" });
     expect(port.posted).toEqual([
-      { type: "weigh-product", request_id: "request-1", product_id: "p2" },
+      {
+        type: "weigh-product",
+        request_id: "request-1",
+        product_id: "p2",
+        confirmed_weight_thousandths: 1250,
+      },
+    ]);
+  });
+
+  it("asks the core to weigh a line on the scale and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const weighed = client.weighLine("l1", 1250, null);
+    port.answer({
+      type: "weigh-line-result",
+      request_id: "request-1",
+      outcome: { kind: "stable", weight_thousandths: 1500, amount: 13_500 },
+    });
+
+    expect(await weighed).toEqual({ kind: "stable", weight_thousandths: 1500, amount: 13_500 });
+    expect(port.posted).toEqual([
+      {
+        type: "weigh-line",
+        request_id: "request-1",
+        line_id: "l1",
+        expected_weight_thousandths: 1250,
+        confirmed_weight_thousandths: null,
+      },
     ]);
   });
 
@@ -1050,7 +1079,7 @@ describe("createCoreClient", () => {
     const port = new FakePort();
     client.connect(port);
 
-    const weighed = client.weighCountedProduct("p2");
+    const weighed = client.weighCountedProduct("p2", 1250);
     port.answer({
       type: "weigh-counted-product-result",
       request_id: "request-1",
@@ -1059,7 +1088,12 @@ describe("createCoreClient", () => {
 
     expect(await weighed).toEqual({ kind: "weighed", weight_thousandths: 1250 });
     expect(port.posted).toEqual([
-      { type: "weigh-counted-product", request_id: "request-1", product_id: "p2" },
+      {
+        type: "weigh-counted-product",
+        request_id: "request-1",
+        product_id: "p2",
+        confirmed_weight_thousandths: 1250,
+      },
     ]);
   });
 
@@ -1170,6 +1204,55 @@ describe("createCoreClient", () => {
         request_id: "request-1",
         discount: { kind: "AMOUNT", value: 270_000 },
         reason: "Compra grande",
+      },
+    ]);
+  });
+
+  it("asks the core to charge a sale in cash with a discount on its total and who authorizes it", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    const authorization = { user_id: "u2", pin: "1234" };
+
+    const charged = client.chargeSaleInCashWithChangeDiscount(
+      "sale-1",
+      1_000_000,
+      10_000,
+      authorization,
+    );
+    port.answer({
+      type: "charge-sale-in-cash-with-change-discount-result",
+      request_id: "request-1",
+      outcome: { kind: "discount_exceeds_sale" },
+    });
+
+    expect(await charged).toEqual({ kind: "discount_exceeds_sale" });
+    expect(port.posted).toEqual([
+      {
+        type: "charge-sale-in-cash-with-change-discount",
+        request_id: "request-1",
+        sale_id: "sale-1",
+        tendered: 1_000_000,
+        discount_amount: 10_000,
+        authorization,
+      },
+    ]);
+  });
+
+  it("asks the core to charge a sale in cash with a discount without an authorization when none is given", () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    void client.chargeSaleInCashWithChangeDiscount("sale-1", 1_000_000, 10_000, undefined);
+
+    expect(port.posted).toEqual([
+      {
+        type: "charge-sale-in-cash-with-change-discount",
+        request_id: "request-1",
+        sale_id: "sale-1",
+        tendered: 1_000_000,
+        discount_amount: 10_000,
       },
     ]);
   });
@@ -1520,6 +1603,30 @@ describe("createCoreClient", () => {
       ]);
     },
   );
+
+  it("asks the core what the sale needs once the discount on the total being typed is taken off", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.cashCharge("s1", 5000, 100);
+    port.answer({
+      type: "cash-charge",
+      request_id: "request-1",
+      charge: { kind: "discount_exceeds_sale" },
+    });
+
+    expect(await asked).toEqual({ kind: "discount_exceeds_sale" });
+    expect(port.posted).toEqual([
+      {
+        type: "cash-charge-request",
+        request_id: "request-1",
+        sale_id: "s1",
+        tendered: 5000,
+        sale_discount: 100,
+      },
+    ]);
+  });
 
   it("rejects when the core cannot say what the sale needs", async () => {
     const client = clientWithSequentialIds();

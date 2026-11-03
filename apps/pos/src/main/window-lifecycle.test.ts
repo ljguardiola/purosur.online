@@ -11,6 +11,8 @@ const policy = { maxAttempts: 3, baseDelayMs: 100, maxDelayMs: 1000, stableRunMs
 
 class FakeWindow implements RevivableWindow {
   shown = 0;
+  maximized = false;
+  readonly calls: string[] = [];
   reloads = 0;
   destroyed = false;
   private readyListener: (() => void) | undefined;
@@ -33,8 +35,18 @@ class FakeWindow implements RevivableWindow {
     this.readyListener = listener;
   }
 
+  maximize(): void {
+    this.maximized = true;
+    this.calls.push("maximize");
+  }
+
   show(): void {
     this.shown += 1;
+    this.calls.push("show");
+  }
+
+  restoreByHand(): void {
+    this.maximized = false;
   }
 
   isDestroyed(): boolean {
@@ -97,6 +109,58 @@ describe("showWhenReadyAndReviveRenderer", () => {
     window.becomeReady();
 
     expect(window.shown).toBe(1);
+  });
+
+  it("maximizes the window before it first shows, so it never appears at its smaller size", () => {
+    const { window } = setUp();
+
+    window.becomeReady();
+
+    expect(window.calls).toEqual(["maximize", "show"]);
+  });
+
+  it("shows the window maximized when its page fails to load", () => {
+    const { window } = setUp();
+
+    window.failLoad({ code: -6, description: "ERR_FILE_NOT_FOUND" });
+
+    expect(window.calls).toEqual(["maximize", "show"]);
+  });
+
+  it("shows the window maximized once the reload attempts are exhausted before its first paint", () => {
+    const { window, runPendingReload } = setUp();
+
+    for (let failure = 0; failure < 4; failure += 1) {
+      window.loseRenderer("crashed");
+      runPendingReload();
+    }
+
+    expect(window.calls).toEqual(["maximize", "show"]);
+  });
+
+  it("keeps the size the cashier gave the window when a later reload fails to load", () => {
+    const { window, runPendingReload } = setUp();
+    window.becomeReady();
+    window.restoreByHand();
+
+    window.loseRenderer("crashed");
+    runPendingReload();
+    window.failLoad({ code: -6, description: "ERR_FILE_NOT_FOUND" });
+
+    expect(window.maximized).toBe(false);
+  });
+
+  it("keeps the size the cashier gave the window when the reload attempts run out", () => {
+    const { window, runPendingReload } = setUp();
+    window.becomeReady();
+    window.restoreByHand();
+
+    for (let failure = 0; failure < 4; failure += 1) {
+      window.loseRenderer("crashed");
+      runPendingReload();
+    }
+
+    expect(window.maximized).toBe(false);
   });
 
   it("shows the window when its page fails to load, since it will never be ready to show", () => {

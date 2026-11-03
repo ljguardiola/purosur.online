@@ -3,6 +3,8 @@ import type { ManualAdjustmentValue } from "./manual-adjustment.js";
 import type { SaleLine } from "./sale.js";
 import { saleTotal } from "./sale-line.js";
 
+export const CHANGE_DISCOUNT_REASON = "Falta de cambio";
+
 export type SaleDiscountValue = Extract<ManualAdjustmentValue, { kind: "PERCENT" | "AMOUNT" }>;
 
 export type SaleDiscount = SaleDiscountValue & {

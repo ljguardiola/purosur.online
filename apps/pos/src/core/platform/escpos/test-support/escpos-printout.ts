@@ -84,8 +84,15 @@ export function printoutOf(bytes: Uint8Array): Printout {
         if (mode !== 0) {
           throw new Error(`unknown raster mode ${mode}`);
         }
+        const rows = bytes.subarray(position, position + widthBytes * height);
         position += widthBytes * height;
-        marker(`[logo ${widthBytes * 8}x${height}]`);
+        const inkedRows = height - blankRowsAtTheBottom(rows, widthBytes);
+        if (inkedRows > 0) {
+          marker(`[logo ${widthBytes * 8}x${inkedRows}]`);
+        }
+        if (inkedRows < height) {
+          marker(`[blank dots ${height - inkedRows}]`);
+        }
       } else if (command === 0x28 && take() === 0x6b) {
         const length = take() + take() * 256;
         if (take() !== 0x31) {
@@ -108,6 +115,15 @@ export function printoutOf(bytes: Uint8Array): Printout {
   }
   flushPending();
   return { text: lines.join("\n"), textLines: rows.map(({ text }) => text), rows };
+}
+
+function blankRowsAtTheBottom(rows: Uint8Array, widthBytes: number): number {
+  let lastInk = rows.length - 1;
+  while (lastInk >= 0 && rows[lastInk] === 0) {
+    lastInk -= 1;
+  }
+  const height = rows.length / widthBytes;
+  return lastInk === -1 ? height : height - 1 - Math.floor(lastInk / widthBytes);
 }
 
 function qrMarker([fn = 0, ...data]: number[]): string {

@@ -1,5 +1,5 @@
 {
-  "id": "a555d7e4-32a7-4156-a345-49f0411deddb",
+  "id": "ba5d1311-ca17-4e3c-8865-8b85eb97de8d",
   "prevId": "994c8c22-6854-4848-b241-0ceb610b9c00",
   "version": "7",
   "dialect": "postgresql",
@@ -706,29 +706,7 @@
           "notNull": false
         }
       },
-      "indexes": {
-        "audit_log_entity_entity_id_idx": {
-          "name": "audit_log_entity_entity_id_idx",
-          "columns": [
-            {
-              "expression": "entity",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "entity_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "audit_log_actor_id_users_id_fk": {
           "name": "audit_log_actor_id_users_id_fk",
@@ -10267,6 +10245,13 @@
           "primaryKey": false,
           "notNull": false
         },
+        "cash_rounding": {
+          "name": "cash_rounding",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
         "operation_number": {
           "name": "operation_number",
           "type": "bigint",
@@ -10390,6 +10375,10 @@
         "sales_sale_discount_amount_check": {
           "name": "sales_sale_discount_amount_check",
           "value": "(\"sales\".\"sale_discount_amount\" IS NULL) = (\"sales\".\"sale_discount_kind\" IS NULL)\n        AND (\"sales\".\"sale_discount_amount\" IS NULL OR \"sales\".\"sale_discount_amount\" >= 0)"
+        },
+        "sales_cash_rounding_check": {
+          "name": "sales_cash_rounding_check",
+          "value": "\"sales\".\"cash_rounding\" >= 0 AND \"sales\".\"cash_rounding\" < 10000"
         },
         "sales_sale_discount_reason_check": {
           "name": "sales_sale_discount_reason_check",

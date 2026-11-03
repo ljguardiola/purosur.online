@@ -104,6 +104,43 @@ describe("writing ESC/POS printer commands", () => {
     ]);
   });
 
+  it("prints a bottom margin as blank rows of the image's last strip", () => {
+    const rows = Uint8Array.from({ length: 280 }, (_, index) => (index & 0xff) | 1);
+    expect(
+      written((out) =>
+        out.rasterImage({ widthDots: 8, heightDots: 280, rows }, { bottomMarginDots: 16 }),
+      ),
+    ).toEqual([
+      ...[GS, 0x76, 0x30, 0, 0x01, 0x00, 0xff, 0x00],
+      ...rows.subarray(0, 255),
+      ...[GS, 0x76, 0x30, 0, 0x01, 0x00, 0x29, 0x00],
+      ...rows.subarray(255),
+      ...new Array(16).fill(0),
+    ]);
+  });
+
+  it("starts a new strip for the blank rows of a bottom margin that do not fit in the last one", () => {
+    const rows = Uint8Array.from({ length: 250 }, () => 0xff);
+    expect(
+      written((out) =>
+        out.rasterImage({ widthDots: 8, heightDots: 250, rows }, { bottomMarginDots: 16 }),
+      ),
+    ).toEqual([
+      ...[GS, 0x76, 0x30, 0, 0x01, 0x00, 0xff, 0x00],
+      ...rows,
+      ...new Array(5).fill(0),
+      ...[GS, 0x76, 0x30, 0, 0x01, 0x00, 0x0b, 0x00],
+      ...new Array(11).fill(0),
+    ]);
+  });
+
+  it("advances the paper below a printed image with a blank image as tall as the margin", () => {
+    expect(written((out) => out.blankImage(5))).toEqual([
+      ...[GS, 0x76, 0x30, 0, 0x01, 0x00, 0x05, 0x00],
+      ...new Array(5).fill(0),
+    ]);
+  });
+
   it("feeds five lines and cuts the paper partially at the end", () => {
     expect(written((out) => out.cut())).toEqual([ESC, 0x64, 5, GS, 0x56, 1]);
   });

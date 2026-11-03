@@ -268,6 +268,9 @@ function coreAnswering(
     async weighProduct() {
       return { kind: "scale_unavailable" };
     },
+    async weighLine() {
+      return { kind: "scale_unavailable" };
+    },
     async readClockGuard() {
       return { kind: "unavailable" };
     },
@@ -417,6 +420,9 @@ function coreAnswering(
       return sales.chargeSaleInCash === undefined
         ? { kind: "unavailable" }
         : sales.chargeSaleInCash(saleId, tendered);
+    },
+    async chargeSaleInCashWithChangeDiscount() {
+      return { kind: "unavailable" };
     },
     async chargeSaleByTransfer(saleId, amount) {
       return sales.chargeSaleByTransfer === undefined

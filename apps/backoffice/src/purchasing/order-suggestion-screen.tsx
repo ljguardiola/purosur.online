@@ -147,14 +147,9 @@ export function OrderSuggestionScreen({
     }
   }, [search, filters]);
 
-  const supplierOptions = sortedItems(
-    suppliers.map((supplier) => ({ value: supplier.id, label: supplier.name })),
-    { order: supplierNameOrder, direction: "ascending" },
-  );
-  const knownSupplierIds = new Set(supplierOptions.map((supplier) => supplier.value));
-  const choices = purchaseOrderChoicesOf(lines, drafts, knownSupplierIds);
   const build = useMutation({
-    mutationFn: () => services.buildPurchaseOrders({ choices }),
+    mutationFn: (choices: ReturnType<typeof purchaseOrderChoicesOf>) =>
+      services.buildPurchaseOrders({ choices }),
     onSuccess: (outcome) => {
       switch (outcome.kind) {
         case "ok":
@@ -181,6 +176,12 @@ export function OrderSuggestionScreen({
     },
   });
 
+  const supplierOptions = sortedItems(
+    suppliers.map((supplier) => ({ value: supplier.id, label: supplier.name })),
+    { order: supplierNameOrder, direction: "ascending" },
+  );
+  const knownSupplierIds = new Set(supplierOptions.map((supplier) => supplier.value));
+  const choices = purchaseOrderChoicesOf(lines, drafts, knownSupplierIds);
   const columns = [
     dataColumn({
       id: "product",
@@ -334,7 +335,7 @@ export function OrderSuggestionScreen({
                   disabled={choices.length === 0 || build.isPending}
                   onPress={() => {
                     setBuildNotice(null);
-                    build.mutate();
+                    build.mutate(choices);
                   }}
                 >
                   Armar pedidos

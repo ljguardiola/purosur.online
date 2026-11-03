@@ -15,6 +15,7 @@ import type {
   ChangeLineWeightOutcome,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
+  ChargeSaleInCashWithChangeDiscountOutcome,
   ChargeSaleOnStandaloneTerminalOutcome,
   ChargeSaleWithPaidOrderOutcome,
   CloseCashSessionOutcome,
@@ -64,6 +65,7 @@ import type {
   SignInUser,
   StartMercadoPagoChargeOutcome,
   VoidSaleOutcome,
+  WeighLineOutcome,
   WeighProductOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey, RegisterService, ReturnDraftLine } from "@purosur/domain";
@@ -90,8 +92,10 @@ import type {
   ApplySaleDiscountRequest,
   CancelLockedSaleRequest,
   CancelPaidSaleRequest,
+  CashChargeReadRequest,
   ChargeSaleByTransferRequest,
   ChargeSaleInCashRequest,
+  ChargeSaleInCashWithChangeDiscountRequest,
   ChargeSaleOnStandaloneTerminalRequest,
   PreviewSaleDiscountRequest,
   PreviewSaleLineAdjustmentRequest,
@@ -162,12 +166,29 @@ export interface RendererRequestDeps {
   addWeighedProduct:
     | ((productId: string, weightThousandths: number) => Promise<AddWeighedProductOutcome>)
     | undefined;
-  weighProduct: ((productId: string) => Promise<WeighProductOutcome>) | undefined;
+  weighProduct:
+    | ((
+        productId: string,
+        confirmedWeightThousandths: number | null,
+      ) => Promise<WeighProductOutcome>)
+    | undefined;
+  weighLine:
+    | ((
+        lineId: string,
+        expectedWeightThousandths: number,
+        confirmedWeightThousandths: number | null,
+      ) => Promise<WeighLineOutcome>)
+    | undefined;
   initialCount: InitialCountRequests | undefined;
   clockGuard: ClockGuardRequests | undefined;
   contingencyBackupTickets: ContingencyBackupTicketRequests | undefined;
   currentSale: (() => Promise<CurrentSaleAnswer>) | undefined;
-  cashCharge: ((request: ChargeSaleInCashRequest) => Promise<CashChargeAnswer>) | undefined;
+  cashCharge: ((request: CashChargeReadRequest) => Promise<CashChargeAnswer>) | undefined;
+  chargeSaleInCashWithChangeDiscount:
+    | ((
+        request: ChargeSaleInCashWithChangeDiscountRequest,
+      ) => Promise<ChargeSaleInCashWithChangeDiscountOutcome>)
+    | undefined;
   changeLineQuantity:
     | ((
         lineId: string,
@@ -709,7 +730,7 @@ async function readCurrentSale(deps: RendererRequestDeps): Promise<CurrentSaleAn
 
 async function readCashCharge(
   deps: RendererRequestDeps,
-  request: ChargeSaleInCashRequest,
+  request: CashChargeReadRequest,
 ): Promise<CashChargeAnswer | undefined> {
   try {
     return await deps.cashCharge?.(request);
@@ -1254,6 +1275,25 @@ export async function answerRendererRequest(
           tendered: message.tendered,
         }),
       };
+    case "charge-sale-in-cash-with-change-discount": {
+      const { chargeSaleInCashWithChangeDiscount } = deps;
+      return {
+        type: "charge-sale-in-cash-with-change-discount-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "charging a sale in cash with a discount on its total",
+          chargeSaleInCashWithChangeDiscount &&
+            (() =>
+              chargeSaleInCashWithChangeDiscount({
+                saleId: message.sale_id,
+                tendered: message.tendered,
+                discountAmount: message.discount_amount,
+                authorization: message.authorization,
+              })),
+        ),
+      };
+    }
     case "charge-sale-by-transfer":
       return {
         type: "charge-sale-by-transfer-result",
@@ -1361,7 +1401,26 @@ export async function answerRendererRequest(
         outcome: await attemptSaleChange(
           deps,
           "weighing a product on the scale",
-          weighProduct && (() => weighProduct(message.product_id)),
+          weighProduct &&
+            (() => weighProduct(message.product_id, message.confirmed_weight_thousandths)),
+        ),
+      };
+    }
+    case "weigh-line": {
+      const { weighLine } = deps;
+      return {
+        type: "weigh-line-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "weighing a line on the scale",
+          weighLine &&
+            (() =>
+              weighLine(
+                message.line_id,
+                message.expected_weight_thousandths,
+                message.confirmed_weight_thousandths,
+              )),
         ),
       };
     }
@@ -1392,6 +1451,7 @@ export async function answerRendererRequest(
       const charge = await readCashCharge(deps, {
         saleId: message.sale_id,
         tendered: message.tendered,
+        ...(message.sale_discount === undefined ? {} : { saleDiscount: message.sale_discount }),
       });
       if (charge === "not_permitted") {
         return { type: "cash-charge-not-permitted", request_id: message.request_id };

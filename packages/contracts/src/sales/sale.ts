@@ -19,6 +19,7 @@ import {
   authorizedBySchema,
   noThresholdRefusalSchema,
   partiallyPaidOutcomeSchema,
+  pinAttemptRefusalSchema,
   plannedRefundSchema,
   reachesThresholdRefusalSchema,
   recordIdSchema,
@@ -137,13 +138,20 @@ export const saleSchema = z.object({
 export type OpenSale = z.infer<typeof saleSchema>;
 export type CurrentSaleAnswer = OpenSale | null | "not_permitted";
 
-export const cashChargeSchema = z.discriminatedUnion("kind", [
+const cashChargeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("invalid_amount") }),
   z.object({ kind: z.literal("partial"), applied: z.number(), pending: z.number() }),
   z.object({ kind: z.literal("covered"), applied: z.number(), change: z.number() }),
 ]);
 export type CashCharge = z.infer<typeof cashChargeSchema>;
-export type CashChargeAnswer = CashCharge | null | "not_permitted";
+
+export const cashChargeReadSchema = z.discriminatedUnion("kind", [
+  ...cashChargeSchema.options,
+  z.object({ kind: z.literal("discount_exceeds_sale") }),
+  z.object({ kind: z.literal("sale_has_payments") }),
+]);
+type CashChargeRead = z.infer<typeof cashChargeReadSchema>;
+export type CashChargeAnswer = CashChargeRead | null | "not_permitted";
 
 const addedOutcome = z.object({
   kind: z.literal("added"),
@@ -401,10 +409,20 @@ export const addWeighedProductOutcomeSchema = z.discriminatedUnion("kind", [
 ]);
 export type AddWeighedProductOutcome = z.infer<typeof addWeighedProductOutcomeSchema>;
 
+const scaleWeighingOutcomes = [
+  z.object({ kind: z.literal("weighing") }),
+  z.object({ kind: z.literal("zero_weight") }),
+  z.object({
+    kind: z.literal("stable"),
+    weight_thousandths: z.int().nonnegative(),
+    amount: cents,
+  }),
+  z.object({ kind: z.literal("scale_unavailable") }),
+] as const;
+
 export const weighProductOutcomeSchema = z.discriminatedUnion("kind", [
   addedOutcome,
-  z.object({ kind: z.literal("weighing") }),
-  z.object({ kind: z.literal("scale_unavailable") }),
+  ...scaleWeighingOutcomes,
   z.object({ kind: z.literal("product_unavailable") }),
   z.object({ kind: z.literal("not_sold_by_weight") }),
   noPriceOutcome,
@@ -422,6 +440,22 @@ export const weighProductOutcomeSchema = z.discriminatedUnion("kind", [
   unavailableOutcome,
 ]);
 export type WeighProductOutcome = z.infer<typeof weighProductOutcomeSchema>;
+
+export const weighLineOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("changed"),
+    sale: saleSchema,
+    removed_manual_discount: z.boolean(),
+    removed_sale_discount: z.boolean(),
+  }),
+  ...scaleWeighingOutcomes,
+  z.object({ kind: z.literal("unknown_line") }),
+  z.object({ kind: z.literal("stale_weight") }),
+  z.object({ kind: z.literal("not_sold_by_weight") }),
+  saleHasPaymentsOutcome,
+  ...saleRefusalSchemas,
+]);
+export type WeighLineOutcome = z.infer<typeof weighLineOutcomeSchema>;
 
 const foundProductSchema = z.object({
   product_id: z.string(),
@@ -470,6 +504,17 @@ export const chargeSaleInCashOutcomeSchema = z.discriminatedUnion("kind", [
   paidOrderNotAppliedOutcome,
 ]);
 export type ChargeSaleInCashOutcome = z.infer<typeof chargeSaleInCashOutcomeSchema>;
+
+export const chargeSaleInCashWithChangeDiscountOutcomeSchema = z.discriminatedUnion("kind", [
+  ...chargeSaleInCashOutcomeSchema.options,
+  z.object({ kind: z.literal("discount_exceeds_sale") }),
+  saleHasPaymentsOutcome,
+  ...pinAttemptRefusalSchema.options,
+  z.object({ kind: z.literal("lacks_permission") }),
+]);
+export type ChargeSaleInCashWithChangeDiscountOutcome = z.infer<
+  typeof chargeSaleInCashWithChangeDiscountOutcomeSchema
+>;
 
 const chargeSaleConfirmedByHandOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("completed"), sale_id: z.string(), total: cents }),

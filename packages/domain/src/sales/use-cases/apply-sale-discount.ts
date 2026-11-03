@@ -10,7 +10,7 @@ import {
 import { type OpenSaleAnswerStanding, openSaleStandingOf } from "./open-sale-standing-of.js";
 import type { RegisterRestoration } from "./register-restoration.js";
 import { saleChargeRefusal } from "./sale-charge-refusal.js";
-import type { SaleLedger } from "./sale-ledger.js";
+import type { SaleLedger, SaleLedgerTransaction } from "./sale-ledger.js";
 import {
   isSaleLineChangeRefusal,
   type SaleLineChangeRefusal,
@@ -54,25 +54,43 @@ export async function applySaleDiscount<Grant extends ApplySaleDiscountGrant, Re
   }
   const { actorId, authorizedBy } = authorization.grant;
 
-  return ledger.transaction<ApplySaleDiscountOutcome>((tx) => {
-    const sale = saleToChange(tx, actorId, clock, restoration);
-    if (isSaleLineChangeRefusal(sale)) {
-      return sale;
-    }
-    const refusal = saleDiscountRefusal(sale.lines, discount);
-    if (refusal) {
-      return refusal;
-    }
+  return ledger.transaction<ApplySaleDiscountOutcome>((tx) =>
+    applySaleDiscountIn(
+      tx,
+      { restoration, clock, zoneRules },
+      { actorId, authorizedBy, discount, reason },
+    ),
+  );
+}
 
-    const saleDiscount: SaleDiscount = { ...discount, reason, authorizedBy: authorizedBy ?? null };
-    tx.recordSaleDiscount(sale.id, saleDiscount);
-    const discounted = { ...sale, saleDiscount };
-    const moment = clock.now();
-    return {
-      kind: "applied",
-      sale: discounted,
-      chargeRefusal: saleChargeRefusal(tx, discounted, moment, zoneRules.zoneRules()),
-      ...openSaleStandingOf(tx, discounted, moment),
-    };
-  });
+export interface ApplySaleDiscountRules {
+  restoration: RegisterRestoration;
+  clock: Clock;
+  zoneRules: ZoneRulesSource;
+}
+
+export function applySaleDiscountIn(
+  tx: SaleLedgerTransaction,
+  { restoration, clock, zoneRules }: ApplySaleDiscountRules,
+  { actorId, authorizedBy, discount, reason }: ApplySaleDiscountInput & ApplySaleDiscountGrant,
+): ApplySaleDiscountOutcome {
+  const sale = saleToChange(tx, actorId, clock, restoration);
+  if (isSaleLineChangeRefusal(sale)) {
+    return sale;
+  }
+  const refusal = saleDiscountRefusal(sale.lines, discount);
+  if (refusal) {
+    return refusal;
+  }
+
+  const saleDiscount: SaleDiscount = { ...discount, reason, authorizedBy: authorizedBy ?? null };
+  tx.recordSaleDiscount(sale.id, saleDiscount);
+  const discounted = { ...sale, saleDiscount };
+  const moment = clock.now();
+  return {
+    kind: "applied",
+    sale: discounted,
+    chargeRefusal: saleChargeRefusal(tx, discounted, moment, zoneRules.zoneRules()),
+    ...openSaleStandingOf(tx, discounted, moment),
+  };
 }

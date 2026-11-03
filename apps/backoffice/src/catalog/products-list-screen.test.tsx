@@ -2,6 +2,7 @@ import type { CategorySummary, ListedProduct } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { withReadsCounted } from "../platform/test-support/reads-counted";
 import { productsListFilters } from "./routes";
 import { almonds, driedFruits, groceries, honey } from "./test-support/products";
 import {
@@ -589,3 +590,20 @@ test.each([
     await expect.element(screen.getByText(countText, { exact: true })).toBeVisible();
   },
 );
+
+test("typing in the search renders none of the listed products again", async () => {
+  const services = createServices();
+  const listed = withReadsCounted([honey, almonds], "saleUnit");
+  mockLoaded(services, listed.items);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("2 productos activos")).toBeVisible();
+  listed.resetReads();
+
+  await userEvent.type(screen.getByPlaceholder("Buscar por nombre o código de barras"), "a");
+
+  await expect
+    .element(screen.getByPlaceholder("Buscar por nombre o código de barras"))
+    .toHaveValue("a");
+  await expect.element(screen.getByText("2 productos activos")).toBeVisible();
+  expect(listed.reads()).toBe(0);
+});

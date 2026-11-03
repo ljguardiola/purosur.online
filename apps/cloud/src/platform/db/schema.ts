@@ -34,6 +34,7 @@ import {
   PURCHASE_ORDER_STATES,
   RECEIPT_TYPES,
   type RejectedDocumentRemedy,
+  SMALLEST_CASH_BILL,
   SNAPSHOT_CORRUPTION_STAGES,
   SNAPSHOT_FAILURE_REASONS,
   SNAPSHOT_GENERATION_STATUSES,
@@ -1632,6 +1633,7 @@ export const sales = pgTable(
     saleDiscountAmount: bigint("sale_discount_amount", { mode: "number" }),
     saleDiscountReason: text("sale_discount_reason"),
     saleDiscountAuthorizedBy: text("sale_discount_authorized_by"),
+    cashRounding: bigint("cash_rounding", { mode: "number" }).notNull().default(0),
     operationNumber: bigint("operation_number", { mode: "number" }),
     printAttemptedAt: timestamp("print_attempted_at", { withTimezone: true }),
     printedAt: timestamp("printed_at", { withTimezone: true }),
@@ -1677,6 +1679,10 @@ export const sales = pgTable(
       "sales_sale_discount_amount_check",
       sql`(${table.saleDiscountAmount} IS NULL) = (${table.saleDiscountKind} IS NULL)
         AND (${table.saleDiscountAmount} IS NULL OR ${table.saleDiscountAmount} >= 0)`,
+    ),
+    check(
+      "sales_cash_rounding_check",
+      sql`${table.cashRounding} >= 0 AND ${table.cashRounding} < ${sql.raw(String(SMALLEST_CASH_BILL))}`,
     ),
     check(
       "sales_sale_discount_reason_check",

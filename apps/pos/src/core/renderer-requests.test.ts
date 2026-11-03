@@ -13,6 +13,7 @@ import type {
   ChangeLineWeightOutcome,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
+  ChargeSaleInCashWithChangeDiscountOutcome,
   ChargeSaleOnStandaloneTerminalOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
@@ -54,6 +55,7 @@ import type {
   SignInLookupOutcome,
   SignInOutcome,
   VoidSaleOutcome,
+  WeighLineOutcome,
   WeighProductOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
@@ -74,6 +76,7 @@ import type {
   AdjustSaleLineRequest,
   ApplySaleDiscountRequest,
   CancelPaidSaleRequest,
+  ChargeSaleInCashWithChangeDiscountRequest,
   PreviewSaleDiscountRequest,
   PreviewSaleLineAdjustmentRequest,
 } from "./sales/sale-requests";
@@ -125,7 +128,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   const weighings: string[] = [];
   const kindLookups: string[] = [];
   const saleLookups: string[] = [];
-  const chargeReads: { saleId: string; tendered: number }[] = [];
+  const chargeReads: { saleId: string; tendered: number; saleDiscount?: number | undefined }[] = [];
   const previewReads: number[] = [];
   const saleChanges: string[] = [];
   const signOuts: string[] = [];
@@ -274,6 +277,20 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
             request.discount.kind,
             request.discount.value,
             request.reason,
+            request.authorization?.user_id ?? "alone",
+          ].join(" "),
+        );
+        return { kind: "no_open_sale" };
+      },
+      chargeSaleInCashWithChangeDiscount: async (
+        request: ChargeSaleInCashWithChangeDiscountRequest,
+      ): Promise<ChargeSaleInCashWithChangeDiscountOutcome> => {
+        saleChanges.push(
+          [
+            "charge-with-discount",
+            request.saleId,
+            request.tendered,
+            request.discountAmount,
             request.authorization?.user_id ?? "alone",
           ].join(" "),
         );
@@ -473,9 +490,22 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         weighedAdditions.push([productId, weightThousandths].join(" "));
         return { kind: "product_unavailable" };
       },
-      weighProduct: async (productId: string): Promise<WeighProductOutcome> => {
-        weighings.push(productId);
+      weighProduct: async (
+        productId: string,
+        confirmedWeightThousandths: number | null,
+      ): Promise<WeighProductOutcome> => {
+        weighings.push(`${productId} ${confirmedWeightThousandths}`);
         return { kind: "weighing" };
+      },
+      weighLine: async (
+        lineId: string,
+        expectedWeightThousandths: number,
+        confirmedWeightThousandths: number | null,
+      ): Promise<WeighLineOutcome> => {
+        saleChanges.push(
+          ["weigh", lineId, expectedWeightThousandths, confirmedWeightThousandths].join(" "),
+        );
+        return { kind: "unknown_line" };
       },
       initialCount: undefined,
       clockGuard: undefined,
@@ -487,6 +517,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       cashCharge: async (request: {
         saleId: string;
         tendered: number;
+        saleDiscount?: number | undefined;
       }): Promise<CashChargeAnswer> => {
         chargeReads.push(request);
         return null;
@@ -2017,9 +2048,10 @@ describe("answerRendererRequest", () => {
         type: "weigh-product",
         request_id: "r90",
         product_id: "p7",
+        confirmed_weight_thousandths: 1250,
       }),
     ).toEqual({ type: "weigh-product-result", request_id: "r90", outcome: { kind: "weighing" } });
-    expect(weighings).toEqual(["p7"]);
+    expect(weighings).toEqual(["p7 1250"]);
   });
 
   it("answers that weighing a product is unavailable when it fails or is not possible, and reports why", async () => {
@@ -2035,7 +2067,12 @@ describe("answerRendererRequest", () => {
       request_id: "r91",
       outcome: { kind: "unavailable" },
     };
-    const request = { type: "weigh-product", request_id: "r91", product_id: "p2" } as const;
+    const request = {
+      type: "weigh-product",
+      request_id: "r91",
+      product_id: "p2",
+      confirmed_weight_thousandths: null,
+    } as const;
 
     expect(await answerRendererRequest(failing.deps, request)).toEqual(unavailable);
     expect(failing.failures).toEqual([{ context: "weighing a product on the scale", error }]);
@@ -2282,6 +2319,20 @@ describe("answerRendererRequest", () => {
       tendered: 5000,
     });
     expect(reading.chargeReads).toEqual([{ saleId: "s1", tendered: 5000 }]);
+  });
+
+  it("reads what a tendered amount needs once the discount on the total being typed is taken off", async () => {
+    const reading = deps(true);
+
+    await answerRendererRequest(reading.deps, {
+      type: "cash-charge-request",
+      request_id: "r46",
+      sale_id: "s1",
+      tendered: 10_000,
+      sale_discount: 100,
+    });
+
+    expect(reading.chargeReads).toEqual([{ saleId: "s1", tendered: 10_000, saleDiscount: 100 }]);
   });
 
   it("answers no charge when there is no such sale in progress", async () => {
@@ -3037,6 +3088,19 @@ describe("answerRendererRequest", () => {
         "change-line-weight-result",
       ],
       [
+        "weigh-line",
+        {
+          type: "weigh-line",
+          line_id: "l1",
+          expected_weight_thousandths: 1500,
+          confirmed_weight_thousandths: 1400,
+        } as const,
+        "weighLine",
+        "weighing a line on the scale",
+        "weigh l1 1500 1400",
+        "weigh-line-result",
+      ],
+      [
         "adjust-sale-line",
         {
           type: "adjust-sale-line",
@@ -3074,6 +3138,20 @@ describe("answerRendererRequest", () => {
         "discounting the sale's total",
         "discount PERCENT 10 Cliente frecuente u2",
         "apply-sale-discount-result",
+      ],
+      [
+        "charge-sale-in-cash-with-change-discount",
+        {
+          type: "charge-sale-in-cash-with-change-discount",
+          sale_id: "s1",
+          tendered: 10_000,
+          discount_amount: 100,
+          authorization: { user_id: "u2", pin: "1234" },
+        } as const,
+        "chargeSaleInCashWithChangeDiscount",
+        "charging a sale in cash with a discount on its total",
+        "charge-with-discount s1 10000 100 u2",
+        "charge-sale-in-cash-with-change-discount-result",
       ],
       [
         "preview-sale-discount",

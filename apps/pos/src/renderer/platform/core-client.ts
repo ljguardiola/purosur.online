@@ -17,6 +17,7 @@ import type {
   ChangeLineWeightOutcome,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
+  ChargeSaleInCashWithChangeDiscountOutcome,
   ChargeSaleOnStandaloneTerminalOutcome,
   ChargeSaleWithPaidOrderOutcome,
   CloseCashSessionOutcome,
@@ -99,6 +100,7 @@ import type {
   SyncCoreToRendererMessage,
   VoidSaleOutcome,
   WeighCountedProductOutcome,
+  WeighLineOutcome,
   WeighProductOutcome,
   WithdrawInitialCountLineOutcome,
 } from "@purosur/contracts";
@@ -240,7 +242,15 @@ export interface CoreClient {
     productId: string,
     weightThousandths: number,
   ): Promise<AddWeighedProductOutcome>;
-  weighProduct(productId: string): Promise<WeighProductOutcome>;
+  weighProduct(
+    productId: string,
+    confirmedWeightThousandths: number | null,
+  ): Promise<WeighProductOutcome>;
+  weighLine(
+    lineId: string,
+    expectedWeightThousandths: number,
+    confirmedWeightThousandths: number | null,
+  ): Promise<WeighLineOutcome>;
   readClockGuard(): Promise<ReadClockGuardOutcome>;
   correctRegisterClock(): Promise<CorrectRegisterClockOutcome>;
   readInitialCount(): Promise<ReadInitialCountOutcome>;
@@ -252,7 +262,10 @@ export interface CoreClient {
   withdrawInitialCountLine(movementId: string): Promise<WithdrawInitialCountLineOutcome>;
   findCountableProduct(code: string): Promise<FindCountableProductOutcome>;
   searchCountableProducts(query: string): Promise<SearchCountableProductsOutcome>;
-  weighCountedProduct(productId: string): Promise<WeighCountedProductOutcome>;
+  weighCountedProduct(
+    productId: string,
+    confirmedWeightThousandths: number | null,
+  ): Promise<WeighCountedProductOutcome>;
   currentSale(): Promise<CurrentSaleAnswer>;
   changeLineQuantity(
     lineId: string,
@@ -330,8 +343,14 @@ export interface CoreClient {
   setReceiptPrinter(address: string): Promise<SetReceiptPrinterOutcome>;
   readSerialDevices(): Promise<ReadSerialDevicesOutcome>;
   registerSerialDevices(devices: SerialDevicesToRegister): Promise<RegisterSerialDevicesOutcome>;
-  cashCharge(saleId: string, tendered: number): Promise<CashChargeAnswer>;
+  cashCharge(saleId: string, tendered: number, saleDiscount?: number): Promise<CashChargeAnswer>;
   chargeSaleInCash(saleId: string, tendered: number): Promise<ChargeSaleInCashOutcome>;
+  chargeSaleInCashWithChangeDiscount(
+    saleId: string,
+    tendered: number,
+    discountAmount: number,
+    authorization: Authorization | undefined,
+  ): Promise<ChargeSaleInCashWithChangeDiscountOutcome>;
   chargeSaleByTransfer(saleId: string, amount: number): Promise<ChargeSaleByTransferOutcome>;
   chargeSaleOnStandaloneTerminal(
     saleId: string,
@@ -994,10 +1013,27 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         (answer) => (answer.type === "add-weighed-product-result" ? answer.outcome : undefined),
       );
     },
-    weighProduct(productId) {
+    weighProduct(productId, confirmedWeightThousandths) {
       return ask(
-        { type: "weigh-product", request_id: deps.newRequestId(), product_id: productId },
+        {
+          type: "weigh-product",
+          request_id: deps.newRequestId(),
+          product_id: productId,
+          confirmed_weight_thousandths: confirmedWeightThousandths,
+        },
         (answer) => (answer.type === "weigh-product-result" ? answer.outcome : undefined),
+      );
+    },
+    weighLine(lineId, expectedWeightThousandths, confirmedWeightThousandths) {
+      return ask(
+        {
+          type: "weigh-line",
+          request_id: deps.newRequestId(),
+          line_id: lineId,
+          expected_weight_thousandths: expectedWeightThousandths,
+          confirmed_weight_thousandths: confirmedWeightThousandths,
+        },
+        (answer) => (answer.type === "weigh-line-result" ? answer.outcome : undefined),
       );
     },
     readClockGuard() {
@@ -1052,9 +1088,14 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
           answer.type === "search-countable-products-result" ? answer.outcome : undefined,
       );
     },
-    weighCountedProduct(productId) {
+    weighCountedProduct(productId, confirmedWeightThousandths) {
       return ask(
-        { type: "weigh-counted-product", request_id: deps.newRequestId(), product_id: productId },
+        {
+          type: "weigh-counted-product",
+          request_id: deps.newRequestId(),
+          product_id: productId,
+          confirmed_weight_thousandths: confirmedWeightThousandths,
+        },
         (answer) => (answer.type === "weigh-counted-product-result" ? answer.outcome : undefined),
       );
     },
@@ -1069,9 +1110,15 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         return answer.type === "sale" ? answer.sale : undefined;
       });
     },
-    cashCharge(saleId, tendered) {
+    cashCharge(saleId, tendered, saleDiscount) {
       return ask(
-        { type: "cash-charge-request", request_id: deps.newRequestId(), sale_id: saleId, tendered },
+        {
+          type: "cash-charge-request",
+          request_id: deps.newRequestId(),
+          sale_id: saleId,
+          tendered,
+          ...(saleDiscount === undefined ? {} : { sale_discount: saleDiscount }),
+        },
         (answer) => {
           if (answer.type === "cash-charge-unavailable") {
             throw new Error("the core could not say what the sale needs");
@@ -1087,6 +1134,22 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       return ask(
         { type: "charge-sale-in-cash", request_id: deps.newRequestId(), sale_id: saleId, tendered },
         (answer) => (answer.type === "charge-sale-in-cash-result" ? answer.outcome : undefined),
+      );
+    },
+    chargeSaleInCashWithChangeDiscount(saleId, tendered, discountAmount, authorization) {
+      return ask(
+        {
+          type: "charge-sale-in-cash-with-change-discount",
+          request_id: deps.newRequestId(),
+          sale_id: saleId,
+          tendered,
+          discount_amount: discountAmount,
+          ...(authorization === undefined ? {} : { authorization }),
+        },
+        (answer) =>
+          answer.type === "charge-sale-in-cash-with-change-discount-result"
+            ? answer.outcome
+            : undefined,
       );
     },
     chargeSaleByTransfer(saleId, amount) {

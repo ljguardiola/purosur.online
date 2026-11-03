@@ -51,6 +51,10 @@ export type {
 } from "./cancel-sale.js";
 export { cancelSale } from "./cancel-sale.js";
 export type {
+  CashRoundingQuery,
+  CashRoundingReportReader,
+} from "./cash-rounding-report-reader.js";
+export type {
   CashierSalesQuery,
   CashierSalesReportReader,
 } from "./cashier-sales-report-reader.js";
@@ -78,6 +82,12 @@ export type {
   ChargeSaleInCashPorts,
 } from "./charge-sale-in-cash.js";
 export { chargeSaleInCash } from "./charge-sale-in-cash.js";
+export type {
+  ChargeSaleInCashWithChangeDiscountInput,
+  ChargeSaleInCashWithChangeDiscountOutcome,
+  ChargeSaleInCashWithChangeDiscountPorts,
+} from "./charge-sale-in-cash-with-change-discount.js";
+export { chargeSaleInCashWithChangeDiscount } from "./charge-sale-in-cash-with-change-discount.js";
 export type {
   ChargeSaleOnStandaloneTerminalInput,
   ChargeSaleOnStandaloneTerminalOutcome,
@@ -158,6 +168,8 @@ export type {
   TicketOfPeriod,
 } from "./read-average-ticket.js";
 export { readAverageTicket } from "./read-average-ticket.js";
+export type { CashRoundingReport, ReadCashRoundingInput } from "./read-cash-rounding.js";
+export { readCashRounding } from "./read-cash-rounding.js";
 export type {
   HandTypedWeightsReport,
   ReadHandTypedWeightsInput,
@@ -311,6 +323,12 @@ export type {
   SaleVoidLedger,
   SaleVoidTransaction,
 } from "./void-sale-ports.js";
+export type {
+  WeighLineOnScaleInput,
+  WeighLineOnScaleOutcome,
+  WeighLineOnScalePorts,
+} from "./weigh-line-on-scale.js";
+export { weighLineOnScale } from "./weigh-line-on-scale.js";
 export type {
   WeighProductOnScaleInput,
   WeighProductOnScaleOutcome,

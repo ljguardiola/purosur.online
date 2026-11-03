@@ -162,7 +162,11 @@ import {
 } from "./returns/returns-requests";
 import { createBarcodeReaderWiring } from "./sales/barcode-reader-wiring";
 import { createDeferredSaleInvoicing } from "./sales/deferred-sale-invoicing";
-import { createReceiptPrinting, savedReceiptPrinters } from "./sales/receipt-printing-wiring";
+import {
+  createReceiptPrinting,
+  printingAfterCompletedSales,
+  savedReceiptPrinters,
+} from "./sales/receipt-printing-wiring";
 import {
   addSearchedProductFor,
   addWeighedProductFor,
@@ -176,6 +180,7 @@ import {
   changeLineWeightFor,
   chargeSaleByTransferFor,
   chargeSaleInCashFor,
+  chargeSaleInCashWithChangeDiscountFor,
   chargeSaleOnStandaloneTerminalFor,
   chargeSaleWithPaidOrderFor,
   currentSaleFor,
@@ -185,6 +190,7 @@ import {
   removeSaleLineFor,
   scanProductFor,
   searchProductsFor,
+  weighLineFor,
   weighProductFor,
 } from "./sales/sale-requests";
 import { saleHistoryDetailFor, salesHistoryFor } from "./sales/sales-history-requests";
@@ -1393,6 +1399,23 @@ const rendererRequestDeps: RendererRequestDeps = {
             },
             request,
           ),
+  chargeSaleInCashWithChangeDiscount:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (request) =>
+          chargeSaleInCashWithChangeDiscountFor(
+            {
+              zoneRules,
+              database: localDatabase,
+              restoration: restorationOf(localDatabase),
+              gate: actionGate,
+              readOutboxChainKey: async () =>
+                (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+              now,
+              ids: uuidV7Ids,
+            },
+            request,
+          ),
   chargeSaleByTransfer:
     localDatabase === undefined || actionGate === undefined
       ? undefined
@@ -1533,7 +1556,7 @@ const rendererRequestDeps: RendererRequestDeps = {
   weighProduct:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : (productId) =>
+      : (productId, confirmedWeightThousandths) =>
           weighProductFor(
             {
               zoneRules,
@@ -1549,6 +1572,24 @@ const rendererRequestDeps: RendererRequestDeps = {
               scale: systelScale,
             },
             productId,
+            confirmedWeightThousandths,
+          ),
+  weighLine:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (lineId, expectedWeightThousandths, confirmedWeightThousandths) =>
+          weighLineFor(
+            {
+              zoneRules,
+              database: localDatabase,
+              restoration: restorationOf(localDatabase),
+              gate: actionGate,
+              now,
+              scale: systelScale,
+            },
+            lineId,
+            expectedWeightThousandths,
+            confirmedWeightThousandths,
           ),
   initialCount:
     localDatabase === undefined || actionGate === undefined
@@ -1654,22 +1695,7 @@ const rendererRequestDeps: RendererRequestDeps = {
 const answeredRendererRequestDeps: RendererRequestDeps = ticketedRendererRequests(
   {
     ...rendererRequestDeps,
-    chargeSaleInCash: receiptPrinting.afterCompletedSale(rendererRequestDeps.chargeSaleInCash),
-    chargeSaleByTransfer: receiptPrinting.afterCompletedSale(
-      rendererRequestDeps.chargeSaleByTransfer,
-    ),
-    chargeSaleOnStandaloneTerminal: receiptPrinting.afterCompletedSale(
-      rendererRequestDeps.chargeSaleOnStandaloneTerminal,
-    ),
-    chargeSaleWithPaidOrder: receiptPrinting.afterCompletedSale(
-      rendererRequestDeps.chargeSaleWithPaidOrder,
-    ),
-    followMercadoPagoCharge: receiptPrinting.afterCompletedSale(
-      rendererRequestDeps.followMercadoPagoCharge,
-    ),
-    abandonMercadoPagoCharge: receiptPrinting.afterCompletedSale(
-      rendererRequestDeps.abandonMercadoPagoCharge,
-    ),
+    ...printingAfterCompletedSales(rendererRequestDeps, receiptPrinting),
   },
   {
     ticketed,

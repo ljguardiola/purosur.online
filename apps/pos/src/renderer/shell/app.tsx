@@ -3,6 +3,7 @@ import type {
   Authorization,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
+  ChargeSaleInCashWithChangeDiscountOutcome,
   ChargeSaleOnStandaloneTerminalOutcome,
   ChargeSaleWithPaidOrderOutcome,
   CloseCashSessionOutcome,
@@ -258,6 +259,7 @@ function Register({ core }: { core: CoreClient }) {
   async function refreshAfterCharge(
     kind: (
       | ChargeSaleInCashOutcome
+      | ChargeSaleInCashWithChangeDiscountOutcome
       | ChargeSaleByTransferOutcome
       | ChargeSaleOnStandaloneTerminalOutcome
       | ChargeSaleWithPaidOrderOutcome
@@ -288,6 +290,22 @@ function Register({ core }: { core: CoreClient }) {
 
   async function chargeSaleInCash(saleId: string, tendered: number) {
     const outcome = await core.chargeSaleInCash(saleId, tendered);
+    await refreshAfterCharge(outcome.kind);
+    return outcome;
+  }
+
+  async function chargeSaleInCashWithChangeDiscount(
+    saleId: string,
+    tendered: number,
+    discountAmount: number,
+    authorization: Authorization | undefined,
+  ) {
+    const outcome = await core.chargeSaleInCashWithChangeDiscount(
+      saleId,
+      tendered,
+      discountAmount,
+      authorization,
+    );
     await refreshAfterCharge(outcome.kind);
     return outcome;
   }
@@ -399,8 +417,12 @@ function Register({ core }: { core: CoreClient }) {
     firstSignIn,
     currentSale: () => core.currentSale(),
     scanProduct: (code: string) => core.scanProduct(code),
-    cashCharge: (saleId: string, tendered: number) => core.cashCharge(saleId, tendered),
+    cashCharge: (saleId: string, tendered: number, saleDiscount?: number) =>
+      saleDiscount === undefined
+        ? core.cashCharge(saleId, tendered)
+        : core.cashCharge(saleId, tendered, saleDiscount),
     chargeSaleInCash,
+    chargeSaleInCashWithChangeDiscount,
     chargeSaleByTransfer,
     chargeSaleOnStandaloneTerminal,
     paymentMethodAvailability: () => core.paymentMethodAvailability(),
@@ -411,7 +433,13 @@ function Register({ core }: { core: CoreClient }) {
     addProduct: (productId: string) => core.addProduct(productId),
     addWeighedProduct: (productId: string, weightThousandths: number) =>
       core.addWeighedProduct(productId, weightThousandths),
-    weighProduct: (productId: string) => core.weighProduct(productId),
+    weighProduct: (productId: string, confirmedWeightThousandths: number | null) =>
+      core.weighProduct(productId, confirmedWeightThousandths),
+    weighLine: (
+      lineId: string,
+      expectedWeightThousandths: number,
+      confirmedWeightThousandths: number | null,
+    ) => core.weighLine(lineId, expectedWeightThousandths, confirmedWeightThousandths),
     changeLineQuantity: (lineId: string, quantity: number, expectedQuantity: number) =>
       core.changeLineQuantity(lineId, quantity, expectedQuantity),
     changeLineWeight: (
@@ -494,7 +522,8 @@ function Register({ core }: { core: CoreClient }) {
     withdrawInitialCountLine: (movementId: string) => core.withdrawInitialCountLine(movementId),
     findCountableProduct: (code: string) => core.findCountableProduct(code),
     searchCountableProducts: (query: string) => core.searchCountableProducts(query),
-    weighCountedProduct: (productId: string) => core.weighCountedProduct(productId),
+    weighCountedProduct: (productId: string, confirmedWeightThousandths: number | null) =>
+      core.weighCountedProduct(productId, confirmedWeightThousandths),
     // A replaced core connection fails this request; the core coming back up asks again.
     refreshCashSession,
   };

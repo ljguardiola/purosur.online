@@ -244,7 +244,7 @@ const STATIC_PART_SCRIPTS = {
   "verify:static:types":
     "tsc --noEmit && tsc --noEmit -p apps/backoffice && tsc --noEmit -p apps/pos && tsc --noEmit -p apps/cloud/tsconfig.test.json",
   "verify:static:builds":
-    "pnpm --filter @purosur/cloud build && pnpm --filter @purosur/backoffice build && node .github/scripts/backoffice-download-budget.mjs && pnpm --filter @purosur/pos build && biome ci . --error-on-warnings && pnpm depcruise && knip && node .github/scripts/react-compiler-check.mjs",
+    "pnpm --filter @purosur/cloud build && pnpm --filter @purosur/backoffice build && node .github/scripts/backoffice-download-budget.mjs && pnpm --filter @purosur/pos build && biome ci . --error-on-warnings && pnpm depcruise && knip && node .github/scripts/react-compiler-check.mjs && node .github/scripts/table-columns-memoized-check.mjs",
   "verify:static:automation": `node --test --test-shard=\${TEST_SHARD:-1/1} .github/scripts/*.test.mjs .github/scripts/test-support/*.test.mjs .claude/hooks/*.test.mjs`,
 };
 
@@ -1208,6 +1208,7 @@ for (const dropped of [
   "pnpm depcruise",
   "knip",
   "node .github/scripts/react-compiler-check.mjs",
+  "node .github/scripts/table-columns-memoized-check.mjs",
   `node --test --test-shard=\${TEST_SHARD:-1/1} .github/scripts/*.test.mjs .github/scripts/test-support/*.test.mjs .claude/hooks/*.test.mjs`,
 ]) {
   test(`flags verify:static parts that no longer run ${dropped}`, () => {

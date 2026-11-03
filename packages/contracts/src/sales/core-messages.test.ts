@@ -212,16 +212,28 @@ describe("sale requests", () => {
     ).toBe(false);
   });
 
-  it("accepts a request to weigh a product on the scale, carrying no weight", () => {
-    const message = { type: "weigh-product", request_id: REQUEST_ID, product_id: "p2" };
+  it.each([null, 0, 1250])(
+    "accepts a request to weigh a product on the scale confirming the weight shown %s",
+    (confirmed) => {
+      const message = {
+        type: "weigh-product",
+        request_id: REQUEST_ID,
+        product_id: "p2",
+        confirmed_weight_thousandths: confirmed,
+      };
 
-    expect(salesRendererToCoreMessageSchema.parse(message)).toEqual(message);
-  });
+      expect(salesRendererToCoreMessageSchema.parse(message)).toEqual(message);
+    },
+  );
 
   it.each([
-    { request_id: REQUEST_ID },
-    { product_id: "p2" },
-    { request_id: REQUEST_ID, product_id: 2 },
+    { request_id: REQUEST_ID, confirmed_weight_thousandths: 1250 },
+    { product_id: "p2", confirmed_weight_thousandths: 1250 },
+    { request_id: REQUEST_ID, product_id: 2, confirmed_weight_thousandths: 1250 },
+    { request_id: REQUEST_ID, product_id: "p2" },
+    { request_id: REQUEST_ID, product_id: "p2", confirmed_weight_thousandths: true },
+    { request_id: REQUEST_ID, product_id: "p2", confirmed_weight_thousandths: -1 },
+    { request_id: REQUEST_ID, product_id: "p2", confirmed_weight_thousandths: 1.5 },
   ])("rejects a request to weigh that is not well formed: %j", (fields) => {
     expect(
       salesRendererToCoreMessageSchema.safeParse({ type: "weigh-product", ...fields }).success,
@@ -535,6 +547,66 @@ describe("sale line requests", () => {
         weight_thousandths: 1000,
         expected_weight_thousandths: 1000,
       }).success,
+    ).toBe(false);
+  });
+
+  it.each([null, 0, 1250])(
+    "accepts a request to weigh a line on the scale confirming the weight shown %s",
+    (confirmed) => {
+      const message = {
+        type: "weigh-line",
+        request_id: REQUEST_ID,
+        line_id: "l1",
+        expected_weight_thousandths: 1250,
+        confirmed_weight_thousandths: confirmed,
+      };
+
+      expect(salesRendererToCoreMessageSchema.parse(message)).toEqual(message);
+    },
+  );
+
+  it.each([
+    { line_id: "l1", expected_weight_thousandths: 1000, confirmed_weight_thousandths: 1000 },
+    {
+      request_id: REQUEST_ID,
+      expected_weight_thousandths: 1000,
+      confirmed_weight_thousandths: 1000,
+    },
+    { request_id: REQUEST_ID, line_id: "l1", confirmed_weight_thousandths: 1000 },
+    { request_id: REQUEST_ID, line_id: "l1", expected_weight_thousandths: 1000 },
+    {
+      request_id: REQUEST_ID,
+      line_id: 7,
+      expected_weight_thousandths: 1000,
+      confirmed_weight_thousandths: 1000,
+    },
+    {
+      request_id: REQUEST_ID,
+      line_id: "l1",
+      expected_weight_thousandths: 0,
+      confirmed_weight_thousandths: 1000,
+    },
+    {
+      request_id: REQUEST_ID,
+      line_id: "l1",
+      expected_weight_thousandths: 1000,
+      confirmed_weight_thousandths: true,
+    },
+    {
+      request_id: REQUEST_ID,
+      line_id: "l1",
+      expected_weight_thousandths: 1000,
+      confirmed_weight_thousandths: -1,
+    },
+    {
+      request_id: REQUEST_ID,
+      line_id: "l1",
+      expected_weight_thousandths: 1000,
+      confirmed_weight_thousandths: 1.5,
+    },
+  ])("rejects a request to weigh a line that is not well formed: %j", (fields) => {
+    expect(
+      salesRendererToCoreMessageSchema.safeParse({ type: "weigh-line", ...fields }).success,
     ).toBe(false);
   });
 
@@ -951,6 +1023,80 @@ describe("applying a discount on the sale's total", () => {
   });
 });
 
+describe("charging in cash with a discount on the sale's total", () => {
+  const charge = {
+    type: "charge-sale-in-cash-with-change-discount",
+    request_id: REQUEST_ID,
+    sale_id: "s1",
+    tendered: 10_000,
+    discount_amount: 100,
+  };
+
+  it("accepts the sale, the tendered amount and the fixed discount", () => {
+    expect(salesRendererToCoreMessageSchema.parse(charge)).toEqual(charge);
+  });
+
+  it("accepts the discount authorized with another person's PIN", () => {
+    const authorized = { ...charge, authorization: { user_id: "u2", pin: "1234" } };
+
+    expect(salesRendererToCoreMessageSchema.parse(authorized)).toEqual(authorized);
+  });
+
+  it.each([
+    ["no request id", { request_id: undefined }],
+    ["no sale", { sale_id: undefined }],
+    ["no tendered amount", { tendered: undefined }],
+    ["a tendered amount that is not whole cents", { tendered: 10.5 }],
+    ["no discount", { discount_amount: undefined }],
+    ["a discount of zero", { discount_amount: 0 }],
+    ["a negative discount", { discount_amount: -1 }],
+    ["a discount that is not whole cents", { discount_amount: 10.5 }],
+    ["an authorization missing the PIN", { authorization: { user_id: "u2" } }],
+  ])("rejects a charge with %s", (_case, change) => {
+    expect(salesRendererToCoreMessageSchema.safeParse({ ...charge, ...change }).success).toBe(
+      false,
+    );
+  });
+
+  it.each([
+    {
+      kind: "completed",
+      sale_id: "s1",
+      total: 9500,
+      tendered: 10_000,
+      change: 500,
+    },
+    { kind: "partially_paid", sale_id: "s1", total: 9500, paid: 5000, pending: 4500 },
+    { kind: "discount_exceeds_sale" },
+    { kind: "sale_has_payments" },
+    { kind: "invalid_amount" },
+    { kind: "reaches_buyer_identification_threshold", threshold: 9500 },
+    { kind: "not_permitted" },
+    { kind: "not_signed_in" },
+    { kind: "lacks_permission" },
+    { kind: "unavailable" },
+    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
+  ])("accepts the answer %j", (outcome) => {
+    const message = {
+      type: "charge-sale-in-cash-with-change-discount-result",
+      request_id: REQUEST_ID,
+      outcome,
+    };
+
+    expect(salesCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects an answer with an outcome it does not know", () => {
+    expect(
+      salesCoreToRendererMessageSchema.safeParse({
+        type: "charge-sale-in-cash-with-change-discount-result",
+        request_id: REQUEST_ID,
+        outcome: { kind: "somewhere_else" },
+      }).success,
+    ).toBe(false);
+  });
+});
+
 describe("previewing a discount on the sale's total", () => {
   const preview = {
     type: "preview-sale-discount",
@@ -1066,6 +1212,17 @@ describe("sale line answers", () => {
       { kind: "added", sale, removed_manual_discount: false, removed_sale_discount: false },
     ],
     ["weigh-product-result", { kind: "weighing" }],
+    ["weigh-product-result", { kind: "zero_weight" }],
+    ["weigh-product-result", { kind: "stable", weight_thousandths: 250, amount: 2250 }],
+    [
+      "weigh-line-result",
+      { kind: "changed", sale, removed_manual_discount: false, removed_sale_discount: false },
+    ],
+    ["weigh-line-result", { kind: "weighing" }],
+    ["weigh-line-result", { kind: "zero_weight" }],
+    ["weigh-line-result", { kind: "stable", weight_thousandths: 250, amount: 2250 }],
+    ["weigh-line-result", { kind: "scale_unavailable" }],
+    ["weigh-line-result", { kind: "stale_weight" }],
     ["weigh-product-result", { kind: "scale_unavailable" }],
     ["weigh-product-result", { kind: "not_sold_by_weight" }],
     ["remove-sale-line-result", { kind: "removed", sale, removed_sale_discount: false }],
@@ -1084,6 +1241,7 @@ describe("sale line answers", () => {
     "change-line-weight-result",
     "add-weighed-product-result",
     "weigh-product-result",
+    "weigh-line-result",
     "remove-sale-line-result",
     "cancel-sale-result",
   ])("rejects %s with an outcome it does not know", (type) => {
@@ -1101,6 +1259,7 @@ describe("sale line answers", () => {
     "change-line-weight-result",
     "add-weighed-product-result",
     "weigh-product-result",
+    "weigh-line-result",
     "remove-sale-line-result",
     "cancel-sale-result",
   ])("rejects %s without its request id", (type) => {
@@ -1299,10 +1458,19 @@ describe("cash charge request", () => {
     expect(salesRendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
+  it("accepts a request with the fixed discount on the sale's total being typed", () => {
+    const discounted = { ...message, sale_discount: 100 };
+
+    expect(salesRendererToCoreMessageSchema.parse(discounted)).toEqual(discounted);
+  });
+
   it.each([
     ["without its request id", { ...message, request_id: undefined }],
     ["without the sale", { ...message, sale_id: undefined }],
     ["with an amount that is not whole cents", { ...message, tendered: 50.5 }],
+    ["with a discount of zero", { ...message, sale_discount: 0 }],
+    ["with a negative discount", { ...message, sale_discount: -100 }],
+    ["with a discount that is not whole cents", { ...message, sale_discount: 10.5 }],
   ])("rejects a request %s", (_case, invalid) => {
     expect(salesRendererToCoreMessageSchema.safeParse(invalid).success).toBe(false);
   });
@@ -1317,6 +1485,8 @@ describe("cash charge answers", () => {
     [{ kind: "invalid_amount" }],
     [{ kind: "partial", applied: 1000, pending: 2000 }],
     [{ kind: "covered", applied: 3000, change: 2000 }],
+    [{ kind: "discount_exceeds_sale" }],
+    [{ kind: "sale_has_payments" }],
     [null],
   ])("accepts the answer %j", (charge) => {
     const message = { type: "cash-charge", request_id: REQUEST_ID, charge };

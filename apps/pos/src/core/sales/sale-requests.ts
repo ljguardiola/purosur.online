@@ -14,6 +14,7 @@ import type {
   ChangeLineWeightOutcome,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
+  ChargeSaleInCashWithChangeDiscountOutcome,
   ChargeSaleOnStandaloneTerminalOutcome,
   ChargeSaleWithPaidOrderOutcome,
   CurrentSaleAnswer,
@@ -26,6 +27,7 @@ import type {
   SaleDiscountRequest,
   ScanProductOutcome,
   SearchProductsOutcome,
+  WeighLineOutcome,
   WeighProductOutcome,
 } from "@purosur/contracts";
 import type { ZoneRulesSource } from "@purosur/domain";
@@ -68,6 +70,7 @@ import {
   changeLineWeight,
   chargeSaleByTransfer,
   chargeSaleInCash,
+  chargeSaleInCashWithChangeDiscount,
   chargeSaleOnStandaloneTerminal,
   chargeSaleWithPaidOrder,
   currentSale,
@@ -79,6 +82,7 @@ import {
   removeSaleLine,
   type Scale,
   searchProductsByName,
+  weighLineOnScale,
   weighProductOnScale,
 } from "@purosur/domain/sales/use-cases";
 import { toWireRefund } from "../payments/wire-refund";
@@ -111,6 +115,17 @@ export interface OutboxSaleRequestDeps extends SaleRequestDeps {
 export interface ChargeSaleInCashRequest {
   saleId: string;
   tendered: number;
+}
+
+export interface CashChargeReadRequest extends ChargeSaleInCashRequest {
+  saleDiscount?: number | undefined;
+}
+
+export interface ChargeSaleInCashWithChangeDiscountRequest {
+  saleId: string;
+  tendered: number;
+  discountAmount: number;
+  authorization?: Authorization | undefined;
 }
 
 export interface ChargeSaleByTransferRequest {
@@ -529,6 +544,7 @@ export async function weighProductFor(
     scale,
   }: SellingRequestDeps & { scale: Scale },
   productId: string,
+  confirmedWeightThousandths: number | null,
 ): Promise<WeighProductOutcome> {
   const guarded = await asSeller({ database, gate }, (actorId) =>
     weighProductOnScale(
@@ -546,7 +562,7 @@ export async function weighProductFor(
         ids,
         scale,
       },
-      { actorId, productId },
+      { actorId, productId, confirmedWeightThousandths },
     ),
   );
   if (guarded.kind !== "performed") {
@@ -563,6 +579,12 @@ export async function weighProductFor(
       };
     case "no_price":
       return { kind: "no_price", product_name: outcome.productName };
+    case "stable":
+      return {
+        kind: "stable",
+        weight_thousandths: outcome.weightThousandths,
+        amount: outcome.amount,
+      };
     default:
       return { kind: outcome.kind };
   }
@@ -671,13 +693,30 @@ export async function chargeSaleWithPaidOrderFor(
 
 export async function cashChargeFor(
   deps: Pick<SaleRequestDeps, "database" | "gate" | "now" | "zoneRules" | "restoration">,
-  { saleId, tendered }: ChargeSaleInCashRequest,
+  { saleId, tendered, saleDiscount }: CashChargeReadRequest,
 ): Promise<CashChargeAnswer> {
   const sale = await currentSaleFor(deps);
   if (sale === "not_permitted") {
     return sale;
   }
-  return sale === null || sale.id !== saleId ? null : cashCharge(sale.pending, tendered);
+  if (sale === null || sale.id !== saleId) {
+    return null;
+  }
+  if (saleDiscount === undefined) {
+    return cashCharge(sale.pending, tendered);
+  }
+  const preview = await previewSaleDiscountFor(deps, {
+    discount: { kind: "AMOUNT", value: saleDiscount },
+  });
+  switch (preview.kind) {
+    case "preview":
+      return cashCharge(preview.total, tendered);
+    case "discount_exceeds_sale":
+    case "sale_has_payments":
+      return { kind: preview.kind };
+    default:
+      return null;
+  }
 }
 
 export async function changeLineQuantityFor(
@@ -742,6 +781,50 @@ export async function changeLineWeightFor(
         removed_sale_discount: outcome.removedSaleDiscount,
       }
     : { kind: outcome.kind };
+}
+
+export async function weighLineFor(
+  {
+    database,
+    gate,
+    now,
+    zoneRules,
+    restoration,
+    scale,
+  }: Pick<SaleRequestDeps, "database" | "gate" | "now" | "zoneRules" | "restoration"> & {
+    scale: Scale;
+  },
+  lineId: string,
+  expectedWeightThousandths: number,
+  confirmedWeightThousandths: number | null,
+): Promise<WeighLineOutcome> {
+  const guarded = await asSeller({ database, gate }, (actorId) =>
+    weighLineOnScale(
+      { zoneRules, ledger: saleLedger(database), restoration, clock: { now }, scale },
+      { actorId, lineId, expectedWeightThousandths, confirmedWeightThousandths },
+    ),
+  );
+  if (guarded.kind !== "performed") {
+    return { kind: guarded.kind === "not_signed_in" ? "not_signed_in" : "not_permitted" };
+  }
+  const { outcome, view } = guarded.result;
+  switch (outcome.kind) {
+    case "changed":
+      return {
+        kind: "changed",
+        sale: toOpenSale(outcome, view),
+        removed_manual_discount: outcome.removedManualDiscount,
+        removed_sale_discount: outcome.removedSaleDiscount,
+      };
+    case "stable":
+      return {
+        kind: "stable",
+        weight_thousandths: outcome.weightThousandths,
+        amount: outcome.amount,
+      };
+    default:
+      return { kind: outcome.kind };
+  }
 }
 
 export interface AdjustSaleLineRequest {
@@ -1152,6 +1235,70 @@ export async function chargeSaleInCashFor(
       return { kind: outcome.kind, threshold: outcome.threshold };
     default:
       return { kind: outcome.kind };
+  }
+}
+
+type ChargeWithChangeDiscountRefusal = Extract<
+  ChargeSaleInCashWithChangeDiscountOutcome,
+  { kind: "not_signed_in" | "lacks_permission" | AuthorizationRefusal["kind"] }
+>;
+
+export async function chargeSaleInCashWithChangeDiscountFor(
+  { database, gate, now, zoneRules, ids, readOutboxChainKey, restoration }: OutboxSaleRequestDeps,
+  { saleId, tendered, discountAmount, authorization }: ChargeSaleInCashWithChangeDiscountRequest,
+): Promise<ChargeSaleInCashWithChangeDiscountOutcome> {
+  const outboxChainKey = await readOutboxChainKey();
+  if (outboxChainKey === undefined) {
+    return { kind: "unavailable" };
+  }
+  const outcome = await chargeSaleInCashWithChangeDiscount<
+    ApplySaleDiscountGrant,
+    ChargeWithChangeDiscountRefusal
+  >(
+    {
+      zoneRules,
+      ledger: saleLedger(database, outboxChainKey),
+      restoration,
+      clock: { now },
+      ids,
+      authority: {
+        async authorize(): Promise<
+          OperationAuthorization<ApplySaleDiscountGrant, ChargeWithChangeDiscountRefusal>
+        > {
+          const guarded = await gate.runAuthorized(
+            { kind: "apply_sale_discount" },
+            authorization,
+            async (actor) => actor,
+          );
+          return guarded.kind === "performed"
+            ? {
+                kind: "granted",
+                grant: {
+                  actorId: guarded.result.signedInUserId,
+                  authorizedBy: guarded.authorized_by?.user_id,
+                },
+              }
+            : { kind: "refused", refusal: guarded };
+        },
+      },
+    },
+    { saleId, tendered, discountAmount },
+  );
+  switch (outcome.kind) {
+    case "completed":
+      return {
+        kind: "completed",
+        sale_id: outcome.saleId,
+        total: outcome.total,
+        tendered: outcome.tendered,
+        change: outcome.change,
+      };
+    case "partially_paid":
+      return partiallyPaid(outcome);
+    case "reaches_buyer_identification_threshold":
+      return { kind: outcome.kind, threshold: outcome.threshold };
+    default:
+      return outcome;
   }
 }
 

@@ -756,6 +756,8 @@ export type { ReturnsReportBody, ReturnsReportQuery } from "./returns/returns-re
 export { returnsReportQuerySchema, returnsReportSchema } from "./returns/returns-report.js";
 export type { AverageTicketBody } from "./sales/average-ticket.js";
 export { averageTicketSchema } from "./sales/average-ticket.js";
+export type { CashRoundingBody } from "./sales/cash-rounding.js";
+export { cashRoundingSchema } from "./sales/cash-rounding.js";
 export type {
   CancelLockedSaleOutcome,
   PrintCreditNoteOutcome,
@@ -772,6 +774,7 @@ export {
   changeLineWeightMessageSchema,
   chargeSaleByTransferMessageSchema,
   chargeSaleInCashMessageSchema,
+  chargeSaleInCashWithChangeDiscountMessageSchema,
   chargeSaleOnStandaloneTerminalMessageSchema,
   reprintCreditNoteMessageSchema,
   reprintSaleReceiptMessageSchema,
@@ -802,6 +805,7 @@ export type {
   ChangeLineWeightOutcome,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
+  ChargeSaleInCashWithChangeDiscountOutcome,
   ChargeSaleOnStandaloneTerminalOutcome,
   CurrentSaleAnswer,
   FoundProduct,
@@ -814,6 +818,7 @@ export type {
   ScanProductOutcome,
   SearchProductsOutcome,
   VoidSaleOutcome,
+  WeighLineOutcome,
   WeighProductOutcome,
 } from "./sales/sale.js";
 export type { SaleCreditNote } from "./sales/sale-credit-note.js";

@@ -1,5 +1,6 @@
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { withReadsCounted } from "../platform/test-support/reads-counted";
 import type { PricesListScreenServices } from "./prices-list-services";
 import { pricesListFilters } from "./routes";
 import {
@@ -10,6 +11,7 @@ import {
   rice,
   screenElement,
   withoutPrice,
+  yerbaMate,
 } from "./test-support/prices-list-screen";
 
 test("the search field re-fetches with the typed search term", async () => {
@@ -366,4 +368,42 @@ test("the footer count uses the thousands separator for both review filters", as
   await userEvent.click(screen.getByRole("button", { name: "Revisión: Por revisar" }));
   await userEvent.click(screen.getByRole("option", { name: "Todos" }));
   await expect.element(screen.getByText("1.000 productos")).toBeVisible();
+});
+
+test("typing in the search renders none of the listed products again, while each letter reaches the URL", async () => {
+  const services = createServices();
+  const listed = withReadsCounted([rice, yerbaMate], "name");
+  vi.mocked(services.fetchPrices).mockResolvedValue({
+    kind: "ok",
+    value: {
+      products: listed.items,
+      pendingCount: 0,
+      activeProductCount: 2,
+      reviewWindowDays: 30,
+      categories: [],
+    },
+  });
+  const onFiltersChange = vi.fn();
+  const screen = await renderScreen(services, undefined, {
+    filters: pricesListFilters.parse({ review: "all" }),
+    onFiltersChange,
+  });
+  await expect.element(screen.getByText("Yerba")).toBeVisible();
+
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  try {
+    listed.resetReads();
+
+    await userEvent.type(screen.getByPlaceholder("Buscar un producto"), "arr");
+
+    await expect.element(screen.getByPlaceholder("Buscar un producto")).toHaveValue("arr");
+    expect(onFiltersChange.mock.calls.map(([filters]) => filters.search)).toEqual([
+      "a",
+      "ar",
+      "arr",
+    ]);
+    expect(listed.reads()).toBe(0);
+  } finally {
+    vi.useRealTimers();
+  }
 });

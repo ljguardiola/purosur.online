@@ -1,6 +1,7 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { withReadsCounted } from "../platform/test-support/reads-counted";
 import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { supplierPriceListReviewFilters } from "./supplier-price-lists-filters";
@@ -1033,4 +1034,16 @@ test("tells an outdated tab to reload because the backoffice was updated when ma
 
   await expect.element(screen.getByText("No se marcó el ítem")).toBeVisible();
   await expect.element(screen.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+});
+
+test("typing in the search renders none of the listed items again", async () => {
+  const listed = withReadsCounted(EXTRACTED_ROWS, "priceCents");
+  const screen = await loaded(createServices(), reviewOf(READ_LIST, listed.items));
+  await expect.poll(() => itemRows(screen)).toHaveLength(3);
+  listed.resetReads();
+
+  await userEvent.type(screen.getByPlaceholder("Buscar un ítem"), "a");
+
+  await expect.element(screen.getByPlaceholder("Buscar un ítem")).toHaveValue("a");
+  expect(listed.reads()).toBe(0);
 });

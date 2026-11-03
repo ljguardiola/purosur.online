@@ -1,3 +1,4 @@
+import { mayBeManualDiscountAmount } from "@purosur/domain";
 import { z } from "zod";
 import {
   authorizationRefusalSchema,
@@ -19,11 +20,12 @@ import {
   applySaleDiscountOutcomeSchema,
   cancelPaidSaleOutcomeSchema,
   cancelSaleOutcomeSchema,
-  cashChargeSchema,
+  cashChargeReadSchema,
   changeLineQuantityOutcomeSchema,
   changeLineWeightOutcomeSchema,
   chargeSaleByTransferOutcomeSchema,
   chargeSaleInCashOutcomeSchema,
+  chargeSaleInCashWithChangeDiscountOutcomeSchema,
   chargeSaleOnStandaloneTerminalOutcomeSchema,
   manualAdjustmentReasonSchema,
   manualAdjustmentValueSchema,
@@ -39,6 +41,7 @@ import {
   searchProductsOutcomeSchema,
   shownLineQuantitySchema,
   voidSaleOutcomeSchema,
+  weighLineOutcomeSchema,
   weighProductOutcomeSchema,
 } from "./sale.js";
 import {
@@ -51,6 +54,7 @@ import {
 } from "./sales-history.js";
 
 const requestId = requestIdSchema;
+const confirmedWeightSchema = z.int().nonnegative().nullable();
 
 const scanProductMessageSchema = z.object({
   type: z.literal("scan-product"),
@@ -153,6 +157,15 @@ const weighProductMessageSchema = z.object({
   type: z.literal("weigh-product"),
   request_id: requestId,
   product_id: z.string(),
+  confirmed_weight_thousandths: confirmedWeightSchema,
+});
+
+const weighLineMessageSchema = z.object({
+  type: z.literal("weigh-line"),
+  request_id: requestId,
+  line_id: z.string(),
+  expected_weight_thousandths: shownLineQuantitySchema,
+  confirmed_weight_thousandths: confirmedWeightSchema,
 });
 
 const receiptPrintStatusMessageSchema = z.object({
@@ -225,6 +238,15 @@ export const chargeSaleInCashMessageSchema = z.object({
   tendered: z.int(),
 });
 
+export const chargeSaleInCashWithChangeDiscountMessageSchema = z.object({
+  type: z.literal("charge-sale-in-cash-with-change-discount"),
+  request_id: requestId,
+  sale_id: z.string(),
+  tendered: z.int(),
+  discount_amount: z.int().refine(mayBeManualDiscountAmount),
+  authorization: authorizationSchema.optional(),
+});
+
 export const chargeSaleByTransferMessageSchema = z.object({
   type: z.literal("charge-sale-by-transfer"),
   request_id: requestId,
@@ -244,6 +266,7 @@ const cashChargeRequestMessageSchema = z.object({
   request_id: requestId,
   sale_id: z.string(),
   tendered: z.int(),
+  sale_discount: z.int().refine(mayBeManualDiscountAmount).optional(),
 });
 
 const cancelLockedSaleMessageSchema = z.object({
@@ -269,8 +292,10 @@ export const salesRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   addProductMessageSchema,
   addWeighedProductMessageSchema,
   weighProductMessageSchema,
+  weighLineMessageSchema,
   saleRequestMessageSchema,
   chargeSaleInCashMessageSchema,
+  chargeSaleInCashWithChangeDiscountMessageSchema,
   chargeSaleByTransferMessageSchema,
   chargeSaleOnStandaloneTerminalMessageSchema,
   cashChargeRequestMessageSchema,
@@ -431,9 +456,19 @@ export const salesCoreToRendererMessageSchema = z.discriminatedUnion("type", [
     outcome: weighProductOutcomeSchema,
   }),
   z.object({
+    type: z.literal("weigh-line-result"),
+    request_id: requestId,
+    outcome: weighLineOutcomeSchema,
+  }),
+  z.object({
     type: z.literal("charge-sale-in-cash-result"),
     request_id: requestId,
     outcome: chargeSaleInCashOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("charge-sale-in-cash-with-change-discount-result"),
+    request_id: requestId,
+    outcome: chargeSaleInCashWithChangeDiscountOutcomeSchema,
   }),
   z.object({
     type: z.literal("charge-sale-by-transfer-result"),
@@ -498,7 +533,7 @@ export const salesCoreToRendererMessageSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("cash-charge"),
     request_id: requestId,
-    charge: cashChargeSchema.nullable(),
+    charge: cashChargeReadSchema.nullable(),
   }),
   z.object({ type: z.literal("cash-charge-unavailable"), request_id: requestId }),
   z.object({ type: z.literal("cash-charge-not-permitted"), request_id: requestId }),

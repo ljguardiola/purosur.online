@@ -26,8 +26,24 @@ test("groups the sales reports in a card titled Ventas", async () => {
   await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
   const sales = screen.getByRole("region", { name: "Ventas" });
   await expect.element(sales).toBeVisible();
-  expect(sales.getByRole("link").elements()).toHaveLength(9);
+  expect(sales.getByRole("link").elements()).toHaveLength(10);
   await expectNoAccessibilityViolations(screen.container);
+});
+
+test("lists the cash rounding report as a link to it, after the manual discounts", async () => {
+  const screen = await renderScreen();
+
+  await expect
+    .element(screen.getByRole("link", { name: "Redondeo en efectivo" }))
+    .toHaveAttribute("href", "/reports/cash-rounding");
+  const labels = screen
+    .getByRole("region", { name: "Ventas" })
+    .getByRole("link")
+    .elements()
+    .map((link) => link.textContent);
+  expect(labels.indexOf("Redondeo en efectivo")).toBe(
+    labels.indexOf("Descuentos manuales y sobre el total") + 1,
+  );
 });
 
 test("lists the sales by day report as a link to it", async () => {
