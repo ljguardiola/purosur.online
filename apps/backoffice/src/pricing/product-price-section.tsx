@@ -16,10 +16,7 @@ import { Check, RotateCcw, ShieldX, TriangleAlert } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
-import type {
-  ProductPriceSectionProps as PlatformProps,
-  ProductPriceSection as ProductPriceSectionType,
-} from "../platform/product-price-section";
+import type { ProductPriceSectionProps as PlatformProps } from "../platform/product-price-section";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { formatCentsWithUnit } from "./money";
@@ -419,5 +416,3 @@ export function ProductPriceSection({
     </section>
   );
 }
-
-export const productPriceSection: ProductPriceSectionType = ProductPriceSection;

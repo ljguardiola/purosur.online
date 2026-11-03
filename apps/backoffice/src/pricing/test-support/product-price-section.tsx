@@ -19,7 +19,7 @@ export const almendrasComponent = {
   quantityPerOutputUnit: 600,
 };
 
-export const mixComponents = [
+const mixComponents = [
   almendrasComponent,
   { componentProductId: pasasId, name: "Pasas", quantityPerOutputUnit: 400 },
 ];
