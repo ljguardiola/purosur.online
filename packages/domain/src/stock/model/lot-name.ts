@@ -1,8 +1,8 @@
 import { argentinaCalendarDay, type ZoneRules } from "../../shared/index.js";
 
-export type LotNameOrigin = "purchase" | "initial_count" | "assembly_batch" | "technical";
+type LotNameOrigin = "purchase" | "initial_count" | "assembly_batch" | "technical";
 
-export type LotNameOriginFacts =
+type LotNameOriginFacts =
   | { kind: "purchase"; purchasedOn: string }
   | { kind: "initial_count"; countedAt: Date }
   | { kind: "assembly_batch"; assembledAt: Date }

@@ -49,37 +49,3 @@ export function initialCountLotFacts(
     origin: { kind: "initial_count", countedAt },
   };
 }
-
-export function technicalLotFacts(
-  lotId: string,
-  productId: string,
-  nameOrder: number,
-  openedAt: Date,
-  locationId = "location-1",
-): LotNameFacts {
-  return {
-    lotId,
-    productId,
-    locationId,
-    nameOrder,
-    givenNumber: null,
-    origin: { kind: "technical", openedAt },
-  };
-}
-
-export function assemblyBatchLotFacts(
-  lotId: string,
-  productId: string,
-  nameOrder: number,
-  assembledAt: Date,
-  locationId = "location-1",
-): LotNameFacts {
-  return {
-    lotId,
-    productId,
-    locationId,
-    nameOrder,
-    givenNumber: null,
-    origin: { kind: "assembly_batch", assembledAt },
-  };
-}
