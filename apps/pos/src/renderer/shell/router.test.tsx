@@ -29,6 +29,7 @@ import { createRegisterRouter, routeFor, routeTree } from "./router";
 import type { SignedInPerson } from "./signed-in-person";
 import { startupPendingGate } from "./startup-pending-gate";
 import { GuardedCashInForm } from "./test-support/guarded-cash-in-form";
+import { withReadsCounted } from "./test-support/reads-counted";
 
 type RoutePath =
   | "/"
@@ -1648,6 +1649,38 @@ describe("the register's router", () => {
     await expect.element(screen.getByText("No se pudo leer lo cargado")).toBeVisible();
   });
 
+  it("re-rendering the initial count route renders none of its counted lines again", async () => {
+    const counted = withReadsCounted(
+      [
+        {
+          movement_id: "m1",
+          product_id: "p1",
+          product_name: "Queso cremoso",
+          sale_unit: "KG" as const,
+          counted: 4400,
+          expires_on: "2026-12-03",
+        },
+      ],
+      "product_name",
+    );
+    const router = createRegisterRouter(
+      routeTree,
+      {
+        ...contextWith("up", "enrolled", INVENTORY_COUNTER),
+        readInitialCount: async () => ({ kind: "read", offered: true, lines: counted.items }),
+      },
+      "/initial-count",
+    );
+    const screen = await render(<RouterProvider router={router} />);
+    await expect.element(screen.getByText("Queso cremoso")).toBeVisible();
+    counted.resetReads();
+
+    await router.invalidate();
+    await expect.poll(() => router.state.status).toBe("idle");
+
+    expect(counted.reads()).toBe(0);
+  });
+
   it("offers the initial count on the home of a person who may load it while it is offered", async () => {
     const router = routerAt("/", "up", "enrolled", INVENTORY_COUNTER);
 
@@ -1876,6 +1909,22 @@ describe("the register's router", () => {
 
       await expect.element(screenFor["/session"](screen)).toBeVisible();
       expect(router.state.location.pathname).toBe("/session");
+    });
+
+    it("re-rendering the startup pending route renders none of its pending rows again", async () => {
+      const counted = withReadsCounted(SALE_TO_PRINT_PENDING.sales_to_print, "completed_at");
+      const router = routerWithPending(
+        async () => ({ ...SALE_TO_PRINT_PENDING, sales_to_print: counted.items }),
+        "/startup-pending",
+      );
+      const screen = await render(<RouterProvider router={router} />);
+      await expect.element(screen.getByText("Venta sin ticket")).toBeVisible();
+      counted.resetReads();
+
+      await router.invalidate();
+      await expect.poll(() => router.state.status).toBe("idle");
+
+      expect(counted.reads()).toBe(0);
     });
 
     it("goes to the sale from Ir a vender and does not come back to it while the app runs", async () => {

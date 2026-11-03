@@ -2,6 +2,7 @@ import type { AssemblyBatchPreview, AssemblyBatchResult, RecipeSummary } from "@
 import { FieldSizeProvider } from "@purosur/ui";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { withReadsCounted } from "../platform/test-support/reads-counted";
 import { render } from "../shell/test-support/render-with-router";
 import type { AssemblyBatchPreviewRequest, fetchAssemblyBatches } from "./assembly-batches-api";
 import {
@@ -733,4 +734,20 @@ test("names the component that is no longer available by its brand and net conte
   await expect
     .element(dialog.getByText("Aceite de Almendras Vitora 30 ml ya no está disponible"))
     .toBeVisible();
+});
+
+test("typing the obtained quantity renders none of the listed components again", async () => {
+  const counted = withReadsCounted(mixDeFrutosSecos.components, "name");
+  const screen = await renderModal({
+    recipes: [{ ...mixDeFrutosSecos, components: counted.items }, cajaDeInfusiones],
+  });
+  await prepareMix(screen);
+  const dialog = screen.getByRole("dialog");
+  await expect.element(dialog.getByText("$ 9.912,00 / kg")).toBeVisible();
+  counted.resetReads();
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Obtenido/ }), "4,9");
+
+  await expect.element(dialog.getByRole("textbox", { name: /^Obtenido/ })).toHaveValue("4,9");
+  expect(counted.reads()).toBe(0);
 });

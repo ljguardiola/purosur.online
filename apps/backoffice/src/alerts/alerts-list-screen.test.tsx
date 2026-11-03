@@ -5,6 +5,7 @@ import { notifyManager } from "@tanstack/react-query";
 import { act } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { withReadsCounted } from "../platform/test-support/reads-counted";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
@@ -1304,4 +1305,24 @@ test("shows the open and critical alert counts with the thousands separator", as
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByText("1.998 alertas abiertas · 1.500 críticas")).toBeVisible();
+});
+
+test("typing in the search renders none of the listed alerts again", async () => {
+  const services = createServices();
+  const listed = withReadsCounted([passkeyAlert, lockoutAlert], "level");
+  vi.mocked(services.fetchAlerts).mockResolvedValue(ok(listed.items));
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Lucía Pérez")).toBeVisible();
+
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  try {
+    listed.resetReads();
+
+    await userEvent.type(screen.getByPlaceholder("Buscar una alerta"), "pass");
+
+    await expect.element(screen.getByPlaceholder("Buscar una alerta")).toHaveValue("pass");
+    expect(listed.reads()).toBe(0);
+  } finally {
+    vi.useRealTimers();
+  }
 });
