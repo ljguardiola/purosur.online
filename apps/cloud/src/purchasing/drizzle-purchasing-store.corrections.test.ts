@@ -237,6 +237,34 @@ describe("correcting a registered purchase's header", () => {
     expect(lot?.purchasedOn).toBe("2026-09-30");
   });
 
+  it("puts the lots of a re-dated purchase after a lot created later than them", async () => {
+    const yerba = await insertProduct(db, { name: "Yerba" });
+    const harina = await insertProduct(db, { name: "Harina" });
+    const redated = await registered((id) => [quantityLine(id)], yerba.id);
+    await registered((id) => [quantityLine(id)], harina.id);
+    now = CORRECTED_AT;
+
+    await correctPurchaseHeader(
+      { store: store(), clock, zoneRules: fixedZoneRulesSource() },
+      {
+        purchaseId: redated.id,
+        locationId,
+        actorId,
+        purchasedOn: "2026-09-30",
+        receiptType: "factura_b",
+        receiptNumber: "0001-00000042",
+        note: null,
+      },
+    );
+
+    const stored = await db
+      .select({ productId: lots.productId, nameOrder: lots.nameOrder })
+      .from(lots);
+    const nameOrderOf = (productId: string) =>
+      stored.find((lot) => lot.productId === productId)?.nameOrder ?? Number.NaN;
+    expect(nameOrderOf(yerba.id)).toBeGreaterThan(nameOrderOf(harina.id));
+  });
+
   it("records only the corrected fields with their previous and new values", async () => {
     const yerba = await insertProduct(db, { name: "Yerba" });
     const purchase = await registered((id) => [quantityLine(id)], yerba.id);

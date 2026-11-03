@@ -1153,46 +1153,6 @@ describe("DrizzleStockStoreTransaction.lotProduct", () => {
   });
 });
 
-describe("DrizzleStockStoreTransaction.renameLotsToPurchaseDay", () => {
-  it("dates the lots by the purchase day and puts them after a lot created later than them", async () => {
-    const locationId = await seededLocationId(db);
-    const productId = await insertProduct();
-    const actorId = await insertUser(locationId);
-    const redatedLotId = await insertPurchasedLot(db, {
-      productId,
-      locationId,
-      actorId,
-      purchasedOn: "2026-10-01",
-      createdAt: new Date("2026-10-01T12:00:00.000Z"),
-    });
-    const laterLotId = await insertPurchasedLot(db, {
-      productId,
-      locationId,
-      actorId,
-      purchasedOn: "2026-10-02",
-      createdAt: new Date("2026-10-02T12:00:00.000Z"),
-    });
-    const store = new DrizzleStockStore(db);
-
-    await store.transaction((tx) => tx.renameLotsToPurchaseDay([redatedLotId], "2026-09-30"));
-
-    const stored = await db.select().from(lots);
-    const redated = stored.find((lot) => lot.id === redatedLotId);
-    const later = stored.find((lot) => lot.id === laterLotId);
-    expect(redated?.purchasedOn).toBe("2026-09-30");
-    expect(later?.purchasedOn).toBe("2026-10-02");
-    expect(redated?.nameOrder).toBeGreaterThan(later?.nameOrder ?? Number.POSITIVE_INFINITY);
-  });
-
-  it("changes nothing when given no lot", async () => {
-    const store = new DrizzleStockStore(db);
-
-    await store.transaction((tx) => tx.renameLotsToPurchaseDay([], "2026-09-30"));
-
-    expect(await db.select().from(lots)).toEqual([]);
-  });
-});
-
 describe("discarding an expired lot through the store", () => {
   it("empties the lot, lowers the balance and records a loss for expiry", async () => {
     const locationId = await seededLocationId(db);
