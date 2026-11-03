@@ -97,6 +97,21 @@ describe("createCoreClient", () => {
     expect(port.posted).toEqual([{ type: "register-name-request", request_id: "request-1" }]);
   });
 
+  it.each(["1.0.1539", null])(
+    "asks the core for the register's running version: %s",
+    async (version) => {
+      const client = clientWithSequentialIds();
+      const port = new FakePort();
+      client.connect(port);
+
+      const asked = client.registerVersion();
+      port.answer({ type: "register-version", request_id: "request-1", version });
+
+      expect(await asked).toBe(version);
+      expect(port.posted).toEqual([{ type: "register-version-request", request_id: "request-1" }]);
+    },
+  );
+
   it("asks the core for the PIN policy and resolves with it", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();

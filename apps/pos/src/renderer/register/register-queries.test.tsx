@@ -33,6 +33,7 @@ import {
   useReadSessionOpenSale,
   useReceiptPrinterQuery,
   useRegisterNameQuery,
+  useRegisterVersionQuery,
   useRegisterStatusQuery,
   useRestorationStandingQuery,
   useSerialDevicesQuery,
@@ -499,6 +500,39 @@ describe("register name query", () => {
 
     const failing = await renderRegisterName(() => Promise.reject(new Error("replaced")));
     await expect.element(failing.getByText("name null")).toBeVisible();
+  });
+});
+
+function RegisterVersionProbe({ read }: { read: () => Promise<string | null> }) {
+  return <p>{["version", String(useRegisterVersionQuery(read))].join(" ")}</p>;
+}
+
+function renderRegisterVersion(read: () => Promise<string | null>) {
+  return render(
+    <QueryClientProvider client={createQueryClient()}>
+      <RegisterVersionProbe read={read} />
+    </QueryClientProvider>,
+  );
+}
+
+describe("register version query", () => {
+  it("gives the version the core was handed", async () => {
+    const screen = await renderRegisterVersion(async () => "1.0.1539");
+
+    await expect.element(screen.getByText("version 1.0.1539")).toBeVisible();
+  });
+
+  it("gives no version while the core has none, while it reads, or when reading fails", async () => {
+    const none = await renderRegisterVersion(async () => null);
+    await expect.element(none.getByText("version null")).toBeVisible();
+    await none.unmount();
+
+    const reading = await renderRegisterVersion(() => new Promise(() => {}));
+    await expect.element(reading.getByText("version null")).toBeVisible();
+    await reading.unmount();
+
+    const failing = await renderRegisterVersion(() => Promise.reject(new Error("replaced")));
+    await expect.element(failing.getByText("version null")).toBeVisible();
   });
 });
 
