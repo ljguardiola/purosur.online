@@ -73,7 +73,7 @@ describe("priceDifferenceCents", () => {
   });
 
   it("compares only the quantity that arrived", () => {
-    expect(priceDifferenceCents([dozen(1_650, 6_000)], list)).toBe(150);
+    expect(priceDifferenceCents([dozen(3_300, 6_000)], list)).toBe(150);
   });
 
   it("adds up several lines of the same product", () => {
