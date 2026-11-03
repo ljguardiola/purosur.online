@@ -1,4 +1,3 @@
-import { listPurchases } from "@purosur/domain/purchasing/use-cases";
 import { drizzle } from "drizzle-orm/pglite";
 import { describe, expect, it } from "vitest";
 import { DrizzlePurchasingListReader } from "../../purchasing/drizzle-purchasing-list-reader.js";
@@ -67,6 +66,16 @@ async function databaseHoldingPurchases() {
      values ($1, 2, $2, 2500, 1000, 1000) returning id`,
     [purchaseId, harinaId],
   );
+  for (const [lineId, productId] of [
+    [packagedLineId, yerbaId],
+    [totalLineId, harinaId],
+  ]) {
+    await database.query(
+      `insert into lots (product_id, location_id, purchase_line_id, purchased_on, cost_total_cents, cost_quantity, quantity_received, remaining)
+       values ($1, $2, $3, '2026-10-01', 500, 1000, 1000, 1000)`,
+      [productId, locationId, lineId],
+    );
+  }
   const roleId = await first(database, "insert into roles (name) values ('Compras') returning id");
   await database.query(
     `insert into role_permissions (role_id, permission_key)
@@ -90,7 +99,7 @@ describe("the load purchase lines by packages migration", { timeout: 30_000 }, (
     const migrated = await database.applyMigration();
     const db = drizzle(await migrated.applyEveryLaterMigration());
 
-    const [purchase] = await listPurchases(new DrizzlePurchasingListReader(db), locationId);
+    const [purchase] = await new DrizzlePurchasingListReader(db).purchases(locationId);
 
     const line = (id: string) => purchase?.lines.find((candidate) => candidate.id === id);
     expect(line(packagedLineId)).toMatchObject({
