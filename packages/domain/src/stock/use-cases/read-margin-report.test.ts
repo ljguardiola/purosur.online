@@ -56,10 +56,17 @@ describe("readMarginReport", () => {
           amount: 9_000,
           cost: 5_000,
           margin: 4_000,
+          marginTenthsOfPercent: 444,
           incompleteSales: 0,
         },
       ],
-      totals: { amount: 9_000, cost: 5_000, margin: 4_000, incompleteSales: 0 },
+      totals: {
+        amount: 9_000,
+        cost: 5_000,
+        margin: 4_000,
+        marginTenthsOfPercent: 444,
+        incompleteSales: 0,
+      },
     });
     expect(reader.productReads).toEqual([
       {
@@ -120,6 +127,12 @@ describe("readMarginReport", () => {
     );
 
     expect(report.rows).toEqual([]);
-    expect(report.totals).toEqual({ amount: 0, cost: 0, margin: 0, incompleteSales: 0 });
+    expect(report.totals).toEqual({
+      amount: 0,
+      cost: 0,
+      margin: 0,
+      marginTenthsOfPercent: null,
+      incompleteSales: 0,
+    });
   });
 });
