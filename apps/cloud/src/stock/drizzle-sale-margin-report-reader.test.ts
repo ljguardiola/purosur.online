@@ -639,6 +639,7 @@ describe("DrizzleSaleMarginReportReader with returns", () => {
       amount: 10_000,
       cost: 5_000,
       margin: 5_000,
+      marginTenthsOfPercent: 500,
       incompleteSales: 0,
     });
     expect(ofDiscarded.totals).toEqual(ofRestocked.totals);
@@ -729,6 +730,7 @@ describe("DrizzleSaleMarginReportReader with returns", () => {
         amount: 20_000,
         cost: 10_000,
         margin: 10_000,
+        marginTenthsOfPercent: 500,
         incompleteSales: 0,
       });
       expect(ofExchanged.totals).toEqual(ofUntouched.totals);

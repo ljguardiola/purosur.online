@@ -34,7 +34,13 @@ describe("marginReport", () => {
   it("reports no rows and zero totals without sold lines", () => {
     expect(marginReport([])).toEqual({
       rows: [],
-      totals: { amount: 0, cost: 0, margin: 0, incompleteSales: 0 },
+      totals: {
+        amount: 0,
+        cost: 0,
+        margin: 0,
+        marginTenthsOfPercent: null,
+        incompleteSales: 0,
+      },
     });
   });
 
@@ -50,6 +56,7 @@ describe("marginReport", () => {
         amount: 9_000,
         cost: 10_000,
         margin: -1_000,
+        marginTenthsOfPercent: -111,
         incompleteSales: 0,
       },
     ]);
@@ -57,6 +64,7 @@ describe("marginReport", () => {
       amount: 9_000,
       cost: 10_000,
       margin: -1_000,
+      marginTenthsOfPercent: -111,
       incompleteSales: 0,
     });
   });
@@ -185,7 +193,13 @@ describe("marginReport", () => {
     ]);
 
     expect(report.rows[0]).toMatchObject({ amount: 0, cost: 0, margin: 0, incompleteSales: 1 });
-    expect(report.totals).toEqual({ amount: 0, cost: 0, margin: 0, incompleteSales: 1 });
+    expect(report.totals).toEqual({
+      amount: 0,
+      cost: 0,
+      margin: 0,
+      marginTenthsOfPercent: null,
+      incompleteSales: 1,
+    });
   });
 
   it("leaves a lot with an unknown cost out of the cost and flags the sale", () => {
@@ -315,6 +329,7 @@ describe("marginReport", () => {
       amount: 8_000,
       cost: 4_000,
       margin: 4_000,
+      marginTenthsOfPercent: 500,
       incompleteSales: 0,
     });
   });
@@ -368,6 +383,46 @@ describe("marginReport", () => {
     expect(report.rows.map((row) => row.id)).toEqual(["b", "a"]);
   });
 
+  it("gives a row its margin as tenths of a percent of its own amount", () => {
+    const report = marginReport([
+      line({ amount: 1_000, allocations: [allocation({ quantity: -150 })] }),
+    ]);
+
+    expect(report.rows[0]).toMatchObject({ margin: 250, marginTenthsOfPercent: 250 });
+    expect(report.totals).toMatchObject({ margin: 250, marginTenthsOfPercent: 250 });
+  });
+
+  it("gives a negative margin a negative percentage", () => {
+    const report = marginReport([
+      line({ amount: 100, allocations: [allocation({ quantity: -24 })] }),
+    ]);
+
+    expect(report.rows[0]).toMatchObject({ margin: -20, marginTenthsOfPercent: -200 });
+    expect(report.totals).toMatchObject({ margin: -20, marginTenthsOfPercent: -200 });
+  });
+
+  it("computes the total's percentage from the total amount and cost, not from the rows' percentages", () => {
+    const report = marginReport([
+      line({ id: "big", amount: 1_000, allocations: [allocation({ quantity: -100 })] }),
+      line({ id: "small", amount: 100, allocations: [allocation({ quantity: -18 })] }),
+    ]);
+
+    expect(report.rows.map((row) => [row.amount, row.cost, row.marginTenthsOfPercent])).toEqual([
+      [1_000, 500, 500],
+      [100, 90, 100],
+    ]);
+    expect(report.totals).toMatchObject({ margin: 510, marginTenthsOfPercent: 464 });
+  });
+
+  it("gives no percentage to a row or total whose amount is zero", () => {
+    const report = marginReport([
+      line({ amount: 0, allocations: [allocation({ quantity: -100 })] }),
+    ]);
+
+    expect(report.rows[0]).toMatchObject({ amount: 0, marginTenthsOfPercent: null });
+    expect(report.totals.marginTenthsOfPercent).toBeNull();
+  });
+
   it("keeps the lines without a category in one row", () => {
     const report = marginReport([
       line({ id: null, path: [], amount: 100 }),
@@ -383,6 +438,7 @@ describe("marginReport", () => {
         amount: 300,
         cost: 10_000,
         margin: -9_700,
+        marginTenthsOfPercent: -32_333,
         incompleteSales: 0,
       },
     ]);

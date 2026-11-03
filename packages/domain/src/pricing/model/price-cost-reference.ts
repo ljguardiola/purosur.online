@@ -2,6 +2,7 @@ import { type FreightToDistribute, freightPerUnit } from "../../purchasing/index
 import {
   argentinaCalendarDay,
   type Fraction,
+  marginTenthsOfPercent,
   roundHalfUp,
   type ZoneRules,
 } from "../../shared/index.js";
@@ -133,14 +134,6 @@ function unitCostFraction({ totalCents, quantity }: LotCost): Fraction {
   };
 }
 
-function marginTenthsOfPercent(cost: Fraction, unitPrice: number): number {
-  const priceNumerator = BigInt(unitPrice) * cost.denominator;
-  return roundHalfUp({
-    numerator: (priceNumerator - cost.numerator) * 1000n,
-    denominator: priceNumerator,
-  });
-}
-
 function noFreight(): Fraction {
   return { numerator: 0n, denominator: 1n };
 }
@@ -174,7 +167,10 @@ export function priceCostReference(
     lastCostCents: unitCostCents(last.cost.totalCents, last.cost.quantity),
     freightPerUnitCents: roundHalfUp(freight),
     totalCostCents: roundHalfUp(totalCost),
-    marginTenthsOfPercent: unitPrice === null ? null : marginTenthsOfPercent(totalCost, unitPrice),
+    marginTenthsOfPercent:
+      unitPrice === null
+        ? null
+        : marginTenthsOfPercent({ numerator: BigInt(unitPrice), denominator: 1n }, totalCost),
     costIncomplete: last.source.kind === "assembly_batch" && last.source.costIncomplete,
   };
 }

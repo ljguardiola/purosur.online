@@ -18,6 +18,7 @@ export { codePointLength } from "./code-point-length.js";
 export { foldedText } from "./folded-text.js";
 export type { IsoWeekday } from "./iso-weekday.js";
 export { isoWeekdayOf } from "./iso-weekday.js";
+export { marginTenthsOfPercent } from "./margin-over-price.js";
 export type { OperationAuthority, OperationAuthorization } from "./operation-authority.js";
 export type { JsonValue, OutboxEvent, OutboxEventDraft } from "./outbox-event.js";
 export {

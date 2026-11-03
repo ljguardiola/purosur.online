@@ -1,5 +1,9 @@
 import type { ProductBrandAndNetContent } from "../../catalog/index.js";
-import { compareCodeUnits, compareSpanishPaths } from "../../shared/index.js";
+import {
+  compareCodeUnits,
+  compareSpanishPaths,
+  marginTenthsOfPercent,
+} from "../../shared/index.js";
 import { isLotCostIncomplete, type LotCost, lotValueCents } from "./lot-value.js";
 import type { StockMovementKind } from "./stock-movement-kind.js";
 
@@ -36,6 +40,7 @@ export interface MarginTotals {
   amount: number;
   cost: number;
   margin: number;
+  marginTenthsOfPercent: number | null;
   incompleteSales: number;
 }
 
@@ -87,6 +92,13 @@ function hasIncompleteCost(allocations: readonly MarginAllocation[]): boolean {
   );
 }
 
+function marginOverAmount(amount: number, cost: number): number | null {
+  return marginTenthsOfPercent(
+    { numerator: BigInt(amount), denominator: 1n },
+    { numerator: BigInt(cost), denominator: 1n },
+  );
+}
+
 function rowOrder(a: MarginOfGroup, b: MarginOfGroup): number {
   return (
     b.amount - a.amount ||
@@ -108,6 +120,7 @@ export function marginReport(lines: readonly MarginSaleLine[]): MarginReport {
       amount: 0,
       cost: 0,
       margin: 0,
+      marginTenthsOfPercent: null,
       incompleteSales: 0,
     };
     const amount = group.amount + line.amount;
@@ -123,6 +136,7 @@ export function marginReport(lines: readonly MarginSaleLine[]): MarginReport {
       amount,
       cost,
       margin: amount - cost,
+      marginTenthsOfPercent: marginOverAmount(amount, cost),
       incompleteSales: flagged.size,
     });
   }
@@ -131,6 +145,12 @@ export function marginReport(lines: readonly MarginSaleLine[]): MarginReport {
   const cost = rows.reduce((sum, row) => sum + row.cost, 0);
   return {
     rows,
-    totals: { amount, cost, margin: amount - cost, incompleteSales: incompleteSales.size },
+    totals: {
+      amount,
+      cost,
+      margin: amount - cost,
+      marginTenthsOfPercent: marginOverAmount(amount, cost),
+      incompleteSales: incompleteSales.size,
+    },
   };
 }
