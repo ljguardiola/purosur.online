@@ -1,3 +1,4 @@
+import type { PreviewSaleDiscountOutcome } from "@purosur/contracts";
 import { expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { CashChargeModalScreen } from "./test-support/cash-charge-modal";
@@ -216,5 +217,71 @@ it("shows nothing pending until the amount to charge with the discount typed is 
   await userEvent.fill(discountField, "100");
 
   await expect.poll(() => readCashCharge).toHaveBeenCalledWith(500_000, 10_000);
+  await expect.element(screen.getByText("QUEDA PENDIENTE")).not.toBeInTheDocument();
+});
+
+it("shows the total with the discount typed loading, and no change, until the core works it out", async () => {
+  let answerPreview: (outcome: PreviewSaleDiscountOutcome) => void = () => {};
+  const { screen, field, discountField, complete } = await renderCashChargeModal({
+    previewSaleDiscount: () =>
+      new Promise((resolve) => {
+        answerPreview = resolve;
+      }),
+  });
+
+  await userEvent.fill(field, "10000");
+  await userEvent.fill(discountField, "100");
+
+  await expect.element(screen.getByText("Cargando…")).toBeInTheDocument();
+  await expect.element(screen.getByText("VUELTO A ENTREGAR")).not.toBeInTheDocument();
+  await expect.element(complete).toBeDisabled();
+  answerPreview({ kind: "preview", subtotal: 960_000, discount_amount: 10_000, total: 950_000 });
+  await expect.element(screen.getByText("VUELTO A ENTREGAR")).toBeVisible();
+  await expect.element(screen.getByText("Cargando…")).not.toBeInTheDocument();
+});
+
+it("says the total with the discount typed could not be worked out, shows no change, and works it out again on Reintentar", async () => {
+  const previews: (() => Promise<PreviewSaleDiscountOutcome>)[] = [
+    () => Promise.reject(new Error("the core connection was replaced")),
+    async () => ({ kind: "preview", subtotal: 960_000, discount_amount: 10_000, total: 950_000 }),
+  ];
+  const { screen, field, discountField, complete } = await renderCashChargeModal({
+    previewSaleDiscount: () => {
+      const next = previews.shift();
+      if (next === undefined) {
+        throw new Error("no preview left");
+      }
+      return next();
+    },
+  });
+  await userEvent.fill(field, "10000");
+  await userEvent.fill(discountField, "100");
+
+  await expect
+    .element(screen.getByText("No se pudo calcular el total con el descuento"))
+    .toBeVisible();
+  await expect.element(screen.getByText("VUELTO A ENTREGAR")).not.toBeInTheDocument();
+  await expect.element(complete).toBeDisabled();
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.poll(() => valueBeside(screen, "A cobrar ahora")).toBe("$ 9.500,00");
+  await expect.element(screen.getByText("VUELTO A ENTREGAR")).toBeVisible();
+  await expect
+    .element(screen.getByText("No se pudo calcular el total con el descuento"))
+    .not.toBeInTheDocument();
+  await expect.element(complete).toBeEnabled();
+});
+
+it("says the total with the discount typed could not be worked out when the core cannot answer, and shows nothing pending", async () => {
+  const { screen, field, discountField } = await renderCashChargeModal({
+    previewSaleDiscount: async () => ({ kind: "unavailable" }),
+  });
+
+  await userEvent.fill(field, "5000");
+  await userEvent.fill(discountField, "100");
+
+  await expect
+    .element(screen.getByText("No se pudo calcular el total con el descuento"))
+    .toBeVisible();
   await expect.element(screen.getByText("QUEDA PENDIENTE")).not.toBeInTheDocument();
 });
