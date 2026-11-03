@@ -212,16 +212,21 @@ describe("sale requests", () => {
     ).toBe(false);
   });
 
-  it("accepts a request to weigh a product on the scale, carrying no weight", () => {
-    const message = { type: "weigh-product", request_id: REQUEST_ID, product_id: "p2" };
+  it.each([true, false])(
+    "accepts a request to weigh a product on the scale, carrying no weight and take %s",
+    (take) => {
+      const message = { type: "weigh-product", request_id: REQUEST_ID, product_id: "p2", take };
 
-    expect(salesRendererToCoreMessageSchema.parse(message)).toEqual(message);
-  });
+      expect(salesRendererToCoreMessageSchema.parse(message)).toEqual(message);
+    },
+  );
 
   it.each([
-    { request_id: REQUEST_ID },
-    { product_id: "p2" },
-    { request_id: REQUEST_ID, product_id: 2 },
+    { request_id: REQUEST_ID, take: true },
+    { product_id: "p2", take: true },
+    { request_id: REQUEST_ID, product_id: 2, take: true },
+    { request_id: REQUEST_ID, product_id: "p2" },
+    { request_id: REQUEST_ID, product_id: "p2", take: "yes" },
   ])("rejects a request to weigh that is not well formed: %j", (fields) => {
     expect(
       salesRendererToCoreMessageSchema.safeParse({ type: "weigh-product", ...fields }).success,
@@ -535,6 +540,32 @@ describe("sale line requests", () => {
         weight_thousandths: 1000,
         expected_weight_thousandths: 1000,
       }).success,
+    ).toBe(false);
+  });
+
+  it.each([true, false])("accepts a request to weigh a line on the scale with take %s", (take) => {
+    const message = {
+      type: "weigh-line",
+      request_id: REQUEST_ID,
+      line_id: "l1",
+      expected_weight_thousandths: 1250,
+      take,
+    };
+
+    expect(salesRendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([
+    { line_id: "l1", expected_weight_thousandths: 1000, take: true },
+    { request_id: REQUEST_ID, expected_weight_thousandths: 1000, take: true },
+    { request_id: REQUEST_ID, line_id: "l1", take: true },
+    { request_id: REQUEST_ID, line_id: "l1", expected_weight_thousandths: 1000 },
+    { request_id: REQUEST_ID, line_id: 7, expected_weight_thousandths: 1000, take: true },
+    { request_id: REQUEST_ID, line_id: "l1", expected_weight_thousandths: 0, take: true },
+    { request_id: REQUEST_ID, line_id: "l1", expected_weight_thousandths: 1000, take: 1 },
+  ])("rejects a request to weigh a line that is not well formed: %j", (fields) => {
+    expect(
+      salesRendererToCoreMessageSchema.safeParse({ type: "weigh-line", ...fields }).success,
     ).toBe(false);
   });
 
@@ -1066,6 +1097,17 @@ describe("sale line answers", () => {
       { kind: "added", sale, removed_manual_discount: false, removed_sale_discount: false },
     ],
     ["weigh-product-result", { kind: "weighing" }],
+    ["weigh-product-result", { kind: "zero_weight" }],
+    ["weigh-product-result", { kind: "stable", weight_thousandths: 250, amount: 2250 }],
+    [
+      "weigh-line-result",
+      { kind: "changed", sale, removed_manual_discount: false, removed_sale_discount: false },
+    ],
+    ["weigh-line-result", { kind: "weighing" }],
+    ["weigh-line-result", { kind: "zero_weight" }],
+    ["weigh-line-result", { kind: "stable", weight_thousandths: 250, amount: 2250 }],
+    ["weigh-line-result", { kind: "scale_unavailable" }],
+    ["weigh-line-result", { kind: "stale_weight" }],
     ["weigh-product-result", { kind: "scale_unavailable" }],
     ["weigh-product-result", { kind: "not_sold_by_weight" }],
     ["remove-sale-line-result", { kind: "removed", sale, removed_sale_discount: false }],
@@ -1084,6 +1126,7 @@ describe("sale line answers", () => {
     "change-line-weight-result",
     "add-weighed-product-result",
     "weigh-product-result",
+    "weigh-line-result",
     "remove-sale-line-result",
     "cancel-sale-result",
   ])("rejects %s with an outcome it does not know", (type) => {
@@ -1101,6 +1144,7 @@ describe("sale line answers", () => {
     "change-line-weight-result",
     "add-weighed-product-result",
     "weigh-product-result",
+    "weigh-line-result",
     "remove-sale-line-result",
     "cancel-sale-result",
   ])("rejects %s without its request id", (type) => {

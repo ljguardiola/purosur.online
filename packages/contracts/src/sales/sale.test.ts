@@ -22,6 +22,7 @@ import {
   scanProductOutcomeSchema,
   searchProductsOutcomeSchema,
   voidSaleOutcomeSchema,
+  weighLineOutcomeSchema,
   weighProductOutcomeSchema,
 } from "./sale.js";
 
@@ -537,6 +538,9 @@ describe("weighProductOutcomeSchema", () => {
   it.each([
     { kind: "added", sale, removed_manual_discount: false, removed_sale_discount: false },
     { kind: "weighing" },
+    { kind: "zero_weight" },
+    { kind: "stable", weight_thousandths: 250, amount: 2250 },
+    { kind: "stable", weight_thousandths: 0, amount: 0 },
     { kind: "scale_unavailable" },
     { kind: "product_unavailable" },
     { kind: "not_sold_by_weight" },
@@ -561,10 +565,44 @@ describe("weighProductOutcomeSchema", () => {
     { kind: "added" },
     { kind: "invalid_weight" },
     { kind: "no_price" },
+    { kind: "stable" },
+    { kind: "stable", weight_thousandths: 250 },
+    { kind: "stable", weight_thousandths: 250, amount: -1 },
+    { kind: "stable", weight_thousandths: 1.5, amount: 0 },
+    { kind: "stable", weight_thousandths: -1, amount: 0 },
     { kind: "somewhere_else" },
     {},
   ])("rejects the outcome %j", (outcome) => {
     expect(weighProductOutcomeSchema.safeParse(outcome).success).toBe(false);
+  });
+});
+
+describe("weighLineOutcomeSchema", () => {
+  it.each([
+    { kind: "changed", sale, removed_manual_discount: false, removed_sale_discount: false },
+    { kind: "weighing" },
+    { kind: "zero_weight" },
+    { kind: "stable", weight_thousandths: 250, amount: 2250 },
+    { kind: "scale_unavailable" },
+    { kind: "unknown_line" },
+    { kind: "stale_weight" },
+    { kind: "not_sold_by_weight" },
+    { kind: "sale_has_payments" },
+    ...refusals,
+  ])("accepts the outcome $kind", (outcome) => {
+    expect(weighLineOutcomeSchema.parse(outcome)).toEqual(outcome);
+  });
+
+  it.each([
+    { kind: "changed" },
+    { kind: "invalid_weight" },
+    { kind: "added", sale, removed_manual_discount: false, removed_sale_discount: false },
+    { kind: "stable", weight_thousandths: 250 },
+    { kind: "stable", weight_thousandths: 250, amount: -1 },
+    { kind: "somewhere_else" },
+    {},
+  ])("rejects the outcome %j", (outcome) => {
+    expect(weighLineOutcomeSchema.safeParse(outcome).success).toBe(false);
   });
 });
 
@@ -816,6 +854,7 @@ describe("the outcomes that say a manual discount was removed", () => {
     ["weighing a product", weighProductOutcomeSchema, "added"],
     ["changing a line's quantity", changeLineQuantityOutcomeSchema, "changed"],
     ["changing a line's weight", changeLineWeightOutcomeSchema, "changed"],
+    ["weighing a line", weighLineOutcomeSchema, "changed"],
   ] as const)("require it when %s changes the sale", (_case, schema, kind) => {
     const answer = { kind, sale, removed_sale_discount: false };
 
@@ -833,6 +872,7 @@ describe("the outcomes that say the discount on the sale's total was removed", (
     ["weighing a product", weighProductOutcomeSchema, "added"],
     ["changing a line's quantity", changeLineQuantityOutcomeSchema, "changed"],
     ["changing a line's weight", changeLineWeightOutcomeSchema, "changed"],
+    ["weighing a line", weighLineOutcomeSchema, "changed"],
   ] as const)("require it when %s changes the sale", (_case, schema, kind) => {
     const answer = { kind, sale, removed_manual_discount: false };
 
