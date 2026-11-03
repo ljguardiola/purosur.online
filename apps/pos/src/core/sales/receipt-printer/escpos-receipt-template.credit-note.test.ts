@@ -186,6 +186,23 @@ describe("the ESC/POS credit note of a voided sale", () => {
     expect(textLines).toContain("Reintegro en efectivo                $ 11.060,00");
   });
 
+  it("prints the cash rounding of the voided sale before its total", () => {
+    const { textLines } = printed(
+      creditNote({
+        totals: { subtotal: 1_106_000, saleDiscount: null, cashRounding: 6000, total: 1_100_000 },
+        refunds: [{ method: "CASH", amount: 1_100_000 }],
+      }),
+    );
+
+    const rounding = textLines.indexOf("Redondeo                                -$ 60,00");
+    expect(textLines.slice(rounding - 1, rounding + 3)).toEqual([
+      "Subtotal                             $ 11.060,00",
+      "Redondeo                                -$ 60,00",
+      RULE,
+      "TOTAL                                $ 11.000,00",
+    ]);
+  });
+
   it.each([
     ["QR", "Reintegro por QR de Mercado Pago"],
     ["POINT", "Reintegro por Point integrada"],
