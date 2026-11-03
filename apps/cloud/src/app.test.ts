@@ -1399,6 +1399,14 @@ describe("wiring the purchasing routes", () => {
       ]),
       app.inject({ method: "GET", url: "/api/purchases" }),
       app.inject({ method: "POST", url: "/api/purchases", headers: ORIGIN }),
+      app.inject({ method: "POST", url: `/api/purchases/${ID}/lines`, headers: ORIGIN }),
+      app.inject({ method: "PATCH", url: `/api/purchases/${ID}`, headers: ORIGIN }),
+      app.inject({
+        method: "PATCH",
+        url: `/api/purchases/${ID}/lines/${ID}/expiry`,
+        headers: ORIGIN,
+      }),
+      app.inject({ method: "GET", url: `/api/purchases/${ID}/changes` }),
       app.inject({ method: "GET", url: "/api/purchase-choices" }),
       app.inject({ method: "GET", url: "/api/freights" }),
       app.inject({ method: "POST", url: "/api/freights", headers: ORIGIN }),
@@ -1479,7 +1487,7 @@ describe("wiring the purchasing routes", () => {
   it("does not register the purchasing routes when no purchasing option is given", async () => {
     const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
-    expect(await purchasingResponses(app)).toEqual(Array(41).fill(404));
+    expect(await purchasingResponses(app)).toEqual(Array(45).fill(404));
   });
 
   it("registers the purchasing routes when a purchasing option is given", async () => {
@@ -1493,7 +1501,7 @@ describe("wiring the purchasing routes", () => {
       },
     });
 
-    expect(await purchasingResponses(app)).toEqual(Array(41).fill(401));
+    expect(await purchasingResponses(app)).toEqual(Array(45).fill(401));
   });
 });
 
@@ -2849,6 +2857,22 @@ describe("the route access inventory", () => {
       },
       { method: "GET", url: "/api/purchases", access: capabilityAccess("purchases") },
       { method: "POST", url: "/api/purchases", access: capabilityAccess("purchases") },
+      {
+        method: "POST",
+        url: "/api/purchases/:purchaseId/lines",
+        access: capabilityAccess("purchases"),
+      },
+      { method: "PATCH", url: "/api/purchases/:purchaseId", access: capabilityAccess("purchases") },
+      {
+        method: "PATCH",
+        url: "/api/purchases/:purchaseId/lines/:lineId/expiry",
+        access: capabilityAccess("purchases"),
+      },
+      {
+        method: "GET",
+        url: "/api/purchases/:purchaseId/changes",
+        access: capabilityAccess("purchases"),
+      },
       {
         method: "GET",
         url: "/api/purchase-choices",

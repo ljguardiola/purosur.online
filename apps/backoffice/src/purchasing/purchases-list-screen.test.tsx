@@ -1,78 +1,18 @@
-import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import { render } from "../shell/test-support/render-with-router";
-import { PurchasesListScreen } from "./purchases-list-screen";
-import type { PurchasesListScreenServices } from "./purchases-list-services";
 import { compraDeAceite, compraDeAvena, compraDeMiel } from "./test-support/purchases";
+import {
+  createServices,
+  deferred,
+  loaded,
+  renderScreen,
+  rowTexts,
+} from "./test-support/purchases-list-screen";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
-
-function createServices(
-  overrides: Partial<PurchasesListScreenServices> = {},
-): PurchasesListScreenServices {
-  return { fetchPurchases: vi.fn(), ...overrides };
-}
-
-function deferred<T>() {
-  let resolve: (value: T) => void = () => {};
-  const promise = new Promise<T>((settle) => {
-    resolve = settle;
-  });
-  return { promise, resolve };
-}
-
-function screenElement(
-  services: PurchasesListScreenServices,
-  {
-    onSessionEnded = () => {},
-    registered = false,
-    onNoticeDismissed = () => {},
-  }: { onSessionEnded?: () => void; registered?: boolean; onNoticeDismissed?: () => void } = {},
-) {
-  return (
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <PurchasesListScreen
-          services={services}
-          onSessionEnded={onSessionEnded}
-          registered={registered}
-          onNoticeDismissed={onNoticeDismissed}
-        />
-      </main>
-    </FieldSizeProvider>
-  );
-}
-
-function renderScreen(...args: Parameters<typeof screenElement>) {
-  return render(screenElement(...args));
-}
-
-type Screen = Awaited<ReturnType<typeof renderScreen>>;
-
-function rowTexts(screen: Screen): string[] {
-  return screen
-    .getByRole("row")
-    .all()
-    .slice(1)
-    .map((row) => row.element().textContent ?? "");
-}
-
-async function loaded(
-  services: PurchasesListScreenServices,
-  options: Parameters<typeof screenElement>[1] = {},
-) {
-  vi.mocked(services.fetchPurchases).mockResolvedValue({
-    kind: "ok",
-    value: [compraDeMiel, compraDeAvena],
-  });
-  const screen = await renderScreen(services, options);
-  await expect.element(screen.getByRole("table", { name: "Compras" })).toBeVisible();
-  return screen;
-}
 
 test("shows the breadcrumb and the heading", async () => {
   const screen = await loaded(createServices());

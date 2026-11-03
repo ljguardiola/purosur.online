@@ -8,6 +8,7 @@ import type {
   FreightList,
   LinkablePurchaseList,
   OrderSuggestion,
+  PurchaseChange,
   PurchaseChoices,
   PurchaseOrderSummary,
   PurchaseSummary,
@@ -44,7 +45,7 @@ import type {
   PurchaseOrderStateFilter,
   PurchaseOrderTextRead,
 } from "./purchase-orders-api";
-import type { fetchPurchaseChoices, fetchPurchases } from "./purchases-api";
+import type { fetchPurchaseChanges, fetchPurchaseChoices, fetchPurchases } from "./purchases-api";
 import type { fetchPurchasesReport } from "./purchases-report-api";
 import type {
   fetchSupplierItemLinkChoices,
@@ -71,6 +72,7 @@ export const purchasingKeys = {
   suppliers: [...purchasingKey, "suppliers"] as const,
   purchases: [...purchasingKey, "purchases"] as const,
   purchaseChoices: [...purchasingKey, "purchase-choices"] as const,
+  purchaseChanges: [...purchasingKey, "purchase-changes"] as const,
   freights: [...purchasingKey, "freights"] as const,
   linkablePurchases: [...purchasingKey, "linkable-purchases"] as const,
   supplierPriceLists: [...purchasingKey, "supplier-price-lists"] as const,
@@ -199,12 +201,30 @@ export function usePurchasesQuery(params: {
 
 export function usePurchaseChoicesQuery(params: {
   fetchPurchaseChoices: typeof fetchPurchaseChoices;
+  enabled?: boolean;
   onSessionEnded: () => void;
 }) {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQuery<PurchaseChoices>({
     queryKey: purchasingKeys.purchaseChoices,
+    enabled: params.enabled,
     read: params.fetchPurchaseChoices,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function usePurchaseChangesQuery(params: {
+  purchaseId: string | null;
+  fetchPurchaseChanges: typeof fetchPurchaseChanges;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  const { purchaseId } = params;
+  return useCloudQuery<PurchaseChange[]>({
+    queryKey: [...purchasingKeys.purchaseChanges, purchaseId ?? ""],
+    enabled: purchaseId !== null,
+    read: () => params.fetchPurchaseChanges(purchaseId ?? ""),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

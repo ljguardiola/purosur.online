@@ -11,7 +11,11 @@ import { formatProductDescription } from "@purosur/ui/formatters";
 import { schemaLimit } from "../platform/schema-limit";
 import { parseStockQuantity, quantityMessage } from "../platform/stock-quantity";
 import { packageCountOf, quantityPerPackageOf } from "./package-count-form";
-import type { PurchaseLineRefusal } from "./purchases-api";
+import type {
+  AddPurchaseLinesOutcome,
+  PurchaseLineRefusal,
+  RegisterPurchaseOutcome,
+} from "./purchases-api";
 import { receiptLabel } from "./receipt-label";
 
 const { receiptNumber: receiptNumberSchema, note: noteSchema } =
@@ -112,7 +116,9 @@ export const PURCHASE_LINE_REFUSALS = {
   product_inactive: "Este producto ya no está activo.",
 } satisfies Record<PurchaseLineRefusal, string>;
 
-export function purchaseDateMessage({ purchasedOn }: PurchaseFormValues): string {
+export function purchaseDateMessage({
+  purchasedOn,
+}: Pick<PurchaseFormValues, "purchasedOn">): string {
   return purchasedOn === null
     ? "Ingresá la fecha de la compra."
     : "La fecha de compra no puede ser posterior a hoy.";
@@ -121,7 +127,7 @@ export function purchaseDateMessage({ purchasedOn }: PurchaseFormValues): string
 export function purchaseReceiptNumberMessage({
   receiptType,
   receiptNumber,
-}: PurchaseFormValues): string {
+}: Pick<PurchaseFormValues, "receiptType" | "receiptNumber">): string {
   const trimmed = receiptNumber.trim();
   if (receiptType === "sin_comprobante" && trimmed !== "") {
     return "Una compra sin comprobante no lleva número.";
@@ -133,7 +139,7 @@ export function purchaseReceiptNumberMessage({
   return `El número puede tener hasta ${limit} caracteres.`;
 }
 
-export function purchaseNoteMessage(_values: PurchaseFormValues): string {
+export function purchaseNoteMessage(_values: Pick<PurchaseFormValues, "note">): string {
   const limit = schemaLimit(noteSchema.meta()?.["maxLength"]);
   return `La nota puede tener hasta ${limit} caracteres.`;
 }
@@ -146,7 +152,7 @@ function quantityOf(line: PurchaseLineValues, products: PurchaseProducts): numbe
   return parseStockQuantity(line.quantity, saleUnitOf(products, line.productId)) ?? Number.NaN;
 }
 
-function lineRequestFrom(
+export function purchaseLineRequestFrom(
   line: PurchaseLineValues,
   products: PurchaseProducts,
 ): PurchaseRegistrationBody["lines"][number] {
@@ -183,14 +189,14 @@ export function purchaseRegistrationRequestFrom(
     receiptType: values.receiptType,
     receiptNumber: values.receiptNumber.trim(),
     note: values.note.trim(),
-    lines: values.lines.map((line) => lineRequestFrom(line, products)),
+    lines: values.lines.map((line) => purchaseLineRequestFrom(line, products)),
   };
 }
 
 const purchaseLineSchema = purchaseRegistrationBodySchema.shape.lines.element;
 
 function packagesRefused(line: PurchaseLineValues, products: PurchaseProducts): boolean {
-  const checked = purchaseLineSchema.safeParse(lineRequestFrom(line, products));
+  const checked = purchaseLineSchema.safeParse(purchaseLineRequestFrom(line, products));
   return checked.error?.issues.some((issue) => issue.path[0] === "packages") ?? false;
 }
 
@@ -233,13 +239,13 @@ function lineProblem(line: PurchaseLineValues, products: PurchaseProducts): stri
 }
 
 export function purchaseLinesMessage(
-  { lines }: PurchaseFormValues,
+  { lines }: Pick<PurchaseFormValues, "lines">,
   products: PurchaseProducts,
 ): string {
   if (lines.length === 0) {
     return "Agregá al menos una línea.";
   }
-  const request = lines.map((line) => lineRequestFrom(line, products));
+  const request = lines.map((line) => purchaseLineRequestFrom(line, products));
   const index = lines.findIndex((_, position) => {
     const checked = purchaseLineSchema.safeParse(request[position]);
     return !checked.success;
@@ -256,6 +262,20 @@ export function purchaseLineQuantityRefusal(
   return line?.loadedBy === "packages"
     ? "Revisá la cantidad de paquetes y la cantidad por paquete."
     : quantityMessage(saleUnitOf(products, line?.productId ?? null));
+}
+
+export function purchaseLineRefusalsOf(
+  outcome: AddPurchaseLinesOutcome | RegisterPurchaseOutcome,
+  lines: readonly PurchaseLineValues[],
+  products: PurchaseProducts,
+): Record<number, string> | undefined {
+  if (outcome.kind === "line_refused") {
+    return { [outcome.lineIndex]: PURCHASE_LINE_REFUSALS[outcome.reason] };
+  }
+  if (outcome.kind === "validation_failed" && outcome.lineIndex !== undefined) {
+    return { [outcome.lineIndex]: purchaseLineQuantityRefusal(lines[outcome.lineIndex], products) };
+  }
+  return undefined;
 }
 
 const supplierNameOrder = textOrder((supplier: SupplierSummary) => supplier.name);
