@@ -168,6 +168,24 @@ export type {
 } from "./propose-supplier-item-quantity.js";
 export { proposeSupplierItemQuantity } from "./propose-supplier-item-quantity.js";
 export type {
+  PurchaseChangeListing,
+  PurchaseChangeReader,
+} from "./purchase-change-reader.js";
+export type {
+  AddedLineRecord,
+  LockedPurchase,
+  LockedPurchaseLine,
+  LockPurchaseResult,
+  LotExpiryCorrection,
+  PurchaseCorrection,
+  PurchaseCorrectionChange,
+  PurchaseCorrectionStore,
+  PurchaseCorrectionStoreTransaction,
+  PurchasedLotsRedating,
+  PurchaseHeaderChange,
+  PurchaseHeaderValues,
+} from "./purchase-correction-store.js";
+export type {
   PurchaseOrderDetailListing,
   PurchaseOrderLineListing,
   PurchaseOrderListing,
