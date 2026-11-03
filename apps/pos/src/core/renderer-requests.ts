@@ -65,6 +65,7 @@ import type {
   SignInUser,
   StartMercadoPagoChargeOutcome,
   VoidSaleOutcome,
+  WeighLineOutcome,
   WeighProductOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey, RegisterService, ReturnDraftLine } from "@purosur/domain";
@@ -165,7 +166,19 @@ export interface RendererRequestDeps {
   addWeighedProduct:
     | ((productId: string, weightThousandths: number) => Promise<AddWeighedProductOutcome>)
     | undefined;
-  weighProduct: ((productId: string) => Promise<WeighProductOutcome>) | undefined;
+  weighProduct:
+    | ((
+        productId: string,
+        confirmedWeightThousandths: number | null,
+      ) => Promise<WeighProductOutcome>)
+    | undefined;
+  weighLine:
+    | ((
+        lineId: string,
+        expectedWeightThousandths: number,
+        confirmedWeightThousandths: number | null,
+      ) => Promise<WeighLineOutcome>)
+    | undefined;
   initialCount: InitialCountRequests | undefined;
   clockGuard: ClockGuardRequests | undefined;
   contingencyBackupTickets: ContingencyBackupTicketRequests | undefined;
@@ -1388,7 +1401,26 @@ export async function answerRendererRequest(
         outcome: await attemptSaleChange(
           deps,
           "weighing a product on the scale",
-          weighProduct && (() => weighProduct(message.product_id)),
+          weighProduct &&
+            (() => weighProduct(message.product_id, message.confirmed_weight_thousandths)),
+        ),
+      };
+    }
+    case "weigh-line": {
+      const { weighLine } = deps;
+      return {
+        type: "weigh-line-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "weighing a line on the scale",
+          weighLine &&
+            (() =>
+              weighLine(
+                message.line_id,
+                message.expected_weight_thousandths,
+                message.confirmed_weight_thousandths,
+              )),
         ),
       };
     }

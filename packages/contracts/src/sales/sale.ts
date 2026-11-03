@@ -409,10 +409,20 @@ export const addWeighedProductOutcomeSchema = z.discriminatedUnion("kind", [
 ]);
 export type AddWeighedProductOutcome = z.infer<typeof addWeighedProductOutcomeSchema>;
 
+const scaleWeighingOutcomes = [
+  z.object({ kind: z.literal("weighing") }),
+  z.object({ kind: z.literal("zero_weight") }),
+  z.object({
+    kind: z.literal("stable"),
+    weight_thousandths: z.int().nonnegative(),
+    amount: cents,
+  }),
+  z.object({ kind: z.literal("scale_unavailable") }),
+] as const;
+
 export const weighProductOutcomeSchema = z.discriminatedUnion("kind", [
   addedOutcome,
-  z.object({ kind: z.literal("weighing") }),
-  z.object({ kind: z.literal("scale_unavailable") }),
+  ...scaleWeighingOutcomes,
   z.object({ kind: z.literal("product_unavailable") }),
   z.object({ kind: z.literal("not_sold_by_weight") }),
   noPriceOutcome,
@@ -430,6 +440,22 @@ export const weighProductOutcomeSchema = z.discriminatedUnion("kind", [
   unavailableOutcome,
 ]);
 export type WeighProductOutcome = z.infer<typeof weighProductOutcomeSchema>;
+
+export const weighLineOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("changed"),
+    sale: saleSchema,
+    removed_manual_discount: z.boolean(),
+    removed_sale_discount: z.boolean(),
+  }),
+  ...scaleWeighingOutcomes,
+  z.object({ kind: z.literal("unknown_line") }),
+  z.object({ kind: z.literal("stale_weight") }),
+  z.object({ kind: z.literal("not_sold_by_weight") }),
+  saleHasPaymentsOutcome,
+  ...saleRefusalSchemas,
+]);
+export type WeighLineOutcome = z.infer<typeof weighLineOutcomeSchema>;
 
 const foundProductSchema = z.object({
   product_id: z.string(),

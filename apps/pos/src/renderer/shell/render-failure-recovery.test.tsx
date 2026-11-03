@@ -88,6 +88,7 @@ function buildFailingRouter(shouldThrow: () => boolean) {
       changeLineQuantity: async () => ({ kind: "unavailable" }),
       addWeighedProduct: async () => ({ kind: "unavailable" }),
       weighProduct: async () => ({ kind: "scale_unavailable" }),
+      weighLine: async () => ({ kind: "scale_unavailable" }),
       changeLineWeight: async () => ({ kind: "unavailable" }),
       adjustSaleLine: async () => ({ kind: "unavailable" }),
       previewSaleLineAdjustment: async () => ({ kind: "unavailable" }),

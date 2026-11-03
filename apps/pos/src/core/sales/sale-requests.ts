@@ -27,6 +27,7 @@ import type {
   SaleDiscountRequest,
   ScanProductOutcome,
   SearchProductsOutcome,
+  WeighLineOutcome,
   WeighProductOutcome,
 } from "@purosur/contracts";
 import type { ZoneRulesSource } from "@purosur/domain";
@@ -81,6 +82,7 @@ import {
   removeSaleLine,
   type Scale,
   searchProductsByName,
+  weighLineOnScale,
   weighProductOnScale,
 } from "@purosur/domain/sales/use-cases";
 import { toWireRefund } from "../payments/wire-refund";
@@ -542,6 +544,7 @@ export async function weighProductFor(
     scale,
   }: SellingRequestDeps & { scale: Scale },
   productId: string,
+  confirmedWeightThousandths: number | null,
 ): Promise<WeighProductOutcome> {
   const guarded = await asSeller({ database, gate }, (actorId) =>
     weighProductOnScale(
@@ -559,7 +562,7 @@ export async function weighProductFor(
         ids,
         scale,
       },
-      { actorId, productId },
+      { actorId, productId, confirmedWeightThousandths },
     ),
   );
   if (guarded.kind !== "performed") {
@@ -576,6 +579,12 @@ export async function weighProductFor(
       };
     case "no_price":
       return { kind: "no_price", product_name: outcome.productName };
+    case "stable":
+      return {
+        kind: "stable",
+        weight_thousandths: outcome.weightThousandths,
+        amount: outcome.amount,
+      };
     default:
       return { kind: outcome.kind };
   }
@@ -772,6 +781,50 @@ export async function changeLineWeightFor(
         removed_sale_discount: outcome.removedSaleDiscount,
       }
     : { kind: outcome.kind };
+}
+
+export async function weighLineFor(
+  {
+    database,
+    gate,
+    now,
+    zoneRules,
+    restoration,
+    scale,
+  }: Pick<SaleRequestDeps, "database" | "gate" | "now" | "zoneRules" | "restoration"> & {
+    scale: Scale;
+  },
+  lineId: string,
+  expectedWeightThousandths: number,
+  confirmedWeightThousandths: number | null,
+): Promise<WeighLineOutcome> {
+  const guarded = await asSeller({ database, gate }, (actorId) =>
+    weighLineOnScale(
+      { zoneRules, ledger: saleLedger(database), restoration, clock: { now }, scale },
+      { actorId, lineId, expectedWeightThousandths, confirmedWeightThousandths },
+    ),
+  );
+  if (guarded.kind !== "performed") {
+    return { kind: guarded.kind === "not_signed_in" ? "not_signed_in" : "not_permitted" };
+  }
+  const { outcome, view } = guarded.result;
+  switch (outcome.kind) {
+    case "changed":
+      return {
+        kind: "changed",
+        sale: toOpenSale(outcome, view),
+        removed_manual_discount: outcome.removedManualDiscount,
+        removed_sale_discount: outcome.removedSaleDiscount,
+      };
+    case "stable":
+      return {
+        kind: "stable",
+        weight_thousandths: outcome.weightThousandths,
+        amount: outcome.amount,
+      };
+    default:
+      return { kind: outcome.kind };
+  }
 }
 
 export interface AdjustSaleLineRequest {
