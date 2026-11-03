@@ -1,17 +1,22 @@
 import type {
   AbandonMercadoPagoChargeOutcome,
+  Authorization,
   CashChargeAnswer,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
+  ChargeSaleInCashWithChangeDiscountOutcome,
   ChargeSaleOnStandaloneTerminalOutcome,
   ChargeSaleWithPaidOrderOutcome,
   CurrentSaleAnswer,
   FollowMercadoPagoChargeOutcome,
   OpenSale,
   PaymentMethodAvailability,
+  PreviewSaleDiscountOutcome,
   ReadContingencyBackupTicketOfSaleOutcome,
   ReadContingencyBackupTicketsOutcome,
   ReceiptPrintStatusOutcome,
+  SaleDiscountRequest,
+  SignInUser,
   StartMercadoPagoChargeOutcome,
 } from "@purosur/contracts";
 import { onTestFinished, vi } from "vitest";
@@ -164,8 +169,19 @@ export type Overrides = {
   ) => Promise<AbandonMercadoPagoChargeOutcome>;
   person?: ChargeScreenProps["person"];
   currentSale?: () => Promise<CurrentSaleAnswer>;
-  cashCharge?: (saleId: string, tendered: number) => Promise<CashChargeAnswer>;
+  cashCharge?: (
+    saleId: string,
+    tendered: number,
+    saleDiscount?: number,
+  ) => Promise<CashChargeAnswer>;
   chargeSaleInCash?: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
+  chargeSaleInCashWithChangeDiscount?: (
+    saleId: string,
+    tendered: number,
+    discountAmount: number,
+    authorization: Authorization | undefined,
+  ) => Promise<ChargeSaleInCashWithChangeDiscountOutcome>;
+  previewSaleDiscount?: (discount: SaleDiscountRequest) => Promise<PreviewSaleDiscountOutcome>;
   chargeSaleByTransfer?: (saleId: string, amount: number) => Promise<ChargeSaleByTransferOutcome>;
   chargeSaleOnStandaloneTerminal?: (
     saleId: string,
@@ -193,6 +209,21 @@ export async function renderScreen(overrides: Overrides = {}) {
   const currentSale = vi.fn(overrides.currentSale ?? (async () => SALE_OF_ONE_LINE));
   const cashCharge = vi.fn(overrides.cashCharge ?? (async () => COVERED));
   const chargeSaleInCash = vi.fn(overrides.chargeSaleInCash ?? (async () => COMPLETED));
+  const chargeSaleInCashWithChangeDiscount = vi.fn(
+    overrides.chargeSaleInCashWithChangeDiscount ?? (async () => COMPLETED),
+  );
+  const previewSaleDiscount = vi.fn(
+    overrides.previewSaleDiscount ??
+      (async (discount: SaleDiscountRequest): Promise<PreviewSaleDiscountOutcome> => ({
+        kind: "preview",
+        subtotal: 476_000,
+        discount_amount: discount.value,
+        total: 476_000 - discount.value,
+      })),
+  );
+  const loadAuthorizers = vi.fn(
+    async (): Promise<SignInUser[]> => [{ id: "u3", first_name: "Sofía" }],
+  );
   const chargeSaleByTransfer = vi.fn(
     overrides.chargeSaleByTransfer ?? (async () => TRANSFER_COMPLETED),
   );
@@ -245,6 +276,9 @@ export async function renderScreen(overrides: Overrides = {}) {
       currentSale={currentSale}
       cashCharge={cashCharge}
       chargeSaleInCash={chargeSaleInCash}
+      chargeSaleInCashWithChangeDiscount={chargeSaleInCashWithChangeDiscount}
+      previewSaleDiscount={previewSaleDiscount}
+      loadAuthorizers={loadAuthorizers}
       chargeSaleByTransfer={chargeSaleByTransfer}
       chargeSaleOnStandaloneTerminal={chargeSaleOnStandaloneTerminal}
       chargeSaleWithPaidOrder={chargeSaleWithPaidOrder}
@@ -263,6 +297,8 @@ export async function renderScreen(overrides: Overrides = {}) {
     currentSale,
     cashCharge,
     chargeSaleInCash,
+    chargeSaleInCashWithChangeDiscount,
+    previewSaleDiscount,
     chargeSaleByTransfer,
     chargeSaleOnStandaloneTerminal,
     chargeSaleWithPaidOrder,
