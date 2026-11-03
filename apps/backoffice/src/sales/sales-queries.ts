@@ -1,5 +1,6 @@
 import type {
   AverageTicketBody,
+  CashRoundingBody,
   HandTypedWeightsBody,
   ManualDiscountsBody,
   ManualDiscountsQuery,
@@ -15,6 +16,7 @@ import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { useCloudQuery } from "../platform/use-cloud-query";
 import type {
   fetchAverageTicket,
+  fetchCashRounding,
   fetchHandTypedWeights,
   fetchManualDiscounts,
   fetchRemovedLinesAndCancelledSales,
@@ -66,6 +68,14 @@ export const salesKeys = {
       query.to ?? "",
       query.register_id ?? "",
       query.authorized_by ?? "",
+    ] as const,
+  cashRounding: (query: ReportQuery) =>
+    [
+      ...salesKey,
+      "cash-rounding",
+      query.from ?? "",
+      query.to ?? "",
+      query.register_id ?? "",
     ] as const,
   averageTicket: (query: ReportQuery) =>
     [
@@ -187,6 +197,19 @@ export function useAverageTicketQuery(
     queryKey: salesKeys.averageTicket(params.query),
     keepPreviousData: true,
     read: () => params.fetchAverageTicket(params.query),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useCashRoundingQuery(
+  params: ReadParams & { query: ReportQuery; fetchCashRounding: typeof fetchCashRounding },
+) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<CashRoundingBody>({
+    queryKey: salesKeys.cashRounding(params.query),
+    keepPreviousData: true,
+    read: () => params.fetchCashRounding(params.query),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

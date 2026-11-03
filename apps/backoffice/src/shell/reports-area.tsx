@@ -7,6 +7,7 @@ import {
   Calculator,
   CalendarClock,
   ChartColumn,
+  Coins,
   FileText,
   HandCoins,
   List,
@@ -53,6 +54,7 @@ function ReportsArea() {
   );
   const salesByPromotionShown = Boolean(matchRoute({ to: "/reports/sales-by-promotion" }));
   const manualDiscountsShown = Boolean(matchRoute({ to: "/reports/manual-discounts" }));
+  const cashRoundingShown = Boolean(matchRoute({ to: "/reports/cash-rounding" }));
   const currentStockShown = Boolean(matchRoute({ to: "/reports/current-stock" }));
   const expiringLotsShown = Boolean(matchRoute({ to: "/reports/expiring-lots" }));
   const lossesByReasonShown = Boolean(matchRoute({ to: "/reports/losses-by-reason" }));
@@ -254,6 +256,15 @@ function ReportsArea() {
                     icon={<HandCoins />}
                     search={manualDiscountsShown ? true : {}}
                     active={manualDiscountsShown}
+                  />
+                </li>
+                <li>
+                  <SectionLink
+                    to="/reports/cash-rounding"
+                    label="Redondeo en efectivo"
+                    icon={<Coins />}
+                    search={cashRoundingShown ? true : {}}
+                    active={cashRoundingShown}
                   />
                 </li>
                 <li>
