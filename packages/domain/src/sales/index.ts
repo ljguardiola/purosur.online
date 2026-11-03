@@ -1,6 +1,6 @@
-export { mayBeCashRounding } from "./model/cash-rounding.js";
 export { averageTicket } from "./model/average-ticket.js";
 export type { CancelledSale } from "./model/cancelled-sale.js";
+export { mayBeCashRounding } from "./model/cash-rounding.js";
 export type { CompletedSale } from "./model/completed-sale.js";
 export { stockMovementsMatchLines } from "./model/completed-sale.js";
 export type { CreditNoteReceiptContent } from "./model/credit-note-receipt-content.js";
