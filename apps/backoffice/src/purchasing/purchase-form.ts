@@ -31,7 +31,6 @@ export type PurchaseLineValues = {
   quantityPerPackage: string;
   quantity: string;
   cost: string;
-  lotNumber: string;
   expiresOn: CalendarDate | null;
   reviewPriceNow: boolean;
 };
@@ -54,7 +53,6 @@ export function emptyPurchaseLine(id: number): PurchaseLineValues {
     quantityPerPackage: "",
     quantity: "",
     cost: "",
-    lotNumber: "",
     expiresOn: null,
     reviewPriceNow: false,
   };
@@ -159,7 +157,6 @@ export function purchaseLineRequestFrom(
   const common = {
     productId: line.productId ?? "",
     costPaidCents: parseAmountCents(line.cost) ?? Number.NaN,
-    lotNumber: line.lotNumber.trim(),
     expiresOn: line.expiresOn?.toString() ?? "",
   };
   return line.loadedBy === "packages"

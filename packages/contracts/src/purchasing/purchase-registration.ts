@@ -2,10 +2,8 @@ import {
   hasValidReceiptNumber,
   isCalendarDay,
   isCostPaid,
-  isLotNumberTooLong,
   isPurchaseNoteTooLong,
   isReceiptNumberTooLong,
-  LOT_NUMBER_MAX_LENGTH,
   MIN_PURCHASE_LINES,
   mayBeMovementQuantity,
   PURCHASE_NOTE_MAX_LENGTH,
@@ -28,7 +26,6 @@ const RECEIPT_NUMBER_MESSAGE =
 const lineFields = {
   productId: recordIdSchema("productId must be a product's id"),
   costPaidCents: z.number({ error: COST_MESSAGE }).refine(isCostPaid, COST_MESSAGE),
-  lotNumber: optionalLimitedTextSchema("lotNumber", LOT_NUMBER_MAX_LENGTH, isLotNumberTooLong),
   expiresOn: optionalTextSchema(`expiresOn ${CALENDAR_DAY_MESSAGE}`, isCalendarDay),
 };
 

@@ -25,7 +25,6 @@ const addedLineSchema = z.object({
   productId: z.string(),
   quantity: z.int(),
   costPaidCents: z.int(),
-  lotNumber: z.string().nullable(),
   expiresOn: z.string().nullable(),
 });
 

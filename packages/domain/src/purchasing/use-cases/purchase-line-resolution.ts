@@ -6,7 +6,6 @@ import type { LockProductResult, PurchasingStoreTransaction } from "./purchasing
 interface PurchaseLineBase {
   productId: string;
   costPaidCents: number;
-  lotNumber: string | null;
   expiresOn: string | null;
 }
 
@@ -109,7 +108,6 @@ export interface RegisteredPurchaseLine {
   quantity: number;
   costPaidCents: number;
   quantityPerPackage: number;
-  lotNumber: string | null;
   expiresOn: string | null;
 }
 
@@ -138,7 +136,6 @@ export async function recordPurchaseLines(
       quantity,
       costPaidCents: line.costPaidCents,
       quantityPerPackage,
-      lotNumber: line.lotNumber,
       expiresOn: line.expiresOn,
     };
     const { id } = await tx.insertPurchaseLine({
@@ -163,13 +160,12 @@ export async function recordPurchaseLines(
     purchasedOn,
     actorId,
     lines: lines.map(
-      ({ id, productId, quantity, costPaidCents, quantityPerPackage, lotNumber, expiresOn }) => ({
+      ({ id, productId, quantity, costPaidCents, quantityPerPackage, expiresOn }) => ({
         purchaseLineId: id,
         productId,
         quantity,
         costPaidCents,
         quantityPerPackage,
-        lotNumber,
         expiresOn,
       }),
     ),
