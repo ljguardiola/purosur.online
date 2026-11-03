@@ -42,3 +42,8 @@ export type { PriceReviewPostponement } from "./model/price-review.js";
 export { priceReviewAt } from "./model/price-review.js";
 export type { PriceReviewPendingReason } from "./model/price-review-deadline.js";
 export { PRICE_REVIEW_PENDING_REASONS } from "./model/price-review-deadline.js";
+export type {
+  RecipeComponentQuantity,
+  RecommendedUnitPrice,
+} from "./model/recommended-price.js";
+export { recommendedUnitPrice } from "./model/recommended-price.js";

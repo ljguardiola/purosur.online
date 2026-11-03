@@ -62,7 +62,7 @@ describe("recommendedUnitPrice", () => {
     expect(recommendation).toEqual({ kind: "missing_prices", componentProductIds: ["c", "b"] });
   });
 
-  it("recommends nothing for a recipe with no components", () => {
+  it("sums to zero for a recipe with no components", () => {
     expect(recommendedUnitPrice([], new Map())).toEqual({
       kind: "recommended",
       unitPrice: { numerator: 0n, denominator: 1000n },
@@ -115,11 +115,15 @@ describe("recommendedUnitPrice", () => {
           const recommendation = recommendedUnitPrice(
             rows,
             new Map(
-              rows.filter(({ priced }) => priced).map(({ componentProductId }) => [componentProductId, 100]),
+              rows
+                .filter(({ priced }) => priced)
+                .map(({ componentProductId }) => [componentProductId, 100]),
             ),
           );
 
-          const missing = rows.filter(({ priced }) => !priced).map(({ componentProductId }) => componentProductId);
+          const missing = rows
+            .filter(({ priced }) => !priced)
+            .map(({ componentProductId }) => componentProductId);
           expect(recommendation.kind).toBe(missing.length === 0 ? "recommended" : "missing_prices");
           if (recommendation.kind === "missing_prices") {
             expect(recommendation.componentProductIds).toEqual(missing);
