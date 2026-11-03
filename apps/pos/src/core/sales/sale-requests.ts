@@ -691,6 +691,17 @@ export async function chargeSaleWithPaidOrderFor(
   }
 }
 
+function wireCashCharge(charge: ReturnType<typeof cashCharge>): CashChargeAnswer {
+  return charge.kind === "covered"
+    ? {
+        kind: "covered",
+        applied: charge.applied,
+        change: charge.change,
+        cash_rounding: charge.cashRounding,
+      }
+    : charge;
+}
+
 export async function cashChargeFor(
   deps: Pick<SaleRequestDeps, "database" | "gate" | "now" | "zoneRules" | "restoration">,
   { saleId, tendered, saleDiscount }: CashChargeReadRequest,
@@ -703,14 +714,14 @@ export async function cashChargeFor(
     return null;
   }
   if (saleDiscount === undefined) {
-    return cashCharge(sale.pending, tendered);
+    return wireCashCharge(cashCharge(sale.pending, tendered));
   }
   const preview = await previewSaleDiscountFor(deps, {
     discount: { kind: "AMOUNT", value: saleDiscount },
   });
   switch (preview.kind) {
     case "preview":
-      return cashCharge(preview.total, tendered);
+      return wireCashCharge(cashCharge(preview.total, tendered));
     case "discount_exceeds_sale":
     case "sale_has_payments":
       return { kind: preview.kind };
@@ -1228,6 +1239,7 @@ export async function chargeSaleInCashFor(
         total: outcome.total,
         tendered: outcome.tendered,
         change: outcome.change,
+        cash_rounding: outcome.cashRounding,
       };
     case "partially_paid":
       return partiallyPaid(outcome);
@@ -1292,6 +1304,7 @@ export async function chargeSaleInCashWithChangeDiscountFor(
         total: outcome.total,
         tendered: outcome.tendered,
         change: outcome.change,
+        cash_rounding: outcome.cashRounding,
       };
     case "partially_paid":
       return partiallyPaid(outcome);
