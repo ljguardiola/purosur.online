@@ -1990,7 +1990,7 @@ describe("charging the sale in progress in cash with a discount on its total", (
            FROM sales`,
         )
         .all(),
-      payments: database.prepare("SELECT amount, tendered FROM payments").all(),
+      payments: database.prepare("SELECT amount, tendered FROM payment_transactions").all(),
       events: database.prepare("SELECT event_type FROM outbox").all(),
     };
   }

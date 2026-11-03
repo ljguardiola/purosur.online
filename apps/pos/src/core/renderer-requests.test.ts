@@ -127,7 +127,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   const weighings: string[] = [];
   const kindLookups: string[] = [];
   const saleLookups: string[] = [];
-  const chargeReads: { saleId: string; tendered: number; saleDiscount?: number }[] = [];
+  const chargeReads: { saleId: string; tendered: number; saleDiscount?: number | undefined }[] = [];
   const previewReads: number[] = [];
   const saleChanges: string[] = [];
   const signOuts: string[] = [];
@@ -503,7 +503,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       cashCharge: async (request: {
         saleId: string;
         tendered: number;
-        saleDiscount?: number;
+        saleDiscount?: number | undefined;
       }): Promise<CashChargeAnswer> => {
         chargeReads.push(request);
         return null;

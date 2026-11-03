@@ -418,6 +418,9 @@ function coreAnswering(
         ? { kind: "unavailable" }
         : sales.chargeSaleInCash(saleId, tendered);
     },
+    async chargeSaleInCashWithChangeDiscount() {
+      return { kind: "unavailable" };
+    },
     async chargeSaleByTransfer(saleId, amount) {
       return sales.chargeSaleByTransfer === undefined
         ? { kind: "unavailable" }

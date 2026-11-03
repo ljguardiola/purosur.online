@@ -176,6 +176,7 @@ import {
   changeLineWeightFor,
   chargeSaleByTransferFor,
   chargeSaleInCashFor,
+  chargeSaleInCashWithChangeDiscountFor,
   chargeSaleOnStandaloneTerminalFor,
   chargeSaleWithPaidOrderFor,
   currentSaleFor,
@@ -1381,6 +1382,23 @@ const rendererRequestDeps: RendererRequestDeps = {
       ? undefined
       : (request) =>
           chargeSaleInCashFor(
+            {
+              zoneRules,
+              database: localDatabase,
+              restoration: restorationOf(localDatabase),
+              gate: actionGate,
+              readOutboxChainKey: async () =>
+                (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+              now,
+              ids: uuidV7Ids,
+            },
+            request,
+          ),
+  chargeSaleInCashWithChangeDiscount:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (request) =>
+          chargeSaleInCashWithChangeDiscountFor(
             {
               zoneRules,
               database: localDatabase,
