@@ -52,10 +52,7 @@ function previewOf(discount: number): PreviewSaleDiscountOutcome {
   };
 }
 
-async function answerLikeTheCore(
-  tendered: number,
-  discount?: number,
-): Promise<CashChargeAnswer> {
+async function answerLikeTheCore(tendered: number, discount?: number): Promise<CashChargeAnswer> {
   const owed = 960_000 - (discount ?? 0);
   return tendered >= owed
     ? { kind: "covered", applied: owed, change: tendered - owed }
