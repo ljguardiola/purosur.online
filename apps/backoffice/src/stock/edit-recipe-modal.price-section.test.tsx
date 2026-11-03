@@ -3,7 +3,7 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { StubProductPriceSection } from "../platform/test-support/creation-parts";
 import { render } from "../shell/test-support/render-with-router";
-import { EditRecipeModal } from "./edit-recipe-modal";
+import { EditRecipeModal, type EditRecipeModalServices } from "./edit-recipe-modal";
 import { mixDeFrutosSecos, recipeProducts } from "./test-support/recipes";
 
 beforeEach(() => {
@@ -12,7 +12,6 @@ beforeEach(() => {
 
 function renderModal({
   maySetPrice = true,
-  saveRecipe = vi.fn(),
   withSection = true,
 }: {
   maySetPrice?: boolean;
@@ -27,7 +26,7 @@ function renderModal({
           products={recipeProducts}
           {...(withSection ? { productPriceSection: StubProductPriceSection } : {})}
           maySetPrice={maySetPrice}
-          services={{ saveRecipe }}
+          services={{ saveRecipe: vi.fn<EditRecipeModalServices["saveRecipe"]>() }}
           onSaved={() => {}}
           onClose={() => {}}
           onSessionEnded={() => {}}

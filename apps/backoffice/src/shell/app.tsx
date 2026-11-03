@@ -34,6 +34,7 @@ import type {
   ProductCreationModal,
   RoleCreationModal,
 } from "../platform/creation-parts";
+import type { ProductPriceSection } from "../platform/product-price-section";
 import { createQueryClient } from "../platform/query-client";
 import {
   defaultReleaseMonitor,
@@ -151,6 +152,7 @@ export type AppServices = {
   reportFiltersRegisterFilter: ComponentType<ReportRegisterFilterProps>;
   categoryCreationModal: CategoryCreationModal;
   productCreationModal: ProductCreationModal;
+  productPriceSection: ProductPriceSection;
   roleCreationModal: RoleCreationModal;
   reportRegisterFilter: ReportRegisterFilterServices;
   mercadoPagoRefundsScreen: MercadoPagoRefundsScreenServices;
@@ -207,6 +209,7 @@ type ShellServiceName =
   | "reportFiltersRegisterFilter"
   | "categoryCreationModal"
   | "productCreationModal"
+  | "productPriceSection"
   | "roleCreationModal"
   | "accountFooter"
   | "screenFailure"
@@ -245,6 +248,10 @@ const defaultRouteServices: RouteServices = {
   productCreationModal: lazyScreen(
     () => import("../catalog/create-product-from-selector-modal"),
     "CreateProductFromSelectorModal",
+  ),
+  productPriceSection: lazyScreen(
+    () => import("../pricing/product-price-section"),
+    "ProductPriceSection",
   ),
   roleCreationModal: lazyScreen(
     () => import("../permissions/create-role-from-selector-modal"),

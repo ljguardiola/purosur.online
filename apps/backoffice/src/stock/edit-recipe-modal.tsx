@@ -6,6 +6,7 @@ import { Check, Pencil, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { withCreatedProducts } from "../platform/created-products";
 import type { CreatedProduct, ProductCreationModal } from "../platform/creation-parts";
+import type { ProductPriceSection } from "../platform/product-price-section";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { useStackedCreation } from "../platform/stacked-creation";
 import { RecipeComponentsField } from "./recipe-components-field";
@@ -17,6 +18,7 @@ import {
   recipeComponentsHeading,
   recipeComponentsMessage,
   recipeFormValuesOf,
+  recipePriceComponentsOf,
   recipeRowRefusalOf,
   recipeSaveRequestFrom,
 } from "./recipe-form";
@@ -32,6 +34,8 @@ type EditRecipeModalProps = {
   target: RecipeSummary | null;
   products: RecipeList["products"];
   productCreationModal?: ProductCreationModal | undefined;
+  productPriceSection?: ProductPriceSection | undefined;
+  maySetPrice?: boolean | undefined;
   services: EditRecipeModalServices;
   onSaved: (recipe: RecipeSummary) => void;
   onClose: () => void;
@@ -42,6 +46,8 @@ export function EditRecipeModal({
   target,
   products: storedProducts,
   productCreationModal: ProductCreation,
+  productPriceSection: PriceSection,
+  maySetPrice = false,
   services,
   onSaved,
   onClose,
@@ -53,7 +59,7 @@ export function EditRecipeModal({
   const [refusals, setRefusals] = useState<Record<string, string>>({});
   const [shown, setShown] = useState<RecipeSummary | null>(null);
   const titled = target ?? shown;
-  const { form, submit, submitting, reset } = useRequestForm({
+  const { form, submit, submitting, reset, values } = useRequestForm({
     defaultValues: EMPTY_RECIPE_FORM,
     request: { schema: recipeSaveBodySchema, from: recipeSaveRequestFrom },
     fields: RECIPE_FIELDS,
@@ -123,6 +129,7 @@ export function EditRecipeModal({
     storedProducts,
     componentCreation.created ? [componentCreation.created] : [],
   );
+  const priceComponents = recipePriceComponentsOf(values.components);
   const closeForm = () => {
     componentCreation.finish();
     onClose();
@@ -205,6 +212,20 @@ export function EditRecipeModal({
             Es una plantilla: al registrar una tanda se proponen estas cantidades y se registra lo
             que realmente se usó.
           </p>
+          {PriceSection && priceComponents.length > 0 ? (
+            <PriceSection
+              productId={target.productId}
+              productDescription={formatProductDescription({
+                name: target.productName,
+                brandName: target.brandName,
+                netContent: target.netContent,
+              })}
+              saleUnit={target.saleUnit}
+              components={priceComponents}
+              maySetPrice={maySetPrice}
+              onSessionEnded={onSessionEnded}
+            />
+          ) : null}
           {ProductCreation ? (
             <ProductCreation
               open={componentCreation.open}
