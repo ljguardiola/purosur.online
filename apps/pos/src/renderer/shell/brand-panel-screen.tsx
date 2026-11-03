@@ -17,7 +17,12 @@ function BrandPanelStatus({ status }: { status: string }) {
   );
 }
 
-function BrandPanelFooter({ status, version }: { status?: string; version?: string | null }) {
+type BrandPanelFooterProps = {
+  status?: string | undefined;
+  version?: string | null | undefined;
+};
+
+function BrandPanelFooter({ status, version }: BrandPanelFooterProps) {
   return (
     <footer className="flex flex-col gap-1 text-detail text-text-subtle">
       {status === undefined ? null : <BrandPanelStatus status={status} />}
@@ -30,11 +35,7 @@ export function BrandPanelScreen({
   children,
   status,
   version,
-}: {
-  children?: ReactNode;
-  status?: string;
-  version?: string | null;
-}) {
+}: BrandPanelFooterProps & { children?: ReactNode }) {
   return (
     <div className="flex h-full w-full bg-surface">
       <div className="flex w-2/5 min-w-80 flex-col bg-surface-soft p-8">
