@@ -14,7 +14,7 @@ import { render } from "../../shell/test-support/render-with-router";
 import type { CashChargeModalProps } from "../cash-charge-modal";
 import { CashChargeModal } from "../cash-charge-modal";
 
-export const AMOUNT_FIELD = "Importe entregado por el cliente";
+const AMOUNT_FIELD = "Importe entregado por el cliente";
 export const DISCOUNT_FIELD = "Descuento por falta de cambio";
 
 const PERSON: SignedInPerson = { user_id: "u1", first_name: "Ada", abilities: [] };
@@ -43,7 +43,7 @@ const COMPLETED: ChargeSaleInCashOutcome = {
 
 const SALE_OF_9600 = { total: 960_000, paid: 0, pending: 960_000 };
 
-export function previewOf(discount: number): PreviewSaleDiscountOutcome {
+function previewOf(discount: number): PreviewSaleDiscountOutcome {
   return {
     kind: "preview",
     subtotal: 960_000,
@@ -52,7 +52,7 @@ export function previewOf(discount: number): PreviewSaleDiscountOutcome {
   };
 }
 
-export async function answerLikeTheCore(
+async function answerLikeTheCore(
   tendered: number,
   discount?: number,
 ): Promise<CashChargeAnswer> {
