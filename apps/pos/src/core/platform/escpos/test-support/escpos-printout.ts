@@ -118,7 +118,10 @@ export function printoutOf(bytes: Uint8Array): Printout {
 }
 
 function blankRowsAtTheBottom(rows: Uint8Array, widthBytes: number): number {
-  const lastInk = rows.findLastIndex((byte) => byte !== 0);
+  let lastInk = rows.length - 1;
+  while (lastInk >= 0 && rows[lastInk] === 0) {
+    lastInk -= 1;
+  }
   const height = rows.length / widthBytes;
   return lastInk === -1 ? height : height - 1 - Math.floor(lastInk / widthBytes);
 }
