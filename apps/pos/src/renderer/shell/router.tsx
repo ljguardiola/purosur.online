@@ -76,6 +76,7 @@ import type {
   StartMercadoPagoChargeOutcome,
   VoidSaleOutcome,
   WeighCountedProductOutcome,
+  WeighLineOutcome,
   WeighProductOutcome,
   WithdrawInitialCountLineOutcome,
 } from "@purosur/contracts";
@@ -230,7 +231,12 @@ export interface RouterContext {
     productId: string,
     weightThousandths: number,
   ) => Promise<AddWeighedProductOutcome>;
-  weighProduct: (productId: string) => Promise<WeighProductOutcome>;
+  weighProduct: (productId: string, take: boolean) => Promise<WeighProductOutcome>;
+  weighLine: (
+    lineId: string,
+    expectedWeightThousandths: number,
+    take: boolean,
+  ) => Promise<WeighLineOutcome>;
   changeLineQuantity: (
     lineId: string,
     quantity: number,
@@ -736,6 +742,7 @@ const openSessionRoute = createRoute({
       addProduct,
       addWeighedProduct,
       weighProduct,
+      weighLine,
       changeLineQuantity,
       changeLineWeight,
       adjustSaleLine,
@@ -763,6 +770,7 @@ const openSessionRoute = createRoute({
         addProduct={addProduct}
         addWeighedProduct={addWeighedProduct}
         weighProduct={weighProduct}
+        weighLine={weighLine}
         changeLineQuantity={changeLineQuantity}
         changeLineWeight={changeLineWeight}
         adjustSaleLine={adjustSaleLine}
@@ -1405,6 +1413,7 @@ export function createAppRouter(
     | "addProduct"
     | "addWeighedProduct"
     | "weighProduct"
+    | "weighLine"
     | "changeLineQuantity"
     | "changeLineWeight"
     | "adjustSaleLine"

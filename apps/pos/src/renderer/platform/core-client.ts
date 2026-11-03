@@ -99,6 +99,7 @@ import type {
   SyncCoreToRendererMessage,
   VoidSaleOutcome,
   WeighCountedProductOutcome,
+  WeighLineOutcome,
   WeighProductOutcome,
   WithdrawInitialCountLineOutcome,
 } from "@purosur/contracts";
@@ -240,7 +241,12 @@ export interface CoreClient {
     productId: string,
     weightThousandths: number,
   ): Promise<AddWeighedProductOutcome>;
-  weighProduct(productId: string): Promise<WeighProductOutcome>;
+  weighProduct(productId: string, take: boolean): Promise<WeighProductOutcome>;
+  weighLine(
+    lineId: string,
+    expectedWeightThousandths: number,
+    take: boolean,
+  ): Promise<WeighLineOutcome>;
   readClockGuard(): Promise<ReadClockGuardOutcome>;
   correctRegisterClock(): Promise<CorrectRegisterClockOutcome>;
   readInitialCount(): Promise<ReadInitialCountOutcome>;
@@ -994,10 +1000,22 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         (answer) => (answer.type === "add-weighed-product-result" ? answer.outcome : undefined),
       );
     },
-    weighProduct(productId) {
+    weighProduct(productId, take) {
       return ask(
-        { type: "weigh-product", request_id: deps.newRequestId(), product_id: productId },
+        { type: "weigh-product", request_id: deps.newRequestId(), product_id: productId, take },
         (answer) => (answer.type === "weigh-product-result" ? answer.outcome : undefined),
+      );
+    },
+    weighLine(lineId, expectedWeightThousandths, take) {
+      return ask(
+        {
+          type: "weigh-line",
+          request_id: deps.newRequestId(),
+          line_id: lineId,
+          expected_weight_thousandths: expectedWeightThousandths,
+          take,
+        },
+        (answer) => (answer.type === "weigh-line-result" ? answer.outcome : undefined),
       );
     },
     readClockGuard() {

@@ -6,7 +6,7 @@ import type {
 import { Button, formatWeightInput, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import { Check, Info, Package, Scale, TriangleAlert, UserX } from "lucide-react";
 import type { FormEvent } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ScaleWeighing, StableReading } from "../platform/use-scale-weighing";
 import { useScaleWeighing } from "../platform/use-scale-weighing";
 import {
@@ -57,15 +57,17 @@ export function CountLineModal({
   const { product_id: productId, sale_unit: saleUnit } = product;
   const [notice, setNotice] = useState<Notice>();
 
-  const { phase, typeInstead } = useScaleWeighing<StableReading>(async () => {
-    if (saleUnit !== "KG") {
-      return { kind: "closed" };
-    }
-    const reading = await weigh(productId).catch(
-      (): WeighCountedProductOutcome => ({ kind: "unavailable" }),
-    );
-    return scaleWeighingOf(reading);
-  });
+  const { phase, confirming, confirm, typeInstead } = useScaleWeighing<StableReading>(
+    async (take) => {
+      if (saleUnit !== "KG") {
+        return { kind: "closed" };
+      }
+      const reading = await weigh(productId).catch(
+        (): WeighCountedProductOutcome => ({ kind: "unavailable" }),
+      );
+      return scaleWeighingOf(reading, take);
+    },
+  );
 
   const { form, submit, submitting } = useRequestForm({
     defaultValues: EMPTY_COUNT_LINE_FORM,
@@ -108,19 +110,41 @@ export function CountLineModal({
     },
   });
 
+  const latestSubmit = useRef(submit);
+
   useEffect(() => {
+    latestSubmit.current = submit;
+  });
+
+  useEffect(() => {
+    if (phase.kind === "stable") {
+      form.setFieldValue("counted", formatWeightInput(phase.reading.weightThousandths), {
+        dontRunListeners: true,
+      });
+    }
     if (phase.kind === "taken") {
-      form.setFieldValue("counted", formatWeightInput(phase.weightThousandths));
+      form.setFieldValue("counted", formatWeightInput(phase.reading.weightThousandths), {
+        dontRunListeners: true,
+      });
+      void latestSubmit.current();
     }
   }, [phase, form]);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (submitting) {
+  function requestSubmit() {
+    if (submitting || confirming) {
       return;
     }
     setNotice(undefined);
+    if (phase.kind === "weighing" && phase.last !== undefined) {
+      confirm();
+      return;
+    }
     void submit();
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    requestSubmit();
   }
 
   const byWeight = saleUnit === "KG";
@@ -148,8 +172,8 @@ export function CountLineModal({
             size="large"
             fullWidth
             icon={<Check />}
-            dataStatus={submitting ? "loading" : "loaded"}
-            onPress={() => void submit()}
+            dataStatus={submitting || confirming ? "loading" : "loaded"}
+            onPress={requestSubmit}
           >
             Confirmar línea
           </Button>
@@ -215,10 +239,16 @@ export function CountLineModal({
   );
 }
 
-function scaleWeighingOf(outcome: WeighCountedProductOutcome): ScaleWeighing<StableReading> {
+function scaleWeighingOf(
+  outcome: WeighCountedProductOutcome,
+  take: boolean,
+): ScaleWeighing<StableReading> {
   switch (outcome.kind) {
     case "weighed":
-      return { kind: "taken", weightThousandths: outcome.weight_thousandths };
+      return {
+        kind: take ? "taken" : "stable",
+        reading: { weightThousandths: outcome.weight_thousandths },
+      };
     case "weighing":
       return { kind: "weighing" };
     default:
