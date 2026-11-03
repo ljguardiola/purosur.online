@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { transformAsync, traverse, types as t } from "@babel/core";
+import { types as t, transformAsync, traverse } from "@babel/core";
 import reactCompiler from "babel-plugin-react-compiler";
 import { describeViolation, findTrackedFiles } from "./react-compiler-check.mjs";
 
@@ -39,7 +39,9 @@ function unwrapPath(path) {
 
 function isCacheRead(node) {
   const inner = unwrap(node);
-  return t.isMemberExpression(inner) && inner.computed && t.isIdentifier(inner.object, { name: "$" });
+  return (
+    t.isMemberExpression(inner) && inner.computed && t.isIdentifier(inner.object, { name: "$" })
+  );
 }
 
 function calleeName(callee) {
@@ -55,6 +57,29 @@ function isHookCall(node) {
   if (!t.isCallExpression(node) && !t.isOptionalCallExpression(node)) return false;
   const name = calleeName(node.callee);
   return /(^|\.)use[A-Z][^.]*$/.test(name);
+}
+
+const PRIMITIVE_GLOBAL_CALLS = new Set(["Number", "String", "Boolean", "parseInt", "parseFloat"]);
+
+function isPrimitiveCall(path) {
+  if (!path.isCallExpression()) return false;
+  const name = calleeName(path.node.callee);
+  const root = name.split(".")[0];
+  if (path.scope.getBinding(root)) return false;
+  return root === "Math" || PRIMITIVE_GLOBAL_CALLS.has(name);
+}
+
+function isComponentOrHook(functionPath) {
+  const parent = functionPath.parentPath;
+  if (
+    parent.isCallExpression() &&
+    /(^|\.)(memo|forwardRef)$/.test(calleeName(parent.node.callee))
+  ) {
+    return true;
+  }
+  const name =
+    functionPath.node.id?.name ?? (parent.isVariableDeclarator() ? parent.node.id.name : undefined);
+  return typeof name === "string" && /^([A-Z]|use[A-Z])/.test(name);
 }
 
 function describeNode(node) {
@@ -83,7 +108,11 @@ function cacheTestDeps(testPath) {
 }
 
 function enclosingCacheBlock(path) {
-  for (let child = path, parent = path.parentPath; parent; child = parent, parent = parent.parentPath) {
+  for (
+    let child = path, parent = path.parentPath;
+    parent;
+    child = parent, parent = parent.parentPath
+  ) {
     if (parent.isFunction()) return null;
     if (
       parent.isIfStatement() &&
@@ -166,7 +195,7 @@ function createAnalysis() {
     ) {
       return null;
     }
-    if (isCacheRead(node) || isHookCall(node)) return null;
+    if (isCacheRead(node) || isHookCall(node) || isPrimitiveCall(path)) return null;
     if (path.isIdentifier()) return checkIdentifier(path);
     if (path.isMemberExpression() || path.isOptionalMemberExpression()) {
       return check(path.get("object"));
@@ -189,7 +218,7 @@ function optionsObjectOf(argumentPath) {
   if (path.isObjectExpression()) return path;
   if (!path.isIdentifier()) return null;
   const binding = path.scope.getBinding(path.node.name);
-  if (!binding || !binding.path.isVariableDeclarator()) return null;
+  if (!binding?.path.isVariableDeclarator()) return null;
 
   const sources = [];
   const init = binding.path.get("init");
@@ -247,7 +276,9 @@ function isHookCallee(path) {
     return callee.name === HOOK;
   }
   return (
-    t.isMemberExpression(callee) && !callee.computed && t.isIdentifier(callee.property, { name: HOOK })
+    t.isMemberExpression(callee) &&
+    !callee.computed &&
+    t.isIdentifier(callee.property, { name: HOOK })
   );
 }
 
@@ -274,7 +305,9 @@ function violationsOfCall(callPath, path) {
       violations.push(violation(`${HOOK} ${option} cannot be followed (${found.unfollowable})`));
       continue;
     }
-    const valuePath = found.property.isObjectProperty() ? found.property.get("value") : found.property;
+    const valuePath = found.property.isObjectProperty()
+      ? found.property.get("value")
+      : found.property;
     const trail = analysis.check(valuePath);
     if (trail) {
       violations.push(
@@ -303,7 +336,9 @@ async function violationsOf({ path, source }) {
   const violations = [];
   traverse(result.ast, {
     CallExpression(callPath) {
-      if (isHookCallee(callPath)) violations.push(...violationsOfCall(callPath, path));
+      const enclosing = callPath.getFunctionParent();
+      if (isHookCallee(callPath) && enclosing && isComponentOrHook(enclosing))
+        violations.push(...violationsOfCall(callPath, path));
     },
   });
   return violations;
