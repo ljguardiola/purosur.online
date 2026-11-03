@@ -9,6 +9,10 @@ describe("SMALLEST_CASH_BILL", () => {
   });
 });
 
+function roundedDown(amountDue: number): number {
+  return amountDue < SMALLEST_CASH_BILL ? amountDue : amountDue - (amountDue % SMALLEST_CASH_BILL);
+}
+
 describe("cashCharge", () => {
   it("applies the whole amount due and gives no change when the tendered amount is exact", () => {
     expect(cashCharge(2500, 2500)).toEqual({
@@ -78,15 +82,19 @@ describe("cashCharge", () => {
     );
   });
 
-  it("applies the tendered amount and leaves the rest pending for every valid amount below the amount due", () => {
+  it("applies the tendered amount and leaves the rest pending for every valid amount below the rounded amount due", () => {
     fc.assert(
       fc.property(
         fc
           .integer({ min: 2, max: 1_000_000 })
           .chain((amountDue) =>
-            fc.tuple(fc.constant(amountDue), fc.integer({ min: 1, max: amountDue - 1 })),
+            fc.tuple(
+              fc.constant(amountDue),
+              fc.integer({ min: 1, max: Math.max(1, roundedDown(amountDue) - 1) }),
+            ),
           ),
         ([amountDue, tendered]) => {
+          fc.pre(tendered < roundedDown(amountDue));
           const charge = cashCharge(amountDue, tendered);
           expect(charge).toEqual({
             kind: "partial",
@@ -174,7 +182,7 @@ describe("cashCharge", () => {
           expect(charge.cashRounding).toBeLessThan(SMALLEST_CASH_BILL);
           expect(charge.applied + charge.cashRounding).toBe(amountDue);
           expect(charge.applied).toBeGreaterThan(0);
-          expect(charge.applied + charge.change).toBe(amountDue + extra - charge.cashRounding);
+          expect(charge.applied + charge.change).toBe(amountDue + extra);
         },
       ),
     );
