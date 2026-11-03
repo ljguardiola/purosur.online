@@ -70,7 +70,14 @@ function pending() {
 }
 
 async function renderScreen(signIn = answering(SIGNED_IN).signIn, users = USERS) {
-  return render(<SignInScreen loadUsers={async () => users} signIn={signIn} registerName={null} version={null} />);
+  return render(
+    <SignInScreen
+      loadUsers={async () => users}
+      signIn={signIn}
+      registerName={null}
+      version={null}
+    />,
+  );
 }
 
 async function choose(screen: Screen, firstName: string) {

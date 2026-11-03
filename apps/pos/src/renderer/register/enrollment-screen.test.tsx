@@ -184,7 +184,11 @@ describe("EnrollmentScreen", () => {
     ["the core can't answer", new Error("the core connection was replaced")],
   ])("says the alta couldn't be done when %s", async (_case, outcome) => {
     const screen = await render(
-      <EnrollmentScreen checkCode={checkingLikeTheCore} enroll={answering(outcome).enroll} version={null} />,
+      <EnrollmentScreen
+        checkCode={checkingLikeTheCore}
+        enroll={answering(outcome).enroll}
+        version={null}
+      />,
     );
 
     await submitCode(screen);

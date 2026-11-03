@@ -7,10 +7,14 @@ import { appEnv } from "./launch-app";
 import { WAIT_BOUND_MS } from "./test-support/bounds";
 import { closeRegister } from "./test-support/close-register";
 import {
+  packagedExecutable,
+  RESOURCES_FOLDER,
+  requireCiRunner,
+} from "./test-support/packaged-register";
+import {
   SERIAL_DEVICE_WATCH_FAILED,
   SERIAL_DEVICES_LISTED,
 } from "./test-support/serial-device-logs";
-import { packagedExecutable, RESOURCES_FOLDER, requireCiRunner } from "./test-support/packaged-register";
 import { untilLogged } from "./test-support/until";
 
 describe("the packaged register's serial devices", () => {

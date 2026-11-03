@@ -6,7 +6,11 @@ import { serializeChannelFile } from "../src/shared/channel";
 import { appEnv } from "./launch-app";
 import { WAIT_BOUND_MS } from "./test-support/bounds";
 import { closeRegister } from "./test-support/close-register";
-import { packagedExecutable, RESOURCES_FOLDER, requireCiRunner } from "./test-support/packaged-register";
+import {
+  packagedExecutable,
+  RESOURCES_FOLDER,
+  requireCiRunner,
+} from "./test-support/packaged-register";
 
 describe("the packaged register's version", () => {
   it("reads the version it was packaged with on the enrollment screen", async () => {

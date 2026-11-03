@@ -124,8 +124,8 @@ import {
   registerStatusQueryOptions,
   startupPendingQueryOptions,
   useRegisterNameQuery,
-  useRegisterVersionQuery,
   useRegisterStatusQuery,
+  useRegisterVersionQuery,
 } from "../register/register-queries";
 import { RestoreRequiredScreen } from "../register/restore-required-screen";
 import type { RestoringStanding } from "../register/restoring-screen";
