@@ -185,6 +185,7 @@ import {
   removeSaleLineFor,
   scanProductFor,
   searchProductsFor,
+  weighLineFor,
   weighProductFor,
 } from "./sales/sale-requests";
 import { saleHistoryDetailFor, salesHistoryFor } from "./sales/sales-history-requests";
@@ -1533,7 +1534,7 @@ const rendererRequestDeps: RendererRequestDeps = {
   weighProduct:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : (productId) =>
+      : (productId, take) =>
           weighProductFor(
             {
               zoneRules,
@@ -1549,6 +1550,24 @@ const rendererRequestDeps: RendererRequestDeps = {
               scale: systelScale,
             },
             productId,
+            take,
+          ),
+  weighLine:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (lineId, expectedWeightThousandths, take) =>
+          weighLineFor(
+            {
+              zoneRules,
+              database: localDatabase,
+              restoration: restorationOf(localDatabase),
+              gate: actionGate,
+              now,
+              scale: systelScale,
+            },
+            lineId,
+            expectedWeightThousandths,
+            take,
           ),
   initialCount:
     localDatabase === undefined || actionGate === undefined

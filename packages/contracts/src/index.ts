@@ -806,6 +806,7 @@ export type {
   ScanProductOutcome,
   SearchProductsOutcome,
   VoidSaleOutcome,
+  WeighLineOutcome,
   WeighProductOutcome,
 } from "./sales/sale.js";
 export type { SaleCreditNote } from "./sales/sale-credit-note.js";
