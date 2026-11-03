@@ -372,6 +372,7 @@ function Register({ core }: { core: CoreClient }) {
   const services = {
     enroll,
     registerName: () => core.registerName(),
+    registerVersion: () => core.registerVersion(),
     signInUsers: () => core.signInUsers(),
     authorizers: (permission: AuthorizablePermissionKey) => core.authorizers(permission),
     lockedClosers: () => core.lockedClosers(),

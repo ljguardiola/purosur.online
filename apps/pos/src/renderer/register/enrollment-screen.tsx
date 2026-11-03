@@ -76,10 +76,15 @@ type EnrollmentRequests = {
   enroll: (typedCode: string) => Promise<EnrollmentOutcome>;
 };
 
-export function EnrollmentScreen({ checkCode, enroll }: EnrollmentRequests) {
+export function EnrollmentScreen({
+  checkCode,
+  enroll,
+  version,
+}: EnrollmentRequests & { version: string | null }) {
   return (
     <EnrollmentPanel
       eyebrow="NOTEBOOK NUEVA"
+      version={version}
       status="Sin dar de alta"
       checkCode={checkCode}
       enroll={enroll}
@@ -107,10 +112,16 @@ export function ReEnrollmentScreen({
 function EnrollmentPanel({
   eyebrow,
   status,
+  version,
   checkCode,
   enroll,
   onBack,
-}: EnrollmentRequests & { eyebrow: string; status: string; onBack?: () => void }) {
+}: EnrollmentRequests & {
+  eyebrow: string;
+  status: string;
+  version?: string | null;
+  onBack?: () => void;
+}) {
   const [outcome, setOutcome] = useState<EnrollmentOutcome>();
   const noticeId = useId();
   const { form, submit, submitting } = useRequestForm({
@@ -142,7 +153,7 @@ function EnrollmentPanel({
   }
 
   return (
-    <BrandPanelScreen status={status}>
+    <BrandPanelScreen status={status} version={version}>
       <main className="flex w-full max-w-110 flex-col gap-4">
         <ScreenHeader
           eyebrow={eyebrow}

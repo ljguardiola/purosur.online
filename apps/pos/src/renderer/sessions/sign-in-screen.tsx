@@ -100,9 +100,9 @@ function SignInPanel({ loadUsers, signIn, registerName }: SignInScreenProps) {
   );
 }
 
-export function SignInScreen(props: SignInScreenProps) {
+export function SignInScreen({ version, ...props }: SignInScreenProps & { version: string | null }) {
   return (
-    <BrandPanelScreen>
+    <BrandPanelScreen version={version}>
       <SignInPanel {...props} />
     </BrandPanelScreen>
   );

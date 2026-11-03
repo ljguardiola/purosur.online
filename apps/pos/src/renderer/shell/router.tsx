@@ -124,6 +124,7 @@ import {
   registerStatusQueryOptions,
   startupPendingQueryOptions,
   useRegisterNameQuery,
+  useRegisterVersionQuery,
   useRegisterStatusQuery,
 } from "../register/register-queries";
 import { RestoreRequiredScreen } from "../register/restore-required-screen";
@@ -172,6 +173,7 @@ export interface RouterContext {
   lockedClosers: () => Promise<SignInUser[]>;
   signIn: (userId: string, pin: string) => Promise<SignInOutcome>;
   registerName: () => Promise<string | null>;
+  registerVersion: () => Promise<string | null>;
   signOut: () => void;
   openCashSession: (openingFloat: number) => Promise<OpenCashSessionOutcome>;
   closeCashSession: (
@@ -494,6 +496,11 @@ const rootRoute = createRootRouteWithContext<RouterContext>()({
 function useRegisterName() {
   const { registerName } = rootRoute.useRouteContext();
   return useRegisterNameQuery(registerName);
+}
+
+function useRegisterVersion() {
+  const { registerVersion } = rootRoute.useRouteContext();
+  return useRegisterVersionQuery(registerVersion);
 }
 
 const sessionEyebrowRoute = createRoute({
@@ -1169,7 +1176,15 @@ const signInRoute = createRoute({
   component: function SignInRoute() {
     const { signInUsers, signIn } = signInRoute.useRouteContext();
     const registerName = useRegisterName();
-    return <SignInScreen loadUsers={signInUsers} signIn={signIn} registerName={registerName} />;
+    const version = useRegisterVersion();
+    return (
+      <SignInScreen
+        loadUsers={signInUsers}
+        signIn={signIn}
+        registerName={registerName}
+        version={version}
+      />
+    );
   },
 });
 
@@ -1233,7 +1248,8 @@ const enrollRoute = createRoute({
   beforeLoad: ({ context }) => requireRoute("/enroll", context),
   component: function EnrollRoute() {
     const { enroll, checkEnrollmentCode } = enrollRoute.useRouteContext();
-    return <EnrollmentScreen checkCode={checkEnrollmentCode} enroll={enroll} />;
+    const version = useRegisterVersion();
+    return <EnrollmentScreen checkCode={checkEnrollmentCode} enroll={enroll} version={version} />;
   },
 });
 
@@ -1385,6 +1401,7 @@ export function createAppRouter(
     RouterContext,
     | "enroll"
     | "registerName"
+    | "registerVersion"
     | "signInUsers"
     | "signIn"
     | "signOut"
