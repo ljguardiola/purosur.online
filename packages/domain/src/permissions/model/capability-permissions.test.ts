@@ -446,7 +446,7 @@ describe("the price comparison capability", () => {
 });
 
 describe("the purchase_choices capability", () => {
-  it.each(["record_purchases", "manage_purchase_orders"] as const)(
+  it.each(["record_purchases", "manage_purchase_orders", "receive_purchase_orders"] as const)(
     "is granted to whoever holds only %s",
     (permission) => {
       expect(
@@ -464,7 +464,10 @@ describe("the purchase_choices capability", () => {
         {
           isAdministrator: false,
           permissionKeys: PERMISSION_KEYS.filter(
-            (key) => key !== "record_purchases" && key !== "manage_purchase_orders",
+            (key) =>
+              key !== "record_purchases" &&
+              key !== "manage_purchase_orders" &&
+              key !== "receive_purchase_orders",
           ),
         },
         "purchase_choices",
