@@ -1,5 +1,6 @@
+import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
-import { purchaseChangesSchema } from "./purchase-changes.js";
+import { purchaseChangeSchema, purchaseChangesSchema } from "./purchase-changes.js";
 
 const actor = { id: "person-1", name: "Ana Perez" };
 const correctedAt = "2026-03-10T15:00:00.000Z";
@@ -78,5 +79,13 @@ describe("purchaseChangesSchema", () => {
       purchaseChangesSchema.safeParse([{ id: "c", actor, correctedAt: "yesterday", change }])
         .success,
     ).toBe(false);
+  });
+});
+
+describe("purchaseChangeSchema, declared time zone", () => {
+  it("declares the zone the correction instant is shown in", () => {
+    expect(purchaseChangeSchema.shape.correctedAt.meta()).toEqual({
+      timeZone: ARGENTINA_TIME_ZONE,
+    });
   });
 });
