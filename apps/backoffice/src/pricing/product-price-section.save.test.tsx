@@ -129,7 +129,7 @@ test("shows a field the cloud refuses on the price field", async () => {
   await expect.element(screen.getByText("Revisá el precio.")).toBeVisible();
 });
 
-test("a price that changed meanwhile asks to reload the current price, which reads it again", async () => {
+test("a price that changed meanwhile offers in its notice to reload the current price, which reads it again", async () => {
   const services = sectionServices();
   services.setPrice.mockResolvedValue({ kind: "stale_price" });
   const screen = await renderSection({ services });
@@ -140,7 +140,9 @@ test("a price that changed meanwhile asks to reload the current price, which rea
     value: { ...recommended16000, currentPrice: { ...currentPrice, unitPrice: 1650000 } },
   });
 
-  await userEvent.click(screen.getByRole("button", { name: "Recargar el precio actual" }));
+  const reload = screen.getByRole("button", { name: "Recargar el precio actual" });
+  expect(screen.getByRole("alert").element().parentElement?.contains(reload.element())).toBe(true);
+  await userEvent.click(reload);
 
   await expect.element(screen.getByText("$ 16.500,00 / kg", { exact: true })).toBeVisible();
   await expect

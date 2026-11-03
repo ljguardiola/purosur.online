@@ -155,7 +155,7 @@ export const avenaConPasas = {
   saleUnit: "KG",
 } as const;
 
-const cajaDeRegalo = {
+export const cajaDeRegalo = {
   id: "a0000000-0000-4000-8000-000000000004",
   name: "Caja de regalo",
   brandName: null,

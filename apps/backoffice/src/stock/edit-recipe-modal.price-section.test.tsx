@@ -1,10 +1,7 @@
-import { FieldSizeProvider } from "@purosur/ui";
-import { beforeEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, test } from "vitest";
 import { userEvent } from "vitest/browser";
 import { StubProductPriceSection } from "../platform/test-support/creation-parts";
-import { render } from "../shell/test-support/render-with-router";
-import { EditRecipeModal, type EditRecipeModalServices } from "./edit-recipe-modal";
-import { mixDeFrutosSecos, recipeProducts } from "./test-support/recipes";
+import { renderEditRecipeModal } from "./test-support/edit-recipe-modal";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
@@ -15,25 +12,12 @@ function renderModal({
   withSection = true,
 }: {
   maySetPrice?: boolean;
-  saveRecipe?: () => void;
   withSection?: boolean;
 } = {}) {
-  return render(
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <EditRecipeModal
-          target={mixDeFrutosSecos}
-          products={recipeProducts}
-          {...(withSection ? { productPriceSection: StubProductPriceSection } : {})}
-          maySetPrice={maySetPrice}
-          services={{ saveRecipe: vi.fn<EditRecipeModalServices["saveRecipe"]>() }}
-          onSaved={() => {}}
-          onClose={() => {}}
-          onSessionEnded={() => {}}
-        />
-      </main>
-    </FieldSizeProvider>,
-  );
+  return renderEditRecipeModal({
+    ...(withSection ? { productPriceSection: StubProductPriceSection } : {}),
+    maySetPrice,
+  });
 }
 
 test("hands the section the recipe's product and its components with their quantities in thousandths", async () => {
@@ -60,23 +44,12 @@ test("hands the section the components as they are being edited, unsaved", async
   await expect.element(dialog.getByText("Almendras: 700")).toBeVisible();
 });
 
-test("leaves out a component whose quantity is not valid yet", async () => {
+test("hides the section while a component's quantity is not valid", async () => {
   const screen = await renderModal();
   const dialog = screen.getByRole("dialog");
+  await expect.element(dialog.getByText("Pasas: 100")).toBeVisible();
 
   await userEvent.clear(dialog.getByRole("textbox", { name: "Cantidad de Almendras" }));
-
-  await expect.element(dialog.getByText("Pasas: 100")).toBeVisible();
-  await expect.element(dialog.getByText(/^Almendras: /)).not.toBeInTheDocument();
-});
-
-test("hides the section while no component is valid", async () => {
-  const screen = await renderModal();
-  const dialog = screen.getByRole("dialog");
-
-  for (const name of ["Almendras", "Nueces", "Maní", "Pasas"]) {
-    await userEvent.clear(dialog.getByRole("textbox", { name: `Cantidad de ${name}` }));
-  }
 
   await expect
     .element(screen.getByRole("region", { name: "Precio de venta de prueba" }))

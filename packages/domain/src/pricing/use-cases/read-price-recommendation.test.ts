@@ -49,8 +49,8 @@ function ports({
   const purchase: PurchaseLineCost = {
     productId: MIX,
     lineId: "line",
-    purchasedOn: "2026-03-01",
-    recordedAt: new Date("2026-03-01T10:00:00Z"),
+    purchasedOn: "2026-03-20",
+    recordedAt: new Date("2026-03-20T10:00:00Z"),
     cost: { totalCents: 1, quantity: 1000 },
     freights: [],
   };

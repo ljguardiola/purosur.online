@@ -95,8 +95,9 @@ test("names the components without a price and recommends nothing", async () => 
 
   await expect.element(screen.getByText("Sin recomendación")).toBeVisible();
   await expect
-    .element(screen.getByText("Estos componentes no tienen precio: Pasas."))
-    .toBeVisible();
+    .element(screen.getByRole("status"))
+    .toHaveTextContent("Estos componentes no tienen precio: Pasas.");
+  await expect.element(screen.getByText("No hay un precio recomendado")).not.toBeInTheDocument();
   await expect.element(screen.getByLabelText("Precio de venta por kilo")).toHaveValue("");
 });
 
@@ -104,11 +105,7 @@ test("shows no margin and says there is no batch yet", async () => {
   const services = sectionServices({ ...recommended16000, batchCost: { kind: "none" } });
   const screen = await renderSection({ services });
 
-  await expect
-    .element(
-      screen.getByText("Todavía no hay tandas de este producto: no se puede calcular el margen."),
-    )
-    .toBeVisible();
+  await expect.element(screen.getByText("No se puede calcular el margen.")).toBeVisible();
   await expect.element(screen.getByText("Margen con este precio")).not.toBeInTheDocument();
   await expect.element(screen.getByText("Sin tandas")).toBeVisible();
 });
@@ -117,14 +114,9 @@ test("shows no margin and says the latest batch's cost is incomplete", async () 
   const services = sectionServices({ ...recommended16000, batchCost: { kind: "incomplete" } });
   const screen = await renderSection({ services });
 
-  await expect
-    .element(
-      screen.getByText(
-        "El costo de la última tanda está incompleto: no se puede calcular el margen.",
-      ),
-    )
-    .toBeVisible();
+  await expect.element(screen.getByText("No se puede calcular el margen.")).toBeVisible();
   await expect.element(screen.getByText("Margen con este precio")).not.toBeInTheDocument();
+  await expect.element(screen.getByText("Incompleto")).toBeVisible();
   expect(services.fetchPriceRecommendation).toHaveBeenCalledTimes(1);
 });
 
@@ -237,6 +229,18 @@ describe("while the person edits", () => {
         components: [{ componentProductId: almendrasId, quantityPerOutputUnit: 700 }],
       }),
     );
+  });
+
+  test("keeps the margin shown while the edited components settle", async () => {
+    const services = sectionServices();
+    const screen = await renderSection({ services });
+    await readEverything(services);
+    await expect.element(screen.getByText("25,0 %")).toBeVisible();
+
+    await screen.withComponents([{ ...almendrasComponent, quantityPerOutputUnit: 700 }]);
+    await vi.advanceTimersByTimeAsync(100);
+
+    await expect.element(screen.getByText("25,0 %")).toBeVisible();
   });
 
   test("keeps what the person typed when the recommendation changes", async () => {

@@ -1,10 +1,12 @@
-import type { RecipeList, RecipeSummary } from "@purosur/contracts";
-import { FieldSizeProvider } from "@purosur/ui";
+import type { RecipeSummary } from "@purosur/contracts";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import { render } from "../shell/test-support/render-with-router";
-import { EditRecipeModal, type EditRecipeModalServices } from "./edit-recipe-modal";
+import type { EditRecipeModalServices } from "./edit-recipe-modal";
 import type { fetchRecipes } from "./recipes-api";
+import {
+  type EditRecipeModalScreen,
+  renderEditRecipeModal,
+} from "./test-support/edit-recipe-modal";
 import {
   almendras,
   cajaDeInfusiones,
@@ -16,59 +18,19 @@ import {
   recipeProducts,
   teVerde,
 } from "./test-support/recipes";
-import { RecipesReader } from "./test-support/recipes-reader";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 
-function renderModal({
-  saveRecipe = vi.fn<EditRecipeModalServices["saveRecipe"]>(),
-  target = mixDeFrutosSecos,
-  products = recipeProducts,
-  onSaved = () => {},
-  onClose = () => {},
-  onSessionEnded = () => {},
-  readRecipes = vi.fn<typeof fetchRecipes>().mockResolvedValue({
-    kind: "ok",
-    value: recipeList([mixDeFrutosSecos]),
-  }),
-}: {
-  saveRecipe?: EditRecipeModalServices["saveRecipe"];
-  readRecipes?: typeof fetchRecipes;
-  target?: RecipeSummary;
-  products?: RecipeList["products"];
-  onSaved?: (recipe: RecipeSummary) => void;
-  onClose?: () => void;
-  onSessionEnded?: () => void;
-} = {}) {
-  return render(
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <RecipesReader read={readRecipes} />
-        <EditRecipeModal
-          target={target}
-          products={products}
-          services={{ saveRecipe }}
-          onSaved={onSaved}
-          onClose={onClose}
-          onSessionEnded={onSessionEnded}
-        />
-      </main>
-    </FieldSizeProvider>,
-  );
-}
-
-type ModalScreen = Awaited<ReturnType<typeof renderModal>>;
-
-async function save(screen: ModalScreen) {
+async function save(screen: EditRecipeModalScreen) {
   const dialog = screen.getByRole("dialog");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar la receta" }));
   return dialog;
 }
 
 test("shows the product's name as the title, with its components and quantities and no product field", async () => {
-  const screen = await renderModal();
+  const screen = await renderEditRecipeModal();
   const dialog = screen.getByRole("dialog");
 
   await expect.element(dialog.getByText("Stock · Recetas")).toBeVisible();
@@ -85,7 +47,7 @@ test("shows the product's name as the title, with its components and quantities 
 });
 
 test("shows the components of a unit product in units", async () => {
-  const screen = await renderModal({ target: cajaDeInfusiones });
+  const screen = await renderEditRecipeModal({ target: cajaDeInfusiones });
   const dialog = screen.getByRole("dialog");
 
   await expect
@@ -102,7 +64,7 @@ test("saves the changed recipe with the version it was opened at", async () => {
     .fn<EditRecipeModalServices["saveRecipe"]>()
     .mockResolvedValue({ kind: "ok", recipe: saved });
   const onSaved = vi.fn();
-  const screen = await renderModal({ saveRecipe, onSaved });
+  const screen = await renderEditRecipeModal({ saveRecipe, onSaved });
   const dialog = screen.getByRole("dialog");
 
   await userEvent.fill(dialog.getByRole("textbox", { name: "Cantidad de Almendras" }), "0,5");
@@ -124,7 +86,7 @@ test("adds a component the recipe does not have yet", async () => {
   const saveRecipe = vi
     .fn<EditRecipeModalServices["saveRecipe"]>()
     .mockResolvedValue({ kind: "ok", recipe: cajaDeInfusiones });
-  const screen = await renderModal({ saveRecipe, target: cajaDeInfusiones });
+  const screen = await renderEditRecipeModal({ saveRecipe, target: cajaDeInfusiones });
   const dialog = screen.getByRole("dialog");
 
   await userEvent.click(dialog.getByRole("button", { name: "Agregar un componente" }));
@@ -148,7 +110,7 @@ test("adds a component the recipe does not have yet", async () => {
 
 test("keeps showing a component that is no longer among the products on offer, and can remove it", async () => {
   const products = recipeProducts.filter((product) => product.id !== almendras.id);
-  const screen = await renderModal({ products });
+  const screen = await renderEditRecipeModal({ products });
   const dialog = screen.getByRole("dialog");
 
   await expect
@@ -164,7 +126,10 @@ test("shows the refusal of a recipe left without components under the components
     kind: "invalid_recipe",
     reason: { kind: "no_components" },
   });
-  const screen = await renderModal({ saveRecipe, target: { ...cajaDeInfusiones, components: [] } });
+  const screen = await renderEditRecipeModal({
+    saveRecipe,
+    target: { ...cajaDeInfusiones, components: [] },
+  });
 
   const dialog = await save(screen);
 
@@ -173,7 +138,7 @@ test("shows the refusal of a recipe left without components under the components
 
 test("refuses an unreadable quantity, saying how to type it", async () => {
   const saveRecipe = vi.fn<EditRecipeModalServices["saveRecipe"]>();
-  const screen = await renderModal({ saveRecipe });
+  const screen = await renderEditRecipeModal({ saveRecipe });
   const dialog = screen.getByRole("dialog");
   const quantity = dialog.getByRole("textbox", { name: "Cantidad de Almendras" });
   await userEvent.clear(quantity);
@@ -193,7 +158,7 @@ test("tells that someone else changed the recipe and to open it again", async ()
   const saveRecipe = vi
     .fn<EditRecipeModalServices["saveRecipe"]>()
     .mockResolvedValue({ kind: "stale_version" });
-  const screen = await renderModal({ saveRecipe });
+  const screen = await renderEditRecipeModal({ saveRecipe });
 
   const dialog = await save(screen);
 
@@ -210,7 +175,7 @@ test("reads the recipes again when someone else changed the recipe", async () =>
   const saveRecipe = vi
     .fn<EditRecipeModalServices["saveRecipe"]>()
     .mockResolvedValue({ kind: "stale_version" });
-  const screen = await renderModal({ saveRecipe, readRecipes });
+  const screen = await renderEditRecipeModal({ saveRecipe, readRecipes });
 
   const dialog = await save(screen);
 
@@ -222,7 +187,7 @@ test("tells that the product is no longer available", async () => {
   const saveRecipe = vi
     .fn<EditRecipeModalServices["saveRecipe"]>()
     .mockResolvedValue({ kind: "product_not_found" });
-  const screen = await renderModal({ saveRecipe });
+  const screen = await renderEditRecipeModal({ saveRecipe });
 
   const dialog = await save(screen);
 
@@ -233,7 +198,7 @@ test("shows a component that is no longer available next to it", async () => {
   const saveRecipe = vi
     .fn<EditRecipeModalServices["saveRecipe"]>()
     .mockResolvedValue({ kind: "component_not_found", componentProductId: nueces.id });
-  const screen = await renderModal({ saveRecipe });
+  const screen = await renderEditRecipeModal({ saveRecipe });
 
   const dialog = await save(screen);
 
@@ -246,7 +211,7 @@ test("shows a failed attempt", async () => {
   const saveRecipe = vi
     .fn<EditRecipeModalServices["saveRecipe"]>()
     .mockResolvedValue({ kind: "failed" });
-  const screen = await renderModal({ saveRecipe });
+  const screen = await renderEditRecipeModal({ saveRecipe });
 
   const dialog = await save(screen);
 
@@ -257,7 +222,7 @@ test("shows the time to wait after too many requests", async () => {
   const saveRecipe = vi
     .fn<EditRecipeModalServices["saveRecipe"]>()
     .mockResolvedValue({ kind: "rate_limited", retryAfterSeconds: 120 });
-  const screen = await renderModal({ saveRecipe });
+  const screen = await renderEditRecipeModal({ saveRecipe });
 
   const dialog = await save(screen);
 
@@ -269,7 +234,7 @@ test("ends the session when the cloud finds none open", async () => {
   const saveRecipe = vi
     .fn<EditRecipeModalServices["saveRecipe"]>()
     .mockResolvedValue({ kind: "unauthenticated" });
-  const screen = await renderModal({ saveRecipe, onSessionEnded });
+  const screen = await renderEditRecipeModal({ saveRecipe, onSessionEnded });
 
   await save(screen);
 
@@ -281,7 +246,7 @@ test("sends a person the cloud forbids to Mi cuenta", async () => {
   const saveRecipe = vi
     .fn<EditRecipeModalServices["saveRecipe"]>()
     .mockResolvedValue({ kind: "forbidden" });
-  const screen = await renderModal({ saveRecipe });
+  const screen = await renderEditRecipeModal({ saveRecipe });
 
   await save(screen);
 
@@ -290,7 +255,7 @@ test("sends a person the cloud forbids to Mi cuenta", async () => {
 
 test("cancel closes the modal", async () => {
   const onClose = vi.fn();
-  const screen = await renderModal({ onClose });
+  const screen = await renderEditRecipeModal({ onClose });
 
   await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Cancelar" }));
 

@@ -331,19 +331,21 @@ describe("recipePriceComponentsOf", () => {
     ]);
   });
 
-  it("leaves out a component whose quantity is empty, malformed or zero", () => {
+  it.each([
+    ["empty", ""],
+    ["malformed", "0,5,"],
+    ["zero", "0"],
+  ])("lists no component while one quantity is %s", (_name, quantity) => {
     expect(
       recipePriceComponentsOf([
-        { ...kgRow, quantity: "" },
-        { ...kgRow, productId: nueces.id, quantity: "0,5," },
-        { ...kgRow, productId: miel.id, quantity: "0" },
+        { ...kgRow, quantity: "0,600" },
+        { ...kgRow, productId: nueces.id, quantity },
         { ...unitRow, quantity: "1" },
-      ]).map((component) => component.componentProductId),
-    ).toEqual([teVerde.id]);
+      ]),
+    ).toEqual([]);
   });
 
-  it("is empty when no component is valid", () => {
+  it("is empty for a recipe without components", () => {
     expect(recipePriceComponentsOf([])).toEqual([]);
-    expect(recipePriceComponentsOf([{ ...kgRow, quantity: "" }])).toEqual([]);
   });
 });
