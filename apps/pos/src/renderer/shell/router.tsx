@@ -704,33 +704,35 @@ const initialCountRoute = createRoute({
     }
     return { person };
   },
-  component: function InitialCountRoute() {
-    const {
-      person,
-      signOut,
-      readInitialCount,
-      recordInitialCountLine,
-      withdrawInitialCountLine,
-      findCountableProduct,
-      searchCountableProducts,
-      weighCountedProduct,
-      refreshCashSession,
-    } = initialCountRoute.useRouteContext();
-    return (
-      <InitialCountScreen
-        person={person}
-        signOut={signOut}
-        readInitialCount={readInitialCount}
-        recordInitialCountLine={recordInitialCountLine}
-        withdrawInitialCountLine={withdrawInitialCountLine}
-        findCountableProduct={findCountableProduct}
-        searchCountableProducts={searchCountableProducts}
-        weighCountedProduct={weighCountedProduct}
-        onSessionInvalid={() => void refreshCashSession()}
-      />
-    );
-  },
+  component: InitialCountRoute,
 });
+
+function InitialCountRoute() {
+  const {
+    person,
+    signOut,
+    readInitialCount,
+    recordInitialCountLine,
+    withdrawInitialCountLine,
+    findCountableProduct,
+    searchCountableProducts,
+    weighCountedProduct,
+    refreshCashSession,
+  } = initialCountRoute.useRouteContext();
+  return (
+    <InitialCountScreen
+      person={person}
+      signOut={signOut}
+      readInitialCount={readInitialCount}
+      recordInitialCountLine={recordInitialCountLine}
+      withdrawInitialCountLine={withdrawInitialCountLine}
+      findCountableProduct={findCountableProduct}
+      searchCountableProducts={searchCountableProducts}
+      weighCountedProduct={weighCountedProduct}
+      onSessionInvalid={() => void refreshCashSession()}
+    />
+  );
+}
 
 const openSessionRoute = createRoute({
   getParentRoute: () => statusBarRoute,
@@ -821,64 +823,66 @@ const startupPendingRoute = createRoute({
     }
     return { id, openedAt, openedBy, person };
   },
-  component: function StartupPendingRoute() {
-    const {
-      id,
-      openedAt,
-      openedBy,
-      person,
-      signOut,
-      startupPending,
-      startupPendingGate,
-      cashBalance,
-      printOriginalReceipt,
-      reprintSaleReceipt,
-      convertPaidOrderIntoRefund,
-      rebuildSaleAgainstPaidOrder,
-      authorizers,
-      readClockGuard,
-      correctRegisterClock,
-      refreshCashSession,
-    } = startupPendingRoute.useRouteContext();
-    const registerName = useRegisterName();
-    const navigate = startupPendingRoute.useNavigate();
-    const router = useRouter();
-    const goToSale = () => {
-      startupPendingGate.dismiss();
-      void navigate({ to: "/session" });
-    };
-    return (
-      <StartupPendingScreen
-        sessionId={id}
-        person={person}
-        sessionOwner={openedBy}
-        openedAt={openedAt}
-        registerName={registerName}
-        lock={signOut}
-        loadStartupPending={startupPending}
-        loadCashBalance={cashBalance}
-        printOriginalReceipt={printOriginalReceipt}
-        reprintSaleReceipt={reprintSaleReceipt}
-        convertPaidOrderIntoRefund={convertPaidOrderIntoRefund}
-        rebuildSaleAgainstPaidOrder={rebuildSaleAgainstPaidOrder}
-        loadAuthorizers={authorizers}
-        clockGuard={
-          <ClockGuardOffer
-            registerName={registerName}
-            cashSessionOpen
-            readClockGuard={readClockGuard}
-            correctRegisterClock={correctRegisterClock}
-            onSessionInvalid={() => void refreshCashSession()}
-          />
-        }
-        onGoSelling={goToSale}
-        onGoToSale={goToSale}
-        onNothingLeft={() => void router.invalidate()}
-        onSessionInvalid={() => void refreshCashSession()}
-      />
-    );
-  },
+  component: StartupPendingRoute,
 });
+
+function StartupPendingRoute() {
+  const {
+    id,
+    openedAt,
+    openedBy,
+    person,
+    signOut,
+    startupPending,
+    startupPendingGate,
+    cashBalance,
+    printOriginalReceipt,
+    reprintSaleReceipt,
+    convertPaidOrderIntoRefund,
+    rebuildSaleAgainstPaidOrder,
+    authorizers,
+    readClockGuard,
+    correctRegisterClock,
+    refreshCashSession,
+  } = startupPendingRoute.useRouteContext();
+  const registerName = useRegisterName();
+  const navigate = startupPendingRoute.useNavigate();
+  const router = useRouter();
+  const goToSale = () => {
+    startupPendingGate.dismiss();
+    void navigate({ to: "/session" });
+  };
+  return (
+    <StartupPendingScreen
+      sessionId={id}
+      person={person}
+      sessionOwner={openedBy}
+      openedAt={openedAt}
+      registerName={registerName}
+      lock={signOut}
+      loadStartupPending={startupPending}
+      loadCashBalance={cashBalance}
+      printOriginalReceipt={printOriginalReceipt}
+      reprintSaleReceipt={reprintSaleReceipt}
+      convertPaidOrderIntoRefund={convertPaidOrderIntoRefund}
+      rebuildSaleAgainstPaidOrder={rebuildSaleAgainstPaidOrder}
+      loadAuthorizers={authorizers}
+      clockGuard={
+        <ClockGuardOffer
+          registerName={registerName}
+          cashSessionOpen
+          readClockGuard={readClockGuard}
+          correctRegisterClock={correctRegisterClock}
+          onSessionInvalid={() => void refreshCashSession()}
+        />
+      }
+      onGoSelling={goToSale}
+      onGoToSale={goToSale}
+      onNothingLeft={() => void router.invalidate()}
+      onSessionInvalid={() => void refreshCashSession()}
+    />
+  );
+}
 
 const chargeRoute = createRoute({
   getParentRoute: () => statusBarRoute,

@@ -1,5 +1,6 @@
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { withReadsCounted } from "../platform/test-support/reads-counted";
 import type { PricesListScreenServices } from "./prices-list-services";
 import { pricesListFilters } from "./routes";
 import {
@@ -9,7 +10,6 @@ import {
   renderScreen,
   rice,
   screenElement,
-  withNameReadsCounted,
   withoutPrice,
   yerbaMate,
 } from "./test-support/prices-list-screen";
@@ -372,7 +372,7 @@ test("the footer count uses the thousands separator for both review filters", as
 
 test("typing in the search renders none of the listed products again, while each letter reaches the URL", async () => {
   const services = createServices();
-  const listed = withNameReadsCounted([rice, yerbaMate]);
+  const listed = withReadsCounted([rice, yerbaMate], "name");
   vi.mocked(services.fetchPrices).mockResolvedValue({
     kind: "ok",
     value: {
@@ -392,7 +392,7 @@ test("typing in the search renders none of the listed products again, while each
 
   vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   try {
-    listed.resetNameReads();
+    listed.resetReads();
 
     await userEvent.type(screen.getByPlaceholder("Buscar un producto"), "arr");
 
@@ -402,7 +402,7 @@ test("typing in the search renders none of the listed products again, while each
       "ar",
       "arr",
     ]);
-    expect(listed.nameReads()).toBe(0);
+    expect(listed.reads()).toBe(0);
   } finally {
     vi.useRealTimers();
   }

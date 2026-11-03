@@ -191,6 +191,44 @@ export function SupplierPriceListReviewScreen({
   const mayCreateProducts = actions?.linkRows === true;
   const unread = list?.state === "READING" || list?.state === "READ_FAILED";
 
+  function refreshAfter(shown: Notice | null) {
+    setLinkTarget(null);
+    setCreateTarget(null);
+    setErrorNotice(null);
+    setPriceTarget(null);
+    setRemoveTarget(null);
+    setConfirmTarget(null);
+    setDiscardTarget(null);
+    setNotice(shown);
+    void refreshPurchasing();
+  }
+
+  async function markReviewed(row: SupplierPriceListRow) {
+    if (list === null) {
+      return;
+    }
+    const outcome = await services.markSupplierPriceListRowReviewed(list.id, row.id, {
+      version: list.version,
+    });
+    if (outcome.kind === "ok") {
+      refreshAfter("rowReviewed");
+    } else if (outcome.kind === "unauthenticated") {
+      onSessionEnded();
+    } else if (outcome.kind === "forbidden") {
+      sendToMyAccount();
+    } else {
+      const outdated =
+        outcome.kind === "stale_version" ||
+        outcome.kind === "not_editable" ||
+        outcome.kind === "not_found";
+      if (outdated) {
+        void refreshPurchasing();
+      }
+      setNotice(null);
+      setErrorNotice(outdated ? "listChanged" : "rowNotReviewed");
+    }
+  }
+
   const columns = [
     dataColumn({
       id: "item",
@@ -277,44 +315,6 @@ export function SupplierPriceListReviewScreen({
   const { pageIndex, pageSize } = table.state.pagination;
   const firstShown = pageIndex * pageSize + 1;
   const lastShown = Math.min(firstShown + pageSize - 1, rowCount);
-
-  async function markReviewed(row: SupplierPriceListRow) {
-    if (list === null) {
-      return;
-    }
-    const outcome = await services.markSupplierPriceListRowReviewed(list.id, row.id, {
-      version: list.version,
-    });
-    if (outcome.kind === "ok") {
-      refreshAfter("rowReviewed");
-    } else if (outcome.kind === "unauthenticated") {
-      onSessionEnded();
-    } else if (outcome.kind === "forbidden") {
-      sendToMyAccount();
-    } else {
-      const outdated =
-        outcome.kind === "stale_version" ||
-        outcome.kind === "not_editable" ||
-        outcome.kind === "not_found";
-      if (outdated) {
-        void refreshPurchasing();
-      }
-      setNotice(null);
-      setErrorNotice(outdated ? "listChanged" : "rowNotReviewed");
-    }
-  }
-
-  function refreshAfter(shown: Notice | null) {
-    setLinkTarget(null);
-    setCreateTarget(null);
-    setErrorNotice(null);
-    setPriceTarget(null);
-    setRemoveTarget(null);
-    setConfirmTarget(null);
-    setDiscardTarget(null);
-    setNotice(shown);
-    void refreshPurchasing();
-  }
 
   return (
     <>

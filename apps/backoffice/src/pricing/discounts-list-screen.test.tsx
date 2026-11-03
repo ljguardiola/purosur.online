@@ -4,6 +4,7 @@ import { notifyManager } from "@tanstack/react-query";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
+import { withReadsCounted } from "../platform/test-support/reads-counted";
 import { discountsListFilters } from "./routes";
 import {
   almacenTuesdays,
@@ -542,4 +543,18 @@ test("has no accessibility violations once loaded", async () => {
   });
 
   await expectNoAccessibilityViolations(screen.container);
+});
+
+test("typing in the search renders none of the listed promotions again", async () => {
+  const services = createServices();
+  const listed = withReadsCounted([yerbaOff, almacenTuesdays], "weekdays");
+  const screen = await loaded(services, listed.items);
+  await expect.element(screen.getByText("Yerba de septiembre")).toBeVisible();
+  listed.resetReads();
+
+  await userEvent.type(screen.getByPlaceholder("Buscar una promoción"), "a");
+
+  await expect.element(screen.getByPlaceholder("Buscar una promoción")).toHaveValue("a");
+  await expect.element(screen.getByText("Martes de almacén")).toBeVisible();
+  expect(listed.reads()).toBe(0);
 });

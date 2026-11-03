@@ -11,6 +11,7 @@ import type {
 import { useQueryClient } from "@tanstack/react-query";
 import { useId } from "react";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
+import { combineCloudData } from "../platform/combine-cloud-data";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { type CloudData, fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchDiscounts, fetchDiscountTargets } from "./discounts-api";
@@ -135,7 +136,7 @@ export function useRefreshPrices(): () => Promise<void> {
   return () => client.invalidateQueries({ queryKey: pricingKey });
 }
 
-export function useDiscountsQuery(params: {
+function useDiscountsQuery(params: {
   fetchDiscounts: typeof fetchDiscounts;
   onSessionEnded: () => void;
 }) {
@@ -149,7 +150,7 @@ export function useDiscountsQuery(params: {
   });
 }
 
-export function useDiscountTargetsQuery(params: {
+function useDiscountTargetsQuery(params: {
   fetchDiscountTargets: typeof fetchDiscountTargets;
   onSessionEnded: () => void;
 }) {
@@ -160,6 +161,22 @@ export function useDiscountTargetsQuery(params: {
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });
+}
+
+export function useDiscountsWithTargetsQuery(params: {
+  fetchDiscounts: typeof fetchDiscounts;
+  fetchDiscountTargets: typeof fetchDiscountTargets;
+  onSessionEnded: () => void;
+}) {
+  const discounts = useDiscountsQuery({
+    fetchDiscounts: params.fetchDiscounts,
+    onSessionEnded: params.onSessionEnded,
+  });
+  const targets = useDiscountTargetsQuery({
+    fetchDiscountTargets: params.fetchDiscountTargets,
+    onSessionEnded: params.onSessionEnded,
+  });
+  return combineCloudData(discounts, targets);
 }
 
 export function useRefreshDiscounts(): () => Promise<void> {

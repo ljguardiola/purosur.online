@@ -15,7 +15,7 @@ import {
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { deepEqual } from "@tanstack/react-router";
 import { CalendarClock, Check, Search, Trash2, TriangleAlert } from "lucide-react";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { useRetryAdvice } from "../platform/action-failure-notice";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { retryAfterDetail } from "../platform/retry-after-detail";
@@ -41,7 +41,6 @@ export type ExpiringLotsScreenProps = {
 type ExpiryFilter = ExpiringLotsFilters["expiry"];
 
 type ScreenNotice = {
-  id: number;
   tone: "success" | "error";
   title: string;
   description: string | null;
@@ -132,7 +131,7 @@ export function ExpiringLotsScreen({
   const [expiry, setExpiry] = useState<ExpiryFilter>(filters.expiry);
   const [discarding, setDiscarding] = useState<readonly string[]>([]);
   const [notice, setNotice] = useState<ScreenNotice | null>(null);
-  const lastNoticeId = useRef(0);
+  const [shownNoticeCount, setShownNoticeCount] = useState(0);
   const reportFilters = useEffectEvent(onFiltersChange);
   const refreshStock = useRefreshStock();
   const sendToMyAccount = useSendToMyAccount();
@@ -160,9 +159,9 @@ export function ExpiringLotsScreen({
     }
   }, [data.status, categoryIsOffered]);
 
-  function showNotice(shown: Omit<ScreenNotice, "id">) {
-    lastNoticeId.current += 1;
-    setNotice({ ...shown, id: lastNoticeId.current });
+  function showNotice(shown: ScreenNotice) {
+    setShownNoticeCount((count) => count + 1);
+    setNotice(shown);
   }
 
   async function discard(lot: ExpiringLot) {
@@ -333,7 +332,7 @@ export function ExpiringLotsScreen({
       </ScreenLayout>
       {notice ? (
         <FloatingNotification
-          key={notice.id}
+          key={shownNoticeCount}
           tone={notice.tone}
           icon={notice.tone === "success" ? <Check /> : <TriangleAlert />}
           title={notice.title}

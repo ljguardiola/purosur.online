@@ -83,25 +83,6 @@ export const almondOil: PriceProduct = {
   saleUnit: "UNIT",
 };
 
-export function withNameReadsCounted<T extends { name: string }>(items: readonly T[]) {
-  let reads = 0;
-  return {
-    items: items.map((item) =>
-      Object.defineProperty({ ...item }, "name", {
-        enumerable: true,
-        get: () => {
-          reads += 1;
-          return item.name;
-        },
-      }),
-    ),
-    nameReads: () => reads,
-    resetNameReads: () => {
-      reads = 0;
-    },
-  };
-}
-
 export function screenElement(
   services: PricesListScreenServices,
   onSessionEnded: () => void = () => {},
