@@ -8,7 +8,8 @@ export type CashCharge =
   | { kind: "covered"; applied: number; change: number; cashRounding: number };
 
 function roundedDownToSmallestBill(amountDue: number): number {
-  return amountDue < SMALLEST_CASH_BILL ? amountDue : amountDue - (amountDue % SMALLEST_CASH_BILL);
+  const rounded = amountDue - (amountDue % SMALLEST_CASH_BILL);
+  return rounded === 0 ? amountDue : rounded;
 }
 
 export function cashCharge(amountDue: number, tendered: number): CashCharge {
