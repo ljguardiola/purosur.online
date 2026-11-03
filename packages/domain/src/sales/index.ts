@@ -1,6 +1,6 @@
 export { averageTicket } from "./model/average-ticket.js";
 export type { CancelledSale } from "./model/cancelled-sale.js";
-export { mayBeCashRounding, SMALLEST_CASH_BILL } from "./model/cash-rounding.js";
+export { mayBeCashRounding } from "./model/cash-rounding.js";
 export type { CashRoundingRecord, CashRoundingTotals } from "./model/cash-rounding-report.js";
 export type { CompletedSale } from "./model/completed-sale.js";
 export { stockMovementsMatchLines } from "./model/completed-sale.js";

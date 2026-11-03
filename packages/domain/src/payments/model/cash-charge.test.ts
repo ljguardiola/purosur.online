@@ -1,7 +1,13 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { MAX_CASH_AMOUNT_CENTS } from "../../shared/index.js";
-import { cashCharge } from "./cash-charge.js";
+import { cashCharge, SMALLEST_CASH_BILL } from "./cash-charge.js";
+
+describe("SMALLEST_CASH_BILL", () => {
+  it("is $100", () => {
+    expect(SMALLEST_CASH_BILL).toBe(10_000);
+  });
+});
 
 describe("cashCharge", () => {
   it("applies the whole amount due and gives no change when the tendered amount is exact", () => {

@@ -1,5 +1,7 @@
 import { isValidCashAmount } from "../../shared/index.js";
 
+export const SMALLEST_CASH_BILL = 10_000;
+
 export type CashCharge =
   | { kind: "invalid_amount" }
   | { kind: "partial"; applied: number; pending: number }
