@@ -1,5 +1,9 @@
 import type { PurchaseOrderState } from "../../model/purchase-order.js";
 import type {
+  NewPurchaseOrderReceiptFields,
+  PurchaseOrderReceiptStoreTransaction,
+} from "../purchase-order-receipt-store.js";
+import type {
   LockPurchaseOrderResult,
   NewPurchaseOrderFields,
   NewPurchaseOrderLineFields,
@@ -21,7 +25,12 @@ export interface FakePurchaseOrderRow {
   cancelledAt: Date | null;
   sentAt: Date | null;
   sentBy: string | null;
+  receivedAt?: Date | null;
   lines: PurchaseOrderLineFields[];
+}
+
+export interface FakePurchaseOrderReceiptRow extends NewPurchaseOrderReceiptFields {
+  id: string;
 }
 
 interface FakePurchaseOrderState {
@@ -29,6 +38,7 @@ interface FakePurchaseOrderState {
   products: FakeProductRow[];
   offers: { supplierId: string; productId: string; offer: SupplierProductOffer }[];
   orders: FakePurchaseOrderRow[];
+  receipts: FakePurchaseOrderReceiptRow[];
   nextId: number;
 }
 
@@ -37,7 +47,9 @@ export type FakePurchaseOrderWrite =
   | "insertPurchaseOrderLine"
   | "replacePurchaseOrderLines"
   | "cancelPurchaseOrder"
-  | "markPurchaseOrderSent";
+  | "markPurchaseOrderSent"
+  | "insertPurchaseOrderReceipt"
+  | "markPurchaseOrderReceived";
 
 export function fakeOrderLineId(orderId: string, position: number): string {
   return `${orderId}-line-${position}`;
@@ -49,7 +61,16 @@ function cloneOrder(order: FakePurchaseOrderRow): FakePurchaseOrderRow {
     createdAt: new Date(order.createdAt),
     cancelledAt: order.cancelledAt && new Date(order.cancelledAt),
     sentAt: order.sentAt && new Date(order.sentAt),
+    receivedAt: order.receivedAt && new Date(order.receivedAt),
     lines: order.lines.map((line) => ({ ...line })),
+  };
+}
+
+function cloneReceipt(receipt: FakePurchaseOrderReceiptRow): FakePurchaseOrderReceiptRow {
+  return {
+    ...receipt,
+    receivedAt: new Date(receipt.receivedAt),
+    lines: receipt.lines.map((line) => ({ ...line })),
   };
 }
 
@@ -62,11 +83,19 @@ function cloneState(state: FakePurchaseOrderState): FakePurchaseOrderState {
       offer: { ...row.offer, link: { ...row.offer.link } },
     })),
     orders: state.orders.map(cloneOrder),
+    receipts: state.receipts.map(cloneReceipt),
     nextId: state.nextId,
   };
 }
 
-class FakePurchaseOrderStoreTransaction implements PurchaseOrderStoreTransaction {
+class FakePurchaseOrderStoreTransaction
+  implements
+    PurchaseOrderStoreTransaction,
+    Pick<
+      PurchaseOrderReceiptStoreTransaction,
+      "receivedQuantities" | "insertPurchaseOrderReceipt" | "markPurchaseOrderReceived"
+    >
+{
   private readonly state: FakePurchaseOrderState;
   private readonly store: FakePurchaseOrderStore;
 
@@ -185,6 +214,45 @@ class FakePurchaseOrderStoreTransaction implements PurchaseOrderStoreTransaction
     }
   }
 
+  async receivedQuantities(orderId: string): Promise<Map<string, number>> {
+    const quantities = new Map<string, number>();
+    for (const receipt of this.state.receipts) {
+      if (receipt.purchaseOrderId === orderId) {
+        for (const line of receipt.lines) {
+          quantities.set(
+            line.purchaseOrderLineId,
+            (quantities.get(line.purchaseOrderLineId) ?? 0) + line.receivedQuantity,
+          );
+        }
+      }
+    }
+    return quantities;
+  }
+
+  async insertPurchaseOrderReceipt(fields: NewPurchaseOrderReceiptFields): Promise<void> {
+    this.beforeWrite("insertPurchaseOrderReceipt");
+    this.state.receipts.push(
+      cloneReceipt({
+        ...fields,
+        id: `order-receipt-${this.state.nextId++}`,
+        lines: [...fields.lines],
+      }),
+    );
+  }
+
+  async markPurchaseOrderReceived(
+    orderId: string,
+    receiving: { state: "PARTIALLY_RECEIVED" | "RECEIVED"; receivedAt: Date },
+  ): Promise<void> {
+    this.beforeWrite("markPurchaseOrderReceived");
+    for (const order of this.state.orders) {
+      if (order.id === orderId) {
+        order.state = receiving.state;
+        order.receivedAt = receiving.receivedAt;
+      }
+    }
+  }
+
   private beforeWrite(operation: FakePurchaseOrderWrite): void {
     if (this.store.writeFailsAtCall(operation)) {
       throw new Error(`${operation} failed`);
@@ -198,6 +266,7 @@ export class FakePurchaseOrderStore implements PurchaseOrderStore {
     products: [],
     offers: [],
     orders: [],
+    receipts: [],
     nextId: 1,
   };
 
@@ -223,6 +292,14 @@ export class FakePurchaseOrderStore implements PurchaseOrderStore {
     this.state.orders.push(cloneOrder(order));
   }
 
+  seedReceipt(receipt: FakePurchaseOrderReceiptRow): void {
+    this.state.receipts.push(cloneReceipt(receipt));
+  }
+
+  receipts(): FakePurchaseOrderReceiptRow[] {
+    return this.state.receipts.map(cloneReceipt);
+  }
+
   failWriteAtCall(operation: FakePurchaseOrderWrite, call: number): void {
     this.failingCalls.set(operation, call);
   }
@@ -238,7 +315,13 @@ export class FakePurchaseOrderStore implements PurchaseOrderStore {
   }
 
   async transaction<TOutcome>(
-    work: (tx: PurchaseOrderStoreTransaction) => Promise<TOutcome>,
+    work: (
+      tx: PurchaseOrderStoreTransaction &
+        Pick<
+          PurchaseOrderReceiptStoreTransaction,
+          "receivedQuantities" | "insertPurchaseOrderReceipt" | "markPurchaseOrderReceived"
+        >,
+    ) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     this.transactionCount += 1;
     const before = cloneState(this.state);
