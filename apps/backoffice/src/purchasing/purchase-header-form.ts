@@ -1,8 +1,5 @@
 import { type CalendarDate, parseDate } from "@internationalized/date";
-import {
-  type PurchaseHeaderCorrectionBody,
-  type PurchaseSummary,
-} from "@purosur/contracts";
+import type { PurchaseHeaderCorrectionBody, PurchaseSummary } from "@purosur/contracts";
 import type { ReceiptType } from "@purosur/domain";
 import {
   PURCHASE_RECEIPT_TYPE_REQUIRED,
