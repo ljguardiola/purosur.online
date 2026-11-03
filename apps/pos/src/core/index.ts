@@ -1534,7 +1534,7 @@ const rendererRequestDeps: RendererRequestDeps = {
   weighProduct:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : (productId, take) =>
+      : (productId, confirmedWeightThousandths) =>
           weighProductFor(
             {
               zoneRules,
@@ -1550,12 +1550,12 @@ const rendererRequestDeps: RendererRequestDeps = {
               scale: systelScale,
             },
             productId,
-            take,
+            confirmedWeightThousandths,
           ),
   weighLine:
     localDatabase === undefined || actionGate === undefined
       ? undefined
-      : (lineId, expectedWeightThousandths, take) =>
+      : (lineId, expectedWeightThousandths, confirmedWeightThousandths) =>
           weighLineFor(
             {
               zoneRules,
@@ -1567,7 +1567,7 @@ const rendererRequestDeps: RendererRequestDeps = {
             },
             lineId,
             expectedWeightThousandths,
-            take,
+            confirmedWeightThousandths,
           ),
   initialCount:
     localDatabase === undefined || actionGate === undefined

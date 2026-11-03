@@ -17,7 +17,7 @@ import {
 export interface WeighProductOnScaleInput {
   actorId: string;
   productId: string;
-  take: boolean;
+  confirmedWeightThousandths: number | null;
 }
 
 export interface WeighProductOnScalePorts {
@@ -41,7 +41,7 @@ export type WeighProductOnScaleOutcome =
 
 export async function weighProductOnScale(
   { ledger, restoration, clock, zoneRules, ids, scale }: WeighProductOnScalePorts,
-  { actorId, productId, take }: WeighProductOnScaleInput,
+  { actorId, productId, confirmedWeightThousandths }: WeighProductOnScaleInput,
 ): Promise<WeighProductOnScaleOutcome> {
   const reading = await scale.read();
   return ledger.transaction<WeighProductOnScaleOutcome>((tx) => {
@@ -59,7 +59,7 @@ export async function weighProductOnScale(
     }
     const step = scaleWeighingStep(
       reading,
-      take,
+      confirmedWeightThousandths,
       (weightThousandths) =>
         newWeighedSaleLine(
           priced.product.id,

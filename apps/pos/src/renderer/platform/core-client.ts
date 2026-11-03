@@ -241,11 +241,14 @@ export interface CoreClient {
     productId: string,
     weightThousandths: number,
   ): Promise<AddWeighedProductOutcome>;
-  weighProduct(productId: string, take: boolean): Promise<WeighProductOutcome>;
+  weighProduct(
+    productId: string,
+    confirmedWeightThousandths: number | null,
+  ): Promise<WeighProductOutcome>;
   weighLine(
     lineId: string,
     expectedWeightThousandths: number,
-    take: boolean,
+    confirmedWeightThousandths: number | null,
   ): Promise<WeighLineOutcome>;
   readClockGuard(): Promise<ReadClockGuardOutcome>;
   correctRegisterClock(): Promise<CorrectRegisterClockOutcome>;
@@ -258,7 +261,10 @@ export interface CoreClient {
   withdrawInitialCountLine(movementId: string): Promise<WithdrawInitialCountLineOutcome>;
   findCountableProduct(code: string): Promise<FindCountableProductOutcome>;
   searchCountableProducts(query: string): Promise<SearchCountableProductsOutcome>;
-  weighCountedProduct(productId: string): Promise<WeighCountedProductOutcome>;
+  weighCountedProduct(
+    productId: string,
+    confirmedWeightThousandths: number | null,
+  ): Promise<WeighCountedProductOutcome>;
   currentSale(): Promise<CurrentSaleAnswer>;
   changeLineQuantity(
     lineId: string,
@@ -1000,20 +1006,25 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         (answer) => (answer.type === "add-weighed-product-result" ? answer.outcome : undefined),
       );
     },
-    weighProduct(productId, take) {
+    weighProduct(productId, confirmedWeightThousandths) {
       return ask(
-        { type: "weigh-product", request_id: deps.newRequestId(), product_id: productId, take },
+        {
+          type: "weigh-product",
+          request_id: deps.newRequestId(),
+          product_id: productId,
+          confirmed_weight_thousandths: confirmedWeightThousandths,
+        },
         (answer) => (answer.type === "weigh-product-result" ? answer.outcome : undefined),
       );
     },
-    weighLine(lineId, expectedWeightThousandths, take) {
+    weighLine(lineId, expectedWeightThousandths, confirmedWeightThousandths) {
       return ask(
         {
           type: "weigh-line",
           request_id: deps.newRequestId(),
           line_id: lineId,
           expected_weight_thousandths: expectedWeightThousandths,
-          take,
+          confirmed_weight_thousandths: confirmedWeightThousandths,
         },
         (answer) => (answer.type === "weigh-line-result" ? answer.outcome : undefined),
       );
@@ -1070,9 +1081,14 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
           answer.type === "search-countable-products-result" ? answer.outcome : undefined,
       );
     },
-    weighCountedProduct(productId) {
+    weighCountedProduct(productId, confirmedWeightThousandths) {
       return ask(
-        { type: "weigh-counted-product", request_id: deps.newRequestId(), product_id: productId },
+        {
+          type: "weigh-counted-product",
+          request_id: deps.newRequestId(),
+          product_id: productId,
+          confirmed_weight_thousandths: confirmedWeightThousandths,
+        },
         (answer) => (answer.type === "weigh-counted-product-result" ? answer.outcome : undefined),
       );
     },

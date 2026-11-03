@@ -52,6 +52,7 @@ import {
 } from "./sales-history.js";
 
 const requestId = requestIdSchema;
+const confirmedWeightSchema = z.int().nonnegative().nullable();
 
 const scanProductMessageSchema = z.object({
   type: z.literal("scan-product"),
@@ -154,7 +155,7 @@ const weighProductMessageSchema = z.object({
   type: z.literal("weigh-product"),
   request_id: requestId,
   product_id: z.string(),
-  take: z.boolean(),
+  confirmed_weight_thousandths: confirmedWeightSchema,
 });
 
 const weighLineMessageSchema = z.object({
@@ -162,7 +163,7 @@ const weighLineMessageSchema = z.object({
   request_id: requestId,
   line_id: z.string(),
   expected_weight_thousandths: shownLineQuantitySchema,
-  take: z.boolean(),
+  confirmed_weight_thousandths: confirmedWeightSchema,
 });
 
 const receiptPrintStatusMessageSchema = z.object({

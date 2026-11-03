@@ -12,7 +12,7 @@ export type ScaleWeighingStep =
 
 export function scaleWeighingStep(
   reading: ScaleReading,
-  take: boolean,
+  confirmedWeightThousandths: number | null,
   amountAt: (weightThousandths: number) => number,
 ): ScaleWeighingStep {
   if (reading.kind === "unavailable") {
@@ -23,12 +23,14 @@ export function scaleWeighingStep(
   }
   const { weightThousandths } = reading;
   if (weightThousandths === 0) {
-    return take ? { kind: "zero_weight" } : { kind: "stable", weightThousandths, amount: 0 };
+    return confirmedWeightThousandths === null
+      ? { kind: "stable", weightThousandths, amount: 0 }
+      : { kind: "zero_weight" };
   }
   if (!mayBeSaleLineQuantity(weightThousandths, "KG")) {
     return { kind: "weighing" };
   }
-  return take
+  return weightThousandths === confirmedWeightThousandths
     ? { kind: "take", weightThousandths }
     : { kind: "stable", weightThousandths, amount: amountAt(weightThousandths) };
 }

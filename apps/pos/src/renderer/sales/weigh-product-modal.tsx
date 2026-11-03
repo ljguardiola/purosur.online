@@ -21,7 +21,7 @@ const ZERO_WEIGHT_NOTE = "Poné el producto en la balanza o tipeá el peso.";
 
 export type WeighProductModalProps = {
   productName: string;
-  weigh: (take: boolean) => Promise<ScaleWeighing>;
+  weigh: (confirmedWeightThousandths: number | null) => Promise<ScaleWeighing>;
   typedWeight: (weightThousandths: number) => Promise<"invalid_weight" | "done">;
   currentWeight?: number | undefined;
   onClose: () => void;

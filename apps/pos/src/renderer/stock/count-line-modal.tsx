@@ -3,7 +3,14 @@ import type {
   RecordInitialCountLineOutcome,
   WeighCountedProductOutcome,
 } from "@purosur/contracts";
-import { Button, formatWeightInput, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
+import {
+  Button,
+  formatWeightInput,
+  InlineNotice,
+  Modal,
+  StatusIndicator,
+  useRequestForm,
+} from "@purosur/ui";
 import { Check, Info, Package, Scale, TriangleAlert, UserX } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -26,6 +33,7 @@ const NOT_PERMITTED: Notice = {
   title: "Ya no tenés permiso para cargar el inventario inicial.",
   icon: "permission",
 };
+const ZERO_WEIGHT_NOTE = "Poné el producto en la balanza o escribí el peso.";
 const NOT_SAVED: Notice = {
   title: "No se pudo guardar la línea. Probá de nuevo.",
   icon: "failure",
@@ -38,7 +46,10 @@ export type CountLineModalProps = {
     counted: number,
     expiresOn: string | null,
   ) => Promise<RecordInitialCountLineOutcome>;
-  weigh: (productId: string) => Promise<WeighCountedProductOutcome>;
+  weigh: (
+    productId: string,
+    confirmedWeightThousandths: number | null,
+  ) => Promise<WeighCountedProductOutcome>;
   onRecorded: (line: InitialCountLine) => void;
   onNotOffered: () => void;
   onSessionInvalid: () => void;
@@ -57,15 +68,15 @@ export function CountLineModal({
   const { product_id: productId, sale_unit: saleUnit } = product;
   const [notice, setNotice] = useState<Notice>();
 
-  const { phase, confirming, confirm, typeInstead } = useScaleWeighing<StableReading>(
-    async (take) => {
+  const { phase, confirming, zeroRefused, confirm, typeInstead } = useScaleWeighing<StableReading>(
+    async (confirmedWeightThousandths) => {
       if (saleUnit !== "KG") {
         return { kind: "closed" };
       }
-      const reading = await weigh(productId).catch(
+      const reading = await weigh(productId, confirmedWeightThousandths).catch(
         (): WeighCountedProductOutcome => ({ kind: "unavailable" }),
       );
-      return scaleWeighingOf(reading, take);
+      return scaleWeighingOf(reading, confirmedWeightThousandths !== null);
     },
   );
 
@@ -130,12 +141,15 @@ export function CountLineModal({
     }
   }, [phase, form]);
 
+  const byWeight = saleUnit === "KG";
+  const followingScale = byWeight && (phase.kind === "weighing" || phase.kind === "stable");
+
   function requestSubmit() {
     if (submitting || confirming) {
       return;
     }
     setNotice(undefined);
-    if (phase.kind === "weighing" && phase.last !== undefined) {
+    if (followingScale) {
       confirm();
       return;
     }
@@ -146,8 +160,6 @@ export function CountLineModal({
     event.preventDefault();
     requestSubmit();
   }
-
-  const byWeight = saleUnit === "KG";
 
   return (
     <Modal
@@ -181,6 +193,17 @@ export function CountLineModal({
       }
     >
       <form className="flex flex-col gap-4" noValidate onSubmit={handleSubmit}>
+        {followingScale && phase.kind === "stable" ? (
+          <StatusIndicator tone="success">Lectura estable</StatusIndicator>
+        ) : null}
+        {followingScale && phase.kind === "weighing" ? (
+          <StatusIndicator tone="info" busy>
+            Pesando…
+          </StatusIndicator>
+        ) : null}
+        {followingScale && zeroRefused ? (
+          <InlineNotice tone="info" icon={<Info />} description={ZERO_WEIGHT_NOTE} />
+        ) : null}
         {byWeight && phase.kind === "scale_unavailable" ? (
           <InlineNotice
             tone="info"
@@ -241,14 +264,15 @@ export function CountLineModal({
 
 function scaleWeighingOf(
   outcome: WeighCountedProductOutcome,
-  take: boolean,
+  confirming: boolean,
 ): ScaleWeighing<StableReading> {
   switch (outcome.kind) {
     case "weighed":
-      return {
-        kind: take ? "taken" : "stable",
-        reading: { weightThousandths: outcome.weight_thousandths },
-      };
+      return { kind: "stable", reading: { weightThousandths: outcome.weight_thousandths } };
+    case "confirmed":
+      return { kind: "taken", reading: { weightThousandths: outcome.weight_thousandths } };
+    case "zero_weight":
+      return confirming ? outcome : { kind: "stable", reading: { weightThousandths: 0 } };
     case "weighing":
       return { kind: "weighing" };
     default:

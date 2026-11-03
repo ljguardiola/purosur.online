@@ -531,7 +531,7 @@ export async function weighProductFor(
     scale,
   }: SellingRequestDeps & { scale: Scale },
   productId: string,
-  take: boolean,
+  confirmedWeightThousandths: number | null,
 ): Promise<WeighProductOutcome> {
   const guarded = await asSeller({ database, gate }, (actorId) =>
     weighProductOnScale(
@@ -549,7 +549,7 @@ export async function weighProductFor(
         ids,
         scale,
       },
-      { actorId, productId, take },
+      { actorId, productId, confirmedWeightThousandths },
     ),
   );
   if (guarded.kind !== "performed") {
@@ -766,12 +766,12 @@ export async function weighLineFor(
   },
   lineId: string,
   expectedWeightThousandths: number,
-  take: boolean,
+  confirmedWeightThousandths: number | null,
 ): Promise<WeighLineOutcome> {
   const guarded = await asSeller({ database, gate }, (actorId) =>
     weighLineOnScale(
       { zoneRules, ledger: saleLedger(database), restoration, clock: { now }, scale },
-      { actorId, lineId, expectedWeightThousandths, take },
+      { actorId, lineId, expectedWeightThousandths, confirmedWeightThousandths },
     ),
   );
   if (guarded.kind !== "performed") {

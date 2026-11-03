@@ -411,9 +411,13 @@ function Register({ core }: { core: CoreClient }) {
     addProduct: (productId: string) => core.addProduct(productId),
     addWeighedProduct: (productId: string, weightThousandths: number) =>
       core.addWeighedProduct(productId, weightThousandths),
-    weighProduct: (productId: string, take: boolean) => core.weighProduct(productId, take),
-    weighLine: (lineId: string, expectedWeightThousandths: number, take: boolean) =>
-      core.weighLine(lineId, expectedWeightThousandths, take),
+    weighProduct: (productId: string, confirmedWeightThousandths: number | null) =>
+      core.weighProduct(productId, confirmedWeightThousandths),
+    weighLine: (
+      lineId: string,
+      expectedWeightThousandths: number,
+      confirmedWeightThousandths: number | null,
+    ) => core.weighLine(lineId, expectedWeightThousandths, confirmedWeightThousandths),
     changeLineQuantity: (lineId: string, quantity: number, expectedQuantity: number) =>
       core.changeLineQuantity(lineId, quantity, expectedQuantity),
     changeLineWeight: (
@@ -496,7 +500,8 @@ function Register({ core }: { core: CoreClient }) {
     withdrawInitialCountLine: (movementId: string) => core.withdrawInitialCountLine(movementId),
     findCountableProduct: (code: string) => core.findCountableProduct(code),
     searchCountableProducts: (query: string) => core.searchCountableProducts(query),
-    weighCountedProduct: (productId: string) => core.weighCountedProduct(productId),
+    weighCountedProduct: (productId: string, confirmedWeightThousandths: number | null) =>
+      core.weighCountedProduct(productId, confirmedWeightThousandths),
     // A replaced core connection fails this request; the core coming back up asks again.
     refreshCashSession,
   };

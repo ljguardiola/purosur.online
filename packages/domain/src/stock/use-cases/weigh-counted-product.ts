@@ -6,6 +6,7 @@ import type { InitialCountLedger } from "./initial-count-ledger.js";
 export interface WeighCountedProductInput {
   actorId: string;
   productId: string;
+  confirmedWeightThousandths: number | null;
 }
 
 export interface WeighCountedProductPorts {
@@ -18,12 +19,14 @@ export type WeighCountedProductOutcome =
   | { kind: "unknown_product" }
   | { kind: "not_sold_by_weight" }
   | { kind: "weighing" }
+  | { kind: "zero_weight" }
   | { kind: "scale_unavailable" }
-  | { kind: "weighed"; weightThousandths: number };
+  | { kind: "weighed"; weightThousandths: number }
+  | { kind: "confirmed"; weightThousandths: number };
 
 export async function weighCountedProduct(
   { ledger, scale }: WeighCountedProductPorts,
-  { actorId, productId }: WeighCountedProductInput,
+  { actorId, productId, confirmedWeightThousandths }: WeighCountedProductInput,
 ): Promise<WeighCountedProductOutcome> {
   const refusal = ledger.transaction<WeighCountedProductOutcome | undefined>((tx) => {
     const notAllowed = initialCountRefusal(tx, actorId);
@@ -43,8 +46,18 @@ export async function weighCountedProduct(
   if (reading.kind === "unavailable") {
     return { kind: "scale_unavailable" };
   }
-  if (reading.kind === "not_stable" || !mayBeMovementQuantity(reading.weightThousandths)) {
+  if (reading.kind === "not_stable") {
     return { kind: "weighing" };
   }
-  return { kind: "weighed", weightThousandths: reading.weightThousandths };
+  const { weightThousandths } = reading;
+  if (weightThousandths === 0) {
+    return { kind: "zero_weight" };
+  }
+  if (!mayBeMovementQuantity(weightThousandths)) {
+    return { kind: "weighing" };
+  }
+  return {
+    kind: weightThousandths === confirmedWeightThousandths ? "confirmed" : "weighed",
+    weightThousandths,
+  };
 }

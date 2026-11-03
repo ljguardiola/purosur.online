@@ -22,7 +22,7 @@ export type ScaleWeighingPhase<Reading extends StableReading = DefaultReading> =
   | { kind: "taken"; reading: Reading };
 
 export function useScaleWeighing<Reading extends StableReading = DefaultReading>(
-  weigh: (take: boolean) => Promise<ScaleWeighing<Reading>>,
+  weigh: (confirmedWeightThousandths: number | null) => Promise<ScaleWeighing<Reading>>,
 ) {
   const [phase, setPhase] = useState<ScaleWeighingPhase<Reading>>({
     kind: "weighing",
@@ -34,7 +34,7 @@ export function useScaleWeighing<Reading extends StableReading = DefaultReading>
   const typing = useRef(false);
   const taken = useRef(false);
   const confirmed = useRef(false);
-  const asking = useRef(false);
+  const shown = useRef<number | null>(null);
   const inFlight = useRef<Promise<unknown>>(Promise.resolve());
   const askNow = useRef<() => void>(() => {});
 
@@ -44,6 +44,7 @@ export function useScaleWeighing<Reading extends StableReading = DefaultReading>
 
   useEffect(() => {
     let leaving = false;
+    let asking = false;
     let pause: ReturnType<typeof setTimeout> | undefined;
 
     function askAfterPause() {
@@ -51,51 +52,57 @@ export function useScaleWeighing<Reading extends StableReading = DefaultReading>
     }
 
     function ask() {
-      if (leaving || typing.current || taken.current || asking.current) {
+      if (leaving || typing.current || taken.current || asking) {
         return;
       }
-      asking.current = true;
-      inFlight.current = latestWeigh.current(confirmed.current).then((answer) => {
-        asking.current = false;
-        switch (answer.kind) {
-          case "taken":
-            taken.current = true;
-            confirmed.current = false;
-            setConfirming(false);
-            setPhase(answer);
-            break;
-          case "scale_unavailable":
-            typing.current = true;
-            setConfirming(false);
-            setPhase((current) =>
-              current.kind === "weighing" || current.kind === "stable" ? answer : current,
-            );
-            break;
-          case "zero_weight":
-            confirmed.current = false;
-            setConfirming(false);
-            setZeroRefused(true);
-            askAfterPause();
-            break;
-          case "stable":
-            if (answer.reading.weightThousandths > 0) {
-              setZeroRefused(false);
-            }
-            setPhase((current) =>
-              current.kind === "weighing" || current.kind === "stable" ? answer : current,
-            );
-            askAfterPause();
-            break;
-          case "weighing":
-            setPhase((current) =>
-              current.kind === "stable" ? { kind: "weighing", last: current.reading } : current,
-            );
-            askAfterPause();
-            break;
-          case "closed":
-            break;
-        }
-      });
+      asking = true;
+      inFlight.current = latestWeigh
+        .current(confirmed.current ? shown.current : null)
+        .then((answer) => {
+          asking = false;
+          if (leaving) {
+            return;
+          }
+          switch (answer.kind) {
+            case "taken":
+              taken.current = true;
+              confirmed.current = false;
+              setConfirming(false);
+              setPhase(answer);
+              break;
+            case "scale_unavailable":
+              typing.current = true;
+              setConfirming(false);
+              setPhase((current) =>
+                current.kind === "weighing" || current.kind === "stable" ? answer : current,
+              );
+              break;
+            case "zero_weight":
+              confirmed.current = false;
+              setConfirming(false);
+              setZeroRefused(true);
+              askAfterPause();
+              break;
+            case "stable":
+              shown.current = answer.reading.weightThousandths;
+              if (answer.reading.weightThousandths > 0) {
+                setZeroRefused(false);
+              }
+              setPhase((current) =>
+                current.kind === "weighing" || current.kind === "stable" ? answer : current,
+              );
+              askAfterPause();
+              break;
+            case "weighing":
+              setPhase((current) =>
+                current.kind === "stable" ? { kind: "weighing", last: current.reading } : current,
+              );
+              askAfterPause();
+              break;
+            case "closed":
+              break;
+          }
+        });
     }
 
     askNow.current = () => {

@@ -231,11 +231,14 @@ export interface RouterContext {
     productId: string,
     weightThousandths: number,
   ) => Promise<AddWeighedProductOutcome>;
-  weighProduct: (productId: string, take: boolean) => Promise<WeighProductOutcome>;
+  weighProduct: (
+    productId: string,
+    confirmedWeightThousandths: number | null,
+  ) => Promise<WeighProductOutcome>;
   weighLine: (
     lineId: string,
     expectedWeightThousandths: number,
-    take: boolean,
+    confirmedWeightThousandths: number | null,
   ) => Promise<WeighLineOutcome>;
   changeLineQuantity: (
     lineId: string,
@@ -338,7 +341,10 @@ export interface RouterContext {
   withdrawInitialCountLine: (movementId: string) => Promise<WithdrawInitialCountLineOutcome>;
   findCountableProduct: (code: string) => Promise<FindCountableProductOutcome>;
   searchCountableProducts: (query: string) => Promise<SearchCountableProductsOutcome>;
-  weighCountedProduct: (productId: string) => Promise<WeighCountedProductOutcome>;
+  weighCountedProduct: (
+    productId: string,
+    confirmedWeightThousandths: number | null,
+  ) => Promise<WeighCountedProductOutcome>;
   refreshCashSession: () => Promise<void>;
 }
 

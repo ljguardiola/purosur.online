@@ -163,12 +163,17 @@ export interface RendererRequestDeps {
   addWeighedProduct:
     | ((productId: string, weightThousandths: number) => Promise<AddWeighedProductOutcome>)
     | undefined;
-  weighProduct: ((productId: string, take: boolean) => Promise<WeighProductOutcome>) | undefined;
+  weighProduct:
+    | ((
+        productId: string,
+        confirmedWeightThousandths: number | null,
+      ) => Promise<WeighProductOutcome>)
+    | undefined;
   weighLine:
     | ((
         lineId: string,
         expectedWeightThousandths: number,
-        take: boolean,
+        confirmedWeightThousandths: number | null,
       ) => Promise<WeighLineOutcome>)
     | undefined;
   initialCount: InitialCountRequests | undefined;
@@ -1369,7 +1374,8 @@ export async function answerRendererRequest(
         outcome: await attemptSaleChange(
           deps,
           "weighing a product on the scale",
-          weighProduct && (() => weighProduct(message.product_id, message.take)),
+          weighProduct &&
+            (() => weighProduct(message.product_id, message.confirmed_weight_thousandths)),
         ),
       };
     }
@@ -1382,7 +1388,12 @@ export async function answerRendererRequest(
           deps,
           "weighing a line on the scale",
           weighLine &&
-            (() => weighLine(message.line_id, message.expected_weight_thousandths, message.take)),
+            (() =>
+              weighLine(
+                message.line_id,
+                message.expected_weight_thousandths,
+                message.confirmed_weight_thousandths,
+              )),
         ),
       };
     }
