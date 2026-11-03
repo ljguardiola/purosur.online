@@ -17,9 +17,9 @@ export async function showInStoreNotebookWindow() {
 // test browser draws none however it is asked, so that width is held at the window's edge instead.
 export function holdWindowsScrollbarWidth() {
   const root = document.documentElement;
-  root.style.paddingRight = "17px";
+  root.style.paddingLeft = "17px";
   onTestFinished(() => {
-    root.style.removeProperty("padding-right");
+    root.style.removeProperty("padding-left");
   });
 }
 
