@@ -62,7 +62,6 @@ function quantityLine(
     productId,
     quantity: 1_000,
     costPaidCents: 500,
-    lotNumber: null,
     expiresOn: null,
     ...overrides,
   } as RegisterPurchaseLine;
@@ -156,7 +155,7 @@ describe("adding lines to a registered purchase", () => {
         purchaseId: purchase.id,
         locationId,
         actorId,
-        lines: [quantityLine(harina.id, { lotNumber: "L-9", expiresOn: "2027-01-01" })],
+        lines: [quantityLine(harina.id, { expiresOn: "2027-01-01" })],
       },
     );
 
@@ -179,7 +178,6 @@ describe("adding lines to a registered purchase", () => {
               productId: harina.id,
               quantity: 1_000,
               costPaidCents: 500,
-              lotNumber: "L-9",
               expiresOn: "2027-01-01",
             },
           ],

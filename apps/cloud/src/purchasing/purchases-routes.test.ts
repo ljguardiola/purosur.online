@@ -79,7 +79,6 @@ function quantityLine(productId: string, quantity = 3_000) {
     productId,
     quantity,
     costPaidCents: 900,
-    lotNumber: null,
     expiresOn: null,
   };
 }
@@ -222,7 +221,7 @@ describe("POST /purchases", () => {
           costPaidCents: 24_000,
           quantityPerPackage: 12_000,
           unitCostCents: 2_000,
-          lotNumber: "L-77",
+          lotNumber: null,
           expiresOn: "2027-03-01",
         },
       ],

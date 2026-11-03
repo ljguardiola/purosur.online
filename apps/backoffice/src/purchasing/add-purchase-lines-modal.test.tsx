@@ -142,6 +142,13 @@ test("shows the loading placeholder while the products load, and holds the actio
   await readyDialog(screen);
 });
 
+test("asks for no lot on a line", async () => {
+  const screen = await renderModal();
+  const dialog = await readyDialog(screen);
+
+  expect(purchaseLine(dialog, 1).getByRole("textbox", { name: /^Lote/ }).query()).toBeNull();
+});
+
 test("shows a load error with a retry action", async () => {
   const fetchPurchaseChoices = vi
     .fn<AddPurchaseLinesModalServices["fetchPurchaseChoices"]>()
@@ -176,7 +183,6 @@ test("adds the lines to the purchase and hands the purchase over", async () => {
         productId: AVENA_PRODUCT_ID,
         quantity: 10_000,
         costPaidCents: 180_000,
-        lotNumber: null,
         expiresOn: null,
       },
     ],

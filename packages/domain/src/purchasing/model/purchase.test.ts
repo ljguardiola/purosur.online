@@ -1,13 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
+import * as purchaseModel from "./purchase.js";
 import {
   hasPurchaseLines,
   hasValidReceiptNumber,
-  isLotNumberTooLong,
   isPurchaseDateInFuture,
   isPurchaseNoteTooLong,
   isReceiptNumberTooLong,
-  LOT_NUMBER_MAX_LENGTH,
   mayBePurchased,
   mayBePurchasedFrom,
   PURCHASE_NOTE_MAX_LENGTH,
@@ -58,15 +57,13 @@ describe("hasValidReceiptNumber", () => {
 });
 
 describe("purchase text limits", () => {
-  it("allows a receipt number and a lot number of up to 50 characters and a note of up to 200", () => {
+  it("allows a receipt number of up to 50 characters and a note of up to 200", () => {
     expect(RECEIPT_NUMBER_MAX_LENGTH).toBe(50);
-    expect(LOT_NUMBER_MAX_LENGTH).toBe(50);
     expect(PURCHASE_NOTE_MAX_LENGTH).toBe(200);
   });
 
   it.each([
     ["receipt number", isReceiptNumberTooLong, RECEIPT_NUMBER_MAX_LENGTH],
-    ["lot number", isLotNumberTooLong, LOT_NUMBER_MAX_LENGTH],
     ["note", isPurchaseNoteTooLong, PURCHASE_NOTE_MAX_LENGTH],
   ])(
     "accepts a %s of exactly its limit and rejects one character more",
@@ -77,7 +74,12 @@ describe("purchase text limits", () => {
   );
 
   it("counts a character outside the basic plane once", () => {
-    expect(isLotNumberTooLong("😀".repeat(LOT_NUMBER_MAX_LENGTH))).toBe(false);
+    expect(isReceiptNumberTooLong("😀".repeat(RECEIPT_NUMBER_MAX_LENGTH))).toBe(false);
+  });
+
+  it("has no limit for a lot number, which a purchase no longer takes", () => {
+    expect(purchaseModel).not.toHaveProperty("LOT_NUMBER_MAX_LENGTH");
+    expect(purchaseModel).not.toHaveProperty("isLotNumberTooLong");
   });
 });
 

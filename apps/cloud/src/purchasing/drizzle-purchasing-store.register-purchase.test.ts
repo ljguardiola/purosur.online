@@ -100,7 +100,6 @@ describe("the purchases a purchasing store keeps", () => {
         packages: 2,
         quantityPerPackage: 12_000,
         costPaidCents: 24_000,
-        lotNumber: "L-77",
         expiresOn: "2027-03-01",
       },
       {
@@ -108,7 +107,6 @@ describe("the purchases a purchasing store keeps", () => {
         productId: harina.id,
         quantity: 2_500,
         costPaidCents: 1_000,
-        lotNumber: null,
         expiresOn: null,
       },
     ]);
@@ -141,7 +139,7 @@ describe("the purchases a purchasing store keeps", () => {
         quantity: 24_000,
         costPaidCents: 24_000,
         quantityPerPackage: 12_000,
-        lotNumber: "L-77",
+        lotNumber: null,
         expiresOn: "2027-03-01",
       },
     ]);
@@ -167,7 +165,7 @@ describe("the purchases a purchasing store keeps", () => {
         quantityReceived: 24_000,
         costTotalCents: 24_000,
         costQuantity: 12_000,
-        lotNumber: "L-77",
+        lotNumber: null,
         expiresOn: "2027-03-01",
         purchasedOn: "2026-10-01",
         technical: false,
@@ -188,7 +186,6 @@ describe("the purchases a purchasing store keeps", () => {
           productId: product.id,
           quantity: 1_000,
           costPaidCents: 500,
-          lotNumber: null,
           expiresOn: null,
         },
       ],
@@ -211,7 +208,6 @@ describe("the purchases a purchasing store keeps", () => {
         productId: product.id,
         quantity: 3_000,
         costPaidCents: 900,
-        lotNumber: null,
         expiresOn: null,
       },
     ]);
@@ -257,7 +253,6 @@ describe("the purchases a purchasing store keeps", () => {
         productId: product.id,
         quantity: 3_000,
         costPaidCents: 900,
-        lotNumber: null,
         expiresOn: null,
       },
     ]);
@@ -289,7 +284,6 @@ describe("the purchases a purchasing store keeps", () => {
         productId: product.id,
         quantity: 3_000,
         costPaidCents: 900,
-        lotNumber: null,
         expiresOn: null,
       },
     ]);
@@ -313,7 +307,6 @@ describe("the price reviews a purchase postpones", () => {
     productId,
     quantity: 1_000,
     costPaidCents: 500,
-    lotNumber: null,
     expiresOn: null,
   });
 

@@ -42,7 +42,6 @@ const line = (productId: string) => ({
   productId,
   quantity: 1_000,
   costPaidCents: 500,
-  lotNumber: null,
   expiresOn: null,
 });
 

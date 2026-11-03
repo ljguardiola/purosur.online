@@ -55,7 +55,6 @@ export const linesAdded: PurchaseChange = {
         productId: "90d00000-0000-4000-8000-000000000002",
         quantity: 10_000,
         costPaidCents: 1_800_00,
-        lotNumber: "L-20",
         expiresOn: "2027-03-01",
       },
     ],
