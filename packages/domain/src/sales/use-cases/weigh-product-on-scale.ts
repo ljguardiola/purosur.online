@@ -1,8 +1,9 @@
 import type { Clock, Scale, ZoneRulesSource } from "../../shared/index.js";
-import { mayBeSaleLineQuantity } from "../model/sale-line.js";
+import { newWeighedSaleLine } from "../model/sale-line.js";
+import { pricedWeighingStep, type StableWeighing } from "./priced-weighing-step.js";
 import type { RegisterRestoration } from "./register-restoration.js";
 import type { AddedLineOutcome, SaleAdditionRefusal } from "./sale-addition.js";
-import { isSaleAdditionRefusal, saleToAddTo } from "./sale-addition.js";
+import { isSaleAdditionRefusal, saleToAddTo, validPromotions } from "./sale-addition.js";
 import type { IdGenerator, SaleLedger } from "./sale-ledger.js";
 import {
   addWeighedLine,
@@ -16,6 +17,7 @@ import {
 export interface WeighProductOnScaleInput {
   actorId: string;
   productId: string;
+  confirmedWeightThousandths: number | null;
 }
 
 export interface WeighProductOnScalePorts {
@@ -32,12 +34,14 @@ export type WeighProductOnScaleOutcome =
   | WeighedProductRefusal
   | { kind: "no_price"; productName: string }
   | { kind: "weighing" }
+  | { kind: "zero_weight" }
   | { kind: "scale_unavailable" }
+  | StableWeighing
   | AddedLineOutcome;
 
 export async function weighProductOnScale(
   { ledger, restoration, clock, zoneRules, ids, scale }: WeighProductOnScalePorts,
-  { actorId, productId }: WeighProductOnScaleInput,
+  { actorId, productId, confirmedWeightThousandths }: WeighProductOnScaleInput,
 ): Promise<WeighProductOnScaleOutcome> {
   const reading = await scale.read();
   return ledger.transaction<WeighProductOnScaleOutcome>((tx) => {
@@ -53,12 +57,22 @@ export async function weighProductOnScale(
     if (isNoPrice(priced)) {
       return priced;
     }
-    if (reading.kind === "unavailable") {
-      return { kind: "scale_unavailable" };
+    const step = pricedWeighingStep(
+      reading,
+      confirmedWeightThousandths,
+      (weightThousandths) =>
+        newWeighedSaleLine(
+          priced.product.id,
+          priced.product,
+          priced.price,
+          validPromotions(tx, priced.product.id, priced.moment, priced.rules),
+          weightThousandths,
+          "SCALE",
+        ).lineTotal,
+    );
+    if (step.kind !== "take") {
+      return step;
     }
-    if (reading.kind === "not_stable" || !mayBeSaleLineQuantity(reading.weightThousandths, "KG")) {
-      return { kind: "weighing" };
-    }
-    return addWeighedLine(tx, addition, ids, priced, reading.weightThousandths, "SCALE");
+    return addWeighedLine(tx, addition, ids, priced, step.weightThousandths, "SCALE");
   });
 }

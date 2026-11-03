@@ -48,7 +48,10 @@ export type InitialCountScreenProps = {
   withdrawInitialCountLine: (movementId: string) => Promise<WithdrawInitialCountLineOutcome>;
   findCountableProduct: (code: string) => Promise<FindCountableProductOutcome>;
   searchCountableProducts: (query: string) => Promise<SearchCountableProductsOutcome>;
-  weighCountedProduct: (productId: string) => Promise<WeighCountedProductOutcome>;
+  weighCountedProduct: (
+    productId: string,
+    confirmedWeightThousandths: number | null,
+  ) => Promise<WeighCountedProductOutcome>;
   onSessionInvalid: () => void;
 };
 
