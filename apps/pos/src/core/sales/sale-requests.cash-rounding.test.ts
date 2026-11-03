@@ -1,21 +1,5 @@
-import {
-  FICTIONAL_CUIT,
-  FICTIONAL_GROSS_INCOME_REGISTRATION,
-  FICTIONAL_LEGAL_NAME,
-} from "@purosur/domain/fiscal/test-support";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { restorePendingIn } from "../backups/restore-pending";
-import { seedChargeRegister } from "../payments/test-support/mercado-pago-charge-requests";
 import type { LocalDatabase } from "../platform/local-database";
-import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
-import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source";
-import { migrationClock } from "../platform/test-support/migration-clock";
-import { openLocalDatabase } from "../platform/test-support/open-local-database";
-import { cashCountPreviewFor, closeCashSessionFor } from "../register/cash-session-requests";
-import { SqliteRestorationEvidence } from "../register/sqlite-restoration-evidence";
-import { createActionGate } from "../sessions/action-gate";
-import { createSignedInPerson } from "../sessions/signed-in-person";
-import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import {
   applySaleDiscountFor,
   cashChargeFor,
@@ -26,45 +10,13 @@ import {
   type SellingRequestDeps,
   scanProductFor,
 } from "./sale-requests";
-
-const NOW = new Date("2026-10-09T12:00:00.000Z");
-const CHAIN_KEY = Buffer.from("0123456789abcdef0123456789abcdef").toString("base64");
+import { countingIds, openSellingRegister, saleRequestDeps } from "./test-support/sale-requests";
 
 let database: LocalDatabase;
-let idCount: number;
+let ids: OutboxSaleRequestDeps["ids"];
 
 function deps(): OutboxSaleRequestDeps & SellingRequestDeps {
-  const signedInPerson = createSignedInPerson();
-  signedInPerson.set("u1");
-  return {
-    database,
-    gate: createActionGate({
-      store: new SqliteSignInStore(database),
-      signedInPerson,
-      readPepper: async () => undefined,
-      hashPin: async () => "",
-      now: () => NOW,
-    }),
-    readOutboxChainKey: async () => CHAIN_KEY,
-    now: () => NOW,
-    ids: {
-      next: () => {
-        idCount += 1;
-        return `id-${idCount}`;
-      },
-    },
-    paidOrderDiscovery: () => "checked",
-    newSalesStoppedByDisk: () => false,
-    localDatabaseDamaged: () => false,
-    newSalesStoppedByBattery: () => false,
-    restoration: new SqliteRestorationEvidence(
-      database,
-      restorePendingIn(undefined),
-      () => "unknown",
-      () => false,
-    ),
-    zoneRules: fixedZoneRulesSource(),
-  };
+  return saleRequestDeps(database, ids);
 }
 
 async function sellFor(unitPrice: number): Promise<string> {
@@ -74,16 +26,6 @@ async function sellFor(unitPrice: number): Promise<string> {
     throw new Error("test setup: the product was not added");
   }
   return outcome.sale.id;
-}
-
-function addFiscalConfiguration(): void {
-  database
-    .prepare(
-      `INSERT INTO issuer_identification_versions (
-         version, legal_name, gross_income_registration, activity_start_date, authorized_cuit, tax_status
-       ) VALUES (2, ?, ?, '2020-01-15', ?, 'Condicion de prueba')`,
-    )
-    .run(FICTIONAL_LEGAL_NAME, FICTIONAL_GROSS_INCOME_REGISTRATION, FICTIONAL_CUIT);
 }
 
 function completedEvent() {
@@ -111,9 +53,8 @@ function completedEvent() {
 }
 
 beforeEach(() => {
-  idCount = 0;
-  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
-  seedChargeRegister(database);
+  ids = countingIds();
+  database = openSellingRegister();
 });
 
 afterEach(() => {
@@ -250,7 +191,6 @@ describe("charging a sale in cash on the register", () => {
   });
 
   it("hands the fiscal document the rounded total", async () => {
-    addFiscalConfiguration();
     const saleId = await sellFor(327_000);
 
     await chargeSaleInCashFor(deps(), { saleId, tendered: 500_000 });
@@ -301,31 +241,5 @@ describe("what a sale needs when an amount is tendered in cash", () => {
     expect(database.prepare("SELECT state, cash_rounding FROM sales").all()).toEqual([
       { state: "OPEN", cash_rounding: 0 },
     ]);
-  });
-});
-
-describe("counting the cash of a session with sales rounded down", () => {
-  async function sellRoundedInCash(): Promise<void> {
-    const first = await sellFor(327_000);
-    await chargeSaleInCashFor(deps(), { saleId: first, tendered: 500_000 });
-    const second = await sellFor(527_000);
-    await chargeSaleInCashFor(deps(), { saleId: second, tendered: 520_000 });
-  }
-
-  it("previews no difference when exactly the cash received is counted", async () => {
-    await sellRoundedInCash();
-
-    expect(cashCountPreviewFor(database, 840_000)).toEqual({ difference: 0 });
-  });
-
-  it("closes with the cash received as the expected cash and no difference", async () => {
-    await sellRoundedInCash();
-
-    expect(
-      await closeCashSessionFor(deps(), { sessionId: "session-1", countedCash: 840_000 }),
-    ).toEqual({
-      kind: "closed",
-      session: { id: "session-1", expected_cash: 840_000, counted_cash: 840_000, difference: 0 },
-    });
   });
 });

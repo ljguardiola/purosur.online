@@ -1,21 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { restorePendingIn } from "../backups/restore-pending";
 import { startMercadoPagoChargeFor } from "../payments/mercado-pago-charge-requests";
 import { SqliteLocalPaidOrders } from "../payments/sqlite-local-paid-orders";
 import {
   chargeRequestDeps,
   FakeMercadoPagoOrders,
-  seedChargeRegister,
 } from "../payments/test-support/mercado-pago-charge-requests";
 import type { LocalDatabase } from "../platform/local-database";
-import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
-import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source";
-import { migrationClock } from "../platform/test-support/migration-clock";
-import { openLocalDatabase } from "../platform/test-support/open-local-database";
-import { SqliteRestorationEvidence } from "../register/sqlite-restoration-evidence";
-import { createActionGate } from "../sessions/action-gate";
 import { createSignedInPerson } from "../sessions/signed-in-person";
-import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import {
   cancelSaleFor,
   chargeSaleInCashFor,
@@ -26,45 +17,16 @@ import {
   type SellingRequestDeps,
   scanProductFor,
 } from "./sale-requests";
-
-const NOW = new Date("2026-10-09T12:00:00.000Z");
-const CHAIN_KEY = Buffer.from("0123456789abcdef0123456789abcdef").toString("base64");
+import {
+  openSellingRegister,
+  SALE_REQUESTS_NOW,
+  saleRequestDeps,
+} from "./test-support/sale-requests";
 
 let database: LocalDatabase;
 
 function deps(): OutboxSaleRequestDeps & SellingRequestDeps {
-  const signedInPerson = createSignedInPerson();
-  signedInPerson.set("u1");
-  let count = 0;
-  return {
-    database,
-    gate: createActionGate({
-      store: new SqliteSignInStore(database),
-      signedInPerson,
-      readPepper: async () => undefined,
-      hashPin: async () => "",
-      now: () => NOW,
-    }),
-    readOutboxChainKey: async () => CHAIN_KEY,
-    now: () => NOW,
-    ids: {
-      next: () => {
-        count += 1;
-        return `id-${count}`;
-      },
-    },
-    paidOrderDiscovery: () => "checked",
-    newSalesStoppedByDisk: () => false,
-    localDatabaseDamaged: () => false,
-    newSalesStoppedByBattery: () => false,
-    restoration: new SqliteRestorationEvidence(
-      database,
-      restorePendingIn(undefined),
-      () => "unknown",
-      () => false,
-    ),
-    zoneRules: fixedZoneRulesSource(),
-  };
+  return saleRequestDeps(database);
 }
 
 function recordPaidOrder(amount: number, method: "QR" | "POINT" = "QR"): void {
@@ -78,7 +40,7 @@ function recordPaidOrder(amount: number, method: "QR" | "POINT" = "QR"): void {
     method === "QR"
       ? { ...common, method: "QR", provider: "MERCADOPAGO_QR" }
       : { ...common, method: "POINT", provider: "MERCADOPAGO_POINT", cardType: "CREDIT" },
-    NOW,
+    SALE_REQUESTS_NOW,
   );
 }
 
@@ -105,8 +67,7 @@ function outboxOf(type: string) {
 }
 
 beforeEach(() => {
-  database = openLocalDatabase(":memory:", LOCAL_MIGRATIONS, migrationClock);
-  seedChargeRegister(database);
+  database = openSellingRegister();
 });
 
 afterEach(() => {
@@ -160,7 +121,7 @@ describe("rebuilding a sale against a paid order", () => {
         provider: "MERCADOPAGO_POINT",
         cardType: null,
       },
-      NOW,
+      SALE_REQUESTS_NOW,
     );
 
     expect(
@@ -180,7 +141,10 @@ describe("rebuilding a sale against a paid order", () => {
 
   it("answers that the order was already resolved once converted into a refund", async () => {
     recordPaidOrder(3000);
-    new SqliteLocalPaidOrders({ database }).resolvePaidOrderWithoutSale("order-1", NOW);
+    new SqliteLocalPaidOrders({ database }).resolvePaidOrderWithoutSale(
+      "order-1",
+      SALE_REQUESTS_NOW,
+    );
 
     expect(
       await rebuildSaleAgainstPaidOrderFor(deps(), { paymentTransactionId: "order-1" }),

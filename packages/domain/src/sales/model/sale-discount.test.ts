@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { SaleLine } from "./sale.js";
 import {
   amountToCharge,
+  appliedSaleDiscountAmount,
   type SaleDiscount,
   saleDiscountAmount,
   saleDiscountRefusal,
@@ -297,7 +298,7 @@ describe("settledLines", () => {
     const lines = [line("a", 100), line("b", 98)];
 
     expect(settledLines({ lines, saleDiscount: null, cashRounding: 0 })).toEqual(
-      lines.map((each) => ({ ...each, saleDiscountShare: 0, cashRoundingShare: 0 })),
+      lines.map((each) => ({ ...each, saleDiscountShare: 0 })),
     );
   });
 
@@ -328,7 +329,6 @@ describe("settledLines", () => {
       ...line("a", 1000),
       lineTotal: 900,
       saleDiscountShare: 100,
-      cashRoundingShare: 0,
     });
   });
 });
@@ -343,7 +343,6 @@ describe("settledLines with cash rounding", () => {
 
     const settled = settledLines(sale);
 
-    expect(settled.map(({ cashRoundingShare }) => cashRoundingShare)).toEqual([24, 23, 23]);
     expect(settled.map(({ saleDiscountShare }) => saleDiscountShare)).toEqual([0, 0, 0]);
     expect(settled.map(({ lineTotal }) => lineTotal)).toEqual([976, 977, 977]);
     expect(settled.reduce((total, { lineTotal }) => total + lineTotal, 0)).toBe(
@@ -361,7 +360,7 @@ describe("settledLines with cash rounding", () => {
     const settled = settledLines(sale);
 
     expect(settled.map(({ saleDiscountShare }) => saleDiscountShare)).toEqual([14, 22]);
-    expect(settled.map(({ cashRoundingShare }) => cashRoundingShare)).toEqual([1, 3]);
+    expect(settled.map(({ lineTotal }) => lineTotal)).toEqual([3, 5]);
   });
 
   it("keeps the manual discount's share apart and spreads the rounding over the lines after it", () => {
@@ -374,7 +373,6 @@ describe("settledLines with cash rounding", () => {
     const settled = settledLines(sale);
 
     expect(settled.map(({ saleDiscountShare }) => saleDiscountShare)).toEqual([1500, 500]);
-    expect(settled.map(({ cashRoundingShare }) => cashRoundingShare)).toEqual([75, 25]);
     expect(settled.map(({ lineTotal }) => lineTotal)).toEqual([1425, 475]);
   });
 
@@ -405,8 +403,8 @@ describe("settledLines with cash rounding", () => {
             amountToCharge(sale),
           );
           expect(
-            settled.reduce((total, { cashRoundingShare }) => total + cashRoundingShare, 0),
-          ).toBe(sale.cashRounding);
+            settled.reduce((total, { saleDiscountShare }) => total + saleDiscountShare, 0),
+          ).toBe(appliedSaleDiscountAmount(sale));
         },
       ),
     );

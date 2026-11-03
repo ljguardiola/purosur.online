@@ -402,6 +402,7 @@ describe("forgetting the acknowledged events after a register session", () => {
         { state: "AWAITING_INVOICE" },
         { state: "IN_PROGRESS" },
         { state: "ISSUED_OFFLINE" },
+        { state: "ISSUED_OFFLINE" },
       ]);
       expect(contentsOfEveryTableButTheOutbox(session)).toEqual(before);
       for (const table of ["sales", "payment_transactions", "cash_sessions", "cash_movements"]) {

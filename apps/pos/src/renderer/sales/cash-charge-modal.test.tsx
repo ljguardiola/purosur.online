@@ -78,7 +78,7 @@ describe("CashChargeModal", () => {
     await expect.element(screen.getByText("$ 0,00")).toBeVisible();
     await expect.element(screen.getByText("A cobrar ahora")).toBeVisible();
     await expect
-      .element(screen.getByText("Con menos de lo que falta, el resto queda pendiente."))
+      .element(screen.getByText("Si no alcanza para saldar la venta, el resto queda pendiente."))
       .toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
     await expect.element(field).toHaveAttribute("inputmode", "decimal");
