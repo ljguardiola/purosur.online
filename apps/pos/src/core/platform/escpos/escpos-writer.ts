@@ -16,6 +16,7 @@ const HEAD_DOTS_PER_INCH = 203;
 const MOTION_UNITS_PER_INCH = 360;
 const MAX_FEED_UNITS = 255;
 const MAX_RASTER_STRIP_ROWS = 255;
+const BLANK_IMAGE_WIDTH_DOTS = 8;
 const QR_MAX_MODULE_DOTS = 16;
 const QR_CORRECTION_LEVELS = { L: 0x30, M: 0x31 } as const;
 const QR_BYTE_CAPACITY_AT_LEVEL_L = [
@@ -32,6 +33,10 @@ export interface RasterImage {
   widthDots: number;
   heightDots: number;
   rows: Uint8Array;
+}
+
+interface ImageMargins {
+  bottomMarginDots?: number;
 }
 
 export class EscPosWriter {
@@ -75,10 +80,16 @@ export class EscPosWriter {
     }
   }
 
-  rasterImage({ widthDots, heightDots, rows }: RasterImage): void {
+  rasterImage(
+    { widthDots, heightDots, rows }: RasterImage,
+    { bottomMarginDots = 0 }: ImageMargins = {},
+  ): void {
     const widthBytes = widthDots / 8;
-    for (let top = 0; top < heightDots; top += MAX_RASTER_STRIP_ROWS) {
-      const stripRows = Math.min(MAX_RASTER_STRIP_ROWS, heightDots - top);
+    const printedRows = heightDots + bottomMarginDots;
+    const printed = new Uint8Array(widthBytes * printedRows);
+    printed.set(rows.subarray(0, widthBytes * heightDots));
+    for (let top = 0; top < printedRows; top += MAX_RASTER_STRIP_ROWS) {
+      const stripRows = Math.min(MAX_RASTER_STRIP_ROWS, printedRows - top);
       this.command(
         GS,
         0x76,
@@ -89,8 +100,15 @@ export class EscPosWriter {
         stripRows & 0xff,
         stripRows >> 8,
       );
-      this.chunks.push(rows.subarray(top * widthBytes, (top + stripRows) * widthBytes));
+      this.chunks.push(printed.subarray(top * widthBytes, (top + stripRows) * widthBytes));
     }
+  }
+
+  blankImage(dots: number): void {
+    this.rasterImage(
+      { widthDots: BLANK_IMAGE_WIDTH_DOTS, heightDots: 0, rows: new Uint8Array() },
+      { bottomMarginDots: dots },
+    );
   }
 
   qr(text: string, size: QrSize): void {

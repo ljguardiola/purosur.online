@@ -14,6 +14,7 @@ import { centered, SMALL_COLUMNS } from "../../platform/escpos/escpos-writer";
 import { printoutOf } from "../../platform/escpos/test-support/escpos-printout";
 import { fixedZoneRulesSource } from "../../platform/test-support/fixed-zone-rules-source";
 import { escPosReceiptTemplate } from "./escpos-receipt-template";
+import { earlierVersionReceipt } from "./test-support/earlier-version-receipt";
 import { firstVersionHead } from "./test-support/first-version-head";
 
 const RULE = "─".repeat(48);
@@ -106,7 +107,7 @@ const HEAD = [
   "[codepage PC850]",
   "[logo 576x255]",
   "[logo 576x25]",
-  "[feed dots 16]",
+  "[blank dots 16]",
   "[small]                       Av. Belgrano 1450[/small]",
   "[small]              WhatsApp 11 5555-0100  ·  @puro.sur[/small]",
   RULE,
@@ -152,7 +153,7 @@ const AUTHORIZATION = [
   `[qr store ${QR_TEXT}]`,
   "[qr print]",
   "[align left]",
-  "[feed dots 5]",
+  "[blank dots 5]",
   "[small]                     Comprobante autorizado[/small]",
   "[small]             CAE 71234567890999  ·  Vto. 12/10/2026[/small]",
 ];
@@ -257,7 +258,7 @@ describe("the ESC/POS credit note of a voided sale", () => {
           out.small(centered("Cód. 013  ·  A consumidor final", SMALL_COLUMNS));
         },
       }),
-      body: current.body,
+      body: earlierVersionReceipt(current, "1").body,
     };
     const copy = { kind: "duplicate", orderNumber: 2 } as const;
 
@@ -275,6 +276,24 @@ describe("the ESC/POS credit note of a voided sale", () => {
     );
     expect(Array.from(duplicate)).toEqual(Array.from(template.printable(current, copy)));
   });
+
+  it.each(["1", "2"] as const)(
+    "prints a credit note stored by the template's version %s with the gaps below the logo and below the QR laid out as today",
+    (version) => {
+      const template = escPosReceiptTemplate(fixedZoneRulesSource());
+      const current = template.renderCreditNote(creditNote());
+      const stored = earlierVersionReceipt(current, version);
+
+      for (const copy of [
+        { kind: "original" } as const,
+        { kind: "duplicate", orderNumber: 1 } as const,
+      ]) {
+        expect(Array.from(template.printable(stored, copy))).toEqual(
+          Array.from(template.printable(current, copy)),
+        );
+      }
+    },
+  );
 
   it("keeps the rendered credit note as a head and a body that join into the original", () => {
     const stored = escPosReceiptTemplate(fixedZoneRulesSource()).renderCreditNote(creditNote());
