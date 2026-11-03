@@ -221,7 +221,7 @@ describe("POST /purchase-orders/:id/receipts", () => {
   it("answers a refused purchase as any purchase route does", async () => {
     const { headers, userId, locationId } = await receiver();
     const { orderId, productId, supplierId } = await sentOrder(userId, locationId);
-    const send = (payload: unknown) =>
+    const send = (payload: Record<string, unknown>) =>
       app.inject({ method: "POST", url: `/purchase-orders/${orderId}/receipts`, payload, headers });
 
     const future = await send(delivery([packagesOf(productId, 1)], { purchasedOn: "2026-10-06" }));
