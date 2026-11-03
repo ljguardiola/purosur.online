@@ -437,37 +437,6 @@ export function SaleScreen({
     return { kind: "closed" };
   }
 
-  async function weighLineOnScale(line: SaleLine, takeWeight: boolean): Promise<ScaleWeighing> {
-    const outcome = await weighLine(line.id, line.quantity, takeWeight).catch(
-      (): WeighLineOutcome => ({ kind: "unavailable" }),
-    );
-    if (
-      outcome.kind === "weighing" ||
-      outcome.kind === "scale_unavailable" ||
-      outcome.kind === "zero_weight"
-    ) {
-      return outcome;
-    }
-    if (outcome.kind === "stable") {
-      return {
-        kind: "stable",
-        reading: { weightThousandths: outcome.weight_thousandths, amount: outcome.amount },
-      };
-    }
-    const changed =
-      outcome.kind === "changed"
-        ? outcome.sale.lines.find((each) => each.id === line.id)
-        : undefined;
-    await edit(async () => outcome, { kind: "weight_change_failed" }, line);
-    askForWeight(undefined);
-    return changed === undefined
-      ? { kind: "closed" }
-      : {
-          kind: "taken",
-          reading: { weightThousandths: changed.quantity, amount: changed.line_total },
-        };
-  }
-
   async function scan(submitted: string) {
     const outcome = await scanProduct(submitted).catch(
       (): ScanProductOutcome => ({ kind: "unavailable" }),
@@ -645,6 +614,37 @@ export function SaleScreen({
     }
     askForWeight(undefined);
     return "done";
+  }
+
+  async function weighLineOnScale(line: SaleLine, takeWeight: boolean): Promise<ScaleWeighing> {
+    const outcome = await weighLine(line.id, line.quantity, takeWeight).catch(
+      (): WeighLineOutcome => ({ kind: "unavailable" }),
+    );
+    if (
+      outcome.kind === "weighing" ||
+      outcome.kind === "scale_unavailable" ||
+      outcome.kind === "zero_weight"
+    ) {
+      return outcome;
+    }
+    if (outcome.kind === "stable") {
+      return {
+        kind: "stable",
+        reading: { weightThousandths: outcome.weight_thousandths, amount: outcome.amount },
+      };
+    }
+    const changed =
+      outcome.kind === "changed"
+        ? outcome.sale.lines.find((each) => each.id === line.id)
+        : undefined;
+    await edit(async () => outcome, { kind: "weight_change_failed" }, line);
+    askForWeight(undefined);
+    return changed === undefined
+      ? { kind: "closed" }
+      : {
+          kind: "taken",
+          reading: { weightThousandths: changed.quantity, amount: changed.line_total },
+        };
   }
 
   useEffect(() => {
