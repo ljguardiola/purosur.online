@@ -6,7 +6,9 @@ import {
   type ReactNode,
   type RefObject,
   useEffect,
+  useId,
   useRef,
+  useState,
 } from "react";
 import { FocusScope, useFocusManager } from "react-aria";
 import {
@@ -62,6 +64,9 @@ const widthClassName: Record<ModalWidth, string> = {
   wide: "w-180",
   editor: "w-260",
 };
+
+// Inset, so the ring stays inside the body instead of drawing over the header and the footer.
+const scrollingBodyFocusClassName = "outline-none focus-visible:focus-ring-inset";
 
 // Children.toArray drops null/undefined/boolean children but keeps a fragment as one child even
 // when everything inside it was dropped, so fragments are looked into.
@@ -145,6 +150,18 @@ function FocusFirstField({ bodyRef }: { bodyRef: RefObject<HTMLDivElement | null
   return null;
 }
 
+// A wrapper drawn with `display: contents` has no box of its own to resize, so what it holds is
+// observed instead.
+function observeContentBoxes(element: Element, observer: ResizeObserver) {
+  for (const child of element.children) {
+    if (getComputedStyle(child).display === "contents") {
+      observeContentBoxes(child, observer);
+    } else {
+      observer.observe(child);
+    }
+  }
+}
+
 function FieldFocusingContent({
   bodyRef,
   children,
@@ -178,6 +195,42 @@ export function Modal(props: ModalProps) {
   } = props;
   const footerRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  const [bodyOverflows, setBodyOverflows] = useState(false);
+
+  // A body that scrolls with nothing focusable in it could not be scrolled from the keyboard, so it
+  // takes a tab stop of its own only while it overflows. Its size stops changing once it reaches the
+  // panel's cap, so the content's boxes are observed too, and mutations catch text that changes
+  // inside a box that keeps its size.
+  function observeBodyOverflow(body: HTMLDivElement | null) {
+    bodyRef.current = body;
+    if (body === null) {
+      return;
+    }
+    const updateOverflow = () => setBodyOverflows(body.scrollHeight > body.clientHeight);
+    const resizeObserver = new ResizeObserver(updateOverflow);
+    const observeBoxes = () => {
+      resizeObserver.disconnect();
+      resizeObserver.observe(body);
+      observeContentBoxes(body, resizeObserver);
+    };
+    const mutationObserver = new MutationObserver(() => {
+      observeBoxes();
+      updateOverflow();
+    });
+    updateOverflow();
+    observeBoxes();
+    mutationObserver.observe(body, { childList: true, subtree: true, characterData: true });
+    return () => {
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
+      bodyRef.current = null;
+    };
+  }
+
+  const scrollingBodyProps = bodyOverflows
+    ? { role: "region", tabIndex: 0, "aria-labelledby": titleId }
+    : {};
 
   // Capturing, because react-aria's fields stop the keys they handle from bubbling; listening on the
   // body leaves the header's and footer's own buttons out. A field's list is portaled outside the
@@ -236,8 +289,12 @@ export function Modal(props: ModalProps) {
         >
           {props.headerLayout === "centered" ? (
             <div
-              ref={bodyRef}
-              className="flex min-h-0 flex-1 flex-col items-center gap-3 overflow-y-auto p-6"
+              ref={observeBodyOverflow}
+              {...scrollingBodyProps}
+              className={[
+                "flex min-h-0 flex-1 flex-col items-center gap-3 overflow-y-auto p-6",
+                scrollingBodyFocusClassName,
+              ].join(" ")}
               onKeyDownCapture={sendWithCtrlEnter}
             >
               <span
@@ -250,6 +307,7 @@ export function Modal(props: ModalProps) {
                 <span className={iconSlotClassName["3xl"]}>{icon}</span>
               </span>
               <AriaHeading
+                id={titleId}
                 slot="title"
                 className={["text-center text-title", toneClassName[tone].strongText].join(" ")}
               >
@@ -272,6 +330,7 @@ export function Modal(props: ModalProps) {
                 <div className="flex flex-1 flex-col gap-1">
                   {context ? <Eyebrow text={context} tone={contextTone} /> : null}
                   <AriaHeading
+                    id={titleId}
                     slot="title"
                     className={["text-title", toneClassName[tone].strongText].join(" ")}
                   >
@@ -282,9 +341,11 @@ export function Modal(props: ModalProps) {
               </div>
               {hasContent(children) && (
                 <div
-                  ref={bodyRef}
+                  ref={observeBodyOverflow}
+                  {...scrollingBodyProps}
                   className={[
                     "min-h-0 flex-1 overflow-y-auto",
+                    scrollingBodyFocusClassName,
                     // A column, so a caller's own regions can size themselves against it and
                     // scroll independently; without it, a percentage height inside resolves to
                     // auto and scrolls the whole body as one block.
