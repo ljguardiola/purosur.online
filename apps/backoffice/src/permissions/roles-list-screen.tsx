@@ -11,17 +11,12 @@ import {
 import { Copy, Lock, Pencil, Plus, Shield } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
-import { combineCloudData } from "../platform/combine-cloud-data";
 import { roleDisplayName } from "../platform/role-display-name";
 import type { RoleSummary } from "../platform/roles-api";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { permissionsOf } from "./permission-catalog";
-import {
-  usePermissionCatalogQuery,
-  useRefreshPermissions,
-  useRolesQuery,
-} from "./permissions-queries";
+import { useRefreshPermissions, useRolesWithPermissionCatalogQuery } from "./permissions-queries";
 import { RoleEditorModal, type RoleEditorRequest } from "./role-editor-modal";
 import type { RolesListScreenServices } from "./roles-list-services";
 
@@ -95,10 +90,11 @@ function columnsFor(openEditor: (request: RoleEditorRequest) => void, permission
 
 export function RolesListScreen({ onSessionEnded, services }: RolesListScreenProps) {
   const { fetchRoles, fetchPermissionCatalog, roleEditorModal } = services;
-  const data = combineCloudData(
-    useRolesQuery({ fetchRoles, onSessionEnded }),
-    usePermissionCatalogQuery({ fetchPermissionCatalog, onSessionEnded }),
-  );
+  const data = useRolesWithPermissionCatalogQuery({
+    fetchRoles,
+    fetchPermissionCatalog,
+    onSessionEnded,
+  });
   const refreshPermissions = useRefreshPermissions();
   const [editorRequest, setEditorRequest] = useState<RoleEditorRequest | null>(null);
 
