@@ -553,10 +553,10 @@ describe("chargeSaleInCash", () => {
 
       charge(store, 13200);
 
-      expect(store.state.outbox[0]?.payload).toMatchObject({ total: 13200 });
+      expect(store.state.outbox[0]?.payload).toMatchObject({ total: 10000, cash_rounding: 3200 });
       expect(store.state.preEmissionGates[0]?.outcome).toMatchObject({
         kind: "passed",
-        document: { total: 13200, netAmount: 13200 },
+        document: { total: 10000, netAmount: 10000 },
       });
     });
 

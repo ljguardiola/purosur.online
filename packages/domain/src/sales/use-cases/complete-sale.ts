@@ -121,7 +121,7 @@ function saleCompletedEvent(
     aggregate_type: "Sale",
     aggregate_id: sale.id,
     event_type: SALE_COMPLETED_EVENT_TYPE,
-    schema_version: 10,
+    schema_version: 11,
     payload: {
       id: sale.id,
       operation_number: operationNumber,
@@ -131,6 +131,7 @@ function saleCompletedEvent(
       actor_id: sale.actorId,
       occurred_at: completedAtIso,
       total,
+      cash_rounding: sale.cashRounding,
       sale_discount: saleDiscountRecord(sale),
       lines: settledLines(sale).map(saleLineRecord),
       payments: payments.map(paymentRecord),

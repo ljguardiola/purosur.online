@@ -139,7 +139,7 @@ describe("chargeSaleWithPaidOrder", () => {
       chargeWithPaidOrder(store);
 
       expect(completedEvent(store)).toMatchObject({
-        schema_version: 10,
+        schema_version: 11,
         payload: {
           total: 5000,
           payments: [{ id: "order-1", method: "QR", amount: 5000, state: "APPROVED" }],

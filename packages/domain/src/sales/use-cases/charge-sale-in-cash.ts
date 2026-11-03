@@ -39,7 +39,14 @@ export type ChargeSaleInCashOutcome =
   | { kind: "paid_order_not_applied" }
   | { kind: "invalid_amount" }
   | PartiallyPaid
-  | { kind: "completed"; saleId: string; total: number; tendered: number; change: number };
+  | {
+      kind: "completed";
+      saleId: string;
+      total: number;
+      tendered: number;
+      change: number;
+      cashRounding: number;
+    };
 
 export function chargeSaleInCash(
   { ledger, restoration, clock, zoneRules, ids }: ChargeSaleInCashPorts,
@@ -100,16 +107,27 @@ export function chargeSaleInCashIn(
       pending: charge.pending,
     };
   }
+  const { cashRounding } = charge;
+  if (cashRounding > 0) {
+    tx.recordCashRounding(sale.id, cashRounding);
+  }
   completeSale(tx, ids, {
-    sale,
-    total,
+    sale: { ...sale, cashRounding },
+    total: total - cashRounding,
     payments: tx.salePayments(sale.id),
     movements: tx.saleCashMovements(sale.id),
     actorId,
     completedAt,
     rules: zoneRules.zoneRules(),
   });
-  return { kind: "completed", saleId: sale.id, total, tendered, change };
+  return {
+    kind: "completed",
+    saleId: sale.id,
+    total: total - cashRounding,
+    tendered,
+    change,
+    cashRounding,
+  };
 }
 
 function cashMovements(
