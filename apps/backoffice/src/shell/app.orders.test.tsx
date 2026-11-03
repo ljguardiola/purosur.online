@@ -4,7 +4,13 @@ import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { FetchAlertsOverviewOutcome } from "../alerts/alerts-api";
 import { ORDER_SUGGESTION } from "../purchasing/test-support/order-suggestion";
-import { DRAFT_ORDER, DRAFT_SUMMARY, ORDER_ID } from "../purchasing/test-support/purchase-orders";
+import {
+  DRAFT_ORDER,
+  DRAFT_SUMMARY,
+  ORDER_ID,
+  RECEIPT_DRAFT,
+  SENT_ORDER,
+} from "../purchasing/test-support/purchase-orders";
 import { PRICE_COMPARISON } from "../purchasing/test-support/supplier-price-comparison";
 import {
   EXTRACTED_ROWS,
@@ -429,4 +435,42 @@ test("sends a user who may not receive orders away from the receipt to Mi cuenta
 
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
   expect(services.purchaseOrderReceiveScreen.fetchPurchaseOrderReceiptDraft).not.toHaveBeenCalled();
+});
+
+test("opens the receipt of a receivable order from the order, and goes back to the order from it", async () => {
+  const services = ordersServices([
+    "purchase_order_reads",
+    "purchase_order_receipts",
+    "purchase_choices",
+    "orders_area",
+  ]);
+  vi.mocked(services.purchaseOrderScreen.fetchPurchaseOrder).mockResolvedValue({
+    kind: "ok",
+    value: { kind: "found", order: SENT_ORDER },
+  });
+  vi.mocked(services.purchaseOrderReceiveScreen.fetchPurchaseOrderReceiptDraft).mockResolvedValue({
+    kind: "ok",
+    value: { kind: "found", draft: RECEIPT_DRAFT },
+  });
+  window.history.pushState(null, "", `/purchase-orders/${ORDER_ID}`);
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await userEvent.click(screen.getByRole("button", { name: "Recibir pedido" }));
+
+  await expect
+    .element(
+      screen.getByRole("heading", { name: "Recibir pedido a Distribuidora Andina", level: 1 }),
+    )
+    .toBeVisible();
+  expect(window.location.pathname).toBe(`/purchase-orders/${ORDER_ID}/receive`);
+  expect(services.purchaseOrderReceiveScreen.fetchPurchaseOrderReceiptDraft).toHaveBeenCalledWith(
+    ORDER_ID,
+  );
+
+  await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Pedido a Distribuidora Andina", level: 1 }))
+    .toBeVisible();
+  expect(window.location.pathname).toBe(`/purchase-orders/${ORDER_ID}`);
 });

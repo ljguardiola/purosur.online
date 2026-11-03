@@ -103,7 +103,7 @@ test("lists each receipt with its day and, per line, what was received, what was
   const miel = table.getByRole("row", { name: /Miel pura de abeja 1 kg/ });
   await expect.element(miel.getByRole("cell").nth(1)).toHaveTextContent("24");
   await expect.element(miel.getByRole("cell").nth(2)).toHaveTextContent("12");
-  await expect.element(miel.getByRole("cell").nth(3)).toHaveTextContent("+ $ 50,00");
+  await expect.element(miel.getByRole("cell").nth(3)).toHaveTextContent("$ 50,00");
   const avena = table.getByRole("row", { name: /Avena arrollada/ });
   await expect.element(avena.getByRole("cell").nth(3)).toHaveTextContent("—");
 });
@@ -127,7 +127,7 @@ test("a negative price difference reads with its sign", async () => {
   const screen = await loaded(servicesFor(order), { access: RECEIVER });
 
   const table = screen.getByRole("table", { name: "Recepción del 12/03/2026" });
-  await expect.element(table.getByText("- $ 25,00").first()).toBeVisible();
+  await expect.element(table.getByText("− $ 25,00").first()).toBeVisible();
 });
 
 test("links each receipt to the purchases for whoever records purchases", async () => {

@@ -1,4 +1,8 @@
-import type { PurchaseOrderDetail, PurchaseOrderSummary } from "@purosur/contracts";
+import type {
+  PurchaseOrderDetail,
+  PurchaseOrderReceiptDraft,
+  PurchaseOrderSummary,
+} from "@purosur/contracts";
 import { AVENA_PRODUCT_ID, MIEL_PRODUCT_ID } from "./purchase-products";
 
 export const ORDER_ID = "90e00000-0000-4000-8000-000000000001";
@@ -148,4 +152,35 @@ export const RECEIVED_ORDER: PurchaseOrderDetail = {
   state: "RECEIVED",
   cancellable: false,
   receivable: false,
+};
+
+export const RECEIPT_DRAFT: PurchaseOrderReceiptDraft = {
+  supplier: { id: SUPPLIER_ID, name: "Distribuidora Andina" },
+  lines: [
+    {
+      loadedBy: "packages",
+      product: {
+        id: MIEL_PRODUCT_ID,
+        name: "Miel pura de abeja 1 kg",
+        brandName: null,
+        netContent: null,
+        saleUnit: "UNIT",
+      },
+      packages: 3,
+      quantityPerPackage: 12_000,
+      listCostPerPackageCents: 185_000,
+    },
+    {
+      loadedBy: "quantity",
+      product: {
+        id: AVENA_PRODUCT_ID,
+        name: "Avena arrollada",
+        brandName: null,
+        netContent: null,
+        saleUnit: "KG",
+      },
+      quantity: 12_500,
+      listCostPerSaleUnitCents: null,
+    },
+  ],
 };
