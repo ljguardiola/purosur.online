@@ -3,6 +3,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import { withReadsCounted } from "../platform/test-support/reads-counted";
 import type { CloudData } from "../platform/use-cloud-query";
 import type { FortnightPresentation, RejectedDocument } from "./fortnight-presentations-api";
 import { FortnightReportsSection } from "./fortnight-reports-section";
@@ -444,4 +445,21 @@ test("has no accessibility violations with a rejected document waiting for its r
 
   await expect.element(screen.getByRole("table")).toBeVisible();
   await expectNoAccessibilityViolations(document.body);
+});
+
+test("rendering again with the same presentations renders none of them again", async () => {
+  const listed = withReadsCounted(
+    [presentation({ documentType: "factura_c", movement: "documents", documentCount: 4 })],
+    "deadline",
+  );
+  const data = loaded(listed.items);
+  const onReview = vi.fn();
+  const onConfirmRevoked = vi.fn();
+  const screen = await render(sectionFor(data, onReview, onConfirmRevoked));
+  await expect.element(screen.getByRole("table", { name: "Informes quincenales" })).toBeVisible();
+  listed.resetReads();
+
+  await screen.rerender(sectionFor(data, onReview, onConfirmRevoked));
+
+  expect(listed.reads()).toBe(0);
 });

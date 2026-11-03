@@ -318,6 +318,12 @@ export type {
   SaleVoidTransaction,
 } from "./void-sale-ports.js";
 export type {
+  WeighLineOnScaleInput,
+  WeighLineOnScaleOutcome,
+  WeighLineOnScalePorts,
+} from "./weigh-line-on-scale.js";
+export { weighLineOnScale } from "./weigh-line-on-scale.js";
+export type {
   WeighProductOnScaleInput,
   WeighProductOnScaleOutcome,
   WeighProductOnScalePorts,

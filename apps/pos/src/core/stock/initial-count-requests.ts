@@ -170,15 +170,19 @@ export async function searchCountableProductsFor(
 export async function weighCountedProductFor(
   { database, gate, scale }: Pick<InitialCountRequestDeps, "database" | "gate"> & { scale: Scale },
   productId: string,
+  confirmedWeightThousandths: number | null,
 ): Promise<WeighCountedProductOutcome> {
   const guarded = await asCounter(gate, (actorId) =>
-    weighCountedProduct({ ledger: ledger(database), scale }, { actorId, productId }),
+    weighCountedProduct(
+      { ledger: ledger(database), scale },
+      { actorId, productId, confirmedWeightThousandths },
+    ),
   );
   if (guarded.kind !== "performed") {
     return guarded;
   }
   const { result } = guarded;
-  return result.kind === "weighed"
-    ? { kind: "weighed", weight_thousandths: result.weightThousandths }
+  return result.kind === "weighed" || result.kind === "confirmed"
+    ? { kind: result.kind, weight_thousandths: result.weightThousandths }
     : { kind: result.kind };
 }

@@ -1,6 +1,7 @@
 import type { PermissionCatalogWire } from "@purosur/contracts";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
+import { combineCloudData } from "../platform/combine-cloud-data";
 import type { fetchPermissionCatalog } from "../platform/permission-catalog-api";
 import type { fetchRoles, RoleSummary } from "../platform/roles-api";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
@@ -15,10 +16,7 @@ const permissionsKeys = {
   role: (id: string) => [...permissionsKey, "role", id] as const,
 };
 
-export function useRolesQuery(params: {
-  fetchRoles: typeof fetchRoles;
-  onSessionEnded: () => void;
-}) {
+function useRolesQuery(params: { fetchRoles: typeof fetchRoles; onSessionEnded: () => void }) {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQuery<RoleSummary[]>({
     queryKey: permissionsKeys.roles,
@@ -39,6 +37,22 @@ export function usePermissionCatalogQuery(params: {
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });
+}
+
+export function useRolesWithPermissionCatalogQuery(params: {
+  fetchRoles: typeof fetchRoles;
+  fetchPermissionCatalog: typeof fetchPermissionCatalog;
+  onSessionEnded: () => void;
+}) {
+  const roles = useRolesQuery({
+    fetchRoles: params.fetchRoles,
+    onSessionEnded: params.onSessionEnded,
+  });
+  const catalog = usePermissionCatalogQuery({
+    fetchPermissionCatalog: params.fetchPermissionCatalog,
+    onSessionEnded: params.onSessionEnded,
+  });
+  return combineCloudData(roles, catalog);
 }
 
 export type RoleRead = { kind: "found"; role: RoleDetail } | { kind: "not_found" };

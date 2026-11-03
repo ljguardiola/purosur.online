@@ -104,6 +104,7 @@ const REQUIRED_VERIFY_STATIC_COMMANDS = [
   "pnpm depcruise",
   "knip",
   "node .github/scripts/react-compiler-check.mjs",
+  "node .github/scripts/table-columns-memoized-check.mjs",
   `node --test --test-shard=\${TEST_SHARD:-1/1} .github/scripts/*.test.mjs .github/scripts/test-support/*.test.mjs .claude/hooks/*.test.mjs`,
 ];
 const STATIC_PART_COMMAND = /^pnpm (verify:static:[a-z][a-z0-9-]*)$/;

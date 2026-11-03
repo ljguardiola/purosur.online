@@ -1,6 +1,7 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { withReadsCounted } from "../platform/test-support/reads-counted";
 import { expiringLotsFilters } from "./routes";
 import {
   almondOilExpiredLot,
@@ -9,6 +10,7 @@ import {
 } from "./test-support/expiring-lots-fixtures";
 import {
   createServices,
+  EVERY_LOT,
   listed,
   renderScreen,
   type Screen,
@@ -299,4 +301,16 @@ test("writes the lot counts with the thousands separator", async () => {
   await expect
     .element(screen.getByText(/^1\.000 lotes · valorizado .* · 1\.000 sin costo$/))
     .toBeVisible();
+});
+
+test("typing in the search renders none of the listed lots again", async () => {
+  const counted = withReadsCounted(EVERY_LOT, "remaining");
+  const screen = await renderScreen(listed(counted.items));
+  await expect.element(screen.getByText("Venció ayer")).toBeVisible();
+  counted.resetReads();
+
+  await userEvent.type(screen.getByPlaceholder("Buscar un producto"), "a");
+
+  await expect.element(screen.getByPlaceholder("Buscar un producto")).toHaveValue("a");
+  expect(counted.reads()).toBe(0);
 });

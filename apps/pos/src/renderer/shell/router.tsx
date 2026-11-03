@@ -76,6 +76,7 @@ import type {
   StartMercadoPagoChargeOutcome,
   VoidSaleOutcome,
   WeighCountedProductOutcome,
+  WeighLineOutcome,
   WeighProductOutcome,
   WithdrawInitialCountLineOutcome,
 } from "@purosur/contracts";
@@ -230,7 +231,15 @@ export interface RouterContext {
     productId: string,
     weightThousandths: number,
   ) => Promise<AddWeighedProductOutcome>;
-  weighProduct: (productId: string) => Promise<WeighProductOutcome>;
+  weighProduct: (
+    productId: string,
+    confirmedWeightThousandths: number | null,
+  ) => Promise<WeighProductOutcome>;
+  weighLine: (
+    lineId: string,
+    expectedWeightThousandths: number,
+    confirmedWeightThousandths: number | null,
+  ) => Promise<WeighLineOutcome>;
   changeLineQuantity: (
     lineId: string,
     quantity: number,
@@ -332,7 +341,10 @@ export interface RouterContext {
   withdrawInitialCountLine: (movementId: string) => Promise<WithdrawInitialCountLineOutcome>;
   findCountableProduct: (code: string) => Promise<FindCountableProductOutcome>;
   searchCountableProducts: (query: string) => Promise<SearchCountableProductsOutcome>;
-  weighCountedProduct: (productId: string) => Promise<WeighCountedProductOutcome>;
+  weighCountedProduct: (
+    productId: string,
+    confirmedWeightThousandths: number | null,
+  ) => Promise<WeighCountedProductOutcome>;
   refreshCashSession: () => Promise<void>;
 }
 
@@ -681,33 +693,35 @@ const initialCountRoute = createRoute({
     }
     return { person };
   },
-  component: function InitialCountRoute() {
-    const {
-      person,
-      signOut,
-      readInitialCount,
-      recordInitialCountLine,
-      withdrawInitialCountLine,
-      findCountableProduct,
-      searchCountableProducts,
-      weighCountedProduct,
-      refreshCashSession,
-    } = initialCountRoute.useRouteContext();
-    return (
-      <InitialCountScreen
-        person={person}
-        signOut={signOut}
-        readInitialCount={readInitialCount}
-        recordInitialCountLine={recordInitialCountLine}
-        withdrawInitialCountLine={withdrawInitialCountLine}
-        findCountableProduct={findCountableProduct}
-        searchCountableProducts={searchCountableProducts}
-        weighCountedProduct={weighCountedProduct}
-        onSessionInvalid={() => void refreshCashSession()}
-      />
-    );
-  },
+  component: InitialCountRoute,
 });
+
+function InitialCountRoute() {
+  const {
+    person,
+    signOut,
+    readInitialCount,
+    recordInitialCountLine,
+    withdrawInitialCountLine,
+    findCountableProduct,
+    searchCountableProducts,
+    weighCountedProduct,
+    refreshCashSession,
+  } = initialCountRoute.useRouteContext();
+  return (
+    <InitialCountScreen
+      person={person}
+      signOut={signOut}
+      readInitialCount={readInitialCount}
+      recordInitialCountLine={recordInitialCountLine}
+      withdrawInitialCountLine={withdrawInitialCountLine}
+      findCountableProduct={findCountableProduct}
+      searchCountableProducts={searchCountableProducts}
+      weighCountedProduct={weighCountedProduct}
+      onSessionInvalid={() => void refreshCashSession()}
+    />
+  );
+}
 
 const openSessionRoute = createRoute({
   getParentRoute: () => statusBarRoute,
@@ -736,6 +750,7 @@ const openSessionRoute = createRoute({
       addProduct,
       addWeighedProduct,
       weighProduct,
+      weighLine,
       changeLineQuantity,
       changeLineWeight,
       adjustSaleLine,
@@ -763,6 +778,7 @@ const openSessionRoute = createRoute({
         addProduct={addProduct}
         addWeighedProduct={addWeighedProduct}
         weighProduct={weighProduct}
+        weighLine={weighLine}
         changeLineQuantity={changeLineQuantity}
         changeLineWeight={changeLineWeight}
         adjustSaleLine={adjustSaleLine}
@@ -796,64 +812,66 @@ const startupPendingRoute = createRoute({
     }
     return { id, openedAt, openedBy, person };
   },
-  component: function StartupPendingRoute() {
-    const {
-      id,
-      openedAt,
-      openedBy,
-      person,
-      signOut,
-      startupPending,
-      startupPendingGate,
-      cashBalance,
-      printOriginalReceipt,
-      reprintSaleReceipt,
-      convertPaidOrderIntoRefund,
-      rebuildSaleAgainstPaidOrder,
-      authorizers,
-      readClockGuard,
-      correctRegisterClock,
-      refreshCashSession,
-    } = startupPendingRoute.useRouteContext();
-    const registerName = useRegisterName();
-    const navigate = startupPendingRoute.useNavigate();
-    const router = useRouter();
-    const goToSale = () => {
-      startupPendingGate.dismiss();
-      void navigate({ to: "/session" });
-    };
-    return (
-      <StartupPendingScreen
-        sessionId={id}
-        person={person}
-        sessionOwner={openedBy}
-        openedAt={openedAt}
-        registerName={registerName}
-        lock={signOut}
-        loadStartupPending={startupPending}
-        loadCashBalance={cashBalance}
-        printOriginalReceipt={printOriginalReceipt}
-        reprintSaleReceipt={reprintSaleReceipt}
-        convertPaidOrderIntoRefund={convertPaidOrderIntoRefund}
-        rebuildSaleAgainstPaidOrder={rebuildSaleAgainstPaidOrder}
-        loadAuthorizers={authorizers}
-        clockGuard={
-          <ClockGuardOffer
-            registerName={registerName}
-            cashSessionOpen
-            readClockGuard={readClockGuard}
-            correctRegisterClock={correctRegisterClock}
-            onSessionInvalid={() => void refreshCashSession()}
-          />
-        }
-        onGoSelling={goToSale}
-        onGoToSale={goToSale}
-        onNothingLeft={() => void router.invalidate()}
-        onSessionInvalid={() => void refreshCashSession()}
-      />
-    );
-  },
+  component: StartupPendingRoute,
 });
+
+function StartupPendingRoute() {
+  const {
+    id,
+    openedAt,
+    openedBy,
+    person,
+    signOut,
+    startupPending,
+    startupPendingGate,
+    cashBalance,
+    printOriginalReceipt,
+    reprintSaleReceipt,
+    convertPaidOrderIntoRefund,
+    rebuildSaleAgainstPaidOrder,
+    authorizers,
+    readClockGuard,
+    correctRegisterClock,
+    refreshCashSession,
+  } = startupPendingRoute.useRouteContext();
+  const registerName = useRegisterName();
+  const navigate = startupPendingRoute.useNavigate();
+  const router = useRouter();
+  const goToSale = () => {
+    startupPendingGate.dismiss();
+    void navigate({ to: "/session" });
+  };
+  return (
+    <StartupPendingScreen
+      sessionId={id}
+      person={person}
+      sessionOwner={openedBy}
+      openedAt={openedAt}
+      registerName={registerName}
+      lock={signOut}
+      loadStartupPending={startupPending}
+      loadCashBalance={cashBalance}
+      printOriginalReceipt={printOriginalReceipt}
+      reprintSaleReceipt={reprintSaleReceipt}
+      convertPaidOrderIntoRefund={convertPaidOrderIntoRefund}
+      rebuildSaleAgainstPaidOrder={rebuildSaleAgainstPaidOrder}
+      loadAuthorizers={authorizers}
+      clockGuard={
+        <ClockGuardOffer
+          registerName={registerName}
+          cashSessionOpen
+          readClockGuard={readClockGuard}
+          correctRegisterClock={correctRegisterClock}
+          onSessionInvalid={() => void refreshCashSession()}
+        />
+      }
+      onGoSelling={goToSale}
+      onGoToSale={goToSale}
+      onNothingLeft={() => void router.invalidate()}
+      onSessionInvalid={() => void refreshCashSession()}
+    />
+  );
+}
 
 const chargeRoute = createRoute({
   getParentRoute: () => statusBarRoute,
@@ -1405,6 +1423,7 @@ export function createAppRouter(
     | "addProduct"
     | "addWeighedProduct"
     | "weighProduct"
+    | "weighLine"
     | "changeLineQuantity"
     | "changeLineWeight"
     | "adjustSaleLine"

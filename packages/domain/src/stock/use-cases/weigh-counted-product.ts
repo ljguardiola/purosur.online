@@ -1,4 +1,4 @@
-import type { Scale } from "../../shared/index.js";
+import { type Scale, scaleWeighingStep } from "../../shared/index.js";
 import { mayBeMovementQuantity } from "../model/stock-quantity.js";
 import { type InitialCountRefusal, initialCountRefusal } from "./initial-count-access.js";
 import type { InitialCountLedger } from "./initial-count-ledger.js";
@@ -6,6 +6,7 @@ import type { InitialCountLedger } from "./initial-count-ledger.js";
 export interface WeighCountedProductInput {
   actorId: string;
   productId: string;
+  confirmedWeightThousandths: number | null;
 }
 
 export interface WeighCountedProductPorts {
@@ -18,12 +19,14 @@ export type WeighCountedProductOutcome =
   | { kind: "unknown_product" }
   | { kind: "not_sold_by_weight" }
   | { kind: "weighing" }
+  | { kind: "zero_weight" }
   | { kind: "scale_unavailable" }
-  | { kind: "weighed"; weightThousandths: number };
+  | { kind: "weighed"; weightThousandths: number }
+  | { kind: "confirmed"; weightThousandths: number };
 
 export async function weighCountedProduct(
   { ledger, scale }: WeighCountedProductPorts,
-  { actorId, productId }: WeighCountedProductInput,
+  { actorId, productId, confirmedWeightThousandths }: WeighCountedProductInput,
 ): Promise<WeighCountedProductOutcome> {
   const refusal = ledger.transaction<WeighCountedProductOutcome | undefined>((tx) => {
     const notAllowed = initialCountRefusal(tx, actorId);
@@ -39,12 +42,17 @@ export async function weighCountedProduct(
   if (refusal) {
     return refusal;
   }
-  const reading = await scale.read();
-  if (reading.kind === "unavailable") {
-    return { kind: "scale_unavailable" };
+  const step = scaleWeighingStep(
+    await scale.read(),
+    confirmedWeightThousandths,
+    mayBeMovementQuantity,
+  );
+  switch (step.kind) {
+    case "stable":
+      return { kind: "weighed", weightThousandths: step.weightThousandths };
+    case "take":
+      return { kind: "confirmed", weightThousandths: step.weightThousandths };
+    default:
+      return step;
   }
-  if (reading.kind === "not_stable" || !mayBeMovementQuantity(reading.weightThousandths)) {
-    return { kind: "weighing" };
-  }
-  return { kind: "weighed", weightThousandths: reading.weightThousandths };
 }

@@ -40,6 +40,8 @@ export type {
 } from "./sales-denied.js";
 export { SALES_DENIED_REASONS, STORAGE_SALES_DENIED_REASONS } from "./sales-denied.js";
 export type { Scale, ScaleReading } from "./scale.js";
+export type { ScaleWeighingStep } from "./scale-weighing.js";
+export { scaleWeighingStep } from "./scale-weighing.js";
 export type { SlidingWindowLimit } from "./sliding-window-limit.js";
 export { slidingWindowRetryAfterSeconds, slidingWindowStart } from "./sliding-window-limit.js";
 export {

@@ -20,6 +20,7 @@ import type {
   ScanProductOutcome,
   SearchProductsOutcome,
   SignInUser,
+  WeighLineOutcome,
   WeighProductOutcome,
 } from "@purosur/contracts";
 import type { AuthorizablePermissionKey } from "@purosur/domain";
@@ -50,7 +51,6 @@ import { AdjustLineModal } from "./adjust-line-modal";
 import { ApplySaleDiscountModal } from "./apply-sale-discount-modal";
 import { CancelPaidSaleModal } from "./cancel-paid-sale-modal";
 import { CancelSaleModal } from "./cancel-sale-modal";
-import { ChangeLineWeightModal } from "./change-line-weight-modal";
 import { changedLineId } from "./changed-line";
 import { PaymentPanel } from "./payment-panel";
 import { SaleLines } from "./sale-lines";
@@ -78,7 +78,15 @@ export type SaleScreenProps = {
     productId: string,
     weightThousandths: number,
   ) => Promise<AddWeighedProductOutcome>;
-  weighProduct: (productId: string) => Promise<WeighProductOutcome>;
+  weighProduct: (
+    productId: string,
+    confirmedWeightThousandths: number | null,
+  ) => Promise<WeighProductOutcome>;
+  weighLine: (
+    lineId: string,
+    expectedWeightThousandths: number,
+    confirmedWeightThousandths: number | null,
+  ) => Promise<WeighLineOutcome>;
   changeLineQuantity: (
     lineId: string,
     quantity: number,
@@ -145,7 +153,7 @@ const LOCKED_REASONS: Record<NonNullable<OpenSale["lines_lock"]>, string> = {
   mercado_pago_charge_in_progress: "Hay un cobro con Mercado Pago en curso. Esperá a que termine.",
 };
 
-function reportsCoreState(outcome: TakenOutcome): boolean {
+function reportsCoreState(outcome: { kind: string }): boolean {
   return (
     outcome.kind === "not_signed_in" ||
     outcome.kind === "no_open_session" ||
@@ -195,6 +203,7 @@ export function SaleScreen({
   addProduct,
   addWeighedProduct,
   weighProduct,
+  weighLine,
   changeLineQuantity,
   changeLineWeight,
   adjustSaleLine,
@@ -390,19 +399,32 @@ export function SaleScreen({
     return "done";
   }
 
-  async function weighOnScale(asked: Extract<Weighing, { kind: "add" }>): Promise<ScaleWeighing> {
-    const outcome = await weighProduct(asked.productId).catch(
+  async function weighOnScale(
+    asked: Extract<Weighing, { kind: "add" }>,
+    confirmedWeightThousandths: number | null,
+  ): Promise<ScaleWeighing> {
+    const outcome = await weighProduct(asked.productId, confirmedWeightThousandths).catch(
       (): WeighProductOutcome => ({ kind: "unavailable" }),
     );
-    if (outcome.kind === "weighing" || outcome.kind === "scale_unavailable") {
+    if (
+      outcome.kind === "weighing" ||
+      outcome.kind === "scale_unavailable" ||
+      outcome.kind === "zero_weight"
+    ) {
       return outcome;
+    }
+    if (outcome.kind === "stable") {
+      return {
+        kind: "stable",
+        reading: { weightThousandths: outcome.weight_thousandths, amount: outcome.amount },
+      };
     }
     if (outcome.kind === "added") {
       await take(asked.submitted, outcome, { kind: "add_failed" });
       const line = outcome.sale.lines.at(-1);
       return line === undefined
         ? { kind: "closed" }
-        : { kind: "taken", weightThousandths: line.quantity, amount: line.line_total };
+        : { kind: "taken", reading: { weightThousandths: line.quantity, amount: line.line_total } };
     }
     const stillAsked = weighingNow.current === asked;
     if (stillAsked) {
@@ -597,6 +619,46 @@ export function SaleScreen({
     return "done";
   }
 
+  async function weighLineOnScale(
+    asked: Extract<Weighing, { kind: "change" }>,
+    confirmedWeightThousandths: number | null,
+  ): Promise<ScaleWeighing> {
+    const { line } = asked;
+    const outcome = await weighLine(line.id, line.quantity, confirmedWeightThousandths).catch(
+      (): WeighLineOutcome => ({ kind: "unavailable" }),
+    );
+    if (
+      outcome.kind === "weighing" ||
+      outcome.kind === "scale_unavailable" ||
+      outcome.kind === "zero_weight"
+    ) {
+      return outcome;
+    }
+    if (outcome.kind === "stable") {
+      return {
+        kind: "stable",
+        reading: { weightThousandths: outcome.weight_thousandths, amount: outcome.amount },
+      };
+    }
+    const changed =
+      outcome.kind === "changed"
+        ? outcome.sale.lines.find((each) => each.id === line.id)
+        : undefined;
+    const stillAsked = weighingNow.current === asked;
+    if (stillAsked || outcome.kind === "changed" || reportsCoreState(outcome)) {
+      await edit(async () => outcome, { kind: "weight_change_failed" }, line);
+    }
+    if (stillAsked) {
+      askForWeight(undefined);
+    }
+    return changed === undefined
+      ? { kind: "closed" }
+      : {
+          kind: "taken",
+          reading: { weightThousandths: changed.quantity, amount: changed.line_total },
+        };
+  }
+
   useEffect(() => {
     if (
       !confirmingCancel &&
@@ -784,16 +846,19 @@ export function SaleScreen({
       {weighing?.kind === "add" ? (
         <WeighProductModal
           productName={weighing.productName}
-          weigh={() => weighOnScale(weighing)}
-          addWeighedProduct={(weight) => addWithWeight(weighing, weight)}
+          weigh={(confirmedWeightThousandths) => weighOnScale(weighing, confirmedWeightThousandths)}
+          typedWeight={(weight) => addWithWeight(weighing, weight)}
           onClose={() => askForWeight(undefined)}
         />
       ) : null}
       {weighing?.kind === "change" ? (
-        <ChangeLineWeightModal
+        <WeighProductModal
           productName={weighing.line.product_name}
           currentWeight={weighing.line.quantity}
-          changeLineWeight={(weight) => changeWeight(weighing.line, weight)}
+          weigh={(confirmedWeightThousandths) =>
+            weighLineOnScale(weighing, confirmedWeightThousandths)
+          }
+          typedWeight={(weight) => changeWeight(weighing.line, weight)}
           onClose={() => askForWeight(undefined)}
         />
       ) : null}

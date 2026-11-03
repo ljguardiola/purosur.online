@@ -346,14 +346,38 @@ describe("finding a product to count", () => {
 });
 
 describe("weighing a product to count on the scale", () => {
-  function weigh(reading: ScaleReading, productId = "p2") {
+  function weigh(
+    reading: ScaleReading,
+    productId = "p2",
+    confirmedWeightThousandths: number | null = null,
+  ) {
     const scale: Scale = { read: async () => reading };
-    return weighCountedProductFor({ ...deps(), scale }, productId);
+    return weighCountedProductFor({ ...deps(), scale }, productId, confirmedWeightThousandths);
   }
 
   it("answers the weight of a stable reading", async () => {
     expect(await weigh({ kind: "stable", weightThousandths: 1250 })).toEqual({
       kind: "weighed",
+      weight_thousandths: 1250,
+    });
+  });
+
+  it("answers a stable zero as its weight when nothing is being confirmed", async () => {
+    expect(await weigh({ kind: "stable", weightThousandths: 0 })).toEqual({
+      kind: "weighed",
+      weight_thousandths: 0,
+    });
+  });
+
+  it("answers a stable zero being confirmed as a zero weight", async () => {
+    expect(await weigh({ kind: "stable", weightThousandths: 0 }, "p2", 0)).toEqual({
+      kind: "zero_weight",
+    });
+  });
+
+  it("answers the confirmed weight when the stable reading is the one confirmed", async () => {
+    expect(await weigh({ kind: "stable", weightThousandths: 1250 }, "p2", 1250)).toEqual({
+      kind: "confirmed",
       weight_thousandths: 1250,
     });
   });
@@ -406,6 +430,7 @@ describe("weighing a product to count on the scale", () => {
           },
         },
         "p2",
+        null,
       );
 
       expect(outcome).toEqual(expected);
