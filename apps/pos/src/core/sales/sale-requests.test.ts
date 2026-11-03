@@ -3503,7 +3503,7 @@ describe("cancelling the open sale of a locked register", () => {
     return database.prepare("SELECT state FROM sales").all();
   }
 
-  it("cancels the sale for the person whose PIN holds the permission, leaving only its sale_cancelled event behind", async () => {
+  it("empties an unpaid cart for the person whose PIN holds the permission, leaving nothing in the outbox", async () => {
     addCloser(["close_anothers_register_session"]);
     const saleId = await lockedWithOpenSale();
 
@@ -3513,9 +3513,7 @@ describe("cancelling the open sale of a locked register", () => {
     });
 
     expect(saleStates()).toEqual([]);
-    expect(database.prepare("SELECT event_type, schema_version FROM outbox").all()).toEqual([
-      { event_type: "sale_cancelled", schema_version: 10 },
-    ]);
+    expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([]);
   });
 
   it("leaves nobody signed in", async () => {
