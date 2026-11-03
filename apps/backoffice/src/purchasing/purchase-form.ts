@@ -176,6 +176,10 @@ type PurchaseRegistrationRequest = Omit<PurchaseRegistrationBody, "receiptType">
   receiptType: ReceiptType | null;
 };
 
+export type PurchaseFormRequest = Omit<PurchaseRegistrationRequest, "supplierId"> & {
+  supplierId?: string;
+};
+
 export function purchaseRegistrationRequestFrom(
   values: PurchaseFormValues,
   products: PurchaseProducts,
