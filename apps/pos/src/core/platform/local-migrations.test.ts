@@ -947,6 +947,7 @@ describe("the register's local migrations", () => {
         "0094_exchanged_return_lines",
         "0095_contingency_intervals",
         "0096_register_seen_unenrolled",
+        "0097_sale_cash_rounding",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1066,6 +1067,7 @@ describe("the register's local migrations", () => {
         "0094_exchanged_return_lines",
         "0095_contingency_intervals",
         "0096_register_seen_unenrolled",
+        "0097_sale_cash_rounding",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1180,6 +1182,7 @@ describe("the register's local migrations", () => {
         "0094_exchanged_return_lines",
         "0095_contingency_intervals",
         "0096_register_seen_unenrolled",
+        "0097_sale_cash_rounding",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1293,6 +1296,7 @@ describe("the register's local migrations", () => {
         "0094_exchanged_return_lines",
         "0095_contingency_intervals",
         "0096_register_seen_unenrolled",
+        "0097_sale_cash_rounding",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1435,6 +1439,7 @@ describe("the register's local migrations", () => {
         "0094_exchanged_return_lines",
         "0095_contingency_intervals",
         "0096_register_seen_unenrolled",
+        "0097_sale_cash_rounding",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1567,6 +1572,7 @@ describe("the register's local migrations", () => {
         "0094_exchanged_return_lines",
         "0095_contingency_intervals",
         "0096_register_seen_unenrolled",
+        "0097_sale_cash_rounding",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1703,6 +1709,7 @@ describe("the register's local migrations", () => {
         "0094_exchanged_return_lines",
         "0095_contingency_intervals",
         "0096_register_seen_unenrolled",
+        "0097_sale_cash_rounding",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1847,6 +1854,7 @@ describe("the register's local migrations", () => {
         "0094_exchanged_return_lines",
         "0095_contingency_intervals",
         "0096_register_seen_unenrolled",
+        "0097_sale_cash_rounding",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1958,6 +1966,7 @@ describe("the register's local migrations", () => {
         "0094_exchanged_return_lines",
         "0095_contingency_intervals",
         "0096_register_seen_unenrolled",
+        "0097_sale_cash_rounding",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -9494,5 +9503,55 @@ describe("the register seen unenrolled migration", () => {
     } finally {
       rmSync(folder, { recursive: true, force: true });
     }
+  });
+});
+
+describe("the sale cash rounding migration", () => {
+  const MIGRATION = "0097_sale_cash_rounding";
+
+  type Database = ReturnType<typeof openLocalDatabase>;
+
+  function withSaleBefore(test: (database: Database) => void) {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < MIGRATION);
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(MIGRATION);
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:05:00.000Z');`,
+      );
+      before.close();
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      try {
+        test(after);
+      } finally {
+        after.close();
+      }
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  }
+
+  const setRounding = (database: Database, cashRounding: number) =>
+    database.prepare("UPDATE sales SET cash_rounding = ? WHERE id = 'sale-1'").run(cashRounding);
+
+  it("gives a sale the register already holds no cash rounding", () => {
+    withSaleBefore((database) => {
+      expect(database.prepare("SELECT cash_rounding FROM sales WHERE id = 'sale-1'").all()).toEqual(
+        [{ cash_rounding: 0 }],
+      );
+    });
+  });
+
+  it("holds a cash rounding below the smallest bill and refuses one outside it", () => {
+    withSaleBefore((database) => {
+      expect(() => setRounding(database, 9900)).not.toThrow();
+      expect(() => setRounding(database, 10_000)).toThrow(/CHECK/);
+      expect(() => setRounding(database, -1)).toThrow(/CHECK/);
+    });
   });
 });
