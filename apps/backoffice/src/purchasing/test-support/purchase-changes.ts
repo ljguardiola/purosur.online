@@ -1,11 +1,30 @@
-import type { PurchaseChange } from "@purosur/contracts";
-import { compraDeMiel } from "./purchases";
+import type { PurchaseChange, PurchaseSummary } from "@purosur/contracts";
+import { compraDeAvena, compraDeMiel } from "./purchases";
 
 const [lineDeMiel] = compraDeMiel.lines;
+const [lineDeAvena] = compraDeAvena.lines;
 
-if (!lineDeMiel) {
-  throw new Error("test setup: the purchase has no line");
+if (!lineDeMiel || !lineDeAvena) {
+  throw new Error("test setup: a purchase has no line");
 }
+
+export const LINEA_AGREGADA_ID = "c0b00000-0000-4000-8000-0000000000a1";
+
+export const compraDeMielCorregida: PurchaseSummary = {
+  ...compraDeMiel,
+  lines: [
+    { ...lineDeMiel, expiresOn: null },
+    {
+      ...lineDeAvena,
+      id: LINEA_AGREGADA_ID,
+      quantity: 10_000,
+      costPaidCents: 1_800_00,
+      unitCostCents: 1_800_00,
+      lotNumber: "L-20",
+      expiresOn: "2027-03-01",
+    },
+  ],
+};
 
 export const LINEA_DE_MIEL_ID = lineDeMiel.id;
 
@@ -32,7 +51,7 @@ export const linesAdded: PurchaseChange = {
     kind: "lines_added",
     lines: [
       {
-        lineId: "c0b00000-0000-4000-8000-0000000000a1",
+        lineId: LINEA_AGREGADA_ID,
         productId: "90d00000-0000-4000-8000-000000000002",
         quantity: 10_000,
         costPaidCents: 1_800_00,
