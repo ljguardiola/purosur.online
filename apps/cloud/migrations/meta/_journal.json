@@ -1212,6 +1212,13 @@
       "when": 1793737459547,
       "tag": "0179_drop_purchase_packagings_storage",
       "breakpoints": true
+    },
+    {
+      "idx": 180,
+      "version": "7",
+      "when": 1793740848159,
+      "tag": "0180_purchase_order_receipts",
+      "breakpoints": true
     }
   ]
 }
