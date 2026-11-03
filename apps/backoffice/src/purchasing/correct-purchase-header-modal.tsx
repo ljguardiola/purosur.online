@@ -70,6 +70,10 @@ export function CorrectPurchaseHeaderModal({
         sendToMyAccount();
         return;
       }
+      if (outcome.kind === "unchanged") {
+        setNotice({ kind: "unchanged" });
+        return;
+      }
       if (outcome.kind === "not_found") {
         setNotice({ kind: "notFound" });
         return;
@@ -106,7 +110,7 @@ export function CorrectPurchaseHeaderModal({
       icon={<Pencil />}
       context="Stock · Compra"
       title={shown?.supplier.name ?? ""}
-      closable
+      closable={!submitting}
       footer={
         <>
           <Button

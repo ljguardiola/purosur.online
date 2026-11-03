@@ -51,6 +51,15 @@ function lineDetails(lineIndex: number) {
   return [{ field: "lines", lineIndex }];
 }
 
+const UNCHANGED_MESSAGES = {
+  purchase_unchanged: "the purchase already has these values",
+  expiry_unchanged: "the line already has this expiry date",
+} as const;
+
+async function sendUnchanged(reply: FastifyReply, code: keyof typeof UNCHANGED_MESSAGES) {
+  await reply.code(409).send({ code, message: UNCHANGED_MESSAGES[code] });
+}
+
 async function sendNotFound(reply: FastifyReply, code: "purchase_not_found" | "line_not_found") {
   await reply.code(404).send({
     code,
@@ -220,6 +229,10 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
       await sendRefusal(reply, outcome);
       return;
     }
+    if (outcome.kind === "unchanged") {
+      await sendUnchanged(reply, "purchase_unchanged");
+      return;
+    }
     await sendPurchase(reply, 200, ids.purchaseId);
   });
 
@@ -247,6 +260,10 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
 
     if (outcome.kind === "purchase_not_found" || outcome.kind === "line_not_found") {
       await sendNotFound(reply, outcome.kind);
+      return;
+    }
+    if (outcome.kind === "unchanged") {
+      await sendUnchanged(reply, "expiry_unchanged");
       return;
     }
     await sendPurchase(reply, 200, ids.purchaseId);

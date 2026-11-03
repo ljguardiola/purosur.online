@@ -54,7 +54,7 @@ export function CorrectPurchaseLineExpiryModal({
     },
     fields: PURCHASE_LINE_EXPIRY_FIELDS,
     messages: PURCHASE_LINE_EXPIRY_MESSAGES,
-    onSubmit: async (request) => {
+    onSubmit: async (request, { showWireFieldError }) => {
       if (!target) {
         return;
       }
@@ -76,8 +76,15 @@ export function CorrectPurchaseLineExpiryModal({
         sendToMyAccount();
         return;
       }
+      if (outcome.kind === "unchanged") {
+        setNotice({ kind: "unchanged" });
+        return;
+      }
       if (outcome.kind === "not_found") {
         setNotice({ kind: "notFound" });
+        return;
+      }
+      if (outcome.kind === "validation_failed" && showWireFieldError(outcome.field)) {
         return;
       }
       if (outcome.kind === "rate_limited") {
@@ -109,7 +116,7 @@ export function CorrectPurchaseLineExpiryModal({
       icon={<CalendarClock />}
       context="Stock · Compra"
       title={shown ? formatProductDescription(shown.line.product) : ""}
-      closable
+      closable={!submitting}
       footer={
         <>
           <Button

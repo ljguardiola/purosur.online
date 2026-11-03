@@ -1,12 +1,13 @@
 import { InlineNotice } from "@purosur/ui";
-import { ShieldX, TriangleAlert } from "lucide-react";
+import { Info, ShieldX, TriangleAlert } from "lucide-react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 
 export type PurchaseCorrectionNotice =
   | { kind: "attemptFailed" }
   | { kind: "rateLimited"; retryAfterSeconds: number }
-  | { kind: "notFound" };
+  | { kind: "notFound" }
+  | { kind: "unchanged" };
 
 export function PurchaseCorrectionNotices({
   notice,
@@ -31,6 +32,8 @@ export function PurchaseCorrectionNotices({
       return (
         <InlineNotice tone="error" icon={<TriangleAlert />} title="Esta compra ya no existe" />
       );
+    case "unchanged":
+      return <InlineNotice tone="info" icon={<Info />} title="No hay cambios para guardar" />;
     case undefined:
       return null;
   }

@@ -23,6 +23,7 @@ import {
   purchaseLinesAdditionRequestFrom,
 } from "./purchase-lines-addition-form";
 import { PurchaseLinesField } from "./purchase-lines-field";
+import { useReviewPurchasedPrices } from "./purchased-prices-review";
 import type { addPurchaseLines, fetchPurchaseChoices } from "./purchases-api";
 import { usePurchaseChoicesQuery, useRefreshPurchasing } from "./purchasing-queries";
 
@@ -54,6 +55,7 @@ export function AddPurchaseLinesModal({
 }: AddPurchaseLinesModalProps) {
   const sendToMyAccount = useSendToMyAccount();
   const refreshPurchasing = useRefreshPurchasing();
+  const reviewPurchasedPrices = useReviewPurchasedPrices();
   const open = target !== null;
   const [shown, setShown] = useState<PurchaseSummary | null>(null);
   const [notice, setNotice] = useState<PurchaseCorrectionNotice | null>(null);
@@ -90,6 +92,7 @@ export function AddPurchaseLinesModal({
       const outcome = await services.addPurchaseLines(target.id, parsed);
       if (outcome.kind === "ok") {
         onSaved(outcome.purchase);
+        reviewPurchasedPrices(values.lines);
         return;
       }
       if (outcome.kind === "unauthenticated") {
@@ -146,7 +149,7 @@ export function AddPurchaseLinesModal({
       icon={<PackagePlus />}
       context={`Stock · Compra · ${shown?.supplier.name ?? ""}`}
       title="Agregar productos"
-      closable
+      closable={!submitting}
       footer={
         <>
           <Button

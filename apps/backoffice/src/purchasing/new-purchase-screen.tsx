@@ -21,7 +21,6 @@ import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { creatableChoice } from "../platform/creatable-options";
 import { withCreatedProducts } from "../platform/created-products";
 import type { CreatedProduct, ProductCreationModal } from "../platform/creation-parts";
-import { purchasedProductsToReviewState } from "../platform/purchased-products-to-review";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { useStackedCreation } from "../platform/stacked-creation";
@@ -38,7 +37,6 @@ import {
   PURCHASE_SUPPLIER_INACTIVE,
   PURCHASE_SUPPLIER_NOT_FOUND,
   PURCHASE_SUPPLIER_REQUIRED,
-  priceReviewProductIds,
   purchaseDateMessage,
   purchaseLineQuantityRefusal,
   purchaseLinesMessage,
@@ -51,6 +49,7 @@ import {
 } from "./purchase-form";
 import { PurchaseLinesField } from "./purchase-lines-field";
 import { PURCHASE_REGISTERED_STATE } from "./purchase-registered-state";
+import { useReviewPurchasedPrices } from "./purchased-prices-review";
 import {
   useMarkPurchasingStale,
   usePurchaseChoicesQuery,
@@ -77,6 +76,7 @@ export function NewPurchaseScreen({
   const sendToMyAccount = useSendToMyAccount();
   const navigate = useNavigate();
   const refreshPurchasing = useRefreshPurchasing();
+  const reviewPurchasedPrices = useReviewPurchasedPrices();
   const data = usePurchaseChoicesQuery({
     fetchPurchaseChoices: services.fetchPurchaseChoices,
     onSessionEnded,
@@ -116,15 +116,7 @@ export function NewPurchaseScreen({
       const outcome = await services.registerPurchase(parsed);
       if (outcome.kind === "ok") {
         void refreshPurchasing();
-        const reviewProducts = priceReviewProductIds(values.lines);
-        if (reviewProducts.length > 0) {
-          void navigate({
-            to: "/prices",
-            state: (previous) => ({
-              ...previous,
-              ...purchasedProductsToReviewState(reviewProducts),
-            }),
-          });
+        if (reviewPurchasedPrices(values.lines)) {
           return;
         }
         void navigate({

@@ -56,19 +56,27 @@ type PurchaseRow =
 
 const NO_PURCHASES: PurchaseSummary[] = [];
 
-type CorrectionNotice = "linesAdded" | "headerCorrected" | "expiryCorrected";
+type Correction = "linesAdded" | "headerCorrected" | "expiryCorrected";
+
+type CorrectionNotice = { correction: Correction; purchase: PurchaseSummary };
 
 const CORRECTION_NOTICES = {
-  linesAdded: { title: "Productos agregados", description: "El stock ya refleja lo recibido." },
-  headerCorrected: {
+  linesAdded: () => ({
+    title: "Productos agregados",
+    description: "El stock ya refleja lo recibido.",
+  }),
+  headerCorrected: (purchase) => ({
     title: "Datos corregidos",
-    description: "La compra ya muestra los datos corregidos.",
-  },
-  expiryCorrected: {
+    description: `La compra de ${purchase.supplier.name} del ${formatDisplayDate(purchase.purchasedOn)}.`,
+  }),
+  expiryCorrected: () => ({
     title: "Vencimiento corregido",
     description: "Las alertas y los listados usan la fecha corregida.",
-  },
-} satisfies Record<CorrectionNotice, { title: string; description: string }>;
+  }),
+} satisfies Record<
+  Correction,
+  (purchase: PurchaseSummary) => { title: string; description: string }
+>;
 
 function rowsOf(purchases: readonly PurchaseSummary[]): PurchaseRow[] {
   return purchases.flatMap((purchase) => [
@@ -254,11 +262,14 @@ export function PurchasesListScreen({
     }
   }, [data.status]);
 
-  function corrected(done: CorrectionNotice) {
+  function corrected(correction: Correction, purchase: PurchaseSummary) {
     setAddTarget(null);
     setHeaderTarget(null);
     setExpiryTarget(null);
-    setNotice(done);
+    setNotice({ correction, purchase });
+    if (registered) {
+      onNoticeDismissed();
+    }
     void refreshPurchasing();
   }
 
@@ -333,21 +344,21 @@ export function PurchasesListScreen({
             access={access}
             productCreationModal={productCreationModal}
             services={services}
-            onSaved={() => corrected("linesAdded")}
+            onSaved={(purchase) => corrected("linesAdded", purchase)}
             onClose={() => setAddTarget(null)}
             onSessionEnded={onSessionEnded}
           />
           <CorrectPurchaseHeaderModal
             target={headerTarget}
             services={services}
-            onSaved={() => corrected("headerCorrected")}
+            onSaved={(purchase) => corrected("headerCorrected", purchase)}
             onClose={() => setHeaderTarget(null)}
             onSessionEnded={onSessionEnded}
           />
           <CorrectPurchaseLineExpiryModal
             target={expiryTarget}
             services={services}
-            onSaved={() => corrected("expiryCorrected")}
+            onSaved={(purchase) => corrected("expiryCorrected", purchase)}
             onClose={() => setExpiryTarget(null)}
             onSessionEnded={onSessionEnded}
           />
@@ -357,8 +368,7 @@ export function PurchasesListScreen({
         <FloatingNotification
           tone="success"
           icon={<Check />}
-          title={CORRECTION_NOTICES[notice].title}
-          description={CORRECTION_NOTICES[notice].description}
+          {...CORRECTION_NOTICES[notice.correction](notice.purchase)}
           onDismiss={() => setNotice(null)}
         />
       )}

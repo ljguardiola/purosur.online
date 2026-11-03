@@ -47,16 +47,19 @@ export type AddPurchaseLinesOutcome =
   | { kind: "not_found" }
   | RequestRefusal;
 
-export type CorrectPurchaseHeaderOutcome =
-  | { kind: "ok"; purchase: PurchaseSummary }
+type PurchaseCorrectionRefusal =
+  | { kind: "unchanged" }
   | { kind: "validation_failed"; field: string }
   | { kind: "not_found" }
   | RequestRefusal;
 
+export type CorrectPurchaseHeaderOutcome =
+  | { kind: "ok"; purchase: PurchaseSummary }
+  | PurchaseCorrectionRefusal;
+
 export type CorrectPurchaseLineExpiryOutcome =
   | { kind: "ok"; purchase: PurchaseSummary }
-  | { kind: "not_found" }
-  | RequestRefusal;
+  | PurchaseCorrectionRefusal;
 
 function refusal(response: Response): RequestRefusal {
   if (response.status === 401) {
@@ -188,12 +191,25 @@ async function readPurchase(response: Response): Promise<PurchaseSummary | undef
   return parsed.success ? parsed.data : undefined;
 }
 
-async function isPurchaseNotFound(response: Response): Promise<boolean> {
+async function refusedCorrection(
+  response: Response,
+  unchangedCode: "purchase_unchanged" | "expiry_unchanged",
+): Promise<PurchaseCorrectionRefusal> {
   const body = await readRefusalBody(response.clone());
-  return (
+  if (
     response.status === 404 &&
     (body.code === "purchase_not_found" || body.code === "line_not_found")
-  );
+  ) {
+    return { kind: "not_found" };
+  }
+  if (response.status === 409) {
+    return body.code === unchangedCode ? { kind: "unchanged" } : { kind: "failed" };
+  }
+  if (response.status === 400) {
+    const field = await readValidationFailedField(response);
+    return field === undefined ? { kind: "failed" } : { kind: "validation_failed", field };
+  }
+  return refusal(response);
 }
 
 export async function addPurchaseLines(
@@ -227,14 +243,7 @@ export async function correctPurchaseHeader(
     const purchase = await readPurchase(response);
     return purchase ? { kind: "ok", purchase } : { kind: "failed" };
   }
-  if (await isPurchaseNotFound(response)) {
-    return { kind: "not_found" };
-  }
-  if (response.status === 400) {
-    const field = await readValidationFailedField(response);
-    return field === undefined ? { kind: "failed" } : { kind: "validation_failed", field };
-  }
-  return refusal(response);
+  return refusedCorrection(response, "purchase_unchanged");
 }
 
 export async function correctPurchaseLineExpiry(
@@ -254,7 +263,7 @@ export async function correctPurchaseLineExpiry(
     const purchase = await readPurchase(response);
     return purchase ? { kind: "ok", purchase } : { kind: "failed" };
   }
-  return (await isPurchaseNotFound(response)) ? { kind: "not_found" } : refusal(response);
+  return refusedCorrection(response, "expiry_unchanged");
 }
 
 export async function fetchPurchaseChanges(
