@@ -5,6 +5,7 @@ import {
   formatAmountInput,
   formatTenthsOfPercent,
   HighlightedFigure,
+  HighlightedNotice,
   InlineNotice,
   LoadFailure,
   LoadingPlaceholder,
@@ -100,10 +101,14 @@ function SectionNoticeView({
   notice,
   productDescription,
   saleUnit,
+  reloading,
+  onReload,
 }: {
   notice: SectionNotice;
   productDescription: string;
   saleUnit: SaleUnit;
+  reloading: boolean;
+  onReload: () => void;
 }) {
   if (notice.kind === "saved") {
     return (
@@ -130,11 +135,16 @@ function SectionNoticeView({
   }
   if (notice.kind === "stale") {
     return (
-      <InlineNotice
+      <HighlightedNotice
         tone="error"
         icon={<TriangleAlert />}
         title="Este precio cambió mientras lo mirabas"
         description="Recargá el precio actual y volvé a intentarlo."
+        actions={
+          <Button variant="secondary" icon={<RotateCcw />} disabled={reloading} onPress={onReload}>
+            Recargar el precio actual
+          </Button>
+        }
       />
     );
   }
@@ -151,7 +161,6 @@ function ProposedMargin({
   onSessionEnded,
   productId,
   components,
-  componentsSettled,
 }: {
   maySetPrice: boolean;
   answer: PriceRecommendation;
@@ -162,31 +171,19 @@ function ProposedMargin({
   onSessionEnded: () => void;
   productId: string;
   components: FetchPriceRecommendationInput["components"];
-  componentsSettled: boolean;
 }) {
   const proposed = maySetPrice ? settled : recommendedPrice;
   const margin = usePriceRecommendationQuery({
     productId,
     input: proposed === undefined ? { components } : { components, unitPrice: proposed },
-    enabled: componentsSettled && answer.batchCost.kind === "known" && proposed !== undefined,
+    enabled: answer.batchCost.kind === "known" && proposed !== undefined,
     keepPreviousData: false,
     fetchPriceRecommendation: fetchRecommendation,
     onSessionEnded,
   });
 
-  if (answer.batchCost.kind === "none") {
-    return (
-      <p className="text-detail text-text-subtle">
-        Todavía no hay tandas de este producto: no se puede calcular el margen.
-      </p>
-    );
-  }
-  if (answer.batchCost.kind === "incomplete") {
-    return (
-      <p className="text-detail text-text-subtle">
-        El costo de la última tanda está incompleto: no se puede calcular el margen.
-      </p>
-    );
+  if (answer.batchCost.kind !== "known") {
+    return <p className="text-detail text-text-subtle">No se puede calcular el margen.</p>;
   }
   const shownPrice = maySetPrice ? typed : recommendedPrice;
   if (shownPrice === undefined) {
@@ -223,7 +220,6 @@ function missingPricesNotice(answer: PriceRecommendation, components: PlatformPr
     <InlineNotice
       tone="warning"
       icon={<TriangleAlert />}
-      title="No hay un precio recomendado"
       description={`Estos componentes no tienen precio: ${names.join(", ")}.`}
     />
   );
@@ -242,11 +238,15 @@ export function ProductPriceSection({
   const refreshPrices = useRefreshPrices();
   const [notice, setNotice] = useState<SectionNotice | null>(null);
   const key = componentsKey(components);
-  const componentsSettled = useSettled(key) === key;
+  const settledKey = useSettled(key);
+  const [settledComponents, setSettledComponents] = useState(components);
+  if (settledKey === key && componentsKey(settledComponents) !== key) {
+    setSettledComponents(components);
+  }
   const recommendation = usePriceRecommendationQuery({
     productId,
-    input: { components: withoutNames(components) },
-    enabled: componentsSettled,
+    input: { components: withoutNames(settledComponents) },
+    enabled: true,
     keepPreviousData: true,
     fetchPriceRecommendation: services.fetchPriceRecommendation,
     onSessionEnded,
@@ -327,20 +327,12 @@ export function ProductPriceSection({
           notice={notice}
           productDescription={productDescription}
           saleUnit={saleUnit}
-        />
-      ) : null}
-      {notice?.kind === "stale" ? (
-        <Button
-          variant="secondary"
-          icon={<RotateCcw />}
-          disabled={submitting}
-          onPress={() => {
+          reloading={submitting}
+          onReload={() => {
             setNotice(null);
             void refreshPrices();
           }}
-        >
-          Recargar el precio actual
-        </Button>
+        />
       ) : null}
       {recommendation.status === "loading" ? <LoadingPlaceholder variant="rows" rows={3} /> : null}
       {recommendation.status === "failed" ? (
@@ -401,8 +393,7 @@ export function ProductPriceSection({
           fetchRecommendation={services.fetchPriceRecommendation}
           onSessionEnded={onSessionEnded}
           productId={productId}
-          components={withoutNames(components)}
-          componentsSettled={componentsSettled}
+          components={withoutNames(settledComponents)}
         />
       ) : null}
       {maySetPrice ? (

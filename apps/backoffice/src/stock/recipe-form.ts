@@ -121,13 +121,16 @@ function withLowercaseInitial(message: string): string {
 export function recipePriceComponentsOf(
   components: readonly RecipeComponentValues[],
 ): { componentProductId: string; name: string; quantityPerOutputUnit: number }[] {
-  return components
-    .map((component) => ({
-      componentProductId: component.productId,
-      name: component.name,
-      quantityPerOutputUnit: quantityOf(component),
-    }))
-    .filter(({ name: _name, ...component }) => componentSchema.safeParse(component).success);
+  const priced = components.map((component) => ({
+    componentProductId: component.productId,
+    name: component.name,
+    quantityPerOutputUnit: quantityOf(component),
+  }));
+  return priced.every(
+    ({ name: _name, ...component }) => componentSchema.safeParse(component).success,
+  )
+    ? priced
+    : [];
 }
 
 export function recipeComponentsMessage({ components }: RecipeFormValues): string {

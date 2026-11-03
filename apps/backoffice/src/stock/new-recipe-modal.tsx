@@ -234,6 +234,7 @@ export function NewRecipeModal({
             </p>
             {PriceSection && assembled && priceComponents.length > 0 ? (
               <PriceSection
+                key={assembled.id}
                 productId={assembled.id}
                 productDescription={formatProductDescription(assembled)}
                 saleUnit={assembled.saleUnit}
