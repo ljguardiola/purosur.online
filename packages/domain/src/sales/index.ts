@@ -1,4 +1,5 @@
 export { averageTicket } from "./model/average-ticket.js";
+export { cancelledBeforeCharge } from "./model/cancelled-before-charge.js";
 export type { CancelledSale } from "./model/cancelled-sale.js";
 export { mayBeCashRounding } from "./model/cash-rounding.js";
 export type { CashRoundingRecord, CashRoundingTotals } from "./model/cash-rounding-report.js";
