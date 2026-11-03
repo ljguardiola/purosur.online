@@ -109,7 +109,6 @@ describe("a purchase and a loss of the same product queued behind each other, on
                 productId: ids.productId,
                 quantity: 5_000,
                 costPaidCents: 90_000,
-                lotNumber: null,
                 expiresOn: null,
               },
             ],

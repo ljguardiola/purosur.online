@@ -35,7 +35,6 @@ export interface AddedLineRecord {
   productId: string;
   quantity: number;
   costPaidCents: number;
-  lotNumber: string | null;
   expiresOn: string | null;
 }
 

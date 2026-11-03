@@ -9,7 +9,6 @@ import {
 } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { formatStockQuantity } from "../platform/stock-quantity";
-import { batchDayText } from "./assembly-batch-text";
 import { formatStockUnitCost, formatStockValue } from "./stock-cost";
 
 type StockLot = StockBalance["lots"][number];
@@ -17,13 +16,12 @@ type StockLot = StockBalance["lots"][number];
 function originLabel(origin: StockLot["origin"]): string {
   switch (origin.kind) {
     case "purchase":
-      return `Compra del ${formatCalendarDayNumeric(origin.purchasedOn)} · ${origin.supplierName}`;
-    case "initial_count":
-      return "Inventario inicial";
-    case "assembly_batch":
-      return batchDayText(origin.assembledAt);
+      return origin.supplierName;
     case "product_sales_without_lots":
       return "Ventas sin lotes del producto";
+    case "initial_count":
+    case "assembly_batch":
+      return "—";
   }
 }
 
@@ -38,16 +36,9 @@ export function StockBalanceLots({ product }: { product: StockBalance }) {
   const columns = [
     dataColumn({
       id: "lot",
-      width: 160,
+      width: 220,
       header: "Lote",
-      render: (lot: StockLot) =>
-        lot.technical ? (
-          <TableCellText strong>Técnico</TableCellText>
-        ) : (
-          <TableCellText strong monospace>
-            {lot.lotNumber ?? "—"}
-          </TableCellText>
-        ),
+      render: (lot: StockLot) => <TableCellText strong>{lot.lotName}</TableCellText>,
     }),
     dataColumn({
       id: "expiresOn",

@@ -18,9 +18,6 @@ const NO_RECEIPT: ReceiptType = "sin_comprobante";
 // longer formats.
 export const RECEIPT_NUMBER_MAX_LENGTH = 50;
 
-// Lot codes printed by suppliers are short alphanumeric strings.
-export const LOT_NUMBER_MAX_LENGTH = 50;
-
 export const PURCHASE_NOTE_MAX_LENGTH = 200;
 
 export const MIN_PURCHASE_LINES = 1;
@@ -41,10 +38,6 @@ export function hasValidReceiptNumber(type: ReceiptType, number: string | null):
 
 export function isReceiptNumberTooLong(number: string): boolean {
   return codePointLength(number) > RECEIPT_NUMBER_MAX_LENGTH;
-}
-
-export function isLotNumberTooLong(number: string): boolean {
-  return codePointLength(number) > LOT_NUMBER_MAX_LENGTH;
 }
 
 export function isPurchaseNoteTooLong(note: string): boolean {

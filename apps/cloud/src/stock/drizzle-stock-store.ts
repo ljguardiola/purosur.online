@@ -12,12 +12,13 @@ import type {
   OpeningCountLot,
   ProductStockKey,
   PurchasedLot,
+  PurchasedLotNaming,
   PurchasedLotStoreTransaction,
   StockLot,
   StockStore,
   StockStoreTransaction,
 } from "@purosur/domain/stock/use-cases";
-import { and, eq, inArray, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   lotAllocations,
@@ -233,13 +234,47 @@ export class DrizzleStockStoreTransaction<TQueryResult extends PgQueryResultHKT>
     await this.tx.update(lots).set({ expiresOn }).where(eq(lots.id, lotId));
   }
 
-  async setLotsPurchasedOn(lotIds: readonly string[], purchasedOn: string): Promise<void> {
+  async namingOfPurchasedLots(
+    locationId: string,
+    productIds: readonly string[],
+  ): Promise<PurchasedLotNaming[]> {
+    if (productIds.length === 0) {
+      return [];
+    }
+    const found = await this.tx
+      .select({
+        lotId: lots.id,
+        productId: lots.productId,
+        purchasedOn: lots.purchasedOn,
+        nameOrder: lots.nameOrder,
+        givenNumber: lots.nameNumber,
+      })
+      .from(lots)
+      .where(
+        and(
+          eq(lots.locationId, locationId),
+          inArray(lots.productId, [...productIds]),
+          isNotNull(lots.purchaseLineId),
+        ),
+      );
+    return found.flatMap(({ purchasedOn, ...lot }) =>
+      purchasedOn === null ? [] : [{ ...lot, purchasedOn }],
+    );
+  }
+
+  async giveLotNumbers(numbers: ReadonlyMap<string, number>): Promise<void> {
+    for (const [lotId, nameNumber] of numbers) {
+      await this.tx.update(lots).set({ nameNumber }).where(eq(lots.id, lotId));
+    }
+  }
+
+  async renameLotsToPurchaseDay(lotIds: readonly string[], purchasedOn: string): Promise<void> {
     if (lotIds.length === 0) {
       return;
     }
     await this.tx
       .update(lots)
-      .set({ purchasedOn })
+      .set({ purchasedOn, nameOrder: sql`nextval('lot_name_order_sequence')`, nameNumber: null })
       .where(inArray(lots.id, [...lotIds]));
   }
 

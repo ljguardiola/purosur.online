@@ -128,7 +128,6 @@ const avenaLine = {
   productId: AVENA_PRODUCT_ID,
   quantity: 12_500,
   costPaidCents: 200_000,
-  lotNumber: null,
   expiresOn: null,
 } as const;
 
@@ -341,7 +340,7 @@ test("stays on the form when the registration is refused, even with lines chosen
   expect(window.location.pathname).toBe("/purchases/new");
 });
 
-test("registers a purchase with a line loaded by packages, the lot and its expiry", async () => {
+test("registers a purchase with a line loaded by packages and its expiry", async () => {
   const services = createServices();
   vi.mocked(services.registerPurchase).mockResolvedValue({ kind: "ok", purchase: compraDeAvena });
   const screen = await opened(services);
@@ -358,7 +357,6 @@ test("registers a purchase with a line loaded by packages, the lot and its expir
   await userEvent.fill(group.getByRole("textbox", { name: /^Cantidad de paquetes/ }), "2");
   await userEvent.fill(group.getByRole("textbox", { name: /^Cantidad por paquete/ }), "12");
   await userEvent.fill(group.getByRole("textbox", { name: /^Costo por paquete/ }), "7.200");
-  await userEvent.fill(group.getByRole("textbox", { name: /^Lote/ }), "L-17");
   await userEvent.click(
     group
       .getByRole("group", { name: /^Vencimiento/ })
@@ -381,11 +379,17 @@ test("registers a purchase with a line loaded by packages, the lot and its expir
         packages: 2,
         quantityPerPackage: 12_000,
         costPaidCents: 720_000,
-        lotNumber: "L-17",
         expiresOn: "2027-01-31",
       },
     ],
   });
+});
+
+test("asks for no lot on a line", async () => {
+  const screen = await opened();
+
+  await expect.element(line(screen, 1)).toBeVisible();
+  expect(line(screen, 1).getByRole("textbox", { name: /^Lote/ }).query()).toBeNull();
 });
 
 test("adds a line, and removes any line while another remains", async () => {

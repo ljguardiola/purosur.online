@@ -64,12 +64,11 @@ export async function addPurchaseLines(
       correctedAt: recordedAt,
       change: {
         kind: "lines_added",
-        lines: lines.map(({ id, productId, quantity, costPaidCents, lotNumber, expiresOn }) => ({
+        lines: lines.map(({ id, productId, quantity, costPaidCents, expiresOn }) => ({
           lineId: id,
           productId,
           quantity,
           costPaidCents,
-          lotNumber,
           expiresOn,
         })),
       },

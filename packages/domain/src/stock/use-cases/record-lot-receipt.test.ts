@@ -22,7 +22,6 @@ const LOT = {
   quantityReceived: 10_000,
   costTotalCents: 5_000,
   costQuantity: 10_000,
-  lotNumber: null,
   expiresOn: null,
   purchasedOn: "2026-05-04",
 };

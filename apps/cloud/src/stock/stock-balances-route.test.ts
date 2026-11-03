@@ -4,7 +4,7 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { registerStockBalancesRoute } from "./stock-balances-route.js";
 import { insertAssemblyBatch } from "./test-support/assembly-batch-fixtures.js";
-import { insertPurchasedLot } from "./test-support/lot-fixtures.js";
+import { insertInitialCountLot, insertPurchasedLot } from "./test-support/lot-fixtures.js";
 import {
   BACKOFFICE_ORIGIN,
   insertBalance,
@@ -105,9 +105,9 @@ describe("GET /inventory-levels", () => {
       locationId,
       actorId: userId,
       supplierName: "Distribuidora Sur",
-      purchasedOn: "2026-10-01",
+      purchasedOn: "2026-11-03",
       expiresOn: "2027-03-01",
-      lotNumber: "L-77",
+      lotNumber: "03/11",
       remaining: 4_000,
     });
     await insertBalance(db, { productId: almonds.productId, locationId, quantity: 4_000 });
@@ -139,15 +139,14 @@ describe("GET /inventory-levels", () => {
           lots: [
             {
               id: lotId,
-              lotNumber: "L-77",
+              lotName: "Compra 03/11/2026",
               expiresOn: "2027-03-01",
-              technical: false,
               remaining: 4_000,
               valueCents: 20_000,
               unitCostCents: 5_000,
               origin: {
                 kind: "purchase",
-                purchasedOn: "2026-10-01",
+                purchasedOn: "2026-11-03",
                 supplierName: "Distribuidora Sur",
               },
             },
@@ -173,8 +172,67 @@ describe("GET /inventory-levels", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json().products[0].lots[0]).toMatchObject({
-      technical: false,
       origin: { kind: "assembly_batch", assembledAt: "2026-05-04T13:00:00.000Z" },
     });
+  });
+
+  it("names the lots of two purchases of one product on the same day in the order they were created", async () => {
+    const { headers, locationId, userId } = await signedInWith(db, ["view_stock_balances"], NOON);
+    const { productId } = await insertProduct(db, { name: "Yerba 1 kg" });
+    const first = await insertPurchasedLot(db, {
+      productId,
+      locationId,
+      actorId: userId,
+      purchasedOn: "2026-11-03",
+    });
+    const second = await insertPurchasedLot(db, {
+      productId,
+      locationId,
+      actorId: userId,
+      purchasedOn: "2026-11-03",
+    });
+    await insertBalance(db, { productId, locationId, quantity: 20_000 });
+
+    const response = await listBalances(headers);
+
+    const names = new Map(
+      response
+        .json()
+        .products[0].lots.map((lot: { id: string; lotName: string }) => [lot.id, lot.lotName]),
+    );
+    expect(names.get(first)).toBe("Compra 03/11/2026 · 1");
+    expect(names.get(second)).toBe("Compra 03/11/2026 · 2");
+  });
+
+  it("names a lot of the initial count by the day it was counted", async () => {
+    const { headers, locationId, userId } = await signedInWith(db, ["view_stock_balances"], NOON);
+    const { productId } = await insertProduct(db, { name: "Yerba 1 kg" });
+    await insertInitialCountLot(db, {
+      productId,
+      locationId,
+      actorId: userId,
+      countedAt: new Date("2026-10-27T15:00:00.000Z"),
+    });
+    await insertBalance(db, { productId, locationId, quantity: 6_000 });
+
+    const response = await listBalances(headers);
+
+    expect(response.json().products[0].lots[0].lotName).toBe("Inventario inicial 27/10/2026");
+  });
+
+  it("names a lot by the Argentine day of its moment, not the UTC day", async () => {
+    const { headers, locationId, userId } = await signedInWith(db, ["view_stock_balances"], NOON);
+    const { productId } = await insertProduct(db, { name: "Yerba 1 kg" });
+    await insertInitialCountLot(db, {
+      productId,
+      locationId,
+      actorId: userId,
+      countedAt: new Date("2026-10-28T02:30:00.000Z"),
+    });
+    await insertBalance(db, { productId, locationId, quantity: 6_000 });
+
+    const response = await listBalances(headers);
+
+    expect(response.json().products[0].lots[0].lotName).toBe("Inventario inicial 27/10/2026");
   });
 });

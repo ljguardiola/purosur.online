@@ -166,7 +166,6 @@ describe("GET /reports/purchases-by-supplier", () => {
             productId,
             quantity: 3_000,
             costPaidCents: 900,
-            lotNumber: null,
             expiresOn: null,
           },
         ],

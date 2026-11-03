@@ -128,7 +128,6 @@ describe("registerAssemblyBatch", () => {
       costQuantity: 14_000,
       costComplete: true,
       expiresOn: "2027-01-15",
-      lotNumber: null,
       purchaseLineId: null,
       originMovementId: null,
       remaining: 14_000,

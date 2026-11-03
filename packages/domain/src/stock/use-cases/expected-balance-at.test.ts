@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
+import type { LotNameFacts } from "../model/lot-name.js";
 import { expectedBalanceAt } from "./expected-balance-at.js";
 import type { LedgerLot, StockProduct } from "./stock-reader.js";
+import { FakeLotNameReader, purchaseLotFacts } from "./test-support/fake-lot-name-reader.js";
 import { FakeStockLedgerReader } from "./test-support/fake-stock-ledger-reader.js";
 
 const honey: StockProduct = {
@@ -14,12 +17,15 @@ const honey: StockProduct = {
   active: true,
 };
 
+function purchaseNamedOn(day: string) {
+  return { origin: "purchase", day, number: null };
+}
+
 const moment = new Date("2027-04-10T12:00:00Z");
 
 function ledgerLot(id: string, overrides: Partial<LedgerLot> = {}): LedgerLot {
   return {
     id,
-    lotNumber: null,
     technical: false,
     expiresOn: null,
     purchasedOn: "2027-01-01",
@@ -34,7 +40,7 @@ describe("expectedBalanceAt", () => {
     const ledger = new FakeStockLedgerReader([honey], { balance: 12, appliedAfterCount: 5 });
 
     const outcome = await expectedBalanceAt(
-      { ledger },
+      { ledger, lotNames: new FakeLotNameReader([]), zoneRules: new FakeZoneRulesSource() },
       { productId: "product-1", locationId: "location-1", at: moment },
     );
 
@@ -45,7 +51,7 @@ describe("expectedBalanceAt", () => {
     const ledger = new FakeStockLedgerReader([honey], { balance: 0, appliedAfterCount: 0 });
 
     await expectedBalanceAt(
-      { ledger },
+      { ledger, lotNames: new FakeLotNameReader([]), zoneRules: new FakeZoneRulesSource() },
       { productId: "product-1", locationId: "location-1", at: moment },
     );
 
@@ -58,7 +64,7 @@ describe("expectedBalanceAt", () => {
     const ledger = new FakeStockLedgerReader([honey], { balance: 12, appliedAfterCount: 5 });
 
     const outcome = await expectedBalanceAt(
-      { ledger },
+      { ledger, lotNames: new FakeLotNameReader([]), zoneRules: new FakeZoneRulesSource() },
       { productId: "product-2", locationId: "location-1", at: moment },
     );
 
@@ -70,7 +76,7 @@ describe("expectedBalanceAt", () => {
     const ledger = new FakeStockLedgerReader([honey], { balance: 12, appliedAfterCount: 5 });
 
     const outcome = await expectedBalanceAt(
-      { ledger },
+      { ledger, lotNames: new FakeLotNameReader([]), zoneRules: new FakeZoneRulesSource() },
       { productId: "product-2", locationId: "location-1", at: undefined },
     );
 
@@ -81,7 +87,7 @@ describe("expectedBalanceAt", () => {
     const ledger = new FakeStockLedgerReader([honey], { balance: 12, appliedAfterCount: 5 });
 
     const outcome = await expectedBalanceAt(
-      { ledger },
+      { ledger, lotNames: new FakeLotNameReader([]), zoneRules: new FakeZoneRulesSource() },
       { productId: "product-1", locationId: "location-1", at: undefined },
     );
 
@@ -91,15 +97,22 @@ describe("expectedBalanceAt", () => {
 });
 
 describe("expectedBalanceAt lots", () => {
-  async function lotsAt(lots: LedgerLot[], lotAllocationsAfter: Map<string, number>) {
+  async function lotsAt(
+    lots: LedgerLot[],
+    lotAllocationsAfter: Map<string, number>,
+    facts: LotNameFacts[] = lots.map((lot, index) =>
+      purchaseLotFacts(lot.id, "product-1", index + 1, `2027-01-0${index + 1}`),
+    ),
+  ) {
     const ledger = new FakeStockLedgerReader([honey], {
       balance: 0,
       appliedAfterCount: 0,
       lots,
       lotAllocationsAfter,
     });
+    const lotNames = new FakeLotNameReader(facts);
     const outcome = await expectedBalanceAt(
-      { ledger },
+      { ledger, lotNames, zoneRules: new FakeZoneRulesSource() },
       { productId: "product-1", locationId: "location-1", at: moment },
     );
     return outcome.kind === "found" ? outcome.lots : undefined;
@@ -107,15 +120,15 @@ describe("expectedBalanceAt lots", () => {
 
   it("answers each lot with what it held at the moment, in the order they are consumed", async () => {
     const lots = [
-      ledgerLot("none", { lotNumber: "N-1", expiresOn: null, remaining: 500 }),
-      ledgerLot("late", { lotNumber: "L-2", expiresOn: "2027-09-01", remaining: 4_000 }),
-      ledgerLot("soon", { lotNumber: "L-1", expiresOn: "2027-06-01", remaining: 6_000 }),
+      ledgerLot("none", { expiresOn: null, remaining: 500 }),
+      ledgerLot("late", { expiresOn: "2027-09-01", remaining: 4_000 }),
+      ledgerLot("soon", { expiresOn: "2027-06-01", remaining: 6_000 }),
     ];
 
     expect(await lotsAt(lots, new Map([["soon", -2_000]]))).toEqual([
-      { id: "soon", lotNumber: "L-1", expiresOn: "2027-06-01", expected: 8_000 },
-      { id: "late", lotNumber: "L-2", expiresOn: "2027-09-01", expected: 4_000 },
-      { id: "none", lotNumber: "N-1", expiresOn: null, expected: 500 },
+      { id: "soon", name: purchaseNamedOn("2027-01-03"), expiresOn: "2027-06-01", expected: 8_000 },
+      { id: "late", name: purchaseNamedOn("2027-01-02"), expiresOn: "2027-09-01", expected: 4_000 },
+      { id: "none", name: purchaseNamedOn("2027-01-01"), expiresOn: null, expected: 500 },
     ]);
   });
 
@@ -128,13 +141,31 @@ describe("expectedBalanceAt lots", () => {
     ];
 
     expect(await lotsAt(lots, new Map([["received-later", 2_000]]))).toEqual([
-      { id: "held", lotNumber: null, expiresOn: null, expected: 700 },
+      { id: "held", name: purchaseNamedOn("2027-01-04"), expiresOn: null, expected: 700 },
     ]);
   });
 
   it("answers a lot that was in debt at the moment", async () => {
     expect(await lotsAt([ledgerLot("debt", { remaining: -300 })], new Map())).toEqual([
-      { id: "debt", lotNumber: null, expiresOn: null, expected: -300 },
+      { id: "debt", name: purchaseNamedOn("2027-01-01"), expiresOn: null, expected: -300 },
+    ]);
+  });
+
+  it("numbers a lot after the lots of the product that are not countable", async () => {
+    const lots = [ledgerLot("held", { remaining: 700 })];
+
+    expect(
+      await lotsAt(lots, new Map(), [
+        purchaseLotFacts("technical-sibling", "product-1", 1, "2027-01-01"),
+        purchaseLotFacts("held", "product-1", 2, "2027-01-01"),
+      ]),
+    ).toEqual([
+      {
+        id: "held",
+        name: { origin: "purchase", day: "2027-01-01", number: 2 },
+        expiresOn: null,
+        expected: 700,
+      },
     ]);
   });
 });

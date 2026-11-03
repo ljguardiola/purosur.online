@@ -43,9 +43,8 @@ const calendarDay = z.string().refine(isCalendarDay);
 
 const stockLotSchema = z.object({
   id: z.string(),
-  lotNumber: z.string().nullable(),
+  lotName: z.string(),
   expiresOn: calendarDay.nullable(),
-  technical: z.boolean(),
   remaining: z.int(),
   valueCents: z.int().nullable(),
   unitCostCents: z.int().nullable(),
@@ -67,7 +66,7 @@ export const stockProductBalanceSchema = stockProductWithBalanceSchema.extend({
   lots: z.array(
     z.object({
       id: z.string(),
-      lotNumber: z.string().nullable(),
+      lotName: z.string(),
       expiresOn: calendarDay.nullable(),
       expected: z.int(),
     }),

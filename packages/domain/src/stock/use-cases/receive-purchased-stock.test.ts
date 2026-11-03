@@ -24,7 +24,6 @@ function yerbaLine(overrides: Partial<ReceivedPurchaseLine> = {}): ReceivedPurch
     quantity: 24_000,
     costPaidCents: 1_450_050,
     quantityPerPackage: 12_000,
-    lotNumber: "L-17",
     expiresOn: "2027-01-31",
     ...overrides,
   };
@@ -37,7 +36,6 @@ function harinaLine(overrides: Partial<ReceivedPurchaseLine> = {}): ReceivedPurc
     quantity: 2_500,
     costPaidCents: 90_000,
     quantityPerPackage: 1_000,
-    lotNumber: null,
     expiresOn: null,
     ...overrides,
   };
@@ -125,7 +123,6 @@ describe("receivePurchasedStock", () => {
         quantityReceived: 24_000,
         costTotalCents: 1_450_050,
         costQuantity: 12_000,
-        lotNumber: "L-17",
         expiresOn: "2027-01-31",
         purchasedOn: "2026-03-09",
         remaining: 24_000,
@@ -137,7 +134,6 @@ describe("receivePurchasedStock", () => {
         quantityReceived: 2_500,
         costTotalCents: 90_000,
         costQuantity: 1_000,
-        lotNumber: null,
         expiresOn: null,
         purchasedOn: "2026-03-09",
         remaining: 2_500,

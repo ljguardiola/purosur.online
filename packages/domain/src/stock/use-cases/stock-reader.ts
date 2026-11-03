@@ -16,7 +16,7 @@ export interface StockProduct extends ProductBrandAndNetContent {
 
 export interface LotInStock {
   id: string;
-  lotNumber: string | null;
+  code: number;
   expiresOn: string | null;
   purchase: { purchasedOn: string; supplierName: string } | null;
   initialCount: boolean;
@@ -32,9 +32,7 @@ export interface StockLevel extends StockProduct {
   lots: LotInStock[];
 }
 
-export interface LedgerLot extends StockLot {
-  lotNumber: string | null;
-}
+export type LedgerLot = StockLot;
 
 export interface LedgerAtMoment {
   balance: number;

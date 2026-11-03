@@ -1,10 +1,12 @@
 import { compareSpanishText } from "../../../shared/index.js";
+import type { LotNameFacts } from "../../../stock/index.js";
 import type { PurchaseListing, PurchasingListReader } from "../purchasing-list-reader.js";
 import type { Supplier } from "../purchasing-store.js";
 
 export interface FakePurchasingListData {
   suppliers?: Supplier[];
-  purchases?: (PurchaseListing & { locationId: string })[];
+  purchases?: PurchaseListing[];
+  lots?: LotNameFacts[];
 }
 
 function byName(first: { name: string }, second: { name: string }): number {
@@ -12,12 +14,14 @@ function byName(first: { name: string }, second: { name: string }): number {
 }
 
 export class FakePurchasingListReader implements PurchasingListReader {
+  readonly lotNameReads: { locationId: string; productIds: string[] }[] = [];
   private readonly data: Required<FakePurchasingListData>;
 
   constructor(data: FakePurchasingListData = {}) {
     this.data = {
       suppliers: data.suppliers ?? [],
       purchases: data.purchases ?? [],
+      lots: data.lots ?? [],
     };
   }
 
@@ -27,6 +31,13 @@ export class FakePurchasingListReader implements PurchasingListReader {
 
   async purchases(locationId: string): Promise<PurchaseListing[]> {
     return this.data.purchases.filter((purchase) => purchase.locationId === locationId);
+  }
+
+  async lotNameFacts(locationId: string, productIds: readonly string[]): Promise<LotNameFacts[]> {
+    this.lotNameReads.push({ locationId, productIds: [...productIds] });
+    return this.data.lots.filter(
+      (lot) => lot.locationId === locationId && productIds.includes(lot.productId),
+    );
   }
 
   async purchase(purchaseId: string): Promise<PurchaseListing | undefined> {

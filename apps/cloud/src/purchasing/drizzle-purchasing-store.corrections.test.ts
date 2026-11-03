@@ -3,6 +3,7 @@ import {
   correctPurchaseHeader,
   correctPurchaseLineExpiry,
   createSupplier,
+  findPurchaseListing,
   listPurchaseChanges,
   type RegisterPurchaseLine,
   registerPurchase,
@@ -22,6 +23,7 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzlePurchaseChangeReader } from "./drizzle-purchase-change-reader.js";
+import { DrizzlePurchasingListReader } from "./drizzle-purchasing-list-reader.js";
 import { DrizzlePurchasingStore } from "./drizzle-purchasing-store.js";
 import { insertActor, insertProduct } from "./test-support/purchasing-fixtures.js";
 
@@ -62,15 +64,18 @@ function quantityLine(
     productId,
     quantity: 1_000,
     costPaidCents: 500,
-    lotNumber: null,
     expiresOn: null,
     ...overrides,
   } as RegisterPurchaseLine;
 }
 
-async function registered(lines: (productId: string) => RegisterPurchaseLine[], productId: string) {
+async function registered(
+  lines: (productId: string) => RegisterPurchaseLine[],
+  productId: string,
+  supplierName = "Distribuidora Sur",
+) {
   const supplier = await createSupplier(store(), {
-    name: "Distribuidora Sur",
+    name: supplierName,
     cuit: null,
     contact: null,
     note: null,
@@ -156,7 +161,7 @@ describe("adding lines to a registered purchase", () => {
         purchaseId: purchase.id,
         locationId,
         actorId,
-        lines: [quantityLine(harina.id, { lotNumber: "L-9", expiresOn: "2027-01-01" })],
+        lines: [quantityLine(harina.id, { expiresOn: "2027-01-01" })],
       },
     );
 
@@ -179,7 +184,6 @@ describe("adding lines to a registered purchase", () => {
               productId: harina.id,
               quantity: 1_000,
               costPaidCents: 500,
-              lotNumber: "L-9",
               expiresOn: "2027-01-01",
             },
           ],
@@ -237,6 +241,99 @@ describe("correcting a registered purchase's header", () => {
     });
     const [lot] = await db.select({ purchasedOn: lots.purchasedOn }).from(lots);
     expect(lot?.purchasedOn).toBe("2026-09-30");
+  });
+
+  it("puts the lots of a re-dated purchase after a lot created later than them", async () => {
+    const yerba = await insertProduct(db, { name: "Yerba" });
+    const harina = await insertProduct(db, { name: "Harina" });
+    const redated = await registered((id) => [quantityLine(id)], yerba.id);
+    await registered((id) => [quantityLine(id)], harina.id, "Molinos del Valle");
+    now = CORRECTED_AT;
+
+    await correctPurchaseHeader(
+      { store: store(), clock, zoneRules: fixedZoneRulesSource() },
+      {
+        purchaseId: redated.id,
+        locationId,
+        actorId,
+        purchasedOn: "2026-09-30",
+        receiptType: "factura_b",
+        receiptNumber: "0001-00000042",
+        note: null,
+      },
+    );
+
+    const stored = await db
+      .select({ productId: lots.productId, nameOrder: lots.nameOrder })
+      .from(lots);
+    const nameOrderOf = (productId: string) =>
+      stored.find((lot) => lot.productId === productId)?.nameOrder ?? Number.NaN;
+    expect(nameOrderOf(yerba.id)).toBeGreaterThan(nameOrderOf(harina.id));
+  });
+
+  async function redated(purchaseId: string, purchasedOn: string) {
+    const outcome = await correctPurchaseHeader(
+      { store: store(), clock, zoneRules: fixedZoneRulesSource() },
+      {
+        purchaseId,
+        locationId,
+        actorId,
+        purchasedOn,
+        receiptType: "factura_b",
+        receiptNumber: "0001-00000042",
+        note: null,
+      },
+    );
+    if (outcome.kind !== "corrected") {
+      throw new Error(`test setup: correcting the purchase ended as ${outcome.kind}`);
+    }
+  }
+
+  async function lotNamesOf(purchaseIds: string[]) {
+    const ports = {
+      reader: new DrizzlePurchasingListReader(db),
+      zoneRules: fixedZoneRulesSource(),
+    };
+    const names = [];
+    for (const purchaseId of purchaseIds) {
+      const listing = await findPurchaseListing(ports, purchaseId);
+      const name = listing?.lines[0]?.lotName;
+      names.push([name?.day, name?.number]);
+    }
+    return names;
+  }
+
+  it("leaves the other purchases' lots of the day with their numbers when one purchase takes another day", async () => {
+    const yerba = await insertProduct(db, { name: "Yerba" });
+    const first = await registered((id) => [quantityLine(id)], yerba.id, "Distribuidora Sur");
+    const second = await registered((id) => [quantityLine(id)], yerba.id, "Molinos del Valle");
+    const third = await registered((id) => [quantityLine(id)], yerba.id, "Almacen Mayorista");
+    now = CORRECTED_AT;
+
+    await redated(second.id, "2026-09-30");
+
+    expect(await lotNamesOf([first.id, second.id, third.id])).toEqual([
+      ["2026-10-01", 1],
+      ["2026-09-30", null],
+      ["2026-10-01", 3],
+    ]);
+  });
+
+  it("numbers a re-dated lot again in the day it joins, leaving the number it had behind", async () => {
+    const yerba = await insertProduct(db, { name: "Yerba" });
+    const first = await registered((id) => [quantityLine(id)], yerba.id, "Distribuidora Sur");
+    const second = await registered((id) => [quantityLine(id)], yerba.id, "Molinos del Valle");
+    const third = await registered((id) => [quantityLine(id)], yerba.id, "Almacen Mayorista");
+    now = CORRECTED_AT;
+
+    await redated(second.id, "2026-09-30");
+    await redated(third.id, "2026-09-30");
+
+    expect(await lotNamesOf([first.id, second.id, third.id])).toEqual([
+      ["2026-10-01", 1],
+      ["2026-09-30", 1],
+      ["2026-09-30", 2],
+    ]);
   });
 
   it("records only the corrected fields with their previous and new values", async () => {

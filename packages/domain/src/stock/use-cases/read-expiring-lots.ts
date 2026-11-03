@@ -2,7 +2,9 @@ import { argentinaCalendarDay, type Clock, type ZoneRulesSource } from "../../sh
 import { expiryWindowEnd } from "../model/lot-expiry.js";
 import { type LotsValueSummary, lotsValueSummary } from "../model/lot-value.js";
 import type { ExpiringLotReader, ExpiryWarningWindowReader } from "./expiring-lot-reader.js";
-import { type ExpiringLotView, listExpiringLots } from "./list-expiring-lots.js";
+import { type ExpiringLotView, listExpiringLots, productIdsOf } from "./list-expiring-lots.js";
+import type { LotNameReader } from "./lot-name-reader.js";
+import { nameLotsOfProducts } from "./name-lots.js";
 
 export interface ReadExpiringLotsInput {
   locationId: string;
@@ -17,11 +19,13 @@ export interface ExpiringLotsView {
 export async function readExpiringLots(
   {
     expiringLots,
+    lotNames,
     branchSettings,
     clock,
     zoneRules,
   }: {
     expiringLots: ExpiringLotReader;
+    lotNames: LotNameReader;
     branchSettings: ExpiryWarningWindowReader;
     clock: Clock;
     zoneRules: ZoneRulesSource;
@@ -32,6 +36,7 @@ export async function readExpiringLots(
   const { expiringLotAlertDays: windowDays } =
     await branchSettings.currentBranchSettings(locationId);
   const rows = await expiringLots.lotsExpiringBy(locationId, expiryWindowEnd(today, windowDays));
-  const lots = listExpiringLots(rows, today);
+  const names = await nameLotsOfProducts({ lotNames, zoneRules }, locationId, productIdsOf(rows));
+  const lots = listExpiringLots(rows, today, names);
   return { windowDays, lots, summary: lotsValueSummary(lots) };
 }

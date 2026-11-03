@@ -5,7 +5,7 @@ import { stockMovementResultSchema } from "./stock-results.js";
 
 const expiringLotSchema = z.object({
   id: z.string(),
-  lotNumber: z.string().nullable(),
+  lotName: z.string(),
   expiresOn: z.string().refine(isCalendarDay),
   remaining: z.int(),
   valueCents: z.int().nullable(),

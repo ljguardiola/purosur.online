@@ -13,6 +13,8 @@ function lot(overrides: Partial<FakePurchasedLot> = {}): FakePurchasedLot {
     locationId: "branch-1",
     expiresOn: "2026-11-10",
     purchasedOn: "2026-10-01",
+    nameOrder: 1,
+    givenNumber: null,
     remaining: 4,
     ...overrides,
   };

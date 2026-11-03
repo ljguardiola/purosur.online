@@ -1198,6 +1198,13 @@
       "when": 1793721256481,
       "tag": "0177_audit_log_entity_index",
       "breakpoints": true
+    },
+    {
+      "idx": 178,
+      "version": "7",
+      "when": 1793725873593,
+      "tag": "0178_lot_codes_and_name_order",
+      "breakpoints": true
     }
   ]
 }

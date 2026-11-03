@@ -4,7 +4,6 @@ export interface ReceivedPurchaseLine {
   quantity: number;
   costPaidCents: number;
   quantityPerPackage: number;
-  lotNumber: string | null;
   expiresOn: string | null;
 }
 

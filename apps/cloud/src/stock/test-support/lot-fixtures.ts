@@ -84,7 +84,7 @@ export async function insertPurchasedLot<TQueryResult extends PgQueryResultHKT>(
 
 export async function insertTechnicalLot<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult>,
-  input: { productId: string; locationId: string; remaining: number },
+  input: { productId: string; locationId: string; remaining: number; createdAt?: Date },
 ): Promise<string> {
   const [lot] = await db
     .insert(lots)
@@ -95,6 +95,7 @@ export async function insertTechnicalLot<TQueryResult extends PgQueryResultHKT>(
       costIncomplete: true,
       quantityReceived: 0,
       remaining: input.remaining,
+      ...(input.createdAt ? { createdAt: input.createdAt } : {}),
     })
     .returning({ id: lots.id });
   if (!lot) {
@@ -110,6 +111,7 @@ export async function insertInitialCountLot<TQueryResult extends PgQueryResultHK
     locationId: string;
     actorId: string;
     counted?: number;
+    countedAt?: Date;
     remaining?: number;
     expiresOn?: string | null;
     withdrawn?: boolean;
@@ -126,7 +128,7 @@ export async function insertInitialCountLot<TQueryResult extends PgQueryResultHK
       kind: "opening_count",
       reason: null,
       delta: counted,
-      occurredAt: new Date("2026-10-01T12:00:00.000Z"),
+      occurredAt: input.countedAt ?? new Date("2026-10-01T12:00:00.000Z"),
       actorId: input.actorId,
     })
     .returning({ id: stockMovements.id });

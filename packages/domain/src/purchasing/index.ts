@@ -26,11 +26,9 @@ export type { ReceiptType } from "./model/purchase.js";
 export {
   hasPurchaseLines,
   hasValidReceiptNumber,
-  isLotNumberTooLong,
   isPurchaseDateInFuture,
   isPurchaseNoteTooLong,
   isReceiptNumberTooLong,
-  LOT_NUMBER_MAX_LENGTH,
   MIN_PURCHASE_LINES,
   PRODUCTS_PURCHASES_MAY_BE_REGISTERED_FOR,
   PURCHASE_NOTE_MAX_LENGTH,

@@ -43,7 +43,8 @@ describe("expiringLotsReportQuerySchema", () => {
 describe("expiringLotsReportSchema", () => {
   const lot = {
     id: "lot-1",
-    lot_number: "L-77",
+    lot_name: "Compra 03/11/2026",
+    lot_code: "L-000077",
     expires_on: "2026-10-20",
     remaining: 4_000,
     value_cents: 20_000,
@@ -70,10 +71,10 @@ describe("expiringLotsReportSchema", () => {
     expect(expiringLotsReportSchema.parse(report)).toEqual(report);
   });
 
-  it("accepts a lot without a lot number or a known value, and one already expired", () => {
+  it("accepts a lot without a known value, and one already expired", () => {
     const unknown = {
       ...report,
-      lots: [{ ...lot, lot_number: null, value_cents: null, expired: true, days_to_expiry: -3 }],
+      lots: [{ ...lot, value_cents: null, expired: true, days_to_expiry: -3 }],
     };
 
     expect(expiringLotsReportSchema.parse(unknown)).toEqual(unknown);
@@ -85,6 +86,10 @@ describe("expiringLotsReportSchema", () => {
     ["a value with decimals", { value_cents: 1.5 }],
     ["a count of days with decimals", { days_to_expiry: 1.5 }],
     ["a lot without the expired flag", { expired: undefined }],
+    ["a lot without a name", { lot_name: undefined }],
+    ["a lot with no name", { lot_name: null }],
+    ["a lot without a code", { lot_code: undefined }],
+    ["a lot with no code", { lot_code: null }],
     ["a sale unit that is not offered", { product: { ...lot.product, sale_unit: "LITRO" } }],
   ])("refuses %s", (_name, change) => {
     expect(

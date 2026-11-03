@@ -41,7 +41,6 @@ describe("purchaseChangesSchema", () => {
               productId: "product-a",
               quantity: 10_000,
               costPaidCents: 500_000,
-              lotNumber: null,
               expiresOn: "2027-01-31",
             },
           ],
@@ -56,6 +55,27 @@ describe("purchaseChangesSchema", () => {
     ];
 
     expect(purchaseChangesSchema.safeParse(changes).data).toEqual(changes);
+  });
+
+  it("accepts an old record of added lines that carries a lot number, without the lot number", () => {
+    const added = {
+      lineId: "line-3",
+      productId: "product-a",
+      quantity: 10_000,
+      costPaidCents: 500_000,
+      expiresOn: null,
+    };
+    const [parsed] =
+      purchaseChangesSchema.parse([
+        {
+          id: "c-2",
+          actor,
+          correctedAt,
+          change: { kind: "lines_added", lines: [{ ...added, lotNumber: "L-9" }] },
+        },
+      ]) ?? [];
+
+    expect(parsed?.change).toEqual({ kind: "lines_added", lines: [added] });
   });
 
   it("accepts an empty history", () => {

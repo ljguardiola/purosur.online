@@ -10,7 +10,6 @@ const packagesLine = {
   packages: 2,
   quantityPerPackage: 12_000,
   costPaidCents: 1_450_050,
-  lotNumber: "L-17",
   expiresOn: "2027-01-31",
 };
 const quantityLine = {
@@ -18,7 +17,6 @@ const quantityLine = {
   productId: PRODUCT_ID,
   quantity: 2_500,
   costPaidCents: 90_000,
-  lotNumber: null,
   expiresOn: null,
 };
 
@@ -33,6 +31,14 @@ describe("purchaseLinesAdditionBodySchema", () => {
     const body = { lines: [packagesLine, quantityLine] };
 
     expect(purchaseLinesAdditionBodySchema.safeParse(body).data).toEqual(body);
+  });
+
+  it("ignores the lot number an older form still sends", () => {
+    const parsed = purchaseLinesAdditionBodySchema.parse({
+      lines: [{ ...quantityLine, lotNumber: "L-17" }],
+    });
+
+    expect(parsed.lines[0]).not.toHaveProperty("lotNumber");
   });
 
   it("rejects no lines", () => {

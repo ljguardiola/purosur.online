@@ -183,7 +183,6 @@ describe("GET /changes carrying stock movements", () => {
             productId,
             quantity: 12_000,
             costPaidCents: 6_000,
-            lotNumber: null,
             expiresOn: null,
           },
         ],

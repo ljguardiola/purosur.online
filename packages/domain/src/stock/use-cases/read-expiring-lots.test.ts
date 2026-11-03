@@ -4,12 +4,15 @@ import {
   FakeZoneRulesSource,
   fixedOffsetZoneRules,
 } from "../../shared/test-support/fake-zone-rules-source.js";
+import type { LotNameFacts } from "../model/lot-name.js";
 import type { ExpiringLotProduct, ExpiringLotRow } from "./expiring-lot-reader.js";
 import { readExpiringLots } from "./read-expiring-lots.js";
 import {
   FakeBranchSettings,
   FakeExpiringLotReader,
+  technicalLotFactsOfRows,
 } from "./test-support/fake-expiring-lot-reader.js";
+import { FakeLotNameReader, purchaseLotFacts } from "./test-support/fake-lot-name-reader.js";
 import { FixedClock } from "./test-support/fake-stock-store.js";
 
 const NOON = new Date("2026-10-13T15:00:00.000Z");
@@ -40,7 +43,7 @@ function lot(
   return {
     id,
     locationId: "location-1",
-    lotNumber: null,
+    code: 1,
     expiresOn: "2026-10-20",
     technical: false,
     remaining: 4_000,
@@ -53,20 +56,22 @@ function lot(
 
 async function read(
   rows: (ExpiringLotRow & { locationId: string })[],
-  options: { windowDays?: number; now?: Date; zoneRules?: ZoneRules } = {},
+  options: { windowDays?: number; now?: Date; zoneRules?: ZoneRules; facts?: LotNameFacts[] } = {},
 ) {
   const expiringLots = new FakeExpiringLotReader(rows);
   const branchSettings = new FakeBranchSettings(options.windowDays ?? 30);
+  const lotNames = new FakeLotNameReader(options.facts ?? technicalLotFactsOfRows(rows));
   const view = await readExpiringLots(
     {
       expiringLots,
+      lotNames,
       branchSettings,
       clock: new FixedClock(options.now ?? NOON),
       zoneRules: new FakeZoneRulesSource(options.zoneRules),
     },
     { locationId: "location-1" },
   );
-  return { view, expiringLots, branchSettings };
+  return { view, expiringLots, branchSettings, lotNames };
 }
 
 describe("readExpiringLots", () => {
@@ -108,12 +113,15 @@ describe("readExpiringLots", () => {
   });
 
   it("lists a lot with its product, its stock and its value", async () => {
-    const { view } = await read([lot("lot-1", { lotNumber: "L-77", remaining: 4_000 })]);
+    const { view } = await read([lot("lot-1", { code: 77, remaining: 4_000 })], {
+      facts: [purchaseLotFacts("lot-1", "product-cheese", 1, "2026-11-03")],
+    });
 
     expect(view.lots).toEqual([
       {
         id: "lot-1",
-        lotNumber: "L-77",
+        name: { origin: "purchase", day: "2026-11-03", number: null },
+        code: 77,
         expiresOn: "2026-10-20",
         remaining: 4_000,
         valueCents: 20_000,
@@ -205,5 +213,28 @@ describe("readExpiringLots", () => {
     ]);
 
     expect(view.lots.map((listed) => listed.id)).toEqual(["ñ", "o", "z"]);
+  });
+
+  it("numbers a lot after the lots of its product and branch that are not expiring too", async () => {
+    const { view } = await read([lot("expiring", { code: 5 })], {
+      facts: [
+        purchaseLotFacts("older", "product-cheese", 1, "2026-11-03"),
+        purchaseLotFacts("expiring", "product-cheese", 2, "2026-11-03"),
+      ],
+    });
+
+    expect(view.lots[0]?.name).toEqual({ origin: "purchase", day: "2026-11-03", number: 2 });
+  });
+
+  it("asks for the facts of the lots of the products it lists", async () => {
+    const { lotNames } = await read([
+      lot("a", { product: CHEESE }),
+      lot("b", { product: BREAD }),
+      lot("c", { product: CHEESE }),
+    ]);
+
+    expect(lotNames.reads).toEqual([
+      { locationId: "location-1", productIds: ["product-cheese", "product-bread"] },
+    ]);
   });
 });

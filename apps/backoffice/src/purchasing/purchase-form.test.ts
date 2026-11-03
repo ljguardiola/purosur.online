@@ -89,7 +89,6 @@ describe("purchaseRegistrationRequestFrom", () => {
             productId: AVENA_PRODUCT_ID,
             quantity: "12,5",
             cost: "25.000,50",
-            lotNumber: " L-1 ",
             expiresOn: new CalendarDate(2027, 1, 31),
           }),
           line({
@@ -116,7 +115,6 @@ describe("purchaseRegistrationRequestFrom", () => {
           productId: AVENA_PRODUCT_ID,
           quantity: 12_500,
           costPaidCents: 2_500_050,
-          lotNumber: "L-1",
           expiresOn: "2027-01-31",
         },
         {
@@ -125,7 +123,6 @@ describe("purchaseRegistrationRequestFrom", () => {
           packages: 2,
           quantityPerPackage: 12_000,
           costPaidCents: 1_440_000,
-          lotNumber: "",
           expiresOn: "",
         },
       ],

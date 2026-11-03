@@ -17,7 +17,6 @@ function packagesLine(overrides: Partial<RegisterPurchaseLine> = {}): RegisterPu
     packages: 1,
     quantityPerPackage: 10_000,
     costPaidCents: 500_000,
-    lotNumber: "L-9",
     expiresOn: "2027-01-31",
     ...overrides,
   } as RegisterPurchaseLine;
@@ -29,7 +28,6 @@ function quantityLine(overrides: Partial<RegisterPurchaseLine> = {}): RegisterPu
     productId: "product-b",
     quantity: 3_000,
     costPaidCents: 120_000,
-    lotNumber: null,
     expiresOn: null,
     ...overrides,
   } as RegisterPurchaseLine;
@@ -60,7 +58,6 @@ describe("addPurchaseLines", () => {
           quantity: 10_000,
           costPaidCents: 500_000,
           quantityPerPackage: 10_000,
-          lotNumber: "L-9",
           expiresOn: "2027-01-31",
         },
         {
@@ -70,7 +67,6 @@ describe("addPurchaseLines", () => {
           quantity: 3_000,
           costPaidCents: 120_000,
           quantityPerPackage: 1_000,
-          lotNumber: null,
           expiresOn: null,
         },
       ],
@@ -105,7 +101,6 @@ describe("addPurchaseLines", () => {
             quantity: 10_000,
             costPaidCents: 500_000,
             quantityPerPackage: 10_000,
-            lotNumber: "L-9",
             expiresOn: "2027-01-31",
           },
         ],
@@ -150,7 +145,6 @@ describe("addPurchaseLines", () => {
               productId: "product-a",
               quantity: 10_000,
               costPaidCents: 500_000,
-              lotNumber: "L-9",
               expiresOn: "2027-01-31",
             },
             {
@@ -158,7 +152,6 @@ describe("addPurchaseLines", () => {
               productId: "product-b",
               quantity: 3_000,
               costPaidCents: 120_000,
-              lotNumber: null,
               expiresOn: null,
             },
           ],

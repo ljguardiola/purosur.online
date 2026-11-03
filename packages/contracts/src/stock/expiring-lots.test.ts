@@ -3,7 +3,7 @@ import { expiredLotDiscardResultSchema, expiringLotListSchema } from "./expiring
 
 const lot = {
   id: "lot-1",
-  lotNumber: "L-77",
+  lotName: "Compra 03/11/2026",
   expiresOn: "2026-10-20",
   remaining: 4_000,
   valueCents: 20_000,
@@ -28,7 +28,14 @@ describe("expiringLotListSchema", () => {
       windowDays: 30,
       lots: [
         lot,
-        { ...lot, id: "lot-2", lotNumber: null, valueCents: null, expired: true, daysToExpiry: -3 },
+        {
+          ...lot,
+          id: "lot-2",
+          lotName: "Técnico 07/10/2026",
+          valueCents: null,
+          expired: true,
+          daysToExpiry: -3,
+        },
       ],
       summary: { valueCents: 20_000, withoutCostCount: 1 },
     };
@@ -50,7 +57,8 @@ describe("expiringLotListSchema", () => {
     ["expiresOn", null],
     ["expired", "yes"],
     ["daysToExpiry", 0.5],
-    ["lotNumber", undefined],
+    ["lotName", undefined],
+    ["lotName", null],
   ])("refuses a lot with %s as %j", (field, value) => {
     expect(
       expiringLotListSchema.safeParse({

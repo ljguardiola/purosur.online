@@ -45,7 +45,6 @@ export interface NewPurchaseLineFields {
   quantity: number;
   costPaidCents: number;
   quantityPerPackage: number;
-  lotNumber: string | null;
   expiresOn: string | null;
 }
 

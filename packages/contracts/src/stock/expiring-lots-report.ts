@@ -15,7 +15,8 @@ const calendarDaySchema = z.string().refine(isCalendarDay);
 
 const expiringLotsReportLotSchema = z.object({
   id: z.string(),
-  lot_number: z.string().nullable(),
+  lot_name: z.string(),
+  lot_code: z.string(),
   expires_on: calendarDaySchema,
   remaining: z.int(),
   value_cents: z.int().nullable(),

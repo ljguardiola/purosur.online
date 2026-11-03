@@ -1,5 +1,6 @@
 import { expiringLotsReportQuerySchema, expiringLotsReportSchema } from "@purosur/contracts";
 import { readExpiringLotsReport } from "@purosur/domain/stock/use-cases";
+import { formatLotCode, formatLotName } from "@purosur/formatting";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { DrizzleBranchSettingsReader } from "../branch/drizzle-branch-settings-reader.js";
@@ -12,6 +13,7 @@ import {
   routeSessionSource,
 } from "../sessions/route-access.js";
 import { DrizzleExpiringLotReader } from "./drizzle-expiring-lot-reader.js";
+import { DrizzleLotNameReader } from "./drizzle-lot-name-reader.js";
 import type { StockRouteOptions } from "./stock-route-options.js";
 
 export function registerExpiringLotsReportRoute<TQueryResult extends PgQueryResultHKT>(
@@ -23,6 +25,7 @@ export function registerExpiringLotsReportRoute<TQueryResult extends PgQueryResu
   const sessionSource = routeSessionSource({ db: options.db, now });
   const expiringLots = new DrizzleExpiringLotReader(options.db);
   const branchSettings = new DrizzleBranchSettingsReader(options.db);
+  const lotNames = new DrizzleLotNameReader(options.db);
 
   app.get(
     "/reports/expiring-lots",
@@ -36,7 +39,7 @@ export function registerExpiringLotsReportRoute<TQueryResult extends PgQueryResu
         return;
       }
       const report = await readExpiringLotsReport(
-        { expiringLots, branchSettings, clock: { now }, zoneRules: options.zoneRules },
+        { expiringLots, lotNames, branchSettings, clock: { now }, zoneRules: options.zoneRules },
         {
           locationId: openSessionOf(request).locationId,
           asked: {
@@ -51,7 +54,8 @@ export function registerExpiringLotsReportRoute<TQueryResult extends PgQueryResu
           window_days: report.windowDays,
           lots: report.lots.map((lot) => ({
             id: lot.id,
-            lot_number: lot.lotNumber,
+            lot_name: formatLotName(lot.name),
+            lot_code: formatLotCode(lot.code),
             expires_on: lot.expiresOn,
             remaining: lot.remaining,
             value_cents: lot.valueCents,

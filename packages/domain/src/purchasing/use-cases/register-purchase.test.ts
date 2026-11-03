@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import { MAX_STOCK_QUANTITY } from "../../stock/index.js";
 import {
@@ -36,7 +36,6 @@ function packagesLine(overrides: Partial<RegisterPurchaseLine> = {}): RegisterPu
     packages: 2,
     quantityPerPackage: 12_000,
     costPaidCents: 1_450_050,
-    lotNumber: null,
     expiresOn: null,
     ...overrides,
   } as RegisterPurchaseLine;
@@ -48,7 +47,6 @@ function quantityLine(overrides: Partial<RegisterPurchaseLine> = {}): RegisterPu
     productId: "product-b",
     quantity: 2_500,
     costPaidCents: 90_000,
-    lotNumber: null,
     expiresOn: null,
     ...overrides,
   } as RegisterPurchaseLine;
@@ -69,6 +67,10 @@ function purchase(overrides: Partial<RegisterPurchaseInput> = {}): RegisterPurch
 }
 
 describe("registerPurchase", () => {
+  it("takes no lot number on a purchase line", () => {
+    expectTypeOf<RegisterPurchaseLine>().not.toExtend<{ lotNumber: string | null }>();
+  });
+
   it("registers a line loaded by packages with its quantity, its exact cost pair and its stock receipt", async () => {
     const store = storeWithCatalog();
 
@@ -96,7 +98,6 @@ describe("registerPurchase", () => {
             quantity: 24_000,
             costPaidCents: 1_450_050,
             quantityPerPackage: 12_000,
-            lotNumber: null,
             expiresOn: null,
           },
         ],
@@ -126,7 +127,6 @@ describe("registerPurchase", () => {
         quantity: 24_000,
         costPaidCents: 1_450_050,
         quantityPerPackage: 12_000,
-        lotNumber: null,
         expiresOn: null,
       },
     ]);
@@ -232,10 +232,7 @@ describe("registerPurchase", () => {
       { zoneRules: new FakeZoneRulesSource(), store, clock: CLOCK },
       purchase({
         purchasedOn: "2026-01-02",
-        lines: [
-          packagesLine({ lotNumber: "L-17", expiresOn: "2027-01-31" }),
-          quantityLine({ lotNumber: null, expiresOn: null }),
-        ],
+        lines: [packagesLine({ expiresOn: "2027-01-31" }), quantityLine({ expiresOn: null })],
       }),
     );
 
@@ -252,7 +249,6 @@ describe("registerPurchase", () => {
             quantity: 24_000,
             costPaidCents: 1_450_050,
             quantityPerPackage: 12_000,
-            lotNumber: "L-17",
             expiresOn: "2027-01-31",
           },
           {
@@ -261,7 +257,6 @@ describe("registerPurchase", () => {
             quantity: 2_500,
             costPaidCents: 90_000,
             quantityPerPackage: 1_000,
-            lotNumber: null,
             expiresOn: null,
           },
         ],

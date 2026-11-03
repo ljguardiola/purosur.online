@@ -98,8 +98,9 @@ describe("GET /expiring-lots", () => {
       productId: cheese.productId,
       locationId,
       actorId: userId,
+      purchasedOn: "2026-11-03",
       expiresOn: "2026-10-10",
-      lotNumber: "L-77",
+      lotNumber: "03/11",
       remaining: 4_000,
     });
     await insertPurchasedLot(db, {
@@ -117,7 +118,7 @@ describe("GET /expiring-lots", () => {
       lots: [
         {
           id: own,
-          lotNumber: "L-77",
+          lotName: "Compra 03/11/2026",
           expiresOn: "2026-10-10",
           remaining: 4_000,
           valueCents: 20_000,

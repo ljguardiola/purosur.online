@@ -1,3 +1,4 @@
+import type { LotNameFacts } from "../../model/lot-name.js";
 import type {
   ExpiringLotReader,
   ExpiringLotRow,
@@ -35,4 +36,17 @@ export class FakeBranchSettings implements ExpiryWarningWindowReader {
     this.reads.push(locationId);
     return { expiringLotAlertDays: this.expiringLotAlertDays };
   }
+}
+
+export function technicalLotFactsOfRows(
+  rows: readonly (ExpiringLotRow & { locationId: string })[],
+): LotNameFacts[] {
+  return rows.map((row, index) => ({
+    lotId: row.id,
+    productId: row.product.id,
+    locationId: row.locationId,
+    nameOrder: index + 1,
+    givenNumber: null,
+    origin: { kind: "technical", openedAt: new Date("2026-10-01T15:00:00.000Z") },
+  }));
 }

@@ -11,7 +11,7 @@ export interface ExpiringLotProduct extends ProductBrandAndNetContent {
 
 export interface ExpiringLotRow {
   id: string;
-  lotNumber: string | null;
+  code: number;
   expiresOn: string | null;
   technical: boolean;
   remaining: number;

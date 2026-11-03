@@ -244,14 +244,6 @@ function PurchaseLineFields({
             />
           </div>
           <div className="min-w-0 flex-1">
-            <TextField
-              kind="plain-text"
-              label="Lote"
-              value={line.lotNumber}
-              onChange={(lotNumber) => onChange({ lotNumber })}
-            />
-          </div>
-          <div className="min-w-0 flex-1">
             <DateField
               name={`lines.${line.id}.expiresOn`}
               label="Vencimiento"

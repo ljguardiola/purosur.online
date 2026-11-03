@@ -30,7 +30,6 @@ export function storeWithRegisteredPurchase(): FakePurchasingStore {
     quantity: 24_000,
     costPaidCents: 1_450_050,
     quantityPerPackage: 12_000,
-    lotNumber: null,
     expiresOn: "2026-11-10",
   });
   store.seedPurchaseLine({
@@ -42,7 +41,6 @@ export function storeWithRegisteredPurchase(): FakePurchasingStore {
     quantity: 2_500,
     costPaidCents: 90_000,
     quantityPerPackage: 1_000,
-    lotNumber: null,
     expiresOn: null,
   });
   return store;

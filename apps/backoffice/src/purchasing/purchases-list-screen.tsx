@@ -173,7 +173,7 @@ const dataColumns = [
   dataColumn({
     id: "lot",
     header: "Lote",
-    render: (row: PurchaseRow) => ofLine(row, (line) => line.lotNumber ?? ""),
+    render: (row: PurchaseRow) => ofLine(row, (line) => line.lotName),
   }),
   dataColumn({
     id: "expiresOn",

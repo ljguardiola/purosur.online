@@ -6,7 +6,6 @@ import { summarySheet } from "../shell/report-summary-sheet";
 import { stockQuantityCells } from "./stock-quantity-cells";
 
 type Product = CurrentStockReportBody["products"][number];
-type Lot = Product["lots"][number];
 
 function productName(product: Product): string {
   return formatProductDescription({
@@ -18,13 +17,6 @@ function productName(product: Product): string {
 
 function orEmptyMoney(cents: number | null): Cell {
   return cents === null ? cell.empty() : cell.money(cents);
-}
-
-function lotNumberCell(lot: Lot): Cell {
-  if (lot.technical) {
-    return cell.text("Técnico");
-  }
-  return lot.lot_number === null ? cell.empty() : cell.text(lot.lot_number);
 }
 
 function positiveValueTotal(products: readonly Product[]): number {
@@ -79,6 +71,7 @@ export function currentStockReportSpreadsheet(
           "Producto",
           "Categoría",
           "Lote",
+          "Código",
           "Vencimiento",
           "Saldo (u)",
           "Saldo (kg)",
@@ -89,7 +82,8 @@ export function currentStockReportSpreadsheet(
           product.lots.map((lot): Cell[] => [
             cell.text(productName(product)),
             cell.text(product.category_name),
-            lotNumberCell(lot),
+            cell.text(lot.lot_name),
+            cell.text(lot.lot_code),
             lot.expires_on === null ? cell.empty() : cell.day(lot.expires_on),
             ...stockQuantityCells(lot.remaining, product.sale_unit),
             orEmptyMoney(lot.unit_cost_cents),

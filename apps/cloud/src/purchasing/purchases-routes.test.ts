@@ -79,7 +79,6 @@ function quantityLine(productId: string, quantity = 3_000) {
     productId,
     quantity,
     costPaidCents: 900,
-    lotNumber: null,
     expiresOn: null,
   };
 }
@@ -189,7 +188,6 @@ describe("POST /purchases", () => {
             packages: 2,
             quantityPerPackage: 12_000,
             costPaidCents: 24_000,
-            lotNumber: "L-77",
             expiresOn: "2027-03-01",
           },
         ],
@@ -222,7 +220,7 @@ describe("POST /purchases", () => {
           costPaidCents: 24_000,
           quantityPerPackage: 12_000,
           unitCostCents: 2_000,
-          lotNumber: "L-77",
+          lotName: "Compra 04/10/2026",
           expiresOn: "2027-03-01",
         },
       ],
@@ -237,6 +235,30 @@ describe("POST /purchases", () => {
     });
     const [balance] = await db.select().from(stockBalances);
     expect(balance).toMatchObject({ productId, locationId, quantity: 24_000 });
+  });
+
+  it("names the lots of two purchases of one product on the same day in the order they were registered, as the purchase list shows them", async () => {
+    const { headers, userId } = await buyer();
+    const supplierId = await storedSupplier(userId);
+    const { productId } = await insertProduct(db, { name: "Yerba" });
+    const register = () =>
+      app.inject({
+        method: "POST",
+        url: "/purchases",
+        headers,
+        payload: bodyWith(supplierId, [quantityLine(productId)]),
+      });
+
+    const first = await register();
+    now = new Date("2026-10-05T15:01:00.000Z");
+    const second = await register();
+    const listed = await app.inject({ method: "GET", url: "/purchases", headers });
+
+    expect(first.json().lines[0].lotName).toBe("Compra 04/10/2026");
+    expect(second.json().lines[0].lotName).toBe("Compra 04/10/2026 · 2");
+    expect(
+      listed.json().map((purchase: { lines: { lotName: string }[] }) => purchase.lines[0]?.lotName),
+    ).toEqual(["Compra 04/10/2026 · 2", "Compra 04/10/2026 · 1"]);
   });
 
   it("puts the purchased product's price back under review although it was reviewed today", async () => {

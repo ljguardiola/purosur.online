@@ -36,6 +36,7 @@ test("has a sheet named after the table with each lot, quantities split by unit 
     "Producto",
     "Categoría",
     "Lote",
+    "Código",
     "Vence",
     "Días",
     "Cantidad (u)",
@@ -46,7 +47,8 @@ test("has a sheet named after the table with each lot, quantities split by unit 
     [
       cell.text("Queso cremoso"),
       cell.text("Lácteos"),
-      cell.text("L-2312"),
+      cell.text("Compra 01/09/2026"),
+      cell.text("L-000101"),
       cell.day("2026-10-16"),
       cell.count(3),
       cell.empty(),
@@ -56,7 +58,8 @@ test("has a sheet named after the table with each lot, quantities split by unit 
     [
       cell.text("Pan lactal"),
       cell.text("Panificados"),
-      cell.empty(),
+      cell.text("Inventario inicial 01/10/2026"),
+      cell.text("L-000102"),
       cell.day("2026-10-30"),
       cell.count(17),
       cell.count(12),
@@ -66,7 +69,8 @@ test("has a sheet named after the table with each lot, quantities split by unit 
     [
       cell.text("Yogur natural"),
       cell.text("Lácteos"),
-      cell.text("L-0901"),
+      cell.text("Compra 08/10/2026"),
+      cell.text("L-000103"),
       cell.day("2026-10-10"),
       cell.count(-3),
       cell.count(6),
@@ -76,7 +80,8 @@ test("has a sheet named after the table with each lot, quantities split by unit 
     [
       cell.text("Aceite de Almendras Vitora 30 ml"),
       cell.text("Almacén"),
-      cell.text("L-4001"),
+      cell.text("Compra 09/10/2026"),
+      cell.text("L-000104"),
       cell.day("2026-10-20"),
       cell.count(7),
       cell.count(6),

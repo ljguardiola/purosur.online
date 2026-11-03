@@ -133,6 +133,28 @@ export function formatOperationNumber(number: number): string {
   return String(number).padStart(6, "0");
 }
 
+const LOT_ORIGIN_WORDS = {
+  purchase: "Compra",
+  initial_count: "Inventario inicial",
+  assembly_batch: "Tanda",
+  technical: "Técnico",
+} as const;
+
+export interface LotNameParts {
+  origin: keyof typeof LOT_ORIGIN_WORDS;
+  day: string;
+  number: number | null;
+}
+
+export function formatLotName({ origin, day, number }: LotNameParts): string {
+  const name = `${LOT_ORIGIN_WORDS[origin]} ${formatCalendarDayNumeric(day)}`;
+  return number === null ? name : `${name} · ${number}`;
+}
+
+export function formatLotCode(code: number): string {
+  return `L-${String(code).padStart(6, "0")}`;
+}
+
 const SHORT_CODE_BLOCK_LENGTH = 4;
 
 export function formatShortCode(code: string): string {

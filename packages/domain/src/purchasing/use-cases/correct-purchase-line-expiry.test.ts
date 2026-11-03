@@ -150,7 +150,6 @@ describe("correctPurchaseLineExpiry", () => {
       quantity: 1_000,
       costPaidCents: 1,
       quantityPerPackage: 1_000,
-      lotNumber: null,
       expiresOn: null,
     });
     const before = store.snapshot();

@@ -102,16 +102,9 @@ const columns = [
   }),
   dataColumn({
     id: "lot",
-    width: 140,
+    width: 220,
     header: "Lote",
-    render: (lot: Lot) =>
-      lot.lot_number === null ? (
-        <TableCellText tone="subtle">—</TableCellText>
-      ) : (
-        <TableCellText strong monospace>
-          {lot.lot_number}
-        </TableCellText>
-      ),
+    render: (lot: Lot) => <TableCellText strong>{lot.lot_name}</TableCellText>,
   }),
   dataColumn({
     id: "expiresOn",

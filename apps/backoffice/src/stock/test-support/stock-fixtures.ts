@@ -13,9 +13,8 @@ type StockLot = StockBalance["lots"][number];
 
 const almondsFirstLot: StockLot = {
   id: "lot-1",
-  lotNumber: "L-2312",
+  lotName: "Compra 05/08/2026",
   expiresOn: "2026-10-14",
-  technical: false,
   remaining: 4_300,
   valueCents: 4_377_400,
   unitCostCents: 1_018_000,
@@ -24,9 +23,8 @@ const almondsFirstLot: StockLot = {
 
 const almondsSecondLot: StockLot = {
   id: "lot-2",
-  lotNumber: "L-2409",
+  lotName: "Compra 12/09/2026",
   expiresOn: "2027-02-28",
-  technical: false,
   remaining: 7_850,
   valueCents: 8_022_700,
   unitCostCents: 1_022_000,
@@ -52,9 +50,8 @@ export const almonds: StockBalance = {
 
 const honeyLot: StockLot = {
   id: "lot-3",
-  lotNumber: null,
+  lotName: "Compra 20/09/2026",
   expiresOn: null,
-  technical: false,
   remaining: 24_000,
   valueCents: 13_056_000,
   unitCostCents: 544_000,
@@ -80,9 +77,8 @@ export const honey: StockBalance = {
 
 const crackersTechnicalLot: StockLot = {
   id: "lot-4",
-  lotNumber: null,
+  lotName: "Técnico 07/10/2026",
   expiresOn: null,
-  technical: true,
   remaining: -4000,
   valueCents: null,
   unitCostCents: null,
@@ -125,9 +121,8 @@ export const tea: StockBalance = {
 
 const oatsLot: StockLot = {
   id: "lot-5",
-  lotNumber: "L-1807",
+  lotName: "Compra 01/07/2026",
   expiresOn: "2027-01-10",
-  technical: false,
   remaining: 3000,
   valueCents: 270_000,
   unitCostCents: 90_000,
@@ -168,9 +163,8 @@ export const yerba: StockBalance = {
   lots: [
     {
       id: "lot-6",
-      lotNumber: "L-3001",
+      lotName: "Compra 20/08/2026",
       expiresOn: "2027-03-01",
-      technical: false,
       remaining: 2000,
       valueCents: 610_000,
       unitCostCents: 305_000,
@@ -178,9 +172,8 @@ export const yerba: StockBalance = {
     },
     {
       id: "lot-7",
-      lotNumber: "L-3002",
+      lotName: "Compra 02/09/2026",
       expiresOn: "2027-04-01",
-      technical: false,
       remaining: -5000,
       valueCents: -1_525_000,
       unitCostCents: 305_000,
@@ -256,8 +249,13 @@ export const ALMONDS_FIRST_LOT_ID = "00000000-0000-4000-8000-0000000000a1";
 export const ALMONDS_SECOND_LOT_ID = "00000000-0000-4000-8000-0000000000a2";
 
 export const almondsExpectedByLot = expectedBalance(almonds, 12_400, [
-  { id: ALMONDS_FIRST_LOT_ID, lotNumber: "L-2312", expiresOn: "2026-10-14", expected: 4_400 },
-  { id: ALMONDS_SECOND_LOT_ID, lotNumber: null, expiresOn: null, expected: 8_000 },
+  {
+    id: ALMONDS_FIRST_LOT_ID,
+    lotName: "Compra 05/08/2026",
+    expiresOn: "2026-10-14",
+    expected: 4_400,
+  },
+  { id: ALMONDS_SECOND_LOT_ID, lotName: "Compra 12/09/2026", expiresOn: null, expected: 8_000 },
 ]);
 
 export const honeyLoss: StockMovement = {
@@ -436,9 +434,8 @@ export const almondOil: StockBalance = {
   lots: [
     {
       id: "lot-8",
-      lotNumber: "L-4001",
+      lotName: "Compra 01/09/2026",
       expiresOn: "2027-05-01",
-      technical: false,
       remaining: 6_000,
       valueCents: 900_000,
       unitCostCents: 150_000,
