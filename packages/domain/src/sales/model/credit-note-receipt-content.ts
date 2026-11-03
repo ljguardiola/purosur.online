@@ -6,7 +6,7 @@ export interface CreditNoteReceiptContent {
   operation: ReceiptContent["operation"];
   issuedOn: string;
   lines: ReceiptContent["lines"];
-  totals: Pick<ReceiptContent["totals"], "subtotal" | "saleDiscount" | "total">;
+  totals: Pick<ReceiptContent["totals"], "subtotal" | "saleDiscount" | "cashRounding" | "total">;
   refunds: { method: ReceiptContent["totals"]["payments"][number]["method"]; amount: number }[];
   fiscal: CreditNoteCFiscalBlock | OfflineCreditNoteCFiscalBlock;
 }
