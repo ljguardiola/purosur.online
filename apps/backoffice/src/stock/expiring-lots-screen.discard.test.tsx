@@ -85,7 +85,7 @@ test("discards the lot in one click, reads the list again and confirms what was 
     .not.toBeInTheDocument();
 });
 
-test("names a discarded lot without a number by its product", async () => {
+test("names a discarded lot by its name and its product", async () => {
   const services = servicesListing(expiringLotList(EVERY_LOT));
   vi.mocked(services.discardExpiredLot).mockResolvedValue({
     kind: "ok",
@@ -100,7 +100,11 @@ test("names a discarded lot without a number by its product", async () => {
   );
 
   await expect
-    .element(screen.getByText("Avena arrollada: 2,500 kg como merma por vencimiento."))
+    .element(
+      screen.getByText(
+        "Técnico 07/10/2026 de Avena arrollada: 2,500 kg como merma por vencimiento.",
+      ),
+    )
     .toBeVisible();
 });
 
@@ -206,7 +210,7 @@ test("ends the session when the cloud says it is over while discarding", async (
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("names the lot to discard and the lot discarded by its product's brand and net content", async () => {
+test("names the lot to discard and the lot discarded by its name and its product's brand and net content", async () => {
   const services = servicesListing(expiringLotList([almondOilExpiredLot]), expiringLotList([]));
   vi.mocked(services.discardExpiredLot).mockResolvedValue({
     kind: "ok",
@@ -221,7 +225,11 @@ test("names the lot to discard and the lot discarded by its product's brand and 
   );
 
   await expect
-    .element(screen.getByText("Aceite de Almendras Vitora 30 ml: 1 u como merma por vencimiento."))
+    .element(
+      screen.getByText(
+        "Técnico 07/10/2026 de Aceite de Almendras Vitora 30 ml: 1 u como merma por vencimiento.",
+      ),
+    )
     .toBeVisible();
 });
 

@@ -322,9 +322,11 @@ test("downloads a spreadsheet of the lots shown for the period the report answer
   expect(summary.get("B7")?.value).toBe("1");
   const lots = file.sheet(1);
   expect(lots.get("A2")?.value).toBe("Queso cremoso");
-  expect(lots.get("G2")?.value).toBe("4.3");
+  expect(lots.get("C2")?.value).toBe("Compra 01/09/2026");
+  expect(lots.get("D2")?.value).toBe("L-000101");
+  expect(lots.get("H2")?.value).toBe("4.3");
   expect(lots.get("A3")?.value).toBe("Pan lactal");
-  expect(lots.get("F3")?.value).toBe("12");
+  expect(lots.get("G3")?.value).toBe("12");
   expect(lots.get("A4")).toBeUndefined();
 });
 
