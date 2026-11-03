@@ -205,7 +205,7 @@ test.each([
 
   const dialog = await save(screen);
 
-  await expect.element(purchaseLine(dialog, 1).getByText(message)).toBeVisible();
+  await expect.element(purchaseLine(dialog, 1).getByText(message).first()).toBeVisible();
 });
 
 test("shows a quantity the cloud refused on the line it named, as when registering", async () => {
@@ -217,7 +217,11 @@ test("shows a quantity the cloud refused on the line it named, as when registeri
   const dialog = await save(screen);
 
   await expect
-    .element(purchaseLine(dialog, 1).getByText(/Escribí los kilos con hasta 3 decimales/))
+    .element(
+      purchaseLine(dialog, 1)
+        .getByText(/Escribí los kilos con hasta 3 decimales/)
+        .first(),
+    )
     .toBeVisible();
 });
 

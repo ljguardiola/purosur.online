@@ -109,7 +109,9 @@ test("shows the loading placeholder while the changes load", async () => {
   };
   const screen = await renderModal({ services });
 
-  await expect.element(screen.getByRole("dialog").getByRole("status")).toBeVisible();
+  await expect
+    .element(screen.getByRole("dialog").getByRole("table", { name: "Cambios" }))
+    .toHaveAttribute("aria-busy", "true");
   expect(screen.getByRole("dialog").getByText("Sin cambios").query()).toBeNull();
 
   changes.resolve({ kind: "ok", value: [headerCorrection] });
@@ -229,7 +231,7 @@ test("opens nothing without a purchase", async () => {
 });
 
 test("has no accessibility violations", async () => {
-  const screen = await renderModal();
+  const screen = await renderModal({ services: createServices([lineExpiryCorrection]) });
   await expect.element(screen.getByRole("dialog").getByText("Marta Quiroga").first()).toBeVisible();
 
   await expectNoAccessibilityViolations(screen.getByRole("dialog").element());

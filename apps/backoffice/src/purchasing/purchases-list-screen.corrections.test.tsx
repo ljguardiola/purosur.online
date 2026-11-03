@@ -33,28 +33,24 @@ function names(screen: Screen, label: RegExp): string[] {
 test("offers, to who may record purchases, each purchase's actions and each line's expiry correction", async () => {
   const screen = await loaded(createServices());
 
-  expect(names(screen, /^Ver los cambios/)).toEqual([
-    SEE_CHANGES,
-    "Ver los cambios de la compra de Granos del Valle",
-  ]);
-  expect(names(screen, /^Agregar productos/)).toEqual([
-    ADD_LINES,
-    "Agregar productos a la compra de Granos del Valle",
-  ]);
-  expect(names(screen, /^Corregir los datos/)).toEqual([
-    CORRECT_HEADER,
-    "Corregir los datos de la compra de Granos del Valle",
-  ]);
-  expect(names(screen, /^Corregir el vencimiento/)).toEqual([
-    CORRECT_EXPIRY,
-    "Corregir el vencimiento de Avena arrollada",
-  ]);
+  await expect
+    .poll(() => names(screen, /^Ver los cambios/))
+    .toEqual([SEE_CHANGES, "Ver los cambios de la compra de Granos del Valle"]);
+  await expect
+    .poll(() => names(screen, /^Agregar productos/))
+    .toEqual([ADD_LINES, "Agregar productos a la compra de Granos del Valle"]);
+  await expect
+    .poll(() => names(screen, /^Corregir los datos/))
+    .toEqual([CORRECT_HEADER, "Corregir los datos de la compra de Granos del Valle"]);
+  await expect
+    .poll(() => names(screen, /^Corregir el vencimiento/))
+    .toEqual([CORRECT_EXPIRY, "Corregir el vencimiento de Avena arrollada"]);
 });
 
 test("offers only the changes of a purchase to who may not record purchases", async () => {
   const screen = await loaded(createServices(), { access: accessWith("stock_area") });
 
-  expect(names(screen, /^Ver los cambios/)).toHaveLength(2);
+  await expect.poll(() => names(screen, /^Ver los cambios/)).toHaveLength(2);
   expect(names(screen, /^(Agregar|Corregir)/)).toEqual([]);
 });
 
