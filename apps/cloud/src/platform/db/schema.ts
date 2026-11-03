@@ -2177,15 +2177,19 @@ export const signInLookupAttempts = pgTable(
 // Append-only: a record of who changed what is evidence, so not even the service may rewrite or
 // remove it. `actor_id` is nullable: a null actor reads as "the service itself acted" (e.g. a sign-in
 // lockout, which is keyed by source address and may match no account at all).
-export const auditLog = pgTable("audit_log", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  entity: text("entity").notNull(),
-  entityId: uuid("entity_id").notNull(),
-  actorId: uuid("actor_id").references(() => users.id),
-  at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
-  previousValue: jsonb("previous_value"),
-  newValue: jsonb("new_value"),
-});
+export const auditLog = pgTable(
+  "audit_log",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    entity: text("entity").notNull(),
+    entityId: uuid("entity_id").notNull(),
+    actorId: uuid("actor_id").references(() => users.id),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+    previousValue: jsonb("previous_value"),
+    newValue: jsonb("new_value"),
+  },
+  (table) => [index("audit_log_entity_entity_id_idx").on(table.entity, table.entityId)],
+);
 
 export const passkeys = pgTable(
   "passkeys",

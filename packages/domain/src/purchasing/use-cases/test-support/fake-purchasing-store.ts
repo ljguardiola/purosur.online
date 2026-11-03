@@ -2,6 +2,16 @@ import type { SaleUnit } from "../../../catalog/index.js";
 import type { PriceReviewPostponement } from "../../../pricing/index.js";
 import type { PurchaseReceipt } from "../../../stock/index.js";
 import type {
+  LockedPurchaseLine,
+  LockPurchaseResult,
+  LotExpiryCorrection,
+  PurchaseCorrection,
+  PurchaseCorrectionStore,
+  PurchaseCorrectionStoreTransaction,
+  PurchasedLotsRedating,
+  PurchaseHeaderValues,
+} from "../purchase-correction-store.js";
+import type {
   LockProductResult,
   LockSupplierResult,
   NewPurchaseFields,
@@ -37,7 +47,12 @@ export type FakePurchasingWrite =
   | "insertPurchase"
   | "insertPurchaseLine"
   | "postponePriceReviews"
-  | "receiveStock";
+  | "receiveStock"
+  | "updatePurchaseHeader"
+  | "updatePurchaseLineExpiry"
+  | "correctLotExpiry"
+  | "redatePurchasedLots"
+  | "recordPurchaseCorrection";
 
 export interface FakePurchasingState {
   suppliers: FakeSupplierRow[];
@@ -46,6 +61,9 @@ export interface FakePurchasingState {
   purchaseLines: FakePurchaseLineRow[];
   receipts: PurchaseReceipt[];
   priceReviewPostponements: PriceReviewPostponement[];
+  lotExpiryCorrections: LotExpiryCorrection[];
+  lotRedatings: PurchasedLotsRedating[];
+  corrections: PurchaseCorrection[];
   nextId: number;
 }
 
@@ -65,6 +83,16 @@ function cloneState(state: FakePurchasingState): FakePurchasingState {
       postponedAt: new Date(postponement.postponedAt),
       productIds: [...postponement.productIds],
     })),
+    lotExpiryCorrections: state.lotExpiryCorrections.map((row) => ({ ...row })),
+    lotRedatings: state.lotRedatings.map((row) => ({
+      ...row,
+      purchaseLineIds: [...row.purchaseLineIds],
+    })),
+    corrections: state.corrections.map((row) => ({
+      ...row,
+      correctedAt: new Date(row.correctedAt),
+      change: structuredClone(row.change),
+    })),
     nextId: state.nextId,
   };
 }
@@ -73,7 +101,9 @@ function sameText(left: string, right: string): boolean {
   return left.toLowerCase() === right.toLowerCase();
 }
 
-class FakePurchasingStoreTransaction implements PurchasingStoreTransaction {
+class FakePurchasingStoreTransaction
+  implements PurchasingStoreTransaction, PurchaseCorrectionStoreTransaction
+{
   private readonly state: FakePurchasingState;
   private readonly store: FakePurchasingStore;
 
@@ -168,6 +198,87 @@ class FakePurchasingStoreTransaction implements PurchasingStoreTransaction {
     this.state.receipts.push({ ...receipt, lines: receipt.lines.map((line) => ({ ...line })) });
   }
 
+  async lockPurchase(locationId: string, purchaseId: string): Promise<LockPurchaseResult> {
+    this.store.lockCallOrder.push("lockPurchase");
+    this.store.lockLog.push(`purchase:${purchaseId}`);
+    const row = this.state.purchases.find(
+      (purchase) => purchase.id === purchaseId && purchase.locationId === locationId,
+    );
+    if (!row) {
+      return { kind: "not_found" };
+    }
+    const positions = this.state.purchaseLines
+      .filter((line) => line.purchaseId === purchaseId)
+      .map((line) => line.position);
+    return {
+      kind: "locked",
+      purchase: {
+        id: row.id,
+        purchasedOn: row.purchasedOn,
+        receiptType: row.receiptType,
+        receiptNumber: row.receiptNumber,
+        note: row.note,
+        lastLinePosition: Math.max(0, ...positions),
+      },
+    };
+  }
+
+  async purchaseLine(purchaseId: string, lineId: string): Promise<LockedPurchaseLine | undefined> {
+    const row = this.state.purchaseLines.find(
+      (line) => line.id === lineId && line.purchaseId === purchaseId,
+    );
+    return row && { id: row.id, expiresOn: row.expiresOn };
+  }
+
+  async purchaseLineIds(purchaseId: string): Promise<string[]> {
+    return this.state.purchaseLines
+      .filter((line) => line.purchaseId === purchaseId)
+      .sort((a, b) => a.position - b.position)
+      .map((line) => line.id);
+  }
+
+  async updatePurchaseHeader(purchaseId: string, values: PurchaseHeaderValues): Promise<void> {
+    this.beforeWrite("updatePurchaseHeader");
+    for (const row of this.state.purchases) {
+      if (row.id === purchaseId) {
+        Object.assign(row, values);
+      }
+    }
+  }
+
+  async updatePurchaseLineExpiry(lineId: string, expiresOn: string | null): Promise<void> {
+    this.beforeWrite("updatePurchaseLineExpiry");
+    for (const row of this.state.purchaseLines) {
+      if (row.id === lineId) {
+        row.expiresOn = expiresOn;
+      }
+    }
+  }
+
+  async correctLotExpiry(correction: LotExpiryCorrection): Promise<void> {
+    this.beforeWrite("correctLotExpiry");
+    this.store.lockLog.push("lot expiry");
+    this.state.lotExpiryCorrections.push({ ...correction });
+  }
+
+  async redatePurchasedLots(redating: PurchasedLotsRedating): Promise<void> {
+    this.beforeWrite("redatePurchasedLots");
+    this.store.lockLog.push("lot redating");
+    this.state.lotRedatings.push({
+      ...redating,
+      purchaseLineIds: [...redating.purchaseLineIds],
+    });
+  }
+
+  async recordPurchaseCorrection(correction: PurchaseCorrection): Promise<void> {
+    this.beforeWrite("recordPurchaseCorrection");
+    this.state.corrections.push({
+      ...correction,
+      correctedAt: new Date(correction.correctedAt),
+      change: structuredClone(correction.change),
+    });
+  }
+
   private beforeWrite(operation: FakePurchasingWrite): void {
     if (this.store.writeFailsAtCall(operation)) {
       throw new Error(`${operation} failed`);
@@ -194,7 +305,7 @@ class FakePurchasingStoreTransaction implements PurchasingStoreTransaction {
   }
 }
 
-export class FakePurchasingStore implements PurchasingStore {
+export class FakePurchasingStore implements PurchasingStore, PurchaseCorrectionStore {
   private state: FakePurchasingState = {
     suppliers: [],
     products: [],
@@ -202,6 +313,9 @@ export class FakePurchasingStore implements PurchasingStore {
     purchaseLines: [],
     receipts: [],
     priceReviewPostponements: [],
+    lotExpiryCorrections: [],
+    lotRedatings: [],
+    corrections: [],
     nextId: 1,
   };
 
@@ -219,6 +333,14 @@ export class FakePurchasingStore implements PurchasingStore {
 
   seedSupplier(supplier: Supplier): void {
     this.state.suppliers.push({ ...supplier, writtenBy: null });
+  }
+
+  seedPurchase(purchase: NewPurchaseFields & { id: string }): void {
+    this.state.purchases.push({ ...purchase });
+  }
+
+  seedPurchaseLine(line: NewPurchaseLineFields & { id: string }): void {
+    this.state.purchaseLines.push({ ...line });
   }
 
   seedProduct(product: FakeProductRow): void {
@@ -240,7 +362,9 @@ export class FakePurchasingStore implements PurchasingStore {
   }
 
   async transaction<TOutcome>(
-    work: (tx: PurchasingStoreTransaction) => Promise<TOutcome>,
+    work: (
+      tx: PurchasingStoreTransaction & PurchaseCorrectionStoreTransaction,
+    ) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     this.transactionCount += 1;
     const before = cloneState(this.state);

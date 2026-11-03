@@ -47,26 +47,39 @@ const quantityLineSchema = z.object({
     .meta({ decimals: STOCK_QUANTITY_DECIMALS, perUnit: STOCK_QUANTITY_PER_UNIT }),
 });
 
+export const purchaseLineBodySchema = z.discriminatedUnion("loadedBy", [
+  packagesLineSchema,
+  quantityLineSchema,
+]);
+
+export const purchaseHeaderFields = {
+  purchasedOn: z.string({ error: `purchasedOn ${CALENDAR_DAY_MESSAGE}` }).refine(isCalendarDay),
+  receiptType: z.enum(RECEIPT_TYPES, {
+    error: `receiptType must be one of ${RECEIPT_TYPES.join(", ")}`,
+  }),
+  receiptNumber: optionalLimitedTextSchema(
+    "receiptNumber",
+    RECEIPT_NUMBER_MAX_LENGTH,
+    isReceiptNumberTooLong,
+  ),
+  note: optionalLimitedTextSchema("note", PURCHASE_NOTE_MAX_LENGTH, isPurchaseNoteTooLong),
+};
+
+export function receiptNumberMatchesType(body: {
+  receiptType: (typeof RECEIPT_TYPES)[number];
+  receiptNumber: string | null;
+}): boolean {
+  return hasValidReceiptNumber(body.receiptType, body.receiptNumber);
+}
+
+export const receiptNumberIssue = { path: ["receiptNumber"], error: RECEIPT_NUMBER_MESSAGE };
+
 export const purchaseRegistrationBodySchema = z
   .object({
     supplierId: recordIdSchema("supplierId must be a supplier's id"),
-    purchasedOn: z.string({ error: `purchasedOn ${CALENDAR_DAY_MESSAGE}` }).refine(isCalendarDay),
-    receiptType: z.enum(RECEIPT_TYPES, {
-      error: `receiptType must be one of ${RECEIPT_TYPES.join(", ")}`,
-    }),
-    receiptNumber: optionalLimitedTextSchema(
-      "receiptNumber",
-      RECEIPT_NUMBER_MAX_LENGTH,
-      isReceiptNumberTooLong,
-    ),
-    note: optionalLimitedTextSchema("note", PURCHASE_NOTE_MAX_LENGTH, isPurchaseNoteTooLong),
-    lines: z
-      .array(z.discriminatedUnion("loadedBy", [packagesLineSchema, quantityLineSchema]))
-      .min(MIN_PURCHASE_LINES),
+    ...purchaseHeaderFields,
+    lines: z.array(purchaseLineBodySchema).min(MIN_PURCHASE_LINES),
   })
-  .refine((body) => hasValidReceiptNumber(body.receiptType, body.receiptNumber), {
-    path: ["receiptNumber"],
-    error: RECEIPT_NUMBER_MESSAGE,
-  });
+  .refine(receiptNumberMatchesType, receiptNumberIssue);
 
 export type PurchaseRegistrationBody = z.input<typeof purchaseRegistrationBodySchema>;

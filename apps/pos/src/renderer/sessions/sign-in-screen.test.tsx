@@ -19,6 +19,32 @@ const SIGNED_IN: SignInOutcome = {
 
 type Screen = Awaited<ReturnType<typeof render>>;
 
+function renderWithVersion(version: string | null) {
+  return render(
+    <SignInScreen
+      loadUsers={async () => USERS}
+      signIn={async () => SIGNED_IN}
+      registerName={null}
+      version={version}
+    />,
+  );
+}
+
+describe("SignInScreen version", () => {
+  it("reads the version of the running register before any PIN", async () => {
+    const screen = await renderWithVersion("1.0.1539");
+
+    await expect.element(screen.getByText("Versión 1.0.1539")).toBeVisible();
+  });
+
+  it("shows no version when the register has none", async () => {
+    const screen = await renderWithVersion(null);
+
+    await expect.element(screen.getByText("¿Quién abre la caja?")).toBeVisible();
+    await expect.element(screen.getByText(/Versión/)).not.toBeInTheDocument();
+  });
+});
+
 function answering(outcome: SignInOutcome | Error) {
   const attempts: { userId: string; pin: string }[] = [];
   const signIn = async (userId: string, pin: string) => {
@@ -44,7 +70,14 @@ function pending() {
 }
 
 async function renderScreen(signIn = answering(SIGNED_IN).signIn, users = USERS) {
-  return render(<SignInScreen loadUsers={async () => users} signIn={signIn} registerName={null} />);
+  return render(
+    <SignInScreen
+      loadUsers={async () => users}
+      signIn={signIn}
+      registerName={null}
+      version={null}
+    />,
+  );
 }
 
 async function choose(screen: Screen, firstName: string) {
@@ -68,6 +101,7 @@ describe("SignInScreen", () => {
         loadUsers={loadUsers}
         signIn={answering(SIGNED_IN).signIn}
         registerName={null}
+        version={null}
       />,
     );
     await choose(screen, "Ada");
@@ -322,6 +356,7 @@ describe("SignInScreen", () => {
         loadUsers={() => new Promise<SignInUser[]>(() => {})}
         signIn={answering(SIGNED_IN).signIn}
         registerName={null}
+        version={null}
       />,
     );
 
@@ -357,6 +392,7 @@ describe("SignInScreen", () => {
         loadUsers={loadUsers}
         signIn={answering(SIGNED_IN).signIn}
         registerName={null}
+        version={null}
       />,
     );
     await expect.element(screen.getByText("No se pudieron cargar los usuarios")).toBeVisible();
@@ -384,6 +420,7 @@ describe("SignInScreen", () => {
         loadUsers={loadUsers}
         signIn={answering(SIGNED_IN).signIn}
         registerName={null}
+        version={null}
       />,
     );
 
@@ -420,6 +457,7 @@ describe("SignInScreen", () => {
         loadUsers={loadUsers}
         signIn={answering(SIGNED_IN).signIn}
         registerName={null}
+        version={null}
       />,
     );
 
