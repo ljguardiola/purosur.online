@@ -105,6 +105,7 @@ const COMPLETED: ChargeSaleInCashOutcome = {
   total: 476_000,
   tendered: 500_000,
   change: 24_000,
+  cash_rounding: 0,
 };
 
 const TRANSFER_COMPLETED: ChargeSaleByTransferOutcome = {
@@ -127,7 +128,12 @@ export const SALE_WITH_PART_PAID: OpenSale = {
   cancel_refusal: null,
 };
 
-const COVERED: CashChargeAnswer = { kind: "covered", applied: 476_000, change: 24_000 };
+const COVERED: CashChargeAnswer = {
+  kind: "covered",
+  applied: 476_000,
+  change: 24_000,
+  cash_rounding: 0,
+};
 
 export const QR_PAYMENT_ID = "019a0000-0000-7000-8000-0000000000a1";
 export const QR_ORDER_SHOWN: StartMercadoPagoChargeOutcome = {

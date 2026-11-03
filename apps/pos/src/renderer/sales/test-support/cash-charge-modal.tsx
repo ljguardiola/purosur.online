@@ -26,6 +26,7 @@ const COMPLETED: ChargeSaleInCashOutcome = {
   total: 950_000,
   tendered: 1_000_000,
   change: 50_000,
+  cash_rounding: 0,
 };
 
 const SALE_OF_9600 = { total: 960_000, paid: 0, pending: 960_000, subtotal: 960_000 };
@@ -44,7 +45,7 @@ function previewOf(discount: number): PreviewSaleDiscountOutcome {
 async function answerLikeTheCore(tendered: number, discount?: number): Promise<CashChargeAnswer> {
   const owed = 960_000 - (discount ?? 0);
   return tendered >= owed
-    ? { kind: "covered", applied: owed, change: tendered - owed }
+    ? { kind: "covered", applied: owed, change: tendered - owed, cash_rounding: 0 }
     : { kind: "partial", applied: tendered, pending: owed - tendered };
 }
 
