@@ -1,15 +1,20 @@
 import type { CalendarDate } from "@internationalized/date";
 import {
   type PurchaseChoices,
+  type PurchaseOrderReceiptDraft,
   type PurchaseRegistrationBody,
   purchaseRegistrationBodySchema,
   type SupplierSummary,
 } from "@purosur/contracts";
 import type { ReceiptType } from "@purosur/domain";
-import { parseAmountCents, sortedItems, textOrder } from "@purosur/ui";
+import { formatAmountInput, parseAmountCents, sortedItems, textOrder } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { schemaLimit } from "../platform/schema-limit";
-import { parseStockQuantity, quantityMessage } from "../platform/stock-quantity";
+import {
+  formatStockQuantityInput,
+  parseStockQuantity,
+  quantityMessage,
+} from "../platform/stock-quantity";
 import { packageCountOf, quantityPerPackageOf } from "./package-count-form";
 import type {
   AddPurchaseLinesOutcome,
@@ -191,6 +196,49 @@ export function purchaseRegistrationRequestFrom(
     receiptNumber: values.receiptNumber.trim(),
     note: values.note.trim(),
     lines: values.lines.map((line) => purchaseLineRequestFrom(line, products)),
+  };
+}
+
+export function purchaseOrderReceiptRequestFrom(
+  values: PurchaseFormValues,
+  products: PurchaseProducts,
+): PurchaseFormRequest {
+  const { supplierId: _supplierId, ...receipt } = purchaseRegistrationRequestFrom(values, products);
+  return receipt;
+}
+
+function costInput(cents: number | null): string {
+  return cents === null ? "" : formatAmountInput(cents);
+}
+
+function receiptDraftLineValues(
+  line: PurchaseOrderReceiptDraft["lines"][number],
+  id: number,
+): PurchaseLineValues {
+  const { saleUnit } = line.product;
+  return line.loadedBy === "packages"
+    ? {
+        ...emptyPurchaseLine(id),
+        productId: line.product.id,
+        loadedBy: "packages",
+        packages: String(line.packages),
+        quantityPerPackage: formatStockQuantityInput(line.quantityPerPackage, saleUnit),
+        cost: costInput(line.listCostPerPackageCents),
+      }
+    : {
+        ...emptyPurchaseLine(id),
+        productId: line.product.id,
+        loadedBy: "quantity",
+        quantity: formatStockQuantityInput(line.quantity, saleUnit),
+        cost: costInput(line.listCostPerSaleUnitCents),
+      };
+}
+
+export function purchaseOrderReceiptFormFrom(draft: PurchaseOrderReceiptDraft): PurchaseFormValues {
+  return {
+    ...emptyPurchaseForm(null),
+    supplierId: draft.supplier.id,
+    lines: draft.lines.map((line, index) => receiptDraftLineValues(line, index + 1)),
   };
 }
 

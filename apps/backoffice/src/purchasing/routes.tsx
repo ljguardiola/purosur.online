@@ -7,6 +7,7 @@ import {
   canManageSupplierPriceLists,
   canManageSuppliers,
   canReadPurchaseOrders,
+  canReceivePurchaseOrders,
   canRecordPurchases,
   canSeeAiCostReport,
   canSeeReports,
@@ -129,6 +130,13 @@ export const purchaseOrderRoute = createRoute({
   path: "purchase-orders/$orderId",
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canReadPurchaseOrders),
   component: lazyScreen(() => import("./purchase-order-page"), "PurchaseOrderPage"),
+});
+
+export const purchaseOrderReceiveRoute = createRoute({
+  getParentRoute: () => ordersAreaRoute,
+  path: "purchase-orders/$orderId/receive",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canReceivePurchaseOrders),
+  component: lazyScreen(() => import("./purchase-order-receive-page"), "PurchaseOrderReceivePage"),
 });
 
 export const freightReportRoute = createRoute({

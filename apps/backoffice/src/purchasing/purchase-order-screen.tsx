@@ -17,14 +17,20 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
-import { ArrowLeft, Check, FileX, Send, Trash2, TriangleAlert } from "lucide-react";
+import { ArrowLeft, Check, FileX, PackageCheck, Send, Trash2, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { AreaTopBar } from "../shell/area-top-bar";
+import {
+  type BackofficeAccess,
+  canReceivePurchaseOrders,
+  canRecordPurchases,
+} from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { CancelPurchaseOrderModal } from "./cancel-purchase-order-modal";
 import { formatPurchaseOrderCreatedDay } from "./purchase-order-created-day";
 import { PurchaseOrderDraftForm } from "./purchase-order-draft-form";
+import { PurchaseOrderReceipts } from "./purchase-order-receipts";
 import type { PurchaseOrderScreenServices } from "./purchase-order-services";
 import { purchaseOrderStatusOf } from "./purchase-order-status";
 import {
@@ -36,7 +42,12 @@ import { SharePurchaseOrderModal } from "./share-purchase-order-modal";
 
 export type PurchaseOrderScreenProps = {
   orderId: string;
+  access: BackofficeAccess;
+  received: boolean;
   onBack: () => void;
+  onReceive: () => void;
+  onOpenPurchases: () => void;
+  onNoticeDismissed: () => void;
   onSessionEnded: () => void;
   services: PurchaseOrderScreenServices;
 };
@@ -62,7 +73,12 @@ const NO_PRICE = "Sin precio de lista";
 
 export function PurchaseOrderScreen({
   orderId,
+  access,
+  received,
   onBack,
+  onReceive,
+  onOpenPurchases,
+  onNoticeDismissed,
   onSessionEnded,
   services,
 }: PurchaseOrderScreenProps) {
@@ -128,10 +144,28 @@ export function PurchaseOrderScreen({
     }),
   ] as const;
 
+  const receivedColumns = [
+    dataColumn({
+      id: "received",
+      header: "Recibido",
+      align: "end",
+      render: (line: OrderLine) =>
+        formatSaleUnitQuantity(line.receivedQuantity, line.product.saleUnit),
+    }),
+    dataColumn({
+      id: "outstanding",
+      header: "Pendiente",
+      align: "end",
+      render: (line: OrderLine) =>
+        formatSaleUnitQuantity(line.outstandingQuantity, line.product.saleUnit),
+    }),
+  ] as const;
+
   const table = useTableModel({
     items: order?.lines ?? [],
     id: (line) => line.product.id,
-    columns,
+    columns:
+      order !== null && order.receipts.length > 0 ? [...columns, ...receivedColumns] : columns,
   });
 
   const status = order === null ? null : purchaseOrderStatusOf(order.state);
@@ -197,6 +231,11 @@ export function PurchaseOrderScreen({
               </dl>
             </Card>
             <div className="flex justify-end gap-2">
+              {order.receivable && canReceivePurchaseOrders(access) ? (
+                <Button variant="primary" icon={<PackageCheck />} onPress={onReceive}>
+                  Recibir pedido
+                </Button>
+              ) : null}
               {order.editable || !order.cancellable ? null : (
                 <Button
                   variant="secondary"
@@ -231,6 +270,11 @@ export function PurchaseOrderScreen({
             ) : (
               <Table aria-label="Líneas del pedido" table={table} loading={false} />
             )}
+            <PurchaseOrderReceipts
+              order={order}
+              canOpenPurchases={canRecordPurchases(access)}
+              onOpenPurchases={onOpenPurchases}
+            />
           </>
         )}
       </ScreenLayout>
@@ -264,6 +308,15 @@ export function PurchaseOrderScreen({
         onClose={() => setShareTarget(null)}
         onSessionEnded={onSessionEnded}
       />
+      {received && notice === null ? (
+        <FloatingNotification
+          tone="success"
+          icon={<Check />}
+          title="Recepción registrada"
+          description="Se creó la compra con lo que llegó."
+          onDismiss={onNoticeDismissed}
+        />
+      ) : null}
       {notice === null ? null : (
         <FloatingNotification
           tone="success"

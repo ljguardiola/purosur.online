@@ -49,7 +49,8 @@ import type { RegisterPurchaseOutcome } from "./purchases-api";
 import { useMarkPurchasingStale, useRefreshPurchasing } from "./purchasing-queries";
 
 export type PurchaseSubmitOutcome =
-  | RegisterPurchaseOutcome
+  | Exclude<RegisterPurchaseOutcome, { kind: "ok" }>
+  | { kind: "ok" }
   | { kind: "refused"; title: string; description: string };
 
 export type PurchaseFormSupplier =
@@ -62,6 +63,7 @@ export type PurchaseRegistrationFormProps<Parsed> = {
   eyebrow: string;
   title: string;
   submitLabel: string;
+  failureTitle: string;
   loadingWhat: string;
   data: CloudData<PurchaseChoices>;
   initialValues: PurchaseFormValues;
@@ -89,6 +91,7 @@ export function PurchaseRegistrationForm<Parsed>({
   eyebrow,
   title,
   submitLabel,
+  failureTitle,
   loadingWhat,
   data,
   initialValues,
@@ -243,7 +246,7 @@ export function PurchaseRegistrationForm<Parsed>({
       {data.status === "loading" && <LoadingPlaceholder variant="form" fields={6} />}
       {data.status === "failed" && <LoadFailure {...cloudLoadFailure(data, loadingWhat)} />}
       {notice?.kind === "attemptFailed" && (
-        <ActionFailureNotice title="No se registró la compra" description="Volvé a intentarlo." />
+        <ActionFailureNotice title={failureTitle} description="Volvé a intentarlo." />
       )}
       {notice?.kind === "refused" && (
         <ActionFailureNotice title={notice.title} description={notice.description} />

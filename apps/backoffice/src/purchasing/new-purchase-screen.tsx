@@ -36,6 +36,7 @@ export function NewPurchaseScreen({
       eyebrow="Stock"
       title="Registrar compra"
       submitLabel="Registrar la compra"
+      failureTitle="No se registró la compra"
       loadingWhat="el formulario de compra"
       data={data}
       initialValues={emptyPurchaseForm(null)}
