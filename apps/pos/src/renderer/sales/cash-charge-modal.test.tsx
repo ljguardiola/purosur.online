@@ -4,6 +4,7 @@ import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { CashChargeModal } from "./cash-charge-modal";
+import { NO_DISCOUNT_OFFERED } from "./test-support/cash-charge-modal";
 import { expectChargeSummaryInColumns } from "./test-support/charge-summary";
 
 const TOTAL = 476_000;
@@ -59,6 +60,7 @@ async function renderModal(
     <CashChargeModal
       saleId="sale-1"
       {...sale}
+      {...NO_DISCOUNT_OFFERED}
       readCharge={readCashCharge}
       charge={chargeSale}
       {...callbacks}
