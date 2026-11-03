@@ -212,6 +212,7 @@ export function CashChargeModal({
     !loaded?.refreshing
       ? { tendered, ...answered }
       : undefined;
+  const rounded = covered !== undefined && covered.cash_rounding > 0 ? covered : undefined;
   const partial =
     tendered !== undefined &&
     !discountInvalid &&
@@ -304,11 +305,26 @@ export function CashChargeModal({
                   },
                 ]),
             { label: "Pagado", value: formatCents(paid) },
-            {
-              label: "A cobrar ahora",
-              value: formatCents(toCharge),
-              emphasized: true,
-            },
+            ...(rounded === undefined
+              ? [
+                  {
+                    label: "A cobrar ahora",
+                    value: formatCents(toCharge),
+                    emphasized: true,
+                  },
+                ]
+              : [
+                  {
+                    label: "Redondeo",
+                    value: `− ${formatCents(rounded.cash_rounding)}`,
+                    tone: "error" as const,
+                  },
+                  {
+                    label: "A cobrar en efectivo",
+                    value: formatCents(rounded.applied),
+                    emphasized: true,
+                  },
+                ]),
           ]}
         />
         <form.AppField
