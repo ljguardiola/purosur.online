@@ -55,6 +55,8 @@ async function lotOfLine(lineId: string, productId: string, purchasedOn = "2026-
       locationId,
       purchaseLineId: lineId,
       purchasedOn,
+      costTotalCents: 500,
+      costQuantity: 1_000,
       quantityReceived: 1_000,
       remaining: 1_000,
     })
