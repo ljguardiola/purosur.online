@@ -214,6 +214,7 @@ export interface CoreClient {
   enrollmentStatus(): Promise<EnrollmentStandingAnswer>;
   registerService(): Promise<"in_service" | "out_of_service">;
   registerName(): Promise<string | null>;
+  registerVersion(): Promise<string | null>;
   enroll(typedCode: string): Promise<EnrollmentOutcome>;
   redeemPinCode(typedCode: string, newPin: string): Promise<PinCodeRedemptionOutcome>;
   pinPolicy(): Promise<PinPolicy>;
@@ -541,6 +542,11 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
     registerName() {
       return ask({ type: "register-name-request", request_id: deps.newRequestId() }, (answer) =>
         answer.type === "register-name" ? answer.name : undefined,
+      );
+    },
+    registerVersion() {
+      return ask({ type: "register-version-request", request_id: deps.newRequestId() }, (answer) =>
+        answer.type === "register-version" ? answer.version : undefined,
       );
     },
     enroll(typedCode) {

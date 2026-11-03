@@ -33,6 +33,7 @@ export const registerKeys = {
   restorationStanding: [...registerKey, "restoration-standing"] as const,
   cashSession: [...registerKey, "cash-session"] as const,
   registerName: [...registerKey, "register-name"] as const,
+  registerVersion: [...registerKey, "register-version"] as const,
   status: [...registerKey, "status"] as const,
   receiptPrinter: [...registerKey, "receipt-printer"] as const,
   serialDevices: [...registerKey, "serial-devices"] as const,
@@ -130,6 +131,15 @@ export function registerNameQueryOptions(read: () => Promise<string | null>) {
 export function useRegisterNameQuery(read: () => Promise<string | null>): string | null {
   const name = useCoreQuery({ queryKey: registerKeys.registerName, read, staleTime: Infinity });
   return name.status === "loaded" ? name.value : null;
+}
+
+export function useRegisterVersionQuery(read: () => Promise<string | null>): string | null {
+  const version = useCoreQuery({
+    queryKey: registerKeys.registerVersion,
+    read,
+    staleTime: Infinity,
+  });
+  return version.status === "loaded" ? version.value : null;
 }
 
 export function registerStatusQueryOptions(read: () => Promise<RegisterStatus | "unavailable">) {
