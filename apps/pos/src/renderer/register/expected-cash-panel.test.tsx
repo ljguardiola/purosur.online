@@ -47,6 +47,9 @@ describe("ExpectedCashPanel", () => {
     const screen = await renderPanel();
 
     await expect.element(screen.getByText("EFECTIVO ESPERADO AHORA")).toBeVisible();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Efectivo esperado" }))
+      .toBeVisible();
     await expect.element(screen.getByText("$ 46.200,00", { exact: true })).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
   });

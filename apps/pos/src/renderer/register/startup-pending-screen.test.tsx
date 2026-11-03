@@ -435,6 +435,9 @@ describe("StartupPendingScreen", () => {
     const { screen } = await renderScreen();
 
     await expect.element(screen.getByText("Sesión abierta", { exact: true })).toBeVisible();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Sesión abierta" }))
+      .toBeVisible();
     await expect.element(screen.getByText("Grace", { exact: true })).toBeVisible();
     await expect.element(screen.getByText("Desde las 09:02 · fondo $ 20.000,00")).toBeVisible();
     await expect

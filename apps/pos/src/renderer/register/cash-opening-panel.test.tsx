@@ -57,6 +57,9 @@ describe("CashOpeningPanel", () => {
 
     await expect.element(screen.getByRole("heading", { name: "Ada" })).toBeVisible();
     await expect
+      .element(screen.getByRole("complementary", { name: "Apertura de caja" }))
+      .toBeVisible();
+    await expect
       .element(screen.getByText("Para vender, cobrar, devolver o mover efectivo, abrí la caja."))
       .toBeVisible();
     await expect.element(screen.getByRole("button", { name: "Abrir caja" })).toBeVisible();
@@ -77,6 +80,9 @@ describe("CashOpeningPanel", () => {
     await startOpening(screen);
 
     await expect.element(screen.getByRole("heading", { name: "Abrí la caja" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Apertura de caja" }))
+      .toBeVisible();
     await expect
       .element(screen.getByText("Contá el efectivo que hay en el cajón antes de empezar."))
       .toBeVisible();

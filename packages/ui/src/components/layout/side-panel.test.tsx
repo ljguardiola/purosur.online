@@ -1,4 +1,6 @@
+import { type ReactNode, useState } from "react";
 import { expect, expectTypeOf, test } from "vitest";
+import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import { tokenRgb } from "../../test/token-colors";
@@ -8,14 +10,6 @@ test("is a complementary landmark named by its label", async () => {
   const screen = await render(<SidePanel label="Panel de cobro">Contenido</SidePanel>);
 
   await expect.element(screen.getByRole("complementary", { name: "Panel de cobro" })).toBeVisible();
-  await expectNoAccessibilityViolations(screen.container);
-});
-
-test("is a complementary landmark with no name when it is given no label", async () => {
-  const screen = await render(<SidePanel>Contenido</SidePanel>);
-  const panel = screen.getByRole("complementary").element();
-
-  expect(panel.hasAttribute("aria-label")).toBe(false);
   await expectNoAccessibilityViolations(screen.container);
 });
 
@@ -53,7 +47,7 @@ test("keeps its content 32px inside its edges", async () => {
 
 test("stacks its children 16px apart", async () => {
   const screen = await render(
-    <SidePanel>
+    <SidePanel label="Panel">
       <p>Primero</p>
       <p>Segundo</p>
     </SidePanel>,
@@ -129,9 +123,71 @@ test("scrolls a body taller than the panel and without a footer inside itself, e
   expect(panel.bottom - lastLine.getBoundingClientRect().bottom).toBeCloseTo(32, 0);
 });
 
+test("lets the keyboard reach a body taller than the panel to scroll it", async () => {
+  const screen = await render(
+    <div style={{ display: "flex", height: "600px" }}>
+      <SidePanel label="Panel" footer={<button type="button">Cancelar</button>}>
+        {FORTY_LINES}
+      </SidePanel>
+    </div>,
+  );
+  const body = screen.getByRole("region", { name: "Panel" });
+
+  await expect.element(body).toHaveAttribute("tabindex", "0");
+  await userEvent.tab();
+
+  await expect.element(body).toHaveFocus();
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+function GrowingPanel() {
+  const [lines, setLines] = useState(1);
+  return (
+    <div style={{ display: "flex", height: "600px" }}>
+      <SidePanel label="Panel" footer={<button type="button">Cancelar</button>}>
+        <button type="button" onClick={() => setLines(40)}>
+          Agregar líneas
+        </button>
+        {FORTY_LINES.slice(0, lines)}
+      </SidePanel>
+    </div>
+  );
+}
+
+test("makes a body a keyboard stop once its content outgrows it", async () => {
+  const screen = await render(<GrowingPanel />);
+
+  expect(screen.getByRole("region").elements()).toHaveLength(0);
+  await screen.getByRole("button", { name: "Agregar líneas" }).click();
+
+  await expect
+    .element(screen.getByRole("region", { name: "Panel" }))
+    .toHaveAttribute("tabindex", "0");
+});
+
+test("adds no keyboard stop to a body that fits the panel", async () => {
+  const screen = await render(
+    <div style={{ display: "flex", height: "600px" }}>
+      <SidePanel label="Panel" footer={<button type="button">Cancelar</button>}>
+        <p>Contenido</p>
+      </SidePanel>
+    </div>,
+  );
+
+  await expect.element(screen.getByText("Contenido")).toBeVisible();
+  expect(screen.getByRole("region").elements()).toHaveLength(0);
+  expect(screen.getByText("Contenido").element().parentElement?.hasAttribute("tabindex")).toBe(
+    false,
+  );
+  await userEvent.tab();
+
+  await expect.element(screen.getByRole("button", { name: "Cancelar" })).toHaveFocus();
+});
+
 test("stacks the footer's own children 16px apart", async () => {
   const screen = await render(
     <SidePanel
+      label="Panel"
       footer={
         <>
           <p>Aviso</p>
@@ -150,4 +206,8 @@ test("stacks the footer's own children 16px apart", async () => {
 
 test("does not accept a panel without its content", () => {
   expectTypeOf<{ label: string }>().not.toExtend<SidePanelProps>();
+});
+
+test("does not accept a panel without its label", () => {
+  expectTypeOf<{ children: ReactNode }>().not.toExtend<SidePanelProps>();
 });

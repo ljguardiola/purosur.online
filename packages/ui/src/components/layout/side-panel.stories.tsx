@@ -1,4 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { waitFor, within } from "storybook/test";
+import { playTabMatchesCssFocusVisible } from "../../test-support/story-interactions";
 import { Button } from "../forms/button";
 import { SidePanel } from "./side-panel";
 
@@ -26,7 +28,7 @@ const content = (
 );
 
 export const WithoutFooter: Story = {
-  args: { children: content },
+  args: { label: "Total a cobrar", children: content },
 };
 
 export const WithFooter: Story = {
@@ -61,5 +63,16 @@ export const WithLongBody: Story = {
         Anular venta
       </Button>
     ),
+  },
+};
+
+export const WithLongBodyFocused: Story = {
+  ...WithLongBody,
+  play: async (context) => {
+    const panel = within(context.canvasElement);
+    await waitFor(() => panel.getByRole("region", { name: "Detalle de la venta" }));
+    await playTabMatchesCssFocusVisible(() =>
+      panel.getByRole("region", { name: "Detalle de la venta" }),
+    )(context);
   },
 };
