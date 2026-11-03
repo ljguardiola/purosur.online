@@ -145,8 +145,9 @@ describe("CountLineModal", () => {
     await typeCounted(screen, "2");
     reading = 3000;
     const asked = weighing.mock.calls.length;
-    await vi.waitFor(() => expect(weighing.mock.calls.length).toBeGreaterThan(asked));
+    await confirm(screen);
 
+    expect(weighing).toHaveBeenCalledTimes(asked);
     await expect.element(field).toHaveValue("2");
     await confirm(screen);
     expect(recording).toHaveBeenCalledWith(QUESO.product_id, 2000, null);

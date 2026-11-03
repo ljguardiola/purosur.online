@@ -278,7 +278,7 @@ describe("SaleScreen weighing a product on the scale", () => {
     await screen.getByRole("button", { name: "Confirmar peso" }).click();
 
     await expect
-      .element(screen.getByText("Poné el producto en la balanza o tipeá el peso."))
+      .element(screen.getByText("Poné el producto en la balanza o tipeá el peso.").first())
       .toBeVisible();
     await expect
       .element(screen.getByRole("heading", { name: "Peso de Queso cremoso" }))
@@ -596,8 +596,10 @@ describe("SaleScreen weighing the new weight of a line on the scale", () => {
   async function renderWithQueso(overrides: Overrides) {
     const currentSale = vi.fn(async () => SALE_OF_QUESO);
     const rendered = await renderScreen({ currentSale, ...overrides });
+    await expect.element(rendered.screen.getByText("1,250 kg")).toBeVisible();
+    const readsBefore = currentSale.mock.calls.length;
     await rendered.screen.getByRole("button", { name: "Cambiar el peso de Queso cremoso" }).click();
-    return { ...rendered, currentSale };
+    return { ...rendered, currentSale, readsBefore };
   }
 
   const STABLE_800: WeighLineOutcome = {
@@ -668,10 +670,9 @@ describe("SaleScreen weighing the new weight of a line on the scale", () => {
   it.each(["stale_weight", "unknown_line", "no_open_sale", "sale_has_payments"] as const)(
     "closes the modal and reads the sale again on %s",
     async (kind) => {
-      const { screen, currentSale } = await renderWithQueso({
+      const { screen, currentSale, readsBefore } = await renderWithQueso({
         weighLine: vi.fn(async () => ({ kind })),
       });
-      const readsBefore = currentSale.mock.calls.length;
 
       await expect.poll(() => currentSale.mock.calls.length).toBeGreaterThan(readsBefore);
       await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();

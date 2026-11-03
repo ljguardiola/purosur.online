@@ -156,7 +156,7 @@ describe("WeighProductModal", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Confirmar peso" }));
 
-    await expect.element(screen.getByText(ZERO_NOTE)).toBeVisible();
+    await expect.element(screen.getByText(ZERO_NOTE).first()).toBeVisible();
     await expect.element(screen.getByRole("button", { name: "Confirmar peso" })).toBeEnabled();
     const asked = asking.mock.calls.length;
     await expect.poll(() => asking.mock.calls.length).toBeGreaterThan(asked);
