@@ -66,10 +66,6 @@ export const WarningDescription: Story = {
   },
 };
 
-export const MonospaceText: Story = {
-  args: { children: "L-2409", monospace: true, strong: true },
-};
-
 export const DetailText: Story = {
   args: {
     children: "Compra del 01/10/2026 · Distribuidora Sur",

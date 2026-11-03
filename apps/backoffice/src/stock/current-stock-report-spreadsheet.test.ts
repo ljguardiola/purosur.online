@@ -142,7 +142,7 @@ test("has a Lotes sheet with the product repeated on each of its lots", () => {
     [
       cell.text("Yerba mate 1 kg"),
       cell.text("Almacén"),
-      cell.text("Técnico 07/10/2026"),
+      cell.text("Compra 07/10/2026"),
       cell.text("L-000103"),
       cell.empty(),
       cell.count(24),
@@ -164,7 +164,7 @@ test("has a Lotes sheet with the product repeated on each of its lots", () => {
     [
       cell.text("Té verde en hebras"),
       cell.text("Almacén"),
-      cell.text("Técnico 07/10/2026"),
+      cell.text("Inventario inicial 27/10/2026"),
       cell.text("L-000105"),
       cell.day("2027-01-31"),
       cell.count(6),

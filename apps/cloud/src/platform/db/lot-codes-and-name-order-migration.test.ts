@@ -69,6 +69,21 @@ describe("the lot codes and name order migration applied over a database that al
     expect(rows).toEqual([{ code: 4, name_order: 4 }]);
   });
 
+  it("gives no lot a name number, neither the existing ones nor one inserted afterwards without naming it", async () => {
+    const { database, insertLot } = await databaseBefore(LATER_FIRST);
+    await database.applyMigration();
+
+    await insertLot("2026-10-04T10:00:00Z", "Producto nuevo");
+
+    const { rows } = await database.query("select name_number from lots");
+    expect(rows).toEqual([
+      { name_number: null },
+      { name_number: null },
+      { name_number: null },
+      { name_number: null },
+    ]);
+  });
+
   it("starts both sequences at one when there is no lot yet", async () => {
     const { database, insertLot } = await databaseBefore([]);
     await database.applyMigration();

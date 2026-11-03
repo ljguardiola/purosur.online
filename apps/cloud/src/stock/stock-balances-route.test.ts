@@ -141,7 +141,6 @@ describe("GET /inventory-levels", () => {
               id: lotId,
               lotName: "Compra 03/11/2026",
               expiresOn: "2027-03-01",
-              technical: false,
               remaining: 4_000,
               valueCents: 20_000,
               unitCostCents: 5_000,
@@ -173,7 +172,6 @@ describe("GET /inventory-levels", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json().products[0].lots[0]).toMatchObject({
-      technical: false,
       origin: { kind: "assembly_batch", assembledAt: "2026-05-04T13:00:00.000Z" },
     });
   });

@@ -10,7 +10,7 @@ import {
   teaProduct,
 } from "./test-support/current-stock-report-fixtures";
 
-test("lists each lot with its number, expiry, balance, unit cost and value", async () => {
+test("lists each lot with its name, expiry, balance, unit cost and value", async () => {
   const screen = await render(<CurrentStockReportLots product={almondsProduct} />);
 
   const table = screen.getByRole("table", { name: "Lotes de Almendras peladas" });

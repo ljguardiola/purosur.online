@@ -35,4 +35,49 @@ describe("nameLotsOfProducts", () => {
     ]);
     expect(lotNames.reads).toEqual([{ locationId: "location-1", productIds: ["p1"] }]);
   });
+
+  it("reads the number a lot was given, and numbers a lot given none after it", async () => {
+    const lotNames = new FakeLotNameReader([
+      { ...purchaseLotFacts("a", "p1", 1, "2026-11-03"), givenNumber: 1 },
+      { ...purchaseLotFacts("c", "p1", 3, "2026-11-03"), givenNumber: 3 },
+      purchaseLotFacts("recorded-by-an-older-release", "p1", 4, "2026-11-03"),
+    ]);
+
+    const names = await nameLotsOfProducts(
+      { lotNames, zoneRules: new FakeZoneRulesSource() },
+      "location-1",
+      ["p1"],
+    );
+
+    expect(names.get("a")?.number).toBe(1);
+    expect(names.get("c")?.number).toBe(3);
+    expect(names.get("recorded-by-an-older-release")?.number).toBe(4);
+  });
+
+  it("names a lone lot with no number, and numbers it first once a second lot joins it", async () => {
+    const zoneRules = new FakeZoneRulesSource();
+    const alone = await nameLotsOfProducts(
+      {
+        lotNames: new FakeLotNameReader([purchaseLotFacts("a", "p1", 1, "2026-11-03")]),
+        zoneRules,
+      },
+      "location-1",
+      ["p1"],
+    );
+    const joined = await nameLotsOfProducts(
+      {
+        lotNames: new FakeLotNameReader([
+          purchaseLotFacts("a", "p1", 1, "2026-11-03"),
+          purchaseLotFacts("b", "p1", 2, "2026-11-03"),
+        ]),
+        zoneRules,
+      },
+      "location-1",
+      ["p1"],
+    );
+
+    expect(alone.get("a")?.number).toBeNull();
+    expect(joined.get("a")?.number).toBe(1);
+    expect(joined.get("b")?.number).toBe(2);
+  });
 });

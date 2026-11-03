@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { FIXED_ARGENTINA_ZONE_RULES } from "../../shared/zone-rules.js";
-import { type LotNameFacts, lotNames } from "./lot-name.js";
+import {
+  type LotNameFacts,
+  lotNames,
+  numbersKeptByLotsStaying,
+  type PurchasedLotNaming,
+} from "./lot-name.js";
 
 const rules = FIXED_ARGENTINA_ZONE_RULES;
 
@@ -15,6 +20,7 @@ function purchased(
     productId: "yerba",
     locationId: "centro",
     nameOrder,
+    givenNumber: null,
     origin: { kind: "purchase", purchasedOn },
     ...overrides,
   };
@@ -35,6 +41,7 @@ describe("lotNames", () => {
           productId: "yerba",
           locationId: "centro",
           nameOrder: 1,
+          givenNumber: null,
           origin: { kind: "initial_count", countedAt: new Date("2026-10-28T01:30:00Z") },
         },
       ],
@@ -52,6 +59,7 @@ describe("lotNames", () => {
           productId: "mix",
           locationId: "centro",
           nameOrder: 1,
+          givenNumber: null,
           origin: { kind: "assembly_batch", assembledAt: new Date("2026-11-04T02:00:00Z") },
         },
       ],
@@ -69,6 +77,7 @@ describe("lotNames", () => {
           productId: "yerba",
           locationId: "centro",
           nameOrder: 1,
+          givenNumber: null,
           origin: { kind: "technical", openedAt: new Date("2026-10-27T12:00:00Z") },
         },
       ],
@@ -97,6 +106,7 @@ describe("lotNames", () => {
           productId: "yerba",
           locationId: "centro",
           nameOrder: 2,
+          givenNumber: null,
           origin: { kind: "initial_count", countedAt: new Date("2026-10-27T15:00:00Z") },
         },
       ],
@@ -160,5 +170,116 @@ describe("lotNames", () => {
     expect(after.get("a")).toEqual(before.get("a"));
     expect(after.get("b")).toEqual(before.get("b"));
     expect(after.get("c")?.number).toBe(3);
+  });
+
+  it("keeps the number each lot was given after another lot of its group took another day", () => {
+    const names = lotNames(
+      [
+        purchased("a", 1, "2026-11-03", { givenNumber: 1 }),
+        purchased("c", 3, "2026-11-03", { givenNumber: 3 }),
+      ],
+      rules,
+    );
+
+    expect(names.get("a")?.number).toBe(1);
+    expect(names.get("c")?.number).toBe(3);
+  });
+
+  it("keeps the number a lot was given when it is the only one left of its group", () => {
+    const names = lotNames([purchased("b", 2, "2026-11-03", { givenNumber: 2 })], rules);
+
+    expect(names.get("b")?.number).toBe(2);
+  });
+
+  it("numbers the lots given no number after the highest given one, in the order each took its name", () => {
+    const names = lotNames(
+      [
+        purchased("y", 9, "2026-11-03"),
+        purchased("c", 3, "2026-11-03", { givenNumber: 3 }),
+        purchased("x", 7, "2026-11-03"),
+        purchased("a", 1, "2026-11-03", { givenNumber: 1 }),
+      ],
+      rules,
+    );
+
+    expect(names.get("x")?.number).toBe(4);
+    expect(names.get("y")?.number).toBe(5);
+  });
+});
+
+function naming(
+  lotId: string,
+  nameOrder: number,
+  overrides: Partial<PurchasedLotNaming> = {},
+): PurchasedLotNaming {
+  return {
+    lotId,
+    productId: "yerba",
+    purchasedOn: "2026-11-03",
+    nameOrder,
+    givenNumber: null,
+    ...overrides,
+  };
+}
+
+describe("numbersKeptByLotsStaying", () => {
+  it("gives the lots staying in a group a lot leaves the numbers they read", () => {
+    const kept = numbersKeptByLotsStaying([naming("c", 3), naming("a", 1), naming("b", 2)], ["b"]);
+
+    expect(kept).toEqual(
+      new Map([
+        ["a", 1],
+        ["c", 3],
+      ]),
+    );
+  });
+
+  it("keeps the numbers already given and numbers the others after them", () => {
+    const kept = numbersKeptByLotsStaying(
+      [naming("a", 1, { givenNumber: 1 }), naming("c", 3, { givenNumber: 3 }), naming("x", 7)],
+      ["c"],
+    );
+
+    expect(kept).toEqual(
+      new Map([
+        ["a", 1],
+        ["x", 4],
+      ]),
+    );
+  });
+
+  it("gives a number to the only lot left when the other lot of its group leaves", () => {
+    const kept = numbersKeptByLotsStaying([naming("a", 1), naming("b", 2)], ["b"]);
+
+    expect(kept).toEqual(new Map([["a", 1]]));
+  });
+
+  it("gives nothing when the lot leaving was alone in its group", () => {
+    expect(numbersKeptByLotsStaying([naming("a", 1)], ["a"])).toEqual(new Map());
+  });
+
+  it("gives nothing to the lots of a group no lot leaves", () => {
+    const kept = numbersKeptByLotsStaying(
+      [
+        naming("a", 1),
+        naming("b", 2),
+        naming("other-day", 3, { purchasedOn: "2026-11-04" }),
+        naming("other-day-too", 4, { purchasedOn: "2026-11-04" }),
+        naming("other-product", 5, { productId: "mate" }),
+        naming("other-product-too", 6, { productId: "mate" }),
+      ],
+      ["b"],
+    );
+
+    expect(kept).toEqual(new Map([["a", 1]]));
+  });
+
+  it("gives nothing to the lots leaving together", () => {
+    const kept = numbersKeptByLotsStaying(
+      [naming("a", 1), naming("b", 2), naming("c", 3)],
+      ["a", "b"],
+    );
+
+    expect(kept).toEqual(new Map([["c", 3]]));
   });
 });

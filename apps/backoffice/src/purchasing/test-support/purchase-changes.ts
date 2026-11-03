@@ -20,7 +20,7 @@ export const compraDeMielCorregida: PurchaseSummary = {
       quantity: 10_000,
       costPaidCents: 1_800_00,
       unitCostCents: 1_800_00,
-      lotName: "Compra 04/11/2026",
+      lotName: "Compra 14/09/2026",
       expiresOn: "2027-03-01",
     },
   ],

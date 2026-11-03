@@ -25,7 +25,6 @@ describe("currentStockReportSchema", () => {
     lot_name: "Compra 03/11/2026",
     lot_code: "L-000077",
     expires_on: "2027-03-01",
-    technical: false,
     remaining: 4_000,
     unit_cost_cents: 5_000,
     value_cents: 20_000,
@@ -87,7 +86,6 @@ describe("currentStockReportSchema", () => {
               lot_name: "Técnico 07/10/2026",
               lot_code: "L-000078",
               expires_on: null,
-              technical: true,
               remaining: -1_000,
               unit_cost_cents: null,
               value_cents: null,
@@ -113,7 +111,6 @@ describe("currentStockReportSchema", () => {
     ["a lot quantity with decimals", { lots: [{ ...lot, remaining: 0.5 }] }],
     ["a lot cost with decimals", { lots: [{ ...lot, unit_cost_cents: 1.5 }] }],
     ["a lot value that is not a number", { lots: [{ ...lot, value_cents: "20000" }] }],
-    ["a lot without the technical flag", { lots: [{ ...lot, technical: undefined }] }],
   ])("refuses %s", (_name, change) => {
     const product = { ...report.products[0], ...change };
 

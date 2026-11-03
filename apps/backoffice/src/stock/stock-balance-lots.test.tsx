@@ -67,7 +67,6 @@ test("shows a lot of the initial count by its name, costed and valued like a pur
         id: "lot-initial",
         lotName: "Inventario inicial 27/10/2026",
         expiresOn: null,
-        technical: false,
         remaining: 24_000,
         valueCents: 13_056_000,
         unitCostCents: 544_000,
@@ -91,7 +90,6 @@ test("shows an initial count lot with no cost as Sin costo", async () => {
         id: "lot-initial",
         lotName: "Inventario inicial 27/10/2026",
         expiresOn: null,
-        technical: false,
         remaining: 24_000,
         valueCents: null,
         unitCostCents: null,
@@ -107,7 +105,7 @@ test("shows an initial count lot with no cost as Sin costo", async () => {
   );
 });
 
-test("shows a lot of an assembled batch by its name", async () => {
+test("shows a lot of an assembled batch by its name, with no origin beside it", async () => {
   const assembled = {
     ...honey,
     lots: [
@@ -115,7 +113,6 @@ test("shows a lot of an assembled batch by its name", async () => {
         id: "lot-batch",
         lotName: "Tanda 15/09/2026",
         expiresOn: "2026-11-02",
-        technical: false,
         remaining: 4_950,
         valueCents: 4_906_440,
         unitCostCents: 991_200,
@@ -126,7 +123,9 @@ test("shows a lot of an assembled batch by its name", async () => {
   const screen = await renderLots(assembled);
 
   const lot = screen.getByRole("table", { name: "Lotes de Miel pura de abeja 1 kg" });
-  expect(lot.getByRole("row").nth(1).element().textContent).toContain("Tanda 15/09/2026");
+  const row = lot.getByRole("row").nth(1);
+  expect(row.getByRole("cell").nth(0).element().textContent).toBe("Tanda 15/09/2026");
+  expect(row.getByRole("cell").nth(2).element().textContent).toBe("—");
 });
 
 test("shows a lot's system name, never the number typed when it was recorded", async () => {

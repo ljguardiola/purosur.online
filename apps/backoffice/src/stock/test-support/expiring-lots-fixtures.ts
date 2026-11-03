@@ -53,7 +53,7 @@ export const chiaExpiredLot: ExpiringLot = {
 
 export const oatsYesterdayLot: ExpiringLot = {
   id: "00000000-0000-4000-8000-00000000e002",
-  lotName: "Técnico 07/10/2026",
+  lotName: "Inventario inicial 01/10/2026",
   expiresOn: "2026-10-12",
   remaining: 2_500,
   valueCents: null,
@@ -107,7 +107,7 @@ export function expiringLotList(
 
 export const almondOilExpiredLot: ExpiringLot = {
   id: "00000000-0000-4000-8000-00000000e006",
-  lotName: "Técnico 07/10/2026",
+  lotName: "Compra 01/10/2026",
   expiresOn: "2026-10-11",
   remaining: 6_000,
   valueCents: 900_000,

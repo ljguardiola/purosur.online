@@ -53,7 +53,6 @@ const balances = {
           id: "lot-1",
           lotName: "Compra 01/09/2026",
           expiresOn: "2026-10-14",
-          technical: false,
           remaining: 12_150,
           valueCents: 12_400_100,
           unitCostCents: 1_020_584,

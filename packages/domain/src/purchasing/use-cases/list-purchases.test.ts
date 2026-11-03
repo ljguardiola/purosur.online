@@ -13,6 +13,7 @@ function lotOf(lotId: string, nameOrder: number, purchasedOn = "2026-10-01"): Lo
     productId: "p-unit",
     locationId: BRANCH,
     nameOrder,
+    givenNumber: null,
     origin: { kind: "purchase", purchasedOn },
   };
 }

@@ -44,7 +44,7 @@ test("offers to discard only the lots that already expired", async () => {
   await expect
     .element(
       screen.getByRole("button", {
-        name: "Dar de baja el lote Técnico 07/10/2026 de Avena arrollada",
+        name: "Dar de baja el lote Inventario inicial 01/10/2026 de Avena arrollada",
       }),
     )
     .toBeVisible();
@@ -95,14 +95,14 @@ test("names a discarded lot by its name and its product", async () => {
 
   await userEvent.click(
     screen.getByRole("button", {
-      name: "Dar de baja el lote Técnico 07/10/2026 de Avena arrollada",
+      name: "Dar de baja el lote Inventario inicial 01/10/2026 de Avena arrollada",
     }),
   );
 
   await expect
     .element(
       screen.getByText(
-        "Técnico 07/10/2026 de Avena arrollada: 2,500 kg como merma por vencimiento.",
+        "Inventario inicial 01/10/2026 de Avena arrollada: 2,500 kg como merma por vencimiento.",
       ),
     )
     .toBeVisible();
@@ -129,7 +129,7 @@ test("takes the discard away from a lot while its request is on the way", async 
   await expect
     .element(
       screen.getByRole("button", {
-        name: "Dar de baja el lote Técnico 07/10/2026 de Avena arrollada",
+        name: "Dar de baja el lote Inventario inicial 01/10/2026 de Avena arrollada",
       }),
     )
     .toBeVisible();
@@ -220,14 +220,14 @@ test("names the lot to discard and the lot discarded by its name and its product
 
   await userEvent.click(
     screen.getByRole("button", {
-      name: "Dar de baja el lote Técnico 07/10/2026 de Aceite de Almendras Vitora 30 ml",
+      name: "Dar de baja el lote Compra 01/10/2026 de Aceite de Almendras Vitora 30 ml",
     }),
   );
 
   await expect
     .element(
       screen.getByText(
-        "Técnico 07/10/2026 de Aceite de Almendras Vitora 30 ml: 1 u como merma por vencimiento.",
+        "Compra 01/10/2026 de Aceite de Almendras Vitora 30 ml: 1 u como merma por vencimiento.",
       ),
     )
     .toBeVisible();

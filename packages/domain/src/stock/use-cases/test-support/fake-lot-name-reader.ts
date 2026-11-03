@@ -23,7 +23,14 @@ export function purchaseLotFacts(
   purchasedOn: string,
   locationId = "location-1",
 ): LotNameFacts {
-  return { lotId, productId, locationId, nameOrder, origin: { kind: "purchase", purchasedOn } };
+  return {
+    lotId,
+    productId,
+    locationId,
+    nameOrder,
+    givenNumber: null,
+    origin: { kind: "purchase", purchasedOn },
+  };
 }
 
 export function initialCountLotFacts(
@@ -33,7 +40,14 @@ export function initialCountLotFacts(
   countedAt: Date,
   locationId = "location-1",
 ): LotNameFacts {
-  return { lotId, productId, locationId, nameOrder, origin: { kind: "initial_count", countedAt } };
+  return {
+    lotId,
+    productId,
+    locationId,
+    nameOrder,
+    givenNumber: null,
+    origin: { kind: "initial_count", countedAt },
+  };
 }
 
 export function technicalLotFacts(
@@ -43,7 +57,14 @@ export function technicalLotFacts(
   openedAt: Date,
   locationId = "location-1",
 ): LotNameFacts {
-  return { lotId, productId, locationId, nameOrder, origin: { kind: "technical", openedAt } };
+  return {
+    lotId,
+    productId,
+    locationId,
+    nameOrder,
+    givenNumber: null,
+    origin: { kind: "technical", openedAt },
+  };
 }
 
 export function assemblyBatchLotFacts(
@@ -58,6 +79,7 @@ export function assemblyBatchLotFacts(
     productId,
     locationId,
     nameOrder,
+    givenNumber: null,
     origin: { kind: "assembly_batch", assembledAt },
   };
 }

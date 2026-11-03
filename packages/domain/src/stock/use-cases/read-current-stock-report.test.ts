@@ -131,7 +131,6 @@ describe("readCurrentStockReport", () => {
             name: { origin: "purchase", day: "2026-10-01", number: null },
             code: 77,
             expiresOn: "2027-03-01",
-            technical: false,
             remaining: 4_000,
             unitCostCents: 5_000,
             valueCents: 20_000,
@@ -168,22 +167,6 @@ describe("readCurrentStockReport", () => {
     expect(products[0]?.lots[1]?.unitCostCents).toBeNull();
     expect(products[0]?.valueCents).toBeNull();
     expect(summary.withoutCostCount).toBe(1);
-  });
-
-  it("marks a lot that belongs to no purchase, count or batch as technical", async () => {
-    const { products } = await read([
-      level("p1", {
-        balance: -1_000,
-        lots: [
-          {
-            ...lotWithoutCost("l1", -1_000),
-            initialCount: false,
-          },
-        ],
-      }),
-    ]);
-
-    expect(products[0]?.lots[0]?.technical).toBe(true);
   });
 
   it("summarizes the report", async () => {

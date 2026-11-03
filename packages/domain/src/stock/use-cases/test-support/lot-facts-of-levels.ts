@@ -13,6 +13,7 @@ export function lotFactsOfLevels(
       productId: level.id,
       locationId,
       nameOrder: index + 1,
+      givenNumber: null,
       origin: lot.purchase
         ? { kind: "purchase" as const, purchasedOn: lot.purchase.purchasedOn }
         : lot.assemblyBatch

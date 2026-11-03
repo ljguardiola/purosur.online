@@ -1,4 +1,6 @@
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { lots } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleLotNameReader } from "./drizzle-lot-name-reader.js";
 import { insertAssemblyBatch } from "./test-support/assembly-batch-fixtures.js";
@@ -54,9 +56,26 @@ describe("DrizzleLotNameReader.lotNameFacts", () => {
         productId,
         locationId,
         nameOrder: expect.any(Number),
+        givenNumber: null,
         origin: { kind: "purchase", purchasedOn: "2026-11-03" },
       },
     ]);
+  });
+
+  it("answers the number a lot was given", async () => {
+    const { actorId, locationId } = await seededActor();
+    const { productId } = await insertProduct(db);
+    const lotId = await insertPurchasedLot(db, {
+      productId,
+      locationId,
+      actorId,
+      purchasedOn: "2026-11-03",
+    });
+    await db.update(lots).set({ nameNumber: 3 }).where(eq(lots.id, lotId));
+
+    const [facts] = await new DrizzleLotNameReader(db).lotNameFacts(locationId, [productId]);
+
+    expect(facts?.givenNumber).toBe(3);
   });
 
   it("answers the moment the opening count was taken for a lot of the initial count, withdrawn ones included", async () => {

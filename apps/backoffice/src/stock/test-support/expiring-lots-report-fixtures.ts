@@ -24,7 +24,7 @@ export const cheeseLot: Lot = {
 
 export const breadLot: Lot = {
   id: "lot-2",
-  lot_name: "Técnico 07/10/2026",
+  lot_name: "Inventario inicial 01/10/2026",
   lot_code: "L-000102",
   expires_on: "2026-10-30",
   remaining: 12_000,

@@ -46,6 +46,7 @@ export function technicalLotFactsOfRows(
     productId: row.product.id,
     locationId: row.locationId,
     nameOrder: index + 1,
+    givenNumber: null,
     origin: { kind: "technical", openedAt: new Date("2026-10-01T15:00:00.000Z") },
   }));
 }

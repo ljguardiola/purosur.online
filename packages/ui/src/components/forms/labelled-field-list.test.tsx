@@ -100,23 +100,3 @@ test("pads each row 12px by 16px with its title, detail and field centered toget
   expect(style.columnGap).toBe("12px");
   expect(style.alignItems).toBe("center");
 });
-
-test("writes the titles in a monospace font only when asked to", async () => {
-  const screen = await render(
-    <>
-      <LabelledFieldList items={items} />
-      <LabelledFieldList
-        monospaceTitles
-        items={[
-          { id: "mono", title: "M-0001", detail: "Sin vencimiento", field: <div>Campo</div> },
-        ]}
-      />
-    </>,
-  );
-  const plain = screen.getByText("L-2312", { exact: true }).element() as HTMLElement;
-  const mono = screen.getByText("M-0001", { exact: true }).element() as HTMLElement;
-
-  expect(getComputedStyle(plain).fontFamily).not.toMatch(/monospace/);
-  expect(getComputedStyle(mono).fontFamily).toMatch(/monospace$/);
-  expect(getComputedStyle(mono).fontWeight).toBe("700");
-});

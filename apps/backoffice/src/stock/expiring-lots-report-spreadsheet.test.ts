@@ -58,7 +58,7 @@ test("has a sheet named after the table with each lot, quantities split by unit 
     [
       cell.text("Pan lactal"),
       cell.text("Panificados"),
-      cell.text("Técnico 07/10/2026"),
+      cell.text("Inventario inicial 01/10/2026"),
       cell.text("L-000102"),
       cell.day("2026-10-30"),
       cell.count(17),
