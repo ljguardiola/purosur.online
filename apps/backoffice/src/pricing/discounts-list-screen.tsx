@@ -241,6 +241,7 @@ export function DiscountsListScreen({
     }),
   ] as const;
 
+  const tableState = cloudTableState(data, "las promociones");
   const table = useTableModel({
     items: discounts,
     id: (discount) => discount.id,
@@ -313,7 +314,7 @@ export function DiscountsListScreen({
         <Table
           aria-label="Promociones"
           table={table}
-          {...cloudTableState(data, "las promociones")}
+          {...tableState}
           empty={
             discounts.length === 0
               ? {
