@@ -833,20 +833,23 @@ describe("the ESC/POS receipt template", () => {
     expect(Array.from(duplicate)).toEqual(Array.from(template.printable(current, copy)));
   });
 
-  it("refuses to print a receipt stored by a version of the template it does not know", () => {
-    const stored: StoredReceipt = {
-      templateVersion: "4",
-      head: new Uint8Array(),
-      body: new Uint8Array(),
-    };
+  it.each<{ name: string; copy: ReceiptCopy }>([
+    { name: "original", copy: ORIGINAL },
+    { name: "duplicate", copy: { kind: "duplicate", orderNumber: 1 } },
+  ])(
+    "refuses to print the $name of a receipt stored by a version of the template it does not know",
+    ({ copy }) => {
+      const stored: StoredReceipt = {
+        templateVersion: "4",
+        head: new Uint8Array(),
+        body: new Uint8Array(),
+      };
 
-    expect(() =>
-      escPosReceiptTemplate(fixedZoneRulesSource()).printable(stored, {
-        kind: "duplicate",
-        orderNumber: 1,
-      }),
-    ).toThrow(/4/);
-  });
+      expect(() => escPosReceiptTemplate(fixedZoneRulesSource()).printable(stored, copy)).toThrow(
+        /4/,
+      );
+    },
+  );
 
   describe("an authorized factura C", () => {
     const fiscalReceipt = () => receipt({ fiscal: FISCAL_BLOCK });
