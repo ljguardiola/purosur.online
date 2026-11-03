@@ -117,6 +117,14 @@ describe("listPurchases", () => {
     expect(reader.lotNameReads).toEqual([{ locationId: BRANCH, productIds: ["p-unit", "p-2"] }]);
   });
 
+  it("refuses a line whose lot the reader gave no name facts for, naming the lot", async () => {
+    const reader = new FakePurchasingListReader({ purchases: [PURCHASE], lots: [] });
+
+    await expect(listPurchases(ports(reader), BRANCH)).rejects.toThrow(
+      "no name facts for lot lot-1",
+    );
+  });
+
   it("answers only the purchases of the branch asked for", async () => {
     const elsewhere = { ...PURCHASE, id: "purchase-2", locationId: "branch-2" };
     const reader = new FakePurchasingListReader({
