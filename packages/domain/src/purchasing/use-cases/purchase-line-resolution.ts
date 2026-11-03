@@ -35,7 +35,7 @@ type LineStoreTransaction = Pick<
 
 type LockedProduct = Extract<LockProductResult, { kind: "locked" }>["product"];
 
-export function sortedDistinct(ids: readonly string[]): string[] {
+function sortedDistinct(ids: readonly string[]): string[] {
   return [...new Set(ids)].sort();
 }
 

@@ -8,7 +8,7 @@ if (!lineDeMiel || !lineDeAvena) {
   throw new Error("test setup: a purchase has no line");
 }
 
-export const LINEA_AGREGADA_ID = "c0b00000-0000-4000-8000-0000000000a1";
+const ADDED_LINE_ID = "c0b00000-0000-4000-8000-0000000000a1";
 
 export const compraDeMielCorregida: PurchaseSummary = {
   ...compraDeMiel,
@@ -16,7 +16,7 @@ export const compraDeMielCorregida: PurchaseSummary = {
     { ...lineDeMiel, expiresOn: null },
     {
       ...lineDeAvena,
-      id: LINEA_AGREGADA_ID,
+      id: ADDED_LINE_ID,
       quantity: 10_000,
       costPaidCents: 1_800_00,
       unitCostCents: 1_800_00,
@@ -51,7 +51,7 @@ export const linesAdded: PurchaseChange = {
     kind: "lines_added",
     lines: [
       {
-        lineId: LINEA_AGREGADA_ID,
+        lineId: ADDED_LINE_ID,
         productId: "90d00000-0000-4000-8000-000000000002",
         quantity: 10_000,
         costPaidCents: 1_800_00,
