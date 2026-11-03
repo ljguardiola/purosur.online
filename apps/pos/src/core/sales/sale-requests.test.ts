@@ -3710,7 +3710,7 @@ describe("cancelling the open sale of a locked register", () => {
     expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([]);
   });
 
-  it("answers that it is unavailable, keeping the sale, when the register has no outbox key yet", async () => {
+  it("empties an unpaid cart even when the register has no outbox key yet, since nothing is recorded", async () => {
     addCloser(["close_anothers_register_session"]);
     const saleId = await lockedWithOpenSale();
 
@@ -3719,8 +3719,8 @@ describe("cancelling the open sale of a locked register", () => {
         saleId,
         closer: CLOSER,
       }),
-    ).toEqual({ kind: "unavailable" });
-    expect(saleStates()).toEqual([{ state: "OPEN" }]);
+    ).toEqual({ kind: "cancelled", refunds: [] });
+    expect(saleStates()).toEqual([]);
   });
 
   it("answers that it is unavailable for a part-paid sale when the register has no outbox key yet, changing nothing", async () => {
@@ -4074,7 +4074,7 @@ describe("cancelling the sale in progress after a payment was approved", () => {
     expect(saleStates()).toEqual([{ state: "OPEN" }]);
   });
 
-  it("answers unavailable, keeping a sale without approved payments, when the register holds no outbox chain key", async () => {
+  it("empties a cart without approved payments even when the register holds no outbox chain key", async () => {
     addPersonWithPin("u2", "Grace", ["void_sale"]);
     const saleId = await sellTwoForPayments();
 
@@ -4083,8 +4083,8 @@ describe("cancelling the sale in progress after a payment was approved", () => {
         saleId,
         authorization: { user_id: "u2", pin: CLOSER_PIN },
       }),
-    ).toEqual({ kind: "unavailable" });
-    expect(saleStates()).toEqual([{ state: "OPEN" }]);
+    ).toMatchObject({ kind: "cancelled" });
+    expect(saleStates()).toEqual([]);
   });
 
   it("leaves no sale in progress", async () => {

@@ -708,16 +708,12 @@ describe("cancelPaidSale", () => {
       });
     });
 
-    it("names no order in the sale_cancelled event when the order was not applied yet", async () => {
+    it("sends nothing when the order was not applied yet, dropping the link", async () => {
       const store = ledger({ ...REBUILT, payments: [] });
 
       await cancel(store);
 
-      expect(store.state.outbox[0]).toMatchObject({
-        event_type: "sale_cancelled",
-        schema_version: 10,
-        payload: { rebuilt_paid_order: null },
-      });
+      expect(store.state.outbox).toEqual([]);
       expect(store.state.rebuiltSales).toEqual([]);
     });
   });
