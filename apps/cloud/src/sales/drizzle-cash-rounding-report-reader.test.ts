@@ -1,3 +1,4 @@
+import { compareCodeUnits } from "@purosur/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { registers } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
@@ -66,7 +67,8 @@ describe("DrizzleCashRoundingReportReader.completedCashRoundings", () => {
 
     expect(
       [...rows].sort(
-        (a, b) => a.day.localeCompare(b.day) || a.registerName.localeCompare(b.registerName),
+        (a, b) =>
+          compareCodeUnits(a.day, b.day) || compareCodeUnits(a.registerName, b.registerName),
       ),
     ).toEqual([
       {
