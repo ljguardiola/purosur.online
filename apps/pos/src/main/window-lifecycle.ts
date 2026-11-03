@@ -17,6 +17,7 @@ export interface LoadFailure {
 
 export interface RevivableWindow {
   onceReadyToShow(listener: () => void): void;
+  maximize(): void;
   show(): void;
   isDestroyed(): boolean;
   webContents: {
@@ -40,12 +41,20 @@ export function showWhenReadyAndReviveRenderer(
 ): void {
   let attempt = 0;
   let loadedAt = deps.now();
+  let revealed = false;
+  const reveal = (): void => {
+    if (!revealed) {
+      revealed = true;
+      window.maximize();
+    }
+    window.show();
+  };
 
-  window.onceReadyToShow(() => window.show());
+  window.onceReadyToShow(reveal);
   // A page that fails to load never becomes ready to show, which would leave the register with no
   // window at all.
   window.webContents.onLoadFailed((failure) => {
-    window.show();
+    reveal();
     deps.onLoadFailed?.(failure);
   });
   window.webContents.onRendererGone((reason) => {
@@ -62,7 +71,7 @@ export function showWhenReadyAndReviveRenderer(
 
     if (!decision.shouldRestart) {
       // An interface that crashed before its first paint never became ready to show.
-      window.show();
+      reveal();
       deps.onRecoveryExhausted?.();
       return;
     }
