@@ -224,7 +224,7 @@ export function NewAssemblyBatchModal({
   }, [proposal]);
 
   const clearRefusals = () => {
-    setRefusals({});
+    setRefusals((current) => (Object.keys(current).length === 0 ? current : {}));
     setOutputRefusal(undefined);
   };
   const options = sortedItems(recipes, {
@@ -335,7 +335,7 @@ export function NewAssemblyBatchModal({
                     {() => (
                       <AssemblyBatchComponentsField
                         components={recipe.components}
-                        proposal={proposal}
+                        proposal={sizeProposal}
                         refusals={refusals}
                         onUsedChange={clearRefusals}
                       />
