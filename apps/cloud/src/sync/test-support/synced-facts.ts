@@ -188,7 +188,6 @@ export function aVoidedSaleOf(
     total: completed.total,
     saleDiscount: completed.saleDiscount,
     saleDiscountAmount: completed.saleDiscountAmount,
-    cashRounding: completed.cashRounding,
     lines: completed.lines,
     payments: completed.payments,
     refunds,

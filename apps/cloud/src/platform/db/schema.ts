@@ -34,6 +34,7 @@ import {
   PURCHASE_ORDER_STATES,
   RECEIPT_TYPES,
   type RejectedDocumentRemedy,
+  SMALLEST_CASH_BILL,
   SNAPSHOT_CORRUPTION_STAGES,
   SNAPSHOT_FAILURE_REASONS,
   SNAPSHOT_GENERATION_STATUSES,
@@ -1681,7 +1682,7 @@ export const sales = pgTable(
     ),
     check(
       "sales_cash_rounding_check",
-      sql`${table.cashRounding} >= 0 AND ${table.cashRounding} < 10000`,
+      sql`${table.cashRounding} >= 0 AND ${table.cashRounding} < ${sql.raw(String(SMALLEST_CASH_BILL))}`,
     ),
     check(
       "sales_sale_discount_reason_check",

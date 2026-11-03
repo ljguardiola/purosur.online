@@ -230,7 +230,6 @@ function voidedSale(payload: VoidedSalePayload): SyncedFact {
       actorId: payload.actor_id,
       authorizedBy: payload.authorized_by,
       voidedAt: new Date(payload.occurred_at),
-      cashRounding: "cash_rounding" in payload ? payload.cash_rounding : 0,
       total: payload.total,
       ...saleParts(payload),
       payments: salePayments(payload.payments),

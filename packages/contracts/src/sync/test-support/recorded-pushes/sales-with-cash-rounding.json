@@ -160,7 +160,7 @@
               "discount_amount": 0,
               "id": "01a1a000-0102-7000-9000-000000000102",
               "line_total": 320000,
-              "list_unit_price": 160000,
+              "list_unit_price": 163500,
               "manual_adjustment": null,
               "price_list_id": "9a6e2b1d-4c78-4f13-b5a0-8e7d3c1f9a07",
               "product_id": "5d1a8f3c-9e47-4b02-8c6d-7a3f2e9b1c06",
@@ -204,7 +204,7 @@
         },
         "occurred_at": "2026-10-06T12:00:00.000Z",
         "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
-        "chain_hmac": "GTEmqwhJT1w7f9WMkqL5poBiLHh3FM9TQXOEE4lR3FU="
+        "chain_hmac": "3ixtGyNtOcJS97k6/rzS0hM9rMXkAyEWIKXJaYghdBs="
       },
       {
         "event_id": "01a1a000-1009-7000-9000-000000001009",
@@ -234,7 +234,7 @@
               "discount_amount": 0,
               "id": "01a1a000-0202-7000-9000-000000000202",
               "line_total": 40000,
-              "list_unit_price": 45000,
+              "list_unit_price": 48000,
               "manual_adjustment": null,
               "price_list_id": "9a6e2b1d-4c78-4f13-b5a0-8e7d3c1f9a07",
               "product_id": "0b9d4c7e-6a21-4e83-9f5b-3d8e1a2c7b05",
@@ -284,7 +284,7 @@
         },
         "occurred_at": "2026-10-06T12:10:00.000Z",
         "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
-        "chain_hmac": "7LIQsqZuK0bBvyU0ur0PveIZ5ylRGD+zulYtTsonwp8="
+        "chain_hmac": "h7AytvE/rV0PA1AxzbCPvm7L0JQY2CEEWTUzx1Drg+E="
       },
       {
         "event_id": "01a1a000-100a-7000-9000-00000000100a",
@@ -307,7 +307,7 @@
             },
             {
               "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
-              "amount": 5000,
+              "amount": 10000,
               "id": "01a1a000-0305-7000-9000-000000000305",
               "occurred_at": "2026-10-06T12:20:00.000Z",
               "ref_id": "01a1a000-0300-7000-9000-000000000300",
@@ -322,8 +322,8 @@
             {
               "discount_amount": 0,
               "id": "01a1a000-0302-7000-9000-000000000302",
-              "line_total": 85000,
-              "list_unit_price": 89500,
+              "line_total": 80000,
+              "list_unit_price": 84500,
               "manual_adjustment": null,
               "price_list_id": "9a6e2b1d-4c78-4f13-b5a0-8e7d3c1f9a07",
               "product_id": "0b9d4c7e-6a21-4e83-9f5b-3d8e1a2c7b05",
@@ -339,7 +339,7 @@
           "operation_number": 3,
           "payments": [
             {
-              "amount": 85000,
+              "amount": 80000,
               "authorized_by": null,
               "confirmed_at": null,
               "id": "01a1a000-0303-7000-9000-000000000303",
@@ -363,11 +363,11 @@
               "sale_line_id": "01a1a000-0302-7000-9000-000000000302"
             }
           ],
-          "total": 85000
+          "total": 80000
         },
         "occurred_at": "2026-10-06T12:20:00.000Z",
         "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
-        "chain_hmac": "q1tUR6a483PUgszJLomWotd5t5jWRYaLVKtUrhzghxc="
+        "chain_hmac": "EGAXWcn3Xp57JIw0OJiCwVLYJAhsHx9XWrV1zh1T2PA="
       },
       {
         "event_id": "01a1a000-100b-7000-9000-00000000100b",
@@ -391,7 +391,7 @@
             },
             {
               "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
-              "amount": 5000,
+              "amount": 10000,
               "id": "01a1a000-0305-7000-9000-000000000305",
               "occurred_at": "2026-10-06T12:20:00.000Z",
               "ref_id": "01a1a000-0300-7000-9000-000000000300",
@@ -400,7 +400,7 @@
             },
             {
               "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
-              "amount": 85000,
+              "amount": 80000,
               "id": "01a1a000-0308-7000-9000-000000000308",
               "occurred_at": "2026-10-06T12:30:00.000Z",
               "ref_id": "01a1a000-0300-7000-9000-000000000300",
@@ -417,8 +417,8 @@
             {
               "discount_amount": 0,
               "id": "01a1a000-0302-7000-9000-000000000302",
-              "line_total": 85000,
-              "list_unit_price": 89500,
+              "line_total": 80000,
+              "list_unit_price": 84500,
               "manual_adjustment": null,
               "price_list_id": "9a6e2b1d-4c78-4f13-b5a0-8e7d3c1f9a07",
               "product_id": "0b9d4c7e-6a21-4e83-9f5b-3d8e1a2c7b05",
@@ -433,7 +433,7 @@
           "occurred_at": "2026-10-06T12:30:00.000Z",
           "payments": [
             {
-              "amount": 85000,
+              "amount": 80000,
               "authorized_by": null,
               "confirmed_at": null,
               "id": "01a1a000-0303-7000-9000-000000000303",
@@ -447,7 +447,7 @@
           ],
           "refunds": [
             {
-              "amount": 85000,
+              "amount": 80000,
               "id": "01a1a000-0307-7000-9000-000000000307",
               "kind": "REFUND",
               "method": "CASH",
@@ -468,11 +468,11 @@
               "sale_line_id": "01a1a000-0302-7000-9000-000000000302"
             }
           ],
-          "total": 85000
+          "total": 80000
         },
         "occurred_at": "2026-10-06T12:30:00.000Z",
         "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
-        "chain_hmac": "+rxTYxc9AaZIDLwsJGBmydYuj7hTUaiMX2d/rf4p/Es="
+        "chain_hmac": "Osie2+qJRfSYFSN0Q9ySWA0ANYVaY+Pq/MJf2TQPI9g="
       }
     ]
   }
