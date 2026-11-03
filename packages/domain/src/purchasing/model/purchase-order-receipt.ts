@@ -47,3 +47,22 @@ export function stateAfterReceipt(
 ): Extract<PurchaseOrderState, "PARTIALLY_RECEIVED" | "RECEIVED"> {
   return missingPerLine.every((missing) => missing === 0) ? "RECEIVED" : "PARTIALLY_RECEIVED";
 }
+
+export type OutstandingLoad =
+  | { loadedBy: "packages"; packages: number }
+  | { loadedBy: "quantity"; quantity: number };
+
+// A line is loaded by packages only when what is outstanding is a whole number of them.
+export function outstandingLoad(outstanding: number, quantityPerPackage: number): OutstandingLoad {
+  return outstanding % quantityPerPackage === 0
+    ? { loadedBy: "packages", packages: outstanding / quantityPerPackage }
+    : { loadedBy: "quantity", quantity: outstanding };
+}
+
+// Cents, VAT included, of a quantity at the supplier's list price per sale unit.
+export function listCostCents(pricePerSaleUnit: Fraction, quantity: number): number {
+  return roundHalfUp({
+    numerator: pricePerSaleUnit.numerator * BigInt(quantity),
+    denominator: pricePerSaleUnit.denominator * BigInt(STOCK_QUANTITY_PER_UNIT),
+  });
+}

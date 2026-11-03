@@ -106,6 +106,13 @@ export type {
 } from "./get-purchase-order.js";
 export { getPurchaseOrder } from "./get-purchase-order.js";
 export type {
+  GetPurchaseOrderReceiptDraftInput,
+  GetPurchaseOrderReceiptDraftOutcome,
+  PurchaseOrderReceiptDraft,
+  ReceiptDraftLine,
+} from "./get-purchase-order-receipt-draft.js";
+export { getPurchaseOrderReceiptDraft } from "./get-purchase-order-receipt-draft.js";
+export type {
   LinkSupplierPriceListRowInput,
   LinkSupplierPriceListRowOutcome,
 } from "./link-supplier-price-list-row.js";
@@ -217,6 +224,9 @@ export type {
   PurchaseOrderLineListing,
   PurchaseOrderListing,
   PurchaseOrderReader,
+  PurchaseOrderReceiptListing,
+  ReceivableOrderLineListing,
+  ReceivableOrderListing,
 } from "./purchase-order-reader.js";
 export type {
   LockReceivablePurchaseOrderResult,

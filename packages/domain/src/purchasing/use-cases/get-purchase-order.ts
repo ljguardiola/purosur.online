@@ -3,9 +3,11 @@ import {
   expectedOrderTotal,
   mayBeCancelled,
   mayBeEdited,
+  mayBeReceived,
   mayBeShared,
   mayBeSharedAsDocument,
 } from "../model/purchase-order.js";
+import { outstandingQuantity } from "../model/purchase-order-receipt.js";
 import type { PurchaseOrderDetailListing, PurchaseOrderReader } from "./purchase-order-reader.js";
 
 export interface GetPurchaseOrderInput {
@@ -14,13 +16,17 @@ export interface GetPurchaseOrderInput {
 }
 
 export type FoundPurchaseOrder = Omit<PurchaseOrderDetailListing, "lines"> & {
-  lines: (PurchaseOrderDetailListing["lines"][number] & { expectedTotalCents: number | null })[];
+  lines: (PurchaseOrderDetailListing["lines"][number] & {
+    expectedTotalCents: number | null;
+    outstandingQuantity: number;
+  })[];
   expectedTotalCents: number;
   hasUnpricedLine: boolean;
   editable: boolean;
   shareable: boolean;
   documentShareable: boolean;
   cancellable: boolean;
+  receivable: boolean;
 };
 
 export type GetPurchaseOrderOutcome =
@@ -39,12 +45,17 @@ export async function getPurchaseOrder(
     kind: "found",
     order: {
       ...order,
-      lines: order.lines.map((line) => ({ ...line, expectedTotalCents: expectedLineTotal(line) })),
+      lines: order.lines.map((line) => ({
+        ...line,
+        expectedTotalCents: expectedLineTotal(line),
+        outstandingQuantity: outstandingQuantity(line, line.receivedQuantity),
+      })),
       ...expectedOrderTotal(order.lines),
       editable: mayBeEdited(order.state),
       shareable: mayBeShared(order.state),
       documentShareable: mayBeSharedAsDocument(order.state),
       cancellable: mayBeCancelled(order.state),
+      receivable: mayBeReceived(order.state),
     },
   };
 }
