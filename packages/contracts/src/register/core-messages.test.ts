@@ -44,6 +44,18 @@ describe("registerRendererToCoreMessageSchema", () => {
     expect(registerRendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
+  it("accepts a request for the register's running version", () => {
+    const message = { type: "register-version-request", request_id: REQUEST_ID };
+
+    expect(registerRendererToCoreMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a request for the running version without its request id", () => {
+    expect(
+      registerRendererToCoreMessageSchema.safeParse({ type: "register-version-request" }).success,
+    ).toBe(false);
+  });
+
   it("accepts an enrollment with the code as typed", () => {
     const message = { type: "enroll", request_id: REQUEST_ID, code: "p4nx 7kwe 2qrt 6mzd" };
 
@@ -295,6 +307,28 @@ describe("registerCoreToRendererMessageSchema", () => {
     const message = { type: "register-name", request_id: REQUEST_ID, name };
 
     expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each(["1.0.1539", null])("accepts the register's running version, or none: %s", (version) => {
+    const message = { type: "register-version", request_id: REQUEST_ID, version };
+
+    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects a running version that is not text or null", () => {
+    expect(
+      registerCoreToRendererMessageSchema.safeParse({
+        type: "register-version",
+        request_id: REQUEST_ID,
+        version: 3,
+      }).success,
+    ).toBe(false);
+    expect(
+      registerCoreToRendererMessageSchema.safeParse({
+        type: "register-version",
+        request_id: REQUEST_ID,
+      }).success,
+    ).toBe(false);
   });
 
   it("rejects a register name that is not text or null", () => {

@@ -111,6 +111,7 @@ export interface RendererRequestDeps {
   enrollmentStanding: () => Promise<EnrollmentStandingAnswer>;
   registerService: RegisterService;
   registerName: () => string | undefined;
+  registerVersion: () => string | undefined;
   enroll: (typedCode: string) => Promise<EnrollmentOutcome>;
   redeemPinCode: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
   pinPolicy: () => PinPolicy;
@@ -762,6 +763,12 @@ export async function answerRendererRequest(
         type: "register-name",
         request_id: message.request_id,
         name: deps.registerName() ?? null,
+      };
+    case "register-version-request":
+      return {
+        type: "register-version",
+        request_id: message.request_id,
+        version: deps.registerVersion() ?? null,
       };
     case "enroll":
       return {
