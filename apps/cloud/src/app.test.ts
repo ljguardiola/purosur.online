@@ -3160,6 +3160,11 @@ describe("the route access inventory", () => {
         access: capabilityAccess("prices_area"),
       },
       {
+        method: "GET",
+        url: "/api/prices/:productId/recommendation",
+        access: capabilityAccess("recipes"),
+      },
+      {
         method: "PUT",
         url: "/api/prices/:productId",
         access: capabilityAccess("prices_area"),
