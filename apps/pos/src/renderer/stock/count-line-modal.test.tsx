@@ -6,6 +6,7 @@ import type {
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { deferred } from "../platform/test-support/deferred";
 import { render } from "../shell/test-support/render-with-router";
 import type { CountLineModalProps } from "./count-line-modal";
 import { CountLineModal } from "./count-line-modal";
@@ -121,6 +122,72 @@ describe("CountLineModal", () => {
       .element(screen.getByRole("textbox", { name: "Cantidad contada" }))
       .toHaveValue("4,400");
     expect(weighing).toHaveBeenCalledWith(QUESO.product_id);
+  });
+
+  it("follows each new stable reading of the scale", async () => {
+    const readings = [1000, 1500];
+    const { screen } = await renderModal({
+      weigh: async () => ({ kind: "weighed", weight_thousandths: readings.shift() ?? 1500 }),
+    });
+    const field = screen.getByRole("textbox", { name: "Cantidad contada" });
+
+    await expect.element(field).toHaveValue("1,500");
+  });
+
+  it("stops following the scale once the cashier types the weight", async () => {
+    let reading = 1000;
+    const { screen, weighing, recording } = await renderModal({
+      weigh: async () => ({ kind: "weighed", weight_thousandths: reading }),
+    });
+    const field = screen.getByRole("textbox", { name: "Cantidad contada" });
+    await expect.element(field).toHaveValue("1,000");
+
+    await typeCounted(screen, "2");
+    reading = 3000;
+    const asked = weighing.mock.calls.length;
+    await vi.waitFor(() => expect(weighing.mock.calls.length).toBeGreaterThan(asked));
+
+    await expect.element(field).toHaveValue("2");
+    await confirm(screen);
+    expect(recording).toHaveBeenCalledWith(QUESO.product_id, 2000, null);
+  });
+
+  it("waits for the next stable reading and records it when confirmed while the plate moves", async () => {
+    const answers = [
+      deferred<WeighCountedProductOutcome>(),
+      deferred<WeighCountedProductOutcome>(),
+      deferred<WeighCountedProductOutcome>(),
+      deferred<WeighCountedProductOutcome>(),
+    ];
+    let asked = 0;
+    const { screen, weighing, recording } = await renderModal({
+      weigh: () => (answers[asked++] ?? deferred<WeighCountedProductOutcome>()).promise,
+    });
+    const field = screen.getByRole("textbox", { name: "Cantidad contada" });
+    answers[0]?.resolve({ kind: "weighed", weight_thousandths: 1000 });
+    await expect.element(field).toHaveValue("1,000");
+    answers[1]?.resolve({ kind: "weighing" });
+    await vi.waitFor(() => expect(weighing.mock.calls.length).toBe(3));
+
+    await confirm(screen);
+    expect(recording).not.toHaveBeenCalled();
+    answers[2]?.resolve({ kind: "weighing" });
+    await vi.waitFor(() => expect(weighing.mock.calls.length).toBe(4));
+    answers[3]?.resolve({ kind: "weighed", weight_thousandths: 1500 });
+
+    await vi.waitFor(() => expect(recording).toHaveBeenCalledWith(QUESO.product_id, 1500, null));
+    expect(recording).toHaveBeenCalledOnce();
+  });
+
+  it("records what is typed at once, without waiting for the scale, when the plate moves before any stable reading", async () => {
+    const { screen, recording } = await renderModal({
+      weigh: async () => ({ kind: "weighing" }),
+    });
+    await typeCounted(screen, "2");
+
+    await confirm(screen);
+
+    expect(recording).toHaveBeenCalledWith(QUESO.product_id, 2000, null);
   });
 
   it("tells the scale is unavailable and lets the weight be typed", async () => {

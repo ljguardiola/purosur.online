@@ -209,6 +209,16 @@ describe("useScaleWeighing", () => {
     expect(result.current.phase).toEqual({ kind: "typing" });
   });
 
+  it("stops confirming once the cashier chooses to type the weight", async () => {
+    const { result, act } = await weighingWith(async () => WEIGHING);
+    await act(() => result.current.confirm());
+    expect(result.current.confirming).toBe(true);
+
+    await act(() => result.current.typeInstead());
+
+    expect(result.current.confirming).toBe(false);
+  });
+
   it("keeps typing when a stable reading that is not taken arrives", async () => {
     const answer = deferred<ScaleWeighing>();
     const { result, act } = await weighingWith(() => answer.promise);
