@@ -11,6 +11,7 @@ import {
   isValidCashAmount,
   isValidCashMovementAmount,
   manualAdjustmentReason,
+  mayBeCashRounding,
   mayBeManualDiscountAmount,
   mayBeManualDiscountPercent,
   mayBeMovementQuantity,
@@ -293,6 +294,12 @@ const saleCompletedV10Schema = saleCompletedV9Schema.extend({
   rebuilt_paid_order: rebuiltPaidOrderSchema,
 });
 
+const cashRoundingSchema = z.int().refine(mayBeCashRounding);
+
+const saleCompletedV11Schema = saleCompletedV10Schema.extend({
+  cash_rounding: cashRoundingSchema,
+});
+
 const printedDocumentSchema = z.enum(PRINTED_DOCUMENTS);
 
 const salePrintStateChangedV1Schema = z.object({
@@ -525,6 +532,10 @@ const saleVoidedV3Schema = saleVoidedV2Schema.extend({
 
 const saleVoidedV4Schema = saleVoidedV3Schema.extend({
   payments: z.array(paymentWithPointCardTypeSchema).min(1),
+});
+
+const saleVoidedV5Schema = saleVoidedV4Schema.extend({
+  cash_rounding: cashRoundingSchema,
 });
 
 const saleReturnedV1Schema = z.object({
@@ -782,6 +793,7 @@ const PAYLOAD_SCHEMAS = {
   "sale_completed@8": saleCompletedV8Schema,
   "sale_completed@9": saleCompletedV9Schema,
   "sale_completed@10": saleCompletedV10Schema,
+  "sale_completed@11": saleCompletedV11Schema,
   "sale_print_state_changed@1": salePrintStateChangedV1Schema,
   "sale_print_state_changed@2": salePrintStateChangedV2Schema,
   "sale_print_state_changed@3": salePrintStateChangedV3Schema,
@@ -803,6 +815,7 @@ const PAYLOAD_SCHEMAS = {
   "sale_voided@2": saleVoidedV2Schema,
   "sale_voided@3": saleVoidedV3Schema,
   "sale_voided@4": saleVoidedV4Schema,
+  "sale_voided@5": saleVoidedV5Schema,
   "sale_returned@1": saleReturnedV1Schema,
   "sale_returned@2": saleReturnedV2Schema,
   "sale_returned@3": saleReturnedV3Schema,

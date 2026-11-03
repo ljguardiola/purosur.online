@@ -1,5 +1,6 @@
 import {
   averageTicketSchema,
+  cashRoundingSchema,
   handTypedWeightsSchema,
   manualDiscountsQuerySchema,
   manualDiscountsSchema,
@@ -14,6 +15,7 @@ import {
 import type { ManualAdjustmentValue, ZoneRulesSource } from "@purosur/domain";
 import {
   readAverageTicket,
+  readCashRounding,
   readHandTypedWeights,
   readManualDiscounts,
   readRemovedLinesAndCancelledSales,
@@ -32,6 +34,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../sessions/route-access.js";
+import { DrizzleCashRoundingReportReader } from "./drizzle-cash-rounding-report-reader.js";
 import { DrizzleCashierSalesReportReader } from "./drizzle-cashier-sales-report-reader.js";
 import { DrizzleHandTypedWeightsReportReader } from "./drizzle-hand-typed-weights-report-reader.js";
 import { DrizzleManualDiscountsReportReader } from "./drizzle-manual-discounts-report-reader.js";
@@ -70,6 +73,7 @@ export function registerSalesReportRoutes<TQueryResult extends PgQueryResultHKT>
   const cashierReader = new DrizzleCashierSalesReportReader(options.db);
   const promotionReader = new DrizzlePromotionSalesReportReader(options.db);
   const manualDiscountsReader = new DrizzleManualDiscountsReportReader(options.db);
+  const cashRoundingReader = new DrizzleCashRoundingReportReader(options.db);
   const handTypedWeightsReader = new DrizzleHandTypedWeightsReportReader(options.db);
   const removedLinesAndCancelledSalesReader = new DrizzleRemovedLinesAndCancelledSalesReportReader(
     options.db,
@@ -334,6 +338,37 @@ export function registerSalesReportRoutes<TQueryResult extends PgQueryResultHKT>
                 },
         },
         authorizers: report.authorizers.map(person),
+      }),
+    );
+  });
+
+  app.get("/reports/cash-rounding", { preHandler, config }, async (request, reply) => {
+    const query = await readValidatedBody(reply, reportQuerySchema, request.query);
+    if (!query) {
+      return;
+    }
+    const report = await readCashRounding(
+      { reader: cashRoundingReader, clock: { now }, zoneRules: options.zoneRules },
+      {
+        locationId: openSessionOf(request).locationId,
+        asked: { from: query.from, to: query.to },
+        registerId: query.register_id,
+      },
+    );
+    await reply.code(200).send(
+      cashRoundingSchema.parse({
+        range: report.range,
+        rows: report.rows.map((row) => ({
+          day: row.day,
+          register_id: row.registerId,
+          register_name: row.registerName,
+          rounded: row.rounded,
+          rounded_sale_count: row.roundedSaleCount,
+        })),
+        totals: {
+          rounded: report.totals.rounded,
+          rounded_sale_count: report.totals.roundedSaleCount,
+        },
       }),
     );
   });

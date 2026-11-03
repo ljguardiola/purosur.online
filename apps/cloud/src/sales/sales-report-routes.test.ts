@@ -59,6 +59,10 @@ afterEach(async () => {
   await app.close();
 });
 
+function cashRounding(headers: Record<string, string>, query = "") {
+  return app.inject({ method: "GET", url: `/reports/cash-rounding${query}`, headers });
+}
+
 function salesByDay(headers: Record<string, string>, query = "") {
   return app.inject({ method: "GET", url: `/reports/sales-by-day${query}`, headers });
 }
@@ -1444,5 +1448,122 @@ describe("GET /reports/average-ticket", () => {
     const response = await averageTicket(headers);
 
     expect(response.json().current.sales_count).toBe(0);
+  });
+});
+
+describe("GET /reports/cash-rounding access", () => {
+  const request = cashRounding;
+
+  it("returns 401 when no session cookie was sent", async () => {
+    const response = await request({ origin: BACKOFFICE_ORIGIN });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("rejects an Origin that is not the backoffice's own", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await request({ ...headers, origin: "https://attacker.example" });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "origin_rejected" });
+  });
+
+  it("rejects a user who may not view reports", async () => {
+    const { headers } = await signedInWith(db, ["view_stock_balances"], NOW);
+
+    const response = await request(headers);
+
+    expect(response.statusCode).toBe(403);
+  });
+
+  it("answers a user who may view reports", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await request(headers);
+
+    expect(response.statusCode).toBe(200);
+  });
+});
+
+describe("GET /reports/cash-rounding", () => {
+  it.each([
+    ["a range ending before it starts", "?from=2026-10-06&to=2026-10-05"],
+    ["a register that is not an id", "?register_id=caja-1"],
+    ["a parameter given twice", "?from=2026-10-01&from=2026-10-02&to=2026-10-03"],
+  ])("answers 400 to %s", async (_name, query) => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await cashRounding(headers, query);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "validation_failed" });
+  });
+
+  it("reports the current Argentina day without rounding when no range is asked", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await cashRounding(headers);
+
+    expect(response.json()).toEqual({
+      range: { from: "2026-10-07", to: "2026-10-07" },
+      rows: [],
+      totals: { rounded: 0, rounded_sale_count: 0 },
+    });
+  });
+
+  it("answers the rounding of each day and register of the asked range", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { deviceId, registerId } = await insertEnrolledInstallation(db, {
+      now: NOW,
+      registerName: "Caja 1",
+    });
+    for (const [completedAt, cashRounding] of [
+      ["2026-10-07T13:00:00.000Z", 70],
+      ["2026-10-07T14:00:00.000Z", 30],
+    ] as const) {
+      await applyCompletedSale(db, {
+        deviceId,
+        completedAt: new Date(completedAt),
+        total: 3_200,
+        overrides: { cashRounding },
+      });
+    }
+
+    const response = await cashRounding(headers, "?from=2026-10-07&to=2026-10-07");
+
+    expect(response.json()).toEqual({
+      range: { from: "2026-10-07", to: "2026-10-07" },
+      rows: [
+        {
+          day: "2026-10-07",
+          register_id: registerId,
+          register_name: "Caja 1",
+          rounded: 100,
+          rounded_sale_count: 2,
+        },
+      ],
+      totals: { rounded: 100, rounded_sale_count: 2 },
+    });
+  });
+
+  it("filters by an asked register of the branch", async () => {
+    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { deviceId, registerId } = await insertEnrolledInstallation(db, {
+      now: NOW,
+      registerName: "Caja 1",
+    });
+    await applyCompletedSale(db, {
+      deviceId,
+      completedAt: new Date("2026-10-07T13:00:00.000Z"),
+      total: 3_200,
+      overrides: { cashRounding: 70 },
+    });
+
+    const ofTheRegister = await cashRounding(headers, `?register_id=${registerId}`);
+    const ofAnotherRegister = await cashRounding(headers, `?register_id=${randomUUID()}`);
+
+    expect(ofTheRegister.json().totals).toEqual({ rounded: 70, rounded_sale_count: 1 });
+    expect(ofAnotherRegister.json().totals).toEqual({ rounded: 0, rounded_sale_count: 0 });
   });
 });

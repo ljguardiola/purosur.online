@@ -16,6 +16,7 @@ import {
   ANA_USER_ID,
   averageTicketReport,
   cashierSalesReport,
+  cashRoundingReport,
   categoryProductsReport,
   manualDiscountsReport,
   promotionDiscountsReport,
@@ -25,7 +26,7 @@ import { openSession } from "../sessions/test-support/open-session";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
-import { registers } from "./test-support/report-fixtures";
+import { BACK_REGISTER_ID, registers } from "./test-support/report-fixtures";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
 opensOnlyScreens([
@@ -44,6 +45,7 @@ opensOnlyScreens([
   "/reports/removed-lines-and-cancelled-sales",
   "/reports/sales-by-promotion",
   "/reports/manual-discounts",
+  "/reports/cash-rounding",
   "/reports/average-ticket",
   "/reports/returns",
   "/reports/fiscal-documents",
@@ -104,6 +106,10 @@ function reportsServices(capabilities: Capability[]) {
   vi.mocked(services.manualDiscountsScreen.fetchManualDiscounts).mockResolvedValue({
     kind: "ok",
     value: manualDiscountsReport,
+  });
+  vi.mocked(services.cashRoundingScreen.fetchCashRounding).mockResolvedValue({
+    kind: "ok",
+    value: cashRoundingReport,
   });
   vi.mocked(services.averageTicketScreen.fetchAverageTicket).mockResolvedValue({
     kind: "ok",
@@ -707,6 +713,40 @@ test("opens the manual discounts report from the list and reads it from the clou
   expect(document.title).toBe("Descuentos manuales y sobre el total · Puro Sur");
 });
 
+test("opens the cash rounding report from the list and reads it from the cloud", async () => {
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(null, "", "/reports");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await userEvent.click(
+    screen.getByRole("main").getByRole("link", { name: "Redondeo en efectivo" }),
+  );
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Redondeo en efectivo", level: 1 }))
+    .toBeVisible();
+  expect(window.location.pathname).toBe("/reports/cash-rounding");
+  await expect.element(screen.getByRole("table").getByText("Caja principal")).toBeVisible();
+  expect(services.cashRoundingScreen.fetchCashRounding).toHaveBeenCalledWith({});
+  expect(document.title).toBe("Redondeo en efectivo · Puro Sur");
+});
+
+test("keeps the cash rounding report's filters after following its own side column link", async () => {
+  const url = `/reports/cash-rounding?register=${BACK_REGISTER_ID}`;
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(null, "", url);
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("table").getByText("Caja principal")).toBeVisible();
+  const sectionLink = screen
+    .getByRole("navigation", { name: "Reportes" })
+    .getByRole("link", { name: "Redondeo en efectivo" });
+  await expect.element(sectionLink).toHaveAttribute("href", url);
+
+  await userEvent.click(sectionLink);
+
+  await expect.poll(() => `${window.location.pathname}${window.location.search}`).toBe(url);
+});
+
 test("keeps the manual discounts report's filters after following its own side column link", async () => {
   const url = `/reports/manual-discounts?authorizedBy=${ANA_USER_ID}`;
   const services = reportsServices(["reports_area"]);
@@ -893,6 +933,7 @@ test.each([
   "/reports/removed-lines-and-cancelled-sales",
   "/reports/sales-by-promotion",
   "/reports/manual-discounts",
+  "/reports/cash-rounding",
   "/reports/average-ticket",
   "/reports/returns",
   "/reports/fiscal-documents",
@@ -918,6 +959,7 @@ test.each([
   ).not.toHaveBeenCalled();
   expect(services.salesByPromotionScreen.fetchSalesByPromotion).not.toHaveBeenCalled();
   expect(services.manualDiscountsScreen.fetchManualDiscounts).not.toHaveBeenCalled();
+  expect(services.cashRoundingScreen.fetchCashRounding).not.toHaveBeenCalled();
   expect(services.averageTicketScreen.fetchAverageTicket).not.toHaveBeenCalled();
   expect(services.returnsReportScreen.fetchReturnsReport).not.toHaveBeenCalled();
   expect(

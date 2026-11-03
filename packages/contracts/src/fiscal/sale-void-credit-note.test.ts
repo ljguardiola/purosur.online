@@ -106,7 +106,7 @@ describe("saleVoidedEventCreditNoteSchema", () => {
     });
   });
 
-  it.each([3, 4])(
+  it.each([3, 4, 5])(
     "reads a void of version %i, the versions whose void asks for a credit note",
     (schemaVersion) => {
       expect(eventWith({ schema_version: schemaVersion }).data?.schema_version).toBe(schemaVersion);

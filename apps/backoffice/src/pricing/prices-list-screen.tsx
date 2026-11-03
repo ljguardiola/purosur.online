@@ -28,7 +28,7 @@ import {
   Search,
   TriangleAlert,
 } from "lucide-react";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { useRetryAdvice } from "../platform/action-failure-notice";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { retryAfterDetail } from "../platform/retry-after-detail";
@@ -122,9 +122,9 @@ export function PricesListScreen({
     previousProductNotice: ScreenNotice | null;
   } | null>(null);
   const [walk, setWalk] = useState<{ queue: PriceProduct[]; index: number } | null>(null);
-  const [notice, setNotice] = useState<(RaisedNotice & { id: number }) | null>(null);
+  const [notice, setNotice] = useState<RaisedNotice | null>(null);
+  const [shownNoticeCount, setShownNoticeCount] = useState(0);
   const retryAdvice = useRetryAdvice();
-  const lastNoticeId = useRef(0);
   const [screenRequestInFlight, setScreenRequestInFlight] = useState(false);
   const [purchaseReview, setPurchaseReview] = useState<readonly string[] | null>(() =>
     purchasedProductsToReview.length > 0 ? purchasedProductsToReview : null,
@@ -144,11 +144,11 @@ export function PricesListScreen({
     return () => clearTimeout(handle);
   }, [search]);
 
-  // Each notice gets a fresh id: an unchanged id would leave the live region's text identical, and
+  // Each notice gets a fresh key: an unchanged key would leave the live region's text identical, and
   // screen readers don't re-announce a live region that already holds that text.
   function showScreenNotice(shown: RaisedNotice) {
-    lastNoticeId.current += 1;
-    setNotice({ ...shown, id: lastNoticeId.current });
+    setShownNoticeCount((count) => count + 1);
+    setNotice(shown);
   }
 
   function clearErrorNotice() {
@@ -241,20 +241,6 @@ export function PricesListScreen({
     description: null,
   };
 
-  async function startReview(productIds?: readonly string[]) {
-    clearErrorNotice();
-    setScreenRequestInFlight(true);
-    const outcome = await readReviewQueue(productIds);
-    if (productIds && outcome.kind === "ok") {
-      setPurchaseReview(null);
-    }
-    handleReviewReadOutcome(
-      outcome,
-      productIds ? purchaseReviewStartFailedNotice : reviewStartFailedNotice,
-    );
-    setScreenRequestInFlight(false);
-  }
-
   function handleReviewReadOutcome(
     outcome: Awaited<ReturnType<typeof readReviewQueue>>,
     failedNotice: RaisedNotice,
@@ -289,6 +275,20 @@ export function PricesListScreen({
       return;
     }
     showScreenNotice(failedNotice);
+  }
+
+  async function startReview(productIds?: readonly string[]) {
+    clearErrorNotice();
+    setScreenRequestInFlight(true);
+    const outcome = await readReviewQueue(productIds);
+    if (productIds && outcome.kind === "ok") {
+      setPurchaseReview(null);
+    }
+    handleReviewReadOutcome(
+      outcome,
+      productIds ? purchaseReviewStartFailedNotice : reviewStartFailedNotice,
+    );
+    setScreenRequestInFlight(false);
   }
 
   function reviewedNotice(product: PriceProduct, outcome: PriceModalOutcome): ScreenNotice {
@@ -344,23 +344,6 @@ export function PricesListScreen({
     setModal(null);
   }
 
-  async function handleRowConfirm(item: PriceProduct) {
-    if (!item.currentPrice) {
-      return;
-    }
-    clearErrorNotice();
-    setScreenRequestInFlight(true);
-    try {
-      const outcome = await confirmPriceService(item.id, {
-        expectedCurrentPriceId: item.currentPrice.id,
-      });
-      handleRowConfirmOutcome(item, outcome);
-    } catch {
-      showScreenNotice(rowConfirmFailedNotice(item));
-    }
-    setScreenRequestInFlight(false);
-  }
-
   function rowConfirmFailedNotice(item: PriceProduct): RaisedNotice {
     return {
       tone: "error",
@@ -411,6 +394,23 @@ export function PricesListScreen({
       return;
     }
     showScreenNotice(rowConfirmFailedNotice(item));
+  }
+
+  async function handleRowConfirm(item: PriceProduct) {
+    if (!item.currentPrice) {
+      return;
+    }
+    clearErrorNotice();
+    setScreenRequestInFlight(true);
+    try {
+      const outcome = await confirmPriceService(item.id, {
+        expectedCurrentPriceId: item.currentPrice.id,
+      });
+      handleRowConfirmOutcome(item, outcome);
+    } catch {
+      showScreenNotice(rowConfirmFailedNotice(item));
+    }
+    setScreenRequestInFlight(false);
   }
 
   const startPurchaseReview = useEffectEvent(() => {
@@ -622,7 +622,7 @@ export function PricesListScreen({
       />
       {notice ? (
         <FloatingNotification
-          key={notice.id}
+          key={shownNoticeCount}
           tone={notice.tone}
           icon={notice.tone === "success" ? <Check /> : <TriangleAlert />}
           title={notice.title}

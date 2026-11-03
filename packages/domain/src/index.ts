@@ -876,6 +876,8 @@ export {
 } from "./returns/index.js";
 export type {
   CancelledSaleFacts,
+  CashRoundingRecord,
+  CashRoundingTotals,
   CreditNoteReceiptContent,
   DeferredSaleFacts,
   DeferredSaleInvoice,
@@ -932,6 +934,7 @@ export {
   grossSaleSubtotal,
   isDeferralPending,
   manualAdjustmentReason,
+  mayBeCashRounding,
   mayBeManualDiscountAmount,
   mayBeManualDiscountPercent,
   mayBeOverriddenUnitPrice,
@@ -956,6 +959,7 @@ export {
   SALES_HISTORY_PAGE_SIZE,
   SALES_REPORT_GROUPS,
   SALES_REPORT_SALE_STATE,
+  SMALLEST_CASH_BILL,
   saleComprobanteOf,
   saleDiscountUnavailability,
   saleFiscalDocumentAmong,

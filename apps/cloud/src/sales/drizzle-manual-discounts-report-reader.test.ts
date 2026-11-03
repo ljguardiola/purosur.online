@@ -303,6 +303,26 @@ describe("DrizzleManualDiscountsReportReader.completedManualDiscounts", () => {
     expect(records).toEqual({ saleDiscounts: [], lineDiscounts: [] });
   });
 
+  it("shows only the manual discount of a sale that also carries a cash rounding", async () => {
+    const { deviceId, locationId } = await aRegister();
+    const cashier = await aUser("Ana", locationId);
+    const saleId = await sell(deviceId, cashier, {
+      saleDiscount: percentOnTotal(10),
+      saleDiscountAmount: 500,
+      cashRounding: 70,
+    });
+    await sell(deviceId, cashier, { cashRounding: 90 });
+
+    const { saleDiscounts, lineDiscounts } = await reader().completedManualDiscounts({
+      locationId,
+      range: wholeOctober,
+      registerId: undefined,
+    });
+
+    expect(saleDiscounts.map((record) => [record.saleId, record.amount])).toEqual([[saleId, 500]]);
+    expect(lineDiscounts).toEqual([]);
+  });
+
   it("dates a sale by the Argentina calendar day it was completed", async () => {
     const { deviceId, locationId } = await aRegister();
     const cashier = await aUser("Ana", locationId);
