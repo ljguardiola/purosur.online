@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import { readCurrentStockReport } from "./read-current-stock-report.js";
 import type { LotInStock, StockLevel } from "./stock-reader.js";
 import { FakeCurrentStockReader } from "./test-support/fake-current-stock-reader.js";
+import { FakeLotNameReader } from "./test-support/fake-lot-name-reader.js";
+import { lotFactsOfLevels } from "./test-support/lot-facts-of-levels.js";
 
 function level(id: string, overrides: Partial<StockLevel> = {}): StockLevel {
   return {
@@ -23,7 +26,7 @@ function level(id: string, overrides: Partial<StockLevel> = {}): StockLevel {
 function purchasedLot(id: string, overrides: Partial<LotInStock> = {}): LotInStock {
   return {
     id,
-    lotNumber: null,
+    code: 1,
     expiresOn: null,
     purchase: { purchasedOn: "2026-10-01", supplierName: "Distribuidora Sur" },
     initialCount: false,
@@ -38,7 +41,7 @@ function purchasedLot(id: string, overrides: Partial<LotInStock> = {}): LotInSto
 function lotWithoutCost(id: string, remaining: number): LotInStock {
   return {
     id,
-    lotNumber: null,
+    code: 1,
     expiresOn: null,
     purchase: null,
     initialCount: true,
@@ -52,7 +55,11 @@ function lotWithoutCost(id: string, remaining: number): LotInStock {
 async function read(levels: StockLevel[], categoryId?: string) {
   const currentStock = new FakeCurrentStockReader(levels);
   return readCurrentStockReport(
-    { currentStock },
+    {
+      currentStock,
+      lotNames: new FakeLotNameReader(lotFactsOfLevels(levels, "location-1")),
+      zoneRules: new FakeZoneRulesSource(),
+    },
     { locationId: "location-1", ...(categoryId === undefined ? {} : { categoryId }) },
   );
 }
@@ -100,7 +107,7 @@ describe("readCurrentStockReport", () => {
         brandName: "Vitora",
         netContent: { quantity: 250, unit: "G" },
         balance: 4_000,
-        lots: [purchasedLot("l1", { lotNumber: "L-77", expiresOn: "2027-03-01" })],
+        lots: [purchasedLot("l1", { code: 77, expiresOn: "2027-03-01" })],
       }),
     ]);
 
@@ -118,7 +125,8 @@ describe("readCurrentStockReport", () => {
         lots: [
           {
             id: "l1",
-            lotNumber: "L-77",
+            name: { origin: "purchase", day: "2026-10-01", number: null },
+            code: 77,
             expiresOn: "2027-03-01",
             technical: false,
             remaining: 4_000,

@@ -1,7 +1,17 @@
 import { describe, expect, it } from "vitest";
+import {
+  FakeZoneRulesSource,
+  fixedOffsetZoneRules,
+} from "../../shared/test-support/fake-zone-rules-source.js";
 import { readStockBalances } from "./read-stock-balances.js";
 import type { LotInStock, StockLevel } from "./stock-reader.js";
+import {
+  FakeLotNameReader,
+  initialCountLotFacts,
+  purchaseLotFacts,
+} from "./test-support/fake-lot-name-reader.js";
 import { FakeStockListReader } from "./test-support/fake-stock-list-reader.js";
+import { lotFactsOfLevels } from "./test-support/lot-facts-of-levels.js";
 
 function level(id: string, overrides: Partial<StockLevel> = {}): StockLevel {
   return {
@@ -23,7 +33,7 @@ function level(id: string, overrides: Partial<StockLevel> = {}): StockLevel {
 function purchasedLot(id: string, overrides: Partial<LotInStock> = {}): LotInStock {
   return {
     id,
-    lotNumber: null,
+    code: 1,
     expiresOn: null,
     purchase: { purchasedOn: "2026-10-01", supplierName: "Distribuidora Sur" },
     initialCount: false,
@@ -38,7 +48,7 @@ function purchasedLot(id: string, overrides: Partial<LotInStock> = {}): LotInSto
 function initialCountLot(id: string, overrides: Partial<LotInStock> = {}): LotInStock {
   return {
     id,
-    lotNumber: null,
+    code: 1,
     expiresOn: "2027-03-01",
     purchase: null,
     initialCount: true,
@@ -53,7 +63,7 @@ function initialCountLot(id: string, overrides: Partial<LotInStock> = {}): LotIn
 function technicalLot(id: string, remaining: number): LotInStock {
   return {
     id,
-    lotNumber: null,
+    code: 1,
     expiresOn: null,
     purchase: null,
     initialCount: false,
@@ -64,16 +74,23 @@ function technicalLot(id: string, remaining: number): LotInStock {
   };
 }
 
-async function read(levels: StockLevel[]) {
+async function read(levels: StockLevel[], facts = lotFactsOfLevels(levels, "location-1")) {
   const stockList = new FakeStockListReader(levels);
-  return readStockBalances({ stockList }, { locationId: "location-1" });
+  const lotNames = new FakeLotNameReader(facts);
+  return readStockBalances(
+    { stockList, lotNames, zoneRules: new FakeZoneRulesSource() },
+    { locationId: "location-1" },
+  );
 }
 
 describe("readStockBalances", () => {
   it("reads the levels of the location", async () => {
     const stockList = new FakeStockListReader([]);
 
-    await readStockBalances({ stockList }, { locationId: "location-1" });
+    await readStockBalances(
+      { stockList, lotNames: new FakeLotNameReader([]), zoneRules: new FakeZoneRulesSource() },
+      { locationId: "location-1" },
+    );
 
     expect(stockList.reads).toEqual(["location-1"]);
   });
@@ -128,16 +145,15 @@ describe("readStockBalances", () => {
     const { products } = await read([
       level("p1", {
         balance: 4_000,
-        lots: [
-          purchasedLot("l1", { lotNumber: "L-77", expiresOn: "2027-03-01", remaining: 4_000 }),
-        ],
+        lots: [purchasedLot("l1", { code: 77, expiresOn: "2027-03-01", remaining: 4_000 })],
       }),
     ]);
 
     expect(products[0]?.lots).toEqual([
       {
         id: "l1",
-        lotNumber: "L-77",
+        name: { origin: "purchase", day: "2026-10-01", number: null },
+        code: 77,
         expiresOn: "2027-03-01",
         technical: false,
         remaining: 4_000,
@@ -167,7 +183,8 @@ describe("readStockBalances", () => {
     expect(products[0]?.lots.map((lot) => lot.id)).toEqual(["l2", "l1"]);
     expect(products[0]?.lots[0]).toEqual({
       id: "l2",
-      lotNumber: null,
+      name: { origin: "assembly_batch", day: "2026-05-04", number: null },
+      code: 1,
       expiresOn: "2027-01-15",
       technical: false,
       remaining: 14_000,
@@ -185,7 +202,8 @@ describe("readStockBalances", () => {
     expect(products[0]?.lots).toEqual([
       {
         id: "l1",
-        lotNumber: null,
+        name: { origin: "initial_count", day: "2026-10-27", number: null },
+        code: 1,
         expiresOn: "2027-03-01",
         technical: false,
         remaining: 6_000,
@@ -222,7 +240,8 @@ describe("readStockBalances", () => {
     expect(products[0]?.lots).toEqual([
       {
         id: "t",
-        lotNumber: null,
+        name: { origin: "technical", day: "2026-10-27", number: null },
+        code: 1,
         expiresOn: null,
         technical: true,
         remaining: -2_000,
@@ -315,5 +334,113 @@ describe("readStockBalances", () => {
 
     expect(products.map((product) => product.id)).toEqual(["p1", "p2", "p3", "p4", "p5"]);
     expect(summary).toEqual({ productCount: 4, valueCents: 25_000, withoutCostCount: 2 });
+  });
+
+  describe("naming the lots", () => {
+    it("names a purchased lot by its purchase's day", async () => {
+      const { products } = await read([
+        level("p1", {
+          balance: 4_000,
+          lots: [
+            purchasedLot("l1", { purchase: { purchasedOn: "2026-11-03", supplierName: "A" } }),
+          ],
+        }),
+      ]);
+
+      expect(products[0]?.lots[0]?.name).toEqual({
+        origin: "purchase",
+        day: "2026-11-03",
+        number: null,
+      });
+    });
+
+    it("numbers lots that share their origin and day in the order they took their name, whatever the order they are listed in", async () => {
+      const levels = [
+        level("p1", {
+          balance: 8_000,
+          lots: [purchasedLot("first"), purchasedLot("second")],
+        }),
+      ];
+
+      const { products } = await read(levels, [
+        purchaseLotFacts("first", "p1", 8, "2026-10-01"),
+        purchaseLotFacts("second", "p1", 9, "2026-10-01"),
+      ]);
+
+      expect(products[0]?.lots.map((lot) => [lot.id, lot.name.number])).toEqual([
+        ["first", 1],
+        ["second", 2],
+      ]);
+    });
+
+    it("counts a sibling lot that is not in stock when it numbers a lot", async () => {
+      const levels = [level("p1", { balance: 4_000, lots: [purchasedLot("kept")] })];
+
+      const { products } = await read(levels, [
+        purchaseLotFacts("gone", "p1", 1, "2026-10-01"),
+        purchaseLotFacts("kept", "p1", 2, "2026-10-01"),
+      ]);
+
+      expect(products[0]?.lots[0]?.name.number).toBe(2);
+    });
+
+    it("does not number a lot after a lot of another product, branch or origin", async () => {
+      const levels = [level("p1", { balance: 4_000, lots: [purchasedLot("mine")] })];
+
+      const { products } = await read(levels, [
+        purchaseLotFacts("mine", "p1", 2, "2026-10-01"),
+        purchaseLotFacts("other-product", "p2", 1, "2026-10-01"),
+        purchaseLotFacts("other-branch", "p1", 1, "2026-10-01", "location-2"),
+        initialCountLotFacts("counted", "p1", 3, new Date("2026-10-01T15:00:00.000Z")),
+      ]);
+
+      expect(products[0]?.lots[0]?.name.number).toBeNull();
+    });
+
+    it("names a lot of the initial count by the Argentine day it was counted under the zone rules it is given", async () => {
+      const levels = [level("p1", { balance: 6_000, lots: [initialCountLot("l1")] })];
+      const facts = [initialCountLotFacts("l1", "p1", 1, new Date("2026-10-28T02:30:00.000Z"))];
+      const stockList = new FakeStockListReader(levels);
+
+      const underArgentina = await readStockBalances(
+        {
+          stockList,
+          lotNames: new FakeLotNameReader(facts),
+          zoneRules: new FakeZoneRulesSource(fixedOffsetZoneRules(-180)),
+        },
+        { locationId: "location-1" },
+      );
+      const underUtc = await readStockBalances(
+        {
+          stockList,
+          lotNames: new FakeLotNameReader(facts),
+          zoneRules: new FakeZoneRulesSource(fixedOffsetZoneRules(0)),
+        },
+        { locationId: "location-1" },
+      );
+
+      expect(underArgentina.products[0]?.lots[0]?.name.day).toBe("2026-10-27");
+      expect(underUtc.products[0]?.lots[0]?.name.day).toBe("2026-10-28");
+    });
+
+    it("asks for the facts of the branch's lots of the products that have lots", async () => {
+      const levels = [
+        level("p1", { balance: 4_000, lots: [purchasedLot("l1")] }),
+        level("p2", { balance: 0 }),
+        level("p3", { balance: 4_000, lots: [purchasedLot("l3")] }),
+      ];
+      const lotNames = new FakeLotNameReader(lotFactsOfLevels(levels, "location-1"));
+
+      await readStockBalances(
+        {
+          stockList: new FakeStockListReader(levels),
+          lotNames,
+          zoneRules: new FakeZoneRulesSource(),
+        },
+        { locationId: "location-1" },
+      );
+
+      expect(lotNames.reads).toEqual([{ locationId: "location-1", productIds: ["p1", "p3"] }]);
+    });
   });
 });

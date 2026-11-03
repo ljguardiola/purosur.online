@@ -1,9 +1,25 @@
 import { describe, expect, it } from "vitest";
+import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
+import type { LotNameFacts } from "../../stock/index.js";
 import { findPurchaseListing, listPurchases } from "./list-purchases.js";
 import type { PurchaseListing } from "./purchasing-list-reader.js";
 import { FakePurchasingListReader } from "./test-support/fake-purchasing-list-reader.js";
 
 const BRANCH = "branch-1";
+
+function lotOf(lotId: string, nameOrder: number, purchasedOn = "2026-10-01"): LotNameFacts {
+  return {
+    lotId,
+    productId: "p-unit",
+    locationId: BRANCH,
+    nameOrder,
+    origin: { kind: "purchase", purchasedOn },
+  };
+}
+
+function ports(reader: FakePurchasingListReader) {
+  return { reader, zoneRules: new FakeZoneRulesSource() };
+}
 
 const LINE = {
   id: "line-1",
@@ -18,11 +34,11 @@ const LINE = {
   quantity: 24_000,
   costPaidCents: 24_000,
   quantityPerPackage: 12_000,
-  lotNumber: "L-77",
+  lotId: "lot-1",
   expiresOn: "2027-03-01",
 };
 
-const PURCHASE: PurchaseListing & { locationId: string } = {
+const PURCHASE: PurchaseListing = {
   id: "purchase-1",
   locationId: BRANCH,
   purchasedOn: "2026-10-01",
@@ -36,43 +52,105 @@ const PURCHASE: PurchaseListing & { locationId: string } = {
 
 describe("listPurchases", () => {
   it("answers each line with its unit cost rounded half up to cents per sale unit", async () => {
-    const thirds = { ...LINE, id: "line-2", costPaidCents: 1_000, quantityPerPackage: 3_000 };
+    const thirds = {
+      ...LINE,
+      id: "line-2",
+      lotId: "lot-2",
+      costPaidCents: 1_000,
+      quantityPerPackage: 3_000,
+    };
     const reader = new FakePurchasingListReader({
       purchases: [{ ...PURCHASE, lines: [LINE, thirds] }],
+      lots: [lotOf("lot-1", 1), lotOf("lot-2", 2)],
     });
 
-    const [purchase] = await listPurchases(reader, BRANCH);
+    const [purchase] = await listPurchases(ports(reader), BRANCH);
 
     expect(purchase?.lines.map((line) => line.unitCostCents)).toEqual([2_000, 333]);
     expect(purchase?.lines[1]).toMatchObject({ costPaidCents: 1_000, quantityPerPackage: 3_000 });
   });
 
+  it("answers each line with the system name of the lot it created", async () => {
+    const reader = new FakePurchasingListReader({
+      purchases: [PURCHASE],
+      lots: [lotOf("lot-1", 1, "2026-11-03")],
+    });
+
+    const [purchase] = await listPurchases(ports(reader), BRANCH);
+
+    expect(purchase?.lines[0]?.lotName).toEqual({
+      origin: "purchase",
+      day: "2026-11-03",
+      number: null,
+    });
+  });
+
+  it("numbers the lot after the other lots of its product and branch, those of other purchases included", async () => {
+    const second = { ...LINE, id: "line-2", lotId: "lot-2" };
+    const reader = new FakePurchasingListReader({
+      purchases: [
+        { ...PURCHASE, id: "purchase-2", lines: [second] },
+        { ...PURCHASE, lines: [LINE] },
+      ],
+      lots: [lotOf("lot-1", 1), lotOf("lot-2", 2)],
+    });
+
+    const purchases = await listPurchases(ports(reader), BRANCH);
+
+    expect(purchases.map((purchase) => purchase.lines[0]?.lotName.number)).toEqual([2, 1]);
+  });
+
+  it("asks for the lots of the products the purchases bought, once", async () => {
+    const other = {
+      ...LINE,
+      id: "line-2",
+      lotId: "lot-2",
+      product: { ...LINE.product, id: "p-2" },
+    };
+    const reader = new FakePurchasingListReader({
+      purchases: [{ ...PURCHASE, lines: [LINE, other, { ...LINE, id: "line-3", lotId: "lot-3" }] }],
+      lots: [lotOf("lot-1", 1), lotOf("lot-2", 2), lotOf("lot-3", 3)],
+    });
+
+    await listPurchases(ports(reader), BRANCH);
+
+    expect(reader.lotNameReads).toEqual([{ locationId: BRANCH, productIds: ["p-unit", "p-2"] }]);
+  });
+
   it("answers only the purchases of the branch asked for", async () => {
     const elsewhere = { ...PURCHASE, id: "purchase-2", locationId: "branch-2" };
-    const reader = new FakePurchasingListReader({ purchases: [elsewhere, PURCHASE] });
+    const reader = new FakePurchasingListReader({
+      purchases: [elsewhere, PURCHASE],
+      lots: [lotOf("lot-1", 1)],
+    });
 
-    const purchases = await listPurchases(reader, BRANCH);
+    const purchases = await listPurchases(ports(reader), BRANCH);
 
     expect(purchases.map((purchase) => purchase.id)).toEqual(["purchase-1"]);
   });
 
   it("answers nothing when the branch has no purchases", async () => {
-    expect(await listPurchases(new FakePurchasingListReader(), BRANCH)).toEqual([]);
+    expect(await listPurchases(ports(new FakePurchasingListReader()), BRANCH)).toEqual([]);
   });
 });
 
 describe("findPurchaseListing", () => {
   it("answers the purchase with its lines' unit cost", async () => {
     const other = { ...PURCHASE, id: "purchase-2" };
-    const reader = new FakePurchasingListReader({ purchases: [other, PURCHASE] });
+    const reader = new FakePurchasingListReader({
+      purchases: [other, PURCHASE],
+      lots: [lotOf("lot-1", 1)],
+    });
 
-    const purchase = await findPurchaseListing(reader, "purchase-1");
+    const purchase = await findPurchaseListing(ports(reader), "purchase-1");
 
     expect(purchase?.id).toBe("purchase-1");
     expect(purchase?.lines[0]?.unitCostCents).toBe(2_000);
   });
 
   it("answers nothing for a purchase that does not exist", async () => {
-    expect(await findPurchaseListing(new FakePurchasingListReader(), "missing")).toBeUndefined();
+    expect(
+      await findPurchaseListing(ports(new FakePurchasingListReader()), "missing"),
+    ).toBeUndefined();
   });
 });
