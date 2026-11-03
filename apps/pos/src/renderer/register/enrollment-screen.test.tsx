@@ -45,6 +45,7 @@ describe("EnrollmentScreen", () => {
   it("asks a new notebook for the enrollment code the backoffice issues", async () => {
     const screen = await render(
       <EnrollmentScreen
+        version={null}
         checkCode={checkingLikeTheCore}
         enroll={answering({ kind: "enrolled" }).enroll}
       />,
@@ -71,6 +72,7 @@ describe("EnrollmentScreen", () => {
   it("offers no way back when it has nowhere to go back to", async () => {
     const screen = await render(
       <EnrollmentScreen
+        version={null}
         checkCode={checkingLikeTheCore}
         enroll={answering({ kind: "enrolled" }).enroll}
       />,
@@ -82,7 +84,7 @@ describe("EnrollmentScreen", () => {
   it("redeems the code as it was typed, with or without spaces and in any case", async () => {
     const { enroll, codes } = answering({ kind: "enrolled" });
     const screen = await render(
-      <EnrollmentScreen checkCode={checkingLikeTheCore} enroll={enroll} />,
+      <EnrollmentScreen checkCode={checkingLikeTheCore} enroll={enroll} version={null} />,
     );
 
     await submitCode(screen);
@@ -93,7 +95,7 @@ describe("EnrollmentScreen", () => {
   it("redeems the code when Enter is pressed in the field", async () => {
     const { enroll, codes } = answering({ kind: "enrolled" });
     const screen = await render(
-      <EnrollmentScreen checkCode={checkingLikeTheCore} enroll={enroll} />,
+      <EnrollmentScreen checkCode={checkingLikeTheCore} enroll={enroll} version={null} />,
     );
 
     await userEvent.fill(screen.getByRole("textbox", { name: "Código de alta" }), TYPED_CODE);
@@ -105,7 +107,7 @@ describe("EnrollmentScreen", () => {
   it("keeps the button disabled while the code is being redeemed, so it's sent only once", async () => {
     const request = pending();
     const screen = await render(
-      <EnrollmentScreen checkCode={checkingLikeTheCore} enroll={request.enroll} />,
+      <EnrollmentScreen checkCode={checkingLikeTheCore} enroll={request.enroll} version={null} />,
     );
 
     await submitCode(screen);
@@ -119,6 +121,7 @@ describe("EnrollmentScreen", () => {
   it("shows that the code doesn't work, marking the field, when the cloud refuses it", async () => {
     const screen = await render(
       <EnrollmentScreen
+        version={null}
         checkCode={checkingLikeTheCore}
         enroll={answering({ kind: "code_rejected" }).enroll}
       />,
@@ -145,6 +148,7 @@ describe("EnrollmentScreen", () => {
   it("says when to try again after too many attempts", async () => {
     const screen = await render(
       <EnrollmentScreen
+        version={null}
         checkCode={checkingLikeTheCore}
         enroll={answering({ kind: "rate_limited", retry_after_seconds: 541 }).enroll}
       />,
@@ -161,6 +165,7 @@ describe("EnrollmentScreen", () => {
   it("says the notebook has no connection when the cloud can't be reached", async () => {
     const screen = await render(
       <EnrollmentScreen
+        version={null}
         checkCode={checkingLikeTheCore}
         enroll={answering({ kind: "unreachable" }).enroll}
       />,
@@ -179,7 +184,7 @@ describe("EnrollmentScreen", () => {
     ["the core can't answer", new Error("the core connection was replaced")],
   ])("says the alta couldn't be done when %s", async (_case, outcome) => {
     const screen = await render(
-      <EnrollmentScreen checkCode={checkingLikeTheCore} enroll={answering(outcome).enroll} />,
+      <EnrollmentScreen checkCode={checkingLikeTheCore} enroll={answering(outcome).enroll} version={null} />,
     );
 
     await submitCode(screen);
@@ -196,6 +201,7 @@ describe("EnrollmentScreen", () => {
   it("says this notebook can't keep the alta and that the code wasn't used when its credentials can't be stored", async () => {
     const screen = await render(
       <EnrollmentScreen
+        version={null}
         checkCode={checkingLikeTheCore}
         enroll={answering({ kind: "storage_unavailable" }).enroll}
       />,
@@ -217,6 +223,7 @@ describe("EnrollmentScreen", () => {
   it("sends the person to the Administrador for a new code when the alta was redeemed but couldn't be kept on this notebook", async () => {
     const screen = await render(
       <EnrollmentScreen
+        version={null}
         checkCode={checkingLikeTheCore}
         enroll={answering({ kind: "not_stored" }).enroll}
       />,
@@ -243,7 +250,7 @@ describe("EnrollmentScreen", () => {
   ])("asks for the whole code without redeeming one that is %s", async (_case, code) => {
     const { enroll, codes } = answering({ kind: "enrolled" });
     const screen = await render(
-      <EnrollmentScreen checkCode={checkingLikeTheCore} enroll={enroll} />,
+      <EnrollmentScreen checkCode={checkingLikeTheCore} enroll={enroll} version={null} />,
     );
 
     await submitCode(screen, code);
@@ -258,6 +265,7 @@ describe("EnrollmentScreen", () => {
     const checked: string[] = [];
     const screen = await render(
       <EnrollmentScreen
+        version={null}
         checkCode={async (typedCode) => {
           checked.push(typedCode);
           return ["code"];
@@ -277,6 +285,7 @@ describe("EnrollmentScreen", () => {
   it("shows on the field a code the core refuses when redeeming it", async () => {
     const screen = await render(
       <EnrollmentScreen
+        version={null}
         checkCode={checkingLikeTheCore}
         enroll={answering({ kind: "invalid_input", fields: ["code"] }).enroll}
       />,
@@ -295,6 +304,7 @@ describe("EnrollmentScreen", () => {
   it("keeps asking for the whole code while what is typed is still incomplete, and stops once it is whole", async () => {
     const screen = await render(
       <EnrollmentScreen
+        version={null}
         checkCode={checkingLikeTheCore}
         enroll={answering({ kind: "enrolled" }).enroll}
       />,
@@ -316,6 +326,7 @@ describe("EnrollmentScreen", () => {
     const outcomes: EnrollmentOutcome[] = [{ kind: "unreachable" }, { kind: "code_rejected" }];
     const screen = await render(
       <EnrollmentScreen
+        version={null}
         checkCode={checkingLikeTheCore}
         enroll={async () => outcomes.shift() ?? { kind: "enrolled" }}
       />,
@@ -394,5 +405,32 @@ describe("ReEnrollmentScreen", () => {
     await userEvent.click(screen.getByRole("button", { name: "Volver" }));
 
     expect(back).toHaveBeenCalledOnce();
+  });
+});
+
+describe("EnrollmentScreen version", () => {
+  it("reads the version of the running register before it is set up", async () => {
+    const screen = await render(
+      <EnrollmentScreen
+        checkCode={checkingLikeTheCore}
+        enroll={answering({ kind: "enrolled" }).enroll}
+        version="1.0.1539"
+      />,
+    );
+
+    await expect.element(screen.getByText("Versión 1.0.1539")).toBeVisible();
+  });
+
+  it("shows no version when the register has none", async () => {
+    const screen = await render(
+      <EnrollmentScreen
+        checkCode={checkingLikeTheCore}
+        enroll={answering({ kind: "enrolled" }).enroll}
+        version={null}
+      />,
+    );
+
+    await expect.element(screen.getByText("Dar de alta")).toBeVisible();
+    await expect.element(screen.getByText(/Versión/)).not.toBeInTheDocument();
   });
 });

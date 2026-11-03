@@ -18,7 +18,7 @@ afterEach(() => {
 
 async function renderScreen(outcome: SignInOutcome) {
   return render(
-    <SignInScreen loadUsers={async () => USERS} signIn={async () => outcome} registerName={null} />,
+    <SignInScreen loadUsers={async () => USERS} signIn={async () => outcome} registerName={null} version={null} />,
   );
 }
 

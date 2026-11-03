@@ -171,6 +171,9 @@ function coreAnswering(
     async registerName() {
       return savedName;
     },
+    async registerVersion() {
+      return null;
+    },
     async enroll() {
       return outcome;
     },
