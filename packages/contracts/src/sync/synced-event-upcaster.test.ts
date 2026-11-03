@@ -194,6 +194,7 @@ describe("decoding the events the registers pushed", () => {
           total: 4800,
           saleDiscount: null,
           saleDiscountAmount: 0,
+          cashRounding: 0,
           lines: [decodedLine],
           payments: [
             {
@@ -2687,11 +2688,11 @@ describe("decoding the events the registers pushed", () => {
   });
 
   it("cannot read an event type and version no schema describes", () => {
-    const decoded = upcaster.decode(unappliedEventOf(pushed({ schema_version: 11 })));
+    const decoded = upcaster.decode(unappliedEventOf(pushed({ schema_version: 12 })));
 
     expect(decoded).toEqual({
       kind: "unreadable",
-      reason: "no schema reads sale_completed version 11",
+      reason: "no schema reads sale_completed version 12",
     });
   });
 
@@ -2907,7 +2908,18 @@ describe("decoding the cash rounding of a sale", () => {
         sale_discount: null,
         authorized_by: USER,
         payments: [completedPayment],
-        refunds: [],
+        refunds: [
+          {
+            id: "01a1122a-0308-7000-8000-00000000aaa3",
+            kind: "REFUND",
+            parent_id: salePayment.id,
+            method: "CASH",
+            provider: "NONE",
+            amount: 5000,
+            state: "APPROVED",
+            occurred_at: "2026-10-06T11:20:00.000Z",
+          },
+        ],
         stock_movements: [],
         deferred_record_cancelled: false,
         credit_note: null,
