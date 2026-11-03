@@ -53,7 +53,7 @@ export type PurchaseSubmitOutcome =
   | { kind: "ok" }
   | { kind: "refused"; title: string; description: string };
 
-export type PurchaseFormSupplier =
+type PurchaseFormSupplier =
   | { kind: "choose"; services: NewSupplierModalServices }
   | { kind: "fixed"; name: string };
 
