@@ -46,5 +46,6 @@ export interface SaleLine {
 
 export interface SaleWithLines extends Sale {
   saleDiscount: SaleDiscount | null;
+  cashRounding: number;
   lines: SaleLine[];
 }

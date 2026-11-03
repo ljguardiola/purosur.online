@@ -103,6 +103,7 @@ export interface SaleLedgerTransaction {
   recordSaleLine(saleId: string, line: SaleLine): void;
   recordChangedLine(line: SaleLine): void;
   recordSaleDiscount(saleId: string, discount: SaleDiscount | null): void;
+  recordCashRounding(saleId: string, amount: number): void;
   deleteSaleLine(lineId: string): void;
   salePayments(saleId: string): SalePayment[];
   saleCashMovements(saleId: string): SaleCashMovement[];

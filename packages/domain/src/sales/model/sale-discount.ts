@@ -75,21 +75,32 @@ export function appliedSaleDiscountAmount({ lines, saleDiscount }: DiscountedSal
   return saleDiscount === null ? 0 : saleDiscountAmount(saleTotal(lines), saleDiscount);
 }
 
-export function amountToCharge(sale: DiscountedSale): number {
-  return saleTotal(sale.lines) - appliedSaleDiscountAmount(sale);
+export function amountToCharge(sale: DiscountedSale & { cashRounding: number }): number {
+  return saleTotal(sale.lines) - appliedSaleDiscountAmount(sale) - sale.cashRounding;
 }
 
 export function settledLines<TLine extends Pick<SaleLine, "lineTotal">>(sale: {
   lines: readonly TLine[];
   saleDiscount: SaleDiscount | null;
-}): (TLine & { saleDiscountShare: number })[] {
+  cashRounding: number;
+}): (TLine & { saleDiscountShare: number; cashRoundingShare: number })[] {
   const { lines } = sale;
-  const shares = spreadSaleDiscount(
+  const discountShares = spreadSaleDiscount(
     lines.map((line) => line.lineTotal),
     appliedSaleDiscountAmount(sale),
   );
+  const cashRoundingShares = spreadSaleDiscount(
+    lines.map((line, position) => line.lineTotal - (discountShares[position] ?? 0)),
+    sale.cashRounding,
+  );
   return lines.map((line, position) => {
-    const saleDiscountShare = shares[position] ?? 0;
-    return { ...line, lineTotal: line.lineTotal - saleDiscountShare, saleDiscountShare };
+    const saleDiscountShare = discountShares[position] ?? 0;
+    const cashRoundingShare = cashRoundingShares[position] ?? 0;
+    return {
+      ...line,
+      lineTotal: line.lineTotal - saleDiscountShare - cashRoundingShare,
+      saleDiscountShare,
+      cashRoundingShare,
+    };
   });
 }
