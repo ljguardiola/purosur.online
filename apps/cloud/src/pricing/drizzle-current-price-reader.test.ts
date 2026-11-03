@@ -89,4 +89,56 @@ describe("DrizzleCurrentPriceReader", () => {
       new DrizzleCurrentPriceReader(db).currentUnitPrices("00000000-0000-4000-8000-0000000000aa"),
     ).rejects.toThrow("branch settings missing");
   });
+
+  describe("currentPriceOf", () => {
+    async function currentPriceOf(productId: string) {
+      return new DrizzleCurrentPriceReader(db).currentPriceOf(
+        await seededLocationId(db),
+        productId,
+      );
+    }
+
+    it("gives the newest price of the branch's list with its id and start", async () => {
+      const productId = await insertProduct("Miel");
+      const priceListId = await seededPriceListId(db);
+      await insertPrice(productId, priceListId, 900, JAN_1);
+      await insertPrice(productId, priceListId, 1000, JAN_3);
+
+      expect(await currentPriceOf(productId)).toEqual({
+        id: expect.any(String),
+        unitPrice: 1000,
+        validFrom: JAN_3,
+      });
+    });
+
+    it("gives the price of the product asked for, not another's", async () => {
+      const honey = await insertProduct("Miel");
+      const jam = await insertProduct("Dulce");
+      const priceListId = await seededPriceListId(db);
+      await insertPrice(honey, priceListId, 1000, JAN_1);
+      await insertPrice(jam, priceListId, 700, JAN_1);
+
+      expect(await currentPriceOf(jam)).toMatchObject({ unitPrice: 700 });
+    });
+
+    it("ignores the prices of another price list", async () => {
+      const productId = await insertProduct("Miel");
+      await insertPrice(productId, await insertOtherPriceList(), 900, JAN_3);
+
+      expect(await currentPriceOf(productId)).toBeNull();
+    });
+
+    it("gives null for a product with no price", async () => {
+      expect(await currentPriceOf(await insertProduct("Miel"))).toBeNull();
+    });
+
+    it("refuses a branch with no settings", async () => {
+      await expect(
+        new DrizzleCurrentPriceReader(db).currentPriceOf(
+          "00000000-0000-4000-8000-0000000000aa",
+          await insertProduct("Miel"),
+        ),
+      ).rejects.toThrow("branch settings missing");
+    });
+  });
 });
