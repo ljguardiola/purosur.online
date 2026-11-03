@@ -16,6 +16,7 @@ import { centered, SMALL_COLUMNS } from "../../platform/escpos/escpos-writer";
 import { printoutOf } from "../../platform/escpos/test-support/escpos-printout";
 import { fixedZoneRulesSource } from "../../platform/test-support/fixed-zone-rules-source";
 import { escPosReceiptTemplate } from "./escpos-receipt-template";
+import { earlierVersionReceipt } from "./test-support/earlier-version-receipt";
 import { firstVersionHead } from "./test-support/first-version-head";
 
 const RULE = "─".repeat(48);
@@ -119,7 +120,7 @@ const HEAD = [
   "[codepage PC850]",
   "[logo 576x255]",
   "[logo 576x25]",
-  "[feed dots 16]",
+  "[blank dots 16]",
   "[small]                       Av. Belgrano 1450[/small]",
   "[small]              WhatsApp 11 5555-0100  ·  @puro.sur[/small]",
 ];
@@ -226,7 +227,7 @@ const FISCAL_BODY = [
   `[qr store ${QR_TEXT}]`,
   "[qr print]",
   "[align left]",
-  "[feed dots 5]",
+  "[blank dots 5]",
   "[small]                     Comprobante autorizado[/small]",
   "[small]             CAE 71234567890123  ·  Vto. 10/10/2026[/small]",
   ...CLOSING,
@@ -775,7 +776,7 @@ describe("the ESC/POS receipt template", () => {
   it("renders the version of the template with the head and the body apart", () => {
     const stored = escPosReceiptTemplate(fixedZoneRulesSource()).render(receipt());
 
-    expect(stored.templateVersion).toBe("2");
+    expect(stored.templateVersion).toBe("3");
     expect(printoutOf(stored.head).text).toBe(HEAD.join("\n"));
     expect(printoutOf(stored.body).text).toBe(BODY_OF_MIXED_SALE.join("\n"));
   });
@@ -834,7 +835,7 @@ describe("the ESC/POS receipt template", () => {
 
   it("refuses to print a receipt stored by a version of the template it does not know", () => {
     const stored: StoredReceipt = {
-      templateVersion: "3",
+      templateVersion: "4",
       head: new Uint8Array(),
       body: new Uint8Array(),
     };
@@ -844,7 +845,7 @@ describe("the ESC/POS receipt template", () => {
         kind: "duplicate",
         orderNumber: 1,
       }),
-    ).toThrow(/3/);
+    ).toThrow(/4/);
   });
 
   describe("an authorized factura C", () => {
@@ -908,6 +909,21 @@ describe("the ESC/POS receipt template", () => {
         ),
       );
     });
+
+    it.each(["1", "2"] as const)(
+      "prints a receipt stored by the template's version %s with the gaps below the logo and below the QR laid out as today",
+      (version) => {
+        const template = escPosReceiptTemplate(fixedZoneRulesSource());
+        const current = template.render(fiscalReceipt());
+        const stored = earlierVersionReceipt(current, version);
+
+        for (const copy of [ORIGINAL, { kind: "duplicate", orderNumber: 1 } as const]) {
+          expect(Array.from(template.printable(stored, copy))).toEqual(
+            Array.from(template.printable(current, copy)),
+          );
+        }
+      },
+    );
 
     it("prints no row wider than the paper, however long the issuer's and the buyer's data", () => {
       const longTaxStatus = {
@@ -1019,7 +1035,7 @@ describe("the ESC/POS receipt of a deferred sale", () => {
     RULE,
     "[logo 576x255]",
     "[logo 576x25]",
-    "[feed dots 16]",
+    "[blank dots 16]",
     "[small]                       Av. Belgrano 1450[/small]",
     "[small]              WhatsApp 11 5555-0100  ·  @puro.sur[/small]",
   ];
@@ -1038,7 +1054,7 @@ describe("the ESC/POS receipt of a deferred sale", () => {
     "[qr store purosur-deferred-sale:0198-abc:7KQ4M2P9]",
     "[qr print]",
     "[align left]",
-    "[feed dots 5]",
+    "[blank dots 5]",
     "[small]          Volvé con este ticket a retirar tu factura.[/small]",
     ...CLOSING,
   ];
@@ -1088,6 +1104,21 @@ describe("the ESC/POS receipt of a deferred sale", () => {
     );
     expect(Array.from(duplicate)).toEqual(Array.from(template.printable(current, copy)));
   });
+
+  it.each(["1", "2"] as const)(
+    "prints a receipt stored by the template's version %s with the gaps below the logo and below the QR laid out as today",
+    (version) => {
+      const template = escPosReceiptTemplate(fixedZoneRulesSource());
+      const current = template.render(receipt({ fiscal: DEFERRED_BLOCK }));
+      const stored = earlierVersionReceipt(current, version);
+
+      for (const copy of [ORIGINAL, { kind: "duplicate", orderNumber: 1 } as const]) {
+        expect(Array.from(template.printable(stored, copy))).toEqual(
+          Array.from(template.printable(current, copy)),
+        );
+      }
+    },
+  );
 
   it("keeps every row within the paper's width", () => {
     expect(rowsWithinThePaper(receipt({ fiscal: DEFERRED_BLOCK }))).toBe(true);

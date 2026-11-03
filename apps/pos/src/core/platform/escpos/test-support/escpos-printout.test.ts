@@ -84,6 +84,18 @@ describe("a readable printout of ESC/POS bytes", () => {
     expect(printout.text).toBe("[logo 16x3]");
   });
 
+  it("shows the blank rows at the bottom of a raster image as blank paper below it", () => {
+    const printout = printoutOf(Uint8Array.from([GS, 0x76, 0x30, 0, 1, 0, 4, 0, 1, 0, 2, 0]));
+
+    expect(printout.text).toBe(["[logo 8x3]", "[blank dots 1]"].join("\n"));
+  });
+
+  it("shows a raster image with no ink as blank paper of its height", () => {
+    const printout = printoutOf(Uint8Array.from([GS, 0x76, 0x30, 0, 1, 0, 3, 0, 0, 0, 0]));
+
+    expect(printout.text).toBe("[blank dots 3]");
+  });
+
   it("shows the alignment the printer is set to", () => {
     const printout = printoutOf(
       Uint8Array.from([ESC, 0x61, 1, ...ascii("Hola"), 0x0a, ESC, 0x61, 0, ESC, 0x61, 2]),
