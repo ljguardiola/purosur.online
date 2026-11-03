@@ -13,9 +13,12 @@ describe("mayBeCashRounding", () => {
 
   it("refuses an amount of the smallest cash bill or more", () => {
     fc.assert(
-      fc.property(fc.integer({ min: SMALLEST_CASH_BILL, max: 10 * SMALLEST_CASH_BILL }), (amount) => {
-        expect(mayBeCashRounding(amount)).toBe(false);
-      }),
+      fc.property(
+        fc.integer({ min: SMALLEST_CASH_BILL, max: 10 * SMALLEST_CASH_BILL }),
+        (amount) => {
+          expect(mayBeCashRounding(amount)).toBe(false);
+        },
+      ),
     );
   });
 

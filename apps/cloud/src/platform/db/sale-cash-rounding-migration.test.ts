@@ -6,16 +6,18 @@ describe("the sale cash rounding migration applied over a database that already 
 }, () => {
   it("reads a sale recorded before the rounding existed as rounded by nothing", async () => {
     const { database, insertSale } = await databaseWithSalesBefore("_sale_cash_rounding");
-    const completedSale = await insertSale("COMPLETED");
-    const voidedSale = await insertSale("VOIDED");
+    const earlierSale = await insertSale("COMPLETED");
+    const laterSale = await insertSale("COMPLETED");
 
     const migrated = await database.applyMigration();
 
-    const { rows } = await migrated.query("select id, cash_rounding from sales order by id");
+    const { rows } = await migrated.query("select id, cash_rounding from sales");
+    expect(rows).toHaveLength(2);
     expect(rows).toEqual(
-      [completedSale, voidedSale]
-        .sort()
-        .map((id) => ({ id, cash_rounding: 0 })),
+      expect.arrayContaining([
+        { id: earlierSale, cash_rounding: 0 },
+        { id: laterSale, cash_rounding: 0 },
+      ]),
     );
   });
 

@@ -2889,7 +2889,9 @@ describe("decoding the cash rounding of a sale", () => {
       schema_version: version,
       payload: {
         ...saleFields,
-        lines: [{ ...saleLine, weight_source: null, manual_adjustment: null, sale_discount_share: 0 }],
+        lines: [
+          { ...saleLine, weight_source: null, manual_adjustment: null, sale_discount_share: 0 },
+        ],
         sale_discount: null,
         operation_number: 484,
         payments: [completedPayment],
@@ -2904,7 +2906,9 @@ describe("decoding the cash rounding of a sale", () => {
       schema_version: version,
       payload: {
         ...saleFields,
-        lines: [{ ...saleLine, weight_source: null, manual_adjustment: null, sale_discount_share: 0 }],
+        lines: [
+          { ...saleLine, weight_source: null, manual_adjustment: null, sale_discount_share: 0 },
+        ],
         sale_discount: null,
         authorized_by: USER,
         payments: [completedPayment],
@@ -2930,7 +2934,10 @@ describe("decoding the cash rounding of a sale", () => {
   it("reads the rounding a version 11 completed sale names", () => {
     expect(
       syncedEventUpcaster.decode(unappliedEventOf(completed(11, { cash_rounding: 7000 }))),
-    ).toMatchObject({ kind: "fact", fact: { kind: "sale_completed", sale: { cashRounding: 7000 } } });
+    ).toMatchObject({
+      kind: "fact",
+      fact: { kind: "sale_completed", sale: { cashRounding: 7000 } },
+    });
   });
 
   it("reads a version 10 completed sale, which names none, as rounded by nothing", () => {

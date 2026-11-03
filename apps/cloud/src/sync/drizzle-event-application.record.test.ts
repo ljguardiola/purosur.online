@@ -744,6 +744,7 @@ describe("recording the cancelled sales of applied events", () => {
       voidAuthorizedBy: null,
       voidedBy: null,
       total: 4800,
+      cashRounding: 0,
       saleDiscountKind: null,
       saleDiscountValue: null,
       saleDiscountAmount: null,

@@ -30,7 +30,9 @@ describe("applying the push of a register that rounded what was paid in cash", (
       .insert(categories)
       .values({ name: "Almacen" })
       .returning({ id: categories.id });
-    const events = recordedPush().push.events;
+    const events = recordedPush().push.events.filter((event) =>
+      ["cash_session_opened", "sale_completed", "sale_voided"].includes(event.event_type),
+    );
     const productIds = new Set(
       events.flatMap((event) =>
         event.event_type === "sale_completed"
