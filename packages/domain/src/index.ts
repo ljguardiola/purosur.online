@@ -876,6 +876,8 @@ export {
 } from "./returns/index.js";
 export type {
   CancelledSaleFacts,
+  CashRoundingRecord,
+  CashRoundingTotals,
   CreditNoteReceiptContent,
   DeferredSaleFacts,
   DeferredSaleInvoice,
