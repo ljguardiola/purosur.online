@@ -51,6 +51,10 @@ export type {
 } from "./cancel-sale.js";
 export { cancelSale } from "./cancel-sale.js";
 export type {
+  CashRoundingQuery,
+  CashRoundingReportReader,
+} from "./cash-rounding-report-reader.js";
+export type {
   CashierSalesQuery,
   CashierSalesReportReader,
 } from "./cashier-sales-report-reader.js";
@@ -164,6 +168,8 @@ export type {
   TicketOfPeriod,
 } from "./read-average-ticket.js";
 export { readAverageTicket } from "./read-average-ticket.js";
+export type { CashRoundingReport, ReadCashRoundingInput } from "./read-cash-rounding.js";
+export { readCashRounding } from "./read-cash-rounding.js";
 export type {
   HandTypedWeightsReport,
   ReadHandTypedWeightsInput,

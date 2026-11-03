@@ -54,6 +54,7 @@ import {
 import { returnsReportRoute } from "../returns/routes";
 import {
   averageTicketRoute,
+  cashRoundingRoute,
   handTypedWeightsRoute,
   manualDiscountsRoute,
   removedLinesAndCancelledSalesRoute,
@@ -169,6 +170,7 @@ const routeTree = rootRoute.addChildren([
       aiCostReportRoute,
       salesByPromotionRoute,
       manualDiscountsRoute,
+      cashRoundingRoute,
       returnsReportRoute,
       issuedFiscalDocumentsReportRoute,
     ]),

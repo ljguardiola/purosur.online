@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
 import {
   fetchAverageTicket,
+  fetchCashRounding,
   fetchHandTypedWeights,
   fetchManualDiscounts,
   fetchRemovedLinesAndCancelledSales,
@@ -16,6 +17,7 @@ import {
   ANA_USER_ID,
   averageTicketReport,
   cashierSalesReport,
+  cashRoundingReport,
   categoryProductsReport,
   manualDiscountsReport,
   promotionDiscountsReport,
@@ -337,3 +339,41 @@ test.each([
     expect(await fetchRemovedLinesAndCancelledSales({})).toEqual({ kind });
   },
 );
+
+test("fetchCashRounding asks for no filter when no range and no register are chosen", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, cashRoundingReport));
+
+  expect(await fetchCashRounding({})).toEqual({ kind: "ok", value: cashRoundingReport });
+  expect(fetch).toHaveBeenCalledWith("/api/reports/cash-rounding");
+});
+
+test("fetchCashRounding asks for the range and the register chosen", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, cashRoundingReport));
+
+  await fetchCashRounding({
+    from: "2026-10-01",
+    to: "2026-10-07",
+    register_id: FRONT_REGISTER_ID,
+  });
+
+  expect(fetch).toHaveBeenCalledWith(
+    `/api/reports/cash-rounding?from=2026-10-01&to=2026-10-07&register_id=${FRONT_REGISTER_ID}`,
+  );
+});
+
+test("fetchCashRounding treats a body that does not match the report as failed", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, { ...cashRoundingReport, totals: { rounded: 1 } }),
+  );
+
+  expect(await fetchCashRounding({})).toEqual({ kind: "failed" });
+});
+
+test.each([
+  [401, "unauthenticated"],
+  [403, "forbidden"],
+])("fetchCashRounding answers a %s as the cloud's outcome", async (status, kind) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
+
+  expect(await fetchCashRounding({})).toEqual({ kind });
+});

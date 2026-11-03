@@ -14,6 +14,7 @@ test("invalidating the sales key marks every sales read stale", async () => {
   client.setQueryData(salesKeys.promotions({}), []);
   client.setQueryData(salesKeys.manualDiscounts({}), []);
   client.setQueryData(salesKeys.averageTicket({}), []);
+  client.setQueryData(salesKeys.cashRounding({}), []);
   client.setQueryData(["stock"], []);
 
   await client.invalidateQueries({ queryKey: salesKey, refetchType: "none" });
@@ -30,6 +31,7 @@ test("invalidating the sales key marks every sales read stale", async () => {
   expect(client.getQueryState(salesKeys.promotions({}))?.isInvalidated).toBe(true);
   expect(client.getQueryState(salesKeys.manualDiscounts({}))?.isInvalidated).toBe(true);
   expect(client.getQueryState(salesKeys.averageTicket({}))?.isInvalidated).toBe(true);
+  expect(client.getQueryState(salesKeys.cashRounding({}))?.isInvalidated).toBe(true);
   expect(client.getQueryState(["stock"])?.isInvalidated).toBe(false);
 });
 
@@ -129,6 +131,19 @@ test("each range and register has its own removed lines and cancelled sales key"
     salesKeys.removedLinesAndCancelledSales({ from: "2026-10-01", to: "2026-10-08" }),
     salesKeys.removedLinesAndCancelledSales({ register_id: FRONT_REGISTER_ID }),
     salesKeys.handTypedWeights({ register_id: FRONT_REGISTER_ID }),
+  ];
+
+  expect(new Set(keys.map((key) => JSON.stringify(key))).size).toBe(keys.length);
+});
+
+test("each range and register has its own cash rounding key", () => {
+  const keys = [
+    salesKeys.cashRounding({}),
+    salesKeys.cashRounding({ from: "2026-10-01", to: "2026-10-07" }),
+    salesKeys.cashRounding({ from: "2026-10-01", to: "2026-10-08" }),
+    salesKeys.cashRounding({ register_id: FRONT_REGISTER_ID }),
+    salesKeys.averageTicket({ register_id: FRONT_REGISTER_ID }),
+    salesKeys.manualDiscounts({ register_id: FRONT_REGISTER_ID }),
   ];
 
   expect(new Set(keys.map((key) => JSON.stringify(key))).size).toBe(keys.length);

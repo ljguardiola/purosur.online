@@ -114,6 +114,7 @@ function startRegister(settings: ChannelSettings): void {
     showWhenReadyAndReviveRenderer(
       {
         onceReadyToShow: (listener) => window.once("ready-to-show", listener),
+        maximize: () => window.maximize(),
         show: () => window.show(),
         isDestroyed: () => window.isDestroyed(),
         webContents: {

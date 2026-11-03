@@ -1719,6 +1719,7 @@ describe("wiring the sales report routes", () => {
     { method: "GET", url: "/api/reports/removed-lines-and-cancelled-sales" },
     { method: "GET", url: "/api/reports/sales-by-promotion" },
     { method: "GET", url: "/api/reports/manual-discounts" },
+    { method: "GET", url: "/api/reports/cash-rounding" },
     { method: "GET", url: "/api/reports/average-ticket" },
   ] as const;
 
@@ -3317,6 +3318,11 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/reports/manual-discounts",
+        access: capabilityAccess("reports_area"),
+      },
+      {
+        method: "GET",
+        url: "/api/reports/cash-rounding",
         access: capabilityAccess("reports_area"),
       },
       {

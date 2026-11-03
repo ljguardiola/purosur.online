@@ -1,6 +1,8 @@
 import {
   type AverageTicketBody,
   averageTicketSchema,
+  type CashRoundingBody,
+  cashRoundingSchema,
   type HandTypedWeightsBody,
   handTypedWeightsSchema,
   type ManualDiscountsBody,
@@ -139,4 +141,17 @@ export function fetchRemovedLinesAndCancelledSales(
   const search = params.toString();
   const path = "/api/reports/removed-lines-and-cancelled-sales";
   return readCloudJson(search ? `${path}?${search}` : path, removedLinesAndCancelledSalesSchema);
+}
+
+export function fetchCashRounding(query: ReportQuery): Promise<CloudReadOutcome<CashRoundingBody>> {
+  const params = new URLSearchParams();
+  for (const key of ["from", "to", "register_id"] as const) {
+    const value = query[key];
+    if (value !== undefined) {
+      params.set(key, value);
+    }
+  }
+  const search = params.toString();
+  const path = "/api/reports/cash-rounding";
+  return readCloudJson(search ? `${path}?${search}` : path, cashRoundingSchema);
 }
