@@ -173,7 +173,7 @@ export function startSale(
     state: "OPEN",
   };
   tx.recordOpenedSale(sale);
-  return { ...sale, saleDiscount: null, lines: [] };
+  return { ...sale, saleDiscount: null, cashRounding: 0, lines: [] };
 }
 
 function isOpenSale(target: SaleWithLines | RegisterIdentity): target is SaleWithLines {

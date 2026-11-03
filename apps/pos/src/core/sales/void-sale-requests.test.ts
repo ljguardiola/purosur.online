@@ -551,11 +551,40 @@ describe("voiding a sale of the sales history", () => {
         expect(creditNoteCalls).toHaveLength(1);
         expect(creditNoteCalls[0]).toMatchObject({
           pointOfSale: 12,
-          saleEvent: { event_type: "sale_voided", aggregate_id: saleId, schema_version: 4 },
+          saleEvent: { event_type: "sale_voided", aggregate_id: saleId, schema_version: 5 },
         });
         expect(
           database.prepare("SELECT state, number, authorization_code FROM sale_credit_notes").all(),
         ).toEqual([{ state: "AUTHORIZED", number: 7, authorization_code: "75123456789012" }]);
+      });
+
+      it("credits the rounded total of a sale paid in cash and rounded down, in a voiding event that carries the rounding", async () => {
+        database.exec("UPDATE prices SET unit_price = 163500");
+        const saleId = await sellTwo();
+        await chargeSaleInCashFor(deps(), { saleId, tendered: 500_000 });
+        database.exec("DELETE FROM deferred_sales");
+        insertFiscalDocument(database, {
+          saleId,
+          state: "AUTHORIZED",
+          pointOfSale: 12,
+          number: 41,
+        });
+        connected();
+
+        const outcome = await voidSaleFor(voidDeps(), request(saleId, { authorization }));
+
+        expect(outcome).toMatchObject({
+          kind: "voided",
+          refunds: [{ method: "CASH", amount: 320_000 }],
+        });
+        expect(creditNoteCalls[0]?.saleEvent).toMatchObject({
+          event_type: "sale_voided",
+          schema_version: 5,
+          payload: { total: 320_000, cash_rounding: 7000 },
+        });
+        expect(database.prepare("SELECT total FROM sale_credit_notes").all()).toEqual([
+          { total: 320_000 },
+        ]);
       });
 
       it("prints the credit note once the cloud authorized it", async () => {

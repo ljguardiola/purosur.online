@@ -92,7 +92,7 @@ it("shows the discount refusal on the field when the core says it exceeds the sa
   const { screen, field, discountField } = await renderCashChargeModal({
     readCharge: async (tendered, discount) =>
       discount === undefined
-        ? { kind: "covered", applied: 960_000, change: tendered - 960_000 }
+        ? { kind: "covered", applied: 960_000, change: tendered - 960_000, cash_rounding: 0 }
         : { kind: "discount_exceeds_sale" },
     previewSaleDiscount: async () => ({ kind: "discount_exceeds_sale" }),
   });

@@ -104,7 +104,7 @@ describe("the receipt of the credit note of a voided sale", () => {
         { productName: "Alfajor", quantity: 2, lineTotal: 840000 },
         { productName: "Yerba", quantity: 1, lineTotal: 350000 },
       ],
-      totals: { subtotal: 1190000, saleDiscount: null, total: 1190000 },
+      totals: { subtotal: 1190000, saleDiscount: null, cashRounding: 0, total: 1190000 },
       refunds: [
         { method: "CASH", amount: 700000 },
         { method: "TRANSFER", amount: 490000 },
@@ -122,7 +122,21 @@ describe("the receipt of the credit note of a voided sale", () => {
     expect(readCreditNoteReceipt(database, "note-1")?.totals).toEqual({
       subtotal: 1190000,
       saleDiscount: { kind: "PERCENT", percent: 10, amount: 119000 },
+      cashRounding: 0,
       total: 1071000,
+    });
+  });
+
+  it("carries the cash rounding of the voided sale, which the credit note's total no longer holds", () => {
+    database.exec("UPDATE sales SET cash_rounding = 7000");
+    insertFiscalDocument(database, { saleId: "sale-1", state: "AUTHORIZED", number: 41 });
+    insertCreditNote(database);
+
+    expect(readCreditNoteReceipt(database, "note-1")?.totals).toEqual({
+      subtotal: 1190000,
+      saleDiscount: null,
+      cashRounding: 7000,
+      total: 1183000,
     });
   });
 
@@ -276,7 +290,7 @@ describe("the receipt of the credit note of a return", () => {
       },
       issuedOn: "2026-10-02",
       lines: [{ productName: "Alfajor", quantity: 1, listUnitPrice: 420000, lineTotal: 420000 }],
-      totals: { subtotal: 420000, saleDiscount: null, total: 420000 },
+      totals: { subtotal: 420000, saleDiscount: null, cashRounding: 0, total: 420000 },
       refunds: [{ method: "CASH", amount: 420000 }],
       fiscal: {
         voucherTypeCode: 13,
@@ -358,7 +372,12 @@ describe("the receipt of the credit note of a return", () => {
     const receipt = readCreditNoteReceipt(database, "note-r1");
 
     expect(receipt?.lines.map(({ productName }) => productName)).toEqual(["Alfajor"]);
-    expect(receipt?.totals).toEqual({ subtotal: 420000, saleDiscount: null, total: 420000 });
+    expect(receipt?.totals).toEqual({
+      subtotal: 420000,
+      saleDiscount: null,
+      cashRounding: 0,
+      total: 420000,
+    });
   });
 
   it("counts as returned before it only what earlier returns refunded, not what they exchanged", () => {

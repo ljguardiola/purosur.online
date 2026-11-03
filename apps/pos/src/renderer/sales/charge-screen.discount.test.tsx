@@ -46,6 +46,7 @@ it("reads the cash charge with the discount typed and charges with it", async ()
         kind: "covered",
         applied: 476_000 - (discount ?? 0),
         change: tendered - 476_000 + (discount ?? 0),
+        cash_rounding: 0,
       }),
     });
   await chooseCash(screen);
@@ -77,13 +78,19 @@ it("asks for the authorization in the cash charge when the sale requires it for 
 
 it("shows the total charged with the discount typed once the charge is completed", async () => {
   const { screen } = await renderScreen({
-    cashCharge: async () => ({ kind: "covered", applied: 475_000, change: 25_000 }),
+    cashCharge: async () => ({
+      kind: "covered",
+      applied: 475_000,
+      change: 25_000,
+      cash_rounding: 0,
+    }),
     chargeSaleInCashWithChangeDiscount: async () => ({
       kind: "completed",
       sale_id: "sale-1",
       total: 475_000,
       tendered: 500_000,
       change: 25_000,
+      cash_rounding: 0,
     }),
   });
   await chooseCash(screen);

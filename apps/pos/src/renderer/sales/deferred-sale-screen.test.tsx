@@ -24,6 +24,9 @@ describe("DeferredSaleScreen reading the customer's document", () => {
       .toBeVisible();
     await expect.element(screen.getByText("Acercá el QR del documento al lector")).toBeVisible();
     await expect
+      .element(screen.getByRole("complementary", { name: "Venta diferida" }))
+      .toBeVisible();
+    await expect
       .element(screen.getByText("Sirve el QR del documento no fiscal de una venta diferida."))
       .toBeVisible();
     await expect.element(screen.getByText("Lector listo")).not.toBeInTheDocument();

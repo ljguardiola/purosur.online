@@ -37,6 +37,7 @@ function Totals({ lines }: { lines: readonly InitialCountLine[] }) {
 export function InitialCountSummaryPanel({ state, onFinish }: InitialCountSummaryPanelProps) {
   return (
     <SidePanel
+      label="Resumen del inventario"
       footer={
         <Button size="large" fullWidth onPress={onFinish}>
           Terminar la carga

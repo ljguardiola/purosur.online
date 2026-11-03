@@ -8,6 +8,13 @@ import type { ReactNode } from "react";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { SignedInPerson } from "../shell/signed-in-person";
+import {
+  RegisterWindow,
+  STORE_NOTEBOOK_WINDOW,
+  scrollTheAreaHoldingItToItsEnd,
+  showInStoreNotebookWindow,
+  windowOverflow,
+} from "../shell/test-support/register-window";
 import { render } from "../shell/test-support/render-with-router";
 import { CashScreen } from "./cash-screen";
 
@@ -62,29 +69,60 @@ async function renderScreen(
   await page.viewport(1280, 720);
   onTestFinished(() => page.viewport(414, 896));
   return render(
-    <CashScreen
-      sessionId="s1"
-      person={props.person ?? PERSON}
-      registerName={props.registerName === undefined ? "Caja 1" : props.registerName}
-      openedAt={OPENED_AT}
-      lock={() => {}}
-      loadCashBalance={props.loadCashBalance ?? (async () => BALANCE)}
-      loadCashMovements={props.loadCashMovements ?? (async () => [OPENING, FLETE])}
-      loadCashMovementKinds={async () => ({
-        CASH_IN: { permission: "record_cash_in", authorization_required: false },
-        CASH_OUT: { permission: "record_cash_expense", authorization_required: false },
-        WITHDRAWAL: { permission: "withdraw_cash", authorization_required: false },
-      })}
-      loadAuthorizers={async () => []}
-      recordCashMovement={
-        props.recordCashMovement ?? (async () => ({ kind: "recorded", authorized_by: null }))
-      }
-      clockGuard={props.clockGuard}
-    />,
+    <RegisterWindow>
+      <CashScreen
+        sessionId="s1"
+        person={props.person ?? PERSON}
+        registerName={props.registerName === undefined ? "Caja 1" : props.registerName}
+        openedAt={OPENED_AT}
+        lock={() => {}}
+        loadCashBalance={props.loadCashBalance ?? (async () => BALANCE)}
+        loadCashMovements={props.loadCashMovements ?? (async () => [OPENING, FLETE])}
+        loadCashMovementKinds={async () => ({
+          CASH_IN: { permission: "record_cash_in", authorization_required: false },
+          CASH_OUT: { permission: "record_cash_expense", authorization_required: false },
+          WITHDRAWAL: { permission: "withdraw_cash", authorization_required: false },
+        })}
+        loadAuthorizers={async () => []}
+        recordCashMovement={
+          props.recordCashMovement ?? (async () => ({ kind: "recorded", authorized_by: null }))
+        }
+        clockGuard={props.clockGuard}
+      />
+    </RegisterWindow>,
   );
 }
 
 describe("CashScreen", () => {
+  it("scrolls a page of movements longer than the window inside the list's own area, with the heading, the clock guard, the filter, the menu and the expected cash in place", async () => {
+    const movements = Array.from({ length: 25 }, (_, index) => ({
+      ...FLETE,
+      id: `m${index + 2}`,
+    }));
+    const screen = await renderScreen({
+      loadCashMovements: async () => [OPENING, ...movements],
+      clockGuard: <p>Aviso del reloj</p>,
+    });
+    await showInStoreNotebookWindow();
+    const table = screen.getByRole("table", { name: "Movimientos de la sesión" });
+    const lastMovement = table.getByText("Flete").last();
+    await expect.element(lastMovement).toBeInTheDocument();
+
+    scrollTheAreaHoldingItToItsEnd(lastMovement.element());
+
+    await expect.element(lastMovement).toBeInViewport();
+    await expect
+      .element(screen.getByRole("heading", { name: "Movimientos de efectivo", exact: true }))
+      .toBeInViewport();
+    await expect.element(screen.getByText("Aviso del reloj")).toBeInViewport();
+    await expect.element(screen.getByRole("button", { name: "Tipo: Todos" })).toBeInViewport();
+    expect(windowOverflow()).toEqual({ vertical: 0, horizontal: 0 });
+    const menu = screen.getByRole("navigation", { name: "Menú de la caja" }).element();
+    expect(menu.getBoundingClientRect().height).toBe(STORE_NOTEBOOK_WINDOW.height);
+    const panel = screen.getByRole("complementary").element();
+    expect(panel.getBoundingClientRect().height).toBe(STORE_NOTEBOOK_WINDOW.height);
+  });
+
   it("is headed Movimientos de efectivo and names the register and when the session opened in the eyebrow", async () => {
     const screen = await renderScreen();
 

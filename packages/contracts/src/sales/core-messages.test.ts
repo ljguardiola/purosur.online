@@ -1065,6 +1065,7 @@ describe("charging in cash with a discount on the sale's total", () => {
       total: 9500,
       tendered: 10_000,
       change: 500,
+      cash_rounding: 0,
     },
     { kind: "partially_paid", sale_id: "s1", total: 9500, paid: 5000, pending: 4500 },
     { kind: "discount_exceeds_sale" },
@@ -1272,7 +1273,14 @@ describe("sale line answers", () => {
 
 describe("charge sale in cash answer", () => {
   it.each([
-    { kind: "completed", sale_id: "s1", total: 3000, tendered: 5000, change: 2000 },
+    {
+      kind: "completed",
+      sale_id: "s1",
+      total: 3000,
+      tendered: 5000,
+      change: 2000,
+      cash_rounding: 0,
+    },
     { kind: "partially_paid", sale_id: "s1", total: 3000, paid: 1000, pending: 2000 },
     { kind: "reaches_buyer_identification_threshold", threshold: 10_000_000 },
     { kind: "no_buyer_identification_threshold" },
@@ -1283,6 +1291,34 @@ describe("charge sale in cash answer", () => {
 
     expect(salesCoreToRendererMessageSchema.parse(message)).toEqual(message);
   });
+
+  it.each([["charge-sale-in-cash-result"], ["charge-sale-in-cash-with-change-discount-result"]])(
+    "rejects a completed %s without a valid cash rounding",
+    (type) => {
+      const completed = {
+        kind: "completed",
+        sale_id: "s1",
+        total: 3000,
+        tendered: 5000,
+        change: 2000,
+      };
+
+      for (const rounding of [
+        {},
+        { cash_rounding: 10_000 },
+        { cash_rounding: -1 },
+        { cash_rounding: 0.5 },
+      ]) {
+        expect(
+          salesCoreToRendererMessageSchema.safeParse({
+            type,
+            request_id: REQUEST_ID,
+            outcome: { ...completed, ...rounding },
+          }).success,
+        ).toBe(false);
+      }
+    },
+  );
 
   it("rejects a result it does not know", () => {
     const message = {
@@ -1484,7 +1520,8 @@ describe("cash charge answers", () => {
   it.each([
     [{ kind: "invalid_amount" }],
     [{ kind: "partial", applied: 1000, pending: 2000 }],
-    [{ kind: "covered", applied: 3000, change: 2000 }],
+    [{ kind: "covered", applied: 3000, change: 2000, cash_rounding: 0 }],
+    [{ kind: "covered", applied: 320_000, change: 180_000, cash_rounding: 7000 }],
     [{ kind: "discount_exceeds_sale" }],
     [{ kind: "sale_has_payments" }],
     [null],
@@ -1496,6 +1533,10 @@ describe("cash charge answers", () => {
 
   it.each([
     [{ kind: "covered", applied: 3000 }],
+    [{ kind: "covered", applied: 3000, change: 2000 }],
+    [{ kind: "covered", applied: 3000, change: 2000, cash_rounding: 10_000 }],
+    [{ kind: "covered", applied: 3000, change: 2000, cash_rounding: -1 }],
+    [{ kind: "covered", applied: 3000, change: 2000, cash_rounding: 70.5 }],
     [{ kind: "partial", applied: 1000 }],
     [{ kind: "partial", applied: "1000", pending: 2000 }],
     [{ kind: "insufficient", amountDue: 3000 }],
@@ -1521,7 +1562,11 @@ describe("cash charge answers", () => {
   );
 
   it("describes a charge as the domain does", () => {
-    expectTypeOf<CashCharge>().toEqualTypeOf<ReturnType<typeof cashCharge>>();
+    type Wire<T> = T extends { kind: "covered"; applied: number; change: number }
+      ? { kind: "covered"; applied: number; change: number; cash_rounding: number }
+      : T;
+
+    expectTypeOf<CashCharge>().toEqualTypeOf<Wire<ReturnType<typeof cashCharge>>>();
   });
 });
 

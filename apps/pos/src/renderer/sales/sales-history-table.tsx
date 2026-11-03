@@ -156,7 +156,7 @@ export function SalesHistoryTable({
   });
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="flex items-center gap-3">
         <ListFilter
           name="session"
@@ -173,37 +173,39 @@ export function SalesHistoryTable({
           onChange={onStateChange}
         />
       </div>
-      <Table
-        aria-label="Ventas"
-        table={table}
-        rowState={(row) => (row.sale_id === selectedSaleId ? "selected" : undefined)}
-        {...(history.status === "failed"
-          ? {
-              failure: {
-                icon: <TriangleAlert />,
-                title: "No se pudieron leer las ventas",
-                description: "Volvé a intentarlo en unos segundos.",
-                onRetry: history.retry,
-              },
-            }
-          : { loading: loadingOf(history) })}
-        empty={emptyState(session, state)}
-        footer={
-          found === undefined || found.rows.length === 0 ? undefined : (
-            <div className="flex items-center justify-between gap-4">
-              <p className="text-text-subtle text-detail">
-                {pageRange(page, found.page_size, found.total)}
-              </p>
-              <Pagination
-                page={page}
-                pageCount={Math.ceil(found.total / found.page_size)}
-                onPageChange={onPageChange}
-                label="Páginas de ventas"
-              />
-            </div>
-          )
-        }
-      />
+      <div className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
+        <Table
+          aria-label="Ventas"
+          table={table}
+          rowState={(row) => (row.sale_id === selectedSaleId ? "selected" : undefined)}
+          {...(history.status === "failed"
+            ? {
+                failure: {
+                  icon: <TriangleAlert />,
+                  title: "No se pudieron leer las ventas",
+                  description: "Volvé a intentarlo en unos segundos.",
+                  onRetry: history.retry,
+                },
+              }
+            : { loading: loadingOf(history) })}
+          empty={emptyState(session, state)}
+          footer={
+            found === undefined || found.rows.length === 0 ? undefined : (
+              <div className="flex items-center justify-between gap-4">
+                <p className="text-text-subtle text-detail">
+                  {pageRange(page, found.page_size, found.total)}
+                </p>
+                <Pagination
+                  page={page}
+                  pageCount={Math.ceil(found.total / found.page_size)}
+                  onPageChange={onPageChange}
+                  label="Páginas de ventas"
+                />
+              </div>
+            )
+          }
+        />
+      </div>
     </div>
   );
 }

@@ -12,6 +12,7 @@ import { onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import type { SalesHistoryQuery } from "../../platform/core-client";
 import type { SaleDetail } from "../../shell/sale-receipt-text";
+import { RegisterWindow } from "../../shell/test-support/register-window";
 import { render } from "../../shell/test-support/render-with-router";
 import type { SalesHistoryScreenProps } from "../sales-history-screen";
 import { SalesHistoryScreen } from "../sales-history-screen";
@@ -191,22 +192,24 @@ export async function renderScreen({
   const lock = vi.fn();
   const onSessionInvalid = vi.fn();
   const screen = await render(
-    <SalesHistoryScreen
-      person={person}
-      registerName="Caja 1"
-      sessionOpen={sessionOpen}
-      lock={lock}
-      salesHistory={salesHistory}
-      saleHistoryDetail={saleHistoryDetail}
-      reprintSaleReceipt={reprintSaleReceipt}
-      printOriginalReceipt={printOriginalReceipt}
-      voidSale={voidSale}
-      printCreditNote={printCreditNote}
-      reprintCreditNote={reprintCreditNote}
-      reprintDeferredSaleInvoice={reprintDeferredSaleInvoice}
-      loadAuthorizers={async () => AUTHORIZERS}
-      onSessionInvalid={onSessionInvalid}
-    />,
+    <RegisterWindow>
+      <SalesHistoryScreen
+        person={person}
+        registerName="Caja 1"
+        sessionOpen={sessionOpen}
+        lock={lock}
+        salesHistory={salesHistory}
+        saleHistoryDetail={saleHistoryDetail}
+        reprintSaleReceipt={reprintSaleReceipt}
+        printOriginalReceipt={printOriginalReceipt}
+        voidSale={voidSale}
+        printCreditNote={printCreditNote}
+        reprintCreditNote={reprintCreditNote}
+        reprintDeferredSaleInvoice={reprintDeferredSaleInvoice}
+        loadAuthorizers={async () => AUTHORIZERS}
+        onSessionInvalid={onSessionInvalid}
+      />
+    </RegisterWindow>,
   );
   return {
     screen,

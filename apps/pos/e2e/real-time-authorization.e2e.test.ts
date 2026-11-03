@@ -134,7 +134,7 @@ describe("authorizing a sale's invoice in real time on the register", () => {
     expect(cloud.authorizationRequests[0]).toMatchObject({
       point_of_sale: POINT_OF_SALE,
       number: 41,
-      total: 238_000,
+      total: 230_000,
       buyer_tax_status_code: 5,
       sale_event: { event_type: "sale_completed" },
     });

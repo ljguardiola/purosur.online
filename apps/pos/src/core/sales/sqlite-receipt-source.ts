@@ -25,6 +25,7 @@ function receiptSaleDiscount(discount: SaleDiscount | null): SaleDiscountValue |
 }
 
 interface SaleRow extends SaleDiscountColumns {
+  cash_rounding: number;
   occurred_at: string;
   first_name: string;
   operation_number: number | null;
@@ -79,7 +80,8 @@ export function readReceiptSource(
               sales.sale_discount_kind AS sale_discount_kind,
               sales.sale_discount_value AS sale_discount_value,
               sales.sale_discount_reason AS sale_discount_reason,
-              sales.sale_discount_authorized_by AS sale_discount_authorized_by
+              sales.sale_discount_authorized_by AS sale_discount_authorized_by,
+              sales.cash_rounding AS cash_rounding
        FROM sales JOIN users ON users.id = sales.actor_id
        WHERE sales.id = ? AND sales.state = ?`,
     )
@@ -103,8 +105,9 @@ export function readReceiptSource(
     occurredAt: new Date(sale.occurred_at),
     servedByFirstName: sale.first_name,
     operationNumber: sale.operation_number,
-    total: amountToCharge({ lines, saleDiscount }),
+    total: amountToCharge({ lines, saleDiscount, cashRounding: sale.cash_rounding }),
     saleDiscount: receiptSaleDiscount(saleDiscount),
+    cashRounding: sale.cash_rounding,
     lines,
     payments: readSalePayments(database, saleId).map((payment) => ({
       method: payment.method,

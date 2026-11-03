@@ -391,6 +391,58 @@ describe("the register's receipt printing over its local database", () => {
     expect(paper.textLines).toContain("  Promo 20% en la segunda                -$ 6,00");
   });
 
+  describe("the receipt of a sale paid in cash and rounded down", () => {
+    beforeEach(() => {
+      database.exec(
+        `INSERT INTO role_permissions (role_id, permission_key, active) VALUES ('role-cashier', 'reprint_receipt', 1);
+         UPDATE sale_lines SET quantity = 1, list_unit_price = 327000, line_total = 327000 WHERE id = 'line-1';
+         UPDATE sales SET cash_rounding = 7000 WHERE id = 'sale-1';
+         UPDATE payment_transactions SET amount = 320000, tendered = 500000 WHERE id = 'pay-1';`,
+      );
+      saveAddress("10.10.10.2", null);
+    });
+
+    const SHOWN = [
+      "Subtotal                              $ 3.270,00",
+      "Redondeo                                -$ 70,00",
+    ];
+
+    it("shows the rounding and the total paid when printed", async () => {
+      const printed = printingOverDatabase().reprintSaleReceipt?.({
+        saleId: "sale-1",
+        reason: "Se perdió",
+      });
+      await vi.waitFor(() => expect(connections).toHaveLength(1));
+      connections[0]?.socket.connected();
+      connections[0]?.socket.receive(READY);
+      await printed;
+
+      const { textLines } = printoutOf(connections[0]?.socket.written[0] ?? new Uint8Array());
+      expect(textLines).toEqual(expect.arrayContaining(SHOWN));
+      expect(textLines).toContain("TOTAL                                 $ 3.200,00");
+      expect(textLines).toContain("Vuelto                                $ 1.800,00");
+    });
+
+    it("shows the same rounding when reprinted from what was stored", async () => {
+      const printing = printingOverDatabase();
+      const first = printing.reprintSaleReceipt?.({ saleId: "sale-1", reason: "Se perdió" });
+      await vi.waitFor(() => expect(connections).toHaveLength(1));
+      connections[0]?.socket.connected();
+      connections[0]?.socket.receive(READY);
+      await first;
+      database.exec("UPDATE sales SET cash_rounding = 0 WHERE id = 'sale-1'");
+
+      const second = printing.reprintSaleReceipt?.({ saleId: "sale-1", reason: "Se perdió" });
+      await vi.waitFor(() => expect(connections).toHaveLength(2));
+      connections[1]?.socket.connected();
+      connections[1]?.socket.receive(READY);
+      await second;
+
+      const { textLines } = printoutOf(connections[1]?.socket.written[0] ?? new Uint8Array());
+      expect(textLines).toEqual(expect.arrayContaining(SHOWN));
+    });
+  });
+
   describe("the credit note of a voided sale", () => {
     beforeEach(() => {
       database.exec(

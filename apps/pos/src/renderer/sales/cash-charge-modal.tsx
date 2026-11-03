@@ -48,7 +48,7 @@ const DISCOUNT_EXCEEDS_SALE_MESSAGE = "El descuento no puede ser mayor al total 
 const AUTHORIZING = "descontar sobre el total";
 const PERMISSION: AuthorizablePermissionKey = "apply_total_discount";
 
-const PARTIAL_PAYMENT_HINT = "Con menos de lo que falta, el resto queda pendiente.";
+const PARTIAL_PAYMENT_HINT = "Si no alcanza para saldar la venta, el resto queda pendiente.";
 
 export type CompletedCharge = Extract<ChargeSaleInCashOutcome, { kind: "completed" }>;
 
@@ -212,6 +212,7 @@ export function CashChargeModal({
     !loaded?.refreshing
       ? { tendered, ...answered }
       : undefined;
+  const rounded = covered !== undefined && covered.cash_rounding > 0 ? covered : undefined;
   const partial =
     tendered !== undefined &&
     !discountInvalid &&
@@ -304,11 +305,26 @@ export function CashChargeModal({
                   },
                 ]),
             { label: "Pagado", value: formatCents(paid) },
-            {
-              label: "A cobrar ahora",
-              value: formatCents(toCharge),
-              emphasized: true,
-            },
+            ...(rounded === undefined
+              ? [
+                  {
+                    label: "A cobrar ahora",
+                    value: formatCents(toCharge),
+                    emphasized: true as const,
+                  },
+                ]
+              : [
+                  {
+                    label: "Redondeo",
+                    value: `− ${formatCents(rounded.cash_rounding)}`,
+                    tone: "error" as const,
+                  },
+                  {
+                    label: "A cobrar en efectivo",
+                    value: formatCents(rounded.applied),
+                    emphasized: true as const,
+                  },
+                ]),
           ]}
         />
         <form.AppField

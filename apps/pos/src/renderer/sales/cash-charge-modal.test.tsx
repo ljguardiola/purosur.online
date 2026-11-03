@@ -12,6 +12,7 @@ const COMPLETED: ChargeSaleInCashOutcome = {
   total: TOTAL,
   tendered: 500_000,
   change: 24_000,
+  cash_rounding: 0,
 };
 
 const INVALID_AMOUNT: CashChargeAnswer = { kind: "invalid_amount" };
@@ -19,9 +20,9 @@ const CORE_ANSWERS = new Map<number, CashChargeAnswer>([
   [0, INVALID_AMOUNT],
   [3_000_000_000, INVALID_AMOUNT],
   [400_000, { kind: "partial", applied: 400_000, pending: 76_000 }],
-  [476_000, { kind: "covered", applied: TOTAL, change: 0 }],
-  [500_000, { kind: "covered", applied: TOTAL, change: 24_000 }],
-  [500_005, { kind: "covered", applied: TOTAL, change: 24_005 }],
+  [476_000, { kind: "covered", applied: TOTAL, change: 0, cash_rounding: 0 }],
+  [500_000, { kind: "covered", applied: TOTAL, change: 24_000, cash_rounding: 0 }],
+  [500_005, { kind: "covered", applied: TOTAL, change: 24_005, cash_rounding: 0 }],
 ]);
 
 type Charge = (tendered: number) => Promise<ChargeSaleInCashOutcome>;
@@ -77,7 +78,7 @@ describe("CashChargeModal", () => {
     await expect.element(screen.getByText("$ 0,00")).toBeVisible();
     await expect.element(screen.getByText("A cobrar ahora")).toBeVisible();
     await expect
-      .element(screen.getByText("Con menos de lo que falta, el resto queda pendiente."))
+      .element(screen.getByText("Si no alcanza para saldar la venta, el resto queda pendiente."))
       .toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
     await expect.element(field).toHaveAttribute("inputmode", "decimal");
@@ -250,7 +251,7 @@ describe("CashChargeModal", () => {
     await expect.element(screen.getByText("Cargando…")).toBeInTheDocument();
     await expect.element(complete).toBeDisabled();
     await expect.element(screen.getByText("VUELTO A ENTREGAR")).not.toBeInTheDocument();
-    answer.resolve({ kind: "covered", applied: TOTAL, change: 24_000 });
+    answer.resolve({ kind: "covered", applied: TOTAL, change: 24_000, cash_rounding: 0 });
     await expect.element(complete).toBeEnabled();
     await expect.element(screen.getByText("Cargando…")).not.toBeInTheDocument();
   });
@@ -281,13 +282,13 @@ describe("CashChargeModal", () => {
 
     await expect.element(screen.getByText("Cargando…")).toBeInTheDocument();
     await expect.element(screen.getByText("No se pudo calcular el vuelto")).not.toBeInTheDocument();
-    retried.resolve({ kind: "covered", applied: TOTAL, change: 24_000 });
+    retried.resolve({ kind: "covered", applied: TOTAL, change: 24_000, cash_rounding: 0 });
     await expect.element(screen.getByText("$ 240,00")).toBeVisible();
   });
 
   it("never shows the change worked out for an earlier total of the sale as current", async () => {
     const answers: (CashChargeAnswer | Error)[] = [
-      { kind: "covered", applied: TOTAL, change: 24_000 },
+      { kind: "covered", applied: TOTAL, change: 24_000, cash_rounding: 0 },
       new Error("the core connection was replaced"),
     ];
     const readCharge = async () => {
@@ -311,7 +312,7 @@ describe("CashChargeModal", () => {
   it("says the change could not be worked out when the core cannot answer, and asks again on retry", async () => {
     const answers: (CashChargeAnswer | Error)[] = [
       new Error("the core connection was replaced"),
-      { kind: "covered", applied: TOTAL, change: 24_000 },
+      { kind: "covered", applied: TOTAL, change: 24_000, cash_rounding: 0 },
     ];
     const { screen, field, complete } = await renderModal(undefined, async () => {
       const answer = answers.shift();

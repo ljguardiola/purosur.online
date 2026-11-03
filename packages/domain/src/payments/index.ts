@@ -1,4 +1,4 @@
-export { cashCharge } from "./model/cash-charge.js";
+export { cashCharge, SMALLEST_CASH_BILL } from "./model/cash-charge.js";
 export type { HandConfirmedPayment } from "./model/hand-confirmed-payments-reconciliation.js";
 export {
   MERCADO_PAGO_PENDING_CHECK_INTERVAL_MS,

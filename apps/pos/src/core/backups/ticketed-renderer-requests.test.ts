@@ -35,6 +35,7 @@ function setup(overrides: Partial<TicketableRendererRequests> = {}) {
       total: 100,
       tendered: 100,
       change: 0,
+      cash_rounding: 0,
     }),
     chargeSaleInCashWithChangeDiscount: async () => ({
       kind: "completed",
@@ -42,6 +43,7 @@ function setup(overrides: Partial<TicketableRendererRequests> = {}) {
       total: 90,
       tendered: 100,
       change: 10,
+      cash_rounding: 0,
     }),
     chargeSaleByTransfer: async () => ({
       kind: "completed",

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { SaleLine } from "./sale.js";
 import {
   amountToCharge,
+  appliedSaleDiscountAmount,
   type SaleDiscount,
   saleDiscountAmount,
   saleDiscountRefusal,
@@ -254,19 +255,41 @@ describe("amountToCharge", () => {
   const lines = [line("a", 6750), line("b", 1200)];
 
   it("is the sum of the line totals when the sale has no discount", () => {
-    expect(amountToCharge({ lines, saleDiscount: null })).toBe(7950);
+    expect(amountToCharge({ lines, saleDiscount: null, cashRounding: 0 })).toBe(7950);
   });
 
   it("takes the percentage discount off the sum of the line totals", () => {
     expect(
-      amountToCharge({ lines, saleDiscount: discount({ kind: "PERCENT", percent: 10 }) }),
+      amountToCharge({
+        lines,
+        saleDiscount: discount({ kind: "PERCENT", percent: 10 }),
+        cashRounding: 0,
+      }),
     ).toBe(7155);
   });
 
+  it("takes the cash rounding off the sum of the line totals", () => {
+    expect(amountToCharge({ lines, saleDiscount: null, cashRounding: 50 })).toBe(7900);
+  });
+
+  it("takes the cash rounding off after the manual discount", () => {
+    expect(
+      amountToCharge({
+        lines,
+        saleDiscount: discount({ kind: "AMOUNT", amount: 950 }),
+        cashRounding: 70,
+      }),
+    ).toBe(6930);
+  });
+
   it("takes the fixed discount off the sum of the line totals", () => {
-    expect(amountToCharge({ lines, saleDiscount: discount({ kind: "AMOUNT", amount: 950 }) })).toBe(
-      7000,
-    );
+    expect(
+      amountToCharge({
+        lines,
+        saleDiscount: discount({ kind: "AMOUNT", amount: 950 }),
+        cashRounding: 0,
+      }),
+    ).toBe(7000);
   });
 });
 
@@ -274,7 +297,7 @@ describe("settledLines", () => {
   it("leaves the lines as they are, with no share, when the sale has no discount", () => {
     const lines = [line("a", 100), line("b", 98)];
 
-    expect(settledLines({ lines, saleDiscount: null })).toEqual(
+    expect(settledLines({ lines, saleDiscount: null, cashRounding: 0 })).toEqual(
       lines.map((each) => ({ ...each, saleDiscountShare: 0 })),
     );
   });
@@ -283,6 +306,7 @@ describe("settledLines", () => {
     const sale = {
       lines: [line("a", 100), line("b", 100), line("c", 100)],
       saleDiscount: discount({ kind: "AMOUNT", amount: 98 }),
+      cashRounding: 0,
     };
 
     const settled = settledLines(sale);
@@ -298,8 +322,91 @@ describe("settledLines", () => {
     const [settled] = settledLines({
       lines: [line("a", 1000)],
       saleDiscount: discount({ kind: "PERCENT", percent: 10 }),
+      cashRounding: 0,
     });
 
-    expect(settled).toEqual({ ...line("a", 1000), lineTotal: 900, saleDiscountShare: 100 });
+    expect(settled).toEqual({
+      ...line("a", 1000),
+      lineTotal: 900,
+      saleDiscountShare: 100,
+    });
+  });
+});
+
+describe("settledLines with cash rounding", () => {
+  it("spreads the cash rounding over the lines so the totals add up to the amount to charge", () => {
+    const sale = {
+      lines: [line("a", 1000), line("b", 1000), line("c", 1000)],
+      saleDiscount: null,
+      cashRounding: 70,
+    };
+
+    const settled = settledLines(sale);
+
+    expect(settled.map(({ saleDiscountShare }) => saleDiscountShare)).toEqual([0, 0, 0]);
+    expect(settled.map(({ lineTotal }) => lineTotal)).toEqual([976, 977, 977]);
+    expect(settled.reduce((total, { lineTotal }) => total + lineTotal, 0)).toBe(
+      amountToCharge(sale),
+    );
+  });
+
+  it("spreads the rounding by what each line is left with after the discount, not by what it was sold for", () => {
+    const sale = {
+      lines: [line("a", 18), line("b", 30)],
+      saleDiscount: discount({ kind: "AMOUNT", amount: 36 }),
+      cashRounding: 4,
+    };
+
+    const settled = settledLines(sale);
+
+    expect(settled.map(({ saleDiscountShare }) => saleDiscountShare)).toEqual([14, 22]);
+    expect(settled.map(({ lineTotal }) => lineTotal)).toEqual([3, 5]);
+  });
+
+  it("keeps the manual discount's share apart and spreads the rounding over the lines after it", () => {
+    const sale = {
+      lines: [line("a", 3000), line("b", 1000)],
+      saleDiscount: discount({ kind: "AMOUNT", amount: 2000 }),
+      cashRounding: 100,
+    };
+
+    const settled = settledLines(sale);
+
+    expect(settled.map(({ saleDiscountShare }) => saleDiscountShare)).toEqual([1500, 500]);
+    expect(settled.map(({ lineTotal }) => lineTotal)).toEqual([1425, 475]);
+  });
+
+  it("leaves every line total net of both discounts and adding up to the amount to charge", () => {
+    fc.assert(
+      fc.property(
+        fc.array(fc.integer({ min: 1, max: 1_000_000 }), { minLength: 1, maxLength: 8 }),
+        fc.integer({ min: 0, max: 100 }),
+        fc.integer({ min: 0, max: 9999 }),
+        (totals, percent, cashRounding) => {
+          const lines = totals.map((total, position) => line(`l${position}`, total));
+          const sale = {
+            lines,
+            saleDiscount: discount({ kind: "PERCENT", percent }),
+            cashRounding: Math.min(
+              cashRounding,
+              amountToCharge({
+                lines,
+                saleDiscount: discount({ kind: "PERCENT", percent }),
+                cashRounding: 0,
+              }),
+            ),
+          };
+
+          const settled = settledLines(sale);
+
+          expect(settled.reduce((total, { lineTotal }) => total + lineTotal, 0)).toBe(
+            amountToCharge(sale),
+          );
+          expect(
+            settled.reduce((total, { saleDiscountShare }) => total + saleDiscountShare, 0),
+          ).toBe(appliedSaleDiscountAmount(sale));
+        },
+      ),
+    );
   });
 });

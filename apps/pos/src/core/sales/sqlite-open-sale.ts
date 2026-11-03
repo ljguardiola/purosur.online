@@ -16,6 +16,7 @@ interface SaleRow extends SaleDiscountColumns {
   device_id: string;
   session_id: string;
   actor_id: string;
+  cash_rounding: number;
 }
 
 interface LineRow extends ManualAdjustmentColumns {
@@ -52,7 +53,7 @@ export function toBenefit(columns: BenefitColumns): DiscountBenefit {
 }
 
 const SALE_COLUMNS = `id, state, register_id, device_id, session_id, actor_id,
-  sale_discount_kind, sale_discount_value, sale_discount_reason, sale_discount_authorized_by`;
+  sale_discount_kind, sale_discount_value, sale_discount_reason, sale_discount_authorized_by, cash_rounding`;
 
 export function readOpenSale(
   database: LocalDatabase,
@@ -104,6 +105,7 @@ function withLines(database: LocalDatabase, sale: SaleRow): SaleWithLines {
     actorId: sale.actor_id,
     state: sale.state,
     saleDiscount: toSaleDiscount(sale),
+    cashRounding: sale.cash_rounding,
     lines: lines.map((line) =>
       toSaleLine(
         line,

@@ -108,6 +108,7 @@ export type FakeSaleLedgerWrite =
   | "recordSaleLine"
   | "recordChangedLine"
   | "recordSaleDiscount"
+  | "recordCashRounding"
   | "deleteSaleLine"
   | "discardOpenSale"
   | "recordPayment"
@@ -237,7 +238,7 @@ export class FakeSaleLedger implements SaleLedger {
       },
       recordOpenedSale: (sale) => {
         this.failIfAsked("recordOpenedSale");
-        working.sales.push({ ...sale, saleDiscount: null, lines: [] });
+        working.sales.push({ ...sale, saleDiscount: null, cashRounding: 0, lines: [] });
       },
       recordSaleLine: (saleId, line) => {
         this.failIfAsked("recordSaleLine");
@@ -266,6 +267,13 @@ export class FakeSaleLedger implements SaleLedger {
         const sale = working.sales.find((stored) => stored.id === saleId);
         if (sale) {
           sale.saleDiscount = discount;
+        }
+      },
+      recordCashRounding: (saleId, amount) => {
+        this.failIfAsked("recordCashRounding");
+        const sale = working.sales.find((stored) => stored.id === saleId);
+        if (sale) {
+          sale.cashRounding = amount;
         }
       },
       deleteSaleLine: (lineId) => {

@@ -1320,6 +1320,7 @@ describe("answerRendererRequest", () => {
       total: 3000,
       tendered: 5000,
       change: 2000,
+      cash_rounding: 0,
     };
     const { deps: withCharge, charges } = deps(true, { chargeSaleInCash: async () => outcome });
     const answer = await answerRendererRequest(withCharge, {
@@ -2319,7 +2320,7 @@ describe("answerRendererRequest", () => {
   });
 
   it("reads what a tendered amount needs for the sale as sent, and answers the charge", async () => {
-    const charge = { kind: "covered", applied: 3000, change: 2000 } as const;
+    const charge = { kind: "covered", applied: 3000, change: 2000, cash_rounding: 0 } as const;
     const reading = deps(true);
     const { deps: withCharge } = deps(true, { cashCharge: async () => charge });
 

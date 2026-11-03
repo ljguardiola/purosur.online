@@ -158,6 +158,7 @@ describe("searchProductsByName", () => {
       actorId: "cashier",
       state,
       saleDiscount: null,
+      cashRounding: 0,
       lines: [
         {
           id: `${id}-line`,

@@ -387,7 +387,10 @@ function CashChargeProbe({
 
 describe("cash charge query", () => {
   it.each<[string, CashChargeAnswer]>([
-    ["what the sale needs", { kind: "covered", applied: 476_000, change: 24_000 }],
+    [
+      "what the sale needs",
+      { kind: "covered", applied: 476_000, change: 24_000, cash_rounding: 0 },
+    ],
     ["no sale in progress", null],
     ["a refusal to sell", "not_permitted"],
   ])("holds %s as an answer, not a failure", async (_name, answer) => {

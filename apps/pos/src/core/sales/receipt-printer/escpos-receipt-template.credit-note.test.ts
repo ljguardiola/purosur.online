@@ -77,6 +77,7 @@ function creditNote(overrides: Partial<CreditNoteReceiptContent> = {}): CreditNo
       },
     ],
     totals: {
+      cashRounding: 0,
       subtotal: 1_106_000,
       saleDiscount: { kind: "PERCENT", percent: 10, amount: 110_600 },
       total: 995_400,
@@ -175,7 +176,7 @@ describe("the ESC/POS credit note of a voided sale", () => {
 
   it("leaves out the discount line of a sale without a discount on its total", () => {
     const content = creditNote({
-      totals: { subtotal: 1_106_000, saleDiscount: null, total: 1_106_000 },
+      totals: { subtotal: 1_106_000, saleDiscount: null, cashRounding: 0, total: 1_106_000 },
       refunds: [{ method: "CASH", amount: 1_106_000 }],
     });
 
@@ -183,6 +184,23 @@ describe("the ESC/POS credit note of a voided sale", () => {
 
     expect(textLines.some((line) => line.startsWith("Descuento sobre el total"))).toBe(false);
     expect(textLines).toContain("Reintegro en efectivo                $ 11.060,00");
+  });
+
+  it("prints the cash rounding of the voided sale before its total", () => {
+    const { textLines } = printed(
+      creditNote({
+        totals: { subtotal: 1_106_000, saleDiscount: null, cashRounding: 6000, total: 1_100_000 },
+        refunds: [{ method: "CASH", amount: 1_100_000 }],
+      }),
+    );
+
+    const rounding = textLines.indexOf("Redondeo                                -$ 60,00");
+    expect(textLines.slice(rounding - 1, rounding + 3)).toEqual([
+      "Subtotal                             $ 11.060,00",
+      "Redondeo                                -$ 60,00",
+      RULE,
+      "TOTAL                                $ 11.000,00",
+    ]);
   });
 
   it.each([
