@@ -42,6 +42,19 @@ describe("redatePurchasedLots", () => {
     ]);
   });
 
+  it("redates the only lot of a purchase with a single line", async () => {
+    const tx = new FakePurchasedLotTransaction([lot()]);
+
+    const outcome = await redatePurchasedLots(tx, {
+      locationId: "branch-1",
+      purchaseLineIds: ["line-1"],
+      purchasedOn: "2026-09-30",
+    });
+
+    expect(outcome).toEqual({ kind: "redated" });
+    expect(tx.lots[0]?.purchasedOn).toBe("2026-09-30");
+  });
+
   it("locks each product's stock once, in order, before it changes any lot", async () => {
     const tx = new FakePurchasedLotTransaction([
       lot({ productId: "product-b" }),
