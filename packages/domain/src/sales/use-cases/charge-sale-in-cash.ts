@@ -6,7 +6,12 @@ import type { SaleWithLines } from "../model/sale.js";
 import { isSaleRefusal, type PartiallyPaid, saleOpenToNewPayment } from "./chargeable-sale.js";
 import { completeSale } from "./complete-sale.js";
 import type { RegisterRestoration } from "./register-restoration.js";
-import type { IdGenerator, SaleCashMovement, SaleLedger } from "./sale-ledger.js";
+import type {
+  IdGenerator,
+  SaleCashMovement,
+  SaleLedger,
+  SaleLedgerTransaction,
+} from "./sale-ledger.js";
 
 export interface ChargeSaleInCashInput {
   actorId: string;
@@ -40,63 +45,71 @@ export function chargeSaleInCash(
   { ledger, restoration, clock, zoneRules, ids }: ChargeSaleInCashPorts,
   { actorId, saleId, tendered }: ChargeSaleInCashInput,
 ): ChargeSaleInCashOutcome {
-  return ledger.transaction<ChargeSaleInCashOutcome>((tx) => {
-    const completedAt = clock.now();
-    const chargeable = saleOpenToNewPayment(
-      tx,
-      actorId,
-      saleId,
-      completedAt,
-      restoration,
-      zoneRules.zoneRules(),
-    );
-    if (isSaleRefusal(chargeable)) {
-      return chargeable;
-    }
-    const { session, sale, total, paid, pending } = chargeable;
-    const charge = cashCharge(pending, tendered);
-    if (charge.kind === "invalid_amount") {
-      return charge;
-    }
+  return ledger.transaction<ChargeSaleInCashOutcome>((tx) =>
+    chargeSaleInCashIn(tx, { restoration, clock, zoneRules, ids }, { actorId, saleId, tendered }),
+  );
+}
 
-    const payment: SalePayment = {
-      id: ids.next(),
+export function chargeSaleInCashIn(
+  tx: SaleLedgerTransaction,
+  { restoration, clock, zoneRules, ids }: Omit<ChargeSaleInCashPorts, "ledger">,
+  { actorId, saleId, tendered }: ChargeSaleInCashInput,
+): ChargeSaleInCashOutcome {
+  const completedAt = clock.now();
+  const chargeable = saleOpenToNewPayment(
+    tx,
+    actorId,
+    saleId,
+    completedAt,
+    restoration,
+    zoneRules.zoneRules(),
+  );
+  if (isSaleRefusal(chargeable)) {
+    return chargeable;
+  }
+  const { session, sale, total, paid, pending } = chargeable;
+  const charge = cashCharge(pending, tendered);
+  if (charge.kind === "invalid_amount") {
+    return charge;
+  }
+
+  const payment: SalePayment = {
+    id: ids.next(),
+    saleId: sale.id,
+    kind: "SALE",
+    method: "CASH",
+    provider: "NONE",
+    amount: charge.applied,
+    tendered,
+    state: "APPROVED",
+    occurredAt: completedAt,
+  };
+  const change = charge.kind === "covered" ? charge.change : 0;
+  const movements = cashMovements(ids, sale, session.id, actorId, completedAt, tendered, change);
+
+  tx.recordPayment(payment);
+  for (const movement of movements) {
+    tx.recordCashMovement(movement);
+  }
+  if (charge.kind === "partial") {
+    return {
+      kind: "partially_paid",
       saleId: sale.id,
-      kind: "SALE",
-      method: "CASH",
-      provider: "NONE",
-      amount: charge.applied,
-      tendered,
-      state: "APPROVED",
-      occurredAt: completedAt,
-    };
-    const change = charge.kind === "covered" ? charge.change : 0;
-    const movements = cashMovements(ids, sale, session.id, actorId, completedAt, tendered, change);
-
-    tx.recordPayment(payment);
-    for (const movement of movements) {
-      tx.recordCashMovement(movement);
-    }
-    if (charge.kind === "partial") {
-      return {
-        kind: "partially_paid",
-        saleId: sale.id,
-        total,
-        paid: paid + charge.applied,
-        pending: charge.pending,
-      };
-    }
-    completeSale(tx, ids, {
-      sale,
       total,
-      payments: tx.salePayments(sale.id),
-      movements: tx.saleCashMovements(sale.id),
-      actorId,
-      completedAt,
-      rules: zoneRules.zoneRules(),
-    });
-    return { kind: "completed", saleId: sale.id, total, tendered, change };
+      paid: paid + charge.applied,
+      pending: charge.pending,
+    };
+  }
+  completeSale(tx, ids, {
+    sale,
+    total,
+    payments: tx.salePayments(sale.id),
+    movements: tx.saleCashMovements(sale.id),
+    actorId,
+    completedAt,
+    rules: zoneRules.zoneRules(),
   });
+  return { kind: "completed", saleId: sale.id, total, tendered, change };
 }
 
 function cashMovements(
