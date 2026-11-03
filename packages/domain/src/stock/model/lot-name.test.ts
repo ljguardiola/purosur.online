@@ -109,7 +109,10 @@ describe("lotNames", () => {
 
   it("does not number lots of the same origin and day of different products", () => {
     const names = lotNames(
-      [purchased("yerba", 1, "2026-11-03"), purchased("mate", 2, "2026-11-03", { productId: "mate" })],
+      [
+        purchased("yerba", 1, "2026-11-03"),
+        purchased("mate", 2, "2026-11-03", { productId: "mate" }),
+      ],
       rules,
     );
 
