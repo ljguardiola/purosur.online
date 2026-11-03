@@ -268,6 +268,9 @@ function coreAnswering(
     async weighProduct() {
       return { kind: "scale_unavailable" };
     },
+    async weighLine() {
+      return { kind: "scale_unavailable" };
+    },
     async readClockGuard() {
       return { kind: "unavailable" };
     },

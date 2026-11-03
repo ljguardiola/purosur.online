@@ -906,7 +906,7 @@ describe("createCoreClient", () => {
     const port = new FakePort();
     client.connect(port);
 
-    const weighed = client.weighProduct("p2");
+    const weighed = client.weighProduct("p2", true);
     port.answer({
       type: "weigh-product-result",
       request_id: "request-1",
@@ -915,7 +915,31 @@ describe("createCoreClient", () => {
 
     expect(await weighed).toEqual({ kind: "weighing" });
     expect(port.posted).toEqual([
-      { type: "weigh-product", request_id: "request-1", product_id: "p2" },
+      { type: "weigh-product", request_id: "request-1", product_id: "p2", take: true },
+    ]);
+  });
+
+  it("asks the core to weigh a line on the scale and resolves with the outcome", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const weighed = client.weighLine("l1", 1250, false);
+    port.answer({
+      type: "weigh-line-result",
+      request_id: "request-1",
+      outcome: { kind: "stable", weight_thousandths: 1500, amount: 13_500 },
+    });
+
+    expect(await weighed).toEqual({ kind: "stable", weight_thousandths: 1500, amount: 13_500 });
+    expect(port.posted).toEqual([
+      {
+        type: "weigh-line",
+        request_id: "request-1",
+        line_id: "l1",
+        expected_weight_thousandths: 1250,
+        take: false,
+      },
     ]);
   });
 
