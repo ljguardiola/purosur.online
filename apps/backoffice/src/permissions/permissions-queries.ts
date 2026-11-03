@@ -16,10 +16,7 @@ const permissionsKeys = {
   role: (id: string) => [...permissionsKey, "role", id] as const,
 };
 
-function useRolesQuery(params: {
-  fetchRoles: typeof fetchRoles;
-  onSessionEnded: () => void;
-}) {
+function useRolesQuery(params: { fetchRoles: typeof fetchRoles; onSessionEnded: () => void }) {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQuery<RoleSummary[]>({
     queryKey: permissionsKeys.roles,
