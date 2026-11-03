@@ -181,13 +181,6 @@ export function ProductsListScreen({
       ? data.value
       : [[[NO_PRODUCTS, NO_CATEGORIES], NO_BRANDS], NO_TAG_LIST];
 
-  useEffect(() => {
-    if (data.status === "failed") {
-      setPrintModalOpen(false);
-      setEditTarget(null);
-    }
-  }, [data.status]);
-
   const offeredCategoryIds = new Set(leafCategories(categories).map(({ id }) => id));
   const categoryFilter =
     data.status === "loaded" &&
@@ -210,20 +203,6 @@ export function ProductsListScreen({
   if (brandFilter !== chosenBrandFilter) {
     setChosenBrandFilter(brandFilter);
   }
-
-  useEffect(() => {
-    const shown: ProductsListFilters = {
-      search,
-      category: categoryFilter,
-      brand: brandFilter,
-      unit: unitFilter,
-      status: statusFilter,
-      sort: sort.direction,
-    };
-    if (!deepEqual(shown, filters)) {
-      reportFilters(shown);
-    }
-  }, [search, categoryFilter, brandFilter, unitFilter, statusFilter, sort.direction, filters]);
 
   const categoryLabels = categoryPathLabels(categories);
 
@@ -342,6 +321,7 @@ export function ProductsListScreen({
     }),
   ] as const;
 
+  const tableState = cloudTableState(data, "los productos");
   const table = useTableModel({
     items: products,
     id: (product) => product.id,
@@ -356,6 +336,27 @@ export function ProductsListScreen({
     onSortChange: setSort,
   });
   const matchCount = table.getRowModel().rows.length;
+
+  useEffect(() => {
+    if (data.status === "failed") {
+      setPrintModalOpen(false);
+      setEditTarget(null);
+    }
+  }, [data.status]);
+
+  useEffect(() => {
+    const shown: ProductsListFilters = {
+      search,
+      category: categoryFilter,
+      brand: brandFilter,
+      unit: unitFilter,
+      status: statusFilter,
+      sort: sort.direction,
+    };
+    if (!deepEqual(shown, filters)) {
+      reportFilters(shown);
+    }
+  }, [search, categoryFilter, brandFilter, unitFilter, statusFilter, sort.direction, filters]);
 
   function closeDeactivationAndRefresh() {
     setDeactivateTarget(null);
@@ -444,7 +445,7 @@ export function ProductsListScreen({
         <Table
           aria-label="Productos"
           table={table}
-          {...cloudTableState(data, "los productos")}
+          {...tableState}
           empty={
             products.length === 0
               ? {

@@ -13,6 +13,7 @@ import type {
   RemoveSaleLineOutcome,
   ScanProductOutcome,
   SearchProductsOutcome,
+  WeighLineOutcome,
   WeighProductOutcome,
 } from "@purosur/contracts";
 import { onTestFinished, vi } from "vitest";
@@ -161,6 +162,9 @@ export async function renderScreen({ registerName = "Caja 1", ...overrides }: Ov
   const weighProduct =
     overrides.weighProduct ??
     vi.fn(async (): Promise<WeighProductOutcome> => ({ kind: "scale_unavailable" }));
+  const weighLine =
+    overrides.weighLine ??
+    vi.fn(async (): Promise<WeighLineOutcome> => ({ kind: "scale_unavailable" }));
   const changeLineWeight =
     overrides.changeLineWeight ??
     vi.fn(async (): Promise<ChangeLineWeightOutcome> => ({ kind: "unavailable" }));
@@ -209,6 +213,7 @@ export async function renderScreen({ registerName = "Caja 1", ...overrides }: Ov
         addProduct={addProduct}
         addWeighedProduct={addWeighedProduct}
         weighProduct={weighProduct}
+        weighLine={weighLine}
         changeLineQuantity={changeLineQuantity}
         changeLineWeight={changeLineWeight}
         adjustSaleLine={adjustSaleLine}

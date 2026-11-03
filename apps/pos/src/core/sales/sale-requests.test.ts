@@ -40,6 +40,7 @@ import {
   type SellingRequestDeps,
   scanProductFor,
   searchProductsFor,
+  weighLineFor,
   weighProductFor,
 } from "./sale-requests";
 
@@ -710,11 +711,19 @@ describe("weighing a product on the scale on the register", () => {
     return { read: async () => reading };
   }
 
-  function weigh(reading: ScaleReading, productId = "p2") {
-    return weighProductFor({ ...deps(), scale: scaleReading(reading) }, productId);
+  function weigh(
+    reading: ScaleReading,
+    productId = "p2",
+    confirmedWeightThousandths: number | null = 1250,
+  ) {
+    return weighProductFor(
+      { ...deps(), scale: scaleReading(reading) },
+      productId,
+      confirmedWeightThousandths,
+    );
   }
 
-  it("answers the sale with the line holding the stable weight and records the scale as its source", async () => {
+  it("answers the sale with the line holding the confirmed stable weight and records the scale as its source", async () => {
     const outcome = await weigh({ kind: "stable", weightThousandths: 1250 });
 
     expect(outcome).toMatchObject({
@@ -737,6 +746,31 @@ describe("weighing a product on the scale on the register", () => {
     expect(database.prepare("SELECT weight_source, quantity FROM sale_lines").all()).toEqual([
       { weight_source: "SCALE", quantity: 1250 },
     ]);
+  });
+
+  it("answers the stable weight and its amount, adding no line, when not confirming", async () => {
+    expect(await weigh({ kind: "stable", weightThousandths: 1250 }, "p2", null)).toEqual({
+      kind: "stable",
+      weight_thousandths: 1250,
+      amount: 11250,
+    });
+    expect(database.prepare("SELECT id FROM sale_lines").all()).toEqual([]);
+  });
+
+  it("answers a stable weight other than the confirmed one and its amount, adding no line", async () => {
+    expect(await weigh({ kind: "stable", weightThousandths: 2500 }, "p2", 1250)).toEqual({
+      kind: "stable",
+      weight_thousandths: 2500,
+      amount: 22500,
+    });
+    expect(database.prepare("SELECT id FROM sale_lines").all()).toEqual([]);
+  });
+
+  it("answers that a weight of zero cannot be taken, adding no line", async () => {
+    expect(await weigh({ kind: "stable", weightThousandths: 0 })).toEqual({
+      kind: "zero_weight",
+    });
+    expect(database.prepare("SELECT id FROM sale_lines").all()).toEqual([]);
   });
 
   it("answers weighing and adds no line while the scale is not stable", async () => {
@@ -888,6 +922,113 @@ describe("changing the weight of a line", () => {
     expect(await changeLineWeightFor(deps(), lineId, 2000, 1000)).toEqual({
       kind: "no_open_session",
     });
+  });
+});
+
+describe("weighing a line on the scale on the register", () => {
+  beforeEach(priceCheese);
+
+  async function sellCheese(): Promise<string> {
+    const outcome = await addWeighedProductFor(deps(), "p2", 1000);
+    if (outcome.kind !== "added") {
+      throw new Error("test setup: the cheese was not added");
+    }
+    return outcome.sale.lines[0]?.id as string;
+  }
+
+  function weighLine(
+    reading: ScaleReading,
+    lineId: string,
+    expected: number,
+    confirmedWeightThousandths: number | null,
+  ) {
+    return weighLineFor(
+      { ...deps(), scale: { read: async () => reading } },
+      lineId,
+      expected,
+      confirmedWeightThousandths,
+    );
+  }
+
+  it("answers the sale with the confirmed stable weight, recording the scale as its source", async () => {
+    const lineId = await sellCheese();
+
+    const outcome = await weighLine(
+      { kind: "stable", weightThousandths: 2500 },
+      lineId,
+      1000,
+      2500,
+    );
+
+    expect(outcome).toMatchObject({
+      kind: "changed",
+      removed_manual_discount: false,
+      removed_sale_discount: false,
+      sale: {
+        lines: [{ id: lineId, quantity: 2500, weight_source: "SCALE", line_total: 22500 }],
+        total: 22500,
+      },
+    });
+    expect(database.prepare("SELECT quantity, weight_source FROM sale_lines").all()).toEqual([
+      { quantity: 2500, weight_source: "SCALE" },
+    ]);
+  });
+
+  it.each([null, 1200])(
+    "answers the stable weight and its amount, changing nothing, confirming %s",
+    async (confirmed) => {
+      const lineId = await sellCheese();
+
+      expect(
+        await weighLine({ kind: "stable", weightThousandths: 2500 }, lineId, 1000, confirmed),
+      ).toEqual({ kind: "stable", weight_thousandths: 2500, amount: 22500 });
+      expect(database.prepare("SELECT quantity FROM sale_lines").all()).toEqual([
+        { quantity: 1000 },
+      ]);
+    },
+  );
+
+  it.each([
+    ["zero", { kind: "stable", weightThousandths: 0 }, { kind: "zero_weight" }],
+    ["moving", { kind: "not_stable" }, { kind: "weighing" }],
+    ["unavailable", { kind: "unavailable" }, { kind: "scale_unavailable" }],
+  ] as const)("answers the scale reading %s when confirming", async (_case, reading, expected) => {
+    const lineId = await sellCheese();
+
+    expect(await weighLine(reading, lineId, 1000, 1000)).toEqual(expected);
+  });
+
+  it("answers the refusal of a weight the line no longer has", async () => {
+    const lineId = await sellCheese();
+
+    expect(await weighLine({ kind: "stable", weightThousandths: 2500 }, lineId, 900, 2500)).toEqual(
+      { kind: "stale_weight" },
+    );
+  });
+
+  it("answers that there is no sale to change", async () => {
+    expect(
+      await weighLine({ kind: "stable", weightThousandths: 2500 }, "id-2", 1000, 2500),
+    ).toEqual({ kind: "no_open_sale" });
+  });
+
+  it("answers not signed in when nobody is signed in", async () => {
+    const lineId = await sellCheese();
+    signedInPerson.clear();
+
+    expect(
+      await weighLine({ kind: "stable", weightThousandths: 2500 }, lineId, 1000, 2500),
+    ).toEqual({ kind: "not_signed_in" });
+  });
+
+  it("answers not permitted to a person without the permission to sell", async () => {
+    const lineId = await sellCheese();
+    addPerson("u2", "guest");
+    signedInPerson.set("u2");
+
+    expect(
+      await weighLine({ kind: "stable", weightThousandths: 2500 }, lineId, 1000, 2500),
+    ).toEqual({ kind: "not_permitted" });
   });
 });
 

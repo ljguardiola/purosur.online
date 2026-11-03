@@ -30,6 +30,7 @@ type FortnightReportsSectionProps = {
 };
 
 const NO_PRESENTATIONS: FortnightPresentation[] = [];
+const NOTHING_LOADED: [FortnightPresentation[], RegisterPointOfSale[]] = [NO_PRESENTATIONS, []];
 const UNKNOWN_REGISTER = "Una caja";
 
 function fortnightOf({ fortnight }: FortnightPresentation) {
@@ -45,7 +46,7 @@ export function FortnightReportsSection({
   onReview,
   onConfirmRevoked,
 }: FortnightReportsSectionProps) {
-  const [presentations, registers] = data.status === "loaded" ? data.value : [NO_PRESENTATIONS, []];
+  const [presentations, registers] = data.status === "loaded" ? data.value : NOTHING_LOADED;
   const registerNameOf = (registerId: string) =>
     registers.find((register) => register.registerId === registerId)?.registerName ??
     UNKNOWN_REGISTER;

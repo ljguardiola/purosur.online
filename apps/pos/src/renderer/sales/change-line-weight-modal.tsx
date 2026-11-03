@@ -2,11 +2,12 @@ import {
   Button,
   fieldErrorMessage,
   formatWeightInput,
+  InlineNotice,
   Modal,
   TextField,
   useRequestForm,
 } from "@purosur/ui";
-import { Check, Scale } from "lucide-react";
+import { Check, Info, Scale } from "lucide-react";
 import { useEffect, useRef } from "react";
 import {
   changeLineWeightRequestSchema,
@@ -18,6 +19,7 @@ import {
 export type ChangeLineWeightModalProps = {
   productName: string;
   currentWeight: number;
+  notice?: string | undefined;
   changeLineWeight: (weightThousandths: number) => Promise<"invalid_weight" | "done">;
   onClose: () => void;
 };
@@ -25,6 +27,7 @@ export type ChangeLineWeightModalProps = {
 export function ChangeLineWeightModal({
   productName,
   currentWeight,
+  notice,
   changeLineWeight,
   onClose,
 }: ChangeLineWeightModalProps) {
@@ -84,6 +87,9 @@ export function ChangeLineWeightModal({
           void submit();
         }}
       >
+        {notice === undefined ? null : (
+          <InlineNotice tone="info" icon={<Info />} description={notice} />
+        )}
         <form.AppField name="weight">
           {(field) => (
             <TextField

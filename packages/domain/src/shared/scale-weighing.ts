@@ -1,0 +1,34 @@
+import type { ScaleReading } from "./scale.js";
+
+export type ScaleWeighingStep =
+  | { kind: "scale_unavailable" }
+  | { kind: "weighing" }
+  | { kind: "zero_weight" }
+  | { kind: "stable"; weightThousandths: number }
+  | { kind: "take"; weightThousandths: number };
+
+export function scaleWeighingStep(
+  reading: ScaleReading,
+  confirmedWeightThousandths: number | null,
+  mayBeQuantity: (weightThousandths: number) => boolean,
+): ScaleWeighingStep {
+  if (reading.kind === "unavailable") {
+    return { kind: "scale_unavailable" };
+  }
+  if (reading.kind === "not_stable") {
+    return { kind: "weighing" };
+  }
+  const { weightThousandths } = reading;
+  if (weightThousandths === 0) {
+    return confirmedWeightThousandths === null
+      ? { kind: "stable", weightThousandths }
+      : { kind: "zero_weight" };
+  }
+  if (!mayBeQuantity(weightThousandths)) {
+    return { kind: "weighing" };
+  }
+  return {
+    kind: weightThousandths === confirmedWeightThousandths ? "take" : "stable",
+    weightThousandths,
+  };
+}
