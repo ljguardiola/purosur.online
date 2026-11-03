@@ -175,6 +175,7 @@ export function aVoidedSaleFact(overrides: Partial<SaleVoided["sale"]> = {}): Sa
     sale: {
       ...cancelled,
       voidedAt: cancelledAt,
+      cashRounding: 0,
       stockMovements: [
         { id: "movement-3", saleLineId: "line-1", productId: "product-1", delta: 2000 },
       ],
