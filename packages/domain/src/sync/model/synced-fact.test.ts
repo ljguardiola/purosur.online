@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { dependenciesOf, invariantBreaksOf } from "./synced-fact.js";
+import { carriesNothingToKeep, dependenciesOf, invariantBreaksOf } from "./synced-fact.js";
 import {
   A_CASH_MOVEMENT_FACT,
   A_CLOCK_CORRECTED_FACT,
@@ -19,6 +19,41 @@ import {
   aVoidedSaleFact,
 } from "./test-support/synced-facts.js";
 
+describe("whether a synced fact carries anything to keep", () => {
+  it("is nothing for a removed sale line", () => {
+    expect(carriesNothingToKeep(aRemovedSaleLineFact())).toBe(true);
+  });
+
+  it.each([
+    ["no payment", []],
+    ["only a payment that was not approved", [{ state: "DECLINED" }, { state: "PENDING" }]],
+  ])("is nothing for a cancelled sale with %s", (_case, extra) => {
+    const sale = aCancelledSaleFact();
+    const payments = extra.map((payment) => ({ ...sale.sale.payments[0], ...payment }));
+
+    expect(carriesNothingToKeep(aCancelledSaleFact({ payments }))).toBe(true);
+  });
+
+  it("is something for a cancelled sale with an approved payment among others", () => {
+    const [approved] = aCancelledSaleFact().sale.payments;
+
+    expect(
+      carriesNothingToKeep(
+        aCancelledSaleFact({ payments: [{ ...approved, state: "DECLINED" }, approved] }),
+      ),
+    ).toBe(false);
+  });
+
+  it("is something for a completed sale, even one without approved payments", () => {
+    expect(carriesNothingToKeep(aCompletedSaleFact({ payments: [] }))).toBe(false);
+  });
+
+  it("is something for a voided sale and a returned sale", () => {
+    expect(carriesNothingToKeep(aVoidedSaleFact())).toBe(false);
+    expect(carriesNothingToKeep(aReturnedSaleFact())).toBe(false);
+  });
+});
+
 describe("what a synced fact needs applied before it", () => {
   it("is the cash session a completed sale was made in", () => {
     expect(dependenciesOf(aCompletedSaleFact({ sessionId: "session-9" }))).toEqual([
@@ -32,10 +67,8 @@ describe("what a synced fact needs applied before it", () => {
     ]);
   });
 
-  it("is only the cash session a removed sale line was removed in, never its sale", () => {
-    expect(
-      dependenciesOf(aRemovedSaleLineFact({ saleId: "sale-9", sessionId: "session-9" })),
-    ).toEqual([{ aggregateType: "CashSession", aggregateId: "session-9" }]);
+  it("is nothing for a removed sale line", () => {
+    expect(dependenciesOf(aRemovedSaleLineFact())).toEqual([]);
   });
 
   it("is the cash session a voided sale was made in", () => {
