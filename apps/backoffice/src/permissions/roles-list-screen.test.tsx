@@ -5,6 +5,7 @@ import { page, userEvent } from "vitest/browser";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import type { RoleSummary } from "../platform/roles-api";
 import { permissionCatalogFixture } from "../platform/test-support/permission-catalog";
+import { withReadsCounted } from "../platform/test-support/reads-counted";
 import { render } from "../shell/test-support/render-with-router";
 import { RolesListScreen } from "./roles-list-screen";
 import type { RolesListScreenServices } from "./roles-list-services";
@@ -456,4 +457,18 @@ test("shows the role count and a role's user count with the thousands separator"
 
   await expect.element(screen.getByText("1.000 roles")).toBeVisible();
   await expect.element(screen.getByText("1.000 usuarios").first()).toBeVisible();
+});
+
+test("opening the role editor renders none of the listed roles again", async () => {
+  const services = createServices();
+  const listed = withReadsCounted([administrator, stock, cashier], "userCount");
+  vi.mocked(services.fetchRoles).mockResolvedValue({ kind: "ok", value: listed.items });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("3 roles")).toBeVisible();
+  listed.resetReads();
+
+  await userEvent.click(screen.getByRole("button", { name: "Nuevo rol" }));
+
+  await expect.element(screen.getByRole("dialog")).toBeVisible();
+  expect(listed.reads()).toBe(0);
 });

@@ -14,7 +14,7 @@ import {
 } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { Check, CookingPot, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import {
@@ -30,6 +30,7 @@ import {
   ASSEMBLY_BATCH_OUTPUT_REFUSED,
   ASSEMBLY_BATCH_PRODUCT_NOT_FOUND,
   ASSEMBLY_BATCH_PRODUCT_REQUIRED,
+  type AssemblyBatchProposal,
   assemblyBatchBodyOf,
   batchOutputMessage,
   batchProposalOf,
@@ -84,6 +85,7 @@ export function NewAssemblyBatchModal({
   const [notice, setNotice] = useState<AssemblyBatchNotice | null>(null);
   const [refusals, setRefusals] = useState<Record<string, string>>({});
   const [outputRefusal, setOutputRefusal] = useState<string | undefined>(undefined);
+  const latestProposal = useRef<AssemblyBatchProposal | undefined>(undefined);
   const recipeOf = (productId: string | null) =>
     recipes.find((candidate) => candidate.productId === productId);
 
@@ -92,7 +94,10 @@ export function NewAssemblyBatchModal({
     request: {
       schema: assemblyBatchBodySchema,
       from: (formValues) =>
-        assemblyBatchBodyOf(formValues, { recipe: recipeOf(formValues.productId), proposal }),
+        assemblyBatchBodyOf(formValues, {
+          recipe: recipeOf(formValues.productId),
+          proposal: latestProposal.current,
+        }),
     },
     fields: ASSEMBLY_BATCH_FIELDS,
     messages: {
@@ -101,15 +106,21 @@ export function NewAssemblyBatchModal({
         batchSizeMessage(
           formValues.size,
           recipeOf(formValues.productId)?.saleUnit ?? "UNIT",
-          proposal !== undefined,
+          latestProposal.current !== undefined,
         ),
       used: (formValues) => {
         const chosen = recipeOf(formValues.productId);
-        return chosen ? batchUsedMessage(formValues, chosen, proposal) : "Revisá lo usado.";
+        return chosen
+          ? batchUsedMessage(formValues, chosen, latestProposal.current)
+          : "Revisá lo usado.";
       },
       output: (formValues) =>
         batchOutputMessage(
-          outputText(formValues, recipeOf(formValues.productId)?.saleUnit ?? "UNIT", proposal),
+          outputText(
+            formValues,
+            recipeOf(formValues.productId)?.saleUnit ?? "UNIT",
+            latestProposal.current,
+          ),
           recipeOf(formValues.productId)?.saleUnit ?? "UNIT",
         ),
     },
@@ -196,7 +207,10 @@ export function NewAssemblyBatchModal({
     proposalRequest !== undefined && proposalRead.status === "loaded"
       ? proposalRead.value.proposal
       : undefined;
-  const lotRequest = lotPreviewRequestOf(values, { recipe, proposal: sizeProposal });
+  const lotRequest = lotPreviewRequestOf(values, {
+    recipe: recipeOf(values.productId),
+    proposal: sizeProposal,
+  });
   const lotRead = useAssemblyBatchLotQuery({
     request: lotRequest,
     fetchAssemblyBatchPreview: services.fetchAssemblyBatchPreview,
@@ -205,9 +219,12 @@ export function NewAssemblyBatchModal({
   const lotPreview =
     lotRequest !== undefined && lotRead.status === "loaded" ? lotRead.value : undefined;
   const proposal = batchProposalOf(values, sizeProposal, lotPreview);
+  useEffect(() => {
+    latestProposal.current = proposal;
+  }, [proposal]);
 
   const clearRefusals = () => {
-    setRefusals({});
+    setRefusals((current) => (Object.keys(current).length === 0 ? current : {}));
     setOutputRefusal(undefined);
   };
   const options = sortedItems(recipes, {
@@ -318,7 +335,7 @@ export function NewAssemblyBatchModal({
                     {() => (
                       <AssemblyBatchComponentsField
                         components={recipe.components}
-                        proposal={proposal}
+                        proposal={sizeProposal}
                         refusals={refusals}
                         onUsedChange={clearRefusals}
                       />
