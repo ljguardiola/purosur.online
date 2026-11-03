@@ -991,6 +991,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       : () => restorationStandingFor(restorationOf(localDatabase)),
   registerService: register.service,
   registerName: () => replica?.registerName(),
+  registerVersion: () => appVersionFromCoreArguments(process.argv),
   enroll: async (typedCode: string) => {
     const outcome = await enroll(
       {

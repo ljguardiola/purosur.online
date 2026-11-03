@@ -1,5 +1,6 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import type { ComponentProps } from "react";
+import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { render } from "vitest-browser-react";
 import { BrandPanelScreen } from "./brand-panel-screen";
 
@@ -58,5 +59,39 @@ describe("BrandPanelScreen", () => {
     const screen = await render(<BrandPanelScreen />);
 
     await expect.element(screen.getByRole("contentinfo")).not.toBeInTheDocument();
+  });
+
+  it("shows the version at the bottom of the brand panel without a status or a clock", async () => {
+    const screen = await render(<BrandPanelScreen version="1.0.1539" />);
+
+    await expect.element(screen.getByText("Versión 1.0.1539")).toBeVisible();
+    await expect.element(screen.getByRole("contentinfo")).toBeVisible();
+    await expect.element(screen.getByRole("time")).not.toBeInTheDocument();
+
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("shows the version beside the status and the time", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    vi.setSystemTime(new Date(2026, 8, 29, 9, 0, 30));
+
+    const screen = await render(<BrandPanelScreen status="Sin dar de alta" version="1.0.1539" />);
+
+    await expect.element(screen.getByText("Sin dar de alta")).toBeVisible();
+    await expect.element(screen.getByText("09:00")).toBeVisible();
+    await expect.element(screen.getByText("Versión 1.0.1539")).toBeVisible();
+  });
+
+  it("shows no version when it is given none", async () => {
+    const screen = await render(<BrandPanelScreen version={null} />);
+
+    await expect.element(screen.getByText(/Versión/)).not.toBeInTheDocument();
+    await expect.element(screen.getByRole("contentinfo")).not.toBeInTheDocument();
+  });
+
+  it("accepts a status and a version passed on as absent", () => {
+    expectTypeOf<{ status: undefined; version: undefined }>().toExtend<
+      ComponentProps<typeof BrandPanelScreen>
+    >();
   });
 });

@@ -49,6 +49,11 @@ const registerNameRequestMessageSchema = z.object({
   request_id: requestId,
 });
 
+const registerVersionRequestMessageSchema = z.object({
+  type: z.literal("register-version-request"),
+  request_id: requestId,
+});
+
 export const enrollMessageSchema = z.object({
   type: z.literal("enroll"),
   request_id: requestId,
@@ -182,6 +187,7 @@ export const registerRendererToCoreMessageSchema = z.discriminatedUnion("type", 
   enrollmentStatusRequestMessageSchema,
   registerServiceRequestMessageSchema,
   registerNameRequestMessageSchema,
+  registerVersionRequestMessageSchema,
   enrollMessageSchema,
   checkEnrollmentCodeMessageSchema,
   openCashSessionMessageSchema,
@@ -497,6 +503,11 @@ export const registerCoreToRendererMessageSchema = z.discriminatedUnion("type", 
     type: z.literal("register-name"),
     request_id: requestId,
     name: z.string().nullable(),
+  }),
+  z.object({
+    type: z.literal("register-version"),
+    request_id: requestId,
+    version: z.string().nullable(),
   }),
   z.object({
     type: z.literal("enrollment-result"),
