@@ -53,8 +53,10 @@ import {
   chargeSaleOnStandaloneTerminalFor,
   chargeSaleWithPaidOrderFor,
   currentSaleFor,
+  type OutboxSaleRequestDeps,
   rebuildSaleAgainstPaidOrderFor,
   removeSaleLineFor,
+  type SellingRequestDeps,
   scanProductFor,
 } from "../../sales/sale-requests";
 import { ControllableReceiptPrinter } from "../../sales/test-support/controllable-receipt-printer";
@@ -1313,7 +1315,7 @@ export async function withRegisterSession<TResult>(
   }
 }
 
-type SaleRequestDepsOf = () => Parameters<typeof scanProductFor>[0];
+type SaleRequestDepsOf = () => SellingRequestDeps & OutboxSaleRequestDeps;
 
 async function scanOne(deps: SaleRequestDepsOf, code: string): Promise<string> {
   const scanned = await scanProductFor(deps(), code);
