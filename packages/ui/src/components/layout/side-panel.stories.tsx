@@ -41,14 +41,18 @@ export const WithFooter: Story = {
   },
 };
 
+const PAYMENT_LINES = Array.from({ length: 16 }, (_, index) => `Pago ${index + 1} · $ 1.690,00`);
+
 export const WithLongBody: Story = {
   args: {
     label: "Detalle de la venta",
     children: (
       <>
         {content}
-        {Array.from({ length: 16 }, (_, index) => (
-          <p key={index} className="text-body text-text">{`Pago ${index + 1} · $ 1.690,00`}</p>
+        {PAYMENT_LINES.map((line) => (
+          <p key={line} className="text-body text-text">
+            {line}
+          </p>
         ))}
       </>
     ),
