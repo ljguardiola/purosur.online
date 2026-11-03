@@ -144,6 +144,31 @@ const OPTIONS_FROM_A_CALL = [
   "",
 ].join("\n");
 
+const ITEMS_FROM_A_PRIMITIVE_CALCULATION = [
+  'import { useTableModel } from "@purosur/ui";',
+  'import { useRowsQuery } from "./rows";',
+  "",
+  "export function Rows({ columns }) {",
+  "  const query = useRowsQuery();",
+  "  const lastPage = query.data ? Math.max(1, Math.ceil(query.data.total / 20)) : undefined;",
+  "  const rows = lastPage === undefined ? query.data : query.data.slice(0, lastPage);",
+  "  const table = useTableModel({ items: rows, id: (item) => item.id, columns });",
+  "",
+  "  return <span>{table.rows.length}</span>;",
+  "}",
+  "",
+].join("\n");
+
+const TABLE_MODEL_IN_A_RENDER_HOOK_CALLBACK = [
+  'import { renderHook } from "@testing-library/react";',
+  'import { useTableModel } from "@purosur/ui";',
+  "",
+  "export function rendersWith(columns) {",
+  "  return renderHook(() => useTableModel({ items: [], id: (item) => item.id, columns }));",
+  "}",
+  "",
+].join("\n");
+
 test("memoized columns and items report nothing", async () => {
   const violations = await checkFiles([{ path: "rows.tsx", source: MEMOIZED_COLUMNS }]);
 
@@ -160,6 +185,22 @@ test("items read as an optional member of a hook result report nothing", async (
 
 test("options taken from props report nothing", async () => {
   const violations = await checkFiles([{ path: "rows.tsx", source: OPTIONS_FROM_PROPS }]);
+
+  assert.deepEqual(violations, []);
+});
+
+test("items derived through primitive calculations report nothing", async () => {
+  const violations = await checkFiles([
+    { path: "rows.tsx", source: ITEMS_FROM_A_PRIMITIVE_CALCULATION },
+  ]);
+
+  assert.deepEqual(violations, []);
+});
+
+test("a table model built in a callback that is not a component or hook reports nothing", async () => {
+  const violations = await checkFiles([
+    { path: "rows.test.tsx", source: TABLE_MODEL_IN_A_RENDER_HOOK_CALLBACK },
+  ]);
 
   assert.deepEqual(violations, []);
 });
