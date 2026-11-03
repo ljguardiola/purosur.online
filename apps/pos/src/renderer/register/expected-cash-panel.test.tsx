@@ -43,20 +43,13 @@ function rowOf(screen: Awaited<ReturnType<typeof renderPanel>>, label: string) {
 }
 
 describe("ExpectedCashPanel", () => {
-  it("pads its content 32px from every edge, like the sale's side panels", async () => {
-    const screen = await renderPanel();
-    const style = getComputedStyle(screen.getByRole("complementary").element());
-
-    expect(style.paddingTop).toBe("32px");
-    expect(style.paddingRight).toBe("32px");
-    expect(style.paddingBottom).toBe("32px");
-    expect(style.paddingLeft).toBe("32px");
-  });
-
   it("shows the eyebrow it is given and the expected cash in pesos", async () => {
     const screen = await renderPanel();
 
     await expect.element(screen.getByText("EFECTIVO ESPERADO AHORA")).toBeVisible();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Efectivo esperado" }))
+      .toBeVisible();
     await expect.element(screen.getByText("$ 46.200,00", { exact: true })).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
   });

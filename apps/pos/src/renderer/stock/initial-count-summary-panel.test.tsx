@@ -37,6 +37,9 @@ describe("InitialCountSummaryPanel", () => {
     });
 
     await expect.element(screen.getByText("Cargado hasta ahora")).toBeVisible();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Resumen del inventario" }))
+      .toBeVisible();
     await expect.element(screen.getByText("4 líneas", { exact: true })).toBeVisible();
     await expect.element(screen.getByText("Productos distintos")).toBeVisible();
     await expect.element(screen.getByText("Con vencimiento")).toBeVisible();

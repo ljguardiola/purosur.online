@@ -504,6 +504,7 @@ export function StartupPendingScreen({
         />
       </main>
       <SidePanel
+        label="Sesión abierta"
         footer={
           keptFromSelling ? (
             <Button

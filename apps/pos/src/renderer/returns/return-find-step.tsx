@@ -150,7 +150,7 @@ export function ReturnFindStep({
           </Card>
         </div>
       </main>
-      <SidePanel>
+      <SidePanel label="Datos del ticket">
         <Eyebrow text="SI EL LECTOR NO LEE EL QR" />
         <p className="text-title text-text-accent">Tipeá los datos impresos en el ticket</p>
         <form className="flex flex-col gap-4" noValidate onSubmit={handleSubmit}>

@@ -17,6 +17,9 @@ describe("ReturnScreen choosing what the customer returns", () => {
     await openReturn(screen);
 
     await expect
+      .element(screen.getByRole("complementary", { name: "Resumen de la devolución" }))
+      .toBeVisible();
+    await expect
       .element(screen.getByText("DEVOLUCIÓN · FACTURA C PV 00003 N° 00001192"))
       .toBeVisible();
     await expect.element(screen.getByText("Compra del 12/09/2026")).toBeVisible();
