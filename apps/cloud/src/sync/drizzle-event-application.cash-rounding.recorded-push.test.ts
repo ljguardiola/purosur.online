@@ -124,6 +124,7 @@ describe("applying the push recorded from a register session that rounded what w
       await new DrizzleCashRoundingReportReader(system.db).completedCashRoundings({
         locationId,
         range: { from: "2026-10-01", to: "2026-10-31" },
+        registerId: undefined,
       }),
     ).toEqual([expect.objectContaining({ rounded: 14000, roundedSaleCount: 2 })]);
   });
