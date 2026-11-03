@@ -3594,9 +3594,9 @@ describe("App", () => {
           }),
           ...cashDrawer,
         });
-        await userEvent.click(identified.screen.getByRole("button", { name: "Cancelar la venta" }));
+        await userEvent.click(identified.screen.getByRole("button", { name: "Vaciar carrito" }));
         await userEvent.click(
-          identified.screen.getByRole("dialog").getByRole("button", { name: "Cancelar la venta" }),
+          identified.screen.getByRole("dialog").getByRole("button", { name: "Vaciar carrito" }),
         );
         return identified;
       }

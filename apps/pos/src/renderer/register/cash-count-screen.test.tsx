@@ -336,7 +336,7 @@ describe("CashCountScreen", () => {
 
     await expect.element(screen.getByText("Hay una venta abierta de $ 34.340,00")).toBeVisible();
     await expect
-      .element(screen.getByText("Cobrala o cancelala antes de cerrar la caja."))
+      .element(screen.getByText("Cobrala o vaciá el carrito antes de cerrar la caja."))
       .toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "Ir a la venta" }));
     expect(screen.router.state.location.pathname).toBe("/session");

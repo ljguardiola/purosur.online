@@ -51,10 +51,10 @@ describe("SaleScreen while a QR charge of the sale is in its wait", () => {
     const cancelSale = vi.fn();
     const cancelPaidSale = vi.fn();
     const { screen } = await renderScreen({ currentSale, cancelSale, cancelPaidSale });
-    await expect.element(screen.getByRole("button", { name: "Cancelar venta" })).toBeEnabled();
+    await expect.element(screen.getByRole("button", { name: "Vaciar carrito" })).toBeEnabled();
     const readsBefore = currentSale.mock.calls.length;
 
-    await screen.getByRole("button", { name: "Cancelar venta" }).click();
+    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
 
     await expect.element(screen.getByText("Hay un cobro con Mercado Pago en curso")).toBeVisible();
     await expect
@@ -70,9 +70,9 @@ describe("SaleScreen while a QR charge of the sale is in its wait", () => {
     const { screen } = await renderScreen({
       currentSale: answering(SALE_IN_A_QR_WAIT, SALE_OF_YERBA),
     });
-    await expect.element(screen.getByRole("button", { name: "Cancelar venta" })).toBeEnabled();
+    await expect.element(screen.getByRole("button", { name: "Vaciar carrito" })).toBeEnabled();
 
-    await screen.getByRole("button", { name: "Cancelar venta" }).click();
+    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
 
     await expect.element(screen.getByRole("dialog")).toBeVisible();
     await expect
@@ -87,9 +87,9 @@ describe("SaleScreen while a QR charge of the sale is in its wait", () => {
       .mockRejectedValue(new Error("the connection was replaced"));
     const cancelSale = vi.fn();
     const { screen } = await renderScreen({ currentSale, cancelSale });
-    await expect.element(screen.getByRole("button", { name: "Cancelar venta" })).toBeEnabled();
+    await expect.element(screen.getByRole("button", { name: "Vaciar carrito" })).toBeEnabled();
 
-    await screen.getByRole("button", { name: "Cancelar venta" }).click();
+    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
 
     await expect.element(screen.getByText("No se pudo cancelar la venta")).toBeVisible();
     await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();

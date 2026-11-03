@@ -323,9 +323,7 @@ describe("cancelling a sale rebuilt against a paid order before it was applied",
     expect(database.prepare("SELECT sale_id FROM sales_rebuilt_against_paid_orders").all()).toEqual(
       [],
     );
-    expect(outboxOf("sale_cancelled")).toMatchObject([
-      { schemaVersion: 10, payload: { rebuilt_paid_order: null } },
-    ]);
+    expect(outboxOf("sale_cancelled")).toEqual([]);
     expect(
       await rebuildSaleAgainstPaidOrderFor(deps(), { paymentTransactionId: "order-1" }),
     ).toMatchObject({ kind: "rebuilt" });

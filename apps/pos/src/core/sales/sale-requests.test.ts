@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { encodePinHash } from "@purosur/contracts";
 import {
   FICTIONAL_CUIT,
@@ -13,7 +16,11 @@ import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
-import { cashBalanceFor } from "../register/cash-session-requests";
+import {
+  cashBalanceFor,
+  closeCashSessionFor,
+  sessionOpenSaleFor,
+} from "../register/cash-session-requests";
 import { SqliteRestorationEvidence } from "../register/sqlite-restoration-evidence";
 import { createActionGate } from "../sessions/action-gate";
 import { createSignedInPerson, type SignedInPerson } from "../sessions/signed-in-person";
@@ -44,6 +51,7 @@ import {
   weighLineFor,
   weighProductFor,
 } from "./sale-requests";
+import { anySaleIsOpen } from "./sqlite-open-sale-presence";
 
 const NOW = new Date("2026-09-30T12:00:00.000Z");
 
@@ -1967,14 +1975,6 @@ describe("discounting the sale's total", () => {
     expect(await applySaleDiscountFor(withPins(), request())).toEqual({ kind: "no_open_sale" });
   });
 
-  it("answers that the sale has no lines to discount", async () => {
-    grantTotalDiscount();
-    const lineId = await sellTwoYerbas();
-    await removeSaleLineFor(deps(), lineId);
-
-    expect(await applySaleDiscountFor(withPins(), request())).toEqual({ kind: "empty_sale" });
-  });
-
   it("answers not signed in when nobody is signed in", async () => {
     grantTotalDiscount();
     signedInPerson.clear();
@@ -2028,14 +2028,6 @@ describe("discounting the sale's total", () => {
     await scanProductFor(deps(), "111");
 
     expect(await currentSaleFor(deps())).toMatchObject({ sale_discount_refusal: null });
-  });
-
-  it("says that the total may not be discounted once the sale has no lines", async () => {
-    const lineId = await sellTwoYerbas();
-
-    expect(await removeSaleLineFor(deps(), lineId)).toMatchObject({
-      sale: { sale_discount_refusal: "empty_sale" },
-    });
   });
 
   describe("previewing it", () => {
@@ -2315,6 +2307,24 @@ describe("telling the discount on the sale's total was removed", () => {
     return lineId;
   }
 
+  async function discountedTwoLineTotal(): Promise<string> {
+    database
+      .prepare(
+        "INSERT INTO role_permissions (role_id, permission_key, active) VALUES ('cashier', 'apply_total_discount', 1)",
+      )
+      .run();
+    const first = await scanProductFor(deps(), "111");
+    await scanProductFor(deps(), "222");
+    await applySaleDiscountFor(deps(), {
+      discount: { kind: "AMOUNT", value: 500 },
+      reason: "Cliente frecuente",
+    });
+    if (first.kind !== "added") {
+      throw new Error("test setup: the product was not added");
+    }
+    return first.sale.lines[0]?.id ?? "";
+  }
+
   it("answers that scanning another unit removed it, leaving the sale undiscounted", async () => {
     await discountedTotal();
 
@@ -2336,7 +2346,7 @@ describe("telling the discount on the sale's total was removed", () => {
   });
 
   it("answers that removing a line removed it", async () => {
-    const lineId = await discountedTotal();
+    const lineId = await discountedTwoLineTotal();
 
     expect(await removeSaleLineFor(deps(), lineId)).toMatchObject({
       kind: "removed",
@@ -2376,56 +2386,49 @@ describe("telling the discount on the sale's total was removed", () => {
 });
 
 describe("removing a line", () => {
+  async function sellTwoProducts(): Promise<string> {
+    const first = await scanProductFor(deps(), "111");
+    await scanProductFor(deps(), "222");
+    if (first.kind !== "added") {
+      throw new Error("test setup: the product was not added");
+    }
+    return first.sale.lines[0]?.id ?? "";
+  }
+
   it("answers the sale without the line", async () => {
+    const lineId = await sellTwoProducts();
+
+    const outcome = await removeSaleLineFor(deps(), lineId);
+
+    expect(outcome).toMatchObject({
+      kind: "removed",
+      removed_sale_discount: false,
+      sale: { lines: [expect.objectContaining({ product_id: "p2" })] },
+    });
+    expect(database.prepare("SELECT id FROM sale_lines").all()).toHaveLength(1);
+  });
+
+  it("appends nothing to the outbox", async () => {
+    const lineId = await sellTwoProducts();
+
+    await removeSaleLineFor(deps(), lineId);
+
+    expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([]);
+  });
+
+  it("answers that no sale remains when the last line goes, leaving nothing behind", async () => {
     const lineId = await sellTwoYerbas();
 
     expect(await removeSaleLineFor(deps(), lineId)).toEqual({
       kind: "removed",
       removed_sale_discount: false,
-      sale: {
-        id: "id-1",
-        lines: [],
-        total: 0,
-        paid: 0,
-        pending: 0,
-        lines_lock: null,
-        cancel_refusal: null,
-        charge_refusal: null,
-        mercado_pago_charge_in_progress: null,
-        rebuilt_paid_order: null,
-        refunds_on_cancel: [],
-        cancel_authorization_required: true,
-        adjust_authorization_required: true,
-        sale_discount_authorization_required: true,
-        gross_subtotal: 0,
-        subtotal: 0,
-        promotion_savings: 0,
-        sale_discount: null,
-        sale_discount_refusal: "empty_sale",
-      },
+      sale: null,
     });
-  });
 
-  it("records the removed line as an event", async () => {
-    const lineId = await sellTwoYerbas();
-
-    await removeSaleLineFor(deps(), lineId);
-
-    expect(database.prepare("SELECT event_type, schema_version FROM outbox").all()).toEqual([
-      { event_type: "sale_line_removed", schema_version: 1 },
-    ]);
-  });
-
-  it("answers unavailable, removing nothing, when the register holds no outbox chain key", async () => {
-    const lineId = await sellTwoYerbas();
-
-    expect(
-      await removeSaleLineFor(deps({ readOutboxChainKey: async () => undefined }), lineId),
-    ).toEqual({
-      kind: "unavailable",
-    });
-    expect(database.prepare("SELECT id FROM sale_lines").all()).toEqual([{ id: lineId }]);
+    expect(database.prepare("SELECT id FROM sales").all()).toEqual([]);
+    expect(database.prepare("SELECT id FROM sale_lines").all()).toEqual([]);
     expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([]);
+    expect(await currentSaleFor(deps())).toBeNull();
   });
 
   it("answers the domain's refusal of a line the sale does not have", async () => {
@@ -2462,15 +2465,14 @@ describe("removing a line", () => {
 });
 
 describe("cancelling the sale", () => {
-  it("cancels it, leaving no sale behind but the event that it was cancelled", async () => {
+  it("empties the cart, leaving no sale and nothing in the outbox", async () => {
     await sellTwoYerbas();
 
     expect(await cancelSaleFor(deps())).toEqual({ kind: "cancelled" });
 
     expect(database.prepare("SELECT id FROM sales").all()).toEqual([]);
-    expect(database.prepare("SELECT event_type, schema_version FROM outbox").all()).toEqual([
-      { event_type: "sale_cancelled", schema_version: 10 },
-    ]);
+    expect(database.prepare("SELECT id FROM sale_lines").all()).toEqual([]);
+    expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([]);
   });
 
   it("keeps the sale, cancelled, with its Mercado Pago charges that ended unpaid", async () => {
@@ -2538,16 +2540,81 @@ describe("cancelling the sale", () => {
 
     expect(await cancelSaleFor(deps())).toEqual({ kind: "no_open_session" });
   });
+});
 
-  it("answers unavailable, cancelling nothing, when the register holds no outbox chain key", async () => {
-    await sellTwoYerbas();
+describe("a cart that ends", () => {
+  function endUnpaidMercadoPagoCharges(): void {
+    const { id: saleId } = database.prepare<[], { id: string }>("SELECT id FROM sales").get() ?? {
+      id: "",
+    };
+    database
+      .prepare(
+        "INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at, card_type) VALUES ('point-1', ?, 'SALE', 'POINT', 'MERCADOPAGO_POINT', 3000, 'CANCELLED', ?, ?, 'CREDIT')",
+      )
+      .run(saleId, NOW.toISOString(), NOW.toISOString());
+  }
 
-    expect(await cancelSaleFor(deps({ readOutboxChainKey: async () => undefined }))).toEqual({
-      kind: "unavailable",
-    });
-    expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
-    expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([]);
+  function expectNoSaleInProgress(): void {
+    expect(anySaleIsOpen(database)).toBe(false);
+    expect(sessionOpenSaleFor(database, NOW)).toBeNull();
+  }
+
+  it("lets the cash session close once every line was removed", async () => {
+    const lineId = await sellTwoYerbas();
+    await removeSaleLineFor(deps(), lineId);
+
+    expectNoSaleInProgress();
+    expect(await closeCashSessionFor(deps(), { sessionId: "session-1", countedCash: 0 })).toEqual(
+      expect.objectContaining({ kind: "closed" }),
+    );
   });
+
+  it("keeps the cart's lines after the register restarts", async () => {
+    await sellTwoYerbas();
+    await scanProductFor(deps(), "222");
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-restart-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      writeFileSync(path, database.serialize());
+      const reopened = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      try {
+        expect(await currentSaleFor(deps({ database: reopened }))).toMatchObject({
+          lines: [
+            expect.objectContaining({ product_id: "p1", quantity: 2 }),
+            expect.objectContaining({ product_id: "p2" }),
+          ],
+        });
+      } finally {
+        reopened.close();
+      }
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    ["emptying the cart", (lineId: string) => cancelSaleFor(deps()).then(() => lineId)],
+    [
+      "removing its last line",
+      (lineId: string) => removeSaleLineFor(deps(), lineId).then(() => lineId),
+    ],
+  ])(
+    "after %s with a charge that ended unpaid keeps a closed local row that sends nothing and is no sale in progress",
+    async (_name, end) => {
+      const lineId = await sellTwoYerbas();
+      endUnpaidMercadoPagoCharges();
+
+      await end(lineId);
+
+      expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "CANCELLED" }]);
+      expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([]);
+      expect(await currentSaleFor(deps())).toBeNull();
+      expectNoSaleInProgress();
+      expect(await closeCashSessionFor(deps(), { sessionId: "session-1", countedCash: 0 })).toEqual(
+        expect.objectContaining({ kind: "closed" }),
+      );
+    },
+  );
 });
 
 describe("charging the sale in progress in cash", () => {

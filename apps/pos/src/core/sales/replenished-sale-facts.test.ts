@@ -792,6 +792,14 @@ describe("replenishing a cancelled sale into a restored register", () => {
     ).toEqual([{ id: "charge-abandoned", state: "DECLINED" }]);
   });
 
+  it("stores nothing for a cancelled sale that had no approved payment, since it was only a cart", () => {
+    apply(aCancelledSaleFact({ payments: [], refunds: [], cashMovements: [] }));
+
+    expect(rows("sales")).toEqual([]);
+    expect(rows("sale_lines")).toEqual([]);
+    expect(rows("payment_transactions")).toEqual([]);
+  });
+
   it("changes nothing for a sale it holds cancelled", () => {
     apply(aCancelledSaleFact());
     const before = {

@@ -12,7 +12,7 @@ describe("OpenSaleBlock", () => {
 
     await expect.element(screen.getByText("Hay una venta abierta de $ 34.340,00")).toBeVisible();
     await expect
-      .element(screen.getByText("Cobrala o cancelala antes de cerrar la caja."))
+      .element(screen.getByText("Cobrala o vaciá el carrito antes de cerrar la caja."))
       .toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
   });
@@ -33,7 +33,7 @@ describe("OpenSaleBlock", () => {
     await expect
       .element(screen.getByRole("status"))
       .toHaveTextContent(
-        "Hay una venta abierta de $ 34.340,00 Cobrala o cancelala antes de cerrar la caja.",
+        "Hay una venta abierta de $ 34.340,00 Cobrala o vaciá el carrito antes de cerrar la caja.",
       );
 
     const warning = await render(
