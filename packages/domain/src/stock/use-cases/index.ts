@@ -36,6 +36,11 @@ export type {
   NewAssemblyBatch,
 } from "./assembly-batch-store.js";
 export type { BatchLotReader, PreviewLot } from "./batch-lot-reader.js";
+export type {
+  CorrectLotExpiryInput,
+  CorrectLotExpiryOutcome,
+} from "./correct-lot-expiry.js";
+export { correctLotExpiry } from "./correct-lot-expiry.js";
 export type { CurrentStockReader } from "./current-stock-reader.js";
 export type {
   DiscardExpiredLotInput,
@@ -95,6 +100,10 @@ export type {
   PreviewedBatchLot,
 } from "./preview-assembly-batch.js";
 export { previewAssemblyBatch } from "./preview-assembly-batch.js";
+export type {
+  PurchasedLot,
+  PurchasedLotStoreTransaction,
+} from "./purchased-lot-store.js";
 export type {
   CurrentStockCategory,
   CurrentStockLot,
@@ -165,6 +174,11 @@ export type {
 export { recordInitialCountLine } from "./record-initial-count-line.js";
 export type { RecordLossInput, RecordLossOutcome } from "./record-loss.js";
 export { recordLoss } from "./record-loss.js";
+export type {
+  RedatePurchasedLotsInput,
+  RedatePurchasedLotsOutcome,
+} from "./redate-purchased-lots.js";
+export { redatePurchasedLots } from "./redate-purchased-lots.js";
 export type {
   RegisterAssemblyBatchInput,
   RegisterAssemblyBatchOutcome,

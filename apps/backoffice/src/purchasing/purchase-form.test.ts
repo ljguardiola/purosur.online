@@ -12,6 +12,7 @@ import {
   type PurchaseLineValues,
   priceReviewProductIds,
   purchaseLineQuantityRefusal,
+  purchaseLineRefusalsOf,
   purchaseLinesMessage,
   purchaseProductOptions,
   purchaseReceiptNumberMessage,
@@ -485,5 +486,43 @@ describe("withCreatedSupplier", () => {
 
   it("keeps the list as it is when no supplier was created", () => {
     expect(withCreatedSupplier([andina, granos], null)).toEqual([andina, granos]);
+  });
+});
+
+describe("purchaseLineRefusalsOf", () => {
+  const lines = [
+    line({ productId: MIEL_PRODUCT_ID }),
+    line({ id: 2, productId: AVENA_PRODUCT_ID }),
+  ];
+
+  it("shows a refused product on the line the cloud named", () => {
+    expect(
+      purchaseLineRefusalsOf(
+        { kind: "line_refused", reason: "product_inactive", lineIndex: 1 },
+        lines,
+        purchasableProducts,
+      ),
+    ).toEqual({ 1: PURCHASE_LINE_REFUSALS.product_inactive });
+  });
+
+  it("shows a refused quantity on the line the cloud named, in its sale unit", () => {
+    expect(
+      purchaseLineRefusalsOf(
+        { kind: "validation_failed", field: "lines", lineIndex: 1 },
+        lines,
+        purchasableProducts,
+      ),
+    ).toEqual({ 1: purchaseLineQuantityRefusal(lines[1], purchasableProducts) });
+  });
+
+  it("shows nothing for a refusal that names no line", () => {
+    expect(
+      purchaseLineRefusalsOf(
+        { kind: "validation_failed", field: "lines" },
+        lines,
+        purchasableProducts,
+      ),
+    ).toBeUndefined();
+    expect(purchaseLineRefusalsOf({ kind: "failed" }, lines, purchasableProducts)).toBeUndefined();
   });
 });
