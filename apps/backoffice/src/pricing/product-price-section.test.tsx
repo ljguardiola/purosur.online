@@ -77,7 +77,7 @@ test("shows a 25 % margin for a $ 16.000 price over a $ 12.000 cost, asking for 
   const screen = await renderSection({ services });
 
   await expect.element(screen.getByText("Margen con este precio")).toBeVisible();
-  await expect.element(screen.getByText("25 %")).toBeVisible();
+  await expect.element(screen.getByText("25,0 %")).toBeVisible();
   await vi.waitFor(() =>
     expect(services.fetchPriceRecommendation).toHaveBeenCalledWith(
       mixProductId,
@@ -133,7 +133,7 @@ test("shows everything but offers no field and no save button without permission
   const screen = await renderSection({ services, maySetPrice: false });
 
   await expect.element(screen.getByText("$ 16.000,00 / kg", { exact: true })).toBeVisible();
-  await expect.element(screen.getByText("25 %")).toBeVisible();
+  await expect.element(screen.getByText("25,0 %")).toBeVisible();
   await expect.element(screen.getByRole("textbox")).not.toBeInTheDocument();
   await expect
     .element(screen.getByRole("button", { name: "Guardar el precio" }))
@@ -186,6 +186,13 @@ test("shows no margin for a product whose margin cannot be computed", async () =
 });
 
 describe("while the person edits", () => {
+  async function readEverything(services: ReturnType<typeof sectionServices>) {
+    await vi.waitFor(async () => {
+      await vi.advanceTimersByTimeAsync(100);
+      expect(services.fetchPriceRecommendation).toHaveBeenCalledTimes(2);
+    });
+  }
+
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   });
@@ -197,7 +204,7 @@ describe("while the person edits", () => {
   test("asks for the margin of the typed price only once it has settled", async () => {
     const services = sectionServices();
     const screen = await renderSection({ services });
-    await vi.advanceTimersByTimeAsync(1_000);
+    await readEverything(services);
     services.fetchPriceRecommendation.mockClear();
 
     await userEvent.fill(screen.getByLabelText("Precio de venta por kilo"), "17000");
@@ -217,7 +224,7 @@ describe("while the person edits", () => {
   test("asks again, once the components settle, for the recommendation of the edited components", async () => {
     const services = sectionServices();
     const screen = await renderSection({ services });
-    await vi.advanceTimersByTimeAsync(1_000);
+    await readEverything(services);
     services.fetchPriceRecommendation.mockClear();
 
     await screen.withComponents([{ ...almendrasComponent, quantityPerOutputUnit: 700 }]);
@@ -235,7 +242,7 @@ describe("while the person edits", () => {
   test("keeps what the person typed when the recommendation changes", async () => {
     const services = sectionServices();
     const screen = await renderSection({ services });
-    await vi.advanceTimersByTimeAsync(1_000);
+    await readEverything(services);
     await userEvent.fill(screen.getByLabelText("Precio de venta por kilo"), "17000");
     services.fetchPriceRecommendation.mockResolvedValue({
       kind: "ok",
@@ -243,16 +250,19 @@ describe("while the person edits", () => {
     });
 
     await screen.withComponents([{ ...almendrasComponent, quantityPerOutputUnit: 700 }]);
-    await vi.advanceTimersByTimeAsync(1_000);
+    await vi.waitFor(async () => {
+      await vi.advanceTimersByTimeAsync(100);
+      expect(services.fetchPriceRecommendation).toHaveBeenCalledTimes(4);
+    });
 
     await expect.element(screen.getByText("$ 18.000,00 / kg", { exact: true })).toBeVisible();
-    await expect.element(screen.getByLabelText("Precio de venta por kilo")).toHaveValue("17000");
+    await expect.element(screen.getByLabelText("Precio de venta por kilo")).toHaveValue("17.000");
   });
 
   test("follows the recommendation while the person has not typed a price", async () => {
     const services = sectionServices();
     const screen = await renderSection({ services });
-    await vi.advanceTimersByTimeAsync(1_000);
+    await readEverything(services);
     services.fetchPriceRecommendation.mockResolvedValue({
       kind: "ok",
       value: { ...recommended16000, recommendation: { kind: "recommended", unitPrice: 1800000 } },

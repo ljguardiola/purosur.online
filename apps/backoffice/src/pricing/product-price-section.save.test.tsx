@@ -75,12 +75,15 @@ test("expects the new price after a save, which read again", async () => {
     id: "00000000-0000-4000-8000-000000000002",
     unitPrice: 1700000,
   };
+  services.setPrice.mockImplementation(async () => {
+    services.fetchPriceRecommendation.mockResolvedValue({
+      kind: "ok",
+      value: { ...recommended16000, currentPrice: savedPrice },
+    });
+    return { kind: "ok" };
+  });
   const screen = await renderSection({ services });
   await saveTyped(screen, "17000");
-  services.fetchPriceRecommendation.mockResolvedValue({
-    kind: "ok",
-    value: { ...recommended16000, currentPrice: savedPrice },
-  });
   await expect.element(screen.getByText("$ 17.000,00 / kg", { exact: true })).toBeVisible();
 
   await userEvent.fill(screen.getByLabelText("Precio de venta por kilo"), "18000");
@@ -165,7 +168,7 @@ test("a product that is no longer there is announced", async () => {
 
   await saveTyped(screen, "17000");
 
-  await expect.element(screen.getByText("Producto desactivado")).toBeVisible();
+  await expect.element(screen.getByRole("alert")).toHaveTextContent("Producto desactivado");
 });
 
 test("a save that finds no open session ends the session", async () => {
