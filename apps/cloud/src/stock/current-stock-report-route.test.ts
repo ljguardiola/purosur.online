@@ -1,4 +1,5 @@
 import { canonicalOutboxEvent } from "@purosur/domain";
+import { formatLotCode } from "@purosur/formatting";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -145,6 +146,9 @@ describe("GET /reports/current-stock", () => {
     await insertBalance(db, { productId: almonds.productId, locationId, quantity: 6_000 });
 
     const response = await currentStock(headers);
+    const storedCodes = await db.select({ id: lots.id, code: lots.code }).from(lots);
+    const codeOf = (lotId: string) =>
+      formatLotCode(storedCodes.find((stored) => stored.id === lotId)?.code as number);
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
@@ -162,7 +166,8 @@ describe("GET /reports/current-stock", () => {
           lots: [
             {
               id: cheaperLot,
-              lot_number: "L-77",
+              lot_name: "Compra 01/10/2026 · 1",
+              lot_code: codeOf(cheaperLot),
               expires_on: "2027-03-01",
               technical: false,
               remaining: 4_000,
@@ -171,7 +176,8 @@ describe("GET /reports/current-stock", () => {
             },
             {
               id: dearerLot,
-              lot_number: "L-80",
+              lot_name: "Compra 01/10/2026 · 2",
+              lot_code: codeOf(dearerLot),
               expires_on: "2027-06-01",
               technical: false,
               remaining: 2_000,

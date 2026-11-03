@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { locations, purchaseLines, purchases, suppliers } from "../platform/db/schema.js";
+import { locations, lots, purchaseLines, purchases, suppliers } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzlePurchasingListReader } from "./drizzle-purchasing-list-reader.js";
@@ -47,6 +47,21 @@ async function storedPurchase(fields: Partial<typeof purchases.$inferInsert> = {
   return purchase?.id as string;
 }
 
+async function lotOfLine(lineId: string, productId: string, purchasedOn = "2026-10-01") {
+  const [lot] = await db
+    .insert(lots)
+    .values({
+      productId,
+      locationId,
+      purchaseLineId: lineId,
+      purchasedOn,
+      quantityReceived: 1_000,
+      remaining: 1_000,
+    })
+    .returning({ id: lots.id });
+  return lot?.id as string;
+}
+
 describe("DrizzlePurchasingListReader purchases", () => {
   it("lists a purchase with the supplier's and products' names, one entry per line", async () => {
     const yerba = await insertProduct(db, {
@@ -60,33 +75,38 @@ describe("DrizzlePurchasingListReader purchases", () => {
       receiptNumber: "0001-00000042",
       note: "Entrega de la mañana",
     });
-    await db.insert(purchaseLines).values([
-      {
-        purchaseId,
-        position: 1,
-        productId: yerba.id,
-        packages: 2,
-        quantity: 24_000,
-        costPaidCents: 24_000,
-        quantityPerPackage: 12_000,
-        lotNumber: "L-77",
-        expiresOn: "2027-03-01",
-      },
-      {
-        purchaseId,
-        position: 2,
-        productId: harina.id,
-        quantity: 2_500,
-        costPaidCents: 1_000,
-        quantityPerPackage: 1_000,
-      },
-    ]);
+    const [yerbaLine, harinaLine] = await db
+      .insert(purchaseLines)
+      .values([
+        {
+          purchaseId,
+          position: 1,
+          productId: yerba.id,
+          packages: 2,
+          quantity: 24_000,
+          costPaidCents: 24_000,
+          quantityPerPackage: 12_000,
+          expiresOn: "2027-03-01",
+        },
+        {
+          purchaseId,
+          position: 2,
+          productId: harina.id,
+          quantity: 2_500,
+          costPaidCents: 1_000,
+          quantityPerPackage: 1_000,
+        },
+      ])
+      .returning({ id: purchaseLines.id });
+    const yerbaLot = await lotOfLine(yerbaLine?.id as string, yerba.id);
+    const harinaLot = await lotOfLine(harinaLine?.id as string, harina.id);
 
     const listed = await new DrizzlePurchasingListReader(db).purchases(locationId);
 
     expect(listed).toHaveLength(1);
     expect(listed[0]).toMatchObject({
       id: purchaseId,
+      locationId,
       purchasedOn: "2026-10-01",
       supplier: { id: supplierId, name: "Distribuidora Sur" },
       receiptType: "factura_b",
@@ -108,7 +128,7 @@ describe("DrizzlePurchasingListReader purchases", () => {
       quantity: 24_000,
       costPaidCents: 24_000,
       quantityPerPackage: 12_000,
-      lotNumber: "L-77",
+      lotId: yerbaLot,
       expiresOn: "2027-03-01",
     });
     expect(listed[0]?.lines).toContainEqual({
@@ -118,7 +138,7 @@ describe("DrizzlePurchasingListReader purchases", () => {
       quantity: 2_500,
       costPaidCents: 1_000,
       quantityPerPackage: 1_000,
-      lotNumber: null,
+      lotId: harinaLot,
       expiresOn: null,
     });
   });
@@ -128,10 +148,16 @@ describe("DrizzlePurchasingListReader purchases", () => {
     const arroz = await insertProduct(db, { name: "Arroz" });
     const purchaseId = await storedPurchase();
     const line = { purchaseId, quantity: 1_000, costPaidCents: 500, quantityPerPackage: 1_000 };
-    await db.insert(purchaseLines).values([
-      { ...line, position: 2, productId: arroz.id },
-      { ...line, position: 1, productId: yerba.id },
-    ]);
+    const inserted = await db
+      .insert(purchaseLines)
+      .values([
+        { ...line, position: 2, productId: arroz.id },
+        { ...line, position: 1, productId: yerba.id },
+      ])
+      .returning({ id: purchaseLines.id, productId: purchaseLines.productId });
+    for (const { id, productId } of inserted) {
+      await lotOfLine(id, productId);
+    }
 
     const [listed] = await new DrizzlePurchasingListReader(db).purchases(locationId);
 
@@ -176,5 +202,32 @@ describe("DrizzlePurchasingListReader purchases", () => {
     const [listed] = await new DrizzlePurchasingListReader(db).purchases(locationId);
 
     expect(listed?.lines).toEqual([]);
+  });
+
+  it("answers the name facts of the lots of the products asked in the branch, whatever purchase created them", async () => {
+    const yerba = await insertProduct(db, { name: "Yerba" });
+    const first = await storedPurchase({ purchasedOn: "2026-11-03" });
+    const second = await storedPurchase({ purchasedOn: "2026-11-03" });
+    const line = { quantity: 1_000, costPaidCents: 500, quantityPerPackage: 1_000, position: 1 };
+    const [firstLine] = await db
+      .insert(purchaseLines)
+      .values({ ...line, purchaseId: first, productId: yerba.id })
+      .returning({ id: purchaseLines.id });
+    const [secondLine] = await db
+      .insert(purchaseLines)
+      .values({ ...line, purchaseId: second, productId: yerba.id })
+      .returning({ id: purchaseLines.id });
+    const firstLot = await lotOfLine(firstLine?.id as string, yerba.id, "2026-11-03");
+    const secondLot = await lotOfLine(secondLine?.id as string, yerba.id, "2026-11-03");
+
+    const facts = await new DrizzlePurchasingListReader(db).lotNameFacts(locationId, [yerba.id]);
+
+    expect(facts.map(({ lotId, origin }) => ({ lotId, origin }))).toEqual(
+      expect.arrayContaining([
+        { lotId: firstLot, origin: { kind: "purchase", purchasedOn: "2026-11-03" } },
+        { lotId: secondLot, origin: { kind: "purchase", purchasedOn: "2026-11-03" } },
+      ]),
+    );
+    expect(facts).toHaveLength(2);
   });
 });

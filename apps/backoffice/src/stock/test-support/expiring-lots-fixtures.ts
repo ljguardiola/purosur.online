@@ -42,7 +42,7 @@ const yogurt = {
 
 export const chiaExpiredLot: ExpiringLot = {
   id: "00000000-0000-4000-8000-00000000e001",
-  lotNumber: "L-SC02",
+  lotName: "Compra 03/10/2026",
   expiresOn: "2026-10-10",
   remaining: 1_200,
   valueCents: 480_000,
@@ -53,7 +53,7 @@ export const chiaExpiredLot: ExpiringLot = {
 
 export const oatsYesterdayLot: ExpiringLot = {
   id: "00000000-0000-4000-8000-00000000e002",
-  lotNumber: null,
+  lotName: "Técnico 07/10/2026",
   expiresOn: "2026-10-12",
   remaining: 2_500,
   valueCents: null,
@@ -64,7 +64,7 @@ export const oatsYesterdayLot: ExpiringLot = {
 
 export const yogurtTodayLot: ExpiringLot = {
   id: "00000000-0000-4000-8000-00000000e003",
-  lotNumber: "L-YG14",
+  lotName: "Compra 04/10/2026",
   expiresOn: "2026-10-13",
   remaining: 24_000,
   valueCents: 960_000,
@@ -75,7 +75,7 @@ export const yogurtTodayLot: ExpiringLot = {
 
 export const chiaTomorrowLot: ExpiringLot = {
   id: "00000000-0000-4000-8000-00000000e004",
-  lotNumber: "L-SC03",
+  lotName: "Compra 06/10/2026",
   expiresOn: "2026-10-14",
   remaining: 3_000,
   valueCents: 1_200_000,
@@ -86,7 +86,7 @@ export const chiaTomorrowLot: ExpiringLot = {
 
 export const oatsUpcomingLot: ExpiringLot = {
   id: "00000000-0000-4000-8000-00000000e005",
-  lotNumber: "L-AV07",
+  lotName: "Compra 07/10/2026",
   expiresOn: "2026-10-25",
   remaining: 8_000,
   valueCents: 1_600_000,
@@ -107,7 +107,7 @@ export function expiringLotList(
 
 export const almondOilExpiredLot: ExpiringLot = {
   id: "00000000-0000-4000-8000-00000000e006",
-  lotNumber: null,
+  lotName: "Técnico 07/10/2026",
   expiresOn: "2026-10-11",
   remaining: 6_000,
   valueCents: 900_000,

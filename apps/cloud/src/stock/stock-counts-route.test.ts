@@ -585,6 +585,7 @@ describe("GET /inventory-levels/:productId", () => {
       locationId,
       actorId: userId,
       lotNumber: "L-2",
+      purchasedOn: "2026-10-05",
       expiresOn: "2027-09-01",
       remaining: 4000,
     });
@@ -593,6 +594,7 @@ describe("GET /inventory-levels/:productId", () => {
       locationId,
       actorId: userId,
       lotNumber: "L-1",
+      purchasedOn: "2026-11-03",
       expiresOn: "2027-06-01",
       remaining: 1000,
     });
@@ -611,8 +613,8 @@ describe("GET /inventory-levels/:productId", () => {
     const response = await expectedBalanceRequest(headers, productId, COUNTED_AT.toISOString());
 
     expect(response.json().lots).toEqual([
-      { id: soon, lotNumber: "L-1", expiresOn: "2027-06-01", expected: 3000 },
-      { id: late, lotNumber: "L-2", expiresOn: "2027-09-01", expected: 4000 },
+      { id: soon, lotName: "Compra 03/11/2026", expiresOn: "2027-06-01", expected: 3000 },
+      { id: late, lotName: "Compra 05/10/2026", expiresOn: "2027-09-01", expected: 4000 },
     ]);
   });
 

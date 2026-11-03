@@ -202,7 +202,7 @@ test("shows the lots of a product", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Ver los lotes de Almendras peladas" }));
 
   const lots = screen.getByRole("table", { name: "Lotes de Almendras peladas" });
-  await expect.element(lots.getByText("L-2312")).toBeVisible();
+  await expect.element(lots.getByText("Compra 01/09/2026")).toBeVisible();
   await expectNoAccessibilityViolations(screen.container);
 });
 
@@ -418,7 +418,7 @@ test("downloads a spreadsheet of the products shown, in the order the screen sor
   expect(products.get("A5")?.value).toBe("Yerba mate 1 kg");
   expect(products.get("E2")?.value).toBe("12.15");
   expect(products.get("D5")?.value).toBe("24");
-  expect(file.sheet(2).get("C2")?.value).toBe("L-2312");
+  expect(file.sheet(2).get("C2")?.value).toBe("Compra 01/09/2026");
 });
 
 test("downloads only the category the screen is filtered by", async () => {

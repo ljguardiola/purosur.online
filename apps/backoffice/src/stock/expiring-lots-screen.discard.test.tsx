@@ -35,10 +35,18 @@ test("offers to discard only the lots that already expired", async () => {
   const screen = await renderScreen(servicesListing(expiringLotList(EVERY_LOT)));
 
   await expect
-    .element(screen.getByRole("button", { name: "Dar de baja el lote L-SC02" }))
+    .element(
+      screen.getByRole("button", {
+        name: "Dar de baja el lote Compra 03/10/2026 de Semillas de chía",
+      }),
+    )
     .toBeVisible();
   await expect
-    .element(screen.getByRole("button", { name: "Dar de baja el lote de Avena arrollada" }))
+    .element(
+      screen.getByRole("button", {
+        name: "Dar de baja el lote Técnico 07/10/2026 de Avena arrollada",
+      }),
+    )
     .toBeVisible();
   expect(screen.getByRole("button", { name: /Dar de baja/ }).elements()).toHaveLength(2);
   await expectNoAccessibilityViolations(screen.container);
@@ -52,16 +60,28 @@ test("discards the lot in one click, reads the list again and confirms what was 
   vi.mocked(services.discardExpiredLot).mockResolvedValue({ kind: "ok", value: DISCARDED });
   const screen = await renderScreen(services);
 
-  await userEvent.click(screen.getByRole("button", { name: "Dar de baja el lote L-SC02" }));
+  await userEvent.click(
+    screen.getByRole("button", {
+      name: "Dar de baja el lote Compra 03/10/2026 de Semillas de chía",
+    }),
+  );
 
   expect(services.discardExpiredLot).toHaveBeenCalledWith(chiaExpiredLot.id);
   await expect.element(screen.getByText("Lote dado de baja")).toBeVisible();
   await expect
-    .element(screen.getByText("L-SC02 de Semillas de chía: 1,200 kg como merma por vencimiento."))
+    .element(
+      screen.getByText(
+        "Compra 03/10/2026 de Semillas de chía: 1,200 kg como merma por vencimiento.",
+      ),
+    )
     .toBeVisible();
   await expect.poll(() => vi.mocked(services.fetchExpiringLots).mock.calls.length).toBe(2);
   await expect
-    .element(screen.getByRole("button", { name: "Dar de baja el lote L-SC02" }))
+    .element(
+      screen.getByRole("button", {
+        name: "Dar de baja el lote Compra 03/10/2026 de Semillas de chía",
+      }),
+    )
     .not.toBeInTheDocument();
 });
 
@@ -74,7 +94,9 @@ test("names a discarded lot without a number by its product", async () => {
   const screen = await renderScreen(services);
 
   await userEvent.click(
-    screen.getByRole("button", { name: "Dar de baja el lote de Avena arrollada" }),
+    screen.getByRole("button", {
+      name: "Dar de baja el lote Técnico 07/10/2026 de Avena arrollada",
+    }),
   );
 
   await expect
@@ -87,13 +109,25 @@ test("takes the discard away from a lot while its request is on the way", async 
   vi.mocked(services.discardExpiredLot).mockReturnValue(new Promise(() => {}));
   const screen = await renderScreen(services);
 
-  await userEvent.click(screen.getByRole("button", { name: "Dar de baja el lote L-SC02" }));
+  await userEvent.click(
+    screen.getByRole("button", {
+      name: "Dar de baja el lote Compra 03/10/2026 de Semillas de chía",
+    }),
+  );
 
   await expect
-    .element(screen.getByRole("button", { name: "Dar de baja el lote L-SC02" }))
+    .element(
+      screen.getByRole("button", {
+        name: "Dar de baja el lote Compra 03/10/2026 de Semillas de chía",
+      }),
+    )
     .not.toBeInTheDocument();
   await expect
-    .element(screen.getByRole("button", { name: "Dar de baja el lote de Avena arrollada" }))
+    .element(
+      screen.getByRole("button", {
+        name: "Dar de baja el lote Técnico 07/10/2026 de Avena arrollada",
+      }),
+    )
     .toBeVisible();
   expect(services.discardExpiredLot).toHaveBeenCalledTimes(1);
 });
@@ -110,7 +144,11 @@ test.each([
   vi.mocked(services.discardExpiredLot).mockResolvedValue(outcome);
   const screen = await renderScreen(services);
 
-  await userEvent.click(screen.getByRole("button", { name: "Dar de baja el lote L-SC02" }));
+  await userEvent.click(
+    screen.getByRole("button", {
+      name: "Dar de baja el lote Compra 03/10/2026 de Semillas de chía",
+    }),
+  );
 
   await expect.element(screen.getByText("No se pudo dar de baja el lote")).toBeVisible();
   await expect.element(screen.getByText(reason)).toBeVisible();
@@ -122,7 +160,11 @@ test("reads the list again after a refusal, so the lot shown is the one the clou
   vi.mocked(services.discardExpiredLot).mockResolvedValue({ kind: "lot_empty" });
   const screen = await renderScreen(services);
 
-  await userEvent.click(screen.getByRole("button", { name: "Dar de baja el lote L-SC02" }));
+  await userEvent.click(
+    screen.getByRole("button", {
+      name: "Dar de baja el lote Compra 03/10/2026 de Semillas de chía",
+    }),
+  );
 
   await expect.poll(() => vi.mocked(services.fetchExpiringLots).mock.calls.length).toBe(2);
   await expect.element(screen.getByText("Semillas de chía")).not.toBeInTheDocument();
@@ -133,11 +175,19 @@ test("offers the discard again after a failure", async () => {
   vi.mocked(services.discardExpiredLot).mockResolvedValue({ kind: "failed" });
   const screen = await renderScreen(services);
 
-  await userEvent.click(screen.getByRole("button", { name: "Dar de baja el lote L-SC02" }));
+  await userEvent.click(
+    screen.getByRole("button", {
+      name: "Dar de baja el lote Compra 03/10/2026 de Semillas de chía",
+    }),
+  );
 
   await expect.element(screen.getByText("No se pudo dar de baja el lote")).toBeVisible();
   await expect
-    .element(screen.getByRole("button", { name: "Dar de baja el lote L-SC02" }))
+    .element(
+      screen.getByRole("button", {
+        name: "Dar de baja el lote Compra 03/10/2026 de Semillas de chía",
+      }),
+    )
     .toBeVisible();
 });
 
@@ -147,7 +197,11 @@ test("ends the session when the cloud says it is over while discarding", async (
   const onSessionEnded = vi.fn();
   const screen = await renderScreen(services, { onSessionEnded });
 
-  await userEvent.click(screen.getByRole("button", { name: "Dar de baja el lote L-SC02" }));
+  await userEvent.click(
+    screen.getByRole("button", {
+      name: "Dar de baja el lote Compra 03/10/2026 de Semillas de chía",
+    }),
+  );
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
@@ -161,7 +215,9 @@ test("names the lot to discard and the lot discarded by its product's brand and 
   const screen = await renderScreen(services);
 
   await userEvent.click(
-    screen.getByRole("button", { name: "Dar de baja el lote de Aceite de Almendras Vitora 30 ml" }),
+    screen.getByRole("button", {
+      name: "Dar de baja el lote Técnico 07/10/2026 de Aceite de Almendras Vitora 30 ml",
+    }),
   );
 
   await expect
@@ -178,7 +234,11 @@ test("a tab that learns it is outdated while a discard is refused tells the pers
   });
   const screen = await renderScreen(services, { releaseMonitor: release.monitor });
 
-  await userEvent.click(screen.getByRole("button", { name: "Dar de baja el lote L-SC02" }));
+  await userEvent.click(
+    screen.getByRole("button", {
+      name: "Dar de baja el lote Compra 03/10/2026 de Semillas de chía",
+    }),
+  );
 
   await expect.element(screen.getByText("No se pudo dar de baja el lote")).toBeVisible();
   await expect.element(screen.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();

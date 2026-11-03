@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
+import { formatLotCode } from "@purosur/formatting";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { branchSettings, users } from "../platform/db/schema.js";
+import { branchSettings, lots, users } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { applySyncedEventsTask } from "../sync/apply-synced-events-task.js";
 import { NOW as EVENTS_NOW, eventsRouteUnderTest } from "../sync/test-support/events-route.js";
@@ -141,6 +142,7 @@ describe("GET /reports/expiring-lots", () => {
       productId: cheese.productId,
       locationId,
       actorId: userId,
+      purchasedOn: "2026-11-03",
       expiresOn: "2026-11-25",
       lotNumber: "L-80",
       remaining: 2_000,
@@ -149,8 +151,9 @@ describe("GET /reports/expiring-lots", () => {
       productId: cheese.productId,
       locationId,
       actorId: userId,
+      purchasedOn: "2026-11-03",
       expiresOn: "2026-10-20",
-      lotNumber: "L-77",
+      lotNumber: "03/11",
       remaining: 4_000,
     });
     await insertPurchasedLot(db, {
@@ -167,6 +170,10 @@ describe("GET /reports/expiring-lots", () => {
     });
 
     const response = await expiringLotsReport(headers);
+    const [soonerStored] = await db
+      .select({ code: lots.code })
+      .from(lots)
+      .where(eq(lots.id, sooner));
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
@@ -175,7 +182,8 @@ describe("GET /reports/expiring-lots", () => {
       lots: [
         {
           id: sooner,
-          lot_number: "L-77",
+          lot_name: "Compra 03/11/2026 · 2",
+          lot_code: formatLotCode(soonerStored?.code as number),
           expires_on: "2026-10-20",
           remaining: 4_000,
           value_cents: 20_000,

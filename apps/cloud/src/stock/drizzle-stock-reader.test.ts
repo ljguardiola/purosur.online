@@ -1,6 +1,7 @@
 import { compareCodeUnits } from "@purosur/domain";
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { lotAllocations } from "../platform/db/schema.js";
+import { lotAllocations, lots } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleStockReader } from "./drizzle-stock-reader.js";
 import { insertAssemblyBatch } from "./test-support/assembly-batch-fixtures.js";
@@ -183,7 +184,6 @@ describe("DrizzleStockReader.ledgerAt", () => {
       expect.arrayContaining([
         {
           id: lotId,
-          lotNumber: "L-77",
           technical: false,
           expiresOn: "2027-03-01",
           purchasedOn: "2026-08-01",
@@ -401,7 +401,7 @@ describe("DrizzleStockReader.stockLevels", () => {
     expect(level?.lots).toEqual([
       {
         id: lotId,
-        lotNumber: "L-77",
+        code: expect.any(Number),
         expiresOn: "2027-03-01",
         purchase: { purchasedOn: "2026-10-01", supplierName: "Distribuidora Sur" },
         remaining: 4_000,
@@ -411,6 +411,18 @@ describe("DrizzleStockReader.stockLevels", () => {
         assemblyBatch: null,
       },
     ]);
+  });
+
+  it("answers each lot's internal code", async () => {
+    const { actorId, locationId } = await seededActor();
+    const { productId } = await insertProduct(db);
+    const lotId = await insertPurchasedLot(db, { productId, locationId, actorId });
+    await insertBalance(db, { productId, locationId, quantity: 10_000 });
+    const [stored] = await db.select({ code: lots.code }).from(lots).where(eq(lots.id, lotId));
+
+    const [level] = await new DrizzleStockReader(db).stockLevels(locationId);
+
+    expect(level?.lots[0]?.code).toBe(stored?.code);
   });
 
   it("answers a technical lot in debt with no cost and no purchase", async () => {
@@ -423,7 +435,7 @@ describe("DrizzleStockReader.stockLevels", () => {
     expect(level?.lots).toEqual([
       {
         id: lotId,
-        lotNumber: null,
+        code: expect.any(Number),
         expiresOn: null,
         purchase: null,
         remaining: -2_000,
@@ -461,7 +473,7 @@ describe("DrizzleStockReader.stockLevels", () => {
       expect.arrayContaining([
         {
           id: counted.lotId,
-          lotNumber: null,
+          code: expect.any(Number),
           expiresOn: "2027-03-01",
           purchase: null,
           remaining: 6_000,
@@ -472,7 +484,7 @@ describe("DrizzleStockReader.stockLevels", () => {
         },
         {
           id: withdrawn.lotId,
-          lotNumber: null,
+          code: expect.any(Number),
           expiresOn: null,
           purchase: null,
           remaining: 1_500,
@@ -503,7 +515,7 @@ describe("DrizzleStockReader.stockLevels", () => {
     expect(level?.lots).toEqual([
       {
         id: lotId,
-        lotNumber: null,
+        code: expect.any(Number),
         expiresOn: "2027-01-15",
         purchase: null,
         remaining: 14_000,

@@ -16,7 +16,7 @@ const at = "2026-09-15T21:32:00.000Z";
 
 const purchasedLot = {
   id: "lot-1",
-  lotNumber: "L-77",
+  lotName: "Compra 03/11/2026",
   expiresOn: "2027-03-01",
   technical: false,
   remaining: 12_150,
@@ -27,7 +27,7 @@ const purchasedLot = {
 
 const technicalLot = {
   id: "lot-2",
-  lotNumber: null,
+  lotName: "Técnico 07/10/2026",
   expiresOn: null,
   technical: true,
   remaining: -4_000,
@@ -55,7 +55,12 @@ const balance = {
   lots: [purchasedLot],
 };
 
-const countableLot = { id: "lot-1", lotNumber: "L-77", expiresOn: "2027-03-01", expected: 12_150 };
+const countableLot = {
+  id: "lot-1",
+  lotName: "Compra 03/11/2026",
+  expiresOn: "2027-03-01",
+  expected: 12_150,
+};
 
 const count = {
   id: "movement-1",
@@ -197,7 +202,7 @@ describe("stockBalanceSchema", () => {
   it("accepts a lot of the initial count with its cost still incomplete and one with a typed cost", () => {
     const initialCountLot = {
       id: "lot-3",
-      lotNumber: null,
+      lotName: "Inventario inicial 27/10/2026",
       expiresOn: "2027-01-31",
       technical: false,
       remaining: 6_000,
@@ -215,7 +220,7 @@ describe("stockBalanceSchema", () => {
   it("accepts the lot of an assembled batch with the moment it was assembled", () => {
     const batchLot = {
       id: "lot-5",
-      lotNumber: null,
+      lotName: "Tanda 04/05/2026",
       expiresOn: "2027-01-15",
       technical: false,
       remaining: 14_000,
@@ -267,10 +272,10 @@ describe("stockProductBalanceSchema", () => {
     );
   });
 
-  it("accepts a lot with no number or expiry, and a product with no lot", () => {
+  it("accepts a lot with no expiry, and a product with no lot", () => {
     const bare = {
       ...productWithBalance,
-      lots: [{ ...countableLot, lotNumber: null, expiresOn: null }],
+      lots: [{ ...countableLot, expiresOn: null }],
     };
 
     expect(stockProductBalanceSchema.safeParse(bare).data).toEqual(bare);

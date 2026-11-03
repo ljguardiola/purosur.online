@@ -497,8 +497,8 @@ async function countByLot(rendered: Rendered, services: StockCountsScreenService
   await userEvent.click(radioLabel(rendered.dialog, "Por lote"));
 }
 
-const FIRST_LOT = /^Cantidad contada del lote L-2312/;
-const SECOND_LOT = /^Cantidad contada del lote sin número/;
+const FIRST_LOT = /^Cantidad contada del lote Compra 05\/08\/2026/;
+const SECOND_LOT = /^Cantidad contada del lote Compra 12\/09\/2026/;
 
 test("offers counting by product and by lot, by product chosen at first", async () => {
   const { dialog } = await renderModal(createServices());

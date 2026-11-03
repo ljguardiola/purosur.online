@@ -15,7 +15,7 @@ const packagesLine = {
   costPaidCents: 1_450_050,
   quantityPerPackage: 12_000,
   unitCostCents: 120_838,
-  lotNumber: "L-17",
+  lotName: "Compra 03/11/2026",
   expiresOn: "2027-01-31",
 };
 const quantityLine = {
@@ -26,7 +26,7 @@ const quantityLine = {
   costPaidCents: 90_000,
   quantityPerPackage: 1_000,
   unitCostCents: 90_000,
-  lotNumber: null,
+  lotName: "Compra 03/11/2026 · 2",
   expiresOn: null,
 };
 const purchase = {
@@ -109,7 +109,7 @@ describe("purchaseSummarySchema", () => {
     "costPaidCents",
     "quantityPerPackage",
     "unitCostCents",
-    "lotNumber",
+    "lotName",
     "expiresOn",
   ])("requires a line's %s", (field) => {
     const { [field as keyof typeof packagesLine]: _omitted, ...line } = packagesLine;
@@ -128,7 +128,8 @@ describe("purchaseSummarySchema", () => {
     ["costPaidCents", "100"],
     ["quantityPerPackage", 1.5],
     ["unitCostCents", 1.5],
-    ["lotNumber", 5],
+    ["lotName", 5],
+    ["lotName", null],
     ["expiresOn", 5],
   ])("refuses a line's %s as %j", (field, value) => {
     expect(

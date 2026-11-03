@@ -23,7 +23,7 @@ beforeEach(async () => {
 
 const PRODUCT_NAMES = ["Semillas de chía", "Avena arrollada", "Yogur natural"];
 
-test("shows each lot with its product, category, number, expiry day, stock and value", async () => {
+test("shows each lot with its product, category, name, expiry day, stock and value", async () => {
   const screen = await renderScreen(listed());
 
   await expect
@@ -31,7 +31,7 @@ test("shows each lot with its product, category, number, expiry day, stock and v
     .toBeVisible();
   await expect.element(screen.getByText("Stock", { exact: true })).toBeVisible();
   const table = screen.getByRole("table", { name: "Vencimientos" });
-  await expect.element(table.getByText("L-SC02")).toBeVisible();
+  await expect.element(table.getByText("Compra 03/10/2026")).toBeVisible();
   await expect.element(table.getByText("Semillas", { exact: true }).first()).toBeVisible();
   await expect.element(table.getByText("10/10/2026")).toBeVisible();
   await expect.element(table.getByText("1,200 kg")).toBeVisible();
@@ -50,7 +50,7 @@ test("says when each lot expires, an expired one apart from the rest", async () 
   expect(expired).not.toBe(upcoming);
 });
 
-test("shows a dash for a lot without a number and for one without a cost", async () => {
+test("shows a dash for a lot without a cost", async () => {
   const screen = await renderScreen(listed());
 
   await expect.element(screen.getByText("Venció ayer")).toBeVisible();

@@ -4,7 +4,8 @@ type Lot = ExpiringLotsReportBody["lots"][number];
 
 export const cheeseLot: Lot = {
   id: "lot-1",
-  lot_number: "L-2312",
+  lot_name: "Compra 01/09/2026",
+  lot_code: "L-000101",
   expires_on: "2026-10-16",
   remaining: 4_300,
   value_cents: 4_377_400,
@@ -23,7 +24,8 @@ export const cheeseLot: Lot = {
 
 export const breadLot: Lot = {
   id: "lot-2",
-  lot_number: null,
+  lot_name: "Técnico 07/10/2026",
+  lot_code: "L-000102",
   expires_on: "2026-10-30",
   remaining: 12_000,
   value_cents: null,
@@ -42,7 +44,8 @@ export const breadLot: Lot = {
 
 export const expiredYogurtLot: Lot = {
   id: "lot-3",
-  lot_number: "L-0901",
+  lot_name: "Compra 08/10/2026",
+  lot_code: "L-000103",
   expires_on: "2026-10-10",
   remaining: 6_000,
   value_cents: 900_000,
@@ -61,7 +64,8 @@ export const expiredYogurtLot: Lot = {
 
 export const almondOilLot: Lot = {
   id: "lot-4",
-  lot_number: "L-4001",
+  lot_name: "Compra 09/10/2026",
+  lot_code: "L-000104",
   expires_on: "2026-10-20",
   remaining: 6_000,
   value_cents: 900_000,

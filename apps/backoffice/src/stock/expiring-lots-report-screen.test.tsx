@@ -119,7 +119,7 @@ test("shows each lot with its product, category, lot, expiry, days, quantity and
   const table = screen.getByRole("table", TABLE);
   const cheese = table.getByRole("row").filter({ hasText: "Queso cremoso" });
   await expect.element(cheese.getByText("Lácteos")).toBeVisible();
-  await expect.element(cheese.getByText("L-2312")).toBeVisible();
+  await expect.element(cheese.getByText("Compra 01/09/2026")).toBeVisible();
   await expect.element(cheese.getByText(formatCalendarDayNumeric("2026-10-16"))).toBeVisible();
   await expect.element(cheese.getByText("3", { exact: true })).toBeVisible();
   await expect.element(cheese.getByText("4,300 kg")).toBeVisible();
@@ -127,12 +127,12 @@ test("shows each lot with its product, category, lot, expiry, days, quantity and
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("shows a lot without a number or a known value as dashes", async () => {
+test("shows a lot without a known value as a dash", async () => {
   const screen = await renderScreen(listed());
 
   const row = screen.getByRole("table", TABLE).getByRole("row").filter({ hasText: "Pan lactal" });
   await expect.element(row).toBeVisible();
-  expect(row.getByText("—").elements()).toHaveLength(2);
+  expect(row.getByText("—").elements()).toHaveLength(1);
   await expect.element(row.getByText("12 u")).toBeVisible();
 });
 

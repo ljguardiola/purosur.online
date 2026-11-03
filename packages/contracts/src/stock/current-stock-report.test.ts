@@ -22,7 +22,8 @@ describe("currentStockReportQuerySchema", () => {
 describe("currentStockReportSchema", () => {
   const lot = {
     id: "lot-1",
-    lot_number: "L-77",
+    lot_name: "Compra 03/11/2026",
+    lot_code: "L-000077",
     expires_on: "2027-03-01",
     technical: false,
     remaining: 4_000,
@@ -83,7 +84,8 @@ describe("currentStockReportSchema", () => {
           lots: [
             {
               ...lot,
-              lot_number: null,
+              lot_name: "Técnico 07/10/2026",
+              lot_code: "L-000078",
               expires_on: null,
               technical: true,
               remaining: -1_000,

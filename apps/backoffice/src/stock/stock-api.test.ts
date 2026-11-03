@@ -51,7 +51,7 @@ const balances = {
       lots: [
         {
           id: "lot-1",
-          lotNumber: "L-2312",
+          lotName: "Compra 01/09/2026",
           expiresOn: "2026-10-14",
           technical: false,
           remaining: 12_150,
@@ -146,7 +146,7 @@ test("fetchExpectedBalance asks for the product's balance at the moment", async 
     lots: [
       {
         id: "00000000-0000-4000-8000-0000000000a1",
-        lotNumber: "L-2312",
+        lotName: "Compra 01/09/2026",
         expiresOn: "2026-10-14",
         expected: 4_400,
       },
@@ -418,7 +418,7 @@ const expiringLots = {
   lots: [
     {
       id: "lot-1",
-      lotNumber: "L-SC02",
+      lotName: "Compra 03/10/2026",
       expiresOn: "2026-10-10",
       remaining: 1_200,
       valueCents: 480_000,

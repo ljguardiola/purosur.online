@@ -14,7 +14,7 @@ test("lists each lot with its number, expiry, balance, unit cost and value", asy
   const screen = await render(<CurrentStockReportLots product={almondsProduct} />);
 
   const table = screen.getByRole("table", { name: "Lotes de Almendras peladas" });
-  await expect.element(table.getByText("L-2312")).toBeVisible();
+  await expect.element(table.getByText("Compra 01/09/2026")).toBeVisible();
   await expect.element(table.getByText("14/10/2026")).toBeVisible();
   await expect.element(table.getByText("4,300 kg")).toBeVisible();
   await expect.element(table.getByText("$ 10.180,00 / kg")).toBeVisible();
