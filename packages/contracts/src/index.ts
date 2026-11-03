@@ -764,6 +764,7 @@ export {
   changeLineWeightMessageSchema,
   chargeSaleByTransferMessageSchema,
   chargeSaleInCashMessageSchema,
+  chargeSaleInCashWithChangeDiscountMessageSchema,
   chargeSaleOnStandaloneTerminalMessageSchema,
   reprintCreditNoteMessageSchema,
   reprintSaleReceiptMessageSchema,

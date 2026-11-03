@@ -103,12 +103,12 @@ export function CashChargeModal({
   const { form, submit, submitting, values } = useRequestForm({
     defaultValues: EMPTY_CASH_CHARGE_FORM,
     request: { schema: chargeSaleInCashRequestSchema, from: cashChargeRequestFrom },
-    fields: { tendered: "tendered", discount: "discount" },
+    fields: { tendered: "tendered", discount_amount: "discount" },
     messages: { tendered: INVALID_AMOUNT_MESSAGE, discount: saleDiscountValueMessage("AMOUNT") },
     onSubmit: async (request, { showFieldError }) => {
-      const outcome = await (request.discount === undefined
+      const outcome = await (request.discount_amount === undefined
         ? charge(request.tendered)
-        : chargeWithDiscount(request.tendered, request.discount.value, authorization.value)
+        : chargeWithDiscount(request.tendered, request.discount_amount, authorization.value)
       ).catch((): ChargeSaleInCashWithChangeDiscountOutcome => ({ kind: "unavailable" }));
       switch (outcome.kind) {
         case "completed":
@@ -176,16 +176,17 @@ export function CashChargeModal({
     saleId,
     pending,
     tendered,
-    saleDiscount: typedDiscount?.value,
+    saleDiscount: typedDiscount,
     read: readCharge,
   });
   const preview = useSaleDiscountPreviewQuery({
     subtotal,
-    discount: typedDiscount,
+    discount: typedDiscount === undefined ? undefined : { kind: "AMOUNT", value: typedDiscount },
     read: previewSaleDiscount,
   });
   const previewed = preview.status === "loaded" ? preview.value : undefined;
   const previewedTotal = previewed?.kind === "preview" ? previewed : undefined;
+  const toCharge = previewedTotal?.total ?? pending;
   const loaded = answer.status === "loaded" ? answer : undefined;
   const answered =
     loaded === undefined || loaded.value === null || loaded.value === "not_permitted"
@@ -211,6 +212,7 @@ export function CashChargeModal({
     tendered !== undefined &&
     !discountInvalid &&
     answered?.kind === "partial" &&
+    (typedDiscount === undefined || previewedTotal !== undefined) &&
     !loaded?.refreshing
       ? answered
       : undefined;
@@ -285,7 +287,9 @@ export function CashChargeModal({
           variant="filled"
           orientation="horizontal"
           rows={[
-            { label: "Total de la venta", value: formatCents(total) },
+            previewedTotal === undefined
+              ? { label: "Total de la venta", value: formatCents(total) }
+              : { label: "Después de promociones", value: formatCents(previewedTotal.subtotal) },
             ...(previewedTotal === undefined
               ? []
               : [
@@ -298,7 +302,7 @@ export function CashChargeModal({
             { label: "Pagado", value: formatCents(paid) },
             {
               label: "A cobrar ahora",
-              value: formatCents(previewedTotal?.total ?? pending),
+              value: formatCents(toCharge),
               emphasized: true,
             },
           ]}
@@ -376,7 +380,7 @@ export function CashChargeModal({
           <Card variant="subtle">
             <FigureStat
               label="QUEDA PENDIENTE"
-              detail={`${formatCents(pending)} − ${formatCents(partial.applied)}`}
+              detail={`${formatCents(toCharge)} − ${formatCents(partial.applied)}`}
               value={formatCents(partial.pending)}
             />
           </Card>

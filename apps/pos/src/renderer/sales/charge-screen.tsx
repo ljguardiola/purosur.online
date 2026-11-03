@@ -321,7 +321,11 @@ export function ChargeScreen({
           }
           onChooseAnotherMethod={() => setStep({ name: "methods" })}
           onCompleted={(charge) =>
-            setStep({ name: "completed", payment: { method: "CASH", charge }, sale })
+            setStep({
+              name: "completed",
+              payment: { method: "CASH", charge },
+              sale: { ...sale, total: charge.total },
+            })
           }
           onPartiallyPaid={backToMethodsWithBalance}
           onSaleUnavailable={backToSale}

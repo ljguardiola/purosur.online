@@ -162,7 +162,11 @@ import {
 } from "./returns/returns-requests";
 import { createBarcodeReaderWiring } from "./sales/barcode-reader-wiring";
 import { createDeferredSaleInvoicing } from "./sales/deferred-sale-invoicing";
-import { createReceiptPrinting, savedReceiptPrinters } from "./sales/receipt-printing-wiring";
+import {
+  createReceiptPrinting,
+  printingAfterCompletedSales,
+  savedReceiptPrinters,
+} from "./sales/receipt-printing-wiring";
 import {
   addSearchedProductFor,
   addWeighedProductFor,
@@ -1672,22 +1676,7 @@ const rendererRequestDeps: RendererRequestDeps = {
 const answeredRendererRequestDeps: RendererRequestDeps = ticketedRendererRequests(
   {
     ...rendererRequestDeps,
-    chargeSaleInCash: receiptPrinting.afterCompletedSale(rendererRequestDeps.chargeSaleInCash),
-    chargeSaleByTransfer: receiptPrinting.afterCompletedSale(
-      rendererRequestDeps.chargeSaleByTransfer,
-    ),
-    chargeSaleOnStandaloneTerminal: receiptPrinting.afterCompletedSale(
-      rendererRequestDeps.chargeSaleOnStandaloneTerminal,
-    ),
-    chargeSaleWithPaidOrder: receiptPrinting.afterCompletedSale(
-      rendererRequestDeps.chargeSaleWithPaidOrder,
-    ),
-    followMercadoPagoCharge: receiptPrinting.afterCompletedSale(
-      rendererRequestDeps.followMercadoPagoCharge,
-    ),
-    abandonMercadoPagoCharge: receiptPrinting.afterCompletedSale(
-      rendererRequestDeps.abandonMercadoPagoCharge,
-    ),
+    ...printingAfterCompletedSales(rendererRequestDeps, receiptPrinting),
   },
   {
     ticketed,
