@@ -1,5 +1,6 @@
 import type {
   AverageTicketBody,
+  CashRoundingBody,
   ManualDiscountsBody,
   SalesByCashierBody,
   SalesByProductAndCategoryBody,
@@ -431,4 +432,31 @@ export const noManualDiscountsReport: ManualDiscountsBody = {
   rows: [],
   totals: { discounted: 0, count: 0, line_count: 0, sale_count: 0, most_authorized: null },
   authorizers: [],
+};
+
+export const cashRoundingReport: CashRoundingBody = {
+  range: { from: "2026-10-01", to: "2026-10-07" },
+  rows: [
+    {
+      day: "2026-10-02",
+      register_id: "22222222-2222-4222-8222-222222222222",
+      register_name: "Caja del fondo",
+      rounded: 7_050,
+      rounded_sale_count: 1,
+    },
+    {
+      day: "2026-10-02",
+      register_id: "11111111-1111-4111-8111-111111111111",
+      register_name: "Caja principal",
+      rounded: 15_000,
+      rounded_sale_count: 3,
+    },
+  ],
+  totals: { rounded: 22_050, rounded_sale_count: 4 },
+};
+
+export const noCashRoundingReport: CashRoundingBody = {
+  range: { from: "2026-10-07", to: "2026-10-07" },
+  rows: [],
+  totals: { rounded: 0, rounded_sale_count: 0 },
 };
