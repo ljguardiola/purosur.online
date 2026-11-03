@@ -117,6 +117,7 @@ describe("addSearchedProduct", () => {
       actorId: "cashier",
       state: "OPEN",
       saleDiscount: null,
+      cashRounding: 0,
       lines: [
         {
           id: "id-2",
@@ -300,6 +301,7 @@ describe("add-searched-product on a sale with an approved payment", () => {
     actorId: "cashier",
     state: "OPEN",
     saleDiscount: null,
+    cashRounding: 0,
     lines: [],
   };
 
@@ -336,6 +338,7 @@ describe("add-searched-product while a QR charge of the sale is in its wait", ()
     actorId: "cashier",
     state: "OPEN",
     saleDiscount: null,
+    cashRounding: 0,
     lines: [],
   };
 

@@ -57,6 +57,7 @@ const OPEN_SALE: SaleWithLines = {
   actorId: "cashier",
   state: "OPEN",
   saleDiscount: null,
+  cashRounding: 0,
   lines: [LINE],
 };
 const THRESHOLD = { id: "threshold-1", amount: 10_000_000, validFrom: "2026-01-01", revision: 0 };

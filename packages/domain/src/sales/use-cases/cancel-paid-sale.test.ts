@@ -49,6 +49,7 @@ const OPEN_SALE: SaleWithLines = {
   actorId: "cashier",
   state: "OPEN",
   saleDiscount: null,
+  cashRounding: 0,
   lines: [YERBA_LINE],
 };
 const CASH_PAYMENT: SalePayment = {

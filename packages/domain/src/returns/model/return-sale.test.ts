@@ -37,6 +37,7 @@ function sale(
     actorId: "cashier",
     state: "COMPLETED",
     saleDiscount,
+    cashRounding: 0,
     lines,
   };
 }

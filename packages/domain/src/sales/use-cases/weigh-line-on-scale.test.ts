@@ -53,6 +53,7 @@ const OPEN_SALE: SaleWithLines = {
   actorId: "cashier",
   state: "OPEN",
   saleDiscount: null,
+  cashRounding: 0,
   lines: [QUESO_LINE, YERBA_LINE],
 };
 const PAYMENT: SalePayment = {

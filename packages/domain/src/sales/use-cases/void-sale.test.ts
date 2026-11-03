@@ -60,6 +60,7 @@ const COMPLETED_SALE: SaleWithLines = {
   actorId: "cashier",
   state: "COMPLETED",
   saleDiscount: null,
+  cashRounding: 0,
   lines: [YERBA_LINE],
 };
 const CASH_PAYMENT: SalePayment = {

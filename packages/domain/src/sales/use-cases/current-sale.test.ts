@@ -23,6 +23,7 @@ const SALE: SaleWithLines = {
   actorId: "cashier",
   state: "OPEN",
   saleDiscount: null,
+  cashRounding: 0,
   lines: [
     {
       id: "line-1",
