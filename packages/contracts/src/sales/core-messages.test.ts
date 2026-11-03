@@ -951,6 +951,80 @@ describe("applying a discount on the sale's total", () => {
   });
 });
 
+describe("charging in cash with a discount on the sale's total", () => {
+  const charge = {
+    type: "charge-sale-in-cash-with-change-discount",
+    request_id: REQUEST_ID,
+    sale_id: "s1",
+    tendered: 10_000,
+    discount_amount: 100,
+  };
+
+  it("accepts the sale, the tendered amount and the fixed discount", () => {
+    expect(salesRendererToCoreMessageSchema.parse(charge)).toEqual(charge);
+  });
+
+  it("accepts the discount authorized with another person's PIN", () => {
+    const authorized = { ...charge, authorization: { user_id: "u2", pin: "1234" } };
+
+    expect(salesRendererToCoreMessageSchema.parse(authorized)).toEqual(authorized);
+  });
+
+  it.each([
+    ["no request id", { request_id: undefined }],
+    ["no sale", { sale_id: undefined }],
+    ["no tendered amount", { tendered: undefined }],
+    ["a tendered amount that is not whole cents", { tendered: 10.5 }],
+    ["no discount", { discount_amount: undefined }],
+    ["a discount of zero", { discount_amount: 0 }],
+    ["a negative discount", { discount_amount: -1 }],
+    ["a discount that is not whole cents", { discount_amount: 10.5 }],
+    ["an authorization missing the PIN", { authorization: { user_id: "u2" } }],
+  ])("rejects a charge with %s", (_case, change) => {
+    expect(salesRendererToCoreMessageSchema.safeParse({ ...charge, ...change }).success).toBe(
+      false,
+    );
+  });
+
+  it.each([
+    {
+      kind: "completed",
+      sale_id: "s1",
+      total: 9500,
+      tendered: 10_000,
+      change: 500,
+    },
+    { kind: "partially_paid", sale_id: "s1", total: 9500, paid: 5000, pending: 4500 },
+    { kind: "discount_exceeds_sale" },
+    { kind: "sale_has_payments" },
+    { kind: "invalid_amount" },
+    { kind: "reaches_buyer_identification_threshold", threshold: 9500 },
+    { kind: "not_permitted" },
+    { kind: "not_signed_in" },
+    { kind: "lacks_permission" },
+    { kind: "unavailable" },
+    { kind: "wrong_pin", retry_after_seconds: 0, attempts_left: 2 },
+  ])("accepts the answer %j", (outcome) => {
+    const message = {
+      type: "charge-sale-in-cash-with-change-discount-result",
+      request_id: REQUEST_ID,
+      outcome,
+    };
+
+    expect(salesCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it("rejects an answer with an outcome it does not know", () => {
+    expect(
+      salesCoreToRendererMessageSchema.safeParse({
+        type: "charge-sale-in-cash-with-change-discount-result",
+        request_id: REQUEST_ID,
+        outcome: { kind: "somewhere_else" },
+      }).success,
+    ).toBe(false);
+  });
+});
+
 describe("previewing a discount on the sale's total", () => {
   const preview = {
     type: "preview-sale-discount",
@@ -1299,10 +1373,19 @@ describe("cash charge request", () => {
     expect(salesRendererToCoreMessageSchema.parse(message)).toEqual(message);
   });
 
+  it("accepts a request with the fixed discount on the sale's total being typed", () => {
+    const discounted = { ...message, sale_discount: 100 };
+
+    expect(salesRendererToCoreMessageSchema.parse(discounted)).toEqual(discounted);
+  });
+
   it.each([
     ["without its request id", { ...message, request_id: undefined }],
     ["without the sale", { ...message, sale_id: undefined }],
     ["with an amount that is not whole cents", { ...message, tendered: 50.5 }],
+    ["with a discount of zero", { ...message, sale_discount: 0 }],
+    ["with a negative discount", { ...message, sale_discount: -100 }],
+    ["with a discount that is not whole cents", { ...message, sale_discount: 10.5 }],
   ])("rejects a request %s", (_case, invalid) => {
     expect(salesRendererToCoreMessageSchema.safeParse(invalid).success).toBe(false);
   });
@@ -1317,6 +1400,8 @@ describe("cash charge answers", () => {
     [{ kind: "invalid_amount" }],
     [{ kind: "partial", applied: 1000, pending: 2000 }],
     [{ kind: "covered", applied: 3000, change: 2000 }],
+    [{ kind: "discount_exceeds_sale" }],
+    [{ kind: "sale_has_payments" }],
     [null],
   ])("accepts the answer %j", (charge) => {
     const message = { type: "cash-charge", request_id: REQUEST_ID, charge };

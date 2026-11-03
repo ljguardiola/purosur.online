@@ -13,6 +13,7 @@ import type {
   ChangeLineWeightOutcome,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
+  ChargeSaleInCashWithChangeDiscountOutcome,
   ChargeSaleOnStandaloneTerminalOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
@@ -74,6 +75,7 @@ import type {
   AdjustSaleLineRequest,
   ApplySaleDiscountRequest,
   CancelPaidSaleRequest,
+  ChargeSaleInCashWithChangeDiscountRequest,
   PreviewSaleDiscountRequest,
   PreviewSaleLineAdjustmentRequest,
 } from "./sales/sale-requests";
@@ -125,7 +127,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   const weighings: string[] = [];
   const kindLookups: string[] = [];
   const saleLookups: string[] = [];
-  const chargeReads: { saleId: string; tendered: number }[] = [];
+  const chargeReads: { saleId: string; tendered: number; saleDiscount?: number }[] = [];
   const previewReads: number[] = [];
   const saleChanges: string[] = [];
   const signOuts: string[] = [];
@@ -274,6 +276,20 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
             request.discount.kind,
             request.discount.value,
             request.reason,
+            request.authorization?.user_id ?? "alone",
+          ].join(" "),
+        );
+        return { kind: "no_open_sale" };
+      },
+      chargeSaleInCashWithChangeDiscount: async (
+        request: ChargeSaleInCashWithChangeDiscountRequest,
+      ): Promise<ChargeSaleInCashWithChangeDiscountOutcome> => {
+        saleChanges.push(
+          [
+            "charge-with-discount",
+            request.saleId,
+            request.tendered,
+            request.discountAmount,
             request.authorization?.user_id ?? "alone",
           ].join(" "),
         );
@@ -487,6 +503,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       cashCharge: async (request: {
         saleId: string;
         tendered: number;
+        saleDiscount?: number;
       }): Promise<CashChargeAnswer> => {
         chargeReads.push(request);
         return null;
@@ -2284,6 +2301,20 @@ describe("answerRendererRequest", () => {
     expect(reading.chargeReads).toEqual([{ saleId: "s1", tendered: 5000 }]);
   });
 
+  it("reads what a tendered amount needs once the discount on the total being typed is taken off", async () => {
+    const reading = deps(true);
+
+    await answerRendererRequest(reading.deps, {
+      type: "cash-charge-request",
+      request_id: "r46",
+      sale_id: "s1",
+      tendered: 10_000,
+      sale_discount: 100,
+    });
+
+    expect(reading.chargeReads).toEqual([{ saleId: "s1", tendered: 10_000, saleDiscount: 100 }]);
+  });
+
   it("answers no charge when there is no such sale in progress", async () => {
     expect(
       await answerRendererRequest(deps(true).deps, {
@@ -3074,6 +3105,20 @@ describe("answerRendererRequest", () => {
         "discounting the sale's total",
         "discount PERCENT 10 Cliente frecuente u2",
         "apply-sale-discount-result",
+      ],
+      [
+        "charge-sale-in-cash-with-change-discount",
+        {
+          type: "charge-sale-in-cash-with-change-discount",
+          sale_id: "s1",
+          tendered: 10_000,
+          discount_amount: 100,
+          authorization: { user_id: "u2", pin: "1234" },
+        } as const,
+        "chargeSaleInCashWithChangeDiscount",
+        "charging a sale in cash with a discount on its total",
+        "charge-with-discount s1 10000 100 u2",
+        "charge-sale-in-cash-with-change-discount-result",
       ],
       [
         "preview-sale-discount",

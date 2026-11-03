@@ -31,6 +31,7 @@ import {
   changeLineWeightFor,
   chargeSaleByTransferFor,
   chargeSaleInCashFor,
+  chargeSaleInCashWithChangeDiscountFor,
   chargeSaleOnStandaloneTerminalFor,
   currentSaleFor,
   type OutboxSaleRequestDeps,
@@ -1956,6 +1957,201 @@ describe("discounting the sale's total", () => {
   });
 });
 
+describe("charging the sale in progress in cash with a discount on its total", () => {
+  const TOTAL_DISCOUNT = "apply_total_discount";
+
+  function withPins(): OutboxSaleRequestDeps {
+    return deps({ gate: pinGate() });
+  }
+
+  function grantTotalDiscount(): void {
+    database
+      .prepare(
+        `INSERT INTO role_permissions (role_id, permission_key, active) VALUES ('cashier', '${TOTAL_DISCOUNT}', 1)`,
+      )
+      .run();
+  }
+
+  async function sellTwo(): Promise<string> {
+    await scanProductFor(deps(), "111");
+    const outcome = await scanProductFor(deps(), "111");
+    if (outcome.kind !== "added") {
+      throw new Error("test setup: the product was not added");
+    }
+    return outcome.sale.id;
+  }
+
+  function stored() {
+    return {
+      sales: database
+        .prepare(
+          `SELECT state, sale_discount_kind AS kind, sale_discount_value AS value,
+                  sale_discount_reason AS reason, sale_discount_authorized_by AS authorized_by
+           FROM sales`,
+        )
+        .all(),
+      payments: database.prepare("SELECT amount, tendered FROM payments").all(),
+      events: database.prepare("SELECT event_type FROM outbox").all(),
+    };
+  }
+
+  const UNTOUCHED = {
+    sales: [{ state: "OPEN", kind: null, value: null, reason: null, authorized_by: null }],
+    payments: [],
+    events: [],
+  };
+
+  it("applies the discount with its reason and completes the sale in one step", async () => {
+    addFiscalConfiguration();
+    grantTotalDiscount();
+    const saleId = await sellTwo();
+
+    expect(
+      await chargeSaleInCashWithChangeDiscountFor(withPins(), {
+        saleId,
+        tendered: 5000,
+        discountAmount: 500,
+      }),
+    ).toEqual({ kind: "completed", sale_id: saleId, total: 2500, tendered: 5000, change: 2500 });
+    expect(stored()).toEqual({
+      sales: [
+        {
+          state: "COMPLETED",
+          kind: "AMOUNT",
+          value: 500,
+          reason: "Falta de cambio",
+          authorized_by: null,
+        },
+      ],
+      payments: [{ amount: 2500, tendered: 5000 }],
+      events: [{ event_type: "sale_completed" }, { event_type: "deferred_sale_recorded" }],
+    });
+  });
+
+  it("keeps the discount and answers what is still pending when the amount does not cover it", async () => {
+    grantTotalDiscount();
+    const saleId = await sellTwo();
+
+    expect(
+      await chargeSaleInCashWithChangeDiscountFor(withPins(), {
+        saleId,
+        tendered: 1000,
+        discountAmount: 500,
+      }),
+    ).toEqual({ kind: "partially_paid", sale_id: saleId, total: 2500, paid: 1000, pending: 1500 });
+    expect(stored().sales).toEqual([
+      { state: "OPEN", kind: "AMOUNT", value: 500, reason: "Falta de cambio", authorized_by: null },
+    ]);
+  });
+
+  it("records who authorized the discount with their PIN", async () => {
+    addFiscalConfiguration();
+    addPersonWithPin("u2", "Grace", [TOTAL_DISCOUNT]);
+    const saleId = await sellTwo();
+
+    const outcome = await chargeSaleInCashWithChangeDiscountFor(withPins(), {
+      saleId,
+      tendered: 5000,
+      discountAmount: 500,
+      authorization: { user_id: "u2", pin: CLOSER_PIN },
+    });
+
+    expect(outcome).toMatchObject({ kind: "completed" });
+    expect(stored().sales).toMatchObject([{ authorized_by: "u2" }]);
+  });
+
+  it.each([
+    ["brings no authorization", undefined, { kind: "lacks_permission" }],
+    ["brings a wrong PIN", { user_id: "u2", pin: "0000" }, { kind: "wrong_pin" }],
+  ])(
+    "refuses a cashier without the permission who %s, recording nothing",
+    async (_case, authorization, refusal) => {
+      addPersonWithPin("u2", "Grace", [TOTAL_DISCOUNT]);
+      const saleId = await sellTwo();
+
+      const outcome = await chargeSaleInCashWithChangeDiscountFor(withPins(), {
+        saleId,
+        tendered: 5000,
+        discountAmount: 500,
+        authorization,
+      });
+
+      expect(outcome).toMatchObject(refusal);
+      expect(stored()).toEqual(UNTOUCHED);
+    },
+  );
+
+  it("answers the refusal of a discount above the sale, recording nothing", async () => {
+    grantTotalDiscount();
+    const saleId = await sellTwo();
+
+    expect(
+      await chargeSaleInCashWithChangeDiscountFor(withPins(), {
+        saleId,
+        tendered: 5000,
+        discountAmount: 3001,
+      }),
+    ).toEqual({ kind: "discount_exceeds_sale" });
+    expect(stored()).toEqual(UNTOUCHED);
+  });
+
+  it("answers the refusal of the charge and leaves the discount unrecorded when the sale reaches the threshold", async () => {
+    saveThreshold(2500, "2026-09-30");
+    grantTotalDiscount();
+    const saleId = await sellTwo();
+
+    expect(
+      await chargeSaleInCashWithChangeDiscountFor(withPins(), {
+        saleId,
+        tendered: 5000,
+        discountAmount: 500,
+      }),
+    ).toEqual({ kind: "reaches_buyer_identification_threshold", threshold: 2500 });
+    expect(stored()).toEqual(UNTOUCHED);
+  });
+
+  it("answers that the lines cannot change once a payment was approved", async () => {
+    grantTotalDiscount();
+    const saleId = await sellTwoForPayments();
+    await chargeSaleInCashFor(deps(), { saleId, tendered: 1000 });
+
+    expect(
+      await chargeSaleInCashWithChangeDiscountFor(withPins(), {
+        saleId,
+        tendered: 1000,
+        discountAmount: 100,
+      }),
+    ).toEqual({ kind: "sale_has_payments" });
+  });
+
+  it("answers that the register cannot record yet when the outbox key is missing", async () => {
+    grantTotalDiscount();
+    const saleId = await sellTwo();
+
+    expect(
+      await chargeSaleInCashWithChangeDiscountFor(
+        deps({ gate: pinGate(), readOutboxChainKey: async () => undefined }),
+        { saleId, tendered: 5000, discountAmount: 500 },
+      ),
+    ).toEqual({ kind: "unavailable" });
+    expect(stored()).toEqual(UNTOUCHED);
+  });
+
+  it("answers not signed in when nobody is signed in", async () => {
+    grantTotalDiscount();
+    const saleId = await sellTwo();
+    signedInPerson.clear();
+
+    expect(
+      await chargeSaleInCashWithChangeDiscountFor(withPins(), {
+        saleId,
+        tendered: 5000,
+        discountAmount: 500,
+      }),
+    ).toEqual({ kind: "not_signed_in" });
+  });
+});
+
 describe("telling the discount on the sale's total was removed", () => {
   async function discountedTotal(): Promise<string> {
     database
@@ -2900,6 +3096,84 @@ describe("what a sale in progress needs when an amount is tendered", () => {
 
     expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "OPEN" }]);
     expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([]);
+  });
+
+  it.each([
+    [5000, 500, { kind: "covered", applied: 2500, change: 2500 }],
+    [2500, 500, { kind: "covered", applied: 2500, change: 0 }],
+    [1000, 500, { kind: "partial", applied: 1000, pending: 1500 }],
+    [0, 500, { kind: "invalid_amount" }],
+  ] as const)(
+    "answers the charge of %i against the total once %i of discount is taken off",
+    async (tendered, saleDiscount, charge) => {
+      const saleId = await sellTwo();
+
+      expect(await cashChargeFor(deps(), { saleId, tendered, saleDiscount })).toEqual(charge);
+    },
+  );
+
+  it("answers the charge against the total the typed discount replaces, not the one the sale had", async () => {
+    database
+      .prepare(
+        "INSERT INTO role_permissions (role_id, permission_key, active) VALUES ('cashier', 'apply_total_discount', 1)",
+      )
+      .run();
+    const saleId = await sellTwo();
+    await applySaleDiscountFor(deps(), {
+      discount: { kind: "AMOUNT", value: 1000 },
+      reason: "Cliente frecuente",
+    });
+
+    expect(await cashChargeFor(deps(), { saleId, tendered: 5000, saleDiscount: 500 })).toEqual({
+      kind: "covered",
+      applied: 2500,
+      change: 2500,
+    });
+  });
+
+  it("answers the refusal of a typed discount above the sale", async () => {
+    const saleId = await sellTwo();
+
+    expect(await cashChargeFor(deps(), { saleId, tendered: 5000, saleDiscount: 3001 })).toEqual({
+      kind: "discount_exceeds_sale",
+    });
+  });
+
+  it("answers that the typed discount cannot be applied once a payment was approved", async () => {
+    const saleId = await sellTwo();
+    await chargeSaleByTransferFor(deps(), { saleId, amount: 1200 });
+
+    expect(await cashChargeFor(deps(), { saleId, tendered: 2000, saleDiscount: 100 })).toEqual({
+      kind: "sale_has_payments",
+    });
+  });
+
+  it("records nothing while previewing a typed discount", async () => {
+    const saleId = await sellTwo();
+
+    await cashChargeFor(deps(), { saleId, tendered: 5000, saleDiscount: 500 });
+
+    expect(database.prepare("SELECT state, sale_discount_kind AS kind FROM sales").all()).toEqual([
+      { state: "OPEN", kind: null },
+    ]);
+  });
+
+  it("is none for a typed discount on a sale that is not the one in progress", async () => {
+    await sellTwo();
+
+    expect(
+      await cashChargeFor(deps(), { saleId: "other-sale", tendered: 5000, saleDiscount: 500 }),
+    ).toBeNull();
+  });
+
+  it("answers not permitted to a person without the permission to sell, typing a discount", async () => {
+    const saleId = await sellTwo();
+    addPerson("u2", "guest");
+    signedInPerson.set("u2");
+
+    expect(await cashChargeFor(deps(), { saleId, tendered: 5000, saleDiscount: 500 })).toBe(
+      "not_permitted",
+    );
   });
 
   it("is none for a sale that is not the one in progress", async () => {
