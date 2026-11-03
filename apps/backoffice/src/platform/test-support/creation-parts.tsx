@@ -3,6 +3,7 @@ import { Button, Modal } from "@purosur/ui";
 import { Plus } from "lucide-react";
 import type { ReactElement } from "react";
 import type { CreatedProduct, CreationModalProps } from "../creation-parts";
+import type { ProductPriceSectionProps } from "../product-price-section";
 import type { RoleSummary } from "../roles-api";
 
 function StubCreationModal({
@@ -127,4 +128,24 @@ export function StubRoleCreationModal({
       onClose={onClose}
     />
   ) : null;
+}
+
+export function StubProductPriceSection({
+  productId,
+  productDescription,
+  saleUnit,
+  components,
+  maySetPrice,
+}: ProductPriceSectionProps): ReactElement {
+  return (
+    <section aria-label="Precio de venta de prueba">
+      <p>{`Producto ${productId}: ${productDescription} por ${saleUnit}`}</p>
+      <p>{maySetPrice ? "Puede fijar el precio" : "No puede fijar el precio"}</p>
+      <ul>
+        {components.map(({ componentProductId, name, quantityPerOutputUnit }) => (
+          <li key={componentProductId}>{`${name}: ${quantityPerOutputUnit}`}</li>
+        ))}
+      </ul>
+    </section>
+  );
 }
