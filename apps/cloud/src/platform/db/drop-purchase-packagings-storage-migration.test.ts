@@ -107,9 +107,10 @@ describe("the drop purchase packagings storage migration", { timeout: 30_000 }, 
     const { database, yerbaId, rowId, itemId } = await databaseHoldingPackagings();
     const migrated = await database.applyMigration();
 
-    const item = await migrated.query("select product_id, quantity from supplier_items where id = $1", [
-      itemId,
-    ]);
+    const item = await migrated.query(
+      "select product_id, quantity from supplier_items where id = $1",
+      [itemId],
+    );
     const row = await migrated.query(
       "select product_id, quantity from supplier_price_list_rows where id = $1",
       [rowId],
