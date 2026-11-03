@@ -53,12 +53,18 @@ afterEach(async () => {
 
 const orderer = () => signedInWith(db, ["manage_purchase_orders"], NOW);
 
-async function draftOf(userId: string, locationId: string, packages = 2) {
+async function draftOf(
+  userId: string,
+  locationId: string,
+  packages = 2,
+  supplied: { supplierId?: string; keyValue?: string } = {},
+) {
   const offered = await insertOfferedProduct(db, {
     actorId: userId,
     name: "Yerba",
     quantity: 6_000,
     priceCents: 12_000,
+    ...supplied,
   });
   const built = await new DrizzlePurchaseOrderStore(db).transaction(async (tx) => {
     const { id } = await tx.insertDraftPurchaseOrder({
@@ -683,7 +689,14 @@ describe("the documents of a purchase order", () => {
 
   it("GET /purchase-orders/:id/document.txt answers the order as text without prices", async () => {
     const { headers, userId, locationId } = await orderer();
-    const { orderId } = await draftOf(userId, locationId);
+    const supplierId = await insertSupplier(db, {
+      actorId: userId,
+      name: "Distribuidora 1240",
+    });
+    const { orderId } = await draftOf(userId, locationId, 2, {
+      supplierId,
+      keyValue: "YER-120",
+    });
 
     const response = await app.inject({
       method: "GET",
