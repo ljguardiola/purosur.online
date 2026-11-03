@@ -3582,7 +3582,10 @@ describe("App", () => {
     );
 
     describe("cancelling its open sale", () => {
-      async function cancelFromLocked(cashDrawer: Parameters<typeof identifyFromLocked>[0]) {
+      async function cancelFromLocked(
+        cashDrawer: Parameters<typeof identifyFromLocked>[0],
+        action = "Vaciar carrito",
+      ) {
         const identified = await identifyFromLocked({
           sessionOpenSale: async () => ({
             id: "sale-1",
@@ -3594,9 +3597,9 @@ describe("App", () => {
           }),
           ...cashDrawer,
         });
-        await userEvent.click(identified.screen.getByRole("button", { name: "Vaciar carrito" }));
+        await userEvent.click(identified.screen.getByRole("button", { name: action }));
         await userEvent.click(
-          identified.screen.getByRole("dialog").getByRole("button", { name: "Vaciar carrito" }),
+          identified.screen.getByRole("dialog").getByRole("button", { name: action }),
         );
         return identified;
       }
@@ -3622,27 +3625,34 @@ describe("App", () => {
           sent_by_cloud: false,
         } as const;
         let cancelled = false;
-        const { screen } = await cancelFromLocked({
-          sessionOpenSale: async () => ({
-            id: "sale-1",
-            total: 3_434_000,
-            paid: 100_000,
-            cancellable: false,
-            cancel_refusal: null,
-            refunds_on_cancel: [cashRefund],
-          }),
-          cancelLockedSale: async () => {
-            cancelled = true;
-            return {
-              kind: "cancelled",
-              refunds: [cashRefund],
-            };
+        const { screen } = await cancelFromLocked(
+          {
+            sessionOpenSale: async () => ({
+              id: "sale-1",
+              total: 3_434_000,
+              paid: 100_000,
+              cancellable: false,
+              cancel_refusal: null,
+              refunds_on_cancel: [cashRefund],
+            }),
+            cancelLockedSale: async () => {
+              cancelled = true;
+              return {
+                kind: "cancelled",
+                refunds: [cashRefund],
+              };
+            },
+            cashBalance: async () =>
+              cancelled
+                ? {
+                    ...BALANCE,
+                    refunds: { amount: 100_000, direction: "out" },
+                    expected: 4_520_000,
+                  }
+                : BALANCE,
           },
-          cashBalance: async () =>
-            cancelled
-              ? { ...BALANCE, refunds: { amount: 100_000, direction: "out" }, expected: 4_520_000 }
-              : BALANCE,
-        });
+          "Cancelar la venta",
+        );
 
         await expect
           .element(screen.getByRole("complementary").getByText("$ 45.200,00", { exact: true }))

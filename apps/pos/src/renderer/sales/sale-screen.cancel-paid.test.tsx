@@ -176,14 +176,14 @@ describe("SaleScreen cancelling a sale with approved payments", () => {
     expect(cancelPaidSale).not.toHaveBeenCalled();
   });
 
-  it("keeps cancelling a sale without payments without asking the core for a refund", async () => {
+  it("keeps emptying a cart without payments without asking the core for a refund", async () => {
     const cancelPaidSale = vi.fn(async (): Promise<CancelPaidSaleOutcome> => CANCELLED);
     const { screen } = await renderScreen({
       currentSale: async () => SALE_OF_YERBA,
       cancelPaidSale,
     });
 
-    await screen.getByRole("button", { name: "Cancelar venta" }).click();
+    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
 
     await expect.element(screen.getByText(/no se cobra nada/)).toBeVisible();
     expect(cancelPaidSale).not.toHaveBeenCalled();
