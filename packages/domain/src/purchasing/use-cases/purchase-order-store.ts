@@ -32,15 +32,11 @@ export interface SupplierProductOffer {
   vatRate: number | null;
 }
 
-export interface LockedPurchaseOrderLine extends PurchaseOrderLineFields {
-  id: string;
-}
-
 export interface LockedPurchaseOrder {
   id: string;
   supplierId: string;
   state: PurchaseOrderState;
-  lines: LockedPurchaseOrderLine[];
+  lines: PurchaseOrderLineFields[];
 }
 
 export type LockPurchaseOrderResult =
