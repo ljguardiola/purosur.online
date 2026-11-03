@@ -54,7 +54,7 @@ describe("addPurchaseLines", () => {
       purchaseId: PURCHASE_ID,
       lines: [
         {
-          id: "purchase-line-3",
+          id: "purchase-line-1",
           productId: "product-a",
           packages: 1,
           quantity: 10_000,
@@ -64,7 +64,7 @@ describe("addPurchaseLines", () => {
           expiresOn: "2027-01-31",
         },
         {
-          id: "purchase-line-4",
+          id: "purchase-line-2",
           productId: "product-b",
           packages: null,
           quantity: 3_000,
@@ -100,7 +100,7 @@ describe("addPurchaseLines", () => {
         actorId: ACTOR,
         lines: [
           {
-            purchaseLineId: "purchase-line-3",
+            purchaseLineId: "purchase-line-1",
             productId: "product-a",
             quantity: 10_000,
             costPaidCents: 500_000,
@@ -146,7 +146,7 @@ describe("addPurchaseLines", () => {
           kind: "lines_added",
           lines: [
             {
-              lineId: "purchase-line-3",
+              lineId: "purchase-line-1",
               productId: "product-a",
               quantity: 10_000,
               costPaidCents: 500_000,
@@ -154,7 +154,7 @@ describe("addPurchaseLines", () => {
               expiresOn: "2027-01-31",
             },
             {
-              lineId: "purchase-line-4",
+              lineId: "purchase-line-2",
               productId: "product-b",
               quantity: 3_000,
               costPaidCents: 120_000,

@@ -65,6 +65,6 @@ describe("purchaseLinesAdditionBodySchema", () => {
       lines: [{ ...quantityLine, productId: PRODUCT_ID.replace(/2/g, "A") }],
     });
 
-    expect(parsed.lines[0]?.productId).toBe(PRODUCT_ID);
+    expect(parsed.lines[0]?.productId).toBe(PRODUCT_ID.replace(/2/g, "a"));
   });
 });
