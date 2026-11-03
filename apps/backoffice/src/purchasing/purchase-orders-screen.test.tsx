@@ -159,7 +159,9 @@ test("the state filter offers Todos, Borradores, Enviados, Recibidos en parte, R
   await expect.element(screen.getByRole("option", { name: "Borradores" })).toBeVisible();
   await expect.element(screen.getByRole("option", { name: "Enviados" })).toBeVisible();
   await expect.element(screen.getByRole("option", { name: "Recibidos en parte" })).toBeVisible();
-  await expect.element(screen.getByRole("option", { name: "Recibidos", exact: true })).toBeVisible();
+  await expect
+    .element(screen.getByRole("option", { name: "Recibidos", exact: true }))
+    .toBeVisible();
   await expect.element(screen.getByRole("option", { name: "Cancelados" })).toBeVisible();
 });
 

@@ -385,7 +385,11 @@ test("goes to the purchase orders once they are built from the order suggestion"
 });
 
 test("lists the purchase orders for whoever may only receive them", async () => {
-  const services = ordersServices(["purchase_order_reads", "purchase_order_receipts", "orders_area"]);
+  const services = ordersServices([
+    "purchase_order_reads",
+    "purchase_order_receipts",
+    "orders_area",
+  ]);
   vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrders).mockResolvedValue({
     kind: "ok",
     value: [],
