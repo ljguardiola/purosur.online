@@ -219,7 +219,14 @@ export type {
   PurchaseOrderReader,
 } from "./purchase-order-reader.js";
 export type {
+  NewPurchaseOrderReceiptFields,
+  PurchaseOrderReceiptLineFields,
+  PurchaseOrderReceiptStore,
+  PurchaseOrderReceiptStoreTransaction,
+} from "./purchase-order-receipt-store.js";
+export type {
   LockedPurchaseOrder,
+  LockedPurchaseOrderLine,
   LockPurchaseOrderResult,
   NewPurchaseOrderFields,
   NewPurchaseOrderLineFields,

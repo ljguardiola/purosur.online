@@ -39,6 +39,10 @@ export type FakePurchaseOrderWrite =
   | "cancelPurchaseOrder"
   | "markPurchaseOrderSent";
 
+export function fakeOrderLineId(orderId: string, position: number): string {
+  return `${orderId}-line-${position}`;
+}
+
 function cloneOrder(order: FakePurchaseOrderRow): FakePurchaseOrderRow {
   return {
     ...order,
@@ -133,7 +137,10 @@ class FakePurchaseOrderStoreTransaction implements PurchaseOrderStoreTransaction
             id: order.id,
             supplierId: order.supplierId,
             state: order.state,
-            lines: order.lines.map((line) => ({ ...line })),
+            lines: order.lines.map((line, index) => ({
+              ...line,
+              id: fakeOrderLineId(order.id, index + 1),
+            })),
           },
         }
       : { kind: "not_found" };
