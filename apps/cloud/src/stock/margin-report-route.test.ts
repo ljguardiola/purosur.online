@@ -144,7 +144,7 @@ describe("GET /reports/margin", () => {
       range: { from: "2026-10-12", to: "2026-10-12" },
       group: "product",
       rows: [],
-      totals: { amount: 0, cost: 0, margin: 0, incompleteSales: 0 },
+      totals: { amount: 0, cost: 0, margin: 0, marginTenthsOfPercent: null, incompleteSales: 0 },
     });
   });
 
@@ -178,10 +178,17 @@ describe("GET /reports/margin", () => {
           amount: 20_000,
           cost: 10_000,
           margin: 10_000,
+          marginTenthsOfPercent: 500,
           incompleteSales: 0,
         },
       ],
-      totals: { amount: 20_000, cost: 10_000, margin: 10_000, incompleteSales: 0 },
+      totals: {
+        amount: 20_000,
+        cost: 10_000,
+        margin: 10_000,
+        marginTenthsOfPercent: 500,
+        incompleteSales: 0,
+      },
     });
   });
 
@@ -219,10 +226,17 @@ describe("GET /reports/margin", () => {
           amount: 10_000,
           cost: 0,
           margin: 10_000,
+          marginTenthsOfPercent: 1_000,
           incompleteSales: 1,
         },
       ],
-      totals: { amount: 10_000, cost: 0, margin: 10_000, incompleteSales: 1 },
+      totals: {
+        amount: 10_000,
+        cost: 0,
+        margin: 10_000,
+        marginTenthsOfPercent: 1_000,
+        incompleteSales: 1,
+      },
     });
   });
 
@@ -238,6 +252,7 @@ describe("GET /reports/margin", () => {
       amount: 30_000,
       cost: 15_000,
       margin: 15_000,
+      marginTenthsOfPercent: 500,
       incompleteSales: 0,
     });
   });
