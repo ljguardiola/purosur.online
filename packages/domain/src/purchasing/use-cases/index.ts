@@ -1,3 +1,9 @@
+export type {
+  AddPurchaseLinesInput,
+  AddPurchaseLinesOutcome,
+  AddPurchaseLinesPorts,
+} from "./add-purchase-lines.js";
+export { addPurchaseLines } from "./add-purchase-lines.js";
 export type { AiCallRecord } from "./ai-call-recording.js";
 export type { AiCallUsage, OnAiCall } from "./ai-call-usage.js";
 export type { AiCostReportQuery, AiCostReportReader } from "./ai-cost-report-reader.js";
@@ -19,6 +25,18 @@ export type {
   ConfirmSupplierPriceListOutcome,
 } from "./confirm-supplier-price-list.js";
 export { confirmSupplierPriceList } from "./confirm-supplier-price-list.js";
+export type {
+  CorrectPurchaseHeaderInput,
+  CorrectPurchaseHeaderOutcome,
+  CorrectPurchaseHeaderPorts,
+} from "./correct-purchase-header.js";
+export { correctPurchaseHeader } from "./correct-purchase-header.js";
+export type {
+  CorrectPurchaseLineExpiryInput,
+  CorrectPurchaseLineExpiryOutcome,
+  CorrectPurchaseLineExpiryPorts,
+} from "./correct-purchase-line-expiry.js";
+export { correctPurchaseLineExpiry } from "./correct-purchase-line-expiry.js";
 export type {
   CreateProductFromSupplierItemInput,
   CreateProductFromSupplierItemOutcome,
@@ -104,6 +122,11 @@ export type {
   SuggestedUnpricedOffer,
 } from "./list-order-suggestion.js";
 export { listOrderSuggestion } from "./list-order-suggestion.js";
+export type {
+  ListPurchaseChangesInput,
+  ListPurchaseChangesOutcome,
+} from "./list-purchase-changes.js";
+export { listPurchaseChanges } from "./list-purchase-changes.js";
 export type { PurchaseChoices } from "./list-purchase-choices.js";
 export { listPurchaseChoices } from "./list-purchase-choices.js";
 export type {
