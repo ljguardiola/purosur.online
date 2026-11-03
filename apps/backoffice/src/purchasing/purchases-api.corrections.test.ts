@@ -195,6 +195,18 @@ describe("correctPurchaseHeader", () => {
     expect(await correctPurchaseHeader(purchaseId, headerBody)).toEqual({ kind: "not_found" });
   });
 
+  test("returns unchanged on a 409 purchase_unchanged", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "purchase_unchanged" }));
+
+    expect(await correctPurchaseHeader(purchaseId, headerBody)).toEqual({ kind: "unchanged" });
+  });
+
+  test("returns failed on a 409 with another code", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "other" }));
+
+    expect(await correctPurchaseHeader(purchaseId, headerBody)).toEqual({ kind: "failed" });
+  });
+
   test.each(refusals)("answers a %i as %j", async (status, outcome) => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
 
@@ -234,6 +246,41 @@ describe("correctPurchaseLineExpiry", () => {
 
   test("returns failed when the purchase does not have the expected shape", async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { id: "x" }));
+
+    expect(await correctPurchaseLineExpiry(purchaseId, lineId, { expiresOn: null })).toEqual({
+      kind: "failed",
+    });
+  });
+
+  test("returns validation_failed with the field the cloud refused", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse(400, { code: "validation_failed", details: [{ field: "expiresOn" }] }),
+    );
+
+    expect(await correctPurchaseLineExpiry(purchaseId, lineId, { expiresOn: "2027" })).toEqual({
+      kind: "validation_failed",
+      field: "expiresOn",
+    });
+  });
+
+  test("returns failed on a 400 that is not a validation failure", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(400, { code: "other" }));
+
+    expect(await correctPurchaseLineExpiry(purchaseId, lineId, { expiresOn: null })).toEqual({
+      kind: "failed",
+    });
+  });
+
+  test("returns unchanged on a 409 expiry_unchanged", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "expiry_unchanged" }));
+
+    expect(await correctPurchaseLineExpiry(purchaseId, lineId, { expiresOn: null })).toEqual({
+      kind: "unchanged",
+    });
+  });
+
+  test("returns failed on a 409 with another code", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "other" }));
 
     expect(await correctPurchaseLineExpiry(purchaseId, lineId, { expiresOn: null })).toEqual({
       kind: "failed",

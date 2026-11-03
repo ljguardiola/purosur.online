@@ -43,6 +43,12 @@ test("says the purchase no longer exists", async () => {
   await expect.element(screen.getByRole("alert")).toHaveTextContent("Esta compra ya no existe");
 });
 
+test("says there is nothing to save when the purchase already has what was sent", async () => {
+  const screen = await renderNotice({ kind: "unchanged" });
+
+  await expect.element(screen.getByText("No hay cambios para guardar").first()).toBeVisible();
+});
+
 test("has no accessibility violations", async () => {
   const screen = await renderNotice({ kind: "notFound" });
 

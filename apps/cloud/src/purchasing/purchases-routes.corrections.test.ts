@@ -315,7 +315,7 @@ describe("PATCH /purchases/:purchaseId", () => {
     expect(await db.select().from(auditLog).where(eq(auditLog.entity, "purchase"))).toHaveLength(1);
   });
 
-  it("answers the purchase with 200 and records nothing when nothing changes", async () => {
+  it("answers 409 purchase_unchanged and records nothing when nothing changes", async () => {
     const { headers, userId } = await buyer();
     const yerba = await insertProduct(db, { name: "Yerba" });
     const purchase = await registeredPurchase(headers, userId, [quantityLine(yerba.productId)]);
@@ -327,8 +327,8 @@ describe("PATCH /purchases/:purchaseId", () => {
       payload: headerBody(),
     });
 
-    expect(response.statusCode).toBe(200);
-    expect(purchaseSummarySchema.parse(response.json()).id).toBe(purchase.id);
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "purchase_unchanged" });
     expect(await db.select().from(auditLog).where(eq(auditLog.entity, "purchase"))).toEqual([]);
   });
 
@@ -421,6 +421,25 @@ describe("PATCH /purchases/:purchaseId/lines/:lineId/expiry", () => {
     expect(response.statusCode).toBe(200);
     const [lot] = await db.select().from(lots);
     expect(lot?.expiresOn).toBeNull();
+  });
+
+  it("answers 409 expiry_unchanged and records nothing when the line already has that date", async () => {
+    const { headers, userId } = await buyer();
+    const yerba = await insertProduct(db, { name: "Yerba" });
+    const purchase = await registeredPurchase(headers, userId, [
+      quantityLine(yerba.productId, { expiresOn: "2026-11-10" }),
+    ]);
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/purchases/${purchase.id}/lines/${purchase.lines[0]?.id}/expiry`,
+      headers,
+      payload: { expiresOn: "2026-11-10" },
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "expiry_unchanged" });
+    expect(await db.select().from(auditLog).where(eq(auditLog.entity, "purchase"))).toEqual([]);
   });
 
   it("returns 403 to a user without the purchases permission", async () => {

@@ -2,6 +2,8 @@ import { QueryClient, QueryClientProvider, QueryObserver } from "@tanstack/react
 import type { ReactNode } from "react";
 import { expect, test, vi } from "vitest";
 import { renderHook } from "vitest-browser-react";
+import { render } from "../shell/test-support/render-with-router";
+import type { fetchPurchaseChanges, fetchPurchaseChoices } from "./purchases-api";
 import {
   aiCostReportKey,
   freightReportKey,
@@ -9,7 +11,10 @@ import {
   purchasingKey,
   purchasingKeys,
   useProductCreationChoicesRefresh,
+  usePurchaseChangesQuery,
+  usePurchaseChoicesQuery,
 } from "./purchasing-queries";
+import { purchaseChoicesFrom } from "./test-support/purchases";
 
 test("invalidating the purchasing key marks the suppliers, the purchases, each purchase's changes, the purchase choices, the freights, the linkable purchases, the supplier price lists, each review, each list's AI cost, each proposal, each quantity proposal, the link choices, the categories a created product is filed under and the price comparison, each list of purchase orders, each purchase order, each purchases report, each freight report and each AI cost report stale", async () => {
   const client = new QueryClient();
@@ -132,4 +137,72 @@ test("refreshing the product creation choices reads the brands, the tags and the
   expect(reads.brands).toHaveBeenCalledTimes(2);
   expect(reads.tags).toHaveBeenCalledTimes(2);
   expect(reads.categories).toHaveBeenCalledTimes(2);
+});
+
+function PurchaseChoicesStatus({
+  read,
+  enabled,
+}: {
+  read: typeof fetchPurchaseChoices;
+  enabled?: boolean;
+}) {
+  const choices = usePurchaseChoicesQuery({
+    fetchPurchaseChoices: read,
+    ...(enabled === undefined ? {} : { enabled }),
+    onSessionEnded: () => {},
+  });
+  return <p>{choices.status}</p>;
+}
+
+test("the purchase choices are not read while they are not wanted, and are read once they are", async () => {
+  const read = vi
+    .fn<typeof fetchPurchaseChoices>()
+    .mockResolvedValue({ kind: "ok", value: purchaseChoicesFrom([]) });
+  const screen = await render(<PurchaseChoicesStatus read={read} enabled={false} />);
+
+  await expect.element(screen.getByText("loading")).toBeVisible();
+  expect(read).not.toHaveBeenCalled();
+
+  await screen.rerender(<PurchaseChoicesStatus read={read} enabled />);
+
+  await expect.element(screen.getByText("loaded")).toBeVisible();
+  expect(read).toHaveBeenCalledTimes(1);
+});
+
+test("the purchase choices are read when nothing says whether they are wanted", async () => {
+  const read = vi
+    .fn<typeof fetchPurchaseChoices>()
+    .mockResolvedValue({ kind: "ok", value: purchaseChoicesFrom([]) });
+  const screen = await render(<PurchaseChoicesStatus read={read} />);
+
+  await expect.element(screen.getByText("loaded")).toBeVisible();
+  expect(read).toHaveBeenCalledTimes(1);
+});
+
+function PurchaseChangesStatus({
+  purchaseId,
+  read,
+}: {
+  purchaseId: string | null;
+  read: typeof fetchPurchaseChanges;
+}) {
+  const changes = usePurchaseChangesQuery({
+    purchaseId,
+    fetchPurchaseChanges: read,
+    onSessionEnded: () => {},
+  });
+  return <p>{changes.status}</p>;
+}
+
+test("a purchase's changes are not read without a purchase, and are read for the purchase once there is one", async () => {
+  const read = vi.fn<typeof fetchPurchaseChanges>().mockResolvedValue({ kind: "ok", value: [] });
+  const screen = await render(<PurchaseChangesStatus purchaseId={null} read={read} />);
+
+  await expect.element(screen.getByText("loading")).toBeVisible();
+  expect(read).not.toHaveBeenCalled();
+
+  await screen.rerender(<PurchaseChangesStatus purchaseId="purchase-1" read={read} />);
+
+  await expect.element(screen.getByText("loaded")).toBeVisible();
+  expect(read.mock.calls).toEqual([["purchase-1"]]);
 });

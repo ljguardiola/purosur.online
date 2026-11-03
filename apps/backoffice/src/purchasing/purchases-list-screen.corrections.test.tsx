@@ -118,6 +118,10 @@ test("corrects the purchase's header, closes the modal, reads the purchases agai
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.element(screen.getByText("Datos corregidos")).toBeVisible();
+  await expect
+    .element(screen.getByText("La compra de Distribuidora Andina del 13/09/2026."))
+    .toBeVisible();
+  expect(screen.getByText("La compra ya muestra los datos corregidos.").query()).toBeNull();
   expect(screen.getByRole("dialog").query()).toBeNull();
   expect(services.correctPurchaseHeader).toHaveBeenCalledWith(
     compraDeMiel.id,
@@ -180,4 +184,23 @@ test("reports the confirmation gone once it is dismissed", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
 
   await expect.poll(() => screen.getByText("Vencimiento corregido").query()).toBeNull();
+});
+
+test("replaces the confirmation of a purchase just registered, reporting it gone", async () => {
+  const services = createServices();
+  vi.mocked(services.correctPurchaseLineExpiry).mockResolvedValue({
+    kind: "ok",
+    purchase: compraDeMiel,
+  });
+  const onNoticeDismissed = vi.fn();
+  const screen = await loaded(services, { registered: true, onNoticeDismissed });
+  await expect.element(screen.getByText("Compra registrada")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: CORRECT_EXPIRY }));
+  await userEvent.click(
+    screen.getByRole("dialog").getByRole("button", { name: "Guardar el vencimiento" }),
+  );
+
+  await expect.element(screen.getByText("Vencimiento corregido")).toBeVisible();
+  expect(onNoticeDismissed).toHaveBeenCalledTimes(1);
 });

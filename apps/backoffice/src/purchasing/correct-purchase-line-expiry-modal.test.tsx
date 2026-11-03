@@ -169,6 +169,46 @@ test("says the purchase no longer exists", async () => {
   await expect.element(dialog.getByRole("alert")).toHaveTextContent("Esta compra ya no existe");
 });
 
+test("shows an expiry date the cloud refused on its field", async () => {
+  const correctPurchaseLineExpiry = vi
+    .fn<CorrectPurchaseLineExpiryModalServices["correctPurchaseLineExpiry"]>()
+    .mockResolvedValue({ kind: "validation_failed", field: "expiresOn" });
+  const screen = await renderModal({ services: createServices({ correctPurchaseLineExpiry }) });
+
+  const dialog = await save(screen);
+
+  await expect.element(dialog.getByText("Ingresá una fecha de vencimiento válida.")).toBeVisible();
+  expect(dialog.getByText("No se corrigió el vencimiento").query()).toBeNull();
+});
+
+test("says there is nothing to save when the line already has that date, handing nothing over", async () => {
+  const correctPurchaseLineExpiry = vi
+    .fn<CorrectPurchaseLineExpiryModalServices["correctPurchaseLineExpiry"]>()
+    .mockResolvedValue({ kind: "unchanged" });
+  const onSaved = vi.fn();
+  const screen = await renderModal({
+    services: createServices({ correctPurchaseLineExpiry }),
+    onSaved,
+  });
+
+  const dialog = await save(screen);
+
+  await expect.element(dialog.getByText("No hay cambios para guardar").first()).toBeVisible();
+  expect(onSaved).not.toHaveBeenCalled();
+});
+
+test("cannot be closed while the correction is being saved", async () => {
+  const correctPurchaseLineExpiry = vi
+    .fn<CorrectPurchaseLineExpiryModalServices["correctPurchaseLineExpiry"]>()
+    .mockReturnValue(new Promise(() => {}));
+  const screen = await renderModal({ services: createServices({ correctPurchaseLineExpiry }) });
+
+  const dialog = await save(screen);
+
+  await expect.element(dialog.getByRole("button", { name: "Cancelar" })).toBeDisabled();
+  expect(dialog.getByRole("button", { name: "Cerrar" }).query()).toBeNull();
+});
+
 test("shows the failure notice", async () => {
   const correctPurchaseLineExpiry = vi
     .fn<CorrectPurchaseLineExpiryModalServices["correctPurchaseLineExpiry"]>()

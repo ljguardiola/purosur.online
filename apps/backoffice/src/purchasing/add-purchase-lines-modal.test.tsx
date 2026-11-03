@@ -183,6 +183,49 @@ test("adds the lines to the purchase and hands the purchase over", async () => {
   });
 });
 
+test("goes to the prices to review the products of the lines chosen for it, as when registering", async () => {
+  window.history.pushState(null, "", "/purchases");
+  const addPurchaseLines = vi
+    .fn<AddPurchaseLinesModalServices["addPurchaseLines"]>()
+    .mockResolvedValue({ kind: "ok", purchase: withNewLine });
+  const onSaved = vi.fn();
+  const screen = await renderModal({ services: createServices({ addPurchaseLines }), onSaved });
+
+  const dialog = await addAvenaLine(screen);
+  await userEvent.click(purchaseLine(dialog, 1).getByText("Revisar el precio ahora"));
+  await userEvent.click(dialog.getByRole("button", { name: "Agregar los productos" }));
+
+  await expect.poll(() => window.location.pathname).toBe("/prices");
+  expect(window.history.state).toMatchObject({ purchasedProductsToReview: [AVENA_PRODUCT_ID] });
+  expect(onSaved).toHaveBeenCalledWith(withNewLine);
+});
+
+test("stays on the list when no line was chosen for review", async () => {
+  window.history.pushState(null, "", "/purchases");
+  const addPurchaseLines = vi
+    .fn<AddPurchaseLinesModalServices["addPurchaseLines"]>()
+    .mockResolvedValue({ kind: "ok", purchase: withNewLine });
+  const onSaved = vi.fn();
+  const screen = await renderModal({ services: createServices({ addPurchaseLines }), onSaved });
+
+  await save(screen);
+
+  await expect.poll(() => onSaved.mock.calls.length).toBe(1);
+  expect(window.location.pathname).toBe("/purchases");
+});
+
+test("cannot be closed while the products are being added", async () => {
+  const addPurchaseLines = vi
+    .fn<AddPurchaseLinesModalServices["addPurchaseLines"]>()
+    .mockReturnValue(new Promise(() => {}));
+  const screen = await renderModal({ services: createServices({ addPurchaseLines }) });
+
+  const dialog = await save(screen);
+
+  await expect.element(dialog.getByRole("button", { name: "Cancelar" })).toBeDisabled();
+  expect(dialog.getByRole("button", { name: "Cerrar" }).query()).toBeNull();
+});
+
 test("refuses a line without product with the message of the registration, without calling the cloud", async () => {
   const services = createServices();
   const screen = await renderModal({ services });

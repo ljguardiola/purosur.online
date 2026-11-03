@@ -205,6 +205,34 @@ test("shows a date in the future the cloud refused with the message of the regis
     .toBeVisible();
 });
 
+test("says there is nothing to save when the purchase already has those data, handing nothing over", async () => {
+  const correctPurchaseHeader = vi
+    .fn<CorrectPurchaseHeaderModalServices["correctPurchaseHeader"]>()
+    .mockResolvedValue({ kind: "unchanged" });
+  const onSaved = vi.fn();
+  const screen = await renderModal({
+    services: createServices({ correctPurchaseHeader }),
+    onSaved,
+  });
+
+  const dialog = await save(screen);
+
+  await expect.element(dialog.getByText("No hay cambios para guardar").first()).toBeVisible();
+  expect(onSaved).not.toHaveBeenCalled();
+});
+
+test("cannot be closed while the correction is being saved", async () => {
+  const correctPurchaseHeader = vi
+    .fn<CorrectPurchaseHeaderModalServices["correctPurchaseHeader"]>()
+    .mockReturnValue(new Promise(() => {}));
+  const screen = await renderModal({ services: createServices({ correctPurchaseHeader }) });
+
+  const dialog = await save(screen);
+
+  await expect.element(dialog.getByRole("button", { name: "Cancelar" })).toBeDisabled();
+  expect(dialog.getByRole("button", { name: "Cerrar" }).query()).toBeNull();
+});
+
 test("says the purchase no longer exists", async () => {
   const correctPurchaseHeader = vi
     .fn<CorrectPurchaseHeaderModalServices["correctPurchaseHeader"]>()
