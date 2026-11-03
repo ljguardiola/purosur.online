@@ -10,6 +10,7 @@ import type {
 import { onTestFinished, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { BarcodeReadings } from "../../shell/barcode-readings";
+import { RegisterWindow } from "../../shell/test-support/register-window";
 import { render } from "../../shell/test-support/render-with-router";
 import type { InitialCountScreenProps } from "../initial-count-screen";
 import { InitialCountScreen } from "../initial-count-screen";
@@ -88,26 +89,28 @@ export async function renderScreen(overrides: Overrides = {}) {
   const onSessionInvalid = overrides.onSessionInvalid ?? vi.fn();
   const readers = new Set<(code: string) => void>();
   const screen = await render(
-    <BarcodeReadings
-      onBarcodeRead={(listener) => {
-        readers.add(listener);
-        return () => {
-          readers.delete(listener);
-        };
-      }}
-    >
-      <InitialCountScreen
-        person={overrides.person ?? PERSON}
-        signOut={() => {}}
-        readInitialCount={readInitialCount}
-        recordInitialCountLine={recordInitialCountLine}
-        withdrawInitialCountLine={withdrawInitialCountLine}
-        findCountableProduct={findCountableProduct}
-        searchCountableProducts={searchCountableProducts}
-        weighCountedProduct={weighCountedProduct}
-        onSessionInvalid={onSessionInvalid}
-      />
-    </BarcodeReadings>,
+    <RegisterWindow>
+      <BarcodeReadings
+        onBarcodeRead={(listener) => {
+          readers.add(listener);
+          return () => {
+            readers.delete(listener);
+          };
+        }}
+      >
+        <InitialCountScreen
+          person={overrides.person ?? PERSON}
+          signOut={() => {}}
+          readInitialCount={readInitialCount}
+          recordInitialCountLine={recordInitialCountLine}
+          withdrawInitialCountLine={withdrawInitialCountLine}
+          findCountableProduct={findCountableProduct}
+          searchCountableProducts={searchCountableProducts}
+          weighCountedProduct={weighCountedProduct}
+          onSessionInvalid={onSessionInvalid}
+        />
+      </BarcodeReadings>
+    </RegisterWindow>,
   );
   return {
     screen,

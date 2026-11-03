@@ -173,7 +173,7 @@ export function CashMovementsTable({ state }: CashMovementsTableProps) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="flex items-center gap-3">
         <ListFilter
           name="type"
@@ -183,38 +183,40 @@ export function CashMovementsTable({ state }: CashMovementsTableProps) {
           onChange={chooseTypeFilter}
         />
       </div>
-      <Table
-        aria-label="Movimientos de la sesión"
-        table={table}
-        {...(state.status === "failed"
-          ? {
-              failure: {
-                icon: <TriangleAlert />,
-                title: "No se pudieron leer los movimientos",
-                description: "Volvé a intentarlo en unos segundos.",
-                onRetry: state.retry,
-              },
-            }
-          : { loading: loadingOf(state) })}
-        empty={{
-          icon: <Receipt />,
-          title: "No hay movimientos de este tipo",
-          variant: "blank",
-        }}
-        footer={
-          matchCount === 0 ? undefined : (
-            <div className="flex items-center justify-between gap-4">
-              <p className="text-text-subtle text-detail">
-                {plural(matchCount, {
-                  one: "1 movimiento",
-                  other: `${formatNumber(matchCount)} movimientos`,
-                })}
-              </p>
-              <TablePagination table={table} label="Páginas de movimientos" />
-            </div>
-          )
-        }
-      />
+      <div className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
+        <Table
+          aria-label="Movimientos de la sesión"
+          table={table}
+          {...(state.status === "failed"
+            ? {
+                failure: {
+                  icon: <TriangleAlert />,
+                  title: "No se pudieron leer los movimientos",
+                  description: "Volvé a intentarlo en unos segundos.",
+                  onRetry: state.retry,
+                },
+              }
+            : { loading: loadingOf(state) })}
+          empty={{
+            icon: <Receipt />,
+            title: "No hay movimientos de este tipo",
+            variant: "blank",
+          }}
+          footer={
+            matchCount === 0 ? undefined : (
+              <div className="flex items-center justify-between gap-4">
+                <p className="text-text-subtle text-detail">
+                  {plural(matchCount, {
+                    one: "1 movimiento",
+                    other: `${formatNumber(matchCount)} movimientos`,
+                  })}
+                </p>
+                <TablePagination table={table} label="Páginas de movimientos" />
+              </div>
+            )
+          }
+        />
+      </div>
     </div>
   );
 }

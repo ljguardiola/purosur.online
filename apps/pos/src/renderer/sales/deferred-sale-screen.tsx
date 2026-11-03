@@ -166,6 +166,7 @@ export function DeferredSaleScreen({
         </div>
       </main>
       <SidePanel
+        label="Venta diferida"
         footer={
           <p className="text-detail text-text-subtle">
             La factura sale como original, con la fecha de la venta.
