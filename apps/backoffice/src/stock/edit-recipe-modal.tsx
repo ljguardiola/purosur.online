@@ -212,7 +212,7 @@ export function EditRecipeModal({
             Es una plantilla: al registrar una tanda se proponen estas cantidades y se registra lo
             que realmente se usó.
           </p>
-          {PriceSection && priceComponents.length > 0 ? (
+          {PriceSection && values.components.length > 0 ? (
             <PriceSection
               productId={target.productId}
               productDescription={formatProductDescription({

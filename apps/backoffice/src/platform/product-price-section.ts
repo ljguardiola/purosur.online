@@ -5,7 +5,7 @@ export type ProductPriceSectionProps = {
   productId: string;
   productDescription: string;
   saleUnit: SaleUnit;
-  components: { componentProductId: string; name: string; quantityPerOutputUnit: number }[];
+  components: { componentProductId: string; name: string; quantityPerOutputUnit: number }[] | null;
   maySetPrice: boolean;
   onSessionEnded: () => void;
 };

@@ -73,7 +73,9 @@ function useSettled<Value extends string | number | undefined>(value: Value): Va
   return settled;
 }
 
-function componentsKey(components: PlatformProps["components"]): string {
+type RecipeComponents = NonNullable<PlatformProps["components"]>;
+
+function componentsKey(components: RecipeComponents): string {
   return components
     .map(
       ({ componentProductId, quantityPerOutputUnit }) =>
@@ -83,9 +85,9 @@ function componentsKey(components: PlatformProps["components"]): string {
 }
 
 function withoutNames(
-  components: PlatformProps["components"],
+  components: RecipeComponents | null,
 ): FetchPriceRecommendationInput["components"] {
-  return components.map(({ componentProductId, quantityPerOutputUnit }) => ({
+  return (components ?? []).map(({ componentProductId, quantityPerOutputUnit }) => ({
     componentProductId,
     quantityPerOutputUnit,
   }));
@@ -208,8 +210,8 @@ function ProposedMargin({
   );
 }
 
-function missingPricesNotice(answer: PriceRecommendation, components: PlatformProps["components"]) {
-  if (answer.recommendation.kind !== "missing_prices") {
+function missingPricesNotice(answer: PriceRecommendation, components: RecipeComponents | null) {
+  if (components === null || answer.recommendation.kind !== "missing_prices") {
     return null;
   }
   const missing = answer.recommendation.componentProductIds;
@@ -237,22 +239,26 @@ export function ProductPriceSection({
   const sendToMyAccount = useSendToMyAccount();
   const refreshPrices = useRefreshPrices();
   const [notice, setNotice] = useState<SectionNotice | null>(null);
-  const key = componentsKey(components);
+  const key = components === null ? undefined : componentsKey(components);
   const settledKey = useSettled(key);
   const [settledComponents, setSettledComponents] = useState(components);
-  if (settledKey === key && componentsKey(settledComponents) !== key) {
+  if (
+    components !== null &&
+    settledKey === key &&
+    (settledComponents === null || componentsKey(settledComponents) !== key)
+  ) {
     setSettledComponents(components);
   }
   const recommendation = usePriceRecommendationQuery({
     productId,
     input: { components: withoutNames(settledComponents) },
-    enabled: true,
+    enabled: settledComponents !== null,
     keepPreviousData: true,
     fetchPriceRecommendation: services.fetchPriceRecommendation,
     onSessionEnded,
   });
   const answer = recommendation.status === "loaded" ? recommendation.value : null;
-  const recommendedPrice = recommendedPriceOf(answer);
+  const recommendedPrice = components === null ? undefined : recommendedPriceOf(answer);
   const currentPriceId = answer?.currentPrice?.id ?? null;
 
   const { form, submit, submitting, values } = useRequestForm({
@@ -352,9 +358,11 @@ export function ProductPriceSection({
               {
                 label: "Precio recomendado",
                 value:
-                  recommendedPrice === undefined
-                    ? "Sin recomendación"
-                    : formatCentsWithUnit(recommendedPrice, saleUnit),
+                  components === null
+                    ? "—"
+                    : recommendedPrice === undefined
+                      ? "Sin recomendación"
+                      : formatCentsWithUnit(recommendedPrice, saleUnit),
               },
               {
                 label: "Costo de la última tanda",

@@ -232,7 +232,7 @@ export function NewRecipeModal({
               Es una plantilla: al registrar una tanda se proponen estas cantidades y se registra lo
               que realmente se usó.
             </p>
-            {PriceSection && assembled && priceComponents.length > 0 ? (
+            {PriceSection && assembled && values.components.length > 0 ? (
               <PriceSection
                 key={assembled.id}
                 productId={assembled.id}

@@ -120,7 +120,7 @@ function withLowercaseInitial(message: string): string {
 
 export function recipePriceComponentsOf(
   components: readonly RecipeComponentValues[],
-): { componentProductId: string; name: string; quantityPerOutputUnit: number }[] {
+): { componentProductId: string; name: string; quantityPerOutputUnit: number }[] | null {
   const priced = components.map((component) => ({
     componentProductId: component.productId,
     name: component.name,
@@ -130,7 +130,7 @@ export function recipePriceComponentsOf(
     ({ name: _name, ...component }) => componentSchema.safeParse(component).success,
   )
     ? priced
-    : [];
+    : null;
 }
 
 export function recipeComponentsMessage({ components }: RecipeFormValues): string {
