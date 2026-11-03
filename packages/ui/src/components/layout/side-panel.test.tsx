@@ -19,7 +19,7 @@ test("is a complementary landmark with no name when it is given no label", async
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("is 392px wide with a left border, the surface background and 32px padding", async () => {
+test("is 392px wide with a left border and the surface background", async () => {
   const screen = await render(
     <div style={{ display: "flex", height: "600px" }}>
       <SidePanel label="Panel">Contenido</SidePanel>
@@ -33,10 +33,22 @@ test("is 392px wide with a left border, the surface background and 32px padding"
   expect(style.borderLeftColor).toBe(tokenRgb("border"));
   expect(style.borderRightWidth).toBe("0px");
   expect(style.backgroundColor).toBe(tokenRgb("surface"));
-  expect(style.paddingTop).toBe("32px");
-  expect(style.paddingRight).toBe("32px");
-  expect(style.paddingBottom).toBe("32px");
-  expect(style.paddingLeft).toBe("32px");
+});
+
+test("keeps its content 32px inside its edges", async () => {
+  const screen = await render(
+    <div style={{ display: "flex", height: "600px" }}>
+      <SidePanel label="Panel">
+        <p style={{ width: "100%" }}>Contenido</p>
+      </SidePanel>
+    </div>,
+  );
+  const panel = screen.getByRole("complementary").element().getBoundingClientRect();
+  const content = screen.getByText("Contenido").element().getBoundingClientRect();
+
+  expect(content.top - panel.top).toBeCloseTo(32, 0);
+  expect(content.left - panel.left).toBeCloseTo(1 + 32, 0);
+  expect(panel.right - content.right).toBeCloseTo(32, 0);
 });
 
 test("stacks its children 16px apart", async () => {
@@ -65,6 +77,29 @@ test("sits its footer at the bottom edge, 32px above it, in a tall container", a
 
   expect(panel.height).toBe(600);
   expect(footer.bottom).toBeCloseTo(panel.bottom - 32, 0);
+});
+
+test("scrolls a body taller than the panel inside itself, keeping the footer at the bottom edge", async () => {
+  const screen = await render(
+    <div style={{ display: "flex", height: "600px" }}>
+      <SidePanel label="Panel" footer={<button type="button">Cancelar</button>}>
+        {Array.from({ length: 40 }, (_, index) => (
+          <p key={index}>{`Línea ${index + 1}`}</p>
+        ))}
+      </SidePanel>
+    </div>,
+  );
+  const panel = screen.getByRole("complementary").element().getBoundingClientRect();
+  const footer = screen.getByRole("button", { name: "Cancelar" }).element().getBoundingClientRect();
+  const lastLine = screen.getByText("Línea 40", { exact: true }).element();
+
+  expect(panel.height).toBe(600);
+  expect(footer.bottom).toBeCloseTo(panel.bottom - 32, 0);
+  lastLine.scrollIntoView({ block: "end" });
+  expect(lastLine.getBoundingClientRect().bottom).toBeLessThanOrEqual(footer.top);
+  expect(
+    screen.getByRole("button", { name: "Cancelar" }).element().getBoundingClientRect(),
+  ).toEqual(footer);
 });
 
 test("stacks the footer's own children 16px apart", async () => {

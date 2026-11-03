@@ -29,6 +29,11 @@ import { createRegisterRouter, routeFor, routeTree } from "./router";
 import type { SignedInPerson } from "./signed-in-person";
 import { startupPendingGate } from "./startup-pending-gate";
 import { GuardedCashInForm } from "./test-support/guarded-cash-in-form";
+import {
+  holdWindowsScrollbarWidth,
+  showInStoreNotebookWindow,
+  windowOverflow,
+} from "./test-support/register-window";
 
 type RoutePath =
   | "/"
@@ -1421,6 +1426,17 @@ describe("the register's router", () => {
 
     await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeVisible();
     await expect.element(screen.getByRole("radio", { name: "Ada" })).toBeVisible();
+  });
+
+  it("keeps its frame within the window's width beside a vertical scrollbar", async () => {
+    await showInStoreNotebookWindow();
+    holdWindowsScrollbarWidth();
+    const router = routerAt("/sign-in", "up", "enrolled", null);
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeInTheDocument();
+    expect(windowOverflow().horizontal).toBe(0);
   });
 
   it("renders the no-session screen for the person from the router context", async () => {

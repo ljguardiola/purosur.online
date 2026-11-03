@@ -40,3 +40,22 @@ export const WithFooter: Story = {
     ),
   },
 };
+
+export const WithLongBody: Story = {
+  args: {
+    label: "Detalle de la venta",
+    children: (
+      <>
+        {content}
+        {Array.from({ length: 16 }, (_, index) => (
+          <p key={index} className="text-body text-text">{`Pago ${index + 1} · $ 1.690,00`}</p>
+        ))}
+      </>
+    ),
+    footer: (
+      <Button variant="secondary" fullWidth>
+        Anular venta
+      </Button>
+    ),
+  },
+};

@@ -3,6 +3,12 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import {
+  overflowsItsOwnHeight,
+  STORE_NOTEBOOK_WINDOW,
+  showInStoreNotebookWindow,
+  windowOverflow,
+} from "../shell/test-support/register-window";
+import {
   deferred,
   PLACEHOLDER,
   QUESO_LINE,
@@ -12,6 +18,23 @@ import {
 } from "./test-support/initial-count-screen";
 
 describe("InitialCountScreen", () => {
+  it("scrolls a count longer than the window inside the lines' own area, with the menu and the totals filling the window's height", async () => {
+    const lines = Array.from({ length: 40 }, (_, index) => ({
+      ...QUESO_LINE,
+      movement_id: `m${index + 1}`,
+    }));
+    const { screen } = await renderScreen({ readInitialCount: vi.fn(async () => readOf(lines)) });
+    await showInStoreNotebookWindow();
+
+    await expect.element(screen.getByText("Cargado hasta ahora")).toBeVisible();
+    expect(windowOverflow()).toEqual({ vertical: 0, horizontal: 0 });
+    expect(overflowsItsOwnHeight(screen.getByRole("main").element())).toBe(true);
+    const menu = screen.getByRole("navigation", { name: "Menú de la caja" }).element();
+    expect(menu.getBoundingClientRect().height).toBe(STORE_NOTEBOOK_WINDOW.height);
+    const panel = screen.getByRole("complementary").element();
+    expect(panel.getBoundingClientRect().height).toBe(STORE_NOTEBOOK_WINDOW.height);
+  });
+
   it("is titled Inventario inicial, names the start-up without a cash session, and offers the way home", async () => {
     const { screen, field } = await renderScreen();
 
