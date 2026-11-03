@@ -22,7 +22,7 @@ import { SqliteReceiptPrinterSettings } from "../register/sqlite-receipt-printer
 import { createActionGate } from "../sessions/action-gate";
 import { createSignedInPerson } from "../sessions/signed-in-person";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
-import { createReceiptPrinting } from "./receipt-printing-wiring";
+import { createReceiptPrinting, printingAfterCompletedSales } from "./receipt-printing-wiring";
 import { insertCreditNote } from "./test-support/credit-note-receipt-database";
 import { ScriptedSocket } from "./test-support/scripted-socket";
 
@@ -70,6 +70,40 @@ describe("the register's receipt printing without a local database", () => {
     const follow = async () => ({ followed: [], failures: [] });
 
     expect(printing.afterEachCompletedSale(follow)).toBe(follow);
+  });
+});
+
+describe("the register's requests that complete a sale", () => {
+  it("each print the receipt once the sale is completed", () => {
+    const requests = {
+      chargeSaleInCash: vi.fn(),
+      chargeSaleInCashWithChangeDiscount: vi.fn(),
+      chargeSaleByTransfer: vi.fn(),
+      chargeSaleOnStandaloneTerminal: vi.fn(),
+      chargeSaleWithPaidOrder: vi.fn(),
+      followMercadoPagoCharge: vi.fn(),
+      abandonMercadoPagoCharge: vi.fn(),
+    };
+    const nameOf = new Map<unknown, string>(
+      Object.entries(requests).map(([name, request]) => [request, name]),
+    );
+    const printedRequestOf = new Map<unknown, unknown>();
+
+    function printedAfter<TRequest, TOutcome extends { kind: string }>(
+      charge: ((request: TRequest) => Promise<TOutcome>) | undefined,
+    ) {
+      const printing = charge && (async (request: TRequest) => charge(request));
+      printedRequestOf.set(printing, charge);
+      return printing;
+    }
+
+    const wired = printingAfterCompletedSales(requests, { afterCompletedSale: printedAfter });
+
+    expect(
+      Object.entries(wired)
+        .filter(([name, request]) => nameOf.get(printedRequestOf.get(request)) === name)
+        .map(([name]) => name),
+    ).toEqual(Object.keys(requests));
   });
 });
 

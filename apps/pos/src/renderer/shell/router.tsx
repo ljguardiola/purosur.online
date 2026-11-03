@@ -15,6 +15,7 @@ import type {
   ChangeLineWeightOutcome,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
+  ChargeSaleInCashWithChangeDiscountOutcome,
   ChargeSaleOnStandaloneTerminalOutcome,
   ChargeSaleWithPaidOrderOutcome,
   CloseCashSessionOutcome,
@@ -208,8 +209,18 @@ export interface RouterContext {
   firstSignIn: (userId: string, pin: string) => Promise<SignInOutcome>;
   currentSale: () => Promise<CurrentSaleAnswer>;
   scanProduct: (code: string) => Promise<ScanProductOutcome>;
-  cashCharge: (saleId: string, tendered: number) => Promise<CashChargeAnswer>;
+  cashCharge: (
+    saleId: string,
+    tendered: number,
+    saleDiscount?: number,
+  ) => Promise<CashChargeAnswer>;
   chargeSaleInCash: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
+  chargeSaleInCashWithChangeDiscount: (
+    saleId: string,
+    tendered: number,
+    discountAmount: number,
+    authorization: Authorization | undefined,
+  ) => Promise<ChargeSaleInCashWithChangeDiscountOutcome>;
   chargeSaleByTransfer: (saleId: string, amount: number) => Promise<ChargeSaleByTransferOutcome>;
   chargeSaleOnStandaloneTerminal: (
     saleId: string,
@@ -895,6 +906,9 @@ const chargeRoute = createRoute({
       currentSale,
       cashCharge,
       chargeSaleInCash,
+      chargeSaleInCashWithChangeDiscount,
+      previewSaleDiscount,
+      authorizers,
       chargeSaleByTransfer,
       chargeSaleOnStandaloneTerminal,
       chargeSaleWithPaidOrder,
@@ -917,6 +931,9 @@ const chargeRoute = createRoute({
         currentSale={currentSale}
         cashCharge={cashCharge}
         chargeSaleInCash={chargeSaleInCash}
+        chargeSaleInCashWithChangeDiscount={chargeSaleInCashWithChangeDiscount}
+        previewSaleDiscount={previewSaleDiscount}
+        loadAuthorizers={authorizers}
         chargeSaleByTransfer={chargeSaleByTransfer}
         chargeSaleOnStandaloneTerminal={chargeSaleOnStandaloneTerminal}
         chargeSaleWithPaidOrder={chargeSaleWithPaidOrder}
@@ -1430,6 +1447,7 @@ export function createAppRouter(
     | "scanProduct"
     | "cashCharge"
     | "chargeSaleInCash"
+    | "chargeSaleInCashWithChangeDiscount"
     | "chargeSaleByTransfer"
     | "chargeSaleOnStandaloneTerminal"
     | "paymentMethodAvailability"

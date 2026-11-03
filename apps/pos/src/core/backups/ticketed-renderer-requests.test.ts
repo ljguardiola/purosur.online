@@ -36,6 +36,13 @@ function setup(overrides: Partial<TicketableRendererRequests> = {}) {
       tendered: 100,
       change: 0,
     }),
+    chargeSaleInCashWithChangeDiscount: async () => ({
+      kind: "completed",
+      sale_id: "sale-in-cash-with-discount",
+      total: 90,
+      tendered: 100,
+      change: 10,
+    }),
     chargeSaleByTransfer: async () => ({
       kind: "completed",
       sale_id: "sale-by-transfer",
@@ -95,12 +102,18 @@ describe("the renderer requests that leave a contingency backup ticket", () => {
     const { ticketedRequests, recorded } = setup();
 
     await ticketedRequests.chargeSaleInCash?.({ saleId: "sale-1", tendered: 100 });
+    await ticketedRequests.chargeSaleInCashWithChangeDiscount?.({
+      saleId: "sale-1",
+      tendered: 100,
+      discountAmount: 10,
+    });
     await ticketedRequests.chargeSaleByTransfer?.({ saleId: "sale-1", amount: 1 });
     await ticketedRequests.chargeSaleOnStandaloneTerminal?.({ saleId: "sale-1", amount: 1 });
     await ticketedRequests.chargeSaleWithPaidOrder?.({ saleId: "sale-1" });
 
     expect(recorded).toEqual([
       { operation: "sale", subjectId: "sale-in-cash" },
+      { operation: "sale", subjectId: "sale-in-cash-with-discount" },
       { operation: "sale", subjectId: "sale-by-transfer" },
       { operation: "sale", subjectId: "sale-on-terminal" },
       { operation: "sale", subjectId: "sale-with-paid-order" },
