@@ -60,6 +60,19 @@ describe("the register's hardened window", () => {
     expect(await isVisible()).toBe(true);
   });
 
+  it("shows the window maximized, not full screen", async () => {
+    const windowState = (): Promise<{ maximized: boolean; fullScreen: boolean } | undefined> =>
+      app.evaluate(({ BrowserWindow }) => {
+        const window = BrowserWindow.getAllWindows()[0];
+        return window && { maximized: window.isMaximized(), fullScreen: window.isFullScreen() };
+      });
+    await until(async () => (await windowState())?.maximized ?? false, {
+      withinMs: WAIT_BOUND_MS,
+      waitingFor: "the window to be maximized",
+    });
+    expect(await windowState()).toEqual({ maximized: true, fullScreen: false });
+  });
+
   it("renders the app", async () => {
     await page.waitForFunction(
       () => (document.querySelector("#root")?.textContent ?? "").trim().length > 0,
