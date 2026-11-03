@@ -2947,17 +2947,13 @@ describe("decoding the cash rounding of a sale", () => {
     });
   });
 
-  it("reads the rounding a version 5 voided sale names", () => {
-    expect(
-      syncedEventUpcaster.decode(unappliedEventOf(voided(5, { cash_rounding: 7000 }))),
-    ).toMatchObject({ kind: "fact", fact: { kind: "sale_voided", sale: { cashRounding: 7000 } } });
-  });
+  it("reads a version 5 voided sale naming its rounding as a void that leaves the sale's rounding as it completed", () => {
+    const decoded = syncedEventUpcaster.decode(
+      unappliedEventOf(voided(5, { cash_rounding: 7000 })),
+    );
 
-  it("reads a version 4 voided sale, which names none, as rounded by nothing", () => {
-    expect(syncedEventUpcaster.decode(unappliedEventOf(voided(4)))).toMatchObject({
-      kind: "fact",
-      fact: { kind: "sale_voided", sale: { cashRounding: 0 } },
-    });
+    expect(decoded).toMatchObject({ kind: "fact", fact: { kind: "sale_voided" } });
+    expect(decoded).not.toHaveProperty("fact.sale.cashRounding");
   });
 
   it("keeps the rounding apart from the discount on the total", () => {

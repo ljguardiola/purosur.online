@@ -96,7 +96,7 @@ describe("applying the push of a register that rounded what was paid in cash", (
         .sort((a, b) => b.total - a.total),
     ).toEqual([
       { state: "COMPLETED", total: 320000, cashRounding: 7000, saleDiscountAmount: null },
-      { state: "VOIDED", total: 85000, cashRounding: 4500, saleDiscountAmount: null },
+      { state: "VOIDED", total: 80000, cashRounding: 4500, saleDiscountAmount: null },
       { state: "COMPLETED", total: 40000, cashRounding: 3000, saleDiscountAmount: 5000 },
     ]);
   });
