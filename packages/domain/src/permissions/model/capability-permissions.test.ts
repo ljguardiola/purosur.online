@@ -37,7 +37,14 @@ const CAPABILITIES_GRANTED_BY: readonly [PermissionKey, readonly Capability[]][]
   ["manage_expiration_dates", ["stock_expiries", "stock_area"]],
   ["manage_supplier_price_lists", ["orders_area", "supplier_price_lists"]],
   ["compare_prices_and_suggest_orders", ["orders_area", "price_comparison"]],
-  ["manage_purchase_orders", ["orders_area", "purchase_orders", "purchase_choices"]],
+  [
+    "manage_purchase_orders",
+    ["orders_area", "purchase_orders", "purchase_order_reads", "purchase_choices"],
+  ],
+  [
+    "receive_purchase_orders",
+    ["orders_area", "purchase_order_reads", "purchase_order_receipts", "purchase_choices"],
+  ],
   ["view_reports", ["reports_area", "report_registers"]],
   ["view_returns_report", ["returns_report", "report_registers"]],
   ["confirm_refunds", ["refunds_area"]],
