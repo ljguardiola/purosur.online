@@ -1,10 +1,13 @@
 import type { ProductBrandAndNetContent, SaleUnit } from "../../catalog/index.js";
+import type { ZoneRulesSource } from "../../shared/index.js";
 import {
   type CurrentStockSummary,
   currentStockSummary,
   holdsCurrentStock,
 } from "../model/current-stock-summary.js";
+import type { LotName } from "../model/lot-name.js";
 import type { CurrentStockReader } from "./current-stock-reader.js";
+import type { LotNameReader } from "./lot-name-reader.js";
 import { readStockBalances, type StockBalanceView } from "./read-stock-balances.js";
 
 export interface ReadCurrentStockReportInput {
@@ -14,7 +17,8 @@ export interface ReadCurrentStockReportInput {
 
 export interface CurrentStockLot {
   id: string;
-  lotNumber: string | null;
+  name: LotName;
+  code: number;
   expiresOn: string | null;
   technical: boolean;
   remaining: number;
@@ -56,9 +60,10 @@ function productOf(balance: StockBalanceView): CurrentStockProduct {
     balance: balance.balance,
     valueCents: balance.valueCents,
     lots: balance.lots.map(
-      ({ id, lotNumber, expiresOn, technical, remaining, unitCostCents, valueCents }) => ({
+      ({ id, name, code, expiresOn, technical, remaining, unitCostCents, valueCents }) => ({
         id,
-        lotNumber,
+        name,
+        code,
         expiresOn,
         technical,
         remaining,
@@ -75,11 +80,19 @@ function categoriesOf(products: readonly CurrentStockProduct[]): CurrentStockCat
 }
 
 export async function readCurrentStockReport(
-  { currentStock }: { currentStock: CurrentStockReader },
+  {
+    currentStock,
+    lotNames,
+    zoneRules,
+  }: { currentStock: CurrentStockReader; lotNames: LotNameReader; zoneRules: ZoneRulesSource },
   { locationId, categoryId }: ReadCurrentStockReportInput,
 ): Promise<CurrentStockReport> {
   const { products: balances } = await readStockBalances(
-    { stockList: { stockLevels: (location) => currentStock.everyStockLevel(location) } },
+    {
+      stockList: { stockLevels: (location) => currentStock.everyStockLevel(location) },
+      lotNames,
+      zoneRules,
+    },
     { locationId },
   );
   const held = balances

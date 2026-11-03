@@ -1,4 +1,6 @@
+import type { ZoneRulesSource } from "../../shared/index.js";
 import { compareFirstToConsume } from "../model/lot-allocation.js";
+import type { LotName } from "../model/lot-name.js";
 import { lotValueCents } from "../model/lot-value.js";
 import {
   productUnitCostCents,
@@ -8,6 +10,8 @@ import {
 } from "../model/product-valuation.js";
 import { type StockBalancesSummary, stockBalancesSummary } from "../model/stock-balance.js";
 import { lotUnitCostCents } from "../model/unit-cost.js";
+import type { LotNameReader } from "./lot-name-reader.js";
+import { nameLotsOfProducts, nameOf } from "./name-lots.js";
 import type { LotInStock, StockLevel, StockListReader, StockProduct } from "./stock-reader.js";
 
 export interface ReadStockBalancesInput {
@@ -22,7 +26,8 @@ export type LotOrigin =
 
 export interface StockLotView {
   id: string;
-  lotNumber: string | null;
+  name: LotName;
+  code: number;
   expiresOn: string | null;
   technical: boolean;
   remaining: number;
@@ -59,10 +64,11 @@ function originOf(lot: LotInStock): LotOrigin {
   return lot.initialCount ? { kind: "initial_count" } : { kind: "product_sales_without_lots" };
 }
 
-function lotView(lot: LotInStock): StockLotView {
+function lotView(lot: LotInStock, names: ReadonlyMap<string, LotName>): StockLotView {
   return {
     id: lot.id,
-    lotNumber: lot.lotNumber,
+    name: nameOf(names, lot.id),
+    code: lot.code,
     expiresOn: lot.expiresOn,
     technical: lot.purchase === null && !lot.initialCount && lot.assemblyBatch === null,
     remaining: lot.remaining,
@@ -72,14 +78,17 @@ function lotView(lot: LotInStock): StockLotView {
   };
 }
 
-function balanceView({ lots, hasMoved: _, ...level }: StockLevel): StockBalanceView {
+function balanceView(
+  { lots, hasMoved: _, ...level }: StockLevel,
+  names: ReadonlyMap<string, LotName>,
+): StockBalanceView {
   const inConsumptionOrder = [...lots].sort((a, b) =>
     compareFirstToConsume(
       { id: a.id, expiresOn: a.expiresOn, purchasedOn: purchasedOn(a) },
       { id: b.id, expiresOn: b.expiresOn, purchasedOn: purchasedOn(b) },
     ),
   );
-  const lotViews = inConsumptionOrder.map(lotView);
+  const lotViews = inConsumptionOrder.map((lot) => lotView(lot, names));
   const valueCents = productValueCents(lotViews.map((lot) => lot.valueCents));
   return {
     ...level,
@@ -95,11 +104,27 @@ function balanceView({ lots, hasMoved: _, ...level }: StockLevel): StockBalanceV
 }
 
 export async function readStockBalances(
-  { stockList }: { stockList: Pick<StockListReader, "stockLevels"> },
+  {
+    stockList,
+    lotNames,
+    zoneRules,
+  }: {
+    stockList: Pick<StockListReader, "stockLevels">;
+    lotNames: LotNameReader;
+    zoneRules: ZoneRulesSource;
+  },
   { locationId }: ReadStockBalancesInput,
 ): Promise<StockBalancesView> {
   const levels = await stockList.stockLevels(locationId);
-  const balances = levels.map((level) => ({ hasMoved: level.hasMoved, view: balanceView(level) }));
+  const names = await nameLotsOfProducts(
+    { lotNames, zoneRules },
+    locationId,
+    levels.filter((level) => level.lots.length > 0).map((level) => level.id),
+  );
+  const balances = levels.map((level) => ({
+    hasMoved: level.hasMoved,
+    view: balanceView(level, names),
+  }));
   return {
     products: balances.map(({ view }) => view),
     summary: stockBalancesSummary(

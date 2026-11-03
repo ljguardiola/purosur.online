@@ -7,7 +7,9 @@ import {
 import { expiryReportPeriodOf } from "../model/lot-expiry.js";
 import { type LotsValueSummary, lotsValueSummary } from "../model/lot-value.js";
 import type { ExpiringLotReader, ExpiryWarningWindowReader } from "./expiring-lot-reader.js";
-import { type ExpiringLotView, listExpiringLots } from "./list-expiring-lots.js";
+import { type ExpiringLotView, listExpiringLots, productIdsOf } from "./list-expiring-lots.js";
+import type { LotNameReader } from "./lot-name-reader.js";
+import { nameLotsOfProducts } from "./name-lots.js";
 
 export interface ReadExpiringLotsReportInput {
   locationId: string;
@@ -28,11 +30,13 @@ export interface ExpiringLotsReport {
 export async function readExpiringLotsReport(
   {
     expiringLots,
+    lotNames,
     branchSettings,
     clock,
     zoneRules,
   }: {
     expiringLots: ExpiringLotReader;
+    lotNames: LotNameReader;
     branchSettings: ExpiryWarningWindowReader;
     clock: Clock;
     zoneRules: ZoneRulesSource;
@@ -44,7 +48,10 @@ export async function readExpiringLotsReport(
     await branchSettings.currentBranchSettings(locationId);
   const period = expiryReportPeriodOf(asked, today, windowDays);
   const rows = await expiringLots.lotsExpiringBy(locationId, period.to);
-  const lots = listExpiringLots(rows, today).filter(({ expiresOn }) => expiresOn >= period.from);
+  const names = await nameLotsOfProducts({ lotNames, zoneRules }, locationId, productIdsOf(rows));
+  const lots = listExpiringLots(rows, today, names).filter(
+    ({ expiresOn }) => expiresOn >= period.from,
+  );
   return {
     period,
     windowDays,

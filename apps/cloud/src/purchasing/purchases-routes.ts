@@ -21,6 +21,7 @@ import {
   type RegisterPurchaseOutcome,
   registerPurchase,
 } from "@purosur/domain/purchasing/use-cases";
+import { formatLotName } from "@purosur/formatting";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import { DrizzleCatalogListReader } from "../catalog/drizzle-catalog-list-reader.js";
@@ -44,6 +45,10 @@ function summaryOf(purchase: ListedPurchase) {
   return purchaseSummarySchema.parse({
     ...purchase,
     recordedAt: purchase.recordedAt.toISOString(),
+    lines: purchase.lines.map(({ lotName, ...line }) => ({
+      ...line,
+      lotName: formatLotName(lotName),
+    })),
   });
 }
 
@@ -129,6 +134,7 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
     zoneRules: options.zoneRules,
   };
   const reader = new DrizzlePurchasingListReader(options.db);
+  const listing = { reader, zoneRules: options.zoneRules };
   const catalog = new DrizzleCatalogListReader(options.db);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const config = { access: capabilityAccess("purchases"), sessionSource };
@@ -136,7 +142,7 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
   const writeGuard = { preHandler: backofficeOriginGuard(options.backofficeOrigin), config };
 
   app.get("/purchases", readGuard, async (request, reply) => {
-    const purchases = await listPurchases(reader, openSessionOf(request).locationId);
+    const purchases = await listPurchases(listing, openSessionOf(request).locationId);
     await reply.code(200).send(purchaseListSchema.parse(purchases.map(summaryOf)));
   });
 
@@ -157,7 +163,7 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
       await sendRefusal(reply, outcome);
       return;
     }
-    const purchase = await findPurchaseListing(reader, outcome.purchase.id);
+    const purchase = await findPurchaseListing(listing, outcome.purchase.id);
     if (!purchase) {
       throw new Error("the purchase vanished after it was registered");
     }
@@ -167,7 +173,7 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
   const changes = new DrizzlePurchaseChangeReader(options.db);
 
   async function sendPurchase(reply: FastifyReply, status: 200 | 201, purchaseId: string) {
-    const purchase = await findPurchaseListing(reader, purchaseId);
+    const purchase = await findPurchaseListing(listing, purchaseId);
     if (!purchase) {
       throw new Error("the purchase vanished after it was corrected");
     }

@@ -134,7 +134,11 @@ export type {
   ListPurchaseOrdersInput,
 } from "./list-purchase-orders.js";
 export { listPurchaseOrders } from "./list-purchase-orders.js";
-export type { ListedPurchase, ListedPurchaseLine } from "./list-purchases.js";
+export type {
+  ListedPurchase,
+  ListedPurchaseLine,
+  PurchaseListingPorts,
+} from "./list-purchases.js";
 export { findPurchaseListing, listPurchases } from "./list-purchases.js";
 export type { SupplierItemLinkChoice } from "./list-supplier-item-link-choices.js";
 export { listSupplierItemLinkChoices } from "./list-supplier-item-link-choices.js";

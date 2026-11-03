@@ -18,7 +18,7 @@ const purchaseLineSummarySchema = z.object({
   costPaidCents: z.int(),
   quantityPerPackage: z.int(),
   unitCostCents: z.int(),
-  lotNumber: z.string().nullable(),
+  lotName: z.string(),
   expiresOn: z.string().nullable(),
 });
 
