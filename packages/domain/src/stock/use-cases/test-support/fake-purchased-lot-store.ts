@@ -5,6 +5,7 @@ export interface FakePurchasedLot extends PurchasedLot {
   locationId: string;
   expiresOn: string | null;
   purchasedOn: string;
+  nameOrder: number;
   remaining: number;
 }
 
@@ -45,11 +46,14 @@ export class FakePurchasedLotTransaction implements PurchasedLotStoreTransaction
     }
   }
 
-  async setLotsPurchasedOn(lotIds: readonly string[], purchasedOn: string): Promise<void> {
-    this.operations.push("setLotsPurchasedOn");
+  async renameLotsToPurchaseDay(lotIds: readonly string[], purchasedOn: string): Promise<void> {
+    this.operations.push("renameLotsToPurchaseDay");
+    let lastNameOrder = Math.max(0, ...this.lots.map((lot) => lot.nameOrder));
     for (const lot of this.lots) {
       if (lotIds.includes(lot.lotId)) {
         lot.purchasedOn = purchasedOn;
+        lastNameOrder += 1;
+        lot.nameOrder = lastNameOrder;
       }
     }
   }

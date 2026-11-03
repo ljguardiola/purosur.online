@@ -13,6 +13,7 @@ function lot(overrides: Partial<FakePurchasedLot> = {}): FakePurchasedLot {
     locationId: "branch-1",
     expiresOn: "2026-11-10",
     purchasedOn: "2026-10-01",
+    nameOrder: 1,
     remaining: 4,
     ...overrides,
   };
@@ -39,6 +40,26 @@ describe("redatePurchasedLots", () => {
       ["lot-1", "2026-09-30", 4],
       ["lot-2", "2026-09-30", 4],
       ["lot-3", "2026-10-01", 4],
+    ]);
+  });
+
+  it("makes the redated lots take their name again, after every lot that already has one", async () => {
+    const tx = new FakePurchasedLotTransaction([
+      lot({ nameOrder: 1 }),
+      lot({ lotId: "lot-2", purchaseLineId: "line-2", nameOrder: 2 }),
+      lot({ lotId: "lot-3", purchaseLineId: "line-3", nameOrder: 3 }),
+    ]);
+
+    await redatePurchasedLots(tx, {
+      locationId: "branch-1",
+      purchaseLineIds: ["line-1", "line-2"],
+      purchasedOn: "2026-09-30",
+    });
+
+    expect(tx.lots.map(({ lotId, nameOrder }) => [lotId, nameOrder])).toEqual([
+      ["lot-1", 4],
+      ["lot-2", 5],
+      ["lot-3", 3],
     ]);
   });
 
@@ -72,7 +93,7 @@ describe("redatePurchasedLots", () => {
       "lotsOfPurchaseLines",
       "lockProductStock:product-a",
       "lockProductStock:product-b",
-      "setLotsPurchasedOn",
+      "renameLotsToPurchaseDay",
     ]);
   });
 
