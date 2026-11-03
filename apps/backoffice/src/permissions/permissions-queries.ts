@@ -16,7 +16,7 @@ const permissionsKeys = {
   role: (id: string) => [...permissionsKey, "role", id] as const,
 };
 
-export function useRolesQuery(params: {
+function useRolesQuery(params: {
   fetchRoles: typeof fetchRoles;
   onSessionEnded: () => void;
 }) {
