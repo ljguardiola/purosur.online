@@ -1489,7 +1489,7 @@ describe("wiring the purchasing routes", () => {
   it("does not register the purchasing routes when no purchasing option is given", async () => {
     const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
-    expect(await purchasingResponses(app)).toEqual(Array(45).fill(404));
+    expect(await purchasingResponses(app)).toEqual(Array(47).fill(404));
   });
 
   it("registers the purchasing routes when a purchasing option is given", async () => {
@@ -1503,7 +1503,7 @@ describe("wiring the purchasing routes", () => {
       },
     });
 
-    expect(await purchasingResponses(app)).toEqual(Array(45).fill(401));
+    expect(await purchasingResponses(app)).toEqual(Array(47).fill(401));
   });
 });
 

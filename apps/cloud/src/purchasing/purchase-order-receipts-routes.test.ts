@@ -162,11 +162,8 @@ describe("POST /purchase-orders/:id/receipts", () => {
   });
 
   it("does not find an order that does not exist or belongs to another branch", async () => {
-    const { headers, userId, locationId } = await receiver();
-    const { orderId, productId } = await sentOrder(userId, locationId);
-    const other = await signedInWith(db, ["receive_purchase_orders"], NOW, {
-      locationId: await insertLocation(db),
-    });
+    const { headers, userId } = await receiver();
+    const { orderId, productId } = await sentOrder(userId, await insertLocation(db));
 
     const missing = await app.inject({
       method: "POST",
@@ -178,7 +175,7 @@ describe("POST /purchase-orders/:id/receipts", () => {
       method: "POST",
       url: `/purchase-orders/${orderId}/receipts`,
       payload: delivery([packagesOf(productId, 3)]),
-      headers: other.headers,
+      headers,
     });
 
     for (const response of [missing, foreign]) {
@@ -309,11 +306,8 @@ describe("GET /purchase-orders/:id/receipt-draft", () => {
   });
 
   it("does not find an order that does not exist or belongs to another branch", async () => {
-    const { headers, userId, locationId } = await receiver();
-    const { orderId } = await sentOrder(userId, locationId);
-    const other = await signedInWith(db, ["receive_purchase_orders"], NOW, {
-      locationId: await insertLocation(db),
-    });
+    const { headers, userId } = await receiver();
+    const { orderId } = await sentOrder(userId, await insertLocation(db));
 
     const missing = await app.inject({
       method: "GET",
@@ -323,7 +317,7 @@ describe("GET /purchase-orders/:id/receipt-draft", () => {
     const foreign = await app.inject({
       method: "GET",
       url: `/purchase-orders/${orderId}/receipt-draft`,
-      headers: other.headers,
+      headers,
     });
 
     for (const response of [missing, foreign]) {
