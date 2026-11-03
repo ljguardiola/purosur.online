@@ -3,6 +3,7 @@ import { purchaseChangeMoment, purchaseChangeRows } from "./purchase-change-text
 import {
   compraDeMielCorregida,
   headerCorrection,
+  LINEA_DE_MIEL_ID,
   lineExpiryCorrection,
   linesAdded,
 } from "./test-support/purchase-changes";
@@ -56,7 +57,7 @@ describe("purchaseChangeRows of an expiry correction", () => {
       purchaseChangeRows(
         {
           kind: "line_expiry",
-          lineId: lineExpiryCorrection.change.lineId,
+          lineId: LINEA_DE_MIEL_ID,
           previous: null,
           next: "2027-11-10",
         },
