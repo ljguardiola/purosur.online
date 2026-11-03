@@ -261,7 +261,12 @@ test("sends a user who may not compare prices away from the order suggestion to 
 });
 
 test("lists the purchase orders beside the other sections for whoever manages them", async () => {
-  const services = ordersServices(["supplier_price_lists", "purchase_orders", "orders_area"]);
+  const services = ordersServices([
+    "supplier_price_lists",
+    "purchase_orders",
+    "purchase_order_reads",
+    "orders_area",
+  ]);
   window.history.pushState(null, "", "/supplier-price-lists");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -278,7 +283,7 @@ test("lists the purchase orders beside the other sections for whoever manages th
 });
 
 test("opens the purchase orders from the rail's Pedidos item when it is all the user may open", async () => {
-  const services = ordersServices(["purchase_orders", "orders_area"]);
+  const services = ordersServices(["purchase_orders", "purchase_order_reads", "orders_area"]);
   vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrders).mockResolvedValue({
     kind: "ok",
     value: [],
@@ -298,7 +303,12 @@ test.each([
   ["supplier_price_lists", "/supplier-price-lists"],
   ["price_comparison", "/price-comparison"],
 ] as const)("opens %s first from the rail's Pedidos item", async (capability, path) => {
-  const services = ordersServices([capability, "purchase_orders", "orders_area"]);
+  const services = ordersServices([
+    capability,
+    "purchase_orders",
+    "purchase_order_reads",
+    "orders_area",
+  ]);
   window.history.pushState(null, "", "/help");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -339,7 +349,7 @@ test("sends a user who may not manage purchase orders away from an order to Mi c
 });
 
 test("opens an order from the purchase orders, and goes back to them from it", async () => {
-  const services = ordersServices(["purchase_orders", "orders_area"]);
+  const services = ordersServices(["purchase_orders", "purchase_order_reads", "orders_area"]);
   vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrders).mockResolvedValue({
     kind: "ok",
     value: [DRAFT_SUMMARY],
@@ -370,7 +380,12 @@ test("opens an order from the purchase orders, and goes back to them from it", a
 });
 
 test("goes to the purchase orders once they are built from the order suggestion", async () => {
-  const services = ordersServices(["price_comparison", "purchase_orders", "orders_area"]);
+  const services = ordersServices([
+    "price_comparison",
+    "purchase_orders",
+    "purchase_order_reads",
+    "orders_area",
+  ]);
   vi.mocked(services.orderSuggestionScreen.buildPurchaseOrders).mockResolvedValue({
     kind: "ok",
     orderIds: [ORDER_ID],

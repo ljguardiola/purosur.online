@@ -251,7 +251,9 @@ test("shows the refusal of a product at its line", async () => {
 
   await register(screen);
 
-  await expect.element(line(screen, 2).getByText("Este producto ya no está activo.")).toBeVisible();
+  await expect
+    .element(line(screen, 2).getByText("Este producto ya no está activo.").first())
+    .toBeVisible();
 });
 
 test("shows a notice when the receipt could not be registered, and stays on the form", async () => {

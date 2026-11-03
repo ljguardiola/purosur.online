@@ -61,7 +61,7 @@ test("offers no Recibir pedido to whoever may only read purchase orders", async 
 test("a received order reads Recibido and offers neither receiving nor cancelling", async () => {
   const screen = await loaded(servicesFor(RECEIVED_ORDER), { access: RECEIVER });
 
-  await expect.element(screen.getByText("Recibido", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("Recibido", { exact: true }).first()).toBeVisible();
   expect(screen.getByRole("button", { name: "Recibir pedido" }).query()).toBeNull();
   expect(screen.getByRole("button", { name: "Cancelar pedido" }).query()).toBeNull();
 });
@@ -79,11 +79,11 @@ test("shows, beside each line of an order with receipts, what was received and w
   await expect.element(table.getByRole("columnheader", { name: "Recibido" })).toBeVisible();
   await expect.element(table.getByRole("columnheader", { name: "Pendiente" })).toBeVisible();
   const miel = table.getByRole("row", { name: /Miel pura de abeja 1 kg/ });
-  await expect.element(miel.getByRole("cell").nth(5)).toHaveTextContent("24");
-  await expect.element(miel.getByRole("cell").nth(6)).toHaveTextContent("12");
+  await expect.element(miel.getByRole("cell").nth(5)).toHaveTextContent("24 u");
+  await expect.element(miel.getByRole("cell").nth(6)).toHaveTextContent("12 u");
   const avena = table.getByRole("row", { name: /Avena arrollada/ });
-  await expect.element(avena.getByRole("cell").nth(5)).toHaveTextContent("40");
-  await expect.element(avena.getByRole("cell").nth(6)).toHaveTextContent("10");
+  await expect.element(avena.getByRole("cell").nth(5)).toHaveTextContent("40 kg");
+  await expect.element(avena.getByRole("cell").nth(6)).toHaveTextContent("10 kg");
 });
 
 test("shows no received or outstanding columns and no receipts for an order nothing was received of", async () => {
@@ -101,8 +101,8 @@ test("lists each receipt with its day and, per line, what was received, what was
   await expect.element(screen.getByRole("heading", { name: "Recepciones" })).toBeVisible();
   const table = screen.getByRole("table", { name: "Recepción del 12/03/2026" });
   const miel = table.getByRole("row", { name: /Miel pura de abeja 1 kg/ });
-  await expect.element(miel.getByRole("cell").nth(1)).toHaveTextContent("24");
-  await expect.element(miel.getByRole("cell").nth(2)).toHaveTextContent("12");
+  await expect.element(miel.getByRole("cell").nth(1)).toHaveTextContent("24 u");
+  await expect.element(miel.getByRole("cell").nth(2)).toHaveTextContent("12 u");
   await expect.element(miel.getByRole("cell").nth(3)).toHaveTextContent("$ 50,00");
   const avena = table.getByRole("row", { name: /Avena arrollada/ });
   await expect.element(avena.getByRole("cell").nth(3)).toHaveTextContent("—");
