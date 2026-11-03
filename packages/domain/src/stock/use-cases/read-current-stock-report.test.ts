@@ -68,7 +68,10 @@ describe("readCurrentStockReport", () => {
   it("reads the levels of the location", async () => {
     const currentStock = new FakeCurrentStockReader([]);
 
-    await readCurrentStockReport({ currentStock }, { locationId: "location-1" });
+    await readCurrentStockReport(
+      { currentStock, lotNames: new FakeLotNameReader([]), zoneRules: new FakeZoneRulesSource() },
+      { locationId: "location-1" },
+    );
 
     expect(currentStock.reads).toEqual(["location-1"]);
   });
