@@ -163,6 +163,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       }),
       registerService: { kind: "in_service" as const },
       registerName: (): string | undefined => undefined,
+      registerVersion: (): string | undefined => undefined,
       enroll: async (code: string) => {
         enrolledCodes.push(code);
         return { kind: "code_rejected" as const };
@@ -608,6 +609,24 @@ describe("answerRendererRequest", () => {
 
     expect(answered).toEqual(answer);
     expect(checked).toHaveLength(1);
+  });
+
+  it("answers the version the running register was built as", async () => {
+    const answer = await answerRendererRequest(
+      deps(true, { registerVersion: () => "1.0.1539" }).deps,
+      { type: "register-version-request", request_id: "r8" },
+    );
+
+    expect(answer).toEqual({ type: "register-version", request_id: "r8", version: "1.0.1539" });
+  });
+
+  it("answers no version when the core was not handed one", async () => {
+    const answer = await answerRendererRequest(deps(true).deps, {
+      type: "register-version-request",
+      request_id: "r9",
+    });
+
+    expect(answer).toEqual({ type: "register-version", request_id: "r9", version: null });
   });
 
   it("answers the PIN policy", async () => {
