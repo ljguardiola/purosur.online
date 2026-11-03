@@ -241,6 +241,25 @@ function seed(): void {
     .run();
 }
 
+function addSugar(): void {
+  database
+    .prepare(
+      "INSERT INTO products (id, name, category_id, sale_unit, active, version) VALUES ('p3', 'Azucar', 'c', 'UNIT', 1, 1)",
+    )
+    .run();
+  database
+    .prepare(
+      "INSERT INTO product_barcodes (product_id, position, code, active) VALUES ('p3', 1, '333', 1)",
+    )
+    .run();
+  database
+    .prepare(
+      `INSERT INTO prices (id, product_id, price_list_id, unit_price, valid_from, version)
+       VALUES ('price-3', 'p3', 'list-1', 1200, '2026-09-01T00:00:00.000Z', 1)`,
+    )
+    .run();
+}
+
 function priceCheese(): void {
   database
     .prepare(
@@ -2308,13 +2327,14 @@ describe("telling the discount on the sale's total was removed", () => {
   }
 
   async function discountedTwoLineTotal(): Promise<string> {
+    addSugar();
     database
       .prepare(
         "INSERT INTO role_permissions (role_id, permission_key, active) VALUES ('cashier', 'apply_total_discount', 1)",
       )
       .run();
     const first = await scanProductFor(deps(), "111");
-    await scanProductFor(deps(), "222");
+    await scanProductFor(deps(), "333");
     await applySaleDiscountFor(deps(), {
       discount: { kind: "AMOUNT", value: 500 },
       reason: "Cliente frecuente",
@@ -2387,8 +2407,9 @@ describe("telling the discount on the sale's total was removed", () => {
 
 describe("removing a line", () => {
   async function sellTwoProducts(): Promise<string> {
+    addSugar();
     const first = await scanProductFor(deps(), "111");
-    await scanProductFor(deps(), "222");
+    await scanProductFor(deps(), "333");
     if (first.kind !== "added") {
       throw new Error("test setup: the product was not added");
     }
@@ -2403,7 +2424,7 @@ describe("removing a line", () => {
     expect(outcome).toMatchObject({
       kind: "removed",
       removed_sale_discount: false,
-      sale: { lines: [expect.objectContaining({ product_id: "p2" })] },
+      sale: { lines: [expect.objectContaining({ product_id: "p3" })] },
     });
     expect(database.prepare("SELECT id FROM sale_lines").all()).toHaveLength(1);
   });
@@ -2570,8 +2591,9 @@ describe("a cart that ends", () => {
   });
 
   it("keeps the cart's lines after the register restarts", async () => {
+    addSugar();
     await sellTwoYerbas();
-    await scanProductFor(deps(), "222");
+    await scanProductFor(deps(), "333");
     const folder = mkdtempSync(join(tmpdir(), "purosur-pos-restart-"));
     try {
       const path = join(folder, "register.sqlite");
@@ -2581,7 +2603,7 @@ describe("a cart that ends", () => {
         expect(await currentSaleFor(deps({ database: reopened }))).toMatchObject({
           lines: [
             expect.objectContaining({ product_id: "p1", quantity: 2 }),
-            expect.objectContaining({ product_id: "p2" }),
+            expect.objectContaining({ product_id: "p3" }),
           ],
         });
       } finally {

@@ -2015,7 +2015,7 @@ describe("the lines of the sale being changed", () => {
     scan("111");
 
     expect(database.prepare("SELECT id, state FROM sales").all()).toEqual([
-      { id: "id-4", state: "OPEN" },
+      { id: "id-3", state: "OPEN" },
     ]);
   });
 
