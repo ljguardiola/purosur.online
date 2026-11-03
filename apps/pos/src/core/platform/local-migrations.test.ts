@@ -596,6 +596,12 @@ describe("the register's local migrations", () => {
         .run();
       before
         .prepare(
+          `INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total)
+           VALUES ('line-1', 'sale-1', 1, 'p1', 'Yerba', 2, 1500, 'list-1', 3000)`,
+        )
+        .run();
+      before
+        .prepare(
           `INSERT INTO cash_movements (id, session_id, type, amount, actor_id, occurred_at)
            VALUES ('m1', 's1', 'OPENING', 500, 'u1', '2026-09-30T12:00:00.000Z')`,
         )
@@ -948,6 +954,7 @@ describe("the register's local migrations", () => {
         "0095_contingency_intervals",
         "0096_register_seen_unenrolled",
         "0097_sale_cash_rounding",
+        "0098_discard_empty_carts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1068,6 +1075,7 @@ describe("the register's local migrations", () => {
         "0095_contingency_intervals",
         "0096_register_seen_unenrolled",
         "0097_sale_cash_rounding",
+        "0098_discard_empty_carts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1183,6 +1191,7 @@ describe("the register's local migrations", () => {
         "0095_contingency_intervals",
         "0096_register_seen_unenrolled",
         "0097_sale_cash_rounding",
+        "0098_discard_empty_carts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1297,6 +1306,7 @@ describe("the register's local migrations", () => {
         "0095_contingency_intervals",
         "0096_register_seen_unenrolled",
         "0097_sale_cash_rounding",
+        "0098_discard_empty_carts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1440,6 +1450,7 @@ describe("the register's local migrations", () => {
         "0095_contingency_intervals",
         "0096_register_seen_unenrolled",
         "0097_sale_cash_rounding",
+        "0098_discard_empty_carts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1573,6 +1584,7 @@ describe("the register's local migrations", () => {
         "0095_contingency_intervals",
         "0096_register_seen_unenrolled",
         "0097_sale_cash_rounding",
+        "0098_discard_empty_carts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1710,6 +1722,7 @@ describe("the register's local migrations", () => {
         "0095_contingency_intervals",
         "0096_register_seen_unenrolled",
         "0097_sale_cash_rounding",
+        "0098_discard_empty_carts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1855,6 +1868,7 @@ describe("the register's local migrations", () => {
         "0095_contingency_intervals",
         "0096_register_seen_unenrolled",
         "0097_sale_cash_rounding",
+        "0098_discard_empty_carts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1967,6 +1981,7 @@ describe("the register's local migrations", () => {
         "0095_contingency_intervals",
         "0096_register_seen_unenrolled",
         "0097_sale_cash_rounding",
+        "0098_discard_empty_carts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -4108,7 +4123,9 @@ describe("the register's local migrations", () => {
         `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
          VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
          INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
-         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'OPEN', NULL);`,
+         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'OPEN', NULL);
+         INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total)
+         VALUES ('line-1', 'sale-1', 1, 'p1', 'Yerba', 2, 1500, 'list-1', 3000);`,
       );
       before.close();
 
@@ -4995,6 +5012,8 @@ describe("the register's local migrations", () => {
                 ('sale-3', 'r1', 'device-a', 's1', 'u1', 'OPEN', NULL);
          INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total)
          VALUES ('line-1', 'sale-1', 1, 'p1', 'Yerba', 2, 1500, 'list-1', 3000);
+         INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total)
+         VALUES ('line-3', 'sale-3', 1, 'p1', 'Yerba', 1, 1500, 'list-1', 1500);
          INSERT INTO stock_movements (id, product_id, kind, sale_line_id, delta, occurred_at)
          VALUES ('movement-1', 'p1', 'sale', 'line-1', -2000, '2026-10-09T12:05:00.000Z'),
                 ('movement-2', 'p1', 'loss', NULL, -500, '2026-10-09T12:07:00.000Z');
@@ -9571,11 +9590,11 @@ describe("the empty carts migration", () => {
       before.exec(
         `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
          VALUES
-           ('s-empty', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN'),
-           ('s-lines', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN'),
-           ('s-paid', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN'),
-           ('s-rebuilt', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN'),
-           ('s-closed', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
+           ('s-empty', 'r-empty', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN'),
+           ('s-lines', 'r-lines', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN'),
+           ('s-paid', 'r-paid', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN'),
+           ('s-rebuilt', 'r-rebuilt', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN'),
+           ('s-closed', 'r-closed', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
          INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
          VALUES
            ('empty-cart', 'r1', 'device-a', 's-empty', 'u1', 'OPEN', NULL),
