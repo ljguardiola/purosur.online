@@ -25,6 +25,7 @@ export type PaymentPanelProps = {
   paid: number;
   pending: number;
   cancellable: boolean;
+  hasApprovedPayment: boolean;
   chargeRefusal: OpenSale["charge_refusal"];
   canCancel: boolean;
   canDiscount: boolean;
@@ -60,6 +61,7 @@ export function PaymentPanel({
   paid,
   pending,
   cancellable,
+  hasApprovedPayment,
   chargeRefusal,
   canCancel,
   canDiscount,
@@ -73,7 +75,7 @@ export function PaymentPanel({
     <SidePanel
       label="Panel de cobro"
       footer={
-        cancellable ? (
+        cancellable && lineCount > 0 ? (
           <Button
             variant="secondary"
             destructive
@@ -82,7 +84,7 @@ export function PaymentPanel({
             disabled={!canCancel}
             onPress={onCancel}
           >
-            Cancelar venta
+            {hasApprovedPayment ? "Cancelar venta" : "Vaciar carrito"}
           </Button>
         ) : undefined
       }

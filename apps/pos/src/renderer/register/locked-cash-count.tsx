@@ -221,7 +221,11 @@ export function LockedCashCount({
             tone="error"
             icon={<ShoppingBasket />}
             title={`Hay una venta abierta de ${formatCents(openSale.total)}`}
-            description="Cancelala para cerrar la caja."
+            description={
+              openSale.paid > 0
+                ? "Cancelala para cerrar la caja."
+                : "Vaciá el carrito para cerrar la caja."
+            }
             actions={
               <Button
                 variant="secondary"
@@ -229,7 +233,7 @@ export function LockedCashCount({
                 disabled={busy}
                 onPress={() => void askToCancelOpenSale()}
               >
-                Cancelar la venta
+                {openSale.paid > 0 ? "Cancelar la venta" : "Vaciar carrito"}
               </Button>
             }
           />

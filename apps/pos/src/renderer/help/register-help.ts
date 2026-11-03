@@ -50,8 +50,8 @@ export const help = defineHelp("es-AR", {
         {
           kind: "steps",
           items: [
-            "En Venta en curso, tocá Cancelar venta.",
-            "Revisá las líneas y el total, y confirmá con Cancelar la venta. Para volver sin cancelar, tocá Seguir con la venta.",
+            "En Venta en curso, tocá Vaciar carrito.",
+            "Revisá las líneas y el total, y confirmá con Vaciar carrito. Para volver sin vaciarlo, tocá Seguir con la venta.",
           ],
         },
         {
@@ -61,7 +61,7 @@ export const help = defineHelp("es-AR", {
         { kind: "heading", text: "Si la venta ya tiene pagos" },
         {
           kind: "paragraph",
-          text: "La caja muestra lo pagado y los reembolsos que corresponden. Cancelarla requiere el permiso de anular ventas: si no lo tenés, elegí a alguien que lo tenga para que ponga su PIN.",
+          text: "En lugar de Vaciar carrito, la acción es Cancelar venta. La caja muestra lo pagado y los reembolsos que corresponden. Cancelarla requiere el permiso de anular ventas: si no lo tenés, elegí a alguien que lo tenga para que ponga su PIN.",
         },
         {
           kind: "note",

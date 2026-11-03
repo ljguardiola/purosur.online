@@ -828,6 +828,7 @@ export function SaleScreen({
         paid={sale?.paid ?? 0}
         pending={sale?.pending ?? 0}
         cancellable={answer !== undefined}
+        hasApprovedPayment={sale?.lines_lock === "approved_payment"}
         chargeRefusal={sale?.charge_refusal ?? null}
         canCancel={sale !== null && !editing}
         canDiscount={sale !== null && sale.sale_discount_refusal === null && editable && !editing}

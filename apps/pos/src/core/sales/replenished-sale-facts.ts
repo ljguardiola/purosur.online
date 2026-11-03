@@ -1,4 +1,5 @@
 import {
+  hasApprovedPayment,
   type PendingMercadoPagoSalePayment,
   type SaleLine,
   type SalePayment,
@@ -261,7 +262,10 @@ function cancelSale(
   sale: CancelledSaleFact,
   source: ReplenishedEventSource,
 ): void {
-  if (!holdOpenSale(database, sale, sale.cancelledAt, source)) {
+  if (
+    !hasApprovedPayment(sale.payments) ||
+    !holdOpenSale(database, sale, sale.cancelledAt, source)
+  ) {
     return;
   }
   for (const refund of sale.refunds) {

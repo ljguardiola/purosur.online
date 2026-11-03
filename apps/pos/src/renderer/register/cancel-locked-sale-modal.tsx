@@ -28,7 +28,7 @@ export function CancelLockedSaleModal({
       tone="error"
       icon={<CircleX />}
       context="Venta abierta · Sin pagos"
-      title="¿Cancelar la venta?"
+      title="¿Vaciar el carrito?"
       closable
       footer={
         <>
@@ -49,7 +49,7 @@ export function CancelLockedSaleModal({
             disabled={busy}
             onPress={onCancelSale}
           >
-            Cancelar la venta
+            Vaciar carrito
           </Button>
         </>
       }

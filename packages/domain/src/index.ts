@@ -468,6 +468,7 @@ export {
   CONFIRMED_BY_HAND_METHODS,
   cancellableWithoutAuthorization,
   cashCharge,
+  hasApprovedPayment,
   isConfirmedByHand,
   isLateApproval,
   isPointTerminalId,
