@@ -138,7 +138,7 @@ export const saleSchema = z.object({
 export type OpenSale = z.infer<typeof saleSchema>;
 export type CurrentSaleAnswer = OpenSale | null | "not_permitted";
 
-export const cashChargeSchema = z.discriminatedUnion("kind", [
+const cashChargeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("invalid_amount") }),
   z.object({ kind: z.literal("partial"), applied: z.number(), pending: z.number() }),
   z.object({ kind: z.literal("covered"), applied: z.number(), change: z.number() }),
@@ -150,7 +150,7 @@ export const cashChargeReadSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("discount_exceeds_sale") }),
   z.object({ kind: z.literal("sale_has_payments") }),
 ]);
-export type CashChargeRead = z.infer<typeof cashChargeReadSchema>;
+type CashChargeRead = z.infer<typeof cashChargeReadSchema>;
 export type CashChargeAnswer = CashChargeRead | null | "not_permitted";
 
 const addedOutcome = z.object({

@@ -227,7 +227,7 @@ export const chargeSaleInCashMessageSchema = z.object({
   tendered: z.int(),
 });
 
-export const chargeSaleInCashWithChangeDiscountMessageSchema = z.object({
+const chargeSaleInCashWithChangeDiscountMessageSchema = z.object({
   type: z.literal("charge-sale-in-cash-with-change-discount"),
   request_id: requestId,
   sale_id: z.string(),
