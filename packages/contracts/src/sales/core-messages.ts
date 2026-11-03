@@ -1,3 +1,4 @@
+import { mayBeManualDiscountAmount } from "@purosur/domain";
 import { z } from "zod";
 import {
   authorizationRefusalSchema,
@@ -19,11 +20,12 @@ import {
   applySaleDiscountOutcomeSchema,
   cancelPaidSaleOutcomeSchema,
   cancelSaleOutcomeSchema,
-  cashChargeSchema,
+  cashChargeReadSchema,
   changeLineQuantityOutcomeSchema,
   changeLineWeightOutcomeSchema,
   chargeSaleByTransferOutcomeSchema,
   chargeSaleInCashOutcomeSchema,
+  chargeSaleInCashWithChangeDiscountOutcomeSchema,
   chargeSaleOnStandaloneTerminalOutcomeSchema,
   manualAdjustmentReasonSchema,
   manualAdjustmentValueSchema,
@@ -236,6 +238,15 @@ export const chargeSaleInCashMessageSchema = z.object({
   tendered: z.int(),
 });
 
+export const chargeSaleInCashWithChangeDiscountMessageSchema = z.object({
+  type: z.literal("charge-sale-in-cash-with-change-discount"),
+  request_id: requestId,
+  sale_id: z.string(),
+  tendered: z.int(),
+  discount_amount: z.int().refine(mayBeManualDiscountAmount),
+  authorization: authorizationSchema.optional(),
+});
+
 export const chargeSaleByTransferMessageSchema = z.object({
   type: z.literal("charge-sale-by-transfer"),
   request_id: requestId,
@@ -255,6 +266,7 @@ const cashChargeRequestMessageSchema = z.object({
   request_id: requestId,
   sale_id: z.string(),
   tendered: z.int(),
+  sale_discount: z.int().refine(mayBeManualDiscountAmount).optional(),
 });
 
 const cancelLockedSaleMessageSchema = z.object({
@@ -283,6 +295,7 @@ export const salesRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   weighLineMessageSchema,
   saleRequestMessageSchema,
   chargeSaleInCashMessageSchema,
+  chargeSaleInCashWithChangeDiscountMessageSchema,
   chargeSaleByTransferMessageSchema,
   chargeSaleOnStandaloneTerminalMessageSchema,
   cashChargeRequestMessageSchema,
@@ -453,6 +466,11 @@ export const salesCoreToRendererMessageSchema = z.discriminatedUnion("type", [
     outcome: chargeSaleInCashOutcomeSchema,
   }),
   z.object({
+    type: z.literal("charge-sale-in-cash-with-change-discount-result"),
+    request_id: requestId,
+    outcome: chargeSaleInCashWithChangeDiscountOutcomeSchema,
+  }),
+  z.object({
     type: z.literal("charge-sale-by-transfer-result"),
     request_id: requestId,
     outcome: chargeSaleByTransferOutcomeSchema,
@@ -515,7 +533,7 @@ export const salesCoreToRendererMessageSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("cash-charge"),
     request_id: requestId,
-    charge: cashChargeSchema.nullable(),
+    charge: cashChargeReadSchema.nullable(),
   }),
   z.object({ type: z.literal("cash-charge-unavailable"), request_id: requestId }),
   z.object({ type: z.literal("cash-charge-not-permitted"), request_id: requestId }),

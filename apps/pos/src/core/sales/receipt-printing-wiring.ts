@@ -1,6 +1,8 @@
 import type { ReceiptPrinters } from "@purosur/domain/sales/use-cases";
+import type { SaleCompletingRequests } from "../backups/ticketed-renderer-requests";
 import type { LocalDatabase } from "../platform/local-database";
 import { SqliteReceiptPrinterSettings } from "../register/sqlite-receipt-printer-settings";
+import type { RendererRequestDeps } from "../renderer-requests";
 import type { ActionGate } from "../sessions/action-gate";
 import {
   printCreditNoteFor,
@@ -169,5 +171,27 @@ export function createReceiptPrinting({
     printCreditNote: (creditNote) => printCreditNoteFor(deps, creditNote),
     reprintCreditNote: (request) => reprintCreditNoteFor(deps, request),
     printSaleCreditNote: (creditNote) => printSaleCreditNoteFor(deps, creditNote),
+  };
+}
+
+type SaleCompletingRendererRequests = Pick<
+  RendererRequestDeps,
+  SaleCompletingRequests<RendererRequestDeps>
+>;
+
+export function printingAfterCompletedSales(
+  requests: SaleCompletingRendererRequests,
+  { afterCompletedSale }: Pick<ReceiptPrinting, "afterCompletedSale">,
+): SaleCompletingRendererRequests {
+  return {
+    chargeSaleInCash: afterCompletedSale(requests.chargeSaleInCash),
+    chargeSaleInCashWithChangeDiscount: afterCompletedSale(
+      requests.chargeSaleInCashWithChangeDiscount,
+    ),
+    chargeSaleByTransfer: afterCompletedSale(requests.chargeSaleByTransfer),
+    chargeSaleOnStandaloneTerminal: afterCompletedSale(requests.chargeSaleOnStandaloneTerminal),
+    chargeSaleWithPaidOrder: afterCompletedSale(requests.chargeSaleWithPaidOrder),
+    followMercadoPagoCharge: afterCompletedSale(requests.followMercadoPagoCharge),
+    abandonMercadoPagoCharge: afterCompletedSale(requests.abandonMercadoPagoCharge),
   };
 }

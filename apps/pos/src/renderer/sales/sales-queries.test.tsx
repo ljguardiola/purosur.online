@@ -373,13 +373,15 @@ function CashChargeProbe({
   saleId = "sale-1",
   pending = 476_000,
   tendered,
+  saleDiscount,
 }: {
-  read: (tendered: number) => Promise<CashChargeAnswer>;
+  read: (tendered: number, saleDiscount?: number) => Promise<CashChargeAnswer>;
   saleId?: string;
   pending?: number;
   tendered: number | undefined;
+  saleDiscount?: number;
 }) {
-  const charge = useCashChargeQuery({ saleId, pending, tendered, read });
+  const charge = useCashChargeQuery({ saleId, pending, tendered, saleDiscount, read });
   return <p>{charge.status === "loaded" ? JSON.stringify(charge.value) : charge.status}</p>;
 }
 
@@ -404,6 +406,18 @@ describe("cash charge query", () => {
     expect(read).toHaveBeenCalledExactlyOnceWith(500_005);
   });
 
+  it("asks the core with the tendered amount and the discount on the total being typed", async () => {
+    const read = vi.fn<(tendered: number, saleDiscount?: number) => Promise<CashChargeAnswer>>(
+      async () => null,
+    );
+    const screen = await renderWithClient(
+      <CashChargeProbe read={read} tendered={500_005} saleDiscount={10_000} />,
+    );
+
+    await expect.element(screen.getByText("null")).toBeVisible();
+    expect(read).toHaveBeenCalledExactlyOnceWith(500_005, 10_000);
+  });
+
   it("does not ask while there is no amount tendered", async () => {
     const read = vi.fn<(tendered: number) => Promise<CashChargeAnswer>>(async () => null);
     const screen = await renderWithClient(<CashChargeProbe read={read} tendered={undefined} />);
@@ -412,32 +426,37 @@ describe("cash charge query", () => {
     expect(read).not.toHaveBeenCalled();
   });
 
-  it.each([
-    ["another amount", "sale-1", 476_000, 400_000],
-    ["another sale", "sale-2", 476_000, 500_000],
-    ["another pending balance of the sale", "sale-1", 490_000, 500_000],
-  ])("never shows the answer given for %s", async (_what, saleId, pending, tendered) => {
-    const queryClient = createQueryClient();
-    const screen = await render(
-      <QueryClientProvider client={queryClient}>
-        <CashChargeProbe read={async () => "not_permitted"} tendered={500_000} />
-      </QueryClientProvider>,
-    );
-    await expect.element(screen.getByText('"not_permitted"')).toBeVisible();
+  it.each<[string, string, number, number, number | undefined]>([
+    ["another amount", "sale-1", 476_000, 400_000, undefined],
+    ["another sale", "sale-2", 476_000, 500_000, undefined],
+    ["another pending balance of the sale", "sale-1", 490_000, 500_000, undefined],
+    ["a discount on the total being typed", "sale-1", 476_000, 500_000, 10_000],
+  ])(
+    "never shows the answer given for %s",
+    async (_what, saleId, pending, tendered, saleDiscount) => {
+      const queryClient = createQueryClient();
+      const screen = await render(
+        <QueryClientProvider client={queryClient}>
+          <CashChargeProbe read={async () => "not_permitted"} tendered={500_000} />
+        </QueryClientProvider>,
+      );
+      await expect.element(screen.getByText('"not_permitted"')).toBeVisible();
 
-    await screen.rerender(
-      <QueryClientProvider client={queryClient}>
-        <CashChargeProbe
-          read={() => new Promise(() => {})}
-          saleId={saleId}
-          pending={pending}
-          tendered={tendered}
-        />
-      </QueryClientProvider>,
-    );
+      await screen.rerender(
+        <QueryClientProvider client={queryClient}>
+          <CashChargeProbe
+            read={() => new Promise(() => {})}
+            saleId={saleId}
+            pending={pending}
+            tendered={tendered}
+            {...(saleDiscount === undefined ? {} : { saleDiscount })}
+          />
+        </QueryClientProvider>,
+      );
 
-    await expect.element(screen.getByText("loading")).toBeVisible();
-  });
+      await expect.element(screen.getByText("loading")).toBeVisible();
+    },
+  );
 
   it("fails when the core cannot answer", async () => {
     const screen = await renderWithClient(

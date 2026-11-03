@@ -1,13 +1,11 @@
 import type { CashChargeAnswer, ChargeSaleInCashOutcome } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { describe, expect, it, onTestFinished, vi } from "vitest";
-import { page, userEvent } from "vitest/browser";
-import { render } from "../shell/test-support/render-with-router";
-import { CashChargeModal } from "./cash-charge-modal";
+import { describe, expect, it } from "vitest";
+import { userEvent } from "vitest/browser";
+import { renderCashChargeModal } from "./test-support/cash-charge-modal";
 import { expectChargeSummaryInColumns } from "./test-support/charge-summary";
 
 const TOTAL = 476_000;
-const AMOUNT_FIELD = "Importe entregado por el cliente";
 const COMPLETED: ChargeSaleInCashOutcome = {
   kind: "completed",
   sale_id: "sale-1",
@@ -44,34 +42,12 @@ async function renderModal(
   readCharge: ReadCharge = answerLikeTheCore,
   sale: { total: number; paid: number; pending: number } = WHOLE_SALE,
 ) {
-  await page.viewport(1280, 1000);
-  onTestFinished(() => page.viewport(414, 896));
-  const chargeSale = vi.fn(charge);
-  const readCashCharge = vi.fn(readCharge);
-  const callbacks = {
-    onChooseAnotherMethod: vi.fn(),
-    onCompleted: vi.fn(),
-    onPartiallyPaid: vi.fn(),
-    onSaleUnavailable: vi.fn(),
-    onSessionInvalid: vi.fn(),
-  };
-  const screen = await render(
-    <CashChargeModal
-      saleId="sale-1"
-      {...sale}
-      readCharge={readCashCharge}
-      charge={chargeSale}
-      {...callbacks}
-    />,
-  );
-  return {
-    screen,
-    chargeSale,
-    readCashCharge,
-    callbacks,
-    field: screen.getByRole("textbox", { name: AMOUNT_FIELD }),
-    complete: screen.getByRole("button", { name: "Completar venta" }),
-  };
+  return renderCashChargeModal({
+    sale: { ...sale, subtotal: sale.total },
+    discountOffered: false,
+    charge,
+    readCharge,
+  });
 }
 
 function deferred<T>() {
@@ -321,24 +297,11 @@ describe("CashChargeModal", () => {
       }
       return answer;
     };
-    const { screen, field, complete, chargeSale, callbacks } = await renderModal(
-      undefined,
-      readCharge,
-    );
+    const { screen, field, complete, showSale } = await renderModal(undefined, readCharge);
     await userEvent.fill(field, "5000,00");
     await expect.element(screen.getByText("$ 240,00")).toBeVisible();
 
-    await screen.rerender(
-      <CashChargeModal
-        saleId="sale-1"
-        total={490_000}
-        paid={0}
-        pending={490_000}
-        readCharge={readCharge}
-        charge={chargeSale}
-        {...callbacks}
-      />,
-    );
+    await showSale({ total: 490_000, paid: 0, pending: 490_000, subtotal: 490_000 });
 
     await expect.element(screen.getByText("No se pudo calcular el vuelto")).toBeVisible();
     await expect.element(screen.getByText("$ 240,00")).not.toBeInTheDocument();

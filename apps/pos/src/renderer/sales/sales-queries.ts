@@ -30,8 +30,13 @@ export const salesKeys = {
   currentSaleRoot: [...salesKey, "current-sale"] as const,
   currentSale: (sessionId: string, userId: string) =>
     [...salesKey, "current-sale", sessionId, userId] as const,
-  cashCharge: (saleId: string, pending: number, tendered: number | undefined) =>
-    [...salesKey, "cash-charge", saleId, pending, tendered ?? null] as const,
+  cashCharge: (
+    saleId: string,
+    pending: number,
+    tendered: number | undefined,
+    saleDiscount?: number,
+  ) =>
+    [...salesKey, "cash-charge", saleId, pending, tendered ?? null, saleDiscount ?? null] as const,
   adjustmentPreview: (lineId: string, quantity: number, adjustment: ManualAdjustmentRequest) =>
     [
       ...salesKey,
@@ -293,16 +298,23 @@ export function useCashChargeQuery({
   saleId,
   pending,
   tendered,
+  saleDiscount,
   read,
 }: {
   saleId: string;
   pending: number;
   tendered: number | undefined;
-  read: (tendered: number) => Promise<CashChargeAnswer>;
+  saleDiscount?: number | undefined;
+  read: (tendered: number, saleDiscount?: number) => Promise<CashChargeAnswer>;
 }): CoreData<CashChargeAnswer> {
   return useCoreQuery({
-    queryKey: salesKeys.cashCharge(saleId, pending, tendered),
-    read: async () => (tendered === undefined ? "unavailable" : read(tendered)),
+    queryKey: salesKeys.cashCharge(saleId, pending, tendered, saleDiscount),
+    read: async () =>
+      tendered === undefined
+        ? "unavailable"
+        : saleDiscount === undefined
+          ? read(tendered)
+          : read(tendered, saleDiscount),
     enabled: tendered !== undefined,
   });
 }
