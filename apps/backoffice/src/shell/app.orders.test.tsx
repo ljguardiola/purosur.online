@@ -26,6 +26,7 @@ opensOnlyScreens([
   "/order-suggestion",
   "/purchase-orders",
   "/purchase-orders/$orderId",
+  "/purchase-orders/$orderId/receive",
   "/supplier-price-lists",
   "/supplier-price-lists/$listId",
 ]);
@@ -381,4 +382,47 @@ test("goes to the purchase orders once they are built from the order suggestion"
     .element(screen.getByRole("heading", { name: "Pedidos de compra", level: 1 }))
     .toBeVisible();
   expect(window.location.pathname).toBe("/purchase-orders");
+});
+
+test("lists the purchase orders for whoever may only receive them", async () => {
+  const services = ordersServices(["purchase_order_reads", "purchase_order_receipts", "orders_area"]);
+  vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrders).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await userEvent.click(screen.getByRole("link", { name: "Pedidos", exact: true }));
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Pedidos de compra", level: 1 }))
+    .toBeVisible();
+  expect(window.location.pathname).toBe("/purchase-orders");
+  expect(screen.getByRole("link", { name: "Pedidos de compra" }).query()).not.toBeNull();
+});
+
+test("opens an order for whoever may read purchase orders", async () => {
+  const services = ordersServices(["purchase_order_reads", "orders_area"]);
+  vi.mocked(services.purchaseOrderScreen.fetchPurchaseOrder).mockResolvedValue({
+    kind: "ok",
+    value: { kind: "found", order: DRAFT_ORDER },
+  });
+  window.history.pushState(null, "", `/purchase-orders/${ORDER_ID}`);
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Pedido a Distribuidora Andina", level: 1 }))
+    .toBeVisible();
+});
+
+test("sends a user who may not receive orders away from the receipt to Mi cuenta", async () => {
+  const services = ordersServices(["purchase_order_reads", "orders_area"]);
+  window.history.pushState(null, "", `/purchase-orders/${ORDER_ID}/receive`);
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  expect(services.purchaseOrderReceiveScreen.fetchPurchaseOrderReceiptDraft).not.toHaveBeenCalled();
 });

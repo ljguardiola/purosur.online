@@ -40,6 +40,8 @@ const EVERY_CAPABILITY: Record<Capability, true> = {
   supplier_price_lists: true,
   price_comparison: true,
   purchase_orders: true,
+  purchase_order_reads: true,
+  purchase_order_receipts: true,
   orders_area: true,
   reports_area: true,
   returns_report: true,
