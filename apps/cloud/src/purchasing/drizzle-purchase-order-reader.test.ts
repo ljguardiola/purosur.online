@@ -472,7 +472,7 @@ describe("what a purchase order has received", () => {
           supplierOffer: {
             link: { quantity: 12_000, saleUnit: "UNIT", relinkRequired: false },
             priceCents: 3_000,
-            pricesIncludeVat: false,
+            pricesIncludeVat: true,
             vatRate: 2_100,
           },
         },

@@ -37,6 +37,7 @@ export async function insertSentOrder<TQueryResult extends PgQueryResultHKT>(
       name: product.name,
       quantity: product.quantityPerPackage,
       priceCents: product.packagePriceCents,
+      pricesIncludeVat: true,
       ...(product.saleUnit === undefined ? {} : { saleUnit: product.saleUnit }),
     });
     productIds.push(offered.productId);
