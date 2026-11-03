@@ -212,21 +212,28 @@ describe("sale requests", () => {
     ).toBe(false);
   });
 
-  it.each([true, false])(
-    "accepts a request to weigh a product on the scale, carrying no weight and take %s",
-    (take) => {
-      const message = { type: "weigh-product", request_id: REQUEST_ID, product_id: "p2", take };
+  it.each([null, 0, 1250])(
+    "accepts a request to weigh a product on the scale confirming the weight shown %s",
+    (confirmed) => {
+      const message = {
+        type: "weigh-product",
+        request_id: REQUEST_ID,
+        product_id: "p2",
+        confirmed_weight_thousandths: confirmed,
+      };
 
       expect(salesRendererToCoreMessageSchema.parse(message)).toEqual(message);
     },
   );
 
   it.each([
-    { request_id: REQUEST_ID, take: true },
-    { product_id: "p2", take: true },
-    { request_id: REQUEST_ID, product_id: 2, take: true },
+    { request_id: REQUEST_ID, confirmed_weight_thousandths: 1250 },
+    { product_id: "p2", confirmed_weight_thousandths: 1250 },
+    { request_id: REQUEST_ID, product_id: 2, confirmed_weight_thousandths: 1250 },
     { request_id: REQUEST_ID, product_id: "p2" },
-    { request_id: REQUEST_ID, product_id: "p2", take: "yes" },
+    { request_id: REQUEST_ID, product_id: "p2", confirmed_weight_thousandths: true },
+    { request_id: REQUEST_ID, product_id: "p2", confirmed_weight_thousandths: -1 },
+    { request_id: REQUEST_ID, product_id: "p2", confirmed_weight_thousandths: 1.5 },
   ])("rejects a request to weigh that is not well formed: %j", (fields) => {
     expect(
       salesRendererToCoreMessageSchema.safeParse({ type: "weigh-product", ...fields }).success,
@@ -543,26 +550,60 @@ describe("sale line requests", () => {
     ).toBe(false);
   });
 
-  it.each([true, false])("accepts a request to weigh a line on the scale with take %s", (take) => {
-    const message = {
-      type: "weigh-line",
-      request_id: REQUEST_ID,
-      line_id: "l1",
-      expected_weight_thousandths: 1250,
-      take,
-    };
+  it.each([null, 0, 1250])(
+    "accepts a request to weigh a line on the scale confirming the weight shown %s",
+    (confirmed) => {
+      const message = {
+        type: "weigh-line",
+        request_id: REQUEST_ID,
+        line_id: "l1",
+        expected_weight_thousandths: 1250,
+        confirmed_weight_thousandths: confirmed,
+      };
 
-    expect(salesRendererToCoreMessageSchema.parse(message)).toEqual(message);
-  });
+      expect(salesRendererToCoreMessageSchema.parse(message)).toEqual(message);
+    },
+  );
 
   it.each([
-    { line_id: "l1", expected_weight_thousandths: 1000, take: true },
-    { request_id: REQUEST_ID, expected_weight_thousandths: 1000, take: true },
-    { request_id: REQUEST_ID, line_id: "l1", take: true },
+    { line_id: "l1", expected_weight_thousandths: 1000, confirmed_weight_thousandths: 1000 },
+    {
+      request_id: REQUEST_ID,
+      expected_weight_thousandths: 1000,
+      confirmed_weight_thousandths: 1000,
+    },
+    { request_id: REQUEST_ID, line_id: "l1", confirmed_weight_thousandths: 1000 },
     { request_id: REQUEST_ID, line_id: "l1", expected_weight_thousandths: 1000 },
-    { request_id: REQUEST_ID, line_id: 7, expected_weight_thousandths: 1000, take: true },
-    { request_id: REQUEST_ID, line_id: "l1", expected_weight_thousandths: 0, take: true },
-    { request_id: REQUEST_ID, line_id: "l1", expected_weight_thousandths: 1000, take: 1 },
+    {
+      request_id: REQUEST_ID,
+      line_id: 7,
+      expected_weight_thousandths: 1000,
+      confirmed_weight_thousandths: 1000,
+    },
+    {
+      request_id: REQUEST_ID,
+      line_id: "l1",
+      expected_weight_thousandths: 0,
+      confirmed_weight_thousandths: 1000,
+    },
+    {
+      request_id: REQUEST_ID,
+      line_id: "l1",
+      expected_weight_thousandths: 1000,
+      confirmed_weight_thousandths: true,
+    },
+    {
+      request_id: REQUEST_ID,
+      line_id: "l1",
+      expected_weight_thousandths: 1000,
+      confirmed_weight_thousandths: -1,
+    },
+    {
+      request_id: REQUEST_ID,
+      line_id: "l1",
+      expected_weight_thousandths: 1000,
+      confirmed_weight_thousandths: 1.5,
+    },
   ])("rejects a request to weigh a line that is not well formed: %j", (fields) => {
     expect(
       salesRendererToCoreMessageSchema.safeParse({ type: "weigh-line", ...fields }).success,

@@ -10,7 +10,10 @@ const WEIGHT_FIELD = "Peso en kg";
 
 type ChangeLineWeight = (weight: number) => Promise<"invalid_weight" | "done">;
 
-async function renderModal(changeLineWeight: ChangeLineWeight = async () => "done") {
+async function renderModal(
+  changeLineWeight: ChangeLineWeight = async () => "done",
+  notice?: string,
+) {
   await page.viewport(1280, 1000);
   onTestFinished(() => page.viewport(414, 896));
   const change = vi.fn(changeLineWeight);
@@ -19,6 +22,7 @@ async function renderModal(changeLineWeight: ChangeLineWeight = async () => "don
     <ChangeLineWeightModal
       productName="Queso cremoso"
       currentWeight={1250}
+      notice={notice}
       changeLineWeight={change}
       onClose={onClose}
     />,
@@ -44,6 +48,13 @@ describe("ChangeLineWeightModal", () => {
     await expect.element(screen.getByRole("button", { name: "Cancelar" })).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
     await expect.element(field).toHaveAttribute("inputmode", "decimal");
+  });
+
+  it("shows the notice it is given above the weight field", async () => {
+    const { screen, field } = await renderModal(async () => "done", "Un aviso");
+
+    await expect.element(screen.getByText("Un aviso").first()).toBeVisible();
+    await expect.element(field).toHaveFocus();
   });
 
   it("changes the line to the typed weight in thousandths of a kilogram", async () => {

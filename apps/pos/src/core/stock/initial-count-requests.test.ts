@@ -346,9 +346,13 @@ describe("finding a product to count", () => {
 });
 
 describe("weighing a product to count on the scale", () => {
-  function weigh(reading: ScaleReading, productId = "p2") {
+  function weigh(
+    reading: ScaleReading,
+    productId = "p2",
+    confirmedWeightThousandths: number | null = null,
+  ) {
     const scale: Scale = { read: async () => reading };
-    return weighCountedProductFor({ ...deps(), scale }, productId);
+    return weighCountedProductFor({ ...deps(), scale }, productId, confirmedWeightThousandths);
   }
 
   it("answers the weight of a stable reading", async () => {
@@ -358,8 +362,21 @@ describe("weighing a product to count on the scale", () => {
     });
   });
 
+  it("answers the confirmed weight when the stable reading is the one confirmed", async () => {
+    expect(await weigh({ kind: "stable", weightThousandths: 1250 }, "p2", 1250)).toEqual({
+      kind: "confirmed",
+      weight_thousandths: 1250,
+    });
+  });
+
   it.each([
     ["a reading that is not stable", { kind: "not_stable" } as const, "p2", { kind: "weighing" }],
+    [
+      "a stable zero",
+      { kind: "stable", weightThousandths: 0 } as const,
+      "p2",
+      { kind: "zero_weight" },
+    ],
     [
       "a scale that is unavailable",
       { kind: "unavailable" } as const,
@@ -406,6 +423,7 @@ describe("weighing a product to count on the scale", () => {
           },
         },
         "p2",
+        null,
       );
 
       expect(outcome).toEqual(expected);

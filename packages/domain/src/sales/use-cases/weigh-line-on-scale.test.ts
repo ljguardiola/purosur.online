@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { SalePayment } from "../../payments/index.js";
 import type { ScaleReading } from "../../shared/index.js";
 import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
-import { MAX_STOCK_QUANTITY } from "../../stock/index.js";
 import type { SaleLine, SaleWithLines } from "../model/sale.js";
 import {
   FakeSaleLedger,
@@ -87,7 +86,7 @@ function storedLine(store: FakeSaleLedger, lineId: string) {
 function weigh(
   store: FakeSaleLedger,
   reading: ScaleReading,
-  take: boolean,
+  confirmedWeightThousandths: number | null,
   lineId = "line-1",
   actorId = "cashier",
   expectedWeightThousandths = storedLine(store, lineId)?.quantity ?? 1,
@@ -100,15 +99,15 @@ function weigh(
       clock: new FixedClock(NOW),
       scale: new FakeScale(reading),
     },
-    { actorId, lineId, expectedWeightThousandths, take },
+    { actorId, lineId, expectedWeightThousandths, confirmedWeightThousandths },
   );
 }
 
-describe("weighLineOnScale taking the weight", () => {
+describe("weighLineOnScale confirming the weight", () => {
   it("sets the stable weight, recomputes the amount and records the scale as its source", async () => {
     const store = ledger();
 
-    const outcome = await weigh(store, STABLE_2500, true);
+    const outcome = await weigh(store, STABLE_2500, 2500);
 
     const changed = { ...QUESO_LINE, quantity: 2500, weightSource: "SCALE", lineTotal: 22500 };
     expect(storedLine(store, "line-1")).toEqual(changed);
@@ -130,7 +129,7 @@ describe("weighLineOnScale taking the weight", () => {
   it("records the scale as the source even when the weight is the same as the typed one", async () => {
     const store = ledger();
 
-    await weigh(store, { kind: "stable", weightThousandths: 1000 }, true);
+    await weigh(store, { kind: "stable", weightThousandths: 1000 }, 1000);
 
     expect(storedLine(store, "line-1")).toEqual({ ...QUESO_LINE, weightSource: "SCALE" });
   });
@@ -141,7 +140,7 @@ describe("weighLineOnScale taking the weight", () => {
     const before = structuredClone(store.state);
     store.failOn = "recordChangedLine";
 
-    const outcome = await weigh(store, { kind: "stable", weightThousandths: 1000 }, true);
+    const outcome = await weigh(store, { kind: "stable", weightThousandths: 1000 }, 1000);
 
     expect(outcome).toEqual(expect.objectContaining({ kind: "changed" }));
     expect(store.state).toEqual(before);
@@ -151,7 +150,7 @@ describe("weighLineOnScale taking the weight", () => {
     const promoted = { ...QUESO_LINE, promotions: [TEN_PERCENT] };
     const store = ledger({ sales: [{ ...OPEN_SALE, lines: [promoted] }] });
 
-    await weigh(store, { kind: "stable", weightThousandths: 2000 }, true);
+    await weigh(store, { kind: "stable", weightThousandths: 2000 }, 2000);
 
     expect(storedLine(store, "line-1")).toEqual({
       ...promoted,
@@ -163,44 +162,23 @@ describe("weighLineOnScale taking the weight", () => {
     });
   });
 
-  it("refuses to take a stable weight of zero, writing nothing", async () => {
+  it("answers a stable weight other than the one confirmed with the line's amount at it, writing nothing", async () => {
     const store = ledger();
     const before = structuredClone(store.state);
 
-    expect(await weigh(store, { kind: "stable", weightThousandths: 0 }, true)).toEqual({
-      kind: "zero_weight",
+    expect(await weigh(store, STABLE_2500, 1200)).toEqual({
+      kind: "stable",
+      weightThousandths: 2500,
+      amount: 22500,
     });
     expect(store.state).toEqual(before);
   });
-
-  it.each([-1, 1.5, MAX_STOCK_QUANTITY + 1])(
-    "answers weighing and writes nothing for a stable weight of %s thousandths",
-    async (weightThousandths) => {
-      const store = ledger();
-      const before = structuredClone(store.state);
-
-      expect(await weigh(store, { kind: "stable", weightThousandths }, true)).toEqual({
-        kind: "weighing",
-      });
-      expect(store.state).toEqual(before);
-    },
-  );
 
   it("answers weighing and writes nothing while the scale is not stable", async () => {
     const store = ledger();
     const before = structuredClone(store.state);
 
-    expect(await weigh(store, { kind: "not_stable" }, true)).toEqual({ kind: "weighing" });
-    expect(store.state).toEqual(before);
-  });
-
-  it("answers that the scale is unavailable, writing nothing", async () => {
-    const store = ledger();
-    const before = structuredClone(store.state);
-
-    expect(await weigh(store, { kind: "unavailable" }, true)).toEqual({
-      kind: "scale_unavailable",
-    });
+    expect(await weigh(store, { kind: "not_stable" }, 2500)).toEqual({ kind: "weighing" });
     expect(store.state).toEqual(before);
   });
 
@@ -209,17 +187,17 @@ describe("weighLineOnScale taking the weight", () => {
     const before = structuredClone(store.state);
     store.failOn = "recordChangedLine";
 
-    await expect(weigh(store, STABLE_2500, true)).rejects.toThrow("recordChangedLine failed");
+    await expect(weigh(store, STABLE_2500, 2500)).rejects.toThrow("recordChangedLine failed");
     expect(store.state).toEqual(before);
   });
 });
 
-describe("weighLineOnScale not taking the weight", () => {
+describe("weighLineOnScale not confirming a weight", () => {
   it("answers the stable weight and the line's amount at it, writing nothing", async () => {
     const store = ledger();
     const before = structuredClone(store.state);
 
-    expect(await weigh(store, STABLE_2500, false)).toEqual({
+    expect(await weigh(store, STABLE_2500, null)).toEqual({
       kind: "stable",
       weightThousandths: 2500,
       amount: 22500,
@@ -231,61 +209,38 @@ describe("weighLineOnScale not taking the weight", () => {
     const promoted = { ...QUESO_LINE, promotions: [TEN_PERCENT] };
     const store = ledger({ sales: [{ ...OPEN_SALE, lines: [promoted] }] });
 
-    expect(await weigh(store, { kind: "stable", weightThousandths: 2000 }, false)).toEqual({
+    expect(await weigh(store, { kind: "stable", weightThousandths: 2000 }, null)).toEqual({
       kind: "stable",
       weightThousandths: 2000,
       amount: 16200,
     });
   });
-
-  it("answers a stable weight of zero with a zero amount", async () => {
-    expect(await weigh(ledger(), { kind: "stable", weightThousandths: 0 }, false)).toEqual({
-      kind: "stable",
-      weightThousandths: 0,
-      amount: 0,
-    });
-  });
-
-  it.each([-1, 1.5, MAX_STOCK_QUANTITY + 1])(
-    "answers weighing for a stable weight of %s thousandths",
-    async (weightThousandths) => {
-      expect(await weigh(ledger(), { kind: "stable", weightThousandths }, false)).toEqual({
-        kind: "weighing",
-      });
-    },
-  );
-
-  it("answers weighing while the scale is not stable", async () => {
-    expect(await weigh(ledger(), { kind: "not_stable" }, false)).toEqual({ kind: "weighing" });
-  });
-
-  it("answers that the scale is unavailable", async () => {
-    expect(await weigh(ledger(), { kind: "unavailable" }, false)).toEqual({
-      kind: "scale_unavailable",
-    });
-  });
 });
 
 describe("weighLineOnScale refusals", () => {
-  it.each([true, false])("refuses a line sold by the unit when take is %s", async (take) => {
+  it.each([2500, null])("refuses a line sold by the unit confirming %s", async (confirmed) => {
     const store = ledger();
     const before = structuredClone(store.state);
 
-    expect(await weigh(store, STABLE_2500, take, "line-2")).toEqual({ kind: "not_sold_by_weight" });
+    expect(await weigh(store, STABLE_2500, confirmed, "line-2")).toEqual({
+      kind: "not_sold_by_weight",
+    });
     expect(store.state).toEqual(before);
   });
 
-  it.each([true, false])("refuses an unknown line when take is %s", async (take) => {
-    expect(await weigh(ledger(), STABLE_2500, take, "line-9")).toEqual({ kind: "unknown_line" });
+  it.each([2500, null])("refuses an unknown line confirming %s", async (confirmed) => {
+    expect(await weigh(ledger(), STABLE_2500, confirmed, "line-9")).toEqual({
+      kind: "unknown_line",
+    });
   });
 
-  it.each([true, false])(
-    "refuses a weight computed from a weight the line no longer has when take is %s",
-    async (take) => {
+  it.each([2500, null])(
+    "refuses a weight computed from a weight the line no longer has confirming %s",
+    async (confirmed) => {
       const store = ledger();
       const before = structuredClone(store.state);
 
-      expect(await weigh(store, STABLE_2500, take, "line-1", "cashier", 900)).toEqual({
+      expect(await weigh(store, STABLE_2500, confirmed, "line-1", "cashier", 900)).toEqual({
         kind: "stale_weight",
       });
       expect(store.state).toEqual(before);
@@ -295,19 +250,19 @@ describe("weighLineOnScale refusals", () => {
   it("refuses before looking at the reading, whatever the scale says", async () => {
     const reading: ScaleReading = { kind: "unavailable" };
 
-    expect(await weigh(ledger({ session: undefined }), reading, false)).toEqual({
+    expect(await weigh(ledger({ session: undefined }), reading, null)).toEqual({
       kind: "no_open_session",
     });
-    expect(await weigh(ledger({ sales: [] }), reading, false)).toEqual({ kind: "no_open_sale" });
-    expect(await weigh(ledger({ payments: [PAYMENT] }), reading, false)).toEqual({
+    expect(await weigh(ledger({ sales: [] }), reading, null)).toEqual({ kind: "no_open_sale" });
+    expect(await weigh(ledger({ payments: [PAYMENT] }), reading, null)).toEqual({
       kind: "sale_has_payments",
     });
-    expect(await weigh(ledger(), reading, false, "line-9")).toEqual({ kind: "unknown_line" });
-    expect(await weigh(ledger(), reading, false, "line-2")).toEqual({ kind: "not_sold_by_weight" });
-    expect(await weigh(ledger(), reading, false, "line-1", "cashier", 99)).toEqual({
+    expect(await weigh(ledger(), reading, null, "line-9")).toEqual({ kind: "unknown_line" });
+    expect(await weigh(ledger(), reading, null, "line-2")).toEqual({ kind: "not_sold_by_weight" });
+    expect(await weigh(ledger(), reading, null, "line-1", "cashier", 99)).toEqual({
       kind: "stale_weight",
     });
-    expect(await weigh(ledger(), reading, false, "line-1", "stranger")).toEqual({
+    expect(await weigh(ledger(), reading, null, "line-1", "stranger")).toEqual({
       kind: "not_permitted",
     });
   });
@@ -315,7 +270,7 @@ describe("weighLineOnScale refusals", () => {
   it("refuses an actor who did not open the current session", async () => {
     const store = ledger({ accesses: { cashier: CASHIER, other: CASHIER } });
 
-    expect(await weigh(store, STABLE_2500, true, "line-1", "other")).toEqual({
+    expect(await weigh(store, STABLE_2500, 2500, "line-1", "other")).toEqual({
       kind: "not_permitted",
     });
   });

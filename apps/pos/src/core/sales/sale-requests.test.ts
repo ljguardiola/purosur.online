@@ -711,11 +711,19 @@ describe("weighing a product on the scale on the register", () => {
     return { read: async () => reading };
   }
 
-  function weigh(reading: ScaleReading, productId = "p2", take = true) {
-    return weighProductFor({ ...deps(), scale: scaleReading(reading) }, productId, take);
+  function weigh(
+    reading: ScaleReading,
+    productId = "p2",
+    confirmedWeightThousandths: number | null = 1250,
+  ) {
+    return weighProductFor(
+      { ...deps(), scale: scaleReading(reading) },
+      productId,
+      confirmedWeightThousandths,
+    );
   }
 
-  it("answers the sale with the line holding the stable weight and records the scale as its source", async () => {
+  it("answers the sale with the line holding the confirmed stable weight and records the scale as its source", async () => {
     const outcome = await weigh({ kind: "stable", weightThousandths: 1250 });
 
     expect(outcome).toMatchObject({
@@ -740,11 +748,20 @@ describe("weighing a product on the scale on the register", () => {
     ]);
   });
 
-  it("answers the stable weight and its amount, adding no line, when not taking", async () => {
-    expect(await weigh({ kind: "stable", weightThousandths: 1250 }, "p2", false)).toEqual({
+  it("answers the stable weight and its amount, adding no line, when not confirming", async () => {
+    expect(await weigh({ kind: "stable", weightThousandths: 1250 }, "p2", null)).toEqual({
       kind: "stable",
       weight_thousandths: 1250,
       amount: 11250,
+    });
+    expect(database.prepare("SELECT id FROM sale_lines").all()).toEqual([]);
+  });
+
+  it("answers a stable weight other than the confirmed one and its amount, adding no line", async () => {
+    expect(await weigh({ kind: "stable", weightThousandths: 2500 }, "p2", 1250)).toEqual({
+      kind: "stable",
+      weight_thousandths: 2500,
+      amount: 22500,
     });
     expect(database.prepare("SELECT id FROM sale_lines").all()).toEqual([]);
   });
@@ -919,23 +936,28 @@ describe("weighing a line on the scale on the register", () => {
     return outcome.sale.lines[0]?.id as string;
   }
 
-  function weighLine(reading: ScaleReading, lineId: string, expected: number, take: boolean) {
+  function weighLine(
+    reading: ScaleReading,
+    lineId: string,
+    expected: number,
+    confirmedWeightThousandths: number | null,
+  ) {
     return weighLineFor(
       { ...deps(), scale: { read: async () => reading } },
       lineId,
       expected,
-      take,
+      confirmedWeightThousandths,
     );
   }
 
-  it("answers the sale with the stable weight, recording the scale as its source, when taking", async () => {
+  it("answers the sale with the confirmed stable weight, recording the scale as its source", async () => {
     const lineId = await sellCheese();
 
     const outcome = await weighLine(
       { kind: "stable", weightThousandths: 2500 },
       lineId,
       1000,
-      true,
+      2500,
     );
 
     expect(outcome).toMatchObject({
@@ -952,36 +974,41 @@ describe("weighing a line on the scale on the register", () => {
     ]);
   });
 
-  it("answers the stable weight and its amount, changing nothing, when not taking", async () => {
-    const lineId = await sellCheese();
+  it.each([null, 1200])(
+    "answers the stable weight and its amount, changing nothing, confirming %s",
+    async (confirmed) => {
+      const lineId = await sellCheese();
 
-    expect(
-      await weighLine({ kind: "stable", weightThousandths: 2500 }, lineId, 1000, false),
-    ).toEqual({ kind: "stable", weight_thousandths: 2500, amount: 22500 });
-    expect(database.prepare("SELECT quantity FROM sale_lines").all()).toEqual([{ quantity: 1000 }]);
-  });
+      expect(
+        await weighLine({ kind: "stable", weightThousandths: 2500 }, lineId, 1000, confirmed),
+      ).toEqual({ kind: "stable", weight_thousandths: 2500, amount: 22500 });
+      expect(database.prepare("SELECT quantity FROM sale_lines").all()).toEqual([
+        { quantity: 1000 },
+      ]);
+    },
+  );
 
   it.each([
     ["zero", { kind: "stable", weightThousandths: 0 }, { kind: "zero_weight" }],
     ["moving", { kind: "not_stable" }, { kind: "weighing" }],
     ["unavailable", { kind: "unavailable" }, { kind: "scale_unavailable" }],
-  ] as const)("answers the scale reading %s when taking", async (_case, reading, expected) => {
+  ] as const)("answers the scale reading %s when confirming", async (_case, reading, expected) => {
     const lineId = await sellCheese();
 
-    expect(await weighLine(reading, lineId, 1000, true)).toEqual(expected);
+    expect(await weighLine(reading, lineId, 1000, 1000)).toEqual(expected);
   });
 
   it("answers the refusal of a weight the line no longer has", async () => {
     const lineId = await sellCheese();
 
-    expect(await weighLine({ kind: "stable", weightThousandths: 2500 }, lineId, 900, true)).toEqual(
+    expect(await weighLine({ kind: "stable", weightThousandths: 2500 }, lineId, 900, 2500)).toEqual(
       { kind: "stale_weight" },
     );
   });
 
   it("answers that there is no sale to change", async () => {
     expect(
-      await weighLine({ kind: "stable", weightThousandths: 2500 }, "id-2", 1000, true),
+      await weighLine({ kind: "stable", weightThousandths: 2500 }, "id-2", 1000, 2500),
     ).toEqual({ kind: "no_open_sale" });
   });
 
@@ -990,7 +1017,7 @@ describe("weighing a line on the scale on the register", () => {
     signedInPerson.clear();
 
     expect(
-      await weighLine({ kind: "stable", weightThousandths: 2500 }, lineId, 1000, true),
+      await weighLine({ kind: "stable", weightThousandths: 2500 }, lineId, 1000, 2500),
     ).toEqual({ kind: "not_signed_in" });
   });
 
@@ -1000,7 +1027,7 @@ describe("weighing a line on the scale on the register", () => {
     signedInPerson.set("u2");
 
     expect(
-      await weighLine({ kind: "stable", weightThousandths: 2500 }, lineId, 1000, true),
+      await weighLine({ kind: "stable", weightThousandths: 2500 }, lineId, 1000, 2500),
     ).toEqual({ kind: "not_permitted" });
   });
 });

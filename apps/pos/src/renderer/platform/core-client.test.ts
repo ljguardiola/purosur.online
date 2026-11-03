@@ -906,7 +906,7 @@ describe("createCoreClient", () => {
     const port = new FakePort();
     client.connect(port);
 
-    const weighed = client.weighProduct("p2", true);
+    const weighed = client.weighProduct("p2", 1250);
     port.answer({
       type: "weigh-product-result",
       request_id: "request-1",
@@ -915,7 +915,12 @@ describe("createCoreClient", () => {
 
     expect(await weighed).toEqual({ kind: "weighing" });
     expect(port.posted).toEqual([
-      { type: "weigh-product", request_id: "request-1", product_id: "p2", take: true },
+      {
+        type: "weigh-product",
+        request_id: "request-1",
+        product_id: "p2",
+        confirmed_weight_thousandths: 1250,
+      },
     ]);
   });
 
@@ -924,7 +929,7 @@ describe("createCoreClient", () => {
     const port = new FakePort();
     client.connect(port);
 
-    const weighed = client.weighLine("l1", 1250, false);
+    const weighed = client.weighLine("l1", 1250, null);
     port.answer({
       type: "weigh-line-result",
       request_id: "request-1",
@@ -938,7 +943,7 @@ describe("createCoreClient", () => {
         request_id: "request-1",
         line_id: "l1",
         expected_weight_thousandths: 1250,
-        take: false,
+        confirmed_weight_thousandths: null,
       },
     ]);
   });
@@ -1074,7 +1079,7 @@ describe("createCoreClient", () => {
     const port = new FakePort();
     client.connect(port);
 
-    const weighed = client.weighCountedProduct("p2");
+    const weighed = client.weighCountedProduct("p2", 1250);
     port.answer({
       type: "weigh-counted-product-result",
       request_id: "request-1",
@@ -1083,7 +1088,12 @@ describe("createCoreClient", () => {
 
     expect(await weighed).toEqual({ kind: "weighed", weight_thousandths: 1250 });
     expect(port.posted).toEqual([
-      { type: "weigh-counted-product", request_id: "request-1", product_id: "p2" },
+      {
+        type: "weigh-counted-product",
+        request_id: "request-1",
+        product_id: "p2",
+        confirmed_weight_thousandths: 1250,
+      },
     ]);
   });
 

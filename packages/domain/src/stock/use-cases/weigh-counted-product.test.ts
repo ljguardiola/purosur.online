@@ -21,8 +21,16 @@ function ledger(state: Partial<FakeInitialCountState> = {}): FakeInitialCountLed
   });
 }
 
-function weigh(store: FakeInitialCountLedger, scale: FakeCountScale, productId = "queso") {
-  return weighCountedProduct({ ledger: store, scale }, { actorId: "counter", productId });
+function weigh(
+  store: FakeInitialCountLedger,
+  scale: FakeCountScale,
+  productId = "queso",
+  confirmedWeightThousandths: number | null = null,
+) {
+  return weighCountedProduct(
+    { ledger: store, scale },
+    { actorId: "counter", productId, confirmedWeightThousandths },
+  );
 }
 
 describe("weighCountedProduct", () => {
@@ -43,14 +51,46 @@ describe("weighCountedProduct", () => {
     });
   });
 
-  it.each([0, -5, MAX_STOCK_QUANTITY + 1])(
+  it.each([-5, MAX_STOCK_QUANTITY + 1])(
     "keeps weighing for a stable reading of %s that is no quantity",
     async (weightThousandths) => {
-      const scale = new FakeCountScale({ kind: "stable", weightThousandths });
+      const reading: ScaleReading = { kind: "stable", weightThousandths };
 
-      expect(await weigh(ledger(), scale)).toEqual({ kind: "weighing" });
+      expect(await weigh(ledger(), new FakeCountScale(reading))).toEqual({ kind: "weighing" });
+      expect(
+        await weigh(ledger(), new FakeCountScale(reading), "queso", weightThousandths),
+      ).toEqual({ kind: "weighing" });
     },
   );
+
+  it.each([null, 0, 1_250])("tells a stable zero apart, confirming %s", async (confirmed) => {
+    const scale = new FakeCountScale({ kind: "stable", weightThousandths: 0 });
+
+    expect(await weigh(ledger(), scale, "queso", confirmed)).toEqual({ kind: "zero_weight" });
+  });
+
+  it("confirms a stable reading equal to the weight being confirmed", async () => {
+    expect(await weigh(ledger(), new FakeCountScale(STABLE_1250), "queso", 1_250)).toEqual({
+      kind: "confirmed",
+      weightThousandths: 1_250,
+    });
+  });
+
+  it("answers a stable reading other than the weight being confirmed as a new weight", async () => {
+    expect(await weigh(ledger(), new FakeCountScale(STABLE_1250), "queso", 1_000)).toEqual({
+      kind: "weighed",
+      weightThousandths: 1_250,
+    });
+  });
+
+  it("confirms the largest quantity when it is the weight being confirmed", async () => {
+    const scale = new FakeCountScale({ kind: "stable", weightThousandths: MAX_STOCK_QUANTITY });
+
+    expect(await weigh(ledger(), scale, "queso", MAX_STOCK_QUANTITY)).toEqual({
+      kind: "confirmed",
+      weightThousandths: MAX_STOCK_QUANTITY,
+    });
+  });
 
   it("says the scale is unavailable when it cannot be read", async () => {
     expect(await weigh(ledger(), new FakeCountScale({ kind: "unavailable" }))).toEqual({

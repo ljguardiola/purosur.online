@@ -59,6 +59,14 @@ async function renderModal({
 
 type Rendered = Awaited<ReturnType<typeof renderModal>>;
 
+const ZERO_NOTE = "Poné el producto en la balanza o escribí el peso.";
+
+function deferredOr(answer: WeighCountedProductOutcome | undefined) {
+  return answer === undefined
+    ? deferred<WeighCountedProductOutcome>().promise
+    : Promise.resolve(answer);
+}
+
 async function typeCounted(screen: Rendered["screen"], typed: string) {
   await userEvent.fill(screen.getByRole("textbox", { name: "Cantidad contada" }), typed);
 }
@@ -121,7 +129,133 @@ describe("CountLineModal", () => {
     await expect
       .element(screen.getByRole("textbox", { name: "Cantidad contada" }))
       .toHaveValue("4,400");
-    expect(weighing).toHaveBeenCalledWith(QUESO.product_id);
+    expect(weighing).toHaveBeenCalledWith(QUESO.product_id, null);
+  });
+
+  it("shows that it is weighing until the first stable reading, then that the reading is stable", async () => {
+    const first = deferred<WeighCountedProductOutcome>();
+    const { screen } = await renderModal({
+      weigh: (_productId, confirmed) =>
+        confirmed === null ? first.promise : deferred<WeighCountedProductOutcome>().promise,
+    });
+
+    await expect.element(screen.getByText("Pesando…")).toBeVisible();
+    first.resolve({ kind: "weighed", weight_thousandths: 1000 });
+
+    await expect.element(screen.getByText("Lectura estable")).toBeVisible();
+    await expect.element(screen.getByText("Pesando…")).not.toBeInTheDocument();
+  });
+
+  it("shows that it is weighing, keeping the last stable weight, while the plate moves", async () => {
+    const answers: WeighCountedProductOutcome[] = [
+      { kind: "weighed", weight_thousandths: 1000 },
+      { kind: "weighing" },
+    ];
+    const { screen } = await renderModal({
+      weigh: () => deferredOr(answers.shift()),
+    });
+
+    await expect.element(screen.getByText("Pesando…")).toBeVisible();
+    await expect
+      .element(screen.getByRole("textbox", { name: "Cantidad contada" }))
+      .toHaveValue("1,000");
+  });
+
+  it("follows the scale back to zero when the product is lifted", async () => {
+    const answers: WeighCountedProductOutcome[] = [
+      { kind: "weighed", weight_thousandths: 1000 },
+      { kind: "zero_weight" },
+    ];
+    const { screen } = await renderModal({
+      weigh: () => deferredOr(answers.shift()),
+    });
+    const field = screen.getByRole("textbox", { name: "Cantidad contada" });
+    await expect.element(field).toHaveValue("1,000");
+
+    await expect.element(field).toHaveValue("0,000");
+  });
+
+  it("asks for a weight and records nothing when a weight of zero is confirmed", async () => {
+    const { screen, recording, weighing } = await renderModal({
+      weigh: async () => ({ kind: "zero_weight" }),
+    });
+    await expect.element(screen.getByText("Lectura estable")).toBeVisible();
+    await expect.element(screen.getByText(ZERO_NOTE)).not.toBeInTheDocument();
+
+    await confirm(screen);
+
+    await expect.element(screen.getByText(ZERO_NOTE).first()).toBeVisible();
+    expect(weighing).toHaveBeenCalledWith(QUESO.product_id, 0);
+    expect(recording).not.toHaveBeenCalled();
+    await expect.element(screen.getByRole("button", { name: "Confirmar línea" })).toBeEnabled();
+  });
+
+  it("reads the scale again and records the weight shown when it is confirmed", async () => {
+    const { screen, recording, weighing } = await renderModal({
+      weigh: async (_productId, confirmed) =>
+        confirmed === 1000
+          ? { kind: "confirmed", weight_thousandths: 1000 }
+          : { kind: "weighed", weight_thousandths: 1000 },
+    });
+    await expect
+      .element(screen.getByRole("textbox", { name: "Cantidad contada" }))
+      .toHaveValue("1,000");
+
+    await confirm(screen);
+
+    await vi.waitFor(() => expect(recording).toHaveBeenCalledWith(QUESO.product_id, 1000, null));
+    expect(weighing).toHaveBeenCalledWith(QUESO.product_id, 1000);
+  });
+
+  it("shows another stable weight the confirmation read and records it only once it is confirmed in turn", async () => {
+    const answers: WeighCountedProductOutcome[] = [
+      { kind: "weighed", weight_thousandths: 1000 },
+      { kind: "weighed", weight_thousandths: 1500 },
+      { kind: "confirmed", weight_thousandths: 1500 },
+    ];
+    const asked: unknown[] = [];
+    const confirmedAnswer = deferred<WeighCountedProductOutcome>();
+    const { screen, recording } = await renderModal({
+      weigh: (_productId, confirmed) => {
+        asked.push(confirmed);
+        return confirmed === 1500 ? confirmedAnswer.promise : deferredOr(answers.shift());
+      },
+    });
+    const field = screen.getByRole("textbox", { name: "Cantidad contada" });
+    await expect.element(field).toHaveValue("1,000");
+
+    await confirm(screen);
+
+    await expect.element(field).toHaveValue("1,500");
+    await vi.waitFor(() => expect(asked).toContain(1500));
+    expect(recording).not.toHaveBeenCalled();
+    confirmedAnswer.resolve({ kind: "confirmed", weight_thousandths: 1500 });
+    await vi.waitFor(() => expect(recording).toHaveBeenCalledWith(QUESO.product_id, 1500, null));
+    expect(recording).toHaveBeenCalledOnce();
+  });
+
+  it("waits for the first stable reading when confirmed before any, recording nothing meanwhile", async () => {
+    const answers: WeighCountedProductOutcome[] = [{ kind: "weighing" }, { kind: "weighing" }];
+    const stable = deferred<WeighCountedProductOutcome>();
+    const { screen, recording } = await renderModal({
+      weigh: (_productId, confirmed) =>
+        confirmed === 1200
+          ? Promise.resolve({ kind: "confirmed", weight_thousandths: 1200 })
+          : answers.length > 0
+            ? deferredOr(answers.shift())
+            : stable.promise,
+    });
+    await expect.element(screen.getByText("Pesando…")).toBeVisible();
+
+    await confirm(screen);
+
+    expect(recording).not.toHaveBeenCalled();
+    await expect
+      .element(screen.getByRole("textbox", { name: "Cantidad contada" }))
+      .not.toHaveAttribute("aria-invalid", "true");
+    stable.resolve({ kind: "weighed", weight_thousandths: 1200 });
+    await vi.waitFor(() => expect(recording).toHaveBeenCalledWith(QUESO.product_id, 1200, null));
+    expect(recording).toHaveBeenCalledOnce();
   });
 
   it("follows each new stable reading of the scale", async () => {
@@ -153,7 +287,7 @@ describe("CountLineModal", () => {
     expect(recording).toHaveBeenCalledWith(QUESO.product_id, 2000, null);
   });
 
-  it("waits for the next stable reading and records it when confirmed while the plate moves", async () => {
+  it("waits for the next stable reading when confirmed while the plate moves", async () => {
     const answers = [
       deferred<WeighCountedProductOutcome>(),
       deferred<WeighCountedProductOutcome>(),
@@ -174,9 +308,10 @@ describe("CountLineModal", () => {
     expect(recording).not.toHaveBeenCalled();
     answers[2]?.resolve({ kind: "weighing" });
     await vi.waitFor(() => expect(weighing.mock.calls.length).toBe(4));
-    answers[3]?.resolve({ kind: "weighed", weight_thousandths: 1500 });
+    expect(weighing).toHaveBeenLastCalledWith(QUESO.product_id, 1000);
+    answers[3]?.resolve({ kind: "confirmed", weight_thousandths: 1000 });
 
-    await vi.waitFor(() => expect(recording).toHaveBeenCalledWith(QUESO.product_id, 1500, null));
+    await vi.waitFor(() => expect(recording).toHaveBeenCalledWith(QUESO.product_id, 1000, null));
     expect(recording).toHaveBeenCalledOnce();
   });
 
@@ -205,7 +340,10 @@ describe("CountLineModal", () => {
 
   it("records the weight read from the scale when confirmed", async () => {
     const { screen, recording, onRecorded } = await renderModal({
-      weigh: async () => ({ kind: "weighed", weight_thousandths: 4400 }),
+      weigh: async (_productId, confirmed) => ({
+        kind: confirmed === 4400 ? "confirmed" : "weighed",
+        weight_thousandths: 4400,
+      }),
     });
     await expect
       .element(screen.getByRole("textbox", { name: "Cantidad contada" }))
@@ -213,8 +351,8 @@ describe("CountLineModal", () => {
 
     await confirm(screen);
 
-    expect(recording).toHaveBeenCalledWith(QUESO.product_id, 4400, null);
     await vi.waitFor(() => expect(onRecorded).toHaveBeenCalledWith(RECORDED_LINE));
+    expect(recording).toHaveBeenCalledWith(QUESO.product_id, 4400, null);
   });
 
   it("records the units of a product sold by unit with the expiry that was chosen", async () => {

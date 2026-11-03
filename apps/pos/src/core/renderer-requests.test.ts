@@ -474,16 +474,21 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
         weighedAdditions.push([productId, weightThousandths].join(" "));
         return { kind: "product_unavailable" };
       },
-      weighProduct: async (productId: string, take: boolean): Promise<WeighProductOutcome> => {
-        weighings.push(`${productId} ${take}`);
+      weighProduct: async (
+        productId: string,
+        confirmedWeightThousandths: number | null,
+      ): Promise<WeighProductOutcome> => {
+        weighings.push(`${productId} ${confirmedWeightThousandths}`);
         return { kind: "weighing" };
       },
       weighLine: async (
         lineId: string,
         expectedWeightThousandths: number,
-        take: boolean,
+        confirmedWeightThousandths: number | null,
       ): Promise<WeighLineOutcome> => {
-        saleChanges.push(["weigh", lineId, expectedWeightThousandths, take].join(" "));
+        saleChanges.push(
+          ["weigh", lineId, expectedWeightThousandths, confirmedWeightThousandths].join(" "),
+        );
         return { kind: "unknown_line" };
       },
       initialCount: undefined,
@@ -2026,10 +2031,10 @@ describe("answerRendererRequest", () => {
         type: "weigh-product",
         request_id: "r90",
         product_id: "p7",
-        take: true,
+        confirmed_weight_thousandths: 1250,
       }),
     ).toEqual({ type: "weigh-product-result", request_id: "r90", outcome: { kind: "weighing" } });
-    expect(weighings).toEqual(["p7 true"]);
+    expect(weighings).toEqual(["p7 1250"]);
   });
 
   it("answers that weighing a product is unavailable when it fails or is not possible, and reports why", async () => {
@@ -2049,7 +2054,7 @@ describe("answerRendererRequest", () => {
       type: "weigh-product",
       request_id: "r91",
       product_id: "p2",
-      take: false,
+      confirmed_weight_thousandths: null,
     } as const;
 
     expect(await answerRendererRequest(failing.deps, request)).toEqual(unavailable);
@@ -3057,11 +3062,11 @@ describe("answerRendererRequest", () => {
           type: "weigh-line",
           line_id: "l1",
           expected_weight_thousandths: 1500,
-          take: true,
+          confirmed_weight_thousandths: 1400,
         } as const,
         "weighLine",
         "weighing a line on the scale",
-        "weigh l1 1500 true",
+        "weigh l1 1500 1400",
         "weigh-line-result",
       ],
       [

@@ -42,8 +42,8 @@ function requests() {
       calls.push(["search", query]);
       return SEARCHED;
     },
-    weigh: async (productId) => {
-      calls.push(["weigh", productId]);
+    weigh: async (productId, confirmedWeightThousandths) => {
+      calls.push(["weigh", productId, confirmedWeightThousandths]);
       return WEIGHED;
     },
   };
@@ -79,8 +79,13 @@ const MESSAGES: [StockRendererToCoreMessage, unknown[], unknown][] = [
     SEARCHED,
   ],
   [
-    { type: "weigh-counted-product", request_id: REQUEST_ID, product_id: "p2" },
-    ["weigh", "p2"],
+    {
+      type: "weigh-counted-product",
+      request_id: REQUEST_ID,
+      product_id: "p2",
+      confirmed_weight_thousandths: 1250,
+    },
+    ["weigh", "p2", 1250],
     WEIGHED,
   ],
 ];

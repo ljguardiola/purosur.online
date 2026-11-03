@@ -1,3 +1,4 @@
+import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook } from "vitest-browser-react";
 import { deferred } from "./test-support/deferred";
@@ -28,7 +29,9 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-async function weighingWith(weigh: (take: boolean) => Promise<ScaleWeighing>) {
+async function weighingWith(
+  weigh: (confirmedWeightThousandths: number | null) => Promise<ScaleWeighing>,
+) {
   const asking = vi.fn(weigh);
   const rendered = await renderHook(() => useScaleWeighing(asking));
   return { ...rendered, asking };
@@ -51,7 +54,7 @@ describe("useScaleWeighing", () => {
     await vi.advanceTimersByTimeAsync(PAUSE_MS);
     expect(asking).toHaveBeenCalledTimes(3);
     expect(result.current.phase).toEqual({ kind: "weighing", last: undefined });
-    expect(asking.mock.calls).toEqual([[false], [false], [false]]);
+    expect(asking.mock.calls).toEqual([[null], [null], [null]]);
   });
 
   it("shows each stable reading and keeps asking without taking it", async () => {
@@ -64,7 +67,7 @@ describe("useScaleWeighing", () => {
     await expect
       .poll(() => result.current.phase)
       .toEqual({ kind: "stable", reading: { weightThousandths: 250, amount: 312_500 } });
-    expect(asking.mock.calls).toEqual([[false], [false]]);
+    expect(asking.mock.calls).toEqual([[null], [null]]);
   });
 
   it("keeps the last stable reading while the plate moves", async () => {
@@ -87,22 +90,60 @@ describe("useScaleWeighing", () => {
       .toEqual({ kind: "weighing", last: { weightThousandths: 120, amount: 150_000 } });
   });
 
-  it("asks to take the weight right away when confirming, then keeps asking to take until it is taken", async () => {
+  it("confirms the weight shown right away, then keeps confirming it until it is taken", async () => {
     const { result, asking, act } = await weighingWith(answering(STABLE_250));
     await expect.poll(() => result.current.phase.kind).toBe("stable");
 
     await act(() => result.current.confirm());
 
     await expect.poll(() => asking.mock.calls.length).toBe(2);
-    expect(asking).toHaveBeenLastCalledWith(true);
+    expect(asking).toHaveBeenLastCalledWith(250);
     expect(result.current.confirming).toBe(true);
     await vi.advanceTimersByTimeAsync(PAUSE_MS);
     expect(asking).toHaveBeenCalledTimes(3);
-    expect(asking).toHaveBeenLastCalledWith(true);
+    expect(asking).toHaveBeenLastCalledWith(250);
+  });
+
+  it("confirms the last weight shown while the plate moves", async () => {
+    const { result, asking, act } = await weighingWith(answering(STABLE_120, WEIGHING));
+    await vi.advanceTimersByTimeAsync(PAUSE_MS);
+    await expect.poll(() => result.current.phase.kind).toBe("weighing");
+
+    await act(() => result.current.confirm());
+
+    await expect.poll(() => asking.mock.calls.length).toBe(3);
+    expect(asking).toHaveBeenLastCalledWith(120);
+  });
+
+  it("shows a different stable weight the confirmation got and keeps confirming that one instead", async () => {
+    const { result, asking, act } = await weighingWith(answering(STABLE_120, STABLE_250, TAKEN));
+    await expect.poll(() => result.current.phase).toEqual(STABLE_120);
+
+    await act(() => result.current.confirm());
+
+    await expect.poll(() => result.current.phase).toEqual(STABLE_250);
+    expect(result.current.confirming).toBe(true);
+    await vi.advanceTimersByTimeAsync(PAUSE_MS);
+    await expect.poll(() => result.current.phase).toEqual(TAKEN);
+    expect(asking.mock.calls).toEqual([[null], [120], [250]]);
+  });
+
+  it("confirms nothing before a weight is shown, and confirms the first stable weight once it shows", async () => {
+    const { result, asking, act } = await weighingWith(answering(WEIGHING, STABLE_250));
+    await expect.poll(() => asking.mock.calls.length).toBe(1);
+
+    await act(() => result.current.confirm());
+    await expect.poll(() => result.current.phase).toEqual(STABLE_250);
+    await vi.advanceTimersByTimeAsync(PAUSE_MS);
+
+    expect(asking.mock.calls).toEqual([[null], [null], [250]]);
+    expect(result.current.confirming).toBe(true);
   });
 
   it("takes the reading the confirmation got and stops asking", async () => {
-    const { result, asking, act } = await weighingWith(async (take) => (take ? TAKEN : STABLE_250));
+    const { result, asking, act } = await weighingWith(async (confirmed) =>
+      confirmed === 250 ? TAKEN : STABLE_250,
+    );
     await expect.poll(() => result.current.phase.kind).toBe("stable");
 
     await act(() => result.current.confirm());
@@ -120,12 +161,12 @@ describe("useScaleWeighing", () => {
 
     await act(() => result.current.confirm());
     expect(asking).toHaveBeenCalledOnce();
-    expect(asking).toHaveBeenLastCalledWith(false);
+    expect(asking).toHaveBeenLastCalledWith(null);
     answer.resolve(STABLE_250);
     await vi.advanceTimersByTimeAsync(PAUSE_MS);
 
     expect(asking).toHaveBeenCalledTimes(2);
-    expect(asking).toHaveBeenLastCalledWith(true);
+    expect(asking).toHaveBeenLastCalledWith(250);
   });
 
   it("ignores a second confirmation while confirming", async () => {
@@ -147,9 +188,10 @@ describe("useScaleWeighing", () => {
     await act(() => result.current.confirm());
 
     await expect.poll(() => result.current.zeroRefused).toBe(true);
+    expect(asking).toHaveBeenLastCalledWith(0);
     expect(result.current.confirming).toBe(false);
     await vi.advanceTimersByTimeAsync(PAUSE_MS);
-    expect(asking).toHaveBeenLastCalledWith(false);
+    expect(asking).toHaveBeenLastCalledWith(null);
     expect(result.current.zeroRefused).toBe(true);
     await vi.advanceTimersByTimeAsync(PAUSE_MS);
     await expect.poll(() => result.current.zeroRefused).toBe(false);
@@ -282,6 +324,18 @@ describe("useScaleWeighing", () => {
     const { result } = await renderHook(() => useScaleWeighing(async () => reading));
 
     await expect.poll(() => result.current.phase).toEqual(reading);
+  });
+
+  it("keeps asking after the first answer when its effect runs twice, as in StrictMode", async () => {
+    const asking = vi.fn(async (): Promise<ScaleWeighing> => WEIGHING);
+    await renderHook(() => useScaleWeighing(asking), { wrapper: StrictMode });
+    await expect.poll(() => asking.mock.calls.length).toBeGreaterThan(0);
+    const asked = asking.mock.calls.length;
+
+    await vi.advanceTimersByTimeAsync(PAUSE_MS);
+    await vi.advanceTimersByTimeAsync(PAUSE_MS);
+
+    expect(asking.mock.calls.length).toBeGreaterThanOrEqual(asked + 2);
   });
 
   it("stops asking when the answer says the weighing is closed", async () => {

@@ -29,7 +29,7 @@ function scripted(...answers: ScaleWeighing[]) {
 }
 
 async function renderModal(
-  weigh: (take: boolean) => Promise<ScaleWeighing>,
+  weigh: (confirmedWeightThousandths: number | null) => Promise<ScaleWeighing>,
   { currentWeight }: { currentWeight?: number } = {},
 ) {
   await page.viewport(1280, 1000);
@@ -95,38 +95,37 @@ describe("WeighProductModal", () => {
     third.resolve(STABLE_250);
     await expect.element(screen.getByText("0,250 kg")).toBeVisible();
     await expect.element(screen.getByText("Lectura estable")).toBeVisible();
-    expect(asking).toHaveBeenCalledWith(false);
-    expect(asking).not.toHaveBeenCalledWith(true);
+    expect(asking.mock.calls.every(([confirmed]) => confirmed === null)).toBe(true);
   });
 
-  it("takes the weight and closes when the cashier confirms", async () => {
-    const { screen, asking, onClose } = await renderModal(async (take) =>
-      take ? TAKEN : STABLE_250,
+  it("takes the weight shown and closes when the cashier confirms", async () => {
+    const { screen, asking, onClose } = await renderModal(async (confirmed) =>
+      confirmed === 250 ? TAKEN : STABLE_250,
     );
     await expect.element(screen.getByText("Lectura estable")).toBeVisible();
 
     await userEvent.click(screen.getByRole("button", { name: "Confirmar peso" }));
 
     await vi.waitFor(() => expect(onClose).toHaveBeenCalledOnce());
-    expect(asking).toHaveBeenCalledWith(true);
+    expect(asking).toHaveBeenCalledWith(250);
   });
 
   it("confirms with Enter", async () => {
-    const { screen, asking, onClose } = await renderModal(async (take) =>
-      take ? TAKEN : STABLE_250,
+    const { screen, asking, onClose } = await renderModal(async (confirmed) =>
+      confirmed === 250 ? TAKEN : STABLE_250,
     );
     await expect.element(screen.getByText("Lectura estable")).toBeVisible();
 
     await userEvent.keyboard("{Enter}");
 
     await vi.waitFor(() => expect(onClose).toHaveBeenCalledOnce());
-    expect(asking).toHaveBeenCalledWith(true);
+    expect(asking).toHaveBeenCalledWith(250);
   });
 
   it("disables the confirmation while it waits for a stable reading to take", async () => {
     const taking = deferred<ScaleWeighing>();
-    const { screen } = await renderModal((take) =>
-      take ? taking.promise : Promise.resolve(STABLE_250),
+    const { screen } = await renderModal((confirmed) =>
+      confirmed === null ? Promise.resolve(STABLE_250) : taking.promise,
     );
     await expect.element(screen.getByText("Lectura estable")).toBeVisible();
 
@@ -135,21 +134,22 @@ describe("WeighProductModal", () => {
     await expect.element(screen.getByRole("button", { name: "Confirmar peso" })).toBeDisabled();
   });
 
-  it("waits for the next stable reading when confirmed while the plate moves", async () => {
-    const takes: ScaleWeighing[] = [WEIGHING, TAKEN];
-    const { screen, asking, onClose } = await renderModal(async (take) =>
-      take ? (takes.shift() ?? WEIGHING) : WEIGHING,
+  it("waits for the next stable reading, shows it and takes it when confirmed while the plate moves", async () => {
+    const unconfirmed = scripted(WEIGHING, WEIGHING, STABLE_250);
+    const { screen, asking, onClose } = await renderModal((confirmed) =>
+      confirmed === 250 ? Promise.resolve(TAKEN) : unconfirmed(),
     );
 
     await userEvent.click(screen.getByRole("button", { name: "Confirmar peso" }));
 
+    await expect.element(screen.getByText("0,250 kg")).toBeVisible();
     await vi.waitFor(() => expect(onClose).toHaveBeenCalledOnce());
-    expect(asking.mock.calls.filter(([take]) => take).length).toBeGreaterThanOrEqual(2);
+    expect(asking).toHaveBeenLastCalledWith(250);
   });
 
   it("asks for a weight and keeps weighing when a weight of zero is confirmed", async () => {
-    const { screen, asking, onClose } = await renderModal(async (take) =>
-      take ? { kind: "zero_weight" } : ZERO,
+    const { screen, asking, onClose } = await renderModal(async (confirmed) =>
+      confirmed === null ? ZERO : { kind: "zero_weight" },
     );
     await expect.element(screen.getByText("Lectura estable")).toBeVisible();
     await expect.element(screen.getByText(ZERO_NOTE)).not.toBeInTheDocument();
@@ -170,7 +170,7 @@ describe("WeighProductModal", () => {
     await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
 
     expect(onClose).toHaveBeenCalledOnce();
-    expect(asking).not.toHaveBeenCalledWith(true);
+    expect(asking.mock.calls.every(([confirmed]) => confirmed === null)).toBe(true);
     expect(typed).not.toHaveBeenCalled();
   });
 
@@ -218,6 +218,17 @@ describe("WeighProductModal", () => {
     answer.resolve(WEIGHING);
 
     await expect.poll(() => typed.mock.calls).toEqual([[2000]]);
+  });
+
+  it("shows the form that changes a line's weight with a note when the scale is not available", async () => {
+    const { screen } = await renderModal(async () => ({ kind: "scale_unavailable" }), {
+      currentWeight: 1000,
+    });
+
+    await expect
+      .element(screen.getByRole("heading", { name: "Cambiar el peso de Queso cremoso" }))
+      .toBeVisible();
+    await expect.element(screen.getByText(UNAVAILABLE_NOTE).first()).toBeVisible();
   });
 
   it("types the new weight of a line in the form that changes it", async () => {

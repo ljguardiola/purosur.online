@@ -41,7 +41,9 @@ describe("stockRendererToCoreMessageSchema", () => {
     { type: "find-countable-product", code: "7790001" },
     { type: "search-countable-products", query: "yer" },
     { type: "search-countable-products", query: "" },
-    { type: "weigh-counted-product", product_id: "product-1" },
+    { type: "weigh-counted-product", product_id: "product-1", confirmed_weight_thousandths: null },
+    { type: "weigh-counted-product", product_id: "product-1", confirmed_weight_thousandths: 0 },
+    { type: "weigh-counted-product", product_id: "product-1", confirmed_weight_thousandths: 1250 },
   ])("accepts $type", (body) => {
     expect(stockRendererToCoreMessageSchema.parse({ ...body, request_id: REQUEST_ID })).toEqual({
       ...body,
@@ -54,7 +56,7 @@ describe("stockRendererToCoreMessageSchema", () => {
     { type: "withdraw-initial-count-line", movement_id: "movement-1" },
     { type: "find-countable-product", code: "7790001" },
     { type: "search-countable-products", query: "yer" },
-    { type: "weigh-counted-product", product_id: "product-1" },
+    { type: "weigh-counted-product", product_id: "product-1", confirmed_weight_thousandths: null },
     { type: "record-initial-count-line", product_id: "product-1", counted: 1500, expires_on: null },
   ])("rejects $type without its request id", (body) => {
     expect(acceptsRequest(body)).toBe(false);
@@ -66,6 +68,10 @@ describe("stockRendererToCoreMessageSchema", () => {
     ["find-countable-product", {}],
     ["search-countable-products", {}],
     ["weigh-counted-product", {}],
+    ["weigh-counted-product", { product_id: "product-1" }],
+    ["weigh-counted-product", { product_id: "product-1", confirmed_weight_thousandths: -1 }],
+    ["weigh-counted-product", { product_id: "product-1", confirmed_weight_thousandths: 1.5 }],
+    ["weigh-counted-product", { product_id: "product-1", confirmed_weight_thousandths: "1" }],
   ])("rejects %s with %j", (type, fields) => {
     expect(acceptsRequest({ type, request_id: REQUEST_ID, ...fields })).toBe(false);
   });
@@ -163,9 +169,14 @@ describe("stockCoreToRendererMessageSchema", () => {
       },
     ],
     ["weigh-counted-product-result", { kind: "weighed", weight_thousandths: 1250 }],
-    ...["weighing", "scale_unavailable", "unknown_product", "not_sold_by_weight"].map(
-      (kind): [string, unknown] => ["weigh-counted-product-result", { kind }],
-    ),
+    ["weigh-counted-product-result", { kind: "confirmed", weight_thousandths: 1250 }],
+    ...[
+      "weighing",
+      "zero_weight",
+      "scale_unavailable",
+      "unknown_product",
+      "not_sold_by_weight",
+    ].map((kind): [string, unknown] => ["weigh-counted-product-result", { kind }]),
   ];
 
   it.each(ACCEPTED)("accepts the %s answer %j", (type, outcome) => {
@@ -213,6 +224,9 @@ describe("stockCoreToRendererMessageSchema", () => {
     ["weigh-counted-product-result", { kind: "weighed" }],
     ["weigh-counted-product-result", { kind: "weighed", weight_thousandths: 0 }],
     ["weigh-counted-product-result", { kind: "weighed", weight_thousandths: 1.5 }],
+    ["weigh-counted-product-result", { kind: "confirmed" }],
+    ["weigh-counted-product-result", { kind: "confirmed", weight_thousandths: 0 }],
+    ["weigh-counted-product-result", { kind: "confirmed", weight_thousandths: 1.5 }],
     ["search-countable-products-result", { kind: "results", products: [] }],
     ["record-initial-count-line-result", { kind: "unknown" }],
   ])("rejects the %s answer %j", (type, outcome) => {

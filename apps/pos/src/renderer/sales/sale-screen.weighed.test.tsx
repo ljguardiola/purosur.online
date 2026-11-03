@@ -221,7 +221,7 @@ describe("SaleScreen weighing a product on the scale", () => {
     await expect.element(dialog.getByText("Pesando…")).toBeVisible();
     await expect.element(dialog.getByText("0,000 kg")).toBeVisible();
     await expect.element(dialog.getByText("$ 0,00")).toBeVisible();
-    expect(weighProduct).toHaveBeenCalledWith("p-queso", false);
+    expect(weighProduct).toHaveBeenCalledWith("p-queso", null);
     expect(addWeighedProduct).not.toHaveBeenCalled();
     await expect.element(screen.getByText("La venta está vacía")).toBeVisible();
   });
@@ -233,8 +233,8 @@ describe("SaleScreen weighing a product on the scale", () => {
     };
     const currentSale = vi.fn().mockResolvedValueOnce(SALE_OF_YERBA);
     const weighProduct = vi.fn(
-      async (_productId: string, take: boolean): Promise<WeighProductOutcome> =>
-        take
+      async (_productId: string, confirmed: number | null): Promise<WeighProductOutcome> =>
+        confirmed === 1250
           ? {
               kind: "added",
               removed_manual_discount: false,
@@ -263,14 +263,16 @@ describe("SaleScreen weighing a product on the scale", () => {
       .element(screen.getByRole("heading", { name: "Peso de Queso cremoso" }))
       .not.toBeInTheDocument();
     await expect.element(field).toHaveValue("");
-    expect(weighProduct).toHaveBeenCalledWith("p-queso", true);
+    expect(weighProduct).toHaveBeenCalledWith("p-queso", 1250);
   });
 
   it("asks for a weight when the confirmed weight is zero", async () => {
     const { screen, field } = await scanning({
       weighProduct: vi.fn(
-        async (_productId: string, take: boolean): Promise<WeighProductOutcome> =>
-          take ? { kind: "zero_weight" } : { kind: "stable", weight_thousandths: 0, amount: 0 },
+        async (_productId: string, confirmed: number | null): Promise<WeighProductOutcome> =>
+          confirmed === null
+            ? { kind: "stable", weight_thousandths: 0, amount: 0 }
+            : { kind: "zero_weight" },
       ),
     });
 
@@ -616,8 +618,12 @@ describe("SaleScreen weighing the new weight of a line on the scale", () => {
       weight_source: "SCALE" as const,
     };
     const weighLine = vi.fn(
-      async (_lineId: string, _expected: number, take: boolean): Promise<WeighLineOutcome> =>
-        take
+      async (
+        _lineId: string,
+        _expected: number,
+        confirmed: number | null,
+      ): Promise<WeighLineOutcome> =>
+        confirmed === 800
           ? {
               kind: "changed",
               removed_manual_discount: false,
@@ -635,8 +641,8 @@ describe("SaleScreen weighing the new weight of a line on the scale", () => {
 
     await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
     await expect.element(screen.getByText("0,800 kg")).toBeVisible();
-    expect(weighLine).toHaveBeenCalledWith("line-3", 1250, false);
-    expect(weighLine).toHaveBeenCalledWith("line-3", 1250, true);
+    expect(weighLine).toHaveBeenCalledWith("line-3", 1250, null);
+    expect(weighLine).toHaveBeenCalledWith("line-3", 1250, 800);
   });
 
   it("leads to the typed weight form, keeping the weight typed as today", async () => {
@@ -658,12 +664,12 @@ describe("SaleScreen weighing the new weight of a line on the scale", () => {
   });
 
   it("changes nothing when the weighing is cancelled", async () => {
-    const weighLine = vi.fn(async (): Promise<WeighLineOutcome> => STABLE_800);
+    const weighLine = vi.fn<SaleScreenProps["weighLine"]>(async () => STABLE_800);
     const { screen } = await renderWithQueso({ weighLine });
 
     await screen.getByRole("button", { name: "Cancelar" }).click();
 
-    expect(weighLine).not.toHaveBeenCalledWith("line-3", 1250, true);
+    expect(weighLine.mock.calls.every(([, , confirmed]) => confirmed === null)).toBe(true);
     await expect.element(screen.getByText("1,250 kg")).toBeVisible();
   });
 
@@ -678,6 +684,25 @@ describe("SaleScreen weighing the new weight of a line on the scale", () => {
       await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
     },
   );
+
+  it("keeps the weighing opened since and shows no failure when the answer of a cancelled weighing arrives late", async () => {
+    const answer = deferred<WeighLineOutcome>();
+    const { screen } = await renderWithQueso({
+      weighLine: vi
+        .fn<SaleScreenProps["weighLine"]>()
+        .mockReturnValueOnce(answer.promise)
+        .mockResolvedValue({ kind: "weighing" }),
+    });
+
+    await screen.getByRole("button", { name: "Cancelar" }).click();
+    await screen.getByRole("button", { name: "Cambiar el peso de Queso cremoso" }).click();
+    await expect.element(screen.getByRole("dialog")).toBeVisible();
+    answer.resolve({ kind: "unavailable" });
+    await screen.getByRole("button", { name: "Tipear peso" }).click();
+
+    await expect.element(screen.getByRole("textbox", { name: "Peso en kg" })).toBeVisible();
+    await expect.element(screen.getByText("No se pudo cambiar el peso")).not.toBeInTheDocument();
+  });
 
   it("shows that the change failed when the core cannot be asked", async () => {
     const { screen } = await renderWithQueso({
