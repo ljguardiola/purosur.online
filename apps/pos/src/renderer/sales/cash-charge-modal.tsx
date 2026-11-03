@@ -310,7 +310,7 @@ export function CashChargeModal({
                   {
                     label: "A cobrar ahora",
                     value: formatCents(toCharge),
-                    emphasized: true,
+                    emphasized: true as const,
                   },
                 ]
               : [
@@ -322,7 +322,7 @@ export function CashChargeModal({
                   {
                     label: "A cobrar en efectivo",
                     value: formatCents(rounded.applied),
-                    emphasized: true,
+                    emphasized: true as const,
                   },
                 ]),
           ]}
