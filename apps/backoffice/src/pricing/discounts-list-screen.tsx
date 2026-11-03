@@ -20,7 +20,6 @@ import { deepEqual } from "@tanstack/react-router";
 import { BadgePercent, Check, Pencil, Plus, Search, SearchX } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
-import { combineCloudData } from "../platform/combine-cloud-data";
 import type { CategoryCreationModal, ProductCreationModal } from "../platform/creation-parts";
 import { discountBenefitText, discountTargetLine } from "../platform/discount-terms-text";
 import { type BackofficeAccess, canManageProductsAndCategories } from "../shell/backoffice-access";
@@ -37,8 +36,7 @@ import type { DiscountsListScreenServices } from "./discounts-list-services";
 import { EditDiscountModal } from "./edit-discount-modal";
 import { NewDiscountModal } from "./new-discount-modal";
 import {
-  useDiscountsQuery,
-  useDiscountTargetsQuery,
+  useDiscountsWithTargetsQuery,
   useRefreshDiscounts,
   useReloadDiscount,
 } from "./pricing-queries";
@@ -140,15 +138,11 @@ export function DiscountsListScreen({
   onSessionEnded,
   services,
 }: DiscountsListScreenProps) {
-  const discountsData = useDiscountsQuery({
+  const data = useDiscountsWithTargetsQuery({
     fetchDiscounts: services.fetchDiscounts,
-    onSessionEnded,
-  });
-  const targetsData = useDiscountTargetsQuery({
     fetchDiscountTargets: services.fetchDiscountTargets,
     onSessionEnded,
   });
-  const data = combineCloudData(discountsData, targetsData);
   const refreshDiscounts = useRefreshDiscounts();
   const reloadDiscount = useReloadDiscount({ fetchDiscounts: services.fetchDiscounts });
   const [search, setSearch] = useState(filters.search);
