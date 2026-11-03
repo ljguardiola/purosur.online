@@ -478,15 +478,18 @@ test("fetchPriceRecommendation sends the proposed price when there is one", asyn
 test.each([
   [{ kind: "missing_prices", componentProductIds: [pasasId] }, { kind: "none" }, null],
   [{ kind: "recommended", unitPrice: 1 }, { kind: "incomplete" }, null],
-])("fetchPriceRecommendation returns %j beside a %j batch cost and no price", async (recommendation, batchCost, currentPrice) => {
-  const answer = { currentPrice, recommendation, batchCost };
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, answer));
+])(
+  "fetchPriceRecommendation returns %j beside a %j batch cost and no price",
+  async (recommendation, batchCost, currentPrice) => {
+    const answer = { currentPrice, recommendation, batchCost };
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, answer));
 
-  expect(await fetchPriceRecommendation("product-1", { components: mixComponents })).toEqual({
-    kind: "ok",
-    value: answer,
-  });
-});
+    expect(await fetchPriceRecommendation("product-1", { components: mixComponents })).toEqual({
+      kind: "ok",
+      value: answer,
+    });
+  },
+);
 
 test.each([
   [401, { kind: "unauthenticated" }],
