@@ -2,7 +2,7 @@ import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { APP_DIR } from "../launch-app";
 
-export const PACKAGED_FOLDER = join(APP_DIR, "release", "staging", "win-unpacked");
+const PACKAGED_FOLDER = join(APP_DIR, "release", "staging", "win-unpacked");
 export const RESOURCES_FOLDER = join(PACKAGED_FOLDER, "resources");
 
 export function packagedExecutable(): string {
