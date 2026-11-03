@@ -14,5 +14,7 @@ export interface PurchasedLotStoreTransaction
     purchaseLineIds: readonly string[],
   ): Promise<PurchasedLot[]>;
   setLotExpiry(lotId: string, expiresOn: string | null): Promise<void>;
-  setLotsPurchasedOn(lotIds: readonly string[], purchasedOn: string): Promise<void>;
+  // The lots take the purchase day as their name day and take their name again, after every lot
+  // that already has one.
+  renameLotsToPurchaseDay(lotIds: readonly string[], purchasedOn: string): Promise<void>;
 }

@@ -23,7 +23,7 @@ export async function redatePurchasedLots(
       return { kind: "not_found" };
     }
   }
-  await tx.setLotsPurchasedOn(
+  await tx.renameLotsToPurchaseDay(
     lots.map((lot) => lot.lotId),
     input.purchasedOn,
   );

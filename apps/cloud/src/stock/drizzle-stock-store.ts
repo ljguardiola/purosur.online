@@ -233,13 +233,13 @@ export class DrizzleStockStoreTransaction<TQueryResult extends PgQueryResultHKT>
     await this.tx.update(lots).set({ expiresOn }).where(eq(lots.id, lotId));
   }
 
-  async setLotsPurchasedOn(lotIds: readonly string[], purchasedOn: string): Promise<void> {
+  async renameLotsToPurchaseDay(lotIds: readonly string[], purchasedOn: string): Promise<void> {
     if (lotIds.length === 0) {
       return;
     }
     await this.tx
       .update(lots)
-      .set({ purchasedOn })
+      .set({ purchasedOn, nameOrder: sql`nextval('lot_name_order_sequence')` })
       .where(inArray(lots.id, [...lotIds]));
   }
 
