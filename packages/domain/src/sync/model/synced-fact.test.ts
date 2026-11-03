@@ -26,16 +26,22 @@ describe("whether a synced fact carries anything to keep", () => {
 
   it.each([
     ["no payment", []],
-    ["only a payment that was not approved", [{ state: "DECLINED" }, { state: "PENDING" }]],
-  ])("is nothing for a cancelled sale with %s", (_case, extra) => {
-    const sale = aCancelledSaleFact();
-    const payments = extra.map((payment) => ({ ...sale.sale.payments[0], ...payment }));
+    ["only payments that were not approved", ["DECLINED", "PENDING"]],
+  ])("is nothing for a cancelled sale with %s", (_case, states) => {
+    const [template] = aCancelledSaleFact().sale.payments;
+    if (template === undefined) {
+      throw new Error("test setup: the cancelled sale has no payment");
+    }
+    const payments = states.map((state) => ({ ...template, state }));
 
     expect(carriesNothingToKeep(aCancelledSaleFact({ payments }))).toBe(true);
   });
 
   it("is something for a cancelled sale with an approved payment among others", () => {
     const [approved] = aCancelledSaleFact().sale.payments;
+    if (approved === undefined) {
+      throw new Error("test setup: the cancelled sale has no payment");
+    }
 
     expect(
       carriesNothingToKeep(
