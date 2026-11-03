@@ -77,6 +77,14 @@ export type {
 } from "./read-price-margin.js";
 export { readPriceMargin } from "./read-price-margin.js";
 export type {
+  BatchCostMargin,
+  PriceRecommendation,
+  ReadPriceRecommendationInput,
+  ReadPriceRecommendationOutcome,
+  ReadPriceRecommendationPorts,
+} from "./read-price-recommendation.js";
+export { readPriceRecommendation } from "./read-price-recommendation.js";
+export type {
   PriceAwaitingReview,
   PriceAwaitingReviewProduct,
   PricesPastReviewDeadlineReport,
