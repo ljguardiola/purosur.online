@@ -63,10 +63,16 @@ describe("weighCountedProduct", () => {
     },
   );
 
-  it.each([null, 0, 1_250])("tells a stable zero apart, confirming %s", async (confirmed) => {
+  it("answers a stable zero as its weight when nothing is being confirmed", async () => {
     const scale = new FakeCountScale({ kind: "stable", weightThousandths: 0 });
 
-    expect(await weigh(ledger(), scale, "queso", confirmed)).toEqual({ kind: "zero_weight" });
+    expect(await weigh(ledger(), scale)).toEqual({ kind: "weighed", weightThousandths: 0 });
+  });
+
+  it("refuses to confirm a stable zero", async () => {
+    const scale = new FakeCountScale({ kind: "stable", weightThousandths: 0 });
+
+    expect(await weigh(ledger(), scale, "queso", 0)).toEqual({ kind: "zero_weight" });
   });
 
   it("confirms a stable reading equal to the weight being confirmed", async () => {

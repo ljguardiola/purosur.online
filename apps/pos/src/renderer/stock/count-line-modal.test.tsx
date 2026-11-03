@@ -164,7 +164,7 @@ describe("CountLineModal", () => {
   it("follows the scale back to zero when the product is lifted", async () => {
     const answers: WeighCountedProductOutcome[] = [
       { kind: "weighed", weight_thousandths: 1000 },
-      { kind: "zero_weight" },
+      { kind: "weighed", weight_thousandths: 0 },
     ];
     const { screen } = await renderModal({
       weigh: () => deferredOr(answers.shift()),
@@ -177,7 +177,8 @@ describe("CountLineModal", () => {
 
   it("asks for a weight and records nothing when a weight of zero is confirmed", async () => {
     const { screen, recording, weighing } = await renderModal({
-      weigh: async () => ({ kind: "zero_weight" }),
+      weigh: async (_productId, confirmed) =>
+        confirmed === null ? { kind: "weighed", weight_thousandths: 0 } : { kind: "zero_weight" },
     });
     await expect.element(screen.getByText("Lectura estable")).toBeVisible();
     await expect.element(screen.getByText(ZERO_NOTE)).not.toBeInTheDocument();
@@ -188,6 +189,13 @@ describe("CountLineModal", () => {
     expect(weighing).toHaveBeenCalledWith(QUESO.product_id, 0);
     expect(recording).not.toHaveBeenCalled();
     await expect.element(screen.getByRole("button", { name: "Confirmar línea" })).toBeEnabled();
+  });
+
+  it("asks for a weight when the core refuses a zero weight before anything is confirmed", async () => {
+    const { screen } = await renderModal({ weigh: async () => ({ kind: "zero_weight" }) });
+
+    await expect.element(screen.getByText(ZERO_NOTE).first()).toBeVisible();
+    await expect.element(screen.getByText("Lectura estable")).not.toBeInTheDocument();
   });
 
   it("reads the scale again and records the weight shown when it is confirmed", async () => {

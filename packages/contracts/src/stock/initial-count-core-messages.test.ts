@@ -169,6 +169,7 @@ describe("stockCoreToRendererMessageSchema", () => {
       },
     ],
     ["weigh-counted-product-result", { kind: "weighed", weight_thousandths: 1250 }],
+    ["weigh-counted-product-result", { kind: "weighed", weight_thousandths: 0 }],
     ["weigh-counted-product-result", { kind: "confirmed", weight_thousandths: 1250 }],
     ...[
       "weighing",
@@ -222,7 +223,7 @@ describe("stockCoreToRendererMessageSchema", () => {
     ["find-countable-product-result", { kind: "found" }],
     ["find-countable-product-result", { kind: "found", product: { name: "Queso" } }],
     ["weigh-counted-product-result", { kind: "weighed" }],
-    ["weigh-counted-product-result", { kind: "weighed", weight_thousandths: 0 }],
+    ["weigh-counted-product-result", { kind: "weighed", weight_thousandths: -1 }],
     ["weigh-counted-product-result", { kind: "weighed", weight_thousandths: 1.5 }],
     ["weigh-counted-product-result", { kind: "confirmed" }],
     ["weigh-counted-product-result", { kind: "confirmed", weight_thousandths: 0 }],

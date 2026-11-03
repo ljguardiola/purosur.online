@@ -362,6 +362,19 @@ describe("weighing a product to count on the scale", () => {
     });
   });
 
+  it("answers a stable zero as its weight when nothing is being confirmed", async () => {
+    expect(await weigh({ kind: "stable", weightThousandths: 0 })).toEqual({
+      kind: "weighed",
+      weight_thousandths: 0,
+    });
+  });
+
+  it("answers a stable zero being confirmed as a zero weight", async () => {
+    expect(await weigh({ kind: "stable", weightThousandths: 0 }, "p2", 0)).toEqual({
+      kind: "zero_weight",
+    });
+  });
+
   it("answers the confirmed weight when the stable reading is the one confirmed", async () => {
     expect(await weigh({ kind: "stable", weightThousandths: 1250 }, "p2", 1250)).toEqual({
       kind: "confirmed",
@@ -371,12 +384,6 @@ describe("weighing a product to count on the scale", () => {
 
   it.each([
     ["a reading that is not stable", { kind: "not_stable" } as const, "p2", { kind: "weighing" }],
-    [
-      "a stable zero",
-      { kind: "stable", weightThousandths: 0 } as const,
-      "p2",
-      { kind: "zero_weight" },
-    ],
     [
       "a scale that is unavailable",
       { kind: "unavailable" } as const,
