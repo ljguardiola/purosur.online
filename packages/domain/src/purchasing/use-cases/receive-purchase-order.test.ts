@@ -195,7 +195,7 @@ describe("receivePurchaseOrder", () => {
     ]);
   });
 
-  it("records what is missing of a short delivery and leaves the order partially received", async () => {
+  it("records what is missing of a short delivery and leaves the order partially received, with no day it was received", async () => {
     const scene = scenario();
 
     const outcome = await receive(scene, {
@@ -205,7 +205,7 @@ describe("receivePurchaseOrder", () => {
     expect(outcome).toMatchObject({ kind: "received", state: "PARTIALLY_RECEIVED" });
     expect(scene.orders.orders()[0]).toMatchObject({
       state: "PARTIALLY_RECEIVED",
-      receivedAt: NOW,
+      receivedAt: null,
     });
     expect(scene.orders.receipts()[0]?.lines).toMatchObject([
       { purchaseOrderLineId: LINE_A, receivedQuantity: 24_000, missingQuantity: 12_000 },

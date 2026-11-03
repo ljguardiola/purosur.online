@@ -1,6 +1,7 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { accessWith } from "../shell/test-support/backoffice-access";
 import type { PurchaseOrderScreenServices } from "./purchase-order-services";
 import {
   createServices,
@@ -610,6 +611,35 @@ test("reads the order again when sharing finds it no longer shareable", async ()
 
   await expect.element(screen.getByText("Enviado").first()).toBeVisible();
   expect(screen.getByRole("dialog").query()).toBeNull();
+});
+
+test("offers neither cancelling nor sharing a sent order to whoever may read and receive but not manage purchase orders", async () => {
+  const screen = await loaded(sentServices(), {
+    access: accessWith("purchase_order_reads", "purchase_order_receipts"),
+  });
+
+  await expect.element(screen.getByRole("button", { name: "Recibir pedido" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Cancelar pedido" }).query()).toBeNull();
+  expect(screen.getByRole("button", { name: "Compartir pedido" }).query()).toBeNull();
+});
+
+test("shows a draft's lines read-only, with no saving, cancelling or sharing, to whoever may not manage purchase orders", async () => {
+  const screen = await loaded(createServices(), { access: accessWith("purchase_order_reads") });
+
+  await expect.element(screen.getByRole("table", { name: "Líneas del pedido" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Guardar" }).query()).toBeNull();
+  expect(screen.getByRole("button", { name: "Cancelar pedido" }).query()).toBeNull();
+  expect(screen.getByRole("button", { name: "Compartir pedido" }).query()).toBeNull();
+});
+
+test("offers editing, cancelling and sharing a draft to whoever may manage purchase orders", async () => {
+  const screen = await loaded(createServices(), {
+    access: accessWith("purchase_order_reads", "purchase_orders"),
+  });
+
+  await expect.element(screen.getByRole("button", { name: "Guardar" })).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Cancelar pedido" })).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Compartir pedido" })).toBeVisible();
 });
 
 test("shows the supplier's item under each product of a read-only order that has one", async () => {

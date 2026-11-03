@@ -121,6 +121,22 @@ describe("getPurchaseOrder", () => {
     ).toEqual([26_000, 0]);
   });
 
+  it("answers nothing outstanding on any line of a cancelled order received in part", async () => {
+    const [line] = detail.lines;
+    if (!line) {
+      throw new Error("the fixture has a line");
+    }
+    const reader = new FakePurchaseOrderReader([
+      { ...detail, state: "CANCELLED", lines: [{ ...line, receivedQuantity: 12_000 }] },
+    ]);
+
+    const outcome = await getPurchaseOrder(reader, { locationId: "branch-1", orderId: "order-1" });
+
+    expect(
+      outcome.kind === "found" && outcome.order.lines.map((l) => l.outstandingQuantity),
+    ).toEqual([0]);
+  });
+
   it("answers the receipts as the reader lists them", async () => {
     const receipts = [
       {

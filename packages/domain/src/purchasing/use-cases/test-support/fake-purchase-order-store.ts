@@ -3,6 +3,7 @@ import type {
   LockReceivablePurchaseOrderResult,
   NewPurchaseOrderReceiptFields,
   PurchaseOrderReceiptStoreTransaction,
+  PurchaseOrderReceiving,
 } from "../purchase-order-receipt-store.js";
 import type {
   NewPurchaseOrderFields,
@@ -247,7 +248,7 @@ class FakePurchaseOrderStoreTransaction
 
   async markPurchaseOrderReceived(
     orderId: string,
-    receiving: { state: "PARTIALLY_RECEIVED" | "RECEIVED"; receivedAt: Date },
+    receiving: PurchaseOrderReceiving,
   ): Promise<void> {
     this.beforeWrite("markPurchaseOrderReceived");
     for (const order of this.state.orders) {

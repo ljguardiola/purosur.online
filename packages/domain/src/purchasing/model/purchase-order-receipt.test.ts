@@ -5,6 +5,7 @@ import { lineValue } from "./purchase-line.js";
 import {
   listCostCents,
   missingQuantity,
+  orderLineOutstandingQuantity,
   outstandingLoad,
   outstandingQuantity,
   priceDifferenceCents,
@@ -32,6 +33,26 @@ describe("outstandingQuantity", () => {
         ).toBeGreaterThanOrEqual(0);
       }),
     );
+  });
+});
+
+describe("orderLineOutstandingQuantity", () => {
+  const line = { packages: 3, quantityPerPackage: 12_000 };
+
+  it.each([
+    ["DRAFT", 0, 36_000],
+    ["SENT", 0, 36_000],
+    ["PARTIALLY_RECEIVED", 10_000, 26_000],
+  ] as const)(
+    "is what is still outstanding of the line of an order %s that received %i",
+    (state, received, outstanding) => {
+      expect(orderLineOutstandingQuantity(state, line, received)).toBe(outstanding);
+    },
+  );
+
+  it("is zero for a cancelled order, as nothing more of it will arrive", () => {
+    expect(orderLineOutstandingQuantity("CANCELLED", line, 10_000)).toBe(0);
+    expect(orderLineOutstandingQuantity("CANCELLED", line, 0)).toBe(0);
   });
 });
 
@@ -82,16 +103,35 @@ describe("priceDifferenceCents", () => {
     expect(priceDifferenceCents([dozen(3_100), dozen(3_200)], list)).toBe(300);
   });
 
-  it("rounds the exact difference half up to a cent", () => {
+  it("compares with the list cost of each package rounded half up to a cent, as a receipt's draft prefills it", () => {
     const halfCent = { numerator: 1n, denominator: 2n };
     const oneUnit = (costPaidCents: number) => ({
       costPaidCents,
       quantity: 1_000,
       quantityPerPackage: 1_000,
     });
-    expect(priceDifferenceCents([oneUnit(1)], halfCent)).toBe(1);
-    expect(priceDifferenceCents([oneUnit(0)], halfCent)).toBe(0);
+    expect(priceDifferenceCents([oneUnit(1)], halfCent)).toBe(0);
+    expect(priceDifferenceCents([oneUnit(0)], halfCent)).toBe(-1);
     expect(priceDifferenceCents([oneUnit(10)], { numerator: 10n, denominator: 3n })).toBe(7);
+  });
+
+  describe("for a package whose list cost is not a whole number of cents", () => {
+    const thirdOfAPeso = { numerator: 1_000n, denominator: 3n };
+    const halfKiloPackages = (costPaidCents: number) => ({
+      costPaidCents,
+      quantity: 5_000,
+      quantityPerPackage: 500,
+    });
+
+    it("records no difference when the rounded list cost the draft prefills was paid", () => {
+      expect(listCostCents(thirdOfAPeso, 500)).toBe(167);
+      expect(priceDifferenceCents([halfKiloPackages(167)], thirdOfAPeso)).toBe(0);
+    });
+
+    it("records the signed difference from that rounded list cost when another cost was paid", () => {
+      expect(priceDifferenceCents([halfKiloPackages(170)], thirdOfAPeso)).toBe(30);
+      expect(priceDifferenceCents([halfKiloPackages(160)], thirdOfAPeso)).toBe(-70);
+    });
   });
 
   it("has no difference without a list price", () => {
@@ -101,6 +141,10 @@ describe("priceDifferenceCents", () => {
   it("has no difference when nothing arrived", () => {
     expect(priceDifferenceCents([], list)).toBeNull();
     expect(priceDifferenceCents([dozen(3_300, 0)], list)).toBeNull();
+  });
+
+  it("compares the lines that arrived when another line of the product brought nothing", () => {
+    expect(priceDifferenceCents([dozen(3_300, 0), dozen(3_300)], list)).toBe(300);
   });
 
   it("is zero whenever the line pays exactly the list price for its quantity", () => {
@@ -121,7 +165,27 @@ describe("priceDifferenceCents", () => {
     );
   });
 
-  it("agrees with the rounded difference between what was paid and the list value", () => {
+  it("is zero whenever the line pays the rounded list cost of its package", () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1, max: 1_000_000 }),
+        fc.integer({ min: 1, max: 1_000 }),
+        fc.integer({ min: 1, max: 100_000 }),
+        fc.integer({ min: 1, max: 100_000 }),
+        (numerator, denominator, received, perPackage) => {
+          const listPrice = { numerator: BigInt(numerator), denominator: BigInt(denominator) };
+          const line = {
+            costPaidCents: listCostCents(listPrice, perPackage),
+            quantity: received,
+            quantityPerPackage: perPackage,
+          };
+          expect(priceDifferenceCents([line], listPrice)).toBe(0);
+        },
+      ),
+    );
+  });
+
+  it("agrees with the rounded difference between what was paid and the rounded list cost of the packages", () => {
     fc.assert(
       fc.property(
         fc.integer({ min: 0, max: 1_000_000 }),
@@ -131,10 +195,13 @@ describe("priceDifferenceCents", () => {
         (costPaidCents, received, perPackage, listCents) => {
           const line = { costPaidCents, quantity: received, quantityPerPackage: perPackage };
           const paid = lineValue(line);
+          const listPackageCents = listCostCents(
+            { numerator: BigInt(listCents), denominator: 1n },
+            perPackage,
+          );
           const expected = roundHalfUp({
-            numerator:
-              paid.numerator * 1_000n - BigInt(listCents) * BigInt(received) * paid.denominator,
-            denominator: paid.denominator * 1_000n,
+            numerator: paid.numerator - BigInt(listPackageCents) * BigInt(received),
+            denominator: paid.denominator,
           });
           expect(
             priceDifferenceCents([line], { numerator: BigInt(listCents), denominator: 1n }),

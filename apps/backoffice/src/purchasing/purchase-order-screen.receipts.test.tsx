@@ -4,6 +4,8 @@ import { userEvent } from "vitest/browser";
 import { accessWith } from "../shell/test-support/backoffice-access";
 import { createServices, loaded } from "./test-support/purchase-order-screen";
 import {
+  CANCELLED_ORDER,
+  ORDER_ID,
   PARTIALLY_RECEIVED_ORDER,
   RECEIVED_ORDER,
   SENT_ORDER,
@@ -23,6 +25,7 @@ function servicesFor(order: typeof SENT_ORDER) {
 }
 
 const RECEIVER = accessWith("purchase_order_reads", "purchase_order_receipts");
+const MANAGER = accessWith("purchase_order_reads", "purchase_orders");
 
 test("a sent order the cloud answers is receivable offers Recibir pedido, which opens the receipt", async () => {
   const onReceive = vi.fn();
@@ -67,9 +70,28 @@ test("a received order reads Recibido and offers neither receiving nor cancellin
 });
 
 test("a partially received order still offers its cancellation when the cloud allows it", async () => {
-  const screen = await loaded(servicesFor(PARTIALLY_RECEIVED_ORDER), { access: RECEIVER });
+  const screen = await loaded(servicesFor(PARTIALLY_RECEIVED_ORDER), { access: MANAGER });
 
   await expect.element(screen.getByRole("button", { name: "Cancelar pedido" })).toBeVisible();
+});
+
+test("cancelling a partially received order says what is missing can no longer be received", async () => {
+  const services = servicesFor(PARTIALLY_RECEIVED_ORDER);
+  vi.mocked(services.cancelPurchaseOrder).mockResolvedValue({ kind: "ok", order: CANCELLED_ORDER });
+  const screen = await loaded(services, { access: MANAGER });
+  vi.mocked(services.fetchPurchaseOrder).mockResolvedValue({
+    kind: "ok",
+    value: { kind: "found", order: { ...CANCELLED_ORDER, id: ORDER_ID } },
+  });
+
+  await userEvent.click(screen.getByRole("button", { name: "Cancelar pedido" }));
+  await userEvent.click(
+    screen.getByRole("dialog").getByRole("button", { name: "Cancelar pedido" }),
+  );
+
+  await expect.element(screen.getByText("Pedido cancelado").first()).toBeVisible();
+  await expect.element(screen.getByText("Ya no se puede recibir lo que falta.")).toBeVisible();
+  expect(screen.getByText("Ya no se puede compartir.").query()).toBeNull();
 });
 
 test("shows, beside each line of an order with receipts, what was received and what is still outstanding", async () => {
@@ -93,41 +115,6 @@ test("shows no received or outstanding columns and no receipts for an order noth
   expect(screen.getByRole("columnheader", { name: "Recibido" }).query()).toBeNull();
   expect(screen.getByRole("columnheader", { name: "Pendiente" }).query()).toBeNull();
   expect(screen.getByRole("heading", { name: "Recepciones" }).query()).toBeNull();
-});
-
-test("lists each receipt with its day and, per line, what was received, what was missing and the price difference", async () => {
-  const screen = await loaded(servicesFor(PARTIALLY_RECEIVED_ORDER), { access: RECEIVER });
-
-  await expect.element(screen.getByRole("heading", { name: "Recepciones" })).toBeVisible();
-  const table = screen.getByRole("table", { name: "Recepción del 12/03/2026" });
-  const miel = table.getByRole("row", { name: /Miel pura de abeja 1 kg/ });
-  await expect.element(miel.getByRole("cell").nth(1)).toHaveTextContent("24 u");
-  await expect.element(miel.getByRole("cell").nth(2)).toHaveTextContent("12 u");
-  await expect.element(miel.getByRole("cell").nth(3)).toHaveTextContent("$ 50,00");
-  const avena = table.getByRole("row", { name: /Avena arrollada/ });
-  await expect.element(avena.getByRole("cell").nth(3)).toHaveTextContent("—");
-});
-
-test("a negative price difference reads with its sign", async () => {
-  const [receipt] = PARTIALLY_RECEIVED_ORDER.receipts;
-  const order = {
-    ...PARTIALLY_RECEIVED_ORDER,
-    receipts: receipt
-      ? [
-          {
-            ...receipt,
-            lines: receipt.lines.map((receiptLine) => ({
-              ...receiptLine,
-              priceDifferenceCents: -2_500,
-            })),
-          },
-        ]
-      : [],
-  };
-  const screen = await loaded(servicesFor(order), { access: RECEIVER });
-
-  const table = screen.getByRole("table", { name: "Recepción del 12/03/2026" });
-  await expect.element(table.getByText("− $ 25,00").first()).toBeVisible();
 });
 
 test("links each receipt to the purchases for whoever records purchases", async () => {

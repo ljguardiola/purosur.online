@@ -329,7 +329,7 @@ test("hides the purchase orders from whoever may only manage the lists", async (
   expect(screen.getByRole("link", { name: "Pedidos de compra" }).query()).toBeNull();
 });
 
-test("sends a user who may not manage purchase orders away from them to Mi cuenta", async () => {
+test("sends a user who may not read purchase orders away from them to Mi cuenta", async () => {
   const services = ordersServices(["supplier_price_lists", "orders_area"]);
   window.history.pushState(null, "", "/purchase-orders");
 
@@ -338,7 +338,7 @@ test("sends a user who may not manage purchase orders away from them to Mi cuent
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
 });
 
-test("sends a user who may not manage purchase orders away from an order to Mi cuenta", async () => {
+test("sends a user who may not read purchase orders away from an order to Mi cuenta", async () => {
   const services = ordersServices(["supplier_price_lists", "orders_area"]);
   window.history.pushState(null, "", `/purchase-orders/${ORDER_ID}`);
 
@@ -347,6 +347,22 @@ test("sends a user who may not manage purchase orders away from an order to Mi c
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
   expect(services.purchaseOrderScreen.fetchPurchaseOrder).not.toHaveBeenCalled();
 });
+
+test.each(["/purchase-orders", `/purchase-orders/${ORDER_ID}`])(
+  "sends a session granted managing but not reading purchase orders away from %s to Mi cuenta",
+  async (path) => {
+    const services = ordersServices(["supplier_price_lists", "purchase_orders", "orders_area"]);
+    window.history.pushState(null, "", path);
+
+    const screen = await render(<App help={emptyHelp} services={services} />);
+
+    await expect
+      .element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 }))
+      .toBeVisible();
+    expect(services.purchaseOrdersScreen.fetchPurchaseOrders).not.toHaveBeenCalled();
+    expect(services.purchaseOrderScreen.fetchPurchaseOrder).not.toHaveBeenCalled();
+  },
+);
 
 test("opens an order from the purchase orders, and goes back to them from it", async () => {
   const services = ordersServices(["purchase_orders", "purchase_order_reads", "orders_area"]);

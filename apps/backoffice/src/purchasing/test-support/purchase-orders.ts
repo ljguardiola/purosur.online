@@ -118,6 +118,7 @@ export const RECEIPT_PURCHASE_ID = "90e00000-0000-4000-8000-0000000000c1";
 export const PARTIALLY_RECEIVED_ORDER: PurchaseOrderDetail = {
   ...SENT_ORDER,
   state: "PARTIALLY_RECEIVED",
+  documentShareable: false,
   lines: SENT_ORDER.lines.map((line) =>
     line.product.id === MIEL_PRODUCT_ID
       ? { ...line, receivedQuantity: 24_000, outstandingQuantity: 12_000 }
