@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FIXED_ARGENTINA_ZONE_RULES } from "../../shared/zone-rules.js";
+import { FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
 import {
   type LotNameFacts,
   lotNames,

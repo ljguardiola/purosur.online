@@ -1,5 +1,4 @@
-import { argentinaCalendarDay } from "../../shared/argentina-calendar.js";
-import type { ZoneRules } from "../../shared/zone-rules.js";
+import { argentinaCalendarDay, type ZoneRules } from "../../shared/index.js";
 
 export type LotNameOrigin = "purchase" | "initial_count" | "assembly_batch" | "technical";
 
