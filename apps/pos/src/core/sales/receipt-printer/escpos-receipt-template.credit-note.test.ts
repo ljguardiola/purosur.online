@@ -258,7 +258,7 @@ describe("the ESC/POS credit note of a voided sale", () => {
           out.small(centered("Cód. 013  ·  A consumidor final", SMALL_COLUMNS));
         },
       }),
-      body: current.body,
+      body: earlierVersionReceipt(current, "1").body,
     };
     const copy = { kind: "duplicate", orderNumber: 2 } as const;
 
@@ -284,7 +284,10 @@ describe("the ESC/POS credit note of a voided sale", () => {
       const current = template.renderCreditNote(creditNote());
       const stored = earlierVersionReceipt(current, version);
 
-      for (const copy of [ORIGINAL, { kind: "duplicate", orderNumber: 1 } as const]) {
+      for (const copy of [
+        { kind: "original" } as const,
+        { kind: "duplicate", orderNumber: 1 } as const,
+      ]) {
         expect(Array.from(template.printable(stored, copy))).toEqual(
           Array.from(template.printable(current, copy)),
         );

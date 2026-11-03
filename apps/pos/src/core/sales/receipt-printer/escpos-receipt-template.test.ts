@@ -819,7 +819,7 @@ describe("the ESC/POS receipt template", () => {
             ...centered("WhatsApp 11 5555-0100  ·  @puro.sur", SMALL_COLUMNS),
           ]),
       }),
-      body: current.body,
+      body: earlierVersionReceipt(current, "1").body,
     };
     const copy: ReceiptCopy = { kind: "duplicate", orderNumber: 3 };
 
@@ -1091,7 +1091,7 @@ describe("the ESC/POS receipt of a deferred sale", () => {
             ...centered("WhatsApp 11 5555-0100  ·  @puro.sur", SMALL_COLUMNS),
           ]),
       }),
-      body: current.body,
+      body: earlierVersionReceipt(current, "1").body,
     };
     const copy: ReceiptCopy = { kind: "duplicate", orderNumber: 2 };
 
