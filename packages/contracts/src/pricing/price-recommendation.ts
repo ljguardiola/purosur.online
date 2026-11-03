@@ -9,19 +9,18 @@ const COMPONENTS_MESSAGE =
 const componentIdSchema = recordIdSchema(COMPONENTS_MESSAGE);
 
 const componentsSchema = z.string({ error: COMPONENTS_MESSAGE }).transform((text, context) => {
-  const components = text.split(",").map((entry) => {
+  const components: { componentProductId: string; quantityPerOutputUnit: number }[] = [];
+  for (const entry of text.split(",")) {
     const match = /^([^:]*):(\d+)$/.exec(entry);
     const id = componentIdSchema.safeParse(match?.[1]);
     const quantity = Number(match?.[2]);
-    return id.success && mayBeMovementQuantity(quantity)
-      ? { componentProductId: id.data, quantityPerOutputUnit: quantity }
-      : null;
-  });
-  if (components.some((component) => component === null)) {
-    context.addIssue({ code: "custom", message: COMPONENTS_MESSAGE });
-    return z.NEVER;
+    if (!id.success || !mayBeMovementQuantity(quantity)) {
+      context.addIssue({ code: "custom", message: COMPONENTS_MESSAGE });
+      return z.NEVER;
+    }
+    components.push({ componentProductId: id.data, quantityPerOutputUnit: quantity });
   }
-  return components.filter((component) => component !== null);
+  return components;
 });
 
 export const priceRecommendationQuerySchema = z.object({
