@@ -1,5 +1,9 @@
 import { CalendarDate } from "@internationalized/date";
-import { purchaseRegistrationBodySchema } from "@purosur/contracts";
+import {
+  type PurchaseOrderReceiptDraft,
+  purchaseOrderReceiptBodySchema,
+  purchaseRegistrationBodySchema,
+} from "@purosur/contracts";
 import { ANOTHER_FICTIONAL_CUIT, FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
@@ -14,6 +18,8 @@ import {
   purchaseLineQuantityRefusal,
   purchaseLineRefusalsOf,
   purchaseLinesMessage,
+  purchaseOrderReceiptFormFrom,
+  purchaseOrderReceiptRequestFrom,
   purchaseProductOptions,
   purchaseReceiptNumberMessage,
   purchaseRegistrationRequestFrom,
@@ -521,5 +527,114 @@ describe("purchaseLineRefusalsOf", () => {
       ),
     ).toBeUndefined();
     expect(purchaseLineRefusalsOf({ kind: "failed" }, lines, purchasableProducts)).toBeUndefined();
+  });
+});
+
+describe("purchaseOrderReceiptRequestFrom", () => {
+  it("builds the request of a purchase without its supplier, which the order fixes", () => {
+    const values = form({
+      purchasedOn: new CalendarDate(2026, 9, 14),
+      lines: [line({ productId: AVENA_PRODUCT_ID, quantity: "12,5", cost: "25.000,50" })],
+    });
+
+    const request = purchaseOrderReceiptRequestFrom(values, purchasableProducts);
+
+    expect(request).not.toHaveProperty("supplierId");
+    const { supplierId: _supplierId, ...registration } = purchaseRegistrationRequestFrom(
+      values,
+      purchasableProducts,
+    );
+    expect(request).toEqual(registration);
+    expect(purchaseOrderReceiptBodySchema.safeParse(request).success).toBe(true);
+  });
+});
+
+describe("purchaseOrderReceiptFormFrom", () => {
+  const draft: PurchaseOrderReceiptDraft = {
+    supplier: { id: andina.id, name: andina.name },
+    lines: [
+      {
+        loadedBy: "packages",
+        product: {
+          id: MIEL_PRODUCT_ID,
+          name: "Miel pura de abeja 1 kg",
+          brandName: null,
+          netContent: null,
+          saleUnit: "UNIT",
+        },
+        packages: 3,
+        quantityPerPackage: 12_000,
+        listCostPerPackageCents: 185_000,
+      },
+      {
+        loadedBy: "quantity",
+        product: {
+          id: AVENA_PRODUCT_ID,
+          name: "Avena arrollada",
+          brandName: null,
+          netContent: null,
+          saleUnit: "KG",
+        },
+        quantity: 12_500,
+        listCostPerSaleUnitCents: null,
+      },
+    ],
+  };
+
+  it("prefills one line per draft line, loaded the way the draft loads it, with the list cost as the cost", () => {
+    const values = purchaseOrderReceiptFormFrom(draft);
+
+    expect(values.supplierId).toBe(andina.id);
+    expect(values.lines).toEqual([
+      {
+        ...emptyPurchaseLine(1),
+        productId: MIEL_PRODUCT_ID,
+        loadedBy: "packages",
+        packages: "3",
+        quantityPerPackage: "12",
+        cost: "1.850,00",
+      },
+      {
+        ...emptyPurchaseLine(2),
+        productId: AVENA_PRODUCT_ID,
+        loadedBy: "quantity",
+        quantity: "12,500",
+        cost: "",
+      },
+    ]);
+  });
+
+  it("leaves the date, the receipt and the note for the person to fill in", () => {
+    expect(purchaseOrderReceiptFormFrom(draft)).toMatchObject({
+      purchasedOn: null,
+      receiptType: null,
+      receiptNumber: "",
+      note: "",
+    });
+  });
+
+  it("prefills values the request builder reads back as what the draft proposes", () => {
+    const request = purchaseOrderReceiptRequestFrom(
+      purchaseOrderReceiptFormFrom(draft),
+      purchasableProducts,
+    );
+
+    expect(request.lines).toEqual([
+      {
+        loadedBy: "packages",
+        productId: MIEL_PRODUCT_ID,
+        packages: 3,
+        quantityPerPackage: 12_000,
+        costPaidCents: 185_000,
+        expiresOn: "",
+      },
+      {
+        loadedBy: "quantity",
+        productId: AVENA_PRODUCT_ID,
+        quantity: 12_500,
+        costPaidCents: Number.NaN,
+        expiresOn: "",
+      },
+    ]);
   });
 });

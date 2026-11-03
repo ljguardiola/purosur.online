@@ -1,16 +1,16 @@
-import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import { render } from "../shell/test-support/render-with-router";
-import { PurchaseOrderScreen } from "./purchase-order-screen";
 import type { PurchaseOrderScreenServices } from "./purchase-order-services";
-import { CANCELLED_ORDER, DRAFT_ORDER, ORDER_ID, SENT_ORDER } from "./test-support/purchase-orders";
 import {
-  AVENA_PRODUCT_ID,
-  MIEL_PRODUCT_ID,
-  purchasableProducts,
-} from "./test-support/purchase-products";
+  createServices,
+  deferred,
+  loaded,
+  renderScreen,
+  type Screen,
+} from "./test-support/purchase-order-screen";
+import { CANCELLED_ORDER, DRAFT_ORDER, ORDER_ID, SENT_ORDER } from "./test-support/purchase-orders";
+import { AVENA_PRODUCT_ID, MIEL_PRODUCT_ID } from "./test-support/purchase-products";
 
 const ALMENDRAS_PRODUCT_ID = "90d00000-0000-4000-8000-000000000003";
 
@@ -18,71 +18,8 @@ beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 
-function createServices(
-  overrides: Partial<PurchaseOrderScreenServices> = {},
-): PurchaseOrderScreenServices {
-  return {
-    fetchPurchaseOrder: vi.fn().mockResolvedValue({
-      kind: "ok",
-      value: { kind: "found", order: DRAFT_ORDER },
-    }),
-    fetchPurchaseChoices: vi.fn().mockResolvedValue({
-      kind: "ok",
-      value: { suppliers: [], products: purchasableProducts, today: "2026-09-16" },
-    }),
-    editPurchaseOrderLines: vi.fn(),
-    cancelPurchaseOrder: vi.fn(),
-    sharePurchaseOrder: vi.fn(),
-    fetchPurchaseOrderPdf: vi.fn(),
-    fetchPurchaseOrderText: vi.fn().mockResolvedValue({
-      kind: "ok",
-      value: { kind: "found", text: "Pedido a Distribuidora Andina" },
-    }),
-    ...overrides,
-  };
-}
-
-function deferred<T>() {
-  let resolve: (value: T) => void = () => {};
-  const promise = new Promise<T>((settle) => {
-    resolve = settle;
-  });
-  return { promise, resolve };
-}
-
-function renderScreen(
-  services: PurchaseOrderScreenServices,
-  {
-    onBack = () => {},
-    onSessionEnded = () => {},
-  }: { onBack?: () => void; onSessionEnded?: () => void } = {},
-) {
-  return render(
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <PurchaseOrderScreen
-          orderId={ORDER_ID}
-          services={services}
-          onBack={onBack}
-          onSessionEnded={onSessionEnded}
-        />
-      </main>
-    </FieldSizeProvider>,
-  );
-}
-
-type Screen = Awaited<ReturnType<typeof renderScreen>>;
-
 function line(screen: Screen, number: number) {
   return screen.getByRole("group", { name: `Línea ${number}` });
-}
-
-async function loaded(services: PurchaseOrderScreenServices, options = {}) {
-  const screen = await renderScreen(services, options);
-  await expect
-    .element(screen.getByRole("heading", { name: "Pedido a Distribuidora Andina", level: 1 }))
-    .toBeVisible();
-  return screen;
 }
 
 async function chooseFromComboBox(
