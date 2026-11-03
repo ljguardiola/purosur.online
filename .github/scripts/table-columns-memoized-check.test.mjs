@@ -214,10 +214,10 @@ test("a file without useTableModel reports nothing", async () => {
 });
 
 test("columns built in a component the compiler skipped are reported", async () => {
-  const violations = await checkFiles([
-    { path: "rows.tsx", source: COLUMNS_THE_COMPILER_SKIPPED },
-  ]);
-  const columns = violations.find((violation) => violation.reason.includes("useTableModel columns"));
+  const violations = await checkFiles([{ path: "rows.tsx", source: COLUMNS_THE_COMPILER_SKIPPED }]);
+  const columns = violations.find((violation) =>
+    violation.reason.includes("useTableModel columns"),
+  );
 
   assert.ok(columns);
   assert.equal(columns.path, "rows.tsx");
@@ -225,9 +225,7 @@ test("columns built in a component the compiler skipped are reported", async () 
 });
 
 test("items chosen against a fallback literal in a component the compiler skipped are reported", async () => {
-  const violations = await checkFiles([
-    { path: "rows.tsx", source: COLUMNS_THE_COMPILER_SKIPPED },
-  ]);
+  const violations = await checkFiles([{ path: "rows.tsx", source: COLUMNS_THE_COMPILER_SKIPPED }]);
   const items = violations.find((violation) => violation.reason.includes("useTableModel items"));
 
   assert.ok(items);
@@ -235,9 +233,7 @@ test("items chosen against a fallback literal in a component the compiler skippe
 });
 
 test("a violation is reported on the line of the useTableModel call", async () => {
-  const violations = await checkFiles([
-    { path: "rows.tsx", source: COLUMNS_THE_COMPILER_SKIPPED },
-  ]);
+  const violations = await checkFiles([{ path: "rows.tsx", source: COLUMNS_THE_COMPILER_SKIPPED }]);
 
   assert.ok(violations.length > 0);
   for (const violation of violations) assert.equal(violation.line, 16);
