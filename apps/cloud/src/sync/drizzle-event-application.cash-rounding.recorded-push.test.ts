@@ -1,5 +1,6 @@
 import { syncedEventUpcaster } from "@purosur/contracts";
 import { recordedPushes } from "@purosur/contracts/sync/test-support";
+import { compareCodeUnits } from "@purosur/domain";
 import { applyPendingEvents } from "@purosur/domain/sync/use-cases";
 import { isNull } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
@@ -111,7 +112,7 @@ describe("applying the push recorded from a register session that rounded what w
         .sort(
           (a, b) =>
             b.total - a.total ||
-            a.state.localeCompare(b.state) ||
+            compareCodeUnits(a.state, b.state) ||
             (a.saleDiscountAmount ?? 0) - (b.saleDiscountAmount ?? 0),
         ),
     ).toEqual([
