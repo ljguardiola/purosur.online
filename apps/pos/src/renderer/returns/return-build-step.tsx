@@ -273,6 +273,7 @@ export function ReturnBuildStep({
         />
       </main>
       <SidePanel
+        label="Resumen de la devolución"
         footer={
           <>
             {authorizedBy === undefined ? (

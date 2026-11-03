@@ -129,13 +129,14 @@ export function CashOpeningPanel({ firstName, canOpen, open }: CashOpeningPanelP
 
   if (canOpen && opening) {
     return (
-      <SidePanel>
+      <SidePanel label="Apertura de caja">
         <OpeningForm open={open} onCancel={() => setOpening(false)} />
       </SidePanel>
     );
   }
   return (
     <SidePanel
+      label="Apertura de caja"
       footer={
         canOpen ? (
           <>
