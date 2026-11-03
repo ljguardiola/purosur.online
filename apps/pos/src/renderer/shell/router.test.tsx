@@ -1655,7 +1655,7 @@ describe("the register's router", () => {
           movement_id: "m1",
           product_id: "p1",
           product_name: "Queso cremoso",
-          sale_unit: "KG",
+          sale_unit: "KG" as const,
           counted: 4400,
           expires_on: "2026-12-03",
         },
