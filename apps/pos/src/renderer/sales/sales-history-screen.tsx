@@ -154,7 +154,7 @@ export function SalesHistoryScreen({
         sessionOpen={sessionOpen}
         lock={lock}
       />
-      <main className="relative flex min-w-0 flex-1 flex-col gap-6 overflow-y-auto p-8">
+      <main className="flex min-w-0 flex-1 flex-col gap-6 p-8">
         <ScreenHeader
           eyebrow={sessionEyebrow(registerName, sessionOpen)}
           title="Historial de ventas"

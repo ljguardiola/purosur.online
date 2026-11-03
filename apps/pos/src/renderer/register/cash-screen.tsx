@@ -59,7 +59,7 @@ export function CashScreen({
         current="cash"
         abilities={person.abilities}
       />
-      <main className="relative flex flex-1 flex-col gap-6 overflow-y-auto p-8">
+      <main className="flex flex-1 flex-col gap-6 p-8">
         <ScreenHeader eyebrow={registerName ?? undefined} title="Movimientos de efectivo" />
         {clockGuard}
         <CashMovementsTable state={movements} />

@@ -306,7 +306,7 @@ export function InitialCountScreen({
   return (
     <div className="flex h-full w-full bg-surface-subtle">
       <NoSessionRail person={person} current="/initial-count" signOut={signOut} />
-      <main className="relative flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto pt-6 pr-6 pb-6 pl-8">
+      <main className="flex min-w-0 flex-1 flex-col gap-4 pt-6 pr-6 pb-6 pl-8">
         <ScreenHeader eyebrow="Puesta en marcha · Sin sesión de caja" title="Inventario inicial" />
         {open ? (
           <>

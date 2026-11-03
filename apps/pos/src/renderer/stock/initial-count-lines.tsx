@@ -71,30 +71,32 @@ export function InitialCountLines({ state, onWithdraw }: InitialCountLinesProps)
   });
 
   return (
-    <Table
-      aria-label="Líneas cargadas"
-      table={table}
-      {...(state.status === "failed"
-        ? {
-            failure: {
-              icon: <TriangleAlert />,
-              title: "No se pudo leer lo cargado",
-              description: "Volvé a intentarlo en unos segundos.",
-              onRetry: state.retry,
-            },
-          }
-        : { loading: loadingOf(state) })}
-      empty={{
-        icon: <ClipboardList />,
-        title: "Todavía no cargaste ninguna línea",
-        description: "Escaneá un producto o buscalo por nombre para cargar la primera.",
-        variant: "blank",
-      }}
-      footer={
-        lines.length === 0 ? undefined : (
-          <p className="text-detail text-text-subtle">{linesText(lines.length)}</p>
-        )
-      }
-    />
+    <div className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
+      <Table
+        aria-label="Líneas cargadas"
+        table={table}
+        {...(state.status === "failed"
+          ? {
+              failure: {
+                icon: <TriangleAlert />,
+                title: "No se pudo leer lo cargado",
+                description: "Volvé a intentarlo en unos segundos.",
+                onRetry: state.retry,
+              },
+            }
+          : { loading: loadingOf(state) })}
+        empty={{
+          icon: <ClipboardList />,
+          title: "Todavía no cargaste ninguna línea",
+          description: "Escaneá un producto o buscalo por nombre para cargar la primera.",
+          variant: "blank",
+        }}
+        footer={
+          lines.length === 0 ? undefined : (
+            <p className="text-detail text-text-subtle">{linesText(lines.length)}</p>
+          )
+        }
+      />
+    </div>
   );
 }
