@@ -932,6 +932,7 @@ export {
   grossSaleSubtotal,
   isDeferralPending,
   manualAdjustmentReason,
+  mayBeCashRounding,
   mayBeManualDiscountAmount,
   mayBeManualDiscountPercent,
   mayBeOverriddenUnitPrice,

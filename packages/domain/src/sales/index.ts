@@ -1,3 +1,4 @@
+export { mayBeCashRounding } from "./model/cash-rounding.js";
 export { averageTicket } from "./model/average-ticket.js";
 export type { CancelledSale } from "./model/cancelled-sale.js";
 export type { CompletedSale } from "./model/completed-sale.js";
