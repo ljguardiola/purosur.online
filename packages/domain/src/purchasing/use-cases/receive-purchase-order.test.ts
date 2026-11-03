@@ -279,6 +279,51 @@ describe("receivePurchaseOrder", () => {
     ]);
   });
 
+  it("records a delivery of a line that earlier receipts had already filled", async () => {
+    const scene = scenario({ order: order({ state: "PARTIALLY_RECEIVED" }) });
+    scene.orders.seedReceipt({
+      id: "order-receipt-0",
+      purchaseOrderId: ORDER,
+      purchaseId: "purchase-0",
+      actorId: ACTOR,
+      receivedAt: new Date("2026-03-05T10:00:00Z"),
+      lines: [
+        {
+          purchaseOrderLineId: LINE_A,
+          receivedQuantity: 36_000,
+          missingQuantity: 0,
+          priceDifferenceCents: 0,
+        },
+        {
+          purchaseOrderLineId: LINE_B,
+          receivedQuantity: 4_000,
+          missingQuantity: 6_000,
+          priceDifferenceCents: 0,
+        },
+      ],
+    });
+
+    const outcome = await receive(scene, {
+      lines: [lineA({ packages: 1 }), lineB({ quantity: 6_000, costPaidCents: 9_000 })],
+    });
+
+    expect(outcome).toMatchObject({ kind: "received", state: "RECEIVED" });
+    expect(scene.orders.receipts()[1]?.lines).toEqual([
+      {
+        purchaseOrderLineId: LINE_A,
+        receivedQuantity: 12_000,
+        missingQuantity: 0,
+        priceDifferenceCents: 0,
+      },
+      {
+        purchaseOrderLineId: LINE_B,
+        receivedQuantity: 6_000,
+        missingQuantity: 0,
+        priceDifferenceCents: 0,
+      },
+    ]);
+  });
+
   it("records no missing quantity for more than was ordered", async () => {
     const scene = scenario();
 
