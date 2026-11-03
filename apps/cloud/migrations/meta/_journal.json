@@ -1184,6 +1184,13 @@
       "when": 1793660707847,
       "tag": "0175_revoked_installation_confirmations",
       "breakpoints": true
+    },
+    {
+      "idx": 176,
+      "version": "7",
+      "when": 1793707645719,
+      "tag": "0176_audit_log_entity_index",
+      "breakpoints": true
     }
   ]
 }

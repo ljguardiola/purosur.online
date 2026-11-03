@@ -151,7 +151,11 @@ describe("corrections of one purchase queued behind each other, on a real Postgr
     );
 
     expect([corrected.kind, added.kind]).toEqual(["corrected", "added"]);
-    const dates = await db.select({ purchasedOn: lots.purchasedOn }).from(lots);
+    const dates = await db
+      .select({ purchasedOn: lots.purchasedOn })
+      .from(lots)
+      .innerJoin(purchaseLines, eq(purchaseLines.id, lots.purchaseLineId))
+      .where(eq(purchaseLines.purchaseId, ids.purchaseId));
     expect(dates.map(({ purchasedOn }) => purchasedOn)).toEqual(["2026-10-13", "2026-10-13"]);
   });
 });

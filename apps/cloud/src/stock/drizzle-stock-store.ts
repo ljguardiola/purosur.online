@@ -11,11 +11,13 @@ import type {
   NewStockMovement,
   OpeningCountLot,
   ProductStockKey,
+  PurchasedLot,
+  PurchasedLotStoreTransaction,
   StockLot,
   StockStore,
   StockStoreTransaction,
 } from "@purosur/domain/stock/use-cases";
-import { and, eq, or, sql } from "drizzle-orm";
+import { and, eq, inArray, or, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   lotAllocations,
@@ -43,7 +45,7 @@ function balanceOf(key: ProductStockKey) {
 }
 
 export class DrizzleStockStoreTransaction<TQueryResult extends PgQueryResultHKT>
-  implements StockStoreTransaction
+  implements StockStoreTransaction, PurchasedLotStoreTransaction
 {
   protected readonly tx: PgDatabase<TQueryResult>;
   protected readonly pending: PendingChanges;
@@ -207,6 +209,38 @@ export class DrizzleStockStoreTransaction<TQueryResult extends PgQueryResultHKT>
     if (!updated) {
       throw new Error("marking the initial count lot as withdrawn updated no row");
     }
+  }
+
+  async lotsOfPurchaseLines(
+    locationId: string,
+    purchaseLineIds: readonly string[],
+  ): Promise<PurchasedLot[]> {
+    if (purchaseLineIds.length === 0) {
+      return [];
+    }
+    const found = await this.tx
+      .select({ lotId: lots.id, purchaseLineId: lots.purchaseLineId, productId: lots.productId })
+      .from(lots)
+      .where(
+        and(eq(lots.locationId, locationId), inArray(lots.purchaseLineId, [...purchaseLineIds])),
+      );
+    return found.flatMap(({ purchaseLineId, ...lot }) =>
+      purchaseLineId === null ? [] : [{ ...lot, purchaseLineId }],
+    );
+  }
+
+  async setLotExpiry(lotId: string, expiresOn: string | null): Promise<void> {
+    await this.tx.update(lots).set({ expiresOn }).where(eq(lots.id, lotId));
+  }
+
+  async setLotsPurchasedOn(lotIds: readonly string[], purchasedOn: string): Promise<void> {
+    if (lotIds.length === 0) {
+      return;
+    }
+    await this.tx
+      .update(lots)
+      .set({ purchasedOn })
+      .where(inArray(lots.id, [...lotIds]));
   }
 
   async lotProduct(lotId: string, locationId: string): Promise<string | undefined> {

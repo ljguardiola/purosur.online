@@ -23,7 +23,7 @@ import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js
 import { registerPurchasesRoutes } from "./purchases-routes.js";
 
 const NOW = new Date("2026-10-05T15:00:00.000Z");
-const CORRECTED_AT = new Date("2026-10-06T15:00:00.000Z");
+const CORRECTED_AT = new Date("2026-10-05T15:10:00.000Z");
 const MISSING_ID = "00000000-0000-4000-8000-000000000000";
 
 let testDatabase: TestDatabase;
@@ -494,7 +494,7 @@ describe("GET /purchases/:purchaseId/changes", () => {
       headers,
       payload: headerBody({ receiptNumber: "0001-00001243" }),
     });
-    now = new Date("2026-10-07T15:00:00.000Z");
+    now = new Date("2026-10-05T15:20:00.000Z");
     await app.inject({
       method: "PATCH",
       url: `/purchases/${purchase.id}/lines/${purchase.lines[0]?.id}/expiry`,
@@ -513,7 +513,7 @@ describe("GET /purchases/:purchaseId/changes", () => {
       {
         id: expect.any(String),
         actor: { id: userId, name: expect.any(String) },
-        correctedAt: "2026-10-07T15:00:00.000Z",
+        correctedAt: "2026-10-05T15:20:00.000Z",
         change: {
           kind: "line_expiry",
           lineId: purchase.lines[0]?.id,
