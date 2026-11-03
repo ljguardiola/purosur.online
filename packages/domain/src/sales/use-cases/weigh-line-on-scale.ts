@@ -5,10 +5,10 @@ import {
   changeWeightOfLine,
   weighedLineToChange,
 } from "./change-line-weight.js";
+import { pricedWeighingStep, type StableWeighing } from "./priced-weighing-step.js";
 import type { RegisterRestoration } from "./register-restoration.js";
 import type { SaleLedger } from "./sale-ledger.js";
 import { isSaleLineChangeRefusal, saleToChange } from "./sale-line-change.js";
-import { type StableWeighing, scaleWeighingStep } from "./scale-weighing-step.js";
 
 export interface WeighLineOnScaleInput {
   actorId: string;
@@ -46,7 +46,7 @@ export async function weighLineOnScale(
     if ("kind" in line) {
       return line;
     }
-    const step = scaleWeighingStep(
+    const step = pricedWeighingStep(
       reading,
       confirmedWeightThousandths,
       (weightThousandths) => withWeight(line, weightThousandths, "SCALE").lineTotal,

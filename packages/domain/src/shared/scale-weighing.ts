@@ -1,19 +1,16 @@
-import type { ScaleReading } from "../../shared/index.js";
-import { mayBeSaleLineQuantity } from "../model/sale-line.js";
-
-export type StableWeighing = { kind: "stable"; weightThousandths: number; amount: number };
+import type { ScaleReading } from "./scale.js";
 
 export type ScaleWeighingStep =
   | { kind: "scale_unavailable" }
   | { kind: "weighing" }
   | { kind: "zero_weight" }
-  | StableWeighing
+  | { kind: "stable"; weightThousandths: number }
   | { kind: "take"; weightThousandths: number };
 
 export function scaleWeighingStep(
   reading: ScaleReading,
   confirmedWeightThousandths: number | null,
-  amountAt: (weightThousandths: number) => number,
+  mayBeQuantity: (weightThousandths: number) => boolean,
 ): ScaleWeighingStep {
   if (reading.kind === "unavailable") {
     return { kind: "scale_unavailable" };
@@ -24,13 +21,14 @@ export function scaleWeighingStep(
   const { weightThousandths } = reading;
   if (weightThousandths === 0) {
     return confirmedWeightThousandths === null
-      ? { kind: "stable", weightThousandths, amount: 0 }
+      ? { kind: "stable", weightThousandths }
       : { kind: "zero_weight" };
   }
-  if (!mayBeSaleLineQuantity(weightThousandths, "KG")) {
+  if (!mayBeQuantity(weightThousandths)) {
     return { kind: "weighing" };
   }
-  return weightThousandths === confirmedWeightThousandths
-    ? { kind: "take", weightThousandths }
-    : { kind: "stable", weightThousandths, amount: amountAt(weightThousandths) };
+  return {
+    kind: weightThousandths === confirmedWeightThousandths ? "take" : "stable",
+    weightThousandths,
+  };
 }

@@ -1,5 +1,6 @@
 import {
   isCalendarDay,
+  mayBeCountedQuantity,
   mayBeMovementQuantity,
   SALE_UNITS,
   SEARCH_RESULT_LIMIT,
@@ -150,7 +151,10 @@ const searchCountableProductsOutcomeSchema = z.discriminatedUnion("kind", [
 export type SearchCountableProductsOutcome = z.infer<typeof searchCountableProductsOutcomeSchema>;
 
 const weighCountedProductOutcomeSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("weighed"), weight_thousandths: countedQuantitySchema }),
+  z.object({
+    kind: z.literal("weighed"),
+    weight_thousandths: z.int().refine(mayBeCountedQuantity),
+  }),
   z.object({ kind: z.literal("confirmed"), weight_thousandths: countedQuantitySchema }),
   z.object({ kind: z.literal("weighing") }),
   z.object({ kind: z.literal("zero_weight") }),

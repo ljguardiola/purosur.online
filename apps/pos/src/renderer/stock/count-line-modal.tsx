@@ -76,7 +76,7 @@ export function CountLineModal({
       const reading = await weigh(productId, confirmedWeightThousandths).catch(
         (): WeighCountedProductOutcome => ({ kind: "unavailable" }),
       );
-      return scaleWeighingOf(reading, confirmedWeightThousandths !== null);
+      return scaleWeighingOf(reading);
     },
   );
 
@@ -262,19 +262,15 @@ export function CountLineModal({
   );
 }
 
-function scaleWeighingOf(
-  outcome: WeighCountedProductOutcome,
-  confirming: boolean,
-): ScaleWeighing<StableReading> {
+function scaleWeighingOf(outcome: WeighCountedProductOutcome): ScaleWeighing<StableReading> {
   switch (outcome.kind) {
     case "weighed":
       return { kind: "stable", reading: { weightThousandths: outcome.weight_thousandths } };
     case "confirmed":
       return { kind: "taken", reading: { weightThousandths: outcome.weight_thousandths } };
     case "zero_weight":
-      return confirming ? outcome : { kind: "stable", reading: { weightThousandths: 0 } };
     case "weighing":
-      return { kind: "weighing" };
+      return { kind: outcome.kind };
     default:
       return { kind: "scale_unavailable" };
   }

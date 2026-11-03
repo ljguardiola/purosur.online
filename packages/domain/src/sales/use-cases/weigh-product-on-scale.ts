@@ -1,10 +1,10 @@
 import type { Clock, Scale, ZoneRulesSource } from "../../shared/index.js";
 import { newWeighedSaleLine } from "../model/sale-line.js";
+import { pricedWeighingStep, type StableWeighing } from "./priced-weighing-step.js";
 import type { RegisterRestoration } from "./register-restoration.js";
 import type { AddedLineOutcome, SaleAdditionRefusal } from "./sale-addition.js";
 import { isSaleAdditionRefusal, saleToAddTo, validPromotions } from "./sale-addition.js";
 import type { IdGenerator, SaleLedger } from "./sale-ledger.js";
-import { type StableWeighing, scaleWeighingStep } from "./scale-weighing-step.js";
 import {
   addWeighedLine,
   isNoPrice,
@@ -57,7 +57,7 @@ export async function weighProductOnScale(
     if (isNoPrice(priced)) {
       return priced;
     }
-    const step = scaleWeighingStep(
+    const step = pricedWeighingStep(
       reading,
       confirmedWeightThousandths,
       (weightThousandths) =>

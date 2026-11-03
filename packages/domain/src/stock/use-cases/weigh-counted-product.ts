@@ -1,4 +1,4 @@
-import type { Scale } from "../../shared/index.js";
+import { type Scale, scaleWeighingStep } from "../../shared/index.js";
 import { mayBeMovementQuantity } from "../model/stock-quantity.js";
 import { type InitialCountRefusal, initialCountRefusal } from "./initial-count-access.js";
 import type { InitialCountLedger } from "./initial-count-ledger.js";
@@ -42,22 +42,17 @@ export async function weighCountedProduct(
   if (refusal) {
     return refusal;
   }
-  const reading = await scale.read();
-  if (reading.kind === "unavailable") {
-    return { kind: "scale_unavailable" };
+  const step = scaleWeighingStep(
+    await scale.read(),
+    confirmedWeightThousandths,
+    mayBeMovementQuantity,
+  );
+  switch (step.kind) {
+    case "stable":
+      return { kind: "weighed", weightThousandths: step.weightThousandths };
+    case "take":
+      return { kind: "confirmed", weightThousandths: step.weightThousandths };
+    default:
+      return step;
   }
-  if (reading.kind === "not_stable") {
-    return { kind: "weighing" };
-  }
-  const { weightThousandths } = reading;
-  if (weightThousandths === 0) {
-    return { kind: "zero_weight" };
-  }
-  if (!mayBeMovementQuantity(weightThousandths)) {
-    return { kind: "weighing" };
-  }
-  return {
-    kind: weightThousandths === confirmedWeightThousandths ? "confirmed" : "weighed",
-    weightThousandths,
-  };
 }
