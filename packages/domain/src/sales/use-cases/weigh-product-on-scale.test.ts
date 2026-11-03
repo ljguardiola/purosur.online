@@ -71,6 +71,7 @@ function weigh(
   reading: ScaleReading = STABLE_1250,
   productId = "queso",
   actorId = "cashier",
+  take = true,
 ) {
   return weighProductOnScale(
     {
@@ -81,7 +82,7 @@ function weigh(
       ids: new SequentialIds(),
       scale: new FakeScale(reading),
     },
-    { actorId, productId },
+    { actorId, productId, take },
   );
 }
 
@@ -150,7 +151,7 @@ describe("weighProductOnScale", () => {
         ids: new SequentialIds(),
         scale,
       },
-      { actorId: "cashier", productId: "queso" },
+      { actorId: "cashier", productId: "queso", take: true },
     );
 
     expect(scale.reads).toBe(1);
@@ -164,18 +165,79 @@ describe("weighProductOnScale", () => {
     expect(store.state).toEqual(before);
   });
 
-  it.each([0, -1, 1.5, MAX_STOCK_QUANTITY + 1])(
+  it.each([-1, 1.5, MAX_STOCK_QUANTITY + 1])(
     "answers weighing and records nothing for a stable weight of %s thousandths",
     async (weightThousandths) => {
-      const store = ledger();
-      const before = structuredClone(store.state);
+      for (const take of [true, false]) {
+        const store = ledger();
+        const before = structuredClone(store.state);
 
-      expect(await weigh(store, { kind: "stable", weightThousandths })).toEqual({
-        kind: "weighing",
-      });
-      expect(store.state).toEqual(before);
+        expect(
+          await weigh(store, { kind: "stable", weightThousandths }, "queso", "cashier", take),
+        ).toEqual({ kind: "weighing" });
+        expect(store.state).toEqual(before);
+      }
     },
   );
+
+  it("refuses to take a stable weight of zero, recording nothing", async () => {
+    const store = ledger();
+    const before = structuredClone(store.state);
+
+    expect(await weigh(store, { kind: "stable", weightThousandths: 0 })).toEqual({
+      kind: "zero_weight",
+    });
+    expect(store.state).toEqual(before);
+  });
+
+  it("answers the stable weight and its amount without recording anything when not taking", async () => {
+    const store = ledger();
+    const before = structuredClone(store.state);
+
+    expect(await weigh(store, STABLE_1250, "queso", "cashier", false)).toEqual({
+      kind: "stable",
+      weightThousandths: 1250,
+      amount: 11250,
+    });
+    expect(store.state).toEqual(before);
+  });
+
+  it("answers a stable weight of zero with a zero amount when not taking", async () => {
+    expect(
+      await weigh(ledger(), { kind: "stable", weightThousandths: 0 }, "queso", "cashier", false),
+    ).toEqual({ kind: "stable", weightThousandths: 0, amount: 0 });
+  });
+
+  it("answers weighing and records nothing while the scale is not stable and not taking", async () => {
+    const store = ledger();
+    const before = structuredClone(store.state);
+
+    expect(await weigh(store, { kind: "not_stable" }, "queso", "cashier", false)).toEqual({
+      kind: "weighing",
+    });
+    expect(store.state).toEqual(before);
+  });
+
+  it("answers that the scale is unavailable when not taking", async () => {
+    expect(await weigh(ledger(), { kind: "unavailable" }, "queso", "cashier", false)).toEqual({
+      kind: "scale_unavailable",
+    });
+  });
+
+  it("refuses as when taking, whatever the scale says, when not taking", async () => {
+    const reading: ScaleReading = { kind: "unavailable" };
+
+    expect(await weigh(ledger(), reading, "yerba", "cashier", false)).toEqual({
+      kind: "not_sold_by_weight",
+    });
+    expect(await weigh(ledger({ prices: [] }), reading, "queso", "cashier", false)).toEqual({
+      kind: "no_price",
+      productName: "Queso cremoso",
+    });
+    expect(await weigh(ledger(), reading, "queso", "stranger", false)).toEqual({
+      kind: "not_permitted",
+    });
+  });
 
   it("answers that the scale is unavailable, recording nothing", async () => {
     const store = ledger();
