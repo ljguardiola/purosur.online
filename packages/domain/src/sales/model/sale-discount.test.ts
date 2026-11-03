@@ -351,6 +351,19 @@ describe("settledLines with cash rounding", () => {
     );
   });
 
+  it("spreads the rounding by what each line is left with after the discount, not by what it was sold for", () => {
+    const sale = {
+      lines: [line("a", 18), line("b", 30)],
+      saleDiscount: discount({ kind: "AMOUNT", amount: 36 }),
+      cashRounding: 4,
+    };
+
+    const settled = settledLines(sale);
+
+    expect(settled.map(({ saleDiscountShare }) => saleDiscountShare)).toEqual([14, 22]);
+    expect(settled.map(({ cashRoundingShare }) => cashRoundingShare)).toEqual([1, 3]);
+  });
+
   it("keeps the manual discount's share apart and spreads the rounding over the lines after it", () => {
     const sale = {
       lines: [line("a", 3000), line("b", 1000)],
