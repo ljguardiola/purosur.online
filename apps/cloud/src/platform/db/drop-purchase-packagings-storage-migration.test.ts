@@ -73,14 +73,14 @@ async function databaseHoldingPackagings() {
   );
   const rowId = await first(
     database,
-    `insert into supplier_price_list_rows (list_id, position, description, price_cents, product_id, packaging_id, vat_rate)
-     values ($1, 0, 'Yerba', 6000, $2, $3, 2100) returning id`,
+    `insert into supplier_price_list_rows (list_id, position, description, price_cents, product_id, packaging_id, quantity, sale_unit, vat_rate)
+     values ($1, 0, 'Yerba', 6000, $2, $3, 12000, 'UNIT', 2100) returning id`,
     [listId, yerbaId, packagingId],
   );
   const itemId = await first(
     database,
-    `insert into supplier_items (supplier_id, key_kind, key_value, description, product_id, packaging_id, vat_rate)
-     values ($1, 'description', 'Yerba', 'Yerba', $2, $3, 2100) returning id`,
+    `insert into supplier_items (supplier_id, key_kind, key_value, description, product_id, packaging_id, quantity, sale_unit, vat_rate)
+     values ($1, 'description', 'Yerba', 'Yerba', $2, $3, 12000, 'UNIT', 2100) returning id`,
     [supplierId, yerbaId, packagingId],
   );
   return { database, yerbaId, packagedLineId, totalLineId, rowId, itemId };
@@ -103,19 +103,22 @@ describe("the drop purchase packagings storage migration", { timeout: 30_000 }, 
     ]);
   });
 
-  it("keeps the product a supplier item and a price list row were linked to", async () => {
+  it("keeps the product and quantity a supplier item and a price list row were linked to", async () => {
     const { database, yerbaId, rowId, itemId } = await databaseHoldingPackagings();
     const migrated = await database.applyMigration();
 
-    const item = await migrated.query("select product_id from supplier_items where id = $1", [
+    const item = await migrated.query("select product_id, quantity from supplier_items where id = $1", [
       itemId,
     ]);
     const row = await migrated.query(
-      "select product_id from supplier_price_list_rows where id = $1",
+      "select product_id, quantity from supplier_price_list_rows where id = $1",
       [rowId],
     );
 
-    expect([item.rows, row.rows]).toEqual([[{ product_id: yerbaId }], [{ product_id: yerbaId }]]);
+    expect([item.rows, row.rows]).toEqual([
+      [{ product_id: yerbaId, quantity: 12_000 }],
+      [{ product_id: yerbaId, quantity: 12_000 }],
+    ]);
   });
 
   it("no longer keeps a packaging column on purchase lines, supplier items or price list rows", async () => {
