@@ -493,6 +493,7 @@ describe("createCoreClient", () => {
         total: 476_000,
         tendered: 500_000,
         change: 24_000,
+        cash_rounding: 0,
       },
     });
 
@@ -502,6 +503,7 @@ describe("createCoreClient", () => {
       total: 476_000,
       tendered: 500_000,
       change: 24_000,
+      cash_rounding: 0,
     });
     expect(port.posted).toEqual([
       {
@@ -1598,7 +1600,7 @@ describe("createCoreClient", () => {
   });
 
   it.each([
-    [{ kind: "covered", applied: 3000, change: 2000 }],
+    [{ kind: "covered", applied: 3000, change: 2000, cash_rounding: 0 }],
     [{ kind: "partial", applied: 1000, pending: 2000 }],
     [{ kind: "invalid_amount" }],
     [null],

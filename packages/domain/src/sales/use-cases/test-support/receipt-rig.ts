@@ -35,6 +35,7 @@ const SOURCE: ReceiptSource = {
   operationNumber: 482,
   total: 6750,
   saleDiscount: null,
+  cashRounding: 0,
   lines: [
     {
       productName: "Yerba 1 kg",
@@ -82,7 +83,7 @@ function creditNoteContent(issuer: Issuer): CreditNoteReceiptContent {
     },
     issuedOn: "2026-10-07",
     lines: [],
-    totals: { subtotal: 7500, saleDiscount: null, total: 7500 },
+    totals: { subtotal: 7500, saleDiscount: null, cashRounding: 0, total: 7500 },
     refunds: [{ method: "CASH", amount: 7500 }],
     fiscal: {
       invoiceClass: "C",

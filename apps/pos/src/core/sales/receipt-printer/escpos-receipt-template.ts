@@ -36,7 +36,10 @@ import {
 import { RECEIPT_LOGO } from "./receipt-logo";
 
 type InvoiceBlock = Extract<NonNullable<ReceiptContent["fiscal"]>, { invoiceClass: "C" }>;
-type SaleTotals = Pick<ReceiptContent["totals"], "subtotal" | "saleDiscount" | "total">;
+type SaleTotals = Pick<
+  ReceiptContent["totals"],
+  "subtotal" | "saleDiscount" | "cashRounding" | "total"
+>;
 type OfflineInvoiceBlock = Extract<InvoiceBlock, { fortnight: unknown }>;
 
 const TEMPLATE_VERSION = "3";
@@ -241,6 +244,7 @@ function saleLines(
     ...(totals.saleDiscount === null
       ? []
       : row(saleDiscountText(totals.saleDiscount), `-${formatCents(totals.saleDiscount.amount)}`)),
+    ...(totals.cashRounding === 0 ? [] : row("Redondeo", `-${formatCents(totals.cashRounding)}`)),
     RULE,
   ]);
   out.bold(row("TOTAL", formatCents(totals.total)));

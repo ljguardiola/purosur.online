@@ -2305,10 +2305,22 @@ describe("the register's router", () => {
           subtotal: 238_000,
           promotion_savings: 0,
         }),
-        cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 0 }),
+        cashCharge: async () => ({
+          kind: "covered",
+          applied: 238_000,
+          change: 0,
+          cash_rounding: 0,
+        }),
         chargeSaleInCash: async (saleId, tendered) => {
           charges.push([saleId, tendered]);
-          return { kind: "completed", sale_id: saleId, total: 238_000, tendered, change: 0 };
+          return {
+            kind: "completed",
+            sale_id: saleId,
+            total: 238_000,
+            tendered,
+            change: 0,
+            cash_rounding: 0,
+          };
         },
       },
       "/charge",
@@ -2367,7 +2379,12 @@ describe("the register's router", () => {
           subtotal: 238_000,
           promotion_savings: 0,
         }),
-        cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 0 }),
+        cashCharge: async () => ({
+          kind: "covered",
+          applied: 238_000,
+          change: 0,
+          cash_rounding: 0,
+        }),
         chargeSaleInCash: async () => ({ kind: "no_open_session" }),
         refreshCashSession: refreshed,
       },

@@ -34,7 +34,7 @@ describe("ChargeCompletedModal", () => {
   it("shows the cash handed over and the change of a cash charge", async () => {
     const screen = await renderModal({
       method: "CASH",
-      charge: { kind: "completed", ...SALE, tendered: 500_000, change: 24_000 },
+      charge: { kind: "completed", ...SALE, tendered: 500_000, change: 24_000, cash_rounding: 0 },
     });
 
     await expect.element(screen.getByRole("heading", { name: "Entregá el vuelto" })).toBeVisible();

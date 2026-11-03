@@ -9,14 +9,15 @@ export function saleTotalOf(database: LocalDatabase, saleId: string): number {
     )
     .all(saleId);
   const discount = database
-    .prepare<[string], SaleDiscountColumns>(
+    .prepare<[string], SaleDiscountColumns & { cash_rounding: number }>(
       `SELECT sale_discount_kind, sale_discount_value, sale_discount_reason,
-              sale_discount_authorized_by
+              sale_discount_authorized_by, cash_rounding
        FROM sales WHERE id = ?`,
     )
     .get(saleId);
   return amountToCharge({
     lines,
     saleDiscount: discount === undefined ? null : toSaleDiscount(discount),
+    cashRounding: discount?.cash_rounding ?? 0,
   });
 }

@@ -352,6 +352,12 @@ describe("replenishing a completed sale into a restored register", () => {
     });
   });
 
+  it("holds the cash rounding its cash payment was charged with", () => {
+    apply(completedSale({ cashRounding: 70 }));
+
+    expect(sale()).toMatchObject({ cash_rounding: 70 });
+  });
+
   it("holds its payments and the cash movements the cashier made for them", () => {
     apply(completedSale());
 

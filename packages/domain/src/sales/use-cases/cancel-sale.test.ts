@@ -56,6 +56,7 @@ const OPEN_SALE: SaleWithLines = {
   actorId: "cashier",
   state: "OPEN",
   saleDiscount: null,
+  cashRounding: 0,
   lines: [YERBA_LINE],
 };
 const APPROVED_PAYMENT: SalePayment = {
@@ -210,6 +211,7 @@ describe("cancelSale", () => {
         {
           ...OPEN_SALE,
           saleDiscount: TEN_PERCENT_SALE_DISCOUNT,
+          cashRounding: 0,
           lines: [YERBA_LINE, { ...YERBA_LINE, id: "line-2", lineTotal: 3250 }],
         },
       ],

@@ -1,9 +1,11 @@
 import { syncedEventUpcaster } from "@purosur/contracts";
 import { recordedPushes } from "@purosur/contracts/sync/test-support";
+import { compareCodeUnits } from "@purosur/domain";
 import { applyPendingEvents } from "@purosur/domain/sync/use-cases";
 import { isNull } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { categories, inbox, products, sales, users } from "../platform/db/schema.js";
+import { DrizzleCashRoundingReportReader } from "../sales/drizzle-cash-rounding-report-reader.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { eventApplicationUnderTest } from "./test-support/drizzle-event-application.js";
 
@@ -20,8 +22,8 @@ function recordedPush() {
   return found;
 }
 
-describe("applying the push of a register that rounded what was paid in cash", () => {
-  it("keeps the rounding of each sale, apart from its discount on the total, and of the voided one too", async () => {
+describe("applying the push recorded from a register session that rounded what was paid in cash", () => {
+  it("keeps the rounding of each sale, apart from its discount on the total, and of the voided one too, and reports the completed ones", async () => {
     const { deviceId, locationId } = await system.enrollInstallation();
     await system.db
       .insert(users)
@@ -30,8 +32,21 @@ describe("applying the push of a register that rounded what was paid in cash", (
       .insert(categories)
       .values({ name: "Almacen" })
       .returning({ id: categories.id });
-    const events = recordedPush().push.events.filter((event) =>
-      ["cash_session_opened", "sale_completed", "sale_voided"].includes(event.event_type),
+    const pushed = recordedPush().push.events;
+    const bigSales = new Set(
+      pushed
+        .filter(
+          (event) =>
+            event.event_type === "sale_completed" &&
+            (event.payload as { total: number }).total >= 100000,
+        )
+        .map((event) => event.aggregate_id),
+    );
+    const events = pushed.filter(
+      (event) =>
+        event.event_type === "cash_session_opened" ||
+        (["sale_completed", "sale_voided"].includes(event.event_type) &&
+          bigSales.has(event.aggregate_id)),
     );
     const productIds = new Set(
       events.flatMap((event) =>
@@ -87,17 +102,31 @@ describe("applying the push of a register that rounded what was paid in cash", (
     const rows = await system.db.select().from(sales);
     expect(
       rows
+        .filter(({ total }) => total >= 100000)
         .map(({ state, total, cashRounding, saleDiscountAmount }) => ({
           state,
           total,
           cashRounding,
           saleDiscountAmount,
         }))
-        .sort((a, b) => b.total - a.total),
+        .sort(
+          (a, b) =>
+            b.total - a.total ||
+            compareCodeUnits(a.state, b.state) ||
+            (a.saleDiscountAmount ?? 0) - (b.saleDiscountAmount ?? 0),
+        ),
     ).toEqual([
-      { state: "COMPLETED", total: 320000, cashRounding: 7000, saleDiscountAmount: null },
-      { state: "VOIDED", total: 80000, cashRounding: 4500, saleDiscountAmount: null },
-      { state: "COMPLETED", total: 40000, cashRounding: 3000, saleDiscountAmount: 5000 },
+      { state: "COMPLETED", total: 520000, cashRounding: 7000, saleDiscountAmount: null },
+      { state: "COMPLETED", total: 320000, cashRounding: 7000, saleDiscountAmount: 900 },
+      { state: "VOIDED", total: 320000, cashRounding: 7000, saleDiscountAmount: null },
+      { state: "COMPLETED", total: 200000, cashRounding: 0, saleDiscountAmount: null },
     ]);
+    expect(
+      await new DrizzleCashRoundingReportReader(system.db).completedCashRoundings({
+        locationId,
+        range: { from: "2026-10-01", to: "2026-10-31" },
+        registerId: undefined,
+      }),
+    ).toEqual([expect.objectContaining({ rounded: 14000, roundedSaleCount: 2 })]);
   });
 });

@@ -61,6 +61,7 @@ function source(overrides: Partial<ReceiptSource> = {}): ReceiptSource {
     operationNumber: 482,
     total: 11250,
     saleDiscount: null,
+    cashRounding: 0,
     lines: [YERBA, QUESO],
     payments: [{ method: "CASH", amount: 11250, tendered: 12000, cardType: null }],
     fiscal: { kind: "none" },
@@ -180,6 +181,18 @@ describe("receiptContent", () => {
 
     it("shows no discount when the sale has none", () => {
       expect(discounted(null, 11250).saleDiscount).toBeNull();
+    });
+  });
+
+  describe("the cash rounding", () => {
+    it("shows the cash rounding of the sale beside the rounded total", () => {
+      const { totals } = receiptContent(source({ total: 10000, cashRounding: 1250 }));
+
+      expect(totals).toMatchObject({ subtotal: 11250, total: 10000, cashRounding: 1250 });
+    });
+
+    it("shows no cash rounding when the sale was not rounded", () => {
+      expect(receiptContent(source()).totals.cashRounding).toBe(0);
     });
   });
 

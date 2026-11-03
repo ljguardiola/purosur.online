@@ -126,7 +126,12 @@ function returnedContent(
       operationNumber: header.operation_number,
     },
     lines,
-    totals: { subtotal: creditNoteTotal, saleDiscount: null, total: creditNoteTotal },
+    totals: {
+      subtotal: creditNoteTotal,
+      saleDiscount: null,
+      cashRounding: 0,
+      total: creditNoteTotal,
+    },
   };
 }
 
@@ -144,7 +149,12 @@ function receiptBody(
     header,
     operation,
     lines,
-    totals: { subtotal: totals.subtotal, saleDiscount: totals.saleDiscount, total: totals.total },
+    totals: {
+      subtotal: totals.subtotal,
+      saleDiscount: totals.saleDiscount,
+      cashRounding: totals.cashRounding,
+      total: totals.total,
+    },
   };
 }
 

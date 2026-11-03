@@ -53,8 +53,10 @@ import {
   chargeSaleOnStandaloneTerminalFor,
   chargeSaleWithPaidOrderFor,
   currentSaleFor,
+  type OutboxSaleRequestDeps,
   rebuildSaleAgainstPaidOrderFor,
   removeSaleLineFor,
+  type SellingRequestDeps,
   scanProductFor,
 } from "../../sales/sale-requests";
 import { ControllableReceiptPrinter } from "../../sales/test-support/controllable-receipt-printer";
@@ -84,11 +86,15 @@ const YERBA = "0b9d4c7e-6a21-4e83-9f5b-3d8e1a2c7b05";
 const SUGAR = "5d1a8f3c-9e47-4b02-8c6d-7a3f2e9b1c06";
 const COOKIES = "2e6b9d3f-7a15-4c80-b4e2-8d1f5a3c9b15";
 const CHEESE = "9f3b6d1a-4c27-4e80-a5b1-2d7c8e0f3a19";
+const THERMOS = "7c1e9a3d-5b46-4f02-8d9a-1e6b3c7f2a22";
+const KETTLE = "4d8b2f6a-9e13-4c57-a0b8-6a1d3e9c5f23";
 const PRICE_LIST = "9a6e2b1d-4c78-4f13-b5a0-8e7d3c1f9a07";
 const YERBA_PRICE = "3c8f1d5a-2b96-4e70-a4c9-6f1b8d2e5a08";
 const SUGAR_PRICE = "7e4a9c2f-1d63-4b85-9e0a-2c5f7b8d1309";
 const COOKIES_PRICE = "6a3d8f1c-2e74-4b59-9c0d-5f8a1e3b7c16";
 const CHEESE_PRICE = "1b7e4a9d-3c25-4f68-b0d1-8a2c5e7f9b20";
+const THERMOS_PRICE = "8e2c6a4f-1b97-4d35-a0c6-3f9d1b7e5a24";
+const KETTLE_PRICE = "2a9d5c1e-7f38-4b60-9e4a-5c8b2d6f1a25";
 const DISCOUNT = "b5d2f7a1-8c40-4e96-a3b7-1f9e6c4d2a10";
 const BUY_THREE_PAY_TWO = "c9f4b2e7-1a58-4d36-8e0b-4a7c3f9d1e17";
 const THRESHOLD = "d3e6a9c1-5f28-4b74-8a0d-9c2e7f1b4a11";
@@ -207,7 +213,24 @@ function seed(database: ReturnType<typeof openLocalDatabase>): void {
       "INSERT INTO products (id, name, category_id, sale_unit, active, version) VALUES (?, 'Queso cremoso', ?, 'KG', 1, 1)",
     )
     .run(CHEESE, CATEGORY);
+  for (const [id, name, code] of [
+    [THERMOS, "Termo acero 1 L", "7790001000042"],
+    [KETTLE, "Pava electrica", "7790001000059"],
+  ]) {
+    database
+      .prepare(
+        "INSERT INTO products (id, name, category_id, sale_unit, active, version) VALUES (?, ?, ?, 'UNIT', 1, 1)",
+      )
+      .run(id, name, CATEGORY);
+    database
+      .prepare(
+        "INSERT INTO product_barcodes (product_id, position, code, active) VALUES (?, 1, ?, 1)",
+      )
+      .run(id, code);
+  }
   for (const [id, product, amount] of [
+    [THERMOS_PRICE, THERMOS, 327_000],
+    [KETTLE_PRICE, KETTLE, 200_000],
     [CHEESE_PRICE, CHEESE, 9000],
     [YERBA_PRICE, YERBA, 1500],
     [SUGAR_PRICE, SUGAR, 2400],
@@ -1278,6 +1301,8 @@ export async function withRegisterSession<TResult>(
     nextStep();
     await catchUpFirstDeferredSale(database, now);
     nextStep();
+    await sellAndVoidRoundedCashSales({ deps, voidDeps, nextStep });
+    nextStep();
     const closed = await closeCashSessionFor(deps(), {
       sessionId: opened.cash_session.id,
       countedCash: 12_800,
@@ -1290,12 +1315,92 @@ export async function withRegisterSession<TResult>(
   }
 }
 
+type SaleRequestDepsOf = () => SellingRequestDeps & OutboxSaleRequestDeps;
+
+async function scanOne(deps: SaleRequestDepsOf, code: string): Promise<string> {
+  const scanned = await scanProductFor(deps(), code);
+  if (scanned.kind !== "added") {
+    throw new Error(`The register session's "scan ${code}" ended as "${scanned.kind}"`);
+  }
+  return scanned.sale.id;
+}
+
+async function sellAndVoidRoundedCashSales({
+  deps,
+  voidDeps,
+  nextStep,
+}: {
+  deps: SaleRequestDepsOf;
+  voidDeps: () => Parameters<typeof voidSaleFor>[0];
+  nextStep: () => void;
+}): Promise<void> {
+  nextStep();
+  const allInCash = await scanOne(deps, "7790001000042");
+  nextStep();
+  const roundedCash = await chargeSaleInCashFor(deps(), { saleId: allInCash, tendered: 500_000 });
+  expectOutcome("pay a sale in cash that is rounded down", roundedCash.kind, "completed");
+
+  nextStep();
+  const restInCash = await scanOne(deps, "7790001000042");
+  nextStep();
+  await scanOne(deps, "7790001000059");
+  nextStep();
+  const byTransfer = await chargeSaleByTransferFor(deps(), {
+    saleId: restInCash,
+    amount: 300_000,
+  });
+  expectOutcome(
+    "pay part of a sale by transfer before its rounded cash",
+    byTransfer.kind,
+    "partially_paid",
+  );
+  nextStep();
+  const restRounded = await chargeSaleInCashFor(deps(), { saleId: restInCash, tendered: 230_000 });
+  expectOutcome("pay the rest of a sale in cash, rounded down", restRounded.kind, "completed");
+
+  nextStep();
+  const discounted = await scanOne(deps, "7790001000042");
+  nextStep();
+  await scanOne(deps, "7790001000035");
+  nextStep();
+  const discountOnTotal = await applySaleDiscountFor(deps(), {
+    discount: { kind: "AMOUNT", value: 900 },
+    reason: "Compra grande",
+    authorization: { user_id: GRACE, pin: PIN },
+  });
+  expectOutcome("discount the total of a sale paid in cash", discountOnTotal.kind, "applied");
+  nextStep();
+  const discountedCash = await chargeSaleInCashFor(deps(), {
+    saleId: discounted,
+    tendered: 400_000,
+  });
+  expectOutcome("pay in cash a sale discounted on its total", discountedCash.kind, "completed");
+
+  nextStep();
+  const exact = await scanOne(deps, "7790001000059");
+  nextStep();
+  const exactCash = await chargeSaleInCashFor(deps(), { saleId: exact, tendered: 200_000 });
+  expectOutcome(
+    "pay in cash a sale on a multiple of one hundred pesos",
+    exactCash.kind,
+    "completed",
+  );
+
+  nextStep();
+  const voided = await voidSaleFor(voidDeps(), {
+    saleId: allInCash,
+    pendingRefundsConfirmed: true,
+    authorization: { user_id: GRACE, pin: PIN },
+  });
+  expectOutcome("void a sale whose cash was rounded down", voided.kind, "voided");
+}
+
 export async function registerSessionPush(): Promise<{
   outboxChainKey: string;
   sentBody: unknown;
 }> {
   return withRegisterSession(async ({ database, now }) => {
-    const events = await new SqliteLocalOutbox(database, now).unacknowledged(100);
+    const events = await new SqliteLocalOutbox(database, now).unacknowledged(200);
     const lastSeq = events.at(-1)?.device_seq ?? 0;
     const posted: unknown[] = [];
     await new CloudEventInbox({

@@ -42,6 +42,7 @@ function saleWorth(total: number): SaleWithLines {
     actorId: "cashier",
     state: "OPEN",
     saleDiscount: null,
+    cashRounding: 0,
     lines: [
       {
         id: "line-1",
@@ -138,7 +139,7 @@ describe("chargeSaleWithPaidOrder", () => {
       chargeWithPaidOrder(store);
 
       expect(completedEvent(store)).toMatchObject({
-        schema_version: 10,
+        schema_version: 11,
         payload: {
           total: 5000,
           payments: [{ id: "order-1", method: "QR", amount: 5000, state: "APPROVED" }],

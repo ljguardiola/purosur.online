@@ -46,6 +46,17 @@ describe("the fiscal documents of completed sales", () => {
     ]);
   });
 
+  it("carry the total a sale paid in cash was rounded down to", () => {
+    addSaleWithDocument("sale-1", { id: "doc-1", state: "UNKNOWN" }, 327_000);
+    database.prepare("UPDATE sales SET cash_rounding = 7000 WHERE id = 'sale-1'").run();
+
+    expect(
+      new SqliteCompletedSaleFiscalDocuments(database)
+        .documentsIn(["UNKNOWN"])
+        .map(({ total }) => total),
+    ).toEqual([320_000]);
+  });
+
   it("leave out the documents in another state", () => {
     addSaleWithDocument("sale-1", { id: "doc-1", state: "AUTHORIZED", number: 1 });
     addSaleWithDocument("sale-2", { id: "doc-2", state: "REJECTED", number: 2 });

@@ -2153,7 +2153,14 @@ describe("charging the sale in progress in cash with a discount on its total", (
         tendered: 5000,
         discountAmount: 500,
       }),
-    ).toEqual({ kind: "completed", sale_id: saleId, total: 2500, tendered: 5000, change: 2500 });
+    ).toEqual({
+      kind: "completed",
+      sale_id: saleId,
+      total: 2500,
+      tendered: 5000,
+      change: 2500,
+      cash_rounding: 0,
+    });
     expect(stored()).toEqual({
       sales: [
         {
@@ -2563,6 +2570,7 @@ describe("charging the sale in progress in cash", () => {
       total: 3000,
       tendered: 5000,
       change: 2000,
+      cash_rounding: 0,
     });
     expect(database.prepare("SELECT state FROM sales").all()).toEqual([{ state: "COMPLETED" }]);
     expect(database.prepare("SELECT event_type FROM outbox").all()).toEqual([
@@ -2636,6 +2644,7 @@ describe("charging the sale in progress in cash", () => {
       total: 3000,
       tendered: 5000,
       change: 2000,
+      cash_rounding: 0,
     });
     expect(
       database.prepare("SELECT outcome, failure_reason FROM pre_emission_gate_outcomes").all(),
@@ -3201,8 +3210,8 @@ describe("what a sale in progress needs when an amount is tendered", () => {
   }
 
   it.each([
-    [5000, { kind: "covered", applied: 3000, change: 2000 }],
-    [3000, { kind: "covered", applied: 3000, change: 0 }],
+    [5000, { kind: "covered", applied: 3000, change: 2000, cash_rounding: 0 }],
+    [3000, { kind: "covered", applied: 3000, change: 0, cash_rounding: 0 }],
     [1000, { kind: "partial", applied: 1000, pending: 2000 }],
     [0, { kind: "invalid_amount" }],
   ] as const)(
@@ -3222,6 +3231,7 @@ describe("what a sale in progress needs when an amount is tendered", () => {
       kind: "covered",
       applied: 1800,
       change: 200,
+      cash_rounding: 0,
     });
     expect(await cashChargeFor(deps(), { saleId, tendered: 500 })).toEqual({
       kind: "partial",
@@ -3240,8 +3250,8 @@ describe("what a sale in progress needs when an amount is tendered", () => {
   });
 
   it.each([
-    [5000, 500, { kind: "covered", applied: 2500, change: 2500 }],
-    [2500, 500, { kind: "covered", applied: 2500, change: 0 }],
+    [5000, 500, { kind: "covered", applied: 2500, change: 2500, cash_rounding: 0 }],
+    [2500, 500, { kind: "covered", applied: 2500, change: 0, cash_rounding: 0 }],
     [1000, 500, { kind: "partial", applied: 1000, pending: 1500 }],
     [0, 500, { kind: "invalid_amount" }],
   ] as const)(
@@ -3269,6 +3279,7 @@ describe("what a sale in progress needs when an amount is tendered", () => {
       kind: "covered",
       applied: 2500,
       change: 2500,
+      cash_rounding: 0,
     });
   });
 
