@@ -1,13 +1,13 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { types as t, transformAsync, traverse } from "@babel/core";
+import { join, posix } from "node:path";
+import { parseSync, types as t, transformSync, traverse } from "@babel/core";
 import reactCompiler from "babel-plugin-react-compiler";
 import { describeViolation, findTrackedFiles } from "./react-compiler-check.mjs";
 
-export { describeViolation, findTrackedFiles };
-
 const HOOK = "useTableModel";
 const CHECKED_OPTIONS = ["columns", "items"];
+const MODULE_SUFFIXES = ["", ".ts", ".tsx", "/index.ts", "/index.tsx"];
+const WRAPPER = /(^|\.)(memo|forwardRef)$/;
 
 function unwrap(node) {
   let current = node;
@@ -53,9 +53,7 @@ function calleeName(callee) {
   return "call";
 }
 
-function isHookCall(node) {
-  if (!t.isCallExpression(node) && !t.isOptionalCallExpression(node)) return false;
-  const name = calleeName(node.callee);
+function isHookName(name) {
   return /(^|\.)use[A-Z][^.]*$/.test(name);
 }
 
@@ -125,92 +123,559 @@ function enclosingCacheBlock(path) {
   return null;
 }
 
-function createAnalysis() {
+function functionName(functionPath) {
+  let outer = functionPath;
+  while (
+    outer.parentPath.isCallExpression() &&
+    WRAPPER.test(calleeName(outer.parentPath.node.callee))
+  ) {
+    outer = outer.parentPath;
+  }
+  const parent = outer.parentPath;
+  if (functionPath.node.id) return functionPath.node.id.name;
+  return parent.isVariableDeclarator() && t.isIdentifier(parent.node.id)
+    ? parent.node.id.name
+    : undefined;
+}
+
+function componentOrHookAround(path) {
+  let current = path.getFunctionParent();
+  while (current && !isComponentOrHook(current)) current = current.parentPath.getFunctionParent();
+  return current;
+}
+
+function memberKey(node) {
+  if (!node.computed) return t.isIdentifier(node.property) ? node.property.name : undefined;
+  if (t.isStringLiteral(node.property) || t.isNumericLiteral(node.property)) {
+    return String(node.property.value);
+  }
+  return undefined;
+}
+
+function selectionIn(patternPath, name) {
+  if (patternPath.isIdentifier()) {
+    return patternPath.node.name === name ? { keys: [], defaults: [], rest: false } : null;
+  }
+  if (patternPath.isAssignmentPattern()) {
+    const found = selectionIn(patternPath.get("left"), name);
+    return found && { ...found, defaults: [patternPath.get("right"), ...found.defaults] };
+  }
+  if (patternPath.isRestElement()) {
+    const found = selectionIn(patternPath.get("argument"), name);
+    return found && { ...found, rest: true };
+  }
+  if (patternPath.isObjectPattern()) {
+    for (const property of patternPath.get("properties")) {
+      if (property.isRestElement()) {
+        const found = selectionIn(property, name);
+        if (found) return found;
+        continue;
+      }
+      const found = selectionIn(property.get("value"), name);
+      if (!found) continue;
+      const key = keyNameOf(property);
+      return key === undefined ? { ...found, keys: [] } : { ...found, keys: [key, ...found.keys] };
+    }
+  }
+  if (patternPath.isArrayPattern()) {
+    for (const [index, element] of patternPath.get("elements").entries()) {
+      if (!element.node) continue;
+      const found = selectionIn(element, name);
+      if (!found) continue;
+      return element.isRestElement()
+        ? { ...found, keys: [], rest: false }
+        : { ...found, keys: [String(index), ...found.keys] };
+    }
+  }
+  return null;
+}
+
+function attributeName(attribute) {
+  const name = attribute.node.name;
+  return t.isJSXIdentifier(name) ? name.name : undefined;
+}
+
+function elementName(name) {
+  if (t.isJSXIdentifier(name)) return name.name;
+  if (t.isJSXMemberExpression(name)) return `${elementName(name.object)}.${name.property.name}`;
+  return "element";
+}
+
+function isWithin(path, functionPath) {
+  return path.node === functionPath.node || path.isDescendant(functionPath);
+}
+
+function aliasedCallee(calleePath) {
+  const followed = new Set();
+  let current = unwrapPath(calleePath);
+  while (current.isIdentifier()) {
+    const binding = current.scope.getBinding(current.node.name);
+    const isAlias = binding?.path.isVariableDeclarator() && t.isIdentifier(binding.path.node.id);
+    if (!isAlias || followed.has(binding)) return current;
+    followed.add(binding);
+    const sources = [binding.path.get("init")];
+    for (const violation of binding.constantViolations) {
+      if (!violation.isAssignmentExpression({ operator: "=" })) return current;
+      sources.push(violation.get("right"));
+    }
+    const values = sources.filter((source) => source.node && !isCacheRead(source.node));
+    const value = values.length === 1 ? unwrapPath(values[0]) : null;
+    if (!value?.isIdentifier()) return current;
+    current = value;
+  }
+  return current;
+}
+
+function along(label, outcomes) {
+  return outcomes.map((outcome) => ({ ...outcome, trail: [label, ...outcome.trail] }));
+}
+
+function createAnalysis(project, file, root) {
   const bindingResults = new Map();
   const blockResults = new Map();
 
+  function fresh(path) {
+    const block = enclosingCacheBlock(path);
+    return block ? checkBlock(block) : [{ trail: [describeNode(path.node)] }];
+  }
+
   function checkBlock(block) {
     if (blockResults.has(block.node)) return blockResults.get(block.node);
-    blockResults.set(block.node, null);
-    let result = null;
-    for (const dep of cacheTestDeps(block.get("test"))) {
-      result = check(dep);
-      if (result) break;
-    }
-    blockResults.set(block.node, result);
-    return result;
+    blockResults.set(block.node, []);
+    const outcomes = cacheTestDeps(block.get("test")).flatMap((dep) => check(dep));
+    blockResults.set(block.node, outcomes);
+    return outcomes;
   }
 
-  function checkSource(path) {
-    if (isCacheRead(path.node)) return null;
-    const block = enclosingCacheBlock(path);
-    return block ? checkBlock(block) : check(path);
+  function checkAssigned(targetPath, valuePath, name, keys) {
+    if (targetPath.isIdentifier()) return check(valuePath, keys);
+    const selection = selectionIn(targetPath, name);
+    if (!selection) return [{ trail: [`${name} (pattern)`] }];
+    const defaults = selection.defaults.flatMap((value) => check(value, keys));
+    if (selection.rest && keys.length === 0) return [...fresh(valuePath), ...defaults];
+    return [...check(valuePath, [...selection.keys, ...keys]), ...defaults];
   }
 
-  function checkBinding(binding, name) {
-    if (binding.scope.path.isProgram()) return null;
-    if (binding.kind === "param" || binding.kind === "module" || binding.kind === "local") {
-      return null;
-    }
-    if (binding.kind === "hoisted") return [`function ${name}`];
-    if (!binding.path.isVariableDeclarator()) return [`${name} (${binding.kind})`];
+  function checkParam(binding, name, keys) {
+    if (binding.scope.path.node !== root.node) return [];
+    const selection = selectionIn(binding.path, name);
+    if (!selection) return [{ trail: [`${name} (parameter)`] }];
+    const defaults = selection.defaults.flatMap((value) => check(value, keys));
+    if (selection.rest && keys.length === 0) return [{ trail: [`rest of ${name}`] }, ...defaults];
+    const param = { index: binding.path.key, keys: [...selection.keys, ...keys] };
+    return [{ trail: [], param }, ...defaults];
+  }
 
-    const sources = [];
+  function checkBinding(binding, name, keys) {
+    if (binding.kind === "param") return checkParam(binding, name, keys);
+    if (binding.kind === "module" || binding.kind === "local") return [];
+    if (binding.kind === "hoisted") return [{ trail: [`function ${name}`] }];
+    if (!binding.path.isVariableDeclarator()) return [{ trail: [`${name} (${binding.kind})`] }];
+
+    const outcomes = [];
     const init = binding.path.get("init");
-    if (init.node) sources.push(init);
+    if (init.node) outcomes.push(...checkAssigned(binding.path.get("id"), init, name, keys));
     for (const violation of binding.constantViolations) {
       if (!violation.isAssignmentExpression({ operator: "=" })) {
-        return [`${name} (reassigned)`];
+        return [{ trail: [`${name} (reassigned)`] }];
       }
-      sources.push(violation.get("right"));
+      outcomes.push(...checkAssigned(violation.get("left"), violation.get("right"), name, keys));
     }
-    for (const source of sources) {
-      const result = checkSource(source);
-      if (result) return result;
+    return outcomes;
+  }
+
+  function checkIdentifier(path, keys) {
+    const name = path.node.name;
+    if (name === "undefined") return [];
+    const binding = path.scope.getBinding(name);
+    if (!binding || !isWithin(binding.scope.path, root)) return [];
+    if (!bindingResults.has(binding)) bindingResults.set(binding, new Map());
+    const results = bindingResults.get(binding);
+    const key = keys.join("\0");
+    if (!results.has(key)) {
+      results.set(key, []);
+      results.set(key, checkBinding(binding, name, keys));
+    }
+    return along(name, results.get(key));
+  }
+
+  function checkProperty(objectPath, keys) {
+    const [key, ...rest] = keys;
+    const outcomes = [];
+    for (const property of objectPath.get("properties").reverse()) {
+      if (property.isSpreadElement()) {
+        outcomes.push(...check(property.get("argument"), keys));
+        continue;
+      }
+      const matches = property.node.computed || keyNameOf(property) === key;
+      if (!matches) continue;
+      outcomes.push(
+        ...(property.isObjectProperty() ? check(property.get("value"), rest) : fresh(property)),
+      );
+      if (!property.node.computed) break;
+    }
+    return outcomes;
+  }
+
+  function checkElement(arrayPath, keys) {
+    const [key, ...rest] = keys;
+    const elements = arrayPath.get("elements");
+    const index = Number(key);
+    if (elements.slice(0, index + 1).some((element) => element.isSpreadElement())) {
+      return fresh(arrayPath);
+    }
+    return elements[index]?.node ? check(elements[index], rest) : [];
+  }
+
+  function checkArgument(callPath, { index, keys }) {
+    const args = callPath.get("arguments");
+    if (args.slice(0, index + 1).some((argument) => argument.isSpreadElement())) {
+      return [{ trail: ["spread argument"] }];
+    }
+    return args[index] ? check(args[index], keys) : [];
+  }
+
+  function checkProps(elementPath, keys) {
+    if (keys.length === 0) return check(elementPath.parentPath, []);
+    const [prop, ...rest] = keys;
+    const outcomes = [];
+    for (const attribute of elementPath.get("attributes").reverse()) {
+      if (attribute.isJSXSpreadAttribute()) {
+        outcomes.push(...check(attribute.get("argument"), keys));
+        continue;
+      }
+      if (attributeName(attribute) !== prop) continue;
+      const value = attribute.get("value");
+      if (value.isJSXExpressionContainer()) outcomes.push(...check(value.get("expression"), rest));
+      return outcomes;
+    }
+    if (prop !== "children") return outcomes;
+    for (const child of elementPath.parentPath.get("children")) {
+      if (child.isJSXExpressionContainer()) outcomes.push(...check(child.get("expression"), []));
+      if (child.isJSXElement() || child.isJSXFragment()) outcomes.push(...check(child, []));
+    }
+    return outcomes;
+  }
+
+  function checkHookCall(path, callee, keys) {
+    const reference = project.referenceOf(file, callee);
+    if (!reference) return [];
+    const name = calleeName(callee.node);
+    const outcomes = [];
+    for (const outcome of project.returnOf(reference, keys)) {
+      const trail = [`${name}(…)`, ...outcome.trail];
+      if (!outcome.param) {
+        outcomes.push({ trail });
+        continue;
+      }
+      const label = `${name} argument ${outcome.param.index + 1}`;
+      for (const passed of checkArgument(path, outcome.param)) {
+        outcomes.push({ ...passed, trail: [...trail, label, ...passed.trail] });
+      }
+    }
+    return outcomes;
+  }
+
+  function check(rawPath, keys = []) {
+    const path = unwrapPath(rawPath);
+    const node = path.node;
+    if (
+      t.isLiteral(node) ||
+      t.isUnaryExpression(node) ||
+      t.isBinaryExpression(node) ||
+      t.isJSXEmptyExpression(node)
+    ) {
+      return [];
+    }
+    if (isCacheRead(node) || isPrimitiveCall(path)) return [];
+    if (path.isIdentifier()) return checkIdentifier(path, keys);
+    if (path.isMemberExpression() || path.isOptionalMemberExpression()) {
+      const key = memberKey(node);
+      return check(path.get("object"), key === undefined ? [] : [key, ...keys]);
+    }
+    if (path.isLogicalExpression()) {
+      return [...check(path.get("left"), keys), ...check(path.get("right"), keys)];
+    }
+    if (path.isConditionalExpression()) {
+      return [...check(path.get("consequent"), keys), ...check(path.get("alternate"), keys)];
+    }
+    if (path.isObjectExpression() && keys.length > 0) return checkProperty(path, keys);
+    if (path.isArrayExpression() && /^\d+$/.test(keys[0] ?? "")) return checkElement(path, keys);
+    if (path.isCallExpression() || path.isOptionalCallExpression()) {
+      const callee = aliasedCallee(path.get("callee"));
+      if (isHookName(calleeName(callee.node))) return checkHookCall(path, callee, keys);
+    }
+    return fresh(path);
+  }
+
+  return { check, checkArgument, checkProps };
+}
+
+function parserOptionsOf(path) {
+  return { plugins: path.endsWith(".tsx") ? ["typescript", "jsx"] : ["typescript"] };
+}
+
+function nameOf(node) {
+  return t.isIdentifier(node) ? node.name : node.value;
+}
+
+function declaredNames(statement) {
+  if (t.isFunctionDeclaration(statement) && statement.id) return [statement.id.name];
+  if (!t.isVariableDeclaration(statement)) return [];
+  return statement.declarations.filter((d) => t.isIdentifier(d.id)).map((d) => d.id.name);
+}
+
+function importedNameOf(specifier) {
+  if (t.isImportDefaultSpecifier(specifier)) return "default";
+  if (t.isImportNamespaceSpecifier(specifier)) return "*";
+  return nameOf(specifier.imported);
+}
+
+function moduleIndexOf(path, source) {
+  const ast = parseSync(source, {
+    filename: path,
+    babelrc: false,
+    configFile: false,
+    parserOpts: parserOptionsOf(path),
+  });
+  const index = { imports: new Map(), locals: new Set(), exports: new Map(), stars: [] };
+  for (const statement of ast.program.body) {
+    if (t.isImportDeclaration(statement)) {
+      for (const specifier of statement.specifiers) {
+        index.imports.set(specifier.local.name, {
+          from: statement.source.value,
+          imported: importedNameOf(specifier),
+        });
+      }
+    } else if (t.isExportAllDeclaration(statement)) {
+      index.stars.push(statement.source.value);
+    } else if (t.isExportNamedDeclaration(statement)) {
+      for (const name of declaredNames(statement.declaration)) {
+        index.locals.add(name);
+        index.exports.set(name, { local: name });
+      }
+      for (const specifier of statement.specifiers) {
+        const exported = nameOf(specifier.exported);
+        if (!statement.source) index.exports.set(exported, { local: specifier.local.name });
+        else if (t.isExportSpecifier(specifier)) {
+          index.exports.set(exported, {
+            from: statement.source.value,
+            imported: nameOf(specifier.local),
+          });
+        }
+      }
+    } else if (t.isExportDefaultDeclaration(statement)) {
+      const declaration = statement.declaration;
+      const name = t.isIdentifier(declaration) ? declaration.name : declaration.id?.name;
+      if (name) index.exports.set("default", { local: name });
+      if (name && !t.isIdentifier(declaration)) index.locals.add(name);
+    } else {
+      for (const name of declaredNames(statement)) index.locals.add(name);
+    }
+  }
+  return index;
+}
+
+function createProject(files, packages) {
+  const sources = new Map(files.map(({ path, source }) => [path, source]));
+  const indexes = new Map();
+  const programs = new Map();
+  const analyses = new Map();
+  const returns = new Map();
+
+  function moduleOf(specifier, from) {
+    if (Object.hasOwn(packages, specifier)) {
+      return sources.has(packages[specifier]) ? packages[specifier] : null;
+    }
+    if (!specifier.startsWith(".")) return null;
+    const stem = posix.join(posix.dirname(from), specifier).replace(/\.js$/, "");
+    return MODULE_SUFFIXES.map((suffix) => stem + suffix).find((path) => sources.has(path)) ?? null;
+  }
+
+  function indexOf(path) {
+    if (!indexes.has(path)) indexes.set(path, moduleIndexOf(path, sources.get(path)));
+    return indexes.get(path);
+  }
+
+  function resolveLocal(path, name, seen = new Set()) {
+    const imported = indexOf(path).imports.get(name);
+    if (imported) {
+      const target = moduleOf(imported.from, path);
+      return target && imported.imported !== "*"
+        ? resolveExport(target, imported.imported, seen)
+        : null;
+    }
+    return indexOf(path).locals.has(name) ? { path, name } : null;
+  }
+
+  function resolveExport(path, name, seen = new Set()) {
+    const key = `${path}#${name}`;
+    if (seen.has(key)) return null;
+    seen.add(key);
+    const index = indexOf(path);
+    const entry = index.exports.get(name);
+    if (entry?.local) return resolveLocal(path, entry.local, seen);
+    if (entry) {
+      const target = moduleOf(entry.from, path);
+      return target && resolveExport(target, entry.imported, seen);
+    }
+    if (name === "default") return null;
+    for (const star of index.stars) {
+      const target = moduleOf(star, path);
+      const found = target && resolveExport(target, name, seen);
+      if (found) return found;
     }
     return null;
   }
 
-  function checkIdentifier(path) {
-    const name = path.node.name;
-    if (name === "undefined") return null;
-    const binding = path.scope.getBinding(name);
+  function programOf(path) {
+    if (!programs.has(path)) {
+      const { ast } = transformSync(sources.get(path), {
+        filename: path,
+        babelrc: false,
+        configFile: false,
+        ast: true,
+        code: false,
+        parserOpts: parserOptionsOf(path),
+        plugins: [[reactCompiler, {}]],
+      });
+      let program;
+      traverse(ast, {
+        Program(programPath) {
+          program = programPath;
+          programPath.stop();
+        },
+      });
+      programs.set(path, program);
+    }
+    return programs.get(path);
+  }
+
+  function referenceOf(path, nameOrCallee) {
+    const node = nameOrCallee.node;
+    if (t.isIdentifier(node) || t.isJSXIdentifier(node)) {
+      const binding = nameOrCallee.scope.getBinding(node.name);
+      return binding?.scope.path.isProgram() ? resolveLocal(path, node.name) : null;
+    }
+    const isMember =
+      (t.isMemberExpression(node) && !node.computed) || t.isJSXMemberExpression(node);
+    if (!isMember || !(t.isIdentifier(node.object) || t.isJSXIdentifier(node.object))) return null;
+    const imported = indexOf(path).imports.get(node.object.name);
+    const binding = nameOrCallee.scope.getBinding(node.object.name);
+    if (imported?.imported !== "*" || !binding?.scope.path.isProgram()) return null;
+    const target = moduleOf(imported.from, path);
+    return target && resolveExport(target, node.property.name);
+  }
+
+  function functionOf(reference) {
+    const binding = programOf(reference.path).scope.getBinding(reference.name);
     if (!binding) return null;
-    if (!bindingResults.has(binding)) {
-      bindingResults.set(binding, null);
-      bindingResults.set(binding, checkBinding(binding, name));
-    }
-    const result = bindingResults.get(binding);
-    return result ? [name, ...result] : null;
-  }
-
-  function check(rawPath) {
-    const path = unwrapPath(rawPath);
-    const node = path.node;
-    if (
-      (t.isLiteral(node) && !t.isTemplateLiteral(node)) ||
-      t.isTemplateLiteral(node) ||
-      t.isUnaryExpression(node) ||
-      t.isBinaryExpression(node)
+    if (binding.path.isFunctionDeclaration()) return binding.path;
+    if (!binding.path.isVariableDeclarator() || !binding.path.node.init) return null;
+    let init = unwrapPath(binding.path.get("init"));
+    while (
+      init.isCallExpression() &&
+      WRAPPER.test(calleeName(init.node.callee)) &&
+      init.node.arguments[0]
     ) {
-      return null;
+      init = unwrapPath(init.get("arguments.0"));
     }
-    if (isCacheRead(node) || isHookCall(node) || isPrimitiveCall(path)) return null;
-    if (path.isIdentifier()) return checkIdentifier(path);
-    if (path.isMemberExpression() || path.isOptionalMemberExpression()) {
-      return check(path.get("object"));
-    }
-    if (path.isLogicalExpression()) {
-      return check(path.get("left")) ?? check(path.get("right"));
-    }
-    if (path.isConditionalExpression()) {
-      return check(path.get("consequent")) ?? check(path.get("alternate"));
-    }
-    const block = enclosingCacheBlock(path);
-    return block ? checkBlock(block) : [describeNode(node)];
+    return init.isFunction() ? init : null;
   }
 
-  return { check };
+  function analysisOf(path, functionPath) {
+    if (!analyses.has(functionPath.node)) {
+      analyses.set(functionPath.node, createAnalysis(project, path, functionPath));
+    }
+    return analyses.get(functionPath.node);
+  }
+
+  function returnOf(reference, keys) {
+    const key = `${reference.path}#${reference.name}\0${keys.join("\0")}`;
+    if (returns.has(key)) return returns.get(key);
+    returns.set(key, []);
+    const functionPath = functionOf(reference);
+    let outcomes = [{ trail: [`${reference.name} cannot be followed`] }];
+    if (functionPath) {
+      const analysis = analysisOf(reference.path, functionPath);
+      const body = functionPath.get("body");
+      outcomes = [];
+      if (!body.isBlockStatement()) outcomes.push(...analysis.check(body, keys));
+      else {
+        body.traverse({
+          Function(inner) {
+            inner.skip();
+          },
+          ReturnStatement(returned) {
+            if (returned.node.argument)
+              outcomes.push(...analysis.check(returned.get("argument"), keys));
+          },
+        });
+      }
+    }
+    returns.set(key, outcomes);
+    return outcomes;
+  }
+
+  function isReference(found, reference) {
+    return found?.path === reference.path && found.name === reference.name;
+  }
+
+  function namesOf(reference) {
+    const names = new Set([reference.name, posix.basename(reference.path).replace(/\.[^.]*$/, "")]);
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const [path, source] of sources) {
+        if (![...names].some((name) => source.includes(name))) continue;
+        for (const exported of indexOf(path).exports.keys()) {
+          if (!names.has(exported) && isReference(resolveExport(path, exported), reference)) {
+            names.add(exported);
+            grew = true;
+          }
+        }
+      }
+    }
+    return [...names];
+  }
+
+  function callSitesOf(reference) {
+    const names = namesOf(reference);
+    const sites = [];
+    for (const [path, source] of sources) {
+      if (!names.some((name) => source.includes(name))) continue;
+      programOf(path).traverse({
+        JSXOpeningElement(element) {
+          if (isReference(referenceOf(path, element.get("name")), reference)) {
+            sites.push({ path, element });
+          }
+        },
+        CallExpression(call) {
+          if (isReference(referenceOf(path, call.get("callee")), reference))
+            sites.push({ path, call });
+        },
+      });
+    }
+    return sites;
+  }
+
+  function ownerOf(path, functionPath) {
+    const name = functionName(functionPath);
+    const reference = name && resolveLocal(path, name);
+    return reference?.path === path && functionOf(reference)?.node === functionPath.node
+      ? reference
+      : null;
+  }
+
+  const project = {
+    analysisOf,
+    callSitesOf,
+    ownerOf,
+    programOf,
+    referenceOf,
+    returnOf,
+  };
+  return project;
 }
 
 function optionsObjectOf(argumentPath) {
@@ -282,71 +747,133 @@ function isHookCallee(path) {
   );
 }
 
-function violationsOfCall(callPath, path) {
+function reasonOf(origin, site, trail) {
+  const where =
+    origin.path === site.path && origin.line === site.line
+      ? ""
+      : ` of ${origin.path}:${origin.line}`;
+  return `${HOOK} ${origin.option}${where} is not memoized by the React Compiler (${trail.join(" <- ")})`;
+}
+
+function settle(project, site, outcomes, { trail, origin }, found) {
+  let reported = false;
+  for (const outcome of outcomes) {
+    const full = [...trail, ...outcome.trail];
+    const owner = outcome.param && project.ownerOf(site.path, site.functionPath);
+    if (owner) {
+      found.requirements.push({ owner, ...outcome.param, trail: full, origin });
+      continue;
+    }
+    if (reported) continue;
+    reported = true;
+    const ending = outcome.param
+      ? [...full, "a parameter of a function that is not a module-level component or hook"]
+      : full;
+    found.violations.push({
+      path: site.path,
+      line: site.line,
+      reason: reasonOf(origin, site, ending),
+    });
+  }
+}
+
+function checkTable(project, path, callPath, functionPath, found) {
   const line = lineOf(callPath);
-  const violation = (reason) => ({ path, line, reason });
+  const violation = (reason) => found.violations.push({ path, line, reason });
   const argument = callPath.get("arguments.0");
   const options = argument.node ? optionsObjectOf(argument) : null;
 
   if (!options) {
-    return [
-      violation(
-        `${HOOK} options cannot be followed to an object literal (${argument.node ? describeNode(unwrap(argument.node)) : "no argument"})`,
-      ),
-    ];
+    violation(
+      `${HOOK} options cannot be followed to an object literal (${argument.node ? describeNode(unwrap(argument.node)) : "no argument"})`,
+    );
+    return;
   }
 
-  const analysis = createAnalysis();
-  const violations = [];
+  const analysis = project.analysisOf(path, functionPath);
   for (const option of CHECKED_OPTIONS) {
-    const found = optionOf(options, option);
-    if (found.missing) continue;
-    if (found.unfollowable) {
-      violations.push(violation(`${HOOK} ${option} cannot be followed (${found.unfollowable})`));
+    const property = optionOf(options, option);
+    if (property.missing) continue;
+    if (property.unfollowable) {
+      violation(`${HOOK} ${option} cannot be followed (${property.unfollowable})`);
       continue;
     }
-    const valuePath = found.property.isObjectProperty()
-      ? found.property.get("value")
-      : found.property;
-    const trail = analysis.check(valuePath);
-    if (trail) {
-      violations.push(
-        violation(
-          `${HOOK} ${option} is not memoized by the React Compiler (${[option, ...trail].join(" <- ")})`,
-        ),
-      );
+    const valuePath = property.property.isObjectProperty()
+      ? property.property.get("value")
+      : property.property;
+    const site = { path, line, functionPath };
+    const origin = { option, path, line };
+    settle(project, site, analysis.check(valuePath), { trail: [option], origin }, found);
+  }
+}
+
+function checkCallSites(project, requirement, found) {
+  const { owner, index, keys } = requirement;
+  for (const { path, element, call } of project.callSitesOf(owner)) {
+    const functionPath = componentOrHookAround(element ?? call);
+    if (!functionPath || (element && index !== 0)) continue;
+    const analysis = project.analysisOf(path, functionPath);
+    const label = element
+      ? `<${[elementName(element.node.name), ...keys.slice(0, 1)].join(" ")}>`
+      : `${calleeName(call.node.callee)} argument ${index + 1}`;
+    const outcomes = element
+      ? analysis.checkProps(element, keys)
+      : analysis.checkArgument(call, requirement);
+    const site = { path, line: lineOf(element ?? call), functionPath };
+    const trail = [...requirement.trail, label];
+    settle(project, site, outcomes, { trail, origin: requirement.origin }, found);
+  }
+}
+
+function requirementKey({ owner, index, keys, origin }) {
+  return [owner.path, owner.name, index, ...keys, origin.path, origin.line, origin.option].join(
+    "\0",
+  );
+}
+
+export async function checkFiles(files, { packages = {} } = {}) {
+  const project = createProject(files, packages);
+  const found = { violations: [], requirements: [] };
+
+  for (const { path, source } of files) {
+    if (!source.includes(HOOK)) continue;
+    project.programOf(path).traverse({
+      CallExpression(callPath) {
+        const enclosing = callPath.getFunctionParent();
+        if (isHookCallee(callPath) && enclosing && isComponentOrHook(enclosing)) {
+          checkTable(project, path, callPath, enclosing, found);
+        }
+      },
+    });
+  }
+
+  const followed = new Set();
+  while (found.requirements.length > 0) {
+    const requirement = found.requirements.shift();
+    const key = requirementKey(requirement);
+    if (followed.has(key)) continue;
+    followed.add(key);
+    checkCallSites(project, requirement, found);
+  }
+  return found.violations;
+}
+
+function workspacePackagesOf(paths, readFile) {
+  const packages = {};
+  const roots = new Set(
+    paths
+      .filter((path) => path.startsWith("packages/"))
+      .map((path) => path.split("/").slice(0, 2).join("/")),
+  );
+  for (const root of roots) {
+    const manifest = JSON.parse(readFile(posix.join(root, "package.json")));
+    for (const [subpath, target] of Object.entries(manifest.exports ?? {})) {
+      if (typeof target === "string" && /\.tsx?$/.test(target)) {
+        packages[posix.join(manifest.name, subpath)] = posix.join(root, target);
+      }
     }
   }
-  return violations;
-}
-
-async function violationsOf({ path, source }) {
-  if (!source.includes(HOOK)) return [];
-
-  const result = await transformAsync(source, {
-    filename: path,
-    babelrc: false,
-    configFile: false,
-    ast: true,
-    code: false,
-    parserOpts: { plugins: path.endsWith(".tsx") ? ["typescript", "jsx"] : ["typescript"] },
-    plugins: [[reactCompiler, {}]],
-  });
-
-  const violations = [];
-  traverse(result.ast, {
-    CallExpression(callPath) {
-      const enclosing = callPath.getFunctionParent();
-      if (isHookCallee(callPath) && enclosing && isComponentOrHook(enclosing))
-        violations.push(...violationsOfCall(callPath, path));
-    },
-  });
-  return violations;
-}
-
-export async function checkFiles(files) {
-  const violations = await Promise.all(files.map(violationsOf));
-  return violations.flat();
+  return packages;
 }
 
 export async function runCli({
@@ -357,7 +884,8 @@ export async function runCli({
 } = {}) {
   const paths = findFiles(cwd);
   const files = paths.map((path) => ({ path, source: readFile(join(cwd, path)) }));
-  const violations = await checkFiles(files);
+  const packages = workspacePackagesOf(paths, (path) => readFile(join(cwd, path)));
+  const violations = await checkFiles(files, { packages });
 
   if (violations.length === 0) return 0;
 
