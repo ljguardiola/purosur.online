@@ -62,7 +62,7 @@ export async function weighProductOnScale(
       take,
       (weightThousandths) =>
         newWeighedSaleLine(
-          "weighing",
+          priced.product.id,
           priced.product,
           priced.price,
           validPromotions(tx, priced.product.id, priced.moment, priced.rules),
