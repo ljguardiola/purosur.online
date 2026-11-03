@@ -456,6 +456,16 @@ describe("previewing a return", () => {
     });
   });
 
+  it("refunds a line of a sale rounded down in cash its share of what was actually paid", async () => {
+    database.exec("UPDATE sales SET cash_rounding = 500 WHERE id = 'sale-1'");
+
+    expect(await previewReturnFor(deps(), { saleId: "sale-1", lines: [YERBA] })).toMatchObject({
+      kind: "previewed",
+      lines: [{ sale_line_id: "line-1", quantity: 2, refund_amount: 4783 }],
+      refundable_total: 4783,
+    });
+  });
+
   it("names the refusal of a line with its last allowed day", async () => {
     expect(
       await previewReturnFor(deps({ now: () => new Date("2026-09-28T15:00:00.000Z") }), {

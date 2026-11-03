@@ -538,7 +538,7 @@ describe("voiding a sale", () => {
       const event = database
         .prepare("SELECT schema_version, payload FROM outbox WHERE event_type = 'sale_voided'")
         .get() as { schema_version: number; payload: string };
-      expect(event.schema_version).toBe(4);
+      expect(event.schema_version).toBe(5);
       expect(JSON.parse(event.payload).refunds).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ parent_id: "mp-1", method, provider, state: "PENDING" }),
@@ -756,7 +756,7 @@ describe("the credit note of a sale voided without a connection", () => {
     ).toEqual([{ state: "ISSUED_OFFLINE", answered_at: VOIDED_AT.toISOString(), carried: 1 }]);
   });
 
-  it("appends the voiding and then the report event of the credit note, in version 4", async () => {
+  it("appends the voiding and then the report event of the credit note, in version 5", async () => {
     const saleId = invoicedSaleWithOfflineCreditNoteSeries();
 
     await voidIt(saleId);
@@ -770,7 +770,7 @@ describe("the credit note of a sale voided without a connection", () => {
         )
         .all(),
     ).toEqual([
-      { event_type: "sale_voided", schema_version: 4 },
+      { event_type: "sale_voided", schema_version: 5 },
       { event_type: "offline_fiscal_document_issued", schema_version: 3 },
     ]);
   });

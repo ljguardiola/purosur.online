@@ -238,7 +238,7 @@ describe("charging a rebuilt sale with its paid order", () => {
     });
   });
 
-  it("emits the completed sale as version 10 naming the order and the surplus of a higher payment", async () => {
+  it("emits the completed sale as version 11 naming the order and the surplus of a higher payment", async () => {
     recordPaidOrder(5000);
     const { saleId } = await rebuildAndSell(2);
 
@@ -247,7 +247,7 @@ describe("charging a rebuilt sale with its paid order", () => {
     expect(outcome).toMatchObject({ kind: "completed", total: 3000, applied: 3000, surplus: 2000 });
     expect(outboxOf("sale_completed")).toMatchObject([
       {
-        schemaVersion: 10,
+        schemaVersion: 11,
         payload: { rebuilt_paid_order: { payment_transaction_id: "order-1", surplus: 2000 } },
       },
     ]);
@@ -274,7 +274,7 @@ describe("charging a rebuilt sale with its paid order", () => {
 
     expect(rest).toMatchObject({ kind: "completed", total: 4500 });
     expect(outboxOf("sale_completed")).toMatchObject([
-      { schemaVersion: 10, payload: { rebuilt_paid_order: { surplus: 0 } } },
+      { schemaVersion: 11, payload: { rebuilt_paid_order: { surplus: 0 } } },
     ]);
   });
 

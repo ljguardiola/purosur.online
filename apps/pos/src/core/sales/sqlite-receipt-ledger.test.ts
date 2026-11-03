@@ -320,6 +320,21 @@ describe("a receipt ledger's source of a sale", () => {
     expect(source.saleDiscount).toEqual({ kind: "AMOUNT", amount: 100000 });
   });
 
+  it("takes the cash rounding the sale stored off its total after the discount on its total", () => {
+    insertSaleWithEverything();
+    database.exec(
+      `UPDATE sales SET sale_discount_kind = 'AMOUNT', sale_discount_value = 100000,
+         sale_discount_reason = 'Cliente frecuente', cash_rounding = 7100
+       WHERE id = 'sale-1'`,
+    );
+
+    const source = inTransaction((tx) => tx.receiptSource("sale-1"));
+
+    expect(source.cashRounding).toBe(7100);
+    expect(source.total).toBe(630000);
+    expect(source.saleDiscount).toEqual({ kind: "AMOUNT", amount: 100000 });
+  });
+
   it("carries a percent discount on the sale's total with its percent", () => {
     insertSaleWithEverything();
     database.exec(

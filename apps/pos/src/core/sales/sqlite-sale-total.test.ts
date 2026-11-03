@@ -49,6 +49,18 @@ describe("saleTotalOf", () => {
     expect(saleTotalOf(database, "sale-1")).toBe(1800);
   });
 
+  it("takes the cash rounding off the lines after the sale's discount", () => {
+    addSale("sale-1", [200_000, 137_000]);
+    database
+      .prepare(
+        `UPDATE sales SET sale_discount_kind = 'AMOUNT', sale_discount_value = 10000,
+           sale_discount_reason = 'cliente frecuente', cash_rounding = 7000 WHERE id = 'sale-1'`,
+      )
+      .run();
+
+    expect(saleTotalOf(database, "sale-1")).toBe(320_000);
+  });
+
   it("takes the sale's amount discount off the lines", () => {
     addSale("sale-1", [1000, 1000]);
     database
