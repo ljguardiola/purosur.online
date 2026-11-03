@@ -67,9 +67,13 @@ function quantityLine(
   } as RegisterPurchaseLine;
 }
 
-async function registered(lines: (productId: string) => RegisterPurchaseLine[], productId: string) {
+async function registered(
+  lines: (productId: string) => RegisterPurchaseLine[],
+  productId: string,
+  supplierName = "Distribuidora Sur",
+) {
   const supplier = await createSupplier(store(), {
-    name: "Distribuidora Sur",
+    name: supplierName,
     cuit: null,
     contact: null,
     note: null,
@@ -241,7 +245,7 @@ describe("correcting a registered purchase's header", () => {
     const yerba = await insertProduct(db, { name: "Yerba" });
     const harina = await insertProduct(db, { name: "Harina" });
     const redated = await registered((id) => [quantityLine(id)], yerba.id);
-    await registered((id) => [quantityLine(id)], harina.id);
+    await registered((id) => [quantityLine(id)], harina.id, "Molinos del Valle");
     now = CORRECTED_AT;
 
     await correctPurchaseHeader(
