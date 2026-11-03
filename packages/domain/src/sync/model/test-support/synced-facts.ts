@@ -14,6 +14,7 @@ export function aCompletedSaleFact(overrides: Partial<SaleCompleted["sale"]> = {
       total: 1500,
       saleDiscount: null,
       saleDiscountAmount: 0,
+      cashRounding: 0,
       lines: [
         {
           id: "line-1",

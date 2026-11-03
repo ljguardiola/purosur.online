@@ -2875,3 +2875,126 @@ describe("decoding a removed sale line and a cancelled sale without payments", (
     });
   });
 });
+
+describe("decoding the cash rounding of a sale", () => {
+  const completedPayment = {
+    ...salePayment,
+    authorized_by: null,
+    confirmed_at: null,
+    card_type: null,
+  };
+  const completed = (version: number, change: Record<string, unknown> = {}) =>
+    pushed({
+      schema_version: version,
+      payload: {
+        ...saleFields,
+        lines: [{ ...saleLine, weight_source: null, manual_adjustment: null, sale_discount_share: 0 }],
+        sale_discount: null,
+        operation_number: 484,
+        payments: [completedPayment],
+        stock_movements: [],
+        rebuilt_paid_order: null,
+        ...change,
+      },
+    });
+  const voided = (version: number, change: Record<string, unknown> = {}) =>
+    pushed({
+      event_type: "sale_voided",
+      schema_version: version,
+      payload: {
+        ...saleFields,
+        lines: [{ ...saleLine, weight_source: null, manual_adjustment: null, sale_discount_share: 0 }],
+        sale_discount: null,
+        authorized_by: USER,
+        payments: [completedPayment],
+        refunds: [],
+        stock_movements: [],
+        deferred_record_cancelled: false,
+        credit_note: null,
+        ...change,
+      },
+    });
+
+  it("reads the rounding a version 11 completed sale names", () => {
+    expect(
+      syncedEventUpcaster.decode(unappliedEventOf(completed(11, { cash_rounding: 7000 }))),
+    ).toMatchObject({ kind: "fact", fact: { kind: "sale_completed", sale: { cashRounding: 7000 } } });
+  });
+
+  it("reads a version 10 completed sale, which names none, as rounded by nothing", () => {
+    expect(syncedEventUpcaster.decode(unappliedEventOf(completed(10)))).toMatchObject({
+      kind: "fact",
+      fact: { kind: "sale_completed", sale: { cashRounding: 0 } },
+    });
+  });
+
+  it("reads the rounding a version 5 voided sale names", () => {
+    expect(
+      syncedEventUpcaster.decode(unappliedEventOf(voided(5, { cash_rounding: 7000 }))),
+    ).toMatchObject({ kind: "fact", fact: { kind: "sale_voided", sale: { cashRounding: 7000 } } });
+  });
+
+  it("reads a version 4 voided sale, which names none, as rounded by nothing", () => {
+    expect(syncedEventUpcaster.decode(unappliedEventOf(voided(4)))).toMatchObject({
+      kind: "fact",
+      fact: { kind: "sale_voided", sale: { cashRounding: 0 } },
+    });
+  });
+
+  it("keeps the rounding apart from the discount on the total", () => {
+    const discount = {
+      kind: "AMOUNT",
+      value: 400,
+      amount: 400,
+      reason: "Compra grande",
+      authorized_by: USER,
+    };
+
+    expect(
+      syncedEventUpcaster.decode(
+        unappliedEventOf(
+          completed(11, {
+            cash_rounding: 7000,
+            sale_discount: discount,
+            lines: [
+              {
+                ...saleLine,
+                weight_source: null,
+                manual_adjustment: null,
+                sale_discount_share: 400,
+              },
+            ],
+          }),
+        ),
+      ),
+    ).toMatchObject({
+      fact: { sale: { cashRounding: 7000, saleDiscountAmount: 400 } },
+    });
+  });
+
+  it("reads no rounding on the sales a register cancelled", () => {
+    const decoded = syncedEventUpcaster.decode(
+      unappliedEventOf(
+        pushed({
+          event_type: "sale_cancelled",
+          schema_version: 10,
+          payload: {
+            ...saleFields,
+            lines: [
+              { ...saleLine, weight_source: null, manual_adjustment: null, sale_discount_share: 0 },
+            ],
+            sale_discount: null,
+            authorized_by: null,
+            payments: [],
+            refunds: [],
+            cash_movements: [],
+            rebuilt_paid_order: null,
+          },
+        }),
+      ),
+    );
+
+    expect(decoded).toMatchObject({ fact: { kind: "sale_cancelled" } });
+    expect(decoded).not.toHaveProperty("fact.sale.cashRounding");
+  });
+});

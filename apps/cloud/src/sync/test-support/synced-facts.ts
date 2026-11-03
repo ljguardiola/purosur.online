@@ -18,6 +18,7 @@ export function aCompletedSale(overrides: Partial<CompletedSale> = {}): Complete
     total: 4800,
     saleDiscount: null,
     saleDiscountAmount: 0,
+    cashRounding: 0,
     lines: [
       {
         id: randomUUID(),
@@ -187,6 +188,7 @@ export function aVoidedSaleOf(
     total: completed.total,
     saleDiscount: completed.saleDiscount,
     saleDiscountAmount: completed.saleDiscountAmount,
+    cashRounding: completed.cashRounding,
     lines: completed.lines,
     payments: completed.payments,
     refunds,
