@@ -4,7 +4,7 @@ import { emptyPurchaseLine } from "./purchase-form";
 import {
   emptyPurchaseLinesAddition,
   PURCHASE_LINES_ADDITION_FIELDS,
-  PURCHASE_LINES_ADDITION_MESSAGES,
+  purchaseLinesAdditionMessages,
   purchaseLinesAdditionRequestFrom,
 } from "./purchase-lines-addition-form";
 import { AVENA_PRODUCT_ID, purchasableProducts } from "./test-support/purchase-products";
@@ -56,7 +56,7 @@ describe("the lines form's field and message", () => {
   it("names the first line that is not valid, as the registration does", () => {
     const values = { lines: [{ ...emptyPurchaseLine(1) }] };
 
-    expect(PURCHASE_LINES_ADDITION_MESSAGES(purchasableProducts).lines(values)).toBe(
+    expect(purchaseLinesAdditionMessages(purchasableProducts).lines(values)).toBe(
       "Línea 1: Elegí el producto.",
     );
   });
