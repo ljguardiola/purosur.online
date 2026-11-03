@@ -13,7 +13,7 @@ import {
   useRequestForm,
 } from "@purosur/ui";
 import { Check, RotateCcw, ShieldX, TriangleAlert } from "lucide-react";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import type { ProductPriceSectionProps as PlatformProps } from "../platform/product-price-section";
@@ -63,13 +63,12 @@ type SectionNotice =
   | { kind: "stale" }
   | { kind: "notFound" };
 
-function useSettled<Value>(value: Value, key: string, initial: Value): Value {
-  const [settled, setSettled] = useState(initial);
-  const settle = useEffectEvent((_settledKey: string) => setSettled(value));
+function useSettled<Value extends string | number | undefined>(value: Value): Value {
+  const [settled, setSettled] = useState(value);
   useEffect(() => {
-    const handle = setTimeout(() => settle(key), SETTLE_MS);
+    const handle = setTimeout(() => setSettled(value), SETTLE_MS);
     return () => clearTimeout(handle);
-  }, [key]);
+  }, [value]);
   return settled;
 }
 
@@ -152,6 +151,7 @@ function ProposedMargin({
   onSessionEnded,
   productId,
   components,
+  componentsSettled,
 }: {
   maySetPrice: boolean;
   answer: PriceRecommendation;
@@ -162,12 +162,13 @@ function ProposedMargin({
   onSessionEnded: () => void;
   productId: string;
   components: FetchPriceRecommendationInput["components"];
+  componentsSettled: boolean;
 }) {
   const proposed = maySetPrice ? settled : recommendedPrice;
   const margin = usePriceRecommendationQuery({
     productId,
     input: proposed === undefined ? { components } : { components, unitPrice: proposed },
-    enabled: answer.batchCost.kind === "known" && proposed !== undefined,
+    enabled: componentsSettled && answer.batchCost.kind === "known" && proposed !== undefined,
     keepPreviousData: false,
     fetchPriceRecommendation: fetchRecommendation,
     onSessionEnded,
@@ -240,11 +241,12 @@ export function ProductPriceSection({
   const sendToMyAccount = useSendToMyAccount();
   const refreshPrices = useRefreshPrices();
   const [notice, setNotice] = useState<SectionNotice | null>(null);
-  const settledComponents = useSettled(components, componentsKey(components), components);
+  const key = componentsKey(components);
+  const componentsSettled = useSettled(key) === key;
   const recommendation = usePriceRecommendationQuery({
     productId,
-    input: { components: withoutNames(settledComponents) },
-    enabled: true,
+    input: { components: withoutNames(components) },
+    enabled: componentsSettled,
     keepPreviousData: true,
     fetchPriceRecommendation: services.fetchPriceRecommendation,
     onSessionEnded,
@@ -315,7 +317,7 @@ export function ProductPriceSection({
   }, [currentPriceId, form]);
 
   const typed = typedUnitPrice(values.amount);
-  const settledTyped = useSettled(typed, String(typed), undefined);
+  const settledTyped = useSettled(typed);
 
   return (
     <section className="flex flex-col gap-4">
@@ -399,7 +401,8 @@ export function ProductPriceSection({
           fetchRecommendation={services.fetchPriceRecommendation}
           onSessionEnded={onSessionEnded}
           productId={productId}
-          components={withoutNames(settledComponents)}
+          components={withoutNames(components)}
+          componentsSettled={componentsSettled}
         />
       ) : null}
       {maySetPrice ? (
