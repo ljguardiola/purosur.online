@@ -77,6 +77,7 @@ function creditNote(overrides: Partial<CreditNoteReceiptContent> = {}): CreditNo
       },
     ],
     totals: {
+      cashRounding: 0,
       subtotal: 1_106_000,
       saleDiscount: { kind: "PERCENT", percent: 10, amount: 110_600 },
       total: 995_400,
@@ -175,7 +176,7 @@ describe("the ESC/POS credit note of a voided sale", () => {
 
   it("leaves out the discount line of a sale without a discount on its total", () => {
     const content = creditNote({
-      totals: { subtotal: 1_106_000, saleDiscount: null, total: 1_106_000 },
+      totals: { subtotal: 1_106_000, saleDiscount: null, cashRounding: 0, total: 1_106_000 },
       refunds: [{ method: "CASH", amount: 1_106_000 }],
     });
 

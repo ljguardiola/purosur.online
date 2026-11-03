@@ -70,6 +70,7 @@ function receipt(overrides: Partial<ReceiptContent> = {}): ReceiptContent {
       },
     ],
     totals: {
+      cashRounding: 0,
       subtotal: 1_767_500,
       saleDiscount: null,
       total: 1_767_500,
@@ -100,6 +101,7 @@ function singleUnitReceipt(productName: string, price: number): ReceiptContent {
       },
     ],
     totals: {
+      cashRounding: 0,
       subtotal: price,
       saleDiscount: null,
       total: price,
@@ -300,6 +302,7 @@ function discountedReceipt(saleDiscount: NonNullable<ReceiptContent["totals"]["s
       },
     ],
     totals: {
+      cashRounding: 0,
       subtotal: 1_947_500,
       saleDiscount,
       total: 1_947_500 - saleDiscount.amount,
@@ -448,6 +451,7 @@ describe("the ESC/POS receipt template", () => {
     const { textLines } = printed(
       receipt({
         totals: {
+          cashRounding: 0,
           subtotal: 1_767_500,
           saleDiscount: null,
           total: 1_767_500,
@@ -474,6 +478,7 @@ describe("the ESC/POS receipt template", () => {
       const { textLines } = printed(
         receipt({
           totals: {
+            cashRounding: 0,
             subtotal: 1_000_000,
             saleDiscount: null,
             total: 1_000_000,
@@ -491,6 +496,7 @@ describe("the ESC/POS receipt template", () => {
     const { textLines } = printed(
       receipt({
         totals: {
+          cashRounding: 0,
           subtotal: 1_000_000,
           saleDiscount: null,
           total: 1_000_000,

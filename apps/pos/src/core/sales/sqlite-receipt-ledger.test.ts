@@ -350,6 +350,7 @@ describe("a receipt ledger's source of a sale", () => {
       operationNumber: 482,
       total: 737100,
       saleDiscount: null,
+      cashRounding: 0,
       lines: [
         {
           productName: "Yerba a granel",
