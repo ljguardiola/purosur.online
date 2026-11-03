@@ -132,8 +132,10 @@ test("clears the expiry date of the line when the date is emptied", async () => 
   const screen = await renderModal({ services: createServices({ correctPurchaseLineExpiry }) });
 
   const dialog = await readyDialog(screen);
-  await userEvent.click(expiryDay(dialog).first());
-  await userEvent.keyboard("{Backspace}");
+  for (const segment of expiryDay(dialog).all()) {
+    await userEvent.click(segment);
+    await userEvent.keyboard("{Backspace}{Backspace}{Backspace}{Backspace}");
+  }
   await userEvent.click(dialog.getByRole("button", { name: "Guardar el vencimiento" }));
 
   await expect.poll(() => correctPurchaseLineExpiry.mock.calls.length).toBe(1);
