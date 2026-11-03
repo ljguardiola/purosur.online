@@ -38,6 +38,8 @@ const STATE_FILTER_OPTIONS = [
   { value: "ALL" as const, label: "Todos" },
   { value: "DRAFT" as const, label: "Borradores" },
   { value: "SENT" as const, label: "Enviados" },
+  { value: "PARTIALLY_RECEIVED" as const, label: "Recibidos en parte" },
+  { value: "RECEIVED" as const, label: "Recibidos" },
   { value: "CANCELLED" as const, label: "Cancelados" },
 ] as const;
 

@@ -4,8 +4,8 @@ import { AreaLayout, SectionLink } from "./area-layout";
 import { AreaTopBarAlertsCount } from "./area-top-bar-alerts-count";
 import {
   canComparePrices,
-  canManagePurchaseOrders,
   canManageSupplierPriceLists,
+  canReadPurchaseOrders,
   canSeeAlertsArea,
 } from "./backoffice-access";
 import { signedInRoute } from "./signed-in-route";
@@ -66,7 +66,7 @@ function OrdersArea() {
                 />
               </li>
             )}
-            {canManagePurchaseOrders(session) && (
+            {canReadPurchaseOrders(session) && (
               <li>
                 <SectionLink
                   to="/purchase-orders"

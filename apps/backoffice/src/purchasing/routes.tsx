@@ -4,9 +4,9 @@ import { z } from "zod";
 import {
   canComparePrices,
   canManageFreights,
-  canManagePurchaseOrders,
   canManageSupplierPriceLists,
   canManageSuppliers,
+  canReadPurchaseOrders,
   canRecordPurchases,
   canSeeAiCostReport,
   canSeeReports,
@@ -118,7 +118,7 @@ export const orderSuggestionRoute = createRoute({
 export const purchaseOrdersRoute = createRoute({
   getParentRoute: () => ordersAreaRoute,
   path: "purchase-orders",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canManagePurchaseOrders),
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canReadPurchaseOrders),
   validateSearch: purchaseOrdersFilters,
   search: { middlewares: [stripSearchParams(purchaseOrdersFilters.parse({}))] },
   component: lazyScreen(() => import("./purchase-orders-page"), "PurchaseOrdersPage"),
@@ -127,7 +127,7 @@ export const purchaseOrdersRoute = createRoute({
 export const purchaseOrderRoute = createRoute({
   getParentRoute: () => ordersAreaRoute,
   path: "purchase-orders/$orderId",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canManagePurchaseOrders),
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canReadPurchaseOrders),
   component: lazyScreen(() => import("./purchase-order-page"), "PurchaseOrderPage"),
 });
 
