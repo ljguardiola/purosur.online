@@ -25,16 +25,9 @@ export function CurrentStockReportLots({ product }: { product: Product }) {
   const columns = [
     dataColumn({
       id: "lot",
-      width: 160,
+      width: 220,
       header: "Lote",
-      render: (lot: Lot) =>
-        lot.technical ? (
-          <TableCellText strong>Técnico</TableCellText>
-        ) : (
-          <TableCellText strong monospace>
-            {lot.lot_number ?? "—"}
-          </TableCellText>
-        ),
+      render: (lot: Lot) => <TableCellText strong>{lot.lot_name}</TableCellText>,
     }),
     dataColumn({
       id: "expiresOn",

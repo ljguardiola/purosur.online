@@ -37,15 +37,14 @@ export function CountLotsField({
           const shared = errorMessageId === undefined ? {} : { errorMessageId };
           return (
             <LabelledFieldList
-              monospaceTitles
               items={lots.map((lot) => ({
                 id: lot.id,
-                title: lot.lotNumber ?? "—",
+                title: lot.lotName,
                 detail: lotDetail(lot, saleUnit),
                 field: (
                   <TextField
                     {...quantityFieldKind(saleUnit)}
-                    label={`Cantidad contada del lote ${lot.lotNumber ?? "sin número"}`}
+                    label={`Cantidad contada del lote ${lot.lotName}`}
                     labelVisuallyHidden
                     value={typed[lot.id] ?? ""}
                     onChange={(value) => field.handleChange({ ...typed, [lot.id]: value })}

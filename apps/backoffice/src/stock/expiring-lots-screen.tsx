@@ -85,8 +85,8 @@ function matchesExpiry(lot: ExpiringLot, filter: ExpiryFilter): boolean {
   return filter === "all" || !lot.expired;
 }
 
-function lotName(lot: ExpiringLot): string {
-  return lot.lotNumber === null ? `de ${formatProductDescription(lot.product)}` : lot.lotNumber;
+function lotOf(lot: ExpiringLot): string {
+  return `${lot.lotName} de ${formatProductDescription(lot.product)}`;
 }
 
 function summaryText({ valueCents, withoutCostCount }: ExpiringLotList["summary"], count: number) {
@@ -99,8 +99,7 @@ function summaryText({ valueCents, withoutCostCount }: ExpiringLotList["summary"
 
 function discardedNotice(lot: ExpiringLot, result: ExpiredLotDiscardResult) {
   const discarded = formatStockQuantity(result.quantity, lot.product.saleUnit);
-  const product = formatProductDescription(lot.product);
-  const what = lot.lotNumber === null ? product : `${lot.lotNumber} de ${product}`;
+  const what = lotOf(lot);
   return {
     tone: "success" as const,
     title: "Lote dado de baja",
@@ -200,16 +199,9 @@ export function ExpiringLotsScreen({
     }),
     dataColumn({
       id: "lot",
-      width: 140,
+      width: 220,
       header: "Lote",
-      render: (lot: ExpiringLot) =>
-        lot.lotNumber === null ? (
-          <TableCellText tone="subtle">—</TableCellText>
-        ) : (
-          <TableCellText strong monospace>
-            {lot.lotNumber}
-          </TableCellText>
-        ),
+      render: (lot: ExpiringLot) => <TableCellText strong>{lot.lotName}</TableCellText>,
     }),
     dataColumn({
       id: "expiresOn",
@@ -254,7 +246,7 @@ export function ExpiringLotsScreen({
           lot.expired && !discarding.includes(lot.id)
             ? {
                 icon: <Trash2 />,
-                "aria-label": `Dar de baja el lote ${lotName(lot)}`,
+                "aria-label": `Dar de baja el lote ${lotOf(lot)}`,
                 onPress: () => void discard(lot),
               }
             : undefined,
