@@ -1,4 +1,4 @@
-import { RECEIPT_TYPES } from "@purosur/domain";
+import { ARGENTINA_TIME_ZONE, RECEIPT_TYPES } from "@purosur/domain";
 import { z } from "zod";
 
 const headerChangeSchema = z.discriminatedUnion("field", [
@@ -43,7 +43,7 @@ const purchaseChangeDetailSchema = z.discriminatedUnion("kind", [
 export const purchaseChangeSchema = z.object({
   id: z.string(),
   actor: z.object({ id: z.string(), name: z.string() }),
-  correctedAt: z.iso.datetime(),
+  correctedAt: z.iso.datetime().meta({ timeZone: ARGENTINA_TIME_ZONE }),
   change: purchaseChangeDetailSchema,
 });
 
