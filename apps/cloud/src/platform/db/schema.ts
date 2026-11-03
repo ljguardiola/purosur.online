@@ -875,6 +875,13 @@ export const purchaseOrderLines = pgTable(
 // instead gathers what was consumed before any purchase, with no cost, and an initial-count lot is
 // the stock counted when the branch began, born from its opening count movement with no cost, and a
 // batch's lot is the output of an assembled batch with the cost of what was consumed to make it.
+export const lotCodeSequence = pgSequence("lot_code_sequence", { startWith: 1, increment: 1 });
+
+export const lotNameOrderSequence = pgSequence("lot_name_order_sequence", {
+  startWith: 1,
+  increment: 1,
+});
+
 export const lots = pgTable(
   "lots",
   {
@@ -890,6 +897,10 @@ export const lots = pgTable(
     assemblyBatchId: uuid("assembly_batch_id").references(() => assemblyBatches.id),
     withdrawn: boolean("withdrawn").notNull().default(false),
     lotNumber: text("lot_number"),
+    code: bigint("code", { mode: "number" }).notNull().default(sql`nextval('lot_code_sequence')`),
+    nameOrder: bigint("name_order", { mode: "number" })
+      .notNull()
+      .default(sql`nextval('lot_name_order_sequence')`),
     expiresOn: date("expires_on", { mode: "string" }),
     purchasedOn: date("purchased_on", { mode: "string" }),
     technical: boolean("technical").notNull().default(false),
@@ -901,6 +912,7 @@ export const lots = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
+    unique("lots_code_key").on(table.code),
     unique("lots_purchase_line_id_key").on(table.purchaseLineId),
     unique("lots_origin_movement_id_key").on(table.originMovementId),
     unique("lots_assembly_batch_id_key").on(table.assemblyBatchId),
