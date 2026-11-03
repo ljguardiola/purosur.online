@@ -187,6 +187,9 @@ export function CashChargeModal({
   const previewed = preview.status === "loaded" ? preview.value : undefined;
   const previewedTotal = previewed?.kind === "preview" ? previewed : undefined;
   const toCharge = previewedTotal?.total ?? pending;
+  const previewLoading = typedDiscount !== undefined && preview.status === "loading";
+  const previewFailed = typedDiscount !== undefined && preview.status === "failed";
+  const totalShown = typedDiscount === undefined || previewedTotal !== undefined;
   const loaded = answer.status === "loaded" ? answer : undefined;
   const answered =
     loaded === undefined || loaded.value === null || loaded.value === "not_permitted"
@@ -205,6 +208,7 @@ export function CashChargeModal({
     tendered !== undefined &&
     !discountInvalid &&
     answered?.kind === "covered" &&
+    totalShown &&
     !loaded?.refreshing
       ? { tendered, ...answered }
       : undefined;
@@ -212,7 +216,7 @@ export function CashChargeModal({
     tendered !== undefined &&
     !discountInvalid &&
     answered?.kind === "partial" &&
-    (typedDiscount === undefined || previewedTotal !== undefined) &&
+    totalShown &&
     !loaded?.refreshing
       ? answered
       : undefined;
@@ -356,7 +360,7 @@ export function CashChargeModal({
             title={`Reemplaza el descuento sobre el total ya aplicado (${formatCents(appliedDiscountAmount)})`}
           />
         ) : null}
-        {tendered !== undefined && answer.status === "loading" ? (
+        {(tendered !== undefined && answer.status === "loading") || previewLoading ? (
           <LoadingPlaceholder variant="card" lines={2} />
         ) : null}
         {answer.status === "failed" ? (
@@ -365,6 +369,14 @@ export function CashChargeModal({
             title="No se pudo calcular el vuelto"
             description="Volvé a intentarlo en unos segundos."
             onRetry={answer.retry}
+          />
+        ) : null}
+        {previewFailed ? (
+          <LoadFailure
+            icon={<TriangleAlert />}
+            title="No se pudo calcular el total con el descuento"
+            description="Volvé a intentarlo en unos segundos."
+            onRetry={preview.retry}
           />
         ) : null}
         {covered === undefined ? null : (
