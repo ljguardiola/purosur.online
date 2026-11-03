@@ -20,6 +20,7 @@ export class DrizzleLotNameReader<TQueryResult extends PgQueryResultHKT> impleme
         productId: lots.productId,
         locationId: lots.locationId,
         nameOrder: lots.nameOrder,
+        givenNumber: lots.nameNumber,
         purchasedOn: lots.purchasedOn,
         purchased: lots.purchaseLineId,
         countedAt: stockMovements.occurredAt,

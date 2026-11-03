@@ -60,7 +60,6 @@ export function registerCurrentStockReportRoute<TQueryResult extends PgQueryResu
               lot_name: formatLotName(lot.name),
               lot_code: formatLotCode(lot.code),
               expires_on: lot.expiresOn,
-              technical: lot.technical,
               remaining: lot.remaining,
               unit_cost_cents: lot.unitCostCents,
               value_cents: lot.valueCents,

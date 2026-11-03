@@ -13,7 +13,6 @@ const currentStockLotSchema = z.object({
   lot_name: z.string(),
   lot_code: z.string(),
   expires_on: z.string().refine(isCalendarDay).nullable(),
-  technical: z.boolean(),
   remaining: z.int(),
   unit_cost_cents: z.int().nullable(),
   value_cents: z.int().nullable(),

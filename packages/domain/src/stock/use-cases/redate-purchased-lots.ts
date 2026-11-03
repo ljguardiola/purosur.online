@@ -1,3 +1,4 @@
+import { numbersKeptByLotsStaying } from "../model/lot-name.js";
 import type { PurchasedLotStoreTransaction } from "./purchased-lot-store.js";
 
 export interface RedatePurchasedLotsInput {
@@ -23,9 +24,10 @@ export async function redatePurchasedLots(
       return { kind: "not_found" };
     }
   }
-  await tx.renameLotsToPurchaseDay(
-    lots.map((lot) => lot.lotId),
-    input.purchasedOn,
+  const lotIds = lots.map((lot) => lot.lotId);
+  await tx.giveLotNumbers(
+    numbersKeptByLotsStaying(await tx.namingOfPurchasedLots(input.locationId, productIds), lotIds),
   );
+  await tx.renameLotsToPurchaseDay(lotIds, input.purchasedOn);
   return { kind: "redated" };
 }

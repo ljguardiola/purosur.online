@@ -3,7 +3,7 @@ export type { BatchLotMovement } from "../model/assembly-batch.js";
 export type { LossRecord, LostProduct, ReasonLosses } from "../model/losses-by-reason.js";
 export type { NewBatchLot, NewInitialCountLot, NewLot } from "../model/lot.js";
 export type { StockLot } from "../model/lot-allocation.js";
-export type { LotNameFacts } from "../model/lot-name.js";
+export type { LotNameFacts, PurchasedLotNaming } from "../model/lot-name.js";
 export type { LoadedSupplierPrice } from "../model/lot-reference-cost.js";
 export type { PurchaseReceipt } from "../model/stock-receipt.js";
 export type {

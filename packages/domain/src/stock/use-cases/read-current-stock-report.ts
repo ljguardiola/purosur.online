@@ -20,7 +20,6 @@ export interface CurrentStockLot {
   name: LotName;
   code: number;
   expiresOn: string | null;
-  technical: boolean;
   remaining: number;
   unitCostCents: number | null;
   valueCents: number | null;
@@ -60,12 +59,11 @@ function productOf(balance: StockBalanceView): CurrentStockProduct {
     balance: balance.balance,
     valueCents: balance.valueCents,
     lots: balance.lots.map(
-      ({ id, name, code, expiresOn, technical, remaining, unitCostCents, valueCents }) => ({
+      ({ id, name, code, expiresOn, remaining, unitCostCents, valueCents }) => ({
         id,
         name,
         code,
         expiresOn,
-        technical,
         remaining,
         unitCostCents,
         valueCents,

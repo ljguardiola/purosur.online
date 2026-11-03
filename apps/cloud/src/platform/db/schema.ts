@@ -871,10 +871,6 @@ export const purchaseOrderLines = pgTable(
   ],
 );
 
-// The stock a purchase line brought in, with the line's exact cost pair; a product's technical lot
-// instead gathers what was consumed before any purchase, with no cost, and an initial-count lot is
-// the stock counted when the branch began, born from its opening count movement with no cost, and a
-// batch's lot is the output of an assembled batch with the cost of what was consumed to make it.
 export const lotCodeSequence = pgSequence("lot_code_sequence", { startWith: 1, increment: 1 });
 
 export const lotNameOrderSequence = pgSequence("lot_name_order_sequence", {
@@ -882,6 +878,10 @@ export const lotNameOrderSequence = pgSequence("lot_name_order_sequence", {
   increment: 1,
 });
 
+// The stock a purchase line brought in, with the line's exact cost pair; a product's technical lot
+// instead gathers what was consumed before any purchase, with no cost, and an initial-count lot is
+// the stock counted when the branch began, born from its opening count movement with no cost, and a
+// batch's lot is the output of an assembled batch with the cost of what was consumed to make it.
 export const lots = pgTable(
   "lots",
   {
@@ -901,6 +901,7 @@ export const lots = pgTable(
     nameOrder: bigint("name_order", { mode: "number" })
       .notNull()
       .default(sql`nextval('lot_name_order_sequence')`),
+    nameNumber: integer("name_number"),
     expiresOn: date("expires_on", { mode: "string" }),
     purchasedOn: date("purchased_on", { mode: "string" }),
     technical: boolean("technical").notNull().default(false),

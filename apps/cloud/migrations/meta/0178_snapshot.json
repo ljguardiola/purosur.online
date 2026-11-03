@@ -4425,6 +4425,12 @@
           "notNull": true,
           "default": "nextval('lot_name_order_sequence')"
         },
+        "name_number": {
+          "name": "name_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "expires_on": {
           "name": "expires_on",
           "type": "date",
