@@ -403,7 +403,7 @@ describe("the register's receipt printing over its local database", () => {
     });
 
     const SHOWN = [
-      "Subtotal                             $ 3.270,00",
+      "Subtotal                              $ 3.270,00",
       "Redondeo                                -$ 70,00",
     ];
 
@@ -419,7 +419,7 @@ describe("the register's receipt printing over its local database", () => {
 
       const { textLines } = printoutOf(connections[0]?.socket.written[0] ?? new Uint8Array());
       expect(textLines).toEqual(expect.arrayContaining(SHOWN));
-      expect(textLines).toContain("TOTAL                                $ 3.200,00");
+      expect(textLines).toContain("TOTAL                                 $ 3.200,00");
       expect(textLines).toContain("Vuelto                                $ 1.800,00");
     });
 

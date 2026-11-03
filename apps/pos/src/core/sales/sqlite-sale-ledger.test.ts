@@ -1320,7 +1320,8 @@ describe("charging a sale with a line sold by weight", () => {
     };
     expect(event.schema_version).toBe(11);
     expect(JSON.parse(event.payload)).toMatchObject({
-      lines: [{ quantity: 1250, weight_source: "MANUAL", line_total: 11250 }],
+      cash_rounding: 1250,
+      lines: [{ quantity: 1250, weight_source: "MANUAL", line_total: 10000 }],
       stock_movements: [{ delta: -1250 }],
     });
   });
