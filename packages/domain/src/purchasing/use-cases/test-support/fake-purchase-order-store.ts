@@ -1,10 +1,10 @@
 import type { PurchaseOrderState } from "../../model/purchase-order.js";
 import type {
+  LockReceivablePurchaseOrderResult,
   NewPurchaseOrderReceiptFields,
   PurchaseOrderReceiptStoreTransaction,
 } from "../purchase-order-receipt-store.js";
 import type {
-  LockPurchaseOrderResult,
   NewPurchaseOrderFields,
   NewPurchaseOrderLineFields,
   PurchaseOrderLineFields,
@@ -61,7 +61,9 @@ function cloneOrder(order: FakePurchaseOrderRow): FakePurchaseOrderRow {
     createdAt: new Date(order.createdAt),
     cancelledAt: order.cancelledAt && new Date(order.cancelledAt),
     sentAt: order.sentAt && new Date(order.sentAt),
-    receivedAt: order.receivedAt && new Date(order.receivedAt),
+    ...(order.receivedAt === undefined
+      ? {}
+      : { receivedAt: order.receivedAt && new Date(order.receivedAt) }),
     lines: order.lines.map((line) => ({ ...line })),
   };
 }
@@ -154,7 +156,10 @@ class FakePurchaseOrderStoreTransaction
     }
   }
 
-  async lockPurchaseOrder(locationId: string, orderId: string): Promise<LockPurchaseOrderResult> {
+  async lockPurchaseOrder(
+    locationId: string,
+    orderId: string,
+  ): Promise<LockReceivablePurchaseOrderResult> {
     this.store.lockLog.push(`order:${orderId}`);
     const order = this.state.orders.find(
       (row) => row.id === orderId && row.locationId === locationId,
@@ -316,10 +321,13 @@ export class FakePurchaseOrderStore implements PurchaseOrderStore {
 
   async transaction<TOutcome>(
     work: (
-      tx: PurchaseOrderStoreTransaction &
+      tx: Omit<PurchaseOrderStoreTransaction, "lockPurchaseOrder"> &
         Pick<
           PurchaseOrderReceiptStoreTransaction,
-          "receivedQuantities" | "insertPurchaseOrderReceipt" | "markPurchaseOrderReceived"
+          | "lockPurchaseOrder"
+          | "receivedQuantities"
+          | "insertPurchaseOrderReceipt"
+          | "markPurchaseOrderReceived"
         >,
     ) => Promise<TOutcome>,
   ): Promise<TOutcome> {
