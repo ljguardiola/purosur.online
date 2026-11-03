@@ -1562,8 +1562,8 @@ describe("cash charge answers", () => {
   );
 
   it("describes a charge as the domain does", () => {
-    type Wire<T> = T extends { cashRounding: number }
-      ? Omit<T, "cashRounding"> & { cash_rounding: number }
+    type Wire<T> = T extends { kind: "covered"; applied: number; change: number }
+      ? { kind: "covered"; applied: number; change: number; cash_rounding: number }
       : T;
 
     expectTypeOf<CashCharge>().toEqualTypeOf<Wire<ReturnType<typeof cashCharge>>>();

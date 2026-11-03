@@ -3,6 +3,7 @@ import {
   isValidDiscountPercent,
   MERCADO_PAGO_PAYMENT_METHODS,
   manualAdjustmentReason,
+  mayBeCashRounding,
   mayBeManualDiscountAmount,
   mayBeManualDiscountPercent,
   mayBeOverriddenUnitPrice,
@@ -138,10 +139,17 @@ export const saleSchema = z.object({
 export type OpenSale = z.infer<typeof saleSchema>;
 export type CurrentSaleAnswer = OpenSale | null | "not_permitted";
 
+const cashRoundingSchema = z.int().refine(mayBeCashRounding);
+
 const cashChargeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("invalid_amount") }),
   z.object({ kind: z.literal("partial"), applied: z.number(), pending: z.number() }),
-  z.object({ kind: z.literal("covered"), applied: z.number(), change: z.number() }),
+  z.object({
+    kind: z.literal("covered"),
+    applied: z.number(),
+    change: z.number(),
+    cash_rounding: cashRoundingSchema,
+  }),
 ]);
 export type CashCharge = z.infer<typeof cashChargeSchema>;
 
@@ -487,6 +495,7 @@ export const chargeSaleInCashOutcomeSchema = z.discriminatedUnion("kind", [
     total: cents,
     tendered: cents,
     change: cents,
+    cash_rounding: cashRoundingSchema,
   }),
   partiallyPaidOutcomeSchema,
   z.object({ kind: z.literal("invalid_amount") }),
