@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import { roundHalfUp } from "../../shared/index.js";
 import { lineValue } from "./purchase-line.js";
 import {
+  listCostCents,
   missingQuantity,
+  outstandingLoad,
   outstandingQuantity,
   priceDifferenceCents,
   stateAfterReceipt,
@@ -151,5 +153,46 @@ describe("stateAfterReceipt", () => {
   it("is partially received when any line is still missing something", () => {
     expect(stateAfterReceipt([0, 1_000, 0])).toBe("PARTIALLY_RECEIVED");
     expect(stateAfterReceipt([5_000])).toBe("PARTIALLY_RECEIVED");
+  });
+});
+
+describe("outstandingLoad", () => {
+  it("loads a whole number of packages by packages", () => {
+    expect(outstandingLoad(36_000, 12_000)).toEqual({ loadedBy: "packages", packages: 3 });
+    expect(outstandingLoad(12_000, 12_000)).toEqual({ loadedBy: "packages", packages: 1 });
+  });
+
+  it("loads what is not a whole number of packages by quantity", () => {
+    expect(outstandingLoad(26_000, 12_000)).toEqual({ loadedBy: "quantity", quantity: 26_000 });
+    expect(outstandingLoad(5_000, 12_000)).toEqual({ loadedBy: "quantity", quantity: 5_000 });
+  });
+
+  it("accounts for the whole outstanding quantity either way", () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1, max: 1_000_000 }),
+        fc.integer({ min: 1, max: 100_000 }),
+        (outstanding, perPackage) => {
+          const load = outstandingLoad(outstanding, perPackage);
+          expect(load.loadedBy === "packages" ? load.packages * perPackage : load.quantity).toBe(
+            outstanding,
+          );
+        },
+      ),
+    );
+  });
+});
+
+describe("listCostCents", () => {
+  it("is the list price per sale unit times the quantity, in cents", () => {
+    expect(listCostCents({ numerator: 250n, denominator: 1n }, 12_000)).toBe(3_000);
+    expect(listCostCents({ numerator: 250n, denominator: 1n }, 1_000)).toBe(250);
+    expect(listCostCents({ numerator: 250n, denominator: 1n }, 500)).toBe(125);
+  });
+
+  it("rounds half up to a cent", () => {
+    expect(listCostCents({ numerator: 1n, denominator: 2n }, 1_000)).toBe(1);
+    expect(listCostCents({ numerator: 10n, denominator: 3n }, 1_000)).toBe(3);
+    expect(listCostCents({ numerator: 11n, denominator: 3n }, 1_000)).toBe(4);
   });
 });

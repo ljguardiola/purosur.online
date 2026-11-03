@@ -21,8 +21,10 @@ const detail = {
       quantityPerPackage: 12_000,
       expectedPackagePriceCents: null,
       supplierItem: { code: "YER-500", description: "Yerba mate 500 g x12" },
+      receivedQuantity: 0,
     },
   ],
+  receipts: [],
 };
 
 describe("getPurchaseOrder", () => {
@@ -34,13 +36,14 @@ describe("getPurchaseOrder", () => {
       kind: "found",
       order: {
         ...expected,
-        lines: [{ ...expected.lines[0], expectedTotalCents: null }],
+        lines: [{ ...expected.lines[0], expectedTotalCents: null, outstandingQuantity: 36_000 }],
         expectedTotalCents: 0,
         hasUnpricedLine: true,
         editable: true,
         cancellable: true,
         shareable: true,
         documentShareable: true,
+        receivable: false,
       },
     });
   });
@@ -93,6 +96,68 @@ describe("getPurchaseOrder", () => {
       documentShareable: true,
       cancellable: true,
     });
+  });
+
+  it("answers what each line still has outstanding after the earlier receipts", async () => {
+    const [line] = detail.lines;
+    if (!line) {
+      throw new Error("the fixture has a line");
+    }
+    const reader = new FakePurchaseOrderReader([
+      {
+        ...detail,
+        state: "PARTIALLY_RECEIVED",
+        lines: [
+          { ...line, receivedQuantity: 10_000 },
+          { ...line, receivedQuantity: 40_000 },
+        ],
+      },
+    ]);
+
+    const outcome = await getPurchaseOrder(reader, { locationId: "branch-1", orderId: "order-1" });
+
+    expect(
+      outcome.kind === "found" && outcome.order.lines.map((l) => l.outstandingQuantity),
+    ).toEqual([26_000, 0]);
+  });
+
+  it("answers the receipts as the reader lists them", async () => {
+    const receipts = [
+      {
+        id: "receipt-1",
+        receivedAt: new Date("2026-03-05T10:00:00Z"),
+        purchaseId: "purchase-1",
+        lines: [
+          {
+            productId: "product-a",
+            receivedQuantity: 10_000,
+            missingQuantity: 26_000,
+            priceDifferenceCents: -50,
+          },
+        ],
+      },
+    ];
+    const reader = new FakePurchaseOrderReader([
+      { ...detail, state: "PARTIALLY_RECEIVED", receipts },
+    ]);
+
+    const outcome = await getPurchaseOrder(reader, { locationId: "branch-1", orderId: "order-1" });
+
+    expect(outcome.kind === "found" && outcome.order.receipts).toEqual(receipts);
+  });
+
+  it.each([
+    ["DRAFT", false],
+    ["SENT", true],
+    ["PARTIALLY_RECEIVED", true],
+    ["RECEIVED", false],
+    ["CANCELLED", false],
+  ] as const)("answers that an order %s is receivable: %s", async (state, receivable) => {
+    const reader = new FakePurchaseOrderReader([{ ...detail, state }]);
+
+    const outcome = await getPurchaseOrder(reader, { locationId: "branch-1", orderId: "order-1" });
+
+    expect(outcome.kind === "found" && outcome.order.receivable).toBe(receivable);
   });
 
   it("answers a line without an item of the supplier linked to its product", async () => {
