@@ -312,7 +312,7 @@ describe("voidSale", () => {
           aggregate_type: "Sale",
           aggregate_id: "sale-1",
           event_type: "sale_voided",
-          schema_version: 4,
+          schema_version: 5,
           payload: {
             id: "sale-1",
             register_id: "register-1",
@@ -322,6 +322,7 @@ describe("voidSale", () => {
             authorized_by: null,
             occurred_at: NOW.toISOString(),
             total: 6750,
+            cash_rounding: 0,
             sale_discount: null,
             lines: [
               {
@@ -672,14 +673,14 @@ describe("voidSale", () => {
       ]);
     });
 
-    it("emits the voiding as version 4 of the event, with the pending refund", async () => {
+    it("emits the voiding as version 5 of the event, with the pending refund", async () => {
       const store = ledger({ payments: [QR_PAYMENT] });
 
       await void_(store, { pendingRefundsConfirmed: true });
 
       expect(store.state.outbox[0]).toMatchObject({
         event_type: "sale_voided",
-        schema_version: 4,
+        schema_version: 5,
         payload: {
           payments: [{ method: "QR", provider: "MERCADOPAGO_QR" }],
           refunds: [{ method: "QR", provider: "MERCADOPAGO_QR", state: "PENDING" }],
@@ -753,6 +754,25 @@ describe("voidSale", () => {
       expect(store.state.creditNotes).toMatchObject([{ total: 6075 }]);
     });
 
+    it("credits the rounded total of a sale paid in cash with a rounding and reports the rounding in the event", async () => {
+      const store = ledger({
+        sales: [{ ...COMPLETED_SALE, cashRounding: 6750, lines: [YERBA_LINE, QUESO_LINE] }],
+        fiscalDocuments: [REAL_TIME_INVOICE],
+      });
+
+      await void_(store);
+
+      expect(store.state.creditNotes).toMatchObject([{ total: 10000 }]);
+      expect(store.state.outbox[0]?.payload).toMatchObject({
+        total: 10000,
+        cash_rounding: 6750,
+        lines: [
+          { id: "line-1", sale_discount_share: 0, line_total: 4030 },
+          { id: "line-2", sale_discount_share: 0, line_total: 5970 },
+        ],
+      });
+    });
+
     it("asks for the credit note in the event, in the version that carries it", async () => {
       const store = ledger({ fiscalDocuments: [REAL_TIME_INVOICE] });
 
@@ -761,7 +781,7 @@ describe("voidSale", () => {
       expect(store.state.outbox).toHaveLength(1);
       expect(store.state.outbox[0]).toMatchObject({
         event_id: "id-5",
-        schema_version: 4,
+        schema_version: 5,
         payload: { credit_note: CREDIT_NOTE_PAYLOAD },
       });
     });

@@ -11,6 +11,7 @@ import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-s
 import type { ManualAdjustment } from "../model/manual-adjustment.js";
 import type { SaleLine, SaleWithLines } from "../model/sale.js";
 import { chargeSaleInCash } from "./charge-sale-in-cash.js";
+import { chargeSaleOnStandaloneTerminal } from "./charge-sale-on-standalone-terminal.js";
 import {
   FakeSaleLedger,
   type FakeSaleLedgerState,
@@ -176,6 +177,7 @@ describe("chargeSaleInCash", () => {
       total: TOTAL,
       tendered: 10000,
       change: 4100,
+      cashRounding: 0,
     });
     expect(store.state.sales[0]?.state).toBe("COMPLETED");
   });
@@ -280,6 +282,7 @@ describe("chargeSaleInCash", () => {
       total: TOTAL,
       tendered: TOTAL,
       change: 0,
+      cashRounding: 0,
     });
     expect(store.state.movements.slice(1).map((movement) => movement.type)).toEqual(["SALE"]);
     expect(store.state.payments[0]).toMatchObject({ amount: TOTAL, tendered: TOTAL });
@@ -301,6 +304,7 @@ describe("chargeSaleInCash", () => {
       total: 2000,
       tendered: 2500,
       change: 500,
+      cashRounding: 0,
     });
     expect(store.state.payments[0]).toMatchObject({ amount: 2000, tendered: 2500 });
   });
@@ -409,7 +413,7 @@ describe("chargeSaleInCash", () => {
         aggregate_type: "Sale",
         aggregate_id: "sale-1",
         event_type: "sale_completed",
-        schema_version: 10,
+        schema_version: 11,
         occurred_at: NOW.toISOString(),
         actor_id: "cashier",
         payload: {
@@ -421,6 +425,7 @@ describe("chargeSaleInCash", () => {
           actor_id: "cashier",
           occurred_at: NOW.toISOString(),
           total: TOTAL,
+          cash_rounding: 0,
           sale_discount: null,
           lines: [
             {
@@ -622,8 +627,8 @@ describe("chargeSaleInCash", () => {
       charge(store, 11250);
 
       expect(store.state.outbox[0]?.payload).toMatchObject({
-        total: 11250,
-        lines: [{ id: "line-4", quantity: 1250, weight_source: "MANUAL", line_total: 11250 }],
+        total: 10000,
+        lines: [{ id: "line-4", quantity: 1250, weight_source: "MANUAL", line_total: 10000 }],
       });
     });
 
@@ -633,7 +638,7 @@ describe("chargeSaleInCash", () => {
       charge(store, 11250);
 
       expect(store.state.stockMovements).toEqual([
-        { id: "id-4", saleLineId: "line-4", productId: "queso", delta: -1250, occurredAt: NOW },
+        { id: "id-5", saleLineId: "line-4", productId: "queso", delta: -1250, occurredAt: NOW },
       ]);
       expect(store.state.stockBalances).toEqual({ queso: 3750 });
     });
@@ -1033,6 +1038,7 @@ describe("chargeSaleInCash", () => {
         total: TOTAL,
         tendered: TOTAL,
         change: 2000,
+        cashRounding: 0,
       });
     });
 
@@ -1076,6 +1082,7 @@ describe("chargeSaleInCash", () => {
         total: TOTAL,
         tendered: 5000,
         change: 1100,
+        cashRounding: 0,
       });
       expect(store.state.payments.map((payment) => [payment.amount, payment.tendered])).toEqual([
         [2000, 2000],
@@ -1184,6 +1191,7 @@ describe("chargeSaleInCash on a sale with a discount on the total", () => {
       total: DISCOUNTED_TOTAL,
       tendered: 6000,
       change: 690,
+      cashRounding: 0,
     });
     expect(store.state.payments[0]).toMatchObject({ amount: DISCOUNTED_TOTAL, tendered: 6000 });
   });
@@ -1302,5 +1310,209 @@ describe("chargeSaleInCash while the register's restoration is in progress", () 
     const store = ledger({ restoration: RESTORATION_IN_PROGRESS, accesses: {} });
 
     expect(charge(store, TOTAL)).toEqual({ kind: "not_permitted" });
+  });
+});
+
+describe("chargeSaleInCash on a sale whose total is not a multiple of the smallest bill", () => {
+  const saleOf = (
+    total: number,
+    saleDiscount: SaleWithLines["saleDiscount"] = null,
+  ): SaleWithLines => ({
+    ...OPEN_SALE,
+    saleDiscount,
+    lines: [{ ...OPEN_LINE, quantity: 1, listUnitPrice: total, lineTotal: total }],
+  });
+
+  it("charges the total rounded down, records the rounding on the sale and reports both", () => {
+    const store = ledger({ sales: [saleOf(327_000)] });
+
+    expect(charge(store, 500_000)).toEqual({
+      kind: "completed",
+      saleId: "sale-1",
+      total: 320_000,
+      tendered: 500_000,
+      change: 180_000,
+      cashRounding: 7000,
+    });
+    expect(store.state.sales[0]).toMatchObject({ state: "COMPLETED", cashRounding: 7000 });
+    expect(store.state.payments[0]).toMatchObject({ amount: 320_000, tendered: 500_000 });
+  });
+
+  it("records the cash collected and the change given on the rounded amount", () => {
+    const store = ledger({ sales: [saleOf(327_000)] });
+
+    charge(store, 500_000);
+
+    expect(store.state.movements.slice(1).map(({ type, amount }) => ({ type, amount }))).toEqual([
+      { type: "SALE", amount: 500_000 },
+      { type: "CHANGE", amount: 180_000 },
+    ]);
+  });
+
+  it("gives no change when the tendered amount is exactly the rounded total", () => {
+    const store = ledger({ sales: [saleOf(327_000)] });
+
+    expect(charge(store, 320_000)).toMatchObject({
+      kind: "completed",
+      total: 320_000,
+      change: 0,
+      cashRounding: 7000,
+    });
+    expect(store.state.movements.slice(1).map(({ type }) => type)).toEqual(["SALE"]);
+  });
+
+  it("raises the session's expected cash by the rounded total, so the count closes exact", () => {
+    const store = ledger({ sales: [saleOf(327_000)] });
+    const before = expectedCash(store.state.movements);
+
+    charge(store, 500_000);
+
+    expect(expectedCash(store.state.movements) - before).toBe(320_000);
+  });
+
+  it("appends the sale_completed event with the rounded total, the rounding and the lines net of it", () => {
+    const store = ledger({ sales: [saleOf(327_000)] });
+
+    charge(store, 500_000);
+
+    expect(store.state.outbox[0]).toMatchObject({
+      event_type: "sale_completed",
+      schema_version: 11,
+      payload: {
+        total: 320_000,
+        cash_rounding: 7000,
+        sale_discount: null,
+        lines: [{ id: "line-1", sale_discount_share: 0, line_total: 320_000 }],
+      },
+    });
+  });
+
+  it("authorizes a document for the rounded total", () => {
+    const store = ledger({ sales: [saleOf(327_000)] });
+
+    charge(store, 500_000);
+
+    expect(store.state.preEmissionGates[0]?.outcome).toMatchObject({
+      kind: "passed",
+      document: { total: 320_000 },
+    });
+    expect(store.state.authorizationDecisions[0]).toMatchObject({ total: 320_000 });
+  });
+
+  it("rounds after a manual discount on the total and keeps both on the sale", () => {
+    const store = ledger({
+      sales: [
+        saleOf(337_000, { kind: "AMOUNT", amount: 10_000, reason: "Rotura", authorizedBy: null }),
+      ],
+    });
+
+    expect(charge(store, 400_000)).toMatchObject({
+      kind: "completed",
+      total: 320_000,
+      cashRounding: 7000,
+    });
+    expect(store.state.sales[0]).toMatchObject({
+      saleDiscount: { kind: "AMOUNT", amount: 10_000 },
+      cashRounding: 7000,
+    });
+    expect(store.state.outbox[0]?.payload).toMatchObject({
+      total: 320_000,
+      cash_rounding: 7000,
+      sale_discount: { amount: 10_000 },
+      lines: [{ sale_discount_share: 10_000, line_total: 320_000 }],
+    });
+  });
+
+  it("records no rounding for a total already on a multiple of the smallest bill", () => {
+    const store = ledger({ sales: [saleOf(320_000)] });
+    store.failOn = "recordCashRounding";
+
+    expect(charge(store, 320_000)).toMatchObject({ kind: "completed", cashRounding: 0 });
+    expect(store.state.sales[0]?.cashRounding).toBe(0);
+    expect(store.state.outbox[0]?.payload).toMatchObject({ cash_rounding: 0 });
+  });
+
+  it("charges a total under the smallest bill exactly", () => {
+    const store = ledger({ sales: [saleOf(8000)] });
+    store.failOn = "recordCashRounding";
+
+    expect(charge(store, 8000)).toMatchObject({ kind: "completed", total: 8000, cashRounding: 0 });
+  });
+
+  it("leaves nothing behind when recording the rounding fails", () => {
+    const store = ledger({ sales: [saleOf(327_000)] });
+    const before = structuredClone(store.state);
+    store.failOn = "recordCashRounding";
+
+    expect(() => charge(store, 500_000)).toThrow(" failed");
+    expect(store.state).toEqual(before);
+  });
+
+  it("does not round a payment that leaves part of the sale pending, counting the pending from the exact total", () => {
+    const store = ledger({ sales: [saleOf(527_000)] });
+    store.failOn = "recordCashRounding";
+
+    expect(charge(store, 200_000)).toEqual({
+      kind: "partially_paid",
+      saleId: "sale-1",
+      total: 527_000,
+      paid: 200_000,
+      pending: 327_000,
+    });
+    expect(store.state.sales[0]?.cashRounding).toBe(0);
+  });
+
+  it("charges the rest in exact card money after a partial cash payment, rounding nothing", () => {
+    const store = ledger({ sales: [saleOf(527_000)] });
+    const ids = new SequentialIds();
+    charge(store, 200_000, "sale-1", "cashier", ids);
+
+    const outcome = chargeSaleOnStandaloneTerminal(
+      {
+        zoneRules: new FakeZoneRulesSource(),
+        ledger: store,
+        restoration: store.restoration,
+        clock: new FixedClock(NOW),
+        ids,
+      },
+      { actorId: "cashier", saleId: "sale-1", amount: 327_000 },
+    );
+
+    expect(outcome).toEqual({ kind: "completed", saleId: "sale-1", total: 527_000 });
+    expect(store.state.outbox[0]?.payload).toMatchObject({ total: 527_000, cash_rounding: 0 });
+  });
+
+  it("rounds only the cash part of a sale already partly paid by another method", () => {
+    const store = ledger({
+      sales: [saleOf(527_000)],
+      payments: [
+        {
+          id: "card-1",
+          saleId: "sale-1",
+          kind: "SALE",
+          method: "STANDALONE_TERMINAL",
+          provider: "EXTERNAL_TERMINAL",
+          amount: 300_000,
+          state: "APPROVED",
+          occurredAt: NOW,
+          authorizedBy: "cashier",
+          confirmedAt: NOW,
+        },
+      ],
+    });
+
+    expect(charge(store, 250_000)).toEqual({
+      kind: "completed",
+      saleId: "sale-1",
+      total: 520_000,
+      tendered: 250_000,
+      change: 30_000,
+      cashRounding: 7000,
+    });
+    expect(store.state.payments.map(({ method, amount }) => ({ method, amount }))).toEqual([
+      { method: "STANDALONE_TERMINAL", amount: 300_000 },
+      { method: "CASH", amount: 220_000 },
+    ]);
+    expect(store.state.outbox[0]?.payload).toMatchObject({ total: 520_000, cash_rounding: 7000 });
   });
 });

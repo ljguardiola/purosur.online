@@ -79,12 +79,61 @@ describe("completeSale", () => {
       return ledger.state.outbox.find(({ event_type }) => event_type === "sale_completed");
     }
 
-    it("is version 10 and names no paid order for a sale not rebuilt against one", () => {
+    it("is version 11 and names no paid order for a sale not rebuilt against one", () => {
       const ledger = new FakeSaleLedger({ sales: [SALE] });
 
       expect(completedEventOf(ledger, 5_900)).toMatchObject({
-        schema_version: 10,
+        schema_version: 11,
         payload: { rebuilt_paid_order: null },
+      });
+    });
+
+    it("carries no cash rounding for a sale that was not rounded", () => {
+      const ledger = new FakeSaleLedger({ sales: [SALE] });
+
+      expect(completedEventOf(ledger, 5_900)?.payload).toMatchObject({ cash_rounding: 0 });
+    });
+
+    it("carries the cash rounding of the sale and the lines net of it", () => {
+      const rounded: SaleWithLines = {
+        ...SALE,
+        cashRounding: 7_000,
+        lines: [
+          {
+            id: "line-1",
+            productId: "yerba",
+            productName: "Yerba 1 kg",
+            saleUnit: "UNIT",
+            weightSource: null,
+            quantity: 1,
+            listUnitPrice: 327_000,
+            priceListId: "list-1",
+            promotions: [],
+            manualAdjustment: null,
+            promotionId: null,
+            discountAmount: 0,
+            lineTotal: 327_000,
+          },
+        ],
+      };
+      const ledger = new FakeSaleLedger({ sales: [rounded] });
+
+      ledger.transaction((tx) =>
+        completeSale(tx, new SequentialIds(), {
+          rules: FIXED_ARGENTINA_ZONE_RULES,
+          sale: rounded,
+          total: 320_000,
+          payments: [],
+          movements: [],
+          actorId: "cashier",
+          completedAt: COMPLETED_AT,
+        }),
+      );
+
+      expect(ledger.state.outbox[0]?.payload).toMatchObject({
+        total: 320_000,
+        cash_rounding: 7_000,
+        lines: [{ id: "line-1", sale_discount_share: 0, line_total: 320_000 }],
       });
     });
 

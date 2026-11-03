@@ -134,7 +134,7 @@ describe("completing a rebuilt sale by another method after the paid order was a
     expect(outcome).toMatchObject({ kind: "completed", saleId: "sale-1" });
     expect(store.state.outbox[0]).toMatchObject({
       event_type: "sale_completed",
-      schema_version: 10,
+      schema_version: 11,
       payload: {
         payments: [
           { id: "order-1", amount: 2000 },

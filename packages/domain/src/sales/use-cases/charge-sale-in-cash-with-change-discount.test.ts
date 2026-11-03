@@ -134,6 +134,7 @@ describe("chargeSaleInCashWithChangeDiscount", () => {
       total: 9500,
       tendered: 10000,
       change: 500,
+      cashRounding: 0,
     });
     expect(store.state.sales[0]?.state).toBe("COMPLETED");
     expect(store.state.sales[0]?.saleDiscount).toEqual({
@@ -313,5 +314,32 @@ describe("chargeSaleInCashWithChangeDiscount", () => {
 
       expect(transactionsWhenAsked).toBe(0);
     });
+  });
+});
+
+describe("chargeSaleInCashWithChangeDiscount on a total that still is not a multiple of the smallest bill", () => {
+  const SALE_OF_337_000: SaleWithLines = {
+    ...OPEN_SALE,
+    lines: [{ ...LINE, quantity: 1, listUnitPrice: 337_000, lineTotal: 337_000 }],
+  };
+
+  it("rounds the total left by the missing-change discount and keeps both on the sale", async () => {
+    const store = ledger({ sales: [SALE_OF_337_000] });
+
+    const outcome = await chargeWithDiscount(store, { tendered: 400_000, discountAmount: 10_000 });
+
+    expect(outcome).toEqual({
+      kind: "completed",
+      saleId: "sale-1",
+      total: 320_000,
+      tendered: 400_000,
+      change: 80_000,
+      cashRounding: 7000,
+    });
+    expect(store.state.sales[0]).toMatchObject({
+      saleDiscount: { kind: "AMOUNT", amount: 10_000, reason: "Falta de cambio" },
+      cashRounding: 7000,
+    });
+    expect(store.state.payments[0]).toMatchObject({ amount: 320_000, tendered: 400_000 });
   });
 });
