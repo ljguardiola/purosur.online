@@ -9,6 +9,9 @@ const ALMONDS = "11111111-1111-1111-1111-111111111111";
 const RAISINS = "22222222-2222-2222-2222-222222222222";
 const at = "2026-09-25T12:00:00.000Z";
 
+const COMPONENTS_MESSAGE =
+  "components must be component ids with a positive integer number of thousandths, as id:quantity separated by commas";
+
 function firstFailure(value: unknown): { path: unknown[]; message: unknown } | undefined {
   const result = priceRecommendationQuerySchema.safeParse(value);
   const issue = result.success ? undefined : result.error.issues[0];
@@ -59,7 +62,10 @@ describe("priceRecommendationQuerySchema", () => {
   });
 
   it.each([undefined, "", 7])("rejects the components %j", (components) => {
-    expect(firstFailure({ components })?.path).toEqual(["components"]);
+    expect(firstFailure({ components })).toEqual({
+      path: ["components"],
+      message: COMPONENTS_MESSAGE,
+    });
   });
 
   it.each([
@@ -73,6 +79,7 @@ describe("priceRecommendationQuerySchema", () => {
     `not-a-uuid:600`,
     `${ALMONDS}:600,`,
     `${ALMONDS}:600,${RAISINS}:abc`,
+    `junk:${ALMONDS}:600`,
   ])("rejects the component list %j", (components) => {
     expect(firstFailure({ components })?.path).toEqual(["components"]);
   });
@@ -88,9 +95,7 @@ describe("priceRecommendationQuerySchema", () => {
   );
 
   it("says what is wrong with an entry that is not a component and a quantity", () => {
-    expect(firstFailure({ components: `${ALMONDS}:0` })?.message).toBe(
-      "components must be component ids with a positive integer number of thousandths, as id:quantity separated by commas",
-    );
+    expect(firstFailure({ components: `${ALMONDS}:0` })?.message).toBe(COMPONENTS_MESSAGE);
   });
 });
 
