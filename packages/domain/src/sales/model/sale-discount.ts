@@ -83,7 +83,7 @@ export function settledLines<TLine extends Pick<SaleLine, "lineTotal">>(sale: {
   lines: readonly TLine[];
   saleDiscount: SaleDiscount | null;
   cashRounding: number;
-}): (TLine & { saleDiscountShare: number; cashRoundingShare: number })[] {
+}): (TLine & { saleDiscountShare: number })[] {
   const { lines } = sale;
   const discountShares = spreadSaleDiscount(
     lines.map((line) => line.lineTotal),
@@ -95,12 +95,10 @@ export function settledLines<TLine extends Pick<SaleLine, "lineTotal">>(sale: {
   );
   return lines.map((line, position) => {
     const saleDiscountShare = discountShares[position] ?? 0;
-    const cashRoundingShare = cashRoundingShares[position] ?? 0;
     return {
       ...line,
-      lineTotal: line.lineTotal - saleDiscountShare - cashRoundingShare,
+      lineTotal: line.lineTotal - saleDiscountShare - (cashRoundingShares[position] ?? 0),
       saleDiscountShare,
-      cashRoundingShare,
     };
   });
 }

@@ -48,7 +48,7 @@ const DISCOUNT_EXCEEDS_SALE_MESSAGE = "El descuento no puede ser mayor al total 
 const AUTHORIZING = "descontar sobre el total";
 const PERMISSION: AuthorizablePermissionKey = "apply_total_discount";
 
-const PARTIAL_PAYMENT_HINT = "Con menos de lo que falta, el resto queda pendiente.";
+const PARTIAL_PAYMENT_HINT = "Si no alcanza para saldar la venta, el resto queda pendiente.";
 
 export type CompletedCharge = Extract<ChargeSaleInCashOutcome, { kind: "completed" }>;
 
