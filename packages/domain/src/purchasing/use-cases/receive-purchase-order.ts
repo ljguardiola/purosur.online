@@ -119,7 +119,10 @@ export async function receivePurchaseOrder(
       receivedAt,
       lines: receiptLines,
     });
-    await tx.markPurchaseOrderReceived(order.id, { state, receivedAt });
+    await tx.markPurchaseOrderReceived(
+      order.id,
+      state === "RECEIVED" ? { state, receivedAt } : { state, receivedAt: null },
+    );
     return { kind: "received", purchaseId: purchase.id, state };
   });
 }

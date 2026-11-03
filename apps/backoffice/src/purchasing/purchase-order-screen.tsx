@@ -23,6 +23,7 @@ import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { AreaTopBar } from "../shell/area-top-bar";
 import {
   type BackofficeAccess,
+  canManagePurchaseOrders,
   canReceivePurchaseOrders,
   canRecordPurchases,
 } from "../shell/backoffice-access";
@@ -54,11 +55,15 @@ export type PurchaseOrderScreenProps = {
 
 type OrderLine = PurchaseOrderDetail["lines"][number];
 
-type Notice = "saved" | "cancelled" | "sent";
+type Notice = "saved" | "cancelled" | "cancelledWhileReceiving" | "sent";
 
 const NOTICES = {
   saved: { title: "Pedido guardado", description: "Los cambios quedaron en el borrador." },
   cancelled: { title: "Pedido cancelado", description: "Ya no se puede compartir." },
+  cancelledWhileReceiving: {
+    title: "Pedido cancelado",
+    description: "Ya no se puede recibir lo que falta.",
+  },
   sent: { title: "Pedido marcado como enviado", description: "Ya no se puede editar." },
 } satisfies Record<Notice, { title: string; description: string }>;
 
@@ -99,6 +104,8 @@ export function PurchaseOrderScreen({
 
   const read = data.status === "loaded" ? data.value : null;
   const order = read?.kind === "found" ? read.order : null;
+  const mayManage = canManagePurchaseOrders(access);
+  const draftEditable = order?.editable === true && mayManage;
 
   const columns = [
     dataColumn({
@@ -236,7 +243,7 @@ export function PurchaseOrderScreen({
                   Recibir pedido
                 </Button>
               ) : null}
-              {order.editable || !order.cancellable ? null : (
+              {order.editable || !order.cancellable || !mayManage ? null : (
                 <Button
                   variant="secondary"
                   destructive
@@ -246,13 +253,13 @@ export function PurchaseOrderScreen({
                   Cancelar pedido
                 </Button>
               )}
-              {order.editable || !order.documentShareable ? null : (
+              {order.editable || !order.documentShareable || !mayManage ? null : (
                 <Button variant="secondary" icon={<Send />} onPress={() => setShareTarget(order)}>
                   Compartir pedido
                 </Button>
               )}
             </div>
-            {order.editable ? (
+            {draftEditable ? (
               <PurchaseOrderDraftForm
                 order={order}
                 products={choices.status === "loaded" ? choices.value.products : NO_PRODUCTS}
@@ -282,8 +289,10 @@ export function PurchaseOrderScreen({
         target={cancelTarget}
         services={services}
         onCancelled={() => {
+          setNotice(
+            cancelTarget?.documentShareable === false ? "cancelledWhileReceiving" : "cancelled",
+          );
           setCancelTarget(null);
-          setNotice("cancelled");
           void refreshPurchasing();
         }}
         onOutdated={() => {

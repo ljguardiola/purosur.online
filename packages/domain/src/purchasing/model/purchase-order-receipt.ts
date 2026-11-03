@@ -10,36 +10,42 @@ export function outstandingQuantity(
   return Math.max(0, packagedQuantity(line.packages, line.quantityPerPackage) - receivedSoFar);
 }
 
+export function orderLineOutstandingQuantity(
+  state: PurchaseOrderState,
+  line: { packages: number; quantityPerPackage: number },
+  receivedSoFar: number,
+): number {
+  return state === "CANCELLED" ? 0 : outstandingQuantity(line, receivedSoFar);
+}
+
 export function missingQuantity(outstanding: number, received: number): number {
   return Math.max(0, outstanding - received);
 }
 
-// Cents, VAT included: positive when more was paid than the supplier's list price for the quantity
-// that arrived.
+// Cents, VAT included: positive when more was paid than the supplier's list cost of each package
+// that arrived, rounded to a cent as a receipt's draft prefills it.
 export function priceDifferenceCents(
   paidLines: readonly PurchaseLineCost[],
   listPricePerSaleUnit: Fraction | null,
 ): number | null {
-  const received = paidLines.reduce((total, line) => total + line.quantity, 0);
-  if (listPricePerSaleUnit === null || received === 0) {
+  if (listPricePerSaleUnit === null || paidLines.every((line) => line.quantity === 0)) {
     return null;
   }
-  let paid: Fraction = { numerator: 0n, denominator: 1n };
+  let difference: Fraction = { numerator: 0n, denominator: 1n };
   for (const line of paidLines) {
-    const value = lineValue(line);
-    paid = {
-      numerator: paid.numerator * value.denominator + value.numerator * paid.denominator,
-      denominator: paid.denominator * value.denominator,
+    const paid = lineValue(line);
+    const listed = lineValue({
+      ...line,
+      costPaidCents: listCostCents(listPricePerSaleUnit, line.quantityPerPackage),
+    });
+    difference = {
+      numerator:
+        difference.numerator * paid.denominator +
+        (paid.numerator - listed.numerator) * difference.denominator,
+      denominator: difference.denominator * paid.denominator,
     };
   }
-  const listValue = {
-    numerator: listPricePerSaleUnit.numerator * BigInt(received),
-    denominator: listPricePerSaleUnit.denominator * BigInt(STOCK_QUANTITY_PER_UNIT),
-  };
-  return roundHalfUp({
-    numerator: paid.numerator * listValue.denominator - listValue.numerator * paid.denominator,
-    denominator: paid.denominator * listValue.denominator,
-  });
+  return roundHalfUp(difference);
 }
 
 export function stateAfterReceipt(
@@ -52,7 +58,6 @@ export type OutstandingLoad =
   | { loadedBy: "packages"; packages: number }
   | { loadedBy: "quantity"; quantity: number };
 
-// A line is loaded by packages only when what is outstanding is a whole number of them.
 export function outstandingLoad(outstanding: number, quantityPerPackage: number): OutstandingLoad {
   return outstanding % quantityPerPackage === 0
     ? { loadedBy: "packages", packages: outstanding / quantityPerPackage }

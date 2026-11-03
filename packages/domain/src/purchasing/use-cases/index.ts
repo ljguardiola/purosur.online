@@ -234,6 +234,7 @@ export type {
   PurchaseOrderReceiptLineFields,
   PurchaseOrderReceiptStore,
   PurchaseOrderReceiptStoreTransaction,
+  PurchaseOrderReceiving,
   ReceivablePurchaseOrder,
   ReceivablePurchaseOrderLine,
 } from "./purchase-order-receipt-store.js";

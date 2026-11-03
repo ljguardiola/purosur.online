@@ -24,6 +24,8 @@ import { latestSupplierOffers } from "./latest-supplier-offers.js";
 
 type OrderState = PurchaseOrderListing["state"];
 
+const READ_SNAPSHOT = { isolationLevel: "repeatable read", accessMode: "read only" } as const;
+
 export class DrizzlePurchaseOrderReader<TQueryResult extends PgQueryResultHKT>
   implements PurchaseOrderReader
 {
@@ -80,11 +82,16 @@ export class DrizzlePurchaseOrderReader<TQueryResult extends PgQueryResultHKT>
     }));
   }
 
-  async order(
+  order(locationId: string, orderId: string): Promise<PurchaseOrderDetailListing | undefined> {
+    return this.db.transaction((tx) => this.orderIn(tx, locationId, orderId), READ_SNAPSHOT);
+  }
+
+  private async orderIn(
+    db: PgDatabase<TQueryResult>,
     locationId: string,
     orderId: string,
   ): Promise<PurchaseOrderDetailListing | undefined> {
-    const [row] = await this.db
+    const [row] = await db
       .select({
         id: purchaseOrders.id,
         supplierId: suppliers.id,
@@ -98,7 +105,7 @@ export class DrizzlePurchaseOrderReader<TQueryResult extends PgQueryResultHKT>
     if (!row) {
       return undefined;
     }
-    const lineRows = await this.db
+    const lineRows = await db
       .select({
         id: purchaseOrderLines.id,
         productId: products.id,
@@ -116,13 +123,13 @@ export class DrizzlePurchaseOrderReader<TQueryResult extends PgQueryResultHKT>
       .leftJoin(brands, eq(brands.id, products.brandId))
       .where(eq(purchaseOrderLines.purchaseOrderId, orderId))
       .orderBy(asc(purchaseOrderLines.position));
-    const lineOffers = await this.offersOfLines(row.supplierId, lineRows);
-    const receivedByLine = await this.receivedQuantities(orderId);
+    const lineOffers = await this.offersOfLines(db, row.supplierId, lineRows);
+    const receivedByLine = await this.receivedQuantities(db, orderId);
     const itemIds = lineOffers.flatMap((offer) => (offer ? [offer.supplierItemId] : []));
     const items =
       itemIds.length === 0
         ? []
-        : await this.db
+        : await db
             .select({
               id: supplierItems.id,
               keyKind: supplierItems.keyKind,
@@ -159,15 +166,26 @@ export class DrizzlePurchaseOrderReader<TQueryResult extends PgQueryResultHKT>
       state: row.state as OrderState,
       createdAt: row.createdAt,
       lines,
-      receipts: await this.receipts(orderId),
+      receipts: await this.receipts(db, orderId),
     };
   }
 
-  async receivableOrder(
+  receivableOrder(
     locationId: string,
     orderId: string,
   ): Promise<ReceivableOrderListing | undefined> {
-    const [row] = await this.db
+    return this.db.transaction(
+      (tx) => this.receivableOrderIn(tx, locationId, orderId),
+      READ_SNAPSHOT,
+    );
+  }
+
+  private async receivableOrderIn(
+    db: PgDatabase<TQueryResult>,
+    locationId: string,
+    orderId: string,
+  ): Promise<ReceivableOrderListing | undefined> {
+    const [row] = await db
       .select({
         id: purchaseOrders.id,
         supplierId: suppliers.id,
@@ -180,7 +198,7 @@ export class DrizzlePurchaseOrderReader<TQueryResult extends PgQueryResultHKT>
     if (!row) {
       return undefined;
     }
-    const lineRows = await this.db
+    const lineRows = await db
       .select({
         id: purchaseOrderLines.id,
         productId: products.id,
@@ -197,8 +215,8 @@ export class DrizzlePurchaseOrderReader<TQueryResult extends PgQueryResultHKT>
       .leftJoin(brands, eq(brands.id, products.brandId))
       .where(eq(purchaseOrderLines.purchaseOrderId, orderId))
       .orderBy(asc(purchaseOrderLines.position));
-    const lineOffers = await this.offersOfLines(row.supplierId, lineRows);
-    const receivedByLine = await this.receivedQuantities(orderId);
+    const lineOffers = await this.offersOfLines(db, row.supplierId, lineRows);
+    const receivedByLine = await this.receivedQuantities(db, orderId);
     return {
       id: row.id,
       supplier: { id: row.supplierId, name: row.supplierName },
@@ -230,12 +248,13 @@ export class DrizzlePurchaseOrderReader<TQueryResult extends PgQueryResultHKT>
   }
 
   private async offersOfLines(
+    db: PgDatabase<TQueryResult>,
     supplierId: string,
     lineRows: readonly { productId: string; saleUnit: string; quantityPerPackage: number }[],
   ) {
     const offers = (
       await latestSupplierOffers(
-        this.db,
+        db,
         lineRows.map(({ productId }) => productId),
       )
     ).filter((offer) => offer.supplier.id === supplierId);
@@ -248,8 +267,11 @@ export class DrizzlePurchaseOrderReader<TQueryResult extends PgQueryResultHKT>
     );
   }
 
-  private async receivedQuantities(orderId: string): Promise<Map<string, number>> {
-    const rows = await this.db
+  private async receivedQuantities(
+    db: PgDatabase<TQueryResult>,
+    orderId: string,
+  ): Promise<Map<string, number>> {
+    const rows = await db
       .select({
         purchaseOrderLineId: purchaseOrderReceiptLines.purchaseOrderLineId,
         receivedQuantity: sql<string>`sum(${purchaseOrderReceiptLines.receivedQuantity})`,
@@ -264,8 +286,11 @@ export class DrizzlePurchaseOrderReader<TQueryResult extends PgQueryResultHKT>
     return new Map(rows.map((row) => [row.purchaseOrderLineId, Number(row.receivedQuantity)]));
   }
 
-  private async receipts(orderId: string): Promise<PurchaseOrderReceiptListing[]> {
-    const receiptRows = await this.db
+  private async receipts(
+    db: PgDatabase<TQueryResult>,
+    orderId: string,
+  ): Promise<PurchaseOrderReceiptListing[]> {
+    const receiptRows = await db
       .select({
         id: purchaseOrderReceipts.id,
         receivedAt: purchaseOrderReceipts.receivedAt,
@@ -277,7 +302,7 @@ export class DrizzlePurchaseOrderReader<TQueryResult extends PgQueryResultHKT>
     if (receiptRows.length === 0) {
       return [];
     }
-    const lineRows = await this.db
+    const lineRows = await db
       .select({
         receiptId: purchaseOrderReceiptLines.purchaseOrderReceiptId,
         productId: purchaseOrderLines.productId,

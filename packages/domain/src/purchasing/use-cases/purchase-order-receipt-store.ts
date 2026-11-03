@@ -32,6 +32,10 @@ export interface NewPurchaseOrderReceiptFields {
   lines: readonly PurchaseOrderReceiptLineFields[];
 }
 
+export type PurchaseOrderReceiving =
+  | { state: "PARTIALLY_RECEIVED"; receivedAt: null }
+  | { state: "RECEIVED"; receivedAt: Date };
+
 export interface PurchaseOrderReceiptStoreTransaction
   extends PurchaseRecordingTransaction,
     Pick<PurchaseOrderStoreTransaction, "supplierOffers"> {
@@ -43,10 +47,7 @@ export interface PurchaseOrderReceiptStoreTransaction
   // The quantity earlier receipts brought for each order line, by the line's id.
   receivedQuantities(orderId: string): Promise<Map<string, number>>;
   insertPurchaseOrderReceipt(fields: NewPurchaseOrderReceiptFields): Promise<void>;
-  markPurchaseOrderReceived(
-    orderId: string,
-    receiving: { state: "PARTIALLY_RECEIVED" | "RECEIVED"; receivedAt: Date },
-  ): Promise<void>;
+  markPurchaseOrderReceived(orderId: string, receiving: PurchaseOrderReceiving): Promise<void>;
 }
 
 export interface PurchaseOrderReceiptStore {

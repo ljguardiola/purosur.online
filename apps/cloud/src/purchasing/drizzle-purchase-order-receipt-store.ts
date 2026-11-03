@@ -8,6 +8,7 @@ import type {
   NewPurchaseOrderReceiptFields,
   PurchaseOrderReceiptStore,
   PurchaseOrderReceiptStoreTransaction,
+  PurchaseOrderReceiving,
   SupplierProductOffer,
 } from "@purosur/domain/purchasing/use-cases";
 import type { PurchaseReceipt } from "@purosur/domain/stock/use-cases";
@@ -107,11 +108,11 @@ class DrizzlePurchaseOrderReceiptStoreTransaction<TQueryResult extends PgQueryRe
 
   async markPurchaseOrderReceived(
     orderId: string,
-    { state, receivedAt }: { state: "PARTIALLY_RECEIVED" | "RECEIVED"; receivedAt: Date },
+    { state, receivedAt }: PurchaseOrderReceiving,
   ): Promise<void> {
     await this.tx
       .update(purchaseOrders)
-      .set({ state, receivedAt: state === "RECEIVED" ? receivedAt : null })
+      .set({ state, receivedAt })
       .where(eq(purchaseOrders.id, orderId));
   }
 }

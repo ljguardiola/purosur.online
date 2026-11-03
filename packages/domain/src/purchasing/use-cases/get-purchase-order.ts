@@ -7,7 +7,7 @@ import {
   mayBeShared,
   mayBeSharedAsDocument,
 } from "../model/purchase-order.js";
-import { outstandingQuantity } from "../model/purchase-order-receipt.js";
+import { orderLineOutstandingQuantity } from "../model/purchase-order-receipt.js";
 import type { PurchaseOrderDetailListing, PurchaseOrderReader } from "./purchase-order-reader.js";
 
 export interface GetPurchaseOrderInput {
@@ -48,7 +48,7 @@ export async function getPurchaseOrder(
       lines: order.lines.map((line) => ({
         ...line,
         expectedTotalCents: expectedLineTotal(line),
-        outstandingQuantity: outstandingQuantity(line, line.receivedQuantity),
+        outstandingQuantity: orderLineOutstandingQuantity(order.state, line, line.receivedQuantity),
       })),
       ...expectedOrderTotal(order.lines),
       editable: mayBeEdited(order.state),
