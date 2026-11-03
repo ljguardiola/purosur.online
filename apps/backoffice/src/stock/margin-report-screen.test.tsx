@@ -31,7 +31,10 @@ afterEach(() => {
 
 function createServices(): MarginReportScreenServices {
   const services = { fetchMarginReport: vi.fn() };
-  services.fetchMarginReport.mockResolvedValue({ kind: "ok", value: categoryMarginReport });
+  vi.mocked(services.fetchMarginReport).mockResolvedValue({
+    kind: "ok",
+    value: categoryMarginReport,
+  });
   return services;
 }
 
@@ -156,7 +159,7 @@ test("shows the total margin as a percentage of what was sold beside the total m
 
 test("shows no percentage for a row or a total that sold nothing", async () => {
   const services = createServices();
-  services.fetchMarginReport.mockResolvedValue({ kind: "ok", value: noMarginReport });
+  vi.mocked(services.fetchMarginReport).mockResolvedValue({ kind: "ok", value: noMarginReport });
 
   const screen = await renderScreen(services);
 
@@ -167,7 +170,10 @@ test("shows no percentage for a row or a total that sold nothing", async () => {
 
 test("leaves the percentage of a row that sold nothing empty and orders it below the rest", async () => {
   const services = createServices();
-  services.fetchMarginReport.mockResolvedValue({ kind: "ok", value: unsoldMarginReport });
+  vi.mocked(services.fetchMarginReport).mockResolvedValue({
+    kind: "ok",
+    value: unsoldMarginReport,
+  });
 
   const screen = await renderScreen(services, {
     filters: marginReportFilters.parse({ group: "product", sortBy: "marginPercent" }),
