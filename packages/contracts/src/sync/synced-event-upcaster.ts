@@ -32,12 +32,14 @@ type CompletedSalePayload = SyncedEventPayloads[
   | "sale_completed@7"
   | "sale_completed@8"
   | "sale_completed@9"
-  | "sale_completed@10"];
+  | "sale_completed@10"
+  | "sale_completed@11"];
 type SalePayment = SyncedEventPayloads[
   | "sale_completed@1"
   | "sale_completed@8"
   | "sale_completed@9"
-  | "sale_completed@10"]["payments"][number];
+  | "sale_completed@10"
+  | "sale_completed@11"]["payments"][number];
 type CancelledSalePayload = SyncedEventPayloads[
   | "sale_cancelled@1"
   | "sale_cancelled@2"
@@ -54,7 +56,8 @@ type VoidedSalePayload = SyncedEventPayloads[
   | "sale_voided@1"
   | "sale_voided@2"
   | "sale_voided@3"
-  | "sale_voided@4"];
+  | "sale_voided@4"
+  | "sale_voided@5"];
 
 type ManualAdjustmentPayload = NonNullable<
   SyncedEventPayloads["sale_completed@7"]["lines"][number]["manual_adjustment"]
@@ -227,6 +230,7 @@ function voidedSale(payload: VoidedSalePayload): SyncedFact {
       actorId: payload.actor_id,
       authorizedBy: payload.authorized_by,
       voidedAt: new Date(payload.occurred_at),
+      cashRounding: "cash_rounding" in payload ? payload.cash_rounding : 0,
       total: payload.total,
       ...saleParts(payload),
       payments: salePayments(payload.payments),
@@ -343,6 +347,7 @@ function completedSale(
       actorId: payload.actor_id,
       completedAt: new Date(completedAt),
       operationNumber,
+      cashRounding: "cash_rounding" in payload ? payload.cash_rounding : 0,
       total: payload.total,
       ...saleParts(payload),
       payments: salePayments(payments),
@@ -542,6 +547,14 @@ const FACT_OF: {
       payload.stock_movements,
       payload.operation_number,
     ),
+  "sale_completed@11": (payload) =>
+    completedSale(
+      payload,
+      payload.occurred_at,
+      payload.payments,
+      payload.stock_movements,
+      payload.operation_number,
+    ),
   "sale_print_state_changed@1": (payload) => printStateChanged(payload, "sale_receipt", null),
   "sale_print_state_changed@2": (payload) => printStateChanged(payload, payload.document, null),
   "sale_print_state_changed@3": (payload) =>
@@ -590,6 +603,7 @@ const FACT_OF: {
   "sale_voided@2": voidedSale,
   "sale_voided@3": voidedSale,
   "sale_voided@4": voidedSale,
+  "sale_voided@5": voidedSale,
   "sale_returned@1": returnedSale,
   "sale_returned@2": returnedSale,
   "sale_returned@3": returnedSale,

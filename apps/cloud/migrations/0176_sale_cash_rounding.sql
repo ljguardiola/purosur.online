@@ -1,0 +1,2 @@
+ALTER TABLE "sales" ADD COLUMN "cash_rounding" bigint DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "sales" ADD CONSTRAINT "sales_cash_rounding_check" CHECK ("sales"."cash_rounding" >= 0 AND "sales"."cash_rounding" < 10000);
