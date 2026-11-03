@@ -162,7 +162,7 @@ test("shows no percentage for a row or a total that sold nothing", async () => {
 
   await expect.element(screen.getByText("No hay ventas en este período")).toBeVisible();
   expect(screen.container.textContent).not.toContain("de lo vendido");
-  expect(screen.container.textContent).not.toContain("%");
+  expect(screen.container.textContent).not.toMatch(/\d %/);
 });
 
 test("leaves the percentage of a row that sold nothing empty and orders it below the rest", async () => {
@@ -531,11 +531,13 @@ test("downloads a spreadsheet of the categories shown, with the applied register
   expect(summary.get("B4")?.value).toBe("Caja del fondo");
   expect(summary.get("B5")?.value).toBe("Por categoría");
   expect(summary.get("B6")?.value).toBe("10000");
-  expect(summary.get("B9")?.value).toBe("2");
+  expect(summary.get("B9")?.value).toBe("0.33");
+  expect(summary.get("B10")?.value).toBe("2");
   const categories = file.sheet(1);
   expect(categories.get("A2")?.value).toBe("Almacén › Dulces");
   expect(categories.get("E2")?.value).toBe("1600");
   expect(categories.get("D3")?.value).toBe("2");
+  expect(categories.get("F2")?.value).toBe("0.39");
 });
 
 test("downloads every row of the report, not only the page on screen", async () => {
