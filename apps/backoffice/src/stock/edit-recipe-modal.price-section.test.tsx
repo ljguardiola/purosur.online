@@ -44,16 +44,32 @@ test("hands the section the components as they are being edited, unsaved", async
   await expect.element(dialog.getByText("Almendras: 700")).toBeVisible();
 });
 
-test("hides the section while a component's quantity is not valid", async () => {
+test("tells the section the quantities are incomplete while one is not valid", async () => {
   const screen = await renderModal();
   const dialog = screen.getByRole("dialog");
   await expect.element(dialog.getByText("Pasas: 100")).toBeVisible();
 
   await userEvent.clear(dialog.getByRole("textbox", { name: "Cantidad de Almendras" }));
 
+  const section = screen.getByRole("region", { name: "Precio de venta de prueba" });
+  await expect.element(section.getByText("Cantidades incompletas")).toBeVisible();
+  await expect.element(section.getByText("Pasas: 100")).not.toBeInTheDocument();
+});
+
+test("keeps the section and what it holds while a quantity passes through zero", async () => {
+  const screen = await renderModal();
+  const dialog = screen.getByRole("dialog");
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Precio de prueba" }), "17000");
+  const quantity = dialog.getByRole("textbox", { name: "Cantidad de Almendras" });
+
+  await userEvent.fill(quantity, "0");
+  await expect.element(dialog.getByText("Cantidades incompletas")).toBeVisible();
+  await userEvent.fill(quantity, "0,7");
+
+  await expect.element(dialog.getByText("Almendras: 700")).toBeVisible();
   await expect
-    .element(screen.getByRole("region", { name: "Precio de venta de prueba" }))
-    .not.toBeInTheDocument();
+    .element(dialog.getByRole("textbox", { name: "Precio de prueba" }))
+    .toHaveValue("17000");
 });
 
 test.each([

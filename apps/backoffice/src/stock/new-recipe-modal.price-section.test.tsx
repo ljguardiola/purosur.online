@@ -17,7 +17,7 @@ function renderModal({ maySetPrice = true }: { maySetPrice?: boolean } = {}) {
   return renderNewRecipeModal({ productPriceSection: StubProductPriceSection, maySetPrice });
 }
 
-test("shows no section before a product and a valid component are chosen", async () => {
+test("shows no section before a product and a component are chosen", async () => {
   const screen = await renderModal();
   const dialog = screen.getByRole("dialog");
   await expect.element(dialog.getByRole("region")).not.toBeInTheDocument();
@@ -27,7 +27,24 @@ test("shows no section before a product and a valid component are chosen", async
   await userEvent.click(dialog.getByRole("button", { name: "Agregar un componente" }));
   await choose(screen, /^Componente/, "Almendras");
 
-  await expect.element(dialog.getByRole("region")).not.toBeInTheDocument();
+  const section = screen.getByRole("region", { name: "Precio de venta de prueba" });
+  await expect.element(section.getByText("Cantidades incompletas")).toBeVisible();
+});
+
+test("keeps the section and what it holds while a new component's quantity is still empty", async () => {
+  const screen = await renderModal();
+  const dialog = screen.getByRole("dialog");
+  await chooseProduct(screen, "Avena con pasas");
+  await addComponent(screen, "Almendras", "0,4");
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Precio de prueba" }), "17000");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Agregar un componente" }));
+  await choose(screen, /^Componente/, "Pasas");
+
+  await expect.element(dialog.getByText("Cantidades incompletas")).toBeVisible();
+  await expect
+    .element(dialog.getByRole("textbox", { name: "Precio de prueba" }))
+    .toHaveValue("17000");
 });
 
 test("hands the section the chosen product and the components typed so far", async () => {

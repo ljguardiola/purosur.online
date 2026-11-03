@@ -143,11 +143,16 @@ export function StubProductPriceSection({
       <p>{`Abierta para ${openedFor}`}</p>
       <p>{`Producto ${productId}: ${productDescription} por ${saleUnit}`}</p>
       <p>{maySetPrice ? "Puede fijar el precio" : "No puede fijar el precio"}</p>
-      <ul>
-        {components.map(({ componentProductId, name, quantityPerOutputUnit }) => (
-          <li key={componentProductId}>{`${name}: ${quantityPerOutputUnit}`}</li>
-        ))}
-      </ul>
+      <input aria-label="Precio de prueba" />
+      {components === null ? (
+        <p>Cantidades incompletas</p>
+      ) : (
+        <ul>
+          {components.map(({ componentProductId, name, quantityPerOutputUnit }) => (
+            <li key={componentProductId}>{`${name}: ${quantityPerOutputUnit}`}</li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

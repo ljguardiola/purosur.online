@@ -42,6 +42,14 @@ test("asks for the recommendation of the components the recipe has right now", a
   );
 });
 
+test("asks for nothing while the recipe's quantities are incomplete", async () => {
+  const services = sectionServices();
+  const screen = await renderSection({ services, components: null });
+
+  await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
+  expect(services.fetchPriceRecommendation).not.toHaveBeenCalled();
+});
+
 test("shows the current price beside the recommended one, per kilo, and the unit cost of the latest batch", async () => {
   const screen = await renderSection();
 
@@ -267,6 +275,75 @@ describe("while the person edits", () => {
     const services = sectionServices();
     const screen = await renderSection({ services });
     await readEverything(services);
+    services.fetchPriceRecommendation.mockResolvedValue({
+      kind: "ok",
+      value: { ...recommended16000, recommendation: { kind: "recommended", unitPrice: 1800000 } },
+    });
+
+    await screen.withComponents([{ ...almendrasComponent, quantityPerOutputUnit: 700 }]);
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    await expect
+      .element(screen.getByLabelText("Precio de venta por kilo"))
+      .toHaveValue("18.000,00");
+  });
+
+  test("recommends nothing while the recipe's quantities are incomplete, keeping the typed price", async () => {
+    const services = sectionServices();
+    const screen = await renderSection({ services });
+    await readEverything(services);
+    await userEvent.fill(screen.getByLabelText("Precio de venta por kilo"), "17000");
+    await vi.waitFor(async () => {
+      await vi.advanceTimersByTimeAsync(100);
+      expect(services.fetchPriceRecommendation).toHaveBeenCalledWith(
+        mixProductId,
+        expect.objectContaining({ unitPrice: 1700000 }),
+      );
+    });
+    await expect.element(screen.getByText("29,4 %")).toBeVisible();
+    services.fetchPriceRecommendation.mockClear();
+
+    await screen.withComponents(null);
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    await expect.element(screen.getByText("Precio recomendado")).toBeVisible();
+    await expect.element(screen.getByText("—", { exact: true })).toBeVisible();
+    await expect
+      .element(screen.getByText("$ 16.000,00 / kg", { exact: true }))
+      .not.toBeInTheDocument();
+    await expect.element(screen.getByText("Sin recomendación")).not.toBeInTheDocument();
+    await expect.element(screen.getByText("$ 15.000,00 / kg")).toBeVisible();
+    await expect.element(screen.getByLabelText("Precio de venta por kilo")).toHaveValue("17.000");
+    await expect.element(screen.getByText("29,4 %")).toBeVisible();
+    expect(services.fetchPriceRecommendation).not.toHaveBeenCalledWith(mixProductId, {
+      components: expect.anything(),
+    });
+  });
+
+  test("names no component without a price while the recipe's quantities are incomplete", async () => {
+    const services = sectionServices({
+      ...recommended16000,
+      recommendation: { kind: "missing_prices", componentProductIds: [pasasId] },
+    });
+    const screen = await renderSection({ services });
+    await vi.advanceTimersByTimeAsync(100);
+    await expect
+      .element(screen.getByRole("status"))
+      .toHaveTextContent("Estos componentes no tienen precio: Pasas.");
+
+    await screen.withComponents(null);
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    await expect.element(screen.getByText("Precio recomendado")).toBeVisible();
+    await expect.element(screen.getByRole("status")).not.toBeInTheDocument();
+  });
+
+  test("prefills the recommendation again once the recipe's quantities are complete", async () => {
+    const services = sectionServices();
+    const screen = await renderSection({ services });
+    await readEverything(services);
+    await screen.withComponents(null);
+    await vi.advanceTimersByTimeAsync(1_000);
     services.fetchPriceRecommendation.mockResolvedValue({
       kind: "ok",
       value: { ...recommended16000, recommendation: { kind: "recommended", unitPrice: 1800000 } },

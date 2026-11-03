@@ -335,14 +335,14 @@ describe("recipePriceComponentsOf", () => {
     ["empty", ""],
     ["malformed", "0,5,"],
     ["zero", "0"],
-  ])("lists no component while one quantity is %s", (_name, quantity) => {
+  ])("tells the quantities are incomplete while one is %s", (_name, quantity) => {
     expect(
       recipePriceComponentsOf([
         { ...kgRow, quantity: "0,600" },
         { ...kgRow, productId: nueces.id, quantity },
         { ...unitRow, quantity: "1" },
       ]),
-    ).toEqual([]);
+    ).toBeNull();
   });
 
   it("is empty for a recipe without components", () => {
