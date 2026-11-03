@@ -3,6 +3,7 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { withReadsCounted } from "../platform/test-support/reads-counted";
 import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
@@ -630,4 +631,16 @@ test("tells an outdated tab to reload because the backoffice was updated when bu
 
   await expect.element(screen.getByText("No se armaron los pedidos")).toBeVisible();
   await expect.element(screen.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+});
+
+test("typing in the search renders none of the listed products again", async () => {
+  const listed = withReadsCounted(ORDER_SUGGESTION.lines, "soldQuantity");
+  const screen = await loaded(createServices(), { ...ORDER_SUGGESTION, lines: listed.items });
+  await expect.poll(() => lineRows(screen)).toHaveLength(3);
+  listed.resetReads();
+
+  await userEvent.type(screen.getByPlaceholder("Buscar un producto"), "a");
+
+  await expect.element(screen.getByPlaceholder("Buscar un producto")).toHaveValue("a");
+  expect(listed.reads()).toBe(0);
 });
