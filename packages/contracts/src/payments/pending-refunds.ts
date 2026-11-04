@@ -4,6 +4,7 @@ import {
   PAYMENT_METHODS,
   POINT_CARD_TYPES,
   REFUND_ORIGINS,
+  REFUND_TRANSFER_KINDS,
 } from "@purosur/domain";
 import { z } from "zod";
 import { recordIdSchema } from "../shared/index.js";
@@ -21,6 +22,7 @@ export const pendingRefundsSchema = z.object({
       card_type: z.enum(POINT_CARD_TYPES).nullable(),
       origin: z.enum(REFUND_ORIGINS),
       discardable: z.boolean(),
+      transferable: z.boolean(),
       amount: z.int().nonnegative(),
       occurred_at: instant.meta({ timeZone: ARGENTINA_TIME_ZONE }),
       seconds_pending: z.int().nonnegative(),
@@ -43,6 +45,12 @@ export const markedRefundDoneSchema = z.object({
   done_at: instant,
 });
 export type MarkedRefundDoneBody = z.output<typeof markedRefundDoneSchema>;
+
+export const refundTransferSchema = z.object({
+  kind: z.enum(REFUND_TRANSFER_KINDS),
+  operation_number: z.string().trim().min(1),
+});
+export type RefundTransferBody = z.output<typeof refundTransferSchema>;
 
 export const discardedRefundSchema = z.object({
   refund_id: recordIdSchema(),

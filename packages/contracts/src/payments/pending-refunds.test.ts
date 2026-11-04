@@ -248,7 +248,8 @@ describe("refundTransferSchema", () => {
 
   it("keeps the operation number without the spaces around it", () => {
     expect(
-      refundTransferSchema.parse({ kind: "bank", operation_number: "  00123456 " }).operation_number,
+      refundTransferSchema.parse({ kind: "bank", operation_number: "  00123456 " })
+        .operation_number,
     ).toBe("00123456");
   });
 
