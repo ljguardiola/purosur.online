@@ -21,6 +21,7 @@ import {
   sameSupplierItemKey,
   supersedesCurrentPrice,
   supplierItemKey,
+  supplierItemKeyId,
   supplierPriceListRowStatus,
 } from "./supplier-item.js";
 
@@ -506,6 +507,29 @@ describe("sameSupplierItemKey", () => {
     expect(
       sameSupplierItemKey({ kind: "code", value: "a" }, { kind: "description", value: "a" }),
     ).toBe(false);
+  });
+});
+
+describe("supplierItemKeyId", () => {
+  const key = fc.record({
+    kind: fc.constantFrom("code" as const, "description" as const),
+    value: fc.string({ unit: fc.constantFrom("a", "b", ",", '"', "\\", "\n") }),
+  });
+
+  it("is the same for two keys exactly when they are the same key", () => {
+    fc.assert(
+      fc.property(key, key, (first, second) => {
+        expect(supplierItemKeyId(first) === supplierItemKeyId(second)).toBe(
+          sameSupplierItemKey(first, second),
+        );
+      }),
+    );
+  });
+
+  it("keeps a code apart from a description of the same text", () => {
+    expect(supplierItemKeyId({ kind: "code", value: "A" })).not.toBe(
+      supplierItemKeyId({ kind: "description", value: "A" }),
+    );
   });
 });
 
