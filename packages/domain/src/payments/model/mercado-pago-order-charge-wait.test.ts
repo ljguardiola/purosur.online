@@ -141,8 +141,10 @@ describe("MERCADO_PAGO_ORDER_CHARGE_CHECK_INTERVAL_MS", () => {
 });
 
 describe("aMercadoPagoChargeInProgress", () => {
-  const qr = (waitEndsAt: Date) => ({ method: "QR", waitEndsAt }) as const;
-  const point = (waitEndsAt: Date) => ({ method: "POINT", waitEndsAt }) as const;
+  const qr = (waitEndsAt: Date, replaced = false) =>
+    ({ method: "QR", waitEndsAt, replaced }) as const;
+  const point = (waitEndsAt: Date, replaced = false) =>
+    ({ method: "POINT", waitEndsAt, replaced }) as const;
   const OVER = new Date("2026-10-09T11:59:00.000Z");
 
   it("is false for a sale with no pending Mercado Pago payment", () => {
@@ -168,6 +170,18 @@ describe("aMercadoPagoChargeInProgress", () => {
   it("stays true for a pending terminal payment after its wait, until the payment is closed", () => {
     expect(aMercadoPagoChargeInProgress([point(OVER)], WAIT_ENDS_AT)).toBe(true);
   });
+
+  it("is false for a terminal payment the cashier replaced, though its order stays open at the terminal", () => {
+    expect(aMercadoPagoChargeInProgress([point(WAIT_ENDS_AT, true)], STARTED_AT)).toBe(false);
+  });
+
+  it("is false for a replaced QR payment still within its wait", () => {
+    expect(aMercadoPagoChargeInProgress([qr(WAIT_ENDS_AT, true)], STARTED_AT)).toBe(false);
+  });
+
+  it("is true for a terminal payment still followed beside a replaced one", () => {
+    expect(aMercadoPagoChargeInProgress([point(OVER, true), point(OVER)], WAIT_ENDS_AT)).toBe(true);
+  });
 });
 
 describe("mercadoPagoChargeInProgress", () => {
@@ -178,8 +192,9 @@ describe("mercadoPagoChargeInProgress", () => {
     waitEndsAt: Date,
     occurredAt = new Date(waitEndsAt.getTime() - 180_000),
     cardType: PointCardType | null = "DEBIT",
+    replaced = false,
   ): PendingMercadoPagoCharge => {
-    const payment = { id, amount: 3000, occurredAt, waitEndsAt };
+    const payment = { id, amount: 3000, occurredAt, waitEndsAt, replaced };
     return method === "POINT" ? { ...payment, method, cardType } : { ...payment, method };
   };
 
@@ -218,6 +233,27 @@ describe("mercadoPagoChargeInProgress", () => {
       remainingSeconds: 0,
       waitSeconds: 180,
     });
+  });
+
+  it("names the terminal payment still followed, not the one the cashier replaced", () => {
+    expect(
+      mercadoPagoChargeInProgress(
+        [
+          pending("point-1", "POINT", OVER, undefined, "DEBIT", true),
+          pending("point-2", "POINT", OVER),
+        ],
+        WAIT_ENDS_AT,
+      ),
+    ).toMatchObject({ paymentTransactionId: "point-2" });
+  });
+
+  it("is none when the only pending terminal payment was replaced", () => {
+    expect(
+      mercadoPagoChargeInProgress(
+        [pending("point-1", "POINT", OVER, undefined, "DEBIT", true)],
+        WAIT_ENDS_AT,
+      ),
+    ).toBeNull();
   });
 
   it.each(["CREDIT", null] as const)(

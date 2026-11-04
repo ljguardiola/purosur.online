@@ -1,13 +1,13 @@
 import type { LatePaymentRefund } from "../../model/payment-refund.js";
 import type { LatePaymentRefundOpening } from "../mercado-pago-order-ports.js";
 import type {
-  QrPaymentReplacement,
-  QrPaymentReplacementStore,
-  QrPaymentReplacementTransaction,
-  ReplacedQrPayment,
-} from "../qr-payment-replacement-store.js";
+  MercadoPagoPaymentReplacement,
+  MercadoPagoPaymentReplacementStore,
+  MercadoPagoPaymentReplacementTransaction,
+  ReplacedMercadoPagoPayment,
+} from "../mercado-pago-payment-replacement-store.js";
 
-export interface FakeRecordedQrPayment extends ReplacedQrPayment {
+export interface FakeRecordedQrPayment extends ReplacedMercadoPagoPayment {
   registerId: string;
   saleId: string;
 }
@@ -19,10 +19,12 @@ export interface OpenedLatePaymentRefund {
 
 type ReplacementWrite = "markReplaced" | "openLatePaymentRefund";
 
-class FakeQrPaymentReplacementTransaction implements QrPaymentReplacementTransaction {
-  private readonly store: FakeQrPaymentReplacements;
+class FakeMercadoPagoPaymentReplacementTransaction
+  implements MercadoPagoPaymentReplacementTransaction
+{
+  private readonly store: FakeMercadoPagoPaymentReplacements;
 
-  constructor(store: FakeQrPaymentReplacements) {
+  constructor(store: FakeMercadoPagoPaymentReplacements) {
     this.store = store;
   }
 
@@ -30,7 +32,7 @@ class FakeQrPaymentReplacementTransaction implements QrPaymentReplacementTransac
     registerId,
     paymentTransactionId,
     saleId,
-  }: QrPaymentReplacement): Promise<ReplacedQrPayment | null> {
+  }: MercadoPagoPaymentReplacement): Promise<ReplacedMercadoPagoPayment | null> {
     this.store.operations.push("markReplaced");
     this.store.failIfAsked("markReplaced");
     const payment = this.store.payments.find(
@@ -67,7 +69,7 @@ class FakeQrPaymentReplacementTransaction implements QrPaymentReplacementTransac
   }
 }
 
-export class FakeQrPaymentReplacements implements QrPaymentReplacementStore {
+export class FakeMercadoPagoPaymentReplacements implements MercadoPagoPaymentReplacementStore {
   payments: FakeRecordedQrPayment[];
   refunds: OpenedLatePaymentRefund[] = [];
   operations: string[] = [];
@@ -85,13 +87,13 @@ export class FakeQrPaymentReplacements implements QrPaymentReplacementStore {
   }
 
   async inOneTransaction<TOutcome>(
-    work: (tx: QrPaymentReplacementTransaction) => Promise<TOutcome>,
+    work: (tx: MercadoPagoPaymentReplacementTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     this.transactions += 1;
     const payments = structuredClone(this.payments);
     const refunds = structuredClone(this.refunds);
     try {
-      return await work(new FakeQrPaymentReplacementTransaction(this));
+      return await work(new FakeMercadoPagoPaymentReplacementTransaction(this));
     } catch (error) {
       this.payments = payments;
       this.refunds = refunds;

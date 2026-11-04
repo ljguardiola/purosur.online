@@ -18,6 +18,7 @@ const EVENT_TYPE_NAMES: Readonly<Record<SyncedEventType, string>> = {
   fiscal_gate_failed: "control fiscal previo a facturar",
   offline_fiscal_document_issued: "factura emitida con CAEA",
   qr_payment_replaced: "reemplazo de pago QR",
+  mercado_pago_payment_replaced: "reemplazo de pago de Mercado Pago",
   opening_count_recorded: "línea del inventario inicial",
   opening_count_withdrawn: "línea del inventario inicial quitada",
   clock_corrected: "corrección de reloj",

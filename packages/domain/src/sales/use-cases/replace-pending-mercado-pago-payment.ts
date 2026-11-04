@@ -2,39 +2,39 @@ import type { RegisterRestoration } from "./register-restoration.js";
 import type { IdGenerator, SaleLedger } from "./sale-ledger.js";
 import { isRefusal, type SellingSessionRefusal, sellingSession } from "./selling-session.js";
 
-export interface ReplacePendingQrPaymentInput {
+export interface ReplacePendingMercadoPagoPaymentInput {
   actorId: string;
   paymentTransactionId: string;
   replacedAt: Date;
 }
 
-export interface ReplacePendingQrPaymentPorts {
+export interface ReplacePendingMercadoPagoPaymentPorts {
   ledger: SaleLedger;
   restoration: RegisterRestoration;
   ids: IdGenerator;
 }
 
-export type PendingQrPaymentReplacementRefusal =
+export type PendingMercadoPagoPaymentReplacementRefusal =
   | SellingSessionRefusal
   | { kind: "not_pending" }
   | { kind: "no_open_sale" }
   | { kind: "unavailable" };
 
-export type ReplacePendingQrPaymentOutcome =
+export type ReplacePendingMercadoPagoPaymentOutcome =
   | { kind: "replaced" }
-  | PendingQrPaymentReplacementRefusal;
+  | PendingMercadoPagoPaymentReplacementRefusal;
 
-export function replacePendingQrPayment(
-  { ledger, restoration, ids }: ReplacePendingQrPaymentPorts,
-  { actorId, paymentTransactionId, replacedAt }: ReplacePendingQrPaymentInput,
-): ReplacePendingQrPaymentOutcome {
-  return ledger.transaction<ReplacePendingQrPaymentOutcome>((tx) => {
+export function replacePendingMercadoPagoPayment(
+  { ledger, restoration, ids }: ReplacePendingMercadoPagoPaymentPorts,
+  { actorId, paymentTransactionId, replacedAt }: ReplacePendingMercadoPagoPaymentInput,
+): ReplacePendingMercadoPagoPaymentOutcome {
+  return ledger.transaction<ReplacePendingMercadoPagoPaymentOutcome>((tx) => {
     const session = sellingSession(tx, actorId, restoration);
     if (isRefusal(session)) {
       return session;
     }
     const pending = tx.pendingMercadoPagoPayment(paymentTransactionId);
-    if (pending === undefined || pending.method !== "QR") {
+    if (pending === undefined) {
       return { kind: "not_pending" };
     }
     if (tx.openSale(session.id)?.id !== pending.saleId) {
@@ -45,12 +45,12 @@ export function replacePendingQrPayment(
     }
 
     const waitEndsAt = new Date(Math.min(pending.waitEndsAt.getTime(), replacedAt.getTime()));
-    tx.markQrPaymentReplaced(paymentTransactionId, waitEndsAt);
+    tx.markMercadoPagoPaymentReplaced(paymentTransactionId, waitEndsAt);
     tx.appendOutboxEvent({
       event_id: ids.next(),
       aggregate_type: "Sale",
       aggregate_id: pending.saleId,
-      event_type: "qr_payment_replaced",
+      event_type: "mercado_pago_payment_replaced",
       schema_version: 1,
       payload: { payment_transaction_id: paymentTransactionId, sale_id: pending.saleId },
       occurred_at: replacedAt.toISOString(),

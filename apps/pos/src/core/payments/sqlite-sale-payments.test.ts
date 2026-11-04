@@ -6,7 +6,7 @@ import { openLocalDatabase } from "../platform/test-support/open-local-database"
 import {
   approvePendingMercadoPagoPayment,
   insertPendingMercadoPagoPayment,
-  markQrPaymentReplaced,
+  markMercadoPagoPaymentReplaced,
   readPendingMercadoPagoPayment,
   readPendingMercadoPagoPaymentsOf,
   readRecordedPayments,
@@ -314,8 +314,8 @@ describe("the payments made on the integrated terminal", () => {
     insertPendingMercadoPagoPayment(database, POINT_PENDING);
 
     expect(readPendingMercadoPagoPaymentsOf(database, "sale-1")).toEqual([
-      QR_PENDING,
-      POINT_PENDING,
+      { ...QR_PENDING, replaced: false },
+      { ...POINT_PENDING, replaced: false },
     ]);
   });
 
@@ -328,11 +328,46 @@ describe("the payments made on the integrated terminal", () => {
     expect(readPendingMercadoPagoPayment(database, "point-1")).toBeUndefined();
   });
 
-  it("never mark a pending payment as replaced", () => {
+  it("mark a pending Point payment as replaced and end its wait", () => {
     insertPendingMercadoPagoPayment(database, POINT_PENDING);
 
-    markQrPaymentReplaced(database, "point-1", CONFIRMED_AT);
+    markMercadoPagoPaymentReplaced(database, "point-1", CONFIRMED_AT);
 
-    expect(readPendingMercadoPagoPayment(database, "point-1")).toEqual(POINT_PENDING);
+    expect(
+      database
+        .prepare(
+          "SELECT state, replaced, wait_ends_at FROM payment_transactions WHERE id = 'point-1'",
+        )
+        .get(),
+    ).toEqual({ state: "PENDING", replaced: 1, wait_ends_at: CONFIRMED_AT.toISOString() });
+    expect(readPendingMercadoPagoPayment(database, "point-1")).toBeUndefined();
+    expect(readPendingMercadoPagoPaymentsOf(database, "sale-1")).toEqual([
+      { ...POINT_PENDING, waitEndsAt: CONFIRMED_AT, replaced: true },
+    ]);
+  });
+
+  it("mark nothing when the Point payment already ended", () => {
+    addPointPayment("point-1", "sale-1", 2500, "DECLINED");
+
+    markMercadoPagoPaymentReplaced(database, "point-1", CONFIRMED_AT);
+
+    expect(
+      database.prepare("SELECT replaced FROM payment_transactions WHERE id = 'point-1'").get(),
+    ).toEqual({ replaced: 0 });
+  });
+
+  it("mark nothing of a payment that is not a Mercado Pago one", () => {
+    database
+      .prepare(
+        `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, state, occurred_at)
+         VALUES ('cash-1', 'sale-1', 'SALE', 'CASH', 'NONE', 100, 100, 'APPROVED', '2026-10-09T12:00:00.000Z')`,
+      )
+      .run();
+
+    markMercadoPagoPaymentReplaced(database, "cash-1", CONFIRMED_AT);
+
+    expect(
+      database.prepare("SELECT replaced FROM payment_transactions WHERE id = 'cash-1'").get(),
+    ).toEqual({ replaced: 0 });
   });
 });

@@ -642,7 +642,11 @@ const FACT_OF: {
     },
   }),
   "qr_payment_replaced@1": (payload) => ({
-    kind: "qr_payment_replaced",
+    kind: "mercado_pago_payment_replaced",
+    replacement: { paymentTransactionId: payload.payment_transaction_id, saleId: payload.sale_id },
+  }),
+  "mercado_pago_payment_replaced@1": (payload) => ({
+    kind: "mercado_pago_payment_replaced",
     replacement: { paymentTransactionId: payload.payment_transaction_id, saleId: payload.sale_id },
   }),
   "opening_count_recorded@1": (payload, event) => ({

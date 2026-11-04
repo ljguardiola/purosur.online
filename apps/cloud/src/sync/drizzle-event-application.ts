@@ -44,7 +44,7 @@ import {
   recordAppliedDeferredSaleCancellation,
   recordAppliedDeferredSaleSatisfaction,
 } from "../fiscal/drizzle-deferred-sales.js";
-import { recordAppliedQrPaymentReplacement } from "../payments/drizzle-applied-qr-payment-replacement.js";
+import { recordAppliedMercadoPagoPaymentReplacement } from "../payments/drizzle-applied-mercado-pago-payment-replacement.js";
 import { providerTransactionOfPayment } from "../payments/drizzle-provider-transactions.js";
 import type { EnqueueMercadoPagoRefundFollow } from "../payments/enqueue-mercado-pago-refund-follow.js";
 import { openSurplusRefundOfRebuiltSale } from "../payments/open-surplus-refund-of-rebuilt-sale.js";
@@ -216,8 +216,8 @@ class DrizzleEventApplicationTransaction<TQueryResult extends PgQueryResultHKT>
         return recordAppliedPrintState(this.tx, await this.originOf(event), fact);
       case "reprint_recorded":
         return recordAppliedReprint(this.tx, await this.originOf(event), fact);
-      case "qr_payment_replaced":
-        return recordAppliedQrPaymentReplacement(
+      case "mercado_pago_payment_replaced":
+        return recordAppliedMercadoPagoPaymentReplacement(
           this.tx,
           await this.originOf(event),
           fact,

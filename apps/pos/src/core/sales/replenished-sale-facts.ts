@@ -11,7 +11,7 @@ import {
   approvePendingMercadoPagoPayment,
   insertPaymentRefund,
   insertPendingMercadoPagoPayment,
-  markQrPaymentReplaced,
+  markMercadoPagoPaymentReplaced,
   readPendingMercadoPagoPayment,
 } from "../payments/sqlite-sale-payments";
 import type { LocalDatabase } from "../platform/local-database";
@@ -36,7 +36,7 @@ type CompletedSaleFact = Extract<SyncedFact, { kind: "sale_completed" }>["sale"]
 type CancelledSaleFact = Extract<SyncedFact, { kind: "sale_cancelled" }>["sale"];
 type SaleFact = Extract<
   SyncedFact,
-  { kind: "sale_completed" | "sale_cancelled" | "qr_payment_replaced" }
+  { kind: "sale_completed" | "sale_cancelled" | "mercado_pago_payment_replaced" }
 >;
 type PaymentFact = CompletedSaleFact["payments"][number];
 type LineFact = CompletedSaleFact["lines"][number];
@@ -291,13 +291,13 @@ function cancelSale(
   markSaleCancelled(database, sale.id, sale.cancelledAt, sale.authorizedBy ?? undefined);
 }
 
-function stopFollowingReplacedQrPayment(
+function stopFollowingReplacedMercadoPagoPayment(
   database: LocalDatabase,
   paymentTransactionId: string,
 ): void {
   const pending = readPendingMercadoPagoPayment(database, paymentTransactionId);
   if (pending !== undefined) {
-    markQrPaymentReplaced(database, paymentTransactionId, pending.waitEndsAt);
+    markMercadoPagoPaymentReplaced(database, paymentTransactionId, pending.waitEndsAt);
   }
 }
 
@@ -313,8 +313,8 @@ export function applyReplenishedSaleFact(
     case "sale_cancelled":
       cancelSale(database, fact.sale, source);
       break;
-    case "qr_payment_replaced":
-      stopFollowingReplacedQrPayment(database, fact.replacement.paymentTransactionId);
+    case "mercado_pago_payment_replaced":
+      stopFollowingReplacedMercadoPagoPayment(database, fact.replacement.paymentTransactionId);
       break;
   }
 }

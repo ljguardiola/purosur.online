@@ -765,7 +765,7 @@ const clockCorrectedV2Schema = clockCorrectedSchema.extend({
   previous_reading_source: z.enum(CLOCK_PREVIOUS_READING_SOURCES),
 });
 
-const qrPaymentReplacedSchema = z.object({
+const mercadoPagoPaymentReplacedSchema = z.object({
   payment_transaction_id: text,
   sale_id: text,
 });
@@ -836,7 +836,8 @@ const PAYLOAD_SCHEMAS = {
   "offline_fiscal_document_issued@3": offlineCreditNoteIssuedSchema,
   "clock_corrected@1": clockCorrectedSchema,
   "clock_corrected@2": clockCorrectedV2Schema,
-  "qr_payment_replaced@1": qrPaymentReplacedSchema,
+  "qr_payment_replaced@1": mercadoPagoPaymentReplacedSchema,
+  "mercado_pago_payment_replaced@1": mercadoPagoPaymentReplacedSchema,
   "opening_count_recorded@1": openingCountRecordedSchema,
   "opening_count_withdrawn@1": openingCountWithdrawnSchema,
 };

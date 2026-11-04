@@ -956,6 +956,7 @@ describe("the register's local migrations", () => {
         "0097_sale_cash_rounding",
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
+        "0100_replaced_point_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1078,6 +1079,7 @@ describe("the register's local migrations", () => {
         "0097_sale_cash_rounding",
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
+        "0100_replaced_point_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1195,6 +1197,7 @@ describe("the register's local migrations", () => {
         "0097_sale_cash_rounding",
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
+        "0100_replaced_point_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1311,6 +1314,7 @@ describe("the register's local migrations", () => {
         "0097_sale_cash_rounding",
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
+        "0100_replaced_point_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1456,6 +1460,7 @@ describe("the register's local migrations", () => {
         "0097_sale_cash_rounding",
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
+        "0100_replaced_point_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1591,6 +1596,7 @@ describe("the register's local migrations", () => {
         "0097_sale_cash_rounding",
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
+        "0100_replaced_point_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1730,6 +1736,7 @@ describe("the register's local migrations", () => {
         "0097_sale_cash_rounding",
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
+        "0100_replaced_point_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1877,6 +1884,7 @@ describe("the register's local migrations", () => {
         "0097_sale_cash_rounding",
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
+        "0100_replaced_point_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1991,6 +1999,7 @@ describe("the register's local migrations", () => {
         "0097_sale_cash_rounding",
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
+        "0100_replaced_point_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -3220,11 +3229,6 @@ describe("the register's local migrations", () => {
       );
       expect(() =>
         insertPayment.run({ ...point, id: "point-authorized", authorized_by: "u1" }),
-      ).toThrow(/CHECK/);
-      expect(() =>
-        after
-          .prepare("UPDATE payment_transactions SET replaced = 1 WHERE id = 'point-pending'")
-          .run(),
       ).toThrow(/CHECK/);
       expect(() =>
         after
@@ -9749,6 +9753,92 @@ describe("the sale print declined migration", () => {
       expect(database.prepare("SELECT print_declined_at FROM sales").all()).toEqual([
         { print_declined_at: "2026-10-09T12:07:00.000Z" },
       ]);
+    });
+  });
+});
+
+describe("the replaced Point payments migration", () => {
+  const MIGRATION = "0100_replaced_point_payments";
+
+  type Database = ReturnType<typeof openLocalDatabase>;
+
+  const INSERT_PAYMENT = `INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, tendered, authorized_by, confirmed_at, state, occurred_at, wait_ends_at, replaced)
+    VALUES (@id, 'sale-1', 'SALE', @method, @provider, 500, NULL, NULL, NULL, 'PENDING', '2026-10-09T12:05:00.000Z', '2026-10-09T12:08:00.000Z', @replaced)`;
+  const QR = { method: "QR", provider: "MERCADOPAGO_QR" };
+  const POINT = { method: "POINT", provider: "MERCADOPAGO_POINT" };
+
+  function withPaymentsBefore(test: (database: Database) => void) {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < MIGRATION);
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(MIGRATION);
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'OPEN', NULL);`,
+      );
+      before.prepare(INSERT_PAYMENT).run({ id: "qr-replaced", ...QR, replaced: 1 });
+      before.prepare(INSERT_PAYMENT).run({ id: "point-pending", ...POINT, replaced: 0 });
+      before.close();
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      try {
+        test(after);
+      } finally {
+        after.close();
+      }
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  }
+
+  it("keeps the payments the register already holds, with their replaced marks", () => {
+    withPaymentsBefore((database) => {
+      expect(
+        database.prepare("SELECT id, method, replaced FROM payment_transactions ORDER BY id").all(),
+      ).toEqual([
+        { id: "point-pending", method: "POINT", replaced: 0 },
+        { id: "qr-replaced", method: "QR", replaced: 1 },
+      ]);
+      expect(database.pragma("foreign_key_check")).toEqual([]);
+    });
+  });
+
+  it("holds a replaced Point payment", () => {
+    withPaymentsBefore((database) => {
+      database
+        .prepare("UPDATE payment_transactions SET replaced = 1 WHERE id = 'point-pending'")
+        .run();
+
+      expect(
+        database
+          .prepare("SELECT replaced FROM payment_transactions WHERE id = 'point-pending'")
+          .get(),
+      ).toEqual({
+        replaced: 1,
+      });
+    });
+  });
+
+  it("refuses a replaced mark that is neither 0 nor 1", () => {
+    withPaymentsBefore((database) => {
+      expect(() =>
+        database.prepare(INSERT_PAYMENT).run({ id: "point-2", ...POINT, replaced: 2 }),
+      ).toThrow(/CHECK/);
+    });
+  });
+
+  it("still holds the payments of a sale by its index", () => {
+    withPaymentsBefore((database) => {
+      expect(
+        database
+          .prepare(
+            "SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'payment_transactions_by_sale'",
+          )
+          .all(),
+      ).toEqual([{ name: "payment_transactions_by_sale" }]);
     });
   });
 });

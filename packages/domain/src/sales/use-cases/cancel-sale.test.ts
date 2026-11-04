@@ -7,6 +7,7 @@ import type { SalePayment } from "../../payments/index.js";
 import type { SaleWithLines } from "../model/sale.js";
 import { cancelSale } from "./cancel-sale.js";
 import { rebuildSaleAgainstPaidOrder } from "./rebuild-sale-against-paid-order.js";
+import { replacePendingMercadoPagoPayment } from "./replace-pending-mercado-pago-payment.js";
 import {
   aRebuildablePaidOrder,
   FakeSaleLedger,
@@ -263,6 +264,28 @@ describe("cancelSale with a terminal charge", () => {
 
     expect(cancel(store)).toEqual({ kind: "mercado_pago_charge_in_progress" });
     expect(store.state).toEqual(before);
+  });
+
+  it("cancels the sale once the cashier replaced its terminal charge, left open at the terminal", () => {
+    const store = ledger({
+      pendingMercadoPagoPayments: [
+        {
+          ...PENDING_POINT_TRANSACTION,
+          id: "point-1",
+          saleId: "sale-1",
+          amount: 1000,
+          occurredAt: new Date(NOW.getTime() - 60_000),
+          waitEndsAt: new Date(NOW.getTime() + 120_000),
+        },
+      ],
+    });
+    replacePendingMercadoPagoPayment(
+      { ledger: store, restoration: store.restoration, ids: new SequentialIds() },
+      { actorId: "cashier", paymentTransactionId: "point-1", replacedAt: NOW },
+    );
+
+    expect(cancel(store)).toEqual({ kind: "cancelled" });
+    expect(store.state.sales).toEqual([{ ...OPEN_SALE, state: "CANCELLED", occurredAt: NOW }]);
   });
 });
 

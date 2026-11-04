@@ -7,6 +7,7 @@ export {
 export type {
   MercadoPagoChargeInProgress,
   PendingMercadoPagoCharge,
+  PendingMercadoPagoChargeWait,
 } from "./model/mercado-pago-order-charge-wait.js";
 export {
   aMercadoPagoChargeInProgress,

@@ -133,7 +133,7 @@ export const help = defineHelp("es-AR", {
           items: [
             "Si el cobro venció, tocá Elegir otro medio y volvé a intentar con la Point o cobrá con otro medio.",
             "Si se terminó el tiempo de espera, cancelá el cobro en la terminal.",
-            "Cuando la terminal confirma la cancelación, tocá Elegir otro medio.",
+            "Tocá Elegir otro medio.",
           ],
         },
         {
@@ -149,20 +149,19 @@ export const help = defineHelp("es-AR", {
         { kind: "heading", text: "Qué pasa" },
         {
           kind: "paragraph",
-          text: "La caja no puede cancelar un cobro que ya está en la terminal: se cancela en la terminal misma.",
+          text: "La caja no puede cancelar un cobro que ya está en la terminal: queda abierto en la terminal hasta que se cancele ahí o venza.",
         },
         { kind: "heading", text: "Qué hacer" },
         {
           kind: "steps",
           items: [
             "Tocá Cambiar de medio. Si la terminal todavía no tomó el cobro, la caja lo cancela y volvés a elegir medio.",
-            "Si el cobro ya está en la terminal, la caja muestra Esperando la cancelación en la terminal: cancelalo en la terminal.",
-            "Cuando la terminal confirma la cancelación, se habilita Elegir otro medio.",
+            "Si el cobro ya está en la terminal, la caja vuelve igual a elegir medio. Cancelalo en la terminal.",
           ],
         },
         {
           kind: "note",
-          text: "Si el cliente llegó a pagar antes de la cancelación, la caja muestra que pagó en la terminal y el pago queda cobrado.",
+          text: "Si el cliente llegó a pagar antes de la cancelación, la caja muestra que pagó en la terminal y el pago queda cobrado. Si paga en la terminal después de que la venta se cobró con otro medio, ese pago queda como un reembolso pendiente.",
         },
       ],
     },

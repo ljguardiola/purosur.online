@@ -12,6 +12,7 @@ import type { ManualAdjustment } from "../model/manual-adjustment.js";
 import type { SaleLine, SaleWithLines } from "../model/sale.js";
 import { chargeSaleInCash } from "./charge-sale-in-cash.js";
 import { chargeSaleOnStandaloneTerminal } from "./charge-sale-on-standalone-terminal.js";
+import { replacePendingMercadoPagoPayment } from "./replace-pending-mercado-pago-payment.js";
 import {
   FakeSaleLedger,
   type FakeSaleLedgerState,
@@ -185,7 +186,7 @@ describe("chargeSaleInCash", () => {
   it("completes the sale beside a pending QR payment marked as replaced, sending only the approved payments", () => {
     const store = ledger({
       pendingMercadoPagoPayments: [REPLACED_QR],
-      replacedQrPaymentIds: ["qr-1"],
+      replacedMercadoPagoPaymentIds: ["qr-1"],
     });
 
     expect(charge(store, 10000)).toMatchObject({ kind: "completed", saleId: "sale-1" });
@@ -194,6 +195,29 @@ describe("chargeSaleInCash", () => {
     expect(store.state.outbox[0]?.payload).toMatchObject({
       payments: [{ id: "id-1", method: "CASH" }],
     });
+  });
+
+  it("completes the sale in cash once the cashier replaced its terminal charge, left open at the terminal", () => {
+    const store = ledger({
+      pendingMercadoPagoPayments: [
+        {
+          ...REPLACED_QR,
+          id: "point-1",
+          method: "POINT",
+          provider: "MERCADOPAGO_POINT",
+          cardType: "DEBIT",
+          waitEndsAt: new Date(NOW.getTime() + 60_000),
+        },
+      ],
+    });
+    replacePendingMercadoPagoPayment(
+      { ledger: store, restoration: store.restoration, ids: new SequentialIds() },
+      { actorId: "cashier", paymentTransactionId: "point-1", replacedAt: NOW },
+    );
+
+    expect(charge(store, 10000)).toMatchObject({ kind: "completed", saleId: "sale-1" });
+    expect(store.state.sales[0]?.state).toBe("COMPLETED");
+    expect(store.state.payments.map(({ method }) => method)).toEqual(["CASH"]);
   });
 
   it.each([

@@ -305,7 +305,6 @@ describe("abandoning a Mercado Pago QR charge", () => {
     { kind: "cancelled" },
     { kind: "closed" },
     { kind: "replaced" },
-    { kind: "cancel_on_terminal" },
     { kind: "unreachable" },
     { kind: "not_pending" },
     { kind: "already_paid", settlement: { kind: "completed", sale_id: "s1", total: 3000 } },
@@ -337,6 +336,7 @@ describe("abandoning a Mercado Pago QR charge", () => {
   });
 
   it.each([
+    { kind: "cancel_on_terminal" },
     { kind: "already_paid" },
     { kind: "already_paid", settlement: { kind: "replaced" } },
     { kind: "already_paid", settlement: { kind: "completed", sale_id: "s1" } },

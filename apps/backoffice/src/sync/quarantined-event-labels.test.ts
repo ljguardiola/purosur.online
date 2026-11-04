@@ -20,6 +20,12 @@ test("names a quarantined replacement of a QR payment by its Spanish name in the
   expect(quarantinedEventColumnText("qr_payment_replaced")).toBe("Reemplazo de pago QR");
 });
 
+test("names a quarantined replacement of a Mercado Pago payment by its Spanish name in the column", () => {
+  expect(quarantinedEventColumnText("mercado_pago_payment_replaced")).toBe(
+    "Reemplazo de pago de Mercado Pago",
+  );
+});
+
 test("names an unknown event type in general words in the column, never by its code", () => {
   expect(quarantinedEventColumnText("something_new")).toBe("Desconocido");
 });

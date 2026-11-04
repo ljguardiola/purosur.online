@@ -1,10 +1,10 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { applyQrPaymentReplacement } from "./apply-qr-payment-replacement.js";
-import type { ReplacedQrPayment } from "./qr-payment-replacement-store.js";
+import { applyMercadoPagoPaymentReplacement } from "./apply-mercado-pago-payment-replacement.js";
+import type { ReplacedMercadoPagoPayment } from "./mercado-pago-payment-replacement-store.js";
 import {
-  FakeQrPaymentReplacements,
+  FakeMercadoPagoPaymentReplacements,
   type FakeRecordedQrPayment,
-} from "./test-support/fake-qr-payment-replacements.js";
+} from "./test-support/fake-mercado-pago-payment-replacements.js";
 import { FixedClock } from "./test-support/fake-refund-store.js";
 
 const NOW = new Date("2026-10-09T12:00:00.000Z");
@@ -28,17 +28,17 @@ function payment(overrides: Partial<FakeRecordedQrPayment> = {}): FakeRecordedQr
   };
 }
 
-function apply(store: FakeQrPaymentReplacements, replacement = REPLACEMENT) {
-  return applyQrPaymentReplacement({ store, clock: new FixedClock(NOW) }, replacement);
+function apply(store: FakeMercadoPagoPaymentReplacements, replacement = REPLACEMENT) {
+  return applyMercadoPagoPaymentReplacement({ store, clock: new FixedClock(NOW) }, replacement);
 }
 
-describe("applyQrPaymentReplacement", () => {
+describe("applyMercadoPagoPaymentReplacement", () => {
   it("only replaces a payment made through Mercado Pago", () => {
-    expectTypeOf<ReplacedQrPayment["method"]>().toEqualTypeOf<"QR" | "POINT">();
+    expectTypeOf<ReplacedMercadoPagoPayment["method"]>().toEqualTypeOf<"QR" | "POINT">();
   });
 
   it("marks a payment the provider had already approved as replaced and opens its pending refund task by the payment's own channel, in one transaction", async () => {
-    const store = new FakeQrPaymentReplacements([
+    const store = new FakeMercadoPagoPaymentReplacements([
       payment({ state: "APPROVED", method: "POINT", provider: "SOME_PROVIDER", amount: 4100 }),
     ]);
 
@@ -65,7 +65,7 @@ describe("applyQrPaymentReplacement", () => {
   });
 
   it("marks a payment the provider has not approved as replaced and opens no task", async () => {
-    const store = new FakeQrPaymentReplacements([payment({ state: "PENDING" })]);
+    const store = new FakeMercadoPagoPaymentReplacements([payment({ state: "PENDING" })]);
 
     const outcome = await apply(store);
 
@@ -76,7 +76,7 @@ describe("applyQrPaymentReplacement", () => {
   });
 
   it("opens a single task when the same replacement is applied twice", async () => {
-    const store = new FakeQrPaymentReplacements([payment({ state: "APPROVED" })]);
+    const store = new FakeMercadoPagoPaymentReplacements([payment({ state: "APPROVED" })]);
 
     await apply(store);
     const again = await apply(store);
@@ -86,7 +86,7 @@ describe("applyQrPaymentReplacement", () => {
   });
 
   it("answers not recorded, opening nothing, for a payment another register or sale holds or nobody recorded", async () => {
-    const store = new FakeQrPaymentReplacements([payment({ state: "APPROVED" })]);
+    const store = new FakeMercadoPagoPaymentReplacements([payment({ state: "APPROVED" })]);
 
     expect(await apply(store, { ...REPLACEMENT, registerId: "register-2" })).toEqual({
       kind: "not_recorded",
@@ -103,7 +103,7 @@ describe("applyQrPaymentReplacement", () => {
   });
 
   it("leaves the payment unmarked when its refund task cannot be opened", async () => {
-    const store = new FakeQrPaymentReplacements([payment({ state: "APPROVED" })]);
+    const store = new FakeMercadoPagoPaymentReplacements([payment({ state: "APPROVED" })]);
     store.failOn = "openLatePaymentRefund";
 
     await expect(apply(store)).rejects.toThrow("openLatePaymentRefund failed");

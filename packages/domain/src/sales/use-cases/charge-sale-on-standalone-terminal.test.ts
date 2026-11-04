@@ -202,7 +202,7 @@ describe("chargeSaleOnStandaloneTerminal", () => {
   it("completes the sale beside a pending QR payment marked as replaced", () => {
     const store = ledger({
       pendingMercadoPagoPayments: [REPLACED_QR],
-      replacedQrPaymentIds: ["qr-1"],
+      replacedMercadoPagoPaymentIds: ["qr-1"],
     });
 
     expect(charge(store)).toMatchObject({ kind: "completed", saleId: "sale-1" });

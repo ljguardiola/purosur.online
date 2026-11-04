@@ -17,7 +17,7 @@ import { insertInboxEvent } from "./test-support/inbox-events.js";
 const system = eventApplicationUnderTest();
 
 function replacementFact(paymentTransactionId: string, saleId: string): SyncedFact {
-  return { kind: "qr_payment_replaced", replacement: { paymentTransactionId, saleId } };
+  return { kind: "mercado_pago_payment_replaced", replacement: { paymentTransactionId, saleId } };
 }
 
 async function record(fact: SyncedFact, saleId: string, deviceId: string) {

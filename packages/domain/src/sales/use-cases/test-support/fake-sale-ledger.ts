@@ -88,7 +88,7 @@ export interface FakeSaleLedgerState {
   payments: SalePayment[];
   pendingMercadoPagoPayments: PendingMercadoPagoSalePayment[];
   endedMercadoPagoCharges: { id: string; saleId: string }[];
-  replacedQrPaymentIds: string[];
+  replacedMercadoPagoPaymentIds: string[];
   refunds: SaleRefund[];
   movements: CashMovement[];
   stockMovements: SaleStockMovement[];
@@ -114,7 +114,7 @@ export type FakeSaleLedgerWrite =
   | "recordPayment"
   | "recordPendingMercadoPagoPayment"
   | "approvePendingMercadoPagoPayment"
-  | "markQrPaymentReplaced"
+  | "markMercadoPagoPaymentReplaced"
   | "recordCashMovement"
   | "recordSaleStockMovement"
   | "addToStockBalance"
@@ -166,7 +166,7 @@ export class FakeSaleLedger implements SaleLedger {
       payments: [],
       pendingMercadoPagoPayments: [],
       endedMercadoPagoCharges: [],
-      replacedQrPaymentIds: [],
+      replacedMercadoPagoPaymentIds: [],
       refunds: [],
       movements: [],
       stockMovements: [],
@@ -310,12 +310,13 @@ export class FakeSaleLedger implements SaleLedger {
       },
       pendingMercadoPagoPayment: (paymentTransactionId) => {
         const pending = working.pendingMercadoPagoPayments.find(
-          ({ id }) => id === paymentTransactionId && !working.replacedQrPaymentIds.includes(id),
+          ({ id }) =>
+            id === paymentTransactionId && !working.replacedMercadoPagoPaymentIds.includes(id),
         );
         return pending && structuredClone(pending);
       },
-      markQrPaymentReplaced: (paymentTransactionId, waitEndsAt) => {
-        this.failIfAsked("markQrPaymentReplaced");
+      markMercadoPagoPaymentReplaced: (paymentTransactionId, waitEndsAt) => {
+        this.failIfAsked("markMercadoPagoPaymentReplaced");
         const pending = working.pendingMercadoPagoPayments.find(
           ({ id }) => id === paymentTransactionId,
         );
@@ -323,11 +324,16 @@ export class FakeSaleLedger implements SaleLedger {
           return;
         }
         pending.waitEndsAt = waitEndsAt;
-        working.replacedQrPaymentIds.push(paymentTransactionId);
+        working.replacedMercadoPagoPaymentIds.push(paymentTransactionId);
       },
       pendingMercadoPagoPaymentsOf: (saleId) =>
         structuredClone(
-          working.pendingMercadoPagoPayments.filter((pending) => pending.saleId === saleId),
+          working.pendingMercadoPagoPayments
+            .filter((pending) => pending.saleId === saleId)
+            .map((pending) => ({
+              ...pending,
+              replaced: working.replacedMercadoPagoPaymentIds.includes(pending.id),
+            })),
         ),
       approvePendingMercadoPagoPayment: (paymentTransactionId) => {
         this.failIfAsked("approvePendingMercadoPagoPayment");

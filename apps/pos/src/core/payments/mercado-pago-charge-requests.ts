@@ -18,9 +18,9 @@ import type { RestorationProtocolEvidence } from "@purosur/domain/register/use-c
 import {
   type IdGenerator,
   type PendingMercadoPagoPaymentRefusal,
-  type PendingQrPaymentReplacementRefusal,
+  type PendingMercadoPagoPaymentReplacementRefusal,
   recordPendingMercadoPagoPayment,
-  replacePendingQrPayment,
+  replacePendingMercadoPagoPayment,
   type SettleApprovedMercadoPagoPaymentOutcome,
   settleApprovedMercadoPagoPayment,
 } from "@purosur/domain/sales/use-cases";
@@ -51,7 +51,7 @@ function mercadoPagoChargeSale(
 ): MercadoPagoChargeSale<
   PendingMercadoPagoPaymentRefusal,
   MercadoPagoChargeSettlement,
-  PendingQrPaymentReplacementRefusal
+  PendingMercadoPagoPaymentReplacementRefusal
 > {
   const ledger = new SqliteSaleLedger(database, new SqliteSignInStore(database), outboxChainKey);
   return {
@@ -70,7 +70,7 @@ function mercadoPagoChargeSale(
             payment,
           ),
     replacePendingPayment: (payment) => {
-      const outcome = replacePendingQrPayment({ ledger, restoration, ids }, payment);
+      const outcome = replacePendingMercadoPagoPayment({ ledger, restoration, ids }, payment);
       return outcome.kind === "replaced" ? outcome : { kind: "refused", refusal: outcome };
     },
   };

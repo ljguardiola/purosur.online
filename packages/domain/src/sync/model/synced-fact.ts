@@ -44,7 +44,7 @@ export type SyncedFact =
   | { kind: "opening_count_recorded"; count: OpeningCountRecordedFact }
   | { kind: "opening_count_withdrawn"; withdrawal: OpeningCountWithdrawnFact }
   | {
-      kind: "qr_payment_replaced";
+      kind: "mercado_pago_payment_replaced";
       replacement: { paymentTransactionId: string; saleId: string };
     }
   | {

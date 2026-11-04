@@ -177,7 +177,7 @@ describe("the register's help", () => {
     ["enviar a la terminal", "Cobrar con la Point integrada"],
     ["rechazó", "Pago rechazado en la Point"],
     ["venció", "Point que no se acredita a tiempo"],
-    ["esperando la cancelación", "Cambiar de medio con un cobro en la Point"],
+    ["vuelve igual a elegir medio", "Cambiar de medio con un cobro en la Point"],
     ["no disponible sin conexión", "Point integrada sin conexión"],
     ["menores a", "Venta menor al mínimo de la Point"],
     ["registrar pago aprobado", STANDALONE_TERMINAL_TITLE],
@@ -214,13 +214,17 @@ describe("the register's help", () => {
     expect(titlesFound("Un reembolso pendiente lo hace alguien fuera de la caja")).toEqual([]);
   });
 
-  it("explains that an order already on the terminal is cancelled there, and another method is offered once the terminal confirms it", () => {
+  it("explains that an order already on the terminal stays open there until it is cancelled or expires, that it is cancelled there, and that paying it after the sale was charged otherwise leaves a pending refund", () => {
     expect(titlesFound("cancelalo en la terminal")).toContain(
       "Cambiar de medio con un cobro en la Point",
     );
-    expect(titlesFound("cuando la terminal confirma la cancelación")).toContain(
+    expect(titlesFound("queda abierto en la terminal hasta que se cancele ahí o venza")).toEqual([
+      "Cambiar de medio con un cobro en la Point",
+    ]);
+    expect(titlesFound("queda como un reembolso pendiente")).toContain(
       "Cambiar de medio con un cobro en la Point",
     );
+    expect(titlesFound("cuando la terminal confirma la cancelación")).toEqual([]);
   });
 
   it("explains that the register warns of no cloud connection only when it could not confirm the order sent or reach the cloud to cancel it", () => {

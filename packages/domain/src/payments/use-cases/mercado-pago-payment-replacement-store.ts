@@ -3,13 +3,13 @@ import type { LatePaymentRefund } from "../model/payment-refund.js";
 import type { PaymentTransactionState } from "../model/payment-transaction.js";
 import type { LatePaymentRefundOpening } from "./mercado-pago-order-ports.js";
 
-export interface QrPaymentReplacement {
+export interface MercadoPagoPaymentReplacement {
   registerId: string;
   paymentTransactionId: string;
   saleId: string;
 }
 
-export interface ReplacedQrPayment {
+export interface ReplacedMercadoPagoPayment {
   id: string;
   method: MercadoPagoPaymentMethod;
   provider: string;
@@ -18,16 +18,18 @@ export interface ReplacedQrPayment {
   replaced: boolean;
 }
 
-export interface QrPaymentReplacementTransaction {
-  markReplaced(replacement: QrPaymentReplacement): Promise<ReplacedQrPayment | null>;
+export interface MercadoPagoPaymentReplacementTransaction {
+  markReplaced(
+    replacement: MercadoPagoPaymentReplacement,
+  ): Promise<ReplacedMercadoPagoPayment | null>;
   openLatePaymentRefund(
     refund: LatePaymentRefund,
     openedAt: Date,
   ): Promise<LatePaymentRefundOpening>;
 }
 
-export interface QrPaymentReplacementStore {
+export interface MercadoPagoPaymentReplacementStore {
   inOneTransaction<TOutcome>(
-    work: (tx: QrPaymentReplacementTransaction) => Promise<TOutcome>,
+    work: (tx: MercadoPagoPaymentReplacementTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome>;
 }

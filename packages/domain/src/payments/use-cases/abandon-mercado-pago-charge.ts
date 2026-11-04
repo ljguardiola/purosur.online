@@ -10,7 +10,6 @@ export type AbandonMercadoPagoChargeOutcome<ReplacementRefusal, Settlement> =
   | { kind: "cancelled" }
   | { kind: "already_paid"; settlement: Settlement }
   | { kind: "closed" }
-  | { kind: "cancel_on_terminal" }
   | { kind: "unreachable" }
   | { kind: "replaced" }
   | ReplacementRefusal;
@@ -44,10 +43,8 @@ export async function abandonMercadoPagoCharge<Refusal, Settlement, ReplacementR
     }
   }
 
-  if (charge.method === "POINT") {
-    return cancellation.kind === "cancel_on_terminal"
-      ? { kind: "cancel_on_terminal" }
-      : { kind: "unreachable" };
+  if (charge.method === "POINT" && cancellation.kind !== "cancel_on_terminal") {
+    return { kind: "unreachable" };
   }
 
   const replacement = sale.replacePendingPayment({

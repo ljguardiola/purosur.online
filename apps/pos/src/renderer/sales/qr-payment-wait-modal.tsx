@@ -134,7 +134,6 @@ export function QrPaymentWaitModal({
         break;
       case "closed":
       case "replaced":
-      case "cancel_on_terminal":
       case "unreachable":
       case "unavailable":
         break;

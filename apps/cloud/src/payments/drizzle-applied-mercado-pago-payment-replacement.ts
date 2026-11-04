@@ -4,12 +4,12 @@ import type {
   PaymentTransactionState,
 } from "@purosur/domain";
 import {
-  applyQrPaymentReplacement,
+  applyMercadoPagoPaymentReplacement,
   type LatePaymentRefundOpening,
-  type QrPaymentReplacement,
-  type QrPaymentReplacementStore,
-  type QrPaymentReplacementTransaction,
-  type ReplacedQrPayment,
+  type MercadoPagoPaymentReplacement,
+  type MercadoPagoPaymentReplacementStore,
+  type MercadoPagoPaymentReplacementTransaction,
+  type ReplacedMercadoPagoPayment,
 } from "@purosur/domain/payments/use-cases";
 import type { SyncedFact } from "@purosur/domain/sync/use-cases";
 import { and, eq } from "drizzle-orm";
@@ -18,8 +18,8 @@ import { paymentTransactions } from "../platform/db/schema.js";
 import type { AppliedOrigin } from "../register/drizzle-applied-cash-sessions.js";
 import { openLatePaymentRefund } from "./open-late-payment-refund.js";
 
-class DrizzleQrPaymentReplacementTransaction<TQueryResult extends PgQueryResultHKT>
-  implements QrPaymentReplacementTransaction
+class DrizzleMercadoPagoPaymentReplacementTransaction<TQueryResult extends PgQueryResultHKT>
+  implements MercadoPagoPaymentReplacementTransaction
 {
   private readonly tx: PgDatabase<TQueryResult>;
 
@@ -31,7 +31,7 @@ class DrizzleQrPaymentReplacementTransaction<TQueryResult extends PgQueryResultH
     registerId,
     paymentTransactionId,
     saleId,
-  }: QrPaymentReplacement): Promise<ReplacedQrPayment | null> {
+  }: MercadoPagoPaymentReplacement): Promise<ReplacedMercadoPagoPayment | null> {
     const [row] = await this.tx
       .update(paymentTransactions)
       .set({ replaced: true })
@@ -68,8 +68,8 @@ class DrizzleQrPaymentReplacementTransaction<TQueryResult extends PgQueryResultH
   }
 }
 
-class DrizzleQrPaymentReplacementStore<TQueryResult extends PgQueryResultHKT>
-  implements QrPaymentReplacementStore
+class DrizzleMercadoPagoPaymentReplacementStore<TQueryResult extends PgQueryResultHKT>
+  implements MercadoPagoPaymentReplacementStore
 {
   private readonly db: PgDatabase<TQueryResult>;
 
@@ -78,20 +78,24 @@ class DrizzleQrPaymentReplacementStore<TQueryResult extends PgQueryResultHKT>
   }
 
   inOneTransaction<TOutcome>(
-    work: (tx: QrPaymentReplacementTransaction) => Promise<TOutcome>,
+    work: (tx: MercadoPagoPaymentReplacementTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
-    return this.db.transaction((tx) => work(new DrizzleQrPaymentReplacementTransaction(tx)));
+    return this.db.transaction((tx) =>
+      work(new DrizzleMercadoPagoPaymentReplacementTransaction(tx)),
+    );
   }
 }
 
-export async function recordAppliedQrPaymentReplacement<TQueryResult extends PgQueryResultHKT>(
+export async function recordAppliedMercadoPagoPaymentReplacement<
+  TQueryResult extends PgQueryResultHKT,
+>(
   tx: PgDatabase<TQueryResult>,
   { registerId }: AppliedOrigin,
-  { replacement }: Extract<SyncedFact, { kind: "qr_payment_replaced" }>,
+  { replacement }: Extract<SyncedFact, { kind: "mercado_pago_payment_replaced" }>,
   appliedAt: Date,
 ): Promise<void> {
-  const outcome = await applyQrPaymentReplacement(
-    { store: new DrizzleQrPaymentReplacementStore(tx), clock: { now: () => appliedAt } },
+  const outcome = await applyMercadoPagoPaymentReplacement(
+    { store: new DrizzleMercadoPagoPaymentReplacementStore(tx), clock: { now: () => appliedAt } },
     {
       registerId,
       paymentTransactionId: replacement.paymentTransactionId,

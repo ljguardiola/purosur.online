@@ -21,7 +21,7 @@ import { addDiscount } from "./test-support/sqlite-sale-ledger";
 
 type SaleFact = Extract<
   SyncedFact,
-  { kind: "sale_completed" | "sale_cancelled" | "qr_payment_replaced" }
+  { kind: "sale_completed" | "sale_cancelled" | "mercado_pago_payment_replaced" }
 >;
 
 const SOURCE = {
@@ -839,9 +839,9 @@ describe("replenishing a cancelled sale into a restored register", () => {
   });
 });
 
-describe("replenishing a replaced QR payment into a restored register", () => {
+describe("replenishing a replaced Mercado Pago payment into a restored register", () => {
   const replaced: SaleFact = {
-    kind: "qr_payment_replaced",
+    kind: "mercado_pago_payment_replaced",
     replacement: { paymentTransactionId: "payment-1", saleId: "sale-1" },
   };
 
@@ -862,6 +862,28 @@ describe("replenishing a replaced QR payment into a restored register", () => {
 
   it("stops following the QR payment the snapshot holds pending, keeping the wait it had", () => {
     pendingQrPayment();
+
+    apply(replaced);
+
+    expect(
+      database.prepare("SELECT state, replaced, wait_ends_at FROM payment_transactions").get(),
+    ).toEqual({ state: "PENDING", replaced: 1, wait_ends_at: "2026-10-07T10:03:00.000Z" });
+  });
+
+  it("stops following the Point payment the snapshot holds pending, keeping the wait it had", () => {
+    snapshotWithAnOpenSale();
+    insertPendingMercadoPagoPayment(database, {
+      id: "payment-1",
+      saleId: "sale-1",
+      kind: "SALE",
+      method: "POINT",
+      provider: "MERCADOPAGO_POINT",
+      cardType: null,
+      amount: 1500,
+      state: "PENDING",
+      occurredAt: SOLD_AT,
+      waitEndsAt: new Date("2026-10-07T10:03:00.000Z"),
+    });
 
     apply(replaced);
 

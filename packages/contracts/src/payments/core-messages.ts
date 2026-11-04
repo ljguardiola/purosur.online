@@ -134,7 +134,6 @@ const abandonMercadoPagoChargeOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("cancelled") }),
   z.object({ kind: z.literal("closed") }),
   z.object({ kind: z.literal("replaced") }),
-  z.object({ kind: z.literal("cancel_on_terminal") }),
   z.object({ kind: z.literal("unreachable") }),
   z.object({
     kind: z.literal("already_paid"),
