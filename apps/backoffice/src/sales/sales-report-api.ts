@@ -8,9 +8,7 @@ import {
   type ManualDiscountsBody,
   type ManualDiscountsQuery,
   manualDiscountsSchema,
-  type RemovedLinesAndCancelledSalesBody,
   type ReportQuery,
-  removedLinesAndCancelledSalesSchema,
   type SalesByCashierBody,
   type SalesByProductAndCategoryBody,
   type SalesByProductAndCategoryQuery,
@@ -126,21 +124,6 @@ export function fetchHandTypedWeights(
   const search = params.toString();
   const path = "/api/reports/hand-typed-weights";
   return readCloudJson(search ? `${path}?${search}` : path, handTypedWeightsSchema);
-}
-
-export function fetchRemovedLinesAndCancelledSales(
-  query: ReportQuery,
-): Promise<CloudReadOutcome<RemovedLinesAndCancelledSalesBody>> {
-  const params = new URLSearchParams();
-  for (const key of ["from", "to", "register_id"] as const) {
-    const value = query[key];
-    if (value !== undefined) {
-      params.set(key, value);
-    }
-  }
-  const search = params.toString();
-  const path = "/api/reports/removed-lines-and-cancelled-sales";
-  return readCloudJson(search ? `${path}?${search}` : path, removedLinesAndCancelledSalesSchema);
 }
 
 export function fetchCashRounding(query: ReportQuery): Promise<CloudReadOutcome<CashRoundingBody>> {

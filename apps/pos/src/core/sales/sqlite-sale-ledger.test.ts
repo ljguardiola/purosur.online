@@ -1827,7 +1827,7 @@ describe("the lines of the sale being changed", () => {
     ]);
   });
 
-  it("deletes a removed line with its frozen promotions, keeping only its outbox event", () => {
+  it("deletes a removed line with its frozen promotions, appending nothing to the outbox", () => {
     scan("111");
     scan("111");
     scan("222");
@@ -1842,42 +1842,21 @@ describe("the lines of the sale being changed", () => {
       ...before,
       sale_lines: 1,
       sale_line_promotions: 0,
-      outbox: 1,
     });
   });
 
-  it("chains the removed line in a sale_line_removed event", () => {
-    scan("111");
-    scan("222");
-
-    removeSaleLine(sellerPorts(), { actorId: "u1", lineId: lineIdOf("p1") });
-
-    const event = database.prepare("SELECT event_type, payload FROM outbox").get() as {
-      event_type: string;
-      payload: string;
-    };
-    expect(event.event_type).toBe("sale_line_removed");
-    expect(JSON.parse(event.payload)).toMatchObject({
-      sale_id: "id-1",
-      line: { product_id: "p1", quantity: 1 },
-    });
-  });
-
-  it("cancels the sale by deleting it with its lines and their promotions, appending only the sale_cancelled event", () => {
+  it("empties the cart by deleting the sale with its lines and their promotions, appending nothing to the outbox", () => {
     const before = rowsPerTable();
     scan("111");
     scan("222");
 
     const outcome = cancelSale(
-      { ledger, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
+      { ledger, restoration: restorationOf(database), clock: { now: () => NOW } },
       { actorId: "u1" },
     );
 
     expect(outcome).toEqual({ kind: "cancelled" });
-    expect(rowsPerTable()).toEqual({ ...before, outbox: 1 });
-    expect(database.prepare("SELECT event_type, aggregate_id FROM outbox").all()).toEqual([
-      { event_type: "sale_cancelled", aggregate_id: "id-1" },
-    ]);
+    expect(rowsPerTable()).toEqual(before);
   });
 
   it("keeps the completed sales of the session when cancelling the open one", () => {
@@ -1886,7 +1865,7 @@ describe("the lines of the sale being changed", () => {
     scan("222");
 
     cancelSale(
-      { ledger, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
+      { ledger, restoration: restorationOf(database), clock: { now: () => NOW } },
       { actorId: "u1" },
     );
 
@@ -2029,34 +2008,28 @@ describe("the lines of the sale being changed", () => {
   it("lets the next scan start a new open sale once the previous one is cancelled", () => {
     scan("111");
     cancelSale(
-      { ledger, restoration: restorationOf(database), clock: { now: () => NOW }, ids },
+      { ledger, restoration: restorationOf(database), clock: { now: () => NOW } },
       { actorId: "u1" },
     );
 
     scan("111");
 
     expect(database.prepare("SELECT id, state FROM sales").all()).toEqual([
-      { id: "id-4", state: "OPEN" },
+      { id: "id-3", state: "OPEN" },
     ]);
   });
 
-  it("leaves the open sale as it was when the register has no outbox key", () => {
+  it("empties the cart even when the register has no outbox key, since nothing is recorded", () => {
     const keyless = new SqliteSaleLedger(database, new SqliteSignInStore(database));
     scan("111");
-    const before = rowsPerTable();
 
     expect(
       cancelSale(
-        {
-          ledger: keyless,
-          restoration: restorationOf(database),
-          clock: { now: () => NOW },
-          ids,
-        },
+        { ledger: keyless, restoration: restorationOf(database), clock: { now: () => NOW } },
         { actorId: "u1" },
       ),
-    ).toEqual({ kind: "unavailable" });
-    expect(rowsPerTable()).toEqual(before);
+    ).toEqual({ kind: "cancelled" });
+    expect(database.prepare("SELECT id FROM sales").all()).toEqual([]);
   });
 });
 

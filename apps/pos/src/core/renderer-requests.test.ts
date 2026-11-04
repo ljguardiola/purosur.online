@@ -2799,6 +2799,7 @@ describe("answerRendererRequest", () => {
       id: "sale-1",
       total: 3_434_000,
       paid: 1000,
+      has_approved_payment: true,
       cancellable: false,
       cancel_refusal: null,
       refunds_on_cancel: [

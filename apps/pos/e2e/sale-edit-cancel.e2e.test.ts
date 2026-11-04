@@ -113,9 +113,9 @@ describe("changing, removing and cancelling a sale on the register", () => {
     await panel.getByText("$ 2.380,00").first().waitFor();
     await panel.getByText("1 línea").waitFor();
 
-    await page.getByRole("button", { name: "Cancelar venta" }).click();
-    await page.getByRole("heading", { name: "¿Cancelar la venta?" }).waitFor();
-    await page.getByRole("button", { name: "Cancelar la venta", exact: true }).click();
+    await page.getByRole("button", { name: "Vaciar carrito" }).click();
+    await page.getByRole("heading", { name: "¿Vaciar el carrito?" }).waitFor();
+    await page.getByRole("dialog").getByRole("button", { name: "Vaciar carrito" }).click();
 
     await page.getByText("La venta está vacía").waitFor();
     await yerba.waitFor({ state: "detached" });

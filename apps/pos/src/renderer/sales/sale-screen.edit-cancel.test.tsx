@@ -180,6 +180,29 @@ describe("SaleScreen editing the lines", () => {
     expect(removeSaleLine).toHaveBeenCalledExactlyOnceWith("line-1");
   });
 
+  it("shows an empty cart when the last line goes and no sale remains", async () => {
+    const removeSaleLine = vi.fn(
+      async (): Promise<RemoveSaleLineOutcome> => ({
+        kind: "removed",
+        sale: null,
+        removed_sale_discount: false,
+      }),
+    );
+    const { screen, field } = await renderScreen({
+      currentSale: async () => SALE_OF_YERBA,
+      removeSaleLine,
+    });
+
+    await screen.getByRole("button", { name: REMOVE_YERBA }).click();
+
+    await expect.element(screen.getByText("La venta está vacía")).toBeVisible();
+    await expect.element(screen.getByText("Yerba mate 1 kg")).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: "Vaciar carrito" }))
+      .not.toBeInTheDocument();
+    await expect.element(field).toHaveFocus();
+  });
+
   it("gives the scan field the focus back after a change", async () => {
     const { screen, field } = await renderScreen({
       currentSale: async () => SALE_OF_YERBA,
@@ -210,7 +233,7 @@ describe("SaleScreen editing the lines", () => {
 
     await expect.element(raise).toBeDisabled();
     await expect.element(screen.getByRole("button", { name: REMOVE_YERBA })).toBeDisabled();
-    await expect.element(screen.getByRole("button", { name: "Cancelar venta" })).toBeDisabled();
+    await expect.element(screen.getByRole("button", { name: "Vaciar carrito" })).toBeDisabled();
     answer.resolve({
       kind: "changed",
       removed_manual_discount: false,
@@ -326,36 +349,43 @@ describe("SaleScreen editing the lines", () => {
 });
 
 describe("SaleScreen cancelling the sale", () => {
-  it("has nothing to cancel while there is no sale", async () => {
+  it("offers nothing to empty while there is no sale", async () => {
     const { screen } = await renderScreen();
 
-    await expect.element(screen.getByRole("button", { name: "Cancelar venta" })).toBeDisabled();
-  });
-
-  it("offers no Cancelar venta while the sale loads", async () => {
-    const { screen } = await renderScreen({ currentSale: () => new Promise(() => {}) });
-
-    await expect.element(screen.getByRole("button", { name: "Cobrar" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: "Vaciar carrito" }))
+      .not.toBeInTheDocument();
     await expect
       .element(screen.getByRole("button", { name: "Cancelar venta" }))
       .not.toBeInTheDocument();
   });
 
-  it("offers no Cancelar venta when the sale cannot be read", async () => {
+  it("offers no Vaciar carrito while the sale loads", async () => {
+    const { screen } = await renderScreen({ currentSale: () => new Promise(() => {}) });
+
+    await expect.element(screen.getByRole("button", { name: "Cobrar" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: "Vaciar carrito" }))
+      .not.toBeInTheDocument();
+  });
+
+  it("offers no Vaciar carrito when the sale cannot be read", async () => {
     const { screen } = await renderScreen({
       currentSale: () => Promise.reject(new Error("unavailable")),
     });
 
     await expect.element(screen.getByText("No se pudo cargar la venta")).toBeVisible();
     await expect
-      .element(screen.getByRole("button", { name: "Cancelar venta" }))
+      .element(screen.getByRole("button", { name: "Vaciar carrito" }))
       .not.toBeInTheDocument();
   });
 
-  it("can cancel a sale that has no lines left", async () => {
+  it("offers no Vaciar carrito for an empty cart", async () => {
     const { screen } = await renderScreen({ currentSale: async () => EMPTY_SALE });
 
-    await expect.element(screen.getByRole("button", { name: "Cancelar venta" })).toBeEnabled();
+    await expect
+      .element(screen.getByRole("button", { name: "Vaciar carrito" }))
+      .not.toBeInTheDocument();
   });
 
   it("asks for confirmation with what would be discarded", async () => {
@@ -365,9 +395,9 @@ describe("SaleScreen cancelling the sale", () => {
       cancelSale,
     });
 
-    await screen.getByRole("button", { name: "Cancelar venta" }).click();
+    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
 
-    const dialog = screen.getByRole("dialog", { name: "¿Cancelar la venta?" });
+    const dialog = screen.getByRole("dialog", { name: "¿Vaciar el carrito?" });
     await expect.element(dialog).toBeVisible();
     await expect.element(dialog.getByText("Venta en curso · Sin pagos")).toBeVisible();
     await expect.element(dialog.getByText("Líneas en el carrito")).toBeVisible();
@@ -390,7 +420,7 @@ describe("SaleScreen cancelling the sale", () => {
       currentSale: async () => SALE_OF_YERBA,
       cancelSale,
     });
-    await screen.getByRole("button", { name: "Cancelar venta" }).click();
+    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
 
     await screen.getByRole("button", { name: "Seguir con la venta" }).click();
 
@@ -405,9 +435,9 @@ describe("SaleScreen cancelling the sale", () => {
       currentSale: async () => SALE_OF_YERBA,
       cancelSale,
     });
-    await screen.getByRole("button", { name: "Cancelar venta" }).click();
+    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
 
-    await screen.getByRole("button", { name: "Cancelar la venta" }).click();
+    await screen.getByRole("dialog").getByRole("button", { name: "Vaciar carrito" }).click();
 
     await expect.element(screen.getByText("La venta está vacía")).toBeVisible();
     await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
@@ -415,54 +445,54 @@ describe("SaleScreen cancelling the sale", () => {
     expect(cancelSale).toHaveBeenCalledOnce();
   });
 
-  it("tells the sale could not be cancelled when the core is unavailable", async () => {
+  it("tells the cart could not be emptied when the core is unavailable", async () => {
     const { screen } = await renderScreen({
       currentSale: async () => SALE_OF_YERBA,
       cancelSale: async () => ({ kind: "unavailable" }),
     });
-    await screen.getByRole("button", { name: "Cancelar venta" }).click();
+    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
 
-    await screen.getByRole("button", { name: "Cancelar la venta" }).click();
+    await screen.getByRole("dialog").getByRole("button", { name: "Vaciar carrito" }).click();
 
-    await expect.element(screen.getByText("No se pudo cancelar la venta")).toBeVisible();
+    await expect.element(screen.getByText("No se pudo vaciar el carrito")).toBeVisible();
     await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
   });
 
-  it("tells the sale cannot be cancelled, without inviting a retry, when it already has an approved payment", async () => {
+  it("tells the cart cannot be emptied, without inviting a retry, when it already has an approved payment", async () => {
     const { screen } = await renderScreen({
       currentSale: async () => SALE_OF_YERBA,
       cancelSale: async () => ({ kind: "has_approved_payment" }),
     });
-    await screen.getByRole("button", { name: "Cancelar venta" }).click();
+    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
 
-    await screen.getByRole("button", { name: "Cancelar la venta" }).click();
+    await screen.getByRole("dialog").getByRole("button", { name: "Vaciar carrito" }).click();
 
-    await expect.element(screen.getByText("No se puede cancelar la venta")).toBeVisible();
+    await expect.element(screen.getByText("No se puede vaciar el carrito")).toBeVisible();
     await expect.element(screen.getByText("Ya tiene un pago aprobado.")).toBeVisible();
     await expect.element(screen.getByText("Probá de nuevo.")).not.toBeInTheDocument();
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
   });
 
-  it("tells the sale cannot be cancelled yet while its QR charge is waiting", async () => {
+  it("tells the cart cannot be emptied yet while its QR charge is waiting", async () => {
     const { screen } = await renderScreen({
       currentSale: async () => SALE_OF_YERBA,
       cancelSale: async () => ({ kind: "mercado_pago_charge_in_progress" }),
     });
-    await screen.getByRole("button", { name: "Cancelar venta" }).click();
+    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
 
-    await screen.getByRole("button", { name: "Cancelar la venta" }).click();
+    await screen.getByRole("dialog").getByRole("button", { name: "Vaciar carrito" }).click();
 
     await expect.element(screen.getByText("Hay un cobro con Mercado Pago en curso")).toBeVisible();
     await expect
-      .element(screen.getByText("Esperá a que termine para cancelar la venta."))
+      .element(screen.getByText("Esperá a que termine para vaciar el carrito."))
       .toBeVisible();
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
   });
 
   it("does not take the focus from the dialog while it is open", async () => {
     const { screen } = await renderScreen({ currentSale: async () => SALE_OF_YERBA });
-    await screen.getByRole("button", { name: "Cancelar venta" }).click();
+    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
 
     const keep = screen.getByRole("button", { name: "Seguir con la venta" });
     await keep.element().focus();

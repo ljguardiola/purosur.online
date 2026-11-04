@@ -1,4 +1,5 @@
 export { averageTicket } from "./model/average-ticket.js";
+export { cancelledBeforeCharge } from "./model/cancelled-before-charge.js";
 export type { CancelledSale } from "./model/cancelled-sale.js";
 export { mayBeCashRounding } from "./model/cash-rounding.js";
 export type { CashRoundingRecord, CashRoundingTotals } from "./model/cash-rounding-report.js";
@@ -44,12 +45,6 @@ export {
   RECEIPT_REPRINT_REASON_MAX_LENGTH,
   receiptReprintReason,
 } from "./model/receipt-reprint-reason.js";
-export type {
-  CancelledSaleFacts,
-  RemovalFacts,
-  RemovedLinesGroup,
-} from "./model/removed-lines-and-cancelled-sales-report.js";
-export { CANCELLED_SALES_REPORT_SALE_STATE } from "./model/removed-lines-and-cancelled-sales-report.js";
 export type { RemovedSaleLine } from "./model/removed-sale-line.js";
 export { replenishedPrintAttempt } from "./model/replenished-printed-document.js";
 export type { LinePromotion, Sale, SaleLine, SaleState, SaleWithLines } from "./model/sale.js";

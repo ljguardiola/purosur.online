@@ -1,12 +1,12 @@
 import type { ChargeRefusal } from "../../fiscal/index.js";
 import type { Clock, ZoneRulesSource } from "../../shared/index.js";
 import type { SaleWithLines } from "../model/sale.js";
+import { endUnpaidSale } from "./end-unpaid-sale.js";
 import { type OpenSaleAnswerStanding, openSaleStandingOf } from "./open-sale-standing-of.js";
 import type { RegisterRestoration } from "./register-restoration.js";
 import { withoutSaleDiscount } from "./remove-sale-discount.js";
 import { saleChargeRefusal } from "./sale-charge-refusal.js";
-import { saleLineRecord } from "./sale-event-records.js";
-import type { IdGenerator, SaleLedger } from "./sale-ledger.js";
+import type { SaleLedger } from "./sale-ledger.js";
 import { saleLinesLocked } from "./sale-lines-locked.js";
 import { isRefusal, sellingSession } from "./selling-session.js";
 
@@ -19,7 +19,6 @@ export interface RemoveSaleLinePorts {
   ledger: SaleLedger;
   restoration: RegisterRestoration;
   clock: Clock;
-  ids: IdGenerator;
   zoneRules: ZoneRulesSource;
 }
 
@@ -30,7 +29,7 @@ export type RemoveSaleLineOutcome =
   | { kind: "no_open_sale" }
   | { kind: "sale_has_payments" }
   | { kind: "unknown_line" }
-  | { kind: "unavailable" }
+  | { kind: "cart_emptied" }
   | ({
       kind: "removed";
       removedSaleDiscount: boolean;
@@ -39,7 +38,7 @@ export type RemoveSaleLineOutcome =
     } & OpenSaleAnswerStanding);
 
 export function removeSaleLine(
-  { ledger, restoration, clock, ids, zoneRules }: RemoveSaleLinePorts,
+  { ledger, restoration, clock, zoneRules }: RemoveSaleLinePorts,
   { actorId, lineId }: RemoveSaleLineInput,
 ): RemoveSaleLineOutcome {
   return ledger.transaction<RemoveSaleLineOutcome>((tx) => {
@@ -59,30 +58,11 @@ export function removeSaleLine(
       return { kind: "unknown_line" };
     }
 
-    if (!tx.outboxReady()) {
-      return { kind: "unavailable" };
-    }
-
     tx.deleteSaleLine(line.id);
-    const occurredAt = clock.now().toISOString();
-    tx.appendOutboxEvent({
-      event_id: ids.next(),
-      aggregate_type: "SaleLine",
-      aggregate_id: line.id,
-      event_type: "sale_line_removed",
-      schema_version: 1,
-      payload: {
-        sale_id: sale.id,
-        register_id: sale.registerId,
-        device_id: sale.deviceId,
-        session_id: sale.sessionId,
-        actor_id: actorId,
-        occurred_at: occurredAt,
-        line: saleLineRecord({ ...line, saleDiscountShare: 0 }),
-      },
-      occurred_at: occurredAt,
-      actor_id: actorId,
-    });
+    if (sale.lines.length === 1) {
+      endUnpaidSale(tx, sale.id, clock.now());
+      return { kind: "cart_emptied" };
+    }
     const { sale: undiscounted, removedSaleDiscount } = withoutSaleDiscount(tx, sale);
     const remaining = { ...undiscounted, lines: sale.lines.filter((each) => each !== line) };
     return {

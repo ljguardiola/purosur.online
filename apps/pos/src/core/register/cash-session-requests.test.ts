@@ -884,6 +884,7 @@ describe("the open sale of the session", () => {
       id: "sale-1",
       total: 3500,
       paid: 0,
+      has_approved_payment: false,
       cancellable: true,
       cancel_refusal: null,
       refunds_on_cancel: [],
@@ -909,6 +910,7 @@ describe("the open sale of the session", () => {
     expect(sessionOpenSaleFor(database, NOW)).toMatchObject({
       id: "sale-1",
       total: 3500,
+      has_approved_payment: true,
       cancellable: false,
     });
   });
@@ -931,6 +933,7 @@ describe("the open sale of the session", () => {
     addPendingQrPayment(new Date(NOW.getTime() + 60_000));
 
     expect(sessionOpenSaleFor(database, NOW)).toMatchObject({
+      has_approved_payment: true,
       cancellable: false,
       cancel_refusal: "mercado_pago_charge_in_progress",
       refunds_on_cancel: [],
@@ -945,6 +948,7 @@ describe("the open sale of the session", () => {
       id: "sale-1",
       total: 3500,
       paid: 0,
+      has_approved_payment: false,
       cancellable: false,
       cancel_refusal: "mercado_pago_charge_in_progress",
       refunds_on_cancel: [],
@@ -1048,6 +1052,7 @@ describe("the open sale of the session", () => {
       id: "sale-1",
       total: 3500,
       paid: 2500,
+      has_approved_payment: true,
       cancellable: false,
       cancel_refusal: null,
       refunds_on_cancel: [

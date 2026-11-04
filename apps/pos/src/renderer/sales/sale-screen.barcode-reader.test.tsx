@@ -168,9 +168,9 @@ describe("SaleScreen reading a barcode reader's codes", () => {
         scanProduct,
         currentSale: async () => SALE_OF_YERBA,
       });
-      await rendered.screen.getByRole("button", { name: "Cancelar venta" }).click();
+      await rendered.screen.getByRole("button", { name: "Vaciar carrito" }).click();
       await expect
-        .element(rendered.screen.getByRole("dialog", { name: "¿Cancelar la venta?" }))
+        .element(rendered.screen.getByRole("dialog", { name: "¿Vaciar el carrito?" }))
         .toBeVisible();
       return { ...rendered, scanProduct };
     }
@@ -189,7 +189,7 @@ describe("SaleScreen reading a barcode reader's codes", () => {
 
       await screen.getByRole("button", { name: "Seguir con la venta" }).click();
       await expect
-        .element(screen.getByRole("dialog", { name: "¿Cancelar la venta?" }))
+        .element(screen.getByRole("dialog", { name: "¿Vaciar el carrito?" }))
         .not.toBeInTheDocument();
       readBarcode("7790001");
 

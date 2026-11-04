@@ -71,21 +71,6 @@ export async function cancelPaidSale<Grant extends CancelPaidSaleGrant, Refusal>
     }
     const planned = plannedRefunds(payments);
     if (planned.length === 0) {
-      if (!tx.outboxReady()) {
-        return { kind: "unavailable" };
-      }
-      tx.appendOutboxEvent(
-        saleCancelledEvent(ids.next(), {
-          sale,
-          payments,
-          refunds: [],
-          movements: tx.saleCashMovements(sale.id),
-          paidOrder: tx.paidOrderOfSale(sale.id),
-          actorId,
-          authorizedBy,
-          occurredAt: now,
-        }),
-      );
       endUnpaidSale(tx, sale.id, now);
       return { kind: "cancelled", refunds: [], grant };
     }

@@ -329,7 +329,11 @@ export const previewSaleDiscountOutcomeSchema = z.discriminatedUnion("kind", [
 export type PreviewSaleDiscountOutcome = z.infer<typeof previewSaleDiscountOutcomeSchema>;
 
 export const removeSaleLineOutcomeSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("removed"), sale: saleSchema, removed_sale_discount: z.boolean() }),
+  z.object({
+    kind: z.literal("removed"),
+    sale: saleSchema.nullable(),
+    removed_sale_discount: z.boolean(),
+  }),
   z.object({ kind: z.literal("unknown_line") }),
   saleHasPaymentsOutcome,
   ...saleRefusalSchemas,

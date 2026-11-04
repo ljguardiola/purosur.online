@@ -596,6 +596,12 @@ describe("the register's local migrations", () => {
         .run();
       before
         .prepare(
+          `INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total)
+           VALUES ('line-1', 'sale-1', 1, 'p1', 'Yerba', 2, 1500, 'list-1', 3000)`,
+        )
+        .run();
+      before
+        .prepare(
           `INSERT INTO cash_movements (id, session_id, type, amount, actor_id, occurred_at)
            VALUES ('m1', 's1', 'OPENING', 500, 'u1', '2026-09-30T12:00:00.000Z')`,
         )
@@ -948,6 +954,7 @@ describe("the register's local migrations", () => {
         "0095_contingency_intervals",
         "0096_register_seen_unenrolled",
         "0097_sale_cash_rounding",
+        "0098_discard_empty_carts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1068,6 +1075,7 @@ describe("the register's local migrations", () => {
         "0095_contingency_intervals",
         "0096_register_seen_unenrolled",
         "0097_sale_cash_rounding",
+        "0098_discard_empty_carts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1183,6 +1191,7 @@ describe("the register's local migrations", () => {
         "0095_contingency_intervals",
         "0096_register_seen_unenrolled",
         "0097_sale_cash_rounding",
+        "0098_discard_empty_carts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1297,6 +1306,7 @@ describe("the register's local migrations", () => {
         "0095_contingency_intervals",
         "0096_register_seen_unenrolled",
         "0097_sale_cash_rounding",
+        "0098_discard_empty_carts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1440,6 +1450,7 @@ describe("the register's local migrations", () => {
         "0095_contingency_intervals",
         "0096_register_seen_unenrolled",
         "0097_sale_cash_rounding",
+        "0098_discard_empty_carts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1573,6 +1584,7 @@ describe("the register's local migrations", () => {
         "0095_contingency_intervals",
         "0096_register_seen_unenrolled",
         "0097_sale_cash_rounding",
+        "0098_discard_empty_carts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1710,6 +1722,7 @@ describe("the register's local migrations", () => {
         "0095_contingency_intervals",
         "0096_register_seen_unenrolled",
         "0097_sale_cash_rounding",
+        "0098_discard_empty_carts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1855,6 +1868,7 @@ describe("the register's local migrations", () => {
         "0095_contingency_intervals",
         "0096_register_seen_unenrolled",
         "0097_sale_cash_rounding",
+        "0098_discard_empty_carts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1967,6 +1981,7 @@ describe("the register's local migrations", () => {
         "0095_contingency_intervals",
         "0096_register_seen_unenrolled",
         "0097_sale_cash_rounding",
+        "0098_discard_empty_carts",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -4108,7 +4123,9 @@ describe("the register's local migrations", () => {
         `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
          VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
          INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
-         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'OPEN', NULL);`,
+         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'OPEN', NULL);
+         INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total)
+         VALUES ('line-1', 'sale-1', 1, 'p1', 'Yerba', 2, 1500, 'list-1', 3000);`,
       );
       before.close();
 
@@ -4995,6 +5012,8 @@ describe("the register's local migrations", () => {
                 ('sale-3', 'r1', 'device-a', 's1', 'u1', 'OPEN', NULL);
          INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total)
          VALUES ('line-1', 'sale-1', 1, 'p1', 'Yerba', 2, 1500, 'list-1', 3000);
+         INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total)
+         VALUES ('line-3', 'sale-3', 1, 'p1', 'Yerba', 1, 1500, 'list-1', 1500);
          INSERT INTO stock_movements (id, product_id, kind, sale_line_id, delta, occurred_at)
          VALUES ('movement-1', 'p1', 'sale', 'line-1', -2000, '2026-10-09T12:05:00.000Z'),
                 ('movement-2', 'p1', 'loss', NULL, -500, '2026-10-09T12:07:00.000Z');
@@ -9552,6 +9571,117 @@ describe("the sale cash rounding migration", () => {
       expect(() => setRounding(database, 9900)).not.toThrow();
       expect(() => setRounding(database, 10_000)).toThrow(/CHECK/);
       expect(() => setRounding(database, -1)).toThrow(/CHECK/);
+    });
+  });
+});
+
+describe("the empty carts migration", () => {
+  const MIGRATION = "0098_discard_empty_carts";
+
+  type Database = ReturnType<typeof openLocalDatabase>;
+
+  function withSalesBefore(test: (database: Database) => void) {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < MIGRATION);
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(MIGRATION);
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES
+           ('s-empty', 'r-empty', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN'),
+           ('s-lines', 'r-lines', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN'),
+           ('s-paid', 'r-paid', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN'),
+           ('s-rebuilt', 'r-rebuilt', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN'),
+           ('s-closed', 'r-closed', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+         VALUES
+           ('empty-cart', 'r1', 'device-a', 's-empty', 'u1', 'OPEN', NULL),
+           ('cart-with-lines', 'r1', 'device-a', 's-lines', 'u1', 'OPEN', NULL),
+           ('empty-cart-with-payment', 'r1', 'device-a', 's-paid', 'u1', 'OPEN', NULL),
+           ('empty-rebuilt-cart', 'r1', 'device-a', 's-rebuilt', 'u1', 'OPEN', NULL),
+           ('closed-empty-sale', 'r1', 'device-a', 's-closed', 'u1', 'CANCELLED', '2026-10-09T12:05:00.000Z');
+         INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, line_total)
+         VALUES ('line-1', 'cart-with-lines', 1, 'p1', 'Yerba', 1, 1000, 'list-1', 1000);
+         INSERT INTO payment_transactions (id, sale_id, kind, method, provider, amount, state, occurred_at, wait_ends_at)
+         VALUES ('qr-1', 'empty-cart-with-payment', 'SALE', 'QR', 'MERCADOPAGO_QR', 3000, 'PENDING', '2026-10-09T11:59:00.000Z', '2026-10-09T12:02:00.000Z');
+         INSERT INTO paid_orders_without_sale (payment_transaction_id, sale_id, method, provider, amount, created_at, recorded_at)
+         VALUES ('order-1', 'sale-gone', 'QR', 'MERCADOPAGO_QR', 5000, '2026-10-13T10:00:00.000Z', '2026-10-13T11:00:00.000Z');
+         INSERT INTO sales_rebuilt_against_paid_orders (sale_id, payment_transaction_id)
+         VALUES ('empty-rebuilt-cart', 'order-1');`,
+      );
+      before.close();
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      try {
+        test(after);
+      } finally {
+        after.close();
+      }
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  }
+
+  it("discards an open sale with no lines and no payment", () => {
+    withSalesBefore((database) => {
+      expect(database.prepare("SELECT id FROM sales WHERE id = 'empty-cart'").all()).toEqual([]);
+    });
+  });
+
+  it("keeps an open sale that has lines", () => {
+    withSalesBefore((database) => {
+      expect(database.prepare("SELECT id FROM sales WHERE id = 'cart-with-lines'").all()).toEqual([
+        { id: "cart-with-lines" },
+      ]);
+      expect(database.prepare("SELECT id FROM sale_lines").all()).toEqual([{ id: "line-1" }]);
+    });
+  });
+
+  it("cancels an open sale with no lines that holds a payment, keeping the payment", () => {
+    withSalesBefore((database) => {
+      const sale = database
+        .prepare<[], { state: string; occurred_at: string | null }>(
+          "SELECT state, occurred_at FROM sales WHERE id = 'empty-cart-with-payment'",
+        )
+        .get();
+      expect(sale?.state).toBe("CANCELLED");
+      expect(sale?.occurred_at).toEqual(expect.any(String));
+      expect(
+        database
+          .prepare("SELECT id FROM payment_transactions WHERE sale_id = 'empty-cart-with-payment'")
+          .all(),
+      ).toEqual([{ id: "qr-1" }]);
+    });
+  });
+
+  it("discards an open sale with no lines rebuilt against a paid order, and its link to the order", () => {
+    withSalesBefore((database) => {
+      expect(
+        database.prepare("SELECT id FROM sales WHERE id = 'empty-rebuilt-cart'").all(),
+      ).toEqual([]);
+      expect(
+        database.prepare("SELECT sale_id FROM sales_rebuilt_against_paid_orders").all(),
+      ).toEqual([]);
+      expect(
+        database.prepare("SELECT payment_transaction_id FROM paid_orders_without_sale").all(),
+      ).toEqual([{ payment_transaction_id: "order-1" }]);
+    });
+  });
+
+  it("leaves no open sale without lines", () => {
+    withSalesBefore((database) => {
+      expect(database.prepare("SELECT id FROM sales WHERE state = 'OPEN'").all()).toEqual([
+        { id: "cart-with-lines" },
+      ]);
+    });
+  });
+
+  it("keeps a sale that is no longer open", () => {
+    withSalesBefore((database) => {
+      expect(database.prepare("SELECT id FROM sales WHERE id = 'closed-empty-sale'").all()).toEqual(
+        [{ id: "closed-empty-sale" }],
+      );
     });
   });
 });

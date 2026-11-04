@@ -18,6 +18,7 @@ function renderPanel(props: Partial<PaymentPanelProps> = {}) {
       paid={0}
       pending={476_000}
       cancellable
+      hasApprovedPayment={false}
       chargeRefusal={null}
       canCancel
       canDiscount
@@ -56,16 +57,43 @@ describe("PaymentPanel", () => {
     await expect.element(screen.getByText("Saldo pendiente")).not.toBeInTheDocument();
   });
 
-  it("offers Cancelar venta for a sale that can be cancelled", async () => {
+  it("offers Vaciar carrito for a cart with lines and no approved payment", async () => {
     const screen = await renderPanel();
 
-    await expect.element(screen.getByRole("button", { name: "Cancelar venta" })).toBeEnabled();
+    await expect.element(screen.getByRole("button", { name: "Vaciar carrito" })).toBeEnabled();
+    await expect
+      .element(screen.getByRole("button", { name: "Cancelar venta" }))
+      .not.toBeInTheDocument();
   });
 
-  it("offers no Cancelar venta for a sale that cannot be cancelled", async () => {
+  it("offers Cancelar venta, not Vaciar carrito, once a payment was approved", async () => {
+    const screen = await renderPanel({ hasApprovedPayment: true });
+
+    await expect.element(screen.getByRole("button", { name: "Cancelar venta" })).toBeEnabled();
+    await expect
+      .element(screen.getByRole("button", { name: "Vaciar carrito" }))
+      .not.toBeInTheDocument();
+  });
+
+  it("offers neither action for an empty cart", async () => {
+    const screen = await renderPanel({ lineCount: 0, total: 0, pending: 0 });
+
+    await expect.element(screen.getByRole("button", { name: "Cobrar" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: "Vaciar carrito" }))
+      .not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: "Cancelar venta" }))
+      .not.toBeInTheDocument();
+  });
+
+  it("offers no action for a sale that cannot be cancelled", async () => {
     const screen = await renderPanel({ cancellable: false });
 
     await expect.element(screen.getByRole("button", { name: "Cobrar" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: "Vaciar carrito" }))
+      .not.toBeInTheDocument();
     await expect
       .element(screen.getByRole("button", { name: "Cancelar venta" }))
       .not.toBeInTheDocument();

@@ -43,6 +43,12 @@ describe("anySaleIsOpen", () => {
     expect(anySaleIsOpen(database)).toBe(false);
   });
 
+  it("is false when the only sale is a cancelled one kept for its payments", () => {
+    addSale("emptied-cart", "CANCELLED");
+
+    expect(anySaleIsOpen(database)).toBe(false);
+  });
+
   it("is true when a sale is open", () => {
     addSale("done", "COMPLETED");
     addSale("being-rung", "OPEN");

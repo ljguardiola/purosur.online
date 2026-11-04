@@ -295,6 +295,7 @@ const sessionOpenSaleSchema = z.object({
   id: z.string(),
   total: z.number(),
   paid: z.int().nonnegative(),
+  has_approved_payment: z.boolean(),
   cancellable: z.boolean(),
   cancel_refusal: saleCancelRefusalSchema.nullable(),
   refunds_on_cancel: z.array(plannedRefundSchema),

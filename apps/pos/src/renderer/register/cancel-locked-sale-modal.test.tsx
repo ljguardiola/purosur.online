@@ -16,7 +16,7 @@ async function renderModal(options: { open?: boolean; busy?: boolean } = {}) {
       {...callbacks}
     />,
   );
-  return { screen, callbacks, dialog: screen.getByRole("dialog", { name: "¿Cancelar la venta?" }) };
+  return { screen, callbacks, dialog: screen.getByRole("dialog", { name: "¿Vaciar el carrito?" }) };
 }
 
 describe("CancelLockedSaleModal", () => {
@@ -46,7 +46,7 @@ describe("CancelLockedSaleModal", () => {
   it("cancels the sale when asked to", async () => {
     const { dialog, callbacks } = await renderModal();
 
-    await dialog.getByRole("button", { name: "Cancelar la venta" }).click();
+    await dialog.getByRole("button", { name: "Vaciar carrito" }).click();
 
     expect(callbacks.onCancelSale).toHaveBeenCalledOnce();
     expect(callbacks.onClose).not.toHaveBeenCalled();
@@ -64,7 +64,7 @@ describe("CancelLockedSaleModal", () => {
   it("disables both buttons while the sale is being cancelled", async () => {
     const { dialog } = await renderModal({ busy: true });
 
-    await expect.element(dialog.getByRole("button", { name: "Cancelar la venta" })).toBeDisabled();
+    await expect.element(dialog.getByRole("button", { name: "Vaciar carrito" })).toBeDisabled();
     await expect.element(dialog.getByRole("button", { name: "Volver" })).toBeDisabled();
   });
 });
