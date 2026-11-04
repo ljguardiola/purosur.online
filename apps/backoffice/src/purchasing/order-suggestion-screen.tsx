@@ -206,6 +206,12 @@ export function OrderSuggestionScreen({
       render: (line: SuggestedLine) => formatSaleUnitQuantity(line.stock, line.saleUnit),
     }),
     dataColumn({
+      id: "awaited",
+      header: "Pedido sin recibir",
+      align: "end",
+      render: (line: SuggestedLine) => formatSaleUnitQuantity(line.awaitedQuantity, line.saleUnit),
+    }),
+    dataColumn({
       id: "coverage",
       header: "Cobertura",
       align: "end",
