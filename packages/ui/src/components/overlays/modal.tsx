@@ -1,5 +1,6 @@
 import {
   Children,
+  type FocusEvent,
   Fragment,
   isValidElement,
   type KeyboardEvent,
@@ -197,9 +198,11 @@ export function Modal(props: ModalProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const [bodyOverflows, setBodyOverflows] = useState(false);
+  const [bodyHoldsFocus, setBodyHoldsFocus] = useState(false);
 
   // A body that scrolls with nothing focusable in it could not be scrolled from the keyboard, so it
-  // takes a tab stop of its own only while it overflows. Its size stops changing once it reaches the
+  // takes a tab stop of its own only while it overflows, kept while it holds the focus so the focus
+  // never drops out of the dialog when its content shrinks. Its size stops changing once it reaches the
   // panel's cap, so the content's boxes are observed too, and mutations catch text that changes
   // inside a box that keeps its size.
   function observeBodyOverflow(body: HTMLDivElement | null) {
@@ -207,7 +210,10 @@ export function Modal(props: ModalProps) {
     if (body === null) {
       return;
     }
-    const updateOverflow = () => setBodyOverflows(body.scrollHeight > body.clientHeight);
+    const updateOverflow = () =>
+      setBodyOverflows(
+        body.scrollHeight > body.clientHeight || body.scrollWidth > body.clientWidth,
+      );
     const resizeObserver = new ResizeObserver(updateOverflow);
     const observeBoxes = () => {
       resizeObserver.disconnect();
@@ -228,9 +234,21 @@ export function Modal(props: ModalProps) {
     };
   }
 
-  const scrollingBodyProps = bodyOverflows
-    ? { role: "region", tabIndex: 0, "aria-labelledby": titleId }
-    : {};
+  const scrollingBodyProps = {
+    ...(bodyOverflows || bodyHoldsFocus
+      ? { role: "region", tabIndex: 0, "aria-labelledby": titleId }
+      : {}),
+    onFocus: (event: FocusEvent<HTMLDivElement>) => {
+      if (event.target === event.currentTarget) {
+        setBodyHoldsFocus(true);
+      }
+    },
+    onBlur: (event: FocusEvent<HTMLDivElement>) => {
+      if (event.target === event.currentTarget) {
+        setBodyHoldsFocus(false);
+      }
+    },
+  };
 
   // Capturing, because react-aria's fields stop the keys they handle from bubbling; listening on the
   // body leaves the header's and footer's own buttons out. A field's list is portaled outside the
