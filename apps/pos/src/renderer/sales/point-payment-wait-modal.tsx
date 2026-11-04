@@ -3,7 +3,6 @@ import type {
   FollowMercadoPagoChargeOutcome,
 } from "@purosur/contracts";
 import type { PointCardType } from "@purosur/domain";
-import type { Icon } from "@purosur/ui";
 import {
   Button,
   CountdownRing,
@@ -21,7 +20,6 @@ import {
   ArrowRight,
   CircleX,
   CreditCard,
-  Hourglass,
   Info,
   TimerOff,
   TriangleAlert,
@@ -84,13 +82,11 @@ export function PointPaymentWaitModal({
     (answer?.kind === "already_paid" && answer.settlement.kind === "unavailable");
   const abandoned = unanswered ? undefined : answer;
   const abandonFailed = abandonment.isError || unanswered;
-  const cancelling = abandoned?.kind === "cancel_on_terminal";
   const charge = useQrChargeQuery({
     paymentTransactionId: order.payment_transaction_id,
     follow,
     following:
-      !abandonment.isPending &&
-      (abandoned === undefined || cancelling || abandoned.kind === "unreachable"),
+      !abandonment.isPending && (abandoned === undefined || abandoned.kind === "unreachable"),
   });
   const outcome = charge.status === "loaded" ? charge.value : undefined;
   const paidByAbandonment =
@@ -106,7 +102,6 @@ export function PointPaymentWaitModal({
   if (outcome?.kind === "at_terminal_wait_over" && !waitedOut) {
     setWaitedOut(true);
   }
-  const awaitingCancellation = waitedOut || cancelling;
 
   function abandonOrder() {
     abandonment.mutate(order.payment_transaction_id);
@@ -147,7 +142,7 @@ export function PointPaymentWaitModal({
         }
         break;
       case "closed":
-        if (!awaitingCancellation) {
+        if (!waitedOut) {
           onChooseAnotherMethod();
         }
         break;
@@ -179,6 +174,7 @@ export function PointPaymentWaitModal({
     switch (result.kind) {
       case "cancelled":
       case "closed":
+      case "replaced":
         onChooseAnotherMethod();
         break;
       case "already_paid":
@@ -189,8 +185,6 @@ export function PointPaymentWaitModal({
       case "not_pending":
         chooseAnotherMethodUnlessPaid();
         break;
-      case "replaced":
-      case "cancel_on_terminal":
       case "unreachable":
       case "unavailable":
         break;
@@ -253,19 +247,19 @@ export function PointPaymentWaitModal({
   const remainingSeconds =
     outcome?.kind === "waiting" ? outcome.remaining_seconds : order.remaining_seconds;
 
-  if (awaitingCancellation) {
+  if (waitedOut) {
     return (
-      <AwaitingCancellationModal
+      <WaitOverModal
         context={context}
         total={total}
         paid={paid}
         amount={order.amount}
-        waitedOut={waitedOut}
-        remainingSeconds={waitedOut ? 0 : remainingSeconds}
         totalSeconds={order.wait_seconds}
-        closed={outcome?.kind === "closed"}
+        abandoning={abandonment.isPending}
+        unreachable={abandoned?.kind === "unreachable"}
+        abandonFailed={abandonFailed}
         followFailure={followFailure}
-        onChooseAnotherMethod={onChooseAnotherMethod}
+        onChooseAnotherMethod={abandonOrder}
       />
     );
   }
@@ -318,19 +312,9 @@ export function PointPaymentWaitModal({
           </div>
         )}
         {abandoned?.kind === "unreachable" || order.kind === "order_unconfirmed" ? (
-          <InlineNotice
-            tone="warning"
-            icon={<TriangleAlert />}
-            title="No hay conexión con la nube. Cancelá el cobro en la terminal y esperá a que vuelva la conexión."
-          />
+          <NoCloudConnectionNotice />
         ) : null}
-        {abandonFailed ? (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title="No se pudo cancelar el cobro de la terminal. Volvé a intentarlo en unos segundos."
-          />
-        ) : null}
+        {abandonFailed ? <AbandonFailedNotice /> : null}
         <HighlightedNotice
           tone="info"
           icon={<Info />}
@@ -362,15 +346,15 @@ function PointSaleSummary({
   );
 }
 
-function AwaitingCancellationModal({
+function WaitOverModal({
   context,
   total,
   paid,
   amount,
-  waitedOut,
-  remainingSeconds,
   totalSeconds,
-  closed,
+  abandoning,
+  unreachable,
+  abandonFailed,
   followFailure,
   onChooseAnotherMethod,
 }: {
@@ -378,33 +362,30 @@ function AwaitingCancellationModal({
   total: number;
   paid: number;
   amount: number;
-  waitedOut: boolean;
-  remainingSeconds: number;
   totalSeconds: number;
-  closed: boolean;
+  abandoning: boolean;
+  unreachable: boolean;
+  abandonFailed: boolean;
   followFailure: ReactNode;
   onChooseAnotherMethod: () => void;
 }) {
-  const icon: Icon = waitedOut ? <TimerOff /> : <Hourglass />;
   return (
     <Modal
       open
       onOpenChange={() => undefined}
       width="standard"
-      tone={waitedOut ? "error" : "warning"}
-      icon={icon}
+      tone="error"
+      icon={<TimerOff />}
       context={context}
-      contextTone={waitedOut ? "error" : "warning"}
-      title={
-        waitedOut ? "Se terminó el tiempo de espera" : "Esperando la cancelación en la terminal"
-      }
+      contextTone="error"
+      title="Se terminó el tiempo de espera"
       closable={false}
       footer={
         <Button
           size="large"
           fullWidth
           icon={<ArrowRight />}
-          disabled={!closed}
+          dataStatus={abandoning ? "loading" : "loaded"}
           onPress={onChooseAnotherMethod}
         >
           Elegir otro medio
@@ -416,16 +397,14 @@ function AwaitingCancellationModal({
         {followFailure ?? (
           <div className="flex items-center gap-6">
             <CountdownRing
-              remainingSeconds={remainingSeconds}
+              remainingSeconds={0}
               totalSeconds={totalSeconds}
               label="Tiempo para pagar"
             />
             <ProgressSteps
               steps={[
                 SENT_STEP,
-                ...(waitedOut
-                  ? [{ id: "wait-over", label: "Tiempo agotado", state: "error" } as const]
-                  : []),
+                { id: "wait-over", label: "Tiempo agotado", state: "error" },
                 {
                   id: "awaiting-cancellation",
                   label: "Esperando la cancelación",
@@ -435,14 +414,35 @@ function AwaitingCancellationModal({
             />
           </div>
         )}
-        <HighlightedNotice
+        {unreachable ? <NoCloudConnectionNotice /> : null}
+        {abandonFailed ? <AbandonFailedNotice /> : null}
+        <InlineNotice
           tone="warning"
           icon={<TriangleAlert />}
           title="Cancelá el cobro en la terminal"
-          description="Otro medio se habilita recién cuando la terminal confirme la cancelación."
         />
       </div>
     </Modal>
+  );
+}
+
+function NoCloudConnectionNotice() {
+  return (
+    <InlineNotice
+      tone="warning"
+      icon={<TriangleAlert />}
+      title="No hay conexión con la nube. Cancelá el cobro en la terminal y esperá a que vuelva la conexión."
+    />
+  );
+}
+
+function AbandonFailedNotice() {
+  return (
+    <InlineNotice
+      tone="error"
+      icon={<TriangleAlert />}
+      title="No se pudo cancelar el cobro de la terminal. Volvé a intentarlo en unos segundos."
+    />
   );
 }
 
