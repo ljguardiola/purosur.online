@@ -1,8 +1,30 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import { UnrunFilesReporter } from "./unrun-files-reporter.mjs";
 
 const ROOT = "/repo";
+
+const REPOSITORY_CONFIG = fileURLToPath(new URL("../../vitest.config.ts", import.meta.url));
+
+const VITEST_BIN = join(
+  dirname(createRequire(import.meta.url).resolve("vitest/package.json")),
+  "vitest.mjs",
+);
+
+const DYING_TEST = [
+  'import { test } from "vitest";',
+  'process.kill(process.pid, "SIGKILL");',
+  'test("never reports", () => {});',
+  "",
+].join("\n");
+
+const PASSING_TEST = ['import { test } from "vitest";', 'test("passes", () => {});', ""].join("\n");
 
 function testModule(project, file, state) {
   return { moduleId: `${ROOT}/${file}`, project: { name: project }, state: () => state };
@@ -99,8 +121,33 @@ test("by default fails the run through the process exit code", () => {
   }
 });
 
-test("the real vitest.config.ts reports the test files that never ran in every run", async () => {
-  const { default: config } = await import("../../vitest.config.ts");
+test("a run of the repository's vitest config lists a test file whose worker died before reporting it", () => {
+  const root = mkdtempSync(join(tmpdir(), "unrun-files-reporter-"));
+  try {
+    mkdirSync(join(root, ".railway"));
+    writeFileSync(join(root, ".railway", "dies.test.ts"), DYING_TEST);
+    writeFileSync(join(root, ".railway", "passes.test.ts"), PASSING_TEST);
 
-  assert.ok(config.test.reporters.some((reporter) => reporter instanceof UnrunFilesReporter));
+    const run = spawnSync(
+      process.execPath,
+      [
+        VITEST_BIN,
+        "run",
+        "--config",
+        REPOSITORY_CONFIG,
+        "--root",
+        root,
+        "--project",
+        "railway-iac",
+      ],
+      { encoding: "utf8" },
+    );
+
+    assert.match(
+      run.stderr,
+      /Test files that never ran \(1\)\n {2}railway-iac {2}\.railway\/dies\.test\.ts\n/,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
