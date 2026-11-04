@@ -1624,6 +1624,7 @@ describe("asking how a sale's receipt print stands", () => {
       "printer_not_configured",
       "failed",
       "printed",
+      "preparing",
       "awaiting_answer",
       "declined",
     ].map((standing) => ({

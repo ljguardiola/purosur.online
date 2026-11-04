@@ -7,6 +7,7 @@ function rig(
   options: { printing?: Promise<void>; beforePrinting?: Promise<void>; asks?: boolean } = {},
 ) {
   const events: string[] = [];
+  const preparing: string[] = [];
   const failures: unknown[] = [];
   const charge = async (request: { saleId: string }) => {
     events.push(`charge ${request.saleId}`);
@@ -29,12 +30,18 @@ function rig(
     onFailure: (error: unknown) => failures.push(error),
   };
   const question = {
+    prepare: (saleId: string) => {
+      preparing.push(`prepare ${saleId}`);
+    },
+    endPreparing: (saleId: string) => {
+      preparing.push(`end preparing ${saleId}`);
+    },
     asksBeforePrinting: () => options.asks === true,
     holdForAnswer: (saleId: string) => {
       events.push(`hold ${saleId}`);
     },
   };
-  return { events, failures, charge, deps, asking: { ...deps, question } };
+  return { events, preparing, failures, charge, deps, asking: { ...deps, question } };
 }
 
 describe("printing the receipt of a sale just completed", () => {
@@ -186,6 +193,51 @@ describe("asking before printing the receipt of a sale just completed", () => {
 
     settle();
     await vi.waitFor(() => expect(subject.events).toContain("hold sale-1"));
+  });
+});
+
+describe("preparing the receipt of a sale just completed", () => {
+  it("marks the sale as preparing before answering the charge, while what comes before printing has not settled", async () => {
+    const subject = rig({ asks: true, beforePrinting: new Promise(() => {}) });
+
+    await printingCompletedSales(subject.asking, subject.charge)({ saleId: "sale-1" });
+
+    expect(subject.preparing).toEqual(["prepare sale-1"]);
+  });
+
+  it.each([
+    ["it is held for the answer", { asks: true }],
+    ["its print started", { asks: false }],
+  ])("ends preparing the sale once %s", async (_name, options) => {
+    const subject = rig(options);
+
+    await printingCompletedSales(subject.asking, subject.charge)({ saleId: "sale-1" });
+    await vi.waitFor(() => expect(subject.events).toContain("sync"));
+
+    expect(subject.preparing).toEqual(["prepare sale-1", "end preparing sale-1"]);
+  });
+
+  it("ends preparing the sale when its print failed", async () => {
+    const subject = rig();
+    const failing = {
+      ...subject.asking,
+      print: async () => {
+        throw new Error("the printer adapter broke");
+      },
+    };
+
+    await printingCompletedSales(failing, subject.charge)({ saleId: "sale-1" });
+    await vi.waitFor(() => expect(subject.events).toContain("sync"));
+
+    expect(subject.preparing).toEqual(["prepare sale-1", "end preparing sale-1"]);
+  });
+
+  it("prepares nothing for a charge that did not complete the sale", async () => {
+    const subject = rig();
+
+    await printingCompletedSales(subject.asking, subject.charge)({ saleId: "partial" });
+
+    expect(subject.preparing).toEqual([]);
   });
 });
 

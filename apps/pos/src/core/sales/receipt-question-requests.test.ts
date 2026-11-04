@@ -1,7 +1,12 @@
 import { encodePinHash } from "@purosur/contracts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createContingencyBackupTicketRequests } from "../backups/contingency-backup-ticket-requests";
+import { SqliteContingencyBackupTickets } from "../backups/sqlite-contingency-backup-tickets";
 import { derivePinVerifier } from "../credentials/pin-verifier";
-import { insertFiscalDocument } from "../fiscal/test-support/real-time-authorization-database";
+import {
+  insertFiscalDocument,
+  insertOfflineFiscalDocument,
+} from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source";
@@ -142,6 +147,60 @@ describe("whether a sale's receipt asks before printing", () => {
   });
 });
 
+describe("a sale whose factura C was authorized in contingency", () => {
+  const tickets = () => new SqliteContingencyBackupTickets(database);
+
+  function backupTicketOfSale(saleId: string) {
+    return createContingencyBackupTicketRequests({
+      tickets: tickets(),
+      clock: { now: () => NOW },
+      printerFailure: () => null,
+      signedInUserId: () => signedInPerson.userId(),
+      gate: {
+        run: async (_operation, perform) => ({
+          kind: "performed",
+          result: await perform({ signedInUserId: "cashier" }),
+        }),
+      },
+    }).ofSale(saleId);
+  }
+
+  beforeEach(async () => {
+    addSale("sale-3", { withVoucher: false });
+    insertOfflineFiscalDocument(database, { saleId: "sale-3", id: "offline-doc-3" });
+    await tickets().transaction((tx) =>
+      tx.recordTicket({
+        id: "backup-3",
+        operation: "sale",
+        subjectId: "sale-3",
+        range: { firstDeviceSeq: 1, lastDeviceSeq: 1 },
+        createdAt: NOW,
+        sealed: { keyVersion: 1, qrCodes: ["AB"] },
+      }),
+    );
+  });
+
+  it("asks before printing its customer's factura C, while its backup ticket waits for it", async () => {
+    expect(saleAsksBeforePrinting(deps(), "sale-3")).toBe(true);
+    expect(await backupTicketOfSale("sale-3")).toEqual({
+      kind: "read",
+      ticket: { standing: "awaiting_customer_document" },
+    });
+  });
+
+  it("leaves its backup ticket to print once the cashier says no", async () => {
+    jobs.holdForAnswer("sale-3");
+
+    expect(await answer("sale-3", false)).toEqual({ kind: "declined" });
+
+    expect(printer.waiting).toEqual([]);
+    expect(await backupTicketOfSale("sale-3")).toEqual({
+      kind: "read",
+      ticket: { standing: "to_print" },
+    });
+  });
+});
+
 describe("answering the question of a held sale", () => {
   it("answers not_signed_in when nobody is signed in", async () => {
     jobs.holdForAnswer("sale-1");
@@ -185,6 +244,22 @@ describe("answering the question of a held sale", () => {
     expect(syncs).toBe(1);
   });
 
+  it("keeps the question held, recording no decline, when recording the decline fails", async () => {
+    database.exec(
+      `CREATE TRIGGER refuse_decline BEFORE UPDATE OF print_declined_at ON sales
+       BEGIN SELECT RAISE(ABORT, 'disk unavailable'); END;`,
+    );
+    jobs.holdForAnswer("sale-1");
+
+    await expect(answer("sale-1", false)).rejects.toThrow("disk unavailable");
+
+    expect(jobs.isHeldForAnswer("sale-1")).toBe(true);
+    expect(declinedAt("sale-1")).toEqual({ print_declined_at: null, print_attempted_at: null });
+    expect(await receiptPrintStatusFor(deps(), "sale-1")).toMatchObject({
+      standing: "awaiting_answer",
+    });
+  });
+
   it("answers not_found, releasing the question, for a held sale the register does not hold", async () => {
     jobs.holdForAnswer("missing");
 
@@ -202,6 +277,17 @@ describe("answering the question of a held sale", () => {
 });
 
 describe("the print status of a sale held for the cashier's answer", () => {
+  it("stands as preparing while the sale is prepared, before the core decided whether to ask", async () => {
+    jobs.prepare("sale-1");
+
+    expect(await receiptPrintStatusFor(deps(), "sale-1")).toMatchObject({
+      kind: "found",
+      next_copy: { kind: "original" },
+      printed: false,
+      standing: "preparing",
+    });
+  });
+
   it("stands as awaiting_answer while the question is held", async () => {
     jobs.holdForAnswer("sale-1");
 

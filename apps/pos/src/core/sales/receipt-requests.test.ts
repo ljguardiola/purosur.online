@@ -410,6 +410,9 @@ const ABANDONING_PRINTERS: ReceiptRequestDeps["printers"] = {
 function jobsRunningUnwatched(): ReceiptRequestDeps["jobs"] {
   return {
     standingOf: () => null,
+    prepare: () => {},
+    isPreparing: () => false,
+    endPreparing: () => {},
     holdForAnswer: () => {},
     isHeldForAnswer: () => false,
     releaseAnswer: () => false,

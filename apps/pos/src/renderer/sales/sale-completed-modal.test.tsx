@@ -776,6 +776,66 @@ describe("SaleCompletedModal asking whether to print the customer's ticket", () 
     await expectNoAccessibilityViolations(screen.container);
   });
 
+  it("leaves out the ticket row while it asks, since the question already names the ticket", async () => {
+    const { screen } = await renderModal(CASH, { readReceiptStatus: awaiting });
+
+    await expect.element(screen.getByRole("heading", { name: "¿Imprimir ticket?" })).toBeVisible();
+    await expect.element(screen.getByText("Ticket", { exact: true })).not.toBeInTheDocument();
+    await expect.element(screen.getByText("Imprimiendo")).not.toBeInTheDocument();
+  });
+
+  it("lists the factura C in contingency without a status while it asks", async () => {
+    const { screen } = await renderModal(CASH, {
+      readReceiptStatus: async () =>
+        found("awaiting_answer", {
+          comprobante: {
+            kind: "fiscal",
+            document_type: "factura_c",
+            authorization: "offline_code",
+            point_of_sale: 8,
+            number: 412,
+          },
+        }),
+      readBackupTicket: async () => ticketOf("awaiting_customer_document"),
+    });
+
+    await expect.element(screen.getByRole("heading", { name: "¿Imprimir ticket?" })).toBeVisible();
+    await expect.element(screen.getByText("Factura C", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("Ticket de respaldo de contingencia")).toBeVisible();
+    expect(screen.getByRole("listitem").first().element().textContent).toBe(
+      "Factura CPara el cliente",
+    );
+  });
+
+  it("keeps Nueva venta disabled, with the ticket shown as printing, while the core prepares the ticket", async () => {
+    const { screen, onNewSale } = await renderModal(CASH, {
+      readReceiptStatus: async () => found("preparing"),
+    });
+
+    await expect.element(screen.getByText("Imprimiendo")).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Nueva venta" })).toBeDisabled();
+    await userEvent.keyboard("{Enter}");
+    expect(onNewSale).not.toHaveBeenCalled();
+    await expect
+      .element(screen.getByRole("heading", { name: "¿Imprimir ticket?" }))
+      .not.toBeInTheDocument();
+  });
+
+  it("offers a new sale once the core prints a ticket it prepared without asking", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const answers = [found("preparing"), found("printing")];
+    const { screen, onNewSale } = await renderModal(CASH, {
+      readReceiptStatus: async () => answers.shift() ?? found("printing"),
+    });
+    await expect.element(screen.getByRole("button", { name: "Nueva venta" })).toBeDisabled();
+
+    await vi.advanceTimersByTimeAsync(1000);
+
+    await expect.element(screen.getByRole("button", { name: "Nueva venta" })).toBeEnabled();
+    await userEvent.click(screen.getByRole("button", { name: "Nueva venta" }));
+    expect(onNewSale).toHaveBeenCalledOnce();
+  });
+
   it("focuses Sí so that Enter prints the ticket", async () => {
     const { screen, answerReceiptQuestion } = await renderModal(CASH, {
       readReceiptStatus: awaiting,

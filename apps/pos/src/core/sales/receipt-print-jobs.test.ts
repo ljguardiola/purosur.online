@@ -52,6 +52,38 @@ describe("receipt print jobs", () => {
     expect(jobs.releaseAnswer("sale-1")).toBe(false);
   });
 
+  it("marks a sale as preparing until the preparing ends", () => {
+    const { jobs } = rig();
+
+    expect(jobs.isPreparing("sale-1")).toBe(false);
+
+    jobs.prepare("sale-1");
+    expect(jobs.isPreparing("sale-1")).toBe(true);
+    expect(jobs.isPreparing("sale-2")).toBe(false);
+
+    jobs.endPreparing("sale-1");
+    expect(jobs.isPreparing("sale-1")).toBe(false);
+  });
+
+  it("ends preparing a sale once it is held for the cashier's answer", () => {
+    const { jobs } = rig();
+    jobs.prepare("sale-1");
+
+    jobs.holdForAnswer("sale-1");
+
+    expect(jobs.isPreparing("sale-1")).toBe(false);
+    expect(jobs.isHeldForAnswer("sale-1")).toBe(true);
+  });
+
+  it("ends preparing a sale as soon as its print starts", () => {
+    const subject = rig();
+    subject.jobs.prepare("sale-1");
+
+    void printingSale(subject);
+
+    expect(subject.jobs.isPreparing("sale-1")).toBe(false);
+  });
+
   it("knows no standing for a sale nothing was printed for", () => {
     expect(rig().jobs.standingOf("sale-1")).toBeNull();
   });

@@ -364,6 +364,29 @@ describe("the register's receipt printing over its local database", () => {
       });
     });
 
+    it("stands as preparing while what comes before printing has not settled, then asks", async () => {
+      let settle: () => void = () => {};
+      const printing = printingOverDatabase(
+        () =>
+          new Promise<void>((resolve) => {
+            settle = resolve;
+          }),
+      );
+
+      await printing.afterCompletedSale(async () => ({ kind: "completed", sale_id: "sale-1" }))?.(
+        {},
+      );
+
+      expect(await printing.receiptPrintStatus?.("sale-1")).toMatchObject({
+        standing: "preparing",
+      });
+      settle();
+      await vi.waitFor(() => expect(syncs).toBe(1));
+      expect(await printing.receiptPrintStatus?.("sale-1")).toMatchObject({
+        standing: "awaiting_answer",
+      });
+    });
+
     it("prints once the cashier says yes", async () => {
       const printing = await completed();
 
