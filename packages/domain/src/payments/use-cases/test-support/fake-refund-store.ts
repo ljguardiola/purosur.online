@@ -1,5 +1,6 @@
 import type { AlertKind } from "../../../alerts/index.js";
 import type { Clock } from "../../../shared/index.js";
+import type { RefundTransfer } from "../../model/refund-transfer.js";
 import type {
   LockedRefund,
   PendingRefundRecord,
@@ -12,6 +13,7 @@ export interface FakeStoredRefund extends LockedRefund {
   locationId: string;
   doneBy?: string;
   doneAt?: Date;
+  transfer?: RefundTransfer;
   discardedBy?: string;
   discardedAt?: Date;
 }
@@ -23,7 +25,11 @@ export interface ResolvedRefundAlert {
   resolvedAt: Date;
 }
 
-type RefundStoreWrite = "recordRefundDone" | "recordRefundDiscarded" | "resolveRefundAlert";
+type RefundStoreWrite =
+  | "recordRefundDone"
+  | "recordRefundDoneByTransfer"
+  | "recordRefundDiscarded"
+  | "resolveRefundAlert";
 
 class FakeRefundStoreTransaction implements RefundStoreTransaction {
   private readonly refunds: FakeStoredRefund[];
@@ -61,6 +67,26 @@ class FakeRefundStoreTransaction implements RefundStoreTransaction {
         refund.state = "APPROVED";
         refund.doneBy = doneBy;
         refund.doneAt = doneAt;
+      }
+    }
+  }
+
+  async recordRefundDoneByTransfer(
+    refundId: string,
+    transfer: RefundTransfer,
+    doneBy: string,
+    doneAt: Date,
+  ): Promise<void> {
+    this.store.operationOrder.push("recordRefundDoneByTransfer");
+    if (this.store.failOn === "recordRefundDoneByTransfer") {
+      throw new Error("recordRefundDoneByTransfer failed");
+    }
+    for (const refund of this.refunds) {
+      if (refund.id === refundId) {
+        refund.state = "APPROVED";
+        refund.doneBy = doneBy;
+        refund.doneAt = doneAt;
+        refund.transfer = transfer;
       }
     }
   }

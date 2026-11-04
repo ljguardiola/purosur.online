@@ -5,6 +5,7 @@ import {
   discardedRefundSchema,
   markedRefundDoneSchema,
   pendingRefundsSchema,
+  refundTransferSchema,
 } from "./pending-refunds.js";
 
 const REFUND_ID = "4b0d2c1e-7f3a-4e58-9a61-0c5d8e2f1a77";
@@ -20,6 +21,7 @@ const refund: Record<string, unknown> = {
   card_type: null,
   origin: "sale_cancelled",
   discardable: false,
+  transferable: false,
   amount: 2000,
   occurred_at: "2026-10-07T15:30:00.000Z",
   seconds_pending: 3600,
@@ -138,6 +140,7 @@ describe("pendingRefundsSchema", () => {
     ["a corrector that is not text", { corrected_by: 1 }],
     ["an origin no refund has", { origin: "manual" }],
     ["a discardable flag that is not a boolean", { discardable: "yes" }],
+    ["a transferable flag that is not a boolean", { transferable: "yes" }],
     ["a method no payment has", { method: "CARD" }],
     ["a fractional amount", { amount: 10.5 }],
     ["a negative amount", { amount: -1 }],
@@ -232,5 +235,32 @@ describe("confirmedRefundSchema", () => {
     ["no outcome", confirmed],
   ])("refuses %s", (_case, body) => {
     expect(confirmedRefundSchema.safeParse(body).success).toBe(false);
+  });
+});
+
+describe("refundTransferSchema", () => {
+  it.each(["bank", "mercado_pago"])("accepts a %s transfer with its operation number", (kind) => {
+    expect(refundTransferSchema.parse({ kind, operation_number: "00123456" })).toEqual({
+      kind,
+      operation_number: "00123456",
+    });
+  });
+
+  it("keeps the operation number without the spaces around it", () => {
+    expect(
+      refundTransferSchema.parse({ kind: "bank", operation_number: "  00123456 " })
+        .operation_number,
+    ).toBe("00123456");
+  });
+
+  it.each([
+    ["without the kind", { operation_number: "1" }],
+    ["with a kind no transfer has", { kind: "cash", operation_number: "1" }],
+    ["without the operation number", { kind: "bank" }],
+    ["with an empty operation number", { kind: "bank", operation_number: "" }],
+    ["with an operation number of only spaces", { kind: "bank", operation_number: "   " }],
+    ["with an operation number that is not text", { kind: "bank", operation_number: 1 }],
+  ])("refuses %s", (_case, body) => {
+    expect(refundTransferSchema.safeParse(body).success).toBe(false);
   });
 });

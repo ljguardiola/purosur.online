@@ -1,0 +1,3 @@
+ALTER TABLE "payment_refunds" ADD COLUMN "transfer_kind" text;--> statement-breakpoint
+ALTER TABLE "payment_refunds" ADD COLUMN "transfer_operation_number" text;--> statement-breakpoint
+ALTER TABLE "payment_refunds" ADD CONSTRAINT "payment_refunds_transfer_check" CHECK (("payment_refunds"."transfer_kind" is null) = ("payment_refunds"."transfer_operation_number" is null) and ("payment_refunds"."transfer_kind" is null or ("payment_refunds"."state" = 'APPROVED' and "payment_refunds"."transfer_kind" in ('bank', 'mercado_pago'))));

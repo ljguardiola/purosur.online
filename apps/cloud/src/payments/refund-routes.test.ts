@@ -86,6 +86,21 @@ function confirm(headers: Record<string, string>, refundId: string) {
   return app.inject({ method: "POST", url: `/refunds/${refundId}/confirmation`, headers });
 }
 
+const TRANSFER_BODY = { kind: "bank", operation_number: "00123456" };
+
+function transfer(
+  headers: Record<string, string>,
+  refundId: string,
+  payload: Record<string, unknown> = TRANSFER_BODY,
+) {
+  return app.inject({
+    method: "POST",
+    url: `/refunds/${refundId}/transfer`,
+    headers,
+    payload,
+  });
+}
+
 function discard(headers: Record<string, string>, refundId: string) {
   return app.inject({ method: "POST", url: `/refunds/${refundId}/discard`, headers });
 }
@@ -116,6 +131,10 @@ describe.each([
   [
     "POST /refunds/:id/discard",
     (headers: Record<string, string>) => discard(headers, UNKNOWN_REFUND),
+  ],
+  [
+    "POST /refunds/:id/transfer",
+    (headers: Record<string, string>) => transfer(headers, UNKNOWN_REFUND),
   ],
   [
     "POST /refunds/:id/confirmation",
@@ -980,5 +999,135 @@ describe("a late QR payment refund", () => {
     expect(await storedRefund(late.refundId)).toMatchObject({ state: "PENDING" });
     const [alert] = await db.select().from(alerts).where(eq(alerts.id, late.alertId));
     expect(alert?.resolvedAt).toBeNull();
+  });
+});
+
+describe("POST /refunds/:id/transfer", () => {
+  async function refusedForGood(reason = "payment_not_refundable") {
+    const { headers, userId } = await signedInWith(db, ["confirm_refunds"], NOW);
+    return { headers, userId, ...(await aConfirmedRefund(userId, reason)) };
+  }
+
+  async function aConfirmedRefund(userId: string, reason: string, registerName = "Caja 1") {
+    const { refundId, locationId } = await aPendingQrRefundOfCancelledSale(db, {
+      cancelledAt: NOW,
+      registerName,
+      orderId: `ORDER-${registerName}`,
+    });
+    await db
+      .update(paymentRefunds)
+      .set({ confirmedBy: userId, confirmedAt: NOW, lastRefusalReason: reason })
+      .where(eq(paymentRefunds.id, refundId));
+    return { refundId, locationId };
+  }
+
+  it("lists a refund refused for good as one that can be given back by transfer, and the others as not", async () => {
+    const { headers, userId, refundId } = await refusedForGood();
+    const waiting = await aConfirmedRefund(userId, "insufficient_balance", "Caja 2");
+
+    const body = pendingRefundsSchema.parse((await pendingRefunds(headers)).json());
+
+    expect(
+      Object.fromEntries(body.refunds.map((refund) => [refund.id, refund.transferable])),
+    ).toEqual({ [refundId]: true, [waiting.refundId]: false });
+  });
+
+  it("records the transfer as the person of the session, resolving the refund's alert", async () => {
+    const { headers, userId, refundId, locationId } = await refusedForGood();
+    const [alert] = await db
+      .insert(alerts)
+      .values({
+        kind: "refund_task",
+        scope: refundId,
+        level: "warning",
+        audience: "local",
+        locationId,
+        detail: {},
+        openedAt: NOW,
+      })
+      .returning({ id: alerts.id });
+
+    const response = await transfer(headers, refundId, {
+      kind: "mercado_pago",
+      operation_number: " 00123456 ",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(markedRefundDoneSchema.parse(response.json())).toEqual({
+      refund_id: refundId,
+      done_at: NOW.toISOString(),
+    });
+    const [refund] = await db.select().from(paymentRefunds).where(eq(paymentRefunds.id, refundId));
+    expect(refund).toMatchObject({
+      state: "APPROVED",
+      doneBy: userId,
+      transferKind: "mercado_pago",
+      transferOperationNumber: "00123456",
+    });
+    const [resolved] = await db
+      .select()
+      .from(alerts)
+      .where(eq(alerts.id, alert?.id ?? ""));
+    expect(resolved).toMatchObject({ resolvedAt: NOW, resolvedBy: userId });
+  });
+
+  it("answers 400 and records nothing without the operation number", async () => {
+    const { headers, refundId } = await refusedForGood();
+
+    const response = await transfer(headers, refundId, { kind: "bank" });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "validation_failed" });
+    const [refund] = await db.select().from(paymentRefunds).where(eq(paymentRefunds.id, refundId));
+    expect(refund).toMatchObject({ state: "PENDING", transferKind: null });
+  });
+
+  it("answers 400 to an id that is not a record id", async () => {
+    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
+
+    const response = await transfer(headers, "refund-1");
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "validation_failed" });
+  });
+
+  it("answers 404 to a refund that does not exist", async () => {
+    const { headers } = await signedInWith(db, ["confirm_refunds"], NOW);
+
+    const response = await transfer(headers, UNKNOWN_REFUND);
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "refund_not_found" });
+  });
+
+  it("answers 409 to a refund that was discarded", async () => {
+    const { headers, refundId } = await refusedForGood();
+    await discard(headers, refundId);
+
+    const response = await transfer(headers, refundId);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "refund_discarded" });
+  });
+
+  it("answers 409 to a refund that was already given back", async () => {
+    const { headers, refundId } = await refusedForGood();
+    await transfer(headers, refundId);
+
+    const response = await transfer(headers, refundId);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "already_done" });
+  });
+
+  it("answers 409 refund_not_refused_for_good to a refund held for insufficient balance, leaving it pending", async () => {
+    const { headers, refundId } = await refusedForGood("insufficient_balance");
+
+    const response = await transfer(headers, refundId);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "refund_not_refused_for_good" });
+    const [refund] = await db.select().from(paymentRefunds).where(eq(paymentRefunds.id, refundId));
+    expect(refund).toMatchObject({ state: "PENDING", transferKind: null });
   });
 });

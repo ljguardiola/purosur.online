@@ -12,6 +12,7 @@ export const transferRefund: PendingRefundsBody["refunds"][number] = {
   card_type: null,
   origin: "sale_cancelled",
   discardable: false,
+  transferable: false,
   amount: 250_000,
   occurred_at: "2026-10-07T15:30:00.000Z",
   seconds_pending: 3 * 3600,
@@ -35,6 +36,7 @@ const secondRefund: PendingRefundsBody["refunds"][number] = {
   card_type: null,
   origin: "sale_cancelled",
   discardable: false,
+  transferable: false,
   amount: 98_000,
   occurred_at: "2026-10-07T18:05:00.000Z",
   seconds_pending: 20 * 60,
@@ -60,6 +62,7 @@ export const latePaymentRefund: PendingRefundsBody["refunds"][number] = {
   card_type: null,
   origin: "late_payment",
   discardable: true,
+  transferable: false,
   amount: 125_000,
   occurred_at: "2026-10-08T13:10:00.000Z",
   seconds_pending: 27 * 3600,
@@ -188,6 +191,7 @@ export const noBalanceCloudRefund: PendingRefund = {
 export const refusedCloudRefund: PendingRefund = {
   ...unconfirmedCloudRefund,
   discardable: true,
+  transferable: true,
   delivery_stage: "refused",
   last_refusal_reason: "refund_period_exceeded",
 };

@@ -3397,6 +3397,11 @@ describe("the route access inventory", () => {
       },
       {
         method: "POST",
+        url: "/api/refunds/:id/transfer",
+        access: capabilityAccess("refunds_area"),
+      },
+      {
+        method: "POST",
         url: "/api/refunds/:id/confirmation",
         access: capabilityAccess("refunds_area"),
       },

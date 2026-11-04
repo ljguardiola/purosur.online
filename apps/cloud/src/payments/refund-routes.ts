@@ -3,6 +3,7 @@ import {
   discardedRefundSchema,
   markedRefundDoneSchema,
   pendingRefundsSchema,
+  refundTransferSchema,
 } from "@purosur/contracts";
 import {
   confirmMercadoPagoRefund,
@@ -10,11 +11,13 @@ import {
   listPendingRefunds,
   type MercadoPagoOrders,
   markRefundDone,
+  recordRefundTransfer,
 } from "@purosur/domain/payments/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
 import { readRecordIds } from "../platform/record-id-params.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
 import { backofficeOriginGuard, sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
   capabilityAccess,
@@ -68,6 +71,11 @@ const ALREADY_DISCARDED_RESPONSE = {
 const REFUND_SENT_BY_CLOUD_RESPONSE = {
   code: "refund_sent_by_cloud",
   message: "this refund is sent to Mercado Pago by the system, not carried out by hand",
+} as const;
+
+const REFUND_NOT_REFUSED_FOR_GOOD_RESPONSE = {
+  code: "refund_not_refused_for_good",
+  message: "only a refund Mercado Pago refused for good can be given back by transfer",
 } as const;
 
 const REFUND_NOT_CONFIRMABLE_RESPONSE = {
@@ -135,6 +143,7 @@ export function registerRefundRoutes<TQueryResult extends PgQueryResultHKT>(
             card_type: refund.cardType,
             origin: refund.origin,
             discardable: refund.discardable,
+            transferable: refund.transferable,
             amount: refund.amount,
             occurred_at: refund.occurredAt.toISOString(),
             seconds_pending: refund.secondsPending,
@@ -180,6 +189,53 @@ export function registerRefundRoutes<TQueryResult extends PgQueryResultHKT>(
       }
       if (outcome.kind === "sent_by_cloud") {
         await reply.code(409).send(REFUND_SENT_BY_CLOUD_RESPONSE);
+        return;
+      }
+      await reply.code(200).send(
+        markedRefundDoneSchema.parse({
+          refund_id: outcome.refundId,
+          done_at: outcome.doneAt.toISOString(),
+        }),
+      );
+    },
+  );
+
+  app.post(
+    "/refunds/:id/transfer",
+    { preHandler: backofficeOriginGuard(options.backofficeOrigin), config },
+    async (request, reply) => {
+      const ids = await readRecordIds(reply, request.params, ["id"]);
+      if (!ids) {
+        return;
+      }
+      const body = await readValidatedBody(reply, refundTransferSchema, request.body);
+      if (!body) {
+        return;
+      }
+      const { locationId, userId } = openSessionOf(request);
+      const outcome = await recordRefundTransfer(
+        { store, clock: { now } },
+        {
+          refundId: ids.id,
+          locationId,
+          actorId: userId,
+          transfer: { kind: body.kind, operationNumber: body.operation_number },
+        },
+      );
+      if (outcome.kind === "not_found") {
+        await reply.code(404).send(REFUND_NOT_FOUND_RESPONSE);
+        return;
+      }
+      if (outcome.kind === "discarded") {
+        await reply.code(409).send(REFUND_DISCARDED_RESPONSE);
+        return;
+      }
+      if (outcome.kind === "already_done") {
+        await reply.code(409).send(ALREADY_DONE_RESPONSE);
+        return;
+      }
+      if (outcome.kind === "not_refused_for_good") {
+        await reply.code(409).send(REFUND_NOT_REFUSED_FOR_GOOD_RESPONSE);
         return;
       }
       await reply.code(200).send(

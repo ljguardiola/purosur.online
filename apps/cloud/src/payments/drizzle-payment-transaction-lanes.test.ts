@@ -544,6 +544,8 @@ describe("DrizzlePaymentTransactionLanes", () => {
           providerRefundId: null,
           attemptKey: null,
           lastRefusalReason: null,
+          transferKind: null,
+          transferOperationNumber: null,
         },
       ]);
     });

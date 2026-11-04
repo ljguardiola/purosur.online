@@ -347,12 +347,14 @@ export type {
   DiscardedRefundBody,
   MarkedRefundDoneBody,
   PendingRefundsBody,
+  RefundTransferBody,
 } from "./payments/pending-refunds.js";
 export {
   confirmedRefundSchema,
   discardedRefundSchema,
   markedRefundDoneSchema,
   pendingRefundsSchema,
+  refundTransferSchema,
 } from "./payments/pending-refunds.js";
 export type {
   PointTerminalAssignmentAnswer,

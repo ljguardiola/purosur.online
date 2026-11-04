@@ -584,3 +584,50 @@ test("typing in the register filter offers only the matching registers", async (
       .map((option) => option.element().textContent?.trim()),
   ).toEqual(["Caja de la entrada"]);
 });
+
+test("offers to give back by transfer only the refund Mercado Pago refused for good", async () => {
+  const services = createMercadoPagoRefundsServices();
+  vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
+    kind: "ok",
+    value: pendingRefundsOfEveryCloudRefundStage,
+  });
+  const screen = await renderScreen(services);
+  await expect.poll(() => screen.getByRole("row").all().length).toBe(6);
+
+  expect(
+    screen
+      .getByRole("button", { name: /^Registrar la devolución por transferencia del reembolso/ })
+      .all(),
+  ).toHaveLength(1);
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("recording a transfer asks first, then records it and reads the refunds again", async () => {
+  const services = createMercadoPagoRefundsServices();
+  vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
+    kind: "ok",
+    value: pendingRefundsOfEveryCloudRefundStage,
+  });
+  vi.mocked(services.recordRefundTransfer).mockResolvedValue({ kind: "ok" });
+  const screen = await renderScreen(services);
+  await expect.poll(() => screen.getByRole("row").all().length).toBe(6);
+
+  await userEvent.click(
+    screen.getByRole("button", {
+      name: "Registrar la devolución por transferencia del reembolso de $ 3.400,00",
+    }),
+  );
+  const dialog = screen.getByRole("dialog");
+  await userEvent.click(dialog.getByRole("button", { name: /Tipo de transferencia/ }));
+  await userEvent.click(screen.getByRole("option", { name: "Transferencia bancaria" }));
+  await userEvent.fill(dialog.getByRole("textbox", { name: /Número de operación/ }), "998877");
+  vi.mocked(services.fetchPendingRefunds).mockClear();
+  await userEvent.click(dialog.getByRole("button", { name: "Registrar transferencia" }));
+
+  expect(services.recordRefundTransfer).toHaveBeenCalledWith(expect.any(String), {
+    kind: "bank",
+    operation_number: "998877",
+  });
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.poll(() => vi.mocked(services.fetchPendingRefunds).mock.calls.length).toBe(1);
+});

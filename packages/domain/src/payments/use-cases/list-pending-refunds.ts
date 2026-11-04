@@ -1,5 +1,9 @@
 import type { Clock } from "../../shared/index.js";
-import { isRefundSentByCloud, mercadoPagoRefundStage } from "../model/mercado-pago-refund.js";
+import {
+  isRefundRefusedForGood,
+  isRefundSentByCloud,
+  mercadoPagoRefundStage,
+} from "../model/mercado-pago-refund.js";
 import { isRefundDiscardable } from "../model/refund-discard.js";
 import type { PendingRefund, PendingRefundsReader } from "./refund-store.js";
 
@@ -23,6 +27,7 @@ export async function listPendingRefunds(
     return {
       ...refund,
       discardable: isRefundDiscardable(refund),
+      transferable: isRefundRefusedForGood(refund),
       sentByCloud,
       deliveryStage: sentByCloud ? mercadoPagoRefundStage(refund) : null,
       secondsPending: Math.max(0, Math.floor((now - refund.occurredAt.getTime()) / 1000)),

@@ -33,6 +33,7 @@ import {
   PRODUCT_COVERAGE_DAYS_MIN,
   PURCHASE_ORDER_STATES,
   RECEIPT_TYPES,
+  REFUND_TRANSFER_KINDS,
   type RejectedDocumentRemedy,
   SMALLEST_CASH_BILL,
   SNAPSHOT_CORRUPTION_STAGES,
@@ -1930,6 +1931,8 @@ export const paymentRefunds = pgTable(
     providerRefundId: text("provider_refund_id"),
     attemptKey: text("attempt_key"),
     lastRefusalReason: text("last_refusal_reason"),
+    transferKind: text("transfer_kind"),
+    transferOperationNumber: text("transfer_operation_number"),
   },
   (table) => [
     uniqueIndex("payment_refunds_attempt_key_unique")
@@ -1961,6 +1964,10 @@ export const paymentRefunds = pgTable(
     check(
       "payment_refunds_done_check",
       sql`(${table.doneBy} is null) = (${table.doneAt} is null) and (${table.state} = 'APPROVED' or ${table.doneBy} is null)`,
+    ),
+    check(
+      "payment_refunds_transfer_check",
+      sql`(${table.transferKind} is null) = (${table.transferOperationNumber} is null) and (${table.transferKind} is null or (${table.state} = 'APPROVED' and ${table.transferKind} in (${sql.raw(REFUND_TRANSFER_KINDS.map((kind) => `'${kind}'`).join(", "))})))`,
     ),
     check(
       "payment_refunds_discarded_check",

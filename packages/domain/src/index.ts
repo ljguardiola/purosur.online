@@ -461,6 +461,8 @@ export type {
   RebuiltSaleState,
   RefundOrigin,
   RefundState,
+  RefundTransfer,
+  RefundTransferKind,
   SalePayment,
 } from "./payments/index.js";
 export {
@@ -511,6 +513,7 @@ export {
   REFUND_PENDING_STATE,
   REFUND_STATES,
   REFUND_TASK_ORIGINS,
+  REFUND_TRANSFER_KINDS,
   RETURN_REFUND_ORIGIN,
   recordedRefundOfCorrection,
   SALE_CANCELLED_REFUND_ORIGIN,

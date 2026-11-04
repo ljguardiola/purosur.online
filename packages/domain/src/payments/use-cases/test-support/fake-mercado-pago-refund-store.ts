@@ -1,4 +1,5 @@
 import type { AlertKind } from "../../../alerts/index.js";
+import type { RefundTransfer } from "../../model/refund-transfer.js";
 import type {
   AppliedCorrection,
   MercadoPagoRefundRecord,
@@ -12,6 +13,7 @@ import type { ResolvedRefundAlert } from "./fake-refund-store.js";
 export interface FakeMercadoPagoStoredRefund extends MercadoPagoRefundRecord {
   doneBy?: string;
   doneAt?: Date;
+  transfer?: RefundTransfer;
   discardedBy?: string;
   discardedAt?: Date;
 }
@@ -22,6 +24,7 @@ export type MercadoPagoRefundWrite =
   | "recordRefundSent"
   | "recordRefundRefusal"
   | "recordRefundDone"
+  | "recordRefundDoneByTransfer"
   | "recordRefundDiscarded"
   | "resolveRefundAlert";
 
@@ -113,6 +116,16 @@ class FakeMercadoPagoRefundTransaction implements MercadoPagoRefundTransaction {
   async recordRefundDone(refundId: string, doneBy: string, doneAt: Date): Promise<void> {
     this.begin("recordRefundDone");
     Object.assign(this.refund(refundId), { state: "APPROVED", doneBy, doneAt });
+  }
+
+  async recordRefundDoneByTransfer(
+    refundId: string,
+    transfer: RefundTransfer,
+    doneBy: string,
+    doneAt: Date,
+  ): Promise<void> {
+    this.begin("recordRefundDoneByTransfer");
+    Object.assign(this.refund(refundId), { state: "APPROVED", transfer, doneBy, doneAt });
   }
 
   async recordRefundDiscarded(
