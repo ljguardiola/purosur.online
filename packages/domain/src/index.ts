@@ -948,7 +948,6 @@ export {
   PRINTED_DOCUMENTS,
   promotionSavings,
   RECEIPT_REPRINT_REASON_MAX_LENGTH,
-  receiptAsksBeforePrinting,
   receiptContent,
   receiptPrintStanding,
   receiptReprintReason,

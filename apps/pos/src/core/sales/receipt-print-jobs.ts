@@ -36,6 +36,9 @@ interface ReceiptPrintStartOptions {
 
 export interface ReceiptPrintJobs {
   standingOf(saleId: string): ReceiptPrintStanding | null;
+  prepare(saleId: string): void;
+  isPreparing(saleId: string): boolean;
+  endPreparing(saleId: string): void;
   holdForAnswer(saleId: string): void;
   isHeldForAnswer(saleId: string): boolean;
   releaseAnswer(saleId: string): boolean;
@@ -67,10 +70,24 @@ interface Entry {
 
 export function createReceiptPrintJobs({ reportFailure }: ReceiptPrintJobsDeps): ReceiptPrintJobs {
   const entries = new Map<string, Entry>();
+  const preparing = new Set<string>();
   const heldForAnswer = new Set<string>();
 
   return {
+    prepare(saleId) {
+      preparing.add(saleId);
+    },
+
+    isPreparing(saleId) {
+      return preparing.has(saleId);
+    },
+
+    endPreparing(saleId) {
+      preparing.delete(saleId);
+    },
+
     holdForAnswer(saleId) {
+      preparing.delete(saleId);
       heldForAnswer.add(saleId);
     },
 
@@ -88,6 +105,7 @@ export function createReceiptPrintJobs({ reportFailure }: ReceiptPrintJobsDeps):
     },
 
     start(saleId, run, { unattended } = { unattended: false }) {
+      preparing.delete(saleId);
       const entry = entries.get(saleId) ?? { current: undefined, starting: false };
       entries.set(saleId, entry);
       if (entry.starting || !mayStartReceiptPrint(entry.current?.observation)) {

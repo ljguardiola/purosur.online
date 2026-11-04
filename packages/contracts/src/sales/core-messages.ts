@@ -347,6 +347,7 @@ const receiptPrintStatusOutcomeSchema = z.discriminatedUnion("kind", [
         "printer_not_configured",
         "failed",
         "printed",
+        "preparing",
         "awaiting_answer",
         "declined",
       ])

@@ -1,4 +1,8 @@
-import { salePrintStanding, type UnprintedSaleStanding } from "../model/sale-print-standing.js";
+import {
+  customerReceiptSettled,
+  salePrintStanding,
+  type UnprintedSaleStanding,
+} from "../model/sale-print-standing.js";
 
 export interface StartupSale {
   saleId: string;
@@ -29,8 +33,6 @@ export function readSalesToPrintAtStartup({
     .completedSalesOfOpenSession()
     .flatMap(({ saleId, completedAt, total, ...delivery }) => {
       const standing = salePrintStanding(delivery);
-      return standing === "printed" || standing === "declined"
-        ? []
-        : [{ saleId, completedAt, total, standing }];
+      return customerReceiptSettled(standing) ? [] : [{ saleId, completedAt, total, standing }];
     });
 }

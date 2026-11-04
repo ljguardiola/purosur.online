@@ -1,6 +1,7 @@
 import type { Clock } from "../../shared/index.js";
-import { receiptAsksBeforePrinting } from "../model/receipt-asks-before-printing.js";
+import { receiptAwaitsAnswer } from "../model/receipt-asks-before-printing.js";
 import { receiptContent } from "../model/receipt-content.js";
+import { salePrintStanding } from "../model/sale-print-standing.js";
 import type { ReceiptLedger } from "./receipt-ports.js";
 
 export interface DeclineSaleReceiptPorts {
@@ -15,8 +16,7 @@ export interface DeclineSaleReceiptInput {
 export type DeclineSaleReceiptOutcome =
   | { kind: "declined" }
   | { kind: "not_found" }
-  | { kind: "not_asked" }
-  | { kind: "already_attempted" };
+  | { kind: "not_awaiting" };
 
 export function declineSaleReceipt(
   { ledger, clock }: DeclineSaleReceiptPorts,
@@ -28,15 +28,14 @@ export function declineSaleReceipt(
     if (delivery === undefined) {
       return { kind: "not_found" };
     }
-    if (!receiptAsksBeforePrinting(receiptContent(tx.receiptSource(saleId)).fiscal)) {
-      return { kind: "not_asked" };
+    const standing = salePrintStanding(delivery);
+    if (standing === "declined") {
+      return { kind: "declined" };
     }
-    if (delivery.printAttemptedAt !== null) {
-      return { kind: "already_attempted" };
+    if (!receiptAwaitsAnswer(standing, receiptContent(tx.receiptSource(saleId)).fiscal)) {
+      return { kind: "not_awaiting" };
     }
-    if (delivery.printDeclinedAt === null) {
-      tx.recordPrintDeclined(key, clock.now());
-    }
+    tx.recordPrintDeclined(key, clock.now());
     return { kind: "declined" };
   });
 }

@@ -77,6 +77,7 @@ function failedStandingOf(status: ReceiptPrintStatus): FailedStanding | undefine
     standing === null ||
     standing === "printing" ||
     standing === "printed" ||
+    standing === "preparing" ||
     standing === "awaiting_answer" ||
     standing === "declined"
   ) {
@@ -92,9 +93,6 @@ function receiptRowValue(receipt: ReturnType<typeof useReceiptPrintStatusQuery>)
   if (receipt.status === "loaded" && !receipt.value.printed) {
     if (receipt.value.standing === "declined") {
       return "No impreso";
-    }
-    if (receipt.value.standing === "awaiting_answer") {
-      return "Esperando respuesta";
     }
   }
   return receipt.status === "loaded" && receipt.value.printed ? "Impreso" : "Imprimiendo";
@@ -179,6 +177,7 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
   const receipt = useReceiptPrintStatusQuery({ saleId, read: readReceiptStatus });
   const answer = useAnswerReceiptQuestionMutation({ saleId, answer: answerReceiptQuestion });
   const asking = receipt.status === "loaded" && receipt.value.standing === "awaiting_answer";
+  const preparing = receipt.status === "loaded" && receipt.value.standing === "preparing";
   const answerSent =
     answer.isPending ||
     (answer.data !== undefined &&
@@ -294,7 +293,7 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
       ? undefined
       : {
           ...customerDocument,
-          status: (
+          status: asking ? null : (
             <Tag tone={printed ? "success" : printState === "No impreso" ? "neutral" : "info"}>
               {printState}
             </Tag>
@@ -366,7 +365,7 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
             </Button>
           </>
         ) : (
-          <Button size="large" fullWidth icon={<Plus />} onPress={onNewSale}>
+          <Button size="large" fullWidth icon={<Plus />} disabled={preparing} onPress={onNewSale}>
             Nueva venta
           </Button>
         )
@@ -378,17 +377,23 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
           rows={[
             { label: "Total", value: formatCents(total) },
             paymentRow,
-            contingency !== undefined
-              ? {
-                  label: "Modo fiscal",
-                  value: <Tag tone="warning">Contingencia con CAEA</Tag>,
-                }
-              : deferred
-                ? {
+            ...(contingency !== undefined
+              ? [
+                  {
                     label: "Modo fiscal",
-                    value: <Tag tone="warning">Venta diferida · sin factura en el momento</Tag>,
-                  }
-                : { label: "Ticket", value: printState },
+                    value: <Tag tone="warning">Contingencia con CAEA</Tag>,
+                  },
+                ]
+              : deferred
+                ? [
+                    {
+                      label: "Modo fiscal",
+                      value: <Tag tone="warning">Venta diferida · sin factura en el momento</Tag>,
+                    },
+                  ]
+                : asking
+                  ? []
+                  : [{ label: "Ticket", value: printState }]),
           ]}
         />
         {surplusRefund !== undefined && surplusRefund.amount > 0 ? (

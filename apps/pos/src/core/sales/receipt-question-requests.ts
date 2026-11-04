@@ -1,6 +1,5 @@
 import type { AnswerReceiptQuestionOutcome } from "@purosur/contracts";
-import { receiptAsksBeforePrinting, receiptContent, salePrintStanding } from "@purosur/domain";
-import { declineSaleReceipt } from "@purosur/domain/sales/use-cases";
+import { declineSaleReceipt, receiptQuestionOf } from "@purosur/domain/sales/use-cases";
 import { printCompletedSaleReceiptFor, type ReceiptRequestDeps } from "./receipt-requests";
 import { SqliteReceiptLedger } from "./sqlite-receipt-ledger";
 
@@ -15,14 +14,21 @@ export function saleAsksBeforePrinting(
   { database }: Pick<ReceiptRequestDeps, "database">,
   saleId: string,
 ): boolean {
-  return new SqliteReceiptLedger(database).transaction((tx) => {
-    const delivery = tx.receiptDelivery({ document: "sale_receipt", saleId });
-    return (
-      delivery !== undefined &&
-      salePrintStanding(delivery) === "never_printed" &&
-      receiptAsksBeforePrinting(receiptContent(tx.receiptSource(saleId)).fiscal)
+  return (
+    receiptQuestionOf({ ledger: new SqliteReceiptLedger(database) }, { saleId }).kind === "asks"
+  );
+}
+
+function declineHeld(deps: ReceiptRequestDeps, saleId: string) {
+  try {
+    return declineSaleReceipt(
+      { ledger: new SqliteReceiptLedger(deps.database), clock: { now: deps.now } },
+      { saleId },
     );
-  });
+  } catch (error) {
+    deps.jobs.holdForAnswer(saleId);
+    throw error;
+  }
 }
 
 export async function answerReceiptQuestionFor(
@@ -46,13 +52,9 @@ export async function answerReceiptQuestionFor(
     syncNow();
     return { kind: "printing" };
   }
-  const declined = declineSaleReceipt(
-    { ledger: new SqliteReceiptLedger(deps.database), clock: { now: deps.now } },
-    { saleId },
-  );
+  const declined = declineHeld(deps, saleId);
   if (declined.kind === "declined") {
     syncNow();
-    return { kind: "declined" };
   }
-  return declined.kind === "not_found" ? { kind: "not_found" } : { kind: "not_awaiting" };
+  return declined;
 }

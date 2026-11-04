@@ -249,6 +249,12 @@ export type {
 } from "./receipt-ports.js";
 export type { ReceiptPrintGrant, ReceiptPrintOutcome } from "./receipt-printing.js";
 export type {
+  ReceiptQuestionOfInput,
+  ReceiptQuestionOfOutcome,
+  ReceiptQuestionOfPorts,
+} from "./receipt-question-of.js";
+export { receiptQuestionOf } from "./receipt-question-of.js";
+export type {
   PendingMercadoPagoPaymentRefusal,
   RecordPendingMercadoPagoPaymentInput,
   RecordPendingMercadoPagoPaymentOutcome,

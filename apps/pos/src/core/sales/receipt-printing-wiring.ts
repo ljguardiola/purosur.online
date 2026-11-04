@@ -168,6 +168,8 @@ export function createReceiptPrinting({
   const asking = {
     ...printing,
     question: {
+      prepare: (saleId: string) => jobs.prepare(saleId),
+      endPreparing: (saleId: string) => jobs.endPreparing(saleId),
       asksBeforePrinting: (saleId: string) => {
         try {
           return saleAsksBeforePrinting(deps, saleId);

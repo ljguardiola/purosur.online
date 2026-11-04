@@ -24,6 +24,8 @@ export function salePrintStanding({
   return printedAt === null ? "outcome_unknown" : "printed";
 }
 
-export function customerReceiptSettled(standing: SalePrintStanding): boolean {
+export function customerReceiptSettled(
+  standing: SalePrintStanding,
+): standing is Exclude<SalePrintStanding, UnprintedSaleStanding> {
   return standing === "printed" || standing === "declined";
 }

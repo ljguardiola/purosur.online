@@ -8,6 +8,8 @@ export interface PrintingCompletedSalesDeps {
 }
 
 export interface ReceiptQuestionDeps {
+  prepare: (saleId: string) => void;
+  endPreparing: (saleId: string) => void;
   asksBeforePrinting: (saleId: string) => boolean;
   holdForAnswer: (saleId: string) => void;
 }
@@ -23,6 +25,7 @@ function printCompletedSale(
 ): void {
   const saleId = completedSaleId(outcome);
   if (saleId !== undefined) {
+    question?.prepare(saleId);
     beforePrinting(saleId)
       .catch(onFailure)
       .then(async () => {
@@ -33,7 +36,10 @@ function printCompletedSale(
         await print(saleId);
       })
       .catch(onFailure)
-      .finally(syncNow);
+      .finally(() => {
+        question?.endPreparing(saleId);
+        syncNow();
+      });
   }
 }
 

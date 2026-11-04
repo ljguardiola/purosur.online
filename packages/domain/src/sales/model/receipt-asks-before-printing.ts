@@ -1,7 +1,12 @@
 import type { ReceiptContent } from "./receipt-content.js";
+import type { SalePrintStanding } from "./sale-print-standing.js";
 
-export function receiptAsksBeforePrinting(
-  fiscal: Pick<NonNullable<ReceiptContent["fiscal"]>, "invoiceClass"> | null,
-): boolean {
+type ReceiptFiscal = Pick<NonNullable<ReceiptContent["fiscal"]>, "invoiceClass"> | null;
+
+export function receiptAsksBeforePrinting(fiscal: ReceiptFiscal): boolean {
   return fiscal?.invoiceClass === "C";
+}
+
+export function receiptAwaitsAnswer(standing: SalePrintStanding, fiscal: ReceiptFiscal): boolean {
+  return standing === "never_printed" && receiptAsksBeforePrinting(fiscal);
 }
