@@ -78,15 +78,8 @@ function hasContent(node: ReactNode): boolean {
 
 type CtrlEnterEvent = Pick<
   KeyboardEvent,
-  | "key"
-  | "ctrlKey"
-  | "altKey"
-  | "shiftKey"
-  | "metaKey"
-  | "target"
-  | "preventDefault"
-  | "stopPropagation"
->;
+  "key" | "ctrlKey" | "altKey" | "shiftKey" | "metaKey" | "preventDefault" | "stopPropagation"
+> & { target: EventTarget | null };
 
 function isCtrlEnter(event: CtrlEnterEvent): boolean {
   return (
@@ -191,9 +184,13 @@ export function Modal(props: ModalProps) {
     footer,
   } = props;
   const footerRef = useRef<HTMLDivElement>(null);
-  const focusedPartRef = useRef<{ focused: EventTarget; action: HTMLElement } | null>(null);
-  const focusPart: ModalPartFocus = (focused, action) => {
-    focusedPartRef.current = { focused, action };
+  const focusedPartRef = useRef<{
+    focused: EventTarget;
+    part: HTMLElement;
+    action: HTMLElement;
+  } | null>(null);
+  const focusPart: ModalPartFocus = (focused, part, action) => {
+    focusedPartRef.current = { focused, part, action };
   };
   const bodyRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -224,14 +221,25 @@ export function Modal(props: ModalProps) {
     }
     event.preventDefault();
     event.stopPropagation();
-    // A part's field, or its portaled list, is the element that took the focus last inside it; a
-    // focused element that left the document without a blur no longer counts.
-    const part = focusedPartRef.current;
     const action =
-      part !== null && part.focused === event.target
-        ? part.action.querySelector<HTMLElement>("[data-variant]")
-        : ownFooter.querySelector<HTMLElement>('[data-variant="primary"]');
+      focusedPartAction(event.target) ??
+      ownFooter.querySelector<HTMLElement>('[data-variant="primary"]');
     action?.click();
+  }
+
+  // A part's field, or its portaled list, is the element that took the focus last inside it; a
+  // focused element that left the document without a blur no longer counts.
+  function focusedPartAction(target: EventTarget | null): HTMLElement | null {
+    const focusedPart = focusedPartRef.current;
+    if (
+      focusedPart === null ||
+      focusedPart.focused !== target ||
+      !(target instanceof Element) ||
+      (focusedPart.part.contains(target) && !isField(target))
+    ) {
+      return null;
+    }
+    return focusedPart.action.querySelector<HTMLElement>("[data-variant]");
   }
 
   // The dialog itself holds the focus in a modal with no field, and before a field that loads late
