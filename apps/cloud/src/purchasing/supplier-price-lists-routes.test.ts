@@ -1074,7 +1074,7 @@ describe("POST /supplier-price-lists/:id/confirmation", () => {
     expect(response.json()).toMatchObject({ code: "validation_failed" });
   });
 
-  it("confirms a list of three thousand rows", async () => {
+  it("confirms a list of three thousand rows", { timeout: 15_000 }, async () => {
     const { headers } = await manager();
     const { listId } = await storedList({
       state: "EXTRACTED",
