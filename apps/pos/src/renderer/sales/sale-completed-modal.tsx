@@ -177,7 +177,9 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
   const receipt = useReceiptPrintStatusQuery({ saleId, read: readReceiptStatus });
   const answer = useAnswerReceiptQuestionMutation({ saleId, answer: answerReceiptQuestion });
   const asking = receipt.status === "loaded" && receipt.value.standing === "awaiting_answer";
-  const preparing = receipt.status === "loaded" && receipt.value.standing === "preparing";
+  const mayStartNewSale =
+    receipt.status === "failed" ||
+    (receipt.status === "loaded" && receipt.value.standing !== "preparing");
   const answerSent =
     answer.isPending ||
     (answer.data !== undefined &&
@@ -365,7 +367,13 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
             </Button>
           </>
         ) : (
-          <Button size="large" fullWidth icon={<Plus />} disabled={preparing} onPress={onNewSale}>
+          <Button
+            size="large"
+            fullWidth
+            icon={<Plus />}
+            disabled={!mayStartNewSale}
+            onPress={onNewSale}
+          >
             Nueva venta
           </Button>
         )
