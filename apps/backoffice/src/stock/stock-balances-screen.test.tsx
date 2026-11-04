@@ -269,13 +269,13 @@ test("opens a product's lots under it", async () => {
 test("closes a product's lots when its button is pressed again", async () => {
   const screen = await renderScreen(listed());
   await userEvent.click(screen.getByRole("button", { name: `Ver los lotes de ${almonds.name}` }));
-  await expect.element(screen.getByText("L-2409")).toBeVisible();
+  await expect.element(screen.getByText("Compra 12/09/2026")).toBeVisible();
 
   await userEvent.click(
     screen.getByRole("button", { name: `Ocultar los lotes de ${almonds.name}` }),
   );
 
-  await expect.element(screen.getByText("L-2409")).not.toBeInTheDocument();
+  await expect.element(screen.getByText("Compra 12/09/2026")).not.toBeInTheDocument();
   await expect
     .element(screen.getByRole("button", { name: `Ver los lotes de ${almonds.name}` }))
     .toBeVisible();

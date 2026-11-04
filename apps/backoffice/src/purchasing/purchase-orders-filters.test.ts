@@ -6,12 +6,15 @@ describe("purchaseOrdersFilters", () => {
     expect(purchaseOrdersFilters.parse({})).toEqual({ state: "ALL" });
   });
 
-  test.each(["DRAFT", "SENT", "CANCELLED"])("keeps the state %s", (state) => {
-    expect(purchaseOrdersFilters.parse({ state })).toEqual({ state });
-  });
+  test.each(["DRAFT", "SENT", "PARTIALLY_RECEIVED", "RECEIVED", "CANCELLED"])(
+    "keeps the state %s",
+    (state) => {
+      expect(purchaseOrdersFilters.parse({ state })).toEqual({ state });
+    },
+  );
 
   test("falls back to the default for a state the list does not offer", () => {
-    expect(purchaseOrdersFilters.parse({ state: "RECEIVED" })).toEqual({ state: "ALL" });
+    expect(purchaseOrdersFilters.parse({ state: "LOST" })).toEqual({ state: "ALL" });
     expect(purchaseOrdersFilters.parse({ state: 3 })).toEqual({ state: "ALL" });
   });
 });

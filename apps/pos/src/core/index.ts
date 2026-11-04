@@ -162,7 +162,11 @@ import {
 } from "./returns/returns-requests";
 import { createBarcodeReaderWiring } from "./sales/barcode-reader-wiring";
 import { createDeferredSaleInvoicing } from "./sales/deferred-sale-invoicing";
-import { createReceiptPrinting, savedReceiptPrinters } from "./sales/receipt-printing-wiring";
+import {
+  createReceiptPrinting,
+  printingAfterCompletedSales,
+  savedReceiptPrinters,
+} from "./sales/receipt-printing-wiring";
 import {
   addSearchedProductFor,
   addWeighedProductFor,
@@ -176,6 +180,7 @@ import {
   changeLineWeightFor,
   chargeSaleByTransferFor,
   chargeSaleInCashFor,
+  chargeSaleInCashWithChangeDiscountFor,
   chargeSaleOnStandaloneTerminalFor,
   chargeSaleWithPaidOrderFor,
   currentSaleFor,
@@ -986,6 +991,7 @@ const rendererRequestDeps: RendererRequestDeps = {
       : () => restorationStandingFor(restorationOf(localDatabase)),
   registerService: register.service,
   registerName: () => replica?.registerName(),
+  registerVersion: () => appVersionFromCoreArguments(process.argv),
   enroll: async (typedCode: string) => {
     const outcome = await enroll(
       {
@@ -1394,6 +1400,23 @@ const rendererRequestDeps: RendererRequestDeps = {
             },
             request,
           ),
+  chargeSaleInCashWithChangeDiscount:
+    localDatabase === undefined || actionGate === undefined
+      ? undefined
+      : (request) =>
+          chargeSaleInCashWithChangeDiscountFor(
+            {
+              zoneRules,
+              database: localDatabase,
+              restoration: restorationOf(localDatabase),
+              gate: actionGate,
+              readOutboxChainKey: async () =>
+                (await mainRequests.readCredentials())?.keys?.outbox_chain_key,
+              now,
+              ids: uuidV7Ids,
+            },
+            request,
+          ),
   chargeSaleByTransfer:
     localDatabase === undefined || actionGate === undefined
       ? undefined
@@ -1673,22 +1696,7 @@ const rendererRequestDeps: RendererRequestDeps = {
 const answeredRendererRequestDeps: RendererRequestDeps = ticketedRendererRequests(
   {
     ...rendererRequestDeps,
-    chargeSaleInCash: receiptPrinting.afterCompletedSale(rendererRequestDeps.chargeSaleInCash),
-    chargeSaleByTransfer: receiptPrinting.afterCompletedSale(
-      rendererRequestDeps.chargeSaleByTransfer,
-    ),
-    chargeSaleOnStandaloneTerminal: receiptPrinting.afterCompletedSale(
-      rendererRequestDeps.chargeSaleOnStandaloneTerminal,
-    ),
-    chargeSaleWithPaidOrder: receiptPrinting.afterCompletedSale(
-      rendererRequestDeps.chargeSaleWithPaidOrder,
-    ),
-    followMercadoPagoCharge: receiptPrinting.afterCompletedSale(
-      rendererRequestDeps.followMercadoPagoCharge,
-    ),
-    abandonMercadoPagoCharge: receiptPrinting.afterCompletedSale(
-      rendererRequestDeps.abandonMercadoPagoCharge,
-    ),
+    ...printingAfterCompletedSales(rendererRequestDeps, receiptPrinting),
   },
   {
     ticketed,

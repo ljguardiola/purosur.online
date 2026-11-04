@@ -14,6 +14,8 @@ import {
   formatDayAndTime,
   formatDuration,
   formatInvoiceNumber,
+  formatLotCode,
+  formatLotName,
   formatMonthAndYear,
   formatMonthAndYearInSentence,
   formatMonthName,
@@ -574,5 +576,32 @@ describe("formatDuration", () => {
     [1234 * HOUR + 5 * MINUTE, "1.234 h 5 min"],
   ])("writes %i milliseconds as %s", (milliseconds, text) => {
     expect(formatDuration(milliseconds)).toBe(text);
+  });
+});
+
+describe("formatLotName", () => {
+  it.each([
+    ["purchase", "Compra 03/11/2026"],
+    ["initial_count", "Inventario inicial 03/11/2026"],
+    ["assembly_batch", "Tanda 03/11/2026"],
+    ["technical", "Técnico 03/11/2026"],
+  ] as const)("names a lot of origin %s as %s", (origin, text) => {
+    expect(formatLotName({ origin, day: "2026-11-03", number: null })).toBe(text);
+  });
+
+  it("writes a numbered lot's number after its origin and day", () => {
+    expect(formatLotName({ origin: "purchase", day: "2026-11-03", number: 2 })).toBe(
+      "Compra 03/11/2026 · 2",
+    );
+  });
+});
+
+describe("formatLotCode", () => {
+  it("writes a lot's code with six digits after its letter", () => {
+    expect(formatLotCode(123)).toBe("L-000123");
+  });
+
+  it("writes every digit of a code longer than six digits", () => {
+    expect(formatLotCode(1234567)).toBe("L-1234567");
   });
 });

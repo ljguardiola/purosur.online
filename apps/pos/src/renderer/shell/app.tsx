@@ -3,6 +3,7 @@ import type {
   Authorization,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
+  ChargeSaleInCashWithChangeDiscountOutcome,
   ChargeSaleOnStandaloneTerminalOutcome,
   ChargeSaleWithPaidOrderOutcome,
   CloseCashSessionOutcome,
@@ -258,6 +259,7 @@ function Register({ core }: { core: CoreClient }) {
   async function refreshAfterCharge(
     kind: (
       | ChargeSaleInCashOutcome
+      | ChargeSaleInCashWithChangeDiscountOutcome
       | ChargeSaleByTransferOutcome
       | ChargeSaleOnStandaloneTerminalOutcome
       | ChargeSaleWithPaidOrderOutcome
@@ -288,6 +290,22 @@ function Register({ core }: { core: CoreClient }) {
 
   async function chargeSaleInCash(saleId: string, tendered: number) {
     const outcome = await core.chargeSaleInCash(saleId, tendered);
+    await refreshAfterCharge(outcome.kind);
+    return outcome;
+  }
+
+  async function chargeSaleInCashWithChangeDiscount(
+    saleId: string,
+    tendered: number,
+    discountAmount: number,
+    authorization: Authorization | undefined,
+  ) {
+    const outcome = await core.chargeSaleInCashWithChangeDiscount(
+      saleId,
+      tendered,
+      discountAmount,
+      authorization,
+    );
     await refreshAfterCharge(outcome.kind);
     return outcome;
   }
@@ -372,6 +390,7 @@ function Register({ core }: { core: CoreClient }) {
   const services = {
     enroll,
     registerName: () => core.registerName(),
+    registerVersion: () => core.registerVersion(),
     signInUsers: () => core.signInUsers(),
     authorizers: (permission: AuthorizablePermissionKey) => core.authorizers(permission),
     lockedClosers: () => core.lockedClosers(),
@@ -399,8 +418,12 @@ function Register({ core }: { core: CoreClient }) {
     firstSignIn,
     currentSale: () => core.currentSale(),
     scanProduct: (code: string) => core.scanProduct(code),
-    cashCharge: (saleId: string, tendered: number) => core.cashCharge(saleId, tendered),
+    cashCharge: (saleId: string, tendered: number, saleDiscount?: number) =>
+      saleDiscount === undefined
+        ? core.cashCharge(saleId, tendered)
+        : core.cashCharge(saleId, tendered, saleDiscount),
     chargeSaleInCash,
+    chargeSaleInCashWithChangeDiscount,
     chargeSaleByTransfer,
     chargeSaleOnStandaloneTerminal,
     paymentMethodAvailability: () => core.paymentMethodAvailability(),

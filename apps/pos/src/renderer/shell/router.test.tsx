@@ -30,6 +30,11 @@ import type { SignedInPerson } from "./signed-in-person";
 import { startupPendingGate } from "./startup-pending-gate";
 import { GuardedCashInForm } from "./test-support/guarded-cash-in-form";
 import { withReadsCounted } from "./test-support/reads-counted";
+import {
+  holdWindowsScrollbarWidth,
+  showInStoreNotebookWindow,
+  windowOverflow,
+} from "./test-support/register-window";
 
 type RoutePath =
   | "/"
@@ -242,6 +247,7 @@ function contextWith(
     recordCashMovement: async () => ({ kind: "unavailable" }),
     enroll: async () => ({ kind: "enrolled" }),
     registerName: async () => null,
+    registerVersion: async () => null,
     signInUsers: async () => [{ id: "u1", first_name: "Ada" }],
     authorizers: async () => [{ id: "u2", first_name: "Grace" }],
     lockedClosers: async () => [],
@@ -257,6 +263,7 @@ function contextWith(
     currentSale: async () => null,
     cashCharge: async () => ({ kind: "invalid_amount" }),
     chargeSaleInCash: async () => ({ kind: "unavailable" }),
+    chargeSaleInCashWithChangeDiscount: async () => ({ kind: "unavailable" }),
     chargeSaleByTransfer: async () => ({ kind: "unavailable" }),
     chargeSaleOnStandaloneTerminal: async () => ({ kind: "unavailable" }),
     paymentMethodAvailability: async () => null,
@@ -1425,6 +1432,17 @@ describe("the register's router", () => {
     await expect.element(screen.getByRole("radio", { name: "Ada" })).toBeVisible();
   });
 
+  it("keeps its frame within the window's width beside a vertical scrollbar", async () => {
+    await showInStoreNotebookWindow();
+    holdWindowsScrollbarWidth();
+    const router = routerAt("/sign-in", "up", "enrolled", null);
+
+    const screen = await render(<RouterProvider router={router} />);
+
+    await expect.element(screen.getByRole("heading", { name: SIGN_IN_TITLE })).toBeInTheDocument();
+    expect(windowOverflow().horizontal).toBe(0);
+  });
+
   it("renders the no-session screen for the person from the router context", async () => {
     const router = routerAt("/", "up");
 
@@ -2287,10 +2305,22 @@ describe("the register's router", () => {
           subtotal: 238_000,
           promotion_savings: 0,
         }),
-        cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 0 }),
+        cashCharge: async () => ({
+          kind: "covered",
+          applied: 238_000,
+          change: 0,
+          cash_rounding: 0,
+        }),
         chargeSaleInCash: async (saleId, tendered) => {
           charges.push([saleId, tendered]);
-          return { kind: "completed", sale_id: saleId, total: 238_000, tendered, change: 0 };
+          return {
+            kind: "completed",
+            sale_id: saleId,
+            total: 238_000,
+            tendered,
+            change: 0,
+            cash_rounding: 0,
+          };
         },
       },
       "/charge",
@@ -2349,7 +2379,12 @@ describe("the register's router", () => {
           subtotal: 238_000,
           promotion_savings: 0,
         }),
-        cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 0 }),
+        cashCharge: async () => ({
+          kind: "covered",
+          applied: 238_000,
+          change: 0,
+          cash_rounding: 0,
+        }),
         chargeSaleInCash: async () => ({ kind: "no_open_session" }),
         refreshCashSession: refreshed,
       },
@@ -2564,6 +2599,24 @@ describe("the register's router", () => {
     await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
     expect(registerName).toHaveBeenCalledOnce();
   });
+
+  it.each(["/sign-in", "/enroll"] as const)(
+    "reads the running version on %s before any PIN or code",
+    async (route) => {
+      const router = createRegisterRouter(
+        routeTree,
+        {
+          ...contextWith("up", route === "/enroll" ? "not_enrolled" : "enrolled", null),
+          registerVersion: async () => "1.0.1539",
+        },
+        route,
+      );
+
+      const screen = await render(<RouterProvider router={router} />);
+
+      await expect.element(screen.getByText("Versión 1.0.1539")).toBeVisible();
+    },
+  );
 
   it("opens the cash session through the router context", async () => {
     const opened: number[] = [];

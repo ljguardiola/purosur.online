@@ -15,8 +15,8 @@ import {
 
 const { lots } = almondsExpectedByLot;
 const AT = "2026-09-15T21:40:30.000Z";
-const FIRST_LOT = /^Cantidad contada del lote L-2312/;
-const SECOND_LOT = /^Cantidad contada del lote sin número/;
+const FIRST_LOT = /^Cantidad contada del lote Compra 05\/08\/2026/;
+const SECOND_LOT = /^Cantidad contada del lote Compra 12\/09\/2026/;
 
 function Harness({
   countLots,
@@ -64,12 +64,12 @@ function renderLots(onSubmit: (request: StockCountBody) => void = () => {}) {
   return render(<Harness countLots={lots} saleUnit="KG" onSubmit={onSubmit} />);
 }
 
-test("lists each lot in the order given with its number, expiry and expected balance", async () => {
+test("lists each lot in the order given with its name, expiry and expected balance", async () => {
   const screen = await renderLots();
 
   await expect.element(screen.getByText("Cantidad contada de cada lote")).toBeVisible();
-  const first = screen.getByText("L-2312").element();
-  const second = screen.getByText("—", { exact: true }).element();
+  const first = screen.getByText("Compra 05/08/2026").element();
+  const second = screen.getByText("Compra 12/09/2026").element();
   expect(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   await expect.element(screen.getByText("Vence el 14/10/2026 · saldo 4,400 kg")).toBeVisible();
   await expect.element(screen.getByText("Sin vencimiento · saldo 8,000 kg")).toBeVisible();
@@ -77,13 +77,6 @@ test("lists each lot in the order given with its number, expiry and expected bal
   await expect.element(screen.getByRole("textbox", { name: FIRST_LOT })).toBeVisible();
   await expect.element(screen.getByRole("textbox", { name: SECOND_LOT })).toBeVisible();
   await expectNoAccessibilityViolations(screen.container);
-});
-
-test("writes each lot's number in a monospace font", async () => {
-  const screen = await renderLots();
-
-  const number = screen.getByText("L-2312", { exact: true }).element();
-  expect(getComputedStyle(number).fontFamily).toMatch(/monospace$/);
 });
 
 test("keeps the quantity typed for each lot apart", async () => {

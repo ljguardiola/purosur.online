@@ -30,6 +30,7 @@ const OPEN_SALE: SaleWithLines = {
   actorId: "cashier",
   state: "OPEN",
   saleDiscount: null,
+  cashRounding: 0,
   lines: [],
 };
 const PAYMENT: SalePayment = {
@@ -108,6 +109,7 @@ describe("addWeighedProduct", () => {
       actorId: "cashier",
       state: "OPEN",
       saleDiscount: null,
+      cashRounding: 0,
       lines: [
         {
           id: "id-2",

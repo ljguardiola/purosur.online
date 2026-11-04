@@ -5,6 +5,7 @@ import {
   stockProductBalanceSchema,
 } from "@purosur/contracts";
 import { expectedBalanceAt, registerCount } from "@purosur/domain/stock/use-cases";
+import { formatLotName } from "@purosur/formatting";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { readRecordIds } from "../platform/record-id-params.js";
@@ -16,6 +17,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../sessions/route-access.js";
+import { DrizzleLotNameReader } from "./drizzle-lot-name-reader.js";
 import { DrizzleStockReader } from "./drizzle-stock-reader.js";
 import { DrizzleStockStore } from "./drizzle-stock-store.js";
 import { periodStart } from "./stock-period.js";
@@ -70,6 +72,7 @@ export function registerStockCountsRoutes<TQueryResult extends PgQueryResultHKT>
   const { now } = options;
   const ports = { store: new DrizzleStockStore(options.db), clock: { now } };
   const reader = new DrizzleStockReader(options.db);
+  const lotNames = new DrizzleLotNameReader(options.db);
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const routeConfig = {
@@ -166,7 +169,7 @@ export function registerStockCountsRoutes<TQueryResult extends PgQueryResultHKT>
       }
       const at = stockCountBodySchema.shape.occurredAt.safeParse(request.query.at);
       const outcome = await expectedBalanceAt(
-        { ledger: reader },
+        { ledger: reader, lotNames, zoneRules: options.zoneRules },
         {
           productId: ids.productId,
           locationId: openSessionOf(request).locationId,
@@ -185,7 +188,7 @@ export function registerStockCountsRoutes<TQueryResult extends PgQueryResultHKT>
         stockProductBalanceSchema.parse({
           ...outcome.product,
           balance: outcome.balance,
-          lots: outcome.lots,
+          lots: outcome.lots.map(({ name, ...lot }) => ({ ...lot, lotName: formatLotName(name) })),
         }),
       );
     },

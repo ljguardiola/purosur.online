@@ -52,21 +52,13 @@ async function submitFloat(
 }
 
 describe("CashOpeningPanel", () => {
-  it("pads its content 32px from every edge, whether it invites to open or asks for the float", async () => {
-    const { screen } = await renderPanel();
-    const padding = () => getComputedStyle(screen.getByRole("complementary").element()).padding;
-
-    expect(padding()).toBe("32px");
-
-    await startOpening(screen);
-
-    expect(padding()).toBe("32px");
-  });
-
   it("names the person and invites them to open the cash drawer", async () => {
     const { screen } = await renderPanel();
 
     await expect.element(screen.getByRole("heading", { name: "Ada" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Apertura de caja" }))
+      .toBeVisible();
     await expect
       .element(screen.getByText("Para vender, cobrar, devolver o mover efectivo, abrí la caja."))
       .toBeVisible();
@@ -88,6 +80,9 @@ describe("CashOpeningPanel", () => {
     await startOpening(screen);
 
     await expect.element(screen.getByRole("heading", { name: "Abrí la caja" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Apertura de caja" }))
+      .toBeVisible();
     await expect
       .element(screen.getByText("Contá el efectivo que hay en el cajón antes de empezar."))
       .toBeVisible();

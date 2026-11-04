@@ -8,6 +8,7 @@ import type {
   FreightList,
   LinkablePurchaseList,
   OrderSuggestion,
+  PurchaseChange,
   PurchaseChoices,
   PurchaseOrderSummary,
   PurchaseSummary,
@@ -37,6 +38,10 @@ import type {
 } from "./freights-api";
 import type { fetchOrderSuggestion } from "./order-suggestion-api";
 import type {
+  fetchPurchaseOrderReceiptDraft,
+  PurchaseOrderReceiptDraftRead,
+} from "./purchase-order-receipts-api";
+import type {
   fetchPurchaseOrder,
   fetchPurchaseOrders,
   fetchPurchaseOrderText,
@@ -44,7 +49,7 @@ import type {
   PurchaseOrderStateFilter,
   PurchaseOrderTextRead,
 } from "./purchase-orders-api";
-import type { fetchPurchaseChoices, fetchPurchases } from "./purchases-api";
+import type { fetchPurchaseChanges, fetchPurchaseChoices, fetchPurchases } from "./purchases-api";
 import type { fetchPurchasesReport } from "./purchases-report-api";
 import type {
   fetchSupplierItemLinkChoices,
@@ -71,6 +76,7 @@ export const purchasingKeys = {
   suppliers: [...purchasingKey, "suppliers"] as const,
   purchases: [...purchasingKey, "purchases"] as const,
   purchaseChoices: [...purchasingKey, "purchase-choices"] as const,
+  purchaseChanges: [...purchasingKey, "purchase-changes"] as const,
   freights: [...purchasingKey, "freights"] as const,
   linkablePurchases: [...purchasingKey, "linkable-purchases"] as const,
   supplierPriceLists: [...purchasingKey, "supplier-price-lists"] as const,
@@ -86,6 +92,7 @@ export const purchasingKeys = {
   purchaseOrders: [...purchasingKey, "purchase-orders"] as const,
   purchaseOrder: [...purchasingKey, "purchase-order"] as const,
   purchaseOrderText: [...purchasingKey, "purchase-order-text"] as const,
+  purchaseOrderReceiptDraft: [...purchasingKey, "purchase-order-receipt-draft"] as const,
   orderSuggestion: [...purchasingKey, "order-suggestion"] as const,
 };
 
@@ -199,12 +206,30 @@ export function usePurchasesQuery(params: {
 
 export function usePurchaseChoicesQuery(params: {
   fetchPurchaseChoices: typeof fetchPurchaseChoices;
+  enabled?: boolean;
   onSessionEnded: () => void;
 }) {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQuery<PurchaseChoices>({
     queryKey: purchasingKeys.purchaseChoices,
+    enabled: params.enabled,
     read: params.fetchPurchaseChoices,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function usePurchaseChangesQuery(params: {
+  purchaseId: string | null;
+  fetchPurchaseChanges: typeof fetchPurchaseChanges;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  const { purchaseId } = params;
+  return useCloudQuery<PurchaseChange[]>({
+    queryKey: [...purchasingKeys.purchaseChanges, purchaseId ?? ""],
+    enabled: purchaseId !== null,
+    read: () => params.fetchPurchaseChanges(purchaseId ?? ""),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });
@@ -568,6 +593,21 @@ export function usePurchaseOrderTextQuery(params: {
       orderId === null
         ? Promise.resolve({ kind: "failed" })
         : params.fetchPurchaseOrderText(orderId),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function usePurchaseOrderReceiptDraftQuery(params: {
+  orderId: string;
+  fetchPurchaseOrderReceiptDraft: typeof fetchPurchaseOrderReceiptDraft;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<PurchaseOrderReceiptDraftRead>({
+    queryKey: [...purchasingKeys.purchaseOrderReceiptDraft, params.orderId],
+    gcTime: 0,
+    read: () => params.fetchPurchaseOrderReceiptDraft(params.orderId),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

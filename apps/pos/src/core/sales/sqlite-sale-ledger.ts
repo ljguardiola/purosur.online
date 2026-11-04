@@ -159,6 +159,10 @@ export function updateSaleDiscount(
     .run({ id: saleId, ...saleDiscountColumns(discount) });
 }
 
+export function updateCashRounding(database: LocalDatabase, saleId: string, amount: number): void {
+  database.prepare("UPDATE sales SET cash_rounding = ? WHERE id = ?").run(amount, saleId);
+}
+
 export function deleteSaleLine(database: LocalDatabase, lineId: string): void {
   database.prepare("DELETE FROM sale_line_promotions WHERE line_id = ?").run(lineId);
   database.prepare("DELETE FROM sale_lines WHERE id = ?").run(lineId);
@@ -339,6 +343,7 @@ export class SqliteSaleLedger implements SaleLedger {
       recordSaleLine: (saleId, line) => insertSaleLine(this.database, saleId, line),
       recordChangedLine: (line) => this.recordChangedLine(line),
       recordSaleDiscount: (saleId, discount) => updateSaleDiscount(this.database, saleId, discount),
+      recordCashRounding: (saleId, amount) => updateCashRounding(this.database, saleId, amount),
       deleteSaleLine: (lineId) => deleteSaleLine(this.database, lineId),
       salePayments: (saleId) => readSalePayments(this.database, saleId),
       hasRecordedPayments: (saleId) => hasRecordedPayments(this.database, saleId),

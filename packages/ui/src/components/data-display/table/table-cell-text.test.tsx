@@ -74,13 +74,6 @@ test("writes its text in bold when it is strong", async () => {
   expect(getComputedStyle(text).fontWeight).toBe("700");
 });
 
-test("writes its text in a monospace font when it is monospace", async () => {
-  const screen = await render(<TableCellText monospace>L-2409</TableCellText>);
-  const text = screen.getByText("L-2409", { exact: true }).element() as HTMLElement;
-
-  expect(getComputedStyle(text).fontFamily).toMatch(/monospace$/);
-});
-
 test("writes its text at the detail size when it is asked for it", async () => {
   const screen = await render(<TableCellText size="detail">Compra del 01/10/2026</TableCellText>);
   const text = screen.getByText("Compra del 01/10/2026", { exact: true }).element() as HTMLElement;

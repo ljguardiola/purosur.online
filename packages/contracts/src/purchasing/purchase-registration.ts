@@ -2,10 +2,8 @@ import {
   hasValidReceiptNumber,
   isCalendarDay,
   isCostPaid,
-  isLotNumberTooLong,
   isPurchaseNoteTooLong,
   isReceiptNumberTooLong,
-  LOT_NUMBER_MAX_LENGTH,
   MIN_PURCHASE_LINES,
   mayBeMovementQuantity,
   PURCHASE_NOTE_MAX_LENGTH,
@@ -28,7 +26,6 @@ const RECEIPT_NUMBER_MESSAGE =
 const lineFields = {
   productId: recordIdSchema("productId must be a product's id"),
   costPaidCents: z.number({ error: COST_MESSAGE }).refine(isCostPaid, COST_MESSAGE),
-  lotNumber: optionalLimitedTextSchema("lotNumber", LOT_NUMBER_MAX_LENGTH, isLotNumberTooLong),
   expiresOn: optionalTextSchema(`expiresOn ${CALENDAR_DAY_MESSAGE}`, isCalendarDay),
 };
 
@@ -47,26 +44,42 @@ const quantityLineSchema = z.object({
     .meta({ decimals: STOCK_QUANTITY_DECIMALS, perUnit: STOCK_QUANTITY_PER_UNIT }),
 });
 
-export const purchaseRegistrationBodySchema = z
-  .object({
-    supplierId: recordIdSchema("supplierId must be a supplier's id"),
-    purchasedOn: z.string({ error: `purchasedOn ${CALENDAR_DAY_MESSAGE}` }).refine(isCalendarDay),
-    receiptType: z.enum(RECEIPT_TYPES, {
-      error: `receiptType must be one of ${RECEIPT_TYPES.join(", ")}`,
-    }),
-    receiptNumber: optionalLimitedTextSchema(
-      "receiptNumber",
-      RECEIPT_NUMBER_MAX_LENGTH,
-      isReceiptNumberTooLong,
-    ),
-    note: optionalLimitedTextSchema("note", PURCHASE_NOTE_MAX_LENGTH, isPurchaseNoteTooLong),
-    lines: z
-      .array(z.discriminatedUnion("loadedBy", [packagesLineSchema, quantityLineSchema]))
-      .min(MIN_PURCHASE_LINES),
-  })
-  .refine((body) => hasValidReceiptNumber(body.receiptType, body.receiptNumber), {
-    path: ["receiptNumber"],
-    error: RECEIPT_NUMBER_MESSAGE,
-  });
+export const purchaseLineBodySchema = z.discriminatedUnion("loadedBy", [
+  packagesLineSchema,
+  quantityLineSchema,
+]);
+
+export const purchaseHeaderFields = {
+  purchasedOn: z.string({ error: `purchasedOn ${CALENDAR_DAY_MESSAGE}` }).refine(isCalendarDay),
+  receiptType: z.enum(RECEIPT_TYPES, {
+    error: `receiptType must be one of ${RECEIPT_TYPES.join(", ")}`,
+  }),
+  receiptNumber: optionalLimitedTextSchema(
+    "receiptNumber",
+    RECEIPT_NUMBER_MAX_LENGTH,
+    isReceiptNumberTooLong,
+  ),
+  note: optionalLimitedTextSchema("note", PURCHASE_NOTE_MAX_LENGTH, isPurchaseNoteTooLong),
+};
+
+export function receiptNumberMatchesType(body: {
+  receiptType: (typeof RECEIPT_TYPES)[number];
+  receiptNumber: string | null;
+}): boolean {
+  return hasValidReceiptNumber(body.receiptType, body.receiptNumber);
+}
+
+export const receiptNumberIssue = { path: ["receiptNumber"], error: RECEIPT_NUMBER_MESSAGE };
+
+export const purchaseRegistrationFieldsSchema = z.object({
+  supplierId: recordIdSchema("supplierId must be a supplier's id"),
+  ...purchaseHeaderFields,
+  lines: z.array(purchaseLineBodySchema).min(MIN_PURCHASE_LINES),
+});
+
+export const purchaseRegistrationBodySchema = purchaseRegistrationFieldsSchema.refine(
+  receiptNumberMatchesType,
+  receiptNumberIssue,
+);
 
 export type PurchaseRegistrationBody = z.input<typeof purchaseRegistrationBodySchema>;

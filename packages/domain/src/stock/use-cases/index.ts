@@ -3,6 +3,7 @@ export type { BatchLotMovement } from "../model/assembly-batch.js";
 export type { LossRecord, LostProduct, ReasonLosses } from "../model/losses-by-reason.js";
 export type { NewBatchLot, NewInitialCountLot, NewLot } from "../model/lot.js";
 export type { StockLot } from "../model/lot-allocation.js";
+export type { LotNameFacts, PurchasedLotNaming } from "../model/lot-name.js";
 export type { LoadedSupplierPrice } from "../model/lot-reference-cost.js";
 export type { PurchaseReceipt } from "../model/stock-receipt.js";
 export type {
@@ -36,6 +37,11 @@ export type {
   NewAssemblyBatch,
 } from "./assembly-batch-store.js";
 export type { BatchLotReader, PreviewLot } from "./batch-lot-reader.js";
+export type {
+  CorrectLotExpiryInput,
+  CorrectLotExpiryOutcome,
+} from "./correct-lot-expiry.js";
+export { correctLotExpiry } from "./correct-lot-expiry.js";
 export type { CurrentStockReader } from "./current-stock-reader.js";
 export type {
   DiscardExpiredLotInput,
@@ -88,6 +94,7 @@ export type {
   LotCostTransaction,
   LotOriginKind,
 } from "./lot-cost-store.js";
+export type { LotNameReader } from "./lot-name-reader.js";
 export type {
   PreviewAssemblyBatchInput,
   PreviewAssemblyBatchOutcome,
@@ -95,6 +102,10 @@ export type {
   PreviewedBatchLot,
 } from "./preview-assembly-batch.js";
 export { previewAssemblyBatch } from "./preview-assembly-batch.js";
+export type {
+  PurchasedLot,
+  PurchasedLotStoreTransaction,
+} from "./purchased-lot-store.js";
 export type {
   CurrentStockCategory,
   CurrentStockLot,
@@ -165,6 +176,11 @@ export type {
 export { recordInitialCountLine } from "./record-initial-count-line.js";
 export type { RecordLossInput, RecordLossOutcome } from "./record-loss.js";
 export { recordLoss } from "./record-loss.js";
+export type {
+  RedatePurchasedLotsInput,
+  RedatePurchasedLotsOutcome,
+} from "./redate-purchased-lots.js";
+export { redatePurchasedLots } from "./redate-purchased-lots.js";
 export type {
   RegisterAssemblyBatchInput,
   RegisterAssemblyBatchOutcome,

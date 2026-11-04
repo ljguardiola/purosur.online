@@ -5,7 +5,6 @@ export type TableCellTextProps = {
   description?: ReactNode;
   tone?: "subtle" | "error" | "success" | undefined;
   strong?: boolean;
-  monospace?: boolean;
   size?: "body" | "detail";
   descriptionTone?: "error" | "warning" | undefined;
 };
@@ -35,7 +34,6 @@ export function TableCellText({
   description,
   tone,
   strong = false,
-  monospace = false,
   size = "body",
   descriptionTone,
 }: TableCellTextProps) {
@@ -48,7 +46,6 @@ export function TableCellText({
           TEXT_SIZE_CLASS_NAME[size],
           tone === undefined ? "" : TEXT_TONE_CLASS_NAME[tone],
           strong ? "font-bold" : "",
-          monospace ? "font-mono" : "",
         ].join(" ")}
       >
         {children}

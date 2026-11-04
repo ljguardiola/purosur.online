@@ -10,10 +10,19 @@ import type {
   PurchasingListReader,
   Supplier,
 } from "@purosur/domain/purchasing/use-cases";
+import type { LotNameFacts } from "@purosur/domain/stock/use-cases";
 import { asc, desc, eq, inArray, type SQL } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { netContentRow } from "../catalog/net-content-row.js";
-import { brands, products, purchaseLines, purchases, suppliers } from "../platform/db/schema.js";
+import {
+  brands,
+  lots,
+  products,
+  purchaseLines,
+  purchases,
+  suppliers,
+} from "../platform/db/schema.js";
+import { DrizzleLotNameReader } from "../stock/drizzle-lot-name-reader.js";
 
 export class DrizzlePurchasingListReader<TQueryResult extends PgQueryResultHKT>
   implements PurchasingListReader
@@ -39,6 +48,10 @@ export class DrizzlePurchasingListReader<TQueryResult extends PgQueryResultHKT>
     return rows.sort((a, b) => compareSpanishText(a.name, b.name) || compareCodeUnits(a.id, b.id));
   }
 
+  lotNameFacts(locationId: string, productIds: readonly string[]): Promise<LotNameFacts[]> {
+    return new DrizzleLotNameReader(this.db).lotNameFacts(locationId, productIds);
+  }
+
   purchases(locationId: string): Promise<PurchaseListing[]> {
     return this.readPurchases(eq(purchases.locationId, locationId));
   }
@@ -52,6 +65,7 @@ export class DrizzlePurchasingListReader<TQueryResult extends PgQueryResultHKT>
     const purchaseRows = await this.db
       .select({
         id: purchases.id,
+        locationId: purchases.locationId,
         purchasedOn: purchases.purchasedOn,
         supplierId: suppliers.id,
         supplierName: suppliers.name,
@@ -82,11 +96,12 @@ export class DrizzlePurchasingListReader<TQueryResult extends PgQueryResultHKT>
         quantity: purchaseLines.quantity,
         costPaidCents: purchaseLines.costPaidCents,
         quantityPerPackage: purchaseLines.quantityPerPackage,
-        lotNumber: purchaseLines.lotNumber,
+        lotId: lots.id,
         expiresOn: purchaseLines.expiresOn,
       })
       .from(purchaseLines)
       .innerJoin(products, eq(products.id, purchaseLines.productId))
+      .innerJoin(lots, eq(lots.purchaseLineId, purchaseLines.id))
       .leftJoin(brands, eq(brands.id, products.brandId))
       .where(
         inArray(
@@ -114,7 +129,7 @@ export class DrizzlePurchasingListReader<TQueryResult extends PgQueryResultHKT>
         quantity: row.quantity,
         costPaidCents: row.costPaidCents,
         quantityPerPackage: row.quantityPerPackage,
-        lotNumber: row.lotNumber,
+        lotId: row.lotId,
         expiresOn: row.expiresOn,
       });
       linesOf.set(purchaseId, lines);

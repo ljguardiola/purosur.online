@@ -10,11 +10,11 @@ import {
   teaProduct,
 } from "./test-support/current-stock-report-fixtures";
 
-test("lists each lot with its number, expiry, balance, unit cost and value", async () => {
+test("lists each lot with its name, expiry, balance, unit cost and value", async () => {
   const screen = await render(<CurrentStockReportLots product={almondsProduct} />);
 
   const table = screen.getByRole("table", { name: "Lotes de Almendras peladas" });
-  await expect.element(table.getByText("L-2312")).toBeVisible();
+  await expect.element(table.getByText("Compra 01/09/2026")).toBeVisible();
   await expect.element(table.getByText("14/10/2026")).toBeVisible();
   await expect.element(table.getByText("4,300 kg")).toBeVisible();
   await expect.element(table.getByText("$ 10.180,00 / kg")).toBeVisible();
@@ -22,10 +22,10 @@ test("lists each lot with its number, expiry, balance, unit cost and value", asy
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("marks a lot that belongs to no purchase as technical", async () => {
+test("names a lot that belongs to no purchase by its system name", async () => {
   const screen = await render(<CurrentStockReportLots product={crackersProduct} />);
 
-  await expect.element(screen.getByText("Técnico")).toBeVisible();
+  await expect.element(screen.getByText("Técnico 07/10/2026")).toBeVisible();
   await expect.element(screen.getByText("− 4 u")).toBeVisible();
 });
 

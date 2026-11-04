@@ -3,7 +3,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import { unaccent } from "@electric-sql/pglite/contrib/unaccent";
-import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, inject, it, onTestFinished, vi } from "vitest";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import {
@@ -73,6 +72,8 @@ import {
   productTags,
   purchaseLines,
   purchaseOrderLines,
+  purchaseOrderReceiptLines,
+  purchaseOrderReceipts,
   purchaseOrders,
   purchases,
   recipeComponents,
@@ -899,10 +900,6 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       .insert(suppliers)
       .values({ name: "Distribuidora Sur", actorId: user.id })
       .returning({ id: suppliers.id });
-    await db.execute(
-      sql`insert into product_packagings (product_id, name, quantity_per_package, sale_unit, actor_id)
-        values (${product.id}, 'Caja x 12', 12, 'UNIT', ${user.id})`,
-    );
     const [purchase] = await db
       .insert(purchases)
       .values({
@@ -935,13 +932,32 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
         actorId: user.id,
       })
       .returning({ id: purchaseOrders.id });
-    await db.insert(purchaseOrderLines).values({
-      purchaseOrderId: purchaseOrder?.id as string,
-      position: 1,
-      productId: product.id,
-      packages: 2,
-      quantityPerPackage: 1000,
-      expectedPackagePriceCents: null,
+    const [purchaseOrderLine] = await db
+      .insert(purchaseOrderLines)
+      .values({
+        purchaseOrderId: purchaseOrder?.id as string,
+        position: 1,
+        productId: product.id,
+        packages: 2,
+        quantityPerPackage: 1000,
+        expectedPackagePriceCents: null,
+      })
+      .returning({ id: purchaseOrderLines.id });
+    const [purchaseOrderReceipt] = await db
+      .insert(purchaseOrderReceipts)
+      .values({
+        purchaseOrderId: purchaseOrder?.id as string,
+        purchaseId: purchase?.id as string,
+        actorId: user.id,
+        receivedAt: new Date("2026-01-05T12:00:00.000Z"),
+      })
+      .returning({ id: purchaseOrderReceipts.id });
+    await db.insert(purchaseOrderReceiptLines).values({
+      purchaseOrderReceiptId: purchaseOrderReceipt?.id as string,
+      purchaseOrderLineId: purchaseOrderLine?.id as string,
+      receivedQuantity: 1000,
+      missingQuantity: 1000,
+      priceDifferenceCents: null,
     });
     const [lot] = await db
       .insert(lots)

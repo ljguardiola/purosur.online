@@ -13,15 +13,15 @@ function renderLots(product: typeof almonds) {
   );
 }
 
-test("lists the lots in the order the cloud answered them, with their origin, balance, cost and value", async () => {
+test("lists the lots in the order the cloud answered them, with their supplier, balance, cost and value", async () => {
   const screen = await renderLots(almonds);
 
   const lots = screen.getByRole("table", { name: `Lotes de ${almonds.name}` });
   const rows = lots.getByRole("row").elements();
   expect(rows.map((row) => row.textContent)).toEqual([
     "LoteVencimientoOrigenSaldoCosto unitarioValorizado",
-    "L-231214/10/2026Compra del 05/08/2026 · Distribuidora del Sur4,300 kg$ 10.180,00 / kg$ 43.774,00",
-    "L-240928/02/2027Compra del 12/09/2026 · Distribuidora del Sur7,850 kg$ 10.220,00 / kg$ 80.227,00",
+    "Compra 05/08/202614/10/2026Distribuidora del Sur4,300 kg$ 10.180,00 / kg$ 43.774,00",
+    "Compra 12/09/202628/02/2027Distribuidora del Sur7,850 kg$ 10.220,00 / kg$ 80.227,00",
   ]);
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -41,33 +41,32 @@ test("titles a single lot just Lotes", async () => {
   expect(screen.getByText("Lotes · se consume primero el que vence antes").query()).toBeNull();
 });
 
-test("shows a lot with no number and no expiry as a dash, with a unit's cost unlabeled", async () => {
+test("shows a lot with no expiry as a dash, with a unit's cost unlabeled", async () => {
   const screen = await renderLots(honey);
 
   const lot = screen.getByRole("table", { name: `Lotes de ${honey.name}` });
   expect(lot.getByRole("row").nth(1).element().textContent).toBe(
-    "——Compra del 20/09/2026 · Apícola Los Álamos24 u$ 5.440,00$ 130.560,00",
+    "Compra 20/09/2026—Apícola Los Álamos24 u$ 5.440,00$ 130.560,00",
   );
 });
 
-test("shows a technical lot as Técnico, from the product's sales without lots and with no cost", async () => {
+test("shows a technical lot by its name, from the product's sales without lots and with no cost", async () => {
   const screen = await renderLots(crackers);
 
   const lot = screen.getByRole("table", { name: `Lotes de ${crackers.name}` });
   expect(lot.getByRole("row").nth(1).element().textContent).toBe(
-    "Técnico—Ventas sin lotes del producto− 4 uSin costo—",
+    "Técnico 07/10/2026—Ventas sin lotes del producto− 4 uSin costo—",
   );
 });
 
-test("shows a lot of the initial count as Inventario inicial, costed and valued like a purchase lot", async () => {
+test("shows a lot of the initial count by its name, costed and valued like a purchase lot", async () => {
   const counted = {
     ...honey,
     lots: [
       {
         id: "lot-initial",
-        lotNumber: null,
+        lotName: "Inventario inicial 27/10/2026",
         expiresOn: null,
-        technical: false,
         remaining: 24_000,
         valueCents: 13_056_000,
         unitCostCents: 544_000,
@@ -79,7 +78,7 @@ test("shows a lot of the initial count as Inventario inicial, costed and valued 
 
   const lot = screen.getByRole("table", { name: "Lotes de Miel pura de abeja 1 kg" });
   expect(lot.getByRole("row").nth(1).element().textContent).toBe(
-    "——Inventario inicial24 u$ 5.440,00$ 130.560,00",
+    "Inventario inicial 27/10/2026——24 u$ 5.440,00$ 130.560,00",
   );
 });
 
@@ -89,9 +88,8 @@ test("shows an initial count lot with no cost as Sin costo", async () => {
     lots: [
       {
         id: "lot-initial",
-        lotNumber: null,
+        lotName: "Inventario inicial 27/10/2026",
         expiresOn: null,
-        technical: false,
         remaining: 24_000,
         valueCents: null,
         unitCostCents: null,
@@ -103,19 +101,18 @@ test("shows an initial count lot with no cost as Sin costo", async () => {
 
   const lot = screen.getByRole("table", { name: "Lotes de Miel pura de abeja 1 kg" });
   expect(lot.getByRole("row").nth(1).element().textContent).toBe(
-    "——Inventario inicial24 uSin costo—",
+    "Inventario inicial 27/10/2026——24 uSin costo—",
   );
 });
 
-test("shows a lot of an assembled batch as the batch of the day it was assembled", async () => {
+test("shows a lot of an assembled batch by its name, with no origin beside it", async () => {
   const assembled = {
     ...honey,
     lots: [
       {
         id: "lot-batch",
-        lotNumber: null,
+        lotName: "Tanda 15/09/2026",
         expiresOn: "2026-11-02",
-        technical: false,
         remaining: 4_950,
         valueCents: 4_906_440,
         unitCostCents: 991_200,
@@ -126,5 +123,14 @@ test("shows a lot of an assembled batch as the batch of the day it was assembled
   const screen = await renderLots(assembled);
 
   const lot = screen.getByRole("table", { name: "Lotes de Miel pura de abeja 1 kg" });
-  expect(lot.getByRole("row").nth(1).element().textContent).toContain("Tanda del 15/09/2026");
+  const row = lot.getByRole("row").nth(1);
+  expect(row.getByRole("cell").nth(0).element().textContent).toBe("Tanda 15/09/2026");
+  expect(row.getByRole("cell").nth(2).element().textContent).toBe("—");
+});
+
+test("shows a lot's system name, never the number typed when it was recorded", async () => {
+  const screen = await renderLots(almonds);
+
+  await expect.element(screen.getByText("Compra 05/08/2026")).toBeVisible();
+  expect(screen.container.textContent).not.toContain("L-2312");
 });

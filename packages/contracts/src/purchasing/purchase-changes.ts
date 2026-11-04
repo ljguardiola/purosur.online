@@ -1,0 +1,51 @@
+import { ARGENTINA_TIME_ZONE, RECEIPT_TYPES } from "@purosur/domain";
+import { z } from "zod";
+
+const headerChangeSchema = z.discriminatedUnion("field", [
+  z.object({ field: z.literal("purchasedOn"), previous: z.string(), next: z.string() }),
+  z.object({
+    field: z.literal("receiptType"),
+    previous: z.enum(RECEIPT_TYPES),
+    next: z.enum(RECEIPT_TYPES),
+  }),
+  z.object({
+    field: z.literal("receiptNumber"),
+    previous: z.string().nullable(),
+    next: z.string().nullable(),
+  }),
+  z.object({
+    field: z.literal("note"),
+    previous: z.string().nullable(),
+    next: z.string().nullable(),
+  }),
+]);
+
+const addedLineSchema = z.object({
+  lineId: z.string(),
+  productId: z.string(),
+  quantity: z.int(),
+  costPaidCents: z.int(),
+  expiresOn: z.string().nullable(),
+});
+
+const purchaseChangeDetailSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("header"), changes: z.array(headerChangeSchema) }),
+  z.object({ kind: z.literal("lines_added"), lines: z.array(addedLineSchema) }),
+  z.object({
+    kind: z.literal("line_expiry"),
+    lineId: z.string(),
+    previous: z.string().nullable(),
+    next: z.string().nullable(),
+  }),
+]);
+
+export const purchaseChangeSchema = z.object({
+  id: z.string(),
+  actor: z.object({ id: z.string(), name: z.string() }),
+  correctedAt: z.iso.datetime().meta({ timeZone: ARGENTINA_TIME_ZONE }),
+  change: purchaseChangeDetailSchema,
+});
+
+export const purchaseChangesSchema = z.array(purchaseChangeSchema);
+
+export type PurchaseChange = z.output<typeof purchaseChangeSchema>;

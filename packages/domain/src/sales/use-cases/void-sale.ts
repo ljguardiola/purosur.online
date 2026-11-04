@@ -221,7 +221,7 @@ function saleVoidedEvent(
     aggregate_type: "Sale",
     aggregate_id: sale.id,
     event_type: SALE_VOIDED_EVENT_TYPE,
-    schema_version: 4,
+    schema_version: 5,
     payload: {
       id: sale.id,
       register_id: sale.registerId,
@@ -231,6 +231,7 @@ function saleVoidedEvent(
       authorized_by: grant.authorizedBy ?? null,
       occurred_at: voidedAtIso,
       total: amountToCharge(sale),
+      cash_rounding: sale.cashRounding,
       sale_discount: saleDiscountRecord(sale),
       lines: settledLines(sale).map(saleLineRecord),
       payments: payments.map(paymentRecord),

@@ -55,7 +55,7 @@ export class RenderFailureRecovery extends Component<
   override render(): ReactNode {
     if (this.state.phase === "exhausted") {
       return (
-        <div className="h-screen w-screen">
+        <div className="h-screen w-full">
           <BrandPanelScreen>
             <div className="w-full max-w-112">
               <LoadFailure

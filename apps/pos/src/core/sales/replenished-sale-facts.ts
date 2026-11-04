@@ -27,6 +27,7 @@ import {
   markSaleCompleted,
   SqliteSaleLedger,
   takeOperationNumber,
+  updateCashRounding,
   updateSaleDiscount,
 } from "./sqlite-sale-ledger";
 
@@ -244,6 +245,7 @@ function completeSale(
   }
   const operationNumber = sale.operationNumber ?? takeOperationNumber(database);
   advanceOperationCounterTo(database, operationNumber);
+  updateCashRounding(database, sale.id, sale.cashRounding);
   markSaleCompleted(database, sale.id, sale.completedAt, operationNumber);
   for (const movement of sale.stockMovements ?? []) {
     if (held(database, "SELECT 1 FROM stock_movements WHERE id = ?", movement.id)) {

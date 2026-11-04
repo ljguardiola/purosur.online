@@ -3,6 +3,7 @@ import {
   isValidDiscountPercent,
   MERCADO_PAGO_PAYMENT_METHODS,
   manualAdjustmentReason,
+  mayBeCashRounding,
   mayBeManualDiscountAmount,
   mayBeManualDiscountPercent,
   mayBeOverriddenUnitPrice,
@@ -19,6 +20,7 @@ import {
   authorizedBySchema,
   noThresholdRefusalSchema,
   partiallyPaidOutcomeSchema,
+  pinAttemptRefusalSchema,
   plannedRefundSchema,
   reachesThresholdRefusalSchema,
   recordIdSchema,
@@ -137,13 +139,27 @@ export const saleSchema = z.object({
 export type OpenSale = z.infer<typeof saleSchema>;
 export type CurrentSaleAnswer = OpenSale | null | "not_permitted";
 
-export const cashChargeSchema = z.discriminatedUnion("kind", [
+const cashRoundingSchema = z.int().refine(mayBeCashRounding);
+
+const cashChargeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("invalid_amount") }),
   z.object({ kind: z.literal("partial"), applied: z.number(), pending: z.number() }),
-  z.object({ kind: z.literal("covered"), applied: z.number(), change: z.number() }),
+  z.object({
+    kind: z.literal("covered"),
+    applied: z.number(),
+    change: z.number(),
+    cash_rounding: cashRoundingSchema,
+  }),
 ]);
 export type CashCharge = z.infer<typeof cashChargeSchema>;
-export type CashChargeAnswer = CashCharge | null | "not_permitted";
+
+export const cashChargeReadSchema = z.discriminatedUnion("kind", [
+  ...cashChargeSchema.options,
+  z.object({ kind: z.literal("discount_exceeds_sale") }),
+  z.object({ kind: z.literal("sale_has_payments") }),
+]);
+type CashChargeRead = z.infer<typeof cashChargeReadSchema>;
+export type CashChargeAnswer = CashChargeRead | null | "not_permitted";
 
 const addedOutcome = z.object({
   kind: z.literal("added"),
@@ -479,6 +495,7 @@ export const chargeSaleInCashOutcomeSchema = z.discriminatedUnion("kind", [
     total: cents,
     tendered: cents,
     change: cents,
+    cash_rounding: cashRoundingSchema,
   }),
   partiallyPaidOutcomeSchema,
   z.object({ kind: z.literal("invalid_amount") }),
@@ -496,6 +513,17 @@ export const chargeSaleInCashOutcomeSchema = z.discriminatedUnion("kind", [
   paidOrderNotAppliedOutcome,
 ]);
 export type ChargeSaleInCashOutcome = z.infer<typeof chargeSaleInCashOutcomeSchema>;
+
+export const chargeSaleInCashWithChangeDiscountOutcomeSchema = z.discriminatedUnion("kind", [
+  ...chargeSaleInCashOutcomeSchema.options,
+  z.object({ kind: z.literal("discount_exceeds_sale") }),
+  saleHasPaymentsOutcome,
+  ...pinAttemptRefusalSchema.options,
+  z.object({ kind: z.literal("lacks_permission") }),
+]);
+export type ChargeSaleInCashWithChangeDiscountOutcome = z.infer<
+  typeof chargeSaleInCashWithChangeDiscountOutcomeSchema
+>;
 
 const chargeSaleConfirmedByHandOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("completed"), sale_id: z.string(), total: cents }),

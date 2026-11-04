@@ -149,7 +149,7 @@ test("the state filter asks the cloud for that state and reports the filters", a
   await expect.poll(() => onFiltersChange.mock.lastCall?.[0]).toEqual({ state: "CANCELLED" });
 });
 
-test("the state filter offers Todos, Borradores, Enviados and Cancelados", async () => {
+test("the state filter offers Todos, Borradores, Enviados, Recibidos en parte, Recibidos and Cancelados", async () => {
   const services = createServices();
   const screen = await loaded(services, [DRAFT_SUMMARY]);
 
@@ -158,7 +158,36 @@ test("the state filter offers Todos, Borradores, Enviados and Cancelados", async
   await expect.element(screen.getByRole("option", { name: "Todos" })).toBeVisible();
   await expect.element(screen.getByRole("option", { name: "Borradores" })).toBeVisible();
   await expect.element(screen.getByRole("option", { name: "Enviados" })).toBeVisible();
+  await expect.element(screen.getByRole("option", { name: "Recibidos en parte" })).toBeVisible();
+  await expect
+    .element(screen.getByRole("option", { name: "Recibidos", exact: true }))
+    .toBeVisible();
   await expect.element(screen.getByRole("option", { name: "Cancelados" })).toBeVisible();
+});
+
+test.each([
+  ["Recibidos en parte", "PARTIALLY_RECEIVED"],
+  ["Recibidos", "RECEIVED"],
+] as const)("the state filter offers %s and asks the cloud for them", async (label, state) => {
+  const services = createServices();
+  const screen = await loaded(services, [DRAFT_SUMMARY]);
+
+  await userEvent.click(screen.getByRole("button", { name: /Estado:/ }));
+  await userEvent.click(screen.getByRole("option", { name: label, exact: true }));
+
+  await expect.poll(() => services.fetchPurchaseOrders).toHaveBeenCalledWith(state);
+});
+
+test.each([
+  ["PARTIALLY_RECEIVED", "Recibido en parte"],
+  ["RECEIVED", "Recibido"],
+] as const)("lists an order in state %s as %s", async (state, label) => {
+  const services = createServices();
+  const screen = await loaded(services, [{ ...DRAFT_SUMMARY, state }]);
+
+  await expect
+    .element(rowOf(screen, "Distribuidora Andina").getByText(label, { exact: true }))
+    .toBeVisible();
 });
 
 test("lists a sent order as Enviado", async () => {

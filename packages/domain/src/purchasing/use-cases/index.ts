@@ -1,3 +1,9 @@
+export type {
+  AddPurchaseLinesInput,
+  AddPurchaseLinesOutcome,
+  AddPurchaseLinesPorts,
+} from "./add-purchase-lines.js";
+export { addPurchaseLines } from "./add-purchase-lines.js";
 export type { AiCallRecord } from "./ai-call-recording.js";
 export type { AiCallUsage, OnAiCall } from "./ai-call-usage.js";
 export type { AiCostReportQuery, AiCostReportReader } from "./ai-cost-report-reader.js";
@@ -19,6 +25,18 @@ export type {
   ConfirmSupplierPriceListOutcome,
 } from "./confirm-supplier-price-list.js";
 export { confirmSupplierPriceList } from "./confirm-supplier-price-list.js";
+export type {
+  CorrectPurchaseHeaderInput,
+  CorrectPurchaseHeaderOutcome,
+  CorrectPurchaseHeaderPorts,
+} from "./correct-purchase-header.js";
+export { correctPurchaseHeader } from "./correct-purchase-header.js";
+export type {
+  CorrectPurchaseLineExpiryInput,
+  CorrectPurchaseLineExpiryOutcome,
+  CorrectPurchaseLineExpiryPorts,
+} from "./correct-purchase-line-expiry.js";
+export { correctPurchaseLineExpiry } from "./correct-purchase-line-expiry.js";
 export type {
   CreateProductFromSupplierItemInput,
   CreateProductFromSupplierItemOutcome,
@@ -88,6 +106,13 @@ export type {
 } from "./get-purchase-order.js";
 export { getPurchaseOrder } from "./get-purchase-order.js";
 export type {
+  GetPurchaseOrderReceiptDraftInput,
+  GetPurchaseOrderReceiptDraftOutcome,
+  PurchaseOrderReceiptDraft,
+  ReceiptDraftLine,
+} from "./get-purchase-order-receipt-draft.js";
+export { getPurchaseOrderReceiptDraft } from "./get-purchase-order-receipt-draft.js";
+export type {
   LinkSupplierPriceListRowInput,
   LinkSupplierPriceListRowOutcome,
 } from "./link-supplier-price-list-row.js";
@@ -104,6 +129,11 @@ export type {
   SuggestedUnpricedOffer,
 } from "./list-order-suggestion.js";
 export { listOrderSuggestion } from "./list-order-suggestion.js";
+export type {
+  ListPurchaseChangesInput,
+  ListPurchaseChangesOutcome,
+} from "./list-purchase-changes.js";
+export { listPurchaseChanges } from "./list-purchase-changes.js";
 export type { PurchaseChoices } from "./list-purchase-choices.js";
 export { listPurchaseChoices } from "./list-purchase-choices.js";
 export type {
@@ -111,7 +141,11 @@ export type {
   ListPurchaseOrdersInput,
 } from "./list-purchase-orders.js";
 export { listPurchaseOrders } from "./list-purchase-orders.js";
-export type { ListedPurchase, ListedPurchaseLine } from "./list-purchases.js";
+export type {
+  ListedPurchase,
+  ListedPurchaseLine,
+  PurchaseListingPorts,
+} from "./list-purchases.js";
 export { findPurchaseListing, listPurchases } from "./list-purchases.js";
 export type { SupplierItemLinkChoice } from "./list-supplier-item-link-choices.js";
 export { listSupplierItemLinkChoices } from "./list-supplier-item-link-choices.js";
@@ -168,11 +202,42 @@ export type {
 } from "./propose-supplier-item-quantity.js";
 export { proposeSupplierItemQuantity } from "./propose-supplier-item-quantity.js";
 export type {
+  PurchaseChangeListing,
+  PurchaseChangeReader,
+} from "./purchase-change-reader.js";
+export type {
+  AddedLineRecord,
+  LockedPurchase,
+  LockedPurchaseLine,
+  LockPurchaseResult,
+  LotExpiryCorrection,
+  PurchaseCorrection,
+  PurchaseCorrectionChange,
+  PurchaseCorrectionStore,
+  PurchaseCorrectionStoreTransaction,
+  PurchasedLotsRedating,
+  PurchaseHeaderChange,
+  PurchaseHeaderValues,
+} from "./purchase-correction-store.js";
+export type {
   PurchaseOrderDetailListing,
   PurchaseOrderLineListing,
   PurchaseOrderListing,
   PurchaseOrderReader,
+  PurchaseOrderReceiptListing,
+  ReceivableOrderLineListing,
+  ReceivableOrderListing,
 } from "./purchase-order-reader.js";
+export type {
+  LockReceivablePurchaseOrderResult,
+  NewPurchaseOrderReceiptFields,
+  PurchaseOrderReceiptLineFields,
+  PurchaseOrderReceiptStore,
+  PurchaseOrderReceiptStoreTransaction,
+  PurchaseOrderReceiving,
+  ReceivablePurchaseOrder,
+  ReceivablePurchaseOrderLine,
+} from "./purchase-order-receipt-store.js";
 export type {
   LockedPurchaseOrder,
   LockPurchaseOrderResult,
@@ -230,6 +295,12 @@ export type {
   ReadSupplierPriceListPorts,
 } from "./read-supplier-price-list.js";
 export { readSupplierPriceList } from "./read-supplier-price-list.js";
+export type {
+  ReceivePurchaseOrderInput,
+  ReceivePurchaseOrderOutcome,
+  ReceivePurchaseOrderPorts,
+} from "./receive-purchase-order.js";
+export { receivePurchaseOrder } from "./receive-purchase-order.js";
 export type {
   RecordFreightInput,
   RecordFreightOutcome,

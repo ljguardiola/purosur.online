@@ -1,17 +1,26 @@
 import type { CalendarDate } from "@internationalized/date";
 import {
   type PurchaseChoices,
+  type PurchaseOrderReceiptDraft,
   type PurchaseRegistrationBody,
   purchaseRegistrationBodySchema,
   type SupplierSummary,
 } from "@purosur/contracts";
 import type { ReceiptType } from "@purosur/domain";
-import { parseAmountCents, sortedItems, textOrder } from "@purosur/ui";
+import { formatAmountInput, parseAmountCents, sortedItems, textOrder } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { schemaLimit } from "../platform/schema-limit";
-import { parseStockQuantity, quantityMessage } from "../platform/stock-quantity";
+import {
+  formatStockQuantityInput,
+  parseStockQuantity,
+  quantityMessage,
+} from "../platform/stock-quantity";
 import { packageCountOf, quantityPerPackageOf } from "./package-count-form";
-import type { PurchaseLineRefusal } from "./purchases-api";
+import type {
+  AddPurchaseLinesOutcome,
+  PurchaseLineRefusal,
+  RegisterPurchaseOutcome,
+} from "./purchases-api";
 import { receiptLabel } from "./receipt-label";
 
 const { receiptNumber: receiptNumberSchema, note: noteSchema } =
@@ -27,7 +36,6 @@ export type PurchaseLineValues = {
   quantityPerPackage: string;
   quantity: string;
   cost: string;
-  lotNumber: string;
   expiresOn: CalendarDate | null;
   reviewPriceNow: boolean;
 };
@@ -50,7 +58,6 @@ export function emptyPurchaseLine(id: number): PurchaseLineValues {
     quantityPerPackage: "",
     quantity: "",
     cost: "",
-    lotNumber: "",
     expiresOn: null,
     reviewPriceNow: false,
   };
@@ -112,7 +119,9 @@ export const PURCHASE_LINE_REFUSALS = {
   product_inactive: "Este producto ya no está activo.",
 } satisfies Record<PurchaseLineRefusal, string>;
 
-export function purchaseDateMessage({ purchasedOn }: PurchaseFormValues): string {
+export function purchaseDateMessage({
+  purchasedOn,
+}: Pick<PurchaseFormValues, "purchasedOn">): string {
   return purchasedOn === null
     ? "Ingresá la fecha de la compra."
     : "La fecha de compra no puede ser posterior a hoy.";
@@ -121,7 +130,7 @@ export function purchaseDateMessage({ purchasedOn }: PurchaseFormValues): string
 export function purchaseReceiptNumberMessage({
   receiptType,
   receiptNumber,
-}: PurchaseFormValues): string {
+}: Pick<PurchaseFormValues, "receiptType" | "receiptNumber">): string {
   const trimmed = receiptNumber.trim();
   if (receiptType === "sin_comprobante" && trimmed !== "") {
     return "Una compra sin comprobante no lleva número.";
@@ -133,7 +142,7 @@ export function purchaseReceiptNumberMessage({
   return `El número puede tener hasta ${limit} caracteres.`;
 }
 
-export function purchaseNoteMessage(_values: PurchaseFormValues): string {
+export function purchaseNoteMessage(_values: Pick<PurchaseFormValues, "note">): string {
   const limit = schemaLimit(noteSchema.meta()?.["maxLength"]);
   return `La nota puede tener hasta ${limit} caracteres.`;
 }
@@ -146,14 +155,13 @@ function quantityOf(line: PurchaseLineValues, products: PurchaseProducts): numbe
   return parseStockQuantity(line.quantity, saleUnitOf(products, line.productId)) ?? Number.NaN;
 }
 
-function lineRequestFrom(
+export function purchaseLineRequestFrom(
   line: PurchaseLineValues,
   products: PurchaseProducts,
 ): PurchaseRegistrationBody["lines"][number] {
   const common = {
     productId: line.productId ?? "",
     costPaidCents: parseAmountCents(line.cost) ?? Number.NaN,
-    lotNumber: line.lotNumber.trim(),
     expiresOn: line.expiresOn?.toString() ?? "",
   };
   return line.loadedBy === "packages"
@@ -173,6 +181,10 @@ type PurchaseRegistrationRequest = Omit<PurchaseRegistrationBody, "receiptType">
   receiptType: ReceiptType | null;
 };
 
+export type PurchaseFormRequest = Omit<PurchaseRegistrationRequest, "supplierId"> & {
+  supplierId?: string;
+};
+
 export function purchaseRegistrationRequestFrom(
   values: PurchaseFormValues,
   products: PurchaseProducts,
@@ -183,14 +195,57 @@ export function purchaseRegistrationRequestFrom(
     receiptType: values.receiptType,
     receiptNumber: values.receiptNumber.trim(),
     note: values.note.trim(),
-    lines: values.lines.map((line) => lineRequestFrom(line, products)),
+    lines: values.lines.map((line) => purchaseLineRequestFrom(line, products)),
+  };
+}
+
+export function purchaseOrderReceiptRequestFrom(
+  values: PurchaseFormValues,
+  products: PurchaseProducts,
+): PurchaseFormRequest {
+  const { supplierId: _supplierId, ...receipt } = purchaseRegistrationRequestFrom(values, products);
+  return receipt;
+}
+
+function costInput(cents: number | null): string {
+  return cents === null ? "" : formatAmountInput(cents);
+}
+
+function receiptDraftLineValues(
+  line: PurchaseOrderReceiptDraft["lines"][number],
+  id: number,
+): PurchaseLineValues {
+  const { saleUnit } = line.product;
+  return line.loadedBy === "packages"
+    ? {
+        ...emptyPurchaseLine(id),
+        productId: line.product.id,
+        loadedBy: "packages",
+        packages: String(line.packages),
+        quantityPerPackage: formatStockQuantityInput(line.quantityPerPackage, saleUnit),
+        cost: costInput(line.listCostPerPackageCents),
+      }
+    : {
+        ...emptyPurchaseLine(id),
+        productId: line.product.id,
+        loadedBy: "quantity",
+        quantity: formatStockQuantityInput(line.quantity, saleUnit),
+        cost: costInput(line.listCostPerSaleUnitCents),
+      };
+}
+
+export function purchaseOrderReceiptFormFrom(draft: PurchaseOrderReceiptDraft): PurchaseFormValues {
+  return {
+    ...emptyPurchaseForm(null),
+    supplierId: draft.supplier.id,
+    lines: draft.lines.map((line, index) => receiptDraftLineValues(line, index + 1)),
   };
 }
 
 const purchaseLineSchema = purchaseRegistrationBodySchema.shape.lines.element;
 
 function packagesRefused(line: PurchaseLineValues, products: PurchaseProducts): boolean {
-  const checked = purchaseLineSchema.safeParse(lineRequestFrom(line, products));
+  const checked = purchaseLineSchema.safeParse(purchaseLineRequestFrom(line, products));
   return checked.error?.issues.some((issue) => issue.path[0] === "packages") ?? false;
 }
 
@@ -233,13 +288,13 @@ function lineProblem(line: PurchaseLineValues, products: PurchaseProducts): stri
 }
 
 export function purchaseLinesMessage(
-  { lines }: PurchaseFormValues,
+  { lines }: Pick<PurchaseFormValues, "lines">,
   products: PurchaseProducts,
 ): string {
   if (lines.length === 0) {
     return "Agregá al menos una línea.";
   }
-  const request = lines.map((line) => lineRequestFrom(line, products));
+  const request = lines.map((line) => purchaseLineRequestFrom(line, products));
   const index = lines.findIndex((_, position) => {
     const checked = purchaseLineSchema.safeParse(request[position]);
     return !checked.success;
@@ -256,6 +311,20 @@ export function purchaseLineQuantityRefusal(
   return line?.loadedBy === "packages"
     ? "Revisá la cantidad de paquetes y la cantidad por paquete."
     : quantityMessage(saleUnitOf(products, line?.productId ?? null));
+}
+
+export function purchaseLineRefusalsOf(
+  outcome: AddPurchaseLinesOutcome | RegisterPurchaseOutcome,
+  lines: readonly PurchaseLineValues[],
+  products: PurchaseProducts,
+): Record<number, string> | undefined {
+  if (outcome.kind === "line_refused") {
+    return { [outcome.lineIndex]: PURCHASE_LINE_REFUSALS[outcome.reason] };
+  }
+  if (outcome.kind === "validation_failed" && outcome.lineIndex !== undefined) {
+    return { [outcome.lineIndex]: purchaseLineQuantityRefusal(lines[outcome.lineIndex], products) };
+  }
+  return undefined;
 }
 
 const supplierNameOrder = textOrder((supplier: SupplierSummary) => supplier.name);

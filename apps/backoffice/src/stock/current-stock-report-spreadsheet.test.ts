@@ -109,6 +109,7 @@ test("has a Lotes sheet with the product repeated on each of its lots", () => {
     "Producto",
     "Categoría",
     "Lote",
+    "Código",
     "Vencimiento",
     "Saldo (u)",
     "Saldo (kg)",
@@ -119,7 +120,8 @@ test("has a Lotes sheet with the product repeated on each of its lots", () => {
     [
       cell.text("Almendras peladas"),
       cell.text("Frutos secos"),
-      cell.text("L-2312"),
+      cell.text("Compra 01/09/2026"),
+      cell.text("L-000101"),
       cell.day("2026-10-14"),
       cell.empty(),
       cell.weight(4_300),
@@ -129,7 +131,8 @@ test("has a Lotes sheet with the product repeated on each of its lots", () => {
     [
       cell.text("Almendras peladas"),
       cell.text("Frutos secos"),
-      cell.text("L-2409"),
+      cell.text("Compra 05/09/2026"),
+      cell.text("L-000102"),
       cell.day("2027-02-28"),
       cell.empty(),
       cell.weight(7_850),
@@ -139,7 +142,8 @@ test("has a Lotes sheet with the product repeated on each of its lots", () => {
     [
       cell.text("Yerba mate 1 kg"),
       cell.text("Almacén"),
-      cell.empty(),
+      cell.text("Compra 07/10/2026"),
+      cell.text("L-000103"),
       cell.empty(),
       cell.count(24),
       cell.empty(),
@@ -149,7 +153,8 @@ test("has a Lotes sheet with the product repeated on each of its lots", () => {
     [
       cell.text("Galletas de arroz"),
       cell.text("Almacén"),
-      cell.text("Técnico"),
+      cell.text("Técnico 07/10/2026"),
+      cell.text("L-000104"),
       cell.empty(),
       cell.count(-4),
       cell.empty(),
@@ -159,7 +164,8 @@ test("has a Lotes sheet with the product repeated on each of its lots", () => {
     [
       cell.text("Té verde en hebras"),
       cell.text("Almacén"),
-      cell.empty(),
+      cell.text("Inventario inicial 27/10/2026"),
+      cell.text("L-000105"),
       cell.day("2027-01-31"),
       cell.count(6),
       cell.empty(),

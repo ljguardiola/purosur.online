@@ -167,7 +167,7 @@ describe("scanning products into a sale on the register", () => {
     await fideos.getByText("$ 2.000,00").waitFor();
   });
 
-  it("charges the discounted sale in cash, shows the change and starts a new sale", async () => {
+  it("charges the discounted sale in cash rounded down, shows the change and starts a new sale", async () => {
     const { page } = register;
 
     await page.getByRole("button", { name: "Cobrar" }).click();
@@ -175,11 +175,12 @@ describe("scanning products into a sale on the register", () => {
     await page.getByText("Efectivo", { exact: true }).click();
     await page.getByLabel("Importe entregado por el cliente").fill("7.000,00");
     await page.getByText("VUELTO A ENTREGAR").waitFor();
+    await page.getByText("Redondeo", { exact: true }).waitFor();
     await page.getByRole("button", { name: "Completar venta" }).click();
 
     await page.getByRole("heading", { name: "No se pudo imprimir el ticket" }).waitFor();
     await page.getByText("La impresora no está configurada", { exact: true }).waitFor();
-    await page.getByText("$ 240,00").waitFor();
+    await page.getByText("$ 300,00").waitFor();
     await page.getByRole("button", { name: "Seguir vendiendo" }).click();
 
     await page.getByRole("heading", { name: "Venta en curso" }).waitFor();

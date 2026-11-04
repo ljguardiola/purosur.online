@@ -22,7 +22,7 @@ import { SqliteReceiptPrinterSettings } from "../register/sqlite-receipt-printer
 import { createActionGate } from "../sessions/action-gate";
 import { createSignedInPerson } from "../sessions/signed-in-person";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
-import { createReceiptPrinting } from "./receipt-printing-wiring";
+import { createReceiptPrinting, printingAfterCompletedSales } from "./receipt-printing-wiring";
 import { insertCreditNote } from "./test-support/credit-note-receipt-database";
 import { ScriptedSocket } from "./test-support/scripted-socket";
 
@@ -70,6 +70,40 @@ describe("the register's receipt printing without a local database", () => {
     const follow = async () => ({ followed: [], failures: [] });
 
     expect(printing.afterEachCompletedSale(follow)).toBe(follow);
+  });
+});
+
+describe("the register's requests that complete a sale", () => {
+  it("each print the receipt once the sale is completed", () => {
+    const requests = {
+      chargeSaleInCash: vi.fn(),
+      chargeSaleInCashWithChangeDiscount: vi.fn(),
+      chargeSaleByTransfer: vi.fn(),
+      chargeSaleOnStandaloneTerminal: vi.fn(),
+      chargeSaleWithPaidOrder: vi.fn(),
+      followMercadoPagoCharge: vi.fn(),
+      abandonMercadoPagoCharge: vi.fn(),
+    };
+    const nameOf = new Map<unknown, string>(
+      Object.entries(requests).map(([name, request]) => [request, name]),
+    );
+    const printedRequestOf = new Map<unknown, unknown>();
+
+    function printedAfter<TRequest, TOutcome extends { kind: string }>(
+      charge: ((request: TRequest) => Promise<TOutcome>) | undefined,
+    ) {
+      const printing = charge && (async (request: TRequest) => charge(request));
+      printedRequestOf.set(printing, charge);
+      return printing;
+    }
+
+    const wired = printingAfterCompletedSales(requests, { afterCompletedSale: printedAfter });
+
+    expect(
+      Object.entries(wired)
+        .filter(([name, request]) => nameOf.get(printedRequestOf.get(request)) === name)
+        .map(([name]) => name),
+    ).toEqual(Object.keys(requests));
   });
 });
 
@@ -355,6 +389,58 @@ describe("the register's receipt printing over its local database", () => {
     const [written] = connection?.socket.written ?? [];
     const paper = printoutOf(written ?? new Uint8Array());
     expect(paper.textLines).toContain("  Promo 20% en la segunda                -$ 6,00");
+  });
+
+  describe("the receipt of a sale paid in cash and rounded down", () => {
+    beforeEach(() => {
+      database.exec(
+        `INSERT INTO role_permissions (role_id, permission_key, active) VALUES ('role-cashier', 'reprint_receipt', 1);
+         UPDATE sale_lines SET quantity = 1, list_unit_price = 327000, line_total = 327000 WHERE id = 'line-1';
+         UPDATE sales SET cash_rounding = 7000 WHERE id = 'sale-1';
+         UPDATE payment_transactions SET amount = 320000, tendered = 500000 WHERE id = 'pay-1';`,
+      );
+      saveAddress("10.10.10.2", null);
+    });
+
+    const SHOWN = [
+      "Subtotal                              $ 3.270,00",
+      "Redondeo                                -$ 70,00",
+    ];
+
+    it("shows the rounding and the total paid when printed", async () => {
+      const printed = printingOverDatabase().reprintSaleReceipt?.({
+        saleId: "sale-1",
+        reason: "Se perdió",
+      });
+      await vi.waitFor(() => expect(connections).toHaveLength(1));
+      connections[0]?.socket.connected();
+      connections[0]?.socket.receive(READY);
+      await printed;
+
+      const { textLines } = printoutOf(connections[0]?.socket.written[0] ?? new Uint8Array());
+      expect(textLines).toEqual(expect.arrayContaining(SHOWN));
+      expect(textLines).toContain("TOTAL                                 $ 3.200,00");
+      expect(textLines).toContain("Vuelto                                $ 1.800,00");
+    });
+
+    it("shows the same rounding when reprinted from what was stored", async () => {
+      const printing = printingOverDatabase();
+      const first = printing.reprintSaleReceipt?.({ saleId: "sale-1", reason: "Se perdió" });
+      await vi.waitFor(() => expect(connections).toHaveLength(1));
+      connections[0]?.socket.connected();
+      connections[0]?.socket.receive(READY);
+      await first;
+      database.exec("UPDATE sales SET cash_rounding = 0 WHERE id = 'sale-1'");
+
+      const second = printing.reprintSaleReceipt?.({ saleId: "sale-1", reason: "Se perdió" });
+      await vi.waitFor(() => expect(connections).toHaveLength(2));
+      connections[1]?.socket.connected();
+      connections[1]?.socket.receive(READY);
+      await second;
+
+      const { textLines } = printoutOf(connections[1]?.socket.written[0] ?? new Uint8Array());
+      expect(textLines).toEqual(expect.arrayContaining(SHOWN));
+    });
   });
 
   describe("the credit note of a voided sale", () => {

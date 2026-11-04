@@ -18,18 +18,18 @@ export const almondsProduct: Product = {
   lots: [
     {
       id: "lot-1",
-      lot_number: "L-2312",
+      lot_name: "Compra 01/09/2026",
+      lot_code: "L-000101",
       expires_on: "2026-10-14",
-      technical: false,
       remaining: 4_300,
       unit_cost_cents: 1_018_000,
       value_cents: 4_377_400,
     },
     {
       id: "lot-2",
-      lot_number: "L-2409",
+      lot_name: "Compra 05/09/2026",
+      lot_code: "L-000102",
       expires_on: "2027-02-28",
-      technical: false,
       remaining: 7_850,
       unit_cost_cents: 1_022_000,
       value_cents: 8_022_700,
@@ -50,9 +50,9 @@ export const yerbaProduct: Product = {
   lots: [
     {
       id: "lot-3",
-      lot_number: null,
+      lot_name: "Compra 07/10/2026",
+      lot_code: "L-000103",
       expires_on: null,
-      technical: false,
       remaining: 24_000,
       unit_cost_cents: 150_000,
       value_cents: 3_600_000,
@@ -73,9 +73,9 @@ export const crackersProduct: Product = {
   lots: [
     {
       id: "lot-4",
-      lot_number: null,
+      lot_name: "Técnico 07/10/2026",
+      lot_code: "L-000104",
       expires_on: null,
-      technical: true,
       remaining: -4_000,
       unit_cost_cents: 60_000,
       value_cents: -240_000,
@@ -96,9 +96,9 @@ export const teaProduct: Product = {
   lots: [
     {
       id: "lot-5",
-      lot_number: null,
+      lot_name: "Inventario inicial 27/10/2026",
+      lot_code: "L-000105",
       expires_on: "2027-01-31",
-      technical: false,
       remaining: 6_000,
       unit_cost_cents: null,
       value_cents: null,
@@ -119,9 +119,9 @@ export const almondOilProduct: Product = {
   lots: [
     {
       id: "lot-8",
-      lot_number: "L-4001",
+      lot_name: "Compra 09/10/2026",
+      lot_code: "L-000106",
       expires_on: "2027-05-01",
-      technical: false,
       remaining: 6_000,
       unit_cost_cents: 150_000,
       value_cents: 900_000,

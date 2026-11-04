@@ -94,6 +94,31 @@ describe("the sale a return starts from", () => {
     ]);
   });
 
+  it("charges each line the share of the cash rounding the sale spread over it", () => {
+    database.exec("UPDATE sales SET cash_rounding = 500 WHERE id = 'sale-1'");
+
+    const found = reader.saleForReturn({ kind: "sale", saleId: "sale-1" });
+
+    expect(found?.sale.lines.map(({ id, lineTotal }) => ({ id, lineTotal }))).toEqual([
+      { id: "line-1", lineTotal: 7500 - 326 },
+      { id: "line-2", lineTotal: 4000 - 174 },
+    ]);
+  });
+
+  it("spreads the cash rounding over what the sale's discount left of each line", () => {
+    database.exec(
+      `UPDATE sales SET sale_discount_kind = 'AMOUNT', sale_discount_value = 1000,
+         sale_discount_reason = 'cliente frecuente', cash_rounding = 500 WHERE id = 'sale-1'`,
+    );
+
+    const found = reader.saleForReturn({ kind: "sale", saleId: "sale-1" });
+
+    expect(found?.sale.lines.map(({ id, lineTotal }) => ({ id, lineTotal }))).toEqual([
+      { id: "line-1", lineTotal: 7500 - 652 - 326 },
+      { id: "line-2", lineTotal: 4000 - 348 - 174 },
+    ]);
+  });
+
   it("is none for a sale the register does not hold", () => {
     expect(reader.saleForReturn({ kind: "sale", saleId: "missing" })).toBeUndefined();
   });

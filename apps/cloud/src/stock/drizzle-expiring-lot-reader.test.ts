@@ -1,4 +1,6 @@
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { lots } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleExpiringLotReader } from "./drizzle-expiring-lot-reader.js";
 import { insertInitialCountLot, insertPurchasedLot } from "./test-support/lot-fixtures.js";
@@ -67,12 +69,13 @@ describe("DrizzleExpiringLotReader.lotsExpiringBy", () => {
       categoryName: "Frutos secos",
       saleUnit: "KG",
     };
+    const [stored] = await db.select({ code: lots.code }).from(lots).where(eq(lots.id, onLastDay));
     expect(rows).toHaveLength(2);
     expect(rows).toEqual(
       expect.arrayContaining([
         {
           id: onLastDay,
-          lotNumber: "L-77",
+          code: stored?.code,
           expiresOn: "2026-11-12",
           technical: false,
           remaining: 4_000,

@@ -1,6 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { mayBeCashRounding, SMALLEST_CASH_BILL } from "./cash-rounding.js";
+import { SMALLEST_CASH_BILL } from "../../payments/index.js";
+import { mayBeCashRounding } from "./cash-rounding.js";
 
 describe("mayBeCashRounding", () => {
   it("accepts any whole amount below the smallest cash bill", () => {
@@ -22,6 +23,15 @@ describe("mayBeCashRounding", () => {
     );
   });
 
+  it.each([
+    [0, true],
+    [SMALLEST_CASH_BILL - 1, true],
+    [SMALLEST_CASH_BILL, false],
+    [-1, false],
+  ])("answers %i at the edges of the range as %s", (amount, expected) => {
+    expect(mayBeCashRounding(amount)).toBe(expected);
+  });
+
   it("refuses a negative amount", () => {
     fc.assert(
       fc.property(fc.integer({ min: -1_000_000, max: -1 }), (amount) => {
@@ -37,9 +47,5 @@ describe("mayBeCashRounding", () => {
         expect(mayBeCashRounding(amount)).toBe(false);
       }),
     );
-  });
-
-  it("states the smallest bill as $100", () => {
-    expect(SMALLEST_CASH_BILL).toBe(10_000);
   });
 });

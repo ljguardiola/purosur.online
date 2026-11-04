@@ -48,7 +48,7 @@ export async function closeCashSession<Refusal>(
     }
     const openSale = tx.openSale(sessionId);
     if (openSale) {
-      return { kind: "open_sale", total: amountToCharge(openSale) };
+      return { kind: "open_sale", total: amountToCharge({ ...openSale, cashRounding: 0 }) };
     }
 
     const closedAt = clock.now();

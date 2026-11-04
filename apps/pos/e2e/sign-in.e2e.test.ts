@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, it } from "vitest";
+import { appVersionOf } from "../src/main/app-version";
 import { roleChange, userChange } from "./test-support/cloud-changes";
 import { type EnrolledRegister, enrolledRegister } from "./test-support/enrolled-register";
 import { type StandInCloud, startStandInCloud } from "./test-support/stand-in-cloud";
@@ -50,6 +51,15 @@ describe("signing in to the register", () => {
     } finally {
       await cloud?.stop();
     }
+  });
+
+  it("shows the version the register is running, before any PIN", async () => {
+    const { app, page } = register;
+    const version = await app.evaluate(({ app: electronApp }) => electronApp.getVersion());
+
+    await page
+      .getByText(`Versión ${appVersionOf({ isPackaged: false, version })}`, { exact: true })
+      .waitFor();
   });
 
   it("lists nobody until they sign in with their email, refuses a wrong PIN, and remembers them after Salir", async () => {

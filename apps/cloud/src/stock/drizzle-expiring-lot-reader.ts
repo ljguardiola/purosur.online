@@ -18,7 +18,7 @@ export class DrizzleExpiringLotReader<TQueryResult extends PgQueryResultHKT>
     const rows = await this.db
       .select({
         id: lots.id,
-        lotNumber: lots.lotNumber,
+        code: lots.code,
         expiresOn: lots.expiresOn,
         technical: lots.technical,
         remaining: lots.remaining,

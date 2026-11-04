@@ -52,6 +52,11 @@ export function saleTicketsOf(
     saleOfCharge(request.paymentTransactionId);
   return {
     chargeSaleInCash: ticketed("sale", requests.chargeSaleInCash, completedSale),
+    chargeSaleInCashWithChangeDiscount: ticketed(
+      "sale",
+      requests.chargeSaleInCashWithChangeDiscount,
+      completedSale,
+    ),
     chargeSaleByTransfer: ticketed("sale", requests.chargeSaleByTransfer, completedSale),
     chargeSaleOnStandaloneTerminal: ticketed(
       "sale",

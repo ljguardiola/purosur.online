@@ -1,5 +1,4 @@
 import {
-  LOT_NUMBER_MAX_LENGTH,
   MAX_CASH_AMOUNT_CENTS,
   MAX_STOCK_QUANTITY,
   PURCHASE_NOTE_MAX_LENGTH,
@@ -20,7 +19,6 @@ const packagesLine = {
   packages: 2,
   quantityPerPackage: 12_000,
   costPaidCents: 1_450_050,
-  lotNumber: "L-17",
   expiresOn: "2027-01-31",
 };
 const quantityLine = {
@@ -28,7 +26,6 @@ const quantityLine = {
   productId: PRODUCT_ID,
   quantity: 2_500,
   costPaidCents: 90_000,
-  lotNumber: null,
   expiresOn: null,
 };
 const purchase = {
@@ -274,7 +271,6 @@ describe("a line of purchaseRegistrationBodySchema", () => {
       decimals: STOCK_QUANTITY_DECIMALS,
       perUnit: STOCK_QUANTITY_PER_UNIT,
     });
-    expect(packages.shape.lotNumber.meta()).toEqual({ maxLength: LOT_NUMBER_MAX_LENGTH });
   });
 
   it("accepts a cost of nothing and the largest cost a cash amount may hold", () => {
@@ -296,31 +292,21 @@ describe("a line of purchaseRegistrationBodySchema", () => {
     },
   );
 
-  it("reads an empty or absent lot number and expiry as none", () => {
+  it("reads an empty or absent expiry as none", () => {
     for (const empty of [undefined, null, "", "  "]) {
       const parsed = purchaseRegistrationBodySchema.parse(
-        withLine({ ...quantityLine, lotNumber: empty, expiresOn: empty }),
+        withLine({ ...quantityLine, expiresOn: empty }),
       );
-      expect(parsed.lines[0]).toMatchObject({ lotNumber: null, expiresOn: null });
+      expect(parsed.lines[0]).toMatchObject({ expiresOn: null });
     }
   });
 
-  it("trims a lot number and accepts one of exactly the domain's maximum length", () => {
-    expect(
-      purchaseRegistrationBodySchema.parse(withLine({ ...quantityLine, lotNumber: " L-1 " }))
-        .lines[0],
-    ).toMatchObject({ lotNumber: "L-1" });
-    expect(
-      purchaseRegistrationBodySchema.safeParse(
-        withLine({ ...quantityLine, lotNumber: "a".repeat(LOT_NUMBER_MAX_LENGTH) }),
-      ).success,
-    ).toBe(true);
-    expect(
-      firstFailure(withLine({ ...quantityLine, lotNumber: "a".repeat(LOT_NUMBER_MAX_LENGTH + 1) })),
-    ).toEqual({
-      path: ["lines", 0, "lotNumber"],
-      message: `lotNumber must be a string of at most ${LOT_NUMBER_MAX_LENGTH} characters`,
-    });
+  it("ignores the lot number an older form still sends", () => {
+    const parsed = purchaseRegistrationBodySchema.parse(
+      withLine({ ...quantityLine, lotNumber: "L-17" }),
+    );
+
+    expect(parsed.lines[0]).not.toHaveProperty("lotNumber");
   });
 
   it("accepts an expiry that is already past", () => {

@@ -9,6 +9,8 @@ export {
   expiryWindowEnd,
   lotShelfLifeDays,
 } from "./model/lot-expiry.js";
+export type { LotName, LotNameFacts } from "./model/lot-name.js";
+export { lotNames } from "./model/lot-name.js";
 export { isReferenceUnitCost } from "./model/lot-reference-cost.js";
 export type { LotCost } from "./model/lot-value.js";
 export { isLotCostIncomplete, isLotInStock, knownLotCost } from "./model/lot-value.js";

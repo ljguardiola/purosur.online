@@ -1,24 +1,39 @@
 import type { PriceReviewPostponement, SaleUnit } from "@purosur/domain";
 import {
+  type LockedPurchaseLine,
   type LockProductResult,
+  type LockPurchaseResult,
   type LockSupplierResult,
+  type LotExpiryCorrection,
   type NewPurchaseFields,
   type NewPurchaseLineFields,
   type NewSupplierFields,
+  type PurchaseCorrection,
+  type PurchaseCorrectionStore,
+  type PurchaseCorrectionStoreTransaction,
+  type PurchasedLotsRedating,
+  type PurchaseHeaderValues,
   type PurchasingStore,
   type PurchasingStoreTransaction,
   SupplierCuitConflict,
   type SupplierFields,
   SupplierNameConflict,
 } from "@purosur/domain/purchasing/use-cases";
-import { type PurchaseReceipt, receivePurchasedStock } from "@purosur/domain/stock/use-cases";
-import { and, eq, ne, sql } from "drizzle-orm";
+import {
+  correctLotExpiry,
+  type PurchaseReceipt,
+  receivePurchasedStock,
+  redatePurchasedLots,
+} from "@purosur/domain/stock/use-cases";
+import { and, asc, desc, eq, ne, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
-import { products, purchaseLines, purchases, suppliers } from "../platform/db/schema.js";
+import { auditLog, products, purchaseLines, purchases, suppliers } from "../platform/db/schema.js";
 import { DrizzlePricingStoreTransaction } from "../pricing/drizzle-pricing-store.js";
 import { DrizzleStockStoreTransaction } from "../stock/drizzle-stock-store.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
+
+import { auditValuesOf, PURCHASE_AUDIT_ENTITY } from "./purchase-audit-values.js";
 
 const UNIQUE_VIOLATION = "23505";
 const SUPPLIER_NAME_UNIQUE_INDEX = "suppliers_name_lower_key";
@@ -40,8 +55,8 @@ function translateSupplierViolation(error: unknown): unknown {
   return error;
 }
 
-class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResultHKT>
-  implements PurchasingStoreTransaction
+export class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResultHKT>
+  implements PurchasingStoreTransaction, PurchaseCorrectionStoreTransaction
 {
   private readonly tx: PgDatabase<TQueryResult>;
   private readonly now: () => Date;
@@ -169,10 +184,95 @@ class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResultHKT>
       throw new Error(`the purchased product ${outcome.productId} vanished while it was held`);
     }
   }
+
+  async lockPurchase(locationId: string, purchaseId: string): Promise<LockPurchaseResult> {
+    const [purchase] = await this.tx
+      .select({
+        id: purchases.id,
+        purchasedOn: purchases.purchasedOn,
+        receiptType: purchases.receiptType,
+        receiptNumber: purchases.receiptNumber,
+        note: purchases.note,
+      })
+      .from(purchases)
+      .where(and(eq(purchases.id, purchaseId), eq(purchases.locationId, locationId)))
+      .for("update");
+    if (!purchase) {
+      return { kind: "not_found" };
+    }
+    const [last] = await this.tx
+      .select({ position: purchaseLines.position })
+      .from(purchaseLines)
+      .where(eq(purchaseLines.purchaseId, purchaseId))
+      .orderBy(desc(purchaseLines.position))
+      .limit(1);
+    return {
+      kind: "locked",
+      purchase: {
+        ...purchase,
+        receiptType: purchase.receiptType as PurchaseHeaderValues["receiptType"],
+        lastLinePosition: last?.position ?? 0,
+      },
+    };
+  }
+
+  async purchaseLine(purchaseId: string, lineId: string): Promise<LockedPurchaseLine | undefined> {
+    const [line] = await this.tx
+      .select({ id: purchaseLines.id, expiresOn: purchaseLines.expiresOn })
+      .from(purchaseLines)
+      .where(and(eq(purchaseLines.id, lineId), eq(purchaseLines.purchaseId, purchaseId)));
+    return line;
+  }
+
+  async purchaseLineIds(purchaseId: string): Promise<string[]> {
+    const lines = await this.tx
+      .select({ id: purchaseLines.id })
+      .from(purchaseLines)
+      .where(eq(purchaseLines.purchaseId, purchaseId))
+      .orderBy(asc(purchaseLines.position));
+    return lines.map(({ id }) => id);
+  }
+
+  async updatePurchaseHeader(purchaseId: string, values: PurchaseHeaderValues): Promise<void> {
+    await this.tx.update(purchases).set(values).where(eq(purchases.id, purchaseId));
+  }
+
+  async updatePurchaseLineExpiry(lineId: string, expiresOn: string | null): Promise<void> {
+    await this.tx.update(purchaseLines).set({ expiresOn }).where(eq(purchaseLines.id, lineId));
+  }
+
+  async correctLotExpiry(correction: LotExpiryCorrection): Promise<void> {
+    const outcome = await correctLotExpiry(this.stock, correction);
+    if (outcome.kind === "not_found") {
+      throw new Error(`the lot of purchase line ${correction.purchaseLineId} vanished`);
+    }
+  }
+
+  async redatePurchasedLots(redating: PurchasedLotsRedating): Promise<void> {
+    const outcome = await redatePurchasedLots(this.stock, redating);
+    if (outcome.kind === "not_found") {
+      throw new Error("a lot of the purchase's lines vanished while it was locked");
+    }
+  }
+
+  async recordPurchaseCorrection({
+    purchaseId,
+    actorId,
+    correctedAt,
+    change,
+  }: PurchaseCorrection): Promise<void> {
+    await this.tx.insert(auditLog).values({
+      entity: PURCHASE_AUDIT_ENTITY,
+      entityId: purchaseId,
+      actorId,
+      at: correctedAt,
+      ...auditValuesOf(change),
+    });
+  }
 }
 
 export class DrizzlePurchasingStore<TQueryResult extends PgQueryResultHKT>
-  implements PurchasingStore
+  implements PurchasingStore, PurchaseCorrectionStore
 {
   private readonly db: PgDatabase<TQueryResult>;
   private readonly now: () => Date;
@@ -183,7 +283,9 @@ export class DrizzlePurchasingStore<TQueryResult extends PgQueryResultHKT>
   }
 
   transaction<TOutcome>(
-    work: (tx: PurchasingStoreTransaction) => Promise<TOutcome>,
+    work: (
+      tx: PurchasingStoreTransaction & PurchaseCorrectionStoreTransaction,
+    ) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     return withPendingChanges(this.db, undefined, (tx, pending) =>
       work(new DrizzlePurchasingStoreTransaction(tx, this.now, pending)),

@@ -821,6 +821,7 @@ export const purchaseOrders = pgTable(
     cancelledBy: uuid("cancelled_by").references(() => users.id),
     sentAt: timestamp("sent_at", { withTimezone: true }),
     sentBy: uuid("sent_by").references(() => users.id),
+    receivedAt: timestamp("received_at", { withTimezone: true }),
   },
   (table) => [
     check(
@@ -833,7 +834,11 @@ export const purchaseOrders = pgTable(
     ),
     check(
       "purchase_orders_sending_check",
-      sql`(${table.sentAt} is null) = (${table.sentBy} is null) and (${table.state} <> 'SENT' or ${table.sentAt} is not null) and (${table.state} <> 'DRAFT' or ${table.sentAt} is null)`,
+      sql`(${table.sentAt} is null) = (${table.sentBy} is null) and (${table.state} not in ('SENT', 'PARTIALLY_RECEIVED', 'RECEIVED') or ${table.sentAt} is not null) and (${table.state} <> 'DRAFT' or ${table.sentAt} is null)`,
+    ),
+    check(
+      "purchase_orders_receiving_check",
+      sql`(${table.state} = 'RECEIVED') = (${table.receivedAt} is not null)`,
     ),
     index("purchase_orders_location_id_state_created_at_idx").on(
       table.locationId,
@@ -871,6 +876,64 @@ export const purchaseOrderLines = pgTable(
   ],
 );
 
+export const purchaseOrderReceipts = pgTable(
+  "purchase_order_receipts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    purchaseOrderId: uuid("purchase_order_id")
+      .notNull()
+      .references(() => purchaseOrders.id),
+    purchaseId: uuid("purchase_id")
+      .notNull()
+      .references(() => purchases.id),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => users.id),
+    receivedAt: timestamp("received_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    unique("purchase_order_receipts_purchase_id_key").on(table.purchaseId),
+    index("purchase_order_receipts_purchase_order_id_idx").on(table.purchaseOrderId),
+  ],
+);
+
+export const purchaseOrderReceiptLines = pgTable(
+  "purchase_order_receipt_lines",
+  {
+    purchaseOrderReceiptId: uuid("purchase_order_receipt_id")
+      .notNull()
+      .references(() => purchaseOrderReceipts.id),
+    purchaseOrderLineId: uuid("purchase_order_line_id")
+      .notNull()
+      .references(() => purchaseOrderLines.id),
+    receivedQuantity: bigint("received_quantity", { mode: "number" }).notNull(),
+    missingQuantity: bigint("missing_quantity", { mode: "number" }).notNull(),
+    priceDifferenceCents: bigint("price_difference_cents", { mode: "number" }),
+  },
+  (table) => [
+    primaryKey({
+      name: "purchase_order_receipt_lines_pkey",
+      columns: [table.purchaseOrderReceiptId, table.purchaseOrderLineId],
+    }),
+    check(
+      "purchase_order_receipt_lines_received_quantity_check",
+      sql`${table.receivedQuantity} >= 0`,
+    ),
+    check(
+      "purchase_order_receipt_lines_missing_quantity_check",
+      sql`${table.missingQuantity} >= 0`,
+    ),
+    index("purchase_order_receipt_lines_purchase_order_line_id_idx").on(table.purchaseOrderLineId),
+  ],
+);
+
+export const lotCodeSequence = pgSequence("lot_code_sequence", { startWith: 1, increment: 1 });
+
+export const lotNameOrderSequence = pgSequence("lot_name_order_sequence", {
+  startWith: 1,
+  increment: 1,
+});
+
 // The stock a purchase line brought in, with the line's exact cost pair; a product's technical lot
 // instead gathers what was consumed before any purchase, with no cost, and an initial-count lot is
 // the stock counted when the branch began, born from its opening count movement with no cost, and a
@@ -890,6 +953,11 @@ export const lots = pgTable(
     assemblyBatchId: uuid("assembly_batch_id").references(() => assemblyBatches.id),
     withdrawn: boolean("withdrawn").notNull().default(false),
     lotNumber: text("lot_number"),
+    code: bigint("code", { mode: "number" }).notNull().default(sql`nextval('lot_code_sequence')`),
+    nameOrder: bigint("name_order", { mode: "number" })
+      .notNull()
+      .default(sql`nextval('lot_name_order_sequence')`),
+    nameNumber: integer("name_number"),
     expiresOn: date("expires_on", { mode: "string" }),
     purchasedOn: date("purchased_on", { mode: "string" }),
     technical: boolean("technical").notNull().default(false),
@@ -901,6 +969,7 @@ export const lots = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
+    unique("lots_code_key").on(table.code),
     unique("lots_purchase_line_id_key").on(table.purchaseLineId),
     unique("lots_origin_movement_id_key").on(table.originMovementId),
     unique("lots_assembly_batch_id_key").on(table.assemblyBatchId),
@@ -2177,15 +2246,19 @@ export const signInLookupAttempts = pgTable(
 // Append-only: a record of who changed what is evidence, so not even the service may rewrite or
 // remove it. `actor_id` is nullable: a null actor reads as "the service itself acted" (e.g. a sign-in
 // lockout, which is keyed by source address and may match no account at all).
-export const auditLog = pgTable("audit_log", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  entity: text("entity").notNull(),
-  entityId: uuid("entity_id").notNull(),
-  actorId: uuid("actor_id").references(() => users.id),
-  at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
-  previousValue: jsonb("previous_value"),
-  newValue: jsonb("new_value"),
-});
+export const auditLog = pgTable(
+  "audit_log",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    entity: text("entity").notNull(),
+    entityId: uuid("entity_id").notNull(),
+    actorId: uuid("actor_id").references(() => users.id),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+    previousValue: jsonb("previous_value"),
+    newValue: jsonb("new_value"),
+  },
+  (table) => [index("audit_log_entity_entity_id_idx").on(table.entity, table.entityId)],
+);
 
 export const passkeys = pgTable(
   "passkeys",

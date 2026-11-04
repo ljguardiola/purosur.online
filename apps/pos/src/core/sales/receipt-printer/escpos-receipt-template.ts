@@ -36,17 +36,36 @@ import {
 import { RECEIPT_LOGO } from "./receipt-logo";
 
 type InvoiceBlock = Extract<NonNullable<ReceiptContent["fiscal"]>, { invoiceClass: "C" }>;
-type SaleTotals = Pick<ReceiptContent["totals"], "subtotal" | "saleDiscount" | "total">;
+type SaleTotals = Pick<
+  ReceiptContent["totals"],
+  "subtotal" | "saleDiscount" | "cashRounding" | "total"
+>;
 type OfflineInvoiceBlock = Extract<InvoiceBlock, { fortnight: unknown }>;
 
-const TEMPLATE_VERSION = "2";
+const TEMPLATE_VERSION = "3";
 const QR_SIDE_DOTS = 244;
 const QR_TOP_MARGIN_DOTS = 9;
 const QR_BOTTOM_MARGIN_DOTS = 5;
 const VOUCHER_CODE_DIGITS = 3;
 const LOGO_BOTTOM_MARGIN_DOTS = 16;
-const FIRST_VERSION_LOGO_START = Uint8Array.of(0x1b, 0x4a, 24, 0x1d, 0x76, 0x30, 0);
-const FIRST_VERSION_LOGO_BOTTOM_FEED_BYTES = 3;
+const RASTER_IMAGE = Uint8Array.of(0x1d, 0x76, 0x30, 0);
+const RASTER_IMAGE_HEADER_BYTES = 8;
+const FEED_COMMAND = Uint8Array.of(0x1b, 0x4a);
+const FEED_COMMAND_BYTES = 3;
+const QR_PRINT_THEN_LEFT_ALIGNMENT = Uint8Array.of(
+  0x1d,
+  0x28,
+  0x6b,
+  3,
+  0,
+  0x31,
+  0x51,
+  0x30,
+  0x1b,
+  0x61,
+  0,
+);
+const FIRST_VERSION_LOGO_START = Uint8Array.of(0x1b, 0x4a, 24, ...RASTER_IMAGE);
 
 const REFUND_NAMES = {
   CASH: "Reintegro en efectivo",
@@ -74,8 +93,7 @@ function smallRow(left: string, right: string): string[] {
 }
 
 function logoImage(out: EscPosWriter, image: RasterImage): void {
-  out.rasterImage(image);
-  out.feed(LOGO_BOTTOM_MARGIN_DOTS);
+  out.rasterImage(image, { bottomMarginDots: LOGO_BOTTOM_MARGIN_DOTS });
 }
 
 function logo(out: EscPosWriter): void {
@@ -226,6 +244,7 @@ function saleLines(
     ...(totals.saleDiscount === null
       ? []
       : row(saleDiscountText(totals.saleDiscount), `-${formatCents(totals.saleDiscount.amount)}`)),
+    ...(totals.cashRounding === 0 ? [] : row("Redondeo", `-${formatCents(totals.cashRounding)}`)),
     RULE,
   ]);
   out.bold(row("TOTAL", formatCents(totals.total)));
@@ -271,7 +290,7 @@ function authorizationLine(block: InvoiceBlock): string {
 function authorization(out: EscPosWriter, block: InvoiceBlock): void {
   out.feed(QR_TOP_MARGIN_DOTS);
   out.qr(block.qrText, { correction: "L", sideDots: QR_SIDE_DOTS });
-  out.feed(QR_BOTTOM_MARGIN_DOTS);
+  out.blankImage(QR_BOTTOM_MARGIN_DOTS);
   out.small([
     ...centered("Comprobante autorizado", SMALL_COLUMNS),
     ...centered(authorizationLine(block), SMALL_COLUMNS),
@@ -283,7 +302,7 @@ function deferredSaleReference(out: EscPosWriter, block: DeferredSaleDocumentBlo
   out.bold(row("Código de consulta", formatShortCode(block.shortCode)));
   out.feed(QR_TOP_MARGIN_DOTS);
   out.qr(block.qrText, { correction: "L", sideDots: QR_SIDE_DOTS });
-  out.feed(QR_BOTTOM_MARGIN_DOTS);
+  out.blankImage(QR_BOTTOM_MARGIN_DOTS);
   out.small(centered("Volvé con este ticket a retirar tu factura.", SMALL_COLUMNS));
 }
 
@@ -326,39 +345,76 @@ function duplicateLegend(orderNumber: number): Uint8Array {
   return out.bytes();
 }
 
-function firstVersionHeadWithCurrentLogo(head: Uint8Array): Uint8Array {
-  const start = Buffer.from(head.buffer, head.byteOffset, head.byteLength).indexOf(
-    FIRST_VERSION_LOGO_START,
-  );
+function asBuffer(bytes: Uint8Array): Buffer {
+  return Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+}
+
+function startsAt(bytes: Uint8Array, position: number, prefix: Uint8Array): boolean {
+  return asBuffer(bytes)
+    .subarray(position, position + prefix.length)
+    .equals(prefix);
+}
+
+function headWithCurrentLogo(head: Uint8Array, storedLogoStart: Uint8Array): Uint8Array {
+  const start = asBuffer(head).indexOf(storedLogoStart);
   if (start === -1) {
-    throw new Error("receipt template version 1 head holds no logo");
+    throw new Error("stored receipt head holds no logo");
   }
-  const size = new DataView(head.buffer, head.byteOffset + start + FIRST_VERSION_LOGO_START.length);
-  const widthBytes = size.getUint16(0, true);
-  const heightDots = size.getUint16(2, true);
-  const rowsStart = start + FIRST_VERSION_LOGO_START.length + 4;
-  const rowsEnd = rowsStart + widthBytes * heightDots;
+  const strips: Uint8Array[] = [];
+  let widthBytes = 0;
+  let heightDots = 0;
+  let position = start + storedLogoStart.length - RASTER_IMAGE.length;
+  while (startsAt(head, position, RASTER_IMAGE)) {
+    const size = new DataView(head.buffer, head.byteOffset + position + RASTER_IMAGE.length);
+    widthBytes = size.getUint16(0, true);
+    const stripRows = size.getUint16(2, true);
+    const rowsStart = position + RASTER_IMAGE_HEADER_BYTES;
+    position = rowsStart + widthBytes * stripRows;
+    strips.push(head.subarray(rowsStart, position));
+    heightDots += stripRows;
+  }
   const out = new EscPosWriter();
-  logoImage(out, {
-    widthDots: widthBytes * 8,
-    heightDots,
-    rows: head.subarray(rowsStart, rowsEnd),
-  });
+  logoImage(out, { widthDots: widthBytes * 8, heightDots, rows: concatenated(strips) });
   return concatenated([
     head.subarray(0, start),
     out.bytes(),
-    head.subarray(rowsEnd + FIRST_VERSION_LOGO_BOTTOM_FEED_BYTES),
+    head.subarray(position + FEED_COMMAND_BYTES),
   ]);
+}
+
+function bodyWithCurrentQrMargins(body: Uint8Array): Uint8Array {
+  const margin = new EscPosWriter();
+  margin.blankImage(QR_BOTTOM_MARGIN_DOTS);
+  const chunks: Uint8Array[] = [];
+  let from = 0;
+  for (
+    let at = asBuffer(body).indexOf(QR_PRINT_THEN_LEFT_ALIGNMENT);
+    at !== -1;
+    at = asBuffer(body).indexOf(QR_PRINT_THEN_LEFT_ALIGNMENT, from)
+  ) {
+    const marginStart = at + QR_PRINT_THEN_LEFT_ALIGNMENT.length;
+    if (!startsAt(body, marginStart, FEED_COMMAND)) {
+      throw new Error("stored receipt body holds a QR with no feed below it");
+    }
+    chunks.push(body.subarray(from, marginStart), margin.bytes());
+    from = marginStart + FEED_COMMAND_BYTES;
+  }
+  chunks.push(body.subarray(from));
+  return concatenated(chunks);
 }
 
 interface StoredLayout {
   head: (stored: Uint8Array) => Uint8Array;
-  legend: (orderNumber: number) => Uint8Array;
+  body: (stored: Uint8Array) => Uint8Array;
 }
 
-const DUPLICATE_LAYOUTS: Record<string, StoredLayout> = {
-  "1": { head: firstVersionHeadWithCurrentLogo, legend: duplicateLegend },
-  [TEMPLATE_VERSION]: { head: (head) => head, legend: duplicateLegend },
+const CURRENT_LAYOUTS: Record<string, StoredLayout> = {
+  "1": {
+    head: (head) => headWithCurrentLogo(head, FIRST_VERSION_LOGO_START),
+    body: bodyWithCurrentQrMargins,
+  },
+  "2": { head: (head) => headWithCurrentLogo(head, RASTER_IMAGE), body: bodyWithCurrentQrMargins },
+  [TEMPLATE_VERSION]: { head: (head) => head, body: (body) => body },
 };
 
 function render(content: ReceiptContent, rules: ZoneRules): StoredReceipt {
@@ -392,14 +448,16 @@ function render(content: ReceiptContent, rules: ZoneRules): StoredReceipt {
 }
 
 function printable(stored: StoredReceipt, copy: ReceiptCopy): Uint8Array {
-  if (copy.kind === "original") {
-    return concatenated([stored.head, stored.body]);
-  }
-  const layout = DUPLICATE_LAYOUTS[stored.templateVersion];
+  const layout = CURRENT_LAYOUTS[stored.templateVersion];
   if (layout === undefined) {
     throw new Error(`unknown receipt template version ${stored.templateVersion}`);
   }
-  return concatenated([layout.head(stored.head), layout.legend(copy.orderNumber), stored.body]);
+  const head = layout.head(stored.head);
+  const body = layout.body(stored.body);
+  if (copy.kind === "original") {
+    return concatenated([head, body]);
+  }
+  return concatenated([head, duplicateLegend(copy.orderNumber), body]);
 }
 
 export function escPosReceiptTemplate(zoneRules: ZoneRulesSource): ReceiptTemplate {

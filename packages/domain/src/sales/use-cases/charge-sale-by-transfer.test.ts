@@ -31,6 +31,7 @@ const OPEN_SALE: SaleWithLines = {
   actorId: "cashier",
   state: "OPEN",
   saleDiscount: null,
+  cashRounding: 0,
   lines: [
     {
       id: "line-1",
@@ -239,7 +240,7 @@ describe("chargeSaleByTransfer", () => {
         aggregate_type: "Sale",
         aggregate_id: "sale-1",
         event_type: "sale_completed",
-        schema_version: 10,
+        schema_version: 11,
         occurred_at: NOW.toISOString(),
         actor_id: "cashier",
         payload: {
@@ -251,6 +252,7 @@ describe("chargeSaleByTransfer", () => {
           actor_id: "cashier",
           occurred_at: NOW.toISOString(),
           total: TOTAL,
+          cash_rounding: 0,
           sale_discount: null,
           lines: [
             {

@@ -171,6 +171,9 @@ function coreAnswering(
     async registerName() {
       return savedName;
     },
+    async registerVersion() {
+      return null;
+    },
     async enroll() {
       return outcome;
     },
@@ -420,6 +423,9 @@ function coreAnswering(
       return sales.chargeSaleInCash === undefined
         ? { kind: "unavailable" }
         : sales.chargeSaleInCash(saleId, tendered);
+    },
+    async chargeSaleInCashWithChangeDiscount() {
+      return { kind: "unavailable" };
     },
     async chargeSaleByTransfer(saleId, amount) {
       return sales.chargeSaleByTransfer === undefined
@@ -2140,10 +2146,22 @@ describe("App", () => {
           subtotal: 238_000,
           promotion_savings: 0,
         }),
-        cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 12_000 }),
+        cashCharge: async () => ({
+          kind: "covered",
+          applied: 238_000,
+          change: 12_000,
+          cash_rounding: 0,
+        }),
         chargeSaleInCash: async (saleId, tendered) => {
           charges.push([saleId, tendered]);
-          return { kind: "completed", sale_id: saleId, total: 238_000, tendered, change: 12_000 };
+          return {
+            kind: "completed",
+            sale_id: saleId,
+            total: 238_000,
+            tendered,
+            change: 12_000,
+            cash_rounding: 0,
+          };
         },
       },
     );
@@ -2206,10 +2224,22 @@ describe("App", () => {
           promotion_savings: 0,
           mercado_pago_charge_in_progress: null,
         }),
-        cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 12_000 }),
+        cashCharge: async () => ({
+          kind: "covered",
+          applied: 238_000,
+          change: 12_000,
+          cash_rounding: 0,
+        }),
         chargeSaleInCash: async (saleId, tendered) => {
           completed = true;
-          return { kind: "completed", sale_id: saleId, total: 238_000, tendered, change: 12_000 };
+          return {
+            kind: "completed",
+            sale_id: saleId,
+            total: 238_000,
+            tendered,
+            change: 12_000,
+            cash_rounding: 0,
+          };
         },
       },
     );
@@ -2344,13 +2374,19 @@ describe("App", () => {
               })
             : new Promise(() => {});
         },
-        cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 12_000 }),
+        cashCharge: async () => ({
+          kind: "covered",
+          applied: 238_000,
+          change: 12_000,
+          cash_rounding: 0,
+        }),
         chargeSaleInCash: async (saleId, tendered) => ({
           kind: "completed",
           sale_id: saleId,
           total: 238_000,
           tendered,
           change: 12_000,
+          cash_rounding: 0,
         }),
       },
     );
@@ -3791,13 +3827,19 @@ describe("App", () => {
             subtotal: 238_000,
             promotion_savings: 0,
           }),
-          cashCharge: async () => ({ kind: "covered", applied: 238_000, change: 12_000 }),
+          cashCharge: async () => ({
+            kind: "covered",
+            applied: 238_000,
+            change: 12_000,
+            cash_rounding: 0,
+          }),
           chargeSaleInCash: async (saleId, tendered) => ({
             kind: "completed",
             sale_id: saleId,
             total: 238_000,
             tendered,
             change: 12_000,
+            cash_rounding: 0,
           }),
           receiptPrintStatus: async (saleId) => {
             asked.push(saleId);

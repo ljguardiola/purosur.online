@@ -15,6 +15,7 @@ function order(overrides: Partial<FakePurchaseOrder> = {}): FakePurchaseOrder {
     state: "DRAFT",
     createdAt: new Date("2026-03-01T10:00:00Z"),
     lines: [],
+    receipts: [],
     ...overrides,
   };
 }
@@ -32,6 +33,7 @@ function line(packages: number, expectedPackagePriceCents: number | null) {
     quantityPerPackage: 12_000,
     expectedPackagePriceCents,
     supplierItem: null,
+    receivedQuantity: 0,
   };
 }
 

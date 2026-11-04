@@ -180,6 +180,11 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     },
     purchasesListScreen: {
       fetchPurchases: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchPurchaseChoices: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchPurchaseChanges: vi.fn().mockReturnValue(new Promise(() => {})),
+      addPurchaseLines: vi.fn(),
+      correctPurchaseHeader: vi.fn(),
+      correctPurchaseLineExpiry: vi.fn(),
     },
     freightsListScreen: {
       fetchFreights: vi.fn().mockResolvedValue({
@@ -238,6 +243,11 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       sharePurchaseOrder: vi.fn(),
       fetchPurchaseOrderPdf: vi.fn(),
       fetchPurchaseOrderText: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
+    purchaseOrderReceiveScreen: {
+      fetchPurchaseOrderReceiptDraft: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchPurchaseChoices: vi.fn().mockReturnValue(new Promise(() => {})),
+      receivePurchaseOrder: vi.fn(),
     },
     newPurchaseScreen: {
       fetchPurchaseChoices: vi.fn().mockReturnValue(new Promise(() => {})),

@@ -43,6 +43,7 @@ describe("marginReportSchema", () => {
         amount: 36_000,
         cost: 40_000,
         margin: -4_000,
+        marginTenthsOfPercent: -111,
         incompleteSales: 2,
       },
       {
@@ -53,10 +54,17 @@ describe("marginReportSchema", () => {
         amount: 500,
         cost: 0,
         margin: 500,
+        marginTenthsOfPercent: 1_000,
         incompleteSales: 0,
       },
     ],
-    totals: { amount: 36_500, cost: 40_000, margin: -3_500, incompleteSales: 2 },
+    totals: {
+      amount: 36_500,
+      cost: 40_000,
+      margin: -3_500,
+      marginTenthsOfPercent: -96,
+      incompleteSales: 2,
+    },
   };
 
   it("accepts the rows of a range with their totals, a margin that may be negative", () => {
@@ -81,20 +89,40 @@ describe("marginReportSchema", () => {
     expect(marginReportSchema.parse(product)).toEqual(product);
   });
 
-  it.each(["brandName", "netContent", "incompleteSales", "cost", "margin"])(
-    "requires %s in a row",
-    (field) => {
-      const { [field as "cost"]: _omitted, ...row } = report.rows[0] as (typeof report.rows)[0];
+  it.each([
+    "brandName",
+    "netContent",
+    "incompleteSales",
+    "cost",
+    "margin",
+    "marginTenthsOfPercent",
+  ])("requires %s in a row", (field) => {
+    const { [field as "cost"]: _omitted, ...row } = report.rows[0] as (typeof report.rows)[0];
 
-      expect(marginReportSchema.safeParse({ ...report, rows: [row] }).success).toBe(false);
-    },
-  );
+    expect(marginReportSchema.safeParse({ ...report, rows: [row] }).success).toBe(false);
+  });
+
+  it("accepts a row and a total without a margin percentage", () => {
+    const withoutPercentage = {
+      ...report,
+      rows: [{ ...report.rows[1], amount: 0, margin: 0, marginTenthsOfPercent: null }],
+      totals: { ...report.totals, marginTenthsOfPercent: null },
+    };
+
+    expect(marginReportSchema.parse(withoutPercentage)).toEqual(withoutPercentage);
+  });
+
+  it("requires the margin percentage in the totals", () => {
+    const { marginTenthsOfPercent: _omitted, ...totals } = report.totals;
+
+    expect(marginReportSchema.safeParse({ ...report, totals }).success).toBe(false);
+  });
 
   it("accepts a range without sales", () => {
     const empty = {
       ...report,
       rows: [],
-      totals: { amount: 0, cost: 0, margin: 0, incompleteSales: 0 },
+      totals: { amount: 0, cost: 0, margin: 0, marginTenthsOfPercent: null, incompleteSales: 0 },
     };
 
     expect(marginReportSchema.parse(empty)).toEqual(empty);
@@ -110,6 +138,14 @@ describe("marginReportSchema", () => {
     [
       "a negative count of incomplete sales",
       { rows: [{ ...report.rows[1], incompleteSales: -1 }] },
+    ],
+    [
+      "a margin percentage with decimals",
+      { rows: [{ ...report.rows[1], marginTenthsOfPercent: 1.5 }] },
+    ],
+    [
+      "a total margin percentage that is not a number",
+      { totals: { ...report.totals, marginTenthsOfPercent: "1" } },
     ],
     ["a total missing its incomplete sales", { totals: { amount: 1, cost: 0, margin: 1 } }],
     ["a total that is not a number", { totals: { ...report.totals, margin: "1" } }],

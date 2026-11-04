@@ -8,7 +8,7 @@ import { defaultPurchasesListScreenServices } from "./purchases-list-services";
 const route = getRouteApi("/signed-in/stock-area/purchases");
 
 export function PurchasesListPage(): ReactElement {
-  const { services, sessionActions } = route.useRouteContext();
+  const { services, session, sessionActions } = route.useRouteContext();
   const navigate = route.useNavigate();
   const registered = useRouterState({
     select: (state) => purchaseRegisteredIn(state.location.state),
@@ -16,6 +16,8 @@ export function PurchasesListPage(): ReactElement {
   useDocumentTitle("Compras · Puro Sur");
   return (
     <PurchasesListScreen
+      access={session}
+      productCreationModal={services.productCreationModal}
       registered={registered}
       onNoticeDismissed={() => void navigate({ replace: true, state: {} })}
       onSessionEnded={sessionActions.sessionEnded}

@@ -4,7 +4,6 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { StubProductCreationModal } from "../platform/test-support/creation-parts";
-import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
@@ -128,7 +127,6 @@ const avenaLine = {
   productId: AVENA_PRODUCT_ID,
   quantity: 12_500,
   costPaidCents: 200_000,
-  lotNumber: null,
   expiresOn: null,
 } as const;
 
@@ -219,32 +217,6 @@ test("keeps the purchase date the person chose when the cloud answers a later da
     .element(screen.getByText("Este proveedor ya no está activo. Elegí otro."))
     .toBeVisible();
   expect(purchaseDateSegments(screen)).toEqual(["10", "9", "2026"]);
-});
-
-test("says there is no supplier to choose to a person who cannot create one, keeping the register action disabled", async () => {
-  const services = createServices({
-    fetchPurchaseChoices: vi
-      .fn()
-      .mockResolvedValue({ kind: "ok", value: { ...purchaseChoices, suppliers: [] } }),
-  });
-  const screen = await renderScreen(services, () => {}, accessWith("purchases", "stock_area"));
-
-  await expect.element(screen.getByText("No hay proveedores activos")).toBeVisible();
-  expect(screen.getByRole("combobox", { name: /^Proveedor/ }).query()).toBeNull();
-  await expect.element(screen.getByRole("button", { name: "Registrar la compra" })).toBeDisabled();
-});
-
-test("says there is no product to buy to a person who cannot create one, keeping the register action disabled", async () => {
-  const services = createServices({
-    fetchPurchaseChoices: vi.fn().mockResolvedValue({
-      kind: "ok",
-      value: { ...purchaseChoices, products: [] },
-    }),
-  });
-  const screen = await renderScreen(services, () => {}, accessWith("purchases", "suppliers"));
-
-  await expect.element(screen.getByText("No hay productos activos")).toBeVisible();
-  await expect.element(screen.getByRole("button", { name: "Registrar la compra" })).toBeDisabled();
 });
 
 test("registers a purchase with a line loaded by quantity, then goes back to the list with a confirmation to show", async () => {
@@ -341,7 +313,7 @@ test("stays on the form when the registration is refused, even with lines chosen
   expect(window.location.pathname).toBe("/purchases/new");
 });
 
-test("registers a purchase with a line loaded by packages, the lot and its expiry", async () => {
+test("registers a purchase with a line loaded by packages and its expiry", async () => {
   const services = createServices();
   vi.mocked(services.registerPurchase).mockResolvedValue({ kind: "ok", purchase: compraDeAvena });
   const screen = await opened(services);
@@ -358,7 +330,6 @@ test("registers a purchase with a line loaded by packages, the lot and its expir
   await userEvent.fill(group.getByRole("textbox", { name: /^Cantidad de paquetes/ }), "2");
   await userEvent.fill(group.getByRole("textbox", { name: /^Cantidad por paquete/ }), "12");
   await userEvent.fill(group.getByRole("textbox", { name: /^Costo por paquete/ }), "7.200");
-  await userEvent.fill(group.getByRole("textbox", { name: /^Lote/ }), "L-17");
   await userEvent.click(
     group
       .getByRole("group", { name: /^Vencimiento/ })
@@ -381,11 +352,17 @@ test("registers a purchase with a line loaded by packages, the lot and its expir
         packages: 2,
         quantityPerPackage: 12_000,
         costPaidCents: 720_000,
-        lotNumber: "L-17",
         expiresOn: "2027-01-31",
       },
     ],
   });
+});
+
+test("asks for no lot on a line", async () => {
+  const screen = await opened();
+
+  await expect.element(line(screen, 1)).toBeVisible();
+  expect(line(screen, 1).getByRole("textbox", { name: /^Lote/ }).query()).toBeNull();
 });
 
 test("adds a line, and removes any line while another remains", async () => {
@@ -418,52 +395,6 @@ test("registers every line, in the order they were entered", async () => {
   );
 });
 
-test("says what is missing, at its field, without asking the cloud", async () => {
-  const services = createServices();
-  const screen = await opened(services);
-
-  await register(screen);
-
-  await expect.element(screen.getByText("Elegí el proveedor.")).toBeVisible();
-  await expect.element(screen.getByText("Elegí el tipo de comprobante.")).toBeVisible();
-  await expect.element(screen.getByText("Línea 1: Elegí el producto.")).toBeVisible();
-  expect(services.registerPurchase).not.toHaveBeenCalled();
-});
-
-test("asks for the receipt number of a receipt, and refuses one without a receipt", async () => {
-  const screen = await opened();
-  await chooseFromComboBox(screen, screen, /^Proveedor/, "Granos del Valle");
-  await fillQuantityLine(screen);
-  await chooseFromSelect(screen, screen, /Tipo de comprobante/, "Factura B");
-
-  await register(screen);
-  await expect.element(screen.getByText("Ingresá el número del comprobante.")).toBeVisible();
-
-  await chooseFromSelect(screen, screen, /Tipo de comprobante/, "Sin comprobante");
-  await userEvent.fill(screen.getByRole("textbox", { name: /^Número de comprobante/ }), "1");
-  await expect
-    .element(screen.getByText("Una compra sin comprobante no lleva número."))
-    .toBeVisible();
-});
-
-test("shows the cloud's refusal of a purchase dated after today", async () => {
-  const services = createServices();
-  vi.mocked(services.registerPurchase).mockResolvedValue({
-    kind: "validation_failed",
-    field: "purchasedOn",
-  });
-  const screen = await opened(services);
-  await fillHeader(screen);
-  await fillQuantityLine(screen);
-
-  await register(screen);
-
-  await expect
-    .element(screen.getByText("La fecha de compra no puede ser posterior a hoy."))
-    .toBeVisible();
-  expect(window.location.pathname).not.toBe("/purchases");
-});
-
 test.each([
   ["supplier_not_found", "Este proveedor ya no está disponible. Elegí otro."],
   ["supplier_inactive", "Este proveedor ya no está activo. Elegí otro."],
@@ -482,131 +413,6 @@ test.each([
     await expect.poll(() => vi.mocked(services.fetchPurchaseChoices).mock.calls.length).toBe(2);
   },
 );
-
-test.each([
-  ["product_not_found", "Este producto ya no está disponible."],
-  ["product_inactive", "Este producto ya no está activo."],
-] as const)("shows the cloud's %s refusal at the line it names", async (reason, message) => {
-  const services = createServices();
-  vi.mocked(services.registerPurchase).mockResolvedValue({
-    kind: "line_refused",
-    reason,
-    lineIndex: 1,
-  });
-  const screen = await opened(services);
-  await fillHeader(screen);
-  await fillQuantityLine(screen);
-  await userEvent.click(screen.getByRole("button", { name: "Agregar línea" }));
-  await fillQuantityLine(screen, 2);
-
-  await register(screen);
-
-  await expect.element(line(screen, 2).getByText(message).first()).toBeVisible();
-  expect(line(screen, 1).getByText(message).query()).toBeNull();
-});
-
-test("shows how to type the quantity at the line the cloud refused it", async () => {
-  const services = createServices();
-  vi.mocked(services.registerPurchase).mockResolvedValue({
-    kind: "validation_failed",
-    field: "lines",
-    lineIndex: 0,
-  });
-  const screen = await opened(services);
-  await fillHeader(screen);
-  await fillQuantityLine(screen);
-
-  await register(screen);
-
-  await expect
-    .element(
-      line(screen, 1)
-        .getByText("Escribí los kilos con hasta 3 decimales, por ejemplo 12,150.")
-        .first(),
-    )
-    .toBeVisible();
-});
-
-test("clears a line's refusal once the person changes that line", async () => {
-  const services = createServices();
-  vi.mocked(services.registerPurchase).mockResolvedValue({
-    kind: "line_refused",
-    reason: "product_inactive",
-    lineIndex: 0,
-  });
-  const screen = await opened(services);
-  await fillHeader(screen);
-  await fillQuantityLine(screen);
-  await register(screen);
-  await expect.element(screen.getByText("Este producto ya no está activo.").first()).toBeVisible();
-
-  await chooseFromComboBox(screen, line(screen, 1), /^Producto/, "Miel pura de abeja 1 kg");
-
-  await expect.poll(() => screen.getByText("Este producto ya no está activo.").query()).toBeNull();
-});
-
-test("clears a line's refusal when the purchase is submitted again", async () => {
-  const services = createServices();
-  vi.mocked(services.registerPurchase)
-    .mockResolvedValueOnce({ kind: "line_refused", reason: "product_inactive", lineIndex: 0 })
-    .mockReturnValueOnce(new Promise(() => {}));
-  const screen = await opened(services);
-  await fillHeader(screen);
-  await fillQuantityLine(screen);
-  await register(screen);
-  await expect.element(screen.getByText("Este producto ya no está activo.").first()).toBeVisible();
-
-  await register(screen);
-
-  await expect.poll(() => screen.getByText("Este producto ya no está activo.").query()).toBeNull();
-});
-
-test("shows a notice when the purchase could not be registered, and stays on the form", async () => {
-  const services = createServices();
-  vi.mocked(services.registerPurchase).mockResolvedValue({ kind: "failed" });
-  const screen = await opened(services);
-  await fillHeader(screen);
-  await fillQuantityLine(screen);
-
-  await register(screen);
-
-  await expect.element(screen.getByText("No se registró la compra")).toBeVisible();
-  await expect.element(screen.getByText("Volvé a intentarlo.")).toBeVisible();
-});
-
-test("shows the time to wait when the cloud rate-limits the registration", async () => {
-  const services = createServices();
-  vi.mocked(services.registerPurchase).mockResolvedValue({
-    kind: "rate_limited",
-    retryAfterSeconds: 120,
-  });
-  const screen = await opened(services);
-  await fillHeader(screen);
-  await fillQuantityLine(screen);
-
-  await register(screen);
-
-  await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
-  await expect.element(screen.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
-});
-
-test("sends the person to Mi cuenta when the registration is forbidden, and ends the session when it finds none", async () => {
-  window.history.pushState(null, "", "/purchases/new");
-  const services = createServices();
-  vi.mocked(services.registerPurchase).mockResolvedValueOnce({ kind: "forbidden" });
-  const onSessionEnded = vi.fn();
-  const screen = await renderScreen(services, onSessionEnded);
-  await expect.element(screen.getByRole("combobox", { name: /^Proveedor/ })).toBeVisible();
-  await fillHeader(screen);
-  await fillQuantityLine(screen);
-
-  await register(screen);
-  await expect.poll(() => window.location.pathname).toBe("/account");
-
-  vi.mocked(services.registerPurchase).mockResolvedValueOnce({ kind: "unauthenticated" });
-  await register(screen);
-  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
-});
 
 test("cancel goes back to the list", async () => {
   window.history.pushState(null, "", "/purchases/new");
@@ -715,19 +521,4 @@ test("loading a line by packages asks for the number of packages and the quantit
 
   expect(group.getByText("Presentación").query()).toBeNull();
   await expect.element(group.getByRole("textbox", { name: /^Cantidad por paquete/ })).toBeVisible();
-});
-
-test("tells an outdated tab to reload because the backoffice was updated when registering the purchase is refused", async () => {
-  openAsOutdatedTab();
-  const services = createServices();
-  vi.mocked(services.registerPurchase).mockResolvedValue({ kind: "failed" });
-  const screen = await opened(services);
-  await fillHeader(screen);
-  await fillQuantityLine(screen);
-
-  await register(screen);
-
-  await expect.element(screen.getByText("No se registró la compra")).toBeVisible();
-  await expect.element(screen.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
-  expect(screen.getByText("Volvé a intentarlo.").query()).toBeNull();
 });

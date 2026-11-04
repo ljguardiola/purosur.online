@@ -22,6 +22,7 @@ import {
   manyMarginRowsReport,
   noMarginReport,
   productMarginReport,
+  unsoldMarginReport,
 } from "./test-support/margin-report-fixtures";
 
 afterEach(() => {
@@ -30,7 +31,10 @@ afterEach(() => {
 
 function createServices(): MarginReportScreenServices {
   const services = { fetchMarginReport: vi.fn() };
-  services.fetchMarginReport.mockResolvedValue({ kind: "ok", value: categoryMarginReport });
+  vi.mocked(services.fetchMarginReport).mockResolvedValue({
+    kind: "ok",
+    value: categoryMarginReport,
+  });
   return services;
 }
 
@@ -116,7 +120,9 @@ test("shows each category by its path with its amount sold, its cost and its mar
   await expect.element(table.getByRole("columnheader", { name: "Categoría" })).toBeVisible();
   await expect.element(table.getByRole("columnheader", { name: "Vendido" })).toBeVisible();
   await expect.element(table.getByRole("columnheader", { name: "Costo" })).toBeVisible();
-  await expect.element(table.getByRole("columnheader", { name: "Margen" })).toBeVisible();
+  await expect
+    .element(table.getByRole("columnheader", { name: "Margen", exact: true }))
+    .toBeVisible();
   const sweets = table.getByRole("row", { name: /Almacén › Dulces/ });
   await expect.element(sweets.getByText("$ 4.100,00")).toBeVisible();
   await expect.element(sweets.getByText("$ 2.500,00")).toBeVisible();
@@ -130,6 +136,58 @@ test("shows a negative margin as the cloud answered it", async () => {
   const row = screen.getByRole("table").getByRole("row", { name: /Bebidas/ });
   await expect.element(row.getByText(/100,00/).last()).toBeVisible();
   expect(row.element().textContent).toMatch(/-\s?\$\s?100,00|\$\s?-100,00/);
+});
+
+test("shows each row's margin as a percentage of what it sold, negative when it lost money", async () => {
+  const screen = await renderScreen(createServices());
+
+  const table = screen.getByRole("table", { name: "Margen por producto y por categoría" });
+  await expect.element(table.getByRole("columnheader", { name: "Margen %" })).toBeVisible();
+  await expect
+    .element(table.getByRole("row", { name: /Almacén › Dulces/ }).getByText("39,0 %"))
+    .toBeVisible();
+  await expect
+    .element(table.getByRole("row", { name: /Bebidas/ }).getByText("−5,3 %"))
+    .toBeVisible();
+});
+
+test("shows the total margin as a percentage of what was sold beside the total margin", async () => {
+  const screen = await renderScreen(createServices());
+
+  await expect.element(screen.getByText("33,0 % de lo vendido")).toBeVisible();
+});
+
+test("shows no percentage for a row or a total that sold nothing", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchMarginReport).mockResolvedValue({ kind: "ok", value: noMarginReport });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("No hay ventas en este período")).toBeVisible();
+  expect(screen.container.textContent).not.toContain("de lo vendido");
+  expect(screen.container.textContent).not.toMatch(/\d %/);
+});
+
+test("leaves the percentage of a row that sold nothing empty and orders it below the rest", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchMarginReport).mockResolvedValue({
+    kind: "ok",
+    value: unsoldMarginReport,
+  });
+
+  const screen = await renderScreen(services, {
+    filters: marginReportFilters.parse({ group: "product", sortBy: "marginPercent" }),
+  });
+
+  const rows = screen.getByRole("row");
+  await expect.element(screen.getByText("50,0 %").first()).toBeVisible();
+  expect(
+    rows
+      .elements()
+      .map((row) => ["Yerba mate", "Queso cremoso"].find((name) => row.textContent?.includes(name)))
+      .filter((name) => name !== undefined),
+  ).toEqual(["Yerba mate", "Queso cremoso"]);
+  expect(rows.elements().at(-1)?.textContent).not.toContain("%");
 });
 
 test("warns how many sales have an incomplete cost and that their margin counts the known cost only", async () => {
@@ -203,6 +261,10 @@ test.each([
     { sortBy: "margin", sort: "descending" },
     ["Almacén › Dulces", "Fiambres", "Sin categoría", "Bebidas"],
   ],
+  [
+    { sortBy: "marginPercent", sort: "descending" },
+    ["Sin categoría", "Fiambres", "Almacén › Dulces", "Bebidas"],
+  ],
 ] as const)("opens on the order the URL asks for, %j", async (order, categories) => {
   const screen = await renderScreen(createServices(), {
     filters: marginReportFilters.parse(order),
@@ -216,6 +278,7 @@ test.each([
   ["Categoría", { sortBy: "name", sort: "ascending" }],
   ["Vendido", { sortBy: "amount", sort: "ascending" }],
   ["Margen", { sortBy: "margin", sort: "descending" }],
+  ["Margen %", { sortBy: "marginPercent", sort: "descending" }],
 ] as const)(
   "reports the %s column as the order when its header is pressed",
   async (header, order) => {
@@ -474,11 +537,13 @@ test("downloads a spreadsheet of the categories shown, with the applied register
   expect(summary.get("B4")?.value).toBe("Caja del fondo");
   expect(summary.get("B5")?.value).toBe("Por categoría");
   expect(summary.get("B6")?.value).toBe("10000");
-  expect(summary.get("B9")?.value).toBe("2");
+  expect(summary.get("B9")?.value).toBe("0.33");
+  expect(summary.get("B10")?.value).toBe("2");
   const categories = file.sheet(1);
   expect(categories.get("A2")?.value).toBe("Almacén › Dulces");
   expect(categories.get("E2")?.value).toBe("1600");
   expect(categories.get("D3")?.value).toBe("2");
+  expect(categories.get("F2")?.value).toBe("0.39");
 });
 
 test("downloads every row of the report, not only the page on screen", async () => {

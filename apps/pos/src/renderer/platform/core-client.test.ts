@@ -97,6 +97,21 @@ describe("createCoreClient", () => {
     expect(port.posted).toEqual([{ type: "register-name-request", request_id: "request-1" }]);
   });
 
+  it.each(["1.0.1539", null])(
+    "asks the core for the register's running version: %s",
+    async (version) => {
+      const client = clientWithSequentialIds();
+      const port = new FakePort();
+      client.connect(port);
+
+      const asked = client.registerVersion();
+      port.answer({ type: "register-version", request_id: "request-1", version });
+
+      expect(await asked).toBe(version);
+      expect(port.posted).toEqual([{ type: "register-version-request", request_id: "request-1" }]);
+    },
+  );
+
   it("asks the core for the PIN policy and resolves with it", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
@@ -478,6 +493,7 @@ describe("createCoreClient", () => {
         total: 476_000,
         tendered: 500_000,
         change: 24_000,
+        cash_rounding: 0,
       },
     });
 
@@ -487,6 +503,7 @@ describe("createCoreClient", () => {
       total: 476_000,
       tendered: 500_000,
       change: 24_000,
+      cash_rounding: 0,
     });
     expect(port.posted).toEqual([
       {
@@ -1208,6 +1225,55 @@ describe("createCoreClient", () => {
     ]);
   });
 
+  it("asks the core to charge a sale in cash with a discount on its total and who authorizes it", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+    const authorization = { user_id: "u2", pin: "1234" };
+
+    const charged = client.chargeSaleInCashWithChangeDiscount(
+      "sale-1",
+      1_000_000,
+      10_000,
+      authorization,
+    );
+    port.answer({
+      type: "charge-sale-in-cash-with-change-discount-result",
+      request_id: "request-1",
+      outcome: { kind: "discount_exceeds_sale" },
+    });
+
+    expect(await charged).toEqual({ kind: "discount_exceeds_sale" });
+    expect(port.posted).toEqual([
+      {
+        type: "charge-sale-in-cash-with-change-discount",
+        request_id: "request-1",
+        sale_id: "sale-1",
+        tendered: 1_000_000,
+        discount_amount: 10_000,
+        authorization,
+      },
+    ]);
+  });
+
+  it("asks the core to charge a sale in cash with a discount without an authorization when none is given", () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    void client.chargeSaleInCashWithChangeDiscount("sale-1", 1_000_000, 10_000, undefined);
+
+    expect(port.posted).toEqual([
+      {
+        type: "charge-sale-in-cash-with-change-discount",
+        request_id: "request-1",
+        sale_id: "sale-1",
+        tendered: 1_000_000,
+        discount_amount: 10_000,
+      },
+    ]);
+  });
+
   it("asks the core to preview a discount on the sale's total and resolves with the outcome", async () => {
     const client = clientWithSequentialIds();
     const port = new FakePort();
@@ -1534,7 +1600,7 @@ describe("createCoreClient", () => {
   });
 
   it.each([
-    [{ kind: "covered", applied: 3000, change: 2000 }],
+    [{ kind: "covered", applied: 3000, change: 2000, cash_rounding: 0 }],
     [{ kind: "partial", applied: 1000, pending: 2000 }],
     [{ kind: "invalid_amount" }],
     [null],
@@ -1554,6 +1620,30 @@ describe("createCoreClient", () => {
       ]);
     },
   );
+
+  it("asks the core what the sale needs once the discount on the total being typed is taken off", async () => {
+    const client = clientWithSequentialIds();
+    const port = new FakePort();
+    client.connect(port);
+
+    const asked = client.cashCharge("s1", 5000, 100);
+    port.answer({
+      type: "cash-charge",
+      request_id: "request-1",
+      charge: { kind: "discount_exceeds_sale" },
+    });
+
+    expect(await asked).toEqual({ kind: "discount_exceeds_sale" });
+    expect(port.posted).toEqual([
+      {
+        type: "cash-charge-request",
+        request_id: "request-1",
+        sale_id: "s1",
+        tendered: 5000,
+        sale_discount: 100,
+      },
+    ]);
+  });
 
   it("rejects when the core cannot say what the sale needs", async () => {
     const client = clientWithSequentialIds();

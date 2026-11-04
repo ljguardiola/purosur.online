@@ -22,6 +22,7 @@ const OPEN_SALE: SaleWithLines = {
   actorId: "cashier",
   state: "OPEN",
   saleDiscount: null,
+  cashRounding: 0,
   lines: [],
 };
 
@@ -69,6 +70,7 @@ describe("rebuildSaleAgainstPaidOrder", () => {
         actorId: "cashier",
         state: "OPEN",
         saleDiscount: null,
+        cashRounding: 0,
         lines: [],
       },
     ]);

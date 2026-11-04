@@ -17,6 +17,7 @@ import type {
   ChangeLineWeightOutcome,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
+  ChargeSaleInCashWithChangeDiscountOutcome,
   ChargeSaleOnStandaloneTerminalOutcome,
   ChargeSaleWithPaidOrderOutcome,
   CloseCashSessionOutcome,
@@ -214,6 +215,7 @@ export interface CoreClient {
   enrollmentStatus(): Promise<EnrollmentStandingAnswer>;
   registerService(): Promise<"in_service" | "out_of_service">;
   registerName(): Promise<string | null>;
+  registerVersion(): Promise<string | null>;
   enroll(typedCode: string): Promise<EnrollmentOutcome>;
   redeemPinCode(typedCode: string, newPin: string): Promise<PinCodeRedemptionOutcome>;
   pinPolicy(): Promise<PinPolicy>;
@@ -342,8 +344,14 @@ export interface CoreClient {
   setReceiptPrinter(address: string): Promise<SetReceiptPrinterOutcome>;
   readSerialDevices(): Promise<ReadSerialDevicesOutcome>;
   registerSerialDevices(devices: SerialDevicesToRegister): Promise<RegisterSerialDevicesOutcome>;
-  cashCharge(saleId: string, tendered: number): Promise<CashChargeAnswer>;
+  cashCharge(saleId: string, tendered: number, saleDiscount?: number): Promise<CashChargeAnswer>;
   chargeSaleInCash(saleId: string, tendered: number): Promise<ChargeSaleInCashOutcome>;
+  chargeSaleInCashWithChangeDiscount(
+    saleId: string,
+    tendered: number,
+    discountAmount: number,
+    authorization: Authorization | undefined,
+  ): Promise<ChargeSaleInCashWithChangeDiscountOutcome>;
   chargeSaleByTransfer(saleId: string, amount: number): Promise<ChargeSaleByTransferOutcome>;
   chargeSaleOnStandaloneTerminal(
     saleId: string,
@@ -541,6 +549,11 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
     registerName() {
       return ask({ type: "register-name-request", request_id: deps.newRequestId() }, (answer) =>
         answer.type === "register-name" ? answer.name : undefined,
+      );
+    },
+    registerVersion() {
+      return ask({ type: "register-version-request", request_id: deps.newRequestId() }, (answer) =>
+        answer.type === "register-version" ? answer.version : undefined,
       );
     },
     enroll(typedCode) {
@@ -1103,9 +1116,15 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
         return answer.type === "sale" ? answer.sale : undefined;
       });
     },
-    cashCharge(saleId, tendered) {
+    cashCharge(saleId, tendered, saleDiscount) {
       return ask(
-        { type: "cash-charge-request", request_id: deps.newRequestId(), sale_id: saleId, tendered },
+        {
+          type: "cash-charge-request",
+          request_id: deps.newRequestId(),
+          sale_id: saleId,
+          tendered,
+          ...(saleDiscount === undefined ? {} : { sale_discount: saleDiscount }),
+        },
         (answer) => {
           if (answer.type === "cash-charge-unavailable") {
             throw new Error("the core could not say what the sale needs");
@@ -1121,6 +1140,22 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       return ask(
         { type: "charge-sale-in-cash", request_id: deps.newRequestId(), sale_id: saleId, tendered },
         (answer) => (answer.type === "charge-sale-in-cash-result" ? answer.outcome : undefined),
+      );
+    },
+    chargeSaleInCashWithChangeDiscount(saleId, tendered, discountAmount, authorization) {
+      return ask(
+        {
+          type: "charge-sale-in-cash-with-change-discount",
+          request_id: deps.newRequestId(),
+          sale_id: saleId,
+          tendered,
+          discount_amount: discountAmount,
+          ...(authorization === undefined ? {} : { authorization }),
+        },
+        (answer) =>
+          answer.type === "charge-sale-in-cash-with-change-discount-result"
+            ? answer.outcome
+            : undefined,
       );
     },
     chargeSaleByTransfer(saleId, amount) {

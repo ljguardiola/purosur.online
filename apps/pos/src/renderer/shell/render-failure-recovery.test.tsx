@@ -12,6 +12,11 @@ import { RenderFailureRecovery } from "./render-failure-recovery";
 import type { RouterContext } from "./router";
 import { createRegisterRouter } from "./router";
 import { startupPendingGate } from "./startup-pending-gate";
+import {
+  holdWindowsScrollbarWidth,
+  showInStoreNotebookWindow,
+  windowOverflow,
+} from "./test-support/register-window";
 import { surfaceBehind } from "./test-support/surface-behind";
 
 const NOTICE_TITLE = "No se pudo mostrar la pantalla";
@@ -42,6 +47,7 @@ function buildFailingRouter(shouldThrow: () => boolean) {
       cashSession: { status: "none" },
       enroll: async () => ({ kind: "enrolled" }),
       registerName: async () => null,
+      registerVersion: async () => null,
       signInUsers: async () => [],
       authorizers: async () => [],
       lockedClosers: async () => [],
@@ -75,6 +81,7 @@ function buildFailingRouter(shouldThrow: () => boolean) {
       currentSale: async () => null,
       cashCharge: async () => ({ kind: "invalid_amount" }),
       chargeSaleInCash: async () => ({ kind: "unavailable" }),
+      chargeSaleInCashWithChangeDiscount: async () => ({ kind: "unavailable" }),
       chargeSaleByTransfer: async () => ({ kind: "unavailable" }),
       chargeSaleOnStandaloneTerminal: async () => ({ kind: "unavailable" }),
       paymentMethodAvailability: async () => null,
@@ -181,6 +188,20 @@ describe("RenderFailureRecovery", () => {
     expect(reportFailure).toHaveBeenCalledTimes(3);
 
     await expectNoAccessibilityViolations(screen.container);
+  });
+
+  it("keeps the notice's frame within the window's width beside a vertical scrollbar", async () => {
+    await showInStoreNotebookWindow();
+    holdWindowsScrollbarWidth();
+
+    const screen = await render(
+      <RenderFailureRecovery reportFailure={vi.fn()}>
+        <FailingRegisterHost shouldThrow={() => true} />
+      </RenderFailureRecovery>,
+    );
+
+    await expect.element(screen.getByRole("button", { name: RETRY_LABEL })).toBeInTheDocument();
+    expect(windowOverflow().horizontal).toBe(0);
   });
 
   it("announces the failure as an alert on the error-tone surface, with Reintentar as a button", async () => {

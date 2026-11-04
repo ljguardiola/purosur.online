@@ -13,6 +13,7 @@ import type {
   ChangeLineWeightOutcome,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
+  ChargeSaleInCashWithChangeDiscountOutcome,
   ChargeSaleOnStandaloneTerminalOutcome,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
@@ -75,6 +76,7 @@ import type {
   AdjustSaleLineRequest,
   ApplySaleDiscountRequest,
   CancelPaidSaleRequest,
+  ChargeSaleInCashWithChangeDiscountRequest,
   PreviewSaleDiscountRequest,
   PreviewSaleLineAdjustmentRequest,
 } from "./sales/sale-requests";
@@ -126,7 +128,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
   const weighings: string[] = [];
   const kindLookups: string[] = [];
   const saleLookups: string[] = [];
-  const chargeReads: { saleId: string; tendered: number }[] = [];
+  const chargeReads: { saleId: string; tendered: number; saleDiscount?: number | undefined }[] = [];
   const previewReads: number[] = [];
   const saleChanges: string[] = [];
   const signOuts: string[] = [];
@@ -163,6 +165,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       }),
       registerService: { kind: "in_service" as const },
       registerName: (): string | undefined => undefined,
+      registerVersion: (): string | undefined => undefined,
       enroll: async (code: string) => {
         enrolledCodes.push(code);
         return { kind: "code_rejected" as const };
@@ -275,6 +278,20 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
             request.discount.kind,
             request.discount.value,
             request.reason,
+            request.authorization?.user_id ?? "alone",
+          ].join(" "),
+        );
+        return { kind: "no_open_sale" };
+      },
+      chargeSaleInCashWithChangeDiscount: async (
+        request: ChargeSaleInCashWithChangeDiscountRequest,
+      ): Promise<ChargeSaleInCashWithChangeDiscountOutcome> => {
+        saleChanges.push(
+          [
+            "charge-with-discount",
+            request.saleId,
+            request.tendered,
+            request.discountAmount,
             request.authorization?.user_id ?? "alone",
           ].join(" "),
         );
@@ -501,6 +518,7 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       cashCharge: async (request: {
         saleId: string;
         tendered: number;
+        saleDiscount?: number | undefined;
       }): Promise<CashChargeAnswer> => {
         chargeReads.push(request);
         return null;
@@ -608,6 +626,24 @@ describe("answerRendererRequest", () => {
 
     expect(answered).toEqual(answer);
     expect(checked).toHaveLength(1);
+  });
+
+  it("answers the version the running register was built as", async () => {
+    const answer = await answerRendererRequest(
+      deps(true, { registerVersion: () => "1.0.1539" }).deps,
+      { type: "register-version-request", request_id: "r8" },
+    );
+
+    expect(answer).toEqual({ type: "register-version", request_id: "r8", version: "1.0.1539" });
+  });
+
+  it("answers no version when the core was not handed one", async () => {
+    const answer = await answerRendererRequest(deps(true).deps, {
+      type: "register-version-request",
+      request_id: "r9",
+    });
+
+    expect(answer).toEqual({ type: "register-version", request_id: "r9", version: null });
   });
 
   it("answers the PIN policy", async () => {
@@ -1284,6 +1320,7 @@ describe("answerRendererRequest", () => {
       total: 3000,
       tendered: 5000,
       change: 2000,
+      cash_rounding: 0,
     };
     const { deps: withCharge, charges } = deps(true, { chargeSaleInCash: async () => outcome });
     const answer = await answerRendererRequest(withCharge, {
@@ -2283,7 +2320,7 @@ describe("answerRendererRequest", () => {
   });
 
   it("reads what a tendered amount needs for the sale as sent, and answers the charge", async () => {
-    const charge = { kind: "covered", applied: 3000, change: 2000 } as const;
+    const charge = { kind: "covered", applied: 3000, change: 2000, cash_rounding: 0 } as const;
     const reading = deps(true);
     const { deps: withCharge } = deps(true, { cashCharge: async () => charge });
 
@@ -2302,6 +2339,20 @@ describe("answerRendererRequest", () => {
       tendered: 5000,
     });
     expect(reading.chargeReads).toEqual([{ saleId: "s1", tendered: 5000 }]);
+  });
+
+  it("reads what a tendered amount needs once the discount on the total being typed is taken off", async () => {
+    const reading = deps(true);
+
+    await answerRendererRequest(reading.deps, {
+      type: "cash-charge-request",
+      request_id: "r46",
+      sale_id: "s1",
+      tendered: 10_000,
+      sale_discount: 100,
+    });
+
+    expect(reading.chargeReads).toEqual([{ saleId: "s1", tendered: 10_000, saleDiscount: 100 }]);
   });
 
   it("answers no charge when there is no such sale in progress", async () => {
@@ -3107,6 +3158,20 @@ describe("answerRendererRequest", () => {
         "discounting the sale's total",
         "discount PERCENT 10 Cliente frecuente u2",
         "apply-sale-discount-result",
+      ],
+      [
+        "charge-sale-in-cash-with-change-discount",
+        {
+          type: "charge-sale-in-cash-with-change-discount",
+          sale_id: "s1",
+          tendered: 10_000,
+          discount_amount: 100,
+          authorization: { user_id: "u2", pin: "1234" },
+        } as const,
+        "chargeSaleInCashWithChangeDiscount",
+        "charging a sale in cash with a discount on its total",
+        "charge-with-discount s1 10000 100 u2",
+        "charge-sale-in-cash-with-change-discount-result",
       ],
       [
         "preview-sale-discount",

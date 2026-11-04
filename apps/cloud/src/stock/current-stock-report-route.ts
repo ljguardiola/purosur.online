@@ -1,5 +1,6 @@
 import { currentStockReportQuerySchema, currentStockReportSchema } from "@purosur/contracts";
 import { readCurrentStockReport } from "@purosur/domain/stock/use-cases";
+import { formatLotCode, formatLotName } from "@purosur/formatting";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { readValidatedBody } from "../platform/request-body-schema.js";
@@ -10,6 +11,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../sessions/route-access.js";
+import { DrizzleLotNameReader } from "./drizzle-lot-name-reader.js";
 import { DrizzleStockReader } from "./drizzle-stock-reader.js";
 import type { StockRouteOptions } from "./stock-route-options.js";
 
@@ -21,6 +23,7 @@ export function registerCurrentStockReportRoute<TQueryResult extends PgQueryResu
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const reader = new DrizzleStockReader(options.db);
+  const lotNames = new DrizzleLotNameReader(options.db);
 
   app.get(
     "/reports/current-stock",
@@ -34,7 +37,7 @@ export function registerCurrentStockReportRoute<TQueryResult extends PgQueryResu
         return;
       }
       const report = await readCurrentStockReport(
-        { currentStock: reader },
+        { currentStock: reader, lotNames, zoneRules: options.zoneRules },
         {
           locationId: openSessionOf(request).locationId,
           ...(query.category_id === undefined ? {} : { categoryId: query.category_id }),
@@ -54,9 +57,9 @@ export function registerCurrentStockReportRoute<TQueryResult extends PgQueryResu
             value_cents: product.valueCents,
             lots: product.lots.map((lot) => ({
               id: lot.id,
-              lot_number: lot.lotNumber,
+              lot_name: formatLotName(lot.name),
+              lot_code: formatLotCode(lot.code),
               expires_on: lot.expiresOn,
-              technical: lot.technical,
               remaining: lot.remaining,
               unit_cost_cents: lot.unitCostCents,
               value_cents: lot.valueCents,

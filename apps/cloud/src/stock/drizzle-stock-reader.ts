@@ -80,7 +80,6 @@ async function productLotsOf<TQueryResult extends PgQueryResultHKT>(
   return db
     .select({
       id: lots.id,
-      lotNumber: lots.lotNumber,
       technical: lots.technical,
       expiresOn: lots.expiresOn,
       purchasedOn: lots.purchasedOn,
@@ -167,7 +166,7 @@ export class DrizzleStockReader<TQueryResult extends PgQueryResultHKT>
       .select({
         id: lots.id,
         productId: lots.productId,
-        lotNumber: lots.lotNumber,
+        code: lots.code,
         expiresOn: lots.expiresOn,
         purchasedOn: lots.purchasedOn,
         supplierName: suppliers.name,

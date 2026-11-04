@@ -516,6 +516,7 @@ export {
   SALE_CANCELLED_REFUND_ORIGIN,
   SALE_PAYMENT_STATE_HOLDING_PAID_ORDER,
   SALE_VOIDED_REFUND_ORIGIN,
+  SMALLEST_CASH_BILL,
 } from "./payments/index.js";
 export type {
   AuthorizablePermissionKey,
@@ -639,7 +640,6 @@ export {
   isFreightDescription,
   isFreightDescriptionTooLong,
   isLinkCurrent,
-  isLotNumberTooLong,
   isPackageCount,
   isPriceListRowPrice,
   isPurchaseDateInFuture,
@@ -654,7 +654,6 @@ export {
   isSupplierPriceListWebPageAddressTooLong,
   isSupplierPriceListWebPageScheme,
   isValidFreightMeans,
-  LOT_NUMBER_MAX_LENGTH,
   latestEarlierPrice,
   MIN_FREIGHT_PURCHASES,
   MIN_PURCHASE_LINES,
@@ -959,7 +958,6 @@ export {
   SALES_HISTORY_PAGE_SIZE,
   SALES_REPORT_GROUPS,
   SALES_REPORT_SALE_STATE,
-  SMALLEST_CASH_BILL,
   saleComprobanteOf,
   saleDiscountUnavailability,
   saleFiscalDocumentAmong,

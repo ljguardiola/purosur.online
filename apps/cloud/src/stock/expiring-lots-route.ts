@@ -1,5 +1,6 @@
 import { expiredLotDiscardResultSchema, expiringLotListSchema } from "@purosur/contracts";
 import { discardExpiredLot, readExpiringLots } from "@purosur/domain/stock/use-cases";
+import { formatLotName } from "@purosur/formatting";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { DrizzleBranchSettingsReader } from "../branch/drizzle-branch-settings-reader.js";
@@ -12,6 +13,7 @@ import {
   routeSessionSource,
 } from "../sessions/route-access.js";
 import { DrizzleExpiringLotReader } from "./drizzle-expiring-lot-reader.js";
+import { DrizzleLotNameReader } from "./drizzle-lot-name-reader.js";
 import { DrizzleStockStore } from "./drizzle-stock-store.js";
 import type { StockRouteOptions } from "./stock-route-options.js";
 
@@ -30,6 +32,7 @@ export function registerExpiringLotsRoutes<TQueryResult extends PgQueryResultHKT
   const clock = { now };
   const expiringLots = new DrizzleExpiringLotReader(options.db);
   const branchSettings = new DrizzleBranchSettingsReader(options.db);
+  const lotNames = new DrizzleLotNameReader(options.db);
   const store = new DrizzleStockStore(options.db);
   registerRouteAccess(app);
   const routeConfig = {
@@ -42,10 +45,18 @@ export function registerExpiringLotsRoutes<TQueryResult extends PgQueryResultHKT
 
   app.get("/expiring-lots", routeConfig, async (request, reply) => {
     const view = await readExpiringLots(
-      { zoneRules: options.zoneRules, expiringLots, branchSettings, clock },
+      { zoneRules: options.zoneRules, expiringLots, lotNames, branchSettings, clock },
       { locationId: openSessionOf(request).locationId },
     );
-    await reply.code(200).send(expiringLotListSchema.parse(view));
+    await reply.code(200).send(
+      expiringLotListSchema.parse({
+        ...view,
+        lots: view.lots.map(({ name, code: _code, ...lot }) => ({
+          ...lot,
+          lotName: formatLotName(name),
+        })),
+      }),
+    );
   });
 
   app.post("/expiring-lots/:lotId/discard", routeConfig, async (request, reply) => {

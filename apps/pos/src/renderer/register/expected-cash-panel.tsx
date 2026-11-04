@@ -45,7 +45,7 @@ function Balance({ eyebrow, balance }: { eyebrow: string; balance: CashBalance }
 
 export function ExpectedCashPanel({ eyebrow, balance, children }: ExpectedCashPanelProps) {
   return (
-    <SidePanel footer={children ?? undefined}>
+    <SidePanel label="Efectivo esperado" footer={children ?? undefined}>
       {balance.status === "loading" ? (
         <>
           <FigureStat label={eyebrow} loading />

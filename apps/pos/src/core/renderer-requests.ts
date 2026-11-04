@@ -15,6 +15,7 @@ import type {
   ChangeLineWeightOutcome,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
+  ChargeSaleInCashWithChangeDiscountOutcome,
   ChargeSaleOnStandaloneTerminalOutcome,
   ChargeSaleWithPaidOrderOutcome,
   CloseCashSessionOutcome,
@@ -91,8 +92,10 @@ import type {
   ApplySaleDiscountRequest,
   CancelLockedSaleRequest,
   CancelPaidSaleRequest,
+  CashChargeReadRequest,
   ChargeSaleByTransferRequest,
   ChargeSaleInCashRequest,
+  ChargeSaleInCashWithChangeDiscountRequest,
   ChargeSaleOnStandaloneTerminalRequest,
   PreviewSaleDiscountRequest,
   PreviewSaleLineAdjustmentRequest,
@@ -108,6 +111,7 @@ export interface RendererRequestDeps {
   enrollmentStanding: () => Promise<EnrollmentStandingAnswer>;
   registerService: RegisterService;
   registerName: () => string | undefined;
+  registerVersion: () => string | undefined;
   enroll: (typedCode: string) => Promise<EnrollmentOutcome>;
   redeemPinCode: (typedCode: string, newPin: string) => Promise<PinCodeRedemptionOutcome>;
   pinPolicy: () => PinPolicy;
@@ -180,7 +184,12 @@ export interface RendererRequestDeps {
   clockGuard: ClockGuardRequests | undefined;
   contingencyBackupTickets: ContingencyBackupTicketRequests | undefined;
   currentSale: (() => Promise<CurrentSaleAnswer>) | undefined;
-  cashCharge: ((request: ChargeSaleInCashRequest) => Promise<CashChargeAnswer>) | undefined;
+  cashCharge: ((request: CashChargeReadRequest) => Promise<CashChargeAnswer>) | undefined;
+  chargeSaleInCashWithChangeDiscount:
+    | ((
+        request: ChargeSaleInCashWithChangeDiscountRequest,
+      ) => Promise<ChargeSaleInCashWithChangeDiscountOutcome>)
+    | undefined;
   changeLineQuantity:
     | ((
         lineId: string,
@@ -722,7 +731,7 @@ async function readCurrentSale(deps: RendererRequestDeps): Promise<CurrentSaleAn
 
 async function readCashCharge(
   deps: RendererRequestDeps,
-  request: ChargeSaleInCashRequest,
+  request: CashChargeReadRequest,
 ): Promise<CashChargeAnswer | undefined> {
   try {
     return await deps.cashCharge?.(request);
@@ -754,6 +763,12 @@ export async function answerRendererRequest(
         type: "register-name",
         request_id: message.request_id,
         name: deps.registerName() ?? null,
+      };
+    case "register-version-request":
+      return {
+        type: "register-version",
+        request_id: message.request_id,
+        version: deps.registerVersion() ?? null,
       };
     case "enroll":
       return {
@@ -1267,6 +1282,25 @@ export async function answerRendererRequest(
           tendered: message.tendered,
         }),
       };
+    case "charge-sale-in-cash-with-change-discount": {
+      const { chargeSaleInCashWithChangeDiscount } = deps;
+      return {
+        type: "charge-sale-in-cash-with-change-discount-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "charging a sale in cash with a discount on its total",
+          chargeSaleInCashWithChangeDiscount &&
+            (() =>
+              chargeSaleInCashWithChangeDiscount({
+                saleId: message.sale_id,
+                tendered: message.tendered,
+                discountAmount: message.discount_amount,
+                authorization: message.authorization,
+              })),
+        ),
+      };
+    }
     case "charge-sale-by-transfer":
       return {
         type: "charge-sale-by-transfer-result",
@@ -1424,6 +1458,7 @@ export async function answerRendererRequest(
       const charge = await readCashCharge(deps, {
         saleId: message.sale_id,
         tendered: message.tendered,
+        ...(message.sale_discount === undefined ? {} : { saleDiscount: message.sale_discount }),
       });
       if (charge === "not_permitted") {
         return { type: "cash-charge-not-permitted", request_id: message.request_id };

@@ -4,12 +4,15 @@ import {
   FakeZoneRulesSource,
   fixedOffsetZoneRules,
 } from "../../shared/test-support/fake-zone-rules-source.js";
+import type { LotNameFacts } from "../model/lot-name.js";
 import type { ExpiringLotProduct, ExpiringLotRow } from "./expiring-lot-reader.js";
 import { readExpiringLotsReport } from "./read-expiring-lots-report.js";
 import {
   FakeBranchSettings,
   FakeExpiringLotReader,
+  technicalLotFactsOfRows,
 } from "./test-support/fake-expiring-lot-reader.js";
+import { FakeLotNameReader, purchaseLotFacts } from "./test-support/fake-lot-name-reader.js";
 import { FixedClock } from "./test-support/fake-stock-store.js";
 
 const NOON = new Date("2026-10-13T15:00:00.000Z");
@@ -31,7 +34,7 @@ function lot(
   return {
     id,
     locationId: "location-1",
-    lotNumber: null,
+    code: 1,
     expiresOn: "2026-10-20",
     technical: false,
     remaining: 4_000,
@@ -49,20 +52,23 @@ async function read(
     now?: Date;
     asked?: { from?: string; to?: string };
     rules?: ZoneRules;
+    facts?: LotNameFacts[];
   } = {},
 ) {
   const expiringLots = new FakeExpiringLotReader(rows);
   const branchSettings = new FakeBranchSettings(options.windowDays ?? 30);
+  const lotNames = new FakeLotNameReader(options.facts ?? technicalLotFactsOfRows(rows));
   const report = await readExpiringLotsReport(
     {
       expiringLots,
+      lotNames,
       branchSettings,
       clock: new FixedClock(options.now ?? NOON),
       zoneRules: new FakeZoneRulesSource(options.rules),
     },
     { locationId: "location-1", asked: options.asked ?? {} },
   );
-  return { report, expiringLots, branchSettings };
+  return { report, expiringLots, branchSettings, lotNames };
 }
 
 describe("readExpiringLotsReport", () => {
@@ -176,5 +182,19 @@ describe("readExpiringLotsReport", () => {
     ]);
 
     expect(report.summary).toEqual({ lotCount: 3, valueCents: 25_000, withoutCostCount: 1 });
+  });
+
+  it("lists each lot with its name and its code", async () => {
+    const { report } = await read([lot("lot-1", { code: 123 })], {
+      facts: [
+        purchaseLotFacts("lot-1", "product-cheese", 1, "2026-11-03"),
+        purchaseLotFacts("lot-2", "product-cheese", 2, "2026-11-03"),
+      ],
+    });
+
+    expect(report.lots[0]).toMatchObject({
+      name: { origin: "purchase", day: "2026-11-03", number: 1 },
+      code: 123,
+    });
   });
 });

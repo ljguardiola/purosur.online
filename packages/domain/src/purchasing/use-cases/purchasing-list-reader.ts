@@ -1,4 +1,5 @@
 import type { ProductBrandAndNetContent, SaleUnit } from "../../catalog/index.js";
+import type { LotNameFacts } from "../../stock/index.js";
 import type { ReceiptType } from "../model/purchase.js";
 import type { Supplier } from "./purchasing-store.js";
 
@@ -9,12 +10,13 @@ export interface PurchaseLineListing {
   quantity: number;
   costPaidCents: number;
   quantityPerPackage: number;
-  lotNumber: string | null;
+  lotId: string;
   expiresOn: string | null;
 }
 
 export interface PurchaseListing {
   id: string;
+  locationId: string;
   purchasedOn: string;
   supplier: { id: string; name: string };
   receiptType: ReceiptType;
@@ -28,5 +30,7 @@ export interface PurchasingListReader {
   suppliers(): Promise<Supplier[]>;
   // The branch's purchases, most recently recorded first.
   purchases(locationId: string): Promise<PurchaseListing[]>;
+  // Every lot of each product in the branch, whatever purchase or origin created it.
+  lotNameFacts(locationId: string, productIds: readonly string[]): Promise<LotNameFacts[]>;
   purchase(purchaseId: string): Promise<PurchaseListing | undefined>;
 }

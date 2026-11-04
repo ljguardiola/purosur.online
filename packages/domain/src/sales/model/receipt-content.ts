@@ -59,6 +59,7 @@ export interface ReceiptSource {
   operationNumber: number;
   total: number;
   saleDiscount: SaleDiscountValue | null;
+  cashRounding: number;
   lines: ReceiptSourceLine[];
   payments: ReceiptSourcePayment[];
   fiscal: ReceiptSourceFiscalDocument;
@@ -87,6 +88,7 @@ export interface ReceiptContent {
   totals: {
     subtotal: number;
     saleDiscount: ReceiptSaleDiscount | null;
+    cashRounding: number;
     total: number;
     payments: { method: PaymentMethod; amount: number; cardType: PointCardType | null }[];
     change: number;
@@ -138,6 +140,7 @@ export function receiptContent(source: ReceiptSource): ReceiptContent {
     totals: {
       subtotal,
       saleDiscount: receiptSaleDiscount(subtotal, source.saleDiscount),
+      cashRounding: source.cashRounding,
       total: source.total,
       payments: source.payments.map(({ method, amount, tendered, cardType }) => ({
         method,

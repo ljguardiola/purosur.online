@@ -52,7 +52,6 @@ export interface FakeStockLot extends ProductStockKey, StockLot {
   quantityReceived: number;
   costTotalCents: number | null;
   costQuantity: number | null;
-  lotNumber: string | null;
   costComplete: boolean;
   originMovementId: string | null;
   assemblyBatchId: string | null;
@@ -270,7 +269,6 @@ class FakeStockStoreTransaction implements AssemblyBatchTransaction {
       quantityReceived: 0,
       costTotalCents: null,
       costQuantity: null,
-      lotNumber: null,
       costComplete: false,
       originMovementId: null,
       assemblyBatchId: null,
@@ -295,7 +293,6 @@ class FakeStockStoreTransaction implements AssemblyBatchTransaction {
       quantityReceived: lot.quantityReceived,
       costTotalCents: lot.costTotalCents,
       costQuantity: lot.costQuantity,
-      lotNumber: lot.lotNumber,
       costComplete: true,
       originMovementId: null,
       assemblyBatchId: null,
@@ -320,7 +317,6 @@ class FakeStockStoreTransaction implements AssemblyBatchTransaction {
       quantityReceived: lot.quantityReceived,
       costTotalCents: (lot.cost ?? null)?.totalCents ?? null,
       costQuantity: (lot.cost ?? null)?.quantity ?? null,
-      lotNumber: null,
       costComplete: (lot.cost ?? null) !== null,
       originMovementId: lot.originMovementId,
       assemblyBatchId: null,
@@ -345,7 +341,6 @@ class FakeStockStoreTransaction implements AssemblyBatchTransaction {
       quantityReceived: lot.quantityReceived,
       costTotalCents: lot.costTotalCents,
       costQuantity: lot.costQuantity,
-      lotNumber: null,
       costComplete: !lot.costIncomplete,
       originMovementId: null,
       assemblyBatchId: lot.assemblyBatchId,
@@ -565,7 +560,6 @@ export class FakeStockStore implements StockStore, AssemblyBatchStore {
       quantityReceived: 0,
       costTotalCents: null,
       costQuantity: null,
-      lotNumber: null,
       costComplete: !lot.technical,
       originMovementId: null,
       assemblyBatchId: null,

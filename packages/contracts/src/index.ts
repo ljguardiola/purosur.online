@@ -461,8 +461,16 @@ export {
 } from "./purchasing/linkable-purchase-summary.js";
 export type { OrderSuggestion } from "./purchasing/order-suggestion.js";
 export { orderSuggestionSchema } from "./purchasing/order-suggestion.js";
+export type { PurchaseChange } from "./purchasing/purchase-changes.js";
+export { purchaseChangeSchema, purchaseChangesSchema } from "./purchasing/purchase-changes.js";
 export type { PurchaseChoices } from "./purchasing/purchase-choices.js";
 export { purchaseChoicesSchema } from "./purchasing/purchase-choices.js";
+export type { PurchaseHeaderCorrectionBody } from "./purchasing/purchase-header-correction.js";
+export { purchaseHeaderCorrectionBodySchema } from "./purchasing/purchase-header-correction.js";
+export type { PurchaseLineExpiryCorrectionBody } from "./purchasing/purchase-line-expiry-correction.js";
+export { purchaseLineExpiryCorrectionBodySchema } from "./purchasing/purchase-line-expiry-correction.js";
+export type { PurchaseLinesAdditionBody } from "./purchasing/purchase-lines-addition.js";
+export { purchaseLinesAdditionBodySchema } from "./purchasing/purchase-lines-addition.js";
 export type { PurchaseOrderBuildBody } from "./purchasing/purchase-order-build.js";
 export {
   purchaseOrderBuildBodySchema,
@@ -472,6 +480,15 @@ export type { PurchaseOrderDetail } from "./purchasing/purchase-order-detail.js"
 export { purchaseOrderDetailSchema } from "./purchasing/purchase-order-detail.js";
 export type { PurchaseOrderEditBody } from "./purchasing/purchase-order-edit.js";
 export { purchaseOrderEditBodySchema } from "./purchasing/purchase-order-edit.js";
+export type {
+  PurchaseOrderReceiptBody,
+  PurchaseOrderReceiptDraft,
+} from "./purchasing/purchase-order-receipt.js";
+export {
+  purchaseOrderReceiptBodySchema,
+  purchaseOrderReceiptDraftSchema,
+  purchaseOrderReceiptSchema,
+} from "./purchasing/purchase-order-receipt.js";
 export type {
   PurchaseOrderListQuery,
   PurchaseOrderSummary,
@@ -766,6 +783,7 @@ export {
   changeLineWeightMessageSchema,
   chargeSaleByTransferMessageSchema,
   chargeSaleInCashMessageSchema,
+  chargeSaleInCashWithChangeDiscountMessageSchema,
   chargeSaleOnStandaloneTerminalMessageSchema,
   reprintCreditNoteMessageSchema,
   reprintSaleReceiptMessageSchema,
@@ -796,6 +814,7 @@ export type {
   ChangeLineWeightOutcome,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
+  ChargeSaleInCashWithChangeDiscountOutcome,
   ChargeSaleOnStandaloneTerminalOutcome,
   CurrentSaleAnswer,
   FoundProduct,

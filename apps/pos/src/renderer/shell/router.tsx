@@ -15,6 +15,7 @@ import type {
   ChangeLineWeightOutcome,
   ChargeSaleByTransferOutcome,
   ChargeSaleInCashOutcome,
+  ChargeSaleInCashWithChangeDiscountOutcome,
   ChargeSaleOnStandaloneTerminalOutcome,
   ChargeSaleWithPaidOrderOutcome,
   CloseCashSessionOutcome,
@@ -125,6 +126,7 @@ import {
   startupPendingQueryOptions,
   useRegisterNameQuery,
   useRegisterStatusQuery,
+  useRegisterVersionQuery,
 } from "../register/register-queries";
 import { RestoreRequiredScreen } from "../register/restore-required-screen";
 import type { RestoringStanding } from "../register/restoring-screen";
@@ -172,6 +174,7 @@ export interface RouterContext {
   lockedClosers: () => Promise<SignInUser[]>;
   signIn: (userId: string, pin: string) => Promise<SignInOutcome>;
   registerName: () => Promise<string | null>;
+  registerVersion: () => Promise<string | null>;
   signOut: () => void;
   openCashSession: (openingFloat: number) => Promise<OpenCashSessionOutcome>;
   closeCashSession: (
@@ -206,8 +209,18 @@ export interface RouterContext {
   firstSignIn: (userId: string, pin: string) => Promise<SignInOutcome>;
   currentSale: () => Promise<CurrentSaleAnswer>;
   scanProduct: (code: string) => Promise<ScanProductOutcome>;
-  cashCharge: (saleId: string, tendered: number) => Promise<CashChargeAnswer>;
+  cashCharge: (
+    saleId: string,
+    tendered: number,
+    saleDiscount?: number,
+  ) => Promise<CashChargeAnswer>;
   chargeSaleInCash: (saleId: string, tendered: number) => Promise<ChargeSaleInCashOutcome>;
+  chargeSaleInCashWithChangeDiscount: (
+    saleId: string,
+    tendered: number,
+    discountAmount: number,
+    authorization: Authorization | undefined,
+  ) => Promise<ChargeSaleInCashWithChangeDiscountOutcome>;
   chargeSaleByTransfer: (saleId: string, amount: number) => Promise<ChargeSaleByTransferOutcome>;
   chargeSaleOnStandaloneTerminal: (
     saleId: string,
@@ -481,7 +494,7 @@ function requireLockedRegister(context: RouterContext) {
 
 function RootScreen() {
   return (
-    <div className="h-screen w-screen">
+    <div className="h-screen w-full">
       <Outlet />
     </div>
   );
@@ -494,6 +507,11 @@ const rootRoute = createRootRouteWithContext<RouterContext>()({
 function useRegisterName() {
   const { registerName } = rootRoute.useRouteContext();
   return useRegisterNameQuery(registerName);
+}
+
+function useRegisterVersion() {
+  const { registerVersion } = rootRoute.useRouteContext();
+  return useRegisterVersionQuery(registerVersion);
 }
 
 const sessionEyebrowRoute = createRoute({
@@ -888,6 +906,9 @@ const chargeRoute = createRoute({
       currentSale,
       cashCharge,
       chargeSaleInCash,
+      chargeSaleInCashWithChangeDiscount,
+      previewSaleDiscount,
+      authorizers,
       chargeSaleByTransfer,
       chargeSaleOnStandaloneTerminal,
       chargeSaleWithPaidOrder,
@@ -910,6 +931,9 @@ const chargeRoute = createRoute({
         currentSale={currentSale}
         cashCharge={cashCharge}
         chargeSaleInCash={chargeSaleInCash}
+        chargeSaleInCashWithChangeDiscount={chargeSaleInCashWithChangeDiscount}
+        previewSaleDiscount={previewSaleDiscount}
+        loadAuthorizers={authorizers}
         chargeSaleByTransfer={chargeSaleByTransfer}
         chargeSaleOnStandaloneTerminal={chargeSaleOnStandaloneTerminal}
         chargeSaleWithPaidOrder={chargeSaleWithPaidOrder}
@@ -1169,7 +1193,15 @@ const signInRoute = createRoute({
   component: function SignInRoute() {
     const { signInUsers, signIn } = signInRoute.useRouteContext();
     const registerName = useRegisterName();
-    return <SignInScreen loadUsers={signInUsers} signIn={signIn} registerName={registerName} />;
+    const version = useRegisterVersion();
+    return (
+      <SignInScreen
+        loadUsers={signInUsers}
+        signIn={signIn}
+        registerName={registerName}
+        version={version}
+      />
+    );
   },
 });
 
@@ -1233,7 +1265,8 @@ const enrollRoute = createRoute({
   beforeLoad: ({ context }) => requireRoute("/enroll", context),
   component: function EnrollRoute() {
     const { enroll, checkEnrollmentCode } = enrollRoute.useRouteContext();
-    return <EnrollmentScreen checkCode={checkEnrollmentCode} enroll={enroll} />;
+    const version = useRegisterVersion();
+    return <EnrollmentScreen checkCode={checkEnrollmentCode} enroll={enroll} version={version} />;
   },
 });
 
@@ -1385,6 +1418,7 @@ export function createAppRouter(
     RouterContext,
     | "enroll"
     | "registerName"
+    | "registerVersion"
     | "signInUsers"
     | "signIn"
     | "signOut"
@@ -1413,6 +1447,7 @@ export function createAppRouter(
     | "scanProduct"
     | "cashCharge"
     | "chargeSaleInCash"
+    | "chargeSaleInCashWithChangeDiscount"
     | "chargeSaleByTransfer"
     | "chargeSaleOnStandaloneTerminal"
     | "paymentMethodAvailability"

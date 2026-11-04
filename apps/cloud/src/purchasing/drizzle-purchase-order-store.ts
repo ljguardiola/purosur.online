@@ -3,6 +3,7 @@ import type {
   LockedPurchaseOrder,
   LockProductResult,
   LockPurchaseOrderResult,
+  LockReceivablePurchaseOrderResult,
   LockSupplierResult,
   NewPurchaseOrderFields,
   NewPurchaseOrderLineFields,
@@ -16,7 +17,7 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { products, purchaseOrderLines, purchaseOrders, suppliers } from "../platform/db/schema.js";
 import { latestSupplierOffers } from "./latest-supplier-offers.js";
 
-class DrizzlePurchaseOrderStoreTransaction<TQueryResult extends PgQueryResultHKT>
+export class DrizzlePurchaseOrderStoreTransaction<TQueryResult extends PgQueryResultHKT>
   implements PurchaseOrderStoreTransaction
 {
   private readonly tx: PgDatabase<TQueryResult>;
@@ -80,7 +81,7 @@ class DrizzlePurchaseOrderStoreTransaction<TQueryResult extends PgQueryResultHKT
     await this.tx.insert(purchaseOrderLines).values(fields);
   }
 
-  async lockPurchaseOrder(locationId: string, orderId: string): Promise<LockPurchaseOrderResult> {
+  private async lockOrderRow(locationId: string, orderId: string) {
     const [order] = await this.tx
       .select({
         id: purchaseOrders.id,
@@ -90,6 +91,11 @@ class DrizzlePurchaseOrderStoreTransaction<TQueryResult extends PgQueryResultHKT
       .from(purchaseOrders)
       .where(and(eq(purchaseOrders.id, orderId), eq(purchaseOrders.locationId, locationId)))
       .for("update");
+    return order && { ...order, state: order.state as LockedPurchaseOrder["state"] };
+  }
+
+  async lockPurchaseOrder(locationId: string, orderId: string): Promise<LockPurchaseOrderResult> {
+    const order = await this.lockOrderRow(locationId, orderId);
     if (!order) {
       return { kind: "not_found" };
     }
@@ -103,10 +109,29 @@ class DrizzlePurchaseOrderStoreTransaction<TQueryResult extends PgQueryResultHKT
       .from(purchaseOrderLines)
       .where(eq(purchaseOrderLines.purchaseOrderId, orderId))
       .orderBy(asc(purchaseOrderLines.position));
-    return {
-      kind: "locked",
-      order: { ...order, state: order.state as LockedPurchaseOrder["state"], lines },
-    };
+    return { kind: "locked", order: { ...order, lines } };
+  }
+
+  async lockReceivablePurchaseOrder(
+    locationId: string,
+    orderId: string,
+  ): Promise<LockReceivablePurchaseOrderResult> {
+    const order = await this.lockOrderRow(locationId, orderId);
+    if (!order) {
+      return { kind: "not_found" };
+    }
+    const lines = await this.tx
+      .select({
+        id: purchaseOrderLines.id,
+        productId: purchaseOrderLines.productId,
+        packages: purchaseOrderLines.packages,
+        quantityPerPackage: purchaseOrderLines.quantityPerPackage,
+        expectedPackagePriceCents: purchaseOrderLines.expectedPackagePriceCents,
+      })
+      .from(purchaseOrderLines)
+      .where(eq(purchaseOrderLines.purchaseOrderId, orderId))
+      .orderBy(asc(purchaseOrderLines.position));
+    return { kind: "locked", order: { ...order, lines } };
   }
 
   async replacePurchaseOrderLines(

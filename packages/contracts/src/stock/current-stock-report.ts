@@ -10,9 +10,9 @@ export type CurrentStockReportQuery = z.output<typeof currentStockReportQuerySch
 
 const currentStockLotSchema = z.object({
   id: z.string(),
-  lot_number: z.string().nullable(),
+  lot_name: z.string(),
+  lot_code: z.string(),
   expires_on: z.string().refine(isCalendarDay).nullable(),
-  technical: z.boolean(),
   remaining: z.int(),
   unit_cost_cents: z.int().nullable(),
   value_cents: z.int().nullable(),

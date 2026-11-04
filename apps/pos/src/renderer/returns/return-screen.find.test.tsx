@@ -13,6 +13,9 @@ describe("ReturnScreen asking for the customer's ticket", () => {
       .element(screen.getByRole("heading", { name: "Escaneá el ticket del cliente" }))
       .toBeVisible();
     await expect.element(screen.getByText("DEVOLUCIÓN · SOLO CON TICKET")).toBeVisible();
+    await expect
+      .element(screen.getByRole("complementary", { name: "Datos del ticket" }))
+      .toBeVisible();
     await expect.element(screen.getByText("Acercá el QR del ticket al lector")).toBeVisible();
     await expect
       .element(
