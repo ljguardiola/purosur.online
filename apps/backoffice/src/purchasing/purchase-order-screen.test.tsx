@@ -1,16 +1,17 @@
-import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import { render } from "../shell/test-support/render-with-router";
-import { PurchaseOrderScreen } from "./purchase-order-screen";
+import { accessWith } from "../shell/test-support/backoffice-access";
 import type { PurchaseOrderScreenServices } from "./purchase-order-services";
-import { CANCELLED_ORDER, DRAFT_ORDER, ORDER_ID, SENT_ORDER } from "./test-support/purchase-orders";
 import {
-  AVENA_PRODUCT_ID,
-  MIEL_PRODUCT_ID,
-  purchasableProducts,
-} from "./test-support/purchase-products";
+  createServices,
+  deferred,
+  loaded,
+  renderScreen,
+  type Screen,
+} from "./test-support/purchase-order-screen";
+import { CANCELLED_ORDER, DRAFT_ORDER, ORDER_ID, SENT_ORDER } from "./test-support/purchase-orders";
+import { AVENA_PRODUCT_ID, MIEL_PRODUCT_ID } from "./test-support/purchase-products";
 
 const ALMENDRAS_PRODUCT_ID = "90d00000-0000-4000-8000-000000000003";
 
@@ -18,71 +19,8 @@ beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 
-function createServices(
-  overrides: Partial<PurchaseOrderScreenServices> = {},
-): PurchaseOrderScreenServices {
-  return {
-    fetchPurchaseOrder: vi.fn().mockResolvedValue({
-      kind: "ok",
-      value: { kind: "found", order: DRAFT_ORDER },
-    }),
-    fetchPurchaseChoices: vi.fn().mockResolvedValue({
-      kind: "ok",
-      value: { suppliers: [], products: purchasableProducts, today: "2026-09-16" },
-    }),
-    editPurchaseOrderLines: vi.fn(),
-    cancelPurchaseOrder: vi.fn(),
-    sharePurchaseOrder: vi.fn(),
-    fetchPurchaseOrderPdf: vi.fn(),
-    fetchPurchaseOrderText: vi.fn().mockResolvedValue({
-      kind: "ok",
-      value: { kind: "found", text: "Pedido a Distribuidora Andina" },
-    }),
-    ...overrides,
-  };
-}
-
-function deferred<T>() {
-  let resolve: (value: T) => void = () => {};
-  const promise = new Promise<T>((settle) => {
-    resolve = settle;
-  });
-  return { promise, resolve };
-}
-
-function renderScreen(
-  services: PurchaseOrderScreenServices,
-  {
-    onBack = () => {},
-    onSessionEnded = () => {},
-  }: { onBack?: () => void; onSessionEnded?: () => void } = {},
-) {
-  return render(
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <PurchaseOrderScreen
-          orderId={ORDER_ID}
-          services={services}
-          onBack={onBack}
-          onSessionEnded={onSessionEnded}
-        />
-      </main>
-    </FieldSizeProvider>,
-  );
-}
-
-type Screen = Awaited<ReturnType<typeof renderScreen>>;
-
 function line(screen: Screen, number: number) {
   return screen.getByRole("group", { name: `Línea ${number}` });
-}
-
-async function loaded(services: PurchaseOrderScreenServices, options = {}) {
-  const screen = await renderScreen(services, options);
-  await expect
-    .element(screen.getByRole("heading", { name: "Pedido a Distribuidora Andina", level: 1 }))
-    .toBeVisible();
-  return screen;
 }
 
 async function chooseFromComboBox(
@@ -673,6 +611,35 @@ test("reads the order again when sharing finds it no longer shareable", async ()
 
   await expect.element(screen.getByText("Enviado").first()).toBeVisible();
   expect(screen.getByRole("dialog").query()).toBeNull();
+});
+
+test("offers neither cancelling nor sharing a sent order to whoever may read and receive but not manage purchase orders", async () => {
+  const screen = await loaded(sentServices(), {
+    access: accessWith("purchase_order_reads", "purchase_order_receipts"),
+  });
+
+  await expect.element(screen.getByRole("button", { name: "Recibir pedido" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Cancelar pedido" }).query()).toBeNull();
+  expect(screen.getByRole("button", { name: "Compartir pedido" }).query()).toBeNull();
+});
+
+test("shows a draft's lines read-only, with no saving, cancelling or sharing, to whoever may not manage purchase orders", async () => {
+  const screen = await loaded(createServices(), { access: accessWith("purchase_order_reads") });
+
+  await expect.element(screen.getByRole("table", { name: "Líneas del pedido" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Guardar" }).query()).toBeNull();
+  expect(screen.getByRole("button", { name: "Cancelar pedido" }).query()).toBeNull();
+  expect(screen.getByRole("button", { name: "Compartir pedido" }).query()).toBeNull();
+});
+
+test("offers editing, cancelling and sharing a draft to whoever may manage purchase orders", async () => {
+  const screen = await loaded(createServices(), {
+    access: accessWith("purchase_order_reads", "purchase_orders"),
+  });
+
+  await expect.element(screen.getByRole("button", { name: "Guardar" })).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Cancelar pedido" })).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Compartir pedido" })).toBeVisible();
 });
 
 test("shows the supplier's item under each product of a read-only order that has one", async () => {

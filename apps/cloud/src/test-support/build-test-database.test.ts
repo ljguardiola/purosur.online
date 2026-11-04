@@ -72,6 +72,8 @@ import {
   productTags,
   purchaseLines,
   purchaseOrderLines,
+  purchaseOrderReceiptLines,
+  purchaseOrderReceipts,
   purchaseOrders,
   purchases,
   recipeComponents,
@@ -915,13 +917,32 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
         actorId: user.id,
       })
       .returning({ id: purchaseOrders.id });
-    await db.insert(purchaseOrderLines).values({
-      purchaseOrderId: purchaseOrder?.id as string,
-      position: 1,
-      productId: product.id,
-      packages: 2,
-      quantityPerPackage: 1000,
-      expectedPackagePriceCents: null,
+    const [purchaseOrderLine] = await db
+      .insert(purchaseOrderLines)
+      .values({
+        purchaseOrderId: purchaseOrder?.id as string,
+        position: 1,
+        productId: product.id,
+        packages: 2,
+        quantityPerPackage: 1000,
+        expectedPackagePriceCents: null,
+      })
+      .returning({ id: purchaseOrderLines.id });
+    const [purchaseOrderReceipt] = await db
+      .insert(purchaseOrderReceipts)
+      .values({
+        purchaseOrderId: purchaseOrder?.id as string,
+        purchaseId: purchase?.id as string,
+        actorId: user.id,
+        receivedAt: new Date("2026-01-05T12:00:00.000Z"),
+      })
+      .returning({ id: purchaseOrderReceipts.id });
+    await db.insert(purchaseOrderReceiptLines).values({
+      purchaseOrderReceiptId: purchaseOrderReceipt?.id as string,
+      purchaseOrderLineId: purchaseOrderLine?.id as string,
+      receivedQuantity: 1000,
+      missingQuantity: 1000,
+      priceDifferenceCents: null,
     });
     const [lot] = await db
       .insert(lots)

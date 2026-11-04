@@ -9,6 +9,7 @@ const row = {
   amount: 0,
   cost: 0,
   margin: 0,
+  marginTenthsOfPercent: null,
   incompleteSales: 0,
 };
 

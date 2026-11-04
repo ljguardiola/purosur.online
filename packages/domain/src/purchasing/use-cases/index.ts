@@ -106,6 +106,13 @@ export type {
 } from "./get-purchase-order.js";
 export { getPurchaseOrder } from "./get-purchase-order.js";
 export type {
+  GetPurchaseOrderReceiptDraftInput,
+  GetPurchaseOrderReceiptDraftOutcome,
+  PurchaseOrderReceiptDraft,
+  ReceiptDraftLine,
+} from "./get-purchase-order-receipt-draft.js";
+export { getPurchaseOrderReceiptDraft } from "./get-purchase-order-receipt-draft.js";
+export type {
   LinkSupplierPriceListRowInput,
   LinkSupplierPriceListRowOutcome,
 } from "./link-supplier-price-list-row.js";
@@ -217,7 +224,20 @@ export type {
   PurchaseOrderLineListing,
   PurchaseOrderListing,
   PurchaseOrderReader,
+  PurchaseOrderReceiptListing,
+  ReceivableOrderLineListing,
+  ReceivableOrderListing,
 } from "./purchase-order-reader.js";
+export type {
+  LockReceivablePurchaseOrderResult,
+  NewPurchaseOrderReceiptFields,
+  PurchaseOrderReceiptLineFields,
+  PurchaseOrderReceiptStore,
+  PurchaseOrderReceiptStoreTransaction,
+  PurchaseOrderReceiving,
+  ReceivablePurchaseOrder,
+  ReceivablePurchaseOrderLine,
+} from "./purchase-order-receipt-store.js";
 export type {
   LockedPurchaseOrder,
   LockPurchaseOrderResult,
@@ -275,6 +295,12 @@ export type {
   ReadSupplierPriceListPorts,
 } from "./read-supplier-price-list.js";
 export { readSupplierPriceList } from "./read-supplier-price-list.js";
+export type {
+  ReceivePurchaseOrderInput,
+  ReceivePurchaseOrderOutcome,
+  ReceivePurchaseOrderPorts,
+} from "./receive-purchase-order.js";
+export { receivePurchaseOrder } from "./receive-purchase-order.js";
 export type {
   RecordFreightInput,
   RecordFreightOutcome,

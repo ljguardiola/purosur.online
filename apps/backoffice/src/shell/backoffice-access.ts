@@ -167,6 +167,14 @@ export function canManagePurchaseOrders(access: BackofficeAccess): boolean {
   return grants(access, "purchase_orders");
 }
 
+export function canReadPurchaseOrders(access: BackofficeAccess): boolean {
+  return grants(access, "purchase_order_reads");
+}
+
+export function canReceivePurchaseOrders(access: BackofficeAccess): boolean {
+  return grants(access, "purchase_order_receipts");
+}
+
 export function canComparePrices(access: BackofficeAccess): boolean {
   return grants(access, "price_comparison");
 }

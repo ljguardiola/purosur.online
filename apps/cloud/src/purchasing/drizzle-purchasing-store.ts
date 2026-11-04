@@ -55,7 +55,7 @@ function translateSupplierViolation(error: unknown): unknown {
   return error;
 }
 
-class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResultHKT>
+export class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResultHKT>
   implements PurchasingStoreTransaction, PurchaseCorrectionStoreTransaction
 {
   private readonly tx: PgDatabase<TQueryResult>;

@@ -3,15 +3,34 @@ import type {
   PurchaseOrderDetailListing,
   PurchaseOrderListing,
   PurchaseOrderReader,
+  ReceivableOrderListing,
 } from "../purchase-order-reader.js";
 
 export type FakePurchaseOrder = PurchaseOrderDetailListing & { locationId: string };
 
+export type FakeReceivableOrder = ReceivableOrderListing & { locationId: string };
+
 export class FakePurchaseOrderReader implements PurchaseOrderReader {
   private readonly stored: FakePurchaseOrder[];
+  private readonly receivable: FakeReceivableOrder[];
 
-  constructor(orders: FakePurchaseOrder[] = []) {
+  constructor(orders: FakePurchaseOrder[] = [], receivable: FakeReceivableOrder[] = []) {
     this.stored = orders;
+    this.receivable = receivable;
+  }
+
+  async receivableOrder(
+    locationId: string,
+    orderId: string,
+  ): Promise<ReceivableOrderListing | undefined> {
+    const order = this.receivable.find(
+      (row) => row.id === orderId && row.locationId === locationId,
+    );
+    if (!order) {
+      return undefined;
+    }
+    const { locationId: _locationId, ...listing } = order;
+    return listing;
   }
 
   async orders(locationId: string, state?: PurchaseOrderState): Promise<PurchaseOrderListing[]> {

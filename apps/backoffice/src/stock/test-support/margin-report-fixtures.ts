@@ -18,6 +18,7 @@ export const categoryMarginReport: MarginReportBody = {
       amount: 410_000,
       cost: 250_000,
       margin: 160_000,
+      marginTenthsOfPercent: 390,
       incompleteSales: 0,
     },
     {
@@ -28,6 +29,7 @@ export const categoryMarginReport: MarginReportBody = {
       amount: 300_000,
       cost: 180_000,
       margin: 120_000,
+      marginTenthsOfPercent: 400,
       incompleteSales: 2,
     },
     {
@@ -38,6 +40,7 @@ export const categoryMarginReport: MarginReportBody = {
       amount: 190_000,
       cost: 200_000,
       margin: -10_000,
+      marginTenthsOfPercent: -53,
       incompleteSales: 0,
     },
     {
@@ -48,10 +51,17 @@ export const categoryMarginReport: MarginReportBody = {
       amount: 100_000,
       cost: 40_000,
       margin: 60_000,
+      marginTenthsOfPercent: 600,
       incompleteSales: 0,
     },
   ],
-  totals: { amount: 1_000_000, cost: 670_000, margin: 330_000, incompleteSales: 2 },
+  totals: {
+    amount: 1_000_000,
+    cost: 670_000,
+    margin: 330_000,
+    marginTenthsOfPercent: 330,
+    incompleteSales: 2,
+  },
 };
 
 export const productMarginReport: MarginReportBody = {
@@ -66,6 +76,7 @@ export const productMarginReport: MarginReportBody = {
       amount: 600_000,
       cost: 360_000,
       margin: 240_000,
+      marginTenthsOfPercent: 400,
       incompleteSales: 0,
     },
     {
@@ -76,10 +87,17 @@ export const productMarginReport: MarginReportBody = {
       amount: 400_000,
       cost: 310_000,
       margin: 90_000,
+      marginTenthsOfPercent: 225,
       incompleteSales: 1,
     },
   ],
-  totals: { amount: 1_000_000, cost: 670_000, margin: 330_000, incompleteSales: 1 },
+  totals: {
+    amount: 1_000_000,
+    cost: 670_000,
+    margin: 330_000,
+    marginTenthsOfPercent: 330,
+    incompleteSales: 1,
+  },
 };
 
 export const completeMarginReport: MarginReportBody = {
@@ -92,7 +110,7 @@ export const noMarginReport: MarginReportBody = {
   range: { from: "2026-10-07", to: "2026-10-07" },
   group: "category",
   rows: [],
-  totals: { amount: 0, cost: 0, margin: 0, incompleteSales: 0 },
+  totals: { amount: 0, cost: 0, margin: 0, marginTenthsOfPercent: null, incompleteSales: 0 },
 };
 
 export function manyMarginRowsReport(count: number): MarginReportBody {
@@ -104,6 +122,7 @@ export function manyMarginRowsReport(count: number): MarginReportBody {
     amount: (count - index) * 100,
     cost: (count - index) * 40,
     margin: (count - index) * 60,
+    marginTenthsOfPercent: 600,
     incompleteSales: 0,
   }));
   return {
@@ -114,7 +133,38 @@ export function manyMarginRowsReport(count: number): MarginReportBody {
       amount: rows.reduce((sum, row) => sum + row.amount, 0),
       cost: rows.reduce((sum, row) => sum + row.cost, 0),
       margin: rows.reduce((sum, row) => sum + row.margin, 0),
+      marginTenthsOfPercent: 600,
       incompleteSales: 0,
     },
   };
 }
+
+export const unsoldMarginReport: MarginReportBody = {
+  range: { from: "2026-10-01", to: "2026-10-07" },
+  group: "product",
+  rows: [
+    {
+      id: QUESO_ID,
+      path: ["Queso cremoso"],
+      brandName: null,
+      netContent: null,
+      amount: 0,
+      cost: 0,
+      margin: 0,
+      marginTenthsOfPercent: null,
+      incompleteSales: 0,
+    },
+    {
+      id: YERBA_ID,
+      path: ["Yerba mate"],
+      brandName: null,
+      netContent: null,
+      amount: 100,
+      cost: 50,
+      margin: 50,
+      marginTenthsOfPercent: 500,
+      incompleteSales: 0,
+    },
+  ],
+  totals: { amount: 100, cost: 50, margin: 50, marginTenthsOfPercent: 500, incompleteSales: 0 },
+};

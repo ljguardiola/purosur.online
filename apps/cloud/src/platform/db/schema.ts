@@ -821,6 +821,7 @@ export const purchaseOrders = pgTable(
     cancelledBy: uuid("cancelled_by").references(() => users.id),
     sentAt: timestamp("sent_at", { withTimezone: true }),
     sentBy: uuid("sent_by").references(() => users.id),
+    receivedAt: timestamp("received_at", { withTimezone: true }),
   },
   (table) => [
     check(
@@ -833,7 +834,11 @@ export const purchaseOrders = pgTable(
     ),
     check(
       "purchase_orders_sending_check",
-      sql`(${table.sentAt} is null) = (${table.sentBy} is null) and (${table.state} <> 'SENT' or ${table.sentAt} is not null) and (${table.state} <> 'DRAFT' or ${table.sentAt} is null)`,
+      sql`(${table.sentAt} is null) = (${table.sentBy} is null) and (${table.state} not in ('SENT', 'PARTIALLY_RECEIVED', 'RECEIVED') or ${table.sentAt} is not null) and (${table.state} <> 'DRAFT' or ${table.sentAt} is null)`,
+    ),
+    check(
+      "purchase_orders_receiving_check",
+      sql`(${table.state} = 'RECEIVED') = (${table.receivedAt} is not null)`,
     ),
     index("purchase_orders_location_id_state_created_at_idx").on(
       table.locationId,
@@ -868,6 +873,57 @@ export const purchaseOrderLines = pgTable(
     ),
     unique("purchase_order_lines_order_product_key").on(table.purchaseOrderId, table.productId),
     unique("purchase_order_lines_order_position_key").on(table.purchaseOrderId, table.position),
+  ],
+);
+
+export const purchaseOrderReceipts = pgTable(
+  "purchase_order_receipts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    purchaseOrderId: uuid("purchase_order_id")
+      .notNull()
+      .references(() => purchaseOrders.id),
+    purchaseId: uuid("purchase_id")
+      .notNull()
+      .references(() => purchases.id),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => users.id),
+    receivedAt: timestamp("received_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    unique("purchase_order_receipts_purchase_id_key").on(table.purchaseId),
+    index("purchase_order_receipts_purchase_order_id_idx").on(table.purchaseOrderId),
+  ],
+);
+
+export const purchaseOrderReceiptLines = pgTable(
+  "purchase_order_receipt_lines",
+  {
+    purchaseOrderReceiptId: uuid("purchase_order_receipt_id")
+      .notNull()
+      .references(() => purchaseOrderReceipts.id),
+    purchaseOrderLineId: uuid("purchase_order_line_id")
+      .notNull()
+      .references(() => purchaseOrderLines.id),
+    receivedQuantity: bigint("received_quantity", { mode: "number" }).notNull(),
+    missingQuantity: bigint("missing_quantity", { mode: "number" }).notNull(),
+    priceDifferenceCents: bigint("price_difference_cents", { mode: "number" }),
+  },
+  (table) => [
+    primaryKey({
+      name: "purchase_order_receipt_lines_pkey",
+      columns: [table.purchaseOrderReceiptId, table.purchaseOrderLineId],
+    }),
+    check(
+      "purchase_order_receipt_lines_received_quantity_check",
+      sql`${table.receivedQuantity} >= 0`,
+    ),
+    check(
+      "purchase_order_receipt_lines_missing_quantity_check",
+      sql`${table.missingQuantity} >= 0`,
+    ),
+    index("purchase_order_receipt_lines_purchase_order_line_id_idx").on(table.purchaseOrderLineId),
   ],
 );
 

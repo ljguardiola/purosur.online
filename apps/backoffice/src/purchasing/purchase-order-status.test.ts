@@ -12,3 +12,14 @@ test("a cancelled order is neutral and reads Cancelado", () => {
 test("a sent order is informative and reads Enviado", () => {
   expect(purchaseOrderStatusOf("SENT")).toEqual({ tone: "info", label: "Enviado" });
 });
+
+test("a partially received order is informative and reads Recibido en parte", () => {
+  expect(purchaseOrderStatusOf("PARTIALLY_RECEIVED")).toEqual({
+    tone: "info",
+    label: "Recibido en parte",
+  });
+});
+
+test("a received order is a success and reads Recibido", () => {
+  expect(purchaseOrderStatusOf("RECEIVED")).toEqual({ tone: "success", label: "Recibido" });
+});

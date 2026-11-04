@@ -1,5 +1,5 @@
 {
-  "id": "ea4f40d1-d175-4378-aeaa-0e4950442458",
+  "id": "e87ed2d6-6a15-43c1-af4c-c06e75708fa8",
   "prevId": "21f9cad7-5157-46c0-a536-7d63aa38bbf1",
   "version": "7",
   "dialect": "postgresql",
@@ -6925,6 +6925,192 @@
       },
       "isRLSEnabled": false
     },
+    "public.purchase_order_receipt_lines": {
+      "name": "purchase_order_receipt_lines",
+      "schema": "",
+      "columns": {
+        "purchase_order_receipt_id": {
+          "name": "purchase_order_receipt_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "purchase_order_line_id": {
+          "name": "purchase_order_line_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "received_quantity": {
+          "name": "received_quantity",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "missing_quantity": {
+          "name": "missing_quantity",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "price_difference_cents": {
+          "name": "price_difference_cents",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "purchase_order_receipt_lines_purchase_order_line_id_idx": {
+          "name": "purchase_order_receipt_lines_purchase_order_line_id_idx",
+          "columns": [
+            {
+              "expression": "purchase_order_line_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "purchase_order_receipt_lines_purchase_order_receipt_id_purchase_order_receipts_id_fk": {
+          "name": "purchase_order_receipt_lines_purchase_order_receipt_id_purchase_order_receipts_id_fk",
+          "tableFrom": "purchase_order_receipt_lines",
+          "tableTo": "purchase_order_receipts",
+          "columnsFrom": ["purchase_order_receipt_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "purchase_order_receipt_lines_purchase_order_line_id_purchase_order_lines_id_fk": {
+          "name": "purchase_order_receipt_lines_purchase_order_line_id_purchase_order_lines_id_fk",
+          "tableFrom": "purchase_order_receipt_lines",
+          "tableTo": "purchase_order_lines",
+          "columnsFrom": ["purchase_order_line_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "purchase_order_receipt_lines_pkey": {
+          "name": "purchase_order_receipt_lines_pkey",
+          "columns": ["purchase_order_receipt_id", "purchase_order_line_id"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "purchase_order_receipt_lines_received_quantity_check": {
+          "name": "purchase_order_receipt_lines_received_quantity_check",
+          "value": "\"purchase_order_receipt_lines\".\"received_quantity\" >= 0"
+        },
+        "purchase_order_receipt_lines_missing_quantity_check": {
+          "name": "purchase_order_receipt_lines_missing_quantity_check",
+          "value": "\"purchase_order_receipt_lines\".\"missing_quantity\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.purchase_order_receipts": {
+      "name": "purchase_order_receipts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "purchase_order_id": {
+          "name": "purchase_order_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "purchase_id": {
+          "name": "purchase_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "received_at": {
+          "name": "received_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "purchase_order_receipts_purchase_order_id_idx": {
+          "name": "purchase_order_receipts_purchase_order_id_idx",
+          "columns": [
+            {
+              "expression": "purchase_order_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "purchase_order_receipts_purchase_order_id_purchase_orders_id_fk": {
+          "name": "purchase_order_receipts_purchase_order_id_purchase_orders_id_fk",
+          "tableFrom": "purchase_order_receipts",
+          "tableTo": "purchase_orders",
+          "columnsFrom": ["purchase_order_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "purchase_order_receipts_purchase_id_purchases_id_fk": {
+          "name": "purchase_order_receipts_purchase_id_purchases_id_fk",
+          "tableFrom": "purchase_order_receipts",
+          "tableTo": "purchases",
+          "columnsFrom": ["purchase_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "purchase_order_receipts_actor_id_users_id_fk": {
+          "name": "purchase_order_receipts_actor_id_users_id_fk",
+          "tableFrom": "purchase_order_receipts",
+          "tableTo": "users",
+          "columnsFrom": ["actor_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "purchase_order_receipts_purchase_id_key": {
+          "name": "purchase_order_receipts_purchase_id_key",
+          "nullsNotDistinct": false,
+          "columns": ["purchase_id"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.purchase_orders": {
       "name": "purchase_orders",
       "schema": "",
@@ -6987,6 +7173,12 @@
         "sent_by": {
           "name": "sent_by",
           "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "received_at": {
+          "name": "received_at",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": false
         }
@@ -7073,7 +7265,7 @@
       "checkConstraints": {
         "purchase_orders_state_check": {
           "name": "purchase_orders_state_check",
-          "value": "\"purchase_orders\".\"state\" in ('DRAFT', 'SENT', 'CANCELLED')"
+          "value": "\"purchase_orders\".\"state\" in ('DRAFT', 'SENT', 'PARTIALLY_RECEIVED', 'RECEIVED', 'CANCELLED')"
         },
         "purchase_orders_cancellation_check": {
           "name": "purchase_orders_cancellation_check",
@@ -7081,7 +7273,11 @@
         },
         "purchase_orders_sending_check": {
           "name": "purchase_orders_sending_check",
-          "value": "(\"purchase_orders\".\"sent_at\" is null) = (\"purchase_orders\".\"sent_by\" is null) and (\"purchase_orders\".\"state\" <> 'SENT' or \"purchase_orders\".\"sent_at\" is not null) and (\"purchase_orders\".\"state\" <> 'DRAFT' or \"purchase_orders\".\"sent_at\" is null)"
+          "value": "(\"purchase_orders\".\"sent_at\" is null) = (\"purchase_orders\".\"sent_by\" is null) and (\"purchase_orders\".\"state\" not in ('SENT', 'PARTIALLY_RECEIVED', 'RECEIVED') or \"purchase_orders\".\"sent_at\" is not null) and (\"purchase_orders\".\"state\" <> 'DRAFT' or \"purchase_orders\".\"sent_at\" is null)"
+        },
+        "purchase_orders_receiving_check": {
+          "name": "purchase_orders_receiving_check",
+          "value": "(\"purchase_orders\".\"state\" = 'RECEIVED') = (\"purchase_orders\".\"received_at\" is not null)"
         }
       },
       "isRLSEnabled": false
@@ -9111,6 +9307,194 @@
         "rejected_document_remedies_correction_check": {
           "name": "rejected_document_remedies_correction_check",
           "value": "(\"rejected_document_remedies\".\"kind\" = 'printed') = (\"rejected_document_remedies\".\"correction\" is not null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.removed_sale_lines": {
+      "name": "removed_sale_lines",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "sale_id": {
+          "name": "sale_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "location_id": {
+          "name": "location_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "register_id": {
+          "name": "register_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "device_id": {
+          "name": "device_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "session_id": {
+          "name": "session_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "product_id": {
+          "name": "product_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "product_name": {
+          "name": "product_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "weight_source": {
+          "name": "weight_source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "line_total": {
+          "name": "line_total",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "removed_at": {
+          "name": "removed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "applied_at": {
+          "name": "applied_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "origin_event_id": {
+          "name": "origin_event_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "removed_sale_lines_location_id_removed_at_idx": {
+          "name": "removed_sale_lines_location_id_removed_at_idx",
+          "columns": [
+            {
+              "expression": "location_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "removed_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "removed_sale_lines_register_id_removed_at_idx": {
+          "name": "removed_sale_lines_register_id_removed_at_idx",
+          "columns": [
+            {
+              "expression": "register_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "removed_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "removed_sale_lines_location_id_locations_id_fk": {
+          "name": "removed_sale_lines_location_id_locations_id_fk",
+          "tableFrom": "removed_sale_lines",
+          "tableTo": "locations",
+          "columnsFrom": ["location_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "removed_sale_lines_register_id_registers_id_fk": {
+          "name": "removed_sale_lines_register_id_registers_id_fk",
+          "tableFrom": "removed_sale_lines",
+          "tableTo": "registers",
+          "columnsFrom": ["register_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "removed_sale_lines_device_id_register_installations_id_fk": {
+          "name": "removed_sale_lines_device_id_register_installations_id_fk",
+          "tableFrom": "removed_sale_lines",
+          "tableTo": "register_installations",
+          "columnsFrom": ["device_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "removed_sale_lines_session_id_cash_sessions_id_fk": {
+          "name": "removed_sale_lines_session_id_cash_sessions_id_fk",
+          "tableFrom": "removed_sale_lines",
+          "tableTo": "cash_sessions",
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "removed_sale_lines_weight_source_check": {
+          "name": "removed_sale_lines_weight_source_check",
+          "value": "\"removed_sale_lines\".\"weight_source\" IN ('SCALE', 'MANUAL')"
         }
       },
       "isRLSEnabled": false
