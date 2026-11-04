@@ -3,7 +3,9 @@ import { printingCompletedSales, printingEachCompletedSale } from "./printing-co
 
 const COMPLETED = { kind: "completed", sale_id: "sale-1", total: 3000 } as const;
 
-function rig(options: { printing?: Promise<void>; beforePrinting?: Promise<void> } = {}) {
+function rig(
+  options: { printing?: Promise<void>; beforePrinting?: Promise<void>; asks?: boolean } = {},
+) {
   const events: string[] = [];
   const failures: unknown[] = [];
   const charge = async (request: { saleId: string }) => {
@@ -26,7 +28,13 @@ function rig(options: { printing?: Promise<void>; beforePrinting?: Promise<void>
     },
     onFailure: (error: unknown) => failures.push(error),
   };
-  return { events, failures, charge, deps };
+  const question = {
+    asksBeforePrinting: () => options.asks === true,
+    holdForAnswer: (saleId: string) => {
+      events.push(`hold ${saleId}`);
+    },
+  };
+  return { events, failures, charge, deps, asking: { ...deps, question } };
 }
 
 describe("printing the receipt of a sale just completed", () => {
@@ -34,7 +42,7 @@ describe("printing the receipt of a sale just completed", () => {
     const subject = rig({ printing: new Promise(() => {}) });
 
     const outcome = await printingCompletedSales(
-      subject.deps,
+      subject.asking,
       subject.charge,
     )({ saleId: "sale-1" });
 
@@ -47,7 +55,7 @@ describe("printing the receipt of a sale just completed", () => {
   it("syncs once the print was started", async () => {
     const subject = rig();
 
-    await printingCompletedSales(subject.deps, subject.charge)({ saleId: "sale-1" });
+    await printingCompletedSales(subject.asking, subject.charge)({ saleId: "sale-1" });
     await vi.waitFor(() => expect(subject.events).toContain("sync"));
 
     expect(subject.events).toEqual([
@@ -62,7 +70,7 @@ describe("printing the receipt of a sale just completed", () => {
     const subject = rig();
 
     const outcome = await printingCompletedSales(
-      subject.deps,
+      subject.asking,
       subject.charge,
     )({ saleId: "partial" });
 
@@ -80,7 +88,10 @@ describe("printing the receipt of a sale just completed", () => {
       },
     };
 
-    await printingCompletedSales(failing, subject.charge)({ saleId: "sale-1" });
+    await printingCompletedSales(
+      { ...failing, question: subject.asking.question },
+      subject.charge,
+    )({ saleId: "sale-1" });
     await vi.waitFor(() => expect(subject.events).toContain("sync"));
 
     expect(subject.failures).toEqual([failure]);
@@ -91,7 +102,7 @@ describe("printing the receipt of a sale just completed", () => {
     const subject = rig({ beforePrinting: new Promise(() => {}) });
 
     const outcome = await printingCompletedSales(
-      subject.deps,
+      subject.asking,
       subject.charge,
     )({ saleId: "sale-1" });
 
@@ -106,7 +117,7 @@ describe("printing the receipt of a sale just completed", () => {
       }),
     });
 
-    await printingCompletedSales(subject.deps, subject.charge)({ saleId: "sale-1" });
+    await printingCompletedSales(subject.asking, subject.charge)({ saleId: "sale-1" });
     await Promise.resolve();
     expect(subject.events).toEqual(["charge sale-1", "before printing sale-1"]);
 
@@ -124,11 +135,57 @@ describe("printing the receipt of a sale just completed", () => {
       },
     };
 
-    await printingCompletedSales(failing, subject.charge)({ saleId: "sale-1" });
+    await printingCompletedSales(
+      { ...failing, question: subject.asking.question },
+      subject.charge,
+    )({ saleId: "sale-1" });
     await vi.waitFor(() => expect(subject.events).toContain("sync"));
 
     expect(subject.failures).toEqual([failure]);
     expect(subject.events).toEqual(["charge sale-1", "print sale-1", "sync"]);
+  });
+});
+
+describe("asking before printing the receipt of a sale just completed", () => {
+  it("holds the sale for the cashier's answer instead of printing it, and still syncs", async () => {
+    const subject = rig({ asks: true });
+
+    await printingCompletedSales(subject.asking, subject.charge)({ saleId: "sale-1" });
+    await vi.waitFor(() => expect(subject.events).toContain("sync"));
+
+    expect(subject.events).toEqual([
+      "charge sale-1",
+      "before printing sale-1",
+      "hold sale-1",
+      "sync",
+    ]);
+  });
+
+  it("prints without asking when the sale's receipt does not ask", async () => {
+    const subject = rig({ asks: false });
+
+    await printingCompletedSales(subject.asking, subject.charge)({ saleId: "sale-1" });
+    await vi.waitFor(() => expect(subject.events).toContain("sync"));
+
+    expect(subject.events).not.toContain("hold sale-1");
+    expect(subject.events).toContain("print sale-1");
+  });
+
+  it("asks only after what comes before printing has settled", async () => {
+    let settle: () => void = () => {};
+    const subject = rig({
+      asks: true,
+      beforePrinting: new Promise<void>((resolve) => {
+        settle = resolve;
+      }),
+    });
+
+    await printingCompletedSales(subject.asking, subject.charge)({ saleId: "sale-1" });
+    await Promise.resolve();
+    expect(subject.events).not.toContain("hold sale-1");
+
+    settle();
+    await vi.waitFor(() => expect(subject.events).toContain("hold sale-1"));
   });
 });
 
@@ -184,5 +241,19 @@ describe("printing the receipt of each sale a follow of several charges complete
     }))(undefined);
 
     expect(subject.events).toEqual([]);
+  });
+});
+
+describe("printing the receipt of a sale completed in the background", () => {
+  it("prints without asking even when the receipt would ask", async () => {
+    const subject = rig({ asks: true });
+    const following = printingEachCompletedSale(subject.deps, async () => ({
+      followed: [{ outcome: COMPLETED }],
+    }));
+
+    await following(undefined);
+    await vi.waitFor(() => expect(subject.events).toContain("sync"));
+
+    expect(subject.events).toEqual(["before printing sale-1", "print sale-1", "sync"]);
   });
 });

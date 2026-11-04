@@ -48,6 +48,7 @@ describe("the register's receipt printing without a local database", () => {
 
   it("offers no request to answer", () => {
     expect(printing.receiptPrintStatus).toBeUndefined();
+    expect(printing.answerReceiptQuestion).toBeUndefined();
     expect(printing.reprintSaleReceipt).toBeUndefined();
     expect(printing.printCreditNote).toBeUndefined();
     expect(printing.reprintCreditNote).toBeUndefined();
@@ -336,6 +337,76 @@ describe("the register's receipt printing over its local database", () => {
       ).toEqual({
         print_attempted_at: null,
       });
+    });
+  });
+
+  describe("a sale whose customer's factura C asks before printing", () => {
+    beforeEach(() => {
+      saveAddress("10.10.10.2", null);
+      database.exec(
+        `INSERT INTO offline_fiscal_documents (
+           id, sale_id, point_of_sale, document_type, number, issued_on, generated_at, generation_stamp,
+           offline_authorization_code, fortnight_start, fortnight_end, document,
+           buyer_document_type, buyer_document_number, cause
+         ) VALUES (
+           'offline-doc-1', 'sale-1', 8, 'factura_c', 412, '2026-10-08', '2026-10-08T12:00:00.000Z', '20261008090000',
+           '36251478963214', '2026-10-01', '2026-10-15', '{"buyerTaxStatusCode":5}',
+           99, 0, 'no_connectivity'
+         )`,
+      );
+    });
+
+    async function completed() {
+      const printing = printingOverDatabase();
+      await printing.afterCompletedSale(async () => ({ kind: "completed", sale_id: "sale-1" }))?.(
+        {},
+      );
+      await vi.waitFor(() => expect(syncs).toBe(1));
+      return printing;
+    }
+
+    it("is held for the cashier's answer instead of printed, and still syncs", async () => {
+      const printing = await completed();
+
+      expect(connections).toEqual([]);
+      expect(await printing.receiptPrintStatus?.("sale-1")).toMatchObject({
+        standing: "awaiting_answer",
+      });
+    });
+
+    it("prints once the cashier says yes", async () => {
+      const printing = await completed();
+
+      expect(await printing.answerReceiptQuestion?.({ saleId: "sale-1", print: true })).toEqual({
+        kind: "printing",
+      });
+
+      await vi.waitFor(() => expect(connections).toHaveLength(1));
+    });
+
+    it("prints nothing and syncs again once the cashier says no", async () => {
+      const printing = await completed();
+
+      expect(await printing.answerReceiptQuestion?.({ saleId: "sale-1", print: false })).toEqual({
+        kind: "declined",
+      });
+
+      expect(connections).toEqual([]);
+      expect(syncs).toBe(2);
+      expect(await printing.receiptPrintStatus?.("sale-1")).toMatchObject({ standing: "declined" });
+    });
+
+    it("prints the receipt of a sale completed in the background without asking", async () => {
+      const followed = {
+        followed: [
+          { paymentTransactionId: "qr-1", outcome: { kind: "completed", sale_id: "sale-1" } },
+        ],
+        failures: [],
+      };
+
+      await printingOverDatabase().afterEachCompletedSale(async () => followed)?.(undefined);
+
+      await vi.waitFor(() => expect(connections).toHaveLength(1));
     });
   });
 

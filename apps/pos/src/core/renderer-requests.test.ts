@@ -2,6 +2,7 @@ import type {
   AddProductOutcome,
   AddWeighedProductOutcome,
   AdjustSaleLineOutcome,
+  AnswerReceiptQuestionOutcome,
   ApplySaleDiscountOutcome,
   CancelLockedSaleOutcome,
   CancelPaidSaleOutcome,
@@ -325,6 +326,13 @@ function deps(enrolled: boolean, overrides: Partial<RendererRequestDeps> = {}) {
       receiptPrintStatus: async (saleId: string): Promise<ReceiptPrintStatusOutcome> => {
         saleChanges.push(["receipt-status", saleId].join(" "));
         return { kind: "not_found" };
+      },
+      answerReceiptQuestion: async (request: {
+        saleId: string;
+        print: boolean;
+      }): Promise<AnswerReceiptQuestionOutcome> => {
+        saleChanges.push(["receipt-answer", request.saleId, request.print].join(" "));
+        return { kind: "not_awaiting" };
       },
       printOriginalReceipt: async (saleId: string): Promise<PrintOriginalReceiptOutcome> => {
         saleChanges.push(["original-print", saleId].join(" "));
@@ -3233,6 +3241,14 @@ describe("answerRendererRequest", () => {
         "reading a receipt's print status",
         "receipt-status s1",
         "receipt-print-status-result",
+      ],
+      [
+        "answer-receipt-question",
+        { type: "answer-receipt-question", sale_id: "s1", print: false } as const,
+        "answerReceiptQuestion",
+        "answering the question of printing the customer's ticket",
+        "receipt-answer s1 false",
+        "answer-receipt-question-result",
       ],
       [
         "print-original-receipt",

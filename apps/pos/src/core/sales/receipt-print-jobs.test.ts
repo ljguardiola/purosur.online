@@ -38,6 +38,20 @@ function printingSale({ jobs, printer }: Rig, saleId = "sale-1") {
 }
 
 describe("receipt print jobs", () => {
+  it("holds a sale for the cashier's answer until the answer releases it", () => {
+    const { jobs } = rig();
+
+    expect(jobs.isHeldForAnswer("sale-1")).toBe(false);
+
+    jobs.holdForAnswer("sale-1");
+    expect(jobs.isHeldForAnswer("sale-1")).toBe(true);
+    expect(jobs.isHeldForAnswer("sale-2")).toBe(false);
+
+    expect(jobs.releaseAnswer("sale-1")).toBe(true);
+    expect(jobs.isHeldForAnswer("sale-1")).toBe(false);
+    expect(jobs.releaseAnswer("sale-1")).toBe(false);
+  });
+
   it("knows no standing for a sale nothing was printed for", () => {
     expect(rig().jobs.standingOf("sale-1")).toBeNull();
   });
