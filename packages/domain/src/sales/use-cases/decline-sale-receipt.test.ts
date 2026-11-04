@@ -1,13 +1,16 @@
+import { FICTIONAL_ISSUER } from "@purosur/domain/fiscal/test-support";
 import { describe, expect, it } from "vitest";
 import { declineSaleReceipt } from "./decline-sale-receipt.js";
 import {
   authorizedSale,
-  OFFLINE_AUTHORIZED,
+  offlineAuthorized,
   saleWithFiscal,
 } from "./test-support/receipt-question-sales.js";
 import { type completedSale, FIRST_PRINT_AT, receiptRig } from "./test-support/receipt-rig.js";
 
-function declineRig(sales: ReturnType<typeof completedSale>[] = [authorizedSale()]) {
+function declineRig(
+  sales: ReturnType<typeof completedSale>[] = [authorizedSale(FICTIONAL_ISSUER)],
+) {
   const rig = receiptRig(sales);
   return { ...rig, decline: () => declineSaleReceipt(rig.ports, { saleId: "sale-1" }) };
 }
@@ -27,7 +30,10 @@ describe("declineSaleReceipt", () => {
 
   it("records the decline of a factura C authorized in contingency", () => {
     const rig = declineRig([
-      saleWithFiscal({ kind: "offline_authorized", authorized: OFFLINE_AUTHORIZED }),
+      saleWithFiscal({
+        kind: "offline_authorized",
+        authorized: offlineAuthorized(FICTIONAL_ISSUER),
+      }),
     ]);
 
     expect(rig.decline()).toEqual({ kind: "declined" });
@@ -45,7 +51,7 @@ describe("declineSaleReceipt", () => {
 
   it("refuses a sale whose print was already attempted, as no longer awaiting the answer, and records nothing", () => {
     const rig = declineRig([
-      authorizedSale({ printAttemptedAt: new Date("2026-10-07T15:00:30.000Z") }),
+      authorizedSale(FICTIONAL_ISSUER, { printAttemptedAt: new Date("2026-10-07T15:00:30.000Z") }),
     ]);
 
     expect(rig.decline()).toEqual({ kind: "not_awaiting" });
