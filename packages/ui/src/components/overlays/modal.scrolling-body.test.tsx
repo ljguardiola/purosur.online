@@ -17,20 +17,14 @@ afterEach(async () => {
 function ReadOnlyRows({ count }: { count: number }) {
   return (
     <ul>
-      {Array.from({ length: count }, (_, index) => (
-        <li key={index}>Cambio número {index + 1}</li>
+      {Array.from({ length: count }, (_, index) => `Cambio número ${index + 1}`).map((row) => (
+        <li key={row}>{row}</li>
       ))}
     </ul>
   );
 }
 
-function ChangesModal({
-  rows,
-  onConfirm = () => {},
-}: {
-  rows: number;
-  onConfirm?: () => void;
-}) {
+function ChangesModal({ rows, onConfirm = () => {} }: { rows: number; onConfirm?: () => void }) {
   return (
     <Modal
       open
@@ -112,4 +106,47 @@ test("sends with Ctrl+Enter while the scrolling body holds the focus", async () 
   await userEvent.keyboard("{Control>}{Enter}{/Control}");
 
   expect(onConfirm).toHaveBeenCalledTimes(1);
+});
+
+const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+
+test("keeps the tab stop of a focused body that stops overflowing until the focus leaves it", async () => {
+  const onConfirm = vi.fn();
+  const screen = await render(<ChangesModal rows={40} onConfirm={onConfirm} />);
+  await userEvent.tab();
+  await expect.element(scrollingBody()).toHaveFocus();
+  const body = scrollingBody().element();
+
+  await screen.rerender(<ChangesModal rows={2} onConfirm={onConfirm} />);
+  await expect.poll(() => body.scrollHeight <= body.clientHeight).toBe(true);
+  await nextFrame();
+  await nextFrame();
+
+  await expect.element(scrollingBody()).toHaveFocus();
+  await userEvent.keyboard("{Control>}{Enter}{/Control}");
+  expect(onConfirm).toHaveBeenCalledTimes(1);
+
+  await userEvent.tab();
+  await expect.element(footerButton()).toHaveFocus();
+  await expect.poll(() => scrollingBody().query()).toBeNull();
+});
+
+test("lets Tab reach a body that overflows sideways", async () => {
+  await render(
+    <Modal
+      open
+      onOpenChange={() => {}}
+      tone="info"
+      icon={<Info />}
+      title="Cambios de la compra"
+      footer={<Button>Entendido</Button>}
+    >
+      <p style={{ whiteSpace: "nowrap" }}>{"x".repeat(400)}</p>
+    </Modal>,
+  );
+
+  await userEvent.tab();
+
+  await expect.element(scrollingBody()).toHaveFocus();
+  await expectNoAccessibilityViolations(document.body);
 });

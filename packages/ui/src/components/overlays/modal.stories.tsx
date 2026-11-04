@@ -125,8 +125,11 @@ export const ScrollingBody: Story = {
     title: "Cambios de la compra",
     children: (
       <ul className="flex flex-col gap-2">
-        {Array.from({ length: 30 }, (_, index) => (
-          <li key={index}>Cambio {index + 1}: cantidad de Yerba mate 1 kg de 10 a 12</li>
+        {Array.from(
+          { length: 30 },
+          (_, index) => `Cambio ${index + 1}: cantidad de Yerba mate 1 kg de 10 a 12`,
+        ).map((row) => (
+          <li key={row}>{row}</li>
         ))}
       </ul>
     ),
