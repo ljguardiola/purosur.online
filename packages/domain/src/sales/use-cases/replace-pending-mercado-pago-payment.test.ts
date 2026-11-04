@@ -80,7 +80,7 @@ describe("replacePendingMercadoPagoPayment", () => {
     const store = ledger();
 
     expect(replace(store)).toEqual({ kind: "replaced" });
-    expect(store.state.replacedQrPaymentIds).toEqual(["qr-1"]);
+    expect(store.state.replacedMercadoPagoPaymentIds).toEqual(["qr-1"]);
     expect(store.state.pendingMercadoPagoPayments).toEqual([pendingQr(REPLACED_AT)]);
     expect(store.state.payments).toEqual([]);
     expect(store.transactions).toBe(1);

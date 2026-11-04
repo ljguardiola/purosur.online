@@ -277,9 +277,9 @@ export type {
 export { removeSaleLine } from "./remove-sale-line.js";
 export type {
   PendingMercadoPagoPaymentReplacementRefusal,
-  ReplacePendingQrPaymentInput,
-  ReplacePendingQrPaymentOutcome,
-  ReplacePendingQrPaymentPorts,
+  ReplacePendingMercadoPagoPaymentInput,
+  ReplacePendingMercadoPagoPaymentOutcome,
+  ReplacePendingMercadoPagoPaymentPorts,
 } from "./replace-pending-mercado-pago-payment.js";
 export { replacePendingMercadoPagoPayment } from "./replace-pending-mercado-pago-payment.js";
 export type {

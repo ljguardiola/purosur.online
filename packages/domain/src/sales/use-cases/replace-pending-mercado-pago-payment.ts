@@ -2,13 +2,13 @@ import type { RegisterRestoration } from "./register-restoration.js";
 import type { IdGenerator, SaleLedger } from "./sale-ledger.js";
 import { isRefusal, type SellingSessionRefusal, sellingSession } from "./selling-session.js";
 
-export interface ReplacePendingQrPaymentInput {
+export interface ReplacePendingMercadoPagoPaymentInput {
   actorId: string;
   paymentTransactionId: string;
   replacedAt: Date;
 }
 
-export interface ReplacePendingQrPaymentPorts {
+export interface ReplacePendingMercadoPagoPaymentPorts {
   ledger: SaleLedger;
   restoration: RegisterRestoration;
   ids: IdGenerator;
@@ -20,15 +20,15 @@ export type PendingMercadoPagoPaymentReplacementRefusal =
   | { kind: "no_open_sale" }
   | { kind: "unavailable" };
 
-export type ReplacePendingQrPaymentOutcome =
+export type ReplacePendingMercadoPagoPaymentOutcome =
   | { kind: "replaced" }
   | PendingMercadoPagoPaymentReplacementRefusal;
 
 export function replacePendingMercadoPagoPayment(
-  { ledger, restoration, ids }: ReplacePendingQrPaymentPorts,
-  { actorId, paymentTransactionId, replacedAt }: ReplacePendingQrPaymentInput,
-): ReplacePendingQrPaymentOutcome {
-  return ledger.transaction<ReplacePendingQrPaymentOutcome>((tx) => {
+  { ledger, restoration, ids }: ReplacePendingMercadoPagoPaymentPorts,
+  { actorId, paymentTransactionId, replacedAt }: ReplacePendingMercadoPagoPaymentInput,
+): ReplacePendingMercadoPagoPaymentOutcome {
+  return ledger.transaction<ReplacePendingMercadoPagoPaymentOutcome>((tx) => {
     const session = sellingSession(tx, actorId, restoration);
     if (isRefusal(session)) {
       return session;
