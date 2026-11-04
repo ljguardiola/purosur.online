@@ -56,6 +56,16 @@ export function priceDifferenceCents(
   return roundHalfUp(difference);
 }
 
+export function hasReceiptDifference(line: {
+  missingQuantity: number;
+  priceDifferenceCents: number | null;
+}): boolean {
+  return (
+    line.missingQuantity > 0 ||
+    (line.priceDifferenceCents !== null && line.priceDifferenceCents !== 0)
+  );
+}
+
 export function stateAfterReceipt(
   missingPerLine: readonly number[],
 ): Extract<PurchaseOrderState, "PARTIALLY_RECEIVED" | "RECEIVED"> {
