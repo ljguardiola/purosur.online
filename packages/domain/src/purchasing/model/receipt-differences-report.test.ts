@@ -93,6 +93,13 @@ describe("receiptDifferences", () => {
     expect(report.totals).toMatchObject({ shortLines: 2, priceDifferenceLines: 2 });
   });
 
+  it("does not count a zero price difference as a price difference", () => {
+    const report = receiptDifferences([aReceiptLineRow({ ...short, priceDifferenceCents: 0 })]);
+
+    expect(report.suppliers[0]?.priceDifferenceLines).toBe(0);
+    expect(report.totals.priceDifferenceLines).toBe(0);
+  });
+
   it("nets the signed price differences and ignores lines without a list price", () => {
     const report = receiptDifferences([
       aReceiptLineRow({ receiptId: "a", priceDifferenceCents: 500 }),
