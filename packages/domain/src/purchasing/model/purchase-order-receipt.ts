@@ -1,7 +1,7 @@
 import { type Fraction, roundHalfUp } from "../../shared/index.js";
 import { STOCK_QUANTITY_PER_UNIT } from "../../stock/index.js";
 import { lineValue, type PurchaseLineCost, packagedQuantity } from "./purchase-line.js";
-import type { PurchaseOrderState } from "./purchase-order.js";
+import { mayBeReceived, type PurchaseOrderState } from "./purchase-order.js";
 
 export function outstandingQuantity(
   line: { packages: number; quantityPerPackage: number },
@@ -16,6 +16,14 @@ export function orderLineOutstandingQuantity(
   receivedSoFar: number,
 ): number {
   return state === "CANCELLED" ? 0 : outstandingQuantity(line, receivedSoFar);
+}
+
+export function awaitedQuantity(
+  state: PurchaseOrderState,
+  line: { packages: number; quantityPerPackage: number },
+  receivedSoFar: number,
+): number {
+  return mayBeReceived(state) ? outstandingQuantity(line, receivedSoFar) : 0;
 }
 
 export function missingQuantity(outstanding: number, received: number): number {

@@ -21,14 +21,16 @@ export function shortfallToCover({
   soldThousandths: sold,
   coverageDays,
   stockThousandths,
+  awaitedThousandths,
 }: {
   soldThousandths: number;
   coverageDays: number;
   stockThousandths: number;
+  awaitedThousandths: number;
 }): Fraction | null {
   const numerator =
     BigInt(sold) * BigInt(coverageDays) -
-    BigInt(stockThousandths) * BigInt(ORDER_SUGGESTION_SALES_DAYS);
+    BigInt(stockThousandths + awaitedThousandths) * BigInt(ORDER_SUGGESTION_SALES_DAYS);
   return numerator > 0n ? { numerator, denominator: BigInt(ORDER_SUGGESTION_SALES_DAYS) } : null;
 }
 
@@ -47,17 +49,19 @@ export function expiryCapQuantity({
   soldThousandths: sold,
   shelfLifeDays,
   stockThousandths,
+  awaitedThousandths,
 }: {
   soldThousandths: number;
   shelfLifeDays: number | null;
   stockThousandths: number;
+  awaitedThousandths: number;
 }): Fraction | null {
   return shelfLifeDays === null
     ? null
     : {
         numerator:
           BigInt(sold) * BigInt(shelfLifeDays) -
-          BigInt(stockThousandths) * BigInt(ORDER_SUGGESTION_SALES_DAYS),
+          BigInt(stockThousandths + awaitedThousandths) * BigInt(ORDER_SUGGESTION_SALES_DAYS),
         denominator: BigInt(ORDER_SUGGESTION_SALES_DAYS),
       };
 }
