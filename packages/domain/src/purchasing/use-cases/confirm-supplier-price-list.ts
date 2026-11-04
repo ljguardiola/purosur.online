@@ -1,8 +1,8 @@
 import {
   keepingRememberedVatRate,
   lastRowOfEachItem,
-  sameSupplierItemKey,
   supersedesCurrentPrice,
+  supplierItemKeyId,
 } from "../model/supplier-item.js";
 import {
   decideConfirmation,
@@ -69,9 +69,10 @@ export function confirmSupplierPriceList(
       locked.list.supplierId,
       groups.map((group) => group.key),
     );
+    const itemsByKey = new Map(items.map((item) => [supplierItemKeyId(item.key), item]));
     for (const { key, row, rows } of groups) {
       const link = rows.filter((other) => other.linkedByPerson).at(-1)?.link ?? null;
-      const item = items.find((other) => sameSupplierItemKey(other.key, key));
+      const item = itemsByKey.get(supplierItemKeyId(key));
       let itemId: string;
       if (item) {
         itemId = item.id;
