@@ -1703,6 +1703,7 @@ describe("answering whether to print the customer's ticket", () => {
     { kind: "not_signed_in" },
     { kind: "not_found" },
     { kind: "not_awaiting" },
+    { kind: "unavailable" },
   ])("accepts the result %j", (outcome) => {
     const message = { type: "answer-receipt-question-result", request_id: REQUEST_ID, outcome };
 
