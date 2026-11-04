@@ -1005,19 +1005,25 @@ describe("a late QR payment refund", () => {
 describe("POST /refunds/:id/transfer", () => {
   async function refusedForGood(reason = "payment_not_refundable") {
     const { headers, userId } = await signedInWith(db, ["confirm_refunds"], NOW);
+    return { headers, userId, ...(await aConfirmedRefund(userId, reason)) };
+  }
+
+  async function aConfirmedRefund(userId: string, reason: string, registerName = "Caja 1") {
     const { refundId, locationId } = await aPendingQrRefundOfCancelledSale(db, {
       cancelledAt: NOW,
+      registerName,
+      orderId: `ORDER-${registerName}`,
     });
     await db
       .update(paymentRefunds)
       .set({ confirmedBy: userId, confirmedAt: NOW, lastRefusalReason: reason })
       .where(eq(paymentRefunds.id, refundId));
-    return { headers, userId, refundId, locationId };
+    return { refundId, locationId };
   }
 
   it("lists a refund refused for good as one that can be given back by transfer, and the others as not", async () => {
-    const { headers, refundId } = await refusedForGood();
-    const waiting = await refusedForGood("insufficient_balance");
+    const { headers, userId, refundId } = await refusedForGood();
+    const waiting = await aConfirmedRefund(userId, "insufficient_balance", "Caja 2");
 
     const body = pendingRefundsSchema.parse((await pendingRefunds(headers)).json());
 

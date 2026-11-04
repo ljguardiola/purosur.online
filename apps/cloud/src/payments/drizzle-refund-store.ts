@@ -3,6 +3,7 @@ import {
   REFUND_DISCARDED_STATE,
   REFUND_DONE_STATE,
   REFUND_PENDING_STATE,
+  type RefundTransfer,
 } from "@purosur/domain";
 import { closeAlert } from "@purosur/domain/alerts/use-cases";
 import type {
@@ -79,20 +80,53 @@ export class DrizzleRefundStoreTransaction<TQueryResult extends PgQueryResultHKT
   }
 
   async recordRefundDone(refundId: string, doneBy: string, doneAt: Date): Promise<void> {
+    await this.completeRefund(refundId, doneBy, doneAt, undefined);
+  }
+
+  async recordRefundDoneByTransfer(
+    refundId: string,
+    transfer: RefundTransfer,
+    doneBy: string,
+    doneAt: Date,
+  ): Promise<void> {
+    await this.completeRefund(refundId, doneBy, doneAt, transfer);
+  }
+
+  private async completeRefund(
+    refundId: string,
+    doneBy: string,
+    doneAt: Date,
+    transfer: RefundTransfer | undefined,
+  ): Promise<void> {
     const locationId = this.branchOfLockedRefund.get(refundId);
     if (locationId === undefined) {
       throw new Error("a refund is marked done only after it is locked");
     }
     await this.tx
       .update(paymentRefunds)
-      .set({ state: REFUND_DONE_STATE, doneBy, doneAt })
+      .set({
+        state: REFUND_DONE_STATE,
+        doneBy,
+        doneAt,
+        ...(transfer && {
+          transferKind: transfer.kind,
+          transferOperationNumber: transfer.operationNumber,
+        }),
+      })
       .where(eq(paymentRefunds.id, refundId));
     await this.tx.insert(auditLog).values({
       entity: "payment_refund",
       entityId: refundId,
       actorId: doneBy,
       previousValue: { state: REFUND_PENDING_STATE },
-      newValue: { state: REFUND_DONE_STATE, doneAt: doneAt.toISOString() },
+      newValue: {
+        state: REFUND_DONE_STATE,
+        doneAt: doneAt.toISOString(),
+        ...(transfer && {
+          transferKind: transfer.kind,
+          transferOperationNumber: transfer.operationNumber,
+        }),
+      },
       at: doneAt,
     });
     this.pending.note({
