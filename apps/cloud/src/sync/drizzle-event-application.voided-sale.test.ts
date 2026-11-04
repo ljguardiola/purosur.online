@@ -224,6 +224,8 @@ describe("recording the voided sales of applied events", () => {
       providerRefundId: null,
       attemptKey: null,
       lastRefusalReason: null,
+      transferKind: null,
+      transferOperationNumber: null,
     });
     expect(rows.find((row) => row.id === cashRefund?.id)).toMatchObject({
       origin: "sale_voided",
