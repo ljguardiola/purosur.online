@@ -116,6 +116,15 @@ describe("listOrderSuggestion", () => {
     expect(reader.stockQueries).toEqual([BRANCH]);
   });
 
+  it("reads everything it suggests from one snapshot", async () => {
+    const reader = readerWith({});
+
+    await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
+
+    expect(reader.snapshotsOpened).toBe(1);
+    expect(reader.readsOutsideSnapshot).toEqual([]);
+  });
+
   it("counts today as the Argentine day, not the UTC one", async () => {
     const reader = readerWith({});
     const lateNight = new Date("2026-10-07T01:00:00.000Z");
