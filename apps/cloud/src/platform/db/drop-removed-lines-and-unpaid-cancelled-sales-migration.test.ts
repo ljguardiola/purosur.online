@@ -84,6 +84,25 @@ async function databaseHoldingSales() {
     );
   }
 
+  async function latePaymentRefund(saleId: string) {
+    const transactionId = await first(
+      database,
+      `insert into payment_transactions
+         (id, register_id, sale_id, kind, method, provider, amount, state, replaced, created_at, expires_at)
+       values (gen_random_uuid(), $1, $2, 'SALE', 'QR', 'MERCADOPAGO_QR', 4800,
+               'APPROVED', false, now(), now() + interval '5 minutes') returning id`,
+      [registerId, saleId],
+    );
+    return first(
+      database,
+      `insert into payment_refunds
+         (id, sale_id, payment_transaction_id, origin, method, provider, amount, state, occurred_at)
+       values (gen_random_uuid(), $1, $2, 'late_payment', 'QR', 'MERCADOPAGO_QR', 4800, 'PENDING', now())
+       returning id`,
+      [saleId, transactionId],
+    );
+  }
+
   async function reprint(saleId: string) {
     await database.query(
       `insert into sale_reprints (sale_id, document, order_number, requested_by, reason_kind, occurred_at)
@@ -117,6 +136,7 @@ async function databaseHoldingSales() {
     sale,
     payment,
     refund,
+    latePaymentRefund,
     reprint,
     stockMovement,
     removedLine,
@@ -132,8 +152,7 @@ describe("the drop removed lines and unpaid cancelled sales migration", { timeou
   it("removes a cancelled sale that took no approved payment with everything it holds", async () => {
     const held = await databaseHoldingSales();
     const unpaid = await held.sale("CANCELLED");
-    const declined = await held.payment(unpaid.saleId, "DECLINED");
-    await held.refund(unpaid.saleId, declined);
+    await held.payment(unpaid.saleId, "DECLINED");
     await held.reprint(unpaid.saleId);
     await held.sale("CANCELLED");
 
@@ -165,6 +184,18 @@ describe("the drop removed lines and unpaid cancelled sales migration", { timeou
       { sale_id: paid.saleId, payment_id: approved },
     ]);
     expect(await ids(migrated, "select sale_id as id from sale_reprints")).toEqual([paid.saleId]);
+  });
+
+  it("keeps a cancelled sale with no approved payment that still owes a refund, with that refund", async () => {
+    const held = await databaseHoldingSales();
+    const owing = await held.sale("CANCELLED");
+    const refundId = await held.latePaymentRefund(owing.saleId);
+
+    const migrated = await held.database.applyMigration();
+
+    expect(await ids(migrated, "select id from sales")).toEqual([owing.saleId]);
+    expect(await ids(migrated, "select id from sale_lines")).toEqual([owing.lineId]);
+    expect(await ids(migrated, "select id from payment_refunds")).toEqual([refundId]);
   });
 
   it("keeps a completed sale, even one with a payment that was not approved", async () => {

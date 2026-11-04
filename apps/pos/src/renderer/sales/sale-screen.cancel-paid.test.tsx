@@ -176,6 +176,35 @@ describe("SaleScreen cancelling a sale with approved payments", () => {
     expect(cancelPaidSale).not.toHaveBeenCalled();
   });
 
+  it("says to wait before cancelling it while a Mercado Pago charge of it is in progress", async () => {
+    const { screen } = await renderScreen({
+      currentSale: async () => ({
+        ...PAID_SALE,
+        cancel_refusal: "mercado_pago_charge_in_progress",
+      }),
+    });
+
+    await screen.getByRole("button", { name: "Cancelar venta" }).click();
+
+    await expect
+      .element(screen.getByText("Esperá a que termine para cancelar la venta."))
+      .toBeVisible();
+    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("says it could not be cancelled when the core cannot answer whether it still refuses", async () => {
+    const currentSale = vi
+      .fn<() => Promise<CurrentSaleAnswer>>()
+      .mockResolvedValueOnce({ ...PAID_SALE, cancel_refusal: "mercado_pago_charge_in_progress" })
+      .mockRejectedValue(new Error("the connection was replaced"));
+    const { screen } = await renderScreen({ currentSale });
+
+    await screen.getByRole("button", { name: "Cancelar venta" }).click();
+
+    await expect.element(screen.getByText("No se pudo cancelar la venta")).toBeVisible();
+    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+  });
+
   it("keeps emptying a cart without payments without asking the core for a refund", async () => {
     const cancelPaidSale = vi.fn(async (): Promise<CancelPaidSaleOutcome> => CANCELLED);
     const { screen } = await renderScreen({

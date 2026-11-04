@@ -62,6 +62,7 @@ const CANCELLABLE_SALE: SessionOpenSale = {
   id: "sale-1",
   total: 3_434_000,
   paid: 0,
+  has_approved_payment: false,
   cancellable: true,
   cancel_refusal: null,
   refunds_on_cancel: [],
@@ -81,6 +82,7 @@ const POINT_REFUND = {
 const SALE_WITH_POINT_PAYMENT: SessionOpenSale = {
   ...CANCELLABLE_SALE,
   paid: 1_000_000,
+  has_approved_payment: true,
   cancellable: false,
   cancel_refusal: null,
   refunds_on_cancel: [POINT_REFUND],
@@ -89,6 +91,7 @@ const PART_PAID_SALE: SessionOpenSale = {
   id: "sale-2",
   total: 3_434_000,
   paid: 1_000_000,
+  has_approved_payment: true,
   cancellable: false,
   cancel_refusal: null,
   refunds_on_cancel: [
@@ -102,7 +105,12 @@ const PART_PAID_SALE: SessionOpenSale = {
   ],
 };
 const OPEN_SALE_NOTICE = "Hay una venta abierta de $ 34.340,00";
+const EMPTY_FAILED_NOTICE = "No se pudo vaciar el carrito. Probá de nuevo.";
 const CANCEL_FAILED_NOTICE = "No se pudo cancelar la venta. Probá de nuevo.";
+const QR_WAIT_BEFORE_EMPTYING_NOTICE =
+  "Hay un cobro con Mercado Pago en curso. Esperá a que termine para vaciar el carrito.";
+const QR_WAIT_BEFORE_CANCELLING_NOTICE =
+  "Hay un cobro con Mercado Pago en curso. Esperá a que termine para cancelar la venta.";
 
 async function renderStep(
   options: {
@@ -549,7 +557,7 @@ describe("LockedCashCount", () => {
     [
       "a QR charge is still waiting",
       { kind: "mercado_pago_charge_in_progress" },
-      "Hay un cobro con Mercado Pago en curso. Esperá a que termine para cancelar la venta.",
+      QR_WAIT_BEFORE_EMPTYING_NOTICE,
     ],
   ])("keeps the open sale and says why when %s", async (_case, outcome, notice) => {
     const { screen, refused } = await withOpenSale({ cancelSale: async () => outcome });
@@ -569,15 +577,7 @@ describe("LockedCashCount", () => {
 
     await screen.getByRole("button", { name: "Vaciar carrito" }).click();
 
-    await expect
-      .element(
-        screen
-          .getByText(
-            "Hay un cobro con Mercado Pago en curso. Esperá a que termine para cancelar la venta.",
-          )
-          .first(),
-      )
-      .toBeVisible();
+    await expect.element(screen.getByText(QR_WAIT_BEFORE_EMPTYING_NOTICE).first()).toBeVisible();
     await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
     expect(loadOpenSale).toHaveBeenCalledTimes(2);
     expect(cancelSale).not.toHaveBeenCalled();
@@ -597,7 +597,7 @@ describe("LockedCashCount", () => {
     await expect.element(screen.getByText("Venta en curso · Con pagos")).not.toBeInTheDocument();
   });
 
-  it("says the sale could not be cancelled when the core cannot answer whether it still refuses", async () => {
+  it("says the cart could not be emptied when the core cannot answer whether it still refuses", async () => {
     const loadOpenSale = vi
       .fn<LoadOpenSale>()
       .mockResolvedValueOnce(SALE_IN_A_QR_WAIT)
@@ -607,9 +607,51 @@ describe("LockedCashCount", () => {
 
     await screen.getByRole("button", { name: "Vaciar carrito" }).click();
 
-    await expect.element(screen.getByText(CANCEL_FAILED_NOTICE).first()).toBeVisible();
+    await expect.element(screen.getByText(EMPTY_FAILED_NOTICE).first()).toBeVisible();
     await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
     expect(cancelSale).not.toHaveBeenCalled();
+  });
+
+  it("takes the action's wording from whether the core says the sale has an approved payment", async () => {
+    const { screen } = await renderStep({
+      loadOpenSale: async () => ({
+        ...CANCELLABLE_SALE,
+        has_approved_payment: true,
+        cancellable: false,
+      }),
+    });
+
+    await expect.element(screen.getByText("Cancelala para cerrar la caja.")).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Cancelar la venta" })).toBeVisible();
+  });
+
+  it("says the sale could not be cancelled when the core cannot answer whether it still refuses to cancel a paid sale", async () => {
+    const loadOpenSale = vi
+      .fn<LoadOpenSale>()
+      .mockResolvedValueOnce({
+        ...SALE_WITH_POINT_PAYMENT,
+        cancel_refusal: "mercado_pago_charge_in_progress",
+      })
+      .mockResolvedValue("unavailable");
+    const { screen } = await renderStep({ loadOpenSale });
+    await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
+
+    await screen.getByRole("button", { name: "Cancelar la venta" }).click();
+
+    await expect.element(screen.getByText(CANCEL_FAILED_NOTICE).first()).toBeVisible();
+  });
+
+  it("says to wait before cancelling a paid sale while a Mercado Pago charge of it is in progress", async () => {
+    const { screen } = await renderStep({
+      loadOpenSale: async () => ({
+        ...SALE_WITH_POINT_PAYMENT,
+        cancel_refusal: "mercado_pago_charge_in_progress",
+      }),
+    });
+
+    await screen.getByRole("button", { name: "Cancelar la venta" }).click();
+
+    await expect.element(screen.getByText(QR_WAIT_BEFORE_CANCELLING_NOTICE).first()).toBeVisible();
   });
 
   it("clears the notice when the core finds no sale left to cancel", async () => {
@@ -626,19 +668,16 @@ describe("LockedCashCount", () => {
     ["the core is unavailable", async () => ({ kind: "unavailable" })],
     ["the restoration is in progress", async () => ({ kind: "restoration_in_progress" })],
     ["the request fails", () => Promise.reject(new Error("the core connection was replaced"))],
-  ])(
-    "says the sale could not be cancelled when %s, keeping the open sale",
-    async (_case, cancel) => {
-      const { screen } = await withOpenSale({ cancelSale: cancel });
-      await screen.getByRole("button", { name: "Vaciar carrito" }).click();
+  ])("says the cart could not be emptied when %s, keeping the open sale", async (_case, cancel) => {
+    const { screen } = await withOpenSale({ cancelSale: cancel });
+    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
 
-      await screen.getByRole("dialog").getByRole("button", { name: "Vaciar carrito" }).click();
+    await screen.getByRole("dialog").getByRole("button", { name: "Vaciar carrito" }).click();
 
-      await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
-      await expect.element(screen.getByText(CANCEL_FAILED_NOTICE).first()).toBeVisible();
-      await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
-    },
-  );
+    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+    await expect.element(screen.getByText(EMPTY_FAILED_NOTICE).first()).toBeVisible();
+    await expect.element(screen.getByText(OPEN_SALE_NOTICE)).toBeVisible();
+  });
 
   it.each<CancelLockedSaleOutcome>([{ kind: "cancelled", refunds: [] }, { kind: "not_permitted" }])(
     "drops the earlier cancellation failure once a new attempt answers $kind",
@@ -650,13 +689,13 @@ describe("LockedCashCount", () => {
       const { screen } = await withOpenSale({ cancelSale });
       await screen.getByRole("button", { name: "Vaciar carrito" }).click();
       await screen.getByRole("dialog").getByRole("button", { name: "Vaciar carrito" }).click();
-      await expect.element(screen.getByText(CANCEL_FAILED_NOTICE).first()).toBeVisible();
+      await expect.element(screen.getByText(EMPTY_FAILED_NOTICE).first()).toBeVisible();
 
       await screen.getByRole("button", { name: "Vaciar carrito" }).click();
       await screen.getByRole("dialog").getByRole("button", { name: "Vaciar carrito" }).click();
 
       await expect.poll(() => cancelSale.mock.calls.length).toBe(2);
-      await expect.element(screen.getByText(CANCEL_FAILED_NOTICE)).not.toBeInTheDocument();
+      await expect.element(screen.getByText(EMPTY_FAILED_NOTICE)).not.toBeInTheDocument();
     },
   );
 

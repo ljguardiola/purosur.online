@@ -50,11 +50,11 @@ const STARTUP_PENDING_TITLE = "Cosas para resolver al empezar";
 const CRITICAL_BATTERY_TITLE = "Apagar la notebook con batería crítica";
 
 describe("the register's help", () => {
-  it("starts with the sections on adding products to a sale and on cancelling it, followed by charging on the integrated Point terminal and on the standalone one and by shutting the notebook down at a critical battery, and ends with what the register left pending when it starts", () => {
+  it("starts with the sections on adding products to a sale and on emptying the cart or cancelling the sale, followed by charging on the integrated Point terminal and on the standalone one and by shutting the notebook down at a critical battery, and ends with what the register left pending when it starts", () => {
     expect(titles).toEqual([
       "Agregar un producto escaneándolo",
       "Agregar un producto buscándolo por nombre",
-      "Cancelar una venta",
+      "Vaciar el carrito o cancelar una venta",
       ...PAYMENTS_TITLES,
       CRITICAL_BATTERY_TITLE,
       STARTUP_PENDING_TITLE,
@@ -173,7 +173,7 @@ describe("the register's help", () => {
   it.each([
     ["lector", "Agregar un producto escaneándolo"],
     ["flechas", "Agregar un producto buscándolo por nombre"],
-    ["reembolsos que corresponden", "Cancelar una venta"],
+    ["reembolsos que corresponden", "Vaciar el carrito o cancelar una venta"],
     ["enviar a la terminal", "Cobrar con la Point integrada"],
     ["rechazó", "Pago rechazado en la Point"],
     ["venció", "Point que no se acredita a tiempo"],
@@ -198,10 +198,10 @@ describe("the register's help", () => {
 
   it("explains that the pending refund of a standalone terminal payment is given back from that terminal or the Mercado Pago app, and marked as done in the backoffice", () => {
     expect(titlesFound("desde esa terminal o la app de Mercado Pago")).toEqual([
-      "Cancelar una venta",
+      "Vaciar el carrito o cancelar una venta",
     ]);
     expect(titlesFound("quien lo devolvió lo marca como hecho en el backoffice")).toEqual([
-      "Cancelar una venta",
+      "Vaciar el carrito o cancelar una venta",
     ]);
   });
 
@@ -210,7 +210,7 @@ describe("the register's help", () => {
       titlesFound(
         "El de un pago con QR, en cambio, lo envía la nube a Mercado Pago cuando alguien lo confirma en el backoffice",
       ),
-    ).toEqual(["Cancelar una venta"]);
+    ).toEqual(["Vaciar el carrito o cancelar una venta"]);
     expect(titlesFound("Un reembolso pendiente lo hace alguien fuera de la caja")).toEqual([]);
   });
 

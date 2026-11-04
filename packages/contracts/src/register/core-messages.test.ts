@@ -646,6 +646,7 @@ describe("the open sale of the cash session", () => {
     id: "sale-1",
     total: 3_434_000,
     paid: 0,
+    has_approved_payment: false,
     cancellable: true,
     cancel_refusal: null,
     refunds_on_cancel: [],
@@ -655,7 +656,13 @@ describe("the open sale of the cash session", () => {
     openSale,
     { ...openSale, total: 0, cancellable: false },
     { ...openSale, cancellable: false, cancel_refusal: "mercado_pago_charge_in_progress" },
-    { ...openSale, paid: 3200, refunds_on_cancel: [cashRefund, transferRefund] },
+    {
+      ...openSale,
+      paid: 3200,
+      has_approved_payment: true,
+      cancellable: false,
+      refunds_on_cancel: [cashRefund, transferRefund],
+    },
     null,
   ])("accepts the open sale answered: %j", (sale) => {
     const message = { type: "session-open-sale", request_id: REQUEST_ID, sale };
@@ -667,6 +674,7 @@ describe("the open sale of the cash session", () => {
     ["its id", { ...openSale, id: undefined }],
     ["its total", { ...openSale, total: undefined }],
     ["what was paid", { ...openSale, paid: undefined }],
+    ["whether it has an approved payment", { ...openSale, has_approved_payment: undefined }],
     ["whether it is cancellable", { ...openSale, cancellable: undefined }],
     ["why cancelling it is refused", { ...openSale, cancel_refusal: undefined }],
     ["its refunds on cancel", { ...openSale, refunds_on_cancel: undefined }],
@@ -678,6 +686,7 @@ describe("the open sale of the cash session", () => {
 
   it.each([
     { ...openSale, cancellable: "yes" },
+    { ...openSale, has_approved_payment: "yes" },
     { ...openSale, cancel_refusal: "closed" },
     { ...openSale, cancel_refusal: true },
     { ...openSale, cancel_refusal: "holds_standalone_terminal_payment" },

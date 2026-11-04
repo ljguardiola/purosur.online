@@ -800,6 +800,25 @@ describe("replenishing a cancelled sale into a restored register", () => {
     expect(rows("payment_transactions")).toEqual([]);
   });
 
+  it("discards the cart it holds in progress for a cancelled sale that had no approved payment", () => {
+    snapshotWithAnOpenSale();
+
+    apply(aCancelledSaleFact({ payments: [], refunds: [], cashMovements: [] }));
+
+    expect(rows("sales")).toEqual([]);
+    expect(rows("sale_lines")).toEqual([]);
+  });
+
+  it("ends another sale it holds in progress for a cancelled sale that had no approved payment", () => {
+    openAbandonedSaleWithACharge("DECLINED");
+
+    apply(aCancelledSaleFact({ payments: [], refunds: [], cashMovements: [] }));
+
+    expect(database.prepare("SELECT id, state, occurred_at FROM sales").all()).toEqual([
+      { id: "sale-abandoned", state: "CANCELLED", occurred_at: "2026-10-07T10:05:00.000Z" },
+    ]);
+  });
+
   it("changes nothing for a sale it holds cancelled", () => {
     apply(aCancelledSaleFact());
     const before = {

@@ -9623,7 +9623,7 @@ describe("the empty carts migration", () => {
     }
   }
 
-  it("discards an open sale with no lines, no payment and no paid order", () => {
+  it("discards an open sale with no lines and no payment", () => {
     withSalesBefore((database) => {
       expect(database.prepare("SELECT id FROM sales WHERE id = 'empty-cart'").all()).toEqual([]);
     });
@@ -9638,19 +9638,42 @@ describe("the empty carts migration", () => {
     });
   });
 
-  it("keeps an empty open sale that holds a payment", () => {
+  it("cancels an open sale with no lines that holds a payment, keeping the payment", () => {
     withSalesBefore((database) => {
+      const sale = database
+        .prepare<[], { state: string; occurred_at: string | null }>(
+          "SELECT state, occurred_at FROM sales WHERE id = 'empty-cart-with-payment'",
+        )
+        .get();
+      expect(sale?.state).toBe("CANCELLED");
+      expect(sale?.occurred_at).toEqual(expect.any(String));
       expect(
-        database.prepare("SELECT id FROM sales WHERE id = 'empty-cart-with-payment'").all(),
-      ).toEqual([{ id: "empty-cart-with-payment" }]);
+        database
+          .prepare("SELECT id FROM payment_transactions WHERE sale_id = 'empty-cart-with-payment'")
+          .all(),
+      ).toEqual([{ id: "qr-1" }]);
     });
   });
 
-  it("keeps an empty open sale rebuilt against a paid order", () => {
+  it("discards an open sale with no lines rebuilt against a paid order, and its link to the order", () => {
     withSalesBefore((database) => {
       expect(
+        database.prepare("SELECT id FROM sales WHERE id = 'empty-rebuilt-cart'").all(),
+      ).toEqual([]);
+      expect(
         database.prepare("SELECT sale_id FROM sales_rebuilt_against_paid_orders").all(),
-      ).toEqual([{ sale_id: "empty-rebuilt-cart" }]);
+      ).toEqual([]);
+      expect(
+        database.prepare("SELECT payment_transaction_id FROM paid_orders_without_sale").all(),
+      ).toEqual([{ payment_transaction_id: "order-1" }]);
+    });
+  });
+
+  it("leaves no open sale without lines", () => {
+    withSalesBefore((database) => {
+      expect(database.prepare("SELECT id FROM sales WHERE state = 'OPEN'").all()).toEqual([
+        { id: "cart-with-lines" },
+      ]);
     });
   });
 
