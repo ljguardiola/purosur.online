@@ -44,9 +44,22 @@ afterEach(async () => {
   await releaseHeldDownloads();
 });
 
+function servicesWithNothingElseLoadingInTheArea() {
+  const services = createAppServices();
+  vi.mocked(services.unbilledDeferredSalesPill.fetchUnbilledDeferredSales).mockResolvedValue({
+    kind: "ok",
+    value: { count: 0, oldest: null },
+  });
+  return services;
+}
+
 test("shows the loading placeholder inside the area, below a top bar the screen keeps once it arrives, while a screen's code downloads", async () => {
   const screen = await render(
-    <App help={emptyHelp} services={createAppServices()} reportError={vi.fn()} />,
+    <App
+      help={emptyHelp}
+      services={servicesWithNothingElseLoadingInTheArea()}
+      reportError={vi.fn()}
+    />,
   );
   await expect.element(screen.getByRole("link", { name: "Inicio" })).toBeVisible();
 
