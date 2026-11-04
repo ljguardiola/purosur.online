@@ -1,5 +1,5 @@
 import { argentinaCalendarDay } from "./argentina-calendar.js";
-import { isCalendarDay } from "./calendar-day.js";
+import { isCalendarDay, shiftCalendarDay } from "./calendar-day.js";
 import type { ZoneRules } from "./zone-rules.js";
 
 export interface ReportPeriod {
@@ -23,6 +23,11 @@ export function isReportPeriodAsked({
 export function defaultReportPeriod(now: Date, rules: ZoneRules): ReportPeriod {
   const today = argentinaCalendarDay(now, rules);
   return { from: today, to: today };
+}
+
+export function trailingReportPeriod(now: Date, rules: ZoneRules, days: number): ReportPeriod {
+  const to = argentinaCalendarDay(now, rules);
+  return { from: shiftCalendarDay(to, -(days - 1)), to };
 }
 
 export function reportPeriodOf(
