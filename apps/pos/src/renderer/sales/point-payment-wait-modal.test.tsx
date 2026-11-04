@@ -357,8 +357,11 @@ describe("PointPaymentWaitModal", () => {
     );
 
     it("holds Elegir otro medio while the cancellation is being asked", async () => {
-      const answer = Promise.withResolvers<AbandonMercadoPagoChargeOutcome>();
-      const { screen, callbacks } = await renderModal(answering(WAIT_OVER), () => answer.promise);
+      let answer: (outcome: AbandonMercadoPagoChargeOutcome) => void = () => undefined;
+      const { screen, callbacks } = await renderModal(
+        answering(WAIT_OVER),
+        () => new Promise((resolve) => (answer = resolve)),
+      );
       await expect
         .element(screen.getByRole("heading", { name: "Se terminó el tiempo de espera" }))
         .toBeVisible();
@@ -368,7 +371,7 @@ describe("PointPaymentWaitModal", () => {
       await expect
         .element(screen.getByRole("button", { name: "Elegir otro medio" }))
         .toBeDisabled();
-      answer.resolve({ kind: "cancelled" });
+      answer({ kind: "cancelled" });
       await expect.poll(() => callbacks.onChooseAnotherMethod.mock.calls.length).toBe(1);
     });
 

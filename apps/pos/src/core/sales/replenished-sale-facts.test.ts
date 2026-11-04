@@ -878,6 +878,7 @@ describe("replenishing a replaced Mercado Pago payment into a restored register"
       kind: "SALE",
       method: "POINT",
       provider: "MERCADOPAGO_POINT",
+      cardType: null,
       amount: 1500,
       state: "PENDING",
       occurredAt: SOLD_AT,
