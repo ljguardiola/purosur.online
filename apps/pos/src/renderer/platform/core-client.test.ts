@@ -1846,6 +1846,7 @@ describe("createCoreClient", () => {
       id: "sale-1",
       total: 3_434_000,
       paid: 0,
+      has_approved_payment: false,
       cancellable: true,
       cancel_refusal: null,
       refunds_on_cancel: [],

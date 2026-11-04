@@ -634,6 +634,7 @@ describe("open sale query", () => {
       id: "sale-1",
       total: 3_434_000,
       paid: 0,
+      has_approved_payment: false,
       cancellable: true,
       cancel_refusal: null,
       refunds_on_cancel: [],
@@ -646,7 +647,7 @@ describe("open sale query", () => {
     await expect
       .element(
         screen.getByText(
-          'sale {"id":"sale-1","total":3434000,"paid":0,"cancellable":true,"cancel_refusal":null,"refunds_on_cancel":[]}',
+          'sale {"id":"sale-1","total":3434000,"paid":0,"has_approved_payment":false,"cancellable":true,"cancel_refusal":null,"refunds_on_cancel":[]}',
         ),
       )
       .toBeVisible();
@@ -664,6 +665,7 @@ describe("open sale query", () => {
         id: "sale-1",
         total: 3_434_000,
         paid: 0,
+        has_approved_payment: false,
         cancellable: false,
         cancel_refusal: "mercado_pago_charge_in_progress",
         refunds_on_cancel: [],

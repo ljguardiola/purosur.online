@@ -9,7 +9,7 @@ import { aCashSessionOpenedFact } from "./synced-facts.js";
 
 export const APPLICATION_NOW = new Date("2026-10-06T15:00:00.000Z");
 
-export const RECORDING_CASHIER = "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03";
+const RECORDING_CASHIER = "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03";
 
 export interface EventApplicationUnderTest {
   readonly db: TestDatabase["db"];

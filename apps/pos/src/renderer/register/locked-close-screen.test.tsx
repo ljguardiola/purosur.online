@@ -173,6 +173,7 @@ describe("LockedCloseScreen", () => {
         id: "sale-1",
         total: 3_434_000,
         paid: 0,
+        has_approved_payment: false,
         cancellable: true,
         cancel_refusal: null,
         refunds_on_cancel: [],
@@ -181,9 +182,9 @@ describe("LockedCloseScreen", () => {
     });
     await identifySofia(screen);
     await expect.element(screen.getByText("Hay una venta abierta de $ 34.340,00")).toBeVisible();
-    await screen.getByRole("button", { name: "Cancelar la venta" }).click();
+    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
 
-    await screen.getByRole("dialog").getByRole("button", { name: "Cancelar la venta" }).click();
+    await screen.getByRole("dialog").getByRole("button", { name: "Vaciar carrito" }).click();
 
     await expect
       .poll(() => cancelSale.mock.calls)

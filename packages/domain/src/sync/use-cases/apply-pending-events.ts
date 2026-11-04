@@ -15,6 +15,7 @@ import type { EventQuarantineReason } from "../model/event-quarantine.js";
 import { nextEventToApply } from "../model/next-event-to-apply.js";
 import {
   type AggregateKey,
+  carriesNothingToKeep,
   dependenciesOf,
   invariantBreaksOf,
   type SyncedFact,
@@ -229,6 +230,10 @@ async function applyEvent(
     throw new EventRefused({ kind: "unreadable" }, decoded.reason);
   }
   const { fact } = decoded;
+  if (carriesNothingToKeep(fact)) {
+    await tx.markApplied(event.eventId, now);
+    return false;
+  }
   for (const dependency of dependenciesOf(fact)) {
     if (!(await tx.aggregateApplied(dependency))) {
       const { aggregateType, aggregateId } = dependency;

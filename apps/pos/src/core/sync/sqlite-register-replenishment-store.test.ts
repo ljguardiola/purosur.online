@@ -381,7 +381,7 @@ describe("the register's store for replenishing a restored register", () => {
       ]);
     });
 
-    it("applies a cancelled sale that took no approved payment without payments or refunds", async () => {
+    it("applies a cancelled sale that took no approved payment by storing nothing, since it was only a cart", async () => {
       const application = await store.transaction((tx) =>
         tx.applyFact(
           aCancelledSaleFact({ id: "sale-3", payments: [], refunds: [], cashMovements: [] }),
@@ -390,9 +390,8 @@ describe("the register's store for replenishing a restored register", () => {
       );
 
       expect(application).toBe("applied");
-      expect(database.prepare("SELECT id, state FROM sales").all()).toEqual([
-        { id: "sale-3", state: "CANCELLED" },
-      ]);
+      expect(database.prepare("SELECT id, state FROM sales").all()).toEqual([]);
+      expect(count("sale_lines")).toBe(0);
       expect(count("payment_transactions")).toBe(0);
       expect(count("payment_refunds")).toBe(0);
     });

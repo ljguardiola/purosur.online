@@ -20,6 +20,7 @@ import type { ReturnedSale } from "../../returns/index.js";
 import {
   type CancelledSale,
   type CompletedSale,
+  cancelledBeforeCharge,
   type RemovedSaleLine,
   type SalePrintState,
   type SaleReprint,
@@ -67,6 +68,13 @@ export interface AggregateKey {
   aggregateId: string;
 }
 
+export function carriesNothingToKeep(fact: SyncedFact): boolean {
+  return (
+    fact.kind === "sale_line_removed" ||
+    (fact.kind === "sale_cancelled" && cancelledBeforeCharge(fact.sale.payments))
+  );
+}
+
 export function dependenciesOf(fact: SyncedFact): AggregateKey[] {
   if (
     fact.kind === "sale_completed" ||
@@ -74,9 +82,6 @@ export function dependenciesOf(fact: SyncedFact): AggregateKey[] {
     fact.kind === "sale_voided"
   ) {
     return [{ aggregateType: "CashSession", aggregateId: fact.sale.sessionId }];
-  }
-  if (fact.kind === "sale_line_removed") {
-    return [{ aggregateType: "CashSession", aggregateId: fact.removal.sessionId }];
   }
   if (fact.kind === "sale_returned") {
     return [

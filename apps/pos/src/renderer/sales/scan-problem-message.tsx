@@ -48,9 +48,10 @@ export type ScanProblem =
   | { kind: "change_failed" }
   | { kind: "weight_change_failed" }
   | { kind: "remove_failed" }
+  | { kind: "empty_failed" }
   | { kind: "cancel_failed" }
   | { kind: "has_approved_payment" }
-  | { kind: "mercado_pago_charge_in_progress" };
+  | { kind: "mercado_pago_charge_in_progress"; action: "empty" | "cancel" };
 
 type Message = { icon: LucideIcon; title: string; help: string };
 
@@ -182,6 +183,12 @@ export function messageFor(problem: ScanProblem): Message {
         title: "No se pudo quitar la línea",
         help: "Probá de nuevo.",
       };
+    case "empty_failed":
+      return {
+        icon: TriangleAlert,
+        title: "No se pudo vaciar el carrito",
+        help: "Probá de nuevo.",
+      };
     case "cancel_failed":
       return {
         icon: TriangleAlert,
@@ -191,14 +198,17 @@ export function messageFor(problem: ScanProblem): Message {
     case "has_approved_payment":
       return {
         icon: Ban,
-        title: "No se puede cancelar la venta",
+        title: "No se puede vaciar el carrito",
         help: "Ya tiene un pago aprobado.",
       };
     case "mercado_pago_charge_in_progress":
       return {
         icon: Ban,
         title: "Hay un cobro con Mercado Pago en curso",
-        help: "Esperá a que termine para cancelar la venta.",
+        help:
+          problem.action === "empty"
+            ? "Esperá a que termine para vaciar el carrito."
+            : "Esperá a que termine para cancelar la venta.",
       };
     case "search_failed":
       return {

@@ -25,8 +25,45 @@ describe("ScanProblemMessage", () => {
       title: "No se pudo cambiar el peso",
       help: "Probá de nuevo.",
     },
+    {
+      problem: { kind: "empty_failed" },
+      title: "No se pudo vaciar el carrito",
+      help: "Probá de nuevo.",
+    },
+    {
+      problem: { kind: "cancel_failed" },
+      title: "No se pudo cancelar la venta",
+      help: "Probá de nuevo.",
+    },
   ])(
     "tells what failed and how to try again when $problem.kind",
+    async ({ problem, title, help }) => {
+      const screen = await render(<ScanProblemMessage problem={problem} />);
+
+      const region = screen.getByRole("status");
+      await expect.element(region.getByText(title, { exact: true })).toBeVisible();
+      await expect.element(region.getByText(help, { exact: true })).toBeVisible();
+    },
+  );
+
+  it.each<{ problem: ScanProblem; title: string; help: string }>([
+    {
+      problem: { kind: "has_approved_payment" },
+      title: "No se puede vaciar el carrito",
+      help: "Ya tiene un pago aprobado.",
+    },
+    {
+      problem: { kind: "mercado_pago_charge_in_progress", action: "empty" },
+      title: "Hay un cobro con Mercado Pago en curso",
+      help: "Esperá a que termine para vaciar el carrito.",
+    },
+    {
+      problem: { kind: "mercado_pago_charge_in_progress", action: "cancel" },
+      title: "Hay un cobro con Mercado Pago en curso",
+      help: "Esperá a que termine para cancelar la venta.",
+    },
+  ])(
+    "tells why the cart cannot be emptied or the sale cancelled: $title, $help",
     async ({ problem, title, help }) => {
       const screen = await render(<ScanProblemMessage problem={problem} />);
 

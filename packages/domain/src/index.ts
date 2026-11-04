@@ -875,7 +875,6 @@ export {
   withUncountedReturns,
 } from "./returns/index.js";
 export type {
-  CancelledSaleFacts,
   CashRoundingRecord,
   CashRoundingTotals,
   CreditNoteReceiptContent,
@@ -900,8 +899,6 @@ export type {
   ReceiptPrintObservation,
   ReceiptPrintStanding,
   ReceiptSource,
-  RemovalFacts,
-  RemovedLinesGroup,
   Sale,
   SaleComprobante,
   SaleDiscount,
@@ -930,7 +927,7 @@ export type {
 export {
   amountToCharge,
   appliedSaleDiscountAmount,
-  CANCELLED_SALES_REPORT_SALE_STATE,
+  cancelledBeforeCharge,
   grossSaleSubtotal,
   isDeferralPending,
   manualAdjustmentReason,
