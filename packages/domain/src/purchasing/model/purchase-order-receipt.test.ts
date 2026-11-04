@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { roundHalfUp } from "../../shared/index.js";
 import { lineValue } from "./purchase-line.js";
 import {
+  awaitedQuantity,
   listCostCents,
   missingQuantity,
   orderLineOutstandingQuantity,
@@ -261,5 +262,20 @@ describe("listCostCents", () => {
     expect(listCostCents({ numerator: 1n, denominator: 2n }, 1_000)).toBe(1);
     expect(listCostCents({ numerator: 10n, denominator: 3n }, 1_000)).toBe(3);
     expect(listCostCents({ numerator: 11n, denominator: 3n }, 1_000)).toBe(4);
+  });
+});
+
+describe("awaitedQuantity", () => {
+  const line = { packages: 3, quantityPerPackage: 12_000 };
+
+  it("is what a sent or partially received order still has to receive", () => {
+    expect(awaitedQuantity("SENT", line, 0)).toBe(36_000);
+    expect(awaitedQuantity("PARTIALLY_RECEIVED", line, 10_000)).toBe(26_000);
+  });
+
+  it("is zero for an order that may not be received", () => {
+    expect(awaitedQuantity("DRAFT", line, 0)).toBe(0);
+    expect(awaitedQuantity("RECEIVED", line, 36_000)).toBe(0);
+    expect(awaitedQuantity("CANCELLED", line, 10_000)).toBe(0);
   });
 });

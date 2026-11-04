@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { assemblyBatches } from "../platform/db/schema.js";
+import { assemblyBatches, purchaseOrders } from "../platform/db/schema.js";
 import { insertAssemblyBatch } from "../stock/test-support/assembly-batch-fixtures.js";
 import { insertInitialCountLot, insertPurchasedLot } from "../stock/test-support/lot-fixtures.js";
 import { insertLocation } from "../stock/test-support/stock-route-fixtures.js";
@@ -13,6 +13,8 @@ import {
   setCoverageDays,
   setStock,
 } from "./test-support/order-suggestion-fixtures.js";
+import { insertAnotherLocation } from "./test-support/purchase-order-fixtures.js";
+import { insertSentOrder, receiveOrder } from "./test-support/purchase-order-receipt-fixtures.js";
 import { insertActor, insertProduct } from "./test-support/purchasing-fixtures.js";
 import { insertSupplier } from "./test-support/supplier-price-list-fixtures.js";
 
@@ -305,5 +307,99 @@ describe("the newest lots that count for the shelf life", () => {
     await purchased(yerba.id, "2026-09-01T12:00:00.000Z", "2026-09-20", otherBranch);
 
     expect(await reader().newestShelfLifeLots(locationId)).toEqual([]);
+  });
+});
+
+describe("the awaited order lines", () => {
+  function sentOrder(name: string, packages = 3, forLocationId = locationId) {
+    return insertSentOrder(db, {
+      actorId: ownerId,
+      locationId: forLocationId,
+      products: [{ name, packages, quantityPerPackage: 12_000, packagePriceCents: 3_000 }],
+    });
+  }
+
+  function packagesOf(productId: string, packages: number) {
+    return {
+      loadedBy: "packages" as const,
+      productId,
+      packages,
+      quantityPerPackage: 12_000,
+      costPaidCents: 3_000,
+      expiresOn: null,
+    };
+  }
+
+  let ownerId: string;
+
+  beforeEach(async () => {
+    ownerId = await insertActor(db);
+  });
+
+  it("answers the lines of a sent order with nothing received yet", async () => {
+    const { productIds } = await sentOrder("Yerba");
+
+    expect(await reader().awaitedOrderLines(locationId)).toEqual([
+      {
+        productId: productIds[0],
+        state: "SENT",
+        packages: 3,
+        quantityPerPackage: 12_000,
+        receivedQuantity: 0,
+      },
+    ]);
+  });
+
+  it("sums what several receipts brought of a line", async () => {
+    const { orderId, productIds } = await sentOrder("Yerba");
+    const [productId] = productIds as [string];
+    for (const at of [new Date("2026-03-10T12:00:00.000Z"), new Date("2026-03-11T12:00:00.000Z")]) {
+      await receiveOrder(db, {
+        locationId,
+        orderId,
+        actorId: ownerId,
+        lines: [packagesOf(productId, 1)],
+        at,
+      });
+    }
+
+    expect(await reader().awaitedOrderLines(locationId)).toEqual([
+      {
+        productId,
+        state: "PARTIALLY_RECEIVED",
+        packages: 3,
+        quantityPerPackage: 12_000,
+        receivedQuantity: 24_000,
+      },
+    ]);
+  });
+
+  it("leaves out the orders of other branches", async () => {
+    const otherBranch = await insertAnotherLocation(db);
+    await sentOrder("Yerba", 3, otherBranch);
+
+    expect(await reader().awaitedOrderLines(locationId)).toEqual([]);
+  });
+
+  it("leaves out the lines of a draft, a received and a cancelled order", async () => {
+    const draft = await sentOrder("Yerba");
+    await db
+      .update(purchaseOrders)
+      .set({ state: "DRAFT", sentAt: null, sentBy: null })
+      .where(eq(purchaseOrders.id, draft.orderId));
+    const cancelled = await sentOrder("Harina");
+    await db
+      .update(purchaseOrders)
+      .set({ state: "CANCELLED", cancelledAt: NOW, cancelledBy: ownerId })
+      .where(eq(purchaseOrders.id, cancelled.orderId));
+    const received = await sentOrder("Fideos", 1);
+    await receiveOrder(db, {
+      locationId,
+      orderId: received.orderId,
+      actorId: ownerId,
+      lines: [packagesOf(received.productIds[0] as string, 1)],
+    });
+
+    expect(await reader().awaitedOrderLines(locationId)).toEqual([]);
   });
 });

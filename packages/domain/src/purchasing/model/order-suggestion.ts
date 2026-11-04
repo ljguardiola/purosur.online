@@ -16,19 +16,22 @@ export function soldThousandths(
 }
 
 // In thousandths of the sale unit: what the average daily sales of the sales period need over the
-// coverage days beyond the stock, or null when the stock already covers them.
+// coverage days beyond the stock and what awaited orders still have to bring, or null when those
+// already cover them.
 export function shortfallToCover({
   soldThousandths: sold,
   coverageDays,
   stockThousandths,
+  awaitedThousandths,
 }: {
   soldThousandths: number;
   coverageDays: number;
   stockThousandths: number;
+  awaitedThousandths: number;
 }): Fraction | null {
   const numerator =
     BigInt(sold) * BigInt(coverageDays) -
-    BigInt(stockThousandths) * BigInt(ORDER_SUGGESTION_SALES_DAYS);
+    BigInt(stockThousandths + awaitedThousandths) * BigInt(ORDER_SUGGESTION_SALES_DAYS);
   return numerator > 0n ? { numerator, denominator: BigInt(ORDER_SUGGESTION_SALES_DAYS) } : null;
 }
 
@@ -41,23 +44,25 @@ export function effectiveCoverageDays(
     : { days: coverageDays, cappedByExpiry: false };
 }
 
-// In thousandths of the sale unit: the most that sells over the shelf life beyond the stock, or
-// null when no lot gives a shelf life.
+// In thousandths of the sale unit: the most that sells over the shelf life beyond the stock and
+// what awaited orders still have to bring, or null when no lot gives a shelf life.
 export function expiryCapQuantity({
   soldThousandths: sold,
   shelfLifeDays,
   stockThousandths,
+  awaitedThousandths,
 }: {
   soldThousandths: number;
   shelfLifeDays: number | null;
   stockThousandths: number;
+  awaitedThousandths: number;
 }): Fraction | null {
   return shelfLifeDays === null
     ? null
     : {
         numerator:
           BigInt(sold) * BigInt(shelfLifeDays) -
-          BigInt(stockThousandths) * BigInt(ORDER_SUGGESTION_SALES_DAYS),
+          BigInt(stockThousandths + awaitedThousandths) * BigInt(ORDER_SUGGESTION_SALES_DAYS),
         denominator: BigInt(ORDER_SUGGESTION_SALES_DAYS),
       };
 }

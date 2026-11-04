@@ -33,6 +33,7 @@ const line = {
   cappedByExpiry: true,
   soldQuantity: 120_000,
   stock: 12_000,
+  awaitedQuantity: 8_000,
   neededQuantity: 48_000,
   offers: [offer],
   unpricedOffers: [unpricedOffer],

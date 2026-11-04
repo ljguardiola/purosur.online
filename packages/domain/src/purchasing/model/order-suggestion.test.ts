@@ -40,31 +40,78 @@ describe("soldThousandths", () => {
 describe("shortfallToCover", () => {
   it("is what the average daily sales over the coverage days need beyond the stock", () => {
     expect(
-      shortfallToCover({ soldThousandths: 120_000, coverageDays: 15, stockThousandths: 12_000 }),
+      shortfallToCover({
+        soldThousandths: 120_000,
+        coverageDays: 15,
+        stockThousandths: 12_000,
+        awaitedThousandths: 0,
+      }),
     ).toEqual({ numerator: 1_440_000n, denominator: 30n });
+  });
+
+  it("subtracts what was ordered and not yet received like stock", () => {
+    expect(
+      shortfallToCover({
+        soldThousandths: 120_000,
+        coverageDays: 15,
+        stockThousandths: 12_000,
+        awaitedThousandths: 8_000,
+      }),
+    ).toEqual({ numerator: 1_200_000n, denominator: 30n });
+  });
+
+  it("is nothing when stock and awaited quantities together cover the coverage days", () => {
+    expect(
+      shortfallToCover({
+        soldThousandths: 120_000,
+        coverageDays: 15,
+        stockThousandths: 12_000,
+        awaitedThousandths: 48_000,
+      }),
+    ).toBeNull();
   });
 
   it("is nothing when nothing was sold", () => {
     expect(
-      shortfallToCover({ soldThousandths: 0, coverageDays: 15, stockThousandths: 0 }),
+      shortfallToCover({
+        soldThousandths: 0,
+        coverageDays: 15,
+        stockThousandths: 0,
+        awaitedThousandths: 0,
+      }),
     ).toBeNull();
   });
 
   it("is nothing when the stock covers the coverage days exactly", () => {
     expect(
-      shortfallToCover({ soldThousandths: 120_000, coverageDays: 15, stockThousandths: 60_000 }),
+      shortfallToCover({
+        soldThousandths: 120_000,
+        coverageDays: 15,
+        stockThousandths: 60_000,
+        awaitedThousandths: 0,
+      }),
     ).toBeNull();
   });
 
   it("is nothing when the stock exceeds the coverage days", () => {
     expect(
-      shortfallToCover({ soldThousandths: 120_000, coverageDays: 15, stockThousandths: 90_000 }),
+      shortfallToCover({
+        soldThousandths: 120_000,
+        coverageDays: 15,
+        stockThousandths: 90_000,
+        awaitedThousandths: 0,
+      }),
     ).toBeNull();
   });
 
   it("covers a negative stock even when nothing was sold", () => {
     expect(
-      shortfallToCover({ soldThousandths: 0, coverageDays: 15, stockThousandths: -5_000 }),
+      shortfallToCover({
+        soldThousandths: 0,
+        coverageDays: 15,
+        stockThousandths: -5_000,
+        awaitedThousandths: 0,
+      }),
     ).toEqual({ numerator: 150_000n, denominator: 30n });
   });
 
@@ -79,6 +126,7 @@ describe("shortfallToCover", () => {
             soldThousandths: sold,
             coverageDays,
             stockThousandths: stock,
+            awaitedThousandths: 0,
           });
           const positive = sold * coverageDays > stock * 30;
           expect(shortfall !== null).toBe(positive);
@@ -165,13 +213,34 @@ describe("effectiveCoverageDays", () => {
 describe("expiryCapQuantity", () => {
   it("is what the average daily sales need over the shelf life beyond the stock", () => {
     expect(
-      expiryCapQuantity({ soldThousandths: 120_000, shelfLifeDays: 10, stockThousandths: 20_000 }),
+      expiryCapQuantity({
+        soldThousandths: 120_000,
+        shelfLifeDays: 10,
+        stockThousandths: 20_000,
+        awaitedThousandths: 0,
+      }),
     ).toEqual({ numerator: 600_000n, denominator: 30n });
+  });
+
+  it("subtracts what was ordered and not yet received like stock", () => {
+    expect(
+      expiryCapQuantity({
+        soldThousandths: 120_000,
+        shelfLifeDays: 10,
+        stockThousandths: 20_000,
+        awaitedThousandths: 10_000,
+      }),
+    ).toEqual({ numerator: 300_000n, denominator: 30n });
   });
 
   it("is null when no lot gives a shelf life", () => {
     expect(
-      expiryCapQuantity({ soldThousandths: 120_000, shelfLifeDays: null, stockThousandths: 0 }),
+      expiryCapQuantity({
+        soldThousandths: 120_000,
+        shelfLifeDays: null,
+        stockThousandths: 0,
+        awaitedThousandths: 0,
+      }),
     ).toBeNull();
   });
 });
