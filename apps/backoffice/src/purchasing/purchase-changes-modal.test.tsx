@@ -236,3 +236,22 @@ test("has no accessibility violations", async () => {
 
   await expectNoAccessibilityViolations(screen.getByRole("dialog").element());
 });
+
+test("has no accessibility violations while several changes make its body scroll", async () => {
+  const severalCorrections = Array.from(
+    { length: 8 },
+    (_, index): PurchaseChange => ({
+      ...headerCorrection,
+      id: `c0c00000-0000-4000-8000-0000000001${String(index).padStart(2, "0")}`,
+    }),
+  );
+  const screen = await renderModal({
+    services: createServices([lineExpiryCorrection, linesAdded, ...severalCorrections]),
+  });
+  await expect.element(screen.getByRole("dialog").getByText("Julián Paz").first()).toBeVisible();
+  const body = screen.getByRole("region", { name: "Cambios de la compra" });
+
+  await expect.element(body).toHaveAttribute("tabindex", "0");
+  expect(body.element().scrollHeight).toBeGreaterThan(body.element().clientHeight);
+  await expectNoAccessibilityViolations(screen.getByRole("dialog").element());
+});
