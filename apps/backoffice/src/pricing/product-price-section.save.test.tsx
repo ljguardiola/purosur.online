@@ -225,3 +225,22 @@ test.each([
 
   await expect.element(screen.getByText("No se pudo guardar el precio")).toBeVisible();
 });
+
+test("saves the price, not the modal it sits in, with Ctrl+Enter pressed from the price field", async () => {
+  const services = sectionServices();
+  const onSaveRecipe = vi.fn();
+  const screen = await renderSection({ services, inRecipeModal: { onSaveRecipe } });
+  const field = screen.getByLabelText("Precio de venta por kilo");
+  await expect.element(field).toHaveValue("16.000,00");
+
+  await userEvent.fill(field, "17000");
+  await userEvent.keyboard("{Control>}{Enter}{/Control}");
+
+  await vi.waitFor(() =>
+    expect(services.setPrice).toHaveBeenCalledExactlyOnceWith(mixProductId, {
+      unitPrice: 1700000,
+      expectedCurrentPriceId: currentPrice.id,
+    }),
+  );
+  expect(onSaveRecipe).not.toHaveBeenCalled();
+});
