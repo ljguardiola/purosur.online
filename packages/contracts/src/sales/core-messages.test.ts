@@ -1624,6 +1624,8 @@ describe("asking how a sale's receipt print stands", () => {
       "printer_not_configured",
       "failed",
       "printed",
+      "awaiting_answer",
+      "declined",
     ].map((standing) => ({
       kind: "found",
       next_copy: { kind: "original" },
@@ -1663,6 +1665,58 @@ describe("asking how a sale's receipt print stands", () => {
 
     expect(salesCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
+});
+
+describe("answering whether to print the customer's ticket", () => {
+  const answer = {
+    type: "answer-receipt-question",
+    request_id: REQUEST_ID,
+    sale_id: "sale-1",
+    print: true,
+  };
+
+  it.each([true, false])("accepts the answer print %s", (print) => {
+    expect(salesRendererToCoreMessageSchema.parse({ ...answer, print })).toEqual({
+      ...answer,
+      print,
+    });
+  });
+
+  it.each(["request_id", "sale_id", "print"])("rejects an answer missing its %s", (field) => {
+    const message = Object.fromEntries(Object.entries(answer).filter(([key]) => key !== field));
+
+    expect(salesRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
+  });
+
+  it.each([{ print: "yes" }, { print: 1 }, { sale_id: 7 }])(
+    "rejects the answer with %j",
+    (override) => {
+      expect(salesRendererToCoreMessageSchema.safeParse({ ...answer, ...override }).success).toBe(
+        false,
+      );
+    },
+  );
+
+  it.each([
+    { kind: "printing" },
+    { kind: "declined" },
+    { kind: "not_signed_in" },
+    { kind: "not_found" },
+    { kind: "not_awaiting" },
+  ])("accepts the result %j", (outcome) => {
+    const message = { type: "answer-receipt-question-result", request_id: REQUEST_ID, outcome };
+
+    expect(salesCoreToRendererMessageSchema.parse(message)).toEqual(message);
+  });
+
+  it.each([{ kind: "printed" }, { kind: "lacks_permission" }, { kind: "busy" }, {}])(
+    "rejects the result %j",
+    (outcome) => {
+      const message = { type: "answer-receipt-question-result", request_id: REQUEST_ID, outcome };
+
+      expect(salesCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
+    },
+  );
 });
 
 describe("retrying a sale's receipt print", () => {
