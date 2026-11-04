@@ -207,7 +207,6 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
     if (!mayAnswer) {
       return;
     }
-    document.querySelector<HTMLElement>('[data-modal-footer] [data-variant="primary"]')?.focus();
     const answerNoOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         answer.mutate(false);
@@ -359,6 +358,7 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
             <Button
               size="large"
               fullWidth
+              autoFocus
               disabled={answerSent}
               onPress={() => answer.mutate(true)}
             >
