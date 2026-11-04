@@ -604,6 +604,7 @@ export type {
   PricedAiCall,
   PurchasedLine,
   PurchaseOrderState,
+  ReceiptLineRow,
   ReceiptType,
   RecordedAiCall,
   RegisteredFreight,

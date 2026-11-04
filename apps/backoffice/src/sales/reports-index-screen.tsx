@@ -52,6 +52,7 @@ export function ReportsIndexScreen({
         <ReportRow to="/reports/purchases-by-supplier" label="Compras por proveedor" />
         <ReportRow to="/reports/freight-by-period" label="Flete por período" />
         <ReportRow to="/reports/pending-purchase-orders" label="Pedidos pendientes de recibir" />
+        <ReportRow to="/reports/receipt-differences" label="Diferencias de recepción" />
         {aiCostShown ? (
           <ReportRow to="/reports/ai-cost-by-period" label="Costo de IA por período" />
         ) : null}

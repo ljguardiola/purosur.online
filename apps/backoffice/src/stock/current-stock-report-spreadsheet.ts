@@ -2,8 +2,8 @@ import type { CurrentStockReportBody } from "@purosur/contracts";
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { shareOfTotal } from "../platform/share-of-total";
 import { type Cell, cell, type Workbook } from "../platform/spreadsheet/workbook";
+import { stockQuantityCells } from "../platform/stock-quantity-cells";
 import { summarySheet } from "../shell/report-summary-sheet";
-import { stockQuantityCells } from "./stock-quantity-cells";
 
 type Product = CurrentStockReportBody["products"][number];
 
