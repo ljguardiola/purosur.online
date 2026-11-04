@@ -136,6 +136,7 @@ describe("a receipt ledger's delivery of a sale", () => {
     ).toEqual<ReceiptDelivery>({
       printAttemptedAt: null,
       printedAt: null,
+      printDeclinedAt: null,
       reprintCount: 0,
       voided: false,
       creditNoteAuthorized: false,
@@ -188,6 +189,7 @@ describe("a receipt ledger's delivery of a sale", () => {
       printAttemptedAt: attemptedAt,
       printedAt,
       reprintCount: 2,
+      printDeclinedAt: null,
       voided: false,
       creditNoteAuthorized: false,
     });
@@ -666,6 +668,7 @@ describe("a receipt ledger's credit note of a voided sale", () => {
   it("is authorized once the tax authority authorized it, whatever its print state", () => {
     expect(inTransaction((tx) => tx.receiptDelivery(creditNote))).toEqual<ReceiptDelivery>({
       printAttemptedAt: null,
+      printDeclinedAt: null,
       printedAt: null,
       reprintCount: 0,
       voided: true,
