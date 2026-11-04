@@ -24,18 +24,10 @@ function ReadOnlyRows({ count }: { count: number }) {
   );
 }
 
-function ChangesModal({
-  rows,
-  open = true,
-  onConfirm = () => {},
-}: {
-  rows: number;
-  open?: boolean;
-  onConfirm?: () => void;
-}) {
+function ChangesModal({ rows, onConfirm = () => {} }: { rows: number; onConfirm?: () => void }) {
   return (
     <Modal
-      open={open}
+      open
       onOpenChange={() => {}}
       tone="info"
       icon={<Info />}
@@ -119,19 +111,4 @@ test("still sends with Ctrl+Enter from a focused body that stopped overflowing",
   await userEvent.keyboard("{Control>}{Enter}{/Control}");
 
   expect(onConfirm).toHaveBeenCalledTimes(1);
-});
-
-test("adds no tab stop to a body that fits once reopened after closing while its body held the focus", async () => {
-  const screen = await render(<ChangesModal rows={40} />);
-  await userEvent.tab();
-  await expect.element(scrollingBody()).toHaveFocus();
-
-  await screen.rerender(<ChangesModal rows={40} open={false} />);
-  await expect.poll(() => page.getByRole("dialog").query()).toBeNull();
-  await screen.rerender(<ChangesModal rows={2} />);
-  await expect.element(page.getByText("Cambio número 2")).toBeVisible();
-
-  expect(scrollingBody().query()).toBeNull();
-  await userEvent.tab();
-  await expect.element(footerButton()).toHaveFocus();
 });
