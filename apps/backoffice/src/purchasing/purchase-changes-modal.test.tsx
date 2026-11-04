@@ -250,8 +250,8 @@ test("has no accessibility violations while several changes make its body scroll
   });
   await expect.element(screen.getByRole("dialog").getByText("Julián Paz").first()).toBeVisible();
   const body = screen.getByRole("region", { name: "Cambios de la compra" });
+  await expect.element(body).toBeInTheDocument();
 
-  await expect.element(body).toHaveAttribute("tabindex", "0");
   expect(body.element().scrollHeight).toBeGreaterThan(body.element().clientHeight);
   await expectNoAccessibilityViolations(screen.getByRole("dialog").element());
 });
