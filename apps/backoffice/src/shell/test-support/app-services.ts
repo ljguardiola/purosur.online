@@ -9,6 +9,7 @@ import { CreateRoleFromSelectorModal } from "../../permissions/create-role-from-
 import { permissionCatalogFixture } from "../../platform/test-support/permission-catalog";
 import { fakeReleaseMonitor } from "../../platform/test-support/release-monitor";
 import { ARGENTINA_ZONE_RULES } from "../../platform/test-support/zone-rules";
+import { ProductPriceSection } from "../../pricing/product-price-section";
 import { ReportRegisterFilter } from "../../register/report-register-filter";
 import { EndEverySessionSection } from "../../sessions/end-every-session-section";
 import { openSession } from "../../sessions/test-support/open-session";
@@ -317,6 +318,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     reportFiltersRegisterFilter: ReportRegisterFilter,
     categoryCreationModal: CreateCategoryFromSelectorModal,
     productCreationModal: CreateProductFromSelectorModal,
+    productPriceSection: ProductPriceSection,
     roleCreationModal: CreateRoleFromSelectorModal,
     reportRegisterFilter: {
       fetchReportRegisters: vi.fn().mockReturnValue(new Promise(() => {})),

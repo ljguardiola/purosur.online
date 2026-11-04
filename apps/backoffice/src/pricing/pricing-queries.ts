@@ -5,6 +5,7 @@ import type {
   PriceList,
   PriceMargin,
   PriceProduct,
+  PriceRecommendation,
   PricesPastReviewDeadlineReportBody,
   PricesPastReviewDeadlineReportQuery,
 } from "@purosur/contracts";
@@ -15,7 +16,13 @@ import { combineCloudData } from "../platform/combine-cloud-data";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { type CloudData, fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchDiscounts, fetchDiscountTargets } from "./discounts-api";
-import type { FetchPricesInput, fetchPriceMargin, fetchPrices } from "./prices-api";
+import type {
+  FetchPriceRecommendationInput,
+  FetchPricesInput,
+  fetchPriceMargin,
+  fetchPriceRecommendation,
+  fetchPrices,
+} from "./prices-api";
 import type { fetchPricesPastReviewDeadlineReport } from "./prices-past-review-deadline-report-api";
 
 export const pricingKey = ["pricing"] as const;
@@ -31,6 +38,8 @@ export const pricesKeys = {
     [...pricingKey, "past-review-deadline-report", query.from ?? "", query.to ?? ""] as const,
   margin: (productId: string, unitPrice: number | null) =>
     [...pricingKey, "margin", productId, unitPrice] as const,
+  recommendation: (productId: string, components: string, unitPrice: number | null) =>
+    [...pricingKey, "recommendation", productId, components, unitPrice] as const,
 };
 
 export const discountsKey = [...pricingKey, "discounts"] as const;
@@ -72,6 +81,32 @@ export function usePriceMarginQuery(params: {
       unitPrice === undefined
         ? Promise.resolve({ kind: "failed" })
         : params.fetchPriceMargin(productId, unitPrice),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function usePriceRecommendationQuery(params: {
+  productId: string;
+  input: FetchPriceRecommendationInput;
+  enabled: boolean;
+  keepPreviousData: boolean;
+  fetchPriceRecommendation: typeof fetchPriceRecommendation;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  const { productId, input } = params;
+  const components = input.components
+    .map(
+      ({ componentProductId, quantityPerOutputUnit }) =>
+        `${componentProductId}:${quantityPerOutputUnit}`,
+    )
+    .join(",");
+  return useCloudQuery<PriceRecommendation>({
+    queryKey: pricesKeys.recommendation(productId, components, input.unitPrice ?? null),
+    enabled: params.enabled,
+    keepPreviousData: params.keepPreviousData,
+    read: () => params.fetchPriceRecommendation(productId, input),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });
