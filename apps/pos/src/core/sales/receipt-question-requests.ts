@@ -1,4 +1,4 @@
-import type { SalesCoreToRendererMessage } from "@purosur/contracts";
+import type { AnswerReceiptQuestionOutcome } from "@purosur/contracts";
 import { receiptAsksBeforePrinting, receiptContent, salePrintStanding } from "@purosur/domain";
 import { declineSaleReceipt } from "@purosur/domain/sales/use-cases";
 import { printCompletedSaleReceiptFor, type ReceiptRequestDeps } from "./receipt-requests";
@@ -8,11 +8,6 @@ export interface ReceiptAnswer {
   saleId: string;
   print: boolean;
 }
-
-export type AnswerReceiptQuestionOutcome = Extract<
-  SalesCoreToRendererMessage,
-  { type: "answer-receipt-question-result" }
->["outcome"];
 
 export type ReceiptAnswerOutcome = Exclude<AnswerReceiptQuestionOutcome, { kind: "unavailable" }>;
 
