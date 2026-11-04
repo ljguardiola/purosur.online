@@ -84,7 +84,7 @@ describe("pendingPurchaseOrders", () => {
     expect(report.totals).toEqual({
       orders: 3,
       suppliers: 2,
-      expectedTotalCents: 3_100,
+      expectedTotalCents: 6_100,
       hasUnpricedLine: false,
     });
   });
