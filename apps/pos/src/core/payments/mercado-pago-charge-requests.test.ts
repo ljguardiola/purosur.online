@@ -431,7 +431,7 @@ describe("abandoning a Mercado Pago QR charge at the register", () => {
       await abandonMercadoPagoChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
     ).toEqual({ kind: "replaced" });
     expect(qrRows()).toMatchObject([{ state: "PENDING", wait_ends_at: NOW.toISOString() }]);
-    expect(outboxEvents()).toEqual([{ event_type: "qr_payment_replaced", aggregate_id: saleId }]);
+    expect(outboxEvents()).toEqual([{ event_type: "mercado_pago_payment_replaced", aggregate_id: saleId }]);
     expect(
       await followMercadoPagoChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
     ).toEqual({ kind: "not_pending" });
