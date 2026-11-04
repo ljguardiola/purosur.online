@@ -5,6 +5,7 @@ import {
   FigureStat,
   formatCents,
   formatNumber,
+  formatTenthsOfPercent,
   InlineNotice,
   ListFilter,
   plural,
@@ -59,6 +60,10 @@ function incompleteSalesText(sales: number): string {
   });
 }
 
+function marginPercentOrder(a: MarginRow, b: MarginRow): number {
+  return (a.marginTenthsOfPercent ?? -Infinity) - (b.marginTenthsOfPercent ?? -Infinity) || 0;
+}
+
 function marginColumns(group: MarginReportBody["group"]) {
   return [
     dataColumn({
@@ -93,6 +98,16 @@ function marginColumns(group: MarginReportBody["group"]) {
       align: "end",
       sort: { order: (a, b) => a.margin - b.margin, firstDirection: "descending" },
       render: (row: MarginRow) => <TableCellText strong>{formatCents(row.margin)}</TableCellText>,
+    }),
+    dataColumn({
+      id: "marginPercent",
+      header: "Margen %",
+      align: "end",
+      sort: { order: marginPercentOrder, firstDirection: "descending" },
+      render: (row: MarginRow) =>
+        row.marginTenthsOfPercent === null
+          ? null
+          : formatTenthsOfPercent(row.marginTenthsOfPercent),
     }),
   ] as const;
 }
@@ -194,6 +209,11 @@ export function MarginReportScreen({
                   size="heading"
                   label="Margen"
                   value={formatCents(shown.totals.margin)}
+                  detail={
+                    shown.totals.marginTenthsOfPercent === null
+                      ? undefined
+                      : `${formatTenthsOfPercent(shown.totals.marginTenthsOfPercent)} de lo vendido`
+                  }
                 />
               ) : (
                 <FigureStat size="heading" label="Margen" loading />

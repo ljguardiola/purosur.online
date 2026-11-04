@@ -4,7 +4,9 @@ import { marginReportSpreadsheet } from "./margin-report-spreadsheet";
 import {
   categoryMarginReport,
   completeMarginReport,
+  noMarginReport,
   productMarginReport,
+  unsoldMarginReport,
 } from "./test-support/margin-report-fixtures";
 
 test("has a Resumen sheet with the period, the register, the grouping and the figures the screen shows", () => {
@@ -25,6 +27,7 @@ test("has a Resumen sheet with the period, the register, the grouping and the fi
       [cell.text("Vendido"), cell.money(1_000_000)],
       [cell.text("Costo"), cell.money(670_000)],
       [cell.text("Margen"), cell.money(330_000)],
+      [cell.text("Margen %"), cell.percent(33)],
       [cell.text("Ventas con costo incompleto"), cell.count(2)],
     ],
   });
@@ -39,7 +42,7 @@ test("has a sheet named after the grouping with each category's amount sold, cos
 
   expect(sheets[1]).toEqual({
     name: "Por categoría",
-    header: ["Categoría", "Vendido", "Costo", "Costo incompleto (ventas)", "Margen"],
+    header: ["Categoría", "Vendido", "Costo", "Costo incompleto (ventas)", "Margen", "Margen %"],
     rows: [
       [
         cell.text("Almacén › Dulces"),
@@ -47,6 +50,7 @@ test("has a sheet named after the grouping with each category's amount sold, cos
         cell.money(250_000),
         cell.count(0),
         cell.money(160_000),
+        cell.percent(39),
       ],
       [
         cell.text("Fiambres"),
@@ -54,6 +58,7 @@ test("has a sheet named after the grouping with each category's amount sold, cos
         cell.money(180_000),
         cell.count(2),
         cell.money(120_000),
+        cell.percent(40),
       ],
       [
         cell.text("Bebidas"),
@@ -61,6 +66,7 @@ test("has a sheet named after the grouping with each category's amount sold, cos
         cell.money(200_000),
         cell.count(0),
         cell.money(-10_000),
+        cell.percent(-5.3),
       ],
       [
         cell.text("Sin categoría"),
@@ -68,6 +74,7 @@ test("has a sheet named after the grouping with each category's amount sold, cos
         cell.money(40_000),
         cell.count(0),
         cell.money(60_000),
+        cell.percent(60),
       ],
     ],
   });
@@ -107,4 +114,22 @@ test("writes only the rows it is given, in their order", () => {
     cell.text("Sin categoría"),
     cell.text("Bebidas"),
   ]);
+});
+
+test("leaves the margin percentage empty when nothing was sold", () => {
+  const [summary, rows] = marginReportSpreadsheet(
+    unsoldMarginReport,
+    unsoldMarginReport.rows,
+    "Todas",
+  ).sheets;
+
+  expect(summary?.rows).toContainEqual([cell.text("Margen %"), cell.percent(50)]);
+  expect(rows?.rows[0]?.at(-1)).toEqual(cell.empty());
+  expect(rows?.rows[1]?.at(-1)).toEqual(cell.percent(50));
+});
+
+test("leaves the total's margin percentage empty when nothing was sold", () => {
+  const [summary] = marginReportSpreadsheet(noMarginReport, noMarginReport.rows, "Todas").sheets;
+
+  expect(summary?.rows).toContainEqual([cell.text("Margen %"), cell.empty()]);
 });

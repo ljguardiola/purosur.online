@@ -26,6 +26,7 @@ export const marginReportSchema = z.object({
       amount: cents.nonnegative(),
       cost: cents.nonnegative(),
       margin: cents,
+      marginTenthsOfPercent: z.int().nullable(),
       incompleteSales: count,
     }),
   ),
@@ -33,6 +34,7 @@ export const marginReportSchema = z.object({
     amount: cents.nonnegative(),
     cost: cents.nonnegative(),
     margin: cents,
+    marginTenthsOfPercent: z.int().nullable(),
     incompleteSales: count,
   }),
 });
