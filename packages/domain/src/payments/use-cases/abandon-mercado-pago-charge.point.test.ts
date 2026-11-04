@@ -24,15 +24,23 @@ describe("abandonMercadoPagoCharge on the integrated terminal", () => {
     expect(world.pendingCharge(CHARGE_PAYMENT_ID)).toBeNull();
   });
 
-  it("tells that it can only be cancelled on the terminal, changing nothing", async () => {
+  it("marks the payment replaced, leaving it pending, when the cloud can only cancel it on the terminal", async () => {
     const world = abandoningWorld();
     world.orderCancellation = { kind: "cancel_on_terminal" };
 
-    expect(await abandonMercadoPagoCharge(world.ports, INPUT)).toEqual({
-      kind: "cancel_on_terminal",
-    });
-    expect(world.operations).toEqual(["cancelOrder"]);
-    expect(world.pendingCharge(CHARGE_PAYMENT_ID)).not.toBeNull();
+    expect(await abandonMercadoPagoCharge(world.ports, INPUT)).toEqual({ kind: "replaced" });
+    expect(world.replacedPayments).toEqual([{ ...INPUT, replacedAt: world.now }]);
+    expect(world.operations).toEqual(["cancelOrder", "replacePendingPayment"]);
+    expect(world.pendingCharge(CHARGE_PAYMENT_ID)).toBeNull();
+  });
+
+  it("passes on why the sale cannot replace a Point payment the cloud can only cancel on the terminal", async () => {
+    const world = abandoningWorld();
+    world.orderCancellation = { kind: "cancel_on_terminal" };
+    world.replacementRefusal = { kind: "no_open_sale" };
+
+    expect(await abandonMercadoPagoCharge(world.ports, INPUT)).toEqual({ kind: "no_open_sale" });
+    expect(world.replacedPayments).toEqual([]);
   });
 
   it("settles the payment when the customer already paid", async () => {

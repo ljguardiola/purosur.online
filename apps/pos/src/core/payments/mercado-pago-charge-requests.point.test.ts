@@ -399,15 +399,16 @@ describe("a charge on the integrated terminal while the cloud cannot be reached"
     expect(outboxEvents()).toEqual([]);
   });
 
-  it("answers that the cancellation is left to the terminal, keeping the payment pending", async () => {
+  it("marks the payment replaced and sends the replacement, keeping it pending, when the cancellation is left to the terminal", async () => {
     const { paymentId } = await pointChargeStarted();
     const orders = new FakeOrders();
     orders.cancellation = { kind: "cancel_on_terminal" };
 
     expect(
       await abandonMercadoPagoChargeFor(deps(orders), { paymentTransactionId: paymentId }),
-    ).toEqual({ kind: "cancel_on_terminal" });
-    expect(pointRows()).toMatchObject([{ state: "PENDING", replaced: 0 }]);
+    ).toEqual({ kind: "replaced" });
+    expect(pointRows()).toMatchObject([{ state: "PENDING", replaced: 1 }]);
+    expect(outboxEvents()).toEqual([{ event_type: "mercado_pago_payment_replaced" }]);
   });
 
   it("refuses to cancel the sale", async () => {
