@@ -169,6 +169,18 @@ export const pendingPurchaseOrdersReportRoute = createRoute({
   ),
 });
 
+export const receiptDifferencesReportRoute = createRoute({
+  getParentRoute: () => reportsAreaRoute,
+  path: "reports/receipt-differences",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
+  validateSearch: reportPeriodSearch,
+  search: { middlewares: [stripSearchParams(reportPeriodSearch.parse({}))] },
+  component: lazyScreen(
+    () => import("./receipt-differences-report-page"),
+    "ReceiptDifferencesReportPage",
+  ),
+});
+
 export const purchasesReportRoute = createRoute({
   getParentRoute: () => reportsAreaRoute,
   path: "reports/purchases-by-supplier",

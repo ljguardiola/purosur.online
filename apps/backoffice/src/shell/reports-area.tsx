@@ -11,6 +11,7 @@ import {
   HandCoins,
   List,
   Package,
+  PackageMinus,
   PackageOpen,
   PackageX,
   Receipt,
@@ -63,6 +64,7 @@ function ReportsArea() {
   const pendingPurchaseOrdersShown = Boolean(
     matchRoute({ to: "/reports/pending-purchase-orders" }),
   );
+  const receiptDifferencesShown = Boolean(matchRoute({ to: "/reports/receipt-differences" }));
   const aiCostReportShown = Boolean(matchRoute({ to: "/reports/ai-cost-by-period" }));
   const purchasesReportShown = Boolean(matchRoute({ to: "/reports/purchases-by-supplier" }));
   const averageTicketShown = Boolean(matchRoute({ to: "/reports/average-ticket" }));
@@ -238,6 +240,15 @@ function ReportsArea() {
                     icon={<PackageOpen />}
                     search={pendingPurchaseOrdersShown ? true : {}}
                     active={pendingPurchaseOrdersShown}
+                  />
+                </li>
+                <li>
+                  <SectionLink
+                    to="/reports/receipt-differences"
+                    label="Diferencias de recepción"
+                    icon={<PackageMinus />}
+                    search={receiptDifferencesShown ? true : {}}
+                    active={receiptDifferencesShown}
                   />
                 </li>
                 <li>
