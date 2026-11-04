@@ -181,11 +181,11 @@ export function Modal(props: ModalProps) {
   const footerRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
-  const scrollingBody = useKeyboardScrollableRegion(titleId);
+  const { observeOverflow, regionProps, focusClassName } = useKeyboardScrollableRegion(titleId);
 
   function observeBody(body: HTMLDivElement | null) {
     bodyRef.current = body;
-    const stopObserving = scrollingBody.observeOverflow(body);
+    const stopObserving = observeOverflow(body);
     return () => {
       stopObserving?.();
       bodyRef.current = null;
@@ -250,10 +250,10 @@ export function Modal(props: ModalProps) {
           {props.headerLayout === "centered" ? (
             <div
               ref={observeBody}
-              {...scrollingBody.regionProps}
+              {...regionProps}
               className={[
                 "flex min-h-0 flex-1 flex-col items-center gap-3 overflow-y-auto p-6",
-                scrollingBody.focusClassName,
+                focusClassName,
               ].join(" ")}
               onKeyDownCapture={sendWithCtrlEnter}
             >
@@ -302,10 +302,10 @@ export function Modal(props: ModalProps) {
               {hasContent(children) && (
                 <div
                   ref={observeBody}
-                  {...scrollingBody.regionProps}
+                  {...regionProps}
                   className={[
                     "min-h-0 flex-1 overflow-y-auto",
-                    scrollingBody.focusClassName,
+                    focusClassName,
                     // A column, so a caller's own regions can size themselves against it and
                     // scroll independently; without it, a percentage height inside resolves to
                     // auto and scrolls the whole body as one block.

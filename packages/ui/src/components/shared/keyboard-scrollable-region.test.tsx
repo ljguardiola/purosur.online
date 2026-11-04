@@ -15,14 +15,14 @@ function ScrollingBox({
   children: ReactNode;
 }) {
   const titleId = useId();
-  const region = useKeyboardScrollableRegion(titleId);
+  const { observeOverflow, regionProps } = useKeyboardScrollableRegion(titleId);
   return (
     <main>
       <h2 id={titleId}>Detalle</h2>
       {shown ? (
         <div
-          ref={region.observeOverflow}
-          {...region.regionProps}
+          ref={observeOverflow}
+          {...regionProps}
           style={{ height: `${height}px`, width: "300px", overflow: "auto" }}
         >
           {children}

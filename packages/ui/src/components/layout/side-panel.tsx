@@ -9,7 +9,7 @@ export type SidePanelProps = {
 
 export function SidePanel({ children, label, footer }: SidePanelProps) {
   const panelId = useId();
-  const scrollingBody = useKeyboardScrollableRegion(panelId);
+  const { observeOverflow, regionProps, focusClassName } = useKeyboardScrollableRegion(panelId);
 
   return (
     <aside
@@ -18,9 +18,9 @@ export function SidePanel({ children, label, footer }: SidePanelProps) {
       className="flex h-full w-98 shrink-0 flex-col border-l border-border bg-surface"
     >
       <div
-        ref={scrollingBody.observeOverflow}
-        {...scrollingBody.regionProps}
-        className={`relative flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-8 pt-8 ${footer === undefined ? "pb-8" : "pb-4"} ${scrollingBody.focusClassName}`}
+        ref={observeOverflow}
+        {...regionProps}
+        className={`relative flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-8 pt-8 ${footer === undefined ? "pb-8" : "pb-4"} ${focusClassName}`}
       >
         {children}
       </div>
