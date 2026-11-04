@@ -187,7 +187,7 @@ export function TransferRefundModal({
           <InlineNotice
             tone="error"
             icon={<TriangleAlert />}
-            title="Mercado Pago ya no tiene este reembolso rechazado; no se puede registrar por transferencia."
+            title="Este reembolso no se puede registrar por transferencia"
           />
         )}
         {notice?.kind === "notFound" && (

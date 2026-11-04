@@ -1,3 +1,4 @@
+import { refundTransferSchema } from "@purosur/contracts";
 import type { RefundTransferKind } from "@purosur/domain";
 
 export type RefundTransferFormValues = {
@@ -26,5 +27,8 @@ export const REFUND_TRANSFER_FIELDS = {
 
 export const REFUND_TRANSFER_MESSAGES = {
   kind: "Elegí el tipo de transferencia.",
-  operationNumber: "Ingresá el número de operación.",
+  operationNumber: (values: RefundTransferFormValues) =>
+    refundTransferSchema.shape.operation_number.safeParse(values.operationNumber).success
+      ? "Revisá el número de operación."
+      : "Ingresá el número de operación.",
 };
