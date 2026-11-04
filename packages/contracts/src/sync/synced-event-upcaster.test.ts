@@ -2623,6 +2623,26 @@ describe("decoding the events the registers pushed", () => {
     });
   });
 
+  it("reads the replacement of a pending Mercado Pago payment", () => {
+    const decoded = upcaster.decode(
+      unappliedEventOf(
+        pushed({
+          event_type: "mercado_pago_payment_replaced",
+          schema_version: 1,
+          payload: { payment_transaction_id: "transaction-1", sale_id: SALE },
+        }),
+      ),
+    );
+
+    expect(decoded).toEqual({
+      kind: "fact",
+      fact: {
+        kind: "mercado_pago_payment_replaced",
+        replacement: { paymentTransactionId: "transaction-1", saleId: SALE },
+      },
+    });
+  });
+
   it("reads an opening count as the line counted, at the moment and by the person the event says", () => {
     const decoded = upcaster.decode(
       unappliedEventOf(

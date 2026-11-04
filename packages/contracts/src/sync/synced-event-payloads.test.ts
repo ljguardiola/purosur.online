@@ -216,6 +216,7 @@ describe("synced event payloads", () => {
       "deferred_sale_recorded@2",
       "deferred_sale_satisfied@1",
       "fiscal_gate_failed@1",
+      "mercado_pago_payment_replaced@1",
       "offline_fiscal_document_issued@1",
       "offline_fiscal_document_issued@2",
       "offline_fiscal_document_issued@3",
@@ -355,6 +356,7 @@ describe("synced event payloads", () => {
     ["a fiscal_gate_failed version nobody emitted", "fiscal_gate_failed", 2],
     ["a deferred_sale_recorded version nobody emitted", "deferred_sale_recorded", 3],
     ["a qr_payment_replaced version nobody emitted", "qr_payment_replaced", 2],
+    ["a mercado_pago_payment_replaced version nobody emitted", "mercado_pago_payment_replaced", 2],
     ["a contingency_entered version nobody emitted", "contingency_entered", 2],
     ["a contingency_left version nobody emitted", "contingency_left", 2],
     ["a contingency_reporting_started version nobody emitted", "contingency_reporting_started", 3],
@@ -374,6 +376,7 @@ describe("synced event payloads", () => {
     ["contingency_reporting_started", 1],
     ["contingency_reporting_started", 2],
     ["qr_payment_replaced", 1],
+    ["mercado_pago_payment_replaced", 1],
     ["sale_completed", 1],
     ["sale_completed", 2],
     ["sale_completed", 3],
@@ -398,6 +401,7 @@ describe("synced event payloads", () => {
     ["contingency_reporting_started", 1],
     ["contingency_reporting_started", 2],
     ["qr_payment_replaced", 1],
+    ["mercado_pago_payment_replaced", 1],
     ["sale_completed", 1],
     ["sale_completed", 2],
     ["sale_completed", 3],
@@ -421,6 +425,7 @@ describe("synced event payloads", () => {
     ["contingency_reporting_started", 1],
     ["contingency_reporting_started", 2],
     ["qr_payment_replaced", 1],
+    ["mercado_pago_payment_replaced", 1],
     ["sale_completed", 1],
     ["sale_completed", 2],
     ["sale_completed", 3],
@@ -1156,6 +1161,19 @@ describe("synced event payloads", () => {
         false,
       );
       expect(accepts("qr_payment_replaced", 1, { ...replaced(), sale_id: "" })).toBe(false);
+    });
+  });
+
+  describe("mercado_pago_payment_replaced v1", () => {
+    const replaced = () => recordedPayload("mercado_pago_payment_replaced", 1);
+
+    it("refuses an empty payment transaction id or sale id", () => {
+      expect(
+        accepts("mercado_pago_payment_replaced", 1, { ...replaced(), payment_transaction_id: "" }),
+      ).toBe(false);
+      expect(accepts("mercado_pago_payment_replaced", 1, { ...replaced(), sale_id: "" })).toBe(
+        false,
+      );
     });
   });
 

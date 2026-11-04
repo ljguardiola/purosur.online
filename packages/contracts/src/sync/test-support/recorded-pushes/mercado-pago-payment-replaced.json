@@ -1,0 +1,28 @@
+{
+  "outbox_chain_key": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=",
+  "push": {
+    "app_version": "0.0.0",
+    "telemetry": {
+      "wal_size_bytes": 4120032,
+      "disk_free_bytes": 182536847360,
+      "disk_free_ratio": 0.38
+    },
+    "events": [
+      {
+        "event_id": "01a12294-b3c4-7d52-9a61-8e7f0c2b4d18",
+        "device_seq": 1,
+        "aggregate_type": "Sale",
+        "aggregate_id": "01a12294-b3c0-7e26-b5c3-7a1d4f8e2b69",
+        "event_type": "mercado_pago_payment_replaced",
+        "schema_version": 1,
+        "payload": {
+          "payment_transaction_id": "01a12294-b3bb-7a4e-8d12-3f5c9b7e1a46",
+          "sale_id": "01a12294-b3c0-7e26-b5c3-7a1d4f8e2b69"
+        },
+        "occurred_at": "2026-11-03T15:10:00.000Z",
+        "actor_id": "c7b3e5d2-18a4-4f90-b6d1-2e9f0a8c3d03",
+        "chain_hmac": "oqCXW8+DNaEBO1w0mb1YxoDqNtgJ3ja0d+2V+lD6+Cw="
+      }
+    ]
+  }
+}
