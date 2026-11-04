@@ -34,7 +34,7 @@ export function replacePendingMercadoPagoPayment(
       return session;
     }
     const pending = tx.pendingMercadoPagoPayment(paymentTransactionId);
-    if (pending === undefined || pending.method !== "QR") {
+    if (pending === undefined) {
       return { kind: "not_pending" };
     }
     if (tx.openSale(session.id)?.id !== pending.saleId) {
@@ -50,7 +50,7 @@ export function replacePendingMercadoPagoPayment(
       event_id: ids.next(),
       aggregate_type: "Sale",
       aggregate_id: pending.saleId,
-      event_type: "qr_payment_replaced",
+      event_type: "mercado_pago_payment_replaced",
       schema_version: 1,
       payload: { payment_transaction_id: paymentTransactionId, sale_id: pending.saleId },
       occurred_at: replacedAt.toISOString(),
