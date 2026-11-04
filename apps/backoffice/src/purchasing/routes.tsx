@@ -157,6 +157,18 @@ export const aiCostReportRoute = createRoute({
   component: lazyScreen(() => import("./ai-cost-report-page"), "AiCostReportPage"),
 });
 
+export const pendingPurchaseOrdersReportRoute = createRoute({
+  getParentRoute: () => reportsAreaRoute,
+  path: "reports/pending-purchase-orders",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReports),
+  validateSearch: reportPeriodSearch,
+  search: { middlewares: [stripSearchParams(reportPeriodSearch.parse({}))] },
+  component: lazyScreen(
+    () => import("./pending-purchase-orders-report-page"),
+    "PendingPurchaseOrdersReportPage",
+  ),
+});
+
 export const purchasesReportRoute = createRoute({
   getParentRoute: () => reportsAreaRoute,
   path: "reports/purchases-by-supplier",

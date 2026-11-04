@@ -469,6 +469,14 @@ export {
 } from "./purchasing/linkable-purchase-summary.js";
 export type { OrderSuggestion } from "./purchasing/order-suggestion.js";
 export { orderSuggestionSchema } from "./purchasing/order-suggestion.js";
+export type {
+  PendingPurchaseOrdersBody,
+  PendingPurchaseOrdersQuery,
+} from "./purchasing/pending-purchase-orders.js";
+export {
+  pendingPurchaseOrdersQuerySchema,
+  pendingPurchaseOrdersSchema,
+} from "./purchasing/pending-purchase-orders.js";
 export type { PurchaseChange } from "./purchasing/purchase-changes.js";
 export { purchaseChangeSchema, purchaseChangesSchema } from "./purchasing/purchase-changes.js";
 export type { PurchaseChoices } from "./purchasing/purchase-choices.js";

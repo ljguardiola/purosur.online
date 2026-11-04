@@ -1,11 +1,12 @@
 import type { SaleUnit } from "../../catalog/index.js";
-import { type Fraction, type ReportPeriod, shiftCalendarDay } from "../../shared/index.js";
+import type { Fraction, ReportPeriod } from "../../shared/index.js";
 import { STOCK_QUANTITY_PER_UNIT } from "../../stock/index.js";
+import { daysEndingOn } from "./days-ending-on.js";
 
 export const ORDER_SUGGESTION_SALES_DAYS = 30;
 
 export function orderSuggestionPeriod(today: string): ReportPeriod {
-  return { from: shiftCalendarDay(today, 1 - ORDER_SUGGESTION_SALES_DAYS), to: today };
+  return daysEndingOn(today, ORDER_SUGGESTION_SALES_DAYS);
 }
 
 export function soldThousandths(

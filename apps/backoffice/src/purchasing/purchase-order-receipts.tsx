@@ -10,7 +10,7 @@ import {
 } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { ShoppingCart } from "lucide-react";
-import { formatPurchaseOrderCreatedDay } from "./purchase-order-created-day";
+import { formatPurchaseOrderCreatedDay } from "./purchase-order-day";
 
 type Receipt = PurchaseOrderDetail["receipts"][number];
 type ReceiptLine = Receipt["lines"][number];

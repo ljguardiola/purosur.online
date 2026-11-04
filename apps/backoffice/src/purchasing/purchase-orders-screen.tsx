@@ -2,7 +2,6 @@ import type { PurchaseOrderSummary } from "@purosur/contracts";
 import {
   actionsColumn,
   dataColumn,
-  formatCents,
   formatNumber,
   ListFilter,
   plural,
@@ -16,11 +15,12 @@ import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { AreaTopBar } from "../shell/area-top-bar";
 import { ScreenLayout } from "../shell/screen-layout";
-import { formatPurchaseOrderCreatedDay } from "./purchase-order-created-day";
+import { formatPurchaseOrderCreatedDay } from "./purchase-order-day";
 import { purchaseOrderStatusOf } from "./purchase-order-status";
 import type { PurchaseOrdersFilters } from "./purchase-orders-filters";
 import type { PurchaseOrdersScreenServices } from "./purchase-orders-services";
 import { usePurchaseOrdersQuery } from "./purchasing-queries";
+import { ExpectedTotalAmount } from "./purchasing-screen-parts";
 
 export type PurchaseOrdersScreenProps = {
   filters: PurchaseOrdersFilters;
@@ -89,12 +89,10 @@ export function PurchaseOrdersScreen({
       header: "Total esperado",
       align: "end",
       render: (order: PurchaseOrderSummary) => (
-        <div className="flex flex-col items-end">
-          <span>{formatCents(order.expectedTotalCents)}</span>
-          {order.hasUnpricedLine ? (
-            <span className="text-detail text-text-subtle">Hay líneas sin precio de lista</span>
-          ) : null}
-        </div>
+        <ExpectedTotalAmount
+          cents={order.expectedTotalCents}
+          hasUnpricedLine={order.hasUnpricedLine}
+        />
       ),
     }),
     dataColumn({

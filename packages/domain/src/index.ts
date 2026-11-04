@@ -600,6 +600,7 @@ export {
 export type {
   FreightMeans,
   FreightPeriodDays,
+  PendingPurchaseOrderRow,
   PricedAiCall,
   PurchasedLine,
   PurchaseOrderState,
@@ -668,6 +669,7 @@ export {
   PURCHASE_ORDER_STATES,
   RECEIPT_NUMBER_MAX_LENGTH,
   RECEIPT_TYPES,
+  RECEIVABLE_PURCHASE_ORDER_STATES,
   rereadCountsTowardDailyExtractionCap,
   SUPPLIER_CONTACT_MAX_LENGTH,
   SUPPLIER_ITEM_VAT_RATES,

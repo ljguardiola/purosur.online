@@ -2886,6 +2886,11 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
+        url: "/api/reports/pending-purchase-orders",
+        access: capabilityAccess("reports_area"),
+      },
+      {
+        method: "GET",
         url: "/api/reports/freight-by-period",
         access: capabilityAccess("reports_area"),
       },
