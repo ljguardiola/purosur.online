@@ -18,6 +18,7 @@ import { readReceiptSource } from "./sqlite-receipt-source";
 interface DeliveryRow {
   print_attempted_at: string | null;
   printed_at: string | null;
+  print_declined_at: string | null;
   reprint_count: number;
   voided: number;
   credit_note_authorized: number;
@@ -79,6 +80,12 @@ export function markPrinted(database: LocalDatabase, key: PrintedDocumentKey, at
     .run(at.toISOString(), key.saleId);
 }
 
+export function markPrintDeclined(database: LocalDatabase, saleId: string, at: Date): void {
+  database
+    .prepare("UPDATE sales SET print_declined_at = ? WHERE id = ?")
+    .run(at.toISOString(), saleId);
+}
+
 export function insertReprint(database: LocalDatabase, reprint: ReceiptReprint): void {
   database
     .prepare(
@@ -124,6 +131,11 @@ export class SqliteReceiptLedger implements ReceiptLedger {
       storedReceipt: (key) => this.storedReceipt(key),
       recordStoredReceipt: (key, receipt) => this.recordStoredReceipt(key, receipt),
       recordPrintAttempt: (key, at) => markPrintAttempted(this.database, key, at),
+      recordPrintDeclined: (key, at) => {
+        if (key.document === "sale_receipt") {
+          markPrintDeclined(this.database, key.saleId, at);
+        }
+      },
       recordPrinted: (key, at) => markPrinted(this.database, key, at),
       recordReprint: (_key, reprint) => insertReprint(this.database, reprint),
       outboxReady: () => this.outboxChainKey !== undefined,
@@ -146,6 +158,7 @@ export class SqliteReceiptLedger implements ReceiptLedger {
                   WHEN 'deferred_invoice'
                     THEN (SELECT printed_at FROM deferred_invoice_prints WHERE sale_id = sales.id)
                   ELSE printed_at END AS printed_at,
+                CASE @document WHEN 'sale_receipt' THEN print_declined_at END AS print_declined_at,
                 (SELECT count(*) FROM sale_reprints
                   WHERE sale_reprints.sale_id = sales.id AND sale_reprints.document = @document
                     AND sale_reprints.credit_note_id IS @credit_note_id) AS reprint_count,
@@ -167,6 +180,8 @@ export class SqliteReceiptLedger implements ReceiptLedger {
           printAttemptedAt:
             row.print_attempted_at === null ? null : new Date(row.print_attempted_at),
           printedAt: row.printed_at === null ? null : new Date(row.printed_at),
+          printDeclinedAt:
+            row.print_declined_at === null ? null : new Date(row.print_declined_at),
           reprintCount: row.reprint_count,
           voided: row.voided === 1,
           creditNoteAuthorized: row.credit_note_authorized === 1,
