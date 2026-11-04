@@ -3,6 +3,7 @@ import { type ReactNode, useState } from "react";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import { expectNoAccessibilityViolations } from "../../test/axe";
 import { Button } from "../forms/button";
 import { Select } from "../forms/select";
 import { TextField } from "../forms/text-field";
@@ -69,6 +70,13 @@ function RecipeModal({
   );
 }
 
+test("has no accessibility violations in a modal holding a part", async () => {
+  const screen = await render(<RecipeModal onSaveRecipe={() => {}} onSavePrice={() => {}} />);
+
+  await expect.element(screen.getByRole("button", { name: "Guardar el precio" })).toBeVisible();
+  await expectNoAccessibilityViolations(document.body);
+});
+
 test("presses the part's own action with Ctrl+Enter pressed from one of its fields", async () => {
   const onSaveRecipe = vi.fn();
   const onSavePrice = vi.fn();
@@ -125,6 +133,60 @@ test("presses the part's own action with Ctrl+Enter pressed while its select's l
 
   expect(onSavePrice).toHaveBeenCalledOnce();
   expect(onSaveRecipe).not.toHaveBeenCalled();
+});
+
+test("presses the modal's primary action with Ctrl+Enter from a field of a part with no action", async () => {
+  const onSaveRecipe = vi.fn();
+  const screen = await render(
+    <Modal
+      open
+      onOpenChange={() => {}}
+      tone="info"
+      icon={<Info />}
+      title="Editar la receta"
+      footer={
+        <Button variant="primary" onPress={onSaveRecipe}>
+          Guardar la receta
+        </Button>
+      }
+    >
+      <ModalPart action={null}>
+        <NameField label="Precio de venta" />
+      </ModalPart>
+    </Modal>,
+  );
+
+  await userEvent.click(screen.getByRole("textbox", { name: "Precio de venta" }));
+  await userEvent.keyboard(CTRL_ENTER);
+
+  expect(onSaveRecipe).toHaveBeenCalledOnce();
+});
+
+test("presses the modal's primary action with Ctrl+Enter from a button inside the part", async () => {
+  const onSaveRecipe = vi.fn();
+  const onSavePrice = vi.fn();
+  const screen = await render(
+    <RecipeModal
+      onSaveRecipe={onSaveRecipe}
+      onSavePrice={onSavePrice}
+      part={
+        <>
+          <NameField label="Precio de venta" />
+          <Button variant="secondary" onPress={() => {}}>
+            Reintentar
+          </Button>
+        </>
+      }
+    />,
+  );
+
+  await userEvent.click(screen.getByRole("textbox", { name: "Precio de venta" }));
+  await userEvent.tab();
+  await expect.element(screen.getByRole("button", { name: "Reintentar" })).toHaveFocus();
+  await userEvent.keyboard(CTRL_ENTER);
+
+  expect(onSaveRecipe).toHaveBeenCalledOnce();
+  expect(onSavePrice).not.toHaveBeenCalled();
 });
 
 test("presses nothing with Ctrl+Enter from the part while its action is disabled", async () => {

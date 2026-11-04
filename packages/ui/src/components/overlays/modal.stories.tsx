@@ -1,14 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { AlertTriangle, Check, CheckCircle, Info, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle, Info, XCircle } from "lucide-react";
 import { expect, userEvent, within } from "storybook/test";
 import {
   playHoverSetsDataHovered,
   playTabReachesFocusVisible,
 } from "../../test-support/story-interactions";
 import { Button } from "../forms/button";
-import { TextField } from "../forms/text-field";
 import { Modal } from "./modal";
-import { ModalPart } from "./modal-part";
 
 const meta: Meta<typeof Modal> = {
   title: "Components/Modal",
@@ -141,42 +139,5 @@ export const ScrollingBody: Story = {
     const body = within(document.body).getByRole("region", { name: "Cambios de la compra" });
     await userEvent.tab();
     await expect(body).toHaveFocus();
-  },
-};
-
-export const WithPart: Story = {
-  args: {
-    tone: "info",
-    icon: <Info />,
-    title: "Editar la receta",
-    children: (
-      <div className="flex flex-col gap-6">
-        <TextField
-          kind="plain-text"
-          label="Cantidad de Almendras"
-          value="0,4"
-          onChange={() => {}}
-        />
-        <section className="flex flex-col gap-4">
-          <ModalPart
-            action={
-              <Button variant="secondary" icon={<Check />}>
-                Guardar el precio
-              </Button>
-            }
-          >
-            <h3 className="font-bold text-body text-text">Precio de venta</h3>
-            <TextField
-              kind="price"
-              label="Precio de venta por kilo"
-              prefix="$"
-              value="16.000,00"
-              onChange={() => {}}
-            />
-          </ModalPart>
-        </section>
-      </div>
-    ),
-    footer: <Button>Guardar la receta</Button>,
   },
 };
