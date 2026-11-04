@@ -22,6 +22,10 @@ import { withoutPackageOutput } from "./.github/scripts/without-package-output.m
 
 const PLAYWRIGHT_WS_ENDPOINT_ENV = "PLAYWRIGHT_SERVER_WS_ENDPOINT";
 
+// At a loaded shard's start, Vitest's 60 s default is close to how long the slowest page already
+// takes to open and report ready, and one page past it drops every file its project still had queued.
+const BROWSER_CONNECT_TIMEOUT_MS = 180_000;
+
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
 const heldRunReporter = new HeldRunReporter({ graceMs: 60_000, stallMs: 3 * 60_000 });
@@ -192,6 +196,7 @@ export default defineConfig({
             enabled: true,
             headless: true,
             provider: playwright({ connectOptions: playwrightServerConnectOptions() }),
+            connectTimeout: BROWSER_CONNECT_TIMEOUT_MS,
             // Vitest would otherwise name this project "browser (chromium)", which matches no
             // SlowTestsReporter threshold.
             instances: [{ browser: "chromium", name: "browser" }],
@@ -218,6 +223,7 @@ export default defineConfig({
                 deviceScaleFactor: 1,
               },
             }),
+            connectTimeout: BROWSER_CONNECT_TIMEOUT_MS,
             viewport: { width: 1280, height: 800 },
             instances: [{ browser: "chromium", name: "catalog-visual" }],
             expect: {
