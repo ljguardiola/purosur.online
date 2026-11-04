@@ -7,7 +7,7 @@ export interface PrintingCompletedSalesDeps {
   onFailure: (error: unknown) => void;
 }
 
-export interface ReceiptQuestionDeps {
+interface ReceiptQuestionDeps {
   prepare: (saleId: string) => void;
   endPreparing: (saleId: string) => void;
   asksBeforePrinting: (saleId: string) => boolean;

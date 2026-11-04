@@ -80,7 +80,7 @@ export function markPrinted(database: LocalDatabase, key: PrintedDocumentKey, at
     .run(at.toISOString(), key.saleId);
 }
 
-export function markPrintDeclined(database: LocalDatabase, saleId: string, at: Date): void {
+function markPrintDeclined(database: LocalDatabase, saleId: string, at: Date): void {
   database
     .prepare("UPDATE sales SET print_declined_at = ? WHERE id = ?")
     .run(at.toISOString(), saleId);
