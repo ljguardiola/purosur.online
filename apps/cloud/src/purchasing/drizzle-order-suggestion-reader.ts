@@ -30,6 +30,8 @@ import { DrizzleProductSalesReportReader } from "../sales/drizzle-product-sales-
 import { lotOriginOf } from "../stock/lot-origin.js";
 import { DrizzleSupplierPriceComparisonReader } from "./drizzle-supplier-price-comparison-reader.js";
 
+const READ_SNAPSHOT = { isolationLevel: "repeatable read", accessMode: "read only" } as const;
+
 export class DrizzleOrderSuggestionReader<TQueryResult extends PgQueryResultHKT>
   extends DrizzleSupplierPriceComparisonReader<TQueryResult>
   implements OrderSuggestionReader
@@ -41,6 +43,13 @@ export class DrizzleOrderSuggestionReader<TQueryResult extends PgQueryResultHKT>
     super(db);
     this.database = db;
     this.sales = new DrizzleProductSalesReportReader(db);
+  }
+
+  inOneSnapshot<T>(read: (reader: OrderSuggestionReader) => Promise<T>): Promise<T> {
+    return this.database.transaction(
+      (tx) => read(new DrizzleOrderSuggestionReader(tx)),
+      READ_SNAPSHOT,
+    );
   }
 
   async coverageDays(): Promise<ProductCoverageDays[]> {

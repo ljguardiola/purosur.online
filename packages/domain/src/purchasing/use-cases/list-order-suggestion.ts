@@ -80,15 +80,18 @@ export async function listOrderSuggestion(
   { locationId }: ListOrderSuggestionInput,
 ): Promise<OrderSuggestion> {
   const range = orderSuggestionPeriod(argentinaCalendarDay(clock.now(), zoneRules.zoneRules()));
-  const [compared, coverage, sold, stock, awaitedLines, newestLots, suppliers] = await Promise.all([
-    listSupplierPriceComparison(reader),
-    reader.coverageDays(),
-    reader.completedSalesByProduct({ locationId, range }),
-    reader.currentStock(locationId),
-    reader.awaitedOrderLines(locationId),
-    reader.newestShelfLifeLots(locationId),
-    reader.suppliers(),
-  ]);
+  const [compared, coverage, sold, stock, awaitedLines, newestLots, suppliers] =
+    await reader.inOneSnapshot((snapshot) =>
+      Promise.all([
+        listSupplierPriceComparison(snapshot),
+        snapshot.coverageDays(),
+        snapshot.completedSalesByProduct({ locationId, range }),
+        snapshot.currentStock(locationId),
+        snapshot.awaitedOrderLines(locationId),
+        snapshot.newestShelfLifeLots(locationId),
+        snapshot.suppliers(),
+      ]),
+    );
   const coverageDaysOf = new Map(coverage.map((entry) => [entry.productId, entry.coverageDays]));
   const soldOf = new Map(salesOfGroups(sold).map((group) => [group.id, group]));
   const stockOf = new Map(stock.map((entry) => [entry.productId, entry.quantity]));

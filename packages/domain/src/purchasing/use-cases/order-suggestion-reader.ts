@@ -41,6 +41,9 @@ export interface OrderSuggestionSupplier {
 }
 
 export interface OrderSuggestionReader extends SupplierPriceComparisonReader {
+  // Every read `read` makes sees the data as it stood at one moment, so a change committing
+  // meanwhile is counted by all of them or by none.
+  inOneSnapshot<T>(read: (reader: OrderSuggestionReader) => Promise<T>): Promise<T>;
   coverageDays(): Promise<ProductCoverageDays[]>;
   // The branch's lines of orders that may still be received, with what earlier receipts brought, in
   // thousandths of the product's sale unit.
