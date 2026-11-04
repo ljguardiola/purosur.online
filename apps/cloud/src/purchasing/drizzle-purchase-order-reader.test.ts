@@ -9,6 +9,11 @@ import {
   insertAnotherLocation,
   insertOfferedItem,
 } from "./test-support/purchase-order-fixtures.js";
+import {
+  insertSentOrder,
+  RECEIVED_AT,
+  receiveOrder,
+} from "./test-support/purchase-order-receipt-fixtures.js";
 import { insertActor, insertProduct } from "./test-support/purchasing-fixtures.js";
 import { insertSupplier, insertSupplierItem } from "./test-support/supplier-price-list-fixtures.js";
 
@@ -205,6 +210,7 @@ describe("the purchase orders of a branch", () => {
           quantityPerPackage: 10_000,
           expectedPackagePriceCents: 4_000,
           supplierItem: { code: null, description: "Azúcar bolsa 10 kg" },
+          receivedQuantity: 0,
         },
         {
           product: {
@@ -218,8 +224,10 @@ describe("the purchase orders of a branch", () => {
           quantityPerPackage: 6_000,
           expectedPackagePriceCents: 7_000,
           supplierItem: { code: "YER-6", description: "Yerba Piragüé 1 kg x6" },
+          receivedQuantity: 0,
         },
       ],
+      receipts: [],
     });
   });
 });
@@ -342,5 +350,157 @@ describe("the supplier item a purchase order line answers", () => {
     const order = await reader().order(locationId, orderId);
 
     expect(order?.lines[0]?.supplierItem).toBeNull();
+  });
+});
+
+describe("what a purchase order has received", () => {
+  const SECOND_DELIVERY_AT = new Date("2026-03-12T12:00:00.000Z");
+
+  async function orderOfTwo() {
+    const sent = await insertSentOrder(db, {
+      actorId,
+      locationId,
+      products: [
+        { name: "Yerba", packages: 3, quantityPerPackage: 12_000, packagePriceCents: 3_000 },
+        { name: "Azúcar", packages: 2, quantityPerPackage: 10_000, packagePriceCents: 4_000 },
+      ],
+    });
+    const [yerbaId, azucarId] = sent.productIds as [string, string];
+    return { ...sent, yerbaId, azucarId };
+  }
+
+  function packages(productId: string, count: number, quantityPerPackage: number, cost: number) {
+    return {
+      loadedBy: "packages" as const,
+      productId,
+      packages: count,
+      quantityPerPackage,
+      costPaidCents: cost,
+      expiresOn: null,
+    };
+  }
+
+  it("answers each line's received quantity summed over the receipts and the receipts oldest first", async () => {
+    const { orderId, yerbaId, azucarId } = await orderOfTwo();
+    const first = await receiveOrder(db, {
+      locationId,
+      orderId,
+      actorId,
+      lines: [packages(yerbaId, 1, 12_000, 3_100)],
+    });
+    const second = await receiveOrder(db, {
+      locationId,
+      orderId,
+      actorId,
+      at: SECOND_DELIVERY_AT,
+      lines: [packages(yerbaId, 1, 12_000, 3_000), packages(azucarId, 2, 10_000, 4_000)],
+    });
+    if (first.kind !== "received" || second.kind !== "received") {
+      throw new Error("test setup: the deliveries were not received");
+    }
+
+    const order = await reader().order(locationId, orderId);
+
+    expect(order?.state).toBe("PARTIALLY_RECEIVED");
+    expect(order?.lines.map((line) => [line.product.name, line.receivedQuantity])).toEqual([
+      ["Yerba", 24_000],
+      ["Azúcar", 20_000],
+    ]);
+    expect(order?.receipts).toEqual([
+      {
+        id: expect.any(String),
+        receivedAt: RECEIVED_AT,
+        purchaseId: first.purchaseId,
+        lines: [
+          {
+            productId: yerbaId,
+            receivedQuantity: 12_000,
+            missingQuantity: 24_000,
+            priceDifferenceCents: 100,
+          },
+          {
+            productId: azucarId,
+            receivedQuantity: 0,
+            missingQuantity: 20_000,
+            priceDifferenceCents: null,
+          },
+        ],
+      },
+      {
+        id: expect.any(String),
+        receivedAt: SECOND_DELIVERY_AT,
+        purchaseId: second.purchaseId,
+        lines: [
+          {
+            productId: yerbaId,
+            receivedQuantity: 12_000,
+            missingQuantity: 12_000,
+            priceDifferenceCents: 0,
+          },
+          {
+            productId: azucarId,
+            receivedQuantity: 20_000,
+            missingQuantity: 0,
+            priceDifferenceCents: 0,
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("answers the order for receiving with its supplier, lines, what they received and the supplier's offer", async () => {
+    const { orderId, supplierId, yerbaId, azucarId } = await orderOfTwo();
+    await receiveOrder(db, {
+      locationId,
+      orderId,
+      actorId,
+      lines: [packages(yerbaId, 1, 12_000, 3_000)],
+    });
+
+    const order = await reader().receivableOrder(locationId, orderId);
+
+    expect(order).toEqual({
+      id: orderId,
+      supplier: { id: supplierId, name: expect.any(String) },
+      state: "PARTIALLY_RECEIVED",
+      lines: [
+        {
+          product: expect.objectContaining({ id: yerbaId, name: "Yerba", saleUnit: "UNIT" }),
+          packages: 3,
+          quantityPerPackage: 12_000,
+          receivedQuantity: 12_000,
+          supplierOffer: {
+            link: { quantity: 12_000, saleUnit: "UNIT", relinkRequired: false },
+            priceCents: 3_000,
+            pricesIncludeVat: true,
+            vatRate: 2_100,
+          },
+        },
+        {
+          product: expect.objectContaining({ id: azucarId, name: "Azúcar", saleUnit: "UNIT" }),
+          packages: 2,
+          quantityPerPackage: 10_000,
+          receivedQuantity: 0,
+          supplierOffer: expect.objectContaining({ priceCents: 4_000 }),
+        },
+      ],
+    });
+  });
+
+  it("answers no offer for a line whose supplier item was unlinked since", async () => {
+    const { orderId } = await orderOfTwo();
+    await db.update(supplierItems).set({ productId: null, quantity: null, saleUnit: null });
+
+    const order = await reader().receivableOrder(locationId, orderId);
+
+    expect(order?.lines.map((line) => line.supplierOffer)).toEqual([null, null]);
+  });
+
+  it("does not find, for receiving, an order of another branch or one that does not exist", async () => {
+    const { orderId } = await orderOfTwo();
+    const otherLocationId = await insertAnotherLocation(db);
+
+    expect(await reader().receivableOrder(otherLocationId, orderId)).toBeUndefined();
+    expect(await reader().receivableOrder(locationId, crypto.randomUUID())).toBeUndefined();
   });
 });

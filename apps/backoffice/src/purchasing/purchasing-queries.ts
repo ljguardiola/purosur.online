@@ -38,6 +38,10 @@ import type {
 } from "./freights-api";
 import type { fetchOrderSuggestion } from "./order-suggestion-api";
 import type {
+  fetchPurchaseOrderReceiptDraft,
+  PurchaseOrderReceiptDraftRead,
+} from "./purchase-order-receipts-api";
+import type {
   fetchPurchaseOrder,
   fetchPurchaseOrders,
   fetchPurchaseOrderText,
@@ -88,6 +92,7 @@ export const purchasingKeys = {
   purchaseOrders: [...purchasingKey, "purchase-orders"] as const,
   purchaseOrder: [...purchasingKey, "purchase-order"] as const,
   purchaseOrderText: [...purchasingKey, "purchase-order-text"] as const,
+  purchaseOrderReceiptDraft: [...purchasingKey, "purchase-order-receipt-draft"] as const,
   orderSuggestion: [...purchasingKey, "order-suggestion"] as const,
 };
 
@@ -588,6 +593,21 @@ export function usePurchaseOrderTextQuery(params: {
       orderId === null
         ? Promise.resolve({ kind: "failed" })
         : params.fetchPurchaseOrderText(orderId),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function usePurchaseOrderReceiptDraftQuery(params: {
+  orderId: string;
+  fetchPurchaseOrderReceiptDraft: typeof fetchPurchaseOrderReceiptDraft;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<PurchaseOrderReceiptDraftRead>({
+    queryKey: [...purchasingKeys.purchaseOrderReceiptDraft, params.orderId],
+    gcTime: 0,
+    read: () => params.fetchPurchaseOrderReceiptDraft(params.orderId),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

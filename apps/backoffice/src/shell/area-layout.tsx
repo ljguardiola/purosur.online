@@ -18,11 +18,11 @@ import {
   canManageBatches,
   canManageFreights,
   canManageProductsAndCategories,
-  canManagePurchaseOrders,
   canManageRecipes,
   canManageSupplierPriceLists,
   canManageSuppliers,
   canPerformStockCounts,
+  canReadPurchaseOrders,
   canRecordPurchases,
   canSeeCashArea,
   canSeeCatalogArea,
@@ -100,7 +100,7 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
     ? "/supplier-price-lists"
     : canComparePrices(session)
       ? "/price-comparison"
-      : canManagePurchaseOrders(session)
+      : canReadPurchaseOrders(session)
         ? "/purchase-orders"
         : "/supplier-price-lists";
   const stockTargetShown = Boolean(matchRoute({ to: stockTarget }));

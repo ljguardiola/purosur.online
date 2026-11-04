@@ -17,6 +17,7 @@ import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js
 import { DrizzlePurchaseOrderStore } from "./drizzle-purchase-order-store.js";
 import { registerPurchaseOrdersRoutes } from "./purchase-orders-routes.js";
 import { insertOfferedProduct } from "./test-support/purchase-order-fixtures.js";
+import { insertSentOrder, receiveOrder } from "./test-support/purchase-order-receipt-fixtures.js";
 import { insertProduct } from "./test-support/purchasing-fixtures.js";
 import { insertSupplier } from "./test-support/supplier-price-list-fixtures.js";
 
@@ -733,4 +734,98 @@ describe("the documents of a purchase order", () => {
       expect(foreign.statusCode).toBe(404);
     },
   );
+});
+
+describe("the purchase order routes for whoever receives orders", () => {
+  const receiver = () => signedInWith(db, ["receive_purchase_orders"], NOW);
+
+  it("lets them read the branch's orders and one order, nothing more", async () => {
+    const { headers, userId, locationId } = await receiver();
+    const { orderId } = await draftOf(userId, locationId);
+
+    const list = await app.inject({ method: "GET", url: "/purchase-orders", headers });
+    const detail = await app.inject({ method: "GET", url: `/purchase-orders/${orderId}`, headers });
+    const refused = await Promise.all([
+      app.inject({ method: "GET", url: `/purchase-orders/${orderId}/document.pdf`, headers }),
+      app.inject({ method: "GET", url: `/purchase-orders/${orderId}/document.txt`, headers }),
+      app.inject({ method: "POST", url: "/purchase-orders", payload: { choices: [] }, headers }),
+      app.inject({
+        method: "PUT",
+        url: `/purchase-orders/${orderId}/lines`,
+        payload: { lines: [] },
+        headers,
+      }),
+      app.inject({
+        method: "POST",
+        url: `/purchase-orders/${orderId}/share`,
+        payload: {},
+        headers,
+      }),
+      app.inject({
+        method: "POST",
+        url: `/purchase-orders/${orderId}/cancel`,
+        payload: {},
+        headers,
+      }),
+    ]);
+
+    expect([list.statusCode, detail.statusCode]).toEqual([200, 200]);
+    expect(refused.map((response) => response.statusCode)).toEqual([403, 403, 403, 403, 403, 403]);
+  });
+
+  it("answers an order received in part with what each line received and has outstanding, and its receipts", async () => {
+    const { headers, userId, locationId } = await receiver();
+    const sent = await insertSentOrder(db, {
+      actorId: userId,
+      locationId,
+      products: [
+        { name: "Yerba", packages: 3, quantityPerPackage: 12_000, packagePriceCents: 3_000 },
+      ],
+    });
+    const [productId] = sent.productIds as [string];
+    const outcome = await receiveOrder(db, {
+      locationId,
+      orderId: sent.orderId,
+      actorId: userId,
+      lines: [
+        {
+          loadedBy: "packages",
+          productId,
+          packages: 2,
+          quantityPerPackage: 12_000,
+          costPaidCents: 3_100,
+          expiresOn: null,
+        },
+      ],
+    });
+    if (outcome.kind !== "received") {
+      throw new Error(`test setup: receiving ended as ${outcome.kind}`);
+    }
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/purchase-orders/${sent.orderId}`,
+      headers,
+    });
+
+    expect(purchaseOrderDetailSchema.parse(response.json())).toMatchObject({
+      state: "PARTIALLY_RECEIVED",
+      receivable: true,
+      cancellable: true,
+      lines: [{ receivedQuantity: 24_000, outstandingQuantity: 12_000 }],
+      receipts: [
+        {
+          purchaseId: outcome.purchaseId,
+          lines: [
+            {
+              productId,
+              receivedQuantity: 24_000,
+              missingQuantity: 12_000,
+              priceDifferenceCents: 200,
+            },
+          ],
+        },
+      ],
+    });
+  });
 });

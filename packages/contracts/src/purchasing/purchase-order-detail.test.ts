@@ -15,6 +15,8 @@ const priced = {
   expectedPackagePriceCents: 1_500_000,
   expectedTotalCents: 4_500_000,
   supplierItem: { code: "YER-500", description: "Yerba mate 500 g x12" },
+  receivedQuantity: 12_000,
+  outstandingQuantity: 24_000,
 };
 const unpriced = {
   product: { id: "p-2", name: "Harina", brandName: null, netContent: null, saleUnit: "KG" },
@@ -23,6 +25,22 @@ const unpriced = {
   expectedPackagePriceCents: null,
   expectedTotalCents: null,
   supplierItem: null,
+  receivedQuantity: 0,
+  outstandingQuantity: 25_000,
+};
+const receipt = {
+  id: "receipt-1",
+  receivedAt: "2026-03-12T15:00:00.000Z",
+  purchaseId: "purchase-1",
+  lines: [
+    {
+      productId: "p-1",
+      receivedQuantity: 12_000,
+      missingQuantity: 24_000,
+      priceDifferenceCents: -50,
+    },
+    { productId: "p-2", receivedQuantity: 0, missingQuantity: 25_000, priceDifferenceCents: null },
+  ],
 };
 const detail = {
   id: "order-1",
@@ -36,6 +54,8 @@ const detail = {
   shareable: true,
   documentShareable: true,
   cancellable: true,
+  receivable: false,
+  receipts: [],
 };
 
 describe("purchaseOrderDetailSchema", () => {
@@ -43,9 +63,12 @@ describe("purchaseOrderDetailSchema", () => {
     expect(purchaseOrderDetailSchema.safeParse(detail).data).toEqual(detail);
   });
 
-  it.each(["DRAFT", "SENT", "CANCELLED"])("accepts the state %s", (state) => {
-    expect(purchaseOrderDetailSchema.safeParse({ ...detail, state }).success).toBe(true);
-  });
+  it.each(["DRAFT", "SENT", "PARTIALLY_RECEIVED", "RECEIVED", "CANCELLED"])(
+    "accepts the state %s",
+    (state) => {
+      expect(purchaseOrderDetailSchema.safeParse({ ...detail, state }).success).toBe(true);
+    },
+  );
 
   it("accepts a supplier item without a code", () => {
     const line = { ...priced, supplierItem: { code: null, description: "Yerba mate" } };
@@ -94,6 +117,8 @@ describe("purchaseOrderDetailSchema", () => {
     "shareable",
     "documentShareable",
     "cancellable",
+    "receivable",
+    "receipts",
   ])("rejects an order without %s", (field) => {
     const { [field]: _omitted, ...without } = detail as Record<string, unknown>;
     expect(purchaseOrderDetailSchema.safeParse(without).success).toBe(false);
@@ -104,6 +129,57 @@ describe("purchaseOrderDetailSchema", () => {
     expect(purchaseOrderDetailSchema.safeParse({ ...detail, lines: [withoutTotal] }).success).toBe(
       false,
     );
+  });
+});
+
+describe("purchaseOrderDetailSchema, receiving", () => {
+  it("accepts an order received in part with its receipts, a line's price difference being absent when it has no list price", () => {
+    const received = {
+      ...detail,
+      state: "PARTIALLY_RECEIVED",
+      receivable: true,
+      receipts: [receipt],
+    };
+
+    expect(purchaseOrderDetailSchema.safeParse(received).data).toEqual(received);
+  });
+
+  it.each(["receivedQuantity", "outstandingQuantity"])("rejects a line without %s", (field) => {
+    const { [field]: _omitted, ...without } = priced as Record<string, unknown>;
+    expect(purchaseOrderDetailSchema.safeParse({ ...detail, lines: [without] }).success).toBe(
+      false,
+    );
+  });
+
+  it.each([
+    ["a receipt without its purchase", { ...receipt, purchaseId: undefined }],
+    ["a receipt date that is not an instant", { ...receipt, receivedAt: "yesterday" }],
+    [
+      "a receipt line without its missing quantity",
+      {
+        ...receipt,
+        lines: [{ productId: "p-1", receivedQuantity: 1, priceDifferenceCents: null }],
+      },
+    ],
+    [
+      "a receipt line with a fractional price difference",
+      {
+        ...receipt,
+        lines: [
+          { productId: "p-1", receivedQuantity: 1, missingQuantity: 0, priceDifferenceCents: 0.5 },
+        ],
+      },
+    ],
+  ])("rejects %s", (_name, badReceipt) => {
+    expect(purchaseOrderDetailSchema.safeParse({ ...detail, receipts: [badReceipt] }).success).toBe(
+      false,
+    );
+  });
+
+  it("declares the zone a receipt's instant is shown in", () => {
+    expect(purchaseOrderDetailSchema.shape.receipts.element.shape.receivedAt.meta()).toEqual({
+      timeZone: ARGENTINA_TIME_ZONE,
+    });
   });
 });
 

@@ -1,3 +1,4 @@
+import type { SaleUnit } from "../../catalog/index.js";
 import { isMovementQuantity } from "../../stock/index.js";
 import { mayBePurchased } from "../model/purchase.js";
 import { ONE_SALE_UNIT_QUANTITY, packagedQuantity } from "../model/purchase-line.js";
@@ -20,6 +21,7 @@ export interface ResolvedLine {
   packages: number | null;
   quantity: number;
   quantityPerPackage: number;
+  saleUnit: SaleUnit;
 }
 
 export type LineRefusal =
@@ -52,6 +54,7 @@ function resolveLine(
       packages: null,
       quantity: line.quantity,
       quantityPerPackage: ONE_SALE_UNIT_QUANTITY,
+      saleUnit: product.saleUnit,
     };
   }
 
@@ -67,6 +70,7 @@ function resolveLine(
     packages: line.packages,
     quantity,
     quantityPerPackage: line.quantityPerPackage,
+    saleUnit: product.saleUnit,
   };
 }
 
