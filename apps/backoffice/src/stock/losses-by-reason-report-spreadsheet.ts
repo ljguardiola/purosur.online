@@ -2,7 +2,7 @@ import type { LossesByReasonReportBody } from "@purosur/contracts";
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { type Cell, cell, type Workbook } from "../platform/spreadsheet/workbook";
 import { periodSummaryRows, summarySheet } from "../shell/report-summary-sheet";
-import { stockQuantityCells } from "./stock-quantity-cells";
+import { stockQuantityCells } from "../platform/stock-quantity-cells";
 import { REPORTED_LOSS_REASON_LABELS } from "./stock-reason-labels";
 
 export function lossesByReasonReportSpreadsheet(shown: LossesByReasonReportBody): Workbook {

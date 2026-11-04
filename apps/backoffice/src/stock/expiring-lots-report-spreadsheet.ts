@@ -2,7 +2,7 @@ import type { ExpiringLotsReportBody } from "@purosur/contracts";
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { cell, type Workbook } from "../platform/spreadsheet/workbook";
 import { periodSummaryRows, summarySheet } from "../shell/report-summary-sheet";
-import { stockQuantityCells } from "./stock-quantity-cells";
+import { stockQuantityCells } from "../platform/stock-quantity-cells";
 
 export function expiringLotsReportSpreadsheet(shown: ExpiringLotsReportBody): Workbook {
   return {
