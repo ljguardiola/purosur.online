@@ -1,4 +1,4 @@
-import { PURCHASE_ORDER_STATES } from "@purosur/domain";
+import { PURCHASE_ORDER_STATES, type PurchaseOrderState } from "@purosur/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   insertLocation,
@@ -39,7 +39,7 @@ async function setUp() {
 describe("DrizzlePendingPurchaseOrdersReader.ordersPendingReceipt", () => {
   it("answers only the orders sent or partially received, whatever the state of the others", async () => {
     const context = await setUp();
-    const ids: Record<string, string> = {};
+    const ids: Partial<Record<PurchaseOrderState, string>> = {};
     for (const state of PURCHASE_ORDER_STATES) {
       ids[state] = await insertOrderRow(db, { ...context, state });
     }

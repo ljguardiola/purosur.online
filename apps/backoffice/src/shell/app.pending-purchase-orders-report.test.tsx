@@ -58,7 +58,7 @@ test("opens the report from the list and reads it from the cloud", async () => {
 
 test("offers the report in the reports side column", async () => {
   const services = reportsServices(["reports_area"]);
-  window.history.pushState(null, "", "/reports");
+  window.history.pushState(null, "", "/reports/pending-purchase-orders");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
@@ -109,4 +109,14 @@ test("opens an order from its row", async () => {
   await expect
     .poll(() => window.location.pathname)
     .toBe("/purchase-orders/90e00000-0000-4000-8000-0000000000b2");
+});
+
+test("offers no way to open an order to a user who may not read orders", async () => {
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(null, "", "/reports/pending-purchase-orders");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("main").getByText("Granos del Sur")).toBeVisible();
+  expect(screen.getByRole("button", { name: /^Abrir el pedido/ }).elements()).toHaveLength(0);
 });

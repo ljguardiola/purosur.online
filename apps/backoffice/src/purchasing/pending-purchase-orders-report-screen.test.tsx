@@ -34,6 +34,7 @@ function createServices(): PendingPurchaseOrdersReportScreenServices {
 
 type Handlers = {
   filters?: ReportPeriodFilters;
+  mayOpenOrders?: boolean;
   onFiltersChange?: (filters: ReportPeriodFilters) => void;
   onOpenOrder?: (orderId: string) => void;
   onSessionEnded?: () => void;
@@ -42,6 +43,7 @@ type Handlers = {
 function ControlledScreen({
   services,
   filters: initial = reportPeriodSearch.parse({}),
+  mayOpenOrders = true,
   onFiltersChange = () => {},
   onOpenOrder = () => {},
   onSessionEnded = () => {},
@@ -53,6 +55,7 @@ function ControlledScreen({
         <PendingPurchaseOrdersReportScreen
           services={services}
           filters={filters}
+          mayOpenOrders={mayOpenOrders}
           onFiltersChange={(next) => {
             onFiltersChange(next);
             setFilters(next);
@@ -160,7 +163,14 @@ test("shows each order with its supplier, the day it was sent in Argentina, its 
 });
 
 test("lists the orders in the order the cloud answered them", async () => {
-  const screen = await renderScreen(createServices());
+  const services = createServices();
+  const { orders } = pendingPurchaseOrdersReport;
+  vi.mocked(services.fetchPendingPurchaseOrdersReport).mockResolvedValue({
+    kind: "ok",
+    value: { ...pendingPurchaseOrdersReport, orders: [...orders.slice(1), ...orders.slice(0, 1)] },
+  });
+
+  const screen = await renderScreen(services);
   await expect.element(ordersTable(screen).getByText("Granos del Sur")).toBeVisible();
 
   const days = ordersTable(screen)
@@ -168,7 +178,7 @@ test("lists the orders in the order the cloud answered them", async () => {
     .elements()
     .map((row) => /\d\d\/10\/2026/.exec(row.textContent ?? "")?.[0])
     .filter((day) => day !== undefined);
-  expect(days).toEqual(["07/10/2026", "20/10/2026", "27/10/2026"]);
+  expect(days).toEqual(["20/10/2026", "27/10/2026", "07/10/2026"]);
 });
 
 test("has no sortable column", async () => {
@@ -194,6 +204,18 @@ test("opens an order from its row", async () => {
   );
 
   expect(onOpenOrder).toHaveBeenCalledWith(ANDINA);
+});
+
+test("offers no way to open an order to a person who may not read orders", async () => {
+  const screen = await renderScreen(createServices(), { mayOpenOrders: false });
+  await expect.element(ordersTable(screen).getByText("Granos del Sur")).toBeVisible();
+
+  expect(ordersTable(screen).getByRole("columnheader", { name: "Acciones" }).query()).toBeNull();
+  expect(
+    ordersTable(screen)
+      .getByRole("button", { name: /^Abrir el pedido/ })
+      .elements(),
+  ).toHaveLength(0);
 });
 
 test("asks the cloud for no range when the URL has none, and shows the range it answered", async () => {
