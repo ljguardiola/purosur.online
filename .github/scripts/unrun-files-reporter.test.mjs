@@ -121,14 +121,14 @@ test("by default fails the run through the process exit code", () => {
   }
 });
 
-test("a run of the repository's vitest config lists a test file whose worker died before reporting it", () => {
+function runRepositoryConfig(testFiles, args = []) {
   const root = mkdtempSync(join(tmpdir(), "unrun-files-reporter-"));
   try {
     mkdirSync(join(root, ".railway"));
-    writeFileSync(join(root, ".railway", "dies.test.ts"), DYING_TEST);
-    writeFileSync(join(root, ".railway", "passes.test.ts"), PASSING_TEST);
-
-    const run = spawnSync(
+    for (const [name, source] of Object.entries(testFiles)) {
+      writeFileSync(join(root, ".railway", name), source);
+    }
+    return spawnSync(
       process.execPath,
       [
         VITEST_BIN,
@@ -139,15 +139,40 @@ test("a run of the repository's vitest config lists a test file whose worker die
         root,
         "--project",
         "railway-iac",
+        ...args,
       ],
       { encoding: "utf8" },
-    );
-
-    assert.match(
-      run.stderr,
-      /Test files that never ran \(1\)\n {2}railway-iac {2}\.railway\/dies\.test\.ts\n/,
     );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+}
+
+test("a run of the repository's vitest config lists a test file whose worker died before reporting it", () => {
+  const run = runRepositoryConfig({ "dies.test.ts": DYING_TEST, "passes.test.ts": PASSING_TEST });
+
+  assert.match(
+    run.stderr,
+    /Test files that never ran \(1\)\n {2}railway-iac {2}\.railway\/dies\.test\.ts\n/,
+  );
+});
+
+test("a run of the repository's vitest config filtered by test name passes for the files whose tests it filtered out", () => {
+  const run = runRepositoryConfig(
+    { "passes.test.ts": PASSING_TEST, "other.test.ts": PASSING_TEST },
+    ["-t", "a name no test has"],
+  );
+
+  assert.doesNotMatch(run.stderr, /Test files that never ran/);
+  assert.equal(run.status, 0);
+});
+
+test("a run of the repository's vitest config given one file passes without the files it was not given", () => {
+  const run = runRepositoryConfig(
+    { "passes.test.ts": PASSING_TEST, "other.test.ts": PASSING_TEST },
+    ["passes.test.ts"],
+  );
+
+  assert.doesNotMatch(run.stderr, /Test files that never ran/);
+  assert.equal(run.status, 0);
 });
