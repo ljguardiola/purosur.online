@@ -325,6 +325,10 @@ export function ProductPriceSection({
   const typed = typedUnitPrice(values.amount);
   const settledTyped = useSettled(typed);
 
+  if (components === null && settledComponents === null) {
+    return null;
+  }
+
   return (
     <section className="flex flex-col gap-4">
       <h3 className="font-bold text-body text-text">Precio de venta de {productDescription}</h3>
