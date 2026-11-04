@@ -21,6 +21,9 @@ export const Hidden: Story = {};
 export const Shown: Story = {
   play: async ({ canvasElement }) => {
     const trigger = within(canvasElement).getByRole("button", { name: "Ver motivo" });
+    // React Aria opens a tooltip on hover only after it has seen the pointer move, and a hover
+    // signals its enter before its move: the pointer first crosses the page around the trigger.
+    await userEvent.hover(canvasElement);
     await userEvent.hover(trigger);
     await waitFor(() => {
       expect(within(document.body).getByRole("tooltip")).toBeInTheDocument();
@@ -48,6 +51,9 @@ export const LongDescription: Story = {
   },
   play: async ({ canvasElement }) => {
     const trigger = within(canvasElement).getByRole("button", { name: "Ver motivo" });
+    // React Aria opens a tooltip on hover only after it has seen the pointer move, and a hover
+    // signals its enter before its move: the pointer first crosses the page around the trigger.
+    await userEvent.hover(canvasElement);
     await userEvent.hover(trigger);
     await waitFor(() => {
       expect(within(document.body).getByRole("tooltip")).toBeInTheDocument();
