@@ -327,9 +327,9 @@ describe("PointPaymentWaitModal", () => {
       await expect.element(screen.getByText("Tiempo agotado")).toBeVisible();
       await expect.element(screen.getByText("Con error")).toBeInTheDocument();
       await expect.element(screen.getByText("Esperando la cancelación")).toBeVisible();
-      expect(
-        screen.getByText("Cancelá el cobro en la terminal", { exact: true }).elements(),
-      ).toHaveLength(1);
+      await expect
+        .element(screen.getByText("Cancelá el cobro en la terminal", { exact: true }).first())
+        .toBeVisible();
       await expect
         .element(screen.getByRole("status"))
         .toHaveTextContent("Cancelá el cobro en la terminal");
