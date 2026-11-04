@@ -7,7 +7,6 @@ import {
   Button,
   CountdownRing,
   formatCents,
-  HighlightedNotice,
   InlineNotice,
   LoadFailure,
   LoadingPlaceholder,
@@ -15,15 +14,7 @@ import {
   ProgressSteps,
   SummaryRowGroup,
 } from "@purosur/ui";
-import {
-  ArrowLeft,
-  ArrowRight,
-  CircleX,
-  CreditCard,
-  Info,
-  TimerOff,
-  TriangleAlert,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, CircleX, CreditCard, TimerOff, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { pointCardName } from "../platform/payment-method-names";
@@ -315,12 +306,6 @@ export function PointPaymentWaitModal({
           <NoCloudConnectionNotice />
         ) : null}
         {abandonFailed ? <AbandonFailedNotice /> : null}
-        <HighlightedNotice
-          tone="info"
-          icon={<Info />}
-          title="Para cambiar de medio, cancelá primero en la terminal"
-          description="La caja no puede cancelar un cobro que ya está en la terminal."
-        />
       </div>
     </Modal>
   );
@@ -402,15 +387,7 @@ function WaitOverModal({
               label="Tiempo para pagar"
             />
             <ProgressSteps
-              steps={[
-                SENT_STEP,
-                { id: "wait-over", label: "Tiempo agotado", state: "error" },
-                {
-                  id: "awaiting-cancellation",
-                  label: "Esperando la cancelación",
-                  state: "current",
-                },
-              ]}
+              steps={[SENT_STEP, { id: "wait-over", label: "Tiempo agotado", state: "error" }]}
             />
           </div>
         )}
