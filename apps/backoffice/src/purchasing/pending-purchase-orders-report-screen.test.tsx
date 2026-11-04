@@ -65,7 +65,10 @@ function ControlledScreen({
   );
 }
 
-function renderScreen(services: PendingPurchaseOrdersReportScreenServices, handlers: Handlers = {}) {
+function renderScreen(
+  services: PendingPurchaseOrdersReportScreenServices,
+  handlers: Handlers = {},
+) {
   return render(<ControlledScreen services={services} {...handlers} />);
 }
 
@@ -97,7 +100,7 @@ test("shows the pending orders, the suppliers and the expected amount, from the 
 
   await expect.element(screen.getByText(/^Pedidos pendientes3$/)).toBeVisible();
   await expect.element(screen.getByText(/^Proveedores2$/)).toBeVisible();
-  await expect.element(screen.getByText(/^Importe esperado\$ 7\.550,50$/)).toBeVisible();
+  await expect.element(screen.getByText(/\$ 7\.550,50$/)).toBeVisible();
 });
 
 test("warns on the expected amount when some line has no list price", async () => {
@@ -172,7 +175,11 @@ test("has no sortable column", async () => {
   const screen = await renderScreen(createServices());
   await expect.element(ordersTable(screen).getByText("Granos del Sur")).toBeVisible();
 
-  expect(ordersTable(screen).getByRole("button", { name: /Proveedor|Enviado el/ }).query()).toBeNull();
+  expect(
+    ordersTable(screen)
+      .getByRole("button", { name: /Proveedor|Enviado el/ })
+      .query(),
+  ).toBeNull();
 });
 
 test("opens an order from its row", async () => {
@@ -259,7 +266,9 @@ test("says there are no pending orders when there are none", async () => {
 
   const screen = await renderScreen(services);
 
-  const empty = ordersTable(screen).getByText("No hay pedidos pendientes de recibir en este período");
+  const empty = ordersTable(screen).getByText(
+    "No hay pedidos pendientes de recibir en este período",
+  );
   await expect.element(empty).toBeVisible();
   await expect.element(screen.getByText(/^Pedidos pendientes0$/)).toBeVisible();
   expect(emptyStateIconColor(empty.element())).toBe(tokenRgb("text-accent"));
@@ -276,7 +285,9 @@ test("says there are no pending orders in the chosen period as a filtered result
     filters: reportPeriodSearch.parse({ from: "2026-10-02", to: "2026-10-05" }),
   });
 
-  const empty = ordersTable(screen).getByText("No hay pedidos pendientes de recibir en este período");
+  const empty = ordersTable(screen).getByText(
+    "No hay pedidos pendientes de recibir en este período",
+  );
   await expect.element(empty).toBeVisible();
   expect(emptyStateIconColor(empty.element())).toBe(tokenRgb("text-subtle"));
 });

@@ -27,7 +27,9 @@ function reportsServices(capabilities: Capability[]) {
     ),
   });
   vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
-  vi.mocked(services.pendingPurchaseOrdersReportScreen.fetchPendingPurchaseOrdersReport).mockResolvedValue({
+  vi.mocked(
+    services.pendingPurchaseOrdersReportScreen.fetchPendingPurchaseOrdersReport,
+  ).mockResolvedValue({
     kind: "ok",
     value: pendingPurchaseOrdersReport,
   });
@@ -48,7 +50,9 @@ test("opens the report from the list and reads it from the cloud", async () => {
     .toBeVisible();
   expect(window.location.pathname).toBe("/reports/pending-purchase-orders");
   await expect.element(screen.getByText("Granos del Sur")).toBeVisible();
-  expect(services.pendingPurchaseOrdersReportScreen.fetchPendingPurchaseOrdersReport).toHaveBeenCalledWith({});
+  expect(
+    services.pendingPurchaseOrdersReportScreen.fetchPendingPurchaseOrdersReport,
+  ).toHaveBeenCalledWith({});
   expect(document.title).toBe("Pedidos pendientes de recibir · Puro Sur");
 });
 
@@ -60,7 +64,9 @@ test("offers the report in the reports side column", async () => {
 
   await expect
     .element(
-      screen.getByRole("link", { name: "Pedidos pendientes de recibir", includeHidden: false }).first(),
+      screen
+        .getByRole("link", { name: "Pedidos pendientes de recibir", includeHidden: false })
+        .first(),
     )
     .toBeVisible();
 });
@@ -88,7 +94,9 @@ test("sends a user without the reports permission to Mi cuenta", async () => {
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
-  expect(services.pendingPurchaseOrdersReportScreen.fetchPendingPurchaseOrdersReport).not.toHaveBeenCalled();
+  expect(
+    services.pendingPurchaseOrdersReportScreen.fetchPendingPurchaseOrdersReport,
+  ).not.toHaveBeenCalled();
 });
 
 test("opens an order from its row", async () => {
@@ -96,9 +104,7 @@ test("opens an order from its row", async () => {
   window.history.pushState(null, "", "/reports/pending-purchase-orders");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await userEvent.click(
-    screen.getByRole("button", { name: "Abrir el pedido de Granos del Sur" }),
-  );
+  await userEvent.click(screen.getByRole("button", { name: "Abrir el pedido de Granos del Sur" }));
 
   await expect
     .poll(() => window.location.pathname)
