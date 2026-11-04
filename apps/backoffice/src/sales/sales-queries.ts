@@ -4,7 +4,6 @@ import type {
   HandTypedWeightsBody,
   ManualDiscountsBody,
   ManualDiscountsQuery,
-  RemovedLinesAndCancelledSalesBody,
   ReportQuery,
   SalesByCashierBody,
   SalesByProductAndCategoryBody,
@@ -19,7 +18,6 @@ import type {
   fetchCashRounding,
   fetchHandTypedWeights,
   fetchManualDiscounts,
-  fetchRemovedLinesAndCancelledSales,
   fetchSalesByCashier,
   fetchSalesByProductAndCategory,
   fetchSalesByPromotion,
@@ -46,14 +44,6 @@ export const salesKeys = {
     [
       ...salesKey,
       "hand-typed-weights",
-      query.from ?? "",
-      query.to ?? "",
-      query.register_id ?? "",
-    ] as const,
-  removedLinesAndCancelledSales: (query: ReportQuery) =>
-    [
-      ...salesKey,
-      "removed-lines-and-cancelled-sales",
       query.from ?? "",
       query.to ?? "",
       query.register_id ?? "",
@@ -139,22 +129,6 @@ export function useHandTypedWeightsQuery(
     queryKey: salesKeys.handTypedWeights(params.query),
     keepPreviousData: true,
     read: () => params.fetchHandTypedWeights(params.query),
-    onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
-  });
-}
-
-export function useRemovedLinesAndCancelledSalesQuery(
-  params: ReadParams & {
-    query: ReportQuery;
-    fetchRemovedLinesAndCancelledSales: typeof fetchRemovedLinesAndCancelledSales;
-  },
-) {
-  const sendToMyAccount = useSendToMyAccount();
-  return useCloudQuery<RemovedLinesAndCancelledSalesBody>({
-    queryKey: salesKeys.removedLinesAndCancelledSales(params.query),
-    keepPreviousData: true,
-    read: () => params.fetchRemovedLinesAndCancelledSales(params.query),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

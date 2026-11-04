@@ -46,19 +46,19 @@ describe("SaleScreen while a QR charge of the sale is in its wait", () => {
       .not.toHaveAttribute("aria-disabled", "true");
   });
 
-  it("keeps offering to cancel and says why the core still refuses it", async () => {
+  it("keeps offering to empty the cart and says why the core still refuses it", async () => {
     const currentSale = answering(SALE_IN_A_QR_WAIT);
     const cancelSale = vi.fn();
     const cancelPaidSale = vi.fn();
     const { screen } = await renderScreen({ currentSale, cancelSale, cancelPaidSale });
-    await expect.element(screen.getByRole("button", { name: "Cancelar venta" })).toBeEnabled();
+    await expect.element(screen.getByRole("button", { name: "Vaciar carrito" })).toBeEnabled();
     const readsBefore = currentSale.mock.calls.length;
 
-    await screen.getByRole("button", { name: "Cancelar venta" }).click();
+    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
 
     await expect.element(screen.getByText("Hay un cobro con Mercado Pago en curso")).toBeVisible();
     await expect
-      .element(screen.getByText("Esperá a que termine para cancelar la venta."))
+      .element(screen.getByText("Esperá a que termine para vaciar el carrito."))
       .toBeVisible();
     await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
     expect(currentSale.mock.calls.length).toBeGreaterThan(readsBefore);
@@ -70,9 +70,9 @@ describe("SaleScreen while a QR charge of the sale is in its wait", () => {
     const { screen } = await renderScreen({
       currentSale: answering(SALE_IN_A_QR_WAIT, SALE_OF_YERBA),
     });
-    await expect.element(screen.getByRole("button", { name: "Cancelar venta" })).toBeEnabled();
+    await expect.element(screen.getByRole("button", { name: "Vaciar carrito" })).toBeEnabled();
 
-    await screen.getByRole("button", { name: "Cancelar venta" }).click();
+    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
 
     await expect.element(screen.getByRole("dialog")).toBeVisible();
     await expect
@@ -80,18 +80,18 @@ describe("SaleScreen while a QR charge of the sale is in its wait", () => {
       .not.toBeInTheDocument();
   });
 
-  it("says the sale could not be cancelled when the core cannot answer whether it still refuses", async () => {
+  it("says the cart could not be emptied when the core cannot answer whether it still refuses", async () => {
     const currentSale = vi
       .fn<() => Promise<CurrentSaleAnswer>>()
       .mockResolvedValueOnce(SALE_IN_A_QR_WAIT)
       .mockRejectedValue(new Error("the connection was replaced"));
     const cancelSale = vi.fn();
     const { screen } = await renderScreen({ currentSale, cancelSale });
-    await expect.element(screen.getByRole("button", { name: "Cancelar venta" })).toBeEnabled();
+    await expect.element(screen.getByRole("button", { name: "Vaciar carrito" })).toBeEnabled();
 
-    await screen.getByRole("button", { name: "Cancelar venta" }).click();
+    await screen.getByRole("button", { name: "Vaciar carrito" }).click();
 
-    await expect.element(screen.getByText("No se pudo cancelar la venta")).toBeVisible();
+    await expect.element(screen.getByText("No se pudo vaciar el carrito")).toBeVisible();
     await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
     expect(cancelSale).not.toHaveBeenCalled();
   });

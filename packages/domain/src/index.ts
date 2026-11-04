@@ -657,6 +657,7 @@ export {
   latestEarlierPrice,
   MIN_FREIGHT_PURCHASES,
   MIN_PURCHASE_LINES,
+  mayBeReceived,
   maySupplierPriceListRowBeLinked,
   ONE_SALE_UNIT_QUANTITY,
   PRICE_LIST_EXTRACTION_MAX_DESCRIPTION_LENGTH,
@@ -874,7 +875,6 @@ export {
   withUncountedReturns,
 } from "./returns/index.js";
 export type {
-  CancelledSaleFacts,
   CashRoundingRecord,
   CashRoundingTotals,
   CreditNoteReceiptContent,
@@ -899,8 +899,6 @@ export type {
   ReceiptPrintObservation,
   ReceiptPrintStanding,
   ReceiptSource,
-  RemovalFacts,
-  RemovedLinesGroup,
   Sale,
   SaleComprobante,
   SaleDiscount,
@@ -929,7 +927,7 @@ export type {
 export {
   amountToCharge,
   appliedSaleDiscountAmount,
-  CANCELLED_SALES_REPORT_SALE_STATE,
+  cancelledBeforeCharge,
   grossSaleSubtotal,
   isDeferralPending,
   manualAdjustmentReason,

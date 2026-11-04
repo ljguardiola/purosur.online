@@ -2796,6 +2796,7 @@ describe("the register's router", () => {
           id: "sale-1",
           total: 3_434_000,
           paid: 0,
+          has_approved_payment: false,
           cancellable: true,
           cancel_refusal: null,
           refunds_on_cancel: [],
@@ -2811,10 +2812,10 @@ describe("the register's router", () => {
     await userEvent.click(screen.getByText("Sofía", { exact: true }));
     await userEvent.type(screen.getByLabelText("PIN"), "1234");
     await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
-    await userEvent.click(screen.getByRole("button", { name: "Cancelar la venta" }));
+    await userEvent.click(screen.getByRole("button", { name: "Vaciar carrito" }));
 
     await userEvent.click(
-      screen.getByRole("dialog").getByRole("button", { name: "Cancelar la venta" }),
+      screen.getByRole("dialog").getByRole("button", { name: "Vaciar carrito" }),
     );
 
     await expect.poll(() => cancelled).toEqual([{ user_id: "u3", pin: "1234" }]);

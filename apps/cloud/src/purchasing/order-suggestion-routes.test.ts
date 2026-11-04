@@ -125,6 +125,7 @@ describe("GET /order-suggestion", () => {
       cappedByExpiry: false,
       soldQuantity: 120_000,
       stock: 12_000,
+      awaitedQuantity: 0,
       neededQuantity: 48_000,
     });
     expect(

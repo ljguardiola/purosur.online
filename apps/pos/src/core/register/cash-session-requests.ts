@@ -293,6 +293,7 @@ export function sessionOpenSaleFor(database: LocalDatabase, now: Date): SessionO
     id: sale.id,
     total,
     paid: standing.balance.paid,
+    has_approved_payment: standing.linesLock === "approved_payment",
     cancellable: standing.cancellable,
     cancel_refusal: standing.cancelRefusal,
     refunds_on_cancel: standing.refundsOnCancel.map(toWireRefund),

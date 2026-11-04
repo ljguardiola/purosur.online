@@ -11,9 +11,7 @@ describe("OpenSaleBlock", () => {
     const screen = await render(<OpenSaleBlock total={3_434_000} onGoToSale={vi.fn()} />);
 
     await expect.element(screen.getByText("Hay una venta abierta de $ 34.340,00")).toBeVisible();
-    await expect
-      .element(screen.getByText("Cobrala o cancelala antes de cerrar la caja."))
-      .toBeVisible();
+    await expect.element(screen.getByText("Terminala antes de cerrar la caja.")).toBeVisible();
     await expectNoAccessibilityViolations(screen.container);
   });
 
@@ -32,9 +30,7 @@ describe("OpenSaleBlock", () => {
 
     await expect
       .element(screen.getByRole("status"))
-      .toHaveTextContent(
-        "Hay una venta abierta de $ 34.340,00 Cobrala o cancelala antes de cerrar la caja.",
-      );
+      .toHaveTextContent("Hay una venta abierta de $ 34.340,00 Terminala antes de cerrar la caja.");
 
     const warning = await render(
       <HighlightedNotice tone="warning" icon={<Info />} title="Referencia" description="Aviso" />,

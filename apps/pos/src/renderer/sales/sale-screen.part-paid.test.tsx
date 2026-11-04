@@ -61,11 +61,14 @@ describe("SaleScreen with a sale that already has an approved payment", () => {
     await expect.element(screen.getByRole("button", { name: "Cobrar" })).toBeEnabled();
   });
 
-  it("offers to cancel the sale", async () => {
+  it("offers to cancel the sale, not to empty the cart, once a payment was approved", async () => {
     const { screen, field } = await renderScreen({ currentSale: async () => SALE_WITH_PAYMENT });
 
     await expect.element(field).toHaveAccessibleDescription(LOCKED_REASON);
     await expect.element(screen.getByRole("button", { name: "Cancelar venta" })).toBeEnabled();
+    await expect
+      .element(screen.getByRole("button", { name: "Vaciar carrito" }))
+      .not.toBeInTheDocument();
   });
 
   it("offers no way to add, change or remove a line", async () => {
@@ -77,13 +80,13 @@ describe("SaleScreen with a sale that already has an approved payment", () => {
       .toHaveAttribute("aria-disabled", "true");
   });
 
-  it("explains no lock, shows no payment rows and still offers to cancel while nothing is paid", async () => {
+  it("explains no lock, shows no payment rows and still offers to empty the cart while nothing is paid", async () => {
     const { screen, field } = await renderScreen({ currentSale: async () => SALE_OF_YERBA });
 
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
     await expect.element(field).not.toHaveAccessibleDescription(LOCKED_REASON);
     await expect.element(screen.getByText("Saldo pendiente")).not.toBeInTheDocument();
-    await expect.element(screen.getByRole("button", { name: "Cancelar venta" })).toBeEnabled();
+    await expect.element(screen.getByRole("button", { name: "Vaciar carrito" })).toBeEnabled();
   });
 
   it("reads the sale again and explains the lock only on the locked field when a scan is refused because the sale has payments", async () => {

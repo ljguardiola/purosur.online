@@ -193,6 +193,20 @@ describe("what a stopped register left pending", () => {
     expect([pending.selling_blocked, pending.may_go_selling]).toEqual([true, true]);
   });
 
+  it("does not offer going back to a sale left cancelled, kept only for its payments", async () => {
+    database.exec(
+      `INSERT INTO paid_orders_without_sale (payment_transaction_id, sale_id, method, provider, amount, created_at, recorded_at, resolved_at)
+       VALUES ('order-1', 'sale-gone', 'QR', 'MERCADOPAGO_QR', 5000,
+               '2026-10-13T10:00:00.000Z', '2026-10-13T11:00:00.000Z', NULL);
+       INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
+       VALUES ('emptied-cart', 'register-1', 'device-1', 'session-1', 'u1', 'CANCELLED', '2026-10-13T11:30:00.000Z')`,
+    );
+
+    const pending = await pendingOf();
+
+    expect([pending.selling_blocked, pending.may_go_selling]).toEqual([true, false]);
+  });
+
   it("lists the paid order with the sale rebuilt against it while that sale is open, still blocking a new sale", async () => {
     database.exec(
       `INSERT INTO paid_orders_without_sale (payment_transaction_id, sale_id, method, provider, amount, created_at, recorded_at, resolved_at)

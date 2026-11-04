@@ -610,6 +610,7 @@ describe("removeSaleLineOutcomeSchema", () => {
   it.each([
     { kind: "removed", sale, removed_sale_discount: false },
     { kind: "removed", sale, removed_sale_discount: true },
+    { kind: "removed", sale: null, removed_sale_discount: false },
     { kind: "unknown_line" },
     { kind: "sale_has_payments" },
     ...refusals,
@@ -620,6 +621,7 @@ describe("removeSaleLineOutcomeSchema", () => {
   it.each([
     { kind: "removed" },
     { kind: "removed", sale },
+    { kind: "removed", removed_sale_discount: false },
     { kind: "removed", sale, removed_sale_discount: "yes" },
     { kind: "changed", sale, removed_manual_discount: false, removed_sale_discount: false },
     { kind: "invalid_quantity" },

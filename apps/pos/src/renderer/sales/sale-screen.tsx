@@ -143,7 +143,7 @@ type TakenOutcome =
 
 type SaleEditFailure = Extract<
   ScanProblem,
-  { kind: "change_failed" | "weight_change_failed" | "remove_failed" | "cancel_failed" }
+  { kind: "change_failed" | "weight_change_failed" | "remove_failed" | "empty_failed" }
 >;
 
 const LETTER = /\p{L}/u;
@@ -581,8 +581,10 @@ export function SaleScreen({
         break;
       case "not_permitted":
       case "has_approved_payment":
-      case "mercado_pago_charge_in_progress":
         setProblem(outcome);
+        break;
+      case "mercado_pago_charge_in_progress":
+        setProblem({ kind: outcome.kind, action: "empty" });
         break;
       case "sale_has_payments":
         setProblem(undefined);
@@ -708,13 +710,14 @@ export function SaleScreen({
   const refundsOnCancel = sale?.refunds_on_cancel ?? [];
 
   async function askToCancelSale() {
+    const action = sale?.lines_lock === "approved_payment" ? "cancel" : "empty";
     const asked = sale?.cancel_refusal === null ? sale : await readCurrentSale();
     if (asked === "unavailable") {
-      setProblem({ kind: "cancel_failed" });
+      setProblem({ kind: action === "cancel" ? "cancel_failed" : "empty_failed" });
     } else if (asked === null || asked === "not_permitted") {
       setProblem(undefined);
     } else if (asked.cancel_refusal !== null) {
-      setProblem({ kind: asked.cancel_refusal });
+      setProblem({ kind: asked.cancel_refusal, action });
     } else if (asked.refunds_on_cancel.length > 0) {
       askToCancelPaid(true);
     } else {
@@ -828,6 +831,7 @@ export function SaleScreen({
         paid={sale?.paid ?? 0}
         pending={sale?.pending ?? 0}
         cancellable={answer !== undefined}
+        hasApprovedPayment={sale?.lines_lock === "approved_payment"}
         chargeRefusal={sale?.charge_refusal ?? null}
         canCancel={sale !== null && !editing}
         canDiscount={sale !== null && sale.sale_discount_refusal === null && editable && !editing}
@@ -841,7 +845,7 @@ export function SaleScreen({
         total={sale?.total ?? 0}
         busy={editing}
         onClose={() => askToCancel(false)}
-        onCancelSale={() => void edit(cancelSale, { kind: "cancel_failed" })}
+        onCancelSale={() => void edit(cancelSale, { kind: "empty_failed" })}
       />
       {weighing?.kind === "add" ? (
         <WeighProductModal
