@@ -39,6 +39,7 @@ export interface ReceiptLedgerTransaction {
   storedReceipt(key: PrintedDocumentKey): StoredReceipt | undefined;
   recordStoredReceipt(key: PrintedDocumentKey, receipt: StoredReceipt): void;
   recordPrintAttempt(key: PrintedDocumentKey, at: Date): void;
+  recordPrintDeclined(key: PrintedDocumentKey, at: Date): void;
   recordPrinted(key: PrintedDocumentKey, at: Date): void;
   recordReprint(key: PrintedDocumentKey, reprint: ReceiptReprint): void;
   outboxReady(): boolean;

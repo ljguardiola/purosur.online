@@ -23,6 +23,7 @@ export type {
 export { openSaleStanding } from "./model/open-sale-standing.js";
 export type { PrintedDocument, PrintedDocumentKey } from "./model/printed-document.js";
 export { PRINTED_DOCUMENTS } from "./model/printed-document.js";
+export { receiptAsksBeforePrinting } from "./model/receipt-asks-before-printing.js";
 export type { ReceiptContent, ReceiptSource } from "./model/receipt-content.js";
 export { receiptContent } from "./model/receipt-content.js";
 export type { ReceiptCopy, ReceiptDelivery } from "./model/receipt-copy.js";
@@ -86,7 +87,8 @@ export {
   saleTotal,
   saleUnitOfWeightSource,
 } from "./model/sale-line.js";
-export { UNPRINTED_SALE_STANDINGS } from "./model/sale-print-standing.js";
+export type { SalePrintStanding } from "./model/sale-print-standing.js";
+export { customerReceiptSettled, UNPRINTED_SALE_STANDINGS } from "./model/sale-print-standing.js";
 export { SALE_VOID_REFUSALS } from "./model/sale-void.js";
 export type { SalesOfCashier, SoldByCashier } from "./model/sales-by-cashier.js";
 export type {

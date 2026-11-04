@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { authorizedFacturaC } from "../model/test-support/authorized-factura-c.js";
 import {
   FICTIONAL_CUIT,
   FICTIONAL_GROSS_INCOME_REGISTRATION,
   FICTIONAL_LEGAL_NAME,
 } from "../../fiscal/test-support/fictional-tax-identities.js";
+import { authorizedFacturaC } from "../model/test-support/authorized-factura-c.js";
 import { declineSaleReceipt } from "./decline-sale-receipt.js";
 import { completedSale, FIRST_PRINT_AT, receiptRig } from "./test-support/receipt-rig.js";
 

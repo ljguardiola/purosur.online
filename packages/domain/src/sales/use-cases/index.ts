@@ -107,6 +107,12 @@ export type {
 } from "./current-sale.js";
 export { currentSale } from "./current-sale.js";
 export type {
+  DeclineSaleReceiptInput,
+  DeclineSaleReceiptOutcome,
+  DeclineSaleReceiptPorts,
+} from "./decline-sale-receipt.js";
+export { declineSaleReceipt } from "./decline-sale-receipt.js";
+export type {
   DeferredSaleInvoicing,
   DeferredSaleInvoicingOutcome,
   DeferredSaleLookup,
