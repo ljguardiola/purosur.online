@@ -314,8 +314,8 @@ describe("the payments made on the integrated terminal", () => {
     insertPendingMercadoPagoPayment(database, POINT_PENDING);
 
     expect(readPendingMercadoPagoPaymentsOf(database, "sale-1")).toEqual([
-      QR_PENDING,
-      POINT_PENDING,
+      { ...QR_PENDING, replaced: false },
+      { ...POINT_PENDING, replaced: false },
     ]);
   });
 
@@ -341,6 +341,9 @@ describe("the payments made on the integrated terminal", () => {
         .get(),
     ).toEqual({ state: "PENDING", replaced: 1, wait_ends_at: CONFIRMED_AT.toISOString() });
     expect(readPendingMercadoPagoPayment(database, "point-1")).toBeUndefined();
+    expect(readPendingMercadoPagoPaymentsOf(database, "sale-1")).toEqual([
+      { ...POINT_PENDING, waitEndsAt: CONFIRMED_AT, replaced: true },
+    ]);
   });
 
   it("mark nothing when the Point payment already ended", () => {

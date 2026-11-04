@@ -47,7 +47,7 @@ describe("the sale ledger's QR payments", () => {
 
     expect(ledger.transaction((tx) => tx.pendingMercadoPagoPayment("qr-1"))).toEqual(PENDING);
     expect(ledger.transaction((tx) => tx.pendingMercadoPagoPaymentsOf("sale-1"))).toEqual([
-      PENDING,
+      { ...PENDING, replaced: false },
     ]);
     expect(stateOf("qr-1")).toEqual({ state: "PENDING" });
   });
@@ -121,7 +121,7 @@ describe("the sale ledger's QR payments", () => {
     ).toEqual({ replaced: 1, wait_ends_at: replacedAt.toISOString() });
     expect(ledger.transaction((tx) => tx.pendingMercadoPagoPayment("qr-1"))).toBeUndefined();
     expect(ledger.transaction((tx) => tx.pendingMercadoPagoPaymentsOf("sale-1"))).toEqual([
-      { ...PENDING, waitEndsAt: replacedAt },
+      { ...PENDING, waitEndsAt: replacedAt, replaced: true },
     ]);
     expect(ledger.transaction((tx) => tx.salePayments("sale-1"))).toEqual([]);
   });

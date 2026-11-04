@@ -38,6 +38,7 @@ const QR_CHARGE_IN_ITS_WAIT = {
   amount: 3000,
   occurredAt: new Date("2026-10-09T12:00:00.000Z"),
   waitEndsAt: new Date("2026-10-09T12:03:00.000Z"),
+  replaced: false,
 } as const;
 const QR_CHARGE_PAST_ITS_WAIT = {
   id: "qr-0",
@@ -45,6 +46,7 @@ const QR_CHARGE_PAST_ITS_WAIT = {
   amount: 3000,
   occurredAt: new Date("2026-10-09T11:57:30.000Z"),
   waitEndsAt: new Date("2026-10-09T12:00:30.000Z"),
+  replaced: false,
 } as const;
 const POINT_CHARGE_PAST_ITS_WAIT = {
   id: "point-1",
@@ -53,7 +55,9 @@ const POINT_CHARGE_PAST_ITS_WAIT = {
   amount: 4000,
   occurredAt: new Date("2026-10-09T11:57:30.000Z"),
   waitEndsAt: new Date("2026-10-09T12:00:30.000Z"),
+  replaced: false,
 } as const;
+const REPLACED_POINT_CHARGE = { ...POINT_CHARGE_PAST_ITS_WAIT, replaced: true } as const;
 
 describe("openSaleStanding", () => {
   it("leaves the lines editable and the sale cancellable while nothing is paid", () => {
@@ -161,6 +165,15 @@ describe("openSaleStanding", () => {
     });
   });
 
+  it("leaves the lines editable, the sale cancellable and no charge in progress beside a terminal charge the cashier replaced", () => {
+    expect(openSaleStanding(5900, [], [REPLACED_POINT_CHARGE], NOW)).toMatchObject({
+      linesLock: null,
+      cancellable: true,
+      cancelRefusal: null,
+      mercadoPagoChargeInProgress: null,
+    });
+  });
+
   it("plans a pending refund for an approved QR payment, beside the cash one", () => {
     expect(openSaleStanding(5900, [CASH_PAYMENT, QR_PAYMENT], [], NOW)).toEqual({
       balance: { paid: 4000, pending: 1900 },
@@ -251,6 +264,7 @@ describe("openSaleStanding", () => {
       QR_CHARGE_IN_ITS_WAIT,
       QR_CHARGE_PAST_ITS_WAIT,
       POINT_CHARGE_PAST_ITS_WAIT,
+      REPLACED_POINT_CHARGE,
     );
 
     fc.assert(
@@ -283,6 +297,7 @@ describe("saleLinesLock", () => {
       [POINT_CHARGE_PAST_ITS_WAIT],
       "mercado_pago_charge_in_progress",
     ],
+    ["the cashier replaced a terminal charge", [], [REPLACED_POINT_CHARGE], null],
     [
       "a payment is approved and a QR charge is in its wait",
       [CASH_PAYMENT],
@@ -304,6 +319,7 @@ describe("saleCancelRefusal", () => {
       [POINT_CHARGE_PAST_ITS_WAIT],
       "mercado_pago_charge_in_progress",
     ],
+    ["the cashier replaced a terminal charge", [REPLACED_POINT_CHARGE], null],
   ] as const)("answers why cancelling is refused when %s", (_case, pending, refusal) => {
     expect(saleCancelRefusal(pending, NOW)).toBe(refusal);
   });

@@ -328,7 +328,12 @@ export class FakeSaleLedger implements SaleLedger {
       },
       pendingMercadoPagoPaymentsOf: (saleId) =>
         structuredClone(
-          working.pendingMercadoPagoPayments.filter((pending) => pending.saleId === saleId),
+          working.pendingMercadoPagoPayments
+            .filter((pending) => pending.saleId === saleId)
+            .map((pending) => ({
+              ...pending,
+              replaced: working.replacedMercadoPagoPaymentIds.includes(pending.id),
+            })),
         ),
       approvePendingMercadoPagoPayment: (paymentTransactionId) => {
         this.failIfAsked("approvePendingMercadoPagoPayment");

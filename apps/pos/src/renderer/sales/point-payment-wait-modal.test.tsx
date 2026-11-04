@@ -420,7 +420,20 @@ describe("PointPaymentWaitModal", () => {
             .first(),
         )
         .toBeVisible();
+      expect(
+        screen.getByText("Cancelá el cobro en la terminal", { exact: true }).elements(),
+      ).toHaveLength(0);
       expect(callbacks.onChooseAnotherMethod).not.toHaveBeenCalled();
+    });
+
+    it("goes back to the methods once the core says the order closed", async () => {
+      const { callbacks } = await renderModal(answering(WAIT_OVER, CLOSED));
+
+      await expect
+        .poll(() => callbacks.onChooseAnotherMethod.mock.calls.length, {
+          timeout: NEXT_ASK_TIMEOUT_MS,
+        })
+        .toBe(1);
     });
 
     it("says the core could not tell how the cancellation goes and keeps following from Reintentar", async () => {
@@ -441,12 +454,10 @@ describe("PointPaymentWaitModal", () => {
       await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
       await expect
-        .element(screen.getByRole("button", { name: "Elegir otro medio" }), {
+        .poll(() => callbacks.onChooseAnotherMethod.mock.calls.length, {
           timeout: NEXT_ASK_TIMEOUT_MS,
         })
-        .toBeEnabled();
-      await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
-      expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
+        .toBe(1);
     });
 
     it("keeps asking the core while the order is still on the terminal", async () => {

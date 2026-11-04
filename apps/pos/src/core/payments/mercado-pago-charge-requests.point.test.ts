@@ -7,6 +7,7 @@ import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source.js";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
+import { sessionOpenSaleFor } from "../register/cash-session-requests";
 import { restorationOf } from "../register/test-support/restoration-of";
 import { cancelSaleFor, chargeSaleInCashFor, currentSaleFor } from "../sales/sale-requests";
 import { createSignedInPerson, type SignedInPerson } from "../sessions/signed-in-person";
@@ -409,6 +410,42 @@ describe("a charge on the integrated terminal while the cloud cannot be reached"
     ).toEqual({ kind: "replaced" });
     expect(pointRows()).toMatchObject([{ state: "PENDING", replaced: 1 }]);
     expect(outboxEvents()).toEqual([{ event_type: "mercado_pago_payment_replaced" }]);
+  });
+
+  it("frees the sale for another method once the payment is replaced, though its order stays open at the terminal", async () => {
+    const { saleId, paymentId } = await pointChargeStarted();
+    const orders = new FakeOrders();
+    orders.cancellation = { kind: "cancel_on_terminal" };
+    await abandonMercadoPagoChargeFor(deps(orders), { paymentTransactionId: paymentId });
+
+    expect((await openSale()).lines_lock).toBeNull();
+    expect((await openSale()).mercado_pago_charge_in_progress).toBeNull();
+    expect(
+      await chargeSaleInCashFor(
+        {
+          zoneRules: fixedZoneRulesSource(),
+          database,
+          restoration: restorationOf(database),
+          gate: deps(orders).gate,
+          readOutboxChainKey: async () => CHARGE_CHAIN_KEY,
+          now: () => CHARGE_NOW,
+          ids: countingIds("cash"),
+        },
+        { saleId, tendered: 3000 },
+      ),
+    ).toMatchObject({ kind: "completed", sale_id: saleId });
+  });
+
+  it("lets the cash session's open sale be cancelled once its payment is replaced at the terminal", async () => {
+    const { paymentId } = await pointChargeStarted();
+    const orders = new FakeOrders();
+    orders.cancellation = { kind: "cancel_on_terminal" };
+    await abandonMercadoPagoChargeFor(deps(orders), { paymentTransactionId: paymentId });
+
+    expect(sessionOpenSaleFor(database, CHARGE_NOW)).toMatchObject({
+      cancellable: true,
+      cancel_refusal: null,
+    });
   });
 
   it("refuses to cancel the sale", async () => {
