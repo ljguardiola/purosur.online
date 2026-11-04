@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { cell } from "../platform/spreadsheet/workbook";
+import { cell } from "./spreadsheet/workbook";
 import { stockQuantityCells } from "./stock-quantity-cells";
 
 test("writes the units of a product sold by unit in the first cell and leaves the kilos empty", () => {

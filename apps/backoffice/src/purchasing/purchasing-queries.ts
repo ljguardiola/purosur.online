@@ -16,6 +16,8 @@ import type {
   PurchaseSummary,
   PurchasesBySupplierBody,
   PurchasesBySupplierQuery,
+  ReceiptDifferencesBody,
+  ReceiptDifferencesQuery,
   SupplierItemLinkChoices,
   SupplierItemLinkProposal,
   SupplierItemQuantityProposal,
@@ -54,6 +56,7 @@ import type {
 } from "./purchase-orders-api";
 import type { fetchPurchaseChanges, fetchPurchaseChoices, fetchPurchases } from "./purchases-api";
 import type { fetchPurchasesReport } from "./purchases-report-api";
+import type { fetchReceiptDifferencesReport } from "./receipt-differences-report-api";
 import type {
   fetchSupplierItemLinkChoices,
   fetchSupplierItemLinkProposal,
@@ -107,6 +110,15 @@ export function pendingPurchaseOrdersReportKey(query: PendingPurchaseOrdersQuery
   return [
     ...purchasingKey,
     "pending-purchase-orders-report",
+    query.from ?? "",
+    query.to ?? "",
+  ] as const;
+}
+
+export function receiptDifferencesReportKey(query: ReceiptDifferencesQuery) {
+  return [
+    ...purchasingKey,
+    "receipt-differences-report",
     query.from ?? "",
     query.to ?? "",
   ] as const;
@@ -183,6 +195,21 @@ export function usePendingPurchaseOrdersReportQuery(params: {
     queryKey: pendingPurchaseOrdersReportKey(params.query),
     keepPreviousData: true,
     read: () => params.fetchPendingPurchaseOrdersReport(params.query),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useReceiptDifferencesReportQuery(params: {
+  query: ReceiptDifferencesQuery;
+  fetchReceiptDifferencesReport: typeof fetchReceiptDifferencesReport;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<ReceiptDifferencesBody>({
+    queryKey: receiptDifferencesReportKey(params.query),
+    keepPreviousData: true,
+    read: () => params.fetchReceiptDifferencesReport(params.query),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

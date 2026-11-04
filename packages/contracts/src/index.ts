@@ -526,6 +526,14 @@ export {
   purchasesBySupplierQuerySchema,
   purchasesBySupplierSchema,
 } from "./purchasing/purchases-by-supplier.js";
+export type {
+  ReceiptDifferencesBody,
+  ReceiptDifferencesQuery,
+} from "./purchasing/receipt-differences.js";
+export {
+  receiptDifferencesQuerySchema,
+  receiptDifferencesSchema,
+} from "./purchasing/receipt-differences.js";
 export type { SupplierCreationBody } from "./purchasing/supplier-creation.js";
 export { supplierCreationBodySchema } from "./purchasing/supplier-creation.js";
 export type { SupplierEditBody } from "./purchasing/supplier-edit.js";

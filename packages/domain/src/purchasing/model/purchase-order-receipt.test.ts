@@ -4,6 +4,7 @@ import { roundHalfUp } from "../../shared/index.js";
 import { lineValue } from "./purchase-line.js";
 import {
   awaitedQuantity,
+  hasReceiptDifference,
   listCostCents,
   missingQuantity,
   orderLineOutstandingQuantity,
@@ -277,5 +278,19 @@ describe("awaitedQuantity", () => {
     expect(awaitedQuantity("DRAFT", line, 0)).toBe(0);
     expect(awaitedQuantity("RECEIVED", line, 36_000)).toBe(0);
     expect(awaitedQuantity("CANCELLED", line, 10_000)).toBe(0);
+  });
+});
+
+describe("hasReceiptDifference", () => {
+  it.each([
+    [{ missingQuantity: 0, priceDifferenceCents: null }, false],
+    [{ missingQuantity: 0, priceDifferenceCents: 0 }, false],
+    [{ missingQuantity: 1, priceDifferenceCents: null }, true],
+    [{ missingQuantity: 4_000, priceDifferenceCents: 0 }, true],
+    [{ missingQuantity: 0, priceDifferenceCents: 150 }, true],
+    [{ missingQuantity: 0, priceDifferenceCents: -150 }, true],
+    [{ missingQuantity: 2_000, priceDifferenceCents: -50 }, true],
+  ])("tells whether %j left a shortfall or a price difference", (line, expected) => {
+    expect(hasReceiptDifference(line)).toBe(expected);
   });
 });

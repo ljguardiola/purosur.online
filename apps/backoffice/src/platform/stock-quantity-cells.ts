@@ -1,6 +1,6 @@
 import type { SaleUnit } from "@purosur/domain";
-import { type Cell, cell } from "../platform/spreadsheet/workbook";
-import { stockQuantityUnits } from "../platform/stock-quantity";
+import { type Cell, cell } from "./spreadsheet/workbook";
+import { stockQuantityUnits } from "./stock-quantity";
 
 export function stockQuantityCells(quantity: number, saleUnit: SaleUnit): [Cell, Cell] {
   return saleUnit === "KG"

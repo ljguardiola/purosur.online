@@ -11,13 +11,14 @@ import {
   purchasesReportKey,
   purchasingKey,
   purchasingKeys,
+  receiptDifferencesReportKey,
   useProductCreationChoicesRefresh,
   usePurchaseChangesQuery,
   usePurchaseChoicesQuery,
 } from "./purchasing-queries";
 import { purchaseChoicesFrom } from "./test-support/purchases";
 
-test("invalidating the purchasing key marks the suppliers, the purchases, each purchase's changes, the purchase choices, the freights, the linkable purchases, the supplier price lists, each review, each list's AI cost, each proposal, each quantity proposal, the link choices, the categories a created product is filed under and the price comparison, each list of purchase orders, each purchase order, each purchases report, each pending purchase orders report, each freight report and each AI cost report stale", async () => {
+test("invalidating the purchasing key marks the suppliers, the purchases, each purchase's changes, the purchase choices, the freights, the linkable purchases, the supplier price lists, each review, each list's AI cost, each proposal, each quantity proposal, the link choices, the categories a created product is filed under and the price comparison, each list of purchase orders, each purchase order, each purchases report, each pending purchase orders report, each receipt differences report, each freight report and each AI cost report stale", async () => {
   const client = new QueryClient();
   const keys = [
     purchasingKeys.suppliers,
@@ -38,6 +39,7 @@ test("invalidating the purchasing key marks the suppliers, the purchases, each p
     [...purchasingKeys.purchaseOrder, "order-1"],
     purchasesReportKey({ from: "2026-10-01", to: "2026-10-07" }),
     pendingPurchaseOrdersReportKey({ from: "2026-10-01", to: "2026-10-07" }),
+    receiptDifferencesReportKey({ from: "2026-10-01", to: "2026-10-07" }),
     freightReportKey({ from: "2026-10-01", to: "2026-10-07" }),
     aiCostReportKey({ from: "2026-10-01", to: "2026-10-07", group_by: "supplier" }),
   ];
@@ -95,6 +97,23 @@ test("a pending purchase orders report and a purchases report of the same range 
   const query = { from: "2026-10-01", to: "2026-10-07" };
 
   expect(pendingPurchaseOrdersReportKey(query)).not.toEqual(purchasesReportKey(query));
+});
+
+test.each([
+  { part: "start", changed: { from: "2026-10-02" } },
+  { part: "end", changed: { to: "2026-10-08" } },
+])("a receipt differences report differing only in its $part has its own key", ({ changed }) => {
+  const query = { from: "2026-10-01", to: "2026-10-07" };
+
+  expect(receiptDifferencesReportKey({ ...query, ...changed })).not.toEqual(
+    receiptDifferencesReportKey(query),
+  );
+});
+
+test("a receipt differences report and a pending purchase orders report of the same range have their own keys", () => {
+  const query = { from: "2026-10-01", to: "2026-10-07" };
+
+  expect(receiptDifferencesReportKey(query)).not.toEqual(pendingPurchaseOrdersReportKey(query));
 });
 
 test("a freight report and a purchases report of the same range have their own keys", () => {

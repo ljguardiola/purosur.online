@@ -300,11 +300,20 @@ export type {
 } from "./read-purchases-by-supplier.js";
 export { readPurchasesBySupplier } from "./read-purchases-by-supplier.js";
 export type {
+  ReadReceiptDifferencesInput,
+  ReceiptDifferencesReport,
+} from "./read-receipt-differences.js";
+export { readReceiptDifferences } from "./read-receipt-differences.js";
+export type {
   ReadSupplierPriceListInput,
   ReadSupplierPriceListOutcome,
   ReadSupplierPriceListPorts,
 } from "./read-supplier-price-list.js";
 export { readSupplierPriceList } from "./read-supplier-price-list.js";
+export type {
+  ReceiptDifferencesQuery,
+  ReceiptDifferencesReader,
+} from "./receipt-differences-reader.js";
 export type {
   ReceivePurchaseOrderInput,
   ReceivePurchaseOrderOutcome,
