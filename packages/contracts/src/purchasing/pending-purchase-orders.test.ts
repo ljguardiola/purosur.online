@@ -1,3 +1,4 @@
+import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
   pendingPurchaseOrdersQuerySchema,
@@ -101,5 +102,13 @@ describe("pendingPurchaseOrdersSchema", () => {
     ["an order without the unpriced flag", withOrder({ has_unpriced_line: undefined })],
   ])("refuses %s", (_name, change) => {
     expect(pendingPurchaseOrdersSchema.safeParse({ ...report, ...change }).success).toBe(false);
+  });
+});
+
+describe("pendingPurchaseOrdersSchema, declared time zone", () => {
+  it("declares the zone the send instant is shown in", () => {
+    expect(pendingPurchaseOrdersSchema.shape.orders.element.shape.sent_at.meta()).toEqual({
+      timeZone: ARGENTINA_TIME_ZONE,
+    });
   });
 });
