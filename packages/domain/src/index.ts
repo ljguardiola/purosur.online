@@ -600,6 +600,7 @@ export {
 export type {
   FreightMeans,
   FreightPeriodDays,
+  PendingPurchaseOrderRow,
   PricedAiCall,
   PurchasedLine,
   PurchaseOrderState,

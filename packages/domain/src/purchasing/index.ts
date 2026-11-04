@@ -22,6 +22,13 @@ export type {
   FreightToDistribute,
 } from "./model/freight-distribution.js";
 export { freightPerUnit } from "./model/freight-distribution.js";
+export type {
+  PendingPurchaseOrder,
+  PendingPurchaseOrderRow,
+  PendingPurchaseOrderState,
+  PendingPurchaseOrders,
+} from "./model/pending-purchase-orders-report.js";
+export { PENDING_PURCHASE_ORDERS_DEFAULT_DAYS } from "./model/pending-purchase-orders-report.js";
 export type { ReceiptType } from "./model/purchase.js";
 export {
   hasPurchaseLines,

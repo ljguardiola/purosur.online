@@ -179,6 +179,10 @@ export type {
   ProductStock,
 } from "./order-suggestion-reader.js";
 export type {
+  PendingPurchaseOrdersQuery,
+  PendingPurchaseOrdersReader,
+} from "./pending-purchase-orders-reader.js";
+export type {
   ExtractedPriceListRow,
   PriceListExtraction,
   PriceListExtractor,
@@ -285,6 +289,11 @@ export type {
   ReadFreightByPeriodInput,
 } from "./read-freight-by-period.js";
 export { readFreightByPeriod } from "./read-freight-by-period.js";
+export type {
+  PendingPurchaseOrdersReport,
+  ReadPendingPurchaseOrdersInput,
+} from "./read-pending-purchase-orders.js";
+export { readPendingPurchaseOrders } from "./read-pending-purchase-orders.js";
 export type {
   PurchasesBySupplierReport,
   ReadPurchasesBySupplierInput,
