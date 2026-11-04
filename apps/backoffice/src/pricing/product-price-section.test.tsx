@@ -42,11 +42,17 @@ test("asks for the recommendation of the components the recipe has right now", a
   );
 });
 
-test("asks for nothing while the recipe's quantities are incomplete", async () => {
+test("shows nothing and asks for nothing until the recipe's quantities are first complete", async () => {
   const services = sectionServices();
   const screen = await renderSection({ services, components: null });
 
-  await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
+  await expect
+    .element(screen.getByRole("heading", { name: "Precio de venta de Mix de frutos secos" }))
+    .not.toBeInTheDocument();
+  await expect.element(screen.getByText("Cargando…")).not.toBeInTheDocument();
+  await expect
+    .element(screen.getByRole("button", { name: "Guardar el precio" }))
+    .not.toBeInTheDocument();
   expect(services.fetchPriceRecommendation).not.toHaveBeenCalled();
 });
 
@@ -336,6 +342,21 @@ describe("while the person edits", () => {
 
     await expect.element(screen.getByText("Precio recomendado")).toBeVisible();
     await expect.element(screen.getByRole("status")).not.toBeInTheDocument();
+  });
+
+  test("shows the recommendation once the recipe's quantities are first complete", async () => {
+    const services = sectionServices();
+    const screen = await renderSection({ services, components: null });
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    await screen.withComponents([almendrasComponent]);
+    await readEverything(services);
+
+    await expect.element(screen.getByText("$ 16.000,00 / kg", { exact: true })).toBeVisible();
+    await expect
+      .element(screen.getByLabelText("Precio de venta por kilo"))
+      .toHaveValue("16.000,00");
+    await expect.element(screen.getByRole("button", { name: "Guardar el precio" })).toBeEnabled();
   });
 
   test("prefills the recommendation again once the recipe's quantities are complete", async () => {
