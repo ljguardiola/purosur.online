@@ -1,5 +1,8 @@
 import { describe, expect, test } from "vitest";
-import { formatPurchaseOrderCreatedDay, formatPurchaseOrderSentDay } from "./purchase-order-created-day";
+import {
+  formatPurchaseOrderCreatedDay,
+  formatPurchaseOrderSentDay,
+} from "./purchase-order-created-day";
 
 describe("formatPurchaseOrderCreatedDay", () => {
   test("shows the day in Argentina of an order created late at night there", () => {

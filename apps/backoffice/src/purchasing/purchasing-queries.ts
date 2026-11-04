@@ -8,6 +8,8 @@ import type {
   FreightList,
   LinkablePurchaseList,
   OrderSuggestion,
+  PendingPurchaseOrdersBody,
+  PendingPurchaseOrdersQuery,
   PurchaseChange,
   PurchaseChoices,
   PurchaseOrderSummary,
@@ -37,6 +39,7 @@ import type {
   fetchLinkablePurchases,
 } from "./freights-api";
 import type { fetchOrderSuggestion } from "./order-suggestion-api";
+import type { fetchPendingPurchaseOrdersReport } from "./pending-purchase-orders-report-api";
 import type {
   fetchPurchaseOrderReceiptDraft,
   PurchaseOrderReceiptDraftRead,
@@ -100,6 +103,15 @@ export function purchasesReportKey(query: PurchasesBySupplierQuery) {
   return [...purchasingKey, "purchases-report", query.from ?? "", query.to ?? ""] as const;
 }
 
+export function pendingPurchaseOrdersReportKey(query: PendingPurchaseOrdersQuery) {
+  return [
+    ...purchasingKey,
+    "pending-purchase-orders-report",
+    query.from ?? "",
+    query.to ?? "",
+  ] as const;
+}
+
 export function freightReportKey(query: FreightByPeriodQuery) {
   return [...purchasingKey, "freight-report", query.from ?? "", query.to ?? ""] as const;
 }
@@ -156,6 +168,21 @@ export function usePurchasesReportQuery(params: {
     queryKey: purchasesReportKey(params.query),
     keepPreviousData: true,
     read: () => params.fetchPurchasesReport(params.query),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function usePendingPurchaseOrdersReportQuery(params: {
+  query: PendingPurchaseOrdersQuery;
+  fetchPendingPurchaseOrdersReport: typeof fetchPendingPurchaseOrdersReport;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<PendingPurchaseOrdersBody>({
+    queryKey: pendingPurchaseOrdersReportKey(params.query),
+    keepPreviousData: true,
+    read: () => params.fetchPendingPurchaseOrdersReport(params.query),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

@@ -80,13 +80,16 @@ test.each([
 test.each([
   { part: "start", changed: { from: "2026-10-02" } },
   { part: "end", changed: { to: "2026-10-08" } },
-])("a pending purchase orders report differing only in its $part has its own key", ({ changed }) => {
-  const query = { from: "2026-10-01", to: "2026-10-07" };
+])(
+  "a pending purchase orders report differing only in its $part has its own key",
+  ({ changed }) => {
+    const query = { from: "2026-10-01", to: "2026-10-07" };
 
-  expect(pendingPurchaseOrdersReportKey({ ...query, ...changed })).not.toEqual(
-    pendingPurchaseOrdersReportKey(query),
-  );
-});
+    expect(pendingPurchaseOrdersReportKey({ ...query, ...changed })).not.toEqual(
+      pendingPurchaseOrdersReportKey(query),
+    );
+  },
+);
 
 test("a pending purchase orders report and a purchases report of the same range have their own keys", () => {
   const query = { from: "2026-10-01", to: "2026-10-07" };
