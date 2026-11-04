@@ -1531,3 +1531,19 @@ test("has no accessibility violations with the reason it is disabled, closed or 
   await expect.element(screen.getByRole("tooltip")).toBeVisible();
   await expectNoAccessibilityViolations(screen.container);
 });
+
+test("takes focus when it appears with autoFocus, so Enter presses it", async () => {
+  const onPress = vi.fn();
+  const screen = await render(
+    <>
+      <Button variant="secondary">No</Button>
+      <Button autoFocus onPress={onPress}>
+        Sí
+      </Button>
+    </>,
+  );
+
+  await expect.element(screen.getByRole("button", { name: "Sí" })).toHaveFocus();
+  await userEvent.keyboard("{Enter}");
+  expect(onPress).toHaveBeenCalledOnce();
+});

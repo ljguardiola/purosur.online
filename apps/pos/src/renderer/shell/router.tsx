@@ -3,6 +3,7 @@ import type {
   AddProductOutcome,
   AddWeighedProductOutcome,
   AdjustSaleLineOutcome,
+  AnswerReceiptQuestionOutcome,
   ApplySaleDiscountOutcome,
   Authorization,
   CancelLockedSaleOutcome,
@@ -291,6 +292,7 @@ export interface RouterContext {
     authorization: Authorization | undefined,
   ) => Promise<VoidSaleOutcome>;
   receiptPrintStatus: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
+  answerReceiptQuestion: (saleId: string, print: boolean) => Promise<AnswerReceiptQuestionOutcome>;
   contingencyBackupTickets: () => Promise<ReadContingencyBackupTicketsOutcome>;
   contingencyBackupTicketOfSale: (
     saleId: string,
@@ -917,6 +919,7 @@ const chargeRoute = createRoute({
       followMercadoPagoCharge,
       abandonMercadoPagoCharge,
       receiptPrintStatus,
+      answerReceiptQuestion,
       contingencyBackupTicketOfSale,
       contingencyBackupTickets,
       refreshCashSession,
@@ -942,6 +945,7 @@ const chargeRoute = createRoute({
         followMercadoPagoCharge={followMercadoPagoCharge}
         abandonMercadoPagoCharge={abandonMercadoPagoCharge}
         receiptPrintStatus={receiptPrintStatus}
+        answerReceiptQuestion={answerReceiptQuestion}
         contingencyBackupTicketOfSale={contingencyBackupTicketOfSale}
         contingencyBackupTickets={contingencyBackupTickets}
         onSessionInvalid={() => void refreshCashSession()}
@@ -1470,6 +1474,7 @@ export function createAppRouter(
     | "cancelPaidSale"
     | "voidSale"
     | "receiptPrintStatus"
+    | "answerReceiptQuestion"
     | "contingencyBackupTickets"
     | "contingencyBackupTicketOfSale"
     | "discardContingencyBackupTickets"

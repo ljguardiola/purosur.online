@@ -333,6 +333,9 @@ function coreAnswering(
           }
         : sales.receiptPrintStatus(saleId);
     },
+    async answerReceiptQuestion() {
+      return { kind: "unavailable" };
+    },
     async contingencyBackupTickets() {
       return { kind: "unavailable" };
     },

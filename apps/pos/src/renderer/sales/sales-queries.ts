@@ -1,5 +1,6 @@
 import type {
   AbandonMercadoPagoChargeOutcome,
+  AnswerReceiptQuestionOutcome,
   CashChargeAnswer,
   ContingencyBackupTicketOfSaleAnswer,
   ContingencyBackupTicketsAnswer,
@@ -162,9 +163,25 @@ export function useReceiptPrintStatusQuery({
     refetchInterval: (status) =>
       status?.printed === true ||
       status?.standing === "failed" ||
+      status?.standing === "declined" ||
       status?.standing === "printer_not_configured"
         ? false
         : RECEIPT_PRINT_POLL_MILLISECONDS,
+  });
+}
+
+export function useAnswerReceiptQuestionMutation({
+  saleId,
+  answer,
+}: {
+  saleId: string;
+  answer: (saleId: string, print: boolean) => Promise<AnswerReceiptQuestionOutcome>;
+}) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (print: boolean) => answer(saleId, print),
+    onSettled: () =>
+      queryClient.invalidateQueries({ queryKey: salesKeys.receiptPrintStatus(saleId) }),
   });
 }
 

@@ -784,6 +784,7 @@ export { averageTicketSchema } from "./sales/average-ticket.js";
 export type { CashRoundingBody } from "./sales/cash-rounding.js";
 export { cashRoundingSchema } from "./sales/cash-rounding.js";
 export type {
+  AnswerReceiptQuestionOutcome,
   CancelLockedSaleOutcome,
   PrintCreditNoteOutcome,
   PrintOriginalReceiptOutcome,

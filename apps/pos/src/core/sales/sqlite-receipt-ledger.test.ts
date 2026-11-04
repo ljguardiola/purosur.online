@@ -136,6 +136,7 @@ describe("a receipt ledger's delivery of a sale", () => {
     ).toEqual<ReceiptDelivery>({
       printAttemptedAt: null,
       printedAt: null,
+      printDeclinedAt: null,
       reprintCount: 0,
       voided: false,
       creditNoteAuthorized: false,
@@ -155,6 +156,7 @@ describe("a receipt ledger's delivery of a sale", () => {
     ).toEqual({
       printAttemptedAt: attemptedAt,
       printedAt: null,
+      printDeclinedAt: null,
       reprintCount: 0,
       voided: false,
       creditNoteAuthorized: false,
@@ -187,8 +189,34 @@ describe("a receipt ledger's delivery of a sale", () => {
       printAttemptedAt: attemptedAt,
       printedAt,
       reprintCount: 2,
+      printDeclinedAt: null,
       voided: false,
       creditNoteAuthorized: false,
+    });
+  });
+});
+
+describe("a receipt ledger's declined print of a sale", () => {
+  const key = { document: "sale_receipt", saleId: "sale-1" } as const;
+
+  it("is none until the cashier declines the ticket", () => {
+    insertCompletedSale("sale-1");
+
+    expect(inTransaction((tx) => tx.receiptDelivery(key))?.printDeclinedAt).toBeNull();
+  });
+
+  it("holds the moment the cashier declined it, leaving the print attempt empty", () => {
+    insertCompletedSale("sale-1");
+    const declinedAt = new Date("2026-09-30T15:06:00.000Z");
+
+    inTransaction((tx) => {
+      tx.recordPrintDeclined(key, declinedAt);
+    });
+
+    expect(inTransaction((tx) => tx.receiptDelivery(key))).toMatchObject({
+      printDeclinedAt: declinedAt,
+      printAttemptedAt: null,
+      printedAt: null,
     });
   });
 });
@@ -640,6 +668,7 @@ describe("a receipt ledger's credit note of a voided sale", () => {
   it("is authorized once the tax authority authorized it, whatever its print state", () => {
     expect(inTransaction((tx) => tx.receiptDelivery(creditNote))).toEqual<ReceiptDelivery>({
       printAttemptedAt: null,
+      printDeclinedAt: null,
       printedAt: null,
       reprintCount: 0,
       voided: true,

@@ -107,6 +107,12 @@ export type {
 } from "./current-sale.js";
 export { currentSale } from "./current-sale.js";
 export type {
+  DeclineSaleReceiptInput,
+  DeclineSaleReceiptOutcome,
+  DeclineSaleReceiptPorts,
+} from "./decline-sale-receipt.js";
+export { declineSaleReceipt } from "./decline-sale-receipt.js";
+export type {
   DeferredSaleInvoicing,
   DeferredSaleInvoicingOutcome,
   DeferredSaleLookup,
@@ -242,6 +248,12 @@ export type {
   StoredReceipt,
 } from "./receipt-ports.js";
 export type { ReceiptPrintGrant, ReceiptPrintOutcome } from "./receipt-printing.js";
+export type {
+  ReceiptQuestionOfInput,
+  ReceiptQuestionOfOutcome,
+  ReceiptQuestionOfPorts,
+} from "./receipt-question-of.js";
+export { receiptQuestionOf } from "./receipt-question-of.js";
 export type {
   PendingMercadoPagoPaymentRefusal,
   RecordPendingMercadoPagoPaymentInput,

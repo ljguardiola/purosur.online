@@ -72,6 +72,7 @@ export {
   SUPPLIER_PRICE_LIST_ROW_STATUSES,
   sameSupplierItemKey,
   supplierItemKey,
+  supplierItemKeyId,
 } from "./model/supplier-item.js";
 export { supplierOfferOfOrderLine, supplierOfferPrice } from "./model/supplier-offer.js";
 export type {

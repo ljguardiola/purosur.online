@@ -1,5 +1,6 @@
 import type {
   AbandonMercadoPagoChargeOutcome,
+  AnswerReceiptQuestionOutcome,
   Authorization,
   CashChargeAnswer,
   ChargeSaleByTransferOutcome,
@@ -195,6 +196,7 @@ export type Overrides = {
   ) => Promise<ChargeSaleOnStandaloneTerminalOutcome>;
   chargeSaleWithPaidOrder?: (saleId: string) => Promise<ChargeSaleWithPaidOrderOutcome>;
   receiptPrintStatus?: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
+  answerReceiptQuestion?: (saleId: string, print: boolean) => Promise<AnswerReceiptQuestionOutcome>;
   contingencyBackupTicketOfSale?: (
     saleId: string,
   ) => Promise<ReadContingencyBackupTicketOfSaleOutcome>;
@@ -261,6 +263,10 @@ export async function renderScreen(overrides: Overrides = {}) {
       (async (): Promise<AbandonMercadoPagoChargeOutcome> => ({ kind: "cancelled" })),
   );
   const receiptPrintStatus = vi.fn(overrides.receiptPrintStatus ?? (async () => PRINTED));
+  const answerReceiptQuestion = vi.fn(
+    overrides.answerReceiptQuestion ??
+      (async (): Promise<AnswerReceiptQuestionOutcome> => ({ kind: "printing" })),
+  );
   const contingencyBackupTicketOfSale = vi.fn(
     overrides.contingencyBackupTicketOfSale ??
       (async (): Promise<ReadContingencyBackupTicketOfSaleOutcome> => ({
@@ -293,6 +299,7 @@ export async function renderScreen(overrides: Overrides = {}) {
       followMercadoPagoCharge={followMercadoPagoCharge}
       abandonMercadoPagoCharge={abandonMercadoPagoCharge}
       receiptPrintStatus={receiptPrintStatus}
+      answerReceiptQuestion={answerReceiptQuestion}
       contingencyBackupTicketOfSale={contingencyBackupTicketOfSale}
       contingencyBackupTickets={contingencyBackupTickets}
       onSessionInvalid={onSessionInvalid}
@@ -313,6 +320,7 @@ export async function renderScreen(overrides: Overrides = {}) {
     followMercadoPagoCharge,
     abandonMercadoPagoCharge,
     receiptPrintStatus,
+    answerReceiptQuestion,
     contingencyBackupTicketOfSale,
     contingencyBackupTickets,
     onSessionInvalid,

@@ -13,6 +13,7 @@ import type {
 interface FakeDocumentPrinting {
   printAttemptedAt: Date | null;
   printedAt: Date | null;
+  printDeclinedAt?: Date | null;
   stored: StoredReceipt | undefined;
   reprints: ReceiptReprint[];
 }
@@ -108,6 +109,7 @@ export class FakeReceiptLedger implements ReceiptLedger {
         return {
           printAttemptedAt: printing.printAttemptedAt,
           printedAt: printing.printedAt,
+          printDeclinedAt: printing.printDeclinedAt ?? null,
           reprintCount: printing.reprints.length,
           voided: sale.voided,
           creditNoteAuthorized: creditNote?.authorized === true,
@@ -129,6 +131,9 @@ export class FakeReceiptLedger implements ReceiptLedger {
       },
       recordPrintAttempt: (key, at) => {
         printingOf(key).printAttemptedAt = at;
+      },
+      recordPrintDeclined: (key, at) => {
+        printingOf(key).printDeclinedAt = at;
       },
       recordPrinted: (key, at) => {
         printingOf(key).printedAt = at;

@@ -3,6 +3,8 @@ import {
   type ContingencyBackupOperation,
   type ContingencyBackupTicketRecord,
   customerDocumentPrinted,
+  customerReceiptSettled,
+  salePrintStanding,
 } from "@purosur/domain";
 import type {
   ContingencyBackupTicketStore,
@@ -22,7 +24,10 @@ interface TicketRow {
   operation: string;
   last_device_seq: number;
   sealed: 0 | 1;
-  sale_receipt_printed: 0 | 1 | null;
+  sale_receipt_found: 0 | 1 | null;
+  sale_print_attempted_at: string | null;
+  sale_printed_at: string | null;
+  sale_print_declined_at: string | null;
   void_credit_note_printed: 0 | 1 | null;
   return_credit_note_printed: 0 | 1 | null;
   printed_at: string | null;
@@ -38,8 +43,13 @@ const TICKET_COLUMNS = `
   SELECT tickets.id AS id, tickets.operation AS operation,
          tickets.last_device_seq AS last_device_seq,
          (tickets.qr_codes IS NOT NULL) AS sealed,
-         (SELECT sales.printed_at IS NOT NULL FROM sales WHERE sales.id = tickets.subject_id)
-           AS sale_receipt_printed,
+         EXISTS (SELECT 1 FROM sales WHERE sales.id = tickets.subject_id) AS sale_receipt_found,
+         (SELECT sales.print_attempted_at FROM sales WHERE sales.id = tickets.subject_id)
+           AS sale_print_attempted_at,
+         (SELECT sales.printed_at FROM sales WHERE sales.id = tickets.subject_id)
+           AS sale_printed_at,
+         (SELECT sales.print_declined_at FROM sales WHERE sales.id = tickets.subject_id)
+           AS sale_print_declined_at,
          (SELECT COALESCE(
              (SELECT credit_note_prints.printed_at IS NOT NULL FROM credit_note_prints
                JOIN sale_credit_notes AS voided_notes
@@ -74,6 +84,23 @@ function printedOf(value: 0 | 1 | null): boolean | null {
   return value === null ? null : value === 1;
 }
 
+function saleReceiptSettledOf(row: TicketRow): boolean | null {
+  if (row.sale_receipt_found !== 1) {
+    return null;
+  }
+  return customerReceiptSettled(
+    salePrintStanding({
+      printAttemptedAt: dateOf(row.sale_print_attempted_at),
+      printedAt: dateOf(row.sale_printed_at),
+      printDeclinedAt: dateOf(row.sale_print_declined_at),
+    }),
+  );
+}
+
+function dateOf(value: string | null): Date | null {
+  return value === null ? null : new Date(value);
+}
+
 function operationOf(row: TicketRow): ContingencyBackupOperation {
   const operation = CONTINGENCY_BACKUP_OPERATIONS.find((known) => known === row.operation);
   if (operation === undefined) {
@@ -88,7 +115,7 @@ function recordOf(row: TicketRow): ContingencyBackupTicketRecord {
     lastDeviceSeq: row.last_device_seq,
     sealed: row.sealed === 1,
     customerDocumentPrinted: customerDocumentPrinted(operationOf(row), {
-      saleReceipt: printedOf(row.sale_receipt_printed),
+      saleReceipt: saleReceiptSettledOf(row),
       voidCreditNote: printedOf(row.void_credit_note_printed),
       returnCreditNote: printedOf(row.return_credit_note_printed),
     }),

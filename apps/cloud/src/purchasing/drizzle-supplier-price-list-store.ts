@@ -11,8 +11,8 @@ import {
   type SupplierPriceListRereadState,
   type SupplierPriceListSourceKind,
   type SupplierPriceListState,
-  sameSupplierItemKey,
   supplierItemKey,
+  supplierItemKeyId,
 } from "@purosur/domain";
 import type {
   AiCallRecord,
@@ -497,6 +497,7 @@ export class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQue
       return [];
     }
     await this.flushItems();
+    const wanted = new Set(keys.map(supplierItemKeyId));
     const items = await this.tx
       .select({
         id: supplierItems.id,
@@ -527,7 +528,7 @@ export class DrizzleSupplierPriceListStoreTransaction<TQueryResult extends PgQue
         link: linkOf(item),
         currentListDate: item.currentListDate,
       }))
-      .filter((item) => keys.some((key) => sameSupplierItemKey(key, item.key)));
+      .filter((item) => wanted.has(supplierItemKeyId(item.key)));
   }
 
   async lockSupplierItems(supplierId: string, keys: SupplierItemKey[]): Promise<SupplierItem[]> {

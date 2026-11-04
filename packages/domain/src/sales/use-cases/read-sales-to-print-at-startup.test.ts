@@ -13,6 +13,7 @@ function sale(overrides: Partial<StartupSale> = {}): StartupSale {
     total: 345000,
     printAttemptedAt: null,
     printedAt: null,
+    printDeclinedAt: null,
     ...overrides,
   };
 }
@@ -38,6 +39,12 @@ describe("readSalesToPrintAtStartup", () => {
     const sales = new FakeStartupSales([
       sale({ printAttemptedAt: ATTEMPTED_AT, printedAt: PRINTED_AT }),
     ]);
+
+    expect(readSalesToPrintAtStartup({ sales })).toEqual([]);
+  });
+
+  it("leaves out a sale whose ticket the cashier chose not to print", () => {
+    const sales = new FakeStartupSales([sale({ printDeclinedAt: ATTEMPTED_AT })]);
 
     expect(readSalesToPrintAtStartup({ sales })).toEqual([]);
   });

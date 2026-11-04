@@ -3,6 +3,7 @@ import type {
   AddProductOutcome,
   AddWeighedProductOutcome,
   AdjustSaleLineOutcome,
+  AnswerReceiptQuestionOutcome,
   ApplySaleDiscountOutcome,
   Authorization,
   CancelLockedSaleOutcome,
@@ -224,6 +225,9 @@ export interface RendererRequestDeps {
   previewReturn: ((request: PreviewReturnRequest) => Promise<PreviewReturnOutcome>) | undefined;
   completeReturn: ((request: CompleteReturnRequest) => Promise<CompleteReturnOutcome>) | undefined;
   receiptPrintStatus: ((saleId: string) => Promise<ReceiptPrintStatusOutcome>) | undefined;
+  answerReceiptQuestion:
+    | ((answer: { saleId: string; print: boolean }) => Promise<AnswerReceiptQuestionOutcome>)
+    | undefined;
   printOriginalReceipt: ((saleId: string) => Promise<PrintOriginalReceiptOutcome>) | undefined;
   findDeferredSale:
     | ((reading: FindDeferredSaleReading) => Promise<FindDeferredSaleOutcome>)
@@ -1092,6 +1096,19 @@ export async function answerRendererRequest(
           deps,
           "reading a receipt's print status",
           receiptPrintStatus && (() => receiptPrintStatus(message.sale_id)),
+        ),
+      };
+    }
+    case "answer-receipt-question": {
+      const { answerReceiptQuestion } = deps;
+      return {
+        type: "answer-receipt-question-result",
+        request_id: message.request_id,
+        outcome: await attemptSaleChange(
+          deps,
+          "answering the question of printing the customer's ticket",
+          answerReceiptQuestion &&
+            (() => answerReceiptQuestion({ saleId: message.sale_id, print: message.print })),
         ),
       };
     }
