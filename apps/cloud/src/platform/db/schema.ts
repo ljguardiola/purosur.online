@@ -1763,7 +1763,7 @@ export const saleReprints = pgTable(
   ],
 );
 
-// Append-only: what a register sold is a fact of the sale; the cloud never rewrites or removes it.
+// What a register sold is a fact of the sale; the cloud never rewrites it.
 export const saleLines = pgTable(
   "sale_lines",
   {
@@ -1820,7 +1820,7 @@ export const saleLines = pgTable(
   ],
 );
 
-// Append-only: how a register was paid is a fact of the sale; the cloud never rewrites or removes it.
+// How a register was paid is a fact of the sale; the cloud never rewrites it.
 export const salePayments = pgTable(
   "sale_payments",
   {

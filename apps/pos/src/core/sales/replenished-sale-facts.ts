@@ -1,5 +1,5 @@
 import {
-  hasApprovedPayment,
+  cancelledBeforeCharge,
   type PendingMercadoPagoSalePayment,
   type SaleLine,
   type SalePayment,
@@ -257,15 +257,30 @@ function completeSale(
   }
 }
 
+function endCartCancelledBeforeCharge(database: LocalDatabase, sale: CancelledSaleFact): void {
+  const recorded = database
+    .prepare<[string], { state: string }>("SELECT state FROM sales WHERE id = ?")
+    .get(sale.id);
+  if (recorded !== undefined && recorded.state !== "OPEN") {
+    return;
+  }
+  endOtherOpenSales(database, sale, sale.cancelledAt);
+  if (recorded !== undefined) {
+    const ledger = new SqliteSaleLedger(database, new SqliteSignInStore(database));
+    ledger.transaction((tx) => endUnpaidSale(tx, sale.id, sale.cancelledAt));
+  }
+}
+
 function cancelSale(
   database: LocalDatabase,
   sale: CancelledSaleFact,
   source: ReplenishedEventSource,
 ): void {
-  if (
-    !hasApprovedPayment(sale.payments) ||
-    !holdOpenSale(database, sale, sale.cancelledAt, source)
-  ) {
+  if (cancelledBeforeCharge(sale.payments)) {
+    endCartCancelledBeforeCharge(database, sale);
+    return;
+  }
+  if (!holdOpenSale(database, sale, sale.cancelledAt, source)) {
     return;
   }
   for (const refund of sale.refunds) {

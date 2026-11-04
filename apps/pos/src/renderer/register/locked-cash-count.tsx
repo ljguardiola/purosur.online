@@ -46,11 +46,15 @@ import {
 } from "./register-queries";
 
 const CLOSE_FAILED = "No se pudo cerrar la caja. Probá de nuevo.";
+const EMPTY_FAILED = "No se pudo vaciar el carrito. Probá de nuevo.";
 const CANCEL_FAILED = "No se pudo cancelar la venta. Probá de nuevo.";
-const QR_CHARGE_IN_PROGRESS_MESSAGE =
-  "Hay un cobro con Mercado Pago en curso. Esperá a que termine para cancelar la venta.";
+const EMPTY_REFUSAL_MESSAGES: Record<NonNullable<SessionOpenSale["cancel_refusal"]>, string> = {
+  mercado_pago_charge_in_progress:
+    "Hay un cobro con Mercado Pago en curso. Esperá a que termine para vaciar el carrito.",
+};
 const CANCEL_REFUSAL_MESSAGES: Record<NonNullable<SessionOpenSale["cancel_refusal"]>, string> = {
-  mercado_pago_charge_in_progress: QR_CHARGE_IN_PROGRESS_MESSAGE,
+  mercado_pago_charge_in_progress:
+    "Hay un cobro con Mercado Pago en curso. Esperá a que termine para cancelar la venta.",
 };
 
 export type RefusedClose = Extract<
@@ -158,11 +162,13 @@ export function LockedCashCount({
 
   async function askToCancelOpenSale() {
     clearOutcome();
+    const cancelling = openSale?.has_approved_payment === true;
     const asked = openSale?.cancel_refusal === null ? openSale : await readOpenSale();
     if (asked === "unavailable") {
-      setFailure(CANCEL_FAILED);
+      setFailure(cancelling ? CANCEL_FAILED : EMPTY_FAILED);
     } else if (asked !== null && asked.cancel_refusal !== null) {
-      setFailure(CANCEL_REFUSAL_MESSAGES[asked.cancel_refusal]);
+      const refusals = cancelling ? CANCEL_REFUSAL_MESSAGES : EMPTY_REFUSAL_MESSAGES;
+      setFailure(refusals[asked.cancel_refusal]);
     } else if (asked !== null) {
       setConfirmingCancel(true);
     }
@@ -188,11 +194,11 @@ export function LockedCashCount({
       case "no_open_session":
         break;
       case "mercado_pago_charge_in_progress":
-        setFailure(CANCEL_REFUSAL_MESSAGES[outcome.kind]);
+        setFailure(EMPTY_REFUSAL_MESSAGES[outcome.kind]);
         break;
       case "unavailable":
       case "restoration_in_progress":
-        setFailure(CANCEL_FAILED);
+        setFailure(EMPTY_FAILED);
         break;
       default:
         onRefused(outcome);
@@ -222,7 +228,7 @@ export function LockedCashCount({
             icon={<ShoppingBasket />}
             title={`Hay una venta abierta de ${formatCents(openSale.total)}`}
             description={
-              openSale.paid > 0
+              openSale.has_approved_payment
                 ? "Cancelala para cerrar la caja."
                 : "Vaciá el carrito para cerrar la caja."
             }
@@ -233,7 +239,7 @@ export function LockedCashCount({
                 disabled={busy}
                 onPress={() => void askToCancelOpenSale()}
               >
-                {openSale.paid > 0 ? "Cancelar la venta" : "Vaciar carrito"}
+                {openSale.has_approved_payment ? "Cancelar la venta" : "Vaciar carrito"}
               </Button>
             }
           />

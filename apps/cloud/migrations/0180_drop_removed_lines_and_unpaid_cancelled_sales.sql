@@ -6,6 +6,7 @@ WHERE "sale"."state" = 'CANCELLED'
     SELECT 1 FROM "sale_payments" "payment"
     WHERE "payment"."sale_id" = "sale"."id" AND "payment"."state" = 'APPROVED'
   )
+  AND NOT EXISTS (SELECT 1 FROM "payment_refunds" "refund" WHERE "refund"."sale_id" = "sale"."id")
   AND NOT EXISTS (SELECT 1 FROM "returns" "sale_return" WHERE "sale_return"."sale_id" = "sale"."id")
   AND NOT EXISTS (SELECT 1 FROM "deferred_sales" "deferred" WHERE "deferred"."sale_id" = "sale"."id")
   AND NOT EXISTS (SELECT 1 FROM "offline_fiscal_documents" "document" WHERE "document"."sale_id" = "sale"."id")
@@ -20,7 +21,6 @@ WHERE "sale"."state" = 'CANCELLED'
         OR EXISTS (SELECT 1 FROM "return_lines" "returned" WHERE "returned"."sale_line_id" = "line"."id")
       )
   );--> statement-breakpoint
-DELETE FROM "payment_refunds" WHERE "sale_id" IN (SELECT "id" FROM "unpaid_cancelled_sales");--> statement-breakpoint
 DELETE FROM "sale_reprints" WHERE "sale_id" IN (SELECT "id" FROM "unpaid_cancelled_sales");--> statement-breakpoint
 DELETE FROM "sale_payments" WHERE "sale_id" IN (SELECT "id" FROM "unpaid_cancelled_sales");--> statement-breakpoint
 DELETE FROM "sale_lines" WHERE "sale_id" IN (SELECT "id" FROM "unpaid_cancelled_sales");--> statement-breakpoint

@@ -45,7 +45,7 @@ export const help = defineHelp("es-AR", {
     },
     "cancel-sale": {
       category: "sales",
-      title: "Cancelar una venta",
+      title: "Vaciar el carrito o cancelar una venta",
       body: [
         {
           kind: "steps",

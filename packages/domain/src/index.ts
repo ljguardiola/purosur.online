@@ -468,7 +468,6 @@ export {
   CONFIRMED_BY_HAND_METHODS,
   cancellableWithoutAuthorization,
   cashCharge,
-  hasApprovedPayment,
   isConfirmedByHand,
   isLateApproval,
   isPointTerminalId,
@@ -927,6 +926,7 @@ export type {
 export {
   amountToCharge,
   appliedSaleDiscountAmount,
+  cancelledBeforeCharge,
   grossSaleSubtotal,
   isDeferralPending,
   manualAdjustmentReason,
