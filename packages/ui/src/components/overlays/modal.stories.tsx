@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { AlertTriangle, CheckCircle, Info, XCircle } from "lucide-react";
-import { within } from "storybook/test";
+import { expect, userEvent, within } from "storybook/test";
 import {
   playHoverSetsDataHovered,
   playTabReachesFocusVisible,
@@ -116,4 +116,28 @@ export const CloseButtonHovered: Story = {
   play: playHoverSetsDataHovered(() =>
     within(document.body).getByRole("button", { name: "Cerrar" }),
   ),
+};
+
+export const ScrollingBody: Story = {
+  args: {
+    tone: "info",
+    icon: <Info />,
+    title: "Cambios de la compra",
+    children: (
+      <ul className="flex flex-col gap-2">
+        {Array.from(
+          { length: 30 },
+          (_, index) => `Cambio ${index + 1}: cantidad de Yerba mate 1 kg de 10 a 12`,
+        ).map((row) => (
+          <li key={row}>{row}</li>
+        ))}
+      </ul>
+    ),
+    footer: <Button>Entendido</Button>,
+  },
+  play: async () => {
+    const body = within(document.body).getByRole("region", { name: "Cambios de la compra" });
+    await userEvent.tab();
+    await expect(body).toHaveFocus();
+  },
 };

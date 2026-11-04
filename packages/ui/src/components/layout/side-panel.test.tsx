@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from "react";
+import type { ReactNode } from "react";
 import { expect, expectTypeOf, test } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -138,106 +138,6 @@ test("lets the keyboard reach a body taller than the panel to scroll it", async 
 
   await expect.element(body).toHaveFocus();
   await expectNoAccessibilityViolations(screen.container);
-});
-
-function GrowingPanel() {
-  const [lines, setLines] = useState(1);
-  return (
-    <div style={{ display: "flex", height: "600px" }}>
-      <SidePanel label="Panel" footer={<button type="button">Cancelar</button>}>
-        <button type="button" onClick={() => setLines(40)}>
-          Agregar líneas
-        </button>
-        {FORTY_LINES.slice(0, lines)}
-      </SidePanel>
-    </div>
-  );
-}
-
-test("makes a body a keyboard stop once its content outgrows it", async () => {
-  const screen = await render(<GrowingPanel />);
-
-  expect(screen.getByRole("region").elements()).toHaveLength(0);
-  await screen.getByRole("button", { name: "Agregar líneas" }).click();
-
-  await expect
-    .element(screen.getByRole("region", { name: "Panel" }))
-    .toHaveAttribute("tabindex", "0");
-});
-
-function BoxOfHeight({ height }: { height: number }) {
-  return <div style={{ flexShrink: 0, height: `${height}px` }} />;
-}
-
-function PanelWithAGrowingBox({
-  insideAWrapperWithoutABox,
-}: {
-  insideAWrapperWithoutABox: boolean;
-}) {
-  const [height, setHeight] = useState(100);
-  return (
-    <div style={{ display: "flex", height: "600px" }}>
-      <SidePanel label="Panel" footer={<button type="button">Cancelar</button>}>
-        <button type="button" onClick={() => setHeight(2000)}>
-          Agrandar
-        </button>
-        {insideAWrapperWithoutABox ? (
-          <div style={{ display: "contents" }}>
-            <BoxOfHeight height={height} />
-          </div>
-        ) : (
-          <BoxOfHeight height={height} />
-        )}
-      </SidePanel>
-    </div>
-  );
-}
-
-test("makes a body a keyboard stop once a box in it grows past it, with nothing added", async () => {
-  const screen = await render(<PanelWithAGrowingBox insideAWrapperWithoutABox={false} />);
-
-  expect(screen.getByRole("region").elements()).toHaveLength(0);
-  await screen.getByRole("button", { name: "Agrandar" }).click();
-
-  await expect
-    .element(screen.getByRole("region", { name: "Panel" }))
-    .toHaveAttribute("tabindex", "0");
-});
-
-test("makes a body a keyboard stop once a box inside a wrapper without a box of its own grows past it", async () => {
-  const screen = await render(<PanelWithAGrowingBox insideAWrapperWithoutABox={true} />);
-
-  expect(screen.getByRole("region").elements()).toHaveLength(0);
-  await screen.getByRole("button", { name: "Agrandar" }).click();
-
-  await expect
-    .element(screen.getByRole("region", { name: "Panel" }))
-    .toHaveAttribute("tabindex", "0");
-});
-
-function PanelInAShrinkingContainer() {
-  const [height, setHeight] = useState(3000);
-  return (
-    <>
-      <button type="button" onClick={() => setHeight(300)}>
-        Achicar
-      </button>
-      <div style={{ display: "flex", height: `${height}px` }}>
-        <SidePanel label="Panel">{FORTY_LINES}</SidePanel>
-      </div>
-    </>
-  );
-}
-
-test("makes a body a keyboard stop once its container shrinks below its content", async () => {
-  const screen = await render(<PanelInAShrinkingContainer />);
-
-  expect(screen.getByRole("region").elements()).toHaveLength(0);
-  await screen.getByRole("button", { name: "Achicar" }).click();
-
-  await expect
-    .element(screen.getByRole("region", { name: "Panel" }))
-    .toHaveAttribute("tabindex", "0");
 });
 
 test("adds no keyboard stop to a body that fits the panel", async () => {

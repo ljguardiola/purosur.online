@@ -6,6 +6,7 @@ import {
   type ReactNode,
   type RefObject,
   useEffect,
+  useId,
   useRef,
 } from "react";
 import { FocusScope, useFocusManager } from "react-aria";
@@ -18,6 +19,7 @@ import {
 import { Eyebrow } from "../layout/eyebrow";
 import { CloseButton } from "../shared/close-button";
 import { type Icon, iconSlotClassName } from "../shared/icon";
+import { useKeyboardScrollableRegion } from "../shared/keyboard-scrollable-region";
 import { moveFocus } from "../shared/moved-focus";
 import { type NoticeTone, type Tone, toneClassName } from "../shared/tone";
 
@@ -178,6 +180,17 @@ export function Modal(props: ModalProps) {
   } = props;
   const footerRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  const { observeOverflow, regionProps, focusClassName } = useKeyboardScrollableRegion(titleId);
+
+  function observeBody(body: HTMLDivElement | null) {
+    bodyRef.current = body;
+    const stopObserving = observeOverflow(body);
+    return () => {
+      stopObserving?.();
+      bodyRef.current = null;
+    };
+  }
 
   // Capturing, because react-aria's fields stop the keys they handle from bubbling; listening on the
   // body leaves the header's and footer's own buttons out. A field's list is portaled outside the
@@ -236,8 +249,12 @@ export function Modal(props: ModalProps) {
         >
           {props.headerLayout === "centered" ? (
             <div
-              ref={bodyRef}
-              className="flex min-h-0 flex-1 flex-col items-center gap-3 overflow-y-auto p-6"
+              ref={observeBody}
+              {...regionProps}
+              className={[
+                "flex min-h-0 flex-1 flex-col items-center gap-3 overflow-y-auto p-6",
+                focusClassName,
+              ].join(" ")}
               onKeyDownCapture={sendWithCtrlEnter}
             >
               <span
@@ -250,6 +267,7 @@ export function Modal(props: ModalProps) {
                 <span className={iconSlotClassName["3xl"]}>{icon}</span>
               </span>
               <AriaHeading
+                id={titleId}
                 slot="title"
                 className={["text-center text-title", toneClassName[tone].strongText].join(" ")}
               >
@@ -272,6 +290,7 @@ export function Modal(props: ModalProps) {
                 <div className="flex flex-1 flex-col gap-1">
                   {context ? <Eyebrow text={context} tone={contextTone} /> : null}
                   <AriaHeading
+                    id={titleId}
                     slot="title"
                     className={["text-title", toneClassName[tone].strongText].join(" ")}
                   >
@@ -282,9 +301,11 @@ export function Modal(props: ModalProps) {
               </div>
               {hasContent(children) && (
                 <div
-                  ref={bodyRef}
+                  ref={observeBody}
+                  {...regionProps}
                   className={[
                     "min-h-0 flex-1 overflow-y-auto",
+                    focusClassName,
                     // A column, so a caller's own regions can size themselves against it and
                     // scroll independently; without it, a percentage height inside resolves to
                     // auto and scrolls the whole body as one block.
