@@ -22,6 +22,7 @@ import { type Icon, iconSlotClassName } from "../shared/icon";
 import { useKeyboardScrollableRegion } from "../shared/keyboard-scrollable-region";
 import { moveFocus } from "../shared/moved-focus";
 import { type NoticeTone, type Tone, toneClassName } from "../shared/tone";
+import { type ModalPartFocus, ModalPartFocusContext } from "./modal-part";
 
 export type ModalWidth = "confirmation" | "standard" | "wide" | "editor";
 
@@ -77,7 +78,14 @@ function hasContent(node: ReactNode): boolean {
 
 type CtrlEnterEvent = Pick<
   KeyboardEvent,
-  "key" | "ctrlKey" | "altKey" | "shiftKey" | "metaKey" | "preventDefault" | "stopPropagation"
+  | "key"
+  | "ctrlKey"
+  | "altKey"
+  | "shiftKey"
+  | "metaKey"
+  | "target"
+  | "preventDefault"
+  | "stopPropagation"
 >;
 
 function isCtrlEnter(event: CtrlEnterEvent): boolean {
@@ -179,6 +187,10 @@ export function Modal(props: ModalProps) {
     footer,
   } = props;
   const footerRef = useRef<HTMLDivElement>(null);
+  const focusedPartRef = useRef<{ focused: EventTarget; action: HTMLElement } | null>(null);
+  const focusPart: ModalPartFocus = (focused, action) => {
+    focusedPartRef.current = { focused, action };
+  };
   const bodyRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const { observeOverflow, regionProps, focusClassName } = useKeyboardScrollableRegion(titleId);
@@ -208,7 +220,14 @@ export function Modal(props: ModalProps) {
     }
     event.preventDefault();
     event.stopPropagation();
-    ownFooter.querySelector<HTMLElement>('[data-variant="primary"]')?.click();
+    // A part's field, or its portaled list, is the element that took the focus last inside it; a
+    // focused element that left the document without a blur no longer counts.
+    const part = focusedPartRef.current;
+    const action =
+      part !== null && part.focused === event.target
+        ? part.action.querySelector<HTMLElement>("[data-variant]")
+        : ownFooter.querySelector<HTMLElement>('[data-variant="primary"]');
+    action?.click();
   }
 
   // The dialog itself holds the focus in a modal with no field, and before a field that loads late
@@ -227,108 +246,110 @@ export function Modal(props: ModalProps) {
   }
 
   return (
-    <AriaModalOverlay
-      isOpen={open}
-      onOpenChange={onOpenChange}
-      isDismissable={false}
-      isKeyboardDismissDisabled={!props.closable}
-      className="fixed inset-0 z-overlay flex items-center justify-center bg-backdrop"
-    >
-      <AriaModal
-        className={[
-          // The max sizes only clip, never stretch, so a panel that fits is unaffected; the
-          // backdrop centers the panel, so hitting a 24px cap leaves that clearance on both sides.
-          "flex max-h-modal max-w-modal shrink-0 flex-col rounded-xl bg-surface",
-          "shadow-xl",
-          widthClassName[width],
-        ].join(" ")}
+    <ModalPartFocusContext value={focusPart}>
+      <AriaModalOverlay
+        isOpen={open}
+        onOpenChange={onOpenChange}
+        isDismissable={false}
+        isKeyboardDismissDisabled={!props.closable}
+        className="fixed inset-0 z-overlay flex items-center justify-center bg-backdrop"
       >
-        <AriaDialog
-          ref={listenToCtrlEnterOnDialog}
-          className="flex min-h-0 flex-1 flex-col outline-none"
+        <AriaModal
+          className={[
+            // The max sizes only clip, never stretch, so a panel that fits is unaffected; the
+            // backdrop centers the panel, so hitting a 24px cap leaves that clearance on both sides.
+            "flex max-h-modal max-w-modal shrink-0 flex-col rounded-xl bg-surface",
+            "shadow-xl",
+            widthClassName[width],
+          ].join(" ")}
         >
-          {props.headerLayout === "centered" ? (
-            <div
-              ref={observeBody}
-              {...regionProps}
-              className={[
-                "flex min-h-0 flex-1 flex-col items-center gap-3 overflow-y-auto p-6",
-                focusClassName,
-              ].join(" ")}
-              onKeyDownCapture={sendWithCtrlEnter}
-            >
-              <span
-                aria-hidden="true"
+          <AriaDialog
+            ref={listenToCtrlEnterOnDialog}
+            className="flex min-h-0 flex-1 flex-col outline-none"
+          >
+            {props.headerLayout === "centered" ? (
+              <div
+                ref={observeBody}
+                {...regionProps}
                 className={[
-                  "flex size-14 shrink-0 items-center justify-center rounded-full",
-                  toneClassName[tone].surface,
+                  "flex min-h-0 flex-1 flex-col items-center gap-3 overflow-y-auto p-6",
+                  focusClassName,
                 ].join(" ")}
+                onKeyDownCapture={sendWithCtrlEnter}
               >
-                <span className={iconSlotClassName["3xl"]}>{icon}</span>
-              </span>
-              <AriaHeading
-                id={titleId}
-                slot="title"
-                className={["text-center text-title", toneClassName[tone].strongText].join(" ")}
-              >
-                {title}
-              </AriaHeading>
-              <FieldFocusingContent bodyRef={bodyRef}>{children}</FieldFocusingContent>
-            </div>
-          ) : (
-            <>
-              <div className="flex shrink-0 items-center gap-4 border-b border-border pt-4 pr-4 pb-4 pl-6">
                 <span
                   aria-hidden="true"
                   className={[
-                    "flex size-12 shrink-0 items-center justify-center rounded-xl",
+                    "flex size-14 shrink-0 items-center justify-center rounded-full",
                     toneClassName[tone].surface,
                   ].join(" ")}
                 >
-                  <span className={iconSlotClassName.xl}>{icon}</span>
+                  <span className={iconSlotClassName["3xl"]}>{icon}</span>
                 </span>
-                <div className="flex flex-1 flex-col gap-1">
-                  {context ? <Eyebrow text={context} tone={contextTone} /> : null}
-                  <AriaHeading
-                    id={titleId}
-                    slot="title"
-                    className={["text-title", toneClassName[tone].strongText].join(" ")}
-                  >
-                    {title}
-                  </AriaHeading>
-                </div>
-                {props.closable ? <CloseButton onPress={() => onOpenChange(false)} /> : null}
-              </div>
-              {hasContent(children) && (
-                <div
-                  ref={observeBody}
-                  {...regionProps}
-                  className={[
-                    "min-h-0 flex-1 overflow-y-auto",
-                    focusClassName,
-                    // A column, so a caller's own regions can size themselves against it and
-                    // scroll independently; without it, a percentage height inside resolves to
-                    // auto and scrolls the whole body as one block.
-                    bodyPadding === "none" ? "flex flex-col" : "p-6",
-                  ].join(" ")}
-                  onKeyDownCapture={sendWithCtrlEnter}
+                <AriaHeading
+                  id={titleId}
+                  slot="title"
+                  className={["text-center text-title", toneClassName[tone].strongText].join(" ")}
                 >
-                  <FieldFocusingContent bodyRef={bodyRef}>{children}</FieldFocusingContent>
+                  {title}
+                </AriaHeading>
+                <FieldFocusingContent bodyRef={bodyRef}>{children}</FieldFocusingContent>
+              </div>
+            ) : (
+              <>
+                <div className="flex shrink-0 items-center gap-4 border-b border-border pt-4 pr-4 pb-4 pl-6">
+                  <span
+                    aria-hidden="true"
+                    className={[
+                      "flex size-12 shrink-0 items-center justify-center rounded-xl",
+                      toneClassName[tone].surface,
+                    ].join(" ")}
+                  >
+                    <span className={iconSlotClassName.xl}>{icon}</span>
+                  </span>
+                  <div className="flex flex-1 flex-col gap-1">
+                    {context ? <Eyebrow text={context} tone={contextTone} /> : null}
+                    <AriaHeading
+                      id={titleId}
+                      slot="title"
+                      className={["text-title", toneClassName[tone].strongText].join(" ")}
+                    >
+                      {title}
+                    </AriaHeading>
+                  </div>
+                  {props.closable ? <CloseButton onPress={() => onOpenChange(false)} /> : null}
                 </div>
-              )}
-            </>
-          )}
-          {/* The footer repeats the panel's bottom radius: its bone fill would otherwise paint
+                {hasContent(children) && (
+                  <div
+                    ref={observeBody}
+                    {...regionProps}
+                    className={[
+                      "min-h-0 flex-1 overflow-y-auto",
+                      focusClassName,
+                      // A column, so a caller's own regions can size themselves against it and
+                      // scroll independently; without it, a percentage height inside resolves to
+                      // auto and scrolls the whole body as one block.
+                      bodyPadding === "none" ? "flex flex-col" : "p-6",
+                    ].join(" ")}
+                    onKeyDownCapture={sendWithCtrlEnter}
+                  >
+                    <FieldFocusingContent bodyRef={bodyRef}>{children}</FieldFocusingContent>
+                  </div>
+                )}
+              </>
+            )}
+            {/* The footer repeats the panel's bottom radius: its bone fill would otherwise paint
               square corners over the panel's rounded ones. */}
-          <div
-            ref={footerRef}
-            data-modal-footer
-            className="flex shrink-0 items-center gap-3 rounded-b-xl border-t border-border bg-surface-subtle py-4 px-6"
-          >
-            {footer}
-          </div>
-        </AriaDialog>
-      </AriaModal>
-    </AriaModalOverlay>
+            <div
+              ref={footerRef}
+              data-modal-footer
+              className="flex shrink-0 items-center gap-3 rounded-b-xl border-t border-border bg-surface-subtle py-4 px-6"
+            >
+              {footer}
+            </div>
+          </AriaDialog>
+        </AriaModal>
+      </AriaModalOverlay>
+    </ModalPartFocusContext>
   );
 }
