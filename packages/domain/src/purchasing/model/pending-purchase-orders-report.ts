@@ -2,18 +2,16 @@ import { compareCodeUnits } from "../../shared/index.js";
 import {
   expectedOrderTotal,
   type PricedOrderLine,
-  type PurchaseOrderState,
+  type ReceivablePurchaseOrderState,
 } from "./purchase-order.js";
 
 export const PENDING_PURCHASE_ORDERS_DEFAULT_DAYS = 30;
-
-type PendingPurchaseOrderState = Extract<PurchaseOrderState, "SENT" | "PARTIALLY_RECEIVED">;
 
 export interface PendingPurchaseOrderRow {
   orderId: string;
   supplierId: string;
   supplierName: string;
-  state: PendingPurchaseOrderState;
+  state: ReceivablePurchaseOrderState;
   sentAt: Date;
   lines: readonly PricedOrderLine[];
 }
@@ -21,7 +19,7 @@ export interface PendingPurchaseOrderRow {
 interface PendingPurchaseOrder {
   id: string;
   supplier: { id: string; name: string };
-  state: PendingPurchaseOrderState;
+  state: ReceivablePurchaseOrderState;
   sentAt: Date;
   lineCount: number;
   expectedTotalCents: number;

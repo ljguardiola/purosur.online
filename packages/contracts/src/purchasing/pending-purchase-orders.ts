@@ -1,4 +1,8 @@
-import { ARGENTINA_TIME_ZONE, isReportPeriodAsked, PURCHASE_ORDER_STATES } from "@purosur/domain";
+import {
+  ARGENTINA_TIME_ZONE,
+  isReportPeriodAsked,
+  RECEIVABLE_PURCHASE_ORDER_STATES,
+} from "@purosur/domain";
 import { z } from "zod";
 import { answeredRangeSchema, recordIdSchema } from "../shared/index.js";
 
@@ -14,7 +18,7 @@ export type PendingPurchaseOrdersQuery = z.output<typeof pendingPurchaseOrdersQu
 const orderSchema = z.object({
   id: recordIdSchema(),
   supplier: z.object({ id: recordIdSchema(), name: z.string() }),
-  state: z.enum(PURCHASE_ORDER_STATES).extract(["SENT", "PARTIALLY_RECEIVED"]),
+  state: z.enum(RECEIVABLE_PURCHASE_ORDER_STATES),
   sent_at: z.iso.datetime().meta({ timeZone: ARGENTINA_TIME_ZONE }),
   line_count: z.int().nonnegative(),
   expected_total_cents: z.int().nonnegative(),

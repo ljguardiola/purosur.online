@@ -1,9 +1,10 @@
 import {
+  argentinaCalendarDay,
   type Clock,
   type ReportPeriod,
-  trailingReportPeriod,
   type ZoneRulesSource,
 } from "../../shared/index.js";
+import { daysEndingOn } from "../model/days-ending-on.js";
 import {
   PENDING_PURCHASE_ORDERS_DEFAULT_DAYS,
   type PendingPurchaseOrders,
@@ -31,9 +32,8 @@ export async function readPendingPurchaseOrders(
   const range =
     from !== undefined && to !== undefined
       ? { from, to }
-      : trailingReportPeriod(
-          clock.now(),
-          zoneRules.zoneRules(),
+      : daysEndingOn(
+          argentinaCalendarDay(clock.now(), zoneRules.zoneRules()),
           PENDING_PURCHASE_ORDERS_DEFAULT_DAYS,
         );
   const rows = await reader.ordersPendingReceipt({ locationId, range });

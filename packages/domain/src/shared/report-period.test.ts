@@ -1,12 +1,5 @@
-import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { shiftCalendarDay } from "./calendar-day.js";
-import {
-  defaultReportPeriod,
-  isReportPeriodAsked,
-  reportPeriodOf,
-  trailingReportPeriod,
-} from "./report-period.js";
+import { defaultReportPeriod, isReportPeriodAsked, reportPeriodOf } from "./report-period.js";
 import { fixedOffsetZoneRules } from "./test-support/fake-zone-rules-source.js";
 import { FIXED_ARGENTINA_ZONE_RULES } from "./zone-rules.js";
 
@@ -124,68 +117,5 @@ describe("report periods under given rules", () => {
     expect(
       reportPeriodOf({ from: undefined, to: undefined }, lateEvening, fixedOffsetZoneRules(0)),
     ).toEqual({ from: "2026-10-07", to: "2026-10-07" });
-  });
-});
-
-describe("trailingReportPeriod", () => {
-  const now = new Date("2026-10-06T15:00:00.000Z");
-
-  it("ends on the current Argentina day and starts the given number of days back, inclusive", () => {
-    expect(trailingReportPeriod(now, FIXED_ARGENTINA_ZONE_RULES, 30)).toEqual({
-      from: "2026-09-07",
-      to: "2026-10-06",
-    });
-  });
-
-  it("is the current day alone for a single day", () => {
-    expect(trailingReportPeriod(now, FIXED_ARGENTINA_ZONE_RULES, 1)).toEqual({
-      from: "2026-10-06",
-      to: "2026-10-06",
-    });
-  });
-
-  it("ends on the previous day after midnight UTC, until midnight in Argentina", () => {
-    expect(
-      trailingReportPeriod(new Date("2026-10-07T02:59:00.000Z"), FIXED_ARGENTINA_ZONE_RULES, 3),
-    ).toEqual({ from: "2026-10-04", to: "2026-10-06" });
-  });
-
-  it("takes the current day from the offset the rules give", () => {
-    const lateEvening = new Date("2026-10-07T01:30:00.000Z");
-
-    expect(trailingReportPeriod(lateEvening, fixedOffsetZoneRules(0), 2)).toEqual({
-      from: "2026-10-06",
-      to: "2026-10-07",
-    });
-  });
-
-  it.each([
-    ["2026-03-02T15:00:00.000Z", 3, "2026-02-28"],
-    ["2028-03-02T15:00:00.000Z", 3, "2028-02-29"],
-    ["2027-01-02T15:00:00.000Z", 3, "2026-12-31"],
-    ["2026-10-31T15:00:00.000Z", 31, "2026-10-01"],
-  ])("crosses month, year and leap day boundaries (%s, %i days)", (instant, days, from) => {
-    expect(trailingReportPeriod(new Date(instant), FIXED_ARGENTINA_ZONE_RULES, days).from).toBe(
-      from,
-    );
-  });
-
-  it("spans exactly the given number of calendar days", () => {
-    fc.assert(
-      fc.property(
-        fc.date({
-          min: new Date("2000-01-01T00:00:00Z"),
-          max: new Date("2100-01-01T00:00:00Z"),
-          noInvalidDate: true,
-        }),
-        fc.integer({ min: 1, max: 400 }),
-        (instant, days) => {
-          const { from, to } = trailingReportPeriod(instant, FIXED_ARGENTINA_ZONE_RULES, days);
-
-          expect(shiftCalendarDay(from, days - 1)).toBe(to);
-          expect(to).toBe(defaultReportPeriod(instant, FIXED_ARGENTINA_ZONE_RULES).to);
-        },
-      ),
-    );
   });
 });

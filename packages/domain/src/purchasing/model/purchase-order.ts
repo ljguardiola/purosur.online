@@ -8,6 +8,13 @@ export const PURCHASE_ORDER_STATES = [
 
 export type PurchaseOrderState = (typeof PURCHASE_ORDER_STATES)[number];
 
+export const RECEIVABLE_PURCHASE_ORDER_STATES = [
+  "SENT",
+  "PARTIALLY_RECEIVED",
+] as const satisfies readonly PurchaseOrderState[];
+
+export type ReceivablePurchaseOrderState = (typeof RECEIVABLE_PURCHASE_ORDER_STATES)[number];
+
 export function mayBeEdited(state: PurchaseOrderState): boolean {
   return state === "DRAFT";
 }
@@ -25,7 +32,7 @@ export function mayBeCancelled(state: PurchaseOrderState): boolean {
 }
 
 export function mayBeReceived(state: PurchaseOrderState): boolean {
-  return state === "SENT" || state === "PARTIALLY_RECEIVED";
+  return RECEIVABLE_PURCHASE_ORDER_STATES.some((receivable) => receivable === state);
 }
 
 export interface PricedOrderLine {

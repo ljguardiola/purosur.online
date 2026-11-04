@@ -18,15 +18,16 @@ import { ReportFilters } from "../shell/report-filters";
 import type { ReportPeriodFilters } from "../shell/report-filters-search";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTopBar } from "../shell/screen-top-bar";
-import { ExpectedTotalAmount } from "./expected-total-amount";
 import type { PendingPurchaseOrdersReportScreenServices } from "./pending-purchase-orders-report-services";
 import { pendingPurchaseOrdersReportSpreadsheet } from "./pending-purchase-orders-report-spreadsheet";
-import { formatPurchaseOrderSentDay } from "./purchase-order-created-day";
+import { formatPurchaseOrderSentDay } from "./purchase-order-day";
 import { purchaseOrderStatusOf } from "./purchase-order-status";
 import { usePendingPurchaseOrdersReportQuery } from "./purchasing-queries";
+import { ExpectedTotalAmount } from "./purchasing-screen-parts";
 
 export type PendingPurchaseOrdersReportScreenProps = {
   filters: ReportPeriodFilters;
+  mayOpenOrders: boolean;
   onFiltersChange: (filters: ReportPeriodFilters) => void;
   onOpenOrder: (orderId: string) => void;
   onSessionEnded: () => void;
@@ -41,6 +42,7 @@ const NO_ORDERS: PendingOrder[] = [];
 
 export function PendingPurchaseOrdersReportScreen({
   filters,
+  mayOpenOrders,
   onFiltersChange,
   onOpenOrder,
   onSessionEnded,
@@ -52,7 +54,7 @@ export function PendingPurchaseOrdersReportScreen({
     onSessionEnded,
   });
   const shown = data.status === "loaded" ? data.value : data.lastValue;
-  const columns = [
+  const dataColumns = [
     dataColumn({
       id: "supplier",
       header: "Proveedor",
@@ -88,18 +90,19 @@ export function PendingPurchaseOrdersReportScreen({
         />
       ),
     }),
-    actionsColumn({
-      id: "actions",
-      header: "Acciones",
-      actions: [
-        (order: PendingOrder) => ({
-          icon: <Eye />,
-          "aria-label": `Abrir el pedido de ${order.supplier.name}`,
-          onPress: () => onOpenOrder(order.id),
-        }),
-      ],
-    }),
   ] as const;
+  const openOrderColumn = actionsColumn({
+    id: "actions",
+    header: "Acciones",
+    actions: [
+      (order: PendingOrder) => ({
+        icon: <Eye />,
+        "aria-label": `Abrir el pedido de ${order.supplier.name}`,
+        onPress: () => onOpenOrder(order.id),
+      }),
+    ],
+  });
+  const columns = mayOpenOrders ? ([...dataColumns, openOrderColumn] as const) : dataColumns;
   const table = useTableModel({
     items: shown?.orders ?? NO_ORDERS,
     id: (order) => order.id,

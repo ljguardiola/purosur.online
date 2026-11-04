@@ -15,12 +15,12 @@ import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { AreaTopBar } from "../shell/area-top-bar";
 import { ScreenLayout } from "../shell/screen-layout";
-import { ExpectedTotalAmount } from "./expected-total-amount";
-import { formatPurchaseOrderCreatedDay } from "./purchase-order-created-day";
+import { formatPurchaseOrderCreatedDay } from "./purchase-order-day";
 import { purchaseOrderStatusOf } from "./purchase-order-status";
 import type { PurchaseOrdersFilters } from "./purchase-orders-filters";
 import type { PurchaseOrdersScreenServices } from "./purchase-orders-services";
 import { usePurchaseOrdersQuery } from "./purchasing-queries";
+import { ExpectedTotalAmount } from "./purchasing-screen-parts";
 
 export type PurchaseOrdersScreenProps = {
   filters: PurchaseOrdersFilters;

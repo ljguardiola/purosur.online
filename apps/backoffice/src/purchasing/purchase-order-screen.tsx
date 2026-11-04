@@ -29,7 +29,7 @@ import {
 } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { CancelPurchaseOrderModal } from "./cancel-purchase-order-modal";
-import { formatPurchaseOrderCreatedDay } from "./purchase-order-created-day";
+import { formatPurchaseOrderCreatedDay } from "./purchase-order-day";
 import { PurchaseOrderDraftForm } from "./purchase-order-draft-form";
 import { PurchaseOrderReceipts } from "./purchase-order-receipts";
 import type { PurchaseOrderScreenServices } from "./purchase-order-services";

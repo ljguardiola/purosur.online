@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import { render } from "vitest-browser-react";
-import { ExpectedTotalAmount } from "./expected-total-amount";
+import { ExpectedTotalAmount } from "./purchasing-screen-parts";
 
 test("shows the amount in pesos", async () => {
   const screen = await render(<ExpectedTotalAmount cents={555_000} hasUnpricedLine={false} />);
