@@ -173,6 +173,9 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     purchasesReportScreen: {
       fetchPurchasesReport: vi.fn().mockReturnValue(new Promise(() => {})),
     },
+    pendingPurchaseOrdersReportScreen: {
+      fetchPendingPurchaseOrdersReport: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
     aiCostReportScreen: {
       fetchAiCostReport: vi.fn().mockReturnValue(new Promise(() => {})),
     },
