@@ -8,7 +8,7 @@ import {
   Table,
   useTableModel,
 } from "@purosur/ui";
-import { Check, CircleX, HandCoins, Send, TriangleAlert } from "lucide-react";
+import { Check, CircleX, HandCoins, Landmark, Send, TriangleAlert } from "lucide-react";
 import { useRef, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { ScreenLayout } from "../shell/screen-layout";
@@ -30,6 +30,7 @@ import { refundConfirmationNotice } from "./refund-confirmation-notice";
 import { sentToMercadoPago } from "./refund-kinds";
 import { ALL_REGISTERS, type MercadoPagoRefundsFilters } from "./routes";
 import { SendRefundModal } from "./send-refund-modal";
+import { TransferRefundModal } from "./transfer-refund-modal";
 
 export type MercadoPagoRefundsScreenProps = {
   filters: MercadoPagoRefundsFilters;
@@ -59,6 +60,7 @@ export function MercadoPagoRefundsScreen({
   });
   const refreshPayments = useRefreshPayments();
   const [discardTarget, setDiscardTarget] = useState<PendingRefund | null>(null);
+  const [transferTarget, setTransferTarget] = useState<PendingRefund | null>(null);
   const [sendTarget, setSendTarget] = useState<PendingRefund | null>(null);
   const [notice, setNotice] = useState<ScreenNotice | null>(null);
   const lastNoticeId = useRef(0);
@@ -92,6 +94,14 @@ export function MercadoPagoRefundsScreen({
                 icon: <Send />,
                 "aria-label": `Enviar a Mercado Pago el reembolso de ${formatCents(refund.amount)}`,
                 onPress: () => setSendTarget(refund),
+              }
+            : undefined,
+        (refund: PendingRefund) =>
+          refund.transferable
+            ? {
+                icon: <Landmark />,
+                "aria-label": `Registrar la devolución por transferencia del reembolso de ${formatCents(refund.amount)}`,
+                onPress: () => setTransferTarget(refund),
               }
             : undefined,
         (refund: PendingRefund) =>
@@ -160,6 +170,16 @@ export function MercadoPagoRefundsScreen({
         }}
         onOutdated={() => {
           setSendTarget(null);
+          void refreshPayments();
+        }}
+        onSessionEnded={onSessionEnded}
+        services={services}
+      />
+      <TransferRefundModal
+        target={transferTarget}
+        onClose={() => setTransferTarget(null)}
+        onDone={() => {
+          setTransferTarget(null);
           void refreshPayments();
         }}
         onSessionEnded={onSessionEnded}
