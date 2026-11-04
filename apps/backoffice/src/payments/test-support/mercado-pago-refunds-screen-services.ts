@@ -6,5 +6,6 @@ export function createMercadoPagoRefundsServices(): MercadoPagoRefundsScreenServ
     fetchPendingRefunds: vi.fn(),
     confirmRefund: vi.fn(),
     discardRefund: vi.fn(),
+    recordRefundTransfer: vi.fn(),
   };
 }

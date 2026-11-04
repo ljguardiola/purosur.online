@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { confirmRefund, discardRefund, fetchPendingRefunds, markRefundDone } from "./refunds-api";
+import {
+  confirmRefund,
+  discardRefund,
+  fetchPendingRefunds,
+  markRefundDone,
+  recordRefundTransfer,
+} from "./refunds-api";
 import {
   CLOUD_SENT_REFUND_ID,
   LATE_PAYMENT_REFUND_ID,
@@ -157,6 +163,65 @@ describe("discardRefund", () => {
     vi.mocked(fetch).mockRejectedValue(new Error("network down"));
 
     expect(await discardRefund(LATE_PAYMENT_REFUND_ID)).toEqual({ kind: "failed" });
+  });
+});
+
+describe("recordRefundTransfer", () => {
+  const done = { refund_id: CLOUD_SENT_REFUND_ID, done_at: "2026-10-08T14:00:00.000Z" };
+  const transfer = { kind: "bank", operation_number: "00123456" } as const;
+
+  test("posts the transfer of the refund and answers ok", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, done));
+
+    expect(await recordRefundTransfer(CLOUD_SENT_REFUND_ID, transfer)).toEqual({ kind: "ok" });
+    expect(fetch).toHaveBeenCalledWith(`/api/refunds/${CLOUD_SENT_REFUND_ID}/transfer`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(transfer),
+    });
+  });
+
+  test("treats a success body that does not match as failed", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { refund_id: "refund-1" }));
+
+    expect(await recordRefundTransfer(CLOUD_SENT_REFUND_ID, transfer)).toEqual({ kind: "failed" });
+  });
+
+  test.each([
+    [404, undefined, { kind: "not_found" }],
+    [409, { code: "refund_discarded" }, { kind: "discarded" }],
+    [409, { code: "already_done" }, { kind: "already_done" }],
+    [409, { code: "refund_not_refused_for_good" }, { kind: "not_refused_for_good" }],
+    [409, { code: "something_else" }, { kind: "failed" }],
+    [409, undefined, { kind: "failed" }],
+    [
+      400,
+      { code: "validation_failed", details: [{ field: "operation_number" }] },
+      { kind: "validation_failed", field: "operation_number" },
+    ],
+    [400, undefined, { kind: "failed" }],
+    [401, undefined, { kind: "unauthenticated" }],
+    [403, undefined, { kind: "forbidden" }],
+    [500, undefined, { kind: "failed" }],
+  ])("answers %i with %j as %j", async (status, body, outcome) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(status, body));
+
+    expect(await recordRefundTransfer(CLOUD_SENT_REFUND_ID, transfer)).toEqual(outcome);
+  });
+
+  test("reads the retry time of a rate-limited response", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "30" }));
+
+    expect(await recordRefundTransfer(CLOUD_SENT_REFUND_ID, transfer)).toEqual({
+      kind: "rate_limited",
+      retryAfterSeconds: 30,
+    });
+  });
+
+  test("answers failed when the request cannot be sent", async () => {
+    vi.mocked(fetch).mockRejectedValue(new Error("network down"));
+
+    expect(await recordRefundTransfer(CLOUD_SENT_REFUND_ID, transfer)).toEqual({ kind: "failed" });
   });
 });
 
