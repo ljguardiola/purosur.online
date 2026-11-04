@@ -129,7 +129,12 @@ test("shows each supplier and month with the net price difference and no quantit
   const screen = await renderScreen(createServices());
 
   const table = differencesTable(screen);
-  for (const name of ["Proveedor, mes y producto", "Recibido", "Faltante", "Diferencia de precio"]) {
+  for (const name of [
+    "Proveedor, mes y producto",
+    "Recibido",
+    "Faltante",
+    "Diferencia de precio",
+  ]) {
     await expect.element(table.getByRole("columnheader", { name })).toBeVisible();
   }
   const andina = table.getByRole("row", { name: /^Distribuidora Andina/ });
