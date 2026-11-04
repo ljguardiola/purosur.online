@@ -6,7 +6,7 @@ import {
   receiptDifferencesReport,
 } from "./test-support/receipt-differences-report-fixtures";
 
-test("has a Resumen sheet with the period and the figures the screen shows", () => {
+test("has a Resumen sheet with the period, the figures the screen shows and how many suppliers had a difference", () => {
   const [summary] = receiptDifferencesReportSpreadsheet(receiptDifferencesReport).sheets;
 
   expect(summary).toEqual({

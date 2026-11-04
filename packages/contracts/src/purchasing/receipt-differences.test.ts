@@ -38,7 +38,7 @@ describe("receiptDifferencesSchema", () => {
     product: {
       id: "p-1",
       name: "Yerba mate",
-      brandName: "Taragui",
+      brandName: "Piragüé",
       netContent: { quantity: 500, unit: "G" },
       saleUnit: "UNIT",
     },

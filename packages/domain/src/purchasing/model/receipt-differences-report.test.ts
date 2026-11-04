@@ -52,6 +52,7 @@ describe("receiptDifferences", () => {
                 receiptId: "receipt-7",
                 orderId: "order-3",
                 receivedOn: "2026-10-05",
+                receivedAt: row.receivedAt,
                 product: row.product,
                 receivedQuantity: 6_000,
                 missingQuantity: 4_000,
@@ -145,7 +146,27 @@ describe("receiptDifferences", () => {
     expect(months?.[0]?.lines.map(({ receiptId }) => receiptId)).toEqual(["oct2", "oct"]);
   });
 
-  it("orders lines of the same day by receipt and then by product", () => {
+  it("orders lines of the same day by when their receipt was received, whatever its id", () => {
+    const report = receiptDifferences([
+      aReceiptLineRow({
+        receiptId: "r1",
+        receivedAt: new Date("2026-10-01T18:00:00.000Z"),
+        ...short,
+      }),
+      aReceiptLineRow({
+        receiptId: "r2",
+        receivedAt: new Date("2026-10-01T13:00:00.000Z"),
+        ...short,
+      }),
+    ]);
+
+    expect(report.suppliers[0]?.months[0]?.lines.map(({ receiptId }) => receiptId)).toEqual([
+      "r2",
+      "r1",
+    ]);
+  });
+
+  it("orders lines received at the same instant by receipt and then by product", () => {
     const productOf = (id: string) => ({ ...aReceiptLineRow().product, id });
     const report = receiptDifferences([
       aReceiptLineRow({ receiptId: "r2", product: productOf("p1"), ...short }),

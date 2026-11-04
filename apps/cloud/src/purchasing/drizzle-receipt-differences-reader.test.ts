@@ -32,7 +32,7 @@ async function setUp() {
   const { userId: actorId, locationId } = await signedInWith(db, [], NOW);
   const { productId } = await insertProduct(db, {
     name: "Yerba mate",
-    brandName: "Taragui",
+    brandName: "Piragüé",
     netContent: { quantity: 500, unit: "G" },
   });
   const supplierId = await insertSupplier(db, { actorId, name: "Distribuidora Sur" });
@@ -60,10 +60,11 @@ describe("DrizzleReceiptDifferencesReader.receiptLines", () => {
         supplierId: context.supplierId,
         supplierName: "Distribuidora Sur",
         receivedOn: "2026-10-12",
+        receivedAt: new Date("2026-10-12T15:00:00.000Z"),
         product: {
           id: context.productId,
           name: "Yerba mate",
-          brandName: "Taragui",
+          brandName: "Piragüé",
           netContent: { quantity: 500, unit: "G" },
           saleUnit: "UNIT",
         },

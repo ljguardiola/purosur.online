@@ -21,6 +21,7 @@ const OCTOBER = "?from=2026-10-01&to=2026-10-31";
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
 let app: FastifyInstance;
+let now: Date;
 
 beforeAll(async () => {
   testDatabase = await buildTestDatabase();
@@ -34,11 +35,12 @@ afterAll(async () => {
 beforeEach(async () => {
   await testDatabase.clear();
   app = Fastify();
+  now = NOW;
   const options = {
     zoneRules: fixedZoneRulesSource(),
     db,
     backofficeOrigin: BACKOFFICE_ORIGIN,
-    now: () => NOW,
+    now: () => now,
   };
   registerReceiptDifferencesReportRoute(app, options);
   registerPurchaseOrderReceiptsRoutes(app, options);
@@ -58,6 +60,7 @@ function receive(
   productId: string,
   packages: number,
 ) {
+  now = new Date(now.getTime() + 60_000);
   return app.inject({
     method: "POST",
     url: `/purchase-orders/${orderId}/receipts`,
