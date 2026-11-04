@@ -926,6 +926,30 @@ describe("SaleCompletedModal asking whether to print the customer's ticket", () 
     },
   );
 
+  it("focuses Sí again after an answer that was not sent, so Enter retries it", async () => {
+    const outcomes: AnswerReceiptQuestionOutcome[] = [
+      { kind: "unavailable" },
+      { kind: "printing" },
+    ];
+    const { screen, answerReceiptQuestion } = await renderModal(CASH, {
+      readReceiptStatus: awaiting,
+      answerReceiptQuestion: async () => outcomes.shift() ?? { kind: "printing" },
+    });
+    await expect.element(screen.getByRole("button", { name: "Sí" })).toHaveFocus();
+
+    await userEvent.keyboard("{Enter}");
+    await expectAlertText(screen, "No se pudo enviar la respuesta. Probá de nuevo.");
+    await expect.element(screen.getByRole("button", { name: "Sí" })).toHaveFocus();
+    await userEvent.keyboard("{Enter}");
+
+    await expect
+      .poll(() => answerReceiptQuestion.mock.calls)
+      .toEqual([
+        ["sale-1", true],
+        ["sale-1", true],
+      ]);
+  });
+
   it("tells the cashier the answer was not sent when the request itself fails", async () => {
     const { screen } = await renderModal(CASH, {
       readReceiptStatus: awaiting,
