@@ -1,4 +1,5 @@
 import type {
+  AnswerReceiptQuestionOutcome,
   ReadContingencyBackupTicketOfSaleOutcome,
   ReadContingencyBackupTicketsOutcome,
   ReceiptPrintStatusOutcome,
@@ -16,10 +17,12 @@ import {
 } from "@purosur/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowRight, CircleCheck, Plus, Printer, TriangleAlert, Undo2 } from "lucide-react";
+import { useEffect } from "react";
 import { pointCardName } from "../platform/payment-method-names";
 import { backupPrinterState } from "../shell/contingency-backup-printer-failure-text";
 import type { ReceiptPrintStatus } from "./sales-queries";
 import {
+  useAnswerReceiptQuestionMutation,
   useBackupPrinterFailureQuery,
   useBackupTicketOfSaleQuery,
   useReceiptPrintStatusQuery,
@@ -69,7 +72,14 @@ const FAILURES: Record<FailedStanding, FailurePresentation> = {
 
 function failedStandingOf(status: ReceiptPrintStatus): FailedStanding | undefined {
   const { standing, printed } = status;
-  if (printed || standing === null || standing === "printing" || standing === "printed") {
+  if (
+    printed ||
+    standing === null ||
+    standing === "printing" ||
+    standing === "printed" ||
+    standing === "awaiting_answer" ||
+    standing === "declined"
+  ) {
     return undefined;
   }
   return standing;
@@ -78,6 +88,14 @@ function failedStandingOf(status: ReceiptPrintStatus): FailedStanding | undefine
 function receiptRowValue(receipt: ReturnType<typeof useReceiptPrintStatusQuery>): string {
   if (receipt.status === "failed") {
     return "No se pudo leer el estado";
+  }
+  if (receipt.status === "loaded" && !receipt.value.printed) {
+    if (receipt.value.standing === "declined") {
+      return "No impreso";
+    }
+    if (receipt.value.standing === "awaiting_answer") {
+      return "Esperando respuesta";
+    }
   }
   return receipt.status === "loaded" && receipt.value.printed ? "Impreso" : "Imprimiendo";
 }
@@ -126,6 +144,7 @@ export type SaleCompletedModalProps = {
   saleId: string;
   total: number;
   readReceiptStatus: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
+  answerReceiptQuestion: (saleId: string, print: boolean) => Promise<AnswerReceiptQuestionOutcome>;
   readBackupTicket: (saleId: string) => Promise<ReadContingencyBackupTicketOfSaleOutcome>;
   readBackupTickets: () => Promise<ReadContingencyBackupTicketsOutcome>;
   mayChangePrinter: boolean;
@@ -148,6 +167,7 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
     saleId,
     total,
     readReceiptStatus,
+    answerReceiptQuestion,
     readBackupTicket,
     readBackupTickets,
     mayChangePrinter,
@@ -157,6 +177,16 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
   const change = "change" in props ? props.change : 0;
   const surplusRefund = "surplusRefund" in props ? props.surplusRefund : undefined;
   const receipt = useReceiptPrintStatusQuery({ saleId, read: readReceiptStatus });
+  const answer = useAnswerReceiptQuestionMutation({ saleId, answer: answerReceiptQuestion });
+  const asking = receipt.status === "loaded" && receipt.value.standing === "awaiting_answer";
+  const answerSent =
+    answer.isPending ||
+    (answer.data !== undefined &&
+      (answer.data.kind === "printing" ||
+        answer.data.kind === "declined" ||
+        answer.data.kind === "not_awaiting"));
+  const answerFailed = answer.isError || (answer.data !== undefined && !answerSent);
+  const mayAnswer = asking && !answerSent;
   const backupTicket = useBackupTicketOfSaleQuery({ saleId, read: readBackupTicket });
   const backupStanding = backupTicket.status === "loaded" ? backupTicket.value.standing : null;
   const backupPrinterFailure = useBackupPrinterFailureQuery({
@@ -173,6 +203,19 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
           : props.method === "STANDALONE_TERMINAL"
             ? { label: "Terminal independiente", value: formatCents(props.amount) }
             : { label: "Efectivo entregado", value: formatCents(props.tendered) };
+  useEffect(() => {
+    if (!mayAnswer) {
+      return;
+    }
+    document.querySelector<HTMLElement>('[data-modal-footer] [data-variant="primary"]')?.focus();
+    const answerNoOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        answer.mutate(false);
+      }
+    };
+    document.addEventListener("keydown", answerNoOnEscape);
+    return () => document.removeEventListener("keydown", answerNoOnEscape);
+  }, [mayAnswer, answer.mutate]);
   const failedStanding = receipt.status === "loaded" ? failedStandingOf(receipt.value) : undefined;
 
   if (receipt.status === "loaded" && failedStanding !== undefined) {
@@ -252,7 +295,11 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
       ? undefined
       : {
           ...customerDocument,
-          status: <Tag tone={printed ? "success" : "info"}>{printState}</Tag>,
+          status: (
+            <Tag tone={printed ? "success" : printState === "No impreso" ? "neutral" : "info"}>
+              {printState}
+            </Tag>
+          ),
         },
     backupStanding === null
       ? undefined
@@ -291,11 +338,38 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
       icon={<CircleCheck />}
       context="VENTA COMPLETADA"
       contextTone="success"
-      title={change > 0 ? "Entregá el vuelto" : "No hay vuelto para entregar"}
+      title={
+        asking
+          ? "¿Imprimir ticket?"
+          : change > 0
+            ? "Entregá el vuelto"
+            : "No hay vuelto para entregar"
+      }
       footer={
-        <Button size="large" fullWidth icon={<Plus />} onPress={onNewSale}>
-          Nueva venta
-        </Button>
+        asking ? (
+          <>
+            <Button
+              variant="secondary"
+              size="large"
+              disabled={answerSent}
+              onPress={() => answer.mutate(false)}
+            >
+              No
+            </Button>
+            <Button
+              size="large"
+              fullWidth
+              disabled={answerSent}
+              onPress={() => answer.mutate(true)}
+            >
+              Sí
+            </Button>
+          </>
+        ) : (
+          <Button size="large" fullWidth icon={<Plus />} onPress={onNewSale}>
+            Nueva venta
+          </Button>
+        )
       }
     >
       <div className="flex flex-col gap-5">
@@ -328,6 +402,13 @@ export function SaleCompletedModal(props: SaleCompletedModalProps) {
         {firstDocument === undefined ? null : (
           <DocumentList label="Documentos" rows={[firstDocument, ...otherDocuments]} />
         )}
+        {answerFailed ? (
+          <InlineNotice
+            tone="error"
+            icon={<TriangleAlert />}
+            title="No se pudo enviar la respuesta. Probá de nuevo."
+          />
+        ) : null}
         {keepNotice === undefined ? null : (
           <InlineNotice
             tone="warning"

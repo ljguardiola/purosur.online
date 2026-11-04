@@ -1,4 +1,5 @@
 import type {
+  AnswerReceiptQuestionOutcome,
   ChargeSaleWithPaidOrderOutcome,
   ReadContingencyBackupTicketOfSaleOutcome,
   ReadContingencyBackupTicketsOutcome,
@@ -26,6 +27,7 @@ export function ChargeCompletedModal({
   saleId,
   payment,
   readReceiptStatus,
+  answerReceiptQuestion,
   readBackupTicket,
   readBackupTickets,
   mayChangePrinter,
@@ -34,6 +36,7 @@ export function ChargeCompletedModal({
   saleId: string;
   payment: CompletedPayment;
   readReceiptStatus: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
+  answerReceiptQuestion: (saleId: string, print: boolean) => Promise<AnswerReceiptQuestionOutcome>;
   readBackupTicket: (saleId: string) => Promise<ReadContingencyBackupTicketOfSaleOutcome>;
   readBackupTickets: () => Promise<ReadContingencyBackupTicketsOutcome>;
   mayChangePrinter: boolean;
@@ -42,6 +45,7 @@ export function ChargeCompletedModal({
   const shared = {
     saleId,
     readReceiptStatus,
+    answerReceiptQuestion,
     readBackupTicket,
     readBackupTickets,
     mayChangePrinter,

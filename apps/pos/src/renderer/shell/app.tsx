@@ -472,6 +472,8 @@ function Register({ core }: { core: CoreClient }) {
       authorization: Authorization | undefined,
     ) => core.voidSale(saleId, pendingRefundsConfirmed, authorization),
     receiptPrintStatus: (saleId: string) => core.receiptPrintStatus(saleId),
+    answerReceiptQuestion: (saleId: string, print: boolean) =>
+      core.answerReceiptQuestion(saleId, print),
     contingencyBackupTickets: () => core.contingencyBackupTickets(),
     contingencyBackupTicketOfSale: (saleId: string) => core.contingencyBackupTicketOfSale(saleId),
     discardContingencyBackupTickets: () => core.discardContingencyBackupTickets(),
