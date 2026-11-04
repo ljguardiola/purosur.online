@@ -29,6 +29,7 @@ test("every pricing query is keyed under the pricing concept's root key", () => 
     pricesKeys.reviewQueueOf(["product-1"]),
     pricesKeys.reload,
     pricesKeys.margin("product-1", 820000),
+    pricesKeys.recommendation("product-1", "component-1:600", 1600000),
     pricesKeys.pastReviewDeadlineReport({}),
     pricesKeys.pastReviewDeadlineReport({ from: "2026-12-01", to: "2026-12-31" }),
     discountsKey,

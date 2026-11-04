@@ -1,11 +1,13 @@
 import type { RecipeList, RecipeSummary } from "@purosur/contracts";
 import { recipeSaveBodySchema } from "@purosur/contracts";
 import { Button, EmptyState, Modal, useRequestForm } from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
 import { BookOpen, Check, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { creatableChoice } from "../platform/creatable-options";
 import { withCreatedProducts } from "../platform/created-products";
 import type { CreatedProduct, ProductCreationModal } from "../platform/creation-parts";
+import type { ProductPriceSection } from "../platform/product-price-section";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { useStackedCreation } from "../platform/stacked-creation";
 import { RecipeComponentsField } from "./recipe-components-field";
@@ -18,6 +20,7 @@ import {
   recipeComponentOf,
   recipeComponentsHeading,
   recipeComponentsMessage,
+  recipePriceComponentsOf,
   recipeProductOptions,
   recipeRowRefusalOf,
   recipeSaveRequestFrom,
@@ -35,6 +38,8 @@ type NewRecipeModalProps = {
   products: RecipeList["products"];
   recipes: readonly RecipeSummary[];
   productCreationModal?: ProductCreationModal | undefined;
+  productPriceSection?: ProductPriceSection | undefined;
+  maySetPrice?: boolean | undefined;
   services: NewRecipeModalServices;
   onSaved: (recipe: RecipeSummary) => void;
   onClose: () => void;
@@ -46,6 +51,8 @@ export function NewRecipeModal({
   products: storedProducts,
   recipes,
   productCreationModal: ProductCreation,
+  productPriceSection: PriceSection,
+  maySetPrice = false,
   services,
   onSaved,
   onClose,
@@ -151,7 +158,9 @@ export function NewRecipeModal({
     recipeProductOptions(products, recipes),
     ProductCreation ? { recordKind: "producto", onCreate: assembledCreation.start } : undefined,
   );
-  const assembledUnit = products.find((product) => product.id === values.productId)?.saleUnit;
+  const assembled = products.find((product) => product.id === values.productId);
+  const assembledUnit = assembled?.saleUnit;
+  const priceComponents = recipePriceComponentsOf(values.components);
 
   return (
     <Modal
@@ -223,6 +232,17 @@ export function NewRecipeModal({
               Es una plantilla: al registrar una tanda se proponen estas cantidades y se registra lo
               que realmente se usó.
             </p>
+            {PriceSection && assembled && values.components.length > 0 ? (
+              <PriceSection
+                key={assembled.id}
+                productId={assembled.id}
+                productDescription={formatProductDescription(assembled)}
+                saleUnit={assembled.saleUnit}
+                components={priceComponents}
+                maySetPrice={maySetPrice}
+                onSessionEnded={onSessionEnded}
+              />
+            ) : null}
           </>
         ) : (
           <EmptyState

@@ -17,8 +17,13 @@ import { BookOpen, Check, Pencil, Plus, Search, SearchX } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import type { ProductCreationModal } from "../platform/creation-parts";
+import type { ProductPriceSection } from "../platform/product-price-section";
 import { AreaTopBar } from "../shell/area-top-bar";
-import { type BackofficeAccess, canManageProductsAndCategories } from "../shell/backoffice-access";
+import {
+  type BackofficeAccess,
+  canManageProductsAndCategories,
+  canSeePricesArea,
+} from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { BATCH_COST_INCOMPLETE, batchDayText, batchUnitCostText } from "./assembly-batch-text";
 import { EditRecipeModal } from "./edit-recipe-modal";
@@ -36,6 +41,7 @@ import { useRecipesQuery, useRefreshStock } from "./stock-queries";
 export type RecipesListScreenProps = {
   access: BackofficeAccess;
   productCreationModal: ProductCreationModal;
+  productPriceSection: ProductPriceSection;
   filters: RecipesListFilters;
   onFiltersChange: (filters: RecipesListFilters) => void;
   onSessionEnded: () => void;
@@ -75,6 +81,7 @@ function LastBatchCell({ recipe }: { recipe: RecipeSummary }) {
 export function RecipesListScreen({
   access,
   productCreationModal,
+  productPriceSection,
   filters,
   onFiltersChange,
   onSessionEnded,
@@ -82,6 +89,7 @@ export function RecipesListScreen({
 }: RecipesListScreenProps) {
   const data = useRecipesQuery({ fetchRecipes: services.fetchRecipes, onSessionEnded });
   const creation = canManageProductsAndCategories(access) ? { productCreationModal } : {};
+  const maySetPrice = canSeePricesArea(access);
   const refreshStock = useRefreshStock();
   const [search, setSearch] = useState(filters.search);
   const [sort, setSort] = useState<TableSort<"product">>({
@@ -236,6 +244,8 @@ export function RecipesListScreen({
         products={products}
         recipes={recipes}
         {...creation}
+        productPriceSection={productPriceSection}
+        maySetPrice={maySetPrice}
         services={services}
         onSaved={(recipe) => {
           setNewModalOpen(false);
@@ -252,6 +262,8 @@ export function RecipesListScreen({
           target={editTarget}
           products={products}
           {...creation}
+          productPriceSection={productPriceSection}
+          maySetPrice={maySetPrice}
           services={services}
           onSaved={(recipe) => {
             setEditTarget(null);

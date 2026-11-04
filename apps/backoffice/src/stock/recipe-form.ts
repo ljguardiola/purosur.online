@@ -118,6 +118,21 @@ function withLowercaseInitial(message: string): string {
   return `${message.charAt(0).toLowerCase()}${message.slice(1)}`;
 }
 
+export function recipePriceComponentsOf(
+  components: readonly RecipeComponentValues[],
+): { componentProductId: string; name: string; quantityPerOutputUnit: number }[] | null {
+  const priced = components.map((component) => ({
+    componentProductId: component.productId,
+    name: component.name,
+    quantityPerOutputUnit: quantityOf(component),
+  }));
+  return priced.every(
+    ({ name: _name, ...component }) => componentSchema.safeParse(component).success,
+  )
+    ? priced
+    : null;
+}
+
 export function recipeComponentsMessage({ components }: RecipeFormValues): string {
   if (components.length === 0) {
     return RECIPE_NO_COMPONENTS;

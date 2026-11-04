@@ -15,6 +15,7 @@ export function RecipesListPage(): ReactElement {
     <RecipesListScreen
       access={session}
       productCreationModal={services.productCreationModal}
+      productPriceSection={services.productPriceSection}
       filters={filters}
       onFiltersChange={(next) => void navigate({ search: next, replace: true })}
       onSessionEnded={sessionActions.sessionEnded}

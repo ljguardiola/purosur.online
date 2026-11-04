@@ -8,6 +8,7 @@ const AMOUNT_MALFORMED =
   "Completá los decimales del precio después de la coma, por ejemplo 7.500,50.";
 const AMOUNT_OUT_OF_RANGE = `Ingresá un precio mayor a cero, de hasta ${formatCents(schemaLimit(UNIT_PRICE_SCHEMA.maxValue))}.`;
 const AMOUNT_REVIEW = "Revisá el precio.";
+export const AMOUNT_ALREADY_CURRENT = "Es el precio actual.";
 export const AMOUNT_UNCHANGED = "Es el precio actual: confirmalo sin cambios en vez de guardarlo.";
 
 export type PriceFormValues = { amount: string; expectedCurrentPriceId: string | null };

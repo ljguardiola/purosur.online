@@ -3,7 +3,10 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import { StubProductCreationModal } from "../platform/test-support/creation-parts";
+import {
+  StubProductCreationModal,
+  StubProductPriceSection,
+} from "../platform/test-support/creation-parts";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
@@ -58,6 +61,7 @@ function screenElement(
         <RecipesListScreen
           access={access}
           productCreationModal={StubProductCreationModal}
+          productPriceSection={StubProductPriceSection}
           services={services}
           onSessionEnded={onSessionEnded}
           filters={filters}
@@ -579,3 +583,18 @@ test.each([
     expect(entry.query() !== null).toBe(offered);
   },
 );
+
+test.each([
+  ["a session that may change prices", ADMINISTRATOR_ACCESS, "Puede fijar el precio"],
+  ["a session that only manages recipes", accessWith("recipes"), "No puede fijar el precio"],
+])("the edit modal's price section is told what %s may do", async (_name, access, text) => {
+  const services = createServices();
+  const screen = await loaded(services, [cajaDeInfusiones], { access });
+
+  await userEvent.click(
+    screen.getByRole("button", { name: "Editar la receta de Caja de infusiones" }),
+  );
+
+  await expect.element(screen.getByRole("dialog").getByText(text)).toBeVisible();
+  await expect.element(screen.getByRole("dialog").getByText("Té verde: 2000")).toBeVisible();
+});
