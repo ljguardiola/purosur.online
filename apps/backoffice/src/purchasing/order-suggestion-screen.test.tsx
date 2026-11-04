@@ -120,6 +120,17 @@ test("shows a row for each product, with its description and category, sold, sto
   await expect.element(row.getByText("15 días")).toBeVisible();
 });
 
+test("shows beside the stock what was ordered and not yet received", async () => {
+  const screen = await loaded(createServices());
+
+  await expect.poll(() => lineRows(screen)).toHaveLength(3);
+  await expect
+    .element(screen.getByRole("columnheader", { name: "Pedido sin recibir" }))
+    .toBeVisible();
+  const row = screen.getByRole("row", { name: /Almendras peladas/ });
+  await expect.element(row.getByText("7 kg", { exact: true })).toBeVisible();
+});
+
 test("shows the effective days as the coverage and says when the expiry capped them", async () => {
   const screen = await loaded(createServices(), {
     ...ORDER_SUGGESTION,

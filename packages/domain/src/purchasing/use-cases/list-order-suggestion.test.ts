@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { SoldLinesOfGroup } from "../../sales/index.js";
 import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import { listOrderSuggestion } from "./list-order-suggestion.js";
+import type { AwaitedOrderLine } from "./order-suggestion-reader.js";
 import type { ComparableProduct } from "./supplier-price-comparison-reader.js";
 import { FakeOrderSuggestionReader } from "./test-support/fake-order-suggestion-reader.js";
 
@@ -69,11 +70,23 @@ function soldOf(
   };
 }
 
+function awaitedLine(fields: Partial<AwaitedOrderLine> = {}): AwaitedOrderLine {
+  return {
+    productId: "yerba",
+    state: "SENT",
+    packages: 1,
+    quantityPerPackage: 1_000,
+    receivedQuantity: 0,
+    ...fields,
+  };
+}
+
 function readerWith(fields: {
   products?: ComparableProduct[];
   offers?: ReturnType<typeof offer>[];
   sold?: SoldLinesOfGroup[];
   stock?: { productId: string; quantity: number }[];
+  awaited?: AwaitedOrderLine[];
   coverage?: { productId: string; coverageDays: number }[];
   suppliers?: { id: string; name: string; active: boolean }[];
   shelfLifeLots?: { productId: string; createdAt: Date; expiresOn: string }[];
@@ -83,6 +96,7 @@ function readerWith(fields: {
   reader.shelfLifeLots = fields.shelfLifeLots ?? [];
   reader.sold = fields.sold ?? [];
   reader.stock = fields.stock ?? [];
+  reader.awaitedLines = fields.awaited ?? [];
   reader.coverage = fields.coverage ?? [
     { productId: "yerba", coverageDays: 15 },
     { productId: "queso", coverageDays: 15 },
@@ -100,6 +114,15 @@ describe("listOrderSuggestion", () => {
       { locationId: BRANCH, range: { from: "2026-09-07", to: "2026-10-06" } },
     ]);
     expect(reader.stockQueries).toEqual([BRANCH]);
+  });
+
+  it("reads everything it suggests from one snapshot", async () => {
+    const reader = readerWith({});
+
+    await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
+
+    expect(reader.snapshotsOpened).toBe(1);
+    expect(reader.readsOutsideSnapshot).toEqual([]);
   });
 
   it("counts today as the Argentine day, not the UTC one", async () => {
@@ -135,6 +158,7 @@ describe("listOrderSuggestion", () => {
         cappedByExpiry: false,
         soldQuantity: 120_000,
         stock: 12_000,
+        awaitedQuantity: 0,
         neededQuantity: 48_000,
         offers: [
           {
@@ -152,6 +176,116 @@ describe("listOrderSuggestion", () => {
         unpricedOffers: [],
       },
     ]);
+  });
+
+  it("subtracts what was ordered and not yet received from the need", async () => {
+    const reader = readerWith({
+      offers: [offer({ quantity: 12_000, priceCents: 12_000 })],
+      sold: [soldOf("yerba", 120)],
+      stock: [{ productId: "yerba", quantity: 12_000 }],
+      awaited: [awaitedLine({ packages: 1, quantityPerPackage: 8_000 })],
+    });
+
+    const {
+      lines: [line],
+    } = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
+
+    expect(reader.awaitedQueries).toEqual([BRANCH]);
+    expect(line?.awaitedQuantity).toBe(8_000);
+    expect(line?.neededQuantity).toBe(40_000);
+    expect(line?.offers[0]).toMatchObject({ packages: 4, quantity: 48_000 });
+  });
+
+  it("sums the awaited quantities of several orders of the product and ignores other products", async () => {
+    const reader = readerWith({
+      offers: [offer({ quantity: 12_000 })],
+      sold: [soldOf("yerba", 120)],
+      awaited: [
+        awaitedLine({ packages: 1, quantityPerPackage: 5_000 }),
+        awaitedLine({ packages: 2, quantityPerPackage: 5_000, state: "PARTIALLY_RECEIVED" }),
+        awaitedLine({ productId: "queso", packages: 9, quantityPerPackage: 9_000 }),
+      ],
+    });
+
+    const {
+      lines: [line],
+    } = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
+
+    expect(line?.awaitedQuantity).toBe(15_000);
+  });
+
+  it("deducts what earlier receipts already brought", async () => {
+    const reader = readerWith({
+      offers: [offer({ quantity: 12_000 })],
+      sold: [soldOf("yerba", 120)],
+      awaited: [
+        awaitedLine({
+          packages: 2,
+          quantityPerPackage: 10_000,
+          state: "PARTIALLY_RECEIVED",
+          receivedQuantity: 14_000,
+        }),
+      ],
+    });
+
+    const {
+      lines: [line],
+    } = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
+
+    expect(line?.awaitedQuantity).toBe(6_000);
+  });
+
+  it("does not count a draft, a received or a cancelled order", async () => {
+    const reader = readerWith({
+      offers: [offer({ quantity: 12_000 })],
+      sold: [soldOf("yerba", 120)],
+      awaited: [
+        awaitedLine({ state: "DRAFT" }),
+        awaitedLine({ state: "RECEIVED" }),
+        awaitedLine({ state: "CANCELLED", receivedQuantity: 3_000 }),
+      ],
+    });
+
+    const {
+      lines: [line],
+    } = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
+
+    expect(line?.awaitedQuantity).toBe(0);
+    expect(line?.neededQuantity).toBe(60_000);
+  });
+
+  it("suggests nothing for a product whose stock and awaited orders cover its coverage days", async () => {
+    const reader = readerWith({
+      offers: [offer({ quantity: 12_000 })],
+      sold: [soldOf("yerba", 120)],
+      stock: [{ productId: "yerba", quantity: 12_000 }],
+      awaited: [awaitedLine({ packages: 4, quantityPerPackage: 12_000 })],
+    });
+
+    const { lines } = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
+
+    expect(lines).toEqual([]);
+  });
+
+  it("caps the order at what sells over the shelf life beyond stock and awaited orders", async () => {
+    const reader = readerWith({
+      offers: [offer({ quantity: 12_000 })],
+      sold: [soldOf("yerba", 120)],
+      shelfLifeLots: [
+        {
+          productId: "yerba",
+          createdAt: new Date("2026-09-26T15:00:00.000Z"),
+          expiresOn: "2026-10-06",
+        },
+      ],
+      awaited: [awaitedLine({ packages: 1, quantityPerPackage: 20_000 })],
+    });
+
+    const {
+      lines: [line],
+    } = await listOrderSuggestion({ reader, ...ports }, { locationId: BRANCH });
+
+    expect(line?.offers[0]?.packages).toBe(1);
   });
 
   it("rounds up to the packages of each supplier, cheapest first, flagging the cheapest", async () => {

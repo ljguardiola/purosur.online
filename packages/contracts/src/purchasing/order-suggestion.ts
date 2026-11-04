@@ -41,6 +41,7 @@ export const orderSuggestionSchema = z.object({
       cappedByExpiry: z.boolean(),
       soldQuantity: z.int(),
       stock: z.int(),
+      awaitedQuantity: z.int(),
       neededQuantity: z.int(),
       offers: z.array(suggestedOfferSchema),
       unpricedOffers: z.array(unpricedOfferSchema),

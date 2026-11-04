@@ -657,6 +657,7 @@ export {
   latestEarlierPrice,
   MIN_FREIGHT_PURCHASES,
   MIN_PURCHASE_LINES,
+  mayBeReceived,
   maySupplierPriceListRowBeLinked,
   ONE_SALE_UNIT_QUANTITY,
   PRICE_LIST_EXTRACTION_MAX_DESCRIPTION_LENGTH,

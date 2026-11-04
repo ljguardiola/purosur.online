@@ -1,5 +1,12 @@
-import { countsForShelfLife, type SoldLinesOfGroup } from "@purosur/domain";
+import {
+  countsForShelfLife,
+  mayBeReceived,
+  PURCHASE_ORDER_STATES,
+  type PurchaseOrderState,
+  type SoldLinesOfGroup,
+} from "@purosur/domain";
 import type {
+  AwaitedOrderLine,
   NewestShelfLifeLot,
   OrderSuggestionReader,
   OrderSuggestionSalesQuery,
@@ -7,18 +14,23 @@ import type {
   ProductCoverageDays,
   ProductStock,
 } from "@purosur/domain/purchasing/use-cases";
-import { and, desc, eq, isNotNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   assemblyBatches,
   lots,
   products,
+  purchaseOrderLines,
+  purchaseOrderReceiptLines,
+  purchaseOrders,
   stockBalances,
   suppliers,
 } from "../platform/db/schema.js";
 import { DrizzleProductSalesReportReader } from "../sales/drizzle-product-sales-report-reader.js";
 import { lotOriginOf } from "../stock/lot-origin.js";
 import { DrizzleSupplierPriceComparisonReader } from "./drizzle-supplier-price-comparison-reader.js";
+
+const READ_SNAPSHOT = { isolationLevel: "repeatable read", accessMode: "read only" } as const;
 
 export class DrizzleOrderSuggestionReader<TQueryResult extends PgQueryResultHKT>
   extends DrizzleSupplierPriceComparisonReader<TQueryResult>
@@ -31,6 +43,13 @@ export class DrizzleOrderSuggestionReader<TQueryResult extends PgQueryResultHKT>
     super(db);
     this.database = db;
     this.sales = new DrizzleProductSalesReportReader(db);
+  }
+
+  inOneSnapshot<T>(read: (reader: OrderSuggestionReader) => Promise<T>): Promise<T> {
+    return this.database.transaction(
+      (tx) => read(new DrizzleOrderSuggestionReader(tx)),
+      READ_SNAPSHOT,
+    );
   }
 
   async coverageDays(): Promise<ProductCoverageDays[]> {
@@ -52,6 +71,41 @@ export class DrizzleOrderSuggestionReader<TQueryResult extends PgQueryResultHKT>
       .select({ productId: stockBalances.productId, quantity: stockBalances.quantity })
       .from(stockBalances)
       .where(eq(stockBalances.locationId, locationId));
+  }
+
+  async awaitedOrderLines(locationId: string): Promise<AwaitedOrderLine[]> {
+    const received = this.database
+      .select({
+        purchaseOrderLineId: purchaseOrderReceiptLines.purchaseOrderLineId,
+        receivedQuantity: sql<string>`sum(${purchaseOrderReceiptLines.receivedQuantity})`.as(
+          "received_quantity",
+        ),
+      })
+      .from(purchaseOrderReceiptLines)
+      .groupBy(purchaseOrderReceiptLines.purchaseOrderLineId)
+      .as("received");
+    const rows = await this.database
+      .select({
+        productId: purchaseOrderLines.productId,
+        state: purchaseOrders.state,
+        packages: purchaseOrderLines.packages,
+        quantityPerPackage: purchaseOrderLines.quantityPerPackage,
+        receivedQuantity: sql<string>`coalesce(${received.receivedQuantity}, 0)`,
+      })
+      .from(purchaseOrderLines)
+      .innerJoin(purchaseOrders, eq(purchaseOrders.id, purchaseOrderLines.purchaseOrderId))
+      .leftJoin(received, eq(received.purchaseOrderLineId, purchaseOrderLines.id))
+      .where(
+        and(
+          eq(purchaseOrders.locationId, locationId),
+          inArray(purchaseOrders.state, PURCHASE_ORDER_STATES.filter(mayBeReceived)),
+        ),
+      );
+    return rows.map((row) => ({
+      ...row,
+      state: row.state as PurchaseOrderState,
+      receivedQuantity: Number(row.receivedQuantity),
+    }));
   }
 
   async suppliers(): Promise<OrderSuggestionSupplier[]> {
