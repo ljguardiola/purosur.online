@@ -151,8 +151,8 @@ describe("PointPaymentWaitModal", () => {
       expect(new Set(followCharge.mock.calls.map(([id]) => id))).toEqual(new Set([PAYMENT_ID]));
     });
 
-    it.each([{ kind: "cancelled" }, { kind: "closed" }] as const)(
-      "abandons the order from Cambiar de medio and goes back to the methods when it is $kind",
+    it.each([{ kind: "cancelled" }, { kind: "closed" }, { kind: "replaced" }] as const)(
+      "abandons the order from Cambiar de medio and goes back to the methods at once when it is $kind",
       async (answer) => {
         const { screen, abandonCharge, callbacks } = await renderModal(
           undefined,
@@ -163,6 +163,11 @@ describe("PointPaymentWaitModal", () => {
 
         await expect.poll(() => callbacks.onChooseAnotherMethod.mock.calls.length).toBe(1);
         expect(abandonCharge).toHaveBeenCalledExactlyOnceWith(PAYMENT_ID);
+        expect(
+          screen
+            .getByRole("heading", { name: "Esperando la cancelación en la terminal" })
+            .elements(),
+        ).toHaveLength(0);
       },
     );
 
@@ -304,8 +309,8 @@ describe("PointPaymentWaitModal", () => {
       expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
     });
 
-    it("tells to cancel on the terminal and offers Elegir otro medio only once the terminal closes the order", async () => {
-      const { screen, callbacks } = await renderModal(answering(WAIT_OVER, WAIT_OVER, CLOSED));
+    it("tells to cancel on the terminal and lets the cashier choose another method at once", async () => {
+      const { screen } = await renderModal(answering(WAIT_OVER));
 
       await expect
         .element(screen.getByRole("heading", { name: "Se terminó el tiempo de espera" }))
@@ -327,23 +332,94 @@ describe("PointPaymentWaitModal", () => {
       ).toHaveLength(1);
       await expect
         .element(screen.getByRole("status"))
-        .toHaveTextContent(
-          "Cancelá el cobro en la terminal Otro medio se habilita recién cuando la terminal confirme la cancelación.",
+        .toHaveTextContent("Cancelá el cobro en la terminal");
+      await expect.element(screen.getByRole("button", { name: "Elegir otro medio" })).toBeEnabled();
+      expect(buttonLabels(screen)).toEqual(["Elegir otro medio"]);
+      await expectNoAccessibilityViolations(screen.container);
+    });
+
+    it.each([{ kind: "cancelled" }, { kind: "closed" }, { kind: "replaced" }] as const)(
+      "abandons the order from Elegir otro medio and goes back to the methods when it is $kind",
+      async (answer) => {
+        const { screen, abandonCharge, callbacks } = await renderModal(
+          answering(WAIT_OVER),
+          async () => answer,
         );
+        await expect
+          .element(screen.getByRole("heading", { name: "Se terminó el tiempo de espera" }))
+          .toBeVisible();
+
+        await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
+
+        await expect.poll(() => callbacks.onChooseAnotherMethod.mock.calls.length).toBe(1);
+        expect(abandonCharge).toHaveBeenCalledExactlyOnceWith(PAYMENT_ID);
+      },
+    );
+
+    it("holds Elegir otro medio while the cancellation is being asked", async () => {
+      const answer = Promise.withResolvers<AbandonMercadoPagoChargeOutcome>();
+      const { screen, callbacks } = await renderModal(answering(WAIT_OVER), () => answer.promise);
+      await expect
+        .element(screen.getByRole("heading", { name: "Se terminó el tiempo de espera" }))
+        .toBeVisible();
+
+      await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
+
       await expect
         .element(screen.getByRole("button", { name: "Elegir otro medio" }))
         .toBeDisabled();
-      expect(buttonLabels(screen)).toEqual(["Elegir otro medio"]);
-      await expectNoAccessibilityViolations(screen.container);
+      answer.resolve({ kind: "cancelled" });
+      await expect.poll(() => callbacks.onChooseAnotherMethod.mock.calls.length).toBe(1);
+    });
 
+    it("says the cancellation could not be asked, and lets it be asked again", async () => {
+      const answers: Abandon[] = [
+        async () => ({ kind: "unavailable" }),
+        async () => ({ kind: "replaced" }),
+      ];
+      const { screen, callbacks } = await renderModal(answering(WAIT_OVER), (id) => {
+        const next = answers.shift();
+        return next === undefined ? Promise.resolve({ kind: "cancelled" as const }) : next(id);
+      });
       await expect
-        .element(screen.getByRole("button", { name: "Elegir otro medio" }), {
-          timeout: NEXT_ASK_TIMEOUT_MS,
-        })
-        .toBeEnabled();
+        .element(screen.getByRole("heading", { name: "Se terminó el tiempo de espera" }))
+        .toBeVisible();
+
+      await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
+      await expect
+        .element(
+          screen
+            .getByText(
+              "No se pudo cancelar el cobro de la terminal. Volvé a intentarlo en unos segundos.",
+            )
+            .first(),
+        )
+        .toBeVisible();
       await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
 
-      expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
+      await expect.poll(() => callbacks.onChooseAnotherMethod.mock.calls.length).toBe(1);
+    });
+
+    it("says to cancel on the terminal and wait for the connection when the register cannot reach the cloud, staying on the wait", async () => {
+      const { screen, callbacks } = await renderModal(answering(WAIT_OVER), async () => ({
+        kind: "unreachable",
+      }));
+      await expect
+        .element(screen.getByRole("heading", { name: "Se terminó el tiempo de espera" }))
+        .toBeVisible();
+
+      await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
+
+      await expect
+        .element(
+          screen
+            .getByText(
+              "No hay conexión con la nube. Cancelá el cobro en la terminal y esperá a que vuelva la conexión.",
+            )
+            .first(),
+        )
+        .toBeVisible();
+      expect(callbacks.onChooseAnotherMethod).not.toHaveBeenCalled();
     });
 
     it("says the core could not tell how the cancellation goes and keeps following from Reintentar", async () => {
@@ -382,83 +458,6 @@ describe("PointPaymentWaitModal", () => {
 
     it("shows the customer paid when the payment is approved at the last moment", async () => {
       const { screen } = await renderModal(answering(WAIT_OVER, COMPLETED));
-
-      await expect
-        .element(screen.getByRole("heading", { name: "El cliente pagó en la terminal" }), {
-          timeout: NEXT_ASK_TIMEOUT_MS,
-        })
-        .toBeVisible();
-    });
-  });
-
-  describe("when the cancellation is awaited on the terminal before the wait is over", () => {
-    async function renderCancelling(follow: Follow = answering(WAITING)) {
-      const rendered = await renderModal(follow, async () => ({ kind: "cancel_on_terminal" }));
-      await userEvent.click(rendered.screen.getByRole("button", { name: "Cambiar de medio" }));
-      return rendered;
-    }
-
-    it("tells to cancel on the terminal while the time keeps counting", async () => {
-      const { screen } = await renderCancelling();
-
-      await expect
-        .element(screen.getByRole("heading", { name: "Esperando la cancelación en la terminal" }))
-        .toBeVisible();
-      await expect.element(screen.getByText("Total de la venta")).toBeVisible();
-      await expect.element(screen.getByText("$ 50.700,00")).toBeVisible();
-      await expect.element(screen.getByText("Pagado")).toBeVisible();
-      await expect.element(screen.getByText("$ 10.000,00")).toBeVisible();
-      await expect.element(screen.getByText("A cobrar ahora")).toBeVisible();
-      await expect.element(screen.getByText("$ 30.000,00")).toBeVisible();
-      await expect.element(screen.getByText("2:41")).toBeVisible();
-      await expect.element(screen.getByText("Cobro enviado a la terminal")).toBeVisible();
-      await expect.element(screen.getByText("Esperando la cancelación")).toBeVisible();
-      await expect
-        .element(screen.getByRole("status"))
-        .toHaveTextContent(
-          "Cancelá el cobro en la terminal Otro medio se habilita recién cuando la terminal confirme la cancelación.",
-        );
-      await expect
-        .element(screen.getByRole("button", { name: "Elegir otro medio" }))
-        .toBeDisabled();
-      expect(buttonLabels(screen)).toEqual(["Elegir otro medio"]);
-      await expectNoAccessibilityViolations(screen.container);
-    });
-
-    it("keeps asking the core, and offers Elegir otro medio once the terminal closes the order", async () => {
-      const { screen, callbacks } = await renderCancelling(answering(WAITING, WAITING, CLOSED));
-
-      await expect
-        .element(screen.getByRole("button", { name: "Elegir otro medio" }), {
-          timeout: NEXT_ASK_TIMEOUT_MS,
-        })
-        .toBeEnabled();
-      await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
-
-      expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
-    });
-
-    it("tells the order expired and nothing was charged when Mercado Pago expires it instead", async () => {
-      const { screen, callbacks } = await renderCancelling(answering(WAITING, EXPIRED));
-
-      await expect
-        .element(screen.getByRole("heading", { name: "El cobro venció en la terminal" }), {
-          timeout: NEXT_ASK_TIMEOUT_MS,
-        })
-        .toBeVisible();
-      await expect.element(screen.getByText("No se cobró nada.")).toBeVisible();
-      expect(
-        screen.getByText("Cancelá el cobro en la terminal", { exact: true }).elements(),
-      ).toHaveLength(0);
-      expect(buttonLabels(screen)).toEqual(["Elegir otro medio"]);
-
-      await userEvent.click(screen.getByRole("button", { name: "Elegir otro medio" }));
-
-      expect(callbacks.onChooseAnotherMethod).toHaveBeenCalledOnce();
-    });
-
-    it("shows the customer paid when the payment is approved instead of cancelled", async () => {
-      const { screen } = await renderCancelling(answering(WAITING, COMPLETED));
 
       await expect
         .element(screen.getByRole("heading", { name: "El cliente pagó en la terminal" }), {

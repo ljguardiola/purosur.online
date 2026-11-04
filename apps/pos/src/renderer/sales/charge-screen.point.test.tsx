@@ -1,4 +1,3 @@
-import type { FollowMercadoPagoChargeOutcome } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { describe, expect, it } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -352,26 +351,24 @@ describe("ChargeScreen · Point", () => {
       expect(currentSale.mock.calls.length).toBeGreaterThan(readsBefore);
     });
 
-    it("waits for the cancellation on the terminal when it cannot be cancelled from the register", async () => {
-      const { screen } = await waitOnTerminal({
-        abandonMercadoPagoCharge: async () => ({ kind: "cancel_on_terminal" }),
+    it("goes back to the methods and reads the sale again when the order can only be cancelled on the terminal", async () => {
+      const { screen, currentSale } = await waitOnTerminal({
+        abandonMercadoPagoCharge: async () => ({ kind: "replaced" }),
       });
+      const readsBefore = currentSale.mock.calls.length;
 
       await userEvent.click(screen.getByRole("button", { name: "Cambiar de medio" }));
 
       await expect
-        .element(screen.getByRole("heading", { name: "Esperando la cancelación en la terminal" }))
+        .element(screen.getByRole("heading", { name: "Elegí el medio de pago" }))
         .toBeVisible();
+      expect(currentSale.mock.calls.length).toBeGreaterThan(readsBefore);
     });
 
-    it("tells the wait is over and goes back to the methods once the terminal confirms the cancellation", async () => {
-      const answers: FollowMercadoPagoChargeOutcome[] = [
-        { kind: "at_terminal_wait_over" },
-        { kind: "at_terminal_wait_over" },
-        { kind: "closed" },
-      ];
+    it("tells the wait is over and goes back to the methods from Elegir otro medio", async () => {
       const { screen } = await waitOnTerminal({
-        followMercadoPagoCharge: async () => answers.shift() ?? { kind: "closed" },
+        followMercadoPagoCharge: async () => ({ kind: "at_terminal_wait_over" }),
+        abandonMercadoPagoCharge: async () => ({ kind: "replaced" }),
       });
 
       await expect
