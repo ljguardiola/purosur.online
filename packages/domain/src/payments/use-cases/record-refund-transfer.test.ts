@@ -59,27 +59,30 @@ describe("recordRefundTransfer", () => {
     ["a late QR payment", { origin: "late_payment", method: "QR" }],
     ["a voided sale", { origin: "sale_voided", method: "QR" }],
     ["a return", { origin: "return", method: "POINT" }],
-  ])("records the refund of %s, resolving its alert in the same transaction", async (_case, facts) => {
-    const refund: FakeStoredRefund = { ...REFUSED_FOR_GOOD, ...facts };
-    const store = new FakeRefundStore([{ ...refund }]);
+  ])(
+    "records the refund of %s, resolving its alert in the same transaction",
+    async (_case, facts) => {
+      const refund: FakeStoredRefund = { ...REFUSED_FOR_GOOD, ...facts };
+      const store = new FakeRefundStore([{ ...refund }]);
 
-    expect((await record(store)).kind).toBe("refunded_by_transfer");
+      expect((await record(store)).kind).toBe("refunded_by_transfer");
 
-    expect(store.operationOrder).toEqual([
-      "lockRefund",
-      "recordRefundDoneByTransfer",
-      "resolveRefundAlert",
-    ]);
-    expect(store.resolvedAlerts).toEqual([
-      {
-        refundId: "refund-1",
-        kind: facts.origin === "late_payment" ? "late_payment_refund" : "refund_task",
-        resolvedBy: "manager",
-        resolvedAt: NOW,
-      },
-    ]);
-    expect(store.transactions).toBe(1);
-  });
+      expect(store.operationOrder).toEqual([
+        "lockRefund",
+        "recordRefundDoneByTransfer",
+        "resolveRefundAlert",
+      ]);
+      expect(store.resolvedAlerts).toEqual([
+        {
+          refundId: "refund-1",
+          kind: facts.origin === "late_payment" ? "late_payment_refund" : "refund_task",
+          resolvedBy: "manager",
+          resolvedAt: NOW,
+        },
+      ]);
+      expect(store.transactions).toBe(1);
+    },
+  );
 
   it("answers not found for a refund that does not exist or belongs to another branch, writing nothing", async () => {
     const store = new FakeRefundStore([{ ...REFUSED_FOR_GOOD }]);
@@ -122,8 +125,14 @@ describe("recordRefundTransfer", () => {
     ["refused only for insufficient balance", { lastRefusalReason: "insufficient_balance" }],
     ["not confirmed yet", { confirmedAt: null, lastRefusalReason: null }],
     ["confirmed and waiting to be sent", { lastRefusalReason: null }],
-    ["a late Point refund, which the cloud does not send", { origin: "late_payment", method: "POINT" }],
-    ["a refund paid by transfer", { method: "TRANSFER", confirmedAt: null, lastRefusalReason: null }],
+    [
+      "a late Point refund, which the cloud does not send",
+      { origin: "late_payment", method: "POINT" },
+    ],
+    [
+      "a refund paid by transfer",
+      { method: "TRANSFER", confirmedAt: null, lastRefusalReason: null },
+    ],
   ])("refuses a refund %s, leaving it as it was", async (_case, facts) => {
     const refund: FakeStoredRefund = { ...REFUSED_FOR_GOOD, ...facts };
     const store = new FakeRefundStore([{ ...refund }]);

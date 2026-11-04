@@ -235,6 +235,12 @@ export type {
 } from "./read-sales-by-payment-method.js";
 export { readSalesByPaymentMethod } from "./read-sales-by-payment-method.js";
 export type {
+  RecordRefundTransferInput,
+  RecordRefundTransferOutcome,
+  RecordRefundTransferPorts,
+} from "./record-refund-transfer.js";
+export { recordRefundTransfer } from "./record-refund-transfer.js";
+export type {
   LockedRefund,
   PendingRefund,
   PendingRefundRecord,

@@ -2,6 +2,7 @@ import type { AlertKind } from "../../alerts/index.js";
 import type { MercadoPagoRefundStage } from "../model/mercado-pago-refund.js";
 import type { PaymentMethod, PointCardType } from "../model/payment.js";
 import type { RefundOrigin } from "../model/payment-refund.js";
+import type { RefundTransfer } from "../model/refund-transfer.js";
 
 export interface LockedRefund {
   id: string;
@@ -35,6 +36,7 @@ export interface PendingRefundRecord {
 
 export interface PendingRefund extends PendingRefundRecord {
   discardable: boolean;
+  transferable: boolean;
   sentByCloud: boolean;
   deliveryStage: MercadoPagoRefundStage | null;
   secondsPending: number;
@@ -51,6 +53,12 @@ export interface RefundStore {
 export interface RefundStoreTransaction {
   lockRefund(refundId: string, locationId: string): Promise<LockedRefund | undefined>;
   recordRefundDone(refundId: string, doneBy: string, doneAt: Date): Promise<void>;
+  recordRefundDoneByTransfer(
+    refundId: string,
+    transfer: RefundTransfer,
+    doneBy: string,
+    doneAt: Date,
+  ): Promise<void>;
   recordRefundDiscarded(refundId: string, discardedBy: string, discardedAt: Date): Promise<void>;
   resolveRefundAlert(
     refundId: string,
