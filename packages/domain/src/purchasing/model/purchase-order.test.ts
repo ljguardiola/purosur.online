@@ -4,6 +4,7 @@ import {
   expectedOrderTotal,
   mayBeCancelled,
   mayBeEdited,
+  mayBeReceived,
   mayBeShared,
   mayBeSharedAsDocument,
   PURCHASE_ORDER_STATES,
@@ -11,39 +12,47 @@ import {
 
 describe("PURCHASE_ORDER_STATES", () => {
   it("names the states an order can be in", () => {
-    expect(PURCHASE_ORDER_STATES).toEqual(["DRAFT", "SENT", "CANCELLED"]);
+    expect(PURCHASE_ORDER_STATES).toEqual([
+      "DRAFT",
+      "SENT",
+      "PARTIALLY_RECEIVED",
+      "RECEIVED",
+      "CANCELLED",
+    ]);
   });
 });
 
 describe("mayBeEdited", () => {
   it("allows editing a draft only", () => {
-    expect(mayBeEdited("DRAFT")).toBe(true);
-    expect(mayBeEdited("SENT")).toBe(false);
-    expect(mayBeEdited("CANCELLED")).toBe(false);
+    expect(PURCHASE_ORDER_STATES.filter(mayBeEdited)).toEqual(["DRAFT"]);
   });
 });
 
 describe("mayBeShared", () => {
   it("allows sharing a draft only", () => {
-    expect(mayBeShared("DRAFT")).toBe(true);
-    expect(mayBeShared("SENT")).toBe(false);
-    expect(mayBeShared("CANCELLED")).toBe(false);
+    expect(PURCHASE_ORDER_STATES.filter(mayBeShared)).toEqual(["DRAFT"]);
   });
 });
 
 describe("mayBeSharedAsDocument", () => {
-  it("allows sharing the document of a draft or a sent order but not of a cancelled one", () => {
-    expect(mayBeSharedAsDocument("DRAFT")).toBe(true);
-    expect(mayBeSharedAsDocument("SENT")).toBe(true);
-    expect(mayBeSharedAsDocument("CANCELLED")).toBe(false);
+  it("allows sharing the document of a draft or a sent order only", () => {
+    expect(PURCHASE_ORDER_STATES.filter(mayBeSharedAsDocument)).toEqual(["DRAFT", "SENT"]);
   });
 });
 
 describe("mayBeCancelled", () => {
-  it("allows cancelling a draft or a sent order but not one already cancelled", () => {
-    expect(mayBeCancelled("DRAFT")).toBe(true);
-    expect(mayBeCancelled("SENT")).toBe(true);
-    expect(mayBeCancelled("CANCELLED")).toBe(false);
+  it("allows cancelling every order not yet fully received or cancelled", () => {
+    expect(PURCHASE_ORDER_STATES.filter(mayBeCancelled)).toEqual([
+      "DRAFT",
+      "SENT",
+      "PARTIALLY_RECEIVED",
+    ]);
+  });
+});
+
+describe("mayBeReceived", () => {
+  it("allows receiving a sent order and one received in part only", () => {
+    expect(PURCHASE_ORDER_STATES.filter(mayBeReceived)).toEqual(["SENT", "PARTIALLY_RECEIVED"]);
   });
 });
 

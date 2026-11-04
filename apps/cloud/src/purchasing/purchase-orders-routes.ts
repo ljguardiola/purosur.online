@@ -53,6 +53,12 @@ async function sendDocumentNotShareable(reply: FastifyReply): Promise<void> {
   });
 }
 
+export async function sendPurchaseOrderNotFound(reply: FastifyReply): Promise<void> {
+  await reply
+    .code(404)
+    .send({ code: "purchase_order_not_found", message: "no purchase order with that id" });
+}
+
 async function sendRefusal(reply: FastifyReply, refusal: Refusal): Promise<void> {
   switch (refusal.kind) {
     case "no_choices":
@@ -79,9 +85,7 @@ async function sendRefusal(reply: FastifyReply, refusal: Refusal): Promise<void>
       await invalid(reply, "a product can appear only once", "productId");
       return;
     case "not_found":
-      await reply
-        .code(404)
-        .send({ code: "purchase_order_not_found", message: "no purchase order with that id" });
+      await sendPurchaseOrderNotFound(reply);
       return;
     case "not_editable":
       await reply.code(409).send({
@@ -133,6 +137,10 @@ export function registerPurchaseOrdersRoutes<TQueryResult extends PgQueryResultH
   const sessionSource = routeSessionSource({ db: options.db, now });
   const config = { access: capabilityAccess("purchase_orders"), sessionSource };
   const readGuard = { preHandler: sameOriginGuard(options.backofficeOrigin), config };
+  const orderReadGuard = {
+    ...readGuard,
+    config: { ...config, access: capabilityAccess("purchase_order_reads") },
+  };
   const writeGuard = { preHandler: backofficeOriginGuard(options.backofficeOrigin), config };
 
   async function sendOrder(reply: FastifyReply, locationId: string, orderId: string) {
@@ -145,11 +153,15 @@ export function registerPurchaseOrdersRoutes<TQueryResult extends PgQueryResultH
       purchaseOrderDetailSchema.parse({
         ...found.order,
         createdAt: found.order.createdAt.toISOString(),
+        receipts: found.order.receipts.map((receipt) => ({
+          ...receipt,
+          receivedAt: receipt.receivedAt.toISOString(),
+        })),
       }),
     );
   }
 
-  app.get("/purchase-orders", readGuard, async (request, reply) => {
+  app.get("/purchase-orders", orderReadGuard, async (request, reply) => {
     const query = await readValidatedBody(reply, purchaseOrderListQuerySchema, request.query);
     if (!query) {
       return;
@@ -167,7 +179,7 @@ export function registerPurchaseOrdersRoutes<TQueryResult extends PgQueryResultH
       );
   });
 
-  app.get("/purchase-orders/:id", readGuard, async (request, reply) => {
+  app.get("/purchase-orders/:id", orderReadGuard, async (request, reply) => {
     const ids = await readRecordIds(reply, request.params, ["id"]);
     if (!ids) {
       return;

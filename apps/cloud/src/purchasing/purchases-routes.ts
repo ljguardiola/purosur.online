@@ -18,7 +18,6 @@ import {
   listPurchaseChanges,
   listPurchaseChoices,
   listPurchases,
-  type RegisterPurchaseOutcome,
   registerPurchase,
 } from "@purosur/domain/purchasing/use-cases";
 import { formatLotName } from "@purosur/formatting";
@@ -37,9 +36,8 @@ import {
 import { DrizzlePurchaseChangeReader } from "./drizzle-purchase-change-reader.js";
 import { DrizzlePurchasingListReader } from "./drizzle-purchasing-list-reader.js";
 import { DrizzlePurchasingStore } from "./drizzle-purchasing-store.js";
+import { sendPurchaseRefusal } from "./purchase-refusals.js";
 import type { PurchasingRouteOptions } from "./purchasing-route-options.js";
-
-type Refusal = Exclude<RegisterPurchaseOutcome, { kind: "registered" }>;
 
 function summaryOf(purchase: ListedPurchase) {
   return purchaseSummarySchema.parse({
@@ -50,10 +48,6 @@ function summaryOf(purchase: ListedPurchase) {
       lotName: formatLotName(lotName),
     })),
   });
-}
-
-function lineDetails(lineIndex: number) {
-  return [{ field: "lines", lineIndex }];
 }
 
 const UNCHANGED_MESSAGES = {
@@ -70,56 +64,6 @@ async function sendNotFound(reply: FastifyReply, code: "purchase_not_found" | "l
     code,
     message: code === "purchase_not_found" ? "no purchase with that id" : "no line with that id",
   });
-}
-
-async function sendRefusal(reply: FastifyReply, refusal: Refusal): Promise<void> {
-  switch (refusal.kind) {
-    case "no_lines":
-      await reply.code(400).send({
-        code: "validation_failed",
-        message: "a purchase needs at least one line",
-        details: [{ field: "lines" }],
-      });
-      return;
-    case "date_in_future":
-      await reply.code(400).send({
-        code: "validation_failed",
-        message: "a purchase cannot be dated in the future",
-        details: [{ field: "purchasedOn" }],
-      });
-      return;
-    case "supplier_not_found":
-      await reply
-        .code(404)
-        .send({ code: "supplier_not_found", message: "no supplier with that id" });
-      return;
-    case "supplier_inactive":
-      await reply
-        .code(409)
-        .send({ code: "supplier_inactive", message: "the supplier is deactivated" });
-      return;
-    case "product_not_found":
-      await reply.code(404).send({
-        code: "product_not_found",
-        message: "no product with that id",
-        details: lineDetails(refusal.lineIndex),
-      });
-      return;
-    case "product_inactive":
-      await reply.code(409).send({
-        code: "product_inactive",
-        message: "the product is deactivated",
-        details: lineDetails(refusal.lineIndex),
-      });
-      return;
-    case "invalid_quantity":
-      await reply.code(400).send({
-        code: "validation_failed",
-        message: "the line's quantity is not one its product may be received in",
-        details: lineDetails(refusal.lineIndex),
-      });
-      return;
-  }
 }
 
 export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
@@ -160,7 +104,7 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
     });
 
     if (outcome.kind !== "registered") {
-      await sendRefusal(reply, outcome);
+      await sendPurchaseRefusal(reply, outcome);
       return;
     }
     const purchase = await findPurchaseListing(listing, outcome.purchase.id);
@@ -203,7 +147,7 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
       return;
     }
     if (outcome.kind !== "added") {
-      await sendRefusal(reply, outcome);
+      await sendPurchaseRefusal(reply, outcome);
       return;
     }
     await sendPurchase(reply, 201, outcome.purchaseId);
@@ -232,7 +176,7 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
       return;
     }
     if (outcome.kind === "date_in_future") {
-      await sendRefusal(reply, outcome);
+      await sendPurchaseRefusal(reply, outcome);
       return;
     }
     if (outcome.kind === "unchanged") {

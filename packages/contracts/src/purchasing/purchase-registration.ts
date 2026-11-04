@@ -71,12 +71,15 @@ export function receiptNumberMatchesType(body: {
 
 export const receiptNumberIssue = { path: ["receiptNumber"], error: RECEIPT_NUMBER_MESSAGE };
 
-export const purchaseRegistrationBodySchema = z
-  .object({
-    supplierId: recordIdSchema("supplierId must be a supplier's id"),
-    ...purchaseHeaderFields,
-    lines: z.array(purchaseLineBodySchema).min(MIN_PURCHASE_LINES),
-  })
-  .refine(receiptNumberMatchesType, receiptNumberIssue);
+export const purchaseRegistrationFieldsSchema = z.object({
+  supplierId: recordIdSchema("supplierId must be a supplier's id"),
+  ...purchaseHeaderFields,
+  lines: z.array(purchaseLineBodySchema).min(MIN_PURCHASE_LINES),
+});
+
+export const purchaseRegistrationBodySchema = purchaseRegistrationFieldsSchema.refine(
+  receiptNumberMatchesType,
+  receiptNumberIssue,
+);
 
 export type PurchaseRegistrationBody = z.input<typeof purchaseRegistrationBodySchema>;

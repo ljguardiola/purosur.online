@@ -71,6 +71,28 @@ describe("cancelPurchaseOrder", () => {
     });
   });
 
+  it("cancels an order received in part", async () => {
+    const store = storeWith(order({ state: "PARTIALLY_RECEIVED", receivedAt: null }));
+
+    expect(await cancelPurchaseOrder({ store, clock: CLOCK }, input)).toEqual({
+      kind: "cancelled",
+    });
+    expect(store.orders()[0]).toMatchObject({
+      state: "CANCELLED",
+      cancelledAt: NOW,
+      receivedAt: null,
+    });
+  });
+
+  it("refuses to cancel an order already received", async () => {
+    const store = storeWith(order({ state: "RECEIVED" }));
+
+    expect(await cancelPurchaseOrder({ store, clock: CLOCK }, input)).toEqual({
+      kind: "not_cancellable",
+    });
+    expect(store.orders()[0]?.state).toBe("RECEIVED");
+  });
+
   it("refuses to cancel an order already cancelled", async () => {
     const store = storeWith(order({ state: "CANCELLED", cancelledAt: NOW }));
 

@@ -489,6 +489,15 @@ export { purchaseOrderDetailSchema } from "./purchasing/purchase-order-detail.js
 export type { PurchaseOrderEditBody } from "./purchasing/purchase-order-edit.js";
 export { purchaseOrderEditBodySchema } from "./purchasing/purchase-order-edit.js";
 export type {
+  PurchaseOrderReceiptBody,
+  PurchaseOrderReceiptDraft,
+} from "./purchasing/purchase-order-receipt.js";
+export {
+  purchaseOrderReceiptBodySchema,
+  purchaseOrderReceiptDraftSchema,
+  purchaseOrderReceiptSchema,
+} from "./purchasing/purchase-order-receipt.js";
+export type {
   PurchaseOrderListQuery,
   PurchaseOrderSummary,
 } from "./purchasing/purchase-order-summary.js";

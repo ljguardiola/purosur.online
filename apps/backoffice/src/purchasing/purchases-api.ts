@@ -143,7 +143,9 @@ async function refusedLines(
   return refusal(response);
 }
 
-async function refusedRegistration(response: Response): Promise<RegisterPurchaseOutcome> {
+export async function refusedRegistration(
+  response: Response,
+): Promise<Exclude<RegisterPurchaseOutcome, { kind: "ok" }>> {
   const body = await readRefusalBody(response.clone());
   if (response.status === 404 && body.code === "supplier_not_found") {
     return { kind: "supplier_not_found" };
