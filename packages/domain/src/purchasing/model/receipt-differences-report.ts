@@ -15,6 +15,7 @@ export interface ReceiptLineRow {
   supplierId: string;
   supplierName: string;
   receivedOn: string;
+  receivedAt: Date;
   product: ReceiptDifferenceProduct;
   receivedQuantity: number;
   missingQuantity: number;
@@ -25,6 +26,7 @@ interface ReceiptDifferenceLine {
   receiptId: string;
   orderId: string;
   receivedOn: string;
+  receivedAt: Date;
   product: ReceiptDifferenceProduct;
   receivedQuantity: number;
   missingQuantity: number;
@@ -65,7 +67,7 @@ function differencesOf(lines: readonly ReceiptDifferenceLine[]): Differences {
 
 function compareLines(a: ReceiptDifferenceLine, b: ReceiptDifferenceLine): number {
   return (
-    compareCodeUnits(a.receivedOn, b.receivedOn) ||
+    a.receivedAt.getTime() - b.receivedAt.getTime() ||
     compareCodeUnits(a.receiptId, b.receiptId) ||
     compareCodeUnits(a.product.id, b.product.id)
   );

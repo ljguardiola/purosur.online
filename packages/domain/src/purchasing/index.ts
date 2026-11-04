@@ -47,12 +47,8 @@ export {
   PURCHASE_ORDER_STATES,
   RECEIVABLE_PURCHASE_ORDER_STATES,
 } from "./model/purchase-order.js";
-export { hasReceiptDifference } from "./model/purchase-order-receipt.js";
 export type { PurchasedLine } from "./model/purchases-by-supplier-report.js";
-export type {
-  ReceiptDifferenceProduct,
-  ReceiptLineRow,
-} from "./model/receipt-differences-report.js";
+export type { ReceiptLineRow } from "./model/receipt-differences-report.js";
 export {
   isSupplierContactTooLong,
   isSupplierNameTooLong,

@@ -44,6 +44,7 @@ export class DrizzleReceiptDifferencesReader<TQueryResult extends PgQueryResultH
         supplierId: suppliers.id,
         supplierName: suppliers.name,
         receivedOn: receivedDay,
+        receivedAt: purchaseOrderReceipts.receivedAt,
         productId: products.id,
         productName: products.name,
         brandName: brands.name,
@@ -77,6 +78,7 @@ export class DrizzleReceiptDifferencesReader<TQueryResult extends PgQueryResultH
       supplierId: row.supplierId,
       supplierName: row.supplierName,
       receivedOn: row.receivedOn,
+      receivedAt: row.receivedAt,
       product: {
         id: row.productId,
         name: row.productName,
