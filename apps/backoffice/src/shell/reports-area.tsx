@@ -11,6 +11,7 @@ import {
   HandCoins,
   List,
   Package,
+  PackageOpen,
   PackageX,
   Receipt,
   Scale,
@@ -59,6 +60,9 @@ function ReportsArea() {
     matchRoute({ to: "/reports/prices-past-review-deadline" }),
   );
   const freightReportShown = Boolean(matchRoute({ to: "/reports/freight-by-period" }));
+  const pendingPurchaseOrdersShown = Boolean(
+    matchRoute({ to: "/reports/pending-purchase-orders" }),
+  );
   const aiCostReportShown = Boolean(matchRoute({ to: "/reports/ai-cost-by-period" }));
   const purchasesReportShown = Boolean(matchRoute({ to: "/reports/purchases-by-supplier" }));
   const averageTicketShown = Boolean(matchRoute({ to: "/reports/average-ticket" }));
@@ -225,6 +229,15 @@ function ReportsArea() {
                     icon={<Truck />}
                     search={freightReportShown ? true : {}}
                     active={freightReportShown}
+                  />
+                </li>
+                <li>
+                  <SectionLink
+                    to="/reports/pending-purchase-orders"
+                    label="Pedidos pendientes de recibir"
+                    icon={<PackageOpen />}
+                    search={pendingPurchaseOrdersShown ? true : {}}
+                    active={pendingPurchaseOrdersShown}
                   />
                 </li>
                 <li>

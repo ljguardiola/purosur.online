@@ -49,6 +49,7 @@ import type { FreightReportScreenServices } from "../purchasing/freight-report-s
 import type { FreightsListScreenServices } from "../purchasing/freights-list-services";
 import type { NewPurchaseScreenServices } from "../purchasing/new-purchase-services";
 import type { OrderSuggestionScreenServices } from "../purchasing/order-suggestion-services";
+import type { PendingPurchaseOrdersReportScreenServices } from "../purchasing/pending-purchase-orders-report-services";
 import type { PurchaseOrderReceiveScreenServices } from "../purchasing/purchase-order-receive-services";
 import type { PurchaseOrderScreenServices } from "../purchasing/purchase-order-services";
 import type { PurchaseOrdersScreenServices } from "../purchasing/purchase-orders-services";
@@ -169,6 +170,7 @@ export type AppServices = {
   purchasesListScreen: PurchasesListScreenServices;
   purchasesReportScreen: PurchasesReportScreenServices;
   freightReportScreen: FreightReportScreenServices;
+  pendingPurchaseOrdersReportScreen: PendingPurchaseOrdersReportScreenServices;
   aiCostReportScreen: AiCostReportScreenServices;
   freightsListScreen: FreightsListScreenServices;
   supplierPriceListsScreen: SupplierPriceListsScreenServices;
