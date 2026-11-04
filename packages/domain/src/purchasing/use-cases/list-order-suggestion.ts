@@ -16,6 +16,7 @@ import {
   soldThousandths,
 } from "../model/order-suggestion.js";
 import { mayBePurchasedFrom } from "../model/purchase.js";
+import { awaitedQuantity } from "../model/purchase-order-receipt.js";
 import {
   type ComparedOffer,
   type ComparedProduct,
@@ -46,6 +47,8 @@ export interface OrderSuggestionLine extends Omit<ComparedProduct, "offers" | "u
   // In thousandths of `saleUnit`.
   soldQuantity: number;
   stock: number;
+  // What orders sent to a supplier and not yet received still have to bring, in thousandths of `saleUnit`.
+  awaitedQuantity: number;
   // What is needed rounded up to whole units, or to the thousandth when sold by weight.
   neededQuantity: number;
   // Cheapest first.
@@ -77,17 +80,26 @@ export async function listOrderSuggestion(
   { locationId }: ListOrderSuggestionInput,
 ): Promise<OrderSuggestion> {
   const range = orderSuggestionPeriod(argentinaCalendarDay(clock.now(), zoneRules.zoneRules()));
-  const [compared, coverage, sold, stock, newestLots, suppliers] = await Promise.all([
+  const [compared, coverage, sold, stock, awaitedLines, newestLots, suppliers] = await Promise.all([
     listSupplierPriceComparison(reader),
     reader.coverageDays(),
     reader.completedSalesByProduct({ locationId, range }),
     reader.currentStock(locationId),
+    reader.awaitedOrderLines(locationId),
     reader.newestShelfLifeLots(locationId),
     reader.suppliers(),
   ]);
   const coverageDaysOf = new Map(coverage.map((entry) => [entry.productId, entry.coverageDays]));
   const soldOf = new Map(salesOfGroups(sold).map((group) => [group.id, group]));
   const stockOf = new Map(stock.map((entry) => [entry.productId, entry.quantity]));
+  const awaitedOf = new Map<string, number>();
+  for (const line of awaitedLines) {
+    awaitedOf.set(
+      line.productId,
+      (awaitedOf.get(line.productId) ?? 0) +
+        awaitedQuantity(line.state, line, line.receivedQuantity),
+    );
+  }
   const shelfLifeOf = new Map(
     newestLots.map((lot) => [
       lot.productId,
@@ -102,6 +114,7 @@ export async function listOrderSuggestion(
     const sales = soldOf.get(product.id);
     const soldQuantity = sales === undefined ? 0 : soldThousandths(sales, product.saleUnit);
     const stockQuantity = stockOf.get(product.id) ?? 0;
+    const awaited = awaitedOf.get(product.id) ?? 0;
     const shelfLifeDays = shelfLifeOf.get(product.id) ?? null;
     const { days: effectiveDays, cappedByExpiry } = effectiveCoverageDays(
       coverageDays,
@@ -111,6 +124,7 @@ export async function listOrderSuggestion(
       soldThousandths: soldQuantity,
       coverageDays: effectiveDays,
       stockThousandths: stockQuantity,
+      awaitedThousandths: awaited,
     });
     if (shortfall === null) {
       return [];
@@ -119,6 +133,7 @@ export async function listOrderSuggestion(
       soldThousandths: soldQuantity,
       shelfLifeDays,
       stockThousandths: stockQuantity,
+      awaitedThousandths: awaited,
     });
     const { offers, unpricedOffers, ...shown } = product;
     return [
@@ -128,6 +143,7 @@ export async function listOrderSuggestion(
         cappedByExpiry,
         soldQuantity,
         stock: stockQuantity,
+        awaitedQuantity: awaited,
         neededQuantity: quantityToOrderWithoutSupplier(shortfall, product.saleUnit, cap),
         offers: offers.map(({ quantity: packageQuantity, ...offer }) => ({
           ...offer,
