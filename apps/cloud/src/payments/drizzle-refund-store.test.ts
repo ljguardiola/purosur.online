@@ -9,6 +9,7 @@ import { aTransferCancelledSale } from "../sync/test-support/synced-facts.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleRefundStore } from "./drizzle-refund-store.js";
 import { aPendingLatePaymentRefund } from "./test-support/late-payment-refund-fixtures.js";
+import { aPendingQrRefundOfCancelledSale } from "./test-support/mercado-pago-refund-fixtures.js";
 
 const NOW = new Date("2026-10-07T15:00:00.000Z");
 
@@ -335,6 +336,101 @@ describe("DrizzleRefundStore", () => {
       await resolve();
 
       await expect(resolve()).resolves.toBeUndefined();
+    });
+  });
+
+  describe("recordRefundDoneByTransfer", () => {
+    const TRANSFER = { kind: "mercado_pago", operationNumber: "00123456" } as const;
+
+    async function aRefundRefusedForGood() {
+      const { refundId, locationId } = await aPendingQrRefundOfCancelledSale(db, {
+        cancelledAt: NOW,
+      });
+      const { userId } = await signedInWith(db, ["confirm_refunds"], NOW);
+      await db
+        .update(paymentRefunds)
+        .set({ confirmedBy: userId, confirmedAt: NOW, lastRefusalReason: "payment_not_refundable" })
+        .where(eq(paymentRefunds.id, refundId));
+      return { refundId, locationId, userId };
+    }
+
+    it("records the transfer, who gave the money back and when, and leaves an audit entry naming the transfer", async () => {
+      const { refundId, locationId, userId } = await aRefundRefusedForGood();
+      const doneAt = new Date("2026-10-08T09:00:00.000Z");
+
+      await store().transaction(async (tx) => {
+        await tx.lockRefund(refundId, locationId);
+        await tx.recordRefundDoneByTransfer(refundId, TRANSFER, userId, doneAt);
+      });
+
+      const [refund] = await db
+        .select()
+        .from(paymentRefunds)
+        .where(eq(paymentRefunds.id, refundId));
+      expect(refund).toMatchObject({
+        state: "APPROVED",
+        doneBy: userId,
+        doneAt,
+        transferKind: "mercado_pago",
+        transferOperationNumber: "00123456",
+      });
+      const [audit] = await db.select().from(auditLog).where(eq(auditLog.entityId, refundId));
+      expect(audit).toMatchObject({
+        entity: "payment_refund",
+        actorId: userId,
+        at: doneAt,
+        previousValue: { state: "PENDING" },
+        newValue: {
+          state: "APPROVED",
+          doneAt: doneAt.toISOString(),
+          transferKind: "mercado_pago",
+          transferOperationNumber: "00123456",
+        },
+      });
+    });
+
+    it("logs the completion for the branch of the refund", async () => {
+      const { refundId, locationId, userId } = await aRefundRefusedForGood();
+      const since = await lastLoggedChangeSeq(db);
+
+      await store().transaction(async (tx) => {
+        await tx.lockRefund(refundId, locationId);
+        await tx.recordRefundDoneByTransfer(refundId, TRANSFER, userId, NOW);
+      });
+
+      expect(await changesLoggedAfter(db, since)).toEqual([
+        { entity: "refund_completion", entityId: refundId, version: 1, op: "insert", locationId },
+      ]);
+    });
+
+    it("refuses to record a refund that was not locked, changing nothing", async () => {
+      const { refundId, userId } = await aRefundRefusedForGood();
+
+      await expect(
+        store().transaction((tx) => tx.recordRefundDoneByTransfer(refundId, TRANSFER, userId, NOW)),
+      ).rejects.toThrow("a refund is marked done only after it is locked");
+
+      const [refund] = await db
+        .select()
+        .from(paymentRefunds)
+        .where(eq(paymentRefunds.id, refundId));
+      expect(refund).toMatchObject({ state: "PENDING", transferKind: null });
+    });
+
+    it.each([
+      ["a kind without an operation number", { transferKind: "bank" }],
+      ["an operation number without a kind", { transferOperationNumber: "1" }],
+      ["a kind no transfer has", { transferKind: "cash", transferOperationNumber: "1" }],
+      [
+        "a transfer on a refund that is still pending",
+        { transferKind: "bank", transferOperationNumber: "1" },
+      ],
+    ])("lets the database refuse %s", async (_case, transfer) => {
+      const { refundId } = await aRefundRefusedForGood();
+
+      await expect(
+        db.update(paymentRefunds).set(transfer).where(eq(paymentRefunds.id, refundId)),
+      ).rejects.toThrow();
     });
   });
 });
