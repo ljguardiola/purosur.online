@@ -17,6 +17,7 @@ export const ORDER_SUGGESTION: OrderSuggestion = {
       cappedByExpiry: false,
       soldQuantity: 120_000,
       stock: 10_000,
+      awaitedQuantity: 7_000,
       neededQuantity: 50_000,
       offers: [
         {
@@ -55,6 +56,7 @@ export const ORDER_SUGGESTION: OrderSuggestion = {
       cappedByExpiry: false,
       soldQuantity: 60_000,
       stock: 10_000,
+      awaitedQuantity: 0,
       neededQuantity: 30_000,
       offers: [],
       unpricedOffers: [],
@@ -70,6 +72,7 @@ export const ORDER_SUGGESTION: OrderSuggestion = {
       cappedByExpiry: false,
       soldQuantity: 48_000,
       stock: 12_000,
+      awaitedQuantity: 0,
       neededQuantity: 12_000,
       offers: [
         {
