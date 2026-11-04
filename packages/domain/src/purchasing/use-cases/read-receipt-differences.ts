@@ -4,7 +4,10 @@ import {
   reportPeriodOf,
   type ZoneRulesSource,
 } from "../../shared/index.js";
-import { type ReceiptDifferences, receiptDifferences } from "../model/receipt-differences-report.js";
+import {
+  type ReceiptDifferences,
+  receiptDifferences,
+} from "../model/receipt-differences-report.js";
 import type { ReceiptDifferencesReader } from "./receipt-differences-reader.js";
 
 export interface ReadReceiptDifferencesInput {

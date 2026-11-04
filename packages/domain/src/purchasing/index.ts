@@ -23,10 +23,6 @@ export type {
 } from "./model/freight-distribution.js";
 export { freightPerUnit } from "./model/freight-distribution.js";
 export type { PendingPurchaseOrderRow } from "./model/pending-purchase-orders-report.js";
-export type {
-  ReceiptDifferenceProduct,
-  ReceiptLineRow,
-} from "./model/receipt-differences-report.js";
 export type { ReceiptType } from "./model/purchase.js";
 export {
   hasPurchaseLines,
@@ -46,13 +42,17 @@ export {
   ONE_SALE_UNIT_QUANTITY,
 } from "./model/purchase-line.js";
 export type { PurchaseOrderState } from "./model/purchase-order.js";
-export { hasReceiptDifference } from "./model/purchase-order-receipt.js";
 export {
   mayBeReceived,
   PURCHASE_ORDER_STATES,
   RECEIVABLE_PURCHASE_ORDER_STATES,
 } from "./model/purchase-order.js";
+export { hasReceiptDifference } from "./model/purchase-order-receipt.js";
 export type { PurchasedLine } from "./model/purchases-by-supplier-report.js";
+export type {
+  ReceiptDifferenceProduct,
+  ReceiptLineRow,
+} from "./model/receipt-differences-report.js";
 export {
   isSupplierContactTooLong,
   isSupplierNameTooLong,

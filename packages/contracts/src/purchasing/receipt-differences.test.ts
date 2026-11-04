@@ -64,7 +64,12 @@ describe("receiptDifferencesSchema", () => {
   const report = {
     range: { from: "2026-09-07", to: "2026-10-06" },
     suppliers: [supplier],
-    totals: { suppliers: 1, short_lines: 1, price_difference_lines: 1, price_difference_cents: -120 },
+    totals: {
+      suppliers: 1,
+      short_lines: 1,
+      price_difference_lines: 1,
+      price_difference_cents: -120,
+    },
   };
 
   it("accepts the differences of a range with their totals", () => {
@@ -75,7 +80,12 @@ describe("receiptDifferencesSchema", () => {
     const empty = {
       range: report.range,
       suppliers: [],
-      totals: { suppliers: 0, short_lines: 0, price_difference_lines: 0, price_difference_cents: 0 },
+      totals: {
+        suppliers: 0,
+        short_lines: 0,
+        price_difference_lines: 0,
+        price_difference_cents: 0,
+      },
     };
 
     expect(receiptDifferencesSchema.parse(empty)).toEqual(empty);
@@ -116,15 +126,24 @@ describe("receiptDifferencesSchema", () => {
     ["a supplier that is not a record id", withSupplier({ supplier_id: "prov-1" })],
     ["a supplier without a name", withSupplier({ name: undefined })],
     ["a negative count of short lines on a supplier", withSupplier({ short_lines: -1 })],
-    ["a supplier without price difference lines", withSupplier({ price_difference_lines: undefined })],
-    ["a supplier net price difference with decimals", withSupplier({ price_difference_cents: 0.5 })],
+    [
+      "a supplier without price difference lines",
+      withSupplier({ price_difference_lines: undefined }),
+    ],
+    [
+      "a supplier net price difference with decimals",
+      withSupplier({ price_difference_cents: 0.5 }),
+    ],
     ["a month that is not a report month", withMonth({ month: "2026-13" })],
     ["a negative count of short lines on a month", withMonth({ short_lines: -1 })],
     ["a month without price difference lines", withMonth({ price_difference_lines: undefined })],
     ["a month net price difference with decimals", withMonth({ price_difference_cents: 0.5 })],
     ["a line whose receipt is not a record id", withLine({ receipt_id: "r-1" })],
     ["a line whose order is not a record id", withLine({ order_id: "oc-1" })],
-    ["a line received on a day that is not a calendar day", withLine({ received_on: "2026-02-30" })],
+    [
+      "a line received on a day that is not a calendar day",
+      withLine({ received_on: "2026-02-30" }),
+    ],
     ["a line without a product", withLine({ product: undefined })],
     ["a line with a negative received quantity", withLine({ received_quantity: -1 })],
     ["a line with a received quantity with decimals", withLine({ received_quantity: 1.5 })],
