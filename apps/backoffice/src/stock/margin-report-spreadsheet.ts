@@ -5,6 +5,10 @@ import { marginRowLabel } from "./margin-row-label";
 
 type MarginRow = MarginReportBody["rows"][number];
 
+function marginPercentCell(tenths: number | null) {
+  return tenths === null ? cell.empty() : cell.percent(tenths / 10);
+}
+
 export function marginReportSpreadsheet(
   shown: MarginReportBody,
   rows: readonly MarginRow[],
@@ -20,6 +24,7 @@ export function marginReportSpreadsheet(
         ["Vendido", cell.money(shown.totals.amount)],
         ["Costo", cell.money(shown.totals.cost)],
         ["Margen", cell.money(shown.totals.margin)],
+        ["Margen %", marginPercentCell(shown.totals.marginTenthsOfPercent)],
         ["Ventas con costo incompleto", cell.count(shown.totals.incompleteSales)],
       ]),
       {
@@ -30,6 +35,7 @@ export function marginReportSpreadsheet(
           "Costo",
           "Costo incompleto (ventas)",
           "Margen",
+          "Margen %",
         ],
         rows: rows.map((row) => [
           cell.text(marginRowLabel(row)),
@@ -37,6 +43,7 @@ export function marginReportSpreadsheet(
           cell.money(row.cost),
           cell.count(row.incompleteSales),
           cell.money(row.margin),
+          marginPercentCell(row.marginTenthsOfPercent),
         ]),
       },
     ],

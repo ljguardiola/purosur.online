@@ -26,6 +26,12 @@ test("keeps the range, the register, the grouping and the order a URL names", ()
   expect(marginReportFilters.parse(filters)).toEqual(filters);
 });
 
+test("keeps the order by margin percentage a URL names", () => {
+  expect(marginReportFilters.parse({ sortBy: "marginPercent" })).toMatchObject({
+    sortBy: "marginPercent",
+  });
+});
+
 test("falls back to no range for one the cloud would refuse, keeping the rest", () => {
   const parsed = marginReportFilters.parse({
     from: "2026-10-08",
