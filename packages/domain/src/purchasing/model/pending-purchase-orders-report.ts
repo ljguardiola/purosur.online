@@ -7,7 +7,7 @@ import {
 
 export const PENDING_PURCHASE_ORDERS_DEFAULT_DAYS = 30;
 
-export type PendingPurchaseOrderState = Extract<PurchaseOrderState, "SENT" | "PARTIALLY_RECEIVED">;
+type PendingPurchaseOrderState = Extract<PurchaseOrderState, "SENT" | "PARTIALLY_RECEIVED">;
 
 export interface PendingPurchaseOrderRow {
   orderId: string;
@@ -18,7 +18,7 @@ export interface PendingPurchaseOrderRow {
   lines: readonly PricedOrderLine[];
 }
 
-export interface PendingPurchaseOrder {
+interface PendingPurchaseOrder {
   id: string;
   supplier: { id: string; name: string };
   state: PendingPurchaseOrderState;
