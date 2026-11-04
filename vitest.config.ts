@@ -17,6 +17,7 @@ import {
   durationBalancedSequencer,
   TestDurationsReporter,
 } from "./.github/scripts/test-durations.mjs";
+import { UnrunFilesReporter } from "./.github/scripts/unrun-files-reporter.mjs";
 import { withoutPackageOutput } from "./.github/scripts/without-package-output.mjs";
 
 const PLAYWRIGHT_WS_ENDPOINT_ENV = "PLAYWRIGHT_SERVER_WS_ENDPOINT";
@@ -105,6 +106,7 @@ export default defineConfig({
         "catalog-visual": 4000,
       }),
       new TestDurationsReporter({ outputFile: process.env["TEST_DURATIONS_FILE"] }),
+      new UnrunFilesReporter(),
       heldRunReporter,
     ],
     projects: [
