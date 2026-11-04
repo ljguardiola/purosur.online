@@ -105,6 +105,7 @@ function buildFailingRouter(shouldThrow: () => boolean) {
       cancelPaidSale: async () => ({ kind: "unavailable" }),
       voidSale: async () => ({ kind: "unavailable" }),
       receiptPrintStatus: async () => ({ kind: "unavailable" }),
+      answerReceiptQuestion: async () => ({ kind: "unavailable" }),
       contingencyBackupTickets: async () => ({ kind: "unavailable" }),
       contingencyBackupTicketOfSale: async () => ({ kind: "unavailable" }),
       discardContingencyBackupTickets: async () => ({ kind: "unavailable" }),

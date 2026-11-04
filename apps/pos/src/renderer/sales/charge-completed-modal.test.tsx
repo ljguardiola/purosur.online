@@ -1,6 +1,6 @@
-import type { ReceiptPrintStatusOutcome } from "@purosur/contracts";
+import type { AnswerReceiptQuestionOutcome, ReceiptPrintStatusOutcome } from "@purosur/contracts";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import type { CompletedPayment } from "./charge-completed-modal";
 import { ChargeCompletedModal } from "./charge-completed-modal";
@@ -14,20 +14,29 @@ const PRINTED: ReceiptPrintStatusOutcome = {
 };
 const SALE = { sale_id: "sale-1", total: 476_000 } as const;
 
-async function renderModal(payment: CompletedPayment) {
+async function renderModal(
+  payment: CompletedPayment,
+  readReceiptStatus: () => Promise<ReceiptPrintStatusOutcome> = async () => PRINTED,
+  answerReceiptQuestion: (
+    saleId: string,
+    print: boolean,
+  ) => Promise<AnswerReceiptQuestionOutcome> = async () => ({ kind: "printing" }),
+) {
   await page.viewport(1280, 1000);
   onTestFinished(() => page.viewport(414, 896));
-  return render(
+  const screen = await render(
     <ChargeCompletedModal
       saleId="sale-1"
       payment={payment}
-      readReceiptStatus={vi.fn(async () => PRINTED)}
+      readReceiptStatus={vi.fn(readReceiptStatus)}
+      answerReceiptQuestion={answerReceiptQuestion}
       readBackupTicket={vi.fn(async () => ({ kind: "unavailable" as const }))}
       readBackupTickets={vi.fn(async () => ({ kind: "unavailable" as const }))}
       mayChangePrinter={false}
       onNewSale={vi.fn()}
     />,
   );
+  return screen;
 }
 
 describe("ChargeCompletedModal", () => {
@@ -114,4 +123,22 @@ describe("ChargeCompletedModal", () => {
       await expect.element(screen.getByRole("status")).toHaveTextContent(surplusNotice);
     },
   );
+
+  it("hands the cashier's answer about the ticket to the core, with the sale's id", async () => {
+    const answerReceiptQuestion = vi.fn(
+      async (): Promise<AnswerReceiptQuestionOutcome> => ({ kind: "declined" }),
+    );
+    const screen = await renderModal(
+      {
+        method: "CASH",
+        charge: { kind: "completed", ...SALE, tendered: 500_000, change: 24_000, cash_rounding: 0 },
+      },
+      async () => ({ ...PRINTED, printed: false, standing: "awaiting_answer" }),
+      answerReceiptQuestion,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "No" }));
+
+    await expect.poll(() => answerReceiptQuestion.mock.calls).toEqual([["sale-1", false]]);
+  });
 });
