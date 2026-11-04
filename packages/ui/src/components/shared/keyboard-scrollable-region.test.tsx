@@ -5,7 +5,15 @@ import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import { useKeyboardScrollableRegion } from "./keyboard-scrollable-region";
 
-function ScrollingBox({ shown = true, children }: { shown?: boolean; children: ReactNode }) {
+function ScrollingBox({
+  shown = true,
+  height = 200,
+  children,
+}: {
+  shown?: boolean;
+  height?: number;
+  children: ReactNode;
+}) {
   const titleId = useId();
   const region = useKeyboardScrollableRegion(titleId);
   return (
@@ -15,7 +23,7 @@ function ScrollingBox({ shown = true, children }: { shown?: boolean; children: R
         <div
           ref={region.observeOverflow}
           {...region.regionProps}
-          style={{ height: "200px", width: "300px", overflow: "auto" }}
+          style={{ height: `${height}px`, width: "300px", overflow: "auto" }}
         >
           {children}
         </div>
@@ -37,6 +45,10 @@ function BoxInAWrapperWithoutABox({ height }: { height: number }) {
       <div style={{ height: `${height}px` }} />
     </div>
   );
+}
+
+function BoxOfFixedSize() {
+  return <div style={{ height: "400px", width: "100px" }} />;
 }
 
 function TextInABoxOfFixedSize({ text }: { text: string }) {
@@ -134,6 +146,25 @@ test("becomes a tab stop once text in a box that keeps its size grows past it", 
   await screen.rerender(
     <ScrollingBox>
       <TextInABoxOfFixedSize text={"x".repeat(400)} />
+    </ScrollingBox>,
+  );
+
+  await expect.element(region()).toHaveAttribute("tabindex", "0");
+});
+
+test("becomes a tab stop once it shrinks below content that keeps its size", async () => {
+  const screen = await render(
+    <ScrollingBox height={1000}>
+      <BoxOfFixedSize />
+    </ScrollingBox>,
+  );
+  await nextFrame();
+  await nextFrame();
+  expect(page.getByRole("region").query()).toBeNull();
+
+  await screen.rerender(
+    <ScrollingBox height={100}>
+      <BoxOfFixedSize />
     </ScrollingBox>,
   );
 
