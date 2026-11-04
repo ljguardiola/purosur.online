@@ -9,6 +9,7 @@ import {
   InlineNotice,
   LoadFailure,
   LoadingPlaceholder,
+  ModalPart,
   type RequestSubmission,
   SummaryRowGroup,
   useRequestForm,
@@ -331,94 +332,101 @@ export function ProductPriceSection({
 
   return (
     <section className="flex flex-col gap-4">
-      <h3 className="font-bold text-body text-text">Precio de venta de {productDescription}</h3>
-      {notice ? (
-        <SectionNoticeView
-          notice={notice}
-          productDescription={productDescription}
-          saleUnit={saleUnit}
-          reloading={submitting}
-          onReload={() => {
-            setNotice(null);
-            void refreshPrices();
-          }}
-        />
-      ) : null}
-      {recommendation.status === "loading" ? <LoadingPlaceholder variant="rows" rows={3} /> : null}
-      {recommendation.status === "failed" ? (
-        <LoadFailure {...cloudLoadFailure(recommendation, "el precio de venta")} />
-      ) : null}
-      {answer ? (
-        <>
-          <SummaryRowGroup
-            variant="filled"
-            rows={[
-              {
-                label: "Precio actual",
-                value: answer.currentPrice
-                  ? formatCentsWithUnit(answer.currentPrice.unitPrice, saleUnit)
-                  : "Sin precio",
-              },
-              {
-                label: "Precio recomendado",
-                value:
-                  components === null
-                    ? "—"
-                    : recommendedPrice === undefined
-                      ? "Sin recomendación"
-                      : formatCentsWithUnit(recommendedPrice, saleUnit),
-              },
-              {
-                label: "Costo de la última tanda",
-                value:
-                  answer.batchCost.kind === "known"
-                    ? formatCentsWithUnit(answer.batchCost.unitCostCents, saleUnit)
-                    : answer.batchCost.kind === "none"
-                      ? "Sin tandas"
-                      : "Incompleto",
-              },
-            ]}
+      <ModalPart
+        action={
+          maySetPrice ? (
+            <Button
+              variant="secondary"
+              icon={<Check />}
+              dataStatus={recommendation.status}
+              disabled={submitting}
+              onPress={() => void submit()}
+            >
+              Guardar el precio
+            </Button>
+          ) : null
+        }
+      >
+        <h3 className="font-bold text-body text-text">Precio de venta de {productDescription}</h3>
+        {notice ? (
+          <SectionNoticeView
+            notice={notice}
+            productDescription={productDescription}
+            saleUnit={saleUnit}
+            reloading={submitting}
+            onReload={() => {
+              setNotice(null);
+              void refreshPrices();
+            }}
           />
-          {missingPricesNotice(answer, components)}
-        </>
-      ) : null}
-      {maySetPrice ? (
-        <form.AppField name="amount">
-          {(field) => (
-            <field.TextField
-              kind="price"
-              label={PRICE_LABEL[saleUnit]}
-              prefix="$"
-              decimals={2}
-              required
+        ) : null}
+        {recommendation.status === "loading" ? (
+          <LoadingPlaceholder variant="rows" rows={3} />
+        ) : null}
+        {recommendation.status === "failed" ? (
+          <LoadFailure {...cloudLoadFailure(recommendation, "el precio de venta")} />
+        ) : null}
+        {answer ? (
+          <>
+            <SummaryRowGroup
+              variant="filled"
+              rows={[
+                {
+                  label: "Precio actual",
+                  value: answer.currentPrice
+                    ? formatCentsWithUnit(answer.currentPrice.unitPrice, saleUnit)
+                    : "Sin precio",
+                },
+                {
+                  label: "Precio recomendado",
+                  value:
+                    components === null
+                      ? "—"
+                      : recommendedPrice === undefined
+                        ? "Sin recomendación"
+                        : formatCentsWithUnit(recommendedPrice, saleUnit),
+                },
+                {
+                  label: "Costo de la última tanda",
+                  value:
+                    answer.batchCost.kind === "known"
+                      ? formatCentsWithUnit(answer.batchCost.unitCostCents, saleUnit)
+                      : answer.batchCost.kind === "none"
+                        ? "Sin tandas"
+                        : "Incompleto",
+                },
+              ]}
             />
-          )}
-        </form.AppField>
-      ) : null}
-      {answer ? (
-        <ProposedMargin
-          maySetPrice={maySetPrice}
-          answer={answer}
-          typed={typed}
-          settled={settledTyped}
-          recommendedPrice={recommendedPrice}
-          fetchRecommendation={services.fetchPriceRecommendation}
-          onSessionEnded={onSessionEnded}
-          productId={productId}
-          components={withoutNames(settledComponents)}
-        />
-      ) : null}
-      {maySetPrice ? (
-        <Button
-          variant="secondary"
-          icon={<Check />}
-          dataStatus={recommendation.status}
-          disabled={submitting}
-          onPress={() => void submit()}
-        >
-          Guardar el precio
-        </Button>
-      ) : null}
+            {missingPricesNotice(answer, components)}
+          </>
+        ) : null}
+        {maySetPrice ? (
+          <form.AppField name="amount">
+            {(field) => (
+              <field.TextField
+                kind="price"
+                label={PRICE_LABEL[saleUnit]}
+                prefix="$"
+                decimals={2}
+                required
+              />
+            )}
+          </form.AppField>
+        ) : null}
+        {answer ? (
+          <ProposedMargin
+            maySetPrice={maySetPrice}
+            answer={answer}
+            typed={typed}
+            settled={settledTyped}
+            recommendedPrice={recommendedPrice}
+            fetchRecommendation={services.fetchPriceRecommendation}
+            onSessionEnded={onSessionEnded}
+            productId={productId}
+            components={withoutNames(settledComponents)}
+          />
+        ) : null}
+      </ModalPart>
     </section>
   );
 }

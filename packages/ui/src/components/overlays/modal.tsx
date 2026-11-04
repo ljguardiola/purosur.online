@@ -22,6 +22,7 @@ import { type Icon, iconSlotClassName } from "../shared/icon";
 import { useKeyboardScrollableRegion } from "../shared/keyboard-scrollable-region";
 import { moveFocus } from "../shared/moved-focus";
 import { type NoticeTone, type Tone, toneClassName } from "../shared/tone";
+import { type ModalPartFocus, ModalPartFocusContext } from "./modal-part";
 
 export type ModalWidth = "confirmation" | "standard" | "wide" | "editor";
 
@@ -78,7 +79,7 @@ function hasContent(node: ReactNode): boolean {
 type CtrlEnterEvent = Pick<
   KeyboardEvent,
   "key" | "ctrlKey" | "altKey" | "shiftKey" | "metaKey" | "preventDefault" | "stopPropagation"
->;
+> & { target: EventTarget | null };
 
 function isCtrlEnter(event: CtrlEnterEvent): boolean {
   return (
@@ -149,16 +150,20 @@ function FocusFirstField({ bodyRef }: { bodyRef: RefObject<HTMLDivElement | null
 
 function FieldFocusingContent({
   bodyRef,
+  focusPart,
   children,
 }: {
   bodyRef: RefObject<HTMLDivElement | null>;
+  focusPart: ModalPartFocus;
   children: ReactNode;
 }) {
   return (
     <FocusScope>
       {/* react-aria's focusFirst fails on a scope with no element in it, as when the body's content
           renders nothing. */}
-      <div className="contents">{children}</div>
+      <div className="contents">
+        <ModalPartFocusContext value={focusPart}>{children}</ModalPartFocusContext>
+      </div>
       <FocusFirstField bodyRef={bodyRef} />
     </FocusScope>
   );
@@ -179,6 +184,14 @@ export function Modal(props: ModalProps) {
     footer,
   } = props;
   const footerRef = useRef<HTMLDivElement>(null);
+  const focusedPartRef = useRef<{
+    focused: EventTarget;
+    part: HTMLElement;
+    action: HTMLElement;
+  } | null>(null);
+  const focusPart: ModalPartFocus = (focused, part, action) => {
+    focusedPartRef.current = { focused, part, action };
+  };
   const bodyRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const { observeOverflow, regionProps, focusClassName } = useKeyboardScrollableRegion(titleId);
@@ -208,7 +221,25 @@ export function Modal(props: ModalProps) {
     }
     event.preventDefault();
     event.stopPropagation();
-    ownFooter.querySelector<HTMLElement>('[data-variant="primary"]')?.click();
+    const action =
+      focusedPartAction(event.target) ??
+      ownFooter.querySelector<HTMLElement>('[data-variant="primary"]');
+    action?.click();
+  }
+
+  // A part's field, or its portaled list, is the element that took the focus last inside it; a
+  // focused element that left the document without a blur no longer counts.
+  function focusedPartAction(target: EventTarget | null): HTMLElement | null {
+    const focusedPart = focusedPartRef.current;
+    if (
+      focusedPart === null ||
+      focusedPart.focused !== target ||
+      !(target instanceof Element) ||
+      (focusedPart.part.contains(target) && !isField(target))
+    ) {
+      return null;
+    }
+    return focusedPart.action.querySelector<HTMLElement>("[data-variant]");
   }
 
   // The dialog itself holds the focus in a modal with no field, and before a field that loads late
@@ -273,7 +304,9 @@ export function Modal(props: ModalProps) {
               >
                 {title}
               </AriaHeading>
-              <FieldFocusingContent bodyRef={bodyRef}>{children}</FieldFocusingContent>
+              <FieldFocusingContent bodyRef={bodyRef} focusPart={focusPart}>
+                {children}
+              </FieldFocusingContent>
             </div>
           ) : (
             <>
@@ -313,7 +346,9 @@ export function Modal(props: ModalProps) {
                   ].join(" ")}
                   onKeyDownCapture={sendWithCtrlEnter}
                 >
-                  <FieldFocusingContent bodyRef={bodyRef}>{children}</FieldFocusingContent>
+                  <FieldFocusingContent bodyRef={bodyRef} focusPart={focusPart}>
+                    {children}
+                  </FieldFocusingContent>
                 </div>
               )}
             </>

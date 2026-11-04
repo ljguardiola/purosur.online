@@ -192,6 +192,8 @@ export type {
   ModalWidth,
 } from "./components/overlays/modal";
 export { Modal } from "./components/overlays/modal";
+export type { ModalPartProps } from "./components/overlays/modal-part";
+export { ModalPart } from "./components/overlays/modal-part";
 export type { TooltipProps } from "./components/overlays/tooltip";
 export { Tooltip } from "./components/overlays/tooltip";
 export type { Icon } from "./components/shared/icon";

@@ -1,5 +1,7 @@
 import type { PriceRecommendation } from "@purosur/contracts";
-import { FieldSizeProvider } from "@purosur/ui";
+import { Button, FieldSizeProvider, Modal } from "@purosur/ui";
+import { Info } from "lucide-react";
+import type { ReactNode } from "react";
 import { vi } from "vitest";
 import { render } from "../../shell/test-support/render-with-router";
 import type { fetchPriceRecommendation, setPrice } from "../prices-api";
@@ -76,27 +78,63 @@ function marginFor(
   };
 }
 
+function RecipeModal({
+  onSaveRecipe,
+  children,
+}: {
+  onSaveRecipe: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <Modal
+      open
+      onOpenChange={() => {}}
+      tone="info"
+      icon={<Info />}
+      title="Editar la receta"
+      footer={
+        <Button variant="primary" onPress={onSaveRecipe}>
+          Guardar la receta
+        </Button>
+      }
+    >
+      {children}
+    </Modal>
+  );
+}
+
 export function renderSection({
   services = sectionServices(),
+  inRecipeModal,
   ...props
-}: Partial<ProductPriceSectionProps> & { services?: ProductPriceSectionServices } = {}) {
-  const element = (next: Partial<ProductPriceSectionProps>) => (
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <ProductPriceSection
-          productId={mixProductId}
-          productDescription="Mix de frutos secos"
-          saleUnit="KG"
-          components={mixComponents}
-          maySetPrice
-          onSessionEnded={() => {}}
-          {...props}
-          {...next}
-          services={services}
-        />
-      </main>
-    </FieldSizeProvider>
-  );
+}: Partial<ProductPriceSectionProps> & {
+  services?: ProductPriceSectionServices;
+  inRecipeModal?: { onSaveRecipe: () => void };
+} = {}) {
+  const element = (next: Partial<ProductPriceSectionProps>) => {
+    const section = (
+      <ProductPriceSection
+        productId={mixProductId}
+        productDescription="Mix de frutos secos"
+        saleUnit="KG"
+        components={mixComponents}
+        maySetPrice
+        onSessionEnded={() => {}}
+        {...props}
+        {...next}
+        services={services}
+      />
+    );
+    return (
+      <FieldSizeProvider size="backoffice">
+        {inRecipeModal === undefined ? (
+          <main>{section}</main>
+        ) : (
+          <RecipeModal onSaveRecipe={inRecipeModal.onSaveRecipe}>{section}</RecipeModal>
+        )}
+      </FieldSizeProvider>
+    );
+  };
   return render(element({})).then((screen) => ({
     ...screen,
     withComponents: (components: ProductPriceSectionProps["components"]) =>
