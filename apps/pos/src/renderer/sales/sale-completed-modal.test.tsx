@@ -770,7 +770,9 @@ describe("SaleCompletedModal asking whether to print the customer's ticket", () 
     await expect.element(screen.getByText("$ 4.760,00")).toBeVisible();
     await expect.element(screen.getByRole("button", { name: "Sí" })).toBeVisible();
     await expect.element(screen.getByRole("button", { name: "No" })).toBeVisible();
-    await expect.element(screen.getByRole("button", { name: "Nueva venta" })).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole("button", { name: "Nueva venta" }))
+      .not.toBeInTheDocument();
     await expectNoAccessibilityViolations(screen.container);
   });
 
@@ -807,10 +809,13 @@ describe("SaleCompletedModal asking whether to print the customer's ticket", () 
   });
 
   it("disables both answers while one is being sent, and sends it once", async () => {
-    const answer = Promise.withResolvers<AnswerReceiptQuestionOutcome>();
+    let resolveAnswer: (outcome: AnswerReceiptQuestionOutcome) => void = () => {};
+    const pending = new Promise<AnswerReceiptQuestionOutcome>((resolve) => {
+      resolveAnswer = resolve;
+    });
     const { screen, answerReceiptQuestion } = await renderModal(CASH, {
       readReceiptStatus: awaiting,
-      answerReceiptQuestion: () => answer.promise,
+      answerReceiptQuestion: () => pending,
     });
 
     await userEvent.click(screen.getByRole("button", { name: "Sí" }));
@@ -819,7 +824,7 @@ describe("SaleCompletedModal asking whether to print the customer's ticket", () 
     await expect.element(screen.getByRole("button", { name: "No" })).toBeDisabled();
     await userEvent.keyboard("{Escape}");
     expect(answerReceiptQuestion).toHaveBeenCalledTimes(1);
-    answer.resolve({ kind: "printing" });
+    resolveAnswer({ kind: "printing" });
   });
 
   it("goes on to the printing flow once the core prints the ticket, and then offers a new sale", async () => {
@@ -862,7 +867,13 @@ describe("SaleCompletedModal asking whether to print the customer's ticket", () 
     const { screen } = await renderModal(CASH, {
       readReceiptStatus: async () =>
         found("declined", {
-          comprobante: { kind: "fiscal", authorization: "offline_code" },
+          comprobante: {
+            kind: "fiscal",
+            document_type: "factura_c",
+            authorization: "offline_code",
+            point_of_sale: 8,
+            number: 412,
+          },
         }),
       readBackupTicket: async () => ticketOf("to_print"),
     });
@@ -889,28 +900,31 @@ describe("SaleCompletedModal asking whether to print the customer's ticket", () 
     await expect.element(screen.getByRole("button", { name: "Nueva venta" })).toBeVisible();
   });
 
-  it.each([
-    "not_signed_in",
-    "not_found",
-    "unavailable",
-  ] as const)("tells the cashier the answer was not sent on %s and lets them answer again", async (kind) => {
-    const outcomes: AnswerReceiptQuestionOutcome[] = [{ kind }, { kind: "printing" }];
-    const { screen, answerReceiptQuestion } = await renderModal(CASH, {
-      readReceiptStatus: awaiting,
-      answerReceiptQuestion: async () => outcomes.shift() ?? { kind: "printing" },
-    });
+  it.each(["not_signed_in", "not_found", "unavailable"] as const)(
+    "tells the cashier the answer was not sent on %s and lets them answer again",
+    async (kind) => {
+      const outcomes: AnswerReceiptQuestionOutcome[] = [{ kind }, { kind: "printing" }];
+      const { screen, answerReceiptQuestion } = await renderModal(CASH, {
+        readReceiptStatus: awaiting,
+        answerReceiptQuestion: async () => outcomes.shift() ?? { kind: "printing" },
+      });
 
-    await userEvent.click(screen.getByRole("button", { name: "Sí" }));
+      await userEvent.click(screen.getByRole("button", { name: "Sí" }));
 
-    await expectAlertText(screen, "No se pudo enviar la respuesta. Probá de nuevo.");
-    await expect.element(screen.getByRole("button", { name: "Sí" })).toBeEnabled();
-    await expect.element(screen.getByRole("button", { name: "Nueva venta" })).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "No" }));
-    await expect.poll(() => answerReceiptQuestion.mock.calls).toEqual([
-      ["sale-1", true],
-      ["sale-1", false],
-    ]);
-  });
+      await expectAlertText(screen, "No se pudo enviar la respuesta. Probá de nuevo.");
+      await expect.element(screen.getByRole("button", { name: "Sí" })).toBeEnabled();
+      await expect
+        .element(screen.getByRole("button", { name: "Nueva venta" }))
+        .not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "No" }));
+      await expect
+        .poll(() => answerReceiptQuestion.mock.calls)
+        .toEqual([
+          ["sale-1", true],
+          ["sale-1", false],
+        ]);
+    },
+  );
 
   it("tells the cashier the answer was not sent when the request itself fails", async () => {
     const { screen } = await renderModal(CASH, {

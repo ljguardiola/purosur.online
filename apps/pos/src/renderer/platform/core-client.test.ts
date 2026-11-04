@@ -2415,23 +2415,26 @@ describe("createCoreClient", () => {
     ]);
   });
 
-  it.each([true, false])("asks the core to answer the customer's ticket question with print %s", async (print) => {
-    const client = clientWithSequentialIds();
-    const port = new FakePort();
-    client.connect(port);
+  it.each([true, false])(
+    "asks the core to answer the customer's ticket question with print %s",
+    async (print) => {
+      const client = clientWithSequentialIds();
+      const port = new FakePort();
+      client.connect(port);
 
-    const answered = client.answerReceiptQuestion("sale-1", print);
-    port.answer({
-      type: "answer-receipt-question-result",
-      request_id: "request-1",
-      outcome: { kind: print ? "printing" : "declined" },
-    });
+      const answered = client.answerReceiptQuestion("sale-1", print);
+      port.answer({
+        type: "answer-receipt-question-result",
+        request_id: "request-1",
+        outcome: { kind: print ? "printing" : "declined" },
+      });
 
-    expect(await answered).toEqual({ kind: print ? "printing" : "declined" });
-    expect(port.posted).toEqual([
-      { type: "answer-receipt-question", request_id: "request-1", sale_id: "sale-1", print },
-    ]);
-  });
+      expect(await answered).toEqual({ kind: print ? "printing" : "declined" });
+      expect(port.posted).toEqual([
+        { type: "answer-receipt-question", request_id: "request-1", sale_id: "sale-1", print },
+      ]);
+    },
+  );
 
   it("asks the core to find a deferred sale from the code the cashier typed", async () => {
     const client = clientWithSequentialIds();
