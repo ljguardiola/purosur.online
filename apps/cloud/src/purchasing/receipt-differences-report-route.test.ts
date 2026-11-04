@@ -132,7 +132,12 @@ describe("GET /reports/receipt-differences", () => {
     expect(response.json()).toEqual({
       range: { from: "2026-10-05", to: "2026-10-05" },
       suppliers: [],
-      totals: { suppliers: 0, short_lines: 0, price_difference_lines: 0, price_difference_cents: 0 },
+      totals: {
+        suppliers: 0,
+        short_lines: 0,
+        price_difference_lines: 0,
+        price_difference_cents: 0,
+      },
     });
   });
 
@@ -194,7 +199,12 @@ describe("GET /reports/receipt-differences", () => {
           ],
         },
       ],
-      totals: { suppliers: 1, short_lines: 1, price_difference_lines: 1, price_difference_cents: -120 },
+      totals: {
+        suppliers: 1,
+        short_lines: 1,
+        price_difference_lines: 1,
+        price_difference_cents: -120,
+      },
     });
   });
 

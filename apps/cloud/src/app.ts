@@ -172,6 +172,7 @@ import { registerPurchaseOrdersRoutes } from "./purchasing/purchase-orders-route
 import { registerPurchasesBySupplierReportRoute } from "./purchasing/purchases-by-supplier-report-route.js";
 import { registerPurchasesRoutes } from "./purchasing/purchases-routes.js";
 import type { PurchasingRouteOptions } from "./purchasing/purchasing-route-options.js";
+import { registerReceiptDifferencesReportRoute } from "./purchasing/receipt-differences-report-route.js";
 import { registerSupplierPriceComparisonRoutes } from "./purchasing/supplier-price-comparison-routes.js";
 import { registerSupplierPriceListsRoutes } from "./purchasing/supplier-price-lists-routes.js";
 import { registerSuppliersRoutes } from "./purchasing/suppliers-routes.js";
@@ -678,6 +679,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerPurchasesRoutes(api, { ...options.purchasing, now });
         registerPurchasesBySupplierReportRoute(api, { ...options.purchasing, now });
         registerPendingPurchaseOrdersReportRoute(api, { ...options.purchasing, now });
+        registerReceiptDifferencesReportRoute(api, { ...options.purchasing, now });
         registerFreightByPeriodReportRoute(api, { ...options.purchasing, now });
         registerAiCostByPeriodReportRoute(api, { ...options.purchasing, now });
         registerFreightsRoutes(api, { ...options.purchasing, now });
