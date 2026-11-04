@@ -295,6 +295,18 @@ describe("SaleCompletedModal", () => {
     await expect.element(screen.getByText("Imprimiendo")).toBeVisible();
   });
 
+  it("keeps Nueva venta disabled until the core first answers the print status", async () => {
+    const { screen, onNewSale } = await renderModal(CASH, {
+      readReceiptStatus: () => new Promise(() => {}),
+    });
+
+    const newSale = screen.getByRole("button", { name: "Nueva venta" });
+    await expect.element(newSale).toBeDisabled();
+    (newSale.element() as HTMLElement).click();
+    await userEvent.keyboard("{Enter}");
+    expect(onNewSale).not.toHaveBeenCalled();
+  });
+
   it("shows the receipt as being printed while the core says it is printing", async () => {
     const { screen } = await renderModal(CASH, {
       readReceiptStatus: async () => found("printing"),
@@ -326,6 +338,7 @@ describe("SaleCompletedModal", () => {
     });
 
     await expect.element(screen.getByText("No se pudo leer el estado")).toBeVisible();
+    await expect.element(screen.getByRole("button", { name: "Nueva venta" })).toBeEnabled();
     await userEvent.click(screen.getByRole("button", { name: "Nueva venta" }));
     expect(onNewSale).toHaveBeenCalledOnce();
   });
