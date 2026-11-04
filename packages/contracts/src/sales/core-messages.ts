@@ -365,6 +365,7 @@ const answerReceiptQuestionOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("not_signed_in") }),
   z.object({ kind: z.literal("not_found") }),
   z.object({ kind: z.literal("not_awaiting") }),
+  z.object({ kind: z.literal("unavailable") }),
 ]);
 export type AnswerReceiptQuestionOutcome = z.infer<typeof answerReceiptQuestionOutcomeSchema>;
 

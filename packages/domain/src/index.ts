@@ -962,6 +962,7 @@ export {
   saleComprobanteOf,
   saleDiscountUnavailability,
   saleFiscalDocumentAmong,
+  salePrintStanding,
   saleStandingOf,
   saleTotal,
   saleUnitOfWeightSource,

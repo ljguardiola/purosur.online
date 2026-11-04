@@ -88,7 +88,11 @@ export {
   saleUnitOfWeightSource,
 } from "./model/sale-line.js";
 export type { SalePrintStanding } from "./model/sale-print-standing.js";
-export { customerReceiptSettled, UNPRINTED_SALE_STANDINGS } from "./model/sale-print-standing.js";
+export {
+  customerReceiptSettled,
+  salePrintStanding,
+  UNPRINTED_SALE_STANDINGS,
+} from "./model/sale-print-standing.js";
 export { SALE_VOID_REFUSALS } from "./model/sale-void.js";
 export type { SalesOfCashier, SoldByCashier } from "./model/sales-by-cashier.js";
 export type {
