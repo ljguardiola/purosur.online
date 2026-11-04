@@ -1,17 +1,8 @@
 import type { ReceiptDifferencesBody } from "@purosur/contracts";
 import { formatProductDescription } from "@purosur/ui/formatters";
-import { type Cell, cell, type Workbook } from "../platform/spreadsheet/workbook";
+import { cell, type Workbook } from "../platform/spreadsheet/workbook";
+import { stockQuantityCells } from "../platform/stock-quantity-cells";
 import { periodSummaryRows, summarySheet } from "../shell/report-summary-sheet";
-
-const THOUSANDTHS_PER_UNIT = 1000;
-
-type Line = ReceiptDifferencesBody["suppliers"][number]["months"][number]["lines"][number];
-
-function quantityCells(thousandths: number, saleUnit: Line["product"]["saleUnit"]): [Cell, Cell] {
-  return saleUnit === "KG"
-    ? [cell.empty(), cell.weight(thousandths)]
-    : [cell.count(thousandths / THOUSANDTHS_PER_UNIT), cell.empty()];
-}
 
 export function receiptDifferencesReportSpreadsheet(shown: ReceiptDifferencesBody): Workbook {
   return {
@@ -43,8 +34,8 @@ export function receiptDifferencesReportSpreadsheet(shown: ReceiptDifferencesBod
               cell.month(month.month),
               cell.day(line.received_on),
               cell.text(formatProductDescription(line.product)),
-              ...quantityCells(line.received_quantity, line.product.saleUnit),
-              ...quantityCells(line.missing_quantity, line.product.saleUnit),
+              ...stockQuantityCells(line.received_quantity, line.product.saleUnit),
+              ...stockQuantityCells(line.missing_quantity, line.product.saleUnit),
               line.price_difference_cents === null
                 ? cell.empty()
                 : cell.money(line.price_difference_cents),
