@@ -6,8 +6,8 @@ import {
 } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleReceiptDifferencesReader } from "./drizzle-receipt-differences-reader.js";
-import { insertReceivedOrder } from "./test-support/receipt-differences-fixtures.js";
 import { insertSupplier } from "./test-support/purchases-report-fixtures.js";
+import { insertReceivedOrder } from "./test-support/receipt-differences-fixtures.js";
 
 const NOW = new Date("2026-10-20T15:00:00.000Z");
 const october = { from: "2026-10-01", to: "2026-10-31" };
@@ -76,14 +76,12 @@ describe("DrizzleReceiptDifferencesReader.receiptLines", () => {
 
   it("answers the lines without a difference too, leaving the choice to the domain", async () => {
     const context = await setUp();
-    await insertReceivedOrder(db, {
-      ...context,
-      receivedAt: new Date("2026-10-12T15:00:00.000Z"),
-      lines: [
-        { receivedQuantity: 10_000, missingQuantity: 0, priceDifferenceCents: null },
-        { receivedQuantity: 10_000, missingQuantity: 0, priceDifferenceCents: 0 },
-      ],
-    });
+    const receivedAt = new Date("2026-10-12T15:00:00.000Z");
+    const lines = (priceDifferenceCents: number | null) => [
+      { receivedQuantity: 10_000, missingQuantity: 0, priceDifferenceCents },
+    ];
+    await insertReceivedOrder(db, { ...context, receivedAt, lines: lines(null) });
+    await insertReceivedOrder(db, { ...context, receivedAt, lines: lines(0) });
 
     const rows = await new DrizzleReceiptDifferencesReader(db).receiptLines({
       locationId: context.locationId,
