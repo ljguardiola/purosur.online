@@ -36,6 +36,9 @@ interface ReceiptPrintStartOptions {
 
 export interface ReceiptPrintJobs {
   standingOf(saleId: string): ReceiptPrintStanding | null;
+  holdForAnswer(saleId: string): void;
+  isHeldForAnswer(saleId: string): boolean;
+  releaseAnswer(saleId: string): boolean;
   start<TOutcome>(
     saleId: string,
     run: (runner: ReceiptPrintRunner) => Promise<TOutcome>,
@@ -64,8 +67,21 @@ interface Entry {
 
 export function createReceiptPrintJobs({ reportFailure }: ReceiptPrintJobsDeps): ReceiptPrintJobs {
   const entries = new Map<string, Entry>();
+  const heldForAnswer = new Set<string>();
 
   return {
+    holdForAnswer(saleId) {
+      heldForAnswer.add(saleId);
+    },
+
+    isHeldForAnswer(saleId) {
+      return heldForAnswer.has(saleId);
+    },
+
+    releaseAnswer(saleId) {
+      return heldForAnswer.delete(saleId);
+    },
+
     standingOf(saleId) {
       const job = entries.get(saleId)?.current;
       return job === undefined ? null : receiptPrintStanding(job.observation);

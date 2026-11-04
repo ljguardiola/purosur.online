@@ -410,6 +410,9 @@ const ABANDONING_PRINTERS: ReceiptRequestDeps["printers"] = {
 function jobsRunningUnwatched(): ReceiptRequestDeps["jobs"] {
   return {
     standingOf: () => null,
+    holdForAnswer: () => {},
+    isHeldForAnswer: () => false,
+    releaseAnswer: () => false,
     start: async (_saleId, run) => ({
       kind: "answered",
       outcome: await run({ watch: new ReceiptPrintObserver().watch, printers: (inner) => inner }),

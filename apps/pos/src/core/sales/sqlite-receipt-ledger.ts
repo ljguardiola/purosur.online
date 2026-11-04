@@ -180,8 +180,7 @@ export class SqliteReceiptLedger implements ReceiptLedger {
           printAttemptedAt:
             row.print_attempted_at === null ? null : new Date(row.print_attempted_at),
           printedAt: row.printed_at === null ? null : new Date(row.printed_at),
-          printDeclinedAt:
-            row.print_declined_at === null ? null : new Date(row.print_declined_at),
+          printDeclinedAt: row.print_declined_at === null ? null : new Date(row.print_declined_at),
           reprintCount: row.reprint_count,
           voided: row.voided === 1,
           creditNoteAuthorized: row.credit_note_authorized === 1,

@@ -2,7 +2,6 @@ import type {
   AddProductOutcome,
   AddWeighedProductOutcome,
   AdjustSaleLineOutcome,
-  AnswerReceiptQuestionOutcome,
   ApplySaleDiscountOutcome,
   CancelLockedSaleOutcome,
   CancelPaidSaleOutcome,
@@ -72,6 +71,7 @@ import type {
   PreviewReturnRequest,
 } from "./returns/returns-requests";
 import type { FindDeferredSaleReading } from "./sales/deferred-sale-invoice-requests";
+import type { AnswerReceiptQuestionOutcome } from "./sales/receipt-question-requests";
 import type { ReprintSaleReceiptRequest } from "./sales/receipt-requests";
 import type {
   AdjustSaleLineRequest,

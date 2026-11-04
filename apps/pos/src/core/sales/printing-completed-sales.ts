@@ -7,27 +7,43 @@ export interface PrintingCompletedSalesDeps {
   onFailure: (error: unknown) => void;
 }
 
+export interface ReceiptQuestionDeps {
+  asksBeforePrinting: (saleId: string) => boolean;
+  holdForAnswer: (saleId: string) => void;
+}
+
+export interface AskingCompletedSalesDeps extends PrintingCompletedSalesDeps {
+  question: ReceiptQuestionDeps;
+}
+
 function printCompletedSale(
   { beforePrinting, print, syncNow, onFailure }: PrintingCompletedSalesDeps,
   outcome: { kind: string },
+  question?: ReceiptQuestionDeps,
 ): void {
   const saleId = completedSaleId(outcome);
   if (saleId !== undefined) {
     beforePrinting(saleId)
       .catch(onFailure)
-      .then(() => print(saleId))
+      .then(async () => {
+        if (question?.asksBeforePrinting(saleId)) {
+          question.holdForAnswer(saleId);
+          return;
+        }
+        await print(saleId);
+      })
       .catch(onFailure)
       .finally(syncNow);
   }
 }
 
 export function printingCompletedSales<TRequest, TOutcome extends { kind: string }>(
-  deps: PrintingCompletedSalesDeps,
+  deps: AskingCompletedSalesDeps,
   charge: (request: TRequest) => Promise<TOutcome>,
 ): (request: TRequest) => Promise<TOutcome> {
   return async (request) => {
     const outcome = await charge(request);
-    printCompletedSale(deps, outcome);
+    printCompletedSale(deps, outcome, deps.question);
     return outcome;
   };
 }

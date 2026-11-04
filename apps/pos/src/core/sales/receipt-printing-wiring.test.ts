@@ -343,17 +343,7 @@ describe("the register's receipt printing over its local database", () => {
   describe("a sale whose customer's factura C asks before printing", () => {
     beforeEach(() => {
       saveAddress("10.10.10.2", null);
-      database.exec(
-        `INSERT INTO offline_fiscal_documents (
-           id, sale_id, point_of_sale, document_type, number, issued_on, generated_at, generation_stamp,
-           offline_authorization_code, fortnight_start, fortnight_end, document,
-           buyer_document_type, buyer_document_number, cause
-         ) VALUES (
-           'offline-doc-1', 'sale-1', 8, 'factura_c', 412, '2026-10-08', '2026-10-08T12:00:00.000Z', '20261008090000',
-           '36251478963214', '2026-10-01', '2026-10-15', '{"buyerTaxStatusCode":5}',
-           99, 0, 'no_connectivity'
-         )`,
-      );
+      insertFiscalDocument(database, { saleId: "sale-1", state: "AUTHORIZED", number: 41 });
     });
 
     async function completed() {
@@ -628,6 +618,8 @@ describe("the register's receipt printing over its local database", () => {
       };
     }
 
+    let printingInUse: ReturnType<typeof printingOverDatabase> | undefined;
+
     function insertDocumentWaiting(): void {
       insertSaleCompletedEvent(database, "sale-1");
       insertFiscalDocument(database);
@@ -648,14 +640,18 @@ describe("the register's receipt printing over its local database", () => {
         readOutboxChainKey: async () => CHAIN_KEY,
         reportFailure: () => {},
       });
-      return printingOverDatabase(authorization.authorizeSale).afterCompletedSale(async () => ({
+      printingInUse = printingOverDatabase(authorization.authorizeSale);
+      return printingInUse.afterCompletedSale(async () => ({
         kind: "completed",
         sale_id: "sale-1",
       }));
     }
 
-    async function printedPapers() {
+    async function printedPapers({ cashierSaysYes = false } = {}) {
       await vi.waitFor(() => expect(syncs).toBe(1));
+      if (cashierSaysYes) {
+        await printingInUse?.answerReceiptQuestion?.({ saleId: "sale-1", print: true });
+      }
       return connections.map(({ socket }) => {
         socket.connected();
         socket.receive(READY);
@@ -672,7 +668,7 @@ describe("the register's receipt printing over its local database", () => {
       insertDocumentWaiting();
 
       await chargingWith(cloudAnswering(async () => json(AUTHORIZED_ANSWER)))?.({});
-      const papers = await printedPapers();
+      const papers = await printedPapers({ cashierSaysYes: true });
 
       expect(papers).toHaveLength(1);
       expect(papers[0]?.textLines.some((line) => line.startsWith("Comercio de Prueba "))).toBe(
@@ -707,7 +703,7 @@ describe("the register's receipt printing over its local database", () => {
       expect(syncs).toBe(0);
 
       pendingAnswers[0]?.(json(AUTHORIZED_ANSWER));
-      const papers = await printedPapers();
+      const papers = await printedPapers({ cashierSaysYes: true });
       expect(papers).toHaveLength(1);
       expect(papers[0]?.textLines).toContain("             CAE 75123456789012  ·  Vto. 10/10/2026");
     });

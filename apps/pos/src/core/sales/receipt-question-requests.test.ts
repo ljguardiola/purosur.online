@@ -1,6 +1,7 @@
 import { encodePinHash } from "@purosur/contracts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { derivePinVerifier } from "../credentials/pin-verifier";
+import { insertFiscalDocument } from "../fiscal/test-support/real-time-authorization-database";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source";
@@ -57,17 +58,7 @@ function addSale(saleId: string, { withVoucher }: { withVoucher: boolean }): voi
      VALUES ('pay-${saleId}', '${saleId}', 'SALE', 'CASH', 'NONE', 3000, 3000, NULL, NULL, 'APPROVED', '${COMPLETED_AT}');`,
   );
   if (withVoucher) {
-    database.exec(
-      `INSERT INTO offline_fiscal_documents (
-         id, sale_id, point_of_sale, document_type, number, issued_on, generated_at, generation_stamp,
-         offline_authorization_code, fortnight_start, fortnight_end, document,
-         buyer_document_type, buyer_document_number, cause
-       ) VALUES (
-         'offline-doc-${saleId}', '${saleId}', 8, 'factura_c', 412, '2026-10-08', '2026-10-08T12:00:00.000Z', '20261008090000',
-         '36251478963214', '2026-10-01', '2026-10-15', '{"buyerTaxStatusCode":5}',
-         99, 0, 'no_connectivity'
-       )`,
-    );
+    insertFiscalDocument(database, { saleId, id: `doc-${saleId}`, state: "AUTHORIZED" });
   }
 }
 

@@ -5,7 +5,12 @@ import type {
   ReceiptPrintStatusOutcome,
   ReprintSaleReceiptOutcome,
 } from "@purosur/contracts";
-import type { PrintedDocumentKey, ReceiptCopy, ZoneRulesSource } from "@purosur/domain";
+import {
+  type PrintedDocumentKey,
+  type ReceiptCopy,
+  salePrintStanding,
+  type ZoneRulesSource,
+} from "@purosur/domain";
 import {
   type Clock,
   type IdGenerator,
@@ -31,6 +36,8 @@ import { toWireComprobante } from "./sales-history-requests";
 import { SqliteReceiptLedger } from "./sqlite-receipt-ledger";
 import { SqliteRegisterSalesHistory } from "./sqlite-register-sales-history";
 import { toWireCopy } from "./wire-receipt-copy";
+
+type ReceiptPrintStatusFound = Extract<ReceiptPrintStatusOutcome, { kind: "found" }>;
 
 export interface ReceiptRequestDeps {
   database: LocalDatabase;
@@ -80,6 +87,24 @@ function jobKeyOf(key: PrintedDocumentKey): string {
   }
 }
 
+function declinedPrint(ledger: ReceiptLedger, saleId: string): boolean {
+  const delivery = ledger.transaction((tx) =>
+    tx.receiptDelivery({ document: "sale_receipt", saleId }),
+  );
+  return delivery !== undefined && salePrintStanding(delivery) === "declined";
+}
+
+function standingShown(
+  jobs: ReceiptPrintJobs,
+  saleId: string,
+  declined: () => boolean,
+): ReceiptPrintStatusFound["standing"] {
+  if (jobs.isHeldForAnswer(saleId)) {
+    return "awaiting_answer";
+  }
+  return jobs.standingOf(saleId) ?? (declined() ? "declined" : null);
+}
+
 export async function receiptPrintStatusFor(
   { database, signedInUserId, jobs }: ReceiptRequestDeps,
   saleId: string,
@@ -87,17 +112,15 @@ export async function receiptPrintStatusFor(
   if (signedInUserId() === undefined) {
     return { kind: "not_signed_in" };
   }
-  const delivery = receiptDeliveryOf(
-    { ledger: new SqliteReceiptLedger(database) },
-    { document: "sale_receipt", saleId },
-  );
+  const ledger = new SqliteReceiptLedger(database);
+  const delivery = receiptDeliveryOf({ ledger }, { document: "sale_receipt", saleId });
   return delivery.kind === "not_found"
     ? delivery
     : {
         kind: "found",
         next_copy: toWireCopy(delivery.nextCopy),
         printed: delivery.printedAt !== null,
-        standing: jobs.standingOf(saleId),
+        standing: standingShown(jobs, saleId, () => declinedPrint(ledger, saleId)),
         comprobante: toWireComprobante(
           readSaleComprobante({ history: new SqliteRegisterSalesHistory(database) }, { saleId }),
         ),
