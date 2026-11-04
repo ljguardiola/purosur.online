@@ -142,9 +142,10 @@ interface PendingMercadoPagoPaymentRow {
   occurred_at: string;
   wait_ends_at: string;
   card_type: PointCardType | null;
+  replaced: 0 | 1;
 }
 
-const PENDING_MERCADO_PAGO_PAYMENTS = `SELECT id, sale_id, method, amount, occurred_at, wait_ends_at, card_type
+const PENDING_MERCADO_PAGO_PAYMENTS = `SELECT id, sale_id, method, amount, occurred_at, wait_ends_at, card_type, replaced
   FROM payment_transactions WHERE method IN ('QR', 'POINT') AND state = 'PENDING'`;
 const FOLLOWED_MERCADO_PAGO_PAYMENTS = `${PENDING_MERCADO_PAGO_PAYMENTS} AND replaced = 0`;
 
@@ -203,13 +204,13 @@ export function readPendingMercadoPagoPayment(
 export function readPendingMercadoPagoPaymentsOf(
   database: LocalDatabase,
   saleId: string,
-): PendingMercadoPagoSalePayment[] {
+): (PendingMercadoPagoSalePayment & { replaced: boolean })[] {
   return database
     .prepare<[string], PendingMercadoPagoPaymentRow>(
       `${PENDING_MERCADO_PAGO_PAYMENTS} AND sale_id = ? ORDER BY rowid`,
     )
     .all(saleId)
-    .map(toPendingMercadoPagoPayment);
+    .map((row) => ({ ...toPendingMercadoPagoPayment(row), replaced: row.replaced === 1 }));
 }
 
 export function approvePendingMercadoPagoPayment(

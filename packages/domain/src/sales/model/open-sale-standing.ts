@@ -5,6 +5,7 @@ import {
   type MercadoPagoChargeInProgress,
   mercadoPagoChargeInProgress,
   type PendingMercadoPagoCharge,
+  type PendingMercadoPagoChargeWait,
   type PlannedRefund,
   plannedRefunds,
   type RefundablePayment,
@@ -27,7 +28,7 @@ export interface OpenSaleStanding {
 
 export function saleLinesLock(
   payments: readonly { state: string }[],
-  pendingMercadoPagoPayments: readonly { method: string; waitEndsAt: Date }[],
+  pendingMercadoPagoPayments: readonly PendingMercadoPagoChargeWait[],
   now: Date,
 ): SaleLinesLock | null {
   if (hasApprovedPayment(payments)) {
@@ -39,7 +40,7 @@ export function saleLinesLock(
 }
 
 export function saleCancelRefusal(
-  pendingMercadoPagoPayments: readonly { method: string; waitEndsAt: Date }[],
+  pendingMercadoPagoPayments: readonly PendingMercadoPagoChargeWait[],
   now: Date,
 ): SaleCancelRefusal | null {
   return aMercadoPagoChargeInProgress(pendingMercadoPagoPayments, now)

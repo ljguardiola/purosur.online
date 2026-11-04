@@ -50,14 +50,24 @@ export type PendingMercadoPagoCharge = MercadoPagoChargeOf & {
   amount: number;
   occurredAt: Date;
   waitEndsAt: Date;
+  replaced: boolean;
 };
 
-function inProgress({ method, waitEndsAt }: { method: string; waitEndsAt: Date }, now: Date) {
+export interface PendingMercadoPagoChargeWait {
+  method: string;
+  waitEndsAt: Date;
+  replaced: boolean;
+}
+
+function inProgress({ method, waitEndsAt, replaced }: PendingMercadoPagoChargeWait, now: Date) {
+  if (replaced) {
+    return false;
+  }
   return method === "POINT" || mercadoPagoOrderChargeWait(waitEndsAt, now).kind === "waiting";
 }
 
 export function aMercadoPagoChargeInProgress(
-  pendingPayments: readonly { method: string; waitEndsAt: Date }[],
+  pendingPayments: readonly PendingMercadoPagoChargeWait[],
   now: Date,
 ): boolean {
   return pendingPayments.some((payment) => inProgress(payment, now));

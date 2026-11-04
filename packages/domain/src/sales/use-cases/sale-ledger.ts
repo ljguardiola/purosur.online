@@ -114,7 +114,9 @@ export interface SaleLedgerTransaction {
   pendingMercadoPagoPayment(
     paymentTransactionId: string,
   ): PendingMercadoPagoSalePayment | undefined;
-  pendingMercadoPagoPaymentsOf(saleId: string): PendingMercadoPagoSalePayment[];
+  pendingMercadoPagoPaymentsOf(
+    saleId: string,
+  ): (PendingMercadoPagoSalePayment & { replaced: boolean })[];
   approvePendingMercadoPagoPayment(paymentTransactionId: string): void;
   markMercadoPagoPaymentReplaced(paymentTransactionId: string, waitEndsAt: Date): void;
   recordCashMovement(movement: CashMovement): void;

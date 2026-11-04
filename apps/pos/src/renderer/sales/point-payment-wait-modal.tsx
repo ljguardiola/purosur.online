@@ -133,9 +133,7 @@ export function PointPaymentWaitModal({
         }
         break;
       case "closed":
-        if (!waitedOut) {
-          onChooseAnotherMethod();
-        }
+        onChooseAnotherMethod();
         break;
       case "empty_sale":
       case "zero_total":
@@ -391,13 +389,16 @@ function WaitOverModal({
             />
           </div>
         )}
-        {unreachable ? <NoCloudConnectionNotice /> : null}
         {abandonFailed ? <AbandonFailedNotice /> : null}
-        <InlineNotice
-          tone="warning"
-          icon={<TriangleAlert />}
-          title="Cancelá el cobro en la terminal"
-        />
+        {unreachable ? (
+          <NoCloudConnectionNotice />
+        ) : (
+          <InlineNotice
+            tone="warning"
+            icon={<TriangleAlert />}
+            title="Cancelá el cobro en la terminal"
+          />
+        )}
       </div>
     </Modal>
   );
