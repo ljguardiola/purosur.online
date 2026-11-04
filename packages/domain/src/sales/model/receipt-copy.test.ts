@@ -19,6 +19,19 @@ describe("nextReceiptCopy", () => {
     });
   });
 
+  it("is the original while the cashier only declined the print", () => {
+    expect(
+      nextReceiptCopy({
+        printAttemptedAt: null,
+        printedAt: null,
+        printDeclinedAt: ATTEMPTED_AT,
+        reprintCount: 0,
+        voided: false,
+        creditNoteAuthorized: false,
+      }),
+    ).toEqual({ kind: "original" });
+  });
+
   it("is the first duplicate once a print was attempted", () => {
     expect(
       nextReceiptCopy({

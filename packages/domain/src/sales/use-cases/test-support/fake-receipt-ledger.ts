@@ -132,6 +132,9 @@ export class FakeReceiptLedger implements ReceiptLedger {
       recordPrintAttempt: (key, at) => {
         printingOf(key).printAttemptedAt = at;
       },
+      recordPrintDeclined: (key, at) => {
+        printingOf(key).printDeclinedAt = at;
+      },
       recordPrinted: (key, at) => {
         printingOf(key).printedAt = at;
       },
