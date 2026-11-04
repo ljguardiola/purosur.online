@@ -46,6 +46,10 @@ export function sameSupplierItemKey(a: SupplierItemKey, b: SupplierItemKey): boo
   return a.kind === b.kind && a.value === b.value;
 }
 
+export function supplierItemKeyId(key: SupplierItemKey): string {
+  return JSON.stringify([key.kind, key.value]);
+}
+
 // The item's description follows its current price: the latest list by date, a tie going to the
 // list confirmed later, which is the one being confirmed now.
 export function supersedesCurrentPrice(listDate: string, currentListDate: string | null): boolean {
@@ -202,7 +206,7 @@ export function lastRowOfEachItem<
   const byKey = new Map<string, { key: SupplierItemKey; row: T; rows: T[] }>();
   for (const row of rows) {
     const key = supplierItemKey(row);
-    const mapKey = JSON.stringify([key.kind, key.value]);
+    const mapKey = supplierItemKeyId(key);
     const existing = byKey.get(mapKey);
     if (existing) {
       existing.row = row;
