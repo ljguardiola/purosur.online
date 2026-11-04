@@ -2,9 +2,11 @@ import {
   type PriceConfirmationBody,
   type PriceList,
   type PriceMargin,
+  type PriceRecommendation,
   type PriceSetBody,
   priceListSchema,
   priceMarginSchema,
+  priceRecommendationSchema,
 } from "@purosur/contracts";
 import { cloudFetch } from "../platform/cloud-fetch";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
@@ -23,6 +25,13 @@ export type FetchPricesInput = {
 export type FetchPricesOutcome = CloudReadOutcome<PriceList>;
 
 export type FetchPriceMarginOutcome = CloudReadOutcome<PriceMargin>;
+
+export type FetchPriceRecommendationInput = {
+  components: readonly { componentProductId: string; quantityPerOutputUnit: number }[];
+  unitPrice?: number;
+};
+
+export type FetchPriceRecommendationOutcome = CloudReadOutcome<PriceRecommendation>;
 
 export type SetPriceInput = PriceSetBody;
 
@@ -121,6 +130,45 @@ export async function fetchPriceMargin(
   }
   const margin = priceMarginSchema.safeParse(await response.json().catch(() => undefined));
   return margin.success ? { kind: "ok", value: margin.data } : { kind: "failed" };
+}
+
+export async function fetchPriceRecommendation(
+  productId: string,
+  { components, unitPrice }: FetchPriceRecommendationInput,
+): Promise<FetchPriceRecommendationOutcome> {
+  const query = new URLSearchParams({
+    components: components
+      .map(
+        ({ componentProductId, quantityPerOutputUnit }) =>
+          `${componentProductId}:${quantityPerOutputUnit}`,
+      )
+      .join(","),
+  });
+  if (unitPrice !== undefined) {
+    query.set("unitPrice", String(unitPrice));
+  }
+  let response: Response;
+  try {
+    response = await cloudFetch(`/api/prices/${productId}/recommendation?${query.toString()}`);
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.status === 401) {
+    return { kind: "unauthenticated" };
+  }
+  if (response.status === 403) {
+    return { kind: "forbidden" };
+  }
+  if (response.status === 429) {
+    return rateLimitOutcome(response);
+  }
+  if (!response.ok) {
+    return { kind: "failed" };
+  }
+  const recommendation = priceRecommendationSchema.safeParse(
+    await response.json().catch(() => undefined),
+  );
+  return recommendation.success ? { kind: "ok", value: recommendation.data } : { kind: "failed" };
 }
 
 export async function setPrice(productId: string, input: SetPriceInput): Promise<SetPriceOutcome> {

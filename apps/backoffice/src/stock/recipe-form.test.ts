@@ -6,6 +6,7 @@ import {
   recipeComponentsHeading,
   recipeComponentsMessage,
   recipeFormValuesOf,
+  recipePriceComponentsOf,
   recipeProductOptions,
   recipeRowRefusalOf,
   recipeSaveRequestFrom,
@@ -314,5 +315,37 @@ describe("recipeComponentOf", () => {
       saleUnit: "UNIT",
       quantity: "",
     });
+  });
+});
+
+describe("recipePriceComponentsOf", () => {
+  it("names each component with its quantity per unit of finished product in thousandths", () => {
+    expect(
+      recipePriceComponentsOf([
+        { ...kgRow, quantity: "0,600" },
+        { ...unitRow, quantity: "2" },
+      ]),
+    ).toEqual([
+      { componentProductId: almendras.id, name: almendras.name, quantityPerOutputUnit: 600 },
+      { componentProductId: teVerde.id, name: teVerde.name, quantityPerOutputUnit: 2000 },
+    ]);
+  });
+
+  it.each([
+    ["empty", ""],
+    ["malformed", "0,5,"],
+    ["zero", "0"],
+  ])("tells the quantities are incomplete while one is %s", (_name, quantity) => {
+    expect(
+      recipePriceComponentsOf([
+        { ...kgRow, quantity: "0,600" },
+        { ...kgRow, productId: nueces.id, quantity },
+        { ...unitRow, quantity: "1" },
+      ]),
+    ).toBeNull();
+  });
+
+  it("is empty for a recipe without components", () => {
+    expect(recipePriceComponentsOf([])).toEqual([]);
   });
 });

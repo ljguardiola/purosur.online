@@ -1,4 +1,4 @@
-import type { CurrentPriceReader } from "@purosur/domain/pricing/use-cases";
+import type { CurrentPrice, CurrentPriceReader } from "@purosur/domain/pricing/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { branchSettings } from "../platform/db/schema.js";
@@ -14,6 +14,16 @@ export class DrizzleCurrentPriceReader<TQueryResult extends PgQueryResultHKT>
   }
 
   async currentUnitPrices(locationId: string): Promise<Map<string, number>> {
+    const newest = await this.newestPrices(locationId);
+    return new Map([...newest].map(([productId, price]) => [productId, price.unitPrice]));
+  }
+
+  async currentPriceOf(locationId: string, productId: string): Promise<CurrentPrice | null> {
+    const newest = await this.newestPrices(locationId);
+    return newest.get(productId) ?? null;
+  }
+
+  private async newestPrices(locationId: string): Promise<Map<string, CurrentPrice>> {
     const [settings] = await this.db
       .select({ priceListId: branchSettings.priceListId })
       .from(branchSettings)
@@ -21,7 +31,6 @@ export class DrizzleCurrentPriceReader<TQueryResult extends PgQueryResultHKT>
     if (!settings) {
       throw new Error(`branch settings missing for location ${locationId}`);
     }
-    const newest = await newestPricesOfList(this.db, settings.priceListId, "all-products");
-    return new Map([...newest].map(([productId, price]) => [productId, price.unitPrice]));
+    return newestPricesOfList(this.db, settings.priceListId, "all-products");
   }
 }
