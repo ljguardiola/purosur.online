@@ -1,6 +1,12 @@
 import type { PriceProduct } from "@purosur/contracts";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { confirmPrice, fetchPriceMargin, fetchPrices, setPrice } from "./prices-api";
+import {
+  confirmPrice,
+  fetchPriceMargin,
+  fetchPriceRecommendation,
+  fetchPrices,
+  setPrice,
+} from "./prices-api";
 
 function jsonResponse(status: number, body?: unknown, headers?: Record<string, string>): Response {
   return new Response(
@@ -434,4 +440,92 @@ test("fetchPriceMargin returns failed on a body that does not match", async () =
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { costReference: { lastCostCents: 1 } }));
 
   expect(await fetchPriceMargin("product-1", 820000)).toEqual({ kind: "failed" });
+});
+
+const almendrasId = "c0000000-0000-4000-8000-000000000001";
+const pasasId = "c0000000-0000-4000-8000-000000000004";
+const mixComponents = [
+  { componentProductId: almendrasId, quantityPerOutputUnit: 600 },
+  { componentProductId: pasasId, quantityPerOutputUnit: 400 },
+];
+const recommendedAnswer = {
+  currentPrice: { id: "price-1", unitPrice: 1500000, validFrom: "2026-01-01T12:00:00.000Z" },
+  recommendation: { kind: "recommended", unitPrice: 1600000 },
+  batchCost: { kind: "known", unitCostCents: 1200000, marginTenthsOfPercent: 250 },
+};
+
+test("fetchPriceRecommendation asks with the components as id and thousandths and returns the answer on 200", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, recommendedAnswer));
+
+  const outcome = await fetchPriceRecommendation("product-1", { components: mixComponents });
+
+  expect(outcome).toEqual({ kind: "ok", value: recommendedAnswer });
+  expect(fetch).toHaveBeenCalledWith(
+    `/api/prices/product-1/recommendation?components=${almendrasId}%3A600%2C${pasasId}%3A400`,
+  );
+});
+
+test("fetchPriceRecommendation sends the proposed price when there is one", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, recommendedAnswer));
+
+  await fetchPriceRecommendation("product-1", { components: mixComponents, unitPrice: 1600000 });
+
+  expect(fetch).toHaveBeenCalledWith(
+    `/api/prices/product-1/recommendation?components=${almendrasId}%3A600%2C${pasasId}%3A400&unitPrice=1600000`,
+  );
+});
+
+test.each([
+  [{ kind: "missing_prices", componentProductIds: [pasasId] }, { kind: "none" }, null],
+  [{ kind: "recommended", unitPrice: 1 }, { kind: "incomplete" }, null],
+])(
+  "fetchPriceRecommendation returns %j beside a %j batch cost and no price",
+  async (recommendation, batchCost, currentPrice) => {
+    const answer = { currentPrice, recommendation, batchCost };
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, answer));
+
+    expect(await fetchPriceRecommendation("product-1", { components: mixComponents })).toEqual({
+      kind: "ok",
+      value: answer,
+    });
+  },
+);
+
+test.each([
+  [401, { kind: "unauthenticated" }],
+  [403, { kind: "forbidden" }],
+  [404, { kind: "failed" }],
+  [400, { kind: "failed" }],
+  [500, { kind: "failed" }],
+])("fetchPriceRecommendation answers a %i as %j", async (status, expected) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
+
+  expect(await fetchPriceRecommendation("product-1", { components: mixComponents })).toEqual(
+    expected,
+  );
+});
+
+test("fetchPriceRecommendation reports a rate limit with its retry time", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "12" }));
+
+  expect(await fetchPriceRecommendation("product-1", { components: mixComponents })).toEqual({
+    kind: "rate_limited",
+    retryAfterSeconds: 12,
+  });
+});
+
+test("fetchPriceRecommendation returns failed when the request cannot be made", async () => {
+  vi.mocked(fetch).mockRejectedValue(new TypeError("offline"));
+
+  expect(await fetchPriceRecommendation("product-1", { components: mixComponents })).toEqual({
+    kind: "failed",
+  });
+});
+
+test("fetchPriceRecommendation returns failed on a body that does not match", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { currentPrice: null }));
+
+  expect(await fetchPriceRecommendation("product-1", { components: mixComponents })).toEqual({
+    kind: "failed",
+  });
 });

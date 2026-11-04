@@ -1,83 +1,27 @@
-import type { RecipeList, RecipeSummary } from "@purosur/contracts";
-import { FieldSizeProvider } from "@purosur/ui";
+import type { RecipeSummary } from "@purosur/contracts";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import { render } from "../shell/test-support/render-with-router";
-import { NewRecipeModal, type NewRecipeModalServices } from "./new-recipe-modal";
+import type { NewRecipeModalServices } from "./new-recipe-modal";
 import type { fetchRecipes } from "./recipes-api";
+import {
+  addComponent,
+  chooseProduct,
+  type NewRecipeModalScreen,
+  renderNewRecipeModal,
+} from "./test-support/new-recipe-modal";
 import {
   almendras,
   avenaConPasas,
   mixDeFrutosSecos,
   nueces,
   recipeList,
-  recipeProducts,
 } from "./test-support/recipes";
-import { RecipesReader } from "./test-support/recipes-reader";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 
-function renderModal({
-  saveRecipe = vi.fn<NewRecipeModalServices["saveRecipe"]>(),
-  products = recipeProducts,
-  recipes = [mixDeFrutosSecos],
-  onSaved = () => {},
-  onClose = () => {},
-  onSessionEnded = () => {},
-  readRecipes = vi.fn<typeof fetchRecipes>().mockResolvedValue({
-    kind: "ok",
-    value: recipeList([mixDeFrutosSecos]),
-  }),
-}: {
-  saveRecipe?: NewRecipeModalServices["saveRecipe"];
-  readRecipes?: typeof fetchRecipes;
-  products?: RecipeList["products"];
-  recipes?: RecipeSummary[];
-  onSaved?: (recipe: RecipeSummary) => void;
-  onClose?: () => void;
-  onSessionEnded?: () => void;
-} = {}) {
-  return render(
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <RecipesReader read={readRecipes} />
-        <NewRecipeModal
-          open
-          products={products}
-          recipes={recipes}
-          services={{ saveRecipe }}
-          onSaved={onSaved}
-          onClose={onClose}
-          onSessionEnded={onSessionEnded}
-        />
-      </main>
-    </FieldSizeProvider>,
-  );
-}
-
-type ModalScreen = Awaited<ReturnType<typeof renderModal>>;
-
-// A locator click scrolls the option into view first, and the scroll event closes the list.
-async function choose(screen: ModalScreen, combobox: RegExp, name: string) {
-  await userEvent.click(screen.getByRole("dialog").getByRole("combobox", { name: combobox }));
-  await expect.element(screen.getByRole("option", { name })).toBeVisible();
-  (screen.getByRole("option", { name }).element() as HTMLElement).click();
-}
-
-async function chooseProduct(screen: ModalScreen, name: string) {
-  await choose(screen, /^Producto armado/, name);
-}
-
-async function addComponent(screen: ModalScreen, name: string, quantity: string) {
-  const dialog = screen.getByRole("dialog");
-  await userEvent.click(dialog.getByRole("button", { name: "Agregar un componente" }));
-  await choose(screen, /^Componente/, name);
-  await userEvent.fill(dialog.getByRole("textbox", { name: `Cantidad de ${name}` }), quantity);
-}
-
-async function submit(screen: ModalScreen) {
+async function submit(screen: NewRecipeModalScreen) {
   const dialog = screen.getByRole("dialog");
   await userEvent.click(dialog.getByRole("button", { name: "Crear la receta" }));
   return dialog;
@@ -90,7 +34,7 @@ async function submitAvenaWith(
     readRecipes,
   }: { onSessionEnded?: () => void; readRecipes?: typeof fetchRecipes } = {},
 ) {
-  const screen = await renderModal({
+  const screen = await renderNewRecipeModal({
     saveRecipe,
     ...(onSessionEnded ? { onSessionEnded } : {}),
     ...(readRecipes ? { readRecipes } : {}),
@@ -101,7 +45,7 @@ async function submitAvenaWith(
 }
 
 test("shows the eyebrow, the title, the product field, the help text and both actions", async () => {
-  const screen = await renderModal();
+  const screen = await renderNewRecipeModal();
   const dialog = screen.getByRole("dialog");
 
   await expect.element(dialog.getByText("Stock · Recetas")).toBeVisible();
@@ -120,7 +64,7 @@ test("shows the eyebrow, the title, the product field, the help text and both ac
 });
 
 test("offers only the products that have no recipe yet", async () => {
-  const screen = await renderModal();
+  const screen = await renderNewRecipeModal();
 
   await userEvent.click(
     screen.getByRole("dialog").getByRole("combobox", { name: /^Producto armado/ }),
@@ -131,7 +75,7 @@ test("offers only the products that have no recipe yet", async () => {
 });
 
 test("names the unit of the chosen product above the components", async () => {
-  const screen = await renderModal();
+  const screen = await renderNewRecipeModal();
   const dialog = screen.getByRole("dialog");
   await expect.element(dialog.getByText("Componentes", { exact: true })).toBeVisible();
 
@@ -146,7 +90,7 @@ test("names the unit of the chosen product above the components", async () => {
 });
 
 test("a component is searched among the products but the chosen one and those already added", async () => {
-  const screen = await renderModal();
+  const screen = await renderNewRecipeModal();
   const dialog = screen.getByRole("dialog");
   await chooseProduct(screen, "Avena con pasas");
   await addComponent(screen, "Almendras", "0,4");
@@ -160,7 +104,7 @@ test("a component is searched among the products but the chosen one and those al
 });
 
 test("each component asks its quantity in its own unit and can be removed", async () => {
-  const screen = await renderModal();
+  const screen = await renderNewRecipeModal();
   const dialog = screen.getByRole("dialog");
   await chooseProduct(screen, "Caja de regalo");
   await addComponent(screen, "Almendras", "0,4");
@@ -181,7 +125,7 @@ test("creates the recipe of the chosen product with each quantity sent as thousa
     .fn<NewRecipeModalServices["saveRecipe"]>()
     .mockResolvedValue({ kind: "ok", recipe: created });
   const onSaved = vi.fn();
-  const screen = await renderModal({ saveRecipe, onSaved });
+  const screen = await renderNewRecipeModal({ saveRecipe, onSaved });
 
   await chooseProduct(screen, "Avena con pasas");
   await addComponent(screen, "Almendras", "0,4");
@@ -203,7 +147,7 @@ test("shows the refusal of a recipe without components under the components", as
     kind: "invalid_recipe",
     reason: { kind: "no_components" },
   });
-  const screen = await renderModal({ saveRecipe });
+  const screen = await renderNewRecipeModal({ saveRecipe });
   await chooseProduct(screen, "Avena con pasas");
 
   const dialog = await submit(screen);
@@ -213,7 +157,7 @@ test("shows the refusal of a recipe without components under the components", as
 
 test("asks for the product when the components are fine, without calling the API", async () => {
   const saveRecipe = vi.fn<NewRecipeModalServices["saveRecipe"]>();
-  const screen = await renderModal({ saveRecipe });
+  const screen = await renderNewRecipeModal({ saveRecipe });
   await addComponent(screen, "Almendras", "0,4");
 
   const dialog = await submit(screen);
@@ -224,7 +168,7 @@ test("asks for the product when the components are fine, without calling the API
 
 test("refuses a component without a readable quantity, saying how to type it", async () => {
   const saveRecipe = vi.fn<NewRecipeModalServices["saveRecipe"]>();
-  const screen = await renderModal({ saveRecipe });
+  const screen = await renderNewRecipeModal({ saveRecipe });
   await chooseProduct(screen, "Avena con pasas");
   await addComponent(screen, "Almendras", "");
   await userEvent.type(screen.getByRole("textbox", { name: "Cantidad de Almendras" }), "5,");
@@ -241,7 +185,7 @@ test("refuses a component without a readable quantity, saying how to type it", a
 
 test("refuses a quantity of zero", async () => {
   const saveRecipe = vi.fn<NewRecipeModalServices["saveRecipe"]>();
-  const screen = await renderModal({ saveRecipe });
+  const screen = await renderNewRecipeModal({ saveRecipe });
   await chooseProduct(screen, "Caja de regalo");
   await addComponent(screen, "Té verde", "0");
 
@@ -308,7 +252,7 @@ test("shows the assembled product used as its own component next to that compone
     kind: "invalid_recipe",
     reason: { kind: "self_component" },
   });
-  const screen = await renderModal({ saveRecipe });
+  const screen = await renderNewRecipeModal({ saveRecipe });
   await addComponent(screen, "Avena con pasas", "0,4");
   await chooseProduct(screen, "Avena con pasas");
 
@@ -390,7 +334,7 @@ test("sends a person the cloud forbids to Mi cuenta", async () => {
 
 test("cancel closes the modal", async () => {
   const onClose = vi.fn();
-  const screen = await renderModal({ onClose });
+  const screen = await renderNewRecipeModal({ onClose });
 
   await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Cancelar" }));
 
