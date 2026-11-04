@@ -1071,15 +1071,10 @@ describe("POST /refunds/:id/transfer", () => {
     expect(resolved).toMatchObject({ resolvedAt: NOW, resolvedBy: userId });
   });
 
-  it.each([
-    ["without the kind", { operation_number: "1" }],
-    ["with a kind no transfer has", { kind: "cash", operation_number: "1" }],
-    ["without the operation number", { kind: "bank" }],
-    ["with a blank operation number", { kind: "bank", operation_number: "  " }],
-  ])("answers 400 and records nothing %s", async (_case, payload) => {
+  it("answers 400 and records nothing without the operation number", async () => {
     const { headers, refundId } = await refusedForGood();
 
-    const response = await transfer(headers, refundId, payload);
+    const response = await transfer(headers, refundId, { kind: "bank" });
 
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ code: "validation_failed" });

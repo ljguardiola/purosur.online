@@ -103,10 +103,7 @@ test("cancel closes the question without calling the cloud", async () => {
 test.each([
   ["already_done", "Ya estaba marcado como hecho"],
   ["discarded", "Ya estaba descartado"],
-  [
-    "not_refused_for_good",
-    "Mercado Pago ya no tiene este reembolso rechazado; no se puede registrar por transferencia.",
-  ],
+  ["not_refused_for_good", "Este reembolso no se puede registrar por transferencia"],
   ["not_found", "Este reembolso ya no existe"],
 ] as const)("tells %s, and updating the list reports it", async (kind, message) => {
   const recordRefundTransfer = vi
@@ -144,7 +141,8 @@ test("shows the number the cloud refused on its field", async () => {
   const screen = await renderModal({ recordRefundTransfer });
   const dialog = await fillAndRecord(screen);
 
-  await expect.element(dialog.getByText("Ingresá el número de operación.")).toBeVisible();
+  await expect.element(dialog.getByText("Revisá el número de operación.")).toBeVisible();
+  expect(dialog.getByText("Ingresá el número de operación.").query()).toBeNull();
 });
 
 test("shows the rate-limited notice with the time to wait", async () => {
