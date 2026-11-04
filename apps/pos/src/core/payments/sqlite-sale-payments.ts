@@ -230,7 +230,7 @@ export function markMercadoPagoPaymentReplaced(
 ): void {
   database
     .prepare(
-      "UPDATE payment_transactions SET replaced = 1, wait_ends_at = ? WHERE id = ? AND method = 'QR' AND state = 'PENDING'",
+      "UPDATE payment_transactions SET replaced = 1, wait_ends_at = ? WHERE id = ? AND method IN ('QR', 'POINT') AND state = 'PENDING'",
     )
     .run(waitEndsAt.toISOString(), paymentTransactionId);
 }

@@ -956,6 +956,7 @@ describe("the register's local migrations", () => {
         "0097_sale_cash_rounding",
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
+        "0100_replaced_point_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1078,6 +1079,7 @@ describe("the register's local migrations", () => {
         "0097_sale_cash_rounding",
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
+        "0100_replaced_point_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1195,6 +1197,7 @@ describe("the register's local migrations", () => {
         "0097_sale_cash_rounding",
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
+        "0100_replaced_point_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1311,6 +1314,7 @@ describe("the register's local migrations", () => {
         "0097_sale_cash_rounding",
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
+        "0100_replaced_point_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1456,6 +1460,7 @@ describe("the register's local migrations", () => {
         "0097_sale_cash_rounding",
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
+        "0100_replaced_point_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1591,6 +1596,7 @@ describe("the register's local migrations", () => {
         "0097_sale_cash_rounding",
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
+        "0100_replaced_point_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1730,6 +1736,7 @@ describe("the register's local migrations", () => {
         "0097_sale_cash_rounding",
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
+        "0100_replaced_point_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1877,6 +1884,7 @@ describe("the register's local migrations", () => {
         "0097_sale_cash_rounding",
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
+        "0100_replaced_point_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1991,6 +1999,7 @@ describe("the register's local migrations", () => {
         "0097_sale_cash_rounding",
         "0098_discard_empty_carts",
         "0099_sale_print_declined",
+        "0100_replaced_point_payments",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -3220,11 +3229,6 @@ describe("the register's local migrations", () => {
       );
       expect(() =>
         insertPayment.run({ ...point, id: "point-authorized", authorized_by: "u1" }),
-      ).toThrow(/CHECK/);
-      expect(() =>
-        after
-          .prepare("UPDATE payment_transactions SET replaced = 1 WHERE id = 'point-pending'")
-          .run(),
       ).toThrow(/CHECK/);
       expect(() =>
         after
@@ -9774,7 +9778,7 @@ describe("the replaced Point payments migration", () => {
         `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
          VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
          INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
-         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'OPEN', '2026-10-09T12:05:00.000Z');`,
+         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'OPEN', NULL);`,
       );
       before.prepare(INSERT_PAYMENT).run({ id: "qr-replaced", ...QR, replaced: 1 });
       before.prepare(INSERT_PAYMENT).run({ id: "point-pending", ...POINT, replaced: 0 });
