@@ -6,7 +6,7 @@ import { openLocalDatabase } from "../platform/test-support/open-local-database"
 import {
   approvePendingMercadoPagoPayment,
   insertPendingMercadoPagoPayment,
-  markQrPaymentReplaced,
+  markMercadoPagoPaymentReplaced,
   readPendingMercadoPagoPayment,
   readPendingMercadoPagoPaymentsOf,
   readRecordedPayments,
@@ -331,7 +331,7 @@ describe("the payments made on the integrated terminal", () => {
   it("never mark a pending payment as replaced", () => {
     insertPendingMercadoPagoPayment(database, POINT_PENDING);
 
-    markQrPaymentReplaced(database, "point-1", CONFIRMED_AT);
+    markMercadoPagoPaymentReplaced(database, "point-1", CONFIRMED_AT);
 
     expect(readPendingMercadoPagoPayment(database, "point-1")).toEqual(POINT_PENDING);
   });

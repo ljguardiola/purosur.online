@@ -5,7 +5,7 @@ import {
 import { describe, expect, it } from "vitest";
 import type { PendingMercadoPagoSalePayment } from "../../payments/index.js";
 import type { SaleWithLines } from "../model/sale.js";
-import { replacePendingQrPayment } from "./replace-pending-qr-payment.js";
+import { replacePendingMercadoPagoPayment } from "./replace-pending-mercado-pago-payment.js";
 import {
   FakeSaleLedger,
   type FakeSaleLedgerState,
@@ -69,13 +69,13 @@ function ledger(state: Partial<FakeSaleLedgerState> = {}): FakeSaleLedger {
 }
 
 function replace(store: FakeSaleLedger, paymentTransactionId = "qr-1", actorId = "cashier") {
-  return replacePendingQrPayment(
+  return replacePendingMercadoPagoPayment(
     { ledger: store, restoration: store.restoration, ids: new SequentialIds() },
     { actorId, paymentTransactionId, replacedAt: REPLACED_AT },
   );
 }
 
-describe("replacePendingQrPayment", () => {
+describe("replacePendingMercadoPagoPayment", () => {
   it("marks the pending QR payment as replaced and ends its wait now, leaving it pending", () => {
     const store = ledger();
 
@@ -114,7 +114,7 @@ describe("replacePendingQrPayment", () => {
     ]);
   });
 
-  it.each<FakeSaleLedgerWrite>(["markQrPaymentReplaced", "appendOutboxEvent"])(
+  it.each<FakeSaleLedgerWrite>(["markMercadoPagoPaymentReplaced", "appendOutboxEvent"])(
     "leaves the payment unmarked and sends no event when %s fails",
     (write) => {
       const store = ledger();

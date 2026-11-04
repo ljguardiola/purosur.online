@@ -21,7 +21,7 @@ import { addDiscount } from "./test-support/sqlite-sale-ledger";
 
 type SaleFact = Extract<
   SyncedFact,
-  { kind: "sale_completed" | "sale_cancelled" | "qr_payment_replaced" }
+  { kind: "sale_completed" | "sale_cancelled" | "mercado_pago_payment_replaced" }
 >;
 
 const SOURCE = {
@@ -841,7 +841,7 @@ describe("replenishing a cancelled sale into a restored register", () => {
 
 describe("replenishing a replaced QR payment into a restored register", () => {
   const replaced: SaleFact = {
-    kind: "qr_payment_replaced",
+    kind: "mercado_pago_payment_replaced",
     replacement: { paymentTransactionId: "payment-1", saleId: "sale-1" },
   };
 

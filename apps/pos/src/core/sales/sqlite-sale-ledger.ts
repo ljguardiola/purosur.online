@@ -33,7 +33,7 @@ import {
   hasRecordedPayments,
   insertPaymentRefund,
   insertPendingMercadoPagoPayment,
-  markQrPaymentReplaced,
+  markMercadoPagoPaymentReplaced,
   readPendingMercadoPagoPayment,
   readPendingMercadoPagoPaymentsOf,
   readSalePayments,
@@ -357,8 +357,8 @@ export class SqliteSaleLedger implements SaleLedger {
         readPendingMercadoPagoPaymentsOf(this.database, saleId),
       approvePendingMercadoPagoPayment: (paymentTransactionId) =>
         approvePendingMercadoPagoPayment(this.database, paymentTransactionId),
-      markQrPaymentReplaced: (paymentTransactionId, waitEndsAt) =>
-        markQrPaymentReplaced(this.database, paymentTransactionId, waitEndsAt),
+      markMercadoPagoPaymentReplaced: (paymentTransactionId, waitEndsAt) =>
+        markMercadoPagoPaymentReplaced(this.database, paymentTransactionId, waitEndsAt),
       saleCashMovements: (saleId) => readMovementsOf(this.database, { type: "sale", id: saleId }),
       recordCashMovement: (movement) => insertCashMovement(this.database, movement),
       recordSaleStockMovement: (movement) => insertSaleStockMovement(this.database, movement),

@@ -111,7 +111,7 @@ describe("the sale ledger's QR payments", () => {
     ledger.transaction((tx) => tx.recordPendingMercadoPagoPayment(PENDING));
     const replacedAt = new Date("2026-10-09T12:01:00.000Z");
 
-    ledger.transaction((tx) => tx.markQrPaymentReplaced("qr-1", replacedAt));
+    ledger.transaction((tx) => tx.markMercadoPagoPaymentReplaced("qr-1", replacedAt));
 
     expect(stateOf("qr-1")).toEqual({ state: "PENDING" });
     expect(
@@ -130,7 +130,7 @@ describe("the sale ledger's QR payments", () => {
     ledger.transaction((tx) => tx.recordPendingMercadoPagoPayment(PENDING));
     database.prepare("UPDATE payment_transactions SET state = 'DECLINED' WHERE id = 'qr-1'").run();
 
-    ledger.transaction((tx) => tx.markQrPaymentReplaced("qr-1", WAIT_ENDS_AT));
+    ledger.transaction((tx) => tx.markMercadoPagoPaymentReplaced("qr-1", WAIT_ENDS_AT));
 
     expect(
       database.prepare("SELECT replaced FROM payment_transactions WHERE id = 'qr-1'").get(),

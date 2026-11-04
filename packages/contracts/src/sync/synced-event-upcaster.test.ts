@@ -2617,7 +2617,7 @@ describe("decoding the events the registers pushed", () => {
     expect(decoded).toEqual({
       kind: "fact",
       fact: {
-        kind: "qr_payment_replaced",
+        kind: "mercado_pago_payment_replaced",
         replacement: { paymentTransactionId: "transaction-1", saleId: SALE },
       },
     });

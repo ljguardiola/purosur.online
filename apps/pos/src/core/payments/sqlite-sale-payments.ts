@@ -223,7 +223,7 @@ export function approvePendingMercadoPagoPayment(
     .run(paymentTransactionId);
 }
 
-export function markQrPaymentReplaced(
+export function markMercadoPagoPaymentReplaced(
   database: LocalDatabase,
   paymentTransactionId: string,
   waitEndsAt: Date,

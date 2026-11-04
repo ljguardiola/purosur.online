@@ -116,7 +116,7 @@ export interface SaleLedgerTransaction {
   ): PendingMercadoPagoSalePayment | undefined;
   pendingMercadoPagoPaymentsOf(saleId: string): PendingMercadoPagoSalePayment[];
   approvePendingMercadoPagoPayment(paymentTransactionId: string): void;
-  markQrPaymentReplaced(paymentTransactionId: string, waitEndsAt: Date): void;
+  markMercadoPagoPaymentReplaced(paymentTransactionId: string, waitEndsAt: Date): void;
   recordCashMovement(movement: CashMovement): void;
   recordSaleStockMovement(movement: SaleStockMovement): void;
   addToStockBalance(productId: string, delta: number): void;

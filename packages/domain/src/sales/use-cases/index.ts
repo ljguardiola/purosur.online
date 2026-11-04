@@ -276,12 +276,12 @@ export type {
 } from "./remove-sale-line.js";
 export { removeSaleLine } from "./remove-sale-line.js";
 export type {
-  PendingQrPaymentReplacementRefusal,
+  PendingMercadoPagoPaymentReplacementRefusal,
   ReplacePendingQrPaymentInput,
   ReplacePendingQrPaymentOutcome,
   ReplacePendingQrPaymentPorts,
-} from "./replace-pending-qr-payment.js";
-export { replacePendingQrPayment } from "./replace-pending-qr-payment.js";
+} from "./replace-pending-mercado-pago-payment.js";
+export { replacePendingMercadoPagoPayment } from "./replace-pending-mercado-pago-payment.js";
 export type {
   ReprintReceiptInput,
   ReprintReceiptOutcome,

@@ -14,7 +14,7 @@ export interface ReplacePendingQrPaymentPorts {
   ids: IdGenerator;
 }
 
-export type PendingQrPaymentReplacementRefusal =
+export type PendingMercadoPagoPaymentReplacementRefusal =
   | SellingSessionRefusal
   | { kind: "not_pending" }
   | { kind: "no_open_sale" }
@@ -22,9 +22,9 @@ export type PendingQrPaymentReplacementRefusal =
 
 export type ReplacePendingQrPaymentOutcome =
   | { kind: "replaced" }
-  | PendingQrPaymentReplacementRefusal;
+  | PendingMercadoPagoPaymentReplacementRefusal;
 
-export function replacePendingQrPayment(
+export function replacePendingMercadoPagoPayment(
   { ledger, restoration, ids }: ReplacePendingQrPaymentPorts,
   { actorId, paymentTransactionId, replacedAt }: ReplacePendingQrPaymentInput,
 ): ReplacePendingQrPaymentOutcome {
@@ -45,7 +45,7 @@ export function replacePendingQrPayment(
     }
 
     const waitEndsAt = new Date(Math.min(pending.waitEndsAt.getTime(), replacedAt.getTime()));
-    tx.markQrPaymentReplaced(paymentTransactionId, waitEndsAt);
+    tx.markMercadoPagoPaymentReplaced(paymentTransactionId, waitEndsAt);
     tx.appendOutboxEvent({
       event_id: ids.next(),
       aggregate_type: "Sale",

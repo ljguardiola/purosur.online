@@ -228,7 +228,7 @@ function applyFact(
       return "applied";
     case "sale_completed":
     case "sale_cancelled":
-    case "qr_payment_replaced":
+    case "mercado_pago_payment_replaced":
       applyReplenishedSaleFact(database, fact, source);
       return "applied";
     case "sale_line_removed":

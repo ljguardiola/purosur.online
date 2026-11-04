@@ -114,7 +114,7 @@ export type FakeSaleLedgerWrite =
   | "recordPayment"
   | "recordPendingMercadoPagoPayment"
   | "approvePendingMercadoPagoPayment"
-  | "markQrPaymentReplaced"
+  | "markMercadoPagoPaymentReplaced"
   | "recordCashMovement"
   | "recordSaleStockMovement"
   | "addToStockBalance"
@@ -314,8 +314,8 @@ export class FakeSaleLedger implements SaleLedger {
         );
         return pending && structuredClone(pending);
       },
-      markQrPaymentReplaced: (paymentTransactionId, waitEndsAt) => {
-        this.failIfAsked("markQrPaymentReplaced");
+      markMercadoPagoPaymentReplaced: (paymentTransactionId, waitEndsAt) => {
+        this.failIfAsked("markMercadoPagoPaymentReplaced");
         const pending = working.pendingMercadoPagoPayments.find(
           ({ id }) => id === paymentTransactionId,
         );

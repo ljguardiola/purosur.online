@@ -101,7 +101,7 @@ async function applyReplacement(
   deviceId: string,
 ): Promise<void> {
   const fact: SyncedFact = {
-    kind: "qr_payment_replaced",
+    kind: "mercado_pago_payment_replaced",
     replacement: { paymentTransactionId: transaction.id, saleId: transaction.saleId },
   };
   const event = unappliedEventOf(
