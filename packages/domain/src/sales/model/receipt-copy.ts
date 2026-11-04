@@ -1,6 +1,7 @@
 export interface ReceiptDelivery {
   printAttemptedAt: Date | null;
   printedAt: Date | null;
+  printDeclinedAt: Date | null;
   reprintCount: number;
   voided: boolean;
   creditNoteAuthorized: boolean;

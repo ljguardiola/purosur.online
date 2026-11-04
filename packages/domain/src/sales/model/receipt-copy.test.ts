@@ -9,6 +9,7 @@ describe("nextReceiptCopy", () => {
       nextReceiptCopy({
         printAttemptedAt: null,
         printedAt: null,
+        printDeclinedAt: null,
         reprintCount: 0,
         voided: false,
         creditNoteAuthorized: false,
@@ -23,6 +24,7 @@ describe("nextReceiptCopy", () => {
       nextReceiptCopy({
         printAttemptedAt: ATTEMPTED_AT,
         printedAt: null,
+        printDeclinedAt: null,
         reprintCount: 0,
         voided: false,
         creditNoteAuthorized: false,
@@ -35,6 +37,7 @@ describe("nextReceiptCopy", () => {
       nextReceiptCopy({
         printAttemptedAt: ATTEMPTED_AT,
         printedAt: ATTEMPTED_AT,
+        printDeclinedAt: null,
         reprintCount: 2,
         voided: false,
         creditNoteAuthorized: false,

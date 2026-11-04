@@ -1,6 +1,11 @@
 import type { ReceiptDelivery } from "./receipt-copy.js";
 
-export const SALE_PRINT_STANDINGS = ["never_printed", "outcome_unknown", "printed"] as const;
+export const SALE_PRINT_STANDINGS = [
+  "never_printed",
+  "outcome_unknown",
+  "printed",
+  "declined",
+] as const;
 
 export type SalePrintStanding = (typeof SALE_PRINT_STANDINGS)[number];
 
@@ -11,9 +16,14 @@ export type UnprintedSaleStanding = (typeof UNPRINTED_SALE_STANDINGS)[number];
 export function salePrintStanding({
   printAttemptedAt,
   printedAt,
-}: Pick<ReceiptDelivery, "printAttemptedAt" | "printedAt">): SalePrintStanding {
+  printDeclinedAt,
+}: Pick<ReceiptDelivery, "printAttemptedAt" | "printedAt" | "printDeclinedAt">): SalePrintStanding {
   if (printAttemptedAt === null) {
-    return "never_printed";
+    return printDeclinedAt === null ? "never_printed" : "declined";
   }
   return printedAt === null ? "outcome_unknown" : "printed";
+}
+
+export function customerReceiptSettled(standing: SalePrintStanding): boolean {
+  return standing === "printed" || standing === "declined";
 }
