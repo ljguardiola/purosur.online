@@ -177,6 +177,23 @@ describe("ChargeScreen", () => {
     expect(receiptPrintStatus).toHaveBeenCalledWith("sale-1");
   });
 
+  it("hands the cashier's answer about the customer's ticket to the core, with the completed sale's id", async () => {
+    const { screen, answerReceiptQuestion } = await renderScreen({
+      receiptPrintStatus: async () => ({
+        kind: "found",
+        next_copy: { kind: "original" },
+        printed: false,
+        standing: "awaiting_answer",
+        comprobante: { kind: "none" },
+      }),
+    });
+
+    await chargeInCash(screen, "5000,00");
+    await userEvent.click(screen.getByRole("button", { name: "Sí" }));
+
+    await expect.poll(() => answerReceiptQuestion.mock.calls).toEqual([["sale-1", true]]);
+  });
+
   it("asks the core for the contingency backup ticket of the sale it completed and lists it", async () => {
     const { screen, contingencyBackupTicketOfSale } = await renderScreen({
       contingencyBackupTicketOfSale: async () => ({ kind: "read", ticket: { standing: "kept" } }),

@@ -12,6 +12,7 @@ function addSale({
   occurredAt = "2026-09-30T12:05:00.000Z",
   printAttemptedAt = null,
   printedAt = null,
+  printDeclinedAt = null,
   lineTotal = 1000,
 }: {
   id: string;
@@ -20,14 +21,15 @@ function addSale({
   occurredAt?: string | null;
   printAttemptedAt?: string | null;
   printedAt?: string | null;
+  printDeclinedAt?: string | null;
   lineTotal?: number;
 }): void {
   database
     .prepare(
-      `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at, print_attempted_at, printed_at)
-       VALUES (?, 'register-1', 'device-a', ?, 'u1', ?, ?, ?, ?)`,
+      `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at, print_attempted_at, printed_at, print_declined_at)
+       VALUES (?, 'register-1', 'device-a', ?, 'u1', ?, ?, ?, ?, ?)`,
     )
-    .run(id, session, state, occurredAt, printAttemptedAt, printedAt);
+    .run(id, session, state, occurredAt, printAttemptedAt, printedAt, printDeclinedAt);
   database
     .prepare(
       `INSERT INTO sale_lines (id, sale_id, position, product_id, product_name, quantity, list_unit_price, price_list_id, discount_amount, line_total)
@@ -65,6 +67,7 @@ describe("the completed sales the register reads at startup", () => {
         total: 4500,
         printAttemptedAt: new Date("2026-09-30T12:06:00.000Z"),
         printedAt: null,
+        printDeclinedAt: null,
       },
     ]);
   });
@@ -78,6 +81,14 @@ describe("the completed sales the register reads at startup", () => {
 
     expect(new SqliteStartupSales(database).completedSalesOfOpenSession()).toMatchObject([
       { printedAt: new Date("2026-09-30T12:06:01.000Z") },
+    ]);
+  });
+
+  it("carry the time the cashier declined the ticket", () => {
+    addSale({ id: "sale-1", printDeclinedAt: "2026-09-30T12:06:00.000Z" });
+
+    expect(new SqliteStartupSales(database).completedSalesOfOpenSession()).toMatchObject([
+      { printAttemptedAt: null, printDeclinedAt: new Date("2026-09-30T12:06:00.000Z") },
     ]);
   });
 

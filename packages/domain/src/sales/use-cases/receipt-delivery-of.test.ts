@@ -20,6 +20,7 @@ describe("receiptDeliveryOf", () => {
       nextCopy: { kind: "original" },
       printAttemptedAt: null,
       printedAt: null,
+      standing: "never_printed",
     });
   });
 
@@ -47,6 +48,18 @@ describe("receiptDeliveryOf", () => {
       nextCopy: { kind: "duplicate", orderNumber: 2 },
       printAttemptedAt: FIRST_PRINT_AT,
       printedAt: SENT_AT,
+      standing: "printed",
+    });
+  });
+
+  it("answers that the cashier declined the sale's ticket, with the original still next", () => {
+    const rig = receiptRig([completedSale({ printDeclinedAt: FIRST_PRINT_AT })]);
+
+    expect(
+      receiptDeliveryOf(rig.ports, { document: "sale_receipt", saleId: "sale-1" }),
+    ).toMatchObject({
+      nextCopy: { kind: "original" },
+      standing: "declined",
     });
   });
 
@@ -74,6 +87,7 @@ describe("receiptDeliveryOf", () => {
       nextCopy: { kind: "duplicate", orderNumber: 1 },
       printAttemptedAt: FIRST_PRINT_AT,
       printedAt: null,
+      standing: "outcome_unknown",
     });
     expect(
       receiptDeliveryOf(rig.ports, { document: "sale_receipt", saleId: "sale-1" }),

@@ -3,6 +3,7 @@ import type {
   AddProductOutcome,
   AddWeighedProductOutcome,
   AdjustSaleLineOutcome,
+  AnswerReceiptQuestionOutcome,
   ApplySaleDiscountOutcome,
   Authorization,
   BackupsCoreToRendererMessage,
@@ -306,6 +307,7 @@ export interface CoreClient {
     authorization: Authorization | undefined,
   ): Promise<VoidSaleOutcome>;
   receiptPrintStatus(saleId: string): Promise<ReceiptPrintStatusOutcome>;
+  answerReceiptQuestion(saleId: string, print: boolean): Promise<AnswerReceiptQuestionOutcome>;
   contingencyBackupTickets(): Promise<ReadContingencyBackupTicketsOutcome>;
   contingencyBackupTicketOfSale(saleId: string): Promise<ReadContingencyBackupTicketOfSaleOutcome>;
   discardContingencyBackupTickets(): Promise<DiscardContingencyBackupTicketsAnswer>;
@@ -830,6 +832,17 @@ export function createCoreClient(deps: { newRequestId: () => string }): CoreClie
       return ask(
         { type: "receipt-print-status", request_id: deps.newRequestId(), sale_id: saleId },
         (answer) => (answer.type === "receipt-print-status-result" ? answer.outcome : undefined),
+      );
+    },
+    answerReceiptQuestion(saleId, print) {
+      return ask(
+        {
+          type: "answer-receipt-question",
+          request_id: deps.newRequestId(),
+          sale_id: saleId,
+          print,
+        },
+        (answer) => (answer.type === "answer-receipt-question-result" ? answer.outcome : undefined),
       );
     },
     contingencyBackupTickets() {

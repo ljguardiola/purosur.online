@@ -103,8 +103,30 @@ describe("whether the customer's own document was printed", () => {
 
     expect((await consider())[0]?.customerDocumentPrinted).toBe(false);
 
-    database.prepare("UPDATE sales SET printed_at = '2026-10-09T12:00:30.000Z'").run();
+    database
+      .prepare(
+        "UPDATE sales SET print_attempted_at = '2026-10-09T12:00:29.000Z', printed_at = '2026-10-09T12:00:30.000Z'",
+      )
+      .run();
     expect((await consider())[0]?.customerDocumentPrinted).toBe(true);
+  });
+
+  it("is settled for a sale whose ticket the cashier declined, so its backup ticket prints", async () => {
+    insertVoidedSale(database);
+    await record(ticket({ operation: "sale", subjectId: "sale-1" }));
+
+    database.prepare("UPDATE sales SET print_declined_at = '2026-10-09T12:00:30.000Z'").run();
+
+    expect((await consider())[0]?.customerDocumentPrinted).toBe(true);
+  });
+
+  it("is not settled for a sale whose ticket was handed to the printer but not confirmed", async () => {
+    insertVoidedSale(database);
+    await record(ticket({ operation: "sale", subjectId: "sale-1" }));
+
+    database.prepare("UPDATE sales SET print_attempted_at = '2026-10-09T12:00:30.000Z'").run();
+
+    expect((await consider())[0]?.customerDocumentPrinted).toBe(false);
   });
 
   it("is unknown for a sale the register does not hold", async () => {

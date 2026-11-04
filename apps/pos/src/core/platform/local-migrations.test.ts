@@ -955,6 +955,7 @@ describe("the register's local migrations", () => {
         "0096_register_seen_unenrolled",
         "0097_sale_cash_rounding",
         "0098_discard_empty_carts",
+        "0099_sale_print_declined",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1076,6 +1077,7 @@ describe("the register's local migrations", () => {
         "0096_register_seen_unenrolled",
         "0097_sale_cash_rounding",
         "0098_discard_empty_carts",
+        "0099_sale_print_declined",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1192,6 +1194,7 @@ describe("the register's local migrations", () => {
         "0096_register_seen_unenrolled",
         "0097_sale_cash_rounding",
         "0098_discard_empty_carts",
+        "0099_sale_print_declined",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1307,6 +1310,7 @@ describe("the register's local migrations", () => {
         "0096_register_seen_unenrolled",
         "0097_sale_cash_rounding",
         "0098_discard_empty_carts",
+        "0099_sale_print_declined",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1451,6 +1455,7 @@ describe("the register's local migrations", () => {
         "0096_register_seen_unenrolled",
         "0097_sale_cash_rounding",
         "0098_discard_empty_carts",
+        "0099_sale_print_declined",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1585,6 +1590,7 @@ describe("the register's local migrations", () => {
         "0096_register_seen_unenrolled",
         "0097_sale_cash_rounding",
         "0098_discard_empty_carts",
+        "0099_sale_print_declined",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1723,6 +1729,7 @@ describe("the register's local migrations", () => {
         "0096_register_seen_unenrolled",
         "0097_sale_cash_rounding",
         "0098_discard_empty_carts",
+        "0099_sale_print_declined",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before.exec(
@@ -1869,6 +1876,7 @@ describe("the register's local migrations", () => {
         "0096_register_seen_unenrolled",
         "0097_sale_cash_rounding",
         "0098_discard_empty_carts",
+        "0099_sale_print_declined",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -1982,6 +1990,7 @@ describe("the register's local migrations", () => {
         "0096_register_seen_unenrolled",
         "0097_sale_cash_rounding",
         "0098_discard_empty_carts",
+        "0099_sale_print_declined",
       ]);
       const before = openLocalDatabase(path, previous, migrationClock);
       before
@@ -9682,6 +9691,64 @@ describe("the empty carts migration", () => {
       expect(database.prepare("SELECT id FROM sales WHERE id = 'closed-empty-sale'").all()).toEqual(
         [{ id: "closed-empty-sale" }],
       );
+    });
+  });
+});
+
+describe("the sale print declined migration", () => {
+  const MIGRATION = "0099_sale_print_declined";
+
+  type Database = ReturnType<typeof openLocalDatabase>;
+
+  function withSaleBefore(test: (database: Database) => void) {
+    const folder = mkdtempSync(join(tmpdir(), "purosur-pos-local-migrations-"));
+    try {
+      const path = join(folder, "register.sqlite");
+      const previous = LOCAL_MIGRATIONS.filter((migration) => migration.name < MIGRATION);
+      expect(LOCAL_MIGRATIONS.map((migration) => migration.name)).toContain(MIGRATION);
+      const before = openLocalDatabase(path, previous, migrationClock);
+      before.exec(
+        `INSERT INTO cash_sessions (id, register_id, device_id, opened_by, opened_at, opening_float, state)
+         VALUES ('s1', 'r1', 'device-a', 'u1', '2026-10-09T12:00:00.000Z', 0, 'OPEN');
+         INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at, print_attempted_at, printed_at)
+         VALUES ('sale-1', 'r1', 'device-a', 's1', 'u1', 'COMPLETED', '2026-10-09T12:05:00.000Z',
+                 '2026-10-09T12:06:00.000Z', '2026-10-09T12:06:01.000Z');`,
+      );
+      before.close();
+      const after = openLocalDatabase(path, LOCAL_MIGRATIONS, migrationClock);
+      try {
+        test(after);
+      } finally {
+        after.close();
+      }
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  }
+
+  it("leaves a sale the register already holds as it was, with no declined print", () => {
+    withSaleBefore((database) => {
+      expect(
+        database
+          .prepare("SELECT print_attempted_at, printed_at, print_declined_at FROM sales")
+          .all(),
+      ).toEqual([
+        {
+          print_attempted_at: "2026-10-09T12:06:00.000Z",
+          printed_at: "2026-10-09T12:06:01.000Z",
+          print_declined_at: null,
+        },
+      ]);
+    });
+  });
+
+  it("holds the moment the cashier declined the ticket", () => {
+    withSaleBefore((database) => {
+      database.prepare("UPDATE sales SET print_declined_at = '2026-10-09T12:07:00.000Z'").run();
+
+      expect(database.prepare("SELECT print_declined_at FROM sales").all()).toEqual([
+        { print_declined_at: "2026-10-09T12:07:00.000Z" },
+      ]);
     });
   });
 });

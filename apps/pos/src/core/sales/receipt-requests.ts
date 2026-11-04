@@ -13,6 +13,7 @@ import {
   type OperationAuthorization,
   printOriginalReceipt,
   printSaleReceipt,
+  type ReceiptDeliveryOfOutcome,
   type ReceiptLedger,
   type ReceiptPrinters,
   type ReceiptPrintGrant,
@@ -31,6 +32,8 @@ import { toWireComprobante } from "./sales-history-requests";
 import { SqliteReceiptLedger } from "./sqlite-receipt-ledger";
 import { SqliteRegisterSalesHistory } from "./sqlite-register-sales-history";
 import { toWireCopy } from "./wire-receipt-copy";
+
+type ReceiptPrintStatusFound = Extract<ReceiptPrintStatusOutcome, { kind: "found" }>;
 
 export interface ReceiptRequestDeps {
   database: LocalDatabase;
@@ -80,6 +83,20 @@ function jobKeyOf(key: PrintedDocumentKey): string {
   }
 }
 
+function standingShown(
+  jobs: ReceiptPrintJobs,
+  saleId: string,
+  delivery: Extract<ReceiptDeliveryOfOutcome, { kind: "found" }>,
+): ReceiptPrintStatusFound["standing"] {
+  if (jobs.isHeldForAnswer(saleId)) {
+    return "awaiting_answer";
+  }
+  if (jobs.isPreparing(saleId)) {
+    return "preparing";
+  }
+  return jobs.standingOf(saleId) ?? (delivery.standing === "declined" ? "declined" : null);
+}
+
 export async function receiptPrintStatusFor(
   { database, signedInUserId, jobs }: ReceiptRequestDeps,
   saleId: string,
@@ -97,7 +114,7 @@ export async function receiptPrintStatusFor(
         kind: "found",
         next_copy: toWireCopy(delivery.nextCopy),
         printed: delivery.printedAt !== null,
-        standing: jobs.standingOf(saleId),
+        standing: standingShown(jobs, saleId, delivery),
         comprobante: toWireComprobante(
           readSaleComprobante({ history: new SqliteRegisterSalesHistory(database) }, { saleId }),
         ),

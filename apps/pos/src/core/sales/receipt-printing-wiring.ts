@@ -26,6 +26,11 @@ import {
   type TcpReceiptPrinterOptions,
 } from "./receipt-printer/tcp-receipt-printer";
 import {
+  answerReceiptQuestionFor,
+  type ReceiptAnswer,
+  saleAsksBeforePrinting,
+} from "./receipt-question-requests";
+import {
   printCompletedSaleReceiptFor,
   printOriginalReceiptFor,
   type ReceiptRequestDeps,
@@ -73,6 +78,9 @@ export interface ReceiptPrinting {
     follow: ((request: TRequest) => Promise<TFollowed>) | undefined,
   ): ((request: TRequest) => Promise<TFollowed>) | undefined;
   receiptPrintStatus: ((saleId: string) => ReturnType<typeof receiptPrintStatusFor>) | undefined;
+  answerReceiptQuestion:
+    | ((answer: ReceiptAnswer) => ReturnType<typeof answerReceiptQuestionFor>)
+    | undefined;
   printOriginalReceipt:
     | ((saleId: string) => ReturnType<typeof printOriginalReceiptFor>)
     | undefined;
@@ -127,6 +135,7 @@ export function createReceiptPrinting({
       afterCompletedSale: (charge) => charge,
       afterEachCompletedSale: (follow) => follow,
       receiptPrintStatus: undefined,
+      answerReceiptQuestion: undefined,
       printOriginalReceipt: undefined,
       findDeferredSale: undefined,
       printDeferredSaleInvoice: undefined,
@@ -156,10 +165,27 @@ export function createReceiptPrinting({
     syncNow,
     onFailure: (error) => reportFailure("printing a completed sale's receipt", error),
   };
+  const asking = {
+    ...printing,
+    question: {
+      prepare: (saleId: string) => jobs.prepare(saleId),
+      endPreparing: (saleId: string) => jobs.endPreparing(saleId),
+      asksBeforePrinting: (saleId: string) => {
+        try {
+          return saleAsksBeforePrinting(deps, saleId);
+        } catch (error) {
+          reportFailure("reading whether a receipt asks before printing", error);
+          return false;
+        }
+      },
+      holdForAnswer: (saleId: string) => jobs.holdForAnswer(saleId),
+    },
+  };
   return {
-    afterCompletedSale: (charge) => charge && printingCompletedSales(printing, charge),
+    afterCompletedSale: (charge) => charge && printingCompletedSales(asking, charge),
     afterEachCompletedSale: (follow) => follow && printingEachCompletedSale(printing, follow),
     receiptPrintStatus: (saleId) => receiptPrintStatusFor(deps, saleId),
+    answerReceiptQuestion: (answer) => answerReceiptQuestionFor(deps, syncNow, answer),
     printOriginalReceipt: (saleId) => printOriginalReceiptFor(deps, saleId),
     findDeferredSale: (reading) => findDeferredSaleFor(deps, reading),
     printDeferredSaleInvoice:

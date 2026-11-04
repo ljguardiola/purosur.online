@@ -1,5 +1,6 @@
 import type { PrintedDocumentKey } from "../model/printed-document.js";
 import { nextReceiptCopy, type ReceiptCopy } from "../model/receipt-copy.js";
+import { type SalePrintStanding, salePrintStanding } from "../model/sale-print-standing.js";
 import type { ReceiptLedger } from "./receipt-ports.js";
 
 export interface ReceiptDeliveryOfPorts {
@@ -15,6 +16,7 @@ export type ReceiptDeliveryOfOutcome =
       nextCopy: ReceiptCopy;
       printAttemptedAt: Date | null;
       printedAt: Date | null;
+      standing: SalePrintStanding;
     };
 
 export function receiptDeliveryOf(
@@ -30,6 +32,7 @@ export function receiptDeliveryOf(
           nextCopy: nextReceiptCopy(delivery),
           printAttemptedAt: delivery.printAttemptedAt,
           printedAt: delivery.printedAt,
+          standing: salePrintStanding(delivery),
         };
   });
 }

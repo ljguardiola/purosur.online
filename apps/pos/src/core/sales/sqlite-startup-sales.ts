@@ -7,6 +7,7 @@ interface StartupSaleRow {
   occurred_at: string;
   print_attempted_at: string | null;
   printed_at: string | null;
+  print_declined_at: string | null;
 }
 
 function optionalDate(value: string | null): Date | null {
@@ -23,7 +24,7 @@ export class SqliteStartupSales implements StartupSales {
   completedSalesOfOpenSession(): StartupSale[] {
     return this.database
       .prepare<[], StartupSaleRow>(
-        `SELECT id, occurred_at, print_attempted_at, printed_at FROM sales
+        `SELECT id, occurred_at, print_attempted_at, printed_at, print_declined_at FROM sales
          WHERE state = 'COMPLETED'
            AND session_id IN (SELECT id FROM cash_sessions WHERE state = 'OPEN')
          ORDER BY occurred_at, rowid`,
@@ -35,6 +36,7 @@ export class SqliteStartupSales implements StartupSales {
         total: saleTotalOf(this.database, row.id),
         printAttemptedAt: optionalDate(row.print_attempted_at),
         printedAt: optionalDate(row.printed_at),
+        printDeclinedAt: optionalDate(row.print_declined_at),
       }));
   }
 }

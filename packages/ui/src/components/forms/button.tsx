@@ -14,7 +14,7 @@ export type ButtonSize = "small" | "medium" | "large" | "sale";
 
 export type ButtonTextSize = Extract<ButtonSize, "small" | "large">;
 
-type ButtonCommonProps = Pick<AriaButtonProps, "onPress" | "type"> & {
+type ButtonCommonProps = Pick<AriaButtonProps, "autoFocus" | "onPress" | "type"> & {
   disabled?: boolean;
   disabledReason?: string;
   dataStatus?: LoadStatus;

@@ -1,5 +1,6 @@
 import type {
   AbandonMercadoPagoChargeOutcome,
+  AnswerReceiptQuestionOutcome,
   Authorization,
   CashChargeAnswer,
   ChargeSaleByTransferOutcome,
@@ -141,6 +142,7 @@ export type ChargeScreenProps = {
     paymentTransactionId: string,
   ) => Promise<AbandonMercadoPagoChargeOutcome>;
   receiptPrintStatus: (saleId: string) => Promise<ReceiptPrintStatusOutcome>;
+  answerReceiptQuestion: (saleId: string, print: boolean) => Promise<AnswerReceiptQuestionOutcome>;
   contingencyBackupTicketOfSale: (
     saleId: string,
   ) => Promise<ReadContingencyBackupTicketOfSaleOutcome>;
@@ -167,6 +169,7 @@ export function ChargeScreen({
   followMercadoPagoCharge,
   abandonMercadoPagoCharge,
   receiptPrintStatus,
+  answerReceiptQuestion,
   contingencyBackupTicketOfSale,
   contingencyBackupTickets,
   onSessionInvalid,
@@ -442,6 +445,7 @@ export function ChargeScreen({
           saleId={step.sale.id}
           payment={step.payment}
           readReceiptStatus={receiptPrintStatus}
+          answerReceiptQuestion={answerReceiptQuestion}
           readBackupTicket={contingencyBackupTicketOfSale}
           readBackupTickets={contingencyBackupTickets}
           mayChangePrinter={mayChangePrinter}

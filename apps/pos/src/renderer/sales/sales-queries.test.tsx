@@ -693,7 +693,7 @@ describe("receipt print status query", () => {
     expect(read).toHaveBeenCalledTimes(2);
   });
 
-  it.each(["failed", "printer_not_configured"] as const)(
+  it.each(["failed", "printer_not_configured", "declined"] as const)(
     "stops asking once the core answers the final standing %s",
     async (standing) => {
       vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });

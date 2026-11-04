@@ -174,6 +174,13 @@ const receiptPrintStatusMessageSchema = z.object({
   sale_id: z.string(),
 });
 
+const answerReceiptQuestionMessageSchema = z.object({
+  type: z.literal("answer-receipt-question"),
+  request_id: requestId,
+  sale_id: z.string(),
+  print: z.boolean(),
+});
+
 const printOriginalReceiptMessageSchema = z.object({
   type: z.literal("print-original-receipt"),
   request_id: requestId,
@@ -301,6 +308,7 @@ export const salesRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   cashChargeRequestMessageSchema,
   cancelLockedSaleMessageSchema,
   receiptPrintStatusMessageSchema,
+  answerReceiptQuestionMessageSchema,
   printOriginalReceiptMessageSchema,
   findDeferredSaleMessageSchema,
   printDeferredSaleInvoiceMessageSchema,
@@ -339,6 +347,9 @@ const receiptPrintStatusOutcomeSchema = z.discriminatedUnion("kind", [
         "printer_not_configured",
         "failed",
         "printed",
+        "preparing",
+        "awaiting_answer",
+        "declined",
       ])
       .nullable(),
     comprobante: comprobanteSchema,
@@ -348,6 +359,16 @@ const receiptPrintStatusOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("unavailable") }),
 ]);
 export type ReceiptPrintStatusOutcome = z.infer<typeof receiptPrintStatusOutcomeSchema>;
+
+const answerReceiptQuestionOutcomeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("printing") }),
+  z.object({ kind: z.literal("declined") }),
+  z.object({ kind: z.literal("not_signed_in") }),
+  z.object({ kind: z.literal("not_found") }),
+  z.object({ kind: z.literal("not_awaiting") }),
+  z.object({ kind: z.literal("unavailable") }),
+]);
+export type AnswerReceiptQuestionOutcome = z.infer<typeof answerReceiptQuestionOutcomeSchema>;
 
 const printOriginalReceiptOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("started"), copy: receiptCopySchema }),
@@ -489,6 +510,11 @@ export const salesCoreToRendererMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("receipt-print-status-result"),
     request_id: requestId,
     outcome: receiptPrintStatusOutcomeSchema,
+  }),
+  z.object({
+    type: z.literal("answer-receipt-question-result"),
+    request_id: requestId,
+    outcome: answerReceiptQuestionOutcomeSchema,
   }),
   z.object({
     type: z.literal("print-original-receipt-result"),

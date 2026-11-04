@@ -1677,6 +1677,7 @@ const rendererRequestDeps: RendererRequestDeps = {
           ),
   contingencyBackupTickets: contingencyBackupTickets?.requests,
   receiptPrintStatus: receiptPrinting.receiptPrintStatus,
+  answerReceiptQuestion: receiptPrinting.answerReceiptQuestion,
   printOriginalReceipt: receiptPrinting.printOriginalReceipt,
   findDeferredSale: receiptPrinting.findDeferredSale,
   printDeferredSaleInvoice: receiptPrinting.printDeferredSaleInvoice,
