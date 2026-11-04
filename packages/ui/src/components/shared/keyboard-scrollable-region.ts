@@ -25,6 +25,7 @@ export function useKeyboardScrollableRegion(labelledBy: string) {
     if (region === null) {
       return;
     }
+    setHoldsFocus(region === document.activeElement);
     const updateOverflow = () =>
       setOverflows(
         region.scrollHeight > region.clientHeight || region.scrollWidth > region.clientWidth,
