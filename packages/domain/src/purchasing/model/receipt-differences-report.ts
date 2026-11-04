@@ -3,7 +3,7 @@ import { compareCodeUnits, compareSpanishText } from "../../shared/index.js";
 import { hasReceiptDifference } from "./purchase-order-receipt.js";
 import { reportMonthOf } from "./report-month.js";
 
-export interface ReceiptDifferenceProduct extends ProductBrandAndNetContent {
+interface ReceiptDifferenceProduct extends ProductBrandAndNetContent {
   id: string;
   name: string;
   saleUnit: SaleUnit;
