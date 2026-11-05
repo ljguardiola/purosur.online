@@ -160,6 +160,50 @@ describe("correctPurchasedLotQuantity", () => {
     expect(lotOf(store, "lot-split")).toMatchObject({ remaining: 3_000, quantityReceived: 3_000 });
   });
 
+  it("takes the units from the line's own lot even when a lot split from it is listed before it", async () => {
+    const store = storeWithReceivedLine();
+    store.seedLot({
+      id: "lot-split",
+      ...YERBA,
+      purchaseLineId: "line-1",
+      splitFromLotId: "lot-own",
+      remaining: 3_000,
+    });
+    store.seedLot({
+      id: "lot-own",
+      ...YERBA,
+      purchaseLineId: "line-1",
+      remaining: 24_000,
+      quantityReceived: 24_000,
+    });
+    store.seedMovement({
+      ...YERBA,
+      kind: "receipt",
+      reason: null,
+      purchaseLineId: "line-1",
+      delta: 24_000,
+      occurredAt: RECEIVED_AT,
+      actorId: "person-1",
+      supersededByCountId: null,
+    });
+
+    await correct(store, { delta: -4_000 });
+
+    expect(lotOf(store, "lot-own")).toMatchObject({ remaining: 20_000, quantityReceived: 20_000 });
+    expect(lotOf(store, "lot-split")).toMatchObject({ remaining: 3_000, quantityReceived: 0 });
+  });
+
+  it("adds units to a lot that has been given more than it had", async () => {
+    const store = storeWithReceivedLine();
+    await receive(store);
+    await leave(store, 27_000);
+
+    const outcome = await correct(store, { delta: 1_000 });
+
+    expect(outcome).toEqual({ kind: "corrected" });
+    expect(lotOf(store).remaining).toBe(-2_000);
+  });
+
   it("refuses a difference that is not a quantity the product is sold in, changing nothing", async () => {
     const store = storeWithReceivedLine();
     await receive(store);
