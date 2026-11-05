@@ -14,7 +14,12 @@ import type {
   LockedAssemblyBatch,
   NewAssemblyBatch,
 } from "../assembly-batch-store.js";
-import type { PurchasedLot, SplittableLot } from "../purchased-lot-store.js";
+import type {
+  PurchasedLot,
+  PurchasedLotQuantityStoreTransaction,
+  PurchasedLotStoreTransaction,
+  SplittableLot,
+} from "../purchased-lot-store.js";
 import type { Recipe } from "../recipe-store.js";
 import type {
   CountedLot,
@@ -123,7 +128,12 @@ function sameKey(row: ProductStockKey, key: ProductStockKey): boolean {
   return row.productId === key.productId && row.locationId === key.locationId;
 }
 
-class FakeStockStoreTransaction implements AssemblyBatchTransaction {
+export class FakeStockStoreTransaction
+  implements
+    AssemblyBatchTransaction,
+    PurchasedLotQuantityStoreTransaction,
+    Pick<PurchasedLotStoreTransaction, "lotsOfPurchaseLines" | "splittableLot">
+{
   private readonly state: FakeStockState;
   private readonly store: FakeStockStore;
 
@@ -648,7 +658,7 @@ export class FakeStockStore implements StockStore, AssemblyBatchStore {
   }
 
   async transaction<TOutcome>(
-    work: (tx: AssemblyBatchTransaction) => Promise<TOutcome>,
+    work: (tx: FakeStockStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     const before = cloneState(this.state);
     try {
