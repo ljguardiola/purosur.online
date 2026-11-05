@@ -36,6 +36,7 @@ const LINE = {
   costPaidCents: 24_000,
   quantityPerPackage: 12_000,
   lotId: "lot-1",
+  remainingInLot: 18_000,
   expiresOn: "2027-03-01",
 };
 
@@ -69,6 +70,17 @@ describe("listPurchases", () => {
 
     expect(purchase?.lines.map((line) => line.unitCostCents)).toEqual([2_000, 333]);
     expect(purchase?.lines[1]).toMatchObject({ costPaidCents: 1_000, quantityPerPackage: 3_000 });
+  });
+
+  it("answers each line with what remains in the lot it created", async () => {
+    const reader = new FakePurchasingListReader({
+      purchases: [PURCHASE],
+      lots: [lotOf("lot-1", 1)],
+    });
+
+    const [purchase] = await listPurchases(ports(reader), BRANCH);
+
+    expect(purchase?.lines[0]?.remainingInLot).toBe(18_000);
   });
 
   it("answers each line with the system name of the lot it created", async () => {
