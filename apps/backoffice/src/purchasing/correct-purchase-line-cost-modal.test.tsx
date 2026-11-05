@@ -114,9 +114,7 @@ test("saves the corrected cost and hands the corrected purchase over", async () 
   const screen = await renderModal({ services, onSaved });
 
   const dialog = await readyDialog(screen);
-  const cost = dialog.getByRole("textbox", { name: /^Costo pagado/ });
-  await userEvent.clear(cost);
-  await userEvent.type(cost, "6.800");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Costo pagado/ }), "6.800");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar el costo" }));
 
   await expect.poll(() => onSaved.mock.calls).toEqual([[corrected]]);
