@@ -1,10 +1,9 @@
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import type { FetchAlertsOverviewOutcome } from "../alerts/alerts-api";
 import { openSession } from "../sessions/test-support/open-session";
 import { App } from "./app";
-import { emptyHelp, resetPageState } from "./test-support/app";
+import { emptyHelp, resetPageState, threeOpenAlerts } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
@@ -40,15 +39,6 @@ opensOnlyScreens(["/", "/account", "/alerts", "/help", ...REPORT_SCREENS.map(([p
 
 beforeEach(resetPageState);
 
-const threeOpenAlerts: FetchAlertsOverviewOutcome = {
-  kind: "ok",
-  value: {
-    critical: { openCount: 1, kinds: ["user_access_increased"] },
-    warning: { openCount: 2, kinds: ["user_email_changed"] },
-    informational: { openCount: 0, kinds: [] },
-  },
-};
-
 test.each(REPORT_SCREENS)(
   "counts the open alerts in %s's top bar and opens the alerts list from it",
   async (path, heading) => {
@@ -70,9 +60,9 @@ test.each(REPORT_SCREENS)(
 
 test("never asks for the alerts count of a user who may not see alerts", async () => {
   const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue(
-      openSession({ isAdministrator: false, capabilities: ["reports_area"] }),
-    ),
+    fetchSession: vi
+      .fn()
+      .mockResolvedValue(openSession({ isAdministrator: false, capabilities: ["reports_area"] })),
   });
   vi.mocked(services.alertsOpenCountLink.fetchAlertsOverview).mockResolvedValue(threeOpenAlerts);
   window.history.pushState(null, "", "/reports");
