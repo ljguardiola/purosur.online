@@ -155,6 +155,10 @@ const weighCountedProductOutcomeSchema = z.discriminatedUnion("kind", [
     kind: z.literal("weighed"),
     weight_thousandths: z.int().refine(mayBeCountedQuantity),
   }),
+  z.object({
+    kind: z.literal("unsteady"),
+    weight_thousandths: z.int().refine(mayBeCountedQuantity),
+  }),
   z.object({ kind: z.literal("confirmed"), weight_thousandths: countedQuantitySchema }),
   z.object({ kind: z.literal("weighing") }),
   z.object({ kind: z.literal("zero_weight") }),
