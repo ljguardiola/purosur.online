@@ -4,6 +4,7 @@ import {
   compareSpanishPaths,
   marginTenthsOfPercent,
 } from "../../shared/index.js";
+import { type LotCostChange, lotCostAt } from "./lot-cost-at.js";
 import { isLotCostIncomplete, type LotCost, lotValueCents } from "./lot-value.js";
 import type { StockMovementKind } from "./stock-movement-kind.js";
 
@@ -26,6 +27,8 @@ export interface MarginAllocation {
   technical: boolean;
   costIncomplete: boolean;
   cost: LotCost | null;
+  costChanges: readonly LotCostChange[];
+  valuedAt: Date;
 }
 
 export interface MarginSaleLine extends ProductBrandAndNetContent {
@@ -59,13 +62,15 @@ interface LotNet {
   allocation: MarginAllocation;
 }
 
-function netByLot(allocations: readonly MarginAllocation[]): LotNet[] {
+function netByLotAndCost(allocations: readonly MarginAllocation[]): LotNet[] {
   const lots = new Map<string, LotNet>();
   for (const allocation of allocations) {
-    const lot = lots.get(allocation.lotId);
-    lots.set(allocation.lotId, {
+    const cost = lotCostAt(allocation, allocation.valuedAt);
+    const key = `${allocation.lotId}:${cost === null ? "unknown" : `${cost.totalCents}/${cost.quantity}`}`;
+    const lot = lots.get(key);
+    lots.set(key, {
       net: (lot?.net ?? 0) + allocation.quantity,
-      allocation: lot?.allocation ?? allocation,
+      allocation: lot?.allocation ?? { ...allocation, cost },
     });
   }
   return [...lots.values()];
@@ -73,7 +78,7 @@ function netByLot(allocations: readonly MarginAllocation[]): LotNet[] {
 
 function costOfSales(allocations: readonly MarginAllocation[]): number {
   let cost = 0;
-  for (const { net, allocation } of netByLot(allocations)) {
+  for (const { net, allocation } of netByLotAndCost(allocations)) {
     const value = lotValueCents({
       remaining: Math.min(net, 0),
       cost: allocation.cost,
@@ -85,7 +90,7 @@ function costOfSales(allocations: readonly MarginAllocation[]): number {
 }
 
 function hasIncompleteCost(allocations: readonly MarginAllocation[]): boolean {
-  const lots = netByLot(allocations);
+  const lots = netByLotAndCost(allocations);
   return (
     lots.length === 0 ||
     lots.some(({ net, allocation }) => net > 0 || isLotCostIncomplete(allocation))
