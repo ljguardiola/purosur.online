@@ -21,6 +21,8 @@ export function createServices(
     splitPurchaseLineExpiry: vi.fn(),
     correctPurchaseLineCost: vi.fn(),
     correctPurchaseLineQuantity: vi.fn(),
+    changePurchaseLineProduct: vi.fn(),
+    removePurchaseLine: vi.fn(),
     ...overrides,
   };
 }
