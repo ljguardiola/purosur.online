@@ -16,7 +16,7 @@ export function storeWithProducts(): FakeStockStore {
   return store;
 }
 
-export async function receiveLine(store: FakeStockStore): Promise<void> {
+async function receiveLine(store: FakeStockStore): Promise<void> {
   await store.transaction((tx) =>
     receivePurchasedStock(tx, {
       locationId: BRANCH,

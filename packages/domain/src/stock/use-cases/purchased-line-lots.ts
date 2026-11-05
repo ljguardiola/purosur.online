@@ -14,7 +14,7 @@ export type PurchasedLineLotsTransaction = Pick<
   Pick<StockStoreTransaction, "earliestCountAtOrAfter" | "addToBalance"> &
   PurchasedLotMoveStoreTransaction;
 
-export interface LotsOfLine {
+interface LotsOfLine {
   own: PurchasedLot;
   lots: PurchasedLot[];
 }
@@ -41,7 +41,7 @@ export async function factsOfUntouchedLots(
     : undefined;
 }
 
-export interface LotsReceiptMovement {
+interface LotsReceiptMovement {
   key: ProductStockKey;
   purchaseLineId: string;
   receivedAt: Date;
