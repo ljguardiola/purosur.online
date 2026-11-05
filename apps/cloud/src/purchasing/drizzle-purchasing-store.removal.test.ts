@@ -177,7 +177,7 @@ describe("removing a purchase line", () => {
     await removed(purchase.id, juiceLineId);
 
     await addPurchaseLines(
-      { store: store(), clock, zoneRules: fixedZoneRulesSource() },
+      { store: store(), clock },
       {
         purchaseId: purchase.id,
         locationId,
