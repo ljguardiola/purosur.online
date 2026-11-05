@@ -580,8 +580,9 @@ export async function weighProductFor(
     case "no_price":
       return { kind: "no_price", product_name: outcome.productName };
     case "stable":
+    case "unsteady":
       return {
-        kind: "stable",
+        kind: outcome.kind,
         weight_thousandths: outcome.weightThousandths,
         amount: outcome.amount,
       };
@@ -828,8 +829,9 @@ export async function weighLineFor(
         removed_sale_discount: outcome.removedSaleDiscount,
       };
     case "stable":
+    case "unsteady":
       return {
-        kind: "stable",
+        kind: outcome.kind,
         weight_thousandths: outcome.weightThousandths,
         amount: outcome.amount,
       };
