@@ -22,6 +22,7 @@ const ADD_LINES = "Agregar productos a la compra de Distribuidora Andina";
 const CORRECT_HEADER = "Corregir los datos de la compra de Distribuidora Andina";
 const CORRECT_COST = "Corregir el costo de Miel pura de abeja 1 kg";
 const CORRECT_EXPIRY = "Corregir el vencimiento de Miel pura de abeja 1 kg";
+const SPLIT_EXPIRY = "Dar otro vencimiento a algunas unidades de Miel pura de abeja 1 kg";
 const SEE_CHANGES = "Ver los cambios de la compra de Distribuidora Andina";
 
 function names(screen: Screen, label: RegExp): string[] {
@@ -47,6 +48,9 @@ test("offers, to who may record purchases, each purchase's actions and each line
     .poll(() => names(screen, /^Corregir el vencimiento/))
     .toEqual([CORRECT_EXPIRY, "Corregir el vencimiento de Avena arrollada"]);
   await expect
+    .poll(() => names(screen, /^Dar otro vencimiento/))
+    .toEqual([SPLIT_EXPIRY, "Dar otro vencimiento a algunas unidades de Avena arrollada"]);
+  await expect
     .poll(() => names(screen, /^Corregir el costo/))
     .toEqual([CORRECT_COST, "Corregir el costo de Avena arrollada"]);
 });
@@ -55,7 +59,7 @@ test("offers only the changes of a purchase to who may not record purchases", as
   const screen = await loaded(createServices(), { access: accessWith("stock_area") });
 
   await expect.poll(() => names(screen, /^Ver los cambios/)).toHaveLength(2);
-  expect(names(screen, /^(Agregar|Corregir)/)).toEqual([]);
+  expect(names(screen, /^(Agregar|Corregir|Dar otro)/)).toEqual([]);
 });
 
 test("opens the changes of the purchase and closes them", async () => {
@@ -252,4 +256,50 @@ test("replaces the confirmation of a purchase just registered, reporting it gone
 
   await expect.element(screen.getByText("Vencimiento corregido")).toBeVisible();
   expect(onNoticeDismissed).toHaveBeenCalledTimes(1);
+});
+
+test("splits the expiry of some units of a line, closes the modal, reads the purchases again and confirms", async () => {
+  const services = createServices();
+  vi.mocked(services.splitPurchaseLineExpiry).mockResolvedValue({
+    kind: "ok",
+    purchase: compraDeMiel,
+  });
+  const screen = await loaded(services);
+
+  await userEvent.click(screen.getByRole("button", { name: SPLIT_EXPIRY }));
+  const dialog = screen.getByRole("dialog");
+  await expect
+    .element(dialog.getByRole("heading", { name: "Miel pura de abeja 1 kg" }))
+    .toBeVisible();
+  await userEvent.type(dialog.getByRole("textbox", { name: /^Cantidad/ }), "1");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar el vencimiento" }));
+
+  await expect.element(screen.getByText("Vencimiento corregido")).toBeVisible();
+  expect(screen.getByRole("dialog").query()).toBeNull();
+  expect(services.splitPurchaseLineExpiry).toHaveBeenCalledWith(compraDeMiel.id, lineDeMiel.id, {
+    quantity: 1_000,
+    expiresOn: "2027-01-31",
+  });
+  await expect.poll(() => vi.mocked(services.fetchPurchases).mock.calls.length).toBe(2);
+});
+
+test("keeps the split modal open and the purchases unread when the lot has no more units to split", async () => {
+  const services = createServices();
+  vi.mocked(services.splitPurchaseLineExpiry).mockResolvedValue({ kind: "not_enough_in_lot" });
+  const screen = await loaded(services);
+
+  await userEvent.click(screen.getByRole("button", { name: SPLIT_EXPIRY }));
+  const dialog = screen.getByRole("dialog");
+  await userEvent.type(dialog.getByRole("textbox", { name: /^Cantidad/ }), "30");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar el vencimiento" }));
+
+  await expect
+    .element(
+      dialog.getByText(
+        "Solo se puede dar otra fecha a menos unidades de las que quedan en el lote.",
+      ),
+    )
+    .toBeVisible();
+  expect(screen.getByText("Vencimiento corregido").query()).toBeNull();
+  expect(services.fetchPurchases).toHaveBeenCalledTimes(1);
 });
