@@ -6,7 +6,7 @@ import type {
   FreightPurchaseListing,
   LinkablePurchaseListing,
 } from "@purosur/domain/purchasing/use-cases";
-import { and, asc, desc, eq, exists, gte, inArray, or, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, exists, gte, inArray, isNull, or, type SQL } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { containsText } from "../platform/contains-pattern.js";
 import {
@@ -155,9 +155,12 @@ export class DrizzleFreightListReader<TQueryResult extends PgQueryResultHKT>
       })
       .from(purchaseLines)
       .where(
-        inArray(
-          purchaseLines.purchaseId,
-          rows.map(({ id }) => id),
+        and(
+          inArray(
+            purchaseLines.purchaseId,
+            rows.map(({ id }) => id),
+          ),
+          isNull(purchaseLines.removedAt),
         ),
       )
       .orderBy(asc(purchaseLines.position));

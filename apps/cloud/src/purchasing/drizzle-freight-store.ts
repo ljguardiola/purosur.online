@@ -8,7 +8,7 @@ import type {
   LockFreightResult,
   NewFreightFields,
 } from "@purosur/domain/purchasing/use-cases";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   auditLog,
@@ -59,9 +59,12 @@ class DrizzleFreightStoreTransaction<TQueryResult extends PgQueryResultHKT>
       })
       .from(purchaseLines)
       .where(
-        inArray(
-          purchaseLines.purchaseId,
-          locked.map(({ id }) => id),
+        and(
+          inArray(
+            purchaseLines.purchaseId,
+            locked.map(({ id }) => id),
+          ),
+          isNull(purchaseLines.removedAt),
         ),
       )
       .orderBy(asc(purchaseLines.position));

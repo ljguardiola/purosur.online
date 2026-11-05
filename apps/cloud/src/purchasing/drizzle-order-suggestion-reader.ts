@@ -127,7 +127,9 @@ export class DrizzleOrderSuggestionReader<TQueryResult extends PgQueryResultHKT>
       })
       .from(lots)
       .leftJoin(assemblyBatches, eq(assemblyBatches.id, lots.assemblyBatchId))
-      .where(and(eq(lots.locationId, locationId), isNotNull(lots.expiresOn)))
+      .where(
+        and(eq(lots.locationId, locationId), isNotNull(lots.expiresOn), eq(lots.withdrawn, false)),
+      )
       .orderBy(desc(lots.createdAt), asc(lots.expiresOn), desc(lots.id));
     const newest = new Map<string, NewestShelfLifeLot>();
     for (const row of rows) {

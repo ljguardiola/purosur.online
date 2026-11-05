@@ -10,6 +10,10 @@ import {
   type LotExpirySplitResult,
   type LotQuantityCorrection,
   type LotQuantityCorrectionResult,
+  type LotsMove,
+  type LotsMoveResult,
+  type LotsWithdrawal,
+  type LotsWithdrawalResult,
   type NewPurchaseFields,
   type NewPurchaseLineFields,
   type NewSupplierFields,
@@ -28,12 +32,14 @@ import {
   correctLotExpiry,
   correctPurchasedLotCost,
   correctPurchasedLotQuantity,
+  movePurchasedLots,
   type PurchaseReceipt,
   receivePurchasedStock,
   redatePurchasedLots,
   splitPurchasedLot,
+  withdrawPurchasedLots,
 } from "@purosur/domain/stock/use-cases";
-import { and, asc, desc, eq, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, ne, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import { auditLog, products, purchaseLines, purchases, suppliers } from "../platform/db/schema.js";
@@ -228,6 +234,7 @@ export class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResul
     const [line] = await this.tx
       .select({
         id: purchaseLines.id,
+        productId: purchaseLines.productId,
         expiresOn: purchaseLines.expiresOn,
         costPaidCents: purchaseLines.costPaidCents,
         quantity: purchaseLines.quantity,
@@ -235,7 +242,13 @@ export class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResul
         quantityPerPackage: purchaseLines.quantityPerPackage,
       })
       .from(purchaseLines)
-      .where(and(eq(purchaseLines.id, lineId), eq(purchaseLines.purchaseId, purchaseId)));
+      .where(
+        and(
+          eq(purchaseLines.id, lineId),
+          eq(purchaseLines.purchaseId, purchaseId),
+          isNull(purchaseLines.removedAt),
+        ),
+      );
     return line;
   }
 
@@ -243,7 +256,7 @@ export class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResul
     const lines = await this.tx
       .select({ id: purchaseLines.id })
       .from(purchaseLines)
-      .where(eq(purchaseLines.purchaseId, purchaseId))
+      .where(and(eq(purchaseLines.purchaseId, purchaseId), isNull(purchaseLines.removedAt)))
       .orderBy(asc(purchaseLines.position));
     return lines.map(({ id }) => id);
   }
@@ -269,6 +282,30 @@ export class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResul
       .update(purchaseLines)
       .set({ quantity, packages })
       .where(eq(purchaseLines.id, lineId));
+  }
+
+  async updatePurchaseLineProduct(lineId: string, productId: string): Promise<void> {
+    await this.tx.update(purchaseLines).set({ productId }).where(eq(purchaseLines.id, lineId));
+  }
+
+  async markPurchaseLineRemoved(lineId: string, removedAt: Date): Promise<void> {
+    await this.tx.update(purchaseLines).set({ removedAt }).where(eq(purchaseLines.id, lineId));
+  }
+
+  async moveLineLots(move: LotsMove): Promise<LotsMoveResult> {
+    const outcome = await movePurchasedLots(this.stock, move);
+    if (outcome.kind === "not_found") {
+      throw new Error(`the lot of purchase line ${move.purchaseLineId} vanished`);
+    }
+    return outcome;
+  }
+
+  async withdrawLineLots(withdrawal: LotsWithdrawal): Promise<LotsWithdrawalResult> {
+    const outcome = await withdrawPurchasedLots(this.stock, withdrawal);
+    if (outcome.kind === "not_found") {
+      throw new Error(`the lot of purchase line ${withdrawal.purchaseLineId} vanished`);
+    }
+    return outcome;
   }
 
   async correctLotQuantity(
