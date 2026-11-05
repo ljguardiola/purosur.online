@@ -10,6 +10,10 @@ import type {
   LotExpirySplitResult,
   LotQuantityCorrection,
   LotQuantityCorrectionResult,
+  LotsMove,
+  LotsMoveResult,
+  LotsWithdrawal,
+  LotsWithdrawalResult,
   PurchaseCorrection,
   PurchaseCorrectionStore,
   PurchaseCorrectionStoreTransaction,
@@ -46,6 +50,7 @@ interface FakePurchaseRow extends NewPurchaseFields {
 
 interface FakePurchaseLineRow extends NewPurchaseLineFields {
   id: string;
+  removedAt?: Date;
 }
 
 export type FakePurchasingWrite =
@@ -57,6 +62,10 @@ export type FakePurchasingWrite =
   | "updatePurchaseLineExpiry"
   | "updatePurchaseLineCost"
   | "updatePurchaseLineQuantity"
+  | "updatePurchaseLineProduct"
+  | "markPurchaseLineRemoved"
+  | "moveLineLots"
+  | "withdrawLineLots"
   | "correctLotQuantity"
   | "correctLotExpiry"
   | "splitLotExpiry"
@@ -75,6 +84,8 @@ export interface FakePurchasingState {
   lotExpirySplits: LotExpirySplit[];
   lotCostCorrections: LotCostCorrection[];
   lotQuantityCorrections: LotQuantityCorrection[];
+  lotMoves: LotsMove[];
+  lotWithdrawals: LotsWithdrawal[];
   lotRedatings: PurchasedLotsRedating[];
   corrections: PurchaseCorrection[];
   nextId: number;
@@ -85,7 +96,10 @@ function cloneState(state: FakePurchasingState): FakePurchasingState {
     suppliers: state.suppliers.map((row) => ({ ...row })),
     products: state.products.map((row) => ({ ...row })),
     purchases: state.purchases.map((row) => ({ ...row, recordedAt: new Date(row.recordedAt) })),
-    purchaseLines: state.purchaseLines.map((row) => ({ ...row })),
+    purchaseLines: state.purchaseLines.map(({ removedAt, ...row }) => ({
+      ...row,
+      ...(removedAt && { removedAt: new Date(removedAt) }),
+    })),
     receipts: state.receipts.map((receipt) => ({
       ...receipt,
       occurredAt: new Date(receipt.occurredAt),
@@ -106,6 +120,8 @@ function cloneState(state: FakePurchasingState): FakePurchasingState {
       changedAt: new Date(row.changedAt),
     })),
     lotQuantityCorrections: state.lotQuantityCorrections.map((row) => ({ ...row })),
+    lotMoves: state.lotMoves.map((row) => ({ ...row })),
+    lotWithdrawals: state.lotWithdrawals.map((row) => ({ ...row })),
     lotRedatings: state.lotRedatings.map((row) => ({
       ...row,
       purchaseLineIds: [...row.purchaseLineIds],
@@ -247,11 +263,12 @@ class FakePurchasingStoreTransaction
 
   async purchaseLine(purchaseId: string, lineId: string): Promise<LockedPurchaseLine | undefined> {
     const row = this.state.purchaseLines.find(
-      (line) => line.id === lineId && line.purchaseId === purchaseId,
+      (line) => line.id === lineId && line.purchaseId === purchaseId && !line.removedAt,
     );
     return (
       row && {
         id: row.id,
+        productId: row.productId,
         expiresOn: row.expiresOn,
         costPaidCents: row.costPaidCents,
         quantity: row.quantity,
@@ -263,7 +280,7 @@ class FakePurchasingStoreTransaction
 
   async purchaseLineIds(purchaseId: string): Promise<string[]> {
     return this.state.purchaseLines
-      .filter((line) => line.purchaseId === purchaseId)
+      .filter((line) => line.purchaseId === purchaseId && !line.removedAt)
       .sort((a, b) => a.position - b.position)
       .map((line) => line.id);
   }
@@ -307,6 +324,42 @@ class FakePurchasingStoreTransaction
         row.packages = packages;
       }
     }
+  }
+
+  async updatePurchaseLineProduct(lineId: string, productId: string): Promise<void> {
+    this.beforeWrite("updatePurchaseLineProduct");
+    for (const row of this.state.purchaseLines) {
+      if (row.id === lineId) {
+        row.productId = productId;
+      }
+    }
+  }
+
+  async markPurchaseLineRemoved(lineId: string, removedAt: Date): Promise<void> {
+    this.beforeWrite("markPurchaseLineRemoved");
+    for (const row of this.state.purchaseLines) {
+      if (row.id === lineId) {
+        row.removedAt = new Date(removedAt);
+      }
+    }
+  }
+
+  async moveLineLots(move: LotsMove): Promise<LotsMoveResult> {
+    this.beforeWrite("moveLineLots");
+    this.store.lockLog.push("lot move");
+    if (this.store.lotsMoveResult.kind === "moved") {
+      this.state.lotMoves.push({ ...move });
+    }
+    return this.store.lotsMoveResult;
+  }
+
+  async withdrawLineLots(withdrawal: LotsWithdrawal): Promise<LotsWithdrawalResult> {
+    this.beforeWrite("withdrawLineLots");
+    this.store.lockLog.push("lot withdrawal");
+    if (this.store.lotsWithdrawalResult.kind === "withdrawn") {
+      this.state.lotWithdrawals.push({ ...withdrawal });
+    }
+    return this.store.lotsWithdrawalResult;
   }
 
   async correctLotQuantity(
@@ -400,6 +453,8 @@ export class FakePurchasingStore implements PurchasingStore, PurchaseCorrectionS
     lotExpirySplits: [],
     lotCostCorrections: [],
     lotQuantityCorrections: [],
+    lotMoves: [],
+    lotWithdrawals: [],
     lotRedatings: [],
     corrections: [],
     nextId: 1,
@@ -407,6 +462,8 @@ export class FakePurchasingStore implements PurchasingStore, PurchaseCorrectionS
 
   lotSplitResult: LotExpirySplitResult = { kind: "split", lotId: "lot-split-1" };
   lotQuantityResult: LotQuantityCorrectionResult = { kind: "corrected" };
+  lotsMoveResult: LotsMoveResult = { kind: "moved" };
+  lotsWithdrawalResult: LotsWithdrawalResult = { kind: "withdrawn" };
 
   // Names (already lowercased) that raise the conflict on a write, regardless of what a
   // same-transaction check found, to model a concurrent write that committed first.
@@ -428,7 +485,7 @@ export class FakePurchasingStore implements PurchasingStore, PurchaseCorrectionS
     this.state.purchases.push({ ...purchase });
   }
 
-  seedPurchaseLine(line: NewPurchaseLineFields & { id: string }): void {
+  seedPurchaseLine(line: NewPurchaseLineFields & { id: string; removedAt?: Date }): void {
     this.state.purchaseLines.push({ ...line });
   }
 
