@@ -183,6 +183,24 @@ describe("movePurchasedLots", () => {
     expect(lot(store, "lot-4")).toMatchObject({ splitFromLotId: "lot-3", remaining: 3_000 });
   });
 
+  it("splits every lot recreated after the own one from the new own lot", async () => {
+    const store = await storeWithReceivedAndSplitLine();
+    store.seedLot({
+      id: "lot-split-2",
+      ...YERBA,
+      purchaseLineId: "line-1",
+      splitFromLotId: "lot-1",
+      remaining: 500,
+      quantityReceived: 500,
+    });
+
+    await move(store);
+
+    expect(lot(store, "lot-4")).toMatchObject({ splitFromLotId: null });
+    expect(lot(store, "lot-5")).toMatchObject({ splitFromLotId: "lot-4" });
+    expect(lot(store, "lot-6")).toMatchObject({ splitFromLotId: "lot-4" });
+  });
+
   it("recreates a lot with a cost that is incomplete or unknown the way it was", async () => {
     const store = await storeWithReceivedLine();
     store.seedLot({
@@ -354,6 +372,16 @@ describe("movePurchasedLots", () => {
       ...YERBA,
       purchaseLineId: "line-9",
       splitFromLotId: "lot-9",
+    });
+    store.seedMovement({
+      ...YERBA,
+      kind: "receipt",
+      reason: null,
+      purchaseLineId: "line-9",
+      delta: 1_000,
+      occurredAt: RECEIVED_AT,
+      actorId: "person-1",
+      supersededByCountId: null,
     });
 
     expect(await move(store, { purchaseLineId: "line-9" })).toEqual({ kind: "not_found" });

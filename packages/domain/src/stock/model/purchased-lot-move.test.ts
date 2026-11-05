@@ -33,7 +33,7 @@ describe("arePurchasedLotsUntouched", () => {
       expect(
         arePurchasedLotsUntouched(LINE, [
           { kind: "receipt", purchaseLineId: LINE },
-          { kind, purchaseLineId: null },
+          { kind, purchaseLineId: LINE },
         ]),
       ).toBe(false);
     },

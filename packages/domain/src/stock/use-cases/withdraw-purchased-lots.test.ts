@@ -183,6 +183,16 @@ describe("withdrawPurchasedLots", () => {
       purchaseLineId: "line-9",
       splitFromLotId: "lot-9",
     });
+    store.seedMovement({
+      ...YERBA,
+      kind: "receipt",
+      reason: null,
+      purchaseLineId: "line-9",
+      delta: 1_000,
+      occurredAt: RECEIVED_AT,
+      actorId: "person-1",
+      supersededByCountId: null,
+    });
 
     expect(await withdraw(store, { purchaseLineId: "line-9" })).toEqual({ kind: "not_found" });
   });
@@ -194,6 +204,17 @@ describe("withdrawPurchasedLots", () => {
       productId: "product-gone",
       locationId: BRANCH,
       purchaseLineId: "line-9",
+    });
+    store.seedMovement({
+      productId: "product-gone",
+      locationId: BRANCH,
+      kind: "receipt",
+      reason: null,
+      purchaseLineId: "line-9",
+      delta: 1_000,
+      occurredAt: RECEIVED_AT,
+      actorId: "person-1",
+      supersededByCountId: null,
     });
     const before = store.snapshot();
 

@@ -100,7 +100,7 @@ export async function putLotsInStock(
     const lotId = await tx.recordMovedLot({
       ...key,
       purchaseLineId,
-      splitFromLotId: fact.splitFromLotId === null ? null : ownLotId,
+      splitFromLotId: ownLotId,
       quantityReceived: fact.quantityReceived,
       cost: fact.cost,
       costIncomplete: fact.costIncomplete,
@@ -108,9 +108,7 @@ export async function putLotsInStock(
       purchasedOn: fact.purchasedOn,
       createdAt: fact.createdAt,
     });
-    if (fact.splitFromLotId === null) {
-      ownLotId = lotId;
-    }
+    ownLotId ??= lotId;
     if (fact.remaining !== 0) {
       await tx.allocateToLot({ movementId, lotId, quantity: fact.remaining });
     }
