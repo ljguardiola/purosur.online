@@ -1079,6 +1079,31 @@ describe("assembly_batches", () => {
       cause: { constraint: "stock_movements_assembly_batch_id_assembly_batches_id_fk" },
     });
   });
+
+  it("is a stock movement of no quantity, with no reason or link to a sale, a purchase line or a batch", async () => {
+    const { batch, fields, mixId, actorId } = await seedBatchOfMix();
+    const movement = {
+      productId: mixId,
+      locationId: fields.locationId,
+      kind: "lot_split",
+      delta: 0,
+      occurredAt: fields.assembledAt,
+      actorId,
+    };
+
+    await db.insert(stockMovements).values(movement);
+
+    await expect(
+      db.insert(stockMovements).values({ ...movement, reason: "found" }),
+    ).rejects.toMatchObject({
+      cause: { constraint: "stock_movements_reason_unless_count_sale_or_receipt_check" },
+    });
+    await expect(
+      db.insert(stockMovements).values({ ...movement, assemblyBatchId: batch.id }),
+    ).rejects.toMatchObject({
+      cause: { constraint: "stock_movements_assembly_batch_iff_assembly_check" },
+    });
+  });
 });
 
 describe("purchases", () => {
@@ -1219,7 +1244,7 @@ describe("purchases", () => {
     expect(line).toMatchObject({ packages: 12, quantity: 144_000 });
   });
 
-  it("keeps one lot per purchase line, with the line's exact cost pair", async () => {
+  it("keeps one own lot per purchase line, with the line's exact cost pair", async () => {
     const { purchaseId, productId, locationId } = await seedPurchase();
     const [line] = await db
       .insert(purchaseLines)
@@ -1238,7 +1263,51 @@ describe("purchases", () => {
 
     expect(stored).toMatchObject({ ...lot, lotNumber: null, expiresOn: null });
     await expect(db.insert(lots).values(lot)).rejects.toMatchObject({
-      cause: { constraint: "lots_purchase_line_id_key" },
+      cause: { constraint: "lots_one_own_lot_per_purchase_line" },
+    });
+  });
+
+  it("allows lots split from the line's own lot, any number of them", async () => {
+    const { purchaseId, productId, locationId } = await seedPurchase();
+    const [line] = await db
+      .insert(purchaseLines)
+      .values({ purchaseId, productId, ...LINE })
+      .returning({ id: purchaseLines.id });
+    const lot = {
+      productId,
+      locationId,
+      purchaseLineId: line?.id as string,
+      quantityReceived: 12_000,
+      costTotalCents: 1_500,
+      costQuantity: 1_000,
+    };
+    const [own] = await db.insert(lots).values(lot).returning({ id: lots.id });
+
+    const split = { ...lot, quantityReceived: 1_000, splitFromLotId: own?.id as string };
+    await db.insert(lots).values(split);
+    await db.insert(lots).values(split);
+
+    expect(await db.select().from(lots)).toHaveLength(3);
+  });
+
+  it("rejects a lot split from another lot that came from no purchase line", async () => {
+    const { productId, locationId } = await seedPurchase();
+    const [technical] = await db
+      .insert(lots)
+      .values({ productId, locationId, technical: true, costIncomplete: true, quantityReceived: 0 })
+      .returning({ id: lots.id });
+
+    await expect(
+      db.insert(lots).values({
+        productId,
+        locationId,
+        technical: true,
+        costIncomplete: true,
+        quantityReceived: 0,
+        splitFromLotId: technical?.id as string,
+      }),
+    ).rejects.toMatchObject({
+      cause: { constraint: "lots_split_only_of_purchase_line_check" },
     });
   });
 
