@@ -47,6 +47,12 @@ export type {
   CorrectPurchasedLotCostOutcome,
 } from "./correct-purchased-lot-cost.js";
 export { correctPurchasedLotCost } from "./correct-purchased-lot-cost.js";
+export type {
+  CorrectPurchasedLotQuantityInput,
+  CorrectPurchasedLotQuantityOutcome,
+  CorrectPurchasedLotQuantityTransaction,
+} from "./correct-purchased-lot-quantity.js";
+export { correctPurchasedLotQuantity } from "./correct-purchased-lot-quantity.js";
 export type { CurrentStockReader } from "./current-stock-reader.js";
 export type {
   DiscardExpiredLotInput,
@@ -111,6 +117,7 @@ export type {
   LotCostChangeRecord,
   NewSplitLot,
   PurchasedLot,
+  PurchasedLotQuantityStoreTransaction,
   PurchasedLotStoreTransaction,
   SplittableLot,
 } from "./purchased-lot-store.js";
