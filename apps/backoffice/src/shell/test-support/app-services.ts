@@ -192,6 +192,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       addPurchaseLines: vi.fn(),
       correctPurchaseHeader: vi.fn(),
       correctPurchaseLineExpiry: vi.fn(),
+      correctPurchaseLineCost: vi.fn(),
     },
     freightsListScreen: {
       fetchFreights: vi.fn().mockResolvedValue({
