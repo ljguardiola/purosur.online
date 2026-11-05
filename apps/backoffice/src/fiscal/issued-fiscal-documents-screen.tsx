@@ -17,10 +17,10 @@ import { Eye, FileText, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import type { CloudData } from "../platform/use-cloud-query";
+import { AreaTopBar } from "../shell/area-top-bar";
 import { ReportFilters } from "../shell/report-filters";
 import type { ReportRegisterField } from "../shell/report-register-field";
 import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTopBar } from "../shell/screen-top-bar";
 import { useIssuedFiscalDocumentsQuery } from "./fiscal-queries";
 import { IssuedFiscalDocumentDetailModal } from "./issued-fiscal-document-detail-modal";
 import {
@@ -197,7 +197,7 @@ export function IssuedFiscalDocumentsScreen({
   return (
     <ScreenLayout
       topBar={
-        <ScreenTopBar eyebrow="Caja y fiscal · Fiscal" title="Comprobantes y notas de crédito" />
+        <AreaTopBar eyebrow="Caja y fiscal · Fiscal" title="Comprobantes y notas de crédito" />
       }
       bodyClassName="gap-4 p-6"
     >

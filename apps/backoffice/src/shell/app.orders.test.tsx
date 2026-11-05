@@ -2,7 +2,6 @@ import type { Capability } from "@purosur/domain";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import type { FetchAlertsOverviewOutcome } from "../alerts/alerts-api";
 import { ORDER_SUGGESTION } from "../purchasing/test-support/order-suggestion";
 import {
   DRAFT_ORDER,
@@ -19,7 +18,7 @@ import {
 } from "../purchasing/test-support/supplier-price-lists";
 import { openSession } from "../sessions/test-support/open-session";
 import { App } from "./app";
-import { emptyHelp, resetPageState } from "./test-support/app";
+import { emptyHelp, resetPageState, threeOpenAlerts } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
@@ -140,15 +139,6 @@ test("opens a list's review from the list", async () => {
     READ_LIST.id,
   );
 });
-
-const threeOpenAlerts: FetchAlertsOverviewOutcome = {
-  kind: "ok",
-  value: {
-    critical: { openCount: 1, kinds: ["user_access_increased"] },
-    warning: { openCount: 2, kinds: ["user_email_changed"] },
-    informational: { openCount: 0, kinds: [] },
-  },
-};
 
 test("counts the open alerts in the list's top bar and opens the alerts list from it", async () => {
   const services = ordersServices([]);

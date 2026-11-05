@@ -9,8 +9,8 @@ import {
   Wallet,
   Warehouse,
 } from "lucide-react";
+import { AreaTopBar } from "../shell/area-top-bar";
 import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTopBar } from "../shell/screen-top-bar";
 
 const ReportRow = createLink(LinkListRow);
 
@@ -22,7 +22,7 @@ export function ReportsIndexScreen({
   aiCostShown: boolean;
 }) {
   return (
-    <ScreenLayout topBar={<ScreenTopBar eyebrow="Puro Sur" title="Reportes" />} bodyClassName="p-6">
+    <ScreenLayout topBar={<AreaTopBar eyebrow="Puro Sur" title="Reportes" />} bodyClassName="p-6">
       <LinkListCard title="Ventas" icon={<ShoppingBag />}>
         <ReportRow to="/reports/sales-by-day" label="Ventas por día o por rango" />
         <ReportRow to="/reports/sales-by-payment-method" label="Ventas por medio de pago" />

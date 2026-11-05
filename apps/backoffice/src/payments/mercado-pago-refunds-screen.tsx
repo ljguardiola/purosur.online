@@ -11,8 +11,8 @@ import {
 import { Check, CircleX, HandCoins, Landmark, Send, TriangleAlert } from "lucide-react";
 import { useRef, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import { AreaTopBar } from "../shell/area-top-bar";
 import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTopBar } from "../shell/screen-top-bar";
 import { DiscardRefundModal } from "./discard-refund-modal";
 import type { MercadoPagoRefundsScreenServices } from "./mercado-pago-refunds-services";
 import { usePendingRefundsQuery, useRefreshPayments } from "./payments-queries";
@@ -126,9 +126,7 @@ export function MercadoPagoRefundsScreen({
   return (
     <>
       <ScreenLayout
-        topBar={
-          <ScreenTopBar eyebrow="Caja y fiscal · Tareas" title="Reembolsos de Mercado Pago" />
-        }
+        topBar={<AreaTopBar eyebrow="Caja y fiscal · Tareas" title="Reembolsos de Mercado Pago" />}
         bodyClassName="gap-4 p-6"
       >
         <div className="flex flex-wrap items-center gap-3">

@@ -9,12 +9,12 @@ import {
 } from "@purosur/ui";
 import { PackageX } from "lucide-react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
+import { AreaTopBar } from "../shell/area-top-bar";
 import { ReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import type { ReportPeriodFilters } from "../shell/report-filters-search";
 import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTopBar } from "../shell/screen-top-bar";
 import { lossCountText } from "./loss-count-text";
 import { LossesByReasonReportReasonSection } from "./losses-by-reason-report-reason-section";
 import type { LossesByReasonReportScreenServices } from "./losses-by-reason-report-services";
@@ -74,7 +74,7 @@ export function LossesByReasonReportScreen({
 
   return (
     <ScreenLayout
-      topBar={<ScreenTopBar eyebrow="Reportes · Stock" title={SCREEN_TITLE} />}
+      topBar={<AreaTopBar eyebrow="Reportes · Stock" title={SCREEN_TITLE} />}
       bodyClassName="gap-4 p-6"
     >
       <ReportFilters

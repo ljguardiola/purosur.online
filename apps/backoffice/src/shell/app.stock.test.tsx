@@ -2,12 +2,11 @@ import type { Capability } from "@purosur/domain";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import type { FetchAlertsOverviewOutcome } from "../alerts/alerts-api";
 import { openSession } from "../sessions/test-support/open-session";
 import { expiringLotList } from "../stock/test-support/expiring-lots-fixtures";
 import { stockBalanceList } from "../stock/test-support/stock-fixtures";
 import { App } from "./app";
-import { emptyHelp, resetPageState } from "./test-support/app";
+import { emptyHelp, resetPageState, threeOpenAlerts } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
@@ -272,15 +271,6 @@ test("offers the kinds of stock movement real use of the open tab reports the us
     vi.useRealTimers();
   }
 });
-
-const threeOpenAlerts: FetchAlertsOverviewOutcome = {
-  kind: "ok",
-  value: {
-    critical: { openCount: 1, kinds: ["user_access_increased"] },
-    warning: { openCount: 2, kinds: ["user_email_changed"] },
-    informational: { openCount: 0, kinds: [] },
-  },
-};
 
 const STOCK_SCREENS = [
   ["/inventory", "Saldos"],

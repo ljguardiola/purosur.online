@@ -12,6 +12,7 @@ import { Coins } from "lucide-react";
 import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatDisplayDate } from "../platform/display-date";
+import { AreaTopBar } from "../shell/area-top-bar";
 import { RegisterReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
@@ -21,7 +22,6 @@ import {
 } from "../shell/report-filters-search";
 import type { ReportRegisterField } from "../shell/report-register-field";
 import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTopBar } from "../shell/screen-top-bar";
 import type { CashRoundingScreenServices } from "./cash-rounding-services";
 import { cashRoundingSpreadsheet } from "./cash-rounding-spreadsheet";
 import { useCashRoundingQuery } from "./sales-queries";
@@ -89,7 +89,7 @@ export function CashRoundingScreen({
 
   return (
     <ScreenLayout
-      topBar={<ScreenTopBar eyebrow="Reportes" title={SCREEN_TITLE} />}
+      topBar={<AreaTopBar eyebrow="Reportes" title={SCREEN_TITLE} />}
       bodyClassName="gap-4 p-6"
     >
       <ReportFilters

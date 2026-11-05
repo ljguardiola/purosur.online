@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { AccountFooter } from "./account-footer";
+import { AreaTopBarAlertsCount } from "./area-top-bar-alerts-count";
 import { AreaTopBarUnbilledDeferredSales } from "./area-top-bar-unbilled-deferred-sales";
 import {
   canComparePrices,
@@ -24,6 +25,7 @@ import {
   canPerformStockCounts,
   canReadPurchaseOrders,
   canRecordPurchases,
+  canSeeAlertsArea,
   canSeeCashArea,
   canSeeCatalogArea,
   canSeeExpiringLots,
@@ -58,12 +60,20 @@ export type AreaLayoutProps = {
   area: Area;
   sectionColumnLabel: string;
   sectionColumn: ReactNode;
+  showsOpenAlertsCount?: boolean;
   children: ReactNode;
 };
 
-export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }: AreaLayoutProps) {
+export function AreaLayout({
+  area,
+  sectionColumnLabel,
+  sectionColumn,
+  showsOpenAlertsCount = false,
+  children,
+}: AreaLayoutProps) {
   const { session, services, sessionActions } = signedInRoute.useRouteContext();
   const UnbilledDeferredSales = services.areaTopBarUnbilledDeferredSales;
+  const AlertsCount = services.areaTopBarAlertsCount;
   const matchRoute = useMatchRoute();
   const catalogTarget = canManageProductsAndCategories(session)
     ? "/products"
@@ -179,7 +189,18 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
           ) : null
         }
       >
-        {children}
+        <AreaTopBarAlertsCount
+          value={
+            showsOpenAlertsCount && canSeeAlertsArea(session) ? (
+              <AlertsCount
+                onSessionEnded={sessionActions.sessionEnded}
+                services={services.alertsOpenCountLink}
+              />
+            ) : null
+          }
+        >
+          {children}
+        </AreaTopBarAlertsCount>
       </AreaTopBarUnbilledDeferredSales>
     </Shell>
   );
