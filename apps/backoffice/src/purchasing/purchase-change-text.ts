@@ -115,6 +115,27 @@ export function purchaseChangeRows(
         },
       ];
     }
+    case "line_product":
+      return [
+        {
+          label: "Producto",
+          value: transition(
+            formatProductDescription(change.previous),
+            formatProductDescription(change.next),
+          ),
+        },
+      ];
+    case "line_removed":
+      return [
+        {
+          label: "Producto quitado",
+          value: [
+            formatProductDescription(change.product),
+            quantityText(change, change.product.saleUnit),
+            formatCents(change.costPaidCents),
+          ].join(" · "),
+        },
+      ];
     case "line_cost":
       return [
         {
