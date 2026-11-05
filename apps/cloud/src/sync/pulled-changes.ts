@@ -2,8 +2,8 @@ import type {
   FiscalTaskDocumentType,
   NetContentUnit,
   OfflineNumberBlockStatus,
+  RegisterStockMovementKind,
   SaleUnit,
-  StockMovementKind,
 } from "@purosur/domain";
 import type { BranchSettings } from "@purosur/domain/branch/use-cases";
 import type { DiscountFields } from "@purosur/domain/pricing/use-cases";
@@ -128,7 +128,7 @@ export type DiscountRow = DiscountFields;
 
 export interface StockMovementRow {
   productId: string;
-  kind: StockMovementKind;
+  kind: RegisterStockMovementKind;
   delta: number;
   occurredAt: Date;
   supersededByCountId: string | null;

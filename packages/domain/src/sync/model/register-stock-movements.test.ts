@@ -10,8 +10,9 @@ describe("the stock movements that reach registers", () => {
     expect(REGISTER_STOCK_MOVEMENT_KINDS).toEqual(
       STOCK_MOVEMENT_KINDS.filter((kind) => kind !== "lot_split"),
     );
-    expectTypeOf<Exclude<StockMovementKind, (typeof REGISTER_STOCK_MOVEMENT_KINDS)[number]>>()
-      .toEqualTypeOf<"lot_split">();
+    expectTypeOf<
+      Exclude<StockMovementKind, (typeof REGISTER_STOCK_MOVEMENT_KINDS)[number]>
+    >().toEqualTypeOf<"lot_split">();
   });
 
   it.each(STOCK_MOVEMENT_KINDS.filter((kind) => kind !== "lot_split"))(

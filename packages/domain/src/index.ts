@@ -1119,6 +1119,7 @@ export type {
   PulledChange,
   PullPage,
   PushedEvent,
+  RegisterStockMovementKind,
   RegisterTelemetry,
   ReplenishmentFailedReport,
   ReplenishmentFailure,
@@ -1146,11 +1147,13 @@ export {
   PULLED_ENTITIES,
   PUSH_BATCH_MAX_EVENTS,
   pullAudienceOf,
+  REGISTER_STOCK_MOVEMENT_KINDS,
   REPLENISHMENT_PAGE_MAX_EVENTS,
   replenishmentFailedReportOf,
   revokedInstallationsAwaitingConfirmation,
   SALES_DENIED_FOR_DAMAGED_LOCAL_DATABASE,
   salesDeniedReportOf,
+  stockMovementReachesRegisters,
   streamReachesPastOnceConfirmed,
 } from "./sync/index.js";
 export {

@@ -24,6 +24,11 @@ export {
 export type { PushedEvent, RegisterTelemetry, StorageTelemetry } from "./model/push-batch.js";
 export { PUSH_BATCH_MAX_EVENTS } from "./model/push-batch.js";
 export { isQuarantined } from "./model/quarantine-release.js";
+export type { RegisterStockMovementKind } from "./model/register-stock-movements.js";
+export {
+  REGISTER_STOCK_MOVEMENT_KINDS,
+  stockMovementReachesRegisters,
+} from "./model/register-stock-movements.js";
 export { isLeftBehindByMinimum, isWellFormedRegisterVersion } from "./model/register-version.js";
 export type {
   PendingReplenishment,

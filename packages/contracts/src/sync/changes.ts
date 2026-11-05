@@ -11,8 +11,8 @@ import {
   OFFLINE_NUMBER_BLOCK_STATUSES,
   PULL_PAGE_MAX_CHANGES,
   PULLED_ENTITIES,
+  REGISTER_STOCK_MOVEMENT_KINDS,
   SALE_UNITS,
-  STOCK_MOVEMENT_KINDS,
 } from "@purosur/domain";
 import { z } from "zod";
 import {
@@ -316,7 +316,7 @@ const stockMovementChangeSchema = z.object({
   entity: z.literal("stock_movement"),
   row: z.object({
     product_id: z.string(),
-    kind: z.enum(STOCK_MOVEMENT_KINDS),
+    kind: z.enum(REGISTER_STOCK_MOVEMENT_KINDS),
     delta: z.int(),
     occurred_at: z.iso.datetime(),
     superseded_by_count_id: z.string().nullable(),
