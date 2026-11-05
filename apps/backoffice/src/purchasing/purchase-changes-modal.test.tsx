@@ -10,7 +10,9 @@ import {
   headerCorrection,
   lineExpiryCorrection,
   lineExpirySplitCorrection,
+  lineProductCorrection,
   lineQuantityCorrection,
+  lineRemoved,
   linesAdded,
 } from "./test-support/purchase-changes";
 import { compraDeAvena } from "./test-support/purchases";
@@ -231,6 +233,26 @@ test("shows a corrected quantity with the product of its line", async () => {
 
   await expect.element(dialog.getByText("Cantidad de Miel pura de abeja 1 kg")).toBeVisible();
   await expect.element(dialog.getByText("2 paquetes (24 u) → 3 paquetes (36 u)")).toBeVisible();
+});
+
+test("shows a changed product with the previous and the new one", async () => {
+  const screen = await renderModal({ services: createServices([lineProductCorrection]) });
+  const dialog = screen.getByRole("dialog");
+
+  await expect.element(dialog.getByText("Producto", { exact: true })).toBeVisible();
+  await expect
+    .element(dialog.getByText("Miel pura de abeja 1 kg → Aceite de Almendras Vitora 30 ml"))
+    .toBeVisible();
+});
+
+test("shows a removed line with its product, quantity and cost", async () => {
+  const screen = await renderModal({ services: createServices([lineRemoved]) });
+  const dialog = screen.getByRole("dialog");
+
+  await expect.element(dialog.getByText("Producto quitado")).toBeVisible();
+  await expect
+    .element(dialog.getByText("Miel pura de abeja 1 kg · 2 paquetes (24 u) · $ 3.600,00"))
+    .toBeVisible();
 });
 
 test("close hands the closing over", async () => {

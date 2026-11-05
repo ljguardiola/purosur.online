@@ -7,7 +7,10 @@ import {
   lineCostCorrection,
   lineExpiryCorrection,
   lineExpirySplitCorrection,
+  lineProductCorrection,
   lineQuantityCorrection,
+  lineRemoved,
+  lineRemovedWithoutPackages,
   linesAdded,
 } from "./test-support/purchase-changes";
 
@@ -177,6 +180,41 @@ describe("purchaseChangeRows of a quantity correction", () => {
       purchaseChangeRows(lineQuantityCorrection.change, { ...compraDeMielCorregida, lines: [] }),
     ).toEqual([
       { label: "Cantidad de Producto no disponible", value: "Sin detalle de la cantidad" },
+    ]);
+  });
+});
+
+describe("purchaseChangeRows of a product correction", () => {
+  it("names the previous and the new product, even when the purchase shows neither line", () => {
+    expect(
+      purchaseChangeRows(lineProductCorrection.change, { ...compraDeMielCorregida, lines: [] }),
+    ).toEqual([
+      {
+        label: "Producto",
+        value: "Miel pura de abeja 1 kg → Aceite de Almendras Vitora 30 ml",
+      },
+    ]);
+  });
+});
+
+describe("purchaseChangeRows of a removed line", () => {
+  it("names the product, the quantity as the line was loaded and the cost paid", () => {
+    expect(purchaseChangeRows(lineRemoved.change, { ...compraDeMielCorregida, lines: [] })).toEqual(
+      [
+        {
+          label: "Producto quitado",
+          value: "Miel pura de abeja 1 kg · 2 paquetes (24 u) · $ 3.600,00",
+        },
+      ],
+    );
+  });
+
+  it("writes the quantity of a line loaded by quantity without packages", () => {
+    expect(purchaseChangeRows(lineRemovedWithoutPackages.change, compraDeMielCorregida)).toEqual([
+      {
+        label: "Producto quitado",
+        value: "Miel pura de abeja 1 kg · 24 u · $ 3.600,00",
+      },
     ]);
   });
 });

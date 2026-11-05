@@ -1,5 +1,5 @@
 import type { PurchaseChange, PurchaseSummary } from "@purosur/contracts";
-import { compraDeAvena, compraDeMiel } from "./purchases";
+import { compraDeAceite, compraDeAvena, compraDeMiel } from "./purchases";
 
 const [lineDeMiel] = compraDeMiel.lines;
 const [lineDeAvena] = compraDeAvena.lines;
@@ -108,5 +108,52 @@ export const lineQuantityCorrection: PurchaseChange = {
     lineId: LINEA_DE_MIEL_ID,
     previous: { quantity: 24_000, packages: 2 },
     next: { quantity: 36_000, packages: 3 },
+  },
+};
+
+const [lineDeAceite] = compraDeAceite.lines;
+
+if (!lineDeAceite) {
+  throw new Error("test setup: a purchase has no line");
+}
+
+export const lineProductCorrection: PurchaseChange = {
+  id: "c0c00000-0000-4000-8000-000000000007",
+  actor: { id: "a0100000-0000-4000-8000-000000000001", name: "Marta Quiroga" },
+  correctedAt: "2026-09-19T10:00:00.000Z",
+  change: {
+    kind: "line_product",
+    lineId: LINEA_DE_MIEL_ID,
+    previous: lineDeMiel.product,
+    next: lineDeAceite.product,
+  },
+};
+
+export const lineRemoved: PurchaseChange = {
+  id: "c0c00000-0000-4000-8000-000000000008",
+  actor: { id: "a0100000-0000-4000-8000-000000000002", name: "Julián Paz" },
+  correctedAt: "2026-09-19T11:00:00.000Z",
+  change: {
+    kind: "line_removed",
+    lineId: "c0b00000-0000-4000-8000-0000000000b1",
+    product: lineDeMiel.product,
+    quantity: 24_000,
+    packages: 2,
+    costPaidCents: 3_600_00,
+    expiresOn: "2027-01-31",
+  },
+};
+
+export const lineRemovedWithoutPackages: PurchaseChange = {
+  ...lineRemoved,
+  id: "c0c00000-0000-4000-8000-000000000009",
+  change: {
+    kind: "line_removed",
+    lineId: "c0b00000-0000-4000-8000-0000000000b2",
+    product: lineDeMiel.product,
+    quantity: 24_000,
+    packages: null,
+    costPaidCents: 3_600_00,
+    expiresOn: null,
   },
 };
