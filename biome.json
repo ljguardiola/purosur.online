@@ -86,6 +86,11 @@
       "tailwindDirectives": true
     }
   },
+  "markdown": {
+    "parser": {
+      "frontmatter": true
+    }
+  },
   "overrides": [
     {
       "includes": ["apps/backoffice/src/**", "!apps/backoffice/src/shell/lazy-screen.ts"],

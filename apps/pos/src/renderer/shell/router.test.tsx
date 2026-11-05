@@ -8,7 +8,12 @@ import type {
   StartupPending,
 } from "@purosur/contracts";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { createRootRouteWithContext, createRoute, RouterProvider } from "@tanstack/react-router";
+import {
+  createRootRouteWithContext,
+  createRoute,
+  getRouteApi,
+  RouterProvider,
+} from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { Component } from "react";
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
@@ -381,6 +386,20 @@ class OuterErrorBoundary extends Component<
   override render() {
     return this.state.error === undefined ? this.props.children : <p>{OUTER_BOUNDARY_TEXT}</p>;
   }
+}
+
+const rootRouteApi = getRouteApi("__root__");
+
+function GuardedScreen() {
+  const { authorizers } = rootRouteApi.useRouteContext();
+  return (
+    <GuardedCashInForm
+      person={{ user_id: "u1", first_name: "Tomás", abilities: [] }}
+      required
+      loadAuthorizers={authorizers}
+      submit={async () => ({ kind: "performed", authorized_by: null })}
+    />
+  );
 }
 
 function FailingScreen(): ReactNode {
@@ -3094,17 +3113,6 @@ describe("the register's router", () => {
 
   it("hands a screen the loader of the people who can authorize", async () => {
     const rootRoute = createRootRouteWithContext<RouterContext>()();
-    function GuardedScreen() {
-      const { authorizers } = rootRoute.useRouteContext();
-      return (
-        <GuardedCashInForm
-          person={{ user_id: "u1", first_name: "Tomás", abilities: [] }}
-          required
-          loadAuthorizers={authorizers}
-          submit={async () => ({ kind: "performed", authorized_by: null })}
-        />
-      );
-    }
     const guardedRoute = createRoute({
       getParentRoute: () => rootRoute,
       path: "/",

@@ -266,7 +266,15 @@ jobs:
   # ever-growing total test count - bounds this job's wall time.
   tests:
     name: tests (${{ matrix.shard }}/6)
-    needs: [scope, test-durations-source, postgres-image, postgres-image-copy, playwright-image, playwright-image-copy]
+    needs:
+      [
+        scope,
+        test-durations-source,
+        postgres-image,
+        postgres-image-copy,
+        playwright-image,
+        playwright-image-copy,
+      ]
     # Skipped only when scope positively decided the shards read no changed path and that skipping
     # is allowed; a failed or missing decision runs them, like static above.
     if: ${{ !cancelled() && (needs.scope.result != 'success' || needs.scope.outputs.skip_allowed != 'true' || needs.scope.outputs.tests_needed != 'false') }}

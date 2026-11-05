@@ -9,11 +9,13 @@ issue" in `.claude/rules/workflow.md`; the full run of record is CI's `verify`
 
 1. Run them with the repo's pinned Node (or any Node version manager that
    reads `.node-version`, if `mise` isn't available):
+
    ```
    git fetch origin main
    mise exec node@$(cat .node-version) -- pnpm verify:static
    mise exec node@$(cat .node-version) -- pnpm test:changed <test files>
    ```
+
    `test:changed` runs on its own the tests step 4 says it runs, together
    with the test files given by path: the ones step 4 lists to add for the
    branch's changes. Give no path when the branch has none.

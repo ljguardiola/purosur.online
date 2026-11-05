@@ -202,13 +202,13 @@ test("does not change the chosen option's background on hover", async () => {
   expect(getComputedStyle(option).backgroundColor).toBe(tokenRgb("action-subtle"));
 });
 
-test("keeps the control's width stable when the chosen option changes", async () => {
-  function Harness() {
-    const [value, setValue] = useState<EntryMode>("discount");
-    return <SegmentedControl {...baseProps({ value, onChange: setValue })} />;
-  }
+function ChoosableSegmentedControl() {
+  const [value, setValue] = useState<EntryMode>("discount");
+  return <SegmentedControl {...baseProps({ value, onChange: setValue })} />;
+}
 
-  const screen = await render(<Harness />);
+test("keeps the control's width stable when the chosen option changes", async () => {
+  const screen = await render(<ChoosableSegmentedControl />);
   const container = screen.getByRole("radiogroup", { name: "Entry mode" }).element() as HTMLElement;
   const widthBefore = container.getBoundingClientRect().width;
 
@@ -222,12 +222,7 @@ test("keeps the control's width stable when the chosen option changes", async ()
 });
 
 test("chooses an option with a click, unchoosing the previous one", async () => {
-  function Harness() {
-    const [value, setValue] = useState<EntryMode>("discount");
-    return <SegmentedControl {...baseProps({ value, onChange: setValue })} />;
-  }
-
-  const screen = await render(<Harness />);
+  const screen = await render(<ChoosableSegmentedControl />);
 
   await userEvent.click(segmentOption(screen, "New price"));
 
@@ -267,12 +262,7 @@ test("is a single tab stop landing on the chosen option", async () => {
 });
 
 test("moves focus and choice with the arrow keys", async () => {
-  function Harness() {
-    const [value, setValue] = useState<EntryMode>("discount");
-    return <SegmentedControl {...baseProps({ value, onChange: setValue })} />;
-  }
-
-  const screen = await render(<Harness />);
+  const screen = await render(<ChoosableSegmentedControl />);
 
   await userEvent.tab();
   expect(document.activeElement).toBe(segmentInput(screen, "Discount"));

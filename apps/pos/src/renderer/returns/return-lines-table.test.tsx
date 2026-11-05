@@ -37,26 +37,36 @@ async function renderTable({
   return { screen, onCheck, onChange };
 }
 
+function TypedTable({
+  initial,
+  onDraftChange,
+}: {
+  initial: ReturnDraft;
+  onDraftChange: (draft: ReturnDraft) => void;
+}) {
+  const [draft, setDraft] = useState(initial);
+  return (
+    <ReturnLinesTable
+      sale={SALE}
+      draft={draft}
+      refusals={{}}
+      onCheck={() => {}}
+      onChange={(lineId, change) => {
+        const changed = changeLine(draft, lineId, change);
+        onDraftChange(changed);
+        setDraft(changed);
+      }}
+    />
+  );
+}
+
 async function renderTypedTable(initial: ReturnDraft) {
   await page.viewport(1280, 900);
   onTestFinished(() => page.viewport(414, 896));
   let typed = initial;
-  function TypedTable() {
-    const [draft, setDraft] = useState(initial);
-    return (
-      <ReturnLinesTable
-        sale={SALE}
-        draft={draft}
-        refusals={{}}
-        onCheck={() => {}}
-        onChange={(lineId, change) => {
-          typed = changeLine(draft, lineId, change);
-          setDraft(typed);
-        }}
-      />
-    );
-  }
-  const screen = await render(<TypedTable />);
+  const screen = await render(
+    <TypedTable initial={initial} onDraftChange={(draft) => (typed = draft)} />,
+  );
   return { screen, returnedQuantities: () => draftLinesFor(SALE, typed).map((l) => l.quantity) };
 }
 

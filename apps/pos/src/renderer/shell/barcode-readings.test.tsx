@@ -37,6 +37,27 @@ async function renderReadings(takers: React.ReactNode) {
   return { core, screen };
 }
 
+function WithWindow({ open, take }: { open: boolean; take: (code: string) => void }) {
+  return (
+    <>
+      <Taker take={take} />
+      <Modal
+        open={open}
+        onOpenChange={() => {}}
+        width="confirmation"
+        tone="error"
+        icon={<CircleX />}
+        context="Venta en curso"
+        title="Una ventana"
+        closable
+        footer={null}
+      >
+        <p>Contenido</p>
+      </Modal>
+    </>
+  );
+}
+
 describe("BarcodeReadings", () => {
   it("hands a reading to the screen that takes readings, with no notice", async () => {
     const take = vi.fn();
@@ -132,27 +153,6 @@ describe("BarcodeReadings", () => {
   });
 
   describe("while a modal window is open", () => {
-    function WithWindow({ open, take }: { open: boolean; take: (code: string) => void }) {
-      return (
-        <>
-          <Taker take={take} />
-          <Modal
-            open={open}
-            onOpenChange={() => {}}
-            width="confirmation"
-            tone="error"
-            icon={<CircleX />}
-            context="Venta en curso"
-            title="Una ventana"
-            closable
-            footer={null}
-          >
-            <p>Contenido</p>
-          </Modal>
-        </>
-      );
-    }
-
     it("warns that the product was not added instead of handing the reading to the taker", async () => {
       const take = vi.fn();
       const { core, screen } = await renderReadings(<WithWindow open take={take} />);

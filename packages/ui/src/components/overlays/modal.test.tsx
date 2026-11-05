@@ -719,26 +719,26 @@ test("moves focus into the modal on open and contains it while tabbing", async (
   }
 });
 
-test("returns focus to the element that opened it, on close", async () => {
-  function Harness() {
-    const [open, setOpen] = useState(false);
-    return (
-      <>
-        <button type="button" onClick={() => setOpen(true)}>
-          Open
-        </button>
-        <Modal
-          {...baseProps({
-            open,
-            onOpenChange: setOpen,
-            closable: true,
-          })}
-        />
-      </>
-    );
-  }
+function OpenerModal() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)}>
+        Open
+      </button>
+      <Modal
+        {...baseProps({
+          open,
+          onOpenChange: setOpen,
+          closable: true,
+        })}
+      />
+    </>
+  );
+}
 
-  const screen = await render(<Harness />);
+test("returns focus to the element that opened it, on close", async () => {
+  const screen = await render(<OpenerModal />);
   const trigger = screen.getByRole("button", { name: "Open" });
   await trigger.click();
 
@@ -749,39 +749,39 @@ test("returns focus to the element that opened it, on close", async () => {
   await expect.poll(() => document.activeElement).toBe(trigger.element());
 });
 
-test("opens a second modal over the first with its own backdrop and returns to the first when it closes", async () => {
-  function Harness() {
-    const [firstOpen, setFirstOpen] = useState(true);
-    const [secondOpen, setSecondOpen] = useState(false);
-    return (
-      <>
-        <Modal
-          open={firstOpen}
-          onOpenChange={setFirstOpen}
-          tone="info"
-          icon={<Info />}
-          title="First modal"
-          closable
-          footer={<Button onPress={() => setSecondOpen(true)}>Open second</Button>}
-        >
-          First body
-        </Modal>
-        <Modal
-          open={secondOpen}
-          onOpenChange={setSecondOpen}
-          tone="warning"
-          icon={<AlertTriangle />}
-          title="Second modal"
-          closable
-          footer={<Button onPress={() => setSecondOpen(false)}>Done</Button>}
-        >
-          Second body
-        </Modal>
-      </>
-    );
-  }
+function TwoModals() {
+  const [firstOpen, setFirstOpen] = useState(true);
+  const [secondOpen, setSecondOpen] = useState(false);
+  return (
+    <>
+      <Modal
+        open={firstOpen}
+        onOpenChange={setFirstOpen}
+        tone="info"
+        icon={<Info />}
+        title="First modal"
+        closable
+        footer={<Button onPress={() => setSecondOpen(true)}>Open second</Button>}
+      >
+        First body
+      </Modal>
+      <Modal
+        open={secondOpen}
+        onOpenChange={setSecondOpen}
+        tone="warning"
+        icon={<AlertTriangle />}
+        title="Second modal"
+        closable
+        footer={<Button onPress={() => setSecondOpen(false)}>Done</Button>}
+      >
+        Second body
+      </Modal>
+    </>
+  );
+}
 
-  const screen = await render(<Harness />);
+test("opens a second modal over the first with its own backdrop and returns to the first when it closes", async () => {
+  const screen = await render(<TwoModals />);
   const openSecond = screen.getByRole("button", { name: "Open second" });
   await openSecond.click();
 

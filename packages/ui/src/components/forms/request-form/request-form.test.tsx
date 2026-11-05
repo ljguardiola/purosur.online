@@ -323,33 +323,40 @@ test("the form is submitting until onSubmit settles, also when it shows a field 
   await expect.element(screen.getByText("Ya existe.")).toBeVisible();
 });
 
+function FailingProbe({
+  pending,
+  failed,
+}: {
+  pending: ReturnType<typeof deferred>;
+  failed: (error: unknown) => void;
+}) {
+  const { form, submit, submitting } = useRequestForm({
+    defaultValues: { name: "Ana" },
+    request: { schema: z.object({ name: z.string() }), from: (values) => values },
+    fields: { name: "name" },
+    messages: { name: "Nombre inválido." },
+    onSubmit: (_request, submission) => {
+      submission.showFieldError("name", "Ya existe.");
+      return pending.promise;
+    },
+  });
+  return (
+    <>
+      <form.AppField name="name">
+        {(field) => <field.TextField kind="plain-text" label="Nombre" />}
+      </form.AppField>
+      <button type="button" disabled={submitting} onClick={() => void submit().catch(failed)}>
+        Enviar
+      </button>
+    </>
+  );
+}
+
 test("a failed onSubmit that showed a field error before its first await rejects the submit and keeps the error", async () => {
   const pending = deferred();
   const failed = vi.fn<(error: unknown) => void>();
   const failure = new Error("sin conexión");
-  function FailingProbe() {
-    const { form, submit, submitting } = useRequestForm({
-      defaultValues: { name: "Ana" },
-      request: { schema: z.object({ name: z.string() }), from: (values) => values },
-      fields: { name: "name" },
-      messages: { name: "Nombre inválido." },
-      onSubmit: (_request, submission) => {
-        submission.showFieldError("name", "Ya existe.");
-        return pending.promise;
-      },
-    });
-    return (
-      <>
-        <form.AppField name="name">
-          {(field) => <field.TextField kind="plain-text" label="Nombre" />}
-        </form.AppField>
-        <button type="button" disabled={submitting} onClick={() => void submit().catch(failed)}>
-          Enviar
-        </button>
-      </>
-    );
-  }
-  const screen = await render(<FailingProbe />);
+  const screen = await render(<FailingProbe pending={pending} failed={failed} />);
 
   await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
   await expect.element(screen.getByRole("button", { name: "Enviar" })).toBeDisabled();
@@ -360,31 +367,40 @@ test("a failed onSubmit that showed a field error before its first await rejects
   await expect.element(screen.getByText("Ya existe.")).toBeVisible();
 });
 
+const rootRefusedSchema = z.object({ name: z.string() }).refine(() => false, "always refused");
+
+function RootProbe({
+  onSubmit,
+}: {
+  onSubmit: (
+    request: { name: string },
+    submission: RequestSubmission<{ name: string }>,
+  ) => Promise<void>;
+}) {
+  const { form, submit } = useRequestForm({
+    defaultValues: { name: "Ana" },
+    request: { schema: rootRefusedSchema, from: (values) => values },
+    fields: { name: "name" },
+    messages: { name: "Nombre inválido." },
+    onSubmit,
+  });
+  return (
+    <>
+      <form.AppField name="name">
+        {(field) => <field.TextField kind="plain-text" label="Nombre" />}
+      </form.AppField>
+      <button type="button" onClick={() => void submit()}>
+        Enviar
+      </button>
+    </>
+  );
+}
+
 test("a schema issue outside every declared field still submits the request, with nothing parsed", async () => {
   const onSubmit = vi.fn<
     (request: { name: string }, submission: RequestSubmission<{ name: string }>) => Promise<void>
   >(() => Promise.resolve());
-  const rootSchema = z.object({ name: z.string() }).refine(() => false, "always refused");
-  function RootProbe() {
-    const { form, submit } = useRequestForm({
-      defaultValues: { name: "Ana" },
-      request: { schema: rootSchema, from: (values) => values },
-      fields: { name: "name" },
-      messages: { name: "Nombre inválido." },
-      onSubmit,
-    });
-    return (
-      <>
-        <form.AppField name="name">
-          {(field) => <field.TextField kind="plain-text" label="Nombre" />}
-        </form.AppField>
-        <button type="button" onClick={() => void submit()}>
-          Enviar
-        </button>
-      </>
-    );
-  }
-  const screen = await render(<RootProbe />);
+  const screen = await render(<RootProbe onSubmit={onSubmit} />);
 
   await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
 
@@ -394,30 +410,38 @@ test("a schema issue outside every declared field still submits the request, wit
   await expect.element(screen.getByText("Nombre inválido.")).not.toBeInTheDocument();
 });
 
+const asyncOnlySchema = z.object({ name: z.string() }).refine(async () => true);
+
+function AsyncProbe({
+  onSubmit,
+  refused,
+}: {
+  onSubmit: () => Promise<void>;
+  refused: (error: unknown) => void;
+}) {
+  const { form, submit } = useRequestForm({
+    defaultValues: { name: "Ana" },
+    request: { schema: asyncOnlySchema, from: (values) => values },
+    fields: { name: "name" },
+    messages: { name: "Nombre inválido." },
+    onSubmit,
+  });
+  return (
+    <>
+      <form.AppField name="name">
+        {(field) => <field.TextField kind="plain-text" label="Nombre" />}
+      </form.AppField>
+      <button type="button" onClick={() => void submit().catch(refused)}>
+        Enviar
+      </button>
+    </>
+  );
+}
+
 test("refuses a request schema that can only validate asynchronously", async () => {
   const onSubmit = vi.fn<() => Promise<void>>(() => Promise.resolve());
   const refused = vi.fn<(error: unknown) => void>();
-  const asyncSchema = z.object({ name: z.string() }).refine(async () => true);
-  function AsyncProbe() {
-    const { form, submit } = useRequestForm({
-      defaultValues: { name: "Ana" },
-      request: { schema: asyncSchema, from: (values) => values },
-      fields: { name: "name" },
-      messages: { name: "Nombre inválido." },
-      onSubmit,
-    });
-    return (
-      <>
-        <form.AppField name="name">
-          {(field) => <field.TextField kind="plain-text" label="Nombre" />}
-        </form.AppField>
-        <button type="button" onClick={() => void submit().catch(refused)}>
-          Enviar
-        </button>
-      </>
-    );
-  }
-  const screen = await render(<AsyncProbe />);
+  const screen = await render(<AsyncProbe onSubmit={onSubmit} refused={refused} />);
 
   await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
 
@@ -640,32 +664,33 @@ test("a combo box submits the option that was chosen", async () => {
   expect(onSubmit).toHaveBeenCalledWith("stock");
 });
 
+function CreatingComboBoxProbe({ onCreate }: { onCreate: (name: string) => void }) {
+  const { form } = useRequestForm({
+    defaultValues: { role: null as string | null },
+    request: {
+      schema: z.object({ role: z.string() }),
+      from: ({ role }) => ({ role: role ?? "" }),
+    },
+    fields: { role: "role" },
+    messages: { role: "Elegí un rol." },
+    onSubmit: () => Promise.resolve(),
+  });
+  return (
+    <form.AppField name="role">
+      {(field) => (
+        <field.ComboBox
+          label="Rol"
+          options={ROLE_OPTIONS}
+          creation={{ recordKind: "rol", onCreate }}
+        />
+      )}
+    </form.AppField>
+  );
+}
+
 test("a combo box offers creating a record through the bound field", async () => {
   const onCreate = vi.fn();
-  function Probe() {
-    const { form } = useRequestForm({
-      defaultValues: { role: null as string | null },
-      request: {
-        schema: z.object({ role: z.string() }),
-        from: ({ role }) => ({ role: role ?? "" }),
-      },
-      fields: { role: "role" },
-      messages: { role: "Elegí un rol." },
-      onSubmit: () => Promise.resolve(),
-    });
-    return (
-      <form.AppField name="role">
-        {(field) => (
-          <field.ComboBox
-            label="Rol"
-            options={ROLE_OPTIONS}
-            creation={{ recordKind: "rol", onCreate }}
-          />
-        )}
-      </form.AppField>
-    );
-  }
-  const screen = await render(<Probe />);
+  const screen = await render(<CreatingComboBoxProbe onCreate={onCreate} />);
 
   await userEvent.fill(screen.getByRole("combobox", { name: /Rol/ }), "zzz");
   await expect.element(screen.getByRole("option", { name: "Crear rol «zzz»" })).toBeVisible();
@@ -975,32 +1000,34 @@ test("an option card group submits the card that was chosen", async () => {
   expect(onSubmit).toHaveBeenCalledWith("KG");
 });
 
+const trimmedNameSchema = z.object({ name: z.string().trim().min(1) });
+
+function ParsedProbe({ parsedSeen }: { parsedSeen: (parsed: unknown) => void }) {
+  const { form, submit } = useRequestForm({
+    defaultValues: { name: "" },
+    request: { schema: trimmedNameSchema, from: ({ name }) => ({ name }) },
+    fields: { name: "name" },
+    messages: { name: "Nombre inválido." },
+    onSubmit: (_request, { parsed }) => {
+      parsedSeen(parsed);
+      return Promise.resolve();
+    },
+  });
+  return (
+    <>
+      <form.AppField name="name">
+        {(field) => <field.TextField kind="plain-text" label="Nombre" />}
+      </form.AppField>
+      <button type="button" onClick={() => void submit()}>
+        Enviar
+      </button>
+    </>
+  );
+}
+
 test("a submit hands onSubmit what the schema read, so the request needs no cast", async () => {
   const parsedSeen = vi.fn<(parsed: unknown) => void>();
-  const schema = z.object({ name: z.string().trim().min(1) });
-  function ParsedProbe() {
-    const { form, submit } = useRequestForm({
-      defaultValues: { name: "" },
-      request: { schema, from: ({ name }) => ({ name }) },
-      fields: { name: "name" },
-      messages: { name: "Nombre inválido." },
-      onSubmit: (_request, { parsed }) => {
-        parsedSeen(parsed);
-        return Promise.resolve();
-      },
-    });
-    return (
-      <>
-        <form.AppField name="name">
-          {(field) => <field.TextField kind="plain-text" label="Nombre" />}
-        </form.AppField>
-        <button type="button" onClick={() => void submit()}>
-          Enviar
-        </button>
-      </>
-    );
-  }
-  const screen = await render(<ParsedProbe />);
+  const screen = await render(<ParsedProbe parsedSeen={parsedSeen} />);
 
   await userEvent.fill(screen.getByRole("textbox", { name: "Nombre" }), "  Ana  ");
   await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
@@ -1045,31 +1072,33 @@ test("a select with nothing chosen shows its placeholder and its message after a
   await expect.element(screen.getByText("Elegí un rol.")).toBeVisible();
 });
 
+const undeclaredKeySchema = z
+  .object({ content: z.number() })
+  .superRefine((_request, context) =>
+    context.addIssue({ code: "custom", path: ["contentQuantity"], message: "refused" }),
+  );
+
+function ExtraKeyProbe() {
+  const { form, submit } = useRequestForm({
+    defaultValues: { content: "1" },
+    request: { schema: undeclaredKeySchema, from: ({ content }) => ({ content: Number(content) }) },
+    fields: { content: "content", contentQuantity: "content" },
+    messages: { content: "Revisá el contenido." },
+    onSubmit: () => Promise.resolve(),
+  });
+  return (
+    <>
+      <form.AppField name="content">
+        {(field) => <field.TextField kind="plain-text" label="Contenido" />}
+      </form.AppField>
+      <button type="button" onClick={() => void submit()}>
+        Enviar
+      </button>
+    </>
+  );
+}
+
 test("a schema issue on a key the request type does not declare shows on the field it is declared for", async () => {
-  const schema = z
-    .object({ content: z.number() })
-    .superRefine((_request, context) =>
-      context.addIssue({ code: "custom", path: ["contentQuantity"], message: "refused" }),
-    );
-  function ExtraKeyProbe() {
-    const { form, submit } = useRequestForm({
-      defaultValues: { content: "1" },
-      request: { schema, from: ({ content }) => ({ content: Number(content) }) },
-      fields: { content: "content", contentQuantity: "content" },
-      messages: { content: "Revisá el contenido." },
-      onSubmit: () => Promise.resolve(),
-    });
-    return (
-      <>
-        <form.AppField name="content">
-          {(field) => <field.TextField kind="plain-text" label="Contenido" />}
-        </form.AppField>
-        <button type="button" onClick={() => void submit()}>
-          Enviar
-        </button>
-      </>
-    );
-  }
   const screen = await render(<ExtraKeyProbe />);
 
   await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
@@ -1077,35 +1106,37 @@ test("a schema issue on a key the request type does not declare shows on the fie
   await expect.element(screen.getByText("Revisá el contenido.")).toBeVisible();
 });
 
-test("a nested schema issue shows on the field declared for its dotted path, or else for its top key", async () => {
-  const schema = z.object({
-    deal: z.object({ buy: z.number().min(2), pay: z.number().min(1) }),
+const nestedDealSchema = z.object({
+  deal: z.object({ buy: z.number().min(2), pay: z.number().min(1) }),
+});
+
+function NestedKeyProbe() {
+  const { form, submit } = useRequestForm({
+    defaultValues: { buy: "", pay: "" },
+    request: {
+      schema: nestedDealSchema,
+      from: ({ buy, pay }) => ({ deal: { buy: Number(buy), pay: Number(pay) } }),
+    },
+    fields: { deal: "buy", "deal.pay": "pay" },
+    messages: { buy: "Revisá lo que lleva.", pay: "Revisá lo que paga." },
+    onSubmit: () => Promise.resolve(),
   });
-  function NestedKeyProbe() {
-    const { form, submit } = useRequestForm({
-      defaultValues: { buy: "", pay: "" },
-      request: {
-        schema,
-        from: ({ buy, pay }) => ({ deal: { buy: Number(buy), pay: Number(pay) } }),
-      },
-      fields: { deal: "buy", "deal.pay": "pay" },
-      messages: { buy: "Revisá lo que lleva.", pay: "Revisá lo que paga." },
-      onSubmit: () => Promise.resolve(),
-    });
-    return (
-      <>
-        <form.AppField name="buy">
-          {(field) => <field.TextField kind="plain-text" label="Lleva" />}
-        </form.AppField>
-        <form.AppField name="pay">
-          {(field) => <field.TextField kind="plain-text" label="Paga" />}
-        </form.AppField>
-        <button type="button" onClick={() => void submit()}>
-          Enviar
-        </button>
-      </>
-    );
-  }
+  return (
+    <>
+      <form.AppField name="buy">
+        {(field) => <field.TextField kind="plain-text" label="Lleva" />}
+      </form.AppField>
+      <form.AppField name="pay">
+        {(field) => <field.TextField kind="plain-text" label="Paga" />}
+      </form.AppField>
+      <button type="button" onClick={() => void submit()}>
+        Enviar
+      </button>
+    </>
+  );
+}
+
+test("a nested schema issue shows on the field declared for its dotted path, or else for its top key", async () => {
   const screen = await render(<NestedKeyProbe />);
   await userEvent.fill(screen.getByRole("textbox", { name: "Lleva" }), "3");
   await userEvent.fill(screen.getByRole("textbox", { name: "Paga" }), "0");
@@ -1120,65 +1151,67 @@ test("a nested schema issue shows on the field declared for its dotted path, or 
   await expect.element(screen.getByText("Revisá lo que lleva.")).toBeVisible();
 });
 
+function HiddenFieldProbe({ onSubmit }: { onSubmit: () => Promise<void> }) {
+  const { form, submit } = useRequestForm({
+    defaultValues: { name: "", hidden: "" },
+    request: { schema: z.object({ name: z.string() }), from: ({ name }) => ({ name }) },
+    fields: { name: "name", other: "hidden" },
+    messages: { name: "Revisá el nombre.", hidden: "Revisá lo oculto." },
+    onSubmit,
+  });
+  return (
+    <>
+      <form.AppField name="name">
+        {(field) => <field.TextField kind="plain-text" label="Nombre" />}
+      </form.AppField>
+      <button type="button" onClick={() => void submit()}>
+        Enviar
+      </button>
+    </>
+  );
+}
+
 test("a declared field that is not shown does not hold back a valid submit", async () => {
   const onSubmit = vi.fn(() => Promise.resolve());
-  function HiddenFieldProbe() {
-    const { form, submit } = useRequestForm({
-      defaultValues: { name: "", hidden: "" },
-      request: { schema: z.object({ name: z.string() }), from: ({ name }) => ({ name }) },
-      fields: { name: "name", other: "hidden" },
-      messages: { name: "Revisá el nombre.", hidden: "Revisá lo oculto." },
-      onSubmit,
-    });
-    return (
-      <>
-        <form.AppField name="name">
-          {(field) => <field.TextField kind="plain-text" label="Nombre" />}
-        </form.AppField>
-        <button type="button" onClick={() => void submit()}>
-          Enviar
-        </button>
-      </>
-    );
-  }
-  const screen = await render(<HiddenFieldProbe />);
+  const screen = await render(<HiddenFieldProbe onSubmit={onSubmit} />);
 
   await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
 
   await expect.poll(() => onSubmit.mock.calls.length).toBe(1);
 });
 
+function ChosenFieldProbe() {
+  const { form, submit } = useRequestForm({
+    defaultValues: { shape: "", percent: "5", fixed: "7" },
+    request: {
+      schema: z.object({ amount: z.number() }),
+      from: (values) => ({ amount: Number(values.percent) }),
+    },
+    fields: { amount: (values) => (values.shape === "fijo" ? "fixed" : "percent") },
+    messages: { percent: "Revisá el porcentaje.", fixed: "Revisá el monto fijo." },
+    onSubmit: async (_request, { showWireFieldError }) => {
+      showWireFieldError("amount");
+    },
+  });
+  return (
+    <>
+      <form.AppField name="shape">
+        {(field) => <field.TextField kind="plain-text" label="Forma" />}
+      </form.AppField>
+      <form.AppField name="percent">
+        {(field) => <field.TextField kind="plain-text" label="Porcentaje" />}
+      </form.AppField>
+      <form.AppField name="fixed">
+        {(field) => <field.TextField kind="plain-text" label="Fijo" />}
+      </form.AppField>
+      <button type="button" onClick={() => void submit()}>
+        Enviar
+      </button>
+    </>
+  );
+}
+
 test("a key can be declared for the field the values at that moment name", async () => {
-  function ChosenFieldProbe() {
-    const { form, submit } = useRequestForm({
-      defaultValues: { shape: "", percent: "5", fixed: "7" },
-      request: {
-        schema: z.object({ amount: z.number() }),
-        from: (values) => ({ amount: Number(values.percent) }),
-      },
-      fields: { amount: (values) => (values.shape === "fijo" ? "fixed" : "percent") },
-      messages: { percent: "Revisá el porcentaje.", fixed: "Revisá el monto fijo." },
-      onSubmit: async (_request, { showWireFieldError }) => {
-        showWireFieldError("amount");
-      },
-    });
-    return (
-      <>
-        <form.AppField name="shape">
-          {(field) => <field.TextField kind="plain-text" label="Forma" />}
-        </form.AppField>
-        <form.AppField name="percent">
-          {(field) => <field.TextField kind="plain-text" label="Porcentaje" />}
-        </form.AppField>
-        <form.AppField name="fixed">
-          {(field) => <field.TextField kind="plain-text" label="Fijo" />}
-        </form.AppField>
-        <button type="button" onClick={() => void submit()}>
-          Enviar
-        </button>
-      </>
-    );
-  }
   const screen = await render(<ChosenFieldProbe />);
   await userEvent.fill(screen.getByRole("textbox", { name: "Forma" }), "fijo");
 

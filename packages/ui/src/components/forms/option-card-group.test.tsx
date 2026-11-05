@@ -248,13 +248,13 @@ test("wraps a long title and a long help text inside the card", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("chooses a card with a click, unchoosing the previous one", async () => {
-  function Harness() {
-    const [value, setValue] = useState<MovementValue>("income");
-    return <OptionCardGroup {...baseProps({ value, onChange: setValue })} />;
-  }
+function ChoosableOptionCardGroup() {
+  const [value, setValue] = useState<MovementValue>("income");
+  return <OptionCardGroup {...baseProps({ value, onChange: setValue })} />;
+}
 
-  const screen = await render(<Harness />);
+test("chooses a card with a click, unchoosing the previous one", async () => {
+  const screen = await render(<ChoosableOptionCardGroup />);
 
   await userEvent.click(radioCard(screen, "Expense"));
 
@@ -294,12 +294,7 @@ test("is a single tab stop landing on the chosen card", async () => {
 });
 
 test("moves focus and choice with the arrow keys", async () => {
-  function Harness() {
-    const [value, setValue] = useState<MovementValue>("income");
-    return <OptionCardGroup {...baseProps({ value, onChange: setValue })} />;
-  }
-
-  const screen = await render(<Harness />);
+  const screen = await render(<ChoosableOptionCardGroup />);
 
   await userEvent.tab();
   expect(document.activeElement).toBe(radioInput(screen, "Income"));

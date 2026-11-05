@@ -842,15 +842,15 @@ describe("replenishRestoredRegister", () => {
       };
     }
 
-    const UNSETTLED = (saleId: string): RestoredUnclearDeferral => ({
+    const unsettledDeferral = (saleId: string): RestoredUnclearDeferral => ({
       fiscalDocumentId: `document-of-${saleId}`,
       answer: { kind: "unsettled" },
     });
-    const REJECTED = (saleId: string): RestoredUnclearDeferral => ({
+    const rejectedDeferral = (saleId: string): RestoredUnclearDeferral => ({
       fiscalDocumentId: `document-of-${saleId}`,
       answer: { kind: "rejected" },
     });
-    const AUTHORIZED = (saleId: string): RestoredUnclearDeferral => ({
+    const authorizedDeferral = (saleId: string): RestoredUnclearDeferral => ({
       fiscalDocumentId: `document-of-${saleId}`,
       answer: {
         kind: "authorized",
@@ -877,7 +877,7 @@ describe("replenishRestoredRegister", () => {
 
     it("rebuilds a record the cloud never settled as pending, with the identifier and short code it was issued with", async () => {
       const { feed, store, record, fact, run } = anUnclearOutcomeRegister();
-      feed.answers = [aPage([record], null, [], [], [], [UNSETTLED("sale-2")])];
+      feed.answers = [aPage([record], null, [], [], [], [unsettledDeferral("sale-2")])];
 
       const outcome = await run();
 
@@ -891,7 +891,7 @@ describe("replenishRestoredRegister", () => {
 
     it("rebuilds a record the tax authority rejected with the rejection as its reason and the short code it was issued with", async () => {
       const { feed, store, record, fact, run } = anUnclearOutcomeRegister();
-      feed.answers = [aPage([record], null, [], [], [], [REJECTED("sale-2")])];
+      feed.answers = [aPage([record], null, [], [], [], [rejectedDeferral("sale-2")])];
 
       const outcome = await run();
 
@@ -903,7 +903,7 @@ describe("replenishRestoredRegister", () => {
 
     it("rebuilds a record the tax authority authorized together with the authorized document that satisfies it", async () => {
       const { feed, store, record, fact, run } = anUnclearOutcomeRegister();
-      feed.answers = [aPage([record], null, [], [], [], [AUTHORIZED("sale-2")])];
+      feed.answers = [aPage([record], null, [], [], [], [authorizedDeferral("sale-2")])];
 
       const outcome = await run();
 
@@ -932,7 +932,14 @@ describe("replenishRestoredRegister", () => {
       const second = anEvent("device-old", 54);
       decoder.facts.set(second.event.event_id, anUnclearOutcomeRecord("sale-3", 43));
       feed.answers = [
-        aPage([record, second], null, [], [], [], [AUTHORIZED("sale-3"), REJECTED("sale-2")]),
+        aPage(
+          [record, second],
+          null,
+          [],
+          [],
+          [],
+          [authorizedDeferral("sale-3"), rejectedDeferral("sale-2")],
+        ),
       ];
 
       await run();
@@ -951,7 +958,7 @@ describe("replenishRestoredRegister", () => {
 
     it("leaves the record unchanged when the same page is applied again", async () => {
       const { feed, store, record, run } = anUnclearOutcomeRegister();
-      const answers = [AUTHORIZED("sale-2")];
+      const answers = [authorizedDeferral("sale-2")];
       feed.answers = [
         aPage([record], { deviceId: "device-old", deviceSeq: 53 }, [], [], [], answers),
         { kind: "unreachable" },
@@ -968,7 +975,7 @@ describe("replenishRestoredRegister", () => {
 
     it("reports a record the cloud sent no answer for as partially replenished, leaving its event unrecorded", async () => {
       const { feed, store, record, run } = anUnclearOutcomeRegister();
-      feed.answers = [aPage([record], null, [], [], [], [UNSETTLED("sale-3")])];
+      feed.answers = [aPage([record], null, [], [], [], [unsettledDeferral("sale-3")])];
 
       const outcome = await run();
 
@@ -981,7 +988,7 @@ describe("replenishRestoredRegister", () => {
     it("reports a record whose sale the register does not hold yet as partially replenished", async () => {
       const { feed, store, record, run } = anUnclearOutcomeRegister();
       store.salesNotYetHeld.add("sale-2");
-      feed.answers = [aPage([record], null, [], [], [], [UNSETTLED("sale-2")])];
+      feed.answers = [aPage([record], null, [], [], [], [unsettledDeferral("sale-2")])];
 
       const outcome = await run();
 
@@ -1008,7 +1015,7 @@ describe("replenishRestoredRegister", () => {
           satisfiedAt: new Date("2026-10-08T15:00:00.000Z"),
         },
       });
-      feed.answers = [aPage([record, satisfied], null, [], [], [], [AUTHORIZED("sale-2")])];
+      feed.answers = [aPage([record, satisfied], null, [], [], [], [authorizedDeferral("sale-2")])];
 
       const outcome = await run();
 
@@ -1023,7 +1030,7 @@ describe("replenishRestoredRegister", () => {
       const { feed, decoder, record, run } = anUnclearOutcomeRegister("sale-1");
       const failure = anEvent("device-old", 54);
       decoder.facts.set(failure.event.event_id, A_GATE_FAILED_FACT);
-      feed.answers = [aPage([record, failure], null, [], [], [], [UNSETTLED("sale-1")])];
+      feed.answers = [aPage([record, failure], null, [], [], [], [unsettledDeferral("sale-1")])];
 
       const outcome = await run();
 
@@ -1033,7 +1040,7 @@ describe("replenishRestoredRegister", () => {
     it("leaves nothing behind of a page whose rebuild fails", async () => {
       const { feed, store, record, run } = anUnclearOutcomeRegister();
       store.failAt = { operation: "rebuildUnclearDeferredSale" };
-      feed.answers = [aPage([record], null, [], [], [], [UNSETTLED("sale-2")])];
+      feed.answers = [aPage([record], null, [], [], [], [unsettledDeferral("sale-2")])];
 
       await expect(run()).rejects.toThrow("storage unavailable");
 

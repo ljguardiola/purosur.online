@@ -1,6 +1,6 @@
 # Issues
 
-GitHub tells the story of the work: an issue is the *what*, a pull request is the *how*. Blank issues are disabled; every issue is filed from one of these four forms:
+GitHub tells the story of the work: an issue is the _what_, a pull request is the _how_. Blank issues are disabled; every issue is filed from one of these four forms:
 
 - **Feature** — a deliverable, user-visible vertical slice of functionality.
 - **Bug** — something behaves differently from what it should.

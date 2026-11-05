@@ -102,8 +102,8 @@ describe("creating two products with the same tags listed in opposite orders at 
   it("creates both, with neither waiting on the other in a deadlock", async () => {
     const first = await tagAndLeafCategory();
     const second = await tagAndLeafCategory();
-    const lowerTagId = first.tagId < second.tagId ? first.tagId : second.tagId;
-    const higherTagId = lowerTagId === first.tagId ? second.tagId : first.tagId;
+    const [lowerTagId, higherTagId] =
+      first.tagId < second.tagId ? [first.tagId, second.tagId] : [second.tagId, first.tagId];
     const productWith = (categoryId: string, tagIds: string[]) => () =>
       createProduct(new DrizzleCatalogStore(db), {
         name: "Galletitas",
