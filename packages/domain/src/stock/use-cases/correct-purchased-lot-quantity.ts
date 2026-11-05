@@ -48,7 +48,7 @@ export async function correctPurchasedLotQuantity(
     return { kind: "not_found" };
   }
   const coveringCount = await tx.earliestCountAtOrAfter(key, receivedAt);
-  if (coveringCount === undefined && input.delta < 0) {
+  if (coveringCount === undefined) {
     const source = await tx.splittableLot(own.lotId);
     if (source === null) {
       return { kind: "not_found" };
