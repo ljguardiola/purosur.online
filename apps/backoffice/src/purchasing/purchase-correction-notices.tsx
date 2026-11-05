@@ -7,7 +7,8 @@ export type PurchaseCorrectionNotice =
   | { kind: "attemptFailed" }
   | { kind: "rateLimited"; retryAfterSeconds: number }
   | { kind: "notFound" }
-  | { kind: "unchanged" };
+  | { kind: "unchanged" }
+  | { kind: "notEnoughInLot" };
 
 export function PurchaseCorrectionNotices({
   notice,
@@ -34,6 +35,15 @@ export function PurchaseCorrectionNotices({
       );
     case "unchanged":
       return <InlineNotice tone="info" icon={<Info />} title="No hay cambios para guardar" />;
+    case "notEnoughInLot":
+      return (
+        <InlineNotice
+          tone="error"
+          icon={<TriangleAlert />}
+          title={failedTitle}
+          description="Solo se puede dar otra fecha a menos unidades de las que quedan en el lote."
+        />
+      );
     case undefined:
       return null;
   }
