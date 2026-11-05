@@ -90,7 +90,9 @@ function expiryDay(dialog: Awaited<ReturnType<typeof readyDialog>>) {
 
 async function fill(screen: ModalScreen, quantity: string) {
   const dialog = await readyDialog(screen);
-  await userEvent.type(quantityInput(dialog), quantity);
+  if (quantity !== "") {
+    await userEvent.type(quantityInput(dialog), quantity);
+  }
   await userEvent.click(expiryDay(dialog).first());
   await userEvent.keyboard("10112027");
   return dialog;
