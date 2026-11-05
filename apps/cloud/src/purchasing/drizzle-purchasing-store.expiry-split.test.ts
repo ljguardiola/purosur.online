@@ -258,7 +258,7 @@ describe("correcting the expiry date of part of a purchase line", () => {
     now = new Date("2026-10-07T10:00:00.000Z");
 
     const outcome = await recordLoss(
-      { store: new DrizzleStockStore(db), clock, zoneRules: fixedZoneRulesSource() },
+      { store: new DrizzleStockStore(db), clock },
       { productId: juice.id, locationId, reason: "spoiled", quantity: 1_000, actorId },
     );
 
