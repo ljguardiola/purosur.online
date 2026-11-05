@@ -107,6 +107,17 @@ describe("splitPurchaseLineExpiry", () => {
     expect(store.snapshot()).toEqual(before);
   });
 
+  it("answers invalid quantity, recording nothing, when the units are not ones the product moves in", async () => {
+    const store = storeWithRegisteredPurchase();
+    store.lotSplitResult = { kind: "invalid_quantity" };
+    const before = store.snapshot();
+
+    const outcome = await splitPurchaseLineExpiry({ store, clock: CLOCK }, input());
+
+    expect(outcome).toEqual({ kind: "invalid_quantity" });
+    expect(store.snapshot()).toEqual(before);
+  });
+
   it("answers unchanged, writing nothing, when the date is the line's own", async () => {
     const store = storeWithRegisteredPurchase();
     const before = store.snapshot();

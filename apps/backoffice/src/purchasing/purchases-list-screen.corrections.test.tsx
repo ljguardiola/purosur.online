@@ -283,16 +283,22 @@ test("splits the expiry of some units of a line, closes the modal, reads the pur
   await expect.poll(() => vi.mocked(services.fetchPurchases).mock.calls.length).toBe(2);
 });
 
-test("keeps the split modal open and the purchases unread when the lot has no more units to split", async () => {
+test("keeps the split modal open on a lot without enough units, showing what remains in it once the purchases are read again", async () => {
   const services = createServices();
   vi.mocked(services.splitPurchaseLineExpiry).mockResolvedValue({ kind: "not_enough_in_lot" });
   const screen = await loaded(services);
+  vi.mocked(services.fetchPurchases).mockResolvedValue({
+    kind: "ok",
+    value: [{ ...compraDeMiel, lines: [{ ...lineDeMiel, remainingInLot: 3_000 }] }, compraDeAvena],
+  });
 
   await userEvent.click(screen.getByRole("button", { name: SPLIT_EXPIRY }));
   const dialog = screen.getByRole("dialog");
-  await userEvent.type(dialog.getByRole("textbox", { name: /^Cantidad/ }), "30");
+  await expect.element(dialog.getByText("Quedan 18 u en el lote")).toBeVisible();
+  await userEvent.type(dialog.getByRole("textbox", { name: /^Cantidad/ }), "10");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar el vencimiento" }));
 
+  await expect.element(dialog.getByText("Quedan 3 u en el lote")).toBeVisible();
   await expect
     .element(
       dialog.getByText(
@@ -300,6 +306,7 @@ test("keeps the split modal open and the purchases unread when the lot has no mo
       ),
     )
     .toBeVisible();
+  await expect.element(dialog.getByRole("textbox", { name: /^Cantidad/ })).toHaveValue("10");
   expect(screen.getByText("Vencimiento corregido").query()).toBeNull();
-  expect(services.fetchPurchases).toHaveBeenCalledTimes(1);
+  expect(services.fetchPurchases).toHaveBeenCalledTimes(2);
 });

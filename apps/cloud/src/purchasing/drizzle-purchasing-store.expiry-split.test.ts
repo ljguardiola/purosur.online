@@ -101,19 +101,19 @@ describe("correcting the expiry date of part of a purchase line", () => {
     const [ownBefore] = await db.select().from(lots);
     const [lineBefore] = await db.select().from(purchaseLines);
 
-    const outcome = await splitOf(purchase.id, lineId, 1_500, "2027-01-15");
+    const outcome = await splitOf(purchase.id, lineId, 1_000, "2027-01-15");
 
     expect(outcome.kind).toBe("split");
     const stored = await db.select().from(lots).orderBy(asc(lots.nameOrder));
     expect(stored).toHaveLength(2);
-    expect(stored[0]).toEqual({ ...ownBefore, remaining: 2_500 });
+    expect(stored[0]).toEqual({ ...ownBefore, remaining: 3_000 });
     expect(stored[1]).toMatchObject({
       productId: ownBefore?.productId,
       locationId,
       purchaseLineId: lineId,
       splitFromLotId: ownBefore?.id,
-      quantityReceived: 1_500,
-      remaining: 1_500,
+      quantityReceived: 1_000,
+      remaining: 1_000,
       expiresOn: "2027-01-15",
       purchasedOn: "2026-10-01",
       costTotalCents: ownBefore?.costTotalCents,

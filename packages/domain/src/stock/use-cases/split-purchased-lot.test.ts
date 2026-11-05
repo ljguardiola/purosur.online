@@ -142,7 +142,7 @@ describe("splitPurchasedLot", () => {
     expect(tx.lots.at(-1)?.splitFromLotId).toBe("lot-1");
   });
 
-  it.each([4_000, 5_000, 0, -1_000, 500.5])(
+  it.each([4_000, 5_000])(
     "refuses to split %i units out of a lot with 4000 left, changing nothing",
     async (quantity) => {
       const tx = transaction();
@@ -155,6 +155,29 @@ describe("splitPurchasedLot", () => {
       expect(tx.lots).toEqual([lot()]);
     },
   );
+
+  it.each([0, -1_000, 500.5, 1_500])(
+    "refuses %s as a quantity of a product sold by the unit, before it reads the lot",
+    async (quantity) => {
+      const tx = transaction();
+
+      const outcome = await splitPurchasedLot(tx, input({ quantity }));
+
+      expect(outcome).toEqual({ kind: "invalid_quantity" });
+      expect(tx.operations).toEqual(["lotsOfPurchaseLines", "lockProductStock:product-a"]);
+      expect(tx.lots).toEqual([lot()]);
+    },
+  );
+
+  it("splits part of a unit off a product sold by weight", async () => {
+    const tx = transaction();
+    tx.saleUnit = "KG";
+
+    const outcome = await splitPurchasedLot(tx, input({ quantity: 1_500 }));
+
+    expect(outcome).toEqual({ kind: "split", lotId: "lot-split-2" });
+    expect(tx.lots.map(({ remaining }) => remaining)).toEqual([2_500, 1_500]);
+  });
 
   it("refuses to split a lot that is in debt", async () => {
     const tx = transaction([lot({ remaining: -2_000 })]);

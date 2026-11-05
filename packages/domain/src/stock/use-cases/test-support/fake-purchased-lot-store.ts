@@ -1,3 +1,4 @@
+import type { SaleUnit } from "../../../catalog/index.js";
 import type { LotNameFacts, PurchasedLotNaming } from "../../model/lot-name.js";
 import type { LotCost } from "../../model/lot-value.js";
 import type {
@@ -37,6 +38,7 @@ export class FakePurchasedLotTransaction implements PurchasedLotStoreTransaction
   costs: Map<string, LotCost>;
   costChanges: FakeLotCostChange[] = [];
   missingProducts = new Set<string>();
+  saleUnit: SaleUnit = "UNIT";
   operations: string[] = [];
   movements: NewStockMovement[] = [];
   allocations: LotAllocation[] = [];
@@ -50,7 +52,7 @@ export class FakePurchasedLotTransaction implements PurchasedLotStoreTransaction
     this.operations.push(`lockProductStock:${key.productId}`);
     return this.missingProducts.has(key.productId)
       ? { kind: "not_found" }
-      : { kind: "locked", saleUnit: "UNIT", balance: 0 };
+      : { kind: "locked", saleUnit: this.saleUnit, balance: 0 };
   }
 
   async lotsOfPurchaseLines(

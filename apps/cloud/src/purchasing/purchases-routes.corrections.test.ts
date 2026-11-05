@@ -621,6 +621,20 @@ describe("POST /purchases/:purchaseId/lines/:lineId/expiry-splits", () => {
     ).toEqual([]);
   });
 
+  it("answers 400 on the quantity and changes nothing when it is part of a unit of a product sold by the unit", async () => {
+    const { headers, purchase } = await juicePurchase();
+
+    const response = await split(headers, purchase, { quantity: 1_500, expiresOn: "2027-01-15" });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "quantity" }],
+    });
+    expect(await db.select().from(lots)).toHaveLength(1);
+    expect(await db.select().from(auditLog).where(eq(auditLog.entity, "purchase"))).toEqual([]);
+  });
+
   it.each([{}, { quantity: 0, expiresOn: "2027-01-15" }, { quantity: 1_000, expiresOn: "x" }])(
     "answers 400 to the body %j",
     async (payload) => {

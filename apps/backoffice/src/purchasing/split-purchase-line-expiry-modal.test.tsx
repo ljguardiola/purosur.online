@@ -44,16 +44,20 @@ function servicesAnswering(outcome: Awaited<ReturnType<Split>>) {
 
 type ModalOptions = {
   target?: SplitPurchaseLineExpiryTarget | null;
+  remainingInLot?: number;
   services?: SplitPurchaseLineExpiryModalServices;
   onSaved?: (purchase: PurchaseSummary) => void;
+  onLotChanged?: () => void;
   onClose?: () => void;
   onSessionEnded?: () => void;
 };
 
 function renderModal({
   target = miel,
+  remainingInLot = target?.line.remainingInLot ?? 0,
   services = createServices(),
   onSaved = () => {},
+  onLotChanged = () => {},
   onClose = () => {},
   onSessionEnded = () => {},
 }: ModalOptions = {}) {
@@ -62,8 +66,10 @@ function renderModal({
       <main>
         <SplitPurchaseLineExpiryModal
           target={target}
+          remainingInLot={remainingInLot}
           services={services}
           onSaved={onSaved}
+          onLotChanged={onLotChanged}
           onClose={onClose}
           onSessionEnded={onSessionEnded}
         />
@@ -192,9 +198,17 @@ test("starts from the line it opens for each time", async () => {
     .toEqual(["dd", "mm", "aaaa"]);
 });
 
-test("says only some of the units in the lot can take another date", async () => {
+test("shows what remains in the lot as the screen last read it", async () => {
+  const screen = await renderModal({ remainingInLot: 3_000 });
+  const dialog = await readyDialog(screen);
+
+  await expect.element(dialog.getByText("Quedan 3 u en el lote")).toBeVisible();
+});
+
+test("says only some of the units in the lot can take another date and asks for the lot again", async () => {
   const { services } = servicesAnswering({ kind: "not_enough_in_lot" });
-  const screen = await renderModal({ services });
+  const onLotChanged = vi.fn();
+  const screen = await renderModal({ services, onLotChanged });
 
   const dialog = await save(screen);
 
@@ -206,6 +220,7 @@ test("says only some of the units in the lot can take another date", async () =>
       ),
     )
     .toBeVisible();
+  expect(onLotChanged).toHaveBeenCalledTimes(1);
 });
 
 test("says the purchase no longer exists", async () => {
