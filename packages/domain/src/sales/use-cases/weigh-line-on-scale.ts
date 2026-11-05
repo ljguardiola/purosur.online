@@ -5,7 +5,11 @@ import {
   changeWeightOfLine,
   weighedLineToChange,
 } from "./change-line-weight.js";
-import { pricedWeighingStep, type StableWeighing } from "./priced-weighing-step.js";
+import {
+  pricedWeighingStep,
+  type StableWeighing,
+  type UnsteadyWeighing,
+} from "./priced-weighing-step.js";
 import type { RegisterRestoration } from "./register-restoration.js";
 import type { SaleLedger } from "./sale-ledger.js";
 import { isSaleLineChangeRefusal, saleToChange } from "./sale-line-change.js";
@@ -30,7 +34,8 @@ export type WeighLineOnScaleOutcome =
   | { kind: "weighing" }
   | { kind: "zero_weight" }
   | { kind: "scale_unavailable" }
-  | StableWeighing;
+  | StableWeighing
+  | UnsteadyWeighing;
 
 export async function weighLineOnScale(
   { ledger, restoration, clock, zoneRules, scale }: WeighLineOnScalePorts,

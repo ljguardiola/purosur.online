@@ -7,7 +7,12 @@ import { mayBeSaleLineQuantity } from "../model/sale-line.js";
 
 export type StableWeighing = { kind: "stable"; weightThousandths: number; amount: number };
 
-export type PricedWeighingStep = Exclude<ScaleWeighingStep, { kind: "stable" }> | StableWeighing;
+export type UnsteadyWeighing = { kind: "unsteady"; weightThousandths: number; amount: number };
+
+export type PricedWeighingStep =
+  | Exclude<ScaleWeighingStep, { kind: "stable" | "unsteady" }>
+  | StableWeighing
+  | UnsteadyWeighing;
 
 export function pricedWeighingStep(
   reading: ScaleReading,
@@ -17,12 +22,12 @@ export function pricedWeighingStep(
   const step = scaleWeighingStep(reading, confirmedWeightThousandths, (weightThousandths) =>
     mayBeSaleLineQuantity(weightThousandths, "KG"),
   );
-  if (step.kind !== "stable") {
+  if (step.kind !== "stable" && step.kind !== "unsteady") {
     return step;
   }
-  const { weightThousandths } = step;
+  const { kind, weightThousandths } = step;
   return {
-    kind: "stable",
+    kind,
     weightThousandths,
     amount: weightThousandths === 0 ? 0 : amountAt(weightThousandths),
   };
