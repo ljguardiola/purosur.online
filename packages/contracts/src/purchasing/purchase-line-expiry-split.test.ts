@@ -21,7 +21,10 @@ describe("purchaseLineExpirySplitBodySchema", () => {
       expiresOn: "2027-11-10",
     });
 
-    expect(result.error?.issues[0]?.path).toEqual(["quantity"]);
+    expect(result.error?.issues[0]).toMatchObject({
+      path: ["quantity"],
+      message: "quantity must be a whole number greater than zero",
+    });
   });
 
   it.each([undefined, "", "2027-02-30", "10/11/2027", 20271110])(
