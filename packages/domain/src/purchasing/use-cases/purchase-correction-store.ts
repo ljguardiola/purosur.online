@@ -18,6 +18,7 @@ export interface LockedPurchase extends PurchaseHeaderValues {
 export interface LockedPurchaseLine {
   id: string;
   expiresOn: string | null;
+  costPaidCents: number;
 }
 
 export type LockPurchaseResult =
@@ -41,7 +42,8 @@ export interface AddedLineRecord {
 export type PurchaseCorrectionChange =
   | { kind: "header"; changes: PurchaseHeaderChange[] }
   | { kind: "lines_added"; lines: AddedLineRecord[] }
-  | { kind: "line_expiry"; lineId: string; previous: string | null; next: string | null };
+  | { kind: "line_expiry"; lineId: string; previous: string | null; next: string | null }
+  | { kind: "line_cost"; lineId: string; previous: number; next: number };
 
 export interface PurchaseCorrection {
   purchaseId: string;
@@ -54,6 +56,13 @@ export interface LotExpiryCorrection {
   locationId: string;
   purchaseLineId: string;
   expiresOn: string | null;
+}
+
+export interface LotCostCorrection {
+  locationId: string;
+  purchaseLineId: string;
+  costPaidCents: number;
+  changedAt: Date;
 }
 
 export interface PurchasedLotsRedating {
@@ -77,6 +86,9 @@ export interface PurchaseCorrectionStoreTransaction {
   purchaseLineIds(purchaseId: string): Promise<string[]>;
   updatePurchaseHeader(purchaseId: string, values: PurchaseHeaderValues): Promise<void>;
   updatePurchaseLineExpiry(lineId: string, expiresOn: string | null): Promise<void>;
+  updatePurchaseLineCost(lineId: string, costPaidCents: number): Promise<void>;
+  // Corrects the cost of the lot the purchase line created, keeping the cost it had until then.
+  correctLotCost(correction: LotCostCorrection): Promise<void>;
   // Corrects the expiry date of the lot the purchase line created.
   correctLotExpiry(correction: LotExpiryCorrection): Promise<void>;
   // Dates the lots the purchase lines created by the purchase's corrected date.

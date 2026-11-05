@@ -32,6 +32,12 @@ export type {
 } from "./correct-purchase-header.js";
 export { correctPurchaseHeader } from "./correct-purchase-header.js";
 export type {
+  CorrectPurchaseLineCostInput,
+  CorrectPurchaseLineCostOutcome,
+  CorrectPurchaseLineCostPorts,
+} from "./correct-purchase-line-cost.js";
+export { correctPurchaseLineCost } from "./correct-purchase-line-cost.js";
+export type {
   CorrectPurchaseLineExpiryInput,
   CorrectPurchaseLineExpiryOutcome,
   CorrectPurchaseLineExpiryPorts,
@@ -215,6 +221,7 @@ export type {
   LockedPurchase,
   LockedPurchaseLine,
   LockPurchaseResult,
+  LotCostCorrection,
   LotExpiryCorrection,
   PurchaseCorrection,
   PurchaseCorrectionChange,
