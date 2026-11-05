@@ -86,7 +86,13 @@ describe("purchaseChangeRows of an expiry split", () => {
     expect(
       line &&
         purchaseChangeRows(
-          { ...lineExpirySplitCorrection.change, lineId: line.id, quantity: 2_500, previous: null },
+          {
+            kind: "line_expiry_split",
+            lineId: line.id,
+            quantity: 2_500,
+            previous: null,
+            next: "2027-11-10",
+          },
           compraDeMielCorregida,
         ),
     ).toEqual([
