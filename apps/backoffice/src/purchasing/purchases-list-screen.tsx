@@ -76,7 +76,8 @@ const CORRECTION_NOTICES = {
   }),
   costCorrected: () => ({
     title: "Costo corregido",
-    description: "El stock, el último costo y los márgenes futuros usan el costo corregido.",
+    description:
+      "El stock que queda de la compra usa el costo corregido; las ventas ya hechas conservan el suyo.",
   }),
   expiryCorrected: () => ({
     title: "Vencimiento corregido",

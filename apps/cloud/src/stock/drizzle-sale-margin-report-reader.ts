@@ -25,8 +25,8 @@ import {
 
 type LotCostChange = MarginAllocation["costChanges"][number];
 
-const valuedAt =
-  sql<Date>`case when ${stockMovements.kind} = ${sql.raw("'return'")} then coalesce((select min(sale_movements.occurred_at) from stock_movements sale_movements where sale_movements.sale_line_id = ${stockMovements.saleLineId} and sale_movements.kind = ${sql.raw("'sale'")}), ${stockMovements.occurredAt}) else ${stockMovements.occurredAt} end`.mapWith(
+const saleOccurredAt =
+  sql<Date | null>`(select min(sale_movements.occurred_at) from stock_movements sale_movements where sale_movements.sale_line_id = ${stockMovements.saleLineId} and sale_movements.kind = ${sql.raw("'sale'")})`.mapWith(
     (value: string | Date) => new Date(value),
   );
 
@@ -124,7 +124,8 @@ export class DrizzleSaleMarginReportReader<TQueryResult extends PgQueryResultHKT
         saleLineId: stockMovements.saleLineId,
         lotId: lotAllocations.lotId,
         movementKind: stockMovements.kind,
-        valuedAt,
+        occurredAt: stockMovements.occurredAt,
+        saleOccurredAt,
         quantity: sql<number>`sum(${lotAllocations.quantity})`.mapWith(Number),
         technical: lots.technical,
         costIncomplete: lots.costIncomplete,
@@ -146,7 +147,7 @@ export class DrizzleSaleMarginReportReader<TQueryResult extends PgQueryResultHKT
         stockMovements.saleLineId,
         lotAllocations.lotId,
         stockMovements.kind,
-        valuedAt,
+        stockMovements.occurredAt,
         lots.technical,
         lots.costIncomplete,
         lots.costTotalCents,
@@ -170,7 +171,8 @@ export class DrizzleSaleMarginReportReader<TQueryResult extends PgQueryResultHKT
             ? null
             : { totalCents: row.costTotalCents, quantity: row.costQuantity },
         costChanges: costChanges.get(row.lotId) ?? [],
-        valuedAt: row.valuedAt,
+        occurredAt: row.occurredAt,
+        saleOccurredAt: row.saleOccurredAt,
       });
       bySaleLine.set(row.saleLineId, allocations);
     }

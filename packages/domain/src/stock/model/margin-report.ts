@@ -28,7 +28,8 @@ export interface MarginAllocation {
   costIncomplete: boolean;
   cost: LotCost | null;
   costChanges: readonly LotCostChange[];
-  valuedAt: Date;
+  occurredAt: Date;
+  saleOccurredAt: Date | null;
 }
 
 export interface MarginSaleLine extends ProductBrandAndNetContent {
@@ -57,6 +58,10 @@ export interface MarginReport {
   totals: MarginTotals;
 }
 
+function valuedAt({ movementKind, occurredAt, saleOccurredAt }: MarginAllocation): Date {
+  return movementKind === "return" ? (saleOccurredAt ?? occurredAt) : occurredAt;
+}
+
 interface LotNet {
   net: number;
   allocation: MarginAllocation;
@@ -65,7 +70,7 @@ interface LotNet {
 function netByLotAndCost(allocations: readonly MarginAllocation[]): LotNet[] {
   const lots = new Map<string, LotNet>();
   for (const allocation of allocations) {
-    const cost = lotCostAt(allocation, allocation.valuedAt);
+    const cost = lotCostAt(allocation, valuedAt(allocation));
     const key = `${allocation.lotId}:${cost?.totalCents}/${cost?.quantity}`;
     const lot = lots.get(key);
     lots.set(key, {
