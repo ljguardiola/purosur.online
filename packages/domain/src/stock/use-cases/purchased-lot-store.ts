@@ -36,6 +36,13 @@ export interface LotCostChangeRecord {
   previous: LotCost;
 }
 
+export interface PurchasedLotQuantityStoreTransaction {
+  // The moment the stock movement that received the purchase line is dated at.
+  receiptInstantOfPurchaseLine(purchaseLineId: string): Promise<Date | undefined>;
+  // Changes the units the lot is recorded as received with; the units it still has are not touched.
+  addToLotQuantityReceived(lotId: string, delta: number): Promise<void>;
+}
+
 export interface PurchasedLotStoreTransaction
   extends Pick<StockStoreTransaction, "lockProductStock" | "recordMovement" | "allocateToLot"> {
   // The lots the purchase lines created and the lots split from them, in no particular order.

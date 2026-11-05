@@ -2,12 +2,14 @@ import type { AddPurchaseLinesModalServices } from "./add-purchase-lines-modal";
 import type { CorrectPurchaseHeaderModalServices } from "./correct-purchase-header-modal";
 import type { CorrectPurchaseLineCostModalServices } from "./correct-purchase-line-cost-modal";
 import type { CorrectPurchaseLineExpiryModalServices } from "./correct-purchase-line-expiry-modal";
+import type { CorrectPurchaseLineQuantityModalServices } from "./correct-purchase-line-quantity-modal";
 import type { PurchaseChangesModalServices } from "./purchase-changes-modal";
 import {
   addPurchaseLines,
   correctPurchaseHeader,
   correctPurchaseLineCost,
   correctPurchaseLineExpiry,
+  correctPurchaseLineQuantity,
   fetchPurchaseChanges,
   fetchPurchaseChoices,
   fetchPurchases,
@@ -22,7 +24,8 @@ export type PurchasesListScreenServices = {
   CorrectPurchaseHeaderModalServices &
   CorrectPurchaseLineExpiryModalServices &
   SplitPurchaseLineExpiryModalServices &
-  CorrectPurchaseLineCostModalServices;
+  CorrectPurchaseLineCostModalServices &
+  CorrectPurchaseLineQuantityModalServices;
 
 export const defaultPurchasesListScreenServices: PurchasesListScreenServices = {
   fetchPurchases,
@@ -33,4 +36,5 @@ export const defaultPurchasesListScreenServices: PurchasesListScreenServices = {
   correctPurchaseLineExpiry,
   splitPurchaseLineExpiry,
   correctPurchaseLineCost,
+  correctPurchaseLineQuantity,
 };

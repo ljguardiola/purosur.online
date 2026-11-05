@@ -28,6 +28,8 @@ const addedLineSchema = z.object({
   expiresOn: z.string().nullable(),
 });
 
+const quantityOfLineSchema = z.object({ quantity: z.int(), packages: z.int().nullable() });
+
 const purchaseChangeDetailSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("header"), changes: z.array(headerChangeSchema) }),
   z.object({ kind: z.literal("lines_added"), lines: z.array(addedLineSchema) }),
@@ -49,6 +51,12 @@ const purchaseChangeDetailSchema = z.discriminatedUnion("kind", [
     lineId: z.string(),
     previous: z.int(),
     next: z.int(),
+  }),
+  z.object({
+    kind: z.literal("line_quantity"),
+    lineId: z.string(),
+    previous: quantityOfLineSchema,
+    next: quantityOfLineSchema,
   }),
 ]);
 

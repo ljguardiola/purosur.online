@@ -3,7 +3,8 @@ import {
   type PurchaseSummary,
   purchaseChangeSchema,
 } from "@purosur/contracts";
-import { formatCents, formatDayAndTime } from "@purosur/ui";
+import type { SaleUnit } from "@purosur/domain";
+import { formatCents, formatDayAndTime, formatNumber } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { formatDisplayDate } from "../platform/display-date";
 import { schemaText } from "../platform/schema-text";
@@ -68,6 +69,17 @@ function lineLabel(purchase: PurchaseSummary, lineId: string): string {
   return product ? formatProductDescription(product) : UNAVAILABLE_PRODUCT;
 }
 
+type LineQuantity = Extract<PurchaseChangeDetail, { kind: "line_quantity" }>["previous"];
+
+function quantityText(quantity: LineQuantity, saleUnit: SaleUnit): string {
+  const total = formatStockQuantity(quantity.quantity, saleUnit);
+  if (quantity.packages === null) {
+    return total;
+  }
+  const noun = quantity.packages === 1 ? "paquete" : "paquetes";
+  return `${formatNumber(quantity.packages)} ${noun} (${total})`;
+}
+
 export function purchaseChangeRows(
   change: PurchaseChangeDetail,
   purchase: PurchaseSummary,
@@ -89,6 +101,20 @@ export function purchaseChangeRows(
             : UNAVAILABLE_PRODUCT,
         };
       });
+    case "line_quantity": {
+      const product = lineOf(purchase, change.lineId)?.product;
+      return [
+        {
+          label: `Cantidad de ${product ? formatProductDescription(product) : UNAVAILABLE_PRODUCT}`,
+          value: product
+            ? transition(
+                quantityText(change.previous, product.saleUnit),
+                quantityText(change.next, product.saleUnit),
+              )
+            : "Sin detalle de la cantidad",
+        },
+      ];
+    }
     case "line_cost":
       return [
         {

@@ -5,6 +5,7 @@ import {
   type PurchaseLineCostCorrectionBody,
   type PurchaseLineExpiryCorrectionBody,
   type PurchaseLineExpirySplitBody,
+  type PurchaseLineQuantityCorrectionBody,
   type PurchaseLinesAdditionBody,
   type PurchaseRegistrationBody,
   type PurchaseSummary,
@@ -67,10 +68,14 @@ export type CorrectPurchaseLineExpiryOutcome =
   | { kind: "ok"; purchase: PurchaseSummary }
   | PurchaseCorrectionRefusal;
 
-export type SplitPurchaseLineExpiryOutcome =
+type PurchaseLotCorrectionOutcome =
   | { kind: "ok"; purchase: PurchaseSummary }
   | PurchaseCorrectionRefusal
   | { kind: "not_enough_in_lot" };
+
+export type SplitPurchaseLineExpiryOutcome = PurchaseLotCorrectionOutcome;
+
+export type CorrectPurchaseLineQuantityOutcome = PurchaseLotCorrectionOutcome;
 
 function refusal(response: Response): RequestRefusal {
   if (response.status === 401) {
@@ -206,7 +211,11 @@ async function readPurchase(response: Response): Promise<PurchaseSummary | undef
 
 async function refusedCorrection(
   response: Response,
-  unchangedCode: "purchase_unchanged" | "expiry_unchanged" | "cost_unchanged",
+  unchangedCode:
+    | "purchase_unchanged"
+    | "expiry_unchanged"
+    | "cost_unchanged"
+    | "quantity_unchanged",
 ): Promise<PurchaseCorrectionRefusal> {
   const body = await readRefusalBody(response.clone());
   if (
@@ -323,6 +332,32 @@ export async function splitPurchaseLineExpiry(
     }
   }
   return refusedCorrection(response, "expiry_unchanged");
+}
+
+export async function correctPurchaseLineQuantity(
+  purchaseId: string,
+  lineId: string,
+  input: PurchaseLineQuantityCorrectionBody,
+): Promise<CorrectPurchaseLineQuantityOutcome> {
+  const response = await sendCorrection(
+    `/api/purchases/${purchaseId}/lines/${lineId}/quantity`,
+    "PATCH",
+    input,
+  );
+  if (response === undefined) {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    const purchase = await readPurchase(response);
+    return purchase ? { kind: "ok", purchase } : { kind: "failed" };
+  }
+  if (response.status === 409) {
+    const body = await readRefusalBody(response.clone());
+    if (body.code === "not_enough_in_lot") {
+      return { kind: "not_enough_in_lot" };
+    }
+  }
+  return refusedCorrection(response, "quantity_unchanged");
 }
 
 export async function fetchPurchaseChanges(

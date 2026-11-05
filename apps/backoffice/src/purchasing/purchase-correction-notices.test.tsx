@@ -67,3 +67,14 @@ test("says only some of the units still in the lot can take another date, with t
     )
     .toBeVisible();
 });
+
+test("says units already out of the lot cannot be taken back, with the modal's title", async () => {
+  const screen = await renderNotice({ kind: "unitsLeftTheLot" });
+
+  await expect.element(screen.getByText("No se guardó el cambio")).toBeVisible();
+  await expect
+    .element(
+      screen.getByText("Las unidades que ya salieron del lote no se pueden quitar de la compra."),
+    )
+    .toBeVisible();
+});

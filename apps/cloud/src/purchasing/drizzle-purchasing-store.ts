@@ -8,6 +8,8 @@ import {
   type LotExpiryCorrection,
   type LotExpirySplit,
   type LotExpirySplitResult,
+  type LotQuantityCorrection,
+  type LotQuantityCorrectionResult,
   type NewPurchaseFields,
   type NewPurchaseLineFields,
   type NewSupplierFields,
@@ -25,6 +27,7 @@ import {
 import {
   correctLotExpiry,
   correctPurchasedLotCost,
+  correctPurchasedLotQuantity,
   type PurchaseReceipt,
   receivePurchasedStock,
   redatePurchasedLots,
@@ -227,6 +230,9 @@ export class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResul
         id: purchaseLines.id,
         expiresOn: purchaseLines.expiresOn,
         costPaidCents: purchaseLines.costPaidCents,
+        quantity: purchaseLines.quantity,
+        packages: purchaseLines.packages,
+        quantityPerPackage: purchaseLines.quantityPerPackage,
       })
       .from(purchaseLines)
       .where(and(eq(purchaseLines.id, lineId), eq(purchaseLines.purchaseId, purchaseId)));
@@ -252,6 +258,27 @@ export class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResul
 
   async updatePurchaseLineCost(lineId: string, costPaidCents: number): Promise<void> {
     await this.tx.update(purchaseLines).set({ costPaidCents }).where(eq(purchaseLines.id, lineId));
+  }
+
+  async updatePurchaseLineQuantity(
+    lineId: string,
+    quantity: number,
+    packages: number | null,
+  ): Promise<void> {
+    await this.tx
+      .update(purchaseLines)
+      .set({ quantity, packages })
+      .where(eq(purchaseLines.id, lineId));
+  }
+
+  async correctLotQuantity(
+    correction: LotQuantityCorrection,
+  ): Promise<LotQuantityCorrectionResult> {
+    const outcome = await correctPurchasedLotQuantity(this.stock, correction);
+    if (outcome.kind === "not_found") {
+      throw new Error(`the lot of purchase line ${correction.purchaseLineId} vanished`);
+    }
+    return outcome;
   }
 
   async correctLotCost({

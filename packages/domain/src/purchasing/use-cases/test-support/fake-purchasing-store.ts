@@ -8,6 +8,8 @@ import type {
   LotExpiryCorrection,
   LotExpirySplit,
   LotExpirySplitResult,
+  LotQuantityCorrection,
+  LotQuantityCorrectionResult,
   PurchaseCorrection,
   PurchaseCorrectionStore,
   PurchaseCorrectionStoreTransaction,
@@ -54,6 +56,8 @@ export type FakePurchasingWrite =
   | "updatePurchaseHeader"
   | "updatePurchaseLineExpiry"
   | "updatePurchaseLineCost"
+  | "updatePurchaseLineQuantity"
+  | "correctLotQuantity"
   | "correctLotExpiry"
   | "splitLotExpiry"
   | "correctLotCost"
@@ -70,6 +74,7 @@ export interface FakePurchasingState {
   lotExpiryCorrections: LotExpiryCorrection[];
   lotExpirySplits: LotExpirySplit[];
   lotCostCorrections: LotCostCorrection[];
+  lotQuantityCorrections: LotQuantityCorrection[];
   lotRedatings: PurchasedLotsRedating[];
   corrections: PurchaseCorrection[];
   nextId: number;
@@ -100,6 +105,7 @@ function cloneState(state: FakePurchasingState): FakePurchasingState {
       ...row,
       changedAt: new Date(row.changedAt),
     })),
+    lotQuantityCorrections: state.lotQuantityCorrections.map((row) => ({ ...row })),
     lotRedatings: state.lotRedatings.map((row) => ({
       ...row,
       purchaseLineIds: [...row.purchaseLineIds],
@@ -243,7 +249,16 @@ class FakePurchasingStoreTransaction
     const row = this.state.purchaseLines.find(
       (line) => line.id === lineId && line.purchaseId === purchaseId,
     );
-    return row && { id: row.id, expiresOn: row.expiresOn, costPaidCents: row.costPaidCents };
+    return (
+      row && {
+        id: row.id,
+        expiresOn: row.expiresOn,
+        costPaidCents: row.costPaidCents,
+        quantity: row.quantity,
+        packages: row.packages,
+        quantityPerPackage: row.quantityPerPackage,
+      }
+    );
   }
 
   async purchaseLineIds(purchaseId: string): Promise<string[]> {
@@ -278,6 +293,31 @@ class FakePurchasingStoreTransaction
         row.costPaidCents = costPaidCents;
       }
     }
+  }
+
+  async updatePurchaseLineQuantity(
+    lineId: string,
+    quantity: number,
+    packages: number | null,
+  ): Promise<void> {
+    this.beforeWrite("updatePurchaseLineQuantity");
+    for (const row of this.state.purchaseLines) {
+      if (row.id === lineId) {
+        row.quantity = quantity;
+        row.packages = packages;
+      }
+    }
+  }
+
+  async correctLotQuantity(
+    correction: LotQuantityCorrection,
+  ): Promise<LotQuantityCorrectionResult> {
+    this.beforeWrite("correctLotQuantity");
+    this.store.lockLog.push("lot quantity");
+    if (this.store.lotQuantityResult.kind === "corrected") {
+      this.state.lotQuantityCorrections.push({ ...correction });
+    }
+    return this.store.lotQuantityResult;
   }
 
   async correctLotCost(correction: LotCostCorrection): Promise<void> {
@@ -359,12 +399,14 @@ export class FakePurchasingStore implements PurchasingStore, PurchaseCorrectionS
     lotExpiryCorrections: [],
     lotExpirySplits: [],
     lotCostCorrections: [],
+    lotQuantityCorrections: [],
     lotRedatings: [],
     corrections: [],
     nextId: 1,
   };
 
   lotSplitResult: LotExpirySplitResult = { kind: "split", lotId: "lot-split-1" };
+  lotQuantityResult: LotQuantityCorrectionResult = { kind: "corrected" };
 
   // Names (already lowercased) that raise the conflict on a write, regardless of what a
   // same-transaction check found, to model a concurrent write that committed first.

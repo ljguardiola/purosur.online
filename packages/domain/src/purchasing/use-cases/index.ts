@@ -44,6 +44,13 @@ export type {
 } from "./correct-purchase-line-expiry.js";
 export { correctPurchaseLineExpiry } from "./correct-purchase-line-expiry.js";
 export type {
+  CorrectPurchaseLineQuantityInput,
+  CorrectPurchaseLineQuantityOutcome,
+  CorrectPurchaseLineQuantityPorts,
+  PurchaseLineCount,
+} from "./correct-purchase-line-quantity.js";
+export { correctPurchaseLineQuantity } from "./correct-purchase-line-quantity.js";
+export type {
   CreateProductFromSupplierItemInput,
   CreateProductFromSupplierItemOutcome,
 } from "./create-product-from-supplier-item.js";
@@ -225,6 +232,8 @@ export type {
   LotExpiryCorrection,
   LotExpirySplit,
   LotExpirySplitResult,
+  LotQuantityCorrection,
+  LotQuantityCorrectionResult,
   PurchaseCorrection,
   PurchaseCorrectionChange,
   PurchaseCorrectionStore,
@@ -232,6 +241,7 @@ export type {
   PurchasedLotsRedating,
   PurchaseHeaderChange,
   PurchaseHeaderValues,
+  PurchaseLineQuantity,
 } from "./purchase-correction-store.js";
 export type {
   PurchaseOrderDetailListing,

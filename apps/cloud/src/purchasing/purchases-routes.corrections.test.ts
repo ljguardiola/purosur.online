@@ -888,6 +888,252 @@ describe("PATCH /purchases/:purchaseId/lines/:lineId/cost", () => {
   });
 });
 
+describe("PATCH /purchases/:purchaseId/lines/:lineId/quantity", () => {
+  async function purchaseOfOneLine(line: (productId: string) => object) {
+    const session = await buyer();
+    const yerba = await insertProduct(db, { name: "Yerba" });
+    const purchase = await registeredPurchase(session.headers, session.userId, [
+      line(yerba.productId),
+    ]);
+    return { ...session, productId: yerba.productId, purchase };
+  }
+
+  const tenUnits = (productId: string) =>
+    quantityLine(productId, { quantity: 10_000, costPaidCents: 900, expiresOn: "2026-11-10" });
+
+  function correctQuantity(
+    headers: Record<string, string>,
+    purchase: z_PurchaseSummary,
+    payload: object,
+    lineId: string | undefined = purchase.lines[0]?.id,
+  ) {
+    return app.inject({
+      method: "PATCH",
+      url: `/purchases/${purchase.id}/lines/${lineId}/quantity`,
+      headers,
+      payload,
+    });
+  }
+
+  it("corrects the line's quantity and its lot's, answering the purchase with what remains in the lot", async () => {
+    const { headers, purchase } = await purchaseOfOneLine(tenUnits);
+    await db.update(lots).set({ remaining: 6_000 });
+
+    const response = await correctQuantity(headers, purchase, {
+      loadedBy: "quantity",
+      quantity: 8_000,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(purchaseSummarySchema.parse(response.json()).lines[0]).toMatchObject({
+      quantity: 8_000,
+      remainingInLot: 4_000,
+    });
+    const [lot] = await db.select().from(lots);
+    expect(lot).toMatchObject({ remaining: 4_000, quantityReceived: 8_000, costTotalCents: 900 });
+    const [line] = await db.select().from(purchaseLines);
+    expect(line).toMatchObject({ quantity: 8_000, costPaidCents: 900, expiresOn: "2026-11-10" });
+    const [balance] = await db.select().from(stockBalances);
+    expect(balance?.quantity).toBe(8_000);
+  });
+
+  it("corrects a line loaded by packages by its packages", async () => {
+    const { headers, purchase } = await purchaseOfOneLine((productId) => ({
+      loadedBy: "packages",
+      productId,
+      packages: 2,
+      quantityPerPackage: 5_000,
+      costPaidCents: 900,
+      expiresOn: null,
+    }));
+
+    const response = await correctQuantity(headers, purchase, {
+      loadedBy: "packages",
+      packages: 3,
+    });
+
+    expect(response.statusCode).toBe(200);
+    const [line] = await db.select().from(purchaseLines);
+    expect(line).toMatchObject({ packages: 3, quantity: 15_000, quantityPerPackage: 5_000 });
+  });
+
+  it("records who corrected the quantity, when, and the previous and new quantity, listed among the purchase's changes", async () => {
+    const { headers, userId, purchase } = await purchaseOfOneLine(tenUnits);
+    await correctQuantity(headers, purchase, { loadedBy: "quantity", quantity: 12_000 });
+
+    const rows = await db.select().from(auditLog).where(eq(auditLog.entity, "purchase"));
+    expect(rows).toEqual([
+      expect.objectContaining({
+        entityId: purchase.id,
+        actorId: userId,
+        at: CORRECTED_AT,
+        newValue: expect.objectContaining({ kind: "line_quantity", quantity: 12_000 }),
+      }),
+    ]);
+    const response = await app.inject({
+      method: "GET",
+      url: `/purchases/${purchase.id}/changes`,
+      headers,
+    });
+    expect(purchaseChangesSchema.parse(response.json())).toEqual([
+      {
+        id: expect.any(String),
+        actor: { id: userId, name: expect.any(String) },
+        correctedAt: CORRECTED_AT.toISOString(),
+        change: {
+          kind: "line_quantity",
+          lineId: purchase.lines[0]?.id,
+          previous: { quantity: 10_000, packages: null },
+          next: { quantity: 12_000, packages: null },
+        },
+      },
+    ]);
+  });
+
+  it("answers 409 quantity_unchanged and records nothing when the line already has that quantity", async () => {
+    const { headers, purchase } = await purchaseOfOneLine(tenUnits);
+
+    const response = await correctQuantity(headers, purchase, {
+      loadedBy: "quantity",
+      quantity: 10_000,
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "quantity_unchanged" });
+    expect(await db.select().from(auditLog).where(eq(auditLog.entity, "purchase"))).toEqual([]);
+  });
+
+  it("answers 409 not_enough_in_lot and changes nothing when units already left the lot", async () => {
+    const { headers, purchase } = await purchaseOfOneLine(tenUnits);
+    await db.update(lots).set({ remaining: 6_000 });
+
+    const response = await correctQuantity(headers, purchase, {
+      loadedBy: "quantity",
+      quantity: 3_000,
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({
+      code: "not_enough_in_lot",
+      message: expect.any(String),
+    });
+    const [line] = await db.select().from(purchaseLines);
+    expect(line?.quantity).toBe(10_000);
+    const [lot] = await db.select().from(lots);
+    expect(lot).toMatchObject({ remaining: 6_000, quantityReceived: 10_000 });
+    expect(await db.select().from(auditLog).where(eq(auditLog.entity, "purchase"))).toEqual([]);
+  });
+
+  it("answers 400 on the quantity when the product is not sold in part of a unit", async () => {
+    const { headers, purchase } = await purchaseOfOneLine(tenUnits);
+
+    const response = await correctQuantity(headers, purchase, {
+      loadedBy: "quantity",
+      quantity: 10_500,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "quantity" }],
+    });
+    const [line] = await db.select().from(purchaseLines);
+    expect(line?.quantity).toBe(10_000);
+  });
+
+  it("answers 400 on the packages when the line was not loaded by packages", async () => {
+    const { headers, purchase } = await purchaseOfOneLine(tenUnits);
+
+    const response = await correctQuantity(headers, purchase, {
+      loadedBy: "packages",
+      packages: 3,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "packages" }],
+    });
+  });
+
+  it.each([
+    {},
+    { loadedBy: "quantity", quantity: 0 },
+    { loadedBy: "quantity", quantity: 1.5 },
+    { loadedBy: "packages", packages: -1 },
+    { loadedBy: "other", quantity: 1_000 },
+  ])("answers 400 to the body %j", async (payload) => {
+    const { headers, purchase } = await purchaseOfOneLine(tenUnits);
+
+    const response = await correctQuantity(headers, purchase, payload);
+
+    expect(response.statusCode).toBe(400);
+  });
+
+  it("returns 401 when no session cookie was sent", async () => {
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/purchases/${MISSING_ID}/lines/${MISSING_ID}/quantity`,
+      headers: { origin: BACKOFFICE_ORIGIN },
+      payload: { loadedBy: "quantity", quantity: 1_000 },
+    });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("refuses a user without the purchases permission before reading the purchase", async () => {
+    const { purchase } = await purchaseOfOneLine(tenUnits);
+    const { headers } = await signedInWith(db, ["sell_and_charge"], NOW);
+
+    const existing = await correctQuantity(headers, purchase, {
+      loadedBy: "quantity",
+      quantity: 8_000,
+    });
+    const missing = await app.inject({
+      method: "PATCH",
+      url: `/purchases/${MISSING_ID}/lines/${MISSING_ID}/quantity`,
+      headers,
+      payload: { loadedBy: "quantity", quantity: 8_000 },
+    });
+
+    expect(existing.statusCode).toBe(403);
+    expect(missing.statusCode).toBe(403);
+    const [line] = await db.select().from(purchaseLines);
+    expect(line?.quantity).toBe(10_000);
+  });
+
+  it("answers 404 for a line that is not of the purchase", async () => {
+    const { headers, purchase } = await purchaseOfOneLine(tenUnits);
+
+    const response = await correctQuantity(
+      headers,
+      purchase,
+      { loadedBy: "quantity", quantity: 8_000 },
+      MISSING_ID,
+    );
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "line_not_found" });
+  });
+
+  it("answers 404 for a purchase of another branch, changing nothing", async () => {
+    const { purchase } = await purchaseOfOneLine(tenUnits);
+    const otherBranch = await signedInWith(db, ["record_purchases"], NOW, {
+      locationId: await insertLocation(db),
+    });
+
+    const response = await correctQuantity(otherBranch.headers, purchase, {
+      loadedBy: "quantity",
+      quantity: 8_000,
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "purchase_not_found" });
+    const [lot] = await db.select().from(lots);
+    expect(lot?.quantityReceived).toBe(10_000);
+  });
+});
+
 describe("GET /purchases/:purchaseId/changes", () => {
   it("lists who changed what and when, newest first", async () => {
     const { headers, userId } = await buyer();

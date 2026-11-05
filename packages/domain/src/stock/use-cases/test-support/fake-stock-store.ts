@@ -14,6 +14,12 @@ import type {
   LockedAssemblyBatch,
   NewAssemblyBatch,
 } from "../assembly-batch-store.js";
+import type {
+  PurchasedLot,
+  PurchasedLotQuantityStoreTransaction,
+  PurchasedLotStoreTransaction,
+  SplittableLot,
+} from "../purchased-lot-store.js";
 import type { Recipe } from "../recipe-store.js";
 import type {
   CountedLot,
@@ -49,6 +55,7 @@ export interface FakeStockBalance extends ProductStockKey {
 
 export interface FakeStockLot extends ProductStockKey, StockLot {
   purchaseLineId: string | null;
+  splitFromLotId?: string | null | undefined;
   quantityReceived: number;
   costTotalCents: number | null;
   costQuantity: number | null;
@@ -86,6 +93,7 @@ type WriteOperation =
   | "markOpeningCountWithdrawn"
   | "openTechnicalLot"
   | "allocateToLot"
+  | "addToLotQuantityReceived"
   | "insertAssemblyBatch"
   | "recordBatchLot"
   | "recordAssemblyBatchVoid";
@@ -120,7 +128,12 @@ function sameKey(row: ProductStockKey, key: ProductStockKey): boolean {
   return row.productId === key.productId && row.locationId === key.locationId;
 }
 
-class FakeStockStoreTransaction implements AssemblyBatchTransaction {
+export class FakeStockStoreTransaction
+  implements
+    AssemblyBatchTransaction,
+    PurchasedLotQuantityStoreTransaction,
+    Pick<PurchasedLotStoreTransaction, "lotsOfPurchaseLines" | "splittableLot">
+{
   private readonly state: FakeStockState;
   private readonly store: FakeStockStore;
 
@@ -504,6 +517,57 @@ class FakeStockStoreTransaction implements AssemblyBatchTransaction {
     return delta;
   }
 
+  async lotsOfPurchaseLines(
+    locationId: string,
+    purchaseLineIds: readonly string[],
+  ): Promise<PurchasedLot[]> {
+    this.store.operationOrder.push("lotsOfPurchaseLines");
+    return this.state.lots.flatMap((lot) =>
+      lot.locationId === locationId &&
+      lot.purchaseLineId !== null &&
+      purchaseLineIds.includes(lot.purchaseLineId)
+        ? [
+            {
+              lotId: lot.id,
+              purchaseLineId: lot.purchaseLineId,
+              productId: lot.productId,
+              splitFromLotId: lot.splitFromLotId ?? null,
+            },
+          ]
+        : [],
+    );
+  }
+
+  async splittableLot(lotId: string): Promise<SplittableLot | null> {
+    this.store.operationOrder.push("splittableLot");
+    const lot = this.state.lots.find((row) => row.id === lotId);
+    return lot?.purchasedOn == null
+      ? null
+      : {
+          remaining: lot.remaining,
+          purchasedOn: lot.purchasedOn,
+          createdAt: new Date(lot.receivedAt),
+          costIncomplete: !lot.costComplete,
+        };
+  }
+
+  async receiptInstantOfPurchaseLine(purchaseLineId: string): Promise<Date | undefined> {
+    this.store.operationOrder.push("receiptInstantOfPurchaseLine");
+    const [earliest] = this.state.movements
+      .filter((row) => row.kind === "receipt" && row.purchaseLineId === purchaseLineId)
+      .sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime());
+    return earliest && new Date(earliest.occurredAt);
+  }
+
+  async addToLotQuantityReceived(lotId: string, delta: number): Promise<void> {
+    this.beforeWrite("addToLotQuantityReceived");
+    const lot = this.state.lots.find((row) => row.id === lotId);
+    if (!lot) {
+      throw new Error(`lot ${lotId} does not exist`);
+    }
+    lot.quantityReceived += delta;
+  }
+
   private receptionMoment(): Date {
     return new Date(Date.UTC(2026, 0, 1) + this.state.lots.length * 1_000);
   }
@@ -594,7 +658,7 @@ export class FakeStockStore implements StockStore, AssemblyBatchStore {
   }
 
   async transaction<TOutcome>(
-    work: (tx: AssemblyBatchTransaction) => Promise<TOutcome>,
+    work: (tx: FakeStockStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
     const before = cloneState(this.state);
     try {

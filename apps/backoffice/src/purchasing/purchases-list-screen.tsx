@@ -20,6 +20,7 @@ import {
   PackagePlus,
   Pencil,
   Plus,
+  Scale,
   ShoppingCart,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -40,6 +41,10 @@ import {
   CorrectPurchaseLineExpiryModal,
   type PurchaseLineExpiryTarget,
 } from "./correct-purchase-line-expiry-modal";
+import {
+  CorrectPurchaseLineQuantityModal,
+  type PurchaseLineQuantityTarget,
+} from "./correct-purchase-line-quantity-modal";
 import { PurchaseChangesModal } from "./purchase-changes-modal";
 import type { PurchasesListScreenServices } from "./purchases-list-services";
 import { usePurchasesQuery, useRefreshPurchasing } from "./purchasing-queries";
@@ -71,7 +76,8 @@ type Correction =
   | "headerCorrected"
   | "expiryCorrected"
   | "expirySplit"
-  | "costCorrected";
+  | "costCorrected"
+  | "quantityCorrected";
 
 type CorrectionNotice = { correction: Correction; purchase: PurchaseSummary };
 
@@ -88,6 +94,11 @@ const CORRECTION_NOTICES = {
     title: "Costo corregido",
     description:
       "El stock que queda de la compra usa el costo corregido; las ventas ya hechas conservan el suyo.",
+  }),
+  quantityCorrected: () => ({
+    title: "Cantidad corregida",
+    description:
+      "El stock de la línea sigue la cantidad corregida, salvo que un conteo posterior ya la haya contado.",
   }),
   expiryCorrected: () => ({
     title: "Vencimiento corregido",
@@ -116,7 +127,7 @@ function rowsOf(purchases: readonly PurchaseSummary[]): PurchaseRow[] {
 
 function remainingInLotOf(
   purchases: readonly PurchaseSummary[],
-  { purchase, line }: SplitPurchaseLineExpiryTarget,
+  { purchase, line }: SplitPurchaseLineExpiryTarget | PurchaseLineQuantityTarget,
 ): number {
   return (
     purchases
@@ -163,6 +174,7 @@ type RowActions = {
   correctExpiry: (target: PurchaseLineExpiryTarget) => void;
   splitExpiry: (target: SplitPurchaseLineExpiryTarget) => void;
   correctCost: (target: PurchaseLineCostTarget) => void;
+  correctQuantity: (target: PurchaseLineQuantityTarget) => void;
 };
 
 function purchaseSubject(purchase: PurchaseSummary): string {
@@ -239,14 +251,26 @@ function columnsFor(
                 onPress: () => actions.seeChanges(row.purchase),
               }
             : undefined,
-        (row: PurchaseRow) =>
-          mayRecord && row.kind === "purchase"
+        (row: PurchaseRow) => {
+          if (!mayRecord) {
+            return undefined;
+          }
+          if (row.kind === "purchase") {
+            return {
+              icon: <PackagePlus />,
+              "aria-label": `Agregar productos a ${purchaseSubject(row.purchase)}`,
+              onPress: () => actions.addLines(row.purchase),
+            };
+          }
+          const purchase = purchaseOf(row.parentId);
+          return purchase
             ? {
-                icon: <PackagePlus />,
-                "aria-label": `Agregar productos a ${purchaseSubject(row.purchase)}`,
-                onPress: () => actions.addLines(row.purchase),
+                icon: <CalendarClock />,
+                "aria-label": `Corregir el vencimiento de ${formatProductDescription(row.line.product)}`,
+                onPress: () => actions.correctExpiry({ purchase, line: row.line }),
               }
-            : undefined,
+            : undefined;
+        },
         (row: PurchaseRow) => {
           if (!mayRecord) {
             return undefined;
@@ -261,16 +285,6 @@ function columnsFor(
           const purchase = purchaseOf(row.parentId);
           return purchase
             ? {
-                icon: <CalendarClock />,
-                "aria-label": `Corregir el vencimiento de ${formatProductDescription(row.line.product)}`,
-                onPress: () => actions.correctExpiry({ purchase, line: row.line }),
-              }
-            : undefined;
-        },
-        (row: PurchaseRow) => {
-          const purchase = row.kind === "line" ? purchaseOf(row.parentId) : undefined;
-          return mayRecord && row.kind === "line" && purchase
-            ? {
                 icon: <CalendarRange />,
                 "aria-label": `Dar otro vencimiento a algunas unidades de ${formatProductDescription(row.line.product)}`,
                 onPress: () => actions.splitExpiry({ purchase, line: row.line }),
@@ -284,6 +298,16 @@ function columnsFor(
                 icon: <BadgeDollarSign />,
                 "aria-label": `Corregir el costo de ${formatProductDescription(row.line.product)}`,
                 onPress: () => actions.correctCost({ purchase, line: row.line }),
+              }
+            : undefined;
+        },
+        (row: PurchaseRow) => {
+          const purchase = row.kind === "line" ? purchaseOf(row.parentId) : undefined;
+          return mayRecord && row.kind === "line" && purchase
+            ? {
+                icon: <Scale />,
+                "aria-label": `Corregir la cantidad de ${formatProductDescription(row.line.product)}`,
+                onPress: () => actions.correctQuantity({ purchase, line: row.line }),
               }
             : undefined;
         },
@@ -310,6 +334,7 @@ export function PurchasesListScreen({
   const [expiryTarget, setExpiryTarget] = useState<PurchaseLineExpiryTarget | null>(null);
   const [splitTarget, setSplitTarget] = useState<SplitPurchaseLineExpiryTarget | null>(null);
   const [costTarget, setCostTarget] = useState<PurchaseLineCostTarget | null>(null);
+  const [quantityTarget, setQuantityTarget] = useState<PurchaseLineQuantityTarget | null>(null);
   const [notice, setNotice] = useState<CorrectionNotice | null>(null);
 
   useEffect(() => {
@@ -320,6 +345,7 @@ export function PurchasesListScreen({
       setExpiryTarget(null);
       setSplitTarget(null);
       setCostTarget(null);
+      setQuantityTarget(null);
     }
   }, [data.status]);
 
@@ -329,6 +355,7 @@ export function PurchasesListScreen({
     setExpiryTarget(null);
     setSplitTarget(null);
     setCostTarget(null);
+    setQuantityTarget(null);
     setNotice({ correction, purchase });
     if (registered) {
       onNoticeDismissed();
@@ -358,6 +385,10 @@ export function PurchasesListScreen({
       correctCost: (target) => {
         setNotice(null);
         setCostTarget(target);
+      },
+      correctQuantity: (target) => {
+        setNotice(null);
+        setQuantityTarget(target);
       },
     },
     (parentId) => purchases.find((purchase) => purchase.id === parentId),
@@ -431,6 +462,15 @@ export function PurchasesListScreen({
             services={services}
             onSaved={(purchase) => corrected("costCorrected", purchase)}
             onClose={() => setCostTarget(null)}
+            onSessionEnded={onSessionEnded}
+          />
+          <CorrectPurchaseLineQuantityModal
+            target={quantityTarget}
+            remainingInLot={quantityTarget ? remainingInLotOf(purchases, quantityTarget) : 0}
+            services={services}
+            onSaved={(purchase) => corrected("quantityCorrected", purchase)}
+            onLotChanged={() => void refreshPurchasing()}
+            onClose={() => setQuantityTarget(null)}
             onSessionEnded={onSessionEnded}
           />
           <CorrectPurchaseLineExpiryModal
