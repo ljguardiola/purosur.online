@@ -1,4 +1,4 @@
-import type { SaleUnit } from "@purosur/domain";
+import { type SaleUnit, stockMovementReachesRegisters } from "@purosur/domain";
 import type {
   CountedLot,
   CoveringCount,
@@ -8,6 +8,7 @@ import type {
   LotCostChangeRecord,
   NewInitialCountLot,
   NewLot,
+  NewSplitLot,
   NewStockCount,
   NewStockMovement,
   OpeningCountLot,
@@ -15,6 +16,7 @@ import type {
   PurchasedLot,
   PurchasedLotNaming,
   PurchasedLotStoreTransaction,
+  SplittableLot,
   StockLot,
   StockStore,
   StockStoreTransaction,
@@ -143,13 +145,15 @@ export class DrizzleStockStoreTransaction<TQueryResult extends PgQueryResultHKT>
     if (!recorded) {
       throw new Error("inserting the stock movement returned no row");
     }
-    this.pending.note({
-      entity: "stock_movement",
-      entityId: recorded.id,
-      version: STOCK_MOVEMENT_VERSION,
-      op: "insert",
-      locationId: movement.locationId,
-    });
+    if (stockMovementReachesRegisters(movement.kind)) {
+      this.pending.note({
+        entity: "stock_movement",
+        entityId: recorded.id,
+        version: STOCK_MOVEMENT_VERSION,
+        op: "insert",
+        locationId: movement.locationId,
+      });
+    }
     return recorded.id;
   }
 
@@ -224,7 +228,12 @@ export class DrizzleStockStoreTransaction<TQueryResult extends PgQueryResultHKT>
       return [];
     }
     const found = await this.tx
-      .select({ lotId: lots.id, purchaseLineId: lots.purchaseLineId, productId: lots.productId })
+      .select({
+        lotId: lots.id,
+        purchaseLineId: lots.purchaseLineId,
+        productId: lots.productId,
+        splitFromLotId: lots.splitFromLotId,
+      })
       .from(lots)
       .where(
         and(eq(lots.locationId, locationId), inArray(lots.purchaseLineId, [...purchaseLineIds])),
@@ -232,6 +241,34 @@ export class DrizzleStockStoreTransaction<TQueryResult extends PgQueryResultHKT>
     return found.flatMap(({ purchaseLineId, ...lot }) =>
       purchaseLineId === null ? [] : [{ ...lot, purchaseLineId }],
     );
+  }
+
+  async splittableLot(lotId: string): Promise<SplittableLot | null> {
+    const [lot] = await this.tx
+      .select({
+        remaining: lots.remaining,
+        purchasedOn: lots.purchasedOn,
+        createdAt: lots.createdAt,
+        costIncomplete: lots.costIncomplete,
+      })
+      .from(lots)
+      .where(eq(lots.id, lotId));
+    return lot?.purchasedOn == null ? null : { ...lot, purchasedOn: lot.purchasedOn };
+  }
+
+  async recordSplitLot({ cost, ...lot }: NewSplitLot): Promise<string> {
+    const [recorded] = await this.tx
+      .insert(lots)
+      .values({
+        ...lot,
+        costTotalCents: cost?.totalCents ?? null,
+        costQuantity: cost?.quantity ?? null,
+      })
+      .returning({ id: lots.id });
+    if (!recorded) {
+      throw new Error("inserting the split lot returned no row");
+    }
+    return recorded.id;
   }
 
   async setLotExpiry(lotId: string, expiresOn: string | null): Promise<void> {

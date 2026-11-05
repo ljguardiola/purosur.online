@@ -12,7 +12,8 @@ export async function correctLotExpiry(
   tx: PurchasedLotStoreTransaction,
   input: CorrectLotExpiryInput,
 ): Promise<CorrectLotExpiryOutcome> {
-  const [lot] = await tx.lotsOfPurchaseLines(input.locationId, [input.purchaseLineId]);
+  const lots = await tx.lotsOfPurchaseLines(input.locationId, [input.purchaseLineId]);
+  const lot = lots.find((candidate) => candidate.splitFromLotId === null);
   if (!lot) {
     return { kind: "not_found" };
   }
