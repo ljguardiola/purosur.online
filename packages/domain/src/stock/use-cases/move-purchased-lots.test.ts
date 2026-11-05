@@ -8,6 +8,7 @@ import {
   FIDEOS,
   leaveLotBy,
   RECEIVED_AT,
+  storeWithProducts,
   storeWithReceivedAndSplitLine,
   storeWithReceivedLine,
   YERBA,
@@ -146,6 +147,40 @@ describe("movePurchasedLots", () => {
       ["lot-3", FIDEOS.productId],
       ["lot-4", FIDEOS.productId],
     ]);
+  });
+
+  it("recreates the line's own lot before a lot split from it, even when the split one is listed first", async () => {
+    const store = storeWithProducts();
+    store.seedLot({
+      id: "lot-split",
+      ...YERBA,
+      purchaseLineId: "line-1",
+      splitFromLotId: "lot-own",
+      remaining: 3_000,
+      quantityReceived: 3_000,
+    });
+    store.seedLot({
+      id: "lot-own",
+      ...YERBA,
+      purchaseLineId: "line-1",
+      remaining: 21_000,
+      quantityReceived: 24_000,
+    });
+    store.seedMovement({
+      ...YERBA,
+      kind: "receipt",
+      reason: null,
+      purchaseLineId: "line-1",
+      delta: 24_000,
+      occurredAt: RECEIVED_AT,
+      actorId: "person-1",
+      supersededByCountId: null,
+    });
+
+    await move(store);
+
+    expect(lot(store, "lot-3")).toMatchObject({ splitFromLotId: null, remaining: 21_000 });
+    expect(lot(store, "lot-4")).toMatchObject({ splitFromLotId: "lot-3", remaining: 3_000 });
   });
 
   it("recreates a lot with a cost that is incomplete or unknown the way it was", async () => {

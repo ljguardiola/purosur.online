@@ -107,16 +107,25 @@ export type {
 } from "./lot-cost-store.js";
 export type { LotNameReader } from "./lot-name-reader.js";
 export type {
+  MovePurchasedLotsInput,
+  MovePurchasedLotsOutcome,
+} from "./move-purchased-lots.js";
+export { movePurchasedLots } from "./move-purchased-lots.js";
+export type {
   PreviewAssemblyBatchInput,
   PreviewAssemblyBatchOutcome,
   PreviewAssemblyBatchPorts,
   PreviewedBatchLot,
 } from "./preview-assembly-batch.js";
 export { previewAssemblyBatch } from "./preview-assembly-batch.js";
+export type { PurchasedLineLotsTransaction } from "./purchased-line-lots.js";
 export type {
   LotCostChangeRecord,
+  NewMovedLot,
   NewSplitLot,
   PurchasedLot,
+  PurchasedLotFacts,
+  PurchasedLotMoveStoreTransaction,
   PurchasedLotQuantityStoreTransaction,
   PurchasedLotStoreTransaction,
   SplittableLot,
@@ -275,3 +284,8 @@ export type {
   WithdrawOpeningCountOutcome,
 } from "./withdraw-opening-count.js";
 export { withdrawOpeningCount } from "./withdraw-opening-count.js";
+export type {
+  WithdrawPurchasedLotsInput,
+  WithdrawPurchasedLotsOutcome,
+} from "./withdraw-purchased-lots.js";
+export { withdrawPurchasedLots } from "./withdraw-purchased-lots.js";
