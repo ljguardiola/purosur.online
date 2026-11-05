@@ -77,7 +77,7 @@ function PillShape() {
   return (
     <div
       aria-hidden="true"
-      className="h-7 w-36 animate-placeholder-reveal rounded-full bg-surface-soft"
+      className="h-control-lg w-36 animate-placeholder-reveal rounded-full bg-surface-soft"
     />
   );
 }
