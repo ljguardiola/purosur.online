@@ -49,6 +49,7 @@ import {
   issuerIdentificationVersions,
   locations,
   lotAllocations,
+  lotCostChanges,
   lots,
   numberingFreezes,
   offlineAuthorizationCodeAcquisitionReports,
@@ -958,6 +959,12 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
     await db
       .insert(lotAllocations)
       .values({ movementId: countMovement.id, lotId: lot?.id as string, quantity: 1000 });
+    await db.insert(lotCostChanges).values({
+      lotId: lot?.id as string,
+      changedAt: new Date("2026-01-05T12:00:00.000Z"),
+      previousCostTotalCents: 400,
+      previousCostQuantity: 1000,
+    });
     await db
       .insert(stockCountLots)
       .values({ movementId: countMovement.id, lotId: lot?.id as string, counted: 1000 });

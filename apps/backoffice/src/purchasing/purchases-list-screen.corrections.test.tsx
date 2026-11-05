@@ -186,7 +186,9 @@ test("keeps the cost modal open and the purchases unread when the cloud refuses 
   const screen = await loaded(services);
 
   await userEvent.click(screen.getByRole("button", { name: CORRECT_COST }));
-  await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Guardar el costo" }));
+  await userEvent.click(
+    screen.getByRole("dialog").getByRole("button", { name: "Guardar el costo" }),
+  );
 
   await expect.element(screen.getByText("No se corrigió el costo")).toBeVisible();
   expect(screen.getByText("Costo corregido").query()).toBeNull();
