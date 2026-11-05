@@ -2885,6 +2885,11 @@ describe("the route access inventory", () => {
         access: capabilityAccess("purchases"),
       },
       {
+        method: "PATCH",
+        url: "/api/purchases/:purchaseId/lines/:lineId/quantity",
+        access: capabilityAccess("purchases"),
+      },
+      {
         method: "GET",
         url: "/api/purchases/:purchaseId/changes",
         access: capabilityAccess("purchases"),
