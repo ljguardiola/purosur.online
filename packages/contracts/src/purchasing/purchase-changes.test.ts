@@ -70,6 +70,17 @@ describe("purchaseChangesSchema", () => {
         correctedAt,
         change: { kind: "line_cost", lineId: "line-1", previous: 1_450_050, next: 1_200_000 },
       },
+      {
+        id: "c-6",
+        actor,
+        correctedAt,
+        change: {
+          kind: "line_quantity",
+          lineId: "line-1",
+          previous: { quantity: 24_000, packages: 2 },
+          next: { quantity: 2_500, packages: null },
+        },
+      },
     ];
 
     expect(purchaseChangesSchema.safeParse(changes).data).toEqual(changes);
