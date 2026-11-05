@@ -67,9 +67,10 @@ describe("the purchase line removal migration applied over a database that alrea
   it("records when a purchase line was removed", async () => {
     const { client, purchaseLineId } = await migrated();
 
-    await client.query("update purchase_lines set removed_at = '2026-11-05T12:00:00Z' where id = $1", [
-      purchaseLineId,
-    ]);
+    await client.query(
+      "update purchase_lines set removed_at = '2026-11-05T12:00:00Z' where id = $1",
+      [purchaseLineId],
+    );
 
     const { rows } = await client.query<{ removed_at: Date }>(
       "select removed_at from purchase_lines",

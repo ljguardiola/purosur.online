@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { locations, lots, purchaseLines, purchases, suppliers } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
@@ -233,5 +234,53 @@ describe("DrizzlePurchasingListReader purchases", () => {
       ]),
     );
     expect(facts).toHaveLength(2);
+  });
+});
+
+describe("DrizzlePurchasingListReader removed lines and withdrawn lots", () => {
+  async function lineOf(purchaseId: string, productId: string, position: number) {
+    const [line] = await db
+      .insert(purchaseLines)
+      .values({
+        purchaseId,
+        position,
+        productId,
+        quantity: 1_000,
+        costPaidCents: 500,
+        quantityPerPackage: 1_000,
+      })
+      .returning({ id: purchaseLines.id });
+    return line?.id as string;
+  }
+
+  it("lists a purchase without the lines that were removed", async () => {
+    const yerba = await insertProduct(db, { name: "Yerba" });
+    const purchaseId = await storedPurchase();
+    const kept = await lineOf(purchaseId, yerba.id, 1);
+    const removed = await lineOf(purchaseId, yerba.id, 2);
+    await lotOfLine(kept, yerba.id);
+    await lotOfLine(removed, yerba.id);
+    await db
+      .update(purchaseLines)
+      .set({ removedAt: new Date("2026-10-06T12:00:00.000Z") })
+      .where(eq(purchaseLines.id, removed));
+
+    const [listed] = await new DrizzlePurchasingListReader(db).purchases(locationId);
+
+    expect(listed?.lines.map(({ id }) => id)).toEqual([kept]);
+  });
+
+  it("reads a line's lot from its own lot that was not withdrawn", async () => {
+    const yerba = await insertProduct(db, { name: "Yerba" });
+    const purchaseId = await storedPurchase();
+    const line = await lineOf(purchaseId, yerba.id, 1);
+    const withdrawn = await lotOfLine(line, yerba.id);
+    await db.update(lots).set({ withdrawn: true, remaining: 0 }).where(eq(lots.id, withdrawn));
+    const current = await lotOfLine(line, yerba.id);
+
+    const [listed] = await new DrizzlePurchasingListReader(db).purchases(locationId);
+
+    expect(listed?.lines).toHaveLength(1);
+    expect(listed?.lines[0]?.lotId).toBe(current);
   });
 });

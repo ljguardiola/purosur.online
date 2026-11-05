@@ -6,7 +6,7 @@ import {
 } from "@purosur/domain/purchasing/use-cases";
 import { asc, eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { auditLog, freightPurchases, freights } from "../platform/db/schema.js";
+import { auditLog, freightPurchases, freights, purchaseLines } from "../platform/db/schema.js";
 import { insertLocation } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
@@ -291,5 +291,21 @@ describe("editing a freight through a freight store", () => {
     expect(await db.select().from(freightPurchases)).toEqual([
       { freightId: freight.id, purchaseId: original.purchaseId },
     ]);
+  });
+});
+
+describe("DrizzleFreightStore.lockPurchasesForFreight removed lines", () => {
+  it("leaves out the lines that were removed from the purchase", async () => {
+    const purchase = await seedPurchase();
+    await db
+      .update(purchaseLines)
+      .set({ removedAt: NOW })
+      .where(eq(purchaseLines.id, purchase.lineIds[0] as string));
+
+    const found = await store().transaction((tx) =>
+      tx.lockPurchasesForFreight(locationId, [purchase.purchaseId]),
+    );
+
+    expect(found.map(({ lines }) => lines.map(({ id }) => id))).toEqual([[purchase.lineIds[1]]]);
   });
 });

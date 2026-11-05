@@ -1,4 +1,6 @@
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { purchaseLines } from "../platform/db/schema.js";
 import { insertLocation } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
@@ -255,5 +257,23 @@ describe("DrizzleFreightListReader.purchasesLinkedTo", () => {
     const freightId = await freight([foreign.purchaseId], { locationId: otherLocation });
 
     expect(await reader().purchasesLinkedTo(locationId, freightId)).toEqual([]);
+  });
+});
+
+describe("DrizzleFreightListReader removed lines", () => {
+  it("leaves out the lines that were removed from the purchases it answers", async () => {
+    const covered = await purchase({ lines: [line, { ...line, costPaidCents: 250 }] });
+    const freightId = await freight([covered.purchaseId]);
+    await db
+      .update(purchaseLines)
+      .set({ removedAt: new Date("2026-03-10T12:00:00.000Z") })
+      .where(eq(purchaseLines.id, covered.lineIds[1] as string));
+
+    const since = await reader().purchasesSince(locationId, "2026-01-01");
+    const linked = await reader().purchasesLinkedTo(locationId, freightId);
+
+    for (const listed of [since, linked]) {
+      expect(listed.map(({ lines }) => lines.map(({ id }) => id))).toEqual([[covered.lineIds[0]]]);
+    }
   });
 });

@@ -3,6 +3,7 @@ import {
   purchaseChangesSchema,
   purchaseSummarySchema,
 } from "@purosur/contracts";
+import { recordLoss, registerCount } from "@purosur/domain/stock/use-cases";
 import { asc, eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -18,6 +19,7 @@ import {
 } from "../platform/db/schema.js";
 import { registerPriceMarginRoute } from "../pricing/price-margin-route.js";
 import { DrizzleExpiringLotReader } from "../stock/drizzle-expiring-lot-reader.js";
+import { DrizzleStockStore } from "../stock/drizzle-stock-store.js";
 import {
   BACKOFFICE_ORIGIN,
   insertLocation,
@@ -1131,6 +1133,400 @@ describe("PATCH /purchases/:purchaseId/lines/:lineId/quantity", () => {
     expect(response.json()).toMatchObject({ code: "purchase_not_found" });
     const [lot] = await db.select().from(lots);
     expect(lot?.quantityReceived).toBe(10_000);
+  });
+});
+
+async function lossFromStock(actorId: string, productId: string) {
+  const [lot] = await db.select().from(lots).where(eq(lots.productId, productId));
+  const outcome = await recordLoss(
+    { store: new DrizzleStockStore(db), clock: { now: () => now } },
+    {
+      productId,
+      locationId: lot?.locationId as string,
+      reason: "spoiled",
+      quantity: 1_000,
+      actorId,
+    },
+  );
+  expect(outcome.kind).toBe("recorded");
+}
+
+async function countOf(actorId: string, productId: string, counted: number) {
+  const [lot] = await db.select().from(lots).where(eq(lots.productId, productId));
+  const outcome = await registerCount(
+    { store: new DrizzleStockStore(db), clock: { now: () => now } },
+    {
+      productId,
+      locationId: lot?.locationId as string,
+      counted,
+      occurredAt: CORRECTED_AT,
+      actorId,
+    },
+  );
+  expect(outcome.kind).toBe("recorded");
+}
+
+describe("PATCH /purchases/:purchaseId/lines/:lineId/product", () => {
+  async function purchaseOfTwoLines() {
+    const session = await buyer();
+    const yerba = await insertProduct(db, { name: "Yerba", brandName: "Piragüé" });
+    const harina = await insertProduct(db, { name: "Harina", saleUnit: "KG" });
+    const purchase = await registeredPurchase(session.headers, session.userId, [
+      quantityLine(yerba.productId, { quantity: 10_000, expiresOn: "2026-11-10" }),
+      quantityLine(yerba.productId, { quantity: 2_000 }),
+    ]);
+    return { ...session, yerba, harina, purchase };
+  }
+
+  function changeProduct(
+    headers: Record<string, string>,
+    purchase: z_PurchaseSummary,
+    payload: object,
+    lineId: string | undefined = purchase.lines[0]?.id,
+  ) {
+    return app.inject({
+      method: "PATCH",
+      url: `/purchases/${purchase.id}/lines/${lineId}/product`,
+      headers,
+      payload,
+    });
+  }
+
+  it("moves the line to the product, answering the purchase with the line on it", async () => {
+    const { headers, harina, purchase } = await purchaseOfTwoLines();
+
+    const response = await changeProduct(headers, purchase, { productId: harina.productId });
+
+    expect(response.statusCode).toBe(200);
+    const summary = purchaseSummarySchema.parse(response.json());
+    expect(summary.lines.map((line) => line.product.name)).toEqual(["Harina", "Yerba"]);
+    const [lot] = await db.select().from(lots).where(eq(lots.productId, harina.productId));
+    expect(lot).toMatchObject({ remaining: 10_000, expiresOn: "2026-11-10" });
+  });
+
+  it("lists the change among the purchase's changes with the products described", async () => {
+    const { headers, userId, yerba, harina, purchase } = await purchaseOfTwoLines();
+    await changeProduct(headers, purchase, { productId: harina.productId });
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/purchases/${purchase.id}/changes`,
+      headers,
+    });
+
+    expect(purchaseChangesSchema.parse(response.json())).toEqual([
+      {
+        id: expect.any(String),
+        actor: { id: userId, name: expect.any(String) },
+        correctedAt: CORRECTED_AT.toISOString(),
+        change: {
+          kind: "line_product",
+          lineId: purchase.lines[0]?.id,
+          previous: {
+            id: yerba.productId,
+            name: "Yerba",
+            brandName: "Piragüé",
+            netContent: null,
+            saleUnit: "UNIT",
+          },
+          next: {
+            id: harina.productId,
+            name: "Harina",
+            brandName: null,
+            netContent: null,
+            saleUnit: "KG",
+          },
+        },
+      },
+    ]);
+  });
+
+  it("answers 409 product_unchanged when the line already has that product", async () => {
+    const { headers, yerba, purchase } = await purchaseOfTwoLines();
+
+    const response = await changeProduct(headers, purchase, { productId: yerba.productId });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "product_unchanged" });
+  });
+
+  it("answers 404 product_not_found for a product that does not exist", async () => {
+    const { headers, purchase } = await purchaseOfTwoLines();
+
+    const response = await changeProduct(headers, purchase, { productId: MISSING_ID });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({
+      code: "product_not_found",
+      details: [{ field: "productId" }],
+    });
+  });
+
+  it("answers 409 product_inactive for a deactivated product", async () => {
+    const { headers, purchase } = await purchaseOfTwoLines();
+    const retired = await insertProduct(db, { name: "Retirado", active: false });
+
+    const response = await changeProduct(headers, purchase, { productId: retired.productId });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "product_inactive" });
+  });
+
+  it("answers 400 for a product the line's quantity may not be received in", async () => {
+    const session = await buyer();
+    const yerba = await insertProduct(db, { name: "Yerba" });
+    const harina = await insertProduct(db, { name: "Harina", saleUnit: "KG" });
+    const purchase = await registeredPurchase(session.headers, session.userId, [
+      quantityLine(harina.productId, { quantity: 1_500 }),
+    ]);
+
+    const response = await changeProduct(session.headers, purchase, {
+      productId: yerba.productId,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "productId" }],
+    });
+  });
+
+  it("answers 409 units_left_lot when some unit of the line left its lot, changing nothing", async () => {
+    const { headers, userId, yerba, harina, purchase } = await purchaseOfTwoLines();
+    await lossFromStock(userId, yerba.productId);
+
+    const response = await changeProduct(headers, purchase, { productId: harina.productId });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "units_left_lot" });
+    const [line] = await db.select().from(purchaseLines).orderBy(asc(purchaseLines.position));
+    expect(line?.productId).toBe(yerba.productId);
+  });
+
+  it.each([{}, { productId: "nope" }, { productId: 7 }])(
+    "answers 400 to the body %j",
+    async (payload) => {
+      const { headers, purchase } = await purchaseOfTwoLines();
+
+      const response = await changeProduct(headers, purchase, payload);
+
+      expect(response.statusCode).toBe(400);
+    },
+  );
+
+  it("returns 401 when no session cookie was sent", async () => {
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/purchases/${MISSING_ID}/lines/${MISSING_ID}/product`,
+      headers: { origin: BACKOFFICE_ORIGIN },
+      payload: { productId: MISSING_ID },
+    });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("refuses a user without the purchases permission before reading the purchase", async () => {
+    const { harina, purchase } = await purchaseOfTwoLines();
+    const { headers } = await signedInWith(db, ["sell_and_charge"], NOW);
+
+    const existing = await changeProduct(headers, purchase, { productId: harina.productId });
+    const missing = await app.inject({
+      method: "PATCH",
+      url: `/purchases/${MISSING_ID}/lines/${MISSING_ID}/product`,
+      headers,
+      payload: { productId: harina.productId },
+    });
+
+    expect(existing.statusCode).toBe(403);
+    expect(missing.statusCode).toBe(403);
+    const [line] = await db.select().from(purchaseLines).orderBy(asc(purchaseLines.position));
+    expect(line?.productId).not.toBe(harina.productId);
+  });
+
+  it("answers 404 for a line that is not of the purchase", async () => {
+    const { headers, harina, purchase } = await purchaseOfTwoLines();
+
+    const response = await changeProduct(
+      headers,
+      purchase,
+      { productId: harina.productId },
+      MISSING_ID,
+    );
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "line_not_found" });
+  });
+
+  it("answers 404 for a purchase of another branch, changing nothing", async () => {
+    const { harina, purchase } = await purchaseOfTwoLines();
+    const otherBranch = await signedInWith(db, ["record_purchases"], NOW, {
+      locationId: await insertLocation(db),
+    });
+
+    const response = await changeProduct(otherBranch.headers, purchase, {
+      productId: harina.productId,
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "purchase_not_found" });
+  });
+});
+
+describe("DELETE /purchases/:purchaseId/lines/:lineId", () => {
+  async function purchaseOfTwoLines() {
+    const session = await buyer();
+    const yerba = await insertProduct(db, { name: "Yerba", brandName: "Piragüé" });
+    const harina = await insertProduct(db, { name: "Harina", saleUnit: "KG" });
+    const purchase = await registeredPurchase(session.headers, session.userId, [
+      quantityLine(yerba.productId, { quantity: 10_000, expiresOn: "2026-11-10" }),
+      quantityLine(harina.productId, { quantity: 2_000 }),
+    ]);
+    return { ...session, yerba, harina, purchase };
+  }
+
+  function removeLine(
+    headers: Record<string, string>,
+    purchase: z_PurchaseSummary,
+    lineId: string | undefined = purchase.lines[0]?.id,
+  ) {
+    return app.inject({
+      method: "DELETE",
+      url: `/purchases/${purchase.id}/lines/${lineId}`,
+      headers,
+    });
+  }
+
+  it("removes the line, answering the purchase without it and taking its units out of stock", async () => {
+    const { headers, yerba, purchase } = await purchaseOfTwoLines();
+
+    const response = await removeLine(headers, purchase);
+
+    expect(response.statusCode).toBe(200);
+    const summary = purchaseSummarySchema.parse(response.json());
+    expect(summary.lines.map((line) => line.product.name)).toEqual(["Harina"]);
+    const [balance] = await db
+      .select()
+      .from(stockBalances)
+      .where(eq(stockBalances.productId, yerba.productId));
+    expect(balance?.quantity).toBe(0);
+  });
+
+  it("lists the removal among the purchase's changes with the product described", async () => {
+    const { headers, userId, yerba, purchase } = await purchaseOfTwoLines();
+    await removeLine(headers, purchase);
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/purchases/${purchase.id}/changes`,
+      headers,
+    });
+
+    expect(purchaseChangesSchema.parse(response.json())).toEqual([
+      {
+        id: expect.any(String),
+        actor: { id: userId, name: expect.any(String) },
+        correctedAt: CORRECTED_AT.toISOString(),
+        change: {
+          kind: "line_removed",
+          lineId: purchase.lines[0]?.id,
+          product: {
+            id: yerba.productId,
+            name: "Yerba",
+            brandName: "Piragüé",
+            netContent: null,
+            saleUnit: "UNIT",
+          },
+          quantity: 10_000,
+          packages: null,
+          costPaidCents: 900,
+          expiresOn: "2026-11-10",
+        },
+      },
+    ]);
+  });
+
+  it("answers 409 last_line for the only line of the purchase, changing nothing", async () => {
+    const session = await buyer();
+    const yerba = await insertProduct(db, { name: "Yerba" });
+    const purchase = await registeredPurchase(session.headers, session.userId, [
+      quantityLine(yerba.productId),
+    ]);
+
+    const response = await removeLine(session.headers, purchase);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "last_line" });
+    expect((await db.select().from(purchaseLines))[0]?.removedAt).toBeNull();
+  });
+
+  it("answers 409 counted_since_receipt when the product was counted after the line was received", async () => {
+    const { headers, userId, yerba, purchase } = await purchaseOfTwoLines();
+    await countOf(userId, yerba.productId, 10_000);
+
+    const response = await removeLine(headers, purchase);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "counted_since_receipt" });
+    expect((await db.select().from(purchaseLines))[0]?.removedAt).toBeNull();
+  });
+
+  it("answers 409 units_left_lot when some unit of the line left its lot, changing nothing", async () => {
+    const { headers, userId, yerba, purchase } = await purchaseOfTwoLines();
+    await lossFromStock(userId, yerba.productId);
+
+    const response = await removeLine(headers, purchase);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "units_left_lot" });
+    expect((await db.select().from(purchaseLines))[0]?.removedAt).toBeNull();
+  });
+
+  it("returns 401 when no session cookie was sent", async () => {
+    const response = await app.inject({
+      method: "DELETE",
+      url: `/purchases/${MISSING_ID}/lines/${MISSING_ID}`,
+      headers: { origin: BACKOFFICE_ORIGIN },
+    });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("refuses a user without the purchases permission before reading the purchase", async () => {
+    const { purchase } = await purchaseOfTwoLines();
+    const { headers } = await signedInWith(db, ["sell_and_charge"], NOW);
+
+    const existing = await removeLine(headers, purchase);
+    const missing = await app.inject({
+      method: "DELETE",
+      url: `/purchases/${MISSING_ID}/lines/${MISSING_ID}`,
+      headers,
+    });
+
+    expect(existing.statusCode).toBe(403);
+    expect(missing.statusCode).toBe(403);
+    expect((await db.select().from(purchaseLines))[0]?.removedAt).toBeNull();
+  });
+
+  it("answers 404 for a line that is not of the purchase", async () => {
+    const { headers, purchase } = await purchaseOfTwoLines();
+
+    const response = await removeLine(headers, purchase, MISSING_ID);
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "line_not_found" });
+  });
+
+  it("answers 404 for a purchase of another branch, changing nothing", async () => {
+    const { purchase } = await purchaseOfTwoLines();
+    const otherBranch = await signedInWith(db, ["record_purchases"], NOW, {
+      locationId: await insertLocation(db),
+    });
+
+    const response = await removeLine(otherBranch.headers, purchase);
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "purchase_not_found" });
+    expect((await db.select().from(purchaseLines))[0]?.removedAt).toBeNull();
   });
 });
 
