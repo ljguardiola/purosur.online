@@ -982,6 +982,26 @@ test("shows five placeholder squares in an actions column of five while loading 
   expect((lastCell.firstElementChild as HTMLElement).children).toHaveLength(5);
 });
 
+test("shows six placeholder squares in an actions column of six while loading is initial", async () => {
+  const none = (_p: Product) => undefined;
+  const actionColumns = [
+    dataColumn({ id: "name", header: "Producto", render: (p: Product) => p.name }),
+    actionsColumn({
+      id: "actions",
+      header: "Actions",
+      actions: [none, none, none, none, none, none],
+    }),
+  ] as const;
+  const screen = await render(
+    <TestTable {...commonProps} columns={actionColumns} loading="initial" />,
+  );
+
+  const lastCell = screen.container.querySelector(
+    'tbody[aria-hidden="true"] tr td:last-child',
+  ) as HTMLElement;
+  expect((lastCell.firstElementChild as HTMLElement).children).toHaveLength(6);
+});
+
 test("keeps focus on the action button when its own label changes with the item's state", async () => {
   type ToggleItem = { id: string; active: boolean };
   const toggleColumns = [
