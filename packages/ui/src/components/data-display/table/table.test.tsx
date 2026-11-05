@@ -1299,7 +1299,7 @@ test("hovers a sortable header to the soft surface, since it sits on the header 
     y: rect.top + rect.height / 2,
   });
 
-  expect(button.getAttribute("data-hovered")).toBe("true");
+  await expect.poll(() => button.getAttribute("data-hovered")).toBe("true");
   expect(getComputedStyle(button).backgroundColor).toBe(tokenRgb("surface-soft"));
 
   await expectNoAccessibilityViolations(screen.container);
