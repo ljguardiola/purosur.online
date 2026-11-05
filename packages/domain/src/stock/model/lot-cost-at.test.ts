@@ -43,6 +43,23 @@ describe("lotCostAt", () => {
     expect(lotCostAt(lot, new Date("2026-03-13T00:00:00Z"))).toEqual(CURRENT);
   });
 
+  it("answers the same cost whichever order the changes are given in", () => {
+    const changes = [
+      change("2026-03-10T12:00:00Z", ORIGINAL),
+      change("2026-03-12T12:00:00Z", MIDDLE),
+    ];
+
+    expect(
+      lotCostAt({ cost: CURRENT, costChanges: changes }, new Date("2026-03-09T00:00:00Z")),
+    ).toEqual(ORIGINAL);
+    expect(
+      lotCostAt(
+        { cost: CURRENT, costChanges: [...changes].reverse() },
+        new Date("2026-03-09T00:00:00Z"),
+      ),
+    ).toEqual(ORIGINAL);
+  });
+
   it("answers no cost for a lot without one that never changed", () => {
     expect(lotCostAt({ cost: null, costChanges: [] }, new Date("2026-03-01T12:00:00Z"))).toBeNull();
   });
