@@ -1,4 +1,5 @@
 import type { LotNameFacts, PurchasedLotNaming } from "../../model/lot-name.js";
+import type { LotCost } from "../../model/lot-value.js";
 import type { PurchasedLot, PurchasedLotStoreTransaction } from "../purchased-lot-store.js";
 import type { LockProductStockResult, ProductStockKey } from "../stock-store.js";
 
@@ -11,13 +12,22 @@ export interface FakePurchasedLot extends PurchasedLot {
   remaining: number;
 }
 
+export interface FakeLotCostChange {
+  lotId: string;
+  changedAt: Date;
+  previous: LotCost;
+}
+
 export class FakePurchasedLotTransaction implements PurchasedLotStoreTransaction {
   lots: FakePurchasedLot[];
+  costs: Map<string, LotCost>;
+  costChanges: FakeLotCostChange[] = [];
   missingProducts = new Set<string>();
   operations: string[] = [];
 
-  constructor(lots: FakePurchasedLot[]) {
+  constructor(lots: FakePurchasedLot[], costs: ReadonlyMap<string, LotCost> = new Map()) {
     this.lots = lots;
+    this.costs = new Map(costs);
   }
 
   async lockProductStock(key: ProductStockKey): Promise<LockProductStockResult> {
@@ -46,6 +56,21 @@ export class FakePurchasedLotTransaction implements PurchasedLotStoreTransaction
         lot.expiresOn = expiresOn;
       }
     }
+  }
+
+  async costOfLot(lotId: string): Promise<LotCost | null> {
+    this.operations.push("costOfLot");
+    return this.costs.get(lotId) ?? null;
+  }
+
+  async recordLotCostChange(change: FakeLotCostChange): Promise<void> {
+    this.operations.push("recordLotCostChange");
+    this.costChanges.push({ ...change, previous: { ...change.previous } });
+  }
+
+  async setLotCost(lotId: string, cost: LotCost): Promise<void> {
+    this.operations.push("setLotCost");
+    this.costs.set(lotId, { ...cost });
   }
 
   async namingOfPurchasedLots(
