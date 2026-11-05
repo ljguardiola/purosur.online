@@ -15,47 +15,35 @@ describe("purchaseLineQuantityCorrectionBodySchema", () => {
     expect(purchaseLineQuantityCorrectionBodySchema.safeParse(body).data).toEqual(body);
   });
 
-  it.each([
-    undefined,
-    null,
-    "2500",
-    0,
-    -1_000,
-    1.5,
-    MAX_STOCK_QUANTITY + 1,
-    Number.NaN,
-  ])("rejects the quantity %j", (quantity) => {
-    const result = purchaseLineQuantityCorrectionBodySchema.safeParse({
-      loadedBy: "quantity",
-      quantity,
-    });
+  it.each([undefined, null, "2500", 0, -1_000, 1.5, MAX_STOCK_QUANTITY + 1, Number.NaN])(
+    "rejects the quantity %j",
+    (quantity) => {
+      const result = purchaseLineQuantityCorrectionBodySchema.safeParse({
+        loadedBy: "quantity",
+        quantity,
+      });
 
-    expect(result.error?.issues[0]).toMatchObject({
-      path: ["quantity"],
-      message: "quantity must be a positive integer number of thousandths",
-    });
-  });
+      expect(result.error?.issues[0]).toMatchObject({
+        path: ["quantity"],
+        message: "quantity must be a positive integer number of thousandths",
+      });
+    },
+  );
 
-  it.each([
-    undefined,
-    null,
-    "2",
-    0,
-    -1,
-    1.5,
-    MAX_STOCK_QUANTITY + 1,
-    Number.NaN,
-  ])("rejects the packages %j", (packages) => {
-    const result = purchaseLineQuantityCorrectionBodySchema.safeParse({
-      loadedBy: "packages",
-      packages,
-    });
+  it.each([undefined, null, "2", 0, -1, 1.5, MAX_STOCK_QUANTITY + 1, Number.NaN])(
+    "rejects the packages %j",
+    (packages) => {
+      const result = purchaseLineQuantityCorrectionBodySchema.safeParse({
+        loadedBy: "packages",
+        packages,
+      });
 
-    expect(result.error?.issues[0]).toMatchObject({
-      path: ["packages"],
-      message: "packages must be a positive whole number",
-    });
-  });
+      expect(result.error?.issues[0]).toMatchObject({
+        path: ["packages"],
+        message: "packages must be a positive whole number",
+      });
+    },
+  );
 
   it.each([undefined, "", "other", "packaging"])("rejects the way of loading %j", (loadedBy) => {
     expect(

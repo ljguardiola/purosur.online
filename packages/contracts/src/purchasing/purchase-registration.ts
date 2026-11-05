@@ -39,13 +39,15 @@ const packagesLineSchema = z.object({
   ...packageCountFields,
 });
 
+export const lineQuantitySchema = z
+  .number({ error: QUANTITY_MESSAGE })
+  .refine(mayBeMovementQuantity, QUANTITY_MESSAGE)
+  .meta({ decimals: STOCK_QUANTITY_DECIMALS, perUnit: STOCK_QUANTITY_PER_UNIT });
+
 const quantityLineSchema = z.object({
   loadedBy: z.literal("quantity"),
   ...lineFields,
-  quantity: z
-    .number({ error: QUANTITY_MESSAGE })
-    .refine(mayBeMovementQuantity, QUANTITY_MESSAGE)
-    .meta({ decimals: STOCK_QUANTITY_DECIMALS, perUnit: STOCK_QUANTITY_PER_UNIT }),
+  quantity: lineQuantitySchema,
 });
 
 export const purchaseLineBodySchema = z.discriminatedUnion("loadedBy", [

@@ -491,6 +491,8 @@ export type { PurchaseLineExpiryCorrectionBody } from "./purchasing/purchase-lin
 export { purchaseLineExpiryCorrectionBodySchema } from "./purchasing/purchase-line-expiry-correction.js";
 export type { PurchaseLineExpirySplitBody } from "./purchasing/purchase-line-expiry-split.js";
 export { purchaseLineExpirySplitBodySchema } from "./purchasing/purchase-line-expiry-split.js";
+export type { PurchaseLineQuantityCorrectionBody } from "./purchasing/purchase-line-quantity-correction.js";
+export { purchaseLineQuantityCorrectionBodySchema } from "./purchasing/purchase-line-quantity-correction.js";
 export type { PurchaseLinesAdditionBody } from "./purchasing/purchase-lines-addition.js";
 export { purchaseLinesAdditionBodySchema } from "./purchasing/purchase-lines-addition.js";
 export type { PurchaseOrderBuildBody } from "./purchasing/purchase-order-build.js";
