@@ -42,6 +42,11 @@ export type {
   CorrectLotExpiryOutcome,
 } from "./correct-lot-expiry.js";
 export { correctLotExpiry } from "./correct-lot-expiry.js";
+export type {
+  CorrectPurchasedLotCostInput,
+  CorrectPurchasedLotCostOutcome,
+} from "./correct-purchased-lot-cost.js";
+export { correctPurchasedLotCost } from "./correct-purchased-lot-cost.js";
 export type { CurrentStockReader } from "./current-stock-reader.js";
 export type {
   DiscardExpiredLotInput,
@@ -103,6 +108,7 @@ export type {
 } from "./preview-assembly-batch.js";
 export { previewAssemblyBatch } from "./preview-assembly-batch.js";
 export type {
+  LotCostChangeRecord,
   PurchasedLot,
   PurchasedLotStoreTransaction,
 } from "./purchased-lot-store.js";

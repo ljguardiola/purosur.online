@@ -23,9 +23,13 @@ const COST_MESSAGE = "costPaidCents must be a whole number of cents, not negativ
 const RECEIPT_NUMBER_MESSAGE =
   "receiptNumber is required with a receipt and must be empty without one";
 
+export const costPaidCentsSchema = z
+  .number({ error: COST_MESSAGE })
+  .refine(isCostPaid, COST_MESSAGE);
+
 const lineFields = {
   productId: recordIdSchema("productId must be a product's id"),
-  costPaidCents: z.number({ error: COST_MESSAGE }).refine(isCostPaid, COST_MESSAGE),
+  costPaidCents: costPaidCentsSchema,
   expiresOn: optionalTextSchema(`expiresOn ${CALENDAR_DAY_MESSAGE}`, isCalendarDay),
 };
 

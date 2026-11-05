@@ -52,6 +52,12 @@ describe("purchaseChangesSchema", () => {
         correctedAt,
         change: { kind: "line_expiry", lineId: "line-1", previous: "2026-11-10", next: null },
       },
+      {
+        id: "c-4",
+        actor,
+        correctedAt,
+        change: { kind: "line_cost", lineId: "line-1", previous: 1_450_050, next: 1_200_000 },
+      },
     ];
 
     expect(purchaseChangesSchema.safeParse(changes).data).toEqual(changes);

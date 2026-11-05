@@ -4,6 +4,7 @@ import {
   type LockProductResult,
   type LockPurchaseResult,
   type LockSupplierResult,
+  type LotCostCorrection,
   type LotExpiryCorrection,
   type NewPurchaseFields,
   type NewPurchaseLineFields,
@@ -21,6 +22,7 @@ import {
 } from "@purosur/domain/purchasing/use-cases";
 import {
   correctLotExpiry,
+  correctPurchasedLotCost,
   type PurchaseReceipt,
   receivePurchasedStock,
   redatePurchasedLots,
@@ -218,7 +220,11 @@ export class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResul
 
   async purchaseLine(purchaseId: string, lineId: string): Promise<LockedPurchaseLine | undefined> {
     const [line] = await this.tx
-      .select({ id: purchaseLines.id, expiresOn: purchaseLines.expiresOn })
+      .select({
+        id: purchaseLines.id,
+        expiresOn: purchaseLines.expiresOn,
+        costPaidCents: purchaseLines.costPaidCents,
+      })
       .from(purchaseLines)
       .where(and(eq(purchaseLines.id, lineId), eq(purchaseLines.purchaseId, purchaseId)));
     return line;
@@ -239,6 +245,27 @@ export class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResul
 
   async updatePurchaseLineExpiry(lineId: string, expiresOn: string | null): Promise<void> {
     await this.tx.update(purchaseLines).set({ expiresOn }).where(eq(purchaseLines.id, lineId));
+  }
+
+  async updatePurchaseLineCost(lineId: string, costPaidCents: number): Promise<void> {
+    await this.tx.update(purchaseLines).set({ costPaidCents }).where(eq(purchaseLines.id, lineId));
+  }
+
+  async correctLotCost({
+    locationId,
+    purchaseLineId,
+    costPaidCents,
+    changedAt,
+  }: LotCostCorrection): Promise<void> {
+    const outcome = await correctPurchasedLotCost(this.stock, {
+      locationId,
+      purchaseLineId,
+      totalCents: costPaidCents,
+      changedAt,
+    });
+    if (outcome.kind === "not_found") {
+      throw new Error(`the lot of purchase line ${purchaseLineId} vanished`);
+    }
   }
 
   async correctLotExpiry(correction: LotExpiryCorrection): Promise<void> {

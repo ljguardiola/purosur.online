@@ -63,6 +63,11 @@ function expiryText(expiresOn: string | null): string {
   return expiresOn === null ? "Sin vencimiento" : formatDisplayDate(expiresOn);
 }
 
+function lineLabel(purchase: PurchaseSummary, lineId: string): string {
+  const product = lineOf(purchase, lineId)?.product;
+  return product ? formatProductDescription(product) : UNAVAILABLE_PRODUCT;
+}
+
 export function purchaseChangeRows(
   change: PurchaseChangeDetail,
   purchase: PurchaseSummary,
@@ -84,6 +89,13 @@ export function purchaseChangeRows(
             : UNAVAILABLE_PRODUCT,
         };
       });
+    case "line_cost":
+      return [
+        {
+          label: `Costo de ${lineLabel(purchase, change.lineId)}`,
+          value: transition(formatCents(change.previous), formatCents(change.next)),
+        },
+      ];
     case "line_expiry": {
       const product = lineOf(purchase, change.lineId)?.product;
       return [

@@ -5,6 +5,7 @@ import type {
   LoadedSupplierPrice,
   LockProductStockResult,
   LotAllocation,
+  LotCostChangeRecord,
   NewInitialCountLot,
   NewLot,
   NewStockCount,
@@ -22,6 +23,7 @@ import { and, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   lotAllocations,
+  lotCostChanges,
   lots,
   products,
   stockBalances,
@@ -44,6 +46,8 @@ function balanceOf(key: ProductStockKey) {
     eq(stockBalances.locationId, key.locationId),
   );
 }
+
+type LotCost = LotCostChangeRecord["previous"];
 
 export class DrizzleStockStoreTransaction<TQueryResult extends PgQueryResultHKT>
   implements StockStoreTransaction, PurchasedLotStoreTransaction
@@ -232,6 +236,32 @@ export class DrizzleStockStoreTransaction<TQueryResult extends PgQueryResultHKT>
 
   async setLotExpiry(lotId: string, expiresOn: string | null): Promise<void> {
     await this.tx.update(lots).set({ expiresOn }).where(eq(lots.id, lotId));
+  }
+
+  async costOfLot(lotId: string): Promise<LotCost | null> {
+    const [lot] = await this.tx
+      .select({ totalCents: lots.costTotalCents, quantity: lots.costQuantity })
+      .from(lots)
+      .where(eq(lots.id, lotId));
+    return lot?.totalCents == null || lot.quantity === null
+      ? null
+      : { totalCents: lot.totalCents, quantity: lot.quantity };
+  }
+
+  async recordLotCostChange({ lotId, changedAt, previous }: LotCostChangeRecord): Promise<void> {
+    await this.tx.insert(lotCostChanges).values({
+      lotId,
+      changedAt,
+      previousCostTotalCents: previous.totalCents,
+      previousCostQuantity: previous.quantity,
+    });
+  }
+
+  async setLotCost(lotId: string, cost: LotCost): Promise<void> {
+    await this.tx
+      .update(lots)
+      .set({ costTotalCents: cost.totalCents, costQuantity: cost.quantity })
+      .where(eq(lots.id, lotId));
   }
 
   async namingOfPurchasedLots(

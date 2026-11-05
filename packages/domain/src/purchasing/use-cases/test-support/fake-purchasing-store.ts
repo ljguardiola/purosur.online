@@ -4,6 +4,7 @@ import type { PurchaseReceipt } from "../../../stock/index.js";
 import type {
   LockedPurchaseLine,
   LockPurchaseResult,
+  LotCostCorrection,
   LotExpiryCorrection,
   PurchaseCorrection,
   PurchaseCorrectionStore,
@@ -50,7 +51,9 @@ export type FakePurchasingWrite =
   | "receiveStock"
   | "updatePurchaseHeader"
   | "updatePurchaseLineExpiry"
+  | "updatePurchaseLineCost"
   | "correctLotExpiry"
+  | "correctLotCost"
   | "redatePurchasedLots"
   | "recordPurchaseCorrection";
 
@@ -62,6 +65,7 @@ export interface FakePurchasingState {
   receipts: PurchaseReceipt[];
   priceReviewPostponements: PriceReviewPostponement[];
   lotExpiryCorrections: LotExpiryCorrection[];
+  lotCostCorrections: LotCostCorrection[];
   lotRedatings: PurchasedLotsRedating[];
   corrections: PurchaseCorrection[];
   nextId: number;
@@ -84,6 +88,10 @@ function cloneState(state: FakePurchasingState): FakePurchasingState {
       productIds: [...postponement.productIds],
     })),
     lotExpiryCorrections: state.lotExpiryCorrections.map((row) => ({ ...row })),
+    lotCostCorrections: state.lotCostCorrections.map((row) => ({
+      ...row,
+      changedAt: new Date(row.changedAt),
+    })),
     lotRedatings: state.lotRedatings.map((row) => ({
       ...row,
       purchaseLineIds: [...row.purchaseLineIds],
@@ -227,7 +235,7 @@ class FakePurchasingStoreTransaction
     const row = this.state.purchaseLines.find(
       (line) => line.id === lineId && line.purchaseId === purchaseId,
     );
-    return row && { id: row.id, expiresOn: row.expiresOn };
+    return row && { id: row.id, expiresOn: row.expiresOn, costPaidCents: row.costPaidCents };
   }
 
   async purchaseLineIds(purchaseId: string): Promise<string[]> {
@@ -253,6 +261,24 @@ class FakePurchasingStoreTransaction
         row.expiresOn = expiresOn;
       }
     }
+  }
+
+  async updatePurchaseLineCost(lineId: string, costPaidCents: number): Promise<void> {
+    this.beforeWrite("updatePurchaseLineCost");
+    for (const row of this.state.purchaseLines) {
+      if (row.id === lineId) {
+        row.costPaidCents = costPaidCents;
+      }
+    }
+  }
+
+  async correctLotCost(correction: LotCostCorrection): Promise<void> {
+    this.beforeWrite("correctLotCost");
+    this.store.lockLog.push("lot cost");
+    this.state.lotCostCorrections.push({
+      ...correction,
+      changedAt: new Date(correction.changedAt),
+    });
   }
 
   async correctLotExpiry(correction: LotExpiryCorrection): Promise<void> {
@@ -314,6 +340,7 @@ export class FakePurchasingStore implements PurchasingStore, PurchaseCorrectionS
     receipts: [],
     priceReviewPostponements: [],
     lotExpiryCorrections: [],
+    lotCostCorrections: [],
     lotRedatings: [],
     corrections: [],
     nextId: 1,

@@ -12,6 +12,7 @@ import {
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { useNavigate } from "@tanstack/react-router";
 import {
+  BadgeDollarSign,
   CalendarClock,
   Check,
   History,
@@ -30,6 +31,10 @@ import { type BackofficeAccess, canRecordPurchases } from "../shell/backoffice-a
 import { ScreenLayout } from "../shell/screen-layout";
 import { AddPurchaseLinesModal } from "./add-purchase-lines-modal";
 import { CorrectPurchaseHeaderModal } from "./correct-purchase-header-modal";
+import {
+  CorrectPurchaseLineCostModal,
+  type PurchaseLineCostTarget,
+} from "./correct-purchase-line-cost-modal";
 import {
   CorrectPurchaseLineExpiryModal,
   type PurchaseLineExpiryTarget,
@@ -56,7 +61,7 @@ type PurchaseRow =
 
 const NO_PURCHASES: PurchaseSummary[] = [];
 
-type Correction = "linesAdded" | "headerCorrected" | "expiryCorrected";
+type Correction = "linesAdded" | "headerCorrected" | "expiryCorrected" | "costCorrected";
 
 type CorrectionNotice = { correction: Correction; purchase: PurchaseSummary };
 
@@ -68,6 +73,11 @@ const CORRECTION_NOTICES = {
   headerCorrected: (purchase) => ({
     title: "Datos corregidos",
     description: `La compra de ${purchase.supplier.name} del ${formatDisplayDate(purchase.purchasedOn)}.`,
+  }),
+  costCorrected: () => ({
+    title: "Costo corregido",
+    description:
+      "El stock que queda de la compra usa el costo corregido; las ventas ya hechas conservan el suyo.",
   }),
   expiryCorrected: () => ({
     title: "Vencimiento corregido",
@@ -126,6 +136,7 @@ type RowActions = {
   addLines: (purchase: PurchaseSummary) => void;
   correctHeader: (purchase: PurchaseSummary) => void;
   correctExpiry: (target: PurchaseLineExpiryTarget) => void;
+  correctCost: (target: PurchaseLineCostTarget) => void;
 };
 
 function purchaseSubject(purchase: PurchaseSummary): string {
@@ -230,6 +241,16 @@ function columnsFor(
               }
             : undefined;
         },
+        (row: PurchaseRow) => {
+          const purchase = row.kind === "line" ? purchaseOf(row.parentId) : undefined;
+          return mayRecord && row.kind === "line" && purchase
+            ? {
+                icon: <BadgeDollarSign />,
+                "aria-label": `Corregir el costo de ${formatProductDescription(row.line.product)}`,
+                onPress: () => actions.correctCost({ purchase, line: row.line }),
+              }
+            : undefined;
+        },
       ],
     }),
   ] as const;
@@ -251,6 +272,7 @@ export function PurchasesListScreen({
   const [addTarget, setAddTarget] = useState<PurchaseSummary | null>(null);
   const [headerTarget, setHeaderTarget] = useState<PurchaseSummary | null>(null);
   const [expiryTarget, setExpiryTarget] = useState<PurchaseLineExpiryTarget | null>(null);
+  const [costTarget, setCostTarget] = useState<PurchaseLineCostTarget | null>(null);
   const [notice, setNotice] = useState<CorrectionNotice | null>(null);
 
   useEffect(() => {
@@ -259,6 +281,7 @@ export function PurchasesListScreen({
       setAddTarget(null);
       setHeaderTarget(null);
       setExpiryTarget(null);
+      setCostTarget(null);
     }
   }, [data.status]);
 
@@ -266,6 +289,7 @@ export function PurchasesListScreen({
     setAddTarget(null);
     setHeaderTarget(null);
     setExpiryTarget(null);
+    setCostTarget(null);
     setNotice({ correction, purchase });
     if (registered) {
       onNoticeDismissed();
@@ -287,6 +311,10 @@ export function PurchasesListScreen({
       correctExpiry: (target) => {
         setNotice(null);
         setExpiryTarget(target);
+      },
+      correctCost: (target) => {
+        setNotice(null);
+        setCostTarget(target);
       },
     },
     (parentId) => purchases.find((purchase) => purchase.id === parentId),
@@ -353,6 +381,13 @@ export function PurchasesListScreen({
             services={services}
             onSaved={(purchase) => corrected("headerCorrected", purchase)}
             onClose={() => setHeaderTarget(null)}
+            onSessionEnded={onSessionEnded}
+          />
+          <CorrectPurchaseLineCostModal
+            target={costTarget}
+            services={services}
+            onSaved={(purchase) => corrected("costCorrected", purchase)}
+            onClose={() => setCostTarget(null)}
             onSessionEnded={onSessionEnded}
           />
           <CorrectPurchaseLineExpiryModal

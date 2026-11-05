@@ -11,7 +11,25 @@ const lot = {
   technical: false,
   costIncomplete: false,
   cost: { totalCents: 5_000, quantity: 1_000 },
+  costChanges: [],
+  occurredAt: new Date("2026-03-01T12:00:00Z"),
+  saleOccurredAt: new Date("2026-03-01T12:00:00Z"),
 };
+
+const CORRECTED = { totalCents: 9_000, quantity: 1_000 };
+const ORIGINAL = { totalCents: 5_000, quantity: 1_000 };
+const BEFORE_CORRECTION = new Date("2026-03-05T12:00:00Z");
+const AFTER_CORRECTION = new Date("2026-03-15T12:00:00Z");
+const costChanges = [{ changedAt: new Date("2026-03-10T12:00:00Z"), previous: ORIGINAL }];
+
+function correctedLot(overrides: Partial<MarginAllocation> & { quantity: number }) {
+  return allocation({
+    cost: CORRECTED,
+    costChanges,
+    saleOccurredAt: BEFORE_CORRECTION,
+    ...overrides,
+  });
+}
 
 function allocation(overrides: Partial<MarginAllocation> & { quantity: number }): MarginAllocation {
   return { lotId: "lot-1", movementKind: "sale", ...lot, ...overrides };
@@ -173,6 +191,142 @@ describe("marginReport", () => {
     ]);
 
     expect(report.rows[0]).toMatchObject({ cost: 12_000, margin: -3_000, incompleteSales: 0 });
+  });
+
+  it("values a sale made before a cost correction at the cost the lot had and one made after at the corrected cost", () => {
+    const report = marginReport([
+      line({
+        amount: 20_000,
+        allocations: [
+          correctedLot({ quantity: -4_000, occurredAt: BEFORE_CORRECTION }),
+          correctedLot({ quantity: -6_000, occurredAt: AFTER_CORRECTION }),
+        ],
+      }),
+    ]);
+
+    expect(report.rows[0]).toMatchObject({ cost: 4 * 5_000 + 6 * 9_000, margin: 20_000 - 74_000 });
+  });
+
+  it("keeps the cost and margin of a sale made before a correction when the lot's cost is corrected", () => {
+    const sold = { amount: 8_000, quantity: -4_000, occurredAt: BEFORE_CORRECTION };
+    const beforeCorrection = marginReport([
+      line({ amount: sold.amount, allocations: [allocation({ quantity: sold.quantity })] }),
+    ]);
+
+    const afterCorrection = marginReport([
+      line({
+        amount: sold.amount,
+        allocations: [correctedLot({ quantity: sold.quantity, occurredAt: sold.occurredAt })],
+      }),
+    ]);
+
+    expect(afterCorrection).toEqual(beforeCorrection);
+  });
+
+  it("cancels a return made after a correction against its sale made before it, at the cost the sale had", () => {
+    const report = marginReport([
+      line({
+        amount: 0,
+        allocations: [
+          correctedLot({ quantity: -2_000, occurredAt: BEFORE_CORRECTION }),
+          correctedLot({ movementKind: "return", quantity: 2_000, occurredAt: AFTER_CORRECTION }),
+        ],
+      }),
+    ]);
+
+    expect(report.rows[0]).toMatchObject({ amount: 0, cost: 0, margin: 0, incompleteSales: 0 });
+  });
+
+  it("reverses part of a sale made before a correction at the old cost when it comes back after it", () => {
+    const report = marginReport([
+      line({
+        amount: 4_500,
+        allocations: [
+          correctedLot({ quantity: -2_000, occurredAt: BEFORE_CORRECTION }),
+          correctedLot({ movementKind: "return", quantity: 1_000, occurredAt: AFTER_CORRECTION }),
+        ],
+      }),
+    ]);
+
+    expect(report.rows[0]).toMatchObject({ cost: 5_000 });
+  });
+
+  it("keeps each cost of an exchange made after a correction of the lot its sale took from before it", () => {
+    const report = marginReport([
+      line({
+        allocations: [
+          correctedLot({ quantity: -1_000, occurredAt: BEFORE_CORRECTION }),
+          correctedLot({ movementKind: "return", quantity: 1_000, occurredAt: AFTER_CORRECTION }),
+          correctedLot({
+            movementKind: "exchange_out",
+            quantity: -1_000,
+            occurredAt: AFTER_CORRECTION,
+          }),
+        ],
+      }),
+    ]);
+
+    expect(report.rows[0]).toMatchObject({ cost: 9_000, incompleteSales: 0 });
+  });
+
+  it("keeps the old cost of a sale and the corrected cost of an exchange of the same lot apart", () => {
+    const report = marginReport([
+      line({
+        allocations: [
+          correctedLot({ quantity: -1_000, occurredAt: BEFORE_CORRECTION }),
+          correctedLot({
+            movementKind: "exchange_out",
+            quantity: -1_000,
+            occurredAt: AFTER_CORRECTION,
+          }),
+        ],
+      }),
+    ]);
+
+    expect(report.rows[0]).toMatchObject({ cost: 5_000 + 9_000 });
+  });
+
+  it("credits a return no more than its sale took at the cost the return is valued at", () => {
+    const report = marginReport([
+      line({
+        allocations: [
+          correctedLot({ quantity: -1_000, occurredAt: AFTER_CORRECTION }),
+          correctedLot({ movementKind: "return", quantity: 1_000, occurredAt: AFTER_CORRECTION }),
+        ],
+      }),
+    ]);
+
+    expect(report.rows[0]).toMatchObject({ cost: 9_000, incompleteSales: 1 });
+  });
+
+  it("values a return whose line has no sale movement at the instant it came back", () => {
+    const report = marginReport([
+      line({
+        allocations: [
+          correctedLot({ quantity: -1_000, occurredAt: AFTER_CORRECTION }),
+          correctedLot({
+            movementKind: "return",
+            quantity: 1_000,
+            occurredAt: AFTER_CORRECTION,
+            saleOccurredAt: null,
+          }),
+        ],
+      }),
+    ]);
+
+    expect(report.rows[0]).toMatchObject({ cost: 0, incompleteSales: 0 });
+  });
+
+  it("values a sale line whose lot cost is unknown at no cost however it was corrected", () => {
+    const report = marginReport([
+      line({
+        allocations: [
+          allocation({ quantity: -1_000, cost: null, costIncomplete: true, costChanges }),
+        ],
+      }),
+    ]);
+
+    expect(report.rows[0]).toMatchObject({ cost: 0, incompleteSales: 1 });
   });
 
   it("values a line whose sale took from no lot at no cost and flags the sale", () => {

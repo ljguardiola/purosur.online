@@ -96,6 +96,28 @@ describe("the last cost source", () => {
     expect(lastCostOf([low, high])).toBe(100);
   });
 
+  it("follows the corrected cost of the latest purchase line", () => {
+    const older = purchaseCosting(500, "line-1", "2026-03-01", "2026-03-01T10:00:00Z");
+
+    expect(
+      lastCostOf([older, purchaseCosting(900, "line-2", "2026-03-05", "2026-03-05T10:00:00Z")]),
+    ).toBe(900);
+    expect(
+      lastCostOf([older, purchaseCosting(700, "line-2", "2026-03-05", "2026-03-05T10:00:00Z")]),
+    ).toBe(700);
+  });
+
+  it("stays the cost of the latest purchase line when an older line's cost is corrected", () => {
+    const latest = purchaseCosting(900, "line-2", "2026-03-05", "2026-03-05T10:00:00Z");
+
+    expect(
+      lastCostOf([purchaseCosting(500, "line-1", "2026-03-01", "2026-03-01T10:00:00Z"), latest]),
+    ).toBe(900);
+    expect(
+      lastCostOf([purchaseCosting(300, "line-1", "2026-03-01", "2026-03-01T10:00:00Z"), latest]),
+    ).toBe(900);
+  });
+
   it("is an initial count more recent than the last purchase", () => {
     const bought = purchaseCosting(100, "a", "2026-03-01", "2026-03-01T10:00:00Z");
     const counted = initialCountCosting(200, "2026-03-05T15:00:00Z");

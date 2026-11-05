@@ -485,6 +485,8 @@ export type { PurchaseChoices } from "./purchasing/purchase-choices.js";
 export { purchaseChoicesSchema } from "./purchasing/purchase-choices.js";
 export type { PurchaseHeaderCorrectionBody } from "./purchasing/purchase-header-correction.js";
 export { purchaseHeaderCorrectionBodySchema } from "./purchasing/purchase-header-correction.js";
+export type { PurchaseLineCostCorrectionBody } from "./purchasing/purchase-line-cost-correction.js";
+export { purchaseLineCostCorrectionBodySchema } from "./purchasing/purchase-line-cost-correction.js";
 export type { PurchaseLineExpiryCorrectionBody } from "./purchasing/purchase-line-expiry-correction.js";
 export { purchaseLineExpiryCorrectionBodySchema } from "./purchasing/purchase-line-expiry-correction.js";
 export type { PurchaseLinesAdditionBody } from "./purchasing/purchase-lines-addition.js";

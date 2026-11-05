@@ -1,9 +1,14 @@
-import { purchaseChangesSchema, purchaseSummarySchema } from "@purosur/contracts";
+import {
+  priceMarginSchema,
+  purchaseChangesSchema,
+  purchaseSummarySchema,
+} from "@purosur/contracts";
 import { asc, eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   auditLog,
+  lotCostChanges,
   lots,
   purchaseLines,
   purchases,
@@ -11,6 +16,7 @@ import {
   stockMovements,
   suppliers,
 } from "../platform/db/schema.js";
+import { registerPriceMarginRoute } from "../pricing/price-margin-route.js";
 import { DrizzleExpiringLotReader } from "../stock/drizzle-expiring-lot-reader.js";
 import {
   BACKOFFICE_ORIGIN,
@@ -20,10 +26,12 @@ import {
 } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
+import { DrizzlePurchaseCostReader } from "./drizzle-purchase-cost-reader.js";
 import { registerPurchasesRoutes } from "./purchases-routes.js";
 
 const NOW = new Date("2026-10-05T15:00:00.000Z");
 const CORRECTED_AT = new Date("2026-10-05T15:10:00.000Z");
+const CORRECTED_LATER = new Date("2026-10-05T15:20:00.000Z");
 const MISSING_ID = "00000000-0000-4000-8000-000000000000";
 
 let testDatabase: TestDatabase;
@@ -44,12 +52,14 @@ beforeEach(async () => {
   await testDatabase.clear();
   now = NOW;
   app = Fastify();
-  registerPurchasesRoutes(app, {
+  const options = {
     zoneRules: fixedZoneRulesSource(),
     db,
     backofficeOrigin: BACKOFFICE_ORIGIN,
     now: () => now,
-  });
+  };
+  registerPurchasesRoutes(app, options);
+  registerPriceMarginRoute(app, options);
 });
 
 afterEach(async () => {
@@ -496,6 +506,204 @@ describe("PATCH /purchases/:purchaseId/lines/:lineId/expiry", () => {
     expect(response.json()).toMatchObject({ code: "purchase_not_found" });
     const [lot] = await db.select().from(lots);
     expect(lot?.expiresOn).toBe("2026-11-10");
+  });
+});
+
+describe("PATCH /purchases/:purchaseId/lines/:lineId/cost", () => {
+  async function purchaseOfOneLine(overrides: object = {}) {
+    const session = await buyer();
+    const yerba = await insertProduct(db, { name: "Yerba" });
+    const purchase = await registeredPurchase(session.headers, session.userId, [
+      quantityLine(yerba.productId, { quantity: 10_000, costPaidCents: 900, ...overrides }),
+    ]);
+    return { ...session, productId: yerba.productId, purchase };
+  }
+
+  function correctCost(
+    headers: Record<string, string>,
+    purchase: z_PurchaseSummary,
+    payload: object,
+    lineId: string | undefined = purchase.lines[0]?.id,
+  ) {
+    return app.inject({
+      method: "PATCH",
+      url: `/purchases/${purchase.id}/lines/${lineId}/cost`,
+      headers,
+      payload,
+    });
+  }
+
+  it("corrects the line's cost and its lot's, keeping the cost it had and what remains of the lot", async () => {
+    const { headers, purchase } = await purchaseOfOneLine({ expiresOn: "2026-11-10" });
+    await db.update(lots).set({ remaining: 6_000 });
+
+    const response = await correctCost(headers, purchase, { costPaidCents: 1_200 });
+
+    expect(response.statusCode).toBe(200);
+    expect(purchaseSummarySchema.parse(response.json()).lines[0]?.costPaidCents).toBe(1_200);
+    const [lot] = await db.select().from(lots);
+    expect(lot).toMatchObject({
+      costTotalCents: 1_200,
+      costQuantity: 1_000,
+      remaining: 6_000,
+      quantityReceived: 10_000,
+      expiresOn: "2026-11-10",
+    });
+    const [line] = await db.select().from(purchaseLines);
+    expect(line).toMatchObject({ quantity: 10_000, expiresOn: "2026-11-10" });
+    expect(await db.select().from(lotCostChanges)).toEqual([
+      {
+        id: expect.any(String),
+        lotId: lot?.id,
+        changedAt: CORRECTED_AT,
+        previousCostTotalCents: 900,
+        previousCostQuantity: 1_000,
+      },
+    ]);
+  });
+
+  it("makes the product's last cost the corrected cost when the line is its latest purchase", async () => {
+    const { headers, locationId, productId, purchase } = await purchaseOfOneLine();
+
+    await correctCost(headers, purchase, { costPaidCents: 1_200 });
+
+    expect(
+      await new DrizzlePurchaseCostReader(db).purchaseLineCostsOf(locationId, [productId]),
+    ).toEqual([expect.objectContaining({ cost: { totalCents: 1_200, quantity: 1_000 } })]);
+  });
+
+  it("keeps the product's last cost at its latest purchase when an older line's cost is corrected", async () => {
+    const { headers, productId, purchase: older } = await purchaseOfOneLine();
+    const latest = await app.inject({
+      method: "POST",
+      url: "/purchases",
+      headers,
+      payload: {
+        supplierId: older.supplier.id,
+        purchasedOn: "2026-10-04",
+        receiptType: "factura_b",
+        receiptNumber: "0001-00001235",
+        note: null,
+        lines: [quantityLine(productId, { costPaidCents: 1_500 })],
+      },
+    });
+    expect(latest.statusCode).toBe(201);
+    now = CORRECTED_LATER;
+
+    const correction = await correctCost(headers, older, { costPaidCents: 1_200 });
+    const margin = await app.inject({
+      method: "GET",
+      url: `/prices/${productId}/margin?unitPrice=2000`,
+      headers,
+    });
+
+    expect(correction.statusCode).toBe(200);
+    expect(priceMarginSchema.parse(margin.json()).costReference).toMatchObject({
+      lastCostCents: 1_500,
+    });
+  });
+
+  it("records who corrected the cost, when, and the previous and new cost, listed among the purchase's changes", async () => {
+    const { headers, userId, purchase } = await purchaseOfOneLine();
+
+    await correctCost(headers, purchase, { costPaidCents: 1_200 });
+
+    const audit = await db.select().from(auditLog).where(eq(auditLog.entity, "purchase"));
+    expect(audit).toHaveLength(1);
+    expect(audit[0]).toMatchObject({
+      entityId: purchase.id,
+      actorId: userId,
+      at: CORRECTED_AT,
+    });
+    const changes = await app.inject({
+      method: "GET",
+      url: `/purchases/${purchase.id}/changes`,
+      headers,
+    });
+    expect(purchaseChangesSchema.parse(changes.json())).toEqual([
+      {
+        id: expect.any(String),
+        actor: { id: userId, name: expect.any(String) },
+        correctedAt: CORRECTED_AT.toISOString(),
+        change: { kind: "line_cost", lineId: purchase.lines[0]?.id, previous: 900, next: 1_200 },
+      },
+    ]);
+  });
+
+  it("answers 409 cost_unchanged and records nothing when the line already has that cost", async () => {
+    const { headers, purchase } = await purchaseOfOneLine();
+
+    const response = await correctCost(headers, purchase, { costPaidCents: 900 });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "cost_unchanged" });
+    expect(await db.select().from(auditLog).where(eq(auditLog.entity, "purchase"))).toEqual([]);
+    expect(await db.select().from(lotCostChanges)).toEqual([]);
+  });
+
+  it.each([{ costPaidCents: -1 }, { costPaidCents: 1.5 }, { costPaidCents: "9" }, {}])(
+    "answers 400 for the body %j, changing nothing",
+    async (payload) => {
+      const { headers, purchase } = await purchaseOfOneLine();
+
+      const response = await correctCost(headers, purchase, payload);
+
+      expect(response.statusCode).toBe(400);
+      const [line] = await db.select().from(purchaseLines);
+      expect(line?.costPaidCents).toBe(900);
+    },
+  );
+
+  it("returns 401 when no session cookie was sent", async () => {
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/purchases/${MISSING_ID}/lines/${MISSING_ID}/cost`,
+      headers: { origin: BACKOFFICE_ORIGIN },
+      payload: { costPaidCents: 1 },
+    });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("refuses a user without the purchases permission before reading the purchase", async () => {
+    const { purchase } = await purchaseOfOneLine();
+    const { headers } = await signedInWith(db, ["sell_and_charge"], NOW);
+
+    const existing = await correctCost(headers, purchase, { costPaidCents: 1_200 });
+    const missing = await app.inject({
+      method: "PATCH",
+      url: `/purchases/${MISSING_ID}/lines/${MISSING_ID}/cost`,
+      headers,
+      payload: { costPaidCents: 1_200 },
+    });
+
+    expect(existing.statusCode).toBe(403);
+    expect(missing.statusCode).toBe(403);
+    const [line] = await db.select().from(purchaseLines);
+    expect(line?.costPaidCents).toBe(900);
+  });
+
+  it("answers 404 for a line that is not of the purchase", async () => {
+    const { headers, purchase } = await purchaseOfOneLine();
+
+    const response = await correctCost(headers, purchase, { costPaidCents: 1_200 }, MISSING_ID);
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "line_not_found" });
+  });
+
+  it("answers 404 for a purchase of another branch, changing nothing", async () => {
+    const { purchase } = await purchaseOfOneLine();
+    const otherBranch = await signedInWith(db, ["record_purchases"], NOW, {
+      locationId: await insertLocation(db),
+    });
+
+    const response = await correctCost(otherBranch.headers, purchase, { costPaidCents: 1_200 });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "purchase_not_found" });
+    const [lot] = await db.select().from(lots);
+    expect(lot?.costTotalCents).toBe(900);
   });
 });
 

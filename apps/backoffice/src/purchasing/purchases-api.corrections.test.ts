@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
   addPurchaseLines,
   correctPurchaseHeader,
+  correctPurchaseLineCost,
   correctPurchaseLineExpiry,
   fetchPurchaseChanges,
 } from "./purchases-api";
@@ -226,6 +227,88 @@ describe("correctPurchaseHeader", () => {
     vi.mocked(fetch).mockRejectedValue(new Error("network down"));
 
     expect(await correctPurchaseHeader(purchaseId, headerBody)).toEqual({ kind: "failed" });
+  });
+});
+
+describe("correctPurchaseLineCost", () => {
+  test("patches the line's cost and answers the purchase on 200", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, compraDeMiel));
+
+    expect(await correctPurchaseLineCost(purchaseId, lineId, { costPaidCents: 800_00 })).toEqual({
+      kind: "ok",
+      purchase: compraDeMiel,
+    });
+    expect(fetch).toHaveBeenCalledWith(`/api/purchases/${purchaseId}/lines/${lineId}/cost`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ costPaidCents: 800_00 }),
+    });
+  });
+
+  test("returns failed when the purchase does not have the expected shape", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { id: "x" }));
+
+    expect(await correctPurchaseLineCost(purchaseId, lineId, { costPaidCents: 1 })).toEqual({
+      kind: "failed",
+    });
+  });
+
+  test("returns validation_failed with the field the cloud refused", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse(400, { code: "validation_failed", details: [{ field: "costPaidCents" }] }),
+    );
+
+    expect(await correctPurchaseLineCost(purchaseId, lineId, { costPaidCents: -1 })).toEqual({
+      kind: "validation_failed",
+      field: "costPaidCents",
+    });
+  });
+
+  test("returns unchanged on a 409 cost_unchanged", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "cost_unchanged" }));
+
+    expect(await correctPurchaseLineCost(purchaseId, lineId, { costPaidCents: 1 })).toEqual({
+      kind: "unchanged",
+    });
+  });
+
+  test("returns failed on a 409 with another code", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "expiry_unchanged" }));
+
+    expect(await correctPurchaseLineCost(purchaseId, lineId, { costPaidCents: 1 })).toEqual({
+      kind: "failed",
+    });
+  });
+
+  test.each(["purchase_not_found", "line_not_found"])(
+    "returns not_found on a 404 %s",
+    async (code) => {
+      vi.mocked(fetch).mockResolvedValue(jsonResponse(404, { code }));
+
+      expect(await correctPurchaseLineCost(purchaseId, lineId, { costPaidCents: 1 })).toEqual({
+        kind: "not_found",
+      });
+    },
+  );
+
+  test("returns forbidden on a 403 and unauthenticated on a 401", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(403));
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(401));
+
+    expect(await correctPurchaseLineCost(purchaseId, lineId, { costPaidCents: 1 })).toEqual({
+      kind: "forbidden",
+    });
+    expect(await correctPurchaseLineCost(purchaseId, lineId, { costPaidCents: 1 })).toEqual({
+      kind: "unauthenticated",
+    });
+  });
+
+  test("returns failed when the request throws", async () => {
+    vi.mocked(fetch).mockRejectedValue(new Error("network down"));
+
+    expect(await correctPurchaseLineCost(purchaseId, lineId, { costPaidCents: 1 })).toEqual({
+      kind: "failed",
+    });
   });
 });
 
