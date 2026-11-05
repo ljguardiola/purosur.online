@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { assemblyBatches, purchaseOrders } from "../platform/db/schema.js";
+import { assemblyBatches, lots, purchaseOrders } from "../platform/db/schema.js";
 import { insertAssemblyBatch } from "../stock/test-support/assembly-batch-fixtures.js";
 import { insertInitialCountLot, insertPurchasedLot } from "../stock/test-support/lot-fixtures.js";
 import { insertLocation } from "../stock/test-support/stock-route-fixtures.js";
@@ -222,15 +222,39 @@ describe("the newest lots that count for the shelf life", () => {
     ]);
   });
 
-  it("breaks a tie on the creation moment by the greater lot id", async () => {
-    const yerba = await insertProduct(db, { name: "Yerba" });
-    const first = await purchased(yerba.id, "2026-09-01T12:00:00.000Z", "2026-09-20");
-    const second = await purchased(yerba.id, "2026-09-01T12:00:00.000Z", "2026-10-20");
+  it.each([
+    ["later", "ffffffff-ffff-4fff-bfff-ffffffffffff", "2027-01-15", "2026-11-10"],
+    ["sooner", "00000000-0000-4000-8000-000000000000", "2026-10-20", "2026-10-20"],
+  ])(
+    "takes the soonest expiry among the lots of a line split on the same creation moment, when the split units expire %s",
+    async (_when, splitLotId, splitExpiresOn, shelfLifeExpiresOn) => {
+      const yerba = await insertProduct(db, { name: "Yerba" });
+      const ownLotId = await purchased(yerba.id, "2026-09-01T12:00:00.000Z", "2026-11-10");
+      const [own] = await db.select().from(lots).where(eq(lots.id, ownLotId));
+      await db.insert(lots).values({
+        id: splitLotId,
+        productId: yerba.id,
+        locationId,
+        purchaseLineId: own?.purchaseLineId,
+        splitFromLotId: ownLotId,
+        purchasedOn: own?.purchasedOn,
+        expiresOn: splitExpiresOn,
+        costTotalCents: own?.costTotalCents,
+        costQuantity: own?.costQuantity,
+        quantityReceived: 1_000,
+        remaining: 1_000,
+        createdAt: own?.createdAt,
+      });
 
-    const [found] = await reader().newestShelfLifeLots(locationId);
-
-    expect(found?.expiresOn).toBe(first > second ? "2026-09-20" : "2026-10-20");
-  });
+      expect(await reader().newestShelfLifeLots(locationId)).toEqual([
+        {
+          productId: yerba.id,
+          createdAt: new Date("2026-09-01T12:00:00.000Z"),
+          expiresOn: shelfLifeExpiresOn,
+        },
+      ]);
+    },
+  );
 
   it("counts a lot that came from an assembly batch", async () => {
     const yerba = await insertProduct(db, { name: "Yerba" });

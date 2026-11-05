@@ -223,6 +223,8 @@ export type {
   LockPurchaseResult,
   LotCostCorrection,
   LotExpiryCorrection,
+  LotExpirySplit,
+  LotExpirySplitResult,
   PurchaseCorrection,
   PurchaseCorrectionChange,
   PurchaseCorrectionStore,
@@ -365,6 +367,12 @@ export type {
   SharePurchaseOrderPorts,
 } from "./share-purchase-order.js";
 export { sharePurchaseOrder } from "./share-purchase-order.js";
+export type {
+  SplitPurchaseLineExpiryInput,
+  SplitPurchaseLineExpiryOutcome,
+  SplitPurchaseLineExpiryPorts,
+} from "./split-purchase-line-expiry.js";
+export { splitPurchaseLineExpiry } from "./split-purchase-line-expiry.js";
 export type { StoreCatalogReading, StoreCatalogs } from "./store-catalogs.js";
 export type {
   ProposalProduct,

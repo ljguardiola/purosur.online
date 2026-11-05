@@ -1,3 +1,4 @@
+import type { LotCost } from "../model/lot-value.js";
 import type { PurchasedLotStoreTransaction } from "./purchased-lot-store.js";
 
 export interface CorrectPurchasedLotCostInput {
@@ -13,22 +14,29 @@ export async function correctPurchasedLotCost(
   tx: PurchasedLotStoreTransaction,
   input: CorrectPurchasedLotCostInput,
 ): Promise<CorrectPurchasedLotCostOutcome> {
-  const [lot] = await tx.lotsOfPurchaseLines(input.locationId, [input.purchaseLineId]);
-  if (!lot) {
+  const lots = await tx.lotsOfPurchaseLines(input.locationId, [input.purchaseLineId]);
+  const [first] = lots;
+  if (!first) {
     return { kind: "not_found" };
   }
   const locked = await tx.lockProductStock({
-    productId: lot.productId,
+    productId: first.productId,
     locationId: input.locationId,
   });
   if (locked.kind === "not_found") {
     return { kind: "not_found" };
   }
-  const previous = await tx.costOfLot(lot.lotId);
-  if (previous === null) {
-    return { kind: "not_found" };
+  const corrections: { lotId: string; previous: LotCost }[] = [];
+  for (const lot of lots) {
+    const previous = await tx.costOfLot(lot.lotId);
+    if (previous === null) {
+      return { kind: "not_found" };
+    }
+    corrections.push({ lotId: lot.lotId, previous });
   }
-  await tx.recordLotCostChange({ lotId: lot.lotId, changedAt: input.changedAt, previous });
-  await tx.setLotCost(lot.lotId, { totalCents: input.totalCents, quantity: previous.quantity });
+  for (const { lotId, previous } of corrections) {
+    await tx.recordLotCostChange({ lotId, changedAt: input.changedAt, previous });
+    await tx.setLotCost(lotId, { totalCents: input.totalCents, quantity: previous.quantity });
+  }
   return { kind: "corrected" };
 }

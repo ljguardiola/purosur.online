@@ -131,6 +131,7 @@ describe("DrizzlePurchasingListReader purchases", () => {
       costPaidCents: 24_000,
       quantityPerPackage: 12_000,
       lotId: yerbaLot,
+      remainingInLot: 1_000,
       expiresOn: "2027-03-01",
     });
     expect(listed[0]?.lines).toContainEqual({
@@ -141,6 +142,7 @@ describe("DrizzlePurchasingListReader purchases", () => {
       costPaidCents: 1_000,
       quantityPerPackage: 1_000,
       lotId: harinaLot,
+      remainingInLot: 1_000,
       expiresOn: null,
     });
   });

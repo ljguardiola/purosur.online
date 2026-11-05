@@ -109,8 +109,10 @@ export type {
 export { previewAssemblyBatch } from "./preview-assembly-batch.js";
 export type {
   LotCostChangeRecord,
+  NewSplitLot,
   PurchasedLot,
   PurchasedLotStoreTransaction,
+  SplittableLot,
 } from "./purchased-lot-store.js";
 export type {
   CurrentStockCategory,
@@ -213,6 +215,11 @@ export type {
   SetLotReferenceCostOutcome,
 } from "./set-lot-reference-cost.js";
 export { setLotReferenceCost } from "./set-lot-reference-cost.js";
+export type {
+  SplitPurchasedLotInput,
+  SplitPurchasedLotOutcome,
+} from "./split-purchased-lot.js";
+export { splitPurchasedLot } from "./split-purchased-lot.js";
 export type {
   LedgerAtMoment,
   LedgerLot,

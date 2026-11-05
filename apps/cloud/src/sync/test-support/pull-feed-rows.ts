@@ -1,4 +1,4 @@
-import { STOCK_MOVEMENT_KINDS, type StockMovementKind } from "@purosur/domain";
+import { REGISTER_STOCK_MOVEMENT_KINDS, type StockMovementKind } from "@purosur/domain";
 import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { recordAuthorizedCuit } from "@purosur/domain/fiscal/use-cases";
 import {
@@ -281,7 +281,7 @@ export async function insertInstallationWithAChangeOfEveryPulledEntity(
   );
   await completeARefund(db, installation, now, userId);
 
-  for (const kind of STOCK_MOVEMENT_KINDS) {
+  for (const kind of REGISTER_STOCK_MOVEMENT_KINDS) {
     await insertLoggedStockMovement(testDatabase, { kind, locationId, productId, actorId });
   }
   return installation;

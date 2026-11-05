@@ -1240,6 +1240,13 @@
       "when": 1793887205341,
       "tag": "0183_lot_cost_changes",
       "breakpoints": true
+    },
+    {
+      "idx": 184,
+      "version": "7",
+      "when": 1793896430816,
+      "tag": "0184_lot_splits",
+      "breakpoints": true
     }
   ]
 }

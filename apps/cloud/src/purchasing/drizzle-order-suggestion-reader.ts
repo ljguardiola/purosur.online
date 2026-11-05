@@ -14,7 +14,7 @@ import type {
   ProductCoverageDays,
   ProductStock,
 } from "@purosur/domain/purchasing/use-cases";
-import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   assemblyBatches,
@@ -128,7 +128,7 @@ export class DrizzleOrderSuggestionReader<TQueryResult extends PgQueryResultHKT>
       .from(lots)
       .leftJoin(assemblyBatches, eq(assemblyBatches.id, lots.assemblyBatchId))
       .where(and(eq(lots.locationId, locationId), isNotNull(lots.expiresOn)))
-      .orderBy(desc(lots.createdAt), desc(lots.id));
+      .orderBy(desc(lots.createdAt), asc(lots.expiresOn), desc(lots.id));
     const newest = new Map<string, NewestShelfLifeLot>();
     for (const row of rows) {
       const counted = {

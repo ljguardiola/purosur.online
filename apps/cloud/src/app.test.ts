@@ -1406,6 +1406,11 @@ describe("wiring the purchasing routes", () => {
         url: `/api/purchases/${ID}/lines/${ID}/expiry`,
         headers: ORIGIN,
       }),
+      app.inject({
+        method: "POST",
+        url: `/api/purchases/${ID}/lines/${ID}/expiry-splits`,
+        headers: ORIGIN,
+      }),
       app.inject({ method: "GET", url: `/api/purchases/${ID}/changes` }),
       app.inject({ method: "GET", url: "/api/purchase-choices" }),
       app.inject({ method: "GET", url: "/api/freights" }),
@@ -1489,7 +1494,7 @@ describe("wiring the purchasing routes", () => {
   it("does not register the purchasing routes when no purchasing option is given", async () => {
     const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
 
-    expect(await purchasingResponses(app)).toEqual(Array(47).fill(404));
+    expect(await purchasingResponses(app)).toEqual(Array(48).fill(404));
   });
 
   it("registers the purchasing routes when a purchasing option is given", async () => {
@@ -1503,7 +1508,7 @@ describe("wiring the purchasing routes", () => {
       },
     });
 
-    expect(await purchasingResponses(app)).toEqual(Array(47).fill(401));
+    expect(await purchasingResponses(app)).toEqual(Array(48).fill(401));
   });
 });
 
@@ -2867,6 +2872,11 @@ describe("the route access inventory", () => {
       {
         method: "PATCH",
         url: "/api/purchases/:purchaseId/lines/:lineId/expiry",
+        access: capabilityAccess("purchases"),
+      },
+      {
+        method: "POST",
+        url: "/api/purchases/:purchaseId/lines/:lineId/expiry-splits",
         access: capabilityAccess("purchases"),
       },
       {

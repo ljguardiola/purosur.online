@@ -1,9 +1,24 @@
+import type { SaleUnit } from "../../../catalog/index.js";
 import type { LotNameFacts, PurchasedLotNaming } from "../../model/lot-name.js";
 import type { LotCost } from "../../model/lot-value.js";
-import type { PurchasedLot, PurchasedLotStoreTransaction } from "../purchased-lot-store.js";
-import type { LockProductStockResult, ProductStockKey } from "../stock-store.js";
+import type {
+  NewSplitLot,
+  PurchasedLot,
+  PurchasedLotStoreTransaction,
+  SplittableLot,
+} from "../purchased-lot-store.js";
+import type {
+  LockProductStockResult,
+  LotAllocation,
+  NewStockMovement,
+  ProductStockKey,
+} from "../stock-store.js";
 
-export interface FakePurchasedLot extends PurchasedLot {
+export interface FakePurchasedLot extends Omit<PurchasedLot, "splitFromLotId"> {
+  splitFromLotId?: string | undefined;
+  createdAt?: Date | undefined;
+  costIncomplete?: boolean | undefined;
+  quantityReceived?: number | undefined;
   locationId: string;
   expiresOn: string | null;
   purchasedOn: string;
@@ -23,7 +38,10 @@ export class FakePurchasedLotTransaction implements PurchasedLotStoreTransaction
   costs: Map<string, LotCost>;
   costChanges: FakeLotCostChange[] = [];
   missingProducts = new Set<string>();
+  saleUnit: SaleUnit = "UNIT";
   operations: string[] = [];
+  movements: NewStockMovement[] = [];
+  allocations: LotAllocation[] = [];
 
   constructor(lots: FakePurchasedLot[], costs: ReadonlyMap<string, LotCost> = new Map()) {
     this.lots = lots;
@@ -34,7 +52,7 @@ export class FakePurchasedLotTransaction implements PurchasedLotStoreTransaction
     this.operations.push(`lockProductStock:${key.productId}`);
     return this.missingProducts.has(key.productId)
       ? { kind: "not_found" }
-      : { kind: "locked", saleUnit: "UNIT", balance: 0 };
+      : { kind: "locked", saleUnit: this.saleUnit, balance: 0 };
   }
 
   async lotsOfPurchaseLines(
@@ -46,7 +64,65 @@ export class FakePurchasedLotTransaction implements PurchasedLotStoreTransaction
       .filter(
         (lot) => lot.locationId === locationId && purchaseLineIds.includes(lot.purchaseLineId),
       )
-      .map(({ lotId, purchaseLineId, productId }) => ({ lotId, purchaseLineId, productId }));
+      .map(({ lotId, purchaseLineId, productId, splitFromLotId }) => ({
+        lotId,
+        purchaseLineId,
+        productId,
+        splitFromLotId: splitFromLotId ?? null,
+      }));
+  }
+
+  async splittableLot(lotId: string): Promise<SplittableLot | null> {
+    this.operations.push("splittableLot");
+    const lot = this.lots.find((candidate) => candidate.lotId === lotId);
+    return lot
+      ? {
+          remaining: lot.remaining,
+          purchasedOn: lot.purchasedOn,
+          createdAt: lot.createdAt ?? new Date(0),
+          costIncomplete: lot.costIncomplete ?? false,
+        }
+      : null;
+  }
+
+  async recordMovement(movement: NewStockMovement): Promise<string> {
+    this.operations.push(`recordMovement:${movement.kind}`);
+    this.movements.push({ ...movement });
+    return `movement-${this.movements.length}`;
+  }
+
+  async recordSplitLot(lot: NewSplitLot): Promise<string> {
+    this.operations.push("recordSplitLot");
+    const lotId = `lot-split-${this.lots.length + 1}`;
+    this.lots.push({
+      lotId,
+      purchaseLineId: lot.purchaseLineId,
+      productId: lot.productId,
+      locationId: lot.locationId,
+      splitFromLotId: lot.splitFromLotId,
+      expiresOn: lot.expiresOn,
+      purchasedOn: lot.purchasedOn,
+      createdAt: lot.createdAt,
+      costIncomplete: lot.costIncomplete,
+      quantityReceived: lot.quantityReceived,
+      nameOrder: Math.max(0, ...this.lots.map((candidate) => candidate.nameOrder)) + 1,
+      givenNumber: null,
+      remaining: 0,
+    });
+    if (lot.cost) {
+      this.costs.set(lotId, { ...lot.cost });
+    }
+    return lotId;
+  }
+
+  async allocateToLot(allocation: LotAllocation): Promise<void> {
+    this.operations.push("allocateToLot");
+    this.allocations.push({ ...allocation });
+    for (const lot of this.lots) {
+      if (lot.lotId === allocation.lotId) {
+        lot.remaining += allocation.quantity;
+      }
+    }
   }
 
   async setLotExpiry(lotId: string, expiresOn: string | null): Promise<void> {

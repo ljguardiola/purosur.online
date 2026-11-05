@@ -9,6 +9,7 @@ import {
   compraDeMielCorregida,
   headerCorrection,
   lineExpiryCorrection,
+  lineExpirySplitCorrection,
   linesAdded,
 } from "./test-support/purchase-changes";
 import { compraDeAvena } from "./test-support/purchases";
@@ -211,6 +212,16 @@ test("shows a corrected expiry with the product of its line", async () => {
 
   await expect.element(dialog.getByText("Vencimiento de Miel pura de abeja 1 kg")).toBeVisible();
   await expect.element(dialog.getByText("31/01/2027 → Sin vencimiento")).toBeVisible();
+});
+
+test("shows an expiry split with the units moved and the product of its line", async () => {
+  const screen = await renderModal({ services: createServices([lineExpirySplitCorrection]) });
+  const dialog = screen.getByRole("dialog");
+
+  await expect
+    .element(dialog.getByText("Vencimiento de 1 u de Miel pura de abeja 1 kg"))
+    .toBeVisible();
+  await expect.element(dialog.getByText("31/01/2027 → 10/11/2027")).toBeVisible();
 });
 
 test("close hands the closing over", async () => {

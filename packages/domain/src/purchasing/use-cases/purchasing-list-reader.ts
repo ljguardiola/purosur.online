@@ -10,7 +10,9 @@ export interface PurchaseLineListing {
   quantity: number;
   costPaidCents: number;
   quantityPerPackage: number;
+  // The lot the line created; the units split from it into lots of their own are not in it.
   lotId: string;
+  remainingInLot: number;
   expiresOn: string | null;
 }
 

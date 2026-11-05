@@ -37,6 +37,13 @@ const lineExpirySchema = z.object({
   expiresOn: z.string().nullable(),
 });
 
+const lineExpirySplitSchema = z.object({
+  kind: z.literal("line_expiry_split"),
+  lineId: z.string(),
+  quantity: z.int(),
+  expiresOn: z.string().nullable(),
+});
+
 const lineCostSchema = z.object({
   kind: z.literal("line_cost"),
   lineId: z.string(),
@@ -67,6 +74,21 @@ export function auditValuesOf(change: PurchaseCorrectionChange): AuditValues {
       return {
         previousValue: { kind: "line_expiry", lineId: change.lineId, expiresOn: change.previous },
         newValue: { kind: "line_expiry", lineId: change.lineId, expiresOn: change.next },
+      };
+    case "line_expiry_split":
+      return {
+        previousValue: {
+          kind: "line_expiry_split",
+          lineId: change.lineId,
+          quantity: change.quantity,
+          expiresOn: change.previous,
+        },
+        newValue: {
+          kind: "line_expiry_split",
+          lineId: change.lineId,
+          quantity: change.quantity,
+          expiresOn: change.next,
+        },
       };
     case "line_cost":
       return {
@@ -103,6 +125,16 @@ export function changeOfAuditValues(
       lineId: cost.data.lineId,
       previous: lineCostSchema.parse(previousValue).costPaidCents,
       next: cost.data.costPaidCents,
+    };
+  }
+  const split = lineExpirySplitSchema.safeParse(newValue);
+  if (split.success) {
+    return {
+      kind: "line_expiry_split",
+      lineId: split.data.lineId,
+      quantity: split.data.quantity,
+      previous: lineExpirySplitSchema.parse(previousValue).expiresOn,
+      next: split.data.expiresOn,
     };
   }
   const next = lineExpirySchema.parse(newValue);

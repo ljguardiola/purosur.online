@@ -6,6 +6,7 @@ import {
   LINEA_DE_MIEL_ID,
   lineCostCorrection,
   lineExpiryCorrection,
+  lineExpirySplitCorrection,
   linesAdded,
 } from "./test-support/purchase-changes";
 
@@ -66,6 +67,47 @@ describe("purchaseChangeRows of an expiry correction", () => {
       ),
     ).toEqual([
       { label: "Vencimiento de Miel pura de abeja 1 kg", value: "Sin vencimiento → 10/11/2027" },
+    ]);
+  });
+});
+
+describe("purchaseChangeRows of an expiry split", () => {
+  it("names the units moved and the product with the previous and the new expiry date", () => {
+    expect(purchaseChangeRows(lineExpirySplitCorrection.change, compraDeMielCorregida)).toEqual([
+      {
+        label: "Vencimiento de 1 u de Miel pura de abeja 1 kg",
+        value: "31/01/2027 → 10/11/2027",
+      },
+    ]);
+  });
+
+  it("writes the quantity of a product sold by weight in kilos", () => {
+    const line = compraDeMielCorregida.lines[1];
+    expect(
+      line &&
+        purchaseChangeRows(
+          {
+            kind: "line_expiry_split",
+            lineId: line.id,
+            quantity: 2_500,
+            previous: null,
+            next: "2027-11-10",
+          },
+          compraDeMielCorregida,
+        ),
+    ).toEqual([
+      {
+        label: "Vencimiento de 2,500 kg de Avena arrollada",
+        value: "Sin vencimiento → 10/11/2027",
+      },
+    ]);
+  });
+
+  it("writes a line the purchase no longer shows as not available", () => {
+    expect(
+      purchaseChangeRows(lineExpirySplitCorrection.change, { ...compraDeMielCorregida, lines: [] }),
+    ).toEqual([
+      { label: "Vencimiento de Producto no disponible", value: "31/01/2027 → 10/11/2027" },
     ]);
   });
 });

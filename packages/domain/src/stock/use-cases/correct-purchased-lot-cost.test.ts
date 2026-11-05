@@ -85,6 +85,45 @@ describe("correctPurchasedLotCost", () => {
     ]);
   });
 
+  it("corrects every lot of the line, each with its own record of the cost it had", async () => {
+    const tx = new FakePurchasedLotTransaction(
+      [
+        lot(),
+        lot({ lotId: "lot-2", splitFromLotId: "lot-1", remaining: 2 }),
+        lot({ lotId: "lot-3", purchaseLineId: "line-2" }),
+      ],
+      new Map([
+        ["lot-1", { totalCents: 5_000, quantity: 1_000 }],
+        ["lot-2", { totalCents: 5_000, quantity: 2_000 }],
+        ["lot-3", { totalCents: 300, quantity: 1_000 }],
+      ]),
+    );
+
+    const outcome = await correctPurchasedLotCost(tx, input());
+
+    expect(outcome).toEqual({ kind: "corrected" });
+    expect(tx.costs.get("lot-1")).toEqual({ totalCents: 9_000, quantity: 1_000 });
+    expect(tx.costs.get("lot-2")).toEqual({ totalCents: 9_000, quantity: 2_000 });
+    expect(tx.costs.get("lot-3")).toEqual({ totalCents: 300, quantity: 1_000 });
+    expect(tx.costChanges).toEqual([
+      { lotId: "lot-1", changedAt: CHANGED_AT, previous: { totalCents: 5_000, quantity: 1_000 } },
+      { lotId: "lot-2", changedAt: CHANGED_AT, previous: { totalCents: 5_000, quantity: 2_000 } },
+    ]);
+  });
+
+  it("changes nothing when one of the line's lots has no cost to correct", async () => {
+    const tx = new FakePurchasedLotTransaction(
+      [lot(), lot({ lotId: "lot-2", splitFromLotId: "lot-1" })],
+      new Map([["lot-1", { totalCents: 5_000, quantity: 1_000 }]]),
+    );
+
+    const outcome = await correctPurchasedLotCost(tx, input());
+
+    expect(outcome).toEqual({ kind: "not_found" });
+    expect(tx.costChanges).toEqual([]);
+    expect(tx.costs.get("lot-1")).toEqual({ totalCents: 5_000, quantity: 1_000 });
+  });
+
   it("answers not found, changing nothing, when no lot of the branch came from the purchase line", async () => {
     const tx = transaction([lot({ locationId: "branch-2" })]);
 

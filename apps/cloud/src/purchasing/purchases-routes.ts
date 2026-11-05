@@ -4,6 +4,7 @@ import {
   purchaseHeaderCorrectionBodySchema,
   purchaseLineCostCorrectionBodySchema,
   purchaseLineExpiryCorrectionBodySchema,
+  purchaseLineExpirySplitBodySchema,
   purchaseLinesAdditionBodySchema,
   purchaseListSchema,
   purchaseRegistrationBodySchema,
@@ -21,6 +22,7 @@ import {
   listPurchaseChoices,
   listPurchases,
   registerPurchase,
+  splitPurchaseLineExpiry,
 } from "@purosur/domain/purchasing/use-cases";
 import { formatLotName } from "@purosur/formatting";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -221,6 +223,54 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
     }
     await sendPurchase(reply, 200, ids.purchaseId);
   });
+
+  app.post(
+    "/purchases/:purchaseId/lines/:lineId/expiry-splits",
+    writeGuard,
+    async (request, reply) => {
+      const ids = await readRecordIds(reply, request.params, ["purchaseId", "lineId"]);
+      if (!ids) {
+        return;
+      }
+      const body = await readValidatedBody(reply, purchaseLineExpirySplitBodySchema, request.body);
+      if (!body) {
+        return;
+      }
+      const openSession = openSessionOf(request);
+
+      const outcome = await splitPurchaseLineExpiry(ports, {
+        ...ids,
+        ...body,
+        locationId: openSession.locationId,
+        actorId: openSession.userId,
+      });
+
+      if (outcome.kind === "purchase_not_found" || outcome.kind === "line_not_found") {
+        await sendNotFound(reply, outcome.kind);
+        return;
+      }
+      if (outcome.kind === "unchanged") {
+        await sendUnchanged(reply, "expiry_unchanged");
+        return;
+      }
+      if (outcome.kind === "invalid_quantity") {
+        await reply.code(400).send({
+          code: "validation_failed",
+          message: "a product sold by the unit moves in whole units",
+          details: [{ field: "quantity" }],
+        });
+        return;
+      }
+      if (outcome.kind === "not_enough_in_lot") {
+        await reply.code(409).send({
+          code: "not_enough_in_lot",
+          message: "the line's lot has no more units than the ones to split",
+        });
+        return;
+      }
+      await sendPurchase(reply, 200, ids.purchaseId);
+    },
+  );
 
   app.patch("/purchases/:purchaseId/lines/:lineId/cost", writeGuard, async (request, reply) => {
     const ids = await readRecordIds(reply, request.params, ["purchaseId", "lineId"]);

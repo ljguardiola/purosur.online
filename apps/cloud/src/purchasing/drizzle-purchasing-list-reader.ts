@@ -11,7 +11,7 @@ import type {
   Supplier,
 } from "@purosur/domain/purchasing/use-cases";
 import type { LotNameFacts } from "@purosur/domain/stock/use-cases";
-import { asc, desc, eq, inArray, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, type SQL } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { netContentRow } from "../catalog/net-content-row.js";
 import {
@@ -97,11 +97,12 @@ export class DrizzlePurchasingListReader<TQueryResult extends PgQueryResultHKT>
         costPaidCents: purchaseLines.costPaidCents,
         quantityPerPackage: purchaseLines.quantityPerPackage,
         lotId: lots.id,
+        remainingInLot: lots.remaining,
         expiresOn: purchaseLines.expiresOn,
       })
       .from(purchaseLines)
       .innerJoin(products, eq(products.id, purchaseLines.productId))
-      .innerJoin(lots, eq(lots.purchaseLineId, purchaseLines.id))
+      .innerJoin(lots, and(eq(lots.purchaseLineId, purchaseLines.id), isNull(lots.splitFromLotId)))
       .leftJoin(brands, eq(brands.id, products.brandId))
       .where(
         inArray(
@@ -130,6 +131,7 @@ export class DrizzlePurchasingListReader<TQueryResult extends PgQueryResultHKT>
         costPaidCents: row.costPaidCents,
         quantityPerPackage: row.quantityPerPackage,
         lotId: row.lotId,
+        remainingInLot: row.remainingInLot,
         expiresOn: row.expiresOn,
       });
       linesOf.set(purchaseId, lines);

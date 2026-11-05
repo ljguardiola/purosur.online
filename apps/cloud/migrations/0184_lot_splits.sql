@@ -1,0 +1,9 @@
+ALTER TABLE "lots" DROP CONSTRAINT "lots_purchase_line_id_key";--> statement-breakpoint
+ALTER TABLE "stock_movements" DROP CONSTRAINT "stock_movements_kind_check";--> statement-breakpoint
+ALTER TABLE "stock_movements" DROP CONSTRAINT "stock_movements_reason_unless_count_sale_or_receipt_check";--> statement-breakpoint
+ALTER TABLE "lots" ADD COLUMN "split_from_lot_id" uuid;--> statement-breakpoint
+ALTER TABLE "lots" ADD CONSTRAINT "lots_split_from_lot_id_lots_id_fk" FOREIGN KEY ("split_from_lot_id") REFERENCES "public"."lots"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "lots_one_own_lot_per_purchase_line" ON "lots" USING btree ("purchase_line_id") WHERE "lots"."split_from_lot_id" is null;--> statement-breakpoint
+ALTER TABLE "lots" ADD CONSTRAINT "lots_split_only_of_purchase_line_check" CHECK ("lots"."split_from_lot_id" is null or "lots"."purchase_line_id" is not null);--> statement-breakpoint
+ALTER TABLE "stock_movements" ADD CONSTRAINT "stock_movements_kind_check" CHECK ("stock_movements"."kind" in ('loss', 'adjustment', 'count', 'sale', 'sale_void', 'return', 'exchange_out', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in', 'assembly_void', 'lot_split'));--> statement-breakpoint
+ALTER TABLE "stock_movements" ADD CONSTRAINT "stock_movements_reason_unless_count_sale_or_receipt_check" CHECK (("stock_movements"."kind" in ('count', 'sale', 'sale_void', 'return', 'exchange_out', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in', 'assembly_void', 'lot_split')) = ("stock_movements"."reason" is null));

@@ -607,11 +607,11 @@ export const stockMovements = pgTable(
   (table) => [
     check(
       "stock_movements_kind_check",
-      sql`${table.kind} in ('loss', 'adjustment', 'count', 'sale', 'sale_void', 'return', 'exchange_out', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in', 'assembly_void')`,
+      sql`${table.kind} in ('loss', 'adjustment', 'count', 'sale', 'sale_void', 'return', 'exchange_out', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in', 'assembly_void', 'lot_split')`,
     ),
     check(
       "stock_movements_reason_unless_count_sale_or_receipt_check",
-      sql`(${table.kind} in ('count', 'sale', 'sale_void', 'return', 'exchange_out', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in', 'assembly_void')) = (${table.reason} is null)`,
+      sql`(${table.kind} in ('count', 'sale', 'sale_void', 'return', 'exchange_out', 'receipt', 'opening_count', 'opening_count_withdrawal', 'assembly_out', 'assembly_in', 'assembly_void', 'lot_split')) = (${table.reason} is null)`,
     ),
     check(
       "stock_movements_sale_line_iff_sale_check",
@@ -935,7 +935,9 @@ export const lotNameOrderSequence = pgSequence("lot_name_order_sequence", {
   increment: 1,
 });
 
-// The stock a purchase line brought in, with the line's exact cost pair; a product's technical lot
+// The stock a purchase line brought in, with the line's exact cost pair (a purchase line has one own
+// lot, and the units later split from it into lots of their own, with another expiry date, point to
+// it); a product's technical lot
 // instead gathers what was consumed before any purchase, with no cost, and an initial-count lot is
 // the stock counted when the branch began, born from its opening count movement with no cost, and a
 // batch's lot is the output of an assembled batch with the cost of what was consumed to make it.
@@ -952,6 +954,7 @@ export const lots = pgTable(
     purchaseLineId: uuid("purchase_line_id").references(() => purchaseLines.id),
     originMovementId: uuid("origin_movement_id").references(() => stockMovements.id),
     assemblyBatchId: uuid("assembly_batch_id").references(() => assemblyBatches.id),
+    splitFromLotId: uuid("split_from_lot_id").references((): AnyPgColumn => lots.id),
     withdrawn: boolean("withdrawn").notNull().default(false),
     lotNumber: text("lot_number"),
     code: bigint("code", { mode: "number" }).notNull().default(sql`nextval('lot_code_sequence')`),
@@ -971,7 +974,13 @@ export const lots = pgTable(
   },
   (table) => [
     unique("lots_code_key").on(table.code),
-    unique("lots_purchase_line_id_key").on(table.purchaseLineId),
+    uniqueIndex("lots_one_own_lot_per_purchase_line")
+      .on(table.purchaseLineId)
+      .where(sql`${table.splitFromLotId} is null`),
+    check(
+      "lots_split_only_of_purchase_line_check",
+      sql`${table.splitFromLotId} is null or ${table.purchaseLineId} is not null`,
+    ),
     unique("lots_origin_movement_id_key").on(table.originMovementId),
     unique("lots_assembly_batch_id_key").on(table.assemblyBatchId),
     check("lots_cost_quantity_check", sql`${table.costQuantity} > 0`),

@@ -27,7 +27,7 @@ describe("purchaseChangesSchema", () => {
     expect(purchaseChangesSchema.safeParse(changes).data).toEqual(changes);
   });
 
-  it("accepts added lines and a line's expiry change", () => {
+  it("accepts added lines and a line's expiry, part-of-line expiry and cost changes", () => {
     const changes = [
       {
         id: "c-2",
@@ -51,6 +51,18 @@ describe("purchaseChangesSchema", () => {
         actor,
         correctedAt,
         change: { kind: "line_expiry", lineId: "line-1", previous: "2026-11-10", next: null },
+      },
+      {
+        id: "c-5",
+        actor,
+        correctedAt,
+        change: {
+          kind: "line_expiry_split",
+          lineId: "line-1",
+          quantity: 1_000,
+          previous: "2026-11-10",
+          next: null,
+        },
       },
       {
         id: "c-4",

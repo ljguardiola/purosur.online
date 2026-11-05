@@ -2,7 +2,7 @@ import {
   type FieldChangeReader,
   fieldChangeReaders,
 } from "@purosur/contracts/sync/test-support/field-change-readers";
-import { PULLED_ENTITIES, pullAudienceOf, STOCK_MOVEMENT_KINDS } from "@purosur/domain";
+import { PULLED_ENTITIES, pullAudienceOf, REGISTER_STOCK_MOVEMENT_KINDS } from "@purosur/domain";
 import type { FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { deviceState } from "../platform/db/schema.js";
@@ -66,8 +66,10 @@ describe("what the cloud keeps from a register in the field", () => {
       const heldBack =
         reach.kind === "rows_of_branch_except_stock_movement_kinds" ? reach.kinds : [];
 
-      expect([...STOCK_MOVEMENT_KINDS].filter((kind) => !heldBack.includes(kind))).toEqual(
-        STOCK_MOVEMENT_KINDS.filter((kind) => reader.readableStockMovementKinds.includes(kind)),
+      expect([...REGISTER_STOCK_MOVEMENT_KINDS].filter((kind) => !heldBack.includes(kind))).toEqual(
+        REGISTER_STOCK_MOVEMENT_KINDS.filter((kind) =>
+          reader.readableStockMovementKinds.includes(kind),
+        ),
       );
     },
   );
@@ -146,12 +148,12 @@ describe("GET /changes read by the register releases in the field", () => {
         .filter(({ entity }) => entity === "stock_movement")
         .map(({ row }) => row?.kind);
       expect(receivedKinds.sort()).toEqual(
-        [...STOCK_MOVEMENT_KINDS]
+        [...REGISTER_STOCK_MOVEMENT_KINDS]
           .filter((kind) => reader.readableStockMovementKinds.includes(kind))
           .sort(),
       );
       expect(receivedKinds.sort()).toEqual(
-        [...STOCK_MOVEMENT_KINDS]
+        [...REGISTER_STOCK_MOVEMENT_KINDS]
           .filter((kind) => !(cannotRead.kinds as readonly string[]).includes(kind))
           .sort(),
       );

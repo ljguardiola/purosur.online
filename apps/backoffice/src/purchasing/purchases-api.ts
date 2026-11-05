@@ -4,6 +4,7 @@ import {
   type PurchaseHeaderCorrectionBody,
   type PurchaseLineCostCorrectionBody,
   type PurchaseLineExpiryCorrectionBody,
+  type PurchaseLineExpirySplitBody,
   type PurchaseLinesAdditionBody,
   type PurchaseRegistrationBody,
   type PurchaseSummary,
@@ -65,6 +66,11 @@ export type CorrectPurchaseLineCostOutcome =
 export type CorrectPurchaseLineExpiryOutcome =
   | { kind: "ok"; purchase: PurchaseSummary }
   | PurchaseCorrectionRefusal;
+
+export type SplitPurchaseLineExpiryOutcome =
+  | { kind: "ok"; purchase: PurchaseSummary }
+  | PurchaseCorrectionRefusal
+  | { kind: "not_enough_in_lot" };
 
 function refusal(response: Response): RequestRefusal {
   if (response.status === 401) {
@@ -289,6 +295,32 @@ export async function correctPurchaseLineExpiry(
   if (response.ok) {
     const purchase = await readPurchase(response);
     return purchase ? { kind: "ok", purchase } : { kind: "failed" };
+  }
+  return refusedCorrection(response, "expiry_unchanged");
+}
+
+export async function splitPurchaseLineExpiry(
+  purchaseId: string,
+  lineId: string,
+  input: PurchaseLineExpirySplitBody,
+): Promise<SplitPurchaseLineExpiryOutcome> {
+  const response = await sendCorrection(
+    `/api/purchases/${purchaseId}/lines/${lineId}/expiry-splits`,
+    "POST",
+    input,
+  );
+  if (response === undefined) {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    const purchase = await readPurchase(response);
+    return purchase ? { kind: "ok", purchase } : { kind: "failed" };
+  }
+  if (response.status === 409) {
+    const body = await readRefusalBody(response.clone());
+    if (body.code === "not_enough_in_lot") {
+      return { kind: "not_enough_in_lot" };
+    }
   }
   return refusedCorrection(response, "expiry_unchanged");
 }

@@ -1,6 +1,6 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { beforeEach, expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { beforeEach, expect, onTestFinished, test, vi } from "vitest";
+import { page, userEvent } from "vitest/browser";
 import { compraDeAceite, compraDeAvena, compraDeMiel } from "./test-support/purchases";
 import {
   createServices,
@@ -10,8 +10,10 @@ import {
   rowTexts,
 } from "./test-support/purchases-list-screen";
 
-beforeEach(() => {
+beforeEach(async () => {
   window.history.pushState(null, "", "/");
+  await page.viewport(1280, 800);
+  onTestFinished(() => page.viewport(414, 896));
 });
 
 test("shows the breadcrumb and the heading", async () => {

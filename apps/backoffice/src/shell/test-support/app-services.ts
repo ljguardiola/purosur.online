@@ -192,6 +192,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       addPurchaseLines: vi.fn(),
       correctPurchaseHeader: vi.fn(),
       correctPurchaseLineExpiry: vi.fn(),
+      splitPurchaseLineExpiry: vi.fn(),
       correctPurchaseLineCost: vi.fn(),
     },
     freightsListScreen: {

@@ -21,6 +21,7 @@ export const compraDeMielCorregida: PurchaseSummary = {
       costPaidCents: 1_800_00,
       unitCostCents: 1_800_00,
       lotName: "Compra 14/09/2026",
+      remainingInLot: 10_000,
       expiresOn: "2027-03-01",
     },
   ],
@@ -82,5 +83,18 @@ export const lineCostCorrection: PurchaseChange = {
     lineId: LINEA_DE_MIEL_ID,
     previous: 7_200_00,
     next: 6_800_00,
+  },
+};
+
+export const lineExpirySplitCorrection: PurchaseChange = {
+  id: "c0c00000-0000-4000-8000-000000000005",
+  actor: { id: "a0100000-0000-4000-8000-000000000001", name: "Marta Quiroga" },
+  correctedAt: "2026-09-18T09:00:00.000Z",
+  change: {
+    kind: "line_expiry_split",
+    lineId: LINEA_DE_MIEL_ID,
+    quantity: 1_000,
+    previous: "2027-01-31",
+    next: "2027-11-10",
   },
 };

@@ -222,6 +222,7 @@ describe("POST /purchases", () => {
           unitCostCents: 2_000,
           lotName: "Compra 04/10/2026",
           expiresOn: "2027-03-01",
+          remainingInLot: 24_000,
         },
       ],
     });
