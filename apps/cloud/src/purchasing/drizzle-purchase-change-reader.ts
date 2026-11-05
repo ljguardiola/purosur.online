@@ -1,11 +1,15 @@
+import type { PurchaseSummary } from "@purosur/contracts";
 import type {
   PurchaseChangeListing,
   PurchaseChangeReader,
 } from "@purosur/domain/purchasing/use-cases";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { auditLog, purchases, users } from "../platform/db/schema.js";
+import { netContentRow } from "../catalog/net-content-row.js";
+import { auditLog, brands, products, purchases, users } from "../platform/db/schema.js";
 import { changeOfAuditValues, PURCHASE_AUDIT_ENTITY } from "./purchase-audit-values.js";
+
+export type PurchaseChangeProduct = PurchaseSummary["lines"][number]["product"];
 
 export class DrizzlePurchaseChangeReader<TQueryResult extends PgQueryResultHKT>
   implements PurchaseChangeReader
@@ -45,5 +49,33 @@ export class DrizzlePurchaseChangeReader<TQueryResult extends PgQueryResultHKT>
       actorId: actorId as string,
       change: changeOfAuditValues(previousValue, newValue),
     }));
+  }
+
+  async productsOf(productIds: readonly string[]): Promise<Map<string, PurchaseChangeProduct>> {
+    if (productIds.length === 0) {
+      return new Map();
+    }
+    const rows = await this.db
+      .select({
+        id: products.id,
+        name: products.name,
+        brandName: brands.name,
+        netContentQuantity: products.netContentQuantity,
+        netContentUnit: products.netContentUnit,
+        saleUnit: products.saleUnit,
+      })
+      .from(products)
+      .leftJoin(brands, eq(brands.id, products.brandId))
+      .where(inArray(products.id, [...productIds]));
+    return new Map(
+      rows.map(({ netContentQuantity, netContentUnit, saleUnit, ...product }) => [
+        product.id,
+        {
+          ...product,
+          netContent: netContentRow({ netContentQuantity, netContentUnit }),
+          saleUnit: saleUnit as PurchaseChangeProduct["saleUnit"],
+        },
+      ]),
+    );
   }
 }
