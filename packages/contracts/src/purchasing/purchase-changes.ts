@@ -1,5 +1,6 @@
 import { ARGENTINA_TIME_ZONE, RECEIPT_TYPES } from "@purosur/domain";
 import { z } from "zod";
+import { purchaseLineProductSchema } from "./purchase-line-product.js";
 
 const headerChangeSchema = z.discriminatedUnion("field", [
   z.object({ field: z.literal("purchasedOn"), previous: z.string(), next: z.string() }),
@@ -57,6 +58,21 @@ const purchaseChangeDetailSchema = z.discriminatedUnion("kind", [
     lineId: z.string(),
     previous: quantityOfLineSchema,
     next: quantityOfLineSchema,
+  }),
+  z.object({
+    kind: z.literal("line_product"),
+    lineId: z.string(),
+    previous: purchaseLineProductSchema,
+    next: purchaseLineProductSchema,
+  }),
+  z.object({
+    kind: z.literal("line_removed"),
+    lineId: z.string(),
+    product: purchaseLineProductSchema,
+    quantity: z.int(),
+    packages: z.int().nullable(),
+    costPaidCents: z.int(),
+    expiresOn: z.string().nullable(),
   }),
 ]);
 
