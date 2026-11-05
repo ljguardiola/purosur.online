@@ -2,8 +2,8 @@ import { actionsColumn, formatCents, ListFilter, Table, useTableModel } from "@p
 import { CircleCheck, CircleX, HandCoins, Search } from "lucide-react";
 import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import { AreaTopBar } from "../shell/area-top-bar";
 import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTopBar } from "../shell/screen-top-bar";
 import { DiscardRefundModal } from "./discard-refund-modal";
 import { MarkRefundDoneModal } from "./mark-refund-done-modal";
 import type { OutsideRefundsScreenServices } from "./outside-refunds-services";
@@ -99,7 +99,7 @@ export function OutsideRefundsScreen({
   return (
     <>
       <ScreenLayout
-        topBar={<ScreenTopBar eyebrow="Caja y fiscal · Tareas" title="Reembolsos sin API" />}
+        topBar={<AreaTopBar eyebrow="Caja y fiscal · Tareas" title="Reembolsos sin API" />}
         bodyClassName="gap-4 p-6"
       >
         <div className="flex flex-wrap items-center gap-3">

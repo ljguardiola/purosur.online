@@ -13,12 +13,12 @@ import {
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { TagX } from "lucide-react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import { AreaTopBar } from "../shell/area-top-bar";
 import { ReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import type { ReportPeriodFilters } from "../shell/report-filters-search";
 import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTopBar } from "../shell/screen-top-bar";
 import { formatCentsWithUnit } from "./money";
 import { lastReviewedText } from "./prices-past-review-deadline-moments";
 import { REASON_TEXT } from "./prices-past-review-deadline-reason-text";
@@ -127,7 +127,7 @@ export function PricesPastReviewDeadlineReportScreen({
 
   return (
     <ScreenLayout
-      topBar={<ScreenTopBar eyebrow="Reportes · Precios" title={SCREEN_TITLE} />}
+      topBar={<AreaTopBar eyebrow="Reportes · Precios" title={SCREEN_TITLE} />}
       bodyClassName="gap-4 p-6"
     >
       <div className="flex flex-wrap items-end gap-3">

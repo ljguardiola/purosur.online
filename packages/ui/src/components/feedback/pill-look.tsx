@@ -12,8 +12,8 @@ export type PillContentProps = {
 
 export function pillClassName(tone: PillTone): string {
   return (
-    "inline-flex h-7 items-center gap-2 whitespace-nowrap rounded-full px-3 font-sans text-detail " +
-    `font-semibold ${toneClassName[tone].surface}`
+    "inline-flex h-control-lg items-center gap-2 whitespace-nowrap rounded-full px-3 font-sans text-detail " +
+    `font-bold ${toneClassName[tone].surface}`
   );
 }
 
@@ -30,7 +30,7 @@ export const pillPressableHoverRingClassName: Record<PillTone, string> = {
 export function PillContent({ icon, children }: Omit<PillContentProps, "tone">) {
   return (
     <>
-      <span aria-hidden="true" className="inline-flex size-icon-xs shrink-0 *:size-full">
+      <span aria-hidden="true" className="inline-flex size-icon-md shrink-0 *:size-full">
         {icon}
       </span>
       {children}

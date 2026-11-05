@@ -1,12 +1,10 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
 import { ClipboardList, FileText, PackageCheck, Scale } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
-import { AreaTopBarAlertsCount } from "./area-top-bar-alerts-count";
 import {
   canComparePrices,
   canManageSupplierPriceLists,
   canReadPurchaseOrders,
-  canSeeAlertsArea,
 } from "./backoffice-access";
 import { signedInRoute } from "./signed-in-route";
 
@@ -17,8 +15,7 @@ export const ordersAreaRoute = createRoute({
 });
 
 function OrdersArea() {
-  const { session, services, sessionActions } = ordersAreaRoute.useRouteContext();
-  const AlertsCount = services.areaTopBarAlertsCount;
+  const { session } = ordersAreaRoute.useRouteContext();
   const matchRoute = useMatchRoute();
   const supplierPriceListsShown = Boolean(matchRoute({ to: "/supplier-price-lists", fuzzy: true }));
   const priceComparisonShown = Boolean(matchRoute({ to: "/price-comparison" }));
@@ -26,6 +23,7 @@ function OrdersArea() {
   const purchaseOrdersShown = Boolean(matchRoute({ to: "/purchase-orders", fuzzy: true }));
   return (
     <AreaLayout
+      showsOpenAlertsCount
       area="orders"
       sectionColumnLabel="Pedidos"
       sectionColumn={
@@ -81,18 +79,7 @@ function OrdersArea() {
         </>
       }
     >
-      <AreaTopBarAlertsCount
-        value={
-          canSeeAlertsArea(session) ? (
-            <AlertsCount
-              onSessionEnded={sessionActions.sessionEnded}
-              services={services.alertsOpenCountLink}
-            />
-          ) : null
-        }
-      >
-        <Outlet />
-      </AreaTopBarAlertsCount>
+      <Outlet />
     </AreaLayout>
   );
 }

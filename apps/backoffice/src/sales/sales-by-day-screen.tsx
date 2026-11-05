@@ -12,6 +12,7 @@ import { Receipt } from "lucide-react";
 import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatDisplayDate } from "../platform/display-date";
+import { AreaTopBar } from "../shell/area-top-bar";
 import { RegisterReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
@@ -21,7 +22,6 @@ import {
 } from "../shell/report-filters-search";
 import type { ReportRegisterField } from "../shell/report-register-field";
 import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTopBar } from "../shell/screen-top-bar";
 import type { SalesByDayScreenServices } from "./sales-by-day-services";
 import { salesByDaySpreadsheet } from "./sales-by-day-spreadsheet";
 import { useSalesReportQuery } from "./sales-queries";
@@ -80,7 +80,7 @@ export function SalesByDayScreen({
 
   return (
     <ScreenLayout
-      topBar={<ScreenTopBar eyebrow="Reportes" title={SCREEN_TITLE} />}
+      topBar={<AreaTopBar eyebrow="Reportes" title={SCREEN_TITLE} />}
       bodyClassName="gap-4 p-6"
     >
       <ReportFilters

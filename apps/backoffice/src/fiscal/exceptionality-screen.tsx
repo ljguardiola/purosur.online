@@ -20,8 +20,8 @@ import { useEffect, useEffectEvent } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { combineCloudData } from "../platform/combine-cloud-data";
 import { monthNameOf, yearMonthLabel } from "../platform/year-month-label";
+import { AreaTopBar } from "../shell/area-top-bar";
 import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTopBar } from "../shell/screen-top-bar";
 import type { ExceptionalityFilters } from "./exceptionality-filters";
 import type { ExceptionalityScreenServices } from "./exceptionality-services";
 import { useExceptionShareYearQuery, useFiscalAddressesQuery } from "./fiscal-queries";
@@ -225,7 +225,7 @@ export function ExceptionalityScreen({
 
   return (
     <ScreenLayout
-      topBar={<ScreenTopBar eyebrow="Caja y fiscal · Fiscal" title="Excepcionalidad" />}
+      topBar={<AreaTopBar eyebrow="Caja y fiscal · Fiscal" title="Excepcionalidad" />}
       bodyClassName="gap-4 p-6"
     >
       {firstAddress === undefined ? null : (

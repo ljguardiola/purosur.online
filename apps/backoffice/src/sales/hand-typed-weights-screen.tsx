@@ -16,6 +16,7 @@ import { useId, useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { reportMoment } from "../platform/report-moment";
+import { AreaTopBar } from "../shell/area-top-bar";
 import { RegisterReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
@@ -25,7 +26,6 @@ import {
 } from "../shell/report-filters-search";
 import type { ReportRegisterField } from "../shell/report-register-field";
 import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTopBar } from "../shell/screen-top-bar";
 import { OPENED_TIME_ZONE } from "./hand-typed-weights-opened-time-zone";
 import type { HandTypedWeightsScreenServices } from "./hand-typed-weights-services";
 import { handTypedWeightsSpreadsheet } from "./hand-typed-weights-spreadsheet";
@@ -137,7 +137,7 @@ export function HandTypedWeightsScreen({
 
   return (
     <ScreenLayout
-      topBar={<ScreenTopBar eyebrow="Reportes · Ventas" title={SCREEN_TITLE} />}
+      topBar={<AreaTopBar eyebrow="Reportes · Ventas" title={SCREEN_TITLE} />}
       bodyClassName="gap-4 p-6"
     >
       <div className="flex flex-wrap items-end gap-3">

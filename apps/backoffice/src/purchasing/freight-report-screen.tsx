@@ -10,12 +10,12 @@ import {
 } from "@purosur/ui";
 import { Truck } from "lucide-react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import { AreaTopBar } from "../shell/area-top-bar";
 import { ReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import type { ReportPeriodFilters } from "../shell/report-filters-search";
 import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTopBar } from "../shell/screen-top-bar";
 import type { FreightReportScreenServices } from "./freight-report-services";
 import { freightReportSpreadsheet } from "./freight-report-spreadsheet";
 import { useFreightReportQuery } from "./purchasing-queries";
@@ -78,7 +78,7 @@ export function FreightReportScreen({
 
   return (
     <ScreenLayout
-      topBar={<ScreenTopBar eyebrow="Reportes · Compras" title={SCREEN_TITLE} />}
+      topBar={<AreaTopBar eyebrow="Reportes · Compras" title={SCREEN_TITLE} />}
       bodyClassName="gap-4 p-6"
     >
       <ReportFilters

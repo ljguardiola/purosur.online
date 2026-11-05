@@ -13,9 +13,9 @@ import { useState } from "react";
 import { ALERT_LEVEL_LABELS } from "../platform/alert-level-label";
 import { ALERT_LEVEL_TONE } from "../platform/alert-level-tone";
 import { cloudTableState } from "../platform/cloud-table-state";
+import { AreaTopBar } from "../shell/area-top-bar";
 import { type BackofficeAccess, canCloseFiscalTasks } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTopBar } from "../shell/screen-top-bar";
 import { CloseFiscalTaskModal } from "./close-fiscal-task-modal";
 import { useFiscalTasksQuery, useReloadFiscalTasks } from "./fiscal-queries";
 import { fiscalTaskDate, fiscalTaskDayAndTime } from "./fiscal-task-moments";
@@ -130,7 +130,7 @@ export function FiscalTasksScreen({ access, onSessionEnded, services }: FiscalTa
 
   return (
     <ScreenLayout
-      topBar={<ScreenTopBar eyebrow="Caja y fiscal · Tareas" title="Tareas fiscales" />}
+      topBar={<AreaTopBar eyebrow="Caja y fiscal · Tareas" title="Tareas fiscales" />}
       bodyClassName="gap-4 p-6"
     >
       <Table

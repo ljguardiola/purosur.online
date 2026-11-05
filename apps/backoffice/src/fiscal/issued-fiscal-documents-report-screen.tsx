@@ -17,6 +17,7 @@ import { FileText } from "lucide-react";
 import { useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { cloudTableState } from "../platform/cloud-table-state";
+import { AreaTopBar } from "../shell/area-top-bar";
 import { RegisterReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
@@ -26,7 +27,6 @@ import {
 } from "../shell/report-filters-search";
 import type { ReportRegisterField } from "../shell/report-register-field";
 import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTopBar } from "../shell/screen-top-bar";
 import { useIssuedFiscalDocumentsReportQuery } from "./fiscal-queries";
 import { voucherTypeText } from "./issued-fiscal-document-text";
 import type { IssuedFiscalDocumentsReportScreenServices } from "./issued-fiscal-documents-report-services";
@@ -103,7 +103,7 @@ export function IssuedFiscalDocumentsReportScreen({
 
   return (
     <ScreenLayout
-      topBar={<ScreenTopBar eyebrow="Reportes · Fiscal" title={SCREEN_TITLE} />}
+      topBar={<AreaTopBar eyebrow="Reportes · Fiscal" title={SCREEN_TITLE} />}
       bodyClassName="gap-4 p-6"
     >
       <ReportFilters
