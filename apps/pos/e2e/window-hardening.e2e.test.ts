@@ -77,8 +77,8 @@ describe("the register's hardened window", () => {
     await page.waitForFunction(
       () => (document.querySelector("#root")?.textContent ?? "").trim().length > 0,
     );
-    const text = (await page.locator("#root").textContent()) ?? "";
-    expect(text.trim().length).toBeGreaterThan(0);
+    const visibleText = page.locator("#root").getByText(/\S/).filter({ visible: true });
+    expect(await visibleText.count()).toBeGreaterThan(0);
   });
 
   it("isolates the renderer: contextIsolation, sandbox, and no nodeIntegration", async () => {
