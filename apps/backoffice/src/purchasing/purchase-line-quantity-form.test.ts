@@ -113,21 +113,38 @@ describe("the quantity form's label, fields and messages", () => {
     });
   });
 
-  it("asks for a whole number of packages", () => {
-    expect(purchaseLineQuantityMessages(loadedByPackages)).toEqual({
-      amount: "Ingresá cuántos paquetes recibiste, en un número entero mayor a cero.",
-    });
+  const packagesMessage = (amount: string) =>
+    purchaseLineQuantityMessages(loadedByPackages).amount({ amount });
+
+  it.each(["", "1,5", "dos"])("asks for a whole number of packages when %j is typed", (amount) => {
+    expect(packagesMessage(amount)).toBe(
+      "Ingresá cuántos paquetes recibiste, en un número entero.",
+    );
+  });
+
+  it("asks for more than zero packages", () => {
+    expect(packagesMessage("0")).toBe(
+      "Ingresá cuántos paquetes recibiste, en un número entero mayor a cero.",
+    );
+  });
+
+  it("asks for fewer packages when the whole number typed is more than can be recorded", () => {
+    expect(packagesMessage("3.000.000.000")).toBe(
+      "Ingresá menos paquetes; son más de los que se pueden registrar.",
+    );
   });
 
   it("asks for whole units of a product sold by unit", () => {
-    expect(purchaseLineQuantityMessages({ ...loadedByPackages, packages: null }).amount).toBe(
-      "Escribí una cantidad entera de unidades, por ejemplo 16.",
-    );
+    expect(
+      purchaseLineQuantityMessages({ ...loadedByPackages, packages: null }).amount(
+        EMPTY_PURCHASE_LINE_QUANTITY,
+      ),
+    ).toBe("Escribí una cantidad entera de unidades, por ejemplo 16.");
   });
 
   it("asks for kilos with up to 3 decimals of a product sold by weight", () => {
-    expect(purchaseLineQuantityMessages(loadedByQuantity).amount).toBe(
-      "Escribí los kilos con hasta 3 decimales, por ejemplo 12,150.",
-    );
+    expect(
+      purchaseLineQuantityMessages(loadedByQuantity).amount(EMPTY_PURCHASE_LINE_QUANTITY),
+    ).toBe("Escribí los kilos con hasta 3 decimales, por ejemplo 12,150.");
   });
 });

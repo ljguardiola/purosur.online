@@ -292,6 +292,27 @@ describe("correctPurchasedLotQuantity", () => {
     expect(store.snapshot()).toEqual(before);
   });
 
+  it("answers not found when units are added to a lot that has no purchase day to be read by", async () => {
+    const store = storeWithReceivedLine();
+    store.seedLot({ id: "lot-9", ...YERBA, purchaseLineId: "line-9", purchasedOn: null });
+    store.seedMovement({
+      ...YERBA,
+      kind: "receipt",
+      reason: null,
+      purchaseLineId: "line-9",
+      delta: 1_000,
+      occurredAt: RECEIVED_AT,
+      actorId: "person-1",
+      supersededByCountId: null,
+    });
+    const before = store.snapshot();
+
+    expect(await correct(store, { purchaseLineId: "line-9", delta: 1_000 })).toEqual({
+      kind: "not_found",
+    });
+    expect(store.snapshot()).toEqual(before);
+  });
+
   it("locks the product's stock before it reads the lot's units or changes anything", async () => {
     const store = storeWithReceivedLine();
     await receive(store);
@@ -346,14 +367,14 @@ describe("correctPurchasedLotQuantity", () => {
       });
     });
 
-    it("still records the units the line's lot was received with", async () => {
+    it("leaves the units the line's lot was received with as they were", async () => {
       const store = storeWithReceivedLine();
       await receive(store);
       seedCountAfterReceipt(store);
 
       await correct(store, { delta: 2_000 });
 
-      expect(lotOf(store).quantityReceived).toBe(26_000);
+      expect(lotOf(store).quantityReceived).toBe(24_000);
     });
 
     it("lets the quantity go down by more than the lot has left, as the count already saw what arrived", async () => {

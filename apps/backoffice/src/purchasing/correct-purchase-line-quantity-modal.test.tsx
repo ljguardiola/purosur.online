@@ -49,7 +49,7 @@ type ModalOptions = {
   onSessionEnded?: () => void;
 };
 
-function renderModal({
+function modal({
   target = miel,
   remainingInLot = target?.line.remainingInLot ?? 0,
   services = createServices(),
@@ -58,7 +58,7 @@ function renderModal({
   onClose = () => {},
   onSessionEnded = () => {},
 }: ModalOptions = {}) {
-  return render(
+  return (
     <FieldSizeProvider size="backoffice">
       <main>
         <CorrectPurchaseLineQuantityModal
@@ -71,8 +71,12 @@ function renderModal({
           onSessionEnded={onSessionEnded}
         />
       </main>
-    </FieldSizeProvider>,
+    </FieldSizeProvider>
   );
+}
+
+function renderModal(options: ModalOptions = {}) {
+  return render(modal(options));
 }
 
 type ModalScreen = Awaited<ReturnType<typeof renderModal>>;
@@ -175,15 +179,19 @@ test("asks for the packages without calling the cloud when none is typed", async
   const dialog = await save(screen, "");
 
   await expect
-    .element(
-      dialog.getByText("Ingresá cuántos paquetes recibiste, en un número entero mayor a cero."),
-    )
+    .element(dialog.getByText("Ingresá cuántos paquetes recibiste, en un número entero."))
     .toBeVisible();
   expect(correctPurchaseLineQuantity).not.toHaveBeenCalled();
 });
 
 test("starts from the line it opens for each time", async () => {
-  const screen = await renderModal({ target: avena });
+  const services = createServices();
+  const screen = await renderModal({ target: miel, services });
+  await readyDialog(screen);
+
+  await screen.rerender(modal({ target: null, services }));
+  await screen.rerender(modal({ target: avena, services }));
+
   const dialog = await readyDialog(screen);
 
   await expect.element(dialog.getByRole("heading", { name: "Avena arrollada" })).toBeVisible();
@@ -224,9 +232,7 @@ test("shows a quantity the cloud refused on its field", async () => {
   const dialog = await save(screen, "3");
 
   await expect
-    .element(
-      dialog.getByText("Ingresá cuántos paquetes recibiste, en un número entero mayor a cero."),
-    )
+    .element(dialog.getByText("Ingresá menos paquetes; son más de los que se pueden registrar."))
     .toBeVisible();
   expect(dialog.getByText("No se corrigió la cantidad").query()).toBeNull();
 });

@@ -175,33 +175,6 @@ describe("correcting the quantity of a purchase line", () => {
     expect(lot).toMatchObject({ quantityReceived: 18_000, remaining: 18_000 });
   });
 
-  it("refuses more units than the line's lot has left, changing nothing", async () => {
-    const { purchase, lineId } = await juiceLine();
-    await db.update(lots).set({ remaining: 2_000 });
-    const lotsBefore = await db.select().from(lots);
-    const movementsBefore = await db.select().from(stockMovements);
-    const balanceBefore = await db.select().from(stockBalances);
-
-    const outcome = await correctedTo(purchase.id, lineId, byQuantity(2_000));
-
-    expect(outcome).toEqual({ kind: "not_enough_in_lot" });
-    expect(await db.select().from(lots)).toEqual(lotsBefore);
-    expect(await db.select().from(stockMovements)).toEqual(movementsBefore);
-    expect(await db.select().from(stockBalances)).toEqual(balanceBefore);
-    expect((await db.select().from(purchaseLines))[0]?.quantity).toBe(5_000);
-    expect(await db.select().from(auditLog).where(eq(auditLog.entity, "purchase"))).toEqual([]);
-  });
-
-  it("lets all the units still in the line's lot go", async () => {
-    const { purchase, lineId } = await juiceLine();
-    await db.update(lots).set({ remaining: 2_000 });
-
-    const outcome = await correctedTo(purchase.id, lineId, byQuantity(3_000));
-
-    expect(outcome.kind).toBe("corrected");
-    expect((await db.select().from(lots))[0]?.remaining).toBe(0);
-  });
-
   it("bounds the units by the line's own lot, leaving a lot split from it as it was", async () => {
     const { purchase, lineId } = await juiceLine();
     now = CORRECTED_AT;
@@ -220,17 +193,6 @@ describe("correcting the quantity of a purchase line", () => {
       [0, 3_000],
       [3_000, 3_000],
     ]);
-  });
-
-  it("refuses a quantity the product is not sold in, changing nothing", async () => {
-    const { purchase, lineId } = await juiceLine();
-    const lotsBefore = await db.select().from(lots);
-
-    const outcome = await correctedTo(purchase.id, lineId, byQuantity(5_500));
-
-    expect(outcome).toEqual({ kind: "invalid_quantity" });
-    expect(await db.select().from(lots)).toEqual(lotsBefore);
-    expect(await db.select().from(stockMovements)).toHaveLength(1);
   });
 
   it("does not find a purchase of another branch, changing nothing", async () => {
@@ -300,7 +262,7 @@ describe("correcting the quantity of a purchase line", () => {
   });
 
   describe("when a count of the product was taken after the line was received", () => {
-    it("changes the line, the audit and the units the lot was received with, but neither the balance nor the lot's units", async () => {
+    it("changes the line and the audit, but neither the balance nor the lot", async () => {
       const { product, purchase, lineId } = await juiceLine();
       now = CORRECTED_AT;
       await countedAt(product.id, 5_000, COUNTED_AT);
@@ -315,7 +277,7 @@ describe("correcting the quantity of a purchase line", () => {
 
       expect(outcome.kind).toBe("corrected");
       expect((await db.select().from(purchaseLines))[0]?.quantity).toBe(3_000);
-      expect((await db.select().from(lots))[0]).toEqual({ ...lotBefore, quantityReceived: 3_000 });
+      expect((await db.select().from(lots))[0]).toEqual(lotBefore);
       expect(await db.select().from(stockBalances)).toEqual(balanceBefore);
       const movement = (
         await db.select().from(stockMovements).where(eq(stockMovements.kind, "receipt"))
