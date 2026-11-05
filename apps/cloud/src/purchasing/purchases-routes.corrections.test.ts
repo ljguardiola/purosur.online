@@ -1,4 +1,8 @@
-import { purchaseChangesSchema, purchaseSummarySchema } from "@purosur/contracts";
+import {
+  priceMarginSchema,
+  purchaseChangesSchema,
+  purchaseSummarySchema,
+} from "@purosur/contracts";
 import { asc, eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -12,6 +16,7 @@ import {
   stockMovements,
   suppliers,
 } from "../platform/db/schema.js";
+import { registerPriceMarginRoute } from "../pricing/price-margin-route.js";
 import { DrizzleExpiringLotReader } from "../stock/drizzle-expiring-lot-reader.js";
 import {
   BACKOFFICE_ORIGIN,
@@ -26,6 +31,7 @@ import { registerPurchasesRoutes } from "./purchases-routes.js";
 
 const NOW = new Date("2026-10-05T15:00:00.000Z");
 const CORRECTED_AT = new Date("2026-10-05T15:10:00.000Z");
+const CORRECTED_LATER = new Date("2026-10-05T15:20:00.000Z");
 const MISSING_ID = "00000000-0000-4000-8000-000000000000";
 
 let testDatabase: TestDatabase;
@@ -46,12 +52,14 @@ beforeEach(async () => {
   await testDatabase.clear();
   now = NOW;
   app = Fastify();
-  registerPurchasesRoutes(app, {
+  const options = {
     zoneRules: fixedZoneRulesSource(),
     db,
     backofficeOrigin: BACKOFFICE_ORIGIN,
     now: () => now,
-  });
+  };
+  registerPurchasesRoutes(app, options);
+  registerPriceMarginRoute(app, options);
 });
 
 afterEach(async () => {
@@ -562,6 +570,37 @@ describe("PATCH /purchases/:purchaseId/lines/:lineId/cost", () => {
     expect(
       await new DrizzlePurchaseCostReader(db).purchaseLineCostsOf(locationId, [productId]),
     ).toEqual([expect.objectContaining({ cost: { totalCents: 1_200, quantity: 1_000 } })]);
+  });
+
+  it("keeps the product's last cost at its latest purchase when an older line's cost is corrected", async () => {
+    const { headers, productId, purchase: older } = await purchaseOfOneLine();
+    const latest = await app.inject({
+      method: "POST",
+      url: "/purchases",
+      headers,
+      payload: {
+        supplierId: older.supplier.id,
+        purchasedOn: "2026-10-04",
+        receiptType: "factura_b",
+        receiptNumber: "0001-00001235",
+        note: null,
+        lines: [quantityLine(productId, { costPaidCents: 1_500 })],
+      },
+    });
+    expect(latest.statusCode).toBe(201);
+    now = CORRECTED_LATER;
+
+    const correction = await correctCost(headers, older, { costPaidCents: 1_200 });
+    const margin = await app.inject({
+      method: "GET",
+      url: `/prices/${productId}/margin?unitPrice=2000`,
+      headers,
+    });
+
+    expect(correction.statusCode).toBe(200);
+    expect(priceMarginSchema.parse(margin.json()).costReference).toMatchObject({
+      lastCostCents: 1_500,
+    });
   });
 
   it("records who corrected the cost, when, and the previous and new cost, listed among the purchase's changes", async () => {

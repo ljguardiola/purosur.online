@@ -95,7 +95,8 @@ function saleAllocation(
     costIncomplete: false,
     cost: FIVE_PER_UNIT,
     costChanges: [],
-    valuedAt: SALE_MOVEMENT_AT,
+    occurredAt: SALE_MOVEMENT_AT,
+    saleOccurredAt: SALE_MOVEMENT_AT,
     ...overrides,
   };
 }
@@ -600,7 +601,7 @@ describe("DrizzleSaleMarginReportReader with returns", () => {
         amount: 10_000,
         allocations: [
           saleAllocation(lotId, -2_000),
-          saleAllocation(lotId, 1_000, { movementKind: "return" }),
+          saleAllocation(lotId, 1_000, { movementKind: "return", occurredAt: RETURNED_LATER }),
         ],
       },
     ]);
@@ -617,7 +618,7 @@ describe("DrizzleSaleMarginReportReader with returns", () => {
 
     expect(ordered(lines)[0]?.allocations).toEqual([
       saleAllocation(lotId, -2_000),
-      saleAllocation(lotId, 1_000, { movementKind: "return" }),
+      saleAllocation(lotId, 1_000, { movementKind: "return", occurredAt: RETURNED_LATER }),
     ]);
   });
 
@@ -796,7 +797,8 @@ describe("DrizzleSaleMarginReportReader with a lot whose cost was corrected", ()
       saleAllocation(lotId, -4_000, {
         cost: NINE_PER_UNIT,
         costChanges: [correctedFrom],
-        valuedAt: SOLD_BEFORE,
+        occurredAt: SOLD_BEFORE,
+        saleOccurredAt: SOLD_BEFORE,
       }),
     ]);
   });
@@ -887,13 +889,15 @@ describe("DrizzleSaleMarginReportReader with a lot whose cost was corrected", ()
       saleAllocation(lotId, -2_000, {
         cost: NINE_PER_UNIT,
         costChanges: [correctedFrom],
-        valuedAt: SOLD_BEFORE,
+        occurredAt: SOLD_BEFORE,
+        saleOccurredAt: SOLD_BEFORE,
       }),
       saleAllocation(lotId, 2_000, {
         movementKind: "return",
         cost: NINE_PER_UNIT,
         costChanges: [correctedFrom],
-        valuedAt: SOLD_BEFORE,
+        occurredAt: RETURNED_LATER,
+        saleOccurredAt: SOLD_BEFORE,
       }),
     ]);
     expect(report.totals).toMatchObject({ cost: 0, incompleteSales: 0 });

@@ -12,7 +12,8 @@ const lot = {
   costIncomplete: false,
   cost: { totalCents: 5_000, quantity: 1_000 },
   costChanges: [],
-  valuedAt: new Date("2026-03-01T12:00:00Z"),
+  occurredAt: new Date("2026-03-01T12:00:00Z"),
+  saleOccurredAt: new Date("2026-03-01T12:00:00Z"),
 };
 
 const CORRECTED = { totalCents: 9_000, quantity: 1_000 };
@@ -22,7 +23,12 @@ const AFTER_CORRECTION = new Date("2026-03-15T12:00:00Z");
 const costChanges = [{ changedAt: new Date("2026-03-10T12:00:00Z"), previous: ORIGINAL }];
 
 function correctedLot(overrides: Partial<MarginAllocation> & { quantity: number }) {
-  return allocation({ cost: CORRECTED, costChanges, ...overrides });
+  return allocation({
+    cost: CORRECTED,
+    costChanges,
+    saleOccurredAt: BEFORE_CORRECTION,
+    ...overrides,
+  });
 }
 
 function allocation(overrides: Partial<MarginAllocation> & { quantity: number }): MarginAllocation {
@@ -192,8 +198,8 @@ describe("marginReport", () => {
       line({
         amount: 20_000,
         allocations: [
-          correctedLot({ quantity: -4_000, valuedAt: BEFORE_CORRECTION }),
-          correctedLot({ quantity: -6_000, valuedAt: AFTER_CORRECTION }),
+          correctedLot({ quantity: -4_000, occurredAt: BEFORE_CORRECTION }),
+          correctedLot({ quantity: -6_000, occurredAt: AFTER_CORRECTION }),
         ],
       }),
     ]);
@@ -202,7 +208,7 @@ describe("marginReport", () => {
   });
 
   it("keeps the cost and margin of a sale made before a correction when the lot's cost is corrected", () => {
-    const sold = { amount: 8_000, quantity: -4_000, valuedAt: BEFORE_CORRECTION };
+    const sold = { amount: 8_000, quantity: -4_000, occurredAt: BEFORE_CORRECTION };
     const beforeCorrection = marginReport([
       line({ amount: sold.amount, allocations: [allocation({ quantity: sold.quantity })] }),
     ]);
@@ -210,7 +216,7 @@ describe("marginReport", () => {
     const afterCorrection = marginReport([
       line({
         amount: sold.amount,
-        allocations: [correctedLot({ quantity: sold.quantity, valuedAt: sold.valuedAt })],
+        allocations: [correctedLot({ quantity: sold.quantity, occurredAt: sold.occurredAt })],
       }),
     ]);
 
@@ -222,8 +228,8 @@ describe("marginReport", () => {
       line({
         amount: 0,
         allocations: [
-          correctedLot({ quantity: -2_000, valuedAt: BEFORE_CORRECTION }),
-          correctedLot({ movementKind: "return", quantity: 2_000, valuedAt: BEFORE_CORRECTION }),
+          correctedLot({ quantity: -2_000, occurredAt: BEFORE_CORRECTION }),
+          correctedLot({ movementKind: "return", quantity: 2_000, occurredAt: AFTER_CORRECTION }),
         ],
       }),
     ]);
@@ -236,8 +242,8 @@ describe("marginReport", () => {
       line({
         amount: 4_500,
         allocations: [
-          correctedLot({ quantity: -2_000, valuedAt: BEFORE_CORRECTION }),
-          correctedLot({ movementKind: "return", quantity: 1_000, valuedAt: BEFORE_CORRECTION }),
+          correctedLot({ quantity: -2_000, occurredAt: BEFORE_CORRECTION }),
+          correctedLot({ movementKind: "return", quantity: 1_000, occurredAt: AFTER_CORRECTION }),
         ],
       }),
     ]);
@@ -249,12 +255,12 @@ describe("marginReport", () => {
     const report = marginReport([
       line({
         allocations: [
-          correctedLot({ quantity: -1_000, valuedAt: BEFORE_CORRECTION }),
-          correctedLot({ movementKind: "return", quantity: 1_000, valuedAt: BEFORE_CORRECTION }),
+          correctedLot({ quantity: -1_000, occurredAt: BEFORE_CORRECTION }),
+          correctedLot({ movementKind: "return", quantity: 1_000, occurredAt: AFTER_CORRECTION }),
           correctedLot({
             movementKind: "exchange_out",
             quantity: -1_000,
-            valuedAt: AFTER_CORRECTION,
+            occurredAt: AFTER_CORRECTION,
           }),
         ],
       }),
@@ -267,11 +273,11 @@ describe("marginReport", () => {
     const report = marginReport([
       line({
         allocations: [
-          correctedLot({ quantity: -1_000, valuedAt: BEFORE_CORRECTION }),
+          correctedLot({ quantity: -1_000, occurredAt: BEFORE_CORRECTION }),
           correctedLot({
             movementKind: "exchange_out",
             quantity: -1_000,
-            valuedAt: AFTER_CORRECTION,
+            occurredAt: AFTER_CORRECTION,
           }),
         ],
       }),
@@ -284,13 +290,31 @@ describe("marginReport", () => {
     const report = marginReport([
       line({
         allocations: [
-          correctedLot({ quantity: -1_000, valuedAt: BEFORE_CORRECTION }),
-          correctedLot({ movementKind: "return", quantity: 1_000, valuedAt: AFTER_CORRECTION }),
+          correctedLot({ quantity: -1_000, occurredAt: AFTER_CORRECTION }),
+          correctedLot({ movementKind: "return", quantity: 1_000, occurredAt: AFTER_CORRECTION }),
         ],
       }),
     ]);
 
-    expect(report.rows[0]).toMatchObject({ cost: 5_000, incompleteSales: 1 });
+    expect(report.rows[0]).toMatchObject({ cost: 9_000, incompleteSales: 1 });
+  });
+
+  it("values a return whose line has no sale movement at the instant it came back", () => {
+    const report = marginReport([
+      line({
+        allocations: [
+          correctedLot({ quantity: -1_000, occurredAt: AFTER_CORRECTION }),
+          correctedLot({
+            movementKind: "return",
+            quantity: 1_000,
+            occurredAt: AFTER_CORRECTION,
+            saleOccurredAt: null,
+          }),
+        ],
+      }),
+    ]);
+
+    expect(report.rows[0]).toMatchObject({ cost: 0, incompleteSales: 0 });
   });
 
   it("values a sale line whose lot cost is unknown at no cost however it was corrected", () => {

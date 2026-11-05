@@ -157,7 +157,7 @@ test("corrects the line's expiry, closes the modal, reads the purchases again an
   await expect.poll(() => vi.mocked(services.fetchPurchases).mock.calls.length).toBe(2);
 });
 
-test("corrects the line's cost, closes the modal, reads the purchases again and confirms", async () => {
+test("corrects the line's cost, closes the modal, reads the purchases again and confirms without claiming the last cost moved", async () => {
   const services = createServices();
   vi.mocked(services.correctPurchaseLineCost).mockResolvedValue({
     kind: "ok",
@@ -173,6 +173,13 @@ test("corrects the line's cost, closes the modal, reads the purchases again and 
   await userEvent.click(dialog.getByRole("button", { name: "Guardar el costo" }));
 
   await expect.element(screen.getByText("Costo corregido")).toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "El stock que queda de la compra usa el costo corregido; las ventas ya hechas conservan el suyo.",
+      ),
+    )
+    .toBeVisible();
   expect(screen.getByRole("dialog").query()).toBeNull();
   expect(services.correctPurchaseLineCost).toHaveBeenCalledWith(compraDeMiel.id, lineDeMiel.id, {
     costPaidCents: 7_200_00,
