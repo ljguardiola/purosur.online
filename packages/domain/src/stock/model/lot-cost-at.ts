@@ -11,14 +11,8 @@ export interface LotWithCostChanges {
 }
 
 export function lotCostAt(lot: LotWithCostChanges, at: Date): LotCost | null {
-  const next = lot.costChanges
+  const [next] = lot.costChanges
     .filter((change) => change.changedAt.getTime() > at.getTime())
-    .reduce<LotCostChange | undefined>(
-      (earliest, change) =>
-        earliest === undefined || change.changedAt.getTime() < earliest.changedAt.getTime()
-          ? change
-          : earliest,
-      undefined,
-    );
+    .sort((a, b) => a.changedAt.getTime() - b.changedAt.getTime());
   return next === undefined ? lot.cost : next.previous;
 }
