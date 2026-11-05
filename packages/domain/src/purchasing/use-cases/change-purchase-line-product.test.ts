@@ -89,12 +89,13 @@ describe("changePurchaseLineProduct", () => {
 
   it("holds the purchase, then both products in the order of their ids, the new one first when its id comes first", async () => {
     const store = storeWithThirdProduct();
+    store.seedProduct({ id: "product-0", name: "Azucar", saleUnit: "KG", active: true });
 
-    await change(store, { lineId: "line-2", productId: "product-a" });
+    await change(store, { lineId: "line-2", productId: "product-0" });
 
     expect(store.lockLog).toEqual([
       `purchase:${PURCHASE_ID}`,
-      "product:product-a",
+      "product:product-0",
       "product:product-b",
       "lot move",
     ]);

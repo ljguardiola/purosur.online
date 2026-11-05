@@ -21,6 +21,12 @@ export type {
 } from "./cancel-purchase-order.js";
 export { cancelPurchaseOrder } from "./cancel-purchase-order.js";
 export type {
+  ChangePurchaseLineProductInput,
+  ChangePurchaseLineProductOutcome,
+  ChangePurchaseLineProductPorts,
+} from "./change-purchase-line-product.js";
+export { changePurchaseLineProduct } from "./change-purchase-line-product.js";
+export type {
   ConfirmSupplierPriceListInput,
   ConfirmSupplierPriceListOutcome,
 } from "./confirm-supplier-price-list.js";
@@ -234,6 +240,10 @@ export type {
   LotExpirySplitResult,
   LotQuantityCorrection,
   LotQuantityCorrectionResult,
+  LotsMove,
+  LotsMoveResult,
+  LotsWithdrawal,
+  LotsWithdrawalResult,
   PurchaseCorrection,
   PurchaseCorrectionChange,
   PurchaseCorrectionStore,
@@ -360,6 +370,12 @@ export type {
   RegisterPurchasePorts,
 } from "./register-purchase.js";
 export { registerPurchase } from "./register-purchase.js";
+export type {
+  RemovePurchaseLineInput,
+  RemovePurchaseLineOutcome,
+  RemovePurchaseLinePorts,
+} from "./remove-purchase-line.js";
+export { removePurchaseLine } from "./remove-purchase-line.js";
 export type {
   RemoveSupplierPriceListRowInput,
   RemoveSupplierPriceListRowOutcome,

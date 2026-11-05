@@ -17,6 +17,7 @@ export interface LockedPurchase extends PurchaseHeaderValues {
 
 export interface LockedPurchaseLine {
   id: string;
+  productId: string;
   expiresOn: string | null;
   costPaidCents: number;
   quantity: number;
@@ -59,6 +60,16 @@ export type PurchaseCorrectionChange =
       lineId: string;
       previous: PurchaseLineQuantity;
       next: PurchaseLineQuantity;
+    }
+  | { kind: "line_product"; lineId: string; previous: string; next: string }
+  | {
+      kind: "line_removed";
+      lineId: string;
+      productId: string;
+      quantity: number;
+      packages: number | null;
+      costPaidCents: number;
+      expiresOn: string | null;
     };
 
 export interface PurchaseLineQuantity {
@@ -105,6 +116,29 @@ export type LotQuantityCorrectionResult =
   | { kind: "not_enough_in_lot" }
   | { kind: "corrected" };
 
+export interface LotsMove {
+  locationId: string;
+  purchaseLineId: string;
+  productId: string;
+  actorId: string;
+}
+
+export type LotsMoveResult =
+  | { kind: "counted_since_receipt" }
+  | { kind: "units_left_lot" }
+  | { kind: "moved" };
+
+export interface LotsWithdrawal {
+  locationId: string;
+  purchaseLineId: string;
+  actorId: string;
+}
+
+export type LotsWithdrawalResult =
+  | { kind: "counted_since_receipt" }
+  | { kind: "units_left_lot" }
+  | { kind: "withdrawn" };
+
 export interface LotCostCorrection {
   locationId: string;
   purchaseLineId: string;
@@ -128,8 +162,9 @@ export interface PurchaseCorrectionStoreTransaction {
   // Holds the purchase's row, so two corrections of it never interleave. A purchase of another
   // branch is not found.
   lockPurchase(locationId: string, purchaseId: string): Promise<LockPurchaseResult>;
-  // The line is answered only when it belongs to the purchase.
+  // The line is answered only when it belongs to the purchase and was not removed.
   purchaseLine(purchaseId: string, lineId: string): Promise<LockedPurchaseLine | undefined>;
+  // The lines of the purchase that were not removed.
   purchaseLineIds(purchaseId: string): Promise<string[]>;
   updatePurchaseHeader(purchaseId: string, values: PurchaseHeaderValues): Promise<void>;
   updatePurchaseLineExpiry(lineId: string, expiresOn: string | null): Promise<void>;
@@ -139,6 +174,14 @@ export interface PurchaseCorrectionStoreTransaction {
     quantity: number,
     packages: number | null,
   ): Promise<void>;
+  updatePurchaseLineProduct(lineId: string, productId: string): Promise<void>;
+  // The line no longer counts among the purchase's lines; the row stays for the history.
+  markPurchaseLineRemoved(lineId: string, removedAt: Date): Promise<void>;
+  // Moves the lots the purchase line created, with their units, cost and expiry dates, to the
+  // product.
+  moveLineLots(move: LotsMove): Promise<LotsMoveResult>;
+  // Takes the lots the purchase line created, and their units, out of stock.
+  withdrawLineLots(withdrawal: LotsWithdrawal): Promise<LotsWithdrawalResult>;
   // Corrects the cost of every lot the purchase line created, keeping the cost each had until then.
   correctLotCost(correction: LotCostCorrection): Promise<void>;
   // Corrects the expiry date of the lot the purchase line created.

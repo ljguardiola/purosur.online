@@ -77,9 +77,10 @@ function resolveLine(
 export async function holdAndResolveLines(
   tx: LineStoreTransaction,
   lines: readonly RegisterPurchaseLine[],
+  alsoHeld: readonly string[] = [],
 ): Promise<{ kind: "resolved"; lines: ResolvedLine[] } | LineRefusal> {
   const products = new Map<string, LockProductResult>();
-  for (const productId of sortedDistinct(lines.map((line) => line.productId))) {
+  for (const productId of sortedDistinct([...lines.map((line) => line.productId), ...alsoHeld])) {
     products.set(productId, await tx.holdPurchasedProduct(productId));
   }
   const lockedProducts: LockedProduct[] = [];
