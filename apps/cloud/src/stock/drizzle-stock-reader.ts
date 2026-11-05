@@ -139,7 +139,11 @@ export class DrizzleStockReader<TQueryResult extends PgQueryResultHKT>
     const rows = await this.db
       .select({
         ...stockProductColumns,
-        hasMoved: sql<boolean>`${stockBalances.productId} is not null`,
+        hasMoved: sql<boolean>`exists (
+          select 1 from ${stockMovements}
+          where ${stockMovements.productId} = ${products.id}
+            and ${stockMovements.locationId} = ${locationId}
+        )`,
         balance: sql<number>`coalesce(${stockBalances.quantity}, 0)`.mapWith(Number),
       })
       .from(products)
