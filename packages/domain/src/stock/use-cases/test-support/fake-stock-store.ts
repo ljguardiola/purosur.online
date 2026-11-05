@@ -14,6 +14,7 @@ import type {
   LockedAssemblyBatch,
   NewAssemblyBatch,
 } from "../assembly-batch-store.js";
+import type { PurchasedLot, SplittableLot } from "../purchased-lot-store.js";
 import type { Recipe } from "../recipe-store.js";
 import type {
   CountedLot,
@@ -49,6 +50,7 @@ export interface FakeStockBalance extends ProductStockKey {
 
 export interface FakeStockLot extends ProductStockKey, StockLot {
   purchaseLineId: string | null;
+  splitFromLotId?: string | null | undefined;
   quantityReceived: number;
   costTotalCents: number | null;
   costQuantity: number | null;
@@ -86,6 +88,7 @@ type WriteOperation =
   | "markOpeningCountWithdrawn"
   | "openTechnicalLot"
   | "allocateToLot"
+  | "addToLotQuantityReceived"
   | "insertAssemblyBatch"
   | "recordBatchLot"
   | "recordAssemblyBatchVoid";
@@ -502,6 +505,57 @@ class FakeStockStoreTransaction implements AssemblyBatchTransaction {
     }
     this.state.balances.push({ ...key, quantity: delta });
     return delta;
+  }
+
+  async lotsOfPurchaseLines(
+    locationId: string,
+    purchaseLineIds: readonly string[],
+  ): Promise<PurchasedLot[]> {
+    this.store.operationOrder.push("lotsOfPurchaseLines");
+    return this.state.lots.flatMap((lot) =>
+      lot.locationId === locationId &&
+      lot.purchaseLineId !== null &&
+      purchaseLineIds.includes(lot.purchaseLineId)
+        ? [
+            {
+              lotId: lot.id,
+              purchaseLineId: lot.purchaseLineId,
+              productId: lot.productId,
+              splitFromLotId: lot.splitFromLotId ?? null,
+            },
+          ]
+        : [],
+    );
+  }
+
+  async splittableLot(lotId: string): Promise<SplittableLot | null> {
+    this.store.operationOrder.push("splittableLot");
+    const lot = this.state.lots.find((row) => row.id === lotId);
+    return lot?.purchasedOn == null
+      ? null
+      : {
+          remaining: lot.remaining,
+          purchasedOn: lot.purchasedOn,
+          createdAt: new Date(lot.receivedAt),
+          costIncomplete: !lot.costComplete,
+        };
+  }
+
+  async receiptInstantOfPurchaseLine(purchaseLineId: string): Promise<Date | undefined> {
+    this.store.operationOrder.push("receiptInstantOfPurchaseLine");
+    const [earliest] = this.state.movements
+      .filter((row) => row.kind === "receipt" && row.purchaseLineId === purchaseLineId)
+      .sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime());
+    return earliest && new Date(earliest.occurredAt);
+  }
+
+  async addToLotQuantityReceived(lotId: string, delta: number): Promise<void> {
+    this.beforeWrite("addToLotQuantityReceived");
+    const lot = this.state.lots.find((row) => row.id === lotId);
+    if (!lot) {
+      throw new Error(`lot ${lotId} does not exist`);
+    }
+    lot.quantityReceived += delta;
   }
 
   private receptionMoment(): Date {
