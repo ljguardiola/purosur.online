@@ -320,7 +320,7 @@ describe("issueCreditNote", () => {
   });
 
   describe("a credit note that carries the day it must be dated", () => {
-    const AUTHORIZED_ON = (issuedOn: string): CreditNoteStanding => ({
+    const authorizedOn = (issuedOn: string): CreditNoteStanding => ({
       kind: "authorized",
       number: 40,
       issuedOn,
@@ -343,8 +343,8 @@ describe("issueCreditNote", () => {
       const { creditNotes, ports } = scenario({
         issueOn: "2026-09-30",
         others: [
-          { pointOfSale: 12, standing: AUTHORIZED_ON("2026-09-30") },
-          { pointOfSale: 12, standing: AUTHORIZED_ON("2026-09-29") },
+          { pointOfSale: 12, standing: authorizedOn("2026-09-30") },
+          { pointOfSale: 12, standing: authorizedOn("2026-09-29") },
         ],
       });
 
@@ -355,7 +355,7 @@ describe("issueCreditNote", () => {
     it("ignores credit notes of another point of sale when it keeps the order", async () => {
       const { ports } = scenario({
         issueOn: "2026-09-30",
-        others: [{ pointOfSale: 13, standing: AUTHORIZED_ON("2026-10-01") }],
+        others: [{ pointOfSale: 13, standing: authorizedOn("2026-10-01") }],
       });
 
       expect(await issue(ports)).toMatchObject({ kind: "authorized" });
@@ -364,7 +364,7 @@ describe("issueCreditNote", () => {
     describe("when a credit note dated later was already authorized in the point of sale", () => {
       const later = {
         issueOn: "2026-09-30",
-        others: [{ pointOfSale: 12, standing: AUTHORIZED_ON("2026-10-01") }],
+        others: [{ pointOfSale: 12, standing: authorizedOn("2026-10-01") }],
       };
 
       it("never re-dates it: it asks for no number, solicits nothing and opens a task for a person", async () => {

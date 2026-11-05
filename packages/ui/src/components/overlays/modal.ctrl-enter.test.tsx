@@ -269,23 +269,32 @@ test("presses nothing with Ctrl+Enter from the footer's own buttons", async () =
   expect(onConfirm).not.toHaveBeenCalled();
 });
 
+function StackedFormModals({
+  onSendOuter,
+  onSendInner,
+}: {
+  onSendOuter: () => void;
+  onSendInner: () => void;
+}) {
+  const [innerOpen, setInnerOpen] = useState(false);
+  return (
+    <FormModal title="Nuevo producto" onSend={onSendOuter}>
+      <Button variant="text" onPress={() => setInnerOpen(true)}>
+        Crear una marca
+      </Button>
+      <FormModal open={innerOpen} title="Nueva marca" onSend={onSendInner}>
+        <SizeSelect />
+      </FormModal>
+    </FormModal>
+  );
+}
+
 test("sends only the form of the modal opened over another one", async () => {
   const onSendOuter = vi.fn();
   const onSendInner = vi.fn();
-  function Stacked() {
-    const [innerOpen, setInnerOpen] = useState(false);
-    return (
-      <FormModal title="Nuevo producto" onSend={onSendOuter}>
-        <Button variant="text" onPress={() => setInnerOpen(true)}>
-          Crear una marca
-        </Button>
-        <FormModal open={innerOpen} title="Nueva marca" onSend={onSendInner}>
-          <SizeSelect />
-        </FormModal>
-      </FormModal>
-    );
-  }
-  const screen = await render(<Stacked />);
+  const screen = await render(
+    <StackedFormModals onSendOuter={onSendOuter} onSendInner={onSendInner} />,
+  );
 
   await userEvent.click(screen.getByRole("button", { name: "Crear una marca" }));
   await userEvent.click(screen.getByRole("button", { name: /Tamaño/ }));

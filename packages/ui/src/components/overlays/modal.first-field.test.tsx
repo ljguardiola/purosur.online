@@ -468,24 +468,24 @@ test("sends with Ctrl+Enter from the first field it opened focused on", async ()
   expect(onSend).toHaveBeenCalledTimes(1);
 });
 
-test("focuses a stacked modal's first field and gives the focus back to the button that opened it when it closes", async () => {
-  function Harness() {
-    const [brandOpen, setBrandOpen] = useState(false);
-    return (
-      <FormModal title="Nuevo producto">
-        <NameField />
-        <NameField label="Marca" />
-        <Button variant="secondary" onPress={() => setBrandOpen(true)}>
-          Crear marca
-        </Button>
-        <FormModal open={brandOpen} onOpenChange={setBrandOpen} title="Nueva marca">
-          <NameField label="Nombre de la marca" />
-        </FormModal>
+function BrandButtonStack() {
+  const [brandOpen, setBrandOpen] = useState(false);
+  return (
+    <FormModal title="Nuevo producto">
+      <NameField />
+      <NameField label="Marca" />
+      <Button variant="secondary" onPress={() => setBrandOpen(true)}>
+        Crear marca
+      </Button>
+      <FormModal open={brandOpen} onOpenChange={setBrandOpen} title="Nueva marca">
+        <NameField label="Nombre de la marca" />
       </FormModal>
-    );
-  }
+    </FormModal>
+  );
+}
 
-  const screen = await render(<Harness />);
+test("focuses a stacked modal's first field and gives the focus back to the button that opened it when it closes", async () => {
+  const screen = await render(<BrandButtonStack />);
   const brandField = screen.getByRole("textbox", { name: "Marca", exact: true });
   await brandField.click();
   await userEvent.tab();
@@ -504,28 +504,28 @@ test("focuses a stacked modal's first field and gives the focus back to the butt
   await expect.element(screen.getByRole("button", { name: "Crear marca" })).toHaveFocus();
 });
 
-test("gives the focus back to the combobox whose creation entry opened a stacked modal, when it closes", async () => {
-  function Harness() {
-    const [brandOpen, setBrandOpen] = useState(false);
-    const [value, setValue] = useState<"small" | "large" | null>(null);
-    return (
-      <FormModal title="Nuevo producto">
-        <NameField />
-        <ComboBox
-          label="Marca"
-          options={SIZE_OPTIONS}
-          creation={{ recordKind: "marca", onCreate: () => setBrandOpen(true) }}
-          value={value}
-          onChange={setValue}
-        />
-        <FormModal open={brandOpen} onOpenChange={setBrandOpen} title="Nueva marca">
-          <NameField label="Nombre de la marca" />
-        </FormModal>
+function BrandComboBoxStack() {
+  const [brandOpen, setBrandOpen] = useState(false);
+  const [value, setValue] = useState<"small" | "large" | null>(null);
+  return (
+    <FormModal title="Nuevo producto">
+      <NameField />
+      <ComboBox
+        label="Marca"
+        options={SIZE_OPTIONS}
+        creation={{ recordKind: "marca", onCreate: () => setBrandOpen(true) }}
+        value={value}
+        onChange={setValue}
+      />
+      <FormModal open={brandOpen} onOpenChange={setBrandOpen} title="Nueva marca">
+        <NameField label="Nombre de la marca" />
       </FormModal>
-    );
-  }
+    </FormModal>
+  );
+}
 
-  const screen = await render(<Harness />);
+test("gives the focus back to the combobox whose creation entry opened a stacked modal, when it closes", async () => {
+  const screen = await render(<BrandComboBoxStack />);
   const brandSelector = screen.getByRole("combobox", { name: "Marca" });
   await userEvent.fill(brandSelector, "Dulcor");
   await screen.getByRole("option", { name: "Crear marca «Dulcor»" }).click();

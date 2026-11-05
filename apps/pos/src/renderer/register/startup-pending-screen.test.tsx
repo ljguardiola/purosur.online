@@ -644,10 +644,10 @@ describe("StartupPendingScreen", () => {
   });
 
   describe("reprinting the ticket of a sale whose print is unknown", () => {
-    const UNKNOWN_ONLY = async () => ({ ...NOTHING, sales_to_print: [OUTCOME_UNKNOWN] });
+    const unknownOnly = async () => ({ ...NOTHING, sales_to_print: [OUTCOME_UNKNOWN] });
 
     it("opens the reprint as a duplicate straight from the list, without a number it does not know", async () => {
-      const { screen } = await renderScreen({ loadStartupPending: UNKNOWN_ONLY });
+      const { screen } = await renderScreen({ loadStartupPending: unknownOnly });
 
       await userEvent.click(screen.getByRole("button", { name: /^Reimprimir como duplicado/ }));
 
@@ -659,7 +659,7 @@ describe("StartupPendingScreen", () => {
     it("reprints through the reprint request with the reason typed, says it comes out when the printer is ready and reads the items again", async () => {
       const { screen, reprintSaleReceipt, printOriginalReceipt, loadStartupPending } =
         await renderScreen({
-          loadStartupPending: UNKNOWN_ONLY,
+          loadStartupPending: unknownOnly,
           reprintSaleReceipt: async () => ({
             kind: "started",
             copy: { kind: "duplicate", order_number: 1 },
@@ -692,7 +692,7 @@ describe("StartupPendingScreen", () => {
 
     it("closes the reprint from Cancelar without asking the core to print", async () => {
       const { screen, reprintSaleReceipt } = await renderScreen({
-        loadStartupPending: UNKNOWN_ONLY,
+        loadStartupPending: unknownOnly,
       });
       await userEvent.click(screen.getByRole("button", { name: /^Reimprimir como duplicado/ }));
 

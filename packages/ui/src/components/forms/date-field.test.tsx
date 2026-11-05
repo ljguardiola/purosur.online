@@ -188,23 +188,24 @@ test("marks the helper line as disabled too when the field itself is disabled", 
   await expectNoAccessibilityViolations(screen.container);
 });
 
+function DisabledRangeField() {
+  const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 3, 15));
+  return (
+    <DateField
+      name="expiry"
+      label="Expiry"
+      value={value}
+      onChange={setValue}
+      minValue={new CalendarDate(2027, 1, 1)}
+      maxValue={new CalendarDate(2027, 2, 28)}
+      rangeMessage="The date must be 28/02/2027 or earlier."
+      disabled
+    />
+  );
+}
+
 test("marks the range message as disabled too when the field itself is disabled", async () => {
-  function ControlledHarness() {
-    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 3, 15));
-    return (
-      <DateField
-        name="expiry"
-        label="Expiry"
-        value={value}
-        onChange={setValue}
-        minValue={new CalendarDate(2027, 1, 1)}
-        maxValue={new CalendarDate(2027, 2, 28)}
-        rangeMessage="The date must be 28/02/2027 or earlier."
-        disabled
-      />
-    );
-  }
-  const screen = await render(<ControlledHarness />);
+  const screen = await render(<DisabledRangeField />);
 
   const message = screen.getByText("The date must be 28/02/2027 or earlier.").element();
   expect(message.getAttribute("aria-disabled")).toBe("true");
@@ -579,23 +580,24 @@ test("shows the month and the year in two pickers of bold ink values with a chev
   await expectNoAccessibilityViolations(document.body);
 });
 
+function ChosenRecordingField({ chosen }: { chosen: (CalendarDate | null)[] }) {
+  const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 1, 31));
+  return (
+    <DateField
+      name="expiry"
+      label="Expiry"
+      value={value}
+      onChange={(next) => {
+        chosen.push(next);
+        setValue(next);
+      }}
+    />
+  );
+}
+
 test("lists the twelve months of the year, capitalised, and moves the calendar to the chosen one without choosing a date", async () => {
   const chosen: (CalendarDate | null)[] = [];
-  function Harness() {
-    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 1, 31));
-    return (
-      <DateField
-        name="expiry"
-        label="Expiry"
-        value={value}
-        onChange={(next) => {
-          chosen.push(next);
-          setValue(next);
-        }}
-      />
-    );
-  }
-  const screen = await render(<Harness />);
+  const screen = await render(<ChosenRecordingField chosen={chosen} />);
   const dialog = await openCalendar(screen, "Expiry");
 
   await userEvent.click(pickerTrigger(screen, "Mes"));
@@ -660,22 +662,23 @@ test("lists a hundred years either side of the shown year when the field has no 
   );
 });
 
+function FebruaryToAprilRangeField() {
+  const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 3, 15));
+  return (
+    <DateField
+      name="expiry"
+      label="Expiry"
+      value={value}
+      onChange={setValue}
+      minValue={new CalendarDate(2027, 2, 10)}
+      maxValue={new CalendarDate(2027, 4, 20)}
+      rangeMessage="The date must be between 10/02/2027 and 20/04/2027."
+    />
+  );
+}
+
 test("offers only the years of the allowed range and disables the months outside it", async () => {
-  function Harness() {
-    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 3, 15));
-    return (
-      <DateField
-        name="expiry"
-        label="Expiry"
-        value={value}
-        onChange={setValue}
-        minValue={new CalendarDate(2027, 2, 10)}
-        maxValue={new CalendarDate(2027, 4, 20)}
-        rangeMessage="The date must be between 10/02/2027 and 20/04/2027."
-      />
-    );
-  }
-  const screen = await render(<Harness />);
+  const screen = await render(<FebruaryToAprilRangeField />);
   const dialog = await openCalendar(screen, "Expiry");
 
   await userEvent.click(pickerTrigger(screen, "Mes"));
@@ -696,22 +699,23 @@ test("offers only the years of the allowed range and disables the months outside
   ).toEqual(["2027"]);
 });
 
+function MultiYearRangeField() {
+  const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 3, 15));
+  return (
+    <DateField
+      name="expiry"
+      label="Expiry"
+      value={value}
+      onChange={setValue}
+      minValue={new CalendarDate(2025, 6, 1)}
+      maxValue={new CalendarDate(2028, 1, 31)}
+      rangeMessage="The date must be between 01/06/2025 and 31/01/2028."
+    />
+  );
+}
+
 test("limits the year picker to the years between the range's bounds", async () => {
-  function Harness() {
-    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 3, 15));
-    return (
-      <DateField
-        name="expiry"
-        label="Expiry"
-        value={value}
-        onChange={setValue}
-        minValue={new CalendarDate(2025, 6, 1)}
-        maxValue={new CalendarDate(2028, 1, 31)}
-        rangeMessage="The date must be between 01/06/2025 and 31/01/2028."
-      />
-    );
-  }
-  const screen = await render(<Harness />);
+  const screen = await render(<MultiYearRangeField />);
   await openCalendar(screen, "Expiry");
 
   await userEvent.click(pickerTrigger(screen, "Año"));
@@ -753,22 +757,23 @@ test("draws the calendar's weekday initials bold in the package's own supporting
   await expectNoAccessibilityViolations(document.body);
 });
 
+function SingleMonthRangeField() {
+  const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 15));
+  return (
+    <DateField
+      name="expiry"
+      label="Expiry"
+      value={value}
+      onChange={setValue}
+      minValue={new CalendarDate(2027, 2, 1)}
+      maxValue={new CalendarDate(2027, 2, 28)}
+      rangeMessage="The date must be in February 2027."
+    />
+  );
+}
+
 test("dims the calendar's month controls once the allowed range reaches no further month", async () => {
-  function ControlledHarness() {
-    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 15));
-    return (
-      <DateField
-        name="expiry"
-        label="Expiry"
-        value={value}
-        onChange={setValue}
-        minValue={new CalendarDate(2027, 2, 1)}
-        maxValue={new CalendarDate(2027, 2, 28)}
-        rangeMessage="The date must be in February 2027."
-      />
-    );
-  }
-  const screen = await render(<ControlledHarness />);
+  const screen = await render(<SingleMonthRangeField />);
   await openCalendar(screen, "Expiry");
 
   const previous = document.body.querySelector('[slot="previous"]') as HTMLElement;
@@ -798,12 +803,13 @@ test("shows the hand cursor on the calendar's month controls while the range sti
   await expectNoAccessibilityViolations(document.body);
 });
 
+function LastDayOfFebruaryField() {
+  const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 28));
+  return <DateField name="expiry" label="Expiry" value={value} onChange={setValue} />;
+}
+
 test("shows the chosen day with a blue UI fill and a white number, clearing the AA text contrast minimum", async () => {
-  function ControlledHarness() {
-    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 28));
-    return <DateField name="expiry" label="Expiry" value={value} onChange={setValue} />;
-  }
-  const screen = await render(<ControlledHarness />);
+  const screen = await render(<LastDayOfFebruaryField />);
   const dialog = await openCalendar(screen, "Expiry");
 
   const chosen = dialog.querySelector('[data-selected="true"]') as HTMLElement;
@@ -818,11 +824,7 @@ test("shows the chosen day with a blue UI fill and a white number, clearing the 
 });
 
 test("shows an unchosen day in ink that turns bone on hover", async () => {
-  function ControlledHarness() {
-    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 28));
-    return <DateField name="expiry" label="Expiry" value={value} onChange={setValue} />;
-  }
-  const screen = await render(<ControlledHarness />);
+  const screen = await render(<LastDayOfFebruaryField />);
   const dialog = await openCalendar(screen, "Expiry");
 
   const cells = Array.from(dialog.querySelectorAll("td [role='button']")) as HTMLElement[];
@@ -835,22 +837,23 @@ test("shows an unchosen day in ink that turns bone on hover", async () => {
     .toBe(tokenRgb("surface-subtle"));
 });
 
+function TenDayRangeField() {
+  const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 15));
+  return (
+    <DateField
+      name="expiry"
+      label="Expiry"
+      value={value}
+      onChange={setValue}
+      minValue={new CalendarDate(2027, 2, 10)}
+      maxValue={new CalendarDate(2027, 2, 20)}
+      rangeMessage="The date must be between 10/02/2027 and 20/02/2027."
+    />
+  );
+}
+
 test("shows the hand cursor on a selectable day and the arrow on a day outside the allowed range", async () => {
-  function ControlledHarness() {
-    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 15));
-    return (
-      <DateField
-        name="expiry"
-        label="Expiry"
-        value={value}
-        onChange={setValue}
-        minValue={new CalendarDate(2027, 2, 10)}
-        maxValue={new CalendarDate(2027, 2, 20)}
-        rangeMessage="The date must be between 10/02/2027 and 20/02/2027."
-      />
-    );
-  }
-  const screen = await render(<ControlledHarness />);
+  const screen = await render(<TenDayRangeField />);
   const dialog = await openCalendar(screen, "Expiry");
 
   const cells = Array.from(dialog.querySelectorAll("td [role='button']")) as HTMLElement[];
@@ -864,11 +867,7 @@ test("shows the hand cursor on a selectable day and the arrow on a day outside t
 });
 
 test("shows the package's own outline focus ring on the focused day", async () => {
-  function ControlledHarness() {
-    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 28));
-    return <DateField name="expiry" label="Expiry" value={value} onChange={setValue} />;
-  }
-  const screen = await render(<ControlledHarness />);
+  const screen = await render(<LastDayOfFebruaryField />);
   const group = fieldGroup(screen, "Expiry");
   const toggle = group.querySelector("button") as HTMLElement;
 
@@ -887,12 +886,13 @@ test("shows the package's own outline focus ring on the focused day", async () =
   expect(Math.round(Number.parseFloat(style.outlineOffset))).toBe(2);
 });
 
+function MidFebruaryField() {
+  const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 15));
+  return <DateField name="expiry" label="Expiry" value={value} onChange={setValue} />;
+}
+
 test("keeps the focused day's outline ring inside the calendar panel", async () => {
-  function ControlledHarness() {
-    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 15));
-    return <DateField name="expiry" label="Expiry" value={value} onChange={setValue} />;
-  }
-  const screen = await render(<ControlledHarness />);
+  const screen = await render(<MidFebruaryField />);
   const group = fieldGroup(screen, "Expiry");
   const toggle = group.querySelector("button") as HTMLElement;
 
@@ -1088,12 +1088,13 @@ function focusedDayLabel(dialog: HTMLElement): string {
   return focused.textContent?.trim() ?? "";
 }
 
+function FirstOfFebruaryField() {
+  const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 1));
+  return <DateField name="expiry" label="Expiry" value={value} onChange={setValue} />;
+}
+
 test("moves the focused day by one with the arrow keys, wrapping into the neighbouring month", async () => {
-  function ControlledHarness() {
-    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 1));
-    return <DateField name="expiry" label="Expiry" value={value} onChange={setValue} />;
-  }
-  const screen = await render(<ControlledHarness />);
+  const screen = await render(<FirstOfFebruaryField />);
   const dialog = await openCalendarWithKeyboard(screen, "Expiry");
 
   expect(focusedDayLabel(dialog)).toBe("1");
@@ -1160,17 +1161,18 @@ test("closes the calendar without changing the field when Escape is pressed", as
   await expectNoAccessibilityViolations(screen.container);
 });
 
+function FirstOfFebruaryWithCallerValue() {
+  const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 1));
+  return (
+    <>
+      <DateField name="expiry" label="Expiry" value={value} onChange={setValue} />
+      <p data-testid="caller-value">{value?.toString() ?? ""}</p>
+    </>
+  );
+}
+
 test("clicking a day with the mouse chooses it, updates the typed value and closes the calendar", async () => {
-  function ControlledHarness() {
-    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 1));
-    return (
-      <>
-        <DateField name="expiry" label="Expiry" value={value} onChange={setValue} />
-        <p data-testid="caller-value">{value?.toString() ?? ""}</p>
-      </>
-    );
-  }
-  const screen = await render(<ControlledHarness />);
+  const screen = await render(<FirstOfFebruaryWithCallerValue />);
   const dialog = await openCalendar(screen, "Expiry");
 
   const cells = Array.from(dialog.querySelectorAll("td [role='button']")) as HTMLElement[];
@@ -1203,22 +1205,23 @@ test("updates the calendar's chosen day once typing finishes a complete valid da
   expect(chosen.textContent?.trim()).toBe("28");
 });
 
+function ValueBeyondRangeField() {
+  const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 3, 15));
+  return (
+    <DateField
+      name="expiry"
+      label="Expiry"
+      value={value}
+      onChange={setValue}
+      minValue={new CalendarDate(2027, 1, 1)}
+      maxValue={new CalendarDate(2027, 2, 28)}
+      rangeMessage="The date must be 28/02/2027 or earlier."
+    />
+  );
+}
+
 test("refuses a date outside the caller's allowed range, showing its message under the field in error UI", async () => {
-  function ControlledHarness() {
-    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 3, 15));
-    return (
-      <DateField
-        name="expiry"
-        label="Expiry"
-        value={value}
-        onChange={setValue}
-        minValue={new CalendarDate(2027, 1, 1)}
-        maxValue={new CalendarDate(2027, 2, 28)}
-        rangeMessage="The date must be 28/02/2027 or earlier."
-      />
-    );
-  }
-  const screen = await render(<ControlledHarness />);
+  const screen = await render(<ValueBeyondRangeField />);
   const group = fieldGroup(screen, "Expiry");
 
   expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("error", "2px")]);
@@ -1228,21 +1231,7 @@ test("refuses a date outside the caller's allowed range, showing its message und
 });
 
 test("does not select the out-of-range day in the calendar", async () => {
-  function ControlledHarness() {
-    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 3, 15));
-    return (
-      <DateField
-        name="expiry"
-        label="Expiry"
-        value={value}
-        onChange={setValue}
-        minValue={new CalendarDate(2027, 1, 1)}
-        maxValue={new CalendarDate(2027, 2, 28)}
-        rangeMessage="The date must be 28/02/2027 or earlier."
-      />
-    );
-  }
-  const screen = await render(<ControlledHarness />);
+  const screen = await render(<ValueBeyondRangeField />);
   const dialog = await openCalendar(screen, "Expiry");
 
   expect(dialog.querySelector('[data-selected="true"]')).toBeNull();
@@ -1283,25 +1272,26 @@ for (const [edge, accepted] of [
   });
 }
 
+function RangedFieldWithCallerValue() {
+  const [value, setValue] = useState<CalendarDate | null>(null);
+  return (
+    <>
+      <DateField
+        name="expiry"
+        label="Expiry"
+        value={value}
+        onChange={setValue}
+        minValue={RANGE_MIN}
+        maxValue={RANGE_MAX}
+        rangeMessage={RANGE_MESSAGE}
+      />
+      <p data-testid="caller-value">{value?.toString() ?? ""}</p>
+    </>
+  );
+}
+
 test("still tells the caller a date typed outside the allowed range, while drawing the field as refused", async () => {
-  function ControlledHarness() {
-    const [value, setValue] = useState<CalendarDate | null>(null);
-    return (
-      <>
-        <DateField
-          name="expiry"
-          label="Expiry"
-          value={value}
-          onChange={setValue}
-          minValue={RANGE_MIN}
-          maxValue={RANGE_MAX}
-          rangeMessage={RANGE_MESSAGE}
-        />
-        <p data-testid="caller-value">{value?.toString() ?? ""}</p>
-      </>
-    );
-  }
-  const screen = await render(<ControlledHarness />);
+  const screen = await render(<RangedFieldWithCallerValue />);
   const group = fieldGroup(screen, "Expiry");
 
   await userEvent.click(group);
@@ -1391,12 +1381,13 @@ test("does not accept a field without a label, a value or onChange", () => {
   }>().not.toExtend<DateFieldProps>();
 });
 
+function ImpossibleDayField() {
+  const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 30));
+  return <DateField name="expiry" label="Expiry" value={value} onChange={setValue} />;
+}
+
 test("holds a day the calendar system itself constrains, with no text left for the field to parse", async () => {
-  function ControlledHarness() {
-    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 30));
-    return <DateField name="expiry" label="Expiry" value={value} onChange={setValue} />;
-  }
-  const screen = await render(<ControlledHarness />);
+  const screen = await render(<ImpossibleDayField />);
   const group = fieldGroup(screen, "Expiry");
 
   expect(group.textContent).toContain("28");
@@ -1405,11 +1396,7 @@ test("holds a day the calendar system itself constrains, with no text left for t
 });
 
 test("announces the field with its label and current value through its segments", async () => {
-  function ControlledHarness() {
-    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 28));
-    return <DateField name="expiry" label="Expiry" value={value} onChange={setValue} />;
-  }
-  const screen = await render(<ControlledHarness />);
+  const screen = await render(<LastDayOfFebruaryField />);
   const group = fieldGroup(screen, "Expiry");
   expect(group.getAttribute("aria-label") ?? group.getAttribute("aria-labelledby")).toBeTruthy();
 
@@ -1422,11 +1409,7 @@ test("announces the field with its label and current value through its segments"
 });
 
 test("announces the open calendar as a dialog named by the month and year it shows", async () => {
-  function ControlledHarness() {
-    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 28));
-    return <DateField name="expiry" label="Expiry" value={value} onChange={setValue} />;
-  }
-  const screen = await render(<ControlledHarness />);
+  const screen = await render(<LastDayOfFebruaryField />);
   await openCalendar(screen, "Expiry");
 
   const dialog = screen.getByRole("dialog");
@@ -1444,11 +1427,7 @@ test("announces the open calendar as a dialog named by the month and year it sho
 });
 
 test("announces the chosen day's button as selected", async () => {
-  function ControlledHarness() {
-    const [value, setValue] = useState<CalendarDate | null>(new CalendarDate(2027, 2, 28));
-    return <DateField name="expiry" label="Expiry" value={value} onChange={setValue} />;
-  }
-  const screen = await render(<ControlledHarness />);
+  const screen = await render(<LastDayOfFebruaryField />);
   const dialog = await openCalendar(screen, "Expiry");
 
   const chosen = dialog.querySelector('[data-selected="true"]') as HTMLElement;

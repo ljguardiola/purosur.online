@@ -203,41 +203,56 @@ test("presses nothing with Ctrl+Enter from the part while its action is disabled
   expect(onSaveRecipe).not.toHaveBeenCalled();
 });
 
+function BrandCreationStacked({
+  onSaveRecipe,
+  onSavePrice,
+  onCreateBrand,
+}: {
+  onSaveRecipe: () => void;
+  onSavePrice: () => void;
+  onCreateBrand: () => void;
+}) {
+  const [innerOpen, setInnerOpen] = useState(false);
+  return (
+    <RecipeModal
+      onSaveRecipe={onSaveRecipe}
+      onSavePrice={onSavePrice}
+      part={
+        <>
+          <Button variant="text" onPress={() => setInnerOpen(true)}>
+            Crear una marca
+          </Button>
+          <Modal
+            open={innerOpen}
+            onOpenChange={() => {}}
+            tone="info"
+            icon={<Info />}
+            title="Nueva marca"
+            footer={
+              <Button variant="primary" onPress={onCreateBrand}>
+                Crear la marca
+              </Button>
+            }
+          >
+            <NameField label="Nombre de la marca" />
+          </Modal>
+        </>
+      }
+    />
+  );
+}
+
 test("sends only the modal opened from within a part over the one below it", async () => {
   const onSaveRecipe = vi.fn();
   const onSavePrice = vi.fn();
   const onCreateBrand = vi.fn();
-  function Stacked() {
-    const [innerOpen, setInnerOpen] = useState(false);
-    return (
-      <RecipeModal
-        onSaveRecipe={onSaveRecipe}
-        onSavePrice={onSavePrice}
-        part={
-          <>
-            <Button variant="text" onPress={() => setInnerOpen(true)}>
-              Crear una marca
-            </Button>
-            <Modal
-              open={innerOpen}
-              onOpenChange={() => {}}
-              tone="info"
-              icon={<Info />}
-              title="Nueva marca"
-              footer={
-                <Button variant="primary" onPress={onCreateBrand}>
-                  Crear la marca
-                </Button>
-              }
-            >
-              <NameField label="Nombre de la marca" />
-            </Modal>
-          </>
-        }
-      />
-    );
-  }
-  const screen = await render(<Stacked />);
+  const screen = await render(
+    <BrandCreationStacked
+      onSaveRecipe={onSaveRecipe}
+      onSavePrice={onSavePrice}
+      onCreateBrand={onCreateBrand}
+    />,
+  );
 
   await userEvent.click(screen.getByRole("button", { name: "Crear una marca" }));
   await userEvent.click(screen.getByRole("textbox", { name: "Nombre de la marca" }));
@@ -248,41 +263,50 @@ test("sends only the modal opened from within a part over the one below it", asy
   expect(onSaveRecipe).not.toHaveBeenCalled();
 });
 
+function PressableBrandCreationStacked({
+  onSaveRecipe,
+  onSavePrice,
+}: {
+  onSaveRecipe: () => void;
+  onSavePrice: () => void;
+}) {
+  const [innerOpen, setInnerOpen] = useState(false);
+  return (
+    <RecipeModal
+      onSaveRecipe={onSaveRecipe}
+      onSavePrice={onSavePrice}
+      part={
+        <>
+          <NameField label="Precio de venta" />
+          <Button variant="text" onPress={() => setInnerOpen(true)}>
+            Crear una marca
+          </Button>
+          <Modal
+            open={innerOpen}
+            onOpenChange={() => {}}
+            tone="info"
+            icon={<Info />}
+            title="Nueva marca"
+            footer={
+              <Button variant="primary" onPress={() => setInnerOpen(false)}>
+                Crear la marca
+              </Button>
+            }
+          >
+            <NameField label="Nombre de la marca" />
+          </Modal>
+        </>
+      }
+    />
+  );
+}
+
 test("presses the part's own action with Ctrl+Enter from its field after a modal opened from it closes", async () => {
   const onSaveRecipe = vi.fn();
   const onSavePrice = vi.fn();
-  function Stacked() {
-    const [innerOpen, setInnerOpen] = useState(false);
-    return (
-      <RecipeModal
-        onSaveRecipe={onSaveRecipe}
-        onSavePrice={onSavePrice}
-        part={
-          <>
-            <NameField label="Precio de venta" />
-            <Button variant="text" onPress={() => setInnerOpen(true)}>
-              Crear una marca
-            </Button>
-            <Modal
-              open={innerOpen}
-              onOpenChange={() => {}}
-              tone="info"
-              icon={<Info />}
-              title="Nueva marca"
-              footer={
-                <Button variant="primary" onPress={() => setInnerOpen(false)}>
-                  Crear la marca
-                </Button>
-              }
-            >
-              <NameField label="Nombre de la marca" />
-            </Modal>
-          </>
-        }
-      />
-    );
-  }
-  const screen = await render(<Stacked />);
+  const screen = await render(
+    <PressableBrandCreationStacked onSaveRecipe={onSaveRecipe} onSavePrice={onSavePrice} />,
+  );
 
   await userEvent.click(screen.getByRole("button", { name: "Crear una marca" }));
   await userEvent.click(screen.getByRole("button", { name: "Crear la marca" }));

@@ -500,7 +500,7 @@ describe("SaleCompletedModal", () => {
   });
 
   describe("for a sale with a factura C", () => {
-    const FISCAL = (authorization: "real_time" | "offline_code"): Comprobante => ({
+    const facturaC = (authorization: "real_time" | "offline_code"): Comprobante => ({
       kind: "fiscal",
       document_type: "factura_c",
       authorization,
@@ -510,7 +510,7 @@ describe("SaleCompletedModal", () => {
 
     it("shows the contingency mode and lists the factura C for the customer while it prints", async () => {
       const { screen } = await renderModal(CASH, {
-        readReceiptStatus: async () => found("printing", { comprobante: FISCAL("offline_code") }),
+        readReceiptStatus: async () => found("printing", { comprobante: facturaC("offline_code") }),
       });
 
       await expect.element(screen.getByText("Modo fiscal")).toBeVisible();
@@ -525,7 +525,7 @@ describe("SaleCompletedModal", () => {
     it("shows the document as printed once it was", async () => {
       const { screen } = await renderModal(CASH, {
         readReceiptStatus: async () =>
-          found("printed", { printed: true, comprobante: FISCAL("offline_code") }),
+          found("printed", { printed: true, comprobante: facturaC("offline_code") }),
       });
 
       await expect.element(screen.getByText("Impreso")).toBeVisible();
@@ -535,7 +535,7 @@ describe("SaleCompletedModal", () => {
     it("keeps the ticket row for a factura C authorized in real time", async () => {
       const { screen } = await renderModal(CASH, {
         readReceiptStatus: async () =>
-          found("printed", { printed: true, comprobante: FISCAL("real_time") }),
+          found("printed", { printed: true, comprobante: facturaC("real_time") }),
       });
 
       await expect.element(screen.getByText("Ticket", { exact: true })).toBeVisible();

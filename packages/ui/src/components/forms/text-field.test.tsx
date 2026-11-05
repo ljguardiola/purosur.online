@@ -880,37 +880,37 @@ test("keeps the affix in the description alongside the helper text, each named o
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("follows the field's description as it moves from helper text to an error and back", async () => {
-  function ValidityHarness() {
-    const [invalid, setInvalid] = useState(false);
-    return (
-      <>
-        {invalid ? (
-          <TextField
-            kind="plain-text"
-            label="Reason"
-            value=""
-            onChange={() => {}}
-            description="Optional."
-            errorMessage="Enter a reason."
-          />
-        ) : (
-          <TextField
-            kind="plain-text"
-            label="Reason"
-            value=""
-            onChange={() => {}}
-            description="Optional."
-          />
-        )}
-        <button type="button" onClick={() => setInvalid((current) => !current)}>
-          Toggle
-        </button>
-      </>
-    );
-  }
+function ValidityTextField() {
+  const [invalid, setInvalid] = useState(false);
+  return (
+    <>
+      {invalid ? (
+        <TextField
+          kind="plain-text"
+          label="Reason"
+          value=""
+          onChange={() => {}}
+          description="Optional."
+          errorMessage="Enter a reason."
+        />
+      ) : (
+        <TextField
+          kind="plain-text"
+          label="Reason"
+          value=""
+          onChange={() => {}}
+          description="Optional."
+        />
+      )}
+      <button type="button" onClick={() => setInvalid((current) => !current)}>
+        Toggle
+      </button>
+    </>
+  );
+}
 
-  const screen = await render(<ValidityHarness />);
+test("follows the field's description as it moves from helper text to an error and back", async () => {
+  const screen = await render(<ValidityTextField />);
   const input = fieldInput(screen, "Reason");
   const toggle = screen.getByRole("button", { name: "Toggle" }).element() as HTMLButtonElement;
 

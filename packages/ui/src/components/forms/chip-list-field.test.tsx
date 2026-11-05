@@ -162,13 +162,15 @@ test("moves focus to the add pill after removing the last chip", async () => {
     .toBe(screen.getByRole("button", { name: "Agregar distintivo" }).element());
 });
 
+const singleOption: NarrowedOption<Diet>[] = [{ value: "organic", label: "Orgánico" }];
+
+function SingleChipField() {
+  const [value, setValue] = useState<Diet[]>(["organic"]);
+  return <ChipListField {...baseProps({ options: singleOption, value, onChange: setValue })} />;
+}
+
 test("moves focus to the add pill after removing the only chip, even when it was the last thing to offer", async () => {
-  const single: NarrowedOption<Diet>[] = [{ value: "organic", label: "Orgánico" }];
-  function Field() {
-    const [value, setValue] = useState<Diet[]>(["organic"]);
-    return <ChipListField {...baseProps({ options: single, value, onChange: setValue })} />;
-  }
-  const screen = await render(<Field />);
+  const screen = await render(<SingleChipField />);
   await screen.getByRole("button", { name: "Quitar Orgánico" }).click();
 
   await expect
@@ -176,16 +178,18 @@ test("moves focus to the add pill after removing the only chip, even when it was
     .toBe(screen.getByRole("button", { name: "Agregar distintivo" }).element());
 });
 
+const keptOptions: NarrowedOption<Diet, never, "status">[] = [
+  { value: "organic", label: "Orgánico" },
+  { value: "dye-free", label: "Sin colorantes", status: "Dado de baja" },
+];
+
+function KeptInactiveChipField() {
+  const [value, setValue] = useState<Diet[]>(["organic", "dye-free"]);
+  return <ChipListField {...baseProps({ options: keptOptions, value, onChange: setValue })} />;
+}
+
 test("moves focus to the previous chip's remove button after removing the last chip, when nothing is left to add", async () => {
-  const kept: NarrowedOption<Diet, never, "status">[] = [
-    { value: "organic", label: "Orgánico" },
-    { value: "dye-free", label: "Sin colorantes", status: "Dado de baja" },
-  ];
-  function Field() {
-    const [value, setValue] = useState<Diet[]>(["organic", "dye-free"]);
-    return <ChipListField {...baseProps({ options: kept, value, onChange: setValue })} />;
-  }
-  const screen = await render(<Field />);
+  const screen = await render(<KeptInactiveChipField />);
   await screen.getByRole("button", { name: "Quitar Sin colorantes" }).click();
 
   await expect.element(screen.getByRole("button", { name: "Agregar distintivo" })).toBeDisabled();
