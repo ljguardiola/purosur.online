@@ -69,4 +69,38 @@ describe("scaleWeighingStep", () => {
       scaleWeighingStep({ kind: "stable", weightThousandths: 5000 }, 5000, UP_TO_5000),
     ).toEqual({ kind: "take", weightThousandths: 5000 });
   });
+
+  it.each([null, 1250, 800])(
+    "shows an unstable weight as unsteady, never taking it, confirming %s",
+    (confirmed) => {
+      expect(
+        scaleWeighingStep({ kind: "unstable", weightThousandths: 800 }, confirmed, UP_TO_5000),
+      ).toEqual({ kind: "unsteady", weightThousandths: 800 });
+    },
+  );
+
+  it.each([
+    [0, null],
+    [0, 0],
+    [5001, null],
+    [5001, 5001],
+    [-120, null],
+    [-120, -120],
+  ])(
+    "keeps weighing without a weight for an unstable reading of %s thousandths, confirming %s",
+    (weightThousandths, confirmed) => {
+      expect(
+        scaleWeighingStep({ kind: "unstable", weightThousandths }, confirmed, UP_TO_5000),
+      ).toEqual({ kind: "weighing" });
+    },
+  );
+
+  it("takes a stable reading equal to the confirmed weight after an unstable one", () => {
+    expect(
+      scaleWeighingStep({ kind: "unstable", weightThousandths: 1250 }, 1250, UP_TO_5000),
+    ).toEqual({ kind: "unsteady", weightThousandths: 1250 });
+    expect(
+      scaleWeighingStep({ kind: "stable", weightThousandths: 1250 }, 1250, UP_TO_5000),
+    ).toEqual({ kind: "take", weightThousandths: 1250 });
+  });
 });

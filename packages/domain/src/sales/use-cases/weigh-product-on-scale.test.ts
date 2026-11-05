@@ -165,6 +165,25 @@ describe("weighProductOnScale", () => {
     expect(store.state).toEqual(before);
   });
 
+  it.each([null, 1250])(
+    "answers an unstable weight and its amount, recording nothing, confirming %s",
+    async (confirmed) => {
+      const store = ledger();
+      const before = structuredClone(store.state);
+
+      expect(
+        await weigh(
+          store,
+          { kind: "unstable", weightThousandths: 1250 },
+          "queso",
+          "cashier",
+          confirmed,
+        ),
+      ).toEqual({ kind: "unsteady", weightThousandths: 1250, amount: 11250 });
+      expect(store.state).toEqual(before);
+    },
+  );
+
   it("answers the stable weight and its amount without recording anything when not confirming", async () => {
     const store = ledger();
     const before = structuredClone(store.state);

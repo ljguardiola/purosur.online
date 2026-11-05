@@ -43,4 +43,19 @@ describe("pricedWeighingStep", () => {
       ),
     ).toEqual({ kind: "take", weightThousandths: MAX_STOCK_QUANTITY });
   });
+
+  it.each([null, 1250])("shows an unstable weight with its amount, confirming %s", (confirmed) => {
+    expect(
+      pricedWeighingStep({ kind: "unstable", weightThousandths: 1250 }, confirmed, amountAt),
+    ).toEqual({ kind: "unsteady", weightThousandths: 1250, amount: 11250 });
+  });
+
+  it.each([0, -120, 1.5, MAX_STOCK_QUANTITY + 1])(
+    "keeps weighing for an unstable reading of %s thousandths that is no line weight",
+    (weightThousandths) => {
+      expect(pricedWeighingStep({ kind: "unstable", weightThousandths }, null, amountAt)).toEqual({
+        kind: "weighing",
+      });
+    },
+  );
 });
