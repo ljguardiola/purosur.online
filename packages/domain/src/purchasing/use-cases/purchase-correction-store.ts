@@ -19,6 +19,9 @@ export interface LockedPurchaseLine {
   id: string;
   expiresOn: string | null;
   costPaidCents: number;
+  quantity: number;
+  packages: number | null;
+  quantityPerPackage: number;
 }
 
 export type LockPurchaseResult =
@@ -50,7 +53,18 @@ export type PurchaseCorrectionChange =
       previous: string | null;
       next: string | null;
     }
-  | { kind: "line_cost"; lineId: string; previous: number; next: number };
+  | { kind: "line_cost"; lineId: string; previous: number; next: number }
+  | {
+      kind: "line_quantity";
+      lineId: string;
+      previous: PurchaseLineQuantity;
+      next: PurchaseLineQuantity;
+    };
+
+export interface PurchaseLineQuantity {
+  quantity: number;
+  packages: number | null;
+}
 
 export interface PurchaseCorrection {
   purchaseId: string;
@@ -78,6 +92,18 @@ export type LotExpirySplitResult =
   | { kind: "invalid_quantity" }
   | { kind: "not_enough_in_lot" }
   | { kind: "split"; lotId: string };
+
+export interface LotQuantityCorrection {
+  locationId: string;
+  purchaseLineId: string;
+  delta: number;
+  actorId: string;
+}
+
+export type LotQuantityCorrectionResult =
+  | { kind: "invalid_quantity" }
+  | { kind: "not_enough_in_lot" }
+  | { kind: "corrected" };
 
 export interface LotCostCorrection {
   locationId: string;
@@ -108,12 +134,19 @@ export interface PurchaseCorrectionStoreTransaction {
   updatePurchaseHeader(purchaseId: string, values: PurchaseHeaderValues): Promise<void>;
   updatePurchaseLineExpiry(lineId: string, expiresOn: string | null): Promise<void>;
   updatePurchaseLineCost(lineId: string, costPaidCents: number): Promise<void>;
+  updatePurchaseLineQuantity(
+    lineId: string,
+    quantity: number,
+    packages: number | null,
+  ): Promise<void>;
   // Corrects the cost of every lot the purchase line created, keeping the cost each had until then.
   correctLotCost(correction: LotCostCorrection): Promise<void>;
   // Corrects the expiry date of the lot the purchase line created.
   correctLotExpiry(correction: LotExpiryCorrection): Promise<void>;
   // Moves units of the lot the purchase line created into a lot of their own with the expiry date.
   splitLotExpiry(split: LotExpirySplit): Promise<LotExpirySplitResult>;
+  // Adds the units, or takes them away when negative, from the lot the purchase line created.
+  correctLotQuantity(correction: LotQuantityCorrection): Promise<LotQuantityCorrectionResult>;
   // Dates the lots the purchase lines created by the purchase's corrected date.
   redatePurchasedLots(redating: PurchasedLotsRedating): Promise<void>;
   recordPurchaseCorrection(correction: PurchaseCorrection): Promise<void>;
