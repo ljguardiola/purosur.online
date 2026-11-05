@@ -108,6 +108,7 @@ export type {
 } from "./preview-assembly-batch.js";
 export { previewAssemblyBatch } from "./preview-assembly-batch.js";
 export type {
+  LotCostChangeRecord,
   PurchasedLot,
   PurchasedLotStoreTransaction,
 } from "./purchased-lot-store.js";
