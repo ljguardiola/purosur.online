@@ -1406,6 +1406,11 @@ describe("wiring the purchasing routes", () => {
         url: `/api/purchases/${ID}/lines/${ID}/expiry`,
         headers: ORIGIN,
       }),
+      app.inject({
+        method: "POST",
+        url: `/api/purchases/${ID}/lines/${ID}/expiry-splits`,
+        headers: ORIGIN,
+      }),
       app.inject({ method: "GET", url: `/api/purchases/${ID}/changes` }),
       app.inject({ method: "GET", url: "/api/purchase-choices" }),
       app.inject({ method: "GET", url: "/api/freights" }),
@@ -2867,6 +2872,11 @@ describe("the route access inventory", () => {
       {
         method: "PATCH",
         url: "/api/purchases/:purchaseId/lines/:lineId/expiry",
+        access: capabilityAccess("purchases"),
+      },
+      {
+        method: "POST",
+        url: "/api/purchases/:purchaseId/lines/:lineId/expiry-splits",
         access: capabilityAccess("purchases"),
       },
       {

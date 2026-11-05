@@ -509,6 +509,173 @@ describe("PATCH /purchases/:purchaseId/lines/:lineId/expiry", () => {
   });
 });
 
+describe("POST /purchases/:purchaseId/lines/:lineId/expiry-splits", () => {
+  async function juicePurchase() {
+    const session = await buyer();
+    const juice = await insertProduct(db, { name: "Jugo" });
+    const purchase = await registeredPurchase(session.headers, session.userId, [
+      quantityLine(juice.productId, { quantity: 5_000, expiresOn: "2026-11-10" }),
+    ]);
+    return { ...session, purchase };
+  }
+
+  function split(
+    headers: Record<string, string>,
+    purchase: z_PurchaseSummary,
+    payload: object,
+    lineId: string | undefined = purchase.lines[0]?.id,
+  ) {
+    return app.inject({
+      method: "POST",
+      url: `/purchases/${purchase.id}/lines/${lineId}/expiry-splits`,
+      headers,
+      payload,
+    });
+  }
+
+  it("moves the units into a lot of their own and answers the purchase with what remains in the line's lot", async () => {
+    const { headers, purchase } = await juicePurchase();
+
+    const response = await split(headers, purchase, { quantity: 2_000, expiresOn: "2027-01-15" });
+
+    expect(response.statusCode).toBe(200);
+    const line = purchaseSummarySchema.parse(response.json()).lines[0];
+    expect(line).toMatchObject({ quantity: 5_000, expiresOn: "2026-11-10", remainingInLot: 3_000 });
+    const stored = await db.select().from(lots).orderBy(asc(lots.nameOrder));
+    expect(stored.map(({ expiresOn, remaining }) => [expiresOn, remaining])).toEqual([
+      ["2026-11-10", 3_000],
+      ["2027-01-15", 2_000],
+    ]);
+  });
+
+  it("lists the purchase's lines once each after a split", async () => {
+    const { headers, purchase } = await juicePurchase();
+    await split(headers, purchase, { quantity: 2_000, expiresOn: "2027-01-15" });
+
+    const response = await app.inject({ method: "GET", url: "/purchases", headers });
+
+    expect(response.statusCode).toBe(200);
+    expect(purchaseSummarySchema.parse((response.json() as unknown[])[0]).lines).toHaveLength(1);
+  });
+
+  it("records the units, the previous and new date, who and when, and the purchase's changes list them", async () => {
+    const { headers, userId, purchase } = await juicePurchase();
+    await split(headers, purchase, { quantity: 2_000, expiresOn: "2027-01-15" });
+
+    const rows = await db.select().from(auditLog).where(eq(auditLog.entity, "purchase"));
+    expect(rows).toEqual([
+      expect.objectContaining({
+        entityId: purchase.id,
+        actorId: userId,
+        at: CORRECTED_AT,
+        newValue: expect.objectContaining({ kind: "line_expiry_split", quantity: 2_000 }),
+      }),
+    ]);
+    const response = await app.inject({
+      method: "GET",
+      url: `/purchases/${purchase.id}/changes`,
+      headers,
+    });
+    expect(purchaseChangesSchema.parse(response.json())).toEqual([
+      {
+        id: expect.any(String),
+        actor: { id: userId, name: expect.any(String) },
+        correctedAt: CORRECTED_AT.toISOString(),
+        change: {
+          kind: "line_expiry_split",
+          lineId: purchase.lines[0]?.id,
+          quantity: 2_000,
+          previous: "2026-11-10",
+          next: "2027-01-15",
+        },
+      },
+    ]);
+  });
+
+  it("answers 409 expiry_unchanged and records nothing when the date is the line's own", async () => {
+    const { headers, purchase } = await juicePurchase();
+
+    const response = await split(headers, purchase, { quantity: 2_000, expiresOn: "2026-11-10" });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ code: "expiry_unchanged" });
+    expect(await db.select().from(lots)).toHaveLength(1);
+    expect(await db.select().from(auditLog).where(eq(auditLog.entity, "purchase"))).toEqual([]);
+  });
+
+  it("answers 409 not_enough_in_lot and changes nothing when the lot has no more units than asked", async () => {
+    const { headers, purchase } = await juicePurchase();
+    await db.update(lots).set({ remaining: 2_000 });
+
+    const response = await split(headers, purchase, { quantity: 2_000, expiresOn: "2027-01-15" });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({
+      code: "not_enough_in_lot",
+      message: expect.any(String),
+    });
+    expect(await db.select().from(lots)).toHaveLength(1);
+    expect(await db.select().from(auditLog).where(eq(auditLog.entity, "purchase"))).toEqual([]);
+    expect(
+      await db.select().from(stockMovements).where(eq(stockMovements.kind, "lot_split")),
+    ).toEqual([]);
+  });
+
+  it.each([{}, { quantity: 0, expiresOn: "2027-01-15" }, { quantity: 1_000, expiresOn: "x" }])(
+    "answers 400 to the body %j",
+    async (payload) => {
+      const { headers, purchase } = await juicePurchase();
+
+      const response = await split(headers, purchase, payload);
+
+      expect(response.statusCode).toBe(400);
+    },
+  );
+
+  it("answers 403 to a user without the purchases permission before reading any purchase", async () => {
+    const { headers } = await signedInWith(db, ["sell_and_charge"], NOW);
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/purchases/${MISSING_ID}/lines/${MISSING_ID}/expiry-splits`,
+      headers,
+      payload: { quantity: 1_000, expiresOn: "2027-01-15" },
+    });
+
+    expect(response.statusCode).toBe(403);
+  });
+
+  it("answers 404 for a line that is not of the purchase", async () => {
+    const { headers, purchase } = await juicePurchase();
+
+    const response = await split(
+      headers,
+      purchase,
+      { quantity: 1_000, expiresOn: "2027-01-15" },
+      MISSING_ID,
+    );
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "line_not_found" });
+  });
+
+  it("answers 404 for a purchase of another branch, changing nothing", async () => {
+    const { purchase } = await juicePurchase();
+    const otherBranch = await signedInWith(db, ["record_purchases"], NOW, {
+      locationId: await insertLocation(db),
+    });
+
+    const response = await split(otherBranch.headers, purchase, {
+      quantity: 1_000,
+      expiresOn: "2027-01-15",
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "purchase_not_found" });
+    expect(await db.select().from(lots)).toHaveLength(1);
+  });
+});
+
 describe("PATCH /purchases/:purchaseId/lines/:lineId/cost", () => {
   async function purchaseOfOneLine(overrides: object = {}) {
     const session = await buyer();

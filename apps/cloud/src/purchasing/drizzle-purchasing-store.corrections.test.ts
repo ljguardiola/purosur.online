@@ -2,11 +2,9 @@ import {
   addPurchaseLines,
   correctPurchaseHeader,
   correctPurchaseLineExpiry,
-  createSupplier,
   findPurchaseListing,
   listPurchaseChanges,
   type RegisterPurchaseLine,
-  registerPurchase,
 } from "@purosur/domain/purchasing/use-cases";
 import { asc, eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -26,6 +24,7 @@ import { DrizzlePurchaseChangeReader } from "./drizzle-purchase-change-reader.js
 import { DrizzlePurchasingListReader } from "./drizzle-purchasing-list-reader.js";
 import { DrizzlePurchasingStore } from "./drizzle-purchasing-store.js";
 import { insertActor, insertProduct } from "./test-support/purchasing-fixtures.js";
+import { quantityLine, registeredPurchase } from "./test-support/registered-purchase.js";
 
 const REGISTERED_AT = new Date("2026-10-02T12:00:00.000Z");
 const CORRECTED_AT = new Date("2026-10-06T15:00:00.000Z");
@@ -55,52 +54,16 @@ beforeEach(async () => {
   locationId = await seededLocationId(db);
 });
 
-function quantityLine(
-  productId: string,
-  overrides: Partial<RegisterPurchaseLine> = {},
-): RegisterPurchaseLine {
-  return {
-    loadedBy: "quantity",
-    productId,
-    quantity: 1_000,
-    costPaidCents: 500,
-    expiresOn: null,
-    ...overrides,
-  } as RegisterPurchaseLine;
-}
-
 async function registered(
   lines: (productId: string) => RegisterPurchaseLine[],
   productId: string,
   supplierName = "Distribuidora Sur",
 ) {
-  const supplier = await createSupplier(store(), {
-    name: supplierName,
-    cuit: null,
-    contact: null,
-    note: null,
-    actorId,
-  });
-  if (supplier.kind !== "created") {
-    throw new Error(`test setup: creating the supplier ended as ${supplier.kind}`);
-  }
-  const outcome = await registerPurchase(
-    { zoneRules: fixedZoneRulesSource(), store: store(), clock },
-    {
-      supplierId: supplier.supplier.id,
-      purchasedOn: "2026-10-01",
-      receiptType: "factura_b",
-      receiptNumber: "0001-00000042",
-      note: null,
-      lines: lines(productId),
-      actorId,
-      locationId,
-    },
+  return registeredPurchase(
+    { store: store(), clock, actorId, locationId },
+    lines(productId),
+    supplierName,
   );
-  if (outcome.kind !== "registered") {
-    throw new Error(`test setup: registering the purchase ended as ${outcome.kind}`);
-  }
-  return outcome.purchase;
 }
 
 describe("adding lines to a registered purchase", () => {
