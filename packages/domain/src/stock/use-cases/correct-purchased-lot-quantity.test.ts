@@ -217,6 +217,37 @@ describe("correctPurchasedLotQuantity", () => {
     expect(await correct(store)).toEqual({ kind: "not_found" });
   });
 
+  it("answers not found when no movement received the line, changing nothing", async () => {
+    const store = storeWithReceivedLine();
+    store.seedLot({ id: "lot-1", ...YERBA, purchaseLineId: "line-1", remaining: 24_000 });
+    const before = store.snapshot();
+
+    expect(await correct(store)).toEqual({ kind: "not_found" });
+    expect(store.snapshot()).toEqual(before);
+  });
+
+  it("answers not found when the lot has no purchase day to be read by", async () => {
+    const store = storeWithReceivedLine();
+    await receive(store);
+    store.seedLot({ id: "lot-9", ...YERBA, purchaseLineId: "line-9", purchasedOn: null });
+    store.seedMovement({
+      ...YERBA,
+      kind: "receipt",
+      reason: null,
+      purchaseLineId: "line-9",
+      delta: 1_000,
+      occurredAt: RECEIVED_AT,
+      actorId: "person-1",
+      supersededByCountId: null,
+    });
+    const before = store.snapshot();
+
+    expect(await correct(store, { purchaseLineId: "line-9", delta: -1_000 })).toEqual({
+      kind: "not_found",
+    });
+    expect(store.snapshot()).toEqual(before);
+  });
+
   it("locks the product's stock before it reads the lot's units or changes anything", async () => {
     const store = storeWithReceivedLine();
     await receive(store);
