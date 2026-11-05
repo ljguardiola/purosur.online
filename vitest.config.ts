@@ -228,6 +228,8 @@ export default defineConfig({
             instances: [{ browser: "chromium", name: "catalog-visual" }],
             expect: {
               toMatchScreenshot: {
+                comparatorName: "pixelmatch",
+                comparatorOptions: { threshold: 0.01 },
                 // The rendering environment is this project's container regardless of the host
                 // OS, so a platform suffix in the reference file's name would only ever be noise.
                 resolveScreenshotPath: ({
