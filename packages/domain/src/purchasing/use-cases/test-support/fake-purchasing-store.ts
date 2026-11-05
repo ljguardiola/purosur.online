@@ -6,6 +6,8 @@ import type {
   LockPurchaseResult,
   LotCostCorrection,
   LotExpiryCorrection,
+  LotExpirySplit,
+  LotExpirySplitResult,
   PurchaseCorrection,
   PurchaseCorrectionStore,
   PurchaseCorrectionStoreTransaction,
@@ -53,6 +55,7 @@ export type FakePurchasingWrite =
   | "updatePurchaseLineExpiry"
   | "updatePurchaseLineCost"
   | "correctLotExpiry"
+  | "splitLotExpiry"
   | "correctLotCost"
   | "redatePurchasedLots"
   | "recordPurchaseCorrection";
@@ -65,6 +68,7 @@ export interface FakePurchasingState {
   receipts: PurchaseReceipt[];
   priceReviewPostponements: PriceReviewPostponement[];
   lotExpiryCorrections: LotExpiryCorrection[];
+  lotExpirySplits: LotExpirySplit[];
   lotCostCorrections: LotCostCorrection[];
   lotRedatings: PurchasedLotsRedating[];
   corrections: PurchaseCorrection[];
@@ -88,6 +92,10 @@ function cloneState(state: FakePurchasingState): FakePurchasingState {
       productIds: [...postponement.productIds],
     })),
     lotExpiryCorrections: state.lotExpiryCorrections.map((row) => ({ ...row })),
+    lotExpirySplits: state.lotExpirySplits.map((row) => ({
+      ...row,
+      occurredAt: new Date(row.occurredAt),
+    })),
     lotCostCorrections: state.lotCostCorrections.map((row) => ({
       ...row,
       changedAt: new Date(row.changedAt),
@@ -287,6 +295,15 @@ class FakePurchasingStoreTransaction
     this.state.lotExpiryCorrections.push({ ...correction });
   }
 
+  async splitLotExpiry(split: LotExpirySplit): Promise<LotExpirySplitResult> {
+    this.beforeWrite("splitLotExpiry");
+    this.store.lockLog.push("lot split");
+    if (this.store.lotSplitResult.kind === "split") {
+      this.state.lotExpirySplits.push({ ...split, occurredAt: new Date(split.occurredAt) });
+    }
+    return this.store.lotSplitResult;
+  }
+
   async redatePurchasedLots(redating: PurchasedLotsRedating): Promise<void> {
     this.beforeWrite("redatePurchasedLots");
     this.store.lockLog.push("lot redating");
@@ -340,11 +357,14 @@ export class FakePurchasingStore implements PurchasingStore, PurchaseCorrectionS
     receipts: [],
     priceReviewPostponements: [],
     lotExpiryCorrections: [],
+    lotExpirySplits: [],
     lotCostCorrections: [],
     lotRedatings: [],
     corrections: [],
     nextId: 1,
   };
+
+  lotSplitResult: LotExpirySplitResult = { kind: "split", lotId: "lot-split-1" };
 
   // Names (already lowercased) that raise the conflict on a write, regardless of what a
   // same-transaction check found, to model a concurrent write that committed first.

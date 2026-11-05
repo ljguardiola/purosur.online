@@ -6,6 +6,28 @@ export interface PurchasedLot {
   lotId: string;
   purchaseLineId: string;
   productId: string;
+  // The lot a split took its units from; the lot the purchase line created has none.
+  splitFromLotId: string | null;
+}
+
+export interface SplittableLot {
+  remaining: number;
+  purchasedOn: string;
+  createdAt: Date;
+  costIncomplete: boolean;
+}
+
+export interface NewSplitLot {
+  productId: string;
+  locationId: string;
+  purchaseLineId: string;
+  splitFromLotId: string;
+  quantityReceived: number;
+  cost: LotCost | null;
+  costIncomplete: boolean;
+  expiresOn: string | null;
+  purchasedOn: string;
+  createdAt: Date;
 }
 
 export interface LotCostChangeRecord {
@@ -15,12 +37,14 @@ export interface LotCostChangeRecord {
 }
 
 export interface PurchasedLotStoreTransaction
-  extends Pick<StockStoreTransaction, "lockProductStock"> {
-  // The lots the purchase lines created, one per line, in no particular order.
+  extends Pick<StockStoreTransaction, "lockProductStock" | "recordMovement" | "allocateToLot"> {
+  // The lots the purchase lines created and the lots split from them, in no particular order.
   lotsOfPurchaseLines(
     locationId: string,
     purchaseLineIds: readonly string[],
   ): Promise<PurchasedLot[]>;
+  splittableLot(lotId: string): Promise<SplittableLot | null>;
+  recordSplitLot(lot: NewSplitLot): Promise<string>;
   setLotExpiry(lotId: string, expiresOn: string | null): Promise<void>;
   costOfLot(lotId: string): Promise<LotCost | null>;
   // Keeps the cost the lot had before the change, so what was valued with it stays valued with it.
