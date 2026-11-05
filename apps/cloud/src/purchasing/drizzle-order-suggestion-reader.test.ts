@@ -427,3 +427,36 @@ describe("the awaited order lines", () => {
     expect(await reader().awaitedOrderLines(locationId)).toEqual([]);
   });
 });
+
+describe("the newest shelf life lot ignores the lots a purchase correction withdrew", () => {
+  it("answers the newest lot that was not withdrawn", async () => {
+    const yerba = await insertProduct(db, { name: "Yerba" });
+    const actorId = await insertActor(db);
+    await insertPurchasedLot(db, {
+      productId: yerba.id,
+      locationId,
+      actorId,
+      createdAt: new Date("2026-08-01T12:00:00.000Z"),
+      expiresOn: "2026-12-01",
+    });
+    const withdrawn = await insertPurchasedLot(db, {
+      productId: yerba.id,
+      locationId,
+      actorId,
+      createdAt: new Date("2026-09-01T12:00:00.000Z"),
+      expiresOn: "2026-09-20",
+      remaining: 0,
+    });
+    await db.update(lots).set({ withdrawn: true }).where(eq(lots.id, withdrawn));
+
+    const found = await new DrizzleOrderSuggestionReader(db).newestShelfLifeLots(locationId);
+
+    expect(found).toEqual([
+      {
+        productId: yerba.id,
+        createdAt: new Date("2026-08-01T12:00:00.000Z"),
+        expiresOn: "2026-12-01",
+      },
+    ]);
+  });
+});

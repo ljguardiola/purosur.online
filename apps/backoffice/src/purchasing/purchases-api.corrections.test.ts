@@ -2,11 +2,13 @@ import type { PurchaseHeaderCorrectionBody, PurchaseLinesAdditionBody } from "@p
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
   addPurchaseLines,
+  changePurchaseLineProduct,
   correctPurchaseHeader,
   correctPurchaseLineCost,
   correctPurchaseLineExpiry,
   correctPurchaseLineQuantity,
   fetchPurchaseChanges,
+  removePurchaseLine,
   splitPurchaseLineExpiry,
 } from "./purchases-api";
 import {
@@ -593,6 +595,136 @@ describe("correctPurchaseLineQuantity", () => {
     expect(await correctPurchaseLineQuantity(purchaseId, lineId, quantity)).toEqual({
       kind: "failed",
     });
+  });
+});
+
+describe("changePurchaseLineProduct", () => {
+  const product = { productId: compraDeAvena.lines[0]?.product.id ?? "" };
+
+  test("patches the line's product and answers the purchase on 200", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, compraDeMiel));
+
+    expect(await changePurchaseLineProduct(purchaseId, lineId, product)).toEqual({
+      kind: "ok",
+      purchase: compraDeMiel,
+    });
+    expect(fetch).toHaveBeenCalledWith(`/api/purchases/${purchaseId}/lines/${lineId}/product`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(product),
+    });
+  });
+
+  test("returns failed when the purchase does not have the expected shape", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { id: "x" }));
+
+    expect(await changePurchaseLineProduct(purchaseId, lineId, product)).toEqual({
+      kind: "failed",
+    });
+  });
+
+  test("returns validation_failed with the field the cloud refused", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse(400, { code: "validation_failed", details: [{ field: "productId" }] }),
+    );
+
+    expect(await changePurchaseLineProduct(purchaseId, lineId, product)).toEqual({
+      kind: "validation_failed",
+      field: "productId",
+    });
+  });
+
+  test.each([
+    [409, "product_unchanged", { kind: "unchanged" }],
+    [409, "product_inactive", { kind: "product_inactive" }],
+    [409, "units_left_lot", { kind: "units_left_lot" }],
+    [409, "counted_since_receipt", { kind: "counted_since_receipt" }],
+    [409, "other", { kind: "failed" }],
+    [404, "product_not_found", { kind: "product_not_found" }],
+    [404, "purchase_not_found", { kind: "not_found" }],
+    [404, "line_not_found", { kind: "not_found" }],
+  ] as const)("answers a %i %s as %j", async (status, code, outcome) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(status, { code }));
+
+    expect(await changePurchaseLineProduct(purchaseId, lineId, product)).toEqual(outcome);
+  });
+
+  test.each(refusals)("answers a %i as %j", async (status, outcome) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
+
+    expect(await changePurchaseLineProduct(purchaseId, lineId, product)).toEqual(outcome);
+  });
+
+  test("returns rate_limited with the Retry-After header on 429", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "30" }));
+
+    expect(await changePurchaseLineProduct(purchaseId, lineId, product)).toEqual({
+      kind: "rate_limited",
+      retryAfterSeconds: 30,
+    });
+  });
+
+  test("returns failed when the request throws", async () => {
+    vi.mocked(fetch).mockRejectedValue(new Error("network down"));
+
+    expect(await changePurchaseLineProduct(purchaseId, lineId, product)).toEqual({
+      kind: "failed",
+    });
+  });
+});
+
+describe("removePurchaseLine", () => {
+  test("deletes the line and answers the purchase on 200", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, compraDeMiel));
+
+    expect(await removePurchaseLine(purchaseId, lineId)).toEqual({
+      kind: "ok",
+      purchase: compraDeMiel,
+    });
+    expect(fetch).toHaveBeenCalledWith(`/api/purchases/${purchaseId}/lines/${lineId}`, {
+      method: "DELETE",
+    });
+  });
+
+  test("returns failed when the purchase does not have the expected shape", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { id: "x" }));
+
+    expect(await removePurchaseLine(purchaseId, lineId)).toEqual({ kind: "failed" });
+  });
+
+  test.each([
+    [409, "last_line", { kind: "last_line" }],
+    [409, "units_left_lot", { kind: "units_left_lot" }],
+    [409, "counted_since_receipt", { kind: "counted_since_receipt" }],
+    [409, "other", { kind: "failed" }],
+    [404, "purchase_not_found", { kind: "not_found" }],
+    [404, "line_not_found", { kind: "not_found" }],
+    [404, "other", { kind: "failed" }],
+  ] as const)("answers a %i %s as %j", async (status, code, outcome) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(status, { code }));
+
+    expect(await removePurchaseLine(purchaseId, lineId)).toEqual(outcome);
+  });
+
+  test.each(refusals)("answers a %i as %j", async (status, outcome) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
+
+    expect(await removePurchaseLine(purchaseId, lineId)).toEqual(outcome);
+  });
+
+  test("returns rate_limited with the Retry-After header on 429", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "30" }));
+
+    expect(await removePurchaseLine(purchaseId, lineId)).toEqual({
+      kind: "rate_limited",
+      retryAfterSeconds: 30,
+    });
+  });
+
+  test("returns failed when the request throws", async () => {
+    vi.mocked(fetch).mockRejectedValue(new Error("network down"));
+
+    expect(await removePurchaseLine(purchaseId, lineId)).toEqual({ kind: "failed" });
   });
 });
 

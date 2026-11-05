@@ -5,6 +5,7 @@ import {
   type PurchaseLineCostCorrectionBody,
   type PurchaseLineExpiryCorrectionBody,
   type PurchaseLineExpirySplitBody,
+  type PurchaseLineProductChangeBody,
   type PurchaseLineQuantityCorrectionBody,
   type PurchaseLinesAdditionBody,
   type PurchaseRegistrationBody,
@@ -76,6 +77,25 @@ type PurchaseLotCorrectionOutcome =
 export type SplitPurchaseLineExpiryOutcome = PurchaseLotCorrectionOutcome;
 
 export type CorrectPurchaseLineQuantityOutcome = PurchaseLotCorrectionOutcome;
+
+type PurchaseLineRemovalRefusal =
+  | { kind: "units_left_lot" }
+  | { kind: "counted_since_receipt" }
+  | { kind: "not_found" }
+  | RequestRefusal;
+
+export type ChangePurchaseLineProductOutcome =
+  | { kind: "ok"; purchase: PurchaseSummary }
+  | { kind: "unchanged" }
+  | { kind: "validation_failed"; field: string }
+  | { kind: "product_not_found" }
+  | { kind: "product_inactive" }
+  | PurchaseLineRemovalRefusal;
+
+export type RemovePurchaseLineOutcome =
+  | { kind: "ok"; purchase: PurchaseSummary }
+  | { kind: "last_line" }
+  | PurchaseLineRemovalRefusal;
 
 function refusal(response: Response): RequestRefusal {
   if (response.status === 401) {
@@ -358,6 +378,72 @@ export async function correctPurchaseLineQuantity(
     }
   }
   return refusedCorrection(response, "quantity_unchanged");
+}
+
+const LOT_REFUSAL_CODES = ["units_left_lot", "counted_since_receipt"] as const;
+
+async function refusedLineChange<Extra extends string>(
+  response: Response,
+  extra: Readonly<Record<string, Extra>>,
+): Promise<PurchaseLineRemovalRefusal | { kind: Extra | (typeof LOT_REFUSAL_CODES)[number] }> {
+  const body = await readRefusalBody(response.clone());
+  const code = typeof body.code === "string" ? body.code : undefined;
+  if (response.status === 404 && (code === "purchase_not_found" || code === "line_not_found")) {
+    return { kind: "not_found" };
+  }
+  if (response.status === 404 || response.status === 409) {
+    const lotRefusal = LOT_REFUSAL_CODES.find((lotCode) => lotCode === code);
+    const kind = lotRefusal ?? (code === undefined ? undefined : extra[code]);
+    return kind === undefined ? { kind: "failed" } : { kind };
+  }
+  return refusal(response);
+}
+
+export async function changePurchaseLineProduct(
+  purchaseId: string,
+  lineId: string,
+  input: PurchaseLineProductChangeBody,
+): Promise<ChangePurchaseLineProductOutcome> {
+  const response = await sendCorrection(
+    `/api/purchases/${purchaseId}/lines/${lineId}/product`,
+    "PATCH",
+    input,
+  );
+  if (response === undefined) {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    const purchase = await readPurchase(response);
+    return purchase ? { kind: "ok", purchase } : { kind: "failed" };
+  }
+  if (response.status === 400) {
+    const field = await readValidationFailedField(response);
+    return field === undefined ? { kind: "failed" } : { kind: "validation_failed", field };
+  }
+  return refusedLineChange(response, {
+    product_unchanged: "unchanged",
+    product_inactive: "product_inactive",
+    product_not_found: "product_not_found",
+  } as const);
+}
+
+export async function removePurchaseLine(
+  purchaseId: string,
+  lineId: string,
+): Promise<RemovePurchaseLineOutcome> {
+  let response: Response;
+  try {
+    response = await cloudFetch(`/api/purchases/${purchaseId}/lines/${lineId}`, {
+      method: "DELETE",
+    });
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    const purchase = await readPurchase(response);
+    return purchase ? { kind: "ok", purchase } : { kind: "failed" };
+  }
+  return refusedLineChange(response, { last_line: "last_line" } as const);
 }
 
 export async function fetchPurchaseChanges(

@@ -7,7 +7,7 @@ type Screen = Awaited<ReturnType<typeof render>>;
 type Scope = Pick<Screen, "getByRole">;
 
 // A locator click scrolls the option into view first, and the scroll event closes the list.
-async function chooseProduct(screen: Screen, scope: Scope, name: string) {
+export async function chooseProduct(screen: Screen, scope: Scope, name: string) {
   await userEvent.click(scope.getByRole("combobox", { name: /^Producto/ }));
   await expect.element(screen.getByRole("option", { name })).toBeVisible();
   (screen.getByRole("option", { name }).element() as HTMLElement).click();

@@ -1,5 +1,5 @@
 import type { LotNameFacts, LotNameReader } from "@purosur/domain/stock/use-cases";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull, or } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { assemblyBatches, lots, stockMovements } from "../platform/db/schema.js";
 
@@ -30,7 +30,13 @@ export class DrizzleLotNameReader<TQueryResult extends PgQueryResultHKT> impleme
       .from(lots)
       .leftJoin(stockMovements, eq(stockMovements.id, lots.originMovementId))
       .leftJoin(assemblyBatches, eq(assemblyBatches.id, lots.assemblyBatchId))
-      .where(and(eq(lots.locationId, locationId), inArray(lots.productId, [...productIds])));
+      .where(
+        and(
+          eq(lots.locationId, locationId),
+          inArray(lots.productId, [...productIds]),
+          or(eq(lots.withdrawn, false), isNull(lots.purchaseLineId)),
+        ),
+      );
     return rows.map(
       ({ purchasedOn, purchased, countedAt, assembledAt, openedAt, ...lot }): LotNameFacts => ({
         ...lot,

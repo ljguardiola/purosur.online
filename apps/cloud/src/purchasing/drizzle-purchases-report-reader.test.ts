@@ -1,4 +1,6 @@
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { purchaseLines } from "../platform/db/schema.js";
 import {
   insertLocation,
   insertProduct,
@@ -120,5 +122,35 @@ describe("DrizzlePurchasesReportReader.purchasedLines", () => {
     });
 
     expect(lines).toEqual([]);
+  });
+});
+
+describe("DrizzlePurchasesReportReader.purchasedLines removed lines", () => {
+  it("does not answer a line that was removed from its purchase", async () => {
+    const { actorId, locationId, productId, supplierId } = await setUp();
+    const purchaseId = await insertPurchaseOfLines(db, {
+      supplierId,
+      locationId,
+      actorId,
+      productId,
+      purchasedOn: "2026-10-12",
+      lines: [aLine, { costPaidCents: 500, quantity: 3_000, quantityPerPackage: 3_000 }],
+    });
+    const [, second] = await db
+      .select({ id: purchaseLines.id })
+      .from(purchaseLines)
+      .where(eq(purchaseLines.purchaseId, purchaseId))
+      .orderBy(purchaseLines.position);
+    await db
+      .update(purchaseLines)
+      .set({ removedAt: NOW })
+      .where(eq(purchaseLines.id, second?.id as string));
+
+    const lines = await new DrizzlePurchasesReportReader(db).purchasedLines({
+      locationId,
+      range: october,
+    });
+
+    expect(lines).toEqual([expect.objectContaining({ purchaseId, costPaidCents: 1_001 })]);
   });
 });

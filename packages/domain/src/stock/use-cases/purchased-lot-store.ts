@@ -1,5 +1,6 @@
 import type { PurchasedLotNaming } from "../model/lot-name.js";
 import type { LotCost } from "../model/lot-value.js";
+import type { AllocatedMovement } from "../model/purchased-lot-move.js";
 import type { StockStoreTransaction } from "./stock-store.js";
 
 export interface PurchasedLot {
@@ -30,6 +31,31 @@ export interface NewSplitLot {
   createdAt: Date;
 }
 
+export interface PurchasedLotFacts {
+  lotId: string;
+  splitFromLotId: string | null;
+  remaining: number;
+  quantityReceived: number;
+  cost: LotCost | null;
+  costIncomplete: boolean;
+  expiresOn: string | null;
+  purchasedOn: string;
+  createdAt: Date;
+}
+
+export interface NewMovedLot {
+  productId: string;
+  locationId: string;
+  purchaseLineId: string;
+  splitFromLotId: string | null;
+  quantityReceived: number;
+  cost: LotCost | null;
+  costIncomplete: boolean;
+  expiresOn: string | null;
+  purchasedOn: string;
+  createdAt: Date;
+}
+
 export interface LotCostChangeRecord {
   lotId: string;
   changedAt: Date;
@@ -41,6 +67,17 @@ export interface PurchasedLotQuantityStoreTransaction {
   receiptInstantOfPurchaseLine(purchaseLineId: string): Promise<Date | undefined>;
   // Changes the units the lot is recorded as received with; the units it still has are not touched.
   addToLotQuantityReceived(lotId: string, delta: number): Promise<void>;
+}
+
+export interface PurchasedLotMoveStoreTransaction
+  extends Pick<PurchasedLotQuantityStoreTransaction, "receiptInstantOfPurchaseLine"> {
+  // Every movement some unit of the lots was allocated to, once for each allocation.
+  movementsAllocatedToLots(lotIds: readonly string[]): Promise<AllocatedMovement[]>;
+  purchasedLotFacts(lotIds: readonly string[]): Promise<PurchasedLotFacts[]>;
+  // Records the lot, with no units in it, for a product other than the one it was first made for.
+  recordMovedLot(lot: NewMovedLot): Promise<string>;
+  // The lots stop being the purchase line's lots: lotsOfPurchaseLines no longer answers them.
+  withdrawPurchasedLots(lotIds: readonly string[]): Promise<void>;
 }
 
 export interface PurchasedLotStoreTransaction

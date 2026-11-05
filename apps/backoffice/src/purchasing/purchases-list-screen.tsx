@@ -4,8 +4,6 @@ import {
   Button,
   dataColumn,
   FloatingNotification,
-  formatCents,
-  formatNumber,
   Table,
   useTableModel,
 } from "@purosur/ui";
@@ -20,18 +18,23 @@ import {
   PackagePlus,
   Pencil,
   Plus,
+  Replace,
   Scale,
   ShoppingCart,
+  Trash2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import type { ProductCreationModal } from "../platform/creation-parts";
 import { formatDisplayDate } from "../platform/display-date";
-import { formatStockQuantity } from "../platform/stock-quantity";
 import { AreaTopBar } from "../shell/area-top-bar";
 import { type BackofficeAccess, canRecordPurchases } from "../shell/backoffice-access";
 import { ScreenLayout } from "../shell/screen-layout";
 import { AddPurchaseLinesModal } from "./add-purchase-lines-modal";
+import {
+  ChangePurchaseLineProductModal,
+  type PurchaseLineProductTarget,
+} from "./change-purchase-line-product-modal";
 import { CorrectPurchaseHeaderModal } from "./correct-purchase-header-modal";
 import {
   CorrectPurchaseLineCostModal,
@@ -46,9 +49,14 @@ import {
   type PurchaseLineQuantityTarget,
 } from "./correct-purchase-line-quantity-modal";
 import { PurchaseChangesModal } from "./purchase-changes-modal";
+import { costPaidOf, quantityOf, unitCostOf } from "./purchase-line-text";
 import type { PurchasesListScreenServices } from "./purchases-list-services";
 import { usePurchasesQuery, useRefreshPurchasing } from "./purchasing-queries";
 import { receiptLabel } from "./receipt-label";
+import {
+  type PurchaseLineRemovalTarget,
+  RemovePurchaseLineModal,
+} from "./remove-purchase-line-modal";
 import {
   SplitPurchaseLineExpiryModal,
   type SplitPurchaseLineExpiryTarget,
@@ -77,7 +85,9 @@ type Correction =
   | "expiryCorrected"
   | "expirySplit"
   | "costCorrected"
-  | "quantityCorrected";
+  | "quantityCorrected"
+  | "productChanged"
+  | "lineRemoved";
 
 type CorrectionNotice = { correction: Correction; purchase: PurchaseSummary };
 
@@ -99,6 +109,14 @@ const CORRECTION_NOTICES = {
     title: "Cantidad corregida",
     description:
       "El stock de la línea sigue la cantidad corregida, salvo que un conteo posterior ya la haya contado.",
+  }),
+  productChanged: () => ({
+    title: "Producto cambiado",
+    description: "El lote de la línea pasó al producto nuevo, con sus unidades.",
+  }),
+  lineRemoved: () => ({
+    title: "Producto quitado",
+    description: "Sus unidades ya no cuentan en el stock.",
   }),
   expiryCorrected: () => ({
     title: "Vencimiento corregido",
@@ -140,25 +158,6 @@ function parentIdOf(row: PurchaseRow): string | null {
   return row.kind === "line" ? row.parentId : null;
 }
 
-function quantityOf(line: PurchaseLine): string {
-  const quantity = formatStockQuantity(line.quantity, line.product.saleUnit);
-  return line.packages === null
-    ? quantity
-    : `${formatNumber(line.packages)} × ${formatStockQuantity(line.quantityPerPackage, line.product.saleUnit)} (${quantity})`;
-}
-
-function saleUnitName(line: PurchaseLine): string {
-  return line.product.saleUnit === "KG" ? "kg" : "u";
-}
-
-function unitCostOf(line: PurchaseLine): string {
-  return `${formatCents(line.unitCostCents)} por ${saleUnitName(line)}`;
-}
-
-function costPaidOf(line: PurchaseLine): string {
-  return `${formatCents(line.costPaidCents)} por ${line.packages === null ? saleUnitName(line) : "paquete"}`;
-}
-
 function ofPurchase(row: PurchaseRow, render: (purchase: PurchaseSummary) => string): string {
   return row.kind === "purchase" ? render(row.purchase) : "";
 }
@@ -175,6 +174,8 @@ type RowActions = {
   splitExpiry: (target: SplitPurchaseLineExpiryTarget) => void;
   correctCost: (target: PurchaseLineCostTarget) => void;
   correctQuantity: (target: PurchaseLineQuantityTarget) => void;
+  changeProduct: (target: PurchaseLineProductTarget) => void;
+  removeLine: (target: PurchaseLineRemovalTarget) => void;
 };
 
 function purchaseSubject(purchase: PurchaseSummary): string {
@@ -243,14 +244,23 @@ function columnsFor(
       id: "actions",
       header: "Acciones",
       actions: [
-        (row: PurchaseRow) =>
-          row.kind === "purchase"
+        (row: PurchaseRow) => {
+          if (row.kind === "purchase") {
+            return {
+              icon: <History />,
+              "aria-label": `Ver los cambios de ${purchaseSubject(row.purchase)}`,
+              onPress: () => actions.seeChanges(row.purchase),
+            };
+          }
+          const purchase = mayRecord ? purchaseOf(row.parentId) : undefined;
+          return purchase
             ? {
-                icon: <History />,
-                "aria-label": `Ver los cambios de ${purchaseSubject(row.purchase)}`,
-                onPress: () => actions.seeChanges(row.purchase),
+                icon: <Replace />,
+                "aria-label": `Cambiar el producto de ${formatProductDescription(row.line.product)}`,
+                onPress: () => actions.changeProduct({ purchase, line: row.line }),
               }
-            : undefined,
+            : undefined;
+        },
         (row: PurchaseRow) => {
           if (!mayRecord) {
             return undefined;
@@ -311,6 +321,16 @@ function columnsFor(
               }
             : undefined;
         },
+        (row: PurchaseRow) => {
+          const purchase = row.kind === "line" ? purchaseOf(row.parentId) : undefined;
+          return mayRecord && row.kind === "line" && purchase
+            ? {
+                icon: <Trash2 />,
+                "aria-label": `Quitar ${formatProductDescription(row.line.product)} de la compra`,
+                onPress: () => actions.removeLine({ purchase, line: row.line }),
+              }
+            : undefined;
+        },
       ],
     }),
   ] as const;
@@ -335,6 +355,8 @@ export function PurchasesListScreen({
   const [splitTarget, setSplitTarget] = useState<SplitPurchaseLineExpiryTarget | null>(null);
   const [costTarget, setCostTarget] = useState<PurchaseLineCostTarget | null>(null);
   const [quantityTarget, setQuantityTarget] = useState<PurchaseLineQuantityTarget | null>(null);
+  const [productTarget, setProductTarget] = useState<PurchaseLineProductTarget | null>(null);
+  const [removalTarget, setRemovalTarget] = useState<PurchaseLineRemovalTarget | null>(null);
   const [notice, setNotice] = useState<CorrectionNotice | null>(null);
 
   useEffect(() => {
@@ -346,6 +368,8 @@ export function PurchasesListScreen({
       setSplitTarget(null);
       setCostTarget(null);
       setQuantityTarget(null);
+      setProductTarget(null);
+      setRemovalTarget(null);
     }
   }, [data.status]);
 
@@ -356,6 +380,8 @@ export function PurchasesListScreen({
     setSplitTarget(null);
     setCostTarget(null);
     setQuantityTarget(null);
+    setProductTarget(null);
+    setRemovalTarget(null);
     setNotice({ correction, purchase });
     if (registered) {
       onNoticeDismissed();
@@ -389,6 +415,14 @@ export function PurchasesListScreen({
       correctQuantity: (target) => {
         setNotice(null);
         setQuantityTarget(target);
+      },
+      changeProduct: (target) => {
+        setNotice(null);
+        setProductTarget(target);
+      },
+      removeLine: (target) => {
+        setNotice(null);
+        setRemovalTarget(target);
       },
     },
     (parentId) => purchases.find((purchase) => purchase.id === parentId),
@@ -471,6 +505,22 @@ export function PurchasesListScreen({
             onSaved={(purchase) => corrected("quantityCorrected", purchase)}
             onLotChanged={() => void refreshPurchasing()}
             onClose={() => setQuantityTarget(null)}
+            onSessionEnded={onSessionEnded}
+          />
+          <ChangePurchaseLineProductModal
+            target={productTarget}
+            services={services}
+            onSaved={(purchase) => corrected("productChanged", purchase)}
+            onStale={() => void refreshPurchasing()}
+            onClose={() => setProductTarget(null)}
+            onSessionEnded={onSessionEnded}
+          />
+          <RemovePurchaseLineModal
+            target={removalTarget}
+            services={services}
+            onRemoved={(purchase) => corrected("lineRemoved", purchase)}
+            onStale={() => void refreshPurchasing()}
+            onClose={() => setRemovalTarget(null)}
             onSessionEnded={onSessionEnded}
           />
           <CorrectPurchaseLineExpiryModal

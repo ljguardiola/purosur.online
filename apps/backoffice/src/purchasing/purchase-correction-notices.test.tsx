@@ -78,3 +78,25 @@ test("says units already out of the lot cannot be taken back, with the modal's t
     )
     .toBeVisible();
 });
+
+test.each([
+  [
+    "unitsLeftTheLineLot",
+    "Ya salieron unidades del lote de esta línea; corregí el stock con un ajuste.",
+  ],
+  [
+    "countedSinceReceipt",
+    "Se contó el stock después de recibir la compra; corregí el stock con un ajuste.",
+  ],
+  ["lastLine", "Es la única línea de la compra; no se puede quitar."],
+  ["productNotFound", "Este producto ya no está disponible. Elegí otro."],
+  ["productInactive", "Este producto ya no está activo. Elegí otro."],
+] as const)(
+  "says why a %s line correction was refused, with the modal's title",
+  async (kind, description) => {
+    const screen = await renderNotice({ kind });
+
+    await expect.element(screen.getByText("No se guardó el cambio")).toBeVisible();
+    await expect.element(screen.getByText(description)).toBeVisible();
+  },
+);

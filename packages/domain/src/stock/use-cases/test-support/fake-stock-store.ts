@@ -3,8 +3,10 @@ import type { Clock } from "../../../shared/index.js";
 import type { BatchLotMovement } from "../../model/assembly-batch.js";
 import type { NewBatchLot, NewInitialCountLot, NewLot } from "../../model/lot.js";
 import type { StockLot } from "../../model/lot-allocation.js";
+import type { PurchasedLotNaming } from "../../model/lot-name.js";
 import type { LoadedSupplierPrice } from "../../model/lot-reference-cost.js";
 import { isLotCostIncomplete, type LotCost } from "../../model/lot-value.js";
+import type { AllocatedMovement } from "../../model/purchased-lot-move.js";
 import type {
   AssemblyBatchStore,
   AssemblyBatchTransaction,
@@ -15,7 +17,10 @@ import type {
   NewAssemblyBatch,
 } from "../assembly-batch-store.js";
 import type {
+  NewMovedLot,
   PurchasedLot,
+  PurchasedLotFacts,
+  PurchasedLotMoveStoreTransaction,
   PurchasedLotQuantityStoreTransaction,
   PurchasedLotStoreTransaction,
   SplittableLot,
@@ -63,6 +68,8 @@ export interface FakeStockLot extends ProductStockKey, StockLot {
   originMovementId: string | null;
   assemblyBatchId: string | null;
   withdrawn: boolean;
+  nameOrder?: number | undefined;
+  givenNumber?: number | null | undefined;
 }
 
 interface FakeCountedLots {
@@ -94,6 +101,9 @@ type WriteOperation =
   | "openTechnicalLot"
   | "allocateToLot"
   | "addToLotQuantityReceived"
+  | "recordMovedLot"
+  | "withdrawPurchasedLots"
+  | "giveLotNumbers"
   | "insertAssemblyBatch"
   | "recordBatchLot"
   | "recordAssemblyBatchVoid";
@@ -132,7 +142,11 @@ export class FakeStockStoreTransaction
   implements
     AssemblyBatchTransaction,
     PurchasedLotQuantityStoreTransaction,
-    Pick<PurchasedLotStoreTransaction, "lotsOfPurchaseLines" | "splittableLot">
+    PurchasedLotMoveStoreTransaction,
+    Pick<
+      PurchasedLotStoreTransaction,
+      "lotsOfPurchaseLines" | "splittableLot" | "namingOfPurchasedLots" | "giveLotNumbers"
+    >
 {
   private readonly state: FakeStockState;
   private readonly store: FakeStockStore;
@@ -523,6 +537,7 @@ export class FakeStockStoreTransaction
   ): Promise<PurchasedLot[]> {
     this.store.operationOrder.push("lotsOfPurchaseLines");
     return this.state.lots.flatMap((lot) =>
+      !lot.withdrawn &&
       lot.locationId === locationId &&
       lot.purchaseLineId !== null &&
       purchaseLineIds.includes(lot.purchaseLineId)
@@ -566,6 +581,111 @@ export class FakeStockStoreTransaction
       throw new Error(`lot ${lotId} does not exist`);
     }
     lot.quantityReceived += delta;
+  }
+
+  async movementsAllocatedToLots(lotIds: readonly string[]): Promise<AllocatedMovement[]> {
+    this.store.operationOrder.push("movementsAllocatedToLots");
+    return this.state.allocations
+      .filter((allocation) => lotIds.includes(allocation.lotId))
+      .flatMap((allocation) => {
+        const movement = this.state.movements.find((row) => row.id === allocation.movementId);
+        return movement
+          ? [{ kind: movement.kind, purchaseLineId: movement.purchaseLineId ?? null }]
+          : [];
+      });
+  }
+
+  async purchasedLotFacts(lotIds: readonly string[]): Promise<PurchasedLotFacts[]> {
+    this.store.operationOrder.push("purchasedLotFacts");
+    return this.state.lots
+      .filter((lot) => lotIds.includes(lot.id))
+      .map((lot) => {
+        if (lot.purchasedOn === null) {
+          throw new Error(`lot ${lot.id} has no purchase day`);
+        }
+        return {
+          lotId: lot.id,
+          splitFromLotId: lot.splitFromLotId ?? null,
+          remaining: lot.remaining,
+          quantityReceived: lot.quantityReceived,
+          cost:
+            lot.costTotalCents === null || lot.costQuantity === null
+              ? null
+              : { totalCents: lot.costTotalCents, quantity: lot.costQuantity },
+          costIncomplete: !lot.costComplete,
+          expiresOn: lot.expiresOn,
+          purchasedOn: lot.purchasedOn,
+          createdAt: new Date(lot.receivedAt),
+        };
+      });
+  }
+
+  async recordMovedLot(lot: NewMovedLot): Promise<string> {
+    this.beforeWrite("recordMovedLot");
+    const id = `lot-${this.state.lots.length + 1}`;
+    this.state.lots.push({
+      id,
+      productId: lot.productId,
+      locationId: lot.locationId,
+      technical: false,
+      expiresOn: lot.expiresOn,
+      purchasedOn: lot.purchasedOn,
+      receivedAt: new Date(lot.createdAt),
+      remaining: 0,
+      purchaseLineId: lot.purchaseLineId,
+      splitFromLotId: lot.splitFromLotId,
+      quantityReceived: lot.quantityReceived,
+      costTotalCents: lot.cost?.totalCents ?? null,
+      costQuantity: lot.cost?.quantity ?? null,
+      costComplete: !lot.costIncomplete,
+      originMovementId: null,
+      assemblyBatchId: null,
+      withdrawn: false,
+    });
+    return id;
+  }
+
+  async withdrawPurchasedLots(lotIds: readonly string[]): Promise<void> {
+    this.beforeWrite("withdrawPurchasedLots");
+    for (const lot of this.state.lots) {
+      if (lotIds.includes(lot.id)) {
+        lot.withdrawn = true;
+      }
+    }
+  }
+
+  async namingOfPurchasedLots(
+    locationId: string,
+    productIds: readonly string[],
+  ): Promise<PurchasedLotNaming[]> {
+    this.store.operationOrder.push("namingOfPurchasedLots");
+    return this.state.lots.flatMap((lot, index) =>
+      !lot.withdrawn &&
+      lot.purchaseLineId !== null &&
+      lot.purchasedOn !== null &&
+      lot.locationId === locationId &&
+      productIds.includes(lot.productId)
+        ? [
+            {
+              lotId: lot.id,
+              productId: lot.productId,
+              purchasedOn: lot.purchasedOn,
+              nameOrder: lot.nameOrder ?? index + 1,
+              givenNumber: lot.givenNumber ?? null,
+            },
+          ]
+        : [],
+    );
+  }
+
+  async giveLotNumbers(numbers: ReadonlyMap<string, number>): Promise<void> {
+    this.beforeWrite("giveLotNumbers");
+    for (const lot of this.state.lots) {
+      const number = numbers.get(lot.id);
+      if (number !== undefined) {
+        lot.givenNumber = number;
+      }
+    }
   }
 
   private receptionMoment(): Date {

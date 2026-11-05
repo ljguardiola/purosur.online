@@ -57,6 +57,22 @@ const lineQuantitySchema = z.object({
   packages: z.int().nullable(),
 });
 
+const lineProductSchema = z.object({
+  kind: z.literal("line_product"),
+  lineId: z.string(),
+  productId: z.string(),
+});
+
+const lineRemovedSchema = z.object({ kind: z.literal("line_removed"), lineId: z.string() });
+
+const removedLineDetailsSchema = z.object({
+  productId: z.string(),
+  quantity: z.int(),
+  packages: z.int().nullable(),
+  costPaidCents: z.int(),
+  expiresOn: z.string().nullable(),
+});
+
 interface AuditValues {
   previousValue: unknown;
   newValue: unknown;
@@ -107,6 +123,18 @@ export function auditValuesOf(change: PurchaseCorrectionChange): AuditValues {
         previousValue: { kind: "line_quantity", lineId: change.lineId, ...change.previous },
         newValue: { kind: "line_quantity", lineId: change.lineId, ...change.next },
       };
+    case "line_product":
+      return {
+        previousValue: { kind: "line_product", lineId: change.lineId, productId: change.previous },
+        newValue: { kind: "line_product", lineId: change.lineId, productId: change.next },
+      };
+    case "line_removed": {
+      const { kind, lineId, ...details } = change;
+      return {
+        previousValue: { kind, lineId, ...details },
+        newValue: { kind, lineId },
+      };
+    }
   }
 }
 
@@ -148,6 +176,23 @@ export function changeOfAuditValues(
       lineId,
       previous: { quantity: previous.quantity, packages: previous.packages },
       next: { quantity: next.quantity, packages: next.packages },
+    };
+  }
+  const product = lineProductSchema.safeParse(newValue);
+  if (product.success) {
+    return {
+      kind: "line_product",
+      lineId: product.data.lineId,
+      previous: lineProductSchema.parse(previousValue).productId,
+      next: product.data.productId,
+    };
+  }
+  const removed = lineRemovedSchema.safeParse(newValue);
+  if (removed.success) {
+    return {
+      kind: "line_removed",
+      lineId: removed.data.lineId,
+      ...removedLineDetailsSchema.parse(previousValue),
     };
   }
   const split = lineExpirySplitSchema.safeParse(newValue);

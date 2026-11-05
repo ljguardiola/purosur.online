@@ -3,7 +3,7 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { accessWith } from "../shell/test-support/backoffice-access";
 import { lineExpiryCorrection } from "./test-support/purchase-changes";
-import { fillQuantityLine } from "./test-support/purchase-lines-fill";
+import { chooseProduct, fillQuantityLine } from "./test-support/purchase-lines-fill";
 import { compraDeAvena, compraDeMiel } from "./test-support/purchases";
 import { createServices, loaded, type Screen } from "./test-support/purchases-list-screen";
 
@@ -23,6 +23,8 @@ const CORRECT_HEADER = "Corregir los datos de la compra de Distribuidora Andina"
 const CORRECT_COST = "Corregir el costo de Miel pura de abeja 1 kg";
 const CORRECT_EXPIRY = "Corregir el vencimiento de Miel pura de abeja 1 kg";
 const CORRECT_QUANTITY = "Corregir la cantidad de Miel pura de abeja 1 kg";
+const CHANGE_PRODUCT = "Cambiar el producto de Miel pura de abeja 1 kg";
+const REMOVE_LINE = "Quitar Miel pura de abeja 1 kg de la compra";
 const SPLIT_EXPIRY = "Dar otro vencimiento a algunas unidades de Miel pura de abeja 1 kg";
 const SEE_CHANGES = "Ver los cambios de la compra de Distribuidora Andina";
 
@@ -57,13 +59,19 @@ test("offers, to who may record purchases, each purchase's actions and each line
   await expect
     .poll(() => names(screen, /^Corregir la cantidad/))
     .toEqual([CORRECT_QUANTITY, "Corregir la cantidad de Avena arrollada"]);
+  await expect
+    .poll(() => names(screen, /^Cambiar el producto/))
+    .toEqual([CHANGE_PRODUCT, "Cambiar el producto de Avena arrollada"]);
+  await expect
+    .poll(() => names(screen, /^Quitar .* de la compra$/))
+    .toEqual([REMOVE_LINE, "Quitar Avena arrollada de la compra"]);
 });
 
 test("offers only the changes of a purchase to who may not record purchases", async () => {
   const screen = await loaded(createServices(), { access: accessWith("stock_area") });
 
   await expect.poll(() => names(screen, /^Ver los cambios/)).toHaveLength(2);
-  expect(names(screen, /^(Agregar|Corregir|Dar otro)/)).toEqual([]);
+  expect(names(screen, /^(Agregar|Corregir|Dar otro|Cambiar|Quitar)/)).toEqual([]);
 });
 
 test("opens the changes of the purchase and closes them", async () => {
@@ -395,4 +403,105 @@ test("keeps the quantity modal open and the purchases unread when the cloud refu
   await expect.element(screen.getByText("No se corrigió la cantidad")).toBeVisible();
   expect(screen.getByText("Cantidad corregida").query()).toBeNull();
   expect(services.fetchPurchases).toHaveBeenCalledTimes(1);
+});
+
+test("changes the line's product, closes the modal, reads the purchases again and confirms", async () => {
+  const services = createServices();
+  vi.mocked(services.changePurchaseLineProduct).mockResolvedValue({
+    kind: "ok",
+    purchase: compraDeMiel,
+  });
+  const screen = await loaded(services);
+
+  await userEvent.click(screen.getByRole("button", { name: CHANGE_PRODUCT }));
+  const dialog = screen.getByRole("dialog");
+  await expect
+    .element(dialog.getByRole("heading", { name: "Miel pura de abeja 1 kg" }))
+    .toBeVisible();
+  await expect.element(dialog.getByRole("combobox", { name: /^Producto/ })).toBeVisible();
+  await chooseProduct(screen, dialog, "Avena arrollada");
+  await userEvent.click(dialog.getByRole("button", { name: "Cambiar el producto" }));
+
+  await expect.element(screen.getByText("Producto cambiado")).toBeVisible();
+  await expect
+    .element(screen.getByText("El lote de la línea pasó al producto nuevo, con sus unidades."))
+    .toBeVisible();
+  expect(screen.getByRole("dialog").query()).toBeNull();
+  expect(services.changePurchaseLineProduct).toHaveBeenCalledWith(compraDeMiel.id, lineDeMiel.id, {
+    productId: "90d00000-0000-4000-8000-000000000002",
+  });
+  await expect.poll(() => vi.mocked(services.fetchPurchases).mock.calls.length).toBe(2);
+});
+
+test("keeps the product modal open and reads the purchases again when a unit already left the lot", async () => {
+  const services = createServices();
+  vi.mocked(services.changePurchaseLineProduct).mockResolvedValue({ kind: "units_left_lot" });
+  const screen = await loaded(services);
+
+  await userEvent.click(screen.getByRole("button", { name: CHANGE_PRODUCT }));
+  const dialog = screen.getByRole("dialog");
+  await chooseProduct(screen, dialog, "Avena arrollada");
+  await userEvent.click(dialog.getByRole("button", { name: "Cambiar el producto" }));
+
+  await expect
+    .element(
+      dialog.getByText(
+        "Ya salieron unidades del lote de esta línea; corregí el stock con un ajuste.",
+      ),
+    )
+    .toBeVisible();
+  expect(screen.getByText("Producto cambiado").query()).toBeNull();
+  await expect.poll(() => vi.mocked(services.fetchPurchases).mock.calls.length).toBe(2);
+});
+
+test("keeps the product modal open and the purchases unread when the cloud fails", async () => {
+  const services = createServices();
+  vi.mocked(services.changePurchaseLineProduct).mockResolvedValue({ kind: "failed" });
+  const screen = await loaded(services);
+
+  await userEvent.click(screen.getByRole("button", { name: CHANGE_PRODUCT }));
+  const dialog = screen.getByRole("dialog");
+  await chooseProduct(screen, dialog, "Avena arrollada");
+  await userEvent.click(dialog.getByRole("button", { name: "Cambiar el producto" }));
+
+  await expect.element(screen.getByText("No se cambió el producto")).toBeVisible();
+  expect(screen.getByText("Producto cambiado").query()).toBeNull();
+  expect(services.fetchPurchases).toHaveBeenCalledTimes(1);
+});
+
+test("removes the line, closes the modal, reads the purchases again and confirms", async () => {
+  const services = createServices();
+  vi.mocked(services.removePurchaseLine).mockResolvedValue({ kind: "ok", purchase: compraDeMiel });
+  const screen = await loaded(services);
+
+  await userEvent.click(screen.getByRole("button", { name: REMOVE_LINE }));
+  const dialog = screen.getByRole("dialog");
+  await expect
+    .element(
+      dialog.getByRole("heading", { name: '¿Quitar "Miel pura de abeja 1 kg" de la compra?' }),
+    )
+    .toBeVisible();
+  await userEvent.click(dialog.getByRole("button", { name: "Quitar el producto" }));
+
+  await expect.element(screen.getByText("Producto quitado")).toBeVisible();
+  await expect.element(screen.getByText("Sus unidades ya no cuentan en el stock.")).toBeVisible();
+  expect(screen.getByRole("dialog").query()).toBeNull();
+  expect(services.removePurchaseLine).toHaveBeenCalledWith(compraDeMiel.id, lineDeMiel.id);
+  await expect.poll(() => vi.mocked(services.fetchPurchases).mock.calls.length).toBe(2);
+});
+
+test("keeps the removal modal open and reads the purchases again when it is the only line", async () => {
+  const services = createServices();
+  vi.mocked(services.removePurchaseLine).mockResolvedValue({ kind: "last_line" });
+  const screen = await loaded(services);
+
+  await userEvent.click(screen.getByRole("button", { name: REMOVE_LINE }));
+  const dialog = screen.getByRole("dialog");
+  await userEvent.click(dialog.getByRole("button", { name: "Quitar el producto" }));
+
+  await expect
+    .element(dialog.getByText("Es la única línea de la compra; no se puede quitar."))
+    .toBeVisible();
+  expect(screen.getByText("Producto quitado").query()).toBeNull();
+  await expect.poll(() => vi.mocked(services.fetchPurchases).mock.calls.length).toBe(2);
 });

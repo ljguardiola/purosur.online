@@ -1,5 +1,6 @@
 import { ARGENTINA_TIME_ZONE, RECEIPT_TYPES } from "@purosur/domain";
 import { z } from "zod";
+import { purchaseLineProductSchema } from "./purchase-line-product.js";
 
 const headerChangeSchema = z.discriminatedUnion("field", [
   z.object({ field: z.literal("purchasedOn"), previous: z.string(), next: z.string() }),
@@ -22,7 +23,7 @@ const headerChangeSchema = z.discriminatedUnion("field", [
 
 const addedLineSchema = z.object({
   lineId: z.string(),
-  productId: z.string(),
+  product: purchaseLineProductSchema,
   quantity: z.int(),
   costPaidCents: z.int(),
   expiresOn: z.string().nullable(),
@@ -36,12 +37,14 @@ const purchaseChangeDetailSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("line_expiry"),
     lineId: z.string(),
+    product: purchaseLineProductSchema,
     previous: z.string().nullable(),
     next: z.string().nullable(),
   }),
   z.object({
     kind: z.literal("line_expiry_split"),
     lineId: z.string(),
+    product: purchaseLineProductSchema,
     quantity: z.int(),
     previous: z.string().nullable(),
     next: z.string().nullable(),
@@ -49,14 +52,31 @@ const purchaseChangeDetailSchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("line_cost"),
     lineId: z.string(),
+    product: purchaseLineProductSchema,
     previous: z.int(),
     next: z.int(),
   }),
   z.object({
     kind: z.literal("line_quantity"),
     lineId: z.string(),
+    product: purchaseLineProductSchema,
     previous: quantityOfLineSchema,
     next: quantityOfLineSchema,
+  }),
+  z.object({
+    kind: z.literal("line_product"),
+    lineId: z.string(),
+    previous: purchaseLineProductSchema,
+    next: purchaseLineProductSchema,
+  }),
+  z.object({
+    kind: z.literal("line_removed"),
+    lineId: z.string(),
+    product: purchaseLineProductSchema,
+    quantity: z.int(),
+    packages: z.int().nullable(),
+    costPaidCents: z.int(),
+    expiresOn: z.string().nullable(),
   }),
 ]);
 

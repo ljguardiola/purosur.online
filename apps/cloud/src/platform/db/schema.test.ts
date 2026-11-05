@@ -1290,6 +1290,76 @@ describe("purchases", () => {
     expect(await db.select().from(lots)).toHaveLength(3);
   });
 
+  it("keeps when a purchase line was removed", async () => {
+    const { purchaseId, productId } = await seedPurchase();
+    const removedAt = new Date("2026-11-05T12:00:00Z");
+
+    const [line] = await db
+      .insert(purchaseLines)
+      .values({ purchaseId, productId, ...LINE, removedAt })
+      .returning();
+
+    expect(line?.removedAt).toEqual(removedAt);
+  });
+
+  it("allows a withdrawn purchased lot but not a withdrawn technical lot", async () => {
+    const { purchaseId, productId, locationId } = await seedPurchase();
+    const [line] = await db
+      .insert(purchaseLines)
+      .values({ purchaseId, productId, ...LINE })
+      .returning({ id: purchaseLines.id });
+
+    const [withdrawn] = await db
+      .insert(lots)
+      .values({
+        productId,
+        locationId,
+        purchaseLineId: line?.id as string,
+        quantityReceived: 12_000,
+        costTotalCents: 1_500,
+        costQuantity: 1_000,
+        withdrawn: true,
+      })
+      .returning();
+
+    expect(withdrawn?.withdrawn).toBe(true);
+    await expect(
+      db.insert(lots).values({
+        productId,
+        locationId,
+        technical: true,
+        costIncomplete: true,
+        quantityReceived: 0,
+        withdrawn: true,
+      }),
+    ).rejects.toMatchObject({
+      cause: { constraint: "lots_withdrawn_only_if_purchased_or_initial_count_check" },
+    });
+  });
+
+  it("allows a new own lot for a purchase line whose own lot was withdrawn", async () => {
+    const { purchaseId, productId, locationId } = await seedPurchase();
+    const [line] = await db
+      .insert(purchaseLines)
+      .values({ purchaseId, productId, ...LINE })
+      .returning({ id: purchaseLines.id });
+    const lot = {
+      productId,
+      locationId,
+      purchaseLineId: line?.id as string,
+      quantityReceived: 12_000,
+      costTotalCents: 1_500,
+      costQuantity: 1_000,
+    };
+    await db.insert(lots).values({ ...lot, withdrawn: true });
+
+    await db.insert(lots).values(lot);
+
+    await expect(db.insert(lots).values(lot)).rejects.toMatchObject({
+      cause: { constraint: "lots_one_own_lot_per_purchase_line" },
+    });
+  });
+
   it("rejects a lot split from another lot that came from no purchase line", async () => {
     const { productId, locationId } = await seedPurchase();
     const [technical] = await db

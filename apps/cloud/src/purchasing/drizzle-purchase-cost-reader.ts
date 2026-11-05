@@ -1,5 +1,5 @@
 import type { PurchaseCostReader, PurchaseLineCost } from "@purosur/domain/pricing/use-cases";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { freightPurchases, freights, purchaseLines, purchases } from "../platform/db/schema.js";
 
@@ -38,6 +38,7 @@ export class DrizzlePurchaseCostReader<TQueryResult extends PgQueryResultHKT>
         and(
           eq(purchases.locationId, locationId),
           inArray(purchaseLines.productId, [...productIds]),
+          isNull(purchaseLines.removedAt),
         ),
       );
     const freightsOf = await this.freightsCovering(
@@ -84,9 +85,12 @@ export class DrizzlePurchaseCostReader<TQueryResult extends PgQueryResultHKT>
       .from(freightPurchases)
       .innerJoin(purchaseLines, eq(purchaseLines.purchaseId, freightPurchases.purchaseId))
       .where(
-        inArray(freightPurchases.freightId, [
-          ...new Set(covering.map(({ freightId }) => freightId)),
-        ]),
+        and(
+          inArray(freightPurchases.freightId, [
+            ...new Set(covering.map(({ freightId }) => freightId)),
+          ]),
+          isNull(purchaseLines.removedAt),
+        ),
       );
     const linesOf = new Map<string, FreightLine[]>();
     for (const { freightId, ...line } of distributed) {

@@ -469,7 +469,13 @@ describe("the changes listed for a purchase", () => {
       {
         actorName: "Ada Lucero",
         correctedAt: new Date("2026-10-05T10:00:00.000Z"),
-        change: { kind: "line_expiry", lineId: line?.id, previous: "2026-11-10", next: null },
+        change: {
+          kind: "line_expiry",
+          lineId: line?.id,
+          product: expect.objectContaining({ id: yerba.id, name: "Yerba" }),
+          previous: "2026-11-10",
+          next: null,
+        },
       },
       {
         actorName: "Ada Lucero",
@@ -489,7 +495,12 @@ describe("the changes listed for a purchase", () => {
         correctedAt: new Date("2026-10-03T10:00:00.000Z"),
         change: {
           kind: "lines_added",
-          lines: [expect.objectContaining({ productId: harina.id, quantity: 1_000 })],
+          lines: [
+            expect.objectContaining({
+              product: expect.objectContaining({ id: harina.id, name: "Harina" }),
+              quantity: 1_000,
+            }),
+          ],
         },
       },
     ]);

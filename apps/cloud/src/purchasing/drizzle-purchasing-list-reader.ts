@@ -102,12 +102,22 @@ export class DrizzlePurchasingListReader<TQueryResult extends PgQueryResultHKT>
       })
       .from(purchaseLines)
       .innerJoin(products, eq(products.id, purchaseLines.productId))
-      .innerJoin(lots, and(eq(lots.purchaseLineId, purchaseLines.id), isNull(lots.splitFromLotId)))
+      .innerJoin(
+        lots,
+        and(
+          eq(lots.purchaseLineId, purchaseLines.id),
+          isNull(lots.splitFromLotId),
+          eq(lots.withdrawn, false),
+        ),
+      )
       .leftJoin(brands, eq(brands.id, products.brandId))
       .where(
-        inArray(
-          purchaseLines.purchaseId,
-          purchaseRows.map((row) => row.id),
+        and(
+          inArray(
+            purchaseLines.purchaseId,
+            purchaseRows.map((row) => row.id),
+          ),
+          isNull(purchaseLines.removedAt),
         ),
       )
       .orderBy(asc(purchaseLines.position));

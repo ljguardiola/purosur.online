@@ -3,7 +3,7 @@ import type {
   PurchasesReportQuery,
   PurchasesReportReader,
 } from "@purosur/domain/purchasing/use-cases";
-import { and, eq, gte, lte } from "drizzle-orm";
+import { and, eq, gte, isNull, lte } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { purchaseLines, purchases, suppliers } from "../platform/db/schema.js";
 
@@ -35,6 +35,7 @@ export class DrizzlePurchasesReportReader<TQueryResult extends PgQueryResultHKT>
           eq(purchases.locationId, locationId),
           gte(purchases.purchasedOn, range.from),
           lte(purchases.purchasedOn, range.to),
+          isNull(purchaseLines.removedAt),
         ),
       );
   }

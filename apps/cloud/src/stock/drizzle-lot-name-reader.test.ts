@@ -167,3 +167,22 @@ describe("DrizzleLotNameReader.lotNameFacts", () => {
     expect(await new DrizzleLotNameReader(db).lotNameFacts(locationId, [])).toEqual([]);
   });
 });
+
+describe("DrizzleLotNameReader.lotNameFacts withdrawn lots", () => {
+  it("leaves out a purchased lot a purchase correction withdrew", async () => {
+    const { actorId, locationId } = await seededActor();
+    const { productId } = await insertProduct(db);
+    const kept = await insertPurchasedLot(db, { productId, locationId, actorId });
+    const withdrawn = await insertPurchasedLot(db, {
+      productId,
+      locationId,
+      actorId,
+      remaining: 0,
+    });
+    await db.update(lots).set({ withdrawn: true }).where(eq(lots.id, withdrawn));
+
+    const facts = await new DrizzleLotNameReader(db).lotNameFacts(locationId, [productId]);
+
+    expect(facts.map((fact) => fact.lotId)).toEqual([kept]);
+  });
+});

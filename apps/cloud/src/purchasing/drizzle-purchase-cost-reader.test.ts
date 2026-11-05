@@ -1,4 +1,6 @@
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { purchaseLines } from "../platform/db/schema.js";
 import { insertPurchasedLot } from "../stock/test-support/lot-fixtures.js";
 import {
   insertLocation,
@@ -275,5 +277,68 @@ describe("DrizzlePurchaseCostReader.purchaseLineCostsOf freights", () => {
     expect(Object.fromEntries(lines.map((line) => [line.productId, line.freights.length]))).toEqual(
       { [productId]: 1, [otherId]: 0 },
     );
+  });
+});
+
+describe("DrizzlePurchaseCostReader.purchaseLineCostsOf removed lines", () => {
+  const removed = (lineId: string) =>
+    db
+      .update(purchaseLines)
+      .set({ removedAt: new Date("2026-03-10T12:00:00.000Z") })
+      .where(eq(purchaseLines.id, lineId));
+
+  it("does not answer a removed purchase line, so the latest remaining purchase is the product's last", async () => {
+    const { actorId, locationId, productId } = await setUp();
+    const earlier = await insertPurchaseLine(db, {
+      productId,
+      locationId,
+      actorId,
+      purchasedOn: "2026-03-01",
+      recordedAt: new Date("2026-03-02T15:00:00.000Z"),
+      costPaidCents: 1001,
+      quantityPerPackage: 2_000,
+    });
+    const later = await insertPurchaseLine(db, {
+      productId,
+      locationId,
+      actorId,
+      purchasedOn: "2026-03-05",
+      recordedAt: new Date("2026-03-05T12:00:00.000Z"),
+      costPaidCents: 900,
+      quantityPerPackage: 1_000,
+    });
+    await removed(later);
+
+    const lines = await new DrizzlePurchaseCostReader(db).purchaseLineCostsOf(locationId, [
+      productId,
+    ]);
+
+    expect(lines.map(({ lineId }) => lineId)).toEqual([earlier]);
+  });
+
+  it("does not distribute a freight over a removed line of the purchase", async () => {
+    const { actorId, locationId, productId } = await setUp();
+    const purchase = await insertPurchaseWithLines(db, {
+      locationId,
+      actorId,
+      lines: [
+        { productId, costPaidCents: 100, quantity: 1_000, quantityPerPackage: 1_000 },
+        { productId, costPaidCents: 300, quantity: 2_000, quantityPerPackage: 1_000 },
+      ],
+    });
+    await insertFreightRow(db, {
+      locationId,
+      actorId,
+      purchaseIds: [purchase.purchaseId],
+      amountCents: 4_000,
+    });
+    await removed(purchase.lineIds[1] as string);
+
+    const lines = await new DrizzlePurchaseCostReader(db).purchaseLineCostsOf(locationId, [
+      productId,
+    ]);
+
+    expect(lines).toHaveLength(1);
+    expect(lines[0]?.freights[0]?.lines.map(({ id }) => id)).toEqual([purchase.lineIds[0]]);
   });
 });

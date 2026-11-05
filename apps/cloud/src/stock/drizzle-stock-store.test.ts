@@ -23,13 +23,14 @@ import {
   users,
 } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { withPendingChanges } from "../sync/change-log.js";
 import { DrizzleEventApplication } from "../sync/drizzle-event-application.js";
 import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
 import { aCashSessionOpenedFact, aCompletedSale } from "../sync/test-support/synced-facts.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { DrizzleStockStore } from "./drizzle-stock-store.js";
+import { DrizzleStockStore, DrizzleStockStoreTransaction } from "./drizzle-stock-store.js";
 import { insertLoadedSupplierPrice } from "./test-support/loaded-supplier-price-fixtures.js";
 import { insertInitialCountLot, insertPurchasedLot } from "./test-support/lot-fixtures.js";
 
@@ -1185,5 +1186,66 @@ describe("discarding an expired lot through the store", () => {
     expect(await db.select().from(lotAllocations)).toEqual([
       expect.objectContaining({ lotId, quantity: -4_000 }),
     ]);
+  });
+});
+
+describe("DrizzleStockStoreTransaction purchased lots a purchase correction withdrew", () => {
+  async function withdrawnAndCurrentLotOfALine() {
+    const locationId = await seededLocationId(db);
+    const actorId = await insertUser(locationId);
+    const product = await insertProduct();
+    const withdrawn = await insertPurchasedLot(db, {
+      productId: product,
+      locationId,
+      actorId,
+      remaining: 0,
+    });
+    await db.update(lots).set({ withdrawn: true }).where(eq(lots.id, withdrawn));
+    const [row] = await db
+      .select({ purchaseLineId: lots.purchaseLineId })
+      .from(lots)
+      .where(eq(lots.id, withdrawn));
+    const [current] = await db
+      .insert(lots)
+      .values({
+        productId: product,
+        locationId,
+        purchaseLineId: row?.purchaseLineId as string,
+        purchasedOn: "2026-10-01",
+        costTotalCents: 5_000,
+        costQuantity: 1_000,
+        quantityReceived: 10_000,
+        remaining: 10_000,
+      })
+      .returning({ id: lots.id });
+    return {
+      locationId,
+      productId: product,
+      purchaseLineId: row?.purchaseLineId as string,
+      currentId: current?.id as string,
+    };
+  }
+
+  const inTransaction = <T>(
+    work: (tx: DrizzleStockStoreTransaction<PgliteQueryResultHKT>) => Promise<T>,
+  ) =>
+    withPendingChanges(db, undefined, (tx, pending) =>
+      work(new DrizzleStockStoreTransaction(tx, pending)),
+    );
+
+  it("no longer answers them among the lots of the purchase line", async () => {
+    const { locationId, purchaseLineId, currentId } = await withdrawnAndCurrentLotOfALine();
+
+    const found = await inTransaction((tx) => tx.lotsOfPurchaseLines(locationId, [purchaseLineId]));
+
+    expect(found.map(({ lotId }) => lotId)).toEqual([currentId]);
+  });
+
+  it("leaves them out of the lots whose names a purchase day gives", async () => {
+    const { locationId, productId, currentId } = await withdrawnAndCurrentLotOfALine();
+
+    const naming = await inTransaction((tx) => tx.namingOfPurchasedLots(locationId, [productId]));
+
+    expect(naming.map(({ lotId }) => lotId)).toEqual([currentId]);
   });
 });

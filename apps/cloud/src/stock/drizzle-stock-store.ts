@@ -1,4 +1,8 @@
-import { type SaleUnit, stockMovementReachesRegisters } from "@purosur/domain";
+import {
+  type SaleUnit,
+  type StockMovementKind,
+  stockMovementReachesRegisters,
+} from "@purosur/domain";
 import type {
   CountedLot,
   CoveringCount,
@@ -8,12 +12,15 @@ import type {
   LotCostChangeRecord,
   NewInitialCountLot,
   NewLot,
+  NewMovedLot,
   NewSplitLot,
   NewStockCount,
   NewStockMovement,
   OpeningCountLot,
   ProductStockKey,
   PurchasedLot,
+  PurchasedLotFacts,
+  PurchasedLotMoveStoreTransaction,
   PurchasedLotNaming,
   PurchasedLotQuantityStoreTransaction,
   PurchasedLotStoreTransaction,
@@ -56,7 +63,8 @@ export class DrizzleStockStoreTransaction<TQueryResult extends PgQueryResultHKT>
   implements
     StockStoreTransaction,
     PurchasedLotStoreTransaction,
-    PurchasedLotQuantityStoreTransaction
+    PurchasedLotQuantityStoreTransaction,
+    PurchasedLotMoveStoreTransaction
 {
   protected readonly tx: PgDatabase<TQueryResult>;
   protected readonly pending: PendingChanges;
@@ -240,7 +248,11 @@ export class DrizzleStockStoreTransaction<TQueryResult extends PgQueryResultHKT>
       })
       .from(lots)
       .where(
-        and(eq(lots.locationId, locationId), inArray(lots.purchaseLineId, [...purchaseLineIds])),
+        and(
+          eq(lots.locationId, locationId),
+          inArray(lots.purchaseLineId, [...purchaseLineIds]),
+          eq(lots.withdrawn, false),
+        ),
       );
     return found.flatMap(({ purchaseLineId, ...lot }) =>
       purchaseLineId === null ? [] : [{ ...lot, purchaseLineId }],
@@ -268,6 +280,82 @@ export class DrizzleStockStoreTransaction<TQueryResult extends PgQueryResultHKT>
     if (!updated) {
       throw new Error("adding to the units the lot was received with updated no row");
     }
+  }
+
+  async movementsAllocatedToLots(
+    lotIds: readonly string[],
+  ): Promise<{ kind: StockMovementKind; purchaseLineId: string | null }[]> {
+    if (lotIds.length === 0) {
+      return [];
+    }
+    const found = await this.tx
+      .select({ kind: stockMovements.kind, purchaseLineId: stockMovements.purchaseLineId })
+      .from(lotAllocations)
+      .innerJoin(stockMovements, eq(stockMovements.id, lotAllocations.movementId))
+      .where(inArray(lotAllocations.lotId, [...lotIds]));
+    return found.map(({ kind, purchaseLineId }) => ({
+      kind: kind as StockMovementKind,
+      purchaseLineId,
+    }));
+  }
+
+  async purchasedLotFacts(lotIds: readonly string[]): Promise<PurchasedLotFacts[]> {
+    if (lotIds.length === 0) {
+      return [];
+    }
+    const found = await this.tx
+      .select({
+        lotId: lots.id,
+        splitFromLotId: lots.splitFromLotId,
+        remaining: lots.remaining,
+        quantityReceived: lots.quantityReceived,
+        costTotalCents: lots.costTotalCents,
+        costQuantity: lots.costQuantity,
+        costIncomplete: lots.costIncomplete,
+        expiresOn: lots.expiresOn,
+        purchasedOn: lots.purchasedOn,
+        createdAt: lots.createdAt,
+      })
+      .from(lots)
+      .where(inArray(lots.id, [...lotIds]));
+    return found.map(({ costTotalCents, costQuantity, purchasedOn, ...lot }) => {
+      if (purchasedOn === null) {
+        throw new Error(`the purchased lot ${lot.lotId} has no purchase day`);
+      }
+      return {
+        ...lot,
+        purchasedOn,
+        cost:
+          costTotalCents === null || costQuantity === null
+            ? null
+            : { totalCents: costTotalCents, quantity: costQuantity },
+      };
+    });
+  }
+
+  async recordMovedLot({ cost, ...lot }: NewMovedLot): Promise<string> {
+    const [recorded] = await this.tx
+      .insert(lots)
+      .values({
+        ...lot,
+        costTotalCents: cost?.totalCents ?? null,
+        costQuantity: cost?.quantity ?? null,
+      })
+      .returning({ id: lots.id });
+    if (!recorded) {
+      throw new Error("inserting the moved lot returned no row");
+    }
+    return recorded.id;
+  }
+
+  async withdrawPurchasedLots(lotIds: readonly string[]): Promise<void> {
+    if (lotIds.length === 0) {
+      return;
+    }
+    await this.tx
+      .update(lots)
+      .set({ withdrawn: true })
+      .where(inArray(lots.id, [...lotIds]));
   }
 
   async splittableLot(lotId: string): Promise<SplittableLot | null> {
@@ -349,6 +437,7 @@ export class DrizzleStockStoreTransaction<TQueryResult extends PgQueryResultHKT>
           eq(lots.locationId, locationId),
           inArray(lots.productId, [...productIds]),
           isNotNull(lots.purchaseLineId),
+          eq(lots.withdrawn, false),
         ),
       );
     return found.flatMap(({ purchasedOn, ...lot }) =>

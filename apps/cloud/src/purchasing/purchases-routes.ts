@@ -5,6 +5,7 @@ import {
   purchaseLineCostCorrectionBodySchema,
   purchaseLineExpiryCorrectionBodySchema,
   purchaseLineExpirySplitBodySchema,
+  purchaseLineProductChangeBodySchema,
   purchaseLineQuantityCorrectionBodySchema,
   purchaseLinesAdditionBodySchema,
   purchaseListSchema,
@@ -14,6 +15,7 @@ import {
 import { PRODUCTS_PURCHASES_MAY_BE_REGISTERED_FOR } from "@purosur/domain";
 import {
   addPurchaseLines,
+  changePurchaseLineProduct,
   correctPurchaseHeader,
   correctPurchaseLineCost,
   correctPurchaseLineExpiry,
@@ -24,6 +26,7 @@ import {
   listPurchaseChoices,
   listPurchases,
   registerPurchase,
+  removePurchaseLine,
   splitPurchaseLineExpiry,
 } from "@purosur/domain/purchasing/use-cases";
 import { formatLotName } from "@purosur/formatting";
@@ -61,6 +64,7 @@ const UNCHANGED_MESSAGES = {
   expiry_unchanged: "the line already has this expiry date",
   cost_unchanged: "the line already has this cost",
   quantity_unchanged: "the line already has this quantity",
+  product_unchanged: "the line already has this product",
 } as const;
 
 async function sendUnchanged(reply: FastifyReply, code: keyof typeof UNCHANGED_MESSAGES) {
@@ -72,6 +76,16 @@ async function sendNotFound(reply: FastifyReply, code: "purchase_not_found" | "l
     code,
     message: code === "purchase_not_found" ? "no purchase with that id" : "no line with that id",
   });
+}
+
+const LOT_REFUSALS = {
+  units_left_lot: "some unit of the line already left its lot",
+  counted_since_receipt: "a stock count of the product was taken after the line was received",
+  last_line: "the only line of a purchase cannot be removed",
+} as const;
+
+async function sendLineRefusal(reply: FastifyReply, code: keyof typeof LOT_REFUSALS) {
+  await reply.code(409).send({ code, message: LOT_REFUSALS[code] });
 }
 
 export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
@@ -358,6 +372,92 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
       return;
     }
     await sendPurchase(reply, 200, ids.purchaseId);
+  });
+
+  app.patch("/purchases/:purchaseId/lines/:lineId/product", writeGuard, async (request, reply) => {
+    const ids = await readRecordIds(reply, request.params, ["purchaseId", "lineId"]);
+    if (!ids) {
+      return;
+    }
+    const body = await readValidatedBody(reply, purchaseLineProductChangeBodySchema, request.body);
+    if (!body) {
+      return;
+    }
+    const openSession = openSessionOf(request);
+
+    const outcome = await changePurchaseLineProduct(ports, {
+      ...ids,
+      productId: body.productId,
+      locationId: openSession.locationId,
+      actorId: openSession.userId,
+    });
+
+    switch (outcome.kind) {
+      case "purchase_not_found":
+      case "line_not_found":
+        await sendNotFound(reply, outcome.kind);
+        return;
+      case "unchanged":
+        await sendUnchanged(reply, "product_unchanged");
+        return;
+      case "product_not_found":
+        await reply.code(404).send({
+          code: "product_not_found",
+          message: "no product with that id",
+          details: [{ field: "productId" }],
+        });
+        return;
+      case "product_inactive":
+        await reply.code(409).send({
+          code: "product_inactive",
+          message: "the product is deactivated",
+          details: [{ field: "productId" }],
+        });
+        return;
+      case "invalid_quantity":
+        await reply.code(400).send({
+          code: "validation_failed",
+          message: "the line's quantity is not one the product may be received in",
+          details: [{ field: "productId" }],
+        });
+        return;
+      case "units_left_lot":
+      case "counted_since_receipt":
+        await sendLineRefusal(reply, outcome.kind);
+        return;
+      case "changed":
+        await sendPurchase(reply, 200, ids.purchaseId);
+        return;
+    }
+  });
+
+  app.delete("/purchases/:purchaseId/lines/:lineId", writeGuard, async (request, reply) => {
+    const ids = await readRecordIds(reply, request.params, ["purchaseId", "lineId"]);
+    if (!ids) {
+      return;
+    }
+    const openSession = openSessionOf(request);
+
+    const outcome = await removePurchaseLine(ports, {
+      ...ids,
+      locationId: openSession.locationId,
+      actorId: openSession.userId,
+    });
+
+    switch (outcome.kind) {
+      case "purchase_not_found":
+      case "line_not_found":
+        await sendNotFound(reply, outcome.kind);
+        return;
+      case "last_line":
+      case "units_left_lot":
+      case "counted_since_receipt":
+        await sendLineRefusal(reply, outcome.kind);
+        return;
+      case "removed":
+        await sendPurchase(reply, 200, ids.purchaseId);
+        return;
+    }
   });
 
   app.get("/purchases/:purchaseId/changes", readGuard, async (request, reply) => {
