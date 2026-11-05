@@ -43,6 +43,13 @@ export type PurchaseCorrectionChange =
   | { kind: "header"; changes: PurchaseHeaderChange[] }
   | { kind: "lines_added"; lines: AddedLineRecord[] }
   | { kind: "line_expiry"; lineId: string; previous: string | null; next: string | null }
+  | {
+      kind: "line_expiry_split";
+      lineId: string;
+      quantity: number;
+      previous: string | null;
+      next: string | null;
+    }
   | { kind: "line_cost"; lineId: string; previous: number; next: number };
 
 export interface PurchaseCorrection {
@@ -57,6 +64,17 @@ export interface LotExpiryCorrection {
   purchaseLineId: string;
   expiresOn: string | null;
 }
+
+export interface LotExpirySplit {
+  locationId: string;
+  purchaseLineId: string;
+  quantity: number;
+  expiresOn: string | null;
+  occurredAt: Date;
+  actorId: string;
+}
+
+export type LotExpirySplitResult = { kind: "not_enough_in_lot" } | { kind: "split"; lotId: string };
 
 export interface LotCostCorrection {
   locationId: string;
@@ -87,10 +105,12 @@ export interface PurchaseCorrectionStoreTransaction {
   updatePurchaseHeader(purchaseId: string, values: PurchaseHeaderValues): Promise<void>;
   updatePurchaseLineExpiry(lineId: string, expiresOn: string | null): Promise<void>;
   updatePurchaseLineCost(lineId: string, costPaidCents: number): Promise<void>;
-  // Corrects the cost of the lot the purchase line created, keeping the cost it had until then.
+  // Corrects the cost of every lot the purchase line created, keeping the cost each had until then.
   correctLotCost(correction: LotCostCorrection): Promise<void>;
   // Corrects the expiry date of the lot the purchase line created.
   correctLotExpiry(correction: LotExpiryCorrection): Promise<void>;
+  // Moves units of the lot the purchase line created into a lot of their own with the expiry date.
+  splitLotExpiry(split: LotExpirySplit): Promise<LotExpirySplitResult>;
   // Dates the lots the purchase lines created by the purchase's corrected date.
   redatePurchasedLots(redating: PurchasedLotsRedating): Promise<void>;
   recordPurchaseCorrection(correction: PurchaseCorrection): Promise<void>;

@@ -20,6 +20,7 @@ const purchaseLineSummarySchema = z.object({
   unitCostCents: z.int(),
   lotName: z.string(),
   expiresOn: z.string().nullable(),
+  remainingInLot: z.int(),
 });
 
 export const purchaseSummarySchema = z.object({

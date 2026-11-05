@@ -38,6 +38,13 @@ const purchaseChangeDetailSchema = z.discriminatedUnion("kind", [
     next: z.string().nullable(),
   }),
   z.object({
+    kind: z.literal("line_expiry_split"),
+    lineId: z.string(),
+    quantity: z.int(),
+    previous: z.string().nullable(),
+    next: z.string().nullable(),
+  }),
+  z.object({
     kind: z.literal("line_cost"),
     lineId: z.string(),
     previous: z.int(),

@@ -6,6 +6,8 @@ import {
   type LockSupplierResult,
   type LotCostCorrection,
   type LotExpiryCorrection,
+  type LotExpirySplit,
+  type LotExpirySplitResult,
   type NewPurchaseFields,
   type NewPurchaseLineFields,
   type NewSupplierFields,
@@ -26,6 +28,7 @@ import {
   type PurchaseReceipt,
   receivePurchasedStock,
   redatePurchasedLots,
+  splitPurchasedLot,
 } from "@purosur/domain/stock/use-cases";
 import { and, asc, desc, eq, ne, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -273,6 +276,14 @@ export class DrizzlePurchasingStoreTransaction<TQueryResult extends PgQueryResul
     if (outcome.kind === "not_found") {
       throw new Error(`the lot of purchase line ${correction.purchaseLineId} vanished`);
     }
+  }
+
+  async splitLotExpiry(split: LotExpirySplit): Promise<LotExpirySplitResult> {
+    const outcome = await splitPurchasedLot(this.stock, split);
+    if (outcome.kind === "not_found") {
+      throw new Error(`the lot of purchase line ${split.purchaseLineId} vanished`);
+    }
+    return outcome;
   }
 
   async redatePurchasedLots(redating: PurchasedLotsRedating): Promise<void> {
