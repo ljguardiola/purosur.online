@@ -15,13 +15,14 @@ import type {
   ProductStockKey,
   PurchasedLot,
   PurchasedLotNaming,
+  PurchasedLotQuantityStoreTransaction,
   PurchasedLotStoreTransaction,
   SplittableLot,
   StockLot,
   StockStore,
   StockStoreTransaction,
 } from "@purosur/domain/stock/use-cases";
-import { and, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   lotAllocations,
@@ -52,7 +53,10 @@ function balanceOf(key: ProductStockKey) {
 type LotCost = LotCostChangeRecord["previous"];
 
 export class DrizzleStockStoreTransaction<TQueryResult extends PgQueryResultHKT>
-  implements StockStoreTransaction, PurchasedLotStoreTransaction
+  implements
+    StockStoreTransaction,
+    PurchasedLotStoreTransaction,
+    PurchasedLotQuantityStoreTransaction
 {
   protected readonly tx: PgDatabase<TQueryResult>;
   protected readonly pending: PendingChanges;
@@ -241,6 +245,29 @@ export class DrizzleStockStoreTransaction<TQueryResult extends PgQueryResultHKT>
     return found.flatMap(({ purchaseLineId, ...lot }) =>
       purchaseLineId === null ? [] : [{ ...lot, purchaseLineId }],
     );
+  }
+
+  async receiptInstantOfPurchaseLine(purchaseLineId: string): Promise<Date | undefined> {
+    const [receipt] = await this.tx
+      .select({ occurredAt: stockMovements.occurredAt })
+      .from(stockMovements)
+      .where(
+        and(eq(stockMovements.kind, "receipt"), eq(stockMovements.purchaseLineId, purchaseLineId)),
+      )
+      .orderBy(asc(stockMovements.occurredAt))
+      .limit(1);
+    return receipt?.occurredAt;
+  }
+
+  async addToLotQuantityReceived(lotId: string, delta: number): Promise<void> {
+    const [updated] = await this.tx
+      .update(lots)
+      .set({ quantityReceived: sql`${lots.quantityReceived} + ${delta}` })
+      .where(eq(lots.id, lotId))
+      .returning({ id: lots.id });
+    if (!updated) {
+      throw new Error("adding to the units the lot was received with updated no row");
+    }
   }
 
   async splittableLot(lotId: string): Promise<SplittableLot | null> {

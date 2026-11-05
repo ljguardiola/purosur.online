@@ -50,6 +50,13 @@ const lineCostSchema = z.object({
   costPaidCents: z.int(),
 });
 
+const lineQuantitySchema = z.object({
+  kind: z.literal("line_quantity"),
+  lineId: z.string(),
+  quantity: z.int(),
+  packages: z.int().nullable(),
+});
+
 interface AuditValues {
   previousValue: unknown;
   newValue: unknown;
@@ -95,6 +102,11 @@ export function auditValuesOf(change: PurchaseCorrectionChange): AuditValues {
         previousValue: { kind: "line_cost", lineId: change.lineId, costPaidCents: change.previous },
         newValue: { kind: "line_cost", lineId: change.lineId, costPaidCents: change.next },
       };
+    case "line_quantity":
+      return {
+        previousValue: { kind: "line_quantity", lineId: change.lineId, ...change.previous },
+        newValue: { kind: "line_quantity", lineId: change.lineId, ...change.next },
+      };
   }
 }
 
@@ -125,6 +137,17 @@ export function changeOfAuditValues(
       lineId: cost.data.lineId,
       previous: lineCostSchema.parse(previousValue).costPaidCents,
       next: cost.data.costPaidCents,
+    };
+  }
+  const quantity = lineQuantitySchema.safeParse(newValue);
+  if (quantity.success) {
+    const { lineId, ...next } = quantity.data;
+    const { lineId: _lineId, ...previous } = lineQuantitySchema.parse(previousValue);
+    return {
+      kind: "line_quantity",
+      lineId,
+      previous: { quantity: previous.quantity, packages: previous.packages },
+      next: { quantity: next.quantity, packages: next.packages },
     };
   }
   const split = lineExpirySplitSchema.safeParse(newValue);

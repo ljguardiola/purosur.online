@@ -5,6 +5,7 @@ import {
   purchaseLineCostCorrectionBodySchema,
   purchaseLineExpiryCorrectionBodySchema,
   purchaseLineExpirySplitBodySchema,
+  purchaseLineQuantityCorrectionBodySchema,
   purchaseLinesAdditionBodySchema,
   purchaseListSchema,
   purchaseRegistrationBodySchema,
@@ -16,6 +17,7 @@ import {
   correctPurchaseHeader,
   correctPurchaseLineCost,
   correctPurchaseLineExpiry,
+  correctPurchaseLineQuantity,
   findPurchaseListing,
   type ListedPurchase,
   listPurchaseChanges,
@@ -58,6 +60,7 @@ const UNCHANGED_MESSAGES = {
   purchase_unchanged: "the purchase already has these values",
   expiry_unchanged: "the line already has this expiry date",
   cost_unchanged: "the line already has this cost",
+  quantity_unchanged: "the line already has this quantity",
 } as const;
 
 async function sendUnchanged(reply: FastifyReply, code: keyof typeof UNCHANGED_MESSAGES) {
@@ -304,6 +307,54 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
     }
     if (outcome.kind === "unchanged") {
       await sendUnchanged(reply, "cost_unchanged");
+      return;
+    }
+    await sendPurchase(reply, 200, ids.purchaseId);
+  });
+
+  app.patch("/purchases/:purchaseId/lines/:lineId/quantity", writeGuard, async (request, reply) => {
+    const ids = await readRecordIds(reply, request.params, ["purchaseId", "lineId"]);
+    if (!ids) {
+      return;
+    }
+    const body = await readValidatedBody(
+      reply,
+      purchaseLineQuantityCorrectionBodySchema,
+      request.body,
+    );
+    if (!body) {
+      return;
+    }
+    const openSession = openSessionOf(request);
+
+    const outcome = await correctPurchaseLineQuantity(ports, {
+      ...ids,
+      count: body,
+      locationId: openSession.locationId,
+      actorId: openSession.userId,
+    });
+
+    if (outcome.kind === "purchase_not_found" || outcome.kind === "line_not_found") {
+      await sendNotFound(reply, outcome.kind);
+      return;
+    }
+    if (outcome.kind === "unchanged") {
+      await sendUnchanged(reply, "quantity_unchanged");
+      return;
+    }
+    if (outcome.kind === "invalid_quantity") {
+      await reply.code(400).send({
+        code: "validation_failed",
+        message: "the line is loaded by the other way, or the product is not sold in that quantity",
+        details: [{ field: body.loadedBy }],
+      });
+      return;
+    }
+    if (outcome.kind === "not_enough_in_lot") {
+      await reply.code(409).send({
+        code: "not_enough_in_lot",
+        message: "the line's lot has fewer units than the ones to take away",
+      });
       return;
     }
     await sendPurchase(reply, 200, ids.purchaseId);
