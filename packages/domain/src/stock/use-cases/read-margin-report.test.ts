@@ -24,6 +24,8 @@ function soldLine(overrides: Partial<MarginSaleLine> = {}): MarginSaleLine {
         technical: false,
         costIncomplete: false,
         cost: { totalCents: 5_000, quantity: 1_000 },
+        costChanges: [],
+        valuedAt: new Date("2026-03-01T12:00:00Z"),
       },
     ],
     ...overrides,
