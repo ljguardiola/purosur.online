@@ -12,7 +12,6 @@ import {
   Truck,
 } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
-import { AreaTopBarAlertsCount } from "./area-top-bar-alerts-count";
 import {
   canManageBatches,
   canManageFreights,
@@ -21,7 +20,6 @@ import {
   canPerformStockCounts,
   canRecordInitialInventory,
   canRecordPurchases,
-  canSeeAlertsArea,
   canSeeExpiringLots,
   canSeeStockBalances,
   canSeeStockMovements,
@@ -35,8 +33,7 @@ export const stockAreaRoute = createRoute({
 });
 
 function StockArea() {
-  const { session, services, sessionActions } = stockAreaRoute.useRouteContext();
-  const AlertsCount = services.areaTopBarAlertsCount;
+  const { session } = stockAreaRoute.useRouteContext();
   const matchRoute = useMatchRoute();
   const balancesShown = Boolean(matchRoute({ to: "/inventory" }));
   const countsShown = Boolean(matchRoute({ to: "/inventory-counts" }));
@@ -50,6 +47,7 @@ function StockArea() {
   const initialInventoryShown = Boolean(matchRoute({ to: "/initial-inventory" }));
   return (
     <AreaLayout
+      showsOpenAlertsCount
       area="stock"
       sectionColumnLabel="Stock"
       sectionColumn={
@@ -171,18 +169,7 @@ function StockArea() {
         </>
       }
     >
-      <AreaTopBarAlertsCount
-        value={
-          canSeeAlertsArea(session) ? (
-            <AlertsCount
-              onSessionEnded={sessionActions.sessionEnded}
-              services={services.alertsOpenCountLink}
-            />
-          ) : null
-        }
-      >
-        <Outlet />
-      </AreaTopBarAlertsCount>
+      <Outlet />
     </AreaLayout>
   );
 }
