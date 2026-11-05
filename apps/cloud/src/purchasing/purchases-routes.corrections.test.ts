@@ -586,6 +586,7 @@ describe("POST /purchases/:purchaseId/lines/:lineId/expiry-splits", () => {
         change: {
           kind: "line_expiry_split",
           lineId: purchase.lines[0]?.id,
+          product: purchase.lines[0]?.product,
           quantity: 2_000,
           previous: "2026-11-10",
           next: "2027-01-15",
@@ -808,7 +809,13 @@ describe("PATCH /purchases/:purchaseId/lines/:lineId/cost", () => {
         id: expect.any(String),
         actor: { id: userId, name: expect.any(String) },
         correctedAt: CORRECTED_AT.toISOString(),
-        change: { kind: "line_cost", lineId: purchase.lines[0]?.id, previous: 900, next: 1_200 },
+        change: {
+          kind: "line_cost",
+          lineId: purchase.lines[0]?.id,
+          product: purchase.lines[0]?.product,
+          previous: 900,
+          next: 1_200,
+        },
       },
     ]);
   });
@@ -985,6 +992,7 @@ describe("PATCH /purchases/:purchaseId/lines/:lineId/quantity", () => {
         change: {
           kind: "line_quantity",
           lineId: purchase.lines[0]?.id,
+          product: purchase.lines[0]?.product,
           previous: { quantity: 10_000, packages: null },
           next: { quantity: 12_000, packages: null },
         },
@@ -1566,6 +1574,7 @@ describe("GET /purchases/:purchaseId/changes", () => {
         change: {
           kind: "line_expiry",
           lineId: purchase.lines[0]?.id,
+          product: purchase.lines[0]?.product,
           previous: "2026-11-10",
           next: "2027-11-10",
         },

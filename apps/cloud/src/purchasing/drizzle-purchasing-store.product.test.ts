@@ -1,6 +1,7 @@
 import {
   changePurchaseLineProduct,
   correctPurchaseLineExpiry,
+  findPurchaseListing,
   listPurchaseChanges,
   splitPurchaseLineExpiry,
 } from "@purosur/domain/purchasing/use-cases";
@@ -18,9 +19,11 @@ import {
 import { DrizzleStockStore } from "../stock/drizzle-stock-store.js";
 import { insertLocation } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
+import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzlePurchaseChangeReader } from "./drizzle-purchase-change-reader.js";
 import { DrizzlePurchaseCostReader } from "./drizzle-purchase-cost-reader.js";
+import { DrizzlePurchasingListReader } from "./drizzle-purchasing-list-reader.js";
 import { DrizzlePurchasingStore } from "./drizzle-purchasing-store.js";
 import { insertActor, insertProduct } from "./test-support/purchasing-fixtures.js";
 import { quantityLine, registeredPurchase } from "./test-support/registered-purchase.js";
@@ -270,6 +273,42 @@ describe("changing the product of a purchase line", () => {
     expect(balances.find(({ productId }) => productId === juice.id)?.quantity).toBe(5_000);
   });
 
+  it("leaves the old product's lots of the other purchases of the day with their numbers", async () => {
+    const juice = await insertProduct(db, { name: "Jugo" });
+    const nectar = await insertProduct(db, { name: "Néctar" });
+    const purchases = [];
+    for (const supplier of ["Distribuidora Sur", "Molinos del Valle", "Almacen Mayorista"]) {
+      purchases.push(
+        await registeredPurchase(
+          { store: store(), clock, actorId, locationId },
+          [quantityLine(juice.id)],
+          supplier,
+        ),
+      );
+    }
+    const [first, second, third] = purchases.map(({ id }) => id) as [string, string, string];
+    const [secondLine] = await db
+      .select({ id: purchaseLines.id })
+      .from(purchaseLines)
+      .where(eq(purchaseLines.purchaseId, second));
+
+    await changedTo(second, secondLine?.id as string, nectar.id);
+
+    const ports = {
+      reader: new DrizzlePurchasingListReader(db),
+      zoneRules: fixedZoneRulesSource(),
+    };
+    const names = [];
+    for (const purchaseId of [first, third]) {
+      const name = (await findPurchaseListing(ports, purchaseId))?.lines[0]?.lotName;
+      names.push([name?.day, name?.number]);
+    }
+    expect(names).toEqual([
+      ["2026-10-01", 1],
+      ["2026-10-01", 3],
+    ]);
+  });
+
   it("records the previous and new product in the audit log and lists them among the purchase's changes", async () => {
     const { juice, nectar, purchase, lineId } = await juiceLine();
 
@@ -294,7 +333,12 @@ describe("changing the product of a purchase line", () => {
       changes: [
         {
           correctedAt: CORRECTED_AT,
-          change: { kind: "line_product", lineId, previous: juice.id, next: nectar.id },
+          change: {
+            kind: "line_product",
+            lineId,
+            previous: { id: juice.id, name: "Jugo" },
+            next: { id: nectar.id, name: "Néctar" },
+          },
         },
       ],
     });

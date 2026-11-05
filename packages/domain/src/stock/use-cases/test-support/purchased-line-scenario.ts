@@ -74,6 +74,21 @@ export async function storeWithReceivedAndSplitLine(): Promise<FakeStockStore> {
   return store;
 }
 
+export function seedPurchasedLotOfAnotherLine(
+  store: FakeStockStore,
+  id: string,
+  purchasedOn = "2026-03-09",
+): void {
+  store.seedLot({
+    id,
+    ...YERBA,
+    purchaseLineId: `line-of-${id}`,
+    quantityReceived: 1_000,
+    remaining: 1_000,
+    purchasedOn,
+  });
+}
+
 export async function leaveLotBy(
   store: FakeStockStore,
   kind: "sale" | "return" | "adjustment",

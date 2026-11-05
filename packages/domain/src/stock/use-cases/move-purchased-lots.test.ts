@@ -8,6 +8,7 @@ import {
   FIDEOS,
   leaveLotBy,
   RECEIVED_AT,
+  seedPurchasedLotOfAnotherLine,
   storeWithProducts,
   storeWithReceivedAndSplitLine,
   storeWithReceivedLine,
@@ -135,6 +136,17 @@ describe("movePurchasedLots", () => {
       { movementId: "movement-4", lotId: "lot-3", quantity: 21_000 },
       { movementId: "movement-4", lotId: "lot-4", quantity: 3_000 },
     ]);
+  });
+
+  it("keeps the numbers the old product's other lots of the purchase day had before the line's lots left", async () => {
+    const store = await storeWithReceivedLine();
+    seedPurchasedLotOfAnotherLine(store, "lot-second");
+    seedPurchasedLotOfAnotherLine(store, "lot-third");
+
+    await move(store);
+
+    expect(lot(store, "lot-second").givenNumber).toBe(2);
+    expect(lot(store, "lot-third").givenNumber).toBe(3);
   });
 
   it("makes the new lots the line's lots and the old ones no longer its lots", async () => {
@@ -285,6 +297,8 @@ describe("movePurchasedLots", () => {
       "earliestCountAtOrAfter",
       "movementsAllocatedToLots",
       "purchasedLotFacts",
+      "namingOfPurchasedLots",
+      "giveLotNumbers",
       "recordMovement",
       "addToBalance",
       "allocateToLot",

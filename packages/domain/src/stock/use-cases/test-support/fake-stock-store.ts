@@ -3,6 +3,7 @@ import type { Clock } from "../../../shared/index.js";
 import type { BatchLotMovement } from "../../model/assembly-batch.js";
 import type { NewBatchLot, NewInitialCountLot, NewLot } from "../../model/lot.js";
 import type { StockLot } from "../../model/lot-allocation.js";
+import type { PurchasedLotNaming } from "../../model/lot-name.js";
 import type { LoadedSupplierPrice } from "../../model/lot-reference-cost.js";
 import { isLotCostIncomplete, type LotCost } from "../../model/lot-value.js";
 import type { AllocatedMovement } from "../../model/purchased-lot-move.js";
@@ -67,6 +68,8 @@ export interface FakeStockLot extends ProductStockKey, StockLot {
   originMovementId: string | null;
   assemblyBatchId: string | null;
   withdrawn: boolean;
+  nameOrder?: number | undefined;
+  givenNumber?: number | null | undefined;
 }
 
 interface FakeCountedLots {
@@ -100,6 +103,7 @@ type WriteOperation =
   | "addToLotQuantityReceived"
   | "recordMovedLot"
   | "withdrawPurchasedLots"
+  | "giveLotNumbers"
   | "insertAssemblyBatch"
   | "recordBatchLot"
   | "recordAssemblyBatchVoid";
@@ -139,7 +143,10 @@ export class FakeStockStoreTransaction
     AssemblyBatchTransaction,
     PurchasedLotQuantityStoreTransaction,
     PurchasedLotMoveStoreTransaction,
-    Pick<PurchasedLotStoreTransaction, "lotsOfPurchaseLines" | "splittableLot">
+    Pick<
+      PurchasedLotStoreTransaction,
+      "lotsOfPurchaseLines" | "splittableLot" | "namingOfPurchasedLots" | "giveLotNumbers"
+    >
 {
   private readonly state: FakeStockState;
   private readonly store: FakeStockStore;
@@ -643,6 +650,40 @@ export class FakeStockStoreTransaction
     for (const lot of this.state.lots) {
       if (lotIds.includes(lot.id)) {
         lot.withdrawn = true;
+      }
+    }
+  }
+
+  async namingOfPurchasedLots(
+    locationId: string,
+    productIds: readonly string[],
+  ): Promise<PurchasedLotNaming[]> {
+    this.store.operationOrder.push("namingOfPurchasedLots");
+    return this.state.lots.flatMap((lot, index) =>
+      !lot.withdrawn &&
+      lot.purchaseLineId !== null &&
+      lot.purchasedOn !== null &&
+      lot.locationId === locationId &&
+      productIds.includes(lot.productId)
+        ? [
+            {
+              lotId: lot.id,
+              productId: lot.productId,
+              purchasedOn: lot.purchasedOn,
+              nameOrder: lot.nameOrder ?? index + 1,
+              givenNumber: lot.givenNumber ?? null,
+            },
+          ]
+        : [],
+    );
+  }
+
+  async giveLotNumbers(numbers: ReadonlyMap<string, number>): Promise<void> {
+    this.beforeWrite("giveLotNumbers");
+    for (const lot of this.state.lots) {
+      const number = numbers.get(lot.id);
+      if (number !== undefined) {
+        lot.givenNumber = number;
       }
     }
   }

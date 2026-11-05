@@ -3,8 +3,9 @@ import { compraDeAceite, compraDeAvena, compraDeMiel } from "./purchases";
 
 const [lineDeMiel] = compraDeMiel.lines;
 const [lineDeAvena] = compraDeAvena.lines;
+const [lineDeAceite] = compraDeAceite.lines;
 
-if (!lineDeMiel || !lineDeAvena) {
+if (!lineDeMiel || !lineDeAvena || !lineDeAceite) {
   throw new Error("test setup: a purchase has no line");
 }
 
@@ -28,6 +29,10 @@ export const compraDeMielCorregida: PurchaseSummary = {
 };
 
 export const LINEA_DE_MIEL_ID = lineDeMiel.id;
+
+export const HONEY_PRODUCT = lineDeMiel.product;
+export const OATS_PRODUCT = lineDeAvena.product;
+export const ALMOND_OIL_PRODUCT = lineDeAceite.product;
 
 export const headerCorrection: PurchaseChange = {
   id: "c0c00000-0000-4000-8000-000000000001",
@@ -53,7 +58,7 @@ export const linesAdded: PurchaseChange = {
     lines: [
       {
         lineId: ADDED_LINE_ID,
-        productId: "90d00000-0000-4000-8000-000000000002",
+        product: OATS_PRODUCT,
         quantity: 10_000,
         costPaidCents: 1_800_00,
         expiresOn: "2027-03-01",
@@ -69,6 +74,7 @@ export const lineExpiryCorrection: PurchaseChange = {
   change: {
     kind: "line_expiry",
     lineId: LINEA_DE_MIEL_ID,
+    product: HONEY_PRODUCT,
     previous: "2027-01-31",
     next: null,
   },
@@ -81,6 +87,7 @@ export const lineCostCorrection: PurchaseChange = {
   change: {
     kind: "line_cost",
     lineId: LINEA_DE_MIEL_ID,
+    product: HONEY_PRODUCT,
     previous: 7_200_00,
     next: 6_800_00,
   },
@@ -93,6 +100,7 @@ export const lineExpirySplitCorrection: PurchaseChange = {
   change: {
     kind: "line_expiry_split",
     lineId: LINEA_DE_MIEL_ID,
+    product: HONEY_PRODUCT,
     quantity: 1_000,
     previous: "2027-01-31",
     next: "2027-11-10",
@@ -106,16 +114,11 @@ export const lineQuantityCorrection: PurchaseChange = {
   change: {
     kind: "line_quantity",
     lineId: LINEA_DE_MIEL_ID,
+    product: HONEY_PRODUCT,
     previous: { quantity: 24_000, packages: 2 },
     next: { quantity: 36_000, packages: 3 },
   },
 };
-
-const [lineDeAceite] = compraDeAceite.lines;
-
-if (!lineDeAceite) {
-  throw new Error("test setup: a purchase has no line");
-}
 
 export const lineProductCorrection: PurchaseChange = {
   id: "c0c00000-0000-4000-8000-000000000007",
@@ -124,8 +127,8 @@ export const lineProductCorrection: PurchaseChange = {
   change: {
     kind: "line_product",
     lineId: LINEA_DE_MIEL_ID,
-    previous: lineDeMiel.product,
-    next: lineDeAceite.product,
+    previous: HONEY_PRODUCT,
+    next: ALMOND_OIL_PRODUCT,
   },
 };
 
@@ -136,7 +139,7 @@ export const lineRemoved: PurchaseChange = {
   change: {
     kind: "line_removed",
     lineId: "c0b00000-0000-4000-8000-0000000000b1",
-    product: lineDeMiel.product,
+    product: HONEY_PRODUCT,
     quantity: 24_000,
     packages: 2,
     costPaidCents: 3_600_00,
@@ -150,7 +153,7 @@ export const lineRemovedWithoutPackages: PurchaseChange = {
   change: {
     kind: "line_removed",
     lineId: "c0b00000-0000-4000-8000-0000000000b2",
-    product: lineDeMiel.product,
+    product: HONEY_PRODUCT,
     quantity: 24_000,
     packages: null,
     costPaidCents: 3_600_00,

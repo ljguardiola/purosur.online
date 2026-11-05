@@ -4,6 +4,14 @@ import { purchaseChangeSchema, purchaseChangesSchema } from "./purchase-changes.
 
 const actor = { id: "person-1", name: "Ana Perez" };
 const correctedAt = "2026-03-10T15:00:00.000Z";
+const yerba = {
+  id: "p-1",
+  name: "Yerba",
+  brandName: "Piragüé",
+  netContent: { quantity: 500, unit: "G" },
+  saleUnit: "UNIT",
+};
+const harina = { id: "p-2", name: "Harina", brandName: null, netContent: null, saleUnit: "KG" };
 
 describe("purchaseChangesSchema", () => {
   it("accepts a header change with each changed field's previous and new value", () => {
@@ -27,7 +35,7 @@ describe("purchaseChangesSchema", () => {
     expect(purchaseChangesSchema.safeParse(changes).data).toEqual(changes);
   });
 
-  it("accepts added lines and a line's expiry, part-of-line expiry and cost changes", () => {
+  it("accepts added lines and a line's expiry, part-of-line expiry and cost changes, each naming its product", () => {
     const changes = [
       {
         id: "c-2",
@@ -38,7 +46,7 @@ describe("purchaseChangesSchema", () => {
           lines: [
             {
               lineId: "line-3",
-              productId: "product-a",
+              product: harina,
               quantity: 10_000,
               costPaidCents: 500_000,
               expiresOn: "2027-01-31",
@@ -50,7 +58,13 @@ describe("purchaseChangesSchema", () => {
         id: "c-3",
         actor,
         correctedAt,
-        change: { kind: "line_expiry", lineId: "line-1", previous: "2026-11-10", next: null },
+        change: {
+          kind: "line_expiry",
+          lineId: "line-1",
+          product: yerba,
+          previous: "2026-11-10",
+          next: null,
+        },
       },
       {
         id: "c-5",
@@ -59,6 +73,7 @@ describe("purchaseChangesSchema", () => {
         change: {
           kind: "line_expiry_split",
           lineId: "line-1",
+          product: yerba,
           quantity: 1_000,
           previous: "2026-11-10",
           next: null,
@@ -68,7 +83,13 @@ describe("purchaseChangesSchema", () => {
         id: "c-4",
         actor,
         correctedAt,
-        change: { kind: "line_cost", lineId: "line-1", previous: 1_450_050, next: 1_200_000 },
+        change: {
+          kind: "line_cost",
+          lineId: "line-1",
+          product: yerba,
+          previous: 1_450_050,
+          next: 1_200_000,
+        },
       },
       {
         id: "c-6",
@@ -77,6 +98,7 @@ describe("purchaseChangesSchema", () => {
         change: {
           kind: "line_quantity",
           lineId: "line-1",
+          product: harina,
           previous: { quantity: 24_000, packages: 2 },
           next: { quantity: 2_500, packages: null },
         },
@@ -87,14 +109,6 @@ describe("purchaseChangesSchema", () => {
   });
 
   it("accepts a line's product change and removal, naming the products as a purchase's line does", () => {
-    const yerba = {
-      id: "p-1",
-      name: "Yerba",
-      brandName: "Piragüé",
-      netContent: { quantity: 500, unit: "G" },
-      saleUnit: "UNIT",
-    };
-    const harina = { id: "p-2", name: "Harina", brandName: null, netContent: null, saleUnit: "KG" };
     const changes = [
       {
         id: "c-7",
@@ -154,6 +168,33 @@ describe("purchaseChangesSchema", () => {
       costPaidCents: 1_000,
       expiresOn: null,
     },
+    { kind: "line_cost", lineId: "line-1", previous: 1_000, next: 1_200 },
+    { kind: "line_expiry", lineId: "line-1", product: "p-1", previous: null, next: null },
+    {
+      kind: "line_expiry_split",
+      lineId: "line-1",
+      quantity: 1_000,
+      previous: null,
+      next: null,
+    },
+    {
+      kind: "line_quantity",
+      lineId: "line-1",
+      previous: { quantity: 1_000, packages: null },
+      next: { quantity: 2_000, packages: null },
+    },
+    {
+      kind: "lines_added",
+      lines: [
+        {
+          lineId: "line-3",
+          productId: "p-1",
+          quantity: 10_000,
+          costPaidCents: 500_000,
+          expiresOn: null,
+        },
+      ],
+    },
   ])("rejects the change %j", (change) => {
     expect(purchaseChangesSchema.safeParse([{ id: "c", actor, correctedAt, change }]).success).toBe(
       false,
@@ -163,7 +204,7 @@ describe("purchaseChangesSchema", () => {
   it("accepts an old record of added lines that carries a lot number, without the lot number", () => {
     const added = {
       lineId: "line-3",
-      productId: "product-a",
+      product: harina,
       quantity: 10_000,
       costPaidCents: 500_000,
       expiresOn: null,
@@ -196,7 +237,7 @@ describe("purchaseChangesSchema", () => {
   });
 
   it("rejects a correction time that is not an instant", () => {
-    const change = { kind: "line_expiry", lineId: "l", previous: null, next: null };
+    const change = { kind: "line_expiry", lineId: "l", product: yerba, previous: null, next: null };
 
     expect(
       purchaseChangesSchema.safeParse([{ id: "c", actor, correctedAt: "yesterday", change }])

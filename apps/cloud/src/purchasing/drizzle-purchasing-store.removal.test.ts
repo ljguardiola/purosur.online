@@ -6,7 +6,7 @@ import {
   splitPurchaseLineExpiry,
 } from "@purosur/domain/purchasing/use-cases";
 import { recordLoss, registerCount } from "@purosur/domain/stock/use-cases";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   auditLog,
@@ -227,6 +227,42 @@ describe("removing a purchase line", () => {
     expect(await linesOfJuice()).toEqual([juiceLineId]);
   });
 
+  it("leaves the product's lots of the other purchases of the day with their numbers", async () => {
+    const juice = await insertProduct(db, { name: "Jugo" });
+    const flour = await insertProduct(db, { name: "Harina" });
+    const purchases = [];
+    for (const supplier of ["Distribuidora Sur", "Molinos del Valle", "Almacen Mayorista"]) {
+      purchases.push(
+        await registeredPurchase(
+          { store: store(), clock, actorId, locationId },
+          [quantityLine(juice.id), quantityLine(flour.id)],
+          supplier,
+        ),
+      );
+    }
+    const [first, second, third] = purchases.map(({ id }) => id) as [string, string, string];
+    const [secondJuiceLine] = await db
+      .select({ id: purchaseLines.id })
+      .from(purchaseLines)
+      .where(and(eq(purchaseLines.purchaseId, second), eq(purchaseLines.productId, juice.id)));
+
+    await removed(second, secondJuiceLine?.id as string);
+
+    const ports = {
+      reader: new DrizzlePurchasingListReader(db),
+      zoneRules: fixedZoneRulesSource(),
+    };
+    const names = [];
+    for (const purchaseId of [first, third]) {
+      const name = (await findPurchaseListing(ports, purchaseId))?.lines[0]?.lotName;
+      names.push([name?.day, name?.number]);
+    }
+    expect(names).toEqual([
+      ["2026-10-01", 1],
+      ["2026-10-01", 3],
+    ]);
+  });
+
   it("no longer finds the removed line", async () => {
     const { purchase, juiceLineId } = await purchaseOfJuiceAndFlour();
     await removed(purchase.id, juiceLineId);
@@ -272,7 +308,7 @@ describe("removing a purchase line", () => {
           change: {
             kind: "line_removed",
             lineId: juiceLineId,
-            productId: juice.id,
+            product: { id: juice.id, name: "Jugo" },
             quantity: 5_000,
             packages: null,
             costPaidCents: 2_500,

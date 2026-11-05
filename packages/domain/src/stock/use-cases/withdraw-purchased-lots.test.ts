@@ -6,6 +6,7 @@ import {
   countOf,
   leaveLotBy,
   RECEIVED_AT,
+  seedPurchasedLotOfAnotherLine,
   storeWithReceivedAndSplitLine,
   storeWithReceivedLine,
   YERBA,
@@ -83,6 +84,19 @@ describe("withdrawPurchasedLots", () => {
     expect(lot(store, "lot-empty").withdrawn).toBe(true);
   });
 
+  it("keeps the numbers the product's other lots of the purchase day had before the line's lots left", async () => {
+    const store = await storeWithReceivedLine();
+    seedPurchasedLotOfAnotherLine(store, "lot-second");
+    seedPurchasedLotOfAnotherLine(store, "lot-third");
+    seedPurchasedLotOfAnotherLine(store, "lot-other-day", "2026-03-08");
+
+    await withdraw(store);
+
+    expect(lot(store, "lot-second").givenNumber).toBe(2);
+    expect(lot(store, "lot-third").givenNumber).toBe(3);
+    expect(lot(store, "lot-other-day").givenNumber).toBeUndefined();
+  });
+
   it("stops the withdrawn lots from being the line's lots", async () => {
     const store = await storeWithReceivedLine();
     await withdraw(store);
@@ -105,6 +119,8 @@ describe("withdrawPurchasedLots", () => {
       "earliestCountAtOrAfter",
       "movementsAllocatedToLots",
       "purchasedLotFacts",
+      "namingOfPurchasedLots",
+      "giveLotNumbers",
       "recordMovement",
       "addToBalance",
       "allocateToLot",
