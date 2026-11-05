@@ -2,6 +2,7 @@ import {
   type PurchaseChange,
   type PurchaseChoices,
   type PurchaseHeaderCorrectionBody,
+  type PurchaseLineCostCorrectionBody,
   type PurchaseLineExpiryCorrectionBody,
   type PurchaseLinesAdditionBody,
   type PurchaseRegistrationBody,
@@ -54,6 +55,10 @@ type PurchaseCorrectionRefusal =
   | RequestRefusal;
 
 export type CorrectPurchaseHeaderOutcome =
+  | { kind: "ok"; purchase: PurchaseSummary }
+  | PurchaseCorrectionRefusal;
+
+export type CorrectPurchaseLineCostOutcome =
   | { kind: "ok"; purchase: PurchaseSummary }
   | PurchaseCorrectionRefusal;
 
@@ -195,7 +200,7 @@ async function readPurchase(response: Response): Promise<PurchaseSummary | undef
 
 async function refusedCorrection(
   response: Response,
-  unchangedCode: "purchase_unchanged" | "expiry_unchanged",
+  unchangedCode: "purchase_unchanged" | "expiry_unchanged" | "cost_unchanged",
 ): Promise<PurchaseCorrectionRefusal> {
   const body = await readRefusalBody(response.clone());
   if (
@@ -246,6 +251,26 @@ export async function correctPurchaseHeader(
     return purchase ? { kind: "ok", purchase } : { kind: "failed" };
   }
   return refusedCorrection(response, "purchase_unchanged");
+}
+
+export async function correctPurchaseLineCost(
+  purchaseId: string,
+  lineId: string,
+  input: PurchaseLineCostCorrectionBody,
+): Promise<CorrectPurchaseLineCostOutcome> {
+  const response = await sendCorrection(
+    `/api/purchases/${purchaseId}/lines/${lineId}/cost`,
+    "PATCH",
+    input,
+  );
+  if (response === undefined) {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    const purchase = await readPurchase(response);
+    return purchase ? { kind: "ok", purchase } : { kind: "failed" };
+  }
+  return refusedCorrection(response, "cost_unchanged");
 }
 
 export async function correctPurchaseLineExpiry(
