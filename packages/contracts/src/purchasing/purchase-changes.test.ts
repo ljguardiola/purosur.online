@@ -86,6 +86,80 @@ describe("purchaseChangesSchema", () => {
     expect(purchaseChangesSchema.safeParse(changes).data).toEqual(changes);
   });
 
+  it("accepts a line's product change and removal, naming the products as a purchase's line does", () => {
+    const yerba = {
+      id: "p-1",
+      name: "Yerba",
+      brandName: "Piragüé",
+      netContent: { quantity: 500, unit: "G" },
+      saleUnit: "UNIT",
+    };
+    const harina = { id: "p-2", name: "Harina", brandName: null, netContent: null, saleUnit: "KG" };
+    const changes = [
+      {
+        id: "c-7",
+        actor,
+        correctedAt,
+        change: { kind: "line_product", lineId: "line-1", previous: yerba, next: harina },
+      },
+      {
+        id: "c-8",
+        actor,
+        correctedAt,
+        change: {
+          kind: "line_removed",
+          lineId: "line-2",
+          product: harina,
+          quantity: 2_500,
+          packages: null,
+          costPaidCents: 90_000,
+          expiresOn: null,
+        },
+      },
+      {
+        id: "c-9",
+        actor,
+        correctedAt,
+        change: {
+          kind: "line_removed",
+          lineId: "line-1",
+          product: yerba,
+          quantity: 24_000,
+          packages: 2,
+          costPaidCents: 1_450_050,
+          expiresOn: "2027-01-31",
+        },
+      },
+    ];
+
+    expect(purchaseChangesSchema.safeParse(changes).data).toEqual(changes);
+  });
+
+  it.each([
+    { kind: "line_product", lineId: "line-1", previous: "p-1", next: "p-2" },
+    {
+      kind: "line_removed",
+      lineId: "line-1",
+      product: "p-1",
+      quantity: 1_000,
+      packages: null,
+      costPaidCents: 1_000,
+      expiresOn: null,
+    },
+    {
+      kind: "line_removed",
+      lineId: "line-1",
+      product: { id: "p-1", name: "Yerba", brandName: null, netContent: null, saleUnit: "UNIT" },
+      quantity: 1_000,
+      costPaidCents: 1_000,
+      expiresOn: null,
+    },
+  ])("rejects the change %j", (change) => {
+    expect(purchaseChangesSchema.safeParse([{ id: "c", actor, correctedAt, change }]).success).toBe(
+      false,
+    );
+  });
+
   it("accepts an old record of added lines that carries a lot number, without the lot number", () => {
     const added = {
       lineId: "line-3",
