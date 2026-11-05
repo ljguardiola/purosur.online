@@ -66,7 +66,7 @@ function netByLotAndCost(allocations: readonly MarginAllocation[]): LotNet[] {
   const lots = new Map<string, LotNet>();
   for (const allocation of allocations) {
     const cost = lotCostAt(allocation, allocation.valuedAt);
-    const key = `${allocation.lotId}:${cost === null ? "unknown" : `${cost.totalCents}/${cost.quantity}`}`;
+    const key = `${allocation.lotId}:${cost?.totalCents}/${cost?.quantity}`;
     const lot = lots.get(key);
     lots.set(key, {
       net: (lot?.net ?? 0) + allocation.quantity,
