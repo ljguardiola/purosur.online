@@ -67,7 +67,7 @@ describe("fortnightReportDeadline", () => {
     fc.assert(
       fc.property(anyFortnight, anyDay, (fortnight, own) => {
         const eighth = shiftCalendarDay(fortnight.end, 8);
-        expect(fortnightReportDeadline(fortnight, own)).toBe(own < eighth ? own : eighth);
+        expect(fortnightReportDeadline(fortnight, own)).toBe([own, eighth].sort()[0]);
       }),
     );
   });

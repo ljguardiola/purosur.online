@@ -77,7 +77,7 @@ describe("the register's hardened window", () => {
     await page.waitForFunction(
       () => (document.querySelector("#root")?.textContent ?? "").trim().length > 0,
     );
-    const text = await page.locator("#root").innerText();
+    const text = (await page.locator("#root").textContent()) ?? "";
     expect(text.trim().length).toBeGreaterThan(0);
   });
 
