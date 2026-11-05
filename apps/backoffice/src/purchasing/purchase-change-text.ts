@@ -1,8 +1,4 @@
-import {
-  type PurchaseChange,
-  type PurchaseSummary,
-  purchaseChangeSchema,
-} from "@purosur/contracts";
+import { type PurchaseChange, purchaseChangeSchema } from "@purosur/contracts";
 import type { SaleUnit } from "@purosur/domain";
 import { formatCents, formatDayAndTime, formatNumber } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
@@ -19,18 +15,12 @@ type PurchaseChangeDetail = PurchaseChange["change"];
 
 export type PurchaseChangeRow = { label: string; value: string };
 
-const UNAVAILABLE_PRODUCT = "Producto no disponible";
-
 export function purchaseChangeMoment(correctedAt: string): string {
   return formatDayAndTime(correctedAt, CORRECTED_AT_TIME_ZONE);
 }
 
 function transition(previous: string, next: string): string {
   return `${previous} → ${next}`;
-}
-
-function lineOf(purchase: PurchaseSummary, lineId: string) {
-  return purchase.lines.find((line) => line.id === lineId);
 }
 
 type HeaderChange = Extract<PurchaseChangeDetail, { kind: "header" }>["changes"][number];
@@ -64,11 +54,6 @@ function expiryText(expiresOn: string | null): string {
   return expiresOn === null ? "Sin vencimiento" : formatDisplayDate(expiresOn);
 }
 
-function lineLabel(purchase: PurchaseSummary, lineId: string): string {
-  const product = lineOf(purchase, lineId)?.product;
-  return product ? formatProductDescription(product) : UNAVAILABLE_PRODUCT;
-}
-
 type LineQuantity = Extract<PurchaseChangeDetail, { kind: "line_quantity" }>["previous"];
 
 function quantityText(quantity: LineQuantity, saleUnit: SaleUnit): string {
@@ -80,41 +65,29 @@ function quantityText(quantity: LineQuantity, saleUnit: SaleUnit): string {
   return `${formatNumber(quantity.packages)} ${noun} (${total})`;
 }
 
-export function purchaseChangeRows(
-  change: PurchaseChangeDetail,
-  purchase: PurchaseSummary,
-): PurchaseChangeRow[] {
+export function purchaseChangeRows(change: PurchaseChangeDetail): PurchaseChangeRow[] {
   switch (change.kind) {
     case "header":
       return change.changes.map(headerRow);
     case "lines_added":
-      return change.lines.map((added) => {
-        const product = lineOf(purchase, added.lineId)?.product;
-        return {
-          label: "Producto agregado",
-          value: product
-            ? [
-                formatProductDescription(product),
-                formatStockQuantity(added.quantity, product.saleUnit),
-                formatCents(added.costPaidCents),
-              ].join(" · ")
-            : UNAVAILABLE_PRODUCT,
-        };
-      });
-    case "line_quantity": {
-      const product = lineOf(purchase, change.lineId)?.product;
+      return change.lines.map((added) => ({
+        label: "Producto agregado",
+        value: [
+          formatProductDescription(added.product),
+          formatStockQuantity(added.quantity, added.product.saleUnit),
+          formatCents(added.costPaidCents),
+        ].join(" · "),
+      }));
+    case "line_quantity":
       return [
         {
-          label: `Cantidad de ${product ? formatProductDescription(product) : UNAVAILABLE_PRODUCT}`,
-          value: product
-            ? transition(
-                quantityText(change.previous, product.saleUnit),
-                quantityText(change.next, product.saleUnit),
-              )
-            : "Sin detalle de la cantidad",
+          label: `Cantidad de ${formatProductDescription(change.product)}`,
+          value: transition(
+            quantityText(change.previous, change.product.saleUnit),
+            quantityText(change.next, change.product.saleUnit),
+          ),
         },
       ];
-    }
     case "line_product":
       return [
         {
@@ -139,29 +112,23 @@ export function purchaseChangeRows(
     case "line_cost":
       return [
         {
-          label: `Costo de ${lineLabel(purchase, change.lineId)}`,
+          label: `Costo de ${formatProductDescription(change.product)}`,
           value: transition(formatCents(change.previous), formatCents(change.next)),
         },
       ];
-    case "line_expiry": {
-      const product = lineOf(purchase, change.lineId)?.product;
+    case "line_expiry":
       return [
         {
-          label: `Vencimiento de ${product ? formatProductDescription(product) : UNAVAILABLE_PRODUCT}`,
+          label: `Vencimiento de ${formatProductDescription(change.product)}`,
           value: transition(expiryText(change.previous), expiryText(change.next)),
         },
       ];
-    }
-    case "line_expiry_split": {
-      const product = lineOf(purchase, change.lineId)?.product;
+    case "line_expiry_split":
       return [
         {
-          label: product
-            ? `Vencimiento de ${formatStockQuantity(change.quantity, product.saleUnit)} de ${formatProductDescription(product)}`
-            : `Vencimiento de ${UNAVAILABLE_PRODUCT}`,
+          label: `Vencimiento de ${formatStockQuantity(change.quantity, change.product.saleUnit)} de ${formatProductDescription(change.product)}`,
           value: transition(expiryText(change.previous), expiryText(change.next)),
         },
       ];
-    }
   }
 }

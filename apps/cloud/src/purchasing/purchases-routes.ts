@@ -25,7 +25,6 @@ import {
   listPurchaseChanges,
   listPurchaseChoices,
   listPurchases,
-  type PurchaseCorrectionChange,
   registerPurchase,
   removePurchaseLine,
   splitPurchaseLineExpiry,
@@ -43,10 +42,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../sessions/route-access.js";
-import {
-  DrizzlePurchaseChangeReader,
-  type PurchaseChangeProduct,
-} from "./drizzle-purchase-change-reader.js";
+import { DrizzlePurchaseChangeReader } from "./drizzle-purchase-change-reader.js";
 import { DrizzlePurchasingListReader } from "./drizzle-purchasing-list-reader.js";
 import { DrizzlePurchasingStore } from "./drizzle-purchasing-store.js";
 import { sendPurchaseRefusal } from "./purchase-refusals.js";
@@ -61,40 +57,6 @@ function summaryOf(purchase: ListedPurchase) {
       lotName: formatLotName(lotName),
     })),
   });
-}
-
-function productIdsOf(change: PurchaseCorrectionChange): string[] {
-  switch (change.kind) {
-    case "line_product":
-      return [change.previous, change.next];
-    case "line_removed":
-      return [change.productId];
-    default:
-      return [];
-  }
-}
-
-function describedChange(
-  change: PurchaseCorrectionChange,
-  products: ReadonlyMap<string, PurchaseChangeProduct>,
-) {
-  const productOf = (productId: string) => {
-    const product = products.get(productId);
-    if (!product) {
-      throw new Error(`product ${productId} of a purchase change is gone`);
-    }
-    return product;
-  };
-  switch (change.kind) {
-    case "line_product":
-      return { ...change, previous: productOf(change.previous), next: productOf(change.next) };
-    case "line_removed": {
-      const { productId, ...removed } = change;
-      return { ...removed, product: productOf(productId) };
-    }
-    default:
-      return change;
-  }
 }
 
 const UNCHANGED_MESSAGES = {
@@ -513,16 +475,13 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
       await sendNotFound(reply, "purchase_not_found");
       return;
     }
-    const products = await changes.productsOf([
-      ...new Set(outcome.changes.flatMap(({ change }) => productIdsOf(change))),
-    ]);
     await reply.code(200).send(
       purchaseChangesSchema.parse(
         outcome.changes.map(({ id, actorId, actorName, correctedAt, change }) => ({
           id,
           actor: { id: actorId, name: actorName },
           correctedAt: correctedAt.toISOString(),
-          change: describedChange(change, products),
+          change,
         })),
       ),
     );

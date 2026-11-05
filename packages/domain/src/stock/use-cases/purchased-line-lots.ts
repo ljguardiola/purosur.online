@@ -1,3 +1,4 @@
+import { numbersKeptByLotsStaying } from "../model/lot-name.js";
 import { arePurchasedLotsUntouched } from "../model/purchased-lot-move.js";
 import type {
   PurchasedLot,
@@ -9,7 +10,12 @@ import type { ProductStockKey, StockStoreTransaction } from "./stock-store.js";
 
 export type PurchasedLineLotsTransaction = Pick<
   PurchasedLotStoreTransaction,
-  "lotsOfPurchaseLines" | "lockProductStock" | "recordMovement" | "allocateToLot"
+  | "lotsOfPurchaseLines"
+  | "lockProductStock"
+  | "recordMovement"
+  | "allocateToLot"
+  | "namingOfPurchasedLots"
+  | "giveLotNumbers"
 > &
   Pick<StockStoreTransaction, "earliestCountAtOrAfter" | "addToBalance"> &
   PurchasedLotMoveStoreTransaction;
@@ -76,13 +82,20 @@ export async function takeLotsOutOfStock(
   tx: PurchasedLineLotsTransaction,
   receipt: LotsReceiptMovement,
 ): Promise<void> {
+  const lotIds = receipt.facts.map(({ lotId }) => lotId);
+  await tx.giveLotNumbers(
+    numbersKeptByLotsStaying(
+      await tx.namingOfPurchasedLots(receipt.key.locationId, [receipt.key.productId]),
+      lotIds,
+    ),
+  );
   const movementId = await recordReceipt(tx, receipt, -totalRemaining(receipt.facts));
   for (const { lotId, remaining } of receipt.facts) {
     if (remaining !== 0) {
       await tx.allocateToLot({ movementId, lotId, quantity: -remaining });
     }
   }
-  await tx.withdrawPurchasedLots(receipt.facts.map(({ lotId }) => lotId));
+  await tx.withdrawPurchasedLots(lotIds);
 }
 
 export async function putLotsInStock(

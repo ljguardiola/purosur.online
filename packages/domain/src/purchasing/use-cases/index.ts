@@ -149,6 +149,9 @@ export type {
 } from "./list-order-suggestion.js";
 export { listOrderSuggestion } from "./list-order-suggestion.js";
 export type {
+  ListedAddedLine,
+  ListedPurchaseChange,
+  ListedPurchaseChangeDetail,
   ListPurchaseChangesInput,
   ListPurchaseChangesOutcome,
 } from "./list-purchase-changes.js";
@@ -227,6 +230,7 @@ export type {
 export { proposeSupplierItemQuantity } from "./propose-supplier-item-quantity.js";
 export type {
   PurchaseChangeListing,
+  PurchaseChangeProduct,
   PurchaseChangeReader,
 } from "./purchase-change-reader.js";
 export type {

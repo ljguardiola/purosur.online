@@ -58,7 +58,7 @@ export function PurchaseChangesModal({
       id: "change",
       header: "Qué cambió",
       render: (change: PurchaseChange) => {
-        const [first, ...rest] = target ? purchaseChangeRows(change.change, target) : [];
+        const [first, ...rest] = purchaseChangeRows(change.change);
         return first ? <SummaryRowGroup variant="plain" rows={[first, ...rest]} /> : null;
       },
     }),

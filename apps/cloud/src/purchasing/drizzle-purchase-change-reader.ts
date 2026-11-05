@@ -1,15 +1,21 @@
-import type { PurchaseSummary } from "@purosur/contracts";
+import type { SaleUnit } from "@purosur/domain";
 import type {
   PurchaseChangeListing,
+  PurchaseChangeProduct,
   PurchaseChangeReader,
 } from "@purosur/domain/purchasing/use-cases";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { netContentRow } from "../catalog/net-content-row.js";
-import { auditLog, brands, products, purchases, users } from "../platform/db/schema.js";
+import {
+  auditLog,
+  brands,
+  products,
+  purchaseLines,
+  purchases,
+  users,
+} from "../platform/db/schema.js";
 import { changeOfAuditValues, PURCHASE_AUDIT_ENTITY } from "./purchase-audit-values.js";
-
-export type PurchaseChangeProduct = PurchaseSummary["lines"][number]["product"];
 
 export class DrizzlePurchaseChangeReader<TQueryResult extends PgQueryResultHKT>
   implements PurchaseChangeReader
@@ -51,7 +57,17 @@ export class DrizzlePurchaseChangeReader<TQueryResult extends PgQueryResultHKT>
     }));
   }
 
-  async productsOf(productIds: readonly string[]): Promise<Map<string, PurchaseChangeProduct>> {
+  async productOfEachLine(purchaseId: string): Promise<Map<string, string>> {
+    const rows = await this.db
+      .select({ id: purchaseLines.id, productId: purchaseLines.productId })
+      .from(purchaseLines)
+      .where(eq(purchaseLines.purchaseId, purchaseId));
+    return new Map(rows.map(({ id, productId }) => [id, productId]));
+  }
+
+  async describedProducts(
+    productIds: readonly string[],
+  ): Promise<Map<string, PurchaseChangeProduct>> {
     if (productIds.length === 0) {
       return new Map();
     }
@@ -73,7 +89,7 @@ export class DrizzlePurchaseChangeReader<TQueryResult extends PgQueryResultHKT>
         {
           ...product,
           netContent: netContentRow({ netContentQuantity, netContentUnit }),
-          saleUnit: saleUnit as PurchaseChangeProduct["saleUnit"],
+          saleUnit: saleUnit as SaleUnit,
         },
       ]),
     );
