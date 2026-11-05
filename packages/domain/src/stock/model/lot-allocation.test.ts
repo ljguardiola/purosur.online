@@ -40,7 +40,7 @@ describe("allocatesToLots", () => {
     expect(allocatesToLots(kind)).toBe(true);
   });
 
-  it.each(["count", "receipt", "assembly_in"] as const)("leaves a %s to its own rule", (kind) => {
+  it.each(["count", "receipt", "assembly_in", "lot_split"] as const)("leaves a %s to its own rule", (kind) => {
     expect(allocatesToLots(kind)).toBe(false);
   });
 });
