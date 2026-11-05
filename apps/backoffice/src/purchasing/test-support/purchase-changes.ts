@@ -72,3 +72,15 @@ export const lineExpiryCorrection: PurchaseChange = {
     next: null,
   },
 };
+
+export const lineCostCorrection: PurchaseChange = {
+  id: "c0c00000-0000-4000-8000-000000000004",
+  actor: { id: "a0100000-0000-4000-8000-000000000001", name: "Marta Quiroga" },
+  correctedAt: "2026-09-17T09:00:00.000Z",
+  change: {
+    kind: "line_cost",
+    lineId: LINEA_DE_MIEL_ID,
+    previous: 7_200_00,
+    next: 6_800_00,
+  },
+};

@@ -20,6 +20,7 @@ const corrected: PurchaseSummary = { ...compraDeMiel, purchasedOn: "2026-09-13" 
 
 const ADD_LINES = "Agregar productos a la compra de Distribuidora Andina";
 const CORRECT_HEADER = "Corregir los datos de la compra de Distribuidora Andina";
+const CORRECT_COST = "Corregir el costo de Miel pura de abeja 1 kg";
 const CORRECT_EXPIRY = "Corregir el vencimiento de Miel pura de abeja 1 kg";
 const SEE_CHANGES = "Ver los cambios de la compra de Distribuidora Andina";
 
@@ -45,6 +46,9 @@ test("offers, to who may record purchases, each purchase's actions and each line
   await expect
     .poll(() => names(screen, /^Corregir el vencimiento/))
     .toEqual([CORRECT_EXPIRY, "Corregir el vencimiento de Avena arrollada"]);
+  await expect
+    .poll(() => names(screen, /^Corregir el costo/))
+    .toEqual([CORRECT_COST, "Corregir el costo de Avena arrollada"]);
 });
 
 test("offers only the changes of a purchase to who may not record purchases", async () => {
@@ -151,6 +155,42 @@ test("corrects the line's expiry, closes the modal, reads the purchases again an
     expiresOn: "2027-01-31",
   });
   await expect.poll(() => vi.mocked(services.fetchPurchases).mock.calls.length).toBe(2);
+});
+
+test("corrects the line's cost, closes the modal, reads the purchases again and confirms", async () => {
+  const services = createServices();
+  vi.mocked(services.correctPurchaseLineCost).mockResolvedValue({
+    kind: "ok",
+    purchase: compraDeMiel,
+  });
+  const screen = await loaded(services);
+
+  await userEvent.click(screen.getByRole("button", { name: CORRECT_COST }));
+  const dialog = screen.getByRole("dialog");
+  await expect
+    .element(dialog.getByRole("heading", { name: "Miel pura de abeja 1 kg" }))
+    .toBeVisible();
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar el costo" }));
+
+  await expect.element(screen.getByText("Costo corregido")).toBeVisible();
+  expect(screen.getByRole("dialog").query()).toBeNull();
+  expect(services.correctPurchaseLineCost).toHaveBeenCalledWith(compraDeMiel.id, lineDeMiel.id, {
+    costPaidCents: 7_200_00,
+  });
+  await expect.poll(() => vi.mocked(services.fetchPurchases).mock.calls.length).toBe(2);
+});
+
+test("keeps the cost modal open and the purchases unread when the cloud refuses the correction", async () => {
+  const services = createServices();
+  vi.mocked(services.correctPurchaseLineCost).mockResolvedValue({ kind: "failed" });
+  const screen = await loaded(services);
+
+  await userEvent.click(screen.getByRole("button", { name: CORRECT_COST }));
+  await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Guardar el costo" }));
+
+  await expect.element(screen.getByText("No se corrigió el costo")).toBeVisible();
+  expect(screen.getByText("Costo corregido").query()).toBeNull();
+  expect(services.fetchPurchases).toHaveBeenCalledTimes(1);
 });
 
 test("keeps the modal open and the purchases unread when the cloud refuses the correction", async () => {

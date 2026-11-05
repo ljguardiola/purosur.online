@@ -4,6 +4,7 @@ import {
   compraDeMielCorregida,
   headerCorrection,
   LINEA_DE_MIEL_ID,
+  lineCostCorrection,
   lineExpiryCorrection,
   linesAdded,
 } from "./test-support/purchase-changes";
@@ -66,6 +67,20 @@ describe("purchaseChangeRows of an expiry correction", () => {
     ).toEqual([
       { label: "Vencimiento de Miel pura de abeja 1 kg", value: "Sin vencimiento → 10/11/2027" },
     ]);
+  });
+});
+
+describe("purchaseChangeRows of a cost correction", () => {
+  it("names the line's product with the previous and the new cost paid", () => {
+    expect(purchaseChangeRows(lineCostCorrection.change, compraDeMielCorregida)).toEqual([
+      { label: "Costo de Miel pura de abeja 1 kg", value: "$ 7.200,00 → $ 6.800,00" },
+    ]);
+  });
+
+  it("writes a line the purchase no longer shows as not available", () => {
+    expect(
+      purchaseChangeRows(lineCostCorrection.change, { ...compraDeMielCorregida, lines: [] }),
+    ).toEqual([{ label: "Costo de Producto no disponible", value: "$ 7.200,00 → $ 6.800,00" }]);
   });
 });
 
