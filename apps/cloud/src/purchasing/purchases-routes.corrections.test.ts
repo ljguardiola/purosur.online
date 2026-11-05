@@ -559,8 +559,9 @@ describe("PATCH /purchases/:purchaseId/lines/:lineId/cost", () => {
 
     await correctCost(headers, purchase, { costPaidCents: 1_200 });
 
-    expect(await new DrizzlePurchaseCostReader(db).purchaseLineCostsOf(locationId, [productId]))
-      .toEqual([expect.objectContaining({ cost: { totalCents: 1_200, quantity: 1_000 } })]);
+    expect(
+      await new DrizzlePurchaseCostReader(db).purchaseLineCostsOf(locationId, [productId]),
+    ).toEqual([expect.objectContaining({ cost: { totalCents: 1_200, quantity: 1_000 } })]);
   });
 
   it("records who corrected the cost, when, and the previous and new cost, listed among the purchase's changes", async () => {

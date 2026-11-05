@@ -2,6 +2,7 @@ import {
   purchaseChangesSchema,
   purchaseChoicesSchema,
   purchaseHeaderCorrectionBodySchema,
+  purchaseLineCostCorrectionBodySchema,
   purchaseLineExpiryCorrectionBodySchema,
   purchaseLinesAdditionBodySchema,
   purchaseListSchema,
@@ -12,6 +13,7 @@ import { PRODUCTS_PURCHASES_MAY_BE_REGISTERED_FOR } from "@purosur/domain";
 import {
   addPurchaseLines,
   correctPurchaseHeader,
+  correctPurchaseLineCost,
   correctPurchaseLineExpiry,
   findPurchaseListing,
   type ListedPurchase,
@@ -53,6 +55,7 @@ function summaryOf(purchase: ListedPurchase) {
 const UNCHANGED_MESSAGES = {
   purchase_unchanged: "the purchase already has these values",
   expiry_unchanged: "the line already has this expiry date",
+  cost_unchanged: "the line already has this cost",
 } as const;
 
 async function sendUnchanged(reply: FastifyReply, code: keyof typeof UNCHANGED_MESSAGES) {
@@ -214,6 +217,43 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
     }
     if (outcome.kind === "unchanged") {
       await sendUnchanged(reply, "expiry_unchanged");
+      return;
+    }
+    await sendPurchase(reply, 200, ids.purchaseId);
+  });
+
+  app.patch("/purchases/:purchaseId/lines/:lineId/cost", writeGuard, async (request, reply) => {
+    const ids = await readRecordIds(reply, request.params, ["purchaseId", "lineId"]);
+    if (!ids) {
+      return;
+    }
+    const body = await readValidatedBody(reply, purchaseLineCostCorrectionBodySchema, request.body);
+    if (!body) {
+      return;
+    }
+    const openSession = openSessionOf(request);
+
+    const outcome = await correctPurchaseLineCost(ports, {
+      ...ids,
+      ...body,
+      locationId: openSession.locationId,
+      actorId: openSession.userId,
+    });
+
+    if (outcome.kind === "invalid_cost") {
+      await reply.code(400).send({
+        code: "validation_failed",
+        message: "the cost must be a whole number of cents, not negative",
+        details: [{ field: "costPaidCents" }],
+      });
+      return;
+    }
+    if (outcome.kind === "purchase_not_found" || outcome.kind === "line_not_found") {
+      await sendNotFound(reply, outcome.kind);
+      return;
+    }
+    if (outcome.kind === "unchanged") {
+      await sendUnchanged(reply, "cost_unchanged");
       return;
     }
     await sendPurchase(reply, 200, ids.purchaseId);

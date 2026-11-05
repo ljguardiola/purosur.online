@@ -1002,6 +1002,24 @@ export const lots = pgTable(
   ],
 );
 
+// Append-only: the cost a lot had before each correction of it.
+export const lotCostChanges = pgTable(
+  "lot_cost_changes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    lotId: uuid("lot_id")
+      .notNull()
+      .references(() => lots.id),
+    changedAt: timestamp("changed_at", { withTimezone: true }).notNull(),
+    previousCostTotalCents: bigint("previous_cost_total_cents", { mode: "number" }).notNull(),
+    previousCostQuantity: bigint("previous_cost_quantity", { mode: "number" }).notNull(),
+  },
+  (table) => [
+    check("lot_cost_changes_previous_cost_quantity_check", sql`${table.previousCostQuantity} > 0`),
+    index("lot_cost_changes_lot_id_idx").on(table.lotId),
+  ],
+);
+
 // Append-only: what each stock movement took from, or returned to, each lot.
 export const lotAllocations = pgTable(
   "lot_allocations",

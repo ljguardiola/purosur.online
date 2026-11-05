@@ -37,6 +37,12 @@ const lineExpirySchema = z.object({
   expiresOn: z.string().nullable(),
 });
 
+const lineCostSchema = z.object({
+  kind: z.literal("line_cost"),
+  lineId: z.string(),
+  costPaidCents: z.int(),
+});
+
 interface AuditValues {
   previousValue: unknown;
   newValue: unknown;
@@ -62,6 +68,11 @@ export function auditValuesOf(change: PurchaseCorrectionChange): AuditValues {
         previousValue: { kind: "line_expiry", lineId: change.lineId, expiresOn: change.previous },
         newValue: { kind: "line_expiry", lineId: change.lineId, expiresOn: change.next },
       };
+    case "line_cost":
+      return {
+        previousValue: { kind: "line_cost", lineId: change.lineId, costPaidCents: change.previous },
+        newValue: { kind: "line_cost", lineId: change.lineId, costPaidCents: change.next },
+      };
   }
 }
 
@@ -84,6 +95,15 @@ export function changeOfAuditValues(
         : [],
     );
     return { kind: "header", changes };
+  }
+  const cost = lineCostSchema.safeParse(newValue);
+  if (cost.success) {
+    return {
+      kind: "line_cost",
+      lineId: cost.data.lineId,
+      previous: lineCostSchema.parse(previousValue).costPaidCents,
+      next: cost.data.costPaidCents,
+    };
   }
   const next = lineExpirySchema.parse(newValue);
   return {

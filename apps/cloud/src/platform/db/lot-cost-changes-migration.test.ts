@@ -90,8 +90,6 @@ describe("the lot cost changes migration applied over a database that already ho
       );
 
     await expect(record(MISSING_ID, 1000)).rejects.toThrow(/lot_cost_changes_lot_id_lots_id_fk/);
-    await expect(record(lotId, 0)).rejects.toThrow(
-      /lot_cost_changes_previous_cost_quantity_check/,
-    );
+    await expect(record(lotId, 0)).rejects.toThrow(/lot_cost_changes_previous_cost_quantity_check/);
   });
 });

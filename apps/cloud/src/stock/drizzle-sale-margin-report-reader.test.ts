@@ -899,4 +899,3 @@ describe("DrizzleSaleMarginReportReader with a lot whose cost was corrected", ()
     expect(report.totals).toMatchObject({ cost: 0, incompleteSales: 0 });
   });
 });
-

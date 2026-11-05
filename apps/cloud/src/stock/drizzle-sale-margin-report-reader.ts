@@ -14,6 +14,7 @@ import { netContentRow } from "../catalog/net-content-row.js";
 import {
   brands,
   lotAllocations,
+  lotCostChanges,
   lots,
   products,
   returnLines,
@@ -21,6 +22,13 @@ import {
   sales,
   stockMovements,
 } from "../platform/db/schema.js";
+
+type LotCostChange = MarginAllocation["costChanges"][number];
+
+const valuedAt =
+  sql<Date>`case when ${stockMovements.kind} = ${sql.raw("'return'")} then coalesce((select min(sale_movements.occurred_at) from stock_movements sale_movements where sale_movements.sale_line_id = ${stockMovements.saleLineId} and sale_movements.kind = ${sql.raw("'sale'")}), ${stockMovements.occurredAt}) else ${stockMovements.occurredAt} end`.mapWith(
+    (value: string | Date) => new Date(value),
+  );
 
 const saleDay = sql<string>`to_char(${sales.completedAt} at time zone ${ARGENTINA_TIME_ZONE}, 'YYYY-MM-DD')`;
 
@@ -116,6 +124,7 @@ export class DrizzleSaleMarginReportReader<TQueryResult extends PgQueryResultHKT
         saleLineId: stockMovements.saleLineId,
         lotId: lotAllocations.lotId,
         movementKind: stockMovements.kind,
+        valuedAt,
         quantity: sql<number>`sum(${lotAllocations.quantity})`.mapWith(Number),
         technical: lots.technical,
         costIncomplete: lots.costIncomplete,
@@ -137,11 +146,13 @@ export class DrizzleSaleMarginReportReader<TQueryResult extends PgQueryResultHKT
         stockMovements.saleLineId,
         lotAllocations.lotId,
         stockMovements.kind,
+        valuedAt,
         lots.technical,
         lots.costIncomplete,
         lots.costTotalCents,
         lots.costQuantity,
       );
+    const costChanges = await this.costChangesOfLots(rows.map(({ lotId }) => lotId));
     const bySaleLine = new Map<string, MarginAllocation[]>();
     for (const row of rows) {
       if (row.saleLineId === null || !isCostOfSaleMovementKind(row.movementKind)) {
@@ -158,10 +169,37 @@ export class DrizzleSaleMarginReportReader<TQueryResult extends PgQueryResultHKT
           row.costTotalCents === null || row.costQuantity === null
             ? null
             : { totalCents: row.costTotalCents, quantity: row.costQuantity },
+        costChanges: costChanges.get(row.lotId) ?? [],
+        valuedAt: row.valuedAt,
       });
       bySaleLine.set(row.saleLineId, allocations);
     }
     return bySaleLine;
+  }
+
+  private async costChangesOfLots(
+    lotIds: readonly string[],
+  ): Promise<Map<string, LotCostChange[]>> {
+    const byLot = new Map<string, LotCostChange[]>();
+    if (lotIds.length === 0) {
+      return byLot;
+    }
+    const changes = await this.db
+      .select({
+        lotId: lotCostChanges.lotId,
+        changedAt: lotCostChanges.changedAt,
+        totalCents: lotCostChanges.previousCostTotalCents,
+        quantity: lotCostChanges.previousCostQuantity,
+      })
+      .from(lotCostChanges)
+      .where(inArray(lotCostChanges.lotId, [...new Set(lotIds)]));
+    for (const { lotId, changedAt, totalCents, quantity } of changes) {
+      byLot.set(lotId, [
+        ...(byLot.get(lotId) ?? []),
+        { changedAt, previous: { totalCents, quantity } },
+      ]);
+    }
+    return byLot;
   }
 
   private completedSalesOf({ locationId, range, registerId }: MarginQuery) {
