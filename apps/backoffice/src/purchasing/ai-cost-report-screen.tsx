@@ -11,11 +11,11 @@ import {
 import { Bot } from "lucide-react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatDisplayDate } from "../platform/display-date";
+import { AreaTopBar } from "../shell/area-top-bar";
 import { ReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
 import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTopBar } from "../shell/screen-top-bar";
 import { AiCostAmount } from "./ai-cost-amount";
 import type { AiCostReportFilters } from "./ai-cost-report-filters";
 import type { AiCostReportScreenServices } from "./ai-cost-report-services";
@@ -106,7 +106,7 @@ export function AiCostReportScreen({
 
   return (
     <ScreenLayout
-      topBar={<ScreenTopBar eyebrow="Reportes · Compras" title={SCREEN_TITLE} />}
+      topBar={<AreaTopBar eyebrow="Reportes · Compras" title={SCREEN_TITLE} />}
       bodyClassName="gap-4 p-6"
     >
       <div className="flex flex-wrap items-end gap-3">

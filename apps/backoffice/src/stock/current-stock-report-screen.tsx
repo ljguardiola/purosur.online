@@ -22,10 +22,10 @@ import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { shareOfTotal } from "../platform/share-of-total";
 import { formatStockQuantity } from "../platform/stock-quantity";
+import { AreaTopBar } from "../shell/area-top-bar";
 import { ReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTopBar } from "../shell/screen-top-bar";
 import type { CurrentStockReportFilters } from "./current-stock-report-filters";
 import { CurrentStockReportLots } from "./current-stock-report-lots";
 import type { CurrentStockReportScreenServices } from "./current-stock-report-services";
@@ -246,7 +246,7 @@ export function CurrentStockReportScreen({
 
   return (
     <ScreenLayout
-      topBar={<ScreenTopBar eyebrow="Reportes · Stock" title={SCREEN_TITLE} />}
+      topBar={<AreaTopBar eyebrow="Reportes · Stock" title={SCREEN_TITLE} />}
       bodyClassName="gap-4 p-6"
     >
       <div className="flex flex-wrap items-end gap-3">

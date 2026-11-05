@@ -26,7 +26,13 @@ import {
   Warehouse,
 } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
-import { canSeeAiCostReport, canSeeReports, canSeeReturnsReport } from "./backoffice-access";
+import { AreaTopBarAlertsCount } from "./area-top-bar-alerts-count";
+import {
+  canSeeAiCostReport,
+  canSeeAlertsArea,
+  canSeeReports,
+  canSeeReturnsReport,
+} from "./backoffice-access";
 import { signedInRoute } from "./signed-in-route";
 
 export const reportsAreaRoute = createRoute({
@@ -36,7 +42,8 @@ export const reportsAreaRoute = createRoute({
 });
 
 function ReportsArea() {
-  const { session } = signedInRoute.useRouteContext();
+  const { session, services, sessionActions } = reportsAreaRoute.useRouteContext();
+  const AlertsCount = services.areaTopBarAlertsCount;
   const matchRoute = useMatchRoute();
   const salesByDayShown = Boolean(matchRoute({ to: "/reports/sales-by-day" }));
   const salesByPaymentMethodShown = Boolean(matchRoute({ to: "/reports/sales-by-payment-method" }));
@@ -315,7 +322,18 @@ function ReportsArea() {
         </>
       }
     >
-      <Outlet />
+      <AreaTopBarAlertsCount
+        value={
+          canSeeAlertsArea(session) ? (
+            <AlertsCount
+              onSessionEnded={sessionActions.sessionEnded}
+              services={services.alertsOpenCountLink}
+            />
+          ) : null
+        }
+      >
+        <Outlet />
+      </AreaTopBarAlertsCount>
     </AreaLayout>
   );
 }
