@@ -110,13 +110,13 @@ test("draws each summary row as a label line and a value line on one baseline, w
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("draws a pill as one fully round 28px shape, the height of a top bar's pill", async () => {
+test("draws a pill as one fully round 40px shape, the height of a top bar's pill", async () => {
   const screen = await render(<LoadingPlaceholder variant="pill" />);
 
   const pill = shapes(screen.container);
   expect(pill.children).toHaveLength(0);
   const rect = pill.getBoundingClientRect();
-  expect(rect.height).toBe(28);
+  expect(rect.height).toBe(40);
   expect(rect.width).toBeGreaterThan(rect.height);
   expect(getComputedStyle(pill).backgroundColor).toBe(tokenRgb("surface-soft"));
   expectFullyRound(pill);
