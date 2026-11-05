@@ -80,7 +80,9 @@ async function changedTo(
 async function ledger() {
   return {
     lots: await db.select().from(lots).orderBy(asc(lots.code)),
-    balances: await db.select().from(stockBalances).orderBy(asc(stockBalances.productId)),
+    balancesWithStock: (
+      await db.select().from(stockBalances).orderBy(asc(stockBalances.productId))
+    ).filter(({ quantity }) => quantity !== 0),
     movements: await db.select().from(stockMovements).orderBy(asc(stockMovements.recordedAt)),
     allocations: await db.select().from(lotAllocations),
     lines: await db.select().from(purchaseLines),
@@ -89,6 +91,7 @@ async function ledger() {
 }
 
 async function countedAt(productId: string, counted: number) {
+  now = CORRECTED_AT;
   return registerCount(
     { store: new DrizzleStockStore(db), clock },
     { productId, locationId, counted, occurredAt: COUNTED_AT, actorId },

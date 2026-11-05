@@ -2,7 +2,7 @@ import {
   changePurchaseLineProduct,
   removePurchaseLine,
 } from "@purosur/domain/purchasing/use-cases";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { purchaseLines, stockMovements } from "../platform/db/schema.js";
@@ -78,12 +78,12 @@ async function pullAfter(since: number) {
   return page.changes.map(({ change_seq, ...change }) => change);
 }
 
-async function correctionsOf(productId: string) {
-  const movements = await db
+async function movementOf(productId: string, delta: number) {
+  const [movement] = await db
     .select()
     .from(stockMovements)
-    .where(eq(stockMovements.productId, productId));
-  return movements.filter(({ recordedAt }) => recordedAt.getTime() >= NOW.getTime());
+    .where(and(eq(stockMovements.productId, productId), eq(stockMovements.delta, delta)));
+  return movement;
 }
 
 describe("the correction of a purchase line's product and the registers", () => {
@@ -97,8 +97,8 @@ describe("the correction of a purchase line's product and the registers", () => 
     );
 
     expect(outcome.kind).toBe("changed");
-    const [takenOut] = await correctionsOf(juice.id);
-    const putIn = (await correctionsOf(nectar.id))[0];
+    const takenOut = await movementOf(juice.id, -5_000);
+    const putIn = await movementOf(nectar.id, 5_000);
     expect(await pullAfter(loggedBefore)).toEqual([
       {
         entity: "stock_movement",
@@ -137,7 +137,7 @@ describe("the correction of a purchase line's product and the registers", () => 
     );
 
     expect(outcome.kind).toBe("removed");
-    const [takenOut] = await correctionsOf(juice.id);
+    const takenOut = await movementOf(juice.id, -5_000);
     expect(await pullAfter(loggedBefore)).toEqual([
       {
         entity: "stock_movement",

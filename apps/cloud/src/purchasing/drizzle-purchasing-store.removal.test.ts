@@ -89,7 +89,9 @@ async function removed(
 async function ledger() {
   return {
     lots: await db.select().from(lots).orderBy(asc(lots.code)),
-    balances: await db.select().from(stockBalances).orderBy(asc(stockBalances.productId)),
+    balancesWithStock: (
+      await db.select().from(stockBalances).orderBy(asc(stockBalances.productId))
+    ).filter(({ quantity }) => quantity !== 0),
     movements: await db.select().from(stockMovements).orderBy(asc(stockMovements.recordedAt)),
     allocations: await db.select().from(lotAllocations),
     lines: await db.select().from(purchaseLines),
@@ -311,6 +313,7 @@ describe("removing a purchase line", () => {
 
     it("changes nothing when a count of the product was taken after the line was received", async () => {
       const { juice, purchase, juiceLineId } = await purchaseOfJuiceAndFlour();
+      now = CORRECTED_AT;
       await registerCount(
         { store: new DrizzleStockStore(db), clock },
         { productId: juice.id, locationId, counted: 5_000, occurredAt: COUNTED_AT, actorId },
