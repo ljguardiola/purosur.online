@@ -6,6 +6,7 @@ import {
   correctPurchaseLineCost,
   correctPurchaseLineExpiry,
   fetchPurchaseChanges,
+  splitPurchaseLineExpiry,
 } from "./purchases-api";
 import {
   headerCorrection,
@@ -404,6 +405,98 @@ describe("correctPurchaseLineExpiry", () => {
     expect(await correctPurchaseLineExpiry(purchaseId, lineId, { expiresOn: null })).toEqual({
       kind: "failed",
     });
+  });
+});
+
+describe("splitPurchaseLineExpiry", () => {
+  const split = { quantity: 1_000, expiresOn: "2027-11-10" };
+
+  test("posts the split to the line and answers the purchase on 200", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, compraDeMiel));
+
+    expect(await splitPurchaseLineExpiry(purchaseId, lineId, split)).toEqual({
+      kind: "ok",
+      purchase: compraDeMiel,
+    });
+    expect(fetch).toHaveBeenCalledWith(
+      `/api/purchases/${purchaseId}/lines/${lineId}/expiry-splits`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(split),
+      },
+    );
+  });
+
+  test("returns failed when the purchase does not have the expected shape", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { id: "x" }));
+
+    expect(await splitPurchaseLineExpiry(purchaseId, lineId, split)).toEqual({ kind: "failed" });
+  });
+
+  test("returns validation_failed with the field the cloud refused", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      jsonResponse(400, { code: "validation_failed", details: [{ field: "quantity" }] }),
+    );
+
+    expect(await splitPurchaseLineExpiry(purchaseId, lineId, split)).toEqual({
+      kind: "validation_failed",
+      field: "quantity",
+    });
+  });
+
+  test("returns unchanged on a 409 expiry_unchanged", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "expiry_unchanged" }));
+
+    expect(await splitPurchaseLineExpiry(purchaseId, lineId, split)).toEqual({
+      kind: "unchanged",
+    });
+  });
+
+  test("returns not_enough_in_lot on a 409 not_enough_in_lot", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "not_enough_in_lot" }));
+
+    expect(await splitPurchaseLineExpiry(purchaseId, lineId, split)).toEqual({
+      kind: "not_enough_in_lot",
+    });
+  });
+
+  test("returns failed on a 409 with another code", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(409, { code: "other" }));
+
+    expect(await splitPurchaseLineExpiry(purchaseId, lineId, split)).toEqual({ kind: "failed" });
+  });
+
+  test.each(["purchase_not_found", "line_not_found"])(
+    "returns not_found on a 404 %s",
+    async (code) => {
+      vi.mocked(fetch).mockResolvedValue(jsonResponse(404, { code }));
+
+      expect(await splitPurchaseLineExpiry(purchaseId, lineId, split)).toEqual({
+        kind: "not_found",
+      });
+    },
+  );
+
+  test.each(refusals)("answers a %i as %j", async (status, outcome) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
+
+    expect(await splitPurchaseLineExpiry(purchaseId, lineId, split)).toEqual(outcome);
+  });
+
+  test("returns rate_limited with the Retry-After header on 429", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "30" }));
+
+    expect(await splitPurchaseLineExpiry(purchaseId, lineId, split)).toEqual({
+      kind: "rate_limited",
+      retryAfterSeconds: 30,
+    });
+  });
+
+  test("returns failed when the request throws", async () => {
+    vi.mocked(fetch).mockRejectedValue(new Error("network down"));
+
+    expect(await splitPurchaseLineExpiry(purchaseId, lineId, split)).toEqual({ kind: "failed" });
   });
 });
 
