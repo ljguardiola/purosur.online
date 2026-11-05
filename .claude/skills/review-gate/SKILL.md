@@ -67,14 +67,14 @@ id, `CONFIRMED` or `REFUTED` with its proof, the kind it settles on, and
 Every row has a status and a count of failed fix attempts. Apply each verdict
 of this round:
 
-| Verdict | Status |
-|---|---|
-| New finding, refuted | `refuted` |
-| New finding, confirmed, kind `decision` | `stopped` |
-| New finding, confirmed, out of scope | file it as a new issue following "Issues" in `.claude/rules/workflow.md`; `filed as #<n>` |
-| New finding, confirmed, in scope, any other kind | `open`, whatever its label |
-| Reopen claim on a `fixed in <sha>` row, refuted | unchanged |
-| Reopen claim on a `fixed in <sha>` row, confirmed | `open`, one more failed attempt |
+| Verdict                                           | Status                                                                                    |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| New finding, refuted                              | `refuted`                                                                                 |
+| New finding, confirmed, kind `decision`           | `stopped`                                                                                 |
+| New finding, confirmed, out of scope              | file it as a new issue following "Issues" in `.claude/rules/workflow.md`; `filed as #<n>` |
+| New finding, confirmed, in scope, any other kind  | `open`, whatever its label                                                                |
+| Reopen claim on a `fixed in <sha>` row, refuted   | unchanged                                                                                 |
+| Reopen claim on a `fixed in <sha>` row, confirmed | `open`, one more failed attempt                                                           |
 
 Then every `open` row with two failed attempts becomes `stopped`.
 

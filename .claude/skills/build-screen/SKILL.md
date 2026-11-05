@@ -86,13 +86,13 @@ take, then give each one every state below. The rules for these states are
 in "Backoffice screens" in `.claude/rules/backoffice-screens.md`; this table only says which
 piece serves each one, in both apps.
 
-| State | Table section | Any other section |
-|---|---|---|
-| Loading | `Table`'s `loading="initial"` | `LoadingPlaceholder`, with the variant (`form`, `card`, `list`) in the shape of the section |
-| Empty | `Table`'s `empty` (an `EmptyState`'s props; `variant="blank"` when nothing exists, `"filtered"` when the filters hide everything) | `EmptyState` |
-| Failed to load | `Table`'s `failure` (a `LoadFailure`'s props) | `LoadFailure` |
-| Refreshing data already shown | `Table`'s `loading="updating"` | no piece yet: see step 4 |
-| Actions on the section's data | `Button`'s `dataStatus` with the section's `LoadStatus` | same |
+| State                         | Table section                                                                                                                     | Any other section                                                                           |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Loading                       | `Table`'s `loading="initial"`                                                                                                     | `LoadingPlaceholder`, with the variant (`form`, `card`, `list`) in the shape of the section |
+| Empty                         | `Table`'s `empty` (an `EmptyState`'s props; `variant="blank"` when nothing exists, `"filtered"` when the filters hide everything) | `EmptyState`                                                                                |
+| Failed to load                | `Table`'s `failure` (a `LoadFailure`'s props)                                                                                     | `LoadFailure`                                                                               |
+| Refreshing data already shown | `Table`'s `loading="updating"`                                                                                                    | no piece yet: see step 4                                                                    |
+| Actions on the section's data | `Button`'s `dataStatus` with the section's `LoadStatus`                                                                           | same                                                                                        |
 
 For the outcome of each action, these are the pieces the design system
 offers:

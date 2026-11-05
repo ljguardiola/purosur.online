@@ -33,9 +33,9 @@ copy). The kinds are defined in `checklist.md`. A clean result is
 ```markdown
 ## Round <n> — TARGET <sha>
 
-| Id | Raised by | Kind | Location | Claim | Verdict | Scope | Evidence | Failed attempts | Status |
-|---|---|---|---|---|---|---|---|---|---|
-| R1-1 | A+B | rule | path:line | ... | CONFIRMED | in-scope | ... | 0 | fixed in <sha> |
+| Id   | Raised by | Kind | Location  | Claim | Verdict   | Scope    | Evidence | Failed attempts | Status         |
+| ---- | --------- | ---- | --------- | ----- | --------- | -------- | -------- | --------------- | -------------- |
+| R1-1 | A+B       | rule | path:line | ...   | CONFIRMED | in-scope | ...      | 0               | fixed in <sha> |
 ```
 
 `Status` is `open` (with the reason of each `not fixed` attempt),
@@ -49,9 +49,9 @@ rounds and resumed runs:
 ```markdown
 ## Proposed checklist examples
 
-| Id | Area | Example | Reported |
-|---|---|---|---|
-| R1-1 | Correctness | ... | yes |
+| Id   | Area        | Example | Reported |
+| ---- | ----------- | ------- | -------- |
+| R1-1 | Correctness | ...     | yes      |
 ```
 
 ## Verifier verdict
@@ -60,6 +60,7 @@ One block per ledger id:
 
 ```markdown
 ### R1-1 — CONFIRMED | REFUTED — <kind> — in-scope | out-of-scope
+
 - Proof: the command run and its observed result (a mutation and the focused test's outcome), or the rule text and the code lines compared.
 - Restored: `git status` clean after the proof (behavioral claims only).
 - Checklist: for a confirmed finding, the area of `checklist.md` it was judged against, then one of: `named` when an example of that area, its "Read in the change" cell or the rule it cites states its pattern; `check` with what a check of `pnpm verify` would refuse; `one-off`; or `not named` with the proposed example, written as the bullet it would be under that area in "Examples", and the example it merges with or replaces when the area already holds five.
@@ -71,6 +72,7 @@ One block per ledger id:
 
 ```markdown
 ### R1-1 — fixed | not fixed
+
 - Change: path:line and what changed.
 - Test: the test written or changed first and its observed failure, then the passing run; or none, when the fix changes nothing a test can observe.
 - Previous attempt: for an id already tried, why that approach failed and how this one differs.
@@ -85,6 +87,7 @@ One block per proposed example, reported to the coordinator:
 
 ```markdown
 ### Checklist proposal — <area from the verifier's verdict> — from <id> of issue #<N>
+
 - Finding: the ledger row's kind, rule reference and claim.
 - Example: the bullet to add under the area in "Examples" of `checklist.md`, pasted as is, and the example it merges with or replaces when the area already holds five; or, for a `check` verdict, Check: what a check of `pnpm verify` would refuse.
 ```

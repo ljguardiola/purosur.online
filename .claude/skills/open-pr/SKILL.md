@@ -22,6 +22,7 @@ sequences the operational steps; it never restates those rules.
    (do not hand an empty template to `--body`).
 3. Run the same local check the PreToolUse hook and CI use, before creating
    the PR:
+
    ```
    node -e '
    import("./.github/scripts/validate-pr.mjs").then(({ validatePrBodyLocal }) => {
@@ -35,6 +36,7 @@ sequences the operational steps; it never restates those rules.
    });
    ' "<PR title>" <path-to-filled-body>
    ```
+
    Fix any reported problem before continuing. This only checks what's
    decidable without repository access; CI's `pr-contract` check still
    verifies the referenced issue's existence, state, type match, and

@@ -12,6 +12,7 @@ sequences the operational steps; it never restates those rules.
    Refuse to continue if `state` is not `open`.
 2. Validate it locally with the same logic CI uses, instead of re-deriving the
    rules:
+
    ```
    node -e '
    import("./.github/scripts/validate-issue.mjs").then(({ validateIssue, detectIssueType }) => {
@@ -26,6 +27,7 @@ sequences the operational steps; it never restates those rules.
    });
    ' "$(gh issue view <N> --json labels,body)"
    ```
+
    If this reports problems, stop and tell the user the issue does not follow
    the template yet (do not fix the issue body yourself unless asked).
 3. If the issue type is `spike`, stop: spikes don't get a pull request or a
@@ -43,16 +45,19 @@ sequences the operational steps; it never restates those rules.
    naming convention in "Branches and pull requests" in
    `.claude/rules/workflow.md`, with the Conventional Commit type that matches
    this issue's type:
+
    ```
    gh issue develop <N> --name <type>/<N>-<short-slug> --base main
    ```
 6. Give the branch its own worktree beside the main checkout, never checking
    it out in the main checkout. Run from the main checkout:
+
    ```
    git fetch origin <branch>
    git worktree add ../purosur.online.worktrees/<N>-<short-slug> <branch>
    git -C ../purosur.online.worktrees/<N>-<short-slug> branch --set-upstream-to=origin/<branch>
    ```
+
    That `worktree add` is for a local `<branch>` that already exists
    (`git show-ref --verify --quiet refs/heads/<branch>`); when it does not,
    use `git worktree add -b <branch> ../purosur.online.worktrees/<N>-<short-slug> origin/<branch>`
