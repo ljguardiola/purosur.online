@@ -22,6 +22,7 @@ const ADD_LINES = "Agregar productos a la compra de Distribuidora Andina";
 const CORRECT_HEADER = "Corregir los datos de la compra de Distribuidora Andina";
 const CORRECT_COST = "Corregir el costo de Miel pura de abeja 1 kg";
 const CORRECT_EXPIRY = "Corregir el vencimiento de Miel pura de abeja 1 kg";
+const CORRECT_QUANTITY = "Corregir la cantidad de Miel pura de abeja 1 kg";
 const SPLIT_EXPIRY = "Dar otro vencimiento a algunas unidades de Miel pura de abeja 1 kg";
 const SEE_CHANGES = "Ver los cambios de la compra de Distribuidora Andina";
 
@@ -53,6 +54,9 @@ test("offers, to who may record purchases, each purchase's actions and each line
   await expect
     .poll(() => names(screen, /^Corregir el costo/))
     .toEqual([CORRECT_COST, "Corregir el costo de Avena arrollada"]);
+  await expect
+    .poll(() => names(screen, /^Corregir la cantidad/))
+    .toEqual([CORRECT_QUANTITY, "Corregir la cantidad de Avena arrollada"]);
 });
 
 test("offers only the changes of a purchase to who may not record purchases", async () => {
@@ -309,4 +313,86 @@ test("keeps the split modal open on a lot without enough units, showing what rem
   await expect.element(dialog.getByRole("textbox", { name: /^Cantidad/ })).toHaveValue("10");
   expect(screen.getByText("Vencimiento corregido").query()).toBeNull();
   expect(services.fetchPurchases).toHaveBeenCalledTimes(2);
+});
+
+test("corrects the line's quantity, closes the modal, reads the purchases again and confirms without claiming a count was moved", async () => {
+  const services = createServices();
+  vi.mocked(services.correctPurchaseLineQuantity).mockResolvedValue({
+    kind: "ok",
+    purchase: compraDeMiel,
+  });
+  const screen = await loaded(services);
+
+  await userEvent.click(screen.getByRole("button", { name: CORRECT_QUANTITY }));
+  const dialog = screen.getByRole("dialog");
+  await expect
+    .element(dialog.getByRole("heading", { name: "Miel pura de abeja 1 kg" }))
+    .toBeVisible();
+  const packages = dialog.getByRole("textbox", { name: /^Cantidad de paquetes/ });
+  await userEvent.clear(packages);
+  await userEvent.type(packages, "3");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar la cantidad" }));
+
+  await expect.element(screen.getByText("Cantidad corregida")).toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "El stock de la línea sigue la cantidad corregida, salvo que un conteo posterior ya la haya contado.",
+      ),
+    )
+    .toBeVisible();
+  expect(screen.getByRole("dialog").query()).toBeNull();
+  expect(services.correctPurchaseLineQuantity).toHaveBeenCalledWith(
+    compraDeMiel.id,
+    lineDeMiel.id,
+    { loadedBy: "packages", packages: 3 },
+  );
+  await expect.poll(() => vi.mocked(services.fetchPurchases).mock.calls.length).toBe(2);
+});
+
+test("keeps the quantity modal open on a lot without enough units, showing what remains in it once the purchases are read again", async () => {
+  const services = createServices();
+  vi.mocked(services.correctPurchaseLineQuantity).mockResolvedValue({ kind: "not_enough_in_lot" });
+  const screen = await loaded(services);
+  vi.mocked(services.fetchPurchases).mockResolvedValue({
+    kind: "ok",
+    value: [{ ...compraDeMiel, lines: [{ ...lineDeMiel, remainingInLot: 3_000 }] }, compraDeAvena],
+  });
+
+  await userEvent.click(screen.getByRole("button", { name: CORRECT_QUANTITY }));
+  const dialog = screen.getByRole("dialog");
+  await expect
+    .element(dialog.getByText("Cada paquete trae 12 u · Quedan 18 u en el lote"))
+    .toBeVisible();
+  const packages = dialog.getByRole("textbox", { name: /^Cantidad de paquetes/ });
+  await userEvent.clear(packages);
+  await userEvent.type(packages, "1");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar la cantidad" }));
+
+  await expect
+    .element(dialog.getByText("Cada paquete trae 12 u · Quedan 3 u en el lote"))
+    .toBeVisible();
+  await expect
+    .element(
+      dialog.getByText("Las unidades que ya salieron del lote no se pueden quitar de la compra."),
+    )
+    .toBeVisible();
+  await expect.element(packages).toHaveValue("1");
+  expect(screen.getByText("Cantidad corregida").query()).toBeNull();
+  expect(services.fetchPurchases).toHaveBeenCalledTimes(2);
+});
+
+test("keeps the quantity modal open and the purchases unread when the cloud refuses the correction", async () => {
+  const services = createServices();
+  vi.mocked(services.correctPurchaseLineQuantity).mockResolvedValue({ kind: "failed" });
+  const screen = await loaded(services);
+
+  await userEvent.click(screen.getByRole("button", { name: CORRECT_QUANTITY }));
+  await userEvent.click(
+    screen.getByRole("dialog").getByRole("button", { name: "Guardar la cantidad" }),
+  );
+
+  await expect.element(screen.getByText("No se corrigió la cantidad")).toBeVisible();
+  expect(screen.getByText("Cantidad corregida").query()).toBeNull();
+  expect(services.fetchPurchases).toHaveBeenCalledTimes(1);
 });

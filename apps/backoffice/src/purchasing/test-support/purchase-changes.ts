@@ -98,3 +98,15 @@ export const lineExpirySplitCorrection: PurchaseChange = {
     next: "2027-11-10",
   },
 };
+
+export const lineQuantityCorrection: PurchaseChange = {
+  id: "c0c00000-0000-4000-8000-000000000006",
+  actor: { id: "a0100000-0000-4000-8000-000000000001", name: "Marta Quiroga" },
+  correctedAt: "2026-09-19T09:00:00.000Z",
+  change: {
+    kind: "line_quantity",
+    lineId: LINEA_DE_MIEL_ID,
+    previous: { quantity: 24_000, packages: 2 },
+    next: { quantity: 36_000, packages: 3 },
+  },
+};

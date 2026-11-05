@@ -20,6 +20,7 @@ export function createServices(
     correctPurchaseLineExpiry: vi.fn(),
     splitPurchaseLineExpiry: vi.fn(),
     correctPurchaseLineCost: vi.fn(),
+    correctPurchaseLineQuantity: vi.fn(),
     ...overrides,
   };
 }

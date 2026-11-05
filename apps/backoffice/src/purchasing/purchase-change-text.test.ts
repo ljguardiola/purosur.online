@@ -7,6 +7,7 @@ import {
   lineCostCorrection,
   lineExpiryCorrection,
   lineExpirySplitCorrection,
+  lineQuantityCorrection,
   linesAdded,
 } from "./test-support/purchase-changes";
 
@@ -123,6 +124,58 @@ describe("purchaseChangeRows of a cost correction", () => {
     expect(
       purchaseChangeRows(lineCostCorrection.change, { ...compraDeMielCorregida, lines: [] }),
     ).toEqual([{ label: "Costo de Producto no disponible", value: "$ 7.200,00 → $ 6.800,00" }]);
+  });
+});
+
+describe("purchaseChangeRows of a quantity correction", () => {
+  it("names the line's product with the packages and the quantity before and after", () => {
+    expect(purchaseChangeRows(lineQuantityCorrection.change, compraDeMielCorregida)).toEqual([
+      {
+        label: "Cantidad de Miel pura de abeja 1 kg",
+        value: "2 paquetes (24 u) → 3 paquetes (36 u)",
+      },
+    ]);
+  });
+
+  it("writes a single package in the singular", () => {
+    expect(
+      purchaseChangeRows(
+        {
+          kind: "line_quantity",
+          lineId: LINEA_DE_MIEL_ID,
+          previous: { quantity: 12_000, packages: 1 },
+          next: { quantity: 24_000, packages: 2 },
+        },
+        compraDeMielCorregida,
+      ),
+    ).toEqual([
+      {
+        label: "Cantidad de Miel pura de abeja 1 kg",
+        value: "1 paquete (12 u) → 2 paquetes (24 u)",
+      },
+    ]);
+  });
+
+  it("writes the quantity of a line loaded by quantity of a product sold by weight in kilos", () => {
+    const line = compraDeMielCorregida.lines[1];
+    expect(
+      line &&
+        purchaseChangeRows(
+          {
+            kind: "line_quantity",
+            lineId: line.id,
+            previous: { quantity: 10_000, packages: null },
+            next: { quantity: 8_500, packages: null },
+          },
+          compraDeMielCorregida,
+        ),
+    ).toEqual([{ label: "Cantidad de Avena arrollada", value: "10,000 kg → 8,500 kg" }]);
+  });
+
+  it("writes a line the purchase no longer shows as not available, without a quantity to read", () => {
+    expect(
+      purchaseChangeRows(lineQuantityCorrection.change, { ...compraDeMielCorregida, lines: [] }),
+    ).toEqual([{ label: "Cantidad de Producto no disponible", value: "Sin detalle de la cantidad" }]);
   });
 });
 
