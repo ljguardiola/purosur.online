@@ -801,6 +801,18 @@ describe("weighing a product on the scale on the register", () => {
     expect(database.prepare("SELECT id FROM sale_lines").all()).toEqual([]);
   });
 
+  it.each([null, 1250])(
+    "answers the unstable weight and its amount, adding no line, confirming %s",
+    async (confirmed) => {
+      expect(await weigh({ kind: "unstable", weightThousandths: 1250 }, "p2", confirmed)).toEqual({
+        kind: "unsteady",
+        weight_thousandths: 1250,
+        amount: 11250,
+      });
+      expect(database.prepare("SELECT id FROM sale_lines").all()).toEqual([]);
+    },
+  );
+
   it("answers weighing and adds no line while the scale is not stable", async () => {
     expect(await weigh({ kind: "not_stable" })).toEqual({ kind: "weighing" });
     expect(database.prepare("SELECT id FROM sale_lines").all()).toEqual([]);
@@ -1015,6 +1027,15 @@ describe("weighing a line on the scale on the register", () => {
       ]);
     },
   );
+
+  it("answers the unstable weight and its amount, changing nothing, even when it is the confirmed one", async () => {
+    const lineId = await sellCheese();
+
+    expect(
+      await weighLine({ kind: "unstable", weightThousandths: 2500 }, lineId, 1000, 2500),
+    ).toEqual({ kind: "unsteady", weight_thousandths: 2500, amount: 22500 });
+    expect(database.prepare("SELECT quantity FROM sale_lines").all()).toEqual([{ quantity: 1000 }]);
+  });
 
   it.each([
     ["zero", { kind: "stable", weightThousandths: 0 }, { kind: "zero_weight" }],

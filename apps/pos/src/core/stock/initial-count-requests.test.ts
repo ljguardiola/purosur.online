@@ -362,6 +362,16 @@ describe("weighing a product to count on the scale", () => {
     });
   });
 
+  it.each([null, 1250])(
+    "answers an unstable weight as unsteady, confirming %s",
+    async (confirmed) => {
+      expect(await weigh({ kind: "unstable", weightThousandths: 1250 }, "p2", confirmed)).toEqual({
+        kind: "unsteady",
+        weight_thousandths: 1250,
+      });
+    },
+  );
+
   it("answers a stable zero as its weight when nothing is being confirmed", async () => {
     expect(await weigh({ kind: "stable", weightThousandths: 0 })).toEqual({
       kind: "weighed",
