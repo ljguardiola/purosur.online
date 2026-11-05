@@ -11,7 +11,9 @@ import {
   fetchPurchaseChanges,
   fetchPurchaseChoices,
   fetchPurchases,
+  splitPurchaseLineExpiry,
 } from "./purchases-api";
+import type { SplitPurchaseLineExpiryModalServices } from "./split-purchase-line-expiry-modal";
 
 export type PurchasesListScreenServices = {
   fetchPurchases: typeof fetchPurchases;
@@ -19,6 +21,7 @@ export type PurchasesListScreenServices = {
   AddPurchaseLinesModalServices &
   CorrectPurchaseHeaderModalServices &
   CorrectPurchaseLineExpiryModalServices &
+  SplitPurchaseLineExpiryModalServices &
   CorrectPurchaseLineCostModalServices;
 
 export const defaultPurchasesListScreenServices: PurchasesListScreenServices = {
@@ -28,5 +31,6 @@ export const defaultPurchasesListScreenServices: PurchasesListScreenServices = {
   addPurchaseLines,
   correctPurchaseHeader,
   correctPurchaseLineExpiry,
+  splitPurchaseLineExpiry,
   correctPurchaseLineCost,
 };

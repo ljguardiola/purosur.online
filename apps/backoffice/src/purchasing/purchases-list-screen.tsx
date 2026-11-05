@@ -14,6 +14,7 @@ import { useNavigate } from "@tanstack/react-router";
 import {
   BadgeDollarSign,
   CalendarClock,
+  CalendarRange,
   Check,
   History,
   PackagePlus,
@@ -43,6 +44,10 @@ import { PurchaseChangesModal } from "./purchase-changes-modal";
 import type { PurchasesListScreenServices } from "./purchases-list-services";
 import { usePurchasesQuery, useRefreshPurchasing } from "./purchasing-queries";
 import { receiptLabel } from "./receipt-label";
+import {
+  SplitPurchaseLineExpiryModal,
+  type SplitPurchaseLineExpiryTarget,
+} from "./split-purchase-line-expiry-modal";
 
 export type PurchasesListScreenProps = {
   access: BackofficeAccess;
@@ -61,7 +66,12 @@ type PurchaseRow =
 
 const NO_PURCHASES: PurchaseSummary[] = [];
 
-type Correction = "linesAdded" | "headerCorrected" | "expiryCorrected" | "costCorrected";
+type Correction =
+  | "linesAdded"
+  | "headerCorrected"
+  | "expiryCorrected"
+  | "expirySplit"
+  | "costCorrected";
 
 type CorrectionNotice = { correction: Correction; purchase: PurchaseSummary };
 
@@ -82,6 +92,10 @@ const CORRECTION_NOTICES = {
   expiryCorrected: () => ({
     title: "Vencimiento corregido",
     description: "Las alertas y los listados usan la fecha corregida.",
+  }),
+  expirySplit: () => ({
+    title: "Vencimiento corregido",
+    description: "Las unidades elegidas quedaron en un lote con la fecha corregida.",
   }),
 } satisfies Record<
   Correction,
@@ -136,6 +150,7 @@ type RowActions = {
   addLines: (purchase: PurchaseSummary) => void;
   correctHeader: (purchase: PurchaseSummary) => void;
   correctExpiry: (target: PurchaseLineExpiryTarget) => void;
+  splitExpiry: (target: SplitPurchaseLineExpiryTarget) => void;
   correctCost: (target: PurchaseLineCostTarget) => void;
 };
 
@@ -245,6 +260,16 @@ function columnsFor(
           const purchase = row.kind === "line" ? purchaseOf(row.parentId) : undefined;
           return mayRecord && row.kind === "line" && purchase
             ? {
+                icon: <CalendarRange />,
+                "aria-label": `Dar otro vencimiento a algunas unidades de ${formatProductDescription(row.line.product)}`,
+                onPress: () => actions.splitExpiry({ purchase, line: row.line }),
+              }
+            : undefined;
+        },
+        (row: PurchaseRow) => {
+          const purchase = row.kind === "line" ? purchaseOf(row.parentId) : undefined;
+          return mayRecord && row.kind === "line" && purchase
+            ? {
                 icon: <BadgeDollarSign />,
                 "aria-label": `Corregir el costo de ${formatProductDescription(row.line.product)}`,
                 onPress: () => actions.correctCost({ purchase, line: row.line }),
@@ -272,6 +297,7 @@ export function PurchasesListScreen({
   const [addTarget, setAddTarget] = useState<PurchaseSummary | null>(null);
   const [headerTarget, setHeaderTarget] = useState<PurchaseSummary | null>(null);
   const [expiryTarget, setExpiryTarget] = useState<PurchaseLineExpiryTarget | null>(null);
+  const [splitTarget, setSplitTarget] = useState<SplitPurchaseLineExpiryTarget | null>(null);
   const [costTarget, setCostTarget] = useState<PurchaseLineCostTarget | null>(null);
   const [notice, setNotice] = useState<CorrectionNotice | null>(null);
 
@@ -281,6 +307,7 @@ export function PurchasesListScreen({
       setAddTarget(null);
       setHeaderTarget(null);
       setExpiryTarget(null);
+      setSplitTarget(null);
       setCostTarget(null);
     }
   }, [data.status]);
@@ -289,6 +316,7 @@ export function PurchasesListScreen({
     setAddTarget(null);
     setHeaderTarget(null);
     setExpiryTarget(null);
+    setSplitTarget(null);
     setCostTarget(null);
     setNotice({ correction, purchase });
     if (registered) {
@@ -311,6 +339,10 @@ export function PurchasesListScreen({
       correctExpiry: (target) => {
         setNotice(null);
         setExpiryTarget(target);
+      },
+      splitExpiry: (target) => {
+        setNotice(null);
+        setSplitTarget(target);
       },
       correctCost: (target) => {
         setNotice(null);
@@ -395,6 +427,13 @@ export function PurchasesListScreen({
             services={services}
             onSaved={(purchase) => corrected("expiryCorrected", purchase)}
             onClose={() => setExpiryTarget(null)}
+            onSessionEnded={onSessionEnded}
+          />
+          <SplitPurchaseLineExpiryModal
+            target={splitTarget}
+            services={services}
+            onSaved={(purchase) => corrected("expirySplit", purchase)}
+            onClose={() => setSplitTarget(null)}
             onSessionEnded={onSessionEnded}
           />
         </>
