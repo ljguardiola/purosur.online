@@ -1,4 +1,5 @@
 import { mayBeSplitFromLot } from "../model/lot-split.js";
+import { isMovementQuantity } from "../model/stock-quantity.js";
 import type { PurchasedLotStoreTransaction } from "./purchased-lot-store.js";
 
 export interface SplitPurchasedLotInput {
@@ -12,6 +13,7 @@ export interface SplitPurchasedLotInput {
 
 export type SplitPurchasedLotOutcome =
   | { kind: "not_found" }
+  | { kind: "invalid_quantity" }
   | { kind: "not_enough_in_lot" }
   | { kind: "split"; lotId: string };
 
@@ -28,6 +30,9 @@ export async function splitPurchasedLot(
   const locked = await tx.lockProductStock(key);
   if (locked.kind === "not_found") {
     return { kind: "not_found" };
+  }
+  if (!isMovementQuantity(locked.saleUnit, input.quantity)) {
+    return { kind: "invalid_quantity" };
   }
   const source = await tx.splittableLot(own.lotId);
   if (source === null) {

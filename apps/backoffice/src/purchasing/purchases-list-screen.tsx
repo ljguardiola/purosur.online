@@ -114,6 +114,17 @@ function rowsOf(purchases: readonly PurchaseSummary[]): PurchaseRow[] {
   ]);
 }
 
+function remainingInLotOf(
+  purchases: readonly PurchaseSummary[],
+  { purchase, line }: SplitPurchaseLineExpiryTarget,
+): number {
+  return (
+    purchases
+      .find((candidate) => candidate.id === purchase.id)
+      ?.lines.find((candidate) => candidate.id === line.id)?.remainingInLot ?? line.remainingInLot
+  );
+}
+
 function parentIdOf(row: PurchaseRow): string | null {
   return row.kind === "line" ? row.parentId : null;
 }
@@ -431,8 +442,10 @@ export function PurchasesListScreen({
           />
           <SplitPurchaseLineExpiryModal
             target={splitTarget}
+            remainingInLot={splitTarget ? remainingInLotOf(purchases, splitTarget) : 0}
             services={services}
             onSaved={(purchase) => corrected("expirySplit", purchase)}
+            onLotChanged={() => void refreshPurchasing()}
             onClose={() => setSplitTarget(null)}
             onSessionEnded={onSessionEnded}
           />

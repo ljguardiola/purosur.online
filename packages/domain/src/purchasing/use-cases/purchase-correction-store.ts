@@ -74,7 +74,10 @@ export interface LotExpirySplit {
   actorId: string;
 }
 
-export type LotExpirySplitResult = { kind: "not_enough_in_lot" } | { kind: "split"; lotId: string };
+export type LotExpirySplitResult =
+  | { kind: "invalid_quantity" }
+  | { kind: "not_enough_in_lot" }
+  | { kind: "split"; lotId: string };
 
 export interface LotCostCorrection {
   locationId: string;

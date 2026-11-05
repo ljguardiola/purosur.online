@@ -19,6 +19,7 @@ export type SplitPurchaseLineExpiryOutcome =
   | { kind: "purchase_not_found" }
   | { kind: "line_not_found" }
   | { kind: "unchanged" }
+  | { kind: "invalid_quantity" }
   | { kind: "not_enough_in_lot" }
   | { kind: "split"; lineId: string; lotId: string };
 
@@ -49,7 +50,7 @@ export async function splitPurchaseLineExpiry(
       occurredAt: correctedAt,
       actorId: input.actorId,
     });
-    if (split.kind === "not_enough_in_lot") {
+    if (split.kind !== "split") {
       return split;
     }
     await tx.recordPurchaseCorrection({

@@ -30,16 +30,20 @@ export type SplitPurchaseLineExpiryTarget = {
 
 type SplitPurchaseLineExpiryModalProps = {
   target: SplitPurchaseLineExpiryTarget | null;
+  remainingInLot: number;
   services: SplitPurchaseLineExpiryModalServices;
   onSaved: (purchase: PurchaseSummary) => void;
+  onLotChanged: () => void;
   onClose: () => void;
   onSessionEnded: () => void;
 };
 
 export function SplitPurchaseLineExpiryModal({
   target,
+  remainingInLot,
   services,
   onSaved,
+  onLotChanged,
   onClose,
   onSessionEnded,
 }: SplitPurchaseLineExpiryModalProps) {
@@ -84,6 +88,7 @@ export function SplitPurchaseLineExpiryModal({
       }
       if (outcome.kind === "not_enough_in_lot") {
         setNotice({ kind: "notEnoughInLot" });
+        onLotChanged();
         return;
       }
       if (outcome.kind === "not_found") {
@@ -155,7 +160,7 @@ export function SplitPurchaseLineExpiryModal({
               <field.TextField
                 {...quantityFieldKind(saleUnit)}
                 label="Cantidad"
-                description={`Quedan ${formatStockQuantity(target.line.remainingInLot, saleUnit)} en el lote`}
+                description={`Quedan ${formatStockQuantity(remainingInLot, saleUnit)} en el lote`}
                 required
               />
             )}

@@ -253,6 +253,14 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
         await sendUnchanged(reply, "expiry_unchanged");
         return;
       }
+      if (outcome.kind === "invalid_quantity") {
+        await reply.code(400).send({
+          code: "validation_failed",
+          message: "a product sold by the unit moves in whole units",
+          details: [{ field: "quantity" }],
+        });
+        return;
+      }
       if (outcome.kind === "not_enough_in_lot") {
         await reply.code(409).send({
           code: "not_enough_in_lot",
