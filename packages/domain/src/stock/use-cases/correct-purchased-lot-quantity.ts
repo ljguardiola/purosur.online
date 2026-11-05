@@ -72,7 +72,7 @@ export async function correctPurchasedLotQuantity(
   if (movesBalance(movement)) {
     await tx.addToBalance(key, input.delta);
     await tx.allocateToLot({ movementId, lotId: own.lotId, quantity: input.delta });
+    await tx.addToLotQuantityReceived(own.lotId, input.delta);
   }
-  await tx.addToLotQuantityReceived(own.lotId, input.delta);
   return { kind: "corrected" };
 }

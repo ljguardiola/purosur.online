@@ -47,11 +47,19 @@ export const PURCHASE_LINE_QUANTITY_FIELDS = {
   quantity: "amount",
 } as const;
 
-export function purchaseLineQuantityMessages(line: QuantityShape) {
-  return {
-    amount:
-      line.packages === null
-        ? quantityMessage(line.product.saleUnit)
-        : "Ingresá cuántos paquetes recibiste, en un número entero mayor a cero.",
-  };
+function packagesMessage({ amount }: PurchaseLineQuantityValues): string {
+  const packages = packageCountOf(amount);
+  if (Number.isNaN(packages)) {
+    return "Ingresá cuántos paquetes recibiste, en un número entero.";
+  }
+  return packages < 1
+    ? "Ingresá cuántos paquetes recibiste, en un número entero mayor a cero."
+    : "Ingresá menos paquetes; son más de los que se pueden registrar.";
+}
+
+export function purchaseLineQuantityMessages(line: QuantityShape): {
+  amount: (values: PurchaseLineQuantityValues) => string;
+} {
+  const saleUnitMessage = quantityMessage(line.product.saleUnit);
+  return { amount: line.packages === null ? () => saleUnitMessage : packagesMessage };
 }
