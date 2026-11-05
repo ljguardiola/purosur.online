@@ -644,6 +644,30 @@ describe("the cloud_app role runMigrations creates", () => {
     await expectPermissionDenied(cloudApp`truncate lot_allocations`);
   });
 
+  it("cannot update, delete or truncate a cost a lot had before it changed", async () => {
+    const { productId, locationId } = await insertCountedMovement();
+    const [lot] = await cloudApp<{ id: string }[]>`
+      insert into lots (product_id, location_id, quantity_received, technical, cost_incomplete)
+      values (${productId}, ${locationId}, 0, true, true) returning id
+    `;
+    if (!lot) {
+      throw new Error("test setup: seeding the technical lot returned no row");
+    }
+    const [change] = await cloudApp<{ id: string }[]>`
+      insert into lot_cost_changes (lot_id, changed_at, previous_cost_total_cents, previous_cost_quantity)
+      values (${lot.id}, now(), 500, 1000) returning id
+    `;
+    if (!change) {
+      throw new Error("test setup: seeding the lot cost change returned no row");
+    }
+
+    await expectPermissionDenied(
+      cloudApp`update lot_cost_changes set previous_cost_total_cents = 1 where id = ${change.id}`,
+    );
+    await expectPermissionDenied(cloudApp`delete from lot_cost_changes where id = ${change.id}`);
+    await expectPermissionDenied(cloudApp`truncate lot_cost_changes`);
+  });
+
   it("cannot update, delete or truncate the lots counted in a stock count", async () => {
     const { movementId, productId, locationId } = await insertCountedMovement();
     const [lot] = await cloudApp<{ id: string }[]>`
