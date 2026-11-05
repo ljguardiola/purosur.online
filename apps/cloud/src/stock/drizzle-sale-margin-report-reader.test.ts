@@ -4,7 +4,7 @@ import { compareCodeUnits, compareSpanishText } from "@purosur/domain";
 import { readMarginReport } from "@purosur/domain/stock/use-cases";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { products, registers, users } from "../platform/db/schema.js";
+import { lotCostChanges, lots, products, registers, users } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { applyReturn } from "../returns/test-support/applied-returns.js";
 import {
@@ -31,6 +31,7 @@ import { insertLocation } from "./test-support/stock-route-fixtures.js";
 const NOW = new Date("2026-11-20T15:00:00.000Z");
 const SOLD = new Date("2026-10-06T14:00:00.000Z");
 const RETURNED_LATER = new Date("2026-11-10T14:00:00.000Z");
+const SALE_MOVEMENT_AT = new Date("2026-10-01T14:00:00.000Z");
 const wholeOctober = { from: "2026-10-01", to: "2026-10-31" };
 const FIVE_PER_UNIT = { totalCents: 5_000, quantity: 1_000 };
 
@@ -93,6 +94,8 @@ function saleAllocation(
     technical: false,
     costIncomplete: false,
     cost: FIVE_PER_UNIT,
+    costChanges: [],
+    valuedAt: SALE_MOVEMENT_AT,
     ...overrides,
   };
 }
@@ -737,3 +740,163 @@ describe("DrizzleSaleMarginReportReader with returns", () => {
     },
   );
 });
+
+describe("DrizzleSaleMarginReportReader with a lot whose cost was corrected", () => {
+  const NINE_PER_UNIT = { totalCents: 9_000, quantity: 1_000 };
+  const SOLD_BEFORE = new Date("2026-10-02T14:00:00.000Z");
+  const CORRECTED_AT = new Date("2026-10-10T14:00:00.000Z");
+  const SOLD_AFTER = new Date("2026-10-15T14:00:00.000Z");
+  const correctedFrom = { changedAt: CORRECTED_AT, previous: FIVE_PER_UNIT };
+
+  async function correctedLot() {
+    const own = await soldOneProduct();
+    const lotId = await insertPurchasedLot(db, {
+      productId: own.productId,
+      locationId: own.locationId,
+      actorId: own.cashierId,
+      remaining: 6_000,
+    });
+    await db.update(lots).set({ costTotalCents: 9_000 }).where(eq(lots.id, lotId));
+    await db.insert(lotCostChanges).values({
+      lotId,
+      changedAt: CORRECTED_AT,
+      previousCostTotalCents: 5_000,
+      previousCostQuantity: 1_000,
+    });
+    return { ...own, lotId };
+  }
+
+  function marginOf(locationId: string) {
+    return readMarginReport(
+      { reader: reader(), clock: { now: () => NOW }, zoneRules: fixedZoneRulesSource() },
+      { locationId, asked: wholeOctober, registerId: undefined, group: "product" },
+    );
+  }
+
+  it("answers the lot's current cost with the changes of it and the instant of each movement", async () => {
+    const { deviceId, locationId, cashierId, productId, lotId } = await correctedLot();
+    const line = aSoldLine(productId, "Azúcar 1 kg", 4, 40_000);
+    await sold(deviceId, [line]);
+    await insertSaleMovement(db, {
+      productId,
+      locationId,
+      actorId: cashierId,
+      saleLineId: line.id,
+      allocations: [{ lotId, quantity: -4_000 }],
+      occurredAt: SOLD_BEFORE,
+    });
+
+    const lines = await reader().completedSaleLinesByProduct({
+      locationId,
+      range: wholeOctober,
+      registerId: undefined,
+    });
+
+    expect(lines[0]?.allocations).toEqual([
+      saleAllocation(lotId, -4_000, {
+        cost: NINE_PER_UNIT,
+        costChanges: [correctedFrom],
+        valuedAt: SOLD_BEFORE,
+      }),
+    ]);
+  });
+
+  it("keeps the cost and margin of the units sold before the correction and values those sold after it at the corrected cost", async () => {
+    const { deviceId, locationId, cashierId, productId, lotId } = await correctedLot();
+    const before = aSoldLine(productId, "Azúcar 1 kg", 4, 40_000);
+    const after = aSoldLine(productId, "Azúcar 1 kg", 6, 60_000);
+    await sold(deviceId, [before], SOLD_BEFORE);
+    await sold(deviceId, [after], SOLD_AFTER);
+    for (const [saleLineId, quantity, occurredAt] of [
+      [before.id, -4_000, SOLD_BEFORE],
+      [after.id, -6_000, SOLD_AFTER],
+    ] as const) {
+      await insertSaleMovement(db, {
+        productId,
+        locationId,
+        actorId: cashierId,
+        saleLineId,
+        allocations: [{ lotId, quantity }],
+        occurredAt,
+      });
+    }
+
+    const report = await marginOf(locationId);
+
+    expect(report.totals).toMatchObject({
+      amount: 100_000,
+      cost: 4 * 5_000 + 6 * 9_000,
+      margin: 100_000 - 74_000,
+      incompleteSales: 0,
+    });
+  });
+
+  it("values the return of a sale made before the correction at the cost the sale had, even when it comes back after it", async () => {
+    const { deviceId, locationId, cashierId, productId, lotId } = await correctedLot();
+    const line = aSoldLine(productId, "Azúcar 1 kg", 2, 20_000);
+    await applyReturn(db, {
+      deviceId,
+      soldAt: SOLD_BEFORE,
+      returnedAt: RETURNED_LATER,
+      applyStock: true,
+      sale: { actorId: cashierId, total: 20_000, lines: [line] },
+      saleReturn: {
+        actorId: cashierId,
+        lines: [
+          {
+            saleLineId: line.id,
+            productId,
+            quantity: 2,
+            reason: "defective",
+            resolution: "refund",
+            disposition: "restock",
+            refundedAmount: 20_000,
+          },
+        ],
+        stockMovements: [
+          {
+            id: randomUUID(),
+            saleLineId: line.id,
+            productId,
+            kind: "return",
+            reason: null,
+            delta: 2_000,
+          },
+        ],
+      },
+      afterSale: async () => {
+        await insertSaleMovement(db, {
+          productId,
+          locationId,
+          actorId: cashierId,
+          saleLineId: line.id,
+          allocations: [{ lotId, quantity: -2_000 }],
+          occurredAt: SOLD_BEFORE,
+        });
+      },
+    });
+
+    const lines = await reader().completedSaleLinesByProduct({
+      locationId,
+      range: wholeOctober,
+      registerId: undefined,
+    });
+    const report = await marginOf(locationId);
+
+    expect(ordered(lines)[0]?.allocations).toEqual([
+      saleAllocation(lotId, -2_000, {
+        cost: NINE_PER_UNIT,
+        costChanges: [correctedFrom],
+        valuedAt: SOLD_BEFORE,
+      }),
+      saleAllocation(lotId, 2_000, {
+        movementKind: "return",
+        cost: NINE_PER_UNIT,
+        costChanges: [correctedFrom],
+        valuedAt: SOLD_BEFORE,
+      }),
+    ]);
+    expect(report.totals).toMatchObject({ cost: 0, incompleteSales: 0 });
+  });
+});
+
