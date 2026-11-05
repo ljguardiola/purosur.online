@@ -9,6 +9,7 @@ import {
   BACKOFFICE_ORIGIN,
   insertBalance,
   insertLocation,
+  insertMovement,
   insertProduct,
   signedInWith,
 } from "./test-support/stock-route-fixtures.js";
@@ -109,6 +110,15 @@ describe("GET /inventory-levels", () => {
       expiresOn: "2027-03-01",
       lotNumber: "03/11",
       remaining: 4_000,
+    });
+    await insertMovement(db, {
+      productId: almonds.productId,
+      locationId,
+      actorId: userId,
+      kind: "adjustment",
+      reason: "purchase_correction",
+      delta: 4_000,
+      occurredAt: NOON,
     });
     await insertBalance(db, { productId: almonds.productId, locationId, quantity: 4_000 });
     await insertBalance(db, {

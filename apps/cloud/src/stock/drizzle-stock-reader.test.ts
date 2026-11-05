@@ -298,7 +298,7 @@ describe("DrizzleStockReader.stockLevels", () => {
   });
 
   it("answers each listed product with its balance at the location and whether it ever moved there, zero when it never did", async () => {
-    const locationId = await insertLocation(db);
+    const { actorId, locationId } = await seededActor();
     const otherLocationId = await insertLocation(db);
     const honey = await insertProduct(db, {
       name: "Miel",
@@ -324,6 +324,21 @@ describe("DrizzleStockReader.stockLevels", () => {
       quantity: 8,
     });
     await insertBalance(db, { productId: oats.productId, locationId, quantity: 3 });
+    for (const { productId, delta } of [
+      { productId: honey.productId, delta: 12 },
+      { productId: peanuts.productId, delta: 0 },
+      { productId: oats.productId, delta: 3 },
+    ]) {
+      await insertMovement(db, {
+        productId,
+        locationId,
+        actorId,
+        kind: "adjustment",
+        reason: "purchase_correction",
+        delta,
+        occurredAt: MOMENT,
+      });
+    }
 
     expect(await new DrizzleStockReader(db).stockLevels(locationId)).toEqual([
       {
@@ -379,6 +394,26 @@ describe("DrizzleStockReader.stockLevels", () => {
         lots: [],
       },
     ]);
+  });
+
+  it("answers a product with a zero balance row but no movement at the location as never moved", async () => {
+    const { actorId, locationId } = await seededActor();
+    const otherLocationId = await insertLocation(db);
+    const { productId } = await insertProduct(db);
+    await insertBalance(db, { productId, locationId, quantity: 0 });
+    await insertMovement(db, {
+      productId,
+      locationId: otherLocationId,
+      actorId,
+      kind: "adjustment",
+      reason: "purchase_correction",
+      delta: 1_000,
+      occurredAt: MOMENT,
+    });
+
+    const [level] = await new DrizzleStockReader(db).stockLevels(locationId);
+
+    expect(level).toMatchObject({ hasMoved: false, balance: 0 });
   });
 
   it("answers each product's lots still in stock with their cost and the purchase they came from", async () => {
