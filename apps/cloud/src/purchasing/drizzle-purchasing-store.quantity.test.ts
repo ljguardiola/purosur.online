@@ -148,7 +148,7 @@ describe("correcting the quantity of a purchase line", () => {
     expect(lot).toEqual({ ...lotBefore, remaining: 7_000, quantityReceived: 7_000 });
     expect(lot).toMatchObject({
       costTotalCents: 2_500,
-      costQuantity: 5_000,
+      costQuantity: 1_000,
       expiresOn: "2026-11-10",
     });
     const [balance] = await db.select().from(stockBalances);
