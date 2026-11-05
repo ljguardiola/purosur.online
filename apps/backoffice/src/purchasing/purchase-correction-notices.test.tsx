@@ -54,3 +54,16 @@ test("has no accessibility violations", async () => {
 
   await expectNoAccessibilityViolations(screen.container);
 });
+
+test("says only some of the units still in the lot can take another date, with the modal's title", async () => {
+  const screen = await renderNotice({ kind: "notEnoughInLot" });
+
+  await expect.element(screen.getByText("No se guardó el cambio")).toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        "Solo se puede dar otra fecha a menos unidades de las que quedan en el lote.",
+      ),
+    )
+    .toBeVisible();
+});
