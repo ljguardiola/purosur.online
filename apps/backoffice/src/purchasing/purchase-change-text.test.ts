@@ -175,7 +175,9 @@ describe("purchaseChangeRows of a quantity correction", () => {
   it("writes a line the purchase no longer shows as not available, without a quantity to read", () => {
     expect(
       purchaseChangeRows(lineQuantityCorrection.change, { ...compraDeMielCorregida, lines: [] }),
-    ).toEqual([{ label: "Cantidad de Producto no disponible", value: "Sin detalle de la cantidad" }]);
+    ).toEqual([
+      { label: "Cantidad de Producto no disponible", value: "Sin detalle de la cantidad" },
+    ]);
   });
 });
 

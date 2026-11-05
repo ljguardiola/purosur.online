@@ -74,7 +74,7 @@ describe("purchaseLineQuantityRequestFrom", () => {
     expect(
       purchaseLineQuantityRequestFrom(
         { amount: "7" },
-        { ...loadedByPackages, packages: null, quantity: 7_000 },
+        { packages: null, product: loadedByPackages.product },
       ),
     ).toEqual({ loadedBy: "quantity", quantity: 7_000 });
   });
@@ -105,8 +105,12 @@ describe("the quantity form's label, fields and messages", () => {
     expect(purchaseLineQuantityLabel(loadedByQuantity)).toBe("Cantidad");
   });
 
-  it("lands both wire keys on the one field", () => {
-    expect(PURCHASE_LINE_QUANTITY_FIELDS).toEqual({ packages: "amount", quantity: "amount" });
+  it("lands every wire key on the one field", () => {
+    expect(PURCHASE_LINE_QUANTITY_FIELDS).toEqual({
+      loadedBy: "amount",
+      packages: "amount",
+      quantity: "amount",
+    });
   });
 
   it("asks for a whole number of packages", () => {
@@ -116,9 +120,9 @@ describe("the quantity form's label, fields and messages", () => {
   });
 
   it("asks for whole units of a product sold by unit", () => {
-    expect(
-      purchaseLineQuantityMessages({ ...loadedByPackages, packages: null }).amount,
-    ).toBe("Escribí una cantidad entera de unidades, por ejemplo 16.");
+    expect(purchaseLineQuantityMessages({ ...loadedByPackages, packages: null }).amount).toBe(
+      "Escribí una cantidad entera de unidades, por ejemplo 16.",
+    );
   });
 
   it("asks for kilos with up to 3 decimals of a product sold by weight", () => {
