@@ -105,5 +105,16 @@ export function purchaseChangeRows(
         },
       ];
     }
+    case "line_expiry_split": {
+      const product = lineOf(purchase, change.lineId)?.product;
+      return [
+        {
+          label: product
+            ? `Vencimiento de ${formatStockQuantity(change.quantity, product.saleUnit)} de ${formatProductDescription(product)}`
+            : `Vencimiento de ${UNAVAILABLE_PRODUCT}`,
+          value: transition(expiryText(change.previous), expiryText(change.next)),
+        },
+      ];
+    }
   }
 }
