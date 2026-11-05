@@ -100,7 +100,7 @@ test("hovers a non-current page button to a bone background", async () => {
   const rect = page.getBoundingClientRect();
   await hoverAt(rect.left + rect.width / 2, rect.top + rect.height / 2);
 
-  expect(page.getAttribute("data-hovered")).toBe("true");
+  await expect.poll(() => page.getAttribute("data-hovered")).toBe("true");
   expect(getComputedStyle(page).backgroundColor).toBe(tokenRgb("surface-subtle"));
 });
 
@@ -380,12 +380,12 @@ test("does not paint the hover background while Previous is unavailable at page 
     previousRect.left + previousRect.width / 2,
     previousRect.top + previousRect.height / 2,
   );
-  expect(previous.getAttribute("data-hovered")).toBe("true");
+  await expect.poll(() => previous.getAttribute("data-hovered")).toBe("true");
   expect(getComputedStyle(previous).backgroundColor).toBe(restBackground);
 
   const nextRect = next.getBoundingClientRect();
   await hoverAt(nextRect.left + nextRect.width / 2, nextRect.top + nextRect.height / 2);
-  expect(next.getAttribute("data-hovered")).toBe("true");
+  await expect.poll(() => next.getAttribute("data-hovered")).toBe("true");
   expect(getComputedStyle(next).backgroundColor).toBe(tokenRgb("surface-subtle"));
 
   await expectNoAccessibilityViolations(screen.container);
