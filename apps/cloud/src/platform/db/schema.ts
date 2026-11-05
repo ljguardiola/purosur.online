@@ -788,6 +788,7 @@ export const purchaseLines = pgTable(
     quantityPerPackage: bigint("quantity_per_package", { mode: "number" }).notNull(),
     lotNumber: text("lot_number"),
     expiresOn: date("expires_on", { mode: "string" }),
+    removedAt: timestamp("removed_at", { withTimezone: true }),
   },
   (table) => [
     check("purchase_lines_quantity_per_package_check", sql`${table.quantityPerPackage} > 0`),
@@ -976,7 +977,7 @@ export const lots = pgTable(
     unique("lots_code_key").on(table.code),
     uniqueIndex("lots_one_own_lot_per_purchase_line")
       .on(table.purchaseLineId)
-      .where(sql`${table.splitFromLotId} is null`),
+      .where(sql`${table.splitFromLotId} is null and not ${table.withdrawn}`),
     check(
       "lots_split_only_of_purchase_line_check",
       sql`${table.splitFromLotId} is null or ${table.purchaseLineId} is not null`,
@@ -989,8 +990,8 @@ export const lots = pgTable(
       sql`${table.technical}::int + (${table.purchaseLineId} is not null)::int + (${table.originMovementId} is not null)::int + (${table.assemblyBatchId} is not null)::int = 1`,
     ),
     check(
-      "lots_withdrawn_only_if_initial_count_check",
-      sql`not ${table.withdrawn} or ${table.originMovementId} is not null`,
+      "lots_withdrawn_only_if_purchased_or_initial_count_check",
+      sql`not ${table.withdrawn} or ${table.originMovementId} is not null or ${table.purchaseLineId} is not null`,
     ),
     check(
       "lots_cost_pair_check",
