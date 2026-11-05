@@ -66,6 +66,25 @@ describe("redatePurchasedLots", () => {
     ]);
   });
 
+  it("redates the lots split from a line's lot along with it", async () => {
+    const tx = new FakePurchasedLotTransaction([
+      lot(),
+      lot({ lotId: "lot-2", splitFromLotId: "lot-1", nameOrder: 2 }),
+    ]);
+
+    const outcome = await redatePurchasedLots(tx, {
+      locationId: "branch-1",
+      purchaseLineIds: ["line-1"],
+      purchasedOn: "2026-09-30",
+    });
+
+    expect(outcome).toEqual({ kind: "redated" });
+    expect(tx.lots.map(({ lotId, purchasedOn }) => [lotId, purchasedOn])).toEqual([
+      ["lot-1", "2026-09-30"],
+      ["lot-2", "2026-09-30"],
+    ]);
+  });
+
   it("redates the only lot of a purchase with a single line", async () => {
     const tx = new FakePurchasedLotTransaction([lot()]);
 

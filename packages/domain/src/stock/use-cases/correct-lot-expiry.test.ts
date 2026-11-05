@@ -40,6 +40,25 @@ describe("correctLotExpiry", () => {
     ]);
   });
 
+  it("leaves the lots split from the line's lot, which keep their own expiry date", async () => {
+    const tx = new FakePurchasedLotTransaction([
+      lot({ lotId: "lot-split", splitFromLotId: "lot-1", expiresOn: "2026-12-24", nameOrder: 2 }),
+      lot(),
+    ]);
+
+    const outcome = await correctLotExpiry(tx, {
+      locationId: "branch-1",
+      purchaseLineId: "line-1",
+      expiresOn: "2027-11-10",
+    });
+
+    expect(outcome).toEqual({ kind: "corrected" });
+    expect(tx.lots.map(({ lotId, expiresOn }) => [lotId, expiresOn])).toEqual([
+      ["lot-split", "2026-12-24"],
+      ["lot-1", "2027-11-10"],
+    ]);
+  });
+
   it("clears the expiry date of the lot", async () => {
     const tx = new FakePurchasedLotTransaction([lot()]);
 
