@@ -17,6 +17,7 @@ const packagesLine = {
   unitCostCents: 120_838,
   lotName: "Compra 03/11/2026",
   expiresOn: "2027-01-31",
+  remainingInLot: 18_000,
 };
 const quantityLine = {
   id: "line-2",
@@ -28,6 +29,7 @@ const quantityLine = {
   unitCostCents: 90_000,
   lotName: "Compra 03/11/2026 · 2",
   expiresOn: null,
+  remainingInLot: -500,
 };
 const purchase = {
   id: "purchase-1",
