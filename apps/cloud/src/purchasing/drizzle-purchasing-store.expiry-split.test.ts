@@ -19,6 +19,7 @@ import {
   stockBalances,
   stockMovements,
 } from "../platform/db/schema.js";
+import { DrizzleExpiringLotReader } from "../stock/drizzle-expiring-lot-reader.js";
 import { DrizzleStockStore } from "../stock/drizzle-stock-store.js";
 import { insertLocation } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
@@ -269,6 +270,23 @@ describe("correcting the expiry date of part of a purchase line", () => {
     expect(stored).toEqual([
       { expiresOn: "2026-10-20", remaining: 1_000 },
       { expiresOn: "2026-11-10", remaining: 3_000 },
+    ]);
+  });
+});
+
+describe("the stock reports after a split", () => {
+  it("lists the units of each lot with the lot's own expiry date", async () => {
+    const { purchase, lineId } = await juiceLine();
+    await splitOf(purchase.id, lineId, 2_000, "2026-10-20");
+
+    const expiring = await new DrizzleExpiringLotReader(db).lotsExpiringBy(
+      locationId,
+      "2026-12-31",
+    );
+
+    expect(expiring.map(({ expiresOn, remaining }) => [expiresOn, remaining]).sort()).toEqual([
+      ["2026-10-20", 2_000],
+      ["2026-11-10", 3_000],
     ]);
   });
 });
