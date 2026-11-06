@@ -108,6 +108,8 @@ export type { ComboBoxOption, ComboBoxProps } from "./components/forms/combo-box
 export { ComboBox } from "./components/forms/combo-box";
 export type { DateFieldProps } from "./components/forms/date-field";
 export { DateField } from "./components/forms/date-field";
+export type { DateRange, DateRangeFieldProps } from "./components/forms/date-range-field";
+export { DateRangeField } from "./components/forms/date-range-field";
 export type { FieldGroupProps } from "./components/forms/field-group";
 export { FieldGroup } from "./components/forms/field-group";
 export type { FieldSize, FieldSizeProviderProps } from "./components/forms/field-size";
