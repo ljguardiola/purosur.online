@@ -5,12 +5,14 @@ import {
   NET_CONTENT_QUANTITY_CHECK_OPTIONS,
   productNetContentSchema,
 } from "../shared/index.js";
+import { refreshSchema } from "./supplier-item-proposal-refresh.js";
 import { supplierItemQuantitySchema } from "./supplier-price-list-row-link.js";
 
 export const supplierItemQuantityProposalBodySchema = z
   .object({
     saleUnit: z.enum(SALE_UNITS, { error: "saleUnit must be UNIT or KG" }),
     netContent: productNetContentSchema,
+    refresh: refreshSchema,
   })
   .superRefine(checkNetContentQuantity, NET_CONTENT_QUANTITY_CHECK_OPTIONS);
 

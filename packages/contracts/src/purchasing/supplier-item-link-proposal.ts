@@ -1,6 +1,13 @@
 import { z } from "zod";
 import { netContentSchema } from "../shared/index.js";
+import { refreshSchema } from "./supplier-item-proposal-refresh.js";
 import { supplierItemQuantitySchema } from "./supplier-price-list-row-link.js";
+
+export const supplierItemLinkProposalBodySchema = z.object({
+  refresh: refreshSchema,
+});
+
+export type SupplierItemLinkProposalBody = z.input<typeof supplierItemLinkProposalBodySchema>;
 
 export const supplierItemLinkProposalSchema = z.discriminatedUnion("kind", [
   z.object({
