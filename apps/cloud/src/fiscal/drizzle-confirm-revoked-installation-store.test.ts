@@ -10,6 +10,7 @@ import {
   users,
 } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { DrizzleRegisterEventStreams } from "../sync/drizzle-register-event-streams.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
@@ -77,7 +78,10 @@ async function confirm(
 ) {
   return confirmRevokedInstallationUnsynced(
     {
-      store: new DrizzleConfirmRevokedInstallationStore(db),
+      store: new DrizzleConfirmRevokedInstallationStore(
+        db,
+        (tx) => new DrizzleRegisterEventStreams(tx),
+      ),
       clock: { now: () => AT },
       zoneRules: fixedZoneRulesSource(),
     },
@@ -145,6 +149,20 @@ describe("confirming a revoked installation through the Drizzle store", () => {
 
     expect(await confirm(installationId)).toEqual({ kind: "already_presented" });
     expect(await confirmations()).toEqual([]);
+  });
+
+  it("answers that an installation still active is not revoked while another installation of its register is", async () => {
+    const { registerId, installationId: revoked } =
+      await revokedInstallationOfTheOfflinePointOfSale();
+    const active = await insertEnrolledInstallation(db, {
+      now: AT,
+      existingRegisterId: registerId,
+      enrolledAt: REVOKED_AT,
+    });
+
+    expect(await confirm(active.deviceId)).toEqual({ kind: "not_revoked" });
+    expect(await confirm(revoked)).toEqual({ kind: "confirmed" });
+    expect(await confirmations()).toMatchObject([{ installationId: revoked }]);
   });
 
   it("finds no installation of a register that does not own the point of sale", async () => {
