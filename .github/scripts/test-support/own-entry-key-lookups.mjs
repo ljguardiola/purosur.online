@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
-export const TSCONFIG = JSON.stringify({
+const TSCONFIG = JSON.stringify({
   compilerOptions: {
     strict: true,
     target: "ES2022",
