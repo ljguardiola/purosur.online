@@ -86,7 +86,7 @@ describe("readExpiringLots", () => {
     expect(underUtc.view.lots[0]?.expired).toBe(true);
   });
 
-  it("reads the expiring lot alert days of the location's branch settings as its window and answers it", async () => {
+  it("reads the expiry warning window of the location and answers it", async () => {
     const { view, expiryWarningWindow } = await read([], { windowDays: 45 });
 
     expect(view).toEqual({
