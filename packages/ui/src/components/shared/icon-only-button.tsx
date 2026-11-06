@@ -37,7 +37,7 @@ function NameTooltip({
   className: string;
   disabled: boolean;
   excludeFromTabOrder: boolean | undefined;
-  children: ComponentProps<typeof AriaFocusable>["children"];
+  children: (closeTooltip: () => void) => ComponentProps<typeof AriaFocusable>["children"];
 }) {
   const state = useTooltipTriggerState({ delay: HOVER_DELAY_MS, closeDelay: CLOSE_DELAY_MS });
   const ref = useRef<HTMLSpanElement>(null);
@@ -58,7 +58,7 @@ function NameTooltip({
             {...(onFocus === undefined ? {} : { onFocus })}
             {...(onBlur === undefined ? {} : { onBlur })}
           >
-            {children}
+            {children(() => state.close(true))}
           </AriaFocusable>
         </span>
         <TooltipBubble description={name} />
@@ -91,9 +91,17 @@ export function IconOnlyButton({
         disabled={disabled}
         excludeFromTabOrder={buttonProps.excludeFromTabOrder}
       >
-        <AriaButton {...buttonProps} aria-label={name} isDisabled={disabled} className={className}>
-          {children}
-        </AriaButton>
+        {(closeTooltip) => (
+          <AriaButton
+            {...buttonProps}
+            aria-label={name}
+            isDisabled={disabled}
+            onPressStart={closeTooltip}
+            className={className}
+          >
+            {children}
+          </AriaButton>
+        )}
       </NameTooltip>
     </OwnNameOnly>
   );
