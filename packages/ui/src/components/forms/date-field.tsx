@@ -241,9 +241,13 @@ function CalendarHeader({ titleId, name }: { titleId: string; name: string }) {
   );
 }
 
-function CalendarToggleButton({ disabled }: { disabled: boolean }) {
+function CalendarToggleButton({ label, disabled }: { label: string; disabled: boolean }) {
   return (
-    <IconOnlyButton name="Abrir el calendario" disabled={disabled} className={iconButtonClassName}>
+    <IconOnlyButton
+      name={`Abrir el calendario de ${label}`}
+      disabled={disabled}
+      className={iconButtonClassName}
+    >
       <span aria-hidden="true" className={iconSlotClassName.md}>
         <CalendarIcon />
       </span>
@@ -298,7 +302,7 @@ export function DateField(props: DateFieldProps) {
         <AriaGroup
           className={`${fieldBoxClassName} ${frameClassName} ${fieldBoxStateClassName({ disabled, invalid })}`}
         >
-          {size === "register" && <CalendarToggleButton disabled={disabled} />}
+          {size === "register" && <CalendarToggleButton label={label} disabled={disabled} />}
           <AriaDateInput className={`${inputBaseClassName} ${valueClassName}`}>
             {(segment) => (
               <AriaDateSegment
@@ -311,7 +315,7 @@ export function DateField(props: DateFieldProps) {
               />
             )}
           </AriaDateInput>
-          {size === "backoffice" && <CalendarToggleButton disabled={disabled} />}
+          {size === "backoffice" && <CalendarToggleButton label={label} disabled={disabled} />}
         </AriaGroup>
         {shownError !== undefined ? (
           <AriaText
