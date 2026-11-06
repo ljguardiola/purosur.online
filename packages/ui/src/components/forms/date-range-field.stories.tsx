@@ -99,7 +99,7 @@ export const InvalidMessageElsewhere: Story = {
 };
 
 export const Reversed: Story = {
-  args: { value: REVERSED },
+  args: { value: REVERSED, errorMessage: "La fecha de fin no puede ser anterior a la de inicio." },
   decorators: backoffice,
 };
 

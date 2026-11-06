@@ -319,6 +319,19 @@ test("refuses a validity that ends before it starts, on the single validity fiel
   expect(services.createDiscount).not.toHaveBeenCalled();
 });
 
+test("says nothing about the validity's order while its end is still being typed", async () => {
+  const services = createServices();
+  const { dialog } = await renderModal(services);
+  await typeValidityStart(dialog, "12092026");
+
+  await typeValidityEnd(dialog, "30092");
+
+  await expect.poll(() => validitySegments(dialog).slice(3)).toEqual(["30", "9", "2"]);
+  expect(
+    dialog.getByText("La fecha de fin no puede ser anterior a la de inicio.").query(),
+  ).toBeNull();
+});
+
 test("asks for the validity on the single field when it is left empty", async () => {
   const services = createServices();
   const { dialog } = await renderModal(services);

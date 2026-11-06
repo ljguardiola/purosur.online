@@ -9,7 +9,12 @@ import {
   reportFiltersSearch,
 } from "./report-filters-search";
 import { render } from "./test-support/render-with-router";
-import { periodSegments, typePeriodEnd, typePeriodStart } from "./test-support/report-dates";
+import {
+  erasePeriodEnd,
+  periodSegments,
+  typePeriodEnd,
+  typePeriodStart,
+} from "./test-support/report-dates";
 import { BACK_REGISTER_ID, FRONT_REGISTER_ID } from "./test-support/report-fixtures";
 
 const ANSWERED = { from: "2026-10-01", to: "2026-10-07" };
@@ -148,25 +153,53 @@ test("asks again once a range that was out of order is put right", async () => {
   ).toBeNull();
 });
 
-test("reports an empty period once one end of the period is erased", async () => {
+test("keeps the other end shown and reports nothing while one end of the period is erased", async () => {
   const onFiltersChange = vi.fn();
   const screen = await renderFilters({
     filters: reportFiltersSearch.parse({ from: "2026-10-02", to: "2026-10-05" }),
     onFiltersChange,
   });
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["2", "10", "2026"]);
 
-  for (const segment of screen
-    .getByRole("group", { name: /^Período/ })
-    .getByRole("spinbutton")
-    .all()
-    .slice(0, 3)) {
-    await userEvent.click(segment);
-    await userEvent.keyboard("{Backspace}{Backspace}{Backspace}{Backspace}");
-  }
+  await erasePeriodEnd(screen, "start");
+
+  expect(periodSegments(screen).slice(3)).toEqual(["5", "10", "2026"]);
+  expect(onFiltersChange).not.toHaveBeenCalled();
+});
+
+test("reports an empty period once both ends of the period are erased", async () => {
+  const onFiltersChange = vi.fn();
+  const screen = await renderFilters({
+    filters: reportFiltersSearch.parse({ from: "2026-10-02", to: "2026-10-05" }),
+    onFiltersChange,
+  });
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["2", "10", "2026"]);
+
+  await erasePeriodEnd(screen, "start");
+  await erasePeriodEnd(screen, "end");
 
   await expect
     .poll(() => onFiltersChange.mock.lastCall?.[0])
     .toEqual({ from: "", to: "", register: "ALL" });
+});
+
+test("says nothing about the order while the end's year is still being typed", async () => {
+  const onFiltersChange = vi.fn();
+  const screen = await renderFilters({
+    filters: reportFiltersSearch.parse({ from: "2026-10-02", to: "2026-10-05" }),
+    onFiltersChange,
+  });
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["2", "10", "2026"]);
+
+  await typePeriodEnd(screen, "06102");
+
+  await expect.poll(() => periodSegments(screen).slice(3)).toEqual(["6", "10", "2"]);
+  expect(
+    screen.getByText("La fecha de fin no puede ser anterior a la de inicio.").query(),
+  ).toBeNull();
+  expect(onFiltersChange.mock.calls.map(([next]) => next.to).filter((to) => to < "1000")).toEqual(
+    [],
+  );
 });
 
 test("labels the single period field Período, with no separate start and end fields", async () => {

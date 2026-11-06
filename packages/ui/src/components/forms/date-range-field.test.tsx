@@ -68,6 +68,7 @@ function Harness({
   ...rest
 }: HarnessProps) {
   const [value, setValue] = useState<DateRange | null>(initial);
+  const [emptied, setEmptied] = useState(0);
   const field = (
     <>
       <DateRangeField
@@ -75,10 +76,12 @@ function Harness({
         label={label}
         value={value}
         onChange={setValue}
+        onEmptied={() => setEmptied((count) => count + 1)}
         {...rest}
         {...bounds}
       />
       <p data-testid="caller-value">{periodText(value)}</p>
+      <p data-testid="emptied">{emptied}</p>
     </>
   );
   return variant === "backoffice" ? (
@@ -95,6 +98,26 @@ const FEBRUARY: DateRange = {
 
 function callerValue(screen: Screen): string {
   return screen.getByTestId("caller-value").element().textContent ?? "";
+}
+
+function timesEmptied(screen: Screen): string {
+  return screen.getByTestId("emptied").element().textContent ?? "";
+}
+
+async function eraseEnd(group: HTMLElement, end: "start" | "end") {
+  const segments = segmentsOf(group);
+  for (const segment of end === "start" ? segments.slice(0, 3) : segments.slice(3)) {
+    await userEvent.click(segment);
+    await userEvent.keyboard("{Backspace}{Backspace}{Backspace}{Backspace}");
+  }
+}
+
+function literalColors(group: HTMLElement, end: "start" | "end"): string[] {
+  const segments = Array.from(group.querySelectorAll<HTMLElement>('[data-type="literal"]'));
+  const half = segments.length / 2;
+  return (end === "start" ? segments.slice(0, half) : segments.slice(half)).map(
+    (segment) => getComputedStyle(segment).color,
+  );
 }
 
 for (const variant of ["register", "backoffice"] as const) {
@@ -163,14 +186,48 @@ test("tells the caller nothing until both ends are complete", async () => {
 
 test("tells the caller the period is empty once every segment of one end is erased", async () => {
   const screen = await render(<Harness initial={FEBRUARY} />);
-  const group = fieldGroup(screen, "Period");
 
-  for (const segment of segmentsOf(group).slice(3)) {
-    await userEvent.click(segment);
-    await userEvent.keyboard("{Backspace}{Backspace}{Backspace}{Backspace}");
-  }
+  await eraseEnd(fieldGroup(screen, "Period"), "end");
 
   await expect.poll(() => callerValue(screen)).toBe("");
+});
+
+test("keeps the other end shown and tells the caller nothing emptied while one end is erased", async () => {
+  const screen = await render(<Harness initial={FEBRUARY} />);
+  const group = fieldGroup(screen, "Period");
+
+  await eraseEnd(group, "start");
+
+  await expect.poll(() => callerValue(screen)).toBe("");
+  expect(
+    segmentsOf(group)
+      .slice(3)
+      .map((segment) => segment.textContent),
+  ).toEqual(["20", "2", "2027"]);
+  expect(timesEmptied(screen)).toBe("0");
+});
+
+test("tells the caller the field is emptied once both ends are erased", async () => {
+  const screen = await render(<Harness initial={FEBRUARY} />);
+  const group = fieldGroup(screen, "Period");
+
+  await eraseEnd(group, "start");
+  await eraseEnd(group, "end");
+
+  await expect.poll(() => timesEmptied(screen)).toBe("1");
+});
+
+test("draws each end's separators in full tone once that end is typed, while the other is empty", async () => {
+  const screen = await render(<Harness />);
+  const group = fieldGroup(screen, "Period");
+
+  await userEvent.click(segmentsOf(group)[0] as HTMLElement);
+  await userEvent.keyboard("01022027");
+
+  await expect
+    .poll(() => literalColors(group, "start"))
+    .toEqual([tokenRgb("text"), tokenRgb("text")]);
+  expect(literalColors(group, "end")).toEqual([tokenRgb("text-subtle"), tokenRgb("text-subtle")]);
 });
 
 test("opens one calendar on the period's first month with both ends chosen and the days between lighter", async () => {
@@ -271,32 +328,7 @@ test("names the calendar by its month and year", async () => {
   expect(document.getElementById(labelledBy)?.textContent).toBe("Febrero 2027");
 });
 
-test("shows its own error under the field when a typed end is before the start", async () => {
-  const screen = await render(<Harness />);
-  const group = fieldGroup(screen, "Period");
-
-  await userEvent.click(segmentsOf(group)[0] as HTMLElement);
-  await userEvent.keyboard("28022027");
-  await userEvent.keyboard("01022027");
-
-  const message = screen.getByText("La fecha de fin no puede ser anterior a la de inicio.");
-  await expect.element(message).toBeVisible();
-  expect(getComputedStyle(message.element()).color).toBe(tokenRgb("error"));
-  for (const segment of segmentsOf(group)) {
-    expect(segment.getAttribute("aria-invalid")).toBe("true");
-  }
-  await expectNoAccessibilityViolations(screen.container);
-});
-
-test("draws a reversed period's box in the error UI", async () => {
-  const screen = await render(<Harness initial={{ start: FEBRUARY.end, end: FEBRUARY.start }} />);
-
-  expect(paintedBoxShadowLayers(fieldGroup(screen, "Period"))).toEqual([
-    insetBoundary("error", "2px"),
-  ]);
-});
-
-test("tells the caller a typed reversed period as typed, so the caller can refuse it", async () => {
+test("shows no message of its own for a typed end before the start", async () => {
   const screen = await render(<Harness />);
   const group = fieldGroup(screen, "Period");
 
@@ -305,32 +337,31 @@ test("tells the caller a typed reversed period as typed, so the caller can refus
   await userEvent.keyboard("01022027");
 
   await expect.poll(() => callerValue(screen)).toBe("2027-02-28..2027-02-01");
-});
-
-test("clears its own error once the end is typed on or after the start", async () => {
-  const screen = await render(<Harness initial={{ start: FEBRUARY.end, end: FEBRUARY.start }} />);
-  const group = fieldGroup(screen, "Period");
-  const message = "La fecha de fin no puede ser anterior a la de inicio.";
-  await expect.element(screen.getByText(message)).toBeVisible();
-
-  await userEvent.click(segmentsOf(group)[3] as HTMLElement);
-  await userEvent.keyboard("25");
-
-  await expect.poll(() => screen.getByText(message).query()).toBeNull();
-});
-
-test("shows the caller's message instead of its own reversed-period message", async () => {
-  const screen = await render(
-    <Harness
-      initial={{ start: FEBRUARY.end, end: FEBRUARY.start }}
-      errorMessage="Revisá el período."
-    />,
-  );
-
-  await expect.element(screen.getByText("Revisá el período.")).toBeVisible();
   expect(
     screen.getByText("La fecha de fin no puede ser anterior a la de inicio.").query(),
   ).toBeNull();
+  for (const segment of segmentsOf(group)) {
+    expect(segment.getAttribute("aria-invalid")).not.toBe("true");
+  }
+});
+
+test("shows the caller's message for a reversed period in the error UI", async () => {
+  const screen = await render(
+    <Harness
+      initial={{ start: FEBRUARY.end, end: FEBRUARY.start }}
+      errorMessage="La fecha de fin no puede ser anterior a la de inicio."
+    />,
+  );
+  const group = fieldGroup(screen, "Period");
+
+  const message = screen.getByText("La fecha de fin no puede ser anterior a la de inicio.");
+  await expect.element(message).toBeVisible();
+  expect(getComputedStyle(message.element()).color).toBe(tokenRgb("error"));
+  expect(paintedBoxShadowLayers(group)).toEqual([insetBoundary("error", "2px")]);
+  for (const segment of segmentsOf(group)) {
+    expect(segment.getAttribute("aria-invalid")).toBe("true");
+  }
+  await expectNoAccessibilityViolations(screen.container);
 });
 
 test("shows the helper line until the field is invalid", async () => {
