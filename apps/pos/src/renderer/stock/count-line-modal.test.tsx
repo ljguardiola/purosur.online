@@ -403,6 +403,82 @@ describe("CountLineModal", () => {
     expect(recording).toHaveBeenCalledWith(QUESO.product_id, 2500, null);
   });
 
+  it.each([
+    [{ kind: "not_permitted" }, "Ya no tenés permiso para cargar el inventario inicial."],
+    [{ kind: "unknown_product" }, "Este producto ya no se puede contar."],
+    [{ kind: "not_sold_by_weight" }, "Este producto ya no se vende por kilo."],
+    [{ kind: "unavailable" }, "No se pudo leer la balanza. Escribí el peso."],
+  ] satisfies [WeighCountedProductOutcome, string][])(
+    "tells why the scale was not read when weighing answers %o, and stops asking it",
+    async (answer, told) => {
+      const { screen, weighing } = await renderModal({ weigh: async () => answer });
+
+      await expect.element(screen.getByText(told).first()).toBeVisible();
+      expect(screen.getByText("La balanza no está disponible. Escribí el peso.").query()).toBeNull();
+      expect(screen.getByText("Pesando…").query()).toBeNull();
+      expect(weighing).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("tells the scale could not be read when the request to weigh fails", async () => {
+    const { screen, weighing } = await renderModal({
+      weigh: () => Promise.reject(new Error("core closed")),
+    });
+
+    await expect
+      .element(screen.getByText("No se pudo leer la balanza. Escribí el peso.").first())
+      .toBeVisible();
+    expect(screen.getByText("La balanza no está disponible. Escribí el peso.").query()).toBeNull();
+    expect(weighing).toHaveBeenCalledOnce();
+  });
+
+  it("empties an unsteady weight from the field when weighing is refused, recording nothing", async () => {
+    const answers: WeighCountedProductOutcome[] = [
+      { kind: "unsteady", weight_thousandths: 140 },
+      { kind: "not_permitted" },
+    ];
+    const { screen, recording } = await renderModal({
+      weigh: () => deferredOr(answers.shift()),
+    });
+
+    await expect
+      .element(screen.getByText("Ya no tenés permiso para cargar el inventario inicial.").first())
+      .toBeVisible();
+    await expect.element(screen.getByRole("textbox", { name: "Cantidad contada" })).toHaveValue("");
+    await confirm(screen);
+    expect(recording).not.toHaveBeenCalled();
+  });
+
+  it("records a weight typed after weighing failed", async () => {
+    const { screen, recording } = await renderModal({ weigh: async () => ({ kind: "unavailable" }) });
+    await expect
+      .element(screen.getByText("No se pudo leer la balanza. Escribí el peso.").first())
+      .toBeVisible();
+
+    await typeCounted(screen, "2,5");
+    await confirm(screen);
+
+    expect(recording).toHaveBeenCalledWith(QUESO.product_id, 2500, null);
+  });
+
+  it("reports that the count is no longer offered when weighing is refused for it", async () => {
+    const { onNotOffered, weighing } = await renderModal({
+      weigh: async () => ({ kind: "not_offered" }),
+    });
+
+    await vi.waitFor(() => expect(onNotOffered).toHaveBeenCalledOnce());
+    expect(weighing).toHaveBeenCalledOnce();
+  });
+
+  it("reports that the session ended when weighing is refused for it", async () => {
+    const { onSessionInvalid, weighing } = await renderModal({
+      weigh: async () => ({ kind: "not_signed_in" }),
+    });
+
+    await vi.waitFor(() => expect(onSessionInvalid).toHaveBeenCalledOnce());
+    expect(weighing).toHaveBeenCalledOnce();
+  });
+
   it("records the weight read from the scale when confirmed", async () => {
     const { screen, recording, onRecorded } = await renderModal({
       weigh: async (_productId, confirmed) => ({
