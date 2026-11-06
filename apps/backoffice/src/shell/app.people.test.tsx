@@ -307,3 +307,13 @@ test("the Config entry of the rail opens Personas, the first Configuración page
   await expect.element(fallbackConfig).toBeVisible();
   expect(fallbackConfig.element().getAttribute("href")).toBe("/?account=credentials");
 });
+
+test("the open user's panel reaches the bottom of the page beside a short list", async () => {
+  window.history.pushState(null, "", "/people/users?user=user-2");
+  const screen = await render(<App help={emptyHelp} services={servicesFor()} />);
+
+  const panel = screen.getByRole("complementary", { name: "Martina Gómez" });
+  await expect.element(panel).toBeVisible();
+
+  expect(panel.element().getBoundingClientRect().bottom).toBeCloseTo(window.innerHeight, 0);
+});
