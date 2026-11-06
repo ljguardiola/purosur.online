@@ -7,8 +7,8 @@ import {
 } from "./test-support/fake-contingency-backup-tickets.js";
 
 const NOW = new Date("2026-10-14T15:00:00.000Z");
-const OFFLINE = { kind: "offline_code", cause: "no_connectivity" } as const;
-const REAL_TIME = { kind: "real_time" } as const;
+const UNREACHABLE = { lastHealthCheckOkAt: null, at: NOW };
+const REACHABLE = { lastHealthCheckOkAt: new Date(NOW.getTime() - 1_000), at: NOW };
 const RANGE = { firstDeviceSeq: 4, lastDeviceSeq: 6 };
 
 function setup(sealer = new FakeContingencyBackupTicketSealer()) {
@@ -21,13 +21,13 @@ function setup(sealer = new FakeContingencyBackupTicketSealer()) {
 }
 
 describe("recordContingencyBackupTicket", () => {
-  it("seals the events of an operation in a gap and records the ticket with its QR codes", async () => {
+  it("seals the events of an operation while the cloud was unreachable and records the ticket with its QR codes", async () => {
     const { ports, store, sealer } = setup();
 
     const outcome = await recordContingencyBackupTicket(ports, {
       operation: "sale",
       subjectId: "sale-1",
-      modesAround: [REAL_TIME, OFFLINE],
+      cloudLinkAround: [REACHABLE, UNREACHABLE],
       range: RANGE,
     });
 
@@ -51,7 +51,7 @@ describe("recordContingencyBackupTicket", () => {
     const outcome = await recordContingencyBackupTicket(ports, {
       operation: "cash_movement",
       subjectId: null,
-      modesAround: [{ kind: "deferring", reason: "deferred_backlog" }],
+      cloudLinkAround: [UNREACHABLE],
       range: RANGE,
     });
 
@@ -68,17 +68,17 @@ describe("recordContingencyBackupTicket", () => {
     ]);
   });
 
-  it("seals and records nothing when the operation was not in a gap", async () => {
+  it("seals and records nothing when every reading reached the cloud", async () => {
     const { ports, store, sealer } = setup();
 
     const outcome = await recordContingencyBackupTicket(ports, {
       operation: "sale",
       subjectId: "sale-1",
-      modesAround: [REAL_TIME],
+      cloudLinkAround: [REACHABLE],
       range: RANGE,
     });
 
-    expect(outcome).toEqual({ kind: "not_in_gap" });
+    expect(outcome).toEqual({ kind: "cloud_reached" });
     expect(sealer.sealed).toEqual([]);
     expect(store.recorded()).toEqual([]);
   });
@@ -89,7 +89,7 @@ describe("recordContingencyBackupTicket", () => {
     const outcome = await recordContingencyBackupTicket(ports, {
       operation: "reprint",
       subjectId: "sale-1",
-      modesAround: [OFFLINE],
+      cloudLinkAround: [UNREACHABLE],
       range: { firstDeviceSeq: 7, lastDeviceSeq: 6 },
     });
 
@@ -98,16 +98,30 @@ describe("recordContingencyBackupTicket", () => {
     expect(store.recorded()).toEqual([]);
   });
 
-  it("reports not in a gap before reporting no events", async () => {
+  it("treats no readings as the cloud reached", async () => {
+    const { ports, store } = setup();
+
+    const outcome = await recordContingencyBackupTicket(ports, {
+      operation: "sale",
+      subjectId: null,
+      cloudLinkAround: [],
+      range: RANGE,
+    });
+
+    expect(outcome).toEqual({ kind: "cloud_reached" });
+    expect(store.recorded()).toEqual([]);
+  });
+
+  it("reports the cloud reached before reporting no events", async () => {
     const { ports } = setup();
 
     const outcome = await recordContingencyBackupTicket(ports, {
       operation: "reprint",
       subjectId: null,
-      modesAround: [REAL_TIME],
+      cloudLinkAround: [REACHABLE],
       range: { firstDeviceSeq: 7, lastDeviceSeq: 6 },
     });
 
-    expect(outcome).toEqual({ kind: "not_in_gap" });
+    expect(outcome).toEqual({ kind: "cloud_reached" });
   });
 });

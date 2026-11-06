@@ -1,4 +1,4 @@
-import type { ContingencyBackupOperation, FiscalEmissionMode } from "@purosur/domain";
+import type { CloudLinkReading, ContingencyBackupOperation } from "@purosur/domain";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import type { RendererRequestDeps } from "../renderer-requests";
 import { createTicketedOperations } from "./ticketed-operation";
@@ -10,7 +10,10 @@ import {
   ticketedRendererRequests,
 } from "./ticketed-renderer-requests";
 
-const OFFLINE: FiscalEmissionMode = { kind: "offline_code", cause: "no_connectivity" };
+const UNREACHABLE: CloudLinkReading = {
+  lastHealthCheckOkAt: null,
+  at: new Date("2026-10-14T15:00:00.000Z"),
+};
 const AUTHORIZATION = { user_id: "supervisor", pin: "1234" };
 
 function setup(overrides: Partial<TicketableRendererRequests> = {}) {
@@ -21,7 +24,7 @@ function setup(overrides: Partial<TicketableRendererRequests> = {}) {
       lastDeviceSeq += 1;
       return lastDeviceSeq;
     },
-    readEmissionMode: () => OFFLINE,
+    readCloudLink: () => UNREACHABLE,
     record: async ({ operation, subjectId }) => {
       recorded.push({ operation, subjectId });
     },

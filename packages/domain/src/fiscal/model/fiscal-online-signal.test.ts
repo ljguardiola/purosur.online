@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   isRegisterFiscallyOnline,
+  isRegisterReachingCloud,
   REGISTER_HEALTH_CHECK_HORIZON_MS,
   REGISTER_HEALTH_CHECK_INTERVAL_MS,
 } from "./fiscal-online-signal.js";
@@ -55,5 +56,39 @@ describe("isRegisterFiscallyOnline", () => {
 
   it("is false when ARCA is not reachable", () => {
     expect(isRegisterFiscallyOnline({ ...ONLINE, arcaReachable: false }, NOW)).toBe(false);
+  });
+});
+
+describe("isRegisterReachingCloud", () => {
+  it("is true when the health check is recent", () => {
+    expect(isRegisterReachingCloud(ONLINE, NOW)).toBe(true);
+  });
+
+  it("is true when the health check is exactly 15 seconds old", () => {
+    expect(
+      isRegisterReachingCloud(
+        { ...ONLINE, lastHealthCheckOkAt: ago(REGISTER_HEALTH_CHECK_HORIZON_MS) },
+        NOW,
+      ),
+    ).toBe(true);
+  });
+
+  it("is false when the health check is older than 15 seconds", () => {
+    expect(
+      isRegisterReachingCloud(
+        { ...ONLINE, lastHealthCheckOkAt: ago(REGISTER_HEALTH_CHECK_HORIZON_MS + 1) },
+        NOW,
+      ),
+    ).toBe(false);
+  });
+
+  it("is false when the register never had a successful health check", () => {
+    expect(isRegisterReachingCloud({ lastHealthCheckOkAt: null }, NOW)).toBe(false);
+  });
+
+  it("is true though the token is not valid and ARCA is not reachable", () => {
+    expect(
+      isRegisterReachingCloud({ ...ONLINE, tokenValid: false, arcaReachable: false }, NOW),
+    ).toBe(true);
   });
 });

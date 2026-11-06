@@ -1,5 +1,4 @@
 import { randomBytes } from "node:crypto";
-import type { FiscalEmissionMode } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalDatabase } from "../platform/local-database";
 import { fixedZoneRulesSource } from "../platform/test-support/fixed-zone-rules-source.js";
@@ -18,7 +17,7 @@ const INTERVAL_MS = 30_000;
 
 let database: LocalDatabase;
 let device: ControllableReceiptPrinter | undefined;
-let mode: FiscalEmissionMode;
+let lastHealthCheckOkAt: Date | null;
 let key: { version: number; key: string } | undefined;
 let reported: { context: string; error: unknown }[];
 let timers: ManualTimers;
@@ -33,7 +32,7 @@ function tickets() {
     ids: { next: () => `ticket-${++nextId}` },
     readContingencyTicketKey: async () => key,
     appVersion: "1.4.0",
-    readEmissionMode: () => mode,
+    readCloudLink: () => ({ lastHealthCheckOkAt, at: NOW }),
     printers: { configured: () => device },
     scheduleNext: (run, delayMs) => timers.after(delayMs, run),
     intervalMs: INTERVAL_MS,
@@ -66,7 +65,7 @@ beforeEach(() => {
      VALUES ('location-1', 'Av. Belgrano 1450', '11 5555-0100', '@puro.sur', '{}', 30, 30, 15, 1)`,
   );
   device = new ControllableReceiptPrinter();
-  mode = { kind: "offline_code", cause: "no_connectivity" };
+  lastHealthCheckOkAt = null;
   key = { version: 1, key: randomBytes(32).toString("base64") };
   reported = [];
   timers = new ManualTimers();
@@ -99,8 +98,8 @@ describe("the contingency backup tickets of the register", () => {
     expect(await requests.discard()).toEqual({ kind: "discarded", count: 1 });
   });
 
-  it("records no ticket for an operation outside a gap", async () => {
-    mode = { kind: "real_time" };
+  it("records no ticket for an operation done while the register reaches the cloud", async () => {
+    lastHealthCheckOkAt = new Date(NOW.getTime() - 1_000);
     const { ticketed, requests } = tickets();
 
     await ticketed("cash_session_opening", appendingEvents(2))?.();
@@ -108,6 +107,15 @@ describe("the contingency backup tickets of the register", () => {
     expect(await requests.read()).toMatchObject({
       tickets: { to_print: 0, kept: 0, missing_key: 0, discardable: 0 },
     });
+  });
+
+  it("records the ticket of an operation done when the last health check is older than the horizon", async () => {
+    lastHealthCheckOkAt = new Date(NOW.getTime() - 60_000);
+    const { ticketed, requests } = tickets();
+
+    await ticketed("cash_session_opening", appendingEvents(2))?.();
+
+    expect(await requests.read()).toMatchObject({ tickets: { to_print: 1 } });
   });
 
   it("keeps the ticket of an operation as missing its key when the register holds none", async () => {

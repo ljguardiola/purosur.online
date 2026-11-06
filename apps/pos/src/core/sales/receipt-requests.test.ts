@@ -1,5 +1,5 @@
 import { encodePinHash } from "@purosur/contracts";
-import type { FiscalEmissionMode } from "@purosur/domain";
+import type { CloudLinkReading } from "@purosur/domain";
 import type { RecordContingencyBackupTicketInput } from "@purosur/domain/backups/use-cases";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTicketedOperations } from "../backups/ticketed-operation";
@@ -31,7 +31,10 @@ const PEPPER = Buffer.alloc(32, 7).toString("base64url");
 const PIN_HASH = "argon2id$v=19$m=65536,t=3,p=4$c2FsdA$aGFzaC1vZi10aGUtcGlu";
 const AUTHORIZER_PIN = "1234";
 const NO_PRINTERS = { configured: () => undefined };
-const OFFLINE: FiscalEmissionMode = { kind: "offline_code", cause: "no_connectivity" };
+const UNREACHABLE: CloudLinkReading = {
+  lastHealthCheckOkAt: null,
+  at: new Date("2026-10-14T15:00:00.000Z"),
+};
 
 let database: LocalDatabase;
 let signedInPerson: SignedInPerson;
@@ -156,7 +159,7 @@ function recordingTickets() {
   const recorded: (RecordContingencyBackupTicketInput & { handedCopies: number })[] = [];
   const ticketing = createTicketedOperations({
     readLastDeviceSeq: lastDeviceSeq,
-    readEmissionMode: () => OFFLINE,
+    readCloudLink: () => UNREACHABLE,
     record: async (input) => {
       recorded.push({ ...input, handedCopies: printer.handed.length });
     },
@@ -503,7 +506,7 @@ describe("reprinting a sale's receipt from the history", () => {
         {
           operation: "reprint",
           subjectId: "sale-1",
-          modesAround: [OFFLINE, OFFLINE],
+          cloudLinkAround: [UNREACHABLE, UNREACHABLE],
           range: { firstDeviceSeq: reprintSeq, lastDeviceSeq: reprintSeq },
           handedCopies: 2,
         },
@@ -532,7 +535,7 @@ describe("reprinting a sale's receipt from the history", () => {
         {
           operation: "reprint",
           subjectId: "sale-1",
-          modesAround: [OFFLINE, OFFLINE, OFFLINE, OFFLINE],
+          cloudLinkAround: [UNREACHABLE, UNREACHABLE, UNREACHABLE, UNREACHABLE],
           range: { firstDeviceSeq: reprintSeq, lastDeviceSeq: reprintSeq + 1 },
           handedCopies: 1,
         },
