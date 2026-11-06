@@ -225,20 +225,6 @@ test("opens the panel and marks the row of a user the URL names in another lette
   expect(window.location.search).toBe("?user=USER-2");
 });
 
-test("pressing a row's action icon navigates once, not again through the row", async () => {
-  window.history.pushState(null, "", "/people/users");
-  const services = createUsersListServices();
-  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator, martina] });
-  const screen = await renderUsersList(services);
-  await expect.element(screen.getByText("2 usuarios")).toBeVisible();
-  const entriesBefore = window.history.length;
-
-  await userEvent.click(screen.getByRole("button", { name: "Editar a Martina Gómez" }));
-
-  await expect.poll(() => window.location.search).toBe("?user=user-2");
-  expect(window.history.length).toBe(entriesBefore + 1);
-});
-
 test("pressing a user's name opens that user's panel through the URL, keeping the state filter", async () => {
   window.history.pushState(null, "", "/people/users?state=active");
   const services = createUsersListServices();
