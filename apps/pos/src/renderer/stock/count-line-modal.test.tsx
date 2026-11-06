@@ -422,6 +422,27 @@ describe("CountLineModal", () => {
     },
   );
 
+  it.each([
+    [{ kind: "not_permitted" }, "Ya no tenés permiso para cargar el inventario inicial."],
+    [{ kind: "unavailable" }, "No se pudo leer la balanza. Escribí el peso."],
+  ] satisfies [WeighCountedProductOutcome, string][])(
+    "tells nothing about the scale when weighing answers %o after the weight was typed and the person moved on",
+    async (answer, told) => {
+      const pending = deferred<WeighCountedProductOutcome>();
+      const { screen } = await renderModal({ weigh: () => pending.promise });
+      await typeCounted(screen, "2,5");
+      await expect.element(screen.getByText("Pesando…")).not.toBeInTheDocument();
+
+      pending.resolve(answer);
+      await userEvent.tab();
+
+      expect(screen.getByText(told).first().query()).toBeNull();
+      expect(
+        screen.getByText("La balanza no está disponible. Escribí el peso.").query(),
+      ).toBeNull();
+    },
+  );
+
   it("tells the scale could not be read when the request to weigh fails", async () => {
     const { screen, weighing } = await renderModal({
       weigh: () => Promise.reject(new Error("core closed")),
