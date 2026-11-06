@@ -15,6 +15,7 @@ import type {
 import { and, desc, eq, isNull, min } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { netContentRow } from "../catalog/net-content-row.js";
+import { productActivityCondition } from "../catalog/product-activity-condition.js";
 import { productIdsWithDescriptionContainingEveryWord } from "../catalog/product-ids-with-description-containing-every-word.js";
 import {
   branchSettings,
@@ -143,7 +144,7 @@ export class DrizzlePriceReviewReader<TQueryResult extends PgQueryResultHKT>
       .from(products)
       .innerJoin(categories, eq(products.categoryId, categories.id))
       .leftJoin(brands, eq(brands.id, products.brandId))
-      .where(eq(products.active, true));
+      .where(productActivityCondition("active"));
   }
 
   private async lastReviewedAtByProductId(priceListId: string): Promise<Map<string, Date>> {

@@ -13,6 +13,7 @@ import type {
 } from "@purosur/domain/pricing/use-cases";
 import { and, desc, eq, isNull, max } from "drizzle-orm";
 import { alias, type PgDatabase, type PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { productActivityCondition } from "../catalog/product-activity-condition.js";
 import {
   auditLog,
   branchSettings,
@@ -41,7 +42,7 @@ export class DrizzlePricingStoreTransaction<TQueryResult extends PgQueryResultHK
     const [product] = await this.tx
       .select({ id: products.id })
       .from(products)
-      .where(and(eq(products.id, productId), eq(products.active, true)))
+      .where(and(eq(products.id, productId), productActivityCondition("active")))
       .for("update");
     return product ? { kind: "locked" } : { kind: "not_found" };
   }

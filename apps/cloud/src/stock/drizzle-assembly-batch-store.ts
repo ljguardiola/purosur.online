@@ -13,6 +13,7 @@ import type {
 } from "@purosur/domain/stock/use-cases";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { productActivityCondition } from "../catalog/product-activity-condition.js";
 import {
   assemblyBatches,
   assemblyBatchLines,
@@ -54,7 +55,7 @@ class DrizzleAssemblyBatchTransaction<TQueryResult extends PgQueryResultHKT>
     const found = await this.tx
       .select({ id: products.id })
       .from(products)
-      .where(and(inArray(products.id, [...productIds]), eq(products.active, true)));
+      .where(and(inArray(products.id, [...productIds]), productActivityCondition("active")));
     return found.map((product) => product.id);
   }
 

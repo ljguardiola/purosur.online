@@ -16,6 +16,7 @@ import type {
 } from "@purosur/domain/purchasing/use-cases";
 import { and, asc, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { productActivityCondition } from "../catalog/product-activity-condition.js";
 import {
   assemblyBatches,
   lots,
@@ -56,7 +57,7 @@ export class DrizzleOrderSuggestionReader<TQueryResult extends PgQueryResultHKT>
     return this.database
       .select({ productId: products.id, coverageDays: products.coverageDays })
       .from(products)
-      .where(eq(products.active, true));
+      .where(productActivityCondition("active"));
   }
 
   async completedSalesByProduct({

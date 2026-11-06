@@ -7,6 +7,7 @@ import type {
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { netContentRow } from "../catalog/net-content-row.js";
+import { productActivityCondition } from "../catalog/product-activity-condition.js";
 import { brands, categories, products } from "../platform/db/schema.js";
 import { latestSupplierOffers } from "./latest-supplier-offers.js";
 
@@ -33,7 +34,7 @@ export class DrizzleSupplierPriceComparisonReader<TQueryResult extends PgQueryRe
       .from(products)
       .innerJoin(categories, eq(categories.id, products.categoryId))
       .leftJoin(brands, eq(brands.id, products.brandId))
-      .where(eq(products.active, true));
+      .where(productActivityCondition("active"));
     return rows.map(({ netContentQuantity, netContentUnit, ...row }) => ({
       ...row,
       netContent: netContentRow({ netContentQuantity, netContentUnit }),
