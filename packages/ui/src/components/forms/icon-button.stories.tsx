@@ -20,6 +20,14 @@ const meta: Meta<typeof IconButton> = {
 
 export default meta;
 
+// React Aria drops a first hover that arrives before any pointer movement, so the pointer enters,
+// leaves and enters again.
+async function hoverUntilTooltipShows(target: HTMLElement) {
+  await userEvent.hover(target);
+  await userEvent.unhover(target);
+  await userEvent.hover(target);
+}
+
 type Story = StoryObj<typeof IconButton>;
 
 export const Default: Story = {};
@@ -73,7 +81,7 @@ export const SubtleDisabled: Story = {
 
 export const WithNameTooltipHovered: Story = {
   play: async ({ canvasElement }) => {
-    await userEvent.hover(theButton(canvasElement));
+    await hoverUntilTooltipShows(theButton(canvasElement));
     await waitFor(
       () => {
         expect(within(document.body).getByRole("tooltip")).toHaveTextContent("Eliminar fila");
@@ -99,7 +107,7 @@ export const WithNameTooltipFocused: Story = {
 export const DisabledHovered: Story = {
   args: { disabled: true },
   play: async ({ canvasElement }) => {
-    await userEvent.hover(theButton(canvasElement));
+    await hoverUntilTooltipShows(theButton(canvasElement));
     await waitFor(
       () => {
         expect(within(document.body).getByRole("tooltip")).toHaveTextContent("Eliminar fila");
