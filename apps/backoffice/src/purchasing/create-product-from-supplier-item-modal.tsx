@@ -44,6 +44,7 @@ import {
   useProductCreationCategoriesQuery,
   useProductCreationChoicesRefresh,
   useProductCreationTagsQuery,
+  useRefreshSupplierItemQuantityProposal,
   useSupplierItemLinkChoicesQuery,
   useSupplierItemQuantityProposalQuery,
 } from "./purchasing-queries";
@@ -68,6 +69,7 @@ import type {
   fetchProductCreationCategories,
   fetchProductCreationTags,
 } from "./supplier-item-products-api";
+import { ProposeAgainButton, ProposeAgainFailure } from "./supplier-item-propose-again";
 import {
   SUPPLIER_ITEM_QUANTITY_UNIT_OPTIONS,
   supplierItemQuantityFieldKind,
@@ -238,6 +240,13 @@ export function CreateProductFromSupplierItemModal({
     return () => clearTimeout(handle);
   }, [target, wantedSaleUnit, wantedNetQuantity, wantedNetUnit]);
   const quantityProposal = useSupplierItemQuantityProposalQuery({
+    listId: list.id,
+    rowId: row?.id ?? "",
+    request: open ? asked : null,
+    fetchSupplierItemQuantityProposal: services.fetchSupplierItemQuantityProposal,
+    onSessionEnded,
+  });
+  const quantityRefresh = useRefreshSupplierItemQuantityProposal({
     listId: list.id,
     rowId: row?.id ?? "",
     request: open ? asked : null,
@@ -492,6 +501,15 @@ export function CreateProductFromSupplierItemModal({
                 />
               )}
             </form.AppField>
+            {quantityProposal.status === "loaded" ? (
+              <div className="flex justify-end">
+                <ProposeAgainButton
+                  refreshing={quantityRefresh.refreshing}
+                  onPress={() => void quantityRefresh.refresh()}
+                />
+              </div>
+            ) : null}
+            {quantityRefresh.failed ? <ProposeAgainFailure /> : null}
             {values.saleUnit === "KG" ? (
               <>
                 <FieldHeading>Unidad de la cantidad</FieldHeading>

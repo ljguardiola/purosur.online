@@ -1,5 +1,5 @@
-import { FieldSizeProvider } from "@purosur/ui";
 import type { SupplierItemLinkProposal } from "@purosur/contracts";
+import { FieldSizeProvider } from "@purosur/ui";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
