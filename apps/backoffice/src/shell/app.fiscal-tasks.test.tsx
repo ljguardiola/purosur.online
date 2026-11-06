@@ -93,7 +93,7 @@ test("offers the refunds, and not the fiscal tasks, to a user who cannot see fis
   expect(sections.getByRole("link", { name: "Tareas fiscales" }).query()).toBeNull();
 });
 
-test("keeps opening the points of sale from the Caja item, without the TAREAS group, to a user of the cash area alone", async () => {
+test("keeps opening the points of sale from the Caja item, without the TAREAS group, to a user who can only configure fiscal settings", async () => {
   const services = servicesFor(["fiscal_configuration_area"]);
   window.history.pushState(null, "", "/help");
 
