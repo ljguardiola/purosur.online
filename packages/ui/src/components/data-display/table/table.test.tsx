@@ -839,10 +839,8 @@ test("keeps the place of a row without a menu empty, so the buttons of other row
   const screen = await render(<TestTable {...commonProps} columns={actionColumns} />);
 
   expect(screen.getByRole("button", { name: "Más acciones" }).elements()).toHaveLength(1);
-  const firstRowCell = screen.getByRole("button", { name: "Edit" }).nth(0).element()
-    .parentElement as HTMLElement;
-  const placeholder = firstRowCell.lastElementChild as HTMLElement;
-  expect(placeholder.getAttribute("aria-hidden")).toBe("true");
+  const firstRowCell = screen.getByRole("button", { name: "Edit" }).nth(0).element().closest("td");
+  const placeholder = firstRowCell?.querySelector('span[aria-hidden="true"]') as HTMLElement;
   const rect = placeholder.getBoundingClientRect();
   expect(rect.width).toBeGreaterThan(37);
   expect(rect.width).toBeLessThan(39);
