@@ -6,6 +6,7 @@ import {
   parseAmountCents,
   parseWeightThousandths,
 } from "@purosur/ui";
+import { ownEntry } from "../platform/own-entry";
 import type { PaymentForReturn, SaleForReturn, SaleLineForReturn } from "./return-sale";
 import type {
   ReturnDispositionValue,
@@ -67,7 +68,7 @@ export function changeLine(
   lineId: string,
   change: Partial<ReturnDraftLine>,
 ): ReturnDraft {
-  const line = draft[lineId];
+  const line = ownEntry(draft, lineId);
   if (line === undefined) {
     return draft;
   }
@@ -95,7 +96,7 @@ function quantityOf(line: SaleLineForReturn, drafted: ReturnDraftLine): number {
 
 export function draftLinesFor(sale: SaleForReturn, draft: ReturnDraft): ReturnDraftLineBody[] {
   return sale.lines.flatMap((line) => {
-    const drafted = draft[line.id];
+    const drafted = ownEntry(draft, line.id);
     return drafted === undefined
       ? []
       : [
@@ -119,7 +120,7 @@ export function refundTextsFor(
 ): PaymentRefundText[] {
   const firstEligible = payments.find(({ eligible }) => eligible);
   return payments.map((payment) => {
-    const edited = edits[payment.payment_id];
+    const edited = ownEntry(edits, payment.payment_id);
     if (edited !== undefined) {
       return { payment, text: edited };
     }
