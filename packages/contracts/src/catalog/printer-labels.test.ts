@@ -14,9 +14,14 @@ function answer(overrides: Record<string, unknown> = {}): Record<string, unknown
   };
 }
 
-function firstIssuePath(body: unknown): unknown[] | undefined {
+function firstIssue(body: unknown): { path: unknown[]; message: string } | undefined {
   const result = printerLabelsSchema.safeParse(body);
-  return result.success ? undefined : result.error.issues[0]?.path;
+  const issue = result.success ? undefined : result.error.issues[0];
+  return issue && { path: issue.path, message: issue.message };
+}
+
+function firstIssuePath(body: unknown): unknown[] | undefined {
+  return firstIssue(body)?.path;
 }
 
 describe("printerLabelsSchema", () => {
@@ -43,6 +48,27 @@ describe("printerLabelsSchema", () => {
 
   it.each([0, -8, 12, 2.5, "16"])("refuses a width of %s dots", (widthDots) => {
     expect(printerLabelsSchema.safeParse(answer({ widthDots })).success).toBe(false);
+  });
+
+  it("says a width that is not a whole number of bytes is not a multiple of 8", () => {
+    const body = answer({
+      widthDots: 12,
+      heightDots: 4,
+      labels: [{ copies: 1, rows: rasterOf(6) }],
+    });
+
+    expect(firstIssue(body)).toEqual({
+      path: ["widthDots"],
+      message: "widthDots must be a multiple of 8",
+    });
+  });
+
+  it("says what a raster of the wrong length should hold", () => {
+    const labels = [{ copies: 1, rows: rasterOf(5) }];
+
+    expect(firstIssue(answer({ labels }))?.message).toBe(
+      "rows must hold widthDots / 8 bytes for each of heightDots rows",
+    );
   });
 
   it.each([0, -1, 1.5, "3"])("refuses a height of %s dots", (heightDots) => {
