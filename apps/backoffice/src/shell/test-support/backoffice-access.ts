@@ -13,7 +13,7 @@ const EVERY_CAPABILITY: Record<Capability, true> = {
   prices_area: true,
   promotions: true,
   catalog_area: true,
-  cash_area: true,
+  fiscal_configuration_area: true,
   alerts_area: true,
   close_alerts_manually: true,
   registers_area: true,

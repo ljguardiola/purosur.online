@@ -65,7 +65,7 @@ test("opens the exceptionality from the FISCAL group for a user who sees fiscal 
 });
 
 test("does not offer the exceptionality to a user who cannot see fiscal information", async () => {
-  const services = servicesFor(["cash_area"]);
+  const services = servicesFor(["fiscal_configuration_area"]);
   window.history.pushState(null, "", "/points-of-sale");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -76,7 +76,7 @@ test("does not offer the exceptionality to a user who cannot see fiscal informat
 });
 
 test("sends a user who cannot see fiscal information and opens /exceptionality to Mi cuenta, without loading it", async () => {
-  const services = servicesFor(["cash_area"]);
+  const services = servicesFor(["fiscal_configuration_area"]);
   window.history.pushState(null, "", "/exceptionality");
 
   const screen = await render(<App help={emptyHelp} services={services} />);

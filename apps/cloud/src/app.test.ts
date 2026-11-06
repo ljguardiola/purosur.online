@@ -2777,37 +2777,37 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/fiscal-settings/issuer-identification",
-        access: capabilityAccess("cash_area"),
+        access: capabilityAccess("fiscal_configuration_area"),
       },
       {
         method: "PUT",
         url: "/api/fiscal-settings/issuer-identification",
-        access: capabilityAccess("cash_area"),
+        access: capabilityAccess("fiscal_configuration_area"),
       },
       {
         method: "GET",
         url: "/api/buyer-identification-thresholds",
-        access: capabilityAccess("cash_area"),
+        access: capabilityAccess("fiscal_configuration_area"),
       },
       {
         method: "POST",
         url: "/api/buyer-identification-thresholds",
-        access: capabilityAccess("cash_area"),
+        access: capabilityAccess("fiscal_configuration_area"),
       },
       {
         method: "GET",
         url: "/api/fiscal-addresses",
-        access: capabilityAccess("cash_area"),
+        access: capabilityAccess("fiscal_configuration_area"),
       },
       {
         method: "POST",
         url: "/api/fiscal-addresses",
-        access: capabilityAccess("cash_area"),
+        access: capabilityAccess("fiscal_configuration_area"),
       },
       {
         method: "PUT",
         url: "/api/fiscal-addresses/:id",
-        access: capabilityAccess("cash_area"),
+        access: capabilityAccess("fiscal_configuration_area"),
       },
       {
         method: "GET",
@@ -3484,12 +3484,12 @@ describe("the route access inventory", () => {
       {
         method: "PUT",
         url: "/api/registers/:id/point-terminal",
-        access: capabilityAccess("cash_area"),
+        access: capabilityAccess("fiscal_configuration_area"),
       },
       {
         method: "PUT",
         url: "/api/registers/:id/qr-point-of-sale",
-        access: capabilityAccess("cash_area"),
+        access: capabilityAccess("fiscal_configuration_area"),
       },
       {
         method: "GET",
@@ -3579,12 +3579,12 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/registers/points-of-sale",
-        access: capabilityAccess("cash_area"),
+        access: capabilityAccess("fiscal_configuration_area"),
       },
       {
         method: "GET",
         url: "/api/registers/fortnight-presentations",
-        access: capabilityAccess("cash_area"),
+        access: capabilityAccess("fiscal_configuration_area"),
       },
       {
         method: "GET",
@@ -3629,42 +3629,42 @@ describe("the route access inventory", () => {
       {
         method: "POST",
         url: "/api/registers/fortnight-presentations/rejected-document-remedies",
-        access: capabilityAccess("cash_area"),
+        access: capabilityAccess("fiscal_configuration_area"),
       },
       {
         method: "POST",
         url: "/api/registers/fortnight-presentations/revoked-installation-confirmations",
-        access: capabilityAccess("cash_area"),
+        access: capabilityAccess("fiscal_configuration_area"),
       },
       {
         method: "GET",
         url: "/api/registers/buyer-tax-statuses",
-        access: capabilityAccess("cash_area"),
+        access: capabilityAccess("fiscal_configuration_area"),
       },
       {
         method: "GET",
         url: "/api/registers/clock-corrections",
-        access: capabilityAccess("cash_area"),
+        access: capabilityAccess("fiscal_configuration_area"),
       },
       {
         method: "PUT",
         url: "/api/registers/:id/point-of-sale",
-        access: capabilityAccess("cash_area"),
+        access: capabilityAccess("fiscal_configuration_area"),
       },
       {
         method: "PUT",
         url: "/api/registers/:id/offline-point-of-sale",
-        access: capabilityAccess("cash_area"),
+        access: capabilityAccess("fiscal_configuration_area"),
       },
       {
         method: "GET",
         url: "/api/registers/offline-points-of-sale",
-        access: capabilityAccess("cash_area"),
+        access: capabilityAccess("fiscal_configuration_area"),
       },
       {
         method: "POST",
         url: "/api/registers/offline-points-of-sale/:number/retirement",
-        access: capabilityAccess("cash_area"),
+        access: capabilityAccess("fiscal_configuration_area"),
       },
       { method: "GET", url: "/api/health", access: PUBLIC_ACCESS },
       {

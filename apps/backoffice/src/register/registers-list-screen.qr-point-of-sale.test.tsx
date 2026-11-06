@@ -99,7 +99,7 @@ test("offers the QR point of sale action only to who may assign it", async () =>
   const withIt = await renderScreen(
     services,
     () => {},
-    accessWith("registers_area", "enroll_registers", "cash_area"),
+    accessWith("registers_area", "enroll_registers", "fiscal_configuration_area"),
   );
   await expect
     .element(withIt.getByRole("button", { name: "Asignar QR de Mercado Pago a Caja 1" }))

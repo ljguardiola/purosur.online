@@ -16,7 +16,7 @@ const CAPABILITIES_GRANTED_BY: readonly [PermissionKey, readonly Capability[]][]
   ["manage_products_and_categories", ["products_and_categories", "catalog_area"]],
   ["manage_prices_and_review", ["prices_area", "catalog_area"]],
   ["manage_promotions", ["promotions", "catalog_area"]],
-  ["change_fiscal_configuration", ["cash_area"]],
+  ["change_fiscal_configuration", ["fiscal_configuration_area"]],
   ["view_branch_alerts", ["alerts_area"]],
   ["view_all_alerts", ["alerts_area"]],
   ["dismiss_alerts_manually", ["close_alerts_manually"]],

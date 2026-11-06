@@ -90,7 +90,7 @@ test("opens the refunds without an API from the section list for a user who only
 });
 
 test("keeps opening the points of sale from the Caja item, without offering the refunds, to a user who cannot confirm them", async () => {
-  const services = refundsServices(["cash_area"]);
+  const services = refundsServices(["fiscal_configuration_area"]);
   window.history.pushState(null, "", "/help");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -106,7 +106,7 @@ test("keeps opening the points of sale from the Caja item, without offering the 
 });
 
 test("offers every section of Caja to a user who holds both capabilities", async () => {
-  const services = refundsServices(["cash_area", "refunds_area"]);
+  const services = refundsServices(["fiscal_configuration_area", "refunds_area"]);
   window.history.pushState(null, "", "/points-of-sale");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -131,7 +131,7 @@ test("hides the Caja item for a user with neither capability", async () => {
 test.each(["/refunds/mercado-pago", "/refunds/outside-the-system"])(
   "sends a user who cannot confirm refunds and opens %s to Mi cuenta",
   async (path) => {
-    const services = refundsServices(["cash_area"]);
+    const services = refundsServices(["fiscal_configuration_area"]);
     window.history.pushState(null, "", path);
 
     const screen = await render(<App help={emptyHelp} services={services} />);
