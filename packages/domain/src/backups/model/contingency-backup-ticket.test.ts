@@ -1,7 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import type { FiscalEmissionMode } from "../../fiscal/index.js";
 import {
+  type CloudLinkReading,
   CONTINGENCY_BACKUP_OPERATIONS,
   CONTINGENCY_BACKUP_PRINT_FAILURE_REASONS,
   CONTINGENCY_BACKUP_TICKET_STANDINGS,
@@ -13,10 +13,16 @@ import {
   paidSaleCancellationLeavesBackupTicket,
 } from "./contingency-backup-ticket.js";
 
-const REAL_TIME: FiscalEmissionMode = { kind: "real_time" };
-const OFFLINE: FiscalEmissionMode = { kind: "offline_code", cause: "no_connectivity" };
-const DEFERRING: FiscalEmissionMode = { kind: "deferring", reason: "deferred_backlog" };
 const AT = new Date("2026-10-14T15:00:00.000Z");
+const REACHING: CloudLinkReading = {
+  lastHealthCheckOkAt: new Date(AT.getTime() - 1_000),
+  at: AT,
+};
+const STALE: CloudLinkReading = {
+  lastHealthCheckOkAt: new Date(AT.getTime() - 60 * 60_000),
+  at: AT,
+};
+const NEVER_CHECKED: CloudLinkReading = { lastHealthCheckOkAt: null, at: AT };
 
 function ticket(
   overrides: Partial<ContingencyBackupTicketRecord> = {},
@@ -78,28 +84,37 @@ describe("CONTINGENCY_BACKUP_TICKET_STANDINGS", () => {
 describe("needsContingencyBackupTicket", () => {
   const range = { firstDeviceSeq: 5, lastDeviceSeq: 7 };
 
-  it("needs a ticket when the operation wrote events and a mode around it was offline", () => {
-    expect(needsContingencyBackupTicket({ modesAround: [REAL_TIME, OFFLINE], range })).toBe(true);
+  it("needs a ticket when the operation wrote events and a reading around it was beyond the health check horizon", () => {
+    expect(needsContingencyBackupTicket({ cloudLinkAround: [REACHING, STALE], range })).toBe(true);
   });
 
-  it("needs a ticket when a mode around the operation was deferring", () => {
-    expect(needsContingencyBackupTicket({ modesAround: [DEFERRING], range })).toBe(true);
+  it("needs a ticket when a reading around the operation had no health check at all", () => {
+    expect(needsContingencyBackupTicket({ cloudLinkAround: [NEVER_CHECKED], range })).toBe(true);
   });
 
-  it("needs no ticket when every mode around the operation was real time", () => {
-    expect(needsContingencyBackupTicket({ modesAround: [REAL_TIME, REAL_TIME], range })).toBe(
+  it("judges each reading against its own time", () => {
+    const earlier = new Date(AT.getTime() - 60_000);
+    const reachingThen = { lastHealthCheckOkAt: new Date(earlier.getTime() - 1_000), at: earlier };
+
+    expect(needsContingencyBackupTicket({ cloudLinkAround: [reachingThen, REACHING], range })).toBe(
       false,
     );
   });
 
-  it("needs no ticket when no mode was seen", () => {
-    expect(needsContingencyBackupTicket({ modesAround: [], range })).toBe(false);
+  it("needs no ticket when every reading around the operation was within the horizon", () => {
+    expect(needsContingencyBackupTicket({ cloudLinkAround: [REACHING, REACHING], range })).toBe(
+      false,
+    );
+  });
+
+  it("needs no ticket when no reading was taken", () => {
+    expect(needsContingencyBackupTicket({ cloudLinkAround: [], range })).toBe(false);
   });
 
   it("needs no ticket when the operation appended no events", () => {
     expect(
       needsContingencyBackupTicket({
-        modesAround: [OFFLINE],
+        cloudLinkAround: [NEVER_CHECKED],
         range: { firstDeviceSeq: 8, lastDeviceSeq: 7 },
       }),
     ).toBe(false);
@@ -108,7 +123,7 @@ describe("needsContingencyBackupTicket", () => {
   it("needs a ticket for a single event", () => {
     expect(
       needsContingencyBackupTicket({
-        modesAround: [OFFLINE],
+        cloudLinkAround: [NEVER_CHECKED],
         range: { firstDeviceSeq: 7, lastDeviceSeq: 7 },
       }),
     ).toBe(true);

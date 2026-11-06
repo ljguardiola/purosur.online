@@ -7,14 +7,16 @@ export interface FiscalOnlineSignalEvidence {
   arcaReachable: boolean;
 }
 
-export function isRegisterFiscallyOnline(
-  { lastHealthCheckOkAt, tokenValid, arcaReachable }: FiscalOnlineSignalEvidence,
+export function isRegisterReachingCloud(
+  { lastHealthCheckOkAt }: Pick<FiscalOnlineSignalEvidence, "lastHealthCheckOkAt">,
   now: Date,
 ): boolean {
   return (
     lastHealthCheckOkAt !== null &&
-    now.getTime() - lastHealthCheckOkAt.getTime() <= REGISTER_HEALTH_CHECK_HORIZON_MS &&
-    tokenValid &&
-    arcaReachable
+    now.getTime() - lastHealthCheckOkAt.getTime() <= REGISTER_HEALTH_CHECK_HORIZON_MS
   );
+}
+
+export function isRegisterFiscallyOnline(evidence: FiscalOnlineSignalEvidence, now: Date): boolean {
+  return isRegisterReachingCloud(evidence, now) && evidence.tokenValid && evidence.arcaReachable;
 }

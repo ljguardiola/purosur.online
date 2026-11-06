@@ -1,33 +1,37 @@
-import type { FiscalEmissionMode } from "@purosur/domain";
+import type { CloudLinkReading } from "@purosur/domain";
 import type { RecordContingencyBackupTicketInput } from "@purosur/domain/backups/use-cases";
 import { describe, expect, it, vi } from "vitest";
 import { createTicketedOperations } from "./ticketed-operation";
 
-const REAL_TIME: FiscalEmissionMode = { kind: "real_time" };
-const OFFLINE: FiscalEmissionMode = { kind: "offline_code", cause: "no_connectivity" };
+const AT = new Date("2026-10-14T15:00:00.000Z");
+const REACHABLE: CloudLinkReading = {
+  lastHealthCheckOkAt: new Date(AT.getTime() - 1_000),
+  at: AT,
+};
+const UNREACHABLE: CloudLinkReading = { lastHealthCheckOkAt: null, at: AT };
 
 function setup({
   seqs = [10, 12],
-  modes = [REAL_TIME, OFFLINE],
+  links = [REACHABLE, UNREACHABLE],
 }: {
   seqs?: number[];
-  modes?: FiscalEmissionMode[];
+  links?: CloudLinkReading[];
 } = {}) {
   const log: string[] = [];
   const recorded: RecordContingencyBackupTicketInput[] = [];
   const reported: { context: string; error: unknown }[] = [];
   const state = { recordFails: false, readFails: false };
   const remainingSeqs = [...seqs];
-  const remainingModes = [...modes];
+  const remainingLinks = [...links];
   const ticketing = createTicketedOperations({
     readLastDeviceSeq: () => {
       if (state.readFails) throw new Error("the database is locked");
       log.push("read seq");
       return remainingSeqs.shift() ?? 0;
     },
-    readEmissionMode: () => {
-      log.push("read mode");
-      return remainingModes.shift() ?? REAL_TIME;
+    readCloudLink: () => {
+      log.push("read cloud link");
+      return remainingLinks.shift() ?? REACHABLE;
     },
     record: async (input) => {
       log.push("record");
@@ -40,8 +44,8 @@ function setup({
   return { ticketing, log, recorded, reported, state };
 }
 
-describe("an operation that leaves a ticket in a connectivity gap", () => {
-  it("records the events it appended, with the modes around it and its subject, then kicks the printing", async () => {
+describe("an operation that leaves a ticket while the register does not reach the cloud", () => {
+  it("records the events it appended, with the cloud links around it and its subject, then kicks the printing", async () => {
     const { ticketing, recorded, log } = setup();
     const operation = ticketing.ticketed(
       "sale",
@@ -56,7 +60,7 @@ describe("an operation that leaves a ticket in a connectivity gap", () => {
       {
         operation: "sale",
         subjectId: "sale-1",
-        modesAround: [REAL_TIME, OFFLINE],
+        cloudLinkAround: [REACHABLE, UNREACHABLE],
         range: { firstDeviceSeq: 11, lastDeviceSeq: 12 },
       },
     ]);
@@ -96,7 +100,7 @@ describe("an operation that leaves a ticket in a connectivity gap", () => {
     ]);
   });
 
-  it("reads the last sequence number and the mode before the operation and again after it", async () => {
+  it("reads the last sequence number and the cloud link before the operation and again after it", async () => {
     const { ticketing, log } = setup();
     const operation = ticketing.ticketed("cash_movement", async () => {
       log.push("operation");
@@ -107,10 +111,10 @@ describe("an operation that leaves a ticket in a connectivity gap", () => {
 
     expect(log.slice(0, 5)).toEqual([
       "read seq",
-      "read mode",
+      "read cloud link",
       "operation",
       "read seq",
-      "read mode",
+      "read cloud link",
     ]);
   });
 
@@ -184,7 +188,7 @@ describe("an operation that leaves a ticket in a connectivity gap", () => {
   });
 });
 
-describe("a step that completes at once and leaves a ticket in a connectivity gap", () => {
+describe("a step that completes at once and leaves a ticket while the register does not reach the cloud", () => {
   it("answers at once and records the events it appended, with its subject, then kicks the printing", async () => {
     const { ticketing, recorded, log } = setup();
     const settle = ticketing.ticketedNow(
@@ -205,7 +209,7 @@ describe("a step that completes at once and leaves a ticket in a connectivity ga
       {
         operation: "sale",
         subjectId: "sale-of-pay-1",
-        modesAround: [REAL_TIME, OFFLINE],
+        cloudLinkAround: [REACHABLE, UNREACHABLE],
         range: { firstDeviceSeq: 11, lastDeviceSeq: 12 },
       },
     ]);
@@ -238,7 +242,7 @@ describe("a step that completes at once and leaves a ticket in a connectivity ga
   });
 });
 
-describe("a settlement that leaves a sale's ticket in a connectivity gap", () => {
+describe("a settlement that leaves a sale's ticket while the register does not reach the cloud", () => {
   it("records a sale ticket of the sale it completes", async () => {
     const { ticketing, recorded } = setup();
     const settle = ticketing.ticketedSettlement((paymentTransactionId: string) => ({
@@ -285,7 +289,7 @@ describe("an operation whose ticket covers only some of its steps", () => {
       {
         operation: "reprint",
         subjectId: "sale-1",
-        modesAround: [REAL_TIME, OFFLINE],
+        cloudLinkAround: [REACHABLE, UNREACHABLE],
         range: { firstDeviceSeq: 11, lastDeviceSeq: 11 },
       },
     ]);
@@ -296,7 +300,7 @@ describe("an operation whose ticket covers only some of its steps", () => {
   it("records one ticket over consecutive steps no other operation appended events between", async () => {
     const { ticketing, recorded } = setup({
       seqs: [10, 11, 11, 13],
-      modes: [REAL_TIME, REAL_TIME, OFFLINE, REAL_TIME],
+      links: [REACHABLE, REACHABLE, UNREACHABLE, REACHABLE],
     });
 
     await ticketing.ticketedSteps("reprint", "sale-1", async (ticketedStep) => {
@@ -308,7 +312,7 @@ describe("an operation whose ticket covers only some of its steps", () => {
       {
         operation: "reprint",
         subjectId: "sale-1",
-        modesAround: [REAL_TIME, REAL_TIME, OFFLINE, REAL_TIME],
+        cloudLinkAround: [REACHABLE, REACHABLE, UNREACHABLE, REACHABLE],
         range: { firstDeviceSeq: 11, lastDeviceSeq: 13 },
       },
     ]);
@@ -317,7 +321,7 @@ describe("an operation whose ticket covers only some of its steps", () => {
   it("records a separate ticket for each run of steps another operation appended events between", async () => {
     const { ticketing, recorded } = setup({
       seqs: [10, 11, 14, 15],
-      modes: [OFFLINE, OFFLINE, OFFLINE, OFFLINE],
+      links: [UNREACHABLE, UNREACHABLE, UNREACHABLE, UNREACHABLE],
     });
 
     await ticketing.ticketedSteps("reprint", "sale-1", async (ticketedStep) => {
@@ -334,7 +338,7 @@ describe("an operation whose ticket covers only some of its steps", () => {
   it("records nothing for a step that appended no event", async () => {
     const { ticketing, recorded, log } = setup({
       seqs: [10, 10, 12, 12],
-      modes: [OFFLINE, OFFLINE, OFFLINE, OFFLINE],
+      links: [UNREACHABLE, UNREACHABLE, UNREACHABLE, UNREACHABLE],
     });
 
     await ticketing.ticketedSteps("reprint", "sale-1", async (ticketedStep) => {

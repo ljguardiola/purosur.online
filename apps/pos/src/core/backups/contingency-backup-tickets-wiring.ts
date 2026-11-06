@@ -1,4 +1,4 @@
-import type { FiscalEmissionMode, ZoneRulesSource } from "@purosur/domain";
+import type { CloudLinkReading, ZoneRulesSource } from "@purosur/domain";
 import {
   printNextContingencyBackupTicket,
   recordContingencyBackupTicket,
@@ -28,7 +28,7 @@ export interface ContingencyBackupTicketsDeps {
   ids: { next: () => string };
   readContingencyTicketKey: () => Promise<{ version: number; key: string } | undefined>;
   appVersion: string | undefined;
-  readEmissionMode: () => FiscalEmissionMode;
+  readCloudLink: () => CloudLinkReading;
   printers: ReceiptPrinters;
   scheduleNext: (run: () => void, delayMs: number) => () => void;
   intervalMs: number;
@@ -52,7 +52,7 @@ export function createContingencyBackupTickets({
   ids,
   readContingencyTicketKey,
   appVersion,
-  readEmissionMode,
+  readCloudLink,
   printers,
   scheduleNext,
   intervalMs,
@@ -85,7 +85,7 @@ export function createContingencyBackupTickets({
       database
         .prepare<[], { last_device_seq: number }>("SELECT last_device_seq FROM sync_state")
         .get()?.last_device_seq ?? 0,
-    readEmissionMode,
+    readCloudLink,
     record: (input) => recordContingencyBackupTicket({ ids, clock, sealer, store }, input),
     afterRecorded: () => void worker.kick(),
     reportFailure,
