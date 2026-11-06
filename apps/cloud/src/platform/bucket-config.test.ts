@@ -35,6 +35,12 @@ describe("resolveBucketConfig", () => {
     expect(resolveBucketConfig(otherOnly, "EXAMPLE")).toBeUndefined();
   });
 
+  it("reads only the variables the environment holds itself", () => {
+    const inherited: Record<string, string> = Object.create(COMPLETE);
+
+    expect(resolveBucketConfig(inherited, "EXAMPLE")).toBeUndefined();
+  });
+
   it.each(Object.keys(COMPLETE))("refuses to start without %s when the others are set", (name) => {
     const { [name]: _removed, ...partial } = COMPLETE as Record<string, string>;
 

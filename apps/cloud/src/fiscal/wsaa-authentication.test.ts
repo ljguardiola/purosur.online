@@ -289,6 +289,15 @@ describe("wsaaEndpointOf", () => {
       'No WSAA endpoint for the ARCA environment "staging"',
     );
   });
+
+  it.each(["constructor", "toString", "__proto__"])(
+    "refuses %s as it refuses any other environment it does not know",
+    (environment) => {
+      expect(() => wsaaEndpointOf(environment)).toThrow(
+        `No WSAA endpoint for the ARCA environment "${environment}"`,
+      );
+    },
+  );
 });
 
 describe("over a host offering a 1024-bit Diffie-Hellman group", () => {
