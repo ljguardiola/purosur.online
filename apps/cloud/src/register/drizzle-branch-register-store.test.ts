@@ -1,7 +1,13 @@
 import { emitEnrollmentCode } from "@purosur/domain/register/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { afterAll, beforeAll, beforeEach, describe, expect, expectTypeOf, it } from "vitest";
-import { auditLog, locations, registerEnrollmentCodes, registers, users } from "../platform/db/schema.js";
+import {
+  auditLog,
+  locations,
+  registerEnrollmentCodes,
+  registers,
+  users,
+} from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleBranchRegisterStore } from "./drizzle-branch-register-store.js";

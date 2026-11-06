@@ -239,9 +239,7 @@ describe("branchRegisters of DrizzleBranchRegisterReader", () => {
       loadedBy: actor?.id ?? "",
     });
 
-    const [listed] = await new DrizzleBranchRegisterReader(db).branchRegisters(
-      locationId,
-    );
+    const [listed] = await new DrizzleBranchRegisterReader(db).branchRegisters(locationId);
 
     expect(
       listed?.installations.map(({ revokedAt, bitlockerKeyLoaded }) => [
