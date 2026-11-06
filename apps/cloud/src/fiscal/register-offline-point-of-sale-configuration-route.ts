@@ -56,7 +56,7 @@ export function registerRegisterOfflinePointOfSaleConfigurationRoute<
     "/registers/:id/offline-point-of-sale",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
-      config: { access: capabilityAccess("cash_area"), sessionSource },
+      config: { access: capabilityAccess("fiscal_configuration_area"), sessionSource },
     },
     async (request, reply) => {
       const ids = await readRecordIds(reply, request.params, ["id"]);

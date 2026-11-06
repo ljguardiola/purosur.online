@@ -9,7 +9,11 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
-import { canSeeCashArea, canSeeFiscalInformation, canSeeRefundsArea } from "./backoffice-access";
+import {
+  canSeeFiscalConfigurationArea,
+  canSeeFiscalInformation,
+  canSeeRefundsArea,
+} from "./backoffice-access";
 import { signedInRoute } from "./signed-in-route";
 
 export const cashAndFiscalAreaRoute = createRoute({
@@ -75,7 +79,7 @@ function CashAndFiscalArea() {
               </ul>
             </>
           )}
-          {(canSeeFiscalInformation(session) || canSeeCashArea(session)) && (
+          {(canSeeFiscalInformation(session) || canSeeFiscalConfigurationArea(session)) && (
             <>
               <p className="px-3 pt-3 pb-1 font-bold text-text-subtle text-caption tracking-xs">
                 FISCAL
@@ -101,7 +105,7 @@ function CashAndFiscalArea() {
                     />
                   </li>
                 )}
-                {canSeeCashArea(session) && (
+                {canSeeFiscalConfigurationArea(session) && (
                   <>
                     <li>
                       <SectionLink

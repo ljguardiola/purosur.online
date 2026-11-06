@@ -47,7 +47,7 @@ export function registerClockCorrectionsListRoute<TQueryResult extends PgQueryRe
     "/registers/clock-corrections",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
-      config: { access: capabilityAccess("cash_area"), sessionSource },
+      config: { access: capabilityAccess("fiscal_configuration_area"), sessionSource },
     },
     async (request, reply) => {
       const listed = await reader.listBranchClockCorrections(openSessionOf(request).locationId);

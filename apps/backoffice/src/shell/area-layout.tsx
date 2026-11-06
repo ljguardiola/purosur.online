@@ -26,9 +26,9 @@ import {
   canReadPurchaseOrders,
   canRecordPurchases,
   canSeeAlertsArea,
-  canSeeCashArea,
   canSeeCatalogArea,
   canSeeExpiringLots,
+  canSeeFiscalConfigurationArea,
   canSeeFiscalInformation,
   canSeeOrdersArea,
   canSeePricesArea,
@@ -100,7 +100,7 @@ export function AreaLayout({
                   : canManageBatches(session)
                     ? "/assembly-batches"
                     : "/initial-inventory";
-  const cashTarget = canSeeCashArea(session)
+  const cashTarget = canSeeFiscalConfigurationArea(session)
     ? "/points-of-sale"
     : canSeeRefundsArea(session)
       ? "/refunds/mercado-pago"
@@ -146,7 +146,7 @@ export function AreaLayout({
               active={area === "orders"}
             />
           )}
-          {(canSeeCashArea(session) ||
+          {(canSeeFiscalConfigurationArea(session) ||
             canSeeRefundsArea(session) ||
             canSeeFiscalInformation(session)) && (
             <AreaLink
