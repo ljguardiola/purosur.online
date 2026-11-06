@@ -17,7 +17,7 @@ export function SidePanel({ children, label, footer, header, width = "panel" }: 
     <aside
       id={panelId}
       aria-label={label}
-      className={`flex h-full flex-col bg-surface ${width === "panel" ? "w-98 shrink-0 border-l border-border" : "w-full"}`}
+      className={`flex h-full flex-col bg-surface ${width === "panel" ? "w-98 shrink-0 border-l border-border" : "min-h-0 w-full"}`}
     >
       {header === undefined ? null : <div className="shrink-0">{header}</div>}
       <div
