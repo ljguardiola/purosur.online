@@ -232,17 +232,13 @@ describe("the usage it reports", () => {
       }),
     );
 
-    expect(calls).toEqual([
-      { outcome: "completed", attempts: [attempt(SONNET, 100, 30, 7, 9)] },
-    ]);
+    expect(calls).toEqual([{ outcome: "completed", attempts: [attempt(SONNET, 100, 30, 7, 9)] }]);
   });
 
   it("counts a token kind the provider did not report as none", async () => {
     const calls = await callsReportedBy(() => streamedJsonResponse({ answer: "sí" }));
 
-    expect(calls).toEqual([
-      { outcome: "completed", attempts: [attempt(SONNET, 25, 40, 0, 0)] },
-    ]);
+    expect(calls).toEqual([{ outcome: "completed", attempts: [attempt(SONNET, 25, 40, 0, 0)] }]);
   });
 
   it("reports each attempt of the iterations under its own model, a fallback included", async () => {
@@ -313,9 +309,7 @@ describe("the usage it reports", () => {
       streamedAnswerResponse({ textParts: ["{"], stopReason: "max_tokens" }),
     );
 
-    expect(calls).toEqual([
-      { outcome: "cut_short", attempts: [attempt(SONNET, 25, 40)] },
-    ]);
+    expect(calls).toEqual([{ outcome: "cut_short", attempts: [attempt(SONNET, 25, 40)] }]);
   });
 
   it("reports an answer the model refused as cut short", async () => {
@@ -329,9 +323,7 @@ describe("the usage it reports", () => {
   it("reports an error that interrupts the stream as cut short with the tokens the stream started with", async () => {
     const calls = await callsReportedBy(streamInterruptedByErrorResponse);
 
-    expect(calls).toEqual([
-      { outcome: "cut_short", attempts: [attempt(SONNET, 25, 1)] },
-    ]);
+    expect(calls).toEqual([{ outcome: "cut_short", attempts: [attempt(SONNET, 25, 1)] }]);
   });
 
   it("reports a call the caller aborted mid-stream as cut short with the tokens so far", async () => {
@@ -341,9 +333,7 @@ describe("the usage it reports", () => {
       controller.signal,
     );
 
-    expect(calls).toEqual([
-      { outcome: "cut_short", attempts: [attempt(SONNET, 25, 1)] },
-    ]);
+    expect(calls).toEqual([{ outcome: "cut_short", attempts: [attempt(SONNET, 25, 1)] }]);
   });
 
   it.each([

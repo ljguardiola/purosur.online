@@ -18,11 +18,13 @@ import {
   type AnthropicFetch,
   anthropicClient,
   askForStructuredAnswer,
+  type PurchasingAiModel,
 } from "./anthropic-structured-call.js";
 import { declaresEncryption } from "./opens-as-pdf.js";
 import { webPageText } from "./web-page-text.js";
 
 const MAX_OUTPUT_TOKENS = 64_000;
+const PRICE_LIST_READING_MODEL: PurchasingAiModel = "claude-sonnet-5-5";
 const REQUEST_TIMEOUT_MS = 10 * 60 * 1000;
 const PAGES_PER_RANGE = 5;
 const RANGES_READ_AT_ONCE = 3;
@@ -463,6 +465,7 @@ export class AnthropicPriceListExtractor implements PriceListExtractor {
     onCall: OnAiCall,
   ): Promise<RangeReading> {
     const answer = await askForStructuredAnswer(this.client, {
+      model: PRICE_LIST_READING_MODEL,
       systemPrompt,
       content,
       format: proposedList,
