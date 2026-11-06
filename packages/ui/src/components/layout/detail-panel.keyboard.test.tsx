@@ -67,6 +67,27 @@ test("focus returns to the row that opened the record shown, even when both rows
   await expect.element(lastRow).toHaveFocus();
 });
 
+test("focus does not return to the row of an earlier record when the row that opened the record shown takes no focus", async () => {
+  const screen = await render(
+    <SuppliersArea
+      areaWidth={WIDE_AREA}
+      rows={[
+        { id: "proveedor-1", label: "Fila uno", supplier: "Distribuidora Norte" },
+        { id: "proveedor-2", label: "Fila dos", supplier: "Almacén Sur", focusedOnPress: false },
+      ]}
+    />,
+  );
+  const earlierRow = screen.getByRole("button", { name: "Fila uno" });
+  await earlierRow.click();
+  await screen.getByRole("button", { name: "Fila dos" }).click();
+  await expect.element(screen.getByRole("heading", { name: "Almacén Sur" })).toBeVisible();
+
+  await screen.getByRole("button", { name: "Cerrar" }).click();
+
+  expect(screen.getByRole("complementary").elements()).toHaveLength(0);
+  await expect.element(earlierRow).not.toHaveFocus();
+});
+
 test.each(modes)(
   "focus returns to the row that opened the record shown, not to a row Shift+Tab reaches from its title, $mode",
   async ({ areaWidth }) => {

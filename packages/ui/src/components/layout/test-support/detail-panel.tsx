@@ -4,7 +4,7 @@ import { Button } from "../../forms/button";
 import { Modal } from "../../overlays/modal";
 import { DetailPanel } from "../detail-panel";
 
-type SupplierRow = { id: string; label: string; supplier: string };
+type SupplierRow = { id: string; label: string; supplier: string; focusedOnPress?: false };
 
 const supplierRows: SupplierRow[] = [
   { id: "proveedor-1", label: "Distribuidora Norte", supplier: "Distribuidora Norte" },
@@ -35,7 +35,13 @@ export function SuppliersArea({
           {rows.map((row) => (
             <li key={row.id}>
               {rowButtons === "native" ? (
-                <button type="button" onClick={() => setOpenRow(row)}>
+                <button
+                  type="button"
+                  onMouseDown={
+                    row.focusedOnPress === false ? (event) => event.preventDefault() : undefined
+                  }
+                  onClick={() => setOpenRow(row)}
+                >
                   {row.label}
                 </button>
               ) : (
