@@ -140,7 +140,7 @@ test("opens a list's review from the list", async () => {
   );
 });
 
-test("counts the open alerts in the list's top bar and opens the alerts list from it", async () => {
+test("shows no open alerts count in the list's top bar", async () => {
   const services = ordersServices([]);
   vi.mocked(services.fetchSession).mockResolvedValue(openSession());
   vi.mocked(services.alertsOpenCountLink.fetchAlertsOverview).mockResolvedValue(threeOpenAlerts);
@@ -151,10 +151,10 @@ test("counts the open alerts in the list's top bar and opens the alerts list fro
   await expect
     .element(screen.getByRole("heading", { name: "Listas de proveedores", level: 1 }))
     .toBeVisible();
-  await userEvent.click(screen.getByRole("link", { name: "3 alertas abiertas" }));
-
-  expect(window.location.pathname).toBe("/alerts");
+  expect(services.alertsOpenCountLink.fetchAlertsOverview).not.toHaveBeenCalled();
+  expect(screen.getByText(/alertas? abiertas?/).query()).toBeNull();
 });
+
 
 test("lists the price comparison beside the supplier price lists for whoever compares prices", async () => {
   const services = ordersServices(["supplier_price_lists", "price_comparison", "orders_area"]);
