@@ -101,9 +101,9 @@ export function CredentialSectionsStub(props: UserCredentialSectionsProps) {
   );
 }
 
-export type RenderedTab = "data" | "credentials" | "status";
+type RenderedTab = "data" | "credentials" | "status";
 
-export function renderScreenAt(
+function renderScreenAt(
   tab: RenderedTab | undefined,
   services: UserDetailScreenServices,
   onSessionEnded: () => void = () => {},
