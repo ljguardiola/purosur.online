@@ -4,6 +4,7 @@ import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import { paletteColor, tokenRgb } from "../../test/token-colors";
+import { HOVER_DELAY_MS } from "../overlays/tooltip";
 import { ListFilter, type ListFilterProps } from "./list-filter";
 import type { Option } from "./option";
 
@@ -925,4 +926,22 @@ test("names a searchable filter's options button after its label, and shows that
   await userEvent.hover(screen.getByRole("button", { name: "Mostrar opciones de Marca" }));
 
   await expect.element(screen.getByRole("tooltip")).toHaveTextContent("Mostrar opciones de Marca");
+});
+
+test("shows no tooltip over the list a searchable filter's options button has just opened", async () => {
+  await page.viewport(1280, 900);
+  await cdp().send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 0, y: 0 });
+  const screen = await render(<ListFilter {...searchableProps()} />);
+
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  try {
+    await userEvent.click(screen.getByRole("button", { name: "Mostrar opciones de Marca" }));
+    await vi.advanceTimersByTimeAsync(HOVER_DELAY_MS * 2);
+
+    expect(screen.getByRole("listbox").elements()).toHaveLength(1);
+    expect(screen.getByRole("tooltip").elements()).toHaveLength(0);
+  } finally {
+    vi.runAllTimers();
+    vi.useRealTimers();
+  }
 });
