@@ -72,7 +72,12 @@ function Harness({ proposal, components, refusals, onUsedChange, onRequest }: Ha
 
 function renderField(options: Partial<HarnessProps> = {}) {
   const proposal = "proposal" in options ? options.proposal : mixPreview.proposal;
-  const { components = recipe.components, refusals = {}, onUsedChange = () => {}, onRequest = () => {} } = options;
+  const {
+    components = recipe.components,
+    refusals = {},
+    onUsedChange = () => {},
+    onRequest = () => {},
+  } = options;
   return render(
     <Harness
       proposal={proposal}
