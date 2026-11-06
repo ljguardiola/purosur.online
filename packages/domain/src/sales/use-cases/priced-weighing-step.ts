@@ -1,7 +1,7 @@
 import {
-  type ScaleReading,
   type ScaleWeighingStep,
   scaleWeighingStep,
+  type WeighingReading,
 } from "../../shared/index.js";
 import { mayBeSaleLineQuantity } from "../model/sale-line.js";
 
@@ -15,7 +15,7 @@ export type PricedWeighingStep =
   | UnsteadyWeighing;
 
 export function pricedWeighingStep(
-  reading: ScaleReading,
+  reading: WeighingReading,
   confirmedWeightThousandths: number | null,
   amountAt: (weightThousandths: number) => number,
 ): PricedWeighingStep {

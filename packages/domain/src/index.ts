@@ -1020,6 +1020,7 @@ export {
 } from "./sessions/index.js";
 export type {
   IsoWeekday,
+  LastStableReading,
   ReportPeriod,
   SalesDeniedReason,
   ZoneRules,
@@ -1051,6 +1052,7 @@ export {
   SALES_DENIED_REASONS,
   STORAGE_SALES_DENIED_REASONS,
   shiftCalendarDay,
+  steadyScaleReading,
   utcOffsetText,
 } from "./shared/index.js";
 export type {

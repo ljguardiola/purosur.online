@@ -4,6 +4,8 @@ export type ScaleReading =
   | { kind: "not_stable" }
   | { kind: "unavailable" };
 
+export type WeighingReading = ScaleReading | { kind: "held_stable"; weightThousandths: number };
+
 export interface Scale {
-  read(): Promise<ScaleReading>;
+  read(): Promise<WeighingReading>;
 }
