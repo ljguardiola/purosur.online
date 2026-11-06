@@ -820,7 +820,7 @@ function PeriodProbe({ onSubmit }: { onSubmit: (period: string) => Promise<void>
     },
     fields: { period: "period" },
     messages: { period: "Ingresá el período." },
-    onSubmit: ({ period }) => onSubmit(period ? `${period.start}..${period.end}` : ""),
+    onSubmit: ({ period }) => onSubmit(period),
   });
   return (
     <>
