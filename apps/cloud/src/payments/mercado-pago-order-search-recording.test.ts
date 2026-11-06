@@ -171,7 +171,7 @@ describe("recording Mercado Pago order searches", () => {
       "POST /v1/orders/ORDQR01/cancel",
       "POST /v1/orders/ORDPT01/cancel",
     ]);
-    expect(calls[0]?.headers.Authorization).toBe(`Bearer ${TOKEN}`);
+    expect(calls[0]?.headers["Authorization"]).toBe(`Bearer ${TOKEN}`);
     expect(JSON.parse(calls[1]?.body ?? "{}").type).toBe("qr");
     expect(JSON.parse(calls[2]?.body ?? "{}").type).toBe("point");
   });
@@ -194,7 +194,9 @@ describe("recording Mercado Pago order searches", () => {
     expect([...(missing?.searchParams.keys() ?? [])]).toEqual(["external_reference", "page_size"]);
     expect(invalid?.searchParams.get("begin_date")).toBe("not-a-date");
     expect(invalid?.searchParams.get("end_date")).toBe("2026-03-10T12:01:00.000Z");
-    expect(searches.every((call) => call.headers.Authorization === `Bearer ${TOKEN}`)).toBe(true);
+    expect(searches.every((call) => call.headers["Authorization"] === `Bearer ${TOKEN}`)).toBe(
+      true,
+    );
   });
 
   it("searches again after two seconds while the answer is an empty list, at most five searches", async () => {
@@ -209,7 +211,13 @@ describe("recording Mercado Pago order searches", () => {
 
     const report = await run(responder);
 
-    const qrSearches = calls.filter((call) => call.url.includes("external_reference=id-2&"));
+    const qrSearches = calls.filter((call) => {
+      const { searchParams } = new URL(call.url);
+      return (
+        searchParams.get("external_reference") === "id-2" &&
+        searchParams.get("begin_date")?.startsWith("2026") === true
+      );
+    });
     expect(qrSearches).toHaveLength(5);
     expect(waits).toEqual([2000, 2000, 2000, 2000]);
     expect(report.recordings.find(({ name }) => name === "qr-order-found")).toEqual({
@@ -501,7 +509,10 @@ describe("the settings of an order search recording", () => {
     ["a missing flag", ["--out", "/work/out", "--external-pos-id", "POS1"]],
     ["an unknown flag", [...args, "--other", "x"]],
     ["a duplicated flag", [...args, "--out", "/work/out2"]],
-    ["a flag without a value", ["--out", "/work/out", "--external-pos-id", "POS1", "--terminal-id"]],
+    [
+      "a flag without a value",
+      ["--out", "/work/out", "--external-pos-id", "POS1", "--terminal-id"],
+    ],
   ])("answers the usage for %s", (_name, argv) => {
     expect(orderSearchRecordingSettingsOf(argv, env, repositoryRoot)).toEqual({
       kind: "refused",

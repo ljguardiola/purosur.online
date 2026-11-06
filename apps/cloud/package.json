@@ -19,7 +19,8 @@
     "load-sample-data": "node dist/load-sample-data.js",
     "clear-sample-data": "node dist/clear-sample-data.js",
     "check:arca-test-environment": "node dist/check-arca-test-environment.js",
-    "record:arca-responses": "node dist/record-arca-responses.js"
+    "record:arca-responses": "node dist/record-arca-responses.js",
+    "record:mercado-pago-order-searches": "node dist/record-mercado-pago-order-searches.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.135.0",
