@@ -121,6 +121,24 @@ for (const variant of ["register", "backoffice"] as const) {
   });
 }
 
+for (const variant of ["register", "backoffice"] as const) {
+  test(`keeps the dash and the end right after the start, leaving the free space after the end in the ${variant} variant`, async () => {
+    const screen = await render(<Harness variant={variant} initial={FEBRUARY} />);
+    const group = fieldGroup(screen, "Period");
+    const segments = segmentsOf(group);
+    const startEdge = (segments[2] as HTMLElement).getBoundingClientRect().right;
+    const endStart = (segments[3] as HTMLElement).getBoundingClientRect().left;
+    const endEdge = (segments[5] as HTMLElement).getBoundingClientRect().right;
+    const groupRect = group.getBoundingClientRect();
+    const buttonRect = (group.querySelector("button") as HTMLElement).getBoundingClientRect();
+
+    expect(endStart - startEdge).toBeLessThan(40);
+    const freeSpace =
+      variant === "backoffice" ? buttonRect.left - endEdge : groupRect.right - endEdge;
+    expect(freeSpace).toBeGreaterThan(64);
+  });
+}
+
 test("reads a period typed day by day, the start first and then the end", async () => {
   const screen = await render(<Harness />);
   const group = fieldGroup(screen, "Period");
