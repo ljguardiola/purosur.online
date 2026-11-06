@@ -337,14 +337,14 @@ test("closes on Escape without choosing anything", async () => {
 test("opens from the chevron button", async () => {
   const screen = await render(<ComboBox {...baseProps()} />);
 
-  await screen.getByRole("button", { name: "Mostrar opciones" }).click();
+  await screen.getByRole("button", { name: "Mostrar opciones de Producto" }).click();
 
   await expect.element(screen.getByRole("listbox")).toBeVisible();
 });
 
 test("shows the select caret and never a search icon, closed or open", async () => {
   const screen = await render(<ComboBox {...baseProps()} />);
-  const button = screen.getByRole("button", { name: "Mostrar opciones" }).element();
+  const button = screen.getByRole("button", { name: "Mostrar opciones de Producto" }).element();
 
   expect(button.querySelector(".lucide-chevron-down")).not.toBeNull();
   expect(button.querySelector(".lucide-search")).toBeNull();
@@ -609,9 +609,11 @@ test("names the button that shows the options, and shows that name as a tooltip 
   await page.viewport(1280, 900);
   await cdp().send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 0, y: 0 });
   const screen = await render(<ComboBox {...baseProps()} />);
-  const chevron = screen.getByRole("button", { name: "Mostrar opciones" });
+  const chevron = screen.getByRole("button", { name: "Mostrar opciones de Producto" });
 
   await userEvent.hover(chevron);
 
-  await expect.element(screen.getByRole("tooltip")).toHaveTextContent("Mostrar opciones");
+  await expect
+    .element(screen.getByRole("tooltip"))
+    .toHaveTextContent("Mostrar opciones de Producto");
 });
