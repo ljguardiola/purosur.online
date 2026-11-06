@@ -23,10 +23,6 @@ export function refuseWithout(
   canSee: (access: BackofficeAccess) => boolean,
 ): void {
   if (!canSee(access)) {
-    refuse();
+    throw redirect({ to: "/", search: { account: "credentials" } });
   }
-}
-
-export function refuse(): never {
-  throw redirect({ to: "/", search: { account: "credentials" } });
 }

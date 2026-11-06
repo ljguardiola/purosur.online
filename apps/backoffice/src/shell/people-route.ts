@@ -1,11 +1,10 @@
 import { createRoute, redirect } from "@tanstack/react-router";
 import { z } from "zod";
-import { pagePartsFor } from "../platform/page-parts";
-import { canManageUsers } from "./backoffice-access";
+import { canManageUsers, canSeePeopleArea } from "./backoffice-access";
 import { lazyScreen } from "./lazy-screen";
 import { PEOPLE_TABS, type PeopleTab } from "./people-tabs";
 import { settingsAreaRoute } from "./settings-area";
-import { refuse } from "./signed-in-route";
+import { refuseWithout } from "./signed-in-route";
 
 const peopleSearch = z.object({
   assistant: z.enum(["compromise-response"]).optional().catch(undefined),
@@ -16,10 +15,7 @@ export const peopleRoute = createRoute({
   path: "people",
   validateSearch: peopleSearch,
   beforeLoad: ({ context: { session }, search }) => {
-    const parts = pagePartsFor(session, PEOPLE_TABS);
-    if (parts.kind === "hidden") {
-      refuse();
-    }
+    refuseWithout(session, canSeePeopleArea);
     if (search.assistant !== undefined && !canManageUsers(session)) {
       throw redirect({
         to: ".",
@@ -27,7 +23,9 @@ export const peopleRoute = createRoute({
         replace: true,
       });
     }
-    return { peopleTabs: parts.visible };
+    return {
+      peopleTabs: PEOPLE_TABS.filter((tab) => tab.isVisibleTo(session)).map((tab) => tab.key),
+    };
   },
   component: lazyScreen(() => import("./people-page"), "PeoplePage"),
 });
