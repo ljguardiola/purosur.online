@@ -8,7 +8,6 @@ import type { AiCallUsage } from "@purosur/domain/purchasing/use-cases";
 import { PDFDocument } from "pdf-lib";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { AnthropicPriceListExtractor } from "./anthropic-price-list-extractor.js";
-import { PURCHASING_AI_MODEL as SUPPLIER_PRICE_LIST_READING_MODEL } from "./anthropic-structured-call.js";
 import {
   apiErrorResponse,
   streamEndingWithoutAMessageResponse,
@@ -85,10 +84,9 @@ describe("the request the extractor sends", () => {
     expect(new URL(request.url).pathname).toBe("/v1/messages");
     expect(request.headers.get("x-api-key")).toBe("fictional-api-key-for-tests");
     expect(request.body).toMatchObject({
-      model: SUPPLIER_PRICE_LIST_READING_MODEL,
+      model: "claude-sonnet-5-5",
       stream: true,
     });
-    expect(SUPPLIER_PRICE_LIST_READING_MODEL).toBe("claude-sonnet-5-5");
   });
 
   it("carries the PDF and a fixed instruction as its only content, and no tools", async () => {
@@ -1256,7 +1254,7 @@ describe("the calls the extractor reports", () => {
     outcome: "completed",
     attempts: [
       {
-        model: SUPPLIER_PRICE_LIST_READING_MODEL,
+        model: "claude-sonnet-5-5",
         inputTokens: 25,
         outputTokens: 40,
         cacheWriteTokens: 0,

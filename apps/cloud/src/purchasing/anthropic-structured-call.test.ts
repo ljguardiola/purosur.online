@@ -6,7 +6,7 @@ import {
   type AnthropicFetch,
   anthropicClient,
   askForStructuredAnswer,
-  PURCHASING_AI_MODEL,
+  type PurchasingAiModel,
 } from "./anthropic-structured-call.js";
 import {
   apiErrorResponse,
@@ -23,6 +23,8 @@ interface RecordedRequest {
 }
 
 const FORMAT = z.object({ answer: z.string() });
+const SONNET = "claude-sonnet-5-5";
+const HAIKU = "claude-haiku-5-5";
 
 function clientAnswering(respond: () => Response | Promise<Response>) {
   const requests: RecordedRequest[] = [];
@@ -46,8 +48,10 @@ function ask(
   client: ReturnType<typeof anthropicClient>,
   signal?: AbortSignal,
   onCall: (usage: AiCallUsage) => void = () => {},
+  model: PurchasingAiModel = SONNET,
 ) {
   return askForStructuredAnswer(client, {
+    model,
     systemPrompt: "Answer with the format given.",
     content: [{ type: "text", text: "Yerba 1 kg" }],
     format: FORMAT,
@@ -61,10 +65,11 @@ function ask(
 async function callsReportedBy(
   respond: () => Response | Promise<Response>,
   signal?: AbortSignal,
+  model: PurchasingAiModel = SONNET,
 ): Promise<AiCallUsage[]> {
   const { client } = clientAnswering(respond);
   const calls: AiCallUsage[] = [];
-  await ask(client, signal, (usage) => calls.push(usage));
+  await ask(client, signal, (usage) => calls.push(usage), model);
   return calls;
 }
 
@@ -79,7 +84,7 @@ function attempt(
 }
 
 describe("the request it sends", () => {
-  it("streams one message to the purchasing model with the key, limits, effort and format", async () => {
+  it("streams one message to the model it is asked for with the key, limits, effort and format", async () => {
     const { client, requests } = clientAnswering(() => streamedJsonResponse({ answer: "sí" }));
 
     await ask(client);
@@ -89,12 +94,38 @@ describe("the request it sends", () => {
     expect(new URL(request.url).pathname).toBe("/v1/messages");
     expect(request.headers.get("x-api-key")).toBe("fictional-api-key-for-tests");
     expect(request.body).toMatchObject({
-      model: PURCHASING_AI_MODEL,
+      model: SONNET,
       max_tokens: 512,
       stream: true,
       output_config: { effort: "low", format: { type: "json_schema" } },
       messages: [{ role: "user", content: [{ type: "text", text: "Yerba 1 kg" }] }],
     });
+  });
+
+  it("streams to Claude Haiku 5.5 when asked for it", async () => {
+    const { client, requests } = clientAnswering(() => streamedJsonResponse({ answer: "sí" }));
+
+    await ask(client, undefined, () => {}, HAIKU);
+
+    expect(requests[0]?.body["model"]).toBe(HAIKU);
+  });
+
+  it("lets Claude Sonnet 5.5 hand a declined request to the server-side fallback", async () => {
+    const { client, requests } = clientAnswering(() => streamedJsonResponse({ answer: "sí" }));
+
+    await ask(client, undefined, () => {}, SONNET);
+
+    expect(requests[0]?.body["fallbacks"]).toBe("default");
+    expect(requests[0]?.headers.get("anthropic-beta")).toContain("server-side-fallback-2026-07-01");
+  });
+
+  it("sends Claude Haiku 5.5 no server-side fallback, which it does not offer", async () => {
+    const { client, requests } = clientAnswering(() => streamedJsonResponse({ answer: "sí" }));
+
+    await ask(client, undefined, () => {}, HAIKU);
+
+    expect(requests[0]?.body).not.toHaveProperty("fallbacks");
+    expect(requests[0]?.headers.get("anthropic-beta") ?? "").not.toContain("server-side-fallback");
   });
 
   it("sends the instructions as a cached system prompt", async () => {
@@ -202,7 +233,7 @@ describe("the usage it reports", () => {
     );
 
     expect(calls).toEqual([
-      { outcome: "completed", attempts: [attempt(PURCHASING_AI_MODEL, 100, 30, 7, 9)] },
+      { outcome: "completed", attempts: [attempt(SONNET, 100, 30, 7, 9)] },
     ]);
   });
 
@@ -210,7 +241,7 @@ describe("the usage it reports", () => {
     const calls = await callsReportedBy(() => streamedJsonResponse({ answer: "sí" }));
 
     expect(calls).toEqual([
-      { outcome: "completed", attempts: [attempt(PURCHASING_AI_MODEL, 25, 40, 0, 0)] },
+      { outcome: "completed", attempts: [attempt(SONNET, 25, 40, 0, 0)] },
     ]);
   });
 
@@ -246,9 +277,35 @@ describe("the usage it reports", () => {
     expect(calls).toEqual([
       {
         outcome: "completed",
-        attempts: [attempt(PURCHASING_AI_MODEL, 100, 5), attempt("claude-sonnet-5", 100, 30, 4, 6)],
+        attempts: [attempt(SONNET, 100, 5), attempt("claude-sonnet-5", 100, 30, 4, 6)],
       },
     ]);
+  });
+
+  it("reports an iteration that names no model under the model it asked for", async () => {
+    const calls = await callsReportedBy(
+      () =>
+        streamedAnswerResponse({
+          textParts: ['{"answer":"sí"}'],
+          model: HAIKU,
+          usage: {
+            iterations: [
+              {
+                type: "message",
+                model: null,
+                input_tokens: 100,
+                output_tokens: 5,
+                cache_creation_input_tokens: 0,
+                cache_read_input_tokens: 0,
+              },
+            ],
+          },
+        }),
+      undefined,
+      HAIKU,
+    );
+
+    expect(calls).toEqual([{ outcome: "completed", attempts: [attempt(HAIKU, 100, 5)] }]);
   });
 
   it("reports an answer cut at the token limit as cut short", async () => {
@@ -257,7 +314,7 @@ describe("the usage it reports", () => {
     );
 
     expect(calls).toEqual([
-      { outcome: "cut_short", attempts: [attempt(PURCHASING_AI_MODEL, 25, 40)] },
+      { outcome: "cut_short", attempts: [attempt(SONNET, 25, 40)] },
     ]);
   });
 
@@ -273,7 +330,7 @@ describe("the usage it reports", () => {
     const calls = await callsReportedBy(streamInterruptedByErrorResponse);
 
     expect(calls).toEqual([
-      { outcome: "cut_short", attempts: [attempt(PURCHASING_AI_MODEL, 25, 1)] },
+      { outcome: "cut_short", attempts: [attempt(SONNET, 25, 1)] },
     ]);
   });
 
@@ -285,7 +342,7 @@ describe("the usage it reports", () => {
     );
 
     expect(calls).toEqual([
-      { outcome: "cut_short", attempts: [attempt(PURCHASING_AI_MODEL, 25, 1)] },
+      { outcome: "cut_short", attempts: [attempt(SONNET, 25, 1)] },
     ]);
   });
 
@@ -325,8 +382,8 @@ describe("the usage it reports", () => {
 describe("the prices of the models it may use", () => {
   const WHEN_PRICES_WERE_CHECKED = new Date("2026-10-30T12:00:00.000Z");
 
-  it.each([PURCHASING_AI_MODEL, "claude-sonnet-5"])(
-    "has a price in effect for the adapter's model and its known fallback, %s",
+  it.each([SONNET, HAIKU, "claude-sonnet-5"])(
+    "has a price in effect for each model the adapters ask for and the known fallback, %s",
     (model) => {
       const price = AI_MODEL_PRICES.find(
         (entry) => entry.model === model && entry.appliesFrom <= WHEN_PRICES_WERE_CHECKED,

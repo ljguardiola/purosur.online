@@ -1,7 +1,6 @@
 import type { AiCallUsage } from "@purosur/domain/purchasing/use-cases";
 import { describe, expect, it } from "vitest";
 import { AnthropicProductChooser } from "./anthropic-product-chooser.js";
-import { PURCHASING_AI_MODEL } from "./anthropic-structured-call.js";
 import { SUPPLIER_ITEM_QUANTITY_RULE } from "./supplier-item-quantity-prompt.js";
 import {
   apiErrorResponse,
@@ -69,7 +68,7 @@ describe("the request the chooser sends", () => {
 
     expect(new URL(request.url).pathname).toBe("/v1/messages");
     expect(request.headers.get("x-api-key")).toBe("fictional-api-key-for-tests");
-    expect(request.body).toMatchObject({ model: PURCHASING_AI_MODEL, stream: true });
+    expect(request.body).toMatchObject({ model: "claude-haiku-5-5", stream: true });
   });
 
   it("sends the item's text and the candidates' ids and names as its only content, and no tools", async () => {
@@ -124,11 +123,11 @@ describe("the request the chooser sends", () => {
     expect(system[0]?.text).toContain(SUPPLIER_ITEM_QUANTITY_RULE);
   });
 
-  it("sends nothing but the model, the limits, the instructions, the format and the fallback", async () => {
-    const { body } = await sentRequest();
+  it("sends nothing but the model, the limits, the instructions and the format, and no server-side fallback", async () => {
+    const { body, headers } = await sentRequest();
 
+    expect(headers.get("anthropic-beta") ?? "").not.toContain("server-side-fallback");
     expect(Object.keys(body).sort()).toEqual([
-      "fallbacks",
       "max_tokens",
       "messages",
       "model",
@@ -287,6 +286,7 @@ describe("the calls the chooser reports", () => {
     const { chooser } = chooserAnswering(() =>
       streamedAnswerResponse({
         textParts: ['{"productId":null,"quantity":null}'],
+        model: "claude-haiku-5-5",
         usage: { inputTokens: 80, outputTokens: 6, cacheReadTokens: 50 },
       }),
     );
@@ -299,7 +299,7 @@ describe("the calls the chooser reports", () => {
         outcome: "completed",
         attempts: [
           {
-            model: PURCHASING_AI_MODEL,
+            model: "claude-haiku-5-5",
             inputTokens: 80,
             outputTokens: 6,
             cacheWriteTokens: 0,
