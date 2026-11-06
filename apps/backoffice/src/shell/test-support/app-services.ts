@@ -102,6 +102,9 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       createTag: vi.fn(),
       generateInternalBarcode: vi.fn(),
       printLabels: vi.fn(),
+      fetchPrinterLabels: vi.fn(),
+      labelPrinterAvailable: () => true,
+      printOnLabelPrinter: vi.fn(),
     },
     pricesListScreen: {
       fetchPriceMargin: vi.fn().mockResolvedValue({ kind: "ok", value: { costReference: null } }),
