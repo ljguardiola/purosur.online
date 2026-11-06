@@ -17,6 +17,7 @@ import {
 } from "@purosur/contracts";
 import { cloudFetch } from "../platform/cloud-fetch";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
+import { ownEntry } from "../platform/own-entry";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
 
@@ -393,7 +394,7 @@ async function refusedLineChange<Extra extends string>(
   }
   if (response.status === 404 || response.status === 409) {
     const lotRefusal = LOT_REFUSAL_CODES.find((lotCode) => lotCode === code);
-    const kind = lotRefusal ?? (code === undefined ? undefined : extra[code]);
+    const kind = lotRefusal ?? (code === undefined ? undefined : ownEntry(extra, code));
     return kind === undefined ? { kind: "failed" } : { kind };
   }
   return refusal(response);

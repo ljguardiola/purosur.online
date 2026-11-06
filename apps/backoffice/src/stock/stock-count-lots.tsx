@@ -7,6 +7,7 @@ import {
   TextField,
   useFieldContext,
 } from "@purosur/ui";
+import { ownEntry } from "../platform/own-entry";
 import { formatStockQuantity, quantityFieldKind } from "../platform/stock-quantity";
 import type { CountLot } from "./stock-count-form";
 
@@ -46,7 +47,7 @@ export function CountLotsField({
                     {...quantityFieldKind(saleUnit)}
                     label={`Cantidad contada del lote ${lot.lotName}`}
                     labelVisuallyHidden
-                    value={typed[lot.id] ?? ""}
+                    value={ownEntry(typed, lot.id) ?? ""}
                     onChange={(value) => field.handleChange({ ...typed, [lot.id]: value })}
                     {...shared}
                   />
