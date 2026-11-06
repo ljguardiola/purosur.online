@@ -179,6 +179,7 @@ describe("SaleScreen with a sale that already has an approved payment", () => {
 
       const control = screen.getByRole("button", { name: button });
       await expect.element(control).toHaveAttribute("aria-disabled", "true");
+      await control.unhover();
       await control.hover();
       await expect.element(screen.getByRole("tooltip")).toHaveTextContent(LOCKED_REASON);
       await expect.element(screen.getByText(REFUSAL_TITLE)).not.toBeInTheDocument();
