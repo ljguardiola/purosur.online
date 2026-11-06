@@ -4,7 +4,6 @@ import {
   MenuItem as AriaMenuItem,
   MenuTrigger as AriaMenuTrigger,
   Popover as AriaPopover,
-  Text as AriaText,
 } from "react-aria-components";
 import {
   menuOptionFrameClassName,
@@ -27,8 +26,8 @@ export type RowMenuActions = readonly [RowMenuAction, ...RowMenuAction[]];
 
 const popoverClassName = `min-w-56 p-1.5 overflow-y-auto ${menuSurfaceClassName}`;
 
-// A disabled item takes neither focus nor hover in a menu, so its reason is shown as text below the
-// label, which assistive technology reads as the item's description, and not as a tooltip.
+// A disabled item takes neither focus nor hover in a menu, so a tooltip could not be reached: its
+// reason is shown as text below the label instead, and read once as the end of the item's name.
 const itemClassName = `group min-h-control-lg gap-2 py-1.5 data-disabled:cursor-default ${menuOptionFrameClassName}`;
 
 function RowMenuItem({ action }: { action: RowMenuAction }) {
@@ -50,13 +49,9 @@ function RowMenuItem({ action }: { action: RowMenuAction }) {
         </span>
       ) : null}
       <span className="flex min-w-0 grow flex-col">
-        <AriaText slot="label" className={`${toneClassName} group-data-disabled:opacity-disabled`}>
-          {label}
-        </AriaText>
+        <span className={`${toneClassName} group-data-disabled:opacity-disabled`}>{label}</span>
         {disabledReason !== undefined ? (
-          <AriaText slot="description" className="text-detail font-normal text-text-subtle">
-            {disabledReason}
-          </AriaText>
+          <span className="text-detail font-normal text-text-subtle">{disabledReason}</span>
         ) : null}
       </span>
     </AriaMenuItem>
