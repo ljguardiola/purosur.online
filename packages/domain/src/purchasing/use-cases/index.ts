@@ -417,6 +417,12 @@ export type {
   SupplierItemProductStoreTransaction,
 } from "./supplier-item-product-store.js";
 export type {
+  KeptLinkProposal,
+  KeptQuantityProposal,
+  QuantityProposalShape,
+  SupplierItemProposalStore,
+} from "./supplier-item-proposal-store.js";
+export type {
   SupplierItemQuantityReader,
   SupplierItemQuantityReading,
 } from "./supplier-item-quantity-reader.js";
