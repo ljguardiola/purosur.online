@@ -125,6 +125,16 @@ test("refuses a type error in a tracked declaration file although its program sk
   ]);
 });
 
+test("refuses a type error in a tracked declaration file of an arbitrary extension", (t) => {
+  const declarationErrors = declarationErrorsIn(t, {
+    "tsconfig.json": tsconfigIncluding("src"),
+    "src/checked.ts": "export const checked = 1;",
+    "src/styles.d.css.ts": "export declare const value: Missing;",
+  });
+
+  assert.deepEqual(declarationErrors, ["src/styles.d.css.ts(1,29): Cannot find name 'Missing'."]);
+});
+
 test("refuses a type error in a tracked declaration file only imported by an included file", (t) => {
   const declarationErrors = declarationErrorsIn(t, {
     "tsconfig.json": tsconfigIncluding("src"),
