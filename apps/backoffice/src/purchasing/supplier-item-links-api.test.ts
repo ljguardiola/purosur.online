@@ -98,7 +98,11 @@ describe("fetchSupplierItemLinkChoices", () => {
 });
 
 describe("fetchSupplierItemQuantityProposal", () => {
-  const body = { saleUnit: "UNIT", netContent: { quantity: 250, unit: "ML" } } as const;
+  const body = {
+    saleUnit: "UNIT",
+    netContent: { quantity: 250, unit: "ML" },
+    refresh: false,
+  } as const;
 
   test("asks for the quantity of the row with the sale unit and net content, and reads the proposal", async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(200, PROPOSED_QUANTITY_OF_UNITS));
