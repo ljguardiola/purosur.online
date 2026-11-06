@@ -43,24 +43,49 @@ function sharedSourceFiles() {
   };
 }
 
-export function findUncheckedTypeScriptFiles(
+function describeDiagnostic(diagnostic, pathOf) {
+  const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n");
+  const { file, start } = diagnostic;
+  if (file === undefined || start === undefined) return message;
+  const { line, character } = file.getLineAndCharacterOfPosition(start);
+  return `${pathOf(file.fileName)}(${line + 1},${character + 1}): ${message}`;
+}
+
+export function findTypeCheckGaps(
   cwd,
   { tsconfigs = scriptTsconfigs(cwd), trackedFiles = listTrackedFiles(cwd) } = {},
 ) {
   const root = resolve(cwd);
   const pathOf = (fileName) => relative(root, fileName).split(sep).join("/");
+  const tracked = new Set(trackedFiles);
   const sharing = sharedSourceFiles();
   const checked = new Set();
+  const declarationErrors = new Set();
   for (const tsconfig of tsconfigs) {
     const config = parsedConfigOf(join(root, tsconfig));
+    const options = { ...config.options, skipLibCheck: false };
     const program = ts.createProgram({
       rootNames: config.fileNames,
-      options: config.options,
-      host: sharing(ts.createCompilerHost(config.options)),
+      options,
+      host: sharing(ts.createCompilerHost(options)),
     });
-    for (const sourceFile of program.getSourceFiles()) checked.add(pathOf(sourceFile.fileName));
+    for (const sourceFile of program.getSourceFiles()) {
+      const path = pathOf(sourceFile.fileName);
+      checked.add(path);
+      if (!sourceFile.isDeclarationFile || !tracked.has(path)) continue;
+      for (const diagnostic of [
+        ...program.getSyntacticDiagnostics(sourceFile),
+        ...program.getSemanticDiagnostics(sourceFile),
+      ]) {
+        declarationErrors.add(describeDiagnostic(diagnostic, pathOf));
+      }
+    }
   }
-  return trackedFiles
-    .filter((path) => TYPESCRIPT_FILE.test(path) && !checked.has(path))
-    .sort((a, b) => a.localeCompare(b, "en"));
+  const byPath = (a, b) => a.localeCompare(b, "en");
+  return {
+    unchecked: trackedFiles
+      .filter((path) => TYPESCRIPT_FILE.test(path) && !checked.has(path))
+      .sort(byPath),
+    declarationErrors: [...declarationErrors].sort(byPath),
+  };
 }
