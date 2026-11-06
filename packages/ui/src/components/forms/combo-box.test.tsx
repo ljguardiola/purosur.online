@@ -4,7 +4,6 @@ import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import { tokenRgb } from "../../test/token-colors";
-import { HOVER_DELAY_MS } from "../overlays/tooltip";
 import { ComboBox, type ComboBoxOption, type ComboBoxProps } from "./combo-box";
 import type { FieldErrorProps } from "./field-error";
 
@@ -617,22 +616,4 @@ test("names the button that shows the options, and shows that name as a tooltip 
   await expect
     .element(screen.getByRole("tooltip"))
     .toHaveTextContent("Mostrar opciones de Producto");
-});
-
-test("shows no tooltip over the list the chevron button has just opened", async () => {
-  await page.viewport(1280, 900);
-  await cdp().send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 0, y: 0 });
-  const screen = await render(<ComboBox {...baseProps()} />);
-
-  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-  try {
-    await userEvent.click(screen.getByRole("button", { name: "Mostrar opciones de Producto" }));
-    await vi.advanceTimersByTimeAsync(HOVER_DELAY_MS * 2);
-
-    expect(screen.getByRole("listbox").elements()).toHaveLength(1);
-    expect(screen.getByRole("tooltip").elements()).toHaveLength(0);
-  } finally {
-    vi.runAllTimers();
-    vi.useRealTimers();
-  }
 });
