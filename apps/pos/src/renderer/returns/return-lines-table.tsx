@@ -11,7 +11,7 @@ import {
   TextField,
   useTableModel,
 } from "@purosur/ui";
-import { ownEntry } from "../platform/own-entry";
+import { ownEntry } from "./own-entry";
 import type { ReturnDraft, ReturnDraftLine } from "./return-form";
 import { goesBackWhole, RETURNED_WEIGHT_DECIMALS } from "./return-form";
 import type { SaleForReturn, SaleLineForReturn } from "./return-sale";

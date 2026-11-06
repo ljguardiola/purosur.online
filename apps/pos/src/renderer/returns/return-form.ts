@@ -6,7 +6,7 @@ import {
   parseAmountCents,
   parseWeightThousandths,
 } from "@purosur/ui";
-import { ownEntry } from "../platform/own-entry";
+import { ownEntry } from "./own-entry";
 import type { PaymentForReturn, SaleForReturn, SaleLineForReturn } from "./return-sale";
 import type {
   ReturnDispositionValue,
