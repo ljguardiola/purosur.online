@@ -45,6 +45,7 @@ function bench() {
     for (const each of answers) {
       await expect.poll(() => pending.length).toBeGreaterThan(0);
       (pending.shift() as (answer: ScaleWeighing) => void)(each);
+      await vi.advanceTimersByTimeAsync(0);
     }
   }
   return { weigh, asked, answer, outstanding: () => pending.length };
@@ -68,6 +69,25 @@ describe("useScaleWeighing", () => {
 
     expect(result.current.phase).toEqual({ kind: "weighing", last: undefined });
     expect(asked).toEqual([null, null, null]);
+  });
+
+  it("yields to the event loop between answers instead of asking in one burst", async () => {
+    let calls = 0;
+    const weigh = vi.fn(async (): Promise<ScaleWeighing> => {
+      calls += 1;
+      return calls > 20 ? new Promise<ScaleWeighing>(() => {}) : WEIGHING;
+    });
+    await renderHook(() => useScaleWeighing(weigh));
+
+    await new Promise<void>((resolve) => {
+      const channel = new MessageChannel();
+      channel.port1.onmessage = () => resolve();
+      channel.port2.postMessage(null);
+    });
+
+    expect(weigh).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(weigh).toHaveBeenCalledTimes(2);
   });
 
   it("shows each stable reading and keeps asking without taking it", async () => {
