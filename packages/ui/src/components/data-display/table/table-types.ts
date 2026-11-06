@@ -66,7 +66,6 @@ export type TableActions<T> =
       TableAction<T>,
     ];
 
-// Beside a row actions menu there is room for three direct buttons, or none.
 export type TableActionsBesideMenu<T> =
   | readonly []
   | readonly [TableAction<T>]

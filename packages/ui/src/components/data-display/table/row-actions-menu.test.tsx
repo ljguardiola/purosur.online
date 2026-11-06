@@ -44,7 +44,7 @@ test("looks like the table's bordered icon button, 38x38px with an ellipsis glyp
   expect(style.borderRadius).toBe("8px");
   expect(style.backgroundColor).toBe(tokenRgb("surface"));
   expect(style.borderColor).toBe(tokenRgb("border"));
-  expect(button.querySelector("svg")).not.toBeNull();
+  expect(button.querySelector("svg.lucide-ellipsis")).not.toBeNull();
 });
 
 test("opens a menu listing every action in order when pressed", async () => {
@@ -63,8 +63,12 @@ test("shows an action's icon before its label, and none when it has no icon", as
   await userEvent.click(trigger);
 
   const [edit, duplicate] = screen.getByRole("menuitem").elements() as HTMLElement[];
+  const icon = edit?.querySelector("svg") as SVGSVGElement;
+  const label = screen.getByText("Editar").element();
 
-  expect(edit?.querySelector("svg")).not.toBeNull();
+  expect(icon.getBoundingClientRect().right).toBeLessThanOrEqual(
+    label.getBoundingClientRect().left,
+  );
   expect(duplicate?.querySelector("svg")).toBeNull();
 });
 
