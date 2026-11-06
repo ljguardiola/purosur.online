@@ -52,10 +52,10 @@ async function expectTooltipWhile(open: () => Promise<void>, button: HTMLElement
 }
 
 // A story's own play function hovers with synthetic events, which a real mouse move never undoes.
+// Any key press closes the tooltip of the button holding focus; blurring it instead would let the
+// focus scope of a modal or a popover put focus, and so the tooltip, straight back.
 async function settle() {
-  if (document.activeElement instanceof HTMLElement) {
-    document.activeElement.blur();
-  }
+  await userEvent.keyboard("{Shift}");
   for (const hovered of document.querySelectorAll("[data-hovered]")) {
     hovered.dispatchEvent(new PointerEvent("pointerleave", { pointerType: "mouse" }));
   }
