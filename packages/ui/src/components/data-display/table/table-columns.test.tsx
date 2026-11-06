@@ -1,7 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { textOrder } from "../../../ordering/item-ordering";
-import { actionsColumn, dataColumn } from "./table-columns";
 import type { RowMenuActions } from "./row-actions-menu";
+import { actionsColumn, dataColumn } from "./table-columns";
 import type { TableAction, TableColumn, TableColumnMeta, TableProps } from "./table-types";
 
 type Product = { id: string; name: string };

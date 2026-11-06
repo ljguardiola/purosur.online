@@ -50,10 +50,7 @@ function RowMenuItem({ action }: { action: RowMenuAction }) {
         </span>
       ) : null}
       <span className="flex min-w-0 grow flex-col">
-        <AriaText
-          slot="label"
-          className={`${toneClassName} group-data-disabled:opacity-disabled`}
-        >
+        <AriaText slot="label" className={`${toneClassName} group-data-disabled:opacity-disabled`}>
           {label}
         </AriaText>
         {disabledReason !== undefined ? (

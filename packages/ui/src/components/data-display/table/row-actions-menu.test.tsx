@@ -81,9 +81,7 @@ test.each(["{Enter}", " ", "{ArrowDown}"])(
 );
 
 test("focuses the first enabled action when the first one is disabled", async () => {
-  const { screen, trigger } = await renderMenu(
-    actions([{ disabledReason: "Ya está editado" }]),
-  );
+  const { screen, trigger } = await renderMenu(actions([{ disabledReason: "Ya está editado" }]));
   (trigger.element() as HTMLElement).focus();
 
   await userEvent.keyboard("{Enter}");
