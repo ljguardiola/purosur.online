@@ -3533,7 +3533,7 @@ export const supplierItemLinkProposals = pgTable(
     ),
     check(
       "supplier_item_link_proposals_quantity_check",
-      sql`${table.quantity} > 0 and ${table.kind} = 'PROPOSED'`,
+      sql`${table.quantity} is null or (${table.quantity} > 0 and ${table.kind} = 'PROPOSED')`,
     ),
   ],
 );
@@ -3582,7 +3582,7 @@ export const supplierItemQuantityProposals = pgTable(
     ),
     check(
       "supplier_item_quantity_proposals_quantity_check",
-      sql`(${table.kind} = 'PROPOSED') = (${table.quantity} is not null) and ${table.quantity} > 0`,
+      sql`(${table.kind} = 'PROPOSED') = (${table.quantity} is not null) and (${table.quantity} is null or ${table.quantity} > 0)`,
     ),
   ],
 );
