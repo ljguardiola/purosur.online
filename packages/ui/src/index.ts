@@ -163,6 +163,8 @@ export type {
 export { ToggleChipGroup } from "./components/forms/toggle-chip-group";
 export type { CardProps } from "./components/layout/card";
 export { Card } from "./components/layout/card";
+export type { DetailPanelProps } from "./components/layout/detail-panel";
+export { DetailPanel } from "./components/layout/detail-panel";
 export type { EyebrowProps } from "./components/layout/eyebrow";
 export { Eyebrow } from "./components/layout/eyebrow";
 export type { PuroSurIsotypeProps } from "./components/layout/puro-sur-isotype";
@@ -171,8 +173,6 @@ export type { PuroSurLogoProps } from "./components/layout/puro-sur-logo";
 export { PuroSurLogo } from "./components/layout/puro-sur-logo";
 export type { ScreenHeaderProps } from "./components/layout/screen-header";
 export { ScreenHeader } from "./components/layout/screen-header";
-export type { DetailPanelProps } from "./components/layout/detail-panel";
-export { DetailPanel } from "./components/layout/detail-panel";
 export type { SidePanelProps } from "./components/layout/side-panel";
 export { SidePanel } from "./components/layout/side-panel";
 export type { AreaNavButtonProps } from "./components/navigation/area-nav-button";

@@ -24,11 +24,15 @@ test("moves focus to its title on open and back to the pressed row on close", as
   await expect.element(row).toHaveFocus();
 });
 
-test("closes on Escape while focus is inside it", async () => {
-  const screen = await render(<SuppliersArea areaWidth={WIDE_AREA} />);
+test("closes on Escape while focus is on content inside it", async () => {
+  const screen = await render(
+    <SuppliersArea areaWidth={WIDE_AREA}>
+      <button type="button">Editar datos</button>
+    </SuppliersArea>,
+  );
   await screen.getByRole("button", { name: "Distribuidora Norte" }).click();
 
-  await userEvent.tab();
+  await screen.getByRole("button", { name: "Editar datos" }).click();
   await userEvent.keyboard("{Escape}");
 
   expect(screen.getByRole("complementary").elements()).toHaveLength(0);
