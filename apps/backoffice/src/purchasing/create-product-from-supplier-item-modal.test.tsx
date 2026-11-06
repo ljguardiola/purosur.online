@@ -872,7 +872,7 @@ test("reads the quantity proposal of the item for the sale unit the product star
 
   await expect
     .poll(() => vi.mocked(services.fetchSupplierItemQuantityProposal).mock.calls)
-    .toEqual([[LIST.id, nutRow.id, { saleUnit: "UNIT", netContent: null }]]);
+    .toEqual([[LIST.id, nutRow.id, { saleUnit: "UNIT", netContent: null, refresh: false }]]);
 });
 
 test("reads nothing while no item is chosen", async () => {
@@ -913,7 +913,7 @@ test("reads the proposal again for the sale unit the person chooses", async () =
 
   await expect
     .poll(() => vi.mocked(services.fetchSupplierItemQuantityProposal).mock.calls.at(-1))
-    .toEqual([LIST.id, nutRow.id, { saleUnit: "KG", netContent: null }]);
+    .toEqual([LIST.id, nutRow.id, { saleUnit: "KG", netContent: null, refresh: false }]);
 });
 
 test("reads the proposal again with the net content once the person types it", async () => {
@@ -926,7 +926,11 @@ test("reads the proposal again with the net content once the person types it", a
 
   await expect
     .poll(() => vi.mocked(services.fetchSupplierItemQuantityProposal).mock.calls.at(-1))
-    .toEqual([LIST.id, nutRow.id, { saleUnit: "UNIT", netContent: { quantity: 250, unit: "G" } }]);
+    .toEqual([
+      LIST.id,
+      nutRow.id,
+      { saleUnit: "UNIT", netContent: { quantity: 250, unit: "G" }, refresh: false },
+    ]);
 });
 
 test("does not read a proposal for a net content that is not valid", async () => {
@@ -949,8 +953,12 @@ test("does not read a proposal for a net content that is not valid", async () =>
     await expect
       .poll(() => quantityProposalReads(services))
       .toEqual([
-        [LIST.id, nutRow.id, { saleUnit: "UNIT", netContent: null }],
-        [LIST.id, nutRow.id, { saleUnit: "KG", netContent: { quantity: 250, unit: "G" } }],
+        [LIST.id, nutRow.id, { saleUnit: "UNIT", netContent: null, refresh: false }],
+        [
+          LIST.id,
+          nutRow.id,
+          { saleUnit: "KG", netContent: { quantity: 250, unit: "G" }, refresh: false },
+        ],
       ]);
   } finally {
     vi.useRealTimers();
@@ -977,8 +985,12 @@ test("reads one proposal for the net content the person ends up typing, not one 
     await expect
       .poll(() => quantityProposalReads(services))
       .toEqual([
-        [LIST.id, nutRow.id, { saleUnit: "UNIT", netContent: null }],
-        [LIST.id, nutRow.id, { saleUnit: "UNIT", netContent: { quantity: 250, unit: "G" } }],
+        [LIST.id, nutRow.id, { saleUnit: "UNIT", netContent: null, refresh: false }],
+        [
+          LIST.id,
+          nutRow.id,
+          { saleUnit: "UNIT", netContent: { quantity: 250, unit: "G" }, refresh: false },
+        ],
       ]);
   } finally {
     vi.useRealTimers();
@@ -993,14 +1005,14 @@ test("reads the proposal of the next item it opens for that item's own sale unit
   await userEvent.click(radioLabel(dialog, "Por peso"));
   await expect
     .poll(() => quantityProposalReads(services).at(-1))
-    .toEqual([LIST.id, nutRow.id, { saleUnit: "KG", netContent: null }]);
+    .toEqual([LIST.id, nutRow.id, { saleUnit: "KG", netContent: null, refresh: false }]);
 
   await screen.rerender(modalElement({ services, target: null }));
   await screen.rerender(modalElement({ services, target: pasasRow }));
 
   await expect
     .poll(() => quantityProposalReads(services).filter(([, rowId]) => rowId === pasasRow.id))
-    .toEqual([[LIST.id, pasasRow.id, { saleUnit: "UNIT", netContent: null }]]);
+    .toEqual([[LIST.id, pasasRow.id, { saleUnit: "UNIT", netContent: null, refresh: false }]]);
 });
 
 test.each([

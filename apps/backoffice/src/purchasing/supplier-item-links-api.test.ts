@@ -77,7 +77,9 @@ describe("fetchSupplierItemLinkProposal", () => {
   test("returns failed when the proposal does not have the expected shape", async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { kind: "guessed" }));
 
-    expect(await fetchSupplierItemLinkProposal("list-1", "row-1", body)).toEqual({ kind: "failed" });
+    expect(await fetchSupplierItemLinkProposal("list-1", "row-1", body)).toEqual({
+      kind: "failed",
+    });
   });
 
   test.each(refusals)("answers a %i as %j", async (status, outcome) => {

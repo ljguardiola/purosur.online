@@ -78,6 +78,10 @@ export function supplierItemQuantityProposalRequestFrom(
   values: SupplierItemProductFormValues,
 ): SupplierItemQuantityProposalBody | null {
   const { saleUnit, netContent } = productRequestFrom(values);
-  const parsed = supplierItemQuantityProposalBodySchema.safeParse({ saleUnit, netContent, refresh: false });
+  const parsed = supplierItemQuantityProposalBodySchema.safeParse({
+    saleUnit,
+    netContent,
+    refresh: false,
+  });
   return parsed.success ? parsed.data : null;
 }
