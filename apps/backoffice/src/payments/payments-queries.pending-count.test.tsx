@@ -1,6 +1,6 @@
 import { expect, test, vi } from "vitest";
 import { render } from "../shell/test-support/render-with-router";
-import { usePendingRefundCounts } from "./pending-refunds-count";
+import { usePendingRefundCounts } from "./payments-queries";
 import {
   noPendingRefunds,
   pendingRefunds,

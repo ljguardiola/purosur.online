@@ -59,14 +59,13 @@ test("shows a card-shaped loading placeholder per level, and no pill, while the 
   expect(screen.getByText(/^\d+ alertas? abiertas?$/).query()).toBeNull();
 });
 
-test("shows the blank empty state, and no cards or pill, when no alert is open", async () => {
+test("shows each level at zero, and no pill nor a message of its own, when no alert is open", async () => {
   const screen = await renderParts(loaded(NOTHING_OPEN));
 
-  await expect.element(screen.getByText("Sin alertas abiertas")).toBeVisible();
-  await expect
-    .element(screen.getByText("Cuando algo necesite atención, aparece acá."))
-    .toBeVisible();
-  expect(screen.getByRole("link").query()).toBeNull();
+  await expect.element(screen.getByRole("link", { name: "Alertas críticas 0" })).toBeVisible();
+  await expect.element(screen.getByRole("link", { name: "Advertencias 0" })).toBeVisible();
+  await expect.element(screen.getByRole("link", { name: "Informativas 0" })).toBeVisible();
+  expect(screen.getByText("Sin alertas abiertas").query()).toBeNull();
   expect(screen.getByText(/^\d+ alertas? abiertas?$/).query()).toBeNull();
 });
 

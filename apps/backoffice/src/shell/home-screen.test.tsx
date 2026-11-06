@@ -256,14 +256,55 @@ test("shows the alerts' loading placeholder, and no pill, until the alerts arriv
   expect(screen.getByText("Cargando…").query()).toBeNull();
 });
 
-test("shows the alerts' empty state, and no pill, when no alert is open", async () => {
+test("says once, and with no pill, that no alert is open", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlertsOverview).mockResolvedValue({ kind: "ok", value: NOTHING_OPEN });
+  vi.mocked(services.fetchAlerts).mockResolvedValue({
+    kind: "ok",
+    value: { alerts: [], total: 0, pageSize: 25, openCount: 0, openCriticalCount: 0 },
+  });
 
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByText("Sin alertas abiertas")).toBeVisible();
+  expect(screen.getByText("Sin alertas abiertas").elements()).toHaveLength(1);
+  expect(screen.getByText("Cuando algo necesite atención, aparece acá.").elements()).toHaveLength(
+    1,
+  );
   expect(screen.getByText(/^\d+ alertas? abiertas?$/).query()).toBeNull();
+});
+
+test("reads the open alerts by level and the list again once an alert is closed from the list", async () => {
+  const services = createServices();
+  services.alertDetailModal = {
+    fetchAlert: vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: {
+        ...passkeyAlert,
+        detail: {
+          action: "registered",
+          passkeyName: "Teléfono de Lucía",
+          actorId: "user-1",
+          via: "self",
+        },
+        open: true,
+        closing: "by_hand",
+        deliveries: [],
+      },
+    }),
+    fetchPermissionCatalog: vi.fn(),
+    closeAlert: vi.fn().mockResolvedValue({ kind: "ok" }),
+  };
+  const screen = await renderScreen(services, {
+    access: accessWith("alerts_area", "close_alerts_manually"),
+  });
+  await expect.element(screen.getByRole("row", { name: /Lucía Pérez/ })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: /Ver la alerta/ }));
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar la alerta" }));
+
+  await expect.poll(() => services.fetchAlertsOverview).toHaveBeenCalledTimes(2);
+  await expect.poll(() => services.fetchAlerts).toHaveBeenCalledTimes(2);
 });
 
 test("shows the alerts' load error whose retry starts again from the loading placeholder", async () => {

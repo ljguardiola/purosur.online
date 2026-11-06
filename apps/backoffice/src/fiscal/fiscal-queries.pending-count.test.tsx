@@ -1,6 +1,6 @@
 import { expect, test, vi } from "vitest";
 import { render } from "../shell/test-support/render-with-router";
-import { usePendingFiscalTasksCount } from "./pending-fiscal-tasks-count";
+import { usePendingFiscalTasksCount } from "./fiscal-queries";
 import { fiscalTasks, noFiscalTasks } from "./test-support/fiscal-task-fixtures";
 
 function Probe({

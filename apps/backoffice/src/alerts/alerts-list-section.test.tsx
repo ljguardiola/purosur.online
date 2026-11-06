@@ -138,7 +138,7 @@ function renderScreen(...args: Parameters<typeof screenElement>) {
   return render(screenElement(...args));
 }
 
-test("shows the section's heading, each alert's level/kind/scope/opened date, and the footer", async () => {
+test("shows the section's heading and each alert's level/kind/scope/opened date", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlerts).mockResolvedValue(ok([passkeyAlert, lockoutAlert]));
 
@@ -154,7 +154,6 @@ test("shows the section's heading, each alert's level/kind/scope/opened date, an
   await expect.element(passkeyRow.getByText("Passkey")).toBeVisible();
   await expect.element(passkeyRow.getByText("Lucía Pérez")).toBeVisible();
   await expect.element(lockoutRow.getByText("203.0.113.5")).toBeVisible();
-  await expect.element(screen.getByText("2 alertas abiertas · 1 crítica")).toBeVisible();
 
   await expectNoAccessibilityViolations(document.body);
 });
@@ -223,15 +222,13 @@ test("shows the table loading until the first alerts arrive", async () => {
     .not.toHaveAttribute("aria-busy");
 });
 
-test("makes one request per load, carrying the open-alert counts beyond the rows shown", async () => {
+test("makes one request per load", async () => {
   const services = createServices();
-  vi.mocked(services.fetchAlerts).mockResolvedValue(
-    ok([passkeyAlert], { total: 1, openCount: 4, openCriticalCount: 2 }),
-  );
+  vi.mocked(services.fetchAlerts).mockResolvedValue(ok([passkeyAlert], { total: 1 }));
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("4 alertas abiertas · 2 críticas")).toBeVisible();
+  await expect.element(screen.getByText("Lucía Pérez")).toBeVisible();
   expect(services.fetchAlerts).toHaveBeenCalledTimes(1);
   expect(services.fetchAlerts).toHaveBeenCalledWith({ open: true, page: 1 });
 });
@@ -1311,7 +1308,7 @@ test("searches an alert by its title typed without accents", async () => {
     ]);
 });
 
-test("shows the open and critical alert counts with the thousands separator", async () => {
+test("shows no open and critical alert counts under the list, which the open alerts above already count", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlerts).mockResolvedValue(
     ok([passkeyAlert, lockoutAlert], { openCount: 1998, openCriticalCount: 1500 }),
@@ -1319,7 +1316,9 @@ test("shows the open and critical alert counts with the thousands separator", as
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("1.998 alertas abiertas · 1.500 críticas")).toBeVisible();
+  await expect.element(screen.getByText("Lucía Pérez")).toBeVisible();
+  expect(screen.getByText(/alertas abiertas/).query()).toBeNull();
+  expect(screen.getByText(/críticas/).query()).toBeNull();
 });
 
 test("typing in the search renders none of the listed alerts again", async () => {

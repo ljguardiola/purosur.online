@@ -1,7 +1,7 @@
 import type { PriceList } from "@purosur/contracts";
 import { expect, test, vi } from "vitest";
 import { render } from "../shell/test-support/render-with-router";
-import { usePendingPricesCount } from "./pending-prices-count";
+import { usePendingPricesCount } from "./pricing-queries";
 
 const priceList = (pendingCount: number): PriceList => ({
   products: [],

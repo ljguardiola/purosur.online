@@ -235,3 +235,46 @@ test("ends the session once when a count comes back unauthenticated", async () =
   await expect.poll(() => onSessionEnded).toHaveBeenCalled();
   expect(onSessionEnded).toHaveBeenCalledTimes(1);
 });
+
+test.each([
+  {
+    capability: "fiscal_information",
+    service: "fetchFiscalTasks",
+    refuse: (services: PendingTasksSectionServices) =>
+      vi.mocked(services.fetchFiscalTasks).mockResolvedValueOnce({ kind: "forbidden" }),
+    failure: "No pudimos abrir las tareas fiscales",
+    link: `Tareas fiscales ${fiscalTasks.tasks.length}`,
+  },
+  {
+    capability: "refunds_area",
+    service: "fetchPendingRefunds",
+    refuse: (services: PendingTasksSectionServices) =>
+      vi.mocked(services.fetchPendingRefunds).mockResolvedValueOnce({ kind: "forbidden" }),
+    failure: "No pudimos abrir los reembolsos",
+    link: "Reembolsos por Mercado Pago 1",
+  },
+  {
+    capability: "prices_area",
+    service: "fetchPrices",
+    refuse: (services: PendingTasksSectionServices) =>
+      vi.mocked(services.fetchPrices).mockResolvedValueOnce({ kind: "forbidden" }),
+    failure: "No pudimos abrir los precios a revisar",
+    link: "Precios a revisar 7",
+  },
+] as const)(
+  "offers to read the $service count again, staying on the page, when the cloud refuses it",
+  async ({ capability, refuse, failure, link }) => {
+    window.history.replaceState(null, "", "/?level=critical");
+    const services = createServices();
+    refuse(services);
+    const screen = await renderSection(services, { access: accessWith(capability) });
+
+    await expect.element(screen.getByText(failure)).toBeVisible();
+    expect(window.location.pathname + window.location.search).toBe("/?level=critical");
+
+    await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+    await expect.element(screen.getByRole("link", { name: link })).toBeVisible();
+    expect(window.location.pathname + window.location.search).toBe("/?level=critical");
+  },
+);
