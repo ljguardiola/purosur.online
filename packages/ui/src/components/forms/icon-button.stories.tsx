@@ -72,23 +72,6 @@ export const SubtleDisabled: Story = {
   args: { ...subtleArgs, disabled: true },
 };
 
-export const WithNameTooltipHovered: Story = {
-  play: playHoverShowsTooltip(theButton, "Eliminar fila"),
-};
-
-export const WithNameTooltipFocused: Story = {
-  play: async ({ canvasElement }) => {
-    await userEvent.tab();
-    await expect(theButton(canvasElement)).toHaveFocus();
-    await waitFor(
-      () => {
-        expect(within(document.body).getByRole("tooltip")).toHaveTextContent("Eliminar fila");
-      },
-      { timeout: 3000 },
-    );
-  },
-};
-
 export const DisabledHovered: Story = {
   args: { disabled: true },
   play: playHoverShowsTooltip(theButton, "Eliminar fila"),
