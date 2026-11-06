@@ -1,32 +1,55 @@
 import { recordIdSchema } from "@purosur/contracts";
 import type { FastifyReply } from "fastify";
 
+function ownValue(source: unknown, name: string): unknown {
+  return typeof source === "object" && source !== null
+    ? Object.getOwnPropertyDescriptor(source, name)?.value
+    : undefined;
+}
+
+async function refuseMalformedId(reply: FastifyReply, name: string, message: string) {
+  await reply.code(400).send({
+    code: "validation_failed",
+    message,
+    details: [{ field: name }],
+  });
+}
+
 async function readIds<Name extends string>(
   reply: FastifyReply,
   source: unknown,
   names: readonly Name[],
   optional: boolean,
 ): Promise<Partial<Record<Name, string>> | undefined> {
-  const values = typeof source === "object" && source !== null ? source : {};
   const ids: Partial<Record<Name, string>> = {};
   for (const name of names) {
-    const value: unknown = (values as Record<string, unknown>)[name];
+    const value = ownValue(source, name);
     if (optional && value === undefined) {
       continue;
     }
     const message = `${name} must be a record id`;
     const result = recordIdSchema(message).safeParse(value);
     if (!result.success) {
-      await reply.code(400).send({
-        code: "validation_failed",
-        message,
-        details: [{ field: name }],
-      });
+      await refuseMalformedId(reply, name, message);
       return undefined;
     }
     ids[name] = result.data;
   }
   return ids;
+}
+
+export async function readRecordId(
+  reply: FastifyReply,
+  source: unknown,
+  name: string,
+): Promise<string | undefined> {
+  const message = `${name} must be a record id`;
+  const result = recordIdSchema(message).safeParse(ownValue(source, name));
+  if (!result.success) {
+    await refuseMalformedId(reply, name, message);
+    return undefined;
+  }
+  return result.data;
 }
 
 export async function readRecordIds<Name extends string>(

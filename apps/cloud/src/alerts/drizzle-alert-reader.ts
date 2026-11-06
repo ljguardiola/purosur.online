@@ -1,4 +1,5 @@
 import {
+  type AlertLevel,
   type AlertKind,
   alertKindsWithScope,
   REGISTER_FORTNIGHT_SCOPE_SEPARATOR,
@@ -170,17 +171,18 @@ export class DrizzleAlertReader<TQueryResult extends PgQueryResultHKT> implement
       .where(and(sightCondition(sight), openAlertCondition()))
       .groupBy(alerts.level, alerts.kind)
       .orderBy(asc(alerts.kind));
-    const overview: OpenAlertsOverview = {
-      critical: { openCount: 0, kinds: [] },
-      warning: { openCount: 0, kinds: [] },
-      informational: { openCount: 0, kinds: [] },
+    const overviewOf = (level: AlertLevel) => {
+      const ofLevel = rows.filter((row) => row.level === level);
+      return {
+        openCount: ofLevel.reduce((total, row) => total + row.openCount, 0),
+        kinds: ofLevel.map((row) => asAlertKind(row.kind)),
+      };
     };
-    for (const row of rows) {
-      const level = overview[row.level];
-      level.openCount += row.openCount;
-      level.kinds.push(asAlertKind(row.kind));
-    }
-    return overview;
+    return {
+      critical: overviewOf("critical"),
+      warning: overviewOf("warning"),
+      informational: overviewOf("informational"),
+    };
   }
 
   async deliveriesOf(alertId: string): Promise<AlertDelivery[]> {

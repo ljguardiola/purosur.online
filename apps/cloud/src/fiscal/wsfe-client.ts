@@ -10,7 +10,7 @@ export function createWsfeClient(endpoint: string): Promise<Client> {
   return createArcaSoapClient(WSFE_WSDL_PATH, endpoint);
 }
 
-export function rejectionsOf(list: unknown, element: string): TaxAuthorityRejection[] {
+export function rejectionsOf(list: unknown, element: "Err" | "Obs"): TaxAuthorityRejection[] {
   const listed = (list as Record<string, unknown> | undefined)?.[element];
   const entries = Array.isArray(listed) ? listed : listed === undefined ? [] : [listed];
   return entries.flatMap((entry: { Code?: unknown; Msg?: unknown }) =>
@@ -20,6 +20,6 @@ export function rejectionsOf(list: unknown, element: string): TaxAuthorityReject
   );
 }
 
-export function codesOf(list: unknown, element: string): number[] {
+export function codesOf(list: unknown, element: "Err" | "Obs"): number[] {
   return rejectionsOf(list, element).map(({ code }) => code);
 }

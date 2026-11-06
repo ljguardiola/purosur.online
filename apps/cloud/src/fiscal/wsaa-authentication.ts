@@ -26,13 +26,13 @@ const TICKET_REQUEST_VALIDITY_MS = 5 * 60 * 1000;
 
 const ALREADY_AUTHENTICATED_FAULT_CODE = "coe.alreadyAuthenticated";
 
-const WSAA_ENDPOINTS: Record<string, string> = {
-  homologation: "https://wsaahomo.afip.gov.ar/ws/services/LoginCms",
-  production: "https://wsaa.afip.gov.ar/ws/services/LoginCms",
-};
+const WSAA_ENDPOINTS: ReadonlyMap<string, string> = new Map([
+  ["homologation", "https://wsaahomo.afip.gov.ar/ws/services/LoginCms"],
+  ["production", "https://wsaa.afip.gov.ar/ws/services/LoginCms"],
+]);
 
 export function wsaaEndpointOf(environment: string): string {
-  const endpoint = WSAA_ENDPOINTS[environment];
+  const endpoint = WSAA_ENDPOINTS.get(environment);
   if (endpoint === undefined) {
     throw new Error(`No WSAA endpoint for the ARCA environment "${environment}"`);
   }
