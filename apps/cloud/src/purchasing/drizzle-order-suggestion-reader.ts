@@ -16,11 +16,10 @@ import type {
 } from "@purosur/domain/purchasing/use-cases";
 import { and, asc, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { productActivityCondition } from "../catalog/product-activity-condition.js";
+import { DrizzleProductCoverageDaysReader } from "../catalog/drizzle-product-coverage-days-reader.js";
 import {
   assemblyBatches,
   lots,
-  products,
   purchaseOrderLines,
   purchaseOrderReceiptLines,
   purchaseOrders,
@@ -39,11 +38,13 @@ export class DrizzleOrderSuggestionReader<TQueryResult extends PgQueryResultHKT>
 {
   private readonly database: PgDatabase<TQueryResult>;
   private readonly sales: DrizzleProductSalesReportReader<TQueryResult>;
+  private readonly productCoverageDays: DrizzleProductCoverageDaysReader<TQueryResult>;
 
   constructor(db: PgDatabase<TQueryResult>) {
     super(db);
     this.database = db;
     this.sales = new DrizzleProductSalesReportReader(db);
+    this.productCoverageDays = new DrizzleProductCoverageDaysReader(db);
   }
 
   inOneSnapshot<T>(read: (reader: OrderSuggestionReader) => Promise<T>): Promise<T> {
@@ -54,10 +55,7 @@ export class DrizzleOrderSuggestionReader<TQueryResult extends PgQueryResultHKT>
   }
 
   async coverageDays(): Promise<ProductCoverageDays[]> {
-    return this.database
-      .select({ productId: products.id, coverageDays: products.coverageDays })
-      .from(products)
-      .where(productActivityCondition("active"));
+    return this.productCoverageDays.coverageDays();
   }
 
   async completedSalesByProduct({

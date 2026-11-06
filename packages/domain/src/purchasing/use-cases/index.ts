@@ -198,6 +198,7 @@ export type {
   OrderSuggestionSalesQuery,
   OrderSuggestionSupplier,
   ProductCoverageDays,
+  ProductCoverageDaysReader,
   ProductStock,
 } from "./order-suggestion-reader.js";
 export type {
@@ -422,6 +423,7 @@ export type {
 } from "./supplier-item-quantity-reader.js";
 export type {
   ComparableProduct,
+  ComparableProductReader,
   SupplierOffer,
   SupplierPriceComparisonReader,
 } from "./supplier-price-comparison-reader.js";

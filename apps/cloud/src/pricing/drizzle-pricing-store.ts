@@ -13,14 +13,13 @@ import type {
 } from "@purosur/domain/pricing/use-cases";
 import { and, desc, eq, isNull, max } from "drizzle-orm";
 import { alias, type PgDatabase, type PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { productActivityCondition } from "../catalog/product-activity-condition.js";
+import { DrizzleActiveProductLock } from "../catalog/drizzle-active-product-lock.js";
 import {
   auditLog,
   branchSettings,
   priceReviewPostponements,
   priceReviews,
   prices,
-  products,
 } from "../platform/db/schema.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import { PRICE_VERSION } from "./price-version.js";
@@ -31,20 +30,17 @@ export class DrizzlePricingStoreTransaction<TQueryResult extends PgQueryResultHK
   private readonly tx: PgDatabase<TQueryResult>;
   private readonly now: () => Date;
   private readonly pending: PendingChanges;
+  private readonly activeProductLock: DrizzleActiveProductLock<TQueryResult>;
 
   constructor(tx: PgDatabase<TQueryResult>, now: () => Date, pending: PendingChanges) {
     this.tx = tx;
     this.now = now;
     this.pending = pending;
+    this.activeProductLock = new DrizzleActiveProductLock(tx);
   }
 
   async lockActiveProduct(productId: string): Promise<LockActiveProductResult> {
-    const [product] = await this.tx
-      .select({ id: products.id })
-      .from(products)
-      .where(and(eq(products.id, productId), productActivityCondition("active")))
-      .for("update");
-    return product ? { kind: "locked" } : { kind: "not_found" };
+    return this.activeProductLock.lockActiveProduct(productId);
   }
 
   async branchPriceList(locationId: string): Promise<string> {

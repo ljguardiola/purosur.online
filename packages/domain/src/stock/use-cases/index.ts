@@ -27,6 +27,7 @@ export type {
   ReadAssemblyBatch,
 } from "./assembly-batch-list-reader.js";
 export type {
+  ActiveProductIdsReader,
   AssemblyBatchPorts,
   AssemblyBatchStore,
   AssemblyBatchTransaction,

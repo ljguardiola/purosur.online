@@ -13,13 +13,12 @@ import type {
 } from "@purosur/domain/stock/use-cases";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { productActivityCondition } from "../catalog/product-activity-condition.js";
+import { DrizzleActiveProductIdsReader } from "../catalog/drizzle-active-product-ids-reader.js";
 import {
   assemblyBatches,
   assemblyBatchLines,
   lotAllocations,
   lots,
-  products,
   recipeComponents,
   recipes,
   stockMovements,
@@ -52,11 +51,7 @@ class DrizzleAssemblyBatchTransaction<TQueryResult extends PgQueryResultHKT>
   }
 
   async activeProductIds(productIds: readonly string[]): Promise<string[]> {
-    const found = await this.tx
-      .select({ id: products.id })
-      .from(products)
-      .where(and(inArray(products.id, [...productIds]), productActivityCondition("active")));
-    return found.map((product) => product.id);
+    return new DrizzleActiveProductIdsReader(this.tx).activeProductIds(productIds);
   }
 
   async lotCosts(lotIds: readonly string[]): Promise<BatchLotCost[]> {
