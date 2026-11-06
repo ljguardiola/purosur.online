@@ -29,11 +29,10 @@ export type TabsProps = {
   children: ReactNode;
 };
 
-const tabListClassName =
-  "flex w-full overflow-x-auto border-b border-border [scrollbar-width:thin]";
+const tabListClassName = "flex w-full overflow-x-auto inset-shadow-divider [scrollbar-width:thin]";
 
 const tabClassName =
-  "group -mb-px flex h-control-lg shrink-0 cursor-pointer items-center border-b-2 " +
+  "group flex h-control-lg shrink-0 cursor-pointer items-center border-b-2 " +
   "border-transparent px-4 outline-none transition-colors " +
   "data-hovered:bg-surface-subtle data-selected:border-action " +
   "data-focus-visible:focus-ring-inset data-disabled:cursor-default " +
