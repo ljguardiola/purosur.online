@@ -70,7 +70,7 @@ test("shows no notice to a tab running the deployed release, and its failures re
   const services = servicesRunning("aaa", "aaa");
   vi.mocked(services.homeScreen.fetchAlerts).mockResolvedValue({
     kind: "ok",
-    value: { alerts: null, total: 0, pageSize: 25, openCount: 0, openCriticalCount: 0 },
+    value: { alerts: null, total: 0, pageSize: 25 },
   } as never);
   const screen = await render(<App help={emptyHelp} services={services} reportError={vi.fn()} />);
 

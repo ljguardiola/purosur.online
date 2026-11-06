@@ -84,8 +84,6 @@ function createServices(): HomeScreenServices {
         alerts: [passkeyAlert],
         total: 1,
         pageSize: 25,
-        openCount: 3,
-        openCriticalCount: 1,
       },
     }),
     fetchFiscalTasks: vi
@@ -261,7 +259,7 @@ test("says once, and with no pill, that no alert is open", async () => {
   vi.mocked(services.fetchAlertsOverview).mockResolvedValue({ kind: "ok", value: NOTHING_OPEN });
   vi.mocked(services.fetchAlerts).mockResolvedValue({
     kind: "ok",
-    value: { alerts: [], total: 0, pageSize: 25, openCount: 0, openCriticalCount: 0 },
+    value: { alerts: [], total: 0, pageSize: 25 },
   });
 
   const screen = await renderScreen(services);

@@ -32,8 +32,6 @@ const page = {
   alerts: [passkeyChange, closedLockout],
   total: 30,
   pageSize: 25,
-  openCount: 4,
-  openCriticalCount: 1,
 };
 
 describe("alertSummarySchema", () => {
@@ -150,7 +148,10 @@ describe("alertListPageSchema", () => {
   });
 
   it("strips keys it does not define", () => {
-    expect(alertListPageSchema.safeParse({ ...page, next: "2" }).data).toEqual(page);
+    expect(
+      alertListPageSchema.safeParse({ ...page, next: "2", openCount: 4, openCriticalCount: 1 })
+        .data,
+    ).toEqual(page);
   });
 
   it.each(Object.keys(page))("requires %s", (field) => {
@@ -168,10 +169,6 @@ describe("alertListPageSchema", () => {
     ["pageSize", "25"],
     ["pageSize", 25.5],
     ["pageSize", 0],
-    ["openCount", "4"],
-    ["openCount", 0.5],
-    ["openCriticalCount", "1"],
-    ["openCriticalCount", 0.5],
   ])("refuses %s as %j", (field, value) => {
     expect(alertListPageSchema.safeParse({ ...page, [field]: value }).success).toBe(false);
   });

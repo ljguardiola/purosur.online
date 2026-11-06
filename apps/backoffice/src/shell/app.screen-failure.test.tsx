@@ -24,8 +24,6 @@ test("offers to try again when a screen fails to render, reports the failure, an
     },
     total: 0,
     pageSize: 25,
-    openCount: 0,
-    openCriticalCount: 0,
   };
   vi.mocked(services.homeScreen.fetchAlerts).mockResolvedValue({ kind: "ok", value: page });
   const reportError = vi.fn();
@@ -67,7 +65,7 @@ test("keeps focus on the failure's title when trying again fails again", async (
   const services = createAppServices();
   vi.mocked(services.homeScreen.fetchAlerts).mockResolvedValue({
     kind: "ok",
-    value: { alerts: null, total: 0, pageSize: 25, openCount: 0, openCriticalCount: 0 },
+    value: { alerts: null, total: 0, pageSize: 25 },
   } as never);
   const reportError = vi.fn();
   const screen = await render(
@@ -93,7 +91,7 @@ test("tells an outdated tab to reload because the backoffice was updated, and Re
   const services = createAppServices({ releaseMonitor: fakeReleaseMonitor(true) });
   vi.mocked(services.homeScreen.fetchAlerts).mockResolvedValue({
     kind: "ok",
-    value: { alerts: null, total: 0, pageSize: 25, openCount: 0, openCriticalCount: 0 },
+    value: { alerts: null, total: 0, pageSize: 25 },
   } as never);
   const reportError = vi.fn();
   const screen = await render(

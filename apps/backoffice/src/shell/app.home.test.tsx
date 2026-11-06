@@ -50,7 +50,7 @@ const passkeyAlert: AlertSummary = {
 
 const oneAlert: FetchAlertsOutcome = {
   kind: "ok",
-  value: { alerts: [passkeyAlert], total: 1, pageSize: 25, openCount: 3, openCriticalCount: 1 },
+  value: { alerts: [passkeyAlert], total: 1, pageSize: 25 },
 };
 
 test("lands a user without the alerts permission on Inicio, with the registers and no alert section nor section column", async () => {

@@ -90,10 +90,6 @@ function ok(
       alerts,
       total: alerts.length,
       pageSize: 25,
-      openCount: alerts.filter((alert) => alert.resolvedAt === null).length,
-      openCriticalCount: alerts.filter(
-        (alert) => alert.resolvedAt === null && alert.level === "critical",
-      ).length,
       ...page,
     },
   };
@@ -574,9 +570,9 @@ test("moves to the last page left when closing the only alert on the last page e
   let closed = false;
   vi.mocked(services.fetchAlerts).mockImplementation(async (query) => {
     if (query?.page === 2) {
-      return closed ? ok([], { total: 25, openCount: 25 }) : ok([passkeyAlert], { total: 26 });
+      return closed ? ok([], { total: 25 }) : ok([passkeyAlert], { total: 26 });
     }
-    return ok([lockoutAlert], { total: closed ? 25 : 26, openCount: closed ? 25 : 26 });
+    return ok([lockoutAlert], { total: closed ? 25 : 26 });
   });
   services.alertDetailModal = {
     fetchAlert: vi.fn().mockResolvedValue({ kind: "ok", value: passkeyDetail }),
@@ -608,9 +604,9 @@ test("never shows the emptied last page as empty while it moves to the last page
   const lastPageLeft = deferred<FetchAlertsOutcome>();
   vi.mocked(services.fetchAlerts).mockImplementation(async (query) => {
     if (query?.page === 2) {
-      return closed ? ok([], { total: 25, openCount: 25 }) : ok([passkeyAlert], { total: 26 });
+      return closed ? ok([], { total: 25 }) : ok([passkeyAlert], { total: 26 });
     }
-    return closed ? lastPageLeft.promise : ok([lockoutAlert], { total: 26, openCount: 26 });
+    return closed ? lastPageLeft.promise : ok([lockoutAlert], { total: 26 });
   });
   services.alertDetailModal = {
     fetchAlert: vi.fn().mockResolvedValue({ kind: "ok", value: passkeyDetail }),
@@ -1306,19 +1302,6 @@ test("searches an alert by its title typed without accents", async () => {
         search: { text: "no esta sincronizando", kinds: ["register_silent"] },
       },
     ]);
-});
-
-test("shows no open and critical alert counts under the list, which the open alerts above already count", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchAlerts).mockResolvedValue(
-    ok([passkeyAlert, lockoutAlert], { openCount: 1998, openCriticalCount: 1500 }),
-  );
-
-  const screen = await renderScreen(services);
-
-  await expect.element(screen.getByText("Lucía Pérez")).toBeVisible();
-  expect(screen.getByText(/alertas abiertas/).query()).toBeNull();
-  expect(screen.getByText(/críticas/).query()).toBeNull();
 });
 
 test("typing in the search renders none of the listed alerts again", async () => {

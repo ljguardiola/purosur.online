@@ -103,8 +103,6 @@ test("follows a quarantined event's alert to the quarantined events list", async
           alerts: [{ ...summary, salesDeniedReason: null, refundAmount: null, refundMethod: null }],
           total: 1,
           pageSize: 25,
-          openCount: 1,
-          openCriticalCount: 1,
         },
       }),
       alertDetailModal: {
