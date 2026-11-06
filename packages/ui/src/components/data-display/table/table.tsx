@@ -5,7 +5,13 @@ import { LoadFailure } from "../../feedback/load-failure";
 import { TableCell } from "./table-cell";
 import { TableColumnWidths, TableHeaderRows } from "./table-header-row";
 import { TablePlaceholderRows } from "./table-placeholder-rows";
-import { rowBoxShadowClassName, rowStateClassName, tableContainerClassName } from "./table-styles";
+import {
+  pressableRowClassName,
+  rowBoxShadowClassName,
+  rowStateClassName,
+  startsInsideInteractiveElement,
+  tableContainerClassName,
+} from "./table-styles";
 import type { TableLoadingState, TableProps } from "./table-types";
 import { TableUpdatingBar } from "./table-updating-bar";
 
@@ -35,6 +41,7 @@ export function Table<T extends RowData>({
   variant = "framed",
   rowState,
   rowDetail,
+  onRowPress,
   loading = false,
   failure,
   empty,
@@ -94,7 +101,22 @@ export function Table<T extends RowData>({
                       className={[
                         rowBoxShadowClassName(state, last && !hasDetail),
                         rowStateClassName(state, variant),
+                        ...(onRowPress === undefined ? [] : [pressableRowClassName(state)]),
                       ].join(" ")}
+                      aria-current={
+                        onRowPress !== undefined && state === "selected" ? "true" : undefined
+                      }
+                      onClick={
+                        onRowPress === undefined
+                          ? undefined
+                          : (event) => {
+                              if (
+                                !startsInsideInteractiveElement(event.target, event.currentTarget)
+                              ) {
+                                onRowPress(row.original);
+                              }
+                            }
+                      }
                     >
                       {row.getAllCells().map((cell, index, cells) => (
                         <TableCell

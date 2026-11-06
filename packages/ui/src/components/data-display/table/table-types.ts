@@ -89,6 +89,7 @@ export type TableProps<T extends RowData> = {
   variant?: TableVariant;
   rowState?: (item: T) => TableRowState | undefined;
   rowDetail?: (item: T) => ReactNode;
+  onRowPress?: (item: T) => void;
   empty?: EmptyStateProps;
   footer?: ReactNode;
 } & TableLoadProps;
