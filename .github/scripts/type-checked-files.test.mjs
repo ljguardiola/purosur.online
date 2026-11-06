@@ -28,6 +28,17 @@ test("refuses a tracked TypeScript file no checked program includes, naming it",
   assert.deepEqual(unchecked, ["scripts/left-out.test.tsx", "scripts/left-out.ts"]);
 });
 
+test("refuses an ES module and a CommonJS TypeScript file no checked program includes", (t) => {
+  const unchecked = uncheckedIn(t, {
+    "tsconfig.json": tsconfigIncluding("src"),
+    "src/checked.ts": "export const checked = 1;",
+    "scripts/left-out.mts": "export const leftOut = 1;",
+    "scripts/left-out.cts": "export const leftOut = 1;",
+  });
+
+  assert.deepEqual(unchecked, ["scripts/left-out.cts", "scripts/left-out.mts"]);
+});
+
 test("refuses a file of a dot-folder the include names without a pattern", (t) => {
   const unchecked = uncheckedIn(t, {
     "tsconfig.json": tsconfigIncluding("src", "tools/.config"),
