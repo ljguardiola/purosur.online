@@ -1,10 +1,10 @@
 import type { StockMovementKind } from "../../stock/index.js";
 import { versionAtLeast } from "./register-version.js";
 
-const ENTITY_READABLE_SINCE: Readonly<Record<string, string>> = {
-  brand: "1.0.1364",
-  zone_rules: "1.0.1299",
-};
+const ENTITY_READABLE_SINCE: ReadonlyMap<string, string> = new Map([
+  ["brand", "1.0.1364"],
+  ["zone_rules", "1.0.1299"],
+]);
 
 const STOCK_MOVEMENT_KIND_READABLE_SINCE: Readonly<Partial<Record<StockMovementKind, string>>> = {
   return: "1.0.1284",
@@ -17,7 +17,7 @@ function readsSince(readerVersion: string | null, since: string | undefined): bo
 }
 
 export function readsPulledEntity(readerVersion: string | null, entity: string): boolean {
-  return readsSince(readerVersion, ENTITY_READABLE_SINCE[entity]);
+  return readsSince(readerVersion, ENTITY_READABLE_SINCE.get(entity));
 }
 
 export function unreadableStockMovementKinds(readerVersion: string | null): StockMovementKind[] {

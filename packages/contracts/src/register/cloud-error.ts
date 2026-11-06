@@ -36,12 +36,24 @@ export const cloudErrorSchema = z.object({
 
 export type CloudError = z.output<typeof cloudErrorSchema>;
 
+const CLOUD_ERROR_TRAITS: ReadonlyMap<string, { status: number; retryable: boolean }> = new Map(
+  Object.entries(CLOUD_ERRORS),
+);
+
+function traitsOf(code: CloudErrorCode): { status: number; retryable: boolean } {
+  const traits = CLOUD_ERROR_TRAITS.get(code);
+  if (traits === undefined) {
+    throw new Error(`Unknown cloud error code "${code}"`);
+  }
+  return traits;
+}
+
 export function cloudErrorStatus(code: CloudErrorCode): number {
-  return CLOUD_ERRORS[code].status;
+  return traitsOf(code).status;
 }
 
 export function isRetryableCloudError(code: CloudErrorCode): boolean {
-  return CLOUD_ERRORS[code].retryable;
+  return traitsOf(code).retryable;
 }
 
 export function cloudError(
