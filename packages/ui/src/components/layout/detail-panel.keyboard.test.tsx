@@ -35,7 +35,7 @@ test("moves focus to its title on open and back to the pressed row on close", as
   await expect.element(row).toHaveFocus();
 });
 
-test("focus returns to the last control pressed outside the panel, a second row pressed while it is open", async () => {
+test("focus returns to the row that opened the record shown, a second row pressed while it is open", async () => {
   const screen = await render(<SuppliersArea areaWidth={WIDE_AREA} />);
   await screen.getByRole("button", { name: "Distribuidora Norte" }).click();
   const lastRow = screen.getByRole("button", { name: "Almacén Sur" });
@@ -47,13 +47,13 @@ test("focus returns to the last control pressed outside the panel, a second row 
   await expect.element(lastRow).toHaveFocus();
 });
 
-test("focus returns to the last control pressed outside the panel, even when both rows open records with the same title", async () => {
+test("focus returns to the row that opened the record shown, even when both rows open records with the same title", async () => {
   const screen = await render(
     <SuppliersArea
       areaWidth={WIDE_AREA}
       rows={[
-        { label: "Fila uno", supplier: "Distribuidora Norte" },
-        { label: "Fila dos", supplier: "Distribuidora Norte" },
+        { id: "proveedor-1", label: "Fila uno", supplier: "Distribuidora Norte" },
+        { id: "proveedor-2", label: "Fila dos", supplier: "Distribuidora Norte" },
       ]}
     />,
   );
@@ -68,7 +68,7 @@ test("focus returns to the last control pressed outside the panel, even when bot
 });
 
 test.each(modes)(
-  "focus returns to the last control pressed outside the panel, not to a row Shift+Tab reaches from its title, $mode",
+  "focus returns to the row that opened the record shown, not to a row Shift+Tab reaches from its title, $mode",
   async ({ areaWidth }) => {
     const screen = await render(<SuppliersArea areaWidth={areaWidth} />);
     const pressedRow = screen.getByRole("button", { name: "Distribuidora Norte" });
@@ -86,7 +86,7 @@ test.each(modes)(
 );
 
 test.each(modes)(
-  "focus returns to the last control pressed outside the panel, not to a row focused without being pressed, $mode",
+  "focus returns to the row that opened the record shown, not to a row focused without opening a record, $mode",
   async ({ areaWidth }) => {
     const screen = await render(<SuppliersArea areaWidth={areaWidth} />);
     const pressedRow = screen.getByRole("button", { name: "Distribuidora Norte" });
@@ -100,23 +100,11 @@ test.each(modes)(
   },
 );
 
-test("focus returns to the last control pressed outside the panel, a list search field clicked while it is open", async () => {
-  const screen = await render(<SuppliersArea areaWidth={WIDE_AREA} />);
-  await screen.getByRole("button", { name: "Distribuidora Norte" }).click();
-  const search = screen.getByRole("searchbox", { name: "Buscar proveedor" });
-  await search.click();
-
-  await screen.getByRole("button", { name: "Cerrar" }).click();
-
-  expect(screen.getByRole("complementary").elements()).toHaveLength(0);
-  await expect.element(search).toHaveFocus();
-});
-
-test("focus returns to the last control pressed outside the panel, not to plain text clicked outside it", async () => {
+test("focus returns to the row that opened the record shown, not to a list search field clicked while it is open", async () => {
   const screen = await render(<SuppliersArea areaWidth={WIDE_AREA} />);
   const pressedRow = screen.getByRole("button", { name: "Distribuidora Norte" });
   await pressedRow.click();
-  await screen.getByText("Proveedores").click();
+  await screen.getByRole("searchbox", { name: "Buscar proveedor" }).click();
 
   await screen.getByRole("button", { name: "Cerrar" }).click();
 
@@ -124,7 +112,7 @@ test("focus returns to the last control pressed outside the panel, not to plain 
   await expect.element(pressedRow).toHaveFocus();
 });
 
-test("focus returns to the last control pressed outside the panel, a row activated with Enter while it is open", async () => {
+test("focus returns to the row that opened the record shown, a row activated with Enter while it is open", async () => {
   const screen = await render(<SuppliersArea areaWidth={WIDE_AREA} />);
   await screen.getByRole("button", { name: "Distribuidora Norte" }).click();
   const enteredRow = screen.getByRole("button", { name: "Almacén Sur" });
@@ -139,7 +127,7 @@ test("focus returns to the last control pressed outside the panel, a row activat
 });
 
 test.each(["Enter", "Space"])(
-  "focus returns to the last control pressed outside the panel, a design-system row pressed with %s while it is open",
+  "focus returns to the row that opened the record shown, a design-system row pressed with %s while it is open",
   async (key) => {
     const screen = await render(<SuppliersArea areaWidth={WIDE_AREA} rowButtons="design-system" />);
     await screen.getByRole("button", { name: "Distribuidora Norte" }).click();
@@ -156,7 +144,7 @@ test.each(["Enter", "Space"])(
 );
 
 test.each(modes)(
-  "focus returns to the last control pressed outside the panel, not to a link its content clicks by code to download a file, $mode",
+  "focus returns to the row that opened the record shown, not to a link its content clicks by code to download a file, $mode",
   async ({ areaWidth }) => {
     const screen = await render(
       <SuppliersArea areaWidth={areaWidth}>
@@ -175,7 +163,7 @@ test.each(modes)(
 );
 
 test.each(modes)(
-  "focus returns to the last control pressed outside the panel after a modal opened from its content closed, $mode",
+  "focus returns to the row that opened the record shown after a modal opened from its content closed, $mode",
   async ({ areaWidth }) => {
     const screen = await render(
       <SuppliersArea areaWidth={areaWidth}>

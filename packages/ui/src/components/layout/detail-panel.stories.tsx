@@ -48,11 +48,16 @@ const footerActions = (
 );
 
 export const OpenWithoutFooter: Story = {
-  args: { title: "Distribuidora Norte", children: supplierDetails },
+  args: { recordKey: "proveedor-1", title: "Distribuidora Norte", children: supplierDetails },
 };
 
 export const OpenWithFooter: Story = {
-  args: { title: "Distribuidora Norte", children: supplierDetails, footer: footerActions },
+  args: {
+    recordKey: "proveedor-1",
+    title: "Distribuidora Norte",
+    children: supplierDetails,
+    footer: footerActions,
+  },
 };
 
 const deliveries = Array.from(
@@ -62,6 +67,7 @@ const deliveries = Array.from(
 
 export const WithLongBody: Story = {
   args: {
+    recordKey: "proveedor-2",
     title: "Almacén Sur",
     children: (
       <>
@@ -91,6 +97,7 @@ export const WithLongBodyFocused: Story = {
 
 export const WithTabs: Story = {
   args: {
+    recordKey: "proveedor-3",
     title: "Frigorífico del Valle",
     children: (
       <Tabs
@@ -109,7 +116,12 @@ export const WithTabs: Story = {
 };
 
 export const Narrow: Story = {
-  args: { title: "Distribuidora Norte", children: supplierDetails, footer: footerActions },
+  args: {
+    recordKey: "proveedor-1",
+    title: "Distribuidora Norte",
+    children: supplierDetails,
+    footer: footerActions,
+  },
   decorators: [
     (Story) => (
       <div style={{ width: "700px" }}>

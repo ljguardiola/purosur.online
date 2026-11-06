@@ -91,15 +91,23 @@ test("keeps the header and the footer fixed while a long body scrolls between th
   await expectNoAccessibilityViolations(screen.container);
 });
 
-test("does not accept a panel without its title or its content", () => {
+test("does not accept a panel without its record's key, its title or its content", () => {
   expectTypeOf<{
     open: boolean;
     onClose: () => void;
+    title: string;
     children: ReactNode;
   }>().not.toExtend<DetailPanelProps>();
   expectTypeOf<{
     open: boolean;
     onClose: () => void;
+    recordKey: string;
+    children: ReactNode;
+  }>().not.toExtend<DetailPanelProps>();
+  expectTypeOf<{
+    open: boolean;
+    onClose: () => void;
+    recordKey: string;
     title: string;
   }>().not.toExtend<DetailPanelProps>();
 });

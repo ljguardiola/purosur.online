@@ -4,11 +4,11 @@ import { Button } from "../../forms/button";
 import { Modal } from "../../overlays/modal";
 import { DetailPanel } from "../detail-panel";
 
-type SupplierRow = { label: string; supplier: string };
+type SupplierRow = { id: string; label: string; supplier: string };
 
 const supplierRows: SupplierRow[] = [
-  { label: "Distribuidora Norte", supplier: "Distribuidora Norte" },
-  { label: "Almacén Sur", supplier: "Almacén Sur" },
+  { id: "proveedor-1", label: "Distribuidora Norte", supplier: "Distribuidora Norte" },
+  { id: "proveedor-2", label: "Almacén Sur", supplier: "Almacén Sur" },
 ];
 
 export function SuppliersArea({
@@ -24,7 +24,7 @@ export function SuppliersArea({
   rows?: SupplierRow[];
   rowButtons?: "native" | "design-system";
 }) {
-  const [openSupplier, setOpenSupplier] = useState<string | null>(null);
+  const [openRow, setOpenRow] = useState<SupplierRow | null>(null);
 
   return (
     <div data-testid="area" style={{ display: "flex", width: `${areaWidth}px`, height: "600px" }}>
@@ -32,15 +32,15 @@ export function SuppliersArea({
         <p>Proveedores</p>
         <input type="search" aria-label="Buscar proveedor" />
         <ul>
-          {rows.map(({ label, supplier }) => (
-            <li key={label}>
+          {rows.map((row) => (
+            <li key={row.id}>
               {rowButtons === "native" ? (
-                <button type="button" onClick={() => setOpenSupplier(supplier)}>
-                  {label}
+                <button type="button" onClick={() => setOpenRow(row)}>
+                  {row.label}
                 </button>
               ) : (
-                <Button variant="text" onPress={() => setOpenSupplier(supplier)}>
-                  {label}
+                <Button variant="text" onPress={() => setOpenRow(row)}>
+                  {row.label}
                 </Button>
               )}
             </li>
@@ -48,9 +48,10 @@ export function SuppliersArea({
         </ul>
       </div>
       <DetailPanel
-        open={openSupplier !== null}
-        onClose={() => setOpenSupplier(null)}
-        title={openSupplier ?? ""}
+        open={openRow !== null}
+        onClose={() => setOpenRow(null)}
+        recordKey={openRow?.id ?? ""}
+        title={openRow?.supplier ?? ""}
         footer={footer}
       >
         {children ?? <p>Datos del proveedor</p>}
