@@ -114,7 +114,10 @@ export class DrizzleSupplierItemLinkProposalReader<TQueryResult extends PgQueryR
     return rows.map(proposalProduct);
   }
 
-  async product(productId: string, scope: ProductActivityScope): Promise<ProposalProduct | undefined> {
+  async product(
+    productId: string,
+    scope: ProductActivityScope,
+  ): Promise<ProposalProduct | undefined> {
     const [row] = await this.db
       .select({ ...PRODUCT_COLUMNS })
       .from(products)
