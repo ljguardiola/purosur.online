@@ -46,7 +46,7 @@ test("reloading the changed product list keeps the screen's own status filter", 
   await userEvent.click(
     dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
   );
-  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja A4" }));
   await expect.element(dialog.getByText("La lista de productos cambió")).toBeVisible();
 
   await userEvent.click(dialog.getByRole("button", { name: "Recargar la lista" }));
@@ -99,7 +99,7 @@ test("a reload that fails leaves the list failed, with its retry, instead of the
   await userEvent.click(
     dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
   );
-  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja A4" }));
   await expect.element(dialog.getByText("La lista de productos cambió")).toBeVisible();
 
   vi.mocked(services.fetchProducts).mockResolvedValueOnce({ kind: "failed" });
@@ -118,7 +118,7 @@ test("the print modal a failed reload closed stays closed once the list loads ag
   await userEvent.click(
     dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
   );
-  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja A4" }));
   vi.mocked(services.fetchProducts).mockResolvedValueOnce({ kind: "failed" });
   await userEvent.click(dialog.getByRole("button", { name: "Recargar la lista" }));
   await expect.element(screen.getByText("No pudimos abrir los productos")).toBeVisible();
@@ -131,4 +131,30 @@ test("the print modal a failed reload closed stays closed once the list loads ag
     )
     .toBeVisible();
   expect(screen.getByRole("dialog").query()).toBeNull();
+});
+
+test("printing on the label printer asks the cloud for the rasters and hands them to the printer", async () => {
+  const services = createServices();
+  mockLoaded(services, [honeyWithInternalBarcode]);
+  const labels = [
+    { copies: 1, raster: { widthDots: 8, heightRows: 1, data: new Uint8Array([0xa5]) } },
+  ];
+  vi.mocked(services.fetchPrinterLabels).mockResolvedValue({ kind: "ok", labels });
+  vi.mocked(services.printOnLabelPrinter).mockResolvedValue({ kind: "printed", printed: 1 });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
+  const dialog = await openPrintLabelsModal(screen);
+  await userEvent.click(
+    dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
+  );
+
+  await userEvent.click(
+    dialog.getByRole("button", { name: "Imprimir en la impresora de etiquetas" }),
+  );
+
+  await expect.poll(() => vi.mocked(services.printOnLabelPrinter).mock.calls.length).toBe(1);
+  expect(services.fetchPrinterLabels).toHaveBeenCalledWith([
+    { productId: honeyWithInternalBarcode.id, count: 1 },
+  ]);
+  expect(services.printOnLabelPrinter).toHaveBeenCalledWith(labels);
 });

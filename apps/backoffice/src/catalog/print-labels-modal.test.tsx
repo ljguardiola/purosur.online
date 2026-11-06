@@ -1,115 +1,24 @@
 import type { ProductSummary } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { useState } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
-import { page, userEvent } from "vitest/browser";
+import { userEvent } from "vitest/browser";
 import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
-import { render } from "../shell/test-support/render-with-router";
-import { PrintLabelsModal, type PrintLabelsModalServices } from "./print-labels-modal";
-import { almondOil, almonds, honey, vitora } from "./test-support/products";
+import type { PrintLabelsModalServices } from "./print-labels-modal";
+import { almonds } from "./test-support/products";
+import {
+  almondOilWithInternalBarcode,
+  almondsWithInternalBarcode,
+  createServices,
+  honeyWithInternalBarcode,
+  openPrintLabelsModal,
+  renderModal,
+  type Screen,
+  withoutInternalBarcode,
+} from "./test-support/print-labels-modal";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
-
-// Both barcodes are valid check-digit values in the GS1 restricted-circulation range.
-const honeyWithInternalBarcode: ProductSummary = {
-  ...honey,
-  id: "00000020-0000-4000-8000-000000000000",
-  barcodes: ["2000000000015"],
-  labelCode: "2000000000015",
-  labelModules:
-    "10100011010001101010011101001110001101010011101010111001011100101110010111001011001101001110101",
-};
-const almondsWithInternalBarcode: ProductSummary = {
-  ...almonds,
-  id: "00000021-0000-4000-8000-000000000000",
-  barcodes: ["2000000000022"],
-  labelCode: "2000000000022",
-  labelModules:
-    "10100011010001101010011101001110001101010011101010111001011100101110010111001011011001101100101",
-};
-const almondOilWithInternalBarcode: ProductSummary = {
-  ...almondOil,
-  barcodes: ["2000000000015"],
-  labelCode: "2000000000015",
-  labelModules: honeyWithInternalBarcode.labelModules,
-};
-const withoutInternalBarcode: ProductSummary = {
-  ...honey,
-  id: "00000022-0000-4000-8000-000000000000",
-  name: "Producto sin código interno",
-  barcodes: ["7790000000123"],
-};
-
-function createServices(
-  overrides: Partial<PrintLabelsModalServices> = {},
-): PrintLabelsModalServices {
-  return { printLabels: vi.fn(), ...overrides };
-}
-
-type HarnessProps = {
-  products: ProductSummary[];
-  reload: () => Promise<ProductSummary[]>;
-  onSessionEnded: () => void;
-  services: PrintLabelsModalServices;
-};
-
-// Stands in for the screen: it opens and closes the modal, and a reload replaces the products.
-function Harness({ products: loaded, reload, onSessionEnded, services }: HarnessProps) {
-  const [open, setOpen] = useState(false);
-  const [products, setProducts] = useState(loaded);
-  return (
-    <main>
-      <button type="button" onClick={() => setOpen(true)}>
-        Imprimir etiquetas
-      </button>
-      <PrintLabelsModal
-        open={open}
-        onClose={() => setOpen(false)}
-        onSessionEnded={onSessionEnded}
-        products={products}
-        brands={[vitora]}
-        onReload={async () => setProducts(await reload())}
-        services={services}
-      />
-    </main>
-  );
-}
-
-async function renderModal(
-  services: PrintLabelsModalServices,
-  {
-    products,
-    reload = async () => products,
-    onSessionEnded = () => {},
-  }: {
-    products: ProductSummary[];
-    reload?: () => Promise<ProductSummary[]>;
-    onSessionEnded?: () => void;
-  },
-) {
-  await page.viewport(1280, 900);
-  const element = (
-    <Harness
-      products={products}
-      reload={reload}
-      onSessionEnded={onSessionEnded}
-      services={services}
-    />
-  );
-  const screen = await render(element);
-  // Rerendering drives React's async `act()`, which flushes the already-resolved response's
-  // continuation before returning.
-  return Object.assign(screen, { settle: () => screen.rerender(element) });
-}
-
-type Screen = Awaited<ReturnType<typeof renderModal>>;
-
-async function openPrintLabelsModal(screen: Screen) {
-  await userEvent.click(screen.getByRole("button", { name: "Imprimir etiquetas" }));
-  return screen.getByRole("dialog");
-}
 
 // A native click reaches the same handler as userEvent: react-aria's usePress falls back to the
 // click event, so repeated clicks below run fast without weakening what they prove.
@@ -138,9 +47,7 @@ async function startPrintThenCloseAndReopen(screen: Screen) {
       name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}`,
     }),
   );
-  await userEvent.click(
-    firstDialog.getByRole("button", { name: "Descargar la hoja para imprimir" }),
-  );
+  await userEvent.click(firstDialog.getByRole("button", { name: "Descargar la hoja A4" }));
   await userEvent.click(firstDialog.getByRole("button", { name: "Cerrar" }));
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   const dialog = await openPrintLabelsModal(screen);
@@ -157,9 +64,7 @@ async function startReloadThenCloseAndReopen(screen: Screen) {
       name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}`,
     }),
   );
-  await userEvent.click(
-    firstDialog.getByRole("button", { name: "Descargar la hoja para imprimir" }),
-  );
+  await userEvent.click(firstDialog.getByRole("button", { name: "Descargar la hoja A4" }));
   await userEvent.click(firstDialog.getByRole("button", { name: "Recargar la lista" }));
   await userEvent.click(firstDialog.getByRole("button", { name: "Cerrar" }));
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
@@ -267,9 +172,7 @@ test("shows only the empty state when no product has an internal barcode", async
     .element(dialog.getByText("No hay productos activos con código interno"))
     .toBeVisible();
   expect(dialog.getByText(/Elegí cuántas etiquetas/).query()).toBeNull();
-  await expect
-    .element(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }))
-    .toBeDisabled();
+  await expect.element(dialog.getByRole("button", { name: "Descargar la hoja A4" })).toBeDisabled();
 });
 
 test("the empty state asks to generate a code from an active product's form", async () => {
@@ -379,17 +282,13 @@ test("the download action is disabled while the total is zero", async () => {
   const screen = await renderModal(services, { products: [honeyWithInternalBarcode] });
   const dialog = await openPrintLabelsModal(screen);
 
-  await expect
-    .element(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }))
-    .toBeDisabled();
+  await expect.element(dialog.getByRole("button", { name: "Descargar la hoja A4" })).toBeDisabled();
 
   await userEvent.click(
     dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
   );
 
-  await expect
-    .element(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }))
-    .toBeEnabled();
+  await expect.element(dialog.getByRole("button", { name: "Descargar la hoja A4" })).toBeEnabled();
 });
 
 test("downloads only the products with a count above zero, then closes the modal", async () => {
@@ -414,7 +313,7 @@ test("downloads only the products with a count above zero, then closes the modal
     dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
   );
 
-  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja A4" }));
 
   await expect.poll(() => vi.mocked(services.printLabels).mock.calls.length).toBe(1);
   expect(services.printLabels).toHaveBeenCalledWith([
@@ -448,7 +347,7 @@ test("revokes the downloaded sheet's object URL only a minute after the download
 
   vi.useFakeTimers({ toFake: ["setTimeout"] });
   try {
-    await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
+    await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja A4" }));
     await expect.poll(() => anchorClick.mock.calls.length).toBe(1);
     expect(revokeObjectURL).not.toHaveBeenCalled();
 
@@ -478,7 +377,7 @@ test("the download action is disabled while the request is pending", async () =>
   await userEvent.click(
     dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
   );
-  const download = dialog.getByRole("button", { name: "Descargar la hoja para imprimir" });
+  const download = dialog.getByRole("button", { name: "Descargar la hoja A4" });
 
   await userEvent.click(download);
 
@@ -499,7 +398,7 @@ test("shows the products-changed notice and offers a reload on product_not_found
     dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
   );
 
-  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja A4" }));
 
   await expect.element(dialog.getByText("La lista de productos cambió")).toBeVisible();
   const reload = dialog.getByRole("button", { name: "Recargar la lista" });
@@ -522,7 +421,7 @@ test("shows the products-changed notice on product_without_internal_barcode", as
     dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
   );
 
-  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja A4" }));
 
   await expect.element(dialog.getByText("La lista de productos cambió")).toBeVisible();
 });
@@ -539,7 +438,7 @@ test("shows the rate-limited notice when printing is refused for too many reques
     dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
   );
 
-  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja A4" }));
 
   await expect.element(dialog.getByText("Demasiadas solicitudes")).toBeVisible();
   await expect.element(dialog.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
@@ -554,7 +453,7 @@ test("shows a generic failure notice when printing fails", async () => {
     dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
   );
 
-  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja A4" }));
 
   await expect.element(dialog.getByText("No se pudo generar la hoja")).toBeVisible();
 });
@@ -572,7 +471,7 @@ test("ends the session when printing comes back unauthenticated", async () => {
     dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
   );
 
-  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja A4" }));
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
@@ -587,7 +486,7 @@ test("navigates to Mi cuenta when printing comes back forbidden", async () => {
     dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
   );
 
-  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja A4" }));
 
   await expect
     .poll(() => window.location.pathname + window.location.search)
@@ -790,7 +689,7 @@ test("tells an outdated tab to reload because the backoffice was updated when pr
     dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
   );
 
-  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
+  await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja A4" }));
 
   await expect.element(dialog.getByText("No se pudo generar la hoja")).toBeVisible();
   await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();

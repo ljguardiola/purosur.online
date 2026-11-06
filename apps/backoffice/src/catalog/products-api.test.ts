@@ -5,6 +5,7 @@ import {
   createProduct,
   deactivateProduct,
   editProduct,
+  fetchPrinterLabels,
   fetchProducts,
   printLabels,
   reactivateProduct,
@@ -571,6 +572,107 @@ test("printLabels returns failed when the request throws", async () => {
   vi.mocked(fetch).mockRejectedValue(new Error("network down"));
 
   expect(await printLabels(labelRequest)).toEqual({ kind: "failed" });
+});
+
+function rasterBase64(bytes: number[]): string {
+  return btoa(String.fromCharCode(...bytes));
+}
+
+test("fetchPrinterLabels posts the requested labels and decodes each raster on 200", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, {
+      widthDots: 8,
+      heightDots: 2,
+      labels: [
+        { copies: 3, rows: rasterBase64([0xa5, 0x0f]) },
+        { copies: 1, rows: rasterBase64([0xff, 0x00]) },
+      ],
+    }),
+  );
+
+  const outcome = await fetchPrinterLabels(labelRequest);
+
+  expect(outcome).toEqual({
+    kind: "ok",
+    labels: [
+      { copies: 3, raster: { widthDots: 8, heightRows: 2, data: new Uint8Array([0xa5, 0x0f]) } },
+      { copies: 1, raster: { widthDots: 8, heightRows: 2, data: new Uint8Array([0xff, 0x00]) } },
+    ],
+  });
+  expect(fetch).toHaveBeenCalledWith("/api/label-prints", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ labels: labelRequest }),
+  });
+});
+
+test("fetchPrinterLabels returns failed when the body does not match the printer labels shape", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, {
+      widthDots: 12,
+      heightDots: 2,
+      labels: [{ copies: 1, rows: rasterBase64([1, 2]) }],
+    }),
+  );
+
+  expect(await fetchPrinterLabels(labelRequest)).toEqual({ kind: "failed" });
+});
+
+test("fetchPrinterLabels returns failed when the body is not JSON", async () => {
+  vi.mocked(fetch).mockResolvedValue(new Response("not json", { status: 200 }));
+
+  expect(await fetchPrinterLabels(labelRequest)).toEqual({ kind: "failed" });
+});
+
+test("fetchPrinterLabels returns product_not_found on a 400 with that code", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(400, { code: "product_not_found", message: "no product", productId: "product-1" }),
+  );
+
+  expect(await fetchPrinterLabels(labelRequest)).toEqual({ kind: "product_not_found" });
+});
+
+test("fetchPrinterLabels returns product_without_internal_barcode on a 400 with that code", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(400, { code: "product_without_internal_barcode", message: "none" }),
+  );
+
+  expect(await fetchPrinterLabels(labelRequest)).toEqual({
+    kind: "product_without_internal_barcode",
+  });
+});
+
+test("fetchPrinterLabels returns failed on a 400 with an unrecognized code", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(400, { code: "validation_failed" }));
+
+  expect(await fetchPrinterLabels(labelRequest)).toEqual({ kind: "failed" });
+});
+
+test("fetchPrinterLabels returns unauthenticated on 401", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(401));
+
+  expect(await fetchPrinterLabels(labelRequest)).toEqual({ kind: "unauthenticated" });
+});
+
+test("fetchPrinterLabels returns forbidden on 403", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(403));
+
+  expect(await fetchPrinterLabels(labelRequest)).toEqual({ kind: "forbidden" });
+});
+
+test("fetchPrinterLabels returns rate_limited with the Retry-After header on 429", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "50" }));
+
+  expect(await fetchPrinterLabels(labelRequest)).toEqual({
+    kind: "rate_limited",
+    retryAfterSeconds: 50,
+  });
+});
+
+test("fetchPrinterLabels returns failed when the request throws", async () => {
+  vi.mocked(fetch).mockRejectedValue(new Error("network down"));
+
+  expect(await fetchPrinterLabels(labelRequest)).toEqual({ kind: "failed" });
 });
 
 test("deactivateProduct puts the deactivation with no body and returns ok on 200", async () => {
