@@ -458,18 +458,19 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     homeScreen: {
       fetchAlertsOverview: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchRegisterSyncStatus: vi.fn().mockReturnValue(new Promise(() => {})),
-    },
-    areaTopBarUnbilledDeferredSales: UnbilledDeferredSalesPill,
-    unbilledDeferredSalesPill: {
-      fetchUnbilledDeferredSales: vi.fn().mockReturnValue(new Promise(() => {})),
-    },
-    alertsListScreen: {
       fetchAlerts: vi.fn().mockReturnValue(new Promise(() => {})),
       alertDetailModal: {
         fetchAlert: vi.fn().mockReturnValue(new Promise(() => {})),
         fetchPermissionCatalog: vi.fn().mockResolvedValue(permissionCatalogOutcome),
         closeAlert: vi.fn(),
       },
+      fetchFiscalTasks: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchPendingRefunds: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchPrices: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
+    areaTopBarUnbilledDeferredSales: UnbilledDeferredSalesPill,
+    unbilledDeferredSalesPill: {
+      fetchUnbilledDeferredSales: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     quarantinedEventsScreen: {
       fetchQuarantinedEvents: vi.fn().mockReturnValue(new Promise(() => {})),

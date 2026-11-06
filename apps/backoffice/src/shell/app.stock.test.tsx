@@ -14,7 +14,6 @@ const PAST_ACTIVITY_THROTTLE_WINDOW_MS = 120_000;
 
 opensOnlyScreens([
   "/",
-  "/alerts",
   "/assembly-batches",
   "/expiring-lots",
   "/freights",

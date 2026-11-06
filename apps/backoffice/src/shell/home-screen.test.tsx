@@ -1,8 +1,14 @@
-import type { AlertsOverview } from "@purosur/contracts";
+import type { AlertSummary, AlertsOverview, PriceList } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { FetchAlertsOverviewOutcome } from "../alerts/alerts-api";
+import { type AlertsListFilters, alertsListFilters } from "../alerts/routes";
+import { fiscalTasks, noFiscalTasks } from "../fiscal/test-support/fiscal-task-fixtures";
+import {
+  noPendingRefunds,
+  pendingRefundsWithUnconfirmedCloudRefund,
+} from "../payments/test-support/refund-fixtures";
 import type { FetchRegisterSyncStatusOutcome, RegisterSyncStatus } from "../register/registers-api";
 import type { BackofficeAccess } from "./backoffice-access";
 import { HomeScreen } from "./home-screen";
@@ -26,6 +32,30 @@ const NOTHING_OPEN: AlertsOverview = {
   informational: { openCount: 0, kinds: [] },
 };
 
+const passkeyAlert: AlertSummary = {
+  id: "alert-1",
+  kind: "backoffice_passkey_changed",
+  scope: "user-1",
+  scopeDisplay: "Lucía Pérez",
+  scopeKind: "user",
+  level: "warning",
+  audience: "all",
+  openedAt: "2026-01-05T12:00:00.000Z",
+  escalatedAt: null,
+  resolvedAt: null,
+  salesDeniedReason: null,
+  refundAmount: null,
+  refundMethod: null,
+};
+
+const priceList = (pendingCount: number): PriceList => ({
+  products: [],
+  categories: [],
+  pendingCount,
+  activeProductCount: 10,
+  reviewWindowDays: 30,
+});
+
 const neverSynced: RegisterSyncStatus = {
   id: "register-1",
   name: "Caja 1",
@@ -48,6 +78,25 @@ function createServices(): HomeScreenServices {
     fetchRegisterSyncStatus: vi
       .fn<HomeScreenServices["fetchRegisterSyncStatus"]>()
       .mockResolvedValue({ kind: "ok", value: [neverSynced] }),
+    fetchAlerts: vi.fn<HomeScreenServices["fetchAlerts"]>().mockResolvedValue({
+      kind: "ok",
+      value: {
+        alerts: [passkeyAlert],
+        total: 1,
+        pageSize: 25,
+        openCount: 3,
+        openCriticalCount: 1,
+      },
+    }),
+    fetchFiscalTasks: vi
+      .fn<HomeScreenServices["fetchFiscalTasks"]>()
+      .mockResolvedValue({ kind: "ok", value: noFiscalTasks }),
+    fetchPendingRefunds: vi
+      .fn<HomeScreenServices["fetchPendingRefunds"]>()
+      .mockResolvedValue({ kind: "ok", value: noPendingRefunds }),
+    fetchPrices: vi
+      .fn<HomeScreenServices["fetchPrices"]>()
+      .mockResolvedValue({ kind: "ok", value: priceList(0) }),
   };
 }
 
@@ -56,16 +105,29 @@ function renderScreen(
   {
     access = accessWith("alerts_area"),
     onSessionEnded = () => {},
-  }: { access?: BackofficeAccess; onSessionEnded?: () => void } = {},
+    filters = alertsListFilters.parse({}),
+    onFiltersChange = () => {},
+  }: {
+    access?: BackofficeAccess;
+    onSessionEnded?: () => void;
+    filters?: AlertsListFilters;
+    onFiltersChange?: (filters: AlertsListFilters) => void;
+  } = {},
 ) {
   return render(
     <main>
-      <HomeScreen access={access} onSessionEnded={onSessionEnded} services={services} />
+      <HomeScreen
+        access={access}
+        onSessionEnded={onSessionEnded}
+        services={services}
+        filters={filters}
+        onFiltersChange={onFiltersChange}
+      />
     </main>,
   );
 }
 
-test("shows Inicio with the open alerts' total, the alerts by level and each register's last sync", async () => {
+test("shows Inicio with the open alerts' total, the alerts by level, the alert list and each register's last sync", async () => {
   const services = createServices();
 
   const screen = await renderScreen(services);
@@ -73,9 +135,17 @@ test("shows Inicio with the open alerts' total, the alerts by level and each reg
   await expect.element(screen.getByRole("heading", { name: "Inicio", level: 1 })).toBeVisible();
   await expect.element(screen.getByText("Puro Sur")).toBeVisible();
   await expect.element(screen.getByText("3 alertas abiertas", { exact: true })).toBeVisible();
-  await expect.element(screen.getByRole("heading", { name: "Alertas", level: 2 })).toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "Alertas abiertas", level: 2 }))
+    .toBeVisible();
   await expect.element(screen.getByRole("link", { name: /^Advertencias 2/ })).toBeVisible();
-  await expect.element(screen.getByRole("heading", { name: "Cajas", level: 2 })).toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "Lista de alertas", level: 2 }))
+    .toBeVisible();
+  await expect.element(screen.getByRole("row", { name: /Lucía Pérez/ })).toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "Estado de las cajas", level: 2 }))
+    .toBeVisible();
   await expect
     .element(screen.getByRole("row", { name: /^Caja 1 Nunca sincronizó$/ }))
     .toBeVisible();
@@ -84,18 +154,88 @@ test("shows Inicio with the open alerts' total, the alerts by level and each reg
   await expectNoAccessibilityViolations(document.body);
 });
 
-test("shows someone without either alert permission that they have no alerts to view beside each register's last sync, asking the cloud for no alerts", async () => {
+test("orders the sections: open alerts, alert list, registers' state and pending tasks", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockResolvedValue({ kind: "ok", value: priceList(2) });
+
+  const screen = await renderScreen(services, {
+    access: accessWith("alerts_area", "prices_area"),
+  });
+
+  await expect.element(screen.getByRole("link", { name: "Precios a revisar 2" })).toBeVisible();
+  const headings = screen
+    .getByRole("heading", { level: 2 })
+    .elements()
+    .map((heading) => heading.textContent);
+  expect(headings).toEqual([
+    "Alertas abiertas",
+    "Lista de alertas",
+    "Estado de las cajas",
+    "Tareas pendientes",
+  ]);
+});
+
+test("lists the alerts of the filters it is given, and reports the filters the person changes", async () => {
+  const services = createServices();
+  const onFiltersChange = vi.fn();
+
+  const screen = await renderScreen(services, {
+    filters: { ...alertsListFilters.parse({}), level: "critical" },
+    onFiltersChange,
+  });
+
+  await expect.element(screen.getByRole("row", { name: /Lucía Pérez/ })).toBeVisible();
+  expect(services.fetchAlerts).toHaveBeenCalledWith({ level: "critical", open: true, page: 1 });
+  await userEvent.click(screen.getByRole("button", { name: /Estado/ }));
+  await userEvent.click(screen.getByRole("option", { name: "Cerradas" }));
+  await expect.poll(() => onFiltersChange).toHaveBeenCalledWith({
+    ...alertsListFilters.parse({}),
+    level: "critical",
+    status: "closed",
+  });
+});
+
+test("shows each pending task the person may act on beside the rest of Inicio", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchFiscalTasks).mockResolvedValue({ kind: "ok", value: fiscalTasks });
+  vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
+    kind: "ok",
+    value: pendingRefundsWithUnconfirmedCloudRefund,
+  });
+
+  const screen = await renderScreen(services, {
+    access: accessWith("fiscal_information", "refunds_area"),
+  });
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Tareas pendientes", level: 2 }))
+    .toBeVisible();
+  await expect
+    .element(screen.getByRole("link", { name: `Tareas fiscales ${fiscalTasks.tasks.length}` }))
+    .toBeVisible();
+  await expect
+    .element(screen.getByRole("link", { name: "Reembolsos por Mercado Pago 1" }))
+    .toBeVisible();
+  expect(screen.getByRole("link", { name: /^Precios a revisar/ }).query()).toBeNull();
+  expect(services.fetchPrices).not.toHaveBeenCalled();
+});
+
+test("shows someone without the alerts permission the registers' last sync and no alert section, asking the cloud for no alerts", async () => {
   const services = createServices();
 
   const screen = await renderScreen(services, { access: NO_CAPABILITIES_ACCESS });
 
   await expect.element(screen.getByRole("heading", { name: "Inicio", level: 1 })).toBeVisible();
-  await expect.element(screen.getByText("No tenés alertas para ver")).toBeVisible();
   await expect
     .element(screen.getByRole("row", { name: /^Caja 1 Nunca sincronizó$/ }))
     .toBeVisible();
+  expect(screen.getByText("No tenés alertas para ver").query()).toBeNull();
+  expect(screen.getByRole("heading", { name: "Alertas abiertas" }).query()).toBeNull();
+  expect(screen.getByRole("heading", { name: "Lista de alertas" }).query()).toBeNull();
+  expect(screen.getByRole("heading", { name: "Tareas pendientes" }).query()).toBeNull();
   expect(screen.getByText(/alertas? abiertas?$/).query()).toBeNull();
   expect(services.fetchAlertsOverview).not.toHaveBeenCalled();
+  expect(services.fetchAlerts).not.toHaveBeenCalled();
   await expectNoAccessibilityViolations(document.body);
 });
 

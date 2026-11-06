@@ -1,13 +1,15 @@
+import type { AlertSummary } from "@purosur/contracts";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import { fiscalTasks } from "../fiscal/test-support/fiscal-task-fixtures";
 import { openSession } from "../sessions/test-support/open-session";
 import { App } from "./app";
-import { emptyHelp, resetPageState } from "./test-support/app";
+import { emptyHelp, resetPageState, threeOpenAlerts } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
-opensOnlyScreens(["/", "/alerts", "/help"]);
+opensOnlyScreens(["/", "/help"]);
 
 beforeEach(resetPageState);
 
@@ -29,7 +31,28 @@ test("shows the Inicio item in the rail for a non-administrator, linking to Inic
   await expect.element(screen.getByRole("link", { name: "Inicio" })).toHaveAttribute("href", "/");
 });
 
-test("lands a user without either alert-view permission on Inicio, telling them they have no alerts to view and offering no Alertas", async () => {
+const passkeyAlert: AlertSummary = {
+  id: "alert-1",
+  kind: "backoffice_passkey_changed",
+  scope: "user-1",
+  scopeDisplay: "Lucía Pérez",
+  scopeKind: "user",
+  level: "warning",
+  audience: "all",
+  openedAt: "2026-01-05T12:00:00.000Z",
+  escalatedAt: null,
+  resolvedAt: null,
+  salesDeniedReason: null,
+  refundAmount: null,
+  refundMethod: null,
+};
+
+const oneAlert = {
+  kind: "ok",
+  value: { alerts: [passkeyAlert], total: 1, pageSize: 25, openCount: 3, openCriticalCount: 1 },
+} as const;
+
+test("lands a user without the alerts permission on Inicio, with the registers and no alert section nor section column", async () => {
   const services = createAppServices({
     fetchSession: vi
       .fn()
@@ -40,20 +63,23 @@ test("lands a user without either alert-view permission on Inicio, telling them 
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByText("No tenés alertas para ver")).toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Inicio", level: 1 })).toBeVisible();
   expect(window.location.pathname).toBe("/");
-  await expect.element(screen.getByRole("link", { name: "Resumen" })).toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "Estado de las cajas", level: 2 }))
+    .toBeVisible();
+  expect(screen.getByText("No tenés alertas para ver").query()).toBeNull();
+  expect(screen.getByRole("heading", { name: "Alertas abiertas" }).query()).toBeNull();
+  expect(screen.getByRole("heading", { name: "Lista de alertas" }).query()).toBeNull();
+  expect(screen.getByRole("link", { name: "Resumen" }).query()).toBeNull();
   expect(screen.getByRole("link", { name: "Alertas" }).query()).toBeNull();
   expect(services.homeScreen.fetchAlertsOverview).not.toHaveBeenCalled();
+  expect(services.homeScreen.fetchAlerts).not.toHaveBeenCalled();
 });
 
-test("following the rail's Inicio item opens Inicio, and its Alertas section link the Alertas list", async () => {
+test("following the rail's Inicio item opens Inicio, which has no section column", async () => {
   window.history.pushState(null, "", "/help");
   const services = createAppServices();
-  vi.mocked(services.alertsListScreen.fetchAlerts).mockResolvedValue({
-    kind: "ok",
-    value: { alerts: [], total: 0, pageSize: 25, openCount: 0, openCriticalCount: 0 },
-  });
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByRole("link", { name: "Inicio" })).toBeVisible();
 
@@ -61,40 +87,118 @@ test("following the rail's Inicio item opens Inicio, and its Alertas section lin
 
   await expect.element(screen.getByRole("heading", { name: "Inicio", level: 1 })).toBeVisible();
   expect(window.location.pathname).toBe("/");
-
-  await userEvent.click(screen.getByRole("link", { name: "Alertas" }));
-
-  await expect.element(screen.getByRole("heading", { name: "Alertas", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/alerts");
-  const homeItem = screen.getByRole("link", { name: "Inicio" }).element() as HTMLAnchorElement;
+  expect(screen.getByRole("navigation", { name: "Inicio" }).query()).toBeNull();
+  expect(screen.getByRole("link", { name: "Resumen" }).query()).toBeNull();
+  expect(screen.getByRole("link", { name: "Alertas" }).query()).toBeNull();
+  const homeItem = screen.getByRole("link", { name: "Inicio" }).element();
   expect(homeItem.getAttribute("aria-current")).toBe("page");
-  const alertsItem = screen.getByRole("link", { name: "Alertas" }).element() as HTMLAnchorElement;
-  expect(alertsItem.getAttribute("aria-current")).toBe("page");
-  expect(screen.getByRole("link", { name: "Resumen" }).element().hasAttribute("aria-current")).toBe(
-    false,
-  );
 });
 
-test("opens the alerts list filtered by a level from that level's card on Inicio", async () => {
-  window.history.pushState(null, "", "/");
+test("shows the open alerts by level, the alert list, the registers and the pending tasks on Inicio, in that order", async () => {
   const services = createAppServices();
-  vi.mocked(services.homeScreen.fetchAlertsOverview).mockResolvedValue({
+  vi.mocked(services.homeScreen.fetchAlertsOverview).mockResolvedValue(threeOpenAlerts);
+  vi.mocked(services.homeScreen.fetchAlerts).mockResolvedValue(oneAlert);
+  vi.mocked(services.homeScreen.fetchFiscalTasks).mockResolvedValue({
     kind: "ok",
-    value: {
-      critical: { openCount: 0, kinds: [] },
-      warning: { openCount: 2, kinds: ["user_email_changed"] },
-      informational: { openCount: 0, kinds: [] },
-    },
+    value: fiscalTasks,
   });
+
   const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect
+    .element(screen.getByRole("link", { name: `Tareas fiscales ${fiscalTasks.tasks.length}` }))
+    .toBeVisible();
+  const headings = screen
+    .getByRole("heading", { level: 2 })
+    .elements()
+    .map((heading) => heading.textContent);
+  expect(headings).toEqual([
+    "Alertas abiertas",
+    "Lista de alertas",
+    "Estado de las cajas",
+    "Tareas pendientes",
+  ]);
+});
+
+test("filters the alert list by a level from that level's card on Inicio", async () => {
+  const services = createAppServices();
+  vi.mocked(services.homeScreen.fetchAlertsOverview).mockResolvedValue(threeOpenAlerts);
+  vi.mocked(services.homeScreen.fetchAlerts).mockResolvedValue(oneAlert);
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("row", { name: /Lucía Pérez/ })).toBeVisible();
 
   await userEvent.click(screen.getByRole("link", { name: /^Advertencias 2/ }));
 
-  await expect.element(screen.getByRole("heading", { name: "Alertas", level: 1 })).toBeVisible();
-  expect(`${window.location.pathname}${window.location.search}`).toBe("/alerts?level=warning");
+  await expect.poll(() => `${window.location.pathname}${window.location.search}`).toBe(
+    "/?level=warning",
+  );
   await expect
-    .poll(() => services.alertsListScreen.fetchAlerts)
+    .poll(() => services.homeScreen.fetchAlerts)
     .toHaveBeenCalledWith({ level: "warning", open: true, page: 1 });
+  await expect.element(screen.getByRole("heading", { name: "Inicio", level: 1 })).toBeVisible();
+});
+
+test("opens the existing alert detail from a row of the list on Inicio", async () => {
+  const services = createAppServices();
+  vi.mocked(services.homeScreen.fetchAlerts).mockResolvedValue(oneAlert);
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await userEvent.click(screen.getByRole("button", { name: /Ver la alerta «Passkey»/ }));
+
+  await expect
+    .poll(() => services.homeScreen.alertDetailModal?.fetchAlert)
+    .toHaveBeenCalledWith("alert-1");
+});
+
+test("lands /alerts on Inicio with the same filters applied, scrolled to the alert list", async () => {
+  window.history.pushState(null, "", "/alerts?level=critical&status=closed&page=2");
+  const services = createAppServices();
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Inicio", level: 1 })).toBeVisible();
+  await expect
+    .poll(
+      () => `${window.location.pathname}${window.location.search}${window.location.hash}`,
+    )
+    .toBe("/?level=critical&status=closed&page=2#alerts-list");
+  await expect
+    .poll(() => services.homeScreen.fetchAlerts)
+    .toHaveBeenCalledWith({ level: "critical", open: false, page: 2 });
+});
+
+test("lands /alerts without filters on a clean Inicio URL", async () => {
+  window.history.pushState(null, "", "/alerts");
+  const services = createAppServices();
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Inicio", level: 1 })).toBeVisible();
+  await expect
+    .poll(
+      () => `${window.location.pathname}${window.location.search}${window.location.hash}`,
+    )
+    .toBe("/#alerts-list");
+});
+
+test("lands /alerts on Inicio for a user without the alerts permission, with no alert section", async () => {
+  window.history.pushState(null, "", "/alerts?level=critical");
+  const services = createAppServices({
+    fetchSession: vi
+      .fn()
+      .mockResolvedValue(
+        openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
+      ),
+  });
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Estado de las cajas", level: 2 }))
+    .toBeVisible();
+  expect(window.location.pathname).toBe("/");
+  expect(screen.getByRole("heading", { name: "Lista de alertas" }).query()).toBeNull();
+  expect(services.homeScreen.fetchAlerts).not.toHaveBeenCalled();
 });
 
 test("shows each register of the branch with its last successful sync on Inicio", async () => {
@@ -110,7 +214,7 @@ test("shows each register of the branch with its last successful sync on Inicio"
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Cajas", level: 2 })).toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Estado de las cajas", level: 2 })).toBeVisible();
   await expect
     .element(screen.getByRole("row", { name: /^Caja 1 02\/03\/2026 06:30$/ }))
     .toBeVisible();
@@ -163,8 +267,8 @@ test("shows each register's last successful sync on Inicio to a user who may not
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByText("No tenés alertas para ver")).toBeVisible();
   await expect
     .element(screen.getByRole("row", { name: /^Caja 1 Nunca sincronizó$/ }))
     .toBeVisible();
+  expect(screen.getByText("No tenés alertas para ver").query()).toBeNull();
 });

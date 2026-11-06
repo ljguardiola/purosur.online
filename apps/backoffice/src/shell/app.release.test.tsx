@@ -7,7 +7,7 @@ import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
-opensOnlyScreens(["/", "/account-recovery", "/alerts"]);
+opensOnlyScreens(["/", "/account-recovery"]);
 
 beforeEach(resetPageState);
 
@@ -66,9 +66,9 @@ test("reloads the page when the person uses Recargar", async () => {
 });
 
 test("shows no notice to a tab running the deployed release, and its failures read as before", async () => {
-  window.history.pushState(null, "", "/alerts");
+  window.history.pushState(null, "", "/");
   const services = servicesRunning("aaa", "aaa");
-  vi.mocked(services.alertsListScreen.fetchAlerts).mockResolvedValue({
+  vi.mocked(services.homeScreen.fetchAlerts).mockResolvedValue({
     kind: "ok",
     value: { alerts: null, total: 0, pageSize: 25, openCount: 0, openCriticalCount: 0 },
   } as never);

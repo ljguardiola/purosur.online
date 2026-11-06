@@ -5,7 +5,6 @@ import { userEvent } from "vitest/browser";
 import type { CloudData } from "../platform/use-cloud-query";
 import { render } from "../shell/test-support/render-with-router";
 import {
-  AlertsNotPermittedSection,
   AlertsOverviewOpenCount,
   AlertsOverviewSection,
 } from "./alerts-overview-section";
@@ -38,7 +37,7 @@ function renderParts(data: CloudData<AlertsOverview>) {
 test("shows the open alerts grouped by level and their total in the pill", async () => {
   const screen = await renderParts(loaded(overview));
 
-  await expect.element(screen.getByRole("heading", { name: "Alertas", level: 2 })).toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Alertas abiertas", level: 2 })).toBeVisible();
   await expect
     .element(screen.getByRole("link", { name: "Alertas críticas 4 Acceso ampliado" }))
     .toBeVisible();
@@ -87,19 +86,4 @@ test("shows the rate-limited notice when the alerts were refused for too many re
   const screen = await renderParts({ status: "failed", retryAfterSeconds: 120, retry: () => {} });
 
   await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
-});
-
-test("tells someone without either alert permission that they have no alerts to view", async () => {
-  const screen = await render(
-    <main>
-      <AlertsNotPermittedSection />
-    </main>,
-  );
-
-  await expect.element(screen.getByRole("heading", { name: "Alertas", level: 2 })).toBeVisible();
-  await expect.element(screen.getByText("No tenés alertas para ver")).toBeVisible();
-  await expect
-    .element(screen.getByText("Tu rol no incluye permiso para ver alertas."))
-    .toBeVisible();
-  await expectNoAccessibilityViolations(document.body);
 });

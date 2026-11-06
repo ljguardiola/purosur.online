@@ -24,7 +24,6 @@ import { opensOnlyScreens } from "./test-support/screen-routes";
 
 opensOnlyScreens([
   "/",
-  "/alerts",
   "/help",
   "/price-comparison",
   "/order-suggestion",

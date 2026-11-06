@@ -24,7 +24,7 @@ opensOnlyScreens([
 
 beforeEach(resetPageState);
 
-test("opens Inicio at /, with Inicio and Resumen active", async () => {
+test("opens Inicio at /, with Inicio active in the rail", async () => {
   window.history.pushState(null, "", "/");
 
   const screen = await render(<App help={emptyHelp} services={createAppServices()} />);
@@ -34,12 +34,6 @@ test("opens Inicio at /, with Inicio and Resumen active", async () => {
   await expect
     .element(rail.getByRole("link", { name: "Inicio" }))
     .toHaveAttribute("aria-current", "page");
-  await expect
-    .element(screen.getByRole("link", { name: "Resumen" }))
-    .toHaveAttribute("aria-current", "page");
-  expect(screen.getByRole("link", { name: "Alertas" }).element().hasAttribute("aria-current")).toBe(
-    false,
-  );
 });
 
 test.each(["/ventas", "/helps", "/help/getting_started/intro/extra", "/catalog", "/settings"])(
