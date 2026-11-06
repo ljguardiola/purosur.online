@@ -34,6 +34,14 @@ const NOT_PERMITTED: Notice = {
   icon: "permission",
 };
 const ZERO_WEIGHT_NOTE = "Poné el producto en la balanza o escribí el peso.";
+const NOT_SOLD_BY_WEIGHT: Notice = {
+  title: "Este producto ya no se vende por kilo.",
+  icon: "failure",
+};
+const NOT_WEIGHED: Notice = {
+  title: "No se pudo leer la balanza. Escribí el peso.",
+  icon: "failure",
+};
 const NOT_SAVED: Notice = {
   title: "No se pudo guardar la línea. Probá de nuevo.",
   icon: "failure",
@@ -67,18 +75,51 @@ export function CountLineModal({
 }: CountLineModalProps) {
   const { product_id: productId, sale_unit: saleUnit } = product;
   const [notice, setNotice] = useState<Notice>();
+  const [weighingRefused, setWeighingRefused] = useState(false);
 
   const { phase, confirming, zeroRefused, confirm, typeInstead } = useScaleWeighing<WeightReading>(
     async (confirmedWeightThousandths) => {
       if (saleUnit !== "KG") {
         return { kind: "closed" };
       }
-      const reading = await weigh(productId, confirmedWeightThousandths).catch(
+      const outcome = await weigh(productId, confirmedWeightThousandths).catch(
         (): WeighCountedProductOutcome => ({ kind: "unavailable" }),
       );
-      return scaleWeighingOf(reading);
+      switch (outcome.kind) {
+        case "not_offered":
+          onNotOffered();
+          return { kind: "closed" };
+        case "not_signed_in":
+          onSessionInvalid();
+          return { kind: "closed" };
+        case "not_permitted":
+          return refuseWeighing(NOT_PERMITTED);
+        case "unknown_product":
+          return refuseWeighing(UNKNOWN_PRODUCT);
+        case "not_sold_by_weight":
+          return refuseWeighing(NOT_SOLD_BY_WEIGHT);
+        case "unavailable":
+          return refuseWeighing(NOT_WEIGHED);
+        case "weighed":
+          return { kind: "stable", reading: { weightThousandths: outcome.weight_thousandths } };
+        case "confirmed":
+          return { kind: "taken", reading: { weightThousandths: outcome.weight_thousandths } };
+        case "unsteady":
+          return { kind: "unsteady", reading: { weightThousandths: outcome.weight_thousandths } };
+        case "zero_weight":
+        case "weighing":
+        case "unsteady_out_of_range":
+        case "scale_unavailable":
+          return { kind: outcome.kind };
+      }
     },
   );
+
+  function refuseWeighing(refusal: Notice): ScaleWeighing<WeightReading> {
+    setWeighingRefused(true);
+    setNotice(refusal);
+    return { kind: "scale_unavailable" };
+  }
 
   const { form, submit, submitting } = useRequestForm({
     defaultValues: EMPTY_COUNT_LINE_FORM,
@@ -226,7 +267,7 @@ export function CountLineModal({
         {followingScale && zeroRefused ? (
           <InlineNotice tone="info" icon={<Info />} description={ZERO_WEIGHT_NOTE} />
         ) : null}
-        {byWeight && phase.kind === "scale_unavailable" ? (
+        {byWeight && phase.kind === "scale_unavailable" && !weighingRefused ? (
           <InlineNotice
             tone="info"
             icon={<Info />}
@@ -282,21 +323,4 @@ export function CountLineModal({
       </form>
     </Modal>
   );
-}
-
-function scaleWeighingOf(outcome: WeighCountedProductOutcome): ScaleWeighing<WeightReading> {
-  switch (outcome.kind) {
-    case "weighed":
-      return { kind: "stable", reading: { weightThousandths: outcome.weight_thousandths } };
-    case "confirmed":
-      return { kind: "taken", reading: { weightThousandths: outcome.weight_thousandths } };
-    case "unsteady":
-      return { kind: "unsteady", reading: { weightThousandths: outcome.weight_thousandths } };
-    case "zero_weight":
-    case "weighing":
-    case "unsteady_out_of_range":
-      return { kind: outcome.kind };
-    default:
-      return { kind: "scale_unavailable" };
-  }
 }

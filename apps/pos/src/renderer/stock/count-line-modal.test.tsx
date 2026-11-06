@@ -414,7 +414,9 @@ describe("CountLineModal", () => {
       const { screen, weighing } = await renderModal({ weigh: async () => answer });
 
       await expect.element(screen.getByText(told).first()).toBeVisible();
-      expect(screen.getByText("La balanza no está disponible. Escribí el peso.").query()).toBeNull();
+      expect(
+        screen.getByText("La balanza no está disponible. Escribí el peso.").query(),
+      ).toBeNull();
       expect(screen.getByText("Pesando…").query()).toBeNull();
       expect(weighing).toHaveBeenCalledOnce();
     },
@@ -450,7 +452,9 @@ describe("CountLineModal", () => {
   });
 
   it("records a weight typed after weighing failed", async () => {
-    const { screen, recording } = await renderModal({ weigh: async () => ({ kind: "unavailable" }) });
+    const { screen, recording } = await renderModal({
+      weigh: async () => ({ kind: "unavailable" }),
+    });
     await expect
       .element(screen.getByText("No se pudo leer la balanza. Escribí el peso.").first())
       .toBeVisible();
