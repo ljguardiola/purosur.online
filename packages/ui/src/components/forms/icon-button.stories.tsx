@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Trash2, X } from "lucide-react";
-import { useId } from "react";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import {
   playHoverSetsDataHovered,
@@ -72,16 +71,31 @@ export const SubtleDisabled: Story = {
   args: { ...subtleArgs, disabled: true },
 };
 
-function IconButtonLabelledByVisibleText() {
-  const labelId = useId();
-  return (
-    <>
-      <span id={labelId}>Eliminar fila</span>
-      <IconButton aria-labelledby={labelId} icon={<Trash2 />} />
-    </>
-  );
-}
+export const WithNameTooltipHovered: Story = {
+  play: async ({ canvasElement }) => {
+    await userEvent.hover(theButton(canvasElement));
+    await waitFor(() => {
+      expect(within(document.body).getByRole("tooltip")).toHaveTextContent("Eliminar fila");
+    });
+  },
+};
 
-export const LabelledByExternalHeading: Story = {
-  render: () => <IconButtonLabelledByVisibleText />,
+export const WithNameTooltipFocused: Story = {
+  play: async ({ canvasElement }) => {
+    await userEvent.tab();
+    await expect(theButton(canvasElement)).toHaveFocus();
+    await waitFor(() => {
+      expect(within(document.body).getByRole("tooltip")).toHaveTextContent("Eliminar fila");
+    });
+  },
+};
+
+export const DisabledHovered: Story = {
+  args: { disabled: true },
+  play: async ({ canvasElement }) => {
+    await userEvent.hover(theButton(canvasElement));
+    await waitFor(() => {
+      expect(within(document.body).getByRole("tooltip")).toHaveTextContent("Eliminar fila");
+    });
+  },
 };

@@ -1,6 +1,5 @@
 import axe from "axe-core";
 import { Trash2 } from "lucide-react";
-import { useId } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -150,20 +149,8 @@ test("does not accept an icon button without an accessible name", () => {
   expectTypeOf<{ icon: Icon }>().not.toExtend<IconButtonProps>();
 });
 
-function IconButtonWithExternalLabel({ icon }: { icon: Icon }) {
-  const labelId = useId();
-  return (
-    <>
-      <span id={labelId}>Delete row</span>
-      <IconButton aria-labelledby={labelId} icon={icon} />
-    </>
-  );
-}
-
-test("takes its accessible name from a visible label referenced with aria-labelledby", async () => {
-  const screen = await render(<IconButtonWithExternalLabel icon={<Trash2 />} />);
-
-  await expect.element(screen.getByRole("button", { name: "Delete row" })).toBeVisible();
+test("does not accept an icon button named only by a reference to another element", () => {
+  expectTypeOf<{ "aria-labelledby": string; icon: Icon }>().not.toExtend<IconButtonProps>();
 });
 
 test("an empty aria-label from a variable leaves the button nameless, and the accessibility check catches it", async () => {
@@ -353,4 +340,81 @@ test("takes the reason it is disabled instead of being told it is disabled", () 
     disabled: boolean;
     disabledReason: string;
   }>().not.toExtend<IconButtonProps>();
+});
+
+async function renderNamed(props: Partial<IconButtonProps> = {}) {
+  await page.viewport(1280, 900);
+  await cdp().send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 0, y: 0 });
+  window.focus();
+  const screen = await render(<IconButton aria-label="Remove row" icon={<Trash2 />} {...props} />);
+  return { screen, button: screen.getByRole("button", { name: "Remove row" }) };
+}
+
+test("shows its accessible name as a tooltip when hovered", async () => {
+  const { screen, button } = await renderNamed();
+
+  await userEvent.hover(button);
+
+  await expect.element(screen.getByRole("tooltip")).toHaveTextContent(/^Remove row$/);
+});
+
+test("shows its accessible name as a tooltip when reached by keyboard", async () => {
+  const { screen, button } = await renderNamed();
+
+  await userEvent.tab();
+
+  expect(document.activeElement).toBe(button.element());
+  await expect.element(screen.getByRole("tooltip")).toHaveTextContent(/^Remove row$/);
+});
+
+test("shows its accessible name as a tooltip when hovered while disabled without a reason", async () => {
+  const { screen, button } = await renderNamed({ disabled: true });
+
+  await userEvent.hover(button);
+
+  await expect.element(screen.getByRole("tooltip")).toHaveTextContent(/^Remove row$/);
+  await expect.element(button).toBeDisabled();
+});
+
+test("keeps a button disabled without a reason out of the tab order and unpressable", async () => {
+  const onPress = vi.fn();
+  const { button } = await renderNamed({ disabled: true, onPress });
+
+  await userEvent.tab();
+  button.element().dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+  expect(document.activeElement).not.toBe(button.element());
+  expect(onPress).not.toHaveBeenCalled();
+});
+
+test("shows its name as a tooltip on a subtle button too", async () => {
+  const { screen, button } = await renderNamed({ variant: "subtle" });
+
+  await userEvent.hover(button);
+
+  await expect.element(screen.getByRole("tooltip")).toHaveTextContent(/^Remove row$/);
+});
+
+type AccessibilityNode = {
+  role?: { value?: string };
+  name?: { value?: string };
+  description?: { value?: string };
+};
+
+test("is not described by a tooltip that repeats its own name while the tooltip is open", async () => {
+  const { screen, button } = await renderNamed();
+  const session = cdp();
+
+  await userEvent.tab();
+  await expect.element(screen.getByRole("tooltip")).toBeVisible();
+
+  const { nodes } = (await session.send("Accessibility.getFullAXTree")) as {
+    nodes: AccessibilityNode[];
+  };
+  const node = nodes.find(
+    (candidate) =>
+      candidate.role?.value === "button" && candidate.name?.value === "Remove row",
+  );
+  expect(node).toBeDefined();
+  expect(node?.description?.value ?? "").not.toBe("Remove row");
 });
