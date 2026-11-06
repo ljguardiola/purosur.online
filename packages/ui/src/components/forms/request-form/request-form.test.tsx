@@ -809,6 +809,62 @@ test("a date field submits the date that was typed", async () => {
   expect(onSubmit).toHaveBeenCalledWith("2020-03-01");
 });
 
+type Period = { start: CalendarDate; end: CalendarDate } | null;
+
+function PeriodProbe({ onSubmit }: { onSubmit: (period: string) => Promise<void> }) {
+  const { form, submit } = useRequestForm({
+    defaultValues: { period: null as Period },
+    request: {
+      schema: z.object({ period: z.string().min(1) }),
+      from: ({ period }) => ({ period: period ? `${period.start}..${period.end}` : "" }),
+    },
+    fields: { period: "period" },
+    messages: { period: "Ingresá el período." },
+    onSubmit: ({ period }) => onSubmit(period),
+  });
+  return (
+    <>
+      <form.AppField name="period">
+        {(field) => <field.DateRangeField label="Período" required />}
+      </form.AppField>
+      <button type="button" onClick={() => void submit()}>
+        Enviar
+      </button>
+    </>
+  );
+}
+
+async function typePeriod(screen: Awaited<ReturnType<typeof render>>, digits: string) {
+  await userEvent.click(
+    screen
+      .getByRole("group", { name: /^Período/ })
+      .getByRole("spinbutton")
+      .first(),
+  );
+  await userEvent.keyboard(digits);
+}
+
+test("a date range field shows its field's message after a failed submit and clears it once a period is typed", async () => {
+  const screen = await render(<PeriodProbe onSubmit={() => Promise.resolve()} />);
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+  await expect.element(screen.getByText("Ingresá el período.")).toBeVisible();
+
+  await typePeriod(screen, "0103202015032020");
+
+  await expect.element(screen.getByText("Ingresá el período.")).not.toBeInTheDocument();
+});
+
+test("a date range field submits the period that was typed", async () => {
+  const onSubmit = vi.fn<(period: string) => Promise<void>>(() => Promise.resolve());
+  const screen = await render(<PeriodProbe onSubmit={onSubmit} />);
+
+  await typePeriod(screen, "0103202015032020");
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+
+  await expect.poll(() => onSubmit.mock.calls.length).toBe(1);
+  expect(onSubmit).toHaveBeenCalledWith("2020-03-01..2020-03-15");
+});
+
 function PairProbe() {
   const { form, submit } = useRequestForm({
     defaultValues: { opens: "" },
