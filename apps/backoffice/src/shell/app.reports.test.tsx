@@ -30,7 +30,6 @@ import { opensOnlyScreens } from "./test-support/screen-routes";
 
 opensOnlyScreens([
   "/",
-  "/account",
   "/help",
   "/reports",
   "/reports/sales-by-day",
@@ -286,7 +285,7 @@ test("sends someone who can only see the returns report away from the list of re
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
 });
 
 test("leaves the returns report out of the list for someone without its permission", async () => {
@@ -311,7 +310,7 @@ test("sends someone with the reports permission but not the returns one away fro
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
   expect(services.returnsReportScreen.fetchReturnsReport).not.toHaveBeenCalled();
 });
 
@@ -901,7 +900,7 @@ test.each([
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
   expect(services.salesByDayScreen.fetchSalesReport).not.toHaveBeenCalled();
   expect(services.salesByPaymentMethodScreen.fetchSalesByPaymentMethod).not.toHaveBeenCalled();
   expect(services.handConfirmedPaymentsScreen.fetchHandConfirmedPayments).not.toHaveBeenCalled();

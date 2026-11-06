@@ -16,7 +16,6 @@ import { opensOnlyScreens } from "./test-support/screen-routes";
 
 opensOnlyScreens([
   "/",
-  "/account",
   "/help",
   "/refunds/mercado-pago",
   "/refunds/outside-the-system",
@@ -136,9 +135,7 @@ test.each(["/refunds/mercado-pago", "/refunds/outside-the-system"])(
 
     const screen = await render(<App help={emptyHelp} services={services} />);
 
-    await expect
-      .element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 }))
-      .toBeVisible();
+    await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
     expect(services.mercadoPagoRefundsScreen.fetchPendingRefunds).not.toHaveBeenCalled();
     expect(services.outsideRefundsScreen.fetchPendingRefunds).not.toHaveBeenCalled();
   },
@@ -150,7 +147,7 @@ test("sends a user who only confirms refunds and opens the points of sale to Mi 
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
 });
 
 test.each([

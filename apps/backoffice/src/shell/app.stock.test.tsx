@@ -14,7 +14,6 @@ const PAST_ACTIVITY_THROTTLE_WINDOW_MS = 120_000;
 
 opensOnlyScreens([
   "/",
-  "/account",
   "/alerts",
   "/assembly-batches",
   "/expiring-lots",
@@ -239,7 +238,7 @@ test.each([
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
 });
 
 test("offers the kinds of stock movement real use of the open tab reports the user may now record", async () => {

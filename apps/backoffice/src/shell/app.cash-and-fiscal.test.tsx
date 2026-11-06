@@ -8,7 +8,7 @@ import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
-opensOnlyScreens(["/", "/account", "/fiscal-settings", "/help", "/points-of-sale"]);
+opensOnlyScreens(["/", "/fiscal-settings", "/help", "/points-of-sale"]);
 
 beforeEach(resetPageState);
 
@@ -151,8 +151,8 @@ test("redirects a non-permitted user's typed /points-of-sale to Mi cuenta, witho
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/account");
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
+  expect(window.location.pathname + window.location.search).toBe("/?account=credentials");
   expect(services.pointsOfSaleScreen.fetchRegisterPointsOfSale).not.toHaveBeenCalled();
 });
 
@@ -169,7 +169,7 @@ test("redirects a non-permitted user's typed /fiscal-settings to Mi cuenta, with
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/account");
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
+  expect(window.location.pathname + window.location.search).toBe("/?account=credentials");
   expect(services.fiscalConfigurationScreen.fetchIssuerIdentification).not.toHaveBeenCalled();
 });

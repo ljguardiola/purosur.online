@@ -10,11 +10,11 @@ import { opensOnlyScreens } from "./test-support/screen-routes";
 
 opensOnlyScreens([
   "/",
-  "/account",
   "/account-recovery",
   "/help",
+  "/people/users",
   "/products",
-  "/roles",
+  "/registers",
   "/sign-in",
 ]);
 
@@ -54,17 +54,22 @@ async function pressEnterOn(link: HTMLElement) {
 }
 
 test("moves focus to the new screen's title, with a focus ring, after choosing a section with the keyboard, not on the first load", async () => {
-  window.history.pushState(null, "", "/account");
+  window.history.pushState(null, "", "/people/users");
   const services = createAppServices();
-  vi.mocked(services.rolesListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.registersListScreen.fetchRegisters).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   const screen = await render(<App help={emptyHelp} services={services} />);
-  const firstTitle = screen.getByRole("heading", { name: "Mi cuenta", level: 1 });
+  const firstTitle = screen.getByRole("heading", { name: "Personas", level: 1 });
   await expect.element(firstTitle).toBeVisible();
   expect(document.activeElement).not.toBe(firstTitle.element());
 
-  await pressEnterOn(screen.getByRole("link", { name: "Roles" }).element() as HTMLElement);
+  await pressEnterOn(
+    screen.getByRole("link", { name: "Cajas registradoras" }).element() as HTMLElement,
+  );
 
-  const title = screen.getByRole("heading", { name: "Roles", level: 1 });
+  const title = screen.getByRole("heading", { name: "Cajas registradoras", level: 1 });
   await expect.element(title).toHaveFocus();
   const style = getComputedStyle(title.element());
   await expect.poll(() => style.outlineStyle).toBe("solid");
@@ -80,7 +85,7 @@ test("moves focus to the new area's screen title after switching area from the r
 
   await pressEnterOn(screen.getByRole("link", { name: "Config" }).element() as HTMLElement);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toHaveFocus();
+  await expect.element(screen.getByRole("heading", { name: "Personas", level: 1 })).toHaveFocus();
 });
 
 test("moves focus to the new screen's title, with a focus ring, after following a link with the keyboard between the screens reached without a session", async () => {

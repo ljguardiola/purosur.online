@@ -9,7 +9,7 @@ import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
-opensOnlyScreens(["/", "/account", "/alerts", "/help", "/quarantined-events"]);
+opensOnlyScreens(["/", "/alerts", "/help", "/quarantined-events"]);
 
 beforeEach(resetPageState);
 
@@ -17,8 +17,8 @@ function sessionHolding(capabilities: Capability[]) {
   return openSession({ userId: "user-2", isAdministrator: false, capabilities });
 }
 
-test("shows the Eventos en cuarentena item to a user holding quarantined_events, opening its screen", async () => {
-  window.history.pushState(null, "", "/account");
+test("shows the Eventos en cuarentena item to a user holding quarantined_events, opening its screen from the Config rail", async () => {
+  window.history.pushState(null, "", "/help");
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(sessionHolding(["quarantined_events"])),
   });
@@ -28,9 +28,8 @@ test("shows the Eventos en cuarentena item to a user holding quarantined_events,
     value: { events: [] },
   });
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
 
-  await userEvent.click(screen.getByRole("link", { name: "Eventos en cuarentena" }));
+  await userEvent.click(screen.getByRole("link", { name: "Config" }));
 
   await expect
     .element(screen.getByRole("heading", { name: "Eventos en cuarentena", level: 1 }))
@@ -63,8 +62,8 @@ test("redirects a typed /quarantined-events to Mi cuenta for a user without quar
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/account");
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
+  expect(window.location.pathname + window.location.search).toBe("/?account=credentials");
   expect(services.quarantinedEventsScreen.fetchQuarantinedEvents).not.toHaveBeenCalled();
 });
 

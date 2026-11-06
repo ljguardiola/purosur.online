@@ -14,14 +14,7 @@ import { createAppServices } from "./test-support/app-services";
 import { registers } from "./test-support/report-fixtures";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
-opensOnlyScreens([
-  "/",
-  "/account",
-  "/help",
-  "/fiscal-documents",
-  "/fiscal-tasks",
-  "/points-of-sale",
-]);
+opensOnlyScreens(["/", "/help", "/fiscal-documents", "/fiscal-tasks", "/points-of-sale"]);
 
 beforeEach(resetPageState);
 
@@ -108,7 +101,7 @@ test("sends a user who cannot see fiscal information and opens /fiscal-documents
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
   expect(services.issuedFiscalDocumentsScreen.fetchIssuedFiscalDocuments).not.toHaveBeenCalled();
 });
 

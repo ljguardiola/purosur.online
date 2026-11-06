@@ -13,14 +13,13 @@ import { opensOnlyScreens } from "./test-support/screen-routes";
 
 opensOnlyScreens([
   "/",
-  "/account",
   "/account-recovery",
   "/categories",
   "/fiscal-settings",
   "/help",
   "/products",
   "/sign-in",
-  "/users",
+  "/people/users",
 ]);
 
 beforeEach(resetPageState);
@@ -62,11 +61,11 @@ test("a rail item is a real link to its screen, and a plain click opens that scr
   const configItem = screen.getByRole("link", { name: "Config" });
   await expect.element(configItem).toBeVisible();
 
-  expect(configItem.element().getAttribute("href")).toBe("/account");
+  expect(configItem.element().getAttribute("href")).toBe("/people");
   await userEvent.click(configItem);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/account");
+  await expect.element(screen.getByRole("heading", { name: "Personas", level: 1 })).toBeVisible();
+  expect(window.location.pathname).toBe("/people/users");
 
   window.history.back();
 
@@ -88,7 +87,7 @@ test("a rail item leaves a modifier click to the browser", async () => {
   }
 
   expect(window.location.pathname).toBe("/help");
-  expect(screen.getByRole("heading", { name: "Mi cuenta" }).query()).toBeNull();
+  expect(screen.getByRole("heading", { name: "Personas" }).query()).toBeNull();
 });
 
 test("renders the shell's area rail and section column landmarks", async () => {

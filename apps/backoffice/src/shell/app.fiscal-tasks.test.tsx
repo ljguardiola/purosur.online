@@ -9,14 +9,7 @@ import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
-opensOnlyScreens([
-  "/",
-  "/account",
-  "/help",
-  "/fiscal-tasks",
-  "/refunds/mercado-pago",
-  "/points-of-sale",
-]);
+opensOnlyScreens(["/", "/help", "/fiscal-tasks", "/refunds/mercado-pago", "/points-of-sale"]);
 
 beforeEach(resetPageState);
 
@@ -113,7 +106,7 @@ test("sends a user who cannot see fiscal information and opens /fiscal-tasks to 
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
   expect(services.fiscalTasksScreen.fetchFiscalTasks).not.toHaveBeenCalled();
 });
 
@@ -123,7 +116,7 @@ test("sends a user who only sees fiscal information and opens the points of sale
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
 });
 
 test("offers to close each fiscal task only to a user with the capability to close them", async () => {

@@ -7,7 +7,7 @@ import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
-opensOnlyScreens(["/", "/users"]);
+opensOnlyScreens(["/", "/people/users"]);
 
 beforeEach(resetPageState);
 
@@ -32,9 +32,9 @@ test("announces the design system's screen-reader texts in Spanish whatever the 
       },
     ],
   });
-  window.history.pushState(null, "", "/users");
+  window.history.pushState(null, "", "/people/users");
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await expect.element(screen.getByRole("heading", { name: "Usuarios", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Personas", level: 1 })).toBeVisible();
 
   switchBrowserLanguage("de-DE");
   await userEvent.click(screen.getByRole("button", { name: /^Estado/ }));
