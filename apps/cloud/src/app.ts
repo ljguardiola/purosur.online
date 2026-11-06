@@ -46,6 +46,7 @@ import { registerProductCreationRoute } from "./catalog/product-creation-route.j
 import { registerProductDeactivationRoute } from "./catalog/product-deactivation-route.js";
 import { registerProductEditRoute } from "./catalog/product-edit-route.js";
 import { registerProductReactivationRoute } from "./catalog/product-reactivation-route.js";
+import { registerProductLabelPrintsRoute } from "./catalog/products-label-prints-route.js";
 import { registerProductLabelsRoute } from "./catalog/products-labels-route.js";
 import type { ProductsRouteOptions } from "./catalog/products-list-route.js";
 import { registerProductsListRoute } from "./catalog/products-list-route.js";
@@ -706,6 +707,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
         registerProductReactivationRoute(api, { ...options.products, now });
         registerInternalBarcodeRoute(api, { ...options.products, now });
         registerProductLabelsRoute(api, { ...options.products, now });
+        registerProductLabelPrintsRoute(api, { ...options.products, now });
       }
 
       if (options.alerts) {

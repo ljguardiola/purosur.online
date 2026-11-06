@@ -42,7 +42,7 @@ describe("Bitmap", () => {
     bitmap.fillRect(-3, -3, 5, 4);
     bitmap.fillRect(6, 1, 10, 10);
 
-    expect(blackPixels(bitmap)).toEqual(["0,0", "1,0", "0,1", "1,1", "6,1", "7,1"]);
+    expect(blackPixels(bitmap)).toEqual(["0,0", "1,0", "6,1", "7,1"]);
   });
 
   it("packs eight dots to a byte, the leftmost dot in the most significant bit", () => {

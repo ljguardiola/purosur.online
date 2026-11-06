@@ -26,7 +26,11 @@ function item(overrides: Partial<LabelSheetItem> = {}): LabelSheetItem {
 }
 
 class Raster {
-  constructor(private readonly bytes: Uint8Array) {}
+  private readonly bytes: Uint8Array;
+
+  constructor(bytes: Uint8Array) {
+    this.bytes = bytes;
+  }
 
   isBlack(x: number, y: number): boolean {
     const byte = this.bytes[y * (PRINTER_LABEL_WIDTH_DOTS / 8) + (x >> 3)] ?? 0;
