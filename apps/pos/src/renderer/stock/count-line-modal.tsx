@@ -128,8 +128,10 @@ export function CountLineModal({
   });
 
   useEffect(() => {
-    if (phase.kind === "stable") {
-      form.setFieldValue("counted", formatWeightInput(phase.reading.weightThousandths), {
+    const shown =
+      phase.kind === "stable" ? phase.reading : phase.kind === "weighing" ? phase.last : undefined;
+    if (shown !== undefined) {
+      form.setFieldValue("counted", formatWeightInput(shown.weightThousandths), {
         dontRunListeners: true,
       });
     }
@@ -268,6 +270,8 @@ function scaleWeighingOf(outcome: WeighCountedProductOutcome): ScaleWeighing<Sta
       return { kind: "stable", reading: { weightThousandths: outcome.weight_thousandths } };
     case "confirmed":
       return { kind: "taken", reading: { weightThousandths: outcome.weight_thousandths } };
+    case "unsteady":
+      return { kind: "unsteady", reading: { weightThousandths: outcome.weight_thousandths } };
     case "zero_weight":
     case "weighing":
       return { kind: outcome.kind };

@@ -413,9 +413,9 @@ export function SaleScreen({
     ) {
       return outcome;
     }
-    if (outcome.kind === "stable") {
+    if (outcome.kind === "stable" || outcome.kind === "unsteady") {
       return {
-        kind: "stable",
+        kind: outcome.kind,
         reading: { weightThousandths: outcome.weight_thousandths, amount: outcome.amount },
       };
     }
@@ -636,9 +636,9 @@ export function SaleScreen({
     ) {
       return outcome;
     }
-    if (outcome.kind === "stable") {
+    if (outcome.kind === "stable" || outcome.kind === "unsteady") {
       return {
-        kind: "stable",
+        kind: outcome.kind,
         reading: { weightThousandths: outcome.weight_thousandths, amount: outcome.amount },
       };
     }
