@@ -169,12 +169,12 @@ test("shows a destructive action's label and icon in the error colour, and other
 
   const destructive = screen.getByRole("menuitem", { name: "Eliminar" }).element() as HTMLElement;
   const regular = screen.getByRole("menuitem", { name: "Editar" }).element() as HTMLElement;
+  const colorOf = (element: Element | null) => getComputedStyle(element as Element).color;
 
-  expect(getComputedStyle(destructive).color).toBe(tokenRgb("error"));
-  expect(getComputedStyle(destructive.querySelector("svg") as SVGSVGElement).color).toBe(
-    tokenRgb("error"),
-  );
-  expect(getComputedStyle(regular).color).toBe(tokenRgb("text"));
+  expect(colorOf(screen.getByText("Eliminar").element())).toBe(tokenRgb("error"));
+  expect(colorOf(destructive.querySelector("svg"))).toBe(tokenRgb("error"));
+  expect(colorOf(screen.getByText("Editar").element())).toBe(tokenRgb("text"));
+  expect(colorOf(regular.querySelector("svg"))).toBe(tokenRgb("text"));
 });
 
 test("shows its name as a tooltip when hovered", async () => {
