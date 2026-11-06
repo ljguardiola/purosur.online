@@ -141,7 +141,9 @@ test("navigates to Mi cuenta when finishing comes back forbidden", async () => {
 
   await confirm(screen);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("ends the session when finishing finds no open session", async () => {

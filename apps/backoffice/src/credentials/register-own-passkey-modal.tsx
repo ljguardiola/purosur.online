@@ -167,7 +167,7 @@ export function RegisterOwnPasskeyModal({
         width="standard"
         tone="info"
         icon={<KeyRound />}
-        context="Mi cuenta · Passkeys"
+        context="Passkeys y PIN"
         title="Registrar una passkey"
         closable
         footer={

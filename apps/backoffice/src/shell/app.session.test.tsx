@@ -12,13 +12,12 @@ const PAST_ACTIVITY_THROTTLE_WINDOW_MS = 120_000;
 
 opensOnlyScreens([
   "/",
-  "/account",
   "/account-recovery",
   "/account-recovery/passkey",
   "/help",
   "/products",
+  "/people/users",
   "/sign-in",
-  "/users",
 ]);
 
 beforeEach(resetPageState);
@@ -212,32 +211,33 @@ test("a list the previous person had open is read again from the loading placeho
   expect(screen.getByText(honey.name).query()).toBeNull();
 });
 
-test("follows a demotion reported by real use of the open tab: Usuarios and Roles leave the rail and the Users list gives way to Mi cuenta", async () => {
+test("follows a demotion reported by real use of the open tab: Personas leaves the Config rail and the Users list gives way to the own account panel", async () => {
   const services = createAppServices();
   vi.mocked(services.usersListScreen.fetchUsers).mockResolvedValue({ kind: "ok", value: [] });
   vi.mocked(services.usersListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
-  window.history.pushState(null, "", "/users");
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
+  window.history.pushState(null, "", "/people/users");
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await expect.element(screen.getByRole("link", { name: "Roles" })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Roles" })).toBeVisible();
 
   vi.mocked(services.fetchSession).mockResolvedValue(openSession({ isAdministrator: false }));
   vi.setSystemTime(Date.now() + PAST_ACTIVITY_THROTTLE_WINDOW_MS);
   try {
     window.dispatchEvent(new KeyboardEvent("keydown"));
 
-    await expect
-      .element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 }))
-      .toBeVisible();
-    expect(window.location.pathname).toBe("/account");
-    expect(screen.getByRole("link", { name: "Roles" }).query()).toBeNull();
-    expect(screen.getByRole("link", { name: "Usuarios" }).query()).toBeNull();
+    await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
+    expect(window.location.pathname + window.location.search).toBe("/?account=credentials");
+    expect(screen.getByRole("tab", { name: "Roles" }).query()).toBeNull();
+    expect(screen.getByRole("link", { name: "Personas" }).query()).toBeNull();
   } finally {
     vi.useRealTimers();
   }
 });
 
-test("follows a promotion reported by real use of the open tab: Usuarios and Roles join the rail", async () => {
+test("follows a promotion reported by real use of the open tab: Personas becomes the Config rail's target", async () => {
   const services = createAppServices({
     fetchSession: vi
       .fn()
@@ -245,11 +245,15 @@ test("follows a promotion reported by real use of the open tab: Usuarios and Rol
         openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
-  window.history.pushState(null, "", "/account");
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
+  window.history.pushState(null, "", "/");
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
-  expect(screen.getByRole("link", { name: "Roles" }).query()).toBeNull();
+  await expect
+    .element(screen.getByRole("link", { name: "Config" }))
+    .toHaveAttribute("href", "/?account=credentials");
 
   vi.mocked(services.fetchSession).mockResolvedValue(
     openSession({ userId: "user-2", displayName: "Grace Villalba" }),
@@ -258,8 +262,9 @@ test("follows a promotion reported by real use of the open tab: Usuarios and Rol
   try {
     window.dispatchEvent(new KeyboardEvent("keydown"));
 
-    await expect.element(screen.getByRole("link", { name: "Roles" })).toBeVisible();
-    await expect.element(screen.getByRole("link", { name: "Usuarios" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("link", { name: "Config" }))
+      .toHaveAttribute("href", "/people");
   } finally {
     vi.useRealTimers();
   }
@@ -267,7 +272,7 @@ test("follows a promotion reported by real use of the open tab: Usuarios and Rol
 
 test("ends the session with the expired notice when Mi cuenta's passkeys request finds it already ended", async () => {
   const services = createAppServices();
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
     kind: "unauthenticated",
   });
   window.history.pushState(null, "", "/account");

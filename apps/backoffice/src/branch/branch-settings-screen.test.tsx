@@ -392,7 +392,9 @@ test("navigates to Mi cuenta when the load comes back forbidden", async () => {
 
   await renderScreen(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("navigates to Mi cuenta when the save comes back forbidden", async () => {
@@ -407,7 +409,9 @@ test("navigates to Mi cuenta when the save comes back forbidden", async () => {
 
   await userEvent.click(screen.getByRole("button", { name: "Guardar los cambios" }));
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("navigates to Mi cuenta when Recargar comes back forbidden", async () => {
@@ -425,7 +429,9 @@ test("navigates to Mi cuenta when Recargar comes back forbidden", async () => {
   vi.mocked(services.fetchBranchSettings).mockResolvedValueOnce({ kind: "forbidden" });
   await userEvent.click(screen.getByRole("button", { name: "Recargar" }));
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("saves every field, each day's ranges and the loaded version, then shows the values read again", async () => {

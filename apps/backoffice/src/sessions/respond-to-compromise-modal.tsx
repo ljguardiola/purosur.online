@@ -5,6 +5,7 @@ import {
   FloatingNotification,
   LoadFailure,
   LoadingPlaceholder,
+  Modal,
 } from "@purosur/ui";
 import { createLink } from "@tanstack/react-router";
 import { Ban, Check, Laptop, LogOut, Play, ShieldAlert } from "lucide-react";
@@ -12,8 +13,6 @@ import { useState } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
-import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTitle } from "../shell/screen-title";
 import {
   type CompromiseResponse,
   type CompromiseResponseItem,
@@ -21,10 +20,10 @@ import {
   isRunbookRefusal,
 } from "./compromise-response-api";
 import { CompromiseResponseChecklist, itemLabel } from "./compromise-response-checklist";
-import type { CompromiseResponseScreenServices } from "./compromise-response-services";
 import { CompromiseResponseStepCard } from "./compromise-response-step-card";
 import { EndSessionsStepModal } from "./end-sessions-step-modal";
 import { ForcePinResetsStepModal } from "./force-pin-resets-step-modal";
+import type { RespondToCompromiseModalServices } from "./respond-to-compromise-modal-services";
 import { RevokeInstallationsStepModal } from "./revoke-installations-step-modal";
 import { useCompromiseResponseQuery, useReloadCompromiseResponse } from "./sessions-queries";
 import { StepAttemptNotices } from "./step-attempt-notices";
@@ -74,15 +73,17 @@ type ScreenNotice =
 
 type Confirmation = { id: number; title: string; description: string };
 
-export type CompromiseResponseScreenProps = {
+export type RespondToCompromiseModalProps = {
+  onClose: () => void;
   onSessionEnded: () => void;
-  services: CompromiseResponseScreenServices;
+  services: RespondToCompromiseModalServices;
 };
 
-export function CompromiseResponseScreen({
+export function RespondToCompromiseModal({
+  onClose,
   onSessionEnded,
   services,
-}: CompromiseResponseScreenProps) {
+}: RespondToCompromiseModalProps) {
   const sendToMyAccount = useSendToMyAccount();
   const data = useCompromiseResponseQuery({
     fetchCompromiseResponse: services.fetchCompromiseResponse,
@@ -216,93 +217,102 @@ export function CompromiseResponseScreen({
   }
 
   return (
-    <ScreenLayout
-      topBar={
-        <div className="flex h-18 shrink-0 items-center justify-between border-border border-b bg-surface px-8">
-          <div className="flex flex-col justify-center">
-            <p className="text-text-subtle text-detail">Configuración</p>
-            <ScreenTitle>Respuesta ante un compromiso</ScreenTitle>
-          </div>
-          {canStart ? (
-            <Button
-              variant="primary"
-              icon={<Play />}
-              disabled={starting}
-              onPress={() => void start()}
-            >
-              Comenzar
-            </Button>
-          ) : null}
-        </div>
+    <Modal
+      open
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+        }
+      }}
+      width="editor"
+      tone="warning"
+      icon={<ShieldAlert />}
+      context="Personas"
+      title="Respuesta ante un compromiso"
+      closable
+      footer={
+        canStart ? (
+          <Button
+            variant="primary"
+            size="large"
+            icon={<Play />}
+            fullWidth
+            disabled={starting}
+            onPress={() => void start()}
+          >
+            Comenzar
+          </Button>
+        ) : null
       }
-      bodyClassName="gap-4 p-6"
     >
-      {data.status === "loading" && <LoadingPlaceholder variant="list" items={6} />}
-      {data.status === "failed" && (
-        <LoadFailure {...cloudLoadFailure(data, "la respuesta ante un compromiso")} />
-      )}
-      {notice?.kind === "startFailed" && <ActionFailureNotice title="No se pudo comenzar" />}
-      <StepAttemptNotices
-        notice={notice?.kind === "startFailed" ? null : (notice ?? null)}
-        failedTitle="No se pudo marcar como hecho"
-      />
-      {data.status === "loaded" && current === null && (
-        <EmptyState
-          variant="blank"
-          icon={<ShieldAlert />}
-          title="No hay una respuesta en curso"
-          description="Comenzá una para seguir los pasos en el orden que deja menos tiempo abierto."
+      <div className="flex flex-col gap-4">
+        {data.status === "loading" && <LoadingPlaceholder variant="list" items={6} />}
+        {data.status === "failed" && (
+          <LoadFailure {...cloudLoadFailure(data, "la respuesta ante un compromiso")} />
+        )}
+        {notice?.kind === "startFailed" && <ActionFailureNotice title="No se pudo comenzar" />}
+        <StepAttemptNotices
+          notice={notice?.kind === "startFailed" ? null : (notice ?? null)}
+          failedTitle="No se pudo marcar como hecho"
         />
-      )}
-      {current?.steps.map((state, index) => (
-        <CompromiseResponseStepCard
-          key={state.step}
-          number={index + 1}
-          title={STEP_TEXT[state.step].title}
-          description={STEP_TEXT[state.step].description}
-          state={state}
-        >
-          {stepContent(current, state)}
-        </CompromiseResponseStepCard>
-      ))}
-      <RevokeInstallationsStepModal
-        open={openModal === "revoke"}
-        onClose={() => setOpenModal(null)}
-        onDone={() =>
-          stepDone("Instalaciones revocadas", "Cada caja se da de alta de nuevo con un código.")
-        }
-        onOutdated={reload}
-        onSessionEnded={onSessionEnded}
-        services={services}
-      />
-      <EndSessionsStepModal
-        open={openModal === "endSessions"}
-        onClose={() => setOpenModal(null)}
-        onDone={onSessionEnded}
-        onOutdated={reload}
-        onSessionEnded={onSessionEnded}
-        services={services}
-      />
-      <ForcePinResetsStepModal
-        open={openModal === "pinResets"}
-        onClose={() => setOpenModal(null)}
-        onDone={() =>
-          stepDone("Reinicio de PIN exigido", "Cada usuario define un nuevo PIN en la caja.")
-        }
-        onOutdated={reload}
-        onSessionEnded={onSessionEnded}
-        services={services}
-      />
-      {confirmation === null ? null : (
-        <FloatingNotification
-          key={confirmation.id}
-          tone="success"
-          icon={<Check />}
-          title={confirmation.title}
-          description={confirmation.description}
-          onDismiss={() => setConfirmation(null)}
+        {data.status === "loaded" && current === null && (
+          <EmptyState
+            variant="blank"
+            icon={<ShieldAlert />}
+            title="No hay una respuesta en curso"
+            description="Comenzá una para seguir los pasos en el orden que deja menos tiempo abierto."
+          />
+        )}
+        {current?.steps.map((state, index) => (
+          <CompromiseResponseStepCard
+            key={state.step}
+            number={index + 1}
+            title={STEP_TEXT[state.step].title}
+            description={STEP_TEXT[state.step].description}
+            state={state}
+          >
+            {stepContent(current, state)}
+          </CompromiseResponseStepCard>
+        ))}
+        <RevokeInstallationsStepModal
+          open={openModal === "revoke"}
+          onClose={() => setOpenModal(null)}
+          onDone={() =>
+            stepDone("Instalaciones revocadas", "Cada caja se da de alta de nuevo con un código.")
+          }
+          onOutdated={reload}
+          onSessionEnded={onSessionEnded}
+          services={services}
         />
-      )}
-    </ScreenLayout>
+        <EndSessionsStepModal
+          open={openModal === "endSessions"}
+          onClose={() => setOpenModal(null)}
+          onDone={onSessionEnded}
+          onOutdated={reload}
+          onSessionEnded={onSessionEnded}
+          services={services}
+        />
+        <ForcePinResetsStepModal
+          open={openModal === "pinResets"}
+          onClose={() => setOpenModal(null)}
+          onDone={() =>
+            stepDone("Reinicio de PIN exigido", "Cada usuario define un nuevo PIN en la caja.")
+          }
+          onOutdated={reload}
+          onSessionEnded={onSessionEnded}
+          services={services}
+        />
+        {confirmation === null ? null : (
+          <FloatingNotification
+            key={confirmation.id}
+            tone="success"
+            icon={<Check />}
+            title={confirmation.title}
+            description={confirmation.description}
+            onDismiss={() => setConfirmation(null)}
+          />
+        )}
+      </div>
+    </Modal>
   );
 }

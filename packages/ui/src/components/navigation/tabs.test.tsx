@@ -380,3 +380,35 @@ test("has no accessibility violations", async () => {
 
   await expectNoAccessibilityViolations(screen.container);
 });
+
+test("fills the height of a fixed-height flex parent with its panel, below the tab list", async () => {
+  const screen = await render(
+    <div style={{ display: "flex", flexDirection: "column", height: 400 }}>
+      <PeopleTabs />
+    </div>,
+  );
+  const tabList = screen.getByRole("tablist").element().getBoundingClientRect();
+  const panel = screen.getByRole("tabpanel").element().getBoundingClientRect();
+
+  expect(panel.top).toBeCloseTo(tabList.bottom, 0);
+  expect(panel.bottom).toBeCloseTo(400 + screen.container.getBoundingClientRect().top, 0);
+});
+
+test("lets a child of the panel fill the panel's height", async () => {
+  const screen = await render(
+    <div style={{ display: "flex", flexDirection: "column", height: 400 }}>
+      <Tabs
+        label="Secciones"
+        selectedTab="users"
+        tabs={<Tab value="users" label="Usuarios" href="/u" />}
+      >
+        <div data-testid="fill" style={{ flex: 1 }} />
+      </Tabs>
+    </div>,
+  );
+  const panel = screen.getByRole("tabpanel").element().getBoundingClientRect();
+  const child = screen.getByTestId("fill").element().getBoundingClientRect();
+
+  expect(child.height).toBeCloseTo(panel.height, 0);
+  expect(child.height).toBeGreaterThan(300);
+});

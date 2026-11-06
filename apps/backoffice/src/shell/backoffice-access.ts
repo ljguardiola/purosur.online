@@ -14,6 +14,10 @@ export function canSeeUsersArea(access: BackofficeAccess): boolean {
   return grants(access, "users_area");
 }
 
+export function canSeePeopleArea(access: BackofficeAccess): boolean {
+  return canSeeUsersArea(access) || canSeeRolesArea(access);
+}
+
 export function canManageUsers(access: BackofficeAccess): boolean {
   return grants(access, "manage_users");
 }

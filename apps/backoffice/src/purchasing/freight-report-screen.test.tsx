@@ -252,7 +252,9 @@ test("sends the person to Mi cuenta when the cloud refuses the report", async ()
 
   await renderScreen(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("downloads a spreadsheet of the months shown, for the period the report answered", async () => {

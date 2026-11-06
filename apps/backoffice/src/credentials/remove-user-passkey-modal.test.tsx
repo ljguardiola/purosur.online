@@ -208,7 +208,9 @@ test("navigates to Mi cuenta, without the authorization modal, when removing the
 
   await userEvent.click(dialog.getByRole("button", { name: "Dar de baja" }));
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
   expect(services.fetchSessionAuthorizationOptions).not.toHaveBeenCalled();
 });
 
@@ -227,7 +229,9 @@ test("navigates to Mi cuenta when the removal retried after the authorization co
       .getByRole("button", { name: "Usar mi passkey" }),
   );
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("tells an outdated tab to reload because the backoffice was updated when the removal is refused", async () => {

@@ -411,7 +411,9 @@ test("navigates to Mi cuenta when registering comes back forbidden", async () =>
 
   await userEvent.click(rendered.dialog.getByRole("button", { name: REGISTER }));
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("shows no expected balance and asks for none when the user may not view balances", async () => {

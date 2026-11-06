@@ -364,7 +364,9 @@ test("sends the person to Mi cuenta when the submission is forbidden, and ends t
   await fillQuantityLine(form);
 
   await submitForm(form);
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 
   submit.mockResolvedValueOnce({ kind: "unauthenticated" });
   await submitForm(form);

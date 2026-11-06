@@ -177,7 +177,9 @@ test("navigates to Mi cuenta when the alerts request comes back forbidden", asyn
 
   await renderScreen(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("shows the registers' loading state until the registers arrive", async () => {
@@ -242,5 +244,7 @@ test("navigates to Mi cuenta when the registers request comes back forbidden", a
 
   await renderScreen(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });

@@ -56,7 +56,7 @@ test("shows the hand cursor on the Salir item", async () => {
   expect(getComputedStyle(signOutButton).cursor).toBe("pointer");
 });
 
-test("links the display name to the signed-in account's own Mi cuenta page", async () => {
+test("links the display name to the current page with the own account panel open", async () => {
   const services = createServices();
   const screen = await renderInRail({
     displayName: "Lucas Medrano",
@@ -65,7 +65,7 @@ test("links the display name to the signed-in account's own Mi cuenta page", asy
   });
 
   const link = screen.getByRole("link", { name: "Lucas Medrano" }).element() as HTMLAnchorElement;
-  expect(link.getAttribute("href")).toBe("/account");
+  expect(link.getAttribute("href")).toContain("account=credentials");
 });
 
 test("opens the confirm modal naming the account and asking to confirm", async () => {

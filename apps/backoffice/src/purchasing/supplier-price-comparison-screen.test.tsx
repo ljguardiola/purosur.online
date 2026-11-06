@@ -381,7 +381,9 @@ test("navigates to Mi cuenta when the comparison comes back forbidden", async ()
   vi.mocked(services.fetchSupplierPriceComparison).mockResolvedValue({ kind: "forbidden" });
   await renderScreen(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("has no accessibility violations once loaded", async () => {

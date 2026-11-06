@@ -384,7 +384,9 @@ test("navigates to Mi cuenta when registering comes back forbidden", async () =>
 
   await userEvent.click(rendered.dialog.getByRole("button", { name: "Registrar la pérdida" }));
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test.each([

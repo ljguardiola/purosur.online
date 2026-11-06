@@ -15,7 +15,7 @@ opensOnlyScreens([
   "/help",
   "/prices",
   "/products",
-  "/users",
+  "/people/users",
 ]);
 
 beforeEach(resetPageState);
@@ -163,7 +163,7 @@ test("reopens the users list on the state its URL carries", async () => {
   const services = createAppServices();
   vi.mocked(services.usersListScreen.fetchUsers).mockResolvedValue({ kind: "ok", value: [] });
   vi.mocked(services.usersListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
-  window.history.pushState(null, "", "/users?state=inactive");
+  window.history.pushState(null, "", "/people/users?state=inactive");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
@@ -213,7 +213,6 @@ test.each([
   { url: "/categories?search=alma", link: "Categorías" },
   { url: "/prices?search=yerba", link: "Precios" },
   { url: "/discounts?search=yerba", link: "Promociones" },
-  { url: "/users?state=inactive", link: "Usuarios" },
   { url: "/alerts?status=closed", link: "Alertas" },
 ])("the $link section link carries the filters its list is showing", async ({ url, link }) => {
   const services = createAppServices();
@@ -228,6 +227,19 @@ test.each([
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("link", { name: link })).toHaveAttribute("href", url);
+});
+
+test("the Usuarios tab carries the state filter its list is showing", async () => {
+  const services = createAppServices();
+  vi.mocked(services.usersListScreen.fetchUsers).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.usersListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
+  window.history.pushState(null, "", "/people/users?state=inactive");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect
+    .element(screen.getByRole("tab", { name: "Usuarios" }))
+    .toHaveAttribute("href", "/people/users?state=inactive");
 });
 
 test("the Catálogo rail link keeps the filters its list is showing", async () => {

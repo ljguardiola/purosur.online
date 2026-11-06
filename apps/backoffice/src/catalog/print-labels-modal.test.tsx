@@ -589,7 +589,9 @@ test("navigates to Mi cuenta when printing comes back forbidden", async () => {
 
   await userEvent.click(dialog.getByRole("button", { name: "Descargar la hoja para imprimir" }));
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("cancel closes the print labels modal without calling the API", async () => {

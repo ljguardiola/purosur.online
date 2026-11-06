@@ -1,11 +1,11 @@
 import { vi } from "vitest";
 import { render } from "../../shell/test-support/render-with-router";
-import { CompromiseResponseScreen } from "../compromise-response-screen";
-import type { CompromiseResponseScreenServices } from "../compromise-response-services";
+import { RespondToCompromiseModal } from "../respond-to-compromise-modal";
+import type { RespondToCompromiseModalServices } from "../respond-to-compromise-modal-services";
 
 export function createServices(
-  overrides: Partial<CompromiseResponseScreenServices> = {},
-): CompromiseResponseScreenServices {
+  overrides: Partial<RespondToCompromiseModalServices> = {},
+): RespondToCompromiseModalServices {
   return {
     fetchCompromiseResponse: vi.fn(),
     startCompromiseResponse: vi.fn(),
@@ -24,7 +24,7 @@ export function createServices(
 const authorizationOptions = { challenge: "session-auth" } as never;
 const assertion = { id: "existing-cred" } as never;
 
-export function grantAuthorization(services: CompromiseResponseScreenServices) {
+export function grantAuthorization(services: RespondToCompromiseModalServices) {
   vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
     kind: "ok",
     value: authorizationOptions,
@@ -34,12 +34,17 @@ export function grantAuthorization(services: CompromiseResponseScreenServices) {
 }
 
 export function renderScreen(
-  services: CompromiseResponseScreenServices,
+  services: RespondToCompromiseModalServices,
   onSessionEnded: () => void = () => {},
+  onClose: () => void = () => {},
 ) {
   return render(
     <main>
-      <CompromiseResponseScreen services={services} onSessionEnded={onSessionEnded} />
+      <RespondToCompromiseModal
+        services={services}
+        onSessionEnded={onSessionEnded}
+        onClose={onClose}
+      />
     </main>,
   );
 }

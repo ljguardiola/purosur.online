@@ -327,7 +327,9 @@ test("navigates to Mi cuenta when the registers request comes back forbidden", a
 
   await renderScreen(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("ends the session when the registers request finds no open session", async () => {
@@ -765,7 +767,9 @@ test("navigates to Mi cuenta when emitting a code comes back forbidden", async (
 
   await userEvent.click(screen.getByRole("button", { name: "Emitir código de alta para Caja 1" }));
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("ends the session when emitting a code finds no open session", async () => {

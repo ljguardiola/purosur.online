@@ -172,7 +172,9 @@ test("navigates to Mi cuenta when the changes come back forbidden", async () => 
 
   await renderModal({ services: { fetchPurchaseChanges } });
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("lists who corrected the purchase and when, in the store's time zone, newest first", async () => {

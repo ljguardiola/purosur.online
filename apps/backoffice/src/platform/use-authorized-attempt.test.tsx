@@ -189,7 +189,9 @@ test("sends the person to Mi cuenta when the attempt comes back forbidden", asyn
 
   await revoke(screen);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("hands nothing to the operation and shows nothing when the authorization is cancelled", async () => {
@@ -320,5 +322,7 @@ test("sends the person to Mi cuenta when the attempt comes back forbidden after 
   answer({ kind: "forbidden" });
   await screen.settle();
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });

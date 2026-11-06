@@ -9,7 +9,7 @@ import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
-opensOnlyScreens(["/", "/account", "/help", "/reports", "/reports/purchases-by-supplier"]);
+opensOnlyScreens(["/", "/help", "/reports", "/reports/purchases-by-supplier"]);
 
 beforeEach(resetPageState);
 
@@ -24,7 +24,10 @@ function reportsServices(capabilities: Capability[]) {
       }),
     ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   vi.mocked(services.purchasesReportScreen.fetchPurchasesReport).mockResolvedValue({
     kind: "ok",
     value: quarterPurchasesReport,
@@ -85,6 +88,6 @@ test("sends a user without the reports permission to Mi cuenta", async () => {
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
   expect(services.purchasesReportScreen.fetchPurchasesReport).not.toHaveBeenCalled();
 });

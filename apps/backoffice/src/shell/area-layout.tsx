@@ -1,5 +1,5 @@
 import { AreaNavItem, SectionNavItem } from "@purosur/ui";
-import { createLink, useMatchRoute } from "@tanstack/react-router";
+import { createLink, useMatchRoute, useNavigate } from "@tanstack/react-router";
 import {
   Boxes,
   ChartColumn,
@@ -10,7 +10,7 @@ import {
   Settings,
   Wallet,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, Suspense } from "react";
 import { AccountFooter } from "./account-footer";
 import { AreaTopBarAlertsCount } from "./area-top-bar-alerts-count";
 import { AreaTopBarUnbilledDeferredSales } from "./area-top-bar-unbilled-deferred-sales";
@@ -26,23 +26,32 @@ import {
   canReadPurchaseOrders,
   canRecordPurchases,
   canSeeAlertsArea,
+  canSeeBackupsArea,
+  canSeeBranchArea,
   canSeeCatalogArea,
+  canSeeContingencyTicketRescue,
   canSeeExpiringLots,
   canSeeFiscalConfigurationArea,
   canSeeFiscalInformation,
   canSeeOrdersArea,
+  canSeePeopleArea,
   canSeePricesArea,
+  canSeeQuarantinedEvents,
   canSeeRefundsArea,
+  canSeeRegistersArea,
   canSeeReports,
   canSeeReturnsReport,
   canSeeStockArea,
   canSeeStockBalances,
   canSeeStockMovements,
 } from "./backoffice-access";
+import { lazyScreen } from "./lazy-screen";
 import { Shell } from "./shell";
 import { signedInRoute } from "./signed-in-route";
 
 const AreaLink = createLink(AreaNavItem);
+
+const OwnAccountPanel = lazyScreen(() => import("./own-account-panel"), "OwnAccountPanel");
 
 export const SectionLink = createLink(SectionNavItem);
 
@@ -72,6 +81,8 @@ export function AreaLayout({
   children,
 }: AreaLayoutProps) {
   const { session, services, sessionActions } = signedInRoute.useRouteContext();
+  const { account } = signedInRoute.useSearch();
+  const navigate = useNavigate();
   const UnbilledDeferredSales = services.areaTopBarUnbilledDeferredSales;
   const AlertsCount = services.areaTopBarAlertsCount;
   const matchRoute = useMatchRoute();
@@ -113,6 +124,19 @@ export function AreaLayout({
       : canReadPurchaseOrders(session)
         ? "/purchase-orders"
         : "/supplier-price-lists";
+  const settingsTarget = canSeePeopleArea(session)
+    ? "/people"
+    : canSeeRegistersArea(session)
+      ? "/registers"
+      : canSeeBackupsArea(session)
+        ? "/backups"
+        : canSeeContingencyTicketRescue(session)
+          ? "/contingency-ticket-rescue"
+          : canSeeBranchArea(session)
+            ? "/location-settings"
+            : canSeeQuarantinedEvents(session)
+              ? "/quarantined-events"
+              : null;
   const stockTargetShown = Boolean(matchRoute({ to: stockTarget }));
   return (
     <Shell
@@ -164,7 +188,22 @@ export function AreaLayout({
               active={area === "reports"}
             />
           )}
-          <AreaLink to="/account" label="Config" icon={<Settings />} active={area === "settings"} />
+          {settingsTarget === null ? (
+            <AreaLink
+              to="/"
+              search={{ account: "credentials" }}
+              label="Config"
+              icon={<Settings />}
+              active={area === "settings"}
+            />
+          ) : (
+            <AreaLink
+              to={settingsTarget}
+              label="Config"
+              icon={<Settings />}
+              active={area === "settings"}
+            />
+          )}
         </>
       }
       railFooter={
@@ -199,7 +238,22 @@ export function AreaLayout({
             ) : null
           }
         >
-          {children}
+          <div className="flex min-h-0 flex-1">
+            <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+            {account === undefined ? null : (
+              <Suspense fallback={null}>
+                <OwnAccountPanel
+                  tab={account}
+                  onClose={() =>
+                    void navigate({
+                      to: ".",
+                      search: (previous) => ({ ...previous, account: undefined }),
+                    })
+                  }
+                />
+              </Suspense>
+            )}
+          </div>
         </AreaTopBarAlertsCount>
       </AreaTopBarUnbilledDeferredSales>
     </Shell>

@@ -8,11 +8,13 @@ import {
   NO_CAPABILITIES_ACCESS,
 } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
-import { MyAccountScreen } from "./my-account-screen";
-import type { MyAccountScreenServices } from "./my-account-services";
+import { OwnCredentialsSection } from "./own-credentials-section";
+import type { OwnCredentialsSectionServices } from "./own-credentials-section-services";
 import type { Passkey } from "./passkey-list";
 
-function createServices(overrides: Partial<MyAccountScreenServices> = {}): MyAccountScreenServices {
+function createServices(
+  overrides: Partial<OwnCredentialsSectionServices> = {},
+): OwnCredentialsSectionServices {
   return {
     fetchPasskeys: vi.fn(),
     fetchPasskeyRegistrationChallenge: vi.fn(),
@@ -55,13 +57,13 @@ function deferred<T>() {
 }
 
 function renderScreen(
-  services: MyAccountScreenServices,
+  services: OwnCredentialsSectionServices,
   onSessionEnded: () => void = () => {},
   access: BackofficeAccess = NO_CAPABILITIES_ACCESS,
 ) {
   return render(
     <main>
-      <MyAccountScreen
+      <OwnCredentialsSection
         displayName="Lucía Pérez"
         userId="user-1"
         access={access}
@@ -94,14 +96,13 @@ test("offers no registration while the passkeys are loading", async () => {
     .toBeDisabled();
 });
 
-test("shows the breadcrumb, heading and each passkey with its registration and last-use detail", async () => {
+test("shows the Passkeys heading and each passkey with its registration and last-use detail", async () => {
   const services = createServices();
   vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook, phone] });
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("Configuración · Lucía Pérez")).toBeVisible();
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Passkeys", level: 2 })).toBeVisible();
   await expect.element(screen.getByText("Notebook del local")).toBeVisible();
   await expect
     .element(screen.getByText("Registrada el 02/08/2026 · último uso hoy 09:12"))
@@ -334,7 +335,7 @@ test("dates each passkey's last use against the time the list was last refreshed
   vi.mocked(services.fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [notebook, phone] });
   const screen = await render(
     <main>
-      <MyAccountScreen
+      <OwnCredentialsSection
         displayName="Lucía Pérez"
         userId="user-1"
         access={NO_CAPABILITIES_ACCESS}
@@ -366,7 +367,7 @@ test("dates each passkey's last use against the time the list was loaded, not th
   vi.mocked(services.fetchPasskeys).mockResolvedValueOnce({ kind: "ok", value: [notebook, phone] });
   const screenFor = (now: () => Date) => (
     <main>
-      <MyAccountScreen
+      <OwnCredentialsSection
         displayName="Lucía Pérez"
         userId="user-1"
         access={NO_CAPABILITIES_ACCESS}
@@ -419,7 +420,7 @@ test("does not warn in the remove modal when it is not the only passkey", async 
 });
 
 async function removeNotebookThenRefresh(
-  refreshOutcome: Awaited<ReturnType<MyAccountScreenServices["fetchPasskeys"]>>,
+  refreshOutcome: Awaited<ReturnType<OwnCredentialsSectionServices["fetchPasskeys"]>>,
   onSessionEnded: () => void = () => {},
 ) {
   const services = createServices();

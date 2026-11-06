@@ -35,5 +35,7 @@ test("sends the person to Mi cuenta when the ticket recoveries come back forbidd
 
   await render(<RecoveriesProbe read={read} />);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });

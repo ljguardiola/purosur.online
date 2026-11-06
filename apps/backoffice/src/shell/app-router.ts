@@ -8,7 +8,11 @@ import {
   productsListRoute,
   tagsListRoute,
 } from "../catalog/routes";
-import { accountRecoveryRoute, myAccountRoute, registerPasskeyRoute } from "../credentials/routes";
+import {
+  accountRecoveryRoute,
+  legacyAccountRoute,
+  registerPasskeyRoute,
+} from "../credentials/routes";
 import {
   exceptionalityRoute,
   fiscalConfigurationRoute,
@@ -24,7 +28,7 @@ import {
   outsideRefundsRoute,
   salesByPaymentMethodRoute,
 } from "../payments/routes";
-import { rolesListRoute } from "../permissions/routes";
+import { legacyRolesRoute, rolesListRoute } from "../permissions/routes";
 import {
   discountsListRoute,
   pricesListRoute,
@@ -66,7 +70,7 @@ import {
   salesByProductAndCategoryRoute,
   salesByPromotionRoute,
 } from "../sales/routes";
-import { compromiseResponseRoute, signInRoute } from "../sessions/routes";
+import { legacyCompromiseResponseRoute, signInRoute } from "../sessions/routes";
 import {
   assemblyBatchesRoute,
   currentStockReportRoute,
@@ -81,13 +85,14 @@ import {
   stockMovementsRoute,
 } from "../stock/routes";
 import { quarantinedEventsRoute } from "../sync/routes";
-import { userDetailRoute, usersListRoute } from "../users/routes";
+import { legacyUserRoute, legacyUsersRoute, usersListRoute } from "../users/routes";
 import { cashAndFiscalAreaRoute } from "./cash-and-fiscal-area";
 import { catalogAreaRoute } from "./catalog-area";
 import { helpAreaRoute } from "./help-area";
 import { homeAreaRoute } from "./home-area";
 import { ScreenDownloadFailure } from "./lazy-screen";
 import { ordersAreaRoute } from "./orders-area";
+import { peopleLandingRoute, peopleRoute } from "./people-route";
 import { publicRoute } from "./public-route";
 import { reportsAreaRoute } from "./reports-area";
 import { type RouterContext, rootRoute } from "./root-route";
@@ -179,17 +184,18 @@ const routeTree = rootRoute.addChildren([
       issuedFiscalDocumentsReportRoute,
     ]),
     settingsAreaRoute.addChildren([
-      myAccountRoute,
-      usersListRoute,
-      userDetailRoute,
-      rolesListRoute,
+      peopleRoute.addChildren([peopleLandingRoute, usersListRoute, rolesListRoute]),
       registersListRoute,
       snapshotBackupsRoute,
       contingencyTicketRescueRoute,
       branchSettingsRoute,
-      compromiseResponseRoute,
       quarantinedEventsRoute,
     ]),
+    legacyAccountRoute,
+    legacyUsersRoute,
+    legacyUserRoute,
+    legacyRolesRoute,
+    legacyCompromiseResponseRoute,
     helpAreaRoute.addChildren([helpHomeRoute, helpCategoryRoute, helpArticleRoute]),
   ]),
 ]);

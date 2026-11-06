@@ -53,3 +53,19 @@ export function rowBoxShadowClassName(state: TableRowState | undefined, last: bo
   }
   return state === "selected" ? "inset-shadow-divider-marker" : "inset-shadow-divider";
 }
+
+const pressableRowSelector =
+  "a, button, input, select, textarea, [role=button], [role=link], [role=menuitem], " +
+  "[role=checkbox], [data-row-press-ignore]";
+
+export function startsInsideInteractiveElement(target: EventTarget, row: Element): boolean {
+  if (!(target instanceof Element) || !row.contains(target)) {
+    return true;
+  }
+  const interactive = target.closest(pressableRowSelector);
+  return interactive !== null && row.contains(interactive);
+}
+
+export function pressableRowClassName(state: TableRowState | undefined): string {
+  return state === "selected" ? "cursor-pointer" : "cursor-pointer hover:bg-surface-subtle";
+}

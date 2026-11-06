@@ -9,14 +9,14 @@ import type { EditUserModalServices } from "./edit-user-modal";
 import type { ReactivateUserModalServices } from "./reactivate-user-modal";
 import { deactivateUser, editUser, fetchUser, reactivateUser } from "./users-api";
 
-export type UserDetailScreenServices = {
+export type UserPanelServices = {
   fetchUser: typeof fetchUser;
   fetchRoles: typeof fetchRoles;
 } & EditUserModalServices &
   DeactivateUserModalServices &
   ReactivateUserModalServices;
 
-export const defaultUserDetailScreenServices: UserDetailScreenServices = {
+export const defaultUserPanelServices: UserPanelServices = {
   fetchUser,
   editUser,
   fetchRoles,

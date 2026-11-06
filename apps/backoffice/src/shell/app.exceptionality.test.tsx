@@ -12,7 +12,7 @@ import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
-opensOnlyScreens(["/", "/account", "/help", "/exceptionality", "/fiscal-tasks", "/points-of-sale"]);
+opensOnlyScreens(["/", "/help", "/exceptionality", "/fiscal-tasks", "/points-of-sale"]);
 
 beforeEach(async () => {
   await resetPageState();
@@ -32,7 +32,10 @@ function servicesFor(capabilities: Capability[]) {
       }),
     ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   vi.mocked(services.exceptionalityScreen.fetchFiscalAddresses).mockResolvedValue({
     kind: "ok",
     value: fiscalAddresses,
@@ -81,7 +84,7 @@ test("sends a user who cannot see fiscal information and opens /exceptionality t
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
   expect(services.exceptionalityScreen.fetchFiscalAddresses).not.toHaveBeenCalled();
   expect(services.exceptionalityScreen.fetchExceptionShareYear).not.toHaveBeenCalled();
 });

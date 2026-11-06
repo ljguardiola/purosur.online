@@ -80,11 +80,15 @@ export function Tab({
 
 export function Tabs({ label, selectedTab, tabs, children }: TabsProps) {
   return (
-    <AriaTabs selectedKey={selectedTab} keyboardActivation="manual" className="flex flex-col">
+    <AriaTabs
+      selectedKey={selectedTab}
+      keyboardActivation="manual"
+      className="flex min-h-0 flex-1 flex-col"
+    >
       <AriaTabList aria-label={label} className={tabListClassName}>
         {tabs}
       </AriaTabList>
-      <AriaTabPanel id={selectedTab} className="outline-none">
+      <AriaTabPanel id={selectedTab} className="flex min-h-0 flex-1 flex-col outline-none">
         {children}
       </AriaTabPanel>
     </AriaTabs>

@@ -191,7 +191,9 @@ test("a save the person may not make sends them to their account", async () => {
 
   await saveTyped(screen, "17000");
 
-  await vi.waitFor(() => expect(window.location.pathname).toBe("/account"));
+  await vi.waitFor(() =>
+    expect(window.location.pathname + window.location.search).toBe("/?account=credentials"),
+  );
 });
 
 test("a rate-limited save says when to try again", async () => {

@@ -675,7 +675,9 @@ test("sends a person the cloud forbids to Mi cuenta", async () => {
       .mockResolvedValue({ kind: "forbidden" }),
   );
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("cancel closes the modal", async () => {

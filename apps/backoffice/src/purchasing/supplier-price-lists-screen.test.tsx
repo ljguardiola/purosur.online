@@ -574,7 +574,9 @@ test("navigates to Mi cuenta when refreshing comes back forbidden", async () => 
 
   await userEvent.click(refreshButton(screen, "Distribuidora del Sur"));
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("the upload action stays available while the lists load and after they fail", async () => {
@@ -635,7 +637,9 @@ test("navigates to Mi cuenta when the lists come back forbidden", async () => {
   vi.mocked(services.fetchSupplierPriceLists).mockResolvedValue({ kind: "forbidden" });
   await renderScreen(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("reads the lists again on its own while one is being read, until none is", async () => {

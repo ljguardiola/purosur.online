@@ -170,6 +170,31 @@ export const RowSelected: Story = {
   ),
 };
 
+export const PressableRows: Story = {
+  render: () => (
+    <ProductsTable
+      aria-label="Productos"
+      columns={baseColumns}
+      sort={sort}
+      onSortChange={onSortChange}
+      onRowPress={() => {}}
+    />
+  ),
+};
+
+export const PressableRowsWithSelected: Story = {
+  render: () => (
+    <ProductsTable
+      aria-label="Productos"
+      columns={baseColumns}
+      sort={sort}
+      onSortChange={onSortChange}
+      onRowPress={() => {}}
+      rowState={(item) => (item.id === "1" ? "selected" : undefined)}
+    />
+  ),
+};
+
 export const RowWarning: Story = {
   render: () => (
     <ProductsTable

@@ -35,7 +35,7 @@ const REPORT_SCREENS = [
   ["/reports/returns", "Anulaciones y devoluciones"],
 ] as const;
 
-opensOnlyScreens(["/", "/account", "/alerts", "/help", ...REPORT_SCREENS.map(([path]) => path)]);
+opensOnlyScreens(["/", "/alerts", "/help", ...REPORT_SCREENS.map(([path]) => path)]);
 
 beforeEach(resetPageState);
 

@@ -1,30 +1,29 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import {
   createServices,
   lucia,
   openReactivateModal,
   REACTIVATE_USERS_ACCESS,
-  renderScreen,
+  renderStatusTab,
   sofia,
-} from "./test-support/user-detail-screen";
+} from "./test-support/user-panel";
 
-beforeEach(() => {
+beforeEach(async () => {
+  await page.viewport(1280, 900);
   window.history.pushState(null, "", "/");
 });
 
-test("shows the Inactivo tag, hides Editar, Desactivar and the passkey removal, and offers Reactivar, for an inactive user", async () => {
+test("shows the Inactivo state, hides Desactivar, and offers Reactivar, for an inactive user", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: sofia });
 
-  const screen = await renderScreen(services);
+  const screen = await renderStatusTab(services);
 
-  await expect.element(screen.getByRole("heading", { name: "Sofía Díaz", level: 1 })).toBeVisible();
-  await expect.element(screen.getByText("Inactivo")).toBeVisible();
-  expect(screen.getByRole("button", { name: "Editar" }).query()).toBeNull();
+  await expect.element(screen.getByRole("heading", { name: "Sofía Díaz", level: 2 })).toBeVisible();
+  await expect.element(screen.getByText("Inactivo", { exact: true })).toBeVisible();
   expect(screen.getByRole("button", { name: "Desactivar a Sofía Díaz" }).query()).toBeNull();
-  await expect.element(screen.getByText("Baja de passkeys no permitida")).toBeVisible();
   await expect
     .element(screen.getByRole("button", { name: "Reactivar a Sofía Díaz" }))
     .toBeVisible();
@@ -37,23 +36,23 @@ test("shows the Inactivo tag, hides Editar, Desactivar and the passkey removal, 
     .toBeVisible();
 });
 
-test("shows no Inactivo tag and no Reactivar row for an active user", async () => {
+test("shows the Activo state and no Reactivar row for an active user", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
 
-  const screen = await renderScreen(services);
+  const screen = await renderStatusTab(services);
 
-  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
-  expect(screen.getByText("Inactivo").query()).toBeNull();
+  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 2 })).toBeVisible();
+  await expect.element(screen.getByText("Activo", { exact: true })).toBeVisible();
+  expect(screen.getByText("Inactivo", { exact: true }).query()).toBeNull();
   expect(screen.getByRole("button", { name: "Reactivar a Lucía" }).query()).toBeNull();
 });
 
 test("lets a reactivate-only holder reach an inactive user's Reactivar row, hiding Editar and the credential sections, never reading the roles", async () => {
-  window.history.pushState(null, "", "/users/user-5");
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: sofia });
 
-  const screen = await renderScreen(
+  const screen = await renderStatusTab(
     services,
     () => {},
     "user-5",
@@ -65,7 +64,7 @@ test("lets a reactivate-only holder reach an inactive user's Reactivar row, hidi
     .element(screen.getByRole("button", { name: "Reactivar a Sofía Díaz" }))
     .toBeVisible();
   expect(screen.getByRole("button", { name: "Editar" }).query()).toBeNull();
-  expect(screen.getByRole("region", { name: "Credenciales" }).query()).toBeNull();
+  expect(screen.getByRole("tab", { name: "Passkeys y PIN" }).query()).toBeNull();
   expect(services.fetchRoles).not.toHaveBeenCalled();
 });
 
@@ -76,7 +75,7 @@ test("hides the Reactivar row when the cloud answers the user may not be reactiv
     value: { ...sofia, mayReactivate: false },
   });
 
-  const screen = await renderScreen(
+  const screen = await renderStatusTab(
     services,
     () => {},
     "user-5",
@@ -84,7 +83,7 @@ test("hides the Reactivar row when the cloud answers the user may not be reactiv
     REACTIVATE_USERS_ACCESS,
   );
 
-  await expect.element(screen.getByRole("heading", { name: "Sofía Díaz", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Sofía Díaz", level: 2 })).toBeVisible();
   expect(screen.getByRole("button", { name: "Reactivar a Sofía Díaz" }).query()).toBeNull();
 });
 
@@ -92,8 +91,8 @@ test("treats a reactivation 404 as already resolved, refetching the user", async
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValueOnce({ kind: "ok", value: sofia });
   vi.mocked(services.reactivateUser).mockResolvedValue({ kind: "not_found" });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByRole("heading", { name: "Sofía Díaz", level: 1 })).toBeVisible();
+  const screen = await renderStatusTab(services);
+  await expect.element(screen.getByRole("heading", { name: "Sofía Díaz", level: 2 })).toBeVisible();
   const dialog = await openReactivateModal(screen);
 
   vi.mocked(services.fetchUser).mockResolvedValueOnce({
@@ -116,8 +115,8 @@ test("reactivating reads the user and the roles again from the server", async ()
     .mockResolvedValueOnce({ kind: "ok", value: sofia })
     .mockResolvedValueOnce({ kind: "ok", value: { ...sofia, active: true } });
   vi.mocked(services.reactivateUser).mockResolvedValue({ kind: "ok" });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByRole("heading", { name: "Sofía Díaz", level: 1 })).toBeVisible();
+  const screen = await renderStatusTab(services);
+  await expect.element(screen.getByRole("heading", { name: "Sofía Díaz", level: 2 })).toBeVisible();
   const dialog = await openReactivateModal(screen);
 
   await userEvent.click(dialog.getByRole("button", { name: "Reactivar" }));
@@ -129,8 +128,8 @@ test("reactivating reads the user and the roles again from the server", async ()
 test("Reactivar opens the reactivate modal, and Cancelar closes it", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: sofia });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByRole("heading", { name: "Sofía Díaz", level: 1 })).toBeVisible();
+  const screen = await renderStatusTab(services);
+  await expect.element(screen.getByRole("heading", { name: "Sofía Díaz", level: 2 })).toBeVisible();
   const dialog = await openReactivateModal(screen);
   await expect.element(dialog).toBeVisible();
 
@@ -145,8 +144,8 @@ test("ends the session when the reactivate modal's reactivation finds it closed"
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: sofia });
   vi.mocked(services.reactivateUser).mockResolvedValue({ kind: "unauthenticated" });
   const onSessionEnded = vi.fn();
-  const screen = await renderScreen(services, onSessionEnded);
-  await expect.element(screen.getByRole("heading", { name: "Sofía Díaz", level: 1 })).toBeVisible();
+  const screen = await renderStatusTab(services, onSessionEnded);
+  await expect.element(screen.getByRole("heading", { name: "Sofía Díaz", level: 2 })).toBeVisible();
   const dialog = await openReactivateModal(screen);
 
   await userEvent.click(dialog.getByRole("button", { name: "Reactivar" }));
@@ -157,8 +156,8 @@ test("ends the session when the reactivate modal's reactivation finds it closed"
 test("has no accessibility violations for an inactive user, and with the reactivate modal open", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: sofia });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByRole("heading", { name: "Sofía Díaz", level: 1 })).toBeVisible();
+  const screen = await renderStatusTab(services);
+  await expect.element(screen.getByRole("heading", { name: "Sofía Díaz", level: 2 })).toBeVisible();
   await expectNoAccessibilityViolations(document.body);
 
   await openReactivateModal(screen);

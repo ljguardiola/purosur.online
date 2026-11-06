@@ -156,7 +156,9 @@ test("navigates to Mi cuenta when cancelling comes back forbidden", async () => 
 
   await confirm(screen);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("tells an outdated tab to reload because the backoffice was updated when cancelling is refused", async () => {

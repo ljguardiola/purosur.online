@@ -470,5 +470,7 @@ test("navigates to Mi cuenta when the request comes back forbidden", async () =>
 
   await renderScreen(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });

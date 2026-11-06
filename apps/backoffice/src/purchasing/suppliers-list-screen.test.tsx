@@ -214,7 +214,9 @@ test("navigates to Mi cuenta when the suppliers request comes back forbidden", a
 
   await renderScreen(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("ends the session when the suppliers request finds no open session", async () => {
