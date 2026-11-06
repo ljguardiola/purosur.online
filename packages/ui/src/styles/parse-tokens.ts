@@ -1,7 +1,7 @@
 const HEX_COLOR = "#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?";
 
 export function parseColorTokens(css: string): Record<string, string> {
-  const tokens: Record<string, string> = {};
+  const tokens = new Map<string, string>();
   const palette = parsePalette(stripComments(css));
 
   for (const themeBlock of extractThemeBlocks(css)) {
@@ -15,28 +15,28 @@ export function parseColorTokens(css: string): Record<string, string> {
         continue;
       }
       if (hex) {
-        tokens[name] = hex;
+        tokens.set(name, hex);
       } else if (paletteName) {
-        const resolved = palette[paletteName];
+        const resolved = palette.get(paletteName);
         if (!resolved) {
           throw new Error(
             `--color-${name} references --palette-${paletteName}, which is not declared`,
           );
         }
-        tokens[name] = resolved;
+        tokens.set(name, resolved);
       }
     }
   }
 
-  return tokens;
+  return Object.fromEntries(tokens);
 }
 
-function parsePalette(source: string): Record<string, string> {
-  const palette: Record<string, string> = {};
+function parsePalette(source: string): Map<string, string> {
+  const palette = new Map<string, string>();
   const declaration = new RegExp(`--palette-([a-z0-9-]+):\\s*(${HEX_COLOR})\\s*;`, "g");
   for (const [, name, hex] of source.matchAll(declaration)) {
     if (name && hex) {
-      palette[name] = hex;
+      palette.set(name, hex);
     }
   }
   return palette;

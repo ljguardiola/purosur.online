@@ -4,6 +4,7 @@ import {
   stockCountBodySchema,
 } from "@purosur/contracts";
 import type { SaleUnit } from "@purosur/domain";
+import { ownEntry } from "../platform/own-entry";
 import { parseStockQuantity, quantityMessage } from "../platform/stock-quantity";
 import type { CountMoment } from "./count-moment";
 
@@ -40,7 +41,10 @@ export function countBody(
   if (countedMode(mode, lots) === "lots") {
     return {
       ...common,
-      lots: lots.map((lot) => ({ lotId: lot.id, counted: lotCounted(typed[lot.id], saleUnit) })),
+      lots: lots.map((lot) => ({
+        lotId: lot.id,
+        counted: lotCounted(ownEntry(typed, lot.id), saleUnit),
+      })),
     };
   }
   return { ...common, counted: parseStockQuantity(counted, saleUnit) ?? Number.NaN };
@@ -51,7 +55,7 @@ export function lotsTotal(
   lots: readonly CountLot[],
   saleUnit: SaleUnit,
 ): number | undefined {
-  const quantities = lots.map((lot) => lotCounted(typed[lot.id], saleUnit));
+  const quantities = lots.map((lot) => lotCounted(ownEntry(typed, lot.id), saleUnit));
   return quantities.some(Number.isNaN)
     ? undefined
     : quantities.reduce((sum, each) => sum + each, 0);
@@ -63,7 +67,7 @@ export function lotsMessage(
   saleUnit: SaleUnit,
 ): string {
   const accepted = stockCountBodySchema.shape.lots.safeParse(
-    lots.map((lot) => ({ lotId: lot.id, counted: lotCounted(typed[lot.id], saleUnit) })),
+    lots.map((lot) => ({ lotId: lot.id, counted: lotCounted(ownEntry(typed, lot.id), saleUnit) })),
   ).success;
   return accepted ? LOTS_CHANGED : quantityMessage(saleUnit);
 }

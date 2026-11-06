@@ -8,7 +8,7 @@ import type {
   preHandlerAsyncHookHandler,
   RouteOptions,
 } from "fastify";
-import { readRecordIds } from "../platform/record-id-params.js";
+import { readRecordId } from "../platform/record-id-params.js";
 import { FORBIDDEN_RESPONSE } from "./forbidden-response.js";
 import {
   type BackofficeSessionCheckOptions,
@@ -237,8 +237,8 @@ async function enforceDeclaredAccess(
     return refuse(reply, 403);
   }
   if (access.level === "record") {
-    const ids = await readRecordIds(reply, request.params, [access.recordParam]);
-    if (!ids) {
+    const recordId = await readRecordId(reply, request.params, access.recordParam);
+    if (recordId === undefined) {
       return reply;
     }
     const actor = {
@@ -246,7 +246,7 @@ async function enforceDeclaredAccess(
       isAdministrator: session.isAdministrator,
       permissionKeys: session.permissionKeys,
     };
-    if (!access.grants(actor, ids[access.recordParam] as string)) {
+    if (!access.grants(actor, recordId)) {
       return refuse(reply, 403);
     }
   }

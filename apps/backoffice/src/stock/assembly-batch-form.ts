@@ -7,6 +7,7 @@ import {
 } from "@purosur/contracts";
 import type { SaleUnit } from "@purosur/domain";
 import { formatProductDescription } from "@purosur/ui/formatters";
+import { ownEntry } from "../platform/own-entry";
 import { schemaLimit } from "../platform/schema-limit";
 import {
   formatStockQuantityInput,
@@ -63,7 +64,7 @@ export function usedText(
   component: RecipeComponent,
   proposal: AssemblyBatchProposal | undefined,
 ): string {
-  const typed = values.used[component.componentProductId];
+  const typed = ownEntry(values.used, component.componentProductId);
   if (typed !== undefined) {
     return typed;
   }

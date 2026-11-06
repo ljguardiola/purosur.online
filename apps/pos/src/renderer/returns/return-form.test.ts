@@ -36,6 +36,15 @@ describe("a return draft", () => {
     });
   });
 
+  it("has no line, however it is named, that was not checked", () => {
+    const inherited = { ...PASTA, id: "constructor" };
+
+    expect(changeLine(EMPTY_RETURN_DRAFT, inherited.id, { quantity: "1" })).toBe(
+      EMPTY_RETURN_DRAFT,
+    );
+    expect(draftLinesFor({ ...SALE, lines: [inherited] }, EMPTY_RETURN_DRAFT)).toEqual([]);
+  });
+
   it("forgets a line that is unchecked, and only that one", () => {
     const draft = checkLine(checkLine(EMPTY_RETURN_DRAFT, PASTA), NIBS);
 
@@ -180,6 +189,12 @@ describe("the refund shown for each payment", () => {
 
   it("puts nothing in any payment while there is nothing to refund", () => {
     expect(refundTextsFor([CASH], 0, {})).toEqual([{ payment: CASH, text: "" }]);
+  });
+
+  it("ignores what was typed for no payment, however a payment is named", () => {
+    const inherited = { ...CASH, payment_id: "constructor" };
+
+    expect(refundTextsFor([inherited], 0, {})).toEqual([{ payment: inherited, text: "" }]);
   });
 
   it("takes what the cashier typed instead", () => {

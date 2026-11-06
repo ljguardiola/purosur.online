@@ -111,3 +111,19 @@ test("shows the lots' message once below them and marks every lot's field with i
     .element(screen.getByRole("textbox", { name: SECOND_LOT }))
     .toHaveAccessibleDescription(/Escribí los kilos con hasta 3 decimales/);
 });
+
+test("leaves a lot whose id names an inherited member empty when the form holding it is reset", async () => {
+  const inheritedNameLots = lots.map((lot, index) =>
+    index === 0 ? { ...lot, id: "constructor" } : lot,
+  );
+  const screen = await render(
+    <form>
+      <Harness countLots={inheritedNameLots} saleUnit="UNIT" onSubmit={() => {}} />
+      <button type="reset">Restablecer</button>
+    </form>,
+  );
+
+  await userEvent.click(screen.getByRole("button", { name: "Restablecer" }));
+
+  await expect.element(screen.getByRole("textbox", { name: FIRST_LOT })).toHaveValue("");
+});

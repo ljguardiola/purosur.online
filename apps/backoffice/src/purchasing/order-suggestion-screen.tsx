@@ -23,6 +23,7 @@ import { useEffect, useEffectEvent, useState } from "react";
 import { useFailureText } from "../platform/action-failure-notice";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatDisplayDate } from "../platform/display-date";
+import { ownEntry } from "../platform/own-entry";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { AreaTopBar } from "../shell/area-top-bar";
@@ -230,7 +231,7 @@ export function OrderSuggestionScreen({
       header: "Proveedor",
       width: 320,
       render: (line: SuggestedLine) => {
-        const chosen = chosenSupplierId(line, drafts[line.id], knownSupplierIds);
+        const chosen = chosenSupplierId(line, ownEntry(drafts, line.id), knownSupplierIds);
         const hasPrice = line.offers.length > 0;
         return (
           <div className="flex flex-col gap-1">
@@ -276,7 +277,7 @@ export function OrderSuggestionScreen({
       header: "Cantidad",
       align: "end",
       render: (line: SuggestedLine) => {
-        if (chosenSupplierId(line, drafts[line.id], knownSupplierIds) === LEFT_OUT) {
+        if (chosenSupplierId(line, ownEntry(drafts, line.id), knownSupplierIds) === LEFT_OUT) {
           return <span className="text-text-subtle">Fuera del pedido</span>;
         }
         return formatSaleUnitQuantity(
@@ -309,12 +310,12 @@ export function OrderSuggestionScreen({
   ] as const;
 
   function chosenOffer(line: SuggestedLine): Offer | undefined {
-    const chosen = chosenSupplierId(line, drafts[line.id], knownSupplierIds);
+    const chosen = chosenSupplierId(line, ownEntry(drafts, line.id), knownSupplierIds);
     return line.offers.find((offer) => offer.supplier.id === chosen);
   }
 
   function chosenOrderOf(line: SuggestedLine) {
-    return chosenOrder(line, chosenSupplierId(line, drafts[line.id], knownSupplierIds));
+    return chosenOrder(line, chosenSupplierId(line, ownEntry(drafts, line.id), knownSupplierIds));
   }
 
   const table = useTableModel({

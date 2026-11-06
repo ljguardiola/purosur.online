@@ -190,6 +190,15 @@ test("shows a refusal next to the component it names", async () => {
   expect(almendrasCard).not.toContain("Quitalo.");
 });
 
+test("shows no refusal for a component named like an inherited member that none names", async () => {
+  const screen = await renderField({ components: [{ ...almendrasRow, productId: "constructor" }] });
+
+  await expect
+    .element(screen.getByRole("textbox", { name: "Cantidad de Almendras" }))
+    .toHaveValue("0,400");
+  expect(screen.getByRole("alert").query()).toBeNull();
+});
+
 test("the components' message describes the whole group", async () => {
   const screen = await renderField({ components: [{ ...almendrasRow, quantity: "" }] });
 

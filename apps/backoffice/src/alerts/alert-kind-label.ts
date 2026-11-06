@@ -1,4 +1,5 @@
 import type { AlertKind } from "@purosur/domain";
+import { ownEntry } from "../platform/own-entry";
 
 const ALERT_KIND_LABELS = {
   backoffice_passkey_changed: "Passkey",
@@ -41,7 +42,5 @@ const ALERT_KIND_LABELS = {
 } satisfies Record<AlertKind, string>;
 
 export function alertKindLabel(kind: string): string {
-  return Object.hasOwn(ALERT_KIND_LABELS, kind)
-    ? ALERT_KIND_LABELS[kind as keyof typeof ALERT_KIND_LABELS]
-    : kind;
+  return ownEntry(ALERT_KIND_LABELS, kind) ?? kind;
 }

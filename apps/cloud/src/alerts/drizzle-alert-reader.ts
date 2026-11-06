@@ -31,6 +31,7 @@ import {
   users,
 } from "../platform/db/schema.js";
 import { closedAlertCondition, openAlertCondition } from "./open-alert-condition.js";
+import { openAlertsOverviewOf } from "./open-alerts-overview.js";
 
 export const ALERTS_PAGE_SIZE = 25;
 
@@ -170,17 +171,7 @@ export class DrizzleAlertReader<TQueryResult extends PgQueryResultHKT> implement
       .where(and(sightCondition(sight), openAlertCondition()))
       .groupBy(alerts.level, alerts.kind)
       .orderBy(asc(alerts.kind));
-    const overview: OpenAlertsOverview = {
-      critical: { openCount: 0, kinds: [] },
-      warning: { openCount: 0, kinds: [] },
-      informational: { openCount: 0, kinds: [] },
-    };
-    for (const row of rows) {
-      const level = overview[row.level];
-      level.openCount += row.openCount;
-      level.kinds.push(asAlertKind(row.kind));
-    }
-    return overview;
+    return openAlertsOverviewOf(rows.map((row) => ({ ...row, kind: asAlertKind(row.kind) })));
   }
 
   async deliveriesOf(alertId: string): Promise<AlertDelivery[]> {

@@ -33,6 +33,12 @@ describe("parseColorTokens", () => {
     });
   });
 
+  it("refuses a token naming a palette color that is not declared, even one named like an inherited member of an object", () => {
+    const css = "@theme { --color-surface: var(--palette-constructor); }";
+
+    expect(() => parseColorTokens(css)).toThrow(/--palette-constructor/);
+  });
+
   it("returns no tokens when the stylesheet has no @theme block", () => {
     expect(parseColorTokens("body { color: red; }")).toEqual({});
   });

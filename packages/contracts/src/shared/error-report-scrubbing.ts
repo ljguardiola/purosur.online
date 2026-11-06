@@ -229,32 +229,31 @@ function redactRecord(
   echoesQueryValues = false,
 ): Record<string, unknown> {
   const fieldEnclosing = withEnclosing(enclosing, record);
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(record)) {
-    if (isSensitiveKey(key)) {
-      result[key] = REDACTED;
-    } else if (typeof value === "number" && numericDiagnostics.has(key)) {
-      result[key] = value;
-    } else {
-      result[key] = redactValue(value, fieldEnclosing, echoesQueryValues);
-    }
-  }
-  return result;
+  return Object.fromEntries(
+    Object.entries(record).map(([key, value]) => {
+      if (isSensitiveKey(key)) {
+        return [key, REDACTED];
+      }
+      if (typeof value === "number" && numericDiagnostics.has(key)) {
+        return [key, value];
+      }
+      return [key, redactValue(value, fieldEnclosing, echoesQueryValues)];
+    }),
+  );
 }
 
 function redactSections(sections: Record<string, unknown>): Record<string, unknown> {
   const sectionEnclosing: ReadonlySet<object> = new Set([sections]);
-  const result: Record<string, unknown> = {};
-  for (const [name, value] of Object.entries(sections)) {
-    if (DROPPED_SECTIONS.has(name)) {
-      continue;
-    }
-    result[name] =
-      isPlainObject(value) && SDK_CONTEXT_SECTIONS.has(name)
-        ? redactRecord(value, SDK_NUMERIC_DIAGNOSTICS, sectionEnclosing)
-        : redactValue(value, sectionEnclosing);
-  }
-  return result;
+  return Object.fromEntries(
+    Object.entries(sections)
+      .filter(([name]) => !DROPPED_SECTIONS.has(name))
+      .map(([name, value]) => [
+        name,
+        isPlainObject(value) && SDK_CONTEXT_SECTIONS.has(name)
+          ? redactRecord(value, SDK_NUMERIC_DIAGNOSTICS, sectionEnclosing)
+          : redactValue(value, sectionEnclosing),
+      ]),
+  );
 }
 
 interface ExceptionValueLike {

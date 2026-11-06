@@ -96,10 +96,13 @@ export function useRequestForm<
   const { request, fields, messages, check } = options;
   const wireFields: Record<string, FieldDeclaration<Values, Field> | undefined> = fields;
   const fieldOf = (wireField: string, values: Values): Field | undefined => {
-    const declared = Object.hasOwn(fields, wireField) ? wireFields[wireField] : undefined;
+    const declared = Object.hasOwn(wireFields, wireField) ? wireFields[wireField] : undefined;
     return (typeof declared === "function" ? declared(values) : declared) ?? undefined;
   };
   const messageFor = (field: Field, values: Values): string => {
+    if (!Object.hasOwn(messages, field)) {
+      throw new TypeError(`A form declares no message for its field ${field}.`);
+    }
     const message = messages[field];
     return typeof message === "function" ? message(values) : message;
   };
@@ -116,7 +119,7 @@ export function useRequestForm<
     issues: readonly StandardSchemaV1Issue[] = [],
     refusedWireFields: readonly string[] = [],
   ): Partial<Record<Field, string>> | undefined => {
-    const failures: Partial<Record<Field, string>> = {};
+    const failures = new Map<Field, string>();
     const failingWireFields = [
       ...issues.map((issue) => issueWireFields(issue)),
       ...refusedWireFields.map((wireField) => [wireField]),
@@ -125,11 +128,13 @@ export function useRequestForm<
       const field = wireFields
         .map((wireField) => fieldOf(wireField, values))
         .find((declared) => declared !== undefined);
-      if (field !== undefined) {
-        failures[field] = failures[field] ?? messageFor(field, values);
+      if (field !== undefined && !failures.has(field)) {
+        failures.set(field, messageFor(field, values));
       }
     }
-    return Object.keys(failures).length > 0 ? failures : undefined;
+    return failures.size > 0
+      ? (Object.fromEntries(failures) as Partial<Record<Field, string>>)
+      : undefined;
   };
 
   const checked = useRef({ live: false, asked: 0, refused: [] as readonly string[] });

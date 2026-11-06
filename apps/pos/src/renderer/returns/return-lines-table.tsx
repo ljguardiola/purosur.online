@@ -11,6 +11,7 @@ import {
   TextField,
   useTableModel,
 } from "@purosur/ui";
+import { ownEntry } from "./own-entry";
 import type { ReturnDraft, ReturnDraftLine } from "./return-form";
 import { goesBackWhole, RETURNED_WEIGHT_DECIMALS } from "./return-form";
 import type { SaleForReturn, SaleLineForReturn } from "./return-sale";
@@ -73,7 +74,7 @@ export function ReturnLinesTable({
         ) : (
           <Checkbox
             name={`return-${line.id}`}
-            checked={draft[line.id] !== undefined}
+            checked={ownEntry(draft, line.id) !== undefined}
             description={descriptionOf(line)}
             onCheckedChange={(checked) => onCheck(line, checked)}
           >
@@ -85,7 +86,7 @@ export function ReturnLinesTable({
       id: "quantity",
       header: "Devuelve",
       render: (line: SaleLineForReturn) => {
-        const drafted = draft[line.id];
+        const drafted = ownEntry(draft, line.id);
         if (drafted === undefined) {
           return null;
         }
@@ -118,7 +119,7 @@ export function ReturnLinesTable({
       id: "reason",
       header: "Motivo",
       render: (line: SaleLineForReturn) => {
-        const drafted = draft[line.id];
+        const drafted = ownEntry(draft, line.id);
         return drafted === undefined ? null : (
           <Select
             name={`reason-${line.id}`}
@@ -136,7 +137,7 @@ export function ReturnLinesTable({
       id: "resolution",
       header: "Se resuelve con",
       render: (line: SaleLineForReturn) => {
-        const drafted = draft[line.id];
+        const drafted = ownEntry(draft, line.id);
         if (drafted === undefined || drafted.reason === null) {
           return null;
         }
@@ -166,7 +167,7 @@ export function ReturnLinesTable({
       id: "disposition",
       header: "Destino",
       render: (line: SaleLineForReturn) => {
-        const drafted = draft[line.id];
+        const drafted = ownEntry(draft, line.id);
         return drafted === undefined ? null : (
           <Select
             name={`disposition-${line.id}`}
@@ -187,7 +188,7 @@ export function ReturnLinesTable({
     <Table
       table={table}
       aria-label="Líneas de la venta"
-      rowState={(line) => (refusals[line.id] ? "warning" : undefined)}
+      rowState={(line) => (ownEntry(refusals, line.id) ? "warning" : undefined)}
     />
   );
 }

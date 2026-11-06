@@ -4,13 +4,13 @@ import { createWsfeClient } from "./wsfe-client.js";
 
 const ARCA_VITALITY_TIMEOUT_MS = 10_000;
 
-const WSFE_ENDPOINTS: Record<string, string> = {
-  homologation: "https://wswhomo.afip.gov.ar/wsfev1/service.asmx",
-  production: "https://servicios1.afip.gov.ar/wsfev1/service.asmx",
-};
+const WSFE_ENDPOINTS: ReadonlyMap<string, string> = new Map([
+  ["homologation", "https://wswhomo.afip.gov.ar/wsfev1/service.asmx"],
+  ["production", "https://servicios1.afip.gov.ar/wsfev1/service.asmx"],
+]);
 
 export function wsfeEndpointOf(environment: string): string {
-  const endpoint = WSFE_ENDPOINTS[environment];
+  const endpoint = WSFE_ENDPOINTS.get(environment);
   if (endpoint === undefined) {
     throw new Error(`No WSFE endpoint for the ARCA environment "${environment}"`);
   }
@@ -30,7 +30,7 @@ export type WsfeArcaVitalityResult =
 
 const SERVERS = ["AppServer", "DbServer", "AuthServer"] as const;
 
-function serverStatus(result: unknown, server: string): string | undefined {
+function serverStatus(result: unknown, server: (typeof SERVERS)[number]): string | undefined {
   const dummy = (result as { FEDummyResult?: Record<string, unknown> } | undefined)?.FEDummyResult;
   const value = dummy?.[server];
   return typeof value === "string" ? value : undefined;

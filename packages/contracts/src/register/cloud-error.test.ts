@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   CLOUD_ERROR_CODES,
   cloudError,
@@ -27,11 +27,12 @@ describe("cloudErrorSchema", () => {
     expect(cloudErrorSchema.safeParse({ code: "rate_limited", details: [] }).success).toBe(false);
   });
 
-  it("rejects a code the contract does not declare", () => {
-    expect(cloudErrorSchema.safeParse({ code: "teapot", message: "x", details: [] }).success).toBe(
-      false,
-    );
-  });
+  it.each(["teapot", "constructor", "toString", "__proto__"])(
+    "rejects %s, like any other code the contract does not declare",
+    (code) => {
+      expect(cloudErrorSchema.safeParse({ code, message: "x", details: [] }).success).toBe(false);
+    },
+  );
 
   it("rejects details that are not a list of objects", () => {
     expect(
@@ -141,5 +142,12 @@ describe("retryAfterSecondsOf", () => {
     ["a value that is not a whole number", [{ retry_after_seconds: 1.5 }]],
   ])("answers undefined for %s", (_case, details) => {
     expect(retryAfterSecondsOf(cloudError("rate_limited", "x", details))).toBeUndefined();
+  });
+});
+
+describe("the cloud error lookups", () => {
+  it("take only a code the contract declares, never any string", () => {
+    expectTypeOf<string>().not.toExtend<Parameters<typeof cloudErrorStatus>[0]>();
+    expectTypeOf<string>().not.toExtend<Parameters<typeof isRetryableCloudError>[0]>();
   });
 });
