@@ -337,14 +337,14 @@ test("closes on Escape without choosing anything", async () => {
 test("opens from the chevron button", async () => {
   const screen = await render(<ComboBox {...baseProps()} />);
 
-  await screen.getByRole("button", { name: /Producto/ }).click();
+  await screen.getByRole("button", { name: "Mostrar opciones" }).click();
 
   await expect.element(screen.getByRole("listbox")).toBeVisible();
 });
 
 test("shows the select caret and never a search icon, closed or open", async () => {
   const screen = await render(<ComboBox {...baseProps()} />);
-  const button = screen.getByRole("button", { name: /Producto/ }).element();
+  const button = screen.getByRole("button", { name: "Mostrar opciones" }).element();
 
   expect(button.querySelector(".lucide-chevron-down")).not.toBeNull();
   expect(button.querySelector(".lucide-search")).toBeNull();

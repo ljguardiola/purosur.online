@@ -23,7 +23,8 @@ function HoverTarget({ children }: { children: ReactNode }) {
 }
 
 // The tooltip repeats the button's name, so it is not offered as the button's description too: a
-// screen reader would read the same words twice.
+// screen reader would read the same words twice. The name is the button's own, never one a
+// surrounding field builds from its label, so what is shown and what is read stay the same text.
 export function IconOnlyButton({
   name,
   disabled = false,
@@ -35,6 +36,7 @@ export function IconOnlyButton({
     <AriaButton
       {...buttonProps}
       aria-label={name}
+      aria-labelledby=""
       aria-describedby=""
       isDisabled={disabled}
       className={className}

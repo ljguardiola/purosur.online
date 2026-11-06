@@ -14,6 +14,7 @@ import {
   Virtualizer as AriaVirtualizer,
 } from "react-aria-components";
 import { Tag } from "../data-display/tag";
+import { IconOnlyButton } from "../shared/icon-only-button";
 import { focusMovedWithoutThePerson, moveFocus } from "../shared/moved-focus";
 import { type FieldErrorProps, fieldError } from "./field-error";
 import {
@@ -251,9 +252,13 @@ export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
             {chosen.status}
           </Tag>
         ) : null}
-        <AriaButton className={chevronButtonClassName}>
+        <IconOnlyButton
+          name="Mostrar opciones"
+          disabled={disabled}
+          className={chevronButtonClassName}
+        >
           <SelectCaret className={chevronClassName} />
-        </AriaButton>
+        </IconOnlyButton>
       </div>
       {errorMessage !== undefined ? (
         <AriaText
