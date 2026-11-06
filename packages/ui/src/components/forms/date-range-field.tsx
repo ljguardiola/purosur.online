@@ -26,7 +26,6 @@ import {
   calendarWeekdayClassName,
   dialogClassName,
   emptySeparatorClassName,
-  inputBaseClassName,
   popoverClassName,
   registerFrameClassName,
   registerValueClassName,
@@ -75,6 +74,8 @@ export type DateRangeFieldProps = DateRangeFieldCommonProps &
 const LOCALE: Locale = "es-AR";
 
 const REVERSED_RANGE_MESSAGE = "La fecha de fin no puede ser anterior a la de inicio.";
+
+const inputClassName = "flex min-w-0 outline-none";
 
 const separatorClassName = "shrink-0 select-none px-1 text-text-subtle";
 
@@ -138,7 +139,7 @@ export function DateRangeField(props: DateRangeFieldProps) {
           className={`${fieldBoxClassName} ${frameClassName} ${fieldBoxStateClassName({ disabled, invalid })}`}
         >
           {size === "register" && <CalendarToggleButton label={label} disabled={disabled} />}
-          <AriaDateInput slot="start" className={`${inputBaseClassName} ${valueClassName}`}>
+          <AriaDateInput slot="start" className={`${inputClassName} ${valueClassName}`}>
             {(segment) => (
               <AriaDateSegment segment={segment} className={segmentsClassName(value?.start)} />
             )}
@@ -146,11 +147,12 @@ export function DateRangeField(props: DateRangeFieldProps) {
           <span aria-hidden="true" className={`${separatorClassName} ${valueClassName}`}>
             –
           </span>
-          <AriaDateInput slot="end" className={`${inputBaseClassName} ${valueClassName}`}>
+          <AriaDateInput slot="end" className={`${inputClassName} ${valueClassName}`}>
             {(segment) => (
               <AriaDateSegment segment={segment} className={segmentsClassName(value?.end)} />
             )}
           </AriaDateInput>
+          <span aria-hidden="true" className="flex-1" />
           {size === "backoffice" && <CalendarToggleButton label={label} disabled={disabled} />}
         </AriaGroup>
         {shownError !== undefined ? (
