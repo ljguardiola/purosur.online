@@ -3,7 +3,10 @@ import { useFocusable } from "react-aria";
 import { Button as AriaButton, type ButtonProps as AriaButtonProps } from "react-aria-components";
 import { Tooltip } from "../overlays/tooltip";
 
-export type IconOnlyButtonProps = Pick<AriaButtonProps, "onPress" | "slot"> & {
+export type IconOnlyButtonProps = Pick<
+  AriaButtonProps,
+  "onPress" | "slot" | "excludeFromTabOrder"
+> & {
   name: string;
   disabled?: boolean;
   className: string;
@@ -22,9 +25,12 @@ function HoverTarget({ children }: { children: ReactNode }) {
   );
 }
 
-// The tooltip repeats the button's name, so it is not offered as the button's description too: a
-// screen reader would read the same words twice. The name is the button's own, never one a
-// surrounding field builds from its label, so what is shown and what is read stay the same text.
+// An empty value, unlike an absent one, replaces what a surrounding field passes down. The tooltip
+// repeats the button's name, so it is not offered as the button's description too, which a screen
+// reader would read twice, and the name is the button's own rather than one a field builds from its
+// label, so what is shown and what is read stay the same text.
+const ownNameWithoutDescription = { "aria-labelledby": "", "aria-describedby": "" };
+
 export function IconOnlyButton({
   name,
   disabled = false,
@@ -35,22 +41,20 @@ export function IconOnlyButton({
   const button = (
     <AriaButton
       {...buttonProps}
+      {...ownNameWithoutDescription}
       aria-label={name}
-      aria-labelledby=""
-      aria-describedby=""
       isDisabled={disabled}
       className={className}
     >
       {children}
     </AriaButton>
   );
-  return (
-    <Tooltip description={name}>
-      {disabled ? (
+  if (disabled) {
+    return (
+      <Tooltip description={name}>
         <HoverTarget>{button}</HoverTarget>
-      ) : (
-        button
-      )}
-    </Tooltip>
-  );
+      </Tooltip>
+    );
+  }
+  return <Tooltip description={name}>{button}</Tooltip>;
 }
