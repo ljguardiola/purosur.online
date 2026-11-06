@@ -79,6 +79,7 @@ export {
   showsAlertScope,
 } from "./alerts/index.js";
 export type {
+  CloudLinkReading,
   ContingencyBackupOperation,
   ContingencyBackupPrintFailureReason,
   ContingencyBackupTicketRecord,

@@ -1,9 +1,9 @@
-import type { ContingencyBackupOperation, FiscalEmissionMode } from "@purosur/domain";
+import type { CloudLinkReading, ContingencyBackupOperation } from "@purosur/domain";
 import type { RecordContingencyBackupTicketInput } from "@purosur/domain/backups/use-cases";
 
 export interface TicketedOperationsDeps {
   readLastDeviceSeq: () => number;
-  readEmissionMode: () => FiscalEmissionMode;
+  readCloudLink: () => CloudLinkReading;
   record: (input: RecordContingencyBackupTicketInput) => Promise<unknown>;
   afterRecorded: () => void;
   reportFailure: (context: string, error: unknown) => void;
@@ -51,7 +51,7 @@ function completedSaleOf(settlement: { kind: string }): string | null {
 
 interface Reading {
   lastDeviceSeq: number;
-  mode: FiscalEmissionMode;
+  cloudLink: CloudLinkReading;
 }
 
 function appendStep(spans: Reading[][], before: Reading, after: Reading): void {
@@ -66,14 +66,14 @@ function appendStep(spans: Reading[][], before: Reading, after: Reading): void {
 
 export function createTicketedOperations({
   readLastDeviceSeq,
-  readEmissionMode,
+  readCloudLink,
   record,
   afterRecorded,
   reportFailure,
 }: TicketedOperationsDeps): TicketedOperations {
   function read(): Reading | undefined {
     try {
-      return { lastDeviceSeq: readLastDeviceSeq(), mode: readEmissionMode() };
+      return { lastDeviceSeq: readLastDeviceSeq(), cloudLink: readCloudLink() };
     } catch (error) {
       reportFailure("reading the register before a contingency backup ticket", error);
       return undefined;
@@ -102,7 +102,7 @@ export function createTicketedOperations({
       await record({
         operation,
         subjectId,
-        modesAround: readings.map(({ mode }) => mode),
+        cloudLinkAround: readings.map(({ cloudLink }) => cloudLink),
         range: { firstDeviceSeq: first.lastDeviceSeq + 1, lastDeviceSeq: last.lastDeviceSeq },
       });
       afterRecorded();

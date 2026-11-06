@@ -1,4 +1,4 @@
-import { type FiscalEmissionMode, isConnectivityGap } from "../../fiscal/index.js";
+import { isRegisterReachingCloud } from "../../fiscal/index.js";
 
 export const CONTINGENCY_BACKUP_OPERATIONS = [
   "sale",
@@ -83,14 +83,23 @@ export function customerDocumentPrinted(
   }
 }
 
+export interface CloudLinkReading {
+  lastHealthCheckOkAt: Date | null;
+  at: Date;
+}
+
+export function cloudLinkLostAround(cloudLinkAround: readonly CloudLinkReading[]): boolean {
+  return cloudLinkAround.some((reading) => !isRegisterReachingCloud(reading, reading.at));
+}
+
 export function needsContingencyBackupTicket({
-  modesAround,
+  cloudLinkAround,
   range,
 }: {
-  modesAround: readonly FiscalEmissionMode[];
+  cloudLinkAround: readonly CloudLinkReading[];
   range: OperationEventRange;
 }): boolean {
-  return range.lastDeviceSeq >= range.firstDeviceSeq && modesAround.some(isConnectivityGap);
+  return range.lastDeviceSeq >= range.firstDeviceSeq && cloudLinkLostAround(cloudLinkAround);
 }
 
 export function paidSaleCancellationLeavesBackupTicket(refunds: readonly unknown[]): boolean {
