@@ -146,6 +146,18 @@ describe("CountLineModal", () => {
     await expect.element(screen.getByText("Pesando…")).not.toBeInTheDocument();
   });
 
+  it("shows the unsteady weight in the field while weighing, without calling the reading stable", async () => {
+    const { screen } = await renderModal({
+      weigh: async () => ({ kind: "unsteady", weight_thousandths: 140 }),
+    });
+
+    await expect.element(screen.getByText("Pesando…")).toBeVisible();
+    await expect
+      .element(screen.getByRole("textbox", { name: "Cantidad contada" }))
+      .toHaveValue("0,140");
+    await expect.element(screen.getByText("Lectura estable")).not.toBeInTheDocument();
+  });
+
   it("shows that it is weighing, keeping the last stable weight, while the plate moves", async () => {
     const answers: WeighCountedProductOutcome[] = [
       { kind: "weighed", weight_thousandths: 1000 },
@@ -162,15 +174,16 @@ describe("CountLineModal", () => {
   });
 
   it("follows the scale back to zero when the product is lifted", async () => {
-    const answers: WeighCountedProductOutcome[] = [
-      { kind: "weighed", weight_thousandths: 1000 },
-      { kind: "weighed", weight_thousandths: 0 },
-    ];
+    const first = deferred<WeighCountedProductOutcome>();
+    const second = deferred<WeighCountedProductOutcome>();
+    const answers = [first, second];
     const { screen } = await renderModal({
-      weigh: () => deferredOr(answers.shift()),
+      weigh: () => (answers.shift() ?? deferred<WeighCountedProductOutcome>()).promise,
     });
     const field = screen.getByRole("textbox", { name: "Cantidad contada" });
+    first.resolve({ kind: "weighed", weight_thousandths: 1000 });
     await expect.element(field).toHaveValue("1,000");
+    second.resolve({ kind: "weighed", weight_thousandths: 0 });
 
     await expect.element(field).toHaveValue("0,000");
   });
@@ -216,23 +229,25 @@ describe("CountLineModal", () => {
   });
 
   it("shows another stable weight the confirmation read and records it only once it is confirmed in turn", async () => {
-    const answers: WeighCountedProductOutcome[] = [
-      { kind: "weighed", weight_thousandths: 1000 },
-      { kind: "weighed", weight_thousandths: 1500 },
-      { kind: "confirmed", weight_thousandths: 1500 },
-    ];
+    const first = deferred<WeighCountedProductOutcome>();
+    const second = deferred<WeighCountedProductOutcome>();
+    const answers = [first, second];
     const asked: unknown[] = [];
     const confirmedAnswer = deferred<WeighCountedProductOutcome>();
     const { screen, recording } = await renderModal({
       weigh: (_productId, confirmed) => {
         asked.push(confirmed);
-        return confirmed === 1500 ? confirmedAnswer.promise : deferredOr(answers.shift());
+        return confirmed === 1500
+          ? confirmedAnswer.promise
+          : (answers.shift() ?? deferred<WeighCountedProductOutcome>()).promise;
       },
     });
     const field = screen.getByRole("textbox", { name: "Cantidad contada" });
+    first.resolve({ kind: "weighed", weight_thousandths: 1000 });
     await expect.element(field).toHaveValue("1,000");
 
     await confirm(screen);
+    second.resolve({ kind: "weighed", weight_thousandths: 1500 });
 
     await expect.element(field).toHaveValue("1,500");
     await vi.waitFor(() => expect(asked).toContain(1500));

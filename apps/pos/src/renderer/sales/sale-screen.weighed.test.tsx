@@ -226,6 +226,30 @@ describe("SaleScreen weighing a product on the scale", () => {
     await expect.element(screen.getByText("La venta está vacía")).toBeVisible();
   });
 
+  it("shows the unsteady weight and its amount as weighing and adds nothing", async () => {
+    const addWeighedProduct = vi.fn(
+      async (): Promise<AddWeighedProductOutcome> => ({ kind: "unavailable" }),
+    );
+    const weighProduct = vi.fn(
+      async (): Promise<WeighProductOutcome> => ({
+        kind: "unsteady",
+        weight_thousandths: 140,
+        amount: 175_000,
+      }),
+    );
+    const { screen, field } = await scanning({ weighProduct, addWeighedProduct });
+
+    await scan(field, "7790001");
+
+    const dialog = screen.getByRole("dialog");
+    await expect.element(dialog.getByText("Pesando…")).toBeVisible();
+    await expect.element(dialog.getByText("0,140 kg")).toBeVisible();
+    await expect.element(dialog.getByText("$ 1.750,00")).toBeVisible();
+    await expect.element(dialog.getByText("Lectura estable")).not.toBeInTheDocument();
+    expect(addWeighedProduct).not.toHaveBeenCalled();
+    await expect.element(screen.getByText("La venta está vacía")).toBeVisible();
+  });
+
   it("shows each stable reading without adding the line until the cashier confirms", async () => {
     const addedSale = {
       ...SALE_OF_QUESO,
@@ -643,6 +667,29 @@ describe("SaleScreen weighing the new weight of a line on the scale", () => {
     await expect.element(screen.getByText("0,800 kg")).toBeVisible();
     expect(weighLine).toHaveBeenCalledWith("line-3", 1250, null);
     expect(weighLine).toHaveBeenCalledWith("line-3", 1250, 800);
+  });
+
+  it("shows the unsteady weight and its amount as weighing, changing nothing", async () => {
+    const changeLineWeight = vi.fn(
+      async (): Promise<ChangeLineWeightOutcome> => ({ kind: "unavailable" }),
+    );
+    const { screen } = await renderWithQueso({
+      changeLineWeight,
+      weighLine: vi.fn(
+        async (): Promise<WeighLineOutcome> => ({
+          kind: "unsteady",
+          weight_thousandths: 800,
+          amount: 1_000_000,
+        }),
+      ),
+    });
+    const dialog = screen.getByRole("dialog");
+
+    await expect.element(dialog.getByText("Pesando…")).toBeVisible();
+    await expect.element(dialog.getByText("0,800 kg")).toBeVisible();
+    await expect.element(dialog.getByText("$ 10.000,00")).toBeVisible();
+    await expect.element(dialog.getByText("Lectura estable")).not.toBeInTheDocument();
+    expect(changeLineWeight).not.toHaveBeenCalled();
   });
 
   it("leads to the typed weight form, keeping the weight typed as today", async () => {
