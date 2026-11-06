@@ -25,15 +25,19 @@ export function SuppliersArea({
 
   return (
     <div data-testid="area" style={{ display: "flex", width: `${areaWidth}px`, height: "600px" }}>
-      <ul style={{ flex: 1 }}>
-        {rows.map(({ label, supplier }) => (
-          <li key={label}>
-            <button type="button" onClick={() => setOpenSupplier(supplier)}>
-              {label}
-            </button>
-          </li>
-        ))}
-      </ul>
+      <div style={{ flex: 1 }}>
+        <p>Proveedores</p>
+        <input type="search" aria-label="Buscar proveedor" />
+        <ul>
+          {rows.map(({ label, supplier }) => (
+            <li key={label}>
+              <button type="button" onClick={() => setOpenSupplier(supplier)}>
+                {label}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
       <DetailPanel
         open={openSupplier !== null}
         onClose={() => setOpenSupplier(null)}
