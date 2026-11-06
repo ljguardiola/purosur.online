@@ -32,7 +32,7 @@ test("shows each register with the day and time of its last successful sync, and
     refreshing: false,
   });
 
-  await expect.element(screen.getByRole("heading", { name: "Cajas", level: 2 })).toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Estado de las cajas", level: 2 })).toBeVisible();
   await expect
     .element(screen.getByRole("columnheader", { name: "Última sincronización" }))
     .toBeVisible();
