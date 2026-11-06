@@ -20,7 +20,7 @@ test("shows one card per level, critical first, each with its open count and the
   ]);
 });
 
-test("links each card to the alerts list filtered by its level", async () => {
+test("links each card to Inicio filtered by its level", async () => {
   const screen = await render(<AlertsLevelCards overview={overview} />);
 
   const hrefs = screen
@@ -28,9 +28,9 @@ test("links each card to the alerts list filtered by its level", async () => {
     .elements()
     .map((card) => new URL(card.getAttribute("href") ?? "", window.location.origin));
   expect(hrefs.map((href) => [href.pathname, href.searchParams.get("level")])).toEqual([
-    ["/alerts", "critical"],
-    ["/alerts", "warning"],
-    ["/alerts", "informational"],
+    ["/", "critical"],
+    ["/", "warning"],
+    ["/", "informational"],
   ]);
 });
 

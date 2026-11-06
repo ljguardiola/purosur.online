@@ -10,8 +10,8 @@ import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import type { FetchAlertsOutcome } from "./alerts-api";
-import { AlertsListScreen } from "./alerts-list-screen";
-import type { AlertsListScreenServices } from "./alerts-list-services";
+import { AlertsListSection } from "./alerts-list-section";
+import type { AlertsListSectionServices } from "./alerts-list-services";
 import { type AlertsListFilters, alertsListFilters } from "./routes";
 
 beforeEach(() => {
@@ -19,8 +19,8 @@ beforeEach(() => {
 });
 
 function createServices(
-  overrides: Partial<AlertsListScreenServices> = {},
-): AlertsListScreenServices {
+  overrides: Partial<AlertsListSectionServices> = {},
+): AlertsListSectionServices {
   return {
     fetchAlerts: vi.fn(),
     alertDetailModal: {
@@ -108,7 +108,7 @@ function deferred<T>() {
 }
 
 function screenElement(
-  services: AlertsListScreenServices,
+  services: AlertsListSectionServices,
   onSessionEnded: () => void = () => {},
   access: BackofficeAccess = ADMINISTRATOR_ACCESS,
   {
@@ -122,7 +122,7 @@ function screenElement(
   return (
     <FieldSizeProvider size="backoffice">
       <main>
-        <AlertsListScreen
+        <AlertsListSection
           services={services}
           onSessionEnded={onSessionEnded}
           access={access}
@@ -138,15 +138,15 @@ function renderScreen(...args: Parameters<typeof screenElement>) {
   return render(screenElement(...args));
 }
 
-test("shows the breadcrumb, heading, each alert's level/kind/scope/opened date, the pill, and the footer", async () => {
+test("shows the section's heading, each alert's level/kind/scope/opened date, and the footer", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlerts).mockResolvedValue(ok([passkeyAlert, lockoutAlert]));
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("Inicio")).toBeVisible();
-  await expect.element(screen.getByRole("heading", { name: "Alertas", level: 1 })).toBeVisible();
-  await expect.element(screen.getByText("2 alertas abiertas").first()).toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "Lista de alertas", level: 2 }))
+    .toBeVisible();
   const passkeyRow = screen.getByRole("row", { name: /Lucía Pérez/ });
   const lockoutRow = screen.getByRole("row", { name: /203\.0\.113\.5/ });
   await expect.element(passkeyRow.getByText("Advertencia")).toBeVisible();
@@ -159,14 +159,28 @@ test("shows the breadcrumb, heading, each alert's level/kind/scope/opened date, 
   await expectNoAccessibilityViolations(document.body);
 });
 
-test("hides the header pill and shows the blank empty state when there are no open alerts", async () => {
+test("shows the blank empty state when there are no open alerts", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlerts).mockResolvedValue(ok([]));
 
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByText("Sin alertas abiertas")).toBeVisible();
-  expect(screen.getByText("alertas abiertas").query()).toBeNull();
+});
+
+test("can be reached by the alerts-list anchor, which holds its heading", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(ok([passkeyAlert]));
+
+  const screen = await renderScreen(services);
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Lista de alertas", level: 2 }))
+    .toBeVisible();
+  const anchor = document.getElementById("alerts-list");
+  expect(anchor?.contains(screen.getByRole("heading", { name: "Lista de alertas" }).element())).toBe(
+    true,
+  );
 });
 
 test("shows no counts line under the empty state, which already says nothing is open", async () => {
@@ -218,7 +232,6 @@ test("makes one request per load, carrying the open-alert counts beyond the rows
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByText("4 alertas abiertas · 2 críticas")).toBeVisible();
-  await expect.element(screen.getByText("4 alertas abiertas", { exact: true })).toBeVisible();
   expect(services.fetchAlerts).toHaveBeenCalledTimes(1);
   expect(services.fetchAlerts).toHaveBeenCalledWith({ open: true, page: 1 });
 });
