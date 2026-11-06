@@ -4,7 +4,6 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import type { PrintLabelsModalServices } from "./print-labels-modal";
-import { almonds } from "./test-support/products";
 import {
   almondOilWithInternalBarcode,
   almondsWithInternalBarcode,
@@ -15,6 +14,7 @@ import {
   type Screen,
   withoutInternalBarcode,
 } from "./test-support/print-labels-modal";
+import { almonds } from "./test-support/products";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");

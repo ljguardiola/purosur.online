@@ -4,6 +4,7 @@ import {
   type ProductCreationBody,
   type ProductEditBody,
   type ProductSummary,
+  printerLabelsSchema,
   productListSchema,
   productSummarySchema,
 } from "@purosur/contracts";
@@ -12,6 +13,7 @@ import { cloudFetch } from "../platform/cloud-fetch";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
+import type { LabelToPrint } from "./label-printer/print-sequence";
 
 export type ProductSaleUnit = "UNIT" | "KG";
 
@@ -189,21 +191,9 @@ export type PrintLabelsOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-export async function printLabels(labels: PrintLabelEntry[]): Promise<PrintLabelsOutcome> {
-  const requestBody: LabelSheetBody = { labels };
-  let response: Response;
-  try {
-    response = await postJson("/api/label-sheets", requestBody);
-  } catch {
-    return { kind: "failed" };
-  }
-  if (response.ok) {
-    const blob = await response.blob().catch(() => undefined);
-    if (!blob) {
-      return { kind: "failed" };
-    }
-    return { kind: "ok", blob };
-  }
+async function refusedPrintOutcome(
+  response: Response,
+): Promise<Exclude<PrintLabelsOutcome, { kind: "ok" }>> {
   if (response.status === 400) {
     const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
     if (body?.code === "product_not_found") {
@@ -224,6 +214,59 @@ export async function printLabels(labels: PrintLabelEntry[]): Promise<PrintLabel
     return rateLimitOutcome(response);
   }
   return { kind: "failed" };
+}
+
+export async function printLabels(labels: PrintLabelEntry[]): Promise<PrintLabelsOutcome> {
+  const requestBody: LabelSheetBody = { labels };
+  let response: Response;
+  try {
+    response = await postJson("/api/label-sheets", requestBody);
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    const blob = await response.blob().catch(() => undefined);
+    if (!blob) {
+      return { kind: "failed" };
+    }
+    return { kind: "ok", blob };
+  }
+  return refusedPrintOutcome(response);
+}
+
+export type FetchPrinterLabelsOutcome =
+  | { kind: "ok"; labels: LabelToPrint[] }
+  | Exclude<PrintLabelsOutcome, { kind: "ok" }>;
+
+function decodedRaster(base64: string): Uint8Array {
+  return Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
+}
+
+export async function fetchPrinterLabels(
+  labels: PrintLabelEntry[],
+): Promise<FetchPrinterLabelsOutcome> {
+  const requestBody: LabelSheetBody = { labels };
+  let response: Response;
+  try {
+    response = await postJson("/api/label-prints", requestBody);
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.ok) {
+    const parsed = printerLabelsSchema.safeParse(await response.json().catch(() => undefined));
+    if (!parsed.success) {
+      return { kind: "failed" };
+    }
+    const { widthDots, heightDots, labels: prepared } = parsed.data;
+    return {
+      kind: "ok",
+      labels: prepared.map((label) => ({
+        copies: label.copies,
+        raster: { widthDots, heightRows: heightDots, data: decodedRaster(label.rows) },
+      })),
+    };
+  }
+  return refusedPrintOutcome(response);
 }
 
 export async function editProduct(
