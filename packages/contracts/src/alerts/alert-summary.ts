@@ -29,8 +29,6 @@ export const alertListPageSchema = z.object({
   alerts: z.array(alertSummarySchema),
   total: z.int(),
   pageSize: z.int().positive(),
-  openCount: z.int(),
-  openCriticalCount: z.int(),
 });
 
 export type AlertSummary = z.output<typeof alertSummarySchema>;
