@@ -170,6 +170,56 @@ test("the row action opens that user's panel through the URL", async () => {
   expect(window.location.pathname).toBe("/people/users");
 });
 
+test("pressing a user's row outside its link and buttons opens that user's panel through the URL", async () => {
+  window.history.pushState(null, "", "/people/users");
+  const services = createUsersListServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator, martina] });
+  const detailServices = createServices();
+  vi.mocked(detailServices.fetchUser).mockResolvedValue({ kind: "ok", value: martina });
+  const screen = await renderUsersList(services, () => {}, ADMINISTRATOR_ACCESS, {
+    detailServices,
+  });
+  await expect.element(screen.getByText("2 usuarios")).toBeVisible();
+  const martinaRow = screen.getByRole("row", { name: /Martina Gómez/ });
+
+  await userEvent.click(martinaRow.getByRole("cell").nth(1));
+
+  await expect.poll(() => window.location.search).toBe("?user=user-2");
+});
+
+test("marks the row of the open user as the current one", async () => {
+  const services = createUsersListServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator, martina] });
+  const detailServices = createServices();
+  vi.mocked(detailServices.fetchUser).mockResolvedValue({ kind: "ok", value: martina });
+
+  const screen = await renderUsersList(services, () => {}, ADMINISTRATOR_ACCESS, {
+    openUser: "user-2",
+    detailServices,
+  });
+
+  await expect
+    .element(screen.getByRole("row", { name: /Martina Gómez/ }))
+    .toHaveAttribute("aria-current", "true");
+  expect(screen.getByRole("row", { name: /Lucas Medrano/ }).element()).not.toHaveAttribute(
+    "aria-current",
+  );
+});
+
+test("pressing a row's action icon navigates once, not again through the row", async () => {
+  window.history.pushState(null, "", "/people/users");
+  const services = createUsersListServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator, martina] });
+  const screen = await renderUsersList(services);
+  await expect.element(screen.getByText("2 usuarios")).toBeVisible();
+  const entriesBefore = window.history.length;
+
+  await userEvent.click(screen.getByRole("button", { name: "Editar a Martina Gómez" }));
+
+  await expect.poll(() => window.location.search).toBe("?user=user-2");
+  expect(window.history.length).toBe(entriesBefore + 1);
+});
+
 test("pressing a user's name opens that user's panel through the URL, keeping the state filter", async () => {
   window.history.pushState(null, "", "/people/users?state=active");
   const services = createUsersListServices();
