@@ -5,9 +5,11 @@ export type SidePanelProps = {
   children: ReactNode;
   label: string;
   footer?: ReactNode | undefined;
+  header?: ReactNode | undefined;
+  width?: "panel" | "fill" | undefined;
 };
 
-export function SidePanel({ children, label, footer }: SidePanelProps) {
+export function SidePanel({ children, label, footer, header, width = "panel" }: SidePanelProps) {
   const panelId = useId();
   const { observeOverflow, regionProps, focusClassName } = useKeyboardScrollableRegion(panelId);
 
@@ -15,8 +17,9 @@ export function SidePanel({ children, label, footer }: SidePanelProps) {
     <aside
       id={panelId}
       aria-label={label}
-      className="flex h-full w-98 shrink-0 flex-col border-l border-border bg-surface"
+      className={`flex h-full flex-col bg-surface ${width === "panel" ? "w-98 shrink-0 border-l border-border" : "w-full"}`}
     >
+      {header === undefined ? null : <div className="shrink-0">{header}</div>}
       <div
         ref={observeOverflow}
         {...regionProps}
