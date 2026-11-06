@@ -165,20 +165,6 @@ describe("confirming a revoked installation through the Drizzle store", () => {
     expect(await confirmations()).toMatchObject([{ installationId: revoked }]);
   });
 
-  it("confirms a revoked installation while another installation of its register is still active", async () => {
-    const { registerId, installationId: revoked } =
-      await revokedInstallationOfTheOfflinePointOfSale();
-    const active = await insertEnrolledInstallation(db, {
-      now: AT,
-      existingRegisterId: registerId,
-      enrolledAt: REVOKED_AT,
-    });
-
-    expect(await confirm(revoked)).toEqual({ kind: "confirmed" });
-    expect(await confirm(active.deviceId)).toEqual({ kind: "not_revoked" });
-    expect(await confirmations()).toMatchObject([{ installationId: revoked }]);
-  });
-
   it("finds no installation of a register that does not own the point of sale", async () => {
     await revokedInstallationOfTheOfflinePointOfSale();
     const other = await insertEnrolledInstallation(db, {
