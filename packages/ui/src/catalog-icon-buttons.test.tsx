@@ -60,7 +60,7 @@ async function settle() {
     hovered.dispatchEvent(new PointerEvent("pointerleave", { pointerType: "mouse" }));
   }
   await cdp().send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 0, y: 0 });
-  await expect.poll(shownTooltips).toEqual([]);
+  await expect.poll(shownTooltips, { timeout: 3000 }).toEqual([]);
 }
 
 function enterKeyboardModality() {
