@@ -29,7 +29,7 @@ import type {
   TagList,
 } from "@purosur/contracts";
 import { type QueryKey, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { type CloudData, fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
@@ -432,14 +432,15 @@ function supplierItemQuantityProposalKey(
 function useProposalRefresh<T>(params: {
   listId: string;
   queryKey: QueryKey;
+  opening: object | null;
   ask: () => Promise<CloudReadOutcome<T>>;
   onSessionEnded: () => void;
 }) {
   const client = useQueryClient();
   const sendToMyAccount = useSendToMyAccount();
-  const { listId, queryKey, ask, onSessionEnded } = params;
+  const { listId, queryKey, opening, ask, onSessionEnded } = params;
   const asked = JSON.stringify(queryKey);
-  const mutation = useMutation({
+  const { mutateAsync, reset, variables, isPending, data } = useMutation({
     mutationFn: async (_asked: string) => {
       const outcome = await ask();
       void client.invalidateQueries({
@@ -458,17 +459,28 @@ function useProposalRefresh<T>(params: {
       }
     },
   });
-  const current = mutation.variables === asked;
+  const currentOpening = useRef(opening);
+  useEffect(() => {
+    currentOpening.current = opening;
+    reset();
+  }, [opening, reset]);
+  const current = variables === asked;
   return {
-    refresh: () => mutation.mutateAsync(asked),
-    refreshing: current && mutation.isPending,
-    failed: current && (mutation.data?.kind === "failed" || mutation.data?.kind === "rate_limited"),
+    // Null when the answer arrives after another opening.
+    refresh: async (): Promise<CloudReadOutcome<T> | null> => {
+      const askedOpening = opening;
+      const outcome = await mutateAsync(asked);
+      return currentOpening.current === askedOpening ? outcome : null;
+    },
+    refreshing: current && isPending,
+    failed: current && (data?.kind === "failed" || data?.kind === "rate_limited"),
   };
 }
 
 export function useRefreshSupplierItemLinkProposal(params: {
   listId: string;
   rowId: string;
+  opening: object | null;
   fetchSupplierItemLinkProposal: typeof fetchSupplierItemLinkProposal;
   onSessionEnded: () => void;
 }) {
@@ -476,6 +488,7 @@ export function useRefreshSupplierItemLinkProposal(params: {
   return useProposalRefresh({
     listId,
     queryKey: [...purchasingKeys.supplierItemLinkProposal, listId, rowId],
+    opening: params.opening,
     ask: () => params.fetchSupplierItemLinkProposal(listId, rowId, { refresh: true }),
     onSessionEnded: params.onSessionEnded,
   });
@@ -484,6 +497,7 @@ export function useRefreshSupplierItemLinkProposal(params: {
 export function useRefreshSupplierItemQuantityProposal(params: {
   listId: string;
   rowId: string;
+  opening: object | null;
   request: SupplierItemQuantityProposalBody | null;
   fetchSupplierItemQuantityProposal: typeof fetchSupplierItemQuantityProposal;
   onSessionEnded: () => void;
@@ -492,6 +506,7 @@ export function useRefreshSupplierItemQuantityProposal(params: {
   return useProposalRefresh({
     listId,
     queryKey: supplierItemQuantityProposalKey(listId, rowId, request),
+    opening: params.opening,
     ask: async () =>
       request === null
         ? { kind: "failed" }

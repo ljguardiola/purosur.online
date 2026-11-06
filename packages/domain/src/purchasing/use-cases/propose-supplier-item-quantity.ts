@@ -1,16 +1,18 @@
 import type { NetContentUnit, SaleUnit } from "../../catalog/index.js";
 import type { ZoneRulesSource } from "../../shared/index.js";
 import { collectAiCalls } from "./ai-call-recording.js";
+import { isSameProposalItem } from "./proposal-asked-from.js";
 import { linkableQuantityOrNull, readingOrUnavailable } from "./proposed-quantity.js";
 import type { SupplierItemLinkProposalReader } from "./supplier-item-link-proposal-reader.js";
-import type { SupplierItemProposalStore } from "./supplier-item-proposal-store.js";
+import type {
+  QuantityProposalAnswer,
+  SupplierItemProposalStore,
+} from "./supplier-item-proposal-store.js";
 import type { SupplierItemQuantityReader } from "./supplier-item-quantity-reader.js";
-import type { SupplierPriceListAiCallStore } from "./supplier-price-list-ai-call-store.js";
 
 export interface ProposeSupplierItemQuantityPorts {
   reader: SupplierItemLinkProposalReader;
   quantityReader: SupplierItemQuantityReader;
-  aiCalls: SupplierPriceListAiCallStore;
   store: SupplierItemProposalStore;
   zoneRules: ZoneRulesSource;
 }
@@ -35,7 +37,7 @@ export type ProposeSupplierItemQuantityOutcome =
 
 // A proposal is never applied: what is written is what the AI call costs and the proposal a call produced.
 export async function proposeSupplierItemQuantity(
-  { reader, quantityReader, aiCalls, store, zoneRules }: ProposeSupplierItemQuantityPorts,
+  { reader, quantityReader, store, zoneRules }: ProposeSupplierItemQuantityPorts,
   input: ProposeSupplierItemQuantityInput,
 ): Promise<ProposeSupplierItemQuantityOutcome> {
   const row = await reader.row(input.listId, input.rowId);
@@ -44,41 +46,43 @@ export async function proposeSupplierItemQuantity(
   }
 
   const shape = { saleUnit: input.saleUnit, netContent: input.netContent };
+  const item = {
+    description: row.description,
+    presentation: row.presentation,
+    otherPresentations: row.otherPresentations,
+  };
   if (!input.refresh) {
     const kept = await store.keptQuantityProposal(input.rowId, shape);
-    if (kept) {
-      return kept;
+    if (kept && isSameProposalItem(kept.askedFrom, item)) {
+      return kept.answer;
     }
   }
 
   const collector = collectAiCalls(input.now, zoneRules);
   const reading = await readingOrUnavailable(() =>
-    quantityReader.read(
-      {
-        description: row.description,
-        presentation: row.presentation,
-        otherPresentations: row.otherPresentations,
-      },
-      shape,
-      collector.onCall,
-    ),
+    quantityReader.read(item, shape, collector.onCall),
   );
-  const records = collector.records({
-    purpose: "LINK_PROPOSAL",
-    listId: input.listId,
-    rowId: input.rowId,
-    actorId: input.actorId,
-  });
-  if (records.length > 0) {
-    await aiCalls.record(records);
-  }
-  if (reading.kind === "unavailable") {
-    return reading;
-  }
   const quantity =
     reading.kind === "read" ? linkableQuantityOrNull(input.saleUnit, reading.quantity) : null;
-  const proposal =
-    quantity === null ? ({ kind: "none" } as const) : { kind: "proposed" as const, quantity };
-  await store.keepQuantityProposal(input.rowId, shape, proposal);
-  return proposal;
+  const answer: QuantityProposalAnswer | null =
+    reading.kind === "unavailable"
+      ? null
+      : quantity === null
+        ? { kind: "none" }
+        : { kind: "proposed", quantity };
+  const recording = await store.recordQuantityProposal(
+    input.rowId,
+    shape,
+    collector.records({
+      purpose: "LINK_PROPOSAL",
+      listId: input.listId,
+      rowId: input.rowId,
+      actorId: input.actorId,
+    }),
+    answer && { askedFrom: item, answer },
+  );
+  if (recording === "row_gone") {
+    return { kind: "not_found" };
+  }
+  return answer ?? { kind: "unavailable" };
 }

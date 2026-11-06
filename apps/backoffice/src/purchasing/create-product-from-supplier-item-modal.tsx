@@ -249,6 +249,7 @@ export function CreateProductFromSupplierItemModal({
   const quantityRefresh = useRefreshSupplierItemQuantityProposal({
     listId: list.id,
     rowId: row?.id ?? "",
+    opening: target,
     request: open ? asked : null,
     fetchSupplierItemQuantityProposal: services.fetchSupplierItemQuantityProposal,
     onSessionEnded,
@@ -501,14 +502,13 @@ export function CreateProductFromSupplierItemModal({
                 />
               )}
             </form.AppField>
-            {quantityProposal.status === "loaded" ? (
-              <div className="flex justify-end">
-                <ProposeAgainButton
-                  refreshing={quantityRefresh.refreshing}
-                  onPress={() => void quantityRefresh.refresh()}
-                />
-              </div>
-            ) : null}
+            <div className="flex justify-end">
+              <ProposeAgainButton
+                dataStatus={quantityProposal.status}
+                refreshing={quantityRefresh.refreshing}
+                onPress={() => void quantityRefresh.refresh()}
+              />
+            </div>
             {quantityRefresh.failed ? <ProposeAgainFailure /> : null}
             {values.saleUnit === "KG" ? (
               <>

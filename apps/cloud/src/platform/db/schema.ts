@@ -3504,21 +3504,31 @@ export const supplierPriceListRows = pgTable(
   ],
 );
 
-// What the AI proposed to link a row of a list to, kept so that opening the row again does not ask
-// the AI again. A row is dropped together with its proposal.
+// The product proposed, by barcode or by the AI, to link a row of a list to, and the row's content it
+// was proposed from, kept so that opening the row again does not ask the AI again.
 export const supplierItemLinkProposals = pgTable(
   "supplier_item_link_proposals",
   {
     rowId: uuid("row_id")
       .primaryKey()
       .references(() => supplierPriceListRows.id, { onDelete: "cascade" }),
+    askedDescription: text("asked_description").notNull(),
+    askedPresentation: text("asked_presentation"),
+    askedBarcode: text("asked_barcode"),
+    askedOtherPresentations: text("asked_other_presentations").array().notNull(),
     kind: text("kind").notNull(),
     productId: uuid("product_id").references(() => products.id),
     proposedBy: text("proposed_by"),
+    saleUnit: text("sale_unit"),
     quantity: bigint("quantity", { mode: "number" }),
   },
   (table) => [
     check("supplier_item_link_proposals_kind_check", sql`${table.kind} in ('PROPOSED', 'NONE')`),
+    check("supplier_item_link_proposals_sale_unit_check", sql`${table.saleUnit} in ('UNIT', 'KG')`),
+    check(
+      "supplier_item_link_proposals_sale_unit_kind_check",
+      sql`(${table.kind} = 'PROPOSED') = (${table.saleUnit} is not null)`,
+    ),
     check(
       "supplier_item_link_proposals_proposed_by_check",
       sql`${table.proposedBy} in ('BARCODE', 'AI')`,
@@ -3538,7 +3548,8 @@ export const supplierItemLinkProposals = pgTable(
   ],
 );
 
-// What the AI read as the quantity of a row for a product with that sale unit and net content.
+// What the AI read as the quantity of a row for a product with that sale unit and net content, and
+// the row's content it was read from.
 export const supplierItemQuantityProposals = pgTable(
   "supplier_item_quantity_proposals",
   {
@@ -3546,6 +3557,9 @@ export const supplierItemQuantityProposals = pgTable(
     rowId: uuid("row_id")
       .notNull()
       .references(() => supplierPriceListRows.id, { onDelete: "cascade" }),
+    askedDescription: text("asked_description").notNull(),
+    askedPresentation: text("asked_presentation"),
+    askedOtherPresentations: text("asked_other_presentations").array().notNull(),
     saleUnit: text("sale_unit").notNull(),
     netContentQuantity: numeric("net_content_quantity", {
       precision: 10,

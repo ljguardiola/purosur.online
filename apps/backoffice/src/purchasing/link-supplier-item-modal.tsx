@@ -128,6 +128,7 @@ export function LinkSupplierItemModal({
   const proposalRefresh = useRefreshSupplierItemLinkProposal({
     listId: list.id,
     rowId: row?.id ?? "",
+    opening: target,
     fetchSupplierItemLinkProposal: services.fetchSupplierItemLinkProposal,
     onSessionEnded,
   });
@@ -258,7 +259,11 @@ export function LinkSupplierItemModal({
   async function proposeAgain() {
     const previouslyProposedId = proposedId;
     const outcome = await proposalRefresh.refresh();
-    if (outcome.kind !== "ok" || form.getFieldValue("productId") !== previouslyProposedId) {
+    if (
+      outcome === null ||
+      outcome.kind !== "ok" ||
+      form.getFieldValue("productId") !== previouslyProposedId
+    ) {
       return;
     }
     const newId = proposedProductIdOf(outcome.value);
@@ -314,6 +319,7 @@ export function LinkSupplierItemModal({
     }
     const proposeAgainButton = (
       <ProposeAgainButton
+        dataStatus={proposal.status}
         refreshing={proposalRefresh.refreshing}
         onPress={() => void proposeAgain()}
       />

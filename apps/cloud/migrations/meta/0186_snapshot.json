@@ -1,5 +1,5 @@
 {
-  "id": "c1082a1f-9dbd-4611-9423-01722074399e",
+  "id": "9105ee0f-ba18-4e16-a146-ba8c1754f820",
   "prevId": "f60431fc-2f51-45d8-b708-45fb526d89d4",
   "version": "7",
   "dialect": "postgresql",
@@ -11425,6 +11425,30 @@
           "primaryKey": true,
           "notNull": true
         },
+        "asked_description": {
+          "name": "asked_description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "asked_presentation": {
+          "name": "asked_presentation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "asked_barcode": {
+          "name": "asked_barcode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "asked_other_presentations": {
+          "name": "asked_other_presentations",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true
+        },
         "kind": {
           "name": "kind",
           "type": "text",
@@ -11439,6 +11463,12 @@
         },
         "proposed_by": {
           "name": "proposed_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sale_unit": {
+          "name": "sale_unit",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -11478,6 +11508,14 @@
         "supplier_item_link_proposals_kind_check": {
           "name": "supplier_item_link_proposals_kind_check",
           "value": "\"supplier_item_link_proposals\".\"kind\" in ('PROPOSED', 'NONE')"
+        },
+        "supplier_item_link_proposals_sale_unit_check": {
+          "name": "supplier_item_link_proposals_sale_unit_check",
+          "value": "\"supplier_item_link_proposals\".\"sale_unit\" in ('UNIT', 'KG')"
+        },
+        "supplier_item_link_proposals_sale_unit_kind_check": {
+          "name": "supplier_item_link_proposals_sale_unit_kind_check",
+          "value": "(\"supplier_item_link_proposals\".\"kind\" = 'PROPOSED') = (\"supplier_item_link_proposals\".\"sale_unit\" is not null)"
         },
         "supplier_item_link_proposals_proposed_by_check": {
           "name": "supplier_item_link_proposals_proposed_by_check",
@@ -11590,6 +11628,24 @@
         "row_id": {
           "name": "row_id",
           "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "asked_description": {
+          "name": "asked_description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "asked_presentation": {
+          "name": "asked_presentation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "asked_other_presentations": {
+          "name": "asked_other_presentations",
+          "type": "text[]",
           "primaryKey": false,
           "notNull": true
         },

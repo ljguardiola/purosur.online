@@ -77,7 +77,6 @@ import {
 import { DrizzleSupplierItemLinkProposalReader } from "./drizzle-supplier-item-link-proposal-reader.js";
 import { DrizzleSupplierItemProductStore } from "./drizzle-supplier-item-product-store.js";
 import { DrizzleSupplierItemProposalStore } from "./drizzle-supplier-item-proposal-store.js";
-import { DrizzleSupplierPriceListAiCallStore } from "./drizzle-supplier-price-list-ai-call-store.js";
 import { DrizzleSupplierPriceListAiCostReader } from "./drizzle-supplier-price-list-ai-cost-reader.js";
 import { DrizzleSupplierPriceListReader } from "./drizzle-supplier-price-list-reader.js";
 import { DrizzleSupplierPriceListStore } from "./drizzle-supplier-price-list-store.js";
@@ -326,7 +325,6 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
   const productStore = new DrizzleSupplierItemProductStore(options.db, now);
   const reader = new DrizzleSupplierPriceListReader(options.db);
   const proposalReader = new DrizzleSupplierItemLinkProposalReader(options.db);
-  const aiCalls = new DrizzleSupplierPriceListAiCallStore(options.db);
   const proposalStore = new DrizzleSupplierItemProposalStore(options.db);
   const aiCostReader = new DrizzleSupplierPriceListAiCostReader(options.db);
   const catalog = new DrizzleCatalogListReader(options.db);
@@ -613,7 +611,6 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
           reader: proposalReader,
           chooser: productChooser,
           quantityReader: supplierItemQuantityReader,
-          aiCalls,
           store: proposalStore,
           zoneRules: options.zoneRules,
         },
@@ -653,7 +650,6 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
         {
           reader: proposalReader,
           quantityReader: supplierItemQuantityReader,
-          aiCalls,
           store: proposalStore,
           zoneRules: options.zoneRules,
         },

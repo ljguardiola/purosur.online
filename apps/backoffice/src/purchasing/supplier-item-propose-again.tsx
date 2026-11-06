@@ -1,15 +1,23 @@
-import { Button, InlineNotice } from "@purosur/ui";
+import { Button, InlineNotice, type LoadStatus } from "@purosur/ui";
 import { RefreshCw, TriangleAlert } from "lucide-react";
 
 export function ProposeAgainButton({
+  dataStatus,
   refreshing,
   onPress,
 }: {
+  dataStatus: LoadStatus;
   refreshing: boolean;
   onPress: () => void;
 }) {
   return (
-    <Button variant="text" icon={<RefreshCw />} disabled={refreshing} onPress={onPress}>
+    <Button
+      variant="text"
+      icon={<RefreshCw />}
+      dataStatus={dataStatus}
+      disabled={refreshing}
+      onPress={onPress}
+    >
       Volver a proponer
     </Button>
   );
@@ -17,11 +25,6 @@ export function ProposeAgainButton({
 
 export function ProposeAgainFailure() {
   return (
-    <InlineNotice
-      tone="error"
-      icon={<TriangleAlert />}
-      title="No pudimos volver a proponer"
-      description="La propuesta anterior sigue igual. Probá de nuevo en un momento."
-    />
+    <InlineNotice tone="error" icon={<TriangleAlert />} title="No pudimos volver a proponer" />
   );
 }
