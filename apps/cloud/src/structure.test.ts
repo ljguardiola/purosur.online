@@ -33,6 +33,7 @@ const ENTRY_POINTS = [
   "load-sample-data.ts",
   "migrate.ts",
   "record-arca-responses.ts",
+  "record-mercado-pago-order-searches.ts",
   "server.ts",
   "wait-for-ready.ts",
 ];
