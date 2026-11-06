@@ -4,6 +4,7 @@ import { ButtonContext } from "react-aria-components";
 import { beforeEach, expect, test, vi } from "vitest";
 import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import { HOVER_DELAY_MS } from "../overlays/tooltip";
 import { IconOnlyButton, type IconOnlyButtonProps } from "./icon-only-button";
 
 beforeEach(async () => {
@@ -120,4 +121,27 @@ test("keeps its own name inside a field that passes it the field's label", async
 
   await expect.element(button).toBeVisible();
   expect(button.element().hasAttribute("aria-labelledby")).toBe(false);
+});
+
+test("shows no tooltip once the pointer has pressed it, however soon after resting on it", async () => {
+  const onPress = vi.fn();
+  const { screen, button } = await renderNamed({ onPress });
+
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  try {
+    await userEvent.click(button);
+    expect(onPress).toHaveBeenCalledOnce();
+
+    await vi.advanceTimersByTimeAsync(HOVER_DELAY_MS * 2);
+    await screen.rerender(
+      <IconOnlyButton name="Remove row" className="size-10" onPress={onPress}>
+        <Trash2 aria-hidden="true" />
+      </IconOnlyButton>,
+    );
+
+    expect(screen.getByRole("tooltip").elements()).toHaveLength(0);
+  } finally {
+    vi.runAllTimers();
+    vi.useRealTimers();
+  }
 });
