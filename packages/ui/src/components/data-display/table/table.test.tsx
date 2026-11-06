@@ -9,6 +9,7 @@ import { paintedBoxShadowLayers, tokenRgb } from "../../../test/token-colors";
 import type { EmptyStateProps } from "../../feedback/empty-state";
 import type { LoadFailureProps } from "../../feedback/load-failure";
 import { Button } from "../../forms/button";
+import type { RowMenuActions } from "./row-actions-menu";
 import { Table } from "./table";
 import { TableCellText } from "./table-cell-text";
 import { actionsColumn, dataColumn, groupColumn } from "./table-columns";
@@ -777,6 +778,97 @@ test("renders two IconButtons at their own 38x38px with an 8px gap, right-aligne
   const rowHeight = row.getBoundingClientRect().height;
   expect(rowHeight).toBeGreaterThan(55);
   expect(rowHeight).toBeLessThan(57);
+});
+
+function menuFor(product: Product): RowMenuActions {
+  return [
+    { label: `Duplicar ${product.name}`, onAction: () => {} },
+    { label: `Archivar ${product.name}`, onAction: () => {} },
+  ];
+}
+
+test("renders the row actions menu after the direct buttons, with the same 8px gap and a 126px actions column", async () => {
+  const actionColumns = [
+    dataColumn({ id: "name", header: "Producto", render: (p: Product) => p.name }),
+    actionsColumn({
+      id: "actions",
+      header: "Actions",
+      actions: [(_p: Product) => ({ icon: <Pencil />, "aria-label": "Edit", onPress: () => {} })],
+      menu: menuFor,
+    }),
+  ] as const;
+  const screen = await render(<TestTable {...commonProps} columns={actionColumns} />);
+  const header = screen.getByRole("columnheader", { name: "Actions" }).element() as HTMLElement;
+
+  expect(getComputedStyle(header).width).toBe(`${104 + 6 + 16}px`);
+  const edit = screen.getByRole("button", { name: "Edit" }).nth(0).element() as HTMLElement;
+  const more = screen.getByRole("button", { name: "Más acciones" }).nth(0).element() as HTMLElement;
+  const editRect = edit.getBoundingClientRect();
+  const moreRect = more.getBoundingClientRect();
+
+  expect(moreRect.width).toBeGreaterThan(37);
+  expect(moreRect.width).toBeLessThan(39);
+  expect(moreRect.top).toBeCloseTo(editRect.top, 0);
+  expect(moreRect.left - editRect.right).toBeGreaterThan(7);
+  expect(moreRect.left - editRect.right).toBeLessThan(9);
+});
+
+test("opens each row's own menu from its Más acciones button", async () => {
+  const actionColumns = [
+    dataColumn({ id: "name", header: "Producto", render: (p: Product) => p.name }),
+    actionsColumn({ id: "actions", header: "Actions", actions: [], menu: menuFor }),
+  ] as const;
+  const screen = await render(<TestTable {...commonProps} columns={actionColumns} />);
+
+  await userEvent.click(screen.getByRole("button", { name: "Más acciones" }).nth(1));
+
+  await expect.element(screen.getByRole("menuitem", { name: "Duplicar Tea" })).toBeVisible();
+  expect(screen.getByRole("menuitem", { name: "Duplicar Coffee" }).elements()).toHaveLength(0);
+});
+
+test("keeps the place of a row without a menu empty, so the buttons of other rows stay aligned", async () => {
+  const actionColumns = [
+    dataColumn({ id: "name", header: "Producto", render: (p: Product) => p.name }),
+    actionsColumn({
+      id: "actions",
+      header: "Actions",
+      actions: [(_p: Product) => ({ icon: <Pencil />, "aria-label": "Edit", onPress: () => {} })],
+      menu: (p: Product) => (p.id === "1" ? undefined : menuFor(p)),
+    }),
+  ] as const;
+  const screen = await render(<TestTable {...commonProps} columns={actionColumns} />);
+
+  expect(screen.getByRole("button", { name: "Más acciones" }).elements()).toHaveLength(1);
+  const firstRowCell = screen.getByRole("button", { name: "Edit" }).nth(0).element().closest("td");
+  const placeholder = firstRowCell?.querySelector('span[aria-hidden="true"]') as HTMLElement;
+  const rect = placeholder.getBoundingClientRect();
+  expect(rect.width).toBeGreaterThan(37);
+  expect(rect.width).toBeLessThan(39);
+  const edits = screen.getByRole("button", { name: "Edit" }).elements();
+  expect(edits[0]?.getBoundingClientRect().left).toBeCloseTo(
+    edits[1]?.getBoundingClientRect().left ?? 0,
+    0,
+  );
+});
+
+test("shows a placeholder square for the menu as well while loading is initial", async () => {
+  const actionColumns = [
+    dataColumn({ id: "name", header: "Producto", render: (p: Product) => p.name }),
+    actionsColumn({
+      id: "actions",
+      header: "Actions",
+      actions: [(_p: Product) => ({ icon: <Pencil />, "aria-label": "Edit", onPress: () => {} })],
+      menu: menuFor,
+    }),
+  ] as const;
+  const screen = await render(
+    <TestTable {...commonProps} columns={actionColumns} loading="initial" />,
+  );
+
+  const lastCell = screen.container.querySelector(
+    'tbody[aria-hidden="true"] tr td:last-child',
+  ) as HTMLElement;
+  expect((lastCell.firstElementChild as HTMLElement).children).toHaveLength(2);
 });
 
 test("renders three IconButtons at their own 38x38px with 8px gaps in a 170px actions column", async () => {
