@@ -252,7 +252,7 @@ export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
           </Tag>
         ) : null}
         <IconOnlyButton
-          name="Mostrar opciones"
+          name={`Mostrar opciones de ${label}`}
           disabled={disabled}
           className={chevronButtonClassName}
         >

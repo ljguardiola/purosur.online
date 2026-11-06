@@ -70,7 +70,7 @@ function SearchableListFilter<V extends string>({
             <AriaLabel className="shrink truncate text-detail text-text-subtle">{label}</AriaLabel>{" "}
             <AriaInput className="min-w-7 shrink-9999 field-sizing-content truncate bg-transparent text-right text-body font-bold text-text outline-none" />
             <IconOnlyButton
-              name="Mostrar opciones"
+              name={`Mostrar opciones de ${label}`}
               excludeFromTabOrder
               className="flex shrink-0 cursor-pointer outline-none"
             >
