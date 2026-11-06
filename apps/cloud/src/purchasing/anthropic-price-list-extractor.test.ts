@@ -763,6 +763,134 @@ describe("a range that fails", () => {
   });
 });
 
+describe("a range whose answer is invalid", () => {
+  const INVALID_ANSWER = () =>
+    streamedJsonResponse({
+      listDate: null,
+      pricesIncludeVat: null,
+      rows: [{ ...ROW, description: "" }],
+    });
+
+  function secondRangeAnswering(...answers: (() => Response)[]) {
+    let secondRangeAsked = 0;
+    const calls: AiCallUsage[] = [];
+    const { extractor, requests } = extractorAnswering(async (request) => {
+      const { pages } = await rangeOf(request);
+      if (pages[0] !== 6) {
+        return answerWithRowsOfEachPage(request);
+      }
+      const answer = answers[secondRangeAsked];
+      secondRangeAsked += 1;
+      return answer ? answer() : answerWithRowsOfEachPage(request);
+    });
+    return {
+      read: async () => extractor.extract(await sourceOfPages(10), (usage) => calls.push(usage)),
+      secondRangeAsked: () => secondRangeAsked,
+      calls,
+      requests,
+    };
+  }
+
+  it("asks that range alone again and reads the list with every range's rows when the second answer is valid", async () => {
+    const list = secondRangeAnswering(INVALID_ANSWER);
+
+    const result = await list.read();
+
+    expect(result).toMatchObject({ kind: "extracted" });
+    expect(result.kind === "extracted" && result.rows.map(({ page }) => page)).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+    ]);
+    expect(list.secondRangeAsked()).toBe(2);
+    expect(await rangesSent(list.requests)).toEqual([
+      [1, 2, 3, 4, 5],
+      [6, 7, 8, 9, 10],
+      [6, 7, 8, 9, 10],
+    ]);
+    expect(list.calls).toHaveLength(3);
+  });
+
+  it("asks again when the first answer is not JSON", async () => {
+    const list = secondRangeAnswering(() => streamedAnswerResponse({ textParts: ["No"] }));
+
+    expect(await list.read()).toMatchObject({ kind: "extracted" });
+    expect(list.secondRangeAsked()).toBe(2);
+  });
+
+  it("makes the whole list unreadable when the second answer is invalid too, reporting both calls", async () => {
+    const list = secondRangeAnswering(INVALID_ANSWER, INVALID_ANSWER);
+
+    expect(await list.read()).toEqual({ kind: "unreadable" });
+    expect(list.secondRangeAsked()).toBe(2);
+    expect(list.calls).toHaveLength(3);
+  });
+
+  it.each([
+    [
+      "the service cannot be reached",
+      () => apiErrorResponse(529, "overloaded_error"),
+      "unavailable",
+    ],
+    ["the document is refused", () => apiErrorResponse(400, "invalid_request_error"), "unreadable"],
+    [
+      "the model declines",
+      () => streamedAnswerResponse({ textParts: [], stopReason: "refusal", withTextBlock: false }),
+      "unreadable",
+    ],
+  ] as const)("does not ask that range again when %s", async (_name, failure, kind) => {
+    const list = secondRangeAnswering(failure);
+
+    expect(await list.read()).toEqual({ kind });
+    expect(list.secondRangeAsked()).toBe(1);
+  });
+
+  it("does not ask again a page that alone does not fit an answer", async () => {
+    const { extractor, requests } = extractorAnswering(() =>
+      streamedAnswerResponse({ textParts: ["{"], stopReason: "max_tokens" }),
+    );
+
+    expect(await extractor.extract(SOURCE, () => {})).toEqual({ kind: "unreadable" });
+    expect(requests).toHaveLength(1);
+  });
+
+  it("asks a document read whole again once when its answer is invalid", async () => {
+    const answers = [
+      INVALID_ANSWER,
+      () => streamedJsonResponse({ listDate: null, pricesIncludeVat: null, rows: [ROW] }),
+    ];
+    const { extractor, requests } = extractorAnswering(() =>
+      (answers[requests.length - 1] ?? INVALID_ANSWER)(),
+    );
+    const bytes = await fictionalPermissionsProtectedPdf(12);
+
+    expect(await extractor.extract({ kind: "pdf", bytes }, () => {})).toEqual({
+      kind: "extracted",
+      listDate: null,
+      pricesIncludeVat: null,
+      rows: [ROW],
+    });
+    expect(requests).toHaveLength(2);
+  });
+
+  it("asks a part of a web page again once when its answer is invalid", async () => {
+    const answers = [
+      INVALID_ANSWER,
+      () => streamedJsonResponse({ listDate: null, pricesIncludeVat: null, rows: [ROW] }),
+    ];
+    const { extractor, requests } = extractorAnswering(() =>
+      (answers[requests.length - 1] ?? INVALID_ANSWER)(),
+    );
+    const html = new TextEncoder().encode("<body><p>Y-01 Yerba mate 1 kg $ 1.234,50</p></body>");
+
+    expect(await extractor.extract({ kind: "web_page", html }, () => {})).toEqual({
+      kind: "extracted",
+      listDate: null,
+      pricesIncludeVat: null,
+      rows: [{ ...ROW, page: null }],
+    });
+    expect(requests).toHaveLength(2);
+  });
+});
+
 describe("a range that throws an unexpected error", () => {
   it("starts no other range, and the list fails once the ranges already sent end", async () => {
     let endFirstRange: () => void = () => undefined;
