@@ -65,17 +65,12 @@ type Area =
 
 export type AreaLayoutProps = {
   area: Area;
-  sectionColumnLabel: string;
-  sectionColumn: ReactNode;
+  sectionColumnLabel?: string | undefined;
+  sectionColumn?: ReactNode;
   children: ReactNode;
 };
 
-export function AreaLayout({
-  area,
-  sectionColumnLabel,
-  sectionColumn,
-  children,
-}: AreaLayoutProps) {
+export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }: AreaLayoutProps) {
   const { session, services, sessionActions } = signedInRoute.useRouteContext();
   const { account } = signedInRoute.useSearch();
   const navigate = useNavigate();

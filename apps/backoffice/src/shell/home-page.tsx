@@ -8,10 +8,14 @@ const route = getRouteApi("/signed-in/home-area/");
 
 export function HomePage(): ReactElement {
   const { session, services, sessionActions } = route.useRouteContext();
+  const filters = route.useSearch();
+  const navigate = route.useNavigate();
   useDocumentTitle("Inicio · Puro Sur");
   return (
     <HomeScreen
       access={session}
+      filters={filters}
+      onFiltersChange={(next) => void navigate({ search: next, replace: true })}
       onSessionEnded={sessionActions.sessionEnded}
       services={services.homeScreen ?? defaultHomeScreenServices}
     />

@@ -1,5 +1,5 @@
 import { createRoute, createRouter, redirect } from "@tanstack/react-router";
-import { alertsListRoute, alertsOverviewRoute } from "../alerts/routes";
+import { alertsRedirectRoute, homeRoute } from "../alerts/routes";
 import { contingencyTicketRescueRoute } from "../backups/routes";
 import { branchSettingsRoute } from "../branch/routes";
 import {
@@ -116,7 +116,7 @@ const routeTree = rootRoute.addChildren([
   unknownPathRoute,
   publicRoute.addChildren([signInRoute, accountRecoveryRoute, registerPasskeyRoute]),
   signedInRoute.addChildren([
-    homeAreaRoute.addChildren([alertsOverviewRoute, alertsListRoute]),
+    homeAreaRoute.addChildren([homeRoute, alertsRedirectRoute]),
     catalogAreaRoute.addChildren([
       productsListRoute,
       categoriesListRoute,

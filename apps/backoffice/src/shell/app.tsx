@@ -2,7 +2,6 @@ import { FieldSizeProvider, LocaleProvider } from "@purosur/ui";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { type ComponentType, useEffect, useState } from "react";
-import type { AlertsListScreenServices } from "../alerts/alerts-list-services";
 import type { ContingencyTicketRescueScreenServices } from "../backups/contingency-ticket-rescue-services";
 import type { BranchSettingsScreenServices } from "../branch/branch-settings-services";
 import type { BrandsListScreenServices } from "../catalog/brands-list-services";
@@ -195,7 +194,6 @@ export type AppServices = {
   homeScreen: HomeScreenServices;
   areaTopBarUnbilledDeferredSales: ComponentType<UnbilledDeferredSalesPillProps>;
   unbilledDeferredSalesPill: UnbilledDeferredSalesPillServices;
-  alertsListScreen: AlertsListScreenServices;
   quarantinedEventsScreen: QuarantinedEventsScreenServices;
 };
 

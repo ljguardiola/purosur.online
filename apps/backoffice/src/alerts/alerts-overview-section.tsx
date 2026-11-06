@@ -1,6 +1,6 @@
 import type { AlertsOverview } from "@purosur/contracts";
 import { EmptyState, LoadFailure, LoadingPlaceholder } from "@purosur/ui";
-import { Bell, BellOff } from "lucide-react";
+import { Bell } from "lucide-react";
 import { type ReactNode, useId } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import type { CloudData } from "../platform/use-cloud-query";
@@ -17,7 +17,7 @@ function OverviewSection({ children }: { children: ReactNode }) {
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-3">
       <h2 id={headingId} className="text-subheading text-text">
-        Alertas
+        Alertas abiertas
       </h2>
       {children}
     </section>
@@ -52,19 +52,6 @@ export function AlertsOverviewSection({ data }: AlertsOverviewProps) {
         ) : (
           <AlertsLevelCards overview={data.value} />
         ))}
-    </OverviewSection>
-  );
-}
-
-export function AlertsNotPermittedSection() {
-  return (
-    <OverviewSection>
-      <EmptyState
-        icon={<BellOff />}
-        title="No tenés alertas para ver"
-        description="Tu rol no incluye permiso para ver alertas."
-        variant="blank"
-      />
     </OverviewSection>
   );
 }

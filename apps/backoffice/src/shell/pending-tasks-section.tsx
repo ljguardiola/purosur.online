@@ -146,7 +146,11 @@ function PendingTasks({
   );
 }
 
-export function PendingTasksSection({ access, onSessionEnded, services }: PendingTasksSectionProps) {
+export function PendingTasksSection({
+  access,
+  onSessionEnded,
+  services,
+}: PendingTasksSectionProps) {
   const parts = pagePartsFor(access, TASK_PARTS);
   return parts.kind === "hidden" ? null : (
     <PendingTasks visible={parts.visible} onSessionEnded={onSessionEnded} services={services} />
