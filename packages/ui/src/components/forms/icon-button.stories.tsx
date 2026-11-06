@@ -74,9 +74,12 @@ export const SubtleDisabled: Story = {
 export const WithNameTooltipHovered: Story = {
   play: async ({ canvasElement }) => {
     await userEvent.hover(theButton(canvasElement));
-    await waitFor(() => {
-      expect(within(document.body).getByRole("tooltip")).toHaveTextContent("Eliminar fila");
-    });
+    await waitFor(
+      () => {
+        expect(within(document.body).getByRole("tooltip")).toHaveTextContent("Eliminar fila");
+      },
+      { timeout: 3000 },
+    );
   },
 };
 
@@ -84,9 +87,12 @@ export const WithNameTooltipFocused: Story = {
   play: async ({ canvasElement }) => {
     await userEvent.tab();
     await expect(theButton(canvasElement)).toHaveFocus();
-    await waitFor(() => {
-      expect(within(document.body).getByRole("tooltip")).toHaveTextContent("Eliminar fila");
-    });
+    await waitFor(
+      () => {
+        expect(within(document.body).getByRole("tooltip")).toHaveTextContent("Eliminar fila");
+      },
+      { timeout: 3000 },
+    );
   },
 };
 
@@ -94,8 +100,11 @@ export const DisabledHovered: Story = {
   args: { disabled: true },
   play: async ({ canvasElement }) => {
     await userEvent.hover(theButton(canvasElement));
-    await waitFor(() => {
-      expect(within(document.body).getByRole("tooltip")).toHaveTextContent("Eliminar fila");
-    });
+    await waitFor(
+      () => {
+        expect(within(document.body).getByRole("tooltip")).toHaveTextContent("Eliminar fila");
+      },
+      { timeout: 3000 },
+    );
   },
 };

@@ -1,12 +1,6 @@
-import { beforeEach, expect, test } from "vitest";
-import { cdp, page, userEvent } from "vitest/browser";
+import { expect, test } from "vitest";
+import { cdp, userEvent } from "vitest/browser";
 import { catalogStories, renderCatalogStory } from "./test-support/catalog-runner";
-
-beforeEach(async () => {
-  await page.viewport(1280, 900);
-  await cdp().send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 0, y: 0 });
-  window.focus();
-});
 
 function isShown(element: HTMLElement): boolean {
   const rect = element.getBoundingClientRect();
@@ -57,32 +51,43 @@ async function expectTooltipWhile(open: () => Promise<void>, button: HTMLElement
   }
 }
 
-async function closeTooltip() {
+// A story's own play function hovers with synthetic events, which a real mouse move never undoes.
+async function settle() {
+  if (document.activeElement instanceof HTMLElement) {
+    document.activeElement.blur();
+  }
+  for (const hovered of document.querySelectorAll("[data-hovered]")) {
+    hovered.dispatchEvent(new PointerEvent("pointerleave", { pointerType: "mouse" }));
+  }
   await cdp().send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 0, y: 0 });
-  await userEvent.keyboard("{Escape}");
   await expect.poll(shownTooltips).toEqual([]);
+}
+
+function enterKeyboardModality() {
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "a", bubbles: true }));
 }
 
 for (const { title, story: Story } of catalogStories) {
   test(`every icon-only button of ${title} / ${Story.storyName} shows its name as a tooltip`, async () => {
     await renderCatalogStory(Story);
+    window.focus();
 
     for (const button of iconOnlyButtons().filter(isReachable)) {
+      await settle();
       await expectTooltipWhile(() => userEvent.hover(button), button, "hovered");
-      await closeTooltip();
 
       const focusable = button.tabIndex >= 0 && button.getAttribute("disabled") === null;
       if (focusable) {
-        await userEvent.keyboard("{Escape}");
+        await settle();
         await expectTooltipWhile(
           async () => {
+            enterKeyboardModality();
+            button.blur();
             button.focus();
           },
           button,
           "focused",
         );
-        button.blur();
-        await expect.poll(shownTooltips).toEqual([]);
       }
     }
   });
