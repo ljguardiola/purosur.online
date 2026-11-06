@@ -156,6 +156,23 @@ test("refuses a key whose generic type allows any string", (t) => {
   assert.deepEqual(lookups, [`${FILE}:1: ${INDEX}`]);
 });
 
+test("refuses reading or writing a table whose keys are a generic name that allows any string", (t) => {
+  const lookups = lookupsIn(
+    t,
+    source(
+      "export const read = <K extends string>(t: Record<K, number>, key: K) => t[key];",
+      "export function collect<Name extends string>(names: readonly Name[]) {",
+      "  const ids: Partial<Record<Name, string>> = {};",
+      "  for (const name of names) ids[name] = name;",
+      "  return ids;",
+      "}",
+      "export const inline = <K extends string>(t: { [P in K]?: number }, key: K) => t[key];",
+    ),
+  );
+
+  assert.deepEqual(lookups, [`${FILE}:1: ${INDEX}`, `${FILE}:4: ${INDEX}`, `${FILE}:7: ${INDEX}`]);
+});
+
 test("accepts a key limited to known names, a literal key, a number, a symbol and an array index", (t) => {
   const lookups = lookupsIn(
     t,
@@ -169,6 +186,9 @@ test("accepts a key limited to known names, a literal key, a number, a symbol an
       "export const e = (t: Record<number, string>, index: number) => t[index];",
       "export const f = (t: { [key: string]: unknown; [Symbol.iterator]: unknown }) => t[Symbol.iterator];",
       "export const g = (list: string[], index: number) => list[index];",
+      "export const h = <K extends Name>(t: Record<K, number>, key: K) => t[key];",
+      "export const i = <K extends Name>(t: Partial<Record<K, number>>, key: K) => t[key];",
+      "export const j = <T extends { a: number }>(t: T, key: keyof T) => t[key];",
     ),
   );
 

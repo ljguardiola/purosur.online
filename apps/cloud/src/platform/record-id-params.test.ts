@@ -34,6 +34,13 @@ function buildApp(): FastifyInstance {
     }
     await reply.code(200).send({ named: Object.keys(ids) });
   });
+  app.get("/prototype", async (request, reply) => {
+    const ids = await readOptionalRecordIds(reply, request.query, ["__proto__"]);
+    if (!ids) {
+      return;
+    }
+    await reply.code(200).send({ named: Object.keys(ids) });
+  });
   return app;
 }
 
@@ -121,5 +128,12 @@ describe("a name every object inherits", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({ named: [] });
+  });
+
+  it("is kept as an id of its own when the request holds it", async () => {
+    const response = await buildApp().inject({ url: `/prototype?__proto__=${ID}` });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ named: ["__proto__"] });
   });
 });

@@ -358,6 +358,21 @@ describe("ReturnLinesTable", () => {
     expect(background("Pasta de maní 380 g")).not.toBe(background("Nibs de cacao"));
   });
 
+  it("highlights no line named like an inherited member of an object when the core refuses none", async () => {
+    const { screen } = await renderTable({
+      sale: { ...SALE, lines: [PASTA, { ...NIBS, id: "constructor" }] },
+    });
+
+    const background = (name: string) =>
+      getComputedStyle(
+        screen
+          .getByRole("checkbox", { name: new RegExp(name) })
+          .element()
+          .closest("tr") as HTMLElement,
+      ).backgroundColor;
+    expect(background("Nibs de cacao")).toBe(background("Pasta de maní 380 g"));
+  });
+
   it("has no accessibility violations", async () => {
     const { screen } = await renderTable({
       draft: changeLine(checkLine(checkLine(EMPTY_RETURN_DRAFT, PASTA), HONEY), HONEY.id, {

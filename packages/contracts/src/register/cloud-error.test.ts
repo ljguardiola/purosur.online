@@ -27,11 +27,12 @@ describe("cloudErrorSchema", () => {
     expect(cloudErrorSchema.safeParse({ code: "rate_limited", details: [] }).success).toBe(false);
   });
 
-  it("rejects a code the contract does not declare", () => {
-    expect(cloudErrorSchema.safeParse({ code: "teapot", message: "x", details: [] }).success).toBe(
-      false,
-    );
-  });
+  it.each(["teapot", "constructor", "toString", "__proto__"])(
+    "rejects %s, like any other code the contract does not declare",
+    (code) => {
+      expect(cloudErrorSchema.safeParse({ code, message: "x", details: [] }).success).toBe(false);
+    },
+  );
 
   it("rejects details that are not a list of objects", () => {
     expect(
@@ -142,16 +143,4 @@ describe("retryAfterSecondsOf", () => {
   ])("answers undefined for %s", (_case, details) => {
     expect(retryAfterSecondsOf(cloudError("rate_limited", "x", details))).toBeUndefined();
   });
-});
-
-describe("a code the contract does not declare, reaching the lookups untyped", () => {
-  it.each(["teapot", "constructor", "toString", "__proto__"])(
-    "is refused as %s, like any other undeclared code",
-    (code) => {
-      const untyped = JSON.parse(JSON.stringify(code));
-
-      expect(() => cloudErrorStatus(untyped)).toThrow(`Unknown cloud error code "${code}"`);
-      expect(() => isRetryableCloudError(untyped)).toThrow(`Unknown cloud error code "${code}"`);
-    },
-  );
 });
