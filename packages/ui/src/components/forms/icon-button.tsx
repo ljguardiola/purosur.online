@@ -38,6 +38,8 @@ const variantClassName: Record<IconButtonVariant, string> = {
     "data-hovered:bg-surface-soft data-hovered:text-text-accent",
 };
 
+export const borderedIconButtonClassName = `${baseClassName} ${variantClassName.bordered}`;
+
 export function IconButton({
   icon,
   variant = "bordered",
