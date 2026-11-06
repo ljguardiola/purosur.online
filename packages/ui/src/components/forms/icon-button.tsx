@@ -1,14 +1,10 @@
 import {
-  Button as AriaButton,
   type ButtonProps as AriaButtonProps,
   Focusable as AriaFocusable,
 } from "react-aria-components";
 import { Tooltip } from "../overlays/tooltip";
 import { type Icon, iconSlotClassName } from "../shared/icon";
-
-type AccessibleName =
-  | { "aria-label": string; "aria-labelledby"?: string }
-  | { "aria-label"?: string; "aria-labelledby": string };
+import { IconOnlyButton } from "../shared/icon-only-button";
 
 type IconButtonVariant = "bordered" | "subtle";
 
@@ -17,8 +13,8 @@ type Availability =
   | { disabled?: undefined; disabledReason: string };
 
 export type IconButtonProps = Pick<AriaButtonProps, "onPress"> &
-  AccessibleName &
   Availability & {
+    "aria-label": string;
     icon: Icon;
     variant?: IconButtonVariant;
   };
@@ -48,7 +44,7 @@ export function IconButton({
   disabled = false,
   disabledReason,
   onPress,
-  ...name
+  "aria-label": name,
 }: IconButtonProps) {
   if (disabledReason !== undefined) {
     return (
@@ -57,7 +53,7 @@ export function IconButton({
           <button
             type="button"
             aria-disabled="true"
-            {...name}
+            aria-label={name}
             className={`${withReasonClassName} ${variantClassName[variant]}`}
           >
             <span className={iconSlotClassName.md}>{icon}</span>
@@ -67,13 +63,13 @@ export function IconButton({
     );
   }
   return (
-    <AriaButton
-      {...name}
+    <IconOnlyButton
+      name={name}
       {...(onPress === undefined ? {} : { onPress })}
-      isDisabled={disabled}
+      disabled={disabled}
       className={`${baseClassName} ${variantClassName[variant]}`}
     >
       <span className={iconSlotClassName.md}>{icon}</span>
-    </AriaButton>
+    </IconOnlyButton>
   );
 }

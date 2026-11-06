@@ -26,6 +26,7 @@ import {
 } from "react-aria-components";
 import { formatMonthAndYear, formatMonthName, type Locale } from "../../messages/formatters";
 import { iconSlotClassName } from "../shared/icon";
+import { IconOnlyButton } from "../shared/icon-only-button";
 import { type FieldErrorProps, fieldError } from "./field-error";
 import {
   backofficeFieldBoxClassName,
@@ -197,11 +198,16 @@ function CalendarHeader({ titleId, name }: { titleId: string; name: string }) {
 
   return (
     <div className={calendarHeaderClassName}>
-      <AriaButton slot="previous" className={calendarNavButtonClassName}>
+      <IconOnlyButton
+        name="Mes anterior"
+        slot="previous"
+        disabled={state.isPreviousVisibleRangeInvalid()}
+        className={calendarNavButtonClassName}
+      >
         <span aria-hidden="true" className={iconSlotClassName.md}>
           <ChevronLeft />
         </span>
-      </AriaButton>
+      </IconOnlyButton>
       <span id={titleId} className={calendarTitleClassName}>
         {formatMonthAndYear(focusedDate.year, focusedDate.month)}
       </span>
@@ -221,22 +227,31 @@ function CalendarHeader({ titleId, name }: { titleId: string; name: string }) {
           onChange={(year) => state.setFocusedDate(focusedDate.set({ year }))}
         />
       </div>
-      <AriaButton slot="next" className={calendarNavButtonClassName}>
+      <IconOnlyButton
+        name="Mes siguiente"
+        slot="next"
+        disabled={state.isNextVisibleRangeInvalid()}
+        className={calendarNavButtonClassName}
+      >
         <span aria-hidden="true" className={iconSlotClassName.md}>
           <ChevronRight />
         </span>
-      </AriaButton>
+      </IconOnlyButton>
     </div>
   );
 }
 
-function CalendarToggleButton() {
+function CalendarToggleButton({ label, disabled }: { label: string; disabled: boolean }) {
   return (
-    <AriaButton className={iconButtonClassName}>
+    <IconOnlyButton
+      name={`Abrir el calendario de ${label}`}
+      disabled={disabled}
+      className={iconButtonClassName}
+    >
       <span aria-hidden="true" className={iconSlotClassName.md}>
         <CalendarIcon />
       </span>
-    </AriaButton>
+    </IconOnlyButton>
   );
 }
 
@@ -287,7 +302,7 @@ export function DateField(props: DateFieldProps) {
         <AriaGroup
           className={`${fieldBoxClassName} ${frameClassName} ${fieldBoxStateClassName({ disabled, invalid })}`}
         >
-          {size === "register" && <CalendarToggleButton />}
+          {size === "register" && <CalendarToggleButton label={label} disabled={disabled} />}
           <AriaDateInput className={`${inputBaseClassName} ${valueClassName}`}>
             {(segment) => (
               <AriaDateSegment
@@ -300,7 +315,7 @@ export function DateField(props: DateFieldProps) {
               />
             )}
           </AriaDateInput>
-          {size === "backoffice" && <CalendarToggleButton />}
+          {size === "backoffice" && <CalendarToggleButton label={label} disabled={disabled} />}
         </AriaGroup>
         {shownError !== undefined ? (
           <AriaText

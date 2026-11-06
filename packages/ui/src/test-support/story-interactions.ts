@@ -126,3 +126,47 @@ export function playWithClockAt(isoDate: string, play: StoryPlayFunction): Story
     }
   };
 }
+
+// React Aria drops a first hover that arrives before any pointer movement, so the pointer enters,
+// leaves and enters again.
+export function playHoverShowsTooltip(
+  locate: (canvasElement: HTMLElement) => HTMLElement,
+  text: string,
+): StoryPlayFunction {
+  return async ({ canvasElement }) => {
+    const target = locate(canvasElement);
+    await userEvent.hover(target);
+    await userEvent.unhover(target);
+    await userEvent.hover(target);
+    await expectTooltipShows(text);
+  };
+}
+
+export async function expectTooltipShows(text: string): Promise<void> {
+  await waitFor(
+    () => {
+      expect(within(document.body).getByRole("tooltip")).toHaveTextContent(text);
+    },
+    { timeout: 3000 },
+  );
+}
+
+export function playHoverShowsNameTooltip(
+  locate: (canvasElement: HTMLElement) => HTMLElement,
+  name: string,
+): StoryPlayFunction {
+  return async (context) => {
+    await playHoverShowsTooltip(locate, name)(context);
+    await expect(locate(context.canvasElement)).toHaveAttribute("data-hovered");
+  };
+}
+
+export function playTabShowsNameTooltip(
+  locate: (canvasElement: HTMLElement) => HTMLElement,
+  name: string,
+): StoryPlayFunction {
+  return async (context) => {
+    await playTabReachesFocusVisible(locate)(context);
+    await expectTooltipShows(name);
+  };
+}

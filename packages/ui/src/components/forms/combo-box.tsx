@@ -1,7 +1,6 @@
 import { Check } from "lucide-react";
 import { useContext, useEffect, useLayoutEffect, useState } from "react";
 import {
-  Button as AriaButton,
   ComboBox as AriaComboBox,
   ComboBoxStateContext as AriaComboBoxStateContext,
   Input as AriaInput,
@@ -14,6 +13,7 @@ import {
   Virtualizer as AriaVirtualizer,
 } from "react-aria-components";
 import { Tag } from "../data-display/tag";
+import { IconOnlyButton } from "../shared/icon-only-button";
 import { focusMovedWithoutThePerson, moveFocus } from "../shared/moved-focus";
 import { type FieldErrorProps, fieldError } from "./field-error";
 import {
@@ -251,9 +251,14 @@ export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
             {chosen.status}
           </Tag>
         ) : null}
-        <AriaButton className={chevronButtonClassName}>
+        <IconOnlyButton
+          name={`Mostrar opciones de ${label}`}
+          disabled={disabled}
+          wrapperClassName="flex h-full shrink-0"
+          className={chevronButtonClassName}
+        >
           <SelectCaret className={chevronClassName} />
-        </AriaButton>
+        </IconOnlyButton>
       </div>
       {errorMessage !== undefined ? (
         <AriaText

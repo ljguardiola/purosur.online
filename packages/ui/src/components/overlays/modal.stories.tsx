@@ -2,8 +2,8 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { AlertTriangle, CheckCircle, Info, XCircle } from "lucide-react";
 import { expect, userEvent, within } from "storybook/test";
 import {
-  playHoverSetsDataHovered,
-  playTabReachesFocusVisible,
+  playHoverShowsNameTooltip,
+  playTabShowsNameTooltip,
 } from "../../test-support/story-interactions";
 import { Button } from "../forms/button";
 import { Modal } from "./modal";
@@ -99,8 +99,9 @@ export const Closable: Story = {
     children: "Podés cerrar este modal con el botón o con Escape.",
     footer: <Button>Entendido</Button>,
   },
-  play: playTabReachesFocusVisible(() =>
-    within(document.body).getByRole("button", { name: "Cerrar" }),
+  play: playTabShowsNameTooltip(
+    () => within(document.body).getByRole("button", { name: "Cerrar" }),
+    "Cerrar",
   ),
 };
 
@@ -113,8 +114,9 @@ export const CloseButtonHovered: Story = {
     children: "Podés cerrar este modal con el botón o con Escape.",
     footer: <Button>Entendido</Button>,
   },
-  play: playHoverSetsDataHovered(() =>
-    within(document.body).getByRole("button", { name: "Cerrar" }),
+  play: playHoverShowsNameTooltip(
+    () => within(document.body).getByRole("button", { name: "Cerrar" }),
+    "Cerrar",
   ),
 };
 

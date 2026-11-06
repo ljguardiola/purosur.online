@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { AA_TEXT_CONTRAST, contrastRatio } from "../../styles/contrast";
 import { expectNoAccessibilityViolations } from "../../test/axe";
@@ -399,4 +399,31 @@ test("requires the create label and its action together", () => {
 
 test("does not accept a value outside the options", () => {
   expectTypeOf<{ value: "unknown"[] }>().not.toExtend<Pick<BaseProps, "value">>();
+});
+
+test("shows each remove button's name as a tooltip when hovered or reached by keyboard", async () => {
+  await page.viewport(1280, 900);
+  await cdp().send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 0, y: 0 });
+  window.focus();
+  const screen = await render(<ChipListField {...baseProps({ value: ["local"] })} />);
+
+  await userEvent.hover(screen.getByRole("button", { name: "Quitar Local" }));
+  await expect.element(screen.getByRole("tooltip")).toHaveTextContent("Quitar Local");
+  await userEvent.unhover(screen.getByRole("button", { name: "Quitar Local" }));
+  await expect.element(screen.getByRole("tooltip")).not.toBeInTheDocument();
+
+  await userEvent.tab();
+  await expect.element(screen.getByRole("tooltip")).toHaveTextContent("Quitar Local");
+});
+
+test("shows a disabled field's remove button's name as a tooltip when hovered", async () => {
+  await page.viewport(1280, 900);
+  await cdp().send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 0, y: 0 });
+  const screen = await render(
+    <ChipListField {...baseProps({ value: ["local"], disabled: true })} />,
+  );
+
+  await userEvent.hover(screen.getByRole("button", { name: "Quitar Local" }));
+
+  await expect.element(screen.getByRole("tooltip")).toHaveTextContent("Quitar Local");
 });
