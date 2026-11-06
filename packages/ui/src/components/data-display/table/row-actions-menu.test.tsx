@@ -122,22 +122,27 @@ test("closes on Escape and returns focus to the trigger", async () => {
   await expect.element(trigger).toHaveFocus();
 });
 
-test("shows why a disabled action is disabled, announces it disabled and describes it by the reason", async () => {
+test("shows why a disabled action is disabled and reads the reason once, after its label, as part of its name", async () => {
   const { screen, trigger } = await renderMenu(
     actions([{}, { disabledReason: "Falta stock para duplicar" }]),
   );
   await userEvent.click(trigger);
 
   const item = screen.getByRole("menuitem", { name: "Duplicar" });
-  const reason = screen.getByText("Falta stock para duplicar");
 
-  await expect.element(reason).toBeVisible();
+  await expect.element(screen.getByText("Falta stock para duplicar")).toBeVisible();
   await expect.element(item).toHaveAttribute("aria-disabled", "true");
-  const describedBy = (item.element() as HTMLElement).getAttribute("aria-describedby");
-  expect(describedBy).not.toBeNull();
-  expect((reason.element() as HTMLElement).id).toBe(describedBy);
-  await expect.element(item).toHaveAccessibleName("Duplicar");
-  await expect.element(item).toHaveAccessibleDescription("Falta stock para duplicar");
+  await expect.element(item).toHaveAccessibleName("Duplicar Falta stock para duplicar");
+  await expect.element(item).not.toHaveAccessibleDescription();
+});
+
+test("names an enabled action by its label alone", async () => {
+  const { screen, trigger } = await renderMenu();
+  await userEvent.click(trigger);
+
+  await expect
+    .element(screen.getByRole("menuitem", { name: "Editar" }))
+    .toHaveAccessibleName("Editar");
 });
 
 test("does nothing and keeps the menu open when a disabled action is chosen", async () => {
