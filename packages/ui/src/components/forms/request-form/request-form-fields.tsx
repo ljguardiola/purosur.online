@@ -3,6 +3,7 @@ import { type ReactNode, useId } from "react";
 import { Checkbox, type CheckboxProps } from "../checkbox";
 import { ComboBox, type ComboBoxProps } from "../combo-box";
 import { DateField, type DateFieldProps } from "../date-field";
+import { type DateRange, DateRangeField, type DateRangeFieldProps } from "../date-range-field";
 import { FilePicker, type FilePickerProps } from "../file-picker";
 import { OptionCardGroup, type OptionCardGroupProps } from "../option-card-group";
 import { QuantityUnitField, type QuantityUnitFieldProps } from "../quantity-unit-field";
@@ -65,6 +66,21 @@ export function BoundDateField(props: DistributiveOmit<DateFieldProps, FieldValu
   const field = useFieldContext<CalendarDate | null>();
   return (
     <DateField
+      {...props}
+      name={field.name}
+      value={field.state.value}
+      onChange={field.handleChange}
+      errorMessage={fieldErrorMessage(field.state.meta.errors)}
+    />
+  );
+}
+
+export function BoundDateRangeField(
+  props: DistributiveOmit<DateRangeFieldProps, FieldValueProps | "name">,
+) {
+  const field = useFieldContext<DateRange | null>();
+  return (
+    <DateRangeField
       {...props}
       name={field.name}
       value={field.state.value}

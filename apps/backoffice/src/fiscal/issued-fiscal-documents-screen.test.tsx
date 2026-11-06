@@ -4,7 +4,7 @@ import { useState } from "react";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
-import { dateSegments } from "../shell/test-support/report-dates";
+import { periodSegments } from "../shell/test-support/report-dates";
 import { FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
 import {
   createReportRegisterFilterServices,
@@ -142,8 +142,8 @@ test("counts the documents with the period the cloud answered for", async () => 
   await expect
     .element(screen.getByText("4 comprobantes · del 01/09/2026 al 30/09/2026"))
     .toBeVisible();
-  await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["1", "9", "2026"]);
-  expect(dateSegments(screen, "Hasta")).toEqual(["30", "9", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["1", "9", "2026"]);
+  expect(periodSegments(screen).slice(3)).toEqual(["30", "9", "2026"]);
 });
 
 test("offers to open the detail of each document, named after its voucher", async () => {

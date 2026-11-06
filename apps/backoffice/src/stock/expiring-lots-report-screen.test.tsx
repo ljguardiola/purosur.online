@@ -11,7 +11,7 @@ import { page, userEvent } from "vitest/browser";
 import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
 import { type ReportPeriodFilters, reportPeriodSearch } from "../shell/report-filters-search";
 import { render } from "../shell/test-support/render-with-router";
-import { dateSegments, typeDate } from "../shell/test-support/report-dates";
+import { periodSegments, typePeriodStart } from "../shell/test-support/report-dates";
 import { spyOnDownloads } from "../shell/test-support/spy-on-downloads";
 import { ExpiringLotsReportScreen } from "./expiring-lots-report-screen";
 import type { ExpiringLotsReportScreenServices } from "./expiring-lots-report-services";
@@ -179,8 +179,8 @@ test("offers no register filter", async () => {
 test("shows the period the cloud answered while the URL names none", async () => {
   const screen = await renderScreen(listed());
 
-  await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["13", "10", "2026"]);
-  expect(dateSegments(screen, "Hasta")).toEqual(["12", "11", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["13", "10", "2026"]);
+  expect(periodSegments(screen).slice(3)).toEqual(["12", "11", "2026"]);
 });
 
 test("asks for the branch's window when the URL names no period", async () => {
@@ -206,9 +206,9 @@ test("asks for the period the URL carries", async () => {
 test("reports the period typed once both days are complete", async () => {
   const onFiltersChange = vi.fn();
   const screen = await renderScreen(listed(), { onFiltersChange });
-  await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["13", "10", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["13", "10", "2026"]);
 
-  await typeDate(screen, "Desde", "01112026");
+  await typePeriodStart(screen, "01112026");
 
   await expect
     .poll(() => onFiltersChange.mock.lastCall?.[0])
@@ -221,7 +221,7 @@ test("keeps showing the report while the next period loads", async () => {
   await expect.element(screen.getByText("Queso cremoso")).toBeVisible();
   vi.mocked(services.fetchExpiringLotsReport).mockReturnValue(new Promise(() => {}));
 
-  await typeDate(screen, "Desde", "01112026");
+  await typePeriodStart(screen, "01112026");
 
   await expect
     .poll(() => services.fetchExpiringLotsReport)
@@ -236,7 +236,7 @@ test("drops the previous report's window when the next period fails to load", as
   await expect.element(screen.getByText("Ventana de aviso de la sucursal: 30 días")).toBeVisible();
   vi.mocked(services.fetchExpiringLotsReport).mockResolvedValue({ kind: "failed" });
 
-  await typeDate(screen, "Desde", "01112026");
+  await typePeriodStart(screen, "01112026");
 
   await expect.element(screen.getByText("No pudimos abrir los lotes por vencer")).toBeVisible();
   expect(screen.getByText("Ventana de aviso de la sucursal", { exact: false }).query()).toBeNull();

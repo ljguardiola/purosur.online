@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import type { EmptyStateProps } from "../../feedback/empty-state";
 import type { LoadFailureProps } from "../../feedback/load-failure";
 import type { Icon } from "../../shared/icon";
+import type { RowMenuActions } from "./row-actions-menu";
 import type { tableModelFeatures } from "./table-features";
 
 export type TableColumnAlign = "start" | "end";
@@ -64,6 +65,14 @@ export type TableActions<T> =
       TableAction<T>,
       TableAction<T>,
     ];
+
+export type TableActionsBesideMenu<T> =
+  | readonly []
+  | readonly [TableAction<T>]
+  | readonly [TableAction<T>, TableAction<T>]
+  | readonly [TableAction<T>, TableAction<T>, TableAction<T>];
+
+export type TableRowMenu<T> = (item: T) => RowMenuActions | undefined;
 
 // "initial" placeholder rows render right away but stay invisible for a 300ms CSS reveal delay,
 // so a fast load never flashes them; "updating" keeps the current rows and runs a thin bar over

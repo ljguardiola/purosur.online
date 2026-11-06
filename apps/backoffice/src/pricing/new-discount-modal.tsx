@@ -277,14 +277,9 @@ export function NewDiscountModal({
             </div>
           </FieldGroup>
         )}
-        <div className="grid grid-cols-2 gap-4">
-          <form.AppField name="validFrom">
-            {(field) => <field.DateField label="Desde" required />}
-          </form.AppField>
-          <form.AppField name="validTo">
-            {(field) => <field.DateField label="Hasta" required />}
-          </form.AppField>
-        </div>
+        <form.AppField name="validity">
+          {(field) => <field.DateRangeField label="Vigencia" required />}
+        </form.AppField>
         <form.AppField name="weekdays">
           {(field) => (
             <field.ToggleChipGroup
