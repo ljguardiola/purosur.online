@@ -191,16 +191,19 @@ test("disables the action while the new proposal is being asked", async () => {
 test.each([
   ["failed", { kind: "failed" }],
   ["rate_limited", { kind: "rate_limited", retryAfterSeconds: 30 }],
-] as const)("shows that asking again did not work (%s) and keeps the proposal", async (_kind, outcome) => {
-  const { dialog } = await opened(answering(proposal(PROPOSED_BY_AI), outcome));
-  await expect.element(productField(dialog)).toHaveValue("Pasas de uva");
+] as const)(
+  "shows that asking again did not work (%s) and keeps the proposal",
+  async (_kind, outcome) => {
+    const { dialog } = await opened(answering(proposal(PROPOSED_BY_AI), outcome));
+    await expect.element(productField(dialog)).toHaveValue("Pasas de uva");
 
-  await userEvent.click(askAgain(dialog));
+    await userEvent.click(askAgain(dialog));
 
-  await expect.element(dialog.getByText("No pudimos volver a proponer")).toBeVisible();
-  await expect.element(dialog.getByText("Propuesto por IA: Pasas de uva").first()).toBeVisible();
-  await expect.element(productField(dialog)).toHaveValue("Pasas de uva");
-});
+    await expect.element(dialog.getByText("No pudimos volver a proponer")).toBeVisible();
+    await expect.element(dialog.getByText("Propuesto por IA: Pasas de uva").first()).toBeVisible();
+    await expect.element(productField(dialog)).toHaveValue("Pasas de uva");
+  },
+);
 
 test("ends the session when asking again finds it ended", async () => {
   const { dialog, onSessionEnded } = await opened(
