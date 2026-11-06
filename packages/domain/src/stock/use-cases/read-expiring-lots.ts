@@ -20,21 +20,20 @@ export async function readExpiringLots(
   {
     expiringLots,
     lotNames,
-    branchSettings,
+    expiryWarningWindow,
     clock,
     zoneRules,
   }: {
     expiringLots: ExpiringLotReader;
     lotNames: LotNameReader;
-    branchSettings: ExpiryWarningWindowReader;
+    expiryWarningWindow: ExpiryWarningWindowReader;
     clock: Clock;
     zoneRules: ZoneRulesSource;
   },
   { locationId }: ReadExpiringLotsInput,
 ): Promise<ExpiringLotsView> {
   const today = argentinaCalendarDay(clock.now(), zoneRules.zoneRules());
-  const { expiringLotAlertDays: windowDays } =
-    await branchSettings.currentBranchSettings(locationId);
+  const windowDays = await expiryWarningWindow.expiryWarningWindowDays(locationId);
   const rows = await expiringLots.lotsExpiringBy(locationId, expiryWindowEnd(today, windowDays));
   const names = await nameLotsOfProducts({ lotNames, zoneRules }, locationId, productIdsOf(rows));
   const lots = listExpiringLots(rows, today, names);

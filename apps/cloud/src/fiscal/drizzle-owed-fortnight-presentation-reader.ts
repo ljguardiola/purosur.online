@@ -9,10 +9,8 @@ import type {
   OwedFortnightPresentation,
   OwedFortnightPresentationReader,
 } from "@purosur/domain/alerts/use-cases";
-import { eq } from "drizzle-orm";
+import type { RegisterEventStreams } from "@purosur/domain/fiscal/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { registerInstallations } from "../platform/db/schema.js";
-import { installationStreamReaches } from "../sync/drizzle-register-event-streams.js";
 import { DrizzleRevokedInstallationConfirmations } from "./drizzle-revoked-installation-confirmations.js";
 import { owedFortnightReportsWithState } from "./owed-fortnight-reports.js";
 
@@ -20,10 +18,16 @@ export class DrizzleOwedFortnightPresentationReader<TQueryResult extends PgQuery
   implements OwedFortnightPresentationReader
 {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly streams: RegisterEventStreams;
   private readonly zoneRules: ZoneRulesSource;
 
-  constructor(db: PgDatabase<TQueryResult>, zoneRules: ZoneRulesSource) {
+  constructor(
+    db: PgDatabase<TQueryResult>,
+    streams: RegisterEventStreams,
+    zoneRules: ZoneRulesSource,
+  ) {
     this.db = db;
+    this.streams = streams;
     this.zoneRules = zoneRules;
   }
 
@@ -33,10 +37,7 @@ export class DrizzleOwedFortnightPresentationReader<TQueryResult extends PgQuery
     const confirmations = new DrizzleRevokedInstallationConfirmations(this.db);
     return Promise.all(
       owed.map(async ({ owed: { pointOfSaleNumber, registerId, code }, state, listed }) => {
-        const installations = await installationStreamReaches(
-          this.db,
-          eq(registerInstallations.registerId, registerId),
-        );
+        const installations = await this.streams.installationsOf(registerId);
         const confirmed = await confirmations.confirmedInstallations({
           pointOfSaleNumber,
           fortnight: code.fortnight,

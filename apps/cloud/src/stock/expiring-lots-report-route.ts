@@ -3,7 +3,7 @@ import { readExpiringLotsReport } from "@purosur/domain/stock/use-cases";
 import { formatLotCode, formatLotName } from "@purosur/formatting";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { DrizzleBranchSettingsReader } from "../branch/drizzle-branch-settings-reader.js";
+import { DrizzleBranchExpiryWindowReader } from "../branch/drizzle-branch-expiry-window-reader.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
@@ -24,7 +24,7 @@ export function registerExpiringLotsReportRoute<TQueryResult extends PgQueryResu
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
   const expiringLots = new DrizzleExpiringLotReader(options.db);
-  const branchSettings = new DrizzleBranchSettingsReader(options.db);
+  const expiryWarningWindow = new DrizzleBranchExpiryWindowReader(options.db);
   const lotNames = new DrizzleLotNameReader(options.db);
 
   app.get(
@@ -39,7 +39,13 @@ export function registerExpiringLotsReportRoute<TQueryResult extends PgQueryResu
         return;
       }
       const report = await readExpiringLotsReport(
-        { expiringLots, lotNames, branchSettings, clock: { now }, zoneRules: options.zoneRules },
+        {
+          expiringLots,
+          lotNames,
+          expiryWarningWindow,
+          clock: { now },
+          zoneRules: options.zoneRules,
+        },
         {
           locationId: openSessionOf(request).locationId,
           asked: {

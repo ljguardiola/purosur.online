@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { supplierItemLinkProposalSchema } from "./supplier-item-link-proposal.js";
+import {
+  supplierItemLinkProposalBodySchema,
+  supplierItemLinkProposalSchema,
+} from "./supplier-item-link-proposal.js";
 
 const PRODUCT = {
   id: "p-1",
@@ -78,6 +81,30 @@ describe("supplierItemLinkProposalSchema", () => {
   it("strips what a proposal without a product does not define", () => {
     expect(supplierItemLinkProposalSchema.safeParse({ kind: "none", by: "ai" }).data).toEqual({
       kind: "none",
+    });
+  });
+});
+
+describe("supplierItemLinkProposalBodySchema", () => {
+  it.each([true, false])("reads whether to refresh as %j", (refresh) => {
+    expect(supplierItemLinkProposalBodySchema.safeParse({ refresh }).data).toEqual({ refresh });
+  });
+
+  it.each([{}, { refresh: "true" }, { refresh: 1 }, { refresh: null }, null, undefined])(
+    "refuses %j",
+    (body) => {
+      const result = supplierItemLinkProposalBodySchema.safeParse(body);
+
+      expect(result.success).toBe(false);
+    },
+  );
+
+  it("names the field when refresh is missing", () => {
+    const result = supplierItemLinkProposalBodySchema.safeParse({});
+
+    expect(result.error?.issues[0]).toMatchObject({
+      path: ["refresh"],
+      message: "refresh must be true or false",
     });
   });
 });

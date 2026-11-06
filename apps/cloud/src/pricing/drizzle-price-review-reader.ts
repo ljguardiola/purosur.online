@@ -1,9 +1,4 @@
-import {
-  compareCodeUnits,
-  compareSpanishText,
-  priceReviewAt,
-  type SaleUnit,
-} from "@purosur/domain";
+import { compareCodeUnits, compareSpanishText, priceReviewAt } from "@purosur/domain";
 import type {
   PriceReviewCategory,
   PriceReviewHistories,
@@ -14,15 +9,13 @@ import type {
 } from "@purosur/domain/pricing/use-cases";
 import { and, desc, eq, isNull, min } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { netContentRow } from "../catalog/net-content-row.js";
+import { DrizzlePriceReviewProductReader } from "../catalog/drizzle-price-review-product-reader.js";
 import { productIdsWithDescriptionContainingEveryWord } from "../catalog/product-ids-with-description-containing-every-word.js";
 import {
   branchSettings,
-  brands,
   categories,
   priceReviewPostponements,
   priceReviews,
-  products,
 } from "../platform/db/schema.js";
 import { newestPricesOfList } from "./newest-prices-of-list.js";
 
@@ -66,14 +59,16 @@ export class DrizzlePriceReviewReader<TQueryResult extends PgQueryResultHKT>
   implements PriceReviewReader
 {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly reviewedProducts: DrizzlePriceReviewProductReader<TQueryResult>;
 
   constructor(db: PgDatabase<TQueryResult>) {
     this.db = db;
+    this.reviewedProducts = new DrizzlePriceReviewProductReader(db);
   }
 
   async priceReviewHistories(locationId: string): Promise<PriceReviewHistories> {
     const settings = await this.branchSettingsOf(locationId);
-    const productRows = await this.activeProductRows();
+    const productRows = await this.reviewedProducts.activeProducts();
     const currentPriceByProductId = await newestPricesOfList(
       this.db,
       settings.priceListId,
@@ -100,13 +95,7 @@ export class DrizzlePriceReviewReader<TQueryResult extends PgQueryResultHKT>
     return {
       reviewWindowDays: settings.unreviewedPriceAlertDays,
       products: productRows.map((row) => ({
-        id: row.id,
-        name: row.name,
-        categoryId: row.categoryId,
-        categoryName: row.categoryName,
-        brandName: row.brandName,
-        netContent: netContentRow(row),
-        saleUnit: row.saleUnit as SaleUnit,
+        ...row,
         currentPrice: currentPriceByProductId.get(row.id) ?? null,
         lastReviewedAt: lastReviewedAtByProductId.get(row.id) ?? null,
         earliestPostponedAt: earliestPostponedAtByProductId.get(row.id) ?? null,
@@ -128,24 +117,6 @@ export class DrizzlePriceReviewReader<TQueryResult extends PgQueryResultHKT>
     return settings;
   }
 
-  private activeProductRows() {
-    return this.db
-      .select({
-        id: products.id,
-        name: products.name,
-        categoryId: products.categoryId,
-        categoryName: categories.name,
-        brandName: brands.name,
-        netContentQuantity: products.netContentQuantity,
-        netContentUnit: products.netContentUnit,
-        saleUnit: products.saleUnit,
-      })
-      .from(products)
-      .innerJoin(categories, eq(products.categoryId, categories.id))
-      .leftJoin(brands, eq(brands.id, products.brandId))
-      .where(eq(products.active, true));
-  }
-
   private async lastReviewedAtByProductId(priceListId: string): Promise<Map<string, Date>> {
     const latestReviewRows = await this.db
       .selectDistinctOn([priceReviews.productId], {
@@ -160,7 +131,7 @@ export class DrizzlePriceReviewReader<TQueryResult extends PgQueryResultHKT>
 
   async pricesUnderReview(query: PricesUnderReviewQuery): Promise<PricesUnderReview> {
     const settings = await this.branchSettingsOf(query.locationId);
-    const productRows = await this.activeProductRows();
+    const productRows = await this.reviewedProducts.activeProducts();
 
     const currentPriceByProductId = await newestPricesOfList(
       this.db,
@@ -183,13 +154,7 @@ export class DrizzlePriceReviewReader<TQueryResult extends PgQueryResultHKT>
     const postponedProductIds = new Set(postponedRows.map((row) => row.productId));
 
     const withReview: PriceUnderReview[] = productRows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      categoryId: row.categoryId,
-      categoryName: row.categoryName,
-      brandName: row.brandName,
-      netContent: netContentRow(row),
-      saleUnit: row.saleUnit as SaleUnit,
+      ...row,
       currentPrice: currentPriceByProductId.get(row.id) ?? null,
       ...priceReviewAt(
         {

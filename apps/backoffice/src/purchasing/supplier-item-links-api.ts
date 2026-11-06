@@ -1,6 +1,7 @@
 import {
   type SupplierItemLinkChoices,
   type SupplierItemLinkProposal,
+  type SupplierItemLinkProposalBody,
   type SupplierItemQuantityProposal,
   type SupplierItemQuantityProposalBody,
   supplierItemLinkChoicesSchema,
@@ -20,10 +21,12 @@ export type FetchSupplierItemLinkChoicesOutcome = CloudReadOutcome<SupplierItemL
 export function fetchSupplierItemLinkProposal(
   listId: string,
   rowId: string,
+  body: SupplierItemLinkProposalBody,
 ): Promise<FetchSupplierItemLinkProposalOutcome> {
   return readCloudJson(
     `/api/supplier-price-lists/${listId}/rows/${rowId}/link-proposal`,
     supplierItemLinkProposalSchema,
+    { body },
   );
 }
 

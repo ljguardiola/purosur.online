@@ -3504,6 +3504,103 @@ export const supplierPriceListRows = pgTable(
   ],
 );
 
+// The product proposed, by barcode or by the AI, to link a row of a list to, and the row's content it
+// was proposed from, kept so that opening the row again does not ask the AI again.
+export const supplierItemLinkProposals = pgTable(
+  "supplier_item_link_proposals",
+  {
+    rowId: uuid("row_id")
+      .primaryKey()
+      .references(() => supplierPriceListRows.id, { onDelete: "cascade" }),
+    askedDescription: text("asked_description").notNull(),
+    askedPresentation: text("asked_presentation"),
+    askedBarcode: text("asked_barcode"),
+    askedOtherPresentations: text("asked_other_presentations").array().notNull(),
+    kind: text("kind").notNull(),
+    productId: uuid("product_id").references(() => products.id),
+    proposedBy: text("proposed_by"),
+    saleUnit: text("sale_unit"),
+    quantity: bigint("quantity", { mode: "number" }),
+  },
+  (table) => [
+    check("supplier_item_link_proposals_kind_check", sql`${table.kind} in ('PROPOSED', 'NONE')`),
+    check("supplier_item_link_proposals_sale_unit_check", sql`${table.saleUnit} in ('UNIT', 'KG')`),
+    check(
+      "supplier_item_link_proposals_sale_unit_kind_check",
+      sql`(${table.kind} = 'PROPOSED') = (${table.saleUnit} is not null)`,
+    ),
+    check(
+      "supplier_item_link_proposals_proposed_by_check",
+      sql`${table.proposedBy} in ('BARCODE', 'AI')`,
+    ),
+    check(
+      "supplier_item_link_proposals_product_check",
+      sql`(${table.kind} = 'PROPOSED') = (${table.productId} is not null)`,
+    ),
+    check(
+      "supplier_item_link_proposals_proposed_by_kind_check",
+      sql`(${table.kind} = 'PROPOSED') = (${table.proposedBy} is not null)`,
+    ),
+    check(
+      "supplier_item_link_proposals_quantity_check",
+      sql`${table.quantity} is null or (${table.quantity} > 0 and ${table.kind} = 'PROPOSED')`,
+    ),
+  ],
+);
+
+// What the AI read as the quantity of a row for a product with that sale unit and net content, and
+// the row's content it was read from.
+export const supplierItemQuantityProposals = pgTable(
+  "supplier_item_quantity_proposals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    rowId: uuid("row_id")
+      .notNull()
+      .references(() => supplierPriceListRows.id, { onDelete: "cascade" }),
+    askedDescription: text("asked_description").notNull(),
+    askedPresentation: text("asked_presentation"),
+    askedOtherPresentations: text("asked_other_presentations").array().notNull(),
+    saleUnit: text("sale_unit").notNull(),
+    netContentQuantity: numeric("net_content_quantity", {
+      precision: 10,
+      scale: 3,
+      mode: "number",
+    }),
+    netContentUnit: text("net_content_unit"),
+    kind: text("kind").notNull(),
+    quantity: bigint("quantity", { mode: "number" }),
+  },
+  (table) => [
+    unique("supplier_item_quantity_proposals_shape_key")
+      .on(table.rowId, table.saleUnit, table.netContentQuantity, table.netContentUnit)
+      .nullsNotDistinct(),
+    check(
+      "supplier_item_quantity_proposals_sale_unit_check",
+      sql`${table.saleUnit} in ('UNIT', 'KG')`,
+    ),
+    check(
+      "supplier_item_quantity_proposals_net_content_unit_check",
+      sql`${table.netContentUnit} in ('G', 'KG', 'ML', 'L', 'UNIT')`,
+    ),
+    check(
+      "supplier_item_quantity_proposals_net_content_both_or_neither_check",
+      sql`(${table.netContentQuantity} is null) = (${table.netContentUnit} is null)`,
+    ),
+    check(
+      "supplier_item_quantity_proposals_net_content_quantity_check",
+      sql`${table.netContentQuantity} > 0`,
+    ),
+    check(
+      "supplier_item_quantity_proposals_kind_check",
+      sql`${table.kind} in ('PROPOSED', 'NONE')`,
+    ),
+    check(
+      "supplier_item_quantity_proposals_quantity_check",
+      sql`(${table.kind} = 'PROPOSED') = (${table.quantity} is not null) and (${table.quantity} is null or ${table.quantity} > 0)`,
+    ),
+  ],
+);
+
 // A new reading of a list not confirmed yet. It counts toward the daily cap of the branch that
 // asked for it, which need not be the list's own.
 export const supplierPriceListRereads = pgTable(

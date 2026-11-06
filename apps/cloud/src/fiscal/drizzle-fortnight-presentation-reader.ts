@@ -11,15 +11,11 @@ import {
 import type {
   BranchFortnightPresentation,
   FortnightPresentationReader,
+  RegisterEventStreams,
 } from "@purosur/domain/fiscal/use-cases";
-import { eq, inArray } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import {
-  fortnightDocumentReports,
-  offlineFiscalDocuments,
-  registerInstallations,
-} from "../platform/db/schema.js";
-import { installationStreamReaches } from "../sync/drizzle-register-event-streams.js";
+import { fortnightDocumentReports, offlineFiscalDocuments } from "../platform/db/schema.js";
 import { recordedRemedies, remedyKey } from "./drizzle-rejected-document-remedies.js";
 import { DrizzleRevokedInstallationConfirmations } from "./drizzle-revoked-installation-confirmations.js";
 import { closedFortnightPresentations } from "./owed-fortnight-reports.js";
@@ -28,10 +24,16 @@ export class DrizzleFortnightPresentationReader<TQueryResult extends PgQueryResu
   implements FortnightPresentationReader
 {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly streams: RegisterEventStreams;
   private readonly zoneRules: ZoneRulesSource;
 
-  constructor(db: PgDatabase<TQueryResult>, zoneRules: ZoneRulesSource) {
+  constructor(
+    db: PgDatabase<TQueryResult>,
+    streams: RegisterEventStreams,
+    zoneRules: ZoneRulesSource,
+  ) {
     this.db = db;
+    this.streams = streams;
     this.zoneRules = zoneRules;
   }
 
@@ -94,10 +96,7 @@ export class DrizzleFortnightPresentationReader<TQueryResult extends PgQueryResu
             if (!isFortnightReportOutstanding(state)) {
               return [key, []];
             }
-            const installations = await installationStreamReaches(
-              this.db,
-              eq(registerInstallations.registerId, registerId),
-            );
+            const installations = await this.streams.installationsOf(registerId);
             const confirmed = await confirmations.confirmedInstallations({
               pointOfSaleNumber,
               fortnight: code.fortnight,

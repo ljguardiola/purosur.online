@@ -20,8 +20,11 @@ export interface SupplierOffer {
   listDate: string;
 }
 
-export interface SupplierPriceComparisonReader {
+export interface ComparableProductReader {
   activeProducts(): Promise<ComparableProduct[]>;
+}
+
+export interface SupplierPriceComparisonReader extends ComparableProductReader {
   // Ordered by supplier name.
   offers(): Promise<SupplierOffer[]>;
 }

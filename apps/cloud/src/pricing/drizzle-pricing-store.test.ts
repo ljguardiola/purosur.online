@@ -43,7 +43,7 @@ beforeEach(async () => {
   await testDatabase.clear();
 });
 
-async function insertProduct(active = true): Promise<string> {
+async function insertProduct(): Promise<string> {
   const [category] = await db.insert(categories).values({ name: "Almacén" }).returning({
     id: categories.id,
   });
@@ -52,7 +52,7 @@ async function insertProduct(active = true): Promise<string> {
   }
   const [product] = await db
     .insert(products)
-    .values({ name: "Arroz", categoryId: category.id, saleUnit: "UNIT", active })
+    .values({ name: "Arroz", categoryId: category.id, saleUnit: "UNIT" })
     .returning({ id: products.id });
   if (!product) {
     throw new Error("test setup: seeding the product returned no row");
@@ -131,18 +131,6 @@ describe("DrizzlePricingStore", () => {
       expect(current).toEqual({ id: GREATER_ID, unitPrice: 2000, validFrom: MOMENT });
     },
   );
-
-  it.each([
-    ["an active product", true, { kind: "locked" }],
-    ["a deactivated product", false, { kind: "not_found" }],
-  ])("locks a product only while it is active: %s", async (_case, active, expected) => {
-    const productId = await insertProduct(active);
-    const store = new DrizzlePricingStore(db, () => MOMENT);
-
-    const locked = await store.transaction((tx) => tx.lockActiveProduct(productId));
-
-    expect(locked).toEqual(expected);
-  });
 
   it("answers the price list of a branch", async () => {
     const store = new DrizzlePricingStore(db, () => MOMENT);

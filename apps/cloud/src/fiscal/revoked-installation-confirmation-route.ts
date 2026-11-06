@@ -12,6 +12,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../sessions/route-access.js";
+import { DrizzleRegisterEventStreams } from "../sync/drizzle-register-event-streams.js";
 import { DrizzleConfirmRevokedInstallationStore } from "./drizzle-confirm-revoked-installation-store.js";
 
 export interface RevokedInstallationConfirmationRouteOptions<
@@ -60,7 +61,10 @@ export function registerRevokedInstallationConfirmationRoute<TQueryResult extend
   const { now, zoneRules } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
-  const store = new DrizzleConfirmRevokedInstallationStore(options.db);
+  const store = new DrizzleConfirmRevokedInstallationStore(
+    options.db,
+    (tx) => new DrizzleRegisterEventStreams(tx),
+  );
 
   app.post(
     "/registers/fortnight-presentations/revoked-installation-confirmations",

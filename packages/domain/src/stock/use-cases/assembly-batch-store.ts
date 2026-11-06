@@ -42,9 +42,12 @@ export interface AssemblyBatchVoid {
   actorId: string;
 }
 
-export interface AssemblyBatchTransaction extends StockStoreTransaction {
-  recipe(productId: string): Promise<Recipe | undefined>;
+export interface ActiveProductIdsReader {
   activeProductIds(productIds: readonly string[]): Promise<string[]>;
+}
+
+export interface AssemblyBatchTransaction extends StockStoreTransaction, ActiveProductIdsReader {
+  recipe(productId: string): Promise<Recipe | undefined>;
   lotCosts(lotIds: readonly string[]): Promise<BatchLotCost[]>;
   insertAssemblyBatch(batch: NewAssemblyBatch): Promise<string>;
   recordBatchLot(lot: NewBatchLot): Promise<string>;

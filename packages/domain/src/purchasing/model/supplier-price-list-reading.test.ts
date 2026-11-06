@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  askPriceListRange,
   isSupplierPriceListReadingAbandoned,
   SUPPLIER_PRICE_LIST_ABANDONED_READING_CHECK_INTERVAL_MS,
   SUPPLIER_PRICE_LIST_READING_ABANDONED_AFTER_MS,
@@ -81,4 +82,67 @@ describe("isSupplierPriceListReadingAbandoned", () => {
       ),
     ).toBe(false);
   });
+});
+
+type RangeAnswer =
+  | { kind: "read"; rows: string[] }
+  | { kind: "invalid_answer" }
+  | { kind: "unreadable" }
+  | { kind: "unavailable" }
+  | { kind: "too_long" };
+
+function answering(...answers: RangeAnswer[]) {
+  const asked: RangeAnswer[] = [];
+  return {
+    asked,
+    ask: async (): Promise<RangeAnswer> => {
+      const answer = answers[asked.length] ?? { kind: "unavailable" };
+      asked.push(answer);
+      return answer;
+    },
+  };
+}
+
+describe("askPriceListRange", () => {
+  it("keeps a range's first answer when it is readable, without asking again", async () => {
+    const range = answering({ kind: "read", rows: ["Yerba 1 kg"] });
+
+    expect(await askPriceListRange(range.ask)).toEqual({ kind: "read", rows: ["Yerba 1 kg"] });
+    expect(range.asked).toHaveLength(1);
+  });
+
+  it("asks a range again once when its first answer is invalid, and reads the second", async () => {
+    const range = answering({ kind: "invalid_answer" }, { kind: "read", rows: ["Yerba 1 kg"] });
+
+    expect(await askPriceListRange(range.ask)).toEqual({ kind: "read", rows: ["Yerba 1 kg"] });
+    expect(range.asked).toHaveLength(2);
+  });
+
+  it("asks a range no more than twice when both answers are invalid", async () => {
+    const range = answering(
+      { kind: "invalid_answer" },
+      { kind: "invalid_answer" },
+      { kind: "read", rows: ["Yerba 1 kg"] },
+    );
+
+    expect(await askPriceListRange(range.ask)).toEqual({ kind: "invalid_answer" });
+    expect(range.asked).toHaveLength(2);
+  });
+
+  it("keeps whatever the second answer is when the first was invalid", async () => {
+    const range = answering({ kind: "invalid_answer" }, { kind: "too_long" });
+
+    expect(await askPriceListRange(range.ask)).toEqual({ kind: "too_long" });
+    expect(range.asked).toHaveLength(2);
+  });
+
+  it.each<RangeAnswer>([{ kind: "unavailable" }, { kind: "too_long" }, { kind: "unreadable" }])(
+    "does not ask a range again when its answer is $kind",
+    async (answer) => {
+      const range = answering(answer, { kind: "read", rows: ["Yerba 1 kg"] });
+
+      expect(await askPriceListRange(range.ask)).toEqual(answer);
+      expect(range.asked).toHaveLength(1);
+    },
+  );
 });

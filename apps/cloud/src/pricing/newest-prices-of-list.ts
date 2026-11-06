@@ -2,6 +2,7 @@ import { newestPrice } from "@purosur/domain";
 import type { CurrentPrice } from "@purosur/domain/pricing/use-cases";
 import { and, eq, max, sql } from "drizzle-orm";
 import { alias, type PgDatabase, type PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { productActivityCondition } from "../catalog/product-activity-condition.js";
 import { prices, products } from "../platform/db/schema.js";
 
 export async function newestPricesOfList<TQueryResult extends PgQueryResultHKT>(
@@ -40,7 +41,7 @@ export async function newestPricesOfList<TQueryResult extends PgQueryResultHKT>(
     })
     .from(products)
     .innerJoinLateral(newestPrices, sql`true`)
-    .where(scope === "active-products" ? eq(products.active, true) : undefined);
+    .where(productActivityCondition(scope === "active-products" ? "active" : "any"));
 
   const pricesByProductId = new Map<string, (typeof priceRows)[number][]>();
   for (const row of priceRows) {
