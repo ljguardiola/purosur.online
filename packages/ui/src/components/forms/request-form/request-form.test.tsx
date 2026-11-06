@@ -1,11 +1,13 @@
 import type { CalendarDate } from "@internationalized/date";
+import { useStore } from "@tanstack/react-form";
+import { useState } from "react";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { z } from "zod";
 import { TextField } from "../text-field";
 import { type RequestSubmission, useRequestForm } from "./request-form";
-import { SharedFieldError } from "./request-form-fields";
+import { fieldErrorMessage, SharedFieldError } from "./request-form-fields";
 
 const requestSchema = z.object({
   name: z.string().trim().min(1, "empty").max(5, "long"),
@@ -1421,4 +1423,77 @@ test("a bound checkbox is named after its form field", async () => {
   expect(
     screen.getByRole("checkbox", { name: "Viaje propio" }).element().getAttribute("name"),
   ).toBe("ownTrip");
+});
+
+function ConstructorFieldProbe({ onSubmit }: { onSubmit: () => Promise<void> }) {
+  const { form, submit } = useRequestForm({
+    defaultValues: { constructor: "" },
+    request: {
+      schema: z.object({ name: z.string().min(1) }),
+      from: (values) => ({ name: values.constructor }),
+    },
+    fields: { name: "constructor" },
+    messages: { constructor: "Revisá el constructor." },
+    onSubmit,
+  });
+  const message = useStore(form.store, (state) =>
+    Object.hasOwn(state.fieldMeta, "constructor")
+      ? fieldErrorMessage(state.fieldMeta.constructor?.errors ?? [])
+      : undefined,
+  );
+  return (
+    <>
+      <button type="button" onClick={() => void submit()}>
+        Enviar
+      </button>
+      <p>{`Error: ${message ?? "ninguno"}`}</p>
+    </>
+  );
+}
+
+test("a field named constructor fails with its own message", async () => {
+  const onSubmit = vi.fn(() => Promise.resolve());
+  const screen = await render(<ConstructorFieldProbe onSubmit={onSubmit} />);
+
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+
+  await expect.element(screen.getByText("Error: Revisá el constructor.")).toBeVisible();
+  expect(onSubmit).not.toHaveBeenCalled();
+});
+
+function ProtoFieldProbe({ onSubmit }: { onSubmit: () => Promise<void> }) {
+  const { submit } = useRequestForm({
+    defaultValues: { __proto__: "" },
+    request: {
+      schema: z.object({ name: z.string().min(1) }),
+      from: () => ({ name: "" }),
+    },
+    fields: { name: "__proto__" },
+    messages: { __proto__: "Revisá el prototipo." },
+    onSubmit,
+  });
+  const [failure, setFailure] = useState("ninguno");
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => void submit().catch((error: Error) => setFailure(error.message))}
+      >
+        Enviar
+      </button>
+      <p>{`Fallo: ${failure}`}</p>
+    </>
+  );
+}
+
+test("a field named __proto__, whose message an object literal cannot hold, fails the submit instead of sending it", async () => {
+  const onSubmit = vi.fn(() => Promise.resolve());
+  const screen = await render(<ProtoFieldProbe onSubmit={onSubmit} />);
+
+  await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
+
+  await expect
+    .element(screen.getByText("Fallo: A form declares no message for its field __proto__."))
+    .toBeVisible();
+  expect(onSubmit).not.toHaveBeenCalled();
 });
