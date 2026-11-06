@@ -479,7 +479,9 @@ test("navigates to Mi cuenta when the suggestion comes back forbidden", async ()
   vi.mocked(services.fetchOrderSuggestion).mockResolvedValue({ kind: "forbidden" });
   await renderScreen(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("has no accessibility violations once loaded", async () => {
@@ -629,7 +631,9 @@ test("navigates to Mi cuenta when building the orders comes back forbidden", asy
 
   await userEvent.click(buildButton(screen));
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("tells an outdated tab to reload because the backoffice was updated when building the orders is refused", async () => {

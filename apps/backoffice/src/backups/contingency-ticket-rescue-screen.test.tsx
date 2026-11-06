@@ -178,7 +178,9 @@ test("sends the person to Mi cuenta when the cloud refuses the permission", asyn
 
   scanner.show(code);
 
-  await vi.waitFor(() => expect(window.location.pathname).toBe("/account"));
+  await vi.waitFor(() =>
+    expect(window.location.pathname + window.location.search).toBe("/?account=credentials"),
+  );
 });
 
 test("shows a text that is not a code of this system as unreadable without asking the cloud", async () => {

@@ -207,7 +207,9 @@ test("navigates to Mi cuenta when saving comes back forbidden", async () => {
 
   await submit(screen);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("cancel closes the modal without calling the API", async () => {

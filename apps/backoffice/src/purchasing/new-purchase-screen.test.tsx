@@ -466,7 +466,9 @@ test("navigates to Mi cuenta when the form data comes back forbidden, and ends t
     fetchPurchaseChoices: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });
   await renderScreen(forbidden);
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 
   const unauthenticated = createServices({
     fetchPurchaseChoices: vi.fn().mockResolvedValue({ kind: "unauthenticated" }),

@@ -300,7 +300,9 @@ test("navigates to Mi cuenta when uploading comes back forbidden", async () => {
 
   await submit(screen);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("reads the suppliers only while it is open", async () => {

@@ -94,14 +94,13 @@ test("offers no registration while the passkeys are loading", async () => {
     .toBeDisabled();
 });
 
-test("shows the breadcrumb, heading and each passkey with its registration and last-use detail", async () => {
+test("shows the Passkeys heading and each passkey with its registration and last-use detail", async () => {
   const services = createServices();
   vi.mocked(services.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [notebook, phone] });
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("Configuración · Lucía Pérez")).toBeVisible();
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Passkeys", level: 2 })).toBeVisible();
   await expect.element(screen.getByText("Notebook del local")).toBeVisible();
   await expect
     .element(screen.getByText("Registrada el 02/08/2026 · último uso hoy 09:12"))

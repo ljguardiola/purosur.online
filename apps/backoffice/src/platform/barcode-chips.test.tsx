@@ -453,7 +453,9 @@ test("navigates to Mi cuenta when generating comes back forbidden", async () => 
 
   await userEvent.click(generateButtonOf(chips));
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("describes the generate button with its failure, so a screen reader announces it", async () => {

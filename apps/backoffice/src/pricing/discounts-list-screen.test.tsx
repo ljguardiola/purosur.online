@@ -482,7 +482,9 @@ test("navigates to Mi cuenta when the promotions request comes back forbidden", 
 
   await renderScreen(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("ends the session when the promotions request finds no open session", async () => {

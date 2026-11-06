@@ -36,10 +36,15 @@ export function grantAuthorization(services: CompromiseResponseScreenServices) {
 export function renderScreen(
   services: CompromiseResponseScreenServices,
   onSessionEnded: () => void = () => {},
+  onClose: () => void = () => {},
 ) {
   return render(
     <main>
-      <CompromiseResponseScreen services={services} onSessionEnded={onSessionEnded} />
+      <CompromiseResponseScreen
+        services={services}
+        onSessionEnded={onSessionEnded}
+        onClose={onClose}
+      />
     </main>,
   );
 }

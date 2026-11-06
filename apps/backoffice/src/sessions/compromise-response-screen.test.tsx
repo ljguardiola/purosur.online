@@ -10,7 +10,7 @@ import {
 } from "./test-support/compromise-response-screen";
 
 beforeEach(() => {
-  window.history.pushState(null, "", "/compromise-response");
+  window.history.pushState(null, "", "/people/users?assistant=compromise-response");
 });
 
 const STEP_TITLES = [
@@ -35,7 +35,7 @@ test("shows a loading placeholder while the runbook loads", async () => {
   const screen = await renderScreen(services);
 
   await expect
-    .element(screen.getByRole("heading", { name: "Respuesta ante un compromiso", level: 1 }))
+    .element(screen.getByRole("dialog", { name: "Respuesta ante un compromiso" }))
     .toBeVisible();
   await expect.element(screen.getByRole("status")).toHaveTextContent("Cargando…");
   expect(screen.getByRole("button", { name: "Comenzar" }).query()).toBeNull();
@@ -56,6 +56,15 @@ test("offers to read the runbook again when it fails to load", async () => {
   await expect.element(screen.getByRole("heading", { name: STEP_TITLES[0] ?? "" })).toBeVisible();
 });
 
+test("asks to close the assistant from its Cerrar button", async () => {
+  const onClose = vi.fn();
+  const screen = await renderScreen(servicesWith(null), () => {}, onClose);
+
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
+
+  expect(onClose).toHaveBeenCalledTimes(1);
+});
+
 test("ends the session when the cloud finds no open session", async () => {
   const services = createServices();
   vi.mocked(services.fetchCompromiseResponse).mockResolvedValue({ kind: "unauthenticated" });
@@ -66,13 +75,15 @@ test("ends the session when the cloud finds no open session", async () => {
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("sends the person to Mi cuenta when the cloud refuses the runbook", async () => {
+test("opens the own account panel over Inicio when the cloud refuses the runbook", async () => {
   const services = createServices();
   vi.mocked(services.fetchCompromiseResponse).mockResolvedValue({ kind: "forbidden" });
 
   await renderScreen(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("offers to start the runbook when none exists, and shows no step", async () => {
@@ -113,7 +124,7 @@ test("shows the six steps in order, only the first one available", async () => {
   const headings = screen.getByRole("heading", { level: 2 });
   await expect
     .poll(() => headings.elements().map((heading) => heading.textContent))
-    .toEqual(STEP_TITLES);
+    .toEqual(["Respuesta ante un compromiso", ...STEP_TITLES]);
   await expect.element(screen.getByText("Disponible")).toBeVisible();
   expect(screen.getByText("Bloqueado hasta completar el anterior").elements()).toHaveLength(5);
 });
@@ -185,7 +196,9 @@ test("revokes every installation from its modal and reads the runbook again", as
 
   await expect.element(screen.getByText("Instalaciones revocadas")).toBeVisible();
   await expect.element(screen.getByText("Hecho el 01/10/2026 · 12:30")).toBeVisible();
-  expect(screen.getByRole("dialog").query()).toBeNull();
+  expect(
+    screen.getByRole("dialog", { name: /^(?!Respuesta ante un compromiso)/ }).query(),
+  ).toBeNull();
 });
 
 test("ends the session after ending the sessions and removing the passkeys of the chosen account", async () => {
@@ -230,7 +243,9 @@ test("forces the PIN resets from its modal and reads the runbook again", async (
   await userEvent.click(dialog.getByRole("button", { name: "Forzar el reinicio" }));
 
   await expect.element(screen.getByText("Reinicio de PIN exigido")).toBeVisible();
-  expect(screen.getByRole("dialog").query()).toBeNull();
+  expect(
+    screen.getByRole("dialog", { name: /^(?!Respuesta ante un compromiso)/ }).query(),
+  ).toBeNull();
 });
 
 test("asks for the passkey before running an action step", async () => {

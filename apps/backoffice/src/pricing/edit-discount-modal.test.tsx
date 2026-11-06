@@ -663,7 +663,9 @@ test("sends the user to Mi cuenta when the cloud refuses the permission", async 
 
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("shows the rate-limited notice with the time to wait", async () => {

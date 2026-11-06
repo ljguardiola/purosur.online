@@ -196,7 +196,9 @@ test("navigates to Mi cuenta when creating a register comes back forbidden", asy
 
   await submitName(dialog, "Caja 1");
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("ends the session when creating a register finds no open session", async () => {

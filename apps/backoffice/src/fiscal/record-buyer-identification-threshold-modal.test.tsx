@@ -539,7 +539,9 @@ test("sends to Mi cuenta when recording comes back forbidden", async () => {
 
   await submit(dialog);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("ends the session when recording comes back unauthenticated", async () => {

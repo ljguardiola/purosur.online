@@ -472,7 +472,9 @@ test("navigates to Mi cuenta when the report request comes back forbidden", asyn
 
   await renderScreen(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("downloads a spreadsheet with a sheet for the voids, the summaries and each way a return starts, for the register and period applied", async () => {

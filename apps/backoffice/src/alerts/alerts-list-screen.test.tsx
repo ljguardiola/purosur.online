@@ -423,7 +423,9 @@ test("navigates to Mi cuenta when the alerts request comes back forbidden", asyn
 
   await renderScreen(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("shows a closed lockout alert's scope as a dash, since it no longer holds the address", async () => {

@@ -279,7 +279,9 @@ test("navigates to Mi cuenta when saving comes back forbidden", async () => {
 
   await save(screen);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("cancelling the order asks first, then cancels it and shows it cancelled", async () => {
@@ -448,7 +450,9 @@ test("navigates to Mi cuenta when the order comes back forbidden", async () => {
   });
   await renderScreen(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("has no accessibility violations as a draft and with the cancel question open", async () => {

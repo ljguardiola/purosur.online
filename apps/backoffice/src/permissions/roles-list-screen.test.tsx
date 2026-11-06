@@ -79,14 +79,12 @@ function renderScreen(services: RolesListScreenServices, onSessionEnded: () => v
   );
 }
 
-test("shows the breadcrumb, heading, Administrator's full permission count, and the role count", async () => {
+test("shows the Administrator's full permission count and the role count", async () => {
   const services = createServices();
   vi.mocked(services.fetchRoles).mockResolvedValue({ kind: "ok", value: [administrator] });
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("Configuración")).toBeVisible();
-  await expect.element(screen.getByRole("heading", { name: "Roles", level: 1 })).toBeVisible();
   await expect.element(screen.getByText("Administrador")).toBeVisible();
   await expect.element(screen.getByText("Todos los permisos")).toBeVisible();
   await expect.element(screen.getByText("1 usuario")).toBeVisible();
@@ -402,7 +400,9 @@ test("navigates to Mi cuenta when the roles request comes back forbidden", async
 
   await renderScreen(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("has no accessibility violations once loaded", async () => {

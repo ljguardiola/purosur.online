@@ -758,7 +758,9 @@ test("navigates to Mi cuenta when linking comes back forbidden", async () => {
 
   await linkPasas(screen);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("says the choices are loading and linking waits for them", async () => {

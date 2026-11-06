@@ -238,7 +238,9 @@ test("navigates to Mi cuenta when the save comes back forbidden", async () => {
 
   await save(dialog);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("reads the register again when the save finds it missing, and says it no longer exists when it is gone", async () => {

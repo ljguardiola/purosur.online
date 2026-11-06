@@ -356,7 +356,9 @@ test("navigates to Mi cuenta when the PDF comes back forbidden", async () => {
 
   await userEvent.click(dialog.getByRole("button", { name: "Descargar PDF" }));
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("marking as sent shares the order and reports the order as the cloud answered it", async () => {
@@ -454,7 +456,9 @@ test("navigates to Mi cuenta when sharing comes back forbidden", async () => {
 
   await userEvent.click(dialog.getByRole("button", { name: "Marcar como enviado" }));
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("Cerrar closes the modal without calling the cloud to share", async () => {

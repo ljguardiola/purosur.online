@@ -329,7 +329,9 @@ test("sends a person the cloud forbids to Mi cuenta", async () => {
     vi.fn<NewRecipeModalServices["saveRecipe"]>().mockResolvedValue({ kind: "forbidden" }),
   );
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("cancel closes the modal", async () => {

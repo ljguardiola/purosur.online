@@ -147,7 +147,9 @@ test("navigates to Mi cuenta when creating comes back forbidden", async () => {
 
   await submitName(screen, "Vegano");
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("cancel closes the modal without calling the API", async () => {
