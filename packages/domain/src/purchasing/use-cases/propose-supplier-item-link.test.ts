@@ -8,6 +8,7 @@ import {
   type FakeProposalData,
   FakeSupplierItemLinkProposalReader,
 } from "./test-support/fake-supplier-item-link-proposal-reader.js";
+import { FakeSupplierItemProposalStore } from "./test-support/fake-supplier-item-proposal-store.js";
 import { FakeSupplierItemQuantityReader } from "./test-support/fake-supplier-item-quantity-reader.js";
 import { FakeSupplierPriceListAiCallStore } from "./test-support/fake-supplier-price-list-ai-call-store.js";
 
@@ -42,17 +43,32 @@ function setup(
   const chooser = new FakeProductChooser();
   const quantityReader = new FakeSupplierItemQuantityReader();
   const aiCalls = new FakeSupplierPriceListAiCallStore();
+  const store = new FakeSupplierItemProposalStore();
   return {
     reader,
     chooser,
     quantityReader,
     aiCalls,
-    ports: { reader, chooser, quantityReader, aiCalls, zoneRules: new FakeZoneRulesSource() },
+    store,
+    ports: {
+      reader,
+      chooser,
+      quantityReader,
+      aiCalls,
+      store,
+      zoneRules: new FakeZoneRulesSource(),
+    },
   };
 }
 
 const NOW = new Date("2026-03-11T01:30:00Z");
-const input = { listId: "list-1", rowId: "row-1", actorId: "person-1", now: () => NOW };
+const input = {
+  listId: "list-1",
+  rowId: "row-1",
+  actorId: "person-1",
+  now: () => NOW,
+  refresh: false,
+};
 
 describe("proposeSupplierItemLink", () => {
   it("answers not_found for a row that does not exist", async () => {
@@ -605,6 +621,368 @@ describe("proposeSupplierItemLink", () => {
         expect(await proposeSupplierItemLink(ports, input)).toEqual(
           expect.objectContaining({ kind: "proposed", by: "barcode", quantity: null }),
         );
+      });
+    });
+  });
+
+  describe("keeping the proposal", () => {
+    const PROPOSED_YERBA = {
+      kind: "proposed",
+      by: "ai",
+      quantity: null,
+      product: {
+        id: "product-1",
+        name: "Yerba Piragüé 1 kg",
+        brandName: null,
+        netContent: null,
+        saleUnit: "UNIT",
+      },
+    } as const;
+    const refresh = { ...input, refresh: true };
+
+    describe("asking", () => {
+      it("keeps the product the model chose with the quantity it read", async () => {
+        const { chooser, store, ports } = setup();
+        chooser.answer = { kind: "chosen", productId: "product-1", quantity: 36_000 };
+
+        await proposeSupplierItemLink(ports, input);
+
+        expect(store.links.get("row-1")).toEqual({
+          kind: "proposed",
+          by: "ai",
+          productId: "product-1",
+          quantity: 36_000,
+        });
+      });
+
+      it("keeps that the model found no product fit", async () => {
+        const { chooser, store, ports } = setup();
+        chooser.answer = { kind: "none" };
+
+        await proposeSupplierItemLink(ports, input);
+
+        expect(store.links.get("row-1")).toEqual({ kind: "none" });
+      });
+
+      it("keeps the product proposed by barcode with the quantity read", async () => {
+        const { quantityReader, store, ports } = setup({ barcode: "7790001000012" });
+        quantityReader.answer = { kind: "read", quantity: 12_000 };
+
+        await proposeSupplierItemLink(ports, input);
+
+        expect(store.links.get("row-1")).toEqual({
+          kind: "proposed",
+          by: "barcode",
+          productId: "product-1",
+          quantity: 12_000,
+        });
+      });
+
+      it("keeps the product proposed by barcode when the reading found no quantity", async () => {
+        const { quantityReader, store, ports } = setup({ barcode: "7790001000012" });
+        quantityReader.answer = { kind: "none" };
+
+        await proposeSupplierItemLink(ports, input);
+
+        expect(store.links.get("row-1")).toEqual({
+          kind: "proposed",
+          by: "barcode",
+          productId: "product-1",
+          quantity: null,
+        });
+      });
+
+      it.each([
+        ["unavailable", { kind: "unavailable" as const }],
+        ["failing", new Error("network down")],
+      ])("keeps nothing when the model is %s", async (_name, answer) => {
+        const { chooser, store, ports } = setup();
+        chooser.answer = answer;
+
+        await proposeSupplierItemLink(ports, input);
+
+        expect(store.linkWrites).toBe(0);
+      });
+
+      it.each([
+        ["unavailable", { kind: "unavailable" as const }],
+        ["failing", new Error("network down")],
+      ])(
+        "keeps nothing of a barcode proposal whose quantity reading is %s, and still proposes the product",
+        async (_name, answer) => {
+          const { quantityReader, store, ports } = setup({ barcode: "7790001000012" });
+          quantityReader.answer = answer;
+
+          expect(await proposeSupplierItemLink(ports, input)).toMatchObject({
+            kind: "proposed",
+            by: "barcode",
+            quantity: null,
+          });
+          expect(store.linkWrites).toBe(0);
+        },
+      );
+
+      it("keeps nothing when no candidate exists and no call is made", async () => {
+        const { store, ports } = setup({ description: "Detergente" });
+
+        await proposeSupplierItemLink(ports, input);
+
+        expect(store.linkWrites).toBe(0);
+      });
+
+      it("keeps nothing when the model names a product that was not a candidate", async () => {
+        const { chooser, store, ports } = setup();
+        chooser.answer = { kind: "chosen", productId: "product-2", quantity: null };
+
+        await proposeSupplierItemLink(ports, input);
+
+        expect(store.linkWrites).toBe(0);
+      });
+
+      it("keeps nothing for a row that does not exist", async () => {
+        const { store, ports } = setup();
+
+        await proposeSupplierItemLink(ports, { ...input, rowId: "missing" });
+
+        expect(store.linkWrites).toBe(0);
+      });
+
+      it("keeps nothing when the calls cannot be recorded", async () => {
+        const { chooser, aiCalls, store, ports } = setup();
+        chooser.answer = { kind: "chosen", productId: "product-1", quantity: null };
+        chooser.reportedCalls = [
+          {
+            outcome: "completed",
+            attempts: [
+              {
+                model: "claude-sonnet-5-5",
+                inputTokens: 1,
+                outputTokens: 1,
+                cacheWriteTokens: 0,
+                cacheReadTokens: 0,
+              },
+            ],
+          },
+        ];
+        aiCalls.failure = new Error("storage down");
+
+        await expect(proposeSupplierItemLink(ports, input)).rejects.toThrow("storage down");
+        expect(store.linkWrites).toBe(0);
+      });
+
+      it("asks again the next time after an unavailable answer", async () => {
+        const { chooser, ports } = setup();
+        chooser.answer = { kind: "unavailable" };
+        await proposeSupplierItemLink(ports, input);
+        chooser.answer = { kind: "chosen", productId: "product-1", quantity: null };
+
+        expect(await proposeSupplierItemLink(ports, input)).toEqual(PROPOSED_YERBA);
+        expect(chooser.asked).toHaveLength(2);
+      });
+    });
+
+    describe("showing a kept proposal", () => {
+      const usage: AiCallUsage = {
+        outcome: "completed",
+        attempts: [
+          {
+            model: "claude-sonnet-5-5",
+            inputTokens: 2_000,
+            outputTokens: 100,
+            cacheWriteTokens: 10,
+            cacheReadTokens: 1_000,
+          },
+        ],
+      };
+
+      it("shows the kept proposal on a second opening without asking or recording", async () => {
+        const { chooser, quantityReader, aiCalls, ports } = setup();
+        chooser.answer = { kind: "chosen", productId: "product-1", quantity: 36_000 };
+        chooser.reportedCalls = [usage];
+        const first = await proposeSupplierItemLink(ports, input);
+
+        expect(await proposeSupplierItemLink(ports, input)).toEqual(first);
+        expect(chooser.asked).toHaveLength(1);
+        expect(quantityReader.asked).toEqual([]);
+        expect(aiCalls.recorded).toHaveLength(1);
+      });
+
+      it("shows a kept barcode proposal without reading the quantity again", async () => {
+        const { quantityReader, aiCalls, ports } = setup({ barcode: "7790001000012" });
+        quantityReader.answer = { kind: "read", quantity: 12_000 };
+        quantityReader.reportedCalls = [usage];
+        const first = await proposeSupplierItemLink(ports, input);
+
+        expect(await proposeSupplierItemLink(ports, input)).toEqual(first);
+        expect(quantityReader.asked).toHaveLength(1);
+        expect(aiCalls.recorded).toHaveLength(1);
+      });
+
+      it("shows no proposal for a kept answer that none fit, without asking", async () => {
+        const { chooser, ports } = setup();
+        chooser.answer = { kind: "none" };
+        await proposeSupplierItemLink(ports, input);
+
+        expect(await proposeSupplierItemLink(ports, input)).toEqual({ kind: "none" });
+        expect(chooser.asked).toHaveLength(1);
+      });
+
+      it("shows the product as it is now among the products a supplier item may be linked to", async () => {
+        const { reader, store, ports } = setup();
+        await store.keepLinkProposal("row-1", {
+          kind: "proposed",
+          by: "ai",
+          productId: "product-2",
+          quantity: 3_000,
+        });
+
+        expect(await proposeSupplierItemLink(ports, input)).toEqual({
+          kind: "proposed",
+          by: "ai",
+          quantity: 3_000,
+          product: {
+            id: "product-2",
+            name: "Azúcar Cañaral 1 kg",
+            brandName: null,
+            netContent: null,
+            saleUnit: "UNIT",
+          },
+        });
+        expect(reader.scopesAsked).toEqual([PRODUCTS_A_SUPPLIER_ITEM_MAY_BE_LINKED_TO]);
+      });
+
+      it("shows no proposal, without asking, when the kept product can no longer be linked", async () => {
+        const retired = { id: "product-3", name: "Yerba retirada", active: false };
+        const { chooser, quantityReader, aiCalls, store, ports } = setup({}, [YERBA, retired]);
+        await store.keepLinkProposal("row-1", {
+          kind: "proposed",
+          by: "barcode",
+          productId: "product-3",
+          quantity: null,
+        });
+
+        expect(await proposeSupplierItemLink(ports, input)).toEqual({ kind: "none" });
+        expect(chooser.asked).toEqual([]);
+        expect(quantityReader.asked).toEqual([]);
+        expect(aiCalls.recordings).toBe(0);
+      });
+
+      it("shows no proposal, without asking, when the kept product no longer exists", async () => {
+        const { chooser, store, ports } = setup();
+        await store.keepLinkProposal("row-1", {
+          kind: "proposed",
+          by: "ai",
+          productId: "gone",
+          quantity: null,
+        });
+
+        expect(await proposeSupplierItemLink(ports, input)).toEqual({ kind: "none" });
+        expect(chooser.asked).toEqual([]);
+      });
+
+      it("answers not_found for a missing row even when a proposal is kept under its id", async () => {
+        const { store, ports } = setup();
+        await store.keepLinkProposal("missing", { kind: "none" });
+
+        expect(await proposeSupplierItemLink(ports, { ...input, rowId: "missing" })).toEqual({
+          kind: "not_found",
+        });
+      });
+
+      it("uses the proposal kept for its own row only", async () => {
+        const { chooser, store, ports } = setup();
+        await store.keepLinkProposal("row-2", { kind: "none" });
+        chooser.answer = { kind: "chosen", productId: "product-1", quantity: null };
+
+        expect(await proposeSupplierItemLink(ports, input)).toEqual(PROPOSED_YERBA);
+      });
+    });
+
+    describe("refreshing", () => {
+      it("asks again, records the call and replaces the kept proposal", async () => {
+        const { chooser, aiCalls, store, ports } = setup({ description: "yerba azucar 1 kg" });
+        chooser.answer = { kind: "chosen", productId: "product-1", quantity: null };
+        await proposeSupplierItemLink(ports, input);
+        chooser.answer = { kind: "chosen", productId: "product-2", quantity: 2_000 };
+        chooser.reportedCalls = [
+          {
+            outcome: "completed",
+            attempts: [
+              {
+                model: "claude-sonnet-5-5",
+                inputTokens: 1,
+                outputTokens: 1,
+                cacheWriteTokens: 0,
+                cacheReadTokens: 0,
+              },
+            ],
+          },
+        ];
+
+        expect(await proposeSupplierItemLink(ports, refresh)).toMatchObject({
+          kind: "proposed",
+          product: { id: "product-2" },
+          quantity: 2_000,
+        });
+
+        expect(chooser.asked).toHaveLength(2);
+        expect(aiCalls.recorded).toHaveLength(1);
+        expect(store.links.get("row-1")).toEqual({
+          kind: "proposed",
+          by: "ai",
+          productId: "product-2",
+          quantity: 2_000,
+        });
+        expect(await proposeSupplierItemLink(ports, input)).toMatchObject({
+          product: { id: "product-2" },
+        });
+        expect(chooser.asked).toHaveLength(2);
+      });
+
+      it("asks when nothing is kept yet", async () => {
+        const { chooser, ports } = setup();
+        chooser.answer = { kind: "chosen", productId: "product-1", quantity: null };
+
+        expect(await proposeSupplierItemLink(ports, refresh)).toEqual(PROPOSED_YERBA);
+        expect(chooser.asked).toHaveLength(1);
+      });
+
+      it("replaces a kept product with the model's answer that none fit", async () => {
+        const { chooser, store, ports } = setup();
+        chooser.answer = { kind: "chosen", productId: "product-1", quantity: null };
+        await proposeSupplierItemLink(ports, input);
+        chooser.answer = { kind: "none" };
+
+        expect(await proposeSupplierItemLink(ports, refresh)).toEqual({ kind: "none" });
+        expect(store.links.get("row-1")).toEqual({ kind: "none" });
+      });
+
+      it("leaves the kept proposal untouched when the answer is unavailable", async () => {
+        const { chooser, store, ports } = setup();
+        chooser.answer = { kind: "chosen", productId: "product-1", quantity: null };
+        await proposeSupplierItemLink(ports, input);
+        chooser.answer = { kind: "unavailable" };
+
+        expect(await proposeSupplierItemLink(ports, refresh)).toEqual({ kind: "unavailable" });
+        expect(store.links.get("row-1")).toMatchObject({ productId: "product-1" });
+        chooser.answer = { kind: "none" };
+        expect(await proposeSupplierItemLink(ports, input)).toMatchObject({
+          kind: "proposed",
+          product: { id: "product-1" },
+        });
+      });
+
+      it("leaves the kept proposal untouched when no candidate exists", async () => {
+        const { store, ports } = setup({ description: "Detergente" });
+        await store.keepLinkProposal("row-1", {
+          kind: "proposed",
+          by: "ai",
+          productId: "product-1",
+          quantity: null,
+        });
+
+        expect(await proposeSupplierItemLink(ports, refresh)).toEqual({ kind: "none" });
+        expect(store.linkWrites).toBe(1);
       });
     });
   });
