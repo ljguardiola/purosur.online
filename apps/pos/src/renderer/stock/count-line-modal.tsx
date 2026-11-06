@@ -77,6 +77,11 @@ export function CountLineModal({
   const [notice, setNotice] = useState<Notice>();
   const [weighingRefusal, setWeighingRefusal] = useState<{ notice: Notice; dismissed: boolean }>();
 
+  function refuseWeighing(refusal: Notice): ScaleWeighing<WeightReading> {
+    setWeighingRefusal({ notice: refusal, dismissed: false });
+    return { kind: "scale_unavailable" };
+  }
+
   const { phase, confirming, zeroRefused, confirm, typeInstead } = useScaleWeighing<WeightReading>(
     async (confirmedWeightThousandths) => {
       if (saleUnit !== "KG") {
@@ -114,11 +119,6 @@ export function CountLineModal({
       }
     },
   );
-
-  function refuseWeighing(refusal: Notice): ScaleWeighing<WeightReading> {
-    setWeighingRefusal({ notice: refusal, dismissed: false });
-    return { kind: "scale_unavailable" };
-  }
 
   function clearNotices() {
     setNotice(undefined);
