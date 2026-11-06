@@ -80,9 +80,9 @@ function useRestoreFocusOnClose(
       return;
     }
     const focused = document.activeElement;
-    if (focused !== null && focused !== document.body && !frameRef.current?.contains(focused)) {
-      returnTargetRef.current = focused;
-    }
+    const focusedOutsidePanel =
+      focused !== null && focused !== document.body && !frameRef.current?.contains(focused);
+    returnTargetRef.current = focusedOutsidePanel ? focused : null;
   }, [openRecord, frameRef]);
 
   useLayoutEffect(() => {
