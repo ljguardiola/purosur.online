@@ -254,6 +254,7 @@ export function ComboBox<V extends string>(props: ComboBoxProps<V>) {
         <IconOnlyButton
           name={`Mostrar opciones de ${label}`}
           disabled={disabled}
+          wrapperClassName="flex h-full shrink-0"
           className={chevronButtonClassName}
         >
           <SelectCaret className={chevronClassName} />

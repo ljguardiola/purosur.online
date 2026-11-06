@@ -62,7 +62,7 @@ const ARROW_BOUNDARY_OFFSET_PX =
   BOX_CORNER_RADIUS_PX + (ARROW_SIZE_PX * Math.SQRT2 - ARROW_SIZE_PX) / 2;
 
 // Overrides react-aria's own 1500ms default.
-const HOVER_DELAY_MS = 300;
+export const HOVER_DELAY_MS = 300;
 
 // Cannot be 0: WCAG 2.1 SC 1.4.13 requires the pointer to be able to move from the element onto
 // the tooltip without it closing first. The arrow bridges the gap only under the element's center;
@@ -70,24 +70,30 @@ const HOVER_DELAY_MS = 300;
 // outlast that crossing, and 100ms covers those 10px even at a slow 100px per second.
 export const CLOSE_DELAY_MS = 100;
 
+export function TooltipBubble({ description }: Pick<TooltipProps, "description">) {
+  return (
+    <AriaTooltip
+      placement="bottom"
+      offset={BOX_OFFSET_PX}
+      arrowBoundaryOffset={ARROW_BOUNDARY_OFFSET_PX}
+      className={tooltipClassName}
+    >
+      {/* position: absolute paints this above the description's unpositioned text regardless of
+          source order; its diamond's inner tip reaches only ~7.07px into the box, short of the
+          box's own 12px padding, so it never reaches that text anyway. */}
+      <AriaOverlayArrow style={arrowStyle}>
+        <span aria-hidden="true" className={arrowSquareClassName} />
+      </AriaOverlayArrow>
+      {description}
+    </AriaTooltip>
+  );
+}
+
 export function Tooltip({ description, children }: TooltipProps) {
   return (
     <AriaTooltipTrigger delay={HOVER_DELAY_MS} closeDelay={CLOSE_DELAY_MS}>
       {children}
-      <AriaTooltip
-        placement="bottom"
-        offset={BOX_OFFSET_PX}
-        arrowBoundaryOffset={ARROW_BOUNDARY_OFFSET_PX}
-        className={tooltipClassName}
-      >
-        {/* position: absolute paints this above the description's unpositioned text regardless of
-            source order; its diamond's inner tip reaches only ~7.07px into the box, short of the
-            box's own 12px padding, so it never reaches that text anyway. */}
-        <AriaOverlayArrow style={arrowStyle}>
-          <span aria-hidden="true" className={arrowSquareClassName} />
-        </AriaOverlayArrow>
-        {description}
-      </AriaTooltip>
+      <TooltipBubble description={description} />
     </AriaTooltipTrigger>
   );
 }

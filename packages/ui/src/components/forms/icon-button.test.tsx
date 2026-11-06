@@ -216,7 +216,7 @@ test("keeps the subtle look's glyph distinguishable from the grey surface it sit
     </div>,
   );
   const button = screen.getByRole("button", { name: "Remove code" }).element() as HTMLElement;
-  const surface = button.parentElement as HTMLElement;
+  const surface = button.closest("div") as HTMLElement;
   const icon = button.querySelector("svg") as SVGSVGElement;
 
   const ratio = contrastRatio(

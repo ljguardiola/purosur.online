@@ -1,7 +1,16 @@
-import { type ReactNode, useRef } from "react";
-import { useFocusable } from "react-aria";
-import { Button as AriaButton, type ButtonProps as AriaButtonProps } from "react-aria-components";
-import { Tooltip } from "../overlays/tooltip";
+import { type ComponentProps, type ReactNode, useRef } from "react";
+import { useTooltipTrigger } from "react-aria";
+import {
+  Button as AriaButton,
+  ButtonContext as AriaButtonContext,
+  type ButtonProps as AriaButtonProps,
+  Focusable as AriaFocusable,
+  TooltipContext as AriaTooltipContext,
+  TooltipTriggerStateContext as AriaTooltipTriggerStateContext,
+  useSlottedContext,
+} from "react-aria-components";
+import { useTooltipTriggerState } from "react-stately";
+import { CLOSE_DELAY_MS, HOVER_DELAY_MS, TooltipBubble } from "../overlays/tooltip";
 
 export type IconOnlyButtonProps = Pick<
   AriaButtonProps,
@@ -10,51 +19,82 @@ export type IconOnlyButtonProps = Pick<
   name: string;
   disabled?: boolean;
   className: string;
+  wrapperClassName?: string;
   children: ReactNode;
 };
 
-// A disabled button takes neither focus nor hover, so the tooltip listens on a wrapper outside the
-// tab order: the name shows on hover and the button stays disabled.
-function HoverTarget({ children }: { children: ReactNode }) {
+// The tooltip repeats the button's name, so it does not describe its trigger as well: a screen
+// reader would read the same words twice. Hover is heard on the wrapper, which a disabled button
+// cannot take itself; focus is heard on the button, which Focusable hands the hook's handlers.
+function NameTooltip({
+  name,
+  className,
+  disabled,
+  excludeFromTabOrder,
+  children,
+}: {
+  name: string;
+  className: string;
+  disabled: boolean;
+  excludeFromTabOrder: boolean | undefined;
+  children: ComponentProps<typeof AriaFocusable>["children"];
+}) {
+  const state = useTooltipTriggerState({ delay: HOVER_DELAY_MS, closeDelay: CLOSE_DELAY_MS });
   const ref = useRef<HTMLSpanElement>(null);
-  const { focusableProps } = useFocusable({ excludeFromTabOrder: true }, ref);
+  const { triggerProps, tooltipProps } = useTooltipTrigger({}, state, ref);
+  const { "aria-describedby": _describesTrigger, onFocus, onBlur, ...hoverAndPress } = triggerProps;
   return (
-    <span ref={ref} {...focusableProps} className="inline-flex shrink-0">
-      {children}
-    </span>
+    <AriaTooltipTriggerStateContext value={state}>
+      <AriaTooltipContext
+        value={{
+          ...(tooltipProps.id === undefined ? {} : { id: tooltipProps.id }),
+          triggerRef: ref,
+        }}
+      >
+        <span ref={ref} {...hoverAndPress} className={className}>
+          <AriaFocusable
+            isDisabled={disabled}
+            {...(excludeFromTabOrder === undefined ? {} : { excludeFromTabOrder })}
+            {...(onFocus === undefined ? {} : { onFocus })}
+            {...(onBlur === undefined ? {} : { onBlur })}
+          >
+            {children}
+          </AriaFocusable>
+        </span>
+        <TooltipBubble description={name} />
+      </AriaTooltipContext>
+    </AriaTooltipTriggerStateContext>
   );
 }
 
-// An empty value, unlike an absent one, replaces what a surrounding field passes down. The tooltip
-// repeats the button's name, so it is not offered as the button's description too, which a screen
-// reader would read twice, and the name is the button's own rather than one a field builds from its
-// label, so what is shown and what is read stay the same text.
-const ownNameWithoutDescription = { "aria-labelledby": "", "aria-describedby": "" };
+// A field that holds the button passes it a name built from the field's label; the button is named
+// by its own text, which is also the tooltip's.
+function OwnNameOnly({ slot, children }: { slot: string | null | undefined; children: ReactNode }) {
+  const fieldContext = useSlottedContext(AriaButtonContext, slot);
+  const { "aria-labelledby": _fieldLabel, ...ownContext } = fieldContext ?? {};
+  return <AriaButtonContext value={ownContext}>{children}</AriaButtonContext>;
+}
 
 export function IconOnlyButton({
   name,
   disabled = false,
   className,
+  wrapperClassName = "flex shrink-0",
   children,
   ...buttonProps
 }: IconOnlyButtonProps) {
-  const button = (
-    <AriaButton
-      {...buttonProps}
-      {...ownNameWithoutDescription}
-      aria-label={name}
-      isDisabled={disabled}
-      className={className}
-    >
-      {children}
-    </AriaButton>
+  return (
+    <OwnNameOnly slot={buttonProps.slot}>
+      <NameTooltip
+        name={name}
+        className={wrapperClassName}
+        disabled={disabled}
+        excludeFromTabOrder={buttonProps.excludeFromTabOrder}
+      >
+        <AriaButton {...buttonProps} aria-label={name} isDisabled={disabled} className={className}>
+          {children}
+        </AriaButton>
+      </NameTooltip>
+    </OwnNameOnly>
   );
-  if (disabled) {
-    return (
-      <Tooltip description={name}>
-        <HoverTarget>{button}</HoverTarget>
-      </Tooltip>
-    );
-  }
-  return <Tooltip description={name}>{button}</Tooltip>;
 }
