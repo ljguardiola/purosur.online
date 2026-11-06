@@ -24,7 +24,7 @@ describe("ContingencyNoticeCard", () => {
       .toBeVisible();
   });
 
-  it("explains, for deferred sales, that invoices are issued later and that the backup tickets are kept", async () => {
+  it("explains, for deferred sales, that the customer gets the not-an-invoice slip and that invoices are issued later", async () => {
     const screen = await render(<ContingencyNoticeCard kind="deferring" />);
 
     await expect.element(screen.getByText("Ventas sin factura en el momento")).toBeVisible();
@@ -38,7 +38,8 @@ describe("ContingencyNoticeCard", () => {
     await expect
       .element(
         screen.getByText(
-          "Seguir vendiendo: se cobra, se entrega al cliente el papel que dice que todavía no es la factura, y la factura se emite sola más adelante. Guardar los tickets de respaldo en la caja del local.",
+          "Seguir vendiendo: se cobra, se entrega al cliente el papel que dice que todavía no es la factura, y la factura se emite sola más adelante.",
+          { exact: true },
         ),
       )
       .toBeVisible();

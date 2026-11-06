@@ -44,7 +44,7 @@ function setup({
   return { ticketing, log, recorded, reported, state };
 }
 
-describe("an operation that leaves a ticket in a connectivity gap", () => {
+describe("an operation that leaves a ticket while the register does not reach the cloud", () => {
   it("records the events it appended, with the cloud links around it and its subject, then kicks the printing", async () => {
     const { ticketing, recorded, log } = setup();
     const operation = ticketing.ticketed(
@@ -188,7 +188,7 @@ describe("an operation that leaves a ticket in a connectivity gap", () => {
   });
 });
 
-describe("a step that completes at once and leaves a ticket in a connectivity gap", () => {
+describe("a step that completes at once and leaves a ticket while the register does not reach the cloud", () => {
   it("answers at once and records the events it appended, with its subject, then kicks the printing", async () => {
     const { ticketing, recorded, log } = setup();
     const settle = ticketing.ticketedNow(
@@ -242,7 +242,7 @@ describe("a step that completes at once and leaves a ticket in a connectivity ga
   });
 });
 
-describe("a settlement that leaves a sale's ticket in a connectivity gap", () => {
+describe("a settlement that leaves a sale's ticket while the register does not reach the cloud", () => {
   it("records a sale ticket of the sale it completes", async () => {
     const { ticketing, recorded } = setup();
     const settle = ticketing.ticketedSettlement((paymentTransactionId: string) => ({

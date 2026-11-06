@@ -1,6 +1,5 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { REGISTER_HEALTH_CHECK_HORIZON_MS } from "../../fiscal/model/fiscal-online-signal.js";
 import {
   type CloudLinkReading,
   CONTINGENCY_BACKUP_OPERATIONS,
@@ -20,7 +19,7 @@ const REACHING: CloudLinkReading = {
   at: AT,
 };
 const STALE: CloudLinkReading = {
-  lastHealthCheckOkAt: new Date(AT.getTime() - REGISTER_HEALTH_CHECK_HORIZON_MS - 1),
+  lastHealthCheckOkAt: new Date(AT.getTime() - 60 * 60_000),
   at: AT,
 };
 const NEVER_CHECKED: CloudLinkReading = { lastHealthCheckOkAt: null, at: AT };

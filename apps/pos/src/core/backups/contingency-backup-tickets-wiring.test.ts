@@ -78,7 +78,7 @@ afterEach(() => {
 });
 
 describe("the contingency backup tickets of the register", () => {
-  it("records the events of an operation in a gap, prints the ticket and then lets it be discarded once synced", async () => {
+  it("records the events of an operation made while the register does not reach the cloud, prints the ticket and then lets it be discarded once synced", async () => {
     const { ticketed, requests, worker } = tickets();
 
     await ticketed("cash_session_opening", appendingEvents(2))?.();
