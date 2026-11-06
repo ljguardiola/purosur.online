@@ -1,5 +1,6 @@
-import type { Scale, ScaleReading } from "@purosur/domain/sales/use-cases";
+import type { ScaleReading } from "@purosur/domain/sales/use-cases";
 import type { SerialLink } from "../serial-link/open-serial-link.js";
+import type { ScaleDevice } from "./steady-scale.js";
 
 const REQUEST_WEIGHT = 0x05;
 const REQUEST_LIVE_WEIGHT = [0x07, 0x07];
@@ -110,7 +111,11 @@ interface OpenLink {
 
 type Collected = { kind: "bytes"; bytes: Uint8Array } | { kind: "silent" } | { kind: "lost" };
 
-export function createSystelScale({ path, openLink, timers = realTimers }: SystelScaleDeps): Scale {
+export function createSystelScale({
+  path,
+  openLink,
+  timers = realTimers,
+}: SystelScaleDeps): ScaleDevice {
   let open: OpenLink | undefined;
   let queue: Promise<unknown> = Promise.resolve();
 

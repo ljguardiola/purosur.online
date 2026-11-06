@@ -29,35 +29,35 @@ describe("steadyScaleReading", () => {
     });
   });
 
-  it.each<ScaleReading>([
-    { kind: "unstable", weightThousandths: 1250 },
-    { kind: "not_stable" },
-  ])("holds the stable weight through a brief %o at that weight", (reading) => {
-    expect(steadyScaleReading(reading, lastStable, after(40))).toEqual({
-      reading: { kind: "held_stable", weightThousandths: 1250 },
-      lastStable,
-    });
-  });
+  it.each<ScaleReading>([{ kind: "unstable", weightThousandths: 1250 }, { kind: "not_stable" }])(
+    "holds the stable weight through a brief %o at that weight",
+    (reading) => {
+      expect(steadyScaleReading(reading, lastStable, after(40))).toEqual({
+        reading: { kind: "held_stable", weightThousandths: 1250 },
+        lastStable,
+      });
+    },
+  );
 
-  it.each<ScaleReading>([
-    { kind: "unstable", weightThousandths: 1250 },
-    { kind: "not_stable" },
-  ])("still holds a %o three hundred milliseconds after the stable reading", (reading) => {
-    expect(steadyScaleReading(reading, lastStable, after(300))).toEqual({
-      reading: { kind: "held_stable", weightThousandths: 1250 },
-      lastStable,
-    });
-  });
+  it.each<ScaleReading>([{ kind: "unstable", weightThousandths: 1250 }, { kind: "not_stable" }])(
+    "still holds a %o three hundred milliseconds after the stable reading",
+    (reading) => {
+      expect(steadyScaleReading(reading, lastStable, after(300))).toEqual({
+        reading: { kind: "held_stable", weightThousandths: 1250 },
+        lastStable,
+      });
+    },
+  );
 
-  it.each<ScaleReading>([
-    { kind: "unstable", weightThousandths: 1250 },
-    { kind: "not_stable" },
-  ])("leaves stable for a %o more than three hundred milliseconds after the stable reading", (reading) => {
-    expect(steadyScaleReading(reading, lastStable, after(301))).toEqual({
-      reading,
-      lastStable: undefined,
-    });
-  });
+  it.each<ScaleReading>([{ kind: "unstable", weightThousandths: 1250 }, { kind: "not_stable" }])(
+    "leaves stable for a %o more than three hundred milliseconds after the stable reading",
+    (reading) => {
+      expect(steadyScaleReading(reading, lastStable, after(301))).toEqual({
+        reading,
+        lastStable: undefined,
+      });
+    },
+  );
 
   it.each([1249, 1251, 0])(
     "leaves stable at once for an unstable reading at another weight, %s thousandths",
@@ -88,8 +88,9 @@ describe("steadyScaleReading", () => {
 
   it("measures the hold window from the last stable reading, not from the held ones", () => {
     const held = steadyScaleReading({ kind: "not_stable" }, lastStable, after(200));
-    expect(
-      steadyScaleReading({ kind: "not_stable" }, held.lastStable, after(301)),
-    ).toEqual({ reading: { kind: "not_stable" }, lastStable: undefined });
+    expect(steadyScaleReading({ kind: "not_stable" }, held.lastStable, after(301))).toEqual({
+      reading: { kind: "not_stable" },
+      lastStable: undefined,
+    });
   });
 });

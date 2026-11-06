@@ -1,4 +1,4 @@
-import type { ScaleReading } from "./scale.js";
+import type { WeighingReading } from "./scale.js";
 
 export type ScaleWeighingStep =
   | { kind: "scale_unavailable" }
@@ -10,7 +10,7 @@ export type ScaleWeighingStep =
   | { kind: "take"; weightThousandths: number };
 
 export function scaleWeighingStep(
-  reading: ScaleReading,
+  reading: WeighingReading,
   confirmedWeightThousandths: number | null,
   mayBeQuantity: (weightThousandths: number) => boolean,
 ): ScaleWeighingStep {
@@ -35,7 +35,10 @@ export function scaleWeighingStep(
     return { kind: "weighing" };
   }
   return {
-    kind: weightThousandths === confirmedWeightThousandths ? "take" : "stable",
+    kind:
+      reading.kind === "stable" && weightThousandths === confirmedWeightThousandths
+        ? "take"
+        : "stable",
     weightThousandths,
   };
 }

@@ -194,6 +194,7 @@ import {
   weighProductFor,
 } from "./sales/sale-requests";
 import { saleHistoryDetailFor, salesHistoryFor } from "./sales/sales-history-requests";
+import { steadyScale } from "./sales/scale/steady-scale";
 import { createSystelScale } from "./sales/scale/systel-scale";
 import { openSerialLink } from "./sales/serial-link/open-serial-link";
 import { anySaleIsOpen } from "./sales/sqlite-open-sale-presence";
@@ -497,10 +498,13 @@ await takingStartupStep(reportStartupStep, "check_free_disk_space", () =>
   storageWatch?.checkAtStartup(),
 )();
 
-const systelScale = createSystelScale({
-  path: () => serialDeviceWatch && pathOfMatchingDevice(serialDeviceWatch.reading(), "scale"),
-  openLink: openSerialLink,
-});
+const systelScale = steadyScale(
+  createSystelScale({
+    path: () => serialDeviceWatch && pathOfMatchingDevice(serialDeviceWatch.reading(), "scale"),
+    openLink: openSerialLink,
+  }),
+  { now },
+);
 
 const barcodeReaderWiring = createBarcodeReaderWiring({
   watch: serialDeviceWatch,

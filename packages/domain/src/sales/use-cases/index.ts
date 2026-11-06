@@ -4,6 +4,7 @@ export type {
   OperationAuthorization,
   Scale,
   ScaleReading,
+  WeighingReading,
 } from "../../shared/index.js";
 export type {
   AddScannedProductInput,
