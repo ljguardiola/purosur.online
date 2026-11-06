@@ -171,6 +171,8 @@ export type { PuroSurLogoProps } from "./components/layout/puro-sur-logo";
 export { PuroSurLogo } from "./components/layout/puro-sur-logo";
 export type { ScreenHeaderProps } from "./components/layout/screen-header";
 export { ScreenHeader } from "./components/layout/screen-header";
+export type { DetailPanelProps } from "./components/layout/detail-panel";
+export { DetailPanel } from "./components/layout/detail-panel";
 export type { SidePanelProps } from "./components/layout/side-panel";
 export { SidePanel } from "./components/layout/side-panel";
 export type { AreaNavButtonProps } from "./components/navigation/area-nav-button";
