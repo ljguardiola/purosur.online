@@ -108,6 +108,29 @@ test("a second click on a row's confirm while the first is in flight sends no se
   expect(services.confirmPrice).toHaveBeenCalledTimes(1);
 });
 
+test("shows the confirm button's own name as its tooltip", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockResolvedValue({
+    kind: "ok",
+    value: {
+      products: [rice],
+      pendingCount: 1,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [],
+    },
+  });
+
+  const screen = await renderScreen(services);
+  await userEvent.hover(
+    screen.getByRole("button", { name: "Confirmar el precio de Arroz sin cambios" }),
+  );
+
+  await expect
+    .element(screen.getByRole("tooltip"))
+    .toHaveTextContent("Confirmar el precio de Arroz sin cambios");
+});
+
 test("changing a product's price sends the current price id as expectedCurrentPriceId, shows a saved notice and refreshes", async () => {
   const services = createServices();
   vi.mocked(services.fetchPrices)
