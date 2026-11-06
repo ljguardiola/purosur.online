@@ -75,7 +75,7 @@ export function CountLineModal({
 }: CountLineModalProps) {
   const { product_id: productId, sale_unit: saleUnit } = product;
   const [notice, setNotice] = useState<Notice>();
-  const [weighingRefused, setWeighingRefused] = useState(false);
+  const [weighingRefusal, setWeighingRefusal] = useState<{ notice: Notice; dismissed: boolean }>();
 
   const { phase, confirming, zeroRefused, confirm, typeInstead } = useScaleWeighing<WeightReading>(
     async (confirmedWeightThousandths) => {
@@ -116,9 +116,13 @@ export function CountLineModal({
   );
 
   function refuseWeighing(refusal: Notice): ScaleWeighing<WeightReading> {
-    setWeighingRefused(true);
-    setNotice(refusal);
+    setWeighingRefusal({ notice: refusal, dismissed: false });
     return { kind: "scale_unavailable" };
+  }
+
+  function clearNotices() {
+    setNotice(undefined);
+    setWeighingRefusal((current) => current && { ...current, dismissed: true });
   }
 
   const { form, submit, submitting } = useRequestForm({
@@ -206,12 +210,18 @@ export function CountLineModal({
   const byWeight = saleUnit === "KG";
   const followingScale =
     byWeight && (phase.kind === "weighing" || phase.kind === "unsteady" || phase.kind === "stable");
+  const scaleUnavailable = byWeight && phase.kind === "scale_unavailable";
+  const shownNotice =
+    notice ??
+    (scaleUnavailable && weighingRefusal !== undefined && !weighingRefusal.dismissed
+      ? weighingRefusal.notice
+      : undefined);
 
   function requestSubmit() {
     if (submitting || confirming) {
       return;
     }
-    setNotice(undefined);
+    clearNotices();
     if (followingScale) {
       confirm();
       return;
@@ -267,7 +277,7 @@ export function CountLineModal({
         {followingScale && zeroRefused ? (
           <InlineNotice tone="info" icon={<Info />} description={ZERO_WEIGHT_NOTE} />
         ) : null}
-        {byWeight && phase.kind === "scale_unavailable" && !weighingRefused ? (
+        {scaleUnavailable && weighingRefusal === undefined ? (
           <InlineNotice
             tone="info"
             icon={<Info />}
@@ -279,7 +289,7 @@ export function CountLineModal({
           listeners={{
             onChange: () => {
               typeInstead();
-              setNotice(undefined);
+              clearNotices();
             },
           }}
         >
@@ -304,7 +314,7 @@ export function CountLineModal({
             )
           }
         </form.AppField>
-        <form.AppField name="expiresOn" listeners={{ onChange: () => setNotice(undefined) }}>
+        <form.AppField name="expiresOn" listeners={{ onChange: clearNotices }}>
           {(expiresOn) => (
             <expiresOn.DateField
               label="Vencimiento"
@@ -313,11 +323,11 @@ export function CountLineModal({
             />
           )}
         </form.AppField>
-        {notice === undefined ? null : (
+        {shownNotice === undefined ? null : (
           <InlineNotice
             tone="error"
-            icon={notice.icon === "permission" ? <UserX /> : <TriangleAlert />}
-            title={notice.title}
+            icon={shownNotice.icon === "permission" ? <UserX /> : <TriangleAlert />}
+            title={shownNotice.title}
           />
         )}
       </form>
