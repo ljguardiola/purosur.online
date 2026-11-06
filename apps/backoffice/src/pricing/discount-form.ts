@@ -1,4 +1,4 @@
-import { type CalendarDate, parseDate } from "@internationalized/date";
+import { parseDate } from "@internationalized/date";
 import {
   type DiscountCreationBody,
   type DiscountEditBody,
@@ -12,6 +12,7 @@ import {
 import type { DiscountBenefit, DiscountTargetKind } from "@purosur/domain";
 import {
   type ComboBoxOption,
+  type DateRange,
   type Option,
   type Options,
   sortedItems,
@@ -34,8 +35,7 @@ export type DiscountFormValues = {
   percent: string;
   buyQty: string;
   payQty: string;
-  validFrom: CalendarDate | null;
-  validTo: CalendarDate | null;
+  validity: DateRange | null;
   weekdays: string[];
 };
 
@@ -47,8 +47,7 @@ export const EMPTY_DISCOUNT_FORM: DiscountFormValues = {
   percent: "",
   buyQty: "",
   payQty: "",
-  validFrom: null,
-  validTo: null,
+  validity: null,
   weekdays: [],
 };
 
@@ -67,8 +66,8 @@ export function discountRequestFrom(values: DiscountFormValues): DiscountCreatio
     name: values.name,
     benefit: benefitFrom(values),
     target: { kind: values.targetKind, id: values.targetId ?? "" },
-    validFrom: values.validFrom?.toString() ?? "",
-    validTo: values.validTo?.toString() ?? "",
+    validFrom: values.validity?.start.toString() ?? "",
+    validTo: values.validity?.end.toString() ?? "",
     weekdays: values.weekdays.map(Number),
   };
 }
@@ -90,8 +89,7 @@ export function discountFormValues(discount: DiscountSummary): DiscountEditFormV
     percent: discount.benefit.kind === "PERCENT_OFF" ? String(discount.benefit.percent) : "",
     buyQty: discount.benefit.kind === "BUY_N_PAY_M" ? String(discount.benefit.buyQty) : "",
     payQty: discount.benefit.kind === "BUY_N_PAY_M" ? String(discount.benefit.payQty) : "",
-    validFrom: parseDate(discount.validFrom),
-    validTo: parseDate(discount.validTo),
+    validity: { start: parseDate(discount.validFrom), end: parseDate(discount.validTo) },
     weekdays: discount.weekdays.map(String),
     active: discount.active,
     version: discount.version,
@@ -109,8 +107,8 @@ export const DISCOUNT_FIELDS = {
   "benefit.buyQty": "buyQty",
   "benefit.payQty": "payQty",
   target: "targetId",
-  validFrom: "validFrom",
-  validTo: "validTo",
+  validFrom: "validity",
+  validTo: "validity",
   weekdays: "weekdays",
 } as const;
 
@@ -174,12 +172,14 @@ export const DISCOUNT_MESSAGES = {
       : `Ingresá una cantidad entera de ${schemaLimit(discountPayQtySchema.meta()?.["minValue"])} o más.`,
   targetId: ({ targetKind, targetId }: DiscountFormValues) =>
     targetId === null ? `${TARGET_PLACEHOLDERS[targetKind]}.` : TARGET_REVIEW_MESSAGES[targetKind],
-  validFrom: ({ validFrom }: DiscountFormValues) =>
-    validFrom === null ? "Ingresá la fecha de inicio." : "Revisá la fecha de inicio.",
-  validTo: ({ validTo }: DiscountFormValues) =>
-    validTo === null
-      ? "Ingresá la fecha de fin."
-      : "La fecha de fin no puede ser anterior a la de inicio.",
+  validity: ({ validity }: DiscountFormValues) => {
+    if (validity === null) {
+      return "Ingresá la vigencia.";
+    }
+    return validity.end.compare(validity.start) < 0
+      ? "La fecha de fin no puede ser anterior a la de inicio."
+      : "Revisá la vigencia.";
+  },
   weekdays: () => "Revisá los días de la semana.",
 };
 
