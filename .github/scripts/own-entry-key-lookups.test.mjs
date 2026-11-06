@@ -29,10 +29,7 @@ function source(...lines) {
 test("refuses `in` with a key that is not a literal, naming the file and line", (t) => {
   const lookups = lookupsIn(
     t,
-    source(
-      "const TABLE = { a: 1 };",
-      "export const has = (key: string) => key in TABLE;",
-    ),
+    source("const TABLE = { a: 1 };", "export const has = (key: string) => key in TABLE;"),
   );
 
   assert.deepEqual(lookups, [`${FILE}:2: ${IN}`]);
@@ -108,7 +105,7 @@ test("refuses a table with a string index signature, whether written, aliased, i
       "export const c = (t: Tokens, key: string) => t[key];",
       "export const d = (pairs: [string, number][], key: string) => Object.fromEntries(pairs)[key];",
       "export const e = (value: object, key: string) => (value as Record<string, unknown>)[key];",
-      "export const f = (t: Record<`${string}_NAME`, string>, key: `${string}_NAME`) => t[key];",
+      `export const f = (t: Record<\`\${string}_NAME\`, string>, key: \`\${string}_NAME\`) => t[key];`,
     ),
   });
 
@@ -168,7 +165,7 @@ test("accepts a key limited to known names, a literal key, a number, a symbol an
       "export const a = (key: Name) => TABLE[key];",
       "export const b = () => TABLE['a'];",
       "export const c = <K extends Name>(key: K) => TABLE[key];",
-      "export const d = (op: 'Get' | 'Set') => TABLE[`${op}Result`];",
+      `export const d = (op: "Get" | "Set") => TABLE[\`\${op}Result\`];`,
       "export const e = (t: Record<number, string>, index: number) => t[index];",
       "export const f = (t: { [key: string]: unknown; [Symbol.iterator]: unknown }) => t[Symbol.iterator];",
       "export const g = (list: string[], index: number) => list[index];",
