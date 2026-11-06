@@ -24,17 +24,17 @@ export class FakeExpiringLotReader implements ExpiringLotReader {
   }
 }
 
-export class FakeBranchSettings implements ExpiryWarningWindowReader {
+export class FakeExpiryWarningWindowReader implements ExpiryWarningWindowReader {
   readonly reads: string[] = [];
-  private readonly expiringLotAlertDays: number;
+  private readonly windowDays: number;
 
-  constructor(expiringLotAlertDays: number) {
-    this.expiringLotAlertDays = expiringLotAlertDays;
+  constructor(windowDays: number) {
+    this.windowDays = windowDays;
   }
 
-  async currentBranchSettings(locationId: string): Promise<{ expiringLotAlertDays: number }> {
+  async expiryWarningWindowDays(locationId: string): Promise<number> {
     this.reads.push(locationId);
-    return { expiringLotAlertDays: this.expiringLotAlertDays };
+    return this.windowDays;
   }
 }
 

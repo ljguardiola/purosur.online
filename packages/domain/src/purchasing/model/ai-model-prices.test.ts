@@ -48,6 +48,26 @@ describe("AI_MODEL_PRICES", () => {
     },
   );
 
+  it("prices claude-haiku-5-5 from 2026-01-01 at 0.10, 0.50, 0.125 and 0.01 US dollars per million tokens, and at 0.50, 2.50, 0.625 and 0.05 for a prompt over 100,000 tokens", () => {
+    expect(
+      priceInEffect(AI_MODEL_PRICES, "claude-haiku-5-5", new Date("2026-01-01T00:00:00Z")),
+    ).toEqual({
+      model: "claude-haiku-5-5",
+      appliesFrom: new Date("2026-01-01T00:00:00Z"),
+      inputMicroUsdPerMillionTokens: 100_000,
+      outputMicroUsdPerMillionTokens: 500_000,
+      cacheWriteMicroUsdPerMillionTokens: 125_000,
+      cacheReadMicroUsdPerMillionTokens: 10_000,
+      longPrompt: {
+        overPromptTokens: 100_000,
+        inputMicroUsdPerMillionTokens: 500_000,
+        outputMicroUsdPerMillionTokens: 2_500_000,
+        cacheWriteMicroUsdPerMillionTokens: 625_000,
+        cacheReadMicroUsdPerMillionTokens: 50_000,
+      },
+    });
+  });
+
   it("has no price before 2026-01-01", () => {
     expect(
       priceInEffect(AI_MODEL_PRICES, "claude-sonnet-5-5", new Date("2025-12-31T23:59:59.999Z")),
@@ -181,6 +201,50 @@ describe("aiAttemptCostNanoUsd", () => {
     ];
 
     expect(aiAttemptCostNanoUsd(table, anAttempt({ inputTokens: 1, outputTokens: 1 }), AT)).toBe(1);
+  });
+
+  describe("with a higher price for a long prompt", () => {
+    const table = [
+      aPrice({
+        longPrompt: {
+          overPromptTokens: 100,
+          inputMicroUsdPerMillionTokens: 20_000_000,
+          outputMicroUsdPerMillionTokens: 100_000_000,
+          cacheWriteMicroUsdPerMillionTokens: 25_000_000,
+          cacheReadMicroUsdPerMillionTokens: 2_000_000,
+        },
+      }),
+    ];
+
+    it("costs a prompt of exactly the threshold at the base prices", () => {
+      expect(
+        aiAttemptCostNanoUsd(table, anAttempt({ inputTokens: 100, outputTokens: 1 }), AT),
+      ).toBe(100 * 2_000 + 10_000);
+    });
+
+    it("costs every kind of token at the long-prompt prices once the prompt passes the threshold", () => {
+      expect(
+        aiAttemptCostNanoUsd(
+          table,
+          anAttempt({ inputTokens: 98, cacheWriteTokens: 2, cacheReadTokens: 1, outputTokens: 1 }),
+          AT,
+        ),
+      ).toBe(98 * 20_000 + 2 * 25_000 + 1 * 2_000 + 1 * 100_000);
+    });
+
+    it.each([
+      ["input", { inputTokens: 101 }, 101 * 20_000],
+      ["cache write", { cacheWriteTokens: 101 }, 101 * 25_000],
+      ["cache read", { cacheReadTokens: 101 }, 101 * 2_000],
+    ])("counts %s tokens in the prompt's length", (_kind, tokens, cost) => {
+      expect(aiAttemptCostNanoUsd(table, anAttempt(tokens), AT)).toBe(cost);
+    });
+
+    it("leaves output tokens out of the prompt's length", () => {
+      expect(
+        aiAttemptCostNanoUsd(table, anAttempt({ inputTokens: 100, outputTokens: 50 }), AT),
+      ).toBe(100 * 2_000 + 50 * 10_000);
+    });
   });
 
   it("costs nothing for no tokens", () => {

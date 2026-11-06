@@ -3,6 +3,7 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { DrizzleRegisterEventStreams } from "../sync/drizzle-register-event-streams.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,
@@ -81,7 +82,10 @@ async function onOwnConnection<TOutcome>(
 function confirm(db: PostgresJsDatabase) {
   return confirmRevokedInstallationUnsynced(
     {
-      store: new DrizzleConfirmRevokedInstallationStore(db),
+      store: new DrizzleConfirmRevokedInstallationStore(
+        db,
+        (tx) => new DrizzleRegisterEventStreams(tx),
+      ),
       clock: { now: () => AT },
       zoneRules: fixedZoneRulesSource(),
     },
@@ -105,7 +109,10 @@ describe("the confirm revoked installation store on a real Postgres", () => {
     );
     await runHolds.opened;
     const confirmation = onOwnConnection((db) =>
-      new DrizzleConfirmRevokedInstallationStore(db).transaction(async (tx) => {
+      new DrizzleConfirmRevokedInstallationStore(
+        db,
+        (tx) => new DrizzleRegisterEventStreams(tx),
+      ).transaction(async (tx) => {
         await tx.holdFortnightPresentation(KEY);
         events.push("confirmation held the presentation");
       }),
@@ -123,7 +130,10 @@ describe("the confirm revoked installation store on a real Postgres", () => {
     const confirmationHolds = gate();
 
     const confirmation = onOwnConnection((db) =>
-      new DrizzleConfirmRevokedInstallationStore(db).transaction(async (tx) => {
+      new DrizzleConfirmRevokedInstallationStore(
+        db,
+        (tx) => new DrizzleRegisterEventStreams(tx),
+      ).transaction(async (tx) => {
         await tx.holdFortnightPresentation(KEY);
         confirmationHolds.open();
         await confirmationMayFinish.opened;
@@ -155,7 +165,10 @@ describe("the confirm revoked installation store on a real Postgres", () => {
     await runHolds.opened;
 
     const held = await onOwnConnection((db) =>
-      new DrizzleConfirmRevokedInstallationStore(db).transaction(async (tx) => {
+      new DrizzleConfirmRevokedInstallationStore(
+        db,
+        (tx) => new DrizzleRegisterEventStreams(tx),
+      ).transaction(async (tx) => {
         await tx.holdFortnightPresentation({ pointOfSaleNumber: 8, fortnight: SECOND_HALF });
         return "held";
       }),

@@ -48,6 +48,8 @@ export type {
   PriceReviewCategory,
   PriceReviewFilter,
   PriceReviewHistories,
+  PriceReviewProduct,
+  PriceReviewProductReader,
   PriceReviewReader,
   PricesUnderReview,
   PricesUnderReviewQuery,
@@ -55,6 +57,7 @@ export type {
   ProductPriceReviewHistory,
 } from "./price-review-reader.js";
 export type {
+  ActiveProductLock,
   CurrentPrice,
   LockActiveProductResult,
   NewPrice,

@@ -1,6 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type { BetaContentBlockParam } from "@anthropic-ai/sdk/resources/beta/messages/messages";
 import {
+  askPriceListRange,
   PRICE_LIST_EXTRACTION_MAX_DESCRIPTION_LENGTH,
   PRICE_LIST_EXTRACTION_MAX_ROWS,
   PRICE_LIST_EXTRACTION_MAX_SHORT_TEXT_LENGTH,
@@ -18,11 +19,13 @@ import {
   type AnthropicFetch,
   anthropicClient,
   askForStructuredAnswer,
+  type PurchasingAiModel,
 } from "./anthropic-structured-call.js";
 import { declaresEncryption } from "./opens-as-pdf.js";
 import { webPageText } from "./web-page-text.js";
 
 const MAX_OUTPUT_TOKENS = 64_000;
+const PRICE_LIST_READING_MODEL: PurchasingAiModel = "claude-sonnet-5-5";
 const REQUEST_TIMEOUT_MS = 10 * 60 * 1000;
 const PAGES_PER_RANGE = 5;
 const RANGES_READ_AT_ONCE = 3;
@@ -88,6 +91,7 @@ type RangeReading =
       pricesIncludeVat: boolean | null;
       rows: ExtractedRow[];
     }
+  | { kind: "invalid_answer" }
   | { kind: "unreadable" }
   | { kind: "unavailable" }
   | { kind: "too_long" };
@@ -97,10 +101,10 @@ function parsedAnswer(text: string): RangeReading {
   try {
     json = JSON.parse(text);
   } catch {
-    return { kind: "unreadable" };
+    return { kind: "invalid_answer" };
   }
   const parsed = strictProposedList.safeParse(json);
-  return parsed.success ? { kind: "read", ...parsed.data } : { kind: "unreadable" };
+  return parsed.success ? { kind: "read", ...parsed.data } : { kind: "invalid_answer" };
 }
 
 function withRealPages(
@@ -456,13 +460,23 @@ export class AnthropicPriceListExtractor implements PriceListExtractor {
     );
   }
 
-  private async ask(
+  private ask(
+    systemPrompt: string,
+    content: BetaContentBlockParam[],
+    deadline: AbortSignal,
+    onCall: OnAiCall,
+  ): Promise<RangeReading> {
+    return askPriceListRange(() => this.askOnce(systemPrompt, content, deadline, onCall));
+  }
+
+  private async askOnce(
     systemPrompt: string,
     content: BetaContentBlockParam[],
     deadline: AbortSignal,
     onCall: OnAiCall,
   ): Promise<RangeReading> {
     const answer = await askForStructuredAnswer(this.client, {
+      model: PRICE_LIST_READING_MODEL,
       systemPrompt,
       content,
       format: proposedList,

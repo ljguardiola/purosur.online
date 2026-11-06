@@ -31,21 +31,20 @@ export async function readExpiringLotsReport(
   {
     expiringLots,
     lotNames,
-    branchSettings,
+    expiryWarningWindow,
     clock,
     zoneRules,
   }: {
     expiringLots: ExpiringLotReader;
     lotNames: LotNameReader;
-    branchSettings: ExpiryWarningWindowReader;
+    expiryWarningWindow: ExpiryWarningWindowReader;
     clock: Clock;
     zoneRules: ZoneRulesSource;
   },
   { locationId, asked }: ReadExpiringLotsReportInput,
 ): Promise<ExpiringLotsReport> {
   const today = argentinaCalendarDay(clock.now(), zoneRules.zoneRules());
-  const { expiringLotAlertDays: windowDays } =
-    await branchSettings.currentBranchSettings(locationId);
+  const windowDays = await expiryWarningWindow.expiryWarningWindowDays(locationId);
   const period = expiryReportPeriodOf(asked, today, windowDays);
   const rows = await expiringLots.lotsExpiringBy(locationId, period.to);
   const names = await nameLotsOfProducts({ lotNames, zoneRules }, locationId, productIdsOf(rows));

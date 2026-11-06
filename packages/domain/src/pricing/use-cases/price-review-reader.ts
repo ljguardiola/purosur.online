@@ -24,6 +24,20 @@ export interface PriceUnderReview extends PriceReview {
   currentPrice: CurrentPrice | null;
 }
 
+export interface PriceReviewProduct {
+  id: string;
+  name: string;
+  categoryId: string;
+  categoryName: string;
+  brandName: string | null;
+  netContent: ProductNetContent | null;
+  saleUnit: SaleUnit;
+}
+
+export interface PriceReviewProductReader {
+  activeProducts(): Promise<PriceReviewProduct[]>;
+}
+
 export interface PriceReviewCategory {
   id: string;
   name: string;
