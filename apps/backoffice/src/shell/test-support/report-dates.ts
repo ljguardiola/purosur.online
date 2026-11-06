@@ -2,17 +2,24 @@ import { type Locator, userEvent } from "vitest/browser";
 
 type Scope = Pick<Locator, "getByRole">;
 
-function dateSegmentsOf(scope: Scope, label: "Desde" | "Hasta") {
-  return scope.getByRole("group", { name: new RegExp(`^${label}`) }).getByRole("spinbutton");
+function periodSegmentsOf(scope: Scope) {
+  return scope.getByRole("group", { name: /^Período/ }).getByRole("spinbutton");
 }
 
-export async function typeDate(scope: Scope, label: "Desde" | "Hasta", digits: string) {
-  await userEvent.click(dateSegmentsOf(scope, label).first());
+const END_FIRST_SEGMENT = 3;
+
+export async function typePeriodStart(scope: Scope, digits: string) {
+  await userEvent.click(periodSegmentsOf(scope).first());
   await userEvent.keyboard(digits);
 }
 
-export function dateSegments(scope: Scope, label: "Desde" | "Hasta") {
-  return dateSegmentsOf(scope, label)
+export async function typePeriodEnd(scope: Scope, digits: string) {
+  await userEvent.click(periodSegmentsOf(scope).nth(END_FIRST_SEGMENT));
+  await userEvent.keyboard(digits);
+}
+
+export function periodSegments(scope: Scope) {
+  return periodSegmentsOf(scope)
     .all()
     .map((segment) => segment.element().textContent);
 }

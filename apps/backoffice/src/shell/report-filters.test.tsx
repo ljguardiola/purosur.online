@@ -9,7 +9,7 @@ import {
   reportFiltersSearch,
 } from "./report-filters-search";
 import { render } from "./test-support/render-with-router";
-import { dateSegments, typeDate } from "./test-support/report-dates";
+import { periodSegments, typePeriodEnd, typePeriodStart } from "./test-support/report-dates";
 import { BACK_REGISTER_ID, FRONT_REGISTER_ID } from "./test-support/report-fixtures";
 
 const ANSWERED = { from: "2026-10-01", to: "2026-10-07" };
@@ -62,8 +62,8 @@ function renderFilters(handlers: Handlers = {}) {
 test("shows the period the cloud answered while the URL names none", async () => {
   const screen = await renderFilters();
 
-  await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["1", "10", "2026"]);
-  expect(dateSegments(screen, "Hasta")).toEqual(["7", "10", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["1", "10", "2026"]);
+  expect(periodSegments(screen).slice(3)).toEqual(["7", "10", "2026"]);
   await expectNoAccessibilityViolations(screen.container);
 });
 
@@ -76,7 +76,7 @@ test("shows the range and the register the URL names", async () => {
     }),
   });
 
-  expect(dateSegments(screen, "Desde")).toEqual(["2", "10", "2026"]);
+  expect(periodSegments(screen).slice(0, 3)).toEqual(["2", "10", "2026"]);
   await expect
     .element(screen.getByRole("button", { name: `Caja elegida: ${BACK_REGISTER_ID}` }))
     .toBeVisible();
@@ -99,9 +99,9 @@ test("reports the register chosen in the register filter, keeping the range", as
 test("reports the range typed once both days are complete, never a half-typed year", async () => {
   const onFiltersChange = vi.fn();
   const screen = await renderFilters({ onFiltersChange });
-  await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["1", "10", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["1", "10", "2026"]);
 
-  await typeDate(screen, "Desde", "02102026");
+  await typePeriodStart(screen, "02102026");
 
   await expect
     .poll(() => onFiltersChange.mock.lastCall?.[0])
@@ -119,9 +119,9 @@ test("says the end cannot come before the start and reports nothing", async () =
     filters: reportFiltersSearch.parse({ from: "2026-10-02", to: "2026-10-05" }),
     onFiltersChange,
   });
-  await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["2", "10", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["2", "10", "2026"]);
 
-  await typeDate(screen, "Hasta", "01102026");
+  await typePeriodEnd(screen, "01102026");
 
   await expect
     .element(screen.getByText("La fecha de fin no puede ser anterior a la de inicio."))
@@ -135,10 +135,10 @@ test("asks again once a range that was out of order is put right", async () => {
     filters: reportFiltersSearch.parse({ from: "2026-10-02", to: "2026-10-05" }),
     onFiltersChange,
   });
-  await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["2", "10", "2026"]);
-  await typeDate(screen, "Hasta", "01102026");
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["2", "10", "2026"]);
+  await typePeriodEnd(screen, "01102026");
 
-  await typeDate(screen, "Hasta", "06102026");
+  await typePeriodEnd(screen, "06102026");
 
   await expect
     .poll(() => onFiltersChange.mock.lastCall?.[0])
@@ -146,6 +146,35 @@ test("asks again once a range that was out of order is put right", async () => {
   expect(
     screen.getByText("La fecha de fin no puede ser anterior a la de inicio.").query(),
   ).toBeNull();
+});
+
+test("reports an empty period once one end of the period is erased", async () => {
+  const onFiltersChange = vi.fn();
+  const screen = await renderFilters({
+    filters: reportFiltersSearch.parse({ from: "2026-10-02", to: "2026-10-05" }),
+    onFiltersChange,
+  });
+
+  for (const segment of screen
+    .getByRole("group", { name: /^Período/ })
+    .getByRole("spinbutton")
+    .all()
+    .slice(0, 3)) {
+    await userEvent.click(segment);
+    await userEvent.keyboard("{Backspace}{Backspace}{Backspace}{Backspace}");
+  }
+
+  await expect
+    .poll(() => onFiltersChange.mock.lastCall?.[0])
+    .toEqual({ from: "", to: "", register: "ALL" });
+});
+
+test("labels the single period field Período, with no separate start and end fields", async () => {
+  const screen = await renderFilters();
+
+  await expect.element(screen.getByRole("group", { name: /^Período/ })).toBeVisible();
+  expect(screen.getByRole("group", { name: /^Desde/ }).query()).toBeNull();
+  expect(screen.getByRole("group", { name: /^Hasta/ }).query()).toBeNull();
 });
 
 function ControlledPeriod({
@@ -173,9 +202,9 @@ function ControlledPeriod({
 test("reports the range typed without a register when it offers no register filter", async () => {
   const onFiltersChange = vi.fn();
   const screen = await render(<ControlledPeriod onFiltersChange={onFiltersChange} />);
-  await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["1", "10", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["1", "10", "2026"]);
 
-  await typeDate(screen, "Desde", "02102026");
+  await typePeriodStart(screen, "02102026");
 
   await expect
     .poll(() => onFiltersChange.mock.lastCall?.[0])

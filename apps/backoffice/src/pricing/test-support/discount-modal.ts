@@ -4,20 +4,24 @@ import { radioLabel } from "../../platform/test-support/radio-label";
 
 type Dialog = Parameters<typeof radioLabel>[0];
 
-export async function typeDate(dialog: Dialog, label: "Desde" | "Hasta", digits: string) {
-  await userEvent.click(
-    dialog
-      .getByRole("group", { name: new RegExp(`^${label}`) })
-      .getByRole("spinbutton")
-      .first(),
-  );
+function validitySegmentsOf(dialog: Dialog) {
+  return dialog.getByRole("group", { name: /^Vigencia/ }).getByRole("spinbutton");
+}
+
+const END_FIRST_SEGMENT = 3;
+
+export async function typeValidityStart(dialog: Dialog, digits: string) {
+  await userEvent.click(validitySegmentsOf(dialog).first());
   await userEvent.keyboard(digits);
 }
 
-export function dateSegments(dialog: Dialog, label: "Desde" | "Hasta") {
-  return dialog
-    .getByRole("group", { name: new RegExp(`^${label}`) })
-    .getByRole("spinbutton")
+export async function typeValidityEnd(dialog: Dialog, digits: string) {
+  await userEvent.click(validitySegmentsOf(dialog).nth(END_FIRST_SEGMENT));
+  await userEvent.keyboard(digits);
+}
+
+export function validitySegments(dialog: Dialog) {
+  return validitySegmentsOf(dialog)
     .all()
     .map((segment) => segment.element().textContent);
 }
@@ -49,8 +53,8 @@ export async function chooseProduct(dialog: Dialog, typed: string, option: strin
 export async function fillNewDiscountExceptTarget(dialog: Dialog) {
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Yerba de septiembre");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Descuento/ }), "15");
-  await typeDate(dialog, "Desde", "12092026");
-  await typeDate(dialog, "Hasta", "30092026");
+  await typeValidityStart(dialog, "12092026");
+  await typeValidityEnd(dialog, "30092026");
 }
 
 export async function fillValidNewDiscount(dialog: Dialog) {

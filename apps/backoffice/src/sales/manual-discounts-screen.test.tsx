@@ -5,7 +5,7 @@ import { afterEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
 import { render } from "../shell/test-support/render-with-router";
-import { dateSegments } from "../shell/test-support/report-dates";
+import { periodSegments } from "../shell/test-support/report-dates";
 import { BACK_REGISTER_ID, FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
 import {
   createReportRegisterFilterServices,
@@ -238,8 +238,8 @@ test("asks the cloud with no range when the URL has none, and shows the range it
 
   const screen = await renderScreen(services);
 
-  await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["1", "10", "2026"]);
-  expect(dateSegments(screen, "Hasta")).toEqual(["7", "10", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["1", "10", "2026"]);
+  expect(periodSegments(screen).slice(3)).toEqual(["7", "10", "2026"]);
   expect(services.fetchManualDiscounts).toHaveBeenCalledWith({});
 });
 
