@@ -22,4 +22,6 @@ export interface SupplierItemLinkProposalReader {
   // The products of the scope carrying exactly that barcode among their active barcodes.
   productsWithBarcode(barcode: string, scope: ProductActivityScope): Promise<ProposalProduct[]>;
   products(scope: ProductActivityScope): Promise<ProposalProduct[]>;
+  // Undefined when the product is not among those of the scope.
+  product(productId: string, scope: ProductActivityScope): Promise<ProposalProduct | undefined>;
 }

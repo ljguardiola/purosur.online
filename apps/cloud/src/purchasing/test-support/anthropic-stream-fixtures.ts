@@ -17,6 +17,7 @@ interface StreamedUsage {
 
 interface StreamedAnswer {
   textParts: string[];
+  model?: string;
   stopReason?: "end_turn" | "max_tokens" | "refusal";
   withTextBlock?: boolean;
   usage?: StreamedUsage;
@@ -29,6 +30,7 @@ function event(name: string, data: unknown): string {
 // The server-sent events the Messages API streams for one answer, as its documentation lists them.
 function messagesStreamText({
   textParts,
+  model = "claude-sonnet-5-5",
   stopReason = "end_turn",
   withTextBlock = true,
   usage = {},
@@ -40,7 +42,7 @@ function messagesStreamText({
         id: "msg_fictional_01",
         type: "message",
         role: "assistant",
-        model: "claude-sonnet-5-5",
+        model,
         content: [],
         stop_reason: null,
         stop_sequence: null,

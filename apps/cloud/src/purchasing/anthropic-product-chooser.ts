@@ -10,6 +10,7 @@ import {
   type AnthropicFetch,
   anthropicClient,
   askForStructuredAnswer,
+  type PurchasingAiModel,
 } from "./anthropic-structured-call.js";
 import {
   quantityAnswerSchema,
@@ -17,6 +18,7 @@ import {
   thousandthsOf,
 } from "./supplier-item-quantity-prompt.js";
 
+const PRODUCT_CHOICE_MODEL: PurchasingAiModel = "claude-haiku-5-5";
 const REQUEST_TIMEOUT_MS = 60 * 1000;
 const MAX_OUTPUT_TOKENS = 1_000;
 
@@ -45,6 +47,7 @@ export class AnthropicProductChooser implements ProductChooser {
     onCall: OnAiCall,
   ): Promise<ProductChoice> {
     const answer = await askForStructuredAnswer(this.client, {
+      model: PRODUCT_CHOICE_MODEL,
       systemPrompt: SYSTEM_PROMPT,
       content: [
         {

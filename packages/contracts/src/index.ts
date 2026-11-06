@@ -550,8 +550,14 @@ export type { SupplierEditBody } from "./purchasing/supplier-edit.js";
 export { supplierEditBodySchema } from "./purchasing/supplier-edit.js";
 export type { SupplierItemLinkChoices } from "./purchasing/supplier-item-link-choices.js";
 export { supplierItemLinkChoicesSchema } from "./purchasing/supplier-item-link-choices.js";
-export type { SupplierItemLinkProposal } from "./purchasing/supplier-item-link-proposal.js";
-export { supplierItemLinkProposalSchema } from "./purchasing/supplier-item-link-proposal.js";
+export type {
+  SupplierItemLinkProposal,
+  SupplierItemLinkProposalBody,
+} from "./purchasing/supplier-item-link-proposal.js";
+export {
+  supplierItemLinkProposalBodySchema,
+  supplierItemLinkProposalSchema,
+} from "./purchasing/supplier-item-link-proposal.js";
 export type {
   SupplierItemQuantityProposal,
   SupplierItemQuantityProposalBody,

@@ -25,5 +25,5 @@ export interface ExpiringLotReader {
 }
 
 export interface ExpiryWarningWindowReader {
-  currentBranchSettings(locationId: string): Promise<{ expiringLotAlertDays: number }>;
+  expiryWarningWindowDays(locationId: string): Promise<number>;
 }

@@ -44,6 +44,7 @@ import {
   useProductCreationCategoriesQuery,
   useProductCreationChoicesRefresh,
   useProductCreationTagsQuery,
+  useRefreshSupplierItemQuantityProposal,
   useSupplierItemLinkChoicesQuery,
   useSupplierItemQuantityProposalQuery,
 } from "./purchasing-queries";
@@ -68,6 +69,7 @@ import type {
   fetchProductCreationCategories,
   fetchProductCreationTags,
 } from "./supplier-item-products-api";
+import { ProposeAgainButton, ProposeAgainFailure } from "./supplier-item-propose-again";
 import {
   SUPPLIER_ITEM_QUANTITY_UNIT_OPTIONS,
   supplierItemQuantityFieldKind,
@@ -230,6 +232,7 @@ export function CreateProductFromSupplierItemModal({
                   wantedNetQuantity === null || wantedNetUnit === null
                     ? null
                     : { quantity: wantedNetQuantity, unit: wantedNetUnit },
+                refresh: false,
               },
         ),
       QUANTITY_PROPOSAL_DEBOUNCE_MS,
@@ -239,6 +242,14 @@ export function CreateProductFromSupplierItemModal({
   const quantityProposal = useSupplierItemQuantityProposalQuery({
     listId: list.id,
     rowId: row?.id ?? "",
+    request: open ? asked : null,
+    fetchSupplierItemQuantityProposal: services.fetchSupplierItemQuantityProposal,
+    onSessionEnded,
+  });
+  const quantityRefresh = useRefreshSupplierItemQuantityProposal({
+    listId: list.id,
+    rowId: row?.id ?? "",
+    opening: target,
     request: open ? asked : null,
     fetchSupplierItemQuantityProposal: services.fetchSupplierItemQuantityProposal,
     onSessionEnded,
@@ -491,6 +502,14 @@ export function CreateProductFromSupplierItemModal({
                 />
               )}
             </form.AppField>
+            <div className="flex justify-end">
+              <ProposeAgainButton
+                dataStatus={quantityProposal.status}
+                refreshing={quantityRefresh.refreshing}
+                onPress={() => void quantityRefresh.refresh()}
+              />
+            </div>
+            {quantityRefresh.failed ? <ProposeAgainFailure /> : null}
             {values.saleUnit === "KG" ? (
               <>
                 <FieldHeading>Unidad de la cantidad</FieldHeading>
