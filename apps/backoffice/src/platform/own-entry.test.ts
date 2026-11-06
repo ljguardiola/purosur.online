@@ -10,6 +10,10 @@ describe("ownEntry", () => {
     expect(ownEntry({ a: "first" }, "b")).toBeUndefined();
   });
 
+  it("returns nothing when there is no key to look up", () => {
+    expect(ownEntry({ a: "first" }, null)).toBeUndefined();
+  });
+
   it.each(["constructor", "toString", "hasOwnProperty", "__proto__"])(
     "returns nothing for %s, a member every object inherits",
     (key) => {
