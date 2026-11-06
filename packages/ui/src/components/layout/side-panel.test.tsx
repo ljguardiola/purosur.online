@@ -186,3 +186,51 @@ test("does not accept a panel without its content", () => {
 test("does not accept a panel without its label", () => {
   expectTypeOf<{ children: ReactNode }>().not.toExtend<SidePanelProps>();
 });
+
+test("keeps a header fixed at the top while the body scrolls under it", async () => {
+  const screen = await render(
+    <div style={{ display: "flex", height: "600px" }}>
+      <SidePanel label="Panel" header={<h2>Encabezado</h2>}>
+        {FORTY_LINES}
+      </SidePanel>
+    </div>,
+  );
+  const header = screen.getByRole("heading", { name: "Encabezado" }).element();
+  const headerBox = header.getBoundingClientRect();
+  const firstLine = screen.getByText("Línea 1", { exact: true }).element();
+
+  expect(firstLine.getBoundingClientRect().top).toBeGreaterThanOrEqual(headerBox.bottom);
+  scrollToTheEndAround(firstLine);
+  expect(header.getBoundingClientRect()).toEqual(headerBox);
+  expect(
+    screen.getByText("Línea 40", { exact: true }).element().getBoundingClientRect().bottom,
+  ).toBeLessThanOrEqual(600);
+});
+
+test("lets the keyboard reach the body, not the header, when a header is given", async () => {
+  const screen = await render(
+    <div style={{ display: "flex", height: "600px" }}>
+      <SidePanel label="Panel" header={<h2>Encabezado</h2>}>
+        {FORTY_LINES}
+      </SidePanel>
+    </div>,
+  );
+
+  await userEvent.tab();
+
+  await expect.element(screen.getByRole("region", { name: "Panel" })).toHaveFocus();
+});
+
+test("is 392px wide by default and fills its container with no left border when asked", async () => {
+  const screen = await render(
+    <div style={{ display: "flex", width: "700px", height: "300px" }}>
+      <SidePanel label="Panel" width="fill">
+        Contenido
+      </SidePanel>
+    </div>,
+  );
+  const panel = screen.getByRole("complementary").element();
+
+  expect(panel.getBoundingClientRect().width).toBe(700);
+  expect(getComputedStyle(panel).borderLeftWidth).toBe("0px");
+});
