@@ -1,17 +1,15 @@
 import {
+  type HTMLAttributes,
   type ReactNode,
   type RefObject,
   useEffect,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
 } from "react";
-import {
-  Dialog as AriaDialog,
-  Heading as AriaHeading,
-  Modal as AriaModal,
-  ModalOverlay as AriaModalOverlay,
-} from "react-aria-components";
+import { FocusScope, useModalOverlay, useOverlay } from "react-aria";
+import { useOverlayTriggerState } from "react-stately";
 import { CloseButton } from "../shared/close-button";
 import { SidePanel } from "./side-panel";
 
@@ -27,9 +25,10 @@ const NARROW_AREA_WIDTH = 800;
 
 export function DetailPanel({ open, onClose, title, children, footer }: DetailPanelProps) {
   const [narrow, setNarrow] = useState(false);
-  useRestoreFocusOnClose(open);
+  const frameRef = useRef<HTMLDivElement>(null);
+  useRestoreFocusOnClose(open ? title : null, frameRef);
 
-  // The modal is portaled out of the area, so a marker left in the flow stands for the area.
+  // The panel leaves the area's flow as a modal, so a marker left in the flow stands for the area.
   function observeArea(marker: HTMLSpanElement | null) {
     const area = marker?.parentElement;
     if (area === null || area === undefined) {
@@ -48,29 +47,43 @@ export function DetailPanel({ open, onClose, title, children, footer }: DetailPa
   return (
     <>
       <span ref={observeArea} hidden />
-      {narrow ? (
-        <ModalPanel onClose={onClose} title={title} footer={footer}>
-          {children}
-        </ModalPanel>
-      ) : (
-        <BesidePanel onClose={onClose} title={title} footer={footer}>
-          {children}
-        </BesidePanel>
-      )}
+      <PanelFrame
+        frameRef={frameRef}
+        narrow={narrow}
+        onClose={onClose}
+        title={title}
+        footer={footer}
+      >
+        {children}
+      </PanelFrame>
     </>
   );
 }
 
-// Both modes unmount the panel when it switches, so the element to go back to is kept here, where
-// the panel's open state lives.
-function useRestoreFocusOnClose(open: boolean) {
+function useRestoreFocusOnClose(
+  openRecord: string | null,
+  frameRef: RefObject<HTMLElement | null>,
+) {
+  const openerRef = useRef<Element | null>(null);
+  const open = openRecord !== null;
+
+  useLayoutEffect(() => {
+    if (openRecord === null) {
+      return;
+    }
+    const focused = document.activeElement;
+    if (focused !== null && focused !== document.body && !frameRef.current?.contains(focused)) {
+      openerRef.current = focused;
+    }
+  }, [openRecord, frameRef]);
+
   useLayoutEffect(() => {
     if (!open) {
       return;
     }
-    const opener = document.activeElement;
     return () => {
       queueMicrotask(() => {
+        const opener = openerRef.current;
         const focusIsLost =
           document.activeElement === null || document.activeElement === document.body;
         if (focusIsLost && opener instanceof HTMLElement && opener.isConnected) {
@@ -81,95 +94,87 @@ function useRestoreFocusOnClose(open: boolean) {
   }, [open]);
 }
 
-// A native listener sees only the keys pressed inside the element's own DOM; a React handler would
-// also receive those of a modal opened from the panel's content, which React bubbles through the
-// portal.
-function useCloseOnEscape(ref: RefObject<HTMLElement | null>, onClose: () => void) {
-  useEffect(() => {
-    const element = ref.current;
-    if (element === null) {
-      return;
-    }
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    };
-    element.addEventListener("keydown", closeOnEscape);
-    return () => element.removeEventListener("keydown", closeOnEscape);
-  }, [ref, onClose]);
-}
-
 type PanelProps = Omit<DetailPanelProps, "open">;
 
-function BesidePanel(props: PanelProps) {
-  const scopeRef = useRef<HTMLDivElement>(null);
-  useCloseOnEscape(scopeRef, props.onClose);
-
-  return (
-    <div ref={scopeRef} className="contents">
-      <Panel {...props} width="panel" />
-    </div>
-  );
-}
-
-function ModalPanel(props: PanelProps) {
-  const modalRef = useRef<HTMLDivElement>(null);
-  useCloseOnEscape(modalRef, props.onClose);
-
-  return (
-    <AriaModalOverlay
-      isOpen
-      isDismissable={false}
-      isKeyboardDismissDisabled
-      className="fixed inset-0 z-overlay flex items-center justify-center bg-backdrop"
-    >
-      <AriaModal
-        ref={modalRef}
-        className="flex max-h-modal w-180 max-w-modal shrink-0 flex-col overflow-hidden rounded-xl bg-surface shadow-xl"
-      >
-        <AriaDialog className="flex min-h-0 flex-1 flex-col outline-none">
-          <Panel {...props} width="fill" />
-        </AriaDialog>
-      </AriaModal>
-    </AriaModalOverlay>
-  );
-}
-
-function Panel({
+// Both modes render the same elements, only styled and announced differently, so the caller's
+// content stays mounted when the area is resized across the narrow width.
+function PanelFrame({
+  frameRef,
+  narrow,
   onClose,
   title,
   children,
   footer,
-  width,
-}: PanelProps & { width: "panel" | "fill" }) {
+}: PanelProps & { frameRef: RefObject<HTMLDivElement | null>; narrow: boolean }) {
+  const headingId = useId();
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  // The panel is one overlay in both modes, so Escape closes it only while no overlay opened from
+  // its content, such as a combo box's list or a confirmation, is above it.
+  const { overlayProps } = useOverlay({ isOpen: true, onClose, isDismissable: false }, dialogRef);
+  const modalState = useOverlayTriggerState({ isOpen: narrow });
+  useModalOverlay({ isDismissable: false, isKeyboardDismissDisabled: true }, modalState, dialogRef);
 
   useEffect(() => {
     headingRef.current?.focus();
   }, []);
 
+  useEffect(() => {
+    if (narrow && !dialogRef.current?.contains(document.activeElement)) {
+      headingRef.current?.focus();
+    }
+  }, [narrow]);
+
+  const modalDialogProps: HTMLAttributes<HTMLDivElement> = {
+    role: "dialog",
+    "aria-labelledby": headingId,
+    tabIndex: -1,
+  };
+
   return (
-    <SidePanel
-      label={title}
-      footer={footer}
-      width={width}
-      header={
-        <div className="flex items-center justify-between gap-4 border-b border-border px-8 py-4">
-          <AriaHeading
-            ref={headingRef}
-            level={2}
-            slot="title"
-            tabIndex={-1}
-            className="text-heading text-text outline-none"
-          >
-            {title}
-          </AriaHeading>
-          <CloseButton onPress={onClose} />
-        </div>
+    <div
+      ref={frameRef}
+      className={
+        narrow ? "fixed inset-0 z-overlay flex items-center justify-center bg-backdrop" : "contents"
       }
     >
-      {children}
-    </SidePanel>
+      <FocusScope contain={narrow}>
+        <div
+          className={
+            narrow
+              ? "flex max-h-modal w-180 max-w-modal shrink-0 flex-col overflow-hidden rounded-xl bg-surface shadow-xl"
+              : "contents"
+          }
+        >
+          <div
+            ref={dialogRef}
+            {...overlayProps}
+            {...(narrow ? modalDialogProps : {})}
+            className={narrow ? "flex min-h-0 flex-1 flex-col outline-none" : "contents"}
+          >
+            <SidePanel
+              label={title}
+              footer={footer}
+              width={narrow ? "fill" : "panel"}
+              header={
+                <div className="flex items-center justify-between gap-4 border-b border-border px-8 py-4">
+                  <h2
+                    ref={headingRef}
+                    id={headingId}
+                    tabIndex={-1}
+                    className="text-heading text-text outline-none"
+                  >
+                    {title}
+                  </h2>
+                  <CloseButton onPress={onClose} />
+                </div>
+              }
+            >
+              {children}
+            </SidePanel>
+          </div>
+        </div>
+      </FocusScope>
+    </div>
   );
 }
