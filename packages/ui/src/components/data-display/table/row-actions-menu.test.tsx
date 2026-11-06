@@ -208,7 +208,6 @@ test("has no accessibility violations open, with a disabled and a destructive ac
 
   await expectNoAccessibilityViolations(document.body);
 });
-});
 
 test("accepts one or more actions and refuses none", () => {
   expectTypeOf<readonly [RowMenuAction]>().toExtend<RowMenuActions>();
