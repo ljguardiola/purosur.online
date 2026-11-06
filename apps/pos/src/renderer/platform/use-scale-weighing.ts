@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 
-const PAUSE_BETWEEN_ANSWERS_MS = 250;
-
 export type StableReading = { weightThousandths: number };
 
 type DefaultReading = StableReading & { amount: number };
@@ -10,6 +8,7 @@ export type ScaleWeighing<Reading extends StableReading = DefaultReading> =
   | { kind: "weighing" }
   | { kind: "zero_weight" }
   | { kind: "scale_unavailable" }
+  | { kind: "unsteady"; reading: Reading }
   | { kind: "stable"; reading: Reading }
   | { kind: "taken"; reading: Reading }
   | { kind: "closed" };
@@ -45,12 +44,6 @@ export function useScaleWeighing<Reading extends StableReading = DefaultReading>
   useEffect(() => {
     let leaving = false;
     let asking = false;
-    let pause: ReturnType<typeof setTimeout> | undefined;
-
-    function askAfterPause() {
-      pause = setTimeout(ask, PAUSE_BETWEEN_ANSWERS_MS);
-    }
-
     function ask() {
       if (leaving || typing.current || taken.current || asking) {
         return;
@@ -81,7 +74,7 @@ export function useScaleWeighing<Reading extends StableReading = DefaultReading>
               confirmed.current = false;
               setConfirming(false);
               setZeroRefused(true);
-              askAfterPause();
+              ask();
               break;
             case "stable":
               shown.current = answer.reading.weightThousandths;
@@ -91,13 +84,21 @@ export function useScaleWeighing<Reading extends StableReading = DefaultReading>
               setPhase((current) =>
                 current.kind === "weighing" || current.kind === "stable" ? answer : current,
               );
-              askAfterPause();
+              ask();
+              break;
+            case "unsteady":
+              setPhase((current) =>
+                current.kind === "weighing" || current.kind === "stable"
+                  ? { kind: "weighing", last: answer.reading }
+                  : current,
+              );
+              ask();
               break;
             case "weighing":
               setPhase((current) =>
                 current.kind === "stable" ? { kind: "weighing", last: current.reading } : current,
               );
-              askAfterPause();
+              ask();
               break;
             case "closed":
               break;
@@ -105,14 +106,10 @@ export function useScaleWeighing<Reading extends StableReading = DefaultReading>
         });
     }
 
-    askNow.current = () => {
-      clearTimeout(pause);
-      ask();
-    };
+    askNow.current = ask;
     ask();
     return () => {
       leaving = true;
-      clearTimeout(pause);
     };
   }, []);
 
