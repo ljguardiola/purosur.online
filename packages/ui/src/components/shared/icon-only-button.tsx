@@ -79,7 +79,7 @@ export function IconOnlyButton({
   name,
   disabled = false,
   className,
-  wrapperClassName = "flex shrink-0",
+  wrapperClassName = "inline-flex shrink-0",
   children,
   ...buttonProps
 }: IconOnlyButtonProps) {
