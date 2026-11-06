@@ -26,16 +26,18 @@ const columns = [
   }),
 ] as const;
 
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+
 function PressableTable({
   items = [coffee, tea],
   ...props
-}: Omit<TableProps<Product>, "table" | "aria-label"> & { items?: readonly Product[] }) {
+}: DistributiveOmit<TableProps<Product>, "table" | "aria-label"> & {
+  items?: readonly Product[];
+}) {
   const table = useTableModel({
     items,
     id: (item) => item.id,
     columns,
-    sort: { column: "", direction: "ascending" },
-    onSortChange: () => {},
   });
   return <Table table={table} aria-label="Productos" {...props} />;
 }
@@ -85,8 +87,6 @@ function IgnoringTable({ onRowPress }: { onRowPress: (item: Product) => void }) 
     items: [coffee],
     id: (item) => item.id,
     columns: ignoringColumns,
-    sort: { column: "", direction: "ascending" },
-    onSortChange: () => {},
   });
   return <Table table={table} aria-label="Productos" onRowPress={onRowPress} />;
 }
