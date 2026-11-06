@@ -15,3 +15,12 @@ export function isSupplierPriceListReadingAbandoned(
     now.getTime() - startedAt.getTime() > SUPPLIER_PRICE_LIST_READING_ABANDONED_AFTER_MS
   );
 }
+
+// Only an answer that came back but could not be read as a list is asked for again: an AI
+// service that cannot be reached, or a range that does not fit an answer, would not change.
+export async function askPriceListRange<Answer extends { kind: string }>(
+  ask: () => Promise<Answer>,
+): Promise<Answer> {
+  const answer = await ask();
+  return answer.kind === "invalid_answer" ? ask() : answer;
+}
