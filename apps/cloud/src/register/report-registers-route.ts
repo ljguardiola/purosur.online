@@ -8,7 +8,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../sessions/route-access.js";
-import { DrizzleBranchRegisterStore } from "./drizzle-branch-register-store.js";
+import { DrizzleBranchRegisterReader } from "./drizzle-branch-register-reader.js";
 
 export interface ReportRegistersRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;
@@ -23,7 +23,7 @@ export function registerReportRegistersRoute<TQueryResult extends PgQueryResultH
   const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
-  const branchRegisters = new DrizzleBranchRegisterStore(options.db, now);
+  const branchRegisters = new DrizzleBranchRegisterReader(options.db);
 
   app.get(
     "/reports/registers",

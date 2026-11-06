@@ -1,7 +1,7 @@
 import { reportRegisterListSchema } from "@purosur/contracts";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { DrizzleBranchRegisterStore } from "../register/drizzle-branch-register-store.js";
+import { DrizzleBranchRegisterReader } from "../register/drizzle-branch-register-reader.js";
 import { sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
   capabilityAccess,
@@ -23,7 +23,7 @@ export function registerFiscalRegistersRoute<TQueryResult extends PgQueryResultH
   const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
-  const branchRegisters = new DrizzleBranchRegisterStore(options.db, now);
+  const branchRegisters = new DrizzleBranchRegisterReader(options.db);
 
   app.get(
     "/fiscal/registers",
