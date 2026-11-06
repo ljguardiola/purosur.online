@@ -6,7 +6,6 @@ import { parsedConfigOf } from "./typescript-config.mjs";
 
 const TYPE_CHECK_SCRIPT = "verify:static:types";
 const TYPESCRIPT_FILE = /\.[cm]?tsx?$/;
-const DECLARATION_FILE = /\.d\.[cm]?ts$/;
 const TSC_STEP = /^tsc --noEmit(?: -p (\S+))?$/;
 
 export function typeCheckedTsconfigs(script) {
@@ -58,7 +57,7 @@ export function findTypeCheckGaps(
 ) {
   const root = resolve(cwd);
   const pathOf = (fileName) => relative(root, fileName).split(sep).join("/");
-  const trackedDeclarations = new Set(trackedFiles.filter((path) => DECLARATION_FILE.test(path)));
+  const tracked = new Set(trackedFiles);
   const sharing = sharedSourceFiles();
   const checked = new Set();
   const declarationErrors = new Set();
@@ -73,7 +72,7 @@ export function findTypeCheckGaps(
     for (const sourceFile of program.getSourceFiles()) {
       const path = pathOf(sourceFile.fileName);
       checked.add(path);
-      if (!trackedDeclarations.has(path)) continue;
+      if (!sourceFile.isDeclarationFile || !tracked.has(path)) continue;
       for (const diagnostic of [
         ...program.getSyntacticDiagnostics(sourceFile),
         ...program.getSemanticDiagnostics(sourceFile),
