@@ -4,10 +4,7 @@ import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { CloudData } from "../platform/use-cloud-query";
 import { render } from "../shell/test-support/render-with-router";
-import {
-  AlertsOverviewOpenCount,
-  AlertsOverviewSection,
-} from "./alerts-overview-section";
+import { AlertsOverviewOpenCount, AlertsOverviewSection } from "./alerts-overview-section";
 
 const overview: AlertsOverview = {
   critical: { openCount: 4, kinds: ["user_access_increased"] },
@@ -37,7 +34,9 @@ function renderParts(data: CloudData<AlertsOverview>) {
 test("shows the open alerts grouped by level and their total in the pill", async () => {
   const screen = await renderParts(loaded(overview));
 
-  await expect.element(screen.getByRole("heading", { name: "Alertas abiertas", level: 2 })).toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "Alertas abiertas", level: 2 }))
+    .toBeVisible();
   await expect
     .element(screen.getByRole("link", { name: "Alertas críticas 4 Acceso ampliado" }))
     .toBeVisible();

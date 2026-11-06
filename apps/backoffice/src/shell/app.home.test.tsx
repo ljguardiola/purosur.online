@@ -2,6 +2,7 @@ import type { AlertSummary } from "@purosur/contracts";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import type { FetchAlertsOutcome } from "../alerts/alerts-api";
 import { fiscalTasks } from "../fiscal/test-support/fiscal-task-fixtures";
 import { openSession } from "../sessions/test-support/open-session";
 import { App } from "./app";
@@ -47,10 +48,10 @@ const passkeyAlert: AlertSummary = {
   refundMethod: null,
 };
 
-const oneAlert = {
+const oneAlert: FetchAlertsOutcome = {
   kind: "ok",
   value: { alerts: [passkeyAlert], total: 1, pageSize: 25, openCount: 3, openCriticalCount: 1 },
-} as const;
+};
 
 test("lands a user without the alerts permission on Inicio, with the registers and no alert section nor section column", async () => {
   const services = createAppServices({
@@ -129,9 +130,9 @@ test("filters the alert list by a level from that level's card on Inicio", async
 
   await userEvent.click(screen.getByRole("link", { name: /^Advertencias 2/ }));
 
-  await expect.poll(() => `${window.location.pathname}${window.location.search}`).toBe(
-    "/?level=warning",
-  );
+  await expect
+    .poll(() => `${window.location.pathname}${window.location.search}`)
+    .toBe("/?level=warning");
   await expect
     .poll(() => services.homeScreen.fetchAlerts)
     .toHaveBeenCalledWith({ level: "warning", open: true, page: 1 });
@@ -158,10 +159,8 @@ test("lands /alerts on Inicio with the same filters applied, scrolled to the ale
 
   await expect.element(screen.getByRole("heading", { name: "Inicio", level: 1 })).toBeVisible();
   await expect
-    .poll(
-      () => `${window.location.pathname}${window.location.search}${window.location.hash}`,
-    )
-    .toBe("/?level=critical&status=closed&page=2#alerts-list");
+    .poll(() => `${window.location.pathname}${window.location.search}${window.location.hash}`)
+    .toBe("/?level=critical&page=2&status=closed#alerts-list");
   await expect
     .poll(() => services.homeScreen.fetchAlerts)
     .toHaveBeenCalledWith({ level: "critical", open: false, page: 2 });
@@ -175,9 +174,7 @@ test("lands /alerts without filters on a clean Inicio URL", async () => {
 
   await expect.element(screen.getByRole("heading", { name: "Inicio", level: 1 })).toBeVisible();
   await expect
-    .poll(
-      () => `${window.location.pathname}${window.location.search}${window.location.hash}`,
-    )
+    .poll(() => `${window.location.pathname}${window.location.search}${window.location.hash}`)
     .toBe("/#alerts-list");
 });
 
@@ -214,7 +211,9 @@ test("shows each register of the branch with its last successful sync on Inicio"
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Estado de las cajas", level: 2 })).toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "Estado de las cajas", level: 2 }))
+    .toBeVisible();
   await expect
     .element(screen.getByRole("row", { name: /^Caja 1 02\/03\/2026 06:30$/ }))
     .toBeVisible();

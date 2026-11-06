@@ -129,7 +129,11 @@ test("keeps the page itself from scrolling when a screen's content overflows wit
 
 test("renders no section column when it is given none", async () => {
   const screen = await render(
-    <Shell sectionColumnLabel="Secciones" railAreas={<p>rail areas</p>} railFooter={<p>rail footer</p>}>
+    <Shell
+      sectionColumnLabel="Secciones"
+      railAreas={<p>rail areas</p>}
+      railFooter={<p>rail footer</p>}
+    >
       <p>main content</p>
     </Shell>,
   );

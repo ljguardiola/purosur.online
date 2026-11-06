@@ -178,9 +178,9 @@ test("can be reached by the alerts-list anchor, which holds its heading", async 
     .element(screen.getByRole("heading", { name: "Lista de alertas", level: 2 }))
     .toBeVisible();
   const anchor = document.getElementById("alerts-list");
-  expect(anchor?.contains(screen.getByRole("heading", { name: "Lista de alertas" }).element())).toBe(
-    true,
-  );
+  expect(
+    anchor?.contains(screen.getByRole("heading", { name: "Lista de alertas" }).element()),
+  ).toBe(true);
 });
 
 test("shows no counts line under the empty state, which already says nothing is open", async () => {
@@ -1340,4 +1340,26 @@ test("typing in the search renders none of the listed alerts again", async () =>
   } finally {
     vi.useRealTimers();
   }
+});
+
+test("adopts the filters its owner changes from outside, such as a level card pressed above it", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(ok([passkeyAlert, lockoutAlert]));
+  const onFiltersChange = vi.fn();
+  const screen = await renderScreen(services, () => {}, ADMINISTRATOR_ACCESS, { onFiltersChange });
+  await expect.element(screen.getByText("Lucía Pérez")).toBeVisible();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(ok([lockoutAlert]));
+
+  await screen.rerender(
+    screenElement(services, () => {}, ADMINISTRATOR_ACCESS, {
+      filters: { ...alertsListFilters.parse({}), level: "critical" },
+      onFiltersChange,
+    }),
+  );
+
+  await expect
+    .poll(() => services.fetchAlerts)
+    .toHaveBeenCalledWith({ level: "critical", open: true, page: 1 });
+  await expect.element(screen.getByText("Lucía Pérez")).not.toBeInTheDocument();
+  expect(onFiltersChange).not.toHaveBeenCalled();
 });

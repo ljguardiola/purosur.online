@@ -153,7 +153,6 @@ test("shows no open alerts count in the list's top bar", async () => {
   expect(screen.getByText(/alertas? abiertas?/).query()).toBeNull();
 });
 
-
 test("lists the price comparison beside the supplier price lists for whoever compares prices", async () => {
   const services = ordersServices(["supplier_price_lists", "price_comparison", "orders_area"]);
   window.history.pushState(null, "", "/supplier-price-lists");

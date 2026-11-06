@@ -298,4 +298,3 @@ test.each(STOCK_SCREENS)("shows no open alerts count in %s's top bar", async (pa
   expect(services.homeScreen.fetchAlertsOverview).not.toHaveBeenCalled();
   expect(screen.getByText(/alertas? abiertas?/).query()).toBeNull();
 });
-

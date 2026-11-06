@@ -9,7 +9,7 @@ import {
 } from "../payments/test-support/refund-fixtures";
 import type { BackofficeAccess } from "./backoffice-access";
 import { PendingTasksSection, type PendingTasksSectionServices } from "./pending-tasks-section";
-import { accessWith, ADMINISTRATOR_ACCESS } from "./test-support/backoffice-access";
+import { ADMINISTRATOR_ACCESS, accessWith } from "./test-support/backoffice-access";
 import { render } from "./test-support/render-with-router";
 
 const priceList = (pendingCount: number): PriceList => ({
@@ -88,7 +88,9 @@ test("lists no task whose count is zero", async () => {
 
   const screen = await renderSection(services);
 
-  await expect.element(screen.getByRole("link", { name: /^Reembolsos por Mercado Pago/ })).toBeVisible();
+  await expect
+    .element(screen.getByRole("link", { name: /^Reembolsos por Mercado Pago/ }))
+    .toBeVisible();
   expect(screen.getByRole("link", { name: /^Tareas fiscales/ }).query()).toBeNull();
   expect(screen.getByRole("link", { name: /^Precios a revisar/ }).query()).toBeNull();
   expect(screen.getByText("No hay tareas pendientes").query()).toBeNull();
@@ -97,7 +99,10 @@ test("lists no task whose count is zero", async () => {
 test("says there is nothing pending when every task the person sees has a count of zero", async () => {
   const services = createServices();
   vi.mocked(services.fetchFiscalTasks).mockResolvedValue({ kind: "ok", value: noFiscalTasks });
-  vi.mocked(services.fetchPendingRefunds).mockResolvedValue({ kind: "ok", value: noPendingRefunds });
+  vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
+    kind: "ok",
+    value: noPendingRefunds,
+  });
   vi.mocked(services.fetchPrices).mockResolvedValue({ kind: "ok", value: priceList(0) });
 
   const screen = await renderSection(services);
@@ -123,32 +128,31 @@ test.each([
     shown: ["Precios a revisar"],
     asked: ["fetchPrices"],
   },
-] as const)("shows only the tasks of $capability and asks the cloud only for their counts", async ({
-  capability,
-  shown,
-  asked,
-}) => {
-  const services = createServices();
+] as const)(
+  "shows only the tasks of $capability and asks the cloud only for their counts",
+  async ({ capability, shown, asked }) => {
+    const services = createServices();
 
-  const screen = await renderSection(services, { access: accessWith(capability) });
+    const screen = await renderSection(services, { access: accessWith(capability) });
 
-  await expect.element(screen.getByRole("link").first()).toBeVisible();
-  const names = screen
-    .getByRole("link")
-    .elements()
-    .map((link) => link.textContent ?? "");
-  expect(names).toHaveLength(shown.length);
-  for (const [index, label] of shown.entries()) {
-    expect(names[index]).toContain(label);
-  }
-  for (const name of ["fetchFiscalTasks", "fetchPendingRefunds", "fetchPrices"] as const) {
-    if (asked.some((called) => called === name)) {
-      expect(services[name]).toHaveBeenCalledTimes(1);
-    } else {
-      expect(services[name]).not.toHaveBeenCalled();
+    await expect.element(screen.getByRole("link").first()).toBeVisible();
+    const names = screen
+      .getByRole("link")
+      .elements()
+      .map((link) => link.textContent ?? "");
+    expect(names).toHaveLength(shown.length);
+    for (const [index, label] of shown.entries()) {
+      expect(names[index]).toContain(label);
     }
-  }
-});
+    for (const name of ["fetchFiscalTasks", "fetchPendingRefunds", "fetchPrices"] as const) {
+      if (asked.some((called) => called === name)) {
+        expect(services[name]).toHaveBeenCalledTimes(1);
+      } else {
+        expect(services[name]).not.toHaveBeenCalled();
+      }
+    }
+  },
+);
 
 test("renders nothing, asking the cloud for nothing, when the person sees no task", async () => {
   const services = createServices();
@@ -197,7 +201,10 @@ test("shows a task's load error whose retry reads it again, beside the tasks tha
 test("does not say there is nothing pending while a task failed to load", async () => {
   const services = createServices();
   vi.mocked(services.fetchFiscalTasks).mockResolvedValue({ kind: "failed" });
-  vi.mocked(services.fetchPendingRefunds).mockResolvedValue({ kind: "ok", value: noPendingRefunds });
+  vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
+    kind: "ok",
+    value: noPendingRefunds,
+  });
   vi.mocked(services.fetchPrices).mockResolvedValue({ kind: "ok", value: priceList(0) });
 
   const screen = await renderSection(services);
@@ -208,7 +215,10 @@ test("does not say there is nothing pending while a task failed to load", async 
 
 test("shows a rate-limited notice for the task whose count was refused", async () => {
   const services = createServices();
-  vi.mocked(services.fetchPrices).mockResolvedValue({ kind: "rate_limited", retryAfterSeconds: 120 });
+  vi.mocked(services.fetchPrices).mockResolvedValue({
+    kind: "rate_limited",
+    retryAfterSeconds: 120,
+  });
 
   const screen = await renderSection(services, { access: accessWith("prices_area") });
 

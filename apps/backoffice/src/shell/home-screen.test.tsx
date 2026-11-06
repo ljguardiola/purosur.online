@@ -188,11 +188,13 @@ test("lists the alerts of the filters it is given, and reports the filters the p
   expect(services.fetchAlerts).toHaveBeenCalledWith({ level: "critical", open: true, page: 1 });
   await userEvent.click(screen.getByRole("button", { name: /Estado/ }));
   await userEvent.click(screen.getByRole("option", { name: "Cerradas" }));
-  await expect.poll(() => onFiltersChange).toHaveBeenCalledWith({
-    ...alertsListFilters.parse({}),
-    level: "critical",
-    status: "closed",
-  });
+  await expect
+    .poll(() => onFiltersChange)
+    .toHaveBeenCalledWith({
+      ...alertsListFilters.parse({}),
+      level: "critical",
+      status: "closed",
+    });
 });
 
 test("shows each pending task the person may act on beside the rest of Inicio", async () => {
