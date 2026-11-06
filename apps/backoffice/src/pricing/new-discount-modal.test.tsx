@@ -16,6 +16,7 @@ import {
   fillValidNewDiscount,
   productPicker,
   typeValidityEnd,
+  typeValidityStart,
   validitySegments,
 } from "./test-support/discount-modal";
 import {
