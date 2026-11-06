@@ -1,13 +1,13 @@
 import { roundHalfUp } from "../../shared/index.js";
 
-export interface AiTokenPrices {
+interface AiTokenPrices {
   inputMicroUsdPerMillionTokens: number;
   outputMicroUsdPerMillionTokens: number;
   cacheWriteMicroUsdPerMillionTokens: number;
   cacheReadMicroUsdPerMillionTokens: number;
 }
 
-export interface AiLongPromptPrices extends AiTokenPrices {
+interface AiLongPromptPrices extends AiTokenPrices {
   overPromptTokens: number;
 }
 
