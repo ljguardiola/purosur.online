@@ -1,12 +1,13 @@
 import { expect, test } from "vitest";
 import { render } from "vitest-browser-react";
-import { ComboBox } from "../components/forms/combo-box";
+import { Select } from "../components/forms/select";
 import { switchBrowserLanguage } from "../test/browser-language";
 import { LocaleProvider } from "./locale-provider";
 
 function ProductField() {
   return (
-    <ComboBox
+    <Select
+      name="product"
       label="Producto"
       options={[{ value: "miel", label: "Miel de abeja" }]}
       value={null}
@@ -20,9 +21,7 @@ test("outside it, a component announces its screen-reader texts in the browser's
 
   switchBrowserLanguage("de-DE");
 
-  await expect
-    .element(screen.getByRole("button", { name: "Empfehlungen anzeigen Producto" }))
-    .toBeInTheDocument();
+  await expect.element(screen.getByRole("button", { name: /Element wählen/ })).toBeInTheDocument();
 });
 
 test("inside it, a component announces its screen-reader texts in Spanish whatever the browser's language", async () => {
@@ -35,6 +34,6 @@ test("inside it, a component announces its screen-reader texts in Spanish whatev
   switchBrowserLanguage("de-DE");
 
   await expect
-    .element(screen.getByRole("button", { name: "Mostrar sugerencias Producto" }))
+    .element(screen.getByRole("button", { name: /Seleccionar un artículo/ }))
     .toBeInTheDocument();
 });
