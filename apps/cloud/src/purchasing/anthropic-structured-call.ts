@@ -7,7 +7,12 @@ import type {
 import type { AiCallUsage, OnAiCall } from "@purosur/domain/purchasing/use-cases";
 import type { z } from "zod";
 
-export const PURCHASING_AI_MODEL = "claude-sonnet-5-5";
+export type PurchasingAiModel = "claude-sonnet-5-5" | "claude-haiku-5-5";
+
+const OFFERS_SERVER_SIDE_FALLBACK: Record<PurchasingAiModel, boolean> = {
+  "claude-sonnet-5-5": true,
+  "claude-haiku-5-5": false,
+};
 
 export type AnthropicFetch = (
   input: string | URL | Request,
@@ -40,15 +45,15 @@ function refusesTheRequest(error: unknown): boolean {
   );
 }
 
-function attemptsOf(message: BetaMessage) {
+function attemptsOf(message: BetaMessage, requestedModel: PurchasingAiModel) {
   const { usage } = message;
   const sampled = (usage.iterations ?? []).flatMap((iteration) =>
     iteration.type === "message" || iteration.type === "fallback_message"
-      ? [{ ...iteration, model: iteration.model ?? PURCHASING_AI_MODEL }]
+      ? [{ ...iteration, model: iteration.model ?? requestedModel }]
       : [],
   );
   const attempts =
-    sampled.length > 0 ? sampled : [{ ...usage, model: message.model ?? PURCHASING_AI_MODEL }];
+    sampled.length > 0 ? sampled : [{ ...usage, model: message.model ?? requestedModel }];
   return attempts.map((attempt) => ({
     model: attempt.model,
     inputTokens: attempt.input_tokens,
@@ -58,19 +63,24 @@ function attemptsOf(message: BetaMessage) {
   }));
 }
 
-function usageOf(message: BetaMessage | undefined, completed: boolean): AiCallUsage {
+function usageOf(
+  message: BetaMessage | undefined,
+  completed: boolean,
+  requestedModel: PurchasingAiModel,
+): AiCallUsage {
   if (message === undefined) {
     return { outcome: "failed", attempts: [] };
   }
   return {
     outcome: completed && message.stop_reason === "end_turn" ? "completed" : "cut_short",
-    attempts: attemptsOf(message),
+    attempts: attemptsOf(message, requestedModel),
   };
 }
 
 export async function askForStructuredAnswer(
   client: Anthropic,
   request: {
+    model: PurchasingAiModel;
     systemPrompt: string;
     content: BetaContentBlockParam[];
     format: z.ZodType;
@@ -83,11 +93,12 @@ export async function askForStructuredAnswer(
   const outputFormat = betaZodOutputFormat(request.format);
   const stream = client.beta.messages.stream(
     {
-      model: PURCHASING_AI_MODEL,
+      model: request.model,
       max_tokens: request.maxTokens,
       system: [{ type: "text", text: request.systemPrompt, cache_control: { type: "ephemeral" } }],
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
+      ...(OFFERS_SERVER_SIDE_FALLBACK[request.model]
+        ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const }
+        : {}),
       output_config: {
         effort: request.effort,
         format: { type: outputFormat.type, schema: outputFormat.schema },
@@ -98,7 +109,7 @@ export async function askForStructuredAnswer(
   );
   try {
     const message = await stream.finalMessage();
-    request.onCall(usageOf(message, true));
+    request.onCall(usageOf(message, true, request.model));
     if (message.stop_reason === "max_tokens") {
       return { kind: "too_long" };
     }
@@ -108,7 +119,7 @@ export async function askForStructuredAnswer(
     const answer = message.content.find((block) => block.type === "text");
     return answer ? { kind: "answered", text: answer.text } : { kind: "unreadable" };
   } catch (error) {
-    request.onCall(usageOf(stream.currentMessage, false));
+    request.onCall(usageOf(stream.currentMessage, false, request.model));
     if (refusesTheRequest(error)) {
       return { kind: "unreadable" };
     }
