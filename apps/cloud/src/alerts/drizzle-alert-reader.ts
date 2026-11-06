@@ -1,6 +1,6 @@
 import {
-  type AlertLevel,
   type AlertKind,
+  type AlertLevel,
   alertKindsWithScope,
   REGISTER_FORTNIGHT_SCOPE_SEPARATOR,
   SALES_DENIED_REASONS,
