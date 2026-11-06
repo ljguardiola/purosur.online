@@ -6,9 +6,11 @@ import type {
   SalesByPaymentMethodBody,
 } from "@purosur/contracts";
 import { useQueryClient } from "@tanstack/react-query";
+import { mapCloudData } from "../platform/map-cloud-data";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
-import { useCloudQuery } from "../platform/use-cloud-query";
+import { type CloudData, useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchHandConfirmedPayments, fetchSalesByPaymentMethod } from "./payments-report-api";
+import { madeOutsideTheSystem, sentToMercadoPago } from "./refund-kinds";
 import type { fetchPendingRefunds } from "./refunds-api";
 
 export const paymentsKey = ["payments"] as const;
@@ -35,18 +37,37 @@ export const paymentsKeys = {
 };
 
 export function usePendingRefundsQuery(params: {
-  enabled?: boolean | undefined;
   onSessionEnded: () => void;
   fetchPendingRefunds: typeof fetchPendingRefunds;
 }) {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQuery<PendingRefundsBody>({
     queryKey: paymentsKeys.pendingRefunds,
-    enabled: params.enabled,
     read: params.fetchPendingRefunds,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });
+}
+
+export type PendingRefundCounts = { mercadoPago: number; outsideTheSystem: number };
+
+export function usePendingRefundCounts(params: {
+  enabled: boolean;
+  fetchPendingRefunds: typeof fetchPendingRefunds;
+  onSessionEnded: () => void;
+}): CloudData<PendingRefundCounts> {
+  return mapCloudData(
+    useCloudQuery<PendingRefundsBody>({
+      queryKey: paymentsKeys.pendingRefunds,
+      enabled: params.enabled,
+      read: params.fetchPendingRefunds,
+      onSessionEnded: params.onSessionEnded,
+    }),
+    ({ refunds }) => ({
+      mercadoPago: sentToMercadoPago(refunds).length,
+      outsideTheSystem: madeOutsideTheSystem(refunds).length,
+    }),
+  );
 }
 
 export function useSalesByPaymentMethodQuery(params: {

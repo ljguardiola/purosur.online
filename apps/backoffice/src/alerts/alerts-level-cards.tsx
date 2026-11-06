@@ -31,6 +31,7 @@ export function AlertsLevelCards({ overview }: { overview: AlertsOverview }) {
           <CountCardLink
             to="/"
             search={{ level }}
+            replace
             label={LEVEL_CARD_LABELS[level]}
             count={overview[level].openCount}
             tone={ALERT_LEVEL_TONE[level]}

@@ -2,16 +2,16 @@ import { CountCard, EmptyState, LoadFailure, LoadingPlaceholder } from "@purosur
 import { createLink } from "@tanstack/react-router";
 import { ClipboardCheck } from "lucide-react";
 import { useId } from "react";
+import { usePendingFiscalTasksCount } from "../fiscal/fiscal-queries";
 import type { fetchFiscalTasks } from "../fiscal/fiscal-tasks-api";
-import { usePendingFiscalTasksCount } from "../fiscal/pending-fiscal-tasks-count";
-import { usePendingRefundCounts } from "../payments/pending-refunds-count";
+import { usePendingRefundCounts } from "../payments/payments-queries";
 import type { fetchPendingRefunds } from "../payments/refunds-api";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { mapCloudData } from "../platform/map-cloud-data";
 import { type PagePart, pagePartsFor } from "../platform/page-parts";
 import type { CloudData } from "../platform/use-cloud-query";
-import { usePendingPricesCount } from "../pricing/pending-prices-count";
 import type { fetchPrices } from "../pricing/prices-api";
+import { usePendingPricesCount } from "../pricing/pricing-queries";
 import {
   type BackofficeAccess,
   canSeeFiscalInformation,

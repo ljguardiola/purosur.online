@@ -4,14 +4,12 @@ import {
   actionsColumn,
   dataColumn,
   formatCents,
-  formatNumber,
   isLocalAlertKind,
   ListFilter,
   type LocalAlertSubject,
   localAlertText,
   localAlertTitle,
   Pagination,
-  plural,
   SearchField,
   StatusIndicator,
   Table,
@@ -208,8 +206,6 @@ export function AlertsListSection({
   const data = isPastLastPage ? LOADING_PAST_LAST_PAGE : read;
 
   const alerts = data.status === "loaded" ? data.value.alerts : NO_ALERTS;
-  const openCount = data.status === "loaded" ? data.value.openCount : 0;
-  const criticalCount = data.status === "loaded" ? data.value.openCriticalCount : 0;
   const pageCount =
     data.status === "loaded" ? Math.ceil(data.value.total / data.value.pageSize) : 0;
   const isFiltered = searchQuery.length > 0 || levelFilter !== "all" || statusFilter !== "open";
@@ -318,10 +314,7 @@ export function AlertsListSection({
           }
           footer={
             alerts.length === 0 ? undefined : (
-              <div className="flex items-center justify-between gap-4">
-                <p className="text-text-subtle text-detail">
-                  {`${plural(openCount, { one: "1 alerta abierta", other: `${formatNumber(openCount)} alertas abiertas` })} · ${plural(criticalCount, { one: "1 crítica", other: `${formatNumber(criticalCount)} críticas` })}`}
-                </p>
+              <div className="flex items-center justify-end gap-4">
                 <Pagination
                   page={page}
                   pageCount={pageCount}

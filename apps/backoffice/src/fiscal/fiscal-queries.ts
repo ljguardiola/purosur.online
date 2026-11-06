@@ -11,8 +11,9 @@ import type {
 import type { ZoneRules } from "@purosur/domain";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
+import { mapCloudData } from "../platform/map-cloud-data";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
-import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
+import { type CloudData, fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchCurrentZoneRules } from "../platform/zone-rules-api";
 import type {
   BuyerIdentificationThresholds,
@@ -265,18 +266,32 @@ export function useBuyerTaxStatusesQuery(params: {
 }
 
 export function useFiscalTasksQuery(params: {
-  enabled?: boolean | undefined;
   fetchFiscalTasks: typeof fetchFiscalTasks;
   onSessionEnded: () => void;
 }) {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQuery<FiscalTasks>({
     queryKey: fiscalKeys.fiscalTasks,
-    enabled: params.enabled,
     read: params.fetchFiscalTasks,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });
+}
+
+export function usePendingFiscalTasksCount(params: {
+  enabled: boolean;
+  fetchFiscalTasks: typeof fetchFiscalTasks;
+  onSessionEnded: () => void;
+}): CloudData<number> {
+  return mapCloudData(
+    useCloudQuery<FiscalTasks>({
+      queryKey: fiscalKeys.fiscalTasks,
+      enabled: params.enabled,
+      read: params.fetchFiscalTasks,
+      onSessionEnded: params.onSessionEnded,
+    }),
+    (read) => read.tasks.length,
+  );
 }
 
 export function useReloadFiscalTasks() {

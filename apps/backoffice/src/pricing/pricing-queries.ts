@@ -13,6 +13,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useId } from "react";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { combineCloudData } from "../platform/combine-cloud-data";
+import { mapCloudData } from "../platform/map-cloud-data";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { type CloudData, fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchDiscounts, fetchDiscountTargets } from "./discounts-api";
@@ -52,7 +53,6 @@ const discountTargetsRereadKey = (form: string, opening: number) =>
   [...discountsKey, "targets-reread", form, opening] as const;
 
 export function usePricesQuery(params: {
-  enabled?: boolean | undefined;
   input: FetchPricesInput;
   fetchPrices: typeof fetchPrices;
   onSessionEnded: () => void;
@@ -60,12 +60,29 @@ export function usePricesQuery(params: {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQuery<PriceList>({
     queryKey: pricesKeys.list(params.input),
-    enabled: params.enabled,
     keepPreviousData: true,
     read: () => params.fetchPrices(params.input),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });
+}
+
+const PENDING_REVIEW: FetchPricesInput = { review: "pending" };
+
+export function usePendingPricesCount(params: {
+  enabled: boolean;
+  fetchPrices: typeof fetchPrices;
+  onSessionEnded: () => void;
+}): CloudData<number> {
+  return mapCloudData(
+    useCloudQuery<PriceList>({
+      queryKey: pricesKeys.list(PENDING_REVIEW),
+      enabled: params.enabled,
+      read: () => params.fetchPrices(PENDING_REVIEW),
+      onSessionEnded: params.onSessionEnded,
+    }),
+    (prices) => prices.pendingCount,
+  );
 }
 
 export function usePriceMarginQuery(params: {

@@ -1,6 +1,5 @@
 import type { AlertsOverview } from "@purosur/contracts";
-import { EmptyState, LoadFailure, LoadingPlaceholder } from "@purosur/ui";
-import { Bell } from "lucide-react";
+import { LoadFailure, LoadingPlaceholder } from "@purosur/ui";
 import { type ReactNode, useId } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import type { CloudData } from "../platform/use-cloud-query";
@@ -41,17 +40,7 @@ export function AlertsOverviewSection({ data }: AlertsOverviewProps) {
         </div>
       )}
       {data.status === "failed" && <LoadFailure {...cloudLoadFailure(data, "las alertas")} />}
-      {data.status === "loaded" &&
-        (openAlertsCount(data.value) === 0 ? (
-          <EmptyState
-            icon={<Bell />}
-            title="Sin alertas abiertas"
-            description="Cuando algo necesite atención, aparece acá."
-            variant="blank"
-          />
-        ) : (
-          <AlertsLevelCards overview={data.value} />
-        ))}
+      {data.status === "loaded" && <AlertsLevelCards overview={data.value} />}
     </OverviewSection>
   );
 }
