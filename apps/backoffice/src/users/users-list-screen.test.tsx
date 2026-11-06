@@ -8,6 +8,7 @@ import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import { usersListFilters } from "./routes";
+import { CredentialSectionsStub, createServices } from "./test-support/user-detail-screen";
 import {
   createUsersListServices,
   EndEverySessionSectionStub,
@@ -101,7 +102,8 @@ function grantAuthorization(services: UsersListScreenServices) {
   vi.mocked(services.authorizeSession).mockResolvedValue({ kind: "ok" });
 }
 
-beforeEach(() => {
+beforeEach(async () => {
+  await page.viewport(1280, 900);
   window.history.pushState(null, "", "/");
 });
 
@@ -113,14 +115,12 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-test("shows the breadcrumb, heading, each user's role, and the user count", async () => {
+test("shows each user's role and the user count", async () => {
   const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator, martina] });
 
   const screen = await renderUsersList(services);
 
-  await expect.element(screen.getByText("Configuración")).toBeVisible();
-  await expect.element(screen.getByRole("heading", { name: "Usuarios", level: 1 })).toBeVisible();
   await expect.element(screen.getByText("Lucas Medrano")).toBeVisible();
   await expect.element(screen.getByText("lucas@example.com")).toBeVisible();
   await expect.element(screen.getByText("Martina Gómez")).toBeVisible();
@@ -157,8 +157,8 @@ test("shows no passkey helper line: a single passkey is a normal state and nothi
   expect(screen.getByText("Solo usa la caja").query()).toBeNull();
 });
 
-test("the row action navigates to that user's detail screen", async () => {
-  window.history.pushState(null, "", "/users");
+test("the row action opens that user's panel through the URL", async () => {
+  window.history.pushState(null, "", "/people/users");
   const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator, martina] });
   const screen = await renderUsersList(services);
@@ -166,7 +166,89 @@ test("the row action navigates to that user's detail screen", async () => {
 
   await userEvent.click(screen.getByRole("button", { name: "Editar a Martina Gómez" }));
 
-  expect(window.location.pathname).toBe("/users/user-2");
+  await expect.poll(() => window.location.search).toBe("?user=user-2");
+  expect(window.location.pathname).toBe("/people/users");
+});
+
+test("pressing a user's name opens that user's panel through the URL, keeping the state filter", async () => {
+  window.history.pushState(null, "", "/people/users?state=active");
+  const services = createUsersListServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator, martina] });
+  const screen = await renderUsersList(services);
+  await expect.element(screen.getByText("2 usuarios")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("link", { name: "Martina Gómez" }));
+
+  await expect.poll(() => window.location.search).toBe("?state=active&user=user-2");
+});
+
+test("shows the panel of the user the URL names, on the tab it names, beside the list", async () => {
+  const services = createUsersListServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator, martina] });
+  const detailServices = createServices();
+  vi.mocked(detailServices.fetchUser).mockResolvedValue({ kind: "ok", value: martina });
+
+  const screen = await renderUsersList(services, () => {}, ADMINISTRATOR_ACCESS, {
+    openUser: "user-2",
+    tab: "status",
+    detailServices,
+  });
+
+  await expect.element(screen.getByRole("complementary", { name: "Martina Gómez" })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Estado", selected: true })).toBeVisible();
+  await expect.element(screen.getByText("2 usuarios")).toBeVisible();
+  expect(detailServices.fetchUser).toHaveBeenCalledWith("user-2");
+});
+
+test("closing the panel removes the user and the tab from the URL, keeping the filter", async () => {
+  window.history.pushState(null, "", "/people/users?state=active&tab=status&user=user-2");
+  const services = createUsersListServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator, martina] });
+  const detailServices = createServices();
+  vi.mocked(detailServices.fetchUser).mockResolvedValue({ kind: "ok", value: martina });
+  const screen = await renderUsersList(services, () => {}, ADMINISTRATOR_ACCESS, {
+    openUser: "user-2",
+    tab: "status",
+    detailServices,
+  });
+  await expect.element(screen.getByRole("complementary", { name: "Martina Gómez" })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
+
+  await expect.poll(() => window.location.search).toBe("?state=active");
+});
+
+test("closes the panel of a user the list does not contain, replacing the URL without a new history entry", async () => {
+  window.history.pushState(null, "", "/people/users?tab=data&user=user-9");
+  const entries = window.history.length;
+  const services = createUsersListServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator, martina] });
+  const detailServices = createServices();
+
+  const screen = await renderUsersList(services, () => {}, ADMINISTRATOR_ACCESS, {
+    openUser: "user-9",
+    tab: "data",
+    detailServices,
+  });
+
+  await expect.element(screen.getByText("2 usuarios")).toBeVisible();
+  await expect.poll(() => window.location.search).toBe("");
+  expect(window.history.length).toBe(entries);
+  expect(detailServices.fetchUser).not.toHaveBeenCalled();
+  expect(screen.getByRole("complementary", { name: "Usuario" }).query()).toBeNull();
+});
+
+test("opens no panel while the list loads", async () => {
+  const services = createUsersListServices();
+  vi.mocked(services.fetchUsers).mockReturnValue(new Promise(() => {}));
+  const detailServices = createServices();
+
+  await renderUsersList(services, () => {}, ADMINISTRATOR_ACCESS, {
+    openUser: "user-2",
+    detailServices,
+  });
+
+  expect(detailServices.fetchUser).not.toHaveBeenCalled();
 });
 
 test("shows a load error with a retry action when the users fail to load", async () => {
@@ -224,8 +306,8 @@ test("shows the rate-limited notice with a retry action when the roles request i
   await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
 });
 
-test("navigates to Mi cuenta when the roles request comes back forbidden", async () => {
-  window.history.pushState(null, "", "/users");
+test("opens the own account panel over Inicio when the roles request comes back forbidden", async () => {
+  window.history.pushState(null, "", "/people/users");
   const services = createUsersListServices({
     fetchRoles: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });
@@ -233,7 +315,9 @@ test("navigates to Mi cuenta when the roles request comes back forbidden", async
 
   await renderUsersList(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("ends the session when the users request finds no open session", async () => {
@@ -698,6 +782,9 @@ test("a refresh of the roles in the background does not overwrite what is typed 
         filters={usersListFilters.parse({})}
         onFiltersChange={() => {}}
         endEverySessionSection={EndEverySessionSectionStub}
+        signedInUserId="admin-1"
+        credentialSections={CredentialSectionsStub}
+        detailServices={createServices()}
       />
     </main>,
   );
@@ -792,8 +879,8 @@ test("ends the session when authorizing finds the session already ended", async 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("navigates to Mi cuenta, without the authorization modal, when creating the user comes back forbidden", async () => {
-  window.history.pushState(null, "", "/users");
+test("opens the own account panel over Inicio, without the authorization modal, when creating the user comes back forbidden", async () => {
+  window.history.pushState(null, "", "/people/users");
   const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
   const screen = await renderUsersList(services);
@@ -805,12 +892,14 @@ test("navigates to Mi cuenta, without the authorization modal, when creating the
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "martina@example.com");
   await userEvent.click(dialog.getByRole("button", { name: "Crear el usuario" }));
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
   expect(services.fetchSessionAuthorizationOptions).not.toHaveBeenCalled();
 });
 
-test("navigates to Mi cuenta when creating the user retried after the authorization comes back forbidden", async () => {
-  window.history.pushState(null, "", "/users");
+test("opens the own account panel over Inicio when creating the user retried after the authorization comes back forbidden", async () => {
+  window.history.pushState(null, "", "/people/users");
   const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
   const screen = await renderUsersList(services);
@@ -829,7 +918,9 @@ test("navigates to Mi cuenta when creating the user retried after the authorizat
       .getByRole("button", { name: "Usar mi passkey" }),
   );
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("has no accessibility violations once loaded, and with the create modal open", async () => {
@@ -844,7 +935,7 @@ test("has no accessibility violations once loaded, and with the create modal ope
 });
 
 test("hides Nuevo usuario for a non-Administrator holding only deactivate_users", async () => {
-  window.history.pushState(null, "", "/users");
+  window.history.pushState(null, "", "/people/users");
   const services = createUsersListServices({
     fetchRoles: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });
@@ -859,11 +950,11 @@ test("hides Nuevo usuario for a non-Administrator holding only deactivate_users"
   await expect.element(screen.getByText("Tomás Ruiz")).toBeVisible();
   expect(screen.getByRole("button", { name: "Nuevo usuario" }).query()).toBeNull();
   expect(services.fetchRoles).not.toHaveBeenCalled();
-  expect(window.location.pathname).toBe("/users");
+  expect(window.location.pathname).toBe("/people/users");
 });
 
 test("offers a view action, not an edit one, to reach a user's detail for a non-Administrator holding only deactivate_users", async () => {
-  window.history.pushState(null, "", "/users");
+  window.history.pushState(null, "", "/people/users");
   const services = createUsersListServices({
     fetchRoles: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });
@@ -877,7 +968,7 @@ test("offers a view action, not an edit one, to reach a user's detail for a non-
 
   await userEvent.click(screen.getByRole("button", { name: "Ver a Tomás Ruiz" }));
   expect(screen.getByRole("button", { name: "Editar a Tomás Ruiz" }).query()).toBeNull();
-  await expect.poll(() => window.location.pathname).toBe("/users/user-3");
+  await expect.poll(() => window.location.search).toBe("?user=user-3");
 });
 
 test("shows an Inactivo tag on a deactivated user's row and none on an active one, for an Administrator", async () => {
@@ -928,8 +1019,8 @@ test("hides the Estado filter and column for a non-Administrator without reactiv
   expect(screen.getByRole("button", { name: /^Estado/ }).query()).toBeNull();
 });
 
-test("lets a reactivate-only holder open the list and reach an inactive user's detail, never reading the roles", async () => {
-  window.history.pushState(null, "", "/users");
+test("lets a reactivate-only holder open the list and reach an inactive user's panel, never reading the roles", async () => {
+  window.history.pushState(null, "", "/people/users");
   const services = createUsersListServices({
     fetchRoles: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });
@@ -943,7 +1034,7 @@ test("lets a reactivate-only holder open the list and reach an inactive user's d
 
   await userEvent.click(screen.getByRole("button", { name: "Ver a Sofía Díaz" }));
 
-  await expect.poll(() => window.location.pathname).toBe("/users/user-4");
+  await expect.poll(() => window.location.search).toBe("?user=user-4");
 });
 
 test("on a duplicate deactivated email, shows the reactivation notice and a Reactivar button, disabling Crear el usuario", async () => {
@@ -1000,8 +1091,8 @@ test("editing Correo after a duplicate-deactivated conflict clears the notice an
   await expect.element(dialog.getByRole("button", { name: "Crear el usuario" })).toBeEnabled();
 });
 
-test("Reactivar a X in the create modal closes it and navigates to that user's detail", async () => {
-  window.history.pushState(null, "", "/users");
+test("Reactivar a X in the create modal closes it and opens that user's panel on Estado", async () => {
+  window.history.pushState(null, "", "/people/users");
   const services = createUsersListServices();
   vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator] });
   const screen = await renderUsersList(services);
@@ -1019,7 +1110,7 @@ test("Reactivar a X in the create modal closes it and navigates to that user's d
   await userEvent.click(dialog.getByRole("button", { name: "Reactivar a Sofía Díaz" }));
 
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  await expect.poll(() => window.location.pathname).toBe("/users/user-4");
+  await expect.poll(() => window.location.search).toBe("?user=user-4&tab=status");
 });
 
 test("opens on the state it is given", async () => {

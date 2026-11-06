@@ -410,7 +410,9 @@ test("navigates to Mi cuenta, without the authorization modal, when the email ch
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "nueva@example.com");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
   expect(services.fetchSessionAuthorizationOptions).not.toHaveBeenCalled();
 });
 
@@ -430,7 +432,9 @@ test("navigates to Mi cuenta when the email change retried after the authorizati
       .getByRole("button", { name: "Usar mi passkey" }),
   );
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("shows a rate-limited notice when the change is rate limited", async () => {

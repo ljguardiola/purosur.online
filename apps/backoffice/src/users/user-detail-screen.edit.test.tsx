@@ -19,7 +19,8 @@ import {
 import { UserDetailScreen } from "./user-detail-screen";
 import { useRefreshUsers } from "./users-queries";
 
-beforeEach(() => {
+beforeEach(async () => {
+  await page.viewport(1280, 900);
   window.history.pushState(null, "", "/");
 });
 
@@ -35,7 +36,7 @@ test("shows the load failure when Recargar cannot read the user, and Reintentar 
   vi.mocked(services.fetchUser).mockResolvedValueOnce({ kind: "ok", value: lucia });
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
-  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 2 })).toBeVisible();
   expect(screen.getByRole("dialog").query()).toBeNull();
 });
 
@@ -80,8 +81,8 @@ test("shows the screen's not-found state when Recargar finds the user gone", asy
   await expect.element(screen.getByRole("alert")).toHaveTextContent("No encontramos este usuario");
 });
 
-test("navigates to Mi cuenta when Recargar comes back forbidden", async () => {
-  window.history.pushState(null, "", "/users/user-1");
+test("opens the own account panel over Inicio when Recargar comes back forbidden", async () => {
+  window.history.pushState(null, "", "/people/users?user=user-1");
   const services = createServices();
   const { screen, dialog } = await openStaleModal(services);
 
@@ -89,14 +90,16 @@ test("navigates to Mi cuenta when Recargar comes back forbidden", async () => {
   await userEvent.click(dialog.getByRole("button", { name: "Recargar" }));
 
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("keeps the loaded screen and an open edit modal with its typed email when the parent re-renders with a new onSessionEnded", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
   const screen = await renderScreen(services, () => {});
-  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 2 })).toBeVisible();
   const dialog = await openEditModal(screen);
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "nueva@example.com");
 
@@ -108,6 +111,7 @@ test("keeps the loaded screen and an open edit modal with its typed email when t
         access={ADMINISTRATOR_ACCESS}
         roleCreationModal={StubRoleCreationModal}
         credentialSections={CredentialSectionsStub}
+        onClose={() => {}}
         services={services}
         onSessionEnded={() => {}}
       />
@@ -174,12 +178,13 @@ test("a refresh of the user in the background does not overwrite what is typed i
         access={ADMINISTRATOR_ACCESS}
         roleCreationModal={StubRoleCreationModal}
         credentialSections={CredentialSectionsStub}
+        onClose={() => {}}
         services={services}
         onSessionEnded={() => {}}
       />
     </main>,
   );
-  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 2 })).toBeVisible();
   const dialog = await openEditModal(screen);
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "escrito@example.com");
 
@@ -196,7 +201,7 @@ test("Editar opens the edit modal offering the roles the screen read, and Cancel
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
   const screen = await renderScreen(services);
-  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 2 })).toBeVisible();
   const dialog = await openEditModal(screen);
 
   await userEvent.click(dialog.getByRole("combobox", { name: /^Rol/ }));
@@ -215,7 +220,7 @@ test("ends the session when the edit modal's change finds it closed", async () =
   vi.mocked(services.editUser).mockResolvedValue({ kind: "unauthenticated" });
   const onSessionEnded = vi.fn();
   const screen = await renderScreen(services, onSessionEnded);
-  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 2 })).toBeVisible();
   const dialog = await openEditModal(screen);
 
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
@@ -232,7 +237,7 @@ test.each([
     const services = createServices();
     vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
     const screen = await renderScreen(services, () => {}, "user-1", "admin-1", access);
-    await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Lucía", level: 2 })).toBeVisible();
     const dialog = await openEditModal(screen);
 
     await userEvent.fill(dialog.getByRole("combobox", { name: /^Rol/ }), "Cajero de tarde");

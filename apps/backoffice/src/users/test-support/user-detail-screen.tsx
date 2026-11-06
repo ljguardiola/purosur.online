@@ -101,13 +101,17 @@ export function CredentialSectionsStub(props: UserCredentialSectionsProps) {
   );
 }
 
-export function renderScreen(
+export type RenderedTab = "data" | "credentials" | "status";
+
+export function renderScreenAt(
+  tab: RenderedTab | undefined,
   services: UserDetailScreenServices,
   onSessionEnded: () => void = () => {},
   userId = "user-1",
   signedInUserId = "admin-1",
   access: BackofficeAccess = ADMINISTRATOR_ACCESS,
   credentialSections: UserDetailScreenProps["credentialSections"] = CredentialSectionsStub,
+  onClose: () => void = () => {},
 ) {
   return render(
     <main>
@@ -118,10 +122,27 @@ export function renderScreen(
         roleCreationModal={StubRoleCreationModal}
         credentialSections={credentialSections}
         services={services}
+        tab={tab}
+        onClose={onClose}
         onSessionEnded={onSessionEnded}
       />
     </main>,
   );
+}
+
+type ScreenArguments =
+  Parameters<typeof renderScreenAt> extends [unknown, ...infer Rest] ? Rest : never;
+
+export function renderScreen(...args: ScreenArguments) {
+  return renderScreenAt("data", ...args);
+}
+
+export function renderCredentialsTab(...args: ScreenArguments) {
+  return renderScreenAt("credentials", ...args);
+}
+
+export function renderStatusTab(...args: ScreenArguments) {
+  return renderScreenAt("status", ...args);
 }
 
 export const DEACTIVATE_USERS_ACCESS = accessWith("users_area", "deactivate_users");
@@ -169,7 +190,7 @@ export async function openEditModal(screen: Screen) {
 export async function openStaleModal(services: UserDetailScreenServices) {
   vi.mocked(services.fetchUser).mockResolvedValueOnce({ kind: "ok", value: lucia });
   const screen = await renderScreen(services);
-  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Lucía", level: 2 })).toBeVisible();
   const dialog = await openEditModal(screen);
   vi.mocked(services.editUser).mockResolvedValueOnce({ kind: "stale_version" });
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Correo/ }), "nueva@example.com");
