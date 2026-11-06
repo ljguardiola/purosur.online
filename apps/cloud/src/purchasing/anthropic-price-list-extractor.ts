@@ -1,6 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type { BetaContentBlockParam } from "@anthropic-ai/sdk/resources/beta/messages/messages";
 import {
+  askPriceListRange,
   PRICE_LIST_EXTRACTION_MAX_DESCRIPTION_LENGTH,
   PRICE_LIST_EXTRACTION_MAX_ROWS,
   PRICE_LIST_EXTRACTION_MAX_SHORT_TEXT_LENGTH,
@@ -90,6 +91,7 @@ type RangeReading =
       pricesIncludeVat: boolean | null;
       rows: ExtractedRow[];
     }
+  | { kind: "invalid_answer" }
   | { kind: "unreadable" }
   | { kind: "unavailable" }
   | { kind: "too_long" };
@@ -99,10 +101,10 @@ function parsedAnswer(text: string): RangeReading {
   try {
     json = JSON.parse(text);
   } catch {
-    return { kind: "unreadable" };
+    return { kind: "invalid_answer" };
   }
   const parsed = strictProposedList.safeParse(json);
-  return parsed.success ? { kind: "read", ...parsed.data } : { kind: "unreadable" };
+  return parsed.success ? { kind: "read", ...parsed.data } : { kind: "invalid_answer" };
 }
 
 function withRealPages(
@@ -458,7 +460,16 @@ export class AnthropicPriceListExtractor implements PriceListExtractor {
     );
   }
 
-  private async ask(
+  private ask(
+    systemPrompt: string,
+    content: BetaContentBlockParam[],
+    deadline: AbortSignal,
+    onCall: OnAiCall,
+  ): Promise<RangeReading> {
+    return askPriceListRange(() => this.askOnce(systemPrompt, content, deadline, onCall));
+  }
+
+  private async askOnce(
     systemPrompt: string,
     content: BetaContentBlockParam[],
     deadline: AbortSignal,

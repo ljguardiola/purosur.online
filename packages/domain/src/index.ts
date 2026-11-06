@@ -629,6 +629,7 @@ export {
   AI_CALL_PURPOSES,
   AI_COST_GROUPINGS,
   AI_MODEL_PRICES,
+  askPriceListRange,
   countsTowardDailyExtractionCap,
   DEFAULT_FREIGHT_PERIOD_DAYS,
   DEFAULT_SUPPLIER_ITEM_VAT_RATE,

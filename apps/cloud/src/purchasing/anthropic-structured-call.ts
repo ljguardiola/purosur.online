@@ -35,6 +35,7 @@ export function anthropicClient(options: {
 export type StructuredAnswer =
   | { kind: "answered"; text: string }
   | { kind: "too_long" }
+  | { kind: "invalid_answer" }
   | { kind: "unreadable" }
   | { kind: "unavailable" };
 
@@ -113,11 +114,14 @@ export async function askForStructuredAnswer(
     if (message.stop_reason === "max_tokens") {
       return { kind: "too_long" };
     }
+    if (message.stop_reason === "refusal") {
+      return { kind: "invalid_answer" };
+    }
     if (message.stop_reason !== "end_turn") {
       return { kind: "unreadable" };
     }
     const answer = message.content.find((block) => block.type === "text");
-    return answer ? { kind: "answered", text: answer.text } : { kind: "unreadable" };
+    return answer ? { kind: "answered", text: answer.text } : { kind: "invalid_answer" };
   } catch (error) {
     request.onCall(usageOf(stream.currentMessage, false, request.model));
     if (refusesTheRequest(error)) {
