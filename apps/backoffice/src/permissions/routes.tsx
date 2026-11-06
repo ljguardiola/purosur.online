@@ -6,7 +6,7 @@ import { signedInRoute } from "../shell/signed-in-route";
 export const rolesListRoute = createRoute({
   getParentRoute: () => peopleRoute,
   path: "roles",
-  beforeLoad: ({ context: { session } }) => peopleTabRedirect(session, "roles"),
+  beforeLoad: ({ context: { peopleTabs } }) => peopleTabRedirect(peopleTabs, "roles"),
   component: lazyScreen(() => import("./roles-list-page"), "RolesListPage"),
 });
 

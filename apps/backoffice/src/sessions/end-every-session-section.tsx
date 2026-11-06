@@ -22,7 +22,7 @@ export function EndEverySessionSection({ onSessionEnded }: EndEverySessionSectio
         tone="error"
         icon={<ShieldAlert />}
         title="Cerrar todas las sesiones del backoffice"
-        description="Cierra todas las sesiones abiertas del backoffice. Cada persona vuelve a entrar con su passkey."
+        description="Cada persona vuelve a entrar con su passkey."
         actions={
           <Button
             variant="primary"

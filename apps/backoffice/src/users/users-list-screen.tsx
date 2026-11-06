@@ -57,6 +57,7 @@ import {
 import { roleOptions, withCreatedRole } from "./role-display";
 import { roleFieldMessage } from "./role-field-message";
 import type { UsersListFilters } from "./routes";
+import { isSameUserId } from "./same-user-id";
 import { userEmailMessage } from "./user-email-message";
 import { type UserCredentialSectionsProps, UserPanel } from "./user-panel";
 import type { UserPanelServices } from "./user-panel-services";
@@ -406,7 +407,7 @@ function UsersListView({
   }
 
   const openUserListed =
-    openUser !== undefined && users.some((candidate) => candidate.id === openUser);
+    openUser !== undefined && users.some((candidate) => isSameUserId(candidate.id, openUser));
   const closeUnlistedUser = useEffectEvent(() => {
     void navigate({
       from: "/people/users",
@@ -536,7 +537,9 @@ function UsersListView({
             table={table}
             {...cloudTableState(data, "los usuarios")}
             onRowPress={(item) => openUserPanel(item.id)}
-            rowState={(item) => (item.id === openUser ? "selected" : undefined)}
+            rowState={(item) =>
+              openUser !== undefined && isSameUserId(item.id, openUser) ? "selected" : undefined
+            }
             empty={
               users.length === 0
                 ? {

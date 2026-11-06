@@ -1,7 +1,7 @@
 import { createRoute, redirect } from "@tanstack/react-router";
 import { z } from "zod";
 import { pagePartsFor } from "../platform/page-parts";
-import { type BackofficeAccess, canManageUsers, canSeePeopleArea } from "./backoffice-access";
+import { canManageUsers, canSeePeopleArea } from "./backoffice-access";
 import { lazyScreen } from "./lazy-screen";
 import { PEOPLE_TABS, type PeopleTab } from "./people-tabs";
 import { settingsAreaRoute } from "./settings-area";
@@ -33,20 +33,13 @@ export const peopleRoute = createRoute({
 export const peopleLandingRoute = createRoute({
   getParentRoute: () => peopleRoute,
   path: "/",
-  beforeLoad: ({ context: { session } }) => {
-    const parts = pagePartsFor(session, PEOPLE_TABS);
-    if (parts.kind === "hidden") {
-      refuseWithout(session, () => false);
-      return;
-    }
-    throw redirect({ to: parts.defaultPart === "users" ? "/people/users" : "/people/roles" });
+  beforeLoad: ({ context: { peopleTabs } }) => {
+    throw redirect({ to: peopleTabs[0] === "roles" ? "/people/roles" : "/people/users" });
   },
 });
 
-export function peopleTabRedirect(session: BackofficeAccess, own: PeopleTab): void {
-  const parts = pagePartsFor(session, PEOPLE_TABS);
-  if (parts.kind === "hidden" || parts.visible.includes(own)) {
-    return;
+export function peopleTabRedirect(peopleTabs: readonly PeopleTab[], own: PeopleTab): void {
+  if (!peopleTabs.includes(own)) {
+    throw redirect({ to: "/people" });
   }
-  throw redirect({ to: "/people" });
 }

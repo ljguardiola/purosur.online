@@ -292,7 +292,8 @@ function RegistrationOfToken({
         Registrar la passkey
       </Button>
       <p className="text-detail text-text-subtle">
-        Después conviene agregar una segunda, por ejemplo en el teléfono, desde Mi cuenta.
+        Después conviene agregar una segunda, por ejemplo en el teléfono, desde tu nombre, abajo en
+        el menú.
       </p>
     </AccessLayout>
   );

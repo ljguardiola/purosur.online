@@ -21,6 +21,7 @@ import { type BackofficeAccess, canManageUsers, canSeeRolesArea } from "../shell
 import { DeactivateUserModal } from "./deactivate-user-modal";
 import { EditUserModal } from "./edit-user-modal";
 import { ReactivateUserModal } from "./reactivate-user-modal";
+import { isSameUserId } from "./same-user-id";
 import { UserDataFields } from "./user-data-fields";
 import type { UserPanelServices } from "./user-panel-services";
 import {
@@ -135,9 +136,7 @@ function UserPanelView({
     }
   }, [user]);
 
-  // The cloud accepts a user id in any letter case, so the URL's id may differ in case from the
-  // session's own.
-  const isOwnAccount = signedInUserId.toLowerCase() === userId.toLowerCase();
+  const isOwnAccount = isSameUserId(signedInUserId, userId);
   const showsPinSection = user ? user.mayEmitPinCode : isOwnAccount && access.mayEmitOwnPinCode;
   const showsCredentials = showsPasskeys || showsPinSection;
   const parts = pagePartsFor({ showsCredentials }, USER_PANEL_TABS);
@@ -213,28 +212,28 @@ function UserPanelView({
                 </>
               )}
               {selectedTab === "credentials" && (
-                <Suspense fallback={<LoadingPlaceholder variant="card" lines={2} />}>
-                  <CredentialSections
-                    userId={userId}
-                    user={user}
-                    dataStatus={data.status}
-                    showsPasskeys={showsPasskeys}
-                    showsPin={showsPinSection}
-                    onSessionEnded={onSessionEnded}
-                    onUserOutdated={() => void refreshUsers()}
-                  />
-                </Suspense>
+                <>
+                  <UserRecordState data={data} />
+                  <Suspense fallback={<LoadingPlaceholder variant="card" lines={2} />}>
+                    <CredentialSections
+                      userId={userId}
+                      user={user}
+                      dataStatus={data.status}
+                      showsPasskeys={showsPasskeys}
+                      showsPin={showsPinSection}
+                      onSessionEnded={onSessionEnded}
+                      onUserOutdated={() => void refreshUsers()}
+                    />
+                  </Suspense>
+                </>
               )}
               {selectedTab === "status" && (
                 <>
                   <UserRecordState data={data} />
                   {user ? (
-                    <div className="flex flex-col gap-1">
-                      <p className="font-bold text-text-subtle text-detail">Estado</p>
-                      <p className="font-semibold text-body text-text">
-                        {user.active === false ? "Inactivo" : "Activo"}
-                      </p>
-                    </div>
+                    <p className="font-semibold text-body text-text">
+                      {user.active === false ? "Inactivo" : "Activo"}
+                    </p>
                   ) : null}
                   {user?.mayDeactivate === true && (
                     <div className="flex flex-col gap-3">

@@ -18,7 +18,7 @@ const usersListSearch = usersListFilters.extend({
 export const usersListRoute = createRoute({
   getParentRoute: () => peopleRoute,
   path: "users",
-  beforeLoad: ({ context: { session } }) => peopleTabRedirect(session, "users"),
+  beforeLoad: ({ context: { peopleTabs } }) => peopleTabRedirect(peopleTabs, "users"),
   validateSearch: usersListSearch,
   search: { middlewares: [stripSearchParams(usersListFilters.parse({}))] },
   component: lazyScreen(() => import("./users-list-page"), "UsersListPage"),
