@@ -13,7 +13,7 @@ import {
   renderScreen,
   renderStatusTab,
   shiftRole,
-} from "./test-support/user-detail-screen";
+} from "./test-support/user-panel";
 
 beforeEach(async () => {
   await page.viewport(1280, 900);

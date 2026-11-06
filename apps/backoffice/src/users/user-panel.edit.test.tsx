@@ -15,8 +15,8 @@ import {
   openEditModal,
   openStaleModal,
   renderScreen,
-} from "./test-support/user-detail-screen";
-import { UserDetailScreen } from "./user-detail-screen";
+} from "./test-support/user-panel";
+import { UserPanel } from "./user-panel";
 import { useRefreshUsers } from "./users-queries";
 
 beforeEach(async () => {
@@ -105,7 +105,7 @@ test("keeps the loaded screen and an open edit modal with its typed email when t
 
   await screen.rerender(
     <main>
-      <UserDetailScreen
+      <UserPanel
         userId="user-1"
         signedInUserId="admin-1"
         access={ADMINISTRATOR_ACCESS}
@@ -172,7 +172,7 @@ test("a refresh of the user in the background does not overwrite what is typed i
           refreshUsers = refresh;
         }}
       />
-      <UserDetailScreen
+      <UserPanel
         userId="user-1"
         signedInUserId="admin-1"
         access={ADMINISTRATOR_ACCESS}

@@ -22,7 +22,10 @@ test("shows the Eventos en cuarentena item to a user holding quarantined_events,
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(sessionHolding(["quarantined_events"])),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   vi.mocked(services.quarantinedEventsScreen.fetchQuarantinedEvents).mockResolvedValue({
     kind: "ok",
     value: { events: [] },
@@ -57,7 +60,10 @@ test("redirects a typed /quarantined-events to Mi cuenta for a user without quar
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(sessionHolding([])),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   window.history.pushState(null, "", "/quarantined-events");
 
   const screen = await render(<App help={emptyHelp} services={services} />);

@@ -24,7 +24,10 @@ function reportsServices(capabilities: Capability[]) {
       }),
     ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   vi.mocked(
     services.receiptDifferencesReportScreen.fetchReceiptDifferencesReport,
   ).mockResolvedValue({ kind: "ok", value: receiptDifferencesReport });

@@ -4,32 +4,32 @@ import { useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { useOwnPasskeysQuery, useRefreshCredentials } from "./credentials-queries";
-import type { MyAccountScreenServices } from "./my-account-services";
+import type { OwnCredentialsSectionServices } from "./own-credentials-section-services";
 import type { Passkey } from "./passkey-list";
 import { passkeyRowDetail } from "./passkey-row-detail";
 import { RegisterOwnPasskeyModal } from "./register-own-passkey-modal";
 import { RemoveOwnPasskeyModal } from "./remove-own-passkey-modal";
 import { UserPinSection } from "./user-pin-section";
 
-export type MyAccountScreenProps = {
+export type OwnCredentialsSectionProps = {
   displayName: string;
   userId: string;
   access: BackofficeAccess;
   onSessionEnded: () => void;
   now?: () => Date;
-  services: MyAccountScreenServices;
+  services: OwnCredentialsSectionServices;
 };
 
 const NO_PASSKEYS: Passkey[] = [];
 
-export function MyAccountScreen({
+export function OwnCredentialsSection({
   displayName,
   userId,
   access,
   onSessionEnded,
   now,
   services,
-}: MyAccountScreenProps) {
+}: OwnCredentialsSectionProps) {
   const { fetchPasskeys } = services;
   const data = useOwnPasskeysQuery({
     fetchPasskeys,

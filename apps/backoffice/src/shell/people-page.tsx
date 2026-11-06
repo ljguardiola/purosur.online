@@ -20,8 +20,8 @@ const route = getRouteApi("/signed-in/settings-area/people");
 const PeopleTabLink = createLink(Tab);
 
 const CompromiseResponseAssistant = lazyScreen(
-  () => import("../sessions/compromise-response-page"),
-  "CompromiseResponsePage",
+  () => import("../sessions/compromise-response-assistant"),
+  "CompromiseResponseAssistant",
 );
 
 const TAB_LABELS: Record<PeopleTab, string> = { users: "Usuarios", roles: "Roles" };

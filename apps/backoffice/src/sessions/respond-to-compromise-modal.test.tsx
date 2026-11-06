@@ -7,7 +7,7 @@ import {
   createServices,
   grantAuthorization,
   renderScreen,
-} from "./test-support/compromise-response-screen";
+} from "./test-support/respond-to-compromise-modal";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/people/users?assistant=compromise-response");

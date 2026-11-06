@@ -57,9 +57,9 @@ import {
 import { roleOptions, withCreatedRole } from "./role-display";
 import { roleFieldMessage } from "./role-field-message";
 import type { UsersListFilters } from "./routes";
-import { type UserCredentialSectionsProps, UserDetailScreen } from "./user-detail-screen";
-import type { UserDetailScreenServices } from "./user-detail-services";
 import { userEmailMessage } from "./user-email-message";
+import { type UserCredentialSectionsProps, UserPanel } from "./user-panel";
+import type { UserPanelServices } from "./user-panel-services";
 import type { CreateUserOutcome, createUser } from "./users-api";
 import type { UsersListScreenServices } from "./users-list-services";
 import { useMarkUsersStale, useRefreshUsers, useRolesQuery, useUsersQuery } from "./users-queries";
@@ -74,7 +74,7 @@ export type UsersListScreenProps = {
   services: UsersListScreenServices;
   signedInUserId: string;
   credentialSections: ComponentType<UserCredentialSectionsProps>;
-  detailServices: UserDetailScreenServices;
+  detailServices: UserPanelServices;
   openUser?: string | undefined;
   tab?: string | undefined;
 };
@@ -570,7 +570,7 @@ function UsersListView({
           ) : null}
         </div>
         {openUser !== undefined && openUserListed ? (
-          <UserDetailScreen
+          <UserPanel
             key={openUser}
             userId={openUser}
             signedInUserId={signedInUserId}

@@ -8,7 +8,7 @@ import {
   REACTIVATE_USERS_ACCESS,
   renderStatusTab,
   sofia,
-} from "./test-support/user-detail-screen";
+} from "./test-support/user-panel";
 
 beforeEach(async () => {
   await page.viewport(1280, 900);

@@ -1,11 +1,11 @@
 import { DetailPanel, Tab, Tabs } from "@purosur/ui";
 import { createLink, getRouteApi } from "@tanstack/react-router";
 import type { ReactElement } from "react";
-import { MyAccountScreen } from "../credentials/my-account-screen";
-import { defaultMyAccountScreenServices } from "../credentials/my-account-services";
+import { OwnCredentialsSection } from "../credentials/own-credentials-section";
+import { defaultOwnCredentialsSectionServices } from "../credentials/own-credentials-section-services";
 import { landingPart, type PagePart, pagePartsFor } from "../platform/page-parts";
 import { OwnUserData } from "../users/own-user-data";
-import { defaultUserDetailScreenServices } from "../users/user-detail-services";
+import { defaultUserPanelServices } from "../users/user-panel-services";
 import { type BackofficeAccess, canSeeUsersArea } from "./backoffice-access";
 
 const route = getRouteApi("/signed-in");
@@ -49,15 +49,15 @@ export function OwnAccountPanel({ tab, onClose }: OwnAccountPanelProps): ReactEl
             <OwnUserData
               userId={session.userId}
               onSessionEnded={sessionActions.sessionEnded}
-              services={services.userDetailScreen ?? defaultUserDetailScreenServices}
+              services={services.userPanel ?? defaultUserPanelServices}
             />
           ) : (
-            <MyAccountScreen
+            <OwnCredentialsSection
               displayName={session.displayName}
               userId={session.userId}
               access={session}
               onSessionEnded={sessionActions.sessionEnded}
-              services={services.myAccountScreen ?? defaultMyAccountScreenServices}
+              services={services.ownCredentialsSection ?? defaultOwnCredentialsSectionServices}
             />
           )}
         </div>

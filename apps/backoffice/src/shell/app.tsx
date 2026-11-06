@@ -12,7 +12,7 @@ import type { CategoriesListScreenServices } from "../catalog/categories-list-se
 import type { ProductsListScreenServices } from "../catalog/products-list-services";
 import type { TagsListScreenServices } from "../catalog/tags-list-services";
 import type { AccountRecoveryScreenServices } from "../credentials/account-recovery-services";
-import type { MyAccountScreenServices } from "../credentials/my-account-services";
+import type { OwnCredentialsSectionServices } from "../credentials/own-credentials-section-services";
 import type { RegisterPasskeyScreenServices } from "../credentials/register-passkey-services";
 import type { UserCredentialSectionsServices } from "../credentials/user-credential-sections-services";
 import type { ExceptionalityScreenServices } from "../fiscal/exceptionality-services";
@@ -75,8 +75,8 @@ import type { SalesByCashierScreenServices } from "../sales/sales-by-cashier-ser
 import type { SalesByDayScreenServices } from "../sales/sales-by-day-services";
 import type { SalesByProductAndCategoryScreenServices } from "../sales/sales-by-product-and-category-services";
 import type { SalesByPromotionScreenServices } from "../sales/sales-by-promotion-services";
-import type { CompromiseResponseScreenServices } from "../sessions/compromise-response-services";
 import type { EndEverySessionSectionServices } from "../sessions/end-every-session-section-services";
+import type { RespondToCompromiseModalServices } from "../sessions/respond-to-compromise-modal-services";
 import { checkSessionStatus, fetchSession, type SessionOutcome } from "../sessions/session-api";
 import type { SignInScreenServices } from "../sessions/sign-in-services";
 import type { AssemblyBatchesScreenServices } from "../stock/assembly-batches-services";
@@ -91,8 +91,8 @@ import type { StockBalancesScreenServices } from "../stock/stock-balances-servic
 import type { StockCountsScreenServices } from "../stock/stock-counts-services";
 import type { StockMovementsScreenServices } from "../stock/stock-movements-services";
 import type { QuarantinedEventsScreenServices } from "../sync/quarantined-events-services";
-import type { UserCredentialSectionsProps } from "../users/user-detail-screen";
-import type { UserDetailScreenServices } from "../users/user-detail-services";
+import type { UserCredentialSectionsProps } from "../users/user-panel";
+import type { UserPanelServices } from "../users/user-panel-services";
 import type { UsersListEndEverySessionSectionProps } from "../users/users-list-screen";
 import type { UsersListScreenServices } from "../users/users-list-services";
 import { type AccountFooterServices, defaultAccountFooterServices } from "./account-footer";
@@ -117,13 +117,13 @@ export type AppServices = {
   signInScreen: SignInScreenServices;
   accountRecoveryScreen: AccountRecoveryScreenServices;
   registerPasskeyScreen: RegisterPasskeyScreenServices;
-  myAccountScreen: MyAccountScreenServices;
+  ownCredentialsSection: OwnCredentialsSectionServices;
   usersListScreen: UsersListScreenServices;
-  userDetailScreen: UserDetailScreenServices;
+  userPanel: UserPanelServices;
   usersListEndEverySessionSection: ComponentType<UsersListEndEverySessionSectionProps>;
   endEverySessionSection: EndEverySessionSectionServices;
-  compromiseResponseScreen: CompromiseResponseScreenServices;
-  userDetailCredentialSections: ComponentType<UserCredentialSectionsProps>;
+  respondToCompromiseModal: RespondToCompromiseModalServices;
+  userPanelCredentialSections: ComponentType<UserCredentialSectionsProps>;
   userCredentialSections: UserCredentialSectionsServices;
   rolesListScreen: RolesListScreenServices;
   registersListScreen: RegistersListScreenServices;
@@ -206,7 +206,7 @@ export type AppServices = {
 type ShellServiceName =
   | "fetchSession"
   | "checkSessionStatus"
-  | "userDetailCredentialSections"
+  | "userPanelCredentialSections"
   | "usersListEndEverySessionSection"
   | "areaTopBarAlertsCount"
   | "areaTopBarUnbilledDeferredSales"
@@ -229,7 +229,7 @@ const defaultRouteServices: RouteServices = {
     () => import("../sessions/end-every-session-section"),
     "EndEverySessionSection",
   ),
-  userDetailCredentialSections: lazyScreen(
+  userPanelCredentialSections: lazyScreen(
     () => import("../credentials/user-credential-sections"),
     "UserCredentialSections",
   ),

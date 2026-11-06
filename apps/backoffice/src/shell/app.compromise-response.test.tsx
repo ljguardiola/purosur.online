@@ -24,7 +24,7 @@ function servicesFor(capabilities: Capability[]) {
   });
   vi.mocked(services.usersListScreen.fetchUsers).mockResolvedValue({ kind: "ok", value: [] });
   vi.mocked(services.usersListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
-  vi.mocked(services.compromiseResponseScreen.fetchCompromiseResponse).mockResolvedValue({
+  vi.mocked(services.respondToCompromiseModal.fetchCompromiseResponse).mockResolvedValue({
     kind: "ok",
     value: null,
   });
@@ -76,7 +76,7 @@ test("drops the assistant from the URL for a user who cannot manage users, witho
   await expect.element(screen.getByRole("heading", { name: "Personas", level: 1 })).toBeVisible();
   expect(screen.getByRole("dialog", { name: ASSISTANT }).query()).toBeNull();
   expect(window.location.pathname + window.location.search).toBe("/people/users");
-  expect(services.compromiseResponseScreen.fetchCompromiseResponse).not.toHaveBeenCalled();
+  expect(services.respondToCompromiseModal.fetchCompromiseResponse).not.toHaveBeenCalled();
 });
 
 test("redirects a typed /compromise-response to Personas with the assistant open", async () => {
@@ -99,5 +99,5 @@ test("redirects a typed /compromise-response to the own account panel for a user
 
   await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
   expect(window.location.pathname + window.location.search).toBe("/?account=credentials");
-  expect(services.compromiseResponseScreen.fetchCompromiseResponse).not.toHaveBeenCalled();
+  expect(services.respondToCompromiseModal.fetchCompromiseResponse).not.toHaveBeenCalled();
 });

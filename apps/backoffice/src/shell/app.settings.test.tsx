@@ -32,7 +32,10 @@ test("shows the Cajas registradoras item in the rail for a user holding enroll_r
       }),
     ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByRole("navigation", { name: "Configuración" })).toBeVisible();
 
@@ -58,7 +61,10 @@ test("hides the Cajas registradoras item in the rail for a user without enroll_r
 test("following the sidebar's Cajas registradoras item opens the registers list, with Config and Cajas registradoras active", async () => {
   window.history.pushState(null, "", "/people/users");
   const services = createAppServices();
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   vi.mocked(services.registersListScreen.fetchRegisters).mockResolvedValue({
     kind: "ok",
     value: [],
@@ -88,7 +94,10 @@ test("redirects a typed /registers to the own account panel for a user without e
         openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   window.history.pushState(null, "", "/registers");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -110,7 +119,10 @@ test("shows the Backups item after Cajas registradoras for a user holding view_b
       }),
     ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByRole("navigation", { name: "Configuración" })).toBeVisible();
 
@@ -139,7 +151,10 @@ test("hides the Backups item in the rail for a user without view_backups_and_rot
 test("following the sidebar's Backups item opens the backups, with Config and Backups active", async () => {
   window.history.pushState(null, "", "/people/users");
   const services = createAppServices();
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   vi.mocked(services.snapshotBackupsScreen.fetchSnapshotBackupRegisters).mockResolvedValue({
     kind: "ok",
     value: [],
@@ -165,7 +180,10 @@ test("redirects a typed /backups to the own account panel for a user without vie
         openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   window.history.pushState(null, "", "/backups");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -187,7 +205,10 @@ test("shows the Sucursal item in the rail for a user holding configure_branch, l
       }),
     ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByRole("navigation", { name: "Configuración" })).toBeVisible();
 
@@ -213,7 +234,10 @@ test("hides the Sucursal item in the rail for a user without configure_branch", 
 test("following the sidebar's Sucursal item opens the branch settings screen, with Config and Sucursal active", async () => {
   window.history.pushState(null, "", "/people/users");
   const services = createAppServices();
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   vi.mocked(services.branchSettingsScreen.fetchBranchSettings).mockResolvedValue({
     kind: "ok",
     value: {
@@ -258,7 +282,10 @@ test("redirects a typed /location-settings to the own account panel for a user w
         openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   window.history.pushState(null, "", "/location-settings");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -366,7 +393,10 @@ test("redirects a non-Administrator's typed /roles to the own account panel, wit
         openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   window.history.pushState(null, "", "/people/roles");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -388,7 +418,10 @@ test("shows the Rescate de tickets item right after Backups for a user holding c
       }),
     ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByRole("navigation", { name: "Configuración" })).toBeVisible();
 
@@ -412,7 +445,10 @@ test("holding the Backups permission does not show the Rescate de tickets item",
       }),
     ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("link", { name: "Backups" })).toBeVisible();
@@ -422,7 +458,10 @@ test("holding the Backups permission does not show the Rescate de tickets item",
 test("following the sidebar's Rescate de tickets item opens the screen, with Config and the item active", async () => {
   window.history.pushState(null, "", "/people/users");
   const services = createAppServices();
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByRole("heading", { name: "Personas", level: 1 })).toBeVisible();
 
@@ -449,7 +488,10 @@ test("redirects a typed /contingency-ticket-rescue to the own account panel for 
       }),
     ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   window.history.pushState(null, "", "/contingency-ticket-rescue");
 
   const screen = await render(<App help={emptyHelp} services={services} />);

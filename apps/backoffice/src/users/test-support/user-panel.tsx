@@ -10,12 +10,8 @@ import {
   NO_CAPABILITIES_ACCESS,
 } from "../../shell/test-support/backoffice-access";
 import { render } from "../../shell/test-support/render-with-router";
-import {
-  type UserCredentialSectionsProps,
-  UserDetailScreen,
-  type UserDetailScreenProps,
-} from "../user-detail-screen";
-import type { UserDetailScreenServices } from "../user-detail-services";
+import { type UserCredentialSectionsProps, UserPanel, type UserPanelProps } from "../user-panel";
+import type { UserPanelServices } from "../user-panel-services";
 
 export { ADMINISTRATOR_ACCESS };
 
@@ -44,10 +40,8 @@ const administratorRole: RoleSummary = {
   mayEdit: false,
 };
 
-export function createServices(
-  overrides: Partial<UserDetailScreenServices> = {},
-): UserDetailScreenServices {
-  const services: UserDetailScreenServices = {
+export function createServices(overrides: Partial<UserPanelServices> = {}): UserPanelServices {
+  const services: UserPanelServices = {
     fetchUser: vi.fn(),
     editUser: vi.fn(),
     fetchRoles: vi.fn(),
@@ -105,17 +99,17 @@ type RenderedTab = "data" | "credentials" | "status";
 
 function renderScreenAt(
   tab: RenderedTab | undefined,
-  services: UserDetailScreenServices,
+  services: UserPanelServices,
   onSessionEnded: () => void = () => {},
   userId = "user-1",
   signedInUserId = "admin-1",
   access: BackofficeAccess = ADMINISTRATOR_ACCESS,
-  credentialSections: UserDetailScreenProps["credentialSections"] = CredentialSectionsStub,
+  credentialSections: UserPanelProps["credentialSections"] = CredentialSectionsStub,
   onClose: () => void = () => {},
 ) {
   return render(
     <main>
-      <UserDetailScreen
+      <UserPanel
         userId={userId}
         signedInUserId={signedInUserId}
         access={access}
@@ -187,7 +181,7 @@ export async function openEditModal(screen: Screen) {
   return screen.getByRole("dialog", { name: "Lucía" });
 }
 
-export async function openStaleModal(services: UserDetailScreenServices) {
+export async function openStaleModal(services: UserPanelServices) {
   vi.mocked(services.fetchUser).mockResolvedValueOnce({ kind: "ok", value: lucia });
   const screen = await renderScreen(services);
   await expect.element(screen.getByRole("heading", { name: "Lucía", level: 2 })).toBeVisible();
@@ -217,6 +211,6 @@ export function deferred<T>() {
   return { promise, resolve };
 }
 
-export type FetchUserOutcome = Awaited<ReturnType<UserDetailScreenServices["fetchUser"]>>;
+export type FetchUserOutcome = Awaited<ReturnType<UserPanelServices["fetchUser"]>>;
 
 export type Screen = Awaited<ReturnType<typeof renderScreen>>;

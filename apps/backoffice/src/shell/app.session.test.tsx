@@ -215,7 +215,10 @@ test("follows a demotion reported by real use of the open tab: Personas leaves t
   const services = createAppServices();
   vi.mocked(services.usersListScreen.fetchUsers).mockResolvedValue({ kind: "ok", value: [] });
   vi.mocked(services.usersListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   window.history.pushState(null, "", "/people/users");
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByRole("tab", { name: "Roles" })).toBeVisible();
@@ -242,7 +245,10 @@ test("follows a promotion reported by real use of the open tab: Personas becomes
         openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   window.history.pushState(null, "", "/");
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect
@@ -266,7 +272,7 @@ test("follows a promotion reported by real use of the open tab: Personas becomes
 
 test("ends the session with the expired notice when Mi cuenta's passkeys request finds it already ended", async () => {
   const services = createAppServices();
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
     kind: "unauthenticated",
   });
   window.history.pushState(null, "", "/account");

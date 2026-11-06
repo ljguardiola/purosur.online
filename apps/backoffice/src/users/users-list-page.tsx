@@ -1,6 +1,6 @@
 import { getRouteApi } from "@tanstack/react-router";
 import type { ReactElement } from "react";
-import { defaultUserDetailScreenServices } from "./user-detail-services";
+import { defaultUserPanelServices } from "./user-panel-services";
 import { UsersListScreen } from "./users-list-screen";
 import { defaultUsersListScreenServices } from "./users-list-services";
 
@@ -22,8 +22,8 @@ export function UsersListPage(): ReactElement {
       endEverySessionSection={services.usersListEndEverySessionSection}
       services={services.usersListScreen ?? defaultUsersListScreenServices}
       signedInUserId={session.userId}
-      credentialSections={services.userDetailCredentialSections}
-      detailServices={services.userDetailScreen ?? defaultUserDetailScreenServices}
+      credentialSections={services.userPanelCredentialSections}
+      detailServices={services.userPanel ?? defaultUserPanelServices}
       openUser={user}
       tab={tab}
     />

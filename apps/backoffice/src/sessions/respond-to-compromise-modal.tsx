@@ -20,10 +20,10 @@ import {
   isRunbookRefusal,
 } from "./compromise-response-api";
 import { CompromiseResponseChecklist, itemLabel } from "./compromise-response-checklist";
-import type { CompromiseResponseScreenServices } from "./compromise-response-services";
 import { CompromiseResponseStepCard } from "./compromise-response-step-card";
 import { EndSessionsStepModal } from "./end-sessions-step-modal";
 import { ForcePinResetsStepModal } from "./force-pin-resets-step-modal";
+import type { RespondToCompromiseModalServices } from "./respond-to-compromise-modal-services";
 import { RevokeInstallationsStepModal } from "./revoke-installations-step-modal";
 import { useCompromiseResponseQuery, useReloadCompromiseResponse } from "./sessions-queries";
 import { StepAttemptNotices } from "./step-attempt-notices";
@@ -73,17 +73,17 @@ type ScreenNotice =
 
 type Confirmation = { id: number; title: string; description: string };
 
-export type CompromiseResponseScreenProps = {
+export type RespondToCompromiseModalProps = {
   onClose: () => void;
   onSessionEnded: () => void;
-  services: CompromiseResponseScreenServices;
+  services: RespondToCompromiseModalServices;
 };
 
-export function CompromiseResponseScreen({
+export function RespondToCompromiseModal({
   onClose,
   onSessionEnded,
   services,
-}: CompromiseResponseScreenProps) {
+}: RespondToCompromiseModalProps) {
   const sendToMyAccount = useSendToMyAccount();
   const data = useCompromiseResponseQuery({
     fetchCompromiseResponse: services.fetchCompromiseResponse,

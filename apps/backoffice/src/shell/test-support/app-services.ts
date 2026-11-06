@@ -34,7 +34,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       startRegistration: vi.fn(),
       signalUnknownCredential: vi.fn(),
     },
-    myAccountScreen: {
+    ownCredentialsSection: {
       fetchPasskeys: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchPasskeyRegistrationChallenge: vi.fn(),
       registerPasskey: vi.fn(),
@@ -342,7 +342,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       markRefundDone: vi.fn(),
       discardRefund: vi.fn(),
     },
-    userDetailScreen: {
+    userPanel: {
       fetchUser: vi.fn().mockReturnValue(new Promise(() => {})),
       editUser: vi.fn(),
       fetchRoles: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -356,7 +356,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     endEverySessionSection: {
       endEverySession: vi.fn(),
     },
-    userDetailCredentialSections: UserCredentialSections,
+    userPanelCredentialSections: UserCredentialSections,
     userCredentialSections: {
       fetchUserPasskeys: vi.fn().mockReturnValue(new Promise(() => {})),
       removeUserPasskey: vi.fn(),
@@ -396,7 +396,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       finishTicketRecoveryModal: { finishContingencyTicketRecovery: vi.fn() },
       scanner: createFakeQrScanner().Scanner,
     },
-    compromiseResponseScreen: {
+    respondToCompromiseModal: {
       fetchCompromiseResponse: vi.fn().mockReturnValue(new Promise(() => {})),
       startCompromiseResponse: vi.fn(),
       markItemDone: vi.fn(),

@@ -22,7 +22,7 @@ import { DeactivateUserModal } from "./deactivate-user-modal";
 import { EditUserModal } from "./edit-user-modal";
 import { ReactivateUserModal } from "./reactivate-user-modal";
 import { UserDataFields } from "./user-data-fields";
-import type { UserDetailScreenServices } from "./user-detail-services";
+import type { UserPanelServices } from "./user-panel-services";
 import {
   type UserRead,
   useRefreshUsers,
@@ -41,14 +41,14 @@ export type UserCredentialSectionsProps = {
   onUserOutdated: () => void;
 };
 
-export type UserDetailScreenProps = {
+export type UserPanelProps = {
   userId: string;
   signedInUserId: string;
   access: BackofficeAccess;
   roleCreationModal: RoleCreationModal;
   onSessionEnded: () => void;
   credentialSections: ComponentType<UserCredentialSectionsProps>;
-  services: UserDetailScreenServices;
+  services: UserPanelServices;
   tab?: string | undefined;
   onClose: () => void;
 };
@@ -65,15 +65,15 @@ const UserTabLink = createLink(Tab);
 
 const NO_ROLES: BranchUserRole[] = [];
 
-export function UserDetailScreen(props: UserDetailScreenProps) {
+export function UserPanel(props: UserPanelProps) {
   return canManageUsers(props.access) ? (
-    <AdministratorUserDetail {...props} />
+    <AdministratorUserPanel {...props} />
   ) : (
-    <ReaderUserDetail {...props} />
+    <ReaderUserPanel {...props} />
   );
 }
 
-function AdministratorUserDetail(props: UserDetailScreenProps) {
+function AdministratorUserPanel(props: UserPanelProps) {
   const { userId, onSessionEnded } = props;
   const { fetchUser, fetchRoles } = props.services;
   const data = combineCloudData(
@@ -81,14 +81,14 @@ function AdministratorUserDetail(props: UserDetailScreenProps) {
     useRolesQuery({ fetchRoles, onSessionEnded }),
   );
   const [userRead, roles] = data.status === "loaded" ? data.value : [undefined, NO_ROLES];
-  return <UserDetailView {...props} data={data} userRead={userRead} roles={roles} showsPasskeys />;
+  return <UserPanelView {...props} data={data} userRead={userRead} roles={roles} showsPasskeys />;
 }
 
-function ReaderUserDetail(props: UserDetailScreenProps) {
+function ReaderUserPanel(props: UserPanelProps) {
   const { userId, onSessionEnded } = props;
   const data = useUserQuery({ userId, fetchUser: props.services.fetchUser, onSessionEnded });
   return (
-    <UserDetailView
+    <UserPanelView
       {...props}
       data={data}
       userRead={data.status === "loaded" ? data.value : undefined}
@@ -97,14 +97,14 @@ function ReaderUserDetail(props: UserDetailScreenProps) {
   );
 }
 
-type UserDetailViewProps = UserDetailScreenProps & {
+type UserPanelViewProps = UserPanelProps & {
   data: CloudData<unknown>;
   userRead: UserRead | undefined;
   roles: BranchUserRole[];
   showsPasskeys?: boolean;
 };
 
-function UserDetailView({
+function UserPanelView({
   userId,
   signedInUserId,
   access,
@@ -118,7 +118,7 @@ function UserDetailView({
   onClose,
   showsPasskeys = false,
   credentialSections: CredentialSections,
-}: UserDetailViewProps) {
+}: UserPanelViewProps) {
   const { fetchUser } = services;
   const refreshUsers = useRefreshUsers();
   const reloadUser = useReloadUser({ fetchUser });

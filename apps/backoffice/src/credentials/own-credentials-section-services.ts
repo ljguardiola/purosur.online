@@ -15,13 +15,13 @@ import type { RegisterOwnPasskeyModalServices } from "./register-own-passkey-mod
 import type { RemoveOwnPasskeyModalServices } from "./remove-own-passkey-modal";
 import { emitUserPinCode } from "./user-credentials-api";
 
-export type MyAccountScreenServices = {
+export type OwnCredentialsSectionServices = {
   fetchPasskeys: typeof fetchPasskeys;
 } & RegisterOwnPasskeyModalServices &
   RemoveOwnPasskeyModalServices &
   EmitUserPinCodeModalServices;
 
-export const defaultMyAccountScreenServices: MyAccountScreenServices = {
+export const defaultOwnCredentialsSectionServices: OwnCredentialsSectionServices = {
   fetchPasskeys,
   fetchPasskeyRegistrationChallenge,
   registerPasskey,

@@ -28,7 +28,10 @@ function reportsServices(capabilities: Capability[]) {
       }),
     ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   vi.mocked(services.currentStockReportScreen.fetchCurrentStockReport).mockResolvedValue({
     kind: "ok",
     value: currentStockReport([almondsProduct]),

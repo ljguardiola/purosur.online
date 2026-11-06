@@ -146,7 +146,10 @@ test("redirects a non-permitted user's typed /points-of-sale to Mi cuenta, witho
         openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   window.history.pushState(null, "", "/points-of-sale");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -164,7 +167,10 @@ test("redirects a non-permitted user's typed /fiscal-settings to Mi cuenta, with
         openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   window.history.pushState(null, "", "/fiscal-settings");
 
   const screen = await render(<App help={emptyHelp} services={services} />);

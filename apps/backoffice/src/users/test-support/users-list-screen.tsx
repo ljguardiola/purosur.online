@@ -4,10 +4,10 @@ import type { BackofficeAccess } from "../../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS } from "../../shell/test-support/backoffice-access";
 import { render } from "../../shell/test-support/render-with-router";
 import { type UsersListFilters, usersListFilters } from "../routes";
-import type { UserDetailScreenServices } from "../user-detail-services";
+import type { UserPanelServices } from "../user-panel-services";
 import { type UsersListEndEverySessionSectionProps, UsersListScreen } from "../users-list-screen";
 import type { UsersListScreenServices } from "../users-list-services";
-import { CredentialSectionsStub, createServices } from "./user-detail-screen";
+import { CredentialSectionsStub, createServices } from "./user-panel";
 
 export function EndEverySessionSectionStub({
   onSessionEnded,
@@ -66,7 +66,7 @@ export function usersListScreenElement(
     onFiltersChange?: (filters: UsersListFilters) => void;
     openUser?: string;
     tab?: string;
-    detailServices?: UserDetailScreenServices;
+    detailServices?: UserPanelServices;
   } = {},
 ) {
   return (

@@ -67,8 +67,8 @@ function servicesListing(
   );
   vi.mocked(services.usersListScreen.fetchUsers).mockResolvedValue({ kind: "ok", value: [user] });
   vi.mocked(services.usersListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
-  vi.mocked(services.userDetailScreen.fetchUser).mockResolvedValue({ kind: "ok", value: user });
-  vi.mocked(services.userDetailScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.userPanel.fetchUser).mockResolvedValue({ kind: "ok", value: user });
+  vi.mocked(services.userPanel.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
   vi.mocked(services.userCredentialSections.fetchUserPasskeys).mockResolvedValue({
     kind: "ok",
     value: [
@@ -98,13 +98,13 @@ test("hides the remove button of the signed-in Administrator's own passkey in th
 test("editing a user from its panel reads the user again but not its passkeys", async () => {
   window.history.pushState(null, "", "/people/users?user=user-5");
   const services = servicesListing({ ...sofia, mayEdit: true });
-  vi.mocked(services.userDetailScreen.fetchUser)
+  vi.mocked(services.userPanel.fetchUser)
     .mockResolvedValueOnce({ kind: "ok", value: { ...sofia, mayEdit: true } })
     .mockResolvedValue({
       kind: "ok",
       value: { ...sofia, mayEdit: true, email: "sofia.diaz@example.com", version: 2 },
     });
-  vi.mocked(services.userDetailScreen.editUser).mockResolvedValue({ kind: "ok" });
+  vi.mocked(services.userPanel.editUser).mockResolvedValue({ kind: "ok" });
   const screen = await render(<App help={emptyHelp} services={services} />);
   await userEvent.click(screen.getByRole("button", { name: "Editar" }));
   const dialog = screen.getByRole("dialog", { name: "Sofía Díaz" });
@@ -119,10 +119,10 @@ test("editing a user from its panel reads the user again but not its passkeys", 
 test("deactivating a user its panel finds already gone reads the user again", async () => {
   window.history.pushState(null, "", "/people/users?user=user-5&tab=status");
   const services = servicesListing({ ...sofia, mayDeactivate: true });
-  vi.mocked(services.userDetailScreen.fetchUser)
+  vi.mocked(services.userPanel.fetchUser)
     .mockResolvedValueOnce({ kind: "ok", value: { ...sofia, mayDeactivate: true } })
     .mockResolvedValue({ kind: "not_found" });
-  vi.mocked(services.userDetailScreen.deactivateUser).mockResolvedValue({ kind: "not_found" });
+  vi.mocked(services.userPanel.deactivateUser).mockResolvedValue({ kind: "not_found" });
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await userEvent.click(screen.getByRole("button", { name: "Desactivar a Sofía Díaz" }));
@@ -140,7 +140,7 @@ test("deactivating a user its panel finds already gone reads the user again", as
 test("deactivating a user closes its panel, removing it from the URL", async () => {
   window.history.pushState(null, "", "/people/users?user=user-5&tab=status");
   const services = servicesListing({ ...sofia, mayDeactivate: true });
-  vi.mocked(services.userDetailScreen.deactivateUser).mockResolvedValue({ kind: "ok" });
+  vi.mocked(services.userPanel.deactivateUser).mockResolvedValue({ kind: "ok" });
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await userEvent.click(screen.getByRole("button", { name: "Desactivar a Sofía Díaz" }));
@@ -160,10 +160,10 @@ test("reactivating a user from its panel reads the user again", async () => {
   window.history.pushState(null, "", "/people/users?user=user-5&tab=status");
   const inactive = { ...sofia, active: false, mayReactivate: true };
   const services = servicesListing(inactive);
-  vi.mocked(services.userDetailScreen.fetchUser)
+  vi.mocked(services.userPanel.fetchUser)
     .mockResolvedValueOnce({ kind: "ok", value: inactive })
     .mockResolvedValue({ kind: "ok", value: sofia });
-  vi.mocked(services.userDetailScreen.reactivateUser).mockResolvedValue({ kind: "ok" });
+  vi.mocked(services.userPanel.reactivateUser).mockResolvedValue({ kind: "ok" });
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByText("Inactivo", { exact: true }).last()).toBeVisible();
 
@@ -186,7 +186,7 @@ test("sends a person without users_area who opens Personas' users to the own acc
   await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
   expect(window.location.pathname + window.location.search).toBe("/?account=credentials");
   expect(services.usersListScreen.fetchUsers).not.toHaveBeenCalled();
-  expect(services.userDetailScreen.fetchUser).not.toHaveBeenCalled();
+  expect(services.userPanel.fetchUser).not.toHaveBeenCalled();
 });
 
 test("lets a person holding deactivate_users open Usuarios and a user's panel, without Nuevo usuario or Editar", async () => {

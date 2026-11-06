@@ -16,7 +16,7 @@ import type { EndSessionsStepModalServices } from "./end-sessions-step-modal";
 import type { ForcePinResetsStepModalServices } from "./force-pin-resets-step-modal";
 import type { RevokeInstallationsStepModalServices } from "./revoke-installations-step-modal";
 
-export type CompromiseResponseScreenServices = {
+export type RespondToCompromiseModalServices = {
   fetchCompromiseResponse: typeof fetchCompromiseResponse;
   startCompromiseResponse: typeof startCompromiseResponse;
   markItemDone: typeof markItemDone;
@@ -24,7 +24,7 @@ export type CompromiseResponseScreenServices = {
   ForcePinResetsStepModalServices &
   EndSessionsStepModalServices;
 
-export const defaultCompromiseResponseScreenServices: CompromiseResponseScreenServices = {
+export const defaultRespondToCompromiseModalServices: RespondToCompromiseModalServices = {
   fetchCompromiseResponse,
   startCompromiseResponse,
   markItemDone,

@@ -45,10 +45,13 @@ function servicesFor(capabilities?: Capability[]): AppServices {
     value: [martina],
   });
   vi.mocked(services.usersListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
-  vi.mocked(services.userDetailScreen.fetchUser).mockResolvedValue({ kind: "ok", value: martina });
-  vi.mocked(services.userDetailScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.userPanel.fetchUser).mockResolvedValue({ kind: "ok", value: martina });
+  vi.mocked(services.userPanel.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
   vi.mocked(services.rolesListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   return services;
 }
 
@@ -233,7 +236,7 @@ test("closes the panel of a user the list does not show, replacing the URL witho
   await expect.element(screen.getByText("Martina Gómez")).toBeVisible();
   await expect.poll(location).toBe("/people/users");
   expect(window.history.length).toBe(entries);
-  expect(services.userDetailScreen.fetchUser).not.toHaveBeenCalled();
+  expect(services.userPanel.fetchUser).not.toHaveBeenCalled();
 });
 
 test("drops a tab value the panel does not offer from the URL", async () => {
@@ -270,7 +273,7 @@ test("the own account panel shows Datos with users_area, reading the person's ow
 
   await expect.element(screen.getByRole("tab", { name: "Datos", selected: true })).toBeVisible();
   await expect.element(screen.getByText("martina@example.com")).toBeVisible();
-  expect(services.userDetailScreen.fetchUser).toHaveBeenCalledWith("user-1");
+  expect(services.userPanel.fetchUser).toHaveBeenCalledWith("user-1");
 });
 
 test("the own account panel survives the page's own search, and shows only Passkeys y PIN without users_area", async () => {

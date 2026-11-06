@@ -55,7 +55,10 @@ test.each(["/ventas", "/helps", "/help/getting_started/intro/extra", "/catalog",
 
 test("a rail item is a real link to its screen, and a plain click opens that screen in place", async () => {
   const services = createAppServices();
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   window.history.pushState(null, "", "/help");
   const screen = await render(<App help={emptyHelp} services={services} />);
   const configItem = screen.getByRole("link", { name: "Config" });

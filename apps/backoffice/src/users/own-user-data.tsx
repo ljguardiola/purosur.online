@@ -2,13 +2,13 @@ import { InlineNotice, LoadFailure, LoadingPlaceholder } from "@purosur/ui";
 import { UserX } from "lucide-react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { UserDataFields } from "./user-data-fields";
-import type { UserDetailScreenServices } from "./user-detail-services";
+import type { UserPanelServices } from "./user-panel-services";
 import { useUserQuery } from "./users-queries";
 
 export type OwnUserDataProps = {
   userId: string;
   onSessionEnded: () => void;
-  services: Pick<UserDetailScreenServices, "fetchUser">;
+  services: Pick<UserPanelServices, "fetchUser">;
 };
 
 export function OwnUserData({ userId, onSessionEnded, services }: OwnUserDataProps) {

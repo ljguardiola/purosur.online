@@ -35,7 +35,10 @@ function refundsServices(capabilities: Capability[]) {
       }),
     ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   answerPendingRefunds(services, pendingRefundsWithLatePayment);
   return services;
 }

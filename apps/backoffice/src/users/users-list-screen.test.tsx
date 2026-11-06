@@ -8,7 +8,7 @@ import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import { usersListFilters } from "./routes";
-import { CredentialSectionsStub, createServices } from "./test-support/user-detail-screen";
+import { CredentialSectionsStub, createServices } from "./test-support/user-panel";
 import {
   createUsersListServices,
   EndEverySessionSectionStub,
