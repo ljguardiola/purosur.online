@@ -344,6 +344,16 @@ test("keeps each tab's width when it turns selected", async () => {
   expect(tab(screen, "Roles").element().getBoundingClientRect().width).toBeCloseTo(width, 0);
 });
 
+test("draws the focus ring inside the focused tab, where the scrolling tab list cannot clip it", async () => {
+  const screen = await render(<PeopleTabs />);
+
+  await userEvent.tab();
+
+  const focused = tab(screen, "Usuarios").element();
+  await expect.poll(() => getComputedStyle(focused).outlineColor).toBe(tokenRgb("focus"));
+  await expect.poll(() => getComputedStyle(focused).outlineOffset).toBe("-3px");
+});
+
 test("dims a disabled tab", async () => {
   const screen = await render(<PeopleTabs disabledTab="roles" />);
 
