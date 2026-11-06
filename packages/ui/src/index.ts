@@ -185,6 +185,8 @@ export type { SectionNavButtonProps } from "./components/navigation/section-nav-
 export { SectionNavButton } from "./components/navigation/section-nav-button";
 export type { SectionNavItemProps } from "./components/navigation/section-nav-item";
 export { SectionNavItem } from "./components/navigation/section-nav-item";
+export type { TabProps, TabsProps } from "./components/navigation/tabs";
+export { Tab, Tabs } from "./components/navigation/tabs";
 export type {
   ModalBodyPadding,
   ModalHeaderLayout,
