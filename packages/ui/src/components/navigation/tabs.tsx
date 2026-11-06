@@ -29,7 +29,7 @@ export type TabsProps = {
   children: ReactNode;
 };
 
-const tabListClassName = "flex w-full overflow-x-auto inset-shadow-divider [scrollbar-width:thin]";
+const tabListClassName = "flex w-full overflow-x-auto inset-shadow-divider";
 
 const tabClassName =
   "group flex h-control-lg shrink-0 cursor-pointer items-center border-b-2 " +
