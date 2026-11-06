@@ -1254,13 +1254,6 @@
       "when": 1793912600410,
       "tag": "0185_purchase_line_removal",
       "breakpoints": true
-    },
-    {
-      "idx": 186,
-      "version": "7",
-      "when": 1793965653906,
-      "tag": "0186_supplier_item_proposals",
-      "breakpoints": true
     }
   ]
 }

@@ -24,7 +24,7 @@ async function databaseHoldingAListWithARow() {
     [lists[0]?.id],
   );
   const { rows: categories } = await database.query<{ id: string }>(
-    `select id from categories limit 1`,
+    `insert into categories (name) values ('Almacen') returning id`,
   );
   const { rows: products } = await database.query<{ id: string }>(
     `insert into products (name, category_id, sale_unit) values ('Yerba mate 1 kg', $1, 'UNIT') returning id`,
