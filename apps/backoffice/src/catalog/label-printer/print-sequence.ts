@@ -15,7 +15,7 @@ const CONNECT_PREFIX = 0x03;
 const ANSWER_TIMEOUT_MS = 3_000;
 const POLL_INTERVAL_MS = 300;
 const NO_PROGRESS_TIMEOUT_MS = 30_000;
-const LABEL_TYPE_GAP = 1;
+const LABEL_TYPE = 1;
 const DENSITY = 4;
 const PRINTER_ANSWER_STATUS = 0xb3;
 
@@ -48,9 +48,7 @@ function startInbox(link: PrinterLink): Inbox {
         queue.push(...parse(chunk));
         notify();
       }
-    } catch {
-      // the read failure ends the job like a disconnection
-    }
+    } catch {}
     closed = true;
     notify();
   }
@@ -60,14 +58,12 @@ function startInbox(link: PrinterLink): Inbox {
     async next(cmd, timeoutMs) {
       const deadline = Date.now() + timeoutMs;
       for (;;) {
-        let index = queue.findIndex((queued) => queued.cmd === cmd);
-        while (index !== -1) {
-          queue.splice(0, index);
-          const [found] = queue.splice(0, 1);
+        const index = queue.findIndex((queued) => queued.cmd === cmd);
+        if (index !== -1) {
+          const found = queue.splice(0, index + 1).at(-1);
           if (found) {
             return found;
           }
-          index = -1;
         }
         if (closed) {
           throw new JobStopped();
@@ -142,7 +138,7 @@ export async function runPrintSequence(
 
   try {
     await request(0xc1, [1], 0xc2, [CONNECT_PREFIX]);
-    await request(0x23, [LABEL_TYPE_GAP], 0x33);
+    await request(0x23, [LABEL_TYPE], 0x33);
     await request(0x21, [DENSITY], 0x31);
     await request(0x01, [...u16(total), 0, 0, 0, 0, 0, 0, 0], 0x02);
     await send(0xa3, [1]);
