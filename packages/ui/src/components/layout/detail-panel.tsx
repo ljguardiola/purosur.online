@@ -1,6 +1,6 @@
 import {
   type HTMLAttributes,
-  type FocusEvent as ReactFocusEvent,
+  type MouseEvent as ReactMouseEvent,
   type ReactNode,
   useEffect,
   useId,
@@ -8,7 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { FocusScope, mergeProps, useModalOverlay, useOverlay } from "react-aria";
+import { FocusScope, useModalOverlay, useOverlay } from "react-aria";
 import { useOverlayTriggerState } from "react-stately";
 import { CloseButton } from "../shared/close-button";
 import { SidePanel } from "./side-panel";
@@ -25,7 +25,7 @@ const NARROW_AREA_WIDTH = 800;
 
 export function DetailPanel({ open, onClose, title, children, footer }: DetailPanelProps) {
   const [narrow, setNarrow] = useState(false);
-  const markFocusInsidePanel = useRestoreFocusOnClose(open);
+  const markClickInsidePanel = useRestoreFocusOnClose(open);
 
   // The panel leaves the area's flow as a modal, so a marker left in the flow stands for the area.
   function observeArea(marker: HTMLSpanElement | null) {
@@ -47,7 +47,7 @@ export function DetailPanel({ open, onClose, title, children, footer }: DetailPa
     <>
       <span ref={observeArea} hidden />
       <PanelFrame
-        onFocusInside={markFocusInsidePanel}
+        onClickInside={markClickInsidePanel}
         narrow={narrow}
         onClose={onClose}
         title={title}
@@ -59,9 +59,11 @@ export function DetailPanel({ open, onClose, title, children, footer }: DetailPa
   );
 }
 
+const CONTROL = "button, a[href], input, select, textarea, summary, [tabindex]";
+
 function useRestoreFocusOnClose(open: boolean) {
-  const openerRef = useRef<Element | null>(null);
-  const focusInsidePanelRef = useRef<Event | null>(null);
+  const returnTargetRef = useRef<Element | null>(null);
+  const clickInsidePanelRef = useRef<Event | null>(null);
 
   useLayoutEffect(() => {
     if (!open) {
@@ -69,30 +71,40 @@ function useRestoreFocusOnClose(open: boolean) {
     }
     const focused = document.activeElement;
     if (focused !== null && focused !== document.body) {
-      openerRef.current = focused;
+      returnTargetRef.current = focused;
     }
-    // React bubbles focus from the panel's portaled overlays to the panel, the DOM does not.
-    const recordOpener = (event: FocusEvent) => {
-      if (event !== focusInsidePanelRef.current && event.target instanceof Element) {
-        openerRef.current = event.target;
+    // The panel's React handler, which also hears clicks on the overlays its content portals,
+    // runs after this document listener, so a click is settled as outside only at the next
+    // click or on close.
+    let lastClick: { event: Event; control: Element | null } | null = null;
+    const settleLastClick = () => {
+      if (lastClick !== null && lastClick.event !== clickInsidePanelRef.current) {
+        returnTargetRef.current = lastClick.control ?? returnTargetRef.current;
       }
+      lastClick = null;
     };
-    document.addEventListener("focusin", recordOpener);
+    const recordClick = (event: MouseEvent) => {
+      settleLastClick();
+      const control = event.target instanceof Element ? event.target.closest(CONTROL) : null;
+      lastClick = { event, control };
+    };
+    document.addEventListener("click", recordClick, true);
     return () => {
-      document.removeEventListener("focusin", recordOpener);
+      document.removeEventListener("click", recordClick, true);
+      settleLastClick();
       queueMicrotask(() => {
-        const opener = openerRef.current;
+        const returnTarget = returnTargetRef.current;
         const focusIsLost =
           document.activeElement === null || document.activeElement === document.body;
-        if (focusIsLost && opener instanceof HTMLElement && opener.isConnected) {
-          opener.focus();
+        if (focusIsLost && returnTarget instanceof HTMLElement && returnTarget.isConnected) {
+          returnTarget.focus();
         }
       });
     };
   }, [open]);
 
-  return (event: ReactFocusEvent) => {
-    focusInsidePanelRef.current = event.nativeEvent;
+  return (event: ReactMouseEvent) => {
+    clickInsidePanelRef.current = event.nativeEvent;
   };
 }
 
@@ -101,13 +113,13 @@ type PanelProps = Omit<DetailPanelProps, "open">;
 // Both modes render the same elements, only styled and announced differently, so the caller's
 // content stays mounted when the area is resized across the narrow width.
 function PanelFrame({
-  onFocusInside,
+  onClickInside,
   narrow,
   onClose,
   title,
   children,
   footer,
-}: PanelProps & { onFocusInside: (event: ReactFocusEvent) => void; narrow: boolean }) {
+}: PanelProps & { onClickInside: (event: ReactMouseEvent) => void; narrow: boolean }) {
   const headingId = useId();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -135,6 +147,7 @@ function PanelFrame({
 
   return (
     <div
+      onClickCapture={onClickInside}
       className={
         narrow ? "fixed inset-0 z-overlay flex items-center justify-center bg-backdrop" : "contents"
       }
@@ -149,7 +162,7 @@ function PanelFrame({
         >
           <div
             ref={dialogRef}
-            {...mergeProps(overlayProps, { onFocus: onFocusInside })}
+            {...overlayProps}
             {...(narrow ? modalDialogProps : {})}
             className={narrow ? "flex min-h-0 flex-1 flex-col outline-none" : "contents"}
           >
