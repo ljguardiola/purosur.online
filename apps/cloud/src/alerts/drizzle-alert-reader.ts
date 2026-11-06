@@ -1,6 +1,5 @@
 import {
   type AlertKind,
-  type AlertLevel,
   alertKindsWithScope,
   REGISTER_FORTNIGHT_SCOPE_SEPARATOR,
   SALES_DENIED_REASONS,
@@ -32,6 +31,7 @@ import {
   users,
 } from "../platform/db/schema.js";
 import { closedAlertCondition, openAlertCondition } from "./open-alert-condition.js";
+import { openAlertsOverviewOf } from "./open-alerts-overview.js";
 
 export const ALERTS_PAGE_SIZE = 25;
 
@@ -171,18 +171,7 @@ export class DrizzleAlertReader<TQueryResult extends PgQueryResultHKT> implement
       .where(and(sightCondition(sight), openAlertCondition()))
       .groupBy(alerts.level, alerts.kind)
       .orderBy(asc(alerts.kind));
-    const overviewOf = (level: AlertLevel) => {
-      const ofLevel = rows.filter((row) => row.level === level);
-      return {
-        openCount: ofLevel.reduce((total, row) => total + row.openCount, 0),
-        kinds: ofLevel.map((row) => asAlertKind(row.kind)),
-      };
-    };
-    return {
-      critical: overviewOf("critical"),
-      warning: overviewOf("warning"),
-      informational: overviewOf("informational"),
-    };
+    return openAlertsOverviewOf(rows.map((row) => ({ ...row, kind: asAlertKind(row.kind) })));
   }
 
   async deliveriesOf(alertId: string): Promise<AlertDelivery[]> {

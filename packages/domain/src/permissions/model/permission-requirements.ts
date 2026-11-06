@@ -15,7 +15,8 @@ export function closeUnderRequirements<Key extends string>(
   const closed = new Set(keys);
   const pending = [...closed];
   for (let key = pending.pop(); key !== undefined; key = pending.pop()) {
-    for (const required of requirements[key] ?? []) {
+    const requirementsOfKey = Object.hasOwn(requirements, key) ? requirements[key] : undefined;
+    for (const required of requirementsOfKey ?? []) {
       if (!closed.has(required)) {
         closed.add(required);
         pending.push(required);

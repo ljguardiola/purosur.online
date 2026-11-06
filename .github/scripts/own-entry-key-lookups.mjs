@@ -80,13 +80,15 @@ function checkerTools(checker) {
   const hasStringIndex = (type) => {
     const apparent = checker.getApparentType(checker.getNonNullableType(type));
     const members = apparent.isUnion() ? apparent.types : [apparent];
-    return members.some((member) =>
-      checker
-        .getIndexInfosOfType(member)
-        .some(
-          (info) =>
-            (info.keyType.flags & (ts.TypeFlags.String | ts.TypeFlags.TemplateLiteral)) !== 0,
-        ),
+    return members.some(
+      (member) =>
+        (member.flags & ts.TypeFlags.Object && member.objectFlags & ts.ObjectFlags.Mapped) ||
+        checker
+          .getIndexInfosOfType(member)
+          .some(
+            (info) =>
+              (info.keyType.flags & (ts.TypeFlags.String | ts.TypeFlags.TemplateLiteral)) !== 0,
+          ),
     );
   };
 

@@ -21,7 +21,7 @@ async function readIds<Name extends string>(
   names: readonly Name[],
   optional: boolean,
 ): Promise<Partial<Record<Name, string>> | undefined> {
-  const ids: Partial<Record<Name, string>> = {};
+  const ids = new Map<Name, string>();
   for (const name of names) {
     const value = ownValue(source, name);
     if (optional && value === undefined) {
@@ -33,9 +33,9 @@ async function readIds<Name extends string>(
       await refuseMalformedId(reply, name, message);
       return undefined;
     }
-    ids[name] = result.data;
+    ids.set(name, result.data);
   }
-  return ids;
+  return Object.fromEntries(ids) as Partial<Record<Name, string>>;
 }
 
 export async function readRecordId(
