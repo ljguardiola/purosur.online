@@ -35,12 +35,14 @@ export const paymentsKeys = {
 };
 
 export function usePendingRefundsQuery(params: {
+  enabled?: boolean | undefined;
   onSessionEnded: () => void;
   fetchPendingRefunds: typeof fetchPendingRefunds;
 }) {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQuery<PendingRefundsBody>({
     queryKey: paymentsKeys.pendingRefunds,
+    enabled: params.enabled,
     read: params.fetchPendingRefunds,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,

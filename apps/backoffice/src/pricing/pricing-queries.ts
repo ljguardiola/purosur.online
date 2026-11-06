@@ -52,6 +52,7 @@ const discountTargetsRereadKey = (form: string, opening: number) =>
   [...discountsKey, "targets-reread", form, opening] as const;
 
 export function usePricesQuery(params: {
+  enabled?: boolean | undefined;
   input: FetchPricesInput;
   fetchPrices: typeof fetchPrices;
   onSessionEnded: () => void;
@@ -59,6 +60,7 @@ export function usePricesQuery(params: {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQuery<PriceList>({
     queryKey: pricesKeys.list(params.input),
+    enabled: params.enabled,
     keepPreviousData: true,
     read: () => params.fetchPrices(params.input),
     onSessionEnded: params.onSessionEnded,

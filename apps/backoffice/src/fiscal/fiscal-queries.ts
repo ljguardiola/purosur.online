@@ -265,12 +265,14 @@ export function useBuyerTaxStatusesQuery(params: {
 }
 
 export function useFiscalTasksQuery(params: {
+  enabled?: boolean | undefined;
   fetchFiscalTasks: typeof fetchFiscalTasks;
   onSessionEnded: () => void;
 }) {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQuery<FiscalTasks>({
     queryKey: fiscalKeys.fiscalTasks,
+    enabled: params.enabled,
     read: params.fetchFiscalTasks,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
