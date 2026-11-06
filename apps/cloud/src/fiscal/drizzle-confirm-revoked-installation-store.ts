@@ -4,6 +4,7 @@ import type {
   FortnightReportKey,
   InstallationOfFortnightReport,
   RecordedFortnightReport,
+  RegisterEventStreams,
   RevokedInstallationConfirmationAudit,
   RevokedInstallationConfirmationRecord,
 } from "@purosur/domain/fiscal/use-cases";
@@ -18,17 +19,22 @@ import {
   registers,
   revokedInstallationConfirmations,
 } from "../platform/db/schema.js";
-import { installationStreamReaches } from "../sync/drizzle-register-event-streams.js";
 import { DrizzleRevokedInstallationConfirmations } from "./drizzle-revoked-installation-confirmations.js";
 import { fortnightReportLock } from "./fortnight-report-lock.js";
+
+type RegisterEventStreamsIn<TQueryResult extends PgQueryResultHKT> = (
+  tx: PgDatabase<TQueryResult>,
+) => RegisterEventStreams;
 
 class DrizzleConfirmRevokedInstallationTransaction<TQueryResult extends PgQueryResultHKT>
   implements ConfirmRevokedInstallationStoreTransaction
 {
   private readonly tx: PgDatabase<TQueryResult>;
+  private readonly streams: RegisterEventStreams;
 
-  constructor(tx: PgDatabase<TQueryResult>) {
+  constructor(tx: PgDatabase<TQueryResult>, streamsIn: RegisterEventStreamsIn<TQueryResult>) {
     this.tx = tx;
+    this.streams = streamsIn(tx);
   }
 
   async holdFortnightPresentation(key: FortnightReportKey): Promise<void> {
@@ -56,9 +62,11 @@ class DrizzleConfirmRevokedInstallationTransaction<TQueryResult extends PgQueryR
       .where(
         and(eq(registerInstallations.id, installationId), eq(registers.locationId, locationId)),
       );
-    const [installation] = owner
-      ? await installationStreamReaches(this.tx, eq(registerInstallations.id, installationId))
-      : [];
+    const installation = owner
+      ? (await this.streams.installationsOf(owner.registerId)).find(
+          (reach) => reach.installationId === installationId,
+        )
+      : undefined;
     return owner && installation ? { registerId: owner.registerId, installation } : null;
   }
 
@@ -127,14 +135,18 @@ export class DrizzleConfirmRevokedInstallationStore<TQueryResult extends PgQuery
   implements ConfirmRevokedInstallationStore
 {
   private readonly db: PgDatabase<TQueryResult>;
+  private readonly streamsIn: RegisterEventStreamsIn<TQueryResult>;
 
-  constructor(db: PgDatabase<TQueryResult>) {
+  constructor(db: PgDatabase<TQueryResult>, streamsIn: RegisterEventStreamsIn<TQueryResult>) {
     this.db = db;
+    this.streamsIn = streamsIn;
   }
 
   transaction<TOutcome>(
     work: (tx: ConfirmRevokedInstallationStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
-    return this.db.transaction((tx) => work(new DrizzleConfirmRevokedInstallationTransaction(tx)));
+    return this.db.transaction((tx) =>
+      work(new DrizzleConfirmRevokedInstallationTransaction(tx, this.streamsIn)),
+    );
   }
 }

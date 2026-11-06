@@ -42,6 +42,7 @@ import {
 import { DrizzleWatchedRegisterReader } from "../register/drizzle-watched-register-reader.js";
 import { hashSourceAddress } from "../sessions/sign-in-lockout.js";
 import { DrizzleExpiringLotReader } from "../stock/drizzle-expiring-lot-reader.js";
+import { DrizzleRegisterEventStreams } from "../sync/drizzle-register-event-streams.js";
 import { DrizzleAlertStore } from "./drizzle-alert-store.js";
 import { DrizzleDeferredSaleDueAlerts } from "./drizzle-deferred-sale-due-alerts.js";
 import { DrizzleExceptionShareBreachAlerts } from "./drizzle-exception-share-breach-alerts.js";
@@ -139,7 +140,11 @@ function detectFortnightReportDeadlinesTask<TQueryResult extends PgQueryResultHK
   deps: AlertTaskDeps,
 ): Promise<number> {
   return detectFortnightReportDeadlines({
-    presentations: new DrizzleOwedFortnightPresentationReader(db, deps.zoneRules),
+    presentations: new DrizzleOwedFortnightPresentationReader(
+      db,
+      new DrizzleRegisterEventStreams(db),
+      deps.zoneRules,
+    ),
     alerts: new DrizzleFortnightReportDeadlineAlerts(db, deps.now),
     clock: { now: deps.now },
     zoneRules: deps.zoneRules,
