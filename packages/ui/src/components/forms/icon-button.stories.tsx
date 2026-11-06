@@ -3,6 +3,7 @@ import { Trash2, X } from "lucide-react";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import {
   playHoverSetsDataHovered,
+  playHoverShowsTooltip,
   playTabReachesFocusVisible,
 } from "../../test-support/story-interactions";
 import { IconButton } from "./icon-button";
@@ -19,14 +20,6 @@ const meta: Meta<typeof IconButton> = {
 };
 
 export default meta;
-
-// React Aria drops a first hover that arrives before any pointer movement, so the pointer enters,
-// leaves and enters again.
-async function hoverUntilTooltipShows(target: HTMLElement) {
-  await userEvent.hover(target);
-  await userEvent.unhover(target);
-  await userEvent.hover(target);
-}
 
 type Story = StoryObj<typeof IconButton>;
 
@@ -80,15 +73,7 @@ export const SubtleDisabled: Story = {
 };
 
 export const WithNameTooltipHovered: Story = {
-  play: async ({ canvasElement }) => {
-    await hoverUntilTooltipShows(theButton(canvasElement));
-    await waitFor(
-      () => {
-        expect(within(document.body).getByRole("tooltip")).toHaveTextContent("Eliminar fila");
-      },
-      { timeout: 3000 },
-    );
-  },
+  play: playHoverShowsTooltip(theButton, "Eliminar fila"),
 };
 
 export const WithNameTooltipFocused: Story = {
@@ -106,13 +91,5 @@ export const WithNameTooltipFocused: Story = {
 
 export const DisabledHovered: Story = {
   args: { disabled: true },
-  play: async ({ canvasElement }) => {
-    await hoverUntilTooltipShows(theButton(canvasElement));
-    await waitFor(
-      () => {
-        expect(within(document.body).getByRole("tooltip")).toHaveTextContent("Eliminar fila");
-      },
-      { timeout: 3000 },
-    );
-  },
+  play: playHoverShowsTooltip(theButton, "Eliminar fila"),
 };

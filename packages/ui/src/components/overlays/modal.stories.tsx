@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle, Info, XCircle } from "lucide-react";
 import { expect, userEvent, within } from "storybook/test";
 import {
   playHoverSetsDataHovered,
+  playHoverShowsTooltip,
   playTabReachesFocusVisible,
 } from "../../test-support/story-interactions";
 import { Button } from "../forms/button";
@@ -88,6 +89,21 @@ export const Wide: Story = {
     children: "Formulario con más espacio horizontal.",
     footer: <Button>Guardar</Button>,
   },
+};
+
+export const ClosableCloseButtonHovered: Story = {
+  args: {
+    tone: "info",
+    icon: <Info />,
+    title: "Detalle del producto",
+    closable: true,
+    children: "Podés cerrar este modal con el botón o con Escape.",
+    footer: <Button>Entendido</Button>,
+  },
+  play: playHoverShowsTooltip(
+    () => within(document.body).getByRole("button", { name: "Cerrar" }),
+    "Cerrar",
+  ),
 };
 
 export const Closable: Story = {

@@ -3,6 +3,7 @@ import { useId, useState } from "react";
 import { expect, userEvent, within } from "storybook/test";
 import {
   playClickExpandsTrigger,
+  playHoverShowsTooltip,
   playTabReachesFocusVisible,
 } from "../../test-support/story-interactions";
 import { ChipListField } from "./chip-list-field";
@@ -76,6 +77,11 @@ export const HelperText: Story = {
 export const FocusedRemoveButton: Story = {
   args: { value: ["organic", "vegan"] },
   play: playTabReachesFocusVisible(button("Quitar Orgánico")),
+};
+
+export const RemoveButtonHovered: Story = {
+  args: { value: ["organic", "vegan"] },
+  play: playHoverShowsTooltip(button("Quitar Orgánico"), "Quitar Orgánico"),
 };
 
 export const FocusedAddPill: Story = {

@@ -5,6 +5,7 @@ import { expect, userEvent, within } from "storybook/test";
 import {
   playClickExpandsTrigger,
   playHoverSetsDataHovered,
+  playHoverShowsTooltip,
   playPseudoHoverPaintsBoneFill,
   playTabReachesFocusVisible,
   playWithClockAt,
@@ -110,6 +111,11 @@ export const FocusedSegment: Story = {
 export const CalendarToggleFocusVisible: Story = {
   args: { value: null },
   play: playTabReachesFocusVisible(toggle),
+};
+
+export const CalendarToggleHovered: Story = {
+  args: { value: null },
+  play: playHoverShowsTooltip(toggle, "Abrir el calendario"),
 };
 
 export const CalendarOpen: Story = {
