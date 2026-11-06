@@ -82,6 +82,16 @@ describe("ReturnLinesTable", () => {
     await expect.element(table.getByText("Miel pura de abeja 1 kg")).toBeVisible();
   });
 
+  it("leaves a line unchecked when its id is named like an inherited member of an object", async () => {
+    const { screen } = await renderTable({
+      sale: { ...SALE, lines: [{ ...PASTA, id: "constructor" }] },
+    });
+
+    await expect
+      .element(screen.getByRole("checkbox", { name: /Pasta de maní 380 g/ }))
+      .not.toBeChecked();
+  });
+
   it("names the columns of what the customer returns", async () => {
     const { screen } = await renderTable();
 
