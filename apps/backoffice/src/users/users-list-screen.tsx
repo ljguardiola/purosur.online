@@ -469,6 +469,13 @@ function UsersListView({
     render: (item: BranchUser) =>
       item.active === false ? <Tag tone="neutral">Inactivo</Tag> : null,
   });
+  function openUserPanel(id: string) {
+    void navigate({
+      from: "/people/users",
+      to: "/people/users",
+      search: (previous) => ({ ...previous, user: id, tab: undefined }),
+    });
+  }
   const rowActionsColumn = actionsColumn({
     id: "actions",
     header: "Acciones",
@@ -478,12 +485,7 @@ function UsersListView({
         "aria-label": canManageUsers(access)
           ? `Editar a ${item.firstName}`
           : `Ver a ${item.firstName}`,
-        onPress: () =>
-          navigate({
-            from: "/people/users",
-            to: "/people/users",
-            search: (previous) => ({ ...previous, user: item.id, tab: undefined }),
-          }),
+        onPress: () => openUserPanel(item.id),
       }),
     ],
   });
@@ -533,6 +535,8 @@ function UsersListView({
             aria-label="Usuarios"
             table={table}
             {...cloudTableState(data, "los usuarios")}
+            onRowPress={(item) => openUserPanel(item.id)}
+            rowState={(item) => (item.id === openUser ? "selected" : undefined)}
             empty={
               users.length === 0
                 ? {
