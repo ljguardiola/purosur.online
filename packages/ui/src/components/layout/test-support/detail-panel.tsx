@@ -3,24 +3,33 @@ import { type ReactNode, useState } from "react";
 import { Modal } from "../../overlays/modal";
 import { DetailPanel } from "../detail-panel";
 
+type SupplierRow = { label: string; supplier: string };
+
+const supplierRows: SupplierRow[] = [
+  { label: "Distribuidora Norte", supplier: "Distribuidora Norte" },
+  { label: "Almacén Sur", supplier: "Almacén Sur" },
+];
+
 export function SuppliersArea({
   areaWidth,
   children,
   footer,
+  rows = supplierRows,
 }: {
   areaWidth: number;
   children?: ReactNode;
   footer?: ReactNode;
+  rows?: SupplierRow[];
 }) {
   const [openSupplier, setOpenSupplier] = useState<string | null>(null);
 
   return (
     <div data-testid="area" style={{ display: "flex", width: `${areaWidth}px`, height: "600px" }}>
       <ul style={{ flex: 1 }}>
-        {["Distribuidora Norte", "Almacén Sur"].map((supplier) => (
-          <li key={supplier}>
+        {rows.map(({ label, supplier }) => (
+          <li key={label}>
             <button type="button" onClick={() => setOpenSupplier(supplier)}>
-              {supplier}
+              {label}
             </button>
           </li>
         ))}

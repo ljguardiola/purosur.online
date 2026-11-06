@@ -43,6 +43,45 @@ test("gives focus back to the row pressed last when it closes", async () => {
   await expect.element(lastRow).toHaveFocus();
 });
 
+test("gives focus back to the row pressed last when both rows open records with the same title", async () => {
+  const screen = await render(
+    <SuppliersArea
+      areaWidth={WIDE_AREA}
+      rows={[
+        { label: "Fila uno", supplier: "Distribuidora Norte" },
+        { label: "Fila dos", supplier: "Distribuidora Norte" },
+      ]}
+    />,
+  );
+  await screen.getByRole("button", { name: "Fila uno" }).click();
+  const lastRow = screen.getByRole("button", { name: "Fila dos" });
+  await lastRow.click();
+
+  await screen.getByRole("button", { name: "Cerrar" }).click();
+
+  expect(screen.getByRole("complementary").elements()).toHaveLength(0);
+  await expect.element(lastRow).toHaveFocus();
+});
+
+test("gives focus back to the pressed row after a modal opened from its content closed", async () => {
+  const screen = await render(
+    <SuppliersArea areaWidth={WIDE_AREA}>
+      <ConfirmationInsidePanel closable />
+    </SuppliersArea>,
+  );
+  const row = screen.getByRole("button", { name: "Almacén Sur" });
+  await row.click();
+  await screen.getByRole("button", { name: "Eliminar proveedor" }).click();
+  await expect.element(screen.getByRole("dialog")).toBeVisible();
+  await userEvent.keyboard("{Escape}");
+  await expect.poll(() => screen.getByRole("dialog").elements().length).toBe(0);
+
+  await screen.getByRole("button", { name: "Cerrar" }).click();
+
+  expect(screen.getByRole("complementary").elements()).toHaveLength(0);
+  await expect.element(row).toHaveFocus();
+});
+
 function SearchInsidePanel() {
   const [search, setSearch] = useState("");
   return (
