@@ -96,7 +96,7 @@ export function useRequestForm<
   const { request, fields, messages, check } = options;
   const wireFields: Record<string, FieldDeclaration<Values, Field> | undefined> = fields;
   const fieldOf = (wireField: string, values: Values): Field | undefined => {
-    const declared = Object.hasOwn(fields, wireField) ? wireFields[wireField] : undefined;
+    const declared = Object.hasOwn(wireFields, wireField) ? wireFields[wireField] : undefined;
     return (typeof declared === "function" ? declared(values) : declared) ?? undefined;
   };
   const messageFor = (field: Field, values: Values): string => {
