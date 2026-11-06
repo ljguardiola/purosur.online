@@ -691,6 +691,32 @@ describe("keeping the link proposal of a row", () => {
     expect(asked).toHaveLength(1);
   });
 
+  it("answers 404, still recording the call, when the row is removed while the model chooses", async () => {
+    const { headers } = await manager();
+    const { listId, rowId } = await extractedListWithRow({}, { description: "Yerba suave 1 kg" });
+    const { id: productId } = await insertProduct(db, { name: "Yerba Suave 1 kg" });
+    await app.close();
+    app = Fastify();
+    registerSupplierPriceListsRoutes(app, {
+      zoneRules: fixedZoneRulesSource(),
+      db,
+      backofficeOrigin: BACKOFFICE_ORIGIN,
+      now: () => NOW,
+      productChooser: {
+        choose: async (_item, _candidates, onCall) => {
+          await db.delete(supplierPriceListRows).where(eq(supplierPriceListRows.id, rowId));
+          onCall(reportedCall());
+          return { kind: "chosen", productId, quantity: null };
+        },
+      },
+    });
+
+    const response = await proposal(headers, listId, rowId);
+
+    expect(response.statusCode).toBe(404);
+    expect(await db.select().from(supplierPriceListAiCalls)).toHaveLength(1);
+  });
+
   it.each([{}, { refresh: "yes" }, null])(
     "answers 400 for the body %j, without asking",
     async (payload) => {

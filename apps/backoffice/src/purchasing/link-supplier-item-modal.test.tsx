@@ -1,12 +1,15 @@
-import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import { render } from "../shell/test-support/render-with-router";
+import type { LinkSupplierItemModalServices } from "./link-supplier-item-modal";
 import {
-  LinkSupplierItemModal,
-  type LinkSupplierItemModalServices,
-} from "./link-supplier-item-modal";
+  almondRow,
+  createServices,
+  LIST,
+  type ModalScreen,
+  nutRow,
+  renderModal,
+} from "./test-support/link-supplier-item-modal";
 import {
   GRANOLA_LINK_CHOICES,
   LINK_CHOICES,
@@ -22,74 +25,9 @@ import {
 } from "./test-support/supplier-item-links";
 import { ALMOND_LINK, EXTRACTED_ROWS, READ_LIST } from "./test-support/supplier-price-lists";
 
-const [, , nutRow] = EXTRACTED_ROWS as [
-  (typeof EXTRACTED_ROWS)[number],
-  (typeof EXTRACTED_ROWS)[number],
-  (typeof EXTRACTED_ROWS)[number],
-];
-const [almondRow] = EXTRACTED_ROWS as [(typeof EXTRACTED_ROWS)[number]];
-const LIST = { ...READ_LIST, version: 3, requiresVatRate: false };
-
 beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
-
-function createServices(
-  overrides: Partial<LinkSupplierItemModalServices> = {},
-): LinkSupplierItemModalServices {
-  return {
-    linkSupplierPriceListRow: vi.fn<LinkSupplierItemModalServices["linkSupplierPriceListRow"]>(),
-    fetchSupplierItemLinkProposal: vi
-      .fn<LinkSupplierItemModalServices["fetchSupplierItemLinkProposal"]>()
-      .mockResolvedValue({ kind: "ok", value: NO_PROPOSAL }),
-    fetchSupplierItemLinkChoices: vi
-      .fn<LinkSupplierItemModalServices["fetchSupplierItemLinkChoices"]>()
-      .mockResolvedValue({ kind: "ok", value: LINK_CHOICES }),
-    ...overrides,
-  };
-}
-
-function renderModal({
-  services = createServices(),
-  list = LIST,
-  target = nutRow,
-  remembersOnConfirm = true,
-  onCreateProduct = null,
-  onLinked = () => {},
-  onOutdated = () => {},
-  onClose = () => {},
-  onSessionEnded = () => {},
-}: {
-  services?: LinkSupplierItemModalServices;
-  list?: Parameters<typeof LinkSupplierItemModal>[0]["list"];
-  target?: typeof nutRow | null;
-  remembersOnConfirm?: boolean;
-  onCreateProduct?: ((row: typeof nutRow) => void) | null;
-  onLinked?: () => void;
-  onOutdated?: () => void;
-  onClose?: () => void;
-  onSessionEnded?: () => void;
-} = {}) {
-  return render(
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <LinkSupplierItemModal
-          list={list}
-          target={target}
-          remembersOnConfirm={remembersOnConfirm}
-          onCreateProduct={onCreateProduct}
-          services={services}
-          onLinked={onLinked}
-          onOutdated={onOutdated}
-          onClose={onClose}
-          onSessionEnded={onSessionEnded}
-        />
-      </main>
-    </FieldSizeProvider>,
-  );
-}
-
-type ModalScreen = Awaited<ReturnType<typeof renderModal>>;
 
 // A locator click scrolls the option into view first, and the scroll event closes the list.
 async function chooseProduct(screen: ModalScreen, name: string) {

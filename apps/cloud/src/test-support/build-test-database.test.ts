@@ -1109,13 +1109,18 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       .returning({ id: supplierPriceListRows.id });
     await db.insert(supplierItemLinkProposals).values({
       rowId: priceListRow?.id as string,
+      askedDescription: "Yerba 1 kg",
+      askedOtherPresentations: [],
       kind: "PROPOSED",
       productId: product.id,
       proposedBy: "AI",
+      saleUnit: "UNIT",
       quantity: 12_000,
     });
     await db.insert(supplierItemQuantityProposals).values({
       rowId: priceListRow?.id as string,
+      askedDescription: "Yerba 1 kg",
+      askedOtherPresentations: [],
       saleUnit: "UNIT",
       kind: "NONE",
     });

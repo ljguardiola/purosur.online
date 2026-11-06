@@ -61,35 +61,43 @@ describe("the supplier item proposals migration applied over a database that alr
     const migrated = await database.applyMigration();
 
     await migrated.query(
-      `insert into supplier_item_link_proposals (row_id, kind, product_id, proposed_by, quantity)
-       values ($1, 'PROPOSED', $2, 'AI', 36000)`,
+      `insert into supplier_item_link_proposals
+         (row_id, asked_description, asked_other_presentations, kind, product_id, proposed_by, sale_unit, quantity)
+       values ($1, 'Yerba mate 1 kg', '{}', 'PROPOSED', $2, 'AI', 'UNIT', 36000)`,
       [rowId, productId],
     );
 
     await expect(
       migrated.query(
-        `insert into supplier_item_link_proposals (row_id, kind) values ($1, 'NONE')`,
+        `insert into supplier_item_link_proposals (row_id, asked_description, asked_other_presentations, kind)
+         values ($1, 'Yerba mate 1 kg', '{}', 'NONE')`,
         [rowId],
       ),
     ).rejects.toThrow();
   });
 
   it.each([
-    ["a proposal with no product", `'PROPOSED', null, 'AI', null`],
-    ["a proposal with no author", `'PROPOSED', $2, null, null`],
-    ["a proposal by someone unknown", `'PROPOSED', $2, 'GUESS', null`],
-    ["a proposal with a zero quantity", `'PROPOSED', $2, 'AI', 0`],
-    ["a none carrying a product", `'NONE', $2, null, null`],
-    ["a none carrying an author", `'NONE', null, 'AI', null`],
-    ["a none carrying a quantity", `'NONE', null, null, 1000`],
-    ["a kind that is neither", `'MAYBE', null, null, null`],
+    ["a proposal with no product", `'Yerba', '{}', 'PROPOSED', null, 'AI', 'UNIT', null`],
+    ["a proposal with no author", `'Yerba', '{}', 'PROPOSED', $2, null, 'UNIT', null`],
+    ["a proposal by someone unknown", `'Yerba', '{}', 'PROPOSED', $2, 'GUESS', 'UNIT', null`],
+    ["a proposal with no sale unit", `'Yerba', '{}', 'PROPOSED', $2, 'AI', null, null`],
+    ["a proposal with an unknown sale unit", `'Yerba', '{}', 'PROPOSED', $2, 'AI', 'BOX', null`],
+    ["a proposal with a zero quantity", `'Yerba', '{}', 'PROPOSED', $2, 'AI', 'UNIT', 0`],
+    ["a none carrying a product", `'Yerba', '{}', 'NONE', $2, null, null, null`],
+    ["a none carrying an author", `'Yerba', '{}', 'NONE', null, 'AI', null, null`],
+    ["a none carrying a sale unit", `'Yerba', '{}', 'NONE', null, null, 'UNIT', null`],
+    ["a none carrying a quantity", `'Yerba', '{}', 'NONE', null, null, null, 1000`],
+    ["a kind that is neither", `'Yerba', '{}', 'MAYBE', null, null, null, null`],
+    ["no row description it was asked from", `null, '{}', 'NONE', null, null, null, null`],
+    ["no row presentations it was asked from", `'Yerba', null, 'NONE', null, null, null, null`],
   ])("refuses %s", async (_name, values) => {
     const { database, rowId, productId } = await databaseHoldingAListWithARow();
     const migrated = await database.applyMigration();
 
     await expect(
       migrated.query(
-        `insert into supplier_item_link_proposals (row_id, kind, product_id, proposed_by, quantity)
+        `insert into supplier_item_link_proposals
+           (row_id, asked_description, asked_other_presentations, kind, product_id, proposed_by, sale_unit, quantity)
          values ($1, ${values})`,
         [rowId, productId],
       ),
@@ -102,8 +110,8 @@ describe("the supplier item proposals migration applied over a database that alr
     const insert = (saleUnit: string, quantity: number | null, unit: string | null) =>
       migrated.query(
         `insert into supplier_item_quantity_proposals
-           (row_id, sale_unit, net_content_quantity, net_content_unit, kind)
-         values ($1, $2, $3, $4, 'NONE')`,
+           (row_id, asked_description, asked_other_presentations, sale_unit, net_content_quantity, net_content_unit, kind)
+         values ($1, 'Yerba', '{}', $2, $3, $4, 'NONE')`,
         [rowId, saleUnit, quantity, unit],
       );
 
@@ -132,8 +140,25 @@ describe("the supplier item proposals migration applied over a database that alr
     await expect(
       migrated.query(
         `insert into supplier_item_quantity_proposals
-           (row_id, sale_unit, net_content_quantity, net_content_unit, kind, quantity)
-         values ($1, ${values})`,
+           (row_id, asked_description, asked_other_presentations, sale_unit, net_content_quantity, net_content_unit, kind, quantity)
+         values ($1, 'Yerba', '{}', ${values})`,
+        [rowId],
+      ),
+    ).rejects.toThrow();
+  });
+
+  it.each([
+    ["no row description it was asked from", `null, '{}'`],
+    ["no row presentations it was asked from", `'Yerba', null`],
+  ])("refuses a quantity proposal with %s", async (_name, askedFrom) => {
+    const { database, rowId } = await databaseHoldingAListWithARow();
+    const migrated = await database.applyMigration();
+
+    await expect(
+      migrated.query(
+        `insert into supplier_item_quantity_proposals
+           (row_id, asked_description, asked_other_presentations, sale_unit, kind)
+         values ($1, ${askedFrom}, 'UNIT', 'NONE')`,
         [rowId],
       ),
     ).rejects.toThrow();
@@ -143,13 +168,15 @@ describe("the supplier item proposals migration applied over a database that alr
     const { database, rowId, productId } = await databaseHoldingAListWithARow();
     const migrated = await database.applyMigration();
     await migrated.query(
-      `insert into supplier_item_link_proposals (row_id, kind, product_id, proposed_by)
-       values ($1, 'PROPOSED', $2, 'BARCODE')`,
+      `insert into supplier_item_link_proposals
+         (row_id, asked_description, asked_other_presentations, kind, product_id, proposed_by, sale_unit)
+       values ($1, 'Yerba', '{}', 'PROPOSED', $2, 'BARCODE', 'UNIT')`,
       [rowId, productId],
     );
     await migrated.query(
-      `insert into supplier_item_quantity_proposals (row_id, sale_unit, kind, quantity)
-       values ($1, 'UNIT', 'PROPOSED', 12000)`,
+      `insert into supplier_item_quantity_proposals
+         (row_id, asked_description, asked_other_presentations, sale_unit, kind, quantity)
+       values ($1, 'Yerba', '{}', 'UNIT', 'PROPOSED', 12000)`,
       [rowId],
     );
 

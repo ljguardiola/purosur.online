@@ -1,24 +1,22 @@
 import type { SupplierItemLinkProposal } from "@purosur/contracts";
-import { FieldSizeProvider } from "@purosur/ui";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import { render } from "../shell/test-support/render-with-router";
+import type { LinkSupplierItemModalServices } from "./link-supplier-item-modal";
 import {
-  LinkSupplierItemModal,
-  type LinkSupplierItemModalServices,
-} from "./link-supplier-item-modal";
+  createServices,
+  LIST,
+  modalElement,
+  nutRow,
+  pasasRow,
+  renderModal,
+} from "./test-support/link-supplier-item-modal";
 import {
-  LINK_CHOICES,
   NO_PROPOSAL,
   PROPOSED_BY_AI,
   PROPOSED_MIEL_WITH_UNITS,
   PROPOSED_PASAS_WITH_KILOS,
   UNAVAILABLE_PROPOSAL,
 } from "./test-support/supplier-item-links";
-import { EXTRACTED_ROWS, READ_LIST } from "./test-support/supplier-price-lists";
-
-const nutRow = EXTRACTED_ROWS[2] as (typeof EXTRACTED_ROWS)[number];
-const LIST = { ...READ_LIST, version: 3, requiresVatRate: false };
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
@@ -31,36 +29,14 @@ function answering(...answers: Answer[]): LinkSupplierItemModalServices {
   for (const answer of answers) {
     fetchProposal.mockResolvedValueOnce(answer);
   }
-  return {
-    linkSupplierPriceListRow: vi.fn<LinkSupplierItemModalServices["linkSupplierPriceListRow"]>(),
-    fetchSupplierItemLinkProposal: fetchProposal,
-    fetchSupplierItemLinkChoices: vi
-      .fn<LinkSupplierItemModalServices["fetchSupplierItemLinkChoices"]>()
-      .mockResolvedValue({ kind: "ok", value: LINK_CHOICES }),
-  };
+  return createServices({ fetchSupplierItemLinkProposal: fetchProposal });
 }
 
 const proposal = (value: SupplierItemLinkProposal): Answer => ({ kind: "ok", value });
 
 async function opened(services: LinkSupplierItemModalServices) {
   const onSessionEnded = vi.fn();
-  const screen = await render(
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <LinkSupplierItemModal
-          list={LIST}
-          target={nutRow}
-          remembersOnConfirm
-          onCreateProduct={null}
-          services={services}
-          onLinked={() => {}}
-          onOutdated={() => {}}
-          onClose={() => {}}
-          onSessionEnded={onSessionEnded}
-        />
-      </main>
-    </FieldSizeProvider>,
-  );
+  const screen = await renderModal({ services, onSessionEnded });
   const dialog = screen.getByRole("dialog");
   return { screen, dialog, onSessionEnded };
 }
@@ -199,7 +175,7 @@ test.each([
 
     await userEvent.click(askAgain(dialog));
 
-    await expect.element(dialog.getByText("No pudimos volver a proponer")).toBeVisible();
+    await expect.element(dialog.getByText("No pudimos volver a proponer").first()).toBeVisible();
     await expect.element(dialog.getByText("Propuesto por IA: Pasas de uva").first()).toBeVisible();
     await expect.element(productField(dialog)).toHaveValue("Pasas de uva");
   },
@@ -213,4 +189,47 @@ test("ends the session when asking again finds it ended", async () => {
   await userEvent.click(askAgain(dialog));
 
   await expect.poll(() => onSessionEnded).toHaveBeenCalledTimes(1);
+});
+
+test("a new opening of the item does not tell that asking again failed before", async () => {
+  const services = answering(
+    proposal(PROPOSED_BY_AI),
+    { kind: "failed" },
+    proposal(PROPOSED_BY_AI),
+  );
+  const { screen, dialog } = await opened(services);
+  await userEvent.click(askAgain(dialog));
+  await expect.element(dialog.getByText("No pudimos volver a proponer").first()).toBeVisible();
+
+  await screen.rerender(modalElement({ services, target: null }));
+  await screen.rerender(modalElement({ services, target: { ...nutRow } }));
+
+  const reopened = screen.getByRole("dialog");
+  await expect.element(askAgain(reopened)).toBeEnabled();
+  expect(reopened.getByText("No pudimos volver a proponer").elements()).toEqual([]);
+});
+
+test("a new proposal that arrives once the modal shows another item leaves that item's form alone", async () => {
+  let settle: (answer: Answer) => void = () => {};
+  const services = answering(proposal(NO_PROPOSAL));
+  vi.mocked(services.fetchSupplierItemLinkProposal)
+    .mockReturnValueOnce(
+      new Promise((resolve) => {
+        settle = resolve;
+      }),
+    )
+    .mockResolvedValue(proposal(NO_PROPOSAL));
+  const { screen, dialog } = await opened(services);
+  await userEvent.click(askAgain(dialog));
+  await expect.element(askAgain(dialog)).toBeDisabled();
+
+  await screen.rerender(modalElement({ services, target: pasasRow }));
+  const pasas = screen.getByRole("dialog", { name: pasasRow.description });
+  await expect.element(askAgain(pasas)).toBeEnabled();
+  settle(proposal(PROPOSED_MIEL_WITH_UNITS));
+  await userEvent.click(askAgain(pasas));
+  await expect.element(askAgain(pasas)).toBeEnabled();
+
+  await expect.element(productField(pasas)).toHaveValue("");
+  await expect.element(quantityField(pasas)).not.toBeInTheDocument();
 });

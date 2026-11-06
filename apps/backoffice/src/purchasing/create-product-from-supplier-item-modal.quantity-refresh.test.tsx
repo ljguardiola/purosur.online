@@ -1,29 +1,20 @@
 import type { SupplierItemQuantityProposal } from "@purosur/contracts";
-import { FieldSizeProvider } from "@purosur/ui";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import { StubCategoryCreationModal } from "../platform/test-support/creation-parts";
-import { render } from "../shell/test-support/render-with-router";
+import type { CreateProductFromSupplierItemModalServices } from "./create-product-from-supplier-item-modal";
 import {
-  CreateProductFromSupplierItemModal,
-  type CreateProductFromSupplierItemModalServices,
-} from "./create-product-from-supplier-item-modal";
+  createServices,
+  LIST,
+  modalElement,
+  nutRow,
+  renderModal,
+} from "./test-support/create-product-from-supplier-item-modal";
 import {
-  LINK_CHOICES,
   NO_QUANTITY_PROPOSAL,
   PROPOSED_QUANTITY_OF_UNITS,
   UNAVAILABLE_QUANTITY_PROPOSAL,
 } from "./test-support/supplier-item-links";
-import {
-  CREATION_BRANDS,
-  CREATION_CATEGORIES,
-  CREATION_TAG_LIST,
-  PRODUCT_CREATED,
-} from "./test-support/supplier-item-products";
-import { EXTRACTED_ROWS, READ_LIST } from "./test-support/supplier-price-lists";
 
-const nutRow = EXTRACTED_ROWS[2] as (typeof EXTRACTED_ROWS)[number];
-const LIST = { ...READ_LIST, version: 3, requiresVatRate: false };
 const PROPOSED_ANOTHER_QUANTITY: SupplierItemQuantityProposal = {
   kind: "proposed",
   quantity: 24_000,
@@ -44,52 +35,17 @@ function answering(...answers: Answer[]): CreateProductFromSupplierItemModalServ
   for (const answer of answers) {
     fetchProposal.mockResolvedValueOnce(answer);
   }
-  return {
-    createProductFromSupplierItem: vi
-      .fn<CreateProductFromSupplierItemModalServices["createProductFromSupplierItem"]>()
-      .mockResolvedValue({ kind: "ok", created: PRODUCT_CREATED }),
-    fetchProductCreationCategories: vi
-      .fn<CreateProductFromSupplierItemModalServices["fetchProductCreationCategories"]>()
-      .mockResolvedValue({ kind: "ok", value: CREATION_CATEGORIES }),
-    fetchProductCreationBrands: vi
-      .fn<CreateProductFromSupplierItemModalServices["fetchProductCreationBrands"]>()
-      .mockResolvedValue({ kind: "ok", value: CREATION_BRANDS }),
-    fetchProductCreationTags: vi
-      .fn<CreateProductFromSupplierItemModalServices["fetchProductCreationTags"]>()
-      .mockResolvedValue({ kind: "ok", value: CREATION_TAG_LIST }),
-    createBrand: vi.fn<CreateProductFromSupplierItemModalServices["createBrand"]>(),
-    createTag: vi.fn<CreateProductFromSupplierItemModalServices["createTag"]>(),
-    fetchSupplierItemLinkChoices: vi
-      .fn<CreateProductFromSupplierItemModalServices["fetchSupplierItemLinkChoices"]>()
-      .mockResolvedValue({ kind: "ok", value: LINK_CHOICES }),
-    generateInternalBarcode:
-      vi.fn<CreateProductFromSupplierItemModalServices["generateInternalBarcode"]>(),
-    fetchSupplierItemQuantityProposal: fetchProposal,
-  };
+  return createServices({ fetchSupplierItemQuantityProposal: fetchProposal });
 }
+
+const dialogName = "Crear producto desde la lista";
 
 async function opened(services: CreateProductFromSupplierItemModalServices) {
   const onSessionEnded = vi.fn();
-  const screen = await render(
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <CreateProductFromSupplierItemModal
-          list={LIST}
-          target={nutRow}
-          mayCreateCatalogRecords
-          categoryCreationModal={StubCategoryCreationModal}
-          services={services}
-          onCreated={() => {}}
-          onOutdated={() => {}}
-          onClose={() => {}}
-          onSessionEnded={onSessionEnded}
-        />
-      </main>
-    </FieldSizeProvider>,
-  );
-  const dialog = screen.getByRole("dialog", { name: "Crear producto desde la lista" });
+  const screen = await renderModal({ services, onSessionEnded });
+  const dialog = screen.getByRole("dialog", { name: dialogName });
   await expect.element(dialog.getByRole("combobox", { name: /^Categoría/ })).toBeVisible();
-  return { dialog, onSessionEnded };
+  return { screen, dialog, onSessionEnded };
 }
 
 type Dialog = Awaited<ReturnType<typeof opened>>["dialog"];
@@ -108,13 +64,20 @@ test.each([
   await expect.element(askAgain(dialog)).toBeEnabled();
 });
 
-test("offers no new proposal while the quantity proposal loads", async () => {
-  const { dialog } = await opened({
-    ...answering(),
-    fetchSupplierItemQuantityProposal: vi.fn<Fetch>().mockReturnValue(new Promise(() => {})),
-  });
+test("keeps the action in place, disabled, while the quantity proposal loads", async () => {
+  const { dialog } = await opened(
+    createServices({
+      fetchSupplierItemQuantityProposal: vi.fn<Fetch>().mockReturnValue(new Promise(() => {})),
+    }),
+  );
 
-  expect(askAgain(dialog).query()).toBeNull();
+  await expect.element(askAgain(dialog)).toBeDisabled();
+});
+
+test("keeps the action in place, disabled, once reading the quantity proposal failed", async () => {
+  const { dialog } = await opened(answering({ kind: "failed" }));
+
+  await expect.element(askAgain(dialog)).toBeDisabled();
 });
 
 test("asks the model again for the shape of the product and fills the new quantity the person did not touch", async () => {
@@ -178,7 +141,7 @@ test("shows that asking again did not work and keeps the quantity", async () => 
 
   await userEvent.click(askAgain(dialog));
 
-  await expect.element(dialog.getByText("No pudimos volver a proponer")).toBeVisible();
+  await expect.element(dialog.getByText("No pudimos volver a proponer").first()).toBeVisible();
   await expect.element(quantityField(dialog)).toHaveValue("36");
 });
 
@@ -190,4 +153,22 @@ test("ends the session when asking again finds it ended", async () => {
   await userEvent.click(askAgain(dialog));
 
   await expect.poll(() => onSessionEnded).toHaveBeenCalledTimes(1);
+});
+
+test("a new opening of the item does not tell that asking again failed before", async () => {
+  const services = answering(
+    proposal(PROPOSED_QUANTITY_OF_UNITS),
+    { kind: "failed" },
+    proposal(PROPOSED_QUANTITY_OF_UNITS),
+  );
+  const { screen, dialog } = await opened(services);
+  await userEvent.click(askAgain(dialog));
+  await expect.element(dialog.getByText("No pudimos volver a proponer").first()).toBeVisible();
+
+  await screen.rerender(modalElement({ services, target: null }));
+  await screen.rerender(modalElement({ services, target: { ...nutRow } }));
+
+  const reopened = screen.getByRole("dialog", { name: dialogName });
+  await expect.element(askAgain(reopened)).toBeEnabled();
+  expect(reopened.getByText("No pudimos volver a proponer").elements()).toEqual([]);
 });

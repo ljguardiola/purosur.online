@@ -1,19 +1,20 @@
-import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useIsFetching } from "@tanstack/react-query";
-import type { ReactNode } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
 import { type Locator, page, userEvent } from "vitest/browser";
-import { StubCategoryCreationModal } from "../platform/test-support/creation-parts";
 import { radioLabel } from "../platform/test-support/radio-label";
-import { render } from "../shell/test-support/render-with-router";
-import {
-  CreateProductFromSupplierItemModal,
-  type CreateProductFromSupplierItemModalServices,
-} from "./create-product-from-supplier-item-modal";
+import type { CreateProductFromSupplierItemModalServices } from "./create-product-from-supplier-item-modal";
 import { purchasingKeys } from "./purchasing-queries";
 import {
-  LINK_CHOICES,
+  createServices,
+  LIST,
+  type ModalScreen,
+  modalElement,
+  nutRow,
+  pasasRow,
+  renderModal,
+} from "./test-support/create-product-from-supplier-item-modal";
+import {
   NO_QUANTITY_PROPOSAL,
   PROPOSED_QUANTITY_OF_KILOS,
   PROPOSED_QUANTITY_OF_UNITS,
@@ -25,100 +26,12 @@ import {
   CREATION_CATEGORIES,
   CREATION_TAG_LIST,
   DRIED_FRUITS,
-  PRODUCT_CREATED,
 } from "./test-support/supplier-item-products";
-import { EXTRACTED_ROWS, READ_LIST } from "./test-support/supplier-price-lists";
-
-const [, pasasRow, nutRow] = EXTRACTED_ROWS as [
-  (typeof EXTRACTED_ROWS)[number],
-  (typeof EXTRACTED_ROWS)[number],
-  (typeof EXTRACTED_ROWS)[number],
-];
-const LIST = { ...READ_LIST, version: 3, requiresVatRate: false };
 
 beforeEach(async () => {
   window.history.pushState(null, "", "/");
   await page.viewport(1280, 900);
 });
-
-function createServices(
-  overrides: Partial<CreateProductFromSupplierItemModalServices> = {},
-): CreateProductFromSupplierItemModalServices {
-  return {
-    createProductFromSupplierItem: vi
-      .fn<CreateProductFromSupplierItemModalServices["createProductFromSupplierItem"]>()
-      .mockResolvedValue({ kind: "ok", created: PRODUCT_CREATED }),
-    fetchProductCreationCategories: vi
-      .fn<CreateProductFromSupplierItemModalServices["fetchProductCreationCategories"]>()
-      .mockResolvedValue({ kind: "ok", value: CREATION_CATEGORIES }),
-    fetchProductCreationBrands: vi
-      .fn<CreateProductFromSupplierItemModalServices["fetchProductCreationBrands"]>()
-      .mockResolvedValue({ kind: "ok", value: CREATION_BRANDS }),
-    fetchProductCreationTags: vi
-      .fn<CreateProductFromSupplierItemModalServices["fetchProductCreationTags"]>()
-      .mockResolvedValue({ kind: "ok", value: CREATION_TAG_LIST }),
-    createBrand: vi.fn<CreateProductFromSupplierItemModalServices["createBrand"]>(),
-    createTag: vi.fn<CreateProductFromSupplierItemModalServices["createTag"]>(),
-    fetchSupplierItemLinkChoices: vi
-      .fn<CreateProductFromSupplierItemModalServices["fetchSupplierItemLinkChoices"]>()
-      .mockResolvedValue({ kind: "ok", value: LINK_CHOICES }),
-    generateInternalBarcode:
-      vi.fn<CreateProductFromSupplierItemModalServices["generateInternalBarcode"]>(),
-    fetchSupplierItemQuantityProposal: vi
-      .fn<CreateProductFromSupplierItemModalServices["fetchSupplierItemQuantityProposal"]>()
-      .mockResolvedValue({ kind: "ok", value: NO_QUANTITY_PROPOSAL }),
-    ...overrides,
-  };
-}
-
-type ModalOptions = {
-  services?: CreateProductFromSupplierItemModalServices;
-  list?: Parameters<typeof CreateProductFromSupplierItemModal>[0]["list"];
-  target?: typeof nutRow | null;
-  mayCreateCatalogRecords?: boolean;
-  onCreated?: () => void;
-  onOutdated?: () => void;
-  onClose?: () => void;
-  onSessionEnded?: () => void;
-  besideModal?: ReactNode;
-};
-
-function modalElement({
-  services = createServices(),
-  list = LIST,
-  target = nutRow,
-  mayCreateCatalogRecords = true,
-  onCreated = () => {},
-  onOutdated = () => {},
-  onClose = () => {},
-  onSessionEnded = () => {},
-  besideModal = null,
-}: ModalOptions = {}) {
-  return (
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <CreateProductFromSupplierItemModal
-          list={list}
-          target={target}
-          mayCreateCatalogRecords={mayCreateCatalogRecords}
-          categoryCreationModal={StubCategoryCreationModal}
-          services={services}
-          onCreated={onCreated}
-          onOutdated={onOutdated}
-          onClose={onClose}
-          onSessionEnded={onSessionEnded}
-        />
-        {besideModal}
-      </main>
-    </FieldSizeProvider>
-  );
-}
-
-function renderModal(options: ModalOptions = {}) {
-  return render(modalElement(options));
-}
-
-type ModalScreen = Awaited<ReturnType<typeof renderModal>>;
 
 function dialogOf(screen: ModalScreen) {
   return screen.getByRole("dialog");
