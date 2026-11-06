@@ -79,19 +79,23 @@ describe("scaleWeighingStep", () => {
     },
   );
 
+  it.each([null, 0, 1250])("shows an unstable zero as unsteady, confirming %s", (confirmed) => {
+    expect(
+      scaleWeighingStep({ kind: "unstable", weightThousandths: 0 }, confirmed, UP_TO_5000),
+    ).toEqual({ kind: "unsteady", weightThousandths: 0 });
+  });
+
   it.each([
-    [0, null],
-    [0, 0],
     [5001, null],
     [5001, 5001],
     [-120, null],
     [-120, -120],
   ])(
-    "keeps weighing without a weight for an unstable reading of %s thousandths, confirming %s",
+    "answers an unstable reading of %s thousandths that is no quantity as out of range, confirming %s",
     (weightThousandths, confirmed) => {
       expect(
         scaleWeighingStep({ kind: "unstable", weightThousandths }, confirmed, UP_TO_5000),
-      ).toEqual({ kind: "weighing" });
+      ).toEqual({ kind: "unsteady_out_of_range" });
     },
   );
 
@@ -102,11 +106,5 @@ describe("scaleWeighingStep", () => {
     expect(
       scaleWeighingStep({ kind: "stable", weightThousandths: 1250 }, 1250, UP_TO_5000),
     ).toEqual({ kind: "take", weightThousandths: 1250 });
-  });
-
-  it("keeps weighing for an unstable zero even when zero would be a quantity", () => {
-    expect(scaleWeighingStep({ kind: "unstable", weightThousandths: 0 }, null, () => true)).toEqual(
-      { kind: "weighing" },
-    );
   });
 });

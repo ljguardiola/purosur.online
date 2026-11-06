@@ -171,9 +171,11 @@ describe("stockCoreToRendererMessageSchema", () => {
     ["weigh-counted-product-result", { kind: "weighed", weight_thousandths: 1250 }],
     ["weigh-counted-product-result", { kind: "weighed", weight_thousandths: 0 }],
     ["weigh-counted-product-result", { kind: "unsteady", weight_thousandths: 140 }],
+    ["weigh-counted-product-result", { kind: "unsteady", weight_thousandths: 0 }],
     ["weigh-counted-product-result", { kind: "confirmed", weight_thousandths: 1250 }],
     ...[
       "weighing",
+      "unsteady_out_of_range",
       "zero_weight",
       "scale_unavailable",
       "unknown_product",

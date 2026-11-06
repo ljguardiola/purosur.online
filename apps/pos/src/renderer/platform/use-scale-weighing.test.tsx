@@ -22,6 +22,11 @@ const UNSTEADY_140: ScaleWeighing = {
   kind: "unsteady",
   reading: { weightThousandths: 140, amount: 175_000 },
 };
+const UNSTEADY_ZERO: ScaleWeighing = {
+  kind: "unsteady",
+  reading: { weightThousandths: 0, amount: 0 },
+};
+const OUT_OF_RANGE: ScaleWeighing = { kind: "unsteady_out_of_range" };
 const TAKEN: ScaleWeighing = {
   kind: "taken",
   reading: { weightThousandths: 1250, amount: 1_562_500 },
@@ -112,17 +117,13 @@ describe("useScaleWeighing", () => {
       .toEqual({ kind: "weighing", last: { weightThousandths: 120, amount: 150_000 } });
   });
 
-  it("shows each unsteady reading as weighing with that reading, moving on to the stable one", async () => {
+  it("shows each unsteady reading, moving on to the stable one", async () => {
     const { result, asked, answer } = await weighing();
 
     await answer(UNSTEADY_80);
-    await expect
-      .poll(() => result.current.phase)
-      .toEqual({ kind: "weighing", last: { weightThousandths: 80, amount: 100_000 } });
+    await expect.poll(() => result.current.phase).toEqual(UNSTEADY_80);
     await answer(UNSTEADY_140);
-    await expect
-      .poll(() => result.current.phase)
-      .toEqual({ kind: "weighing", last: { weightThousandths: 140, amount: 175_000 } });
+    await expect.poll(() => result.current.phase).toEqual(UNSTEADY_140);
     await answer(STABLE_250);
     await expect.poll(() => result.current.phase).toEqual(STABLE_250);
 
@@ -135,9 +136,29 @@ describe("useScaleWeighing", () => {
 
     await answer(STABLE_250, UNSTEADY_80);
 
-    await expect
-      .poll(() => result.current.phase)
-      .toEqual({ kind: "weighing", last: { weightThousandths: 80, amount: 100_000 } });
+    await expect.poll(() => result.current.phase).toEqual(UNSTEADY_80);
+  });
+
+  it("shows weighing with no weight for an unsteady reading out of range", async () => {
+    const { result, answer } = await weighing();
+
+    await answer(UNSTEADY_80, OUT_OF_RANGE);
+    await expect.poll(() => result.current.phase).toEqual({ kind: "weighing", last: undefined });
+    await answer(STABLE_250, OUT_OF_RANGE);
+
+    await expect.poll(() => result.current.phase).toEqual({ kind: "weighing", last: undefined });
+  });
+
+  it("confirms no weight while an unsteady reading out of range is shown", async () => {
+    const { result, asked, answer, act } = await weighing();
+    await answer(STABLE_250, OUT_OF_RANGE);
+    await expect.poll(() => result.current.phase).toEqual({ kind: "weighing", last: undefined });
+
+    await act(() => result.current.confirm());
+    await answer(OUT_OF_RANGE);
+
+    await expect.poll(() => asked.length).toBe(4);
+    expect(asked.at(-1)).toBe(null);
   });
 
   it("confirms the weight shown right away, then keeps confirming it until it is taken", async () => {
@@ -175,17 +196,32 @@ describe("useScaleWeighing", () => {
     await act(() => result.current.confirm());
 
     await answer(UNSTEADY_140);
-    await expect
-      .poll(() => result.current.phase)
-      .toEqual({ kind: "weighing", last: { weightThousandths: 140, amount: 175_000 } });
+    await expect.poll(() => result.current.phase).toEqual(UNSTEADY_140);
     expect(result.current.confirming).toBe(true);
     await answer(STABLE_250);
     await expect.poll(() => result.current.phase).toEqual(STABLE_250);
     await answer(TAKEN);
 
     await expect.poll(() => result.current.phase).toEqual(TAKEN);
-    expect(asked.slice(1)).toEqual([null, 120, 250]);
+    expect(asked.slice(1)).toEqual([null, null, 250]);
     expect(result.current.confirming).toBe(false);
+  });
+
+  it("confirms no weight while an unsteady reading is shown, confirming the next stable one once it shows", async () => {
+    const { result, asked, answer, act } = await weighing();
+    await answer(STABLE_120, UNSTEADY_140);
+    await expect.poll(() => result.current.phase).toEqual(UNSTEADY_140);
+
+    await act(() => result.current.confirm());
+    await answer(UNSTEADY_140);
+    await expect.poll(() => asked.length).toBe(4);
+    expect(asked.at(-1)).toBe(null);
+    await answer(STABLE_120);
+
+    await expect.poll(() => result.current.phase).toEqual(STABLE_120);
+    await expect.poll(() => asked.length).toBe(5);
+    expect(asked.at(-1)).toBe(120);
+    expect(result.current.confirming).toBe(true);
   });
 
   it("confirms nothing before a weight is shown, and confirms the first stable weight once it shows", async () => {
@@ -259,6 +295,22 @@ describe("useScaleWeighing", () => {
     await expect.poll(() => result.current.zeroRefused).toBe(false);
   });
 
+  it("says a zero was refused until an unsteady weight above zero shows", async () => {
+    const { result, answer, act } = await weighing();
+    await answer(ZERO);
+    await expect.poll(() => result.current.phase.kind).toBe("stable");
+    await act(() => result.current.confirm());
+    await answer({ kind: "zero_weight" });
+    await expect.poll(() => result.current.zeroRefused).toBe(true);
+
+    await answer(UNSTEADY_ZERO);
+    await expect.poll(() => result.current.phase).toEqual(UNSTEADY_ZERO);
+    expect(result.current.zeroRefused).toBe(true);
+    await answer(UNSTEADY_80);
+
+    await expect.poll(() => result.current.zeroRefused).toBe(false);
+  });
+
   it("does not say a zero was refused before the cashier confirmed", async () => {
     const { result, answer } = await weighing();
 
@@ -320,6 +372,16 @@ describe("useScaleWeighing", () => {
     expect(result.current.phase).toEqual({ kind: "typing" });
     expect(asked).toHaveLength(1);
     expect(outstanding()).toBe(0);
+  });
+
+  it("starts typing from an unsteady reading", async () => {
+    const { result, answer, act } = await weighing();
+    await answer(UNSTEADY_80);
+    await expect.poll(() => result.current.phase.kind).toBe("unsteady");
+
+    await act(() => result.current.typeInstead());
+
+    expect(result.current.phase).toEqual({ kind: "typing" });
   });
 
   it("starts typing from a stable reading too", async () => {

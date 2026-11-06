@@ -184,6 +184,16 @@ describe("weighProductOnScale", () => {
     },
   );
 
+  it("answers an unstable reading that is no line weight as out of range, recording nothing", async () => {
+    const store = ledger();
+    const before = structuredClone(store.state);
+
+    expect(
+      await weigh(store, { kind: "unstable", weightThousandths: -120 }, "queso", "cashier", null),
+    ).toEqual({ kind: "unsteady_out_of_range" });
+    expect(store.state).toEqual(before);
+  });
+
   it("answers the stable weight and its amount without recording anything when not confirming", async () => {
     const store = ledger();
     const before = structuredClone(store.state);

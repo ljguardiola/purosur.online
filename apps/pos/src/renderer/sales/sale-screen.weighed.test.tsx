@@ -250,6 +250,25 @@ describe("SaleScreen weighing a product on the scale", () => {
     await expect.element(screen.getByText("La venta está vacía")).toBeVisible();
   });
 
+  it("shows that it is weighing with no weight for an unsteady reading out of range, adding nothing", async () => {
+    const addWeighedProduct = vi.fn(
+      async (): Promise<AddWeighedProductOutcome> => ({ kind: "unavailable" }),
+    );
+    const weighProduct = vi.fn(
+      async (): Promise<WeighProductOutcome> => ({ kind: "unsteady_out_of_range" }),
+    );
+    const { screen, field } = await scanning({ weighProduct, addWeighedProduct });
+
+    await scan(field, "7790001");
+
+    const dialog = screen.getByRole("dialog");
+    await expect.element(dialog.getByText("Pesando…")).toBeVisible();
+    await expect.element(dialog.getByText("0,000 kg")).toBeVisible();
+    await vi.waitFor(() => expect(weighProduct.mock.calls.length).toBeGreaterThan(1));
+    await expect.element(dialog.getByText("Pesando…")).toBeVisible();
+    expect(addWeighedProduct).not.toHaveBeenCalled();
+  });
+
   it("shows each stable reading without adding the line until the cashier confirms", async () => {
     const addedSale = {
       ...SALE_OF_QUESO,
@@ -689,6 +708,22 @@ describe("SaleScreen weighing the new weight of a line on the scale", () => {
     await expect.element(dialog.getByText("0,800 kg")).toBeVisible();
     await expect.element(dialog.getByText("$ 10.000,00")).toBeVisible();
     await expect.element(dialog.getByText("Lectura estable")).not.toBeInTheDocument();
+    expect(changeLineWeight).not.toHaveBeenCalled();
+  });
+
+  it("shows that it is weighing with no weight for an unsteady reading out of range, changing nothing", async () => {
+    const changeLineWeight = vi.fn(
+      async (): Promise<ChangeLineWeightOutcome> => ({ kind: "unavailable" }),
+    );
+    const weighLine = vi.fn(
+      async (): Promise<WeighLineOutcome> => ({ kind: "unsteady_out_of_range" }),
+    );
+    const { screen } = await renderWithQueso({ changeLineWeight, weighLine });
+    const dialog = screen.getByRole("dialog");
+
+    await vi.waitFor(() => expect(weighLine.mock.calls.length).toBeGreaterThan(1));
+    await expect.element(dialog.getByText("Pesando…")).toBeVisible();
+    await expect.element(dialog.getByText("0,000 kg")).toBeVisible();
     expect(changeLineWeight).not.toHaveBeenCalled();
   });
 

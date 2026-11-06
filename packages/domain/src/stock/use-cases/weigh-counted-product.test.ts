@@ -68,6 +68,12 @@ describe("weighCountedProduct", () => {
     },
   );
 
+  it("answers an unstable reading that is no quantity as out of range", async () => {
+    expect(
+      await weigh(ledger(), new FakeCountScale({ kind: "unstable", weightThousandths: -5 })),
+    ).toEqual({ kind: "unsteady_out_of_range" });
+  });
+
   it.each([-5, MAX_STOCK_QUANTITY + 1])(
     "keeps weighing for a stable reading of %s that is no quantity",
     async (weightThousandths) => {

@@ -142,6 +142,15 @@ describe("WeighProductModal", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  it("shows that it is weighing with no weight and no amount for an unsteady reading out of range", async () => {
+    const { screen } = await renderModal(scripted(UNSTEADY_140, { kind: "unsteady_out_of_range" }));
+
+    await expect.element(screen.getByText("0,000 kg")).toBeVisible();
+    await expect.element(screen.getByText("$ 0,00")).toBeVisible();
+    await expect.element(screen.getByText("Pesando…")).toBeVisible();
+    await expect.element(screen.getByText("0,140 kg")).not.toBeInTheDocument();
+  });
+
   it("keeps confirming at an unsteady weight until a stable reading is shown, then takes that one", async () => {
     const unsteady = deferred<ScaleWeighing>();
     const stable = deferred<ScaleWeighing>();

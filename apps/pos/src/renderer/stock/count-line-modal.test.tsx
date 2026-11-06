@@ -158,6 +158,49 @@ describe("CountLineModal", () => {
     await expect.element(screen.getByText("Lectura estable")).not.toBeInTheDocument();
   });
 
+  it("empties the field while weighing an unsteady reading out of range", async () => {
+    const answers: WeighCountedProductOutcome[] = [
+      { kind: "unsteady", weight_thousandths: 300 },
+      { kind: "unsteady_out_of_range" },
+    ];
+    const asked = vi.fn(() => deferredOr(answers.shift()));
+    const { screen } = await renderModal({ weigh: asked });
+
+    await vi.waitFor(() => expect(asked).toHaveBeenCalledTimes(3));
+    await expect.element(screen.getByRole("textbox", { name: "Cantidad contada" })).toHaveValue("");
+    await expect.element(screen.getByText("Pesando…")).toBeVisible();
+  });
+
+  it("empties a stable weight from the field while weighing an unsteady reading out of range", async () => {
+    const answers: WeighCountedProductOutcome[] = [
+      { kind: "weighed", weight_thousandths: 300 },
+      { kind: "unsteady_out_of_range" },
+    ];
+    const asked = vi.fn(() => deferredOr(answers.shift()));
+    const { screen } = await renderModal({ weigh: asked });
+
+    await vi.waitFor(() => expect(asked).toHaveBeenCalledTimes(3));
+    await expect.element(screen.getByRole("textbox", { name: "Cantidad contada" })).toHaveValue("");
+    await expect.element(screen.getByText("Pesando…")).toBeVisible();
+  });
+
+  it("empties an unsteady weight from the field when the scale becomes unavailable, recording nothing", async () => {
+    const answers: WeighCountedProductOutcome[] = [
+      { kind: "unsteady", weight_thousandths: 140 },
+      { kind: "scale_unavailable" },
+    ];
+    const { screen, recording } = await renderModal({
+      weigh: () => deferredOr(answers.shift()),
+    });
+
+    await expect
+      .element(screen.getByText("La balanza no está disponible. Escribí el peso.").first())
+      .toBeVisible();
+    await expect.element(screen.getByRole("textbox", { name: "Cantidad contada" })).toHaveValue("");
+    await confirm(screen);
+    expect(recording).not.toHaveBeenCalled();
+  });
+
   it("shows that it is weighing, keeping the last stable weight, while the plate moves", async () => {
     const answers: WeighCountedProductOutcome[] = [
       { kind: "weighed", weight_thousandths: 1000 },

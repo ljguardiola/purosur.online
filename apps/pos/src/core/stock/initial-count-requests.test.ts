@@ -372,6 +372,12 @@ describe("weighing a product to count on the scale", () => {
     },
   );
 
+  it("answers an unstable reading that is no quantity as out of range", async () => {
+    expect(await weigh({ kind: "unstable", weightThousandths: -5 })).toEqual({
+      kind: "unsteady_out_of_range",
+    });
+  });
+
   it("answers a stable zero as its weight when nothing is being confirmed", async () => {
     expect(await weigh({ kind: "stable", weightThousandths: 0 })).toEqual({
       kind: "weighed",

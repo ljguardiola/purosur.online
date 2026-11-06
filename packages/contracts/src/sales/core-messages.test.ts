@@ -1216,6 +1216,7 @@ describe("sale line answers", () => {
     ["weigh-product-result", { kind: "zero_weight" }],
     ["weigh-product-result", { kind: "stable", weight_thousandths: 250, amount: 2250 }],
     ["weigh-product-result", { kind: "unsteady", weight_thousandths: 140, amount: 1260 }],
+    ["weigh-product-result", { kind: "unsteady_out_of_range" }],
     [
       "weigh-line-result",
       { kind: "changed", sale, removed_manual_discount: false, removed_sale_discount: false },
@@ -1224,6 +1225,7 @@ describe("sale line answers", () => {
     ["weigh-line-result", { kind: "zero_weight" }],
     ["weigh-line-result", { kind: "stable", weight_thousandths: 250, amount: 2250 }],
     ["weigh-line-result", { kind: "unsteady", weight_thousandths: 140, amount: 1260 }],
+    ["weigh-line-result", { kind: "unsteady_out_of_range" }],
     ["weigh-line-result", { kind: "scale_unavailable" }],
     ["weigh-line-result", { kind: "stale_weight" }],
     ["weigh-product-result", { kind: "scale_unavailable" }],
