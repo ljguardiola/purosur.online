@@ -16,7 +16,7 @@ export const CAPABILITY_PERMISSIONS = {
   prices_area: ["manage_prices_and_review"],
   promotions: ["manage_promotions"],
   catalog_area: ["manage_products_and_categories", "manage_prices_and_review", "manage_promotions"],
-  cash_area: ["change_fiscal_configuration"],
+  fiscal_configuration_area: ["change_fiscal_configuration"],
   alerts_area: ["view_branch_alerts", "view_all_alerts"],
   close_alerts_manually: ["dismiss_alerts_manually"],
   registers_area: ["enroll_register_devices", "view_bitlocker_key", "revoke_register_devices"],

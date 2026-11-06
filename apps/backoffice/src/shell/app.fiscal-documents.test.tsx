@@ -71,7 +71,7 @@ test("opens the issued documents for a user who only sees fiscal information, fi
 });
 
 test("lists the issued documents before the points of sale and the fiscal settings", async () => {
-  const services = servicesFor(["cash_area", "fiscal_information"]);
+  const services = servicesFor(["fiscal_configuration_area", "fiscal_information"]);
   window.history.pushState(null, "", "/fiscal-documents");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -92,7 +92,7 @@ test("lists the issued documents before the points of sale and the fiscal settin
 });
 
 test("does not offer the issued documents to a user who cannot see fiscal information", async () => {
-  const services = servicesFor(["cash_area"]);
+  const services = servicesFor(["fiscal_configuration_area"]);
   window.history.pushState(null, "", "/points-of-sale");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -103,7 +103,7 @@ test("does not offer the issued documents to a user who cannot see fiscal inform
 });
 
 test("sends a user who cannot see fiscal information and opens /fiscal-documents to Mi cuenta, without loading it", async () => {
-  const services = servicesFor(["cash_area"]);
+  const services = servicesFor(["fiscal_configuration_area"]);
   window.history.pushState(null, "", "/fiscal-documents");
 
   const screen = await render(<App help={emptyHelp} services={services} />);

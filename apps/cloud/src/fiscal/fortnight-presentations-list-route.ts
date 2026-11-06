@@ -75,7 +75,7 @@ export function registerFortnightPresentationsListRoute<TQueryResult extends PgQ
     "/registers/fortnight-presentations",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
-      config: { access: capabilityAccess("cash_area"), sessionSource },
+      config: { access: capabilityAccess("fiscal_configuration_area"), sessionSource },
     },
     async (request, reply) => {
       const listed = await reader.branchPresentations(

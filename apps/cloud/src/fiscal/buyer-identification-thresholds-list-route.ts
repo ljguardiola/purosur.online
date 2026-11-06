@@ -34,7 +34,7 @@ export function registerBuyerIdentificationThresholdsListRoute<
     "/buyer-identification-thresholds",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
-      config: { access: capabilityAccess("cash_area"), sessionSource },
+      config: { access: capabilityAccess("fiscal_configuration_area"), sessionSource },
     },
     async (_request, reply) => {
       const today = argentinaCalendarDay(now(), options.zoneRules.zoneRules());

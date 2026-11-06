@@ -33,7 +33,7 @@ export function registerFiscalAddressesListRoute<TQueryResult extends PgQueryRes
     "/fiscal-addresses",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
-      config: { access: capabilityAccess("cash_area"), sessionSource },
+      config: { access: capabilityAccess("fiscal_configuration_area"), sessionSource },
     },
     async (_request, reply) => {
       const listed = await reader.listFiscalAddresses();

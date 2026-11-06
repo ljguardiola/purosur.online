@@ -28,7 +28,7 @@ export function registerBuyerTaxStatusesListRoute<TQueryResult extends PgQueryRe
     "/registers/buyer-tax-statuses",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
-      config: { access: capabilityAccess("cash_area"), sessionSource },
+      config: { access: capabilityAccess("fiscal_configuration_area"), sessionSource },
     },
     async (_request, reply) => {
       const latest = await reader.latestBuyerTaxStatusSet();

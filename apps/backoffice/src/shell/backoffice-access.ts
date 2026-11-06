@@ -55,16 +55,16 @@ export function canSeeCatalogArea(access: BackofficeAccess): boolean {
   return grants(access, "catalog_area");
 }
 
-export function canSeeCashArea(access: BackofficeAccess): boolean {
-  return grants(access, "cash_area");
+export function canSeeFiscalConfigurationArea(access: BackofficeAccess): boolean {
+  return grants(access, "fiscal_configuration_area");
 }
 
 export function canAssignPointTerminal(access: BackofficeAccess): boolean {
-  return grants(access, "cash_area");
+  return grants(access, "fiscal_configuration_area");
 }
 
 export function canAssignQrPointOfSale(access: BackofficeAccess): boolean {
-  return grants(access, "cash_area");
+  return grants(access, "fiscal_configuration_area");
 }
 
 export function canSeeAlertsArea(access: BackofficeAccess): boolean {

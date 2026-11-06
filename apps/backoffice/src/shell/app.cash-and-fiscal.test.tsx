@@ -19,7 +19,7 @@ test("shows the Caja item in the rail for a user holding change_fiscal_configura
         userId: "user-2",
         displayName: "Grace Villalba",
         isAdministrator: false,
-        capabilities: ["cash_area"],
+        capabilities: ["fiscal_configuration_area"],
       }),
     ),
   });
@@ -54,7 +54,7 @@ test("following the rail's Caja item opens Puntos de venta, with Caja and Puntos
         userId: "user-2",
         displayName: "Grace Villalba",
         isAdministrator: false,
-        capabilities: ["cash_area"],
+        capabilities: ["fiscal_configuration_area"],
       }),
     ),
   });
@@ -87,7 +87,7 @@ test("following the section's Configuración fiscal link opens it, with only tha
         userId: "user-2",
         displayName: "Grace Villalba",
         isAdministrator: false,
-        capabilities: ["cash_area"],
+        capabilities: ["fiscal_configuration_area"],
       }),
     ),
   });

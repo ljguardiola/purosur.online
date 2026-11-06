@@ -93,8 +93,8 @@ test("offers the refunds, and not the fiscal tasks, to a user who cannot see fis
   expect(sections.getByRole("link", { name: "Tareas fiscales" }).query()).toBeNull();
 });
 
-test("keeps opening the points of sale from the Caja item, without the TAREAS group, to a user of the cash area alone", async () => {
-  const services = servicesFor(["cash_area"]);
+test("keeps opening the points of sale from the Caja item, without the TAREAS group, to a user who can only configure fiscal settings", async () => {
+  const services = servicesFor(["fiscal_configuration_area"]);
   window.history.pushState(null, "", "/help");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -108,7 +108,7 @@ test("keeps opening the points of sale from the Caja item, without the TAREAS gr
 });
 
 test("sends a user who cannot see fiscal information and opens /fiscal-tasks to Mi cuenta, without loading it", async () => {
-  const services = servicesFor(["cash_area"]);
+  const services = servicesFor(["fiscal_configuration_area"]);
   window.history.pushState(null, "", "/fiscal-tasks");
 
   const screen = await render(<App help={emptyHelp} services={services} />);

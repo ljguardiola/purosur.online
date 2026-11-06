@@ -916,7 +916,7 @@ test("offers the Point terminal action only to who may assign it", async () => {
   const withIt = await renderScreen(
     services,
     () => {},
-    accessWith("registers_area", "enroll_registers", "cash_area"),
+    accessWith("registers_area", "enroll_registers", "fiscal_configuration_area"),
   );
   await expect
     .element(withIt.getByRole("button", { name: "Asignar terminal Point a Caja 1" }))
