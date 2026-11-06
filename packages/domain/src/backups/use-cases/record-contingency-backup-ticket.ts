@@ -1,6 +1,7 @@
-import { type FiscalEmissionMode, isConnectivityGap } from "../../fiscal/index.js";
 import {
+  type CloudLinkReading,
   type ContingencyBackupOperation,
+  cloudLinkLostAround,
   needsContingencyBackupTicket,
   type OperationEventRange,
 } from "../model/contingency-backup-ticket.js";
@@ -9,22 +10,22 @@ import type { RecordContingencyBackupTicketPorts } from "./contingency-backup-ti
 export interface RecordContingencyBackupTicketInput {
   operation: ContingencyBackupOperation;
   subjectId: string | null;
-  modesAround: FiscalEmissionMode[];
+  cloudLinkAround: CloudLinkReading[];
   range: OperationEventRange;
 }
 
 export type RecordContingencyBackupTicketOutcome =
   | { kind: "recorded"; ticketId: string }
   | { kind: "recorded_without_key"; ticketId: string }
-  | { kind: "not_in_gap" }
+  | { kind: "cloud_reached" }
   | { kind: "no_events" };
 
 export async function recordContingencyBackupTicket(
   { ids, clock, sealer, store }: RecordContingencyBackupTicketPorts,
-  { operation, subjectId, modesAround, range }: RecordContingencyBackupTicketInput,
+  { operation, subjectId, cloudLinkAround, range }: RecordContingencyBackupTicketInput,
 ): Promise<RecordContingencyBackupTicketOutcome> {
-  if (!modesAround.some(isConnectivityGap)) return { kind: "not_in_gap" };
-  if (!needsContingencyBackupTicket({ modesAround, range })) return { kind: "no_events" };
+  if (!cloudLinkLostAround(cloudLinkAround)) return { kind: "cloud_reached" };
+  if (!needsContingencyBackupTicket({ cloudLinkAround, range })) return { kind: "no_events" };
 
   const id = ids.next();
   const sealing = await sealer.seal(id, range);

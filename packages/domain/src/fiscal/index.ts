@@ -158,7 +158,10 @@ export {
   fiscalEmissionStopReasonOf,
 } from "./model/fiscal-emission-stop.js";
 export type { FiscalOnlineSignalEvidence } from "./model/fiscal-online-signal.js";
-export { REGISTER_HEALTH_CHECK_INTERVAL_MS } from "./model/fiscal-online-signal.js";
+export {
+  isRegisterReachingCloud,
+  REGISTER_HEALTH_CHECK_INTERVAL_MS,
+} from "./model/fiscal-online-signal.js";
 export { fiscalQrVoucher } from "./model/fiscal-qr-voucher.js";
 export type {
   FiscalDocumentType,
