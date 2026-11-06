@@ -45,7 +45,7 @@ export type { ScaleWeighingStep } from "./scale-weighing.js";
 export { scaleWeighingStep } from "./scale-weighing.js";
 export type { SlidingWindowLimit } from "./sliding-window-limit.js";
 export { slidingWindowRetryAfterSeconds, slidingWindowStart } from "./sliding-window-limit.js";
-export type { LastStableReading, SteadiedReading } from "./steady-scale-reading.js";
+export type { LastStableReading } from "./steady-scale-reading.js";
 export { steadyScaleReading } from "./steady-scale-reading.js";
 export {
   compareCodeUnits,
