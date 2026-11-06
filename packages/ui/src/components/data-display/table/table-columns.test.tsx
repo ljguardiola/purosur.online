@@ -1,6 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { textOrder } from "../../../ordering/item-ordering";
 import { actionsColumn, dataColumn } from "./table-columns";
+import type { RowMenuActions } from "./row-actions-menu";
 import type { TableAction, TableColumn, TableColumnMeta, TableProps } from "./table-types";
 
 type Product = { id: string; name: string };
@@ -160,6 +161,45 @@ describe("actionsColumn", () => {
       >
     >().toEqualTypeOf<false>();
     expectTypeOf<Accepts<Column, { id: "actions"; actions: [Edit] }>>().toEqualTypeOf<false>();
+  });
+
+  it("counts the menu as one more action after the direct buttons", () => {
+    const menu = (_product: Product): RowMenuActions | undefined => undefined;
+
+    const menuOnly = actionsColumn({ id: "actions", header: "Acciones", actions: [], menu });
+    const withOne = actionsColumn({ id: "actions", header: "Acciones", actions: [edit], menu });
+    const withThree = actionsColumn({
+      id: "actions",
+      header: "Acciones",
+      actions: [edit, edit, edit],
+      menu,
+    });
+
+    expect(menuOnly.meta).toEqual({ actionCount: 1 });
+    expect(withOne.meta).toEqual({ actionCount: 2 });
+    expect(withThree.meta).toEqual({ actionCount: 4 });
+    expectTypeOf(withOne).toEqualTypeOf<TableColumn<Product, "actions", false>>();
+  });
+
+  it("accepts up to three direct buttons beside a menu, and none, but not four", () => {
+    type Column = typeof actionsColumn<Product, "actions">;
+    type Edit = TableAction<Product>;
+    type Menu = (product: Product) => RowMenuActions | undefined;
+    type WithMenu<Actions extends readonly unknown[]> = {
+      id: "actions";
+      header: string;
+      actions: Actions;
+      menu: Menu;
+    };
+
+    expectTypeOf<Accepts<Column, WithMenu<[]>>>().toEqualTypeOf<true>();
+    expectTypeOf<Accepts<Column, WithMenu<[Edit]>>>().toEqualTypeOf<true>();
+    expectTypeOf<Accepts<Column, WithMenu<[Edit, Edit]>>>().toEqualTypeOf<true>();
+    expectTypeOf<Accepts<Column, WithMenu<[Edit, Edit, Edit]>>>().toEqualTypeOf<true>();
+    expectTypeOf<Accepts<Column, WithMenu<[Edit, Edit, Edit, Edit]>>>().toEqualTypeOf<false>();
+    expectTypeOf<
+      Accepts<Column, { id: "actions"; header: string; actions: []; menu?: undefined }>
+    >().toEqualTypeOf<false>();
   });
 
   it("keeps the column meta to what the table reads", () => {
