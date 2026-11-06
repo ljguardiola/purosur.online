@@ -36,7 +36,7 @@ const tabClassName =
   "border-transparent px-4 outline-none transition-colors " +
   "data-hovered:bg-surface-subtle data-selected:border-action " +
   "data-focus-visible:focus-ring-inset data-disabled:cursor-default " +
-  "data-disabled:opacity-disabled data-disabled:bg-transparent";
+  "data-disabled:opacity-disabled";
 
 // react-aria opens a link tab with a click of its own after it has refused the pointer's click, so
 // the router's handlers run after react-aria's: the router then follows only that click, once.
