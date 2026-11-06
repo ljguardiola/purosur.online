@@ -43,6 +43,12 @@ describe("usedText", () => {
     expect(usedText(typed, nuecesComponent, proposal)).toBe("1,500");
   });
 
+  it("is empty for a component named like an inherited member of an object that nothing was typed for", () => {
+    const inherited = { ...almendrasComponent, componentProductId: "constructor" };
+
+    expect(usedText(chosen, inherited, undefined)).toBe("");
+  });
+
   it("is empty when there is no proposal yet", () => {
     expect(usedText(chosen, almendrasComponent, undefined)).toBe("");
   });
