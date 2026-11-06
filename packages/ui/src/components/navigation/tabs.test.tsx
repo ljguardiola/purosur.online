@@ -317,6 +317,21 @@ test("marks the selected tab with a bold accent label over an action-colored bar
   expect(getComputedStyle(label).color).toBe(tokenRgb("text-accent"));
 });
 
+test("paints the selected tab's whole bar over the tab list's bottom line, without scrolling the list vertically", async () => {
+  const screen = await render(<PeopleTabs selectedTab="users" />);
+
+  const list = screen.getByRole("tablist").element() as HTMLElement;
+  const selected = tab(screen, "Usuarios").element();
+  expect(list.scrollHeight).toBe(list.clientHeight);
+  const listBottom = list.getBoundingClientRect().bottom;
+  const selectedBox = selected.getBoundingClientRect();
+  const centerX = selectedBox.left + selectedBox.width / 2;
+  for (const rowFromBottom of [1, 2]) {
+    const painted = document.elementFromPoint(centerX, listBottom - rowFromBottom);
+    expect(painted?.closest('[role="tab"]')).toBe(selected);
+  }
+});
+
 test("leaves an unselected tab with a regular label and no bar, turning bone on hover", async () => {
   const screen = await render(<PeopleTabs selectedTab="users" />);
 
