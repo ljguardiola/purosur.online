@@ -1,14 +1,14 @@
 import {
   type HTMLAttributes,
+  type FocusEvent as ReactFocusEvent,
   type ReactNode,
-  type RefObject,
   useEffect,
   useId,
   useLayoutEffect,
   useRef,
   useState,
 } from "react";
-import { FocusScope, useModalOverlay, useOverlay } from "react-aria";
+import { FocusScope, mergeProps, useModalOverlay, useOverlay } from "react-aria";
 import { useOverlayTriggerState } from "react-stately";
 import { CloseButton } from "../shared/close-button";
 import { SidePanel } from "./side-panel";
@@ -25,8 +25,7 @@ const NARROW_AREA_WIDTH = 800;
 
 export function DetailPanel({ open, onClose, title, children, footer }: DetailPanelProps) {
   const [narrow, setNarrow] = useState(false);
-  const frameRef = useRef<HTMLDivElement>(null);
-  useRestoreFocusOnClose(open ? title : null, frameRef);
+  const markFocusInsidePanel = useRestoreFocusOnClose(open);
 
   // The panel leaves the area's flow as a modal, so a marker left in the flow stands for the area.
   function observeArea(marker: HTMLSpanElement | null) {
@@ -48,7 +47,7 @@ export function DetailPanel({ open, onClose, title, children, footer }: DetailPa
     <>
       <span ref={observeArea} hidden />
       <PanelFrame
-        frameRef={frameRef}
+        onFocusInside={markFocusInsidePanel}
         narrow={narrow}
         onClose={onClose}
         title={title}
@@ -60,28 +59,27 @@ export function DetailPanel({ open, onClose, title, children, footer }: DetailPa
   );
 }
 
-function useRestoreFocusOnClose(
-  openRecord: string | null,
-  frameRef: RefObject<HTMLElement | null>,
-) {
+function useRestoreFocusOnClose(open: boolean) {
   const openerRef = useRef<Element | null>(null);
-  const open = openRecord !== null;
-
-  useLayoutEffect(() => {
-    if (openRecord === null) {
-      return;
-    }
-    const focused = document.activeElement;
-    if (focused !== null && focused !== document.body && !frameRef.current?.contains(focused)) {
-      openerRef.current = focused;
-    }
-  }, [openRecord, frameRef]);
+  const focusInsidePanelRef = useRef<Event | null>(null);
 
   useLayoutEffect(() => {
     if (!open) {
       return;
     }
+    const focused = document.activeElement;
+    if (focused !== null && focused !== document.body) {
+      openerRef.current = focused;
+    }
+    // React bubbles focus from the panel's portaled overlays to the panel, the DOM does not.
+    const recordOpener = (event: FocusEvent) => {
+      if (event !== focusInsidePanelRef.current && event.target instanceof Element) {
+        openerRef.current = event.target;
+      }
+    };
+    document.addEventListener("focusin", recordOpener);
     return () => {
+      document.removeEventListener("focusin", recordOpener);
       queueMicrotask(() => {
         const opener = openerRef.current;
         const focusIsLost =
@@ -92,6 +90,10 @@ function useRestoreFocusOnClose(
       });
     };
   }, [open]);
+
+  return (event: ReactFocusEvent) => {
+    focusInsidePanelRef.current = event.nativeEvent;
+  };
 }
 
 type PanelProps = Omit<DetailPanelProps, "open">;
@@ -99,13 +101,13 @@ type PanelProps = Omit<DetailPanelProps, "open">;
 // Both modes render the same elements, only styled and announced differently, so the caller's
 // content stays mounted when the area is resized across the narrow width.
 function PanelFrame({
-  frameRef,
+  onFocusInside,
   narrow,
   onClose,
   title,
   children,
   footer,
-}: PanelProps & { frameRef: RefObject<HTMLDivElement | null>; narrow: boolean }) {
+}: PanelProps & { onFocusInside: (event: ReactFocusEvent) => void; narrow: boolean }) {
   const headingId = useId();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -133,7 +135,6 @@ function PanelFrame({
 
   return (
     <div
-      ref={frameRef}
       className={
         narrow ? "fixed inset-0 z-overlay flex items-center justify-center bg-backdrop" : "contents"
       }
@@ -148,7 +149,7 @@ function PanelFrame({
         >
           <div
             ref={dialogRef}
-            {...overlayProps}
+            {...mergeProps(overlayProps, { onFocus: onFocusInside })}
             {...(narrow ? modalDialogProps : {})}
             className={narrow ? "flex min-h-0 flex-1 flex-col outline-none" : "contents"}
           >
