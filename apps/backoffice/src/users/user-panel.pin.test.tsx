@@ -136,6 +136,7 @@ test("while another person's user loads, shows an Administrator no PIN section",
 
   const screen = await renderCredentialsTab(services);
 
+  await expect.element(screen.getByRole("status").first()).toHaveTextContent("Cargando…");
   await expect.element(screen.getByText("Estado loading")).toBeVisible();
   await expect.element(screen.getByText("Sin PIN")).toBeVisible();
 });
@@ -162,6 +163,7 @@ test("while the user loads, shows an Administrator on their own account the PIN 
 
   const screen = await renderCredentialsTab(services, () => {}, "user-1", "user-1");
 
+  await expect.element(screen.getByRole("status").first()).toHaveTextContent("Cargando…");
   await expect.element(screen.getByText("Con PIN")).toBeVisible();
   await expect.element(screen.getByText("Estado loading")).toBeVisible();
 });
@@ -214,6 +216,8 @@ test("after another person's user fails to load, shows no PIN section", async ()
 
   const screen = await renderCredentialsTab(services);
 
+  await expect.element(screen.getByText("No pudimos abrir este usuario")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
   await expect.element(screen.getByText("Estado failed")).toBeVisible();
   await expect.element(screen.getByText("Sin PIN")).toBeVisible();
 });
@@ -224,6 +228,8 @@ test("after their own account fails to load, shows an Administrator the PIN sect
 
   const screen = await renderCredentialsTab(services, () => {}, "user-1", "user-1");
 
+  await expect.element(screen.getByText("No pudimos abrir este usuario")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
   await expect.element(screen.getByText("Con PIN")).toBeVisible();
   await expect.element(screen.getByText("Estado failed")).toBeVisible();
 });

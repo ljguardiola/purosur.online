@@ -32,6 +32,7 @@ import {
   canSeeFiscalConfigurationArea,
   canSeeFiscalInformation,
   canSeeOrdersArea,
+  canSeePeopleArea,
   canSeePricesArea,
   canSeeQuarantinedEvents,
   canSeeRefundsArea,
@@ -110,4 +111,12 @@ test("canSeeAiCostReport holds only when both the reports area and the branch ar
   expect(canSeeAiCostReport(accessWith("reports_area"))).toBe(false);
   expect(canSeeAiCostReport(accessWith("branch_area"))).toBe(false);
   expect(canSeeAiCostReport(NO_CAPABILITIES_ACCESS)).toBe(false);
+});
+
+test("canSeePeopleArea holds when either the users area or the roles are granted", () => {
+  expect(canSeePeopleArea(ADMINISTRATOR_ACCESS)).toBe(true);
+  expect(canSeePeopleArea(accessWith("users_area"))).toBe(true);
+  expect(canSeePeopleArea(accessWith("manage_roles"))).toBe(true);
+  expect(canSeePeopleArea(accessWith("manage_users"))).toBe(false);
+  expect(canSeePeopleArea(NO_CAPABILITIES_ACCESS)).toBe(false);
 });

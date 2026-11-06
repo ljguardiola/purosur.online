@@ -8,7 +8,7 @@ import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
-opensOnlyScreens(["/", "/help", "/people/users", "/people/roles", "/registers"]);
+opensOnlyScreens(["/", "/help", "/people/users", "/people/roles", "/products", "/registers"]);
 
 beforeEach(resetPageState);
 
@@ -287,6 +287,27 @@ test("the own account panel survives the page's own search, and shows only Passk
     .toBeVisible();
   expect(screen.getByRole("tab", { name: "Datos" }).query()).toBeNull();
   expect(location()).toBe("/people/roles?account=data");
+});
+
+test("the own account panel stays open over a list page that writes its filters into the URL", async () => {
+  window.history.pushState(null, "", "/products?account=credentials");
+  const services = servicesFor();
+  vi.mocked(services.productsListScreen.fetchProducts).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.productsListScreen.fetchCategories).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  const searchBox = screen.getByPlaceholder("Buscar por nombre o código de barras");
+  await expect.element(searchBox).toBeVisible();
+  await expect.element(screen.getByRole("complementary", { name: "Lucas Medrano" })).toBeVisible();
+  expect(location()).toBe("/products?account=credentials");
+
+  await userEvent.fill(searchBox, "miel");
+
+  await expect.poll(() => new URLSearchParams(window.location.search).get("search")).toBe("miel");
+  expect(new URLSearchParams(window.location.search).get("account")).toBe("credentials");
+  await expect.element(screen.getByRole("complementary", { name: "Lucas Medrano" })).toBeVisible();
 });
 
 test("the Config entry of the rail opens Personas, the first Configuración page, and falls back to the own account panel when there is none", async () => {

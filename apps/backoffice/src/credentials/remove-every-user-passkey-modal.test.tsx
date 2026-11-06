@@ -227,7 +227,7 @@ test("tells the person that their own passkeys cannot be removed from here", asy
   await userEvent.click(dialog.getByRole("button", { name: "Dar de baja todas" }));
 
   await expect.element(dialog.getByText("No podés dar de baja tus propias passkeys")).toBeVisible();
-  await expect.element(dialog.getByText("Hacelo desde Mi cuenta.")).toBeVisible();
+  await expect.element(dialog.getByText("Hacelo desde tu nombre, abajo en el menú.")).toBeVisible();
   expect(onRemoved).not.toHaveBeenCalled();
 });
 

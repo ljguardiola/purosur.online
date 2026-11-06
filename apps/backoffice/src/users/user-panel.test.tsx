@@ -391,7 +391,18 @@ test("follows the user's answers, not the session, for Desactivar and Reactivar 
   expect(screen.getByRole("button", { name: "Reactivar a Lucía" }).query()).toBeNull();
 });
 
-test("offers Editar and the passkey removal when the user's answers allow them", async () => {
+test("shows the user's state on the Estado tab with no label repeating the tab", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
+
+  const screen = await renderStatusTab(services);
+
+  const panel = screen.getByRole("tabpanel");
+  await expect.element(panel.getByText("Activo", { exact: true })).toBeVisible();
+  expect(panel.getByText("Estado", { exact: true }).query()).toBeNull();
+});
+
+test("offers Editar when the user's answers allow it", async () => {
   const services = createServices();
   vi.mocked(services.fetchUser).mockResolvedValue({ kind: "ok", value: lucia });
 

@@ -206,6 +206,25 @@ test("marks the row of the open user as the current one", async () => {
   );
 });
 
+test("opens the panel and marks the row of a user the URL names in another letter case", async () => {
+  window.history.pushState(null, "", "/people/users?user=USER-2");
+  const services = createUsersListServices();
+  vi.mocked(services.fetchUsers).mockResolvedValue({ kind: "ok", value: [administrator, martina] });
+  const detailServices = createServices();
+  vi.mocked(detailServices.fetchUser).mockResolvedValue({ kind: "ok", value: martina });
+
+  const screen = await renderUsersList(services, () => {}, ADMINISTRATOR_ACCESS, {
+    openUser: "USER-2",
+    detailServices,
+  });
+
+  await expect.element(screen.getByRole("complementary", { name: "Martina Gómez" })).toBeVisible();
+  await expect
+    .element(screen.getByRole("row", { name: /Martina Gómez/ }))
+    .toHaveAttribute("aria-current", "true");
+  expect(window.location.search).toBe("?user=USER-2");
+});
+
 test("pressing a row's action icon navigates once, not again through the row", async () => {
   window.history.pushState(null, "", "/people/users");
   const services = createUsersListServices();
