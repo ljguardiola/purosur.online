@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { join, relative, resolve, sep } from "node:path";
 import ts from "typescript";
+import { parsedConfigOf } from "./typescript-config.mjs";
 
 export const KEY_LOOKUP_PROGRAMS = [
   "tsconfig.json",
@@ -27,20 +28,6 @@ export function isCheckedFile(path) {
     !TEST_FILE.test(path) &&
     !segments.slice(0, -1).some((segment) => TEST_FOLDERS.has(segment))
   );
-}
-
-function parsedConfigOf(tsconfigPath) {
-  const config = ts.getParsedCommandLineOfConfigFile(
-    tsconfigPath,
-    {},
-    {
-      ...ts.sys,
-      onUnRecoverableConfigFileDiagnostic: (diagnostic) => {
-        throw new Error(ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n"));
-      },
-    },
-  );
-  return config;
 }
 
 function listTrackedFiles(cwd) {
