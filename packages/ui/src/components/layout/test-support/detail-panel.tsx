@@ -1,5 +1,6 @@
 import { Info } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { Button } from "../../forms/button";
 import { Modal } from "../../overlays/modal";
 import { DetailPanel } from "../detail-panel";
 
@@ -15,11 +16,13 @@ export function SuppliersArea({
   children,
   footer,
   rows = supplierRows,
+  rowButtons = "native",
 }: {
   areaWidth: number;
   children?: ReactNode;
   footer?: ReactNode;
   rows?: SupplierRow[];
+  rowButtons?: "native" | "design-system";
 }) {
   const [openSupplier, setOpenSupplier] = useState<string | null>(null);
 
@@ -31,9 +34,15 @@ export function SuppliersArea({
         <ul>
           {rows.map(({ label, supplier }) => (
             <li key={label}>
-              <button type="button" onClick={() => setOpenSupplier(supplier)}>
-                {label}
-              </button>
+              {rowButtons === "native" ? (
+                <button type="button" onClick={() => setOpenSupplier(supplier)}>
+                  {label}
+                </button>
+              ) : (
+                <Button variant="text" onPress={() => setOpenSupplier(supplier)}>
+                  {label}
+                </Button>
+              )}
             </li>
           ))}
         </ul>
@@ -69,5 +78,21 @@ export function ConfirmationInsidePanel({ closable }: { closable: boolean }) {
         Confirmar
       </Modal>
     </>
+  );
+}
+
+export function DownloadInsidePanel() {
+  function download() {
+    const link = document.createElement("a");
+    link.href = "#descarga";
+    link.addEventListener("click", (event) => event.preventDefault());
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+  return (
+    <button type="button" onClick={download}>
+      Descargar listado
+    </button>
   );
 }

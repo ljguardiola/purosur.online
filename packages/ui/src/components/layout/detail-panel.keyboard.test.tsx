@@ -5,7 +5,11 @@ import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { ComboBox } from "../forms/combo-box";
 import { SearchField } from "../forms/search-field";
-import { ConfirmationInsidePanel, SuppliersArea } from "./test-support/detail-panel";
+import {
+  ConfirmationInsidePanel,
+  DownloadInsidePanel,
+  SuppliersArea,
+} from "./test-support/detail-panel";
 
 const WIDE_AREA = 1200;
 const NARROW_AREA = 799;
@@ -133,6 +137,42 @@ test("focus returns to the last control pressed outside the panel, a row activat
   expect(screen.getByRole("complementary").elements()).toHaveLength(0);
   await expect.element(enteredRow).toHaveFocus();
 });
+
+test.each(["Enter", "Space"])(
+  "focus returns to the last control pressed outside the panel, a design-system row pressed with %s while it is open",
+  async (key) => {
+    const screen = await render(<SuppliersArea areaWidth={WIDE_AREA} rowButtons="design-system" />);
+    await screen.getByRole("button", { name: "Distribuidora Norte" }).click();
+    const pressedRow = screen.getByRole("button", { name: "Almacén Sur" });
+    (pressedRow.element() as HTMLElement).focus();
+    await userEvent.keyboard(key === "Space" ? " " : `{${key}}`);
+    await expect.element(screen.getByRole("heading", { name: "Almacén Sur" })).toBeVisible();
+
+    await screen.getByRole("button", { name: "Cerrar" }).click();
+
+    expect(screen.getByRole("complementary").elements()).toHaveLength(0);
+    await expect.element(pressedRow).toHaveFocus();
+  },
+);
+
+test.each(modes)(
+  "focus returns to the last control pressed outside the panel, not to a link its content clicks by code to download a file, $mode",
+  async ({ areaWidth }) => {
+    const screen = await render(
+      <SuppliersArea areaWidth={areaWidth}>
+        <DownloadInsidePanel />
+      </SuppliersArea>,
+    );
+    const pressedRow = screen.getByRole("button", { name: "Almacén Sur" });
+    await pressedRow.click();
+    await screen.getByRole("button", { name: "Descargar listado" }).click();
+
+    await screen.getByRole("button", { name: "Cerrar" }).click();
+
+    expect(screen.getByRole("complementary").elements()).toHaveLength(0);
+    await expect.element(pressedRow).toHaveFocus();
+  },
+);
 
 test.each(modes)(
   "focus returns to the last control pressed outside the panel after a modal opened from its content closed, $mode",
