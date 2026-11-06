@@ -8,6 +8,10 @@ import type {
   ProposalProduct,
   SupplierItemLinkProposalReader,
 } from "./supplier-item-link-proposal-reader.js";
+import type {
+  KeptLinkProposal,
+  SupplierItemProposalStore,
+} from "./supplier-item-proposal-store.js";
 import type { SupplierItemQuantityReader } from "./supplier-item-quantity-reader.js";
 import type { SupplierPriceListAiCallStore } from "./supplier-price-list-ai-call-store.js";
 
@@ -16,6 +20,7 @@ export interface ProposeSupplierItemLinkPorts {
   chooser: ProductChooser;
   quantityReader: SupplierItemQuantityReader;
   aiCalls: SupplierPriceListAiCallStore;
+  store: SupplierItemProposalStore;
   zoneRules: ZoneRulesSource;
 }
 
@@ -24,6 +29,8 @@ export interface ProposeSupplierItemLinkInput {
   rowId: string;
   actorId: string;
   now: () => Date;
+  // Asks the AI again even when a proposal is kept for the row.
+  refresh: boolean;
 }
 
 export type ProposeSupplierItemLinkOutcome =
@@ -51,14 +58,34 @@ async function chosenOrUnavailable(
   }
 }
 
-// A proposal is never applied: the only thing written is what the AI calls cost.
+async function shownKeptProposal(
+  reader: SupplierItemLinkProposalReader,
+  kept: KeptLinkProposal,
+): Promise<ProposeSupplierItemLinkOutcome> {
+  if (kept.kind === "none") {
+    return kept;
+  }
+  const product = await reader.product(kept.productId, PRODUCTS_A_SUPPLIER_ITEM_MAY_BE_LINKED_TO);
+  return product
+    ? { kind: "proposed", by: kept.by, product, quantity: kept.quantity }
+    : { kind: "none" };
+}
+
+// A proposal is never applied: what is written is what the AI calls cost and the proposals a call produced.
 export async function proposeSupplierItemLink(
-  { reader, chooser, quantityReader, aiCalls, zoneRules }: ProposeSupplierItemLinkPorts,
+  { reader, chooser, quantityReader, aiCalls, store, zoneRules }: ProposeSupplierItemLinkPorts,
   input: ProposeSupplierItemLinkInput,
 ): Promise<ProposeSupplierItemLinkOutcome> {
   const row = await reader.row(input.listId, input.rowId);
   if (!row) {
     return { kind: "not_found" };
+  }
+
+  if (!input.refresh) {
+    const kept = await store.keptLinkProposal(input.rowId);
+    if (kept) {
+      return shownKeptProposal(reader, kept);
+    }
   }
 
   const item = {
@@ -93,13 +120,17 @@ export async function proposeSupplierItemLink(
         ),
       );
       await recordCalls();
-      return {
-        kind: "proposed",
-        by: "barcode",
-        product: only,
-        quantity:
-          reading.kind === "read" ? linkableQuantityOrNull(only.saleUnit, reading.quantity) : null,
-      };
+      const quantity =
+        reading.kind === "read" ? linkableQuantityOrNull(only.saleUnit, reading.quantity) : null;
+      if (reading.kind !== "unavailable") {
+        await store.keepLinkProposal(input.rowId, {
+          kind: "proposed",
+          by: "barcode",
+          productId: only.id,
+          quantity,
+        });
+      }
+      return { kind: "proposed", by: "barcode", product: only, quantity };
     }
   }
 
@@ -120,12 +151,18 @@ export async function proposeSupplierItemLink(
     choice.kind === "chosen"
       ? candidates.find((candidate) => candidate.id === choice.productId)
       : undefined;
-  return choice.kind === "chosen" && product
-    ? {
-        kind: "proposed",
-        by: "ai",
-        product,
-        quantity: linkableQuantityOrNull(product.saleUnit, choice.quantity),
-      }
-    : { kind: "none" };
+  if (choice.kind === "chosen" && product) {
+    const quantity = linkableQuantityOrNull(product.saleUnit, choice.quantity);
+    await store.keepLinkProposal(input.rowId, {
+      kind: "proposed",
+      by: "ai",
+      productId: product.id,
+      quantity,
+    });
+    return { kind: "proposed", by: "ai", product, quantity };
+  }
+  if (choice.kind === "none") {
+    await store.keepLinkProposal(input.rowId, { kind: "none" });
+  }
+  return { kind: "none" };
 }
