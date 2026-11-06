@@ -189,7 +189,7 @@ test("reads the proposal for the item of the list, and the choices", async () =>
 
   await expect
     .poll(() => services.fetchSupplierItemLinkProposal)
-    .toHaveBeenCalledWith(LIST.id, nutRow.id);
+    .toHaveBeenCalledWith(LIST.id, nutRow.id, { refresh: false });
   expect(services.fetchSupplierItemLinkChoices).toHaveBeenCalledTimes(1);
 });
 

@@ -35,20 +35,40 @@ const refusals = [
 ] as const;
 
 describe("fetchSupplierItemLinkProposal", () => {
-  test("reads the proposal made for the row of the list", async () => {
+  const body = { refresh: false } as const;
+
+  test("asks for the proposal of the row of the list by POST with whether to refresh it, and reads it", async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(200, PROPOSED_BY_AI));
 
-    expect(await fetchSupplierItemLinkProposal("list-1", "row-1")).toEqual({
+    expect(await fetchSupplierItemLinkProposal("list-1", "row-1", body)).toEqual({
       kind: "ok",
       value: PROPOSED_BY_AI,
     });
-    expect(fetch).toHaveBeenCalledWith("/api/supplier-price-lists/list-1/rows/row-1/link-proposal");
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/supplier-price-lists/list-1/rows/row-1/link-proposal",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
+    );
+  });
+
+  test("asks the model again when told to refresh", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, PROPOSED_BY_AI));
+
+    await fetchSupplierItemLinkProposal("list-1", "row-1", { refresh: true });
+
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/supplier-price-lists/list-1/rows/row-1/link-proposal",
+      expect.objectContaining({ body: JSON.stringify({ refresh: true }) }),
+    );
   });
 
   test("reads a proposal that could not be made", async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(200, UNAVAILABLE_PROPOSAL));
 
-    expect(await fetchSupplierItemLinkProposal("list-1", "row-1")).toEqual({
+    expect(await fetchSupplierItemLinkProposal("list-1", "row-1", body)).toEqual({
       kind: "ok",
       value: UNAVAILABLE_PROPOSAL,
     });
@@ -57,13 +77,13 @@ describe("fetchSupplierItemLinkProposal", () => {
   test("returns failed when the proposal does not have the expected shape", async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { kind: "guessed" }));
 
-    expect(await fetchSupplierItemLinkProposal("list-1", "row-1")).toEqual({ kind: "failed" });
+    expect(await fetchSupplierItemLinkProposal("list-1", "row-1", body)).toEqual({ kind: "failed" });
   });
 
   test.each(refusals)("answers a %i as %j", async (status, outcome) => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
 
-    expect(await fetchSupplierItemLinkProposal("list-1", "row-1")).toEqual(outcome);
+    expect(await fetchSupplierItemLinkProposal("list-1", "row-1", body)).toEqual(outcome);
   });
 });
 

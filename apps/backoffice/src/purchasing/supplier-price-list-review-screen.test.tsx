@@ -643,6 +643,7 @@ test("opens the link modal for the item, with the proposal and the choices read 
   expect(services.fetchSupplierItemLinkProposal).toHaveBeenCalledWith(
     LIST_ID,
     EXTRACTED_ROWS[2]?.id,
+    { refresh: false },
   );
 });
 
