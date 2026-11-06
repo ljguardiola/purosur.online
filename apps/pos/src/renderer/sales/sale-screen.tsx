@@ -408,6 +408,7 @@ export function SaleScreen({
     );
     if (
       outcome.kind === "weighing" ||
+      outcome.kind === "unsteady_out_of_range" ||
       outcome.kind === "scale_unavailable" ||
       outcome.kind === "zero_weight"
     ) {
@@ -631,6 +632,7 @@ export function SaleScreen({
     );
     if (
       outcome.kind === "weighing" ||
+      outcome.kind === "unsteady_out_of_range" ||
       outcome.kind === "scale_unavailable" ||
       outcome.kind === "zero_weight"
     ) {

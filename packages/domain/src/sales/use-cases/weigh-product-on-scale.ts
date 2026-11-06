@@ -38,6 +38,7 @@ export type WeighProductOnScaleOutcome =
   | WeighedProductRefusal
   | { kind: "no_price"; productName: string }
   | { kind: "weighing" }
+  | { kind: "unsteady_out_of_range" }
   | { kind: "zero_weight" }
   | { kind: "scale_unavailable" }
   | StableWeighing

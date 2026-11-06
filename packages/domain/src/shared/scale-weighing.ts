@@ -5,6 +5,7 @@ export type ScaleWeighingStep =
   | { kind: "weighing" }
   | { kind: "zero_weight" }
   | { kind: "unsteady"; weightThousandths: number }
+  | { kind: "unsteady_out_of_range" }
   | { kind: "stable"; weightThousandths: number }
   | { kind: "take"; weightThousandths: number };
 
@@ -21,9 +22,9 @@ export function scaleWeighingStep(
   }
   const { weightThousandths } = reading;
   if (reading.kind === "unstable") {
-    return weightThousandths !== 0 && mayBeQuantity(weightThousandths)
+    return weightThousandths === 0 || mayBeQuantity(weightThousandths)
       ? { kind: "unsteady", weightThousandths }
-      : { kind: "weighing" };
+      : { kind: "unsteady_out_of_range" };
   }
   if (weightThousandths === 0) {
     return confirmedWeightThousandths === null

@@ -14,7 +14,7 @@ import {
 import { Check, Info, Package, Scale, TriangleAlert, UserX } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
-import type { ScaleWeighing, StableReading } from "../platform/use-scale-weighing";
+import type { ScaleWeighing, WeightReading } from "../platform/use-scale-weighing";
 import { useScaleWeighing } from "../platform/use-scale-weighing";
 import {
   countedMessage,
@@ -68,7 +68,7 @@ export function CountLineModal({
   const { product_id: productId, sale_unit: saleUnit } = product;
   const [notice, setNotice] = useState<Notice>();
 
-  const { phase, confirming, zeroRefused, confirm, typeInstead } = useScaleWeighing<StableReading>(
+  const { phase, confirming, zeroRefused, confirm, typeInstead } = useScaleWeighing<WeightReading>(
     async (confirmedWeightThousandths) => {
       if (saleUnit !== "KG") {
         return { kind: "closed" };
@@ -122,29 +122,49 @@ export function CountLineModal({
   });
 
   const latestSubmit = useRef(submit);
+  const weightInField = useRef<"none" | "stable" | "unsteady">("none");
 
   useEffect(() => {
     latestSubmit.current = submit;
   });
 
   useEffect(() => {
-    const shown =
-      phase.kind === "stable" ? phase.reading : phase.kind === "weighing" ? phase.last : undefined;
-    if (shown !== undefined) {
-      form.setFieldValue("counted", formatWeightInput(shown.weightThousandths), {
-        dontRunListeners: true,
-      });
+    function fillCounted(counted: string) {
+      form.setFieldValue("counted", counted, { dontRunListeners: true });
     }
-    if (phase.kind === "taken") {
-      form.setFieldValue("counted", formatWeightInput(phase.reading.weightThousandths), {
-        dontRunListeners: true,
-      });
-      void latestSubmit.current();
+    switch (phase.kind) {
+      case "weighing":
+        if (phase.last !== undefined) {
+          fillCounted(formatWeightInput(phase.last.weightThousandths));
+          weightInField.current = "stable";
+        } else if (weightInField.current !== "none") {
+          fillCounted("");
+          weightInField.current = "none";
+        }
+        break;
+      case "unsteady":
+      case "stable":
+        fillCounted(formatWeightInput(phase.reading.weightThousandths));
+        weightInField.current = phase.kind;
+        break;
+      case "scale_unavailable":
+        if (weightInField.current === "unsteady") {
+          fillCounted("");
+          weightInField.current = "none";
+        }
+        break;
+      case "taken":
+        fillCounted(formatWeightInput(phase.reading.weightThousandths));
+        void latestSubmit.current();
+        break;
+      case "typing":
+        break;
     }
   }, [phase, form]);
 
   const byWeight = saleUnit === "KG";
-  const followingScale = byWeight && (phase.kind === "weighing" || phase.kind === "stable");
+  const followingScale =
+    byWeight && (phase.kind === "weighing" || phase.kind === "unsteady" || phase.kind === "stable");
 
   function requestSubmit() {
     if (submitting || confirming) {
@@ -198,7 +218,7 @@ export function CountLineModal({
         {followingScale && phase.kind === "stable" ? (
           <StatusIndicator tone="success">Lectura estable</StatusIndicator>
         ) : null}
-        {followingScale && phase.kind === "weighing" ? (
+        {followingScale && phase.kind !== "stable" ? (
           <StatusIndicator tone="info" busy>
             Pesando…
           </StatusIndicator>
@@ -264,7 +284,7 @@ export function CountLineModal({
   );
 }
 
-function scaleWeighingOf(outcome: WeighCountedProductOutcome): ScaleWeighing<StableReading> {
+function scaleWeighingOf(outcome: WeighCountedProductOutcome): ScaleWeighing<WeightReading> {
   switch (outcome.kind) {
     case "weighed":
       return { kind: "stable", reading: { weightThousandths: outcome.weight_thousandths } };
@@ -274,6 +294,7 @@ function scaleWeighingOf(outcome: WeighCountedProductOutcome): ScaleWeighing<Sta
       return { kind: "unsteady", reading: { weightThousandths: outcome.weight_thousandths } };
     case "zero_weight":
     case "weighing":
+    case "unsteady_out_of_range":
       return { kind: outcome.kind };
     default:
       return { kind: "scale_unavailable" };

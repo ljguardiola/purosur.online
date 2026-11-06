@@ -32,6 +32,7 @@ export interface WeighLineOnScalePorts {
 export type WeighLineOnScaleOutcome =
   | Exclude<ChangeLineWeightOutcome, { kind: "invalid_weight" }>
   | { kind: "weighing" }
+  | { kind: "unsteady_out_of_range" }
   | { kind: "zero_weight" }
   | { kind: "scale_unavailable" }
   | StableWeighing

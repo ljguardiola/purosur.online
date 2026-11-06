@@ -36,7 +36,8 @@ export function WeighProductModal({
 }: WeighProductModalProps) {
   const { phase, confirming, zeroRefused, confirm, typeInstead, ifNotTaken } =
     useScaleWeighing(weigh);
-  const weighing = phase.kind === "weighing" || phase.kind === "stable";
+  const weighing =
+    phase.kind === "weighing" || phase.kind === "unsteady" || phase.kind === "stable";
   const taken = phase.kind === "taken";
 
   useEffect(() => {
@@ -88,7 +89,11 @@ export function WeighProductModal({
   }
 
   const shown =
-    phase.kind === "stable" ? phase.reading : phase.kind === "weighing" ? phase.last : undefined;
+    phase.kind === "stable" || phase.kind === "unsteady"
+      ? phase.reading
+      : phase.kind === "weighing"
+        ? phase.last
+        : undefined;
 
   return (
     <Modal

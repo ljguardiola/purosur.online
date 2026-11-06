@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from "react";
 
 const PAUSE_BETWEEN_ANSWERS_MS = 0;
 
-export type StableReading = { weightThousandths: number };
+export type WeightReading = { weightThousandths: number };
 
-type DefaultReading = StableReading & { amount: number };
+type DefaultReading = WeightReading & { amount: number };
 
-export type ScaleWeighing<Reading extends StableReading = DefaultReading> =
+export type ScaleWeighing<Reading extends WeightReading = DefaultReading> =
   | { kind: "weighing" }
+  | { kind: "unsteady_out_of_range" }
   | { kind: "zero_weight" }
   | { kind: "scale_unavailable" }
   | { kind: "unsteady"; reading: Reading }
@@ -15,14 +16,19 @@ export type ScaleWeighing<Reading extends StableReading = DefaultReading> =
   | { kind: "taken"; reading: Reading }
   | { kind: "closed" };
 
-export type ScaleWeighingPhase<Reading extends StableReading = DefaultReading> =
+export type ScaleWeighingPhase<Reading extends WeightReading = DefaultReading> =
   | { kind: "weighing"; last: Reading | undefined }
+  | { kind: "unsteady"; reading: Reading }
   | { kind: "stable"; reading: Reading }
   | { kind: "typing" }
   | { kind: "scale_unavailable" }
   | { kind: "taken"; reading: Reading };
 
-export function useScaleWeighing<Reading extends StableReading = DefaultReading>(
+function followsTheScale<Reading extends WeightReading>(phase: ScaleWeighingPhase<Reading>) {
+  return phase.kind === "weighing" || phase.kind === "unsteady" || phase.kind === "stable";
+}
+
+export function useScaleWeighing<Reading extends WeightReading = DefaultReading>(
   weigh: (confirmedWeightThousandths: number | null) => Promise<ScaleWeighing<Reading>>,
 ) {
   const [phase, setPhase] = useState<ScaleWeighingPhase<Reading>>({
@@ -74,9 +80,7 @@ export function useScaleWeighing<Reading extends StableReading = DefaultReading>
             case "scale_unavailable":
               typing.current = true;
               setConfirming(false);
-              setPhase((current) =>
-                current.kind === "weighing" || current.kind === "stable" ? answer : current,
-              );
+              setPhase((current) => (followsTheScale(current) ? answer : current));
               break;
             case "zero_weight":
               confirmed.current = false;
@@ -85,20 +89,18 @@ export function useScaleWeighing<Reading extends StableReading = DefaultReading>
               askAfterPause();
               break;
             case "stable":
-              shown.current = answer.reading.weightThousandths;
+            case "unsteady":
+              shown.current = answer.kind === "stable" ? answer.reading.weightThousandths : null;
               if (answer.reading.weightThousandths > 0) {
                 setZeroRefused(false);
               }
-              setPhase((current) =>
-                current.kind === "weighing" || current.kind === "stable" ? answer : current,
-              );
+              setPhase((current) => (followsTheScale(current) ? answer : current));
               askAfterPause();
               break;
-            case "unsteady":
+            case "unsteady_out_of_range":
+              shown.current = null;
               setPhase((current) =>
-                current.kind === "weighing" || current.kind === "stable"
-                  ? { kind: "weighing", last: answer.reading }
-                  : current,
+                followsTheScale(current) ? { kind: "weighing", last: undefined } : current,
               );
               askAfterPause();
               break;
@@ -139,9 +141,7 @@ export function useScaleWeighing<Reading extends StableReading = DefaultReading>
     typing.current = true;
     confirmed.current = false;
     setConfirming(false);
-    setPhase((current) =>
-      current.kind === "weighing" || current.kind === "stable" ? { kind: "typing" } : current,
-    );
+    setPhase((current) => (followsTheScale(current) ? { kind: "typing" } : current));
   }
 
   async function ifNotTaken<Result>(
