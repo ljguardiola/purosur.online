@@ -87,8 +87,8 @@ describe("isRegisterReachingCloud", () => {
   });
 
   it("is true though the token is not valid and ARCA is not reachable", () => {
-    expect(
-      isRegisterReachingCloud({ ...ONLINE, tokenValid: false, arcaReachable: false }, NOW),
-    ).toBe(true);
+    const withoutArca = { ...ONLINE, tokenValid: false, arcaReachable: false };
+
+    expect(isRegisterReachingCloud(withoutArca, NOW)).toBe(true);
   });
 });

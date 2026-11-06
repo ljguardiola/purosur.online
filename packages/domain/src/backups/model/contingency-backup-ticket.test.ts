@@ -2,10 +2,10 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { REGISTER_HEALTH_CHECK_HORIZON_MS } from "../../fiscal/model/fiscal-online-signal.js";
 import {
+  type CloudLinkReading,
   CONTINGENCY_BACKUP_OPERATIONS,
   CONTINGENCY_BACKUP_PRINT_FAILURE_REASONS,
   CONTINGENCY_BACKUP_TICKET_STANDINGS,
-  type CloudLinkReading,
   type ContingencyBackupTicketRecord,
   contingencyBackupTicketStanding,
   contingencyBackupTicketsSummary,
@@ -97,9 +97,9 @@ describe("needsContingencyBackupTicket", () => {
     const earlier = new Date(AT.getTime() - 60_000);
     const reachingThen = { lastHealthCheckOkAt: new Date(earlier.getTime() - 1_000), at: earlier };
 
-    expect(
-      needsContingencyBackupTicket({ cloudLinkAround: [reachingThen, REACHING], range }),
-    ).toBe(false);
+    expect(needsContingencyBackupTicket({ cloudLinkAround: [reachingThen, REACHING], range })).toBe(
+      false,
+    );
   });
 
   it("needs no ticket when every reading around the operation was within the horizon", () => {
