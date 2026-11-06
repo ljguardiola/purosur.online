@@ -284,10 +284,11 @@ test("ends each barcode row with a borderless remove button centred in the row, 
   const remove = chips.getByRole("button", { name: "Quitar el código 7790001" });
   await expect.element(remove).toBeVisible();
   const button = remove.element() as HTMLElement;
-  const row = button.parentElement as HTMLElement;
+  const code = chips.getByText("7790001", { exact: true }).element();
+  const row = code.parentElement as HTMLElement;
   const buttonRect = button.getBoundingClientRect();
   const rowRect = row.getBoundingClientRect();
-  const codeRect = chips.getByText("7790001", { exact: true }).element().getBoundingClientRect();
+  const codeRect = code.getBoundingClientRect();
 
   expect(getComputedStyle(button).borderWidth).toBe("0px");
   expect(getComputedStyle(button).backgroundColor).toBe("rgba(0, 0, 0, 0)");
