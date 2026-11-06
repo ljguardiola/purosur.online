@@ -230,6 +230,7 @@ export function CreateProductFromSupplierItemModal({
                   wantedNetQuantity === null || wantedNetUnit === null
                     ? null
                     : { quantity: wantedNetQuantity, unit: wantedNetUnit },
+                refresh: false,
               },
         ),
       QUANTITY_PROPOSAL_DEBOUNCE_MS,
