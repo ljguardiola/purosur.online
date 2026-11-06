@@ -136,14 +136,13 @@ describe("askPriceListRange", () => {
     expect(range.asked).toHaveLength(2);
   });
 
-  it.each<RangeAnswer>([
-    { kind: "unavailable" },
-    { kind: "too_long" },
-    { kind: "unreadable" },
-  ])("does not ask a range again when its answer is $kind", async (answer) => {
-    const range = answering(answer, { kind: "read", rows: ["Yerba 1 kg"] });
+  it.each<RangeAnswer>([{ kind: "unavailable" }, { kind: "too_long" }, { kind: "unreadable" }])(
+    "does not ask a range again when its answer is $kind",
+    async (answer) => {
+      const range = answering(answer, { kind: "read", rows: ["Yerba 1 kg"] });
 
-    expect(await askPriceListRange(range.ask)).toEqual(answer);
-    expect(range.asked).toHaveLength(1);
-  });
+      expect(await askPriceListRange(range.ask)).toEqual(answer);
+      expect(range.asked).toHaveLength(1);
+    },
+  );
 });

@@ -180,6 +180,13 @@ describe("the answer it gives", () => {
       streamedAnswerResponse({ textParts: ["{}"], stopReason: "refusal" }),
     ],
     ["an answer without text", streamedAnswerResponse({ textParts: [], withTextBlock: false })],
+  ])("answers invalid_answer for %s", async (_name, response) => {
+    const { client } = clientAnswering(() => response);
+
+    expect(await ask(client)).toEqual({ kind: "invalid_answer" });
+  });
+
+  it.each([
     ["a request refused as invalid", apiErrorResponse(400, "invalid_request_error")],
     ["a request refused as too large", apiErrorResponse(413, "request_too_large")],
   ])("answers unreadable for %s", async (_name, response) => {
