@@ -286,8 +286,7 @@ test("an empty submit shows each field's message and never calls the cloud", asy
   await expect
     .element(dialog.getByText("Ingresá un porcentaje entero entre 1 y 99."))
     .toBeVisible();
-  await expect.element(dialog.getByText("Ingresá la fecha de inicio.")).toBeVisible();
-  await expect.element(dialog.getByText("Ingresá la fecha de fin.")).toBeVisible();
+  await expect.element(dialog.getByText("Ingresá la vigencia.")).toBeVisible();
   expect(services.createDiscount).not.toHaveBeenCalled();
 });
 
