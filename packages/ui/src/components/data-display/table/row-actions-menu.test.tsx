@@ -136,6 +136,8 @@ test("shows why a disabled action is disabled, announces it disabled and describ
   const describedBy = (item.element() as HTMLElement).getAttribute("aria-describedby");
   expect(describedBy).not.toBeNull();
   expect((reason.element() as HTMLElement).id).toBe(describedBy);
+  await expect.element(item).toHaveAccessibleName("Duplicar");
+  await expect.element(item).toHaveAccessibleDescription("Falta stock para duplicar");
 });
 
 test("does nothing and keeps the menu open when a disabled action is chosen", async () => {
@@ -204,11 +206,8 @@ test("has no accessibility violations open, with a disabled and a destructive ac
   );
   await userEvent.click(trigger);
 
-  // The reason is the item's description, not part of its name, which is the pattern for a menu
-  // item with secondary text; this rule would demand the reason in the name as well.
-  await expectNoAccessibilityViolations(document.body, {
-    rules: { "label-content-name-mismatch": { enabled: false } },
-  });
+  await expectNoAccessibilityViolations(document.body);
+});
 });
 
 test("accepts one or more actions and refuses none", () => {
