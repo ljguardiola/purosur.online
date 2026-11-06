@@ -4,14 +4,11 @@ import { Link, useRouter } from "@tanstack/react-router";
 import { ChevronRight, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { focusRingClassName } from "../platform/focus-ring";
+import { ownEntry } from "../platform/own-entry";
 import { useDocumentTitle } from "../shell/document-title";
 import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import type { BackofficeHelpCatalog } from "./help-catalog";
-
-function ownEntry<Value>(record: Record<string, Value>, key: string | null): Value | undefined {
-  return key !== null && Object.hasOwn(record, key) ? record[key] : undefined;
-}
 
 const linkRowClassName =
   "flex items-center justify-between gap-2 rounded-lg border border-border bg-surface px-3 py-3 " +
