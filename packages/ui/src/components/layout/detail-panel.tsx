@@ -1,7 +1,7 @@
 import {
   type HTMLAttributes,
   type ReactNode,
-  type SyntheticEvent,
+  type RefObject,
   useEffect,
   useId,
   useLayoutEffect,
@@ -16,6 +16,7 @@ import { SidePanel } from "./side-panel";
 export type DetailPanelProps = {
   open: boolean;
   onClose: () => void;
+  recordKey: string;
   title: string;
   children: ReactNode;
   footer?: ReactNode | undefined;
@@ -23,9 +24,17 @@ export type DetailPanelProps = {
 
 const NARROW_AREA_WIDTH = 800;
 
-export function DetailPanel({ open, onClose, title, children, footer }: DetailPanelProps) {
+export function DetailPanel({
+  open,
+  onClose,
+  recordKey,
+  title,
+  children,
+  footer,
+}: DetailPanelProps) {
   const [narrow, setNarrow] = useState(false);
-  const markPressInsidePanel = useRestoreFocusOnClose(open);
+  const frameRef = useRef<HTMLDivElement>(null);
+  useRestoreFocusOnClose(open ? recordKey : null, frameRef);
 
   // The panel leaves the area's flow as a modal, so a marker left in the flow stands for the area.
   function observeArea(marker: HTMLSpanElement | null) {
@@ -47,7 +56,7 @@ export function DetailPanel({ open, onClose, title, children, footer }: DetailPa
     <>
       <span ref={observeArea} hidden />
       <PanelFrame
-        onPressInside={markPressInsidePanel}
+        frameRef={frameRef}
         narrow={narrow}
         onClose={onClose}
         title={title}
@@ -59,60 +68,31 @@ export function DetailPanel({ open, onClose, title, children, footer }: DetailPa
   );
 }
 
-const CONTROL = "button, a[href], input, select, textarea, summary, [tabindex]";
-const KEY_PRESSED_CONTROL = "button, [role='button'], a[href], [role='link'], summary";
-
-// Pressing a design-system button with Enter or Space fires no click, so the key itself is the press.
-function pressedControl(event: Event): Element | null {
-  if (!event.isTrusted || !(event.target instanceof Element)) {
-    return null;
-  }
-  if (event instanceof KeyboardEvent) {
-    return event.key === "Enter" || event.key === " "
-      ? event.target.closest(KEY_PRESSED_CONTROL)
-      : null;
-  }
-  return event.target.closest(CONTROL);
-}
-
-function useRestoreFocusOnClose(open: boolean) {
+function useRestoreFocusOnClose(
+  openRecord: string | null,
+  frameRef: RefObject<HTMLElement | null>,
+) {
   const returnTargetRef = useRef<Element | null>(null);
-  const pressesInsidePanelRef = useRef(new WeakSet<Event>());
+  const open = openRecord !== null;
+
+  useLayoutEffect(() => {
+    if (openRecord === null) {
+      return;
+    }
+    const focused = document.activeElement;
+    if (focused !== null && focused !== document.body && !frameRef.current?.contains(focused)) {
+      returnTargetRef.current = focused;
+    }
+  }, [openRecord, frameRef]);
 
   useLayoutEffect(() => {
     if (!open) {
       return;
     }
-    const focused = document.activeElement;
-    if (focused !== null && focused !== document.body) {
-      returnTargetRef.current = focused;
-    }
-    // The panel's React handlers, which also hear presses on the overlays its content portals,
-    // run after these document listeners, so a press is settled as outside only at the next
-    // press or on close.
-    let lastPress: { event: Event; control: Element } | null = null;
-    const settleLastPress = () => {
-      if (lastPress !== null && !pressesInsidePanelRef.current.has(lastPress.event)) {
-        returnTargetRef.current = lastPress.control;
-      }
-      lastPress = null;
-    };
-    const recordPress = (event: Event) => {
-      const control = pressedControl(event);
-      if (control === null) {
-        return;
-      }
-      settleLastPress();
-      lastPress = { event, control };
-    };
-    document.addEventListener("click", recordPress, true);
-    document.addEventListener("keydown", recordPress, true);
     return () => {
-      document.removeEventListener("click", recordPress, true);
-      document.removeEventListener("keydown", recordPress, true);
-      settleLastPress();
+      const returnTarget = returnTargetRef.current;
+      returnTargetRef.current = null;
       queueMicrotask(() => {
-        const returnTarget = returnTargetRef.current;
         const focusIsLost =
           document.activeElement === null || document.activeElement === document.body;
         if (focusIsLost && returnTarget instanceof HTMLElement && returnTarget.isConnected) {
@@ -121,24 +101,20 @@ function useRestoreFocusOnClose(open: boolean) {
       });
     };
   }, [open]);
-
-  return (event: SyntheticEvent) => {
-    pressesInsidePanelRef.current.add(event.nativeEvent);
-  };
 }
 
-type PanelProps = Omit<DetailPanelProps, "open">;
+type PanelProps = Omit<DetailPanelProps, "open" | "recordKey">;
 
 // Both modes render the same elements, only styled and announced differently, so the caller's
 // content stays mounted when the area is resized across the narrow width.
 function PanelFrame({
-  onPressInside,
+  frameRef,
   narrow,
   onClose,
   title,
   children,
   footer,
-}: PanelProps & { onPressInside: (event: SyntheticEvent) => void; narrow: boolean }) {
+}: PanelProps & { frameRef: RefObject<HTMLDivElement | null>; narrow: boolean }) {
   const headingId = useId();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -166,8 +142,7 @@ function PanelFrame({
 
   return (
     <div
-      onClickCapture={onPressInside}
-      onKeyDownCapture={onPressInside}
+      ref={frameRef}
       className={
         narrow ? "fixed inset-0 z-overlay flex items-center justify-center bg-backdrop" : "contents"
       }
