@@ -5,6 +5,7 @@ import {
   type DiscountSummary,
   type DiscountTargets,
   discountBuyQtySchema,
+  discountCreationBodySchema,
   discountNameSchema,
   discountPayQtySchema,
   discountPercentSchema,
@@ -151,6 +152,11 @@ function nameIsTooLong(name: string): boolean {
   return !result.success && result.error.issues.some((issue) => issue.code === "custom");
 }
 
+function validityEndsBeforeStart(values: DiscountFormValues): boolean {
+  const result = discountCreationBodySchema.safeParse(discountRequestFrom(values));
+  return !result.success && result.error.issues.some((issue) => issue.path[0] === "validTo");
+}
+
 export const DISCOUNT_MESSAGES = {
   name: ({ name }: DiscountFormValues) => {
     const trimmed = name.trim();
@@ -172,11 +178,11 @@ export const DISCOUNT_MESSAGES = {
       : `Ingresá una cantidad entera de ${schemaLimit(discountPayQtySchema.meta()?.["minValue"])} o más.`,
   targetId: ({ targetKind, targetId }: DiscountFormValues) =>
     targetId === null ? `${TARGET_PLACEHOLDERS[targetKind]}.` : TARGET_REVIEW_MESSAGES[targetKind],
-  validity: ({ validity }: DiscountFormValues) => {
-    if (validity === null) {
+  validity: (values: DiscountFormValues) => {
+    if (values.validity === null) {
       return "Ingresá la vigencia.";
     }
-    return validity.end.compare(validity.start) < 0
+    return validityEndsBeforeStart(values)
       ? "La fecha de fin no puede ser anterior a la de inicio."
       : "Revisá la vigencia.";
   },

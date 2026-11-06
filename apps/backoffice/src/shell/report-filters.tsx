@@ -15,7 +15,7 @@ export type ReportFiltersProps<Filters extends PeriodFilters> = {
 
 export type PeriodFilters = { from: string; to: string; register?: string };
 
-type PeriodDraft = DateRange | null;
+type PeriodDraft = DateRange | "incomplete";
 
 function typedRange({ start, end }: DateRange): { from: string; to: string } | null {
   if (!hasFourDigitYear(start) || !hasFourDigitYear(end)) {
@@ -32,20 +32,21 @@ export function ReportFilters<Filters extends PeriodFilters>({
   onRegisterLabelChange,
   trailing,
 }: ReportFiltersProps<Filters>) {
-  const [draft, setDraft] = useState<PeriodDraft>(null);
+  const [draft, setDraft] = useState<PeriodDraft | null>(null);
 
   const shownPeriod = filters.from === "" ? answeredPeriod : { from: filters.from, to: filters.to };
-  const period: PeriodDraft =
-    draft ??
-    (shownPeriod
-      ? { start: calendarDateOf(shownPeriod.from), end: calendarDateOf(shownPeriod.to) }
-      : null);
+  const shownRange: DateRange | null = shownPeriod
+    ? { start: calendarDateOf(shownPeriod.from), end: calendarDateOf(shownPeriod.to) }
+    : null;
+  const period = draft === "incomplete" ? null : (draft ?? shownRange);
 
-  function changePeriod(next: PeriodDraft) {
+  const typed = period === null ? null : typedRange(period);
+  const periodRefused = typed !== null && !reportQuerySchema.safeParse(typed).success;
+
+  function changePeriod(next: DateRange | null) {
     const nextTyped = next === null ? null : typedRange(next);
     if (next === null) {
-      setDraft(null);
-      onFiltersChange({ ...filters, from: "", to: "" });
+      setDraft("incomplete");
     } else if (nextTyped !== null && reportQuerySchema.safeParse(nextTyped).success) {
       setDraft(null);
       onFiltersChange({ ...filters, ...nextTyped });
@@ -54,9 +55,23 @@ export function ReportFilters<Filters extends PeriodFilters>({
     }
   }
 
+  function emptyPeriod() {
+    setDraft(null);
+    onFiltersChange({ ...filters, from: "", to: "" });
+  }
+
   return (
     <div className="flex flex-wrap items-end gap-3">
-      <DateRangeField name="period" label="Período" value={period} onChange={changePeriod} />
+      <DateRangeField
+        name="period"
+        label="Período"
+        value={period}
+        onChange={changePeriod}
+        onEmptied={emptyPeriod}
+        errorMessage={
+          periodRefused ? "La fecha de fin no puede ser anterior a la de inicio." : undefined
+        }
+      />
       <Suspense fallback={null}>
         {registerFilter?.({
           value: filters.register ?? "ALL",

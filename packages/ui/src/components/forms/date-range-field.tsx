@@ -1,13 +1,15 @@
 import type { CalendarDate } from "@internationalized/date";
-import { useId } from "react";
+import { useContext, useId } from "react";
 import {
   CalendarCell as AriaCalendarCell,
   CalendarGrid as AriaCalendarGrid,
   CalendarGridBody as AriaCalendarGridBody,
   CalendarGridHeader as AriaCalendarGridHeader,
   CalendarHeaderCell as AriaCalendarHeaderCell,
+  DateFieldContext as AriaDateFieldContext,
   DateInput as AriaDateInput,
   DateRangePicker as AriaDateRangePicker,
+  DateRangePickerStateContext as AriaDateRangePickerStateContext,
   DateSegment as AriaDateSegment,
   Dialog as AriaDialog,
   Group as AriaGroup,
@@ -16,6 +18,7 @@ import {
   RangeCalendar as AriaRangeCalendar,
   Text as AriaText,
   I18nProvider,
+  useSlottedContext,
 } from "react-aria-components";
 import type { Locale } from "../../messages/formatters";
 import { CalendarHeader } from "./calendar-header";
@@ -57,6 +60,7 @@ type DateRangeFieldCommonProps = {
   label: string;
   value: DateRange | null;
   onChange: (value: DateRange | null) => void;
+  onEmptied?: () => void;
   description?: string;
   disabled?: boolean;
   required?: boolean;
@@ -73,8 +77,6 @@ export type DateRangeFieldProps = DateRangeFieldCommonProps &
 
 const LOCALE: Locale = "es-AR";
 
-const REVERSED_RANGE_MESSAGE = "La fecha de fin no puede ser anterior a la de inicio.";
-
 const inputClassName = "flex min-w-0 outline-none";
 
 const separatorClassName = "shrink-0 select-none px-1 text-text-subtle";
@@ -85,8 +87,58 @@ const rangeCellClassName =
   "data-selected:not-data-selection-start:not-data-selection-end:text-text " +
   "data-selected:not-data-selection-start:not-data-selection-end:font-normal";
 
+type RangeEnd = "start" | "end";
+
+function RangeEndInput({
+  end,
+  className,
+  onEmptied,
+}: {
+  end: RangeEnd;
+  className: string;
+  onEmptied: (() => void) | undefined;
+}) {
+  const fieldProps = useSlottedContext(AriaDateFieldContext, end);
+  const state = useContext(AriaDateRangePickerStateContext);
+  const day = state?.value[end] ?? null;
+  const otherDay = state?.value[end === "start" ? "end" : "start"] ?? null;
+  return (
+    <AriaDateFieldContext.Provider
+      value={{
+        ...fieldProps,
+        onChange: (changed) => {
+          fieldProps?.onChange?.(changed);
+          if (changed === null && otherDay === null) {
+            onEmptied?.();
+          }
+        },
+      }}
+    >
+      <AriaDateInput className={className}>
+        {(segment) => (
+          <AriaDateSegment
+            segment={segment}
+            className={
+              day === null ? `${segmentClassName} ${emptySeparatorClassName}` : segmentClassName
+            }
+          />
+        )}
+      </AriaDateInput>
+    </AriaDateFieldContext.Provider>
+  );
+}
+
 export function DateRangeField(props: DateRangeFieldProps) {
-  const { name, label, value, onChange, description, disabled = false, required = false } = props;
+  const {
+    name,
+    label,
+    value,
+    onChange,
+    onEmptied,
+    description,
+    disabled = false,
+    required = false,
+  } = props;
   const size = useFieldSize();
   const { errorMessage, errorMessageId } = fieldError(props);
   const calendarTitleId = useId();
@@ -94,7 +146,6 @@ export function DateRangeField(props: DateRangeFieldProps) {
   const maxValue = props.maxValue ?? null;
   const rangeMessage = props.rangeMessage;
 
-  const reversed = value !== null && value.end.compare(value.start) < 0;
   const outOfRange =
     value !== null &&
     [value.start, value.end].some(
@@ -102,16 +153,13 @@ export function DateRangeField(props: DateRangeFieldProps) {
         (minValue !== null && day.compare(minValue) < 0) ||
         (maxValue !== null && day.compare(maxValue) > 0),
     );
-  const shownError =
-    errorMessage ?? (reversed ? REVERSED_RANGE_MESSAGE : outOfRange ? rangeMessage : undefined);
+  const shownError = errorMessage ?? (outOfRange ? rangeMessage : undefined);
   const invalid = shownError !== undefined || errorMessageId !== undefined;
   const labelClassName = fieldLabelClassName[size];
   const frameClassName =
     size === "backoffice" ? backofficeFieldBoxClassName : registerFrameClassName;
   const valueClassName =
     size === "backoffice" ? backofficeFieldValueClassName : registerValueClassName;
-  const segmentsClassName = (day: CalendarDate | undefined) =>
-    day === undefined ? `${segmentClassName} ${emptySeparatorClassName}` : segmentClassName;
 
   return (
     <I18nProvider locale={LOCALE}>
@@ -139,19 +187,19 @@ export function DateRangeField(props: DateRangeFieldProps) {
           className={`${fieldBoxClassName} ${frameClassName} ${fieldBoxStateClassName({ disabled, invalid })}`}
         >
           {size === "register" && <CalendarToggleButton label={label} disabled={disabled} />}
-          <AriaDateInput slot="start" className={`${inputClassName} ${valueClassName}`}>
-            {(segment) => (
-              <AriaDateSegment segment={segment} className={segmentsClassName(value?.start)} />
-            )}
-          </AriaDateInput>
+          <RangeEndInput
+            end="start"
+            className={`${inputClassName} ${valueClassName}`}
+            onEmptied={onEmptied}
+          />
           <span aria-hidden="true" className={`${separatorClassName} ${valueClassName}`}>
             –
           </span>
-          <AriaDateInput slot="end" className={`${inputClassName} ${valueClassName}`}>
-            {(segment) => (
-              <AriaDateSegment segment={segment} className={segmentsClassName(value?.end)} />
-            )}
-          </AriaDateInput>
+          <RangeEndInput
+            end="end"
+            className={`${inputClassName} ${valueClassName}`}
+            onEmptied={onEmptied}
+          />
           <span aria-hidden="true" className="flex-1" />
           {size === "backoffice" && <CalendarToggleButton label={label} disabled={disabled} />}
         </AriaGroup>
