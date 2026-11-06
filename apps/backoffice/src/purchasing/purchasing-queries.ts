@@ -28,8 +28,9 @@ import type {
   SupplierSummary,
   TagList,
 } from "@purosur/contracts";
-import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { type QueryKey, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { type CloudData, fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchAiCostReport } from "./ai-cost-report-api";
@@ -400,7 +401,9 @@ export function useSupplierItemLinkProposalQuery(params: {
     queryKey: [...purchasingKeys.supplierItemLinkProposal, params.listId, params.rowId],
     enabled: params.enabled,
     read: async () => {
-      const outcome = await params.fetchSupplierItemLinkProposal(params.listId, params.rowId);
+      const outcome = await params.fetchSupplierItemLinkProposal(params.listId, params.rowId, {
+        refresh: false,
+      });
       void client.invalidateQueries({
         queryKey: [...purchasingKeys.supplierPriceListAiCost, params.listId],
       });
@@ -408,6 +411,107 @@ export function useSupplierItemLinkProposalQuery(params: {
     },
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
+  });
+}
+
+function supplierItemQuantityProposalKey(
+  listId: string,
+  rowId: string,
+  request: SupplierItemQuantityProposalBody | null,
+) {
+  return [
+    ...purchasingKeys.supplierItemQuantityProposal,
+    listId,
+    rowId,
+    request?.saleUnit,
+    request?.netContent?.quantity,
+    request?.netContent?.unit,
+  ];
+}
+
+function useProposalRefresh<T>(params: {
+  listId: string;
+  queryKey: QueryKey;
+  opening: object | null;
+  ask: () => Promise<CloudReadOutcome<T>>;
+  onSessionEnded: () => void;
+}) {
+  const client = useQueryClient();
+  const sendToMyAccount = useSendToMyAccount();
+  const { listId, queryKey, opening, ask, onSessionEnded } = params;
+  const asked = JSON.stringify(queryKey);
+  const { mutateAsync, reset, variables, isPending, data } = useMutation({
+    mutationFn: async (_asked: string) => {
+      const outcome = await ask();
+      void client.invalidateQueries({
+        queryKey: [...purchasingKeys.supplierPriceListAiCost, listId],
+      });
+      if (outcome.kind === "ok") {
+        client.setQueryData(queryKey, outcome.value);
+      }
+      return outcome;
+    },
+    onSuccess: (outcome) => {
+      if (outcome.kind === "unauthenticated") {
+        onSessionEnded();
+      } else if (outcome.kind === "forbidden") {
+        sendToMyAccount();
+      }
+    },
+  });
+  const currentOpening = useRef(opening);
+  useEffect(() => {
+    currentOpening.current = opening;
+    reset();
+  }, [opening, reset]);
+  const current = variables === asked;
+  return {
+    // Null when the answer arrives after another opening.
+    refresh: async (): Promise<CloudReadOutcome<T> | null> => {
+      const askedOpening = opening;
+      const outcome = await mutateAsync(asked);
+      return currentOpening.current === askedOpening ? outcome : null;
+    },
+    refreshing: current && isPending,
+    failed: current && (data?.kind === "failed" || data?.kind === "rate_limited"),
+  };
+}
+
+export function useRefreshSupplierItemLinkProposal(params: {
+  listId: string;
+  rowId: string;
+  opening: object | null;
+  fetchSupplierItemLinkProposal: typeof fetchSupplierItemLinkProposal;
+  onSessionEnded: () => void;
+}) {
+  const { listId, rowId } = params;
+  return useProposalRefresh({
+    listId,
+    queryKey: [...purchasingKeys.supplierItemLinkProposal, listId, rowId],
+    opening: params.opening,
+    ask: () => params.fetchSupplierItemLinkProposal(listId, rowId, { refresh: true }),
+    onSessionEnded: params.onSessionEnded,
+  });
+}
+
+export function useRefreshSupplierItemQuantityProposal(params: {
+  listId: string;
+  rowId: string;
+  opening: object | null;
+  request: SupplierItemQuantityProposalBody | null;
+  fetchSupplierItemQuantityProposal: typeof fetchSupplierItemQuantityProposal;
+  onSessionEnded: () => void;
+}) {
+  const { listId, rowId, request } = params;
+  return useProposalRefresh({
+    listId,
+    queryKey: supplierItemQuantityProposalKey(listId, rowId, request),
+    opening: params.opening,
+    ask: async () =>
+      request === null
+        ? { kind: "failed" }
+        : params.fetchSupplierItemQuantityProposal(listId, rowId, { ...request, refresh: true }),
+    onSessionEnded: params.onSessionEnded,
   });
 }
 
@@ -422,14 +526,7 @@ export function useSupplierItemQuantityProposalQuery(params: {
   const client = useQueryClient();
   const { request } = params;
   return useCloudQuery<SupplierItemQuantityProposal>({
-    queryKey: [
-      ...purchasingKeys.supplierItemQuantityProposal,
-      params.listId,
-      params.rowId,
-      request?.saleUnit,
-      request?.netContent?.quantity,
-      request?.netContent?.unit,
-    ],
+    queryKey: supplierItemQuantityProposalKey(params.listId, params.rowId, request),
     enabled: request !== null,
     read: async () => {
       if (request === null) {

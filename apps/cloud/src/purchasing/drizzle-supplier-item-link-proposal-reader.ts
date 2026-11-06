@@ -113,4 +113,16 @@ export class DrizzleSupplierItemLinkProposalReader<TQueryResult extends PgQueryR
       .where(productActivityCondition(scope));
     return rows.map(proposalProduct);
   }
+
+  async product(
+    productId: string,
+    scope: ProductActivityScope,
+  ): Promise<ProposalProduct | undefined> {
+    const [row] = await this.db
+      .select({ ...PRODUCT_COLUMNS })
+      .from(products)
+      .leftJoin(brands, eq(brands.id, products.brandId))
+      .where(and(eq(products.id, productId), productActivityCondition(scope)));
+    return row ? proposalProduct(row) : undefined;
+  }
 }

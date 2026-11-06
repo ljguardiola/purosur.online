@@ -418,6 +418,13 @@ export type {
   SupplierItemProductStoreTransaction,
 } from "./supplier-item-product-store.js";
 export type {
+  KeptLinkProposal,
+  KeptQuantityProposal,
+  ProposalRecording,
+  QuantityProposalShape,
+  SupplierItemProposalStore,
+} from "./supplier-item-proposal-store.js";
+export type {
   SupplierItemQuantityReader,
   SupplierItemQuantityReading,
 } from "./supplier-item-quantity-reader.js";
@@ -427,7 +434,6 @@ export type {
   SupplierOffer,
   SupplierPriceComparisonReader,
 } from "./supplier-price-comparison-reader.js";
-export type { SupplierPriceListAiCallStore } from "./supplier-price-list-ai-call-store.js";
 export type {
   SupplierPriceListAiCalls,
   SupplierPriceListAiCostReader,

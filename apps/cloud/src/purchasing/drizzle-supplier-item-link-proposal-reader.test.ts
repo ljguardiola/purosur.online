@@ -229,3 +229,34 @@ describe("the products of a scope", () => {
     ]);
   });
 });
+
+describe("one product of a scope", () => {
+  it("answers its name, brand name, net content and sale unit", async () => {
+    const kos = await insertBrand(db, { name: "Kos" });
+    const { id } = await insertProduct(db, {
+      name: "Granola Berries",
+      brandId: kos.id,
+      netContent: { quantity: 500, unit: "G" },
+      saleUnit: "KG",
+    });
+    await insertProduct(db, { name: "Yerba 1 kg" });
+
+    expect(await reader().product(id, "active")).toEqual({
+      id,
+      name: "Granola Berries",
+      brandName: "Kos",
+      netContent: { quantity: 500, unit: "G" },
+      saleUnit: "KG",
+    });
+  });
+
+  it("answers nothing for a product outside the scope or one that does not exist", async () => {
+    const { id: active } = await insertProduct(db, { name: "Yerba 1 kg" });
+    const { id: inactive } = await insertProduct(db, { name: "Producto retirado", active: false });
+
+    expect(await reader().product(inactive, "active")).toBeUndefined();
+    expect(await reader().product(active, "inactive")).toBeUndefined();
+    expect(await reader().product(inactive, "any")).toMatchObject({ id: inactive });
+    expect(await reader().product("00000000-0000-4000-8000-000000000000", "any")).toBeUndefined();
+  });
+});

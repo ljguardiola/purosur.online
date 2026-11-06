@@ -121,7 +121,9 @@ import {
   stockCountLots,
   stockCounts,
   stockMovements,
+  supplierItemLinkProposals,
   supplierItemPrices,
+  supplierItemQuantityProposals,
   supplierItems,
   supplierPriceListAiCalls,
   supplierPriceListExtractionCaps,
@@ -1101,10 +1103,26 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
         uploadedBy: user.id,
       })
       .returning({ id: supplierPriceLists.id });
-    await db.insert(supplierPriceListRows).values({
-      listId: priceList?.id as string,
-      position: 0,
-      description: "Yerba 1 kg",
+    const [priceListRow] = await db
+      .insert(supplierPriceListRows)
+      .values({ listId: priceList?.id as string, position: 0, description: "Yerba 1 kg" })
+      .returning({ id: supplierPriceListRows.id });
+    await db.insert(supplierItemLinkProposals).values({
+      rowId: priceListRow?.id as string,
+      askedDescription: "Yerba 1 kg",
+      askedOtherPresentations: [],
+      kind: "PROPOSED",
+      productId: product.id,
+      proposedBy: "AI",
+      saleUnit: "UNIT",
+      quantity: 12_000,
+    });
+    await db.insert(supplierItemQuantityProposals).values({
+      rowId: priceListRow?.id as string,
+      askedDescription: "Yerba 1 kg",
+      askedOtherPresentations: [],
+      saleUnit: "UNIT",
+      kind: "NONE",
     });
     const [supplierItem] = await db
       .insert(supplierItems)

@@ -1458,8 +1458,9 @@ describe("wiring the purchasing routes", () => {
         headers: ORIGIN,
       }),
       app.inject({
-        method: "GET",
+        method: "POST",
         url: `/api/supplier-price-lists/${ID}/rows/${ID}/link-proposal`,
+        headers: ORIGIN,
       }),
       app.inject({
         method: "POST",
@@ -3008,7 +3009,7 @@ describe("the route access inventory", () => {
         access: capabilityAccess("supplier_price_lists"),
       },
       {
-        method: "GET",
+        method: "POST",
         url: "/api/supplier-price-lists/:id/rows/:rowId/link-proposal",
         access: capabilityAccess("supplier_price_lists"),
       },
