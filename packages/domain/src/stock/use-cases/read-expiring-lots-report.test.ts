@@ -8,8 +8,8 @@ import type { LotNameFacts } from "../model/lot-name.js";
 import type { ExpiringLotProduct, ExpiringLotRow } from "./expiring-lot-reader.js";
 import { readExpiringLotsReport } from "./read-expiring-lots-report.js";
 import {
-  FakeBranchSettings,
   FakeExpiringLotReader,
+  FakeExpiryWarningWindowReader,
   technicalLotFactsOfRows,
 } from "./test-support/fake-expiring-lot-reader.js";
 import { FakeLotNameReader, purchaseLotFacts } from "./test-support/fake-lot-name-reader.js";
@@ -56,24 +56,24 @@ async function read(
   } = {},
 ) {
   const expiringLots = new FakeExpiringLotReader(rows);
-  const branchSettings = new FakeBranchSettings(options.windowDays ?? 30);
+  const expiryWarningWindow = new FakeExpiryWarningWindowReader(options.windowDays ?? 30);
   const lotNames = new FakeLotNameReader(options.facts ?? technicalLotFactsOfRows(rows));
   const report = await readExpiringLotsReport(
     {
       expiringLots,
       lotNames,
-      branchSettings,
+      expiryWarningWindow,
       clock: new FixedClock(options.now ?? NOON),
       zoneRules: new FakeZoneRulesSource(options.rules),
     },
     { locationId: "location-1", asked: options.asked ?? {} },
   );
-  return { report, expiringLots, branchSettings, lotNames };
+  return { report, expiringLots, expiryWarningWindow, lotNames };
 }
 
 describe("readExpiringLotsReport", () => {
   it("answers the branch's warning window and, when no period is asked, the period from today to the window's end", async () => {
-    const { report, branchSettings } = await read([], { windowDays: 45 });
+    const { report, expiryWarningWindow } = await read([], { windowDays: 45 });
 
     expect(report).toEqual({
       period: { from: "2026-10-13", to: "2026-11-27" },
@@ -81,7 +81,7 @@ describe("readExpiringLotsReport", () => {
       lots: [],
       summary: { lotCount: 0, valueCents: 0, withoutCostCount: 0 },
     });
-    expect(branchSettings.reads).toEqual(["location-1"]);
+    expect(expiryWarningWindow.reads).toEqual(["location-1"]);
   });
 
   it("takes today as the Argentine calendar day", async () => {
