@@ -30,6 +30,14 @@ describe("the entities a register version reads", () => {
     expect(readsPulledEntity("2.0.0", "zone_rules")).toBe(true);
   });
 
+  it.each(["constructor", "toString", "__proto__", "never_pulled"])(
+    "reads %s like any entity no version limits",
+    (entity) => {
+      expect(readsPulledEntity("1.0.1", entity)).toBe(true);
+      expect(readsPulledEntity(null, entity)).toBe(true);
+    },
+  );
+
   it.each([null, "", "unknown", "1.0", "v1.0.1385", "1.0.1385-beta"])(
     "is the oldest reader when its version is %j: reads no later-added entity",
     (version) => {

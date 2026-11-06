@@ -1462,3 +1462,57 @@ describe("withoutEchoedQueryValues", () => {
     expect(withoutEchoedQueryValues("numeric field overflow")).toBe("numeric field overflow");
   });
 });
+
+describe("a key named __proto__", () => {
+  const withProtoKey = (): Record<string, unknown> =>
+    JSON.parse('{"__proto__": {"note": "kept", "token": "abc"}, "other": 1}');
+  const scrubbedValue = { note: "kept", token: "[redacted]" };
+
+  function ownProtoEntry(scrubbed: unknown): unknown {
+    expect(Object.getPrototypeOf(scrubbed)).toBe(Object.prototype);
+    return Object.getOwnPropertyDescriptor(scrubbed, "__proto__")?.value;
+  }
+
+  it.each([
+    ["extra", (value: Record<string, unknown>) => scrubErrorReport({ extra: value }).extra],
+    ["tags", (value: Record<string, unknown>) => scrubErrorReport({ tags: value }).tags],
+    [
+      "contexts",
+      (value: Record<string, unknown>) => scrubErrorReport({ contexts: value }).contexts,
+    ],
+    [
+      "breadcrumb data",
+      (value: Record<string, unknown>) => scrubErrorReportBreadcrumb({ data: value }).data,
+    ],
+    [
+      "log attributes",
+      (value: Record<string, unknown>) => scrubErrorReportLog({ attributes: value }).attributes,
+    ],
+  ])("stays in the scrubbed %s as an entry of its own, scrubbed", (_where, scrub) => {
+    const scrubbed = scrub(withProtoKey());
+
+    expect(ownProtoEntry(scrubbed)).toEqual(scrubbedValue);
+    expect(scrubbed).toHaveProperty("other");
+  });
+
+  it("stays in a nested object as an entry of its own, scrubbed", () => {
+    const scrubbed = scrubErrorReport({ extra: { nested: withProtoKey() } }).extra;
+
+    expect(ownProtoEntry((scrubbed as { nested: unknown }).nested)).toEqual(scrubbedValue);
+  });
+
+  it("stays in the scrubbed contexts when it names a section of the SDK's", () => {
+    const scrubbed = scrubErrorReport({ contexts: { app: withProtoKey() } }).contexts;
+
+    expect(ownProtoEntry((scrubbed as { app: unknown }).app)).toEqual(scrubbedValue);
+  });
+
+  it("is redacted when its value is a secret, like any sensitive key", () => {
+    const scrubbed = scrubErrorReport({
+      extra: JSON.parse('{"__proto__": "text", "token": "abc"}'),
+    }).extra;
+
+    expect(Object.getOwnPropertyDescriptor(scrubbed, "__proto__")?.value).toBe("text");
+    expect(scrubbed).toHaveProperty("token", "[redacted]");
+  });
+});

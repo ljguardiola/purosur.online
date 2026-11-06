@@ -143,3 +143,15 @@ describe("retryAfterSecondsOf", () => {
     expect(retryAfterSecondsOf(cloudError("rate_limited", "x", details))).toBeUndefined();
   });
 });
+
+describe("a code the contract does not declare, reaching the lookups untyped", () => {
+  it.each(["teapot", "constructor", "toString", "__proto__"])(
+    "is refused as %s, like any other undeclared code",
+    (code) => {
+      const untyped = JSON.parse(JSON.stringify(code));
+
+      expect(() => cloudErrorStatus(untyped)).toThrow(`Unknown cloud error code "${code}"`);
+      expect(() => isRetryableCloudError(untyped)).toThrow(`Unknown cloud error code "${code}"`);
+    },
+  );
+});
