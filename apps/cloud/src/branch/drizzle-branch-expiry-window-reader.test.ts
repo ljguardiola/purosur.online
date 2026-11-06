@@ -58,3 +58,28 @@ describe("DrizzleBranchExpiryWindowReader", () => {
     );
   });
 });
+
+describe("DrizzleBranchExpiryWindowReader's expiry warning window of one branch", () => {
+  it("answers the days the branch configured", async () => {
+    const locationId = await seededLocationId(db);
+    await db
+      .update(branchSettings)
+      .set({ expiringLotAlertDays: 45 })
+      .where(eq(branchSettings.locationId, locationId));
+
+    await expect(
+      new DrizzleBranchExpiryWindowReader(db).expiryWarningWindowDays(locationId),
+    ).resolves.toBe(45);
+  });
+
+  it("refuses a branch with no settings", async () => {
+    const [location] = await db.insert(locations).values({}).returning({ id: locations.id });
+    if (!location) {
+      throw new Error("test setup: inserting the branch returned no row");
+    }
+
+    await expect(
+      new DrizzleBranchExpiryWindowReader(db).expiryWarningWindowDays(location.id),
+    ).rejects.toThrow(`branch settings missing for location ${location.id}`);
+  });
+});
