@@ -3,8 +3,6 @@ import { KeyRound, Laptop, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import type { BackofficeAccess } from "../shell/backoffice-access";
-import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTitle } from "../shell/screen-title";
 import { useOwnPasskeysQuery, useRefreshCredentials } from "./credentials-queries";
 import type { MyAccountScreenServices } from "./my-account-services";
 import type { Passkey } from "./passkey-list";
@@ -48,15 +46,7 @@ export function MyAccountScreen({
 
   return (
     <>
-      <ScreenLayout
-        topBar={
-          <div className="flex h-18 shrink-0 flex-col justify-center border-border border-b bg-surface px-8">
-            <p className="text-text-subtle text-detail">{`Configuración · ${displayName}`}</p>
-            <ScreenTitle>Mi cuenta</ScreenTitle>
-          </div>
-        }
-        bodyClassName="gap-4 p-6"
-      >
+      <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
           <div className="flex items-center gap-3">
             <h2 className="flex-1 text-subheading text-text-accent">Passkeys</h2>
@@ -113,7 +103,7 @@ export function MyAccountScreen({
             services={services}
           />
         ) : null}
-      </ScreenLayout>
+      </div>
       <RegisterOwnPasskeyModal
         open={registerModalOpen}
         onClose={() => setRegisterModalOpen(false)}

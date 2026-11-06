@@ -1,12 +1,19 @@
-import { createRoute } from "@tanstack/react-router";
-import { canSeeRolesArea } from "../shell/backoffice-access";
+import { createRoute, redirect } from "@tanstack/react-router";
 import { lazyScreen } from "../shell/lazy-screen";
-import { settingsAreaRoute } from "../shell/settings-area";
-import { refuseWithout } from "../shell/signed-in-route";
+import { peopleRoute, peopleTabRedirect } from "../shell/people-route";
+import { signedInRoute } from "../shell/signed-in-route";
 
 export const rolesListRoute = createRoute({
-  getParentRoute: () => settingsAreaRoute,
+  getParentRoute: () => peopleRoute,
   path: "roles",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeRolesArea),
+  beforeLoad: ({ context: { session } }) => peopleTabRedirect(session, "roles"),
   component: lazyScreen(() => import("./roles-list-page"), "RolesListPage"),
+});
+
+export const legacyRolesRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: "roles",
+  beforeLoad: () => {
+    throw redirect({ to: "/people/roles" });
+  },
 });

@@ -5,7 +5,7 @@ import { useState } from "react";
 import { EndEverySessionModal } from "./end-every-session-modal";
 import { defaultEndEverySessionSectionServices } from "./end-every-session-section-services";
 
-const route = getRouteApi("/signed-in/settings-area/users");
+const route = getRouteApi("/signed-in");
 
 export type EndEverySessionSectionProps = {
   onSessionEnded: () => void;

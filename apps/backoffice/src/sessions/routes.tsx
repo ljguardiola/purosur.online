@@ -1,9 +1,7 @@
 import { createRoute, redirect } from "@tanstack/react-router";
-import { canManageUsers } from "../shell/backoffice-access";
 import { lazyScreen } from "../shell/lazy-screen";
 import { publicRoute } from "../shell/public-route";
-import { settingsAreaRoute } from "../shell/settings-area";
-import { refuseWithout } from "../shell/signed-in-route";
+import { signedInRoute } from "../shell/signed-in-route";
 
 export const signInRoute = createRoute({
   getParentRoute: () => publicRoute,
@@ -16,9 +14,10 @@ export const signInRoute = createRoute({
   component: lazyScreen(() => import("./sign-in-page"), "SignInPage"),
 });
 
-export const compromiseResponseRoute = createRoute({
-  getParentRoute: () => settingsAreaRoute,
+export const legacyCompromiseResponseRoute = createRoute({
+  getParentRoute: () => signedInRoute,
   path: "compromise-response",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canManageUsers),
-  component: lazyScreen(() => import("./compromise-response-page"), "CompromiseResponsePage"),
+  beforeLoad: () => {
+    throw redirect({ to: "/people/users", search: { assistant: "compromise-response" } });
+  },
 });

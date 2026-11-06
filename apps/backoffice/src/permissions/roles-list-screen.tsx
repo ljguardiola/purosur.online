@@ -13,8 +13,6 @@ import { useEffect, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { roleDisplayName } from "../platform/role-display-name";
 import type { RoleSummary } from "../platform/roles-api";
-import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTitle } from "../shell/screen-title";
 import { permissionsOf } from "./permission-catalog";
 import { useRefreshPermissions, useRolesWithPermissionCatalogQuery } from "./permissions-queries";
 import { RoleEditorModal, type RoleEditorRequest } from "./role-editor-modal";
@@ -112,24 +110,12 @@ export function RolesListScreen({ onSessionEnded, services }: RolesListScreenPro
   });
 
   return (
-    <ScreenLayout
-      topBar={
-        <div className="flex h-18 shrink-0 items-center justify-between border-border border-b bg-surface px-8">
-          <div className="flex flex-col justify-center">
-            <p className="text-text-subtle text-detail">Configuración</p>
-            <ScreenTitle>Roles</ScreenTitle>
-          </div>
-          <Button
-            variant="primary"
-            icon={<Plus />}
-            onPress={() => setEditorRequest({ kind: "new" })}
-          >
-            Nuevo rol
-          </Button>
-        </div>
-      }
-      bodyClassName="gap-4 p-6"
-    >
+    <div className="flex flex-col gap-4 p-6">
+      <div className="flex justify-end">
+        <Button variant="primary" icon={<Plus />} onPress={() => setEditorRequest({ kind: "new" })}>
+          Nuevo rol
+        </Button>
+      </div>
       <Table
         aria-label="Roles"
         table={table}
@@ -158,6 +144,6 @@ export function RolesListScreen({ onSessionEnded, services }: RolesListScreenPro
         onSessionEnded={onSessionEnded}
         {...(roleEditorModal ? { services: roleEditorModal } : {})}
       />
-    </ScreenLayout>
+    </div>
   );
 }

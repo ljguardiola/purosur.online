@@ -21,7 +21,7 @@ import {
 } from "./user-credential-sections-services";
 import { UserPinSection } from "./user-pin-section";
 
-const route = getRouteApi("/signed-in/settings-area/users/$userId");
+const route = getRouteApi("/signed-in");
 
 export type UserCredentialSectionsProps = {
   userId: string;

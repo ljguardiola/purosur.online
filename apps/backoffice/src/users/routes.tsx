@@ -1,9 +1,8 @@
-import { createRoute, stripSearchParams } from "@tanstack/react-router";
+import { createRoute, redirect, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
-import { canSeeUsersArea } from "../shell/backoffice-access";
 import { lazyScreen } from "../shell/lazy-screen";
-import { settingsAreaRoute } from "../shell/settings-area";
-import { refuseWithout } from "../shell/signed-in-route";
+import { peopleRoute, peopleTabRedirect } from "../shell/people-route";
+import { signedInRoute } from "../shell/signed-in-route";
 
 export const usersListFilters = z.object({
   state: z.enum(["all", "active", "inactive"]).default("all").catch("all"),
@@ -11,18 +10,33 @@ export const usersListFilters = z.object({
 
 export type UsersListFilters = z.output<typeof usersListFilters>;
 
+const usersListSearch = usersListFilters.extend({
+  user: z.string().optional().catch(undefined),
+  tab: z.enum(["data", "credentials", "status"]).optional().catch(undefined),
+});
+
 export const usersListRoute = createRoute({
-  getParentRoute: () => settingsAreaRoute,
+  getParentRoute: () => peopleRoute,
   path: "users",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeUsersArea),
-  validateSearch: usersListFilters,
+  beforeLoad: ({ context: { session } }) => peopleTabRedirect(session, "users"),
+  validateSearch: usersListSearch,
   search: { middlewares: [stripSearchParams(usersListFilters.parse({}))] },
   component: lazyScreen(() => import("./users-list-page"), "UsersListPage"),
 });
 
-export const userDetailRoute = createRoute({
-  getParentRoute: () => settingsAreaRoute,
+export const legacyUsersRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: "users",
+  validateSearch: usersListFilters,
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/people/users", search: { state: search.state } });
+  },
+});
+
+export const legacyUserRoute = createRoute({
+  getParentRoute: () => signedInRoute,
   path: "users/$userId",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeUsersArea),
-  component: lazyScreen(() => import("./user-detail-page"), "UserDetailPage"),
+  beforeLoad: ({ params: { userId } }) => {
+    throw redirect({ to: "/people/users", search: { user: userId } });
+  },
 });

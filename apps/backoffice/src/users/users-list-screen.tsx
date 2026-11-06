@@ -2,6 +2,7 @@ import { userCreationBodySchema } from "@purosur/contracts";
 import {
   actionsColumn,
   Button,
+  ButtonLink,
   dataColumn,
   formatNumber,
   InlineNotice,
@@ -16,7 +17,7 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
-import { deepEqual, useNavigate } from "@tanstack/react-router";
+import { createLink, deepEqual, useNavigate } from "@tanstack/react-router";
 import {
   Eye,
   KeyRound,
@@ -53,11 +54,11 @@ import {
   canReactivateUser,
   canSeeRolesArea,
 } from "../shell/backoffice-access";
-import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTitle } from "../shell/screen-title";
 import { roleOptions, withCreatedRole } from "./role-display";
 import { roleFieldMessage } from "./role-field-message";
 import type { UsersListFilters } from "./routes";
+import { type UserCredentialSectionsProps, UserDetailScreen } from "./user-detail-screen";
+import type { UserDetailScreenServices } from "./user-detail-services";
 import { userEmailMessage } from "./user-email-message";
 import type { CreateUserOutcome, createUser } from "./users-api";
 import type { UsersListScreenServices } from "./users-list-services";
@@ -71,7 +72,14 @@ export type UsersListScreenProps = {
   onSessionEnded: () => void;
   endEverySessionSection: ComponentType<UsersListEndEverySessionSectionProps>;
   services: UsersListScreenServices;
+  signedInUserId: string;
+  credentialSections: ComponentType<UserCredentialSectionsProps>;
+  detailServices: UserDetailScreenServices;
+  openUser?: string | undefined;
+  tab?: string | undefined;
 };
+
+const UserRowLink = createLink(ButtonLink);
 
 export type UsersListEndEverySessionSectionProps = {
   onSessionEnded: () => void;
@@ -364,6 +372,11 @@ function UsersListView({
   onSessionEnded,
   endEverySessionSection: EndEverySessionSection,
   services,
+  signedInUserId,
+  credentialSections,
+  detailServices,
+  openUser,
+  tab,
   data,
   users,
   roles,
@@ -384,6 +397,31 @@ function UsersListView({
   ] as const;
   const [stateFilter, setStateFilter] = useState(filters.state);
 
+  function closeUser() {
+    void navigate({
+      from: "/people/users",
+      to: "/people/users",
+      search: (previous) => ({ ...previous, user: undefined, tab: undefined }),
+    });
+  }
+
+  const openUserListed =
+    openUser !== undefined && users.some((candidate) => candidate.id === openUser);
+  const closeUnlistedUser = useEffectEvent(() => {
+    void navigate({
+      from: "/people/users",
+      to: "/people/users",
+      search: (previous) => ({ ...previous, user: undefined, tab: undefined }),
+      replace: true,
+    });
+  });
+
+  useEffect(() => {
+    if (data.status === "loaded" && openUser !== undefined && !openUserListed) {
+      closeUnlistedUser();
+    }
+  }, [data.status, openUser, openUserListed]);
+
   useEffect(() => {
     const shown: UsersListFilters = { state: stateFilter };
     if (!deepEqual(shown, filters)) {
@@ -396,7 +434,16 @@ function UsersListView({
       id: "user",
       header: "Usuario",
       render: (item: BranchUser) => (
-        <TableCellText description={item.email}>{item.firstName}</TableCellText>
+        <TableCellText description={item.email}>
+          <UserRowLink
+            from="/people/users"
+            to="/people/users"
+            search={(previous) => ({ ...previous, user: item.id, tab: undefined })}
+            variant="text"
+          >
+            {item.firstName}
+          </UserRowLink>
+        </TableCellText>
       ),
     }),
     dataColumn({
@@ -431,7 +478,12 @@ function UsersListView({
         "aria-label": canManageUsers(access)
           ? `Editar a ${item.firstName}`
           : `Ver a ${item.firstName}`,
-        onPress: () => navigate({ to: "/users/$userId", params: { userId: item.id } }),
+        onPress: () =>
+          navigate({
+            from: "/people/users",
+            to: "/people/users",
+            search: (previous) => ({ ...previous, user: item.id, tab: undefined }),
+          }),
       }),
     ],
   });
@@ -452,74 +504,82 @@ function UsersListView({
 
   return (
     <>
-      <ScreenLayout
-        topBar={
-          <div className="flex h-18 shrink-0 items-center justify-between border-border border-b bg-surface px-8">
-            <div className="flex flex-col justify-center">
-              <p className="text-text-subtle text-detail">Configuración</p>
-              <ScreenTitle>Usuarios</ScreenTitle>
-            </div>
+      <div className="flex min-h-0 flex-1">
+        <div className="flex min-w-0 flex-1 flex-col gap-4 p-6">
+          <div className="flex items-center gap-3">
+            {showsState && (
+              <ListFilter
+                name="status"
+                label="Estado:"
+                options={stateFilterOptions}
+                value={stateFilter}
+                onChange={setStateFilter}
+              />
+            )}
             {canManageUsers(access) ? (
-              <Button
-                variant="primary"
-                icon={<Plus />}
-                dataStatus={data.status}
-                onPress={() => setModalOpen(true)}
-              >
-                Nuevo usuario
-              </Button>
+              <div className="ml-auto">
+                <Button
+                  variant="primary"
+                  icon={<Plus />}
+                  dataStatus={data.status}
+                  onPress={() => setModalOpen(true)}
+                >
+                  Nuevo usuario
+                </Button>
+              </div>
             ) : null}
           </div>
-        }
-        bodyClassName="gap-4 p-6"
-      >
-        {showsState && (
-          <div className="flex items-center gap-3">
-            <ListFilter
-              name="status"
-              label="Estado:"
-              options={stateFilterOptions}
-              value={stateFilter}
-              onChange={setStateFilter}
-            />
-          </div>
-        )}
-        <Table
-          aria-label="Usuarios"
-          table={table}
-          {...cloudTableState(data, "los usuarios")}
-          empty={
-            users.length === 0
-              ? {
-                  icon: <Users />,
-                  title: "Todavía no hay usuarios",
-                  description: "Los usuarios que se creen van a aparecer acá.",
-                  variant: "blank",
-                }
-              : {
-                  icon: <Search />,
-                  title: "Sin resultados",
-                  description: "Probá con otro estado.",
-                  variant: "filtered",
-                }
-          }
-          footer={
-            matchCount === 0 ? undefined : (
-              <p className="text-text-subtle text-detail">
-                {plural(matchCount, {
-                  one: "1 usuario",
-                  other: `${formatNumber(matchCount)} usuarios`,
-                })}
-              </p>
-            )
-          }
-        />
-        {canManageUsers(access) ? (
-          <Suspense fallback={<LoadingPlaceholder variant="card" lines={2} />}>
-            <EndEverySessionSection onSessionEnded={onSessionEnded} />
-          </Suspense>
+          <Table
+            aria-label="Usuarios"
+            table={table}
+            {...cloudTableState(data, "los usuarios")}
+            empty={
+              users.length === 0
+                ? {
+                    icon: <Users />,
+                    title: "Todavía no hay usuarios",
+                    description: "Los usuarios que se creen van a aparecer acá.",
+                    variant: "blank",
+                  }
+                : {
+                    icon: <Search />,
+                    title: "Sin resultados",
+                    description: "Probá con otro estado.",
+                    variant: "filtered",
+                  }
+            }
+            footer={
+              matchCount === 0 ? undefined : (
+                <p className="text-text-subtle text-detail">
+                  {plural(matchCount, {
+                    one: "1 usuario",
+                    other: `${formatNumber(matchCount)} usuarios`,
+                  })}
+                </p>
+              )
+            }
+          />
+          {canManageUsers(access) ? (
+            <Suspense fallback={<LoadingPlaceholder variant="card" lines={2} />}>
+              <EndEverySessionSection onSessionEnded={onSessionEnded} />
+            </Suspense>
+          ) : null}
+        </div>
+        {openUser !== undefined && openUserListed ? (
+          <UserDetailScreen
+            key={openUser}
+            userId={openUser}
+            signedInUserId={signedInUserId}
+            access={access}
+            roleCreationModal={roleCreationModal}
+            onSessionEnded={onSessionEnded}
+            credentialSections={credentialSections}
+            services={detailServices}
+            tab={tab}
+            onClose={closeUser}
+          />
         ) : null}
-      </ScreenLayout>
+      </div>
       <NewUserModal
         open={modalOpen}
         roles={roles}
@@ -531,7 +591,11 @@ function UsersListView({
         }}
         onReactivate={({ id }) => {
           setModalOpen(false);
-          void navigate({ to: "/users/$userId", params: { userId: id } });
+          void navigate({
+            from: "/people/users",
+            to: "/people/users",
+            search: (previous) => ({ ...previous, user: id, tab: "status" }),
+          });
         }}
         onSessionEnded={onSessionEnded}
         createUser={createUser}
