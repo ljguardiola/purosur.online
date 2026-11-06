@@ -1,23 +1,11 @@
 import { createRoute, redirect } from "@tanstack/react-router";
 import { z } from "zod";
-import { type PagePart, pagePartsFor } from "../platform/page-parts";
-import {
-  type BackofficeAccess,
-  canManageUsers,
-  canSeePeopleArea,
-  canSeeRolesArea,
-  canSeeUsersArea,
-} from "./backoffice-access";
+import { pagePartsFor } from "../platform/page-parts";
+import { type BackofficeAccess, canManageUsers, canSeePeopleArea } from "./backoffice-access";
 import { lazyScreen } from "./lazy-screen";
+import { PEOPLE_TABS, type PeopleTab } from "./people-tabs";
 import { settingsAreaRoute } from "./settings-area";
 import { refuseWithout } from "./signed-in-route";
-
-export type PeopleTab = "users" | "roles";
-
-export const PEOPLE_TABS: readonly PagePart<BackofficeAccess, PeopleTab>[] = [
-  { key: "users", isVisibleTo: canSeeUsersArea },
-  { key: "roles", isVisibleTo: canSeeRolesArea },
-];
 
 const peopleSearch = z.object({
   assistant: z.enum(["compromise-response"]).optional().catch(undefined),
@@ -36,6 +24,8 @@ export const peopleRoute = createRoute({
         replace: true,
       });
     }
+    const parts = pagePartsFor(session, PEOPLE_TABS);
+    return { peopleTabs: parts.kind === "shown" ? parts.visible : [] };
   },
   component: lazyScreen(() => import("./people-page"), "PeoplePage"),
 });

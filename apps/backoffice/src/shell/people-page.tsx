@@ -8,11 +8,10 @@ import {
 } from "@tanstack/react-router";
 import { ShieldAlert } from "lucide-react";
 import { type ReactElement, Suspense } from "react";
-import { pagePartsFor } from "../platform/page-parts";
 import { canManageUsers } from "./backoffice-access";
 import { useDocumentTitle } from "./document-title";
 import { lazyScreen } from "./lazy-screen";
-import { PEOPLE_TABS, type PeopleTab } from "./people-route";
+import type { PeopleTab } from "./people-tabs";
 import { ScreenLayout } from "./screen-layout";
 import { ScreenTitle } from "./screen-title";
 
@@ -28,13 +27,11 @@ const CompromiseResponseAssistant = lazyScreen(
 const TAB_LABELS: Record<PeopleTab, string> = { users: "Usuarios", roles: "Roles" };
 
 export function PeoplePage(): ReactElement {
-  const { session } = route.useRouteContext();
+  const { session, peopleTabs } = route.useRouteContext();
   const { assistant } = route.useSearch();
   const navigate = useNavigate();
   const matchRoute = useMatchRoute();
   useDocumentTitle("Personas · Puro Sur");
-  const parts = pagePartsFor(session, PEOPLE_TABS);
-  const visible = parts.kind === "shown" ? parts.visible : [];
   const selectedTab: PeopleTab = matchRoute({ to: "/people/roles" }) ? "roles" : "users";
 
   return (
@@ -67,7 +64,7 @@ export function PeoplePage(): ReactElement {
         <Tabs
           label="Secciones de Personas"
           selectedTab={selectedTab}
-          tabs={visible.map((key) => (
+          tabs={peopleTabs.map((key) => (
             <PeopleTabLink
               key={key}
               to={key === "users" ? "/people/users" : "/people/roles"}
