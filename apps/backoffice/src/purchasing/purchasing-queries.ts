@@ -400,7 +400,9 @@ export function useSupplierItemLinkProposalQuery(params: {
     queryKey: [...purchasingKeys.supplierItemLinkProposal, params.listId, params.rowId],
     enabled: params.enabled,
     read: async () => {
-      const outcome = await params.fetchSupplierItemLinkProposal(params.listId, params.rowId);
+      const outcome = await params.fetchSupplierItemLinkProposal(params.listId, params.rowId, {
+        refresh: false,
+      });
       void client.invalidateQueries({
         queryKey: [...purchasingKeys.supplierPriceListAiCost, params.listId],
       });
