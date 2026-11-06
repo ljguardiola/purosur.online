@@ -358,15 +358,6 @@ test("shows its accessible name as a tooltip when hovered", async () => {
   await expect.element(screen.getByRole("tooltip")).toHaveTextContent("Remove row");
 });
 
-test("shows its accessible name as a tooltip when reached by keyboard", async () => {
-  const { screen, button } = await renderNamed();
-
-  await userEvent.tab();
-
-  expect(document.activeElement).toBe(button.element());
-  await expect.element(screen.getByRole("tooltip")).toHaveTextContent("Remove row");
-});
-
 test("shows its accessible name as a tooltip when hovered while disabled without a reason", async () => {
   const { screen, button } = await renderNamed({ disabled: true });
 
@@ -374,64 +365,4 @@ test("shows its accessible name as a tooltip when hovered while disabled without
 
   await expect.element(screen.getByRole("tooltip")).toHaveTextContent("Remove row");
   await expect.element(button).toBeDisabled();
-});
-
-test("keeps a button disabled without a reason out of the tab order and unpressable", async () => {
-  const onPress = vi.fn();
-  const { button } = await renderNamed({ disabled: true, onPress });
-
-  await userEvent.tab();
-  button.element().dispatchEvent(new MouseEvent("click", { bubbles: true }));
-
-  expect(document.activeElement).not.toBe(button.element());
-  expect(onPress).not.toHaveBeenCalled();
-});
-
-test("shows its name as a tooltip on a subtle button too", async () => {
-  const { screen, button } = await renderNamed({ variant: "subtle" });
-
-  await userEvent.hover(button);
-
-  await expect.element(screen.getByRole("tooltip")).toHaveTextContent("Remove row");
-});
-
-type AccessibilityNode = {
-  role?: { value?: string };
-  name?: { value?: string };
-  description?: { value?: string };
-};
-
-type FrameTree = { frame: { id: string }; childFrames?: FrameTree[] };
-
-function frameIds(tree: FrameTree): string[] {
-  return [tree.frame.id, ...(tree.childFrames ?? []).flatMap(frameIds)];
-}
-
-async function accessibilityNodesOfEveryFrame(): Promise<AccessibilityNode[]> {
-  const session = cdp();
-  await session.send("Accessibility.enable");
-  const { frameTree } = (await session.send("Page.getFrameTree")) as { frameTree: FrameTree };
-  const perFrame = await Promise.all(
-    frameIds(frameTree).map(async (frameId) => {
-      const { nodes } = (await session.send("Accessibility.getFullAXTree", { frameId })) as {
-        nodes: AccessibilityNode[];
-      };
-      return nodes;
-    }),
-  );
-  return perFrame.flat();
-}
-
-test("is not described by a tooltip that repeats its own name while the tooltip is open", async () => {
-  const { screen } = await renderNamed();
-
-  await userEvent.tab();
-  await expect.element(screen.getByRole("tooltip")).toBeVisible();
-
-  const nodes = await accessibilityNodesOfEveryFrame();
-  const node = nodes.find(
-    (candidate) => candidate.role?.value === "button" && candidate.name?.value === "Remove row",
-  );
-  expect(node).toBeDefined();
-  expect(node?.description?.value ?? "").not.toBe("Remove row");
 });

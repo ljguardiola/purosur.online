@@ -5,6 +5,7 @@ import {
   playClickExpandsTrigger,
   playHoverShowsTooltip,
   playTabReachesFocusVisible,
+  playTabShowsNameTooltip,
 } from "../../test-support/story-interactions";
 import { ChipListField } from "./chip-list-field";
 import { fieldErrorClassName } from "./field-styles";
@@ -76,7 +77,7 @@ export const HelperText: Story = {
 
 export const FocusedRemoveButton: Story = {
   args: { value: ["organic", "vegan"] },
-  play: playTabReachesFocusVisible(button("Quitar Orgánico")),
+  play: playTabShowsNameTooltip(button("Quitar Orgánico"), "Quitar Orgánico"),
 };
 
 export const RemoveButtonHovered: Story = {

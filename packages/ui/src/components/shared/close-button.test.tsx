@@ -16,11 +16,3 @@ test("shows its name as a tooltip when hovered", async () => {
 
   await expect.element(screen.getByRole("tooltip")).toHaveTextContent("Cerrar");
 });
-
-test("shows its name as a tooltip when reached by keyboard", async () => {
-  const screen = await render(<CloseButton onPress={() => {}} />);
-
-  await userEvent.tab();
-
-  await expect.element(screen.getByRole("tooltip")).toHaveTextContent("Cerrar");
-});

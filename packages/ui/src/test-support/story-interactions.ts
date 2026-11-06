@@ -138,11 +138,35 @@ export function playHoverShowsTooltip(
     await userEvent.hover(target);
     await userEvent.unhover(target);
     await userEvent.hover(target);
-    await waitFor(
-      () => {
-        expect(within(document.body).getByRole("tooltip")).toHaveTextContent(text);
-      },
-      { timeout: 3000 },
-    );
+    await expectTooltipShows(text);
+  };
+}
+
+export async function expectTooltipShows(text: string): Promise<void> {
+  await waitFor(
+    () => {
+      expect(within(document.body).getByRole("tooltip")).toHaveTextContent(text);
+    },
+    { timeout: 3000 },
+  );
+}
+
+export function playHoverShowsNameTooltip(
+  locate: (canvasElement: HTMLElement) => HTMLElement,
+  name: string,
+): StoryPlayFunction {
+  return async (context) => {
+    await playHoverShowsTooltip(locate, name)(context);
+    await expect(locate(context.canvasElement)).toHaveAttribute("data-hovered");
+  };
+}
+
+export function playTabShowsNameTooltip(
+  locate: (canvasElement: HTMLElement) => HTMLElement,
+  name: string,
+): StoryPlayFunction {
+  return async (context) => {
+    await playTabReachesFocusVisible(locate)(context);
+    await expectTooltipShows(name);
   };
 }

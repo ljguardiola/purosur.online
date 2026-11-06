@@ -2,9 +2,9 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Trash2, X } from "lucide-react";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import {
-  playHoverSetsDataHovered,
+  playHoverShowsNameTooltip,
   playHoverShowsTooltip,
-  playTabReachesFocusVisible,
+  playTabShowsNameTooltip,
 } from "../../test-support/story-interactions";
 import { IconButton } from "./icon-button";
 
@@ -26,11 +26,11 @@ type Story = StoryObj<typeof IconButton>;
 export const Default: Story = {};
 
 export const Hovered: Story = {
-  play: playHoverSetsDataHovered(theButton),
+  play: playHoverShowsNameTooltip(theButton, "Eliminar fila"),
 };
 
 export const FocusVisible: Story = {
-  play: playTabReachesFocusVisible(theButton),
+  play: playTabShowsNameTooltip(theButton, "Eliminar fila"),
 };
 
 export const Disabled: Story = {
@@ -60,12 +60,12 @@ export const Subtle: Story = {
 
 export const SubtleHovered: Story = {
   args: subtleArgs,
-  play: playHoverSetsDataHovered(theButton),
+  play: playHoverShowsNameTooltip(theButton, "Quitar código"),
 };
 
 export const SubtleFocusVisible: Story = {
   args: subtleArgs,
-  play: playTabReachesFocusVisible(theButton),
+  play: playTabShowsNameTooltip(theButton, "Quitar código"),
 };
 
 export const SubtleDisabled: Story = {

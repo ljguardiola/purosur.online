@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
-import { page, userEvent } from "vitest/browser";
+import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
 import { paletteColor, tokenRgb } from "../../test/token-colors";
@@ -916,4 +916,13 @@ test("a searchable filter shows the same chevron as the plain one and no search 
 
   await expect.element(screen.getByRole("listbox")).toBeVisible();
   expect(box.querySelector("svg")?.classList.contains("lucide-chevron-up")).toBe(true);
+});
+
+test("names a searchable filter's options button after its label, and shows that name as a tooltip when hovered", async () => {
+  await cdp().send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 0, y: 0 });
+  const screen = await render(<ListFilter {...searchableProps()} />);
+
+  await userEvent.hover(screen.getByRole("button", { name: "Mostrar opciones de Marca" }));
+
+  await expect.element(screen.getByRole("tooltip")).toHaveTextContent("Mostrar opciones de Marca");
 });
