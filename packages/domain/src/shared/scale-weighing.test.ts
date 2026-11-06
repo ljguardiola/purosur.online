@@ -103,4 +103,10 @@ describe("scaleWeighingStep", () => {
       scaleWeighingStep({ kind: "stable", weightThousandths: 1250 }, 1250, UP_TO_5000),
     ).toEqual({ kind: "take", weightThousandths: 1250 });
   });
+
+  it("keeps weighing for an unstable zero even when zero would be a quantity", () => {
+    expect(scaleWeighingStep({ kind: "unstable", weightThousandths: 0 }, null, () => true)).toEqual(
+      { kind: "weighing" },
+    );
+  });
 });
