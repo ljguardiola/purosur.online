@@ -1,4 +1,6 @@
+import { Info } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { Modal } from "../../overlays/modal";
 import { DetailPanel } from "../detail-panel";
 
 export function SuppliersArea({
@@ -32,5 +34,27 @@ export function SuppliersArea({
         {children ?? <p>Datos del proveedor</p>}
       </DetailPanel>
     </div>
+  );
+}
+
+export function ConfirmationInsidePanel({ closable }: { closable: boolean }) {
+  const [confirming, setConfirming] = useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => setConfirming(true)}>
+        Eliminar proveedor
+      </button>
+      <Modal
+        open={confirming}
+        onOpenChange={setConfirming}
+        closable={closable}
+        tone="info"
+        icon={<Info />}
+        title="Confirmar eliminación"
+        footer={<span />}
+      >
+        Confirmar
+      </Modal>
+    </>
   );
 }

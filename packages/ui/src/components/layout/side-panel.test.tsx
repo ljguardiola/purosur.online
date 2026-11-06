@@ -221,7 +221,7 @@ test("lets the keyboard reach the body, not the header, when a header is given",
   await expect.element(screen.getByRole("region", { name: "Panel" })).toHaveFocus();
 });
 
-test("is 392px wide by default and fills its container with no left border when asked", async () => {
+test("fills its container with no left border when asked to fill it", async () => {
   const screen = await render(
     <div style={{ display: "flex", width: "700px", height: "300px" }}>
       <SidePanel label="Panel" width="fill">

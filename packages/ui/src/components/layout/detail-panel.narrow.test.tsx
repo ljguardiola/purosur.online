@@ -1,11 +1,8 @@
-import { Info } from "lucide-react";
-import { useState } from "react";
 import { beforeEach, expect, test } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
-import { Modal } from "../overlays/modal";
-import { SuppliersArea } from "./test-support/detail-panel";
+import { ConfirmationInsidePanel, SuppliersArea } from "./test-support/detail-panel";
 
 const NARROW_AREA = 799;
 const WIDE_AREA = 800;
@@ -73,6 +70,29 @@ test("switches between beside the list and a modal as its area is resized", asyn
   await expect
     .element(screen.getByRole("complementary", { name: "Distribuidora Norte" }))
     .toBeVisible();
+});
+
+test("keeps what was typed inside it while its area is resized", async () => {
+  const screen = await render(
+    <SuppliersArea areaWidth={1200}>
+      <input aria-label="Nota" />
+    </SuppliersArea>,
+  );
+  const area = screen.getByTestId("area").element() as HTMLElement;
+  await screen.getByRole("button", { name: "Distribuidora Norte" }).click();
+  await screen.getByRole("textbox", { name: "Nota" }).fill("Llamar el lunes");
+
+  area.style.width = "600px";
+  await expect.element(screen.getByRole("dialog", { name: "Distribuidora Norte" })).toBeVisible();
+  await expect
+    .element(screen.getByRole("textbox", { name: "Nota" }))
+    .toHaveValue("Llamar el lunes");
+
+  area.style.width = "1000px";
+  await expect.poll(() => screen.getByRole("dialog").elements().length).toBe(0);
+  await expect
+    .element(screen.getByRole("textbox", { name: "Nota" }))
+    .toHaveValue("Llamar el lunes");
 });
 
 test("closes on Escape and gives focus back to the pressed row", async () => {
@@ -146,32 +166,10 @@ test("keeps its footer visible and scrolls a long body inside the modal", async 
     .toHaveAttribute("tabindex", "0");
 });
 
-function ConfirmationInsidePanel() {
-  const [confirming, setConfirming] = useState(false);
-  return (
-    <>
-      <button type="button" onClick={() => setConfirming(true)}>
-        Eliminar proveedor
-      </button>
-      <Modal
-        open={confirming}
-        onOpenChange={setConfirming}
-        closable={false}
-        tone="info"
-        icon={<Info />}
-        title="Confirmar eliminación"
-        footer={<span />}
-      >
-        Confirmar
-      </Modal>
-    </>
-  );
-}
-
 test("stays open when Escape reaches a modal opened from its content", async () => {
   const screen = await render(
     <SuppliersArea areaWidth={NARROW_AREA}>
-      <ConfirmationInsidePanel />
+      <ConfirmationInsidePanel closable={false} />
     </SuppliersArea>,
   );
   await screen.getByRole("button", { name: "Almacén Sur" }).click();
