@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
+const PAUSE_BETWEEN_ANSWERS_MS = 0;
+
 export type StableReading = { weightThousandths: number };
 
 type DefaultReading = StableReading & { amount: number };
@@ -44,6 +46,12 @@ export function useScaleWeighing<Reading extends StableReading = DefaultReading>
   useEffect(() => {
     let leaving = false;
     let asking = false;
+    let pause: ReturnType<typeof setTimeout> | undefined;
+
+    function askAfterPause() {
+      pause = setTimeout(ask, PAUSE_BETWEEN_ANSWERS_MS);
+    }
+
     function ask() {
       if (leaving || typing.current || taken.current || asking) {
         return;
@@ -74,7 +82,7 @@ export function useScaleWeighing<Reading extends StableReading = DefaultReading>
               confirmed.current = false;
               setConfirming(false);
               setZeroRefused(true);
-              ask();
+              askAfterPause();
               break;
             case "stable":
               shown.current = answer.reading.weightThousandths;
@@ -84,7 +92,7 @@ export function useScaleWeighing<Reading extends StableReading = DefaultReading>
               setPhase((current) =>
                 current.kind === "weighing" || current.kind === "stable" ? answer : current,
               );
-              ask();
+              askAfterPause();
               break;
             case "unsteady":
               setPhase((current) =>
@@ -92,13 +100,13 @@ export function useScaleWeighing<Reading extends StableReading = DefaultReading>
                   ? { kind: "weighing", last: answer.reading }
                   : current,
               );
-              ask();
+              askAfterPause();
               break;
             case "weighing":
               setPhase((current) =>
                 current.kind === "stable" ? { kind: "weighing", last: current.reading } : current,
               );
-              ask();
+              askAfterPause();
               break;
             case "closed":
               break;
@@ -106,10 +114,14 @@ export function useScaleWeighing<Reading extends StableReading = DefaultReading>
         });
     }
 
-    askNow.current = ask;
+    askNow.current = () => {
+      clearTimeout(pause);
+      ask();
+    };
     ask();
     return () => {
       leaving = true;
+      clearTimeout(pause);
     };
   }, []);
 
