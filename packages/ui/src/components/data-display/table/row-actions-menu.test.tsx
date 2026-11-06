@@ -128,7 +128,7 @@ test("shows why a disabled action is disabled and reads the reason once, after i
   );
   await userEvent.click(trigger);
 
-  const item = screen.getByRole("menuitem", { name: "Duplicar" });
+  const item = screen.getByRole("menuitem", { name: "Duplicar Falta stock para duplicar" });
 
   await expect.element(screen.getByText("Falta stock para duplicar")).toBeVisible();
   await expect.element(item).toHaveAttribute("aria-disabled", "true");
@@ -152,7 +152,10 @@ test("does nothing and keeps the menu open when a disabled action is chosen", as
   );
   await userEvent.click(trigger);
 
-  await userEvent.click(screen.getByRole("menuitem", { name: "Duplicar" }), { force: true });
+  await userEvent.click(
+    screen.getByRole("menuitem", { name: "Duplicar Falta stock para duplicar" }),
+    { force: true },
+  );
 
   expect(onAction).not.toHaveBeenCalled();
   await expect.element(screen.getByRole("menu")).toBeVisible();
