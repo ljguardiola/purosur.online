@@ -33,7 +33,7 @@ export {
   REPLAYED_CLOCK_CORRECTION_PERIOD_KEY,
   replayedClockMark,
 } from "./model/clock-correction.js";
-export { CONTINGENCY_KINDS, contingencyOf, isConnectivityGap } from "./model/connectivity-gap.js";
+export { CONTINGENCY_KINDS, contingencyOf } from "./model/connectivity-gap.js";
 export { selectConsumerBuyerTaxStatus } from "./model/consumer-buyer-tax-status.js";
 export { countsAsContingencyTime } from "./model/contingency-time.js";
 export type {
