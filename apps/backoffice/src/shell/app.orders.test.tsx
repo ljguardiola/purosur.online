@@ -18,7 +18,7 @@ import {
 } from "../purchasing/test-support/supplier-price-lists";
 import { openSession } from "../sessions/test-support/open-session";
 import { App } from "./app";
-import { emptyHelp, resetPageState, threeOpenAlerts } from "./test-support/app";
+import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
@@ -143,7 +143,6 @@ test("opens a list's review from the list", async () => {
 test("shows no open alerts count in the list's top bar", async () => {
   const services = ordersServices([]);
   vi.mocked(services.fetchSession).mockResolvedValue(openSession());
-  vi.mocked(services.alertsOpenCountLink.fetchAlertsOverview).mockResolvedValue(threeOpenAlerts);
   window.history.pushState(null, "", "/supplier-price-lists");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -151,7 +150,7 @@ test("shows no open alerts count in the list's top bar", async () => {
   await expect
     .element(screen.getByRole("heading", { name: "Listas de proveedores", level: 1 }))
     .toBeVisible();
-  expect(services.alertsOpenCountLink.fetchAlertsOverview).not.toHaveBeenCalled();
+  expect(services.homeScreen.fetchAlertsOverview).not.toHaveBeenCalled();
   expect(screen.getByText(/alertas? abiertas?/).query()).toBeNull();
 });
 

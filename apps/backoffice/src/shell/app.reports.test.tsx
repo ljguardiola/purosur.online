@@ -23,7 +23,7 @@ import {
 } from "../sales/test-support/sales-fixtures";
 import { openSession } from "../sessions/test-support/open-session";
 import { App } from "./app";
-import { emptyHelp, resetPageState, threeOpenAlerts } from "./test-support/app";
+import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { BACK_REGISTER_ID, registers } from "./test-support/report-fixtures";
 import { opensOnlyScreens } from "./test-support/screen-routes";
@@ -928,12 +928,11 @@ test("shows no open alerts count in Reportes' top bar", async () => {
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(openSession()),
   });
-  vi.mocked(services.alertsOpenCountLink.fetchAlertsOverview).mockResolvedValue(threeOpenAlerts);
   window.history.pushState(null, "", "/reports");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
-  expect(services.alertsOpenCountLink.fetchAlertsOverview).not.toHaveBeenCalled();
+  expect(services.homeScreen.fetchAlertsOverview).not.toHaveBeenCalled();
   expect(screen.getByText(/alertas? abiertas?/).query()).toBeNull();
 });

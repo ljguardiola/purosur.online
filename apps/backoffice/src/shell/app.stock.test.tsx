@@ -6,7 +6,7 @@ import { openSession } from "../sessions/test-support/open-session";
 import { expiringLotList } from "../stock/test-support/expiring-lots-fixtures";
 import { stockBalanceList } from "../stock/test-support/stock-fixtures";
 import { App } from "./app";
-import { emptyHelp, resetPageState, threeOpenAlerts } from "./test-support/app";
+import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
@@ -291,13 +291,12 @@ const STOCK_SCREENS = [
 test.each(STOCK_SCREENS)("shows no open alerts count in %s's top bar", async (path, heading) => {
   const services = stockServices([]);
   vi.mocked(services.fetchSession).mockResolvedValue(openSession());
-  vi.mocked(services.alertsOpenCountLink.fetchAlertsOverview).mockResolvedValue(threeOpenAlerts);
   window.history.pushState(null, "", path);
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("heading", { name: heading, level: 1 })).toBeVisible();
-  expect(services.alertsOpenCountLink.fetchAlertsOverview).not.toHaveBeenCalled();
+  expect(services.homeScreen.fetchAlertsOverview).not.toHaveBeenCalled();
   expect(screen.getByText(/alertas? abiertas?/).query()).toBeNull();
 });
 

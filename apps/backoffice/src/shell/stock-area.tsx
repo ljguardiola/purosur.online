@@ -47,7 +47,6 @@ function StockArea() {
   const initialInventoryShown = Boolean(matchRoute({ to: "/initial-inventory" }));
   return (
     <AreaLayout
-      showsOpenAlertsCount
       area="stock"
       sectionColumnLabel="Stock"
       sectionColumn={
