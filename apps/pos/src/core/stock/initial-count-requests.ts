@@ -182,7 +182,7 @@ export async function weighCountedProductFor(
     return guarded;
   }
   const { result } = guarded;
-  return result.kind === "weighed" || result.kind === "confirmed"
+  return result.kind === "weighed" || result.kind === "confirmed" || result.kind === "unsteady"
     ? { kind: result.kind, weight_thousandths: result.weightThousandths }
     : { kind: result.kind };
 }

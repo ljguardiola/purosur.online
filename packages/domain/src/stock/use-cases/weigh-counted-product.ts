@@ -21,6 +21,8 @@ export type WeighCountedProductOutcome =
   | { kind: "weighing" }
   | { kind: "zero_weight" }
   | { kind: "scale_unavailable" }
+  | { kind: "unsteady"; weightThousandths: number }
+  | { kind: "unsteady_out_of_range" }
   | { kind: "weighed"; weightThousandths: number }
   | { kind: "confirmed"; weightThousandths: number };
 

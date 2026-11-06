@@ -1,6 +1,10 @@
 import type { Clock, Scale, ZoneRulesSource } from "../../shared/index.js";
 import { newWeighedSaleLine } from "../model/sale-line.js";
-import { pricedWeighingStep, type StableWeighing } from "./priced-weighing-step.js";
+import {
+  pricedWeighingStep,
+  type StableWeighing,
+  type UnsteadyWeighing,
+} from "./priced-weighing-step.js";
 import type { RegisterRestoration } from "./register-restoration.js";
 import type { AddedLineOutcome, SaleAdditionRefusal } from "./sale-addition.js";
 import { isSaleAdditionRefusal, saleToAddTo, validPromotions } from "./sale-addition.js";
@@ -34,9 +38,11 @@ export type WeighProductOnScaleOutcome =
   | WeighedProductRefusal
   | { kind: "no_price"; productName: string }
   | { kind: "weighing" }
+  | { kind: "unsteady_out_of_range" }
   | { kind: "zero_weight" }
   | { kind: "scale_unavailable" }
   | StableWeighing
+  | UnsteadyWeighing
   | AddedLineOutcome;
 
 export async function weighProductOnScale(
