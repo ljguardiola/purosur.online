@@ -292,15 +292,14 @@ describe("CountLineModal", () => {
   });
 
   it("stops following the scale once the cashier types the weight", async () => {
-    let reading = 1000;
+    const answers: WeighCountedProductOutcome[] = [{ kind: "weighed", weight_thousandths: 1000 }];
     const { screen, weighing, recording } = await renderModal({
-      weigh: async () => ({ kind: "weighed", weight_thousandths: reading }),
+      weigh: () => deferredOr(answers.shift()),
     });
     const field = screen.getByRole("textbox", { name: "Cantidad contada" });
     await expect.element(field).toHaveValue("1,000");
 
     await typeCounted(screen, "2");
-    reading = 3000;
     const asked = weighing.mock.calls.length;
     await confirm(screen);
 
