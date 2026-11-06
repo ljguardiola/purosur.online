@@ -11,6 +11,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../sessions/route-access.js";
+import { DrizzleBranchRegisterReader } from "./drizzle-branch-register-reader.js";
 import { DrizzleBranchRegisterStore } from "./drizzle-branch-register-store.js";
 import { secretEnrollmentCodes } from "./register-enrollment-code.js";
 import type { RegistersRouteOptions } from "./registers-list-route.js";
@@ -27,6 +28,7 @@ export function registerRegisterEnrollmentCodeRoute<TQueryResult extends PgQuery
   const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
+  const registers = new DrizzleBranchRegisterReader(options.db);
   const store = new DrizzleBranchRegisterStore(options.db, now);
 
   app.post(
@@ -47,7 +49,7 @@ export function registerRegisterEnrollmentCodeRoute<TQueryResult extends PgQuery
         return;
       }
 
-      if (!(await store.hasRegister(openSession.locationId, ids.id))) {
+      if (!(await registers.hasRegister(openSession.locationId, ids.id))) {
         await reply.code(404).send(REGISTER_NOT_FOUND_RESPONSE);
         return;
       }
