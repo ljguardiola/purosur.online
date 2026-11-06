@@ -926,3 +926,14 @@ test("names a searchable filter's options button after its label, and shows that
 
   await expect.element(screen.getByRole("tooltip")).toHaveTextContent("Mostrar opciones de Marca");
 });
+
+test("pressing a searchable filter's options button opens its list with every option", async () => {
+  const screen = await render(<ListFilter {...searchableProps()} />);
+
+  await screen.getByRole("button", { name: "Mostrar opciones de Marca" }).click();
+
+  await expect.element(screen.getByRole("listbox")).toBeVisible();
+  await expect.element(screen.getByRole("option", { name: "Todas" })).toBeVisible();
+  await expect.element(screen.getByRole("option", { name: "Acme" })).toBeVisible();
+  await expect.element(screen.getByRole("option", { name: "Zenit" })).toBeVisible();
+});
