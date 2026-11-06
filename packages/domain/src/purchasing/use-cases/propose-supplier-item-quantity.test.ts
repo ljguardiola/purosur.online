@@ -257,19 +257,22 @@ describe("proposeSupplierItemQuantity", () => {
     it.each([
       ["unavailable", { kind: "unavailable" as const }],
       ["failing", new Error("network down")],
-    ])("keeps nothing when the reader is %s, so the next request asks again", async (_n, answer) => {
-      const { quantityReader, store, ports } = setup();
-      quantityReader.answer = answer;
-      await proposeSupplierItemQuantity(ports, input);
-      quantityReader.answer = { kind: "read", quantity: 1_000 };
+    ])(
+      "keeps nothing when the reader is %s, so the next request asks again",
+      async (_n, answer) => {
+        const { quantityReader, store, ports } = setup();
+        quantityReader.answer = answer;
+        await proposeSupplierItemQuantity(ports, input);
+        quantityReader.answer = { kind: "read", quantity: 1_000 };
 
-      expect(await proposeSupplierItemQuantity(ports, input)).toEqual({
-        kind: "proposed",
-        quantity: 1_000,
-      });
-      expect(quantityReader.asked).toHaveLength(2);
-      expect(store.quantityWrites).toBe(1);
-    });
+        expect(await proposeSupplierItemQuantity(ports, input)).toEqual({
+          kind: "proposed",
+          quantity: 1_000,
+        });
+        expect(quantityReader.asked).toHaveLength(2);
+        expect(store.quantityWrites).toBe(1);
+      },
+    );
 
     it("keeps a quantity per sale unit and net content", async () => {
       const { quantityReader, ports } = setup();
@@ -289,9 +292,10 @@ describe("proposeSupplierItemQuantity", () => {
           netContent: { quantity: 250, unit: "G" },
         }),
       ).toEqual({ kind: "proposed", quantity: 12_000 });
-      expect(
-        await proposeSupplierItemQuantity(ports, { ...input, saleUnit: "KG" }),
-      ).toEqual({ kind: "proposed", quantity: 12_000 });
+      expect(await proposeSupplierItemQuantity(ports, { ...input, saleUnit: "KG" })).toEqual({
+        kind: "proposed",
+        quantity: 12_000,
+      });
       expect(await proposeSupplierItemQuantity(ports, input)).toEqual({
         kind: "proposed",
         quantity: 36_000,
