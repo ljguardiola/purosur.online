@@ -44,7 +44,6 @@ opensOnlyScreens([
   "/reports/manual-discounts",
   "/reports/cash-rounding",
   "/reports/average-ticket",
-  "/reports/returns",
   "/reports/fiscal-documents",
 ]);
 
@@ -154,44 +153,15 @@ test("opens the list of reports from the rail's Reportes item", async () => {
   await expect.element(sections.getByRole("link", { name: "Ticket promedio" })).toBeVisible();
 });
 
-test("lists the returns report beside the others for someone who can see both", async () => {
+test("leaves the returns report out of the reports column, which the Devoluciones y reembolsos page holds", async () => {
   const services = reportsServices(["reports_area", "returns_report"]);
   window.history.pushState(null, "", "/reports");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   const sections = screen.getByRole("navigation", { name: "Reportes" });
-  await expect
-    .element(sections.getByRole("link", { name: "Anulaciones y devoluciones" }))
-    .toBeVisible();
   await expect.element(sections.getByRole("link", { name: "Todos los reportes" })).toBeVisible();
-  await expect
-    .element(screen.getByRole("main").getByRole("link", { name: "Anulaciones y devoluciones" }))
-    .toBeVisible();
-});
-
-test("opens the returns report from the list and reads it from the cloud", async () => {
-  const services = reportsServices(["reports_area", "returns_report"]);
-  window.history.pushState(null, "", "/reports");
-
-  const screen = await render(<App help={emptyHelp} services={services} />);
-  await userEvent.click(
-    screen.getByRole("main").getByRole("link", { name: "Anulaciones y devoluciones" }),
-  );
-
-  await expect
-    .element(screen.getByRole("heading", { name: "Anulaciones y devoluciones", level: 1 }))
-    .toBeVisible();
-  expect(window.location.pathname).toBe("/reports/returns");
-  await expect
-    .element(
-      screen
-        .getByRole("table", { name: "Devoluciones iniciadas con el número tipeado" })
-        .getByText("Beto"),
-    )
-    .toBeVisible();
-  expect(services.returnsHistoryScreen.fetchReturnsReport).toHaveBeenCalledWith({});
-  expect(document.title).toBe("Anulaciones y devoluciones · Puro Sur");
+  expect(sections.getByRole("link", { name: "Anulaciones y devoluciones" }).query()).toBeNull();
 });
 
 test("opens the issued fiscal documents report from the list and reads it from the cloud", async () => {
@@ -242,44 +212,14 @@ test("keeps the issued fiscal documents report's filters in the address", async 
     .toBe("?register=11111111-1111-4111-8111-111111111111");
 });
 
-test("keeps the returns report's filters in the address", async () => {
-  const services = reportsServices(["returns_report"]);
-  window.history.pushState(null, "", "/reports/returns");
-  const screen = await render(<App help={emptyHelp} services={services} />);
-  await expect
-    .element(
-      screen
-        .getByRole("table", { name: "Devoluciones iniciadas con el número tipeado" })
-        .getByText("Beto"),
-    )
-    .toBeVisible();
-
-  await userEvent.click(screen.getByRole("button", { name: /Caja:/ }));
-  await userEvent.click(screen.getByRole("option", { name: "Caja principal" }));
-
-  await expect
-    .poll(() => window.location.search)
-    .toBe("?register=11111111-1111-4111-8111-111111111111");
-});
-
-test("takes someone who can only see the returns report to it from the rail's Reportes item", async () => {
+test("hides the Reportes item from someone who can only see the returns report", async () => {
   const services = reportsServices(["returns_report"]);
   window.history.pushState(null, "", "/help");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await userEvent.click(screen.getByRole("link", { name: "Reportes" }));
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Anulaciones y devoluciones", level: 1 }))
-    .toBeVisible();
-  expect(window.location.pathname).toBe("/reports/returns");
-  const sections = screen.getByRole("navigation", { name: "Reportes" });
-  await expect
-    .element(sections.getByRole("link", { name: "Anulaciones y devoluciones" }))
-    .toBeVisible();
-  expect(sections.getByRole("link", { name: "Todos los reportes" }).query()).toBeNull();
-  expect(sections.getByRole("link", { name: "Ventas por cajero" }).query()).toBeNull();
-  expect(sections.getByRole("link", { name: "Stock actual valorizado" }).query()).toBeNull();
+  await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Reportes", exact: true }).query()).toBeNull();
 });
 
 test("sends someone who can only see the returns report away from the list of reports", async () => {
