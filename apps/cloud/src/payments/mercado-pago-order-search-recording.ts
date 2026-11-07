@@ -223,24 +223,22 @@ export async function recordMercadoPagoOrderSearches(
   const client = createMercadoPagoOrdersClient({
     accessToken: options.accessToken,
     fetch: async (input, init) => {
-      const isSearch = init?.method === "GET" && String(input).startsWith(`${API_URL}/v1/orders?`);
-      let response: Response;
-      try {
-        response = await options.fetch(input, init);
-      } catch (failure) {
-        if (isSearch) {
+      if (init?.method === "GET" && String(input).startsWith(`${API_URL}/v1/orders?`)) {
+        try {
+          const response = await options.fetch(input, init);
+          lastSearch = {
+            status: response.status,
+            body: bodyOfText(await response.clone().text()),
+          };
+          return response;
+        } catch (failure) {
           lastSearch = { failure };
+          throw failure;
         }
-        throw failure;
       }
+      const response = await options.fetch(input, init);
       if (init?.method === "POST" && String(input) === `${API_URL}/v1/orders`) {
         lastCreation = {
-          status: response.status,
-          body: bodyOfText(await response.clone().text()),
-        };
-      }
-      if (isSearch) {
-        lastSearch = {
           status: response.status,
           body: bodyOfText(await response.clone().text()),
         };
