@@ -153,11 +153,13 @@ export function useReloadBuyerIdentificationThresholds(params: {
 }
 
 export function useFiscalAddressesQuery(params: {
+  enabled?: boolean;
   fetchFiscalAddresses: typeof fetchFiscalAddresses;
   onSessionEnded: () => void;
 }) {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQuery<FiscalAddress[]>({
+    enabled: params.enabled,
     queryKey: fiscalKeys.fiscalAddresses,
     read: params.fetchFiscalAddresses,
     onSessionEnded: params.onSessionEnded,
@@ -179,11 +181,13 @@ export function useReloadFiscalAddresses(params: {
 }
 
 export function useRegisterPointsOfSaleQuery(params: {
+  enabled?: boolean;
   fetchRegisterPointsOfSale: typeof fetchRegisterPointsOfSale;
   onSessionEnded: () => void;
 }) {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQuery<RegisterPointOfSale[]>({
+    enabled: params.enabled,
     queryKey: fiscalKeys.registerPointsOfSale,
     read: params.fetchRegisterPointsOfSale,
     onSessionEnded: params.onSessionEnded,
@@ -205,11 +209,13 @@ export function useReloadRegisterPointsOfSale(params: {
 }
 
 export function useFortnightPresentationsQuery(params: {
+  enabled?: boolean;
   fetchFortnightPresentations: typeof fetchFortnightPresentations;
   onSessionEnded: () => void;
 }) {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQuery<FortnightPresentation[]>({
+    enabled: params.enabled,
     queryKey: fiscalKeys.fortnightPresentations,
     read: params.fetchFortnightPresentations,
     onSessionEnded: params.onSessionEnded,
@@ -231,11 +237,13 @@ export function useClockCorrectionsQuery(params: {
 }
 
 export function useOfflinePointsOfSaleQuery(params: {
+  enabled?: boolean;
   fetchOfflinePointsOfSale: typeof fetchOfflinePointsOfSale;
   onSessionEnded: () => void;
 }) {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQuery<OfflinePointOfSale[]>({
+    enabled: params.enabled,
     queryKey: fiscalKeys.offlinePointsOfSale,
     read: params.fetchOfflinePointsOfSale,
     onSessionEnded: params.onSessionEnded,

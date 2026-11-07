@@ -14,27 +14,20 @@ import {
   type Tone,
   useTableModel,
 } from "@purosur/ui";
-import { deepEqual } from "@tanstack/react-router";
 import { FileSearch, Percent } from "lucide-react";
-import { useEffect, useEffectEvent } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { combineCloudData } from "../platform/combine-cloud-data";
+import type { CloudData } from "../platform/use-cloud-query";
 import { monthNameOf, yearMonthLabel } from "../platform/year-month-label";
-import type { fetchExceptionShareYear } from "./exception-share-api";
-import type { ExceptionalityFilters } from "./exceptionality-filters";
-import type { fetchFiscalAddresses } from "./fiscal-addresses-api";
-import { useExceptionShareYearQuery, useFiscalAddressesQuery } from "./fiscal-queries";
-
-export type ExceptionalitySectionServices = {
-  fetchFiscalAddresses: typeof fetchFiscalAddresses;
-  fetchExceptionShareYear: typeof fetchExceptionShareYear;
-};
+import type { FiscalAddress } from "./fiscal-addresses-api";
+import type { ExceptionShareYearRead } from "./fiscal-queries";
 
 export type ExceptionalitySectionProps = {
-  filters: ExceptionalityFilters;
-  onFiltersChange: (filters: ExceptionalityFilters) => void;
-  onSessionEnded: () => void;
-  services: ExceptionalitySectionServices;
+  addresses: CloudData<FiscalAddress[]>;
+  read: CloudData<ExceptionShareYearRead>;
+  fiscalAddressId: string | undefined;
+  onFiscalAddressChange: (fiscalAddress: string) => void;
+  onYearChange: (year: number) => void;
 };
 
 type MonthShare = ExceptionShareYearBody["months"][number];
@@ -173,29 +166,14 @@ function emptyStateOf(noFiscalAddresses: boolean) {
 }
 
 export function ExceptionalitySection({
-  filters,
-  onFiltersChange,
-  onSessionEnded,
-  services,
+  addresses,
+  read,
+  fiscalAddressId,
+  onFiscalAddressChange,
+  onYearChange,
 }: ExceptionalitySectionProps) {
-  const addresses = useFiscalAddressesQuery({
-    fetchFiscalAddresses: services.fetchFiscalAddresses,
-    onSessionEnded,
-  });
-  const reportFilters = useEffectEvent(onFiltersChange);
   const listedAddresses = addresses.status === "loaded" ? addresses.value : [];
   const [firstAddress, ...otherAddresses] = listedAddresses;
-  const fiscalAddressFilter =
-    addresses.status === "loaded" && !listedAddresses.some(({ id }) => id === filters.fiscalAddress)
-      ? ""
-      : filters.fiscalAddress;
-  const fiscalAddressId = fiscalAddressFilter === "" ? firstAddress?.id : fiscalAddressFilter;
-  const read = useExceptionShareYearQuery({
-    fiscalAddressId: addresses.status === "loaded" ? fiscalAddressId : undefined,
-    year: filters.year,
-    fetchExceptionShareYear: services.fetchExceptionShareYear,
-    onSessionEnded,
-  });
   const noFiscalAddresses = addresses.status === "loaded" && firstAddress === undefined;
   const data =
     addresses.status !== "loaded" || noFiscalAddresses
@@ -205,22 +183,6 @@ export function ExceptionalitySection({
     read.status === "loaded" && read.value.kind === "found" ? read.value.year : undefined;
   const lastRead = read.status === "loaded" ? undefined : read.lastValue;
   const answered = shown ?? (lastRead?.kind === "found" ? lastRead.year : undefined);
-  const yearFilter =
-    shown !== undefined &&
-    filters.year !== undefined &&
-    !shown.selectable_years.includes(filters.year)
-      ? undefined
-      : filters.year;
-
-  useEffect(() => {
-    const shownFilters: ExceptionalityFilters = {
-      fiscalAddress: fiscalAddressFilter,
-      ...(yearFilter === undefined ? {} : { year: yearFilter }),
-    };
-    if (!deepEqual(shownFilters, filters)) {
-      reportFilters(shownFilters);
-    }
-  }, [fiscalAddressFilter, yearFilter, filters]);
   const table = useTableModel({
     items: shown?.months ?? NO_MONTHS,
     id: (month) => month.month,
@@ -236,7 +198,7 @@ export function ExceptionalitySection({
             label="Domicilio fiscal:"
             options={[addressOption(firstAddress), ...otherAddresses.map(addressOption)]}
             value={fiscalAddressId ?? ""}
-            onChange={(fiscalAddress) => onFiltersChange({ ...filters, fiscalAddress })}
+            onChange={onFiscalAddressChange}
           />
           {answered === undefined ? null : (
             <ListFilter
@@ -247,7 +209,7 @@ export function ExceptionalitySection({
                 ...answered.selectable_years.slice(1).map(yearOption),
               ]}
               value={String(answered.year)}
-              onChange={(year) => onFiltersChange({ ...filters, year: Number(year) })}
+              onChange={(year) => onYearChange(Number(year))}
             />
           )}
         </div>

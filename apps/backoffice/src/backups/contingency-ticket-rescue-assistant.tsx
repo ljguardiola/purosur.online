@@ -1,7 +1,7 @@
 import { getRouteApi } from "@tanstack/react-router";
 import type { ReactElement } from "react";
 import { ContingencyTicketRescueModal } from "./contingency-ticket-rescue-modal";
-import { defaultContingencyTicketRescueScreenServices } from "./contingency-ticket-rescue-services";
+import { defaultContingencyTicketRescueModalServices } from "./contingency-ticket-rescue-modal-services";
 
 const route = getRouteApi("/signed-in/fiscal-area/fiscal/caea");
 
@@ -16,7 +16,7 @@ export function ContingencyTicketRescueAssistant({
       onClose={onClose}
       onSessionEnded={sessionActions.sessionEnded}
       services={
-        services.contingencyTicketRescueScreen ?? defaultContingencyTicketRescueScreenServices
+        services.contingencyTicketRescueModal ?? defaultContingencyTicketRescueModalServices
       }
     />
   );

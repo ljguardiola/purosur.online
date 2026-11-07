@@ -15,7 +15,7 @@ import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { useContingencyTicketRecoveriesQuery, useRefreshBackups } from "./backups-queries";
 import type { ContingencyTicketRecovery } from "./contingency-ticket-recovery-api";
 import type { RescueContingencyBackupTicketOutcome } from "./contingency-ticket-rescue-api";
-import type { ContingencyTicketRescueScreenServices } from "./contingency-ticket-rescue-services";
+import type { ContingencyTicketRescueModalServices } from "./contingency-ticket-rescue-modal-services";
 import {
   type FinishedRecoveryOutcome,
   FinishTicketRecoveryModal,
@@ -76,7 +76,7 @@ function finishedNotice(
 export type ContingencyTicketRescueModalProps = {
   onClose: () => void;
   onSessionEnded: () => void;
-  services: ContingencyTicketRescueScreenServices;
+  services: ContingencyTicketRescueModalServices;
 };
 
 function resultOf(response: ContingencyBackupTicketRescueResponse): ScannedTicketResult {

@@ -120,7 +120,13 @@ function PendingReportsFigure({ services, onSessionEnded }: FigureProps) {
       label="Informes quincenales pendientes"
       subject="los informes quincenales pendientes"
       data={mapCloudData(presentations, (items) => ({
-        value: formatNumber(items.filter(({ owed }) => owed).length),
+        value: formatNumber(
+          new Set(
+            items
+              .filter(({ owed }) => owed)
+              .map(({ pointOfSaleNumber, fortnight }) => `${pointOfSaleNumber}:${fortnight.start}`),
+          ).size,
+        ),
       }))}
     />
   );

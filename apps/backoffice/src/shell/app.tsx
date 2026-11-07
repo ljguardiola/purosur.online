@@ -2,7 +2,7 @@ import { FieldSizeProvider, LocaleProvider } from "@purosur/ui";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { type ComponentType, useEffect, useState } from "react";
-import type { ContingencyTicketRescueScreenServices } from "../backups/contingency-ticket-rescue-services";
+import type { ContingencyTicketRescueModalServices } from "../backups/contingency-ticket-rescue-modal-services";
 import type { BranchSettingsScreenServices } from "../branch/branch-settings-services";
 import type { BrandsListScreenServices } from "../catalog/brands-list-services";
 import type { CategoriesListScreenServices } from "../catalog/categories-list-services";
@@ -124,7 +124,7 @@ export type AppServices = {
   userCredentialSections: UserCredentialSectionsServices;
   rolesListScreen: RolesListScreenServices;
   registersListScreen: RegistersListScreenServices;
-  contingencyTicketRescueScreen: ContingencyTicketRescueScreenServices;
+  contingencyTicketRescueModal: ContingencyTicketRescueModalServices;
   branchSettingsScreen: BranchSettingsScreenServices;
   categoriesListScreen: CategoriesListScreenServices;
   brandsListScreen: BrandsListScreenServices;
