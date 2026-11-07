@@ -185,8 +185,8 @@ describe("scrubbing a Mercado Pago recording", () => {
       const result = scrub({ id: ORDER_ID, transactions: { payments: [{ id: PAYMENT_ID }] } });
 
       expect(result.value).toEqual({
-        id: "ORD00000000000000000000000001",
-        transactions: { payments: [{ id: "PAY00000000000000000000000002" }] },
+        id: "ORD000000000000000000000000001",
+        transactions: { payments: [{ id: "PAY000000000000000000000000002" }] },
       });
       expect(result.replacements).toEqual([{ field: "id", count: 2 }]);
     });
@@ -201,7 +201,7 @@ describe("scrubbing a Mercado Pago recording", () => {
 
       expect(result.value).toEqual({
         reference_id: "000000000000000000000000001",
-        transaction_id: "PAY00000000000000000000000002",
+        transaction_id: "PAY000000000000000000000000002",
         id: 10000000003,
         other: { id: "000000004" },
       });
@@ -218,9 +218,9 @@ describe("scrubbing a Mercado Pago recording", () => {
       const first = scrubber({ data: [{ id: ORDER_ID }] });
       const second = scrubber({ data: [{ id: OTHER_ORDER_ID }, { id: ORDER_ID }] });
 
-      expect(first.value).toEqual({ data: [{ id: "ORD00000000000000000000000001" }] });
+      expect(first.value).toEqual({ data: [{ id: "ORD000000000000000000000000001" }] });
       expect(second.value).toEqual({
-        data: [{ id: "ORD00000000000000000000000002" }, { id: "ORD00000000000000000000000001" }],
+        data: [{ id: "ORD000000000000000000000000002" }, { id: "ORD000000000000000000000000001" }],
       });
     });
 
@@ -238,8 +238,8 @@ describe("scrubbing a Mercado Pago recording", () => {
       });
 
       expect(result.value).toEqual({
-        message: "order ORD00000000000000000000000001 cannot be read",
-        id: "ORD00000000000000000000000001",
+        message: "order ORD000000000000000000000000001 cannot be read",
+        id: "ORD000000000000000000000000001",
       });
       expect(result.replacements).toEqual([{ field: "id", count: 2 }]);
     });
