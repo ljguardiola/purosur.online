@@ -262,6 +262,7 @@ export function createMercadoPagoOrdersClient(
     if (answer.status === CONFLICT && conflictCode(answer.body) === QUEUED_ORDER_ON_TERMINAL_CODE) {
       return { kind: "queued_order_on_terminal" };
     }
+    warnOfAnswer("Mercado Pago did not create the order", answer.status, answer.body);
     return { kind: "refused" };
   }
 
