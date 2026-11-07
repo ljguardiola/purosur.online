@@ -174,18 +174,26 @@ async function search(
     method: "GET",
     headers: { Authorization: `Bearer ${options.accessToken}` },
   });
-  const text = await response.text();
+  return { status: response.status, body: bodyOfText(await response.text()) };
+}
+
+function bodyOfText(text: string): unknown {
   try {
-    return { status: response.status, body: JSON.parse(text) };
+    return JSON.parse(text);
   } catch {
-    return { status: response.status, body: text };
+    return text;
   }
 }
 
-function createdOrderOf(kind: OrderKind, creation: MercadoPagoOrderCreation): string {
+function createdOrderOf(
+  kind: OrderKind,
+  creation: MercadoPagoOrderCreation,
+  refusedAnswer: () => string,
+): string {
   if (creation.kind !== "created") {
+    const answered = creation.kind === "refused" ? `; ${refusedAnswer()}` : "";
     throw new Error(
-      `Mercado Pago did not create the ${kind === "qr" ? "QR" : "Point"} order: ${creation.kind}`,
+      `Mercado Pago did not create the ${kind === "qr" ? "QR" : "Point"} order: ${creation.kind}${answered}`,
     );
   }
   return creation.orderId;
@@ -209,14 +217,34 @@ export async function recordMercadoPagoOrderSearches(
   options: RecordMercadoPagoOrderSearchesOptions,
 ): Promise<OrderSearchRecordingReport> {
   const { accountId } = await readUser(options);
+  let lastCreation: RecordedAnswer = { status: 0, body: null };
   const client = createMercadoPagoOrdersClient({
     accessToken: options.accessToken,
-    fetch: options.fetch,
+    fetch: async (input, init) => {
+      const response = await options.fetch(input, init);
+      if (init?.method === "POST" && String(input) === `${API_URL}/v1/orders`) {
+        lastCreation = {
+          status: response.status,
+          body: bodyOfText(await response.clone().text()),
+        };
+      }
+      return response;
+    },
   });
   const createdFrom = new Date(options.now().getTime() - SEARCH_WINDOW_MS);
   const created: { order: OrderKind; orderId: string }[] = [];
   let answers: [RecordedOrderSearch, RecordedAnswer][] = [];
   const externalReferences: string[] = [];
+  const scrubberOf = () =>
+    mercadoPagoRecordingScrubber({
+      accessToken: options.accessToken,
+      accountId,
+      externalPosId: options.externalPosId,
+      terminalId: options.terminalId,
+      externalReferences,
+    });
+  const refusedAnswer = () =>
+    `it answered ${lastCreation.status} ${JSON.stringify(scrubberOf()(lastCreation.body).value)}`;
   let cancellations: OrderSearchRecordingReport["cancellations"] = [];
   try {
     const qrKey = options.newId();
@@ -233,6 +261,7 @@ export async function recordMercadoPagoOrderSearches(
           expiresAfterMinutes: ORDER_EXPIRES_AFTER_MINUTES,
           externalPosId: options.externalPosId,
         }),
+        refusedAnswer,
       ),
     });
     const pointKey = options.newId();
@@ -250,6 +279,7 @@ export async function recordMercadoPagoOrderSearches(
           terminalId: options.terminalId,
           cardType: "DEBIT",
         }),
+        refusedAnswer,
       ),
     });
 
@@ -301,13 +331,7 @@ export async function recordMercadoPagoOrderSearches(
 
   await mkdir(join(options.outDir, "raw"), { recursive: true });
   await mkdir(join(options.outDir, "scrubbed"), { recursive: true });
-  const scrub = mercadoPagoRecordingScrubber({
-    accessToken: options.accessToken,
-    accountId,
-    externalPosId: options.externalPosId,
-    terminalId: options.terminalId,
-    externalReferences,
-  });
+  const scrub = scrubberOf();
   const scrubbed: OrderSearchRecordingReport["scrubbed"] = [];
   for (const [name, answer] of answers) {
     const file = `${name}.json`;
