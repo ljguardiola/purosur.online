@@ -36,6 +36,7 @@ import {
   canSeePricesArea,
   canSeeQuarantinedEvents,
   canSeeRefundsArea,
+  canSeeRefundsPage,
   canSeeRegistersArea,
   canSeeReports,
   canSeeReturnsReport,
@@ -119,4 +120,12 @@ test("canSeePeopleArea holds when either the users area or the roles are granted
   expect(canSeePeopleArea(accessWith("manage_roles"))).toBe(true);
   expect(canSeePeopleArea(accessWith("manage_users"))).toBe(false);
   expect(canSeePeopleArea(NO_CAPABILITIES_ACCESS)).toBe(false);
+});
+
+test("canSeeRefundsPage holds when either the refunds area or the returns report is granted", () => {
+  expect(canSeeRefundsPage(ADMINISTRATOR_ACCESS)).toBe(true);
+  expect(canSeeRefundsPage(accessWith("refunds_area"))).toBe(true);
+  expect(canSeeRefundsPage(accessWith("returns_report"))).toBe(true);
+  expect(canSeeRefundsPage(accessWith("reports_area"))).toBe(false);
+  expect(canSeeRefundsPage(NO_CAPABILITIES_ACCESS)).toBe(false);
 });
