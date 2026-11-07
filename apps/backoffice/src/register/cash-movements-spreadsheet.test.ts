@@ -39,7 +39,7 @@ test("has a sheet named after the table with each movement in the given order", 
   ).sheets;
 
   expect(sheets[1]).toEqual({
-    name: "Movimientos de caja",
+    name: "Movimientos de efectivo",
     header: ["Fecha", "Tipo", "Motivo", "Sesión", "Apertura", "Monto"],
     rows: [
       [

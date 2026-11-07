@@ -79,7 +79,7 @@ function renderScreen(
 
 type Screen = Awaited<ReturnType<typeof renderScreen>>;
 
-const TITLE = "Movimientos de caja";
+const TITLE = "Movimientos de efectivo";
 
 function movementsTable(screen: Screen) {
   return screen.getByRole("table", { name: TITLE, exact: true });
@@ -93,8 +93,7 @@ function emptyStateIconColor(title: Element): string {
 test("shows the amount and the count of cash ins, cash outs and withdrawals, from the cloud", async () => {
   const screen = await renderScreen(createServices());
 
-  await expect.element(screen.getByRole("heading", { name: TITLE, level: 1 })).toBeVisible();
-  await expect.element(screen.getByText("Reportes · Caja", { exact: true })).toBeVisible();
+  expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
   await expect.element(screen.getByText(/^Ingresos1 movimiento\$ 200,00$/)).toBeVisible();
   await expect.element(screen.getByText(/^Gastos2 movimientos\$ 155,50$/)).toBeVisible();
   await expect.element(screen.getByText(/^Retiros1 movimiento\$ 500,00$/)).toBeVisible();
@@ -309,7 +308,7 @@ test("downloads a spreadsheet of the movements shown, with the applied register 
     .poll(() => downloads.names)
     .toEqual(["movimientos-de-caja-2026-10-01-2026-10-07.xlsx"]);
   const file = await readDownloadedXlsx(downloads.blobs[0]);
-  expect(file.sheetNames).toEqual(["Resumen", "Movimientos de caja"]);
+  expect(file.sheetNames).toEqual(["Resumen", "Movimientos de efectivo"]);
   const summary = file.sheet(0);
   expect(summary.get("B4")?.value).toBe("Caja del fondo");
   expect(summary.get("B5")?.value).toBe("200");

@@ -140,20 +140,16 @@ test("lists the payments confirmed by hand report as a link to it", async () => 
     .toHaveAttribute("href", "/reports/hand-confirmed-payments");
 });
 
-test("lists the cash session closes report as a link to it", async () => {
+test.each([
+  "Cierres de sesión",
+  "Movimientos de caja",
+  "Cierres de caja",
+  "Movimientos de efectivo",
+])("does not list %s, which moved to the Cajas page", async (name) => {
   const screen = await renderScreen();
 
-  await expect
-    .element(screen.getByRole("link", { name: "Cierres de sesión" }))
-    .toHaveAttribute("href", "/reports/cash-session-closes");
-});
-
-test("lists the cash movements report as a link to it", async () => {
-  const screen = await renderScreen();
-
-  await expect
-    .element(screen.getByRole("link", { name: "Movimientos de caja" }))
-    .toHaveAttribute("href", "/reports/cash-movements");
+  await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
+  expect(screen.getByRole("link", { name }).query()).toBeNull();
 });
 
 test("groups the stock reports in a card titled Stock", async () => {

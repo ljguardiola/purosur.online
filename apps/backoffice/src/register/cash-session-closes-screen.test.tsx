@@ -81,7 +81,7 @@ function renderScreen(
 
 type Screen = Awaited<ReturnType<typeof renderScreen>>;
 
-const TITLE = "Cierres de sesión";
+const TITLE = "Cierres de caja";
 
 function closesTable(screen: Screen) {
   return screen.getByRole("table", { name: TITLE, exact: true });
@@ -95,8 +95,7 @@ function emptyStateIconColor(title: Element): string {
 test("shows how many sessions closed, their net difference and how many had one, from the cloud", async () => {
   const screen = await renderScreen(createServices());
 
-  await expect.element(screen.getByRole("heading", { name: TITLE, level: 1 })).toBeVisible();
-  await expect.element(screen.getByText("Reportes · Caja", { exact: true })).toBeVisible();
+  expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
   await expect.element(screen.getByText(/^Sesiones cerradas3$/)).toBeVisible();
   await expect.element(screen.getByText(/^Diferencia total− \$ 420,00$/)).toBeVisible();
   await expect
@@ -369,7 +368,7 @@ test("downloads a spreadsheet of the closes shown, with the applied register and
     .poll(() => downloads.names)
     .toEqual(["cierres-de-sesion-2026-10-01-2026-10-07.xlsx"]);
   const file = await readDownloadedXlsx(downloads.blobs[0]);
-  expect(file.sheetNames).toEqual(["Resumen", "Cierres de sesión"]);
+  expect(file.sheetNames).toEqual(["Resumen", "Cierres de caja"]);
   const summary = file.sheet(0);
   expect(summary.get("B4")?.value).toBe("Caja del fondo");
   expect(summary.get("B5")?.value).toBe("3");

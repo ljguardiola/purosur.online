@@ -46,7 +46,7 @@ test("has a sheet named after the table with each close, naming who closed only 
   ).sheets;
 
   expect(sheets[1]).toEqual({
-    name: "Cierres de sesión",
+    name: "Cierres de caja",
     header: ["Fecha", "Caja", "Cajero", "Cerró", "Esperado", "Contado", "Diferencia"],
     rows: [
       [

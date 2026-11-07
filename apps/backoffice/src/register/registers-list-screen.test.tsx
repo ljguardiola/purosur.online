@@ -19,7 +19,7 @@ beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 
-test("shows the breadcrumb, heading, each register's name and count", async () => {
+test("shows each register's name and count, with no title of its own", async () => {
   const services = createServices();
   vi.mocked(services.fetchRegisters).mockResolvedValue({
     kind: "ok",
@@ -28,10 +28,7 @@ test("shows the breadcrumb, heading, each register's name and count", async () =
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("Configuración")).toBeVisible();
-  await expect
-    .element(screen.getByRole("heading", { name: "Cajas registradoras", level: 1 }))
-    .toBeVisible();
+  expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
   await expect.element(screen.getByText("Caja 1")).toBeVisible();
   await expect.element(screen.getByText("Caja 2")).toBeVisible();
   await expect.element(screen.getByText("2 cajas")).toBeVisible();

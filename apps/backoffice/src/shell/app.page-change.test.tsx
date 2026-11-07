@@ -14,7 +14,7 @@ opensOnlyScreens([
   "/help",
   "/people/users",
   "/products",
-  "/registers",
+  "/location-settings",
   "/sign-in",
 ]);
 
@@ -56,20 +56,16 @@ async function pressEnterOn(link: HTMLElement) {
 test("moves focus to the new screen's title, with a focus ring, after choosing a section with the keyboard, not on the first load", async () => {
   window.history.pushState(null, "", "/people/users");
   const services = createAppServices();
-  vi.mocked(services.registersListScreen.fetchRegisters).mockResolvedValue({
-    kind: "ok",
-    value: [],
-  });
   const screen = await render(<App help={emptyHelp} services={services} />);
   const firstTitle = screen.getByRole("heading", { name: "Personas", level: 1 });
   await expect.element(firstTitle).toBeVisible();
   expect(document.activeElement).not.toBe(firstTitle.element());
 
   await pressEnterOn(
-    screen.getByRole("link", { name: "Cajas registradoras" }).element() as HTMLElement,
+    screen.getByRole("link", { name: "Sucursal" }).element() as HTMLElement,
   );
 
-  const title = screen.getByRole("heading", { name: "Cajas registradoras", level: 1 });
+  const title = screen.getByRole("heading", { name: "Sucursal", level: 1 });
   await expect.element(title).toHaveFocus();
   const style = getComputedStyle(title.element());
   await expect.poll(() => style.outlineStyle).toBe("solid");
