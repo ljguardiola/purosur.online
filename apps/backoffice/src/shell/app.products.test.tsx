@@ -375,7 +375,7 @@ test("lists the promotions and opens Nueva promoción for a user holding only ma
 });
 
 function productsWithPanel({ assembled }: { assembled: boolean }) {
-  const services = productsServices(EVERY_PRODUCT_CAPABILITY);
+  const services = productsServices([...EVERY_PRODUCT_CAPABILITY, "stock_balances"]);
   mockLoaded(services.productsListScreen, [honey, almonds]);
   services.productPanelSections = productPanelSections({
     assembledProductIds: assembled ? [honey.id] : [],

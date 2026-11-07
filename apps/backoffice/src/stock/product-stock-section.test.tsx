@@ -4,10 +4,11 @@ import { userEvent } from "vitest/browser";
 import { formatStockQuantity } from "../platform/stock-quantity";
 import { render } from "../shell/test-support/render-with-router";
 import { ProductStockSection } from "./product-stock-section";
+import type { StockBalancesScreenServices } from "./stock-balances-services";
 import { almonds, honey, stockBalanceList } from "./test-support/stock-fixtures";
 
 function renderSection(
-  fetchStockBalances: ReturnType<typeof vi.fn>,
+  fetchStockBalances: StockBalancesScreenServices["fetchStockBalances"],
   product: { id: string; name: string; saleUnit: "UNIT" | "KG" } = almonds,
   onSessionEnded: () => void = () => {},
 ) {
@@ -26,7 +27,7 @@ function renderSection(
 
 test("picks the product's own balance from the cloud's list and shows it with its lots", async () => {
   const fetchStockBalances = vi
-    .fn()
+    .fn<StockBalancesScreenServices["fetchStockBalances"]>()
     .mockResolvedValue({ kind: "ok", value: stockBalanceList([honey, almonds]) });
 
   const screen = await renderSection(fetchStockBalances);
@@ -40,7 +41,7 @@ test("picks the product's own balance from the cloud's list and shows it with it
 
 test("says so when the cloud has no balance for the product", async () => {
   const fetchStockBalances = vi
-    .fn()
+    .fn<StockBalancesScreenServices["fetchStockBalances"]>()
     .mockResolvedValue({ kind: "ok", value: stockBalanceList([honey]) });
 
   const screen = await renderSection(fetchStockBalances);
@@ -52,7 +53,9 @@ test("ends the session when the cloud answers that it is over", async () => {
   const onSessionEnded = vi.fn();
 
   await renderSection(
-    vi.fn().mockResolvedValue({ kind: "unauthenticated" }),
+    vi
+      .fn<StockBalancesScreenServices["fetchStockBalances"]>()
+      .mockResolvedValue({ kind: "unauthenticated" }),
     almonds,
     onSessionEnded,
   );
@@ -62,7 +65,7 @@ test("ends the session when the cloud answers that it is over", async () => {
 
 test("lets the person retry a failed read", async () => {
   const fetchStockBalances = vi
-    .fn()
+    .fn<StockBalancesScreenServices["fetchStockBalances"]>()
     .mockResolvedValueOnce({ kind: "failed" })
     .mockResolvedValue({ kind: "ok", value: stockBalanceList([almonds]) });
   const screen = await renderSection(fetchStockBalances);

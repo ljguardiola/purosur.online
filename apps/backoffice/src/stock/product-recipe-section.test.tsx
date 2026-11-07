@@ -75,7 +75,10 @@ test("registers a batch with the same modal as the batches list", async () => {
 
 test("asks to confirm before cancelling a batch", async () => {
   const services = createServices();
-  vi.mocked(services.voidAssemblyBatch).mockResolvedValue({ kind: "ok", batch: voidedBatch });
+  vi.mocked(services.voidAssemblyBatch).mockResolvedValue({
+    kind: "ok",
+    batch: { id: mixBatch.id, voidedAt: "2026-09-16T12:00:00.000Z" },
+  });
   const screen = await renderSection(services);
 
   await userEvent.click(

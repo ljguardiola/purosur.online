@@ -3,11 +3,12 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
+import type { FetchPricesOutcome } from "./prices-api";
 import type { PricesListScreenServices } from "./prices-list-services";
 import { ProductPriceCostSection } from "./product-price-cost-section";
 import { createServices, rice, withoutPrice } from "./test-support/prices-list-screen";
 
-function priceListOf(...products: PriceProduct[]) {
+function priceListOf(...products: PriceProduct[]): FetchPricesOutcome {
   return {
     kind: "ok",
     value: {
@@ -17,7 +18,7 @@ function priceListOf(...products: PriceProduct[]) {
       reviewWindowDays: 30,
       categories: [],
     },
-  } as const;
+  };
 }
 
 function renderSection(
