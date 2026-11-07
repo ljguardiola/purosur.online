@@ -20,26 +20,23 @@ export type CreateMercadoPagoQrOrderOutcome = CreateMercadoPagoOrderOutcome<
   QrOrderNotCreated
 >;
 
-const QR_ORDER: MercadoPagoOrderKind<
-  QrAmountRefusal,
-  QrOrderNotCreated,
-  MercadoPagoQrOrderPorts
-> = {
-  identityOf: () => ({ method: "QR", provider: "MERCADOPAGO_QR" }),
-  lifetimeMinutes: MERCADO_PAGO_ORDER_CHARGE_WAIT_MINUTES,
-  refuseAmount: (amount) => {
-    if (isValidQrOrderAmount(amount)) {
-      return null;
-    }
-    return isValidOrderAmount(amount) ? { kind: "below_minimum" } : { kind: "invalid_amount" };
-  },
-  create: async ({ mercadoPago, qrPointsOfSale }, registerId, request) => {
-    const externalPosId = await qrPointsOfSale.pointOfSaleOfRegister(registerId);
-    return externalPosId === null
-      ? { kind: "not_created", outcome: { kind: "not_configured" } }
-      : mercadoPago.createQrOrder({ ...request, externalPosId });
-  },
-};
+const QR_ORDER: MercadoPagoOrderKind<QrAmountRefusal, QrOrderNotCreated, MercadoPagoQrOrderPorts> =
+  {
+    identityOf: () => ({ method: "QR", provider: "MERCADOPAGO_QR" }),
+    lifetimeMinutes: MERCADO_PAGO_ORDER_CHARGE_WAIT_MINUTES,
+    refuseAmount: (amount) => {
+      if (isValidQrOrderAmount(amount)) {
+        return null;
+      }
+      return isValidOrderAmount(amount) ? { kind: "below_minimum" } : { kind: "invalid_amount" };
+    },
+    create: async ({ mercadoPago, qrPointsOfSale }, registerId, request) => {
+      const externalPosId = await qrPointsOfSale.pointOfSaleOfRegister(registerId);
+      return externalPosId === null
+        ? { kind: "not_created", outcome: { kind: "not_configured" } }
+        : mercadoPago.createQrOrder({ ...request, externalPosId });
+    },
+  };
 
 export function createMercadoPagoQrOrder(
   ports: MercadoPagoQrOrderPorts,

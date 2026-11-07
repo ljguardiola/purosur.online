@@ -1,6 +1,9 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { isValidQrOrderAmount, MERCADO_PAGO_QR_MINIMUM_ORDER_CENTS } from "./mercado-pago-qr-order.js";
+import {
+  isValidQrOrderAmount,
+  MERCADO_PAGO_QR_MINIMUM_ORDER_CENTS,
+} from "./mercado-pago-qr-order.js";
 
 describe("the QR order's policy", () => {
   it("charges at least $15", () => {
