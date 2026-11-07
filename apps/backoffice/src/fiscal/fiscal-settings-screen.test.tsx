@@ -115,7 +115,7 @@ test("shows the issuer identification it reads, with no title of its own", async
 
   expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
   await expect
-    .element(screen.getByRole("heading", { name: "Identificación del emisor", level: 2 }))
+    .element(screen.getByRole("heading", { name: "Emisor", level: 2, exact: true }))
     .toBeVisible();
   await expect.element(screen.getByText(FICTIONAL_LEGAL_NAME)).toBeVisible();
 });
@@ -451,9 +451,9 @@ test("shows the issuer identification, the buyer-identification threshold, the f
 
   const headings = screen.getByRole("heading", { level: 2 }).elements();
   expect(headings.map((heading) => heading.textContent)).toEqual([
-    "Identificación del emisor",
-    "Umbral de identificación del comprador",
-    "Domicilios fiscales",
+    "Emisor",
+    "Umbral del comprador",
+    "Domicilios",
     "Correcciones de reloj",
   ]);
   await expect.element(screen.getByText("$ 10.000.000,00")).toBeVisible();
@@ -525,7 +525,7 @@ test("Cargar un umbral nuevo opens its own modal, and Editar opens the issuer on
     .element(screen.getByRole("dialog").getByRole("heading", { name: "Cargar un umbral nuevo" }))
     .toBeVisible();
   expect(
-    screen.getByRole("heading", { name: "Identificación del emisor", level: 2 }).query(),
+    screen.getByRole("heading", { name: "Emisor", level: 2, exact: true }).query(),
   ).not.toBeNull();
   await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Cancelar" }));
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();

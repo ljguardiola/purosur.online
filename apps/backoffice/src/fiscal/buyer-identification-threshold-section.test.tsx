@@ -44,7 +44,7 @@ test("shows the threshold in effect today with the day it started, and what a sa
 
   await expect
     .element(
-      screen.getByRole("heading", { name: "Umbral de identificación del comprador", level: 2 }),
+      screen.getByRole("heading", { name: "Umbral del comprador", level: 2, exact: true }),
     )
     .toBeVisible();
   await expect.element(screen.getByText("Vigente", { exact: true })).toBeVisible();
