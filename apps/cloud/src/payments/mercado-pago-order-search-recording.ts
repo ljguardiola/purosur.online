@@ -9,7 +9,7 @@ import { z } from "zod";
 import { createMercadoPagoOrdersClient } from "./mercado-pago-orders-client.js";
 import {
   type MercadoPagoScrubReplacement,
-  scrubMercadoPagoRecording,
+  mercadoPagoRecordingScrubber,
 } from "./scrub-mercado-pago-recording.js";
 
 const userSchema = z.object({ id: z.union([z.number(), z.string()]), tags: z.array(z.string()) });
@@ -216,10 +216,12 @@ export async function recordMercadoPagoOrderSearches(
   const createdFrom = new Date(options.now().getTime() - SEARCH_WINDOW_MS);
   const created: { order: OrderKind; orderId: string }[] = [];
   let answers: [RecordedOrderSearch, RecordedAnswer][] = [];
+  const externalReferences: string[] = [];
   let cancellations: OrderSearchRecordingReport["cancellations"] = [];
   try {
     const qrKey = options.newId();
     const qrReference = options.newId();
+    externalReferences.push(qrReference);
     created.push({
       order: "qr",
       orderId: createdOrderOf(
@@ -235,6 +237,7 @@ export async function recordMercadoPagoOrderSearches(
     });
     const pointKey = options.newId();
     const pointReference = options.newId();
+    externalReferences.push(pointReference);
     created.push({
       order: "point",
       orderId: createdOrderOf(
@@ -270,10 +273,14 @@ export async function recordMercadoPagoOrderSearches(
       return answer;
     };
 
+    const qrFound = await searchUntilFound(qrReference);
+    const pointFound = await searchUntilFound(pointReference);
+    const unusedReference = options.newId();
+    externalReferences.push(unusedReference);
     answers = [
-      ["qr-order-found", await searchUntilFound(qrReference)],
-      ["point-order-found", await searchUntilFound(pointReference)],
-      ["nothing-found", await datedSearch(options.newId())],
+      ["qr-order-found", qrFound],
+      ["point-order-found", pointFound],
+      ["nothing-found", await datedSearch(unusedReference)],
       [
         "missing-dates",
         await search(options, { external_reference: qrReference, page_size: SEARCH_PAGE_SIZE }),
@@ -294,11 +301,17 @@ export async function recordMercadoPagoOrderSearches(
 
   await mkdir(join(options.outDir, "raw"), { recursive: true });
   await mkdir(join(options.outDir, "scrubbed"), { recursive: true });
-  const secrets = { accessToken: options.accessToken, accountId };
+  const scrub = mercadoPagoRecordingScrubber({
+    accessToken: options.accessToken,
+    accountId,
+    externalPosId: options.externalPosId,
+    terminalId: options.terminalId,
+    externalReferences,
+  });
   const scrubbed: OrderSearchRecordingReport["scrubbed"] = [];
   for (const [name, answer] of answers) {
     const file = `${name}.json`;
-    const result = scrubMercadoPagoRecording(answer, secrets);
+    const result = scrub(answer);
     await writeFile(join(options.outDir, "raw", file), `${JSON.stringify(answer, null, 2)}\n`);
     await writeFile(
       join(options.outDir, "scrubbed", file),
