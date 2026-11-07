@@ -20,7 +20,7 @@ const FLAGS = ["--out", "--external-pos-id", "--terminal-id"];
 const TOKEN_REFUSAL =
   "MERCADOPAGO_TEST_ACCESS_TOKEN must hold the access token of a Mercado Pago test user";
 const LOG_PREFIX = "record-mercado-pago-order-searches";
-const ORDER_AMOUNT_CENTS = 1000;
+const ORDER_AMOUNT_CENTS = 1500;
 const ORDER_EXPIRES_AFTER_MINUTES = 10;
 const SEARCH_WINDOW_MS = 60_000;
 const RETRY_WAIT_MS = 2000;
