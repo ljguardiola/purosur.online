@@ -254,11 +254,24 @@ describe("recordPendingMercadoPagoPayment", () => {
       expect(store.state.pendingMercadoPagoPayments).toEqual([]);
     });
 
-    it("lets a QR charge of the same small amount through", () => {
-      expect(record(ledger(), 1499, "cashier", "QR")).toEqual({
+    it("accepts exactly the QR's minimum", () => {
+      const store = ledger({
+        sales: [
+          { ...OPEN_SALE, lines: OPEN_SALE.lines.map((line) => ({ ...line, lineTotal: 1500 })) },
+        ],
+      });
+
+      expect(record(store, 1500, "cashier", "QR")).toEqual({
         kind: "recorded",
         paymentTransactionId: "id-1",
       });
+    });
+
+    it("refuses a QR amount under the QR's minimum, recording nothing", () => {
+      const store = ledger();
+
+      expect(record(store, 1499, "cashier", "QR")).toEqual({ kind: "below_minimum" });
+      expect(store.state.pendingMercadoPagoPayments).toEqual([]);
     });
 
     it("refuses a charge of the other kind of invalid amount first", () => {
