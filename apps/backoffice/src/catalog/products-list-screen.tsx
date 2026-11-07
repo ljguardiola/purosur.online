@@ -47,9 +47,13 @@ import {
 import { DeactivateProductModal } from "./deactivate-product-modal";
 import { EditProductModal } from "./edit-product-modal";
 import { NewProductModal } from "./new-product-modal";
+import { OpenProductPanel } from "./open-product-panel";
 import { PrintLabelsModal } from "./print-labels-modal";
-import { ProductPanel } from "./product-panel";
-import { type ProductPanelTabRequest, productRowActions } from "./product-row-actions";
+import {
+  type ProductActions,
+  type ProductPanelTabRequest,
+  productRowActions,
+} from "./product-row-actions";
 import type { ProductSaleUnit, ProductStatusFilter } from "./products-api";
 import type { ProductsListScreenServices } from "./products-list-services";
 import { ReactivateProductModal } from "./reactivate-product-modal";
@@ -241,6 +245,18 @@ export function ProductsListScreen({
     { value: "all" as const, label: "Todos" },
   ] as const;
 
+  const actions: ProductActions = {
+    edit: setEditTarget,
+    clone: (product) => {
+      setCloneSource(product);
+      setNewModalOpen(true);
+    },
+    deactivate: setDeactivateTarget,
+    reactivate: setReactivateTarget,
+    openPanel: (product, panelTab) => onPanelChange({ product: product.id, tab: panelTab }),
+  };
+  const rowActions = productRowActions(access, actions);
+
   const columns = [
     dataColumn({
       id: "product",
@@ -293,16 +309,7 @@ export function ProductsListScreen({
     actionsColumn({
       id: "actions",
       header: "Acciones",
-      ...productRowActions(access, {
-        edit: setEditTarget,
-        clone: (product) => {
-          setCloneSource(product);
-          setNewModalOpen(true);
-        },
-        deactivate: setDeactivateTarget,
-        reactivate: setReactivateTarget,
-        openPanel: (product, panelTab) => onPanelChange({ product: product.id, tab: panelTab }),
-      }),
+      ...rowActions,
     }),
   ] as const;
 
@@ -321,16 +328,6 @@ export function ProductsListScreen({
     onSortChange: setSort,
   });
   const matchCount = table.getRowModel().rows.length;
-  const openProductSummary = products.find((product) => product.id === openProduct);
-  const closeUnlistedProduct = useEffectEvent(() => onPanelChange(undefined));
-  const productsAreLoaded = data.status === "loaded" && !data.refreshing;
-
-  useEffect(() => {
-    if (productsAreLoaded && openProduct !== undefined && openProductSummary === undefined) {
-      closeUnlistedProduct();
-    }
-  }, [productsAreLoaded, openProduct, openProductSummary]);
-
   useEffect(() => {
     if (data.status === "failed") {
       setPrintModalOpen(false);
@@ -458,29 +455,20 @@ export function ProductsListScreen({
             }
           />
         </div>
-        {openProductSummary === undefined ? null : (
-          <ProductPanel
-            key={openProductSummary.id}
-            product={openProductSummary}
-            brandName={
-              openProductSummary.brandId === null
-                ? undefined
-                : brandNames.get(openProductSummary.brandId)
-            }
-            categoryLabel={
-              categoryLabels.get(openProductSummary.categoryId) ?? openProductSummary.categoryName
-            }
-            tagNames={tags
-              .filter((tag) => openProductSummary.tagIds.includes(tag.id))
-              .map((tag) => tag.name)}
-            access={access}
-            sections={productPanelSections}
-            tab={tab}
-            onEdit={() => setEditTarget(openProductSummary)}
-            onClose={() => onPanelChange(undefined)}
-            onSessionEnded={onSessionEnded}
-          />
-        )}
+        <OpenProductPanel
+          products={products}
+          productsAreLoaded={data.status === "loaded" && !data.refreshing}
+          openProduct={openProduct}
+          tab={tab}
+          brandNames={brandNames}
+          categoryLabels={categoryLabels}
+          tags={tags}
+          access={access}
+          sections={productPanelSections}
+          onEdit={setEditTarget}
+          onClose={() => onPanelChange(undefined)}
+          onSessionEnded={onSessionEnded}
+        />
       </div>
       <NewProductModal
         open={newModalOpen}

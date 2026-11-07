@@ -84,7 +84,7 @@ import type { ExpiringLotsScreenServices } from "../stock/expiring-lots-services
 import type { InitialInventoryScreenServices } from "../stock/initial-inventory-services";
 import type { LossesByReasonReportScreenServices } from "../stock/losses-by-reason-report-services";
 import type { MarginReportScreenServices } from "../stock/margin-report-services";
-import { useProductRecipeLookup } from "../stock/product-recipe-lookup";
+import { ProductRecipeLookup } from "../stock/product-recipe-lookup";
 import type { RecipesListScreenServices } from "../stock/recipes-list-services";
 import type { StockBalancesScreenServices } from "../stock/stock-balances-services";
 import type { StockCountsScreenServices } from "../stock/stock-counts-services";
@@ -262,7 +262,7 @@ const defaultRouteServices: RouteServices = {
       () => import("../stock/product-recipe-section"),
       "ProductRecipeSection",
     ),
-    useRecipeLookup: useProductRecipeLookup,
+    recipeLookup: ProductRecipeLookup,
   },
   registerPointOfSaleSection: lazyScreen(
     () => import("../fiscal/register-point-of-sale-panel-section"),

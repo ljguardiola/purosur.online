@@ -14,14 +14,14 @@ export function ProductsListPage(): ReactElement {
       access={session}
       filters={filters}
       onFiltersChange={(next) =>
-        void navigate({ search: (previous) => ({ ...previous, ...next }), replace: true })
+        void navigate({ search: { ...next, product, tab }, replace: true })
       }
       productPanelSections={services.productPanelSections}
       openProduct={product}
       tab={tab}
       onPanelChange={(panel) =>
         void navigate({
-          search: (previous) => ({ ...previous, product: panel?.product, tab: panel?.tab }),
+          search: { ...filters, product: panel?.product, tab: panel?.tab },
           ...(panel === undefined ? { replace: true } : {}),
         })
       }

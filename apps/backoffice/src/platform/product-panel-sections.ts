@@ -1,5 +1,5 @@
 import type { SaleUnit } from "@purosur/domain";
-import type { ComponentType } from "react";
+import type { ComponentType, ReactNode } from "react";
 
 export type ProductPanelSectionProps = {
   productId: string;
@@ -12,15 +12,16 @@ export type ProductRecipeSectionProps = ProductPanelSectionProps & {
   mayRegisterBatches: boolean;
 };
 
-export type ProductRecipeLookup = (params: {
+export type ProductRecipeLookupProps = {
   productId: string;
   enabled: boolean;
   onSessionEnded: () => void;
-}) => "assembled" | "simple" | "unknown";
+  children: (lookup: "assembled" | "simple" | "unknown") => ReactNode;
+};
 
 export type ProductPanelSections = {
   priceAndCost: ComponentType<ProductPanelSectionProps>;
   stockAndLots: ComponentType<ProductPanelSectionProps>;
   recipeAndBatches: ComponentType<ProductRecipeSectionProps>;
-  useRecipeLookup: ProductRecipeLookup;
+  recipeLookup: ComponentType<ProductRecipeLookupProps>;
 };

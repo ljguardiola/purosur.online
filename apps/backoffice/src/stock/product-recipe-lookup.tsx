@@ -1,3 +1,4 @@
+import type { ProductRecipeLookupProps } from "../platform/product-panel-sections";
 import { fetchRecipes } from "./recipes-api";
 import { useRecipesQuery } from "./stock-queries";
 
@@ -19,4 +20,11 @@ export function useProductRecipeLookup({
   return recipes.value.recipes.some((recipe) => recipe.productId === productId)
     ? "assembled"
     : "simple";
+}
+
+export function ProductRecipeLookup({
+  children,
+  ...params
+}: ProductRecipeLookupProps & { fetchRecipes?: typeof fetchRecipes | undefined }) {
+  return children(useProductRecipeLookup(params));
 }

@@ -41,7 +41,21 @@ const SALE_UNIT_LABELS = { UNIT: "Por unidad", KG: "Por peso" } as const;
 
 const ProductTabLink = createLink(Tab);
 
-export function ProductPanel({
+export function ProductPanel(props: ProductPanelProps) {
+  const { product, access, sections, onSessionEnded } = props;
+  const RecipeLookup = sections.recipeLookup;
+  return (
+    <RecipeLookup
+      productId={product.id}
+      enabled={canManageRecipes(access)}
+      onSessionEnded={onSessionEnded}
+    >
+      {(recipe) => <ProductPanelBody {...props} recipe={recipe} />}
+    </RecipeLookup>
+  );
+}
+
+function ProductPanelBody({
   product,
   brandName,
   categoryLabel,
@@ -52,14 +66,10 @@ export function ProductPanel({
   onEdit,
   onClose,
   onSessionEnded,
-}: ProductPanelProps) {
+  recipe,
+}: ProductPanelProps & { recipe: "assembled" | "simple" | "unknown" }) {
   const { priceAndCost: PriceAndCost, stockAndLots: StockAndLots } = sections;
-  const { recipeAndBatches: RecipeAndBatches, useRecipeLookup } = sections;
-  const recipe = useRecipeLookup({
-    productId: product.id,
-    enabled: canManageRecipes(access),
-    onSessionEnded,
-  });
+  const { recipeAndBatches: RecipeAndBatches } = sections;
   const tabs: readonly PagePart<BackofficeAccess, ProductPanelTab>[] = [
     { key: "data", isVisibleTo: canManageProductsAndCategories },
     { key: "price", isVisibleTo: canSeePricesArea },
