@@ -8,6 +8,7 @@ import { registerKey } from "../register-queries";
 import type { RegisterSummary } from "../registers-api";
 import { RegistersListScreen } from "../registers-list-screen";
 import type { RegistersListScreenServices } from "../registers-list-services";
+import { RegisterPointOfSaleSectionStub } from "./register-point-of-sale-section-stub";
 
 export function createServices(
   overrides: Partial<RegistersListScreenServices> = {},
@@ -26,6 +27,12 @@ export function createServices(
     fetchSessionAuthorizationOptions: vi.fn(),
     authorizeSession: vi.fn(),
     startAuthentication: vi.fn(),
+    fetchSnapshotBackups: vi.fn(),
+    fetchSnapshotBackupRegisters: vi.fn(),
+    fetchFiscalRegisterNames: vi.fn(),
+    changeSnapshotLifecycleRules: vi.fn(),
+    rotateSnapshotKey: vi.fn(),
+    fetchCashSessionCloses: vi.fn(),
     ...overrides,
   };
 }
@@ -134,7 +141,14 @@ export async function renderScreen(
   onTestFinished(() => page.viewport(414, 896));
   return render(
     <main>
-      <RegistersListScreen access={access} services={services} onSessionEnded={onSessionEnded} />
+      <RegistersListScreen
+        access={access}
+        services={services}
+        registerPointOfSaleSection={RegisterPointOfSaleSectionStub}
+        onSessionEnded={onSessionEnded}
+        sessionsPeriod={{ from: "", to: "" }}
+        onSessionsPeriodChange={() => {}}
+      />
       <FetchesInFlight />
       <RefreshRegisters />
     </main>,
@@ -146,4 +160,8 @@ export async function renderRegisters(registers: RegisterSummary[], access?: Bac
   vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: registers });
   const screen = await renderScreen(services, undefined, access);
   return { services, screen };
+}
+
+export function rowOf(screen: Awaited<ReturnType<typeof renderScreen>>, registerName: string) {
+  return screen.getByRole("row").filter({ hasText: registerName });
 }

@@ -56,8 +56,11 @@ import {
 import {
   cashMovementsRoute,
   cashSessionClosesRoute,
+  legacyBackupsRoute,
+  legacyCashMovementsRoute,
+  legacyCashSessionClosesRoute,
   registersListRoute,
-  snapshotBackupsRoute,
+  registersRoute,
 } from "../register/routes";
 import { legacyReturnsReportRoute, returnsHistoryRoute } from "../returns/routes";
 import {
@@ -151,6 +154,7 @@ const routeTree = rootRoute.addChildren([
       purchaseOrderReceiveRoute,
     ]),
     salesAndCashAreaRoute.addChildren([
+      registersRoute.addChildren([registersListRoute, cashSessionClosesRoute, cashMovementsRoute]),
       refundsRoute.addChildren([pendingRefundsRoute, returnsHistoryRoute]),
     ]),
     cashAndFiscalAreaRoute.addChildren([
@@ -165,8 +169,6 @@ const routeTree = rootRoute.addChildren([
       salesByDayRoute,
       salesByPaymentMethodRoute,
       handConfirmedPaymentsRoute,
-      cashSessionClosesRoute,
-      cashMovementsRoute,
       salesByProductAndCategoryRoute,
       salesByCashierRoute,
       handTypedWeightsRoute,
@@ -188,13 +190,14 @@ const routeTree = rootRoute.addChildren([
     ]),
     settingsAreaRoute.addChildren([
       peopleRoute.addChildren([peopleLandingRoute, usersListRoute, rolesListRoute]),
-      registersListRoute,
-      snapshotBackupsRoute,
       contingencyTicketRescueRoute,
       branchSettingsRoute,
       quarantinedEventsRoute,
     ]),
     legacyAccountRoute,
+    legacyBackupsRoute,
+    legacyCashSessionClosesRoute,
+    legacyCashMovementsRoute,
     legacyMercadoPagoRefundsRoute,
     legacyOutsideRefundsRoute,
     legacyReturnsReportRoute,

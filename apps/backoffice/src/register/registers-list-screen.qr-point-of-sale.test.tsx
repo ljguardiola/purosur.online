@@ -6,6 +6,7 @@ import {
   register1,
   register2,
   renderScreen,
+  rowOf,
 } from "./test-support/registers-list-screen";
 
 beforeEach(() => {
@@ -16,7 +17,7 @@ const codeField = { name: /^Código de la caja QR en Mercado Pago/ };
 
 async function openQrModal(screen: Awaited<ReturnType<typeof renderScreen>>, name: string) {
   await userEvent.click(
-    screen.getByRole("button", { name: `Asignar QR de Mercado Pago a ${name}` }),
+    rowOf(screen, name).getByRole("button", { name: `Asignar QR de Mercado Pago a ${name}` }),
   );
   return screen.getByRole("dialog", { name: "Asignar QR de Mercado Pago" });
 }
@@ -122,7 +123,7 @@ test("keeps no room in the actions column for the QR point of sale action of who
   const actionsIndex = headers.findIndex((header) => header.textContent === "Acciones");
   const placeholderRow = table.element().querySelector("tbody tr");
   const actionsPlaceholder = placeholderRow?.children[actionsIndex]?.firstElementChild;
-  expect(actionsPlaceholder?.childElementCount).toBe(2);
+  expect(actionsPlaceholder?.childElementCount).toBe(1);
 });
 
 test("Recargar in the QR modal reads the registers once and shows what changed", async () => {

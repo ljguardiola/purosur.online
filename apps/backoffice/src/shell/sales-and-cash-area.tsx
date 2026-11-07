@@ -1,7 +1,7 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { Undo2 } from "lucide-react";
+import { Laptop, Undo2 } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
-import { canSeeRefundsPage } from "./backoffice-access";
+import { canSeeRefundsPage, canSeeRegistersPage } from "./backoffice-access";
 import { signedInRoute } from "./signed-in-route";
 
 export const salesAndCashAreaRoute = createRoute({
@@ -22,6 +22,16 @@ function SalesAndCashArea() {
           <h2 className="text-text-accent text-heading">Ventas y caja</h2>
           <div className="h-2.5" />
           <ul className="flex flex-col gap-1">
+            {canSeeRegistersPage(session) && (
+              <li>
+                <SectionLink
+                  to="/registers"
+                  label="Cajas"
+                  icon={<Laptop />}
+                  active={Boolean(matchRoute({ to: "/registers", fuzzy: true }))}
+                />
+              </li>
+            )}
             {canSeeRefundsPage(session) && (
               <li>
                 <SectionLink

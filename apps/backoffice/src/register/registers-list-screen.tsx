@@ -1,6 +1,7 @@
 import {
   actionsColumn,
   Button,
+  ButtonLink,
   dataColumn,
   FloatingNotification,
   formatNumber,
@@ -8,58 +9,44 @@ import {
   plural,
   Table,
   TableCellText,
-  Tag,
   useTableModel,
 } from "@purosur/ui";
-import {
-  Ban,
-  Check,
-  CreditCard,
-  KeyRound,
-  KeySquare,
-  Laptop,
-  Plus,
-  QrCode,
-  Upload,
-} from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { createLink, useNavigate } from "@tanstack/react-router";
+import { Check, Laptop, Plus } from "lucide-react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
 import { cloudTableState } from "../platform/cloud-table-state";
+import type { RegisterPointOfSaleSection } from "../platform/register-point-of-sale-section";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import {
   type BackofficeAccess,
-  canAssignPointTerminal,
-  canAssignQrPointOfSale,
   canEnrollRegisters,
   canRevokeInstallations,
-  canUseBitlockerRecoveryKey,
+  canSeeRegistersArea,
 } from "../shell/backoffice-access";
-import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTitle } from "../shell/screen-title";
+import type { ReportPeriodFilters } from "../shell/report-filters-search";
 import { AssignPointTerminalModal } from "./assign-point-terminal-modal";
 import { AssignQrPointOfSaleModal } from "./assign-qr-point-of-sale-modal";
 import { ConsultBitlockerRecoveryKeyModal } from "./consult-bitlocker-recovery-key-modal";
 import { type EmissionState, EnrollmentCodeModal } from "./enrollment-code-modal";
-import { installationLines } from "./installation-text";
 import { LoadBitlockerRecoveryKeyModal } from "./load-bitlocker-recovery-key-modal";
 import { NewRegisterModal } from "./new-register-modal";
-import {
-  pendingCodeAfter,
-  pendingCodeExpiryText,
-  pendingCodeIssuedText,
-} from "./pending-code-text";
 import { RegisterCoverageNotice } from "./register-coverage-notice";
+import {
+  InstallationStatusTag,
+  RegisterInstallationSummary,
+  useSecondsSinceRead,
+} from "./register-installation-summary";
+import { RegisterNamesListScreen } from "./register-names-list-screen";
+import { RegisterPanel } from "./register-panel";
 import {
   useRefreshRegisters,
   useRegisterCoverageQuery,
   useRegistersQuery,
   useReloadRegister,
 } from "./register-queries";
-import type {
-  EmitEnrollmentCodeOutcome,
-  RegisterInstallation,
-  RegisterSummary,
-} from "./registers-api";
+import { type RegisterActions, registerRowActions } from "./register-row-actions";
+import type { EmitEnrollmentCodeOutcome, RegisterSummary } from "./registers-api";
 import type { RegistersListScreenServices } from "./registers-list-services";
 import { RevokeEveryInstallationCallout } from "./revoke-every-installation-callout";
 import { RevokeEveryInstallationModal } from "./revoke-every-installation-modal";
@@ -69,28 +56,36 @@ export type RegistersListScreenProps = {
   access: BackofficeAccess;
   onSessionEnded: () => void;
   services: RegistersListScreenServices;
+  registerPointOfSaleSection: RegisterPointOfSaleSection;
+  openRegister?: string | undefined;
+  tab?: string | undefined;
+  sessionsPeriod: ReportPeriodFilters;
+  onSessionsPeriodChange: (period: ReportPeriodFilters) => void;
 };
 
-function installationStatus(installation: RegisterInstallation | null) {
-  if (installation === null) {
-    return <Tag tone="info">Esperando alta</Tag>;
-  }
-  return installation.state === "enrolled" ? (
-    <Tag tone="success">Activa</Tag>
-  ) : (
-    <Tag tone="neutral">Revocada</Tag>
-  );
-}
+const RegisterRowLink = createLink(ButtonLink);
 
 const NO_REGISTERS: RegisterSummary[] = [];
 
-const COUNTDOWN_TICK_SECONDS = 30;
+export function RegistersListScreen(props: RegistersListScreenProps) {
+  return canSeeRegistersArea(props.access) ? (
+    <FullRegistersListScreen {...props} />
+  ) : (
+    <RegisterNamesListScreen {...props} />
+  );
+}
 
-export function RegistersListScreen({
+function FullRegistersListScreen({
   access,
   onSessionEnded,
   services,
+  registerPointOfSaleSection,
+  openRegister,
+  tab,
+  sessionsPeriod,
+  onSessionsPeriodChange,
 }: RegistersListScreenProps) {
+  const navigate = useNavigate();
   const sendToMyAccount = useSendToMyAccount();
   const {
     fetchRegisters,
@@ -122,46 +117,27 @@ export function RegistersListScreen({
       onSessionEnded,
       services: { fetchSessionAuthorizationOptions, authorizeSession, startAuthentication },
     });
-  const latestEmission = useRef(0);
-  const registers = data.status === "loaded" ? data.value : NO_REGISTERS;
-  const [countdown, setCountdown] = useState({ read: registers, ticks: 0 });
-  const ticksSinceRead = countdown.read === registers ? countdown.ticks : 0;
-
-  useEffect(() => {
-    const intervalId = window.setInterval(
-      () =>
-        setCountdown((counted) => ({
-          read: registers,
-          ticks: counted.read === registers ? counted.ticks + 1 : 1,
-        })),
-      COUNTDOWN_TICK_SECONDS * 1000,
-    );
-    return () => window.clearInterval(intervalId);
-  }, [registers]);
-
   // Guards a second Enter/Space activation before the first request settles (the modal backdrop
-  // blocks other rows).
+  // blocks other rows); a request that is no longer the open one leaves the modal as it is.
   async function handleEmitClick(register: RegisterSummary) {
     if (emission.kind === "issuing") {
       return;
     }
-    latestEmission.current += 1;
-    const thisEmission = latestEmission.current;
-    setEmission({ kind: "issuing", register });
+    const issuing: EmissionState = { kind: "issuing", register };
+    setEmission(issuing);
+    const settle = (next: EmissionState) =>
+      setEmission((current) => (current === issuing ? next : current));
 
     const outcome = await runEmission(() => emitEnrollmentCode(register.id));
-    if (thisEmission !== latestEmission.current) {
-      return;
-    }
     // The attempt always reaches the server before "cancelled" can resolve (only
     // `authorization_required` opens the modal that cancel dismisses), so reload every time.
     if (outcome.kind === "cancelled") {
-      setEmission({ kind: "closed" });
+      settle({ kind: "closed" });
       void refreshRegisters();
       return;
     }
     if (outcome.kind === "ok") {
-      setEmission({ kind: "issued", register, code: outcome.value.code });
+      settle({ kind: "issued", register, code: outcome.value.code });
       return;
     }
     if (outcome.kind === "unauthenticated") {
@@ -173,93 +149,73 @@ export function RegistersListScreen({
       return;
     }
     if (outcome.kind === "not_found") {
-      setEmission({ kind: "closed" });
+      settle({ kind: "closed" });
       void refreshRegisters();
       return;
     }
     if (outcome.kind === "rate_limited") {
-      setEmission({ kind: "rateLimited", register, retryAfterSeconds: outcome.retryAfterSeconds });
+      settle({ kind: "rateLimited", register, retryAfterSeconds: outcome.retryAfterSeconds });
       return;
     }
-    setEmission({ kind: "attemptFailed", register });
+    settle({ kind: "attemptFailed", register });
   }
 
   // Reloads after every outcome, not just an issued code: a failure seen here (a dropped
   // connection, an unreadable 200) may still follow a code the cloud already committed.
   function closeEmission() {
-    latestEmission.current += 1;
     setEmission({ kind: "closed" });
     void refreshRegisters();
   }
 
-  const mayEnroll = canEnrollRegisters(access);
-  const emitAction = (item: RegisterSummary) =>
-    mayEnroll
-      ? {
-          icon: <KeySquare />,
-          "aria-label": `Emitir código de alta para ${item.name}`,
-          onPress: () => void handleEmitClick(item),
-        }
-      : undefined;
-  const revokeAction = (item: RegisterSummary) =>
-    item.installation?.state === "enrolled"
-      ? {
-          icon: <Ban />,
-          "aria-label": `Revocar por pérdida o robo la caja ${item.name}`,
-          onPress: () => setRevokeTarget(item),
-        }
-      : undefined;
-  const assignTerminalAction = (item: RegisterSummary) => ({
-    icon: <CreditCard />,
-    "aria-label": `Asignar terminal Point a ${item.name}`,
-    onPress: () => setTerminalTarget(item),
+  const registers = data.status === "loaded" ? data.value : NO_REGISTERS;
+  const secondsSinceRead = useSecondsSinceRead(registers);
+
+  const openRegisterSummary = registers.find((register) => register.id === openRegister);
+  const closeUnlistedRegister = useEffectEvent(() => {
+    void navigate({
+      from: "/registers",
+      to: "/registers",
+      search: (previous) => ({ ...previous, register: undefined, tab: undefined }),
+      replace: true,
+    });
   });
-  const mayAssignQr = canAssignQrPointOfSale(access);
-  const assignQrAction = (item: RegisterSummary) =>
-    mayAssignQr
-      ? {
-          icon: <QrCode />,
-          "aria-label": `Asignar QR de Mercado Pago a ${item.name}`,
-          onPress: () => setQrTarget(item),
-        }
-      : undefined;
-
-  const mayUseKey = canUseBitlockerRecoveryKey(access);
-  const bitlockerKeyAction = (item: RegisterSummary) => {
-    if (!mayUseKey || item.installation?.state !== "enrolled") {
-      return undefined;
+  useEffect(() => {
+    if (
+      data.status === "loaded" &&
+      openRegister !== undefined &&
+      openRegisterSummary === undefined
+    ) {
+      closeUnlistedRegister();
     }
-    return item.installation.bitlockerKeyLoaded
-      ? {
-          icon: <KeyRound />,
-          "aria-label": `Consultar la clave de recuperación de BitLocker de ${item.name}`,
-          onPress: () => setConsultKeyTarget(item),
-        }
-      : {
-          icon: <Upload />,
-          "aria-label": `Cargar la clave de recuperación de BitLocker de ${item.name}`,
-          onPress: () => setLoadKeyTarget(item),
-        };
-  };
+  }, [data.status, openRegister, openRegisterSummary]);
 
+  function closeRegister() {
+    void navigate({
+      from: "/registers",
+      to: "/registers",
+      search: (previous) => ({ ...previous, register: undefined, tab: undefined }),
+    });
+  }
+
+  function openRegisterPanel(id: string) {
+    void navigate({
+      from: "/registers",
+      to: "/registers",
+      search: (previous) => ({ ...previous, register: id, tab: undefined }),
+    });
+  }
+
+  const mayEnroll = canEnrollRegisters(access);
   const mayRevoke = canRevokeInstallations(access);
-  const mayAssignTerminal = canAssignPointTerminal(access);
-  const rowActions = (() => {
-    if (mayRevoke) {
-      return mayAssignTerminal
-        ? ([
-            bitlockerKeyAction,
-            revokeAction,
-            emitAction,
-            assignTerminalAction,
-            assignQrAction,
-          ] as const)
-        : ([bitlockerKeyAction, revokeAction, emitAction] as const);
-    }
-    return mayAssignTerminal
-      ? ([bitlockerKeyAction, emitAction, assignTerminalAction, assignQrAction] as const)
-      : ([bitlockerKeyAction, emitAction] as const);
-  })();
+  const actions: RegisterActions = {
+    emitCode: (register) => void handleEmitClick(register),
+    revoke: setRevokeTarget,
+    loadKey: setLoadKeyTarget,
+    consultKey: setConsultKeyTarget,
+    assignTerminal: setTerminalTarget,
+    assignQr: setQrTarget,
+  };
+  const rowActions = registerRowActions(access, actions);
 
   const columns = [
     dataColumn({
@@ -271,43 +227,23 @@ export function RegistersListScreen({
             item.installation?.state === "enrolled" ? item.installation.hostname : "Sin instalación"
           }
         >
-          {item.name}
+          <RegisterRowLink
+            from="/registers"
+            to="/registers"
+            search={(previous) => ({ ...previous, register: item.id, tab: undefined })}
+            variant="text"
+          >
+            {item.name}
+          </RegisterRowLink>
         </TableCellText>
       ),
     }),
     dataColumn({
       id: "installation",
       header: "Instalación",
-      render: (item: RegisterSummary) => {
-        const pendingCode =
-          item.pendingCode === null
-            ? null
-            : pendingCodeAfter(item.pendingCode, ticksSinceRead * COUNTDOWN_TICK_SECONDS);
-        const lines = installationLines(item.installation);
-        if (lines === null && pendingCode === null) {
-          return <span className="text-text-subtle text-detail">—</span>;
-        }
-        return (
-          <div className="flex flex-col gap-1">
-            {lines !== null && (
-              <>
-                <span className="text-text text-detail">{lines.primary}</span>
-                <span className="text-text-subtle text-detail">{lines.secondary}</span>
-              </>
-            )}
-            {pendingCode !== null && (
-              <>
-                <span className="text-text text-detail">
-                  {pendingCodeIssuedText(pendingCode.secondsSinceIssued)}
-                </span>
-                <span className="text-detail text-warning-strong">
-                  {pendingCodeExpiryText(pendingCode.secondsUntilExpiry)}
-                </span>
-              </>
-            )}
-          </div>
-        );
-      },
+      render: (item: RegisterSummary) => (
+        <RegisterInstallationSummary register={item} secondsSinceRead={secondsSinceRead} />
+      ),
     }),
     dataColumn({
       id: "pointsOfSale",
@@ -344,12 +280,12 @@ export function RegistersListScreen({
     dataColumn({
       id: "status",
       header: "Estado",
-      render: (item: RegisterSummary) => installationStatus(item.installation),
+      render: (item: RegisterSummary) => <InstallationStatusTag installation={item.installation} />,
     }),
     actionsColumn({
       id: "actions",
       header: "Acciones",
-      actions: rowActions,
+      ...rowActions,
     }),
   ] as const;
 
@@ -361,46 +297,62 @@ export function RegistersListScreen({
 
   return (
     <>
-      <ScreenLayout
-        topBar={
-          <div className="flex h-18 shrink-0 items-center justify-between border-border border-b bg-surface px-8">
-            <div className="flex flex-col justify-center">
-              <p className="text-text-subtle text-detail">Configuración</p>
-              <ScreenTitle>Cajas registradoras</ScreenTitle>
-            </div>
-            {mayEnroll && (
+      <div className="flex min-h-0 flex-1">
+        <div className="flex min-w-0 flex-1 flex-col gap-4 p-6">
+          {mayEnroll && (
+            <div className="flex justify-end">
               <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
                 Nueva caja
               </Button>
-            )}
-          </div>
-        }
-        bodyClassName="gap-4 p-6"
-      >
-        <Table
-          aria-label="Cajas registradoras"
-          table={table}
-          {...cloudTableState(data, "las cajas registradoras")}
-          empty={{
-            icon: <Laptop />,
-            title: "Todavía no hay cajas registradoras",
-            description: "Creá la primera para verla en la lista.",
-            variant: "blank",
-          }}
-          footer={
-            registers.length === 0 ? undefined : (
-              <p className="text-text-subtle text-detail">
-                {plural(registers.length, {
-                  one: "1 caja",
-                  other: `${formatNumber(registers.length)} cajas`,
-                })}
-              </p>
-            )
-          }
-        />
-        {mayRevoke && <RevokeEveryInstallationCallout onRevoke={() => setRevokeEveryOpen(true)} />}
-        <RegisterCoverageNotice coverage={coverage} />
-      </ScreenLayout>
+            </div>
+          )}
+          <Table
+            aria-label="Cajas registradoras"
+            table={table}
+            onRowPress={(item) => openRegisterPanel(item.id)}
+            rowState={(item) => (item.id === openRegister ? "selected" : undefined)}
+            {...cloudTableState(data, "las cajas registradoras")}
+            empty={{
+              icon: <Laptop />,
+              title: "Todavía no hay cajas registradoras",
+              description: "Creá la primera para verla en la lista.",
+              variant: "blank",
+            }}
+            footer={
+              registers.length === 0 ? undefined : (
+                <p className="text-text-subtle text-detail">
+                  {plural(registers.length, {
+                    one: "1 caja",
+                    other: `${formatNumber(registers.length)} cajas`,
+                  })}
+                </p>
+              )
+            }
+          />
+          {mayRevoke && (
+            <RevokeEveryInstallationCallout onRevoke={() => setRevokeEveryOpen(true)} />
+          )}
+          <RegisterCoverageNotice coverage={coverage} />
+        </div>
+        {openRegisterSummary === undefined ? null : (
+          <RegisterPanel
+            key={openRegisterSummary.id}
+            register={openRegisterSummary}
+            summary={openRegisterSummary}
+            actions={actions}
+            secondsSinceRead={secondsSinceRead}
+            access={access}
+            tab={tab}
+            sessionsPeriod={sessionsPeriod}
+            onSessionsPeriodChange={onSessionsPeriodChange}
+            onClose={closeRegister}
+            onPointOfSaleSaved={() => void refreshRegisters()}
+            onSessionEnded={onSessionEnded}
+            services={services}
+            registerPointOfSaleSection={registerPointOfSaleSection}
+          />
+        )}
+      </div>
       <NewRegisterModal
         open={newModalOpen}
         onClose={() => setNewModalOpen(false)}
@@ -411,6 +363,31 @@ export function RegistersListScreen({
         onSessionEnded={onSessionEnded}
         services={services}
       />
+      <RevokeEveryInstallationModal
+        open={revokeEveryOpen}
+        onClose={() => setRevokeEveryOpen(false)}
+        onRevoked={({ revokedRegisters }) => {
+          void refreshRegisters();
+          setRevokedNotice({ id: revokedNoticeCount, registers: revokedRegisters });
+          setRevokedNoticeCount(revokedNoticeCount + 1);
+        }}
+        onOutdated={() => void refreshRegisters()}
+        onSessionEnded={onSessionEnded}
+        services={services}
+      />
+      {revokedNotice === null ? null : (
+        <FloatingNotification
+          key={revokedNotice.id}
+          tone="success"
+          icon={<Check />}
+          title="Instalaciones revocadas"
+          description={plural(revokedNotice.registers, {
+            one: "Se revocó 1 caja.",
+            other: `Se revocaron ${formatNumber(revokedNotice.registers)} cajas.`,
+          })}
+          onDismiss={() => setRevokedNotice(null)}
+        />
+      )}
       <AssignPointTerminalModal
         target={terminalTarget}
         onClose={() => setTerminalTarget(null)}
@@ -462,31 +439,6 @@ export function RegistersListScreen({
         onSessionEnded={onSessionEnded}
         services={services}
       />
-      <RevokeEveryInstallationModal
-        open={revokeEveryOpen}
-        onClose={() => setRevokeEveryOpen(false)}
-        onRevoked={({ revokedRegisters }) => {
-          void refreshRegisters();
-          setRevokedNotice({ id: revokedNoticeCount, registers: revokedRegisters });
-          setRevokedNoticeCount(revokedNoticeCount + 1);
-        }}
-        onOutdated={() => void refreshRegisters()}
-        onSessionEnded={onSessionEnded}
-        services={services}
-      />
-      {revokedNotice === null ? null : (
-        <FloatingNotification
-          key={revokedNotice.id}
-          tone="success"
-          icon={<Check />}
-          title="Instalaciones revocadas"
-          description={plural(revokedNotice.registers, {
-            one: "Se revocó 1 caja.",
-            other: `Se revocaron ${formatNumber(revokedNotice.registers)} cajas.`,
-          })}
-          onDismiss={() => setRevokedNotice(null)}
-        />
-      )}
       {emissionAuthModal}
     </>
   );

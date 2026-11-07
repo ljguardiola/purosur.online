@@ -8,7 +8,14 @@ import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
-opensOnlyScreens(["/", "/help", "/people/users", "/people/roles", "/products", "/registers"]);
+opensOnlyScreens([
+  "/",
+  "/help",
+  "/people/users",
+  "/people/roles",
+  "/products",
+  "/contingency-ticket-rescue",
+]);
 
 beforeEach(resetPageState);
 
@@ -171,7 +178,7 @@ test("redirects /account to Inicio with the own account panel open", async () =>
 });
 
 test("a route refused for a missing capability sends the person to the own account panel over Inicio", async () => {
-  window.history.pushState(null, "", "/registers");
+  window.history.pushState(null, "", "/contingency-ticket-rescue");
   const screen = await render(<App help={emptyHelp} services={servicesFor([])} />);
 
   await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
@@ -319,11 +326,11 @@ test("the Config entry of the rail opens Personas, the first Configuración page
   await withPeople.unmount();
 
   const withRegisters = await render(
-    <App help={emptyHelp} services={servicesFor(["registers_area"])} />,
+    <App help={emptyHelp} services={servicesFor(["contingency_ticket_rescue"])} />,
   );
   const registersConfig = withRegisters.getByRole("link", { name: "Config" });
   await expect.element(registersConfig).toBeVisible();
-  expect(registersConfig.element().getAttribute("href")).toBe("/registers");
+  expect(registersConfig.element().getAttribute("href")).toBe("/contingency-ticket-rescue");
   await withRegisters.unmount();
 
   const withNothing = await render(<App help={emptyHelp} services={servicesFor([])} />);

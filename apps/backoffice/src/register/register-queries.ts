@@ -12,24 +12,25 @@ import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchCashMovements } from "./cash-movements-api";
 import type { fetchCashSessionCloses } from "./cash-session-closes-api";
 import type {
+  FetchRegisterNamesOutcome,
   fetchRegisterCoverage,
   fetchRegisterSyncStatus,
   fetchRegisters,
+  RegisterName,
   RegisterSummary,
   RegisterSyncStatus,
 } from "./registers-api";
 import type { fetchReportRegisters } from "./report-registers-api";
-import type {
-  fetchSnapshotBackupRegisters,
-  fetchSnapshotBackups,
-  SnapshotBackupRegister,
-  SnapshotBackups,
-} from "./snapshot-backups-api";
+import type { fetchSnapshotBackups, SnapshotBackups } from "./snapshot-backups-api";
+
+export type RegisterNamesSource = "fiscal" | "backups";
 
 export const registerKey = ["register"] as const;
 
 export const registerKeys = {
   registers: [...registerKey, "registers"] as const,
+  registerNames: (source: RegisterNamesSource) =>
+    [...registerKey, "register-names", source] as const,
   coverage: [...registerKey, "coverage"] as const,
   syncStatus: [...registerKey, "sync-status"] as const,
   reportRegisters: [...registerKey, "report-registers"] as const,
@@ -49,7 +50,6 @@ export const registerKeys = {
       query.to ?? "",
       query.register_id ?? "",
     ] as const,
-  snapshotBackupRegisters: [...registerKey, "snapshot-backup-registers"] as const,
   snapshotBackups: (registerId: string) =>
     [...registerKey, "snapshot-backups", registerId] as const,
 };
@@ -62,6 +62,20 @@ export function useRegistersQuery(params: {
   return useCloudQuery<RegisterSummary[]>({
     queryKey: registerKeys.registers,
     read: params.fetchRegisters,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useRegisterNamesQuery(params: {
+  source: RegisterNamesSource;
+  fetchRegisterNames: () => Promise<FetchRegisterNamesOutcome>;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<RegisterName[]>({
+    queryKey: registerKeys.registerNames(params.source),
+    read: params.fetchRegisterNames,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });
@@ -131,19 +145,6 @@ export function useCashSessionClosesQuery(params: {
     queryKey: registerKeys.cashSessionCloses(params.query),
     keepPreviousData: true,
     read: () => params.fetchCashSessionCloses(params.query),
-    onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
-  });
-}
-
-export function useSnapshotBackupRegistersQuery(params: {
-  fetchSnapshotBackupRegisters: typeof fetchSnapshotBackupRegisters;
-  onSessionEnded: () => void;
-}) {
-  const sendToMyAccount = useSendToMyAccount();
-  return useCloudQuery<SnapshotBackupRegister[]>({
-    queryKey: registerKeys.snapshotBackupRegisters,
-    read: params.fetchSnapshotBackupRegisters,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

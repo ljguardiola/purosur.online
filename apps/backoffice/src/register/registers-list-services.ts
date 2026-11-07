@@ -1,19 +1,22 @@
-import { startAuthentication } from "@simplewebauthn/browser";
-import {
+import type { startAuthentication } from "@simplewebauthn/browser";
+import type {
   authorizeSession,
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
 import type { AssignPointTerminalModalServices } from "./assign-point-terminal-modal";
 import type { AssignQrPointOfSaleModalServices } from "./assign-qr-point-of-sale-modal";
+import { fetchCashSessionCloses } from "./cash-session-closes-api";
 import type { ConsultBitlockerRecoveryKeyModalServices } from "./consult-bitlocker-recovery-key-modal";
 import type { LoadBitlockerRecoveryKeyModalServices } from "./load-bitlocker-recovery-key-modal";
 import type { NewRegisterModalServices } from "./new-register-modal";
+import type { RegisterSessionsSectionServices } from "./register-sessions-section";
 import {
   assignPointTerminal,
   assignQrPointOfSale,
   consultBitlockerRecoveryKey,
   createRegister,
   emitEnrollmentCode,
+  fetchFiscalRegisterNames,
   fetchRegisterCoverage,
   fetchRegisters,
   loadBitlockerRecoveryKey,
@@ -22,9 +25,16 @@ import {
 } from "./registers-api";
 import type { RevokeEveryInstallationModalServices } from "./revoke-every-installation-modal";
 import type { RevokeRegisterModalServices } from "./revoke-register-modal";
+import { fetchSnapshotBackupRegisters } from "./snapshot-backups-api";
+import {
+  defaultSnapshotBackupsSectionServices,
+  type SnapshotBackupsSectionServices,
+} from "./snapshot-backups-services";
 
 export type RegistersListScreenServices = {
   fetchRegisters: typeof fetchRegisters;
+  fetchSnapshotBackupRegisters: typeof fetchSnapshotBackupRegisters;
+  fetchFiscalRegisterNames: typeof fetchFiscalRegisterNames;
   fetchRegisterCoverage: typeof fetchRegisterCoverage;
   emitEnrollmentCode: typeof emitEnrollmentCode;
   fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
@@ -36,10 +46,14 @@ export type RegistersListScreenServices = {
   RevokeRegisterModalServices &
   RevokeEveryInstallationModalServices &
   LoadBitlockerRecoveryKeyModalServices &
-  ConsultBitlockerRecoveryKeyModalServices;
+  ConsultBitlockerRecoveryKeyModalServices &
+  SnapshotBackupsSectionServices &
+  RegisterSessionsSectionServices;
 
 export const defaultRegistersListScreenServices: RegistersListScreenServices = {
   fetchRegisters,
+  fetchSnapshotBackupRegisters,
+  fetchFiscalRegisterNames,
   fetchRegisterCoverage,
   createRegister,
   assignPointTerminal,
@@ -49,7 +63,6 @@ export const defaultRegistersListScreenServices: RegistersListScreenServices = {
   revokeEveryInstallation,
   loadBitlockerRecoveryKey,
   consultBitlockerRecoveryKey,
-  fetchSessionAuthorizationOptions,
-  authorizeSession,
-  startAuthentication,
+  ...defaultSnapshotBackupsSectionServices,
+  fetchCashSessionCloses,
 };

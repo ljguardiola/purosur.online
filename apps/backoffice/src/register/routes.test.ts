@@ -1,16 +1,28 @@
 import { expect, test } from "vitest";
-import { snapshotBackupsFilters } from "./routes";
+import { registersSearch } from "./routes";
 
-test("opens the backups on the first register", () => {
-  expect(snapshotBackupsFilters.parse({})).toEqual({ register: "" });
+test("names no register, no panel tab and no sessions' period by default", () => {
+  expect(registersSearch.parse({})).toEqual({ from: "", to: "" });
 });
 
-test("keeps the register a URL names", () => {
-  expect(snapshotBackupsFilters.parse({ register: "register-2" })).toEqual({
-    register: "register-2",
+test("keeps the register, the panel tab and the sessions' period a URL names", () => {
+  expect(
+    registersSearch.parse({
+      register: "register-2",
+      tab: "sessions",
+      from: "2026-10-01",
+      to: "2026-10-07",
+    }),
+  ).toEqual({ register: "register-2", tab: "sessions", from: "2026-10-01", to: "2026-10-07" });
+});
+
+test("drops a register that is not text and a panel tab the panel does not have", () => {
+  expect(registersSearch.parse({ register: 7, tab: "unknown" })).toEqual({ from: "", to: "" });
+});
+
+test("drops a sessions' period the cloud would refuse", () => {
+  expect(registersSearch.parse({ from: "2026-10-07", to: "2026-10-01" })).toEqual({
+    from: "",
+    to: "",
   });
-});
-
-test("falls back to the first register for a value that is not text", () => {
-  expect(snapshotBackupsFilters.parse({ register: 7 })).toEqual({ register: "" });
 });

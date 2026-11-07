@@ -95,7 +95,7 @@ const FIXED_LOCAL_ALERT_TEXTS = {
     meaning:
       "Esta caja ya no abre ventas nuevas: se dio de alta otra instalación para la misma caja, o la nube encontró un problema en el registro de operaciones que le envió. Lo que ya está guardado en la caja se conserva.",
     whatToDo:
-      "Avisar al Administrador. Para volver a vender, hay que dar de alta la caja de nuevo con un código de alta emitido desde el backoffice, en Cajas registradoras.",
+      "Avisar al Administrador. Para volver a vender, hay que dar de alta la caja de nuevo con un código de alta emitido desde el backoffice, en Cajas.",
   },
   serial_device_missing: {
     title: "Revisar la balanza o el lector",

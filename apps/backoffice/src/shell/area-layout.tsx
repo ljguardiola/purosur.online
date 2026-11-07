@@ -25,7 +25,6 @@ import {
   canPerformStockCounts,
   canReadPurchaseOrders,
   canRecordPurchases,
-  canSeeBackupsArea,
   canSeeBranchArea,
   canSeeCatalogArea,
   canSeeContingencyTicketRescue,
@@ -38,7 +37,7 @@ import {
   canSeeQuarantinedEvents,
   canSeeRefundsArea,
   canSeeRefundsPage,
-  canSeeRegistersArea,
+  canSeeRegistersPage,
   canSeeReports,
   canSeeStockArea,
   canSeeStockBalances,
@@ -104,7 +103,11 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
                     ? "/assembly-batches"
                     : "/initial-inventory";
   const cashTarget = canSeeFiscalConfigurationArea(session) ? "/points-of-sale" : "/fiscal-tasks";
-  const salesAndCashTarget = canSeeRefundsArea(session) ? "/refunds" : "/refunds/history";
+  const salesAndCashTarget = canSeeRegistersPage(session)
+    ? "/registers"
+    : canSeeRefundsArea(session)
+      ? "/refunds"
+      : "/refunds/history";
   const ordersTarget = canManageSupplierPriceLists(session)
     ? "/supplier-price-lists"
     : canComparePrices(session)
@@ -114,17 +117,13 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
         : "/supplier-price-lists";
   const settingsTarget = canSeePeopleArea(session)
     ? "/people"
-    : canSeeRegistersArea(session)
-      ? "/registers"
-      : canSeeBackupsArea(session)
-        ? "/backups"
-        : canSeeContingencyTicketRescue(session)
-          ? "/contingency-ticket-rescue"
-          : canSeeBranchArea(session)
-            ? "/location-settings"
-            : canSeeQuarantinedEvents(session)
-              ? "/quarantined-events"
-              : null;
+    : canSeeContingencyTicketRescue(session)
+      ? "/contingency-ticket-rescue"
+      : canSeeBranchArea(session)
+        ? "/location-settings"
+        : canSeeQuarantinedEvents(session)
+          ? "/quarantined-events"
+          : null;
   const stockTargetShown = Boolean(matchRoute({ to: stockTarget }));
   return (
     <Shell
@@ -132,7 +131,7 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
       railAreas={
         <>
           <AreaLink to="/" label="Inicio" icon={<Home />} active={area === "home"} />
-          {canSeeRefundsPage(session) && (
+          {(canSeeRefundsPage(session) || canSeeRegistersPage(session)) && (
             <AreaLink
               to={salesAndCashTarget}
               label="Ventas y caja"
