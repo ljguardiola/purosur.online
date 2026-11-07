@@ -1,10 +1,10 @@
-import { createRoute, stripSearchParams } from "@tanstack/react-router";
+import { createRoute, redirect, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
-import { canSeeRefundsArea, canSeeReports } from "../shell/backoffice-access";
-import { cashAndFiscalAreaRoute } from "../shell/cash-and-fiscal-area";
+import { canSeeReports } from "../shell/backoffice-access";
 import { lazyScreen } from "../shell/lazy-screen";
+import { refundsRoute, refundsTabRedirect } from "../shell/refunds-route";
 import { reportsAreaRoute } from "../shell/reports-area";
-import { refuseWithout } from "../shell/signed-in-route";
+import { refuseWithout, signedInRoute } from "../shell/signed-in-route";
 import { handConfirmedPaymentsFilters } from "./hand-confirmed-payments-filters";
 import { salesByPaymentMethodFilters } from "./sales-by-payment-method-filters";
 
@@ -21,35 +21,40 @@ export const pendingRefundsFilters = z.object({
 
 export type PendingRefundsFilters = z.output<typeof pendingRefundsFilters>;
 
-export const mercadoPagoRefundsFilters = z.object({
-  register: z.string().default(ALL_REGISTERS).catch(ALL_REGISTERS),
+export const pendingRefundsRoute = createRoute({
+  getParentRoute: () => refundsRoute,
+  path: "/",
+  beforeLoad: ({ context: { refundsTabs } }) => refundsTabRedirect(refundsTabs, "pending"),
+  validateSearch: pendingRefundsFilters,
+  search: { middlewares: [stripSearchParams(pendingRefundsFilters.parse({}))] },
+  component: lazyScreen(() => import("./pending-refunds-page"), "PendingRefundsPage"),
 });
 
-export type MercadoPagoRefundsFilters = z.output<typeof mercadoPagoRefundsFilters>;
-
-export const outsideRefundsFilters = z.object({
-  register: z.string().default(ALL_REGISTERS).catch(ALL_REGISTERS),
-  method: z.string().default(ALL_METHODS).catch(ALL_METHODS),
-});
-
-export type OutsideRefundsFilters = z.output<typeof outsideRefundsFilters>;
-
-export const mercadoPagoRefundsRoute = createRoute({
-  getParentRoute: () => cashAndFiscalAreaRoute,
+export const legacyMercadoPagoRefundsRoute = createRoute({
+  getParentRoute: () => signedInRoute,
   path: "refunds/mercado-pago",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeRefundsArea),
-  validateSearch: mercadoPagoRefundsFilters,
-  search: { middlewares: [stripSearchParams(mercadoPagoRefundsFilters.parse({}))] },
-  component: lazyScreen(() => import("./mercado-pago-refunds-page"), "MercadoPagoRefundsPage"),
+  validateSearch: z.object({ register: pendingRefundsFilters.shape.register }),
+  beforeLoad: ({ search }) => {
+    throw redirect({
+      to: "/refunds",
+      search: { channel: "mercado-pago", register: search.register },
+    });
+  },
 });
 
-export const outsideRefundsRoute = createRoute({
-  getParentRoute: () => cashAndFiscalAreaRoute,
+export const legacyOutsideRefundsRoute = createRoute({
+  getParentRoute: () => signedInRoute,
   path: "refunds/outside-the-system",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeRefundsArea),
-  validateSearch: outsideRefundsFilters,
-  search: { middlewares: [stripSearchParams(outsideRefundsFilters.parse({}))] },
-  component: lazyScreen(() => import("./outside-refunds-page"), "OutsideRefundsPage"),
+  validateSearch: z.object({
+    register: pendingRefundsFilters.shape.register,
+    method: pendingRefundsFilters.shape.method,
+  }),
+  beforeLoad: ({ search }) => {
+    throw redirect({
+      to: "/refunds",
+      search: { channel: "without-api", register: search.register, method: search.method },
+    });
+  },
 });
 
 export const salesByPaymentMethodRoute = createRoute({

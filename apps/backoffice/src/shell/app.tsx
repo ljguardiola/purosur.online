@@ -22,8 +22,7 @@ import type { UnbilledDeferredSalesPillProps } from "../fiscal/unbilled-deferred
 import type { UnbilledDeferredSalesPillServices } from "../fiscal/unbilled-deferred-sales-pill-services";
 import type { BackofficeHelpCatalog } from "../help/help-catalog";
 import type { HandConfirmedPaymentsScreenServices } from "../payments/hand-confirmed-payments-services";
-import type { MercadoPagoRefundsScreenServices } from "../payments/mercado-pago-refunds-services";
-import type { OutsideRefundsScreenServices } from "../payments/outside-refunds-services";
+import type { PendingRefundsScreenServices } from "../payments/pending-refunds-services";
 import type { SalesByPaymentMethodScreenServices } from "../payments/sales-by-payment-method-services";
 import type { RolesListScreenServices } from "../permissions/roles-list-services";
 import type {
@@ -153,8 +152,7 @@ export type AppServices = {
   productPriceSection: ProductPriceSection;
   roleCreationModal: RoleCreationModal;
   reportRegisterFilter: ReportRegisterFilterServices;
-  mercadoPagoRefundsScreen: MercadoPagoRefundsScreenServices;
-  outsideRefundsScreen: OutsideRefundsScreenServices;
+  pendingRefundsScreen: PendingRefundsScreenServices;
   expiringLotsScreen: ExpiringLotsScreenServices;
   currentStockReportScreen: CurrentStockReportScreenServices;
   expiringLotsReportScreen: ExpiringLotsReportScreenServices;

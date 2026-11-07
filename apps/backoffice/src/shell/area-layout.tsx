@@ -4,6 +4,7 @@ import {
   Boxes,
   ChartColumn,
   ClipboardList,
+  HandCoins,
   Home,
   LifeBuoy,
   Package,
@@ -36,9 +37,9 @@ import {
   canSeePricesArea,
   canSeeQuarantinedEvents,
   canSeeRefundsArea,
+  canSeeRefundsPage,
   canSeeRegistersArea,
   canSeeReports,
-  canSeeReturnsReport,
   canSeeStockArea,
   canSeeStockBalances,
   canSeeStockMovements,
@@ -58,6 +59,7 @@ type Area =
   | "catalog"
   | "stock"
   | "orders"
+  | "sales-and-cash"
   | "cash-and-fiscal"
   | "reports"
   | "settings"
@@ -101,12 +103,8 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
                   : canManageBatches(session)
                     ? "/assembly-batches"
                     : "/initial-inventory";
-  const cashTarget = canSeeFiscalConfigurationArea(session)
-    ? "/points-of-sale"
-    : canSeeRefundsArea(session)
-      ? "/refunds/mercado-pago"
-      : "/fiscal-tasks";
-  const reportsTarget = canSeeReports(session) ? "/reports" : "/reports/returns";
+  const cashTarget = canSeeFiscalConfigurationArea(session) ? "/points-of-sale" : "/fiscal-tasks";
+  const salesAndCashTarget = canSeeRefundsArea(session) ? "/refunds" : "/refunds/history";
   const ordersTarget = canManageSupplierPriceLists(session)
     ? "/supplier-price-lists"
     : canComparePrices(session)
@@ -134,6 +132,14 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
       railAreas={
         <>
           <AreaLink to="/" label="Inicio" icon={<Home />} active={area === "home"} />
+          {canSeeRefundsPage(session) && (
+            <AreaLink
+              to={salesAndCashTarget}
+              label="Ventas y caja"
+              icon={<HandCoins />}
+              active={area === "sales-and-cash"}
+            />
+          )}
           {canSeeCatalogArea(session) && (
             <AreaLink
               to={catalogTarget}
@@ -160,19 +166,17 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
               active={area === "orders"}
             />
           )}
-          {(canSeeFiscalConfigurationArea(session) ||
-            canSeeRefundsArea(session) ||
-            canSeeFiscalInformation(session)) && (
+          {(canSeeFiscalConfigurationArea(session) || canSeeFiscalInformation(session)) && (
             <AreaLink
               to={cashTarget}
-              label="Caja"
+              label="Caja y fiscal"
               icon={<Wallet />}
               active={area === "cash-and-fiscal"}
             />
           )}
-          {(canSeeReports(session) || canSeeReturnsReport(session)) && (
+          {canSeeReports(session) && (
             <AreaLink
-              to={reportsTarget}
+              to="/reports"
               label="Reportes"
               icon={<ChartColumn />}
               active={area === "reports"}

@@ -9,6 +9,7 @@ import { openSession } from "../sessions/test-support/open-session";
 import { App, type AppServices } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
+import { registers } from "./test-support/report-fixtures";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
 opensOnlyScreens(["/", "/help", "/refunds", "/refunds/history", "/points-of-sale"]);
@@ -34,6 +35,10 @@ function refundsServices(capabilities: Capability[]) {
     value: [],
   });
   answerPendingRefunds(services, pendingRefundsOfBothKinds);
+  vi.mocked(services.reportRegisterFilter.fetchReportRegisters).mockResolvedValue({
+    kind: "ok",
+    value: registers,
+  });
   vi.mocked(services.returnsHistoryScreen.fetchReturnsReport).mockResolvedValue({
     kind: "ok",
     value: returnsReport,
@@ -267,7 +272,7 @@ test("redirects /refunds/outside-the-system to /refunds with the channel Sin API
   await expect.element(screen.getByText("$ 980,00", { exact: true })).toBeVisible();
   expect(screen.getByText("$ 2.500,00", { exact: true }).query()).toBeNull();
   expect(location()).toBe(
-    `/refunds?channel=without-api&register=${BACK_REGISTER_ID}&method=TRANSFER`,
+    `/refunds?channel=without-api&method=TRANSFER&register=${BACK_REGISTER_ID}`,
   );
 });
 
@@ -285,7 +290,7 @@ test("redirects /reports/returns to /refunds/history keeping the period and the 
     .element(screen.getByRole("tab", { name: "Historial", selected: true }))
     .toBeVisible();
   expect(location()).toBe(
-    "/refunds/history?from=2026-10-01&to=2026-10-07&register=11111111-1111-4111-8111-111111111111",
+    "/refunds/history?from=2026-10-01&register=11111111-1111-4111-8111-111111111111&to=2026-10-07",
   );
 });
 

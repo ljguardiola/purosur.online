@@ -1,17 +1,15 @@
 import { getRouteApi } from "@tanstack/react-router";
 import type { ReactElement } from "react";
-import { useDocumentTitle } from "../shell/document-title";
 import { reportRegisterFieldOf } from "../shell/report-register-field";
 import { ReturnsHistoryScreen } from "./returns-history-screen";
 import { defaultReturnsHistoryScreenServices } from "./returns-history-services";
 
-const route = getRouteApi("/signed-in/reports-area/reports/returns");
+const route = getRouteApi("/signed-in/sales-and-cash-area/refunds/history");
 
 export function ReturnsHistoryPage(): ReactElement {
   const { services, sessionActions } = route.useRouteContext();
   const filters = route.useSearch();
   const navigate = route.useNavigate();
-  useDocumentTitle("Anulaciones y devoluciones · Puro Sur");
   return (
     <ReturnsHistoryScreen
       filters={filters}
