@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { expect, test } from "vitest";
 import { userEvent } from "vitest/browser";
 import { accessWith } from "../shell/test-support/backoffice-access";
@@ -11,7 +12,10 @@ const fiscal = accessWith("registers_area", "fiscal_configuration_area");
 
 function renderSection(
   register: RegisterSummary,
-  { access = fiscal, pointOfSaleSlot }: { access?: typeof fiscal; pointOfSaleSlot?: string } = {},
+  {
+    access = fiscal,
+    pointOfSaleSlot,
+  }: { access?: typeof fiscal; pointOfSaleSlot?: ReactNode } = {},
 ) {
   const actions = createActions();
   return render(
@@ -62,8 +66,11 @@ test("offers the assignments only to who may make them", async () => {
 });
 
 test("shows what the point of sale slot is given above the terminal and the QR", async () => {
-  const { screen } = await renderSection(register2, { pointOfSaleSlot: "Punto de venta 00003" });
+  const { screen } = await renderSection(register2, {
+    pointOfSaleSlot: <p>Punto de venta 00003</p>,
+  });
 
+  await expect.element(screen.getByText("Punto de venta 00003")).toBeVisible();
   const slot = screen.getByText("Punto de venta 00003").element();
   const terminal = screen.getByText("Terminal Point: TERM-0042").element();
   expect(slot.compareDocumentPosition(terminal) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();

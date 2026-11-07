@@ -62,6 +62,7 @@ test("does not open a panel for a register the list does not show", async () => 
 
 test("the panel's Emitir código de alta emits the code of its register", async () => {
   const { screen, services } = await renderListWithPanel("register-1");
+  vi.mocked(services.emitEnrollmentCode).mockReturnValue(new Promise(() => {}));
   const panel = screen.getByRole("complementary", { name: "Caja 1" });
 
   await userEvent.click(panel.getByRole("button", { name: "Emitir código de alta" }));

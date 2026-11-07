@@ -11,19 +11,20 @@ import {
 } from "./test-support/cash-session-closes-fixtures";
 
 function renderSection(
-  read: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue({
-    kind: "ok",
-    value: weekCashSessionClosesReport,
-  }),
+  read = vi
+    .fn<RegisterSessionsSectionServices["fetchCashSessionCloses"]>()
+    .mockResolvedValue({ kind: "ok", value: weekCashSessionClosesReport }),
   onSessionEnded: () => void = () => {},
 ) {
   const services: RegisterSessionsSectionServices = { fetchCashSessionCloses: read };
   return render(
-    <RegisterSessionsSection
-      registerId={FRONT_REGISTER_ID}
-      onSessionEnded={onSessionEnded}
-      services={services}
-    />,
+    <main>
+      <RegisterSessionsSection
+        registerId={FRONT_REGISTER_ID}
+        onSessionEnded={onSessionEnded}
+        services={services}
+      />
+    </main>,
   ).then((screen) => ({ screen, read }));
 }
 
@@ -53,21 +54,29 @@ test("links to Cierres de caja narrowed to that register", async () => {
 });
 
 test("shows loading placeholders while the closes load", async () => {
-  const { screen } = await renderSection(vi.fn().mockReturnValue(new Promise(() => {})));
+  const { screen } = await renderSection(
+    vi
+      .fn<RegisterSessionsSectionServices["fetchCashSessionCloses"]>()
+      .mockReturnValue(new Promise(() => {})),
+  );
 
   await expect.element(screen.getByRole("table")).toHaveAttribute("aria-busy", "true");
 });
 
 test("says the register has no closed sessions in the period", async () => {
   const { screen } = await renderSection(
-    vi.fn().mockResolvedValue({ kind: "ok", value: emptyCashSessionClosesReport }),
+    vi
+      .fn<RegisterSessionsSectionServices["fetchCashSessionCloses"]>()
+      .mockResolvedValue({ kind: "ok", value: emptyCashSessionClosesReport }),
   );
 
   await expect.element(screen.getByText("No hay sesiones cerradas en este período")).toBeVisible();
 });
 
 test("shows a load error whose retry reads again", async () => {
-  const read = vi.fn().mockResolvedValueOnce({ kind: "failed" });
+  const read = vi
+    .fn<RegisterSessionsSectionServices["fetchCashSessionCloses"]>()
+    .mockResolvedValueOnce({ kind: "failed" });
   read.mockResolvedValue({ kind: "ok", value: weekCashSessionClosesReport });
   const { screen } = await renderSection(read);
   await expect.element(screen.getByText("No pudimos abrir los cierres de sesión")).toBeVisible();
@@ -79,7 +88,12 @@ test("shows a load error whose retry reads again", async () => {
 
 test("ends the session when the read finds no open session", async () => {
   const onSessionEnded = vi.fn();
-  await renderSection(vi.fn().mockResolvedValue({ kind: "unauthenticated" }), onSessionEnded);
+  await renderSection(
+    vi
+      .fn<RegisterSessionsSectionServices["fetchCashSessionCloses"]>()
+      .mockResolvedValue({ kind: "unauthenticated" }),
+    onSessionEnded,
+  );
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });

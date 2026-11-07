@@ -49,11 +49,10 @@ test("is titled with the register's name and opens on Datos", async () => {
 test("offers the four tabs to a person who can see every part", async () => {
   const { screen } = await renderPanel();
 
-  const labels = screen
-    .getByRole("tab")
-    .all()
-    .map((tab) => tab.element().textContent?.trim());
-  expect(labels).toEqual(["Datos", "Fiscal y cobros", "Copias", "Sesiones"]);
+  for (const name of ["Datos", "Fiscal y cobros", "Copias", "Sesiones"]) {
+    await expect.element(screen.getByRole("tab", { name })).toBeVisible();
+  }
+  expect(screen.getByRole("tab").elements()).toHaveLength(4);
 });
 
 test.each([

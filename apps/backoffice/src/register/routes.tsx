@@ -10,12 +10,6 @@ export const registersSearch = z.object({
   tab: z.enum(["data", "fiscal", "backups", "sessions"]).optional().catch(undefined),
 });
 
-export const snapshotBackupsFilters = z.object({
-  register: z.string().default("").catch(""),
-});
-
-export type SnapshotBackupsFilters = z.output<typeof snapshotBackupsFilters>;
-
 export const registersListRoute = createRoute({
   getParentRoute: () => registersRoute,
   path: "/",

@@ -1,6 +1,7 @@
 import {
   actionsColumn,
   Button,
+  ButtonLink,
   dataColumn,
   FloatingNotification,
   formatNumber,
@@ -10,8 +11,9 @@ import {
   TableCellText,
   useTableModel,
 } from "@purosur/ui";
+import { createLink, useNavigate } from "@tanstack/react-router";
 import { Check, Laptop, Plus } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import {
   type BackofficeAccess,
@@ -26,6 +28,7 @@ import {
   RegisterInstallationSummary,
   useSecondsSinceRead,
 } from "./register-installation-summary";
+import { RegisterPanel } from "./register-panel";
 import {
   useRefreshRegisters,
   useRegisterCoverageQuery,
@@ -41,7 +44,11 @@ export type RegistersListScreenProps = {
   access: BackofficeAccess;
   onSessionEnded: () => void;
   services: RegistersListScreenServices;
+  openRegister?: string | undefined;
+  tab?: string | undefined;
 };
+
+const RegisterRowLink = createLink(ButtonLink);
 
 const NO_REGISTERS: RegisterSummary[] = [];
 
@@ -49,7 +56,10 @@ export function RegistersListScreen({
   access,
   onSessionEnded,
   services,
+  openRegister,
+  tab,
 }: RegistersListScreenProps) {
+  const navigate = useNavigate();
   const { fetchRegisters, fetchRegisterCoverage } = services;
   const data = useRegistersQuery({ fetchRegisters, onSessionEnded });
   const coverage = useRegisterCoverageQuery({ fetchRegisterCoverage, onSessionEnded });
@@ -63,6 +73,41 @@ export function RegistersListScreen({
   const [revokedNoticeCount, setRevokedNoticeCount] = useState(0);
   const registers = data.status === "loaded" ? data.value : NO_REGISTERS;
   const secondsSinceRead = useSecondsSinceRead(registers);
+
+  const openRegisterSummary = registers.find((register) => register.id === openRegister);
+  const closeUnlistedRegister = useEffectEvent(() => {
+    void navigate({
+      from: "/registers",
+      to: "/registers",
+      search: (previous) => ({ ...previous, register: undefined, tab: undefined }),
+      replace: true,
+    });
+  });
+  useEffect(() => {
+    if (
+      data.status === "loaded" &&
+      openRegister !== undefined &&
+      openRegisterSummary === undefined
+    ) {
+      closeUnlistedRegister();
+    }
+  }, [data.status, openRegister, openRegisterSummary]);
+
+  function closeRegister() {
+    void navigate({
+      from: "/registers",
+      to: "/registers",
+      search: (previous) => ({ ...previous, register: undefined, tab: undefined }),
+    });
+  }
+
+  function openRegisterPanel(id: string) {
+    void navigate({
+      from: "/registers",
+      to: "/registers",
+      search: (previous) => ({ ...previous, register: id, tab: undefined }),
+    });
+  }
 
   const mayEnroll = canEnrollRegisters(access);
   const mayRevoke = canRevokeInstallations(access);
@@ -78,7 +123,14 @@ export function RegistersListScreen({
             item.installation?.state === "enrolled" ? item.installation.hostname : "Sin instalación"
           }
         >
-          {item.name}
+          <RegisterRowLink
+            from="/registers"
+            to="/registers"
+            search={(previous) => ({ ...previous, register: item.id, tab: undefined })}
+            variant="text"
+          >
+            {item.name}
+          </RegisterRowLink>
         </TableCellText>
       ),
     }),
@@ -141,37 +193,56 @@ export function RegistersListScreen({
 
   return (
     <>
-      <div className="flex min-w-0 flex-1 flex-col gap-4 p-6">
-        {mayEnroll && (
-          <div className="flex justify-end">
-            <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
-              Nueva caja
-            </Button>
-          </div>
+      <div className="flex min-h-0 flex-1">
+        <div className="flex min-w-0 flex-1 flex-col gap-4 p-6">
+          {mayEnroll && (
+            <div className="flex justify-end">
+              <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
+                Nueva caja
+              </Button>
+            </div>
+          )}
+          <Table
+            aria-label="Cajas registradoras"
+            table={table}
+            onRowPress={(item) => openRegisterPanel(item.id)}
+            rowState={(item) => (item.id === openRegister ? "selected" : undefined)}
+            {...cloudTableState(data, "las cajas registradoras")}
+            empty={{
+              icon: <Laptop />,
+              title: "Todavía no hay cajas registradoras",
+              description: "Creá la primera para verla en la lista.",
+              variant: "blank",
+            }}
+            footer={
+              registers.length === 0 ? undefined : (
+                <p className="text-text-subtle text-detail">
+                  {plural(registers.length, {
+                    one: "1 caja",
+                    other: `${formatNumber(registers.length)} cajas`,
+                  })}
+                </p>
+              )
+            }
+          />
+          {mayRevoke && (
+            <RevokeEveryInstallationCallout onRevoke={() => setRevokeEveryOpen(true)} />
+          )}
+          <RegisterCoverageNotice coverage={coverage} />
+        </div>
+        {openRegisterSummary === undefined ? null : (
+          <RegisterPanel
+            key={openRegisterSummary.id}
+            register={openRegisterSummary}
+            access={access}
+            actions={actions}
+            secondsSinceRead={secondsSinceRead}
+            tab={tab}
+            onClose={closeRegister}
+            onSessionEnded={onSessionEnded}
+            services={services}
+          />
         )}
-        <Table
-          aria-label="Cajas registradoras"
-          table={table}
-          {...cloudTableState(data, "las cajas registradoras")}
-          empty={{
-            icon: <Laptop />,
-            title: "Todavía no hay cajas registradoras",
-            description: "Creá la primera para verla en la lista.",
-            variant: "blank",
-          }}
-          footer={
-            registers.length === 0 ? undefined : (
-              <p className="text-text-subtle text-detail">
-                {plural(registers.length, {
-                  one: "1 caja",
-                  other: `${formatNumber(registers.length)} cajas`,
-                })}
-              </p>
-            )
-          }
-        />
-        {mayRevoke && <RevokeEveryInstallationCallout onRevoke={() => setRevokeEveryOpen(true)} />}
-        <RegisterCoverageNotice coverage={coverage} />
       </div>
       <NewRegisterModal
         open={newModalOpen}

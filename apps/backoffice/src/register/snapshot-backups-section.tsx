@@ -2,35 +2,22 @@ import {
   Button,
   Card,
   dataColumn,
-  EmptyState,
   FigureStat,
   FloatingNotification,
   formatBytes,
   formatNumber,
-  ListFilter,
-  LoadFailure,
   StatusIndicator,
-  sortedItems,
   Table,
-  textOrder,
   useTableModel,
 } from "@purosur/ui";
-import { Check, HardDriveDownload, Laptop, RefreshCw, SlidersHorizontal } from "lucide-react";
-import { useEffect, useEffectEvent, useState } from "react";
-import { cloudLoadFailure } from "../platform/cloud-load-failure";
+import { Check, HardDriveDownload, RefreshCw, SlidersHorizontal } from "lucide-react";
+import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
-import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTitle } from "../shell/screen-title";
 import { ChangeSnapshotLifecycleRulesModal } from "./change-snapshot-lifecycle-rules-modal";
-import {
-  useRefreshRegisters,
-  useSnapshotBackupRegistersQuery,
-  useSnapshotBackupsQuery,
-} from "./register-queries";
+import { useRefreshRegisters, useSnapshotBackupsQuery } from "./register-queries";
 import { RotateSnapshotKeyModal } from "./rotate-snapshot-key-modal";
-import type { SnapshotBackupsFilters } from "./routes";
 import type { SnapshotBackupGeneration, SnapshotBackupRegister } from "./snapshot-backups-api";
-import type { SnapshotBackupsScreenServices } from "./snapshot-backups-services";
+import type { SnapshotBackupsSectionServices } from "./snapshot-backups-services";
 import {
   SNAPSHOT_LOCATION_TEXT,
   snapshotGenerationDate,
@@ -38,19 +25,15 @@ import {
   snapshotTierCaptions,
 } from "./snapshot-backups-text";
 
-export type SnapshotBackupsScreenProps = {
-  filters: SnapshotBackupsFilters;
-  onFiltersChange: (filters: SnapshotBackupsFilters) => void;
+export type SnapshotBackupsSectionProps = {
+  register: SnapshotBackupRegister;
   onSessionEnded: () => void;
-  services: SnapshotBackupsScreenServices;
+  services: SnapshotBackupsSectionServices;
 };
 
 type Notice = { id: number; title: string; description: string };
 
-const NO_REGISTERS: SnapshotBackupRegister[] = [];
 const NO_GENERATIONS: SnapshotBackupGeneration[] = [];
-
-const registerOrder = textOrder((register: { label: string }) => register.label);
 
 function generationStatus(generation: SnapshotBackupGeneration) {
   if (generation.status === "verified") {
@@ -66,20 +49,13 @@ function generationStatus(generation: SnapshotBackupGeneration) {
   );
 }
 
-export function SnapshotBackupsScreen({
-  filters,
-  onFiltersChange,
+export function SnapshotBackupsSection({
+  register,
   onSessionEnded,
   services,
-}: SnapshotBackupsScreenProps) {
-  const registersData = useSnapshotBackupRegistersQuery({
-    fetchSnapshotBackupRegisters: services.fetchSnapshotBackupRegisters,
-    onSessionEnded,
-  });
-  const registers = registersData.status === "loaded" ? registersData.value : NO_REGISTERS;
-  const chosen = registers.find((register) => register.id === filters.register) ?? registers[0];
+}: SnapshotBackupsSectionProps) {
   const backupsData = useSnapshotBackupsQuery({
-    registerId: chosen?.id,
+    registerId: register.id,
     fetchSnapshotBackups: services.fetchSnapshotBackups,
     onSessionEnded,
   });
@@ -88,16 +64,6 @@ export function SnapshotBackupsScreen({
   const [rotationTarget, setRotationTarget] = useState<SnapshotBackupRegister | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [noticeCount, setNoticeCount] = useState(0);
-
-  const registersListed = registersData.status === "loaded";
-  const registerOffered = chosen !== undefined && chosen.id === filters.register;
-  const resetRegister = useEffectEvent(() => onFiltersChange({ register: "" }));
-
-  useEffect(() => {
-    if (registersListed && filters.register !== "" && !registerOffered) {
-      resetRegister();
-    }
-  }, [registersListed, registerOffered, filters.register]);
 
   function showNotice(title: string, description: string) {
     setNotice({ id: noticeCount, title, description });
@@ -152,12 +118,6 @@ export function SnapshotBackupsScreen({
     columns,
   });
 
-  const registerOptions = sortedItems(
-    registers.map(({ id, name }) => ({ value: id, label: name })),
-    { order: registerOrder, direction: "ascending" },
-  );
-  const [firstOption, ...otherOptions] = registerOptions;
-
   const captions = backups === undefined ? undefined : snapshotTierCaptions(backups.rules);
   const tiers = [
     {
@@ -185,84 +145,50 @@ export function SnapshotBackupsScreen({
 
   return (
     <>
-      <ScreenLayout
-        topBar={
-          <div className="flex h-18 shrink-0 items-center justify-between border-border border-b bg-surface px-8">
-            <div className="flex flex-col justify-center">
-              <p className="text-text-subtle text-detail">Configuración</p>
-              <ScreenTitle>Backups</ScreenTitle>
-            </div>
-            <Button
-              variant="primary"
-              icon={<RefreshCw />}
-              dataStatus={backupsData.status}
-              onPress={() => setRotationTarget(chosen ?? null)}
-            >
-              Rotar la clave de cifrado
-            </Button>
+      <div className="flex flex-col gap-4 pt-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            variant="secondary"
+            icon={<RefreshCw />}
+            dataStatus={backupsData.status}
+            onPress={() => setRotationTarget(register)}
+          >
+            Rotar la clave de cifrado
+          </Button>
+          <Button
+            variant="secondary"
+            icon={<SlidersHorizontal />}
+            dataStatus={backupsData.status}
+            onPress={() => setRulesModalOpen(true)}
+          >
+            Cambiar las reglas
+          </Button>
+        </div>
+        {backupsData.status === "failed" ? null : (
+          <div className="grid grid-cols-2 gap-4">
+            {tiers.map(({ label, count, caption }) => (
+              <Card key={label}>
+                {count === undefined || caption === undefined ? (
+                  <FigureStat size="heading" label={label} loading />
+                ) : (
+                  <FigureStat size="heading" label={label} value={count} detail={caption} />
+                )}
+              </Card>
+            ))}
           </div>
-        }
-        bodyClassName="gap-4 p-6"
-      >
-        {registersData.status === "failed" ? (
-          <LoadFailure {...cloudLoadFailure(registersData, "los backups")} variant="screen" />
-        ) : registersListed && registers.length === 0 ? (
-          <EmptyState
-            icon={<Laptop />}
-            title="Todavía no hay cajas registradoras"
-            description="Los backups aparecen cuando una caja se da de alta."
-            variant="blank"
-          />
-        ) : (
-          <>
-            <div className="flex items-center gap-3">
-              {firstOption === undefined ? null : (
-                <ListFilter
-                  name="register"
-                  label="Caja:"
-                  searchable
-                  options={[firstOption, ...otherOptions]}
-                  value={chosen?.id ?? firstOption.value}
-                  onChange={(register) => onFiltersChange({ register })}
-                />
-              )}
-              <div className="flex-1" />
-              <Button
-                variant="secondary"
-                icon={<SlidersHorizontal />}
-                dataStatus={backupsData.status}
-                onPress={() => setRulesModalOpen(true)}
-              >
-                Cambiar las reglas
-              </Button>
-            </div>
-            {backupsData.status === "failed" ? null : (
-              <div className="grid grid-cols-4 gap-4">
-                {tiers.map(({ label, count, caption }) => (
-                  <Card key={label}>
-                    {count === undefined || caption === undefined ? (
-                      <FigureStat size="heading" label={label} loading />
-                    ) : (
-                      <FigureStat size="heading" label={label} value={count} detail={caption} />
-                    )}
-                  </Card>
-                ))}
-              </div>
-            )}
-            <Table
-              aria-label={`Últimas generaciones de ${chosen?.name ?? "la caja"}`}
-              table={table}
-              {...cloudTableState(backupsData, "los backups")}
-              empty={{
-                icon: <HardDriveDownload />,
-                title: "Esta caja todavía no generó backups",
-                description: "Aparecen acá apenas la caja genere el primero.",
-                variant: "blank",
-              }}
-            />
-          </>
         )}
-      </ScreenLayout>
+        <Table
+          aria-label={`Últimas generaciones de ${register.name}`}
+          table={table}
+          {...cloudTableState(backupsData, "los backups")}
+          empty={{
+            icon: <HardDriveDownload />,
+            title: "Esta caja todavía no generó backups",
+            description: "Aparecen acá apenas la caja genere el primero.",
+            variant: "blank",
+          }}
+        />
+      </div>
       {backups === undefined ? null : (
         <ChangeSnapshotLifecycleRulesModal
           open={rulesModalOpen}

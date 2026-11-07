@@ -61,7 +61,6 @@ import type { CashSessionClosesScreenServices } from "../register/cash-session-c
 import type { RegistersListScreenServices } from "../register/registers-list-services";
 import type { ReportRegisterFilterProps } from "../register/report-register-filter";
 import type { ReportRegisterFilterServices } from "../register/report-register-filter-services";
-import type { SnapshotBackupsScreenServices } from "../register/snapshot-backups-services";
 import type { ReturnsHistoryScreenServices } from "../returns/returns-history-services";
 import type { AverageTicketScreenServices } from "../sales/average-ticket-services";
 import type { CashRoundingScreenServices } from "../sales/cash-rounding-services";
@@ -123,7 +122,6 @@ export type AppServices = {
   userCredentialSections: UserCredentialSectionsServices;
   rolesListScreen: RolesListScreenServices;
   registersListScreen: RegistersListScreenServices;
-  snapshotBackupsScreen: SnapshotBackupsScreenServices;
   contingencyTicketRescueScreen: ContingencyTicketRescueScreenServices;
   branchSettingsScreen: BranchSettingsScreenServices;
   categoriesListScreen: CategoriesListScreenServices;

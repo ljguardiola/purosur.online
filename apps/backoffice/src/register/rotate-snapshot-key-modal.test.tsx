@@ -12,7 +12,7 @@ import {
   caja1,
   createAuthorizationServices,
   grantAuthorization,
-} from "./test-support/snapshot-backups-screen";
+} from "./test-support/snapshot-backups-section";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");

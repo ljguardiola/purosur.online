@@ -1,19 +1,14 @@
-import type { CashSessionClosesBody } from "@purosur/contracts";
 import {
   Card,
-  dataColumn,
   FigureStat,
-  formatCents,
   formatNumber,
   formatSignedCents,
   Table,
-  TableCellText,
   useTableModel,
 } from "@purosur/ui";
 import { Calculator } from "lucide-react";
 import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
-import { reportMoment } from "../platform/report-moment";
 import { RegisterReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
@@ -22,10 +17,10 @@ import {
   reportQueryOf,
 } from "../shell/report-filters-search";
 import type { ReportRegisterField } from "../shell/report-register-field";
-import { CLOSED_TIME_ZONE } from "./cash-session-closes-closed-time-zone";
+import { type CashSessionCloseRow, cashSessionCloseColumns } from "./cash-session-closes-columns";
 import type { CashSessionClosesScreenServices } from "./cash-session-closes-services";
 import { cashSessionClosesSpreadsheet } from "./cash-session-closes-spreadsheet";
-import { cashiersWithDifferenceText, UNIDENTIFIED } from "./cash-session-closes-text";
+import { cashiersWithDifferenceText } from "./cash-session-closes-text";
 import { useCashSessionClosesQuery } from "./register-queries";
 
 export type CashSessionClosesScreenProps = {
@@ -36,71 +31,9 @@ export type CashSessionClosesScreenProps = {
   services: CashSessionClosesScreenServices;
 };
 
-type SessionRow = CashSessionClosesBody["sessions"][number];
-
-const NO_SESSIONS: SessionRow[] = [];
+const NO_SESSIONS: CashSessionCloseRow[] = [];
 
 const SCREEN_TITLE = "Cierres de caja";
-
-function differenceCell(session: SessionRow) {
-  if (!session.has_difference) {
-    return <TableCellText strong>Sin diferencia</TableCellText>;
-  }
-  return (
-    <TableCellText strong tone={session.difference < 0 ? "error" : "success"}>
-      {formatSignedCents(session.difference)}
-    </TableCellText>
-  );
-}
-
-const sessionColumns = [
-  dataColumn({
-    id: "closedAt",
-    header: "Fecha",
-    render: (session: SessionRow) => {
-      const { date, time } = reportMoment(session.closed_at, CLOSED_TIME_ZONE);
-      return <TableCellText description={time}>{date}</TableCellText>;
-    },
-  }),
-  dataColumn({
-    id: "register",
-    header: "Caja",
-    render: (session: SessionRow) => session.register_name,
-  }),
-  dataColumn({
-    id: "cashier",
-    header: "Cajero",
-    render: (session: SessionRow) => (
-      <TableCellText
-        description={
-          session.closed_by_id === session.cashier_id
-            ? undefined
-            : `Cerró: ${session.closed_by_name ?? UNIDENTIFIED}`
-        }
-      >
-        {session.cashier_name ?? UNIDENTIFIED}
-      </TableCellText>
-    ),
-  }),
-  dataColumn({
-    id: "expected",
-    header: "Esperado",
-    align: "end",
-    render: (session: SessionRow) => formatCents(session.expected_cash),
-  }),
-  dataColumn({
-    id: "counted",
-    header: "Contado",
-    align: "end",
-    render: (session: SessionRow) => formatCents(session.counted_cash),
-  }),
-  dataColumn({
-    id: "difference",
-    header: "Diferencia",
-    align: "end",
-    render: differenceCell,
-  }),
-] as const;
 
 export function CashSessionClosesScreen({
   filters,
@@ -119,7 +52,7 @@ export function CashSessionClosesScreen({
   const table = useTableModel({
     items: shown?.sessions ?? NO_SESSIONS,
     id: (session) => session.id,
-    columns: sessionColumns,
+    columns: cashSessionCloseColumns,
   });
 
   return (

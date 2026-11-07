@@ -7,11 +7,14 @@ const route = getRouteApi("/signed-in/sales-and-cash-area/registers/");
 
 export function RegistersListPage(): ReactElement {
   const { session, services, sessionActions } = route.useRouteContext();
+  const { register, tab } = route.useSearch();
   return (
     <RegistersListScreen
       access={session}
       onSessionEnded={sessionActions.sessionEnded}
       services={services.registersListScreen ?? defaultRegistersListScreenServices}
+      openRegister={register}
+      tab={tab}
     />
   );
 }

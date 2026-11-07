@@ -19,12 +19,7 @@ import type {
   RegisterSyncStatus,
 } from "./registers-api";
 import type { fetchReportRegisters } from "./report-registers-api";
-import type {
-  fetchSnapshotBackupRegisters,
-  fetchSnapshotBackups,
-  SnapshotBackupRegister,
-  SnapshotBackups,
-} from "./snapshot-backups-api";
+import type { fetchSnapshotBackups, SnapshotBackups } from "./snapshot-backups-api";
 
 export const registerKey = ["register"] as const;
 
@@ -49,7 +44,6 @@ export const registerKeys = {
       query.to ?? "",
       query.register_id ?? "",
     ] as const,
-  snapshotBackupRegisters: [...registerKey, "snapshot-backup-registers"] as const,
   snapshotBackups: (registerId: string) =>
     [...registerKey, "snapshot-backups", registerId] as const,
 };
@@ -131,19 +125,6 @@ export function useCashSessionClosesQuery(params: {
     queryKey: registerKeys.cashSessionCloses(params.query),
     keepPreviousData: true,
     read: () => params.fetchCashSessionCloses(params.query),
-    onSessionEnded: params.onSessionEnded,
-    onForbidden: sendToMyAccount,
-  });
-}
-
-export function useSnapshotBackupRegistersQuery(params: {
-  fetchSnapshotBackupRegisters: typeof fetchSnapshotBackupRegisters;
-  onSessionEnded: () => void;
-}) {
-  const sendToMyAccount = useSendToMyAccount();
-  return useCloudQuery<SnapshotBackupRegister[]>({
-    queryKey: registerKeys.snapshotBackupRegisters,
-    read: params.fetchSnapshotBackupRegisters,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

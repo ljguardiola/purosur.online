@@ -11,7 +11,7 @@ import {
 import {
   createAuthorizationServices,
   grantAuthorization,
-} from "./test-support/snapshot-backups-screen";
+} from "./test-support/snapshot-backups-section";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
