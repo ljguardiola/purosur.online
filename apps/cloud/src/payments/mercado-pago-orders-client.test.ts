@@ -24,7 +24,6 @@ import {
   orderAlreadyCanceledError,
   orderAlreadyRefundedError,
   orderPaymentNotYetEnabledForRefundError,
-  orderSearchAnswer,
   POINT_TERMINAL_ID,
   paidOrder,
   paidWithCardOrder,
@@ -42,6 +41,7 @@ import {
   refundInProgressError,
   refundPeriodExceededError,
 } from "./test-support/mercado-pago-documented-orders.js";
+import { recordedOrderSearch } from "./test-support/recorded-order-searches.js";
 
 function createdOrderWithoutPayments(): Record<string, unknown> {
   const order = createdOrder() as { transactions: Record<string, unknown> };
@@ -1320,8 +1320,13 @@ describe("the Mercado Pago orders client", () => {
       );
     }
 
+    function recorded(name: Parameters<typeof recordedOrderSearch>[0]) {
+      const { status, body } = recordedOrderSearch(name);
+      return answer(status, body);
+    }
+
     it("gets the orders by external reference and creation period with the access token", async () => {
-      const { client, fetch } = clientAnswering(answer(200, orderSearchAnswer([])));
+      const { client, fetch } = clientAnswering(recorded("nothing-found"));
 
       await search(client);
 
@@ -1340,7 +1345,7 @@ describe("the Mercado Pago orders client", () => {
     });
 
     it("does not let an external reference change the query it is searched with", async () => {
-      const { client, fetch } = clientAnswering(answer(200, orderSearchAnswer([])));
+      const { client, fetch } = clientAnswering(recorded("nothing-found"));
 
       await client.searchOrdersOfExternalReference("a&page_size=1#x", CREATED_FROM, CREATED_TO);
 
@@ -1349,32 +1354,48 @@ describe("the Mercado Pago orders client", () => {
       expect(sent.searchParams.get("page_size")).toBe("50");
     });
 
-    it("reads every order found with the same result as reading it by its identifier", async () => {
-      const { client } = clientAnswering(
-        answer(200, orderSearchAnswer([createdOrder(), paidWithCardOrder()])),
-      );
+    it("reads the QR order found by its external reference", async () => {
+      const { client } = clientAnswering(recorded("qr-order-found"));
 
-      const searching = await search(client);
-
-      expect(searching).toStrictEqual({
+      expect(await search(client)).toStrictEqual({
         kind: "read",
         orders: [
-          { orderId: ORDER_ID, result: createdResult() },
           {
-            orderId: ORDER_ID,
-            result: createdResult({
-              status: "processed",
-              statusDetail: "accredited",
-              totalPaidAmount: 5000,
-              payments: [{ status: "processed", statusDetail: "accredited", paidAmount: 5000 }],
-            }),
+            orderId: "ORDTST00000000000000000000000001",
+            result: {
+              status: "created",
+              statusDetail: "created",
+              externalReference: "00000000-0000-4000-8000-000000000001",
+              totalPaidAmount: null,
+              payments: [{ status: "created", statusDetail: "ready_to_process", paidAmount: null }],
+            },
+          },
+        ],
+      });
+    });
+
+    it("reads the Point order found by its external reference, whose payment states no detail yet", async () => {
+      const { client } = clientAnswering(recorded("point-order-found"));
+
+      expect(await search(client)).toStrictEqual({
+        kind: "read",
+        orders: [
+          {
+            orderId: "ORDTST00000000000000000000000003",
+            result: {
+              status: "created",
+              statusDetail: "created",
+              externalReference: "00000000-0000-4000-8000-000000000002",
+              totalPaidAmount: null,
+              payments: [{ status: "created", statusDetail: null, paidAmount: null }],
+            },
           },
         ],
       });
     });
 
     it("reads no orders when Mercado Pago has none", async () => {
-      const { client } = clientAnswering(answer(200, orderSearchAnswer([])));
+      const { client } = clientAnswering(recorded("nothing-found"));
 
       expect(await search(client)).toStrictEqual({ kind: "read", orders: [] });
     });
@@ -1394,6 +1415,21 @@ describe("the Mercado Pago orders client", () => {
       expect(await search(client)).toStrictEqual({ kind: "unavailable" });
     });
 
+    it.each([
+      ["missing-dates", "missing_required_params"],
+      ["invalid-date", "invalid_search_params"],
+    ] as const)(
+      "is unavailable and logs the recorded status and code when the search is %s",
+      async (name, code) => {
+        const { client } = clientAnswering(recorded(name));
+
+        expect(await search(client)).toStrictEqual({ kind: "unavailable" });
+        expect(consoleCalls).toEqual([
+          ["Mercado Pago did not answer the search for orders", { status: 400, code }],
+        ]);
+      },
+    );
+
     it.each([400, 401, 404, 429, 500, 503])(
       "is unavailable when Mercado Pago answers %i",
       async (status) => {
@@ -1411,7 +1447,7 @@ describe("the Mercado Pago orders client", () => {
     });
 
     it("logs nothing when it finds orders", async () => {
-      const { client } = clientAnswering(answer(200, orderSearchAnswer([paidWithCardOrder()])));
+      const { client } = clientAnswering(recorded("qr-order-found"));
 
       await search(client);
 
@@ -1419,11 +1455,6 @@ describe("the Mercado Pago orders client", () => {
     });
 
     it.each([
-      [
-        "a 400",
-        () => answer(400, { errors: [{ code: "invalid_date_range" }] }),
-        { status: 400, code: "invalid_date_range" },
-      ],
       ["a server error", () => answer(500, { message: ACCESS_TOKEN }), { status: 500, code: null }],
       ["a success that is not JSON", () => answer(200, "not json"), { status: 200, code: null }],
       [
