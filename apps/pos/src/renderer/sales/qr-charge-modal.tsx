@@ -33,6 +33,7 @@ export type QrChargeModalProps = {
   total: number;
   paid: number;
   pending: number;
+  minimum: number;
   start: (amount: number) => Promise<StartMercadoPagoChargeOutcome>;
   onChooseAnotherMethod: () => void;
   onOrderShown: (order: ShownQrOrder) => void;
@@ -44,6 +45,7 @@ export function QrChargeModal({
   total,
   paid,
   pending,
+  minimum,
   start,
   onChooseAnotherMethod,
   onOrderShown,
@@ -69,6 +71,9 @@ export function QrChargeModal({
           break;
         case "invalid_amount":
           showFieldError("amount", INVALID_AMOUNT_MESSAGE);
+          break;
+        case "below_minimum":
+          showFieldError("amount", `El QR no acepta cobros menores a ${formatCents(minimum)}`);
           break;
         case "order_refused":
           setNotice(REFUSED_MESSAGE);
