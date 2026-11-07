@@ -10,16 +10,23 @@ import {
 } from "@purosur/ui";
 import { useMutation } from "@tanstack/react-query";
 import { ArrowLeft, Check, QrCode, TriangleAlert } from "lucide-react";
-import { useRef, useState } from "react";
+import { type ComponentType, useRef, useState } from "react";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { useContingencyTicketRecoveriesQuery, useRefreshBackups } from "./backups-queries";
-import type { ContingencyTicketRecovery } from "./contingency-ticket-recovery-api";
-import type { RescueContingencyBackupTicketOutcome } from "./contingency-ticket-rescue-api";
-import type { ContingencyTicketRescueModalServices } from "./contingency-ticket-rescue-modal-services";
+import type {
+  ContingencyTicketRecovery,
+  fetchContingencyTicketRecoveries,
+} from "./contingency-ticket-recovery-api";
+import type {
+  RescueContingencyBackupTicketOutcome,
+  rescueContingencyBackupTicket,
+} from "./contingency-ticket-rescue-api";
 import {
   type FinishedRecoveryOutcome,
   FinishTicketRecoveryModal,
+  type FinishTicketRecoveryModalServices,
 } from "./finish-ticket-recovery-modal";
+import type { QrScannerProps } from "./qr-camera-scanner";
 import {
   REFUSED_TICKET_STATUS,
   REFUSED_TICKET_TITLE,
@@ -72,6 +79,13 @@ function finishedNotice(
         description: "La lista ya está actualizada.",
       };
 }
+
+export type ContingencyTicketRescueModalServices = {
+  rescueContingencyBackupTicket: typeof rescueContingencyBackupTicket;
+  fetchContingencyTicketRecoveries: typeof fetchContingencyTicketRecoveries;
+  finishTicketRecoveryModal: FinishTicketRecoveryModalServices;
+  scanner: ComponentType<QrScannerProps>;
+};
 
 export type ContingencyTicketRescueModalProps = {
   onClose: () => void;

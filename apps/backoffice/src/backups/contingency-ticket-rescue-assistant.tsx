@@ -1,9 +1,24 @@
 import { getRouteApi } from "@tanstack/react-router";
 import type { ReactElement } from "react";
-import { ContingencyTicketRescueModal } from "./contingency-ticket-rescue-modal";
-import { defaultContingencyTicketRescueModalServices } from "./contingency-ticket-rescue-modal-services";
+import {
+  fetchContingencyTicketRecoveries,
+  finishContingencyTicketRecovery,
+} from "./contingency-ticket-recovery-api";
+import { rescueContingencyBackupTicket } from "./contingency-ticket-rescue-api";
+import {
+  ContingencyTicketRescueModal,
+  type ContingencyTicketRescueModalServices,
+} from "./contingency-ticket-rescue-modal";
+import { QrCameraScanner } from "./qr-camera-scanner";
 
 const route = getRouteApi("/signed-in/fiscal-area/fiscal/caea");
+
+const defaultServices: ContingencyTicketRescueModalServices = {
+  rescueContingencyBackupTicket,
+  fetchContingencyTicketRecoveries,
+  finishTicketRecoveryModal: { finishContingencyTicketRecovery },
+  scanner: QrCameraScanner,
+};
 
 export function ContingencyTicketRescueAssistant({
   onClose,
@@ -15,9 +30,7 @@ export function ContingencyTicketRescueAssistant({
     <ContingencyTicketRescueModal
       onClose={onClose}
       onSessionEnded={sessionActions.sessionEnded}
-      services={
-        services.contingencyTicketRescueModal ?? defaultContingencyTicketRescueModalServices
-      }
+      services={services.contingencyTicketRescueModal ?? defaultServices}
     />
   );
 }
