@@ -14,8 +14,8 @@ import {
   reportRegisterFieldForTests,
 } from "../shell/test-support/report-register-filter";
 import { spyOnDownloads } from "../shell/test-support/spy-on-downloads";
-import { ReturnsReportScreen } from "./returns-report-screen";
-import type { ReturnsReportScreenServices } from "./returns-report-services";
+import { ReturnsHistoryScreen } from "./returns-history-screen";
+import type { ReturnsHistoryScreenServices } from "./returns-history-services";
 import {
   noReturnsReport,
   noScannedReturnsReport,
@@ -43,7 +43,7 @@ function cellUnder(table: Locator, row: Locator, header: string) {
   );
 }
 
-function createServices(): ReturnsReportScreenServices {
+function createServices(): ReturnsHistoryScreenServices {
   const services = { fetchReturnsReport: vi.fn() };
   services.fetchReturnsReport.mockResolvedValue({ kind: "ok", value: returnsReport });
   return services;
@@ -62,14 +62,14 @@ function ControlledScreen({
   onSessionEnded = () => {},
   registerServices,
 }: Handlers & {
-  services: ReturnsReportScreenServices;
+  services: ReturnsHistoryScreenServices;
   registerServices: ReportRegisterFilterServices;
 }) {
   const [filters, setFilters] = useState(initial);
   return (
     <FieldSizeProvider size="backoffice">
       <main>
-        <ReturnsReportScreen
+        <ReturnsHistoryScreen
           services={services}
           filters={filters}
           onFiltersChange={(next) => {
@@ -85,7 +85,7 @@ function ControlledScreen({
 }
 
 function renderScreen(
-  services: ReturnsReportScreenServices,
+  services: ReturnsHistoryScreenServices,
   {
     registerServices = createReportRegisterFilterServices(),
     ...handlers
@@ -102,16 +102,14 @@ function servicesAnswering(value: typeof returnsReport) {
   return services;
 }
 
-test("names the report", async () => {
+test("shows the report inside the page it is a tab of, with no title or top bar of its own", async () => {
   const screen = await renderScreen(createServices());
 
   await expect
-    .element(screen.getByRole("heading", { name: "Anulaciones y devoluciones", level: 1 }))
-    .toBeVisible();
-  await expect.element(screen.getByText("Reportes · Caja", { exact: true })).toBeVisible();
-  await expect
     .element(screen.getByRole("table", { name: TYPED_TABLE }).getByText("Beto"))
     .toBeVisible();
+  expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
+  expect(screen.getByText("Reportes · Caja", { exact: true }).query()).toBeNull();
   await expectNoAccessibilityViolations(screen.container);
 });
 

@@ -29,10 +29,14 @@ test("starts downloading a screen's code when its menu link receives focus, befo
   const screen = await render(
     <App help={emptyHelp} services={createAppServices()} reportError={vi.fn()} />,
   );
-  await expect.element(screen.getByRole("link", { name: "Caja" })).toBeVisible();
+  await expect
+    .element(screen.getByRole("link", { name: "Caja y fiscal", exact: true }))
+    .toBeVisible();
   const pointsOfSaleScreenCode = vi.spyOn(screenCode("/points-of-sale"), "preload");
 
-  (screen.getByRole("link", { name: "Caja" }).element() as HTMLElement).focus();
+  (
+    screen.getByRole("link", { name: "Caja y fiscal", exact: true }).element() as HTMLElement
+  ).focus();
 
   await expect.poll(() => pointsOfSaleScreenCode).toHaveBeenCalled();
   expect(window.location.pathname).toBe("/help");

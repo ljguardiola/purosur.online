@@ -1,15 +1,23 @@
-import { createRoute, stripSearchParams } from "@tanstack/react-router";
-import { canSeeReturnsReport } from "../shell/backoffice-access";
+import { createRoute, redirect, stripSearchParams } from "@tanstack/react-router";
 import { lazyScreen } from "../shell/lazy-screen";
+import { refundsRoute, refundsTabRedirect } from "../shell/refunds-route";
 import { reportFiltersSearch } from "../shell/report-filters-search";
-import { reportsAreaRoute } from "../shell/reports-area";
-import { refuseWithout } from "../shell/signed-in-route";
+import { signedInRoute } from "../shell/signed-in-route";
 
-export const returnsReportRoute = createRoute({
-  getParentRoute: () => reportsAreaRoute,
-  path: "reports/returns",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReturnsReport),
+export const returnsHistoryRoute = createRoute({
+  getParentRoute: () => refundsRoute,
+  path: "history",
+  beforeLoad: ({ context: { refundsTabs } }) => refundsTabRedirect(refundsTabs, "history"),
   validateSearch: reportFiltersSearch,
   search: { middlewares: [stripSearchParams(reportFiltersSearch.parse({}))] },
-  component: lazyScreen(() => import("./returns-report-page"), "ReturnsReportPage"),
+  component: lazyScreen(() => import("./returns-history-page"), "ReturnsHistoryPage"),
+});
+
+export const legacyReturnsReportRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: "reports/returns",
+  validateSearch: reportFiltersSearch,
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/refunds/history", search });
+  },
 });

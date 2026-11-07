@@ -1,9 +1,9 @@
 import { fetchReturnsReport } from "./returns-report-api";
 
-export type ReturnsReportScreenServices = {
+export type ReturnsHistoryScreenServices = {
   fetchReturnsReport: typeof fetchReturnsReport;
 };
 
-export const defaultReturnsReportScreenServices: ReturnsReportScreenServices = {
+export const defaultReturnsHistoryScreenServices: ReturnsHistoryScreenServices = {
   fetchReturnsReport,
 };
