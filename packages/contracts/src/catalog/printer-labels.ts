@@ -8,11 +8,7 @@ export const LABEL_PRINTER_HEIGHT_MM = { min: 15, max: 70 } as const;
 
 function millimetresSchema(field: string, range: { min: number; max: number }) {
   const message = `${field} must be a whole number of millimetres from ${range.min} to ${range.max}`;
-  return z
-    .number({ error: message })
-    .int({ error: message })
-    .min(range.min, { error: message })
-    .max(range.max, { error: message });
+  return z.number({ error: message }).int().min(range.min).max(range.max);
 }
 
 export const printerLabelSizeSchema = z.object({
