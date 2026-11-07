@@ -102,16 +102,14 @@ function servicesAnswering(value: typeof returnsReport) {
   return services;
 }
 
-test("names the report", async () => {
+test("shows the report inside the page it is a tab of, with no title or top bar of its own", async () => {
   const screen = await renderScreen(createServices());
 
   await expect
-    .element(screen.getByRole("heading", { name: "Anulaciones y devoluciones", level: 1 }))
-    .toBeVisible();
-  await expect.element(screen.getByText("Reportes · Caja", { exact: true })).toBeVisible();
-  await expect
     .element(screen.getByRole("table", { name: TYPED_TABLE }).getByText("Beto"))
     .toBeVisible();
+  expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
+  expect(screen.getByText("Reportes · Caja", { exact: true }).query()).toBeNull();
   await expectNoAccessibilityViolations(screen.container);
 });
 
