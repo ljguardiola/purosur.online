@@ -105,7 +105,9 @@ test("leaves out a Point refund that is made outside the system", async () => {
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("Sin reembolsos pendientes")).toBeVisible();
+  await expect
+    .element(screen.getByText("No hay reembolsos pendientes con estos filtros"))
+    .toBeVisible();
   expect(screen.getByText("$ 760,00", { exact: true }).query()).toBeNull();
 });
 
@@ -220,7 +222,7 @@ test("shows every refund and reports every register when the address carries a r
     .toEqual([{ channel: "mercado-pago", register: "all", method: "all" }]);
 });
 
-test("shows the empty state when no Mercado Pago refund is pending, even if others are made outside the system", async () => {
+test("shows the filtered empty state when no Mercado Pago refund is pending while others are made outside the system", async () => {
   const services = createPendingRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "ok",
@@ -229,10 +231,10 @@ test("shows the empty state when no Mercado Pago refund is pending, even if othe
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("Sin reembolsos pendientes")).toBeVisible();
   await expect
-    .element(screen.getByText("Nada espera para enviarse ni para marcarse como hecho."))
+    .element(screen.getByText("No hay reembolsos pendientes con estos filtros"))
     .toBeVisible();
+  expect(screen.getByText("Sin reembolsos pendientes", { exact: true }).query()).toBeNull();
 });
 
 test("shows the empty state when no refund is pending at all", async () => {

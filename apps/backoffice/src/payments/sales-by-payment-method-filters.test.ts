@@ -81,3 +81,10 @@ test("reads the hand-confirmed filter a URL writes as text", () => {
     handConfirmed: false,
   });
 });
+
+test("falls back to every method when the hand-confirmed filter is off, since only it offers a method", () => {
+  expect(salesByPaymentMethodFilters.parse({ method: "TRANSFER" })).toMatchObject({
+    handConfirmed: false,
+    method: "ALL",
+  });
+});

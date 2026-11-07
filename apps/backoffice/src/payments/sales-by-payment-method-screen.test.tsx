@@ -1,85 +1,18 @@
-import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { useState } from "react";
 import { afterEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
-import { render } from "../shell/test-support/render-with-router";
 import { periodSegments } from "../shell/test-support/report-dates";
 import { BACK_REGISTER_ID, FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
-import {
-  createReportRegisterFilterServices,
-  type ReportRegisterFilterServices,
-  reportRegisterFieldForTests,
-} from "../shell/test-support/report-register-filter";
 import { spyOnDownloads } from "../shell/test-support/spy-on-downloads";
-import {
-  type SalesByPaymentMethodFilters,
-  salesByPaymentMethodFilters,
-} from "./sales-by-payment-method-filters";
-import { SalesByPaymentMethodScreen } from "./sales-by-payment-method-screen";
-import type { SalesByPaymentMethodScreenServices } from "./sales-by-payment-method-services";
+import { salesByPaymentMethodFilters } from "./sales-by-payment-method-filters";
 import { todayPaymentsReport, weekPaymentsReport } from "./test-support/payments-report-fixtures";
+import {
+  createSalesByPaymentMethodServices,
+  renderSalesByPaymentMethod,
+} from "./test-support/sales-by-payment-method-screen";
 
-function createServices(): SalesByPaymentMethodScreenServices {
-  const services = { fetchSalesByPaymentMethod: vi.fn(), fetchHandConfirmedPayments: vi.fn() };
-  services.fetchSalesByPaymentMethod.mockResolvedValue({
-    kind: "ok",
-    value: weekPaymentsReport,
-  });
-  return services;
-}
-
-type Handlers = {
-  filters?: SalesByPaymentMethodFilters;
-  onFiltersChange?: (filters: SalesByPaymentMethodFilters) => void;
-  onSessionEnded?: () => void;
-};
-
-function ControlledScreen({
-  services,
-  filters: initial = salesByPaymentMethodFilters.parse({}),
-  onFiltersChange = () => {},
-  onSessionEnded = () => {},
-  registerServices,
-}: Handlers & {
-  services: SalesByPaymentMethodScreenServices;
-  registerServices: ReportRegisterFilterServices;
-}) {
-  const [filters, setFilters] = useState(initial);
-  return (
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <SalesByPaymentMethodScreen
-          services={services}
-          filters={filters}
-          onFiltersChange={(next) => {
-            onFiltersChange(next);
-            setFilters(next);
-          }}
-          onSessionEnded={onSessionEnded}
-          registerFilter={reportRegisterFieldForTests(registerServices, onSessionEnded)}
-        />
-      </main>
-    </FieldSizeProvider>
-  );
-}
-
-function renderScreen(
-  services: SalesByPaymentMethodScreenServices,
-  {
-    registerServices = createReportRegisterFilterServices(),
-    ...handlers
-  }: Handlers & {
-    registerServices?: ReportRegisterFilterServices;
-  } = {},
-) {
-  return render(
-    <ControlledScreen services={services} registerServices={registerServices} {...handlers} />,
-  );
-}
-
-type Screen = Awaited<ReturnType<typeof renderScreen>>;
+type Screen = Awaited<ReturnType<typeof renderSalesByPaymentMethod>>;
 
 const METHOD_NAMES = [
   "Efectivo",
@@ -98,7 +31,7 @@ function shownMethods(screen: Screen) {
 }
 
 test("shows the total sold, the number of sales and the average ticket of the period", async () => {
-  const screen = await renderScreen(createServices());
+  const screen = await renderSalesByPaymentMethod(createSalesByPaymentMethodServices());
 
   await expect
     .element(screen.getByRole("heading", { name: "Ventas por medio de pago", level: 1 }))
@@ -114,7 +47,7 @@ test("shows the total sold, the number of sales and the average ticket of the pe
 });
 
 test("names the period only in its range fields, never again under the total sold", async () => {
-  const screen = await renderScreen(createServices());
+  const screen = await renderSalesByPaymentMethod(createSalesByPaymentMethodServices());
   await expect.element(screen.getByText("$ 14.000,00")).toBeVisible();
 
   expect(screen.getByText(/01\/10\/2026/).query()).toBeNull();
@@ -122,7 +55,7 @@ test("names the period only in its range fields, never again under the total sol
 });
 
 test("shows each method with its sales, its amount and its share of the total", async () => {
-  const screen = await renderScreen(createServices());
+  const screen = await renderSalesByPaymentMethod(createSalesByPaymentMethodServices());
 
   const table = screen.getByRole("table", { name: "Ventas por medio de pago" });
   await expect.element(table.getByRole("columnheader", { name: "Medio de pago" })).toBeVisible();
@@ -137,7 +70,7 @@ test("shows each method with its sales, its amount and its share of the total", 
 });
 
 test("shows the sales charged on the standalone terminal under its own name", async () => {
-  const services = createServices();
+  const services = createSalesByPaymentMethodServices();
   vi.mocked(services.fetchSalesByPaymentMethod).mockResolvedValue({
     kind: "ok",
     value: {
@@ -147,7 +80,7 @@ test("shows the sales charged on the standalone terminal under its own name", as
     },
   });
 
-  const screen = await renderScreen(services);
+  const screen = await renderSalesByPaymentMethod(services);
 
   const standalone = screen
     .getByRole("table", { name: "Ventas por medio de pago" })
@@ -158,7 +91,7 @@ test("shows the sales charged on the standalone terminal under its own name", as
 });
 
 test("opens on the method with the biggest amount first", async () => {
-  const screen = await renderScreen(createServices());
+  const screen = await renderSalesByPaymentMethod(createSalesByPaymentMethodServices());
   await expect.element(screen.getByText("Efectivo")).toBeVisible();
 
   expect(shownMethods(screen)).toEqual([
@@ -183,7 +116,7 @@ test.each([
     ["Transferencia", "Point integrada", "QR de Mercado Pago", "Efectivo"],
   ],
 ] as const)("opens on the order the URL asks for, %j", async (order, methods) => {
-  const screen = await renderScreen(createServices(), {
+  const screen = await renderSalesByPaymentMethod(createSalesByPaymentMethodServices(), {
     filters: salesByPaymentMethodFilters.parse(order),
   });
   await expect.element(screen.getByText("Efectivo")).toBeVisible();
@@ -199,7 +132,9 @@ test.each([
   "reports the %s column as the order when its header is pressed",
   async (header, order) => {
     const onFiltersChange = vi.fn();
-    const screen = await renderScreen(createServices(), { onFiltersChange });
+    const screen = await renderSalesByPaymentMethod(createSalesByPaymentMethodServices(), {
+      onFiltersChange,
+    });
     await expect.element(screen.getByText("Efectivo")).toBeVisible();
 
     await userEvent.click(
@@ -211,9 +146,9 @@ test.each([
 );
 
 test("asks the cloud for no range when the URL has none, and shows the range it answered", async () => {
-  const services = createServices();
+  const services = createSalesByPaymentMethodServices();
 
-  const screen = await renderScreen(services);
+  const screen = await renderSalesByPaymentMethod(services);
 
   await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["1", "10", "2026"]);
   expect(periodSegments(screen).slice(3)).toEqual(["7", "10", "2026"]);
@@ -221,9 +156,9 @@ test("asks the cloud for no range when the URL has none, and shows the range it 
 });
 
 test("asks the cloud for the range and the register the URL names", async () => {
-  const services = createServices();
+  const services = createSalesByPaymentMethodServices();
 
-  await renderScreen(services, {
+  await renderSalesByPaymentMethod(services, {
     filters: salesByPaymentMethodFilters.parse({
       from: "2026-10-02",
       to: "2026-10-05",
@@ -237,8 +172,8 @@ test("asks the cloud for the range and the register the URL names", async () => 
 });
 
 test("asks the cloud again for the register chosen in the filters", async () => {
-  const services = createServices();
-  const screen = await renderScreen(services);
+  const services = createSalesByPaymentMethodServices();
+  const screen = await renderSalesByPaymentMethod(services);
   await expect.element(screen.getByText("Efectivo")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: /Caja:/ }));
@@ -250,8 +185,8 @@ test("asks the cloud again for the register chosen in the filters", async () => 
 });
 
 test("keeps the previous methods in view, marked as updating, while another register loads", async () => {
-  const services = createServices();
-  const screen = await renderScreen(services);
+  const services = createSalesByPaymentMethodServices();
+  const screen = await renderSalesByPaymentMethod(services);
   await expect.element(screen.getByText("Efectivo")).toBeVisible();
   vi.mocked(services.fetchSalesByPaymentMethod).mockReturnValue(new Promise(() => {}));
 
@@ -265,10 +200,10 @@ test("keeps the previous methods in view, marked as updating, while another regi
 });
 
 test("shows placeholders while the report loads", async () => {
-  const services = createServices();
+  const services = createSalesByPaymentMethodServices();
   vi.mocked(services.fetchSalesByPaymentMethod).mockReturnValue(new Promise(() => {}));
 
-  const screen = await renderScreen(services);
+  const screen = await renderSalesByPaymentMethod(services);
 
   await expect
     .element(screen.getByRole("table", { name: "Ventas por medio de pago" }))
@@ -278,13 +213,13 @@ test("shows placeholders while the report loads", async () => {
 });
 
 test("says there are no sales in the period, with no average ticket, when there are none", async () => {
-  const services = createServices();
+  const services = createSalesByPaymentMethodServices();
   vi.mocked(services.fetchSalesByPaymentMethod).mockResolvedValue({
     kind: "ok",
     value: todayPaymentsReport,
   });
 
-  const screen = await renderScreen(services);
+  const screen = await renderSalesByPaymentMethod(services);
 
   await expect.element(screen.getByText("No hay ventas en este período")).toBeVisible();
   await expect.element(screen.getByText("$ 0,00")).toBeVisible();
@@ -292,13 +227,13 @@ test("says there are no sales in the period, with no average ticket, when there 
 });
 
 test("says the register has no sales in the period when one is chosen and none were made", async () => {
-  const services = createServices();
+  const services = createSalesByPaymentMethodServices();
   vi.mocked(services.fetchSalesByPaymentMethod).mockResolvedValue({
     kind: "ok",
     value: todayPaymentsReport,
   });
 
-  const screen = await renderScreen(services, {
+  const screen = await renderSalesByPaymentMethod(services, {
     filters: salesByPaymentMethodFilters.parse({ register: FRONT_REGISTER_ID }),
   });
 
@@ -308,11 +243,11 @@ test("says the register has no sales in the period when one is chosen and none w
 });
 
 test("shows a failed load with a retry that loads the report again", async () => {
-  const services = createServices();
+  const services = createSalesByPaymentMethodServices();
   vi.mocked(services.fetchSalesByPaymentMethod)
     .mockResolvedValueOnce({ kind: "failed" })
     .mockResolvedValueOnce({ kind: "ok", value: weekPaymentsReport });
-  const screen = await renderScreen(services);
+  const screen = await renderSalesByPaymentMethod(services);
 
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
@@ -321,11 +256,11 @@ test("shows a failed load with a retry that loads the report again", async () =>
 });
 
 test("ends the session when the cloud says it is over", async () => {
-  const services = createServices();
+  const services = createSalesByPaymentMethodServices();
   vi.mocked(services.fetchSalesByPaymentMethod).mockResolvedValue({ kind: "unauthenticated" });
   const onSessionEnded = vi.fn();
 
-  await renderScreen(services, { onSessionEnded });
+  await renderSalesByPaymentMethod(services, { onSessionEnded });
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
@@ -336,7 +271,7 @@ afterEach(() => {
 
 test("downloads a spreadsheet of the methods shown, with the applied register and the figures", async () => {
   const downloads = spyOnDownloads();
-  const screen = await renderScreen(createServices(), {
+  const screen = await renderSalesByPaymentMethod(createSalesByPaymentMethodServices(), {
     filters: salesByPaymentMethodFilters.parse({ register: BACK_REGISTER_ID }),
   });
   await expect
@@ -365,7 +300,7 @@ test("downloads a spreadsheet of the methods shown, with the applied register an
 
 test("downloads the rows in the order the screen sorts them", async () => {
   const downloads = spyOnDownloads();
-  const screen = await renderScreen(createServices(), {
+  const screen = await renderSalesByPaymentMethod(createSalesByPaymentMethodServices(), {
     filters: salesByPaymentMethodFilters.parse({ sortBy: "method", sort: "ascending" }),
   });
   await expect.element(screen.getByText("Efectivo")).toBeVisible();
@@ -381,14 +316,14 @@ test("downloads the rows in the order the screen sorts them", async () => {
 });
 
 test("has its download disabled while the report loads and after loading fails", async () => {
-  const services = createServices();
+  const services = createSalesByPaymentMethodServices();
   vi.mocked(services.fetchSalesByPaymentMethod).mockReturnValue(new Promise(() => {}));
-  const loading = await renderScreen(services);
+  const loading = await renderSalesByPaymentMethod(services);
   await expect.element(loading.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
   await loading.unmount();
 
   vi.mocked(services.fetchSalesByPaymentMethod).mockResolvedValue({ kind: "failed" });
-  const failed = await renderScreen(services);
+  const failed = await renderSalesByPaymentMethod(services);
   await expect.element(failed.getByRole("button", { name: "Reintentar" })).toBeVisible();
   await expect.element(failed.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
 });

@@ -897,3 +897,38 @@ test("keeps the hand-confirmed filter of the sales by payment method in the addr
     .toBeVisible();
   expect(services.salesByPaymentMethodScreen.fetchHandConfirmedPayments).toHaveBeenCalledWith({});
 });
+
+test("drops from the address a method the sales by payment method offers only with the hand-confirmed filter", async () => {
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(null, "", "/reports/sales-by-payment-method?method=TRANSFER");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect
+    .element(screen.getByRole("table", { name: "Ventas por medio de pago" }))
+    .toBeVisible();
+
+  await expect.poll(() => window.location.search).toBe("");
+});
+
+test("drops the method from the address when the hand-confirmed filter is turned off", async () => {
+  const services = reportsServices(["reports_area"]);
+  vi.mocked(services.salesByPaymentMethodScreen.fetchHandConfirmedPayments).mockResolvedValue({
+    kind: "ok",
+    value: weekHandConfirmedReport,
+  });
+  window.history.pushState(
+    null,
+    "",
+    "/reports/sales-by-payment-method?handConfirmed=true&method=TRANSFER",
+  );
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect
+    .element(screen.getByRole("table", { name: "Pagos confirmados a mano", exact: true }))
+    .toBeVisible();
+
+  await userEvent.click(screen.getByText("Confirmados a mano", { exact: true }));
+
+  await expect
+    .element(screen.getByRole("table", { name: "Ventas por medio de pago" }))
+    .toBeVisible();
+  await expect.poll(() => window.location.search).toBe("");
+});

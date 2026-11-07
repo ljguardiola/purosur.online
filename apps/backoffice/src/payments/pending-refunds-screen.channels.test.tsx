@@ -17,7 +17,8 @@ import {
 
 const MERCADO_PAGO_FOOTER =
   "Los reembolsos con QR o Point de ventas canceladas, y con QR de aprobaciones tardías, se envían a Mercado Pago recién cuando se confirman acá. Los de ventas anuladas con QR o Point los confirmó en la caja quien anuló la venta, y se envían sin pasar por acá.";
-const WITHOUT_API_FOOTER = "Se hacen fuera del sistema y acá se marcan como hechos.";
+const WITHOUT_API_FOOTER =
+  "Los reembolsos sin API se hacen fuera del sistema y acá se marcan como hechos.";
 
 async function loadedWithBothKinds(
   options?: Parameters<typeof renderPendingRefunds>[2],
@@ -160,7 +161,7 @@ test("combines the channel with the register", async () => {
   expect(rowTexts(screen)).toHaveLength(1);
 });
 
-test("shows the blank empty state when the chosen channel has no pending refund at all, even if the other has", async () => {
+test("shows the filtered empty state when the chosen channel has no pending refund while the other has", async () => {
   const services = createPendingRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "ok",
@@ -170,9 +171,9 @@ test("shows the blank empty state when the chosen channel has no pending refund 
   const screen = await renderPendingRefunds(services, () => {}, { filters: mercadoPagoChannel });
 
   await expect
-    .element(screen.getByText("Sin reembolsos pendientes", { exact: true }))
+    .element(screen.getByText("No hay reembolsos pendientes con estos filtros"))
     .toBeVisible();
-  expect(screen.getByText("No hay reembolsos pendientes con estos filtros").query()).toBeNull();
+  expect(screen.getByText("Sin reembolsos pendientes", { exact: true }).query()).toBeNull();
 });
 
 test("shows the filtered empty state when the register and the method chosen together hide every refund of the channel", async () => {

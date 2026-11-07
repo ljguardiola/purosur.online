@@ -200,7 +200,7 @@ test("gives the refund owed for a late QR payment its title, what it means and w
     title: "Reembolso pendiente por un pago tardío",
     meaning: "Mercado Pago cobró un QR de una venta que ya se había cobrado por otro medio.",
     whatToDo:
-      "Confirmarlo en Reembolsos de Mercado Pago para que la nube lo envíe a Mercado Pago. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
+      "Confirmarlo en Devoluciones y reembolsos para que la nube lo envíe a Mercado Pago. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
   });
 });
 
@@ -212,7 +212,7 @@ test("tells the refund owed for a second paid order of a sale's QR that the QR w
     meaning:
       "El QR de una venta se pagó dos veces; el pago de más es el de la orden ORD01SECOND de Mercado Pago.",
     whatToDo:
-      "Confirmarlo en Reembolsos de Mercado Pago para que la nube lo envíe a Mercado Pago. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
+      "Confirmarlo en Devoluciones y reembolsos para que la nube lo envíe a Mercado Pago. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
   });
 });
 
@@ -229,7 +229,7 @@ test("tells the surplus of a sale rebuilt against its paid order, paid by QR, th
     meaning:
       "La venta se armó con un cobro mayor a su total; el excedente se cobró con un QR de Mercado Pago.",
     whatToDo:
-      "Confirmarlo en Reembolsos de Mercado Pago para que la nube lo envíe a Mercado Pago. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
+      "Confirmarlo en Devoluciones y reembolsos para que la nube lo envíe a Mercado Pago. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
   });
 });
 
@@ -246,7 +246,7 @@ test("tells the surplus of a sale rebuilt against its paid order, paid at the Po
     meaning:
       "La venta se armó con un cobro mayor a su total; el excedente se cobró con tarjeta en el Point.",
     whatToDo:
-      "Hacerlo desde Mercado Pago cuanto antes y marcarlo como hecho en Reembolsos sin API. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
+      "Hacerlo desde Mercado Pago cuanto antes y marcarlo como hecho en Devoluciones y reembolsos. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
   });
 });
 
@@ -269,7 +269,7 @@ test("gives the refund owed for a late Point payment its title, what it means an
     meaning:
       "Mercado Pago cobró un pago con tarjeta en el Point de una venta que ya se había cobrado por otro medio.",
     whatToDo:
-      "Hacerlo desde Mercado Pago cuanto antes y marcarlo como hecho en Reembolsos sin API. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
+      "Hacerlo desde Mercado Pago cuanto antes y marcarlo como hecho en Devoluciones y reembolsos. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
   });
 });
 
@@ -285,7 +285,7 @@ test("tells the refund owed for a second paid order of a sale's Point payment th
     meaning:
       "Una venta se cobró dos veces con tarjeta en el Point; el pago de más es el de la orden ORD01SECOND de Mercado Pago.",
     whatToDo:
-      "Hacerlo desde Mercado Pago cuanto antes y marcarlo como hecho en Reembolsos sin API. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
+      "Hacerlo desde Mercado Pago cuanto antes y marcarlo como hecho en Devoluciones y reembolsos. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
   });
 });
 
@@ -295,7 +295,7 @@ test("gives a refund of a voided or cancelled sale or of a return left pending i
     meaning:
       "Hay un reembolso de una venta anulada o cancelada, o de una devolución, que todavía no se completó.",
     whatToDo:
-      "Si es de un pago con QR o Point, confirmarlo en Reembolsos de Mercado Pago para que la nube lo envíe; si Mercado Pago ya lo rechazó, descartarlo ahí. Si es de otro medio, hacerlo por fuera del sistema cuanto antes y marcarlo como hecho en Reembolsos sin API. El Administrador ya fue avisado.",
+      "Si es de un pago con QR o Point, confirmarlo en Devoluciones y reembolsos para que la nube lo envíe; si Mercado Pago ya lo rechazó, descartarlo ahí. Si es de otro medio, hacerlo por fuera del sistema cuanto antes y marcarlo como hecho en Devoluciones y reembolsos. El Administrador ya fue avisado.",
   });
   expect(localAlertTitle("refund_task")).toBe("Reembolso pendiente de confirmar");
 });
