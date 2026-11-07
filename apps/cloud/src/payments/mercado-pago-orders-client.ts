@@ -90,11 +90,13 @@ function orderAnswerSchemaWith<TPaymentDetail extends z.ZodType<string | undefin
 }
 
 const orderAnswerSchema = orderAnswerSchemaWith(z.string());
-const pointCreationAnswerSchema = orderAnswerSchemaWith(z.string().optional());
+const orderWithOptionalPaymentDetailSchema = orderAnswerSchemaWith(z.string().optional());
 
 function parsedOrder(
   body: unknown,
-  schema: typeof orderAnswerSchema | typeof pointCreationAnswerSchema = orderAnswerSchema,
+  schema:
+    | typeof orderAnswerSchema
+    | typeof orderWithOptionalPaymentDetailSchema = orderAnswerSchema,
 ) {
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
@@ -235,7 +237,7 @@ export function createMercadoPagoOrdersClient(
   async function createOrder(
     request: { idempotencyKey: string },
     body: Record<string, unknown>,
-    answerSchema: typeof orderAnswerSchema | typeof pointCreationAnswerSchema,
+    answerSchema: typeof orderAnswerSchema | typeof orderWithOptionalPaymentDetailSchema,
   ): Promise<MercadoPagoOrderCreation> {
     const answer = await call("/v1/orders", {
       method: "POST",
@@ -300,7 +302,7 @@ export function createMercadoPagoOrdersClient(
             payment_method: { default_type: DEFAULT_TYPE_OF_CARD[request.cardType] },
           },
         },
-        pointCreationAnswerSchema,
+        orderWithOptionalPaymentDetailSchema,
       );
     },
 
@@ -343,7 +345,9 @@ export function createMercadoPagoOrdersClient(
       if (answer.status < 200 || answer.status >= 300 || !page.success) {
         return notSearched(answer.status, answer.body);
       }
-      const orders = page.data.data.map((item) => parsedOrder(item));
+      const orders = page.data.data.map((item) =>
+        parsedOrder(item, orderWithOptionalPaymentDetailSchema),
+      );
       const found = orders.filter((order) => order !== null);
       return found.length === orders.length
         ? { kind: "read", orders: found }
