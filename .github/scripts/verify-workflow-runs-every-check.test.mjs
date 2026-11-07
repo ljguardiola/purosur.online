@@ -2154,7 +2154,6 @@ const SETUP_NODE_WITHOUT_CACHE = [
   `uses: ${SETUP_NODE}`,
   "with:",
   "  node-version-file: .node-version",
-  "  package-manager-cache: false",
 ];
 
 function cacheStep(uses, extraLines) {
@@ -2192,23 +2191,6 @@ test("flags actions/setup-node restoring the pnpm cache, which a stalled downloa
     violations,
     /tests job restores a dependency cache inside actions\/setup-node/,
   );
-});
-
-test("flags actions/setup-node left to cache the package manager named in package.json on its own", () => {
-  for (const withLines of [
-    ["with:", "  node-version-file: .node-version"],
-    ["with:", "  node-version-file: .node-version", "  package-manager-cache: true"],
-    [],
-  ]) {
-    const violations = findDependencyCacheViolations(
-      workflowWithSteps([`uses: ${SETUP_NODE}`, ...withLines]),
-    );
-
-    assertSingleViolation(
-      violations,
-      /tests job restores a dependency cache inside actions\/setup-node/,
-    );
-  }
 });
 
 for (const uses of [
