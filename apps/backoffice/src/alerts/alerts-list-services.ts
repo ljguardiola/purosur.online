@@ -1,11 +1,7 @@
 import type { AlertDetailModalServices } from "./alert-detail-modal";
-import { fetchAlerts as fetchAlertsDefault } from "./alerts-api";
+import type { fetchAlerts } from "./alerts-api";
 
-export type AlertsListScreenServices = {
-  fetchAlerts: typeof fetchAlertsDefault;
+export type AlertsListSectionServices = {
+  fetchAlerts: typeof fetchAlerts;
   alertDetailModal?: AlertDetailModalServices;
-};
-
-export const defaultAlertsListScreenServices: AlertsListScreenServices = {
-  fetchAlerts: fetchAlertsDefault,
 };

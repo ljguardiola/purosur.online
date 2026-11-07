@@ -9,7 +9,6 @@ import { opensOnlyScreens } from "./test-support/screen-routes";
 
 opensOnlyScreens([
   "/",
-  "/alerts",
   "/categories",
   "/discounts",
   "/help",
@@ -170,15 +169,17 @@ test("reopens the users list on the state its URL carries", async () => {
   await expect.element(screen.getByRole("button", { name: /^Estado: Inactivos/ })).toBeVisible();
 });
 
-test("reopens the alerts list with the filters and page its URL carries", async () => {
+test("reopens the alerts list of Inicio with the filters and page its URL carries", async () => {
   const services = createAppServices();
-  window.history.pushState(null, "", "/alerts?level=critical&status=closed&page=2");
+  window.history.pushState(null, "", "/?level=critical&status=closed&page=2");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Alertas", level: 1 })).toBeVisible();
   await expect
-    .poll(() => services.alertsListScreen.fetchAlerts)
+    .element(screen.getByRole("heading", { name: "Lista de alertas", level: 2 }))
+    .toBeVisible();
+  await expect
+    .poll(() => services.homeScreen.fetchAlerts)
     .toHaveBeenCalledWith({
       level: "critical",
       open: false,
@@ -213,7 +214,6 @@ test.each([
   { url: "/categories?search=alma", link: "Categorías" },
   { url: "/prices?search=yerba", link: "Precios" },
   { url: "/discounts?search=yerba", link: "Promociones" },
-  { url: "/alerts?status=closed", link: "Alertas" },
 ])("the $link section link carries the filters its list is showing", async ({ url, link }) => {
   const services = createAppServices();
   vi.mocked(services.categoriesListScreen.fetchCategories).mockResolvedValue({

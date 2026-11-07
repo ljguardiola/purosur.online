@@ -10,8 +10,8 @@ import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import type { FetchAlertsOutcome } from "./alerts-api";
-import { AlertsListScreen } from "./alerts-list-screen";
-import type { AlertsListScreenServices } from "./alerts-list-services";
+import { AlertsListSection } from "./alerts-list-section";
+import type { AlertsListSectionServices } from "./alerts-list-services";
 import { type AlertsListFilters, alertsListFilters } from "./routes";
 
 beforeEach(() => {
@@ -19,8 +19,8 @@ beforeEach(() => {
 });
 
 function createServices(
-  overrides: Partial<AlertsListScreenServices> = {},
-): AlertsListScreenServices {
+  overrides: Partial<AlertsListSectionServices> = {},
+): AlertsListSectionServices {
   return {
     fetchAlerts: vi.fn(),
     alertDetailModal: {
@@ -90,10 +90,6 @@ function ok(
       alerts,
       total: alerts.length,
       pageSize: 25,
-      openCount: alerts.filter((alert) => alert.resolvedAt === null).length,
-      openCriticalCount: alerts.filter(
-        (alert) => alert.resolvedAt === null && alert.level === "critical",
-      ).length,
       ...page,
     },
   };
@@ -108,7 +104,7 @@ function deferred<T>() {
 }
 
 function screenElement(
-  services: AlertsListScreenServices,
+  services: AlertsListSectionServices,
   onSessionEnded: () => void = () => {},
   access: BackofficeAccess = ADMINISTRATOR_ACCESS,
   {
@@ -122,7 +118,7 @@ function screenElement(
   return (
     <FieldSizeProvider size="backoffice">
       <main>
-        <AlertsListScreen
+        <AlertsListSection
           services={services}
           onSessionEnded={onSessionEnded}
           access={access}
@@ -138,15 +134,15 @@ function renderScreen(...args: Parameters<typeof screenElement>) {
   return render(screenElement(...args));
 }
 
-test("shows the breadcrumb, heading, each alert's level/kind/scope/opened date, the pill, and the footer", async () => {
+test("shows the section's heading and each alert's level/kind/scope/opened date", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlerts).mockResolvedValue(ok([passkeyAlert, lockoutAlert]));
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("Inicio")).toBeVisible();
-  await expect.element(screen.getByRole("heading", { name: "Alertas", level: 1 })).toBeVisible();
-  await expect.element(screen.getByText("2 alertas abiertas").first()).toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "Lista de alertas", level: 2 }))
+    .toBeVisible();
   const passkeyRow = screen.getByRole("row", { name: /Lucía Pérez/ });
   const lockoutRow = screen.getByRole("row", { name: /203\.0\.113\.5/ });
   await expect.element(passkeyRow.getByText("Advertencia")).toBeVisible();
@@ -154,19 +150,32 @@ test("shows the breadcrumb, heading, each alert's level/kind/scope/opened date, 
   await expect.element(passkeyRow.getByText("Passkey")).toBeVisible();
   await expect.element(passkeyRow.getByText("Lucía Pérez")).toBeVisible();
   await expect.element(lockoutRow.getByText("203.0.113.5")).toBeVisible();
-  await expect.element(screen.getByText("2 alertas abiertas · 1 crítica")).toBeVisible();
 
   await expectNoAccessibilityViolations(document.body);
 });
 
-test("hides the header pill and shows the blank empty state when there are no open alerts", async () => {
+test("shows the blank empty state when there are no open alerts", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlerts).mockResolvedValue(ok([]));
 
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByText("Sin alertas abiertas")).toBeVisible();
-  expect(screen.getByText("alertas abiertas").query()).toBeNull();
+});
+
+test("can be reached by the alerts-list anchor, which holds its heading", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(ok([passkeyAlert]));
+
+  const screen = await renderScreen(services);
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Lista de alertas", level: 2 }))
+    .toBeVisible();
+  const anchor = document.getElementById("alerts-list");
+  expect(
+    anchor?.contains(screen.getByRole("heading", { name: "Lista de alertas" }).element()),
+  ).toBe(true);
 });
 
 test("shows no counts line under the empty state, which already says nothing is open", async () => {
@@ -209,16 +218,13 @@ test("shows the table loading until the first alerts arrive", async () => {
     .not.toHaveAttribute("aria-busy");
 });
 
-test("makes one request per load, carrying the open-alert counts beyond the rows shown", async () => {
+test("makes one request per load", async () => {
   const services = createServices();
-  vi.mocked(services.fetchAlerts).mockResolvedValue(
-    ok([passkeyAlert], { total: 1, openCount: 4, openCriticalCount: 2 }),
-  );
+  vi.mocked(services.fetchAlerts).mockResolvedValue(ok([passkeyAlert], { total: 1 }));
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("4 alertas abiertas · 2 críticas")).toBeVisible();
-  await expect.element(screen.getByText("4 alertas abiertas", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("Lucía Pérez")).toBeVisible();
   expect(services.fetchAlerts).toHaveBeenCalledTimes(1);
   expect(services.fetchAlerts).toHaveBeenCalledWith({ open: true, page: 1 });
 });
@@ -564,9 +570,9 @@ test("moves to the last page left when closing the only alert on the last page e
   let closed = false;
   vi.mocked(services.fetchAlerts).mockImplementation(async (query) => {
     if (query?.page === 2) {
-      return closed ? ok([], { total: 25, openCount: 25 }) : ok([passkeyAlert], { total: 26 });
+      return closed ? ok([], { total: 25 }) : ok([passkeyAlert], { total: 26 });
     }
-    return ok([lockoutAlert], { total: closed ? 25 : 26, openCount: closed ? 25 : 26 });
+    return ok([lockoutAlert], { total: closed ? 25 : 26 });
   });
   services.alertDetailModal = {
     fetchAlert: vi.fn().mockResolvedValue({ kind: "ok", value: passkeyDetail }),
@@ -598,9 +604,9 @@ test("never shows the emptied last page as empty while it moves to the last page
   const lastPageLeft = deferred<FetchAlertsOutcome>();
   vi.mocked(services.fetchAlerts).mockImplementation(async (query) => {
     if (query?.page === 2) {
-      return closed ? ok([], { total: 25, openCount: 25 }) : ok([passkeyAlert], { total: 26 });
+      return closed ? ok([], { total: 25 }) : ok([passkeyAlert], { total: 26 });
     }
-    return closed ? lastPageLeft.promise : ok([lockoutAlert], { total: 26, openCount: 26 });
+    return closed ? lastPageLeft.promise : ok([lockoutAlert], { total: 26 });
   });
   services.alertDetailModal = {
     fetchAlert: vi.fn().mockResolvedValue({ kind: "ok", value: passkeyDetail }),
@@ -1298,17 +1304,6 @@ test("searches an alert by its title typed without accents", async () => {
     ]);
 });
 
-test("shows the open and critical alert counts with the thousands separator", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchAlerts).mockResolvedValue(
-    ok([passkeyAlert, lockoutAlert], { openCount: 1998, openCriticalCount: 1500 }),
-  );
-
-  const screen = await renderScreen(services);
-
-  await expect.element(screen.getByText("1.998 alertas abiertas · 1.500 críticas")).toBeVisible();
-});
-
 test("typing in the search renders none of the listed alerts again", async () => {
   const services = createServices();
   const listed = withReadsCounted([passkeyAlert, lockoutAlert], "level");
@@ -1327,4 +1322,26 @@ test("typing in the search renders none of the listed alerts again", async () =>
   } finally {
     vi.useRealTimers();
   }
+});
+
+test("adopts the filters its owner changes from outside, such as a level card pressed above it", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(ok([passkeyAlert, lockoutAlert]));
+  const onFiltersChange = vi.fn();
+  const screen = await renderScreen(services, () => {}, ADMINISTRATOR_ACCESS, { onFiltersChange });
+  await expect.element(screen.getByText("Lucía Pérez")).toBeVisible();
+  vi.mocked(services.fetchAlerts).mockResolvedValue(ok([lockoutAlert]));
+
+  await screen.rerender(
+    screenElement(services, () => {}, ADMINISTRATOR_ACCESS, {
+      filters: { ...alertsListFilters.parse({}), level: "critical" },
+      onFiltersChange,
+    }),
+  );
+
+  await expect
+    .poll(() => services.fetchAlerts)
+    .toHaveBeenCalledWith({ level: "critical", open: true, page: 1 });
+  await expect.element(screen.getByText("Lucía Pérez")).not.toBeInTheDocument();
+  expect(onFiltersChange).not.toHaveBeenCalled();
 });

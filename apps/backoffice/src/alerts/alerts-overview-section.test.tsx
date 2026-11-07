@@ -4,11 +4,7 @@ import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { CloudData } from "../platform/use-cloud-query";
 import { render } from "../shell/test-support/render-with-router";
-import {
-  AlertsNotPermittedSection,
-  AlertsOverviewOpenCount,
-  AlertsOverviewSection,
-} from "./alerts-overview-section";
+import { AlertsOverviewOpenCount, AlertsOverviewSection } from "./alerts-overview-section";
 
 const overview: AlertsOverview = {
   critical: { openCount: 4, kinds: ["user_access_increased"] },
@@ -38,7 +34,9 @@ function renderParts(data: CloudData<AlertsOverview>) {
 test("shows the open alerts grouped by level and their total in the pill", async () => {
   const screen = await renderParts(loaded(overview));
 
-  await expect.element(screen.getByRole("heading", { name: "Alertas", level: 2 })).toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "Alertas abiertas", level: 2 }))
+    .toBeVisible();
   await expect
     .element(screen.getByRole("link", { name: "Alertas críticas 4 Acceso ampliado" }))
     .toBeVisible();
@@ -61,14 +59,13 @@ test("shows a card-shaped loading placeholder per level, and no pill, while the 
   expect(screen.getByText(/^\d+ alertas? abiertas?$/).query()).toBeNull();
 });
 
-test("shows the blank empty state, and no cards or pill, when no alert is open", async () => {
+test("shows each level at zero, and no pill nor a message of its own, when no alert is open", async () => {
   const screen = await renderParts(loaded(NOTHING_OPEN));
 
-  await expect.element(screen.getByText("Sin alertas abiertas")).toBeVisible();
-  await expect
-    .element(screen.getByText("Cuando algo necesite atención, aparece acá."))
-    .toBeVisible();
-  expect(screen.getByRole("link").query()).toBeNull();
+  await expect.element(screen.getByRole("link", { name: "Alertas críticas 0" })).toBeVisible();
+  await expect.element(screen.getByRole("link", { name: "Advertencias 0" })).toBeVisible();
+  await expect.element(screen.getByRole("link", { name: "Informativas 0" })).toBeVisible();
+  expect(screen.getByText("Sin alertas abiertas").query()).toBeNull();
   expect(screen.getByText(/^\d+ alertas? abiertas?$/).query()).toBeNull();
 });
 
@@ -87,19 +84,4 @@ test("shows the rate-limited notice when the alerts were refused for too many re
   const screen = await renderParts({ status: "failed", retryAfterSeconds: 120, retry: () => {} });
 
   await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
-});
-
-test("tells someone without either alert permission that they have no alerts to view", async () => {
-  const screen = await render(
-    <main>
-      <AlertsNotPermittedSection />
-    </main>,
-  );
-
-  await expect.element(screen.getByRole("heading", { name: "Alertas", level: 2 })).toBeVisible();
-  await expect.element(screen.getByText("No tenés alertas para ver")).toBeVisible();
-  await expect
-    .element(screen.getByText("Tu rol no incluye permiso para ver alertas."))
-    .toBeVisible();
-  await expectNoAccessibilityViolations(document.body);
 });

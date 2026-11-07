@@ -14,7 +14,6 @@ import type {
   AlertReader,
   AlertSearch,
   AlertSummary,
-  OpenAlertCounts,
   OpenAlertsOverview,
 } from "@purosur/domain/alerts/use-cases";
 import { and, asc, count, desc, eq, inArray, or, type SQL, sql } from "drizzle-orm";
@@ -148,20 +147,6 @@ export class DrizzleAlertReader<TQueryResult extends PgQueryResultHKT> implement
       .offset((page - 1) * ALERTS_PAGE_SIZE);
     const [matched] = await this.db.select({ total: count() }).from(alerts).where(where);
     return { alerts: rows.map(toSummary), total: matched?.total ?? 0 };
-  }
-
-  async countOpenVisibleAlerts(sight: VisibleAlertSight): Promise<OpenAlertCounts> {
-    const [counts] = await this.db
-      .select({
-        openCount: count(),
-        openCriticalCount: count(sql`case when ${alerts.level} = 'critical' then 1 end`),
-      })
-      .from(alerts)
-      .where(and(sightCondition(sight), openAlertCondition()));
-    return {
-      openCount: counts?.openCount ?? 0,
-      openCriticalCount: counts?.openCriticalCount ?? 0,
-    };
   }
 
   async overviewOfOpenVisibleAlerts(sight: VisibleAlertSight): Promise<OpenAlertsOverview> {

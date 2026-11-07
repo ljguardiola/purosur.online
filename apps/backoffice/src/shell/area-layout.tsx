@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import { type ReactNode, Suspense } from "react";
 import { AccountFooter } from "./account-footer";
-import { AreaTopBarAlertsCount } from "./area-top-bar-alerts-count";
 import { AreaTopBarUnbilledDeferredSales } from "./area-top-bar-unbilled-deferred-sales";
 import {
   canComparePrices,
@@ -25,7 +24,6 @@ import {
   canPerformStockCounts,
   canReadPurchaseOrders,
   canRecordPurchases,
-  canSeeAlertsArea,
   canSeeBackupsArea,
   canSeeBranchArea,
   canSeeCatalogArea,
@@ -67,24 +65,16 @@ type Area =
 
 export type AreaLayoutProps = {
   area: Area;
-  sectionColumnLabel: string;
-  sectionColumn: ReactNode;
-  showsOpenAlertsCount?: boolean;
+  sectionColumnLabel?: string | undefined;
+  sectionColumn?: ReactNode;
   children: ReactNode;
 };
 
-export function AreaLayout({
-  area,
-  sectionColumnLabel,
-  sectionColumn,
-  showsOpenAlertsCount = false,
-  children,
-}: AreaLayoutProps) {
+export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }: AreaLayoutProps) {
   const { session, services, sessionActions } = signedInRoute.useRouteContext();
   const { account } = signedInRoute.useSearch();
   const navigate = useNavigate();
   const UnbilledDeferredSales = services.areaTopBarUnbilledDeferredSales;
-  const AlertsCount = services.areaTopBarAlertsCount;
   const matchRoute = useMatchRoute();
   const catalogTarget = canManageProductsAndCategories(session)
     ? "/products"
@@ -228,33 +218,22 @@ export function AreaLayout({
           ) : null
         }
       >
-        <AreaTopBarAlertsCount
-          value={
-            showsOpenAlertsCount && canSeeAlertsArea(session) ? (
-              <AlertsCount
-                onSessionEnded={sessionActions.sessionEnded}
-                services={services.alertsOpenCountLink}
+        <div className="flex min-h-0 flex-1">
+          <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+          {account === undefined ? null : (
+            <Suspense fallback={null}>
+              <OwnAccountPanel
+                tab={account}
+                onClose={() =>
+                  void navigate({
+                    to: ".",
+                    search: (previous) => ({ ...previous, account: undefined }),
+                  })
+                }
               />
-            ) : null
-          }
-        >
-          <div className="flex min-h-0 flex-1">
-            <div className="flex min-w-0 flex-1 flex-col">{children}</div>
-            {account === undefined ? null : (
-              <Suspense fallback={null}>
-                <OwnAccountPanel
-                  tab={account}
-                  onClose={() =>
-                    void navigate({
-                      to: ".",
-                      search: (previous) => ({ ...previous, account: undefined }),
-                    })
-                  }
-                />
-              </Suspense>
-            )}
-          </div>
-        </AreaTopBarAlertsCount>
+            </Suspense>
+          )}
+        </div>
       </AreaTopBarUnbilledDeferredSales>
     </Shell>
   );

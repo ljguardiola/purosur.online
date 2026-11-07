@@ -15,12 +15,12 @@ async function blockDownloadsMatching(...patterns: string[]) {
   await session.send("Network.setBlockedURLs", { urls: patterns });
 }
 
-opensOnlyScreens(["/help"], { downloadedInTest: ["/", "/alerts"] });
+opensOnlyScreens(["/help"], { downloadedInTest: ["/"] });
 
 beforeEach(async () => {
   window.history.pushState(null, "", "/");
   window.sessionStorage.clear();
-  await blockDownloadsMatching("*alerts-list-page*", "*home-page*");
+  await blockDownloadsMatching("*home-page*");
 });
 
 afterEach(async () => {
@@ -43,14 +43,14 @@ test("shows a Spanish failure inside the area, without reporting it, when a scre
   await expect
     .element(screen.getByRole("heading", { name: "No pudimos mostrar esta pantalla", level: 1 }))
     .toBeVisible();
-  await expect.element(screen.getByRole("heading", { name: "Inicio", level: 2 })).toBeVisible();
+  await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
   expect(screen.getByText("Something went wrong!").query()).toBeNull();
   expect(services.screenFailure.reloadPage).not.toHaveBeenCalled();
   expect(reportError).not.toHaveBeenCalled();
 });
 
 test("asks to check the connection, instead of reloading, when trying again while still offline, and reloads once back online", async () => {
-  window.history.pushState(null, "", "/alerts");
+  window.history.pushState(null, "", "/");
   const services = createAppServices();
   vi.mocked(services.screenFailure.isOnline).mockReturnValue(false);
   const screen = await render(<App help={emptyHelp} services={services} reportError={vi.fn()} />);
@@ -70,7 +70,7 @@ test("asks to check the connection, instead of reloading, when trying again whil
 });
 
 test("reloads the page once, instead of showing or reporting a failure, when a screen's code cannot download while online", async () => {
-  window.history.pushState(null, "", "/alerts");
+  window.history.pushState(null, "", "/");
   const services = createAppServices();
   vi.mocked(services.screenFailure.isOnline).mockReturnValue(true);
   const reportError = vi.fn();
@@ -85,7 +85,7 @@ test("reloads the page once, instead of showing or reporting a failure, when a s
 });
 
 test("reloads the page once, without flashing the failure, when effects run twice", async () => {
-  window.history.pushState(null, "", "/alerts");
+  window.history.pushState(null, "", "/");
   const services = createAppServices();
   vi.mocked(services.screenFailure.isOnline).mockReturnValue(true);
 
@@ -101,7 +101,7 @@ test("reloads the page once, without flashing the failure, when effects run twic
 });
 
 test("shows the failure, instead of reloading again, when the screen's code still cannot download after that reload", async () => {
-  window.history.pushState(null, "", "/alerts");
+  window.history.pushState(null, "", "/");
   const services = createAppServices();
   vi.mocked(services.screenFailure.isOnline).mockReturnValue(true);
   const first = await render(<App help={emptyHelp} services={services} reportError={vi.fn()} />);
@@ -123,7 +123,7 @@ test("shows the failure, instead of reloading again, when the screen's code stil
 });
 
 test("shows the failure, instead of reloading again, when the screen's code still cannot download after trying again once back online", async () => {
-  window.history.pushState(null, "", "/alerts");
+  window.history.pushState(null, "", "/");
   const services = createAppServices();
   vi.mocked(services.screenFailure.isOnline).mockReturnValue(false);
   const first = await render(<App help={emptyHelp} services={services} reportError={vi.fn()} />);

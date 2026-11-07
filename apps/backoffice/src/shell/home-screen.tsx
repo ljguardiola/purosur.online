@@ -1,31 +1,37 @@
 import type { AlertsOverview } from "@purosur/contracts";
-import {
-  AlertsNotPermittedSection,
-  AlertsOverviewOpenCount,
-  AlertsOverviewSection,
-} from "../alerts/alerts-overview-section";
+import { AlertsListSection } from "../alerts/alerts-list-section";
+import { AlertsOverviewOpenCount, AlertsOverviewSection } from "../alerts/alerts-overview-section";
 import { useAlertsOverviewQuery } from "../alerts/alerts-queries";
+import type { AlertsListFilters } from "../alerts/routes";
 import type { CloudData } from "../platform/use-cloud-query";
 import { useRegisterSyncStatusQuery } from "../register/register-queries";
-import type { RegisterSyncStatus } from "../register/registers-api";
 import { RegistersSyncSection } from "../register/registers-sync-section";
 import { type BackofficeAccess, canSeeAlertsArea } from "./backoffice-access";
 import type { HomeScreenServices } from "./home-screen-services";
+import { PendingTasksSection } from "./pending-tasks-section";
 import { ScreenLayout } from "./screen-layout";
 import { ScreenTitle } from "./screen-title";
 
 export type HomeScreenProps = {
   access: BackofficeAccess;
+  filters: AlertsListFilters;
+  onFiltersChange: (filters: AlertsListFilters) => void;
   onSessionEnded: () => void;
   services: HomeScreenServices;
 };
 
-type HomeContentProps = {
-  alerts: CloudData<AlertsOverview> | "not_permitted";
-  registers: CloudData<RegisterSyncStatus[]>;
-};
-
-function HomeContent({ alerts, registers }: HomeContentProps) {
+function HomeContent({
+  access,
+  alerts,
+  filters,
+  onFiltersChange,
+  onSessionEnded,
+  services,
+}: HomeScreenProps & { alerts: CloudData<AlertsOverview> | "not_permitted" }) {
+  const registers = useRegisterSyncStatusQuery({
+    fetchRegisterSyncStatus: services.fetchRegisterSyncStatus,
+    onSessionEnded,
+  });
   return (
     <ScreenLayout
       topBar={
@@ -37,42 +43,38 @@ function HomeContent({ alerts, registers }: HomeContentProps) {
           {alerts === "not_permitted" ? null : <AlertsOverviewOpenCount data={alerts} />}
         </div>
       }
-      bodyClassName="gap-4 p-6"
+      bodyClassName="gap-6 p-6"
     >
-      {alerts === "not_permitted" ? (
-        <AlertsNotPermittedSection />
-      ) : (
-        <AlertsOverviewSection data={alerts} />
+      {alerts === "not_permitted" ? null : (
+        <>
+          <AlertsOverviewSection data={alerts} />
+          <AlertsListSection
+            filters={filters}
+            onFiltersChange={onFiltersChange}
+            access={access}
+            onSessionEnded={onSessionEnded}
+            services={services}
+          />
+        </>
       )}
       <RegistersSyncSection data={registers} />
+      <PendingTasksSection access={access} onSessionEnded={onSessionEnded} services={services} />
     </ScreenLayout>
   );
 }
 
-function HomeContentWithAlerts({
-  onSessionEnded,
-  registers,
-  services,
-}: Omit<HomeScreenProps, "access"> & Pick<HomeContentProps, "registers">) {
+function HomeContentWithAlerts(props: HomeScreenProps) {
   const alerts = useAlertsOverviewQuery({
-    fetchAlertsOverview: services.fetchAlertsOverview,
-    onSessionEnded,
+    fetchAlertsOverview: props.services.fetchAlertsOverview,
+    onSessionEnded: props.onSessionEnded,
   });
-  return <HomeContent alerts={alerts} registers={registers} />;
+  return <HomeContent {...props} alerts={alerts} />;
 }
 
-export function HomeScreen({ access, onSessionEnded, services }: HomeScreenProps) {
-  const registers = useRegisterSyncStatusQuery({
-    fetchRegisterSyncStatus: services.fetchRegisterSyncStatus,
-    onSessionEnded,
-  });
-  return canSeeAlertsArea(access) ? (
-    <HomeContentWithAlerts
-      onSessionEnded={onSessionEnded}
-      registers={registers}
-      services={services}
-    />
+export function HomeScreen(props: HomeScreenProps) {
+  return canSeeAlertsArea(props.access) ? (
+    <HomeContentWithAlerts {...props} />
   ) : (
-    <HomeContent alerts="not_permitted" registers={registers} />
+    <HomeContent {...props} alerts="not_permitted" />
   );
 }
