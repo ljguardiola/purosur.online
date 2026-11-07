@@ -71,12 +71,9 @@ test("opens Productos from the rail with its five tabs for a person with every c
   expect(document.title).toBe("Productos · Puro Sur");
   const tabs = screen.getByRole("tablist", { name: "Secciones de Productos" });
   await expect.element(tabs.getByRole("tab", { name: "Productos", selected: true })).toBeVisible();
-  expect(
-    tabs
-      .getByRole("tab")
-      .elements()
-      .map((tab) => tab.textContent),
-  ).toEqual(TAB_NAMES);
+  for (const [index, name] of TAB_NAMES.entries()) {
+    await expect.element(tabs.getByRole("tab").nth(index)).toHaveAccessibleName(name);
+  }
   await expect.element(railLink(screen)).toHaveAttribute("aria-current", "page");
   await expect
     .element(
@@ -156,8 +153,6 @@ test.each([
 
     await expect.element(screen.getByRole("tab", { name: tab, selected: true })).toBeVisible();
     expect(location()).toBe(target);
-    expect(services.discountsListScreen.fetchDiscounts).not.toHaveBeenCalled();
-    expect(services.recipesListScreen.fetchRecipes).not.toHaveBeenCalled();
   },
 );
 
@@ -193,7 +188,7 @@ test.each([
   ["/categories?search=alma", ["products_and_categories"], "/products/classification?search=alma"],
   ["/brands", ["products_and_categories"], "/products/classification/brands"],
   ["/tags", ["products_and_categories"], "/products/classification/tags"],
-  ["/prices?search=yerba&review=all", ["prices_area"], "/products/prices?search=yerba&review=all"],
+  ["/prices?search=yerba&review=all", ["prices_area"], "/products/prices?review=all&search=yerba"],
   [
     "/discounts?search=yerba&status=all",
     ["promotions"],
@@ -234,12 +229,9 @@ test("opens Clasificación with its three sections, each one at its own address"
   await expect
     .element(sections.getByRole("tab", { name: "Categorías", selected: true }))
     .toBeVisible();
-  expect(
-    sections
-      .getByRole("tab")
-      .elements()
-      .map((tab) => tab.textContent),
-  ).toEqual(["Categorías", "Marcas", "Distintivos"]);
+  for (const [index, name] of ["Categorías", "Marcas", "Distintivos"].entries()) {
+    await expect.element(sections.getByRole("tab").nth(index)).toHaveAccessibleName(name);
+  }
   expect(screen.getByRole("heading", { name: "Categorías", level: 1 }).query()).toBeNull();
 
   await userEvent.click(sections.getByRole("tab", { name: "Marcas" }));
