@@ -16,6 +16,7 @@ import {
   consultBitlockerRecoveryKey,
   createRegister,
   emitEnrollmentCode,
+  fetchFiscalRegisterNames,
   fetchRegisterCoverage,
   fetchRegisters,
   loadBitlockerRecoveryKey,
@@ -33,6 +34,7 @@ import {
 export type RegistersListScreenServices = {
   fetchRegisters: typeof fetchRegisters;
   fetchSnapshotBackupRegisters: typeof fetchSnapshotBackupRegisters;
+  fetchFiscalRegisterNames: typeof fetchFiscalRegisterNames;
   fetchRegisterCoverage: typeof fetchRegisterCoverage;
   emitEnrollmentCode: typeof emitEnrollmentCode;
   fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
@@ -51,6 +53,7 @@ export type RegistersListScreenServices = {
 export const defaultRegistersListScreenServices: RegistersListScreenServices = {
   fetchRegisters,
   fetchSnapshotBackupRegisters,
+  fetchFiscalRegisterNames,
   fetchRegisterCoverage,
   createRegister,
   assignPointTerminal,

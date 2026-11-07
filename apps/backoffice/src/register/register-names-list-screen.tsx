@@ -11,12 +11,12 @@ import { createLink, useNavigate } from "@tanstack/react-router";
 import { Laptop } from "lucide-react";
 import { useEffect, useEffectEvent } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
-import type { FetchRegisterNames, RegisterName } from "../platform/register-name";
 import type { RegisterPointOfSaleSection } from "../platform/register-point-of-sale-section";
 import { type BackofficeAccess, canSeeFiscalConfigurationArea } from "../shell/backoffice-access";
 import type { ReportPeriodFilters } from "../shell/report-filters-search";
 import { RegisterPanel } from "./register-panel";
 import { useRefreshRegisters, useRegisterNamesQuery } from "./register-queries";
+import type { RegisterName } from "./registers-api";
 import type { RegistersListScreenServices } from "./registers-list-services";
 
 export type RegisterNamesListScreenProps = {
@@ -24,7 +24,6 @@ export type RegisterNamesListScreenProps = {
   onSessionEnded: () => void;
   services: RegistersListScreenServices;
   registerPointOfSaleSection: RegisterPointOfSaleSection;
-  fetchFiscalRegisterNames: FetchRegisterNames;
   openRegister?: string | undefined;
   tab?: string | undefined;
   sessionsPeriod: ReportPeriodFilters;
@@ -40,7 +39,6 @@ export function RegisterNamesListScreen({
   onSessionEnded,
   services,
   registerPointOfSaleSection,
-  fetchFiscalRegisterNames,
   openRegister,
   tab,
   sessionsPeriod,
@@ -51,7 +49,9 @@ export function RegisterNamesListScreen({
   const fiscal = canSeeFiscalConfigurationArea(access);
   const data = useRegisterNamesQuery({
     source: fiscal ? "fiscal" : "backups",
-    fetchRegisterNames: fiscal ? fetchFiscalRegisterNames : services.fetchSnapshotBackupRegisters,
+    fetchRegisterNames: fiscal
+      ? services.fetchFiscalRegisterNames
+      : services.fetchSnapshotBackupRegisters,
     onSessionEnded,
   });
   const registers = data.status === "loaded" ? data.value : NO_REGISTERS;

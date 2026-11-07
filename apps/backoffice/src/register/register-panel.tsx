@@ -1,7 +1,6 @@
 import { DetailPanel, Tab, Tabs } from "@purosur/ui";
 import { createLink } from "@tanstack/react-router";
 import { landingPart, type PagePart, pagePartsFor } from "../platform/page-parts";
-import type { RegisterName } from "../platform/register-name";
 import type { RegisterPointOfSaleSection } from "../platform/register-point-of-sale-section";
 import {
   type BackofficeAccess,
@@ -15,7 +14,7 @@ import { RegisterDataSection } from "./register-data-section";
 import { RegisterPaymentsSection } from "./register-payments-section";
 import type { RegisterActions } from "./register-row-actions";
 import { RegisterSessionsSection } from "./register-sessions-section";
-import type { RegisterSummary } from "./registers-api";
+import type { RegisterName, RegisterSummary } from "./registers-api";
 import type { RegistersListScreenServices } from "./registers-list-services";
 import { SnapshotBackupsSection } from "./snapshot-backups-section";
 

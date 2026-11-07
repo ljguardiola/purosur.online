@@ -16,7 +16,6 @@ import { Check, Laptop, Plus } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
 import { cloudTableState } from "../platform/cloud-table-state";
-import type { FetchRegisterNames } from "../platform/register-name";
 import type { RegisterPointOfSaleSection } from "../platform/register-point-of-sale-section";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import {
@@ -58,7 +57,6 @@ export type RegistersListScreenProps = {
   onSessionEnded: () => void;
   services: RegistersListScreenServices;
   registerPointOfSaleSection: RegisterPointOfSaleSection;
-  fetchFiscalRegisterNames: FetchRegisterNames;
   openRegister?: string | undefined;
   tab?: string | undefined;
   sessionsPeriod: ReportPeriodFilters;

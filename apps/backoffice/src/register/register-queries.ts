@@ -7,15 +7,16 @@ import type {
 import type { PermissionKey } from "@purosur/domain";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
-import type { FetchRegisterNames, RegisterName } from "../platform/register-name";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchCashMovements } from "./cash-movements-api";
 import type { fetchCashSessionCloses } from "./cash-session-closes-api";
 import type {
+  FetchRegisterNamesOutcome,
   fetchRegisterCoverage,
   fetchRegisterSyncStatus,
   fetchRegisters,
+  RegisterName,
   RegisterSummary,
   RegisterSyncStatus,
 } from "./registers-api";
@@ -68,7 +69,7 @@ export function useRegistersQuery(params: {
 
 export function useRegisterNamesQuery(params: {
   source: RegisterNamesSource;
-  fetchRegisterNames: FetchRegisterNames;
+  fetchRegisterNames: () => Promise<FetchRegisterNamesOutcome>;
   onSessionEnded: () => void;
 }) {
   const sendToMyAccount = useSendToMyAccount();
