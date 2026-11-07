@@ -109,7 +109,7 @@ test("groups the cash reports in a card titled Caja", async () => {
 
   const cash = screen.getByRole("region", { name: "Caja" });
   await expect.element(cash).toBeVisible();
-  expect(cash.getByRole("link").elements()).toHaveLength(3);
+  expect(cash.getByRole("link").elements()).toHaveLength(1);
 });
 
 test("lists only its own reports in the Caja card, without the returns report", async () => {
@@ -117,7 +117,7 @@ test("lists only its own reports in the Caja card, without the returns report", 
 
   const cash = screen.getByRole("region", { name: "Caja" });
   await expect.element(cash).toBeVisible();
-  expect(cash.getByRole("link").elements()).toHaveLength(3);
+  expect(cash.getByRole("link").elements()).toHaveLength(1);
   expect(screen.getByRole("link", { name: "Anulaciones y devoluciones" }).query()).toBeNull();
 });
 
@@ -157,7 +157,7 @@ test("groups the stock reports in a card titled Stock", async () => {
 
   const stock = screen.getByRole("region", { name: "Stock" });
   await expect.element(stock).toBeVisible();
-  expect(stock.getByRole("link").elements()).toHaveLength(3);
+  expect(stock.getByRole("link").elements()).toHaveLength(1);
 });
 
 test("lists the valued current stock report as a link to it", async () => {

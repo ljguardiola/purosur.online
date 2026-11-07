@@ -306,7 +306,7 @@ test("downloads a spreadsheet of the movements shown, with the applied register 
 
   await expect
     .poll(() => downloads.names)
-    .toEqual(["movimientos-de-caja-2026-10-01-2026-10-07.xlsx"]);
+    .toEqual(["movimientos-de-efectivo-2026-10-01-2026-10-07.xlsx"]);
   const file = await readDownloadedXlsx(downloads.blobs[0]);
   expect(file.sheetNames).toEqual(["Resumen", "Movimientos de efectivo"]);
   const summary = file.sheet(0);

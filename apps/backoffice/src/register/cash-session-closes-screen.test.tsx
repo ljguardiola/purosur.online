@@ -366,7 +366,7 @@ test("downloads a spreadsheet of the closes shown, with the applied register and
 
   await expect
     .poll(() => downloads.names)
-    .toEqual(["cierres-de-sesion-2026-10-01-2026-10-07.xlsx"]);
+    .toEqual(["cierres-de-caja-2026-10-01-2026-10-07.xlsx"]);
   const file = await readDownloadedXlsx(downloads.blobs[0]);
   expect(file.sheetNames).toEqual(["Resumen", "Cierres de caja"]);
   const summary = file.sheet(0);

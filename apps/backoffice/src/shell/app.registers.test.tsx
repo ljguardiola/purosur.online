@@ -19,6 +19,7 @@ opensOnlyScreens([
   "/",
   "/help",
   "/refunds",
+  "/reports",
   "/registers",
   "/registers/closes",
   "/registers/movements",
