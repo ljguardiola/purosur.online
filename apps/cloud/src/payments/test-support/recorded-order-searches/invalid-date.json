@@ -5,9 +5,7 @@
       {
         "code": "invalid_search_params",
         "message": "One or more search parameters are invalid",
-        "details": [
-          "begin_date: must be in RFC3339 format (e.g., '2024-01-01T00:00:00Z')"
-        ]
+        "details": ["begin_date: must be in RFC3339 format (e.g., '2024-01-01T00:00:00Z')"]
       }
     ]
   }
