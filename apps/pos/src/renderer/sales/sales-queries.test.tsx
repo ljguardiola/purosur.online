@@ -882,6 +882,7 @@ describe("payment methods availability query", () => {
       qr: "available",
       point: "below_minimum",
       point_minimum: 1500,
+      qr_minimum: 1500,
     }));
     const screen = await renderWithClient(<AvailabilityProbe read={read} />);
 
@@ -910,8 +911,8 @@ describe("payment methods availability query", () => {
 
   it("reads again at once when it is refreshed", async () => {
     const answers: PaymentMethodAvailability[] = [
-      { qr: "available", point: "available", point_minimum: 1500 },
-      { qr: "offline", point: "offline", point_minimum: 1500 },
+      { qr: "available", point: "available", point_minimum: 1500, qr_minimum: 1500 },
+      { qr: "offline", point: "offline", point_minimum: 1500, qr_minimum: 1500 },
     ];
     const read = vi.fn<ReadAvailability>(async () => answers.shift() ?? null);
     const screen = await renderWithClient(<AvailabilityProbe read={read} />);
@@ -929,6 +930,7 @@ describe("payment methods availability query", () => {
       qr: "available",
       point: "available",
       point_minimum: 1500,
+      qr_minimum: 1500,
     }));
     const client = createQueryClient();
     const first = await render(

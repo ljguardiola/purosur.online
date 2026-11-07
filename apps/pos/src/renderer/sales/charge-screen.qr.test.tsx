@@ -48,6 +48,26 @@ describe("ChargeScreen · QR de Mercado Pago", () => {
     await expectNoAccessibilityViolations(screen.container);
   });
 
+  it("shows the QR as unavailable below its minimum and cannot be chosen, keeping the terminal available", async () => {
+    const { screen, startMercadoPagoCharge } = await renderScreen({
+      paymentMethodAvailability: async () => ({ ...AVAILABLE, qr: "below_minimum" }),
+    });
+
+    await expect.element(screen.getByRole("radio", { name: "QR de Mercado Pago" })).toBeDisabled();
+    await expect
+      .element(screen.getByText("No se ofrece para cobrar menos de $ 15,00"))
+      .toBeVisible();
+    await expect.element(screen.getByRole("radio", { name: "Point · Débito" })).toBeEnabled();
+    await userEvent.click(screen.getByText("QR de Mercado Pago", { exact: true }), {
+      force: true,
+    });
+    await expect
+      .element(screen.getByRole("heading", { name: "¿Cuánto se cobra con QR?" }))
+      .not.toBeInTheDocument();
+    expect(startMercadoPagoCharge).not.toHaveBeenCalled();
+    await expectNoAccessibilityViolations(screen.container);
+  });
+
   it("opens the wait for the QR charge the open sale has in progress, and follows it", async () => {
     const { screen, followMercadoPagoCharge } = await renderScreen({
       currentSale: async () => ({

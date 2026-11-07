@@ -442,7 +442,7 @@ function coreAnswering(
     },
     async paymentMethodAvailability() {
       return sales.paymentMethodAvailability === undefined
-        ? { qr: "available", point: "available", point_minimum: 1500 }
+        ? { qr: "available", point: "available", point_minimum: 1500, qr_minimum: 1500 }
         : sales.paymentMethodAvailability();
     },
     async startMercadoPagoCharge(saleId, method, amount) {
@@ -2653,7 +2653,7 @@ describe("App", () => {
         }),
         paymentMethodAvailability: async () => {
           availabilityReads += 1;
-          return { qr: "available", point: "available", point_minimum: 1500 };
+          return { qr: "available", point: "available", point_minimum: 1500, qr_minimum: 1500 };
         },
       },
     );

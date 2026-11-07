@@ -3303,7 +3303,12 @@ describe("the charge route's Mercado Pago QR", () => {
     }),
   };
 
-  const AVAILABLE = { qr: "available", point: "available", point_minimum: 1500 } as const;
+  const AVAILABLE = {
+    qr: "available",
+    point: "available",
+    point_minimum: 1500,
+    qr_minimum: 1500,
+  } as const;
 
   function chargeRouterWith(
     paymentMethodAvailability: () => Promise<PaymentMethodAvailability | null>,
@@ -3333,6 +3338,7 @@ describe("the charge route's Mercado Pago QR", () => {
       qr: "offline",
       point: "offline",
       point_minimum: 1500,
+      qr_minimum: 1500,
     }));
 
     const screen = await render(<RouterProvider router={router} />);

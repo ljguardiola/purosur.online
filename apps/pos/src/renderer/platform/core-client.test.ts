@@ -611,7 +611,12 @@ describe("createCoreClient", () => {
     client.connect(port);
 
     const availability = client.paymentMethodAvailability();
-    const answer = { qr: "available", point: "below_minimum", point_minimum: 1500 } as const;
+    const answer = {
+      qr: "available",
+      point: "below_minimum",
+      point_minimum: 1500,
+      qr_minimum: 1500,
+    } as const;
     port.answer({
       type: "payment-method-availability-result",
       request_id: "request-1",
