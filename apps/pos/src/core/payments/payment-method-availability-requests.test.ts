@@ -71,6 +71,7 @@ describe("the payment methods available for the sale being charged", () => {
       qr: "available",
       point: "available",
       point_minimum: 1500,
+      qr_minimum: 1500,
     });
   });
 
@@ -83,11 +84,12 @@ describe("the payment methods available for the sale being charged", () => {
         qr: "offline",
         point: "offline",
         point_minimum: 1500,
+        qr_minimum: 1500,
       });
     },
   );
 
-  it("leave the terminal below its minimum once what is pending falls under it, keeping the QR available", async () => {
+  it("leave both the terminal and the QR below their minimum once what is pending falls under it", async () => {
     const saleId = await openSaleOfTwoYerbas({ database, signedInPerson });
     await chargeSaleInCashFor(
       {
@@ -103,9 +105,10 @@ describe("the payment methods available for the sale being charged", () => {
     );
 
     expect(await availability("reachable")).toEqual({
-      qr: "available",
+      qr: "below_minimum",
       point: "below_minimum",
       point_minimum: 1500,
+      qr_minimum: 1500,
     });
   });
 
@@ -117,6 +120,7 @@ describe("the payment methods available for the sale being charged", () => {
       qr: "available",
       point: "not_configured",
       point_minimum: 1500,
+      qr_minimum: 1500,
     });
   });
 
@@ -142,6 +146,7 @@ describe("the payment methods available for the sale being charged", () => {
       qr: "not_configured",
       point: "available",
       point_minimum: 1500,
+      qr_minimum: 1500,
     });
   });
 
