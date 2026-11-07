@@ -7,8 +7,8 @@ import type {
   SnapshotBackupRegister,
   SnapshotBackups,
 } from "../snapshot-backups-api";
-import { SnapshotBackupsScreen } from "../snapshot-backups-screen";
-import type { SnapshotBackupsScreenServices } from "../snapshot-backups-services";
+import { SnapshotBackupsSection } from "../snapshot-backups-section";
+import type { SnapshotBackupsSectionServices } from "../snapshot-backups-services";
 
 export function createAuthorizationServices() {
   return {
@@ -19,10 +19,9 @@ export function createAuthorizationServices() {
 }
 
 export function createServices(
-  overrides: Partial<SnapshotBackupsScreenServices> = {},
-): SnapshotBackupsScreenServices {
+  overrides: Partial<SnapshotBackupsSectionServices> = {},
+): SnapshotBackupsSectionServices {
   return {
-    fetchSnapshotBackupRegisters: vi.fn(),
     fetchSnapshotBackups: vi.fn(),
     changeSnapshotLifecycleRules: vi.fn(),
     rotateSnapshotKey: vi.fn(),
@@ -86,9 +85,9 @@ const authorizationOptions = { challenge: "session-auth" } as never;
 const assertion = { id: "existing-cred" } as never;
 
 export function grantAuthorization(services: {
-  fetchSessionAuthorizationOptions: SnapshotBackupsScreenServices["fetchSessionAuthorizationOptions"];
-  authorizeSession: SnapshotBackupsScreenServices["authorizeSession"];
-  startAuthentication: SnapshotBackupsScreenServices["startAuthentication"];
+  fetchSessionAuthorizationOptions: SnapshotBackupsSectionServices["fetchSessionAuthorizationOptions"];
+  authorizeSession: SnapshotBackupsSectionServices["authorizeSession"];
+  startAuthentication: SnapshotBackupsSectionServices["startAuthentication"];
 }) {
   vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
     kind: "ok",
@@ -111,23 +110,20 @@ function RefreshRegisters() {
   );
 }
 
-export function renderScreen(
-  services: SnapshotBackupsScreenServices,
+export function renderSection(
+  services: SnapshotBackupsSectionServices,
   {
-    register = "",
-    onRegisterChange = () => {},
+    register = caja1,
     onSessionEnded = () => {},
   }: {
-    register?: string;
-    onRegisterChange?: (register: string) => void;
+    register?: SnapshotBackupRegister;
     onSessionEnded?: () => void;
   } = {},
 ) {
   return render(
     <main>
-      <SnapshotBackupsScreen
-        filters={{ register }}
-        onFiltersChange={({ register }) => onRegisterChange(register)}
+      <SnapshotBackupsSection
+        register={register}
         services={services}
         onSessionEnded={onSessionEnded}
       />

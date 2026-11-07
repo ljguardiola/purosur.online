@@ -26,6 +26,10 @@ export function createServices(
     fetchSessionAuthorizationOptions: vi.fn(),
     authorizeSession: vi.fn(),
     startAuthentication: vi.fn(),
+    fetchSnapshotBackups: vi.fn(),
+    changeSnapshotLifecycleRules: vi.fn(),
+    rotateSnapshotKey: vi.fn(),
+    fetchCashSessionCloses: vi.fn(),
     ...overrides,
   };
 }

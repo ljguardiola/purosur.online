@@ -3,7 +3,7 @@ import { expect, test, vi } from "vitest";
 import { render } from "../shell/test-support/render-with-router";
 import { registerKey, registerKeys, useSnapshotBackupsQuery } from "./register-queries";
 import type { fetchSnapshotBackups } from "./snapshot-backups-api";
-import { backups } from "./test-support/snapshot-backups-screen";
+import { backups } from "./test-support/snapshot-backups-section";
 
 function SnapshotBackupsProbe({
   registerId,

@@ -8,11 +8,12 @@ import {
 } from "../register/test-support/cash-movements-fixtures";
 import { weekCashSessionClosesReport } from "../register/test-support/cash-session-closes-fixtures";
 import { register1 } from "../register/test-support/registers-list-screen";
+import { backups } from "../register/test-support/snapshot-backups-section";
 import { openSession } from "../sessions/test-support/open-session";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
-import { registers } from "./test-support/report-fixtures";
+import { BACK_REGISTER_ID, registers } from "./test-support/report-fixtures";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
 opensOnlyScreens([
@@ -46,7 +47,15 @@ function registersServices(capabilities: Capability[]) {
   });
   vi.mocked(services.registersListScreen.fetchRegisters).mockResolvedValue({
     kind: "ok",
-    value: [register1],
+    value: [{ ...register1, id: REGISTER_ID }],
+  });
+  vi.mocked(services.registersListScreen.fetchSnapshotBackups).mockResolvedValue({
+    kind: "ok",
+    value: backups,
+  });
+  vi.mocked(services.registersListScreen.fetchCashSessionCloses).mockResolvedValue({
+    kind: "ok",
+    value: weekCashSessionClosesReport,
   });
   vi.mocked(services.registersListScreen.fetchRegisterCoverage).mockResolvedValue({
     kind: "ok",
@@ -206,14 +215,17 @@ test("redirects /backups to /registers", async () => {
   expect(location()).toBe("/registers");
 });
 
-test("redirects /backups naming a register to /registers with that register and the Copias tab", async () => {
+test("redirects /backups naming a register to /registers with that register's panel open on Copias", async () => {
   const services = registersServices(["registers_area", "backups_area"]);
   window.history.pushState(null, "", `/backups?register=${REGISTER_ID}`);
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("tab", { name: "Cajas", selected: true })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Copias", selected: true })).toBeVisible();
+  await expect.element(screen.getByRole("complementary", { name: "Caja 1" })).toBeVisible();
   expect(location()).toBe(`/registers?register=${REGISTER_ID}&tab=backups`);
+  expect(services.registersListScreen.fetchSnapshotBackups).toHaveBeenCalledWith(REGISTER_ID);
 });
 
 test("redirects /reports/cash-session-closes to /registers/closes keeping the period and the register", async () => {
@@ -279,4 +291,110 @@ test("leaves the closes and the movements out of the Reportes column", async () 
   await expect.element(sections.getByRole("link", { name: "Todos los reportes" })).toBeVisible();
   expect(sections.getByRole("link", { name: "Cierres de sesión" }).query()).toBeNull();
   expect(sections.getByRole("link", { name: "Movimientos de caja" }).query()).toBeNull();
+});
+
+const EVERY_CAPABILITY: Capability[] = [
+  "registers_area",
+  "reports_area",
+  "fiscal_configuration_area",
+  "backups_area",
+];
+
+test("pressing a register in the list opens its panel beside it, naming the register in the URL, and reloading reopens it", async () => {
+  const services = registersServices(EVERY_CAPABILITY);
+  window.history.pushState(null, "", "/registers");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await userEvent.click(screen.getByRole("link", { name: "Caja 1" }));
+
+  await expect.element(screen.getByRole("complementary", { name: "Caja 1" })).toBeVisible();
+  expect(location()).toBe(`/registers?register=${REGISTER_ID}`);
+  const panel = screen.getByRole("complementary", { name: "Caja 1" });
+  for (const name of ["Datos", "Fiscal y cobros", "Copias", "Sesiones"]) {
+    await expect.element(panel.getByRole("tab", { name })).toBeVisible();
+  }
+  await expect.element(panel.getByRole("tab", { name: "Datos", selected: true })).toBeVisible();
+  await expect.element(screen.getByRole("table", { name: "Cajas registradoras" })).toBeVisible();
+  await screen.unmount();
+
+  const reloaded = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(reloaded.getByRole("complementary", { name: "Caja 1" })).toBeVisible();
+});
+
+test("opens the panel tab the URL names, and moving between tabs rewrites the URL", async () => {
+  const services = registersServices(EVERY_CAPABILITY);
+  window.history.pushState(null, "", `/registers?register=${REGISTER_ID}&tab=sessions`);
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("tab", { name: "Sesiones", selected: true })).toBeVisible();
+  await expect.element(screen.getByText("Cerró: Beto")).toBeVisible();
+  expect(services.registersListScreen.fetchCashSessionCloses).toHaveBeenCalledWith({
+    register_id: REGISTER_ID,
+  });
+
+  await userEvent.click(screen.getByRole("tab", { name: "Copias" }));
+
+  await expect.element(screen.getByRole("tab", { name: "Copias", selected: true })).toBeVisible();
+  expect(location()).toBe(`/registers?register=${REGISTER_ID}&tab=backups`);
+});
+
+test("closing the panel removes the register and the tab from the URL", async () => {
+  const services = registersServices(EVERY_CAPABILITY);
+  window.history.pushState(null, "", `/registers?register=${REGISTER_ID}&tab=fiscal`);
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("complementary", { name: "Caja 1" })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
+
+  await expect
+    .element(screen.getByRole("complementary", { name: "Caja 1" }))
+    .not.toBeInTheDocument();
+  expect(location()).toBe("/registers");
+});
+
+test("closes the panel of a register the list does not show, replacing the URL without a new history entry", async () => {
+  const services = registersServices(EVERY_CAPABILITY);
+  window.history.pushState(null, "", `/registers?register=${BACK_REGISTER_ID}&tab=sessions`);
+  const entries = window.history.length;
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
+  await expect.poll(location).toBe("/registers");
+  expect(window.history.length).toBe(entries);
+  expect(screen.getByRole("complementary").query()).toBeNull();
+});
+
+test("drops a tab value the panel does not offer from the URL", async () => {
+  const services = registersServices(EVERY_CAPABILITY);
+  window.history.pushState(null, "", `/registers?register=${REGISTER_ID}&tab=invoices`);
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("tab", { name: "Datos", selected: true })).toBeVisible();
+  expect(location()).toBe(`/registers?register=${REGISTER_ID}`);
+});
+
+test("shows no Copias tab in the panel to a person with registers_area but not backups_area", async () => {
+  const services = registersServices(["registers_area"]);
+  window.history.pushState(null, "", `/registers?register=${REGISTER_ID}&tab=backups`);
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("tab", { name: "Datos", selected: true })).toBeVisible();
+  expect(screen.getByRole("tab", { name: "Copias" }).query()).toBeNull();
+  expect(services.registersListScreen.fetchSnapshotBackups).not.toHaveBeenCalled();
+});
+
+test("the panel's Sesiones links to Cierres de caja narrowed to the register", async () => {
+  const services = registersServices(EVERY_CAPABILITY);
+  window.history.pushState(null, "", `/registers?register=${REGISTER_ID}&tab=sessions`);
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await userEvent.click(screen.getByRole("link", { name: "Ver en Cierres de caja" }));
+
+  await expect
+    .element(screen.getByRole("tab", { name: "Cierres de caja", selected: true }))
+    .toBeVisible();
+  expect(location()).toBe(`/registers/closes?register=${REGISTER_ID}`);
 });

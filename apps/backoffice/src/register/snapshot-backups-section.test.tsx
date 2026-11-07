@@ -4,7 +4,6 @@ import { userEvent } from "vitest/browser";
 import type { SnapshotBackups } from "./snapshot-backups-api";
 import {
   backups,
-  caja1,
   caja2,
   createServices,
   declaredGeneration,
@@ -12,10 +11,10 @@ import {
   failedGeneration,
   grantAuthorization,
   lostGeneration,
-  renderScreen,
+  renderSection,
   verifiedGeneration,
   verifyingGeneration,
-} from "./test-support/snapshot-backups-screen";
+} from "./test-support/snapshot-backups-section";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
@@ -23,36 +22,9 @@ beforeEach(() => {
 
 function servicesWithBackups(read: SnapshotBackups = backups) {
   const services = createServices();
-  vi.mocked(services.fetchSnapshotBackupRegisters).mockResolvedValue({
-    kind: "ok",
-    value: [caja1, caja2],
-  });
   vi.mocked(services.fetchSnapshotBackups).mockResolvedValue({ kind: "ok", value: read });
   return services;
 }
-
-test("shows the breadcrumb, the heading and the actions", async () => {
-  const screen = await renderScreen(servicesWithBackups());
-
-  await expect.element(screen.getByText("Configuración")).toBeVisible();
-  await expect.element(screen.getByRole("heading", { name: "Backups", level: 1 })).toBeVisible();
-  await expect
-    .element(screen.getByRole("button", { name: "Rotar la clave de cifrado" }))
-    .toBeEnabled();
-  await expect.element(screen.getByRole("button", { name: "Cambiar las reglas" })).toBeEnabled();
-});
-
-test("reads the first register's backups when the URL names none", async () => {
-  const services = servicesWithBackups();
-
-  const screen = await renderScreen(services);
-
-  await expect.element(screen.getByRole("combobox", { name: /^Caja:/ })).toHaveValue("Caja 1");
-  await expect
-    .element(screen.getByRole("table", { name: "Últimas generaciones de Caja 1" }))
-    .toBeVisible();
-  expect(services.fetchSnapshotBackups).toHaveBeenCalledWith("register-1");
-});
 
 test("shows each generation's date in Argentina, where it is kept, its size and its state", async () => {
   const services = servicesWithBackups({
@@ -60,7 +32,7 @@ test("shows each generation's date in Argentina, where it is kept, its size and 
     generations: [verifiedGeneration, failedGeneration],
   });
 
-  const screen = await renderScreen(services);
+  const screen = await renderSection(services);
 
   await expect.element(screen.getByRole("columnheader", { name: "Generada" })).toBeVisible();
   await expect.element(screen.getByRole("columnheader", { name: "Dónde" })).toBeVisible();
@@ -73,7 +45,7 @@ test("shows each generation's date in Argentina, where it is kept, its size and 
 });
 
 test("says where each generation is kept", async () => {
-  const screen = await renderScreen(
+  const screen = await renderSection(
     servicesWithBackups({
       ...backups,
       generations: [verifiedGeneration, failedGeneration, declaredGeneration, lostGeneration],
@@ -87,7 +59,7 @@ test("says where each generation is kept", async () => {
 });
 
 test("tells a verified generation from one that failed, and says the failed one does not count for a restore", async () => {
-  const screen = await renderScreen(
+  const screen = await renderSection(
     servicesWithBackups({ ...backups, generations: [verifiedGeneration, failedGeneration] }),
   );
 
@@ -97,7 +69,7 @@ test("tells a verified generation from one that failed, and says the failed one 
 });
 
 test("shows a generation that is declared or uploaded but not verified yet as being verified", async () => {
-  const screen = await renderScreen(
+  const screen = await renderSection(
     servicesWithBackups({
       ...backups,
       generations: [declaredGeneration, verifyingGeneration],
@@ -111,7 +83,7 @@ test("shows a generation that is declared or uploaded but not verified yet as be
 });
 
 test("shows how many generations each tier keeps and the rules that bound it", async () => {
-  const screen = await renderScreen(servicesWithBackups());
+  const screen = await renderSection(servicesWithBackups());
 
   await expect.element(screen.getByText("Recientes")).toBeVisible();
   await expect.element(screen.getByText("5 de 6", { exact: true })).toBeVisible();
@@ -128,7 +100,7 @@ test("shows how many generations each tier keeps and the rules that bound it", a
 });
 
 test("reads the singular of each rule in the tier captions", async () => {
-  const screen = await renderScreen(
+  const screen = await renderSection(
     servicesWithBackups({ ...backups, rules: { hourly: 1, daily: 1, monthly: 1 } }),
   );
 
@@ -137,58 +109,8 @@ test("reads the singular of each rule in the tier captions", async () => {
   await expect.element(screen.getByText("Hasta 1 mes")).toBeVisible();
 });
 
-test("shows the backups of the register the URL names", async () => {
-  const services = servicesWithBackups();
-
-  const screen = await renderScreen(services, { register: "register-2" });
-
-  await expect.element(screen.getByRole("combobox", { name: /^Caja:/ })).toHaveValue("Caja 2");
-  await expect
-    .element(screen.getByRole("table", { name: "Últimas generaciones de Caja 2" }))
-    .toBeVisible();
-  expect(services.fetchSnapshotBackups).toHaveBeenCalledWith("register-2");
-  expect(services.fetchSnapshotBackups).not.toHaveBeenCalledWith("register-1");
-});
-
-test("choosing a register reports it so the URL carries it", async () => {
-  const onRegisterChange = vi.fn();
-  const screen = await renderScreen(servicesWithBackups(), { onRegisterChange });
-
-  await userEvent.click(screen.getByRole("combobox", { name: /^Caja:/ }));
-  await userEvent.click(screen.getByRole("option", { name: "Caja 2" }));
-
-  expect(onRegisterChange).toHaveBeenCalledWith("register-2");
-});
-
-test("goes back to the first register when the URL names one the cloud does not list", async () => {
-  const onRegisterChange = vi.fn();
-  const services = servicesWithBackups();
-
-  const screen = await renderScreen(services, { register: "register-9", onRegisterChange });
-
-  await expect.element(screen.getByRole("combobox", { name: /^Caja:/ })).toHaveValue("Caja 1");
-  await expect.poll(() => onRegisterChange.mock.calls).toEqual([[""]]);
-  expect(services.fetchSnapshotBackups).not.toHaveBeenCalledWith("register-9");
-});
-
-test("shows an empty state, and offers no action on a register, when there are no registers", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchSnapshotBackupRegisters).mockResolvedValue({ kind: "ok", value: [] });
-
-  const screen = await renderScreen(services);
-
-  await expect.element(screen.getByText("Todavía no hay cajas registradoras")).toBeVisible();
-  await expect
-    .element(screen.getByText("Los backups aparecen cuando una caja se da de alta."))
-    .toBeVisible();
-  await expect
-    .element(screen.getByRole("button", { name: "Rotar la clave de cifrado" }))
-    .toBeDisabled();
-  expect(services.fetchSnapshotBackups).not.toHaveBeenCalled();
-});
-
 test("shows an empty table for a register that has not generated any backup yet", async () => {
-  const screen = await renderScreen(
+  const screen = await renderSection(
     servicesWithBackups({
       rules: backups.rules,
       tiers: { recent: 0, hourly: 0, daily: 0, monthly: 0 },
@@ -200,33 +122,15 @@ test("shows an empty table for a register that has not generated any backup yet"
   await expect.element(screen.getByText("Esta caja todavía no generó backups")).toBeVisible();
 });
 
-test("shows loading placeholders while the registers load", async () => {
-  const services = createServices();
-  const registers = deferred<Awaited<ReturnType<typeof services.fetchSnapshotBackupRegisters>>>();
-  vi.mocked(services.fetchSnapshotBackupRegisters).mockReturnValueOnce(registers.promise);
-  vi.mocked(services.fetchSnapshotBackups).mockResolvedValue({ kind: "ok", value: backups });
-
-  const screen = await renderScreen(services);
-
-  await expect.element(screen.getByRole("table")).toHaveAttribute("aria-busy", "true");
-  expect(screen.getByText("Todavía no hay cajas registradoras").query()).toBeNull();
-  registers.resolve({ kind: "ok", value: [caja1] });
-  await expect.element(screen.getByText("Verificada")).toBeVisible();
-});
-
 test("shows loading placeholders while a register's backups load", async () => {
   const services = createServices();
   const read = deferred<Awaited<ReturnType<typeof services.fetchSnapshotBackups>>>();
-  vi.mocked(services.fetchSnapshotBackupRegisters).mockResolvedValue({
-    kind: "ok",
-    value: [caja1],
-  });
   vi.mocked(services.fetchSnapshotBackups).mockReturnValueOnce(read.promise);
 
-  const screen = await renderScreen(services);
+  const screen = await renderSection(services);
 
   await expect.element(screen.getByRole("table")).toHaveAttribute("aria-busy", "true");
-  await expect.element(screen.getByRole("combobox", { name: /^Caja:/ })).toHaveValue("Caja 1");
+  expect(services.fetchSnapshotBackups).toHaveBeenCalledWith("register-1");
   read.resolve({ kind: "ok", value: backups });
   await expect.element(screen.getByText("Verificada")).toBeVisible();
 });
@@ -234,12 +138,8 @@ test("shows loading placeholders while a register's backups load", async () => {
 test("the actions that need the backups stay disabled while they load and after they fail to load", async () => {
   const services = createServices();
   const read = deferred<Awaited<ReturnType<typeof services.fetchSnapshotBackups>>>();
-  vi.mocked(services.fetchSnapshotBackupRegisters).mockResolvedValue({
-    kind: "ok",
-    value: [caja1],
-  });
   vi.mocked(services.fetchSnapshotBackups).mockReturnValueOnce(read.promise);
-  const screen = await renderScreen(services);
+  const screen = await renderSection(services);
 
   await expect.element(screen.getByRole("button", { name: "Cambiar las reglas" })).toBeDisabled();
   await expect
@@ -254,45 +154,50 @@ test("the actions that need the backups stay disabled while they load and after 
     .toBeDisabled();
 });
 
-test("shows a load error with a retry that starts again from the placeholders when the registers fail to load", async () => {
-  const services = createServices();
-  const retry = deferred<Awaited<ReturnType<typeof services.fetchSnapshotBackupRegisters>>>();
-  vi.mocked(services.fetchSnapshotBackupRegisters)
-    .mockResolvedValueOnce({ kind: "failed" })
-    .mockReturnValueOnce(retry.promise);
-  vi.mocked(services.fetchSnapshotBackups).mockResolvedValue({ kind: "ok", value: backups });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("No pudimos abrir los backups")).toBeVisible();
-
-  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
-
-  await expect.element(screen.getByText("No pudimos abrir los backups")).not.toBeInTheDocument();
-  retry.resolve({ kind: "ok", value: [caja1] });
-  await expect.element(screen.getByText("Verificada")).toBeVisible();
-});
-
 test("shows a load error and no figures when a register's backups fail to load", async () => {
   const services = createServices();
-  vi.mocked(services.fetchSnapshotBackupRegisters).mockResolvedValue({
-    kind: "ok",
-    value: [caja1],
-  });
   vi.mocked(services.fetchSnapshotBackups).mockResolvedValue({ kind: "failed" });
 
-  const screen = await renderScreen(services);
+  const screen = await renderSection(services);
 
   await expect.element(screen.getByText("No pudimos abrir los backups")).toBeVisible();
   expect(screen.getByText("Recientes").query()).toBeNull();
 });
 
+test("retrying a failed read starts again from the placeholders", async () => {
+  const services = createServices();
+  const retry = deferred<Awaited<ReturnType<typeof services.fetchSnapshotBackups>>>();
+  vi.mocked(services.fetchSnapshotBackups)
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockReturnValueOnce(retry.promise);
+  const screen = await renderSection(services);
+  await expect.element(screen.getByText("No pudimos abrir los backups")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByText("No pudimos abrir los backups")).not.toBeInTheDocument();
+  retry.resolve({ kind: "ok", value: backups });
+  await expect.element(screen.getByText("Verificada")).toBeVisible();
+});
+
+test("reads the backups of the register it is given", async () => {
+  const services = servicesWithBackups();
+
+  await renderSection(services, { register: caja2 });
+
+  await expect
+    .poll(() => vi.mocked(services.fetchSnapshotBackups).mock.calls)
+    .toEqual([["register-2"]]);
+});
+
 test("shows the rate-limited notice with a retry action", async () => {
   const services = createServices();
-  vi.mocked(services.fetchSnapshotBackupRegisters).mockResolvedValue({
+  vi.mocked(services.fetchSnapshotBackups).mockResolvedValue({
     kind: "rate_limited",
     retryAfterSeconds: 120,
   });
 
-  const screen = await renderScreen(services);
+  const screen = await renderSection(services);
 
   await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
   await expect.element(screen.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
@@ -300,11 +205,11 @@ test("shows the rate-limited notice with a retry action", async () => {
 });
 
 test("navigates to Mi cuenta when a read comes back forbidden", async () => {
-  window.history.pushState(null, "", "/backups");
+  window.history.pushState(null, "", "/registers");
   const services = createServices();
-  vi.mocked(services.fetchSnapshotBackupRegisters).mockResolvedValue({ kind: "forbidden" });
+  vi.mocked(services.fetchSnapshotBackups).mockResolvedValue({ kind: "forbidden" });
 
-  await renderScreen(services);
+  await renderSection(services);
 
   await expect
     .poll(() => window.location.pathname + window.location.search)
@@ -313,17 +218,17 @@ test("navigates to Mi cuenta when a read comes back forbidden", async () => {
 
 test("ends the session when a read finds no open session", async () => {
   const services = createServices();
-  vi.mocked(services.fetchSnapshotBackupRegisters).mockResolvedValue({ kind: "unauthenticated" });
+  vi.mocked(services.fetchSnapshotBackups).mockResolvedValue({ kind: "unauthenticated" });
   const onSessionEnded = vi.fn();
 
-  await renderScreen(services, { onSessionEnded });
+  await renderSection(services, { onSessionEnded });
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
 test("Cambiar las reglas opens the modal with the rules in force, and cancel closes it without calling the cloud", async () => {
   const services = servicesWithBackups();
-  const screen = await renderScreen(services);
+  const screen = await renderSection(services);
   await expect.element(screen.getByText("Verificada")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: "Cambiar las reglas" }));
@@ -341,7 +246,7 @@ test("changing the rules closes the modal, reads the backups again and says the 
     kind: "ok",
     value: { hourly: 48, daily: 30, monthly: 12 },
   });
-  const screen = await renderScreen(services);
+  const screen = await renderSection(services);
   await expect.element(screen.getByText("Últimas 24 horas")).toBeVisible();
   vi.mocked(services.fetchSnapshotBackups).mockResolvedValue({
     kind: "ok",
@@ -360,7 +265,7 @@ test("changing the rules closes the modal, reads the backups again and says the 
 
 test("Rotar la clave de cifrado opens the modal naming the register being shown", async () => {
   const services = servicesWithBackups();
-  const screen = await renderScreen(services, { register: "register-2" });
+  const screen = await renderSection(services, { register: caja2 });
   await expect.element(screen.getByText("Verificada")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: "Rotar la clave de cifrado" }));
@@ -375,7 +280,7 @@ test("Rotar la clave de cifrado opens the modal naming the register being shown"
 test("rotating the key closes the modal and says which version the register's next generations use", async () => {
   const services = servicesWithBackups();
   vi.mocked(services.rotateSnapshotKey).mockResolvedValue({ kind: "ok", value: { keyVersion: 3 } });
-  const screen = await renderScreen(services);
+  const screen = await renderSection(services);
   await expect.element(screen.getByText("Verificada")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: "Rotar la clave de cifrado" }));
@@ -397,10 +302,10 @@ test("rotating the key closes the modal and says which version the register's ne
   expect(services.rotateSnapshotKey).toHaveBeenCalledWith("register-1");
 });
 
-test("a register the cloud no longer knows closes the rotation and reads the registers again", async () => {
+test("a register the cloud no longer knows closes the rotation and reads the backups again", async () => {
   const services = servicesWithBackups();
   vi.mocked(services.rotateSnapshotKey).mockResolvedValue({ kind: "not_found" });
-  const screen = await renderScreen(services);
+  const screen = await renderSection(services);
   await expect.element(screen.getByText("Verificada")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: "Rotar la clave de cifrado" }));
@@ -410,9 +315,7 @@ test("a register the cloud no longer knows closes the rotation and reads the reg
       .getByRole("button", { name: "Rotar la clave" }),
   );
 
-  await expect
-    .poll(() => vi.mocked(services.fetchSnapshotBackupRegisters).mock.calls.length)
-    .toBe(2);
+  await expect.poll(() => vi.mocked(services.fetchSnapshotBackups).mock.calls.length).toBe(2);
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
 });
 
@@ -424,7 +327,7 @@ test("rotating asks for the passkey when the cloud requires a fresh authorizatio
     kind: "ok",
     value: { keyVersion: 2 },
   });
-  const screen = await renderScreen(services);
+  const screen = await renderSection(services);
   await expect.element(screen.getByText("Verificada")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: "Rotar la clave de cifrado" }));
@@ -443,25 +346,11 @@ test("rotating asks for the passkey when the cloud requires a fresh authorizatio
 });
 
 test("has no accessibility violations once loaded and with each modal open", async () => {
-  const screen = await renderScreen(servicesWithBackups());
+  const screen = await renderSection(servicesWithBackups());
   await expect.element(screen.getByText("Verificada")).toBeVisible();
   await expectNoAccessibilityViolations(document.body);
 
   await userEvent.click(screen.getByRole("button", { name: "Cambiar las reglas" }));
   await expect.element(screen.getByRole("dialog", { name: "Cambiar las reglas" })).toBeVisible();
   await expectNoAccessibilityViolations(document.body);
-});
-
-test("typing in the register filter offers only the matching registers", async () => {
-  const screen = await renderScreen(servicesWithBackups());
-  await expect.element(screen.getByRole("combobox", { name: /^Caja:/ })).toBeVisible();
-
-  await userEvent.fill(screen.getByRole("combobox", { name: /^Caja:/ }), "2");
-
-  expect(
-    screen
-      .getByRole("option")
-      .all()
-      .map((option) => option.element().textContent?.trim()),
-  ).toEqual(["Caja 2"]);
 });

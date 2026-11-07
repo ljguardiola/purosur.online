@@ -376,15 +376,10 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchSessionAuthorizationOptions: vi.fn(),
       authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),
-    },
-    snapshotBackupsScreen: {
-      fetchSnapshotBackupRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchSnapshotBackups: vi.fn().mockReturnValue(new Promise(() => {})),
       changeSnapshotLifecycleRules: vi.fn(),
       rotateSnapshotKey: vi.fn(),
-      fetchSessionAuthorizationOptions: vi.fn(),
-      authorizeSession: vi.fn(),
-      startAuthentication: vi.fn(),
+      fetchCashSessionCloses: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     contingencyTicketRescueScreen: {
       rescueContingencyBackupTicket: vi.fn(),
