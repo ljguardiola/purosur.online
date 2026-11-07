@@ -5,8 +5,10 @@ import {
 import { vi } from "vitest";
 import { render } from "../../shell/test-support/render-with-router";
 import type { fetchContingencyTicketRecoveries } from "../contingency-ticket-recovery-api";
-import { ContingencyTicketRescueModal } from "../contingency-ticket-rescue-modal";
-import type { ContingencyTicketRescueModalServices } from "../contingency-ticket-rescue-modal-services";
+import {
+  ContingencyTicketRescueModal,
+  type ContingencyTicketRescueModalServices,
+} from "../contingency-ticket-rescue-modal";
 import type { FinishTicketRecoveryModalServices } from "../finish-ticket-recovery-modal";
 import { createFakeQrScanner } from "./fake-qr-scanner";
 

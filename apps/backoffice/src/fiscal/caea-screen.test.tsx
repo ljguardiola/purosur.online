@@ -1,39 +1,17 @@
-import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import type { BackofficeAccess } from "../shell/backoffice-access";
-import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
-import { render } from "../shell/test-support/render-with-router";
-import { CaeaScreen } from "./caea-screen";
-import type { CaeaScreenServices } from "./caea-services";
-import { exceptionalityFilters } from "./exceptionality-filters";
+import { deferred } from "../platform/test-support/deferred";
+import { accessWith } from "../shell/test-support/backoffice-access";
 import type { FiscalAddress } from "./fiscal-addresses-api";
 import type { OfflinePointOfSale } from "./offline-points-of-sale-api";
 import type { RegisterPointOfSale } from "./register-points-of-sale-api";
-import { exceptionShareOf2026, fiscalAddresses } from "./test-support/exception-share-fixtures";
+import { createServices, renderScreen } from "./test-support/caea-screen";
+import { fiscalAddresses } from "./test-support/exception-share-fixtures";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
-
-function createServices(overrides: Partial<CaeaScreenServices> = {}): CaeaScreenServices {
-  return {
-    fetchRegisterPointsOfSale: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
-    fetchFiscalAddresses: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
-    fetchFortnightPresentations: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
-    fetchOfflinePointsOfSale: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
-    fetchExceptionShareYear: vi.fn().mockResolvedValue({ kind: "ok", value: exceptionShareOf2026 }),
-    retireOfflinePointOfSale: vi.fn(),
-    remedyRejectedDocument: vi.fn(),
-    confirmRevokedInstallation: vi.fn(),
-    fetchBuyerTaxStatuses: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
-    fetchSessionAuthorizationOptions: vi.fn(),
-    authorizeSession: vi.fn(),
-    startAuthentication: vi.fn(),
-    ...overrides,
-  };
-}
 
 const depot: FiscalAddress = {
   id: "7c9e6679-7425-40de-944b-e07fc1f90ae7",
@@ -68,38 +46,6 @@ const pendingRegister: RegisterPointOfSale = {
   offlinePointOfSaleNumber: null,
   offlineVersion: 0,
 };
-
-function deferred<T>() {
-  let resolve: (value: T) => void = () => {};
-  const promise = new Promise<T>((settle) => {
-    resolve = settle;
-  });
-  return { promise, resolve };
-}
-
-function renderScreen(
-  services: CaeaScreenServices,
-  onSessionEnded: () => void = () => {},
-  {
-    access = ADMINISTRATOR_ACCESS,
-    onRescue = () => {},
-  }: { access?: BackofficeAccess; onRescue?: () => void } = {},
-) {
-  return render(
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <CaeaScreen
-          access={access}
-          filters={exceptionalityFilters.parse({})}
-          onFiltersChange={() => {}}
-          onRescue={onRescue}
-          services={services}
-          onSessionEnded={onSessionEnded}
-        />
-      </main>
-    </FieldSizeProvider>,
-  );
-}
 
 function serving(registers: RegisterPointOfSale[], addresses: FiscalAddress[]) {
   return createServices({
@@ -146,7 +92,7 @@ test("shows only the exceptionality to a person with fiscal information alone, r
     fetchFiscalAddresses: vi.fn().mockResolvedValue({ kind: "ok", value: fiscalAddresses }),
   });
 
-  const screen = await renderScreen(services, () => {}, {
+  const screen = await renderScreen(services, {
     access: accessWith("fiscal_information"),
   });
 
@@ -164,7 +110,7 @@ test("shows only the exceptionality to a person with fiscal information alone, r
 test("shows the reports and the points of sale to a person with fiscal configuration alone, reading no exceptionality", async () => {
   const services = createServices();
 
-  const screen = await renderScreen(services, () => {}, {
+  const screen = await renderScreen(services, {
     access: accessWith("fiscal_configuration_area"),
   });
 
@@ -178,7 +124,7 @@ test("shows only Rescatar tickets de contingencia to a person with the rescue al
   const onRescue = vi.fn();
   const services = createServices();
 
-  const screen = await renderScreen(services, () => {}, {
+  const screen = await renderScreen(services, {
     access: accessWith("contingency_ticket_rescue"),
     onRescue,
   });
@@ -289,7 +235,7 @@ test("ends the session when a load finds it closed", async () => {
   });
   const onSessionEnded = vi.fn();
 
-  await renderScreen(services, onSessionEnded);
+  await renderScreen(services, { onSessionEnded });
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBeGreaterThan(0);
 });

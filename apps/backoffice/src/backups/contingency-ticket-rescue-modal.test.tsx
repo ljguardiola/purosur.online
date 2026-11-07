@@ -1,8 +1,9 @@
 import type { ContingencyBackupTicketRescueResponse } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { beforeEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, expectTypeOf, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { resetPageState } from "../shell/test-support/app";
+import type { ContingencyTicketRescueModalServices } from "./contingency-ticket-rescue-modal";
 import {
   createServices,
   deferred,
@@ -296,4 +297,16 @@ test("closes with Volver", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Volver" }));
 
   expect(onClose).toHaveBeenCalledTimes(1);
+});
+
+test("refuses rescue modal services without the recoveries read", () => {
+  expectTypeOf<
+    Omit<ContingencyTicketRescueModalServices, "fetchContingencyTicketRecoveries">
+  >().not.toExtend<ContingencyTicketRescueModalServices>();
+});
+
+test("refuses rescue modal services without the finish recovery modal's services", () => {
+  expectTypeOf<
+    Omit<ContingencyTicketRescueModalServices, "finishTicketRecoveryModal">
+  >().not.toExtend<ContingencyTicketRescueModalServices>();
 });

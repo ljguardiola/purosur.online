@@ -1,17 +1,12 @@
-import { FieldSizeProvider, formatNumber } from "@purosur/ui";
+import { formatNumber } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
 import { beforeEach, expect, onTestFinished, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { deferred } from "../platform/test-support/deferred";
-import type { BackofficeAccess } from "../shell/backoffice-access";
 import { accessWith } from "../shell/test-support/backoffice-access";
-import { render } from "../shell/test-support/render-with-router";
-import { CaeaScreen } from "./caea-screen";
 import type { CaeaScreenServices } from "./caea-services";
-import { type ExceptionalityFilters, exceptionalityFilters } from "./exceptionality-filters";
-import { fiscalKeys } from "./fiscal-queries";
+import { exceptionalityFilters } from "./exceptionality-filters";
+import { type CaeaScreenHandlers, createServices, renderScreen } from "./test-support/caea-screen";
 import {
   centralFiscalAddress,
   exceptionShareOf2026,
@@ -27,69 +22,17 @@ beforeEach(async () => {
   onTestFinished(() => page.viewport(414, 896));
 });
 
-function createServices(): CaeaScreenServices {
-  return {
+function exceptionalityServices(): CaeaScreenServices {
+  return createServices({
     fetchFiscalAddresses: vi.fn().mockResolvedValue({ kind: "ok", value: fiscalAddresses }),
-    fetchExceptionShareYear: vi.fn().mockResolvedValue({ kind: "ok", value: exceptionShareOf2026 }),
-    fetchRegisterPointsOfSale: vi.fn(),
-    fetchFortnightPresentations: vi.fn(),
-    fetchOfflinePointsOfSale: vi.fn(),
-    retireOfflinePointOfSale: vi.fn(),
-    remedyRejectedDocument: vi.fn(),
-    confirmRevokedInstallation: vi.fn(),
-    fetchBuyerTaxStatuses: vi.fn(),
-    fetchSessionAuthorizationOptions: vi.fn(),
-    authorizeSession: vi.fn(),
-    startAuthentication: vi.fn(),
-  };
+  });
 }
 
-type Handlers = {
-  access?: BackofficeAccess;
-  filters?: ExceptionalityFilters;
-  onFiltersChange?: (filters: ExceptionalityFilters) => void;
-  onSessionEnded?: () => void;
-};
-
-function ControlledScreen({
-  services,
-  access = accessWith("fiscal_information"),
-  filters: initial = exceptionalityFilters.parse({}),
-  onFiltersChange = () => {},
-  onSessionEnded = () => {},
-}: Handlers & { services: CaeaScreenServices }) {
-  const [filters, setFilters] = useState(initial);
-  const client = useQueryClient();
-  return (
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <button
-          type="button"
-          onClick={() => void client.invalidateQueries({ queryKey: fiscalKeys.fiscalAddresses })}
-        >
-          Refrescar domicilios
-        </button>
-        <CaeaScreen
-          access={access}
-          services={services}
-          filters={filters}
-          onFiltersChange={(next) => {
-            onFiltersChange(next);
-            setFilters(next);
-          }}
-          onRescue={() => {}}
-          onSessionEnded={onSessionEnded}
-        />
-      </main>
-    </FieldSizeProvider>
-  );
+function renderExceptionality(services: CaeaScreenServices, handlers: CaeaScreenHandlers = {}) {
+  return renderScreen(services, { access: accessWith("fiscal_information"), ...handlers });
 }
 
-function renderScreen(services: CaeaScreenServices, handlers: Handlers = {}) {
-  return render(<ControlledScreen services={services} {...handlers} />);
-}
-
-function rowTexts(screen: Awaited<ReturnType<typeof renderScreen>>) {
+function rowTexts(screen: Awaited<ReturnType<typeof renderExceptionality>>) {
   return screen
     .getByRole("row")
     .all()
@@ -98,7 +41,7 @@ function rowTexts(screen: Awaited<ReturnType<typeof renderScreen>>) {
 }
 
 test("shows the explanation that nothing is restricted at the counter, with no title of its own", async () => {
-  const screen = await renderScreen(createServices());
+  const screen = await renderExceptionality(exceptionalityServices());
 
   expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
   await expect
@@ -113,7 +56,7 @@ test("shows the explanation that nothing is restricted at the counter, with no t
 });
 
 test("explains the thresholds the cloud answered", async () => {
-  const services = createServices();
+  const services = exceptionalityServices();
   vi.mocked(services.fetchExceptionShareYear).mockResolvedValue({
     kind: "ok",
     value: {
@@ -123,7 +66,7 @@ test("explains the thresholds the cloud answered", async () => {
     },
   });
 
-  const screen = await renderScreen(services);
+  const screen = await renderExceptionality(services);
 
   await expect
     .element(
@@ -136,9 +79,9 @@ test("explains the thresholds the cloud answered", async () => {
 });
 
 test("reads the year of the first fiscal address, asking for no year when none is chosen", async () => {
-  const services = createServices();
+  const services = exceptionalityServices();
 
-  const screen = await renderScreen(services);
+  const screen = await renderExceptionality(services);
 
   await expect.element(screen.getByText("Enero 2026")).toBeVisible();
   expect(services.fetchExceptionShareYear).toHaveBeenCalledWith({
@@ -151,9 +94,9 @@ test("reads the year of the first fiscal address, asking for no year when none i
 });
 
 test("reads the fiscal address and the year the filters carry", async () => {
-  const services = createServices();
+  const services = exceptionalityServices();
 
-  await renderScreen(services, {
+  await renderExceptionality(services, {
     filters: exceptionalityFilters.parse({ fiscalAddress: warehouseFiscalAddress.id, year: 2025 }),
   });
 
@@ -163,10 +106,10 @@ test("reads the fiscal address and the year the filters carry", async () => {
 });
 
 test("falls back to the first fiscal address and reports it when the filters carry one the cloud does not list", async () => {
-  const services = createServices();
+  const services = exceptionalityServices();
   const onFiltersChange = vi.fn();
 
-  const screen = await renderScreen(services, {
+  const screen = await renderExceptionality(services, {
     filters: exceptionalityFilters.parse({ fiscalAddress: "fiscal-address-gone" }),
     onFiltersChange,
   });
@@ -181,7 +124,7 @@ test("falls back to the first fiscal address and reports it when the filters car
 });
 
 test("falls back to the year the cloud answers and reports it when the filters carry a year it does not offer", async () => {
-  const services = createServices();
+  const services = exceptionalityServices();
   vi.mocked(services.fetchExceptionShareYear).mockImplementation(async ({ year }) => ({
     kind: "ok",
     value: {
@@ -192,7 +135,7 @@ test("falls back to the year the cloud answers and reports it when the filters c
   }));
   const onFiltersChange = vi.fn();
 
-  const screen = await renderScreen(services, {
+  const screen = await renderExceptionality(services, {
     filters: exceptionalityFilters.parse({ year: 2099 }),
     onFiltersChange,
   });
@@ -206,7 +149,7 @@ test("falls back to the year the cloud answers and reports it when the filters c
 });
 
 test("groups the voucher counts and the contingency time under their own headings next to the month", async () => {
-  const screen = await renderScreen(createServices());
+  const screen = await renderExceptionality(exceptionalityServices());
 
   await expect.element(screen.getByText("Enero 2026")).toBeVisible();
   const group = screen.getByText("Comprobantes por excepción", { exact: true });
@@ -233,7 +176,7 @@ test("groups the voucher counts and the contingency time under their own heading
 });
 
 test("shows each month with its vouchers by exception and its contingency time, each with its share and its state", async () => {
-  const screen = await renderScreen(createServices());
+  const screen = await renderExceptionality(exceptionalityServices());
 
   await expect.element(screen.getByText("Enero 2026")).toBeVisible();
   const [january, february, march, april, may] = rowTexts(screen);
@@ -255,7 +198,7 @@ test("shows each month with its vouchers by exception and its contingency time, 
 });
 
 test("lists the months of the year that did not comply above the table", async () => {
-  const screen = await renderScreen(createServices());
+  const screen = await renderExceptionality(exceptionalityServices());
 
   await expect
     .element(
@@ -268,7 +211,7 @@ test("lists the months of the year that did not comply above the table", async (
 });
 
 test("lists the months that did not comply on contingency time apart from the voucher ones", async () => {
-  const services = createServices();
+  const services = exceptionalityServices();
   vi.mocked(services.fetchExceptionShareYear).mockResolvedValue({
     kind: "ok",
     value: {
@@ -277,7 +220,7 @@ test("lists the months that did not comply on contingency time apart from the vo
     },
   });
 
-  const screen = await renderScreen(services);
+  const screen = await renderExceptionality(services);
 
   await expect
     .element(
@@ -300,13 +243,13 @@ test("lists the months that did not comply on contingency time apart from the vo
 });
 
 test("says no month did not comply on contingency time when the cloud records none", async () => {
-  const services = createServices();
+  const services = exceptionalityServices();
   vi.mocked(services.fetchExceptionShareYear).mockResolvedValue({
     kind: "ok",
     value: { ...exceptionShareOf2026, contingency_non_compliant_months: [] },
   });
 
-  const screen = await renderScreen(services);
+  const screen = await renderExceptionality(services);
 
   await expect
     .element(
@@ -324,13 +267,13 @@ test("says no month did not comply on contingency time when the cloud records no
 });
 
 test("says no month did not comply when the cloud records none", async () => {
-  const services = createServices();
+  const services = exceptionalityServices();
   vi.mocked(services.fetchExceptionShareYear).mockResolvedValue({
     kind: "ok",
     value: exceptionShareOf2026WithoutBreaches,
   });
 
-  const screen = await renderScreen(services);
+  const screen = await renderExceptionality(services);
 
   await expect
     .element(
@@ -343,7 +286,7 @@ test("says no month did not comply when the cloud records none", async () => {
 });
 
 test("shows the months of a year without vouchers with zero vouchers and no share", async () => {
-  const services = createServices();
+  const services = exceptionalityServices();
   vi.mocked(services.fetchExceptionShareYear).mockResolvedValue({
     kind: "ok",
     value: {
@@ -362,7 +305,7 @@ test("shows the months of a year without vouchers with zero vouchers and no shar
     },
   });
 
-  const screen = await renderScreen(services);
+  const screen = await renderExceptionality(services);
 
   await expect.element(screen.getByText("Enero 2026")).toBeVisible();
   expect(rowTexts(screen)).toEqual([
@@ -371,9 +314,9 @@ test("shows the months of a year without vouchers with zero vouchers and no shar
 });
 
 test("offers the fiscal addresses and chooses the one picked", async () => {
-  const services = createServices();
+  const services = exceptionalityServices();
   const onFiltersChange = vi.fn();
-  const screen = await renderScreen(services, { onFiltersChange });
+  const screen = await renderExceptionality(services, { onFiltersChange });
   await expect.element(screen.getByText("Enero 2026")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: /Domicilio fiscal:/ }));
@@ -389,13 +332,13 @@ test("offers the fiscal addresses and chooses the one picked", async () => {
 });
 
 test("offers the years the cloud lists and chooses the one picked", async () => {
-  const services = createServices();
+  const services = exceptionalityServices();
   vi.mocked(services.fetchExceptionShareYear).mockResolvedValue({
     kind: "ok",
     value: { ...exceptionShareOf2026, selectable_years: [2026, 2025, 2022] },
   });
   const onFiltersChange = vi.fn();
-  const screen = await renderScreen(services, { onFiltersChange });
+  const screen = await renderExceptionality(services, { onFiltersChange });
   await expect.element(screen.getByText("Enero 2026")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: /Año:/ }));
@@ -413,11 +356,11 @@ test("offers the years the cloud lists and chooses the one picked", async () => 
 });
 
 test("shows the table loading while the fiscal addresses load", async () => {
-  const services = createServices();
+  const services = exceptionalityServices();
   const firstLoad = deferred<Awaited<ReturnType<typeof services.fetchFiscalAddresses>>>();
   vi.mocked(services.fetchFiscalAddresses).mockReturnValueOnce(firstLoad.promise);
 
-  const screen = await renderScreen(services);
+  const screen = await renderExceptionality(services);
 
   await expect
     .element(screen.getByRole("table", { name: "Excepcionalidad por mes" }))
@@ -426,11 +369,11 @@ test("shows the table loading while the fiscal addresses load", async () => {
 });
 
 test("shows the table loading while the year loads", async () => {
-  const services = createServices();
+  const services = exceptionalityServices();
   const yearLoad = deferred<Awaited<ReturnType<typeof services.fetchExceptionShareYear>>>();
   vi.mocked(services.fetchExceptionShareYear).mockReturnValueOnce(yearLoad.promise);
 
-  const screen = await renderScreen(services);
+  const screen = await renderExceptionality(services);
 
   await expect
     .element(screen.getByRole("table", { name: "Excepcionalidad por mes" }))
@@ -439,8 +382,8 @@ test("shows the table loading while the year loads", async () => {
 });
 
 test("shows the table updating while the fiscal addresses read again", async () => {
-  const services = createServices();
-  const screen = await renderScreen(services);
+  const services = exceptionalityServices();
+  const screen = await renderExceptionality(services);
   await expect.element(screen.getByText("Enero 2026")).toBeVisible();
   const reload = deferred<Awaited<ReturnType<typeof services.fetchFiscalAddresses>>>();
   vi.mocked(services.fetchFiscalAddresses).mockReturnValueOnce(reload.promise);
@@ -457,12 +400,12 @@ test("shows the table updating while the fiscal addresses read again", async () 
 });
 
 test("shows a load error with a retry action that starts again from the loading placeholder", async () => {
-  const services = createServices();
+  const services = exceptionalityServices();
   const retry = deferred<Awaited<ReturnType<typeof services.fetchExceptionShareYear>>>();
   vi.mocked(services.fetchExceptionShareYear)
     .mockResolvedValueOnce({ kind: "failed" })
     .mockReturnValueOnce(retry.promise);
-  const screen = await renderScreen(services);
+  const screen = await renderExceptionality(services);
   await expect.element(screen.getByText("No pudimos abrir la excepcionalidad")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
@@ -475,11 +418,11 @@ test("shows a load error with a retry action that starts again from the loading 
 });
 
 test("shows the same load error when the fiscal addresses fail, and retrying reads them again", async () => {
-  const services = createServices();
+  const services = exceptionalityServices();
   vi.mocked(services.fetchFiscalAddresses)
     .mockResolvedValueOnce({ kind: "failed" })
     .mockResolvedValueOnce({ kind: "ok", value: fiscalAddresses });
-  const screen = await renderScreen(services);
+  const screen = await renderExceptionality(services);
   await expect.element(screen.getByText("No pudimos abrir la excepcionalidad")).toBeVisible();
   expect(services.fetchExceptionShareYear).not.toHaveBeenCalled();
 
@@ -489,22 +432,22 @@ test("shows the same load error when the fiscal addresses fail, and retrying rea
 });
 
 test("tells the cloud is busy when the year comes back rate limited", async () => {
-  const services = createServices();
+  const services = exceptionalityServices();
   vi.mocked(services.fetchExceptionShareYear).mockResolvedValue({
     kind: "rate_limited",
     retryAfterSeconds: 30,
   });
 
-  const screen = await renderScreen(services);
+  const screen = await renderExceptionality(services);
 
   await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
 });
 
 test("shows an empty state when there is no fiscal address", async () => {
-  const services = createServices();
+  const services = exceptionalityServices();
   vi.mocked(services.fetchFiscalAddresses).mockResolvedValue({ kind: "ok", value: [] });
 
-  const screen = await renderScreen(services);
+  const screen = await renderExceptionality(services);
 
   await expect.element(screen.getByText("No hay domicilios fiscales")).toBeVisible();
   expect(services.fetchExceptionShareYear).not.toHaveBeenCalled();
@@ -513,10 +456,10 @@ test("shows an empty state when there is no fiscal address", async () => {
 });
 
 test("tells the fiscal address is not found when the cloud does not know it", async () => {
-  const services = createServices();
+  const services = exceptionalityServices();
   vi.mocked(services.fetchExceptionShareYear).mockResolvedValue({ kind: "not_found" });
 
-  const screen = await renderScreen(services, {
+  const screen = await renderExceptionality(services, {
     filters: exceptionalityFilters.parse({ fiscalAddress: warehouseFiscalAddress.id }),
   });
 
@@ -526,10 +469,10 @@ test("tells the fiscal address is not found when the cloud does not know it", as
 
 test("navigates to Mi cuenta when the year comes back forbidden", async () => {
   window.history.pushState(null, "", "/exceptionality");
-  const services = createServices();
+  const services = exceptionalityServices();
   vi.mocked(services.fetchExceptionShareYear).mockResolvedValue({ kind: "forbidden" });
 
-  await renderScreen(services);
+  await renderExceptionality(services);
 
   await expect
     .poll(() => window.location.pathname + window.location.search)
@@ -537,31 +480,31 @@ test("navigates to Mi cuenta when the year comes back forbidden", async () => {
 });
 
 test("ends the session when the fiscal addresses find no open session", async () => {
-  const services = createServices();
+  const services = exceptionalityServices();
   vi.mocked(services.fetchFiscalAddresses).mockResolvedValue({ kind: "unauthenticated" });
   const onSessionEnded = vi.fn();
 
-  await renderScreen(services, { onSessionEnded });
+  await renderExceptionality(services, { onSessionEnded });
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
 test("ends the session when the year finds no open session", async () => {
-  const services = createServices();
+  const services = exceptionalityServices();
   vi.mocked(services.fetchExceptionShareYear).mockResolvedValue({ kind: "unauthenticated" });
   const onSessionEnded = vi.fn();
 
-  await renderScreen(services, { onSessionEnded });
+  await renderExceptionality(services, { onSessionEnded });
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
 test("neither reads the exceptionality nor rewrites its filters for a person without fiscal information, though the fiscal addresses load", async () => {
-  const services = createServices();
+  const services = exceptionalityServices();
   vi.mocked(services.fetchRegisterPointsOfSale).mockResolvedValue({ kind: "ok", value: [] });
   const onFiltersChange = vi.fn();
 
-  const screen = await renderScreen(services, {
+  const screen = await renderExceptionality(services, {
     access: accessWith("fiscal_configuration_area"),
     filters: exceptionalityFilters.parse({ fiscalAddress: "fiscal-address-gone", year: 2099 }),
     onFiltersChange,
