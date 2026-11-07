@@ -17,7 +17,6 @@ import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { reportMoment } from "../platform/report-moment";
 import { saleUnitQuantityText } from "../platform/sale-unit-quantity";
-import { AreaTopBar } from "../shell/area-top-bar";
 import { RegisterReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
@@ -26,7 +25,6 @@ import {
   reportQueryOf,
 } from "../shell/report-filters-search";
 import type { ReportRegisterField } from "../shell/report-register-field";
-import { ScreenLayout } from "../shell/screen-layout";
 import type { ReturnsHistoryScreenServices } from "./returns-history-services";
 import {
   authorizerSummaryRows,
@@ -271,10 +269,7 @@ export function ReturnsHistoryScreen({
   const nothingToReport = noReturns && voidsTable.getRowModel().rows.length === 0;
 
   return (
-    <ScreenLayout
-      topBar={<AreaTopBar eyebrow="Reportes · Caja" title={SCREEN_TITLE} />}
-      bodyClassName="gap-4 p-6"
-    >
+    <div className="flex min-w-0 flex-1 flex-col gap-4 p-6">
       <ReportFilters
         filters={filters}
         onFiltersChange={onFiltersChange}
@@ -443,6 +438,6 @@ export function ReturnsHistoryScreen({
           )}
         </>
       )}
-    </ScreenLayout>
+    </div>
   );
 }
