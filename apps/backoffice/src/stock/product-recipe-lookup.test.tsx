@@ -1,6 +1,6 @@
 import { expect, test, vi } from "vitest";
 import { render } from "../shell/test-support/render-with-router";
-import { useProductRecipeLookup } from "./product-recipe-lookup";
+import { ProductRecipeLookup, useProductRecipeLookup } from "./product-recipe-lookup";
 import { mixDeFrutosSecos } from "./test-support/recipes";
 
 function Probe({
@@ -64,4 +64,19 @@ test("asks the cloud for nothing while not enabled", async () => {
 
   await expect.element(screen.getByText("unknown")).toBeInTheDocument();
   expect(fetchRecipes).not.toHaveBeenCalled();
+});
+
+test("hands the lookup answer to the render function of the component", async () => {
+  const screen = await render(
+    <ProductRecipeLookup
+      productId={mixDeFrutosSecos.productId}
+      enabled
+      onSessionEnded={() => {}}
+      fetchRecipes={vi.fn().mockResolvedValue(recipes)}
+    >
+      {(lookup) => <p>{`lookup ${lookup}`}</p>}
+    </ProductRecipeLookup>,
+  );
+
+  await expect.element(screen.getByText("lookup assembled")).toBeInTheDocument();
 });

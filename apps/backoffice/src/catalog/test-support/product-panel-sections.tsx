@@ -19,7 +19,7 @@ export function productPanelSections({
     recipeAndBatches: ({ productName, mayRegisterBatches }: ProductRecipeSectionProps) => (
       <p>{`Receta de ${productName}, tandas ${mayRegisterBatches ? "con" : "sin"} registro`}</p>
     ),
-    useRecipeLookup: ({ productId }) =>
-      assembledProductIds.includes(productId) ? "assembled" : "simple",
+    recipeLookup: ({ productId, children }) =>
+      children(assembledProductIds.includes(productId) ? "assembled" : "simple"),
   };
 }

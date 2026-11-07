@@ -15,7 +15,7 @@ import { ProductPriceSection } from "../../pricing/product-price-section";
 import { ReportRegisterFilter } from "../../register/report-register-filter";
 import { EndEverySessionSection } from "../../sessions/end-every-session-section";
 import { openSession } from "../../sessions/test-support/open-session";
-import { useProductRecipeLookup } from "../../stock/product-recipe-lookup";
+import { ProductRecipeLookup } from "../../stock/product-recipe-lookup";
 import { ProductRecipeSection } from "../../stock/product-recipe-section";
 import { ProductStockSection } from "../../stock/product-stock-section";
 import type { AppServices } from "../app";
@@ -341,7 +341,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       priceAndCost: ProductPriceCostSection,
       stockAndLots: ProductStockSection,
       recipeAndBatches: ProductRecipeSection,
-      useRecipeLookup: useProductRecipeLookup,
+      recipeLookup: ProductRecipeLookup,
     },
     registerPointOfSaleSection: RegisterPointOfSalePanelSection,
     contingencyTicketRescueAssistant: ContingencyTicketRescueAssistant,
