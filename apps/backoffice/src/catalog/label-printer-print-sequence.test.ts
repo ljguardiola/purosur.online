@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { frame, type LabelRaster } from "./packets";
-import { type LabelToPrint, runPrintSequence } from "./print-sequence";
-import { createFakePrinter, type FakePrinterOptions } from "./test-support/fake-printer";
+import { frame, type LabelRaster } from "./label-printer-packets";
+import { type LabelToPrint, runPrintSequence } from "./label-printer-print-sequence";
+import { createFakePrinter, type FakePrinterOptions } from "./test-support/fake-label-printer";
 
 const blankLabel = (copies: number): LabelToPrint => ({
   raster: {
@@ -127,6 +127,32 @@ describe("a job that stops", () => {
   test("is interrupted when the printer disconnects before anything is printed", async () => {
     const { outcome } = await print({ disconnectOn: 0xc1 });
     await expect(outcome).resolves.toEqual({ kind: "interrupted", printed: 0, total: 5 });
+  });
+
+  test("is printed when the printer stops answering after reporting every page", async () => {
+    const { outcome } = await print({ silentOn: 0xf3 });
+    await vi.advanceTimersByTimeAsync(3_000);
+    await expect(outcome).resolves.toEqual({ kind: "printed", printed: 5 });
+  });
+
+  test("is printed when the printer disconnects after reporting every page", async () => {
+    const { outcome } = await print({ disconnectOn: 0xf3 });
+    await expect(outcome).resolves.toEqual({ kind: "printed", printed: 5 });
+  });
+
+  test("is printed when the last write fails after every page was reported", async () => {
+    const printer = createFakePrinter();
+    const outcome = runPrintSequence(
+      {
+        ...printer.link,
+        write: (bytes) =>
+          bytes[2] === 0xdc
+            ? Promise.reject(new Error("device removed"))
+            : printer.link.write(bytes),
+      },
+      labels,
+    );
+    await expect(outcome).resolves.toEqual({ kind: "printed", printed: 5 });
   });
 
   test("is interrupted when writing fails", async () => {

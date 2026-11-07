@@ -1,5 +1,5 @@
-import { createFrameParser, type Frame, frame, u16 } from "../packets";
-import type { PrinterLink } from "../print-sequence";
+import { createFrameParser, type Frame, frame, u16 } from "../label-printer-packets";
+import type { PrinterLink } from "../label-printer-print-sequence";
 
 export type FakePrinterOptions = {
   silentOn?: number;

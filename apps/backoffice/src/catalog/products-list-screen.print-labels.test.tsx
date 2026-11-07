@@ -1,6 +1,7 @@
 import type { ListedProduct } from "@purosur/contracts";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { labelPrinterPort } from "./test-support/print-labels-modal";
 import { honey } from "./test-support/products";
 import {
   createServices,
@@ -140,6 +141,10 @@ test("printing on the label printer asks the cloud for the rasters and hands the
     { copies: 1, raster: { widthDots: 8, heightRows: 1, data: new Uint8Array([0xa5]) } },
   ];
   vi.mocked(services.fetchPrinterLabels).mockResolvedValue({ kind: "ok", labels });
+  vi.mocked(services.chooseLabelPrinter).mockResolvedValue({
+    kind: "chosen",
+    port: labelPrinterPort,
+  });
   vi.mocked(services.printOnLabelPrinter).mockResolvedValue({ kind: "printed", printed: 1 });
   const screen = await renderScreen(services);
   await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
@@ -156,5 +161,5 @@ test("printing on the label printer asks the cloud for the rasters and hands the
   expect(services.fetchPrinterLabels).toHaveBeenCalledWith([
     { productId: honeyWithInternalBarcode.id, count: 1 },
   ]);
-  expect(services.printOnLabelPrinter).toHaveBeenCalledWith(labels);
+  expect(services.printOnLabelPrinter).toHaveBeenCalledWith(labelPrinterPort, labels);
 });

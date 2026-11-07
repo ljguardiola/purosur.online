@@ -104,6 +104,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       printLabels: vi.fn(),
       fetchPrinterLabels: vi.fn(),
       labelPrinterAvailable: () => true,
+      chooseLabelPrinter: vi.fn(),
       printOnLabelPrinter: vi.fn(),
     },
     pricesListScreen: {

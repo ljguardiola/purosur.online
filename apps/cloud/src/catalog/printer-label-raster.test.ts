@@ -90,6 +90,17 @@ class Raster {
     );
   }
 
+  portableBitmap(): string {
+    const rows = Array.from({ length: PRINTER_LABEL_HEIGHT_DOTS }, (_, row) =>
+      Array.from({ length: PRINTER_LABEL_WIDTH_DOTS }, (_, column) =>
+        this.isBlack(column, row) ? "1" : "0",
+      ).join(""),
+    );
+    return ["P1", `${PRINTER_LABEL_WIDTH_DOTS} ${PRINTER_LABEL_HEIGHT_DOTS}`, ...rows, ""].join(
+      "\n",
+    );
+  }
+
   textRuns(untilRow: number): Array<[number, number]> {
     const runs: Array<[number, number]> = [];
     for (let row = 0; row < untilRow; row += 1) {
@@ -295,5 +306,21 @@ describe("renderPrinterLabelRaster", () => {
 
     expect(raster.barRows(ean13Modules(code))).toHaveLength(96);
     expect(raster.barRows(ean13Modules(CODE))).toHaveLength(0);
+  });
+
+  it("prints a product with its brand and net content exactly as the expected label", async () => {
+    const raster = new Raster(
+      renderPrinterLabelRaster(
+        item({
+          name: "ALMENDRAS PELADAS NATURALES SIN SAL",
+          brandName: "CAMPO",
+          netContent: { quantity: 500, unit: "G" },
+        }),
+      ),
+    );
+
+    await expect(raster.portableBitmap()).toMatchFileSnapshot(
+      "./test-support/printer-label-raster.pbm",
+    );
   });
 });

@@ -1,5 +1,11 @@
 import { describe, expect, test } from "vitest";
-import { createFrameParser, frame, type LabelRaster, rowPackets, u16 } from "./packets";
+import {
+  createFrameParser,
+  frame,
+  type LabelRaster,
+  rowPackets,
+  u16,
+} from "./label-printer-packets";
 
 const ROW_BYTES = 50;
 

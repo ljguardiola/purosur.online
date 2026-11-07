@@ -34,6 +34,7 @@ export function createServices(
     printLabels: vi.fn(),
     fetchPrinterLabels: vi.fn(),
     labelPrinterAvailable: () => true,
+    chooseLabelPrinter: vi.fn(),
     printOnLabelPrinter: vi.fn(),
     ...overrides,
   };

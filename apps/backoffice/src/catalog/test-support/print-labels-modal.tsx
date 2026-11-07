@@ -3,6 +3,7 @@ import { useState } from "react";
 import { vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../../shell/test-support/render-with-router";
+import type { LabelPrinterPort } from "../label-printer-port";
 import { PrintLabelsModal, type PrintLabelsModalServices } from "../print-labels-modal";
 import { almondOil, almonds, honey, vitora } from "./products";
 
@@ -36,6 +37,13 @@ export const withoutInternalBarcode: ProductSummary = {
   barcodes: ["7790000000123"],
 };
 
+export const labelPrinterPort: LabelPrinterPort = {
+  open: async () => {},
+  close: async () => {},
+  readable: new ReadableStream(),
+  writable: new WritableStream(),
+};
+
 export function createServices(
   overrides: Partial<PrintLabelsModalServices> = {},
 ): PrintLabelsModalServices {
@@ -43,6 +51,7 @@ export function createServices(
     printLabels: vi.fn(),
     fetchPrinterLabels: vi.fn(),
     labelPrinterAvailable: () => true,
+    chooseLabelPrinter: vi.fn(async () => ({ kind: "chosen" as const, port: labelPrinterPort })),
     printOnLabelPrinter: vi.fn(),
     ...overrides,
   };

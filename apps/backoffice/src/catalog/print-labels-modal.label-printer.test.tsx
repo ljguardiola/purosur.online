@@ -4,6 +4,7 @@ import type { PrintLabelsModalServices } from "./print-labels-modal";
 import {
   createServices,
   honeyWithInternalBarcode,
+  labelPrinterPort,
   openPrintLabelsModal,
   renderModal,
   type Screen,
@@ -33,11 +34,18 @@ async function openWithOneLabel(
 }
 
 type PrinterOutcome = Awaited<ReturnType<PrintLabelsModalServices["printOnLabelPrinter"]>>;
+type PrinterChoice = Awaited<ReturnType<PrintLabelsModalServices["chooseLabelPrinter"]>>;
 
 function servicesPrintingWith(outcome: PrinterOutcome) {
   const services = createServices();
   vi.mocked(services.fetchPrinterLabels).mockResolvedValue(printerLabels);
   vi.mocked(services.printOnLabelPrinter).mockResolvedValue(outcome);
+  return services;
+}
+
+function servicesChoosing(choice: PrinterChoice) {
+  const services = createServices();
+  vi.mocked(services.chooseLabelPrinter).mockResolvedValue(choice);
   return services;
 }
 
@@ -69,21 +77,37 @@ test("describes both outputs in the preview", async () => {
     .toBeVisible();
 });
 
-test("says as soon as the modal opens that the browser cannot use the label printer", async () => {
+const BROWSER_WITHOUT_PRINTER =
+  "Este navegador no puede usar la impresora de etiquetas. Abrí el backoffice en Chrome o descargá la hoja A4.";
+
+test("says on the printer button why the browser cannot use the label printer", async () => {
   const services = createServices({ labelPrinterAvailable: () => false });
-  const screen = await renderModal(services, { products: [honeyWithInternalBarcode] });
-  const dialog = await openPrintLabelsModal(screen);
+  const { screen, dialog } = await openWithOneLabel(services);
+
+  const printButton = dialog.getByRole("button", { name: PRINT });
+  await expect.element(printButton).toHaveAttribute("aria-disabled", "true");
+  await userEvent.hover(printButton);
+  await expect.element(screen.getByRole("tooltip")).toHaveTextContent(BROWSER_WITHOUT_PRINTER);
+  await expect.element(dialog.getByRole("button", { name: "Descargar la hoja A4" })).toBeEnabled();
+});
+
+test("adds no notice of its own when the browser cannot use the label printer", async () => {
+  const services = createServices({ labelPrinterAvailable: () => false });
+  const { dialog } = await openWithOneLabel(services);
+
+  expect(
+    dialog.getByText("Este navegador no puede usar la impresora de etiquetas").query(),
+  ).toBeNull();
+});
+
+test("says the browser cannot use the label printer when choosing one finds no Web Serial", async () => {
+  const { dialog } = await openWithOneLabel(servicesChoosing({ kind: "unavailable" }));
+
+  await userEvent.click(dialog.getByRole("button", { name: PRINT }));
 
   await expect
     .element(dialog.getByText("Este navegador no puede usar la impresora de etiquetas"))
     .toBeVisible();
-  await expect
-    .element(dialog.getByText("Abrí el backoffice en Chrome o descargá la hoja A4."))
-    .toBeVisible();
-  await userEvent.click(
-    dialog.getByRole("button", { name: `Sumar una etiqueta a ${honeyWithInternalBarcode.name}` }),
-  );
-  await expect.element(dialog.getByRole("button", { name: PRINT })).toBeDisabled();
   await expect.element(dialog.getByRole("button", { name: "Descargar la hoja A4" })).toBeEnabled();
 });
 
@@ -105,20 +129,48 @@ test("sends the chosen labels to the printer and closes the modal once they are 
   expect(services.fetchPrinterLabels).toHaveBeenCalledWith([
     { productId: honeyWithInternalBarcode.id, count: 1 },
   ]);
-  expect(services.printOnLabelPrinter).toHaveBeenCalledWith(printerLabels.labels);
+  expect(services.printOnLabelPrinter).toHaveBeenCalledWith(labelPrinterPort, printerLabels.labels);
   expect(services.printLabels).not.toHaveBeenCalled();
 });
 
-test("says no printer was chosen and keeps the A4 sheet available", async () => {
-  const { dialog } = await openWithOneLabel(servicesPrintingWith({ kind: "no-printer" }));
+test("asks for the printer as soon as the button is pressed, before asking the cloud", async () => {
+  const services = createServices();
+  vi.mocked(services.chooseLabelPrinter).mockReturnValue(new Promise(() => {}));
+  const { dialog } = await openWithOneLabel(services);
+
+  await userEvent.click(dialog.getByRole("button", { name: PRINT }));
+
+  expect(services.chooseLabelPrinter).toHaveBeenCalledTimes(1);
+  expect(services.fetchPrinterLabels).not.toHaveBeenCalled();
+});
+
+test("says no printer was chosen, never asks the cloud and keeps the A4 sheet available", async () => {
+  const services = servicesChoosing({ kind: "no-printer" });
+  const { dialog } = await openWithOneLabel(services);
 
   await userEvent.click(dialog.getByRole("button", { name: PRINT }));
 
   await expect.element(dialog.getByText("No se eligió ninguna impresora")).toBeVisible();
+  expect(services.fetchPrinterLabels).not.toHaveBeenCalled();
   await expect
     .element(dialog.getByText("Conectá la impresora de etiquetas por USB y volvé a intentar."))
     .toBeVisible();
   await expect.element(dialog.getByRole("button", { name: PRINT })).toBeEnabled();
+  await expect.element(dialog.getByRole("button", { name: "Descargar la hoja A4" })).toBeEnabled();
+});
+
+test("says the printer could not be reached when choosing it fails, without blaming other programs", async () => {
+  const services = servicesChoosing({ kind: "chooser-failed" });
+  const { dialog } = await openWithOneLabel(services);
+
+  await userEvent.click(dialog.getByRole("button", { name: PRINT }));
+
+  await expect.element(dialog.getByText("No se pudo conectar con la impresora")).toBeVisible();
+  await expect.element(dialog.getByText("Probá de nuevo.")).toBeVisible();
+  expect(
+    dialog.getByText("Cerrá otros programas que la estén usando y volvé a intentar.").query(),
+  ).toBeNull();
+  expect(services.fetchPrinterLabels).not.toHaveBeenCalled();
   await expect.element(dialog.getByRole("button", { name: "Descargar la hoja A4" })).toBeEnabled();
 });
 
@@ -146,8 +198,26 @@ test("says how many labels were printed when the print is interrupted", async ()
   await expect.element(dialog.getByRole("button", { name: "Descargar la hoja A4" })).toBeEnabled();
 });
 
+test("says printing failed and keeps the A4 sheet available when the printer cannot be used", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrinterLabels).mockResolvedValue(printerLabels);
+  vi.mocked(services.printOnLabelPrinter).mockRejectedValue(
+    new TypeError("Failed to fetch dynamically imported module"),
+  );
+  const { dialog } = await openWithOneLabel(services);
+
+  await userEvent.click(dialog.getByRole("button", { name: PRINT }));
+
+  await expect
+    .element(dialog.getByText("No se pudo imprimir en la impresora de etiquetas"))
+    .toBeVisible();
+  await expect.element(dialog.getByRole("button", { name: "Descargar la hoja A4" })).toBeEnabled();
+  await expect.element(dialog.getByRole("button", { name: PRINT })).toBeEnabled();
+  await expect.element(dialog.getByRole("button", { name: "Cancelar" })).toBeEnabled();
+});
+
 test("downloads the A4 sheet after the label printer failed", async () => {
-  const services = servicesPrintingWith({ kind: "no-printer" });
+  const services = servicesChoosing({ kind: "no-printer" });
   vi.mocked(services.printLabels).mockResolvedValue({ kind: "failed" });
   const { dialog } = await openWithOneLabel(services);
   await userEvent.click(dialog.getByRole("button", { name: PRINT }));
@@ -160,11 +230,11 @@ test("downloads the A4 sheet after the label printer failed", async () => {
 });
 
 test("a later attempt replaces the previous printer notice", async () => {
-  const services = servicesPrintingWith({ kind: "no-printer" });
+  const services = servicesPrintingWith({ kind: "not-opened" });
+  vi.mocked(services.chooseLabelPrinter).mockResolvedValueOnce({ kind: "no-printer" });
   const { dialog } = await openWithOneLabel(services);
   await userEvent.click(dialog.getByRole("button", { name: PRINT }));
   await expect.element(dialog.getByText("No se eligió ninguna impresora")).toBeVisible();
-  vi.mocked(services.printOnLabelPrinter).mockResolvedValue({ kind: "not-opened" });
 
   await userEvent.click(dialog.getByRole("button", { name: PRINT }));
 
@@ -262,16 +332,7 @@ test("disables every button while the printer is printing", async () => {
   await expect.element(dialog.getByRole("button", { name: "Descargar la hoja A4" })).toBeDisabled();
 });
 
-async function printThenCloseAndReopen(screen: Screen, requestSent: () => unknown) {
-  const firstDialog = screen.getByRole("dialog");
-  await userEvent.click(firstDialog.getByRole("button", { name: PRINT }));
-  await expect.poll(requestSent).toBe(1);
-  await userEvent.click(firstDialog.getByRole("button", { name: "Cerrar" }));
-  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  return openPrintLabelsModal(screen);
-}
-
-test("ignores a printer outcome that arrives after the modal was closed and opened again", async () => {
+function servicesWithPendingPrint() {
   const services = createServices();
   vi.mocked(services.fetchPrinterLabels).mockResolvedValue(printerLabels);
   let resolvePrint: (outcome: PrinterOutcome) => void = () => {};
@@ -280,18 +341,43 @@ test("ignores a printer outcome that arrives after the modal was closed and open
       resolvePrint = resolve;
     }),
   );
-  const { screen } = await openWithOneLabel(services);
-  const reopened = await printThenCloseAndReopen(
-    screen,
-    () => vi.mocked(services.printOnLabelPrinter).mock.calls.length,
-  );
+  return { services, resolvePrint: (outcome: PrinterOutcome) => resolvePrint(outcome) };
+}
 
-  resolvePrint({ kind: "no-printer" });
+test("cannot be closed while the printer is printing", async () => {
+  const { services } = servicesWithPendingPrint();
+  const { screen, dialog } = await openWithOneLabel(services);
+
+  await userEvent.click(dialog.getByRole("button", { name: PRINT }));
+  await expect.poll(() => vi.mocked(services.printOnLabelPrinter).mock.calls.length).toBe(1);
+
+  expect(dialog.getByRole("button", { name: "Cerrar" }).query()).toBeNull();
+  await expect.element(dialog.getByRole("button", { name: "Cancelar" })).toBeDisabled();
+  await userEvent.keyboard("{Escape}");
   await screen.settle();
-
-  expect(reopened.getByText("No se eligió ninguna impresora").query()).toBeNull();
   expect(screen.getByRole("dialog").query()).not.toBeNull();
 });
+
+test("shows how many labels were printed once a print it could not be closed during stops", async () => {
+  const { services, resolvePrint } = servicesWithPendingPrint();
+  const { dialog } = await openWithOneLabel(services);
+  await userEvent.click(dialog.getByRole("button", { name: PRINT }));
+  await expect.poll(() => vi.mocked(services.printOnLabelPrinter).mock.calls.length).toBe(1);
+
+  resolvePrint({ kind: "interrupted", printed: 1, total: 2 });
+
+  await expect.element(dialog.getByText("Se imprimieron 1 de 2 etiquetas.")).toBeVisible();
+  await expect.element(dialog.getByRole("button", { name: "Cerrar" })).toBeEnabled();
+});
+
+async function printThenCloseAndReopen(screen: Screen, requestSent: () => unknown) {
+  const firstDialog = screen.getByRole("dialog");
+  await userEvent.click(firstDialog.getByRole("button", { name: PRINT }));
+  await expect.poll(requestSent).toBe(1);
+  await userEvent.click(firstDialog.getByRole("button", { name: "Cerrar" }));
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  return openPrintLabelsModal(screen);
+}
 
 test("ignores prepared labels that arrive after the modal was closed and opened again", async () => {
   const services = createServices();
