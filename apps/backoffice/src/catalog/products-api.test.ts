@@ -574,6 +574,8 @@ test("printLabels returns failed when the request throws", async () => {
   expect(await printLabels(labelRequest)).toEqual({ kind: "failed" });
 });
 
+const labelSize = { widthMm: 40, heightMm: 25 };
+
 function rasterBase64(bytes: number[]): string {
   return btoa(String.fromCharCode(...bytes));
 }
@@ -590,7 +592,7 @@ test("fetchPrinterLabels posts the requested labels and decodes each raster on 2
     }),
   );
 
-  const outcome = await fetchPrinterLabels(labelRequest);
+  const outcome = await fetchPrinterLabels(labelRequest, labelSize);
 
   expect(outcome).toEqual({
     kind: "ok",
@@ -602,7 +604,7 @@ test("fetchPrinterLabels posts the requested labels and decodes each raster on 2
   expect(fetch).toHaveBeenCalledWith("/api/label-prints", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ labels: labelRequest }),
+    body: JSON.stringify({ labels: labelRequest, size: labelSize }),
   });
 });
 
@@ -615,13 +617,13 @@ test("fetchPrinterLabels returns failed when the body does not match the printer
     }),
   );
 
-  expect(await fetchPrinterLabels(labelRequest)).toEqual({ kind: "failed" });
+  expect(await fetchPrinterLabels(labelRequest, labelSize)).toEqual({ kind: "failed" });
 });
 
 test("fetchPrinterLabels returns failed when the body is not JSON", async () => {
   vi.mocked(fetch).mockResolvedValue(new Response("not json", { status: 200 }));
 
-  expect(await fetchPrinterLabels(labelRequest)).toEqual({ kind: "failed" });
+  expect(await fetchPrinterLabels(labelRequest, labelSize)).toEqual({ kind: "failed" });
 });
 
 test("fetchPrinterLabels returns product_not_found on a 400 with that code", async () => {
@@ -629,7 +631,7 @@ test("fetchPrinterLabels returns product_not_found on a 400 with that code", asy
     jsonResponse(400, { code: "product_not_found", message: "no product", productId: "product-1" }),
   );
 
-  expect(await fetchPrinterLabels(labelRequest)).toEqual({ kind: "product_not_found" });
+  expect(await fetchPrinterLabels(labelRequest, labelSize)).toEqual({ kind: "product_not_found" });
 });
 
 test("fetchPrinterLabels returns product_without_internal_barcode on a 400 with that code", async () => {
@@ -637,7 +639,7 @@ test("fetchPrinterLabels returns product_without_internal_barcode on a 400 with 
     jsonResponse(400, { code: "product_without_internal_barcode", message: "none" }),
   );
 
-  expect(await fetchPrinterLabels(labelRequest)).toEqual({
+  expect(await fetchPrinterLabels(labelRequest, labelSize)).toEqual({
     kind: "product_without_internal_barcode",
   });
 });
@@ -645,25 +647,25 @@ test("fetchPrinterLabels returns product_without_internal_barcode on a 400 with 
 test("fetchPrinterLabels returns failed on a 400 with an unrecognized code", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(400, { code: "validation_failed" }));
 
-  expect(await fetchPrinterLabels(labelRequest)).toEqual({ kind: "failed" });
+  expect(await fetchPrinterLabels(labelRequest, labelSize)).toEqual({ kind: "failed" });
 });
 
 test("fetchPrinterLabels returns unauthenticated on 401", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(401));
 
-  expect(await fetchPrinterLabels(labelRequest)).toEqual({ kind: "unauthenticated" });
+  expect(await fetchPrinterLabels(labelRequest, labelSize)).toEqual({ kind: "unauthenticated" });
 });
 
 test("fetchPrinterLabels returns forbidden on 403", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(403));
 
-  expect(await fetchPrinterLabels(labelRequest)).toEqual({ kind: "forbidden" });
+  expect(await fetchPrinterLabels(labelRequest, labelSize)).toEqual({ kind: "forbidden" });
 });
 
 test("fetchPrinterLabels returns rate_limited with the Retry-After header on 429", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(429, undefined, { "Retry-After": "50" }));
 
-  expect(await fetchPrinterLabels(labelRequest)).toEqual({
+  expect(await fetchPrinterLabels(labelRequest, labelSize)).toEqual({
     kind: "rate_limited",
     retryAfterSeconds: 50,
   });
@@ -672,7 +674,7 @@ test("fetchPrinterLabels returns rate_limited with the Retry-After header on 429
 test("fetchPrinterLabels returns failed when the request throws", async () => {
   vi.mocked(fetch).mockRejectedValue(new Error("network down"));
 
-  expect(await fetchPrinterLabels(labelRequest)).toEqual({ kind: "failed" });
+  expect(await fetchPrinterLabels(labelRequest, labelSize)).toEqual({ kind: "failed" });
 });
 
 test("deactivateProduct puts the deactivation with no body and returns ok on 200", async () => {

@@ -11,6 +11,7 @@ import {
 } from "./test-support/print-labels-modal";
 
 beforeEach(() => {
+  window.localStorage.clear();
   window.history.pushState(null, "", "/");
 });
 
@@ -126,9 +127,10 @@ test("sends the chosen labels to the printer and closes the modal once they are 
   await userEvent.click(dialog.getByRole("button", { name: PRINT }));
 
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  expect(services.fetchPrinterLabels).toHaveBeenCalledWith([
-    { productId: honeyWithInternalBarcode.id, count: 1 },
-  ]);
+  expect(services.fetchPrinterLabels).toHaveBeenCalledWith(
+    [{ productId: honeyWithInternalBarcode.id, count: 1 }],
+    { widthMm: 50, heightMm: 30 },
+  );
   expect(services.printOnLabelPrinter).toHaveBeenCalledWith(labelPrinterPort, printerLabels.labels);
   expect(services.printLabels).not.toHaveBeenCalled();
 });
