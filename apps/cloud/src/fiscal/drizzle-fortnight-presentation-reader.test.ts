@@ -177,6 +177,7 @@ describe("DrizzleFortnightPresentationReader.branchPresentations", () => {
         documentCount: 0,
         rejectedDocument: null,
         revokedInstallations: [],
+        owed: true,
       },
     ]);
   });
@@ -207,6 +208,34 @@ describe("DrizzleFortnightPresentationReader.branchPresentations", () => {
       ["2026-10-16", "accepted"],
       ["2026-10-01", "listed_as_owed"],
     ]);
+  });
+
+  it("answers a presentation as owed while it is not accepted and as not owed once accepted", async () => {
+    await seedOfflinePointOfSale(db);
+    await claimedBeforeEveryFortnight(OFFLINE_POINT_OF_SALE);
+    await keepCode(OCTOBER_FIRST_HALF, "36123456789012", "2026-10-20");
+    await keepCode(OCTOBER_SECOND_HALF, "36123456789013", "2026-11-05");
+    await record(OFFLINE_POINT_OF_SALE, OCTOBER_FIRST_HALF, "accepted", "none");
+    await record(OFFLINE_POINT_OF_SALE, OCTOBER_SECOND_HALF, "blocked");
+
+    const listed = await presentations("2026-11-01");
+
+    expect(listed.map(({ fortnight, owed }) => [fortnight.start, owed])).toEqual([
+      ["2026-10-16", true],
+      ["2026-10-01", false],
+    ]);
+  });
+
+  it("answers an accepted presentation the tax authority lists as owed as owed", async () => {
+    await seedOfflinePointOfSale(db);
+    await claimedBeforeEveryFortnight(OFFLINE_POINT_OF_SALE);
+    await keepCode(OCTOBER_FIRST_HALF, "36123456789012", "2026-10-20");
+    await record(OFFLINE_POINT_OF_SALE, OCTOBER_FIRST_HALF, "accepted", "none");
+    await listedAsOwed(OFFLINE_POINT_OF_SALE, OCTOBER_FIRST_HALF);
+
+    const [presentation] = await presentations("2026-11-01");
+
+    expect(presentation?.owed).toBe(true);
   });
 
   it("does not mark the same fortnight of another point of sale as listed as owed", async () => {
@@ -511,6 +540,7 @@ describe("DrizzleFortnightPresentationReader.branchPresentations", () => {
           documentCount: 2,
           rejectedDocument: null,
           revokedInstallations: [],
+          owed: false,
         },
       ]);
     });
