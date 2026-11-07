@@ -9,6 +9,7 @@ import {
   RECORDED_ORDER_SEARCHES,
   recordMercadoPagoOrderSearches,
 } from "./mercado-pago-order-search-recording.js";
+import { createMercadoPagoOrdersClient } from "./mercado-pago-orders-client.js";
 
 const TOKEN = "TEST-1111222233-fictional-secret";
 const ACCOUNT_ID = 998877665;
@@ -24,6 +25,7 @@ interface Call {
   url: string;
   headers: Record<string, string>;
   body: string | undefined;
+  abortable: boolean;
 }
 
 type Responder = (call: Call, calls: Call[]) => { status: number; body: unknown } | undefined;
@@ -86,6 +88,23 @@ function defaultResponder(overrides: Responder = () => undefined): Responder {
   };
 }
 
+function fetchAnswering(calls: Call[], responder: Responder): typeof globalThis.fetch {
+  return (async (input: string | URL | Request, init?: RequestInit) => {
+    const call: Call = {
+      method: init?.method ?? "GET",
+      url: String(input),
+      headers: (init?.headers ?? {}) as Record<string, string>,
+      body: init?.body as string | undefined,
+      abortable: init?.signal instanceof AbortSignal,
+    };
+    calls.push(call);
+    const answer = responder(call, calls) ?? json(500, null);
+    const text =
+      typeof answer.body === "string" ? answer.body : JSON.stringify(answer.body ?? null);
+    return new Response(text, { status: answer.status });
+  }) as typeof globalThis.fetch;
+}
+
 describe("recording Mercado Pago order searches", () => {
   let outDir: string;
   let calls: Call[];
@@ -102,25 +121,12 @@ describe("recording Mercado Pago order searches", () => {
   });
 
   function run(responder: Responder = defaultResponder()) {
-    const fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-      const call: Call = {
-        method: init?.method ?? "GET",
-        url: String(input),
-        headers: (init?.headers ?? {}) as Record<string, string>,
-        body: init?.body as string | undefined,
-      };
-      calls.push(call);
-      const answer = responder(call, calls) ?? json(500, null);
-      const text =
-        typeof answer.body === "string" ? answer.body : JSON.stringify(answer.body ?? null);
-      return new Response(text, { status: answer.status });
-    }) as typeof globalThis.fetch;
     return recordMercadoPagoOrderSearches({
       outDir,
       accessToken: TOKEN,
       externalPosId: "REALPOS01",
       terminalId: "PAX_A910__REAL123",
-      fetch,
+      fetch: fetchAnswering(calls, responder),
       now: () => NOW,
       newId: () => `id-${++idCounter}`,
       wait: async (ms) => {
@@ -207,6 +213,27 @@ describe("recording Mercado Pago order searches", () => {
     expect(searches.every((call) => call.headers["Authorization"] === `Bearer ${TOKEN}`)).toBe(
       true,
     );
+  });
+
+  it("sends the searches of the orders and of the unused reference as the orders client sends them", async () => {
+    await run();
+
+    const searched = calls.filter((call) => call.url.includes("/v1/orders?")).slice(0, 3);
+    const sent: Call[] = [];
+    const client = createMercadoPagoOrdersClient({
+      accessToken: TOKEN,
+      fetch: fetchAnswering(sent, defaultResponder()),
+    });
+    for (const search of searched) {
+      const { searchParams } = new URL(search.url);
+      await client.searchOrdersOfExternalReference(
+        searchParams.get("external_reference") ?? "",
+        new Date(searchParams.get("begin_date") ?? ""),
+        new Date(searchParams.get("end_date") ?? ""),
+      );
+    }
+    expect(searched).toHaveLength(3);
+    expect(searched).toEqual(sent);
   });
 
   it("searches again after two seconds while the answer is an empty list, at most five searches", async () => {
@@ -607,6 +634,7 @@ describe("the settings of an order search recording", () => {
     ["the repository root", "/work/repo"],
     ["a folder inside the repository", "/work/repo/recordings"],
     ["the repository root written with a detour", "/work/repo/sub/.."],
+    ["a folder inside the repository whose name starts with two dots", "/work/repo/..recordings"],
   ])("refuses an output directory that is %s", (_name, out) => {
     expect(
       orderSearchRecordingSettingsOf(
@@ -617,10 +645,13 @@ describe("the settings of an order search recording", () => {
     ).toEqual({ kind: "refused", reason: "--out must be outside the repository" });
   });
 
-  it("accepts a sibling folder whose name starts like the repository's", () => {
+  it.each([
+    ["a sibling folder whose name starts like the repository's", "/work/repo-recordings"],
+    ["the repository's parent folder", "/work"],
+  ])("accepts %s", (_name, out) => {
     expect(
       orderSearchRecordingSettingsOf(
-        ["--out", "/work/repo-recordings", "--external-pos-id", "POS1", "--terminal-id", "TERM1"],
+        ["--out", out, "--external-pos-id", "POS1", "--terminal-id", "TERM1"],
         env,
         repositoryRoot,
       ).kind,

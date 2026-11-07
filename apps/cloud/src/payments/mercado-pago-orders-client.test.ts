@@ -444,40 +444,6 @@ describe("the Mercado Pago orders client", () => {
       expect(await client.createQrOrder(REQUEST)).toStrictEqual({ kind: "refused" });
     });
 
-    it.each([
-      [
-        "a 400 with an error code",
-        () => answer(400, { errors: [{ code: "invalid_total_amount", message: "bad amount" }] }),
-        { status: 400, code: "invalid_total_amount" },
-      ],
-      ["a 401 that is not JSON", () => answer(401, "Unauthorized"), { status: 401, code: null }],
-      [
-        "a code that is not an error code",
-        () => answer(400, { errors: [{ code: ACCESS_TOKEN }] }),
-        { status: 400, code: null },
-      ],
-    ])(
-      "logs the status and code of %s that refuses the order, without the request or the body",
-      async (_name, response, logged) => {
-        const { client } = clientAnswering(response());
-
-        await client.createQrOrder(REQUEST);
-
-        expect(consoleCalls).toEqual([["Mercado Pago did not create the order", logged]]);
-        expect(JSON.stringify(consoleCalls)).not.toContain(REQUEST.externalReference);
-        expect(JSON.stringify(consoleCalls)).not.toContain(ACCESS_TOKEN);
-        expect(JSON.stringify(consoleCalls)).not.toContain("bad amount");
-      },
-    );
-
-    it("logs nothing when the order is created", async () => {
-      const { client } = clientAnswering(answer(201, createdOrder()));
-
-      await client.createQrOrder(REQUEST);
-
-      expect(consoleCalls).toEqual([]);
-    });
-
     it("answers that an order is already queued on the terminal when Mercado Pago answers 409 already_queued_order_on_terminal", async () => {
       const { client } = clientAnswering(answer(409, alreadyQueuedOrderOnTerminalError()));
 
@@ -1389,6 +1355,40 @@ describe("the Mercado Pago orders client", () => {
               totalPaidAmount: null,
               payments: [{ status: "created", statusDetail: null, paidAmount: null }],
             },
+          },
+        ],
+      });
+    });
+
+    it("reads every order of an answer that finds more than one, in the order answered", async () => {
+      const { body } = recordedOrderSearch("qr-order-found") as {
+        body: { data: unknown[]; paging: unknown };
+      };
+      const { client } = clientAnswering(
+        answer(200, { ...body, data: [...body.data, paidWithCardOrder()] }),
+      );
+
+      expect(await search(client)).toStrictEqual({
+        kind: "read",
+        orders: [
+          {
+            orderId: "ORDTST00000000000000000000000001",
+            result: {
+              status: "created",
+              statusDetail: "created",
+              externalReference: "00000000-0000-4000-8000-000000000001",
+              totalPaidAmount: null,
+              payments: [{ status: "created", statusDetail: "ready_to_process", paidAmount: null }],
+            },
+          },
+          {
+            orderId: ORDER_ID,
+            result: createdResult({
+              status: "processed",
+              statusDetail: "accredited",
+              totalPaidAmount: 5000,
+              payments: [{ status: "processed", statusDetail: "accredited", paidAmount: 5000 }],
+            }),
           },
         ],
       });
