@@ -1,5 +1,6 @@
 import {
   isValidPointOrderAmount,
+  isValidQrOrderAmount,
   nonCashCharge,
   type PointCardType,
 } from "../../payments/index.js";
@@ -55,7 +56,11 @@ export function recordPendingMercadoPagoPayment(
     if (charge.kind === "invalid_amount" || charge.kind === "exceeds_pending") {
       return charge;
     }
-    if (input.method === "POINT" && !isValidPointOrderAmount(charge.applied)) {
+    const reachesMinimum =
+      input.method === "POINT"
+        ? isValidPointOrderAmount(charge.applied)
+        : isValidQrOrderAmount(charge.applied);
+    if (!reachesMinimum) {
       return { kind: "below_minimum" };
     }
 
