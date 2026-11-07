@@ -604,7 +604,9 @@ test("sends to Mi cuenta when saving comes back forbidden", async () => {
 
   await save(dialog);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("ends the session when saving comes back unauthenticated", async () => {

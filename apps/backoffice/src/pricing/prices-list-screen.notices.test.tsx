@@ -198,7 +198,9 @@ test("a row confirmation answered forbidden navigates to Mi cuenta", async () =>
     screen.getByRole("button", { name: "Confirmar el precio de Arroz sin cambios" }),
   );
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("an error notice does not leave with time, only with the person's next action", async () => {

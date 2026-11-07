@@ -16,7 +16,7 @@ const TEXTS: Record<ContingencyKind, { title: string; description: string; whatT
     description:
       "Esta caja no puede emitir la factura de cada venta en el momento, ni siquiera con su respaldo.",
     whatToDo:
-      "Seguir vendiendo: se cobra, se entrega al cliente el papel que dice que todavía no es la factura, y la factura se emite sola más adelante. Guardar los tickets de respaldo en la caja del local.",
+      "Seguir vendiendo: se cobra, se entrega al cliente el papel que dice que todavía no es la factura, y la factura se emite sola más adelante.",
   },
 };
 

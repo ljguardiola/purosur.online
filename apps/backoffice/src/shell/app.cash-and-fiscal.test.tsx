@@ -8,18 +8,18 @@ import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
-opensOnlyScreens(["/", "/account", "/fiscal-settings", "/help", "/points-of-sale"]);
+opensOnlyScreens(["/", "/fiscal-settings", "/help", "/points-of-sale"]);
 
 beforeEach(resetPageState);
 
-test("shows the Caja item in the rail for a user holding change_fiscal_configuration, linking to Puntos de venta", async () => {
+test("shows the Caja y fiscal item in the rail for a user holding change_fiscal_configuration, linking to Puntos de venta", async () => {
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(
       openSession({
         userId: "user-2",
         displayName: "Grace Villalba",
         isAdministrator: false,
-        capabilities: ["cash_area"],
+        capabilities: ["fiscal_configuration_area"],
       }),
     ),
   });
@@ -27,10 +27,12 @@ test("shows the Caja item in the rail for a user holding change_fiscal_configura
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("link", { name: "Caja" })).toBeVisible();
+  await expect
+    .element(screen.getByRole("link", { name: "Caja y fiscal", exact: true }))
+    .toBeVisible();
 });
 
-test("hides the Caja item in the rail for a user without change_fiscal_configuration", async () => {
+test("hides the Caja y fiscal item in the rail for a user without change_fiscal_configuration", async () => {
   const services = createAppServices({
     fetchSession: vi
       .fn()
@@ -43,10 +45,10 @@ test("hides the Caja item in the rail for a user without change_fiscal_configura
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
-  expect(screen.getByRole("link", { name: "Caja" }).query()).toBeNull();
+  expect(screen.getByRole("link", { name: "Caja y fiscal", exact: true }).query()).toBeNull();
 });
 
-test("following the rail's Caja item opens Puntos de venta, with Caja and Puntos de venta active", async () => {
+test("following the rail's Caja y fiscal item opens Puntos de venta, with Caja y fiscal and Puntos de venta active", async () => {
   window.history.pushState(null, "", "/help");
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(
@@ -54,20 +56,24 @@ test("following the rail's Caja item opens Puntos de venta, with Caja and Puntos
         userId: "user-2",
         displayName: "Grace Villalba",
         isAdministrator: false,
-        capabilities: ["cash_area"],
+        capabilities: ["fiscal_configuration_area"],
       }),
     ),
   });
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await expect.element(screen.getByRole("link", { name: "Caja" })).toBeVisible();
+  await expect
+    .element(screen.getByRole("link", { name: "Caja y fiscal", exact: true }))
+    .toBeVisible();
 
-  await userEvent.click(screen.getByRole("link", { name: "Caja" }));
+  await userEvent.click(screen.getByRole("link", { name: "Caja y fiscal", exact: true }));
 
   await expect
     .element(screen.getByRole("heading", { name: "Puntos de venta", level: 1 }))
     .toBeVisible();
   expect(window.location.pathname).toBe("/points-of-sale");
-  const cashItem = screen.getByRole("link", { name: "Caja" }).element() as HTMLAnchorElement;
+  const cashItem = screen
+    .getByRole("link", { name: "Caja y fiscal", exact: true })
+    .element() as HTMLAnchorElement;
   expect(cashItem.getAttribute("aria-current")).toBe("page");
   const sectionItem = screen
     .getByRole("link", { name: "Puntos de venta" })
@@ -87,7 +93,7 @@ test("following the section's Configuración fiscal link opens it, with only tha
         userId: "user-2",
         displayName: "Grace Villalba",
         isAdministrator: false,
-        capabilities: ["cash_area"],
+        capabilities: ["fiscal_configuration_area"],
       }),
     ),
   });
@@ -131,7 +137,7 @@ test("lists Puntos de venta before Configuración fiscal in the FISCAL group", a
       ),
   });
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await userEvent.click(screen.getByRole("link", { name: "Caja" }));
+  await userEvent.click(screen.getByRole("link", { name: "Caja y fiscal", exact: true }));
 
   const labels = (await screen.getByRole("link").elements()).map((link) => link.textContent);
   expect(labels.indexOf("Puntos de venta")).toBeGreaterThan(-1);
@@ -146,13 +152,16 @@ test("redirects a non-permitted user's typed /points-of-sale to Mi cuenta, witho
         openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   window.history.pushState(null, "", "/points-of-sale");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/account");
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
+  expect(window.location.pathname + window.location.search).toBe("/?account=credentials");
   expect(services.pointsOfSaleScreen.fetchRegisterPointsOfSale).not.toHaveBeenCalled();
 });
 
@@ -164,12 +173,15 @@ test("redirects a non-permitted user's typed /fiscal-settings to Mi cuenta, with
         openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   window.history.pushState(null, "", "/fiscal-settings");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/account");
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
+  expect(window.location.pathname + window.location.search).toBe("/?account=credentials");
   expect(services.fiscalConfigurationScreen.fetchIssuerIdentification).not.toHaveBeenCalled();
 });

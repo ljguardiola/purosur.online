@@ -12,7 +12,7 @@ import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
-opensOnlyScreens(["/", "/account", "/help", "/exceptionality", "/fiscal-tasks", "/points-of-sale"]);
+opensOnlyScreens(["/", "/help", "/exceptionality", "/fiscal-tasks", "/points-of-sale"]);
 
 beforeEach(async () => {
   await resetPageState();
@@ -32,7 +32,10 @@ function servicesFor(capabilities: Capability[]) {
       }),
     ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   vi.mocked(services.exceptionalityScreen.fetchFiscalAddresses).mockResolvedValue({
     kind: "ok",
     value: fiscalAddresses,
@@ -49,7 +52,7 @@ test("opens the exceptionality from the FISCAL group for a user who sees fiscal 
   window.history.pushState(null, "", "/help");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await userEvent.click(screen.getByRole("link", { name: "Caja" }));
+  await userEvent.click(screen.getByRole("link", { name: "Caja y fiscal", exact: true }));
   const sections = screen.getByRole("navigation", { name: "Caja y fiscal" });
   await userEvent.click(sections.getByRole("link", { name: "Excepcionalidad" }));
 
@@ -65,7 +68,7 @@ test("opens the exceptionality from the FISCAL group for a user who sees fiscal 
 });
 
 test("does not offer the exceptionality to a user who cannot see fiscal information", async () => {
-  const services = servicesFor(["cash_area"]);
+  const services = servicesFor(["fiscal_configuration_area"]);
   window.history.pushState(null, "", "/points-of-sale");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -76,12 +79,12 @@ test("does not offer the exceptionality to a user who cannot see fiscal informat
 });
 
 test("sends a user who cannot see fiscal information and opens /exceptionality to Mi cuenta, without loading it", async () => {
-  const services = servicesFor(["cash_area"]);
+  const services = servicesFor(["fiscal_configuration_area"]);
   window.history.pushState(null, "", "/exceptionality");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
   expect(services.exceptionalityScreen.fetchFiscalAddresses).not.toHaveBeenCalled();
   expect(services.exceptionalityScreen.fetchExceptionShareYear).not.toHaveBeenCalled();
 });

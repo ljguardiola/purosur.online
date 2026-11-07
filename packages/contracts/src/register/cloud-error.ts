@@ -36,12 +36,14 @@ export const cloudErrorSchema = z.object({
 
 export type CloudError = z.output<typeof cloudErrorSchema>;
 
+const CLOUD_ERROR_TRAITS: typeof CLOUD_ERRORS = Object.assign(Object.create(null), CLOUD_ERRORS);
+
 export function cloudErrorStatus(code: CloudErrorCode): number {
-  return CLOUD_ERRORS[code].status;
+  return CLOUD_ERROR_TRAITS[code].status;
 }
 
 export function isRetryableCloudError(code: CloudErrorCode): boolean {
-  return CLOUD_ERRORS[code].retryable;
+  return CLOUD_ERROR_TRAITS[code].retryable;
 }
 
 export function cloudError(

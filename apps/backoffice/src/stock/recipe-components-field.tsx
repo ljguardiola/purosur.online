@@ -12,6 +12,7 @@ import {
 import { Plus, Trash2, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { creatableChoice } from "../platform/creatable-options";
+import { ownEntry } from "../platform/own-entry";
 import { quantityFieldKind } from "../platform/stock-quantity";
 import {
   type RecipeComponentValues,
@@ -70,7 +71,7 @@ export function RecipeComponentsField({
           className="flex min-w-0 flex-col gap-3"
         >
           {components.map((component) => {
-            const refusal = refusals[component.productId];
+            const refusal = ownEntry(refusals, component.productId);
             return (
               <Card key={component.productId} variant="subtle">
                 <div className="flex items-center gap-3">

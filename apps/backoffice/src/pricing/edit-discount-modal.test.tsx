@@ -11,10 +11,10 @@ import type { DiscountReload } from "./pricing-queries";
 import {
   chooseBuyNPayM,
   chooseTarget,
-  dateSegments,
   fillQuantities,
   productPicker,
-  typeDate,
+  typeValidityEnd,
+  validitySegments,
 } from "./test-support/discount-modal";
 import {
   almacenCategory,
@@ -102,8 +102,8 @@ test("shows the header with the promotion's name, and its values filled in", asy
     .element(dialog.getByRole("combobox", { name: /^Distintivo/ }))
     .toHaveValue("Sin TACC");
   await expect.element(dialog.getByRole("textbox", { name: /^Descuento/ })).toHaveValue("20");
-  expect(dateSegments(dialog, "Desde")).toEqual(["1", "12", "2026"]);
-  expect(dateSegments(dialog, "Hasta")).toEqual(["28", "2", "2027"]);
+  expect(validitySegments(dialog).slice(0, 3)).toEqual(["1", "12", "2026"]);
+  expect(validitySegments(dialog).slice(3)).toEqual(["28", "2", "2027"]);
   await expect
     .element(dialog.getByRole("button", { name: "Lun, Lunes" }))
     .toHaveAttribute("aria-pressed", "true");
@@ -374,7 +374,7 @@ test("sends the changes made to the name, the percentage, the dates and the week
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Miércoles de almacén");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Descuento/ }), "25");
-  await typeDate(dialog, "Hasta", "15112026");
+  await typeValidityEnd(dialog, "15112026");
   await userEvent.click(dialog.getByRole("button", { name: "Mar, Martes" }));
   await userEvent.click(dialog.getByRole("button", { name: "Mié, Miércoles" }));
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
@@ -543,7 +543,7 @@ test("shows each field's message for what was cleared, without calling the cloud
 
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Descuento/ }), "150");
-  await typeDate(dialog, "Hasta", "01092026");
+  await typeValidityEnd(dialog, "01092026");
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
   await expect.element(dialog.getByText("Ingresá el nombre de la promoción.")).toBeVisible();
@@ -566,9 +566,7 @@ test("puts the message the cloud names on that field", async () => {
 
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
-  await expect
-    .element(dialog.getByText("La fecha de fin no puede ser anterior a la de inicio."))
-    .toBeVisible();
+  await expect.element(dialog.getByText("Revisá la vigencia.")).toBeVisible();
 });
 
 test.each([
@@ -665,7 +663,9 @@ test("sends the user to Mi cuenta when the cloud refuses the permission", async 
 
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("shows the rate-limited notice with the time to wait", async () => {

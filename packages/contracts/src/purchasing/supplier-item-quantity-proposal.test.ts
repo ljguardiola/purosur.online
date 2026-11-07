@@ -19,36 +19,54 @@ describe("supplierItemQuantityProposalBodySchema", () => {
   });
 
   it.each([0, -5, 1.2345])("names the net content's quantity when it is %j", (quantity) => {
-    expect(firstFailure({ saleUnit: "UNIT", netContent: { quantity, unit: "G" } })).toEqual({
+    expect(
+      firstFailure({ saleUnit: "UNIT", refresh: false, netContent: { quantity, unit: "G" } }),
+    ).toEqual({
       field: "netContentQuantity",
       message: expect.stringContaining("netContent's quantity must be a positive number"),
     });
   });
 
   it("reads the sale unit and the net content", () => {
-    const body = { saleUnit: "KG", netContent: { quantity: 250, unit: "G" } };
+    const body = { saleUnit: "KG", refresh: false, netContent: { quantity: 250, unit: "G" } };
 
     expect(supplierItemQuantityProposalBodySchema.safeParse(body).data).toEqual(body);
   });
 
-  it.each([{ saleUnit: "UNIT" }, { saleUnit: "UNIT", netContent: null }])(
-    "reads %j as a product with no net content",
-    (body) => {
-      expect(supplierItemQuantityProposalBodySchema.safeParse(body).data).toEqual({
-        saleUnit: "UNIT",
-        netContent: null,
-      });
-    },
-  );
+  it.each([
+    { saleUnit: "UNIT", refresh: true },
+    { saleUnit: "UNIT", refresh: true, netContent: null },
+  ])("reads %j as a product with no net content", (body) => {
+    expect(supplierItemQuantityProposalBodySchema.safeParse(body).data).toEqual({
+      saleUnit: "UNIT",
+      refresh: true,
+      netContent: null,
+    });
+  });
+
+  it.each([
+    { saleUnit: "UNIT" },
+    { saleUnit: "UNIT", refresh: "yes" },
+    { saleUnit: "UNIT", refresh: null },
+  ])("refuses %j, which does not say whether to refresh", (body) => {
+    expect(supplierItemQuantityProposalBodySchema.safeParse(body).success).toBe(false);
+  });
+
+  it("names the field when refresh is missing", () => {
+    expect(firstFailure({ saleUnit: "UNIT" })).toEqual({
+      field: "refresh",
+      message: "refresh must be true or false",
+    });
+  });
 
   it.each([
     {},
     { saleUnit: "KILO" },
     { saleUnit: 1 },
-    { saleUnit: "UNIT", netContent: { quantity: 1, unit: "OZ" } },
-    { saleUnit: "UNIT", netContent: { quantity: 0, unit: "G" } },
-    { saleUnit: "UNIT", netContent: { quantity: -5, unit: "G" } },
-    { saleUnit: "UNIT", netContent: { quantity: 1.2345, unit: "G" } },
+    { saleUnit: "UNIT", refresh: false, netContent: { quantity: 1, unit: "OZ" } },
+    { saleUnit: "UNIT", refresh: false, netContent: { quantity: 0, unit: "G" } },
+    { saleUnit: "UNIT", refresh: false, netContent: { quantity: -5, unit: "G" } },
+    { saleUnit: "UNIT", refresh: false, netContent: { quantity: 1.2345, unit: "G" } },
   ])("refuses %j", (body) => {
     expect(supplierItemQuantityProposalBodySchema.safeParse(body).success).toBe(false);
   });

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { CircleAlert, Package, Pencil, SearchX, Trash2 } from "lucide-react";
+import { Archive, CircleAlert, Package, Pencil, SearchX, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { expect, within } from "storybook/test";
+import { expect, userEvent, within } from "storybook/test";
 import { plural } from "../../../messages/formatters";
 import {
   playHoverSetsDataHovered,
@@ -166,6 +166,31 @@ export const RowSelected: Story = {
       rowState={(item) => (item.id === "1" ? "selected" : undefined)}
       sort={sort}
       onSortChange={onSortChange}
+    />
+  ),
+};
+
+export const PressableRows: Story = {
+  render: () => (
+    <ProductsTable
+      aria-label="Productos"
+      columns={baseColumns}
+      sort={sort}
+      onSortChange={onSortChange}
+      onRowPress={() => {}}
+    />
+  ),
+};
+
+export const PressableRowsWithSelected: Story = {
+  render: () => (
+    <ProductsTable
+      aria-label="Productos"
+      columns={baseColumns}
+      sort={sort}
+      onSortChange={onSortChange}
+      onRowPress={() => {}}
+      rowState={(item) => (item.id === "1" ? "selected" : undefined)}
     />
   ),
 };
@@ -438,6 +463,60 @@ export const WithSixActions: Story = {
       onSortChange={onSortChange}
     />
   ),
+};
+
+const mixedActionColumns = [
+  ...baseColumns,
+  actionsColumn({
+    id: "actions",
+    header: "Acciones",
+    actions: [
+      (item: Product) => ({
+        icon: <Pencil />,
+        "aria-label": `Editar ${item.name}`,
+        onPress: () => {},
+      }),
+    ],
+    menu: (item: Product) =>
+      item.stock === "0"
+        ? undefined
+        : [
+            {
+              label: "Archivar",
+              icon: <Archive />,
+              onAction: () => {},
+              ...(item.stock === "8" ? { disabledReason: "Tiene un pedido pendiente" } : {}),
+            },
+            { label: "Eliminar", icon: <Trash2 />, onAction: () => {}, destructive: true },
+          ],
+  }),
+] as const;
+
+export const MixedWithDirectButtons: Story = {
+  render: () => (
+    <ProductsTable
+      aria-label="Productos"
+      columns={mixedActionColumns}
+      sort={sort}
+      onSortChange={onSortChange}
+    />
+  ),
+};
+
+export const MixedWithDirectButtonsMenuOpen: Story = {
+  render: () => (
+    <ProductsTable
+      aria-label="Productos"
+      columns={mixedActionColumns}
+      sort={sort}
+      onSortChange={onSortChange}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const [first] = within(canvasElement).getAllByRole("button", { name: "Más acciones" });
+    await userEvent.click(first as HTMLElement);
+    await expect(first).toHaveAttribute("aria-expanded", "true");
+  },
 };
 
 const detailColumns = [

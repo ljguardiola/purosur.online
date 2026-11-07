@@ -23,12 +23,13 @@ const recipe = mixDeFrutosSecos;
 
 type HarnessProps = {
   proposal: AssemblyBatchProposal | undefined;
+  components: typeof recipe.components;
   refusals: Record<string, string>;
   onUsedChange: () => void;
   onRequest: (request: AssemblyBatchBody) => void;
 };
 
-function Harness({ proposal, refusals, onUsedChange, onRequest }: HarnessProps) {
+function Harness({ proposal, components, refusals, onUsedChange, onRequest }: HarnessProps) {
   const { form, submit } = useRequestForm({
     defaultValues: {
       ...EMPTY_ASSEMBLY_BATCH_FORM,
@@ -54,7 +55,7 @@ function Harness({ proposal, refusals, onUsedChange, onRequest }: HarnessProps) 
         <form.AppField name="used">
           {() => (
             <AssemblyBatchComponentsField
-              components={recipe.components}
+              components={components}
               proposal={proposal}
               refusals={refusals}
               onUsedChange={onUsedChange}
@@ -71,10 +72,16 @@ function Harness({ proposal, refusals, onUsedChange, onRequest }: HarnessProps) 
 
 function renderField(options: Partial<HarnessProps> = {}) {
   const proposal = "proposal" in options ? options.proposal : mixPreview.proposal;
-  const { refusals = {}, onUsedChange = () => {}, onRequest = () => {} } = options;
+  const {
+    components = recipe.components,
+    refusals = {},
+    onUsedChange = () => {},
+    onRequest = () => {},
+  } = options;
   return render(
     <Harness
       proposal={proposal}
+      components={components}
       refusals={refusals}
       onUsedChange={onUsedChange}
       onRequest={onRequest}
@@ -108,6 +115,21 @@ test("shows no proposed quantity and no used quantity while the proposal is miss
   expect(screen.getByRole("row").nth(1).element().textContent).toBe(
     "Almendras—Usado de Almendraskg",
   );
+});
+
+test("shows no refusal and no used quantity for a component named like an inherited member of an object", async () => {
+  const screen = await renderField({
+    proposal: undefined,
+    components: recipe.components.map((component) => ({
+      ...component,
+      componentProductId: "constructor",
+    })),
+  });
+
+  await expect.element(screen.getByRole("textbox", { name: "Usado de Almendras" })).toHaveValue("");
+  await expect
+    .element(screen.getByRole("textbox", { name: "Usado de Almendras" }))
+    .not.toBeInvalid();
 });
 
 test("keeps what was typed as used and the proposal for the other components", async () => {

@@ -23,7 +23,6 @@ function OrdersArea() {
   const purchaseOrdersShown = Boolean(matchRoute({ to: "/purchase-orders", fuzzy: true }));
   return (
     <AreaLayout
-      showsOpenAlertsCount
       area="orders"
       sectionColumnLabel="Pedidos"
       sectionColumn={

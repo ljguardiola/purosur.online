@@ -157,7 +157,7 @@ test("shows the rate-limited notice with the time to wait", async () => {
 });
 
 test("navigates to Mi cuenta when recording comes back forbidden", async () => {
-  window.history.pushState(null, "", "/refunds/mercado-pago");
+  window.history.pushState(null, "", "/refunds");
   const recordRefundTransfer = vi
     .fn<TransferRefundModalServices["recordRefundTransfer"]>()
     .mockResolvedValue({ kind: "forbidden" });
@@ -165,7 +165,9 @@ test("navigates to Mi cuenta when recording comes back forbidden", async () => {
 
   await fillAndRecord(screen);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("ends the session when recording finds no open session", async () => {

@@ -1,4 +1,5 @@
 import type { AlertKind } from "@purosur/domain";
+import { ownEntry } from "../platform/own-entry";
 
 const ALERT_KIND_DESCRIPTIONS = {
   backoffice_passkey_changed: "Se registró o dio de baja una passkey",
@@ -58,7 +59,5 @@ const ALERT_KIND_DESCRIPTIONS = {
 export const DESCRIBED_ALERT_KINDS: readonly string[] = Object.keys(ALERT_KIND_DESCRIPTIONS);
 
 export function alertKindDescription(kind: string): string {
-  return Object.hasOwn(ALERT_KIND_DESCRIPTIONS, kind)
-    ? ALERT_KIND_DESCRIPTIONS[kind as keyof typeof ALERT_KIND_DESCRIPTIONS]
-    : "";
+  return ownEntry(ALERT_KIND_DESCRIPTIONS, kind) ?? "";
 }

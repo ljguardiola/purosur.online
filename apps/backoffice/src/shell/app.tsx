@@ -2,9 +2,6 @@ import { FieldSizeProvider, LocaleProvider } from "@purosur/ui";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { type ComponentType, useEffect, useState } from "react";
-import type { AlertsListScreenServices } from "../alerts/alerts-list-services";
-import type { AlertsOpenCountLinkProps } from "../alerts/alerts-open-count-link";
-import type { AlertsOpenCountLinkServices } from "../alerts/alerts-open-count-link-services";
 import type { ContingencyTicketRescueScreenServices } from "../backups/contingency-ticket-rescue-services";
 import type { BranchSettingsScreenServices } from "../branch/branch-settings-services";
 import type { BrandsListScreenServices } from "../catalog/brands-list-services";
@@ -12,7 +9,7 @@ import type { CategoriesListScreenServices } from "../catalog/categories-list-se
 import type { ProductsListScreenServices } from "../catalog/products-list-services";
 import type { TagsListScreenServices } from "../catalog/tags-list-services";
 import type { AccountRecoveryScreenServices } from "../credentials/account-recovery-services";
-import type { MyAccountScreenServices } from "../credentials/my-account-services";
+import type { OwnCredentialsSectionServices } from "../credentials/own-credentials-section-services";
 import type { RegisterPasskeyScreenServices } from "../credentials/register-passkey-services";
 import type { UserCredentialSectionsServices } from "../credentials/user-credential-sections-services";
 import type { ExceptionalityScreenServices } from "../fiscal/exceptionality-services";
@@ -25,8 +22,7 @@ import type { UnbilledDeferredSalesPillProps } from "../fiscal/unbilled-deferred
 import type { UnbilledDeferredSalesPillServices } from "../fiscal/unbilled-deferred-sales-pill-services";
 import type { BackofficeHelpCatalog } from "../help/help-catalog";
 import type { HandConfirmedPaymentsScreenServices } from "../payments/hand-confirmed-payments-services";
-import type { MercadoPagoRefundsScreenServices } from "../payments/mercado-pago-refunds-services";
-import type { OutsideRefundsScreenServices } from "../payments/outside-refunds-services";
+import type { PendingRefundsScreenServices } from "../payments/pending-refunds-services";
 import type { SalesByPaymentMethodScreenServices } from "../payments/sales-by-payment-method-services";
 import type { RolesListScreenServices } from "../permissions/roles-list-services";
 import type {
@@ -66,7 +62,7 @@ import type { RegistersListScreenServices } from "../register/registers-list-ser
 import type { ReportRegisterFilterProps } from "../register/report-register-filter";
 import type { ReportRegisterFilterServices } from "../register/report-register-filter-services";
 import type { SnapshotBackupsScreenServices } from "../register/snapshot-backups-services";
-import type { ReturnsReportScreenServices } from "../returns/returns-report-services";
+import type { ReturnsHistoryScreenServices } from "../returns/returns-history-services";
 import type { AverageTicketScreenServices } from "../sales/average-ticket-services";
 import type { CashRoundingScreenServices } from "../sales/cash-rounding-services";
 import type { HandTypedWeightsScreenServices } from "../sales/hand-typed-weights-services";
@@ -75,8 +71,8 @@ import type { SalesByCashierScreenServices } from "../sales/sales-by-cashier-ser
 import type { SalesByDayScreenServices } from "../sales/sales-by-day-services";
 import type { SalesByProductAndCategoryScreenServices } from "../sales/sales-by-product-and-category-services";
 import type { SalesByPromotionScreenServices } from "../sales/sales-by-promotion-services";
-import type { CompromiseResponseScreenServices } from "../sessions/compromise-response-services";
 import type { EndEverySessionSectionServices } from "../sessions/end-every-session-section-services";
+import type { RespondToCompromiseModalServices } from "../sessions/respond-to-compromise-modal-services";
 import { checkSessionStatus, fetchSession, type SessionOutcome } from "../sessions/session-api";
 import type { SignInScreenServices } from "../sessions/sign-in-services";
 import type { AssemblyBatchesScreenServices } from "../stock/assembly-batches-services";
@@ -91,8 +87,8 @@ import type { StockBalancesScreenServices } from "../stock/stock-balances-servic
 import type { StockCountsScreenServices } from "../stock/stock-counts-services";
 import type { StockMovementsScreenServices } from "../stock/stock-movements-services";
 import type { QuarantinedEventsScreenServices } from "../sync/quarantined-events-services";
-import type { UserCredentialSectionsProps } from "../users/user-detail-screen";
-import type { UserDetailScreenServices } from "../users/user-detail-services";
+import type { UserCredentialSectionsProps } from "../users/user-panel";
+import type { UserPanelServices } from "../users/user-panel-services";
 import type { UsersListEndEverySessionSectionProps } from "../users/users-list-screen";
 import type { UsersListScreenServices } from "../users/users-list-services";
 import { type AccountFooterServices, defaultAccountFooterServices } from "./account-footer";
@@ -117,13 +113,13 @@ export type AppServices = {
   signInScreen: SignInScreenServices;
   accountRecoveryScreen: AccountRecoveryScreenServices;
   registerPasskeyScreen: RegisterPasskeyScreenServices;
-  myAccountScreen: MyAccountScreenServices;
+  ownCredentialsSection: OwnCredentialsSectionServices;
   usersListScreen: UsersListScreenServices;
-  userDetailScreen: UserDetailScreenServices;
+  userPanel: UserPanelServices;
   usersListEndEverySessionSection: ComponentType<UsersListEndEverySessionSectionProps>;
   endEverySessionSection: EndEverySessionSectionServices;
-  compromiseResponseScreen: CompromiseResponseScreenServices;
-  userDetailCredentialSections: ComponentType<UserCredentialSectionsProps>;
+  respondToCompromiseModal: RespondToCompromiseModalServices;
+  userPanelCredentialSections: ComponentType<UserCredentialSectionsProps>;
   userCredentialSections: UserCredentialSectionsServices;
   rolesListScreen: RolesListScreenServices;
   registersListScreen: RegistersListScreenServices;
@@ -143,7 +139,7 @@ export type AppServices = {
   salesByPromotionScreen: SalesByPromotionScreenServices;
   manualDiscountsScreen: ManualDiscountsScreenServices;
   cashRoundingScreen: CashRoundingScreenServices;
-  returnsReportScreen: ReturnsReportScreenServices;
+  returnsHistoryScreen: ReturnsHistoryScreenServices;
   issuedFiscalDocumentsReportScreen: IssuedFiscalDocumentsReportScreenServices;
   averageTicketScreen: AverageTicketScreenServices;
   salesByPaymentMethodScreen: SalesByPaymentMethodScreenServices;
@@ -156,8 +152,7 @@ export type AppServices = {
   productPriceSection: ProductPriceSection;
   roleCreationModal: RoleCreationModal;
   reportRegisterFilter: ReportRegisterFilterServices;
-  mercadoPagoRefundsScreen: MercadoPagoRefundsScreenServices;
-  outsideRefundsScreen: OutsideRefundsScreenServices;
+  pendingRefundsScreen: PendingRefundsScreenServices;
   expiringLotsScreen: ExpiringLotsScreenServices;
   currentStockReportScreen: CurrentStockReportScreenServices;
   expiringLotsReportScreen: ExpiringLotsReportScreenServices;
@@ -195,20 +190,16 @@ export type AppServices = {
   screenFailure: ScreenFailureServices;
   releaseMonitor: ReleaseMonitor;
   homeScreen: HomeScreenServices;
-  areaTopBarAlertsCount: ComponentType<AlertsOpenCountLinkProps>;
   areaTopBarUnbilledDeferredSales: ComponentType<UnbilledDeferredSalesPillProps>;
   unbilledDeferredSalesPill: UnbilledDeferredSalesPillServices;
-  alertsOpenCountLink: AlertsOpenCountLinkServices;
-  alertsListScreen: AlertsListScreenServices;
   quarantinedEventsScreen: QuarantinedEventsScreenServices;
 };
 
 type ShellServiceName =
   | "fetchSession"
   | "checkSessionStatus"
-  | "userDetailCredentialSections"
+  | "userPanelCredentialSections"
   | "usersListEndEverySessionSection"
-  | "areaTopBarAlertsCount"
   | "areaTopBarUnbilledDeferredSales"
   | "reportFiltersRegisterFilter"
   | "categoryCreationModal"
@@ -229,13 +220,9 @@ const defaultRouteServices: RouteServices = {
     () => import("../sessions/end-every-session-section"),
     "EndEverySessionSection",
   ),
-  userDetailCredentialSections: lazyScreen(
+  userPanelCredentialSections: lazyScreen(
     () => import("../credentials/user-credential-sections"),
     "UserCredentialSections",
-  ),
-  areaTopBarAlertsCount: lazyScreen(
-    () => import("../alerts/alerts-open-count-link"),
-    "AlertsOpenCountLink",
   ),
   areaTopBarUnbilledDeferredSales: lazyScreen(
     () => import("../fiscal/unbilled-deferred-sales-pill"),

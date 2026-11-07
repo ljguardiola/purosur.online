@@ -8,6 +8,7 @@ import {
 
 const { lots } = almondsExpectedByLot;
 const AT = "2026-09-15T21:40:30.000Z";
+const inherited = lots.map((lot) => ({ ...lot, id: "constructor" }));
 
 describe("countedMode", () => {
   it("counts by lot when asked to and the product has lots to count", () => {
@@ -71,6 +72,15 @@ describe("countBody", () => {
     });
   });
 
+  it("counts a lot named like an inherited member of an object as empty when nothing was typed for it", () => {
+    const body = countBody(
+      { ...values, mode: "lots", lots: {} },
+      { saleUnit: "KG", lots: inherited, at: AT },
+    );
+
+    expect(body.lots?.map(({ counted }) => counted)).toEqual([0, 0]);
+  });
+
   it("leaves the moment empty when it is not complete", () => {
     expect(
       countBody({ ...values, mode: "product" }, { saleUnit: "KG", lots, at: undefined }).occurredAt,
@@ -84,6 +94,10 @@ describe("lotsTotal", () => {
       lotsTotal({ [ALMONDS_FIRST_LOT_ID]: "4,300", [ALMONDS_SECOND_LOT_ID]: "7,850" }, lots, "KG"),
     ).toBe(12_150);
     expect(lotsTotal({ [ALMONDS_FIRST_LOT_ID]: "4,300" }, lots, "KG")).toBe(4_300);
+  });
+
+  it("adds nothing for a lot named like an inherited member of an object when nothing was typed for it", () => {
+    expect(lotsTotal({}, inherited, "KG")).toBe(0);
   });
 
   it("has no total while a quantity cannot be read", () => {

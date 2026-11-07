@@ -48,7 +48,11 @@ export function AccountFooter({ displayName, onSignedOut, services }: AccountFoo
 
   return (
     <>
-      <Link to="/account" className={nameLinkClassName}>
+      <Link
+        to="."
+        search={(previous) => ({ ...previous, account: "credentials" })}
+        className={nameLinkClassName}
+      >
         {displayName}
       </Link>
       <AreaNavButton label="Salir" icon={<LogOut />} active={false} onPress={openConfirm} />

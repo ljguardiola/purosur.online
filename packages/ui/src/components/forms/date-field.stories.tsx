@@ -3,10 +3,12 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useId } from "react";
 import { expect, userEvent, within } from "storybook/test";
 import {
+  expectTooltipShows,
   playClickExpandsTrigger,
   playHoverSetsDataHovered,
+  playHoverShowsNameTooltip,
   playPseudoHoverPaintsBoneFill,
-  playTabReachesFocusVisible,
+  playTabShowsNameTooltip,
   playWithClockAt,
   type StoryPlayFunction,
 } from "../../test-support/story-interactions";
@@ -109,7 +111,12 @@ export const FocusedSegment: Story = {
 
 export const CalendarToggleFocusVisible: Story = {
   args: { value: null },
-  play: playTabReachesFocusVisible(toggle),
+  play: playTabShowsNameTooltip(toggle, "Abrir el calendario de Vencimiento"),
+};
+
+export const CalendarToggleHovered: Story = {
+  args: { value: null },
+  play: playHoverShowsNameTooltip(toggle, "Abrir el calendario de Vencimiento"),
 };
 
 export const CalendarOpen: Story = {
@@ -192,7 +199,7 @@ export const CalendarMonthControlHovered: Story = {
   args: { value: new CalendarDate(2027, 2, 28) },
   play: playWithTodayOutsideShownMonths(async (context) => {
     await userEvent.click(toggle(context.canvasElement));
-    await playHoverSetsDataHovered(() => monthControl("next"))(context);
+    await playHoverShowsNameTooltip(() => monthControl("next"), "Mes siguiente")(context);
   }),
 };
 
@@ -223,6 +230,7 @@ export const CalendarMonthControlFocusVisible: Story = {
     await userEvent.tab({ shift: true });
     await expect(monthControl("next")).toHaveFocus();
     await expect(monthControl("next")).toHaveAttribute("data-focus-visible");
+    await expectTooltipShows("Mes siguiente");
   }),
 };
 

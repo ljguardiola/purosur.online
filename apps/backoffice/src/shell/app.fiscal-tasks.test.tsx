@@ -9,14 +9,7 @@ import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
-opensOnlyScreens([
-  "/",
-  "/account",
-  "/help",
-  "/fiscal-tasks",
-  "/refunds/mercado-pago",
-  "/points-of-sale",
-]);
+opensOnlyScreens(["/", "/help", "/fiscal-tasks", "/points-of-sale"]);
 
 beforeEach(resetPageState);
 
@@ -31,7 +24,10 @@ function servicesFor(capabilities: Capability[]) {
       }),
     ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   vi.mocked(services.fiscalTasksScreen.fetchFiscalTasks).mockResolvedValue({
     kind: "ok",
     value: fiscalTasks,
@@ -39,12 +35,12 @@ function servicesFor(capabilities: Capability[]) {
   return services;
 }
 
-test("opens the fiscal tasks from the rail's Caja item for a user who only sees fiscal information", async () => {
+test("opens the fiscal tasks from the rail's Caja y fiscal item for a user who only sees fiscal information", async () => {
   const services = servicesFor(["fiscal_information"]);
   window.history.pushState(null, "", "/help");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await userEvent.click(screen.getByRole("link", { name: "Caja" }));
+  await userEvent.click(screen.getByRole("link", { name: "Caja y fiscal", exact: true }));
 
   await expect
     .element(screen.getByRole("heading", { name: "Tareas fiscales", level: 1 }))
@@ -57,12 +53,11 @@ test("opens the fiscal tasks from the rail's Caja item for a user who only sees 
   await expect
     .element(sections.getByRole("link", { name: "Tareas fiscales" }))
     .toHaveAttribute("aria-current", "page");
-  expect(sections.getByRole("link", { name: "Reembolsos de MP" }).query()).toBeNull();
   expect(sections.getByRole("link", { name: "Puntos de venta" }).query()).toBeNull();
 });
 
-test("lists the fiscal tasks after the refunds in the TAREAS group", async () => {
-  const services = servicesFor(["refunds_area", "fiscal_information"]);
+test("lists the fiscal tasks first in the TAREAS group", async () => {
+  const services = servicesFor(["fiscal_information"]);
   window.history.pushState(null, "", "/fiscal-tasks");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -73,32 +68,15 @@ test("lists the fiscal tasks after the refunds in the TAREAS group", async () =>
     .getByRole("link")
     .all()
     .map((link) => link.element().textContent?.trim());
-  expect(labels).toEqual([
-    "Reembolsos de MP",
-    "Reembolsos sin API",
-    "Tareas fiscales",
-    "Comprobantes",
-    "Excepcionalidad",
-  ]);
+  expect(labels).toEqual(["Tareas fiscales", "Comprobantes", "Excepcionalidad"]);
 });
 
-test("offers the refunds, and not the fiscal tasks, to a user who cannot see fiscal information", async () => {
-  const services = servicesFor(["refunds_area"]);
-  window.history.pushState(null, "", "/refunds/mercado-pago");
-
-  const screen = await render(<App help={emptyHelp} services={services} />);
-
-  const sections = screen.getByRole("navigation", { name: "Caja y fiscal" });
-  await expect.element(sections.getByRole("link", { name: "Reembolsos de MP" })).toBeVisible();
-  expect(sections.getByRole("link", { name: "Tareas fiscales" }).query()).toBeNull();
-});
-
-test("keeps opening the points of sale from the Caja item, without the TAREAS group, to a user of the cash area alone", async () => {
-  const services = servicesFor(["cash_area"]);
+test("keeps opening the points of sale from the Caja y fiscal item, without the TAREAS group, to a user who can only configure fiscal settings", async () => {
+  const services = servicesFor(["fiscal_configuration_area"]);
   window.history.pushState(null, "", "/help");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await userEvent.click(screen.getByRole("link", { name: "Caja" }));
+  await userEvent.click(screen.getByRole("link", { name: "Caja y fiscal", exact: true }));
 
   await expect
     .element(screen.getByRole("heading", { name: "Puntos de venta", level: 1 }))
@@ -108,12 +86,12 @@ test("keeps opening the points of sale from the Caja item, without the TAREAS gr
 });
 
 test("sends a user who cannot see fiscal information and opens /fiscal-tasks to Mi cuenta, without loading it", async () => {
-  const services = servicesFor(["cash_area"]);
+  const services = servicesFor(["fiscal_configuration_area"]);
   window.history.pushState(null, "", "/fiscal-tasks");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
   expect(services.fiscalTasksScreen.fetchFiscalTasks).not.toHaveBeenCalled();
 });
 
@@ -123,7 +101,7 @@ test("sends a user who only sees fiscal information and opens the points of sale
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
 });
 
 test("offers to close each fiscal task only to a user with the capability to close them", async () => {

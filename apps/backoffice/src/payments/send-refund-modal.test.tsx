@@ -162,7 +162,7 @@ test("shows the rate-limited notice with the time to wait", async () => {
 });
 
 test("navigates to Mi cuenta when the change comes back forbidden", async () => {
-  window.history.pushState(null, "", "/refunds/mercado-pago");
+  window.history.pushState(null, "", "/refunds");
   const confirmRefund = vi
     .fn<SendRefundModalServices["confirmRefund"]>()
     .mockResolvedValue({ kind: "forbidden" });
@@ -170,7 +170,9 @@ test("navigates to Mi cuenta when the change comes back forbidden", async () => 
 
   await confirm(screen);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("ends the session when the change finds no open session", async () => {

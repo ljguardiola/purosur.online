@@ -8,8 +8,8 @@ import type { LotNameFacts } from "../model/lot-name.js";
 import type { ExpiringLotProduct, ExpiringLotRow } from "./expiring-lot-reader.js";
 import { readExpiringLots } from "./read-expiring-lots.js";
 import {
-  FakeBranchSettings,
   FakeExpiringLotReader,
+  FakeExpiryWarningWindowReader,
   technicalLotFactsOfRows,
 } from "./test-support/fake-expiring-lot-reader.js";
 import { FakeLotNameReader, purchaseLotFacts } from "./test-support/fake-lot-name-reader.js";
@@ -59,19 +59,19 @@ async function read(
   options: { windowDays?: number; now?: Date; zoneRules?: ZoneRules; facts?: LotNameFacts[] } = {},
 ) {
   const expiringLots = new FakeExpiringLotReader(rows);
-  const branchSettings = new FakeBranchSettings(options.windowDays ?? 30);
+  const expiryWarningWindow = new FakeExpiryWarningWindowReader(options.windowDays ?? 30);
   const lotNames = new FakeLotNameReader(options.facts ?? technicalLotFactsOfRows(rows));
   const view = await readExpiringLots(
     {
       expiringLots,
       lotNames,
-      branchSettings,
+      expiryWarningWindow,
       clock: new FixedClock(options.now ?? NOON),
       zoneRules: new FakeZoneRulesSource(options.zoneRules),
     },
     { locationId: "location-1" },
   );
-  return { view, expiringLots, branchSettings, lotNames };
+  return { view, expiringLots, expiryWarningWindow, lotNames };
 }
 
 describe("readExpiringLots", () => {
@@ -86,15 +86,15 @@ describe("readExpiringLots", () => {
     expect(underUtc.view.lots[0]?.expired).toBe(true);
   });
 
-  it("reads the expiring lot alert days of the location's branch settings as its window and answers it", async () => {
-    const { view, branchSettings } = await read([], { windowDays: 45 });
+  it("reads the expiry warning window of the location and answers it", async () => {
+    const { view, expiryWarningWindow } = await read([], { windowDays: 45 });
 
     expect(view).toEqual({
       windowDays: 45,
       lots: [],
       summary: { valueCents: 0, withoutCostCount: 0 },
     });
-    expect(branchSettings.reads).toEqual(["location-1"]);
+    expect(expiryWarningWindow.reads).toEqual(["location-1"]);
   });
 
   it("asks for the lots expiring by the last day of the window, counted from today", async () => {

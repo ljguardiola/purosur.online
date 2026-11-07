@@ -253,7 +253,9 @@ test("navigates to Mi cuenta when recording comes back forbidden", async () => {
 
   await recordCompleteFreight(screen);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("holds the registration until the purchases have loaded", async () => {

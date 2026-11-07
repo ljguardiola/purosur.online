@@ -880,6 +880,18 @@ describe("the ESC/POS receipt template", () => {
     },
   );
 
+  it("refuses to print a receipt stored by a version named like an inherited member of an object", () => {
+    const stored: StoredReceipt = {
+      templateVersion: "constructor",
+      head: new Uint8Array(),
+      body: new Uint8Array(),
+    };
+
+    expect(() => escPosReceiptTemplate(fixedZoneRulesSource()).printable(stored, ORIGINAL)).toThrow(
+      "unknown receipt template version constructor",
+    );
+  });
+
   describe("an authorized factura C", () => {
     const fiscalReceipt = () => receipt({ fiscal: FISCAL_BLOCK });
 

@@ -12,7 +12,6 @@ import {
   sortedItems,
   Table,
   Tag,
-  Tooltip,
   textOrder,
   useTableModel,
 } from "@purosur/ui";
@@ -487,14 +486,12 @@ export function PricesListScreen({
       render: (item: PriceProduct) => (
         <div className="flex flex-row items-center justify-end gap-2">
           {item.currentPrice ? (
-            <Tooltip description="Confirmar sin cambios: cuenta como revisar el precio.">
-              <IconButton
-                icon={<Check />}
-                aria-label={`Confirmar el precio de ${formatProductDescription(item)} sin cambios`}
-                disabled={screenRequestInFlight}
-                onPress={() => void handleRowConfirm(item)}
-              />
-            </Tooltip>
+            <IconButton
+              icon={<Check />}
+              aria-label={`Confirmar el precio de ${formatProductDescription(item)} sin cambios`}
+              disabled={screenRequestInFlight}
+              onPress={() => void handleRowConfirm(item)}
+            />
           ) : null}
           <IconButton
             icon={<Pencil />}

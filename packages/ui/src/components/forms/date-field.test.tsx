@@ -1623,3 +1623,54 @@ test("names the calendar's month and year selects after the field's name", async
 test("requires a name", () => {
   expectTypeOf<DateFieldProps["name"]>().toEqualTypeOf<string>();
 });
+
+for (const variant of ["register", "backoffice"] as const) {
+  test(`names the calendar button and shows that name as a tooltip when hovered or reached by keyboard in the ${variant} variant`, async () => {
+    window.focus();
+    const screen = await render(<DateFieldHarness variant={variant} label="Expiry" />);
+    const toggle = screen.getByRole("button", { name: "Abrir el calendario de Expiry" });
+
+    await userEvent.hover(toggle);
+    await expect
+      .element(screen.getByRole("tooltip"))
+      .toHaveTextContent("Abrir el calendario de Expiry");
+    await userEvent.unhover(toggle);
+    await expect.element(screen.getByRole("tooltip")).not.toBeInTheDocument();
+
+    while (document.activeElement !== toggle.element()) {
+      await userEvent.tab();
+    }
+    await expect
+      .element(screen.getByRole("tooltip"))
+      .toHaveTextContent("Abrir el calendario de Expiry");
+  });
+}
+
+test("names each date field's calendar button after its own field, so two fields' buttons tell apart", async () => {
+  const screen = await render(
+    <>
+      <DateFieldHarness variant="backoffice" label="Desde" name="from" />
+      <DateFieldHarness variant="backoffice" label="Hasta" name="to" />
+    </>,
+  );
+
+  await expect
+    .element(screen.getByRole("button", { name: "Abrir el calendario de Desde" }))
+    .toBeVisible();
+  await expect
+    .element(screen.getByRole("button", { name: "Abrir el calendario de Hasta" }))
+    .toBeVisible();
+});
+
+test("names the calendar's month buttons and shows those names as tooltips", async () => {
+  const screen = await render(<DateFieldHarness variant="backoffice" label="Expiry" />);
+  await openCalendar(screen, "Expiry");
+
+  await userEvent.hover(screen.getByRole("button", { name: "Mes anterior" }));
+  await expect.element(screen.getByRole("tooltip")).toHaveTextContent("Mes anterior");
+  await userEvent.unhover(screen.getByRole("button", { name: "Mes anterior" }));
+  await expect.element(screen.getByRole("tooltip")).not.toBeInTheDocument();
+
+  await userEvent.hover(screen.getByRole("button", { name: "Mes siguiente" }));
+  await expect.element(screen.getByRole("tooltip")).toHaveTextContent("Mes siguiente");
+});

@@ -8,7 +8,6 @@ export type {
   AlertReader,
   AlertSearch,
   AlertSummary,
-  OpenAlertCounts,
   OpenAlertsOverview,
 } from "./alert-reader.js";
 export type {

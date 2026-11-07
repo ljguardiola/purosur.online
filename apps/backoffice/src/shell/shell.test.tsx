@@ -126,3 +126,19 @@ test("keeps the page itself from scrolling when a screen's content overflows wit
   const page = document.documentElement;
   expect(page.scrollHeight).toBeLessThanOrEqual(page.clientHeight);
 });
+
+test("renders no section column when it is given none", async () => {
+  const screen = await render(
+    <Shell
+      sectionColumnLabel="Secciones"
+      railAreas={<p>rail areas</p>}
+      railFooter={<p>rail footer</p>}
+    >
+      <p>main content</p>
+    </Shell>,
+  );
+
+  await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
+  expect(screen.getByRole("navigation", { name: "Secciones" }).query()).toBeNull();
+  await expect.element(screen.getByText("main content")).toBeVisible();
+});

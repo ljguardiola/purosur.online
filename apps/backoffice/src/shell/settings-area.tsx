@@ -1,24 +1,13 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
-import {
-  HardDriveDownload,
-  Laptop,
-  PackageX,
-  QrCode,
-  Shield,
-  ShieldAlert,
-  Store,
-  Users,
-} from "lucide-react";
+import { HardDriveDownload, Laptop, PackageX, QrCode, Store, Users } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
 import {
-  canManageUsers,
   canSeeBackupsArea,
   canSeeBranchArea,
   canSeeContingencyTicketRescue,
+  canSeePeopleArea,
   canSeeQuarantinedEvents,
   canSeeRegistersArea,
-  canSeeRolesArea,
-  canSeeUsersArea,
 } from "./backoffice-access";
 import { signedInRoute } from "./signed-in-route";
 
@@ -40,35 +29,13 @@ function SettingsArea() {
           <h2 className="text-text-accent text-heading">Configuración</h2>
           <div className="h-2.5" />
           <ul className="flex flex-col gap-1">
-            {canSeeUsersArea(session) ? (
+            {canSeePeopleArea(session) && (
               <li>
                 <SectionLink
-                  to="/users"
-                  search={matchRoute({ to: "/users" }) ? true : {}}
-                  label="Usuarios"
+                  to="/people"
+                  label="Personas"
                   icon={<Users />}
-                  active={Boolean(
-                    matchRoute({ to: "/users", fuzzy: true }) || matchRoute({ to: "/account" }),
-                  )}
-                />
-              </li>
-            ) : (
-              <li>
-                <SectionLink
-                  to="/account"
-                  label="Mi cuenta"
-                  icon={<Users />}
-                  active={Boolean(matchRoute({ to: "/account" }))}
-                />
-              </li>
-            )}
-            {canSeeRolesArea(session) && (
-              <li>
-                <SectionLink
-                  to="/roles"
-                  label="Roles"
-                  icon={<Shield />}
-                  active={Boolean(matchRoute({ to: "/roles" }))}
+                  active={Boolean(matchRoute({ to: "/people", fuzzy: true }))}
                 />
               </li>
             )}
@@ -109,16 +76,6 @@ function SettingsArea() {
                   label="Sucursal"
                   icon={<Store />}
                   active={Boolean(matchRoute({ to: "/location-settings" }))}
-                />
-              </li>
-            )}
-            {canManageUsers(session) && (
-              <li>
-                <SectionLink
-                  to="/compromise-response"
-                  label="Respuesta ante un compromiso"
-                  icon={<ShieldAlert />}
-                  active={Boolean(matchRoute({ to: "/compromise-response" }))}
                 />
               </li>
             )}

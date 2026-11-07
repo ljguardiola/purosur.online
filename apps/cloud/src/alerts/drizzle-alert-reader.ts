@@ -14,7 +14,6 @@ import type {
   AlertReader,
   AlertSearch,
   AlertSummary,
-  OpenAlertCounts,
   OpenAlertsOverview,
 } from "@purosur/domain/alerts/use-cases";
 import { and, asc, count, desc, eq, inArray, or, type SQL, sql } from "drizzle-orm";
@@ -31,6 +30,7 @@ import {
   users,
 } from "../platform/db/schema.js";
 import { closedAlertCondition, openAlertCondition } from "./open-alert-condition.js";
+import { openAlertsOverviewOf } from "./open-alerts-overview.js";
 
 export const ALERTS_PAGE_SIZE = 25;
 
@@ -149,20 +149,6 @@ export class DrizzleAlertReader<TQueryResult extends PgQueryResultHKT> implement
     return { alerts: rows.map(toSummary), total: matched?.total ?? 0 };
   }
 
-  async countOpenVisibleAlerts(sight: VisibleAlertSight): Promise<OpenAlertCounts> {
-    const [counts] = await this.db
-      .select({
-        openCount: count(),
-        openCriticalCount: count(sql`case when ${alerts.level} = 'critical' then 1 end`),
-      })
-      .from(alerts)
-      .where(and(sightCondition(sight), openAlertCondition()));
-    return {
-      openCount: counts?.openCount ?? 0,
-      openCriticalCount: counts?.openCriticalCount ?? 0,
-    };
-  }
-
   async overviewOfOpenVisibleAlerts(sight: VisibleAlertSight): Promise<OpenAlertsOverview> {
     const rows = await this.db
       .select({ level: alerts.level, kind: alerts.kind, openCount: count() })
@@ -170,17 +156,7 @@ export class DrizzleAlertReader<TQueryResult extends PgQueryResultHKT> implement
       .where(and(sightCondition(sight), openAlertCondition()))
       .groupBy(alerts.level, alerts.kind)
       .orderBy(asc(alerts.kind));
-    const overview: OpenAlertsOverview = {
-      critical: { openCount: 0, kinds: [] },
-      warning: { openCount: 0, kinds: [] },
-      informational: { openCount: 0, kinds: [] },
-    };
-    for (const row of rows) {
-      const level = overview[row.level];
-      level.openCount += row.openCount;
-      level.kinds.push(asAlertKind(row.kind));
-    }
-    return overview;
+    return openAlertsOverviewOf(rows.map((row) => ({ ...row, kind: asAlertKind(row.kind) })));
   }
 
   async deliveriesOf(alertId: string): Promise<AlertDelivery[]> {

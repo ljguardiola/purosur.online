@@ -391,7 +391,9 @@ test("navigates to Mi cuenta when the products request comes back forbidden", as
 
   await renderScreen(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("ends the session when the products request finds no open session", async () => {

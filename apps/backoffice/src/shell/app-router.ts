@@ -1,5 +1,5 @@
 import { createRoute, createRouter, redirect } from "@tanstack/react-router";
-import { alertsListRoute, alertsOverviewRoute } from "../alerts/routes";
+import { alertsRedirectRoute, homeRoute } from "../alerts/routes";
 import { contingencyTicketRescueRoute } from "../backups/routes";
 import { branchSettingsRoute } from "../branch/routes";
 import {
@@ -8,7 +8,11 @@ import {
   productsListRoute,
   tagsListRoute,
 } from "../catalog/routes";
-import { accountRecoveryRoute, myAccountRoute, registerPasskeyRoute } from "../credentials/routes";
+import {
+  accountRecoveryRoute,
+  legacyAccountRoute,
+  registerPasskeyRoute,
+} from "../credentials/routes";
 import {
   exceptionalityRoute,
   fiscalConfigurationRoute,
@@ -20,11 +24,12 @@ import {
 import { helpArticleRoute, helpCategoryRoute, helpHomeRoute } from "../help/routes";
 import {
   handConfirmedPaymentsRoute,
-  mercadoPagoRefundsRoute,
-  outsideRefundsRoute,
+  legacyMercadoPagoRefundsRoute,
+  legacyOutsideRefundsRoute,
+  pendingRefundsRoute,
   salesByPaymentMethodRoute,
 } from "../payments/routes";
-import { rolesListRoute } from "../permissions/routes";
+import { legacyRolesRoute, rolesListRoute } from "../permissions/routes";
 import {
   discountsListRoute,
   pricesListRoute,
@@ -54,7 +59,7 @@ import {
   registersListRoute,
   snapshotBackupsRoute,
 } from "../register/routes";
-import { returnsReportRoute } from "../returns/routes";
+import { legacyReturnsReportRoute, returnsHistoryRoute } from "../returns/routes";
 import {
   averageTicketRoute,
   cashRoundingRoute,
@@ -66,7 +71,7 @@ import {
   salesByProductAndCategoryRoute,
   salesByPromotionRoute,
 } from "../sales/routes";
-import { compromiseResponseRoute, signInRoute } from "../sessions/routes";
+import { legacyCompromiseResponseRoute, signInRoute } from "../sessions/routes";
 import {
   assemblyBatchesRoute,
   currentStockReportRoute,
@@ -81,16 +86,19 @@ import {
   stockMovementsRoute,
 } from "../stock/routes";
 import { quarantinedEventsRoute } from "../sync/routes";
-import { userDetailRoute, usersListRoute } from "../users/routes";
+import { legacyUserRoute, legacyUsersRoute, usersListRoute } from "../users/routes";
 import { cashAndFiscalAreaRoute } from "./cash-and-fiscal-area";
 import { catalogAreaRoute } from "./catalog-area";
 import { helpAreaRoute } from "./help-area";
 import { homeAreaRoute } from "./home-area";
 import { ScreenDownloadFailure } from "./lazy-screen";
 import { ordersAreaRoute } from "./orders-area";
+import { peopleLandingRoute, peopleRoute } from "./people-route";
 import { publicRoute } from "./public-route";
+import { refundsRoute } from "./refunds-route";
 import { reportsAreaRoute } from "./reports-area";
 import { type RouterContext, rootRoute } from "./root-route";
+import { salesAndCashAreaRoute } from "./sales-and-cash-area";
 import { ScreenFailure } from "./screen-failure";
 import { ScreenPending } from "./screen-pending";
 import { focusScreenTitle } from "./screen-title";
@@ -111,7 +119,7 @@ const routeTree = rootRoute.addChildren([
   unknownPathRoute,
   publicRoute.addChildren([signInRoute, accountRecoveryRoute, registerPasskeyRoute]),
   signedInRoute.addChildren([
-    homeAreaRoute.addChildren([alertsOverviewRoute, alertsListRoute]),
+    homeAreaRoute.addChildren([homeRoute, alertsRedirectRoute]),
     catalogAreaRoute.addChildren([
       productsListRoute,
       categoriesListRoute,
@@ -142,11 +150,12 @@ const routeTree = rootRoute.addChildren([
       purchaseOrderRoute,
       purchaseOrderReceiveRoute,
     ]),
+    salesAndCashAreaRoute.addChildren([
+      refundsRoute.addChildren([pendingRefundsRoute, returnsHistoryRoute]),
+    ]),
     cashAndFiscalAreaRoute.addChildren([
       pointsOfSaleRoute,
       fiscalConfigurationRoute,
-      mercadoPagoRefundsRoute,
-      outsideRefundsRoute,
       fiscalTasksRoute,
       issuedFiscalDocumentsRoute,
       exceptionalityRoute,
@@ -175,21 +184,24 @@ const routeTree = rootRoute.addChildren([
       salesByPromotionRoute,
       manualDiscountsRoute,
       cashRoundingRoute,
-      returnsReportRoute,
       issuedFiscalDocumentsReportRoute,
     ]),
     settingsAreaRoute.addChildren([
-      myAccountRoute,
-      usersListRoute,
-      userDetailRoute,
-      rolesListRoute,
+      peopleRoute.addChildren([peopleLandingRoute, usersListRoute, rolesListRoute]),
       registersListRoute,
       snapshotBackupsRoute,
       contingencyTicketRescueRoute,
       branchSettingsRoute,
-      compromiseResponseRoute,
       quarantinedEventsRoute,
     ]),
+    legacyAccountRoute,
+    legacyMercadoPagoRefundsRoute,
+    legacyOutsideRefundsRoute,
+    legacyReturnsReportRoute,
+    legacyUsersRoute,
+    legacyUserRoute,
+    legacyRolesRoute,
+    legacyCompromiseResponseRoute,
     helpAreaRoute.addChildren([helpHomeRoute, helpCategoryRoute, helpArticleRoute]),
   ]),
 ]);

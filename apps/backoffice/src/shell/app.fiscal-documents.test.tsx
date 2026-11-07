@@ -14,14 +14,7 @@ import { createAppServices } from "./test-support/app-services";
 import { registers } from "./test-support/report-fixtures";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
-opensOnlyScreens([
-  "/",
-  "/account",
-  "/help",
-  "/fiscal-documents",
-  "/fiscal-tasks",
-  "/points-of-sale",
-]);
+opensOnlyScreens(["/", "/help", "/fiscal-documents", "/fiscal-tasks", "/points-of-sale"]);
 
 beforeEach(resetPageState);
 
@@ -36,7 +29,10 @@ function servicesFor(capabilities: Capability[]) {
       }),
     ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   vi.mocked(services.issuedFiscalDocumentsScreen.fetchIssuedFiscalDocuments).mockResolvedValue({
     kind: "ok",
     value: issuedFiscalDocuments,
@@ -53,7 +49,7 @@ test("opens the issued documents for a user who only sees fiscal information, fi
   window.history.pushState(null, "", "/help");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await userEvent.click(screen.getByRole("link", { name: "Caja" }));
+  await userEvent.click(screen.getByRole("link", { name: "Caja y fiscal", exact: true }));
   const sections = screen.getByRole("navigation", { name: "Caja y fiscal" });
   await userEvent.click(sections.getByRole("link", { name: "Comprobantes" }));
 
@@ -71,7 +67,7 @@ test("opens the issued documents for a user who only sees fiscal information, fi
 });
 
 test("lists the issued documents before the points of sale and the fiscal settings", async () => {
-  const services = servicesFor(["cash_area", "fiscal_information"]);
+  const services = servicesFor(["fiscal_configuration_area", "fiscal_information"]);
   window.history.pushState(null, "", "/fiscal-documents");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -92,7 +88,7 @@ test("lists the issued documents before the points of sale and the fiscal settin
 });
 
 test("does not offer the issued documents to a user who cannot see fiscal information", async () => {
-  const services = servicesFor(["cash_area"]);
+  const services = servicesFor(["fiscal_configuration_area"]);
   window.history.pushState(null, "", "/points-of-sale");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -103,12 +99,12 @@ test("does not offer the issued documents to a user who cannot see fiscal inform
 });
 
 test("sends a user who cannot see fiscal information and opens /fiscal-documents to Mi cuenta, without loading it", async () => {
-  const services = servicesFor(["cash_area"]);
+  const services = servicesFor(["fiscal_configuration_area"]);
   window.history.pushState(null, "", "/fiscal-documents");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
   expect(services.issuedFiscalDocumentsScreen.fetchIssuedFiscalDocuments).not.toHaveBeenCalled();
 });
 

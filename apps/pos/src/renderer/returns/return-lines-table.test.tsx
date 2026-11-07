@@ -82,6 +82,16 @@ describe("ReturnLinesTable", () => {
     await expect.element(table.getByText("Miel pura de abeja 1 kg")).toBeVisible();
   });
 
+  it("leaves a line unchecked when its id is named like an inherited member of an object", async () => {
+    const { screen } = await renderTable({
+      sale: { ...SALE, lines: [{ ...PASTA, id: "constructor" }] },
+    });
+
+    await expect
+      .element(screen.getByRole("checkbox", { name: /Pasta de maní 380 g/ }))
+      .not.toBeChecked();
+  });
+
   it("names the columns of what the customer returns", async () => {
     const { screen } = await renderTable();
 
@@ -346,6 +356,21 @@ describe("ReturnLinesTable", () => {
           .closest("tr") as HTMLElement,
       ).backgroundColor;
     expect(background("Pasta de maní 380 g")).not.toBe(background("Nibs de cacao"));
+  });
+
+  it("highlights no line named like an inherited member of an object when the core refuses none", async () => {
+    const { screen } = await renderTable({
+      sale: { ...SALE, lines: [PASTA, { ...NIBS, id: "constructor" }] },
+    });
+
+    const background = (name: string) =>
+      getComputedStyle(
+        screen
+          .getByRole("checkbox", { name: new RegExp(name) })
+          .element()
+          .closest("tr") as HTMLElement,
+      ).backgroundColor;
+    expect(background("Nibs de cacao")).toBe(background("Pasta de maní 380 g"));
   });
 
   it("has no accessibility violations", async () => {

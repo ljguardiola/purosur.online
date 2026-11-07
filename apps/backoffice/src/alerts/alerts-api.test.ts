@@ -37,12 +37,10 @@ const emptyListBody = {
   alerts: [],
   total: 0,
   pageSize: 25,
-  openCount: 0,
-  openCriticalCount: 0,
 };
 
-test("fetchAlerts answers one page of visible alerts and the open-alert counts on 200", async () => {
-  const body = { alerts: [alert], total: 26, pageSize: 25, openCount: 3, openCriticalCount: 1 };
+test("fetchAlerts answers one page of visible alerts on 200", async () => {
+  const body = { alerts: [alert], total: 26, pageSize: 25 };
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, body));
 
   const outcome = await fetchAlerts();

@@ -153,7 +153,9 @@ test("navigates to Mi cuenta when the change comes back forbidden", async () => 
 
   await confirm(dialog);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("ends the session when the change finds no open session", async () => {

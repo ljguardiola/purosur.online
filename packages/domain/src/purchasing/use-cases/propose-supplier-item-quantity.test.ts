@@ -3,8 +3,8 @@ import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-s
 import type { AiCallUsage } from "./ai-call-usage.js";
 import { proposeSupplierItemQuantity } from "./propose-supplier-item-quantity.js";
 import { FakeSupplierItemLinkProposalReader } from "./test-support/fake-supplier-item-link-proposal-reader.js";
+import { FakeSupplierItemProposalStore } from "./test-support/fake-supplier-item-proposal-store.js";
 import { FakeSupplierItemQuantityReader } from "./test-support/fake-supplier-item-quantity-reader.js";
-import { FakeSupplierPriceListAiCallStore } from "./test-support/fake-supplier-price-list-ai-call-store.js";
 
 function setup() {
   const reader = new FakeSupplierItemLinkProposalReader({
@@ -26,11 +26,12 @@ function setup() {
     ],
   });
   const quantityReader = new FakeSupplierItemQuantityReader();
-  const aiCalls = new FakeSupplierPriceListAiCallStore();
+  const store = new FakeSupplierItemProposalStore();
   return {
+    reader,
     quantityReader,
-    aiCalls,
-    ports: { reader, quantityReader, aiCalls, zoneRules: new FakeZoneRulesSource() },
+    store,
+    ports: { reader, quantityReader, store, zoneRules: new FakeZoneRulesSource() },
   };
 }
 
@@ -42,6 +43,7 @@ const input = {
   now: () => NOW,
   saleUnit: "UNIT" as const,
   netContent: { quantity: 250, unit: "ML" as const },
+  refresh: false,
 };
 
 const usage = (outcome: AiCallUsage["outcome"]): AiCallUsage => ({
@@ -59,13 +61,13 @@ const usage = (outcome: AiCallUsage["outcome"]): AiCallUsage => ({
 
 describe("proposeSupplierItemQuantity", () => {
   it("answers not_found for a row that does not exist, without reading", async () => {
-    const { quantityReader, aiCalls, ports } = setup();
+    const { quantityReader, store, ports } = setup();
 
     expect(await proposeSupplierItemQuantity(ports, { ...input, rowId: "missing" })).toEqual({
       kind: "not_found",
     });
     expect(quantityReader.asked).toEqual([]);
-    expect(aiCalls.recordings).toBe(0);
+    expect(store.recorded).toEqual([]);
   });
 
   it("answers not_found for a row of another list", async () => {
@@ -152,13 +154,13 @@ describe("proposeSupplierItemQuantity", () => {
 
   describe("recording of the AI calls", () => {
     it("records each attempt the reader reports for the row, the person and the moment", async () => {
-      const { quantityReader, aiCalls, ports } = setup();
+      const { quantityReader, store, ports } = setup();
       quantityReader.answer = { kind: "read", quantity: 36_000 };
       quantityReader.reportedCalls = [usage("completed")];
 
       await proposeSupplierItemQuantity(ports, input);
 
-      expect(aiCalls.recorded).toEqual([
+      expect(store.recorded).toEqual([
         {
           purpose: "LINK_PROPOSAL",
           listId: "list-1",
@@ -178,40 +180,267 @@ describe("proposeSupplierItemQuantity", () => {
     });
 
     it("records the calls reported before the reader throws, answering unavailable", async () => {
-      const { quantityReader, aiCalls, ports } = setup();
+      const { quantityReader, store, ports } = setup();
       quantityReader.answer = new Error("connection reset");
       quantityReader.reportedCalls = [usage("cut_short")];
 
       expect(await proposeSupplierItemQuantity(ports, input)).toEqual({ kind: "unavailable" });
 
-      expect(aiCalls.recorded).toEqual([expect.objectContaining({ outcome: "cut_short" })]);
+      expect(store.recorded).toEqual([expect.objectContaining({ outcome: "cut_short" })]);
     });
 
     it("records the calls of an unavailable reading", async () => {
-      const { quantityReader, aiCalls, ports } = setup();
+      const { quantityReader, store, ports } = setup();
       quantityReader.answer = { kind: "unavailable" };
       quantityReader.reportedCalls = [usage("failed")];
 
       await proposeSupplierItemQuantity(ports, input);
 
-      expect(aiCalls.recorded).toEqual([expect.objectContaining({ outcome: "failed" })]);
+      expect(store.recorded).toEqual([expect.objectContaining({ outcome: "failed" })]);
     });
 
     it("records nothing when the reader reports no attempt", async () => {
-      const { quantityReader, aiCalls, ports } = setup();
+      const { quantityReader, store, ports } = setup();
       quantityReader.reportedCalls = [{ outcome: "failed", attempts: [] }];
 
       await proposeSupplierItemQuantity(ports, input);
 
-      expect(aiCalls.recordings).toBe(0);
+      expect(store.recorded).toEqual([]);
     });
 
     it("does not answer when the calls cannot be recorded", async () => {
-      const { quantityReader, aiCalls, ports } = setup();
+      const { quantityReader, store, ports } = setup();
       quantityReader.reportedCalls = [usage("completed")];
-      aiCalls.failure = new Error("storage down");
+      store.failure = new Error("storage down");
 
       await expect(proposeSupplierItemQuantity(ports, input)).rejects.toThrow("storage down");
+    });
+  });
+
+  describe("keeping the proposal", () => {
+    const refresh = { ...input, refresh: true };
+
+    it("shows the kept quantity on a second request of the same shape, without reading or recording", async () => {
+      const { quantityReader, store, ports } = setup();
+      quantityReader.answer = { kind: "read", quantity: 36_000 };
+      quantityReader.reportedCalls = [usage("completed")];
+      await proposeSupplierItemQuantity(ports, input);
+
+      expect(await proposeSupplierItemQuantity(ports, input)).toEqual({
+        kind: "proposed",
+        quantity: 36_000,
+      });
+      expect(quantityReader.asked).toHaveLength(1);
+      expect(store.recorded).toHaveLength(1);
+    });
+
+    it("keeps that the reader could not tell the quantity", async () => {
+      const { quantityReader, ports } = setup();
+      quantityReader.answer = { kind: "none" };
+      await proposeSupplierItemQuantity(ports, input);
+
+      expect(await proposeSupplierItemQuantity(ports, input)).toEqual({ kind: "none" });
+      expect(quantityReader.asked).toHaveLength(1);
+    });
+
+    it("keeps that the quantity read does not fit the sale unit", async () => {
+      const { quantityReader, ports } = setup();
+      quantityReader.answer = { kind: "read", quantity: 2_500 };
+      await proposeSupplierItemQuantity(ports, input);
+
+      expect(await proposeSupplierItemQuantity(ports, input)).toEqual({ kind: "none" });
+      expect(quantityReader.asked).toHaveLength(1);
+    });
+
+    it.each([
+      ["unavailable", { kind: "unavailable" as const }],
+      ["failing", new Error("network down")],
+    ])(
+      "keeps nothing when the reader is %s, so the next request asks again",
+      async (_n, answer) => {
+        const { quantityReader, store, ports } = setup();
+        quantityReader.answer = answer;
+        await proposeSupplierItemQuantity(ports, input);
+        quantityReader.answer = { kind: "read", quantity: 1_000 };
+
+        expect(await proposeSupplierItemQuantity(ports, input)).toEqual({
+          kind: "proposed",
+          quantity: 1_000,
+        });
+        expect(quantityReader.asked).toHaveLength(2);
+        expect(store.quantityWrites).toBe(1);
+      },
+    );
+
+    it("keeps a quantity per sale unit and net content", async () => {
+      const { quantityReader, ports } = setup();
+      quantityReader.answer = { kind: "read", quantity: 36_000 };
+      await proposeSupplierItemQuantity(ports, input);
+      quantityReader.answer = { kind: "read", quantity: 12_000 };
+
+      expect(
+        await proposeSupplierItemQuantity(ports, {
+          ...input,
+          netContent: { quantity: 500, unit: "ML" },
+        }),
+      ).toEqual({ kind: "proposed", quantity: 12_000 });
+      expect(
+        await proposeSupplierItemQuantity(ports, {
+          ...input,
+          netContent: { quantity: 250, unit: "G" },
+        }),
+      ).toEqual({ kind: "proposed", quantity: 12_000 });
+      expect(await proposeSupplierItemQuantity(ports, { ...input, saleUnit: "KG" })).toEqual({
+        kind: "proposed",
+        quantity: 12_000,
+      });
+      expect(await proposeSupplierItemQuantity(ports, input)).toEqual({
+        kind: "proposed",
+        quantity: 36_000,
+      });
+      expect(quantityReader.asked).toHaveLength(4);
+    });
+
+    it("keeps a quantity for a product with no net content apart from one with a net content", async () => {
+      const { quantityReader, ports } = setup();
+      quantityReader.answer = { kind: "read", quantity: 36_000 };
+      await proposeSupplierItemQuantity(ports, { ...input, netContent: null });
+      quantityReader.answer = { kind: "read", quantity: 12_000 };
+
+      expect(await proposeSupplierItemQuantity(ports, input)).toEqual({
+        kind: "proposed",
+        quantity: 12_000,
+      });
+      expect(await proposeSupplierItemQuantity(ports, { ...input, netContent: null })).toEqual({
+        kind: "proposed",
+        quantity: 36_000,
+      });
+      expect(quantityReader.asked).toHaveLength(2);
+    });
+
+    it("keeps a quantity per row", async () => {
+      const { quantityReader, ports } = setup();
+      quantityReader.answer = { kind: "read", quantity: 36_000 };
+      await proposeSupplierItemQuantity(ports, input);
+      quantityReader.answer = { kind: "read", quantity: 12_000 };
+
+      expect(await proposeSupplierItemQuantity(ports, { ...input, rowId: "row-2" })).toEqual({
+        kind: "proposed",
+        quantity: 12_000,
+      });
+    });
+
+    it("asks again on refresh, records the call and replaces the kept quantity", async () => {
+      const { quantityReader, store, ports } = setup();
+      quantityReader.answer = { kind: "read", quantity: 36_000 };
+      await proposeSupplierItemQuantity(ports, input);
+      quantityReader.answer = { kind: "read", quantity: 12_000 };
+      quantityReader.reportedCalls = [usage("completed")];
+
+      expect(await proposeSupplierItemQuantity(ports, refresh)).toEqual({
+        kind: "proposed",
+        quantity: 12_000,
+      });
+      expect(store.recorded).toHaveLength(1);
+      expect(await proposeSupplierItemQuantity(ports, input)).toEqual({
+        kind: "proposed",
+        quantity: 12_000,
+      });
+      expect(quantityReader.asked).toHaveLength(2);
+    });
+
+    it("leaves the kept quantity untouched when a refresh is unavailable", async () => {
+      const { quantityReader, ports } = setup();
+      quantityReader.answer = { kind: "read", quantity: 36_000 };
+      await proposeSupplierItemQuantity(ports, input);
+      quantityReader.answer = { kind: "unavailable" };
+
+      expect(await proposeSupplierItemQuantity(ports, refresh)).toEqual({ kind: "unavailable" });
+      expect(await proposeSupplierItemQuantity(ports, input)).toEqual({
+        kind: "proposed",
+        quantity: 36_000,
+      });
+    });
+
+    it("keeps nothing and records nothing for a row that does not exist", async () => {
+      const { store, ports } = setup();
+
+      await proposeSupplierItemQuantity(ports, { ...input, rowId: "missing" });
+
+      expect(store.quantityWrites).toBe(0);
+      expect(store.recorded).toEqual([]);
+    });
+
+    it("neither records the calls nor keeps the quantity when they cannot be stored", async () => {
+      const { quantityReader, store, ports } = setup();
+      quantityReader.reportedCalls = [usage("completed")];
+      store.failure = new Error("storage down");
+
+      await expect(proposeSupplierItemQuantity(ports, input)).rejects.toThrow("storage down");
+      expect(store.recorded).toEqual([]);
+      expect(store.quantityWrites).toBe(0);
+    });
+
+    it("keeps the quantity together with the item it was read from", async () => {
+      const { quantityReader, store, ports } = setup();
+      quantityReader.answer = { kind: "read", quantity: 36_000 };
+
+      await proposeSupplierItemQuantity(ports, input);
+
+      expect([...store.quantities.values()]).toEqual([
+        {
+          askedFrom: {
+            description: "Aceite de palta 250 ml",
+            presentation: "x3 packs",
+            otherPresentations: ["Pack x12u"],
+          },
+          answer: { kind: "proposed", quantity: 36_000 },
+        },
+      ]);
+    });
+
+    it.each([
+      ["description", { description: "Aceite de palta 500 ml" }],
+      ["presentation", { presentation: "x6 packs" }],
+      ["other presentations", { otherPresentations: [] }],
+    ])(
+      "reads again, as if nothing were kept, when the row's %s changed since the reading",
+      async (_name, change) => {
+        const { quantityReader, store, ports } = setup();
+        quantityReader.answer = { kind: "read", quantity: 36_000 };
+        await proposeSupplierItemQuantity(ports, input);
+        const [key, kept] = [...store.quantities.entries()][0] ?? [];
+        if (key === undefined || kept === undefined) {
+          throw new Error("nothing was kept");
+        }
+        store.quantities.set(key, { ...kept, askedFrom: { ...kept.askedFrom, ...change } });
+        quantityReader.answer = { kind: "read", quantity: 12_000 };
+
+        expect(await proposeSupplierItemQuantity(ports, input)).toEqual({
+          kind: "proposed",
+          quantity: 12_000,
+        });
+        expect(quantityReader.asked).toHaveLength(2);
+      },
+    );
+
+    it("answers not_found, recording the calls, when the row is gone by the time the quantity is kept", async () => {
+      const { quantityReader, store, ports } = setup();
+      quantityReader.answer = { kind: "read", quantity: 36_000 };
+      quantityReader.reportedCalls = [usage("completed")];
+      store.goneRows.add("row-1");
+
+      expect(await proposeSupplierItemQuantity(ports, input)).toEqual({ kind: "not_found" });
+      expect(store.recorded).toHaveLength(1);
+      expect(store.quantityWrites).toBe(0);
+    });
+
+    it("answers unavailable when the row is gone and nothing is kept", async () => {
+      const { quantityReader, store, ports } = setup();
+      quantityReader.answer = { kind: "unavailable" };
+      store.goneRows.add("row-1");
+
+      expect(await proposeSupplierItemQuantity(ports, input)).toEqual({ kind: "unavailable" });
     });
   });
 });

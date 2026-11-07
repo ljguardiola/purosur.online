@@ -50,8 +50,7 @@ const filled: DiscountFormValues = {
   percent: " 15 ",
   buyQty: "",
   payQty: "",
-  validFrom: new CalendarDate(2026, 9, 12),
-  validTo: new CalendarDate(2026, 9, 30),
+  validity: { start: new CalendarDate(2026, 9, 12), end: new CalendarDate(2026, 9, 30) },
   weekdays: ["1", "3"],
 };
 
@@ -215,20 +214,21 @@ describe("field messages", () => {
     );
   });
 
-  test("asks for the start date only while it is empty", () => {
-    expect(DISCOUNT_MESSAGES.validFrom({ ...filled, validFrom: null })).toBe(
-      "Ingresá la fecha de inicio.",
-    );
-    expect(DISCOUNT_MESSAGES.validFrom(filled)).toBe("Revisá la fecha de inicio.");
+  test("asks for the validity while it is empty", () => {
+    expect(DISCOUNT_MESSAGES.validity({ ...filled, validity: null })).toBe("Ingresá la vigencia.");
   });
 
-  test("asks for the end date while it is empty, and otherwise says it cannot precede the start", () => {
-    expect(DISCOUNT_MESSAGES.validTo({ ...filled, validTo: null })).toBe(
-      "Ingresá la fecha de fin.",
-    );
-    expect(DISCOUNT_MESSAGES.validTo(filled)).toBe(
-      "La fecha de fin no puede ser anterior a la de inicio.",
-    );
+  test("says the end cannot precede the start when the validity ends before it starts", () => {
+    expect(
+      DISCOUNT_MESSAGES.validity({
+        ...filled,
+        validity: { start: new CalendarDate(2026, 9, 30), end: new CalendarDate(2026, 9, 12) },
+      }),
+    ).toBe("La fecha de fin no puede ser anterior a la de inicio.");
+  });
+
+  test("asks to review the validity the cloud refused when it is in order", () => {
+    expect(DISCOUNT_MESSAGES.validity(filled)).toBe("Revisá la vigencia.");
   });
 
   test("asks to review the weekdays", () => {
@@ -253,6 +253,8 @@ describe("field declarations", () => {
     ]);
     expect(DISCOUNT_FIELDS["benefit.buyQty"]).toBe("buyQty");
     expect(DISCOUNT_FIELDS["benefit.payQty"]).toBe("payQty");
+    expect(DISCOUNT_FIELDS.validFrom).toBe("validity");
+    expect(DISCOUNT_FIELDS.validTo).toBe("validity");
   });
 });
 
@@ -798,8 +800,7 @@ describe("discountFormValues", () => {
       percent: "20",
       buyQty: "",
       payQty: "",
-      validFrom: new CalendarDate(2026, 12, 1),
-      validTo: new CalendarDate(2027, 2, 28),
+      validity: { start: new CalendarDate(2026, 12, 1), end: new CalendarDate(2027, 2, 28) },
       weekdays: ["1", "3", "5"],
       active: true,
       version: 2,

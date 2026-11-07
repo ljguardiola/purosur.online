@@ -163,6 +163,7 @@ describe("supplierItemQuantityProposalRequestFrom", () => {
     expect(supplierItemQuantityProposalRequestFrom({ ...FILLED, saleUnit: "KG" })).toEqual({
       saleUnit: "KG",
       netContent: null,
+      refresh: false,
     });
   });
 
@@ -172,7 +173,7 @@ describe("supplierItemQuantityProposalRequestFrom", () => {
         ...FILLED,
         netContent: { quantity: "1,5", unit: "KG" },
       }),
-    ).toEqual({ saleUnit: "UNIT", netContent: { quantity: 1.5, unit: "KG" } });
+    ).toEqual({ saleUnit: "UNIT", netContent: { quantity: 1.5, unit: "KG" }, refresh: false });
   });
 
   it.each(["abc", "0", "-3", "1,23456"])("asks nothing for the net content %j", (quantity) => {

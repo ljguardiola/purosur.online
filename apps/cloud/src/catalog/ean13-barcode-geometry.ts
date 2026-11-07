@@ -27,29 +27,41 @@ const GUARD_MODULE_INDEXES = new Set([
 ]);
 const HALF_GROUP_WIDTH_MODULES = (DIGITS_PER_GROUP * MODULES_PER_DIGIT) / 2;
 
+export interface Ean13BarcodeDimensions {
+  moduleWidth: number;
+  barHeight: number;
+  guardExtra: number;
+  digitsHeight: number;
+}
+
 interface BarcodeBar {
-  xMm: number;
-  widthMm: number;
-  heightMm: number;
+  x: number;
+  width: number;
+  height: number;
 }
 
 interface BarcodeText {
   value: string;
-  xMm: number;
+  x: number;
   align: "left" | "center" | "right";
 }
 
 export interface Ean13BarcodeGeometry {
-  totalWidthMm: number;
-  totalHeightMm: number;
-  fontSizeMm: number;
+  totalWidth: number;
+  totalHeight: number;
+  digitsHeight: number;
+  digitsTop: number;
   bars: BarcodeBar[];
   firstDigitText: BarcodeText;
   leftGroupText: BarcodeText;
   rightGroupText: BarcodeText;
 }
 
-export function ean13BarcodeGeometry(code: string): Ean13BarcodeGeometry {
+export function ean13BarcodeGeometry(
+  code: string,
+  dimensions: Ean13BarcodeDimensions,
+): Ean13BarcodeGeometry {
+  const { moduleWidth, barHeight, guardExtra, digitsHeight } = dimensions;
   const modules = ean13Modules(code);
   const bars: BarcodeBar[] = [];
   for (let index = 0; index < modules.length; index += 1) {
@@ -58,9 +70,9 @@ export function ean13BarcodeGeometry(code: string): Ean13BarcodeGeometry {
     }
     const isGuard = GUARD_MODULE_INDEXES.has(index);
     bars.push({
-      xMm: (QUIET_ZONE_LEFT_MODULES + index) * MODULE_WIDTH_MM,
-      widthMm: MODULE_WIDTH_MM,
-      heightMm: isGuard ? BAR_HEIGHT_MM + GUARD_BAR_EXTRA_MM : BAR_HEIGHT_MM,
+      x: (QUIET_ZONE_LEFT_MODULES + index) * moduleWidth,
+      width: moduleWidth,
+      height: isGuard ? barHeight + guardExtra : barHeight,
     });
   }
 
@@ -68,26 +80,27 @@ export function ean13BarcodeGeometry(code: string): Ean13BarcodeGeometry {
     QUIET_ZONE_LEFT_MODULES + START_GUARD_END_MODULE + HALF_GROUP_WIDTH_MODULES;
   const rightGroupCenterModule =
     QUIET_ZONE_LEFT_MODULES + CENTER_GUARD_END_MODULE + HALF_GROUP_WIDTH_MODULES;
+  const digitsTop = barHeight + guardExtra;
 
   return {
-    totalWidthMm:
-      (QUIET_ZONE_LEFT_MODULES + modules.length + QUIET_ZONE_RIGHT_MODULES) * MODULE_WIDTH_MM,
-    totalHeightMm: BAR_HEIGHT_MM + GUARD_BAR_EXTRA_MM + HUMAN_READABLE_HEIGHT_MM,
-    fontSizeMm: HUMAN_READABLE_HEIGHT_MM,
+    totalWidth: (QUIET_ZONE_LEFT_MODULES + modules.length + QUIET_ZONE_RIGHT_MODULES) * moduleWidth,
+    totalHeight: digitsTop + digitsHeight,
+    digitsHeight,
+    digitsTop,
     bars,
     firstDigitText: {
       value: code[0] ?? "",
-      xMm: (QUIET_ZONE_LEFT_MODULES - 1.5) * MODULE_WIDTH_MM,
+      x: (QUIET_ZONE_LEFT_MODULES - 1.5) * moduleWidth,
       align: "right",
     },
     leftGroupText: {
       value: code.slice(1, 7),
-      xMm: leftGroupCenterModule * MODULE_WIDTH_MM,
+      x: leftGroupCenterModule * moduleWidth,
       align: "center",
     },
     rightGroupText: {
       value: code.slice(7),
-      xMm: rightGroupCenterModule * MODULE_WIDTH_MM,
+      x: rightGroupCenterModule * moduleWidth,
       align: "center",
     },
   };

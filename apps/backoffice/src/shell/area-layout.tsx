@@ -1,18 +1,18 @@
 import { AreaNavItem, SectionNavItem } from "@purosur/ui";
-import { createLink, useMatchRoute } from "@tanstack/react-router";
+import { createLink, useMatchRoute, useNavigate } from "@tanstack/react-router";
 import {
   Boxes,
   ChartColumn,
   ClipboardList,
+  HandCoins,
   Home,
   LifeBuoy,
   Package,
   Settings,
   Wallet,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, Suspense } from "react";
 import { AccountFooter } from "./account-footer";
-import { AreaTopBarAlertsCount } from "./area-top-bar-alerts-count";
 import { AreaTopBarUnbilledDeferredSales } from "./area-top-bar-unbilled-deferred-sales";
 import {
   canComparePrices,
@@ -25,24 +25,32 @@ import {
   canPerformStockCounts,
   canReadPurchaseOrders,
   canRecordPurchases,
-  canSeeAlertsArea,
-  canSeeCashArea,
+  canSeeBackupsArea,
+  canSeeBranchArea,
   canSeeCatalogArea,
+  canSeeContingencyTicketRescue,
   canSeeExpiringLots,
+  canSeeFiscalConfigurationArea,
   canSeeFiscalInformation,
   canSeeOrdersArea,
+  canSeePeopleArea,
   canSeePricesArea,
+  canSeeQuarantinedEvents,
   canSeeRefundsArea,
+  canSeeRefundsPage,
+  canSeeRegistersArea,
   canSeeReports,
-  canSeeReturnsReport,
   canSeeStockArea,
   canSeeStockBalances,
   canSeeStockMovements,
 } from "./backoffice-access";
+import { lazyScreen } from "./lazy-screen";
 import { Shell } from "./shell";
 import { signedInRoute } from "./signed-in-route";
 
 const AreaLink = createLink(AreaNavItem);
+
+const OwnAccountPanel = lazyScreen(() => import("./own-account-panel"), "OwnAccountPanel");
 
 export const SectionLink = createLink(SectionNavItem);
 
@@ -51,6 +59,7 @@ type Area =
   | "catalog"
   | "stock"
   | "orders"
+  | "sales-and-cash"
   | "cash-and-fiscal"
   | "reports"
   | "settings"
@@ -58,22 +67,16 @@ type Area =
 
 export type AreaLayoutProps = {
   area: Area;
-  sectionColumnLabel: string;
-  sectionColumn: ReactNode;
-  showsOpenAlertsCount?: boolean;
+  sectionColumnLabel?: string | undefined;
+  sectionColumn?: ReactNode;
   children: ReactNode;
 };
 
-export function AreaLayout({
-  area,
-  sectionColumnLabel,
-  sectionColumn,
-  showsOpenAlertsCount = false,
-  children,
-}: AreaLayoutProps) {
+export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }: AreaLayoutProps) {
   const { session, services, sessionActions } = signedInRoute.useRouteContext();
+  const { account } = signedInRoute.useSearch();
+  const navigate = useNavigate();
   const UnbilledDeferredSales = services.areaTopBarUnbilledDeferredSales;
-  const AlertsCount = services.areaTopBarAlertsCount;
   const matchRoute = useMatchRoute();
   const catalogTarget = canManageProductsAndCategories(session)
     ? "/products"
@@ -100,12 +103,8 @@ export function AreaLayout({
                   : canManageBatches(session)
                     ? "/assembly-batches"
                     : "/initial-inventory";
-  const cashTarget = canSeeCashArea(session)
-    ? "/points-of-sale"
-    : canSeeRefundsArea(session)
-      ? "/refunds/mercado-pago"
-      : "/fiscal-tasks";
-  const reportsTarget = canSeeReports(session) ? "/reports" : "/reports/returns";
+  const cashTarget = canSeeFiscalConfigurationArea(session) ? "/points-of-sale" : "/fiscal-tasks";
+  const salesAndCashTarget = canSeeRefundsArea(session) ? "/refunds" : "/refunds/history";
   const ordersTarget = canManageSupplierPriceLists(session)
     ? "/supplier-price-lists"
     : canComparePrices(session)
@@ -113,6 +112,19 @@ export function AreaLayout({
       : canReadPurchaseOrders(session)
         ? "/purchase-orders"
         : "/supplier-price-lists";
+  const settingsTarget = canSeePeopleArea(session)
+    ? "/people"
+    : canSeeRegistersArea(session)
+      ? "/registers"
+      : canSeeBackupsArea(session)
+        ? "/backups"
+        : canSeeContingencyTicketRescue(session)
+          ? "/contingency-ticket-rescue"
+          : canSeeBranchArea(session)
+            ? "/location-settings"
+            : canSeeQuarantinedEvents(session)
+              ? "/quarantined-events"
+              : null;
   const stockTargetShown = Boolean(matchRoute({ to: stockTarget }));
   return (
     <Shell
@@ -120,6 +132,14 @@ export function AreaLayout({
       railAreas={
         <>
           <AreaLink to="/" label="Inicio" icon={<Home />} active={area === "home"} />
+          {canSeeRefundsPage(session) && (
+            <AreaLink
+              to={salesAndCashTarget}
+              label="Ventas y caja"
+              icon={<HandCoins />}
+              active={area === "sales-and-cash"}
+            />
+          )}
           {canSeeCatalogArea(session) && (
             <AreaLink
               to={catalogTarget}
@@ -146,25 +166,38 @@ export function AreaLayout({
               active={area === "orders"}
             />
           )}
-          {(canSeeCashArea(session) ||
-            canSeeRefundsArea(session) ||
-            canSeeFiscalInformation(session)) && (
+          {(canSeeFiscalConfigurationArea(session) || canSeeFiscalInformation(session)) && (
             <AreaLink
               to={cashTarget}
-              label="Caja"
+              label="Caja y fiscal"
               icon={<Wallet />}
               active={area === "cash-and-fiscal"}
             />
           )}
-          {(canSeeReports(session) || canSeeReturnsReport(session)) && (
+          {canSeeReports(session) && (
             <AreaLink
-              to={reportsTarget}
+              to="/reports"
               label="Reportes"
               icon={<ChartColumn />}
               active={area === "reports"}
             />
           )}
-          <AreaLink to="/account" label="Config" icon={<Settings />} active={area === "settings"} />
+          {settingsTarget === null ? (
+            <AreaLink
+              to="/"
+              search={{ account: "credentials" }}
+              label="Config"
+              icon={<Settings />}
+              active={area === "settings"}
+            />
+          ) : (
+            <AreaLink
+              to={settingsTarget}
+              label="Config"
+              icon={<Settings />}
+              active={area === "settings"}
+            />
+          )}
         </>
       }
       railFooter={
@@ -189,18 +222,22 @@ export function AreaLayout({
           ) : null
         }
       >
-        <AreaTopBarAlertsCount
-          value={
-            showsOpenAlertsCount && canSeeAlertsArea(session) ? (
-              <AlertsCount
-                onSessionEnded={sessionActions.sessionEnded}
-                services={services.alertsOpenCountLink}
+        <div className="flex min-h-0 flex-1">
+          <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+          {account === undefined ? null : (
+            <Suspense fallback={null}>
+              <OwnAccountPanel
+                tab={account}
+                onClose={() =>
+                  void navigate({
+                    to: ".",
+                    search: (previous) => ({ ...previous, account: undefined }),
+                  })
+                }
               />
-            ) : null
-          }
-        >
-          {children}
-        </AreaTopBarAlertsCount>
+            </Suspense>
+          )}
+        </div>
       </AreaTopBarUnbilledDeferredSales>
     </Shell>
   );

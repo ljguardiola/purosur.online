@@ -408,14 +408,20 @@ interface StoredLayout {
   body: (stored: Uint8Array) => Uint8Array;
 }
 
-const CURRENT_LAYOUTS: Record<string, StoredLayout> = {
-  "1": {
-    head: (head) => headWithCurrentLogo(head, FIRST_VERSION_LOGO_START),
-    body: bodyWithCurrentQrMargins,
-  },
-  "2": { head: (head) => headWithCurrentLogo(head, RASTER_IMAGE), body: bodyWithCurrentQrMargins },
-  [TEMPLATE_VERSION]: { head: (head) => head, body: (body) => body },
-};
+const CURRENT_LAYOUTS = new Map<string, StoredLayout>([
+  [
+    "1",
+    {
+      head: (head) => headWithCurrentLogo(head, FIRST_VERSION_LOGO_START),
+      body: bodyWithCurrentQrMargins,
+    },
+  ],
+  [
+    "2",
+    { head: (head) => headWithCurrentLogo(head, RASTER_IMAGE), body: bodyWithCurrentQrMargins },
+  ],
+  [TEMPLATE_VERSION, { head: (head) => head, body: (body) => body }],
+]);
 
 function render(content: ReceiptContent, rules: ZoneRules): StoredReceipt {
   const invoice = content.fiscal?.invoiceClass === "C" ? content.fiscal : null;
@@ -448,7 +454,7 @@ function render(content: ReceiptContent, rules: ZoneRules): StoredReceipt {
 }
 
 function printable(stored: StoredReceipt, copy: ReceiptCopy): Uint8Array {
-  const layout = CURRENT_LAYOUTS[stored.templateVersion];
+  const layout = CURRENT_LAYOUTS.get(stored.templateVersion);
   if (layout === undefined) {
     throw new Error(`unknown receipt template version ${stored.templateVersion}`);
   }

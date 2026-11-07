@@ -637,7 +637,9 @@ test("navigates to Mi cuenta when the alert read comes back forbidden", async ()
 
   await renderModal(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("navigates to Mi cuenta when closing the alert comes back forbidden", async () => {
@@ -649,7 +651,9 @@ test("navigates to Mi cuenta when closing the alert comes back forbidden", async
 
   await userEvent.click(screen.getByRole("button", { name: "Cerrar la alerta" }));
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("shows the description of a role change that gives permissions the user did not have", async () => {
@@ -1804,7 +1808,7 @@ test("tells a refund owed for a QR payment that arrived late: what it means, wha
   await expect
     .element(
       screen.getByText(
-        "Confirmarlo en Reembolsos de Mercado Pago para que la nube lo envíe a Mercado Pago. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
+        "Confirmarlo en Devoluciones y reembolsos para que la nube lo envíe a Mercado Pago. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
         { exact: true },
       ),
     )
@@ -1908,7 +1912,7 @@ test("tells a refund owed for a Point payment that arrived late that it was a ca
   await expect
     .element(
       screen.getByText(
-        "Hacerlo desde Mercado Pago cuanto antes y marcarlo como hecho en Reembolsos sin API. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
+        "Hacerlo desde Mercado Pago cuanto antes y marcarlo como hecho en Devoluciones y reembolsos. Si no corresponde reembolsarlo, descartarlo. El Administrador ya fue avisado.",
         { exact: true },
       ),
     )
@@ -1984,7 +1988,7 @@ test("explains a refund left pending to the branch, closing once its refund is d
   await expect
     .element(
       screen.getByText(
-        "Si es de un pago con QR o Point, confirmarlo en Reembolsos de Mercado Pago para que la nube lo envíe; si Mercado Pago ya lo rechazó, descartarlo ahí. Si es de otro medio, hacerlo por fuera del sistema cuanto antes y marcarlo como hecho en Reembolsos sin API. El Administrador ya fue avisado.",
+        "Si es de un pago con QR o Point, confirmarlo en Devoluciones y reembolsos para que la nube lo envíe; si Mercado Pago ya lo rechazó, descartarlo ahí. Si es de otro medio, hacerlo por fuera del sistema cuanto antes y marcarlo como hecho en Devoluciones y reembolsos. El Administrador ya fue avisado.",
         { exact: true },
       ),
     )

@@ -292,7 +292,9 @@ test("sends the person to Mi cuenta when the receipt is forbidden, and ends the 
   await completeReceipt(screen);
 
   await register(screen);
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 
   vi.mocked(services.receivePurchaseOrder).mockResolvedValueOnce({ kind: "unauthenticated" });
   await register(screen);
@@ -408,7 +410,9 @@ test("navigates to Mi cuenta when the draft comes back forbidden, and ends the s
       fetchPurchaseOrderReceiptDraft: vi.fn().mockResolvedValue({ kind: "forbidden" }),
     }),
   );
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 
   const onSessionEnded = vi.fn();
   await renderScreen(

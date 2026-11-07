@@ -10,7 +10,6 @@ import { DrizzleOrderSuggestionReader } from "./drizzle-order-suggestion-reader.
 import {
   completeSale,
   insertRegisterDeviceIn,
-  setCoverageDays,
   setStock,
 } from "./test-support/order-suggestion-fixtures.js";
 import { insertAnotherLocation } from "./test-support/purchase-order-fixtures.js";
@@ -39,25 +38,6 @@ afterAll(async () => {
 beforeEach(async () => {
   await testDatabase.clear();
   locationId = await seededLocationId(db);
-});
-
-describe("the coverage days", () => {
-  it("answers those of each active product, 15 when never configured", async () => {
-    const configured = await insertProduct(db, { name: "Yerba" });
-    const standard = await insertProduct(db, { name: "Harina" });
-    await insertProduct(db, { name: "Retirado", active: false });
-    await setCoverageDays(db, configured.id, 40);
-
-    const coverage = await reader().coverageDays();
-
-    expect(coverage).toHaveLength(2);
-    expect(coverage).toEqual(
-      expect.arrayContaining([
-        { productId: configured.id, coverageDays: 40 },
-        { productId: standard.id, coverageDays: 15 },
-      ]),
-    );
-  });
 });
 
 describe("the current stock", () => {

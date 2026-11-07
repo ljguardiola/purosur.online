@@ -6,7 +6,7 @@ import { page, userEvent } from "vitest/browser";
 import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
 import { type ReportPeriodFilters, reportPeriodSearch } from "../shell/report-filters-search";
 import { render } from "../shell/test-support/render-with-router";
-import { dateSegments, typeDate } from "../shell/test-support/report-dates";
+import { periodSegments, typePeriodEnd, typePeriodStart } from "../shell/test-support/report-dates";
 import { spyOnDownloads } from "../shell/test-support/spy-on-downloads";
 import { ReceiptDifferencesReportScreen } from "./receipt-differences-report-screen";
 import type { ReceiptDifferencesReportScreenServices } from "./receipt-differences-report-services";
@@ -203,8 +203,8 @@ test("asks the cloud for no range when the URL has none, and shows the range it 
 
   const screen = await renderScreen(services);
 
-  await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["1", "9", "2026"]);
-  expect(dateSegments(screen, "Hasta")).toEqual(["4", "11", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["1", "9", "2026"]);
+  expect(periodSegments(screen).slice(3)).toEqual(["4", "11", "2026"]);
   expect(services.fetchReceiptDifferencesReport).toHaveBeenCalledWith({});
 });
 
@@ -226,8 +226,8 @@ test("asks the cloud again for the range typed in the filters and reports it", a
   const screen = await renderScreen(services, { onFiltersChange });
   await expect.element(screen.getByText("Granos del Sur")).toBeVisible();
 
-  await typeDate(screen, "Desde", "01102026");
-  await typeDate(screen, "Hasta", "07102026");
+  await typePeriodStart(screen, "01102026");
+  await typePeriodEnd(screen, "07102026");
 
   await expect
     .poll(() => vi.mocked(services.fetchReceiptDifferencesReport).mock.lastCall)
@@ -241,8 +241,8 @@ test("keeps the previous report in view, marked as updating, while another range
   await expect.element(screen.getByText("Granos del Sur")).toBeVisible();
   vi.mocked(services.fetchReceiptDifferencesReport).mockReturnValue(new Promise(() => {}));
 
-  await typeDate(screen, "Desde", "01102026");
-  await typeDate(screen, "Hasta", "07102026");
+  await typePeriodStart(screen, "01102026");
+  await typePeriodEnd(screen, "07102026");
 
   await expect.element(differencesTable(screen)).toHaveAttribute("aria-busy", "true");
   await expect.element(screen.getByText("Granos del Sur")).toBeVisible();
@@ -329,7 +329,9 @@ test("sends the person to Mi cuenta when the cloud refuses the report", async ()
 
   await renderScreen(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("downloads a spreadsheet of the lines shown, for the period the report answered", async () => {

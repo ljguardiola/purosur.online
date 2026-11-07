@@ -14,6 +14,10 @@ export function canSeeUsersArea(access: BackofficeAccess): boolean {
   return grants(access, "users_area");
 }
 
+export function canSeePeopleArea(access: BackofficeAccess): boolean {
+  return canSeeUsersArea(access) || canSeeRolesArea(access);
+}
+
 export function canManageUsers(access: BackofficeAccess): boolean {
   return grants(access, "manage_users");
 }
@@ -55,16 +59,16 @@ export function canSeeCatalogArea(access: BackofficeAccess): boolean {
   return grants(access, "catalog_area");
 }
 
-export function canSeeCashArea(access: BackofficeAccess): boolean {
-  return grants(access, "cash_area");
+export function canSeeFiscalConfigurationArea(access: BackofficeAccess): boolean {
+  return grants(access, "fiscal_configuration_area");
 }
 
 export function canAssignPointTerminal(access: BackofficeAccess): boolean {
-  return grants(access, "cash_area");
+  return grants(access, "fiscal_configuration_area");
 }
 
 export function canAssignQrPointOfSale(access: BackofficeAccess): boolean {
-  return grants(access, "cash_area");
+  return grants(access, "fiscal_configuration_area");
 }
 
 export function canSeeAlertsArea(access: BackofficeAccess): boolean {
@@ -141,6 +145,10 @@ export function canSeeReturnsReport(access: BackofficeAccess): boolean {
 
 export function canSeeRefundsArea(access: BackofficeAccess): boolean {
   return grants(access, "refunds_area");
+}
+
+export function canSeeRefundsPage(access: BackofficeAccess): boolean {
+  return canSeeRefundsArea(access) || canSeeReturnsReport(access);
 }
 
 export function canRecordPurchases(access: BackofficeAccess): boolean {

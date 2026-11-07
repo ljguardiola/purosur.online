@@ -58,6 +58,12 @@ async function renderModal(
   return { screen, dialog };
 }
 
+test("places the modal in the own account panel's Passkeys y PIN tab", async () => {
+  const { dialog } = await renderModal(createServices());
+
+  await expect.element(dialog.getByText("Passkeys y PIN", { exact: true })).toBeVisible();
+});
+
 test("asks for the authorization before any creation ceremony when the registration options require one, then runs the ceremony exactly once", async () => {
   const services = createServices();
   vi.mocked(services.fetchPasskeyRegistrationChallenge).mockResolvedValueOnce({

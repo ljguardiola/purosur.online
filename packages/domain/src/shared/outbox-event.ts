@@ -37,9 +37,10 @@ function canonicalJson(value: JsonValue): string {
   if (Array.isArray(value)) {
     return `[${value.map(canonicalJson).join(",")}]`;
   }
-  const members = Object.keys(value)
+  const entries = new Map(Object.entries(value));
+  const members = [...entries.keys()]
     .sort()
-    .map((name) => `${JSON.stringify(name)}:${canonicalJson(value[name] as JsonValue)}`);
+    .map((name) => `${JSON.stringify(name)}:${canonicalJson(entries.get(name) as JsonValue)}`);
   return `{${members.join(",")}}`;
 }
 

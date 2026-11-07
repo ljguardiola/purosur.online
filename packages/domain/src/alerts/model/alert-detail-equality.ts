@@ -10,11 +10,11 @@ export function isSameAlertDetail(left: unknown, right: unknown): boolean {
     );
   }
   if (isMemberSet(left) && isMemberSet(right)) {
-    const names = Object.keys(left);
+    const members = Object.entries(left);
     return (
-      names.length === Object.keys(right).length &&
-      names.every(
-        (name) => Object.hasOwn(right, name) && isSameAlertDetail(left[name], right[name]),
+      members.length === Object.keys(right).length &&
+      members.every(
+        ([name, value]) => Object.hasOwn(right, name) && isSameAlertDetail(value, right[name]),
       )
     );
   }

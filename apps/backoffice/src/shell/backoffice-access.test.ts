@@ -26,15 +26,17 @@ import {
   canSeeAlertsArea,
   canSeeBackupsArea,
   canSeeBranchArea,
-  canSeeCashArea,
   canSeeCatalogArea,
   canSeeContingencyTicketRescue,
   canSeeExpiringLots,
+  canSeeFiscalConfigurationArea,
   canSeeFiscalInformation,
   canSeeOrdersArea,
+  canSeePeopleArea,
   canSeePricesArea,
   canSeeQuarantinedEvents,
   canSeeRefundsArea,
+  canSeeRefundsPage,
   canSeeRegistersArea,
   canSeeReports,
   canSeeReturnsReport,
@@ -58,9 +60,9 @@ test.each([
   ["canSeePricesArea", "prices_area", canSeePricesArea],
   ["canManagePromotions", "promotions", canManagePromotions],
   ["canSeeCatalogArea", "catalog_area", canSeeCatalogArea],
-  ["canSeeCashArea", "cash_area", canSeeCashArea],
-  ["canAssignPointTerminal", "cash_area", canAssignPointTerminal],
-  ["canAssignQrPointOfSale", "cash_area", canAssignQrPointOfSale],
+  ["canSeeFiscalConfigurationArea", "fiscal_configuration_area", canSeeFiscalConfigurationArea],
+  ["canAssignPointTerminal", "fiscal_configuration_area", canAssignPointTerminal],
+  ["canAssignQrPointOfSale", "fiscal_configuration_area", canAssignQrPointOfSale],
   ["canSeeAlertsArea", "alerts_area", canSeeAlertsArea],
   ["canCloseAlertsManually", "close_alerts_manually", canCloseAlertsManually],
   ["canCloseFiscalTasks", "close_fiscal_tasks", canCloseFiscalTasks],
@@ -110,4 +112,20 @@ test("canSeeAiCostReport holds only when both the reports area and the branch ar
   expect(canSeeAiCostReport(accessWith("reports_area"))).toBe(false);
   expect(canSeeAiCostReport(accessWith("branch_area"))).toBe(false);
   expect(canSeeAiCostReport(NO_CAPABILITIES_ACCESS)).toBe(false);
+});
+
+test("canSeePeopleArea holds when either the users area or the roles are granted", () => {
+  expect(canSeePeopleArea(ADMINISTRATOR_ACCESS)).toBe(true);
+  expect(canSeePeopleArea(accessWith("users_area"))).toBe(true);
+  expect(canSeePeopleArea(accessWith("manage_roles"))).toBe(true);
+  expect(canSeePeopleArea(accessWith("manage_users"))).toBe(false);
+  expect(canSeePeopleArea(NO_CAPABILITIES_ACCESS)).toBe(false);
+});
+
+test("canSeeRefundsPage holds when either the refunds area or the returns report is granted", () => {
+  expect(canSeeRefundsPage(ADMINISTRATOR_ACCESS)).toBe(true);
+  expect(canSeeRefundsPage(accessWith("refunds_area"))).toBe(true);
+  expect(canSeeRefundsPage(accessWith("returns_report"))).toBe(true);
+  expect(canSeeRefundsPage(accessWith("reports_area"))).toBe(false);
+  expect(canSeeRefundsPage(NO_CAPABILITIES_ACCESS)).toBe(false);
 });

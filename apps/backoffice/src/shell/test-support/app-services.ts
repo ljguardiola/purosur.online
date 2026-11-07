@@ -1,5 +1,4 @@
 import { vi } from "vitest";
-import { AlertsOpenCountLink } from "../../alerts/alerts-open-count-link";
 import { createFakeQrScanner } from "../../backups/test-support/fake-qr-scanner";
 import { CreateCategoryFromSelectorModal } from "../../catalog/create-category-from-selector-modal";
 import { CreateProductFromSelectorModal } from "../../catalog/create-product-from-selector-modal";
@@ -34,7 +33,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       startRegistration: vi.fn(),
       signalUnknownCredential: vi.fn(),
     },
-    myAccountScreen: {
+    ownCredentialsSection: {
       fetchPasskeys: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchPasskeyRegistrationChallenge: vi.fn(),
       registerPasskey: vi.fn(),
@@ -102,6 +101,10 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       createTag: vi.fn(),
       generateInternalBarcode: vi.fn(),
       printLabels: vi.fn(),
+      fetchPrinterLabels: vi.fn(),
+      labelPrinterAvailable: () => true,
+      chooseLabelPrinter: vi.fn(),
+      printOnLabelPrinter: vi.fn(),
     },
     pricesListScreen: {
       fetchPriceMargin: vi.fn().mockResolvedValue({ kind: "ok", value: { costReference: null } }),
@@ -305,7 +308,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     issuedFiscalDocumentsReportScreen: {
       fetchIssuedFiscalDocumentsReport: vi.fn().mockReturnValue(new Promise(() => {})),
     },
-    returnsReportScreen: {
+    returnsHistoryScreen: {
       fetchReturnsReport: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     averageTicketScreen: {
@@ -313,6 +316,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     },
     salesByPaymentMethodScreen: {
       fetchSalesByPaymentMethod: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchHandConfirmedPayments: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     handConfirmedPaymentsScreen: {
       fetchHandConfirmedPayments: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -331,18 +335,14 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     reportRegisterFilter: {
       fetchReportRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
     },
-    mercadoPagoRefundsScreen: {
+    pendingRefundsScreen: {
       fetchPendingRefunds: vi.fn().mockReturnValue(new Promise(() => {})),
       confirmRefund: vi.fn(),
       discardRefund: vi.fn(),
       recordRefundTransfer: vi.fn(),
-    },
-    outsideRefundsScreen: {
-      fetchPendingRefunds: vi.fn().mockReturnValue(new Promise(() => {})),
       markRefundDone: vi.fn(),
-      discardRefund: vi.fn(),
     },
-    userDetailScreen: {
+    userPanel: {
       fetchUser: vi.fn().mockReturnValue(new Promise(() => {})),
       editUser: vi.fn(),
       fetchRoles: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -356,7 +356,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     endEverySessionSection: {
       endEverySession: vi.fn(),
     },
-    userDetailCredentialSections: UserCredentialSections,
+    userPanelCredentialSections: UserCredentialSections,
     userCredentialSections: {
       fetchUserPasskeys: vi.fn().mockReturnValue(new Promise(() => {})),
       removeUserPasskey: vi.fn(),
@@ -396,7 +396,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       finishTicketRecoveryModal: { finishContingencyTicketRecovery: vi.fn() },
       scanner: createFakeQrScanner().Scanner,
     },
-    compromiseResponseScreen: {
+    respondToCompromiseModal: {
       fetchCompromiseResponse: vi.fn().mockReturnValue(new Promise(() => {})),
       startCompromiseResponse: vi.fn(),
       markItemDone: vi.fn(),
@@ -459,22 +459,19 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     homeScreen: {
       fetchAlertsOverview: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchRegisterSyncStatus: vi.fn().mockReturnValue(new Promise(() => {})),
-    },
-    areaTopBarAlertsCount: AlertsOpenCountLink,
-    areaTopBarUnbilledDeferredSales: UnbilledDeferredSalesPill,
-    unbilledDeferredSalesPill: {
-      fetchUnbilledDeferredSales: vi.fn().mockReturnValue(new Promise(() => {})),
-    },
-    alertsOpenCountLink: {
-      fetchAlertsOverview: vi.fn().mockReturnValue(new Promise(() => {})),
-    },
-    alertsListScreen: {
       fetchAlerts: vi.fn().mockReturnValue(new Promise(() => {})),
       alertDetailModal: {
         fetchAlert: vi.fn().mockReturnValue(new Promise(() => {})),
         fetchPermissionCatalog: vi.fn().mockResolvedValue(permissionCatalogOutcome),
         closeAlert: vi.fn(),
       },
+      fetchFiscalTasks: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchPendingRefunds: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchPrices: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
+    areaTopBarUnbilledDeferredSales: UnbilledDeferredSalesPill,
+    unbilledDeferredSalesPill: {
+      fetchUnbilledDeferredSales: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     quarantinedEventsScreen: {
       fetchQuarantinedEvents: vi.fn().mockReturnValue(new Promise(() => {})),

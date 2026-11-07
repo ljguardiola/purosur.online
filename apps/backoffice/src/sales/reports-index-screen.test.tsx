@@ -4,17 +4,11 @@ import { expect, test } from "vitest";
 import { render } from "../shell/test-support/render-with-router";
 import { ReportsIndexScreen } from "./reports-index-screen";
 
-async function renderScreen({
-  returnsShown = false,
-  aiCostShown = false,
-}: {
-  returnsShown?: boolean;
-  aiCostShown?: boolean;
-} = {}) {
+async function renderScreen({ aiCostShown = false }: { aiCostShown?: boolean } = {}) {
   return render(
     <FieldSizeProvider size="backoffice">
       <main>
-        <ReportsIndexScreen returnsShown={returnsShown} aiCostShown={aiCostShown} />
+        <ReportsIndexScreen aiCostShown={aiCostShown} />
       </main>
     </FieldSizeProvider>,
   );
@@ -118,19 +112,12 @@ test("groups the cash reports in a card titled Caja", async () => {
   expect(cash.getByRole("link").elements()).toHaveLength(3);
 });
 
-test("lists the returns report as a link to it in the Caja card when it is shown", async () => {
-  const screen = await renderScreen({ returnsShown: true });
-
-  const cash = screen.getByRole("region", { name: "Caja" });
-  expect(cash.getByRole("link").elements()).toHaveLength(4);
-  await expect
-    .element(cash.getByRole("link", { name: "Anulaciones y devoluciones" }))
-    .toHaveAttribute("href", "/reports/returns");
-});
-
-test("leaves the returns report out when it is not shown", async () => {
+test("lists only its own reports in the Caja card, without the returns report", async () => {
   const screen = await renderScreen();
 
+  const cash = screen.getByRole("region", { name: "Caja" });
+  await expect.element(cash).toBeVisible();
+  expect(cash.getByRole("link").elements()).toHaveLength(3);
   expect(screen.getByRole("link", { name: "Anulaciones y devoluciones" }).query()).toBeNull();
 });
 

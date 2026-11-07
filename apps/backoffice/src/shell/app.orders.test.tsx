@@ -18,14 +18,12 @@ import {
 } from "../purchasing/test-support/supplier-price-lists";
 import { openSession } from "../sessions/test-support/open-session";
 import { App } from "./app";
-import { emptyHelp, resetPageState, threeOpenAlerts } from "./test-support/app";
+import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
 opensOnlyScreens([
   "/",
-  "/account",
-  "/alerts",
   "/help",
   "/price-comparison",
   "/order-suggestion",
@@ -49,7 +47,10 @@ function ordersServices(capabilities: Capability[]) {
       }),
     ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   vi.mocked(services.supplierPriceListsScreen.fetchSupplierPriceLists).mockResolvedValue({
     kind: "ok",
     value: [READ_LIST],
@@ -116,9 +117,7 @@ test.each(["/supplier-price-lists", `/supplier-price-lists/${READ_LIST.id}`])(
 
     const screen = await render(<App help={emptyHelp} services={services} />);
 
-    await expect
-      .element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 }))
-      .toBeVisible();
+    await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
   },
 );
 
@@ -140,10 +139,9 @@ test("opens a list's review from the list", async () => {
   );
 });
 
-test("counts the open alerts in the list's top bar and opens the alerts list from it", async () => {
+test("shows no open alerts count in the list's top bar", async () => {
   const services = ordersServices([]);
   vi.mocked(services.fetchSession).mockResolvedValue(openSession());
-  vi.mocked(services.alertsOpenCountLink.fetchAlertsOverview).mockResolvedValue(threeOpenAlerts);
   window.history.pushState(null, "", "/supplier-price-lists");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -151,9 +149,8 @@ test("counts the open alerts in the list's top bar and opens the alerts list fro
   await expect
     .element(screen.getByRole("heading", { name: "Listas de proveedores", level: 1 }))
     .toBeVisible();
-  await userEvent.click(screen.getByRole("link", { name: "3 alertas abiertas" }));
-
-  expect(window.location.pathname).toBe("/alerts");
+  expect(services.homeScreen.fetchAlertsOverview).not.toHaveBeenCalled();
+  expect(screen.getByText(/alertas? abiertas?/).query()).toBeNull();
 });
 
 test("lists the price comparison beside the supplier price lists for whoever compares prices", async () => {
@@ -209,7 +206,7 @@ test("sends a user who may not compare prices to Mi cuenta", async () => {
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
 });
 
 test("hides the order suggestion from whoever may only manage the lists", async () => {
@@ -247,7 +244,7 @@ test("sends a user who may not compare prices away from the order suggestion to 
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
 });
 
 test("lists the purchase orders beside the other sections for whoever manages them", async () => {
@@ -325,7 +322,7 @@ test("sends a user who may not read purchase orders away from them to Mi cuenta"
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
 });
 
 test("sends a user who may not read purchase orders away from an order to Mi cuenta", async () => {
@@ -334,7 +331,7 @@ test("sends a user who may not read purchase orders away from an order to Mi cue
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
   expect(services.purchaseOrderScreen.fetchPurchaseOrder).not.toHaveBeenCalled();
 });
 
@@ -346,9 +343,7 @@ test.each(["/purchase-orders", `/purchase-orders/${ORDER_ID}`])(
 
     const screen = await render(<App help={emptyHelp} services={services} />);
 
-    await expect
-      .element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 }))
-      .toBeVisible();
+    await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
     expect(services.purchaseOrdersScreen.fetchPurchaseOrders).not.toHaveBeenCalled();
     expect(services.purchaseOrderScreen.fetchPurchaseOrder).not.toHaveBeenCalled();
   },
@@ -454,7 +449,7 @@ test("sends a user who may not receive orders away from the receipt to Mi cuenta
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
   expect(services.purchaseOrderReceiveScreen.fetchPurchaseOrderReceiptDraft).not.toHaveBeenCalled();
 });
 

@@ -104,7 +104,9 @@ test("navigates to Mi cuenta when the cloud refuses the action", async () => {
 
   await userEvent.click(dialog.getByRole("button", { name: "Cerrar todas las sesiones" }));
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
   expect(onSessionEnded).not.toHaveBeenCalled();
 });
 

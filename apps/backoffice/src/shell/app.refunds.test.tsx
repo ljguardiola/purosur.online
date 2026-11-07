@@ -3,27 +3,21 @@ import type { Capability } from "@purosur/domain";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import {
-  pendingRefundsOfBothKinds,
-  pendingRefundsWithLatePayment,
-  pendingRefundsWithLatePointPayment,
-} from "../payments/test-support/refund-fixtures";
+import { pendingRefundsOfBothKinds } from "../payments/test-support/refund-fixtures";
+import { returnsReport } from "../returns/test-support/returns-fixtures";
 import { openSession } from "../sessions/test-support/open-session";
 import { App, type AppServices } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
+import { registers } from "./test-support/report-fixtures";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
-opensOnlyScreens([
-  "/",
-  "/account",
-  "/help",
-  "/refunds/mercado-pago",
-  "/refunds/outside-the-system",
-  "/points-of-sale",
-]);
+opensOnlyScreens(["/", "/help", "/refunds", "/refunds/history", "/points-of-sale"]);
 
 beforeEach(resetPageState);
+
+const FRONT_REGISTER_ID = "33333333-3333-4333-8333-333333333333";
+const BACK_REGISTER_ID = "22222222-2222-4222-8222-222222222222";
 
 function refundsServices(capabilities: Capability[]) {
   const services = createAppServices({
@@ -36,184 +30,308 @@ function refundsServices(capabilities: Capability[]) {
       }),
     ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
-  answerPendingRefunds(services, pendingRefundsWithLatePayment);
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
+  answerPendingRefunds(services, pendingRefundsOfBothKinds);
+  vi.mocked(services.reportRegisterFilter.fetchReportRegisters).mockResolvedValue({
+    kind: "ok",
+    value: registers,
+  });
+  vi.mocked(services.returnsHistoryScreen.fetchReturnsReport).mockResolvedValue({
+    kind: "ok",
+    value: returnsReport,
+  });
   return services;
 }
 
 function answerPendingRefunds(services: AppServices, refunds: PendingRefundsBody) {
-  for (const screenServices of [services.mercadoPagoRefundsScreen, services.outsideRefundsScreen]) {
-    vi.mocked(screenServices.fetchPendingRefunds).mockResolvedValue({ kind: "ok", value: refunds });
-  }
+  vi.mocked(services.pendingRefundsScreen.fetchPendingRefunds).mockResolvedValue({
+    kind: "ok",
+    value: refunds,
+  });
 }
 
-test("opens the Mercado Pago refunds from the rail's Caja item for a user who only confirms refunds", async () => {
-  const services = refundsServices(["refunds_area"]);
+function location() {
+  return window.location.pathname + window.location.search;
+}
+
+test("opens the page on Pendientes from the rail's Ventas y caja item, with both tabs, for a person who sees both", async () => {
+  const services = refundsServices(["refunds_area", "returns_report"]);
   window.history.pushState(null, "", "/help");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await userEvent.click(screen.getByRole("link", { name: "Caja" }));
+  await userEvent.click(screen.getByRole("link", { name: "Ventas y caja", exact: true }));
 
   await expect
-    .element(screen.getByRole("heading", { name: "Reembolsos de Mercado Pago", level: 1 }))
+    .element(screen.getByRole("heading", { name: "Devoluciones y reembolsos", level: 1 }))
     .toBeVisible();
-  expect(window.location.pathname).toBe("/refunds/mercado-pago");
-  await expect.element(screen.getByText("$ 1.250,00", { exact: true })).toBeVisible();
-  expect(document.title).toBe("Reembolsos de Mercado Pago · Puro Sur");
-  const sections = screen.getByRole("navigation", { name: "Caja y fiscal" });
-  await expect.element(sections.getByText("TAREAS", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText("Ventas y caja", { exact: true }).first()).toBeVisible();
   await expect
-    .element(sections.getByRole("link", { name: "Reembolsos de MP" }))
+    .element(screen.getByRole("tab", { name: "Pendientes", selected: true }))
+    .toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Historial" })).toBeVisible();
+  expect(location()).toBe("/refunds");
+  await expect.element(screen.getByText("$ 3.400,00", { exact: true })).toBeVisible();
+  expect(document.title).toBe("Devoluciones y reembolsos · Puro Sur");
+  const sections = screen.getByRole("navigation", { name: "Ventas y caja" });
+  await expect
+    .element(sections.getByRole("link", { name: "Devoluciones y reembolsos" }))
     .toHaveAttribute("aria-current", "page");
-  await expect.element(sections.getByRole("link", { name: "Reembolsos sin API" })).toBeVisible();
-  expect(sections.getByRole("link", { name: "Puntos de venta" }).query()).toBeNull();
-  expect(sections.getByRole("link", { name: "Configuración fiscal" }).query()).toBeNull();
 });
 
-test("opens the refunds without an API from the section list for a user who only confirms refunds", async () => {
-  const services = refundsServices(["refunds_area"]);
-  window.history.pushState(null, "", "/refunds/mercado-pago");
+test("lists Ventas y caja right after Inicio in the rail", async () => {
+  const services = refundsServices(["refunds_area", "stock_area"]);
+  window.history.pushState(null, "", "/help");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
-  const sections = screen.getByRole("navigation", { name: "Caja y fiscal" });
-  await userEvent.click(sections.getByRole("link", { name: "Reembolsos sin API" }));
 
+  const rail = screen.getByRole("navigation", { name: "Áreas" });
   await expect
-    .element(screen.getByRole("heading", { name: "Reembolsos sin API", level: 1 }))
+    .element(rail.getByRole("link", { name: "Ventas y caja", exact: true }))
     .toBeVisible();
-  expect(window.location.pathname).toBe("/refunds/outside-the-system");
+  const labels = rail
+    .getByRole("link")
+    .all()
+    .map((link) => link.element().textContent?.trim());
+  expect(labels.indexOf("Ventas y caja")).toBe(labels.indexOf("Inicio") + 1);
+});
+
+test("following the Historial tab opens the returns history, and Pendientes comes back", async () => {
+  const services = refundsServices(["refunds_area", "returns_report"]);
+  window.history.pushState(null, "", "/refunds?channel=without-api");
+  const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByText("$ 2.500,00", { exact: true })).toBeVisible();
-  expect(document.title).toBe("Reembolsos sin API · Puro Sur");
-  await expect
-    .element(sections.getByRole("link", { name: "Reembolsos sin API" }))
-    .toHaveAttribute("aria-current", "page");
-});
 
-test("keeps opening the points of sale from the Caja item, without offering the refunds, to a user who cannot confirm them", async () => {
-  const services = refundsServices(["cash_area"]);
-  window.history.pushState(null, "", "/help");
-
-  const screen = await render(<App help={emptyHelp} services={services} />);
-  await userEvent.click(screen.getByRole("link", { name: "Caja" }));
+  await userEvent.click(screen.getByRole("tab", { name: "Historial" }));
 
   await expect
-    .element(screen.getByRole("heading", { name: "Puntos de venta", level: 1 }))
+    .element(screen.getByRole("tab", { name: "Historial", selected: true }))
     .toBeVisible();
-  const sections = screen.getByRole("navigation", { name: "Caja y fiscal" });
-  await expect.element(sections.getByRole("link", { name: "Puntos de venta" })).toBeVisible();
-  expect(sections.getByRole("link", { name: "Reembolsos de MP" }).query()).toBeNull();
-  expect(sections.getByRole("link", { name: "Reembolsos sin API" }).query()).toBeNull();
+  await expect
+    .element(
+      screen
+        .getByRole("table", { name: "Devoluciones iniciadas con el número tipeado" })
+        .getByText("Beto"),
+    )
+    .toBeVisible();
+  expect(location()).toBe("/refunds/history");
+  expect(services.returnsHistoryScreen.fetchReturnsReport).toHaveBeenCalledWith({});
+
+  await userEvent.click(screen.getByRole("tab", { name: "Pendientes" }));
+
+  await expect
+    .element(screen.getByRole("tab", { name: "Pendientes", selected: true }))
+    .toBeVisible();
+  expect(location()).toBe("/refunds");
 });
 
-test("offers every section of Caja to a user who holds both capabilities", async () => {
-  const services = refundsServices(["cash_area", "refunds_area"]);
-  window.history.pushState(null, "", "/points-of-sale");
+test("keeps the returns history's filters in the address", async () => {
+  const services = refundsServices(["returns_report"]);
+  window.history.pushState(null, "", "/refunds/history");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect
+    .element(
+      screen
+        .getByRole("table", { name: "Devoluciones iniciadas con el número tipeado" })
+        .getByText("Beto"),
+    )
+    .toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: /Caja:/ }));
+  await userEvent.click(screen.getByRole("option", { name: "Caja principal" }));
+
+  await expect
+    .poll(() => window.location.search)
+    .toBe("?register=11111111-1111-4111-8111-111111111111");
+});
+
+test("shows only Historial to a person with returns_report alone, and sends /refunds to it", async () => {
+  const services = refundsServices(["returns_report"]);
+  window.history.pushState(null, "", "/refunds");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  const sections = screen.getByRole("navigation", { name: "Caja y fiscal" });
-  await expect.element(sections.getByRole("link", { name: "Puntos de venta" })).toBeVisible();
-  await expect.element(sections.getByRole("link", { name: "Configuración fiscal" })).toBeVisible();
-  await expect.element(sections.getByRole("link", { name: "Reembolsos de MP" })).toBeVisible();
-  await expect.element(sections.getByRole("link", { name: "Reembolsos sin API" })).toBeVisible();
+  await expect
+    .element(screen.getByRole("tab", { name: "Historial", selected: true }))
+    .toBeVisible();
+  expect(screen.getByRole("tab", { name: "Pendientes" }).query()).toBeNull();
+  expect(location()).toBe("/refunds/history");
+  expect(services.pendingRefundsScreen.fetchPendingRefunds).not.toHaveBeenCalled();
 });
 
-test("hides the Caja item for a user with neither capability", async () => {
+test("shows only Pendientes to a person with refunds_area alone, and sends /refunds/history to it", async () => {
+  const services = refundsServices(["refunds_area"]);
+  window.history.pushState(null, "", "/refunds/history");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect
+    .element(screen.getByRole("tab", { name: "Pendientes", selected: true }))
+    .toBeVisible();
+  expect(screen.getByRole("tab", { name: "Historial" }).query()).toBeNull();
+  expect(location()).toBe("/refunds");
+  expect(services.returnsHistoryScreen.fetchReturnsReport).not.toHaveBeenCalled();
+});
+
+test.each(["/refunds", "/refunds/history"])(
+  "sends a person with neither capability who opens %s to the own account panel",
+  async (path) => {
+    const services = refundsServices(["fiscal_configuration_area"]);
+    window.history.pushState(null, "", path);
+
+    const screen = await render(<App help={emptyHelp} services={services} />);
+
+    await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
+    expect(services.pendingRefundsScreen.fetchPendingRefunds).not.toHaveBeenCalled();
+    expect(services.returnsHistoryScreen.fetchReturnsReport).not.toHaveBeenCalled();
+  },
+);
+
+test("hides the Ventas y caja item from a person with neither capability", async () => {
   const services = refundsServices(["stock_area"]);
   window.history.pushState(null, "", "/help");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
-  expect(screen.getByRole("link", { name: "Caja" }).query()).toBeNull();
+  expect(screen.getByRole("link", { name: "Ventas y caja", exact: true }).query()).toBeNull();
 });
 
-test.each(["/refunds/mercado-pago", "/refunds/outside-the-system"])(
-  "sends a user who cannot confirm refunds and opens %s to Mi cuenta",
-  async (path) => {
-    const services = refundsServices(["cash_area"]);
-    window.history.pushState(null, "", path);
+test("takes a person with returns_report alone to the returns history from the rail", async () => {
+  const services = refundsServices(["returns_report"]);
+  window.history.pushState(null, "", "/help");
 
-    const screen = await render(<App help={emptyHelp} services={services} />);
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await userEvent.click(screen.getByRole("link", { name: "Ventas y caja", exact: true }));
 
-    await expect
-      .element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 }))
-      .toBeVisible();
-    expect(services.mercadoPagoRefundsScreen.fetchPendingRefunds).not.toHaveBeenCalled();
-    expect(services.outsideRefundsScreen.fetchPendingRefunds).not.toHaveBeenCalled();
-  },
-);
+  await expect
+    .element(screen.getByRole("tab", { name: "Historial", selected: true }))
+    .toBeVisible();
+  expect(location()).toBe("/refunds/history");
+});
 
-test("sends a user who only confirms refunds and opens the points of sale to Mi cuenta", async () => {
+test("does not offer Caja y fiscal in the rail to a person with refunds_area alone", async () => {
+  const services = refundsServices(["refunds_area"]);
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect
+    .element(screen.getByRole("link", { name: "Ventas y caja", exact: true }))
+    .toBeVisible();
+  expect(screen.getByRole("link", { name: "Caja y fiscal", exact: true }).query()).toBeNull();
+});
+
+test("keeps the refund links out of Caja y fiscal for a person who also sees fiscal screens", async () => {
+  const services = refundsServices(["fiscal_configuration_area", "refunds_area"]);
+  window.history.pushState(null, "", "/points-of-sale");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  const sections = screen.getByRole("navigation", { name: "Caja y fiscal" });
+  await expect.element(sections.getByRole("link", { name: "Puntos de venta" })).toBeVisible();
+  expect(sections.getByRole("link", { name: "Reembolsos de MP" }).query()).toBeNull();
+  expect(sections.getByRole("link", { name: "Reembolsos sin API" }).query()).toBeNull();
+  await expect
+    .element(screen.getByRole("link", { name: "Ventas y caja", exact: true }))
+    .toBeVisible();
+});
+
+test("sends a person with refunds_area alone who opens the points of sale to the own account panel", async () => {
   const services = refundsServices(["refunds_area"]);
   window.history.pushState(null, "", "/points-of-sale");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
 });
 
-test.each([
-  {
-    path: "/refunds/mercado-pago",
-    chosen: "Caja del frente",
-    hidden: "$ 3.400,00",
-    shown: "$ 1.250,00",
-    register: "33333333-3333-4333-8333-333333333333",
-  },
-  {
-    path: "/refunds/outside-the-system",
-    chosen: "Caja del fondo",
-    hidden: "$ 2.500,00",
-    shown: "$ 980,00",
-    register: "22222222-2222-4222-8222-222222222222",
-  },
-])(
-  "keeps the register chosen in the address of $path",
-  async ({ path, chosen, hidden, shown, register }) => {
+test("redirects /refunds/mercado-pago to /refunds with the channel Mercado Pago and the register kept", async () => {
+  const services = refundsServices(["refunds_area"]);
+  window.history.pushState(null, "", `/refunds/mercado-pago?register=${FRONT_REGISTER_ID}`);
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByText("$ 1.250,00", { exact: true })).toBeVisible();
+  expect(screen.getByText("$ 2.500,00", { exact: true }).query()).toBeNull();
+  expect(location()).toBe(`/refunds?channel=mercado-pago&register=${FRONT_REGISTER_ID}`);
+});
+
+test("redirects /refunds/outside-the-system to /refunds with the channel Sin API, the register and the method kept", async () => {
+  const services = refundsServices(["refunds_area"]);
+  window.history.pushState(
+    null,
+    "",
+    `/refunds/outside-the-system?register=${BACK_REGISTER_ID}&method=TRANSFER`,
+  );
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByText("$ 980,00", { exact: true })).toBeVisible();
+  expect(screen.getByText("$ 2.500,00", { exact: true }).query()).toBeNull();
+  expect(location()).toBe(
+    `/refunds?channel=without-api&method=TRANSFER&register=${BACK_REGISTER_ID}`,
+  );
+});
+
+test("redirects /reports/returns to /refunds/history keeping the period and the register", async () => {
+  const services = refundsServices(["returns_report"]);
+  window.history.pushState(
+    null,
+    "",
+    "/reports/returns?from=2026-10-01&to=2026-10-07&register=11111111-1111-4111-8111-111111111111",
+  );
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect
+    .element(screen.getByRole("tab", { name: "Historial", selected: true }))
+    .toBeVisible();
+  expect(location()).toBe(
+    "/refunds/history?from=2026-10-01&register=11111111-1111-4111-8111-111111111111&to=2026-10-07",
+  );
+});
+
+test.each(["/refunds?channel=all", "/refunds?channel=unknown"])(
+  "writes %s without the channel, which lists both channels",
+  async (url) => {
     const services = refundsServices(["refunds_area"]);
-    answerPendingRefunds(services, pendingRefundsOfBothKinds);
-    window.history.pushState(null, "", path);
+    window.history.pushState(null, "", url);
 
     const screen = await render(<App help={emptyHelp} services={services} />);
-    await expect.element(screen.getByText(hidden, { exact: true })).toBeVisible();
-    await screen.getByRole("button", { name: /Caja/ }).click();
-    await userEvent.click(screen.getByRole("option", { name: chosen }));
 
-    await expect.poll(() => window.location.search).toBe(`?register=${register}`);
-    await expect.poll(() => screen.getByText(hidden, { exact: true }).query()).toBeNull();
-    await expect.element(screen.getByText(shown, { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("$ 3.400,00", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("$ 2.500,00", { exact: true })).toBeVisible();
+    await expect.poll(location).toBe("/refunds");
   },
 );
 
-test.each([
-  { path: "/refunds/mercado-pago", hidden: "$ 3.400,00", shown: "$ 1.250,00" },
-  { path: "/refunds/outside-the-system", hidden: "$ 2.500,00", shown: "$ 980,00" },
-])("opens $path on the register the address carries", async ({ path, hidden, shown }) => {
+test("keeps the channel chosen in the address", async () => {
   const services = refundsServices(["refunds_area"]);
-  answerPendingRefunds(services, pendingRefundsOfBothKinds);
-  const register = path.endsWith("mercado-pago")
-    ? "33333333-3333-4333-8333-333333333333"
-    : "22222222-2222-4222-8222-222222222222";
-  window.history.pushState(null, "", `${path}?register=${register}`);
-
+  window.history.pushState(null, "", "/refunds");
   const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByText("$ 3.400,00", { exact: true })).toBeVisible();
 
-  await expect.element(screen.getByText(shown, { exact: true })).toBeVisible();
-  expect(screen.getByText(hidden, { exact: true }).query()).toBeNull();
+  await screen.getByRole("button", { name: /^Canal/ }).click();
+  await userEvent.click(screen.getByRole("option", { name: "Sin API" }));
+
+  await expect.poll(location).toBe("/refunds?channel=without-api");
+  await expect.poll(() => screen.getByText("$ 3.400,00", { exact: true }).query()).toBeNull();
+  await expect.element(screen.getByText("$ 2.500,00", { exact: true })).toBeVisible();
 });
 
-test("keeps the method chosen in the address of the refunds without an API", async () => {
+test("keeps the register chosen in the address", async () => {
   const services = refundsServices(["refunds_area"]);
-  answerPendingRefunds(services, pendingRefundsWithLatePointPayment);
-  window.history.pushState(null, "", "/refunds/outside-the-system");
-
+  window.history.pushState(null, "", "/refunds");
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await expect.element(screen.getByText("$ 2.500,00", { exact: true })).toBeVisible();
-  await screen.getByRole("button", { name: /Medio/ }).click();
-  await userEvent.click(screen.getByRole("option", { name: "Point integrada" }));
+  await expect.element(screen.getByText("$ 3.400,00", { exact: true })).toBeVisible();
 
-  await expect.poll(() => window.location.search).toBe("?method=POINT");
-  await expect.poll(() => screen.getByText("$ 2.500,00", { exact: true }).query()).toBeNull();
-  await expect.element(screen.getByText("$ 760,00", { exact: true })).toBeVisible();
+  await screen.getByRole("combobox", { name: /^Caja/ }).click();
+  await userEvent.click(screen.getByRole("option", { name: "Caja del frente" }));
+
+  await expect.poll(() => window.location.search).toBe(`?register=${FRONT_REGISTER_ID}`);
+  await expect.poll(() => screen.getByText("$ 3.400,00", { exact: true }).query()).toBeNull();
+  await expect.element(screen.getByText("$ 1.250,00", { exact: true })).toBeVisible();
 });

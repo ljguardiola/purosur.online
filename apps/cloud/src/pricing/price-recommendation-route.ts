@@ -2,6 +2,7 @@ import { priceRecommendationQuerySchema, priceRecommendationSchema } from "@puro
 import { readPriceRecommendation } from "@purosur/domain/pricing/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
+import { DrizzleActiveProductReader } from "../catalog/drizzle-active-product-reader.js";
 import { readRecordIds } from "../platform/record-id-params.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { sameOriginGuard } from "../sessions/backoffice-origin.js";
@@ -12,7 +13,6 @@ import {
   routeSessionSource,
 } from "../sessions/route-access.js";
 import { DrizzleAssemblyBatchCostReader } from "../stock/drizzle-assembly-batch-cost-reader.js";
-import { DrizzleActiveProductReader } from "./drizzle-active-product-reader.js";
 import { DrizzleCurrentPriceReader } from "./drizzle-current-price-reader.js";
 import type { PricesRouteOptions } from "./prices-list-route.js";
 

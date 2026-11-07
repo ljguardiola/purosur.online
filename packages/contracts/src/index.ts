@@ -101,6 +101,8 @@ export {
 } from "./catalog/internal-barcode.js";
 export type { LabelSheetBody } from "./catalog/label-sheet.js";
 export { labelSheetBodySchema } from "./catalog/label-sheet.js";
+export type { PrinterLabels } from "./catalog/printer-labels.js";
+export { printerLabelsSchema } from "./catalog/printer-labels.js";
 export type { ProductCreationBody } from "./catalog/product-creation.js";
 export { netContentQuantitySchema, productCreationBodySchema } from "./catalog/product-creation.js";
 export type { ProductEditBody } from "./catalog/product-edit.js";
@@ -550,8 +552,14 @@ export type { SupplierEditBody } from "./purchasing/supplier-edit.js";
 export { supplierEditBodySchema } from "./purchasing/supplier-edit.js";
 export type { SupplierItemLinkChoices } from "./purchasing/supplier-item-link-choices.js";
 export { supplierItemLinkChoicesSchema } from "./purchasing/supplier-item-link-choices.js";
-export type { SupplierItemLinkProposal } from "./purchasing/supplier-item-link-proposal.js";
-export { supplierItemLinkProposalSchema } from "./purchasing/supplier-item-link-proposal.js";
+export type {
+  SupplierItemLinkProposal,
+  SupplierItemLinkProposalBody,
+} from "./purchasing/supplier-item-link-proposal.js";
+export {
+  supplierItemLinkProposalBodySchema,
+  supplierItemLinkProposalSchema,
+} from "./purchasing/supplier-item-link-proposal.js";
 export type {
   SupplierItemQuantityProposal,
   SupplierItemQuantityProposalBody,

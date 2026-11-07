@@ -1,6 +1,5 @@
 import axe from "axe-core";
 import { Trash2 } from "lucide-react";
-import { useId } from "react";
 import { expect, expectTypeOf, test, vi } from "vitest";
 import { cdp, page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -150,20 +149,8 @@ test("does not accept an icon button without an accessible name", () => {
   expectTypeOf<{ icon: Icon }>().not.toExtend<IconButtonProps>();
 });
 
-function IconButtonWithExternalLabel({ icon }: { icon: Icon }) {
-  const labelId = useId();
-  return (
-    <>
-      <span id={labelId}>Delete row</span>
-      <IconButton aria-labelledby={labelId} icon={icon} />
-    </>
-  );
-}
-
-test("takes its accessible name from a visible label referenced with aria-labelledby", async () => {
-  const screen = await render(<IconButtonWithExternalLabel icon={<Trash2 />} />);
-
-  await expect.element(screen.getByRole("button", { name: "Delete row" })).toBeVisible();
+test("does not accept an icon button named only by a reference to another element", () => {
+  expectTypeOf<{ "aria-labelledby": string; icon: Icon }>().not.toExtend<IconButtonProps>();
 });
 
 test("an empty aria-label from a variable leaves the button nameless, and the accessibility check catches it", async () => {
@@ -229,7 +216,7 @@ test("keeps the subtle look's glyph distinguishable from the grey surface it sit
     </div>,
   );
   const button = screen.getByRole("button", { name: "Remove code" }).element() as HTMLElement;
-  const surface = button.parentElement as HTMLElement;
+  const surface = button.closest("div") as HTMLElement;
   const icon = button.querySelector("svg") as SVGSVGElement;
 
   const ratio = contrastRatio(
@@ -353,4 +340,29 @@ test("takes the reason it is disabled instead of being told it is disabled", () 
     disabled: boolean;
     disabledReason: string;
   }>().not.toExtend<IconButtonProps>();
+});
+
+async function renderNamed(props: Partial<IconButtonProps> = {}) {
+  await page.viewport(1280, 900);
+  await cdp().send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 0, y: 0 });
+  window.focus();
+  const screen = await render(<IconButton aria-label="Remove row" icon={<Trash2 />} {...props} />);
+  return { screen, button: screen.getByRole("button", { name: "Remove row" }) };
+}
+
+test("shows its accessible name as a tooltip when hovered", async () => {
+  const { screen, button } = await renderNamed();
+
+  await userEvent.hover(button);
+
+  await expect.element(screen.getByRole("tooltip")).toHaveTextContent("Remove row");
+});
+
+test("shows its accessible name as a tooltip when hovered while disabled without a reason", async () => {
+  const { screen, button } = await renderNamed({ disabled: true });
+
+  await userEvent.hover(button);
+
+  await expect.element(screen.getByRole("tooltip")).toHaveTextContent("Remove row");
+  await expect.element(button).toBeDisabled();
 });

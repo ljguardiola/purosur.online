@@ -57,6 +57,7 @@ import {
   settleInterruptedAuthorizations,
 } from "./fiscal/real-time-authorization-wiring";
 import { readFiscalEmissionModeIn } from "./fiscal/sqlite-fiscal-emission-mode";
+import { readFiscalOnlineEvidence } from "./fiscal/sqlite-fiscal-online-evidence";
 import { readLatestPreEmissionGateOutcome } from "./fiscal/sqlite-pre-emission-gate";
 import { readLatestClockOffsetMs } from "./fiscal/sqlite-register-health-checks";
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
@@ -194,6 +195,7 @@ import {
   weighProductFor,
 } from "./sales/sale-requests";
 import { saleHistoryDetailFor, salesHistoryFor } from "./sales/sales-history-requests";
+import { steadyScale } from "./sales/scale/steady-scale";
 import { createSystelScale } from "./sales/scale/systel-scale";
 import { openSerialLink } from "./sales/serial-link/open-serial-link";
 import { anySaleIsOpen } from "./sales/sqlite-open-sale-presence";
@@ -497,10 +499,13 @@ await takingStartupStep(reportStartupStep, "check_free_disk_space", () =>
   storageWatch?.checkAtStartup(),
 )();
 
-const systelScale = createSystelScale({
-  path: () => serialDeviceWatch && pathOfMatchingDevice(serialDeviceWatch.reading(), "scale"),
-  openLink: openSerialLink,
-});
+const systelScale = steadyScale(
+  createSystelScale({
+    path: () => serialDeviceWatch && pathOfMatchingDevice(serialDeviceWatch.reading(), "scale"),
+    openLink: openSerialLink,
+  }),
+  { now },
+);
 
 const barcodeReaderWiring = createBarcodeReaderWiring({
   watch: serialDeviceWatch,
@@ -799,7 +804,10 @@ const contingencyBackupTickets =
         readContingencyTicketKey: async () =>
           (await mainRequests.readCredentials())?.keys?.contingency_ticket_key,
         appVersion: appVersionFromCoreArguments(process.argv),
-        readEmissionMode: () => readFiscalEmissionModeIn(localDatabase, now(), zoneRules),
+        readCloudLink: () => ({
+          lastHealthCheckOkAt: readFiscalOnlineEvidence(localDatabase).lastHealthCheckOkAt,
+          at: now(),
+        }),
         printers: savedReceiptPrinters(new SqliteReceiptPrinterSettings(localDatabase), undefined),
         scheduleNext: (run, delayMs) => {
           const timer = setTimeout(run, delayMs);

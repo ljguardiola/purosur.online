@@ -9,6 +9,7 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
+import { ownEntry } from "../platform/own-entry";
 import { formatStockQuantity, quantityFieldKind } from "../platform/stock-quantity";
 import { type AssemblyBatchProposal, usedText } from "./assembly-batch-form";
 
@@ -65,7 +66,7 @@ function UsedTable({
       align: "end",
       width: 190,
       render: (component: RecipeComponent) => {
-        const refusal = refusals[component.componentProductId];
+        const refusal = ownEntry(refusals, component.componentProductId);
         const shown =
           refusal !== undefined
             ? { errorMessage: refusal }

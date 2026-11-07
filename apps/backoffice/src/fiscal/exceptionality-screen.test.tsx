@@ -525,7 +525,9 @@ test("navigates to Mi cuenta when the year comes back forbidden", async () => {
 
   await renderScreen(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("ends the session when the fiscal addresses find no open session", async () => {

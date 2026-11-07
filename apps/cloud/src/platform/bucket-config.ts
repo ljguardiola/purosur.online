@@ -24,11 +24,11 @@ export function resolveBucketConfig<TPrefix extends string>(
   env: BucketEnv<TPrefix>,
   prefix: TPrefix,
 ): BucketConfig | undefined {
-  const variables = BUCKET_VARIABLE_FIELDS.map(([suffix, field]) => ({
-    name: `${prefix}_BUCKET_${suffix}`,
-    field,
-    value: (env as Record<string, string | undefined>)[`${prefix}_BUCKET_${suffix}`],
-  }));
+  const held: Record<string, string | undefined> = env;
+  const variables = BUCKET_VARIABLE_FIELDS.map(([suffix, field]) => {
+    const name = `${prefix}_BUCKET_${suffix}`;
+    return { name, field, value: Object.hasOwn(held, name) ? held[name] : undefined };
+  });
   const firstPresent = variables.find((variable) => variable.value);
   if (!firstPresent) {
     return undefined;

@@ -11,6 +11,7 @@ import {
   Select as AriaSelect,
   SelectValue as AriaSelectValue,
 } from "react-aria-components";
+import { IconOnlyButton } from "../shared/icon-only-button";
 import { fieldTriggerHoverClassName } from "./field-styles";
 import { isOptionValue, type NarrowedOption, type OptionChoiceProps } from "./option";
 import { NoResults, SelectCaret, useTypeToNarrow } from "./type-to-narrow";
@@ -68,9 +69,13 @@ function SearchableListFilter<V extends string>({
           >
             <AriaLabel className="shrink truncate text-detail text-text-subtle">{label}</AriaLabel>{" "}
             <AriaInput className="min-w-7 shrink-9999 field-sizing-content truncate bg-transparent text-right text-body font-bold text-text outline-none" />
-            <AriaButton excludeFromTabOrder className="flex shrink-0 cursor-pointer outline-none">
+            <IconOnlyButton
+              name={`Mostrar opciones de ${label}`}
+              excludeFromTabOrder
+              className="flex shrink-0 cursor-pointer outline-none"
+            >
               <SelectCaret className="size-icon-sm text-text-subtle" />
-            </AriaButton>
+            </IconOnlyButton>
           </div>
           <AriaPopover triggerRef={boxRef} offset={4} className={popoverClassName}>
             <AriaListBox className="flex flex-col gap-1" renderEmptyState={() => <NoResults />}>

@@ -11,12 +11,13 @@ import {
   chooseBuyNPayM,
   chooseProduct,
   chooseTarget,
-  dateSegments,
   fillNewDiscountExceptTarget,
   fillQuantities,
   fillValidNewDiscount,
   productPicker,
-  typeDate,
+  typeValidityEnd,
+  typeValidityStart,
+  validitySegments,
 } from "./test-support/discount-modal";
 import {
   almondsProduct,
@@ -96,8 +97,9 @@ test("shows the header, the percentage kind chosen and every field of a new prom
   await expect.element(productPicker(dialog)).toBeVisible();
   await expect.element(dialog.getByRole("textbox", { name: /^Descuento/ })).toBeVisible();
   await expect.element(dialog.getByText("%", { exact: true })).toBeVisible();
-  await expect.element(dialog.getByRole("group", { name: /^Desde/ })).toBeVisible();
-  await expect.element(dialog.getByRole("group", { name: /^Hasta/ })).toBeVisible();
+  await expect.element(dialog.getByRole("group", { name: /^Vigencia/ })).toBeVisible();
+  expect(dialog.getByRole("group", { name: /^Desde/ }).query()).toBeNull();
+  expect(dialog.getByRole("group", { name: /^Hasta/ }).query()).toBeNull();
   await expect.element(dialog.getByText("Días de la semana")).toBeVisible();
   await expect
     .element(dialog.getByText("Sin ningún día marcado, vale todos los días."))
@@ -130,8 +132,8 @@ test("creates a promotion with the request the cloud reads and reports the creat
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "  Yerba de septiembre ");
   await chooseProduct(dialog, "Yerba", "Yerba Hoja Alta 1 kg Hoja Alta 1 kg");
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Descuento/ }), "15");
-  await typeDate(dialog, "Desde", "12092026");
-  await typeDate(dialog, "Hasta", "30092026");
+  await typeValidityStart(dialog, "12092026");
+  await typeValidityEnd(dialog, "30092026");
   await userEvent.click(dialog.getByRole("button", { name: "Lun, Lunes" }));
   await userEvent.click(dialog.getByRole("button", { name: "Mié, Miércoles" }));
   await userEvent.click(dialog.getByRole("button", { name: "Crear la promoción" }));
@@ -284,8 +286,7 @@ test("an empty submit shows each field's message and never calls the cloud", asy
   await expect
     .element(dialog.getByText("Ingresá un porcentaje entero entre 1 y 99."))
     .toBeVisible();
-  await expect.element(dialog.getByText("Ingresá la fecha de inicio.")).toBeVisible();
-  await expect.element(dialog.getByText("Ingresá la fecha de fin.")).toBeVisible();
+  await expect.element(dialog.getByText("Ingresá la vigencia.")).toBeVisible();
   expect(services.createDiscount).not.toHaveBeenCalled();
 });
 
@@ -304,17 +305,43 @@ test("asks for a whole percentage between 1 and 99 whatever was typed", async ()
   expect(services.createDiscount).not.toHaveBeenCalled();
 });
 
-test("refuses an end date before the start date, on the end date", async () => {
+test("refuses a validity that ends before it starts, on the single validity field", async () => {
   const services = createServices();
   const { dialog } = await renderModal(services);
   await fillValidNewDiscount(dialog);
-  await typeDate(dialog, "Hasta", "01092026");
+  await typeValidityEnd(dialog, "01092026");
 
   await userEvent.click(dialog.getByRole("button", { name: "Crear la promoción" }));
 
   await expect
     .element(dialog.getByText("La fecha de fin no puede ser anterior a la de inicio."))
     .toBeVisible();
+  expect(services.createDiscount).not.toHaveBeenCalled();
+});
+
+test("says nothing about the validity's order while its end is still being typed", async () => {
+  const services = createServices();
+  const { dialog } = await renderModal(services);
+  await typeValidityStart(dialog, "12092026");
+
+  await typeValidityEnd(dialog, "30092");
+
+  await expect.poll(() => validitySegments(dialog).slice(3)).toEqual(["30", "9", "2"]);
+  expect(
+    dialog.getByText("La fecha de fin no puede ser anterior a la de inicio.").query(),
+  ).toBeNull();
+});
+
+test("asks for the validity on the single field when it is left empty", async () => {
+  const services = createServices();
+  const { dialog } = await renderModal(services);
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Yerba de septiembre");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Descuento/ }), "15");
+  await chooseProduct(dialog, "Yerba", "Yerba Hoja Alta 1 kg Hoja Alta 1 kg");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la promoción" }));
+
+  await expect.element(dialog.getByText("Ingresá la vigencia.")).toBeVisible();
   expect(services.createDiscount).not.toHaveBeenCalled();
 });
 
@@ -400,7 +427,9 @@ test("sends the user to Mi cuenta when the cloud refuses the permission", async 
 
   await userEvent.click(dialog.getByRole("button", { name: "Crear la promoción" }));
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("shows the rate-limited notice with the time to wait", async () => {
@@ -585,7 +614,7 @@ test("switching the kind keeps the name, dates, weekdays and a product sold by t
   await expect
     .element(dialog.getByRole("button", { name: "Lun, Lunes" }))
     .toHaveAttribute("aria-pressed", "true");
-  expect(dateSegments(dialog, "Desde")).toEqual(["12", "9", "2026"]);
+  expect(validitySegments(dialog).slice(0, 3)).toEqual(["12", "9", "2026"]);
 
   await userEvent.click(radioLabel(dialog, "Porcentaje de descuento"));
 

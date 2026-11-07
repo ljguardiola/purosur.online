@@ -424,7 +424,10 @@ describe("reprinting the credit note of a voided sale from its history", () => {
         database
           .prepare<[], { last_device_seq: number }>("SELECT last_device_seq FROM sync_state")
           .get()?.last_device_seq ?? 0,
-      readEmissionMode: () => ({ kind: "offline_code", cause: "no_connectivity" }),
+      readCloudLink: () => ({
+        lastHealthCheckOkAt: null,
+        at: new Date("2026-10-14T15:00:00.000Z"),
+      }),
       record: async ({ operation, subjectId }) => {
         recorded.push({ operation, subjectId, handedCopies: printer.handed.length });
       },

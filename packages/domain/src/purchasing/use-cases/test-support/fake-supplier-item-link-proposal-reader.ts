@@ -78,6 +78,15 @@ export class FakeSupplierItemLinkProposalReader implements SupplierItemLinkPropo
     return this.inScope(scope).map(proposalProduct);
   }
 
+  async product(
+    productId: string,
+    scope: ProductActivityScope,
+  ): Promise<ProposalProduct | undefined> {
+    this.scopesAsked.push(scope);
+    const found = this.inScope(scope).find((product) => product.id === productId);
+    return found && proposalProduct(found);
+  }
+
   private inScope(scope: ProductActivityScope) {
     return this.data.products.filter((product) => isInActivityScope(product.active ?? true, scope));
   }

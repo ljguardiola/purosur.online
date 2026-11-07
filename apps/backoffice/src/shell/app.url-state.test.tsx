@@ -9,13 +9,12 @@ import { opensOnlyScreens } from "./test-support/screen-routes";
 
 opensOnlyScreens([
   "/",
-  "/alerts",
   "/categories",
   "/discounts",
   "/help",
   "/prices",
   "/products",
-  "/users",
+  "/people/users",
 ]);
 
 beforeEach(resetPageState);
@@ -163,22 +162,24 @@ test("reopens the users list on the state its URL carries", async () => {
   const services = createAppServices();
   vi.mocked(services.usersListScreen.fetchUsers).mockResolvedValue({ kind: "ok", value: [] });
   vi.mocked(services.usersListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
-  window.history.pushState(null, "", "/users?state=inactive");
+  window.history.pushState(null, "", "/people/users?state=inactive");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("button", { name: /^Estado: Inactivos/ })).toBeVisible();
 });
 
-test("reopens the alerts list with the filters and page its URL carries", async () => {
+test("reopens the alerts list of Inicio with the filters and page its URL carries", async () => {
   const services = createAppServices();
-  window.history.pushState(null, "", "/alerts?level=critical&status=closed&page=2");
+  window.history.pushState(null, "", "/?level=critical&status=closed&page=2");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Alertas", level: 1 })).toBeVisible();
   await expect
-    .poll(() => services.alertsListScreen.fetchAlerts)
+    .element(screen.getByRole("heading", { name: "Lista de alertas", level: 2 }))
+    .toBeVisible();
+  await expect
+    .poll(() => services.homeScreen.fetchAlerts)
     .toHaveBeenCalledWith({
       level: "critical",
       open: false,
@@ -213,8 +214,6 @@ test.each([
   { url: "/categories?search=alma", link: "Categorías" },
   { url: "/prices?search=yerba", link: "Precios" },
   { url: "/discounts?search=yerba", link: "Promociones" },
-  { url: "/users?state=inactive", link: "Usuarios" },
-  { url: "/alerts?status=closed", link: "Alertas" },
 ])("the $link section link carries the filters its list is showing", async ({ url, link }) => {
   const services = createAppServices();
   vi.mocked(services.categoriesListScreen.fetchCategories).mockResolvedValue({
@@ -228,6 +227,19 @@ test.each([
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("link", { name: link })).toHaveAttribute("href", url);
+});
+
+test("the Usuarios tab carries the state filter its list is showing", async () => {
+  const services = createAppServices();
+  vi.mocked(services.usersListScreen.fetchUsers).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.usersListScreen.fetchRoles).mockResolvedValue({ kind: "ok", value: [] });
+  window.history.pushState(null, "", "/people/users?state=inactive");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect
+    .element(screen.getByRole("tab", { name: "Usuarios" }))
+    .toHaveAttribute("href", "/people/users?state=inactive");
 });
 
 test("the Catálogo rail link keeps the filters its list is showing", async () => {

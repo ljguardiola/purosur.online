@@ -9,7 +9,12 @@ import {
   reportFiltersSearch,
 } from "./report-filters-search";
 import { render } from "./test-support/render-with-router";
-import { dateSegments, typeDate } from "./test-support/report-dates";
+import {
+  erasePeriodEnd,
+  periodSegments,
+  typePeriodEnd,
+  typePeriodStart,
+} from "./test-support/report-dates";
 import { BACK_REGISTER_ID, FRONT_REGISTER_ID } from "./test-support/report-fixtures";
 
 const ANSWERED = { from: "2026-10-01", to: "2026-10-07" };
@@ -62,8 +67,8 @@ function renderFilters(handlers: Handlers = {}) {
 test("shows the period the cloud answered while the URL names none", async () => {
   const screen = await renderFilters();
 
-  await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["1", "10", "2026"]);
-  expect(dateSegments(screen, "Hasta")).toEqual(["7", "10", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["1", "10", "2026"]);
+  expect(periodSegments(screen).slice(3)).toEqual(["7", "10", "2026"]);
   await expectNoAccessibilityViolations(screen.container);
 });
 
@@ -76,7 +81,7 @@ test("shows the range and the register the URL names", async () => {
     }),
   });
 
-  expect(dateSegments(screen, "Desde")).toEqual(["2", "10", "2026"]);
+  expect(periodSegments(screen).slice(0, 3)).toEqual(["2", "10", "2026"]);
   await expect
     .element(screen.getByRole("button", { name: `Caja elegida: ${BACK_REGISTER_ID}` }))
     .toBeVisible();
@@ -99,9 +104,9 @@ test("reports the register chosen in the register filter, keeping the range", as
 test("reports the range typed once both days are complete, never a half-typed year", async () => {
   const onFiltersChange = vi.fn();
   const screen = await renderFilters({ onFiltersChange });
-  await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["1", "10", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["1", "10", "2026"]);
 
-  await typeDate(screen, "Desde", "02102026");
+  await typePeriodStart(screen, "02102026");
 
   await expect
     .poll(() => onFiltersChange.mock.lastCall?.[0])
@@ -119,9 +124,9 @@ test("says the end cannot come before the start and reports nothing", async () =
     filters: reportFiltersSearch.parse({ from: "2026-10-02", to: "2026-10-05" }),
     onFiltersChange,
   });
-  await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["2", "10", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["2", "10", "2026"]);
 
-  await typeDate(screen, "Hasta", "01102026");
+  await typePeriodEnd(screen, "01102026");
 
   await expect
     .element(screen.getByText("La fecha de fin no puede ser anterior a la de inicio."))
@@ -135,10 +140,10 @@ test("asks again once a range that was out of order is put right", async () => {
     filters: reportFiltersSearch.parse({ from: "2026-10-02", to: "2026-10-05" }),
     onFiltersChange,
   });
-  await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["2", "10", "2026"]);
-  await typeDate(screen, "Hasta", "01102026");
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["2", "10", "2026"]);
+  await typePeriodEnd(screen, "01102026");
 
-  await typeDate(screen, "Hasta", "06102026");
+  await typePeriodEnd(screen, "06102026");
 
   await expect
     .poll(() => onFiltersChange.mock.lastCall?.[0])
@@ -146,6 +151,63 @@ test("asks again once a range that was out of order is put right", async () => {
   expect(
     screen.getByText("La fecha de fin no puede ser anterior a la de inicio.").query(),
   ).toBeNull();
+});
+
+test("keeps the other end shown and reports nothing while one end of the period is erased", async () => {
+  const onFiltersChange = vi.fn();
+  const screen = await renderFilters({
+    filters: reportFiltersSearch.parse({ from: "2026-10-02", to: "2026-10-05" }),
+    onFiltersChange,
+  });
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["2", "10", "2026"]);
+
+  await erasePeriodEnd(screen, "start");
+
+  expect(periodSegments(screen).slice(3)).toEqual(["5", "10", "2026"]);
+  expect(onFiltersChange).not.toHaveBeenCalled();
+});
+
+test("reports an empty period once both ends of the period are erased", async () => {
+  const onFiltersChange = vi.fn();
+  const screen = await renderFilters({
+    filters: reportFiltersSearch.parse({ from: "2026-10-02", to: "2026-10-05" }),
+    onFiltersChange,
+  });
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["2", "10", "2026"]);
+
+  await erasePeriodEnd(screen, "start");
+  await erasePeriodEnd(screen, "end");
+
+  await expect
+    .poll(() => onFiltersChange.mock.lastCall?.[0])
+    .toEqual({ from: "", to: "", register: "ALL" });
+});
+
+test("says nothing about the order while the end's year is still being typed", async () => {
+  const onFiltersChange = vi.fn();
+  const screen = await renderFilters({
+    filters: reportFiltersSearch.parse({ from: "2026-10-02", to: "2026-10-05" }),
+    onFiltersChange,
+  });
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["2", "10", "2026"]);
+
+  await typePeriodEnd(screen, "06102");
+
+  await expect.poll(() => periodSegments(screen).slice(3)).toEqual(["6", "10", "2"]);
+  expect(
+    screen.getByText("La fecha de fin no puede ser anterior a la de inicio.").query(),
+  ).toBeNull();
+  expect(onFiltersChange.mock.calls.map(([next]) => next.to).filter((to) => to < "1000")).toEqual(
+    [],
+  );
+});
+
+test("labels the single period field Período, with no separate start and end fields", async () => {
+  const screen = await renderFilters();
+
+  await expect.element(screen.getByRole("group", { name: /^Período/ })).toBeVisible();
+  expect(screen.getByRole("group", { name: /^Desde/ }).query()).toBeNull();
+  expect(screen.getByRole("group", { name: /^Hasta/ }).query()).toBeNull();
 });
 
 function ControlledPeriod({
@@ -173,9 +235,9 @@ function ControlledPeriod({
 test("reports the range typed without a register when it offers no register filter", async () => {
   const onFiltersChange = vi.fn();
   const screen = await render(<ControlledPeriod onFiltersChange={onFiltersChange} />);
-  await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["1", "10", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["1", "10", "2026"]);
 
-  await typeDate(screen, "Desde", "02102026");
+  await typePeriodStart(screen, "02102026");
 
   await expect
     .poll(() => onFiltersChange.mock.lastCall?.[0])

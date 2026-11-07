@@ -244,7 +244,9 @@ test("sends the person to Mi cuenta when the cloud refuses the capability", asyn
 
   await closeWith(dialog, "Listo");
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("shows the message of the note the cloud refused", async () => {

@@ -100,7 +100,9 @@ test("navigates to Mi cuenta when the passkeys list comes back forbidden", async
 
   await renderSections(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("shows no remove button when the cloud answers the user's passkeys may not be removed", async () => {

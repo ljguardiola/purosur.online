@@ -154,7 +154,7 @@ export function RemoveEveryUserPasskeyModal({
               tone="error"
               icon={<TriangleAlert />}
               title="No podés dar de baja tus propias passkeys"
-              description="Hacelo desde Mi cuenta."
+              description="Hacelo desde tu nombre, abajo en el menú."
             />
           )}
           {notice?.kind === "rateLimited" && (

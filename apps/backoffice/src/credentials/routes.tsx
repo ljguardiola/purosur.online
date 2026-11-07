@@ -1,7 +1,7 @@
-import { createRoute } from "@tanstack/react-router";
+import { createRoute, redirect } from "@tanstack/react-router";
 import { lazyScreen } from "../shell/lazy-screen";
 import { publicRoute } from "../shell/public-route";
-import { settingsAreaRoute } from "../shell/settings-area";
+import { signedInRoute } from "../shell/signed-in-route";
 
 export const accountRecoveryRoute = createRoute({
   getParentRoute: () => publicRoute,
@@ -15,8 +15,10 @@ export const registerPasskeyRoute = createRoute({
   component: lazyScreen(() => import("./register-passkey-page"), "RegisterPasskeyPage"),
 });
 
-export const myAccountRoute = createRoute({
-  getParentRoute: () => settingsAreaRoute,
+export const legacyAccountRoute = createRoute({
+  getParentRoute: () => signedInRoute,
   path: "account",
-  component: lazyScreen(() => import("./my-account-page"), "MyAccountPage"),
+  beforeLoad: () => {
+    throw redirect({ to: "/", search: { account: "credentials" } });
+  },
 });

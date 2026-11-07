@@ -5,7 +5,7 @@ import { useState } from "react";
 import { EndEverySessionModal } from "./end-every-session-modal";
 import { defaultEndEverySessionSectionServices } from "./end-every-session-section-services";
 
-const route = getRouteApi("/signed-in/settings-area/users");
+const route = getRouteApi("/signed-in");
 
 export type EndEverySessionSectionProps = {
   onSessionEnded: () => void;
@@ -21,8 +21,8 @@ export function EndEverySessionSection({ onSessionEnded }: EndEverySessionSectio
       <HighlightedNotice
         tone="error"
         icon={<ShieldAlert />}
-        title="Ante una sospecha de compromiso"
-        description="Cierra todas las sesiones abiertas del backoffice. Cada persona vuelve a entrar con su passkey."
+        title="Cerrar todas las sesiones del backoffice"
+        description="Cada persona vuelve a entrar con su passkey."
         actions={
           <Button
             variant="primary"

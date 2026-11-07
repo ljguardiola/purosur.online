@@ -429,6 +429,12 @@ const scaleWeighingOutcomes = [
     weight_thousandths: z.int().nonnegative(),
     amount: cents,
   }),
+  z.object({
+    kind: z.literal("unsteady"),
+    weight_thousandths: z.int().nonnegative(),
+    amount: cents,
+  }),
+  z.object({ kind: z.literal("unsteady_out_of_range") }),
   z.object({ kind: z.literal("scale_unavailable") }),
 ] as const;
 

@@ -9,7 +9,7 @@ import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
-opensOnlyScreens(["/", "/products", "/inventory", "/fiscal-tasks", "/account"]);
+opensOnlyScreens(["/", "/products", "/inventory", "/fiscal-tasks"]);
 
 beforeEach(resetPageState);
 

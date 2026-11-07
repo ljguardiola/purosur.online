@@ -59,6 +59,14 @@ describe("closeUnderRequirements", () => {
     expect(closeUnderRequirements(requirements, ["a", "f"])).toEqual(new Set(["a", "f", "b", "c"]));
   });
 
+  it("finds no requirement for a key named like an inherited member", () => {
+    const requirements: RequirementMap<string> = { a: ["b"] };
+
+    expect(closeUnderRequirements(requirements, ["constructor", "a"])).toEqual(
+      new Set(["constructor", "a", "b"]),
+    );
+  });
+
   it("ends on a cycle of requirements", () => {
     const requirements: RequirementMap<Letter> = { a: ["b"], b: ["a"] };
 

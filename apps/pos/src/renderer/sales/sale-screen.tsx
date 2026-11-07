@@ -408,14 +408,15 @@ export function SaleScreen({
     );
     if (
       outcome.kind === "weighing" ||
+      outcome.kind === "unsteady_out_of_range" ||
       outcome.kind === "scale_unavailable" ||
       outcome.kind === "zero_weight"
     ) {
       return outcome;
     }
-    if (outcome.kind === "stable") {
+    if (outcome.kind === "stable" || outcome.kind === "unsteady") {
       return {
-        kind: "stable",
+        kind: outcome.kind,
         reading: { weightThousandths: outcome.weight_thousandths, amount: outcome.amount },
       };
     }
@@ -631,14 +632,15 @@ export function SaleScreen({
     );
     if (
       outcome.kind === "weighing" ||
+      outcome.kind === "unsteady_out_of_range" ||
       outcome.kind === "scale_unavailable" ||
       outcome.kind === "zero_weight"
     ) {
       return outcome;
     }
-    if (outcome.kind === "stable") {
+    if (outcome.kind === "stable" || outcome.kind === "unsteady") {
       return {
-        kind: "stable",
+        kind: outcome.kind,
         reading: { weightThousandths: outcome.weight_thousandths, amount: outcome.amount },
       };
     }

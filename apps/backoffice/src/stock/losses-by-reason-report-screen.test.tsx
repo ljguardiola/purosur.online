@@ -6,7 +6,7 @@ import { page, userEvent } from "vitest/browser";
 import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
 import { type ReportPeriodFilters, reportPeriodSearch } from "../shell/report-filters-search";
 import { render } from "../shell/test-support/render-with-router";
-import { dateSegments, typeDate } from "../shell/test-support/report-dates";
+import { periodSegments, typePeriodStart } from "../shell/test-support/report-dates";
 import { spyOnDownloads } from "../shell/test-support/spy-on-downloads";
 import { LossesByReasonReportScreen } from "./losses-by-reason-report-screen";
 import type { LossesByReasonReportScreenServices } from "./losses-by-reason-report-services";
@@ -113,8 +113,8 @@ test("offers no register filter", async () => {
 test("shows the period the cloud answered while the URL names none", async () => {
   const screen = await renderScreen(listed());
 
-  await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["1", "10", "2026"]);
-  expect(dateSegments(screen, "Hasta")).toEqual(["31", "10", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["1", "10", "2026"]);
+  expect(periodSegments(screen).slice(3)).toEqual(["31", "10", "2026"]);
 });
 
 test("asks for the cloud's default period when the URL names none", async () => {
@@ -140,9 +140,9 @@ test("asks for the period the URL carries", async () => {
 test("reports the period typed once both days are complete", async () => {
   const onFiltersChange = vi.fn();
   const screen = await renderScreen(listed(), { onFiltersChange });
-  await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["1", "10", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["1", "10", "2026"]);
 
-  await typeDate(screen, "Desde", "10092026");
+  await typePeriodStart(screen, "10092026");
 
   await expect
     .poll(() => onFiltersChange.mock.lastCall?.[0])
@@ -152,10 +152,10 @@ test("reports the period typed once both days are complete", async () => {
 test("keeps showing the report while the next period loads", async () => {
   const services = listed();
   const screen = await renderScreen(services);
-  await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["1", "10", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["1", "10", "2026"]);
   vi.mocked(services.fetchLossesByReasonReport).mockReturnValue(new Promise(() => {}));
 
-  await typeDate(screen, "Desde", "10092026");
+  await typePeriodStart(screen, "10092026");
 
   await expect
     .poll(() => services.fetchLossesByReasonReport)
@@ -209,7 +209,7 @@ test("loads a period again from the loading placeholder when retrying after it f
       ? { kind: "failed" }
       : { kind: "ok", value: lossesByReasonReport() },
   );
-  await typeDate(screen, "Desde", "10092026");
+  await typePeriodStart(screen, "10092026");
   await expect.element(screen.getByText("No pudimos abrir las mermas por motivo")).toBeVisible();
   vi.mocked(services.fetchLossesByReasonReport).mockReturnValue(new Promise(() => {}));
 
@@ -236,7 +236,9 @@ test("sends the person to Mi cuenta when the cloud refuses the report", async ()
 
   await renderScreen(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("downloads a spreadsheet with a sheet for each reason shown, for the period the report answered", async () => {

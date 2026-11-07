@@ -5,7 +5,7 @@ import { render } from "../shell/test-support/render-with-router";
 import type { CompromiseResponse } from "./compromise-response-api";
 import { RevokeInstallationsStepModal } from "./revoke-installations-step-modal";
 import { runbook } from "./test-support/compromise-response";
-import { createServices, grantAuthorization } from "./test-support/compromise-response-screen";
+import { createServices, grantAuthorization } from "./test-support/respond-to-compromise-modal";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");

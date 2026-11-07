@@ -1,12 +1,12 @@
 import { expectTypeOf, test } from "vitest";
-import type { AlertsListScreenProps } from "../alerts/alerts-list-screen";
+import type { AlertsListSectionProps } from "../alerts/alerts-list-section";
 import type { BranchSettingsScreenProps } from "../branch/branch-settings-screen";
 import type { BrandsListScreenProps } from "../catalog/brands-list-screen";
 import type { CategoriesListScreenProps } from "../catalog/categories-list-screen";
 import type { ProductsListScreenProps } from "../catalog/products-list-screen";
 import type { TagsListScreenProps } from "../catalog/tags-list-screen";
 import type { AccountRecoveryScreenProps } from "../credentials/account-recovery-screen";
-import type { MyAccountScreenProps } from "../credentials/my-account-screen";
+import type { OwnCredentialsSectionProps } from "../credentials/own-credentials-section";
 import type { RegisterPasskeyScreenProps } from "../credentials/register-passkey-screen";
 import type { FiscalConfigurationScreenProps } from "../fiscal/fiscal-configuration-screen";
 import type { RolesListScreenProps } from "../permissions/roles-list-screen";
@@ -14,7 +14,7 @@ import type { DiscountsListScreenProps } from "../pricing/discounts-list-screen"
 import type { PricesListScreenProps } from "../pricing/prices-list-screen";
 import type { RegistersListScreenProps } from "../register/registers-list-screen";
 import type { SignInScreenProps } from "../sessions/sign-in-screen";
-import type { UserDetailScreenProps } from "../users/user-detail-screen";
+import type { UserPanelProps } from "../users/user-panel";
 import type { UsersListScreenProps } from "../users/users-list-screen";
 import type { AppServices } from "./app";
 
@@ -34,14 +34,14 @@ test("makes every screen require its services", () => {
   expectTypeOf<ServicesProp<RegisterPasskeyScreenProps>>().toEqualTypeOf<
     Required<ServicesProp<RegisterPasskeyScreenProps>>
   >();
-  expectTypeOf<ServicesProp<MyAccountScreenProps>>().toEqualTypeOf<
-    Required<ServicesProp<MyAccountScreenProps>>
+  expectTypeOf<ServicesProp<OwnCredentialsSectionProps>>().toEqualTypeOf<
+    Required<ServicesProp<OwnCredentialsSectionProps>>
   >();
   expectTypeOf<ServicesProp<UsersListScreenProps>>().toEqualTypeOf<
     Required<ServicesProp<UsersListScreenProps>>
   >();
-  expectTypeOf<ServicesProp<UserDetailScreenProps>>().toEqualTypeOf<
-    Required<ServicesProp<UserDetailScreenProps>>
+  expectTypeOf<ServicesProp<UserPanelProps>>().toEqualTypeOf<
+    Required<ServicesProp<UserPanelProps>>
   >();
   expectTypeOf<ServicesProp<RolesListScreenProps>>().toEqualTypeOf<
     Required<ServicesProp<RolesListScreenProps>>
@@ -73,7 +73,7 @@ test("makes every screen require its services", () => {
   expectTypeOf<ServicesProp<FiscalConfigurationScreenProps>>().toEqualTypeOf<
     Required<ServicesProp<FiscalConfigurationScreenProps>>
   >();
-  expectTypeOf<ServicesProp<AlertsListScreenProps>>().toEqualTypeOf<
-    Required<ServicesProp<AlertsListScreenProps>>
+  expectTypeOf<ServicesProp<AlertsListSectionProps>>().toEqualTypeOf<
+    Required<ServicesProp<AlertsListSectionProps>>
   >();
 });

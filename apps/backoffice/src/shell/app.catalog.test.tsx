@@ -9,7 +9,6 @@ import { opensOnlyScreens } from "./test-support/screen-routes";
 
 opensOnlyScreens([
   "/",
-  "/account",
   "/brands",
   "/categories",
   "/discounts",
@@ -106,13 +105,16 @@ test("redirects a non-permitted user's typed /categories to Mi cuenta, without l
         openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   window.history.pushState(null, "", "/categories");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/account");
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
+  expect(window.location.pathname + window.location.search).toBe("/?account=credentials");
   expect(services.categoriesListScreen.fetchCategories).not.toHaveBeenCalled();
 });
 
@@ -136,13 +138,16 @@ test("redirects a non-permitted user's typed /brands to Mi cuenta, without listi
         openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   window.history.pushState(null, "", "/brands");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/account");
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
+  expect(window.location.pathname + window.location.search).toBe("/?account=credentials");
   expect(services.brandsListScreen.fetchBrands).not.toHaveBeenCalled();
 });
 
@@ -178,13 +183,16 @@ test("redirects a non-permitted user's typed /tags to Mi cuenta, without listing
         openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   window.history.pushState(null, "", "/tags");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/account");
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
+  expect(window.location.pathname + window.location.search).toBe("/?account=credentials");
   expect(services.tagsListScreen.fetchTags).not.toHaveBeenCalled();
 });
 
@@ -196,13 +204,16 @@ test("redirects a non-permitted user's typed /products to Mi cuenta, without lis
         openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   window.history.pushState(null, "", "/products");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/account");
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
+  expect(window.location.pathname + window.location.search).toBe("/?account=credentials");
   expect(services.productsListScreen.fetchProducts).not.toHaveBeenCalled();
 });
 
@@ -214,13 +225,16 @@ test("redirects a non-permitted user's typed /prices to Mi cuenta, without listi
         openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   window.history.pushState(null, "", "/prices");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/account");
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
+  expect(window.location.pathname + window.location.search).toBe("/?account=credentials");
   expect(services.pricesListScreen.fetchPrices).not.toHaveBeenCalled();
 });
 
@@ -235,12 +249,15 @@ test("redirects a user holding only manage_products_and_categories away from a t
       }),
     ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   window.history.pushState(null, "", "/prices");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
   expect(services.pricesListScreen.fetchPrices).not.toHaveBeenCalled();
 });
 
@@ -255,12 +272,15 @@ test("redirects a user holding only manage_prices_and_review away from a typed /
       }),
     ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   window.history.pushState(null, "", "/products");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
   expect(services.productsListScreen.fetchProducts).not.toHaveBeenCalled();
 });
 
@@ -397,12 +417,15 @@ test("redirects a non-permitted user's typed /discounts to Mi cuenta, without li
         openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
       ),
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   window.history.pushState(null, "", "/discounts");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
   expect(services.discountsListScreen.fetchDiscounts).not.toHaveBeenCalled();
 });
 
@@ -419,14 +442,15 @@ test.each([["products_and_categories"], ["prices_area"]] as const)(
         }),
       ),
     });
-    vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+    vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+      kind: "ok",
+      value: [],
+    });
     window.history.pushState(null, "", "/discounts");
 
     const screen = await render(<App help={emptyHelp} services={services} />);
 
-    await expect
-      .element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 }))
-      .toBeVisible();
+    await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
     expect(services.discountsListScreen.fetchDiscounts).not.toHaveBeenCalled();
   },
 );
@@ -501,14 +525,15 @@ test.each([["/products"], ["/prices"]])(
         }),
       ),
     });
-    vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+    vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+      kind: "ok",
+      value: [],
+    });
     window.history.pushState(null, "", path);
 
     const screen = await render(<App help={emptyHelp} services={services} />);
 
-    await expect
-      .element(screen.getByRole("heading", { name: "Mi cuenta", level: 1 }))
-      .toBeVisible();
+    await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
     expect(services.productsListScreen.fetchProducts).not.toHaveBeenCalled();
     expect(services.pricesListScreen.fetchPrices).not.toHaveBeenCalled();
   },
@@ -550,7 +575,10 @@ test("lists the promotions and opens Nueva promoción for a user holding only ma
       ],
     },
   });
-  vi.mocked(services.myAccountScreen.fetchPasskeys).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
+    kind: "ok",
+    value: [],
+  });
   window.history.pushState(null, "", "/discounts");
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-09-20T15:00:00.000Z"));

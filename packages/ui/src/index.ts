@@ -22,6 +22,11 @@ export type { SummaryRowProps } from "./components/data-display/summary-row";
 export { SummaryRow } from "./components/data-display/summary-row";
 export type { SummaryRowGroupProps } from "./components/data-display/summary-row-group";
 export { SummaryRowGroup } from "./components/data-display/summary-row-group";
+export type {
+  RowMenuAction,
+  RowMenuActions,
+} from "./components/data-display/table/row-actions-menu";
+export { RowActionsMenu } from "./components/data-display/table/row-actions-menu";
 export { Table } from "./components/data-display/table/table";
 export type { TableCellTextProps } from "./components/data-display/table/table-cell-text";
 export { TableCellText } from "./components/data-display/table/table-cell-text";
@@ -108,6 +113,8 @@ export type { ComboBoxOption, ComboBoxProps } from "./components/forms/combo-box
 export { ComboBox } from "./components/forms/combo-box";
 export type { DateFieldProps } from "./components/forms/date-field";
 export { DateField } from "./components/forms/date-field";
+export type { DateRange, DateRangeFieldProps } from "./components/forms/date-range-field";
+export { DateRangeField } from "./components/forms/date-range-field";
 export type { FieldGroupProps } from "./components/forms/field-group";
 export { FieldGroup } from "./components/forms/field-group";
 export type { FieldSize, FieldSizeProviderProps } from "./components/forms/field-size";
@@ -163,6 +170,8 @@ export type {
 export { ToggleChipGroup } from "./components/forms/toggle-chip-group";
 export type { CardProps } from "./components/layout/card";
 export { Card } from "./components/layout/card";
+export type { DetailPanelProps } from "./components/layout/detail-panel";
+export { DetailPanel } from "./components/layout/detail-panel";
 export type { EyebrowProps } from "./components/layout/eyebrow";
 export { Eyebrow } from "./components/layout/eyebrow";
 export type { PuroSurIsotypeProps } from "./components/layout/puro-sur-isotype";
@@ -185,6 +194,8 @@ export type { SectionNavButtonProps } from "./components/navigation/section-nav-
 export { SectionNavButton } from "./components/navigation/section-nav-button";
 export type { SectionNavItemProps } from "./components/navigation/section-nav-item";
 export { SectionNavItem } from "./components/navigation/section-nav-item";
+export type { TabProps, TabsProps } from "./components/navigation/tabs";
+export { Tab, Tabs } from "./components/navigation/tabs";
 export type {
   ModalBodyPadding,
   ModalHeaderLayout,

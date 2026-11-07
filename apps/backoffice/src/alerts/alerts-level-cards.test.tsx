@@ -1,5 +1,6 @@
 import type { AlertsOverview } from "@purosur/contracts";
 import { expect, test } from "vitest";
+import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
 import { AlertsLevelCards } from "./alerts-level-cards";
 
@@ -20,7 +21,7 @@ test("shows one card per level, critical first, each with its open count and the
   ]);
 });
 
-test("links each card to the alerts list filtered by its level", async () => {
+test("links each card to Inicio filtered by its level", async () => {
   const screen = await render(<AlertsLevelCards overview={overview} />);
 
   const hrefs = screen
@@ -28,10 +29,21 @@ test("links each card to the alerts list filtered by its level", async () => {
     .elements()
     .map((card) => new URL(card.getAttribute("href") ?? "", window.location.origin));
   expect(hrefs.map((href) => [href.pathname, href.searchParams.get("level")])).toEqual([
-    ["/alerts", "critical"],
-    ["/alerts", "warning"],
-    ["/alerts", "informational"],
+    ["/", "critical"],
+    ["/", "warning"],
+    ["/", "informational"],
   ]);
+});
+
+test("filters Inicio by the pressed level without adding a history entry", async () => {
+  window.history.pushState(null, "", "/");
+  const screen = await render(<AlertsLevelCards overview={overview} />);
+  const historyLength = window.history.length;
+
+  await userEvent.click(screen.getByRole("link", { name: /^Alertas críticas/ }));
+
+  await expect.poll(() => window.location.search).toBe("?level=critical");
+  expect(window.history.length).toBe(historyLength);
 });
 
 test("names a kind this app does not know yet by the kind itself", async () => {

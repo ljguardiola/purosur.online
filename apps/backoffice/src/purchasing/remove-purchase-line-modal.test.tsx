@@ -211,7 +211,9 @@ test("navigates to Mi cuenta when removing comes back forbidden", async () => {
 
   await confirm(screen);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("opens nothing without a line", async () => {

@@ -173,7 +173,9 @@ test("navigates to Mi cuenta, without the authorization modal, when deactivating
 
   await userEvent.click(dialog.getByRole("button", { name: "Desactivar" }));
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
   expect(services.fetchSessionAuthorizationOptions).not.toHaveBeenCalled();
 });
 

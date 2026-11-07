@@ -6,7 +6,7 @@ import { page, userEvent } from "vitest/browser";
 import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
 import { type ReportPeriodFilters, reportPeriodSearch } from "../shell/report-filters-search";
 import { render } from "../shell/test-support/render-with-router";
-import { dateSegments, typeDate } from "../shell/test-support/report-dates";
+import { periodSegments, typePeriodStart } from "../shell/test-support/report-dates";
 import { spyOnDownloads } from "../shell/test-support/spy-on-downloads";
 import { formatCentsWithUnit } from "./money";
 import { PricesPastReviewDeadlineReportScreen } from "./prices-past-review-deadline-report-screen";
@@ -163,8 +163,8 @@ test("lists the prices in the order the cloud answers them", async () => {
 test("shows the period the cloud answered while the URL names none", async () => {
   const screen = await renderScreen(listed());
 
-  await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["31", "8", "2026"]);
-  expect(dateSegments(screen, "Hasta")).toEqual(["13", "10", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["31", "8", "2026"]);
+  expect(periodSegments(screen).slice(3)).toEqual(["13", "10", "2026"]);
 });
 
 test("asks for the cloud's default period when the URL names none", async () => {
@@ -190,9 +190,9 @@ test("asks for the period the URL carries", async () => {
 test("reports the period typed once both days are complete", async () => {
   const onFiltersChange = vi.fn();
   const screen = await renderScreen(listed(), { onFiltersChange });
-  await expect.poll(() => dateSegments(screen, "Desde")).toEqual(["31", "8", "2026"]);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["31", "8", "2026"]);
 
-  await typeDate(screen, "Desde", "01092026");
+  await typePeriodStart(screen, "01092026");
 
   await expect
     .poll(() => onFiltersChange.mock.lastCall?.[0])
@@ -205,7 +205,7 @@ test("keeps showing the report while the next period loads", async () => {
   await expect.element(screen.getByText("Queso cremoso")).toBeVisible();
   vi.mocked(services.fetchPricesPastReviewDeadlineReport).mockReturnValue(new Promise(() => {}));
 
-  await typeDate(screen, "Desde", "01092026");
+  await typePeriodStart(screen, "01092026");
 
   await expect
     .poll(() => services.fetchPricesPastReviewDeadlineReport)
@@ -220,7 +220,7 @@ test("drops the previous report's window when the next period fails to load", as
   await expect.element(screen.getByText("Plazo de revisión: 30 días")).toBeVisible();
   vi.mocked(services.fetchPricesPastReviewDeadlineReport).mockResolvedValue({ kind: "failed" });
 
-  await typeDate(screen, "Desde", "01092026");
+  await typePeriodStart(screen, "01092026");
 
   await expect.element(screen.getByText("No pudimos abrir los precios sin revisar")).toBeVisible();
   expect(screen.getByText("Plazo de revisión", { exact: false }).query()).toBeNull();
@@ -282,7 +282,9 @@ test("navigates to Mi cuenta when the report request comes back forbidden", asyn
 
   await renderScreen(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("counts the prices past their deadline with the thousands separator", async () => {

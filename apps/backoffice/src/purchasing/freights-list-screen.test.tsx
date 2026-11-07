@@ -249,7 +249,9 @@ test("sends the person to Mi cuenta when the freights are forbidden", async () =
   });
   await renderScreen(services);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });
 
 test("Nuevo flete opens the modal, and recording closes it and reads the freights again", async () => {

@@ -9,6 +9,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { insertBrand } from "../catalog/test-support/catalog-route-fixtures.js";
 import {
   auditLog,
+  products,
   supplierPriceListAiCalls,
   supplierPriceListRows,
 } from "../platform/db/schema.js";
@@ -116,7 +117,7 @@ describe("authorization of the linking routes", () => {
   const routes = [
     ["PUT", `/supplier-price-lists/${MISSING_ID}/rows/${MISSING_ID}/link`],
     ["PUT", `/supplier-price-lists/${MISSING_ID}/rows/${MISSING_ID}/review`],
-    ["GET", `/supplier-price-lists/${MISSING_ID}/rows/${MISSING_ID}/link-proposal`],
+    ["POST", `/supplier-price-lists/${MISSING_ID}/rows/${MISSING_ID}/link-proposal`],
     ["POST", `/supplier-price-lists/${MISSING_ID}/rows/${MISSING_ID}/quantity-proposal`],
     ["GET", "/supplier-price-lists/link-choices"],
   ] as const;
@@ -392,12 +393,18 @@ describe("PUT /supplier-price-lists/:id/rows/:rowId/review", () => {
   });
 });
 
-describe("GET /supplier-price-lists/:id/rows/:rowId/link-proposal", () => {
-  const proposal = (headers: Record<string, string>, listId: string, rowId: string) =>
+describe("POST /supplier-price-lists/:id/rows/:rowId/link-proposal", () => {
+  const proposal = (
+    headers: Record<string, string>,
+    listId: string,
+    rowId: string,
+    payload: object = { refresh: false },
+  ) =>
     app.inject({
-      method: "GET",
+      method: "POST",
       url: `/supplier-price-lists/${listId}/rows/${rowId}/link-proposal`,
       headers,
+      payload,
     });
 
   it("proposes the product whose barcode the row carries", async () => {
@@ -574,12 +581,175 @@ describe("GET /supplier-price-lists/:id/rows/:rowId/link-proposal", () => {
   });
 });
 
-describe("link proposals with a quantity", () => {
-  const proposal = (headers: Record<string, string>, listId: string, rowId: string) =>
+describe("keeping the link proposal of a row", () => {
+  const proposal = (
+    headers: Record<string, string>,
+    listId: string,
+    rowId: string,
+    refresh = false,
+  ) =>
     app.inject({
-      method: "GET",
+      method: "POST",
       url: `/supplier-price-lists/${listId}/rows/${rowId}/link-proposal`,
       headers,
+      payload: { refresh },
+    });
+
+  const reportedCall = (): AiCallUsage => ({
+    outcome: "completed",
+    attempts: [
+      {
+        model: "claude-sonnet-5-5",
+        inputTokens: 1_000,
+        outputTokens: 100,
+        cacheWriteTokens: 0,
+        cacheReadTokens: 0,
+      },
+    ],
+  });
+
+  async function appChoosingCounting(choice: ProductChoice, asked: unknown[]): Promise<void> {
+    await app.close();
+    app = Fastify();
+    registerSupplierPriceListsRoutes(app, {
+      zoneRules: fixedZoneRulesSource(),
+      db,
+      backofficeOrigin: BACKOFFICE_ORIGIN,
+      now: () => NOW,
+      productChooser: {
+        choose: async (item, _candidates, onCall) => {
+          asked.push(item);
+          onCall(reportedCall());
+          return choice;
+        },
+      },
+    });
+  }
+
+  it("shows the same proposal again without asking the model or recording another call", async () => {
+    const { headers } = await manager();
+    const { listId, rowId } = await extractedListWithRow({}, { description: "Yerba suave 1 kg" });
+    const { id: productId } = await insertProduct(db, { name: "Yerba Suave 1 kg" });
+    const asked: unknown[] = [];
+    await appChoosingCounting({ kind: "chosen", productId, quantity: 4_000 }, asked);
+
+    const first = await proposal(headers, listId, rowId);
+    const second = await proposal(headers, listId, rowId);
+
+    expect(second.statusCode).toBe(200);
+    expect(second.json()).toEqual(first.json());
+    expect(second.json()).toMatchObject({ kind: "proposed", by: "ai", quantity: 4_000 });
+    expect(asked).toHaveLength(1);
+    expect(await db.select().from(supplierPriceListAiCalls)).toHaveLength(1);
+  });
+
+  it("asks the model again on refresh, records the call and shows the new proposal afterwards", async () => {
+    const { headers } = await manager();
+    const { listId, rowId } = await extractedListWithRow({}, { description: "Yerba suave 1 kg" });
+    const { id: productId } = await insertProduct(db, { name: "Yerba Suave 1 kg" });
+    const asked: unknown[] = [];
+    await appChoosingCounting({ kind: "chosen", productId, quantity: null }, asked);
+    await proposal(headers, listId, rowId);
+
+    await appChoosingCounting({ kind: "chosen", productId, quantity: 6_000 }, asked);
+    const refreshed = await proposal(headers, listId, rowId, true);
+    const reopened = await proposal(headers, listId, rowId);
+
+    expect(refreshed.json()).toMatchObject({ kind: "proposed", quantity: 6_000 });
+    expect(reopened.json()).toEqual(refreshed.json());
+    expect(asked).toHaveLength(2);
+    expect(await db.select().from(supplierPriceListAiCalls)).toHaveLength(2);
+  });
+
+  it("asks again after the model was unavailable", async () => {
+    const { headers } = await manager();
+    const { listId, rowId } = await extractedListWithRow({}, { description: "Yerba suave 1 kg" });
+    const { id: productId } = await insertProduct(db, { name: "Yerba Suave 1 kg" });
+    const asked: unknown[] = [];
+    await appChoosingCounting({ kind: "unavailable" }, asked);
+    await proposal(headers, listId, rowId);
+
+    await appChoosingCounting({ kind: "chosen", productId, quantity: null }, asked);
+    const second = await proposal(headers, listId, rowId);
+
+    expect(second.json()).toMatchObject({ kind: "proposed", by: "ai" });
+    expect(asked).toHaveLength(2);
+  });
+
+  it("shows no proposal, without asking, once the kept product can no longer be linked", async () => {
+    const { headers } = await manager();
+    const { listId, rowId } = await extractedListWithRow({}, { description: "Yerba suave 1 kg" });
+    const { id: productId } = await insertProduct(db, { name: "Yerba Suave 1 kg" });
+    const asked: unknown[] = [];
+    await appChoosingCounting({ kind: "chosen", productId, quantity: null }, asked);
+    await proposal(headers, listId, rowId);
+    await db.update(products).set({ active: false }).where(eq(products.id, productId));
+
+    const second = await proposal(headers, listId, rowId);
+
+    expect(second.json()).toEqual({ kind: "none" });
+    expect(asked).toHaveLength(1);
+  });
+
+  it("answers 404, still recording the call, when the row is removed while the model chooses", async () => {
+    const { headers } = await manager();
+    const { listId, rowId } = await extractedListWithRow({}, { description: "Yerba suave 1 kg" });
+    const { id: productId } = await insertProduct(db, { name: "Yerba Suave 1 kg" });
+    await app.close();
+    app = Fastify();
+    registerSupplierPriceListsRoutes(app, {
+      zoneRules: fixedZoneRulesSource(),
+      db,
+      backofficeOrigin: BACKOFFICE_ORIGIN,
+      now: () => NOW,
+      productChooser: {
+        choose: async (_item, _candidates, onCall) => {
+          await db.delete(supplierPriceListRows).where(eq(supplierPriceListRows.id, rowId));
+          onCall(reportedCall());
+          return { kind: "chosen", productId, quantity: null };
+        },
+      },
+    });
+
+    const response = await proposal(headers, listId, rowId);
+
+    expect(response.statusCode).toBe(404);
+    expect(await db.select().from(supplierPriceListAiCalls)).toHaveLength(1);
+  });
+
+  it.each([{}, { refresh: "yes" }, null])(
+    "answers 400 for the body %j, without asking",
+    async (payload) => {
+      const { headers } = await manager();
+      const { listId, rowId } = await extractedListWithRow();
+      const asked: unknown[] = [];
+      await appChoosingCounting({ kind: "none" }, asked);
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/supplier-price-lists/${listId}/rows/${rowId}/link-proposal`,
+        headers,
+        payload: payload as object,
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(asked).toEqual([]);
+    },
+  );
+});
+
+describe("link proposals with a quantity", () => {
+  const proposal = (
+    headers: Record<string, string>,
+    listId: string,
+    rowId: string,
+    payload: object = { refresh: false },
+  ) =>
+    app.inject({
+      method: "POST",
+      url: `/supplier-price-lists/${listId}/rows/${rowId}/link-proposal`,
+      headers,
+      payload,
     });
 
   it("proposes the quantity the model chose with the product, from the other presentations of the list", async () => {
@@ -672,7 +842,7 @@ describe("POST /supplier-price-lists/:id/rows/:rowId/quantity-proposal", () => {
     headers: Record<string, string>,
     listId: string,
     rowId: string,
-    payload: object = { saleUnit: "UNIT", netContent: null },
+    payload: object = { saleUnit: "UNIT", netContent: null, refresh: false },
   ) =>
     app.inject({
       method: "POST",
@@ -699,6 +869,7 @@ describe("POST /supplier-price-lists/:id/rows/:rowId/quantity-proposal", () => {
     const response = await proposeQuantity(headers, listId, rowId, {
       saleUnit: "UNIT",
       netContent: { quantity: 250, unit: "ML" },
+      refresh: false,
     });
 
     expect(response.statusCode).toBe(200);
@@ -782,6 +953,52 @@ describe("POST /supplier-price-lists/:id/rows/:rowId/quantity-proposal", () => {
     ]);
   });
 
+  it("keeps the quantity per sale unit and net content and asks again only on refresh", async () => {
+    const { headers } = await manager();
+    const { listId, rowId } = await extractedListWithRow();
+    const asked: { item: unknown; product: unknown }[] = [];
+    await appReadingQuantity({ kind: "read", quantity: 36_000 }, asked, [
+      {
+        outcome: "completed",
+        attempts: [
+          {
+            model: "claude-sonnet-5-5",
+            inputTokens: 1_000,
+            outputTokens: 100,
+            cacheWriteTokens: 0,
+            cacheReadTokens: 0,
+          },
+        ],
+      },
+    ]);
+    const ml250 = { saleUnit: "UNIT", netContent: { quantity: 250, unit: "ML" } };
+
+    await proposeQuantity(headers, listId, rowId, { ...ml250, refresh: false });
+    const again = await proposeQuantity(headers, listId, rowId, { ...ml250, refresh: false });
+    await proposeQuantity(headers, listId, rowId, {
+      saleUnit: "UNIT",
+      netContent: null,
+      refresh: false,
+    });
+    await proposeQuantity(headers, listId, rowId, { ...ml250, refresh: true });
+
+    expect(again.json()).toEqual({ kind: "proposed", quantity: 36_000 });
+    expect(asked).toHaveLength(3);
+    expect(await db.select().from(supplierPriceListAiCalls)).toHaveLength(3);
+  });
+
+  it("keeps nothing when the reader is unavailable", async () => {
+    const { headers } = await manager();
+    const { listId, rowId } = await extractedListWithRow();
+    const asked: { item: unknown; product: unknown }[] = [];
+    await appReadingQuantity({ kind: "unavailable" }, asked);
+
+    await proposeQuantity(headers, listId, rowId);
+    await proposeQuantity(headers, listId, rowId);
+
+    expect(asked).toHaveLength(2);
+  });
+
   it("answers 404 for a list or a row that does not exist", async () => {
     const { headers } = await manager();
     const { listId } = await extractedListWithRow();
@@ -804,8 +1021,9 @@ describe("POST /supplier-price-lists/:id/rows/:rowId/quantity-proposal", () => {
 
   it.each([
     {},
-    { saleUnit: "KILO" },
-    { saleUnit: "UNIT", netContent: { quantity: -1, unit: "G" } },
+    { saleUnit: "KILO", refresh: false },
+    { saleUnit: "UNIT", netContent: null },
+    { saleUnit: "UNIT", refresh: false, netContent: { quantity: -1, unit: "G" } },
   ])("answers 400 for the body %j, without reading", async (payload) => {
     const { headers } = await manager();
     const { listId, rowId } = await extractedListWithRow();

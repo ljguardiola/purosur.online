@@ -32,6 +32,7 @@ import { useStackedCreation } from "../platform/stacked-creation";
 import {
   useMarkPurchasingStale,
   useRefreshSupplierItemLinkChoices,
+  useRefreshSupplierItemLinkProposal,
   useSupplierItemLinkChoicesQuery,
   useSupplierItemLinkProposalQuery,
 } from "./purchasing-queries";
@@ -51,6 +52,7 @@ import type {
   fetchSupplierItemLinkChoices,
   fetchSupplierItemLinkProposal,
 } from "./supplier-item-links-api";
+import { ProposeAgainButton, ProposeAgainFailure } from "./supplier-item-propose-again";
 import {
   SUPPLIER_ITEM_QUANTITY_UNIT_OPTIONS,
   supplierItemQuantityFieldKind,
@@ -120,6 +122,13 @@ export function LinkSupplierItemModal({
     listId: list.id,
     rowId: row?.id ?? "",
     enabled: open,
+    fetchSupplierItemLinkProposal: services.fetchSupplierItemLinkProposal,
+    onSessionEnded,
+  });
+  const proposalRefresh = useRefreshSupplierItemLinkProposal({
+    listId: list.id,
+    rowId: row?.id ?? "",
+    opening: target,
     fetchSupplierItemLinkProposal: services.fetchSupplierItemLinkProposal,
     onSessionEnded,
   });
@@ -247,6 +256,43 @@ export function LinkSupplierItemModal({
     }
   }, [target, proposedOffered, proposedId, proposedQuantity, proposedSaleUnit, form]);
 
+  async function proposeAgain() {
+    const previouslyProposedId = proposedId;
+    const outcome = await proposalRefresh.refresh();
+    if (
+      outcome === null ||
+      outcome.kind !== "ok" ||
+      form.getFieldValue("productId") !== previouslyProposedId
+    ) {
+      return;
+    }
+    const newId = proposedProductIdOf(outcome.value);
+    const newProduct =
+      choices.status === "loaded"
+        ? choices.value.products.find((product) => product.id === newId)
+        : undefined;
+    const previousFill =
+      proposedQuantity !== null && proposedSaleUnit !== undefined
+        ? supplierItemQuantityInputOf(proposedQuantity, proposedSaleUnit).quantity
+        : "";
+    const typedQuantity = form.getFieldValue("quantity");
+    const quantityUntouched = typedQuantity === "" || typedQuantity === previousFill;
+    form.setFieldValue("productId", newProduct?.id ?? null);
+    if (newProduct?.id !== previouslyProposedId) {
+      form.setFieldValue("quantity", "");
+    }
+    if (
+      newProduct !== undefined &&
+      outcome.value.kind === "proposed" &&
+      outcome.value.quantity !== null &&
+      quantityUntouched
+    ) {
+      const proposed = supplierItemQuantityInputOf(outcome.value.quantity, newProduct.saleUnit);
+      form.setFieldValue("quantity", proposed.quantity);
+      form.setFieldValue("quantityUnit", proposed.quantityUnit);
+    }
+  }
+
   const productChoice = creatableChoice(
     offered ? linkProductOptions(offered) : undefined,
     ProductCreation ? { recordKind: "producto", onCreate: productCreation.start } : undefined,
@@ -271,38 +317,68 @@ export function LinkSupplierItemModal({
     if (proposal.status === "failed") {
       return <LoadFailure {...cloudLoadFailure(proposal, "la propuesta de producto")} />;
     }
+    const proposeAgainButton = (
+      <ProposeAgainButton
+        dataStatus={proposal.status}
+        refreshing={proposalRefresh.refreshing}
+        onPress={() => void proposeAgain()}
+      />
+    );
+    const failure = proposalRefresh.failed ? <ProposeAgainFailure /> : null;
     if (proposal.value.kind === "unavailable") {
       return (
-        <p className="text-detail text-text-subtle">
-          No pudimos proponer un producto. Podés buscarlo vos.
-        </p>
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-detail text-text-subtle">
+              No pudimos proponer un producto. Podés buscarlo vos.
+            </p>
+            {proposeAgainButton}
+          </div>
+          {failure}
+        </>
       );
     }
     if (proposal.value.kind === "none") {
       return (
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-detail text-text-subtle">Sin propuesta para este ítem.</p>
-          {onCreateProduct !== null && row?.mayCreateProduct ? (
-            <Button variant="text" icon={<PackagePlus />} onPress={() => onCreateProduct(row)}>
-              Crear producto
-            </Button>
-          ) : null}
-        </div>
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-detail text-text-subtle">Sin propuesta para este ítem.</p>
+            <div className="flex flex-wrap items-center gap-3">
+              {onCreateProduct !== null && row?.mayCreateProduct ? (
+                <Button variant="text" icon={<PackagePlus />} onPress={() => onCreateProduct(row)}>
+                  Crear producto
+                </Button>
+              ) : null}
+              {proposeAgainButton}
+            </div>
+          </div>
+          {failure}
+        </>
       );
     }
     const { by, product } = proposal.value;
-    return by === "barcode" ? (
-      <InlineNotice
-        tone="info"
-        icon={<ScanBarcode />}
-        title={`Propuesto por código de barras: ${formatProductDescription(product)}`}
-      />
-    ) : (
-      <InlineNotice
-        tone="info"
-        icon={<Sparkles />}
-        title={`Propuesto por IA: ${formatProductDescription(product)}`}
-      />
+    return (
+      <>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0 grow">
+            {by === "barcode" ? (
+              <InlineNotice
+                tone="info"
+                icon={<ScanBarcode />}
+                title={`Propuesto por código de barras: ${formatProductDescription(product)}`}
+              />
+            ) : (
+              <InlineNotice
+                tone="info"
+                icon={<Sparkles />}
+                title={`Propuesto por IA: ${formatProductDescription(product)}`}
+              />
+            )}
+          </div>
+          {proposeAgainButton}
+        </div>
+        {failure}
+      </>
     );
   }
 

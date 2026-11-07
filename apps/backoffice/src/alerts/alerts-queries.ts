@@ -55,14 +55,13 @@ export function useAlertsQuery(params: {
 export function useAlertsOverviewQuery(params: {
   fetchAlertsOverview: typeof fetchAlertsOverview;
   onSessionEnded: () => void;
-  whenForbidden?: "send-to-my-account" | "fail";
 }) {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQuery<AlertsOverview>({
     queryKey: alertsKeys.overview,
     read: params.fetchAlertsOverview,
     onSessionEnded: params.onSessionEnded,
-    ...(params.whenForbidden === "fail" ? {} : { onForbidden: sendToMyAccount }),
+    onForbidden: sendToMyAccount,
   });
 }
 
@@ -106,6 +105,9 @@ export function useRefreshAlertsAfterClosing(): (closedAlertId: string) => Promi
   return (closedAlertId) => {
     client.removeQueries({ queryKey: alertsKeys.detail(closedAlertId), exact: true });
     void client.invalidateQueries({ queryKey: alertsKey, refetchType: "none" });
-    return client.refetchQueries({ queryKey: alertsKeys.lists, type: "active" });
+    return Promise.all([
+      client.refetchQueries({ queryKey: alertsKeys.lists, type: "active" }),
+      client.refetchQueries({ queryKey: alertsKeys.overview, type: "active" }),
+    ]).then(() => {});
   };
 }

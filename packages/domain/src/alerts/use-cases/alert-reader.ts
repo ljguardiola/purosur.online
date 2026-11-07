@@ -42,11 +42,6 @@ export interface AlertListPage {
   total: number;
 }
 
-export interface OpenAlertCounts {
-  openCount: number;
-  openCriticalCount: number;
-}
-
 export type OpenAlertsOverview = Record<AlertLevel, { openCount: number; kinds: AlertKind[] }>;
 
 export interface AlertDelivery {
@@ -68,7 +63,6 @@ export interface AlertReader {
     filters: AlertListFilters,
     page: number,
   ): Promise<AlertListPage>;
-  countOpenVisibleAlerts(sight: VisibleAlertSight): Promise<OpenAlertCounts>;
   overviewOfOpenVisibleAlerts(sight: VisibleAlertSight): Promise<OpenAlertsOverview>;
   deliveriesOf(alertId: string): Promise<AlertDelivery[]>;
   displayNames(ids: readonly string[]): Promise<ReadonlyMap<string, string>>;

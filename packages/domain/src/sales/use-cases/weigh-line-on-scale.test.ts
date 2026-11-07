@@ -183,6 +183,28 @@ describe("weighLineOnScale confirming the weight", () => {
     expect(store.state).toEqual(before);
   });
 
+  it("answers an unstable weight and its amount even when it is the confirmed one, recording nothing", async () => {
+    const store = ledger();
+    const before = structuredClone(store.state);
+
+    expect(await weigh(store, { kind: "unstable", weightThousandths: 2500 }, 2500)).toEqual({
+      kind: "unsteady",
+      weightThousandths: 2500,
+      amount: 22500,
+    });
+    expect(store.state).toEqual(before);
+  });
+
+  it("answers an unstable reading that is no line weight as out of range, writing nothing", async () => {
+    const store = ledger();
+    const before = structuredClone(store.state);
+
+    expect(await weigh(store, { kind: "unstable", weightThousandths: -120 }, 2500)).toEqual({
+      kind: "unsteady_out_of_range",
+    });
+    expect(store.state).toEqual(before);
+  });
+
   it("leaves the line untouched when recording it fails", async () => {
     const store = ledger();
     const before = structuredClone(store.state);

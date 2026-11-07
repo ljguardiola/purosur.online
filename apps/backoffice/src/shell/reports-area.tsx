@@ -20,13 +20,12 @@ import {
   TagX,
   TrendingUp,
   Truck,
-  Undo2,
   Users,
   Wallet,
   Warehouse,
 } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
-import { canSeeAiCostReport, canSeeReports, canSeeReturnsReport } from "./backoffice-access";
+import { canSeeAiCostReport, canSeeReports } from "./backoffice-access";
 import { signedInRoute } from "./signed-in-route";
 
 export const reportsAreaRoute = createRoute({
@@ -69,10 +68,8 @@ function ReportsArea() {
   const purchasesReportShown = Boolean(matchRoute({ to: "/reports/purchases-by-supplier" }));
   const averageTicketShown = Boolean(matchRoute({ to: "/reports/average-ticket" }));
   const issuedFiscalDocumentsShown = Boolean(matchRoute({ to: "/reports/fiscal-documents" }));
-  const returnsShown = Boolean(matchRoute({ to: "/reports/returns" }));
   return (
     <AreaLayout
-      showsOpenAlertsCount
       area="reports"
       sectionColumnLabel="Reportes"
       sectionColumn={
@@ -298,17 +295,6 @@ function ReportsArea() {
                   icon={<Bot />}
                   search={aiCostReportShown ? true : {}}
                   active={aiCostReportShown}
-                />
-              </li>
-            )}
-            {canSeeReturnsReport(session) && (
-              <li>
-                <SectionLink
-                  to="/reports/returns"
-                  label="Anulaciones y devoluciones"
-                  icon={<Undo2 />}
-                  search={returnsShown ? true : {}}
-                  active={returnsShown}
                 />
               </li>
             )}

@@ -2,6 +2,7 @@ import { priceMarginQuerySchema, priceMarginSchema } from "@purosur/contracts";
 import { readPriceMargin } from "@purosur/domain/pricing/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
+import { DrizzleActiveProductReader } from "../catalog/drizzle-active-product-reader.js";
 import { readRecordIds } from "../platform/record-id-params.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { DrizzlePurchaseCostReader } from "../purchasing/drizzle-purchase-cost-reader.js";
@@ -14,7 +15,6 @@ import {
 } from "../sessions/route-access.js";
 import { DrizzleAssemblyBatchCostReader } from "../stock/drizzle-assembly-batch-cost-reader.js";
 import { DrizzleInitialCountCostReader } from "../stock/drizzle-initial-count-cost-reader.js";
-import { DrizzleActiveProductReader } from "./drizzle-active-product-reader.js";
 import type { PricesRouteOptions } from "./prices-list-route.js";
 
 const NOT_FOUND_RESPONSE = { code: "not_found", message: "no product with that id" } as const;

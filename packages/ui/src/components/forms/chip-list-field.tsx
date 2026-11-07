@@ -11,6 +11,7 @@ import {
 import { flushSync } from "react-dom";
 import { type TagTone, tagDotClassName, tagToneClassName } from "../data-display/tag-styles";
 import { iconSlotClassName } from "../shared/icon";
+import { IconOnlyButton } from "../shared/icon-only-button";
 import { type FieldErrorProps, fieldError } from "./field-error";
 import {
   fieldLabelClassName,
@@ -143,16 +144,16 @@ export function ChipListField<V extends string>(props: ChipListFieldProps<V>) {
               {option.status !== undefined ? (
                 <span className="sr-only">{option.status}</span>
               ) : null}
-              <AriaButton
-                aria-label={`Quitar ${option.label}`}
-                isDisabled={disabled}
+              <IconOnlyButton
+                name={`Quitar ${option.label}`}
+                disabled={disabled}
                 onPress={() => remove(option.value, position)}
                 className={`${removeButtonClassName} ${removeHover}`}
               >
                 <span aria-hidden="true" className={iconSlotClassName["2xs"]}>
                   <X />
                 </span>
-              </AriaButton>
+              </IconOnlyButton>
             </li>
           );
         })}

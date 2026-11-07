@@ -10,6 +10,7 @@ import {
   registerRouteAccess,
   routeSessionSource,
 } from "../sessions/route-access.js";
+import { DrizzleRegisterEventStreams } from "../sync/drizzle-register-event-streams.js";
 import { DrizzleFortnightPresentationReader } from "./drizzle-fortnight-presentation-reader.js";
 
 export interface FortnightPresentationsRouteOptions<TQueryResult extends PgQueryResultHKT> {
@@ -64,13 +65,17 @@ export function registerFortnightPresentationsListRoute<TQueryResult extends PgQ
   const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
-  const reader = new DrizzleFortnightPresentationReader(options.db, options.zoneRules);
+  const reader = new DrizzleFortnightPresentationReader(
+    options.db,
+    new DrizzleRegisterEventStreams(options.db),
+    options.zoneRules,
+  );
 
   app.get(
     "/registers/fortnight-presentations",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
-      config: { access: capabilityAccess("cash_area"), sessionSource },
+      config: { access: capabilityAccess("fiscal_configuration_area"), sessionSource },
     },
     async (request, reply) => {
       const listed = await reader.branchPresentations(

@@ -1,4 +1,5 @@
 import type { OrderSuggestion, PurchaseOrderBuildBody } from "@purosur/contracts";
+import { ownEntry } from "../platform/own-entry";
 
 export const LEFT_OUT = "left-out";
 
@@ -49,7 +50,7 @@ export function purchaseOrderChoicesOf(
   knownSupplierIds: ReadonlySet<string>,
 ): PurchaseOrderBuildBody["choices"] {
   return lines.flatMap((line) => {
-    const supplierId = chosenSupplierId(line, drafts[line.id], knownSupplierIds);
+    const supplierId = chosenSupplierId(line, ownEntry(drafts, line.id), knownSupplierIds);
     if (supplierId === null || supplierId === LEFT_OUT) {
       return [];
     }

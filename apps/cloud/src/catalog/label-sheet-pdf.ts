@@ -4,6 +4,7 @@ import { BOLD_FONT, BOLD_FONT_FILE } from "../platform/pdf-fonts.js";
 import {
   BAR_HEIGHT_MM,
   DIGITS_PER_GROUP,
+  type Ean13BarcodeDimensions,
   ean13BarcodeGeometry,
   GUARD_BAR_EXTRA_MM,
   HUMAN_READABLE_HEIGHT_MM,
@@ -36,6 +37,13 @@ const CUT_LINE_WIDTH_MM = 0.2;
 const CUT_LINE_COLOR = "#999999";
 const DIGIT_GROUP_WIDTH_MM = DIGITS_PER_GROUP * MODULES_PER_DIGIT * MODULE_WIDTH_MM;
 const FIRST_DIGIT_BOX_WIDTH_MM = QUIET_ZONE_LEFT_MODULES * MODULE_WIDTH_MM;
+
+const BARCODE_DIMENSIONS_MM: Ean13BarcodeDimensions = {
+  moduleWidth: MODULE_WIDTH_MM,
+  barHeight: BAR_HEIGHT_MM,
+  guardExtra: GUARD_BAR_EXTRA_MM,
+  digitsHeight: HUMAN_READABLE_HEIGHT_MM,
+};
 
 function mm(valueMm: number): number {
   return valueMm * PT_PER_MM;
@@ -99,29 +107,29 @@ function drawName(doc: PDFKit.PDFDocument, label: PositionedLabel, topMm: number
 }
 
 function drawBarcode(doc: PDFKit.PDFDocument, label: PositionedLabel, topMm: number): void {
-  const geometry = ean13BarcodeGeometry(label.code);
+  const geometry = ean13BarcodeGeometry(label.code, BARCODE_DIMENSIONS_MM);
   const originXMm =
-    label.xMm + PADDING_LEFT_RIGHT_MM + (CONTENT_WIDTH_MM - geometry.totalWidthMm) / 2;
+    label.xMm + PADDING_LEFT_RIGHT_MM + (CONTENT_WIDTH_MM - geometry.totalWidth) / 2;
 
   doc.fillColor("#000000");
   for (const bar of geometry.bars) {
-    doc.rect(mm(originXMm + bar.xMm), mm(topMm), mm(bar.widthMm), mm(bar.heightMm)).fill();
+    doc.rect(mm(originXMm + bar.x), mm(topMm), mm(bar.width), mm(bar.height)).fill();
   }
 
-  const digitsTopMm = topMm + BAR_HEIGHT_MM + GUARD_BAR_EXTRA_MM;
-  const fontSizePt = HUMAN_READABLE_HEIGHT_MM * PT_PER_MM;
+  const digitsTopMm = topMm + geometry.digitsTop;
+  const fontSizePt = geometry.digitsHeight * PT_PER_MM;
   doc.font("Courier-Bold").fontSize(fontSizePt).fillColor("#000000");
 
   const firstDigitBoxWidthMm = FIRST_DIGIT_BOX_WIDTH_MM;
   doc.text(
     geometry.firstDigitText.value,
-    mm(originXMm + geometry.firstDigitText.xMm - firstDigitBoxWidthMm),
+    mm(originXMm + geometry.firstDigitText.x - firstDigitBoxWidthMm),
     mm(digitsTopMm),
     { width: mm(firstDigitBoxWidthMm), align: "right", lineBreak: false },
   );
 
   for (const group of [geometry.leftGroupText, geometry.rightGroupText]) {
-    doc.text(group.value, mm(originXMm + group.xMm - DIGIT_GROUP_WIDTH_MM / 2), mm(digitsTopMm), {
+    doc.text(group.value, mm(originXMm + group.x - DIGIT_GROUP_WIDTH_MM / 2), mm(digitsTopMm), {
       width: mm(DIGIT_GROUP_WIDTH_MM),
       align: "center",
       lineBreak: false,

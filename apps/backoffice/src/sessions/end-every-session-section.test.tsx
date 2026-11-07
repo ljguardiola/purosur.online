@@ -11,13 +11,9 @@ function createServices(): EndEverySessionSectionServices {
 test("offers to close every session in a callout for a suspected compromise", async () => {
   const screen = await renderSection(createServices());
 
-  await expect.element(screen.getByText("Ante una sospecha de compromiso")).toBeVisible();
+  await expect.element(screen.getByText("Cerrar todas las sesiones del backoffice")).toBeVisible();
   await expect
-    .element(
-      screen.getByText(
-        "Cierra todas las sesiones abiertas del backoffice. Cada persona vuelve a entrar con su passkey.",
-      ),
-    )
+    .element(screen.getByText("Cada persona vuelve a entrar con su passkey.", { exact: true }))
     .toBeVisible();
   await expect
     .element(screen.getByRole("button", { name: "Cerrar todas las sesiones" }))
@@ -51,7 +47,7 @@ test("closes the confirmation with Cancelar, leaving the callout", async () => {
   await expect
     .poll(() => screen.getByRole("dialog", { name: "¿Cerrar todas las sesiones?" }).query())
     .toBeNull();
-  await expect.element(screen.getByText("Ante una sospecha de compromiso")).toBeVisible();
+  await expect.element(screen.getByText("Cerrar todas las sesiones del backoffice")).toBeVisible();
 });
 
 test("reports the session as ended after the confirmation succeeds", async () => {

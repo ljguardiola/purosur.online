@@ -17,8 +17,11 @@ import { downloadFile } from "../platform/download-file";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { groupedEan13Digits, LabelPreviewBars } from "./label-preview-bars";
+import type { LabelPrinterChoice, LabelPrinterPort } from "./label-printer-port";
+import type { LabelToPrint } from "./label-printer-print-sequence";
+import type { PrintLabelsOutcome as PrinterOutcome } from "./print-labels-on-printer";
 import { productDescription } from "./product-description";
-import type { printLabels } from "./products-api";
+import type { fetchPrinterLabels, PrintLabelEntry, printLabels } from "./products-api";
 
 type LabelCounts = ReadonlyMap<string, number>;
 
@@ -45,6 +48,28 @@ function withOneMore(counts: LabelCounts, productId: string): LabelCounts {
 
 type LabelableProduct = { product: ProductSummary; code: string; modules: string };
 
+const BROWSER_WITHOUT_LABEL_PRINTER =
+  "Este navegador no puede usar la impresora de etiquetas. Abrí el backoffice en Chrome o descargá la hoja A4.";
+
+function printerNotice(
+  outcome:
+    | Exclude<LabelPrinterChoice, { kind: "chosen" }>
+    | Exclude<PrinterOutcome, { kind: "printed" }>,
+): PrintNotice {
+  switch (outcome.kind) {
+    case "unavailable":
+      return { kind: "printerUnavailable" };
+    case "no-printer":
+      return { kind: "noPrinter" };
+    case "chooser-failed":
+      return { kind: "printerNotReached" };
+    case "not-opened":
+      return { kind: "printerNotOpened" };
+    case "interrupted":
+      return { kind: "printInterrupted", printed: outcome.printed, total: outcome.total };
+  }
+}
+
 function labelableProducts(
   products: ProductSummary[],
   brands: readonly BrandSummary[],
@@ -64,12 +89,28 @@ function labelableProducts(
 
 type PrintNotice =
   | { kind: "attemptFailed" }
+  | { kind: "preparationFailed" }
+  | { kind: "printerUnavailable" }
+  | { kind: "noPrinter" }
+  | { kind: "printerNotReached" }
+  | { kind: "printerNotOpened" }
+  | { kind: "printerFailed" }
+  | { kind: "printInterrupted"; printed: number; total: number }
   | { kind: "productsChanged" }
   | { kind: "rateLimited"; retryAfterSeconds: number };
 
 export type PrintLabelsModalServices = {
   printLabels: typeof printLabels;
+  fetchPrinterLabels: typeof fetchPrinterLabels;
+  labelPrinterAvailable: () => boolean;
+  chooseLabelPrinter: () => Promise<LabelPrinterChoice>;
+  printOnLabelPrinter: (
+    port: LabelPrinterPort,
+    labels: readonly LabelToPrint[],
+  ) => Promise<PrinterOutcome>;
 };
+
+type CloudRefusal = Exclude<Awaited<ReturnType<typeof printLabels>>, { kind: "ok" }>;
 
 type PrintLabelsModalProps = {
   open: boolean;
@@ -90,11 +131,18 @@ export function PrintLabelsModal({
   onReload,
   services,
 }: PrintLabelsModalProps) {
-  const { printLabels } = services;
+  const {
+    printLabels,
+    fetchPrinterLabels,
+    labelPrinterAvailable,
+    chooseLabelPrinter,
+    printOnLabelPrinter,
+  } = services;
   const sendToMyAccount = useSendToMyAccount();
   const [counts, setCounts] = useState(NO_LABELS);
   const [notice, setNotice] = useState<PrintNotice | null>(null);
   const [printing, setPrinting] = useState(false);
+  const [printerPrinting, setPrinterPrinting] = useState(false);
   const [reloading, setReloading] = useState(false);
   const printRequestIdRef = useRef(0);
 
@@ -104,6 +152,7 @@ export function PrintLabelsModal({
       setCounts(NO_LABELS);
       setNotice(null);
       setPrinting(false);
+      setPrinterPrinting(false);
       setReloading(false);
     }
   }, [open]);
@@ -124,10 +173,38 @@ export function PrintLabelsModal({
     });
   }
 
-  async function handleDownload() {
-    const entries = rows
+  const printerAvailable = labelPrinterAvailable();
+
+  function chosenEntries(): PrintLabelEntry[] {
+    return rows
       .map((row) => ({ productId: row.product.id, count: countOf(counts, row.product.id) }))
       .filter((entry) => entry.count > 0);
+  }
+
+  function showRefusal(outcome: CloudRefusal, failure: PrintNotice) {
+    if (outcome.kind === "unauthenticated") {
+      onSessionEnded();
+      return;
+    }
+    if (outcome.kind === "forbidden") {
+      sendToMyAccount();
+      return;
+    }
+    if (outcome.kind === "rate_limited") {
+      setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
+    } else if (
+      outcome.kind === "product_not_found" ||
+      outcome.kind === "product_without_internal_barcode"
+    ) {
+      setNotice({ kind: "productsChanged" });
+    } else {
+      setNotice(failure);
+    }
+    setPrinting(false);
+  }
+
+  async function handleDownload() {
+    const entries = chosenEntries();
     if (entries.length === 0) {
       return;
     }
@@ -144,29 +221,44 @@ export function PrintLabelsModal({
       onClose();
       return;
     }
-    if (outcome.kind === "unauthenticated") {
-      onSessionEnded();
+    showRefusal(outcome, { kind: "attemptFailed" });
+  }
+
+  async function handlePrintOnPrinter() {
+    const entries = chosenEntries();
+    if (entries.length === 0) {
       return;
     }
-    if (outcome.kind === "forbidden") {
-      sendToMyAccount();
-      return;
-    }
-    if (outcome.kind === "rate_limited") {
-      setNotice({ kind: "rateLimited", retryAfterSeconds: outcome.retryAfterSeconds });
+    setNotice(null);
+    setPrinting(true);
+    const requestId = printRequestIdRef.current;
+    const choice = await chooseLabelPrinter();
+    if (choice.kind !== "chosen") {
       setPrinting(false);
+      setNotice(printerNotice(choice));
       return;
     }
-    if (
-      outcome.kind === "product_not_found" ||
-      outcome.kind === "product_without_internal_barcode"
-    ) {
-      setNotice({ kind: "productsChanged" });
-      setPrinting(false);
+    const prepared = await fetchPrinterLabels(entries);
+    if (requestId !== printRequestIdRef.current) {
       return;
     }
-    setNotice({ kind: "attemptFailed" });
+    if (prepared.kind !== "ok") {
+      showRefusal(prepared, { kind: "preparationFailed" });
+      return;
+    }
+    setPrinterPrinting(true);
+    const outcome = await printOnLabelPrinter(choice.port, prepared.labels).catch(() => null);
+    setPrinterPrinting(false);
     setPrinting(false);
+    if (outcome === null) {
+      setNotice({ kind: "printerFailed" });
+      return;
+    }
+    if (outcome.kind === "printed") {
+      onClose();
+      return;
+    }
+    setNotice(printerNotice(outcome));
   }
 
   async function handleReload() {
@@ -191,33 +283,92 @@ export function PrintLabelsModal({
           onClose();
         }
       }}
-      width="standard"
+      width="wide"
       tone="info"
       icon={<Printer />}
       context="Catálogo · Productos"
       title="Imprimir etiquetas"
-      closable
+      closable={!printerPrinting}
       footer={
         <>
           <Button variant="secondary" size="large" icon={<X />} disabled={busy} onPress={onClose}>
             Cancelar
           </Button>
           <Button
-            variant="primary"
+            variant="secondary"
             size="large"
             icon={<Download />}
-            fullWidth
             disabled={busy || total === 0}
             onPress={() => void handleDownload()}
           >
-            Descargar la hoja para imprimir
+            Descargar la hoja A4
+          </Button>
+          <Button
+            variant="primary"
+            size="large"
+            icon={<Printer />}
+            fullWidth
+            disabled={busy || total === 0}
+            {...(printerAvailable ? {} : { disabledReason: BROWSER_WITHOUT_LABEL_PRINTER })}
+            onPress={() => void handlePrintOnPrinter()}
+          >
+            Imprimir en la impresora de etiquetas
           </Button>
         </>
       }
     >
       <div className="flex flex-col gap-4">
+        {notice?.kind === "printerUnavailable" && (
+          <InlineNotice
+            tone="warning"
+            icon={<Printer />}
+            title="Este navegador no puede usar la impresora de etiquetas"
+            description="Abrí el backoffice en Chrome o descargá la hoja A4."
+          />
+        )}
         {notice?.kind === "attemptFailed" && (
           <ActionFailureNotice title="No se pudo generar la hoja" />
+        )}
+        {notice?.kind === "preparationFailed" && (
+          <ActionFailureNotice title="No se pudo preparar la impresión" />
+        )}
+        {notice?.kind === "noPrinter" && (
+          <InlineNotice
+            tone="warning"
+            icon={<Printer />}
+            title="No se eligió ninguna impresora"
+            description="Conectá la impresora de etiquetas por USB y volvé a intentar."
+          />
+        )}
+        {notice?.kind === "printerNotReached" && (
+          <InlineNotice
+            tone="error"
+            icon={<Printer />}
+            title="No se pudo conectar con la impresora"
+            description="Probá de nuevo."
+          />
+        )}
+        {notice?.kind === "printerNotOpened" && (
+          <InlineNotice
+            tone="error"
+            icon={<Printer />}
+            title="No se pudo conectar con la impresora"
+            description="Cerrá otros programas que la estén usando y volvé a intentar."
+          />
+        )}
+        {notice?.kind === "printerFailed" && (
+          <ActionFailureNotice title="No se pudo imprimir en la impresora de etiquetas" />
+        )}
+        {notice?.kind === "printInterrupted" && (
+          <InlineNotice
+            tone="error"
+            icon={<TriangleAlert />}
+            title="La impresión se interrumpió"
+            description={`Se imprimieron ${formatNumber(notice.printed)} de ${plural(notice.total, {
+              one: "1 etiqueta",
+              other: `${formatNumber(notice.total)} etiquetas`,
+            })}.`}
+          />
         )}
         {notice?.kind === "rateLimited" && (
           <InlineNotice
@@ -311,7 +462,8 @@ export function PrintLabelsModal({
                     })}
                   </p>
                   <p className="text-detail text-text-subtle">
-                    Hoja autoadhesiva para cualquier impresora común.
+                    Etiquetas de 50 × 30 mm en la impresora de etiquetas, o una hoja A4 para
+                    cualquier impresora común.
                   </p>
                 </div>
               </fieldset>

@@ -1,6 +1,5 @@
 import type { AiCallUsage } from "@purosur/domain/purchasing/use-cases";
 import { describe, expect, it } from "vitest";
-import { PURCHASING_AI_MODEL } from "./anthropic-structured-call.js";
 import { AnthropicSupplierItemQuantityReader } from "./anthropic-supplier-item-quantity-reader.js";
 import { SUPPLIER_ITEM_QUANTITY_RULE } from "./supplier-item-quantity-prompt.js";
 import {
@@ -55,7 +54,21 @@ describe("the request the reader sends", () => {
 
     expect(new URL(request.url).pathname).toBe("/v1/messages");
     expect(request.headers.get("x-api-key")).toBe("fictional-api-key-for-tests");
-    expect(request.body).toMatchObject({ model: PURCHASING_AI_MODEL, stream: true });
+    expect(request.body).toMatchObject({ model: "claude-haiku-5-5", stream: true });
+  });
+
+  it("sends nothing but the model, the limits, the instructions and the format, and no server-side fallback", async () => {
+    const { body, headers } = await sentRequest();
+
+    expect(headers.get("anthropic-beta") ?? "").not.toContain("server-side-fallback");
+    expect(Object.keys(body).sort()).toEqual([
+      "max_tokens",
+      "messages",
+      "model",
+      "output_config",
+      "stream",
+      "system",
+    ]);
   });
 
   it("sends the item's text and the product's sale unit and net content as its only content, and no tools", async () => {
@@ -202,6 +215,7 @@ describe("the calls the reader reports", () => {
     const { reader } = readerAnswering(() =>
       streamedAnswerResponse({
         textParts: ['{"quantity":36}'],
+        model: "claude-haiku-5-5",
         usage: { inputTokens: 80, outputTokens: 6, cacheReadTokens: 50 },
       }),
     );
@@ -214,7 +228,7 @@ describe("the calls the reader reports", () => {
         outcome: "completed",
         attempts: [
           {
-            model: PURCHASING_AI_MODEL,
+            model: "claude-haiku-5-5",
             inputTokens: 80,
             outputTokens: 6,
             cacheWriteTokens: 0,

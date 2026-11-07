@@ -133,5 +133,7 @@ test("navigates to Mi cuenta when discarding comes back forbidden", async () => 
 
   await confirm(screen);
 
-  await expect.poll(() => window.location.pathname).toBe("/account");
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
 });

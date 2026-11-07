@@ -79,6 +79,7 @@ export {
   showsAlertScope,
 } from "./alerts/index.js";
 export type {
+  CloudLinkReading,
   ContingencyBackupOperation,
   ContingencyBackupPrintFailureReason,
   ContingencyBackupTicketRecord,
@@ -629,6 +630,7 @@ export {
   AI_CALL_PURPOSES,
   AI_COST_GROUPINGS,
   AI_MODEL_PRICES,
+  askPriceListRange,
   countsTowardDailyExtractionCap,
   DEFAULT_FREIGHT_PERIOD_DAYS,
   DEFAULT_SUPPLIER_ITEM_VAT_RATE,
@@ -1018,6 +1020,7 @@ export {
 } from "./sessions/index.js";
 export type {
   IsoWeekday,
+  LastStableReading,
   ReportPeriod,
   SalesDeniedReason,
   ZoneRules,
@@ -1049,6 +1052,7 @@ export {
   SALES_DENIED_REASONS,
   STORAGE_SALES_DENIED_REASONS,
   shiftCalendarDay,
+  steadyScaleReading,
   utcOffsetText,
 } from "./shared/index.js";
 export type {

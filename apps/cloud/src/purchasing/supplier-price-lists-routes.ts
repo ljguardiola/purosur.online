@@ -2,6 +2,7 @@ import {
   brandListSchema,
   categoryListSchema,
   supplierItemLinkChoicesSchema,
+  supplierItemLinkProposalBodySchema,
   supplierItemLinkProposalSchema,
   supplierItemQuantityProposalBodySchema,
   supplierItemQuantityProposalSchema,
@@ -75,7 +76,7 @@ import {
 } from "../sessions/route-access.js";
 import { DrizzleSupplierItemLinkProposalReader } from "./drizzle-supplier-item-link-proposal-reader.js";
 import { DrizzleSupplierItemProductStore } from "./drizzle-supplier-item-product-store.js";
-import { DrizzleSupplierPriceListAiCallStore } from "./drizzle-supplier-price-list-ai-call-store.js";
+import { DrizzleSupplierItemProposalStore } from "./drizzle-supplier-item-proposal-store.js";
 import { DrizzleSupplierPriceListAiCostReader } from "./drizzle-supplier-price-list-ai-cost-reader.js";
 import { DrizzleSupplierPriceListReader } from "./drizzle-supplier-price-list-reader.js";
 import { DrizzleSupplierPriceListStore } from "./drizzle-supplier-price-list-store.js";
@@ -324,7 +325,7 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
   const productStore = new DrizzleSupplierItemProductStore(options.db, now);
   const reader = new DrizzleSupplierPriceListReader(options.db);
   const proposalReader = new DrizzleSupplierItemLinkProposalReader(options.db);
-  const aiCalls = new DrizzleSupplierPriceListAiCallStore(options.db);
+  const proposalStore = new DrizzleSupplierItemProposalStore(options.db);
   const aiCostReader = new DrizzleSupplierPriceListAiCostReader(options.db);
   const catalog = new DrizzleCatalogListReader(options.db);
   const sessionSource = routeSessionSource({ db: options.db, now });
@@ -593,7 +594,7 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
     await reply.code(200).send();
   });
 
-  app.get(
+  app.post(
     "/supplier-price-lists/:id/rows/:rowId/link-proposal",
     readGuard,
     async (request, reply) => {
@@ -601,15 +602,25 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
       if (!ids) {
         return;
       }
+      const body = await readValidatedBody(reply, supplierItemLinkProposalBodySchema, request.body);
+      if (!body) {
+        return;
+      }
       const outcome = await proposeSupplierItemLink(
         {
           reader: proposalReader,
           chooser: productChooser,
           quantityReader: supplierItemQuantityReader,
-          aiCalls,
+          store: proposalStore,
           zoneRules: options.zoneRules,
         },
-        { listId: ids.id, rowId: ids.rowId, actorId: openSessionOf(request).userId, now },
+        {
+          ...body,
+          listId: ids.id,
+          rowId: ids.rowId,
+          actorId: openSessionOf(request).userId,
+          now,
+        },
       );
       if (outcome.kind === "not_found") {
         await reply.code(404).send(NOT_FOUND);
@@ -639,7 +650,7 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
         {
           reader: proposalReader,
           quantityReader: supplierItemQuantityReader,
-          aiCalls,
+          store: proposalStore,
           zoneRules: options.zoneRules,
         },
         {
