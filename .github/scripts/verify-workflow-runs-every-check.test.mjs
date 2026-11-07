@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
   checkRepository,
   findCloudPostgresImageViolations,
+  findDependencyCacheViolations,
   findLocalPostgresImageViolations,
   findPlaywrightImageViolations,
   findPlaywrightInstallViolations,
@@ -2021,9 +2023,9 @@ test("leaves a global setup with no POSTGRES_IMAGE to the cloud Postgres check i
   assert.deepEqual(violations, []);
 });
 
-test("checkRepository reads the real workflow file, package.json, the local database, both image setups and the installed Playwright version", () => {
-  const files = {
-    ".github/workflows/verify.yml": jobWithPull(PRE_PULLED_IMAGES[0]),
+function repositoryFiles(workflowSource) {
+  return {
+    ".github/workflows/verify.yml": workflowSource,
     "package.json": packageJson(),
     "docker-compose.yml": composeDeclaring(PINNED_POSTGRES_IMAGE),
     "apps/cloud/vitest.global-setup.postgres.ts": setupDeclaring(
@@ -2038,6 +2040,10 @@ test("checkRepository reads the real workflow file, package.json, the local data
       version: INSTALLED_PLAYWRIGHT_VERSION,
     }),
   };
+}
+
+test("checkRepository reads the real workflow file, package.json, the local database, both image setups and the installed Playwright version", () => {
+  const files = repositoryFiles(jobWithPull(PRE_PULLED_IMAGES[0]));
   const read = [];
 
   checkRepository({
@@ -2126,6 +2132,157 @@ test("passes a job without a matrix that downloads artifacts once", () => {
 test("passes a matrix job that downloads nothing", () => {
   const violations = findShardDownloadViolations(
     workflowWithMatrixStep(["run: gh run list --limit 1"]),
+  );
+
+  assert.deepEqual(violations, []);
+});
+
+const SETUP_NODE = "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0";
+const CACHE_RESTORE = "actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v6.1.0";
+
+function workflowWithSteps(...stepsLines) {
+  return [
+    "jobs:",
+    "  tests:",
+    "    runs-on: ubuntu-24.04",
+    "    timeout-minutes: 10",
+    "    steps:",
+    ...stepsLines.flatMap((lines) =>
+      lines.map((line, i) => (i === 0 ? `      - ${line}` : `        ${line}`)),
+    ),
+    "      - run: pnpm install --frozen-lockfile",
+  ].join("\n");
+}
+
+const SETUP_NODE_WITHOUT_CACHE = [
+  `uses: ${SETUP_NODE}`,
+  "with:",
+  "  node-version-file: .node-version",
+];
+
+function cacheStep(uses, extraLines) {
+  return [
+    `uses: ${uses}`,
+    ...extraLines,
+    "with:",
+    `  path: \${{ steps.pnpm-store.outputs.path }}`,
+    `  key: pnpm-store-\${{ hashFiles('pnpm-lock.yaml') }}`,
+  ];
+}
+
+test("passes a job that sets up Node without a cache and restores the store in a bounded step that may fail", () => {
+  const violations = findDependencyCacheViolations(
+    workflowWithSteps(
+      SETUP_NODE_WITHOUT_CACHE,
+      cacheStep(CACHE_RESTORE, ["continue-on-error: true", "timeout-minutes: 2"]),
+    ),
+  );
+
+  assert.deepEqual(violations, []);
+});
+
+test("flags actions/setup-node restoring the pnpm cache, which a stalled download keeps from finishing", () => {
+  const violations = findDependencyCacheViolations(
+    workflowWithSteps([
+      `uses: ${SETUP_NODE}`,
+      "with:",
+      "  node-version-file: .node-version",
+      "  cache: pnpm",
+    ]),
+  );
+
+  assertSingleViolation(
+    violations,
+    /tests job restores a dependency cache inside actions\/setup-node/,
+  );
+});
+
+for (const uses of [
+  CACHE_RESTORE,
+  "actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v6.1.0",
+  "actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v6.1.0",
+]) {
+  const action = uses.split("@")[0];
+
+  test(`flags a ${action} step with no time limit of its own`, () => {
+    for (const timeoutLines of [[], ["timeout-minutes: 0"], ['timeout-minutes: "2"']]) {
+      const violations = findDependencyCacheViolations(
+        workflowWithSteps(
+          SETUP_NODE_WITHOUT_CACHE,
+          cacheStep(uses, ["continue-on-error: true", ...timeoutLines]),
+        ),
+      );
+
+      assertSingleViolation(violations, /tests job's .* step sets no timeout-minutes/);
+    }
+  });
+
+  test(`flags a ${action} step whose failure fails the job`, () => {
+    for (const continueLines of [[], ["continue-on-error: false"]]) {
+      const violations = findDependencyCacheViolations(
+        workflowWithSteps(
+          SETUP_NODE_WITHOUT_CACHE,
+          cacheStep(uses, [...continueLines, "timeout-minutes: 2"]),
+        ),
+      );
+
+      assertSingleViolation(violations, /tests job's .* step does not continue on error/);
+    }
+  });
+
+  test(`flags a ${action} step whose time limit does not end before its job's`, () => {
+    for (const stepMinutes of [10, 30]) {
+      const violations = findDependencyCacheViolations(
+        workflowWithSteps(
+          SETUP_NODE_WITHOUT_CACHE,
+          cacheStep(uses, ["continue-on-error: true", `timeout-minutes: ${stepMinutes}`]),
+        ),
+      );
+
+      assertSingleViolation(
+        violations,
+        new RegExp(
+          `tests job's .* step's timeout-minutes \\(${stepMinutes}\\) is not shorter than the job's \\(10\\)`,
+        ),
+      );
+    }
+  });
+}
+
+test("passes a cache step with any time limit in a job that sets none", () => {
+  const violations = findDependencyCacheViolations(
+    workflowWithSteps(
+      SETUP_NODE_WITHOUT_CACHE,
+      cacheStep(CACHE_RESTORE, ["continue-on-error: true", "timeout-minutes: 30"]),
+    ).replace("    timeout-minutes: 10\n", ""),
+  );
+
+  assert.deepEqual(violations, []);
+});
+
+test("checkRepository reports a dependency cache restored inside actions/setup-node", () => {
+  const files = repositoryFiles(
+    workflowWithSteps([
+      `uses: ${SETUP_NODE}`,
+      "with:",
+      "  node-version-file: .node-version",
+      "  cache: pnpm",
+    ]),
+  );
+
+  const violations = checkRepository({ readFile: (path) => files[path] });
+
+  assert.ok(
+    violations.some((violation) =>
+      /tests job restores a dependency cache inside actions\/setup-node/.test(violation),
+    ),
+    violations.join("\n"),
+  );
+});
+
+test("the real Verify workflow restores its dependency caches in bounded steps that may fail", () => {
+  const violations = findDependencyCacheViolations(
+    readFileSync(".github/workflows/verify.yml", "utf8"),
   );
 
   assert.deepEqual(violations, []);
