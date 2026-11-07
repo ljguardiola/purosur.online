@@ -18,7 +18,6 @@ function createServices(
   return {
     fetchRegisterPointsOfSale: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     fetchFiscalAddresses: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
-    fetchBuyerTaxStatuses: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     configureRegisterPointOfSale: vi.fn(),
     configureRegisterOfflinePointOfSale: vi.fn(),
     createFiscalAddress: vi.fn(),

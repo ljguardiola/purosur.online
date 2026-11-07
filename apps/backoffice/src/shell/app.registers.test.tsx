@@ -3,6 +3,10 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import {
+  RegisterPointOfSalePanelSection,
+  type RegisterPointOfSalePanelSectionServices,
+} from "../fiscal/register-point-of-sale-panel-section";
+import {
   emptyCashMovementsReport,
   weekCashMovementsReport,
 } from "../register/test-support/cash-movements-fixtures";
@@ -428,9 +432,14 @@ test("changing the point of sale in a register's Fiscal y cobros saves it throug
       },
     ],
   });
-  vi.mocked(services.pointsOfSaleScreen.configureRegisterPointOfSale).mockResolvedValue({
-    kind: "ok",
-  });
+  const panelServices: RegisterPointOfSalePanelSectionServices = {
+    ...services.pointsOfSaleScreen,
+    configureRegisterPointOfSale: vi.fn().mockResolvedValue({ kind: "ok" }),
+    configureRegisterOfflinePointOfSale: vi.fn(),
+  };
+  services.registerPointOfSaleSection = (props) => (
+    <RegisterPointOfSalePanelSection {...props} services={panelServices} />
+  );
   window.history.pushState(null, "", `/registers?register=${REGISTER_ID}&tab=fiscal`);
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByText("00012")).toBeVisible();
@@ -440,10 +449,11 @@ test("changing the point of sale in a register's Fiscal y cobros saves it throug
 
   await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
 
-  expect(services.pointsOfSaleScreen.configureRegisterPointOfSale).toHaveBeenCalledWith(
-    REGISTER_ID,
-    { point_of_sale_number: 7, fiscal_address_id: configured.fiscalAddressId, version: 2 },
-  );
+  expect(panelServices.configureRegisterPointOfSale).toHaveBeenCalledWith(REGISTER_ID, {
+    point_of_sale_number: 7,
+    fiscal_address_id: configured.fiscalAddressId,
+    version: 2,
+  });
   await expect.element(screen.getByText("00007")).toBeVisible();
 
   await userEvent.click(screen.getByRole("link", { name: "Caja y fiscal", exact: true }));
