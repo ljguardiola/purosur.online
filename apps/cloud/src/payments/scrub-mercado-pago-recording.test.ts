@@ -111,6 +111,19 @@ describe("scrubbing a Mercado Pago recording", () => {
     ]);
   });
 
+  it("replaces the application id of the integration keeping its type", () => {
+    const result = scrub({
+      integration_data: { application_id: "8877665544332211" },
+      other: { application_id: 8877665544332211 },
+    });
+
+    expect(result.value).toEqual({
+      integration_data: { application_id: "1234567890123456" },
+      other: { application_id: 1234567890123456 },
+    });
+    expect(result.replacements).toEqual([{ field: "application_id", count: 2 }]);
+  });
+
   it("does not walk into a value replaced by key", () => {
     const result = scrub({ identification: { number: 5544332211, inner: { user_id: 1 } } });
 
