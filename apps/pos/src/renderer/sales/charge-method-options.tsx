@@ -1,5 +1,6 @@
 import type { PaymentMethodAvailability } from "@purosur/contracts";
-import { formatCents, type Icon, type Options } from "@purosur/ui";
+import type { Icon, Options } from "@purosur/ui";
+import { formatCents } from "@purosur/ui";
 import { Banknote, Calculator, CreditCard, Landmark, QrCode, WifiOff } from "lucide-react";
 import type { CoreData } from "../platform/use-core-query";
 
