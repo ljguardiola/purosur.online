@@ -20,6 +20,7 @@ const FICTIONAL_ACCESS_TOKEN = "FICTIONAL-ACCESS-TOKEN";
 const FICTIONAL_ACCOUNT_ID = 1_234_567_890;
 const FICTIONAL_EXTERNAL_POS_ID = "STORE01POS01";
 const FICTIONAL_TERMINAL_ID = "FICTIONAL__SMARTPOS1";
+const FICTIONAL_APPLICATION_ID = 1_234_567_890_123_456;
 const IDENTIFIER_FIELDS = new Set(["id", "reference_id", "transaction_id"]);
 const IDENTIFIER_TEXT = /^(?=[A-Z]*\d)[0-9A-Z]{8,}$/;
 const LEADING_LETTERS = /^[A-Z]*/;
@@ -31,6 +32,11 @@ const idOf = (original: unknown): unknown =>
 const REPLACEMENT_BY_KEY: ReadonlyMap<string, (original: unknown) => unknown> = new Map([
   ["user_id", idOf],
   ["collector_id", idOf],
+  [
+    "application_id",
+    (original) =>
+      typeof original === "number" ? FICTIONAL_APPLICATION_ID : String(FICTIONAL_APPLICATION_ID),
+  ],
   ["external_pos_id", () => FICTIONAL_EXTERNAL_POS_ID],
   ["terminal_id", () => FICTIONAL_TERMINAL_ID],
   ["qr_data", () => "FICTIONAL-QR-DATA"],
