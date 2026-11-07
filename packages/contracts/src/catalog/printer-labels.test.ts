@@ -1,5 +1,14 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import { type PrinterLabels, printerLabelsSchema } from "./printer-labels.js";
+import {
+  LABEL_PRINTER_HEIGHT_MM,
+  LABEL_PRINTER_WIDTH_MM,
+  type LabelPrintsBody,
+  labelPrintsBodySchema,
+  type PrinterLabelSize,
+  type PrinterLabels,
+  printerLabelSizeSchema,
+  printerLabelsSchema,
+} from "./printer-labels.js";
 
 function rasterOf(byteCount: number): string {
   return Buffer.alloc(byteCount, 0xa5).toString("base64");
@@ -131,5 +140,84 @@ describe("printerLabelsSchema", () => {
 
     expect(printerLabelsSchema.safeParse(body).success).toBe(true);
     expect(printerLabelsSchema.safeParse(longer).success).toBe(false);
+  });
+});
+
+describe("printerLabelSizeSchema", () => {
+  it("accepts a whole-millimetre size inside the label printer's ranges", () => {
+    const result = printerLabelSizeSchema.safeParse({ widthMm: 50, heightMm: 30 });
+
+    expect(result.success).toBe(true);
+    expect(result.data).toEqual({ widthMm: 50, heightMm: 30 });
+    expectTypeOf<PrinterLabelSize>().toEqualTypeOf<{ widthMm: number; heightMm: number }>();
+  });
+
+  it("names the printer's width range from 25 to 70 mm and height range from 15 to 70 mm", () => {
+    expect(LABEL_PRINTER_WIDTH_MM).toEqual({ min: 25, max: 70 });
+    expect(LABEL_PRINTER_HEIGHT_MM).toEqual({ min: 15, max: 70 });
+  });
+
+  it.each([
+    [25, 15],
+    [70, 70],
+  ])("accepts the range edges %s x %s mm", (widthMm, heightMm) => {
+    expect(printerLabelSizeSchema.safeParse({ widthMm, heightMm }).success).toBe(true);
+  });
+
+  it.each([24, 71, 40.5, "50", undefined])("refuses a width of %s mm", (widthMm) => {
+    const result = printerLabelSizeSchema.safeParse({ widthMm, heightMm: 30 });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.path).toEqual(["widthMm"]);
+    expect(result.error?.issues[0]?.message).toBe(
+      "widthMm must be a whole number of millimetres from 25 to 70",
+    );
+  });
+
+  it.each([14, 71, 20.5, "30", undefined])("refuses a height of %s mm", (heightMm) => {
+    const result = printerLabelSizeSchema.safeParse({ widthMm: 50, heightMm });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.path).toEqual(["heightMm"]);
+    expect(result.error?.issues[0]?.message).toBe(
+      "heightMm must be a whole number of millimetres from 15 to 70",
+    );
+  });
+});
+
+describe("labelPrintsBodySchema", () => {
+  const labels = [{ productId: "11111111-1111-1111-1111-111111111111", count: 2 }];
+
+  it("accepts the labels to print with the size of the loaded roll", () => {
+    const result = labelPrintsBodySchema.safeParse({
+      labels,
+      size: { widthMm: 40, heightMm: 25 },
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data).toEqual({ labels, size: { widthMm: 40, heightMm: 25 } });
+    expectTypeOf<LabelPrintsBody>().toExtend<{ size: PrinterLabelSize }>();
+  });
+
+  it("refuses labels sent without a size", () => {
+    expect(labelPrintsBodySchema.safeParse({ labels }).success).toBe(false);
+  });
+
+  it("refuses a size outside the ranges at the size's own field", () => {
+    const result = labelPrintsBodySchema.safeParse({
+      labels,
+      size: { widthMm: 80, heightMm: 25 },
+    });
+
+    expect(result.error?.issues[0]?.path).toEqual(["size", "widthMm"]);
+  });
+
+  it("refuses the labels the A4 sheet would refuse", () => {
+    const result = labelPrintsBodySchema.safeParse({
+      labels: [],
+      size: { widthMm: 40, heightMm: 25 },
+    });
+
+    expect(result.error?.issues[0]?.path).toEqual(["labels"]);
   });
 });

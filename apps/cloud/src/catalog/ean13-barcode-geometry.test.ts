@@ -5,6 +5,7 @@ import {
   CENTER_GUARD_START_MODULE,
   END_GUARD_START_MODULE,
   ean13BarcodeGeometry,
+  ean13NarrowBarcodeGeometry,
   GUARD_BAR_EXTRA_MM,
   HUMAN_READABLE_HEIGHT_MM,
   MODULE_WIDTH_MM,
@@ -121,5 +122,24 @@ describe("ean13BarcodeGeometry in another unit", () => {
     expect(geometry.firstDigitText.x).toBe(28.5);
     expect(geometry.leftGroupText.x).toBe(105);
     expect(geometry.rightGroupText.x).toBe(246);
+  });
+});
+
+describe("ean13NarrowBarcodeGeometry", () => {
+  const geometry = ean13NarrowBarcodeGeometry("2000000000015", {
+    moduleWidth: 2,
+    barHeight: 60,
+    guardExtra: 11,
+    digitsHeight: 17,
+  });
+
+  it("is as wide as the 95 modules of the bars, with no quiet zone", () => {
+    expect(geometry.totalWidth).toBe(190);
+    expect(geometry.bars[0]?.x).toBe(0);
+    expect(geometry.totalHeight).toBe(88);
+  });
+
+  it("writes every digit as one line centered under the bars", () => {
+    expect(geometry.digitsText).toEqual({ value: "2 000000 000015", x: 95, align: "center" });
   });
 });

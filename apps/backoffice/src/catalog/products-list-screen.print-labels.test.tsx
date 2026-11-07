@@ -158,8 +158,9 @@ test("printing on the label printer asks the cloud for the rasters and hands the
   );
 
   await expect.poll(() => vi.mocked(services.printOnLabelPrinter).mock.calls.length).toBe(1);
-  expect(services.fetchPrinterLabels).toHaveBeenCalledWith([
-    { productId: honeyWithInternalBarcode.id, count: 1 },
-  ]);
+  expect(services.fetchPrinterLabels).toHaveBeenCalledWith(
+    [{ productId: honeyWithInternalBarcode.id, count: 1 }],
+    { widthMm: 50, heightMm: 30 },
+  );
   expect(services.printOnLabelPrinter).toHaveBeenCalledWith(labelPrinterPort, labels);
 });
