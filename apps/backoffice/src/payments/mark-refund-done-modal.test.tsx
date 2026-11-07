@@ -161,7 +161,7 @@ test("shows the rate-limited notice with the time to wait", async () => {
 });
 
 test("navigates to Mi cuenta when the change comes back forbidden", async () => {
-  window.history.pushState(null, "", "/refunds/outside-the-system");
+  window.history.pushState(null, "", "/refunds");
   const markRefundDone = vi
     .fn<MarkRefundDoneModalServices["markRefundDone"]>()
     .mockResolvedValue({ kind: "forbidden" });
