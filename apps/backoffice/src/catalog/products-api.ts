@@ -238,6 +238,7 @@ export async function printLabels(labels: PrintLabelEntry[]): Promise<PrintLabel
 
 export type FetchPrinterLabelsOutcome =
   | { kind: "ok"; labels: LabelToPrint[] }
+  | { kind: "validation_failed"; field: string }
   | Exclude<PrintLabelsOutcome, { kind: "ok" }>;
 
 function decodedRaster(base64: string): Uint8Array {
@@ -268,6 +269,12 @@ export async function fetchPrinterLabels(
         raster: { widthDots, heightRows: heightDots, data: decodedRaster(label.rows) },
       })),
     };
+  }
+  if (response.status === 400) {
+    const field = await readValidationFailedField(response.clone());
+    if (field !== undefined) {
+      return { kind: "validation_failed", field };
+    }
   }
   return refusedPrintOutcome(response);
 }

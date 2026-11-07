@@ -1,9 +1,9 @@
 import {
   type BrandSummary,
+  labelPrintsBodySchema,
   labelSheetBodySchema,
   type PrinterLabelSize,
   type ProductSummary,
-  printerLabelSizeSchema,
 } from "@purosur/contracts";
 import {
   Button,
@@ -13,6 +13,7 @@ import {
   InlineNotice,
   Modal,
   plural,
+  type RequestSubmission,
   sortedItems,
   textOrder,
   useRequestForm,
@@ -27,10 +28,12 @@ import { groupedEan13Digits, LabelPreviewBars } from "./label-preview-bars";
 import type { LabelPrinterChoice, LabelPrinterPort } from "./label-printer-port";
 import type { LabelToPrint } from "./label-printer-print-sequence";
 import {
-  LABEL_PRINTER_SIZE_FIELDS,
   LABEL_PRINTER_SIZE_MESSAGES,
+  LABEL_PRINTS_FIELDS,
+  type LabelPrinterSizeFormValues,
   labelPrinterSizeFormValues,
-  labelPrinterSizeRequestFrom,
+  labelPrintsRequestFrom,
+  printableLabelSize,
 } from "./label-printer-size-form";
 import {
   FIRST_LABEL_PRINTER_SIZE,
@@ -162,16 +165,19 @@ export function PrintLabelsModal({
   const [printing, setPrinting] = useState(false);
   const [printerPrinting, setPrinterPrinting] = useState(false);
   const [reloading, setReloading] = useState(false);
-  const [openedWith, setOpenedWith] = useState(FIRST_LABEL_PRINTER_SIZE);
   const printRequestIdRef = useRef(0);
+  const rows = labelableProducts(products, brands);
   const { form, submit, values, reset } = useRequestForm({
     defaultValues: labelPrinterSizeFormValues(FIRST_LABEL_PRINTER_SIZE),
-    request: { schema: printerLabelSizeSchema, from: labelPrinterSizeRequestFrom },
-    fields: LABEL_PRINTER_SIZE_FIELDS,
+    request: {
+      schema: labelPrintsBodySchema,
+      from: (values) => labelPrintsRequestFrom(values, chosenEntries()),
+    },
+    fields: LABEL_PRINTS_FIELDS,
     messages: LABEL_PRINTER_SIZE_MESSAGES,
-    onSubmit: async (_request, { parsed }) => {
+    onSubmit: async (_request, { parsed, showWireFieldError }) => {
       if (parsed) {
-        await printOnPrinter(parsed);
+        await printOnPrinter(parsed.labels, parsed.size, showWireFieldError);
       }
     },
   });
@@ -179,9 +185,7 @@ export function PrintLabelsModal({
   useEffect(() => {
     printRequestIdRef.current += 1;
     if (open) {
-      const size = readLabelPrinterSize();
-      setOpenedWith(size);
-      reset(labelPrinterSizeFormValues(size));
+      reset(labelPrinterSizeFormValues(readLabelPrinterSize()));
       setCounts(NO_LABELS);
       setNotice(null);
       setPrinting(false);
@@ -190,12 +194,10 @@ export function PrintLabelsModal({
     }
   }, [open, reset]);
 
-  const rows = labelableProducts(products, brands);
   const total = rows.reduce((sum, row) => sum + countOf(counts, row.product.id), 0);
   const previewRow = rows.find((row) => countOf(counts, row.product.id) > 0) ?? rows[0];
   const busy = printing || reloading;
-  const typedSize = printerLabelSizeSchema.safeParse(labelPrinterSizeRequestFrom(values));
-  const previewSize = typedSize.success ? typedSize.data : openedWith;
+  const previewSize = printableLabelSize(values);
 
   function changeCount(productId: string, delta: 1 | -1) {
     setCounts((current) => {
@@ -259,11 +261,11 @@ export function PrintLabelsModal({
     showRefusal(outcome, { kind: "attemptFailed" });
   }
 
-  async function printOnPrinter(size: PrinterLabelSize) {
-    const entries = chosenEntries();
-    if (entries.length === 0) {
-      return;
-    }
+  async function printOnPrinter(
+    entries: PrintLabelEntry[],
+    size: PrinterLabelSize,
+    showWireFieldError: RequestSubmission<LabelPrinterSizeFormValues>["showWireFieldError"],
+  ) {
     setNotice(null);
     setPrinting(true);
     const requestId = printRequestIdRef.current;
@@ -275,6 +277,13 @@ export function PrintLabelsModal({
     }
     const prepared = await fetchPrinterLabels(entries, size);
     if (requestId !== printRequestIdRef.current) {
+      return;
+    }
+    if (prepared.kind === "validation_failed") {
+      setPrinting(false);
+      if (!showWireFieldError(prepared.field)) {
+        setNotice({ kind: "preparationFailed" });
+      }
       return;
     }
     if (prepared.kind !== "ok") {
@@ -506,9 +515,10 @@ export function PrintLabelsModal({
                     })}
                   </p>
                   <p className="text-detail text-text-subtle">
-                    Etiquetas de {formatNumber(previewSize.widthMm)} ×{" "}
-                    {formatNumber(previewSize.heightMm)} mm en la impresora de etiquetas, o una hoja
-                    A4 para cualquier impresora común.
+                    {previewSize === null
+                      ? "Etiquetas"
+                      : `Etiquetas de ${formatNumber(previewSize.widthMm)} × ${formatNumber(previewSize.heightMm)} mm`}{" "}
+                    en la impresora de etiquetas, o una hoja A4 para cualquier impresora común.
                   </p>
                 </div>
               </fieldset>
