@@ -959,6 +959,53 @@ export function findShardDownloadViolations(workflowSource) {
   return violations;
 }
 
+function usesAction(doc, step, action) {
+  const uses = resolveScalar(doc, mapGet(doc, step, "uses"));
+  return typeof uses === "string" && uses.startsWith(`${action}@`);
+}
+
+const CACHE_ACTIONS = ["actions/cache", "actions/cache/restore", "actions/cache/save"];
+
+function setsUpNodeWithoutCache(doc, step) {
+  return !mapHas(doc, mapGet(doc, step, "with"), "cache");
+}
+
+function hasPositiveTimeout(doc, step) {
+  const timeout = resolveScalar(doc, mapGet(doc, step, "timeout-minutes"));
+  return typeof timeout === "number" && timeout > 0;
+}
+
+export function findDependencyCacheViolations(workflowSource) {
+  const doc = parseDocument(workflowSource);
+  const jobsNode = resolveNode(doc, doc.get("jobs", true));
+  if (!isMap(jobsNode)) return [];
+
+  const violations = [];
+  for (const jobPair of jobsNode.items) {
+    const jobId = String(resolveScalar(doc, jobPair.key));
+    for (const step of steps(doc, resolveNode(doc, jobPair.value))) {
+      if (usesAction(doc, step, "actions/setup-node") && !setsUpNodeWithoutCache(doc, step)) {
+        violations.push(
+          `verify.yml's ${jobId} job restores a dependency cache inside actions/setup-node, whose step a stalled download keeps from finishing until the job times out; restore the cache in its own step with timeout-minutes and continue-on-error`,
+        );
+      }
+      const cacheAction = CACHE_ACTIONS.find((action) => usesAction(doc, step, action));
+      if (cacheAction === undefined) continue;
+      if (!hasPositiveTimeout(doc, step)) {
+        violations.push(
+          `verify.yml's ${jobId} job's ${cacheAction} step sets no timeout-minutes, so a stalled transfer runs until the job times out`,
+        );
+      }
+      if (resolveScalar(doc, mapGet(doc, step, "continue-on-error")) !== true) {
+        violations.push(
+          `verify.yml's ${jobId} job's ${cacheAction} step does not continue on error, so a stalled transfer fails the job instead of leaving it without the cache`,
+        );
+      }
+    }
+  }
+  return violations;
+}
+
 export function checkRepository({
   readFile = (path) => readFileSync(path, "utf8"),
   workflowPath = WORKFLOW_PATH,
@@ -985,5 +1032,6 @@ export function checkRepository({
     ...findPrePulledJobTimeoutViolations(workflowSource),
     ...findPlaywrightInstallViolations(workflowSource),
     ...findShardDownloadViolations(workflowSource),
+    ...findDependencyCacheViolations(workflowSource),
   ];
 }
