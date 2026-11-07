@@ -1,6 +1,6 @@
 import type { ComponentType } from "react";
 
-export type ContingencyTicketRescueAssistantProps = {
+type ContingencyTicketRescueAssistantProps = {
   onClose: () => void;
 };
 
