@@ -300,3 +300,9 @@ test("tells an outdated tab to reload because the backoffice was updated when ch
   await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
   expect(dialog.getByText("Probá de nuevo.").query()).toBeNull();
 });
+
+test("names Cajas as the area it belongs to", async () => {
+  const { dialog } = await renderModal(createServices());
+
+  await expect.element(dialog.getByText("Cajas", { exact: true })).toBeVisible();
+});

@@ -8,6 +8,7 @@ import { registerKey } from "../register-queries";
 import type { RegisterSummary } from "../registers-api";
 import { RegistersListScreen } from "../registers-list-screen";
 import type { RegistersListScreenServices } from "../registers-list-services";
+import { RegisterPointOfSaleSectionStub } from "./register-point-of-sale-section-stub";
 
 export function createServices(
   overrides: Partial<RegistersListScreenServices> = {},
@@ -138,7 +139,12 @@ export async function renderScreen(
   onTestFinished(() => page.viewport(414, 896));
   return render(
     <main>
-      <RegistersListScreen access={access} services={services} onSessionEnded={onSessionEnded} />
+      <RegistersListScreen
+        access={access}
+        services={services}
+        registerPointOfSaleSection={RegisterPointOfSaleSectionStub}
+        onSessionEnded={onSessionEnded}
+      />
       <FetchesInFlight />
       <RefreshRegisters />
     </main>,

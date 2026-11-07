@@ -170,10 +170,10 @@ test("disables the actions of a step that is not available", async () => {
     .toBeDisabled();
 });
 
-test("points to the registers list from the last step", async () => {
+test("points to Cajas from the last step", async () => {
   const screen = await renderScreen(servicesWith(runbook()));
 
-  const link = screen.getByRole("link", { name: "Ir a Cajas registradoras" });
+  const link = screen.getByRole("link", { name: "Ir a Cajas" });
   await expect.element(link).toBeVisible();
   expect(link.element().getAttribute("href")).toBe("/registers");
 });

@@ -6,6 +6,7 @@ import { render } from "../shell/test-support/render-with-router";
 import { RegisterPanel } from "./register-panel";
 import { weekCashSessionClosesReport } from "./test-support/cash-session-closes-fixtures";
 import { createActions, panelServices } from "./test-support/register-panel";
+import { RegisterPointOfSaleSectionStub } from "./test-support/register-point-of-sale-section-stub";
 import { enrolledRegister } from "./test-support/registers-list-screen";
 import { backups } from "./test-support/snapshot-backups-section";
 
@@ -29,6 +30,7 @@ function renderPanel({
       register={enrolledRegister}
       access={access}
       actions={createActions()}
+      registerPointOfSaleSection={RegisterPointOfSaleSectionStub}
       secondsSinceRead={0}
       tab={tab}
       onClose={onClose}
@@ -101,6 +103,12 @@ test("shows the Point terminal and the QR in Fiscal y cobros", async () => {
   const { screen } = await renderPanel({ tab: "fiscal" });
 
   await expect.element(screen.getByText("Terminal Point: sin asignar")).toBeVisible();
+});
+
+test("renders the point of sale section of that register above the Point terminal in Fiscal y cobros", async () => {
+  const { screen } = await renderPanel({ tab: "fiscal" });
+
+  await expect.element(screen.getByText("Punto de venta de register-3")).toBeVisible();
 });
 
 test("reads the backups of the register in Copias", async () => {

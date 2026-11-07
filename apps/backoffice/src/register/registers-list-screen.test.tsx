@@ -7,6 +7,7 @@ import { render } from "../shell/test-support/render-with-router";
 import type { RegisterSummary } from "./registers-api";
 import { RegistersListScreen } from "./registers-list-screen";
 import type { RegistersListScreenServices } from "./registers-list-services";
+import { RegisterPointOfSaleSectionStub } from "./test-support/register-point-of-sale-section-stub";
 import {
   chooseFromRowMenu,
   createServices,
@@ -478,6 +479,7 @@ test("under StrictMode, clicking the row action emits the code exactly once and 
         <RegistersListScreen
           access={ADMINISTRATOR_ACCESS}
           services={services}
+          registerPointOfSaleSection={RegisterPointOfSaleSectionStub}
           onSessionEnded={() => {}}
         />
       </main>

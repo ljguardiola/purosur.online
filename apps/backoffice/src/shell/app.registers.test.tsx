@@ -24,6 +24,7 @@ opensOnlyScreens([
   "/registers",
   "/registers/closes",
   "/registers/movements",
+  "/points-of-sale",
 ]);
 
 beforeEach(resetPageState);
@@ -397,4 +398,60 @@ test("the panel's Sesiones links to Cierres de caja narrowed to the register", a
     .element(screen.getByRole("tab", { name: "Cierres de caja", selected: true }))
     .toBeVisible();
   expect(location()).toBe(`/registers/closes?register=${REGISTER_ID}`);
+});
+
+test("changing the point of sale in a register's Fiscal y cobros saves it through the same call Puntos de venta made, and Puntos de venta then shows it read-only", async () => {
+  const services = registersServices(["registers_area", "fiscal_configuration_area"]);
+  const configured = {
+    registerId: REGISTER_ID,
+    registerName: "Caja 1",
+    pointOfSaleNumber: 12,
+    fiscalAddressId: "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    version: 2,
+    offlinePointOfSaleNumber: null,
+    offlineVersion: 0,
+  };
+  vi.mocked(services.pointsOfSaleScreen.fetchRegisterPointsOfSale)
+    .mockResolvedValueOnce({ kind: "ok", value: [configured] })
+    .mockResolvedValue({
+      kind: "ok",
+      value: [{ ...configured, pointOfSaleNumber: 7, version: 3 }],
+    });
+  vi.mocked(services.pointsOfSaleScreen.fetchFiscalAddresses).mockResolvedValue({
+    kind: "ok",
+    value: [
+      {
+        id: configured.fiscalAddressId,
+        name: "Depósito Central",
+        streetAddress: "Calle Ficticia 123, CABA",
+        version: 1,
+      },
+    ],
+  });
+  vi.mocked(services.pointsOfSaleScreen.configureRegisterPointOfSale).mockResolvedValue({
+    kind: "ok",
+  });
+  window.history.pushState(null, "", `/registers?register=${REGISTER_ID}&tab=fiscal`);
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByText("00012")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Editar", exact: true }));
+  const dialog = screen.getByRole("dialog", { name: "Caja 1" });
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Punto de venta/ }), "7");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  expect(services.pointsOfSaleScreen.configureRegisterPointOfSale).toHaveBeenCalledWith(
+    REGISTER_ID,
+    { point_of_sale_number: 7, fiscal_address_id: configured.fiscalAddressId, version: 2 },
+  );
+  await expect.element(screen.getByText("00007")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("link", { name: "Caja y fiscal", exact: true }));
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Puntos de venta", level: 1 }))
+    .toBeVisible();
+  await expect.element(screen.getByText("00007")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Editar", exact: true }).query()).toBeNull();
+  await expect.element(screen.getByRole("link", { name: "Se edita en Cajas" })).toBeVisible();
 });

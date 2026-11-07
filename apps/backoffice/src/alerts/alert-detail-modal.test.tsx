@@ -916,7 +916,7 @@ test("shows a register's enrollment, telling that the installation it had before
   await expect
     .element(
       screen.getByText(
-        "La caja «Caja 1» se dio de alta en el equipo «CAJA-MOSTRADOR» (Windows 11 Pro 10.0.26100). La instalación que tenía antes dejó de funcionar. Si no se reconoce esta alta, conviene revisarla desde Cajas registradoras.",
+        "La caja «Caja 1» se dio de alta en el equipo «CAJA-MOSTRADOR» (Windows 11 Pro 10.0.26100). La instalación que tenía antes dejó de funcionar. Si no se reconoce esta alta, conviene revisarla desde Cajas.",
       ),
     )
     .toBeVisible();
@@ -975,7 +975,7 @@ test("describes a register that had no installation before without a replaced on
   await expect
     .element(
       screen.getByText(
-        "La caja «Caja 1» se dio de alta en el equipo «CAJA-MOSTRADOR» (11). Si no se reconoce esta alta, conviene revisarla desde Cajas registradoras.",
+        "La caja «Caja 1» se dio de alta en el equipo «CAJA-MOSTRADOR» (11). Si no se reconoce esta alta, conviene revisarla desde Cajas.",
       ),
     )
     .toBeVisible();

@@ -3,6 +3,7 @@ import { page, userEvent } from "vitest/browser";
 import { ADMINISTRATOR_ACCESS } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import { RegistersListScreen } from "./registers-list-screen";
+import { RegisterPointOfSaleSectionStub } from "./test-support/register-point-of-sale-section-stub";
 import {
   createServices,
   enrolledRegister,
@@ -28,6 +29,7 @@ async function renderListWithPanel(openRegister: string | undefined, tab?: strin
       <RegistersListScreen
         access={ADMINISTRATOR_ACCESS}
         services={services}
+        registerPointOfSaleSection={RegisterPointOfSaleSectionStub}
         onSessionEnded={() => {}}
         openRegister={openRegister}
         tab={tab}
