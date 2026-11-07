@@ -9,9 +9,10 @@ import {
   canSeeRegistersArea,
   canSeeReports,
 } from "../shell/backoffice-access";
-import type { RegisterActions } from "./register-action-modals";
+import type { ReportPeriodFilters } from "../shell/report-filters-search";
 import { RegisterDataSection } from "./register-data-section";
 import { RegisterPaymentsSection } from "./register-payments-section";
+import type { RegisterActions } from "./register-row-actions";
 import { RegisterSessionsSection } from "./register-sessions-section";
 import type { RegisterSummary } from "./registers-api";
 import type { RegistersListScreenServices } from "./registers-list-services";
@@ -24,7 +25,10 @@ export type RegisterPanelProps = {
   registerPointOfSaleSection: RegisterPointOfSaleSection;
   secondsSinceRead: number;
   tab?: string | undefined;
+  sessionsPeriod: ReportPeriodFilters;
+  onSessionsPeriodChange: (period: ReportPeriodFilters) => void;
   onClose: () => void;
+  onPointOfSaleSaved: () => void;
   onSessionEnded: () => void;
   services: RegistersListScreenServices;
 };
@@ -54,7 +58,10 @@ export function RegisterPanel({
   registerPointOfSaleSection: PointOfSaleSection,
   secondsSinceRead,
   tab,
+  sessionsPeriod,
+  onSessionsPeriodChange,
   onClose,
+  onPointOfSaleSaved,
   onSessionEnded,
   services,
 }: RegisterPanelProps) {
@@ -94,7 +101,11 @@ export function RegisterPanel({
             access={access}
             actions={actions}
             pointOfSaleSlot={
-              <PointOfSaleSection registerId={register.id} onSessionEnded={onSessionEnded} />
+              <PointOfSaleSection
+                registerId={register.id}
+                onSessionEnded={onSessionEnded}
+                onSaved={onPointOfSaleSaved}
+              />
             }
           />
         )}
@@ -108,6 +119,8 @@ export function RegisterPanel({
         {selectedTab === "sessions" && (
           <RegisterSessionsSection
             registerId={register.id}
+            period={sessionsPeriod}
+            onPeriodChange={onSessionsPeriodChange}
             onSessionEnded={onSessionEnded}
             services={services}
           />

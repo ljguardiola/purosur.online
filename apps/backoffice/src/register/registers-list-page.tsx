@@ -7,7 +7,8 @@ const route = getRouteApi("/signed-in/sales-and-cash-area/registers/");
 
 export function RegistersListPage(): ReactElement {
   const { session, services, sessionActions } = route.useRouteContext();
-  const { register, tab } = route.useSearch();
+  const { register, tab, from, to } = route.useSearch();
+  const navigate = route.useNavigate();
   return (
     <RegistersListScreen
       access={session}
@@ -16,6 +17,10 @@ export function RegistersListPage(): ReactElement {
       registerPointOfSaleSection={services.registerPointOfSaleSection}
       openRegister={register}
       tab={tab}
+      sessionsPeriod={{ from, to }}
+      onSessionsPeriodChange={(period) =>
+        void navigate({ search: (previous) => ({ ...previous, ...period }), replace: true })
+      }
     />
   );
 }

@@ -6,11 +6,11 @@ import {
   canRevokeInstallations,
   canUseBitlockerRecoveryKey,
 } from "../shell/backoffice-access";
-import type { RegisterActions } from "./register-action-modals";
 import {
   InstallationStatusTag,
   RegisterInstallationSummary,
 } from "./register-installation-summary";
+import type { RegisterActions } from "./register-row-actions";
 import type { RegisterSummary } from "./registers-api";
 
 export type RegisterDataSectionProps = {

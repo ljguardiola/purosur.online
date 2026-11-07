@@ -2,6 +2,8 @@ import { ButtonLink, Table, useTableModel } from "@purosur/ui";
 import { createLink } from "@tanstack/react-router";
 import { Calculator, ExternalLink } from "lucide-react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import { ReportFilters } from "../shell/report-filters";
+import { type ReportPeriodFilters, reportQueryOf } from "../shell/report-filters-search";
 import type { fetchCashSessionCloses } from "./cash-session-closes-api";
 import {
   type CashSessionCloseRow,
@@ -15,6 +17,8 @@ export type RegisterSessionsSectionServices = {
 
 export type RegisterSessionsSectionProps = {
   registerId: string;
+  period: ReportPeriodFilters;
+  onPeriodChange: (period: ReportPeriodFilters) => void;
   onSessionEnded: () => void;
   services: RegisterSessionsSectionServices;
 };
@@ -25,11 +29,13 @@ const NO_SESSIONS: CashSessionCloseRow[] = [];
 
 export function RegisterSessionsSection({
   registerId,
+  period,
+  onPeriodChange,
   onSessionEnded,
   services,
 }: RegisterSessionsSectionProps) {
   const data = useCashSessionClosesQuery({
-    query: { register_id: registerId },
+    query: reportQueryOf({ ...period, register: registerId }),
     fetchCashSessionCloses: services.fetchCashSessionCloses,
     onSessionEnded,
   });
@@ -42,16 +48,24 @@ export function RegisterSessionsSection({
 
   return (
     <div className="flex flex-col gap-4 pt-4">
-      <div>
-        <ClosesLink
-          to="/registers/closes"
-          search={{ register: registerId }}
-          variant="text"
-          icon={<ExternalLink />}
-        >
-          Ver en Cierres de caja
-        </ClosesLink>
-      </div>
+      <ReportFilters
+        filters={period}
+        onFiltersChange={onPeriodChange}
+        answeredPeriod={shown?.range}
+        trailing={
+          <ClosesLink
+            to="/registers/closes"
+            search={{
+              register: registerId,
+              ...(period.from === "" ? {} : { from: period.from, to: period.to }),
+            }}
+            variant="text"
+            icon={<ExternalLink />}
+          >
+            Ver en Cierres de caja
+          </ClosesLink>
+        }
+      />
       <Table
         aria-label="Cierres de caja de la caja"
         table={table}

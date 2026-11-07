@@ -6,7 +6,7 @@ import {
   canAssignPointTerminal,
   canAssignQrPointOfSale,
 } from "../shell/backoffice-access";
-import type { RegisterActions } from "./register-action-modals";
+import type { RegisterActions } from "./register-row-actions";
 import type { RegisterSummary } from "./registers-api";
 
 export type RegisterPaymentsSectionProps = {

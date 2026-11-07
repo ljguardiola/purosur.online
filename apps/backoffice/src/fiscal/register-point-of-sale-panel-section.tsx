@@ -66,6 +66,7 @@ const MISSING = "Sin configurar";
 export function RegisterPointOfSalePanelSection({
   registerId,
   onSessionEnded,
+  onSaved,
   services = defaultServices,
 }: RegisterPointOfSalePanelSectionProps) {
   const { fetchRegisterPointsOfSale: fetchRegisters, fetchFiscalAddresses: fetchAddresses } =
@@ -92,15 +93,9 @@ export function RegisterPointOfSalePanelSection({
   }
 
   const data = combineCloudData(registers, fiscalAddresses);
-  if (data.status === "loading") {
-    return <LoadingPlaceholder variant="card" lines={2} />;
-  }
-  if (data.status === "failed") {
-    return <LoadFailure {...cloudLoadFailure(data, "el punto de venta")} />;
-  }
-  const [allRegisters, addresses] = data.value;
+  const [allRegisters, addresses] = data.status === "loaded" ? data.value : [[], []];
   const register = allRegisters.find((candidate) => candidate.registerId === registerId);
-  if (register === undefined) {
+  if (data.status === "loaded" && register === undefined) {
     return (
       <EmptyState
         icon={<Landmark />}
@@ -109,36 +104,42 @@ export function RegisterPointOfSalePanelSection({
       />
     );
   }
-  const fiscalAddress = addresses.find(({ id }) => id === register.fiscalAddressId);
+  const fiscalAddress = addresses.find(({ id }) => id === register?.fiscalAddressId);
 
   return (
     <>
       <div className="flex flex-col gap-3">
-        <div className="flex gap-8">
-          <DataPair
-            label="Punto de venta"
-            value={
-              register.pointOfSaleNumber === null
-                ? null
-                : formatPointOfSaleNumber(register.pointOfSaleNumber)
-            }
-            missing={MISSING}
-          />
-          <DataPair
-            label="Domicilio fiscal"
-            value={fiscalAddress?.name ?? null}
-            missing={MISSING}
-          />
-          <DataPair
-            label="Punto de venta CAEA"
-            value={
-              register.offlinePointOfSaleNumber === null
-                ? null
-                : formatPointOfSaleNumber(register.offlinePointOfSaleNumber)
-            }
-            missing={MISSING}
-          />
-        </div>
+        {data.status === "failed" ? (
+          <LoadFailure {...cloudLoadFailure(data, "el punto de venta")} />
+        ) : register === undefined ? (
+          <LoadingPlaceholder variant="card" lines={2} />
+        ) : (
+          <div className="flex gap-8">
+            <DataPair
+              label="Punto de venta"
+              value={
+                register.pointOfSaleNumber === null
+                  ? null
+                  : formatPointOfSaleNumber(register.pointOfSaleNumber)
+              }
+              missing={MISSING}
+            />
+            <DataPair
+              label="Domicilio fiscal"
+              value={fiscalAddress?.name ?? null}
+              missing={MISSING}
+            />
+            <DataPair
+              label="Punto de venta CAEA"
+              value={
+                register.offlinePointOfSaleNumber === null
+                  ? null
+                  : formatPointOfSaleNumber(register.offlinePointOfSaleNumber)
+              }
+              missing={MISSING}
+            />
+          </div>
+        )}
         <div className="flex gap-2">
           <Button
             variant="secondary"
@@ -160,30 +161,36 @@ export function RegisterPointOfSalePanelSection({
           </Button>
         </div>
       </div>
-      <EditRegisterPointOfSaleModal
-        target={editing === "real_time" ? register : null}
-        fiscalAddresses={addresses}
-        onClose={() => setEditing(null)}
-        onSaved={() => {
-          setEditing(null);
-          announce("Punto de venta guardado", `${register.registerName}.`);
-        }}
-        reload={reloadRegisters}
-        refreshFiscalAddresses={reloadFiscalAddresses}
-        onSessionEnded={onSessionEnded}
-        services={services}
-      />
-      <EditRegisterOfflinePointOfSaleModal
-        target={editing === "offline" ? register : null}
-        onClose={() => setEditing(null)}
-        onSaved={() => {
-          setEditing(null);
-          announce("Punto de venta CAEA guardado", `${register.registerName}.`);
-        }}
-        reload={reloadRegisters}
-        onSessionEnded={onSessionEnded}
-        services={services}
-      />
+      {register === undefined ? null : (
+        <>
+          <EditRegisterPointOfSaleModal
+            target={editing === "real_time" ? register : null}
+            fiscalAddresses={addresses}
+            onClose={() => setEditing(null)}
+            onSaved={() => {
+              setEditing(null);
+              announce("Punto de venta guardado", `${register.registerName}.`);
+              onSaved();
+            }}
+            reload={reloadRegisters}
+            refreshFiscalAddresses={reloadFiscalAddresses}
+            onSessionEnded={onSessionEnded}
+            services={services}
+          />
+          <EditRegisterOfflinePointOfSaleModal
+            target={editing === "offline" ? register : null}
+            onClose={() => setEditing(null)}
+            onSaved={() => {
+              setEditing(null);
+              announce("Punto de venta CAEA guardado", `${register.registerName}.`);
+              onSaved();
+            }}
+            reload={reloadRegisters}
+            onSessionEnded={onSessionEnded}
+            services={services}
+          />
+        </>
+      )}
       {notice ? (
         <FloatingNotification
           key={notice.id}

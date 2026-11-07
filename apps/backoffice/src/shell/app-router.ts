@@ -60,6 +60,7 @@ import {
   legacyCashMovementsRoute,
   legacyCashSessionClosesRoute,
   registersListRoute,
+  registersRoute,
 } from "../register/routes";
 import { legacyReturnsReportRoute, returnsHistoryRoute } from "../returns/routes";
 import {
@@ -98,7 +99,6 @@ import { ordersAreaRoute } from "./orders-area";
 import { peopleLandingRoute, peopleRoute } from "./people-route";
 import { publicRoute } from "./public-route";
 import { refundsRoute } from "./refunds-route";
-import { registersRoute } from "./registers-route";
 import { reportsAreaRoute } from "./reports-area";
 import { type RouterContext, rootRoute } from "./root-route";
 import { salesAndCashAreaRoute } from "./sales-and-cash-area";

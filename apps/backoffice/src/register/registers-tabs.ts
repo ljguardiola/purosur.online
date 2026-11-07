@@ -1,5 +1,9 @@
 import type { PagePart } from "../platform/page-parts";
-import { type BackofficeAccess, canSeeRegistersArea, canSeeReports } from "./backoffice-access";
+import {
+  type BackofficeAccess,
+  canSeeRegistersArea,
+  canSeeReports,
+} from "../shell/backoffice-access";
 
 export type RegistersTab = "registers" | "closes" | "movements";
 
@@ -14,3 +18,7 @@ export const REGISTERS_TAB_TARGETS = {
   closes: "/registers/closes",
   movements: "/registers/movements",
 } as const;
+
+export function canSeeRegistersTabs(access: BackofficeAccess): boolean {
+  return REGISTERS_TABS.some((tab) => tab.isVisibleTo(access));
+}
