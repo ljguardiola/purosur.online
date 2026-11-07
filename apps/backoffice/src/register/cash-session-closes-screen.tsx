@@ -14,7 +14,6 @@ import { Calculator } from "lucide-react";
 import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { reportMoment } from "../platform/report-moment";
-import { AreaTopBar } from "../shell/area-top-bar";
 import { RegisterReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
@@ -23,7 +22,6 @@ import {
   reportQueryOf,
 } from "../shell/report-filters-search";
 import type { ReportRegisterField } from "../shell/report-register-field";
-import { ScreenLayout } from "../shell/screen-layout";
 import { CLOSED_TIME_ZONE } from "./cash-session-closes-closed-time-zone";
 import type { CashSessionClosesScreenServices } from "./cash-session-closes-services";
 import { cashSessionClosesSpreadsheet } from "./cash-session-closes-spreadsheet";
@@ -42,7 +40,7 @@ type SessionRow = CashSessionClosesBody["sessions"][number];
 
 const NO_SESSIONS: SessionRow[] = [];
 
-const SCREEN_TITLE = "Cierres de sesión";
+const SCREEN_TITLE = "Cierres de caja";
 
 function differenceCell(session: SessionRow) {
   if (!session.has_difference) {
@@ -125,10 +123,7 @@ export function CashSessionClosesScreen({
   });
 
   return (
-    <ScreenLayout
-      topBar={<AreaTopBar eyebrow="Reportes · Caja" title={SCREEN_TITLE} />}
-      bodyClassName="gap-4 p-6"
-    >
+    <div className="flex min-w-0 flex-1 flex-col gap-4 p-6">
       <ReportFilters
         filters={filters}
         onFiltersChange={onFiltersChange}
@@ -195,7 +190,7 @@ export function CashSessionClosesScreen({
         </div>
       )}
       <Table
-        aria-label="Cierres de sesión"
+        aria-label={SCREEN_TITLE}
         table={table}
         {...cloudTableState(data, "los cierres de sesión")}
         empty={{
@@ -204,6 +199,6 @@ export function CashSessionClosesScreen({
           variant: filters.register === "ALL" ? "blank" : "filtered",
         }}
       />
-    </ScreenLayout>
+    </div>
   );
 }

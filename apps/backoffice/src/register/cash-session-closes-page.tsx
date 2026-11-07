@@ -1,17 +1,15 @@
 import { getRouteApi } from "@tanstack/react-router";
 import type { ReactElement } from "react";
-import { useDocumentTitle } from "../shell/document-title";
 import { reportRegisterFieldOf } from "../shell/report-register-field";
 import { CashSessionClosesScreen } from "./cash-session-closes-screen";
 import { defaultCashSessionClosesScreenServices } from "./cash-session-closes-services";
 
-const route = getRouteApi("/signed-in/reports-area/reports/cash-session-closes");
+const route = getRouteApi("/signed-in/sales-and-cash-area/registers/closes");
 
 export function CashSessionClosesPage(): ReactElement {
   const { services, sessionActions } = route.useRouteContext();
   const filters = route.useSearch();
   const navigate = route.useNavigate();
-  useDocumentTitle("Cierres de sesión · Puro Sur");
   return (
     <CashSessionClosesScreen
       filters={filters}

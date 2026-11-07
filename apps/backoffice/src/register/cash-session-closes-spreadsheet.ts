@@ -36,7 +36,7 @@ export function cashSessionClosesSpreadsheet(
         ],
       ]),
       {
-        name: "Cierres de sesión",
+        name: "Cierres de caja",
         header: ["Fecha", "Caja", "Cajero", "Cerró", "Esperado", "Contado", "Diferencia"],
         rows: rows.map((session) => [
           cell.instant(session.closed_at, CLOSED_TIME_ZONE),

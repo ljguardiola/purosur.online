@@ -23,7 +23,7 @@ export function cashMovementsSpreadsheet(
         ]),
       ]),
       {
-        name: "Movimientos de caja",
+        name: "Movimientos de efectivo",
         header: ["Fecha", "Tipo", "Motivo", "Sesión", "Apertura", "Monto"],
         rows: rows.map((movement) => [
           cell.instant(movement.occurred_at, OCCURRED_TIME_ZONE),

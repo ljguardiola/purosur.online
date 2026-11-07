@@ -34,8 +34,6 @@ import {
   canRevokeInstallations,
   canUseBitlockerRecoveryKey,
 } from "../shell/backoffice-access";
-import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTitle } from "../shell/screen-title";
 import { AssignPointTerminalModal } from "./assign-point-terminal-modal";
 import { AssignQrPointOfSaleModal } from "./assign-qr-point-of-sale-modal";
 import { ConsultBitlockerRecoveryKeyModal } from "./consult-bitlocker-recovery-key-modal";
@@ -361,22 +359,14 @@ export function RegistersListScreen({
 
   return (
     <>
-      <ScreenLayout
-        topBar={
-          <div className="flex h-18 shrink-0 items-center justify-between border-border border-b bg-surface px-8">
-            <div className="flex flex-col justify-center">
-              <p className="text-text-subtle text-detail">Configuración</p>
-              <ScreenTitle>Cajas registradoras</ScreenTitle>
-            </div>
-            {mayEnroll && (
-              <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
-                Nueva caja
-              </Button>
-            )}
+      <div className="flex min-w-0 flex-1 flex-col gap-4 p-6">
+        {mayEnroll && (
+          <div className="flex justify-end">
+            <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
+              Nueva caja
+            </Button>
           </div>
-        }
-        bodyClassName="gap-4 p-6"
-      >
+        )}
         <Table
           aria-label="Cajas registradoras"
           table={table}
@@ -400,7 +390,7 @@ export function RegistersListScreen({
         />
         {mayRevoke && <RevokeEveryInstallationCallout onRevoke={() => setRevokeEveryOpen(true)} />}
         <RegisterCoverageNotice coverage={coverage} />
-      </ScreenLayout>
+      </div>
       <NewRegisterModal
         open={newModalOpen}
         onClose={() => setNewModalOpen(false)}

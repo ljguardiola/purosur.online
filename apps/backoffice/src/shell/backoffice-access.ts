@@ -103,6 +103,15 @@ export function canSeeBackupsArea(access: BackofficeAccess): boolean {
   return grants(access, "backups_area");
 }
 
+export function canSeeRegistersPage(access: BackofficeAccess): boolean {
+  return (
+    canSeeRegistersArea(access) ||
+    canSeeReports(access) ||
+    canSeeFiscalConfigurationArea(access) ||
+    canSeeBackupsArea(access)
+  );
+}
+
 export function canSeeContingencyTicketRescue(access: BackofficeAccess): boolean {
   return grants(access, "contingency_ticket_rescue");
 }

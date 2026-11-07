@@ -61,9 +61,7 @@ test("moves focus to the new screen's title, with a focus ring, after choosing a
   await expect.element(firstTitle).toBeVisible();
   expect(document.activeElement).not.toBe(firstTitle.element());
 
-  await pressEnterOn(
-    screen.getByRole("link", { name: "Sucursal" }).element() as HTMLElement,
-  );
+  await pressEnterOn(screen.getByRole("link", { name: "Sucursal" }).element() as HTMLElement);
 
   const title = screen.getByRole("heading", { name: "Sucursal", level: 1 });
   await expect.element(title).toHaveFocus();
