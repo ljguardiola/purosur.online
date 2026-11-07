@@ -262,10 +262,13 @@ export function useInitialInventoryLotsQuery(
   });
 }
 
-export function useRecipesQuery(params: ReadParams & { fetchRecipes: typeof fetchRecipes }) {
+export function useRecipesQuery(
+  params: ReadParams & { fetchRecipes: typeof fetchRecipes; enabled?: boolean },
+) {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQuery<RecipeList>({
     queryKey: stockKeys.recipes,
+    enabled: params.enabled ?? true,
     read: params.fetchRecipes,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,

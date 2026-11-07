@@ -35,6 +35,7 @@ export const pricesKeys = {
   reviewQueueOf: (productIds: readonly string[]) =>
     [...pricingKey, "review-queue", ...productIds] as const,
   reload: [...pricingKey, "reload"] as const,
+  ofProduct: (productId: string) => [...pricingKey, "product", productId] as const,
   pastReviewDeadlineReport: (query: PricesPastReviewDeadlineReportQuery) =>
     [...pricingKey, "past-review-deadline-report", query.from ?? "", query.to ?? ""] as const,
   margin: (productId: string, unitPrice: number | null) =>
@@ -68,6 +69,29 @@ export function usePricesQuery(params: {
 }
 
 const PENDING_REVIEW: FetchPricesInput = { review: "pending" };
+
+export function useProductPriceQuery(params: {
+  productId: string;
+  fetchPrices: typeof fetchPrices;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  const { productId } = params;
+  return useCloudQuery<PriceProduct | null>({
+    queryKey: pricesKeys.ofProduct(productId),
+    read: async () => {
+      const outcome = await params.fetchPrices({ review: "all", productIds: [productId] });
+      return outcome.kind === "ok"
+        ? {
+            kind: "ok",
+            value: outcome.value.products.find((product) => product.id === productId) ?? null,
+          }
+        : outcome;
+    },
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
 
 export function usePendingPricesCount(params: {
   enabled: boolean;

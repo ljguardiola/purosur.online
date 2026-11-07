@@ -31,6 +31,7 @@ import type {
   ProductCreationModal,
   RoleCreationModal,
 } from "../platform/creation-parts";
+import type { ProductPanelSections } from "../platform/product-panel-sections";
 import type { ProductPriceSection } from "../platform/product-price-section";
 import { createQueryClient } from "../platform/query-client";
 import type { RegisterPointOfSaleSection } from "../platform/register-point-of-sale-section";
@@ -83,6 +84,7 @@ import type { ExpiringLotsScreenServices } from "../stock/expiring-lots-services
 import type { InitialInventoryScreenServices } from "../stock/initial-inventory-services";
 import type { LossesByReasonReportScreenServices } from "../stock/losses-by-reason-report-services";
 import type { MarginReportScreenServices } from "../stock/margin-report-services";
+import { useProductRecipeLookup } from "../stock/product-recipe-lookup";
 import type { RecipesListScreenServices } from "../stock/recipes-list-services";
 import type { StockBalancesScreenServices } from "../stock/stock-balances-services";
 import type { StockCountsScreenServices } from "../stock/stock-counts-services";
@@ -150,6 +152,7 @@ export type AppServices = {
   categoryCreationModal: CategoryCreationModal;
   productCreationModal: ProductCreationModal;
   productPriceSection: ProductPriceSection;
+  productPanelSections: ProductPanelSections;
   registerPointOfSaleSection: RegisterPointOfSaleSection;
   contingencyTicketRescueAssistant: ContingencyTicketRescueAssistant;
   roleCreationModal: RoleCreationModal;
@@ -207,6 +210,7 @@ type ShellServiceName =
   | "categoryCreationModal"
   | "productCreationModal"
   | "productPriceSection"
+  | "productPanelSections"
   | "registerPointOfSaleSection"
   | "contingencyTicketRescueAssistant"
   | "roleCreationModal"
@@ -248,6 +252,18 @@ const defaultRouteServices: RouteServices = {
     () => import("../pricing/product-price-section"),
     "ProductPriceSection",
   ),
+  productPanelSections: {
+    priceAndCost: lazyScreen(
+      () => import("../pricing/product-price-cost-section"),
+      "ProductPriceCostSection",
+    ),
+    stockAndLots: lazyScreen(() => import("../stock/product-stock-section"), "ProductStockSection"),
+    recipeAndBatches: lazyScreen(
+      () => import("../stock/product-recipe-section"),
+      "ProductRecipeSection",
+    ),
+    useRecipeLookup: useProductRecipeLookup,
+  },
   registerPointOfSaleSection: lazyScreen(
     () => import("../fiscal/register-point-of-sale-panel-section"),
     "RegisterPointOfSalePanelSection",

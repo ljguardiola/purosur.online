@@ -15,11 +15,16 @@ export const productsListFilters = z.object({
 
 export type ProductsListFilters = z.output<typeof productsListFilters>;
 
+const productsListSearch = productsListFilters.extend({
+  product: z.string().optional().catch(undefined),
+  tab: z.string().optional().catch(undefined),
+});
+
 export const productsListRoute = createRoute({
   getParentRoute: () => productsRoute,
   path: "/",
   beforeLoad: ({ context: { productsTabs } }) => productsTabRedirect(productsTabs, "products"),
-  validateSearch: productsListFilters,
+  validateSearch: productsListSearch,
   search: { middlewares: [stripSearchParams(productsListFilters.parse({}))] },
   component: lazyScreen(() => import("./products-list-page"), "ProductsListPage"),
 });

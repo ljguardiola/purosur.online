@@ -23,17 +23,7 @@ import {
 } from "@purosur/ui";
 import { formatNetContent } from "@purosur/ui/formatters";
 import { deepEqual } from "@tanstack/react-router";
-import {
-  Ban,
-  Copy,
-  Package,
-  Pencil,
-  Plus,
-  Printer,
-  RotateCcw,
-  Search,
-  SearchX,
-} from "lucide-react";
+import { Package, Plus, Printer, Search, SearchX } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import {
   categoriesInTreeOrder,
@@ -43,6 +33,8 @@ import {
 import { cloudTableState } from "../platform/cloud-table-state";
 import { combineCloudData } from "../platform/combine-cloud-data";
 import { perSaleUnit } from "../platform/per-sale-unit";
+import type { ProductPanelSections } from "../platform/product-panel-sections";
+import type { BackofficeAccess } from "../shell/backoffice-access";
 import { barcodesSummary } from "./barcodes-summary";
 import {
   useBrandsQuery,
@@ -56,14 +48,21 @@ import { DeactivateProductModal } from "./deactivate-product-modal";
 import { EditProductModal } from "./edit-product-modal";
 import { NewProductModal } from "./new-product-modal";
 import { PrintLabelsModal } from "./print-labels-modal";
+import { ProductPanel } from "./product-panel";
+import { type ProductPanelTabRequest, productRowActions } from "./product-row-actions";
 import type { ProductSaleUnit, ProductStatusFilter } from "./products-api";
 import type { ProductsListScreenServices } from "./products-list-services";
 import { ReactivateProductModal } from "./reactivate-product-modal";
 import type { ProductsListFilters } from "./routes";
 
 export type ProductsListScreenProps = {
+  access: BackofficeAccess;
   filters: ProductsListFilters;
   onFiltersChange: (filters: ProductsListFilters) => void;
+  productPanelSections: ProductPanelSections;
+  openProduct?: string | undefined;
+  tab?: string | undefined;
+  onPanelChange: (panel: { product: string; tab?: ProductPanelTabRequest } | undefined) => void;
   onSessionEnded: () => void;
   services: ProductsListScreenServices;
 };
@@ -124,8 +123,13 @@ const productNameOrder = textOrder((product: ListedProduct) => product.name);
 const brandOrder = textOrder((brand: { label: string }) => brand.label);
 
 export function ProductsListScreen({
+  access,
   filters,
   onFiltersChange,
+  productPanelSections,
+  openProduct,
+  tab,
+  onPanelChange,
   onSessionEnded,
   services,
 }: ProductsListScreenProps) {
@@ -289,33 +293,16 @@ export function ProductsListScreen({
     actionsColumn({
       id: "actions",
       header: "Acciones",
-      actions: [
-        (item: ListedProduct) => ({
-          icon: <Pencil />,
-          "aria-label": `Editar el producto ${item.name}`,
-          onPress: () => setEditTarget(item),
-        }),
-        (item: ListedProduct) => ({
-          icon: <Copy />,
-          "aria-label": `Clonar el producto ${item.name}`,
-          onPress: () => {
-            setCloneSource(item);
-            setNewModalOpen(true);
-          },
-        }),
-        (item: ListedProduct) =>
-          item.active
-            ? {
-                icon: <Ban />,
-                "aria-label": `Desactivar el producto ${item.name}`,
-                onPress: () => setDeactivateTarget(item),
-              }
-            : {
-                icon: <RotateCcw />,
-                "aria-label": `Reactivar el producto ${item.name}`,
-                onPress: () => setReactivateTarget(item),
-              },
-      ],
+      ...productRowActions(access, {
+        edit: setEditTarget,
+        clone: (product) => {
+          setCloneSource(product);
+          setNewModalOpen(true);
+        },
+        deactivate: setDeactivateTarget,
+        reactivate: setReactivateTarget,
+        openPanel: (product, panelTab) => onPanelChange({ product: product.id, tab: panelTab }),
+      }),
     }),
   ] as const;
 
@@ -334,6 +321,15 @@ export function ProductsListScreen({
     onSortChange: setSort,
   });
   const matchCount = table.getRowModel().rows.length;
+  const openProductSummary = products.find((product) => product.id === openProduct);
+  const closeUnlistedProduct = useEffectEvent(() => onPanelChange(undefined));
+  const productsAreLoaded = data.status === "loaded" && !data.refreshing;
+
+  useEffect(() => {
+    if (productsAreLoaded && openProduct !== undefined && openProductSummary === undefined) {
+      closeUnlistedProduct();
+    }
+  }, [productsAreLoaded, openProduct, openProductSummary]);
 
   useEffect(() => {
     if (data.status === "failed") {
@@ -368,96 +364,123 @@ export function ProductsListScreen({
 
   return (
     <>
-      <div className="flex min-w-0 flex-1 flex-col gap-4 p-6">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="w-105">
-            <SearchField
-              value={search}
-              onChange={setSearch}
-              placeholder="Buscar por nombre o código de barras"
-              icon={<Search />}
+      <div className="flex min-h-0 flex-1">
+        <div className="flex min-w-0 flex-1 flex-col gap-4 p-6">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="w-105">
+              <SearchField
+                value={search}
+                onChange={setSearch}
+                placeholder="Buscar por nombre o código de barras"
+                icon={<Search />}
+              />
+            </div>
+            <ListFilter
+              name="category"
+              label="Categoría:"
+              searchable
+              options={categoryFilterOptions}
+              value={categoryFilter}
+              onChange={setChosenCategoryFilter}
             />
-          </div>
-          <ListFilter
-            name="category"
-            label="Categoría:"
-            searchable
-            options={categoryFilterOptions}
-            value={categoryFilter}
-            onChange={setChosenCategoryFilter}
-          />
-          <ListFilter
-            name="brand"
-            label="Marca:"
-            options={brandFilterOptions}
-            value={brandFilter}
-            onChange={setChosenBrandFilter}
-            searchable
-          />
-          <ListFilter
-            name="unit"
-            label="Unidad:"
-            options={unitFilterOptions}
-            value={unitFilter}
-            onChange={setUnitFilter}
-          />
-          <ListFilter
-            name="status"
-            label="Estado:"
-            options={statusFilterOptions}
-            value={statusFilter}
-            onChange={setStatusFilter}
-          />
-          <div className="ml-auto flex items-center gap-3">
-            <div className="flex items-center gap-3">
-              <Button
-                variant="secondary"
-                icon={<Printer />}
-                dataStatus={data.status}
-                onPress={() => setPrintModalOpen(true)}
-              >
-                Imprimir etiquetas
-              </Button>
-              <Button
-                variant="primary"
-                icon={<Plus />}
-                dataStatus={data.status}
-                onPress={() => {
-                  setCloneSource(undefined);
-                  setNewModalOpen(true);
-                }}
-              >
-                Nuevo producto
-              </Button>
+            <ListFilter
+              name="brand"
+              label="Marca:"
+              options={brandFilterOptions}
+              value={brandFilter}
+              onChange={setChosenBrandFilter}
+              searchable
+            />
+            <ListFilter
+              name="unit"
+              label="Unidad:"
+              options={unitFilterOptions}
+              value={unitFilter}
+              onChange={setUnitFilter}
+            />
+            <ListFilter
+              name="status"
+              label="Estado:"
+              options={statusFilterOptions}
+              value={statusFilter}
+              onChange={setStatusFilter}
+            />
+            <div className="ml-auto flex items-center gap-3">
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="secondary"
+                  icon={<Printer />}
+                  dataStatus={data.status}
+                  onPress={() => setPrintModalOpen(true)}
+                >
+                  Imprimir etiquetas
+                </Button>
+                <Button
+                  variant="primary"
+                  icon={<Plus />}
+                  dataStatus={data.status}
+                  onPress={() => {
+                    setCloneSource(undefined);
+                    setNewModalOpen(true);
+                  }}
+                >
+                  Nuevo producto
+                </Button>
+              </div>
             </div>
           </div>
+          <Table
+            aria-label="Productos"
+            table={table}
+            onRowPress={(item) => onPanelChange({ product: item.id })}
+            rowState={(item) => (item.id === openProduct ? "selected" : undefined)}
+            {...tableState}
+            empty={
+              products.length === 0
+                ? {
+                    icon: <Package />,
+                    ...PRODUCTS_EMPTY_STATE[statusFilter],
+                    variant: "blank",
+                  }
+                : {
+                    icon: <SearchX />,
+                    title: "Sin resultados",
+                    description: "Probá con otro nombre o código de barras.",
+                    variant: "filtered",
+                  }
+            }
+            footer={
+              matchCount === 0 ? undefined : (
+                <p className="text-text-subtle text-detail">
+                  {productsCountText({ count: matchCount, status: statusFilter })}
+                </p>
+              )
+            }
+          />
         </div>
-        <Table
-          aria-label="Productos"
-          table={table}
-          {...tableState}
-          empty={
-            products.length === 0
-              ? {
-                  icon: <Package />,
-                  ...PRODUCTS_EMPTY_STATE[statusFilter],
-                  variant: "blank",
-                }
-              : {
-                  icon: <SearchX />,
-                  title: "Sin resultados",
-                  description: "Probá con otro nombre o código de barras.",
-                  variant: "filtered",
-                }
-          }
-          footer={
-            matchCount === 0 ? undefined : (
-              <p className="text-text-subtle text-detail">
-                {productsCountText({ count: matchCount, status: statusFilter })}
-              </p>
-            )
-          }
-        />
+        {openProductSummary === undefined ? null : (
+          <ProductPanel
+            key={openProductSummary.id}
+            product={openProductSummary}
+            brandName={
+              openProductSummary.brandId === null
+                ? undefined
+                : brandNames.get(openProductSummary.brandId)
+            }
+            categoryLabel={
+              categoryLabels.get(openProductSummary.categoryId) ?? openProductSummary.categoryName
+            }
+            tagNames={tags
+              .filter((tag) => openProductSummary.tagIds.includes(tag.id))
+              .map((tag) => tag.name)}
+            access={access}
+            sections={productPanelSections}
+            tab={tab}
+            onEdit={() => setEditTarget(openProductSummary)}
+            onClose={() => onPanelChange(undefined)}
+            onSessionEnded={onSessionEnded}
+          />
+        )}
       </div>
       <NewProductModal
         open={newModalOpen}
