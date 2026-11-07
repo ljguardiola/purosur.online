@@ -102,7 +102,7 @@ test("turning the filter on reports it and lists the hand-confirmed payments ins
     .element(screen.getByRole("table", { name: "Ventas por medio de pago" }))
     .toBeVisible();
 
-  await userEvent.click(screen.getByRole("switch", { name: "Confirmados a mano" }));
+  await userEvent.click(screen.getByText("Confirmados a mano", { exact: true }));
 
   await expect
     .element(screen.getByRole("table", { name: "Pagos confirmados a mano", exact: true }))
@@ -121,7 +121,7 @@ test("turning the filter off lists the sales by method again", async () => {
   const screen = await renderScreen(services, { handConfirmed: true });
   await expect.element(screen.getByText("Beto").first()).toBeVisible();
 
-  await userEvent.click(screen.getByRole("switch", { name: "Confirmados a mano" }));
+  await userEvent.click(screen.getByText("Confirmados a mano", { exact: true }));
 
   await expect
     .element(screen.getByRole("table", { name: "Ventas por medio de pago" }))

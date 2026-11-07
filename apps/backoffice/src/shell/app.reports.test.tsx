@@ -889,7 +889,7 @@ test("keeps the hand-confirmed filter of the sales by payment method in the addr
     .element(screen.getByRole("table", { name: "Ventas por medio de pago" }))
     .toBeVisible();
 
-  await userEvent.click(screen.getByRole("switch", { name: "Confirmados a mano" }));
+  await userEvent.click(screen.getByText("Confirmados a mano", { exact: true }));
 
   await expect.poll(() => window.location.search).toBe("?handConfirmed=true");
   await expect

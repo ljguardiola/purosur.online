@@ -8,11 +8,12 @@ import {
   PercentBar,
   Table,
   TableCellText,
+  Toggle,
   textOrder,
   useTableModel,
 } from "@purosur/ui";
 import { Receipt } from "lucide-react";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { paymentMethodLabel } from "../platform/payment-method-label";
 import { shareOfTotal } from "../platform/share-of-total";
@@ -23,6 +24,7 @@ import { ReportFilters } from "../shell/report-filters";
 import { reportQueryOf } from "../shell/report-filters-search";
 import type { ReportRegisterField } from "../shell/report-register-field";
 import { ScreenLayout } from "../shell/screen-layout";
+import { HandConfirmedPaymentsSection } from "./hand-confirmed-payments-section";
 import { useSalesByPaymentMethodQuery } from "./payments-queries";
 import type { SalesByPaymentMethodFilters } from "./sales-by-payment-method-filters";
 import type { SalesByPaymentMethodScreenServices } from "./sales-by-payment-method-services";
@@ -76,13 +78,46 @@ function paymentColumns(total: number) {
   ] as const;
 }
 
-export function SalesByPaymentMethodScreen({
+export function SalesByPaymentMethodScreen(props: SalesByPaymentMethodScreenProps) {
+  const { filters, onFiltersChange, onSessionEnded, registerFilter, services } = props;
+  const handConfirmedToggle = (
+    <Toggle
+      name="handConfirmed"
+      checked={filters.handConfirmed}
+      onCheckedChange={(handConfirmed) => onFiltersChange({ ...filters, handConfirmed })}
+    >
+      Confirmados a mano
+    </Toggle>
+  );
+  return (
+    <ScreenLayout
+      topBar={<AreaTopBar eyebrow="Reportes · Ventas" title={SCREEN_TITLE} />}
+      bodyClassName="gap-4 p-6"
+    >
+      {filters.handConfirmed ? (
+        <HandConfirmedPaymentsSection
+          filters={filters}
+          onFiltersChange={(next) => onFiltersChange({ ...filters, ...next })}
+          onSessionEnded={onSessionEnded}
+          registerFilter={registerFilter}
+          services={services}
+          extraFilter={handConfirmedToggle}
+        />
+      ) : (
+        <SalesByMethodSection {...props} handConfirmedToggle={handConfirmedToggle} />
+      )}
+    </ScreenLayout>
+  );
+}
+
+function SalesByMethodSection({
   filters,
   onFiltersChange,
   onSessionEnded,
   registerFilter,
   services,
-}: SalesByPaymentMethodScreenProps) {
+  handConfirmedToggle,
+}: SalesByPaymentMethodScreenProps & { handConfirmedToggle: ReactNode }) {
   const registerChosen = filters.register !== "ALL";
   const [registerLabel, setRegisterLabel] = useState<string>();
   const data = useSalesByPaymentMethodQuery({
@@ -101,33 +136,33 @@ export function SalesByPaymentMethodScreen({
   });
 
   return (
-    <ScreenLayout
-      topBar={<AreaTopBar eyebrow="Reportes · Ventas" title={SCREEN_TITLE} />}
-      bodyClassName="gap-4 p-6"
-    >
-      <ReportFilters
-        filters={filters}
-        onFiltersChange={onFiltersChange}
-        answeredPeriod={shown?.range}
-        registerFilter={registerFilter}
-        onRegisterLabelChange={setRegisterLabel}
-        trailing={
-          <RegisterReportDownload
-            dataStatus={data.status}
-            registerLabel={registerLabel}
-            workbook={(registerLabel) =>
-              shown
-                ? salesByPaymentMethodSpreadsheet(
-                    shown,
-                    table.getRowModel().rows.map((row) => row.original),
-                    registerLabel,
-                  )
-                : null
-            }
-            fileName={shown ? reportFileName(SCREEN_TITLE, shown.range) : ""}
-          />
-        }
-      />
+    <>
+      <div className="flex flex-wrap items-end gap-3">
+        <ReportFilters
+          filters={filters}
+          onFiltersChange={onFiltersChange}
+          answeredPeriod={shown?.range}
+          registerFilter={registerFilter}
+          onRegisterLabelChange={setRegisterLabel}
+          trailing={
+            <RegisterReportDownload
+              dataStatus={data.status}
+              registerLabel={registerLabel}
+              workbook={(registerLabel) =>
+                shown
+                  ? salesByPaymentMethodSpreadsheet(
+                      shown,
+                      table.getRowModel().rows.map((row) => row.original),
+                      registerLabel,
+                    )
+                  : null
+              }
+              fileName={shown ? reportFileName(SCREEN_TITLE, shown.range) : ""}
+            />
+          }
+        />
+        {handConfirmedToggle}
+      </div>
       {data.status === "failed" ? null : (
         <div className="grid grid-cols-3 gap-4">
           {shown ? (
@@ -185,6 +220,6 @@ export function SalesByPaymentMethodScreen({
           variant: registerChosen ? "filtered" : "blank",
         }}
       />
-    </ScreenLayout>
+    </>
   );
 }

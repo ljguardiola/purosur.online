@@ -21,6 +21,8 @@ test("keeps the range, the register and the order a URL names", () => {
     register: FRONT_REGISTER_ID,
     sortBy: "method",
     sort: "ascending",
+    handConfirmed: false,
+    method: "ALL",
   };
 
   expect(salesByPaymentMethodFilters.parse(filters)).toEqual(filters);
@@ -62,11 +64,20 @@ test("keeps the hand-confirmed payments filter and the method a URL names", () =
 });
 
 test.each([
-  ["a hand-confirmed value that is not a boolean", { handConfirmed: "yes" }],
+  ["a hand-confirmed value that is not a boolean", { handConfirmed: "maybe" }],
   ["a method that does not exist", { method: "CASH" }],
 ])("falls back to the defaults for %s", (_name, input) => {
   expect(salesByPaymentMethodFilters.parse(input)).toMatchObject({
     handConfirmed: false,
     method: "ALL",
+  });
+});
+
+test("reads the hand-confirmed filter a URL writes as text", () => {
+  expect(salesByPaymentMethodFilters.parse({ handConfirmed: "true" })).toMatchObject({
+    handConfirmed: true,
+  });
+  expect(salesByPaymentMethodFilters.parse({ handConfirmed: "false" })).toMatchObject({
+    handConfirmed: false,
   });
 });
