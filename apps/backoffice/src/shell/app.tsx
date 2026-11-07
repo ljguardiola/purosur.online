@@ -22,8 +22,7 @@ import type { UnbilledDeferredSalesPillProps } from "../fiscal/unbilled-deferred
 import type { UnbilledDeferredSalesPillServices } from "../fiscal/unbilled-deferred-sales-pill-services";
 import type { BackofficeHelpCatalog } from "../help/help-catalog";
 import type { HandConfirmedPaymentsScreenServices } from "../payments/hand-confirmed-payments-services";
-import type { MercadoPagoRefundsScreenServices } from "../payments/mercado-pago-refunds-services";
-import type { OutsideRefundsScreenServices } from "../payments/outside-refunds-services";
+import type { PendingRefundsScreenServices } from "../payments/pending-refunds-services";
 import type { SalesByPaymentMethodScreenServices } from "../payments/sales-by-payment-method-services";
 import type { RolesListScreenServices } from "../permissions/roles-list-services";
 import type {
@@ -63,7 +62,7 @@ import type { RegistersListScreenServices } from "../register/registers-list-ser
 import type { ReportRegisterFilterProps } from "../register/report-register-filter";
 import type { ReportRegisterFilterServices } from "../register/report-register-filter-services";
 import type { SnapshotBackupsScreenServices } from "../register/snapshot-backups-services";
-import type { ReturnsReportScreenServices } from "../returns/returns-report-services";
+import type { ReturnsHistoryScreenServices } from "../returns/returns-history-services";
 import type { AverageTicketScreenServices } from "../sales/average-ticket-services";
 import type { CashRoundingScreenServices } from "../sales/cash-rounding-services";
 import type { HandTypedWeightsScreenServices } from "../sales/hand-typed-weights-services";
@@ -140,7 +139,7 @@ export type AppServices = {
   salesByPromotionScreen: SalesByPromotionScreenServices;
   manualDiscountsScreen: ManualDiscountsScreenServices;
   cashRoundingScreen: CashRoundingScreenServices;
-  returnsReportScreen: ReturnsReportScreenServices;
+  returnsHistoryScreen: ReturnsHistoryScreenServices;
   issuedFiscalDocumentsReportScreen: IssuedFiscalDocumentsReportScreenServices;
   averageTicketScreen: AverageTicketScreenServices;
   salesByPaymentMethodScreen: SalesByPaymentMethodScreenServices;
@@ -153,8 +152,7 @@ export type AppServices = {
   productPriceSection: ProductPriceSection;
   roleCreationModal: RoleCreationModal;
   reportRegisterFilter: ReportRegisterFilterServices;
-  mercadoPagoRefundsScreen: MercadoPagoRefundsScreenServices;
-  outsideRefundsScreen: OutsideRefundsScreenServices;
+  pendingRefundsScreen: PendingRefundsScreenServices;
   expiringLotsScreen: ExpiringLotsScreenServices;
   currentStockReportScreen: CurrentStockReportScreenServices;
   expiringLotsReportScreen: ExpiringLotsReportScreenServices;

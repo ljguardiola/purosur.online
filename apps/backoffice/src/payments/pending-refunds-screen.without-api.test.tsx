@@ -6,10 +6,17 @@ import { userEvent } from "vitest/browser";
 import { createQueryClient } from "../platform/query-client";
 import { deferred } from "../platform/test-support/deferred";
 import { render } from "../shell/test-support/render-with-router";
-import { OutsideRefundsScreen } from "./outside-refunds-screen";
-import type { OutsideRefundsScreenServices } from "./outside-refunds-services";
-import { type OutsideRefundsFilters, outsideRefundsFilters } from "./routes";
-import { createOutsideRefundsServices } from "./test-support/outside-refunds-screen-services";
+import { PendingRefundsScreen } from "./pending-refunds-screen";
+import type { PendingRefundsScreenServices } from "./pending-refunds-services";
+import {
+  createPendingRefundsServices,
+  FRONT_REGISTER_ID,
+  MAIN_REGISTER_ID,
+  type RenderPendingRefundsOptions,
+  renderPendingRefunds,
+  rowTexts,
+  withoutApiChannel,
+} from "./test-support/pending-refunds-screen";
 import {
   LATE_POINT_PAYMENT_REFUND_ID,
   noPendingRefunds,
@@ -26,70 +33,41 @@ beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 
-const FRONT_REGISTER_ID = "33333333-3333-4333-8333-333333333333";
-const MAIN_REGISTER_ID = "11111111-1111-4111-8111-111111111111";
-
 function renderScreen(
-  services: OutsideRefundsScreenServices,
+  services: PendingRefundsScreenServices,
   onSessionEnded = () => {},
-  {
-    filters = outsideRefundsFilters.parse({}),
-    onFiltersChange = () => {},
-  }: {
-    filters?: OutsideRefundsFilters;
-    onFiltersChange?: (filters: OutsideRefundsFilters) => void;
-  } = {},
+  { filters = withoutApiChannel, onFiltersChange }: RenderPendingRefundsOptions = {},
 ) {
-  return render(
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <OutsideRefundsScreen
-          services={services}
-          onSessionEnded={onSessionEnded}
-          filters={filters}
-          onFiltersChange={onFiltersChange}
-        />
-      </main>
-    </FieldSizeProvider>,
-  );
+  return renderPendingRefunds(services, onSessionEnded, {
+    filters,
+    ...(onFiltersChange ? { onFiltersChange } : {}),
+  });
 }
 
-async function loaded(services: OutsideRefundsScreenServices) {
+async function loaded(services: PendingRefundsScreenServices) {
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({ kind: "ok", value: pendingRefunds });
   const screen = await renderScreen(services);
-  await expect.element(screen.getByRole("table", { name: "Reembolsos sin API" })).toBeVisible();
+  await expect.element(screen.getByRole("table", { name: "Reembolsos pendientes" })).toBeVisible();
   return screen;
 }
 
 async function loadedWithPoint(
-  services: OutsideRefundsScreenServices,
-  options?: Parameters<typeof renderScreen>[2],
+  services: PendingRefundsScreenServices,
+  options?: RenderPendingRefundsOptions,
 ) {
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "ok",
     value: pendingRefundsWithLatePointPayment,
   });
   const screen = await renderScreen(services, () => {}, options);
-  await expect.element(screen.getByRole("table", { name: "Reembolsos sin API" })).toBeVisible();
+  await expect.element(screen.getByRole("table", { name: "Reembolsos pendientes" })).toBeVisible();
   return screen;
 }
 
-function rowTexts(screen: Awaited<ReturnType<typeof renderScreen>>) {
-  return screen
-    .getByRole("row")
-    .all()
-    .slice(1)
-    .map((row) => row.element().textContent ?? "");
-}
-
-test("shows the eyebrow, the heading and each refund made outside the system with since when, why, how, how much", async () => {
-  const services = createOutsideRefundsServices();
+test("shows each refund made outside the system with since when, why, how, how much", async () => {
+  const services = createPendingRefundsServices();
   const screen = await loaded(services);
 
-  await expect.element(screen.getByText("Caja y fiscal · Tareas")).toBeVisible();
-  await expect
-    .element(screen.getByRole("heading", { name: "Reembolsos sin API", level: 1 }))
-    .toBeVisible();
   await expect.poll(() => rowTexts(screen).length).toBe(2);
   const rows = rowTexts(screen);
   expect(rows[0]).toContain("07/10/2026");
@@ -105,7 +83,7 @@ test("shows the eyebrow, the heading and each refund made outside the system wit
 });
 
 test("heads the list by since when, why, how and how much, with no column for the register or the person who made the correction", async () => {
-  const services = createOutsideRefundsServices();
+  const services = createPendingRefundsServices();
   const screen = await loaded(services);
 
   const headers = screen
@@ -120,7 +98,7 @@ test("heads the list by since when, why, how and how much, with no column for th
 });
 
 test("lists only the refunds made outside the system, leaving out the ones Mercado Pago sends", async () => {
-  const services = createOutsideRefundsServices();
+  const services = createPendingRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "ok",
     value: pendingRefundsWithLatePayment,
@@ -134,7 +112,7 @@ test("lists only the refunds made outside the system, leaving out the ones Merca
 });
 
 test("tells a Point refund made outside the system by its method alone", async () => {
-  const services = createOutsideRefundsServices();
+  const services = createPendingRefundsServices();
   const screen = await loadedWithPoint(services);
 
   await expect.element(screen.getByText("$ 760,00", { exact: true })).toBeVisible();
@@ -144,7 +122,7 @@ test("tells a Point refund made outside the system by its method alone", async (
 });
 
 test("names the Mercado Pago order under the method of a refund made outside the system that carries one", async () => {
-  const services = createOutsideRefundsServices();
+  const services = createPendingRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "ok",
     value: {
@@ -167,17 +145,21 @@ test("names the Mercado Pago order under the method of a refund made outside the
   expect(row).toContain("Orden ORD01JQ4S4KY8HWQ6NA5PXB65B3D3");
 });
 
-test("explains under the table that these refunds are made outside the system and marked as done here", async () => {
-  const services = createOutsideRefundsServices();
+test("explains under the table that the refunds without an API are made outside the system and marked as done here", async () => {
+  const services = createPendingRefundsServices();
   const screen = await loaded(services);
 
   await expect
-    .element(screen.getByText("Se hacen fuera del sistema y acá se marcan como hechos."))
+    .element(
+      screen.getByText(
+        "Los reembolsos sin API se hacen fuera del sistema y acá se marcan como hechos.",
+      ),
+    )
     .toBeVisible();
 });
 
 test("filters the loaded refunds by the register that took them, offering every register in the list", async () => {
-  const services = createOutsideRefundsServices();
+  const services = createPendingRefundsServices();
   const onFiltersChange = vi.fn();
   const screen = await loadedWithPoint(services, { onFiltersChange });
   await expect.element(screen.getByText("$ 760,00", { exact: true })).toBeVisible();
@@ -193,13 +175,17 @@ test("filters the loaded refunds by the register that took them, offering every 
   await expect.poll(() => screen.getByText("$ 2.500,00", { exact: true }).query()).toBeNull();
   await expect.element(screen.getByText("$ 760,00", { exact: true })).toBeVisible();
   expect(services.fetchPendingRefunds).toHaveBeenCalledTimes(1);
-  expect(onFiltersChange).toHaveBeenLastCalledWith({ register: FRONT_REGISTER_ID, method: "all" });
+  expect(onFiltersChange).toHaveBeenLastCalledWith({
+    channel: "without-api",
+    register: FRONT_REGISTER_ID,
+    method: "all",
+  });
 });
 
 test("opens on the register the address carries", async () => {
-  const services = createOutsideRefundsServices();
+  const services = createPendingRefundsServices();
   const screen = await loadedWithPoint(services, {
-    filters: { register: FRONT_REGISTER_ID, method: "all" },
+    filters: { ...withoutApiChannel, register: FRONT_REGISTER_ID, method: "all" },
   });
 
   await expect.element(screen.getByText("$ 760,00", { exact: true })).toBeVisible();
@@ -210,13 +196,17 @@ test("opens on the register the address carries", async () => {
 });
 
 test("shows every refund and reports every register when the address carries a register the list has none for", async () => {
-  const services = createOutsideRefundsServices();
+  const services = createPendingRefundsServices();
   const onFiltersChange = vi.fn();
   const { promise, resolve } = deferred<Awaited<ReturnType<typeof services.fetchPendingRefunds>>>();
   vi.mocked(services.fetchPendingRefunds).mockReturnValue(promise);
 
   const screen = await renderScreen(services, () => {}, {
-    filters: { register: "99999999-0000-4000-8000-000000000000", method: "all" },
+    filters: {
+      ...withoutApiChannel,
+      register: "99999999-0000-4000-8000-000000000000",
+      method: "all",
+    },
     onFiltersChange,
   });
   expect(onFiltersChange).not.toHaveBeenCalled();
@@ -227,11 +217,11 @@ test("shows every refund and reports every register when the address carries a r
   await expect.element(screen.getByRole("combobox", { name: /^Caja/ })).toHaveValue("Todas");
   await expect
     .poll(() => onFiltersChange.mock.lastCall)
-    .toEqual([{ register: "all", method: "all" }]);
+    .toEqual([{ channel: "without-api", register: "all", method: "all" }]);
 });
 
 test("offers only the registers of the refunds made outside the system", async () => {
-  const services = createOutsideRefundsServices();
+  const services = createPendingRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "ok",
     value: pendingRefundsWithLatePayment,
@@ -249,7 +239,7 @@ test("offers only the registers of the refunds made outside the system", async (
 });
 
 test("filters the loaded refunds by method, offering every method present in the list sorted by name", async () => {
-  const services = createOutsideRefundsServices();
+  const services = createPendingRefundsServices();
   const onFiltersChange = vi.fn();
   const screen = await loadedWithPoint(services, { onFiltersChange });
   await expect.element(screen.getByText("$ 760,00", { exact: true })).toBeVisible();
@@ -264,11 +254,15 @@ test("filters the loaded refunds by method, offering every method present in the
 
   await expect.poll(() => screen.getByText("$ 2.500,00", { exact: true }).query()).toBeNull();
   await expect.element(screen.getByText("$ 760,00", { exact: true })).toBeVisible();
-  expect(onFiltersChange).toHaveBeenLastCalledWith({ register: "all", method: "POINT" });
+  expect(onFiltersChange).toHaveBeenLastCalledWith({
+    channel: "without-api",
+    register: "all",
+    method: "POINT",
+  });
 });
 
 test("offers only the methods of the refunds made outside the system", async () => {
-  const services = createOutsideRefundsServices();
+  const services = createPendingRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "ok",
     value: pendingRefundsWithLatePayment,
@@ -286,9 +280,9 @@ test("offers only the methods of the refunds made outside the system", async () 
 });
 
 test("combines the register and the method filters", async () => {
-  const services = createOutsideRefundsServices();
+  const services = createPendingRefundsServices();
   const screen = await loadedWithPoint(services, {
-    filters: { register: FRONT_REGISTER_ID, method: "POINT" },
+    filters: { ...withoutApiChannel, register: FRONT_REGISTER_ID, method: "POINT" },
   });
 
   await expect.element(screen.getByText("$ 760,00", { exact: true })).toBeVisible();
@@ -296,9 +290,9 @@ test("combines the register and the method filters", async () => {
 });
 
 test("opens on the method the address carries", async () => {
-  const services = createOutsideRefundsServices();
+  const services = createPendingRefundsServices();
   const screen = await loadedWithPoint(services, {
-    filters: { register: "all", method: "TRANSFER" },
+    filters: { ...withoutApiChannel, register: "all", method: "TRANSFER" },
   });
 
   await expect.element(screen.getByText("$ 2.500,00", { exact: true })).toBeVisible();
@@ -307,13 +301,13 @@ test("opens on the method the address carries", async () => {
 });
 
 test("shows every refund and reports every method when the address carries a method the list has none for", async () => {
-  const services = createOutsideRefundsServices();
+  const services = createPendingRefundsServices();
   const onFiltersChange = vi.fn();
   const { promise, resolve } = deferred<Awaited<ReturnType<typeof services.fetchPendingRefunds>>>();
   vi.mocked(services.fetchPendingRefunds).mockReturnValue(promise);
 
   const screen = await renderScreen(services, () => {}, {
-    filters: { register: "all", method: "CASH" },
+    filters: { ...withoutApiChannel, register: "all", method: "CASH" },
     onFiltersChange,
   });
   expect(onFiltersChange).not.toHaveBeenCalled();
@@ -324,24 +318,26 @@ test("shows every refund and reports every method when the address carries a met
   await expect.element(screen.getByRole("button", { name: /Medio.*Todos/ })).toBeVisible();
   await expect
     .poll(() => onFiltersChange.mock.lastCall)
-    .toEqual([{ register: "all", method: "all" }]);
+    .toEqual([{ channel: "without-api", register: "all", method: "all" }]);
 });
 
 test("says no refund matches the filters when the register and the method chosen together hide every refund", async () => {
-  const services = createOutsideRefundsServices();
+  const services = createPendingRefundsServices();
   const screen = await loadedWithPoint(services, {
-    filters: { register: MAIN_REGISTER_ID, method: "POINT" },
+    filters: { ...withoutApiChannel, register: MAIN_REGISTER_ID, method: "POINT" },
   });
 
   await expect
     .element(screen.getByText("No hay reembolsos pendientes con estos filtros"))
     .toBeVisible();
-  await expect.element(screen.getByText("Probá con otra caja o con otro medio.")).toBeVisible();
+  await expect
+    .element(screen.getByText("Probá con otro canal, otra caja o otro medio."))
+    .toBeVisible();
   expect(screen.getByText("Sin reembolsos pendientes", { exact: true }).query()).toBeNull();
 });
 
-test("shows the empty state when every pending refund is one Mercado Pago sends", async () => {
-  const services = createOutsideRefundsServices();
+test("shows the filtered empty state when every pending refund is one Mercado Pago sends", async () => {
+  const services = createPendingRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "ok",
     value: pendingRefundsOfEveryCloudRefundStage,
@@ -349,14 +345,14 @@ test("shows the empty state when every pending refund is one Mercado Pago sends"
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("Sin reembolsos pendientes")).toBeVisible();
   await expect
-    .element(screen.getByText("Todos los reembolsos hechos fuera del sistema están marcados."))
+    .element(screen.getByText("No hay reembolsos pendientes con estos filtros"))
     .toBeVisible();
+  expect(screen.getByText("Sin reembolsos pendientes", { exact: true }).query()).toBeNull();
 });
 
 test("shows the empty state when no refund is pending at all", async () => {
-  const services = createOutsideRefundsServices();
+  const services = createPendingRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "ok",
     value: noPendingRefunds,
@@ -368,37 +364,39 @@ test("shows the empty state when no refund is pending at all", async () => {
 });
 
 test("shows the table loading while the refunds load", async () => {
-  const services = createOutsideRefundsServices();
+  const services = createPendingRefundsServices();
   const firstLoad = deferred<Awaited<ReturnType<typeof services.fetchPendingRefunds>>>();
   vi.mocked(services.fetchPendingRefunds).mockReturnValueOnce(firstLoad.promise);
 
   const screen = await renderScreen(services);
 
   await expect
-    .element(screen.getByRole("table", { name: "Reembolsos sin API" }))
+    .element(screen.getByRole("table", { name: "Reembolsos pendientes" }))
     .toHaveAttribute("aria-busy", "true");
 });
 
 test("shows a load error with a retry action that starts again from the loading placeholder", async () => {
-  const services = createOutsideRefundsServices();
+  const services = createPendingRefundsServices();
   const retry = deferred<Awaited<ReturnType<typeof services.fetchPendingRefunds>>>();
   vi.mocked(services.fetchPendingRefunds)
     .mockResolvedValueOnce({ kind: "failed" })
     .mockReturnValueOnce(retry.promise);
   const screen = await renderScreen(services);
-  await expect.element(screen.getByText("No pudimos abrir los reembolsos sin API")).toBeVisible();
+  await expect
+    .element(screen.getByText("No pudimos abrir los reembolsos pendientes"))
+    .toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
   await expect
-    .element(screen.getByRole("table", { name: "Reembolsos sin API" }))
+    .element(screen.getByRole("table", { name: "Reembolsos pendientes" }))
     .toHaveAttribute("aria-busy", "true");
   retry.resolve({ kind: "ok", value: pendingRefunds });
   await expect.element(screen.getByText("$ 2.500,00", { exact: true })).toBeVisible();
 });
 
 test("shows the rate-limited notice with the time to wait", async () => {
-  const services = createOutsideRefundsServices();
+  const services = createPendingRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
     kind: "rate_limited",
     retryAfterSeconds: 120,
@@ -411,8 +409,8 @@ test("shows the rate-limited notice with the time to wait", async () => {
 });
 
 test("navigates to Mi cuenta when the refunds request comes back forbidden", async () => {
-  window.history.pushState(null, "", "/refunds/outside-the-system");
-  const services = createOutsideRefundsServices();
+  window.history.pushState(null, "", "/refunds");
+  const services = createPendingRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({ kind: "forbidden" });
 
   await renderScreen(services);
@@ -423,7 +421,7 @@ test("navigates to Mi cuenta when the refunds request comes back forbidden", asy
 });
 
 test("ends the session when the refunds request finds no open session", async () => {
-  const services = createOutsideRefundsServices();
+  const services = createPendingRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({ kind: "unauthenticated" });
   const onSessionEnded = vi.fn();
 
@@ -433,7 +431,7 @@ test("ends the session when the refunds request finds no open session", async ()
 });
 
 test("offers marking as done on every refund, and discarding only the ones the cloud says are discardable, never sending", async () => {
-  const services = createOutsideRefundsServices();
+  const services = createPendingRefundsServices();
   const screen = await loadedWithPoint(services);
 
   await expect
@@ -453,7 +451,7 @@ test("offers marking as done on every refund, and discarding only the ones the c
 });
 
 test("discarding a refund asks first, then discards it, reads the refunds again and the refund leaves the list", async () => {
-  const services = createOutsideRefundsServices();
+  const services = createPendingRefundsServices();
   vi.mocked(services.discardRefund).mockResolvedValue({ kind: "ok" });
   const screen = await loadedWithPoint(services);
 
@@ -472,7 +470,7 @@ test("discarding a refund asks first, then discards it, reads the refunds again 
 });
 
 test("cancel closes the discard question and the refund stays listed", async () => {
-  const services = createOutsideRefundsServices();
+  const services = createPendingRefundsServices();
   const screen = await loadedWithPoint(services);
   await userEvent.click(screen.getByRole("button", { name: "Descartar el reembolso de $ 760,00" }));
 
@@ -484,7 +482,7 @@ test("cancel closes the discard question and the refund stays listed", async () 
 });
 
 test("marking a refund as done asks first, then marks it and the refund leaves the list", async () => {
-  const services = createOutsideRefundsServices();
+  const services = createPendingRefundsServices();
   vi.mocked(services.markRefundDone).mockResolvedValue({ kind: "ok" });
   const screen = await loaded(services);
 
@@ -510,7 +508,7 @@ test("marking a refund as done asks first, then marks it and the refund leaves t
 });
 
 test("marking a refund as done reads the refunds again and leaves other concepts' data as it was", async () => {
-  const services = createOutsideRefundsServices();
+  const services = createPendingRefundsServices();
   vi.mocked(services.fetchPendingRefunds).mockResolvedValue({ kind: "ok", value: pendingRefunds });
   vi.mocked(services.markRefundDone).mockResolvedValue({ kind: "ok" });
   const queryClient = createQueryClient();
@@ -520,10 +518,10 @@ test("marking a refund as done reads the refunds again and leaves other concepts
     <QueryClientProvider client={queryClient}>
       <FieldSizeProvider size="backoffice">
         <main>
-          <OutsideRefundsScreen
+          <PendingRefundsScreen
             services={services}
             onSessionEnded={() => {}}
-            filters={outsideRefundsFilters.parse({})}
+            filters={withoutApiChannel}
             onFiltersChange={() => {}}
           />
         </main>
@@ -543,7 +541,7 @@ test("marking a refund as done reads the refunds again and leaves other concepts
 });
 
 test("a refund another person already marked as done leaves the list once the list is updated", async () => {
-  const services = createOutsideRefundsServices();
+  const services = createPendingRefundsServices();
   vi.mocked(services.markRefundDone).mockResolvedValue({ kind: "already_done" });
   const screen = await loaded(services);
   await userEvent.click(
@@ -564,7 +562,7 @@ test("a refund another person already marked as done leaves the list once the li
 });
 
 test("cancel closes the question and the refund stays listed", async () => {
-  const services = createOutsideRefundsServices();
+  const services = createPendingRefundsServices();
   const screen = await loaded(services);
   await userEvent.click(
     screen.getByRole("button", { name: "Marcar como hecho el reembolso de $ 2.500,00" }),
@@ -578,7 +576,7 @@ test("cancel closes the question and the refund stays listed", async () => {
 });
 
 test("typing in the register filter offers only the matching registers", async () => {
-  const screen = await loadedWithPoint(createOutsideRefundsServices());
+  const screen = await loadedWithPoint(createPendingRefundsServices());
   await expect.element(screen.getByText("$ 760,00", { exact: true })).toBeVisible();
 
   await userEvent.fill(screen.getByRole("combobox", { name: /^Caja/ }), "fren");

@@ -147,6 +147,10 @@ export function canSeeRefundsArea(access: BackofficeAccess): boolean {
   return grants(access, "refunds_area");
 }
 
+export function canSeeRefundsPage(access: BackofficeAccess): boolean {
+  return canSeeRefundsArea(access) || canSeeReturnsReport(access);
+}
+
 export function canRecordPurchases(access: BackofficeAccess): boolean {
   return grants(access, "purchases");
 }

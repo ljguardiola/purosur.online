@@ -154,7 +154,7 @@ test("shows the rate-limited notice with the time to wait", async () => {
 });
 
 test("navigates to Mi cuenta when the change comes back forbidden", async () => {
-  window.history.pushState(null, "", "/refunds/mercado-pago");
+  window.history.pushState(null, "", "/refunds");
   const discardRefund = vi
     .fn<DiscardRefundModalServices["discardRefund"]>()
     .mockResolvedValue({ kind: "forbidden" });

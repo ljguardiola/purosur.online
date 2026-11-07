@@ -24,8 +24,9 @@ import {
 import { helpArticleRoute, helpCategoryRoute, helpHomeRoute } from "../help/routes";
 import {
   handConfirmedPaymentsRoute,
-  mercadoPagoRefundsRoute,
-  outsideRefundsRoute,
+  legacyMercadoPagoRefundsRoute,
+  legacyOutsideRefundsRoute,
+  pendingRefundsRoute,
   salesByPaymentMethodRoute,
 } from "../payments/routes";
 import { legacyRolesRoute, rolesListRoute } from "../permissions/routes";
@@ -58,7 +59,7 @@ import {
   registersListRoute,
   snapshotBackupsRoute,
 } from "../register/routes";
-import { returnsReportRoute } from "../returns/routes";
+import { legacyReturnsReportRoute, returnsHistoryRoute } from "../returns/routes";
 import {
   averageTicketRoute,
   cashRoundingRoute,
@@ -94,8 +95,10 @@ import { ScreenDownloadFailure } from "./lazy-screen";
 import { ordersAreaRoute } from "./orders-area";
 import { peopleLandingRoute, peopleRoute } from "./people-route";
 import { publicRoute } from "./public-route";
+import { refundsRoute } from "./refunds-route";
 import { reportsAreaRoute } from "./reports-area";
 import { type RouterContext, rootRoute } from "./root-route";
+import { salesAndCashAreaRoute } from "./sales-and-cash-area";
 import { ScreenFailure } from "./screen-failure";
 import { ScreenPending } from "./screen-pending";
 import { focusScreenTitle } from "./screen-title";
@@ -147,11 +150,12 @@ const routeTree = rootRoute.addChildren([
       purchaseOrderRoute,
       purchaseOrderReceiveRoute,
     ]),
+    salesAndCashAreaRoute.addChildren([
+      refundsRoute.addChildren([pendingRefundsRoute, returnsHistoryRoute]),
+    ]),
     cashAndFiscalAreaRoute.addChildren([
       pointsOfSaleRoute,
       fiscalConfigurationRoute,
-      mercadoPagoRefundsRoute,
-      outsideRefundsRoute,
       fiscalTasksRoute,
       issuedFiscalDocumentsRoute,
       exceptionalityRoute,
@@ -180,7 +184,6 @@ const routeTree = rootRoute.addChildren([
       salesByPromotionRoute,
       manualDiscountsRoute,
       cashRoundingRoute,
-      returnsReportRoute,
       issuedFiscalDocumentsReportRoute,
     ]),
     settingsAreaRoute.addChildren([
@@ -192,6 +195,9 @@ const routeTree = rootRoute.addChildren([
       quarantinedEventsRoute,
     ]),
     legacyAccountRoute,
+    legacyMercadoPagoRefundsRoute,
+    legacyOutsideRefundsRoute,
+    legacyReturnsReportRoute,
     legacyUsersRoute,
     legacyUserRoute,
     legacyRolesRoute,

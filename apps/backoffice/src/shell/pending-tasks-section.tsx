@@ -46,9 +46,11 @@ type Task = {
   key: TaskKey;
   label: string;
   subject: string;
-  to: "/fiscal-tasks" | "/refunds/mercado-pago" | "/refunds/outside-the-system" | "/prices";
   count: CloudData<number>;
-};
+} & (
+  | { to: "/fiscal-tasks" | "/prices" }
+  | { to: "/refunds"; channel: "mercado-pago" | "without-api" }
+);
 
 function TaskCard({ task }: { task: Task }) {
   if (task.count.status === "loading") {
@@ -57,7 +59,17 @@ function TaskCard({ task }: { task: Task }) {
   if (task.count.status === "failed") {
     return <LoadFailure {...cloudLoadFailure(task.count, task.subject)} />;
   }
-  return <CountCardLink to={task.to} label={task.label} count={task.count.value} tone="warning" />;
+  return task.to === "/refunds" ? (
+    <CountCardLink
+      to="/refunds"
+      search={{ channel: task.channel }}
+      label={task.label}
+      count={task.count.value}
+      tone="warning"
+    />
+  ) : (
+    <CountCardLink to={task.to} label={task.label} count={task.count.value} tone="warning" />
+  );
 }
 
 function PendingTasks({
@@ -97,14 +109,16 @@ function PendingTasks({
       key: "mercado-pago-refunds",
       label: "Reembolsos por Mercado Pago",
       subject: "los reembolsos",
-      to: "/refunds/mercado-pago",
+      to: "/refunds",
+      channel: "mercado-pago",
       count: mercadoPagoRefunds,
     },
     {
       key: "outside-refunds",
       label: "Reembolsos fuera del sistema",
       subject: "los reembolsos",
-      to: "/refunds/outside-the-system",
+      to: "/refunds",
+      channel: "without-api",
       count: outsideRefunds,
     },
     {

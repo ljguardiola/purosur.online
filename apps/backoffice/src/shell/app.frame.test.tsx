@@ -178,7 +178,7 @@ test.each(["/help", "/users", "/categories", "/products"])(
 );
 
 test.each(["/help", "/users", "/products", "/fiscal-settings"])(
-  "lists Catálogo, then Caja, then Config in the rail on %s",
+  "lists Catálogo, then Caja y fiscal, then Config in the rail on %s",
   async (path) => {
     window.history.pushState(null, "", path);
     const services = createAppServices();
@@ -205,12 +205,14 @@ test.each(["/help", "/users", "/products", "/fiscal-settings"])(
     const screen = await render(<App help={emptyHelp} services={services} />);
 
     const rail = screen.getByRole("navigation", { name: "Áreas" });
-    await expect.element(rail.getByRole("link", { name: "Caja" })).toBeVisible();
+    await expect
+      .element(rail.getByRole("link", { name: "Caja y fiscal", exact: true }))
+      .toBeVisible();
     const labels = rail
       .getByRole("link")
       .elements()
       .map((link) => link.textContent);
-    expect(labels.indexOf("Catálogo")).toBeLessThan(labels.indexOf("Caja"));
-    expect(labels.indexOf("Caja")).toBeLessThan(labels.indexOf("Config"));
+    expect(labels.indexOf("Catálogo")).toBeLessThan(labels.indexOf("Caja y fiscal"));
+    expect(labels.indexOf("Caja y fiscal")).toBeLessThan(labels.indexOf("Config"));
   },
 );

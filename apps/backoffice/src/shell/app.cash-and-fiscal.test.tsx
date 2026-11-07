@@ -12,7 +12,7 @@ opensOnlyScreens(["/", "/fiscal-settings", "/help", "/points-of-sale"]);
 
 beforeEach(resetPageState);
 
-test("shows the Caja item in the rail for a user holding change_fiscal_configuration, linking to Puntos de venta", async () => {
+test("shows the Caja y fiscal item in the rail for a user holding change_fiscal_configuration, linking to Puntos de venta", async () => {
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(
       openSession({
@@ -27,10 +27,12 @@ test("shows the Caja item in the rail for a user holding change_fiscal_configura
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("link", { name: "Caja" })).toBeVisible();
+  await expect
+    .element(screen.getByRole("link", { name: "Caja y fiscal", exact: true }))
+    .toBeVisible();
 });
 
-test("hides the Caja item in the rail for a user without change_fiscal_configuration", async () => {
+test("hides the Caja y fiscal item in the rail for a user without change_fiscal_configuration", async () => {
   const services = createAppServices({
     fetchSession: vi
       .fn()
@@ -43,10 +45,10 @@ test("hides the Caja item in the rail for a user without change_fiscal_configura
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
-  expect(screen.getByRole("link", { name: "Caja" }).query()).toBeNull();
+  expect(screen.getByRole("link", { name: "Caja y fiscal", exact: true }).query()).toBeNull();
 });
 
-test("following the rail's Caja item opens Puntos de venta, with Caja and Puntos de venta active", async () => {
+test("following the rail's Caja y fiscal item opens Puntos de venta, with Caja y fiscal and Puntos de venta active", async () => {
   window.history.pushState(null, "", "/help");
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(
@@ -59,15 +61,19 @@ test("following the rail's Caja item opens Puntos de venta, with Caja and Puntos
     ),
   });
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await expect.element(screen.getByRole("link", { name: "Caja" })).toBeVisible();
+  await expect
+    .element(screen.getByRole("link", { name: "Caja y fiscal", exact: true }))
+    .toBeVisible();
 
-  await userEvent.click(screen.getByRole("link", { name: "Caja" }));
+  await userEvent.click(screen.getByRole("link", { name: "Caja y fiscal", exact: true }));
 
   await expect
     .element(screen.getByRole("heading", { name: "Puntos de venta", level: 1 }))
     .toBeVisible();
   expect(window.location.pathname).toBe("/points-of-sale");
-  const cashItem = screen.getByRole("link", { name: "Caja" }).element() as HTMLAnchorElement;
+  const cashItem = screen
+    .getByRole("link", { name: "Caja y fiscal", exact: true })
+    .element() as HTMLAnchorElement;
   expect(cashItem.getAttribute("aria-current")).toBe("page");
   const sectionItem = screen
     .getByRole("link", { name: "Puntos de venta" })
@@ -131,7 +137,7 @@ test("lists Puntos de venta before Configuración fiscal in the FISCAL group", a
       ),
   });
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await userEvent.click(screen.getByRole("link", { name: "Caja" }));
+  await userEvent.click(screen.getByRole("link", { name: "Caja y fiscal", exact: true }));
 
   const labels = (await screen.getByRole("link").elements()).map((link) => link.textContent);
   expect(labels.indexOf("Puntos de venta")).toBeGreaterThan(-1);

@@ -17,7 +17,6 @@ import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { reportMoment } from "../platform/report-moment";
 import { saleUnitQuantityText } from "../platform/sale-unit-quantity";
-import { AreaTopBar } from "../shell/area-top-bar";
 import { RegisterReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
@@ -26,7 +25,7 @@ import {
   reportQueryOf,
 } from "../shell/report-filters-search";
 import type { ReportRegisterField } from "../shell/report-register-field";
-import { ScreenLayout } from "../shell/screen-layout";
+import type { ReturnsHistoryScreenServices } from "./returns-history-services";
 import {
   authorizerSummaryRows,
   cashierSummaryRows,
@@ -34,16 +33,15 @@ import {
 } from "./returns-person-summary";
 import { useReturnsReportQuery } from "./returns-queries";
 import { OCCURRED_TIME_ZONE } from "./returns-report-occurred-time-zone";
-import type { ReturnsReportScreenServices } from "./returns-report-services";
 import { returnsReportSpreadsheet } from "./returns-report-spreadsheet";
 import { returnLineDetail, returnSaleText, UNIDENTIFIED } from "./returns-text";
 
-export type ReturnsReportScreenProps = {
+export type ReturnsHistoryScreenProps = {
   filters: ReportFiltersValue;
   onFiltersChange: (filters: ReportFiltersValue) => void;
   onSessionEnded: () => void;
   registerFilter: ReportRegisterField;
-  services: ReturnsReportScreenServices;
+  services: ReturnsHistoryScreenServices;
 };
 
 type ReturnRow = ReturnsReportBody["typed"]["rows"][number];
@@ -218,13 +216,13 @@ const returnColumns = [
   }),
 ] as const;
 
-export function ReturnsReportScreen({
+export function ReturnsHistoryScreen({
   filters,
   onFiltersChange,
   onSessionEnded,
   registerFilter,
   services,
-}: ReturnsReportScreenProps) {
+}: ReturnsHistoryScreenProps) {
   const [registerLabel, setRegisterLabel] = useState<string>();
   const cashiersHeadingId = useId();
   const authorizersHeadingId = useId();
@@ -271,10 +269,7 @@ export function ReturnsReportScreen({
   const nothingToReport = noReturns && voidsTable.getRowModel().rows.length === 0;
 
   return (
-    <ScreenLayout
-      topBar={<AreaTopBar eyebrow="Reportes · Caja" title={SCREEN_TITLE} />}
-      bodyClassName="gap-4 p-6"
-    >
+    <div className="flex min-w-0 flex-1 flex-col gap-4 p-6">
       <ReportFilters
         filters={filters}
         onFiltersChange={onFiltersChange}
@@ -443,6 +438,6 @@ export function ReturnsReportScreen({
           )}
         </>
       )}
-    </ScreenLayout>
+    </div>
   );
 }

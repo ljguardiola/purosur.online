@@ -14,13 +14,7 @@ import { ScreenLayout } from "../shell/screen-layout";
 
 const ReportRow = createLink(LinkListRow);
 
-export function ReportsIndexScreen({
-  returnsShown,
-  aiCostShown,
-}: {
-  returnsShown: boolean;
-  aiCostShown: boolean;
-}) {
+export function ReportsIndexScreen({ aiCostShown }: { aiCostShown: boolean }) {
   return (
     <ScreenLayout topBar={<AreaTopBar eyebrow="Puro Sur" title="Reportes" />} bodyClassName="p-6">
       <LinkListCard title="Ventas" icon={<ShoppingBag />}>
@@ -41,9 +35,6 @@ export function ReportsIndexScreen({
         <ReportRow to="/reports/hand-confirmed-payments" label="Pagos confirmados a mano" />
         <ReportRow to="/reports/cash-session-closes" label="Cierres de sesión" />
         <ReportRow to="/reports/cash-movements" label="Movimientos de caja" />
-        {returnsShown ? (
-          <ReportRow to="/reports/returns" label="Anulaciones y devoluciones" />
-        ) : null}
       </LinkListCard>
       <LinkListCard title="Fiscal" icon={<FileText />}>
         <ReportRow to="/reports/fiscal-documents" label="Comprobantes emitidos" />

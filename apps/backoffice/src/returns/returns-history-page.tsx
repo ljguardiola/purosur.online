@@ -1,19 +1,17 @@
 import { getRouteApi } from "@tanstack/react-router";
 import type { ReactElement } from "react";
-import { useDocumentTitle } from "../shell/document-title";
 import { reportRegisterFieldOf } from "../shell/report-register-field";
-import { ReturnsReportScreen } from "./returns-report-screen";
-import { defaultReturnsReportScreenServices } from "./returns-report-services";
+import { ReturnsHistoryScreen } from "./returns-history-screen";
+import { defaultReturnsHistoryScreenServices } from "./returns-history-services";
 
-const route = getRouteApi("/signed-in/reports-area/reports/returns");
+const route = getRouteApi("/signed-in/sales-and-cash-area/refunds/history");
 
-export function ReturnsReportPage(): ReactElement {
+export function ReturnsHistoryPage(): ReactElement {
   const { services, sessionActions } = route.useRouteContext();
   const filters = route.useSearch();
   const navigate = route.useNavigate();
-  useDocumentTitle("Anulaciones y devoluciones · Puro Sur");
   return (
-    <ReturnsReportScreen
+    <ReturnsHistoryScreen
       filters={filters}
       onFiltersChange={(next) => void navigate({ search: next, replace: true })}
       onSessionEnded={sessionActions.sessionEnded}
@@ -22,7 +20,7 @@ export function ReturnsReportPage(): ReactElement {
         services: services.reportRegisterFilter,
         onSessionEnded: sessionActions.sessionEnded,
       })}
-      services={services.returnsReportScreen ?? defaultReturnsReportScreenServices}
+      services={services.returnsHistoryScreen ?? defaultReturnsHistoryScreenServices}
     />
   );
 }

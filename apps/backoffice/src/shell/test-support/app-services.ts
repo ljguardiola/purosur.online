@@ -308,7 +308,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     issuedFiscalDocumentsReportScreen: {
       fetchIssuedFiscalDocumentsReport: vi.fn().mockReturnValue(new Promise(() => {})),
     },
-    returnsReportScreen: {
+    returnsHistoryScreen: {
       fetchReturnsReport: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     averageTicketScreen: {
@@ -316,6 +316,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     },
     salesByPaymentMethodScreen: {
       fetchSalesByPaymentMethod: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchHandConfirmedPayments: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     handConfirmedPaymentsScreen: {
       fetchHandConfirmedPayments: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -334,16 +335,12 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     reportRegisterFilter: {
       fetchReportRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
     },
-    mercadoPagoRefundsScreen: {
+    pendingRefundsScreen: {
       fetchPendingRefunds: vi.fn().mockReturnValue(new Promise(() => {})),
       confirmRefund: vi.fn(),
       discardRefund: vi.fn(),
       recordRefundTransfer: vi.fn(),
-    },
-    outsideRefundsScreen: {
-      fetchPendingRefunds: vi.fn().mockReturnValue(new Promise(() => {})),
       markRefundDone: vi.fn(),
-      discardRefund: vi.fn(),
     },
     userPanel: {
       fetchUser: vi.fn().mockReturnValue(new Promise(() => {})),
