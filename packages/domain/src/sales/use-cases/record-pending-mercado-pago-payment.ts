@@ -9,6 +9,11 @@ import { isSaleRefusal, type NewPaymentRefusal, saleOpenToNewPayment } from "./c
 import type { RegisterRestoration } from "./register-restoration.js";
 import type { IdGenerator, SaleLedger } from "./sale-ledger.js";
 
+const AMOUNT_IS_CHARGEABLE = {
+  POINT: isValidPointOrderAmount,
+  QR: isValidQrOrderAmount,
+};
+
 export type RecordPendingMercadoPagoPaymentInput = {
   actorId: string;
   saleId: string;
@@ -56,11 +61,7 @@ export function recordPendingMercadoPagoPayment(
     if (charge.kind === "invalid_amount" || charge.kind === "exceeds_pending") {
       return charge;
     }
-    const reachesMinimum =
-      input.method === "POINT"
-        ? isValidPointOrderAmount(charge.applied)
-        : isValidQrOrderAmount(charge.applied);
-    if (!reachesMinimum) {
+    if (!AMOUNT_IS_CHARGEABLE[input.method](charge.applied)) {
       return { kind: "below_minimum" };
     }
 
