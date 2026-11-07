@@ -4,12 +4,16 @@ import {
   allChannels,
   createPendingRefundsServices,
   FRONT_REGISTER_ID,
+  MAIN_REGISTER_ID,
   mercadoPagoChannel,
   renderPendingRefunds,
   rowTexts,
   withoutApiChannel,
 } from "./test-support/pending-refunds-screen";
-import { pendingRefundsOfBothKinds } from "./test-support/refund-fixtures";
+import {
+  pendingRefundsOfBothKinds,
+  pendingRefundsWithLatePointPayment,
+} from "./test-support/refund-fixtures";
 
 const MERCADO_PAGO_FOOTER =
   "Los reembolsos con QR o Point de ventas canceladas, y con QR de aprobaciones tardías, se envían a Mercado Pago recién cuando se confirman acá. Los de ventas anuladas con QR o Point los confirmó en la caja quien anuló la venta, y se envían sin pasar por acá.";
@@ -40,7 +44,9 @@ test("lists the refunds of both channels by default, each row with the actions o
   const { screen } = await loadedWithBothKinds();
 
   await expect.poll(() => rowTexts(screen)).toHaveLength(4);
-  await expect.element(screen.getByRole("button", { name: /^Canal/ })).toHaveTextContent("Todos");
+  await expect
+    .element(screen.getByRole("button", { name: /^Canal/ }))
+    .toHaveTextContent("Canal Todos");
   await expect
     .element(
       screen.getByRole("button", { name: "Enviar a Mercado Pago el reembolso de $ 3.400,00" }),
@@ -114,7 +120,9 @@ test("choosing the channel Mercado Pago lists only the refunds Mercado Pago send
 test("opens on the channel the address carries", async () => {
   const { screen } = await loadedWithBothKinds({ filters: withoutApiChannel });
 
-  await expect.element(screen.getByRole("button", { name: /^Canal/ })).toHaveTextContent("Sin API");
+  await expect
+    .element(screen.getByRole("button", { name: /^Canal/ }))
+    .toHaveTextContent("Canal Sin API");
   expect(screen.getByText("$ 3.400,00", { exact: true }).query()).toBeNull();
 });
 
@@ -167,13 +175,15 @@ test("shows the blank empty state when the chosen channel has no pending refund 
   expect(screen.getByText("No hay reembolsos pendientes con estos filtros").query()).toBeNull();
 });
 
-test("shows the filtered empty state when the register chosen hides every refund of the channel", async () => {
-  const { screen } = await loadedWithBothKinds({
-    filters: {
-      ...withoutApiChannel,
-      register: "11111111-1111-4111-8111-111111111111",
-      method: "POINT",
-    },
+test("shows the filtered empty state when the register and the method chosen together hide every refund of the channel", async () => {
+  const services = createPendingRefundsServices();
+  vi.mocked(services.fetchPendingRefunds).mockResolvedValue({
+    kind: "ok",
+    value: pendingRefundsWithLatePointPayment,
+  });
+
+  const screen = await renderPendingRefunds(services, () => {}, {
+    filters: { ...withoutApiChannel, register: MAIN_REGISTER_ID, method: "POINT" },
   });
 
   await expect
