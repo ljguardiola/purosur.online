@@ -1,6 +1,7 @@
 import type { ContingencyBackupTicketRescueResponse } from "@purosur/contracts";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
+import { userEvent } from "vitest/browser";
 import { resetPageState } from "../shell/test-support/app";
 import {
   createServices,
@@ -9,7 +10,7 @@ import {
   rescuedEarlierSale,
   rescuedSale,
   ticketCodes,
-} from "./test-support/contingency-ticket-rescue-screen";
+} from "./test-support/contingency-ticket-rescue-modal";
 
 beforeEach(resetPageState);
 
@@ -22,14 +23,13 @@ function answering(value: ContingencyBackupTicketRescueResponse) {
   return setup;
 }
 
-test("shows the breadcrumb, the heading and the scanner", async () => {
+test("opens as a dialog titled for the rescue, with the scanner", async () => {
   const { services } = createServices();
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("Configuración")).toBeVisible();
   await expect
-    .element(screen.getByRole("heading", { name: "Rescate de tickets", level: 1 }))
+    .element(screen.getByRole("dialog", { name: "Rescate de tickets de contingencia" }))
     .toBeVisible();
   await expect.element(screen.getByText("Mostrar el QR del ticket a la cámara")).toBeVisible();
 });
@@ -286,4 +286,14 @@ test("has no accessibility violations empty, with rows and with the camera unava
   scanner.fail("no_camera");
   await expect.element(screen.getByText("No hay una cámara disponible")).toBeVisible();
   await expectNoAccessibilityViolations(document.body);
+});
+
+test("closes with Volver", async () => {
+  const { services } = createServices();
+  const onClose = vi.fn();
+  const screen = await renderScreen(services, vi.fn(), onClose);
+
+  await userEvent.click(screen.getByRole("button", { name: "Volver" }));
+
+  expect(onClose).toHaveBeenCalledTimes(1);
 });

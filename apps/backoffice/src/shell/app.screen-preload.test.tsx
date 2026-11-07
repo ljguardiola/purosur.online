@@ -6,7 +6,7 @@ import { emptyHelp } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens, screenCode } from "./test-support/screen-routes";
 
-opensOnlyScreens(["/help"], { downloadedInTest: ["/", "/points-of-sale"] });
+opensOnlyScreens(["/help"], { downloadedInTest: ["/", "/fiscal"] });
 
 beforeEach(() => {
   window.history.pushState(null, "", "/help");
@@ -29,15 +29,11 @@ test("starts downloading a screen's code when its menu link receives focus, befo
   const screen = await render(
     <App help={emptyHelp} services={createAppServices()} reportError={vi.fn()} />,
   );
-  await expect
-    .element(screen.getByRole("link", { name: "Caja y fiscal", exact: true }))
-    .toBeVisible();
-  const pointsOfSaleScreenCode = vi.spyOn(screenCode("/points-of-sale"), "preload");
+  await expect.element(screen.getByRole("link", { name: "Fiscal", exact: true })).toBeVisible();
+  const fiscalScreenCode = vi.spyOn(screenCode("/fiscal"), "preload");
 
-  (
-    screen.getByRole("link", { name: "Caja y fiscal", exact: true }).element() as HTMLElement
-  ).focus();
+  (screen.getByRole("link", { name: "Fiscal", exact: true }).element() as HTMLElement).focus();
 
-  await expect.poll(() => pointsOfSaleScreenCode).toHaveBeenCalled();
+  await expect.poll(() => fiscalScreenCode).toHaveBeenCalled();
   expect(window.location.pathname).toBe("/help");
 });

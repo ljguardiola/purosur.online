@@ -5,7 +5,7 @@ import {
   awaitingRecovery,
   createServices,
   renderScreen,
-} from "./test-support/contingency-ticket-rescue-screen";
+} from "./test-support/contingency-ticket-rescue-modal";
 
 beforeEach(resetPageState);
 
@@ -19,7 +19,7 @@ function awaiting() {
 
 async function openFinishQuestion(screen: Awaited<ReturnType<typeof renderScreen>>) {
   await userEvent.click(screen.getByRole("button", { name: "Terminar el rescate de Caja 1" }));
-  return screen.getByRole("dialog");
+  return screen.getByRole("dialog", { name: "¿Terminar el rescate de Caja 1?" });
 }
 
 test("shows no recoveries section when no register awaits its rescue", async () => {
@@ -62,7 +62,9 @@ test("finishing the rescue asks first and refreshes the list with a notice", asy
     .toHaveTextContent(
       "Rescate de Caja 1 terminado Los tickets que se escaneen ahora ya no llegan a esa caja.",
     );
-  expect(screen.getByRole("dialog").query()).toBeNull();
+  expect(
+    screen.getByRole("dialog", { name: "¿Terminar el rescate de Caja 1?" }).query(),
+  ).toBeNull();
   await expect
     .poll(() =>
       screen.getByRole("table", { name: "Cajas esperando el rescate de tickets" }).query(),
@@ -103,7 +105,9 @@ test("cancelling the question leaves the list as it was", async () => {
 
   await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
 
-  expect(screen.getByRole("dialog").query()).toBeNull();
+  expect(
+    screen.getByRole("dialog", { name: "¿Terminar el rescate de Caja 1?" }).query(),
+  ).toBeNull();
   await expect.element(screen.getByRole("cell", { name: "Caja 1" })).toBeVisible();
   expect(fetchContingencyTicketRecoveries).toHaveBeenCalledTimes(1);
 });

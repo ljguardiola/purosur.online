@@ -29,7 +29,8 @@ opensOnlyScreens([
   "/registers",
   "/registers/closes",
   "/registers/movements",
-  "/points-of-sale",
+  "/fiscal",
+  "/fiscal/caea",
 ]);
 
 beforeEach(resetPageState);
@@ -519,13 +520,13 @@ test("changing the point of sale in a register's Fiscal y cobros saves it throug
     offlinePointOfSaleNumber: null,
     offlineVersion: 0,
   };
-  vi.mocked(services.pointsOfSaleScreen.fetchRegisterPointsOfSale)
+  vi.mocked(services.caeaScreen.fetchRegisterPointsOfSale)
     .mockResolvedValueOnce({ kind: "ok", value: [configured] })
     .mockResolvedValue({
       kind: "ok",
       value: [{ ...configured, pointOfSaleNumber: 7, version: 3 }],
     });
-  vi.mocked(services.pointsOfSaleScreen.fetchFiscalAddresses).mockResolvedValue({
+  vi.mocked(services.caeaScreen.fetchFiscalAddresses).mockResolvedValue({
     kind: "ok",
     value: [
       {
@@ -537,7 +538,8 @@ test("changing the point of sale in a register's Fiscal y cobros saves it throug
     ],
   });
   const panelServices: RegisterPointOfSalePanelSectionServices = {
-    ...services.pointsOfSaleScreen,
+    ...services.fiscalSettingsScreen,
+    ...services.caeaScreen,
     configureRegisterPointOfSale: vi.fn().mockResolvedValue({ kind: "ok" }),
     configureRegisterOfflinePointOfSale: vi.fn(),
   };
@@ -560,10 +562,10 @@ test("changing the point of sale in a register's Fiscal y cobros saves it throug
   });
   await expect.element(screen.getByText("00007")).toBeVisible();
 
-  await userEvent.click(screen.getByRole("link", { name: "Caja y fiscal", exact: true }));
+  await userEvent.click(screen.getByRole("link", { name: "Fiscal", exact: true }));
 
   await expect
-    .element(screen.getByRole("heading", { name: "Puntos de venta", level: 1 }))
+    .element(screen.getByRole("heading", { name: "Puntos de venta", level: 2 }))
     .toBeVisible();
   await expect.element(screen.getByText("00007")).toBeVisible();
   expect(screen.getByRole("button", { name: "Editar", exact: true }).query()).toBeNull();

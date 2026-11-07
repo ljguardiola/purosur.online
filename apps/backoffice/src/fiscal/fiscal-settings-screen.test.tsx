@@ -11,9 +11,10 @@ import { page, userEvent } from "vitest/browser";
 import { ARGENTINA_ZONE_RULES } from "../platform/test-support/zone-rules";
 import { render } from "../shell/test-support/render-with-router";
 import type { BuyerIdentificationThresholds } from "./buyer-identification-threshold-api";
-import { FiscalConfigurationScreen } from "./fiscal-configuration-screen";
-import type { FiscalConfigurationScreenServices } from "./fiscal-configuration-services";
+import type { FiscalAddress } from "./fiscal-addresses-api";
 import { fiscalKey } from "./fiscal-queries";
+import { FiscalSettingsScreen } from "./fiscal-settings-screen";
+import type { FiscalSettingsScreenServices } from "./fiscal-settings-services";
 import type { IssuerIdentification } from "./issuer-identification-api";
 
 beforeEach(() => {
@@ -31,8 +32,8 @@ function thresholds(
 }
 
 function createServices(
-  overrides: Partial<FiscalConfigurationScreenServices> = {},
-): FiscalConfigurationScreenServices {
+  overrides: Partial<FiscalSettingsScreenServices> = {},
+): FiscalSettingsScreenServices {
   return {
     fetchIssuerIdentification: vi.fn(),
     saveIssuerIdentification: vi.fn(),
@@ -41,6 +42,9 @@ function createServices(
       .mockResolvedValue({ kind: "ok", value: thresholds() }),
     recordBuyerIdentificationThreshold: vi.fn(),
     fetchClockCorrections: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
+    fetchFiscalAddresses: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
+    createFiscalAddress: vi.fn(),
+    editFiscalAddress: vi.fn(),
     fetchCurrentZoneRules: vi.fn().mockResolvedValue({ kind: "ok", value: ARGENTINA_ZONE_RULES }),
     fetchSessionAuthorizationOptions: vi.fn(),
     authorizeSession: vi.fn(),
@@ -57,9 +61,7 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-type FetchOutcome = Awaited<
-  ReturnType<FiscalConfigurationScreenServices["fetchIssuerIdentification"]>
->;
+type FetchOutcome = Awaited<ReturnType<FiscalSettingsScreenServices["fetchIssuerIdentification"]>>;
 
 function FetchesInFlight() {
   return <output aria-label="Lecturas en curso">{useIsFetching()}</output>;
@@ -90,14 +92,14 @@ const complete: IssuerIdentification = {
 const aDayOfOctober = () => new Date("2026-10-15T12:00:00-03:00");
 
 function renderScreen(
-  services: FiscalConfigurationScreenServices,
+  services: FiscalSettingsScreenServices,
   onSessionEnded: () => void = () => {},
   now: () => Date = aDayOfOctober,
 ) {
   return render(
     <FieldSizeProvider size="backoffice">
       <main>
-        <FiscalConfigurationScreen services={services} onSessionEnded={onSessionEnded} now={now} />
+        <FiscalSettingsScreen services={services} onSessionEnded={onSessionEnded} now={now} />
         <FetchesInFlight />
         <RefreshFiscal />
       </main>
@@ -105,16 +107,13 @@ function renderScreen(
   );
 }
 
-test("shows the breadcrumb, heading, and the issuer identification it reads", async () => {
+test("shows the issuer identification it reads, with no title of its own", async () => {
   const services = createServices();
   vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("Caja y fiscal · Fiscal")).toBeVisible();
-  await expect
-    .element(screen.getByRole("heading", { name: "Configuración fiscal", level: 1 }))
-    .toBeVisible();
+  expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
   await expect
     .element(screen.getByRole("heading", { name: "Identificación del emisor", level: 2 }))
     .toBeVisible();
@@ -435,14 +434,12 @@ test("has no accessibility violations once loaded", async () => {
   const services = createServices();
   vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
   const screen = await renderScreen(services);
-  await expect
-    .element(screen.getByRole("heading", { name: "Configuración fiscal", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByText(FICTIONAL_LEGAL_NAME)).toBeVisible();
 
   await expectNoAccessibilityViolations(document.body);
 });
 
-test("shows the buyer-identification threshold in effect today under the issuer identification, and the clock corrections after it", async () => {
+test("shows the issuer identification, the buyer-identification threshold, the fiscal addresses and the clock corrections in that order", async () => {
   const services = createServices();
   vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
   vi.mocked(services.fetchBuyerIdentificationThresholds).mockResolvedValue({
@@ -456,6 +453,7 @@ test("shows the buyer-identification threshold in effect today under the issuer 
   expect(headings.map((heading) => heading.textContent)).toEqual([
     "Identificación del emisor",
     "Umbral de identificación del comprador",
+    "Domicilios fiscales",
     "Correcciones de reloj",
   ]);
   await expect.element(screen.getByText("$ 10.000.000,00")).toBeVisible();
@@ -611,7 +609,7 @@ test("a refresh of the fiscal data reads the thresholds again without hiding the
   const services = createServices();
   const refresh =
     deferred<
-      Awaited<ReturnType<FiscalConfigurationScreenServices["fetchBuyerIdentificationThresholds"]>>
+      Awaited<ReturnType<FiscalSettingsScreenServices["fetchBuyerIdentificationThresholds"]>>
     >();
   vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
   vi.mocked(services.fetchBuyerIdentificationThresholds)
@@ -689,4 +687,130 @@ test("ends the session when reading the clock corrections finds it closed", asyn
   await renderScreen(services, onSessionEnded);
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+const depot: FiscalAddress = {
+  id: "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+  name: "Depósito Central",
+  streetAddress: "Calle Ficticia 123, CABA",
+  version: 1,
+};
+
+const shop: FiscalAddress = {
+  id: "0b2f6a4e-5d1c-4f8a-9a31-6f4b8c2d7e10",
+  name: "Local Norte",
+  streetAddress: "Avenida Inventada 45, CABA",
+  version: 4,
+};
+
+test("lists the fiscal addresses with their name and street address", async () => {
+  const services = createServices({
+    fetchFiscalAddresses: vi.fn().mockResolvedValue({ kind: "ok", value: [depot, shop] }),
+  });
+  const screen = await renderScreen(services);
+
+  const table = screen.getByRole("table", { name: "Domicilios fiscales" });
+  await expect.element(table.getByText("Depósito Central")).toBeVisible();
+  await expect.element(table.getByText("Calle Ficticia 123, CABA")).toBeVisible();
+  await expect.element(table.getByText("Local Norte")).toBeVisible();
+  await expect.element(table.getByText("Avenida Inventada 45, CABA")).toBeVisible();
+});
+
+test("shows the table's empty state when there are no fiscal addresses", async () => {
+  const screen = await renderScreen(createServices());
+
+  await expect.element(screen.getByText("Todavía no hay domicilios fiscales")).toBeVisible();
+});
+
+test("shows a load failure for the fiscal addresses, and Reintentar loads them again", async () => {
+  const services = createServices({
+    fetchFiscalAddresses: vi
+      .fn()
+      .mockResolvedValueOnce({ kind: "failed" })
+      .mockResolvedValueOnce({ kind: "ok", value: [depot] }),
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No pudimos abrir los domicilios fiscales")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }).last());
+
+  await expect
+    .element(
+      screen.getByRole("table", { name: "Domicilios fiscales" }).getByText("Depósito Central"),
+    )
+    .toBeVisible();
+});
+
+test("sends to Mi cuenta when the fiscal addresses come back forbidden", async () => {
+  const services = createServices({
+    fetchFiscalAddresses: vi.fn().mockResolvedValue({ kind: "forbidden" }),
+  });
+
+  await renderScreen(services);
+
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
+});
+
+test("Nuevo domicilio fiscal opens the creation modal, and creating reads the list again and announces it", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchFiscalAddresses)
+    .mockResolvedValueOnce({ kind: "ok", value: [depot] })
+    .mockResolvedValue({ kind: "ok", value: [depot, shop] });
+  vi.mocked(services.createFiscalAddress).mockResolvedValue({ kind: "ok", fiscalAddress: shop });
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Nuevo domicilio fiscal" }));
+  const dialog = screen.getByRole("dialog", { name: "Nuevo domicilio fiscal" });
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Local Norte");
+  await userEvent.fill(
+    dialog.getByRole("textbox", { name: /^Dirección/ }),
+    "Avenida Inventada 45, CABA",
+  );
+
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el domicilio fiscal" }));
+
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect
+    .element(screen.getByRole("table", { name: "Domicilios fiscales" }).getByText("Local Norte"))
+    .toBeVisible();
+  await expect.element(screen.getByText("Domicilio fiscal creado")).toBeVisible();
+});
+
+test("Nuevo domicilio fiscal stays available while the data loads", async () => {
+  const services = createServices({
+    fetchFiscalAddresses: vi.fn().mockReturnValue(new Promise(() => {})),
+  });
+
+  const screen = await renderScreen(services);
+
+  await expect
+    .element(screen.getByRole("button", { name: "Nuevo domicilio fiscal" }))
+    .toBeEnabled();
+});
+
+test("a fiscal address's edit action opens its modal, and saving reads the list again and announces it", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchFiscalAddresses)
+    .mockResolvedValueOnce({ kind: "ok", value: [depot] })
+    .mockResolvedValue({
+      kind: "ok",
+      value: [{ ...depot, streetAddress: "Calle Inventada 9", version: 2 }],
+    });
+  vi.mocked(services.editFiscalAddress).mockResolvedValue({ kind: "ok" });
+  const screen = await renderScreen(services);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Editar el domicilio fiscal Depósito Central" }),
+  );
+  const dialog = screen.getByRole("dialog", { name: "Editar el domicilio fiscal" });
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Nombre/ }))
+    .toHaveValue("Depósito Central");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Dirección/ }), "Calle Inventada 9");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.element(screen.getByText("Calle Inventada 9")).toBeVisible();
+  await expect.element(screen.getByText("Domicilio fiscal guardado")).toBeVisible();
 });

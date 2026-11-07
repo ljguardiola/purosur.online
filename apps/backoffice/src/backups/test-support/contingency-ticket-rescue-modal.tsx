@@ -5,7 +5,7 @@ import {
 import { vi } from "vitest";
 import { render } from "../../shell/test-support/render-with-router";
 import type { fetchContingencyTicketRecoveries } from "../contingency-ticket-recovery-api";
-import { ContingencyTicketRescueScreen } from "../contingency-ticket-rescue-screen";
+import { ContingencyTicketRescueModal } from "../contingency-ticket-rescue-modal";
 import type { ContingencyTicketRescueScreenServices } from "../contingency-ticket-rescue-services";
 import type { FinishTicketRecoveryModalServices } from "../finish-ticket-recovery-modal";
 import { createFakeQrScanner } from "./fake-qr-scanner";
@@ -39,10 +39,15 @@ export function createServices() {
 export function renderScreen(
   services: ContingencyTicketRescueScreenServices,
   onSessionEnded: () => void = vi.fn(),
+  onClose: () => void = vi.fn(),
 ) {
   return render(
     <main>
-      <ContingencyTicketRescueScreen onSessionEnded={onSessionEnded} services={services} />
+      <ContingencyTicketRescueModal
+        onClose={onClose}
+        onSessionEnded={onSessionEnded}
+        services={services}
+      />
     </main>,
   );
 }

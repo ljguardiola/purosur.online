@@ -7,8 +7,10 @@ import { page, userEvent } from "vitest/browser";
 import { deferred } from "../platform/test-support/deferred";
 import { render } from "../shell/test-support/render-with-router";
 import { type ExceptionalityFilters, exceptionalityFilters } from "./exceptionality-filters";
-import { ExceptionalityScreen } from "./exceptionality-screen";
-import type { ExceptionalityScreenServices } from "./exceptionality-services";
+import {
+  ExceptionalitySection,
+  type ExceptionalitySectionServices,
+} from "./exceptionality-section";
 import { fiscalKeys } from "./fiscal-queries";
 import {
   centralFiscalAddress,
@@ -18,7 +20,7 @@ import {
   warehouseFiscalAddress,
   withoutContingencyData,
 } from "./test-support/exception-share-fixtures";
-import { createExceptionalityServices } from "./test-support/exceptionality-screen-services";
+import { createExceptionalityServices } from "./test-support/exceptionality-section";
 
 beforeEach(async () => {
   window.history.pushState(null, "", "/");
@@ -26,7 +28,7 @@ beforeEach(async () => {
   onTestFinished(() => page.viewport(414, 896));
 });
 
-function createServices(): ExceptionalityScreenServices {
+function createServices(): ExceptionalitySectionServices {
   const services = createExceptionalityServices();
   vi.mocked(services.fetchFiscalAddresses).mockResolvedValue({
     kind: "ok",
@@ -50,7 +52,7 @@ function ControlledScreen({
   filters: initial = exceptionalityFilters.parse({}),
   onFiltersChange = () => {},
   onSessionEnded = () => {},
-}: Handlers & { services: ExceptionalityScreenServices }) {
+}: Handlers & { services: ExceptionalitySectionServices }) {
   const [filters, setFilters] = useState(initial);
   const client = useQueryClient();
   return (
@@ -62,7 +64,7 @@ function ControlledScreen({
         >
           Refrescar domicilios
         </button>
-        <ExceptionalityScreen
+        <ExceptionalitySection
           services={services}
           filters={filters}
           onFiltersChange={(next) => {
@@ -76,7 +78,7 @@ function ControlledScreen({
   );
 }
 
-function renderScreen(services: ExceptionalityScreenServices, handlers: Handlers = {}) {
+function renderScreen(services: ExceptionalitySectionServices, handlers: Handlers = {}) {
   return render(<ControlledScreen services={services} {...handlers} />);
 }
 
@@ -88,13 +90,10 @@ function rowTexts(screen: Awaited<ReturnType<typeof renderScreen>>) {
     .map((row) => row.element().textContent ?? "");
 }
 
-test("shows the eyebrow, the heading and the explanation that nothing is restricted at the counter", async () => {
+test("shows the explanation that nothing is restricted at the counter, with no title of its own", async () => {
   const screen = await renderScreen(createServices());
 
-  await expect.element(screen.getByText("Caja y fiscal · Fiscal")).toBeVisible();
-  await expect
-    .element(screen.getByRole("heading", { name: "Excepcionalidad", level: 1 }))
-    .toBeVisible();
+  expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
   await expect
     .element(
       screen.getByText(

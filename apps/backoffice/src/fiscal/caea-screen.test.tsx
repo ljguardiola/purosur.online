@@ -2,31 +2,32 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import type { BackofficeAccess } from "../shell/backoffice-access";
+import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
+import { CaeaScreen } from "./caea-screen";
+import type { CaeaScreenServices } from "./caea-services";
+import { exceptionalityFilters } from "./exceptionality-filters";
 import type { FiscalAddress } from "./fiscal-addresses-api";
 import type { OfflinePointOfSale } from "./offline-points-of-sale-api";
-import { PointsOfSaleScreen } from "./points-of-sale-screen";
-import type { PointsOfSaleScreenServices } from "./points-of-sale-services";
 import type { RegisterPointOfSale } from "./register-points-of-sale-api";
+import { exceptionShareOf2026, fiscalAddresses } from "./test-support/exception-share-fixtures";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 
-function createServices(
-  overrides: Partial<PointsOfSaleScreenServices> = {},
-): PointsOfSaleScreenServices {
+function createServices(overrides: Partial<CaeaScreenServices> = {}): CaeaScreenServices {
   return {
     fetchRegisterPointsOfSale: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     fetchFiscalAddresses: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     fetchFortnightPresentations: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     fetchOfflinePointsOfSale: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
+    fetchExceptionShareYear: vi.fn().mockResolvedValue({ kind: "ok", value: exceptionShareOf2026 }),
     retireOfflinePointOfSale: vi.fn(),
     remedyRejectedDocument: vi.fn(),
     confirmRevokedInstallation: vi.fn(),
     fetchBuyerTaxStatuses: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
-    createFiscalAddress: vi.fn(),
-    editFiscalAddress: vi.fn(),
     fetchSessionAuthorizationOptions: vi.fn(),
     authorizeSession: vi.fn(),
     startAuthentication: vi.fn(),
@@ -76,11 +77,25 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-function renderScreen(services: PointsOfSaleScreenServices, onSessionEnded: () => void = () => {}) {
+function renderScreen(
+  services: CaeaScreenServices,
+  onSessionEnded: () => void = () => {},
+  {
+    access = ADMINISTRATOR_ACCESS,
+    onRescue = () => {},
+  }: { access?: BackofficeAccess; onRescue?: () => void } = {},
+) {
   return render(
     <FieldSizeProvider size="backoffice">
       <main>
-        <PointsOfSaleScreen services={services} onSessionEnded={onSessionEnded} />
+        <CaeaScreen
+          access={access}
+          filters={exceptionalityFilters.parse({})}
+          onFiltersChange={() => {}}
+          onRescue={onRescue}
+          services={services}
+          onSessionEnded={onSessionEnded}
+        />
       </main>
     </FieldSizeProvider>,
   );
@@ -93,13 +108,86 @@ function serving(registers: RegisterPointOfSale[], addresses: FiscalAddress[]) {
   });
 }
 
-test("shows the breadcrumb and the heading", async () => {
+test("shows the sections in order, with no title of its own", async () => {
   const screen = await renderScreen(createServices());
 
-  await expect.element(screen.getByText("Caja y fiscal · Fiscal")).toBeVisible();
+  const headings = screen.getByRole("heading", { level: 2 });
+  await expect.element(headings.first()).toBeVisible();
+  const titles = headings
+    .elements()
+    .map((heading) => heading.textContent)
+    .filter((title) =>
+      ["Excepcionalidad", "Informes quincenales", "Puntos de venta"].includes(title ?? ""),
+    );
+  expect(titles).toEqual(["Excepcionalidad", "Informes quincenales", "Puntos de venta"]);
+  expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
+});
+
+test("gives the points of sale section an anchor", async () => {
+  const screen = await renderScreen(createServices());
+
   await expect
-    .element(screen.getByRole("heading", { name: "Puntos de venta", level: 1 }))
-    .toBeVisible();
+    .element(screen.getByRole("region", { name: "Puntos de venta" }))
+    .toHaveAttribute("id", "points-of-sale");
+});
+
+test("shows the exceptionality of the fiscal address, with its months", async () => {
+  const screen = await renderScreen(
+    createServices({
+      fetchFiscalAddresses: vi.fn().mockResolvedValue({ kind: "ok", value: fiscalAddresses }),
+    }),
+  );
+
+  await expect.element(screen.getByText("Enero 2026")).toBeVisible();
+});
+
+test("shows only the exceptionality to a person with fiscal information alone, reading nothing else", async () => {
+  const services = createServices({
+    fetchFiscalAddresses: vi.fn().mockResolvedValue({ kind: "ok", value: fiscalAddresses }),
+  });
+
+  const screen = await renderScreen(services, () => {}, {
+    access: accessWith("fiscal_information"),
+  });
+
+  await expect.element(screen.getByText("Enero 2026")).toBeVisible();
+  expect(screen.getByRole("heading", { name: "Informes quincenales" }).query()).toBeNull();
+  expect(screen.getByRole("heading", { name: "Puntos de venta" }).query()).toBeNull();
+  expect(
+    screen.getByRole("button", { name: "Rescatar tickets de contingencia" }).query(),
+  ).toBeNull();
+  expect(services.fetchRegisterPointsOfSale).not.toHaveBeenCalled();
+  expect(services.fetchFortnightPresentations).not.toHaveBeenCalled();
+  expect(services.fetchOfflinePointsOfSale).not.toHaveBeenCalled();
+});
+
+test("shows the reports and the points of sale to a person with fiscal configuration alone, reading no exceptionality", async () => {
+  const services = createServices();
+
+  const screen = await renderScreen(services, () => {}, {
+    access: accessWith("fiscal_configuration_area"),
+  });
+
+  await expect.element(screen.getByRole("heading", { name: "Informes quincenales" })).toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Puntos de venta" })).toBeVisible();
+  expect(screen.getByRole("heading", { name: "Excepcionalidad" }).query()).toBeNull();
+  expect(services.fetchExceptionShareYear).not.toHaveBeenCalled();
+});
+
+test("shows only Rescatar tickets de contingencia to a person with the rescue alone, and it asks to open the assistant", async () => {
+  const onRescue = vi.fn();
+  const services = createServices();
+
+  const screen = await renderScreen(services, () => {}, {
+    access: accessWith("contingency_ticket_rescue"),
+    onRescue,
+  });
+  await userEvent.click(screen.getByRole("button", { name: "Rescatar tickets de contingencia" }));
+
+  expect(onRescue).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole("heading", { level: 2 }).query()).toBeNull();
+  expect(services.fetchFiscalAddresses).not.toHaveBeenCalled();
+  expect(services.fetchRegisterPointsOfSale).not.toHaveBeenCalled();
 });
 
 test("shows each register with its point of sale padded to five digits and its fiscal address's name", async () => {
@@ -182,45 +270,10 @@ test("shows a load failure for the registers, and Reintentar loads them again", 
   await expect.element(screen.getByText("00012")).toBeVisible();
 });
 
-test("lists the fiscal addresses with their name and street address", async () => {
-  const screen = await renderScreen(serving([], [depot, shop]));
-
-  const table = screen.getByRole("table", { name: "Domicilios fiscales" });
-  await expect.element(table.getByText("Depósito Central")).toBeVisible();
-  await expect.element(table.getByText("Calle Ficticia 123, CABA")).toBeVisible();
-  await expect.element(table.getByText("Local Norte")).toBeVisible();
-  await expect.element(table.getByText("Avenida Inventada 45, CABA")).toBeVisible();
-});
-
-test("shows the table's empty state when there are no fiscal addresses", async () => {
-  const screen = await renderScreen(serving([], []));
-
-  await expect.element(screen.getByText("Todavía no hay domicilios fiscales")).toBeVisible();
-});
-
-test("shows a load failure for the fiscal addresses, and Reintentar loads them again", async () => {
-  const services = createServices({
-    fetchFiscalAddresses: vi
-      .fn()
-      .mockResolvedValueOnce({ kind: "failed" })
-      .mockResolvedValueOnce({ kind: "ok", value: [depot] }),
-  });
-  const screen = await renderScreen(services);
-  await expect.element(screen.getByText("No pudimos abrir los domicilios fiscales")).toBeVisible();
-
-  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }).first());
-
-  await expect
-    .element(
-      screen.getByRole("table", { name: "Domicilios fiscales" }).getByText("Depósito Central"),
-    )
-    .toBeVisible();
-});
-
 test("sends to Mi cuenta when a load comes back forbidden", async () => {
-  window.history.pushState(null, "", "/points-of-sale");
+  window.history.pushState(null, "", "/fiscal/caea");
   const services = createServices({
-    fetchFiscalAddresses: vi.fn().mockResolvedValue({ kind: "forbidden" }),
+    fetchRegisterPointsOfSale: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });
 
   await renderScreen(services);
@@ -238,79 +291,17 @@ test("ends the session when a load finds it closed", async () => {
 
   await renderScreen(services, onSessionEnded);
 
-  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBeGreaterThan(0);
 });
 
-test("Nuevo domicilio fiscal opens the creation modal, and creating reads the lists again and announces it", async () => {
-  const services = serving([], [depot]);
-  vi.mocked(services.fetchFiscalAddresses)
-    .mockResolvedValueOnce({ kind: "ok", value: [depot] })
-    .mockResolvedValue({ kind: "ok", value: [depot, shop] });
-  vi.mocked(services.createFiscalAddress).mockResolvedValue({ kind: "ok", fiscalAddress: shop });
-  const screen = await renderScreen(services);
-  await userEvent.click(screen.getByRole("button", { name: "Nuevo domicilio fiscal" }));
-  const dialog = screen.getByRole("dialog", { name: "Nuevo domicilio fiscal" });
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Local Norte");
-  await userEvent.fill(
-    dialog.getByRole("textbox", { name: /^Dirección/ }),
-    "Avenida Inventada 45, CABA",
-  );
-
-  await userEvent.click(dialog.getByRole("button", { name: "Crear el domicilio fiscal" }));
-
-  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  await expect
-    .element(screen.getByRole("table", { name: "Domicilios fiscales" }).getByText("Local Norte"))
-    .toBeVisible();
-  await expect.element(screen.getByText("Domicilio fiscal creado")).toBeVisible();
-});
-
-test("Nuevo domicilio fiscal stays available while the data loads", async () => {
-  const services = createServices({
-    fetchFiscalAddresses: vi.fn().mockReturnValue(new Promise(() => {})),
-  });
-
-  const screen = await renderScreen(services);
-
-  await expect
-    .element(screen.getByRole("button", { name: "Nuevo domicilio fiscal" }))
-    .toBeEnabled();
-});
-
-test("a fiscal address's edit action opens its modal, and saving reads the lists again and announces it", async () => {
-  const services = serving([], [depot]);
-  vi.mocked(services.fetchFiscalAddresses)
-    .mockResolvedValueOnce({ kind: "ok", value: [depot] })
-    .mockResolvedValue({
-      kind: "ok",
-      value: [{ ...depot, streetAddress: "Calle Inventada 9", version: 2 }],
-    });
-  vi.mocked(services.editFiscalAddress).mockResolvedValue({ kind: "ok" });
-  const screen = await renderScreen(services);
-  await userEvent.click(
-    screen.getByRole("button", { name: "Editar el domicilio fiscal Depósito Central" }),
-  );
-  const dialog = screen.getByRole("dialog", { name: "Editar el domicilio fiscal" });
-  await expect
-    .element(dialog.getByRole("textbox", { name: /^Nombre/ }))
-    .toHaveValue("Depósito Central");
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Dirección/ }), "Calle Inventada 9");
-
-  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
-
-  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  await expect.element(screen.getByText("Calle Inventada 9")).toBeVisible();
-  await expect.element(screen.getByText("Domicilio fiscal guardado")).toBeVisible();
-});
-
-test("has no accessibility violations with registers and fiscal addresses shown", async () => {
+test("has no accessibility violations with the registers shown", async () => {
   const screen = await renderScreen(serving([configuredRegister, pendingRegister], [depot, shop]));
   await expect.element(screen.getByText("00012")).toBeVisible();
 
   await expectNoAccessibilityViolations(document.body);
 });
 
-test("lists the fortnight reports of each offline point of sale between the registers and the fiscal addresses, naming the register a blocked one waits for", async () => {
+test("lists the fortnight reports of each offline point of sale before the points of sale, naming the register a blocked one waits for", async () => {
   const services = serving([configuredRegister], [depot]);
   services.fetchFortnightPresentations = vi.fn().mockResolvedValue({
     kind: "ok",
@@ -326,6 +317,7 @@ test("lists the fortnight reports of each offline point of sale between the regi
         movement: null,
         refusal: null,
         state: "blocked",
+        owed: false,
         revokedInstallations: [],
       },
     ],
@@ -339,8 +331,7 @@ test("lists the fortnight reports of each offline point of sale between the regi
     .element(screen.getByText("Caja 1 todavía no terminó de sincronizar", { exact: true }))
     .toBeVisible();
   const text = document.body.textContent ?? "";
-  expect(text.indexOf("Caja 1")).toBeLessThan(text.indexOf("Quincena"));
-  expect(text.indexOf("Quincena")).toBeLessThan(text.indexOf("Domicilios fiscales"));
+  expect(text.indexOf("Informes quincenales")).toBeLessThan(text.indexOf("Puntos de venta"));
 });
 
 test("keeps the registers on screen when the fortnight reports fail to load, and Reintentar loads them again", async () => {
@@ -372,14 +363,13 @@ function withFreeOfflinePointOfSale(items: OfflinePointOfSale[] = [freeOfflinePo
   return services;
 }
 
-test("lists the offline points of sale left without a register between the registers and the fortnight reports", async () => {
+test("lists the offline points of sale left without a register after the registers", async () => {
   const screen = await renderScreen(withFreeOfflinePointOfSale());
 
   const table = screen.getByRole("table", { name: "Puntos de venta CAEA sin caja" });
   await expect.element(table.getByText("Caja 9", { exact: true })).toBeVisible();
   const text = document.body.textContent ?? "";
   expect(text.indexOf("Caja 1")).toBeLessThan(text.indexOf("Usado por"));
-  expect(text.indexOf("Usado por")).toBeLessThan(text.indexOf("Quincena"));
 });
 
 test("keeps the registers on screen when the offline points of sale fail to load, and Reintentar loads them again", async () => {
@@ -475,6 +465,7 @@ const partlyRejectedPresentation = {
   movement: "documents",
   refusal: "partial",
   state: "refused",
+  owed: false,
   revokedInstallations: [],
 };
 
@@ -587,6 +578,7 @@ const blockedByRevokedInstallation = {
   movement: "documents",
   refusal: null,
   state: "blocked",
+  owed: false,
   revokedInstallations: [{ installationId: "inst-1", revokedAt: "2026-09-10T15:30:00.000Z" }],
 };
 

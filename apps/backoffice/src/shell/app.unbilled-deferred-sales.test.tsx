@@ -9,7 +9,7 @@ import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
-opensOnlyScreens(["/", "/products", "/inventory", "/fiscal-tasks"]);
+opensOnlyScreens(["/", "/products", "/inventory", "/fiscal"]);
 
 beforeEach(resetPageState);
 
@@ -57,7 +57,7 @@ test("opens the fiscal tasks from the count", async () => {
   const screen = await render(<App help={emptyHelp} services={services} />);
   await userEvent.click(screen.getByRole("link", { name: PILL }));
 
-  await expect.poll(() => window.location.pathname).toBe("/fiscal-tasks");
+  await expect.poll(() => window.location.pathname).toBe("/fiscal");
 });
 
 test("hides the count, and never asks for it, from a user who cannot see fiscal information", async () => {

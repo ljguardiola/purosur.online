@@ -1,9 +1,11 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { beforeEach, expect, onTestFinished, test, vi } from "vitest";
+import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
-import type { IssuedFiscalDocumentDetailModalServices } from "./issued-fiscal-document-detail-modal";
-import { IssuedFiscalDocumentDetailModal } from "./issued-fiscal-document-detail-modal";
+import {
+  IssuedFiscalDocumentPanel,
+  type IssuedFiscalDocumentPanelServices,
+} from "./issued-fiscal-document-panel";
 import {
   authorizedReceipt,
   authorizedReceiptDetail,
@@ -14,32 +16,35 @@ import {
   unauthorizedReceipt,
 } from "./test-support/issued-fiscal-documents-fixtures";
 
+beforeEach(async () => {
+  await page.viewport(1280, 800);
+  onTestFinished(() => page.viewport(414, 896));
+});
+
 type Voucher = { voucher_type: number; point_of_sale: number; number: number };
 
-type Outcome = Awaited<
-  ReturnType<IssuedFiscalDocumentDetailModalServices["fetchIssuedFiscalDocument"]>
->;
+type Outcome = Awaited<ReturnType<IssuedFiscalDocumentPanelServices["fetchIssuedFiscalDocument"]>>;
 
 function servicesAnswering(outcome: Outcome | Promise<never>) {
   return {
     fetchIssuedFiscalDocument: vi
       .fn()
       .mockReturnValue(outcome instanceof Promise ? outcome : Promise.resolve(outcome)),
-  } satisfies IssuedFiscalDocumentDetailModalServices;
+  } satisfies IssuedFiscalDocumentPanelServices;
 }
 
 function voucherOf({ voucher_type, point_of_sale, number }: Voucher) {
   return { voucher_type, point_of_sale, number };
 }
 
-function renderModal(
-  services: IssuedFiscalDocumentDetailModalServices,
-  voucher: Voucher | null = authorizedReceipt,
+function renderPanel(
+  services: IssuedFiscalDocumentPanelServices,
+  voucher: Voucher = authorizedReceipt,
   handlers: { onClose?: () => void; onSessionEnded?: () => void } = {},
 ) {
   return render(
-    <IssuedFiscalDocumentDetailModal
-      voucher={voucher === null ? null : voucherOf(voucher)}
+    <IssuedFiscalDocumentPanel
+      voucher={voucherOf(voucher)}
       onClose={handlers.onClose ?? (() => {})}
       onSessionEnded={handlers.onSessionEnded ?? (() => {})}
       services={services}
@@ -47,19 +52,10 @@ function renderModal(
   );
 }
 
-test("shows nothing while no voucher is chosen", async () => {
-  const services = servicesAnswering({ kind: "ok", value: authorizedReceiptDetail });
-
-  const screen = await renderModal(services, null);
-
-  expect(screen.getByRole("dialog").query()).toBeNull();
-  expect(services.fetchIssuedFiscalDocument).not.toHaveBeenCalled();
-});
-
 test("asks the cloud for the voucher chosen", async () => {
   const services = servicesAnswering({ kind: "ok", value: authorizedReceiptDetail });
 
-  await renderModal(services);
+  await renderPanel(services);
 
   await expect
     .poll(() => vi.mocked(services.fetchIssuedFiscalDocument).mock.lastCall)
@@ -67,19 +63,19 @@ test("asks the cloud for the voucher chosen", async () => {
 });
 
 test("is titled with the voucher while the detail loads", async () => {
-  const screen = await renderModal(servicesAnswering(new Promise<never>(() => {})));
+  const screen = await renderPanel(servicesAnswering(new Promise<never>(() => {})));
 
   await expect
-    .element(screen.getByRole("dialog", { name: /Factura C 00003-00001247/ }))
+    .element(screen.getByRole("complementary", { name: /Factura C 00003-00001247/ }))
     .toBeVisible();
 });
 
 test("shows the state, the authorization code, its due date, the buyer and when and where it was issued", async () => {
-  const screen = await renderModal(
+  const screen = await renderPanel(
     servicesAnswering({ kind: "ok", value: authorizedReceiptDetail }),
   );
 
-  const dialog = screen.getByRole("dialog", { name: /Factura C 00003-00001247/ });
+  const dialog = screen.getByRole("complementary", { name: /Factura C 00003-00001247/ });
   await expect.element(dialog.getByText("Autorizado")).toBeVisible();
   await expect.element(dialog.getByText("CAE 75123456789012")).toBeVisible();
   await expect.element(dialog.getByText("Vence el 26/09/2026")).toBeVisible();
@@ -91,7 +87,7 @@ test("shows the state, the authorization code, its due date, the buyer and when 
 
 test("shows the fortnight of a document authorized by a CAEA", async () => {
   const detail = { ...authorizedReceiptDetail, ...contingencyReceipt };
-  const screen = await renderModal(
+  const screen = await renderPanel(
     servicesAnswering({ kind: "ok", value: detail }),
     contingencyReceipt,
   );
@@ -102,7 +98,7 @@ test("shows the fortnight of a document authorized by a CAEA", async () => {
 
 test("shows a document still awaited from ARCA as being asked", async () => {
   const detail = { ...authorizedReceiptDetail, ...unauthorizedReceipt };
-  const screen = await renderModal(
+  const screen = await renderPanel(
     servicesAnswering({ kind: "ok", value: detail }),
     unauthorizedReceipt,
   );
@@ -112,7 +108,7 @@ test("shows a document still awaited from ARCA as being asked", async () => {
 });
 
 test("shows each line as sold, with its quantity, its promotion and its amount, and the total", async () => {
-  const screen = await renderModal(
+  const screen = await renderPanel(
     servicesAnswering({ kind: "ok", value: authorizedReceiptDetail }),
   );
 
@@ -151,7 +147,7 @@ test("a partial credit note's detail shows the sale's total under its lines and 
       },
     ],
   };
-  const screen = await renderModal(servicesAnswering({ kind: "ok", value: detail }), creditNote);
+  const screen = await renderPanel(servicesAnswering({ kind: "ok", value: detail }), creditNote);
 
   await expect.element(screen.getByText("$ 4.800,00")).toBeVisible();
   await expect.element(screen.getByText("$ 1.800,00")).toBeVisible();
@@ -174,7 +170,7 @@ test("a partial credit note's detail shows the sale's total under its lines and 
 
 test("hides the sale total when the sale is not known yet, and still shows the document's own amount", async () => {
   const detail = { ...authorizedReceiptDetail, ...unauthorizedReceipt, sale_total: null };
-  const screen = await renderModal(
+  const screen = await renderPanel(
     servicesAnswering({ kind: "ok", value: detail }),
     unauthorizedReceipt,
   );
@@ -191,7 +187,7 @@ test("shows each payment with its method and amount", async () => {
       { method: "POINT" as const, card_type: "CREDIT" as const, amount: 750275 },
     ],
   };
-  const screen = await renderModal(servicesAnswering({ kind: "ok", value: detail }));
+  const screen = await renderPanel(servicesAnswering({ kind: "ok", value: detail }));
 
   await expect.element(screen.getByText("Efectivo")).toBeVisible();
   await expect.element(screen.getByText("$ 10.000,00")).toBeVisible();
@@ -208,13 +204,13 @@ test("shows an identified buyer with the document type and number", async () => 
       document_number: 12345678,
     },
   };
-  const screen = await renderModal(servicesAnswering({ kind: "ok", value: detail }));
+  const screen = await renderPanel(servicesAnswering({ kind: "ok", value: detail }));
 
   await expect.element(screen.getByText("DNI 12345678")).toBeVisible();
 });
 
 test("lists the credit notes issued against a receipt", async () => {
-  const screen = await renderModal(
+  const screen = await renderPanel(
     servicesAnswering({ kind: "ok", value: receiptDetailWithCreditNote }),
   );
 
@@ -226,7 +222,7 @@ test("lists the credit notes issued against a receipt", async () => {
 });
 
 test("says a receipt has no credit notes associated when it has none", async () => {
-  const screen = await renderModal(
+  const screen = await renderPanel(
     servicesAnswering({ kind: "ok", value: authorizedReceiptDetail }),
   );
 
@@ -235,7 +231,7 @@ test("says a receipt has no credit notes associated when it has none", async () 
 
 test("says a document has no lines and no payments when its sale has none", async () => {
   const detail = { ...authorizedReceiptDetail, ...unauthorizedReceipt, lines: [], payments: [] };
-  const screen = await renderModal(
+  const screen = await renderPanel(
     servicesAnswering({ kind: "ok", value: detail }),
     unauthorizedReceipt,
   );
@@ -245,7 +241,7 @@ test("says a document has no lines and no payments when its sale has none", asyn
 });
 
 test("names the receipt a credit note corrects, and lists no credit notes of its own", async () => {
-  const screen = await renderModal(
+  const screen = await renderPanel(
     servicesAnswering({ kind: "ok", value: creditNoteDetail }),
     creditNote,
   );
@@ -256,7 +252,7 @@ test("names the receipt a credit note corrects, and lists no credit notes of its
 });
 
 test("does not name a corrected receipt for a receipt", async () => {
-  const screen = await renderModal(
+  const screen = await renderPanel(
     servicesAnswering({ kind: "ok", value: authorizedReceiptDetail }),
   );
   await expect.element(screen.getByText("Consumidor final")).toBeVisible();
@@ -264,15 +260,16 @@ test("does not name a corrected receipt for a receipt", async () => {
   expect(screen.getByText(/Corrige la/).query()).toBeNull();
 });
 
-test("tells the document was not found", async () => {
-  const screen = await renderModal(servicesAnswering({ kind: "not_found" }));
+test("closes itself when the cloud does not find the voucher", async () => {
+  const onClose = vi.fn();
+  await renderPanel(servicesAnswering({ kind: "not_found" }), authorizedReceipt, { onClose });
 
-  await expect.element(screen.getByText("No encontramos ese comprobante")).toBeVisible();
+  await expect.poll(() => onClose.mock.calls.length).toBe(1);
 });
 
 test("offers to try again when the detail cannot be loaded", async () => {
   const services = servicesAnswering({ kind: "failed" });
-  const screen = await renderModal(services);
+  const screen = await renderPanel(services);
   await expect.element(screen.getByText("No pudimos abrir el comprobante")).toBeVisible();
 
   vi.mocked(services.fetchIssuedFiscalDocument).mockResolvedValue({
@@ -287,22 +284,22 @@ test("offers to try again when the detail cannot be loaded", async () => {
 test("reports an ended session", async () => {
   const onSessionEnded = vi.fn();
 
-  await renderModal(servicesAnswering({ kind: "unauthenticated" }), authorizedReceipt, {
+  await renderPanel(servicesAnswering({ kind: "unauthenticated" }), authorizedReceipt, {
     onSessionEnded,
   });
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-test("closes with Volver", async () => {
+test("closes with Cerrar", async () => {
   const onClose = vi.fn();
-  const screen = await renderModal(
+  const screen = await renderPanel(
     servicesAnswering({ kind: "ok", value: authorizedReceiptDetail }),
     authorizedReceipt,
     { onClose },
   );
 
-  await userEvent.click(screen.getByRole("button", { name: "Volver" }));
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
 
   expect(onClose).toHaveBeenCalledTimes(1);
 });

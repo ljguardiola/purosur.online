@@ -31,6 +31,7 @@ import {
   canSeeExpiringLots,
   canSeeFiscalConfigurationArea,
   canSeeFiscalInformation,
+  canSeeFiscalPage,
   canSeeOrdersArea,
   canSeePeopleArea,
   canSeePricesArea,
@@ -140,6 +141,15 @@ test("canSeeRegistersPage holds with the registers, reports, fiscal configuratio
   expect(canSeeRegistersPage(accessWith("backups_area"))).toBe(true);
   expect(canSeeRegistersPage(accessWith("refunds_area"))).toBe(false);
   expect(canSeeRegistersPage(NO_CAPABILITIES_ACCESS)).toBe(false);
+});
+
+test("canSeeFiscalPage holds with fiscal information, fiscal configuration or the contingency ticket rescue", () => {
+  expect(canSeeFiscalPage(ADMINISTRATOR_ACCESS)).toBe(true);
+  expect(canSeeFiscalPage(accessWith("fiscal_information"))).toBe(true);
+  expect(canSeeFiscalPage(accessWith("fiscal_configuration_area"))).toBe(true);
+  expect(canSeeFiscalPage(accessWith("contingency_ticket_rescue"))).toBe(true);
+  expect(canSeeFiscalPage(accessWith("reports_area"))).toBe(false);
+  expect(canSeeFiscalPage(NO_CAPABILITIES_ACCESS)).toBe(false);
 });
 
 test("canSeeRegistersList holds with the registers area, fiscal configuration or backups area", () => {

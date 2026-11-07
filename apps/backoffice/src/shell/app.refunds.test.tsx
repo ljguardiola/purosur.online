@@ -12,7 +12,7 @@ import { createAppServices } from "./test-support/app-services";
 import { registers } from "./test-support/report-fixtures";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
-opensOnlyScreens(["/", "/help", "/refunds", "/refunds/history", "/points-of-sale"]);
+opensOnlyScreens(["/", "/help", "/refunds", "/refunds/history", "/fiscal/caea"]);
 
 beforeEach(resetPageState);
 
@@ -212,7 +212,7 @@ test("takes a person with returns_report alone to the returns history from the r
   expect(location()).toBe("/refunds/history");
 });
 
-test("does not offer Caja y fiscal in the rail to a person with refunds_area alone", async () => {
+test("does not offer Fiscal in the rail to a person with refunds_area alone", async () => {
   const services = refundsServices(["refunds_area"]);
   window.history.pushState(null, "", "/help");
 
@@ -221,27 +221,25 @@ test("does not offer Caja y fiscal in the rail to a person with refunds_area alo
   await expect
     .element(screen.getByRole("link", { name: "Ventas y caja", exact: true }))
     .toBeVisible();
-  expect(screen.getByRole("link", { name: "Caja y fiscal", exact: true }).query()).toBeNull();
+  expect(screen.getByRole("link", { name: "Fiscal", exact: true }).query()).toBeNull();
 });
 
-test("keeps the refund links out of Caja y fiscal for a person who also sees fiscal screens", async () => {
+test("offers both Ventas y caja and Fiscal in the rail to a person who sees refunds and fiscal screens", async () => {
   const services = refundsServices(["fiscal_configuration_area", "refunds_area"]);
-  window.history.pushState(null, "", "/points-of-sale");
+  window.history.pushState(null, "", "/fiscal/caea");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  const sections = screen.getByRole("navigation", { name: "Caja y fiscal" });
-  await expect.element(sections.getByRole("link", { name: "Puntos de venta" })).toBeVisible();
-  expect(sections.getByRole("link", { name: "Reembolsos de MP" }).query()).toBeNull();
-  expect(sections.getByRole("link", { name: "Reembolsos sin API" }).query()).toBeNull();
+  await expect.element(screen.getByRole("heading", { name: "Puntos de venta" })).toBeVisible();
   await expect
     .element(screen.getByRole("link", { name: "Ventas y caja", exact: true }))
     .toBeVisible();
+  expect(screen.getByRole("link", { name: "Reembolsos de MP" }).query()).toBeNull();
 });
 
 test("sends a person with refunds_area alone who opens the points of sale to the own account panel", async () => {
   const services = refundsServices(["refunds_area"]);
-  window.history.pushState(null, "", "/points-of-sale");
+  window.history.pushState(null, "", "/fiscal/caea");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 

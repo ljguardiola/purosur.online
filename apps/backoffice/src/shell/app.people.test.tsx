@@ -8,14 +8,7 @@ import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
-opensOnlyScreens([
-  "/",
-  "/help",
-  "/people/users",
-  "/people/roles",
-  "/products",
-  "/contingency-ticket-rescue",
-]);
+opensOnlyScreens(["/", "/help", "/people/users", "/people/roles", "/products"]);
 
 beforeEach(resetPageState);
 
@@ -324,14 +317,6 @@ test("the Config entry of the rail opens Personas, the first Configuración page
   await expect.element(config).toBeVisible();
   expect(config.element().getAttribute("href")).toBe("/people");
   await withPeople.unmount();
-
-  const withRegisters = await render(
-    <App help={emptyHelp} services={servicesFor(["contingency_ticket_rescue"])} />,
-  );
-  const registersConfig = withRegisters.getByRole("link", { name: "Config" });
-  await expect.element(registersConfig).toBeVisible();
-  expect(registersConfig.element().getAttribute("href")).toBe("/contingency-ticket-rescue");
-  await withRegisters.unmount();
 
   const withNothing = await render(<App help={emptyHelp} services={servicesFor([])} />);
   const fallbackConfig = withNothing.getByRole("link", { name: "Config" });
