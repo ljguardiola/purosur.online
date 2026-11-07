@@ -176,6 +176,16 @@ describe("recording Mercado Pago order searches", () => {
     expect(JSON.parse(calls[2]?.body ?? "{}").type).toBe("point");
   });
 
+  it("creates both orders for the smallest amount Mercado Pago accepts for a QR order", async () => {
+    await run();
+
+    const qr = JSON.parse(calls[1]?.body ?? "{}");
+    const point = JSON.parse(calls[2]?.body ?? "{}");
+    expect(qr.total_amount).toBe("15.00");
+    expect(qr.transactions.payments).toEqual([{ amount: "15.00" }]);
+    expect(point.transactions.payments).toEqual([{ amount: "15.00" }]);
+  });
+
   it("searches each order's external reference with the dates and page size the client sends", async () => {
     await run();
 
