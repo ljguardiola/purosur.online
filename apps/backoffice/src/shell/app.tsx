@@ -63,7 +63,7 @@ import type { RegistersListScreenServices } from "../register/registers-list-ser
 import type { ReportRegisterFilterProps } from "../register/report-register-filter";
 import type { ReportRegisterFilterServices } from "../register/report-register-filter-services";
 import type { SnapshotBackupsScreenServices } from "../register/snapshot-backups-services";
-import type { ReturnsReportScreenServices } from "../returns/returns-report-services";
+import type { ReturnsHistoryScreenServices } from "../returns/returns-history-services";
 import type { AverageTicketScreenServices } from "../sales/average-ticket-services";
 import type { CashRoundingScreenServices } from "../sales/cash-rounding-services";
 import type { HandTypedWeightsScreenServices } from "../sales/hand-typed-weights-services";
@@ -140,7 +140,7 @@ export type AppServices = {
   salesByPromotionScreen: SalesByPromotionScreenServices;
   manualDiscountsScreen: ManualDiscountsScreenServices;
   cashRoundingScreen: CashRoundingScreenServices;
-  returnsReportScreen: ReturnsReportScreenServices;
+  returnsHistoryScreen: ReturnsHistoryScreenServices;
   issuedFiscalDocumentsReportScreen: IssuedFiscalDocumentsReportScreenServices;
   averageTicketScreen: AverageTicketScreenServices;
   salesByPaymentMethodScreen: SalesByPaymentMethodScreenServices;

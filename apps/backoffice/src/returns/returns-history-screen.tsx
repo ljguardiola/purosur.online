@@ -27,6 +27,7 @@ import {
 } from "../shell/report-filters-search";
 import type { ReportRegisterField } from "../shell/report-register-field";
 import { ScreenLayout } from "../shell/screen-layout";
+import type { ReturnsHistoryScreenServices } from "./returns-history-services";
 import {
   authorizerSummaryRows,
   cashierSummaryRows,
@@ -34,16 +35,15 @@ import {
 } from "./returns-person-summary";
 import { useReturnsReportQuery } from "./returns-queries";
 import { OCCURRED_TIME_ZONE } from "./returns-report-occurred-time-zone";
-import type { ReturnsReportScreenServices } from "./returns-report-services";
 import { returnsReportSpreadsheet } from "./returns-report-spreadsheet";
 import { returnLineDetail, returnSaleText, UNIDENTIFIED } from "./returns-text";
 
-export type ReturnsReportScreenProps = {
+export type ReturnsHistoryScreenProps = {
   filters: ReportFiltersValue;
   onFiltersChange: (filters: ReportFiltersValue) => void;
   onSessionEnded: () => void;
   registerFilter: ReportRegisterField;
-  services: ReturnsReportScreenServices;
+  services: ReturnsHistoryScreenServices;
 };
 
 type ReturnRow = ReturnsReportBody["typed"]["rows"][number];
@@ -218,13 +218,13 @@ const returnColumns = [
   }),
 ] as const;
 
-export function ReturnsReportScreen({
+export function ReturnsHistoryScreen({
   filters,
   onFiltersChange,
   onSessionEnded,
   registerFilter,
   services,
-}: ReturnsReportScreenProps) {
+}: ReturnsHistoryScreenProps) {
   const [registerLabel, setRegisterLabel] = useState<string>();
   const cashiersHeadingId = useId();
   const authorizersHeadingId = useId();

@@ -112,7 +112,7 @@ function reportsServices(capabilities: Capability[]) {
     kind: "ok",
     value: averageTicketReport,
   });
-  vi.mocked(services.returnsReportScreen.fetchReturnsReport).mockResolvedValue({
+  vi.mocked(services.returnsHistoryScreen.fetchReturnsReport).mockResolvedValue({
     kind: "ok",
     value: returnsReport,
   });
@@ -190,7 +190,7 @@ test("opens the returns report from the list and reads it from the cloud", async
         .getByText("Beto"),
     )
     .toBeVisible();
-  expect(services.returnsReportScreen.fetchReturnsReport).toHaveBeenCalledWith({});
+  expect(services.returnsHistoryScreen.fetchReturnsReport).toHaveBeenCalledWith({});
   expect(document.title).toBe("Anulaciones y devoluciones · Puro Sur");
 });
 
@@ -314,7 +314,7 @@ test("sends someone with the reports permission but not the returns one away fro
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
-  expect(services.returnsReportScreen.fetchReturnsReport).not.toHaveBeenCalled();
+  expect(services.returnsHistoryScreen.fetchReturnsReport).not.toHaveBeenCalled();
 });
 
 test("opens the sales by day report from the list and reads it from the cloud", async () => {
@@ -918,7 +918,7 @@ test.each([
   expect(services.manualDiscountsScreen.fetchManualDiscounts).not.toHaveBeenCalled();
   expect(services.cashRoundingScreen.fetchCashRounding).not.toHaveBeenCalled();
   expect(services.averageTicketScreen.fetchAverageTicket).not.toHaveBeenCalled();
-  expect(services.returnsReportScreen.fetchReturnsReport).not.toHaveBeenCalled();
+  expect(services.returnsHistoryScreen.fetchReturnsReport).not.toHaveBeenCalled();
   expect(
     services.issuedFiscalDocumentsReportScreen.fetchIssuedFiscalDocumentsReport,
   ).not.toHaveBeenCalled();

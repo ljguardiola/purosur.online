@@ -14,8 +14,8 @@ import {
   reportRegisterFieldForTests,
 } from "../shell/test-support/report-register-filter";
 import { spyOnDownloads } from "../shell/test-support/spy-on-downloads";
-import { ReturnsReportScreen } from "./returns-report-screen";
-import type { ReturnsReportScreenServices } from "./returns-report-services";
+import { ReturnsHistoryScreen } from "./returns-history-screen";
+import type { ReturnsHistoryScreenServices } from "./returns-history-services";
 import {
   noReturnsReport,
   noScannedReturnsReport,
@@ -43,7 +43,7 @@ function cellUnder(table: Locator, row: Locator, header: string) {
   );
 }
 
-function createServices(): ReturnsReportScreenServices {
+function createServices(): ReturnsHistoryScreenServices {
   const services = { fetchReturnsReport: vi.fn() };
   services.fetchReturnsReport.mockResolvedValue({ kind: "ok", value: returnsReport });
   return services;
@@ -62,14 +62,14 @@ function ControlledScreen({
   onSessionEnded = () => {},
   registerServices,
 }: Handlers & {
-  services: ReturnsReportScreenServices;
+  services: ReturnsHistoryScreenServices;
   registerServices: ReportRegisterFilterServices;
 }) {
   const [filters, setFilters] = useState(initial);
   return (
     <FieldSizeProvider size="backoffice">
       <main>
-        <ReturnsReportScreen
+        <ReturnsHistoryScreen
           services={services}
           filters={filters}
           onFiltersChange={(next) => {
@@ -85,7 +85,7 @@ function ControlledScreen({
 }
 
 function renderScreen(
-  services: ReturnsReportScreenServices,
+  services: ReturnsHistoryScreenServices,
   {
     registerServices = createReportRegisterFilterServices(),
     ...handlers

@@ -11,5 +11,5 @@ export const returnsReportRoute = createRoute({
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeReturnsReport),
   validateSearch: reportFiltersSearch,
   search: { middlewares: [stripSearchParams(reportFiltersSearch.parse({}))] },
-  component: lazyScreen(() => import("./returns-report-page"), "ReturnsReportPage"),
+  component: lazyScreen(() => import("./returns-history-page"), "ReturnsHistoryPage"),
 });
