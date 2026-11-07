@@ -45,7 +45,7 @@ export function FiscalAddressesSection({ data, onCreate, onEdit }: FiscalAddress
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-center gap-3">
-        <h2 className="flex-1 text-text-accent text-subheading">Domicilios fiscales</h2>
+        <h2 className="flex-1 text-text-accent text-subheading">Domicilios</h2>
         <Button variant="secondary" size="small" icon={<Plus />} onPress={onCreate}>
           Nuevo domicilio fiscal
         </Button>

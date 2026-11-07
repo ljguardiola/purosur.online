@@ -22,9 +22,7 @@ export function BuyerIdentificationThresholdSection({
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
       <div className="flex items-center gap-3">
-        <h2 className="flex-1 text-text-accent text-subheading">
-          Umbral de identificación del comprador
-        </h2>
+        <h2 className="flex-1 text-text-accent text-subheading">Umbral del comprador</h2>
         <Button
           variant="secondary"
           size="small"
