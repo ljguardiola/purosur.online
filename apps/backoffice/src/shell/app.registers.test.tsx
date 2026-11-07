@@ -17,6 +17,7 @@ import { openSession } from "../sessions/test-support/open-session";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
+import { periodSegments, typePeriodStart } from "./test-support/report-dates";
 import { BACK_REGISTER_ID, registers } from "./test-support/report-fixtures";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
@@ -207,6 +208,25 @@ test.each(["/registers", "/registers/closes", "/registers/movements"])(
     expect(services.registersListScreen.fetchRegisters).not.toHaveBeenCalled();
     expect(services.cashSessionClosesScreen.fetchCashSessionCloses).not.toHaveBeenCalled();
     expect(services.cashMovementsScreen.fetchCashMovements).not.toHaveBeenCalled();
+  },
+);
+
+test.each<{ capability: Capability; path: string }>([
+  { capability: "fiscal_configuration_area", path: "/registers" },
+  { capability: "backups_area", path: "/registers" },
+  { capability: "fiscal_configuration_area", path: "/registers/closes" },
+  { capability: "backups_area", path: "/registers/movements" },
+])(
+  "sends a person with $capability alone, who sees no tab of the page, from $path to the own account panel",
+  async ({ capability, path }) => {
+    const services = registersServices([capability]);
+    window.history.pushState(null, "", path);
+
+    const screen = await render(<App help={emptyHelp} services={services} />);
+
+    await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
+    expect(location()).toBe("/?account=credentials");
+    expect(services.registersListScreen.fetchRegisters).not.toHaveBeenCalled();
   },
 );
 
@@ -402,6 +422,51 @@ test("the panel's Sesiones links to Cierres de caja narrowed to the register", a
     .element(screen.getByRole("tab", { name: "Cierres de caja", selected: true }))
     .toBeVisible();
   expect(location()).toBe(`/registers/closes?register=${REGISTER_ID}`);
+});
+
+test("reads the panel's Sesiones over the period the URL names, and its link takes that period and the register to Cierres de caja", async () => {
+  const services = registersServices(EVERY_CAPABILITY);
+  window.history.pushState(
+    null,
+    "",
+    `/registers?from=2026-10-01&register=${REGISTER_ID}&tab=sessions&to=2026-10-07`,
+  );
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByText("Cerró: Beto")).toBeVisible();
+  expect(services.registersListScreen.fetchCashSessionCloses).toHaveBeenCalledWith({
+    from: "2026-10-01",
+    to: "2026-10-07",
+    register_id: REGISTER_ID,
+  });
+
+  await userEvent.click(screen.getByRole("link", { name: "Ver en Cierres de caja" }));
+
+  await expect
+    .element(screen.getByRole("tab", { name: "Cierres de caja", selected: true }))
+    .toBeVisible();
+  expect(location()).toBe(
+    `/registers/closes?from=2026-10-01&register=${REGISTER_ID}&to=2026-10-07`,
+  );
+});
+
+test("writes the period typed in the panel's Sesiones into the URL, replacing the current entry", async () => {
+  const services = registersServices(EVERY_CAPABILITY);
+  window.history.pushState(null, "", `/registers?register=${REGISTER_ID}&tab=sessions`);
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["1", "10", "2026"]);
+  const entries = window.history.length;
+
+  await typePeriodStart(screen, "02102026");
+
+  await expect
+    .poll(location)
+    .toBe(`/registers?from=2026-10-02&register=${REGISTER_ID}&tab=sessions&to=2026-10-07`);
+  expect(window.history.length).toBe(entries);
+  expect(services.registersListScreen.fetchCashSessionCloses).toHaveBeenLastCalledWith({
+    from: "2026-10-02",
+    to: "2026-10-07",
+    register_id: REGISTER_ID,
+  });
 });
 
 test("changing the point of sale in a register's Fiscal y cobros saves it through the same call Puntos de venta made, and Puntos de venta then shows it read-only", async () => {

@@ -2,7 +2,6 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { accessWith } from "../shell/test-support/backoffice-access";
 import {
-  chooseFromRowMenu,
   createServices,
   register1,
   register2,
@@ -17,7 +16,9 @@ beforeEach(() => {
 const codeField = { name: /^Código de la caja QR en Mercado Pago/ };
 
 async function openQrModal(screen: Awaited<ReturnType<typeof renderScreen>>, name: string) {
-  await chooseFromRowMenu(screen, name, "Asignar QR de Mercado Pago");
+  await userEvent.click(
+    rowOf(screen, name).getByRole("button", { name: `Asignar QR de Mercado Pago a ${name}` }),
+  );
   return screen.getByRole("dialog", { name: "Asignar QR de Mercado Pago" });
 }
 
@@ -92,7 +93,7 @@ test("offers the QR point of sale action only to who may assign it", async () =>
   );
   await expect.element(withoutIt.getByText("Caja 1")).toBeVisible();
   expect(
-    rowOf(withoutIt, "Caja 1").getByRole("button", { name: "Más acciones" }).query(),
+    withoutIt.getByRole("button", { name: "Asignar QR de Mercado Pago a Caja 1" }).query(),
   ).toBeNull();
   await withoutIt.unmount();
 
@@ -101,9 +102,8 @@ test("offers the QR point of sale action only to who may assign it", async () =>
     () => {},
     accessWith("registers_area", "enroll_registers", "fiscal_configuration_area"),
   );
-  await userEvent.click(rowOf(withIt, "Caja 1").getByRole("button", { name: "Más acciones" }));
   await expect
-    .element(withIt.getByRole("menuitem", { name: "Asignar QR de Mercado Pago" }))
+    .element(withIt.getByRole("button", { name: "Asignar QR de Mercado Pago a Caja 1" }))
     .toBeVisible();
 });
 
@@ -123,7 +123,7 @@ test("keeps no room in the actions column for the QR point of sale action of who
   const actionsIndex = headers.findIndex((header) => header.textContent === "Acciones");
   const placeholderRow = table.element().querySelector("tbody tr");
   const actionsPlaceholder = placeholderRow?.children[actionsIndex]?.firstElementChild;
-  expect(actionsPlaceholder?.childElementCount).toBe(2);
+  expect(actionsPlaceholder?.childElementCount).toBe(1);
 });
 
 test("Recargar in the QR modal reads the registers once and shows what changed", async () => {

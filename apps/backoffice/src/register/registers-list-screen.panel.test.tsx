@@ -33,6 +33,8 @@ async function renderListWithPanel(openRegister: string | undefined, tab?: strin
         onSessionEnded={() => {}}
         openRegister={openRegister}
         tab={tab}
+        sessionsPeriod={{ from: "", to: "" }}
+        onSessionsPeriodChange={() => {}}
       />
     </main>,
   );
@@ -108,4 +110,14 @@ test("the panel's Fiscal y cobros assigns the Point terminal and the QR of its r
   await expect
     .element(screen.getByRole("dialog", { name: "Asignar QR de Mercado Pago" }))
     .toBeVisible();
+});
+
+test("saving the point of sale in the panel's Fiscal y cobros reads the registers again", async () => {
+  const { screen, services } = await renderListWithPanel("register-3", "fiscal");
+  const panel = screen.getByRole("complementary", { name: "Caja 3" });
+  await expect.element(panel.getByText("Punto de venta de register-3")).toBeVisible();
+
+  await userEvent.click(panel.getByRole("button", { name: "Guardar el punto de venta" }));
+
+  await expect.poll(() => vi.mocked(services.fetchRegisters).mock.calls.length).toBe(2);
 });

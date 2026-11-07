@@ -33,7 +33,10 @@ function renderPanel({
       registerPointOfSaleSection={RegisterPointOfSaleSectionStub}
       secondsSinceRead={0}
       tab={tab}
+      sessionsPeriod={{ from: "", to: "" }}
+      onSessionsPeriodChange={() => {}}
       onClose={onClose}
+      onPointOfSaleSaved={() => {}}
       onSessionEnded={() => {}}
       services={services}
     />,

@@ -72,7 +72,7 @@ function deferred<T>() {
 
 function renderSection(
   services: RegisterPointOfSalePanelSectionServices,
-  { registerId = "register-1", onSessionEnded = () => {} } = {},
+  { registerId = "register-1", onSessionEnded = () => {}, onSaved = () => {} } = {},
 ) {
   return render(
     <FieldSizeProvider size="backoffice">
@@ -80,6 +80,7 @@ function renderSection(
         <RegisterPointOfSalePanelSection
           registerId={registerId}
           onSessionEnded={onSessionEnded}
+          onSaved={onSaved}
           services={services}
         />
       </main>
@@ -124,13 +125,14 @@ test("shows a placeholder while the data loads, with Editar and Editar CAEA disa
   const screen = await renderSection(services);
 
   await expect.element(screen.getByText("Cargando…").first()).toBeVisible();
-  expect(screen.getByRole("button", { name: "Editar", exact: true }).query()).toBeNull();
+  await expect.element(screen.getByRole("button", { name: "Editar", exact: true })).toBeDisabled();
+  await expect.element(screen.getByRole("button", { name: "Editar CAEA" })).toBeDisabled();
   pending.resolve({ kind: "ok", value: [configuredRegister] });
   await expect.element(screen.getByRole("button", { name: "Editar", exact: true })).toBeEnabled();
   await expect.element(screen.getByRole("button", { name: "Editar CAEA" })).toBeEnabled();
 });
 
-test("shows a load failure, and Reintentar loads the data again", async () => {
+test("shows a load failure with Editar and Editar CAEA disabled, and Reintentar loads the data again", async () => {
   const services = createServices({
     fetchRegisterPointsOfSale: vi
       .fn()
@@ -140,6 +142,8 @@ test("shows a load failure, and Reintentar loads the data again", async () => {
   });
   const screen = await renderSection(services);
   await expect.element(screen.getByText("No pudimos abrir el punto de venta")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Editar", exact: true })).toBeDisabled();
+  await expect.element(screen.getByRole("button", { name: "Editar CAEA" })).toBeDisabled();
 
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }).first());
 
@@ -194,7 +198,7 @@ test("Editar opens the register's modal with its number and fiscal address", asy
     .toHaveValue("Depósito Central");
 });
 
-test("Editar CAEA opens the register's offline point of sale modal, and saving reads the data again and announces it", async () => {
+test("Editar CAEA opens the register's offline point of sale modal, and saving reads the data again, announces it and tells the caller", async () => {
   const services = serving([configuredRegister], [depot]);
   vi.mocked(services.fetchRegisterPointsOfSale)
     .mockResolvedValueOnce({ kind: "ok", value: [configuredRegister] })
@@ -203,7 +207,8 @@ test("Editar CAEA opens the register's offline point of sale modal, and saving r
       value: [{ ...configuredRegister, offlinePointOfSaleNumber: 8, offlineVersion: 5 }],
     });
   vi.mocked(services.configureRegisterOfflinePointOfSale).mockResolvedValue({ kind: "ok" });
-  const screen = await renderSection(services);
+  const onSaved = vi.fn();
+  const screen = await renderSection(services, { onSaved });
   await userEvent.click(screen.getByRole("button", { name: "Editar CAEA" }));
   const dialog = screen.getByRole("dialog", { name: "Caja 1" });
   await expect
@@ -220,9 +225,10 @@ test("Editar CAEA opens the register's offline point of sale modal, and saving r
   await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
   await expect.element(screen.getByText("00008")).toBeVisible();
   await expect.element(screen.getByText("Punto de venta CAEA guardado")).toBeVisible();
+  expect(onSaved).toHaveBeenCalledTimes(1);
 });
 
-test("saving the point of sale reads both lists again and announces it", async () => {
+test("saving the point of sale reads both lists again, announces it and tells the caller", async () => {
   const services = serving([configuredRegister], [depot, shop]);
   vi.mocked(services.fetchRegisterPointsOfSale)
     .mockResolvedValueOnce({ kind: "ok", value: [configuredRegister] })
@@ -231,7 +237,8 @@ test("saving the point of sale reads both lists again and announces it", async (
       value: [{ ...configuredRegister, pointOfSaleNumber: 7, version: 3 }],
     });
   vi.mocked(services.configureRegisterPointOfSale).mockResolvedValue({ kind: "ok" });
-  const screen = await renderSection(services);
+  const onSaved = vi.fn();
+  const screen = await renderSection(services, { onSaved });
   await userEvent.click(screen.getByRole("button", { name: "Editar", exact: true }));
   const dialog = screen.getByRole("dialog", { name: "Caja 1" });
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Punto de venta/ }), "7");
@@ -248,6 +255,7 @@ test("saving the point of sale reads both lists again and announces it", async (
   await expect.element(screen.getByText("Punto de venta guardado")).toBeVisible();
   await expect.element(screen.getByText("Caja 1.")).toBeVisible();
   expect(services.fetchFiscalAddresses).toHaveBeenCalledTimes(2);
+  expect(onSaved).toHaveBeenCalledTimes(1);
 });
 
 test("has no accessibility violations with the point of sale shown", async () => {

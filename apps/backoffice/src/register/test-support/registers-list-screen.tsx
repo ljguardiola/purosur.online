@@ -1,6 +1,6 @@
 import { useIsFetching, useQueryClient } from "@tanstack/react-query";
 import { onTestFinished, vi } from "vitest";
-import { page, userEvent } from "vitest/browser";
+import { page } from "vitest/browser";
 import type { BackofficeAccess } from "../../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS } from "../../shell/test-support/backoffice-access";
 import { render } from "../../shell/test-support/render-with-router";
@@ -144,6 +144,8 @@ export async function renderScreen(
         services={services}
         registerPointOfSaleSection={RegisterPointOfSaleSectionStub}
         onSessionEnded={onSessionEnded}
+        sessionsPeriod={{ from: "", to: "" }}
+        onSessionsPeriodChange={() => {}}
       />
       <FetchesInFlight />
       <RefreshRegisters />
@@ -160,13 +162,4 @@ export async function renderRegisters(registers: RegisterSummary[], access?: Bac
 
 export function rowOf(screen: Awaited<ReturnType<typeof renderScreen>>, registerName: string) {
   return screen.getByRole("row").filter({ hasText: registerName });
-}
-
-export async function chooseFromRowMenu(
-  screen: Awaited<ReturnType<typeof renderScreen>>,
-  registerName: string,
-  item: string,
-) {
-  await userEvent.click(rowOf(screen, registerName).getByRole("button", { name: "Más acciones" }));
-  await userEvent.click(screen.getByRole("menuitem", { name: item }));
 }

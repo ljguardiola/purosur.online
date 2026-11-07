@@ -58,7 +58,7 @@ describe("EnrollmentScreen", () => {
     await expect
       .element(
         screen.getByText(
-          "Escribí el código de alta que se genera en el backoffice, en Cajas registradoras. Vale 15 minutos y hace falta internet.",
+          "Escribí el código de alta que se genera en el backoffice, en Cajas. Vale 15 minutos y hace falta internet.",
         ),
       )
       .toBeVisible();

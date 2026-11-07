@@ -1,5 +1,5 @@
 import { vi } from "vitest";
-import type { RegisterActions } from "../register-action-modals";
+import type { RegisterActions } from "../register-row-actions";
 import type { RegisterSummary } from "../registers-api";
 import type { RegistersListScreenServices } from "../registers-list-services";
 import { createServices } from "./registers-list-screen";
