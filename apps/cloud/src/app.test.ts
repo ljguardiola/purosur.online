@@ -3163,6 +3163,11 @@ describe("the route access inventory", () => {
         url: "/api/label-sheets",
         access: capabilityAccess("products_and_categories"),
       },
+      {
+        method: "POST",
+        url: "/api/label-prints",
+        access: capabilityAccess("products_and_categories"),
+      },
       { method: "GET", url: "/api/alerts", access: OPEN_SESSION_ACCESS },
       { method: "GET", url: "/api/alerts/overview", access: OPEN_SESSION_ACCESS },
       { method: "GET", url: "/api/alerts/:id", access: OPEN_SESSION_ACCESS },

@@ -5,12 +5,14 @@ import { fetchBrands } from "./brands-api";
 import { createCategory, fetchCategories } from "./categories-api";
 import type { DeactivateProductModalServices } from "./deactivate-product-modal";
 import type { EditProductModalServices } from "./edit-product-modal";
+import { chooseLabelPrinter, webSerialAvailable } from "./label-printer-port";
 import type { NewProductModalServices } from "./new-product-modal";
 import type { PrintLabelsModalServices } from "./print-labels-modal";
 import {
   createProduct,
   deactivateProduct,
   editProduct,
+  fetchPrinterLabels,
   fetchProducts,
   printLabels,
   reactivateProduct,
@@ -43,4 +45,9 @@ export const defaultProductsListScreenServices: ProductsListScreenServices = {
   createTag,
   generateInternalBarcode,
   printLabels,
+  fetchPrinterLabels,
+  labelPrinterAvailable: webSerialAvailable,
+  chooseLabelPrinter,
+  printOnLabelPrinter: async (port, labels) =>
+    (await import("./print-labels-on-printer")).printLabelsOnPrinter(port, labels),
 };
