@@ -2,10 +2,12 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { accessWith } from "../shell/test-support/backoffice-access";
 import {
+  chooseFromRowMenu,
   createServices,
   register1,
   register2,
   renderScreen,
+  rowOf,
 } from "./test-support/registers-list-screen";
 
 beforeEach(() => {
@@ -15,9 +17,7 @@ beforeEach(() => {
 const codeField = { name: /^Código de la caja QR en Mercado Pago/ };
 
 async function openQrModal(screen: Awaited<ReturnType<typeof renderScreen>>, name: string) {
-  await userEvent.click(
-    screen.getByRole("button", { name: `Asignar QR de Mercado Pago a ${name}` }),
-  );
+  await chooseFromRowMenu(screen, name, "Asignar QR de Mercado Pago");
   return screen.getByRole("dialog", { name: "Asignar QR de Mercado Pago" });
 }
 
@@ -92,7 +92,7 @@ test("offers the QR point of sale action only to who may assign it", async () =>
   );
   await expect.element(withoutIt.getByText("Caja 1")).toBeVisible();
   expect(
-    withoutIt.getByRole("button", { name: "Asignar QR de Mercado Pago a Caja 1" }).query(),
+    rowOf(withoutIt, "Caja 1").getByRole("button", { name: "Más acciones" }).query(),
   ).toBeNull();
   await withoutIt.unmount();
 
@@ -101,8 +101,9 @@ test("offers the QR point of sale action only to who may assign it", async () =>
     () => {},
     accessWith("registers_area", "enroll_registers", "fiscal_configuration_area"),
   );
+  await userEvent.click(rowOf(withIt, "Caja 1").getByRole("button", { name: "Más acciones" }));
   await expect
-    .element(withIt.getByRole("button", { name: "Asignar QR de Mercado Pago a Caja 1" }))
+    .element(withIt.getByRole("menuitem", { name: "Asignar QR de Mercado Pago" }))
     .toBeVisible();
 });
 

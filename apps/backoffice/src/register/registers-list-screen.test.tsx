@@ -8,11 +8,15 @@ import type { RegisterSummary } from "./registers-api";
 import { RegistersListScreen } from "./registers-list-screen";
 import type { RegistersListScreenServices } from "./registers-list-services";
 import {
+  chooseFromRowMenu,
   createServices,
+  enrolledRegister,
   grantAuthorization,
   register1,
   register2,
+  renderRegisters,
   renderScreen,
+  rowOf,
 } from "./test-support/registers-list-screen";
 
 beforeEach(() => {
@@ -850,7 +854,7 @@ test("shows each register's Point terminal, or Sin asignar when it has none", as
 });
 
 async function openTerminalModal(screen: Awaited<ReturnType<typeof renderScreen>>, name: string) {
-  await userEvent.click(screen.getByRole("button", { name: `Asignar terminal Point a ${name}` }));
+  await chooseFromRowMenu(screen, name, "Asignar terminal Point");
   return screen.getByRole("dialog", { name: "Terminal Point integrada" });
 }
 
@@ -907,7 +911,7 @@ test("offers the Point terminal action only to who may assign it", async () => {
   );
   await expect.element(withoutIt.getByText("Caja 1")).toBeVisible();
   expect(
-    withoutIt.getByRole("button", { name: "Asignar terminal Point a Caja 1" }).query(),
+    rowOf(withoutIt, "Caja 1").getByRole("button", { name: "Más acciones" }).query(),
   ).toBeNull();
   await expect
     .element(withoutIt.getByRole("button", { name: "Emitir código de alta para Caja 1" }))
@@ -919,8 +923,9 @@ test("offers the Point terminal action only to who may assign it", async () => {
     () => {},
     accessWith("registers_area", "enroll_registers", "fiscal_configuration_area"),
   );
+  await userEvent.click(rowOf(withIt, "Caja 1").getByRole("button", { name: "Más acciones" }));
   await expect
-    .element(withIt.getByRole("button", { name: "Asignar terminal Point a Caja 1" }))
+    .element(withIt.getByRole("menuitem", { name: "Asignar terminal Point" }))
     .toBeVisible();
 });
 
@@ -980,4 +985,36 @@ test("shows the register count with the thousands separator", async () => {
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByText("1.000 cajas")).toBeVisible();
+});
+
+test("keeps the first three row actions inline and puts the Point terminal and the Mercado Pago QR in Más acciones", async () => {
+  const { screen } = await renderRegisters([enrolledRegister]);
+  await expect.element(screen.getByText("Caja 3")).toBeVisible();
+  const row = rowOf(screen, "Caja 3");
+
+  await expect
+    .element(row.getByRole("button", { name: /^Cargar la clave de recuperación de BitLocker/ }))
+    .toBeVisible();
+  await expect
+    .element(row.getByRole("button", { name: /^Revocar por pérdida o robo/ }))
+    .toBeVisible();
+  await expect.element(row.getByRole("button", { name: /^Emitir código de alta/ })).toBeVisible();
+  expect(row.getByRole("button", { name: /^Asignar/ }).query()).toBeNull();
+  await userEvent.click(row.getByRole("button", { name: "Más acciones" }));
+  await expect
+    .element(screen.getByRole("menuitem", { name: "Asignar terminal Point" }))
+    .toBeVisible();
+  await expect
+    .element(screen.getByRole("menuitem", { name: "Asignar QR de Mercado Pago" }))
+    .toBeVisible();
+});
+
+test("offers no Más acciones menu to who may not assign a terminal or a QR", async () => {
+  const { screen } = await renderRegisters(
+    [enrolledRegister],
+    accessWith("registers_area", "enroll_registers", "revoke_installations"),
+  );
+  await expect.element(screen.getByText("Caja 3")).toBeVisible();
+
+  expect(screen.getByRole("button", { name: "Más acciones" }).query()).toBeNull();
 });
