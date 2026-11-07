@@ -405,6 +405,49 @@ describe("recording Mercado Pago order searches", () => {
     expect(calls).toHaveLength(2);
   });
 
+  it("names the scrubbed answer of an order Mercado Pago refuses to create", async () => {
+    const responder = defaultResponder((call) =>
+      call.method === "POST"
+        ? json(400, {
+            errors: [
+              {
+                code: "property_value",
+                message: `invalid external_pos_id REALPOS01 of user ${ACCOUNT_ID}`,
+                details: [`external_reference id-2 for token ${TOKEN}`],
+              },
+            ],
+          })
+        : undefined,
+    );
+
+    const failure = await run(responder).catch((error: Error) => error.message);
+
+    expect(failure).toBe(
+      "Mercado Pago did not create the QR order: refused; it answered 400 " +
+        JSON.stringify({
+          errors: [
+            {
+              code: "property_value",
+              message: "invalid external_pos_id STORE01POS01 of user 1234567890",
+              details: [
+                "external_reference 00000000-0000-4000-8000-000000000001 for token FICTIONAL-ACCESS-TOKEN",
+              ],
+            },
+          ],
+        }),
+    );
+  });
+
+  it("names a refused answer that is not JSON as its scrubbed text", async () => {
+    const responder = defaultResponder((call) =>
+      call.method === "POST" ? json(400, "bad pos REALPOS01") : undefined,
+    );
+
+    await expect(run(responder)).rejects.toThrow(
+      'Mercado Pago did not create the QR order: refused; it answered 400 "bad pos STORE01POS01"',
+    );
+  });
+
   it("cancels the created orders when a search throws", async () => {
     const responder = defaultResponder((call) => {
       if (call.method === "GET" && call.url.includes("/v1/orders?")) {
