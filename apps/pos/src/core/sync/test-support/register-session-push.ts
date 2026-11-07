@@ -801,6 +801,9 @@ export async function withRegisterSession<TResult>(
       "cancelled",
     );
     nextStep();
+    const firstOnQr = await scanProductFor(deps(), "7790001000011");
+    expectOutcome("scan a first product to pay part by QR", firstOnQr.kind, "added");
+    nextStep();
     const onQr = await scanProductFor(deps(), "7790001000011");
     if (onQr.kind !== "added") {
       throw new Error(
@@ -810,7 +813,7 @@ export async function withRegisterSession<TResult>(
     nextStep();
     const qrDeposit = await startMercadoPagoChargeFor(
       { ...deps(), orders: APPROVED_QR_ORDERS },
-      { saleId: onQr.sale.id, method: "QR", amount: 700 },
+      { saleId: onQr.sale.id, method: "QR", amount: 1500 },
     );
     if (qrDeposit.kind !== "order_shown") {
       throw new Error(`The register session's "start the QR deposit" ended as "${qrDeposit.kind}"`);
@@ -893,7 +896,7 @@ export async function withRegisterSession<TResult>(
     nextStep();
     const qr = await startMercadoPagoChargeFor(
       { ...deps(), orders: OFFLINE_QR_ORDERS },
-      { saleId: replacedScan.sale.id, method: "QR", amount: 500 },
+      { saleId: replacedScan.sale.id, method: "QR", amount: 1500 },
     );
     if (qr.kind !== "order_shown") {
       throw new Error(`The register session's "start a QR charge" ended as "${qr.kind}"`);
@@ -967,7 +970,7 @@ export async function withRegisterSession<TResult>(
     nextStep();
     const voidQrDeposit = await startMercadoPagoChargeFor(
       { ...deps(), orders: APPROVED_QR_ORDERS },
-      { saleId: toVoidOnQr.sale.id, method: "QR", amount: 700 },
+      { saleId: toVoidOnQr.sale.id, method: "QR", amount: 1500 },
     );
     if (voidQrDeposit.kind !== "order_shown") {
       throw new Error(

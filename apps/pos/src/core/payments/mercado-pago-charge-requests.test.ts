@@ -169,13 +169,13 @@ describe("starting a Mercado Pago QR charge at the register", () => {
 
   it("refuses a second QR charge of the sale while the first one is in its wait", async () => {
     const saleId = await saleOfTwoYerbas();
-    await startMercadoPagoChargeFor(deps(new FakeOrders()), { saleId, method: "QR", amount: 1000 });
+    await startMercadoPagoChargeFor(deps(new FakeOrders()), { saleId, method: "QR", amount: 1500 });
 
     expect(
       await startMercadoPagoChargeFor(deps(new FakeOrders()), {
         saleId,
         method: "QR",
-        amount: 1000,
+        amount: 1500,
       }),
     ).toEqual({ kind: "mercado_pago_charge_in_progress" });
   });
@@ -230,13 +230,13 @@ describe("following a Mercado Pago QR charge at the register", () => {
   });
 
   it("answers the rest still to pay when the approved QR payment covers part of the sale", async () => {
-    const saleId = await chargeStarted(1000);
+    const saleId = await chargeStarted(1500);
     const orders = new FakeOrders();
     orders.reading = { kind: "read", state: "APPROVED" };
 
     expect(
       await followMercadoPagoChargeFor(deps(orders), { paymentTransactionId: "qr-1" }),
-    ).toEqual({ kind: "partially_paid", sale_id: saleId, total: 3000, paid: 1000, pending: 2000 });
+    ).toEqual({ kind: "partially_paid", sale_id: saleId, total: 3000, paid: 1500, pending: 1500 });
   });
 
   it("answers the wait is over, recording the payment expired, when Mercado Pago expires the order", async () => {
@@ -389,7 +389,7 @@ describe("abandoning a Mercado Pago QR charge at the register", () => {
   });
 
   it("answers the rest still to pay when the payment already made covers part of the sale", async () => {
-    const saleId = await chargeStarted(1000);
+    const saleId = await chargeStarted(1500);
     const orders = new FakeOrders();
     orders.cancellation = { kind: "answered", state: "APPROVED" };
 
@@ -401,8 +401,8 @@ describe("abandoning a Mercado Pago QR charge at the register", () => {
         kind: "partially_paid",
         sale_id: saleId,
         total: 3000,
-        paid: 1000,
-        pending: 2000,
+        paid: 1500,
+        pending: 1500,
       },
     });
   });
@@ -440,7 +440,7 @@ describe("abandoning a Mercado Pago QR charge at the register", () => {
   });
 
   it("lets the sale complete in cash beside the replaced payment, sending only the cash payment", async () => {
-    const saleId = await chargeStarted(1000);
+    const saleId = await chargeStarted(1500);
     const orders = new FakeOrders();
     orders.cancellation = { kind: "unreachable" };
     await abandonMercadoPagoChargeFor(deps(orders), { paymentTransactionId: "qr-1" });
