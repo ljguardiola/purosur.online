@@ -116,14 +116,11 @@ export function registerAlertsListRoute<TQueryResult extends PgQueryResultHKT>(
         { level, open, search },
         pageFromQuery(query.page),
       );
-      const openCounts = await reader.countOpenVisibleAlerts(sight);
       const namesById = await reader.displayNames(alerts.flatMap(alertNamedRecordIds));
       const body = alertListPageSchema.parse({
         alerts: alerts.map((alert) => toAlertSummary(alert, namesById)),
         total,
         pageSize: ALERTS_PAGE_SIZE,
-        openCount: openCounts.openCount,
-        openCriticalCount: openCounts.openCriticalCount,
       });
       await reply.code(200).send(body);
     },

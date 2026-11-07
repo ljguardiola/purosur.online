@@ -1,5 +1,5 @@
 import { expectTypeOf, test } from "vitest";
-import type { AlertsListScreenProps } from "../alerts/alerts-list-screen";
+import type { AlertsListSectionProps } from "../alerts/alerts-list-section";
 import type { BranchSettingsScreenProps } from "../branch/branch-settings-screen";
 import type { BrandsListScreenProps } from "../catalog/brands-list-screen";
 import type { CategoriesListScreenProps } from "../catalog/categories-list-screen";
@@ -73,7 +73,7 @@ test("makes every screen require its services", () => {
   expectTypeOf<ServicesProp<FiscalConfigurationScreenProps>>().toEqualTypeOf<
     Required<ServicesProp<FiscalConfigurationScreenProps>>
   >();
-  expectTypeOf<ServicesProp<AlertsListScreenProps>>().toEqualTypeOf<
-    Required<ServicesProp<AlertsListScreenProps>>
+  expectTypeOf<ServicesProp<AlertsListSectionProps>>().toEqualTypeOf<
+    Required<ServicesProp<AlertsListSectionProps>>
   >();
 });

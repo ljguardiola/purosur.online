@@ -159,8 +159,6 @@ interface ListBody {
   }[];
   total: number;
   pageSize: number;
-  openCount: number;
-  openCriticalCount: number;
 }
 
 function listBody(response: { json: () => unknown }): ListBody {
@@ -482,29 +480,13 @@ describe("GET /alerts", () => {
     }
   });
 
-  it("counts every open visible alert and its critical ones, whatever the filters or page", async () => {
-    const rawSessionId = await signedInViewer(["view_branch_alerts"]);
-    await insertAlert({ kind: "kind_a", scope: "scope_a", audience: "local", level: "critical" });
-    await insertAlert({ kind: "kind_b", scope: "scope_b", audience: "local", level: "warning" });
-    await insertAlert({
-      kind: "kind_c",
-      scope: "scope_c",
-      audience: "local",
-      level: "critical",
-      resolvedAt: NOON,
-    });
-    await insertAlert({
-      kind: "kind_d",
-      scope: "scope_d",
-      audience: "local",
-      level: "critical",
-      locationId: otherLocationId,
-    });
+  it("answers only the page's alerts, its total and the page size", async () => {
+    const rawSessionId = await signedInViewer();
+    await insertAlert({ kind: "kind_a", scope: "scope_a", audience: "all", level: "critical" });
 
-    const body = listBody(await getAlerts(rawSessionId, "?open=false&level=informational&page=3"));
+    const body = listBody(await getAlerts(rawSessionId));
 
-    expect(body.openCount).toBe(2);
-    expect(body.openCriticalCount).toBe(1);
+    expect(Object.keys(body).sort()).toEqual(["alerts", "pageSize", "total"]);
   });
 
   it("searches by a user-scoped alert's first name", async () => {

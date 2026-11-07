@@ -9,7 +9,7 @@ import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
-opensOnlyScreens(["/", "/alerts", "/help", "/quarantined-events"]);
+opensOnlyScreens(["/", "/help", "/quarantined-events"]);
 
 beforeEach(resetPageState);
 
@@ -91,19 +91,18 @@ const quarantinedEventAlert: AlertDetail = {
 };
 
 test("follows a quarantined event's alert to the quarantined events list", async () => {
-  window.history.pushState(null, "", "/alerts");
+  window.history.pushState(null, "", "/");
   const { open, closing, deliveries, detail, ...summary } = quarantinedEventAlert;
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(sessionHolding(["alerts_area", "quarantined_events"])),
-    alertsListScreen: {
+    homeScreen: {
+      ...createAppServices().homeScreen,
       fetchAlerts: vi.fn().mockResolvedValue({
         kind: "ok",
         value: {
           alerts: [{ ...summary, salesDeniedReason: null, refundAmount: null, refundMethod: null }],
           total: 1,
           pageSize: 25,
-          openCount: 1,
-          openCriticalCount: 1,
         },
       }),
       alertDetailModal: {

@@ -64,7 +64,7 @@ export function RegistersSyncSection({ data }: RegistersSyncSectionProps) {
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-3">
       <h2 id={headingId} className="text-subheading text-text">
-        Cajas
+        Estado de las cajas
       </h2>
       <Table
         aria-label="Última sincronización de las cajas"

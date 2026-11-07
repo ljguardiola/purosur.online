@@ -923,3 +923,16 @@ test.each([
     services.issuedFiscalDocumentsReportScreen.fetchIssuedFiscalDocumentsReport,
   ).not.toHaveBeenCalled();
 });
+
+test("shows no open alerts count in Reportes' top bar", async () => {
+  const services = createAppServices({
+    fetchSession: vi.fn().mockResolvedValue(openSession()),
+  });
+  window.history.pushState(null, "", "/reports");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
+  expect(services.homeScreen.fetchAlertsOverview).not.toHaveBeenCalled();
+  expect(screen.getByText(/alertas? abiertas?/).query()).toBeNull();
+});

@@ -1,9 +1,8 @@
-import { createRoute, stripSearchParams } from "@tanstack/react-router";
+import { createRoute, redirect, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
-import { canSeeAlertsArea } from "../shell/backoffice-access";
 import { homeAreaRoute } from "../shell/home-area";
 import { lazyScreen } from "../shell/lazy-screen";
-import { refuseWithout } from "../shell/signed-in-route";
+import { ALERTS_LIST_ANCHOR } from "./alerts-list-anchor";
 
 export const alertsListFilters = z.object({
   level: z.enum(["all", "critical", "warning", "informational"]).default("all").catch("all"),
@@ -14,17 +13,19 @@ export const alertsListFilters = z.object({
 
 export type AlertsListFilters = z.output<typeof alertsListFilters>;
 
-export const alertsOverviewRoute = createRoute({
+export const homeRoute = createRoute({
   getParentRoute: () => homeAreaRoute,
   path: "/",
+  validateSearch: alertsListFilters,
+  search: { middlewares: [stripSearchParams(alertsListFilters.parse({}))] },
   component: lazyScreen(() => import("../shell/home-page"), "HomePage"),
 });
 
-export const alertsListRoute = createRoute({
+export const alertsRedirectRoute = createRoute({
   getParentRoute: () => homeAreaRoute,
   path: "alerts",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeAlertsArea),
   validateSearch: alertsListFilters,
-  search: { middlewares: [stripSearchParams(alertsListFilters.parse({}))] },
-  component: lazyScreen(() => import("./alerts-list-page"), "AlertsListPage"),
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/", search, hash: ALERTS_LIST_ANCHOR, replace: true });
+  },
 });

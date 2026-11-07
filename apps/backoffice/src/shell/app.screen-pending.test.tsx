@@ -33,11 +33,11 @@ function topBarHeight(main: Element): number {
   return main.firstElementChild?.getBoundingClientRect().height ?? 0;
 }
 
-opensOnlyScreens(["/help"], { downloadedInTest: ["/", "/alerts"] });
+opensOnlyScreens(["/help"], { downloadedInTest: ["/"] });
 
 beforeEach(async () => {
   window.history.pushState(null, "", "/help");
-  await holdDownloadsMatching("*alerts-list-page*", "*home-page*");
+  await holdDownloadsMatching("*home-page*");
 });
 
 afterEach(async () => {
@@ -67,7 +67,7 @@ test("shows the loading placeholder inside the area, below a top bar the screen 
 
   const main = screen.getByRole("main");
   await expect.element(main.getByRole("status")).toHaveTextContent("Cargando…");
-  await expect.element(screen.getByRole("navigation", { name: "Inicio" })).toBeVisible();
+  await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
   const pendingTopBarHeight = topBarHeight(main.element());
 
   await releaseHeldDownloads();

@@ -1,5 +1,4 @@
 import { vi } from "vitest";
-import { AlertsOpenCountLink } from "../../alerts/alerts-open-count-link";
 import { createFakeQrScanner } from "../../backups/test-support/fake-qr-scanner";
 import { CreateCategoryFromSelectorModal } from "../../catalog/create-category-from-selector-modal";
 import { CreateProductFromSelectorModal } from "../../catalog/create-product-from-selector-modal";
@@ -463,22 +462,19 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     homeScreen: {
       fetchAlertsOverview: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchRegisterSyncStatus: vi.fn().mockReturnValue(new Promise(() => {})),
-    },
-    areaTopBarAlertsCount: AlertsOpenCountLink,
-    areaTopBarUnbilledDeferredSales: UnbilledDeferredSalesPill,
-    unbilledDeferredSalesPill: {
-      fetchUnbilledDeferredSales: vi.fn().mockReturnValue(new Promise(() => {})),
-    },
-    alertsOpenCountLink: {
-      fetchAlertsOverview: vi.fn().mockReturnValue(new Promise(() => {})),
-    },
-    alertsListScreen: {
       fetchAlerts: vi.fn().mockReturnValue(new Promise(() => {})),
       alertDetailModal: {
         fetchAlert: vi.fn().mockReturnValue(new Promise(() => {})),
         fetchPermissionCatalog: vi.fn().mockResolvedValue(permissionCatalogOutcome),
         closeAlert: vi.fn(),
       },
+      fetchFiscalTasks: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchPendingRefunds: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchPrices: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
+    areaTopBarUnbilledDeferredSales: UnbilledDeferredSalesPill,
+    unbilledDeferredSalesPill: {
+      fetchUnbilledDeferredSales: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     quarantinedEventsScreen: {
       fetchQuarantinedEvents: vi.fn().mockReturnValue(new Promise(() => {})),

@@ -18,13 +18,12 @@ import {
 } from "../purchasing/test-support/supplier-price-lists";
 import { openSession } from "../sessions/test-support/open-session";
 import { App } from "./app";
-import { emptyHelp, resetPageState, threeOpenAlerts } from "./test-support/app";
+import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
 opensOnlyScreens([
   "/",
-  "/alerts",
   "/help",
   "/price-comparison",
   "/order-suggestion",
@@ -140,10 +139,9 @@ test("opens a list's review from the list", async () => {
   );
 });
 
-test("counts the open alerts in the list's top bar and opens the alerts list from it", async () => {
+test("shows no open alerts count in the list's top bar", async () => {
   const services = ordersServices([]);
   vi.mocked(services.fetchSession).mockResolvedValue(openSession());
-  vi.mocked(services.alertsOpenCountLink.fetchAlertsOverview).mockResolvedValue(threeOpenAlerts);
   window.history.pushState(null, "", "/supplier-price-lists");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -151,9 +149,8 @@ test("counts the open alerts in the list's top bar and opens the alerts list fro
   await expect
     .element(screen.getByRole("heading", { name: "Listas de proveedores", level: 1 }))
     .toBeVisible();
-  await userEvent.click(screen.getByRole("link", { name: "3 alertas abiertas" }));
-
-  expect(window.location.pathname).toBe("/alerts");
+  expect(services.homeScreen.fetchAlertsOverview).not.toHaveBeenCalled();
+  expect(screen.getByText(/alertas? abiertas?/).query()).toBeNull();
 });
 
 test("lists the price comparison beside the supplier price lists for whoever compares prices", async () => {

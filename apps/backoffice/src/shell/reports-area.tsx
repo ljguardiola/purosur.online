@@ -72,7 +72,6 @@ function ReportsArea() {
   const returnsShown = Boolean(matchRoute({ to: "/reports/returns" }));
   return (
     <AreaLayout
-      showsOpenAlertsCount
       area="reports"
       sectionColumnLabel="Reportes"
       sectionColumn={

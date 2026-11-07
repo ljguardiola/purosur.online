@@ -4,14 +4,12 @@ import {
   actionsColumn,
   dataColumn,
   formatCents,
-  formatNumber,
   isLocalAlertKind,
   ListFilter,
   type LocalAlertSubject,
   localAlertText,
   localAlertTitle,
   Pagination,
-  plural,
   SearchField,
   StatusIndicator,
   Table,
@@ -21,31 +19,29 @@ import {
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
 import { Bell, Eye, Search } from "lucide-react";
-import { useEffect, useEffectEvent, useState } from "react";
+import { useEffect, useEffectEvent, useId, useState } from "react";
 import { ALERT_LEVEL_LABELS } from "../platform/alert-level-label";
 import { ALERT_LEVEL_TONE } from "../platform/alert-level-tone";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { paymentMethodLabel } from "../platform/payment-method-label";
 import type { CloudData } from "../platform/use-cloud-query";
 import type { BackofficeAccess } from "../shell/backoffice-access";
-import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTitle } from "../shell/screen-title";
 import { AlertDetailModal, alertDateTime } from "./alert-detail-modal";
 import { alertKindDescription, DESCRIBED_ALERT_KINDS } from "./alert-kind-description";
 import { alertKindLabel } from "./alert-kind-label";
 import { alertScopeLabel } from "./alert-scope-label";
 import type { AlertListQuery } from "./alerts-api";
-import type { AlertsListScreenServices } from "./alerts-list-services";
-import { AlertsOpenCountPill } from "./alerts-open-count-pill";
+import { ALERTS_LIST_ANCHOR } from "./alerts-list-anchor";
+import type { AlertsListSectionServices } from "./alerts-list-services";
 import { useAlertsQuery } from "./alerts-queries";
 import type { AlertsListFilters } from "./routes";
 
-export type AlertsListScreenProps = {
+export type AlertsListSectionProps = {
   filters: AlertsListFilters;
   onFiltersChange: (filters: AlertsListFilters) => void;
   access: BackofficeAccess;
   onSessionEnded: () => void;
-  services: AlertsListScreenServices;
+  services: AlertsListSectionServices;
 };
 
 const NO_ALERTS: AlertSummary[] = [];
@@ -136,13 +132,13 @@ const STATUS_FILTER_OPTIONS = [
   { value: "closed", label: "Cerradas" },
 ] as const;
 
-export function AlertsListScreen({
+export function AlertsListSection({
   filters,
   onFiltersChange,
   access,
   onSessionEnded,
   services,
-}: AlertsListScreenProps) {
+}: AlertsListSectionProps) {
   const { fetchAlerts, alertDetailModal } = services;
   const [levelFilter, setLevelFilter] = useState<LevelFilter>(filters.level);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(filters.status);
@@ -150,6 +146,20 @@ export function AlertsListScreen({
   const [searchQuery, setSearchQuery] = useState(filters.search.trim());
   const [page, setPage] = useState(filters.page);
   const [selectedAlertId, setSelectedAlertId] = useState<string | null>(null);
+  const headingId = useId();
+
+  const [seenFilters, setSeenFilters] = useState(filters);
+  if (!deepEqual(seenFilters, filters)) {
+    setSeenFilters(filters);
+    const shown: AlertsListFilters = { level: levelFilter, status: statusFilter, search, page };
+    if (!deepEqual(shown, filters)) {
+      setLevelFilter(filters.level);
+      setStatusFilter(filters.status);
+      setSearch(filters.search);
+      setSearchQuery(filters.search.trim());
+      setPage(filters.page);
+    }
+  }
 
   const reportFilters = useEffectEvent(onFiltersChange);
 
@@ -196,8 +206,6 @@ export function AlertsListScreen({
   const data = isPastLastPage ? LOADING_PAST_LAST_PAGE : read;
 
   const alerts = data.status === "loaded" ? data.value.alerts : NO_ALERTS;
-  const openCount = data.status === "loaded" ? data.value.openCount : 0;
-  const criticalCount = data.status === "loaded" ? data.value.openCriticalCount : 0;
   const pageCount =
     data.status === "loaded" ? Math.ceil(data.value.total / data.value.pageSize) : 0;
   const isFiltered = searchQuery.length > 0 || levelFilter !== "all" || statusFilter !== "open";
@@ -251,18 +259,10 @@ export function AlertsListScreen({
 
   return (
     <>
-      <ScreenLayout
-        topBar={
-          <div className="flex h-18 shrink-0 items-center justify-between border-border border-b bg-surface px-8">
-            <div className="flex flex-col justify-center">
-              <p className="text-text-subtle text-detail">Inicio</p>
-              <ScreenTitle>Alertas</ScreenTitle>
-            </div>
-            <AlertsOpenCountPill openCount={openCount} />
-          </div>
-        }
-        bodyClassName="gap-4 p-6"
-      >
+      <section id={ALERTS_LIST_ANCHOR} aria-labelledby={headingId} className="flex flex-col gap-3">
+        <h2 id={headingId} className="text-subheading text-text">
+          Lista de alertas
+        </h2>
         <div className="flex flex-wrap items-center gap-3">
           <div className="w-105">
             <SearchField
@@ -314,10 +314,7 @@ export function AlertsListScreen({
           }
           footer={
             alerts.length === 0 ? undefined : (
-              <div className="flex items-center justify-between gap-4">
-                <p className="text-text-subtle text-detail">
-                  {`${plural(openCount, { one: "1 alerta abierta", other: `${formatNumber(openCount)} alertas abiertas` })} · ${plural(criticalCount, { one: "1 crítica", other: `${formatNumber(criticalCount)} críticas` })}`}
-                </p>
+              <div className="flex items-center justify-end gap-4">
                 <Pagination
                   page={page}
                   pageCount={pageCount}
@@ -328,7 +325,7 @@ export function AlertsListScreen({
             )
           }
         />
-      </ScreenLayout>
+      </section>
       <AlertDetailModal
         alertId={selectedAlertId}
         access={access}

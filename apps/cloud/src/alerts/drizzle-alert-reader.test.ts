@@ -132,7 +132,7 @@ describe("DrizzleAlertReader sight", () => {
     expect(await visibleIds({ kind: "local", locationId: ownLocationId })).toEqual([own]);
   });
 
-  it("applies the same sight when finding one alert, counting and summarising the open ones", async () => {
+  it("applies the same sight when finding one alert and summarising the open ones", async () => {
     const own = await insertAlert({
       audience: "local",
       locationId: ownLocationId,
@@ -146,10 +146,6 @@ describe("DrizzleAlertReader sight", () => {
 
     expect((await reader.findVisibleAlert(sight, own))?.id).toBe(own);
     expect(await reader.findVisibleAlert(sight, foreign)).toBeUndefined();
-    expect(await reader.countOpenVisibleAlerts(sight)).toEqual({
-      openCount: 1,
-      openCriticalCount: 1,
-    });
     expect(await reader.overviewOfOpenVisibleAlerts(sight)).toEqual({
       critical: { openCount: 1, kinds: ["register_enrolled"] },
       warning: { openCount: 0, kinds: [] },
