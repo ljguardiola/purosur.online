@@ -230,6 +230,10 @@ export { CreditNoteNumberTaken } from "./credit-note-ports.js";
 export type { CurrentFortnightCodeStanding } from "./current-fortnight-code-after-obtaining.js";
 export { currentFortnightCodeAfterObtaining } from "./current-fortnight-code-after-obtaining.js";
 export type {
+  CurrentOfflineAuthorizationCodePorts,
+  HeldOfflineAuthorizationCodeReader,
+} from "./current-offline-authorization-code-ports.js";
+export type {
   DecideSaleAuthorizationInput,
   DecideSaleAuthorizationOutcome,
 } from "./decide-sale-authorization.js";
@@ -284,10 +288,6 @@ export type {
   WsaaTokenSource,
 } from "./fiscal-document-authorization-ports.js";
 export { FiscalDocumentAlreadyRecorded } from "./fiscal-document-authorization-ports.js";
-export type {
-  CurrentOfflineAuthorizationCodePorts,
-  HeldOfflineAuthorizationCodeReader,
-} from "./current-offline-authorization-code-ports.js";
 export type { FiscalEmissionModeReads } from "./fiscal-emission-mode-ports.js";
 export type {
   BranchFortnightPresentation,
@@ -412,12 +412,12 @@ export type {
 } from "./orphan-authorization-ports.js";
 export type { OwedPresentationList } from "./owed-presentation-list-ports.js";
 export type { PendingDeferredSaleReader } from "./pending-deferred-sale-reader.js";
-export { readCurrentOfflineAuthorizationCode } from "./read-current-offline-authorization-code.js";
 export type {
   ArcaOnlineStatus,
   ReadArcaOnlineStatusInput,
 } from "./read-arca-online-status.js";
 export { readArcaOnlineStatus } from "./read-arca-online-status.js";
+export { readCurrentOfflineAuthorizationCode } from "./read-current-offline-authorization-code.js";
 export type {
   ExceptionShareYearMonth,
   ReadExceptionShareYearInput,

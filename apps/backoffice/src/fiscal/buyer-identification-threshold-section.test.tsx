@@ -43,9 +43,7 @@ test("shows the threshold in effect today with the day it started, and what a sa
   const screen = await render(sectionFor(loaded({ inEffect, scheduled })));
 
   await expect
-    .element(
-      screen.getByRole("heading", { name: "Umbral del comprador", level: 2, exact: true }),
-    )
+    .element(screen.getByRole("heading", { name: "Umbral del comprador", level: 2, exact: true }))
     .toBeVisible();
   await expect.element(screen.getByText("Vigente", { exact: true })).toBeVisible();
   await expect.element(screen.getByText("$ 10.000.000,00")).toBeVisible();

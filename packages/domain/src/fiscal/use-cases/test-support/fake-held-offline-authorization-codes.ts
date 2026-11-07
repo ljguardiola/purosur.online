@@ -14,8 +14,7 @@ export class FakeHeldOfflineAuthorizationCodes implements HeldOfflineAuthorizati
     this.asked.push(fortnight);
     return (
       this.held.find(
-        (code) =>
-          code.fortnight.start === fortnight.start && code.fortnight.end === fortnight.end,
+        (code) => code.fortnight.start === fortnight.start && code.fortnight.end === fortnight.end,
       ) ?? null
     );
   }

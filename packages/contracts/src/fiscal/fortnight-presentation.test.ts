@@ -55,9 +55,9 @@ describe("fortnightPresentationListSchema", () => {
   });
 
   it("refuses a presentation that does not say whether it is owed", () => {
-    expect(fortnightPresentationSchema.safeParse({ ...presentation, owed: undefined }).success).toBe(
-      false,
-    );
+    expect(
+      fortnightPresentationSchema.safeParse({ ...presentation, owed: undefined }).success,
+    ).toBe(false);
   });
 
   it("refuses an owed flag that is not a boolean", () => {

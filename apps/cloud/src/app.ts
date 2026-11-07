@@ -89,6 +89,7 @@ import {
   type CreditNoteRouteOptions,
   registerCreditNoteRoute,
 } from "./fiscal/credit-note-route.js";
+import { registerCurrentOfflineAuthorizationCodeRoute } from "./fiscal/current-offline-authorization-code-route.js";
 import type { EnqueueNumberingReconciliation } from "./fiscal/enqueue-numbering-conflict.js";
 import { registerExceptionShareYearRoute } from "./fiscal/exception-share-year-route.js";
 import { registerFiscalAddressCreationRoute } from "./fiscal/fiscal-address-creation-route.js";
@@ -121,7 +122,6 @@ import {
   registerRestoredRegisterOrphanSweepRoute,
 } from "./fiscal/restored-register-orphan-sweep-route.js";
 import { registerRevokedInstallationConfirmationRoute } from "./fiscal/revoked-installation-confirmation-route.js";
-import { registerCurrentOfflineAuthorizationCodeRoute } from "./fiscal/current-offline-authorization-code-route.js";
 import { registerUnbilledDeferredSalesRoute } from "./fiscal/unbilled-deferred-sales-route.js";
 import {
   registerUnclearOutcomeRoute,

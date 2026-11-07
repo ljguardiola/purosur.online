@@ -376,7 +376,9 @@ test("shows the sections of Configuración to a person with fiscal configuration
   await expect
     .element(screen.getByRole("heading", { name: "Emisor", level: 2, exact: true }))
     .toBeVisible();
-  await expect.element(screen.getByRole("heading", { name: "Domicilios", level: 2, exact: true })).toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "Domicilios", level: 2, exact: true }))
+    .toBeVisible();
   await expect
     .element(screen.getByRole("heading", { name: "Correcciones de reloj" }))
     .toBeVisible();

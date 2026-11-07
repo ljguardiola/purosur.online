@@ -191,6 +191,8 @@ export {
   fiscalCoreToRendererMessageSchema,
   fiscalRendererToCoreMessageSchema,
 } from "./fiscal/clock-guard-core-messages.js";
+export type { CurrentOfflineAuthorizationCode } from "./fiscal/current-offline-authorization-code.js";
+export { currentOfflineAuthorizationCodeSchema } from "./fiscal/current-offline-authorization-code.js";
 export { deferredSaleUnclearDocumentEventSchema } from "./fiscal/deferred-sale-unclear-document.js";
 export type {
   ExceptionShareYearBody,
@@ -286,8 +288,6 @@ export {
   saleVoidCreditNoteResponseSchema,
   saleVoidedEventCreditNoteSchema,
 } from "./fiscal/sale-void-credit-note.js";
-export type { CurrentOfflineAuthorizationCode } from "./fiscal/current-offline-authorization-code.js";
-export { currentOfflineAuthorizationCodeSchema } from "./fiscal/current-offline-authorization-code.js";
 export type { UnbilledDeferredSales } from "./fiscal/unbilled-deferred-sales.js";
 export { unbilledDeferredSalesSchema } from "./fiscal/unbilled-deferred-sales.js";
 export type {
