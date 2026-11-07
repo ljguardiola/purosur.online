@@ -1,11 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { scrubMercadoPagoRecording } from "./scrub-mercado-pago-recording.js";
+import { mercadoPagoRecordingScrubber } from "./scrub-mercado-pago-recording.js";
 
-const secrets = { accessToken: "TEST-9988776655-secret-token", accountId: "5544332211" };
+const secrets = {
+  accessToken: "TEST-9988776655-secret-token",
+  accountId: "5544332211",
+  externalPosId: "REALSTORE01REALPOS01",
+  terminalId: "PAX_A910__REALSERIAL77",
+  externalReferences: ["7b1c3f9e-qr-reference", "4d2a8e10-point-reference"],
+};
 
 function scrub(value: unknown) {
-  return scrubMercadoPagoRecording(value, secrets);
+  return mercadoPagoRecordingScrubber(secrets)(value);
 }
+
+const ORDER_ID = "ORD01KR7XQ2M9ZJ4H8P6TB3N5VWCYA";
+const OTHER_ORDER_ID = "ORD01KR7XQ2M9ZJ4H8P6TB3N5VWCYB";
+const PAYMENT_ID = "PAY01KR7XQ2M9ZJ4H8P6TB3N5VWCYC";
 
 describe("scrubbing a Mercado Pago recording", () => {
   it("replaces every occurrence of the access token inside a string", () => {
@@ -168,5 +178,111 @@ describe("scrubbing a Mercado Pago recording", () => {
 
   it("returns a primitive root unchanged with nothing replaced", () => {
     expect(scrub("plain text")).toEqual({ value: "plain text", replacements: [] });
+  });
+
+  describe("Mercado Pago's identifiers", () => {
+    it("replaces an order's and a payment's identifier with fictional ones of the same prefix and length", () => {
+      const result = scrub({ id: ORDER_ID, transactions: { payments: [{ id: PAYMENT_ID }] } });
+
+      expect(result.value).toEqual({
+        id: "ORD00000000000000000000000001",
+        transactions: { payments: [{ id: "PAY00000000000000000000000002" }] },
+      });
+      expect(result.replacements).toEqual([{ field: "id", count: 2 }]);
+    });
+
+    it("replaces reference and transaction identifiers and numeric ones too", () => {
+      const result = scrub({
+        reference_id: "01KR7XQ2M9ZJ4H8P6TB3N5VWCYD",
+        transaction_id: PAYMENT_ID,
+        id: 76543210987,
+        other: { id: "123456789" },
+      });
+
+      expect(result.value).toEqual({
+        reference_id: "000000000000000000000000001",
+        transaction_id: "PAY00000000000000000000000002",
+        id: 10000000003,
+        other: { id: "000000004" },
+      });
+      expect(result.replacements).toEqual([
+        { field: "reference_id", count: 1 },
+        { field: "transaction_id", count: 1 },
+        { field: "id", count: 2 },
+      ]);
+    });
+
+    it("gives the same identifier the same fictional one across every answer of one recording", () => {
+      const scrubber = mercadoPagoRecordingScrubber(secrets);
+
+      const first = scrubber({ data: [{ id: ORDER_ID }] });
+      const second = scrubber({ data: [{ id: OTHER_ORDER_ID }, { id: ORDER_ID }] });
+
+      expect(first.value).toEqual({ data: [{ id: "ORD00000000000000000000000001" }] });
+      expect(second.value).toEqual({
+        data: [{ id: "ORD00000000000000000000000002" }, { id: "ORD00000000000000000000000001" }],
+      });
+    });
+
+    it("scrubs the same answers the same way in a new recording", () => {
+      const answers = [{ data: [{ id: ORDER_ID }] }, { data: [{ id: PAYMENT_ID }] }];
+      const scrubbedBy = () => answers.map(mercadoPagoRecordingScrubber(secrets));
+
+      expect(scrubbedBy()).toEqual(scrubbedBy());
+    });
+
+    it("replaces an identifier written inside another text, even before its own field", () => {
+      const result = scrub({
+        message: `order ${ORDER_ID} cannot be read`,
+        id: ORDER_ID,
+      });
+
+      expect(result.value).toEqual({
+        message: "order ORD00000000000000000000000001 cannot be read",
+        id: "ORD00000000000000000000000001",
+      });
+      expect(result.replacements).toEqual([{ field: "id", count: 2 }]);
+    });
+
+    it("keeps identifiers that name a kind rather than a record", () => {
+      const body = { payment_method: { id: "account_money", type: "account_money" }, id: "visa" };
+
+      expect(scrub(body)).toEqual({ value: body, replacements: [] });
+    });
+  });
+
+  describe("the values the recording was made with", () => {
+    it("replaces the point of sale and the terminal wherever they are written", () => {
+      const result = scrub({
+        config: { qr: { pos: "REALSTORE01REALPOS01" } },
+        note: "queued on PAX_A910__REALSERIAL77",
+      });
+
+      expect(result.value).toEqual({
+        config: { qr: { pos: "STORE01POS01" } },
+        note: "queued on FICTIONAL__SMARTPOS1",
+      });
+      expect(result.replacements).toEqual([
+        { field: "external_pos_id", count: 1 },
+        { field: "terminal_id", count: 1 },
+      ]);
+    });
+
+    it("replaces each external reference the recording made with a fixed fictional one", () => {
+      const result = scrub({
+        data: [
+          { external_reference: "7b1c3f9e-qr-reference" },
+          { external_reference: "4d2a8e10-point-reference" },
+        ],
+      });
+
+      expect(result.value).toEqual({
+        data: [
+          { external_reference: "00000000-0000-4000-8000-000000000001" },
+          { external_reference: "00000000-0000-4000-8000-000000000002" },
+        ],
+      });
+      expect(result.replacements).toEqual([{ field: "external_reference", count: 2 }]);
+    });
   });
 });

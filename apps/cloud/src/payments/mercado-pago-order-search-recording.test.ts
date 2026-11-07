@@ -60,7 +60,7 @@ function defaultResponder(overrides: Responder = () => undefined): Responder {
     }
     if (call.method === "POST" && url.pathname === "/v1/orders") {
       const type = JSON.parse(call.body ?? "{}").type as string;
-      const id = type === "qr" ? "ORDQR01" : "ORDPT01";
+      const id = type === "qr" ? "ORD01QRORDER000077" : "ORD01PTORDER000088";
       created.set(referenceOf(call), id);
       return json(201, orderBody(id, referenceOf(call)));
     }
@@ -168,8 +168,8 @@ describe("recording Mercado Pago order searches", () => {
       "GET /v1/orders",
       "GET /v1/orders",
       "GET /v1/orders",
-      "POST /v1/orders/ORDQR01/cancel",
-      "POST /v1/orders/ORDPT01/cancel",
+      "POST /v1/orders/ORD01QRORDER000077/cancel",
+      "POST /v1/orders/ORD01PTORDER000088/cancel",
     ]);
     expect(calls[0]?.headers["Authorization"]).toBe(`Bearer ${TOKEN}`);
     expect(JSON.parse(calls[1]?.body ?? "{}").type).toBe("qr");
@@ -273,7 +273,7 @@ describe("recording Mercado Pago order searches", () => {
     expect(recorded("raw", "qr-order-found")).toEqual({
       status: 200,
       body: {
-        data: [expect.objectContaining({ id: "ORDQR01", user_id: ACCOUNT_ID })],
+        data: [expect.objectContaining({ id: "ORD01QRORDER000077", user_id: ACCOUNT_ID })],
         paging: { total: 1 },
       },
     });
@@ -288,7 +288,37 @@ describe("recording Mercado Pago order searches", () => {
     expect(report.scrubbed.map(({ file }) => file)).toEqual(
       RECORDED_ORDER_SEARCHES.map((name) => `${name}.json`),
     );
-    expect(report.scrubbed[0]?.replacements).toEqual([{ field: "user_id", count: 1 }]);
+    expect(report.scrubbed[0]?.replacements).toEqual([
+      { field: "id", count: 1 },
+      { field: "external_reference", count: 1 },
+      { field: "user_id", count: 1 },
+    ]);
+  });
+
+  it("scrubs the identifiers, the point of sale, the terminal and the references the same way in every file", async () => {
+    const responder = defaultResponder((call) => {
+      const url = new URL(call.url);
+      return call.method === "GET" && url.searchParams.get("external_reference") === "id-5"
+        ? json(200, {
+            data: [],
+            note: "seen ORD01QRORDER000077 on REALPOS01 and PAX_A910__REAL123 for id-2 and id-4",
+          })
+        : undefined;
+    });
+
+    await run(responder);
+
+    expect(recorded("scrubbed", "qr-order-found").body.data[0]).toMatchObject({
+      id: "ORD000000000000001",
+      external_reference: "00000000-0000-4000-8000-000000000001",
+    });
+    expect(recorded("scrubbed", "point-order-found").body.data[0]).toMatchObject({
+      id: "ORD000000000000002",
+      external_reference: "00000000-0000-4000-8000-000000000002",
+    });
+    expect(recorded("scrubbed", "nothing-found").body.note).toBe(
+      "seen ORD000000000000001 on STORE01POS01 and FICTIONAL__SMARTPOS1 for 00000000-0000-4000-8000-000000000001 and 00000000-0000-4000-8000-000000000002",
+    );
   });
 
   it("keeps the access token and the account id out of the scrubbed files", async () => {
@@ -338,7 +368,7 @@ describe("recording Mercado Pago order searches", () => {
 
   it("reports an order that could not be cancelled", async () => {
     const responder = defaultResponder((call) =>
-      call.url.endsWith("/ORDPT01/cancel")
+      call.url.endsWith("/ORD01PTORDER000088/cancel")
         ? json(409, { errors: [{ code: "cannot_cancel_order" }] })
         : undefined,
     );
@@ -359,7 +389,7 @@ describe("recording Mercado Pago order searches", () => {
     await expect(run(responder)).rejects.toThrow(
       "Mercado Pago did not create the Point order: refused",
     );
-    expect(calls.at(-1)?.url).toBe(`${API}/v1/orders/ORDQR01/cancel`);
+    expect(calls.at(-1)?.url).toBe(`${API}/v1/orders/ORD01QRORDER000077/cancel`);
     expect(calls.filter((call) => call.url.includes("/v1/orders?"))).toEqual([]);
     expect(existsSync(join(outDir, "raw"))).toBe(false);
   });
