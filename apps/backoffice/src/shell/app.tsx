@@ -25,6 +25,7 @@ import type { HandConfirmedPaymentsScreenServices } from "../payments/hand-confi
 import type { PendingRefundsScreenServices } from "../payments/pending-refunds-services";
 import type { SalesByPaymentMethodScreenServices } from "../payments/sales-by-payment-method-services";
 import type { RolesListScreenServices } from "../permissions/roles-list-services";
+import type { ContingencyTicketRescueAssistant } from "../platform/contingency-ticket-rescue-assistant";
 import type {
   CategoryCreationModal,
   ProductCreationModal,
@@ -150,6 +151,7 @@ export type AppServices = {
   productCreationModal: ProductCreationModal;
   productPriceSection: ProductPriceSection;
   registerPointOfSaleSection: RegisterPointOfSaleSection;
+  contingencyTicketRescueAssistant: ContingencyTicketRescueAssistant;
   roleCreationModal: RoleCreationModal;
   reportRegisterFilter: ReportRegisterFilterServices;
   pendingRefundsScreen: PendingRefundsScreenServices;
@@ -206,6 +208,7 @@ type ShellServiceName =
   | "productCreationModal"
   | "productPriceSection"
   | "registerPointOfSaleSection"
+  | "contingencyTicketRescueAssistant"
   | "roleCreationModal"
   | "accountFooter"
   | "screenFailure"
@@ -248,6 +251,10 @@ const defaultRouteServices: RouteServices = {
   registerPointOfSaleSection: lazyScreen(
     () => import("../fiscal/register-point-of-sale-panel-section"),
     "RegisterPointOfSalePanelSection",
+  ),
+  contingencyTicketRescueAssistant: lazyScreen(
+    () => import("../backups/contingency-ticket-rescue-assistant"),
+    "ContingencyTicketRescueAssistant",
   ),
   roleCreationModal: lazyScreen(
     () => import("../permissions/create-role-from-selector-modal"),

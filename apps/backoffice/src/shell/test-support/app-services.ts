@@ -1,4 +1,5 @@
 import { vi } from "vitest";
+import { ContingencyTicketRescueAssistant } from "../../backups/contingency-ticket-rescue-assistant";
 import { createFakeQrScanner } from "../../backups/test-support/fake-qr-scanner";
 import { CreateCategoryFromSelectorModal } from "../../catalog/create-category-from-selector-modal";
 import { CreateProductFromSelectorModal } from "../../catalog/create-product-from-selector-modal";
@@ -333,6 +334,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     productCreationModal: CreateProductFromSelectorModal,
     productPriceSection: ProductPriceSection,
     registerPointOfSaleSection: RegisterPointOfSalePanelSection,
+    contingencyTicketRescueAssistant: ContingencyTicketRescueAssistant,
     roleCreationModal: CreateRoleFromSelectorModal,
     reportRegisterFilter: {
       fetchReportRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
