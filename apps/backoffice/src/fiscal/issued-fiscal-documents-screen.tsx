@@ -17,12 +17,16 @@ import { Eye, FileText, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import type { CloudData } from "../platform/use-cloud-query";
-import { AreaTopBar } from "../shell/area-top-bar";
+import { RegisterReportDownload } from "../shell/report-download";
+import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
+import { reportQueryOf } from "../shell/report-filters-search";
 import type { ReportRegisterField } from "../shell/report-register-field";
-import { ScreenLayout } from "../shell/screen-layout";
-import { useIssuedFiscalDocumentsQuery } from "./fiscal-queries";
-import { IssuedFiscalDocumentDetailModal } from "./issued-fiscal-document-detail-modal";
+import {
+  useIssuedFiscalDocumentsQuery,
+  useIssuedFiscalDocumentsReportQuery,
+} from "./fiscal-queries";
+import { IssuedFiscalDocumentPanel } from "./issued-fiscal-document-panel";
 import {
   authorizationDetailText,
   authorizationText,
@@ -32,11 +36,13 @@ import {
   voucherDetailText,
   voucherText,
 } from "./issued-fiscal-document-text";
+import { voucherKeyOf, voucherOfKey } from "./issued-fiscal-document-voucher";
 import {
   type IssuedFiscalDocumentsFilters,
   isDocumentNumberText,
 } from "./issued-fiscal-documents-filters";
 import { issuedFiscalDocumentsQueryOf } from "./issued-fiscal-documents-query";
+import { issuedFiscalDocumentsReportSpreadsheet } from "./issued-fiscal-documents-report-spreadsheet";
 import type { IssuedFiscalDocumentsScreenServices } from "./issued-fiscal-documents-services";
 
 export type IssuedFiscalDocumentsScreenProps = {
@@ -44,10 +50,9 @@ export type IssuedFiscalDocumentsScreenProps = {
   onFiltersChange: (filters: IssuedFiscalDocumentsFilters) => void;
   onSessionEnded: () => void;
   registerFilter: ReportRegisterField;
-  services: Pick<
-    IssuedFiscalDocumentsScreenServices,
-    "fetchIssuedFiscalDocuments" | "fetchIssuedFiscalDocument"
-  >;
+  openDocument: string | undefined;
+  onOpenDocumentChange: (document: string | undefined) => void;
+  services: IssuedFiscalDocumentsScreenServices;
 };
 
 type IssuedFiscalDocument = IssuedFiscalDocumentsBody["documents"][number];
@@ -149,10 +154,18 @@ export function IssuedFiscalDocumentsScreen({
   onFiltersChange,
   onSessionEnded,
   registerFilter,
+  openDocument,
+  onOpenDocumentChange,
   services,
 }: IssuedFiscalDocumentsScreenProps) {
   const [numberText, setNumberText] = useState(filters.number);
-  const [openVoucher, setOpenVoucher] = useState<Voucher | null>(null);
+  const [registerLabel, setRegisterLabel] = useState<string>();
+  const reportRead = useIssuedFiscalDocumentsReportQuery({
+    query: reportQueryOf(filters),
+    fetchIssuedFiscalDocumentsReport: services.fetchIssuedFiscalDocumentsReport,
+    onSessionEnded,
+  });
+  const shownReport = reportRead.status === "loaded" ? reportRead.value : reportRead.lastValue;
   const read = useIssuedFiscalDocumentsQuery({
     query: issuedFiscalDocumentsQueryOf(filters),
     fetchIssuedFiscalDocuments: services.fetchIssuedFiscalDocuments,
@@ -175,7 +188,7 @@ export function IssuedFiscalDocumentsScreen({
   const table = useTableModel({
     items: shown?.documents ?? NO_DOCUMENTS,
     id: documentId,
-    columns: documentColumnsOf(setOpenVoucher),
+    columns: documentColumnsOf((voucher) => onOpenDocumentChange(voucherKeyOf(voucher))),
   });
   const filtered = filters.kind !== "ALL" || filters.register !== "ALL" || filters.number !== "";
   const pageCount = shown === undefined ? 1 : Math.ceil(shown.total / shown.page_size);
@@ -195,12 +208,7 @@ export function IssuedFiscalDocumentsScreen({
   }
 
   return (
-    <ScreenLayout
-      topBar={
-        <AreaTopBar eyebrow="Caja y fiscal · Fiscal" title="Comprobantes y notas de crédito" />
-      }
-      bodyClassName="gap-4 p-6"
-    >
+    <div className="flex min-w-0 flex-1 flex-col gap-4 p-6">
       <div className="flex flex-wrap items-end gap-3">
         <SearchField
           value={numberText}
@@ -220,6 +228,21 @@ export function IssuedFiscalDocumentsScreen({
           onFiltersChange={changeFilters}
           answeredPeriod={shown?.range}
           registerFilter={registerFilter}
+          onRegisterLabelChange={setRegisterLabel}
+          trailing={
+            <RegisterReportDownload
+              dataStatus={reportRead.status}
+              registerLabel={registerLabel}
+              workbook={(label) =>
+                shownReport
+                  ? issuedFiscalDocumentsReportSpreadsheet(shownReport, shownReport.rows, label)
+                  : null
+              }
+              fileName={
+                shownReport ? reportFileName("Comprobantes emitidos", shownReport.range) : ""
+              }
+            />
+          }
         />
       </div>
       <Table
@@ -251,12 +274,14 @@ export function IssuedFiscalDocumentsScreen({
           )
         }
       />
-      <IssuedFiscalDocumentDetailModal
-        voucher={openVoucher}
-        onClose={() => setOpenVoucher(null)}
-        onSessionEnded={onSessionEnded}
-        services={services}
-      />
-    </ScreenLayout>
+      {openDocument === undefined ? null : (
+        <IssuedFiscalDocumentPanel
+          voucher={voucherOfKey(openDocument)}
+          onClose={() => onOpenDocumentChange(undefined)}
+          onSessionEnded={onSessionEnded}
+          services={services}
+        />
+      )}
+    </div>
   );
 }

@@ -6,5 +6,6 @@ export function createIssuedFiscalDocumentsServices(): IssuedFiscalDocumentsScre
     fetchIssuedFiscalDocuments: vi.fn(),
     fetchIssuedFiscalDocument: vi.fn(),
     fetchFiscalRegisters: vi.fn(),
+    fetchIssuedFiscalDocumentsReport: vi.fn(),
   };
 }

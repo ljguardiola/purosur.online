@@ -70,7 +70,7 @@ test("lists each pending task with its count as a link to the place where it is 
     .toBeVisible();
   const fiscal = screen.getByRole("link", { name: `Tareas fiscales ${fiscalTasks.tasks.length}` });
   await expect.element(fiscal).toBeVisible();
-  expect(hrefOf(fiscal)).toBe("/fiscal-tasks");
+  expect(hrefOf(fiscal)).toBe("/fiscal");
   const mercadoPago = screen.getByRole("link", { name: "Reembolsos por Mercado Pago 1" });
   expect(hrefOf(mercadoPago)).toBe("/refunds?channel=mercado-pago");
   const outside = screen.getByRole("link", { name: "Reembolsos fuera del sistema 1" });

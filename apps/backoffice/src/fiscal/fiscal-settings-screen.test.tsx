@@ -1,0 +1,816 @@
+import {
+  FICTIONAL_CUIT,
+  FICTIONAL_GROSS_INCOME_REGISTRATION,
+  FICTIONAL_LEGAL_NAME,
+} from "@purosur/domain/fiscal/test-support";
+import { FieldSizeProvider } from "@purosur/ui";
+import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { useIsFetching, useQueryClient } from "@tanstack/react-query";
+import { beforeEach, expect, test, vi } from "vitest";
+import { page, userEvent } from "vitest/browser";
+import { ARGENTINA_ZONE_RULES } from "../platform/test-support/zone-rules";
+import { render } from "../shell/test-support/render-with-router";
+import type { BuyerIdentificationThresholds } from "./buyer-identification-threshold-api";
+import type { FiscalAddress } from "./fiscal-addresses-api";
+import { fiscalKey } from "./fiscal-queries";
+import { FiscalSettingsScreen } from "./fiscal-settings-screen";
+import type { FiscalSettingsScreenServices } from "./fiscal-settings-services";
+import type { IssuerIdentification } from "./issuer-identification-api";
+
+beforeEach(() => {
+  window.history.pushState(null, "", "/");
+});
+
+const inEffect = { id: "threshold-1", amount: 1_000_000_000, validFrom: "2026-01-01" };
+
+const scheduled = { id: "threshold-2", amount: 1_500_000_000, validFrom: "2026-12-01" };
+
+function thresholds(
+  overrides: Partial<BuyerIdentificationThresholds> = {},
+): BuyerIdentificationThresholds {
+  return { inEffect, scheduled: null, earliestValidFrom: "2026-10-08", ...overrides };
+}
+
+function createServices(
+  overrides: Partial<FiscalSettingsScreenServices> = {},
+): FiscalSettingsScreenServices {
+  return {
+    fetchIssuerIdentification: vi.fn(),
+    saveIssuerIdentification: vi.fn(),
+    fetchBuyerIdentificationThresholds: vi
+      .fn()
+      .mockResolvedValue({ kind: "ok", value: thresholds() }),
+    recordBuyerIdentificationThreshold: vi.fn(),
+    fetchClockCorrections: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
+    fetchFiscalAddresses: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
+    createFiscalAddress: vi.fn(),
+    editFiscalAddress: vi.fn(),
+    fetchCurrentZoneRules: vi.fn().mockResolvedValue({ kind: "ok", value: ARGENTINA_ZONE_RULES }),
+    fetchSessionAuthorizationOptions: vi.fn(),
+    authorizeSession: vi.fn(),
+    startAuthentication: vi.fn(),
+    ...overrides,
+  };
+}
+
+function deferred<T>() {
+  let resolve: (value: T) => void = () => {};
+  const promise = new Promise<T>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+}
+
+type FetchOutcome = Awaited<ReturnType<FiscalSettingsScreenServices["fetchIssuerIdentification"]>>;
+
+function FetchesInFlight() {
+  return <output aria-label="Lecturas en curso">{useIsFetching()}</output>;
+}
+
+function RefreshFiscal() {
+  const client = useQueryClient();
+  return (
+    <button type="button" onClick={() => void client.invalidateQueries({ queryKey: fiscalKey })}>
+      Refrescar
+    </button>
+  );
+}
+
+function refreshFiscal(screen: Awaited<ReturnType<typeof renderScreen>>) {
+  (screen.getByRole("button", { name: "Refrescar" }).element() as HTMLElement).click();
+}
+
+const complete: IssuerIdentification = {
+  legalName: FICTIONAL_LEGAL_NAME,
+  grossIncomeRegistration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+  activityStartDate: "2019-03-01",
+  authorizedCuit: FICTIONAL_CUIT,
+  taxStatus: "Responsable Monotributo",
+  version: 1,
+};
+
+const aDayOfOctober = () => new Date("2026-10-15T12:00:00-03:00");
+
+function renderScreen(
+  services: FiscalSettingsScreenServices,
+  onSessionEnded: () => void = () => {},
+  now: () => Date = aDayOfOctober,
+) {
+  return render(
+    <FieldSizeProvider size="backoffice">
+      <main>
+        <FiscalSettingsScreen services={services} onSessionEnded={onSessionEnded} now={now} />
+        <FetchesInFlight />
+        <RefreshFiscal />
+      </main>
+    </FieldSizeProvider>,
+  );
+}
+
+test("shows the issuer identification it reads, with no title of its own", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
+
+  const screen = await renderScreen(services);
+
+  expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
+  await expect
+    .element(screen.getByRole("heading", { name: "Emisor", level: 2, exact: true }))
+    .toBeVisible();
+  await expect.element(screen.getByText(FICTIONAL_LEGAL_NAME)).toBeVisible();
+});
+
+test("shows a load failure, and Reintentar goes back to the placeholder before loading again", async () => {
+  const services = createServices();
+  const retry = deferred<FetchOutcome>();
+  vi.mocked(services.fetchIssuerIdentification)
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockReturnValueOnce(retry.promise);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No pudimos abrir la configuración fiscal")).toBeVisible();
+  await expect.element(screen.getByText("Probá de nuevo en unos minutos.")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect
+    .element(screen.getByText("No pudimos abrir la configuración fiscal"))
+    .not.toBeInTheDocument();
+  await expect.element(screen.getByText("Cargando…")).toHaveTextContent("Cargando…");
+  retry.resolve({ kind: "ok", value: complete });
+  await expect.element(screen.getByText(FICTIONAL_LEGAL_NAME)).toBeVisible();
+});
+
+test("sends to Mi cuenta when the load comes back forbidden", async () => {
+  window.history.pushState(null, "", "/fiscal-settings");
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "forbidden" });
+
+  await renderScreen(services);
+
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
+});
+
+test("ends the session when the load finds it closed", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "unauthenticated" });
+  const onSessionEnded = vi.fn();
+
+  await renderScreen(services, onSessionEnded);
+
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("Editar opens the issuer identification modal with the loaded values", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText(FICTIONAL_LEGAL_NAME)).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+
+  const dialog = screen.getByRole("dialog");
+  await expect
+    .element(dialog.getByRole("heading", { name: "Identificación del emisor" }))
+    .toBeVisible();
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Razón social/ }))
+    .toHaveValue(FICTIONAL_LEGAL_NAME);
+});
+
+test("saves the edit directly, without the authorization modal, when the session already has one, and shows what the read after it returns", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification)
+    .mockResolvedValueOnce({ kind: "ok", value: complete })
+    .mockResolvedValueOnce({
+      kind: "ok",
+      value: { ...complete, legalName: "Nueva Razón Social SRL", version: 2 },
+    });
+  vi.mocked(services.saveIssuerIdentification).mockResolvedValue({ kind: "ok" });
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+  const dialog = screen.getByRole("dialog");
+  await userEvent.fill(
+    dialog.getByRole("textbox", { name: /^Razón social/ }),
+    "Nueva Razón Social SRL",
+  );
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => vi.mocked(services.saveIssuerIdentification).mock.calls.length).toBe(1);
+  expect(services.saveIssuerIdentification).toHaveBeenCalledWith({
+    legal_name: "Nueva Razón Social SRL",
+    gross_income_registration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+    activity_start_date: "2019-03-01",
+    version: 1,
+  });
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.element(screen.getByText("Nueva Razón Social SRL")).toBeVisible();
+  expect(services.fetchIssuerIdentification).toHaveBeenCalledTimes(2);
+});
+
+test("keeps the modal open and Guardar disabled while the issuer identification is read again after a save", async () => {
+  const services = createServices();
+  const refresh = deferred<FetchOutcome>();
+  vi.mocked(services.fetchIssuerIdentification)
+    .mockResolvedValueOnce({ kind: "ok", value: complete })
+    .mockReturnValueOnce(refresh.promise);
+  vi.mocked(services.saveIssuerIdentification).mockResolvedValue({ kind: "ok" });
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => vi.mocked(services.fetchIssuerIdentification).mock.calls.length).toBe(2);
+  await expect.element(dialog.getByRole("button", { name: "Guardar los cambios" })).toBeDisabled();
+  await expect.element(dialog).toBeVisible();
+  refresh.resolve({ kind: "ok", value: { ...complete, legalName: "Leída SRL", version: 2 } });
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.element(screen.getByText("Leída SRL")).toBeVisible();
+});
+
+test("shows a load failure instead of the data when reading the issuer identification again after a save fails", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification)
+    .mockResolvedValueOnce({ kind: "ok", value: complete })
+    .mockResolvedValueOnce({ kind: "failed" });
+  vi.mocked(services.saveIssuerIdentification).mockResolvedValue({ kind: "ok" });
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+  const dialog = screen.getByRole("dialog");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.element(screen.getByText("No pudimos abrir la configuración fiscal")).toBeVisible();
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  expect(screen.getByText(FICTIONAL_LEGAL_NAME).query()).toBeNull();
+});
+
+test("a second save sends the version the read after the first save returned", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification)
+    .mockResolvedValueOnce({ kind: "ok", value: complete })
+    .mockResolvedValueOnce({ kind: "ok", value: { ...complete, version: 2 } });
+  vi.mocked(services.saveIssuerIdentification).mockResolvedValue({ kind: "ok" });
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+  await userEvent.click(
+    screen.getByRole("dialog").getByRole("button", { name: "Guardar los cambios" }),
+  );
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+  await userEvent.click(
+    screen.getByRole("dialog").getByRole("button", { name: "Guardar los cambios" }),
+  );
+
+  await expect.poll(() => vi.mocked(services.saveIssuerIdentification).mock.calls.length).toBe(2);
+  expect(services.saveIssuerIdentification).toHaveBeenLastCalledWith(
+    expect.objectContaining({ version: 2 }),
+  );
+});
+
+test("shows a load failure instead of the modal when Recargar cannot read the issuer identification", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification)
+    .mockResolvedValueOnce({ kind: "ok", value: complete })
+    .mockResolvedValueOnce({ kind: "failed" });
+  vi.mocked(services.saveIssuerIdentification).mockResolvedValueOnce({ kind: "stale_version" });
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+  const dialog = screen.getByRole("dialog");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+  await expect
+    .element(dialog.getByText("La identificación del emisor cambió mientras la editabas"))
+    .toBeVisible();
+
+  await userEvent.click(dialog.getByRole("button", { name: "Recargar" }));
+
+  await expect.element(screen.getByText("No pudimos abrir la configuración fiscal")).toBeVisible();
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+});
+
+test("keeps the modal closed once Reintentar loads the data a failed Recargar could not read", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification)
+    .mockResolvedValueOnce({ kind: "ok", value: complete })
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockResolvedValueOnce({ kind: "ok", value: { ...complete, version: 2 } });
+  vi.mocked(services.saveIssuerIdentification).mockResolvedValueOnce({ kind: "stale_version" });
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+  const dialog = screen.getByRole("dialog");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+  await expect
+    .element(dialog.getByText("La identificación del emisor cambió mientras la editabas"))
+    .toBeVisible();
+  await userEvent.click(dialog.getByRole("button", { name: "Recargar" }));
+  await expect.element(screen.getByText("No pudimos abrir la configuración fiscal")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByText(FICTIONAL_LEGAL_NAME)).toBeVisible();
+  expect(screen.getByRole("dialog").query()).toBeNull();
+});
+
+test("keeps what Recargar brought on the screen after Cancelar, so reopening saves with the reloaded version", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValueOnce({
+    kind: "ok",
+    value: complete,
+  });
+  vi.mocked(services.saveIssuerIdentification).mockResolvedValueOnce({ kind: "stale_version" });
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+  const dialog = screen.getByRole("dialog");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+  await expect
+    .element(dialog.getByText("La identificación del emisor cambió mientras la editabas"))
+    .toBeVisible();
+
+  const reloaded: IssuerIdentification = { ...complete, legalName: "Recargado SRL", version: 5 };
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValueOnce({
+    kind: "ok",
+    value: reloaded,
+  });
+  await userEvent.click(dialog.getByRole("button", { name: "Recargar" }));
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Razón social/ }))
+    .toHaveValue("Recargado SRL");
+  await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+
+  await expect.element(screen.getByText("Recargado SRL")).toBeVisible();
+
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({
+    kind: "ok",
+    value: { ...reloaded, version: 6 },
+  });
+  vi.mocked(services.saveIssuerIdentification).mockResolvedValueOnce({ kind: "ok" });
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+  await userEvent.click(
+    screen.getByRole("dialog").getByRole("button", { name: "Guardar los cambios" }),
+  );
+
+  await expect.poll(() => vi.mocked(services.saveIssuerIdentification).mock.calls.length).toBe(2);
+  expect(services.saveIssuerIdentification).toHaveBeenLastCalledWith({
+    legal_name: "Recargado SRL",
+    gross_income_registration: FICTIONAL_GROSS_INCOME_REGISTRATION,
+    activity_start_date: "2019-03-01",
+    version: 5,
+  });
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+});
+
+test("keeps every value of the form, edited or not, when a refresh lands with different data while an edit is unsaved", async () => {
+  const services = createServices();
+  const refresh = deferred<FetchOutcome>();
+  vi.mocked(services.fetchIssuerIdentification)
+    .mockResolvedValueOnce({ kind: "ok", value: complete })
+    .mockReturnValueOnce(refresh.promise);
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+  const dialog = screen.getByRole("dialog");
+  const legalName = dialog.getByRole("textbox", { name: /^Razón social/ });
+  await userEvent.fill(legalName, "Editada SRL");
+  refreshFiscal(screen);
+  await expect.element(screen.getByLabelText("Lecturas en curso")).toHaveTextContent("1");
+
+  refresh.resolve({
+    kind: "ok",
+    value: { ...complete, grossIncomeRegistration: "999", version: 2 },
+  });
+
+  await expect.element(screen.getByLabelText("Lecturas en curso")).toHaveTextContent("0");
+  await expect.element(legalName).toHaveValue("Editada SRL");
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Ingresos Brutos/ }))
+    .toHaveValue(FICTIONAL_GROSS_INCOME_REGISTRATION);
+});
+
+test("shows the refreshed data in the modal over values the person has not edited", async () => {
+  const services = createServices();
+  const refresh = deferred<FetchOutcome>();
+  vi.mocked(services.fetchIssuerIdentification)
+    .mockResolvedValueOnce({ kind: "ok", value: complete })
+    .mockReturnValueOnce(refresh.promise);
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+  const dialog = screen.getByRole("dialog");
+  refreshFiscal(screen);
+
+  refresh.resolve({ kind: "ok", value: { ...complete, legalName: "Refrescada SRL", version: 2 } });
+
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Razón social/ }))
+    .toHaveValue("Refrescada SRL");
+});
+
+test("after an unsaved edit and a refresh, the save sends the version the form was last seeded from", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification)
+    .mockResolvedValueOnce({ kind: "ok", value: complete })
+    .mockResolvedValueOnce({ kind: "ok", value: { ...complete, version: 2 } });
+  vi.mocked(services.saveIssuerIdentification).mockResolvedValueOnce({ kind: "stale_version" });
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+  const dialog = screen.getByRole("dialog");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Razón social/ }), "Editada SRL");
+  refreshFiscal(screen);
+  await expect.poll(() => vi.mocked(services.fetchIssuerIdentification).mock.calls.length).toBe(2);
+  await expect.element(screen.getByLabelText("Lecturas en curso")).toHaveTextContent("0");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => vi.mocked(services.saveIssuerIdentification).mock.calls.length).toBe(1);
+  expect(services.saveIssuerIdentification).toHaveBeenCalledWith(
+    expect.objectContaining({ legal_name: "Editada SRL", version: 1 }),
+  );
+});
+
+test("has no accessibility violations once loaded", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText(FICTIONAL_LEGAL_NAME)).toBeVisible();
+
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("shows the issuer identification, the buyer-identification threshold, the fiscal addresses and the clock corrections in that order", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
+  vi.mocked(services.fetchBuyerIdentificationThresholds).mockResolvedValue({
+    kind: "ok",
+    value: thresholds(),
+  });
+
+  const screen = await renderScreen(services);
+
+  const headings = screen.getByRole("heading", { level: 2 }).elements();
+  expect(headings.map((heading) => heading.textContent)).toEqual([
+    "Emisor",
+    "Umbral del comprador",
+    "Domicilios",
+    "Correcciones de reloj",
+  ]);
+  await expect.element(screen.getByText("$ 10.000.000,00")).toBeVisible();
+});
+
+test("a threshold that fails to load leaves the issuer identification on screen, and each section retries on its own", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
+  vi.mocked(services.fetchBuyerIdentificationThresholds)
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockResolvedValueOnce({ kind: "ok", value: thresholds() });
+
+  const screen = await renderScreen(services);
+
+  await expect
+    .element(screen.getByText("No pudimos abrir el umbral de identificación del comprador"))
+    .toBeVisible();
+  await expect.element(screen.getByText(FICTIONAL_LEGAL_NAME)).toBeVisible();
+  await expect
+    .element(screen.getByRole("button", { name: "Cargar un umbral nuevo" }))
+    .toBeDisabled();
+  await expect.element(screen.getByRole("button", { name: "Editar" })).toBeEnabled();
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByText("$ 10.000.000,00")).toBeVisible();
+  expect(services.fetchIssuerIdentification).toHaveBeenCalledTimes(1);
+});
+
+test("the issuer identification failing to load leaves the threshold on screen", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "failed" });
+  vi.mocked(services.fetchBuyerIdentificationThresholds).mockResolvedValue({
+    kind: "ok",
+    value: thresholds(),
+  });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("No pudimos abrir la configuración fiscal")).toBeVisible();
+  await expect.element(screen.getByText("$ 10.000.000,00")).toBeVisible();
+  await expect
+    .element(screen.getByRole("button", { name: "Cargar un umbral nuevo" }))
+    .toBeEnabled();
+});
+
+test("ends the session when the thresholds read finds it closed", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
+  vi.mocked(services.fetchBuyerIdentificationThresholds).mockResolvedValue({
+    kind: "unauthenticated",
+  });
+  const onSessionEnded = vi.fn();
+
+  await renderScreen(services, onSessionEnded);
+
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("Cargar un umbral nuevo opens its own modal, and Editar opens the issuer one", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText(FICTIONAL_LEGAL_NAME)).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Cargar un umbral nuevo" }));
+
+  await expect
+    .element(screen.getByRole("dialog").getByRole("heading", { name: "Cargar un umbral nuevo" }))
+    .toBeVisible();
+  expect(
+    screen.getByRole("heading", { name: "Emisor", level: 2, exact: true }).query(),
+  ).not.toBeNull();
+  await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Cancelar" }));
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+
+  await userEvent.click(screen.getByRole("button", { name: "Editar" }));
+
+  await expect
+    .element(screen.getByRole("dialog").getByRole("heading", { name: "Identificación del emisor" }))
+    .toBeVisible();
+});
+
+test("recording a threshold closes the modal, shows the threshold the read after it returns, and says it was loaded", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
+  vi.mocked(services.fetchBuyerIdentificationThresholds)
+    .mockResolvedValueOnce({ kind: "ok", value: thresholds() })
+    .mockResolvedValue({
+      kind: "ok",
+      value: thresholds({ scheduled }),
+    });
+  vi.mocked(services.recordBuyerIdentificationThreshold).mockResolvedValue({
+    kind: "ok",
+    value: { id: "threshold-2", amount: 1_500_000_000, validFrom: "2026-12-01" },
+  });
+  await page.viewport(1440, 1000);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("$ 10.000.000,00")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Cargar un umbral nuevo" }));
+  const dialog = screen.getByRole("dialog");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Importe/ }), "15000000,00");
+  await userEvent.click(
+    dialog
+      .getByRole("group", { name: /^Vigente desde/ })
+      .getByRole("spinbutton")
+      .first(),
+  );
+  await userEvent.keyboard("01122026");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Cargar el umbral" }));
+
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.element(screen.getByText("Próximo")).toBeVisible();
+  await expect.element(screen.getByText("$ 15.000.000,00")).toBeVisible();
+  await expect.element(screen.getByText("Umbral cargado")).toBeVisible();
+  await expect.element(screen.getByText("Rige desde el 01/12/2026.")).toBeVisible();
+  expect(services.fetchBuyerIdentificationThresholds).toHaveBeenCalledTimes(2);
+  expect(services.fetchIssuerIdentification).toHaveBeenCalledTimes(2);
+});
+
+test("keeps the threshold modal open with what was typed, asking to review the day, when the thresholds cannot be read again after a start before today", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
+  vi.mocked(services.fetchBuyerIdentificationThresholds)
+    .mockResolvedValueOnce({ kind: "ok", value: thresholds() })
+    .mockResolvedValue({ kind: "failed" });
+  vi.mocked(services.recordBuyerIdentificationThreshold).mockResolvedValue({
+    kind: "before_today",
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("$ 10.000.000,00")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Cargar un umbral nuevo" }));
+  const dialog = screen.getByRole("dialog");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Importe/ }), "15000000,00");
+  await userEvent.click(
+    dialog
+      .getByRole("group", { name: /^Vigente desde/ })
+      .getByRole("spinbutton")
+      .first(),
+  );
+  await userEvent.keyboard("01012026");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Cargar el umbral" }));
+
+  await expect.element(dialog.getByText("Revisá la fecha.")).toBeVisible();
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Importe/ }))
+    .toHaveValue("15.000.000,00");
+});
+
+test("a refresh of the fiscal data reads the thresholds again without hiding them", async () => {
+  const services = createServices();
+  const refresh =
+    deferred<
+      Awaited<ReturnType<FiscalSettingsScreenServices["fetchBuyerIdentificationThresholds"]>>
+    >();
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
+  vi.mocked(services.fetchBuyerIdentificationThresholds)
+    .mockResolvedValueOnce({ kind: "ok", value: thresholds() })
+    .mockReturnValueOnce(refresh.promise);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("$ 10.000.000,00")).toBeVisible();
+
+  refreshFiscal(screen);
+  await expect.element(screen.getByLabelText("Lecturas en curso")).toHaveTextContent("1");
+
+  expect(screen.getByText("$ 10.000.000,00").query()).not.toBeNull();
+  expect(screen.getByText("Cargando…").query()).toBeNull();
+  await expect
+    .element(screen.getByRole("button", { name: "Cargar un umbral nuevo" }))
+    .toBeEnabled();
+  refresh.resolve({
+    kind: "ok",
+    value: thresholds({ inEffect: { ...inEffect, amount: 2_000_000_000 } }),
+  });
+  await expect.element(screen.getByText("$ 20.000.000,00")).toBeVisible();
+});
+
+test("lists the clock corrections it reads under their own heading", async () => {
+  const services = createServices({
+    fetchClockCorrections: vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: [
+        {
+          id: "correction-1",
+          correctedAt: "2026-10-05T12:00:00.000Z",
+          registerId: "register-1",
+          registerName: "Caja 1",
+          pointOfSaleNumber: 4,
+          actorFirstName: "Ada",
+          previousReading: "2026-10-07T14:31:00.000Z",
+          correctedReading: "2026-10-05T12:00:00.000Z",
+          alertState: "open",
+        },
+      ],
+    }),
+  });
+
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
+
+  const screen = await renderScreen(services);
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Correcciones de reloj", level: 2 }))
+    .toBeVisible();
+  await expect.element(screen.getByText("Corrigió Ada", { exact: true })).toBeVisible();
+});
+
+test("sends to Mi cuenta when reading the clock corrections comes back forbidden", async () => {
+  window.history.pushState(null, "", "/fiscal-settings");
+  const services = createServices({
+    fetchClockCorrections: vi.fn().mockResolvedValue({ kind: "forbidden" }),
+  });
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
+
+  await renderScreen(services);
+
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
+});
+
+test("ends the session when reading the clock corrections finds it closed", async () => {
+  const services = createServices({
+    fetchClockCorrections: vi.fn().mockResolvedValue({ kind: "unauthenticated" }),
+  });
+  vi.mocked(services.fetchIssuerIdentification).mockResolvedValue({ kind: "ok", value: complete });
+  const onSessionEnded = vi.fn();
+
+  await renderScreen(services, onSessionEnded);
+
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+const depot: FiscalAddress = {
+  id: "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+  name: "Depósito Central",
+  streetAddress: "Calle Ficticia 123, CABA",
+  version: 1,
+};
+
+const shop: FiscalAddress = {
+  id: "0b2f6a4e-5d1c-4f8a-9a31-6f4b8c2d7e10",
+  name: "Local Norte",
+  streetAddress: "Avenida Inventada 45, CABA",
+  version: 4,
+};
+
+test("lists the fiscal addresses with their name and street address", async () => {
+  const services = createServices({
+    fetchFiscalAddresses: vi.fn().mockResolvedValue({ kind: "ok", value: [depot, shop] }),
+  });
+  const screen = await renderScreen(services);
+
+  const table = screen.getByRole("table", { name: "Domicilios fiscales" });
+  await expect.element(table.getByText("Depósito Central")).toBeVisible();
+  await expect.element(table.getByText("Calle Ficticia 123, CABA")).toBeVisible();
+  await expect.element(table.getByText("Local Norte")).toBeVisible();
+  await expect.element(table.getByText("Avenida Inventada 45, CABA")).toBeVisible();
+});
+
+test("shows the table's empty state when there are no fiscal addresses", async () => {
+  const screen = await renderScreen(createServices());
+
+  await expect.element(screen.getByText("Todavía no hay domicilios fiscales")).toBeVisible();
+});
+
+test("shows a load failure for the fiscal addresses, and Reintentar loads them again", async () => {
+  const services = createServices({
+    fetchFiscalAddresses: vi
+      .fn()
+      .mockResolvedValueOnce({ kind: "failed" })
+      .mockResolvedValueOnce({ kind: "ok", value: [depot] }),
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No pudimos abrir los domicilios fiscales")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }).last());
+
+  await expect
+    .element(
+      screen.getByRole("table", { name: "Domicilios fiscales" }).getByText("Depósito Central"),
+    )
+    .toBeVisible();
+});
+
+test("sends to Mi cuenta when the fiscal addresses come back forbidden", async () => {
+  const services = createServices({
+    fetchFiscalAddresses: vi.fn().mockResolvedValue({ kind: "forbidden" }),
+  });
+
+  await renderScreen(services);
+
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
+});
+
+test("Nuevo domicilio fiscal opens the creation modal, and creating reads the list again and announces it", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchFiscalAddresses)
+    .mockResolvedValueOnce({ kind: "ok", value: [depot] })
+    .mockResolvedValue({ kind: "ok", value: [depot, shop] });
+  vi.mocked(services.createFiscalAddress).mockResolvedValue({ kind: "ok", fiscalAddress: shop });
+  const screen = await renderScreen(services);
+  await userEvent.click(screen.getByRole("button", { name: "Nuevo domicilio fiscal" }));
+  const dialog = screen.getByRole("dialog", { name: "Nuevo domicilio fiscal" });
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Local Norte");
+  await userEvent.fill(
+    dialog.getByRole("textbox", { name: /^Dirección/ }),
+    "Avenida Inventada 45, CABA",
+  );
+
+  await userEvent.click(dialog.getByRole("button", { name: "Crear el domicilio fiscal" }));
+
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect
+    .element(screen.getByRole("table", { name: "Domicilios fiscales" }).getByText("Local Norte"))
+    .toBeVisible();
+  await expect.element(screen.getByText("Domicilio fiscal creado")).toBeVisible();
+});
+
+test("Nuevo domicilio fiscal stays available while the data loads", async () => {
+  const services = createServices({
+    fetchFiscalAddresses: vi.fn().mockReturnValue(new Promise(() => {})),
+  });
+
+  const screen = await renderScreen(services);
+
+  await expect
+    .element(screen.getByRole("button", { name: "Nuevo domicilio fiscal" }))
+    .toBeEnabled();
+});
+
+test("a fiscal address's edit action opens its modal, and saving reads the list again and announces it", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchFiscalAddresses)
+    .mockResolvedValueOnce({ kind: "ok", value: [depot] })
+    .mockResolvedValue({
+      kind: "ok",
+      value: [{ ...depot, streetAddress: "Calle Inventada 9", version: 2 }],
+    });
+  vi.mocked(services.editFiscalAddress).mockResolvedValue({ kind: "ok" });
+  const screen = await renderScreen(services);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Editar el domicilio fiscal Depósito Central" }),
+  );
+  const dialog = screen.getByRole("dialog", { name: "Editar el domicilio fiscal" });
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Nombre/ }))
+    .toHaveValue("Depósito Central");
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Dirección/ }), "Calle Inventada 9");
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
+
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.element(screen.getByText("Calle Inventada 9")).toBeVisible();
+  await expect.element(screen.getByText("Domicilio fiscal guardado")).toBeVisible();
+});

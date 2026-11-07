@@ -100,7 +100,7 @@ function submit(dialog: Locator) {
 test("asks for the amount and the day the threshold starts, under its own title", async () => {
   const { dialog } = await renderModal();
 
-  await expect.element(dialog.getByText("Configuración fiscal")).toBeVisible();
+  await expect.element(dialog.getByText("Fiscal", { exact: true })).toBeVisible();
   await expect
     .element(dialog.getByRole("heading", { name: "Cargar un umbral nuevo" }))
     .toBeVisible();

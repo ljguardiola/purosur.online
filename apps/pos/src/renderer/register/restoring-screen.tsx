@@ -95,7 +95,7 @@ export function RestoringScreen({
               tone="info"
               icon={<QrCode />}
               title="Escaneá los tickets en el backoffice"
-              description="En Rescate de tickets. La caja sigue sola cuando se termina el rescate."
+              description="En Fiscal, «Rescatar tickets de contingencia». La caja sigue sola cuando se termina el rescate."
             />
           </>
         ) : null}

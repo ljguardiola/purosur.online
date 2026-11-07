@@ -47,10 +47,7 @@ type Task = {
   label: string;
   subject: string;
   count: CloudData<number>;
-} & (
-  | { to: "/fiscal-tasks" | "/prices" }
-  | { to: "/refunds"; channel: "mercado-pago" | "without-api" }
-);
+} & ({ to: "/fiscal" | "/prices" } | { to: "/refunds"; channel: "mercado-pago" | "without-api" });
 
 function TaskCard({ task }: { task: Task }) {
   if (task.count.status === "loading") {
@@ -102,7 +99,7 @@ function PendingTasks({
       key: "fiscal",
       label: "Tareas fiscales",
       subject: "las tareas fiscales",
-      to: "/fiscal-tasks",
+      to: "/fiscal",
       count: fiscal,
     },
     {

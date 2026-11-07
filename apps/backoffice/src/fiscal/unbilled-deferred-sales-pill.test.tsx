@@ -40,7 +40,7 @@ test("counts the unbilled deferred sales as a link that opens the fiscal tasks",
 
   await userEvent.click(link);
 
-  await expect.poll(() => window.location.pathname).toBe("/fiscal-tasks");
+  await expect.poll(() => window.location.pathname).toBe("/fiscal");
 });
 
 test("offers no way to dismiss the count", async () => {

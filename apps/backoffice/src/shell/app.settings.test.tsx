@@ -7,14 +7,7 @@ import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
-opensOnlyScreens([
-  "/",
-  "/contingency-ticket-rescue",
-  "/help",
-  "/location-settings",
-  "/people/roles",
-  "/people/users",
-]);
+opensOnlyScreens(["/", "/help", "/location-settings", "/people/roles", "/people/users"]);
 
 beforeEach(resetPageState);
 
@@ -246,50 +239,6 @@ test("redirects a non-Administrator's typed /roles to the own account panel, wit
   expect(services.rolesListScreen.fetchRoles).not.toHaveBeenCalled();
 });
 
-test("shows the Rescate de tickets item for a user holding contingency_ticket_rescue", async () => {
-  window.history.pushState(null, "", "/contingency-ticket-rescue");
-  const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue(
-      openSession({
-        userId: "user-2",
-        displayName: "Grace Villalba",
-        isAdministrator: false,
-        capabilities: ["contingency_ticket_rescue"],
-      }),
-    ),
-  });
-  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
-    kind: "ok",
-    value: [],
-  });
-  const screen = await render(<App help={emptyHelp} services={services} />);
-  await expect.element(screen.getByRole("navigation", { name: "Configuración" })).toBeVisible();
-
-  await expect.element(screen.getByRole("link", { name: "Rescate de tickets" })).toBeVisible();
-});
-
-test("following the sidebar's Rescate de tickets item opens the screen, with Config and the item active", async () => {
-  window.history.pushState(null, "", "/people/users");
-  const services = createAppServices();
-  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
-    kind: "ok",
-    value: [],
-  });
-  const screen = await render(<App help={emptyHelp} services={services} />);
-  await expect.element(screen.getByRole("heading", { name: "Personas", level: 1 })).toBeVisible();
-
-  await userEvent.click(screen.getByRole("link", { name: "Rescate de tickets" }));
-
-  await expect
-    .element(screen.getByRole("heading", { name: "Rescate de tickets", level: 1 }))
-    .toBeVisible();
-  expect(window.location.pathname).toBe("/contingency-ticket-rescue");
-  const item = screen
-    .getByRole("link", { name: "Rescate de tickets" })
-    .element() as HTMLAnchorElement;
-  expect(item.getAttribute("aria-current")).toBe("page");
-});
-
 test("redirects a typed /contingency-ticket-rescue to the own account panel for a user without contingency_ticket_rescue, without sending anything", async () => {
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(
@@ -312,6 +261,6 @@ test("redirects a typed /contingency-ticket-rescue to the own account panel for 
   await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
   expect(window.location.pathname + window.location.search).toBe("/?account=credentials");
   expect(
-    services.contingencyTicketRescueScreen.rescueContingencyBackupTicket,
+    services.contingencyTicketRescueModal.rescueContingencyBackupTicket,
   ).not.toHaveBeenCalled();
 });

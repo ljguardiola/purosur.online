@@ -201,6 +201,8 @@ export {
   fiscalCoreToRendererMessageSchema,
   fiscalRendererToCoreMessageSchema,
 } from "./fiscal/clock-guard-core-messages.js";
+export type { CurrentOfflineAuthorizationCode } from "./fiscal/current-offline-authorization-code.js";
+export { currentOfflineAuthorizationCodeSchema } from "./fiscal/current-offline-authorization-code.js";
 export { deferredSaleUnclearDocumentEventSchema } from "./fiscal/deferred-sale-unclear-document.js";
 export type {
   ExceptionShareYearBody,

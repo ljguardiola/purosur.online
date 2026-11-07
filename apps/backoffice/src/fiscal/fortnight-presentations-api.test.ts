@@ -33,6 +33,7 @@ const blockedWire = {
   movement: "documents",
   refusal: null,
   state: "blocked",
+  owed: true,
   revoked_installations: [],
 };
 
@@ -56,6 +57,7 @@ const blocked: FortnightPresentation = {
   movement: "documents",
   refusal: null,
   state: "blocked",
+  owed: true,
   revokedInstallations: [],
 };
 

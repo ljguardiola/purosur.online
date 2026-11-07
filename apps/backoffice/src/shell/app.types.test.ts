@@ -8,7 +8,7 @@ import type { TagsListScreenProps } from "../catalog/tags-list-screen";
 import type { AccountRecoveryScreenProps } from "../credentials/account-recovery-screen";
 import type { OwnCredentialsSectionProps } from "../credentials/own-credentials-section";
 import type { RegisterPasskeyScreenProps } from "../credentials/register-passkey-screen";
-import type { FiscalConfigurationScreenProps } from "../fiscal/fiscal-configuration-screen";
+import type { FiscalSettingsScreenProps } from "../fiscal/fiscal-settings-screen";
 import type { RolesListScreenProps } from "../permissions/roles-list-screen";
 import type { DiscountsListScreenProps } from "../pricing/discounts-list-screen";
 import type { PricesListScreenProps } from "../pricing/prices-list-screen";
@@ -70,8 +70,8 @@ test("makes every screen require its services", () => {
   expectTypeOf<ServicesProp<DiscountsListScreenProps>>().toEqualTypeOf<
     Required<ServicesProp<DiscountsListScreenProps>>
   >();
-  expectTypeOf<ServicesProp<FiscalConfigurationScreenProps>>().toEqualTypeOf<
-    Required<ServicesProp<FiscalConfigurationScreenProps>>
+  expectTypeOf<ServicesProp<FiscalSettingsScreenProps>>().toEqualTypeOf<
+    Required<ServicesProp<FiscalSettingsScreenProps>>
   >();
   expectTypeOf<ServicesProp<AlertsListSectionProps>>().toEqualTypeOf<
     Required<ServicesProp<AlertsListSectionProps>>

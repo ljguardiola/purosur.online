@@ -184,7 +184,7 @@ export function RecordBuyerIdentificationThresholdModal({
         width="standard"
         tone="info"
         icon={<Landmark />}
-        context="Configuración fiscal"
+        context="Fiscal"
         title="Cargar un umbral nuevo"
         closable
         footer={

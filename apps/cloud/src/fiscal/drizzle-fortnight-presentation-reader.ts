@@ -3,6 +3,7 @@ import {
   fortnightPeriod,
   fortnightPresentationRows,
   fortnightReportDeadline,
+  isFortnightPresentationOwed,
   isFortnightReportOutstanding,
   isHeldBackOnlyByRevokedInstallations,
   revokedInstallationsAwaitingConfirmation,
@@ -150,6 +151,7 @@ export class DrizzleFortnightPresentationReader<TQueryResult extends PgQueryResu
             revokedInstallationsOf.get(`${pointOfSaleNumber}:${code.fortnight.start}`) ?? [],
           fortnight: code.fortnight,
           deadline: fortnightReportDeadline(code.fortnight, code.reportDeadline),
+          owed: isFortnightPresentationOwed({ state, listed }),
         }));
       })
       .sort(

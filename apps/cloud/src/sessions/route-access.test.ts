@@ -16,6 +16,7 @@ import { rolePermissions, roles, sessions, userRoles, users } from "../platform/
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import {
+  anyCapabilityAccess,
   capabilityAccess,
   OFFSITE_DUMP_CHECK_ACCESS,
   OPEN_SESSION_ACCESS,
@@ -79,6 +80,16 @@ beforeEach(async () => {
   app.get(
     "/test-only/manage-users-capability",
     { config: { access: capabilityAccess("manage_users"), sessionSource } },
+    answerWithSession,
+  );
+  app.get(
+    "/test-only/fiscal-or-reports-capability",
+    {
+      config: {
+        access: anyCapabilityAccess("fiscal_information", "reports_area"),
+        sessionSource,
+      },
+    },
     answerWithSession,
   );
   app.get(
@@ -266,6 +277,41 @@ describe("the declared access, enforced before every handler", () => {
     const refused = await callRoute(path, countsSessionId);
     expect(refused.statusCode).toBe(403);
     expect(refused.json()).toMatchObject({ code: "forbidden" });
+  });
+
+  it("grants a user holding the permission of any one of the capabilities a route accepts, and no other", async () => {
+    const fiscalSessionId = await insertSession(
+      await insertUser(await insertRole("Fiscal", ["view_fiscal_documents"]), "fiscal@example.com"),
+    );
+    const reportsSessionId = await insertSession(
+      await insertUser(await insertRole("Reportes", ["view_reports"]), "reports@example.com"),
+    );
+    const otherSessionId = await insertSession(
+      await insertUser(await insertRole("Ajustes", ["adjust_stock"]), "adjust@example.com"),
+    );
+    const path = "/test-only/fiscal-or-reports-capability";
+
+    expect((await callRoute(path, fiscalSessionId)).statusCode).toBe(200);
+    expect((await callRoute(path, reportsSessionId)).statusCode).toBe(200);
+    const refused = await callRoute(path, otherSessionId);
+    expect(refused.statusCode).toBe(403);
+    expect(refused.json()).toMatchObject({ code: "forbidden" });
+  });
+
+  it("grants an Administrator a route that accepts any of several capabilities", async () => {
+    const rawSessionId = await insertSession(
+      await insertUser(await seededAdministratorRoleId(), "admin@example.com"),
+    );
+
+    const response = await callRoute("/test-only/fiscal-or-reports-capability", rawSessionId);
+
+    expect(response.statusCode).toBe(200);
+  });
+
+  it("returns 401 unauthenticated on a route that accepts any of several capabilities when no session is open", async () => {
+    const response = await callRoute("/test-only/fiscal-or-reports-capability");
+
+    expect(response.statusCode).toBe(401);
   });
 
   it("grants an Administrator every capability-declared route", async () => {
@@ -737,6 +783,31 @@ describe("the route access inventory", () => {
         method: "GET",
         url: "/movements",
         access: { level: "capability", capability: "stock_movements" },
+      },
+    ]);
+
+    await inventoryApp.close();
+  });
+
+  it("reports a route accepting any of several capabilities by the capabilities it names", async () => {
+    const inventoryApp = Fastify();
+    registerRouteAccess(inventoryApp);
+    inventoryApp.get(
+      "/either",
+      {
+        config: {
+          access: anyCapabilityAccess("fiscal_information", "reports_area"),
+          sessionSource: routeSessionSource({ db, now: () => NOON }),
+        },
+      },
+      async () => "ok",
+    );
+
+    expect(inventoryApp.routeAccessInventory()).toEqual([
+      {
+        method: "GET",
+        url: "/either",
+        access: { level: "any_capability", capabilities: ["fiscal_information", "reports_area"] },
       },
     ]);
 

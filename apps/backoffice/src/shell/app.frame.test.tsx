@@ -15,7 +15,7 @@ opensOnlyScreens([
   "/",
   "/account-recovery",
   "/categories",
-  "/fiscal-settings",
+  "/fiscal/settings",
   "/help",
   "/products",
   "/sign-in",
@@ -177,8 +177,8 @@ test.each(["/help", "/users", "/categories", "/products"])(
   },
 );
 
-test.each(["/help", "/users", "/products", "/fiscal-settings"])(
-  "lists Catálogo, then Caja y fiscal, then Config in the rail on %s",
+test.each(["/help", "/users", "/products", "/fiscal/settings"])(
+  "lists Catálogo, then Fiscal, then Config in the rail on %s",
   async (path) => {
     window.history.pushState(null, "", path);
     const services = createAppServices();
@@ -190,7 +190,7 @@ test.each(["/help", "/users", "/products", "/fiscal-settings"])(
       kind: "ok",
       value: [],
     });
-    vi.mocked(services.fiscalConfigurationScreen.fetchIssuerIdentification).mockResolvedValue({
+    vi.mocked(services.fiscalSettingsScreen.fetchIssuerIdentification).mockResolvedValue({
       kind: "ok",
       value: {
         legalName: FICTIONAL_LEGAL_NAME,
@@ -205,14 +205,12 @@ test.each(["/help", "/users", "/products", "/fiscal-settings"])(
     const screen = await render(<App help={emptyHelp} services={services} />);
 
     const rail = screen.getByRole("navigation", { name: "Áreas" });
-    await expect
-      .element(rail.getByRole("link", { name: "Caja y fiscal", exact: true }))
-      .toBeVisible();
+    await expect.element(rail.getByRole("link", { name: "Fiscal", exact: true })).toBeVisible();
     const labels = rail
       .getByRole("link")
       .elements()
       .map((link) => link.textContent);
-    expect(labels.indexOf("Catálogo")).toBeLessThan(labels.indexOf("Caja y fiscal"));
-    expect(labels.indexOf("Caja y fiscal")).toBeLessThan(labels.indexOf("Config"));
+    expect(labels.indexOf("Catálogo")).toBeLessThan(labels.indexOf("Fiscal"));
+    expect(labels.indexOf("Fiscal")).toBeLessThan(labels.indexOf("Config"));
   },
 );

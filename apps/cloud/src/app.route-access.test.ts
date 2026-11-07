@@ -103,6 +103,7 @@ describe("every route enforces the access it declares", () => {
         "open_session_peek",
         "session_cookie",
         "capability",
+        "any_capability",
         "record",
         "release_check",
         "offsite_dump_check",
@@ -143,6 +144,7 @@ describe("every route enforces the access it declares", () => {
         "open_session_peek",
         "session_cookie",
         "capability",
+        "any_capability",
         "record",
       ]),
     )("$method $url", async (route) => {
@@ -182,6 +184,25 @@ describe("every route enforces the access it declares", () => {
         CAPABILITY_PERMISSIONS[access.capability];
       const rawSessionId = await signedInWithRole(
         PERMISSION_KEYS.filter((key) => !capabilityPermissions.includes(key)),
+      );
+
+      const response = await send(route, rawSessionId);
+
+      expect(response.statusCode, `responded ${response.statusCode}, body: ${response.body}`).toBe(
+        403,
+      );
+      expect(response.json()).toMatchObject({ code: "forbidden" });
+    });
+  });
+
+  describe("answers 403 forbidden on every any-capability route to a user missing every permission of its capabilities", () => {
+    it.each(routesDeclaring(["any_capability"]))("$method $url", async (route) => {
+      const access = route.access as Extract<RouteAccess, { level: "any_capability" }>;
+      const acceptedPermissions: readonly PermissionKey[] = access.capabilities.flatMap(
+        (capability) => CAPABILITY_PERMISSIONS[capability],
+      );
+      const rawSessionId = await signedInWithRole(
+        PERMISSION_KEYS.filter((key) => !acceptedPermissions.includes(key)),
       );
 
       const response = await send(route, rawSessionId);

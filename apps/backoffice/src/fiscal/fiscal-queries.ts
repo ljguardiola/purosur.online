@@ -1,4 +1,5 @@
 import type {
+  CurrentOfflineAuthorizationCode,
   ExceptionShareYearBody,
   FiscalTasks,
   IssuedFiscalDocumentDetailBody,
@@ -21,6 +22,7 @@ import type {
 } from "./buyer-identification-threshold-api";
 import type { BuyerTaxStatus, fetchBuyerTaxStatuses } from "./buyer-tax-statuses-api";
 import type { ClockCorrection, fetchClockCorrections } from "./clock-corrections-api";
+import type { fetchCurrentOfflineAuthorizationCode } from "./current-offline-authorization-code-api";
 import type { fetchExceptionShareYear } from "./exception-share-api";
 import type { FiscalAddress, fetchFiscalAddresses } from "./fiscal-addresses-api";
 import type { fetchFiscalTasks } from "./fiscal-tasks-api";
@@ -65,6 +67,7 @@ export const fiscalKeys = {
   clockCorrections: [...fiscalKey, "clock-corrections"] as const,
   fiscalTasks: [...fiscalKey, "tasks"] as const,
   unbilledDeferredSales: [...fiscalKey, "unbilled-deferred-sales"] as const,
+  currentOfflineAuthorizationCode: [...fiscalKey, "current-offline-authorization-code"] as const,
   zoneRules: [...fiscalKey, "zone-rules"] as const,
   exceptionShareYear: (fiscalAddressId: string, year: number | undefined) =>
     [...fiscalKey, "exception-share", fiscalAddressId, year] as const,
@@ -150,11 +153,13 @@ export function useReloadBuyerIdentificationThresholds(params: {
 }
 
 export function useFiscalAddressesQuery(params: {
+  enabled?: boolean;
   fetchFiscalAddresses: typeof fetchFiscalAddresses;
   onSessionEnded: () => void;
 }) {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQuery<FiscalAddress[]>({
+    enabled: params.enabled,
     queryKey: fiscalKeys.fiscalAddresses,
     read: params.fetchFiscalAddresses,
     onSessionEnded: params.onSessionEnded,
@@ -176,11 +181,13 @@ export function useReloadFiscalAddresses(params: {
 }
 
 export function useRegisterPointsOfSaleQuery(params: {
+  enabled?: boolean;
   fetchRegisterPointsOfSale: typeof fetchRegisterPointsOfSale;
   onSessionEnded: () => void;
 }) {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQuery<RegisterPointOfSale[]>({
+    enabled: params.enabled,
     queryKey: fiscalKeys.registerPointsOfSale,
     read: params.fetchRegisterPointsOfSale,
     onSessionEnded: params.onSessionEnded,
@@ -202,11 +209,13 @@ export function useReloadRegisterPointsOfSale(params: {
 }
 
 export function useFortnightPresentationsQuery(params: {
+  enabled?: boolean;
   fetchFortnightPresentations: typeof fetchFortnightPresentations;
   onSessionEnded: () => void;
 }) {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQuery<FortnightPresentation[]>({
+    enabled: params.enabled,
     queryKey: fiscalKeys.fortnightPresentations,
     read: params.fetchFortnightPresentations,
     onSessionEnded: params.onSessionEnded,
@@ -228,11 +237,13 @@ export function useClockCorrectionsQuery(params: {
 }
 
 export function useOfflinePointsOfSaleQuery(params: {
+  enabled?: boolean;
   fetchOfflinePointsOfSale: typeof fetchOfflinePointsOfSale;
   onSessionEnded: () => void;
 }) {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQuery<OfflinePointOfSale[]>({
+    enabled: params.enabled,
     queryKey: fiscalKeys.offlinePointsOfSale,
     read: params.fetchOfflinePointsOfSale,
     onSessionEnded: params.onSessionEnded,
@@ -306,6 +317,17 @@ export function useUnbilledDeferredSalesQuery(params: {
   return useCloudQuery<UnbilledDeferredSales>({
     queryKey: fiscalKeys.unbilledDeferredSales,
     read: params.fetchUnbilledDeferredSales,
+    onSessionEnded: params.onSessionEnded,
+  });
+}
+
+export function useCurrentOfflineAuthorizationCodeQuery(params: {
+  fetchCurrentOfflineAuthorizationCode: typeof fetchCurrentOfflineAuthorizationCode;
+  onSessionEnded: () => void;
+}) {
+  return useCloudQuery<CurrentOfflineAuthorizationCode>({
+    queryKey: fiscalKeys.currentOfflineAuthorizationCode,
+    read: params.fetchCurrentOfflineAuthorizationCode,
     onSessionEnded: params.onSessionEnded,
   });
 }

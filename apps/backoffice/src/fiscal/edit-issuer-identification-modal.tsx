@@ -186,7 +186,7 @@ function LoadedEditIssuerIdentificationModal({
         width="standard"
         tone="info"
         icon={<Landmark />}
-        context="Configuración fiscal"
+        context="Fiscal"
         title="Identificación del emisor"
         closable
         footer={
@@ -295,7 +295,7 @@ export function EditIssuerIdentificationModal(props: EditIssuerIdentificationMod
       width="standard"
       tone="info"
       icon={<Landmark />}
-      context="Configuración fiscal"
+      context="Fiscal"
       title="Identificación del emisor"
       closable
       footer={

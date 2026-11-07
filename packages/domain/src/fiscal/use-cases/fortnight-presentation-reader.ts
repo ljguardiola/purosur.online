@@ -8,6 +8,7 @@ export interface BranchFortnightPresentation
   pointOfSaleNumber: number;
   fortnight: Fortnight;
   deadline: string;
+  owed: boolean;
   revokedInstallations: { installationId: string; revokedAt: Date }[];
 }
 

@@ -1,6 +1,5 @@
 import { createRoute, createRouter, redirect } from "@tanstack/react-router";
 import { alertsRedirectRoute, homeRoute } from "../alerts/routes";
-import { contingencyTicketRescueRoute } from "../backups/routes";
 import { branchSettingsRoute } from "../branch/routes";
 import {
   brandsListRoute,
@@ -14,12 +13,18 @@ import {
   registerPasskeyRoute,
 } from "../credentials/routes";
 import {
-  exceptionalityRoute,
-  fiscalConfigurationRoute,
+  caeaRoute,
+  fiscalRoute,
+  fiscalSettingsRoute,
   fiscalTasksRoute,
   issuedFiscalDocumentsReportRoute,
   issuedFiscalDocumentsRoute,
-  pointsOfSaleRoute,
+  legacyContingencyTicketRescueRoute,
+  legacyExceptionalityRoute,
+  legacyFiscalDocumentsRoute,
+  legacyFiscalSettingsRoute,
+  legacyFiscalTasksRoute,
+  legacyPointsOfSaleRoute,
 } from "../fiscal/routes";
 import { helpArticleRoute, helpCategoryRoute, helpHomeRoute } from "../help/routes";
 import {
@@ -90,8 +95,8 @@ import {
 } from "../stock/routes";
 import { quarantinedEventsRoute } from "../sync/routes";
 import { legacyUserRoute, legacyUsersRoute, usersListRoute } from "../users/routes";
-import { cashAndFiscalAreaRoute } from "./cash-and-fiscal-area";
 import { catalogAreaRoute } from "./catalog-area";
+import { fiscalAreaRoute } from "./fiscal-area";
 import { helpAreaRoute } from "./help-area";
 import { homeAreaRoute } from "./home-area";
 import { ScreenDownloadFailure } from "./lazy-screen";
@@ -157,12 +162,13 @@ const routeTree = rootRoute.addChildren([
       registersRoute.addChildren([registersListRoute, cashSessionClosesRoute, cashMovementsRoute]),
       refundsRoute.addChildren([pendingRefundsRoute, returnsHistoryRoute]),
     ]),
-    cashAndFiscalAreaRoute.addChildren([
-      pointsOfSaleRoute,
-      fiscalConfigurationRoute,
-      fiscalTasksRoute,
-      issuedFiscalDocumentsRoute,
-      exceptionalityRoute,
+    fiscalAreaRoute.addChildren([
+      fiscalRoute.addChildren([
+        fiscalTasksRoute,
+        issuedFiscalDocumentsRoute,
+        caeaRoute,
+        fiscalSettingsRoute,
+      ]),
     ]),
     reportsAreaRoute.addChildren([
       reportsIndexRoute,
@@ -190,11 +196,16 @@ const routeTree = rootRoute.addChildren([
     ]),
     settingsAreaRoute.addChildren([
       peopleRoute.addChildren([peopleLandingRoute, usersListRoute, rolesListRoute]),
-      contingencyTicketRescueRoute,
       branchSettingsRoute,
       quarantinedEventsRoute,
     ]),
     legacyAccountRoute,
+    legacyFiscalTasksRoute,
+    legacyFiscalDocumentsRoute,
+    legacyExceptionalityRoute,
+    legacyPointsOfSaleRoute,
+    legacyFiscalSettingsRoute,
+    legacyContingencyTicketRescueRoute,
     legacyBackupsRoute,
     legacyCashSessionClosesRoute,
     legacyCashMovementsRoute,

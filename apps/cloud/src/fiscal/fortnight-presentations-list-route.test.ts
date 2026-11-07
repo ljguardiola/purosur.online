@@ -159,8 +159,33 @@ describe("GET /registers/fortnight-presentations", () => {
         refusal: "whole",
         state: "refused",
         revoked_installations: [],
+        owed: true,
       },
     ]);
+  });
+
+  it("tells a presentation the tax authority accepted apart from one still owed", async () => {
+    await configureOfflinePointOfSale(db, {
+      registerName: "caja-1",
+      realTimePointOfSale: 7,
+      offlinePointOfSale: OFFLINE_POINT_OF_SALE,
+      now: SESSION_NOON,
+    });
+    await keepDecemberCode(OFFLINE_POINT_OF_SALE);
+    await new DrizzleFortnightReportStore(db, WITHOUT_CREDIT_NOTES).holdReport(
+      { pointOfSaleNumber: OFFLINE_POINT_OF_SALE, fortnight: DECEMBER_SECOND_HALF },
+      (report) => report.record({ state: "accepted", movement: "none", at: SESSION_NOON }),
+    );
+    const session = await openBackofficeSession(db, {
+      now: SESSION_NOON,
+      locationId: await seededLocationId(db),
+      permissionKeys: ["change_fiscal_configuration"],
+      passkeyAuthorized: false,
+    });
+
+    const response = await listPresentations(session.headers);
+
+    expect(response.json()).toMatchObject([{ state: "accepted", owed: false }]);
   });
 
   it("gives the rejected document of a presentation as presented, with its rejections and where its remedy stands", async () => {

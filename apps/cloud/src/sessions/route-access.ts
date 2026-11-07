@@ -32,6 +32,7 @@ export type RouteAccess =
   | { level: "release_check" }
   | { level: "offsite_dump_check" }
   | { level: "capability"; capability: Capability }
+  | { level: "any_capability"; capabilities: readonly Capability[] }
   | { level: "record"; recordParam: string; grants: RecordGrants };
 
 export type RecordGrants = (
@@ -48,6 +49,10 @@ export const OFFSITE_DUMP_CHECK_ACCESS: RouteAccess = { level: "offsite_dump_che
 
 export function capabilityAccess(capability: Capability): RouteAccess {
   return { level: "capability", capability };
+}
+
+export function anyCapabilityAccess(...capabilities: Capability[]): RouteAccess {
+  return { level: "any_capability", capabilities };
 }
 
 export function recordAccess(recordParam: string, grants: RecordGrants): RouteAccess {
@@ -147,6 +152,8 @@ function isAccessGranted(
       return true;
     case "capability":
       return grantsCapability(session, access.capability);
+    case "any_capability":
+      return access.capabilities.some((capability) => grantsCapability(session, capability));
     case "record":
       return true;
   }

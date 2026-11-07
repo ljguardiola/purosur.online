@@ -28,6 +28,7 @@ const presentation = {
   refusal: null,
   state: "blocked",
   revoked_installations: [],
+  owed: true,
 };
 
 describe("fortnightPresentationListSchema", () => {
@@ -51,6 +52,18 @@ describe("fortnightPresentationListSchema", () => {
     expect(fortnightPresentationListSchema.parse([{ ...presentation, state }])).toEqual([
       { ...presentation, state },
     ]);
+  });
+
+  it("refuses a presentation that does not say whether it is owed", () => {
+    expect(
+      fortnightPresentationSchema.safeParse({ ...presentation, owed: undefined }).success,
+    ).toBe(false);
+  });
+
+  it("refuses an owed flag that is not a boolean", () => {
+    expect(fortnightPresentationSchema.safeParse({ ...presentation, owed: "yes" }).success).toBe(
+      false,
+    );
   });
 
   it.each(["paused", "ready"])("refuses the state %s, which the domain does not know", (state) => {

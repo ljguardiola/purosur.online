@@ -434,7 +434,7 @@ function revokedInstallationsText({
       ({ revokedAt }) =>
         `Una instalación de la caja${registerName === undefined ? "" : ` «${registerName}»`} se revocó el ${formatDayAndTime(revokedAt, ALERT_TIME_ZONE)}.`,
     ),
-    `Se puede presentar cuando alguien confirme, en Puntos de venta, que ${confirmation}.`,
+    `Se puede presentar cuando alguien confirme, en Fiscal (CAEA y excepcionalidad), que ${confirmation}.`,
   ];
 }
 
@@ -868,7 +868,7 @@ function AlertDescription({ alert }: { alert: AlertDetail }) {
     const { pointOfSaleNumber, rejectedNumber, fortnightStart, fortnightEnd } = alert.detail;
     return (
       <p className="text-text text-body">
-        {`ARCA rechazó el comprobante ${formatPointOfSaleNumber(pointOfSaleNumber)}-${formatInvoiceNumber(rejectedNumber)} de la quincena ${formatCalendarDayRange(fortnightStart, fortnightEnd)}. Los que le siguen quedan sin procesar hasta que se resuelva: en Puntos de venta se indica dónde está el error.`}
+        {`ARCA rechazó el comprobante ${formatPointOfSaleNumber(pointOfSaleNumber)}-${formatInvoiceNumber(rejectedNumber)} de la quincena ${formatCalendarDayRange(fortnightStart, fortnightEnd)}. Los que le siguen quedan sin procesar hasta que se resuelva: en Fiscal (CAEA y excepcionalidad) se indica dónde está el error.`}
       </p>
     );
   }

@@ -124,6 +124,14 @@ export function canSeeContingencyTicketRescue(access: BackofficeAccess): boolean
   return grants(access, "contingency_ticket_rescue");
 }
 
+export function canSeeFiscalPage(access: BackofficeAccess): boolean {
+  return (
+    canSeeFiscalInformation(access) ||
+    canSeeFiscalConfigurationArea(access) ||
+    canSeeContingencyTicketRescue(access)
+  );
+}
+
 export function canSeeStockBalances(access: BackofficeAccess): boolean {
   return grants(access, "stock_balances");
 }

@@ -3066,7 +3066,7 @@ test("tells a blocked report waits for its register to finish syncing even when 
 });
 
 const WAITING_FOR_CONFIRMATION = (what: string) =>
-  `Se puede presentar cuando alguien confirme, en Puntos de venta, que ${what} no emitió comprobantes sin conexión que haya dejado sin sincronizar.`;
+  `Se puede presentar cuando alguien confirme, en Fiscal (CAEA y excepcionalidad), que ${what} no emitió comprobantes sin conexión que haya dejado sin sincronizar.`;
 
 test("tells which installation of the register was revoked and when, and that the report waits for someone to confirm it issued nothing it did not sync", async () => {
   const services = createServices();
@@ -3129,7 +3129,7 @@ test("tells each revoked installation of the register and that all of them are t
   await expect
     .element(
       screen.getByText(
-        "Se puede presentar cuando alguien confirme, en Puntos de venta, que esas instalaciones no emitieron comprobantes sin conexión que hayan dejado sin sincronizar.",
+        "Se puede presentar cuando alguien confirme, en Fiscal (CAEA y excepcionalidad), que esas instalaciones no emitieron comprobantes sin conexión que hayan dejado sin sincronizar.",
         { exact: true },
       ),
     )
@@ -3222,7 +3222,7 @@ test("tells which document ARCA rejected in which fortnight, that the ones behin
   await expect
     .element(
       screen.getByText(
-        `ARCA rechazó el comprobante ${formatPointOfSaleNumber(4)}-${formatInvoiceNumber(298)} de la quincena ${REPORT_FORTNIGHT}. Los que le siguen quedan sin procesar hasta que se resuelva: en Puntos de venta se indica dónde está el error.`,
+        `ARCA rechazó el comprobante ${formatPointOfSaleNumber(4)}-${formatInvoiceNumber(298)} de la quincena ${REPORT_FORTNIGHT}. Los que le siguen quedan sin procesar hasta que se resuelva: en Fiscal (CAEA y excepcionalidad) se indica dónde está el error.`,
         { exact: true },
       ),
     )

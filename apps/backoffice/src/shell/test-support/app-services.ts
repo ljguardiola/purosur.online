@@ -1,4 +1,5 @@
 import { vi } from "vitest";
+import { ContingencyTicketRescueAssistant } from "../../backups/contingency-ticket-rescue-assistant";
 import { createFakeQrScanner } from "../../backups/test-support/fake-qr-scanner";
 import { CreateCategoryFromSelectorModal } from "../../catalog/create-category-from-selector-modal";
 import { CreateProductFromSelectorModal } from "../../catalog/create-product-from-selector-modal";
@@ -333,6 +334,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     productCreationModal: CreateProductFromSelectorModal,
     productPriceSection: ProductPriceSection,
     registerPointOfSaleSection: RegisterPointOfSalePanelSection,
+    contingencyTicketRescueAssistant: ContingencyTicketRescueAssistant,
     roleCreationModal: CreateRoleFromSelectorModal,
     reportRegisterFilter: {
       fetchReportRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -389,7 +391,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       rotateSnapshotKey: vi.fn(),
       fetchCashSessionCloses: vi.fn().mockReturnValue(new Promise(() => {})),
     },
-    contingencyTicketRescueScreen: {
+    contingencyTicketRescueModal: {
       rescueContingencyBackupTicket: vi.fn(),
       fetchContingencyTicketRecoveries: vi.fn().mockReturnValue(new Promise(() => {})),
       finishTicketRecoveryModal: { finishContingencyTicketRecovery: vi.fn() },
@@ -411,12 +413,15 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchBranchSettings: vi.fn().mockReturnValue(new Promise(() => {})),
       saveBranchSettings: vi.fn(),
     },
-    fiscalConfigurationScreen: {
+    fiscalSettingsScreen: {
       fetchIssuerIdentification: vi.fn().mockReturnValue(new Promise(() => {})),
       saveIssuerIdentification: vi.fn(),
       fetchBuyerIdentificationThresholds: vi.fn().mockReturnValue(new Promise(() => {})),
       recordBuyerIdentificationThreshold: vi.fn(),
       fetchClockCorrections: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchFiscalAddresses: vi.fn().mockReturnValue(new Promise(() => {})),
+      createFiscalAddress: vi.fn(),
+      editFiscalAddress: vi.fn(),
       fetchCurrentZoneRules: vi.fn().mockResolvedValue({ kind: "ok", value: ARGENTINA_ZONE_RULES }),
       fetchSessionAuthorizationOptions: vi.fn(),
       authorizeSession: vi.fn(),
@@ -426,29 +431,31 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchFiscalTasks: vi.fn().mockReturnValue(new Promise(() => {})),
       closeFiscalTask: vi.fn(),
     },
-    exceptionalityScreen: {
+    caeaScreen: {
       fetchFiscalAddresses: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchExceptionShareYear: vi.fn().mockReturnValue(new Promise(() => {})),
-    },
-    issuedFiscalDocumentsScreen: {
-      fetchIssuedFiscalDocuments: vi.fn().mockReturnValue(new Promise(() => {})),
-      fetchIssuedFiscalDocument: vi.fn().mockReturnValue(new Promise(() => {})),
-      fetchFiscalRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
-    },
-    pointsOfSaleScreen: {
       fetchRegisterPointsOfSale: vi.fn().mockReturnValue(new Promise(() => {})),
-      fetchFiscalAddresses: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchFortnightPresentations: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchOfflinePointsOfSale: vi.fn().mockReturnValue(new Promise(() => {})),
       retireOfflinePointOfSale: vi.fn(),
       remedyRejectedDocument: vi.fn(),
       confirmRevokedInstallation: vi.fn(),
       fetchBuyerTaxStatuses: vi.fn().mockReturnValue(new Promise(() => {})),
-      createFiscalAddress: vi.fn(),
-      editFiscalAddress: vi.fn(),
       fetchSessionAuthorizationOptions: vi.fn(),
       authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),
+    },
+    issuedFiscalDocumentsScreen: {
+      fetchIssuedFiscalDocuments: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchIssuedFiscalDocument: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchFiscalRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchIssuedFiscalDocumentsReport: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
+    fiscalStatusStrip: {
+      fetchFiscalTasks: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchUnbilledDeferredSales: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchCurrentOfflineAuthorizationCode: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchFortnightPresentations: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     accountFooter: { signOut: vi.fn().mockResolvedValue({ kind: "ok" }) },
     screenFailure: { isOnline: vi.fn(), reloadPage: vi.fn() },

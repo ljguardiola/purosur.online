@@ -1,12 +1,7 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { PackageX, QrCode, Store, Users } from "lucide-react";
+import { PackageX, Store, Users } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
-import {
-  canSeeBranchArea,
-  canSeeContingencyTicketRescue,
-  canSeePeopleArea,
-  canSeeQuarantinedEvents,
-} from "./backoffice-access";
+import { canSeeBranchArea, canSeePeopleArea, canSeeQuarantinedEvents } from "./backoffice-access";
 import { signedInRoute } from "./signed-in-route";
 
 export const settingsAreaRoute = createRoute({
@@ -34,16 +29,6 @@ function SettingsArea() {
                   label="Personas"
                   icon={<Users />}
                   active={Boolean(matchRoute({ to: "/people", fuzzy: true }))}
-                />
-              </li>
-            )}
-            {canSeeContingencyTicketRescue(session) && (
-              <li>
-                <SectionLink
-                  to="/contingency-ticket-rescue"
-                  label="Rescate de tickets"
-                  icon={<QrCode />}
-                  active={Boolean(matchRoute({ to: "/contingency-ticket-rescue" }))}
                 />
               </li>
             )}

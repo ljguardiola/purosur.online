@@ -43,6 +43,7 @@ function presentation(overrides: Partial<FortnightPresentation> = {}): Fortnight
     movement: null,
     refusal: null,
     state: null,
+    owed: true,
     revokedInstallations: [],
     ...overrides,
   };

@@ -230,6 +230,10 @@ export { CreditNoteNumberTaken } from "./credit-note-ports.js";
 export type { CurrentFortnightCodeStanding } from "./current-fortnight-code-after-obtaining.js";
 export { currentFortnightCodeAfterObtaining } from "./current-fortnight-code-after-obtaining.js";
 export type {
+  CurrentOfflineAuthorizationCodePorts,
+  HeldOfflineAuthorizationCodeReader,
+} from "./current-offline-authorization-code-ports.js";
+export type {
   DecideSaleAuthorizationInput,
   DecideSaleAuthorizationOutcome,
 } from "./decide-sale-authorization.js";
@@ -413,6 +417,7 @@ export type {
   ReadArcaOnlineStatusInput,
 } from "./read-arca-online-status.js";
 export { readArcaOnlineStatus } from "./read-arca-online-status.js";
+export { readCurrentOfflineAuthorizationCode } from "./read-current-offline-authorization-code.js";
 export type {
   ExceptionShareYearMonth,
   ReadExceptionShareYearInput,

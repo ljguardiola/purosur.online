@@ -2,7 +2,7 @@ import { FieldSizeProvider, LocaleProvider } from "@purosur/ui";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { type ComponentType, useEffect, useState } from "react";
-import type { ContingencyTicketRescueScreenServices } from "../backups/contingency-ticket-rescue-services";
+import type { ContingencyTicketRescueModalServices } from "../backups/contingency-ticket-rescue-modal";
 import type { BranchSettingsScreenServices } from "../branch/branch-settings-services";
 import type { BrandsListScreenServices } from "../catalog/brands-list-services";
 import type { CategoriesListScreenServices } from "../catalog/categories-list-services";
@@ -12,12 +12,12 @@ import type { AccountRecoveryScreenServices } from "../credentials/account-recov
 import type { OwnCredentialsSectionServices } from "../credentials/own-credentials-section-services";
 import type { RegisterPasskeyScreenServices } from "../credentials/register-passkey-services";
 import type { UserCredentialSectionsServices } from "../credentials/user-credential-sections-services";
-import type { ExceptionalityScreenServices } from "../fiscal/exceptionality-services";
-import type { FiscalConfigurationScreenServices } from "../fiscal/fiscal-configuration-services";
+import type { CaeaScreenServices } from "../fiscal/caea-services";
+import type { FiscalSettingsScreenServices } from "../fiscal/fiscal-settings-services";
+import type { FiscalStatusStripServices } from "../fiscal/fiscal-status-strip-services";
 import type { FiscalTasksScreenServices } from "../fiscal/fiscal-tasks-services";
 import type { IssuedFiscalDocumentsReportScreenServices } from "../fiscal/issued-fiscal-documents-report-services";
 import type { IssuedFiscalDocumentsScreenServices } from "../fiscal/issued-fiscal-documents-services";
-import type { PointsOfSaleScreenServices } from "../fiscal/points-of-sale-services";
 import type { UnbilledDeferredSalesPillProps } from "../fiscal/unbilled-deferred-sales-pill";
 import type { UnbilledDeferredSalesPillServices } from "../fiscal/unbilled-deferred-sales-pill-services";
 import type { BackofficeHelpCatalog } from "../help/help-catalog";
@@ -25,6 +25,7 @@ import type { HandConfirmedPaymentsScreenServices } from "../payments/hand-confi
 import type { PendingRefundsScreenServices } from "../payments/pending-refunds-services";
 import type { SalesByPaymentMethodScreenServices } from "../payments/sales-by-payment-method-services";
 import type { RolesListScreenServices } from "../permissions/roles-list-services";
+import type { ContingencyTicketRescueAssistant } from "../platform/contingency-ticket-rescue-assistant";
 import type {
   CategoryCreationModal,
   ProductCreationModal,
@@ -123,7 +124,7 @@ export type AppServices = {
   userCredentialSections: UserCredentialSectionsServices;
   rolesListScreen: RolesListScreenServices;
   registersListScreen: RegistersListScreenServices;
-  contingencyTicketRescueScreen: ContingencyTicketRescueScreenServices;
+  contingencyTicketRescueModal: ContingencyTicketRescueModalServices;
   branchSettingsScreen: BranchSettingsScreenServices;
   categoriesListScreen: CategoriesListScreenServices;
   brandsListScreen: BrandsListScreenServices;
@@ -150,6 +151,7 @@ export type AppServices = {
   productCreationModal: ProductCreationModal;
   productPriceSection: ProductPriceSection;
   registerPointOfSaleSection: RegisterPointOfSaleSection;
+  contingencyTicketRescueAssistant: ContingencyTicketRescueAssistant;
   roleCreationModal: RoleCreationModal;
   reportRegisterFilter: ReportRegisterFilterServices;
   pendingRefundsScreen: PendingRefundsScreenServices;
@@ -181,11 +183,11 @@ export type AppServices = {
   assemblyBatchesScreen: AssemblyBatchesScreenServices;
   newPurchaseScreen: NewPurchaseScreenServices;
   initialInventoryScreen: InitialInventoryScreenServices;
-  fiscalConfigurationScreen: FiscalConfigurationScreenServices;
+  fiscalSettingsScreen: FiscalSettingsScreenServices;
   fiscalTasksScreen: FiscalTasksScreenServices;
-  exceptionalityScreen: ExceptionalityScreenServices;
+  caeaScreen: CaeaScreenServices;
   issuedFiscalDocumentsScreen: IssuedFiscalDocumentsScreenServices;
-  pointsOfSaleScreen: PointsOfSaleScreenServices;
+  fiscalStatusStrip: FiscalStatusStripServices;
   accountFooter: AccountFooterServices;
   screenFailure: ScreenFailureServices;
   releaseMonitor: ReleaseMonitor;
@@ -206,6 +208,7 @@ type ShellServiceName =
   | "productCreationModal"
   | "productPriceSection"
   | "registerPointOfSaleSection"
+  | "contingencyTicketRescueAssistant"
   | "roleCreationModal"
   | "accountFooter"
   | "screenFailure"
@@ -248,6 +251,10 @@ const defaultRouteServices: RouteServices = {
   registerPointOfSaleSection: lazyScreen(
     () => import("../fiscal/register-point-of-sale-panel-section"),
     "RegisterPointOfSalePanelSection",
+  ),
+  contingencyTicketRescueAssistant: lazyScreen(
+    () => import("../backups/contingency-ticket-rescue-assistant"),
+    "ContingencyTicketRescueAssistant",
   ),
   roleCreationModal: lazyScreen(
     () => import("../permissions/create-role-from-selector-modal"),

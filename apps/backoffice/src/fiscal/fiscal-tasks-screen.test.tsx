@@ -56,13 +56,10 @@ function rowTexts(screen: Awaited<ReturnType<typeof renderScreen>>) {
     .map((row) => row.element().textContent ?? "");
 }
 
-test("shows the eyebrow, the heading and each open task with since when, what, where and its alert", async () => {
+test("shows each open task with since when, what, where and its alert, with no title of its own", async () => {
   const screen = await loaded(createFiscalTasksServices());
 
-  await expect.element(screen.getByText("Caja y fiscal · Tareas")).toBeVisible();
-  await expect
-    .element(screen.getByRole("heading", { name: "Tareas fiscales", level: 1 }))
-    .toBeVisible();
+  expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
   await expect.element(screen.getByRole("table", { name: "Tareas fiscales" })).toBeVisible();
   const [external, rejected, expired] = rowTexts(screen);
   expect(external).toContain("13/09/2026");

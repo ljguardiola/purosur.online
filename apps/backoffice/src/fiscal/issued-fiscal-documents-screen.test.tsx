@@ -1,8 +1,9 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { useState } from "react";
-import { expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
 import { render } from "../shell/test-support/render-with-router";
 import { periodSegments } from "../shell/test-support/report-dates";
 import { FRONT_REGISTER_ID } from "../shell/test-support/report-fixtures";
@@ -11,6 +12,7 @@ import {
   type ReportRegisterFilterServices,
   reportRegisterFieldForTests,
 } from "../shell/test-support/report-register-filter";
+import { spyOnDownloads } from "../shell/test-support/spy-on-downloads";
 import {
   type IssuedFiscalDocumentsFilters,
   issuedFiscalDocumentsFilters,
@@ -23,13 +25,22 @@ import {
   noIssuedFiscalDocuments,
   pagedIssuedFiscalDocuments,
 } from "./test-support/issued-fiscal-documents-fixtures";
+import { issuedFiscalDocumentsReport } from "./test-support/issued-fiscal-documents-report-fixtures";
 import { createIssuedFiscalDocumentsServices } from "./test-support/issued-fiscal-documents-screen-services";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 function createServices(): IssuedFiscalDocumentsScreenServices {
   const services = createIssuedFiscalDocumentsServices();
   vi.mocked(services.fetchIssuedFiscalDocuments).mockResolvedValue({
     kind: "ok",
     value: issuedFiscalDocuments,
+  });
+  vi.mocked(services.fetchIssuedFiscalDocumentsReport).mockResolvedValue({
+    kind: "ok",
+    value: issuedFiscalDocumentsReport,
   });
   return services;
 }
@@ -38,6 +49,8 @@ type Handlers = {
   filters?: IssuedFiscalDocumentsFilters;
   onFiltersChange?: (filters: IssuedFiscalDocumentsFilters) => void;
   onSessionEnded?: () => void;
+  openDocument?: string;
+  onOpenDocumentChange?: (document: string | undefined) => void;
 };
 
 function ControlledScreen({
@@ -45,12 +58,15 @@ function ControlledScreen({
   filters: initial = issuedFiscalDocumentsFilters.parse({}),
   onFiltersChange = () => {},
   onSessionEnded = () => {},
+  openDocument: initialDocument,
+  onOpenDocumentChange = () => {},
   registerServices,
 }: Handlers & {
   services: IssuedFiscalDocumentsScreenServices;
   registerServices: ReportRegisterFilterServices;
 }) {
   const [filters, setFilters] = useState(initial);
+  const [openDocument, setOpenDocument] = useState(initialDocument);
   return (
     <FieldSizeProvider size="backoffice">
       <main>
@@ -62,6 +78,11 @@ function ControlledScreen({
             setFilters(next);
           }}
           onSessionEnded={onSessionEnded}
+          openDocument={openDocument}
+          onOpenDocumentChange={(document) => {
+            onOpenDocumentChange(document);
+            setOpenDocument(document);
+          }}
           registerFilter={reportRegisterFieldForTests(registerServices, onSessionEnded)}
         />
       </main>
@@ -81,13 +102,13 @@ function renderScreen(
   );
 }
 
-test("names the screen and its area", async () => {
+test("has no title of its own", async () => {
   const screen = await renderScreen(createServices());
 
   await expect
-    .element(screen.getByRole("heading", { name: "Comprobantes y notas de crédito", level: 1 }))
+    .element(screen.getByRole("table", { name: "Comprobantes y notas de crédito" }))
     .toBeVisible();
-  await expect.element(screen.getByText("Caja y fiscal · Fiscal", { exact: true })).toBeVisible();
+  expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
 });
 
 test("shows each document with its issue moment, voucher, authorization, state and total", async () => {
@@ -163,44 +184,89 @@ test("offers to open the detail of each document, named after its voucher", asyn
   }
 });
 
-test("opens the detail of the document whose action was pressed, asking the cloud for its voucher", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchIssuedFiscalDocument).mockResolvedValue({
-    kind: "ok",
-    value: authorizedReceiptDetail,
-  });
-  const screen = await renderScreen(services);
+test("reports the voucher of the document whose action was pressed, to open its panel", async () => {
+  const onOpenDocumentChange = vi.fn();
+  const screen = await renderScreen(createServices(), { onOpenDocumentChange });
 
   await userEvent.click(
     screen.getByRole("button", { name: "Ver el detalle de la Factura C 00003-00001247" }),
   );
 
+  expect(onOpenDocumentChange).toHaveBeenCalledWith("11-3-1247");
+});
+
+test("shows the panel of the open voucher, asking the cloud for it", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuedFiscalDocument).mockResolvedValue({
+    kind: "ok",
+    value: authorizedReceiptDetail,
+  });
+  const screen = await renderScreen(services, { openDocument: "11-3-1247" });
+
+  await expect
+    .element(screen.getByRole("complementary", { name: /Factura C 00003-00001247/ }))
+    .toBeVisible();
   expect(services.fetchIssuedFiscalDocument).toHaveBeenCalledWith({
     voucher_type: 11,
     point_of_sale: 3,
     number: 1247,
   });
-  await expect
-    .element(screen.getByRole("dialog", { name: /Factura C 00003-00001247/ }))
-    .toBeVisible();
 });
 
-test("closes the detail and keeps the list", async () => {
+test("closes the panel and keeps the list", async () => {
   const services = createServices();
   vi.mocked(services.fetchIssuedFiscalDocument).mockResolvedValue({
     kind: "ok",
     value: authorizedReceiptDetail,
   });
-  const screen = await renderScreen(services);
-  await userEvent.click(
-    screen.getByRole("button", { name: "Ver el detalle de la Factura C 00003-00001247" }),
-  );
-  await expect.element(screen.getByRole("dialog")).toBeVisible();
+  const onOpenDocumentChange = vi.fn();
+  const screen = await renderScreen(services, { openDocument: "11-3-1247", onOpenDocumentChange });
+  await expect.element(screen.getByRole("complementary")).toBeVisible();
 
-  await userEvent.click(screen.getByRole("button", { name: "Volver" }));
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
 
-  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  expect(onOpenDocumentChange).toHaveBeenCalledWith(undefined);
+  await expect.poll(() => screen.getByRole("complementary").query()).toBeNull();
   await expect.element(screen.getByText("Factura C 00003-00001247")).toBeVisible();
+});
+
+test("closes the panel of a voucher the cloud does not find", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuedFiscalDocument).mockResolvedValue({ kind: "not_found" });
+  const onOpenDocumentChange = vi.fn();
+  await renderScreen(services, { openDocument: "11-3-9999", onOpenDocumentChange });
+
+  await expect.poll(() => onOpenDocumentChange.mock.lastCall).toEqual([undefined]);
+});
+
+test("downloads the spreadsheet of the documents of the period and register the filters name", async () => {
+  const downloads = spyOnDownloads();
+  const services = createServices();
+  const screen = await renderScreen(services, {
+    filters: issuedFiscalDocumentsFilters.parse({ from: "2026-10-01", to: "2026-10-07" }),
+  });
+  await expect.element(screen.getByText("Factura C 00003-00001247")).toBeVisible();
+  await expect
+    .poll(() => vi.mocked(services.fetchIssuedFiscalDocumentsReport).mock.lastCall)
+    .toEqual([{ from: "2026-10-01", to: "2026-10-07" }]);
+
+  await userEvent.click(screen.getByRole("button", { name: "Descargar planilla" }));
+
+  await expect
+    .poll(() => downloads.names)
+    .toEqual(["comprobantes-emitidos-2026-10-01-2026-10-07.xlsx"]);
+  const file = await readDownloadedXlsx(downloads.blobs[0]);
+  expect(file.sheetNames).toEqual(["Resumen", "Comprobantes emitidos"]);
+  expect(file.sheet(1).get("A2")?.value).toBe("Factura C");
+  expect(file.sheet(1).get("E2")?.value).toBe("15000");
+});
+
+test("has its download disabled while the report loads", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchIssuedFiscalDocumentsReport).mockReturnValue(new Promise(() => {}));
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByRole("button", { name: "Descargar planilla" })).toBeDisabled();
 });
 
 test("asks the cloud for the first page with no filter when the URL has none", async () => {

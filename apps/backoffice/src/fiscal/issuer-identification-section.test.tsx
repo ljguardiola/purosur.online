@@ -43,7 +43,7 @@ test("shows every value of a complete issuer identification, and what prints it"
   const screen = await render(sectionFor(loaded(complete)));
 
   await expect
-    .element(screen.getByRole("heading", { name: "Identificación del emisor", level: 2 }))
+    .element(screen.getByRole("heading", { name: "Emisor", level: 2, exact: true }))
     .toBeVisible();
   await expect.element(screen.getByText(FICTIONAL_LEGAL_NAME)).toBeVisible();
   await expect.element(screen.getByText(FICTIONAL_CUIT)).toBeVisible();

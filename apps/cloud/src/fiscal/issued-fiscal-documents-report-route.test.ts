@@ -61,12 +61,20 @@ describe("GET /reports/fiscal-documents access", () => {
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
   });
 
-  it("rejects a user who may not view reports, even one who may view fiscal documents", async () => {
-    const { headers } = await signedInWith(db, ["view_fiscal_documents"], NOW);
+  it("rejects a user who may neither view reports nor view fiscal documents", async () => {
+    const { headers } = await signedInWith(db, ["adjust_stock"], NOW);
 
     const response = await report(headers);
 
     expect(response.statusCode).toBe(403);
+  });
+
+  it("answers a user who may only view fiscal documents", async () => {
+    const { headers } = await signedInWith(db, ["view_fiscal_documents"], NOW);
+
+    const response = await report(headers);
+
+    expect(response.statusCode).toBe(200);
   });
 
   it("answers a user who may view reports", async () => {
