@@ -11,6 +11,16 @@ import { salesByPaymentMethodFilters } from "./sales-by-payment-method-filters";
 export const ALL_REGISTERS = "all";
 export const ALL_METHODS = "all";
 
+export const PENDING_REFUNDS_CHANNELS = ["all", "mercado-pago", "without-api"] as const;
+
+export const pendingRefundsFilters = z.object({
+  channel: z.enum(PENDING_REFUNDS_CHANNELS).default("all").catch("all"),
+  register: z.string().default(ALL_REGISTERS).catch(ALL_REGISTERS),
+  method: z.string().default(ALL_METHODS).catch(ALL_METHODS),
+});
+
+export type PendingRefundsFilters = z.output<typeof pendingRefundsFilters>;
+
 export const mercadoPagoRefundsFilters = z.object({
   register: z.string().default(ALL_REGISTERS).catch(ALL_REGISTERS),
 });
