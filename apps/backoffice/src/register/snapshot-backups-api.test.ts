@@ -49,41 +49,21 @@ const backupsWire = {
   ],
 };
 
-test("fetchSnapshotBackupRegisters lists the registers a person can choose", async () => {
-  vi.mocked(fetch).mockResolvedValue(
-    jsonResponse(200, { registers: [{ id: "register-1", name: "Caja 1" }] }),
-  );
-
-  expect(await fetchSnapshotBackupRegisters()).toEqual({
-    kind: "ok",
-    value: [{ id: "register-1", name: "Caja 1" }],
-  });
-  expect(fetch).toHaveBeenCalledWith("/api/snapshot-backups/registers");
-});
-
-test("fetchSnapshotBackupRegisters fails on a body that does not match its shape", async () => {
-  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [{ id: "register-1" }]));
-
-  expect(await fetchSnapshotBackupRegisters()).toEqual({ kind: "failed" });
-});
-
 test.each([
   [401, undefined, { kind: "unauthenticated" }],
   [403, undefined, { kind: "forbidden" }],
   [429, { "Retry-After": "45" }, { kind: "rate_limited", retryAfterSeconds: 45 }],
   [429, undefined, { kind: "failed" }],
   [500, undefined, { kind: "failed" }],
-])("both reads answer %s (retry header %j) as %j", async (status, headers, outcome) => {
+])("the read answers %s (retry header %j) as %j", async (status, headers, outcome) => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(status, undefined, headers));
 
-  expect(await fetchSnapshotBackupRegisters()).toEqual(outcome);
   expect(await fetchSnapshotBackups("register-1")).toEqual(outcome);
 });
 
-test("both reads fail when the request throws", async () => {
+test("the read fails when the request throws", async () => {
   vi.mocked(fetch).mockRejectedValue(new Error("network down"));
 
-  expect(await fetchSnapshotBackupRegisters()).toEqual({ kind: "failed" });
   expect(await fetchSnapshotBackups("register-1")).toEqual({ kind: "failed" });
 });
 
@@ -209,3 +189,35 @@ test("rotateSnapshotKey tells a missing register from a register with no key yet
   expect(await rotateSnapshotKey("register-1")).toEqual({ kind: "no_key_yet" });
   expect(await rotateSnapshotKey("register-1")).toEqual({ kind: "failed" });
 });
+
+test("fetchSnapshotBackupRegisters lists the registers a person can choose", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, { registers: [{ id: "register-1", name: "Caja 1" }] }),
+  );
+
+  expect(await fetchSnapshotBackupRegisters()).toEqual({
+    kind: "ok",
+    value: [{ id: "register-1", name: "Caja 1" }],
+  });
+  expect(fetch).toHaveBeenCalledWith("/api/snapshot-backups/registers");
+});
+
+test("fetchSnapshotBackupRegisters fails on a body that does not match its shape", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [{ id: "register-1" }]));
+
+  expect(await fetchSnapshotBackupRegisters()).toEqual({ kind: "failed" });
+});
+
+test.each([
+  [401, undefined, { kind: "unauthenticated" }],
+  [403, undefined, { kind: "forbidden" }],
+  [429, { "Retry-After": "45" }, { kind: "rate_limited", retryAfterSeconds: 45 }],
+  [500, undefined, { kind: "failed" }],
+])(
+  "fetchSnapshotBackupRegisters answers %s (retry header %j) as %j",
+  async (status, headers, outcome) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(status, undefined, headers));
+
+    expect(await fetchSnapshotBackupRegisters()).toEqual(outcome);
+  },
+);

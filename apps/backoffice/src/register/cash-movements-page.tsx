@@ -1,17 +1,15 @@
 import { getRouteApi } from "@tanstack/react-router";
 import type { ReactElement } from "react";
-import { useDocumentTitle } from "../shell/document-title";
 import { reportRegisterFieldOf } from "../shell/report-register-field";
 import { CashMovementsScreen } from "./cash-movements-screen";
 import { defaultCashMovementsScreenServices } from "./cash-movements-services";
 
-const route = getRouteApi("/signed-in/reports-area/reports/cash-movements");
+const route = getRouteApi("/signed-in/sales-and-cash-area/registers/movements");
 
 export function CashMovementsPage(): ReactElement {
   const { services, sessionActions } = route.useRouteContext();
   const filters = route.useSearch();
   const navigate = route.useNavigate();
-  useDocumentTitle("Movimientos de caja · Puro Sur");
   return (
     <CashMovementsScreen
       filters={filters}

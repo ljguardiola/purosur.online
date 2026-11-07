@@ -1,11 +1,12 @@
 import {
-  Button,
+  ButtonLink,
   EmptyState,
   formatPointOfSaleNumber,
   LoadFailure,
   LoadingPlaceholder,
 } from "@purosur/ui";
-import { Laptop, Pencil } from "lucide-react";
+import { createLink } from "@tanstack/react-router";
+import { ExternalLink, Laptop } from "lucide-react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import type { CloudData } from "../platform/use-cloud-query";
 import type { FiscalAddress } from "./fiscal-addresses-api";
@@ -14,47 +15,32 @@ import type { RegisterPointOfSale } from "./register-points-of-sale-api";
 
 type RegisterPointOfSaleSectionProps = {
   data: CloudData<[RegisterPointOfSale[], FiscalAddress[]]>;
-  onEdit: (register: RegisterPointOfSale, mechanism: "real_time" | "offline") => void;
 };
+
+const RegistersLink = createLink(ButtonLink);
 
 const MISSING = "Sin configurar";
 
 function RegisterPointOfSaleCard({
   register,
   fiscalAddresses,
-  dataStatus,
-  onEdit,
-  onEditOffline,
 }: {
   register: RegisterPointOfSale;
   fiscalAddresses: FiscalAddress[];
-  dataStatus: "loaded";
-  onEdit: () => void;
-  onEditOffline: () => void;
 }) {
   const fiscalAddress = fiscalAddresses.find(({ id }) => id === register.fiscalAddressId);
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
       <div className="flex items-center gap-3">
         <h2 className="flex-1 text-text-accent text-subheading">{register.registerName}</h2>
-        <Button
-          variant="secondary"
-          size="small"
-          icon={<Pencil />}
-          dataStatus={dataStatus}
-          onPress={onEdit}
+        <RegistersLink
+          to="/registers"
+          search={{ register: register.registerId, tab: "fiscal" }}
+          variant="text"
+          icon={<ExternalLink />}
         >
-          Editar
-        </Button>
-        <Button
-          variant="secondary"
-          size="small"
-          icon={<Pencil />}
-          dataStatus={dataStatus}
-          onPress={onEditOffline}
-        >
-          Editar CAEA
-        </Button>
+          Se edita en Cajas
+        </RegistersLink>
       </div>
       <div className="flex gap-8">
         <DataPair
@@ -81,7 +67,7 @@ function RegisterPointOfSaleCard({
   );
 }
 
-export function RegisterPointOfSaleSection({ data, onEdit }: RegisterPointOfSaleSectionProps) {
+export function RegisterPointOfSaleSection({ data }: RegisterPointOfSaleSectionProps) {
   if (data.status === "loading") {
     return <LoadingPlaceholder variant="card" lines={2} />;
   }
@@ -112,9 +98,6 @@ export function RegisterPointOfSaleSection({ data, onEdit }: RegisterPointOfSale
           key={register.registerId}
           register={register}
           fiscalAddresses={fiscalAddresses}
-          dataStatus={data.status}
-          onEdit={() => onEdit(register, "real_time")}
-          onEditOffline={() => onEdit(register, "offline")}
         />
       ))}
     </>

@@ -3,6 +3,7 @@ import { createFakeQrScanner } from "../../backups/test-support/fake-qr-scanner"
 import { CreateCategoryFromSelectorModal } from "../../catalog/create-category-from-selector-modal";
 import { CreateProductFromSelectorModal } from "../../catalog/create-product-from-selector-modal";
 import { UserCredentialSections } from "../../credentials/user-credential-sections";
+import { RegisterPointOfSalePanelSection } from "../../fiscal/register-point-of-sale-panel-section";
 import { UnbilledDeferredSalesPill } from "../../fiscal/unbilled-deferred-sales-pill";
 import { CreateRoleFromSelectorModal } from "../../permissions/create-role-from-selector-modal";
 import { permissionCatalogFixture } from "../../platform/test-support/permission-catalog";
@@ -331,6 +332,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     categoryCreationModal: CreateCategoryFromSelectorModal,
     productCreationModal: CreateProductFromSelectorModal,
     productPriceSection: ProductPriceSection,
+    registerPointOfSaleSection: RegisterPointOfSalePanelSection,
     roleCreationModal: CreateRoleFromSelectorModal,
     reportRegisterFilter: {
       fetchReportRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -380,15 +382,12 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchSessionAuthorizationOptions: vi.fn(),
       authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),
-    },
-    snapshotBackupsScreen: {
-      fetchSnapshotBackupRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchSnapshotBackups: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchSnapshotBackupRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchFiscalRegisterNames: vi.fn().mockReturnValue(new Promise(() => {})),
       changeSnapshotLifecycleRules: vi.fn(),
       rotateSnapshotKey: vi.fn(),
-      fetchSessionAuthorizationOptions: vi.fn(),
-      authorizeSession: vi.fn(),
-      startAuthentication: vi.fn(),
+      fetchCashSessionCloses: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     contingencyTicketRescueScreen: {
       rescueContingencyBackupTicket: vi.fn(),
@@ -445,8 +444,6 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       remedyRejectedDocument: vi.fn(),
       confirmRevokedInstallation: vi.fn(),
       fetchBuyerTaxStatuses: vi.fn().mockReturnValue(new Promise(() => {})),
-      configureRegisterPointOfSale: vi.fn(),
-      configureRegisterOfflinePointOfSale: vi.fn(),
       createFiscalAddress: vi.fn(),
       editFiscalAddress: vi.fn(),
       fetchSessionAuthorizationOptions: vi.fn(),

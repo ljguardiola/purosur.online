@@ -38,6 +38,8 @@ import {
   canSeeRefundsArea,
   canSeeRefundsPage,
   canSeeRegistersArea,
+  canSeeRegistersList,
+  canSeeRegistersPage,
   canSeeReports,
   canSeeReturnsReport,
   canSeeRolesArea,
@@ -128,4 +130,23 @@ test("canSeeRefundsPage holds when either the refunds area or the returns report
   expect(canSeeRefundsPage(accessWith("returns_report"))).toBe(true);
   expect(canSeeRefundsPage(accessWith("reports_area"))).toBe(false);
   expect(canSeeRefundsPage(NO_CAPABILITIES_ACCESS)).toBe(false);
+});
+
+test("canSeeRegistersPage holds with the registers, reports, fiscal configuration or backups area", () => {
+  expect(canSeeRegistersPage(ADMINISTRATOR_ACCESS)).toBe(true);
+  expect(canSeeRegistersPage(accessWith("registers_area"))).toBe(true);
+  expect(canSeeRegistersPage(accessWith("reports_area"))).toBe(true);
+  expect(canSeeRegistersPage(accessWith("fiscal_configuration_area"))).toBe(true);
+  expect(canSeeRegistersPage(accessWith("backups_area"))).toBe(true);
+  expect(canSeeRegistersPage(accessWith("refunds_area"))).toBe(false);
+  expect(canSeeRegistersPage(NO_CAPABILITIES_ACCESS)).toBe(false);
+});
+
+test("canSeeRegistersList holds with the registers area, fiscal configuration or backups area", () => {
+  expect(canSeeRegistersList(ADMINISTRATOR_ACCESS)).toBe(true);
+  expect(canSeeRegistersList(accessWith("registers_area"))).toBe(true);
+  expect(canSeeRegistersList(accessWith("fiscal_configuration_area"))).toBe(true);
+  expect(canSeeRegistersList(accessWith("backups_area"))).toBe(true);
+  expect(canSeeRegistersList(accessWith("reports_area"))).toBe(false);
+  expect(canSeeRegistersList(NO_CAPABILITIES_ACCESS)).toBe(false);
 });

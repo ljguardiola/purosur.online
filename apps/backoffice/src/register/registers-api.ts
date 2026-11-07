@@ -11,6 +11,7 @@ import {
   registerCoverageSchema,
   registerEnrollmentCodeSchema,
   registerListSchema,
+  registerPointOfSaleOverviewListSchema,
   registerRevocationSchema,
   registerSyncStatusListSchema,
 } from "@purosur/contracts";
@@ -51,6 +52,10 @@ export type RegisterSummary = {
 };
 
 export type FetchRegistersOutcome = CloudReadOutcome<RegisterSummary[]>;
+
+export type RegisterName = { id: string; name: string };
+
+export type FetchRegisterNamesOutcome = CloudReadOutcome<RegisterName[]>;
 
 export type RegisterSyncStatus = {
   id: string;
@@ -240,6 +245,15 @@ export function fetchRegisterCoverage(): Promise<FetchRegisterCoverageOutcome> {
   return readCloud(
     "/api/registers/coverage",
     (body) => registerCoverageSchema.safeParse(body).data?.uncovered_permissions,
+  );
+}
+
+export function fetchFiscalRegisterNames(): Promise<FetchRegisterNamesOutcome> {
+  return readCloud("/api/registers/points-of-sale", (body) =>
+    registerPointOfSaleOverviewListSchema.safeParse(body).data?.map((row) => ({
+      id: row.register_id,
+      name: row.register_name,
+    })),
   );
 }
 

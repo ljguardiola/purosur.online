@@ -9,188 +9,28 @@ import { opensOnlyScreens } from "./test-support/screen-routes";
 
 opensOnlyScreens([
   "/",
-  "/backups",
   "/contingency-ticket-rescue",
   "/help",
   "/location-settings",
   "/people/roles",
   "/people/users",
-  "/registers",
 ]);
 
 beforeEach(resetPageState);
 
-test("shows the Cajas registradoras item in the rail for a user holding enroll_register_devices, linking to its screen", async () => {
-  window.history.pushState(null, "", "/registers");
-  const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue(
-      openSession({
-        userId: "user-2",
-        displayName: "Grace Villalba",
-        isAdministrator: false,
-        capabilities: ["registers_area"],
-      }),
-    ),
-  });
-  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
-    kind: "ok",
-    value: [],
-  });
-  const screen = await render(<App help={emptyHelp} services={services} />);
-  await expect.element(screen.getByRole("navigation", { name: "Configuración" })).toBeVisible();
-
-  await expect.element(screen.getByRole("link", { name: "Cajas registradoras" })).toBeVisible();
-});
-
-test("hides the Cajas registradoras item in the rail for a user without enroll_register_devices", async () => {
-  const services = createAppServices({
-    fetchSession: vi
-      .fn()
-      .mockResolvedValue(
-        openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
-      ),
-  });
-  window.history.pushState(null, "", "/help");
-
-  const screen = await render(<App help={emptyHelp} services={services} />);
-
-  await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
-  expect(screen.getByRole("link", { name: "Cajas registradoras" }).query()).toBeNull();
-});
-
-test("following the sidebar's Cajas registradoras item opens the registers list, with Config and Cajas registradoras active", async () => {
+test("lists neither Cajas registradoras nor Backups in Configuración, which the Cajas page holds", async () => {
   window.history.pushState(null, "", "/people/users");
   const services = createAppServices();
   vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
     kind: "ok",
     value: [],
   });
-  vi.mocked(services.registersListScreen.fetchRegisters).mockResolvedValue({
-    kind: "ok",
-    value: [],
-  });
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await expect.element(screen.getByRole("heading", { name: "Personas", level: 1 })).toBeVisible();
+  const sections = screen.getByRole("navigation", { name: "Configuración" });
+  await expect.element(sections.getByRole("link", { name: "Personas" })).toBeVisible();
 
-  await userEvent.click(screen.getByRole("link", { name: "Cajas registradoras" }));
-
-  await expect
-    .element(screen.getByRole("heading", { name: "Cajas registradoras", level: 1 }))
-    .toBeVisible();
-  expect(window.location.pathname).toBe("/registers");
-  const configItem = screen.getByRole("link", { name: "Config" }).element() as HTMLAnchorElement;
-  expect(configItem.getAttribute("aria-current")).toBe("page");
-  const registersItem = screen
-    .getByRole("link", { name: "Cajas registradoras" })
-    .element() as HTMLAnchorElement;
-  expect(registersItem.getAttribute("aria-current")).toBe("page");
-});
-
-test("redirects a typed /registers to the own account panel for a user without enroll_register_devices, without calling its API", async () => {
-  const services = createAppServices({
-    fetchSession: vi
-      .fn()
-      .mockResolvedValue(
-        openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
-      ),
-  });
-  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
-    kind: "ok",
-    value: [],
-  });
-  window.history.pushState(null, "", "/registers");
-
-  const screen = await render(<App help={emptyHelp} services={services} />);
-
-  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
-  expect(window.location.pathname + window.location.search).toBe("/?account=credentials");
-  expect(services.registersListScreen.fetchRegisters).not.toHaveBeenCalled();
-});
-
-test("shows the Backups item after Cajas registradoras for a user holding view_backups_and_rotate_key", async () => {
-  window.history.pushState(null, "", "/registers");
-  const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue(
-      openSession({
-        userId: "user-2",
-        displayName: "Grace Villalba",
-        isAdministrator: false,
-        capabilities: ["registers_area", "backups_area"],
-      }),
-    ),
-  });
-  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
-    kind: "ok",
-    value: [],
-  });
-  const screen = await render(<App help={emptyHelp} services={services} />);
-  await expect.element(screen.getByRole("navigation", { name: "Configuración" })).toBeVisible();
-
-  await expect.element(screen.getByRole("link", { name: "Backups" })).toBeVisible();
-  const links = screen.getByRole("link").elements();
-  const labels = links.map((link) => link.textContent);
-  expect(labels.indexOf("Backups")).toBe(labels.indexOf("Cajas registradoras") + 1);
-});
-
-test("hides the Backups item in the rail for a user without view_backups_and_rotate_key", async () => {
-  const services = createAppServices({
-    fetchSession: vi
-      .fn()
-      .mockResolvedValue(
-        openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
-      ),
-  });
-  window.history.pushState(null, "", "/help");
-
-  const screen = await render(<App help={emptyHelp} services={services} />);
-
-  await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
-  expect(screen.getByRole("link", { name: "Backups" }).query()).toBeNull();
-});
-
-test("following the sidebar's Backups item opens the backups, with Config and Backups active", async () => {
-  window.history.pushState(null, "", "/people/users");
-  const services = createAppServices();
-  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
-    kind: "ok",
-    value: [],
-  });
-  vi.mocked(services.snapshotBackupsScreen.fetchSnapshotBackupRegisters).mockResolvedValue({
-    kind: "ok",
-    value: [],
-  });
-  const screen = await render(<App help={emptyHelp} services={services} />);
-  await expect.element(screen.getByRole("heading", { name: "Personas", level: 1 })).toBeVisible();
-
-  await userEvent.click(screen.getByRole("link", { name: "Backups" }));
-
-  await expect.element(screen.getByRole("heading", { name: "Backups", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/backups");
-  const configItem = screen.getByRole("link", { name: "Config" }).element() as HTMLAnchorElement;
-  expect(configItem.getAttribute("aria-current")).toBe("page");
-  const backupsItem = screen.getByRole("link", { name: "Backups" }).element() as HTMLAnchorElement;
-  expect(backupsItem.getAttribute("aria-current")).toBe("page");
-});
-
-test("redirects a typed /backups to the own account panel for a user without view_backups_and_rotate_key, without calling its API", async () => {
-  const services = createAppServices({
-    fetchSession: vi
-      .fn()
-      .mockResolvedValue(
-        openSession({ userId: "user-2", displayName: "Grace Villalba", isAdministrator: false }),
-      ),
-  });
-  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
-    kind: "ok",
-    value: [],
-  });
-  window.history.pushState(null, "", "/backups");
-
-  const screen = await render(<App help={emptyHelp} services={services} />);
-
-  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
-  expect(window.location.pathname + window.location.search).toBe("/?account=credentials");
-  expect(services.snapshotBackupsScreen.fetchSnapshotBackupRegisters).not.toHaveBeenCalled();
+  expect(sections.getByRole("link", { name: "Cajas registradoras" }).query()).toBeNull();
+  expect(sections.getByRole("link", { name: "Backups" }).query()).toBeNull();
 });
 
 test("shows the Sucursal item in the rail for a user holding configure_branch, linking to its screen", async () => {
@@ -406,15 +246,15 @@ test("redirects a non-Administrator's typed /roles to the own account panel, wit
   expect(services.rolesListScreen.fetchRoles).not.toHaveBeenCalled();
 });
 
-test("shows the Rescate de tickets item right after Backups for a user holding contingency_ticket_rescue", async () => {
-  window.history.pushState(null, "", "/backups");
+test("shows the Rescate de tickets item for a user holding contingency_ticket_rescue", async () => {
+  window.history.pushState(null, "", "/contingency-ticket-rescue");
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(
       openSession({
         userId: "user-2",
         displayName: "Grace Villalba",
         isAdministrator: false,
-        capabilities: ["backups_area", "contingency_ticket_rescue"],
+        capabilities: ["contingency_ticket_rescue"],
       }),
     ),
   });
@@ -426,33 +266,6 @@ test("shows the Rescate de tickets item right after Backups for a user holding c
   await expect.element(screen.getByRole("navigation", { name: "Configuración" })).toBeVisible();
 
   await expect.element(screen.getByRole("link", { name: "Rescate de tickets" })).toBeVisible();
-  const labels = screen
-    .getByRole("link")
-    .elements()
-    .map((link) => link.textContent);
-  expect(labels.indexOf("Rescate de tickets")).toBe(labels.indexOf("Backups") + 1);
-});
-
-test("holding the Backups permission does not show the Rescate de tickets item", async () => {
-  window.history.pushState(null, "", "/backups");
-  const services = createAppServices({
-    fetchSession: vi.fn().mockResolvedValue(
-      openSession({
-        userId: "user-2",
-        displayName: "Grace Villalba",
-        isAdministrator: false,
-        capabilities: ["backups_area"],
-      }),
-    ),
-  });
-  vi.mocked(services.ownCredentialsSection.fetchPasskeys).mockResolvedValue({
-    kind: "ok",
-    value: [],
-  });
-  const screen = await render(<App help={emptyHelp} services={services} />);
-
-  await expect.element(screen.getByRole("link", { name: "Backups" })).toBeVisible();
-  expect(screen.getByRole("link", { name: "Rescate de tickets" }).query()).toBeNull();
 });
 
 test("following the sidebar's Rescate de tickets item opens the screen, with Config and the item active", async () => {

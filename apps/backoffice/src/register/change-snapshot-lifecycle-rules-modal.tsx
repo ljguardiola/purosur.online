@@ -117,7 +117,7 @@ export function ChangeSnapshotLifecycleRulesModal({
         width="standard"
         tone="info"
         icon={<HardDriveDownload />}
-        context="Backups"
+        context="Cajas"
         title="Cambiar las reglas"
         closable
         footer={

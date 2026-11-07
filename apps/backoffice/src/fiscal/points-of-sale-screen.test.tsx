@@ -25,8 +25,6 @@ function createServices(
     remedyRejectedDocument: vi.fn(),
     confirmRevokedInstallation: vi.fn(),
     fetchBuyerTaxStatuses: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
-    configureRegisterPointOfSale: vi.fn(),
-    configureRegisterOfflinePointOfSale: vi.fn(),
     createFiscalAddress: vi.fn(),
     editFiscalAddress: vi.fn(),
     fetchSessionAuthorizationOptions: vi.fn(),
@@ -133,7 +131,7 @@ test("shows the empty state when the branch has no registers", async () => {
     .toBeVisible();
 });
 
-test("shows a placeholder while the registers load, with Editar disabled", async () => {
+test("shows a placeholder while the registers load, without edit actions", async () => {
   const pending = deferred<{ kind: "ok"; value: RegisterPointOfSale[] }>();
   const services = createServices({
     fetchRegisterPointsOfSale: vi.fn().mockReturnValue(pending.promise),
@@ -142,9 +140,30 @@ test("shows a placeholder while the registers load, with Editar disabled", async
   const screen = await renderScreen(services);
 
   await expect.element(screen.getByText("Cargando…").first()).toBeVisible();
-  expect(screen.getByRole("button", { name: "Editar", exact: true }).query()).toBeNull();
   pending.resolve({ kind: "ok", value: [configuredRegister] });
-  await expect.element(screen.getByRole("button", { name: "Editar", exact: true })).toBeEnabled();
+  await expect.element(screen.getByText("00012")).toBeVisible();
+});
+
+test("shows each register's point of sale read-only, with no Editar nor Editar CAEA", async () => {
+  const screen = await renderScreen(serving([configuredRegister, pendingRegister], [depot]));
+  await expect.element(screen.getByText("00012")).toBeVisible();
+
+  expect(screen.getByRole("button", { name: "Editar", exact: true }).query()).toBeNull();
+  expect(screen.getByRole("button", { name: "Editar CAEA" }).query()).toBeNull();
+});
+
+test("links each register to its Fiscal y cobros in Cajas with Se edita en Cajas", async () => {
+  const screen = await renderScreen(serving([configuredRegister, pendingRegister], [depot]));
+  await expect.element(screen.getByText("00012")).toBeVisible();
+
+  const links = screen.getByRole("link", { name: "Se edita en Cajas" });
+  expect(links.elements()).toHaveLength(2);
+  await expect
+    .element(links.first())
+    .toHaveAttribute("href", "/registers?register=register-1&tab=fiscal");
+  await expect
+    .element(links.nth(1))
+    .toHaveAttribute("href", "/registers?register=register-2&tab=fiscal");
 });
 
 test("shows a load failure for the registers, and Reintentar loads them again", async () => {
@@ -220,75 +239,6 @@ test("ends the session when a load finds it closed", async () => {
   await renderScreen(services, onSessionEnded);
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
-});
-
-test("Editar opens the register's modal with its number and fiscal address", async () => {
-  const screen = await renderScreen(serving([configuredRegister], [depot, shop]));
-  await expect.element(screen.getByText("00012")).toBeVisible();
-
-  await userEvent.click(screen.getByRole("button", { name: "Editar", exact: true }));
-
-  const dialog = screen.getByRole("dialog", { name: "Caja 1" });
-  await expect.element(dialog.getByRole("textbox", { name: /^Punto de venta/ })).toHaveValue("12");
-  await expect
-    .element(dialog.getByRole("combobox", { name: /Domicilio fiscal/ }))
-    .toHaveValue("Depósito Central");
-});
-
-test("Editar CAEA opens the register's offline point of sale modal, and saving reads the lists again and announces it", async () => {
-  const services = serving([configuredRegister], [depot]);
-  vi.mocked(services.fetchRegisterPointsOfSale)
-    .mockResolvedValueOnce({ kind: "ok", value: [configuredRegister] })
-    .mockResolvedValue({
-      kind: "ok",
-      value: [{ ...configuredRegister, offlinePointOfSaleNumber: 8, offlineVersion: 5 }],
-    });
-  vi.mocked(services.configureRegisterOfflinePointOfSale).mockResolvedValue({ kind: "ok" });
-  const screen = await renderScreen(services);
-  await userEvent.click(screen.getByRole("button", { name: "Editar CAEA" }));
-  const dialog = screen.getByRole("dialog", { name: "Caja 1" });
-  await expect
-    .element(dialog.getByRole("textbox", { name: /^Punto de venta CAEA/ }))
-    .toHaveValue("13");
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Punto de venta CAEA/ }), "8");
-
-  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
-
-  expect(services.configureRegisterOfflinePointOfSale).toHaveBeenCalledWith("register-1", {
-    point_of_sale_number: 8,
-    version: 4,
-  });
-  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  await expect.element(screen.getByText("00008")).toBeVisible();
-  await expect.element(screen.getByText("Punto de venta CAEA guardado")).toBeVisible();
-});
-
-test("saving a register's point of sale reads both lists again and announces it", async () => {
-  const services = serving([configuredRegister], [depot, shop]);
-  vi.mocked(services.fetchRegisterPointsOfSale)
-    .mockResolvedValueOnce({ kind: "ok", value: [configuredRegister] })
-    .mockResolvedValue({
-      kind: "ok",
-      value: [{ ...configuredRegister, pointOfSaleNumber: 7, version: 3 }],
-    });
-  vi.mocked(services.configureRegisterPointOfSale).mockResolvedValue({ kind: "ok" });
-  const screen = await renderScreen(services);
-  await userEvent.click(screen.getByRole("button", { name: "Editar", exact: true }));
-  const dialog = screen.getByRole("dialog", { name: "Caja 1" });
-  await userEvent.fill(dialog.getByRole("textbox", { name: /^Punto de venta/ }), "7");
-
-  await userEvent.click(dialog.getByRole("button", { name: "Guardar los cambios" }));
-
-  expect(services.configureRegisterPointOfSale).toHaveBeenCalledWith("register-1", {
-    point_of_sale_number: 7,
-    fiscal_address_id: depot.id,
-    version: 2,
-  });
-  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
-  await expect.element(screen.getByText("00007")).toBeVisible();
-  await expect.element(screen.getByText("Punto de venta guardado")).toBeVisible();
-  await expect.element(screen.getByText("Caja 1.")).toBeVisible();
-  expect(services.fetchFiscalAddresses).toHaveBeenCalledTimes(2);
 });
 
 test("Nuevo domicilio fiscal opens the creation modal, and creating reads the lists again and announces it", async () => {

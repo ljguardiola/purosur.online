@@ -209,7 +209,7 @@ export function RespondToCompromiseModal({
         return (
           <div>
             <RegistersLink to="/registers" variant="text" icon={<Laptop />}>
-              Ir a Cajas registradoras
+              Ir a Cajas
             </RegistersLink>
           </div>
         );

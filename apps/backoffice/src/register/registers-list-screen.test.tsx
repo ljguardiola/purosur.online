@@ -1,25 +1,26 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { act, StrictMode } from "react";
+import { StrictMode } from "react";
 import { beforeEach, expect, onTestFinished, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
-import type { RegisterSummary } from "./registers-api";
 import { RegistersListScreen } from "./registers-list-screen";
 import type { RegistersListScreenServices } from "./registers-list-services";
+import { RegisterPointOfSaleSectionStub } from "./test-support/register-point-of-sale-section-stub";
 import {
   createServices,
   grantAuthorization,
   register1,
   register2,
   renderScreen,
+  rowOf,
 } from "./test-support/registers-list-screen";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 
-test("shows the breadcrumb, heading, each register's name and count", async () => {
+test("shows each register's name and count, with no title of its own", async () => {
   const services = createServices();
   vi.mocked(services.fetchRegisters).mockResolvedValue({
     kind: "ok",
@@ -28,10 +29,7 @@ test("shows the breadcrumb, heading, each register's name and count", async () =
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("Configuración")).toBeVisible();
-  await expect
-    .element(screen.getByRole("heading", { name: "Cajas registradoras", level: 1 }))
-    .toBeVisible();
+  expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
   await expect.element(screen.getByText("Caja 1")).toBeVisible();
   await expect.element(screen.getByText("Caja 2")).toBeVisible();
   await expect.element(screen.getByText("2 cajas")).toBeVisible();
@@ -67,139 +65,6 @@ test("shows Sin configurar for a register without a point of sale", async () => 
   await expect.element(screen.getByText("Sin configurar")).toBeVisible();
   await expect.element(screen.getByText("00003")).not.toBeInTheDocument();
 });
-
-test("shows the elapsed and remaining time for a register with a pending code", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register2] });
-
-  const screen = await renderScreen(services);
-
-  await expect.element(screen.getByText("Código emitido hace 4 minutos")).toBeVisible();
-  await expect.element(screen.getByText("Vence en 11 minutos")).toBeVisible();
-});
-
-test("shows recién for a code issued less than a minute ago", async () => {
-  const services = createServices();
-  const justIssued: RegisterSummary = {
-    id: "register-3",
-    name: "Caja 3",
-    pendingCode: { secondsSinceIssued: 20, secondsUntilExpiry: 880 },
-    pointOfSaleNumber: null,
-    pointTerminalId: null,
-    pointTerminalVersion: 0,
-    qrExternalPosId: null,
-    qrPointOfSaleVersion: 0,
-    installation: null,
-  };
-  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [justIssued] });
-
-  const screen = await renderScreen(services);
-
-  await expect.element(screen.getByText("Código emitido recién")).toBeVisible();
-});
-
-test("counts a pending code down every 30 seconds from the cloud's answer without reading the list again", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register2] });
-  vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
-  try {
-    const screen = await renderScreen(services);
-    await expect.element(screen.getByText("Vence en 11 minutos")).toBeVisible();
-
-    vi.advanceTimersByTime(60_000);
-
-    await expect.element(screen.getByText("Código emitido hace 5 minutos")).toBeVisible();
-    await expect.element(screen.getByText("Vence en 10 minutos")).toBeVisible();
-    expect(services.fetchRegisters).toHaveBeenCalledTimes(1);
-  } finally {
-    vi.useRealTimers();
-  }
-});
-
-test("stops showing a pending code once the remaining time the cloud gave runs out", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchRegisters).mockResolvedValue({
-    kind: "ok",
-    value: [{ ...register2, pendingCode: { secondsSinceIssued: 870, secondsUntilExpiry: 30 } }],
-  });
-  vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
-  try {
-    const screen = await renderScreen(services);
-    await expect.element(screen.getByText("Vence en 1 minuto")).toBeVisible();
-
-    vi.advanceTimersByTime(30_000);
-
-    await expect.poll(() => screen.getByText(/^Vence en/).query()).toBeNull();
-    await expect.poll(() => screen.getByText(/^Código emitido/).query()).toBeNull();
-    await expect.element(screen.getByText("—")).toBeVisible();
-  } finally {
-    vi.useRealTimers();
-  }
-});
-
-test("restarts the countdown from the cloud's new answer once the list is read again", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchRegisters)
-    .mockResolvedValueOnce({ kind: "ok", value: [register2] })
-    .mockResolvedValueOnce({
-      kind: "ok",
-      value: [{ ...register2, pendingCode: { secondsSinceIssued: 0, secondsUntilExpiry: 900 } }],
-    });
-  vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
-  try {
-    const screen = await renderScreen(services);
-    await expect.element(screen.getByText("Vence en 11 minutos")).toBeVisible();
-    vi.advanceTimersByTime(60_000);
-    await expect.element(screen.getByText("Vence en 10 minutos")).toBeVisible();
-
-    await userEvent.click(screen.getByRole("button", { name: "Refrescar" }));
-
-    await expect.element(screen.getByText("Código emitido recién")).toBeVisible();
-    await expect.element(screen.getByText("Vence en 15 minutos")).toBeVisible();
-  } finally {
-    vi.useRealTimers();
-  }
-});
-
-test.each([
-  {
-    answer: { secondsSinceIssued: 870, secondsUntilExpiry: 30 },
-    shownUntilTick: "Vence en 1 minuto",
-    shownAfterTick: "—",
-  },
-  {
-    answer: { secondsSinceIssued: 30, secondsUntilExpiry: 870 },
-    shownUntilTick: "Código emitido recién",
-    shownAfterTick: "Código emitido hace 1 minuto",
-  },
-])(
-  "counts the 30 seconds of each tick from the cloud's latest answer, showing $shownUntilTick until then",
-  async ({ answer, shownUntilTick, shownAfterTick }) => {
-    const services = createServices();
-    vi.mocked(services.fetchRegisters)
-      .mockResolvedValueOnce({ kind: "ok", value: [register2] })
-      .mockResolvedValueOnce({ kind: "ok", value: [{ ...register2, pendingCode: answer }] });
-    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
-    try {
-      const screen = await renderScreen(services);
-      await expect.element(screen.getByText("Vence en 11 minutos")).toBeVisible();
-      vi.advanceTimersByTime(29_000);
-      await userEvent.click(screen.getByRole("button", { name: "Refrescar" }));
-      await expect.element(screen.getByText(shownUntilTick)).toBeVisible();
-
-      await act(async () => {
-        vi.advanceTimersByTime(1_000);
-      });
-      expect(screen.getByText(shownAfterTick).query()).toBeNull();
-      await expect.element(screen.getByText(shownUntilTick)).toBeVisible();
-
-      vi.advanceTimersByTime(29_000);
-      await expect.element(screen.getByText(shownAfterTick)).toBeVisible();
-    } finally {
-      vi.useRealTimers();
-    }
-  },
-);
 
 test("shows an empty state when there are no registers yet", async () => {
   const services = createServices();
@@ -477,7 +342,10 @@ test("under StrictMode, clicking the row action emits the code exactly once and 
         <RegistersListScreen
           access={ADMINISTRATOR_ACCESS}
           services={services}
+          registerPointOfSaleSection={RegisterPointOfSaleSectionStub}
           onSessionEnded={() => {}}
+          sessionsPeriod={{ from: "", to: "" }}
+          onSessionsPeriodChange={() => {}}
         />
       </main>
     </StrictMode>,
@@ -853,7 +721,9 @@ test("shows each register's Point terminal, or Sin asignar when it has none", as
 });
 
 async function openTerminalModal(screen: Awaited<ReturnType<typeof renderScreen>>, name: string) {
-  await userEvent.click(screen.getByRole("button", { name: `Asignar terminal Point a ${name}` }));
+  await userEvent.click(
+    rowOf(screen, name).getByRole("button", { name: `Asignar terminal Point a ${name}` }),
+  );
   return screen.getByRole("dialog", { name: "Terminal Point integrada" });
 }
 

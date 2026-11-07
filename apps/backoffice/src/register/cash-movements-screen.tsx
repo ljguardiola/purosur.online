@@ -14,7 +14,6 @@ import { ArrowLeftRight } from "lucide-react";
 import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { reportMoment } from "../platform/report-moment";
-import { AreaTopBar } from "../shell/area-top-bar";
 import { RegisterReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
 import { ReportFilters } from "../shell/report-filters";
@@ -23,7 +22,6 @@ import {
   reportQueryOf,
 } from "../shell/report-filters-search";
 import type { ReportRegisterField } from "../shell/report-register-field";
-import { ScreenLayout } from "../shell/screen-layout";
 import { KIND_LABELS } from "./cash-movements-kind-labels";
 import type { CashMovementsScreenServices } from "./cash-movements-services";
 import { cashMovementsSpreadsheet } from "./cash-movements-spreadsheet";
@@ -43,7 +41,7 @@ type MovementRow = CashMovementsBody["movements"][number];
 
 const NO_MOVEMENTS: MovementRow[] = [];
 
-const SCREEN_TITLE = "Movimientos de caja";
+const SCREEN_TITLE = "Movimientos de efectivo";
 
 const movementColumns = [
   dataColumn({
@@ -113,10 +111,7 @@ export function CashMovementsScreen({
   const registerChosen = filters.register !== "ALL";
 
   return (
-    <ScreenLayout
-      topBar={<AreaTopBar eyebrow="Reportes · Caja" title={SCREEN_TITLE} />}
-      bodyClassName="gap-4 p-6"
-    >
+    <div className="flex min-w-0 flex-1 flex-col gap-4 p-6">
       <ReportFilters
         filters={filters}
         onFiltersChange={onFiltersChange}
@@ -159,7 +154,7 @@ export function CashMovementsScreen({
         </div>
       )}
       <Table
-        aria-label="Movimientos de caja"
+        aria-label={SCREEN_TITLE}
         table={table}
         {...cloudTableState(data, "los movimientos de caja")}
         empty={{
@@ -170,6 +165,6 @@ export function CashMovementsScreen({
           variant: registerChosen ? "filtered" : "blank",
         }}
       />
-    </ScreenLayout>
+    </div>
   );
 }

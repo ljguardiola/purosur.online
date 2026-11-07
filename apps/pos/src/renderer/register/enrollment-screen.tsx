@@ -158,7 +158,7 @@ function EnrollmentPanel({
         <ScreenHeader
           eyebrow={eyebrow}
           title="Dar de alta esta caja"
-          description="Escribí el código de alta que se genera en el backoffice, en Cajas registradoras. Vale 15 minutos y hace falta internet."
+          description="Escribí el código de alta que se genera en el backoffice, en Cajas. Vale 15 minutos y hace falta internet."
         />
         <form className="flex flex-col gap-4" noValidate onSubmit={handleSubmit}>
           <form.AppField name="code">
