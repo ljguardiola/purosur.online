@@ -327,7 +327,7 @@ describe("POST /label-prints", () => {
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({
       code: "validation_failed",
-      details: [{ field: "size.widthMm" }],
+      details: [{ field: "size" }],
     });
   });
 
