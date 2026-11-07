@@ -41,6 +41,7 @@ import type { DedicatedConnections } from "./platform/dedicated-connections.js";
 import { hashSecretCode } from "./platform/secret-code.js";
 import { insertEnrolledInstallation } from "./register/test-support/enrolled-installation.js";
 import {
+  anyCapabilityAccess,
   capabilityAccess,
   OFFSITE_DUMP_CHECK_ACCESS,
   OPEN_SESSION_ACCESS,
@@ -2036,6 +2037,7 @@ describe("wiring the register point of sale routes", () => {
     ["GET", "/api/registers/fortnight-presentations"],
     ["GET", "/api/fiscal/tasks"],
     ["GET", "/api/fiscal/unbilled-deferred-sales"],
+    ["GET", "/api/fiscal/current-offline-authorization-code"],
     ["GET", "/api/fiscal/documents"],
     ["GET", "/api/fiscal/documents/11/7/12"],
     ["GET", "/api/reports/fiscal-documents"],
@@ -3608,6 +3610,11 @@ describe("the route access inventory", () => {
       },
       {
         method: "GET",
+        url: "/api/fiscal/current-offline-authorization-code",
+        access: capabilityAccess("fiscal_information"),
+      },
+      {
+        method: "GET",
         url: "/api/fiscal/documents",
         access: capabilityAccess("fiscal_information"),
       },
@@ -3619,7 +3626,7 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/reports/fiscal-documents",
-        access: capabilityAccess("reports_area"),
+        access: anyCapabilityAccess("fiscal_information", "reports_area"),
       },
       {
         method: "GET",
