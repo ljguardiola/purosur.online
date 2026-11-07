@@ -1,0 +1,47 @@
+{
+  "status": 200,
+  "body": {
+    "data": [
+      {
+        "id": "ORDTST00000000000000000000000003",
+        "type": "point",
+        "processing_mode": "automatic",
+        "external_reference": "00000000-0000-4000-8000-000000000002",
+        "expiration_time": "PT10M",
+        "user_id": "1234567890",
+        "status": "created",
+        "status_detail": "created",
+        "currency": "ARS",
+        "created_date": "2026-11-07T20:21:37.655Z",
+        "last_updated_date": "2026-11-07T20:21:37.655Z",
+        "integration_data": {
+          "application_id": "1234567890123456"
+        },
+        "config": {
+          "point": {
+            "terminal_id": "FICTIONAL__SMARTPOS1",
+            "print_on_terminal": "no_ticket"
+          },
+          "payment_method": {
+            "default_type": "debit_card"
+          }
+        },
+        "transactions": {
+          "payments": [
+            {
+              "id": "PAY00000000000000000000000004",
+              "amount": "15.00",
+              "status": "created"
+            }
+          ]
+        }
+      }
+    ],
+    "paging": {
+      "total": "1",
+      "total_pages": "1",
+      "offset": "0",
+      "limit": "50"
+    }
+  }
+}

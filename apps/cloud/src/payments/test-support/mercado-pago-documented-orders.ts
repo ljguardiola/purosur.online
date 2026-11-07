@@ -362,15 +362,3 @@ export function inStorePaymentRefundOrderError(): Record<string, unknown> {
     400,
   );
 }
-
-export function orderSearchAnswer(orders: Record<string, unknown>[]): Record<string, unknown> {
-  return {
-    data: orders,
-    paging: {
-      total: String(orders.length),
-      total_pages: orders.length === 0 ? "0" : "1",
-      offset: "0",
-      limit: "50",
-    },
-  };
-}

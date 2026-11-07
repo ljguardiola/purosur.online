@@ -1,0 +1,11 @@
+{
+  "status": 400,
+  "body": {
+    "errors": [
+      {
+        "code": "missing_required_params",
+        "message": "Missing required search parameters: begin_date and end_date"
+      }
+    ]
+  }
+}

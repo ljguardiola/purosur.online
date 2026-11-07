@@ -1,0 +1,46 @@
+{
+  "status": 200,
+  "body": {
+    "data": [
+      {
+        "id": "ORDTST00000000000000000000000001",
+        "type": "qr",
+        "processing_mode": "automatic",
+        "external_reference": "00000000-0000-4000-8000-000000000001",
+        "total_amount": "15.00",
+        "expiration_time": "PT10M",
+        "user_id": "1234567890",
+        "status": "created",
+        "status_detail": "created",
+        "currency": "ARS",
+        "created_date": "2026-11-07T20:21:37.051Z",
+        "last_updated_date": "2026-11-07T20:21:37.051Z",
+        "integration_data": {
+          "application_id": "1234567890123456"
+        },
+        "config": {
+          "qr": {
+            "external_pos_id": "STORE01POS01",
+            "mode": "static"
+          }
+        },
+        "transactions": {
+          "payments": [
+            {
+              "id": "PAY00000000000000000000000002",
+              "amount": "15.00",
+              "status": "created",
+              "status_detail": "ready_to_process"
+            }
+          ]
+        }
+      }
+    ],
+    "paging": {
+      "total": "1",
+      "total_pages": "1",
+      "offset": "0",
+      "limit": "50"
+    }
+  }
+}
