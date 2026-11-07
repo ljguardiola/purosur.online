@@ -1,6 +1,7 @@
 import { DetailPanel, Tab, Tabs } from "@purosur/ui";
 import { createLink } from "@tanstack/react-router";
 import { landingPart, type PagePart, pagePartsFor } from "../platform/page-parts";
+import type { RegisterName } from "../platform/register-name";
 import type { RegisterPointOfSaleSection } from "../platform/register-point-of-sale-section";
 import {
   type BackofficeAccess,
@@ -18,12 +19,16 @@ import type { RegisterSummary } from "./registers-api";
 import type { RegistersListScreenServices } from "./registers-list-services";
 import { SnapshotBackupsSection } from "./snapshot-backups-section";
 
-export type RegisterPanelProps = {
-  register: RegisterSummary;
+export type RegisterPanelProps = RegisterPanelBaseProps &
+  (
+    | { summary: RegisterSummary; actions: RegisterActions; secondsSinceRead: number }
+    | { summary?: undefined; actions?: undefined; secondsSinceRead?: undefined }
+  );
+
+type RegisterPanelBaseProps = {
+  register: RegisterName;
   access: BackofficeAccess;
-  actions: RegisterActions;
   registerPointOfSaleSection: RegisterPointOfSaleSection;
-  secondsSinceRead: number;
   tab?: string | undefined;
   sessionsPeriod: ReportPeriodFilters;
   onSessionsPeriodChange: (period: ReportPeriodFilters) => void;
@@ -53,10 +58,11 @@ const RegisterTabLink = createLink(Tab);
 
 export function RegisterPanel({
   register,
-  access,
+  summary,
   actions,
-  registerPointOfSaleSection: PointOfSaleSection,
   secondsSinceRead,
+  access,
+  registerPointOfSaleSection: PointOfSaleSection,
   tab,
   sessionsPeriod,
   onSessionsPeriodChange,
@@ -65,11 +71,19 @@ export function RegisterPanel({
   onSessionEnded,
   services,
 }: RegisterPanelProps) {
+  const details = summary === undefined ? undefined : { summary, actions, secondsSinceRead };
   const parts = pagePartsFor(access, REGISTER_PANEL_TABS);
   if (parts.kind === "hidden") {
     return null;
   }
   const selectedTab = landingPart(parts, tab);
+  const pointOfSaleSlot = (
+    <PointOfSaleSection
+      registerId={register.id}
+      onSessionEnded={onSessionEnded}
+      onSaved={onPointOfSaleSaved}
+    />
+  );
 
   return (
     <DetailPanel open onClose={onClose} recordKey={register.id} title={register.name}>
@@ -87,28 +101,25 @@ export function RegisterPanel({
           />
         ))}
       >
-        {selectedTab === "data" && (
+        {selectedTab === "data" && details !== undefined && (
           <RegisterDataSection
-            register={register}
+            register={details.summary}
             access={access}
-            actions={actions}
-            secondsSinceRead={secondsSinceRead}
+            actions={details.actions}
+            secondsSinceRead={details.secondsSinceRead}
           />
         )}
-        {selectedTab === "fiscal" && (
-          <RegisterPaymentsSection
-            register={register}
-            access={access}
-            actions={actions}
-            pointOfSaleSlot={
-              <PointOfSaleSection
-                registerId={register.id}
-                onSessionEnded={onSessionEnded}
-                onSaved={onPointOfSaleSaved}
-              />
-            }
-          />
-        )}
+        {selectedTab === "fiscal" &&
+          (details === undefined ? (
+            <div className="flex flex-col gap-4 pt-4">{pointOfSaleSlot}</div>
+          ) : (
+            <RegisterPaymentsSection
+              register={details.summary}
+              access={access}
+              actions={details.actions}
+              pointOfSaleSlot={pointOfSaleSlot}
+            />
+          ))}
         {selectedTab === "backups" && (
           <SnapshotBackupsSection
             register={register}

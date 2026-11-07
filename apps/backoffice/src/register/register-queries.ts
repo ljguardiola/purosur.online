@@ -7,6 +7,7 @@ import type {
 import type { PermissionKey } from "@purosur/domain";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
+import type { FetchRegisterNames, RegisterName } from "../platform/register-name";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchCashMovements } from "./cash-movements-api";
@@ -21,10 +22,14 @@ import type {
 import type { fetchReportRegisters } from "./report-registers-api";
 import type { fetchSnapshotBackups, SnapshotBackups } from "./snapshot-backups-api";
 
+export type RegisterNamesSource = "fiscal" | "backups";
+
 export const registerKey = ["register"] as const;
 
 export const registerKeys = {
   registers: [...registerKey, "registers"] as const,
+  registerNames: (source: RegisterNamesSource) =>
+    [...registerKey, "register-names", source] as const,
   coverage: [...registerKey, "coverage"] as const,
   syncStatus: [...registerKey, "sync-status"] as const,
   reportRegisters: [...registerKey, "report-registers"] as const,
@@ -56,6 +61,20 @@ export function useRegistersQuery(params: {
   return useCloudQuery<RegisterSummary[]>({
     queryKey: registerKeys.registers,
     read: params.fetchRegisters,
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useRegisterNamesQuery(params: {
+  source: RegisterNamesSource;
+  fetchRegisterNames: FetchRegisterNames;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<RegisterName[]>({
+    queryKey: registerKeys.registerNames(params.source),
+    read: params.fetchRegisterNames,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

@@ -16,12 +16,14 @@ import { Check, Laptop, Plus } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
 import { cloudTableState } from "../platform/cloud-table-state";
+import type { FetchRegisterNames } from "../platform/register-name";
 import type { RegisterPointOfSaleSection } from "../platform/register-point-of-sale-section";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import {
   type BackofficeAccess,
   canEnrollRegisters,
   canRevokeInstallations,
+  canSeeRegistersArea,
 } from "../shell/backoffice-access";
 import type { ReportPeriodFilters } from "../shell/report-filters-search";
 import { AssignPointTerminalModal } from "./assign-point-terminal-modal";
@@ -36,6 +38,7 @@ import {
   RegisterInstallationSummary,
   useSecondsSinceRead,
 } from "./register-installation-summary";
+import { RegisterNamesListScreen } from "./register-names-list-screen";
 import { RegisterPanel } from "./register-panel";
 import {
   useRefreshRegisters,
@@ -55,6 +58,7 @@ export type RegistersListScreenProps = {
   onSessionEnded: () => void;
   services: RegistersListScreenServices;
   registerPointOfSaleSection: RegisterPointOfSaleSection;
+  fetchFiscalRegisterNames: FetchRegisterNames;
   openRegister?: string | undefined;
   tab?: string | undefined;
   sessionsPeriod: ReportPeriodFilters;
@@ -65,7 +69,15 @@ const RegisterRowLink = createLink(ButtonLink);
 
 const NO_REGISTERS: RegisterSummary[] = [];
 
-export function RegistersListScreen({
+export function RegistersListScreen(props: RegistersListScreenProps) {
+  return canSeeRegistersArea(props.access) ? (
+    <FullRegistersListScreen {...props} />
+  ) : (
+    <RegisterNamesListScreen {...props} />
+  );
+}
+
+function FullRegistersListScreen({
   access,
   onSessionEnded,
   services,
@@ -333,9 +345,10 @@ export function RegistersListScreen({
           <RegisterPanel
             key={openRegisterSummary.id}
             register={openRegisterSummary}
-            access={access}
+            summary={openRegisterSummary}
             actions={actions}
             secondsSinceRead={secondsSinceRead}
+            access={access}
             tab={tab}
             sessionsPeriod={sessionsPeriod}
             onSessionsPeriodChange={onSessionsPeriodChange}

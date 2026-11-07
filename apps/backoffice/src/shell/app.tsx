@@ -32,6 +32,7 @@ import type {
 } from "../platform/creation-parts";
 import type { ProductPriceSection } from "../platform/product-price-section";
 import { createQueryClient } from "../platform/query-client";
+import type { FetchRegisterNames } from "../platform/register-name";
 import type { RegisterPointOfSaleSection } from "../platform/register-point-of-sale-section";
 import {
   defaultReleaseMonitor,
@@ -150,6 +151,7 @@ export type AppServices = {
   productCreationModal: ProductCreationModal;
   productPriceSection: ProductPriceSection;
   registerPointOfSaleSection: RegisterPointOfSaleSection;
+  fetchFiscalRegisterNames: FetchRegisterNames;
   roleCreationModal: RoleCreationModal;
   reportRegisterFilter: ReportRegisterFilterServices;
   pendingRefundsScreen: PendingRefundsScreenServices;
@@ -206,6 +208,7 @@ type ShellServiceName =
   | "productCreationModal"
   | "productPriceSection"
   | "registerPointOfSaleSection"
+  | "fetchFiscalRegisterNames"
   | "roleCreationModal"
   | "accountFooter"
   | "screenFailure"
@@ -249,6 +252,8 @@ const defaultRouteServices: RouteServices = {
     () => import("../fiscal/register-point-of-sale-panel-section"),
     "RegisterPointOfSalePanelSection",
   ),
+  fetchFiscalRegisterNames: async () =>
+    (await import("../fiscal/register-points-of-sale-api")).fetchFiscalRegisterNames(),
   roleCreationModal: lazyScreen(
     () => import("../permissions/create-role-from-selector-modal"),
     "CreateRoleFromSelectorModal",

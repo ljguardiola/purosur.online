@@ -15,6 +15,7 @@ export function RegistersListPage(): ReactElement {
       onSessionEnded={sessionActions.sessionEnded}
       services={services.registersListScreen ?? defaultRegistersListScreenServices}
       registerPointOfSaleSection={services.registerPointOfSaleSection}
+      fetchFiscalRegisterNames={services.fetchFiscalRegisterNames}
       openRegister={register}
       tab={tab}
       sessionsPeriod={{ from, to }}

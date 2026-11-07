@@ -5,6 +5,7 @@ import {
   registerPointOfSaleOverviewListSchema,
 } from "@purosur/contracts";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
+import type { FetchRegisterNames } from "../platform/register-name";
 import { readValidationFailedField } from "../platform/validation-failed-field";
 import {
   errorCodeOf,
@@ -52,6 +53,19 @@ export function fetchRegisterPointsOfSale(): Promise<FetchRegisterPointsOfSaleOu
     registerPointOfSaleOverviewListSchema.safeParse(body).data?.map(registerPointOfSaleFromWire),
   );
 }
+
+export const fetchFiscalRegisterNames: FetchRegisterNames = async () => {
+  const outcome = await fetchRegisterPointsOfSale();
+  return outcome.kind === "ok"
+    ? {
+        kind: "ok",
+        value: outcome.value.map(({ registerId, registerName }) => ({
+          id: registerId,
+          name: registerName,
+        })),
+      }
+    : outcome;
+};
 
 async function putPointOfSale(
   path: string,

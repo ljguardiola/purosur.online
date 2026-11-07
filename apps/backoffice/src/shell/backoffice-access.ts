@@ -103,6 +103,14 @@ export function canSeeBackupsArea(access: BackofficeAccess): boolean {
   return grants(access, "backups_area");
 }
 
+export function canSeeRegistersList(access: BackofficeAccess): boolean {
+  return (
+    canSeeRegistersArea(access) ||
+    canSeeFiscalConfigurationArea(access) ||
+    canSeeBackupsArea(access)
+  );
+}
+
 export function canSeeRegistersPage(access: BackofficeAccess): boolean {
   return (
     canSeeRegistersArea(access) ||

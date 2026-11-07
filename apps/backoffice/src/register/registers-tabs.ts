@@ -1,14 +1,14 @@
 import type { PagePart } from "../platform/page-parts";
 import {
   type BackofficeAccess,
-  canSeeRegistersArea,
+  canSeeRegistersList,
   canSeeReports,
 } from "../shell/backoffice-access";
 
 export type RegistersTab = "registers" | "closes" | "movements";
 
 export const REGISTERS_TABS: readonly PagePart<BackofficeAccess, RegistersTab>[] = [
-  { key: "registers", isVisibleTo: canSeeRegistersArea },
+  { key: "registers", isVisibleTo: canSeeRegistersList },
   { key: "closes", isVisibleTo: canSeeReports },
   { key: "movements", isVisibleTo: canSeeReports },
 ];

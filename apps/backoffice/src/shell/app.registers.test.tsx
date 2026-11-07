@@ -215,15 +215,16 @@ test.each<{ capability: Capability; path: string }>([
   { capability: "fiscal_configuration_area", path: "/registers/closes" },
   { capability: "backups_area", path: "/registers/movements" },
 ])(
-  "sends a person with $capability alone, who sees no tab of $path, to the own account panel",
+  "sends a person with $capability alone from $path, whose tab they do not see, to Cajas",
   async ({ capability, path }) => {
     const services = registersServices([capability]);
     window.history.pushState(null, "", path);
 
     const screen = await render(<App help={emptyHelp} services={services} />);
 
-    await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
-    expect(location()).toBe("/?account=credentials");
+    await expect.element(screen.getByRole("tab", { name: "Cajas", selected: true })).toBeVisible();
+    expect(screen.getByRole("tab").elements()).toHaveLength(1);
+    expect(location()).toBe("/registers");
   },
 );
 

@@ -24,6 +24,7 @@ import {
 } from "./registers-api";
 import type { RevokeEveryInstallationModalServices } from "./revoke-every-installation-modal";
 import type { RevokeRegisterModalServices } from "./revoke-register-modal";
+import { fetchSnapshotBackupRegisters } from "./snapshot-backups-api";
 import {
   defaultSnapshotBackupsSectionServices,
   type SnapshotBackupsSectionServices,
@@ -31,6 +32,7 @@ import {
 
 export type RegistersListScreenServices = {
   fetchRegisters: typeof fetchRegisters;
+  fetchSnapshotBackupRegisters: typeof fetchSnapshotBackupRegisters;
   fetchRegisterCoverage: typeof fetchRegisterCoverage;
   emitEnrollmentCode: typeof emitEnrollmentCode;
   fetchSessionAuthorizationOptions: typeof fetchSessionAuthorizationOptions;
@@ -48,6 +50,7 @@ export type RegistersListScreenServices = {
 
 export const defaultRegistersListScreenServices: RegistersListScreenServices = {
   fetchRegisters,
+  fetchSnapshotBackupRegisters,
   fetchRegisterCoverage,
   createRegister,
   assignPointTerminal,

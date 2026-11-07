@@ -30,11 +30,9 @@ function renderPanel({
   return render(
     <RegisterPanel
       register={enrolledRegister}
-      details={
-        nameOnly
-          ? undefined
-          : { summary: enrolledRegister, actions: createActions(), secondsSinceRead: 0 }
-      }
+      {...(nameOnly
+        ? {}
+        : { summary: enrolledRegister, actions: createActions(), secondsSinceRead: 0 })}
       access={access}
       registerPointOfSaleSection={RegisterPointOfSaleSectionStub}
       tab={tab}
