@@ -20,17 +20,21 @@ import { useEffect, useEffectEvent } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { combineCloudData } from "../platform/combine-cloud-data";
 import { monthNameOf, yearMonthLabel } from "../platform/year-month-label";
-import { AreaTopBar } from "../shell/area-top-bar";
-import { ScreenLayout } from "../shell/screen-layout";
+import type { fetchExceptionShareYear } from "./exception-share-api";
 import type { ExceptionalityFilters } from "./exceptionality-filters";
-import type { ExceptionalityScreenServices } from "./exceptionality-services";
+import type { fetchFiscalAddresses } from "./fiscal-addresses-api";
 import { useExceptionShareYearQuery, useFiscalAddressesQuery } from "./fiscal-queries";
 
-export type ExceptionalityScreenProps = {
+export type ExceptionalitySectionServices = {
+  fetchFiscalAddresses: typeof fetchFiscalAddresses;
+  fetchExceptionShareYear: typeof fetchExceptionShareYear;
+};
+
+export type ExceptionalitySectionProps = {
   filters: ExceptionalityFilters;
   onFiltersChange: (filters: ExceptionalityFilters) => void;
   onSessionEnded: () => void;
-  services: ExceptionalityScreenServices;
+  services: ExceptionalitySectionServices;
 };
 
 type MonthShare = ExceptionShareYearBody["months"][number];
@@ -168,12 +172,12 @@ function emptyStateOf(noFiscalAddresses: boolean) {
       };
 }
 
-export function ExceptionalityScreen({
+export function ExceptionalitySection({
   filters,
   onFiltersChange,
   onSessionEnded,
   services,
-}: ExceptionalityScreenProps) {
+}: ExceptionalitySectionProps) {
   const addresses = useFiscalAddressesQuery({
     fetchFiscalAddresses: services.fetchFiscalAddresses,
     onSessionEnded,
@@ -224,10 +228,7 @@ export function ExceptionalityScreen({
   });
 
   return (
-    <ScreenLayout
-      topBar={<AreaTopBar eyebrow="Caja y fiscal · Fiscal" title="Excepcionalidad" />}
-      bodyClassName="gap-4 p-6"
-    >
+    <div className="flex flex-col gap-4">
       {firstAddress === undefined ? null : (
         <div className="flex flex-wrap items-end gap-3">
           <ListFilter
@@ -271,6 +272,6 @@ export function ExceptionalityScreen({
         {...cloudTableState(data, "la excepcionalidad")}
         empty={emptyStateOf(noFiscalAddresses)}
       />
-    </ScreenLayout>
+    </div>
   );
 }

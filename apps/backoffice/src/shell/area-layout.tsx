@@ -6,10 +6,10 @@ import {
   ClipboardList,
   HandCoins,
   Home,
+  Landmark,
   LifeBuoy,
   Package,
   Settings,
-  Wallet,
 } from "lucide-react";
 import { type ReactNode, Suspense } from "react";
 import { AccountFooter } from "./account-footer";
@@ -27,10 +27,9 @@ import {
   canRecordPurchases,
   canSeeBranchArea,
   canSeeCatalogArea,
-  canSeeContingencyTicketRescue,
   canSeeExpiringLots,
-  canSeeFiscalConfigurationArea,
   canSeeFiscalInformation,
+  canSeeFiscalPage,
   canSeeOrdersArea,
   canSeePeopleArea,
   canSeePricesArea,
@@ -59,7 +58,7 @@ type Area =
   | "stock"
   | "orders"
   | "sales-and-cash"
-  | "cash-and-fiscal"
+  | "fiscal"
   | "reports"
   | "settings"
   | "help";
@@ -102,7 +101,6 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
                   : canManageBatches(session)
                     ? "/assembly-batches"
                     : "/initial-inventory";
-  const cashTarget = canSeeFiscalConfigurationArea(session) ? "/points-of-sale" : "/fiscal-tasks";
   const salesAndCashTarget = canSeeRegistersPage(session)
     ? "/registers"
     : canSeeRefundsArea(session)
@@ -117,13 +115,11 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
         : "/supplier-price-lists";
   const settingsTarget = canSeePeopleArea(session)
     ? "/people"
-    : canSeeContingencyTicketRescue(session)
-      ? "/contingency-ticket-rescue"
-      : canSeeBranchArea(session)
-        ? "/location-settings"
-        : canSeeQuarantinedEvents(session)
-          ? "/quarantined-events"
-          : null;
+    : canSeeBranchArea(session)
+      ? "/location-settings"
+      : canSeeQuarantinedEvents(session)
+        ? "/quarantined-events"
+        : null;
   const stockTargetShown = Boolean(matchRoute({ to: stockTarget }));
   return (
     <Shell
@@ -165,13 +161,8 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
               active={area === "orders"}
             />
           )}
-          {(canSeeFiscalConfigurationArea(session) || canSeeFiscalInformation(session)) && (
-            <AreaLink
-              to={cashTarget}
-              label="Caja y fiscal"
-              icon={<Wallet />}
-              active={area === "cash-and-fiscal"}
-            />
+          {canSeeFiscalPage(session) && (
+            <AreaLink to="/fiscal" label="Fiscal" icon={<Landmark />} active={area === "fiscal"} />
           )}
           {canSeeReports(session) && (
             <AreaLink

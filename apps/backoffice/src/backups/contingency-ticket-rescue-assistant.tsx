@@ -1,16 +1,19 @@
 import { getRouteApi } from "@tanstack/react-router";
 import type { ReactElement } from "react";
-import { useDocumentTitle } from "../shell/document-title";
-import { ContingencyTicketRescueScreen } from "./contingency-ticket-rescue-screen";
+import { ContingencyTicketRescueModal } from "./contingency-ticket-rescue-modal";
 import { defaultContingencyTicketRescueScreenServices } from "./contingency-ticket-rescue-services";
 
-const route = getRouteApi("/signed-in/settings-area/contingency-ticket-rescue");
+const route = getRouteApi("/signed-in/fiscal-area/fiscal/caea");
 
-export function ContingencyTicketRescuePage(): ReactElement {
+export function ContingencyTicketRescueAssistant({
+  onClose,
+}: {
+  onClose: () => void;
+}): ReactElement {
   const { services, sessionActions } = route.useRouteContext();
-  useDocumentTitle("Rescate de tickets · Puro Sur");
   return (
-    <ContingencyTicketRescueScreen
+    <ContingencyTicketRescueModal
+      onClose={onClose}
       onSessionEnded={sessionActions.sessionEnded}
       services={
         services.contingencyTicketRescueScreen ?? defaultContingencyTicketRescueScreenServices

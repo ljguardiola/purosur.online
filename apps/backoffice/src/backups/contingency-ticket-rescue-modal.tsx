@@ -1,17 +1,17 @@
 import type { ContingencyBackupTicketRescueResponse } from "@purosur/contracts";
 import {
+  Button,
   dataColumn,
   FloatingNotification,
+  Modal,
   StatusIndicator,
   Table,
   useTableModel,
 } from "@purosur/ui";
 import { useMutation } from "@tanstack/react-query";
-import { Check, QrCode, TriangleAlert } from "lucide-react";
+import { ArrowLeft, Check, QrCode, TriangleAlert } from "lucide-react";
 import { useRef, useState } from "react";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
-import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTitle } from "../shell/screen-title";
 import { useContingencyTicketRecoveriesQuery, useRefreshBackups } from "./backups-queries";
 import type { ContingencyTicketRecovery } from "./contingency-ticket-recovery-api";
 import type { RescueContingencyBackupTicketOutcome } from "./contingency-ticket-rescue-api";
@@ -73,7 +73,8 @@ function finishedNotice(
       };
 }
 
-export type ContingencyTicketRescueScreenProps = {
+export type ContingencyTicketRescueModalProps = {
+  onClose: () => void;
   onSessionEnded: () => void;
   services: ContingencyTicketRescueScreenServices;
 };
@@ -136,10 +137,11 @@ function resultCell({ result }: ScannedTicket) {
   );
 }
 
-export function ContingencyTicketRescueScreen({
+export function ContingencyTicketRescueModal({
+  onClose,
   onSessionEnded,
   services,
-}: ContingencyTicketRescueScreenProps) {
+}: ContingencyTicketRescueModalProps) {
   const sendToMyAccount = useSendToMyAccount();
   const recoveries = useContingencyTicketRecoveriesQuery({
     fetchContingencyTicketRecoveries: services.fetchContingencyTicketRecoveries,
@@ -254,31 +256,40 @@ export function ContingencyTicketRescueScreen({
 
   return (
     <>
-      <ScreenLayout
-        topBar={
-          <div className="flex h-18 shrink-0 items-center border-border border-b bg-surface px-8">
-            <div className="flex flex-col justify-center">
-              <p className="text-text-subtle text-detail">Configuración</p>
-              <ScreenTitle>Rescate de tickets</ScreenTitle>
-            </div>
-          </div>
+      <Modal
+        open
+        onOpenChange={(open) => {
+          if (!open) {
+            onClose();
+          }
+        }}
+        width="editor"
+        tone="info"
+        icon={<QrCode />}
+        context="Fiscal"
+        title="Rescate de tickets de contingencia"
+        footer={
+          <Button variant="secondary" size="large" icon={<ArrowLeft />} onPress={onClose}>
+            Volver
+          </Button>
         }
-        bodyClassName="flex-row gap-4 p-6"
       >
-        <TicketScanPanel scanner={services.scanner} progress={progress} onCode={handleCode} />
-        <div className="flex min-w-0 flex-1 flex-col gap-4">
-          <TicketRecoveriesSection data={recoveries} onFinish={setFinishTarget} />
-          <Table
-            aria-label="Tickets leídos"
-            table={table}
-            empty={{
-              icon: <QrCode />,
-              title: "Todavía no se leyó ningún ticket",
-              variant: "blank",
-            }}
-          />
+        <div className="flex gap-4">
+          <TicketScanPanel scanner={services.scanner} progress={progress} onCode={handleCode} />
+          <div className="flex min-w-0 flex-1 flex-col gap-4">
+            <TicketRecoveriesSection data={recoveries} onFinish={setFinishTarget} />
+            <Table
+              aria-label="Tickets leídos"
+              table={table}
+              empty={{
+                icon: <QrCode />,
+                title: "Todavía no se leyó ningún ticket",
+                variant: "blank",
+              }}
+            />
+          </div>
         </div>
-      </ScreenLayout>
+      </Modal>
       <FinishTicketRecoveryModal
         target={finishTarget}
         onClose={() => setFinishTarget(null)}

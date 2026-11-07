@@ -1,6 +1,6 @@
 import type { IssuedFiscalDocumentDetailBody } from "@purosur/contracts";
 import {
-  Button,
+  DetailPanel,
   DocumentList,
   type DocumentRowProps,
   dataColumn,
@@ -9,7 +9,6 @@ import {
   formatCents,
   LoadFailure,
   LoadingPlaceholder,
-  Modal,
   StatusIndicator,
   SummaryRowGroup,
   Table,
@@ -17,7 +16,8 @@ import {
   type Tone,
   useTableModel,
 } from "@purosur/ui";
-import { ArrowLeft, Banknote, FileMinus, FileSearch, FileText, Package } from "lucide-react";
+import { Banknote, FileMinus, Package } from "lucide-react";
+import { useEffect, useEffectEvent } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import { paymentLabel } from "../platform/payment-label";
 import { saleUnitQuantityText } from "../platform/sale-unit-quantity";
@@ -31,19 +31,20 @@ import {
   issuedTime,
   voucherText,
 } from "./issued-fiscal-document-text";
+import { voucherKeyOf } from "./issued-fiscal-document-voucher";
 import type { fetchIssuedFiscalDocument } from "./issued-fiscal-documents-api";
 
-export type IssuedFiscalDocumentDetailModalServices = {
+export type IssuedFiscalDocumentPanelServices = {
   fetchIssuedFiscalDocument: typeof fetchIssuedFiscalDocument;
 };
 
 type Voucher = { voucher_type: number; point_of_sale: number; number: number };
 
-type IssuedFiscalDocumentDetailModalProps = {
-  voucher: Voucher | null;
+type IssuedFiscalDocumentPanelProps = {
+  voucher: Voucher;
   onClose: () => void;
   onSessionEnded: () => void;
-  services: IssuedFiscalDocumentDetailModalServices;
+  services: IssuedFiscalDocumentPanelServices;
 };
 
 type Detail = IssuedFiscalDocumentDetailBody;
@@ -201,59 +202,41 @@ function DocumentDetail({ document }: { document: Detail }) {
   );
 }
 
-function OpenIssuedFiscalDocumentDetailModal({
+export function IssuedFiscalDocumentPanel({
   voucher,
   onClose,
   onSessionEnded,
   services,
-}: IssuedFiscalDocumentDetailModalProps & { voucher: Voucher }) {
+}: IssuedFiscalDocumentPanelProps) {
   const data = useIssuedFiscalDocumentQuery({
     voucher,
     fetchIssuedFiscalDocument: services.fetchIssuedFiscalDocument,
     onSessionEnded,
   });
+  const close = useEffectEvent(onClose);
+  const notFound = data.status === "loaded" && data.value.kind === "not_found";
+  useEffect(() => {
+    if (notFound) {
+      close();
+    }
+  }, [notFound]);
+
   return (
-    <Modal
+    <DetailPanel
       open
-      onOpenChange={(open) => {
-        if (!open) {
-          onClose();
-        }
-      }}
-      width="standard"
-      tone="info"
-      icon={<FileText />}
-      context="Comprobante"
+      onClose={onClose}
+      recordKey={voucherKeyOf(voucher)}
       title={voucherText(voucher)}
-      footer={
-        <Button variant="secondary" size="large" icon={<ArrowLeft />} onPress={onClose}>
-          Volver
-        </Button>
-      }
     >
       <div className="flex flex-col gap-4">
         {data.status === "loading" ? <LoadingPlaceholder variant="card" lines={4} /> : null}
         {data.status === "failed" ? (
           <LoadFailure {...cloudLoadFailure(data, "el comprobante")} />
         ) : null}
-        {data.status === "loaded" && data.value.kind === "not_found" ? (
-          <EmptyState
-            icon={<FileSearch />}
-            title="No encontramos ese comprobante"
-            variant="blank"
-          />
-        ) : null}
         {data.status === "loaded" && data.value.kind === "found" ? (
           <DocumentDetail document={data.value.document} />
         ) : null}
       </div>
-    </Modal>
-  );
-}
-
-export function IssuedFiscalDocumentDetailModal(props: IssuedFiscalDocumentDetailModalProps) {
-  const { voucher } = props;
-  return voucher === null ? null : (
-    <OpenIssuedFiscalDocumentDetailModal {...props} voucher={voucher} />
+    </DetailPanel>
   );
 }

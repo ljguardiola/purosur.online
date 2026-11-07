@@ -13,9 +13,7 @@ import { useState } from "react";
 import { ALERT_LEVEL_LABELS } from "../platform/alert-level-label";
 import { ALERT_LEVEL_TONE } from "../platform/alert-level-tone";
 import { cloudTableState } from "../platform/cloud-table-state";
-import { AreaTopBar } from "../shell/area-top-bar";
 import { type BackofficeAccess, canCloseFiscalTasks } from "../shell/backoffice-access";
-import { ScreenLayout } from "../shell/screen-layout";
 import { CloseFiscalTaskModal } from "./close-fiscal-task-modal";
 import { useFiscalTasksQuery, useReloadFiscalTasks } from "./fiscal-queries";
 import { fiscalTaskDate, fiscalTaskDayAndTime } from "./fiscal-task-moments";
@@ -129,10 +127,7 @@ export function FiscalTasksScreen({ access, onSessionEnded, services }: FiscalTa
   const table = useTableModel({ items: tasks, id: (task) => task.id, columns });
 
   return (
-    <ScreenLayout
-      topBar={<AreaTopBar eyebrow="Caja y fiscal · Tareas" title="Tareas fiscales" />}
-      bodyClassName="gap-4 p-6"
-    >
+    <div className="flex min-w-0 flex-1 flex-col gap-4 p-6">
       <Table
         aria-label="Tareas fiscales"
         table={table}
@@ -158,6 +153,6 @@ export function FiscalTasksScreen({ access, onSessionEnded, services }: FiscalTa
         onSessionEnded={onSessionEnded}
         services={services}
       />
-    </ScreenLayout>
+    </div>
   );
 }

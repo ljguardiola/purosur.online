@@ -2,37 +2,40 @@ import { FloatingNotification } from "@purosur/ui";
 import { Check } from "lucide-react";
 import { useRef, useState } from "react";
 import { formatDisplayDate } from "../platform/display-date";
-import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTitle } from "../shell/screen-title";
 import { BuyerIdentificationThresholdSection } from "./buyer-identification-threshold-section";
 import { ClockCorrectionsSection } from "./clock-corrections-section";
+import { EditFiscalAddressModal } from "./edit-fiscal-address-modal";
 import { EditIssuerIdentificationModal } from "./edit-issuer-identification-modal";
-import type { FiscalConfigurationScreenServices } from "./fiscal-configuration-services";
+import { FiscalAddressesSection } from "./fiscal-addresses-section";
 import {
   useBuyerIdentificationThresholdsQuery,
   useClockCorrectionsQuery,
+  useFiscalAddressesQuery,
   useIssuerIdentificationQuery,
   useReloadBuyerIdentificationThresholds,
+  useReloadFiscalAddresses,
   useReloadIssuerIdentification,
 } from "./fiscal-queries";
+import type { FiscalSettingsScreenServices } from "./fiscal-settings-services";
 import { IssuerIdentificationSection } from "./issuer-identification-section";
+import { NewFiscalAddressModal } from "./new-fiscal-address-modal";
 import { RecordBuyerIdentificationThresholdModal } from "./record-buyer-identification-threshold-modal";
 
-export type FiscalConfigurationScreenProps = {
+export type FiscalSettingsScreenProps = {
   onSessionEnded: () => void;
-  services: FiscalConfigurationScreenServices;
+  services: FiscalSettingsScreenServices;
   now?: () => Date;
 };
 
 type ScreenNotice = { id: number; title: string; description: string };
 
-export function FiscalConfigurationScreen({
-  onSessionEnded,
-  services,
-  now,
-}: FiscalConfigurationScreenProps) {
-  const { fetchIssuerIdentification, fetchBuyerIdentificationThresholds, fetchClockCorrections } =
-    services;
+export function FiscalSettingsScreen({ onSessionEnded, services, now }: FiscalSettingsScreenProps) {
+  const {
+    fetchIssuerIdentification,
+    fetchBuyerIdentificationThresholds,
+    fetchClockCorrections,
+    fetchFiscalAddresses,
+  } = services;
   const clock = now ?? (() => new Date());
   const data = useIssuerIdentificationQuery({ fetchIssuerIdentification, onSessionEnded });
   const reload = useReloadIssuerIdentification({ fetchIssuerIdentification });
@@ -44,6 +47,10 @@ export function FiscalConfigurationScreen({
     fetchBuyerIdentificationThresholds,
   });
   const clockCorrections = useClockCorrectionsQuery({ fetchClockCorrections, onSessionEnded });
+  const fiscalAddresses = useFiscalAddressesQuery({ fetchFiscalAddresses, onSessionEnded });
+  const reloadFiscalAddresses = useReloadFiscalAddresses({ fetchFiscalAddresses });
+  const [editingFiscalAddressId, setEditingFiscalAddressId] = useState<string | null>(null);
+  const [creatingFiscalAddress, setCreatingFiscalAddress] = useState(false);
   const [editing, setEditing] = useState(false);
   const [recording, setRecording] = useState(false);
   const [notice, setNotice] = useState<ScreenNotice | null>(null);
@@ -53,24 +60,27 @@ export function FiscalConfigurationScreen({
   }
 
   const issuerIdentification = data.status === "loaded" ? data.value : null;
+  const loadedFiscalAddresses = fiscalAddresses.status === "loaded" ? fiscalAddresses.value : [];
+  const editingFiscalAddress =
+    loadedFiscalAddresses.find(({ id }) => id === editingFiscalAddressId) ?? null;
+
+  function announce(title: string, description: string) {
+    lastNoticeId.current += 1;
+    setNotice({ id: lastNoticeId.current, title, description });
+  }
 
   return (
     <>
-      <ScreenLayout
-        topBar={
-          <div className="flex h-18 shrink-0 items-center border-border border-b bg-surface px-8">
-            <div className="flex flex-col justify-center">
-              <p className="text-text-subtle text-detail">Caja y fiscal · Fiscal</p>
-              <ScreenTitle>Configuración fiscal</ScreenTitle>
-            </div>
-          </div>
-        }
-        bodyClassName="gap-4 p-6"
-      >
+      <div className="flex min-w-0 flex-1 flex-col gap-4 p-6">
         <IssuerIdentificationSection data={data} onEdit={() => setEditing(true)} />
         <BuyerIdentificationThresholdSection
           data={thresholds}
           onRecord={() => setRecording(true)}
+        />
+        <FiscalAddressesSection
+          data={fiscalAddresses}
+          onCreate={() => setCreatingFiscalAddress(true)}
+          onEdit={({ id }) => setEditingFiscalAddressId(id)}
         />
         <ClockCorrectionsSection data={clockCorrections} />
         <EditIssuerIdentificationModal
@@ -87,18 +97,35 @@ export function FiscalConfigurationScreen({
           onClose={() => setRecording(false)}
           onRecorded={(recorded) => {
             setRecording(false);
-            lastNoticeId.current += 1;
-            setNotice({
-              id: lastNoticeId.current,
-              title: "Umbral cargado",
-              description: `Rige desde el ${formatDisplayDate(recorded.validFrom)}.`,
-            });
+            announce("Umbral cargado", `Rige desde el ${formatDisplayDate(recorded.validFrom)}.`);
           }}
           reload={reloadThresholds}
           onSessionEnded={onSessionEnded}
           services={services}
         />
-      </ScreenLayout>
+        <NewFiscalAddressModal
+          open={creatingFiscalAddress}
+          onClose={() => setCreatingFiscalAddress(false)}
+          onCreated={({ name }) => {
+            setCreatingFiscalAddress(false);
+            void reloadFiscalAddresses();
+            announce("Domicilio fiscal creado", `${name}.`);
+          }}
+          onSessionEnded={onSessionEnded}
+          services={services}
+        />
+        <EditFiscalAddressModal
+          target={editingFiscalAddress}
+          onClose={() => setEditingFiscalAddressId(null)}
+          onSaved={(name) => {
+            setEditingFiscalAddressId(null);
+            announce("Domicilio fiscal guardado", `${name}.`);
+          }}
+          reload={reloadFiscalAddresses}
+          onSessionEnded={onSessionEnded}
+          services={services}
+        />
+      </div>
       {notice ? (
         <FloatingNotification
           key={notice.id}

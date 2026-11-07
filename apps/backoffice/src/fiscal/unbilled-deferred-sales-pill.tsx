@@ -10,7 +10,7 @@ import {
 } from "./unbilled-deferred-sales-pill-services";
 import { unbilledDeferredSalesText } from "./unbilled-deferred-sales-text";
 
-const FiscalTasksLink = createLink(PillLink);
+const FiscalLink = createLink(PillLink);
 
 export type UnbilledDeferredSalesPillProps = {
   onSessionEnded: () => void;
@@ -48,9 +48,9 @@ export function UnbilledDeferredSalesPill({
   }
   return (
     <TopBarSlot>
-      <FiscalTasksLink to="/fiscal-tasks" tone="warning" icon={<Hourglass />}>
+      <FiscalLink to="/fiscal" tone="warning" icon={<Hourglass />}>
         {unbilledDeferredSalesText(sales.value)}
-      </FiscalTasksLink>
+      </FiscalLink>
     </TopBarSlot>
   );
 }

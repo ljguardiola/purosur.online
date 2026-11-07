@@ -88,6 +88,7 @@ export type FortnightPresentation = {
   movement: FortnightPresentationBody["movement"];
   refusal: FortnightPresentationBody["refusal"];
   state: FortnightPresentationBody["state"];
+  owed: boolean;
   revokedInstallations: RevokedInstallation[];
 };
 
@@ -119,6 +120,7 @@ function fortnightPresentationFromWire(row: FortnightPresentationBody): Fortnigh
     movement: row.movement,
     refusal: row.refusal,
     state: row.state,
+    owed: row.owed,
     revokedInstallations: row.revoked_installations.map((installation) => ({
       installationId: installation.installation_id,
       revokedAt: installation.revoked_at,
