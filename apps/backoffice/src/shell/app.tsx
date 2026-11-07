@@ -84,7 +84,6 @@ import type { ExpiringLotsScreenServices } from "../stock/expiring-lots-services
 import type { InitialInventoryScreenServices } from "../stock/initial-inventory-services";
 import type { LossesByReasonReportScreenServices } from "../stock/losses-by-reason-report-services";
 import type { MarginReportScreenServices } from "../stock/margin-report-services";
-import { ProductRecipeLookup } from "../stock/product-recipe-lookup";
 import type { RecipesListScreenServices } from "../stock/recipes-list-services";
 import type { StockBalancesScreenServices } from "../stock/stock-balances-services";
 import type { StockCountsScreenServices } from "../stock/stock-counts-services";
@@ -97,6 +96,7 @@ import type { UsersListScreenServices } from "../users/users-list-services";
 import { type AccountFooterServices, defaultAccountFooterServices } from "./account-footer";
 import { createAppRouter } from "./app-router";
 import type { HomeScreenServices } from "./home-screen-services";
+import { LazyProductRecipeLookup } from "./lazy-product-recipe-lookup";
 import { lazyScreen } from "./lazy-screen";
 import { NewReleaseNotice } from "./new-release-notice";
 import { useReleaseWatcher } from "./release-watcher";
@@ -262,7 +262,7 @@ const defaultRouteServices: RouteServices = {
       () => import("../stock/product-recipe-section"),
       "ProductRecipeSection",
     ),
-    recipeLookup: ProductRecipeLookup,
+    recipeLookup: LazyProductRecipeLookup,
   },
   registerPointOfSaleSection: lazyScreen(
     () => import("../fiscal/register-point-of-sale-panel-section"),
