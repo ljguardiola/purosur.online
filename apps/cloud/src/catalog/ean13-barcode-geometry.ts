@@ -57,12 +57,21 @@ export interface Ean13BarcodeGeometry {
   rightGroupText: BarcodeText;
 }
 
-export function ean13BarcodeGeometry(
-  code: string,
+export interface Ean13NarrowBarcodeGeometry {
+  totalWidth: number;
+  totalHeight: number;
+  digitsHeight: number;
+  digitsTop: number;
+  bars: BarcodeBar[];
+  digitsText: BarcodeText;
+}
+
+function barsAt(
+  modules: string,
+  firstModuleOffset: number,
   dimensions: Ean13BarcodeDimensions,
-): Ean13BarcodeGeometry {
-  const { moduleWidth, barHeight, guardExtra, digitsHeight } = dimensions;
-  const modules = ean13Modules(code);
+): BarcodeBar[] {
+  const { moduleWidth, barHeight, guardExtra } = dimensions;
   const bars: BarcodeBar[] = [];
   for (let index = 0; index < modules.length; index += 1) {
     if (modules[index] !== "1") {
@@ -70,11 +79,42 @@ export function ean13BarcodeGeometry(
     }
     const isGuard = GUARD_MODULE_INDEXES.has(index);
     bars.push({
-      x: (QUIET_ZONE_LEFT_MODULES + index) * moduleWidth,
+      x: (firstModuleOffset + index) * moduleWidth,
       width: moduleWidth,
       height: isGuard ? barHeight + guardExtra : barHeight,
     });
   }
+  return bars;
+}
+
+export function ean13NarrowBarcodeGeometry(
+  code: string,
+  dimensions: Ean13BarcodeDimensions,
+): Ean13NarrowBarcodeGeometry {
+  const modules = ean13Modules(code);
+  const totalWidth = modules.length * dimensions.moduleWidth;
+  const digitsTop = dimensions.barHeight + dimensions.guardExtra;
+  return {
+    totalWidth,
+    totalHeight: digitsTop + dimensions.digitsHeight,
+    digitsHeight: dimensions.digitsHeight,
+    digitsTop,
+    bars: barsAt(modules, 0, dimensions),
+    digitsText: {
+      value: `${code.slice(0, 1)} ${code.slice(1, 7)} ${code.slice(7)}`,
+      x: totalWidth / 2,
+      align: "center",
+    },
+  };
+}
+
+export function ean13BarcodeGeometry(
+  code: string,
+  dimensions: Ean13BarcodeDimensions,
+): Ean13BarcodeGeometry {
+  const { moduleWidth, barHeight, guardExtra, digitsHeight } = dimensions;
+  const modules = ean13Modules(code);
+  const bars = barsAt(modules, QUIET_ZONE_LEFT_MODULES, dimensions);
 
   const leftGroupCenterModule =
     QUIET_ZONE_LEFT_MODULES + START_GUARD_END_MODULE + HALF_GROUP_WIDTH_MODULES;
