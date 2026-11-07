@@ -52,7 +52,7 @@ test("opens the exceptionality from the FISCAL group for a user who sees fiscal 
   window.history.pushState(null, "", "/help");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await userEvent.click(screen.getByRole("link", { name: "Caja" }));
+  await userEvent.click(screen.getByRole("link", { name: "Caja y fiscal", exact: true }));
   const sections = screen.getByRole("navigation", { name: "Caja y fiscal" });
   await userEvent.click(sections.getByRole("link", { name: "Excepcionalidad" }));
 
