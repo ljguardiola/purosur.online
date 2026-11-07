@@ -333,7 +333,6 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     productCreationModal: CreateProductFromSelectorModal,
     productPriceSection: ProductPriceSection,
     registerPointOfSaleSection: RegisterPointOfSalePanelSection,
-    fetchFiscalRegisterNames: vi.fn().mockReturnValue(new Promise(() => {})),
     roleCreationModal: CreateRoleFromSelectorModal,
     reportRegisterFilter: {
       fetchReportRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -385,6 +384,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       startAuthentication: vi.fn(),
       fetchSnapshotBackups: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchSnapshotBackupRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchFiscalRegisterNames: vi.fn().mockReturnValue(new Promise(() => {})),
       changeSnapshotLifecycleRules: vi.fn(),
       rotateSnapshotKey: vi.fn(),
       fetchCashSessionCloses: vi.fn().mockReturnValue(new Promise(() => {})),

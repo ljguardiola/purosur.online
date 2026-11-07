@@ -250,7 +250,7 @@ test("shows a person with backups_area but not registers_area the Cajas tab with
 
 test("shows a person with fiscal configuration alone the registers of the points of sale read, and a panel with only Fiscal y cobros, without the Point terminal and QR lines", async () => {
   const services = registersServices(["fiscal_configuration_area"]);
-  vi.mocked(services.fetchFiscalRegisterNames).mockResolvedValue({
+  vi.mocked(services.registersListScreen.fetchFiscalRegisterNames).mockResolvedValue({
     kind: "ok",
     value: [{ id: REGISTER_ID, name: "Caja 1" }],
   });

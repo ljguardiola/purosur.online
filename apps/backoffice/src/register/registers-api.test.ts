@@ -5,6 +5,7 @@ import {
   consultBitlockerRecoveryKey,
   createRegister,
   emitEnrollmentCode,
+  fetchFiscalRegisterNames,
   fetchRegisterCoverage,
   fetchRegisterSyncStatus,
   fetchRegisters,
@@ -632,6 +633,56 @@ test("fetchRegisterSyncStatus returns failed when the request throws", async () 
   vi.mocked(fetch).mockRejectedValue(new Error("network down"));
 
   expect(await fetchRegisterSyncStatus()).toEqual({ kind: "failed" });
+});
+
+test("fetchFiscalRegisterNames lists only the id and name of each register of the points of sale read", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(200, [
+      {
+        register_id: "register-1",
+        register_name: "Caja 1",
+        point_of_sale_number: 12,
+        fiscal_address_id: "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+        version: 1,
+        offline_point_of_sale_number: 13,
+        offline_version: 3,
+      },
+      {
+        register_id: "register-2",
+        register_name: "Caja 2",
+        point_of_sale_number: null,
+        fiscal_address_id: null,
+        version: 0,
+        offline_point_of_sale_number: null,
+        offline_version: 0,
+      },
+    ]),
+  );
+
+  expect(await fetchFiscalRegisterNames()).toEqual({
+    kind: "ok",
+    value: [
+      { id: "register-1", name: "Caja 1" },
+      { id: "register-2", name: "Caja 2" },
+    ],
+  });
+  expect(fetch).toHaveBeenCalledWith("/api/registers/points-of-sale");
+});
+
+test.each([
+  [401, { kind: "unauthenticated" }],
+  [403, { kind: "forbidden" }],
+  [500, { kind: "failed" }],
+])("fetchFiscalRegisterNames answers a %i as %j", async (status, outcome) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
+
+  expect(await fetchFiscalRegisterNames()).toEqual(outcome);
+});
+
+test("fetchFiscalRegisterNames returns failed on a body that is not a list of points of sale", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [{ id: "register-1", name: "Caja 1" }]));
+
+  expect(await fetchFiscalRegisterNames()).toEqual({ kind: "failed" });
 });
 
 test("fetchRegisterSyncStatus returns failed on a body that is not a list of registers", async () => {

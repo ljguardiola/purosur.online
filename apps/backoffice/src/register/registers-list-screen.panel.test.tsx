@@ -30,7 +30,6 @@ async function renderListWithPanel(openRegister: string | undefined, tab?: strin
         access={ADMINISTRATOR_ACCESS}
         services={services}
         registerPointOfSaleSection={RegisterPointOfSaleSectionStub}
-        fetchFiscalRegisterNames={vi.fn()}
         onSessionEnded={() => {}}
         openRegister={openRegister}
         tab={tab}
