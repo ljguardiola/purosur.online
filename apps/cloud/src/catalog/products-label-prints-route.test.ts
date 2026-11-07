@@ -24,6 +24,7 @@ const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
 const INTERNAL_BARCODE = "2000000000015";
 const ANOTHER_INTERNAL_BARCODE = "2000000000022";
+const SIZE = { widthMm: 50, heightMm: 30 };
 
 let testDatabase: TestDatabase;
 let db: TestDatabase["db"];
@@ -166,7 +167,7 @@ async function seedProduct(name: string, barcode: string): Promise<string> {
 
 describe("POST /label-prints", () => {
   it("returns 401 unauthenticated when no cookie was sent", async () => {
-    const response = await requestLabelPrints(undefined, { labels: [] });
+    const response = await requestLabelPrints(undefined, { labels: [], size: SIZE });
 
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({ code: "unauthenticated" });
@@ -179,6 +180,7 @@ describe("POST /label-prints", () => {
 
     const response = await requestLabelPrints(rawSessionId, {
       labels: [{ productId, count: 1 }],
+      size: SIZE,
     });
 
     expect(response.statusCode).toBe(403);
@@ -191,7 +193,7 @@ describe("POST /label-prints", () => {
 
     const response = await requestLabelPrints(
       rawSessionId,
-      { labels: [] },
+      { labels: [], size: SIZE },
       { origin: "https://attacker.example" },
     );
 
@@ -203,7 +205,7 @@ describe("POST /label-prints", () => {
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);
 
-    const response = await requestLabelPrints(rawSessionId, { labels: [] });
+    const response = await requestLabelPrints(rawSessionId, { labels: [], size: SIZE });
 
     expect(response.statusCode).toBe(400);
     expect(response.json()).toEqual({
@@ -219,6 +221,7 @@ describe("POST /label-prints", () => {
 
     const response = await requestLabelPrints(rawSessionId, {
       labels: [{ productId: "00000000-0000-0000-0000-000000000000", count: 1 }],
+      size: SIZE,
     });
 
     expect(response.statusCode).toBe(400);
@@ -235,7 +238,10 @@ describe("POST /label-prints", () => {
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);
 
-    const response = await requestLabelPrints(rawSessionId, { labels: [{ productId, count: 1 }] });
+    const response = await requestLabelPrints(rawSessionId, {
+      labels: [{ productId, count: 1 }],
+      size: SIZE,
+    });
 
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ code: "product_not_found", productId });
@@ -246,7 +252,10 @@ describe("POST /label-prints", () => {
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);
 
-    const response = await requestLabelPrints(rawSessionId, { labels: [{ productId, count: 1 }] });
+    const response = await requestLabelPrints(rawSessionId, {
+      labels: [{ productId, count: 1 }],
+      size: SIZE,
+    });
 
     expect(response.statusCode).toBe(400);
     expect(response.json()).toEqual({
@@ -276,6 +285,7 @@ describe("POST /label-prints", () => {
         { productId, count: 3 },
         { productId: otherProductId, count: 1 },
       ],
+      size: SIZE,
     });
 
     expect(response.statusCode).toBe(200);
@@ -287,6 +297,51 @@ describe("POST /label-prints", () => {
     expect(answer.labels[0]?.rows).not.toBe(answer.labels[1]?.rows);
   });
 
+  it("answers the dots of the size asked for and a raster of exactly that size", async () => {
+    const productId = await seedProduct("Almendras", INTERNAL_BARCODE);
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await requestLabelPrints(rawSessionId, {
+      labels: [{ productId, count: 1 }],
+      size: { widthMm: 40, heightMm: 25 },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const answer = printerLabelsSchema.parse(response.json());
+    expect(answer.widthDots).toBe(320);
+    expect(answer.heightDots).toBe(200);
+    expect(Buffer.from(answer.labels[0]?.rows ?? "", "base64")).toHaveLength((320 / 8) * 200);
+  });
+
+  it("rejects a size outside the printer's ranges with the validation error", async () => {
+    const productId = await seedProduct("Almendras", INTERNAL_BARCODE);
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await requestLabelPrints(rawSessionId, {
+      labels: [{ productId, count: 1 }],
+      size: { widthMm: 24, heightMm: 30 },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "validation_failed",
+      details: [{ field: "size.widthMm" }],
+    });
+  });
+
+  it("rejects a body without a size with the validation error", async () => {
+    const productId = await seedProduct("Almendras", INTERNAL_BARCODE);
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+
+    const response = await requestLabelPrints(rawSessionId, { labels: [{ productId, count: 1 }] });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "validation_failed" });
+  });
+
   it("gzips the answer for a browser that accepts it", async () => {
     const productId = await seedProduct("Almendras", INTERNAL_BARCODE);
     const userId = await insertUserWithPermission();
@@ -294,7 +349,7 @@ describe("POST /label-prints", () => {
 
     const response = await requestLabelPrints(
       rawSessionId,
-      { labels: [{ productId, count: 2 }] },
+      { labels: [{ productId, count: 2 }], size: SIZE },
       { "accept-encoding": "gzip" },
     );
 
@@ -312,7 +367,10 @@ describe("POST /label-prints", () => {
     const userId = await insertUserWithPermission();
     const rawSessionId = await insertSession(userId);
 
-    const response = await requestLabelPrints(rawSessionId, { labels: [{ productId, count: 1 }] });
+    const response = await requestLabelPrints(rawSessionId, {
+      labels: [{ productId, count: 1 }],
+      size: SIZE,
+    });
 
     expect(response.headers["content-encoding"]).toBeUndefined();
   });
