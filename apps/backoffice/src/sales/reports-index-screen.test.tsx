@@ -157,7 +157,7 @@ test("groups the stock reports in a card titled Stock", async () => {
 
   const stock = screen.getByRole("region", { name: "Stock" });
   await expect.element(stock).toBeVisible();
-  expect(stock.getByRole("link").elements()).toHaveLength(1);
+  expect(stock.getByRole("link").elements()).toHaveLength(3);
 });
 
 test("lists the valued current stock report as a link to it", async () => {
