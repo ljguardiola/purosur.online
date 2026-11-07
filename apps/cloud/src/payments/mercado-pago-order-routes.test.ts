@@ -230,7 +230,10 @@ describe("the Mercado Pago order routes", () => {
       const response = await createOrder(orderRequest({ amount: 1499 }), `Bearer ${deviceToken}`);
 
       expect(response.statusCode).toBe(400);
-      expect(cloudErrorSchema.parse(response.json()).code).toBe("validation_failed");
+      expect(cloudErrorSchema.parse(response.json())).toMatchObject({
+        code: "validation_failed",
+        message: "amount is below the minimum of a Mercado Pago order",
+      });
       expect(route.mercadoPago.creations).toEqual([]);
       expect(await transactions()).toEqual([]);
     });
@@ -455,7 +458,10 @@ describe("the Mercado Pago order routes", () => {
       );
 
       expect(response.statusCode).toBe(400);
-      expect(cloudErrorSchema.parse(response.json()).code).toBe("validation_failed");
+      expect(cloudErrorSchema.parse(response.json())).toMatchObject({
+        code: "validation_failed",
+        message: "amount is below the minimum of a Mercado Pago order",
+      });
       expect(route.mercadoPago.pointCreations).toEqual([]);
       expect(await transactions()).toEqual([]);
     });
