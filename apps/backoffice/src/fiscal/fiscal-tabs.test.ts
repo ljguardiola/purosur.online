@@ -1,15 +1,10 @@
 import { expect, test } from "vitest";
 import { accessWith } from "../shell/test-support/backoffice-access";
-import { CAEA_PARTS, FISCAL_TAB_TARGETS, FISCAL_TABS } from "./fiscal-tabs";
+import { FISCAL_TAB_TARGETS, FISCAL_TABS } from "./fiscal-tabs";
 
 function visibleTabs(...capabilities: Parameters<typeof accessWith>) {
   const access = accessWith(...capabilities);
   return FISCAL_TABS.filter((tab) => tab.isVisibleTo(access)).map((tab) => tab.key);
-}
-
-function visibleCaeaParts(...capabilities: Parameters<typeof accessWith>) {
-  const access = accessWith(...capabilities);
-  return CAEA_PARTS.filter((part) => part.isVisibleTo(access)).map((part) => part.key);
 }
 
 test("shows every tab to a person with every fiscal capability", () => {
@@ -41,20 +36,4 @@ test("gives each tab its own address", () => {
     caea: "/fiscal/caea",
     settings: "/fiscal/settings",
   });
-});
-
-test("offers each part of CAEA y excepcionalidad to who holds its capability", () => {
-  expect(visibleCaeaParts("fiscal_information")).toEqual(["exceptionality"]);
-  expect(visibleCaeaParts("fiscal_configuration_area")).toEqual([
-    "fortnight-reports",
-    "points-of-sale",
-  ]);
-  expect(visibleCaeaParts("contingency_ticket_rescue")).toEqual(["rescue"]);
-  expect(
-    visibleCaeaParts(
-      "fiscal_information",
-      "fiscal_configuration_area",
-      "contingency_ticket_rescue",
-    ),
-  ).toEqual(["exceptionality", "fortnight-reports", "points-of-sale", "rescue"]);
 });

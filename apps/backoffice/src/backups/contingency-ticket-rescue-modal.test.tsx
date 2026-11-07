@@ -6,7 +6,7 @@ import { resetPageState } from "../shell/test-support/app";
 import {
   createServices,
   deferred,
-  renderScreen,
+  renderModal,
   rescuedEarlierSale,
   rescuedSale,
   ticketCodes,
@@ -26,7 +26,7 @@ function answering(value: ContingencyBackupTicketRescueResponse) {
 test("opens as a dialog titled for the rescue, with the scanner", async () => {
   const { services } = createServices();
 
-  const screen = await renderScreen(services);
+  const screen = await renderModal(services);
 
   await expect
     .element(screen.getByRole("dialog", { name: "Rescate de tickets de contingencia" }))
@@ -37,7 +37,7 @@ test("opens as a dialog titled for the rescue, with the scanner", async () => {
 test("shows an empty table before any ticket was read", async () => {
   const { services } = createServices();
 
-  const screen = await renderScreen(services);
+  const screen = await renderModal(services);
 
   await expect.element(screen.getByRole("table", { name: "Tickets leídos" })).toBeVisible();
   await expect.element(screen.getByText("Todavía no se leyó ningún ticket")).toBeVisible();
@@ -50,7 +50,7 @@ test("shows an empty table before any ticket was read", async () => {
 test("sends the code of a one-code ticket and shows it as recovered", async () => {
   const [code = ""] = ticketCodes(1);
   const { services, scanner } = answering(rescuedSale);
-  const screen = await renderScreen(services);
+  const screen = await renderModal(services);
 
   scanner.show(code);
 
@@ -68,7 +68,7 @@ test("shows the ticket as being verified until the cloud answers", async () => {
   const { services, scanner } = createServices();
   const answer = deferred<Awaited<ReturnType<typeof services.rescueContingencyBackupTicket>>>();
   vi.mocked(services.rescueContingencyBackupTicket).mockReturnValue(answer.promise);
-  const screen = await renderScreen(services);
+  const screen = await renderModal(services);
 
   scanner.show(code);
 
@@ -81,7 +81,7 @@ test("shows the ticket as being verified until the cloud answers", async () => {
 test("says a ticket was already recovered when the cloud received nothing new", async () => {
   const [code = ""] = ticketCodes(1);
   const { services, scanner } = answering({ ...rescuedSale, received: 0, already_received: 3 });
-  const screen = await renderScreen(services);
+  const screen = await renderModal(services);
 
   scanner.show(code);
 
@@ -101,7 +101,7 @@ test("shows a dash for the total of a ticket that is not a sale", async () => {
       sale_total: null,
     },
   });
-  const screen = await renderScreen(services);
+  const screen = await renderModal(services);
 
   scanner.show(code);
 
@@ -121,7 +121,7 @@ test.each([
   async (outcome, title, status) => {
     const [code = ""] = ticketCodes(1);
     const { services, scanner } = answering({ outcome });
-    const screen = await renderScreen(services);
+    const screen = await renderModal(services);
 
     scanner.show(code);
 
@@ -135,7 +135,7 @@ test("says the ticket could not be sent when the request fails", async () => {
   const [code = ""] = ticketCodes(1);
   const { services, scanner } = createServices();
   vi.mocked(services.rescueContingencyBackupTicket).mockResolvedValue({ kind: "failed" });
-  const screen = await renderScreen(services);
+  const screen = await renderModal(services);
 
   scanner.show(code);
 
@@ -151,7 +151,7 @@ test("treats a rate limit as a failed request", async () => {
     kind: "rate_limited",
     retryAfterSeconds: 30,
   });
-  const screen = await renderScreen(services);
+  const screen = await renderModal(services);
 
   scanner.show(code);
 
@@ -163,7 +163,7 @@ test("ends the session when the cloud says there is none", async () => {
   const { services, scanner } = createServices();
   vi.mocked(services.rescueContingencyBackupTicket).mockResolvedValue({ kind: "unauthenticated" });
   const onSessionEnded = vi.fn();
-  await renderScreen(services, onSessionEnded);
+  await renderModal(services, onSessionEnded);
 
   scanner.show(code);
 
@@ -174,7 +174,7 @@ test("sends the person to Mi cuenta when the cloud refuses the permission", asyn
   const [code = ""] = ticketCodes(1);
   const { services, scanner } = createServices();
   vi.mocked(services.rescueContingencyBackupTicket).mockResolvedValue({ kind: "forbidden" });
-  await renderScreen(services);
+  await renderModal(services);
 
   scanner.show(code);
 
@@ -185,7 +185,7 @@ test("sends the person to Mi cuenta when the cloud refuses the permission", asyn
 
 test("shows a text that is not a code of this system as unreadable without asking the cloud", async () => {
   const { services, scanner } = createServices();
-  const screen = await renderScreen(services);
+  const screen = await renderModal(services);
 
   scanner.show("https://example.com");
 
@@ -198,7 +198,7 @@ test("shows a text that is not a code of this system as unreadable without askin
 test("waits for every code of a ticket and sends them together", async () => {
   const [first = "", second = ""] = ticketCodes(2);
   const { services, scanner } = answering(rescuedSale);
-  const screen = await renderScreen(services);
+  const screen = await renderModal(services);
 
   scanner.show(first);
 
@@ -217,7 +217,7 @@ test("waits for every code of a ticket and sends them together", async () => {
 test("ignores a code of a ticket in progress that was already read", async () => {
   const [first = ""] = ticketCodes(2);
   const { services, scanner } = answering(rescuedSale);
-  const screen = await renderScreen(services);
+  const screen = await renderModal(services);
   scanner.show(first);
   await expect.element(screen.getByText("QR 1 de 2 leído")).toBeVisible();
 
@@ -232,7 +232,7 @@ test("ignores the same ticket shown again while its request is in flight", async
   const { services, scanner } = createServices();
   const answer = deferred<Awaited<ReturnType<typeof services.rescueContingencyBackupTicket>>>();
   vi.mocked(services.rescueContingencyBackupTicket).mockReturnValue(answer.promise);
-  const screen = await renderScreen(services);
+  const screen = await renderModal(services);
   scanner.show(code);
   await expect.element(screen.getByText("Verificando")).toBeVisible();
 
@@ -251,7 +251,7 @@ test("lists the newest ticket first", async () => {
   vi.mocked(services.rescueContingencyBackupTicket)
     .mockResolvedValueOnce({ kind: "ok", value: rescuedEarlierSale })
     .mockResolvedValueOnce({ kind: "ok", value: rescuedSale });
-  const screen = await renderScreen(services);
+  const screen = await renderModal(services);
 
   scanner.show(oneCode);
   await expect.element(screen.getByText("Venta del 14/09/2026 17:05")).toBeVisible();
@@ -265,7 +265,7 @@ test("lists the newest ticket first", async () => {
 
 test("shows the camera blocked when the person refused it, with the table still there", async () => {
   const { services, scanner } = createServices();
-  const screen = await renderScreen(services);
+  const screen = await renderModal(services);
 
   scanner.fail("denied");
 
@@ -276,7 +276,7 @@ test("shows the camera blocked when the person refused it, with the table still 
 test("has no accessibility violations empty, with rows and with the camera unavailable", async () => {
   const [code = ""] = ticketCodes(1);
   const { services, scanner } = answering(rescuedSale);
-  const screen = await renderScreen(services);
+  const screen = await renderModal(services);
   await expectNoAccessibilityViolations(document.body);
 
   scanner.show(code);
@@ -291,7 +291,7 @@ test("has no accessibility violations empty, with rows and with the camera unava
 test("closes with Volver", async () => {
   const { services } = createServices();
   const onClose = vi.fn();
-  const screen = await renderScreen(services, vi.fn(), onClose);
+  const screen = await renderModal(services, vi.fn(), onClose);
 
   await userEvent.click(screen.getByRole("button", { name: "Volver" }));
 

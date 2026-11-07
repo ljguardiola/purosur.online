@@ -6,7 +6,7 @@ import { vi } from "vitest";
 import { render } from "../../shell/test-support/render-with-router";
 import type { fetchContingencyTicketRecoveries } from "../contingency-ticket-recovery-api";
 import { ContingencyTicketRescueModal } from "../contingency-ticket-rescue-modal";
-import type { ContingencyTicketRescueScreenServices } from "../contingency-ticket-rescue-services";
+import type { ContingencyTicketRescueModalServices } from "../contingency-ticket-rescue-modal-services";
 import type { FinishTicketRecoveryModalServices } from "../finish-ticket-recovery-modal";
 import { createFakeQrScanner } from "./fake-qr-scanner";
 
@@ -22,7 +22,7 @@ export function createServices() {
   const fetchRecoveries = vi
     .fn<typeof fetchContingencyTicketRecoveries>()
     .mockResolvedValue({ kind: "ok", value: { recoveries: [] } });
-  const services: ContingencyTicketRescueScreenServices = {
+  const services: ContingencyTicketRescueModalServices = {
     rescueContingencyBackupTicket: vi.fn(),
     fetchContingencyTicketRecoveries: fetchRecoveries,
     finishTicketRecoveryModal: { finishContingencyTicketRecovery },
@@ -36,8 +36,8 @@ export function createServices() {
   };
 }
 
-export function renderScreen(
-  services: ContingencyTicketRescueScreenServices,
+export function renderModal(
+  services: ContingencyTicketRescueModalServices,
   onSessionEnded: () => void = vi.fn(),
   onClose: () => void = vi.fn(),
 ) {

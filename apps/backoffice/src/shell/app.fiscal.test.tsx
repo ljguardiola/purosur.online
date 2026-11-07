@@ -11,6 +11,8 @@ import { fiscalTasks, unbilledDeferredSales } from "../fiscal/test-support/fisca
 import {
   authorizedReceiptDetail,
   issuedFiscalDocuments,
+  noIssuedFiscalDocuments,
+  pagedIssuedFiscalDocuments,
 } from "../fiscal/test-support/issued-fiscal-documents-fixtures";
 import { issuedFiscalDocumentsReport } from "../fiscal/test-support/issued-fiscal-documents-report-fixtures";
 import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
@@ -35,6 +37,7 @@ beforeEach(resetPageState);
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 const EVERY_FISCAL_CAPABILITY: Capability[] = [
@@ -303,6 +306,110 @@ test("lists the issued documents of Comprobantes and keeps the filters in the UR
     )
     .toEqual([{ kind: "receipt", page: 1 }]);
   expect(location()).toBe("/fiscal/documents?kind=receipt");
+});
+
+test("writes a filter chosen in Comprobantes into the URL, replacing its entry, and asks the cloud again", async () => {
+  const services = servicesFor(["fiscal_information"]);
+  vi.mocked(services.issuedFiscalDocumentsScreen.fetchIssuedFiscalDocuments).mockResolvedValue({
+    kind: "ok",
+    value: pagedIssuedFiscalDocuments,
+  });
+  window.history.pushState(null, "", "/fiscal/documents?kind=receipt&page=2");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect
+    .poll(
+      () =>
+        vi.mocked(services.issuedFiscalDocumentsScreen.fetchIssuedFiscalDocuments).mock.lastCall,
+    )
+    .toEqual([{ kind: "receipt", page: 2 }]);
+  vi.mocked(services.issuedFiscalDocumentsScreen.fetchIssuedFiscalDocuments).mockResolvedValue({
+    kind: "ok",
+    value: noIssuedFiscalDocuments,
+  });
+  const entries = window.history.length;
+
+  await userEvent.click(screen.getByRole("button", { name: /Tipo:/ }));
+  await userEvent.click(screen.getByRole("option", { name: "Notas de crédito" }));
+
+  await expect.poll(location).toBe("/fiscal/documents?kind=credit_note");
+  expect(window.history.length).toBe(entries);
+  await expect
+    .poll(
+      () =>
+        vi.mocked(services.issuedFiscalDocumentsScreen.fetchIssuedFiscalDocuments).mock.lastCall,
+    )
+    .toEqual([{ kind: "credit_note", page: 1 }]);
+});
+
+test("rewrites a Comprobantes URL with values the list does not offer as the same URL written its own way", async () => {
+  const services = servicesFor(["fiscal_information"]);
+  window.history.pushState(null, "", "/fiscal/documents?kind=ALL&page=1000000000&number=abc");
+
+  await render(<App help={emptyHelp} services={services} />);
+
+  await expect.poll(location).toBe("/fiscal/documents");
+});
+
+test("offers the fiscal registers, not those of the reports, in the Caja filter of Comprobantes", async () => {
+  const services = servicesFor(["fiscal_information"]);
+  window.history.pushState(null, "", "/fiscal/documents");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await userEvent.click(screen.getByRole("button", { name: /Caja:/ }));
+
+  await expect.element(screen.getByRole("option", { name: "Caja del fondo" })).toBeVisible();
+  expect(services.issuedFiscalDocumentsScreen.fetchFiscalRegisters).toHaveBeenCalled();
+  expect(services.reportRegisterFilter.fetchReportRegisters).not.toHaveBeenCalled();
+});
+
+test("reads the exceptionality of the fiscal address and the year the URL of CAEA y excepcionalidad carries", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-15T15:00:00.000Z"));
+  const services = servicesFor(["fiscal_information"]);
+  window.history.pushState(
+    null,
+    "",
+    "/fiscal/caea?fiscalAddress=fiscal-address-warehouse&year=2025",
+  );
+
+  await render(<App help={emptyHelp} services={services} />);
+
+  await expect
+    .poll(() => vi.mocked(services.caeaScreen.fetchExceptionShareYear).mock.lastCall)
+    .toEqual([{ fiscalAddressId: "fiscal-address-warehouse", year: 2025 }]);
+});
+
+test("writes a fiscal address chosen in Excepcionalidad into the URL, replacing its entry, and asks the cloud for it", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-15T15:00:00.000Z"));
+  const services = servicesFor(["fiscal_information"]);
+  window.history.pushState(null, "", "/fiscal/caea");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByText("Enero 2026")).toBeVisible();
+  const entries = window.history.length;
+
+  await userEvent.click(screen.getByRole("button", { name: /Domicilio fiscal:/ }));
+  await userEvent.click(screen.getByRole("option", { name: "Depósito norte" }));
+
+  await expect.poll(location).toBe("/fiscal/caea?fiscalAddress=fiscal-address-warehouse");
+  expect(window.history.length).toBe(entries);
+  await expect
+    .poll(() => vi.mocked(services.caeaScreen.fetchExceptionShareYear).mock.lastCall)
+    .toEqual([{ fiscalAddressId: "fiscal-address-warehouse" }]);
+});
+
+test("drops a year that is not a year from the URL of CAEA y excepcionalidad and asks the cloud for its current one", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-15T15:00:00.000Z"));
+  const services = servicesFor(["fiscal_information"]);
+  window.history.pushState(null, "", "/fiscal/caea?year=abc");
+
+  await render(<App help={emptyHelp} services={services} />);
+
+  await expect.poll(location).toBe("/fiscal/caea");
+  await expect
+    .poll(() => vi.mocked(services.caeaScreen.fetchExceptionShareYear).mock.lastCall)
+    .toEqual([{ fiscalAddressId: "fiscal-address-central" }]);
 });
 
 test("downloads the spreadsheet of the documents of the range chosen in Comprobantes", async () => {

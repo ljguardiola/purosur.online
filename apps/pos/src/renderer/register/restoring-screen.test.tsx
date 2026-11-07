@@ -284,7 +284,7 @@ describe("RestoringScreen", () => {
       await expect
         .element(
           screen.getByText(
-            "En Rescate de tickets. La caja sigue sola cuando se termina el rescate.",
+            "En Fiscal, «Rescatar tickets de contingencia». La caja sigue sola cuando se termina el rescate.",
           ),
         )
         .toBeVisible();

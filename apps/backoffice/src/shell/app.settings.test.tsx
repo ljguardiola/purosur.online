@@ -261,6 +261,6 @@ test("redirects a typed /contingency-ticket-rescue to the own account panel for 
   await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
   expect(window.location.pathname + window.location.search).toBe("/?account=credentials");
   expect(
-    services.contingencyTicketRescueScreen.rescueContingencyBackupTicket,
+    services.contingencyTicketRescueModal.rescueContingencyBackupTicket,
   ).not.toHaveBeenCalled();
 });

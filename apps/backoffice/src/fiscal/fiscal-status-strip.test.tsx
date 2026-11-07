@@ -104,6 +104,19 @@ test("counts zero pending tasks when none is open", async () => {
   await expect.element(screen.getByText("0", { exact: true })).toBeVisible();
 });
 
+test("counts an owed presentation of invoices and credit notes as one pending report", async () => {
+  const services = everything();
+  vi.mocked(services.fetchFortnightPresentations).mockResolvedValue({
+    kind: "ok",
+    value: [owedPresentation, { ...owedPresentation, documentType: "credit_note_c" }],
+  });
+
+  const screen = await renderStrip(services, ["fiscal_configuration_area"]);
+
+  await expect.element(screen.getByText("Informes quincenales pendientes")).toBeVisible();
+  await expect.element(screen.getByText("1", { exact: true })).toBeVisible();
+});
+
 test("shows only the figures of fiscal information to who has only that capability, without reading the reports", async () => {
   const services = everything();
 

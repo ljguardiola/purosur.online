@@ -391,7 +391,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       rotateSnapshotKey: vi.fn(),
       fetchCashSessionCloses: vi.fn().mockReturnValue(new Promise(() => {})),
     },
-    contingencyTicketRescueScreen: {
+    contingencyTicketRescueModal: {
       rescueContingencyBackupTicket: vi.fn(),
       fetchContingencyTicketRecoveries: vi.fn().mockReturnValue(new Promise(() => {})),
       finishTicketRecoveryModal: { finishContingencyTicketRecovery: vi.fn() },
