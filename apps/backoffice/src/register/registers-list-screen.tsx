@@ -15,6 +15,7 @@ import { createLink, useNavigate } from "@tanstack/react-router";
 import { Check, Laptop, Plus } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import type { RegisterPointOfSaleSection } from "../platform/register-point-of-sale-section";
 import {
   type BackofficeAccess,
   canEnrollRegisters,
@@ -44,6 +45,7 @@ export type RegistersListScreenProps = {
   access: BackofficeAccess;
   onSessionEnded: () => void;
   services: RegistersListScreenServices;
+  registerPointOfSaleSection: RegisterPointOfSaleSection;
   openRegister?: string | undefined;
   tab?: string | undefined;
 };
@@ -56,6 +58,7 @@ export function RegistersListScreen({
   access,
   onSessionEnded,
   services,
+  registerPointOfSaleSection,
   openRegister,
   tab,
 }: RegistersListScreenProps) {
@@ -241,6 +244,7 @@ export function RegistersListScreen({
             onClose={closeRegister}
             onSessionEnded={onSessionEnded}
             services={services}
+            registerPointOfSaleSection={registerPointOfSaleSection}
           />
         )}
       </div>

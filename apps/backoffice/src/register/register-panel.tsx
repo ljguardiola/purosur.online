@@ -1,6 +1,7 @@
 import { DetailPanel, Tab, Tabs } from "@purosur/ui";
 import { createLink } from "@tanstack/react-router";
 import { landingPart, type PagePart, pagePartsFor } from "../platform/page-parts";
+import type { RegisterPointOfSaleSection } from "../platform/register-point-of-sale-section";
 import {
   type BackofficeAccess,
   canSeeBackupsArea,
@@ -20,6 +21,7 @@ export type RegisterPanelProps = {
   register: RegisterSummary;
   access: BackofficeAccess;
   actions: RegisterActions;
+  registerPointOfSaleSection: RegisterPointOfSaleSection;
   secondsSinceRead: number;
   tab?: string | undefined;
   onClose: () => void;
@@ -49,6 +51,7 @@ export function RegisterPanel({
   register,
   access,
   actions,
+  registerPointOfSaleSection: PointOfSaleSection,
   secondsSinceRead,
   tab,
   onClose,
@@ -86,7 +89,14 @@ export function RegisterPanel({
           />
         )}
         {selectedTab === "fiscal" && (
-          <RegisterPaymentsSection register={register} access={access} actions={actions} />
+          <RegisterPaymentsSection
+            register={register}
+            access={access}
+            actions={actions}
+            pointOfSaleSlot={
+              <PointOfSaleSection registerId={register.id} onSessionEnded={onSessionEnded} />
+            }
+          />
         )}
         {selectedTab === "backups" && (
           <SnapshotBackupsSection

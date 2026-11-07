@@ -13,6 +13,7 @@ export function RegistersListPage(): ReactElement {
       access={session}
       onSessionEnded={sessionActions.sessionEnded}
       services={services.registersListScreen ?? defaultRegistersListScreenServices}
+      registerPointOfSaleSection={services.registerPointOfSaleSection}
       openRegister={register}
       tab={tab}
     />

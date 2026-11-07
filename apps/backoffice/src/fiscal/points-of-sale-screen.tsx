@@ -12,8 +12,6 @@ import { ScreenLayout } from "../shell/screen-layout";
 import { ScreenTitle } from "../shell/screen-title";
 import { ConfirmRevokedInstallationModal } from "./confirm-revoked-installation-modal";
 import { EditFiscalAddressModal } from "./edit-fiscal-address-modal";
-import { EditRegisterOfflinePointOfSaleModal } from "./edit-register-offline-point-of-sale-modal";
-import { EditRegisterPointOfSaleModal } from "./edit-register-point-of-sale-modal";
 import { FiscalAddressesSection } from "./fiscal-addresses-section";
 import {
   useFiscalAddressesQuery,
@@ -23,7 +21,6 @@ import {
   useReloadFiscalAddresses,
   useReloadFortnightPresentations,
   useReloadOfflinePointsOfSale,
-  useReloadRegisterPointsOfSale,
 } from "./fiscal-queries";
 import { FortnightReportsSection } from "./fortnight-reports-section";
 import { NewFiscalAddressModal } from "./new-fiscal-address-modal";
@@ -63,12 +60,7 @@ export function PointsOfSaleScreen({ onSessionEnded, services }: PointsOfSaleScr
     null,
   );
   const [retiring, setRetiring] = useState<OfflinePointOfSale | null>(null);
-  const reloadRegisters = useReloadRegisterPointsOfSale({ fetchRegisterPointsOfSale });
   const reloadFiscalAddresses = useReloadFiscalAddresses({ fetchFiscalAddresses });
-  const [editingRegister, setEditingRegister] = useState<{
-    registerId: string;
-    mechanism: "real_time" | "offline";
-  } | null>(null);
   const [editingFiscalAddressId, setEditingFiscalAddressId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [notice, setNotice] = useState<ScreenNotice | null>(null);
@@ -80,10 +72,7 @@ export function PointsOfSaleScreen({ onSessionEnded, services }: PointsOfSaleScr
   }
 
   const registersWithAddresses = combineCloudData(registers, fiscalAddresses);
-  const loadedRegisters = registers.status === "loaded" ? registers.value : [];
   const loadedFiscalAddresses = fiscalAddresses.status === "loaded" ? fiscalAddresses.value : [];
-  const registerBeingEdited =
-    loadedRegisters.find(({ registerId }) => registerId === editingRegister?.registerId) ?? null;
   const editingFiscalAddress =
     loadedFiscalAddresses.find(({ id }) => id === editingFiscalAddressId) ?? null;
 
@@ -103,10 +92,7 @@ export function PointsOfSaleScreen({ onSessionEnded, services }: PointsOfSaleScr
         }
         bodyClassName="gap-4 p-6"
       >
-        <RegisterPointOfSaleSection
-          data={registersWithAddresses}
-          onEdit={({ registerId }, mechanism) => setEditingRegister({ registerId, mechanism })}
-        />
+        <RegisterPointOfSaleSection data={registersWithAddresses} />
         <OfflinePointsOfSaleSection data={offlinePointsOfSale} onRetire={setRetiring} />
         <FortnightReportsSection
           data={combineCloudData(presentations, registers)}
@@ -118,30 +104,6 @@ export function PointsOfSaleScreen({ onSessionEnded, services }: PointsOfSaleScr
           onEdit={({ id }) => setEditingFiscalAddressId(id)}
         />
       </ScreenLayout>
-      <EditRegisterPointOfSaleModal
-        target={editingRegister?.mechanism === "real_time" ? registerBeingEdited : null}
-        fiscalAddresses={loadedFiscalAddresses}
-        onClose={() => setEditingRegister(null)}
-        onSaved={() => {
-          setEditingRegister(null);
-          announce("Punto de venta guardado", `${registerBeingEdited?.registerName ?? ""}.`);
-        }}
-        reload={reloadRegisters}
-        refreshFiscalAddresses={reloadFiscalAddresses}
-        onSessionEnded={onSessionEnded}
-        services={services}
-      />
-      <EditRegisterOfflinePointOfSaleModal
-        target={editingRegister?.mechanism === "offline" ? registerBeingEdited : null}
-        onClose={() => setEditingRegister(null)}
-        onSaved={() => {
-          setEditingRegister(null);
-          announce("Punto de venta CAEA guardado", `${registerBeingEdited?.registerName ?? ""}.`);
-        }}
-        reload={reloadRegisters}
-        onSessionEnded={onSessionEnded}
-        services={services}
-      />
       <NewFiscalAddressModal
         open={creating}
         onClose={() => setCreating(false)}

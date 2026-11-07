@@ -32,6 +32,7 @@ import type {
 } from "../platform/creation-parts";
 import type { ProductPriceSection } from "../platform/product-price-section";
 import { createQueryClient } from "../platform/query-client";
+import type { RegisterPointOfSaleSection } from "../platform/register-point-of-sale-section";
 import {
   defaultReleaseMonitor,
   type ReleaseMonitor,
@@ -148,6 +149,7 @@ export type AppServices = {
   categoryCreationModal: CategoryCreationModal;
   productCreationModal: ProductCreationModal;
   productPriceSection: ProductPriceSection;
+  registerPointOfSaleSection: RegisterPointOfSaleSection;
   roleCreationModal: RoleCreationModal;
   reportRegisterFilter: ReportRegisterFilterServices;
   pendingRefundsScreen: PendingRefundsScreenServices;
@@ -203,6 +205,7 @@ type ShellServiceName =
   | "categoryCreationModal"
   | "productCreationModal"
   | "productPriceSection"
+  | "registerPointOfSaleSection"
   | "roleCreationModal"
   | "accountFooter"
   | "screenFailure"
@@ -241,6 +244,10 @@ const defaultRouteServices: RouteServices = {
   productPriceSection: lazyScreen(
     () => import("../pricing/product-price-section"),
     "ProductPriceSection",
+  ),
+  registerPointOfSaleSection: lazyScreen(
+    () => import("../fiscal/register-point-of-sale-panel-section"),
+    "RegisterPointOfSalePanelSection",
   ),
   roleCreationModal: lazyScreen(
     () => import("../permissions/create-role-from-selector-modal"),
