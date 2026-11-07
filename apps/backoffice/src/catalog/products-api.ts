@@ -1,6 +1,8 @@
 import {
+  type LabelPrintsBody,
   type LabelSheetBody,
   type ListedProduct,
+  type PrinterLabelSize,
   type ProductCreationBody,
   type ProductEditBody,
   type ProductSummary,
@@ -236,6 +238,7 @@ export async function printLabels(labels: PrintLabelEntry[]): Promise<PrintLabel
 
 export type FetchPrinterLabelsOutcome =
   | { kind: "ok"; labels: LabelToPrint[] }
+  | { kind: "validation_failed"; field: string }
   | Exclude<PrintLabelsOutcome, { kind: "ok" }>;
 
 function decodedRaster(base64: string): Uint8Array {
@@ -244,8 +247,9 @@ function decodedRaster(base64: string): Uint8Array {
 
 export async function fetchPrinterLabels(
   labels: PrintLabelEntry[],
+  size: PrinterLabelSize,
 ): Promise<FetchPrinterLabelsOutcome> {
-  const requestBody: LabelSheetBody = { labels };
+  const requestBody: LabelPrintsBody = { labels, size };
   let response: Response;
   try {
     response = await postJson("/api/label-prints", requestBody);
@@ -265,6 +269,12 @@ export async function fetchPrinterLabels(
         raster: { widthDots, heightRows: heightDots, data: decodedRaster(label.rows) },
       })),
     };
+  }
+  if (response.status === 400) {
+    const field = await readValidationFailedField(response.clone());
+    if (field !== undefined) {
+      return { kind: "validation_failed", field };
+    }
   }
   return refusedPrintOutcome(response);
 }

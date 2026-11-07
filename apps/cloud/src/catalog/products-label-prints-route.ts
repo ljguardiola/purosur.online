@@ -1,4 +1,4 @@
-import { labelSheetBodySchema, printerLabelsSchema } from "@purosur/contracts";
+import { labelPrintsBodySchema, printerLabelsSchema } from "@purosur/contracts";
 import { prepareLabelSheet } from "@purosur/domain/catalog/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
@@ -11,11 +11,7 @@ import {
   routeSessionSource,
 } from "../sessions/route-access.js";
 import { DrizzleLabelProductReader } from "./drizzle-label-product-reader.js";
-import {
-  PRINTER_LABEL_HEIGHT_DOTS,
-  PRINTER_LABEL_WIDTH_DOTS,
-  renderPrinterLabelRaster,
-} from "./printer-label-raster.js";
+import { printerLabelDots, renderPrinterLabelRaster } from "./printer-label-raster.js";
 import type { ProductsRouteOptions } from "./products-list-route.js";
 
 export function registerProductLabelPrintsRoute<TQueryResult extends PgQueryResultHKT>(
@@ -37,7 +33,7 @@ export function registerProductLabelPrintsRoute<TQueryResult extends PgQueryResu
       },
     },
     async (request, reply) => {
-      const body = await readValidatedBody(reply, labelSheetBodySchema, request.body);
+      const body = await readValidatedBody(reply, labelPrintsBodySchema, request.body);
       if (!body) {
         return;
       }
@@ -60,12 +56,12 @@ export function registerProductLabelPrintsRoute<TQueryResult extends PgQueryResu
         return;
       }
 
+      const rasters = outcome.items.map((item) => renderPrinterLabelRaster(item, body.size));
       const answer = printerLabelsSchema.parse({
-        widthDots: PRINTER_LABEL_WIDTH_DOTS,
-        heightDots: PRINTER_LABEL_HEIGHT_DOTS,
-        labels: outcome.items.map((item) => ({
+        ...printerLabelDots(body.size),
+        labels: outcome.items.map((item, index) => ({
           copies: item.count,
-          rows: Buffer.from(renderPrinterLabelRaster(item)).toString("base64"),
+          rows: Buffer.from(rasters[index]?.rows ?? []).toString("base64"),
         })),
       });
       await sendGzippedJson(request, reply, 200, answer);
