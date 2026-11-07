@@ -114,12 +114,11 @@ async function loaded(services: BrandsListScreenServices, brands: BrandSummary[]
   return screen;
 }
 
-test("shows the breadcrumb, heading, each active brand with its product count and state, and the totals", async () => {
+test("shows each active brand with its product count and state, and the totals", async () => {
   const services = createServices();
   const screen = await loaded(services, [granuz, vitora, litoral]);
 
-  await expect.element(screen.getByText("Catálogo").first()).toBeVisible();
-  await expect.element(screen.getByRole("heading", { name: "Marcas", level: 1 })).toBeVisible();
+  expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
   await expect.poll(() => rowTexts(screen)).toEqual(["Granuz42Activa", "Vitora18Activa"]);
   await expect.element(screen.getByText("2 marcas · 60 productos")).toBeVisible();
 });

@@ -35,14 +35,11 @@ const everyPromotion = [
   switchedOffPromotion,
 ];
 
-test("shows the breadcrumb, heading and the current and scheduled promotions with their columns", async () => {
+test("shows the current and scheduled promotions with their columns", async () => {
   const services = createServices();
   const screen = await loaded(services, everyPromotion);
 
-  await expect.element(screen.getByText("Catálogo").first()).toBeVisible();
-  await expect
-    .element(screen.getByRole("heading", { name: "Promociones", level: 1 }))
-    .toBeVisible();
+  expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
   const headers = screen.getByRole("columnheader").all();
   expect(headers.map((header) => header.element().textContent)).toEqual([
     "Promoción",

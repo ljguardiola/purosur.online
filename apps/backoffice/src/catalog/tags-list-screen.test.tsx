@@ -86,14 +86,11 @@ async function loaded(
   return screen;
 }
 
-test("shows the breadcrumb, heading, each active tag with its product count and state, and the totals", async () => {
+test("shows each active tag with its product count and state, and the totals", async () => {
   const services = createServices();
   const screen = await loaded(services, [sinTacc, vegano, sinColorantes], {}, 3);
 
-  await expect.element(screen.getByText("Catálogo").first()).toBeVisible();
-  await expect
-    .element(screen.getByRole("heading", { name: "Distintivos", level: 1 }))
-    .toBeVisible();
+  expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
   await expect.poll(() => rowTexts(screen)).toEqual(["Sin TACC34Activo", "Vegano18Activo"]);
   await expect.element(screen.getByText("2 distintivos · 3 productos")).toBeVisible();
 });

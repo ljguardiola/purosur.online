@@ -93,12 +93,11 @@ async function loaded(services: RecipesListScreenServices, recipes: RecipeSummar
   return screen;
 }
 
-test("shows the breadcrumb, the heading and each recipe with its product, components and no batch yet", async () => {
+test("shows each recipe with its product, components and no batch yet", async () => {
   const services = createServices();
   const screen = await loaded(services, [mixDeFrutosSecos, cajaDeInfusiones]);
 
-  await expect.element(screen.getByText("Stock").first()).toBeVisible();
-  await expect.element(screen.getByRole("heading", { name: "Recetas", level: 1 })).toBeVisible();
+  expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
   await expect
     .poll(() => rowTexts(screen))
     .toEqual([
