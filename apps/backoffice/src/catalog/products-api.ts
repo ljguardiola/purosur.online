@@ -1,6 +1,8 @@
 import {
+  type LabelPrintsBody,
   type LabelSheetBody,
   type ListedProduct,
+  type PrinterLabelSize,
   type ProductCreationBody,
   type ProductEditBody,
   type ProductSummary,
@@ -244,8 +246,9 @@ function decodedRaster(base64: string): Uint8Array {
 
 export async function fetchPrinterLabels(
   labels: PrintLabelEntry[],
+  size: PrinterLabelSize,
 ): Promise<FetchPrinterLabelsOutcome> {
-  const requestBody: LabelSheetBody = { labels };
+  const requestBody: LabelPrintsBody = { labels, size };
   let response: Response;
   try {
     response = await postJson("/api/label-prints", requestBody);
