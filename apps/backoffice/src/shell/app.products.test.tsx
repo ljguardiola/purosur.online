@@ -2,6 +2,9 @@ import type { Capability } from "@purosur/domain";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
+import { productPanelSections } from "../catalog/test-support/product-panel-sections";
+import { almonds, honey } from "../catalog/test-support/products";
+import { mockLoaded } from "../catalog/test-support/products-list-screen";
 import { openSession } from "../sessions/test-support/open-session";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
@@ -369,4 +372,87 @@ test("lists the promotions and opens Nueva promoción for a user holding only ma
   } finally {
     vi.useRealTimers();
   }
+});
+
+function productsWithPanel({ assembled }: { assembled: boolean }) {
+  const services = productsServices(EVERY_PRODUCT_CAPABILITY);
+  mockLoaded(services.productsListScreen, [honey, almonds]);
+  services.productPanelSections = productPanelSections({
+    assembledProductIds: assembled ? [honey.id] : [],
+  });
+  return services;
+}
+
+test("opens the panel of a simple product with Datos, Precio y costo and Stock y lotes, without Receta y tandas", async () => {
+  const services = productsWithPanel({ assembled: false });
+  window.history.pushState(null, "", `/products?product=${honey.id}`);
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  const panel = screen.getByRole("complementary", { name: honey.name });
+  await expect.element(panel).toBeVisible();
+  const tabs = panel.getByRole("tablist", { name: "Secciones del producto" });
+  for (const [index, name] of ["Datos", "Precio y costo", "Stock y lotes"].entries()) {
+    await expect.element(tabs.getByRole("tab").nth(index)).toHaveAccessibleName(name);
+  }
+  expect(tabs.getByRole("tab").elements()).toHaveLength(3);
+  expect(tabs.getByRole("tab", { name: "Receta y tandas" }).query()).toBeNull();
+});
+
+test("adds Receta y tandas to the panel of an assembled product", async () => {
+  const services = productsWithPanel({ assembled: true });
+  window.history.pushState(null, "", `/products?product=${honey.id}`);
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("tab", { name: "Receta y tandas" })).toBeVisible();
+});
+
+test("a row opens the product's panel in the address and the tab of the panel is kept in it", async () => {
+  const services = productsWithPanel({ assembled: false });
+  window.history.pushState(null, "", "/products");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await userEvent.click(screen.getByText(almonds.name));
+
+  await expect.element(screen.getByRole("complementary", { name: almonds.name })).toBeVisible();
+  expect(location()).toBe(`/products?product=${almonds.id}`);
+
+  await userEvent.click(screen.getByRole("tab", { name: "Stock y lotes" }));
+
+  await expect.element(screen.getByText(`Stock y lotes de ${almonds.name}`)).toBeVisible();
+  expect(location()).toBe(`/products?product=${almonds.id}&tab=stock`);
+});
+
+test("closing the panel takes the product and the tab out of the address", async () => {
+  const services = productsWithPanel({ assembled: false });
+  window.history.pushState(null, "", `/products?product=${honey.id}&tab=stock`);
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("complementary", { name: honey.name })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
+
+  await expect.poll(() => screen.getByRole("complementary").query()).toBeNull();
+  expect(location()).toBe("/products");
+});
+
+test("keeps the panel open while the list's filters change", async () => {
+  const services = productsWithPanel({ assembled: false });
+  window.history.pushState(null, "", `/products?product=${honey.id}`);
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("complementary", { name: honey.name })).toBeVisible();
+
+  await userEvent.fill(screen.getByPlaceholder("Buscar por nombre o código de barras"), "miel");
+
+  await expect.poll(location).toBe(`/products?product=${honey.id}&search=miel`);
+  await expect.element(screen.getByRole("complementary", { name: honey.name })).toBeVisible();
+});
+
+test("ignores a panel tab that is not a text in the address", async () => {
+  const services = productsWithPanel({ assembled: false });
+  window.history.pushState(null, "", `/products?product=${honey.id}&tab=7`);
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("tab", { name: "Datos", selected: true })).toBeVisible();
 });

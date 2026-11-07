@@ -10,10 +10,14 @@ import { CreateRoleFromSelectorModal } from "../../permissions/create-role-from-
 import { permissionCatalogFixture } from "../../platform/test-support/permission-catalog";
 import { fakeReleaseMonitor } from "../../platform/test-support/release-monitor";
 import { ARGENTINA_ZONE_RULES } from "../../platform/test-support/zone-rules";
+import { ProductPriceCostSection } from "../../pricing/product-price-cost-section";
 import { ProductPriceSection } from "../../pricing/product-price-section";
 import { ReportRegisterFilter } from "../../register/report-register-filter";
 import { EndEverySessionSection } from "../../sessions/end-every-session-section";
 import { openSession } from "../../sessions/test-support/open-session";
+import { useProductRecipeLookup } from "../../stock/product-recipe-lookup";
+import { ProductRecipeSection } from "../../stock/product-recipe-section";
+import { ProductStockSection } from "../../stock/product-stock-section";
 import type { AppServices } from "../app";
 
 const permissionCatalogOutcome = { kind: "ok", value: permissionCatalogFixture } as const;
@@ -333,6 +337,12 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     categoryCreationModal: CreateCategoryFromSelectorModal,
     productCreationModal: CreateProductFromSelectorModal,
     productPriceSection: ProductPriceSection,
+    productPanelSections: {
+      priceAndCost: ProductPriceCostSection,
+      stockAndLots: ProductStockSection,
+      recipeAndBatches: ProductRecipeSection,
+      useRecipeLookup: useProductRecipeLookup,
+    },
     registerPointOfSaleSection: RegisterPointOfSalePanelSection,
     contingencyTicketRescueAssistant: ContingencyTicketRescueAssistant,
     roleCreationModal: CreateRoleFromSelectorModal,
