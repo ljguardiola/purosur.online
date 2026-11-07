@@ -4,17 +4,11 @@ import { expect, test } from "vitest";
 import { render } from "../shell/test-support/render-with-router";
 import { ReportsIndexScreen } from "./reports-index-screen";
 
-async function renderScreen({
-  returnsShown = false,
-  aiCostShown = false,
-}: {
-  returnsShown?: boolean;
-  aiCostShown?: boolean;
-} = {}) {
+async function renderScreen({ aiCostShown = false }: { aiCostShown?: boolean } = {}) {
   return render(
     <FieldSizeProvider size="backoffice">
       <main>
-        <ReportsIndexScreen returnsShown={returnsShown} aiCostShown={aiCostShown} />
+        <ReportsIndexScreen aiCostShown={aiCostShown} />
       </main>
     </FieldSizeProvider>,
   );
@@ -119,7 +113,7 @@ test("groups the cash reports in a card titled Caja", async () => {
 });
 
 test("lists only its own reports in the Caja card, without the returns report", async () => {
-  const screen = await renderScreen({ returnsShown: true });
+  const screen = await renderScreen();
 
   const cash = screen.getByRole("region", { name: "Caja" });
   await expect.element(cash).toBeVisible();
