@@ -983,7 +983,9 @@ export function findDependencyCacheViolations(workflowSource) {
   const violations = [];
   for (const jobPair of jobsNode.items) {
     const jobId = String(resolveScalar(doc, jobPair.key));
-    for (const step of steps(doc, resolveNode(doc, jobPair.value))) {
+    const job = resolveNode(doc, jobPair.value);
+    const jobMinutes = resolveScalar(doc, mapGet(doc, job, "timeout-minutes"));
+    for (const step of steps(doc, job)) {
       if (usesAction(doc, step, "actions/setup-node") && !setsUpNodeWithoutCache(doc, step)) {
         violations.push(
           `verify.yml's ${jobId} job restores a dependency cache inside actions/setup-node, whose step a stalled download keeps from finishing until the job times out; restore the cache in its own step with timeout-minutes and continue-on-error`,
@@ -995,6 +997,13 @@ export function findDependencyCacheViolations(workflowSource) {
         violations.push(
           `verify.yml's ${jobId} job's ${cacheAction} step sets no timeout-minutes, so a stalled transfer runs until the job times out`,
         );
+      } else {
+        const stepMinutes = resolveScalar(doc, mapGet(doc, step, "timeout-minutes"));
+        if (typeof jobMinutes === "number" && stepMinutes >= jobMinutes) {
+          violations.push(
+            `verify.yml's ${jobId} job's ${cacheAction} step's timeout-minutes (${stepMinutes}) is not shorter than the job's (${jobMinutes}), so a stalled transfer can still run until the job times out`,
+          );
+        }
       }
       if (resolveScalar(doc, mapGet(doc, step, "continue-on-error")) !== true) {
         violations.push(
