@@ -67,6 +67,7 @@ export const fortnightPresentationSchema = z.object({
   refusal: fortnightPresentationRefusalSchema.nullable(),
   state: fortnightPresentationStateSchema.nullable(),
   revoked_installations: z.array(revokedInstallationAwaitingConfirmationSchema),
+  owed: z.boolean(),
 });
 
 export const fortnightPresentationListSchema = z.array(fortnightPresentationSchema);
