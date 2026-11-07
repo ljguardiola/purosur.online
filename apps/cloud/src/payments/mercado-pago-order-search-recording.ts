@@ -1,5 +1,5 @@
 import { mkdir, writeFile } from "node:fs/promises";
-import { isAbsolute, join, relative, resolve } from "node:path";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import type {
   MercadoPagoOrderCancellation,
   MercadoPagoOrderCreation,
@@ -71,7 +71,8 @@ export function orderSearchRecordingSettingsOf(
   }
   const outDir = resolve(out);
   const fromRepository = relative(resolve(repositoryRoot), outDir);
-  const insideRepository = !fromRepository.startsWith("..") && !isAbsolute(fromRepository);
+  const aboveRepository = fromRepository === ".." || fromRepository.startsWith(`..${sep}`);
+  const insideRepository = !aboveRepository && !isAbsolute(fromRepository);
   if (insideRepository) {
     return { kind: "refused", reason: "--out must be outside the repository" };
   }
@@ -218,12 +219,28 @@ export async function recordMercadoPagoOrderSearches(
 ): Promise<OrderSearchRecordingReport> {
   const { accountId } = await readUser(options);
   let lastCreation: RecordedAnswer = { status: 0, body: null };
+  let lastSearch: RecordedAnswer | { failure: unknown } = { status: 0, body: null };
   const client = createMercadoPagoOrdersClient({
     accessToken: options.accessToken,
     fetch: async (input, init) => {
-      const response = await options.fetch(input, init);
+      const isSearch = init?.method === "GET" && String(input).startsWith(`${API_URL}/v1/orders?`);
+      let response: Response;
+      try {
+        response = await options.fetch(input, init);
+      } catch (failure) {
+        if (isSearch) {
+          lastSearch = { failure };
+        }
+        throw failure;
+      }
       if (init?.method === "POST" && String(input) === `${API_URL}/v1/orders`) {
         lastCreation = {
+          status: response.status,
+          body: bodyOfText(await response.clone().text()),
+        };
+      }
+      if (isSearch) {
+        lastSearch = {
           status: response.status,
           body: bodyOfText(await response.clone().text()),
         };
@@ -283,13 +300,17 @@ export async function recordMercadoPagoOrderSearches(
       ),
     });
 
-    const datedSearch = (externalReference: string) =>
-      search(options, {
-        external_reference: externalReference,
-        begin_date: createdFrom.toISOString(),
-        end_date: new Date(options.now().getTime() + SEARCH_WINDOW_MS).toISOString(),
-        page_size: SEARCH_PAGE_SIZE,
-      });
+    const datedSearch = async (externalReference: string): Promise<RecordedAnswer> => {
+      await client.searchOrdersOfExternalReference(
+        externalReference,
+        createdFrom,
+        new Date(options.now().getTime() + SEARCH_WINDOW_MS),
+      );
+      if ("failure" in lastSearch) {
+        throw lastSearch.failure;
+      }
+      return lastSearch;
+    };
     const searchUntilFound = async (externalReference: string) => {
       let answer = await datedSearch(externalReference);
       for (
