@@ -247,7 +247,7 @@ function registerInstallationChangeDescription(
   const replaced = detail.replacedInstallation
     ? " La instalación que tenía antes dejó de funcionar."
     : "";
-  return `La caja «${registerName}» se dio de alta en el equipo «${hostname}» (${windowsVersion}).${replaced} Si no se reconoce esta alta, conviene revisarla desde Cajas registradoras.`;
+  return `La caja «${registerName}» se dio de alta en el equipo «${hostname}» (${windowsVersion}).${replaced} Si no se reconoce esta alta, conviene revisarla desde Cajas.`;
 }
 
 function arcaCertificateExpiringDescription(

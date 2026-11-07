@@ -108,7 +108,7 @@ export function NewRegisterModal({
         width="standard"
         tone="info"
         icon={<Laptop />}
-        context="Configuración"
+        context="Cajas"
         title="Nueva caja"
         closable
         footer={
