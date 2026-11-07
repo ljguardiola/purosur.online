@@ -644,6 +644,21 @@ test("fetchPrinterLabels returns product_without_internal_barcode on a 400 with 
   });
 });
 
+test("fetchPrinterLabels returns validation_failed on the field the cloud names for a 400", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    jsonResponse(400, {
+      code: "validation_failed",
+      message: "invalid",
+      details: [{ field: "size" }],
+    }),
+  );
+
+  expect(await fetchPrinterLabels(labelRequest, labelSize)).toEqual({
+    kind: "validation_failed",
+    field: "size",
+  });
+});
+
 test("fetchPrinterLabels returns failed on a 400 with an unrecognized code", async () => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(400, { code: "validation_failed" }));
 

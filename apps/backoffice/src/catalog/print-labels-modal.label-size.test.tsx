@@ -136,8 +136,51 @@ test("refuses a size that is not a whole number of millimetres", async () => {
 
   await userEvent.click(dialog.getByRole("button", { name: PRINT }));
 
-  await expect.element(dialog.getByText("El ancho va de 25 a 70 mm.")).toBeVisible();
+  await expect
+    .element(dialog.getByText("Ingresá el ancho en milímetros enteros, de 25 a 70 mm."))
+    .toBeVisible();
+  expect(dialog.getByText("El ancho va de 25 a 70 mm.").query()).toBeNull();
   expect(services.fetchPrinterLabels).not.toHaveBeenCalled();
+});
+
+test("shows the cloud's refusal of the size on the size field, not as a failure", async () => {
+  const services = servicesPrintingWith({ kind: "printed", printed: 1 });
+  vi.mocked(services.fetchPrinterLabels).mockResolvedValue({
+    kind: "validation_failed",
+    field: "size",
+  });
+  const { dialog } = await openWithOneLabel(services);
+
+  await userEvent.click(dialog.getByRole("button", { name: PRINT }));
+
+  await expect.element(dialog.getByText("Revisá el ancho.")).toBeVisible();
+  expect(dialog.getByText("No se pudo preparar la impresión").query()).toBeNull();
+  expect(services.printOnLabelPrinter).not.toHaveBeenCalled();
+  await expect.element(dialog.getByRole("button", { name: PRINT })).toBeEnabled();
+});
+
+test("shows a failure notice when the cloud refuses a part of the request no field holds", async () => {
+  const services = servicesPrintingWith({ kind: "printed", printed: 1 });
+  vi.mocked(services.fetchPrinterLabels).mockResolvedValue({
+    kind: "validation_failed",
+    field: "labels",
+  });
+  const { dialog } = await openWithOneLabel(services);
+
+  await userEvent.click(dialog.getByRole("button", { name: PRINT }));
+
+  await expect.element(dialog.getByText("No se pudo preparar la impresión")).toBeVisible();
+});
+
+test("shows no size in the preview while the fields hold one that cannot be printed", async () => {
+  const { dialog } = await openWithOneLabel(createServices());
+
+  await enterSize(dialog, "80", "30");
+
+  await expect
+    .element(dialog.getByText(/^Etiquetas en la impresora de etiquetas, o una hoja A4/))
+    .toBeVisible();
+  expect(dialog.getByText(/50 × 30 mm/).query()).toBeNull();
 });
 
 test("downloads the A4 sheet whatever the size fields hold", async () => {
