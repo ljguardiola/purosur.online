@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
   configureRegisterOfflinePointOfSale,
   configureRegisterPointOfSale,
+  fetchFiscalRegisterNames,
   fetchRegisterPointsOfSale,
   type RegisterPointOfSale,
 } from "./register-points-of-sale-api";
@@ -214,4 +215,26 @@ test.each([
   expect(await configureRegisterOfflinePointOfSale("register-1", offlineConfiguration)).toEqual(
     outcome,
   );
+});
+
+test("fetchFiscalRegisterNames lists only the id and name of each register", async () => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [configuredWire, neverConfiguredWire]));
+
+  expect(await fetchFiscalRegisterNames()).toEqual({
+    kind: "ok",
+    value: [
+      { id: configured.registerId, name: configured.registerName },
+      { id: neverConfigured.registerId, name: neverConfigured.registerName },
+    ],
+  });
+  expect(fetch).toHaveBeenCalledWith("/api/registers/points-of-sale");
+});
+
+test.each([
+  [403, { kind: "forbidden" }],
+  [500, { kind: "failed" }],
+])("fetchFiscalRegisterNames passes on the failure of the read, %s", async (status, outcome) => {
+  vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
+
+  expect(await fetchFiscalRegisterNames()).toEqual(outcome);
 });

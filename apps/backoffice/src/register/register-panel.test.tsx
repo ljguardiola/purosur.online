@@ -14,10 +14,12 @@ function renderPanel({
   access = ADMINISTRATOR_ACCESS,
   tab,
   onClose = () => {},
+  nameOnly = false,
 }: {
   access?: BackofficeAccess;
   tab?: string;
   onClose?: () => void;
+  nameOnly?: boolean;
 } = {}) {
   const services = panelServices();
   vi.mocked(services.fetchSnapshotBackups).mockResolvedValue({ kind: "ok", value: backups });
@@ -28,10 +30,13 @@ function renderPanel({
   return render(
     <RegisterPanel
       register={enrolledRegister}
+      details={
+        nameOnly
+          ? undefined
+          : { summary: enrolledRegister, actions: createActions(), secondsSinceRead: 0 }
+      }
       access={access}
-      actions={createActions()}
       registerPointOfSaleSection={RegisterPointOfSaleSectionStub}
-      secondsSinceRead={0}
       tab={tab}
       sessionsPeriod={{ from: "", to: "" }}
       onSessionsPeriodChange={() => {}}
@@ -135,4 +140,36 @@ test("shows nothing to a person who can see no part of it", async () => {
   const { screen } = await renderPanel({ access: accessWith("refunds_area") });
 
   expect(screen.getByRole("complementary").query()).toBeNull();
+});
+
+test("without the register's full data, a person with backups_area sees only Copias", async () => {
+  const { screen } = await renderPanel({ access: accessWith("backups_area"), nameOnly: true });
+
+  await expect.element(screen.getByRole("complementary", { name: "Caja 3" })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Copias", selected: true })).toBeVisible();
+  expect(screen.getByRole("tab").elements()).toHaveLength(1);
+});
+
+test("without the register's full data, Fiscal y cobros shows the point of sale and no Point terminal or QR", async () => {
+  const { screen } = await renderPanel({
+    access: accessWith("fiscal_configuration_area"),
+    nameOnly: true,
+    tab: "fiscal",
+  });
+
+  await expect.element(screen.getByText("Punto de venta de register-3")).toBeVisible();
+  expect(screen.getByText(/Terminal Point/).query()).toBeNull();
+  expect(screen.getByText(/QR de Mercado Pago/).query()).toBeNull();
+  expect(screen.getByRole("button", { name: /Asignar/ }).query()).toBeNull();
+});
+
+test("without the register's full data, Copias and Sesiones read from the register's id", async () => {
+  const { screen, services } = await renderPanel({
+    access: accessWith("backups_area", "reports_area"),
+    nameOnly: true,
+    tab: "sessions",
+  });
+
+  await expect.element(screen.getByText("Cerró: Beto")).toBeVisible();
+  expect(services.fetchCashSessionCloses).toHaveBeenCalledWith({ register_id: "register-3" });
 });

@@ -343,6 +343,7 @@ test("under StrictMode, clicking the row action emits the code exactly once and 
           access={ADMINISTRATOR_ACCESS}
           services={services}
           registerPointOfSaleSection={RegisterPointOfSaleSectionStub}
+          fetchFiscalRegisterNames={vi.fn()}
           onSessionEnded={() => {}}
           sessionsPeriod={{ from: "", to: "" }}
           onSessionsPeriodChange={() => {}}

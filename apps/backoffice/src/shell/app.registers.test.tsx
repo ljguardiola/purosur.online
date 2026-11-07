@@ -212,12 +212,10 @@ test.each(["/registers", "/registers/closes", "/registers/movements"])(
 );
 
 test.each<{ capability: Capability; path: string }>([
-  { capability: "fiscal_configuration_area", path: "/registers" },
-  { capability: "backups_area", path: "/registers" },
   { capability: "fiscal_configuration_area", path: "/registers/closes" },
   { capability: "backups_area", path: "/registers/movements" },
 ])(
-  "sends a person with $capability alone, who sees no tab of the page, from $path to the own account panel",
+  "sends a person with $capability alone, who sees no tab of $path, to the own account panel",
   async ({ capability, path }) => {
     const services = registersServices([capability]);
     window.history.pushState(null, "", path);
@@ -226,9 +224,49 @@ test.each<{ capability: Capability; path: string }>([
 
     await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
     expect(location()).toBe("/?account=credentials");
-    expect(services.registersListScreen.fetchRegisters).not.toHaveBeenCalled();
   },
 );
+
+test("shows a person with backups_area but not registers_area the Cajas tab with the registers of the backups read, and a panel with Copias and without Datos", async () => {
+  const services = registersServices(["backups_area"]);
+  vi.mocked(services.registersListScreen.fetchSnapshotBackupRegisters).mockResolvedValue({
+    kind: "ok",
+    value: [{ id: REGISTER_ID, name: "Caja 1" }],
+  });
+  window.history.pushState(null, "", "/registers");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("tab", { name: "Cajas", selected: true })).toBeVisible();
+  await expect.element(screen.getByText("Caja 1", { exact: true })).toBeVisible();
+  expect(services.registersListScreen.fetchRegisters).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByText("Caja 1", { exact: true }));
+  const panel = screen.getByRole("complementary", { name: "Caja 1" });
+  await expect.element(panel.getByRole("tab", { name: "Copias", selected: true })).toBeVisible();
+  expect(panel.getByRole("tab", { name: "Datos" }).query()).toBeNull();
+  expect(location()).toBe(`/registers?register=${REGISTER_ID}`);
+});
+
+test("shows a person with fiscal configuration alone the registers of the points of sale read, and a panel with only Fiscal y cobros, without the Point terminal and QR lines", async () => {
+  const services = registersServices(["fiscal_configuration_area"]);
+  vi.mocked(services.fetchFiscalRegisterNames).mockResolvedValue({
+    kind: "ok",
+    value: [{ id: REGISTER_ID, name: "Caja 1" }],
+  });
+  window.history.pushState(null, "", "/registers");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("tab", { name: "Cajas", selected: true })).toBeVisible();
+  await userEvent.click(screen.getByText("Caja 1", { exact: true }));
+  const panel = screen.getByRole("complementary", { name: "Caja 1" });
+  await expect
+    .element(panel.getByRole("tab", { name: "Fiscal y cobros", selected: true }))
+    .toBeVisible();
+  expect(panel.getByRole("tab").elements()).toHaveLength(1);
+  expect(panel.getByText(/Terminal Point/).query()).toBeNull();
+  expect(services.registersListScreen.fetchRegisters).not.toHaveBeenCalled();
+});
 
 test("redirects /backups to /registers", async () => {
   const services = registersServices(["registers_area", "backups_area"]);

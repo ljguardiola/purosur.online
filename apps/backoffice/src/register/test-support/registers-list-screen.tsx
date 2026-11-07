@@ -28,6 +28,7 @@ export function createServices(
     authorizeSession: vi.fn(),
     startAuthentication: vi.fn(),
     fetchSnapshotBackups: vi.fn(),
+    fetchSnapshotBackupRegisters: vi.fn(),
     changeSnapshotLifecycleRules: vi.fn(),
     rotateSnapshotKey: vi.fn(),
     fetchCashSessionCloses: vi.fn(),
@@ -143,6 +144,7 @@ export async function renderScreen(
         access={access}
         services={services}
         registerPointOfSaleSection={RegisterPointOfSaleSectionStub}
+        fetchFiscalRegisterNames={vi.fn()}
         onSessionEnded={onSessionEnded}
         sessionsPeriod={{ from: "", to: "" }}
         onSessionsPeriodChange={() => {}}
