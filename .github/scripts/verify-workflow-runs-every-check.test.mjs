@@ -2023,9 +2023,9 @@ test("leaves a global setup with no POSTGRES_IMAGE to the cloud Postgres check i
   assert.deepEqual(violations, []);
 });
 
-test("checkRepository reads the real workflow file, package.json, the local database, both image setups and the installed Playwright version", () => {
-  const files = {
-    ".github/workflows/verify.yml": jobWithPull(PRE_PULLED_IMAGES[0]),
+function repositoryFiles(workflowSource) {
+  return {
+    ".github/workflows/verify.yml": workflowSource,
     "package.json": packageJson(),
     "docker-compose.yml": composeDeclaring(PINNED_POSTGRES_IMAGE),
     "apps/cloud/vitest.global-setup.postgres.ts": setupDeclaring(
@@ -2040,6 +2040,10 @@ test("checkRepository reads the real workflow file, package.json, the local data
       version: INSTALLED_PLAYWRIGHT_VERSION,
     }),
   };
+}
+
+test("checkRepository reads the real workflow file, package.json, the local database, both image setups and the installed Playwright version", () => {
+  const files = repositoryFiles(jobWithPull(PRE_PULLED_IMAGES[0]));
   const read = [];
 
   checkRepository({
@@ -2225,7 +2229,56 @@ for (const uses of [
       assertSingleViolation(violations, /tests job's .* step does not continue on error/);
     }
   });
+
+  test(`flags a ${action} step whose time limit does not end before its job's`, () => {
+    for (const stepMinutes of [10, 30]) {
+      const violations = findDependencyCacheViolations(
+        workflowWithSteps(
+          SETUP_NODE_WITHOUT_CACHE,
+          cacheStep(uses, ["continue-on-error: true", `timeout-minutes: ${stepMinutes}`]),
+        ),
+      );
+
+      assertSingleViolation(
+        violations,
+        new RegExp(
+          `tests job's .* step's timeout-minutes \\(${stepMinutes}\\) is not shorter than the job's \\(10\\)`,
+        ),
+      );
+    }
+  });
 }
+
+test("passes a cache step with any time limit in a job that sets none", () => {
+  const violations = findDependencyCacheViolations(
+    workflowWithSteps(
+      SETUP_NODE_WITHOUT_CACHE,
+      cacheStep(CACHE_RESTORE, ["continue-on-error: true", "timeout-minutes: 30"]),
+    ).replace("    timeout-minutes: 10\n", ""),
+  );
+
+  assert.deepEqual(violations, []);
+});
+
+test("checkRepository reports a dependency cache restored inside actions/setup-node", () => {
+  const files = repositoryFiles(
+    workflowWithSteps([
+      `uses: ${SETUP_NODE}`,
+      "with:",
+      "  node-version-file: .node-version",
+      "  cache: pnpm",
+    ]),
+  );
+
+  const violations = checkRepository({ readFile: (path) => files[path] });
+
+  assert.ok(
+    violations.some((violation) =>
+      /tests job restores a dependency cache inside actions\/setup-node/.test(violation),
+    ),
+    violations.join("\n"),
+  );
+});
 
 test("the real Verify workflow restores its dependency caches in bounded steps that may fail", () => {
   const violations = findDependencyCacheViolations(
