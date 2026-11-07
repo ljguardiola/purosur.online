@@ -120,13 +120,16 @@ describe("recording Mercado Pago order searches", () => {
     idCounter = 0;
   });
 
-  function run(responder: Responder = defaultResponder()) {
+  function run(
+    responder: Responder = defaultResponder(),
+    wrap: (fetch: typeof globalThis.fetch) => typeof globalThis.fetch = (fetch) => fetch,
+  ) {
     return recordMercadoPagoOrderSearches({
       outDir,
       accessToken: TOKEN,
       externalPosId: "REALPOS01",
       terminalId: "PAX_A910__REAL123",
-      fetch: fetchAnswering(calls, responder),
+      fetch: wrap(fetchAnswering(calls, responder)),
       now: () => NOW,
       newId: () => `id-${++idCounter}`,
       wait: async (ms) => {
@@ -497,6 +500,43 @@ describe("recording Mercado Pago order searches", () => {
     expect(calls.filter((call) => call.url.endsWith("/cancel"))).toHaveLength(2);
     expect(existsSync(join(outDir, "raw"))).toBe(false);
   });
+
+  function bodyBreakingOnSearchOf(reference: string) {
+    return (fetch: typeof globalThis.fetch): typeof globalThis.fetch =>
+      (async (input: string | URL | Request, init?: RequestInit) => {
+        const response = await fetch(input, init);
+        const url = new URL(String(input));
+        if (
+          url.pathname !== "/v1/orders" ||
+          !url.searchParams.has("begin_date") ||
+          url.searchParams.get("begin_date") === "not-a-date" ||
+          url.searchParams.get("external_reference") !== reference
+        ) {
+          return response;
+        }
+        const body = new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode('{"data":['));
+            controller.error(new Error("connection reset"));
+          },
+        });
+        return new Response(body, { status: response.status });
+      }) as typeof globalThis.fetch;
+  }
+
+  it.each([
+    ["the first QR search", "id-2"],
+    ["the Point search after the QR answer", "id-4"],
+  ])(
+    "rejects and cancels the created orders when the body of %s cannot be read",
+    async (_, reference) => {
+      await expect(run(defaultResponder(), bodyBreakingOnSearchOf(reference))).rejects.toThrow(
+        "connection reset",
+      );
+      expect(calls.filter((call) => call.url.endsWith("/cancel"))).toHaveLength(2);
+      expect(existsSync(join(outDir, "raw"))).toBe(false);
+    },
+  );
 });
 
 describe("the failure of an order search recording", () => {
