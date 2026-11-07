@@ -32,6 +32,10 @@ export function createServices(
     createTag: vi.fn(),
     generateInternalBarcode: vi.fn(),
     printLabels: vi.fn(),
+    fetchPrinterLabels: vi.fn(),
+    labelPrinterAvailable: () => true,
+    chooseLabelPrinter: vi.fn(),
+    printOnLabelPrinter: vi.fn(),
     ...overrides,
   };
 }

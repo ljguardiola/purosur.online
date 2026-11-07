@@ -101,6 +101,8 @@ export {
 } from "./catalog/internal-barcode.js";
 export type { LabelSheetBody } from "./catalog/label-sheet.js";
 export { labelSheetBodySchema } from "./catalog/label-sheet.js";
+export type { PrinterLabels } from "./catalog/printer-labels.js";
+export { printerLabelsSchema } from "./catalog/printer-labels.js";
 export type { ProductCreationBody } from "./catalog/product-creation.js";
 export { netContentQuantitySchema, productCreationBodySchema } from "./catalog/product-creation.js";
 export type { ProductEditBody } from "./catalog/product-edit.js";
