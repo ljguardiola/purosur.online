@@ -22,7 +22,7 @@ import type { SalesByPaymentMethodScreenServices } from "./sales-by-payment-meth
 import { todayPaymentsReport, weekPaymentsReport } from "./test-support/payments-report-fixtures";
 
 function createServices(): SalesByPaymentMethodScreenServices {
-  const services = { fetchSalesByPaymentMethod: vi.fn() };
+  const services = { fetchSalesByPaymentMethod: vi.fn(), fetchHandConfirmedPayments: vi.fn() };
   services.fetchSalesByPaymentMethod.mockResolvedValue({
     kind: "ok",
     value: weekPaymentsReport,

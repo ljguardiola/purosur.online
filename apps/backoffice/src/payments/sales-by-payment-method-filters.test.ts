@@ -9,6 +9,8 @@ test("opens on no range, every register and the biggest amount first", () => {
     register: "ALL",
     sortBy: "amount",
     sort: "descending",
+    handConfirmed: false,
+    method: "ALL",
   });
 });
 
@@ -42,5 +44,29 @@ test.each([
   expect(salesByPaymentMethodFilters.parse(search)).toMatchObject({
     sortBy: "amount",
     sort: "descending",
+  });
+});
+
+test("keeps the hand-confirmed payments filter and the method a URL names", () => {
+  const filters = {
+    from: "",
+    to: "",
+    register: "ALL",
+    sortBy: "amount",
+    sort: "descending",
+    handConfirmed: true,
+    method: "TRANSFER",
+  };
+
+  expect(salesByPaymentMethodFilters.parse(filters)).toEqual(filters);
+});
+
+test.each([
+  ["a hand-confirmed value that is not a boolean", { handConfirmed: "yes" }],
+  ["a method that does not exist", { method: "CASH" }],
+])("falls back to the defaults for %s", (_name, input) => {
+  expect(salesByPaymentMethodFilters.parse(input)).toMatchObject({
+    handConfirmed: false,
+    method: "ALL",
   });
 });

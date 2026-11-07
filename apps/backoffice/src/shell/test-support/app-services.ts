@@ -312,6 +312,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     },
     salesByPaymentMethodScreen: {
       fetchSalesByPaymentMethod: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchHandConfirmedPayments: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     handConfirmedPaymentsScreen: {
       fetchHandConfirmedPayments: vi.fn().mockReturnValue(new Promise(() => {})),

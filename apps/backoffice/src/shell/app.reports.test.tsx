@@ -876,3 +876,24 @@ test("shows no open alerts count in Reportes' top bar", async () => {
   expect(services.homeScreen.fetchAlertsOverview).not.toHaveBeenCalled();
   expect(screen.getByText(/alertas? abiertas?/).query()).toBeNull();
 });
+
+test("keeps the hand-confirmed filter of the sales by payment method in the address", async () => {
+  const services = reportsServices(["reports_area"]);
+  vi.mocked(services.salesByPaymentMethodScreen.fetchHandConfirmedPayments).mockResolvedValue({
+    kind: "ok",
+    value: weekHandConfirmedReport,
+  });
+  window.history.pushState(null, "", "/reports/sales-by-payment-method");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect
+    .element(screen.getByRole("table", { name: "Ventas por medio de pago" }))
+    .toBeVisible();
+
+  await userEvent.click(screen.getByRole("switch", { name: "Confirmados a mano" }));
+
+  await expect.poll(() => window.location.search).toBe("?handConfirmed=true");
+  await expect
+    .element(screen.getByRole("table", { name: "Pagos confirmados a mano", exact: true }))
+    .toBeVisible();
+  expect(services.salesByPaymentMethodScreen.fetchHandConfirmedPayments).toHaveBeenCalledWith({});
+});
