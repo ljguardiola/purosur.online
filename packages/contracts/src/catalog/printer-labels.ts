@@ -1,4 +1,32 @@
 import { z } from "zod";
+import { labelSheetBodySchema } from "./label-sheet.js";
+
+// The NIIMBOT B31 prints at most 70 mm wide, and below 25 mm an EAN-13 no longer fits with the
+// thinnest bars the store's reader reads.
+export const LABEL_PRINTER_WIDTH_MM = { min: 25, max: 70 } as const;
+export const LABEL_PRINTER_HEIGHT_MM = { min: 15, max: 70 } as const;
+
+function millimetresSchema(field: string, range: { min: number; max: number }) {
+  const message = `${field} must be a whole number of millimetres from ${range.min} to ${range.max}`;
+  return z
+    .number({ error: message })
+    .int({ error: message })
+    .min(range.min, { error: message })
+    .max(range.max, { error: message });
+}
+
+export const printerLabelSizeSchema = z.object({
+  widthMm: millimetresSchema("widthMm", LABEL_PRINTER_WIDTH_MM),
+  heightMm: millimetresSchema("heightMm", LABEL_PRINTER_HEIGHT_MM),
+});
+
+export type PrinterLabelSize = z.infer<typeof printerLabelSizeSchema>;
+
+export const labelPrintsBodySchema = labelSheetBodySchema.extend({
+  size: printerLabelSizeSchema,
+});
+
+export type LabelPrintsBody = z.input<typeof labelPrintsBodySchema>;
 
 const BITS_PER_BYTE = 8;
 
