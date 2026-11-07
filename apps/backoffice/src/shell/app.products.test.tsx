@@ -6,6 +6,8 @@ import { productPanelSections } from "../catalog/test-support/product-panel-sect
 import { almonds, honey } from "../catalog/test-support/products";
 import { mockLoaded } from "../catalog/test-support/products-list-screen";
 import { openSession } from "../sessions/test-support/open-session";
+import { assemblyBatchList, mixBatch } from "../stock/test-support/assembly-batches";
+import { cajaDeInfusiones, mixDeFrutosSecos } from "../stock/test-support/recipes";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
@@ -16,7 +18,6 @@ opensOnlyScreens([
   "/help",
   "/products",
   "/products/assemblies",
-  "/products/assemblies/batches",
   "/products/classification",
   "/products/classification/brands",
   "/products/classification/tags",
@@ -198,7 +199,8 @@ test.each([
     "/products/promotions?search=yerba&status=all",
   ],
   ["/recipes", ["recipes"], "/products/assemblies"],
-  ["/assembly-batches", ["recipes", "batches"], "/products/assemblies/batches"],
+  ["/assembly-batches", ["recipes", "batches"], "/products/assemblies"],
+  ["/products/assemblies/batches", ["recipes", "batches"], "/products/assemblies"],
 ] as const)(
   "redirects the old address %s to its tab or section",
   async (old, capabilities, target) => {
@@ -244,45 +246,102 @@ test("opens Clasificación with its three sections, each one at its own address"
   await expect.poll(() => services.brandsListScreen.fetchBrands).toHaveBeenCalled();
 });
 
-test("opens Armados with Recetas and, for who may register batches, Tandas", async () => {
-  const services = productsServices(["recipes", "batches"]);
+function armadosServices(capabilities: Capability[]) {
+  const services = productsServices(capabilities);
   vi.mocked(services.recipesListScreen.fetchRecipes).mockResolvedValue({
     kind: "ok",
-    value: { recipes: [], products: [] },
+    value: { recipes: [mixDeFrutosSecos, cajaDeInfusiones], products: [] },
   });
   vi.mocked(services.assemblyBatchesScreen.fetchAssemblyBatches).mockResolvedValue({
     kind: "ok",
-    value: { batches: [], recipes: [] },
+    value: assemblyBatchList([mixBatch]),
   });
+  return services;
+}
+
+test("opens Armados as the recipes list alone, with no sections for the batches", async () => {
+  const services = armadosServices(["recipes", "batches"]);
   window.history.pushState(null, "", "/products/assemblies");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  const sections = screen.getByRole("tablist", { name: "Secciones de Armados" });
-  await expect
-    .element(sections.getByRole("tab", { name: "Recetas", selected: true }))
-    .toBeVisible();
-
-  await userEvent.click(sections.getByRole("tab", { name: "Tandas" }));
-
-  await expect.element(sections.getByRole("tab", { name: "Tandas", selected: true })).toBeVisible();
-  expect(location()).toBe("/products/assemblies/batches");
-  await expect.poll(() => services.assemblyBatchesScreen.fetchAssemblyBatches).toHaveBeenCalled();
+  await expect.element(screen.getByRole("table", { name: "Recetas" })).toBeVisible();
+  expect(screen.getByRole("tablist", { name: "Secciones de Armados" }).query()).toBeNull();
+  expect(screen.getByRole("tab", { name: "Tandas" }).query()).toBeNull();
+  expect(services.assemblyBatchesScreen.fetchAssemblyBatches).not.toHaveBeenCalled();
 });
 
-test("offers no Tandas to a person who may not register batches, and sends them back to Recetas", async () => {
-  const services = productsServices(["recipes"]);
-  vi.mocked(services.recipesListScreen.fetchRecipes).mockResolvedValue({
-    kind: "ok",
-    value: { recipes: [], products: [] },
-  });
-  window.history.pushState(null, "", "/products/assemblies/batches");
+test("a row of Armados opens the recipe's panel with its batches, and the recipe stays in the address", async () => {
+  const services = armadosServices(["recipes", "batches"]);
+  window.history.pushState(null, "", "/products/assemblies");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await userEvent.click(screen.getByText("Mix de frutos secos"));
+
+  const panel = screen.getByRole("complementary", { name: "Mix de frutos secos" });
+  await expect.element(panel.getByText("15/09/2026")).toBeVisible();
+  expect(location()).toBe(`/products/assemblies?recipe=${mixDeFrutosSecos.productId}`);
+  await expect.element(panel.getByRole("button", { name: "Registrar tanda" })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
+
+  await expect.poll(() => screen.getByRole("complementary").query()).toBeNull();
+  expect(location()).toBe("/products/assemblies");
+});
+
+test("opens the panel of the recipe named in the address of Armados", async () => {
+  const services = armadosServices(["recipes", "batches"]);
+  window.history.pushState(null, "", `/products/assemblies?recipe=${mixDeFrutosSecos.productId}`);
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("tab", { name: "Armados", selected: true })).toBeVisible();
-  expect(location()).toBe("/products/assemblies");
-  expect(screen.getByRole("tab", { name: "Tandas" }).query()).toBeNull();
+  await expect
+    .element(screen.getByRole("complementary", { name: "Mix de frutos secos" }))
+    .toBeVisible();
+});
+
+test("keeps the panel of Armados open while the list's search changes", async () => {
+  const services = armadosServices(["recipes", "batches"]);
+  window.history.pushState(null, "", `/products/assemblies?recipe=${mixDeFrutosSecos.productId}`);
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("complementary")).toBeVisible();
+
+  await userEvent.fill(screen.getByPlaceholder("Buscar un producto armado"), "mix");
+
+  await expect
+    .poll(location)
+    .toBe(`/products/assemblies?recipe=${mixDeFrutosSecos.productId}&search=mix`);
+  await expect.element(screen.getByRole("complementary")).toBeVisible();
+});
+
+test("ignores a recipe that is not a text in the address of Armados", async () => {
+  const services = armadosServices(["recipes"]);
+  window.history.pushState(null, "", "/products/assemblies?recipe=7");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("table", { name: "Recetas" })).toBeVisible();
+  expect(screen.getByRole("complementary").query()).toBeNull();
+});
+
+test("a person who may not register batches sees the batches of the recipe without actions", async () => {
+  const services = armadosServices(["recipes"]);
+  window.history.pushState(null, "", `/products/assemblies?recipe=${mixDeFrutosSecos.productId}`);
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByText("15/09/2026")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Registrar tanda" }).query()).toBeNull();
+});
+
+test("a person with only batches reaches neither Armados nor its batches", async () => {
+  const services = armadosServices(["batches"]);
+  window.history.pushState(null, "", "/assembly-batches");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
+  expect(location()).toBe("/?account=credentials");
   expect(services.assemblyBatchesScreen.fetchAssemblyBatches).not.toHaveBeenCalled();
 });
 

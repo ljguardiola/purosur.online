@@ -10,9 +10,11 @@ import {
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
+import type { AssemblyBatchesScreenServices } from "./assembly-batches-services";
 import { RecipesListScreen } from "./recipes-list-screen";
 import type { RecipesListScreenServices } from "./recipes-list-services";
 import { type RecipesListFilters, recipesListFilters } from "./routes";
+import { assemblyBatchList, mixBatch, voidedBatch } from "./test-support/assembly-batches";
 import {
   almendras,
   avenaConPasas,
@@ -34,6 +36,18 @@ function createServices(
   return { fetchRecipes: vi.fn(), saveRecipe: vi.fn(), ...overrides };
 }
 
+function createBatchServices(): AssemblyBatchesScreenServices {
+  return {
+    fetchAssemblyBatches: vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: assemblyBatchList([mixBatch, voidedBatch]),
+    }),
+    fetchAssemblyBatchPreview: vi.fn().mockReturnValue(new Promise(() => {})),
+    registerAssemblyBatch: vi.fn(),
+    voidAssemblyBatch: vi.fn(),
+  };
+}
+
 function deferred<T>() {
   let resolve: (value: T) => void = () => {};
   const promise = new Promise<T>((settle) => {
@@ -49,10 +63,16 @@ function screenElement(
     filters = recipesListFilters.parse({}),
     onFiltersChange = () => {},
     access = ADMINISTRATOR_ACCESS,
+    openRecipe = undefined,
+    onOpenRecipeChange = () => {},
+    batchServices = createBatchServices(),
   }: {
     access?: BackofficeAccess;
     filters?: RecipesListFilters;
     onFiltersChange?: (filters: RecipesListFilters) => void;
+    openRecipe?: string | undefined;
+    onOpenRecipeChange?: (recipe: string | undefined) => void;
+    batchServices?: AssemblyBatchesScreenServices;
   } = {},
 ) {
   return (
@@ -66,6 +86,9 @@ function screenElement(
           onSessionEnded={onSessionEnded}
           filters={filters}
           onFiltersChange={onFiltersChange}
+          openRecipe={openRecipe}
+          onOpenRecipeChange={onOpenRecipeChange}
+          batchServices={batchServices}
         />
       </main>
     </FieldSizeProvider>
@@ -598,4 +621,78 @@ test.each([
 
   await expect.element(screen.getByRole("dialog").getByText(text)).toBeVisible();
   await expect.element(screen.getByRole("dialog").getByText("Té verde: 2000")).toBeVisible();
+});
+
+test("a row opens the recipe's panel by reporting the product of the row", async () => {
+  const onOpenRecipeChange = vi.fn();
+  const services = createServices();
+  const screen = await loaded(services, [mixDeFrutosSecos, cajaDeInfusiones], {
+    onOpenRecipeChange,
+  });
+
+  await userEvent.click(screen.getByText("Mix de frutos secos"));
+
+  expect(onOpenRecipeChange).toHaveBeenCalledWith(mixDeFrutosSecos.productId);
+});
+
+test("shows the panel of the open recipe with its components and the batches of its product", async () => {
+  const services = createServices();
+  const screen = await loaded(services, [mixDeFrutosSecos, cajaDeInfusiones], {
+    openRecipe: mixDeFrutosSecos.productId,
+  });
+
+  const panel = screen.getByRole("complementary", { name: "Mix de frutos secos" });
+  await expect.element(panel.getByText(almendras.name, { exact: true })).toBeVisible();
+  await expect.element(panel.getByText("15/09/2026")).toBeVisible();
+  await expect.element(panel.getByText("Anulada")).toBeVisible();
+  await expect.element(screen.getByRole("table", { name: "Recetas" })).toBeVisible();
+});
+
+test("closing the panel reports no open recipe", async () => {
+  const onOpenRecipeChange = vi.fn();
+  const screen = await loaded(createServices(), [mixDeFrutosSecos], {
+    openRecipe: mixDeFrutosSecos.productId,
+    onOpenRecipeChange,
+  });
+  await expect.element(screen.getByRole("complementary")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
+
+  expect(onOpenRecipeChange).toHaveBeenCalledWith(undefined);
+});
+
+test("closes the panel of a recipe the list does not have", async () => {
+  const onOpenRecipeChange = vi.fn();
+
+  await loaded(createServices(), [cajaDeInfusiones], {
+    openRecipe: mixDeFrutosSecos.productId,
+    onOpenRecipeChange,
+  });
+
+  await expect.poll(() => onOpenRecipeChange).toHaveBeenCalledWith(undefined);
+});
+
+test("registers a batch from the panel with a modal, and asks to confirm before cancelling one", async () => {
+  const screen = await loaded(createServices(), [mixDeFrutosSecos], {
+    openRecipe: mixDeFrutosSecos.productId,
+  });
+  const panel = screen.getByRole("complementary", { name: "Mix de frutos secos" });
+
+  await userEvent.click(panel.getByRole("button", { name: "Registrar tanda" }));
+  await expect.element(screen.getByRole("dialog")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+  await userEvent.click(panel.getByRole("button", { name: "Anular tanda de Mix de frutos secos" }));
+
+  await expect.element(screen.getByRole("dialog")).toBeVisible();
+});
+
+test("offers no batch action in the panel to a session that may not register batches", async () => {
+  const screen = await loaded(createServices(), [mixDeFrutosSecos], {
+    access: accessWith("recipes"),
+    openRecipe: mixDeFrutosSecos.productId,
+  });
+
+  await expect.element(screen.getByText("15/09/2026")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Registrar tanda" }).query()).toBeNull();
+  expect(screen.getByRole("button", { name: /^Anular tanda/ }).query()).toBeNull();
 });
