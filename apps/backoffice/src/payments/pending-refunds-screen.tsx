@@ -219,7 +219,7 @@ export function PendingRefundsScreen({
           table={table}
           {...cloudTableState(data, "los reembolsos pendientes")}
           empty={
-            refunds.length === 0
+            settled && data.value.refunds.length === 0
               ? {
                   icon: <HandCoins />,
                   title: "Sin reembolsos pendientes",
@@ -244,7 +244,9 @@ export function PendingRefundsScreen({
                 </p>
               )}
               {channelShown === "mercado-pago" ? null : (
-                <p>Se hacen fuera del sistema y acá se marcan como hechos.</p>
+                <p>
+                  Los reembolsos sin API se hacen fuera del sistema y acá se marcan como hechos.
+                </p>
               )}
             </div>
           }

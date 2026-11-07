@@ -16,6 +16,9 @@ export const salesByPaymentMethodFilters = z
       .default("ALL")
       .catch("ALL"),
   })
-  .transform(withoutRefusedPeriod);
+  .transform(withoutRefusedPeriod)
+  .transform((filters) =>
+    filters.handConfirmed ? filters : { ...filters, method: "ALL" as const },
+  );
 
 export type SalesByPaymentMethodFilters = z.output<typeof salesByPaymentMethodFilters>;
