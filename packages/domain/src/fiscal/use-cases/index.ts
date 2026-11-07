@@ -284,6 +284,10 @@ export type {
   WsaaTokenSource,
 } from "./fiscal-document-authorization-ports.js";
 export { FiscalDocumentAlreadyRecorded } from "./fiscal-document-authorization-ports.js";
+export type {
+  CurrentOfflineAuthorizationCodePorts,
+  HeldOfflineAuthorizationCodeReader,
+} from "./current-offline-authorization-code-ports.js";
 export type { FiscalEmissionModeReads } from "./fiscal-emission-mode-ports.js";
 export type {
   BranchFortnightPresentation,
@@ -408,6 +412,7 @@ export type {
 } from "./orphan-authorization-ports.js";
 export type { OwedPresentationList } from "./owed-presentation-list-ports.js";
 export type { PendingDeferredSaleReader } from "./pending-deferred-sale-reader.js";
+export { readCurrentOfflineAuthorizationCode } from "./read-current-offline-authorization-code.js";
 export type {
   ArcaOnlineStatus,
   ReadArcaOnlineStatusInput,
