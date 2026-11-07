@@ -43,8 +43,6 @@ import {
 import { cloudTableState } from "../platform/cloud-table-state";
 import { combineCloudData } from "../platform/combine-cloud-data";
 import { perSaleUnit } from "../platform/per-sale-unit";
-import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTitle } from "../shell/screen-title";
 import { barcodesSummary } from "./barcodes-summary";
 import {
   useBrandsQuery,
@@ -370,38 +368,7 @@ export function ProductsListScreen({
 
   return (
     <>
-      <ScreenLayout
-        topBar={
-          <div className="flex h-18 shrink-0 items-center justify-between border-border border-b bg-surface px-8">
-            <div className="flex flex-col justify-center">
-              <p className="text-text-subtle text-detail">Catálogo</p>
-              <ScreenTitle>Productos</ScreenTitle>
-            </div>
-            <div className="flex items-center gap-3">
-              <Button
-                variant="secondary"
-                icon={<Printer />}
-                dataStatus={data.status}
-                onPress={() => setPrintModalOpen(true)}
-              >
-                Imprimir etiquetas
-              </Button>
-              <Button
-                variant="primary"
-                icon={<Plus />}
-                dataStatus={data.status}
-                onPress={() => {
-                  setCloneSource(undefined);
-                  setNewModalOpen(true);
-                }}
-              >
-                Nuevo producto
-              </Button>
-            </div>
-          </div>
-        }
-        bodyClassName="gap-4 p-6"
-      >
+      <div className="flex min-w-0 flex-1 flex-col gap-4 p-6">
         <div className="flex flex-wrap items-center gap-3">
           <div className="w-105">
             <SearchField
@@ -441,6 +408,29 @@ export function ProductsListScreen({
             value={statusFilter}
             onChange={setStatusFilter}
           />
+          <div className="ml-auto flex items-center gap-3">
+            <div className="flex items-center gap-3">
+              <Button
+                variant="secondary"
+                icon={<Printer />}
+                dataStatus={data.status}
+                onPress={() => setPrintModalOpen(true)}
+              >
+                Imprimir etiquetas
+              </Button>
+              <Button
+                variant="primary"
+                icon={<Plus />}
+                dataStatus={data.status}
+                onPress={() => {
+                  setCloneSource(undefined);
+                  setNewModalOpen(true);
+                }}
+              >
+                Nuevo producto
+              </Button>
+            </div>
+          </div>
         </div>
         <Table
           aria-label="Productos"
@@ -468,7 +458,7 @@ export function ProductsListScreen({
             )
           }
         />
-      </ScreenLayout>
+      </div>
       <NewProductModal
         open={newModalOpen}
         {...(cloneSource ? { source: cloneSource } : {})}

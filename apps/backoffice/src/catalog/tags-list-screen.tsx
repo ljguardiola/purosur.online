@@ -18,8 +18,6 @@ import { Ban, Pencil, Plus, RotateCcw, Search, SearchX, Sparkles } from "lucide-
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { NewTagModal } from "../platform/new-tag-modal";
-import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTitle } from "../shell/screen-title";
 import { useRefreshCatalog, useReloadTag, useTagsQuery } from "./catalog-queries";
 import { DeactivateTagModal } from "./deactivate-tag-modal";
 import { EditTagModal } from "./edit-tag-modal";
@@ -164,20 +162,7 @@ export function TagsListScreen({
 
   return (
     <>
-      <ScreenLayout
-        topBar={
-          <div className="flex h-18 shrink-0 items-center justify-between border-border border-b bg-surface px-8">
-            <div className="flex flex-col justify-center">
-              <p className="text-text-subtle text-detail">Catálogo</p>
-              <ScreenTitle>Distintivos</ScreenTitle>
-            </div>
-            <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
-              Nuevo distintivo
-            </Button>
-          </div>
-        }
-        bodyClassName="gap-4 p-6"
-      >
+      <div className="flex min-w-0 flex-1 flex-col gap-4 p-6">
         <div className="flex flex-wrap items-center gap-3">
           <div className="w-105">
             <SearchField
@@ -194,6 +179,11 @@ export function TagsListScreen({
             value={statusFilter}
             onChange={setStatusFilter}
           />
+          <div className="ml-auto flex items-center gap-3">
+            <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
+              Nuevo distintivo
+            </Button>
+          </div>
         </div>
         <Table
           aria-label="Distintivos"
@@ -229,7 +219,7 @@ export function TagsListScreen({
             )
           }
         />
-      </ScreenLayout>
+      </div>
       <NewTagModal
         open={newModalOpen}
         context="Catálogo"

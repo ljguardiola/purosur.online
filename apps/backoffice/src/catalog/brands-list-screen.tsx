@@ -38,8 +38,6 @@ import { cloudTableState } from "../platform/cloud-table-state";
 import { BRAND_NAME_TAKEN, NewBrandModal } from "../platform/new-brand-modal";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
-import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTitle } from "../shell/screen-title";
 import type { ChangeBrandActivationOutcome, editBrand } from "./brands-api";
 import type { BrandsListScreenServices } from "./brands-list-services";
 import {
@@ -582,20 +580,7 @@ export function BrandsListScreen({
 
   return (
     <>
-      <ScreenLayout
-        topBar={
-          <div className="flex h-18 shrink-0 items-center justify-between border-border border-b bg-surface px-8">
-            <div className="flex flex-col justify-center">
-              <p className="text-text-subtle text-detail">Catálogo</p>
-              <ScreenTitle>Marcas</ScreenTitle>
-            </div>
-            <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
-              Nueva marca
-            </Button>
-          </div>
-        }
-        bodyClassName="gap-4 p-6"
-      >
+      <div className="flex min-w-0 flex-1 flex-col gap-4 p-6">
         <div className="flex flex-wrap items-center gap-3">
           <div className="w-105">
             <SearchField
@@ -612,6 +597,11 @@ export function BrandsListScreen({
             value={statusFilter}
             onChange={setStatusFilter}
           />
+          <div className="ml-auto flex items-center gap-3">
+            <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
+              Nueva marca
+            </Button>
+          </div>
         </div>
         <Table
           aria-label="Marcas"
@@ -645,7 +635,7 @@ export function BrandsListScreen({
             )
           }
         />
-      </ScreenLayout>
+      </div>
       <NewBrandModal
         open={newModalOpen}
         context="Catálogo"

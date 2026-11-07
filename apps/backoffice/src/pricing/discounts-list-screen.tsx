@@ -23,8 +23,6 @@ import { cloudTableState } from "../platform/cloud-table-state";
 import type { CategoryCreationModal, ProductCreationModal } from "../platform/creation-parts";
 import { discountBenefitText, discountTargetLine } from "../platform/discount-terms-text";
 import { type BackofficeAccess, canManageProductsAndCategories } from "../shell/backoffice-access";
-import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTitle } from "../shell/screen-title";
 import {
   DISCOUNT_KIND_LABELS,
   DISCOUNT_STATUS_PRESENTATION,
@@ -262,25 +260,7 @@ export function DiscountsListScreen({
 
   return (
     <>
-      <ScreenLayout
-        topBar={
-          <div className="flex h-18 shrink-0 items-center justify-between border-border border-b bg-surface px-8">
-            <div className="flex flex-col justify-center">
-              <p className="text-text-subtle text-detail">Catálogo</p>
-              <ScreenTitle>Promociones</ScreenTitle>
-            </div>
-            <Button
-              variant="primary"
-              icon={<Plus />}
-              dataStatus={data.status}
-              onPress={() => setNewModalOpen(true)}
-            >
-              Nueva promoción
-            </Button>
-          </div>
-        }
-        bodyClassName="gap-4 p-6"
-      >
+      <div className="flex min-w-0 flex-1 flex-col gap-4 p-6">
         <div className="flex flex-wrap items-center gap-3">
           <div className="w-105">
             <SearchField
@@ -304,6 +284,16 @@ export function DiscountsListScreen({
             value={statusFilter}
             onChange={setStatusFilter}
           />
+          <div className="ml-auto flex items-center gap-3">
+            <Button
+              variant="primary"
+              icon={<Plus />}
+              dataStatus={data.status}
+              onPress={() => setNewModalOpen(true)}
+            >
+              Nueva promoción
+            </Button>
+          </div>
         </div>
         <Table
           aria-label="Promociones"
@@ -345,7 +335,7 @@ export function DiscountsListScreen({
             )
           }
         />
-      </ScreenLayout>
+      </div>
       {data.status === "loaded" ? (
         <EditDiscountModal
           target={editTarget}

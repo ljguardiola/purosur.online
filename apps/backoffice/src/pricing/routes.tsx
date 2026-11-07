@@ -1,11 +1,11 @@
-import { createRoute, stripSearchParams } from "@tanstack/react-router";
+import { createRoute, redirect, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
-import { canManagePromotions, canSeePricesArea, canSeeReports } from "../shell/backoffice-access";
-import { catalogAreaRoute } from "../shell/catalog-area";
+import { canSeeReports } from "../shell/backoffice-access";
 import { lazyScreen } from "../shell/lazy-screen";
+import { productsRoute, productsTabRedirect } from "../shell/products-route";
 import { reportPeriodSearch } from "../shell/report-filters-search";
 import { reportsAreaRoute } from "../shell/reports-area";
-import { refuseWithout } from "../shell/signed-in-route";
+import { refuseWithout, signedInRoute } from "../shell/signed-in-route";
 
 export const pricesListFilters = z.object({
   search: z.string().default("").catch(""),
@@ -16,9 +16,9 @@ export const pricesListFilters = z.object({
 export type PricesListFilters = z.output<typeof pricesListFilters>;
 
 export const pricesListRoute = createRoute({
-  getParentRoute: () => catalogAreaRoute,
+  getParentRoute: () => productsRoute,
   path: "prices",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeePricesArea),
+  beforeLoad: ({ context: { productsTabs } }) => productsTabRedirect(productsTabs, "prices"),
   validateSearch: pricesListFilters,
   search: { middlewares: [stripSearchParams(pricesListFilters.parse({}))] },
   component: lazyScreen(() => import("./prices-list-page"), "PricesListPage"),
@@ -38,9 +38,9 @@ export const discountsListFilters = z.object({
 export type DiscountsListFilters = z.output<typeof discountsListFilters>;
 
 export const discountsListRoute = createRoute({
-  getParentRoute: () => catalogAreaRoute,
-  path: "discounts",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canManagePromotions),
+  getParentRoute: () => productsRoute,
+  path: "promotions",
+  beforeLoad: ({ context: { productsTabs } }) => productsTabRedirect(productsTabs, "promotions"),
   validateSearch: discountsListFilters,
   search: { middlewares: [stripSearchParams(discountsListFilters.parse({}))] },
   component: lazyScreen(() => import("./discounts-list-page"), "DiscountsListPage"),
@@ -58,4 +58,22 @@ export const pricesPastReviewDeadlineReportRoute = createRoute({
     () => import("./prices-past-review-deadline-report-page"),
     "PricesPastReviewDeadlineReportPage",
   ),
+});
+
+export const legacyPricesRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: "prices",
+  validateSearch: pricesListFilters,
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/products/prices", search });
+  },
+});
+
+export const legacyDiscountsRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: "discounts",
+  validateSearch: discountsListFilters,
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/products/promotions", search });
+  },
 });

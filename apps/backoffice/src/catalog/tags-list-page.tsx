@@ -1,16 +1,14 @@
 import { getRouteApi } from "@tanstack/react-router";
 import type { ReactElement } from "react";
-import { useDocumentTitle } from "../shell/document-title";
 import { TagsListScreen } from "./tags-list-screen";
 import { defaultTagsListScreenServices } from "./tags-list-services";
 
-const route = getRouteApi("/signed-in/catalog-area/tags");
+const route = getRouteApi("/signed-in/products-area/products/classification/tags");
 
 export function TagsListPage(): ReactElement {
   const { services, sessionActions } = route.useRouteContext();
   const filters = route.useSearch();
   const navigate = route.useNavigate();
-  useDocumentTitle("Distintivos · Puro Sur");
   return (
     <TagsListScreen
       filters={filters}

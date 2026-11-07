@@ -4,6 +4,10 @@ import { branchSettingsRoute } from "../branch/routes";
 import {
   brandsListRoute,
   categoriesListRoute,
+  classificationRoute,
+  legacyBrandsRoute,
+  legacyCategoriesRoute,
+  legacyTagsRoute,
   productsListRoute,
   tagsListRoute,
 } from "../catalog/routes";
@@ -37,6 +41,8 @@ import {
 import { legacyRolesRoute, rolesListRoute } from "../permissions/routes";
 import {
   discountsListRoute,
+  legacyDiscountsRoute,
+  legacyPricesRoute,
   pricesListRoute,
   pricesPastReviewDeadlineReportRoute,
 } from "../pricing/routes";
@@ -81,11 +87,14 @@ import {
 } from "../sales/routes";
 import { legacyCompromiseResponseRoute, signInRoute } from "../sessions/routes";
 import {
+  assembliesRoute,
   assemblyBatchesRoute,
   currentStockReportRoute,
   expiringLotsReportRoute,
   expiringLotsRoute,
   initialInventoryRoute,
+  legacyAssemblyBatchesRoute,
+  legacyRecipesRoute,
   lossesByReasonReportRoute,
   marginReportRoute,
   recipesListRoute,
@@ -95,13 +104,14 @@ import {
 } from "../stock/routes";
 import { quarantinedEventsRoute } from "../sync/routes";
 import { legacyUserRoute, legacyUsersRoute, usersListRoute } from "../users/routes";
-import { catalogAreaRoute } from "./catalog-area";
 import { fiscalAreaRoute } from "./fiscal-area";
 import { helpAreaRoute } from "./help-area";
 import { homeAreaRoute } from "./home-area";
 import { ScreenDownloadFailure } from "./lazy-screen";
 import { ordersAreaRoute } from "./orders-area";
 import { peopleLandingRoute, peopleRoute } from "./people-route";
+import { productsAreaRoute } from "./products-area";
+import { productsRoute } from "./products-route";
 import { publicRoute } from "./public-route";
 import { refundsRoute } from "./refunds-route";
 import { reportsAreaRoute } from "./reports-area";
@@ -128,13 +138,14 @@ const routeTree = rootRoute.addChildren([
   publicRoute.addChildren([signInRoute, accountRecoveryRoute, registerPasskeyRoute]),
   signedInRoute.addChildren([
     homeAreaRoute.addChildren([homeRoute, alertsRedirectRoute]),
-    catalogAreaRoute.addChildren([
-      productsListRoute,
-      categoriesListRoute,
-      brandsListRoute,
-      tagsListRoute,
-      pricesListRoute,
-      discountsListRoute,
+    productsAreaRoute.addChildren([
+      productsRoute.addChildren([
+        productsListRoute,
+        pricesListRoute,
+        discountsListRoute,
+        assembliesRoute.addChildren([recipesListRoute, assemblyBatchesRoute]),
+        classificationRoute.addChildren([categoriesListRoute, brandsListRoute, tagsListRoute]),
+      ]),
     ]),
     stockAreaRoute.addChildren([
       stockBalancesRoute,
@@ -145,8 +156,6 @@ const routeTree = rootRoute.addChildren([
       newPurchaseRoute,
       expiringLotsRoute,
       freightsListRoute,
-      recipesListRoute,
-      assemblyBatchesRoute,
       initialInventoryRoute,
     ]),
     ordersAreaRoute.addChildren([
@@ -200,6 +209,13 @@ const routeTree = rootRoute.addChildren([
       quarantinedEventsRoute,
     ]),
     legacyAccountRoute,
+    legacyCategoriesRoute,
+    legacyBrandsRoute,
+    legacyTagsRoute,
+    legacyPricesRoute,
+    legacyDiscountsRoute,
+    legacyRecipesRoute,
+    legacyAssemblyBatchesRoute,
     legacyFiscalTasksRoute,
     legacyFiscalDocumentsRoute,
     legacyExceptionalityRoute,

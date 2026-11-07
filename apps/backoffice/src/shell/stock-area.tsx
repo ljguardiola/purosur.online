@@ -1,21 +1,17 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
 import {
   ArrowDownUp,
-  BookOpen,
   CalendarClock,
   ClipboardCheck,
   ClipboardList,
   Container,
-  CookingPot,
   Scale,
   ShoppingCart,
   Truck,
 } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
 import {
-  canManageBatches,
   canManageFreights,
-  canManageRecipes,
   canManageSuppliers,
   canPerformStockCounts,
   canRecordInitialInventory,
@@ -42,8 +38,6 @@ function StockArea() {
   const purchasesShown = Boolean(matchRoute({ to: "/purchases", fuzzy: true }));
   const expiringLotsShown = Boolean(matchRoute({ to: "/expiring-lots" }));
   const freightsShown = Boolean(matchRoute({ to: "/freights" }));
-  const recipesShown = Boolean(matchRoute({ to: "/recipes" }));
-  const batchesShown = Boolean(matchRoute({ to: "/assembly-batches" }));
   const initialInventoryShown = Boolean(matchRoute({ to: "/initial-inventory" }));
   return (
     <AreaLayout
@@ -128,28 +122,6 @@ function StockArea() {
                   icon={<Container />}
                   search={freightsShown ? true : {}}
                   active={freightsShown}
-                />
-              </li>
-            )}
-            {canManageRecipes(session) && (
-              <li>
-                <SectionLink
-                  to="/recipes"
-                  label="Recetas"
-                  icon={<BookOpen />}
-                  search={recipesShown ? true : {}}
-                  active={recipesShown}
-                />
-              </li>
-            )}
-            {canManageBatches(session) && (
-              <li>
-                <SectionLink
-                  to="/assembly-batches"
-                  label="Tandas"
-                  icon={<CookingPot />}
-                  search={batchesShown ? true : {}}
-                  active={batchesShown}
                 />
               </li>
             )}

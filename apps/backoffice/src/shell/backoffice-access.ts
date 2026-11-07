@@ -42,7 +42,6 @@ export function canSeeBranchArea(access: BackofficeAccess): boolean {
   return grants(access, "branch_area");
 }
 
-/** `manage_prices_and_review` alone also unlocks the Catálogo area, without unlocking this section. */
 export function canManageProductsAndCategories(access: BackofficeAccess): boolean {
   return grants(access, "products_and_categories");
 }
@@ -55,8 +54,14 @@ export function canManagePromotions(access: BackofficeAccess): boolean {
   return grants(access, "promotions");
 }
 
-export function canSeeCatalogArea(access: BackofficeAccess): boolean {
-  return grants(access, "catalog_area");
+export function canSeeProductsPage(access: BackofficeAccess): boolean {
+  return (
+    canManageProductsAndCategories(access) ||
+    canSeePricesArea(access) ||
+    canManagePromotions(access) ||
+    canManageRecipes(access) ||
+    canManageBatches(access)
+  );
 }
 
 export function canSeeFiscalConfigurationArea(access: BackofficeAccess): boolean {

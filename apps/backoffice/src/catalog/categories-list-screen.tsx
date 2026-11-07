@@ -15,8 +15,6 @@ import { Pencil, Plus, Search, Tags } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { categoryNameOrder, categoryParentId, categoryPathLabels } from "../platform/category-path";
 import { cloudTableState } from "../platform/cloud-table-state";
-import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTitle } from "../shell/screen-title";
 import { useCategoriesQuery, useRefreshCatalog, useReloadCategory } from "./catalog-queries";
 import type { CategoriesListScreenServices } from "./categories-list-services";
 import { EditCategoryModal } from "./edit-category-modal";
@@ -100,13 +98,17 @@ export function CategoriesListScreen({
 
   return (
     <>
-      <ScreenLayout
-        topBar={
-          <div className="flex h-18 shrink-0 items-center justify-between border-border border-b bg-surface px-8">
-            <div className="flex flex-col justify-center">
-              <p className="text-text-subtle text-detail">Catálogo</p>
-              <ScreenTitle>Categorías</ScreenTitle>
-            </div>
+      <div className="flex min-w-0 flex-1 flex-col gap-4 p-6">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="w-105">
+            <SearchField
+              value={search}
+              onChange={setSearch}
+              placeholder="Buscar una categoría"
+              icon={<Search />}
+            />
+          </div>
+          <div className="ml-auto flex items-center gap-3">
             <Button
               variant="primary"
               icon={<Plus />}
@@ -116,16 +118,6 @@ export function CategoriesListScreen({
               Nueva categoría
             </Button>
           </div>
-        }
-        bodyClassName="gap-4 p-6"
-      >
-        <div className="w-105">
-          <SearchField
-            value={search}
-            onChange={setSearch}
-            placeholder="Buscar una categoría"
-            icon={<Search />}
-          />
         </div>
         <Table
           aria-label="Categorías"
@@ -157,7 +149,7 @@ export function CategoriesListScreen({
             )
           }
         />
-      </ScreenLayout>
+      </div>
       <NewCategoryModal
         open={newModalOpen}
         onClose={() => setNewModalOpen(false)}

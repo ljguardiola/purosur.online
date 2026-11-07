@@ -1,16 +1,14 @@
 import { getRouteApi } from "@tanstack/react-router";
 import type { ReactElement } from "react";
-import { useDocumentTitle } from "../shell/document-title";
 import { BrandsListScreen } from "./brands-list-screen";
 import { defaultBrandsListScreenServices } from "./brands-list-services";
 
-const route = getRouteApi("/signed-in/catalog-area/brands");
+const route = getRouteApi("/signed-in/products-area/products/classification/brands");
 
 export function BrandsListPage(): ReactElement {
   const { services, sessionActions } = route.useRouteContext();
   const filters = route.useSearch();
   const navigate = route.useNavigate();
-  useDocumentTitle("Marcas · Puro Sur");
   return (
     <BrandsListScreen
       filters={filters}

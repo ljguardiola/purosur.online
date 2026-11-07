@@ -1,16 +1,14 @@
 import { getRouteApi } from "@tanstack/react-router";
 import type { ReactElement } from "react";
-import { useDocumentTitle } from "../shell/document-title";
 import { RecipesListScreen } from "./recipes-list-screen";
 import { defaultRecipesListScreenServices } from "./recipes-list-services";
 
-const route = getRouteApi("/signed-in/stock-area/recipes");
+const route = getRouteApi("/signed-in/products-area/products/assemblies/");
 
 export function RecipesListPage(): ReactElement {
   const { services, session, sessionActions } = route.useRouteContext();
   const filters = route.useSearch();
   const navigate = route.useNavigate();
-  useDocumentTitle("Recetas · Puro Sur");
   return (
     <RecipesListScreen
       access={session}
