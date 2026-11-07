@@ -1,6 +1,6 @@
 import { create, type Font, type Glyph } from "fontkit";
+import { BOLD_FONT_FILE } from "../platform/pdf-fonts.js";
 import type { Bitmap, Point } from "./bitmap-canvas.js";
-import { BOLD_FONT_FILE } from "./pdf-fonts.js";
 
 const CURVE_SEGMENTS = 8;
 const ELLIPSIS = "…";

@@ -1,7 +1,7 @@
 import type { LabelSheetItem } from "@purosur/domain/catalog/use-cases";
 import { formatProductDescription } from "@purosur/formatting";
-import { Bitmap } from "../platform/bitmap-canvas.js";
-import { drawText, fontMetrics, measureText, wrapText } from "../platform/bitmap-text.js";
+import { Bitmap } from "./bitmap-canvas.js";
+import { drawText, fontMetrics, measureText, wrapText } from "./bitmap-text.js";
 import { type Ean13BarcodeDimensions, ean13BarcodeGeometry } from "./ean13-barcode-geometry.js";
 
 export const PRINTER_LABEL_WIDTH_DOTS = 400;

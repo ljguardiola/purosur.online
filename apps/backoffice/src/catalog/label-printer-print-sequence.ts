@@ -1,4 +1,11 @@
-import { createFrameParser, type Frame, frame, type LabelRaster, rowPackets, u16 } from "./packets";
+import {
+  createFrameParser,
+  type Frame,
+  frame,
+  type LabelRaster,
+  rowPackets,
+  u16,
+} from "./label-printer-packets";
 
 export type PrinterLink = {
   write(bytes: Uint8Array): Promise<void>;
@@ -175,7 +182,9 @@ export async function runPrintSequence(
     return { kind: "printed", printed };
   } catch (error) {
     if (error instanceof JobStopped) {
-      return { kind: "interrupted", printed, total };
+      return printed >= total
+        ? { kind: "printed", printed }
+        : { kind: "interrupted", printed, total };
     }
     throw error;
   }

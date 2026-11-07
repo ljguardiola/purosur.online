@@ -17,8 +17,9 @@ import { downloadFile } from "../platform/download-file";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { groupedEan13Digits, LabelPreviewBars } from "./label-preview-bars";
-import type { PrintLabelsOutcome as PrinterOutcome } from "./label-printer/print-labels-on-printer";
-import type { LabelToPrint } from "./label-printer/print-sequence";
+import type { LabelPrinterChoice, LabelPrinterPort } from "./label-printer-port";
+import type { LabelToPrint } from "./label-printer-print-sequence";
+import type { PrintLabelsOutcome as PrinterOutcome } from "./print-labels-on-printer";
 import { productDescription } from "./product-description";
 import type { fetchPrinterLabels, PrintLabelEntry, printLabels } from "./products-api";
 
@@ -47,12 +48,21 @@ function withOneMore(counts: LabelCounts, productId: string): LabelCounts {
 
 type LabelableProduct = { product: ProductSummary; code: string; modules: string };
 
-function printerNotice(outcome: Exclude<PrinterOutcome, { kind: "printed" }>): PrintNotice {
+const BROWSER_WITHOUT_LABEL_PRINTER =
+  "Este navegador no puede usar la impresora de etiquetas. Abrí el backoffice en Chrome o descargá la hoja A4.";
+
+function printerNotice(
+  outcome:
+    | Exclude<LabelPrinterChoice, { kind: "chosen" }>
+    | Exclude<PrinterOutcome, { kind: "printed" }>,
+): PrintNotice {
   switch (outcome.kind) {
     case "unavailable":
       return { kind: "printerUnavailable" };
     case "no-printer":
       return { kind: "noPrinter" };
+    case "chooser-failed":
+      return { kind: "printerNotReached" };
     case "not-opened":
       return { kind: "printerNotOpened" };
     case "interrupted":
@@ -82,7 +92,9 @@ type PrintNotice =
   | { kind: "preparationFailed" }
   | { kind: "printerUnavailable" }
   | { kind: "noPrinter" }
+  | { kind: "printerNotReached" }
   | { kind: "printerNotOpened" }
+  | { kind: "printerFailed" }
   | { kind: "printInterrupted"; printed: number; total: number }
   | { kind: "productsChanged" }
   | { kind: "rateLimited"; retryAfterSeconds: number };
@@ -91,7 +103,11 @@ export type PrintLabelsModalServices = {
   printLabels: typeof printLabels;
   fetchPrinterLabels: typeof fetchPrinterLabels;
   labelPrinterAvailable: () => boolean;
-  printOnLabelPrinter: (labels: readonly LabelToPrint[]) => Promise<PrinterOutcome>;
+  chooseLabelPrinter: () => Promise<LabelPrinterChoice>;
+  printOnLabelPrinter: (
+    port: LabelPrinterPort,
+    labels: readonly LabelToPrint[],
+  ) => Promise<PrinterOutcome>;
 };
 
 type CloudRefusal = Exclude<Awaited<ReturnType<typeof printLabels>>, { kind: "ok" }>;
@@ -115,11 +131,18 @@ export function PrintLabelsModal({
   onReload,
   services,
 }: PrintLabelsModalProps) {
-  const { printLabels, fetchPrinterLabels, labelPrinterAvailable, printOnLabelPrinter } = services;
+  const {
+    printLabels,
+    fetchPrinterLabels,
+    labelPrinterAvailable,
+    chooseLabelPrinter,
+    printOnLabelPrinter,
+  } = services;
   const sendToMyAccount = useSendToMyAccount();
   const [counts, setCounts] = useState(NO_LABELS);
   const [notice, setNotice] = useState<PrintNotice | null>(null);
   const [printing, setPrinting] = useState(false);
+  const [printerPrinting, setPrinterPrinting] = useState(false);
   const [reloading, setReloading] = useState(false);
   const printRequestIdRef = useRef(0);
 
@@ -129,6 +152,7 @@ export function PrintLabelsModal({
       setCounts(NO_LABELS);
       setNotice(null);
       setPrinting(false);
+      setPrinterPrinting(false);
       setReloading(false);
     }
   }, [open]);
@@ -208,6 +232,12 @@ export function PrintLabelsModal({
     setNotice(null);
     setPrinting(true);
     const requestId = printRequestIdRef.current;
+    const choice = await chooseLabelPrinter();
+    if (choice.kind !== "chosen") {
+      setPrinting(false);
+      setNotice(printerNotice(choice));
+      return;
+    }
     const prepared = await fetchPrinterLabels(entries);
     if (requestId !== printRequestIdRef.current) {
       return;
@@ -216,11 +246,14 @@ export function PrintLabelsModal({
       showRefusal(prepared, { kind: "preparationFailed" });
       return;
     }
-    const outcome = await printOnLabelPrinter(prepared.labels);
-    if (requestId !== printRequestIdRef.current) {
+    setPrinterPrinting(true);
+    const outcome = await printOnLabelPrinter(choice.port, prepared.labels).catch(() => null);
+    setPrinterPrinting(false);
+    setPrinting(false);
+    if (outcome === null) {
+      setNotice({ kind: "printerFailed" });
       return;
     }
-    setPrinting(false);
     if (outcome.kind === "printed") {
       onClose();
       return;
@@ -255,7 +288,7 @@ export function PrintLabelsModal({
       icon={<Printer />}
       context="Catálogo · Productos"
       title="Imprimir etiquetas"
-      closable
+      closable={!printerPrinting}
       footer={
         <>
           <Button variant="secondary" size="large" icon={<X />} disabled={busy} onPress={onClose}>
@@ -275,7 +308,8 @@ export function PrintLabelsModal({
             size="large"
             icon={<Printer />}
             fullWidth
-            disabled={busy || total === 0 || !printerAvailable}
+            disabled={busy || total === 0}
+            {...(printerAvailable ? {} : { disabledReason: BROWSER_WITHOUT_LABEL_PRINTER })}
             onPress={() => void handlePrintOnPrinter()}
           >
             Imprimir en la impresora de etiquetas
@@ -284,7 +318,7 @@ export function PrintLabelsModal({
       }
     >
       <div className="flex flex-col gap-4">
-        {(!printerAvailable || notice?.kind === "printerUnavailable") && (
+        {notice?.kind === "printerUnavailable" && (
           <InlineNotice
             tone="warning"
             icon={<Printer />}
@@ -306,6 +340,14 @@ export function PrintLabelsModal({
             description="Conectá la impresora de etiquetas por USB y volvé a intentar."
           />
         )}
+        {notice?.kind === "printerNotReached" && (
+          <InlineNotice
+            tone="error"
+            icon={<Printer />}
+            title="No se pudo conectar con la impresora"
+            description="Probá de nuevo."
+          />
+        )}
         {notice?.kind === "printerNotOpened" && (
           <InlineNotice
             tone="error"
@@ -313,6 +355,9 @@ export function PrintLabelsModal({
             title="No se pudo conectar con la impresora"
             description="Cerrá otros programas que la estén usando y volvé a intentar."
           />
+        )}
+        {notice?.kind === "printerFailed" && (
+          <ActionFailureNotice title="No se pudo imprimir en la impresora de etiquetas" />
         )}
         {notice?.kind === "printInterrupted" && (
           <InlineNotice

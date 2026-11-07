@@ -13,7 +13,7 @@ import { cloudFetch } from "../platform/cloud-fetch";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
-import type { LabelToPrint } from "./label-printer/print-sequence";
+import type { LabelToPrint } from "./label-printer-print-sequence";
 
 export type ProductSaleUnit = "UNIT" | "KG";
 
