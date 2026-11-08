@@ -80,6 +80,26 @@ test("opens the movements of every kind the person may see", () => {
     reason: "ALL",
     period: "30",
     type: [],
+    view: "list",
+    from: "",
+    to: "",
+  });
+});
+
+test("keeps the view and the range of the losses by reason a URL names", () => {
+  expect(
+    stockMovementsSearch.parse({ view: "reason", from: "2026-12-01", to: "2026-12-31" }),
+  ).toMatchObject({ view: "reason", from: "2026-12-01", to: "2026-12-31" });
+});
+
+test("falls back to the list for a view it does not offer", () => {
+  expect(stockMovementsSearch.parse({ view: "category" }).view).toBe("list");
+});
+
+test("drops a range the report refuses", () => {
+  expect(stockMovementsSearch.parse({ from: "2026-12-31", to: "2026-12-01" })).toMatchObject({
+    from: "",
+    to: "",
   });
 });
 
