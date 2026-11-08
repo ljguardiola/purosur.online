@@ -48,7 +48,7 @@ export type RenderOptions = {
   now?: () => Date;
 };
 
-export const BALANCES_ACCESS = accessWith("stock_area", "stock_balances");
+const BALANCES_ACCESS = accessWith("stock_area", "stock_balances");
 
 export function renderScreen(
   services: StockBalancesScreenServices,

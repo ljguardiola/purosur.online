@@ -97,7 +97,7 @@ function EmptyNote({ children }: { children: string }) {
   return <p className="text-text-subtle text-detail">{children}</p>;
 }
 
-export function ProductCounts({
+function ProductCounts({
   productId,
   productName,
   services,
@@ -122,7 +122,7 @@ export function ProductCounts({
   );
 }
 
-export function ProductMovements({
+function ProductMovements({
   productId,
   productName,
   services,
