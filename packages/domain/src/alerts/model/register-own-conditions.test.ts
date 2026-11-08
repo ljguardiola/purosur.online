@@ -84,10 +84,7 @@ describe("REGISTER_OWN_CONDITIONS", () => {
       "register_silent",
       "serial_device_missing",
       "disk_space_low",
-      "wal_oversized",
       "battery_low",
-      "on_battery",
-      "battery_missing",
       "critical_battery_action_not_shutdown",
     ]);
   });
