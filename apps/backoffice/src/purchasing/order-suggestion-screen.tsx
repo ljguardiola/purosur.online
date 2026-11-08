@@ -331,7 +331,7 @@ export function OrderSuggestionScreen({
       <ScreenLayout
         topBar={
           <AreaTopBar
-            eyebrow="Pedidos"
+            eyebrow="Compras"
             title="Sugerencia de pedido"
             action={
               canManagePurchaseOrders(access) ? (

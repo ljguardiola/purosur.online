@@ -15,8 +15,6 @@ import { deepEqual } from "@tanstack/react-router";
 import { Ban, Pencil, Plus, RotateCcw, Search, SearchX, Truck } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
-import { AreaTopBar } from "../shell/area-top-bar";
-import { ScreenLayout } from "../shell/screen-layout";
 import { DeactivateSupplierModal } from "./deactivate-supplier-modal";
 import { EditSupplierModal } from "./edit-supplier-modal";
 import { NewSupplierModal } from "./new-supplier-modal";
@@ -163,64 +161,58 @@ export function SuppliersListScreen({
 
   return (
     <>
-      <ScreenLayout
-        topBar={
-          <AreaTopBar
-            eyebrow="Stock"
-            title="Proveedores"
-            action={
+      <div className="flex min-h-0 flex-1">
+        <div className="relative flex min-w-0 flex-1 flex-col gap-4 overflow-auto p-6">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="w-105">
+              <SearchField
+                value={search}
+                onChange={setSearch}
+                placeholder="Buscar un proveedor"
+                icon={<Search />}
+              />
+            </div>
+            <ListFilter
+              name="status"
+              label="Estado:"
+              options={statusFilterOptions}
+              value={statusFilter}
+              onChange={setStatusFilter}
+            />
+            <div className="ml-auto">
               <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
                 Nuevo proveedor
               </Button>
+            </div>
+          </div>
+          <Table
+            aria-label="Proveedores"
+            table={table}
+            {...cloudTableState(data, "los proveedores")}
+            empty={
+              suppliers.length === 0
+                ? {
+                    icon: <Truck />,
+                    title: "Todavía no hay proveedores",
+                    description: "Se cargan para registrar a quién se le compra la mercadería.",
+                    variant: "blank",
+                  }
+                : search.trim() === ""
+                  ? {
+                      icon: <SearchX />,
+                      title: SUPPLIER_STATUS_EMPTY_TITLE[statusFilter],
+                      variant: "filtered",
+                    }
+                  : {
+                      icon: <SearchX />,
+                      title: "Sin resultados",
+                      description: "Probá con otro nombre.",
+                      variant: "filtered",
+                    }
             }
           />
-        }
-        bodyClassName="gap-4 p-6"
-      >
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="w-105">
-            <SearchField
-              value={search}
-              onChange={setSearch}
-              placeholder="Buscar un proveedor"
-              icon={<Search />}
-            />
-          </div>
-          <ListFilter
-            name="status"
-            label="Estado:"
-            options={statusFilterOptions}
-            value={statusFilter}
-            onChange={setStatusFilter}
-          />
         </div>
-        <Table
-          aria-label="Proveedores"
-          table={table}
-          {...cloudTableState(data, "los proveedores")}
-          empty={
-            suppliers.length === 0
-              ? {
-                  icon: <Truck />,
-                  title: "Todavía no hay proveedores",
-                  description: "Se cargan para registrar a quién se le compra la mercadería.",
-                  variant: "blank",
-                }
-              : search.trim() === ""
-                ? {
-                    icon: <SearchX />,
-                    title: SUPPLIER_STATUS_EMPTY_TITLE[statusFilter],
-                    variant: "filtered",
-                  }
-                : {
-                    icon: <SearchX />,
-                    title: "Sin resultados",
-                    description: "Probá con otro nombre.",
-                    variant: "filtered",
-                  }
-          }
-        />
-      </ScreenLayout>
+      </div>
       <NewSupplierModal
         open={newModalOpen}
         services={services}

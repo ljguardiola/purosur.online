@@ -4,7 +4,7 @@ import { useDocumentTitle } from "../shell/document-title";
 import { NewPurchaseScreen } from "./new-purchase-screen";
 import { defaultNewPurchaseScreenServices } from "./new-purchase-services";
 
-const route = getRouteApi("/signed-in/stock-area/purchases/new");
+const route = getRouteApi("/signed-in/purchasing-area/purchases/new");
 
 export function NewPurchasePage(): ReactElement {
   const { services, session, sessionActions } = route.useRouteContext();

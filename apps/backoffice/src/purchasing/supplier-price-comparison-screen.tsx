@@ -182,7 +182,7 @@ export function SupplierPriceComparisonScreen({
 
   return (
     <ScreenLayout
-      topBar={<AreaTopBar eyebrow="Pedidos" title="Comparación de precios" />}
+      topBar={<AreaTopBar eyebrow="Compras" title="Comparación de precios" />}
       bodyClassName="gap-4 p-6"
     >
       <div className="flex flex-wrap items-center gap-3">

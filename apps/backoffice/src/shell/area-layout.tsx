@@ -16,23 +16,21 @@ import { AccountFooter } from "./account-footer";
 import { AreaTopBarUnbilledDeferredSales } from "./area-top-bar-unbilled-deferred-sales";
 import {
   canComparePrices,
-  canManageSupplierPriceLists,
-  canManageSuppliers,
   canReadPurchaseOrders,
   canRecordPurchases,
   canSeeBranchArea,
   canSeeFiscalInformation,
   canSeeFiscalPage,
-  canSeeOrdersArea,
   canSeePeopleArea,
   canSeeProductsPage,
+  canSeePurchasingArea,
   canSeeQuarantinedEvents,
   canSeeRefundsArea,
   canSeeRefundsPage,
   canSeeRegistersPage,
   canSeeReports,
-  canSeeStockArea,
   canSeeStockPage,
+  canSeeSuppliersPage,
 } from "./backoffice-access";
 import { lazyScreen } from "./lazy-screen";
 import { Shell } from "./shell";
@@ -69,25 +67,20 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
   const UnbilledDeferredSales = services.areaTopBarUnbilledDeferredSales;
   const matchRoute = useMatchRoute();
   const productsShown = Boolean(matchRoute({ to: "/products" }));
-  const stockTarget = canSeeStockPage(session)
-    ? "/stock"
-    : canManageSuppliers(session)
-      ? "/suppliers"
-      : canRecordPurchases(session)
-        ? "/purchases"
-        : "/freights";
   const salesAndCashTarget = canSeeRegistersPage(session)
     ? "/registers"
     : canSeeRefundsArea(session)
       ? "/refunds"
       : "/refunds/history";
-  const ordersTarget = canManageSupplierPriceLists(session)
-    ? "/supplier-price-lists"
-    : canComparePrices(session)
-      ? "/price-comparison"
-      : canReadPurchaseOrders(session)
-        ? "/purchase-orders"
-        : "/supplier-price-lists";
+  const purchasingTarget = canSeeSuppliersPage(session)
+    ? "/suppliers"
+    : canReadPurchaseOrders(session)
+      ? "/purchase-orders"
+      : canComparePrices(session)
+        ? "/price-comparison"
+        : canRecordPurchases(session)
+          ? "/purchases"
+          : "/freights";
   const settingsTarget = canSeePeopleArea(session)
     ? "/people"
     : canSeeBranchArea(session)
@@ -95,7 +88,7 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
       : canSeeQuarantinedEvents(session)
         ? "/quarantined-events"
         : null;
-  const stockTargetShown = Boolean(matchRoute({ to: stockTarget }));
+  const stockShown = Boolean(matchRoute({ to: "/stock" }));
   return (
     <Shell
       sectionColumnLabel={sectionColumnLabel}
@@ -119,19 +112,19 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
               active={area === "products"}
             />
           )}
-          {canSeeStockArea(session) && (
+          {canSeeStockPage(session) && (
             <AreaLink
-              to={stockTarget}
-              search={stockTargetShown ? true : {}}
+              to="/stock"
+              search={stockShown ? true : {}}
               label="Stock"
               icon={<Boxes />}
               active={area === "stock"}
             />
           )}
-          {canSeeOrdersArea(session) && (
+          {canSeePurchasingArea(session) && (
             <AreaLink
-              to={ordersTarget}
-              label="Pedidos"
+              to={purchasingTarget}
+              label="Compras"
               icon={<ClipboardList />}
               active={area === "purchasing"}
             />

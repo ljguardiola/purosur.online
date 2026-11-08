@@ -99,7 +99,7 @@ export function NewSupplierModal({
       width="standard"
       tone="info"
       icon={<Truck />}
-      context="Stock · Proveedores"
+      context="Compras · Proveedores"
       title="Nuevo proveedor"
       closable
       footer={

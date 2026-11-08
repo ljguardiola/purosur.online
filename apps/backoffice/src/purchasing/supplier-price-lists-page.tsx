@@ -1,16 +1,14 @@
 import { getRouteApi } from "@tanstack/react-router";
 import type { ReactElement } from "react";
-import { useDocumentTitle } from "../shell/document-title";
 import { SupplierPriceListsScreen } from "./supplier-price-lists-screen";
 import { defaultSupplierPriceListsScreenServices } from "./supplier-price-lists-services";
 
-const route = getRouteApi("/signed-in/purchasing-area/supplier-price-lists");
+const route = getRouteApi("/signed-in/purchasing-area/suppliers/price-lists");
 
 export function SupplierPriceListsPage(): ReactElement {
   const { services, session, sessionActions } = route.useRouteContext();
   const filters = route.useSearch();
   const navigate = route.useNavigate();
-  useDocumentTitle("Listas de proveedores · Puro Sur");
   return (
     <SupplierPriceListsScreen
       access={session}

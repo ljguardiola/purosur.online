@@ -125,7 +125,7 @@ export function PurchaseOrdersScreen({
 
   return (
     <ScreenLayout
-      topBar={<AreaTopBar eyebrow="Pedidos" title="Pedidos de compra" />}
+      topBar={<AreaTopBar eyebrow="Compras" title="Pedidos de compra" />}
       bodyClassName="gap-4 p-6"
     >
       <div className="flex flex-wrap items-center gap-3">

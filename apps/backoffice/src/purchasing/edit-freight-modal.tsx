@@ -108,7 +108,7 @@ export function EditFreightModal({
       width="wide"
       tone="info"
       icon={<Pencil />}
-      context="Stock · Flete"
+      context="Compras · Flete"
       title={shown?.description ?? ""}
       closable
       footer={

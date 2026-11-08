@@ -81,7 +81,7 @@ export function PurchaseChangesModal({
       width="wide"
       tone="info"
       icon={<History />}
-      context={`Stock · Compra · ${shown?.supplier.name ?? ""}`}
+      context={`Compras · Compra · ${shown?.supplier.name ?? ""}`}
       title="Cambios de la compra"
       closable
       footer={

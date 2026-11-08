@@ -5,7 +5,7 @@ import { purchaseRegisteredIn } from "./purchase-registered-state";
 import { PurchasesListScreen } from "./purchases-list-screen";
 import { defaultPurchasesListScreenServices } from "./purchases-list-services";
 
-const route = getRouteApi("/signed-in/stock-area/purchases");
+const route = getRouteApi("/signed-in/purchasing-area/purchases");
 
 export function PurchasesListPage(): ReactElement {
   const { services, session, sessionActions } = route.useRouteContext();

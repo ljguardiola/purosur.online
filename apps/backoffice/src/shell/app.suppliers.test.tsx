@@ -47,12 +47,17 @@ function location() {
   return window.location.pathname + window.location.search;
 }
 
-function tabNames(screen: Awaited<ReturnType<typeof render>>) {
-  return screen
-    .getByRole("tablist", { name: "Secciones de Proveedores" })
-    .getByRole("tab")
-    .elements()
-    .map((tab) => tab.textContent);
+async function expectTabs(
+  screen: Awaited<ReturnType<typeof render>>,
+  label: string,
+  names: string[],
+) {
+  const tabs = screen.getByRole("tablist", { name: label }).getByRole("tab");
+  await expect.element(tabs.first()).toBeVisible();
+  expect(tabs.elements()).toHaveLength(names.length);
+  for (const [index, name] of names.entries()) {
+    await expect.element(tabs.nth(index)).toHaveAccessibleName(name);
+  }
 }
 
 test("opens Proveedores with its two tabs for a person with both capabilities", async () => {
@@ -68,7 +73,7 @@ test("opens Proveedores with its two tabs for a person with both capabilities", 
   await expect
     .element(screen.getByRole("tab", { name: "Proveedores", selected: true }))
     .toBeVisible();
-  expect(tabNames(screen)).toEqual(["Proveedores", "Listas de precios"]);
+  await expectTabs(screen, "Secciones de Proveedores", ["Proveedores", "Listas de precios"]);
   await expect.element(screen.getByRole("table", { name: "Proveedores" })).toBeVisible();
 });
 
@@ -80,7 +85,7 @@ test("shows both tabs to an Administrator", async () => {
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("tab", { name: "Listas de precios" })).toBeVisible();
-  expect(tabNames(screen)).toEqual(["Proveedores", "Listas de precios"]);
+  await expectTabs(screen, "Secciones de Proveedores", ["Proveedores", "Listas de precios"]);
 });
 
 test("opens Listas de precios from its tab, with the lists and their upload action", async () => {
@@ -126,7 +131,7 @@ test.each([
       .toBeVisible();
     await expect.poll(location).toBe(first);
     await expect.element(screen.getByRole("tab", { name: tab, selected: true })).toBeVisible();
-    expect(tabNames(screen)).toEqual([tab]);
+    await expectTabs(screen, "Secciones de Proveedores", [tab]);
   },
 );
 

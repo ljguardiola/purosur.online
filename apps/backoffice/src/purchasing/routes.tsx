@@ -1,23 +1,22 @@
 import { freightPeriodSchema } from "@purosur/contracts";
-import { createRoute, stripSearchParams } from "@tanstack/react-router";
+import { createRoute, redirect, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 import {
   canComparePrices,
   canManageFreights,
   canManageSupplierPriceLists,
-  canManageSuppliers,
   canReadPurchaseOrders,
   canReceivePurchaseOrders,
   canRecordPurchases,
   canSeeAiCostReport,
   canSeeReports,
+  canSeeSuppliersPage,
 } from "../shell/backoffice-access";
 import { lazyScreen } from "../shell/lazy-screen";
 import { purchasingAreaRoute } from "../shell/purchasing-area";
 import { reportPeriodSearch } from "../shell/report-filters-search";
 import { reportsAreaRoute } from "../shell/reports-area";
-import { refuseWithout } from "../shell/signed-in-route";
-import { stockAreaRoute } from "../shell/stock-area";
+import { refuseWithout, signedInRoute } from "../shell/signed-in-route";
 import { aiCostReportFilters } from "./ai-cost-report-filters";
 import { orderSuggestionFilters } from "./order-suggestion-filters";
 import { purchaseOrdersFilters } from "./purchase-orders-filters";
@@ -26,6 +25,7 @@ import {
   supplierPriceListReviewFilters,
   supplierPriceListsFilters,
 } from "./supplier-price-lists-filters";
+import { SUPPLIERS_TAB_TARGETS, SUPPLIERS_TABS, type SuppliersTab } from "./suppliers-tabs";
 
 export const suppliersListFilters = z.object({
   search: z.string().default("").catch(""),
@@ -35,24 +35,44 @@ export const suppliersListFilters = z.object({
 
 export type SuppliersListFilters = z.output<typeof suppliersListFilters>;
 
-export const suppliersListRoute = createRoute({
-  getParentRoute: () => stockAreaRoute,
+export const suppliersRoute = createRoute({
+  getParentRoute: () => purchasingAreaRoute,
   path: "suppliers",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canManageSuppliers),
+  beforeLoad: ({ context: { session } }) => {
+    refuseWithout(session, canSeeSuppliersPage);
+    return {
+      suppliersTabs: SUPPLIERS_TABS.filter((tab) => tab.isVisibleTo(session)).map((tab) => tab.key),
+    };
+  },
+  component: lazyScreen(() => import("./suppliers-page"), "SuppliersPage"),
+});
+
+function suppliersTabRedirect(suppliersTabs: readonly SuppliersTab[], own: SuppliersTab): void {
+  const [first] = suppliersTabs;
+  if (first === undefined || suppliersTabs.includes(own)) {
+    return;
+  }
+  throw redirect({ to: SUPPLIERS_TAB_TARGETS[first] });
+}
+
+export const suppliersListRoute = createRoute({
+  getParentRoute: () => suppliersRoute,
+  path: "/",
+  beforeLoad: ({ context: { suppliersTabs } }) => suppliersTabRedirect(suppliersTabs, "suppliers"),
   validateSearch: suppliersListFilters,
   search: { middlewares: [stripSearchParams(suppliersListFilters.parse({}))] },
   component: lazyScreen(() => import("./suppliers-list-page"), "SuppliersListPage"),
 });
 
 export const purchasesListRoute = createRoute({
-  getParentRoute: () => stockAreaRoute,
+  getParentRoute: () => purchasingAreaRoute,
   path: "purchases",
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canRecordPurchases),
   component: lazyScreen(() => import("./purchases-list-page"), "PurchasesListPage"),
 });
 
 export const newPurchaseRoute = createRoute({
-  getParentRoute: () => stockAreaRoute,
+  getParentRoute: () => purchasingAreaRoute,
   path: "purchases/new",
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canRecordPurchases),
   component: lazyScreen(() => import("./new-purchase-page"), "NewPurchasePage"),
@@ -66,7 +86,7 @@ export const freightsListFilters = z.object({
 export type FreightsListFilters = z.output<typeof freightsListFilters>;
 
 export const freightsListRoute = createRoute({
-  getParentRoute: () => stockAreaRoute,
+  getParentRoute: () => purchasingAreaRoute,
   path: "freights",
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canManageFreights),
   validateSearch: freightsListFilters,
@@ -75,12 +95,22 @@ export const freightsListRoute = createRoute({
 });
 
 export const supplierPriceListsRoute = createRoute({
-  getParentRoute: () => purchasingAreaRoute,
-  path: "supplier-price-lists",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canManageSupplierPriceLists),
+  getParentRoute: () => suppliersRoute,
+  path: "price-lists",
+  beforeLoad: ({ context: { suppliersTabs } }) =>
+    suppliersTabRedirect(suppliersTabs, "price-lists"),
   validateSearch: supplierPriceListsFilters,
   search: { middlewares: [stripSearchParams(supplierPriceListsFilters.parse({}))] },
   component: lazyScreen(() => import("./supplier-price-lists-page"), "SupplierPriceListsPage"),
+});
+
+export const legacySupplierPriceListsRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: "supplier-price-lists",
+  validateSearch: supplierPriceListsFilters,
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/suppliers/price-lists", search });
+  },
 });
 
 export const supplierPriceListReviewRoute = createRoute({

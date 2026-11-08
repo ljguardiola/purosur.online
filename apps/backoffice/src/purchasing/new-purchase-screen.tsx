@@ -33,7 +33,7 @@ export function NewPurchaseScreen({
     <PurchaseRegistrationForm
       access={access}
       productCreationModal={productCreationModal}
-      eyebrow="Stock"
+      eyebrow="Compras"
       title="Registrar compra"
       submitLabel="Registrar la compra"
       failureTitle="No se registró la compra"

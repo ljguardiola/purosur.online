@@ -147,10 +147,6 @@ export function canSeeLossesByReason(access: BackofficeAccess): boolean {
   return grants(access, "stock_losses");
 }
 
-export function canSeeStockArea(access: BackofficeAccess): boolean {
-  return grants(access, "stock_area");
-}
-
 export function canSeeStockPage(access: BackofficeAccess): boolean {
   return (
     canSeeStockBalances(access) ||
@@ -225,8 +221,18 @@ export function canComparePrices(access: BackofficeAccess): boolean {
   return grants(access, "price_comparison");
 }
 
-export function canSeeOrdersArea(access: BackofficeAccess): boolean {
-  return grants(access, "orders_area");
+export function canSeeSuppliersPage(access: BackofficeAccess): boolean {
+  return canManageSuppliers(access) || canManageSupplierPriceLists(access);
+}
+
+export function canSeePurchasingArea(access: BackofficeAccess): boolean {
+  return (
+    canSeeSuppliersPage(access) ||
+    canComparePrices(access) ||
+    canReadPurchaseOrders(access) ||
+    canRecordPurchases(access) ||
+    canManageFreights(access)
+  );
 }
 
 export function canSeeFiscalInformation(access: BackofficeAccess): boolean {

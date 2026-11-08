@@ -13,6 +13,7 @@ import {
 import { PRICE_COMPARISON } from "../purchasing/test-support/supplier-price-comparison";
 import {
   EXTRACTED_ROWS,
+  ONLY_DISCARD,
   READ_LIST,
   reviewOf,
 } from "../purchasing/test-support/supplier-price-lists";
@@ -232,6 +233,10 @@ test("opens a list's review from the list", async () => {
 
 test("goes back to Listas de precios once a list's review is finished", async () => {
   const services = purchasingServices(["supplier_price_lists"]);
+  vi.mocked(services.supplierPriceListReviewScreen.fetchSupplierPriceListReview).mockResolvedValue({
+    kind: "ok",
+    value: { kind: "found", review: reviewOf(READ_LIST, EXTRACTED_ROWS, ONLY_DISCARD) },
+  });
   vi.mocked(services.supplierPriceListReviewScreen.discardSupplierPriceList).mockResolvedValue({
     kind: "ok",
   });
@@ -392,11 +397,12 @@ test("opens the purchase orders from the rail's Compras item when it is all the 
 });
 
 test.each([
-  ["supplier_price_lists", "/suppliers/price-lists"],
   ["suppliers", "/suppliers"],
+  ["supplier_price_lists", "/suppliers/price-lists"],
+  ["purchase_order_reads", "/purchase-orders"],
   ["price_comparison", "/price-comparison"],
 ] as const)("opens %s first from the rail's Compras item", async (capability, path) => {
-  const services = purchasingServices([capability, "purchase_orders", "purchase_order_reads"]);
+  const services = purchasingServices([capability, "price_comparison", "purchases", "freights"]);
   window.history.pushState(null, "", "/help");
 
   const screen = await render(<App help={emptyHelp} services={services} />);

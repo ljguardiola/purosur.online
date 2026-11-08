@@ -441,7 +441,7 @@ export function PurchasesListScreen({
       <ScreenLayout
         topBar={
           <AreaTopBar
-            eyebrow="Stock"
+            eyebrow="Compras"
             title="Compras"
             action={
               <Button

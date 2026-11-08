@@ -20,7 +20,7 @@ export function SupplierPriceListReviewPage(): ReactElement {
       productCreationModal={services.productCreationModal}
       filters={filters}
       onFiltersChange={(next) => void navigate({ search: next, replace: true })}
-      onBack={() => void navigate({ to: "/supplier-price-lists" })}
+      onBack={() => void navigate({ to: "/suppliers/price-lists" })}
       onSessionEnded={sessionActions.sessionEnded}
       services={
         services.supplierPriceListReviewScreen ?? defaultSupplierPriceListReviewScreenServices

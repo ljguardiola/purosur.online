@@ -97,7 +97,7 @@ export function EditSupplierPriceListRowPriceModal({
       width="standard"
       tone="info"
       icon={<Pencil />}
-      context="Pedidos · Listas de proveedores"
+      context="Compras · Listas de precios"
       title={shown?.description ?? ""}
       closable
       footer={

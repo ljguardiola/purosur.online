@@ -147,7 +147,7 @@ export function AddPurchaseLinesModal({
       width="wide"
       tone="info"
       icon={<PackagePlus />}
-      context={`Stock · Compra · ${shown?.supplier.name ?? ""}`}
+      context={`Compras · Compra · ${shown?.supplier.name ?? ""}`}
       title="Agregar productos"
       closable={!submitting}
       footer={

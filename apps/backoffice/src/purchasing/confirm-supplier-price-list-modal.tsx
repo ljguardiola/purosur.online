@@ -99,7 +99,7 @@ export function ConfirmSupplierPriceListModal({
       width="standard"
       tone="info"
       icon={<CircleCheck />}
-      context="Pedidos · Listas de proveedores"
+      context="Compras · Listas de precios"
       title={title}
       closable
       footer={

@@ -182,7 +182,7 @@ export function PurchaseOrderScreen({
       <ScreenLayout
         topBar={
           <AreaTopBar
-            eyebrow="Pedidos"
+            eyebrow="Compras"
             title={order === null ? "Pedido" : `Pedido a ${order.supplier.name}`}
             action={
               <Button variant="text" icon={<ArrowLeft />} onPress={onBack}>

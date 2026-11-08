@@ -89,7 +89,7 @@ type LinkSupplierItemModalProps = {
   onSessionEnded: () => void;
 };
 
-const CONTEXT = "Pedidos · Vincular un ítem";
+const CONTEXT = "Compras · Vincular un ítem";
 
 function FieldHeading({ children }: { children: string }) {
   return <p className="text-detail font-bold">{children}</p>;

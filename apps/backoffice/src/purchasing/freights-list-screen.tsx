@@ -142,7 +142,7 @@ export function FreightsListScreen({
       <ScreenLayout
         topBar={
           <AreaTopBar
-            eyebrow="Stock"
+            eyebrow="Compras"
             title="Flete"
             action={
               <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>

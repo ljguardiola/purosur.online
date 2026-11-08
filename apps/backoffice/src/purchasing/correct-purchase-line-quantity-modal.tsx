@@ -138,7 +138,7 @@ export function CorrectPurchaseLineQuantityModal({
       width="wide"
       tone="info"
       icon={<Scale />}
-      context="Stock · Compra"
+      context="Compras · Compra"
       title={shown ? formatProductDescription(shown.line.product) : ""}
       closable={!submitting}
       footer={
