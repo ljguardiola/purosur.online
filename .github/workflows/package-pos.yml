@@ -123,8 +123,8 @@ jobs:
         timeout-minutes: 2
         with:
           path: ${{ env.ELECTRON_BUILDER_CACHE }}
-          key: electron-builder-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: electron-builder-${{ runner.os }}-
+          key: electron-builder-${{ runner.os }}-${{ github.job }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: electron-builder-${{ runner.os }}-${{ github.job }}-
 
       # The built app code carries nothing channel-specific; the channel, its Sentry DSN and its
       # cloud only reach each channel's resources/channel.json, outside app.asar. An unset variable
@@ -150,7 +150,7 @@ jobs:
         timeout-minutes: 2
         with:
           path: ${{ env.ELECTRON_BUILDER_CACHE }}
-          key: electron-builder-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          key: electron-builder-${{ runner.os }}-${{ github.job }}-${{ hashFiles('pnpm-lock.yaml') }}
 
       # Each channel's unpacked folder holds its app code, so both can be compared directly.
       - name: Compare the two channels' app.asar
@@ -266,8 +266,8 @@ jobs:
         timeout-minutes: 2
         with:
           path: ${{ env.ELECTRON_BUILDER_CACHE }}
-          key: electron-builder-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: electron-builder-${{ runner.os }}-
+          key: electron-builder-${{ runner.os }}-${{ github.job }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: electron-builder-${{ runner.os }}-${{ github.job }}-
 
       - run: pnpm --filter @purosur/pos pack:production --dir
         env:
@@ -282,7 +282,7 @@ jobs:
         timeout-minutes: 2
         with:
           path: ${{ env.ELECTRON_BUILDER_CACHE }}
-          key: electron-builder-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          key: electron-builder-${{ runner.os }}-${{ github.job }}-${{ hashFiles('pnpm-lock.yaml') }}
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
