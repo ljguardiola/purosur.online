@@ -94,7 +94,11 @@ describe("DrizzleBranchRegisterSyncReader", () => {
     ).lastSuccessfulSyncOfBranchRegisters(replaced.locationId);
 
     expect(listed).toEqual([
-      expect.objectContaining({ id: replaced.registerId, name: "Caja 1", lastSuccessfulSyncAt: NOW }),
+      expect.objectContaining({
+        id: replaced.registerId,
+        name: "Caja 1",
+        lastSuccessfulSyncAt: NOW,
+      }),
     ]);
   });
 
