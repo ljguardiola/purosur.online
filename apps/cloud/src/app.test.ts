@@ -1837,6 +1837,40 @@ describe("wiring the payments report routes", () => {
   });
 });
 
+describe("wiring the Mercado Pago charge costs route", () => {
+  const request = { method: "GET", url: "/api/reports/mercado-pago-charge-costs" } as const;
+
+  it("does not register the route when no mercadoPagoChargeCosts option is given", async () => {
+    const app = buildApp({ now: () => APP_CLOCK, version: "abc1234" });
+
+    const response = await app.inject({
+      ...request,
+      headers: { origin: "https://staging.purosur.online" },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("registers the route when a mercadoPagoChargeCosts option is given", async () => {
+    const app = buildApp({
+      now: () => APP_CLOCK,
+      version: "abc1234",
+      mercadoPagoChargeCosts: {
+        zoneRules: fixedZoneRulesSource(),
+        db: testDatabase.db,
+        backofficeOrigin: "https://staging.purosur.online",
+      },
+    });
+
+    const response = await app.inject({
+      ...request,
+      headers: { origin: "https://staging.purosur.online" },
+    });
+
+    expect(response.statusCode).toBe(401);
+  });
+});
+
 describe("wiring the refund routes", () => {
   const refundRequests = [
     { method: "GET", url: "/api/refunds/pending" },
@@ -3422,6 +3456,11 @@ describe("the route access inventory", () => {
         method: "GET",
         url: "/api/reports/hand-confirmed-payments",
         access: capabilityAccess("reports_area"),
+      },
+      {
+        method: "GET",
+        url: "/api/reports/mercado-pago-charge-costs",
+        access: capabilityAccess("mercado_pago_charge_costs"),
       },
       {
         method: "GET",

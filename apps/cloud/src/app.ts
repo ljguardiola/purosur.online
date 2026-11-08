@@ -145,6 +145,10 @@ import type { RegistersRouteOptions } from "./installation/registers-list-route.
 import { registerRegistersListRoute } from "./installation/registers-list-route.js";
 import { registerReportRegistersRoute } from "./installation/report-registers-route.js";
 import {
+  type MercadoPagoChargeCostsRouteOptions,
+  registerMercadoPagoChargeCostsRoute,
+} from "./payments/mercado-pago-charge-costs-route.js";
+import {
   type MercadoPagoNotificationRoutesOptions,
   registerMercadoPagoNotificationRoutes,
 } from "./payments/mercado-pago-notification-routes.js";
@@ -323,6 +327,7 @@ export interface BuildAppOptions<TQueryResult extends PgQueryResultHKT = Postgre
   returns?: WithoutClock<ReturnsReportRouteOptions<TQueryResult>>;
   salesReports?: WithoutClock<SalesReportRouteOptions<TQueryResult>>;
   paymentsReports?: WithoutClock<PaymentsReportRouteOptions<TQueryResult>>;
+  mercadoPagoChargeCosts?: WithoutClock<MercadoPagoChargeCostsRouteOptions<TQueryResult>>;
   refunds?: WithoutClock<RefundRouteOptions<TQueryResult>>;
   devices?: WithoutClock<DeviceTokensOptions<TQueryResult> & { zoneRules: ZoneRulesSource }>;
   enqueueOfflineAuthorizationCodeRequest?: EnqueueOfflineAuthorizationCodeRequest;
@@ -472,6 +477,7 @@ export function databaseRouteOptions<TQueryResult extends PgQueryResultHKT>(
     returns: backoffice,
     salesReports: backoffice,
     paymentsReports: backoffice,
+    mercadoPagoChargeCosts: backoffice,
     refunds: wiring.refundSending ? { ...backoffice, sending: wiring.refundSending } : backoffice,
     devices,
     firstPinCodes: devices,
@@ -776,6 +782,10 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
       if (options.paymentsReports) {
         registerPaymentsReportRoutes(api, { ...options.paymentsReports, now });
+      }
+
+      if (options.mercadoPagoChargeCosts) {
+        registerMercadoPagoChargeCostsRoute(api, { ...options.mercadoPagoChargeCosts, now });
       }
 
       if (options.refunds) {

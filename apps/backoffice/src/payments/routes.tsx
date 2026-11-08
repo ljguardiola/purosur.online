@@ -1,11 +1,12 @@
 import { createRoute, redirect, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
-import { canSeeReports } from "../shell/backoffice-access";
+import { canSeeMercadoPagoChargeCosts, canSeeReports } from "../shell/backoffice-access";
 import { lazyScreen } from "../shell/lazy-screen";
 import { refundsRoute, refundsTabRedirect } from "../shell/refunds-route";
 import { reportsAreaRoute } from "../shell/reports-area";
 import { refuseWithout, signedInRoute } from "../shell/signed-in-route";
 import { handConfirmedPaymentsFilters } from "./hand-confirmed-payments-filters";
+import { mercadoPagoChargeCostsFilters } from "./mercado-pago-charge-costs-filters";
 import { salesByPaymentMethodFilters } from "./sales-by-payment-method-filters";
 
 export const ALL_REGISTERS = "all";
@@ -75,5 +76,17 @@ export const handConfirmedPaymentsRoute = createRoute({
   component: lazyScreen(
     () => import("./hand-confirmed-payments-page"),
     "HandConfirmedPaymentsPage",
+  ),
+});
+
+export const mercadoPagoChargeCostsRoute = createRoute({
+  getParentRoute: () => reportsAreaRoute,
+  path: "reports/mercado-pago-charge-costs",
+  beforeLoad: ({ context: { session } }) => refuseWithout(session, canSeeMercadoPagoChargeCosts),
+  validateSearch: mercadoPagoChargeCostsFilters,
+  search: { middlewares: [stripSearchParams(mercadoPagoChargeCostsFilters.parse({}))] },
+  component: lazyScreen(
+    () => import("./mercado-pago-charge-costs-page"),
+    "MercadoPagoChargeCostsPage",
   ),
 });

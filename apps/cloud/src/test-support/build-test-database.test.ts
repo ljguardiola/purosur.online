@@ -51,6 +51,8 @@ import {
   lotAllocations,
   lotCostChanges,
   lots,
+  mercadoPagoSettlementMovements,
+  mercadoPagoSettlementReportRequests,
   numberingFreezes,
   offlineAuthorizationCodeAcquisitionReports,
   offlineFiscalDocuments,
@@ -1030,6 +1032,24 @@ describe("buildTestDatabase", { timeout: 30_000 }, () => {
       state: "PENDING",
       createdAt: new Date("2026-01-05T12:00:00.000Z"),
       expiresAt: new Date("2026-01-05T12:05:00.000Z"),
+    });
+    await db.insert(mercadoPagoSettlementReportRequests).values({
+      day: "2026-01-05",
+      beginDate: new Date("2025-11-06T03:00:00.000Z"),
+      endDate: new Date("2026-01-05T03:00:00.000Z"),
+      requestedAt: new Date("2026-01-05T12:00:00.000Z"),
+      refused: false,
+    });
+    await db.insert(mercadoPagoSettlementMovements).values({
+      sourceId: "PAY1",
+      transactionType: "SETTLEMENT",
+      transactionDate: new Date("2026-01-05T12:00:00.000Z"),
+      grossAmount: 5_000,
+      feeAmount: -225,
+      financingFeeAmount: 0,
+      taxesAmount: -45,
+      netAmount: 4_730,
+      recordedAt: new Date("2026-01-05T18:00:00.000Z"),
     });
     await db.insert(paymentNotificationAttempts).values({
       sourceAddress: "203.0.113.7",

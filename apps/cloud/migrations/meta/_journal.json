@@ -1261,6 +1261,13 @@
       "when": 1793970909534,
       "tag": "0186_supplier_item_proposals",
       "breakpoints": true
+    },
+    {
+      "idx": 187,
+      "version": "7",
+      "when": 1794109712566,
+      "tag": "0187_mercado_pago_settlement_reports",
+      "breakpoints": true
     }
   ]
 }

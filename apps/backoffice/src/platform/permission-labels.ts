@@ -60,6 +60,7 @@ export const PERMISSION_LABELS = {
   change_fiscal_configuration: "Cambiar la configuración fiscal",
   view_reports: "Ver reportes",
   view_returns_report: "Ver el reporte de anulaciones y devoluciones",
+  view_mercado_pago_charge_costs: "Ver los costos de los cobros de Mercado Pago",
   view_branch_alerts: "Ver alertas del local",
   view_all_alerts: "Ver todas las alertas",
   dismiss_alerts_manually: "Cerrar alertas a mano",
