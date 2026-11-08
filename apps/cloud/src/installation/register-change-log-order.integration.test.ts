@@ -4,7 +4,6 @@ import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { DrizzleBranchRegisterStore } from "../installation/drizzle-branch-register-store.js";
 import { registers, users } from "../platform/db/schema.js";
 import {
   createIntegrationDatabase,
@@ -12,6 +11,7 @@ import {
 } from "../test-support/integration-database.js";
 import { waitForLockWaiters } from "../test-support/queued-behind-held-lock.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
+import { DrizzleBranchRegisterStore } from "./drizzle-branch-register-store.js";
 
 const NOON = new Date("2026-01-05T12:00:00.000Z");
 

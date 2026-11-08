@@ -4,7 +4,6 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { registerInstallations } from "../platform/db/schema.js";
-import { deviceTokenRotationPorts } from "../platform/installation-token-ports.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import {
@@ -12,6 +11,7 @@ import {
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
 import { runQueuedBehindHeldLock } from "../test-support/queued-behind-held-lock.js";
+import { deviceTokenRotationPorts } from "./device-token-rotation-ports.js";
 import { insertEnrolledInstallation } from "./test-support/enrolled-installation.js";
 
 const FIRST_ROTATION_AT = new Date("2026-09-29T12:00:00.000Z");
