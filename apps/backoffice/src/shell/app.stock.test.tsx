@@ -178,7 +178,7 @@ test("opens a panel with the lots and the movements of a product beside the list
 
 test.each([
   ["Vencimientos", "/stock/expiries", "Vencimientos"],
-  ["Movimientos", "/stock/movements", "Ajustes y pérdidas"],
+  ["Movimientos", "/stock/movements", "Movimientos"],
 ] as const)("opens %s from its tab", async (tab, path, table) => {
   const services = stockServices([
     "stock_area",
@@ -257,14 +257,25 @@ test.each([
   ],
   ["/initial-inventory", "/stock?register=initial-inventory"],
 ] as const)("redirects the old address %s to %s", async (old, current) => {
-  const services = stockServices([
-    "stock_area",
-    "stock_balances",
-    "stock_expiries",
-    "stock_counts",
-    "stock_movements",
-    "initial_inventory",
-  ]);
+  const services = stockServices([]);
+  vi.mocked(services.fetchSession).mockResolvedValue(
+    openSession({
+      userId: "user-2",
+      displayName: "Grace Villalba",
+      isAdministrator: false,
+      capabilities: [
+        "stock_area",
+        "stock_balances",
+        "stock_expiries",
+        "stock_counts",
+        "stock_movements",
+        "stock_losses",
+        "stock_adjustments",
+        "initial_inventory",
+      ],
+      stockMovementKinds: ["loss", "adjustment"],
+    }),
+  );
   window.history.pushState(null, "", old);
 
   const screen = await render(<App help={emptyHelp} services={services} />);
