@@ -12,6 +12,7 @@ import { ShieldX, TriangleAlert, WifiOff } from "lucide-react";
 import type { FormEvent } from "react";
 import { useId, useState } from "react";
 import { BrandPanelScreen } from "../shell/brand-panel-screen";
+import { registerEyebrow } from "../shell/register-eyebrow";
 import { retryAfterText } from "../shell/retry-after-text";
 import {
   EMPTY_ENROLLMENT_FORM,
@@ -19,7 +20,6 @@ import {
   enrollmentRequestSchema,
   INCOMPLETE_CODE_MESSAGE,
 } from "./enrollment-form";
-import { registerEyebrow } from "./register-eyebrow";
 
 type Notice = { icon: Icon; title: string; description: string };
 

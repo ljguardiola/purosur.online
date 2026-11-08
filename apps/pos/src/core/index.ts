@@ -60,6 +60,30 @@ import { readFiscalEmissionModeIn } from "./fiscal/sqlite-fiscal-emission-mode";
 import { readFiscalOnlineEvidence } from "./fiscal/sqlite-fiscal-online-evidence";
 import { readLatestPreEmissionGateOutcome } from "./fiscal/sqlite-pre-emission-gate";
 import { readLatestClockOffsetMs } from "./fiscal/sqlite-register-health-checks";
+import { refreshKeysWhenAnnounced } from "./installation/announced-key-refresh";
+import {
+  checkInstallation,
+  installationCheckResultOf,
+  installationCheckWarningOf,
+} from "./installation/check-installation";
+import { createDeviceTokenRotation } from "./installation/device-token-rotation";
+import { startDeviceTokenRotationSchedule } from "./installation/device-token-rotation-schedule";
+import {
+  checkEnrollmentCode,
+  enroll,
+  generatePepper,
+  installationReportFrom,
+} from "./installation/enrollment";
+import { enrollmentStandingOf } from "./installation/installation-enrollment-requests";
+import { createInstallationEnrollmentWatch } from "./installation/installation-enrollment-watch";
+import {
+  type StartedLocalDatabase,
+  startLocalDatabase,
+} from "./installation/local-database-startup";
+import { refuseNewerDatabase } from "./installation/newer-database-refusal";
+import { registerServiceOf } from "./installation/register-service-of-database";
+import { localDatabaseDamageIn } from "./installation/sqlite-local-database-health";
+import { SqliteLocalInstallation, salesStopOf } from "./installation/sqlite-local-installation";
 import { createMessageGate, type RejectionRecorder, summarizeRejection } from "./message-gate";
 import { createInterruptedChargesWiring } from "./payments/interrupted-charges-wiring";
 import { createMercadoPagoCharging } from "./payments/mercado-pago-charge-wiring";
@@ -76,7 +100,6 @@ import { initializeErrorReporting } from "./platform/error-reporting";
 import { LOCAL_MIGRATIONS } from "./platform/local-migrations";
 import { createMainLink } from "./platform/main-link";
 import { ZoneRulesHolder } from "./platform/zone-rules-holder";
-import { refreshKeysWhenAnnounced } from "./register/announced-key-refresh";
 import { createBatteryShutdown } from "./register/battery-shutdown";
 import { createBatteryWatch } from "./register/battery-watch";
 import {
@@ -99,25 +122,12 @@ import {
   startupStepReporter,
   takingStartupStep,
 } from "./register/core-startup-steps";
-import { createDeviceTokenRotation } from "./register/device-token-rotation";
-import { startDeviceTokenRotationSchedule } from "./register/device-token-rotation-schedule";
-import {
-  checkEnrollmentCode,
-  enroll,
-  generatePepper,
-  installationReportFrom,
-} from "./register/enrollment";
 import {
   fileSnapshotCorruptionReports,
   SNAPSHOT_CORRUPTION_UNREPORTED_FILE,
 } from "./register/file-snapshot-corruption-reports";
-import { enrollmentStandingOf } from "./register/installation-enrollment-requests";
-import { createInstallationEnrollmentWatch } from "./register/installation-enrollment-watch";
-import { type StartedLocalDatabase, startLocalDatabase } from "./register/local-database-startup";
-import { refuseNewerDatabase } from "./register/newer-database-refusal";
 import { readReceiptPrinterFor, setReceiptPrinterFor } from "./register/receipt-printer-requests";
 import { createRegisterConditionWatch } from "./register/register-condition-watch";
-import { registerServiceOf } from "./register/register-service-of-database";
 import {
   observedOwnConditionsOf,
   type RegisterStatusDeps,
@@ -137,7 +147,6 @@ import { snapshotCorruptionReportSending } from "./register/snapshot-corruption-
 import type { SnapshotCycleSchedule } from "./register/snapshot-cycle-schedule";
 import { startSnapshotCycle } from "./register/snapshot-cycle-wiring";
 import { readOpenSession, readRegisterIdentity } from "./register/sqlite-cash-ledger";
-import { localDatabaseDamageIn } from "./register/sqlite-local-database-health";
 import { SqliteReceiptPrinterSettings } from "./register/sqlite-receipt-printer-settings";
 import { SqliteRestorationEvidence } from "./register/sqlite-restoration-evidence";
 import { SqliteSerialDeviceRegistrations } from "./register/sqlite-serial-device-registrations";
@@ -210,11 +219,6 @@ import { createSignedInPerson } from "./sessions/signed-in-person";
 import { SqliteSignInStore } from "./sessions/sqlite-sign-in-store";
 import { createInitialCountRequests } from "./stock/initial-count-answers";
 import {
-  checkInstallation,
-  installationCheckResultOf,
-  installationCheckWarningOf,
-} from "./sync/check-installation";
-import {
   type CloudReachability,
   INITIAL_CLOUD_REACHABILITY,
   nextCloudReachability,
@@ -232,7 +236,6 @@ import {
   replenishRestoredRegisterStep,
 } from "./sync/replenish-restored-register-step";
 import { SqliteAcceptedPushLog } from "./sync/sqlite-accepted-push-log";
-import { SqliteLocalInstallation, salesStopOf } from "./sync/sqlite-local-installation";
 import { SqliteLocalOutbox } from "./sync/sqlite-local-outbox";
 import { SqliteLocalReplica } from "./sync/sqlite-local-replica";
 import { readPendingReplenishment } from "./sync/sqlite-register-replenishment-store";

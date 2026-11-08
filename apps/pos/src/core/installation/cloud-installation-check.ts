@@ -3,8 +3,8 @@ import type {
   CloudInstallationCheck as CloudInstallationCheckPort,
   CloudInstallationStanding,
 } from "@purosur/domain/sync/use-cases";
-import { type CloudFailure, failureOf } from "./cloud-failure";
-import type { GetFromCloud } from "./cloud-pull-feed";
+import { type CloudFailure, failureOf } from "../sync/cloud-failure";
+import type { GetFromCloud } from "../sync/cloud-pull-feed";
 
 export class CloudInstallationCheck implements CloudInstallationCheckPort<CloudFailure> {
   private readonly get: GetFromCloud;
