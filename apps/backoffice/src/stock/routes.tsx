@@ -66,8 +66,16 @@ const stockMovementKinds = z
   .catch([]);
 
 export const stockMovementsSearch = stockMovementsFilters
-  .extend({ type: stockMovementKinds })
-  .extend(stockRegisterSearch.shape);
+  .extend({
+    type: stockMovementKinds,
+    view: z.enum(["list", "reason"]).default("list").catch("list"),
+    from: reportFiltersFields.from,
+    to: reportFiltersFields.to,
+  })
+  .extend(stockRegisterSearch.shape)
+  .transform(withoutRefusedPeriod);
+
+export type StockMovementsSearchFilters = Omit<z.output<typeof stockMovementsSearch>, "register">;
 
 const stockBalancesSearch = stockBalancesFilters
   .extend({ product: z.string().optional().catch(undefined) })
@@ -159,7 +167,17 @@ export const stockMovementsRoute = createRoute({
   path: "movements",
   beforeLoad: ({ context: { stockTabs } }) => stockTabRedirect(stockTabs, "movements"),
   validateSearch: stockMovementsSearch,
-  search: { middlewares: [stripSearchParams({ ...stockMovementsFilters.parse({}), type: [] })] },
+  search: {
+    middlewares: [
+      stripSearchParams({
+        ...stockMovementsFilters.parse({}),
+        type: [],
+        view: "list",
+        from: "",
+        to: "",
+      }),
+    ],
+  },
   component: lazyScreen(() => import("./stock-movements-page"), "StockMovementsPage"),
 });
 

@@ -1,8 +1,6 @@
-import type { StockMovement, StockMovementResult, StockProduct } from "@purosur/contracts";
+import type { StockCountList, StockMovementList } from "@purosur/contracts";
 import {
-  Button,
   dataColumn,
-  FloatingNotification,
   formatNumber,
   ListFilter,
   plural,
@@ -10,24 +8,27 @@ import {
   Table,
   TableCellText,
   Tag,
+  Toggle,
+  ToggleChipGroup,
   useTableModel,
 } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { deepEqual } from "@tanstack/react-router";
-import { ArrowDownUp, Check, Plus, Search } from "lucide-react";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { ArrowDownUp, Search } from "lucide-react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
-import type { ProductCreationModal } from "../platform/creation-parts";
-import { formatStockChange } from "../platform/stock-quantity";
+import { combineCloudData } from "../platform/combine-cloud-data";
+import { formatStockChange, formatStockQuantity } from "../platform/stock-quantity";
+import type { CloudData } from "../platform/use-cloud-query";
 import {
   type BackofficeAccess,
-  canManageProductsAndCategories,
-  canSeeStockBalances,
+  canPerformStockCounts,
+  canSeeLossesByReason,
 } from "../shell/backoffice-access";
-import type { StockMovementsFilters } from "./routes";
-import { type MovementKind, REASONS_OF_KIND } from "./stock-movement-form";
-import { StockMovementModal } from "./stock-movement-modal";
-import type { StockMovementsScreenServices } from "./stock-movements-services";
+import { LossesByReasonReportContent } from "./losses-by-reason-report-content";
+import type { StockMovementsSearchFilters } from "./routes";
+import { REASONS_OF_KIND } from "./stock-movement-form";
+import type { StockRecordsServices } from "./stock-movements-services";
 import {
   formatStockDay,
   formatStockTime,
@@ -35,116 +36,163 @@ import {
   STOCK_PERIOD_OPTIONS,
   type StockPeriod,
 } from "./stock-period";
-import { useRefreshStock, useStockMovementsQuery } from "./stock-queries";
+import { useStockCountsQuery, useStockMovementsQuery } from "./stock-queries";
 import { REASON_LABELS } from "./stock-reason-labels";
-import { movementRegisteredNotice } from "./stock-registered-notices";
+import { type StockRecord, type StockRecordKind, stockRecords } from "./stock-records";
 
 export type StockMovementsScreenProps = {
   access: BackofficeAccess;
-  productCreationModal: ProductCreationModal;
-  filters: StockMovementsFilters;
-  onFiltersChange: (filters: StockMovementsFilters) => void;
+  filters: StockMovementsSearchFilters;
+  onFiltersChange: (filters: StockMovementsSearchFilters) => void;
   onSessionEnded: () => void;
-  services: StockMovementsScreenServices;
+  services: StockRecordsServices;
 };
 
-type ReasonFilter = StockMovementsFilters["reason"];
+type ReasonFilter = StockMovementsSearchFilters["reason"];
 
-type ScreenNotice = { id: number; title: string; description: string };
+const NO_RECORDS: StockRecord[] = [];
 
-const NO_MOVEMENTS: StockMovement[] = [];
+const KIND_LABELS = {
+  count: "Recuento",
+  adjustment: "Ajuste",
+  loss: "Pérdida",
+} satisfies Record<StockRecordKind, string>;
 
-const KIND_LABELS = { loss: "Pérdida", adjustment: "Ajuste" } satisfies Record<
-  MovementKind,
-  string
->;
+const RECORD_KINDS: readonly StockRecordKind[] = ["count", "adjustment", "loss"];
+
+const NO_COUNTS_READ: CloudData<StockCountList> = {
+  status: "loaded",
+  value: { counts: [] },
+  refreshing: false,
+};
+
+const NO_MOVEMENTS_READ: CloudData<StockMovementList> = {
+  status: "loaded",
+  value: { movements: [] },
+  refreshing: false,
+};
+
+function recordsOf(data: CloudData<[StockCountList, StockMovementList]>): CloudData<StockRecord[]> {
+  if (data.status === "loaded") {
+    const [{ counts }, { movements }] = data.value;
+    return {
+      status: "loaded",
+      value: stockRecords(counts, movements),
+      refreshing: data.refreshing,
+    };
+  }
+  if (data.status === "failed") {
+    const { lastValue: _lastValue, ...failure } = data;
+    return failure;
+  }
+  return { status: "loading" };
+}
+
+function recordProduct(record: StockRecord): string {
+  return formatProductDescription({
+    name: record.productName,
+    brandName: record.brandName,
+    netContent: record.netContent,
+  });
+}
+
+function recordDetail(record: StockRecord): string {
+  const { detail } = record;
+  return detail.kind === "movement"
+    ? REASON_LABELS[detail.reason]
+    : `Esperado ${formatStockQuantity(detail.expected, record.saleUnit)} · contado ${formatStockQuantity(detail.counted, record.saleUnit)}`;
+}
+
+function recordQuantity(record: StockRecord) {
+  const change =
+    record.kind === "count" && record.delta === 0
+      ? "Sin diferencia"
+      : formatStockChange(record.delta, record.saleUnit);
+  return record.superseded ? (
+    <div className="flex flex-col items-end gap-1">
+      <span>{change}</span>
+      <Tag tone="neutral">Superado por un recuento posterior</Tag>
+    </div>
+  ) : (
+    change
+  );
+}
 
 const columns = [
   dataColumn({
     id: "date",
     header: "Fecha",
-    render: (movement: StockMovement) => (
-      <TableCellText description={formatStockTime(movement.occurredAt)}>
-        {formatStockDay(movement.occurredAt)}
+    render: (record: StockRecord) => (
+      <TableCellText description={formatStockTime(record.occurredAt)}>
+        {formatStockDay(record.occurredAt)}
       </TableCellText>
     ),
   }),
   dataColumn({
     id: "product",
     header: "Producto",
-    render: (movement: StockMovement) => (
-      <TableCellText description={movement.categoryName}>
-        {formatProductDescription({
-          name: movement.productName,
-          brandName: movement.brandName,
-          netContent: movement.netContent,
-        })}
-      </TableCellText>
+    render: (record: StockRecord) => (
+      <TableCellText description={record.categoryName}>{recordProduct(record)}</TableCellText>
     ),
   }),
   dataColumn({
     id: "kind",
     header: "Tipo",
-    render: (movement: StockMovement) => (
-      <Tag tone={movement.kind === "loss" ? "neutral" : "info"}>{KIND_LABELS[movement.kind]}</Tag>
+    render: (record: StockRecord) => (
+      <Tag tone={record.kind === "adjustment" ? "info" : "neutral"}>{KIND_LABELS[record.kind]}</Tag>
     ),
   }),
   dataColumn({
-    id: "reason",
+    id: "detail",
     header: "Motivo",
-    render: (movement: StockMovement) => REASON_LABELS[movement.reason],
+    render: recordDetail,
   }),
   dataColumn({
     id: "quantity",
     header: "Cantidad",
     align: "end",
-    render: (movement: StockMovement) => {
-      const change = formatStockChange(movement.delta, movement.saleUnit);
-      return movement.superseded ? (
-        <div className="flex flex-col items-end gap-1">
-          <span>{change}</span>
-          <Tag tone="neutral">Superado por un recuento posterior</Tag>
-        </div>
-      ) : (
-        change
-      );
-    },
+    render: recordQuantity,
   }),
 ] as const;
 
-function actionLabel(kinds: readonly MovementKind[]): string {
-  if (kinds.length > 1) {
-    return "Cargar pérdida o ajuste";
-  }
-  return kinds[0] === "loss" ? "Cargar pérdida" : "Cargar ajuste";
-}
-
 export function StockMovementsScreen({
   access,
-  productCreationModal,
   filters,
   onFiltersChange,
   onSessionEnded,
   services,
 }: StockMovementsScreenProps) {
+  const mayCount = canPerformStockCounts(access);
+  const manualKinds = access.stockMovementKinds;
+  const mayReadMovements = manualKinds.length > 0;
+  const offeredKinds = RECORD_KINDS.filter((kind) =>
+    kind === "count" ? mayCount : manualKinds.includes(kind),
+  );
+  const [firstChip, ...otherChips] = offeredKinds.map((kind) => ({
+    value: kind,
+    label: KIND_LABELS[kind],
+  }));
+
   const [search, setSearch] = useState(filters.search);
   const [reason, setReason] = useState<ReasonFilter>(filters.reason);
   const [period, setPeriod] = useState<StockPeriod>(filters.period);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [notice, setNotice] = useState<ScreenNotice | null>(null);
-  const lastNoticeId = useRef(0);
+  const [types, setTypes] = useState(() =>
+    filters.type.filter((kind) => offeredKinds.includes(kind)),
+  );
+  const [view, setView] = useState(filters.view);
+  const [from, setFrom] = useState(filters.from);
+  const [to, setTo] = useState(filters.to);
   const reportFilters = useEffectEvent(onFiltersChange);
-  const refreshStock = useRefreshStock();
-  const kinds = access.stockMovementKinds;
-  const showsBalance = canSeeStockBalances(access);
-  const [firstKind] = kinds;
+
+  const mayGroup = canSeeLossesByReason(access) && types.length === 1 && types[0] === "loss";
+  const grouped = mayGroup && view === "reason";
 
   const reasonOptions: [
     { value: ReasonFilter; label: string },
     ...{ value: ReasonFilter; label: string }[],
   ] = [
     { value: "ALL", label: "Todos" },
-    ...kinds
+    ...manualKinds
       .flatMap((kind) => REASONS_OF_KIND[kind])
       .map((value) => ({ value, label: REASON_LABELS[value] })),
   ];
@@ -157,104 +205,129 @@ export function StockMovementsScreen({
   }, [reasonIsOffered]);
 
   useEffect(() => {
-    const shown: StockMovementsFilters = { search, reason, period };
+    const shown: StockMovementsSearchFilters = {
+      search,
+      reason,
+      period,
+      type: types,
+      view,
+      from,
+      to,
+    };
     if (!deepEqual(shown, filters)) {
       reportFilters(shown);
     }
-  }, [search, reason, period, filters]);
+  }, [search, reason, period, types, view, from, to, filters]);
 
   const days = periodDays(period);
-  const data = useStockMovementsQuery({
+  const countsData = useStockCountsQuery({
+    days,
+    fetchStockCounts: services.fetchStockCounts,
+    onSessionEnded,
+    enabled: mayCount && !grouped,
+  });
+  const movementsData = useStockMovementsQuery({
     days,
     fetchStockMovements: services.fetchStockMovements,
     onSessionEnded,
+    enabled: mayReadMovements && !grouped,
   });
-  const movements = data.status === "loaded" ? data.value.movements : NO_MOVEMENTS;
+  const data = recordsOf(
+    combineCloudData(
+      mayCount ? countsData : NO_COUNTS_READ,
+      mayReadMovements ? movementsData : NO_MOVEMENTS_READ,
+    ),
+  );
+  const records = data.status === "loaded" ? data.value : NO_RECORDS;
 
   const table = useTableModel({
-    items: movements,
-    id: (movement) => movement.id,
-    search: {
-      text: search,
-      in: (movement) => [
-        formatProductDescription({
-          name: movement.productName,
-          brandName: movement.brandName,
-          netContent: movement.netContent,
-        }),
-      ],
-    },
-    filter: (movement) => reason === "ALL" || movement.reason === reason,
+    items: records,
+    id: (record) => record.id,
+    search: { text: search, in: (record) => [recordProduct(record)] },
+    filter: (record) =>
+      (types.length === 0 || types.includes(record.kind)) &&
+      (reason === "ALL" || (record.detail.kind === "movement" && record.detail.reason === reason)),
     columns,
   });
   const matchCount = table.getRowModel().rows.length;
 
-  // A fresh id for each notice, so a screen reader announces a notice with the same text again.
-  function showNotice(shown: Omit<ScreenNotice, "id">) {
-    lastNoticeId.current += 1;
-    setNotice({ ...shown, id: lastNoticeId.current });
-  }
-
-  function handleRegistered(product: StockProduct, result: StockMovementResult, delta: number) {
-    setModalOpen(false);
-    void refreshStock();
-    showNotice(movementRegisteredNotice(product, result, delta, showsBalance));
-  }
-
   return (
-    <>
-      <div className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-6">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="w-105">
-            <SearchField
-              value={search}
-              onChange={setSearch}
-              placeholder="Buscar un producto"
-              icon={<Search />}
+    <div className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-6">
+      <div className="flex flex-wrap items-end gap-3">
+        {firstChip === undefined ? null : (
+          <div className="w-96">
+            <ToggleChipGroup
+              label="Tipo"
+              options={[firstChip, ...otherChips]}
+              value={types}
+              onChange={setTypes}
             />
           </div>
-          <ListFilter
-            name="reason"
-            label="Motivo:"
-            options={reasonOptions}
-            value={reasonIsOffered ? reason : "ALL"}
-            onChange={setReason}
-          />
-          <ListFilter
-            name="period"
-            label="Período:"
-            options={STOCK_PERIOD_OPTIONS}
-            value={period}
-            onChange={setPeriod}
-          />
-          <div className="ml-auto">
-            <Button
-              variant="primary"
-              icon={<Plus />}
-              onPress={() => {
-                setNotice(null);
-                setModalOpen(true);
-              }}
-            >
-              {actionLabel(kinds)}
-            </Button>
-          </div>
-        </div>
+        )}
+        {grouped ? null : (
+          <>
+            <div className="w-105">
+              <SearchField
+                value={search}
+                onChange={setSearch}
+                placeholder="Buscar un producto"
+                icon={<Search />}
+              />
+            </div>
+            {mayReadMovements ? (
+              <ListFilter
+                name="reason"
+                label="Motivo:"
+                options={reasonOptions}
+                value={reasonIsOffered ? reason : "ALL"}
+                onChange={setReason}
+              />
+            ) : null}
+            <ListFilter
+              name="period"
+              label="Período:"
+              options={STOCK_PERIOD_OPTIONS}
+              value={period}
+              onChange={setPeriod}
+            />
+          </>
+        )}
+        {mayGroup ? (
+          <Toggle
+            name="view"
+            checked={grouped}
+            onCheckedChange={(checked) => setView(checked ? "reason" : "list")}
+          >
+            Agrupar por motivo
+          </Toggle>
+        ) : null}
+      </div>
+      {grouped ? (
+        <LossesByReasonReportContent
+          filters={{ from, to }}
+          onFiltersChange={(range) => {
+            setFrom(range.from);
+            setTo(range.to);
+          }}
+          onSessionEnded={onSessionEnded}
+          services={services}
+        />
+      ) : (
         <Table
-          aria-label="Ajustes y pérdidas"
+          aria-label="Movimientos"
           table={table}
-          {...cloudTableState(data, "los ajustes y las pérdidas")}
+          {...cloudTableState(data, "los movimientos")}
           empty={
-            movements.length === 0
+            records.length === 0
               ? {
                   icon: <ArrowDownUp />,
-                  title: `Sin pérdidas ni ajustes en los últimos ${days} días`,
+                  title: `Sin movimientos en los últimos ${days} días`,
                   variant: "blank",
                 }
               : {
                   icon: <Search />,
                   title: "Sin resultados",
-                  description: "Probá con otro nombre o motivo.",
+                  description: "Probá con otro nombre, tipo o motivo.",
                   variant: "filtered",
                 }
           }
@@ -269,29 +342,7 @@ export function StockMovementsScreen({
             )
           }
         />
-      </div>
-      {modalOpen && firstKind ? (
-        <StockMovementModal
-          title={actionLabel(kinds)}
-          kinds={[firstKind, ...kinds.slice(1)]}
-          showsBalance={showsBalance}
-          {...(canManageProductsAndCategories(access) ? { productCreationModal } : {})}
-          services={services}
-          onClose={() => setModalOpen(false)}
-          onSessionEnded={onSessionEnded}
-          onRegistered={handleRegistered}
-        />
-      ) : null}
-      {notice ? (
-        <FloatingNotification
-          key={notice.id}
-          tone="success"
-          icon={<Check />}
-          title={notice.title}
-          description={notice.description}
-          onDismiss={() => setNotice(null)}
-        />
-      ) : null}
-    </>
+      )}
+    </div>
   );
 }

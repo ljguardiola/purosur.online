@@ -1,5 +1,10 @@
 import {
+  defaultLossesByReasonReportScreenServices,
+  type LossesByReasonReportScreenServices,
+} from "./losses-by-reason-report-services";
+import {
   fetchStockBalances,
+  fetchStockCounts,
   fetchStockMovementReasons,
   fetchStockMovements,
   fetchStockProducts,
@@ -23,4 +28,13 @@ export const defaultStockMovementsScreenServices: StockMovementsScreenServices =
   fetchStockBalances,
   recordLoss,
   recordAdjustment,
+};
+
+export type StockRecordsServices = Pick<StockMovementsScreenServices, "fetchStockMovements"> &
+  LossesByReasonReportScreenServices & { fetchStockCounts: typeof fetchStockCounts };
+
+export const defaultStockRecordsServices: StockRecordsServices = {
+  fetchStockMovements,
+  fetchStockCounts,
+  ...defaultLossesByReasonReportScreenServices,
 };
