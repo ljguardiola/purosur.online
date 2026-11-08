@@ -42,6 +42,7 @@ const PERMISSION_KEY_LIST = [
   "change_fiscal_configuration",
   "view_reports",
   "view_returns_report",
+  "view_mercado_pago_charge_costs",
   "view_branch_alerts",
   "view_all_alerts",
   "dismiss_alerts_manually",
@@ -193,6 +194,7 @@ export const PERMISSION_CATALOG = [
 
   { key: "view_reports", area: "reports", registerMarker: "none" },
   { key: "view_returns_report", area: "reports", registerMarker: "none" },
+  { key: "view_mercado_pago_charge_costs", area: "reports", registerMarker: "none" },
 
   { key: "view_branch_alerts", area: "alerts", registerMarker: "none" },
   { key: "view_all_alerts", area: "alerts", registerMarker: "none" },

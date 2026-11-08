@@ -46,6 +46,7 @@ const EVERY_CAPABILITY: Record<Capability, true> = {
   orders_area: true,
   reports_area: true,
   returns_report: true,
+  mercado_pago_charge_costs: true,
   report_registers: true,
   refunds_area: true,
   fiscal_information: true,

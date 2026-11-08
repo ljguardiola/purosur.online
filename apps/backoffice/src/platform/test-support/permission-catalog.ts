@@ -55,6 +55,7 @@ const rows: [PermissionArea, PermissionKey, Marker, PermissionKey[]?, Permission
   ["fiscal", "change_fiscal_configuration", NONE],
   ["reports", "view_reports", NONE],
   ["reports", "view_returns_report", NONE],
+  ["reports", "view_mercado_pago_charge_costs", NONE],
   ["alerts", "view_branch_alerts", NONE],
   ["alerts", "view_all_alerts", NONE],
   ["alerts", "dismiss_alerts_manually", NONE],

@@ -988,6 +988,11 @@ describe("startServer", () => {
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
         zoneRules,
       },
+      mercadoPagoChargeCosts: {
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
+      },
       refunds: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
@@ -1974,12 +1979,32 @@ describe("startServer creating Mercado Pago QR orders", () => {
     });
   });
 
+  it("gives the setup of the background job infrastructure the Mercado Pago settlement reports when all variables are set", async () => {
+    const { started, setUp } = start({
+      ...env,
+      MERCADOPAGO_ACCESS_TOKEN: "APP_USR-fictional-access-token",
+      MERCADOPAGO_WEBHOOK_SECRET: "fictional-webhook-secret",
+    });
+    await started;
+
+    const [backgroundJobsEnv] = setUp.mock.calls[0] as [SetUpBackgroundJobsEnv];
+    expect(backgroundJobsEnv.mercadoPagoSettlementReports).toEqual({
+      readConfiguration: expect.any(Function),
+      createConfiguration: expect.any(Function),
+      updateConfiguration: expect.any(Function),
+      requestReport: expect.any(Function),
+      listReports: expect.any(Function),
+      downloadReport: expect.any(Function),
+    });
+  });
+
   it("gives the setup of the background job infrastructure no Mercado Pago orders when the variables are not set", async () => {
     const { started, setUp } = start(env);
     await started;
 
     const [backgroundJobsEnv] = setUp.mock.calls[0] as [SetUpBackgroundJobsEnv];
     expect(backgroundJobsEnv).not.toHaveProperty("mercadoPago");
+    expect(backgroundJobsEnv).not.toHaveProperty("mercadoPagoSettlementReports");
   });
 
   it("gives the app the payment route without Mercado Pago when neither variable is set", async () => {

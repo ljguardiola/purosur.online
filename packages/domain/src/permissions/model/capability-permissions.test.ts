@@ -47,6 +47,7 @@ const CAPABILITIES_GRANTED_BY: readonly [PermissionKey, readonly Capability[]][]
   ],
   ["view_reports", ["reports_area", "report_registers"]],
   ["view_returns_report", ["returns_report", "report_registers"]],
+  ["view_mercado_pago_charge_costs", ["mercado_pago_charge_costs"]],
   ["confirm_refunds", ["refunds_area"]],
   ["view_backups_and_rotate_key", ["backups_area"]],
   ["recover_contingency_receipts", ["contingency_ticket_rescue"]],
@@ -471,6 +472,35 @@ describe("the purchase_choices capability", () => {
           ),
         },
         "purchase_choices",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("the Mercado Pago charge costs report's capability", () => {
+  it("is granted only by view_mercado_pago_charge_costs", () => {
+    expect(
+      grantsCapability(
+        { isAdministrator: false, permissionKeys: ["view_mercado_pago_charge_costs"] },
+        "mercado_pago_charge_costs",
+      ),
+    ).toBe(true);
+    expect(
+      grantsCapability(
+        {
+          isAdministrator: false,
+          permissionKeys: PERMISSION_KEYS.filter((key) => key !== "view_mercado_pago_charge_costs"),
+        },
+        "mercado_pago_charge_costs",
+      ),
+    ).toBe(false);
+  });
+
+  it("is not granted by the other reports' permission", () => {
+    expect(
+      grantsCapability(
+        { isAdministrator: false, permissionKeys: ["view_reports"] },
+        "mercado_pago_charge_costs",
       ),
     ).toBe(false);
   });

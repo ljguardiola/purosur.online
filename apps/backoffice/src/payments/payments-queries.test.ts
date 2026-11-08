@@ -53,3 +53,14 @@ test("invalidating the payments key marks the hand-confirmed payments stale", as
 
   expect(client.getQueryState(paymentsKeys.handConfirmedPayments({}))?.isInvalidated).toBe(true);
 });
+
+test("each range has its own Mercado Pago charge costs key", () => {
+  const keys = [
+    paymentsKeys.mercadoPagoChargeCosts({}),
+    paymentsKeys.mercadoPagoChargeCosts({ from: "2026-10-01", to: "2026-10-07" }),
+    paymentsKeys.mercadoPagoChargeCosts({ from: "2026-10-01", to: "2026-10-08" }),
+    paymentsKeys.mercadoPagoChargeCosts({ from: "2026-10-02", to: "2026-10-07" }),
+  ];
+
+  expect(new Set(keys.map((key) => JSON.stringify(key))).size).toBe(keys.length);
+});

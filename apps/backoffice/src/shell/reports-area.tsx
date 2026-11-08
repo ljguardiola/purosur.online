@@ -7,6 +7,7 @@ import {
   Coins,
   FileText,
   HandCoins,
+  Landmark,
   List,
   Package,
   PackageMinus,
@@ -23,7 +24,11 @@ import {
   Warehouse,
 } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
-import { canSeeAiCostReport, canSeeReports } from "./backoffice-access";
+import {
+  canSeeAiCostReport,
+  canSeeMercadoPagoChargeCosts,
+  canSeeReports,
+} from "./backoffice-access";
 import { signedInRoute } from "./signed-in-route";
 
 export const reportsAreaRoute = createRoute({
@@ -61,6 +66,9 @@ function ReportsArea() {
   );
   const receiptDifferencesShown = Boolean(matchRoute({ to: "/reports/receipt-differences" }));
   const aiCostReportShown = Boolean(matchRoute({ to: "/reports/ai-cost-by-period" }));
+  const mercadoPagoChargeCostsShown = Boolean(
+    matchRoute({ to: "/reports/mercado-pago-charge-costs" }),
+  );
   const purchasesReportShown = Boolean(matchRoute({ to: "/reports/purchases-by-supplier" }));
   const averageTicketShown = Boolean(matchRoute({ to: "/reports/average-ticket" }));
   const issuedFiscalDocumentsShown = Boolean(matchRoute({ to: "/reports/fiscal-documents" }));
@@ -264,6 +272,17 @@ function ReportsArea() {
                   />
                 </li>
               </>
+            )}
+            {canSeeMercadoPagoChargeCosts(session) && (
+              <li>
+                <SectionLink
+                  to="/reports/mercado-pago-charge-costs"
+                  label="Costos de Mercado Pago"
+                  icon={<Landmark />}
+                  search={mercadoPagoChargeCostsShown ? true : {}}
+                  active={mercadoPagoChargeCostsShown}
+                />
+              </li>
             )}
             {canSeeAiCostReport(session) && (
               <li>

@@ -81,6 +81,7 @@ export const CAPABILITY_PERMISSIONS = {
   reports_area: ["view_reports"],
   returns_report: ["view_returns_report"],
   report_registers: ["view_reports", "view_returns_report"],
+  mercado_pago_charge_costs: ["view_mercado_pago_charge_costs"],
   refunds_area: ["confirm_refunds"],
   backups_area: ["view_backups_and_rotate_key"],
   contingency_ticket_rescue: ["recover_contingency_receipts"],
