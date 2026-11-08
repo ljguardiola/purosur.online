@@ -1,11 +1,21 @@
 import { registerSyncStatusSchema } from "@purosur/contracts";
-import { dataColumn, formatDate, Table, useTableModel } from "@purosur/ui";
+import {
+  dataColumn,
+  formatDate,
+  formatFreeBytes,
+  formatFreeRatio,
+  formatNumber,
+  formatPercent,
+  Table,
+  TableCellText,
+  useTableModel,
+} from "@purosur/ui";
 import { Laptop } from "lucide-react";
 import { useId } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { schemaText } from "../platform/schema-text";
 import type { CloudData } from "../platform/use-cloud-query";
-import type { RegisterSyncStatus } from "./registers-api";
+import type { RegisterBattery, RegisterDisk, RegisterSyncStatus } from "./registers-api";
 
 export type RegistersSyncSectionProps = {
   data: CloudData<RegisterSyncStatus[]>;
@@ -34,6 +44,62 @@ function syncDateTime(instant: string): string {
   return `${day} ${time}`;
 }
 
+function NoData() {
+  return (
+    <TableCellText tone="subtle" size="detail">
+      Sin datos
+    </TableCellText>
+  );
+}
+
+function BatteryCell({ battery }: { battery: RegisterBattery | null }) {
+  if (battery === null) {
+    return <NoData />;
+  }
+  if (!battery.present) {
+    return (
+      <TableCellText tone="warning" size="detail">
+        Sin batería
+      </TableCellText>
+    );
+  }
+  const charge = formatPercent(battery.chargePercent);
+  const health =
+    battery.worn && battery.healthPercent !== null
+      ? `Salud ${formatPercent(battery.healthPercent)}`
+      : undefined;
+  if (!battery.onBattery) {
+    return (
+      <TableCellText size="detail" description={health} descriptionTone="warning">
+        {`Con corriente · ${charge}`}
+      </TableCellText>
+    );
+  }
+  return (
+    <TableCellText
+      tone="error"
+      size="detail"
+      description={`Sin corriente hace ${formatNumber(battery.onBatteryMinutes)} min`}
+      descriptionTone="error"
+      secondDescription={health}
+      secondDescriptionTone="warning"
+    >
+      {`A batería · ${charge}`}
+    </TableCellText>
+  );
+}
+
+function DiskCell({ disk }: { disk: RegisterDisk | null }) {
+  if (disk === null) {
+    return <NoData />;
+  }
+  return (
+    <TableCellText size="detail" description={formatFreeBytes(disk.freeBytes)}>
+      {`${formatFreeRatio(disk.freeRatio)} libre`}
+    </TableCellText>
+  );
+}
+
 const columns = [
   dataColumn({
     id: "register",
@@ -52,6 +118,16 @@ const columns = [
         <span className="text-text text-detail">{syncDateTime(item.lastSuccessfulSyncAt)}</span>
       ),
   }),
+  dataColumn({
+    id: "battery",
+    header: "Batería",
+    render: (item: RegisterSyncStatus) => <BatteryCell battery={item.battery} />,
+  }),
+  dataColumn({
+    id: "disk",
+    header: "Disco",
+    render: (item: RegisterSyncStatus) => <DiskCell disk={item.disk} />,
+  }),
 ] as const;
 
 export function RegistersSyncSection({ data }: RegistersSyncSectionProps) {
@@ -67,7 +143,7 @@ export function RegistersSyncSection({ data }: RegistersSyncSectionProps) {
         Estado de las cajas
       </h2>
       <Table
-        aria-label="Última sincronización de las cajas"
+        aria-label="Estado de las cajas"
         table={table}
         {...cloudTableState(data, "las cajas")}
         empty={{

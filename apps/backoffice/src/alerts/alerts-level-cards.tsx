@@ -15,8 +15,11 @@ const LEVEL_CARD_LABELS: Record<AlertLevel, string> = {
   informational: "Informativas",
 };
 
-function kindsDetail(kinds: readonly string[]): string {
-  const labels = kinds.map((kind) => localAlertTitle(kind) ?? alertKindLabel(kind));
+function kindsDetail({ kinds, localKinds }: AlertsOverview[AlertLevel]): string {
+  const labels = kinds.map(
+    (kind) =>
+      (localKinds.includes(kind) ? localAlertTitle(kind) : undefined) ?? alertKindLabel(kind),
+  );
   return sortedItems(labels, {
     order: textOrder((label) => label),
     direction: "ascending",
@@ -35,7 +38,7 @@ export function AlertsLevelCards({ overview }: { overview: AlertsOverview }) {
             label={LEVEL_CARD_LABELS[level]}
             count={overview[level].openCount}
             tone={ALERT_LEVEL_TONE[level]}
-            detail={kindsDetail(overview[level].kinds)}
+            detail={kindsDetail(overview[level])}
           />
         </li>
       ))}

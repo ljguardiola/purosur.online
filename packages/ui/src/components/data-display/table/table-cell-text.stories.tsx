@@ -73,3 +73,19 @@ export const DetailText: Story = {
     tone: "subtle",
   },
 };
+
+export const WarningText: Story = {
+  args: { children: "Sin batería", tone: "warning", size: "detail" },
+};
+
+export const SecondDescription: Story = {
+  args: {
+    children: "A batería · 64 %",
+    tone: "error",
+    size: "detail",
+    description: "Sin corriente hace 14 min",
+    descriptionTone: "error",
+    secondDescription: "Salud 55 %",
+    secondDescriptionTone: "warning",
+  },
+};

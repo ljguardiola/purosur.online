@@ -13,6 +13,8 @@ import {
   formatDate,
   formatDayAndTime,
   formatDuration,
+  formatFreeBytes,
+  formatFreeRatio,
   formatInvoiceNumber,
   formatLotCode,
   formatLotName,
@@ -90,6 +92,56 @@ describe("formatBytes", () => {
 
   it("shows nothing as zero megabytes", () => {
     expect(formatBytes(0)).toBe("0 MB");
+  });
+});
+
+describe("formatFreeBytes", () => {
+  const MEGABYTE = 1024 * 1024;
+  const GIGABYTE = 1024 * MEGABYTE;
+
+  it("shows free gigabytes with a decimal comma, and under a gigabyte in megabytes", () => {
+    expect(formatFreeBytes(98 * GIGABYTE)).toBe("98 GB");
+    expect(formatFreeBytes(12.5 * GIGABYTE)).toBe("12,5 GB");
+    expect(formatFreeBytes(500 * MEGABYTE)).toBe("500 MB");
+  });
+
+  it("rounds down so free space is never overstated", () => {
+    expect(formatFreeBytes(5 * GIGABYTE - 1)).toBe("4,9 GB");
+    expect(formatFreeBytes(GIGABYTE - 1)).toBe("1.023 MB");
+    expect(formatFreeBytes(500 * MEGABYTE - 1)).toBe("499 MB");
+  });
+
+  it("never shows more gigabytes than are free", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: GIGABYTE, max: 4096 * GIGABYTE }), (bytes) => {
+        const shown = Number(
+          formatFreeBytes(bytes).replace(" GB", "").replaceAll(".", "").replace(",", "."),
+        );
+        expect(Math.round(shown * 10) * GIGABYTE).toBeLessThanOrEqual(bytes * 10);
+      }),
+    );
+  });
+});
+
+describe("formatFreeRatio", () => {
+  it("shows the free share of a whole as a percentage with at most one decimal", () => {
+    expect(formatFreeRatio(0.41)).toBe("41 %");
+    expect(formatFreeRatio(0.29)).toBe("29 %");
+    expect(formatFreeRatio(0.125)).toBe("12,5 %");
+  });
+
+  it("rounds down so a free share is never overstated", () => {
+    expect(formatFreeRatio(0.1999)).toBe("19,9 %");
+    expect(formatFreeRatio(0.197)).toBe("19,7 %");
+  });
+
+  it("never shows a larger share than is free", () => {
+    fc.assert(
+      fc.property(fc.double({ min: 0, max: 1, noNaN: true }), (ratio) => {
+        const shown = Number(formatFreeRatio(ratio).replace(" %", "").replace(",", "."));
+        expect(shown / 100).toBeLessThanOrEqual(ratio + Number.EPSILON);
+      }),
+    );
   });
 });
 

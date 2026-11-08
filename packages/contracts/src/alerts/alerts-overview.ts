@@ -3,6 +3,7 @@ import { z } from "zod";
 const levelOverviewSchema = z.object({
   openCount: z.int().nonnegative(),
   kinds: z.array(z.string()),
+  localKinds: z.array(z.string()),
 });
 
 export const alertsOverviewSchema = z.object({

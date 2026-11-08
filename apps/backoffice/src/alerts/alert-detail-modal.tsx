@@ -8,11 +8,14 @@ import {
   Button,
   ButtonLink,
   EmptyState,
+  formatBytes,
   formatCalendarDay,
   formatCalendarDayRange,
   formatCents,
   formatDate,
   formatDayAndTime,
+  formatFreeBytes,
+  formatFreeRatio,
   formatInvoiceNumber,
   formatNumber,
   formatPercent,
@@ -31,6 +34,7 @@ import {
 import { createLink } from "@tanstack/react-router";
 import {
   ArrowLeft,
+  BatteryWarning,
   Bell,
   CalendarClock,
   Check,
@@ -38,6 +42,7 @@ import {
   CloudDownload,
   CloudOff,
   DatabaseBackup,
+  HardDrive,
   KeyRound,
   Laptop,
   LifeBuoy,
@@ -182,6 +187,13 @@ function alertIcon(kind: string): Icon {
     case "clock_drift":
     case "tz_rules_mismatch":
       return <Clock />;
+    case "on_battery":
+    case "battery_missing":
+    case "battery_health_low":
+      return <BatteryWarning />;
+    case "wal_oversized":
+    case "register_disk_space_low":
+      return <HardDrive />;
     default:
       return <Bell />;
   }
@@ -566,6 +578,11 @@ function alertTitle(alert: AlertDetail): string {
       return "Reembolso pendiente por un pago tardío";
     case "register_replenishment_failed":
     case "tz_rules_mismatch":
+    case "on_battery":
+    case "battery_missing":
+    case "battery_health_low":
+    case "wal_oversized":
+    case "register_disk_space_low":
       return alertKindLabel(alert.kind);
     case "refund_task":
       return "Reembolso pendiente de confirmar";
@@ -667,6 +684,12 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
         : `La caja «${targetName}» recibió un evento que su versión no puede leer. No puede vender hasta que se actualice; después lo intenta sola.`;
     case "tz_rules_mismatch":
       return `Versión de la caja: ${alert.detail.registerVersion ?? "Sin recibir"}. Versión de la nube: ${alert.detail.cloudVersion}.`;
+    case "battery_health_low":
+      return `La batería de la caja «${targetName}» conserva el ${formatPercent(alert.detail.healthPercent)} de su capacidad de diseño, por debajo del ${formatPercent(alert.detail.wornBelowPercent)}. Conviene cambiarla antes de que deje de aguantar un corte de luz.`;
+    case "wal_oversized":
+      return `El registro de cambios de la caja «${targetName}» pesa ${formatBytes(alert.detail.walSizeBytes)} y el límite es ${formatBytes(alert.detail.limitBytes)}. Se puede seguir vendiendo; si no baja solo, conviene reiniciar la caja.`;
+    case "register_disk_space_low":
+      return `A la caja «${targetName}» le queda libre el ${formatFreeRatio(alert.detail.diskFreeRatio)} del disco, ${formatFreeBytes(alert.detail.diskFreeBytes)}. Conviene liberar espacio antes de que se llene.`;
     case "outbox_chain_broken":
       return `La caja «${targetName}» envió eventos que no coinciden con su cadena: alguno se alteró, se quitó o se reordenó en el disco de la caja. La nube rechazó el envío y dio de baja la instalación.`;
     case "fiscal_rejected":
@@ -675,6 +698,8 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
     case "sales_denied":
     case "fiscal_emission_stopped":
     case "clock_drift":
+    case "on_battery":
+    case "battery_missing":
     case "late_payment_refund":
     case "refund_task":
     case "fortnight_report_pending":
@@ -938,6 +963,11 @@ function AlertDescription({ alert }: { alert: AlertDetail }) {
           Motivo: {preEmissionCheckReasonLabel(alert.detail.reason)}
         </p>
       </>
+    );
+  }
+  if (alert.kind === "on_battery") {
+    return (
+      <LocalAlertExplanation kind={alert.kind} threshold_minutes={alert.detail.thresholdMinutes} />
     );
   }
   return <LocalAlertExplanation kind={alert.kind} />;

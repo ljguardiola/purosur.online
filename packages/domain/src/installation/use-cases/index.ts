@@ -23,6 +23,8 @@ export { RegisterNameConflict } from "./branch-register-store.js";
 export type {
   BranchRegisterLastSync,
   BranchRegisterSyncReader,
+  RegisterBatteryState,
+  RegisterDiskState,
 } from "./branch-register-sync-reader.js";
 export { checkLocalDatabase } from "./check-local-database.js";
 export type { CreateRegisterInput, CreateRegisterOutcome } from "./create-register.js";

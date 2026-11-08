@@ -1,10 +1,15 @@
 import {
+  registerBatteryHealthObservation,
+  registerBatteryMissingObservation,
   registerClockDriftObservation,
+  registerDiskSpaceObservation,
   registerFiscalEmissionObservation,
+  registerOnBatteryObservation,
   registerReplenishmentObservation,
   registerSalesDeniedObservation,
   registerSyncedObservation,
   registerVersionObservation,
+  registerWalSizeObservation,
   registerZoneRulesObservation,
 } from "@purosur/domain";
 import type { RegisterStops, RegisterVersionStanding } from "@purosur/domain/sync/use-cases";
@@ -51,5 +56,17 @@ export async function observeRegisterStops<TQueryResult extends PgQueryResultHKT
   const replenishment = registerReplenishmentObservation(stops);
   if (replenishment !== undefined) {
     await observeAlertCondition(tx, replenishment, { now: () => at });
+  }
+  const observations = [
+    registerOnBatteryObservation(stops),
+    registerBatteryMissingObservation(stops),
+    registerBatteryHealthObservation(stops),
+    registerWalSizeObservation(stops),
+    registerDiskSpaceObservation(stops),
+  ];
+  for (const observation of observations) {
+    if (observation !== undefined) {
+      await observeAlertCondition(tx, observation, { now: () => at });
+    }
   }
 }

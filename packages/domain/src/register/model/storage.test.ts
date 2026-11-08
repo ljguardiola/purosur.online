@@ -1,7 +1,10 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
+  DISK_FREE_ALERT_BYTES,
+  DISK_FREE_ALERT_RATIO,
   diskStanding,
+  isDiskSpaceBelowAlertLimit,
   RETAINED_SNAPSHOT_GENERATIONS,
   requiredFreeBytes,
   STORAGE_READ_INTERVAL_MS,
@@ -172,5 +175,40 @@ describe("storageSalesStopOf", () => {
         diskFreeRatio: 0.03,
       }),
     ).toEqual({ reason: "disk_space_short_at_startup", required_free_bytes: 5_000_000_000 });
+  });
+});
+
+describe("isDiskSpaceBelowAlertLimit", () => {
+  it("limits the free disk to 20 percent and 5 GB", () => {
+    expect(DISK_FREE_ALERT_RATIO).toBe(0.2);
+    expect(DISK_FREE_ALERT_BYTES).toBe(5 * GIGABYTE);
+  });
+
+  it("is true when the free ratio is below 20 percent, however many bytes are free", () => {
+    expect(isDiskSpaceBelowAlertLimit({ disk_free_bytes: PLENTY, disk_free_ratio: 0.19 })).toBe(
+      true,
+    );
+  });
+
+  it("is true when the free bytes are below 5 GB, however large the ratio", () => {
+    expect(
+      isDiskSpaceBelowAlertLimit({ disk_free_bytes: 5 * GIGABYTE - 1, disk_free_ratio: 0.9 }),
+    ).toBe(true);
+  });
+
+  it("is false at exactly 20 percent and 5 GB", () => {
+    expect(
+      isDiskSpaceBelowAlertLimit({ disk_free_bytes: 5 * GIGABYTE, disk_free_ratio: 0.2 }),
+    ).toBe(false);
+  });
+
+  it("is true for a disk that is low by the register's own status-bar notice, and also for one that notice accepts", () => {
+    expect(
+      isDiskSpaceBelowAlertLimit({ disk_free_bytes: 3 * GIGABYTE, disk_free_ratio: 0.5 }),
+    ).toBe(true);
+    expect(diskStanding({ disk_free_bytes: 4 * GIGABYTE, disk_free_ratio: 0.15 })).toBe("enough");
+    expect(
+      isDiskSpaceBelowAlertLimit({ disk_free_bytes: 4 * GIGABYTE, disk_free_ratio: 0.15 }),
+    ).toBe(true);
   });
 });

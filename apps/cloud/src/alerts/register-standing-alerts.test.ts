@@ -41,7 +41,7 @@ async function alertsOfKind(kind: string) {
 
 const REPORT: RegisterTelemetry = {
   wal_size_bytes: 4096,
-  disk_free_bytes: 50_000_000,
+  disk_free_bytes: 100 * 1024 ** 3,
   disk_free_ratio: 0.42,
 };
 
@@ -171,6 +171,197 @@ describe("observeRegisterStops", () => {
     expect(await alertsOfKind("clock_drift")).toEqual([
       expect.objectContaining({ conditionClearedAt: LATER }),
     ]);
+  });
+
+  it("opens the on-battery alert for a register that has run on battery for 10 minutes", async () => {
+    await observeRegisterStops(
+      db,
+      {
+        registerId: REGISTER,
+        deviceId: DEVICE,
+        locationId: location,
+        cloudZoneRulesVersion: null,
+        report: {
+          ...REPORT,
+          battery: { present: true, charge_percent: 70, on_battery: true, on_battery_minutes: 11 },
+        },
+      },
+      NOW,
+    );
+
+    expect(await alertsOfKind("on_battery")).toEqual([
+      expect.objectContaining({
+        detail: { deviceId: DEVICE, onBatteryMinutes: 11, thresholdMinutes: 10 },
+        resolvedAt: null,
+      }),
+    ]);
+  });
+
+  it("clears the register's open on-battery alert once it reports being on mains power", async () => {
+    await observeRegisterStops(
+      db,
+      {
+        registerId: REGISTER,
+        deviceId: DEVICE,
+        locationId: location,
+        cloudZoneRulesVersion: null,
+        report: {
+          ...REPORT,
+          battery: { present: true, charge_percent: 70, on_battery: true, on_battery_minutes: 11 },
+        },
+      },
+      NOW,
+    );
+    await observeRegisterStops(
+      db,
+      {
+        registerId: REGISTER,
+        deviceId: DEVICE,
+        locationId: location,
+        cloudZoneRulesVersion: null,
+        report: {
+          ...REPORT,
+          battery: { present: true, charge_percent: 71, on_battery: false, on_battery_minutes: 0 },
+        },
+      },
+      LATER,
+    );
+
+    expect(await alertsOfKind("on_battery")).toEqual([
+      expect.objectContaining({ conditionClearedAt: LATER }),
+    ]);
+  });
+
+  it("opens the battery-missing alert for a register that reports no battery", async () => {
+    await observeRegisterStops(
+      db,
+      {
+        registerId: REGISTER,
+        deviceId: DEVICE,
+        locationId: location,
+        cloudZoneRulesVersion: null,
+        report: { ...REPORT, battery: { present: false } },
+      },
+      NOW,
+    );
+
+    expect(await alertsOfKind("battery_missing")).toEqual([
+      expect.objectContaining({ detail: { deviceId: DEVICE }, resolvedAt: null }),
+    ]);
+  });
+
+  it("opens the battery-health alert for a register whose battery health is below 60 percent", async () => {
+    await observeRegisterStops(
+      db,
+      {
+        registerId: REGISTER,
+        deviceId: DEVICE,
+        locationId: location,
+        cloudZoneRulesVersion: null,
+        report: {
+          ...REPORT,
+          battery: {
+            present: true,
+            charge_percent: 70,
+            health_percent: 55,
+            on_battery: false,
+            on_battery_minutes: 0,
+          },
+        },
+      },
+      NOW,
+    );
+
+    expect(await alertsOfKind("battery_health_low")).toEqual([
+      expect.objectContaining({
+        detail: { deviceId: DEVICE, healthPercent: 55, wornBelowPercent: 60 },
+        resolvedAt: null,
+      }),
+    ]);
+  });
+
+  it("opens the write-ahead-log alert for a register whose log passed 256 MB and clears it once it is back under", async () => {
+    await observeRegisterStops(
+      db,
+      {
+        registerId: REGISTER,
+        deviceId: DEVICE,
+        locationId: location,
+        cloudZoneRulesVersion: null,
+        report: { ...REPORT, wal_size_bytes: 300 * 1024 * 1024 },
+      },
+      NOW,
+    );
+    await observeRegisterStops(
+      db,
+      {
+        registerId: REGISTER,
+        deviceId: DEVICE,
+        locationId: location,
+        cloudZoneRulesVersion: null,
+        report: { ...REPORT, wal_size_bytes: 1024 },
+      },
+      LATER,
+    );
+
+    expect(await alertsOfKind("wal_oversized")).toEqual([
+      expect.objectContaining({
+        detail: {
+          deviceId: DEVICE,
+          walSizeBytes: 300 * 1024 * 1024,
+          limitBytes: 256 * 1024 * 1024,
+        },
+        conditionClearedAt: LATER,
+      }),
+    ]);
+  });
+
+  it("opens the free-disk alert for a register with less than 20 percent of its disk free and clears it once back above both limits", async () => {
+    await observeRegisterStops(
+      db,
+      {
+        registerId: REGISTER,
+        deviceId: DEVICE,
+        locationId: location,
+        cloudZoneRulesVersion: null,
+        report: { ...REPORT, disk_free_ratio: 0.15 },
+      },
+      NOW,
+    );
+    await observeRegisterStops(
+      db,
+      {
+        registerId: REGISTER,
+        deviceId: DEVICE,
+        locationId: location,
+        cloudZoneRulesVersion: null,
+        report: { ...REPORT, disk_free_ratio: 0.2 },
+      },
+      LATER,
+    );
+
+    expect(await alertsOfKind("register_disk_space_low")).toEqual([
+      expect.objectContaining({
+        detail: { deviceId: DEVICE, diskFreeBytes: 100 * 1024 ** 3, diskFreeRatio: 0.15 },
+        conditionClearedAt: LATER,
+      }),
+    ]);
+  });
+
+  it("opens no battery alert for a register whose battery could not be read", async () => {
+    await observeRegisterStops(
+      db,
+      {
+        registerId: REGISTER,
+        deviceId: DEVICE,
+        locationId: location,
+        cloudZoneRulesVersion: null,
+        report: REPORT,
+      },
+      NOW,
+    );
+
+    expect(await db.select().from(alerts)).toEqual([]);
   });
 
   it.each(["refused", "unreadable_event"] as const)(

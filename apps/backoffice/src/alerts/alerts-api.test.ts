@@ -250,9 +250,13 @@ test("closeAlert reports failed on an unexpected status or when the request thro
 });
 
 const overview = {
-  critical: { openCount: 1, kinds: ["user_access_increased"] },
-  warning: { openCount: 2, kinds: ["backoffice_passkey_changed", "user_email_changed"] },
-  informational: { openCount: 0, kinds: [] },
+  critical: { openCount: 1, kinds: ["user_access_increased"], localKinds: [] },
+  warning: {
+    openCount: 2,
+    kinds: ["backoffice_passkey_changed", "user_email_changed"],
+    localKinds: [],
+  },
+  informational: { openCount: 0, kinds: [], localKinds: [] },
 };
 
 test("fetchAlertsOverview answers the open visible alerts of each level on 200", async () => {
@@ -264,7 +268,10 @@ test("fetchAlertsOverview answers the open visible alerts of each level on 200",
 
 test.each([
   ["a body without a level", { critical: overview.critical, warning: overview.warning }],
-  ["a negative count", { ...overview, informational: { openCount: -1, kinds: [] } }],
+  [
+    "a negative count",
+    { ...overview, informational: { openCount: -1, kinds: [], localKinds: [] } },
+  ],
 ])("fetchAlertsOverview reports failed when a 200 body is %s", async (_description, body) => {
   vi.mocked(fetch).mockResolvedValue(jsonResponse(200, body));
 

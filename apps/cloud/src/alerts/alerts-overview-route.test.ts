@@ -114,9 +114,9 @@ function getOverview(rawSessionId: string | undefined) {
 }
 
 const NOTHING_OPEN = {
-  critical: { openCount: 0, kinds: [] },
-  warning: { openCount: 0, kinds: [] },
-  informational: { openCount: 0, kinds: [] },
+  critical: { openCount: 0, kinds: [], localKinds: [] },
+  warning: { openCount: 0, kinds: [], localKinds: [] },
+  informational: { openCount: 0, kinds: [], localKinds: [] },
 };
 
 describe("GET /alerts/overview", () => {
@@ -154,9 +154,9 @@ describe("GET /alerts/overview", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
-      critical: { openCount: 3, kinds: ["kind_a", "kind_b"] },
-      warning: { openCount: 1, kinds: ["kind_c"] },
-      informational: { openCount: 1, kinds: ["kind_d"] },
+      critical: { openCount: 3, kinds: ["kind_a", "kind_b"], localKinds: [] },
+      warning: { openCount: 1, kinds: ["kind_c"], localKinds: [] },
+      informational: { openCount: 1, kinds: ["kind_d"], localKinds: [] },
     });
   });
 
@@ -189,7 +189,7 @@ describe("GET /alerts/overview", () => {
 
       expect(response.json()).toEqual({
         ...NOTHING_OPEN,
-        critical: { openCount: 1, kinds: ["kind_local"] },
+        critical: { openCount: 1, kinds: ["kind_local"], localKinds: ["kind_local"] },
       });
     });
 
@@ -200,8 +200,12 @@ describe("GET /alerts/overview", () => {
 
       expect(response.json()).toEqual({
         ...NOTHING_OPEN,
-        critical: { openCount: 2, kinds: ["kind_local", "kind_other_branch"] },
-        warning: { openCount: 1, kinds: ["kind_all"] },
+        critical: {
+          openCount: 2,
+          kinds: ["kind_local", "kind_other_branch"],
+          localKinds: ["kind_local", "kind_other_branch"],
+        },
+        warning: { openCount: 1, kinds: ["kind_all"], localKinds: [] },
       });
     });
   });

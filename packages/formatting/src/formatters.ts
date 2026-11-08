@@ -32,6 +32,17 @@ export function formatBytes(bytes: number): string {
   return `${formatNumber(Math.ceil(bytes / BYTES_PER_MEGABYTE))} MB`;
 }
 
+export function formatFreeBytes(bytes: number): string {
+  if (bytes >= BYTES_PER_GIGABYTE) {
+    return `${formatNumber(Math.floor((bytes * 10) / BYTES_PER_GIGABYTE) / 10)} GB`;
+  }
+  return `${formatNumber(Math.floor(bytes / BYTES_PER_MEGABYTE))} MB`;
+}
+
+export function formatFreeRatio(ratio: number): string {
+  return formatPercent(Math.floor(ratio * 1000) / 10);
+}
+
 export function formatCents(cents: number): string {
   return `$ ${formatAmountInput(cents)}`;
 }

@@ -147,9 +147,9 @@ describe("DrizzleAlertReader sight", () => {
     expect((await reader.findVisibleAlert(sight, own))?.id).toBe(own);
     expect(await reader.findVisibleAlert(sight, foreign)).toBeUndefined();
     expect(await reader.overviewOfOpenVisibleAlerts(sight)).toEqual({
-      critical: { openCount: 1, kinds: ["register_enrolled"] },
-      warning: { openCount: 0, kinds: [] },
-      informational: { openCount: 0, kinds: [] },
+      critical: { openCount: 1, kinds: ["register_enrolled"], localKinds: ["register_enrolled"] },
+      warning: { openCount: 0, kinds: [], localKinds: [] },
+      informational: { openCount: 0, kinds: [], localKinds: [] },
     });
   });
 });
@@ -456,8 +456,25 @@ describe("DrizzleAlertReader overviewOfOpenVisibleAlerts", () => {
 
     const overview = await new DrizzleAlertReader(db).overviewOfOpenVisibleAlerts(ALL);
 
-    expect(overview.critical).toEqual({ openCount: 3, kinds: ["kind_a", "kind_b"] });
-    expect(overview.warning).toEqual({ openCount: 0, kinds: [] });
+    expect(overview.critical).toEqual({
+      openCount: 3,
+      kinds: ["kind_a", "kind_b"],
+      localKinds: [],
+    });
+    expect(overview.warning).toEqual({ openCount: 0, kinds: [], localKinds: [] });
+  });
+
+  it("lists which of a level's open kinds are of Local audience", async () => {
+    await insertAlert({ kind: "kind_a", level: "warning", audience: "all" });
+    await insertAlert({ kind: "kind_b", level: "warning", audience: "local" });
+
+    const overview = await new DrizzleAlertReader(db).overviewOfOpenVisibleAlerts(ALL);
+
+    expect(overview.warning).toEqual({
+      openCount: 2,
+      kinds: ["kind_a", "kind_b"],
+      localKinds: ["kind_b"],
+    });
   });
 });
 

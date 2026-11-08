@@ -2,18 +2,25 @@ import { describe, expect, it } from "vitest";
 import { alertsOverviewSchema } from "./alerts-overview.js";
 
 const overview = {
-  critical: { openCount: 2, kinds: ["user_access_increased"] },
-  warning: { openCount: 3, kinds: ["backoffice_passkey_changed", "user_email_changed"] },
-  informational: { openCount: 0, kinds: [] },
+  critical: { openCount: 2, kinds: ["user_access_increased"], localKinds: [] },
+  warning: {
+    openCount: 3,
+    kinds: ["backoffice_passkey_changed", "user_email_changed"],
+    localKinds: ["user_email_changed"],
+  },
+  informational: { openCount: 0, kinds: [], localKinds: [] },
 };
 
 describe("alertsOverviewSchema", () => {
-  it("accepts each level's open count and the kinds open at that level", () => {
+  it("accepts each level's open count, the kinds open at that level and which of them are of Local audience", () => {
     expect(alertsOverviewSchema.safeParse(overview).data).toEqual(overview);
   });
 
   it("accepts a kind the catalog does not list, such as one a later release adds", () => {
-    const withNewKind = { ...overview, informational: { openCount: 1, kinds: ["kind_a"] } };
+    const withNewKind = {
+      ...overview,
+      informational: { openCount: 1, kinds: ["kind_a"], localKinds: [] },
+    };
 
     expect(alertsOverviewSchema.safeParse(withNewKind).data).toEqual(withNewKind);
   });
@@ -34,7 +41,7 @@ describe("alertsOverviewSchema", () => {
     expect(alertsOverviewSchema.safeParse(rest).success).toBe(false);
   });
 
-  it.each(["openCount", "kinds"])("requires a level's %s", (field) => {
+  it.each(["openCount", "kinds", "localKinds"])("requires a level's %s", (field) => {
     const { [field as keyof typeof overview.critical]: _omitted, ...critical } = overview.critical;
 
     expect(alertsOverviewSchema.safeParse({ ...overview, critical }).success).toBe(false);
@@ -47,6 +54,9 @@ describe("alertsOverviewSchema", () => {
     ["kinds", null],
     ["kinds", "user_access_increased"],
     ["kinds", [1]],
+    ["localKinds", null],
+    ["localKinds", "user_email_changed"],
+    ["localKinds", [1]],
   ])("refuses a level's %s as %j", (field, value) => {
     expect(
       alertsOverviewSchema.safeParse({
