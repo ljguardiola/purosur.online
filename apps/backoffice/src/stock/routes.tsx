@@ -4,7 +4,11 @@ import { z } from "zod";
 import { canManageBatches, canManageRecipes, canSeeReports } from "../shell/backoffice-access";
 import { lazyScreen } from "../shell/lazy-screen";
 import { productsRoute, productsTabRedirect } from "../shell/products-route";
-import { reportPeriodSearch } from "../shell/report-filters-search";
+import {
+  reportFiltersFields,
+  reportPeriodSearch,
+  withoutRefusedPeriod,
+} from "../shell/report-filters-search";
 import { reportsAreaRoute } from "../shell/reports-area";
 import { refuseWithout, signedInRoute } from "../shell/signed-in-route";
 import { stockRegisterSearch, stockRoute, stockTabRedirect } from "../shell/stock-route";
@@ -76,11 +80,15 @@ export const initialInventoryFilters = z.object({
 
 export type InitialInventoryFilters = z.output<typeof initialInventoryFilters>;
 
-export const expiringLotsFilters = z.object({
-  search: z.string().default("").catch(""),
-  category: z.string().default("ALL").catch("ALL"),
-  expiry: z.enum(["all", "expired", "upcoming"]).default("all").catch("all"),
-});
+export const expiringLotsFilters = z
+  .object({
+    search: z.string().default("").catch(""),
+    category: z.string().default("ALL").catch("ALL"),
+    expiry: z.enum(["all", "expired", "upcoming"]).default("all").catch("all"),
+    from: reportFiltersFields.from,
+    to: reportFiltersFields.to,
+  })
+  .transform(withoutRefusedPeriod);
 
 export type ExpiringLotsFilters = z.output<typeof expiringLotsFilters>;
 export const recipesListFilters = z.object({

@@ -501,7 +501,5 @@ test("offers the period and the export of Vencimientos to a person with stock_ex
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("group", { name: /^Período/ })).toBeVisible();
-  await expect
-    .element(screen.getByRole("button", { name: "Descargar planilla" }))
-    .toBeEnabled();
+  await expect.element(screen.getByRole("button", { name: "Descargar planilla" })).toBeEnabled();
 });
