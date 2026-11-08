@@ -163,11 +163,11 @@ test("asks the cloud for the lots of the chosen cost", async () => {
     .toEqual([{ cost: "known" }]);
 });
 
-test("closes on Cerrar", async () => {
+test("closes on Listo", async () => {
   const onClose = vi.fn();
   const screen = await renderScreen(createServices(), { onClose });
 
-  await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
+  await userEvent.click(screen.getByRole("button", { name: "Listo" }));
 
   expect(onClose).toHaveBeenCalledTimes(1);
 });
