@@ -1,6 +1,7 @@
 import { Tab, Tabs } from "@purosur/ui";
 import { createLink, getRouteApi, Outlet, useMatchRoute } from "@tanstack/react-router";
 import type { ReactElement } from "react";
+import { StockRegisterAction } from "../stock/stock-register-action";
 import { AreaTopBar } from "./area-top-bar";
 import { useDocumentTitle } from "./document-title";
 import { ScreenLayout } from "./screen-layout";
@@ -27,7 +28,10 @@ export function StockPage(): ReactElement {
       : "balances";
 
   return (
-    <ScreenLayout topBar={<AreaTopBar title="Stock" />} bodyClassName="p-0">
+    <ScreenLayout
+      topBar={<AreaTopBar title="Stock" action={<StockRegisterAction />} />}
+      bodyClassName="p-0"
+    >
       {stockTabs.length > 0 && (
         <Tabs
           label="Secciones de Stock"
