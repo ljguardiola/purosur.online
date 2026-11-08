@@ -171,3 +171,31 @@ test("describes a deferred sale that is not invoiced yet and nears the day it ca
     "Una venta diferida todavía no se facturó y se acerca el día en que ya no podrá facturarse.",
   );
 });
+
+test("describes the on_battery alert", () => {
+  expect(alertKindDescription("on_battery")).toBe(
+    "Una caja lleva 10 minutos o más funcionando solo con la batería",
+  );
+});
+
+test("describes the battery_missing alert", () => {
+  expect(alertKindDescription("battery_missing")).toBe("Una caja no informa tener batería");
+});
+
+test("describes the battery_health_low alert", () => {
+  expect(alertKindDescription("battery_health_low")).toBe(
+    "La batería de una caja conserva menos del 60 % de su capacidad de diseño",
+  );
+});
+
+test("describes the wal_oversized alert", () => {
+  expect(alertKindDescription("wal_oversized")).toBe(
+    "El registro de cambios de una caja pasó los 256 MB",
+  );
+});
+
+test("describes the register_disk_space_low alert", () => {
+  expect(alertKindDescription("register_disk_space_low")).toBe(
+    "A una caja le queda menos del 20 % o menos de 5 GB libres del disco",
+  );
+});
