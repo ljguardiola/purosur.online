@@ -77,6 +77,20 @@ test("passes a cache step that lists electron-builder's cache among other paths"
   );
 });
 
+test("passes a cache step that names electron-builder's cache through the env context", () => {
+  for (const path of [
+    `\${{ env.ELECTRON_BUILDER_CACHE }}`,
+    `\${{env.ELECTRON_BUILDER_CACHE}}`,
+    `|\n    \${{ env.ELECTRON_BUILDER_CACHE }}\n    ~/other`,
+  ]) {
+    const violations = violationsOf(
+      workflow({ steps: [cacheStep(CACHE_RESTORE, path), PACK, cacheStep(CACHE_SAVE, path)] }),
+    );
+
+    assert.deepEqual(violations, [], path);
+  }
+});
+
 test("leaves alone a job that does not package the register", () => {
   const violations = violationsOf(
     workflow({ jobEnv: [], steps: [step("run: pnpm --filter @purosur/pos build")] }),
