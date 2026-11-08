@@ -1587,7 +1587,12 @@ describe("answerRendererRequest", () => {
   );
 
   it("answers which payment methods are available for the sale being charged", async () => {
-    const availability = { qr: "available", point: "below_minimum", point_minimum: 1500 } as const;
+    const availability = {
+      qr: "available",
+      point: "below_minimum",
+      point_minimum: 1500,
+      qr_minimum: 1500,
+    } as const;
     const { deps: withAvailability } = deps(true, {
       paymentMethodAvailability: async () => availability,
     });

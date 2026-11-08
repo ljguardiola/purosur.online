@@ -1,5 +1,6 @@
 import type { PaymentMethodAvailability } from "@purosur/contracts";
 import type { Icon, Options } from "@purosur/ui";
+import { formatCents } from "@purosur/ui";
 import { Banknote, Calculator, CreditCard, Landmark, QrCode, WifiOff } from "lucide-react";
 import type { CoreData } from "../platform/use-core-query";
 
@@ -93,7 +94,7 @@ const STANDALONE_TERMINAL_OPTION: MethodOption = {
   icon: <Calculator />,
 };
 
-function qrOption(qr: PaymentMethodAvailability["qr"]): MethodOption {
+function qrOption(qr: PaymentMethodAvailability["qr"], minimum: number): MethodOption {
   switch (qr) {
     case "available":
       return QR_OPTION;
@@ -101,6 +102,12 @@ function qrOption(qr: PaymentMethodAvailability["qr"]): MethodOption {
       return QR_OPTION_OFFLINE;
     case "not_configured":
       return QR_OPTION_NOT_CONFIGURED;
+    case "below_minimum":
+      return {
+        ...QR_OPTION,
+        description: `No se ofrece para cobrar menos de ${formatCents(minimum)}`,
+        disabled: true,
+      };
   }
 }
 
@@ -118,12 +125,12 @@ export function chargeMethodOptions(
       belowMinimum: undefined,
     };
   }
-  const { qr, point, point_minimum: minimum } = availability.value;
+  const { qr, point, point_minimum: minimum, qr_minimum: qrMinimum } = availability.value;
   return {
     options: [
       CASH_OPTION,
       ...pointOptions(point),
-      qrOption(qr),
+      qrOption(qr, qrMinimum),
       TRANSFER_OPTION,
       STANDALONE_TERMINAL_OPTION,
     ],

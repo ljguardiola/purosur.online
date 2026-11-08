@@ -224,6 +224,20 @@ describe("the Mercado Pago order routes", () => {
   });
 
   describe("POST /payments/mercado-pago/orders", () => {
+    it("refuses an amount below the QR's minimum, recording nothing and not calling Mercado Pago", async () => {
+      const { deviceToken } = await enroll();
+
+      const response = await createOrder(orderRequest({ amount: 1499 }), `Bearer ${deviceToken}`);
+
+      expect(response.statusCode).toBe(400);
+      expect(cloudErrorSchema.parse(response.json())).toMatchObject({
+        code: "validation_failed",
+        message: "amount is below the minimum of a Mercado Pago order",
+      });
+      expect(route.mercadoPago.creations).toEqual([]);
+      expect(await transactions()).toEqual([]);
+    });
+
     it("refuses an over-limit request before reading its body", async () => {
       const { deviceId, deviceToken } = await enroll();
       await insertRequestsUpToLimit(route.db, deviceId, "payment_order", NOW);
@@ -444,7 +458,10 @@ describe("the Mercado Pago order routes", () => {
       );
 
       expect(response.statusCode).toBe(400);
-      expect(cloudErrorSchema.parse(response.json()).code).toBe("validation_failed");
+      expect(cloudErrorSchema.parse(response.json())).toMatchObject({
+        code: "validation_failed",
+        message: "amount is below the minimum of a Mercado Pago order",
+      });
       expect(route.mercadoPago.pointCreations).toEqual([]);
       expect(await transactions()).toEqual([]);
     });

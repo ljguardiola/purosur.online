@@ -24,6 +24,10 @@ export {
   MERCADO_PAGO_POINT_MINIMUM_ORDER_CENTS,
   MERCADO_PAGO_POINT_ORDER_EXPIRY_MINUTES,
 } from "./model/mercado-pago-point-order.js";
+export {
+  isValidQrOrderAmount,
+  MERCADO_PAGO_QR_MINIMUM_ORDER_CENTS,
+} from "./model/mercado-pago-qr-order.js";
 export type {
   MercadoPagoOrderRefund,
   MercadoPagoRefundAnswer,

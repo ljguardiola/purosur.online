@@ -67,7 +67,7 @@ const PAYMENT_NOT_OWNED = cloudError("not_found", "that payment is not this regi
 const INVALID_AMOUNT = cloudError("validation_failed", "amount must be a positive number of cents");
 const BELOW_MINIMUM = cloudError(
   "validation_failed",
-  "amount is below the minimum the integrated terminal charges",
+  "amount is below the minimum of a Mercado Pago order",
 );
 
 type CloudErrorBody = ReturnType<typeof cloudError>;

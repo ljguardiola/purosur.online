@@ -224,6 +224,7 @@ export function ChargeScreen({
   const paidOrder = sale?.rebuilt_paid_order;
   const paidOrderToApply = paidOrder?.applied === false ? paidOrder : undefined;
   const { options, belowMinimum } = chargeMethodOptions(availability);
+  const qrMinimum = availability.status === "loaded" ? availability.value.qr_minimum : undefined;
   const pointMinimum =
     availability.status === "loaded" ? availability.value.point_minimum : undefined;
   const lineCount = sale?.lines.length ?? 0;
@@ -369,11 +370,12 @@ export function ChargeScreen({
           onSessionInvalid={onSessionInvalid}
         />
       ) : null}
-      {sale !== undefined && step.name === "qr" ? (
+      {sale !== undefined && step.name === "qr" && qrMinimum !== undefined ? (
         <QrChargeModal
           total={sale.total}
           paid={sale.paid}
           pending={sale.pending}
+          minimum={qrMinimum}
           start={(amount) => startMercadoPagoCharge(sale.id, { method: "QR" }, amount)}
           onChooseAnotherMethod={() => void backToMethodsWithBalance()}
           onOrderShown={(order) => setStep({ name: "qr-wait", order, sale })}

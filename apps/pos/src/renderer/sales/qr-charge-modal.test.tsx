@@ -17,6 +17,7 @@ const ORDER_SHOWN: StartMercadoPagoChargeOutcome = {
 };
 
 const AMOUNT_FIELD = "Importe a cobrar con este medio";
+const MINIMUM = 1500;
 const WHOLE_SALE = { total: TOTAL, paid: 0, pending: TOTAL };
 
 type Start = (amount: number) => Promise<StartMercadoPagoChargeOutcome>;
@@ -34,7 +35,9 @@ async function renderModal(
     onSaleUnavailable: vi.fn(),
     onSessionInvalid: vi.fn(),
   };
-  const screen = await render(<QrChargeModal {...sale} start={startCharge} {...callbacks} />);
+  const screen = await render(
+    <QrChargeModal {...sale} minimum={MINIMUM} start={startCharge} {...callbacks} />,
+  );
   return {
     screen,
     startCharge,
@@ -129,6 +132,18 @@ describe("QrChargeModal", () => {
     await expect
       .element(screen.getByText("No puede superar el saldo pendiente de $ 40.700,00."))
       .toBeVisible();
+  });
+
+  it("says the QR does not accept charges under its minimum", async () => {
+    const { screen, field, create } = await renderModal(async () => ({ kind: "below_minimum" }));
+
+    await userEvent.fill(field, "10,00");
+    await userEvent.click(create);
+
+    await expect
+      .element(screen.getByText("El QR no acepta cobros menores a $ 15,00"))
+      .toBeVisible();
+    await expect.element(create).toBeEnabled();
   });
 
   it("says Mercado Pago could not create the order, keeping the way to another method", async () => {

@@ -1,6 +1,7 @@
 import type { PaymentMethodAvailability } from "@purosur/contracts";
 import {
   MERCADO_PAGO_POINT_MINIMUM_ORDER_CENTS,
+  MERCADO_PAGO_QR_MINIMUM_ORDER_CENTS,
   pointTerminalAvailability,
   qrAvailability,
 } from "@purosur/domain";
@@ -30,6 +31,7 @@ export async function paymentMethodAvailabilityFor({
     qr: qrAvailability({
       pointOfSaleAssigned: qrPointOfSaleAssigned(database),
       cloudReachable,
+      pendingCents: sale.pending,
     }),
     point: pointTerminalAvailability({
       terminalAssigned: pointTerminalAssigned(database),
@@ -37,5 +39,6 @@ export async function paymentMethodAvailabilityFor({
       pendingCents: sale.pending,
     }),
     point_minimum: MERCADO_PAGO_POINT_MINIMUM_ORDER_CENTS,
+    qr_minimum: MERCADO_PAGO_QR_MINIMUM_ORDER_CENTS,
   };
 }

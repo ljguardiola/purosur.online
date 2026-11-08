@@ -182,6 +182,28 @@ describe("createMercadoPagoQrOrder", () => {
     expect(outcome).toMatchObject({ kind: "recorded", transaction: { state: "APPROVED" } });
   });
 
+  it("accepts exactly the minimum amount", async () => {
+    const { mercadoPago, ports } = mercadoPagoOrderWorld();
+
+    const outcome = await createMercadoPagoQrOrder(ports, { ...INPUT, amount: 1500 });
+
+    expect(outcome).toMatchObject({ kind: "recorded" });
+    expect(mercadoPago.creationRequests).toHaveLength(1);
+  });
+
+  it.each([1, 1499])(
+    "refuses the amount %s as under the QR's minimum without recording anything nor calling Mercado Pago",
+    async (amount) => {
+      const { lanes, mercadoPago, ports } = mercadoPagoOrderWorld();
+
+      const outcome = await createMercadoPagoQrOrder(ports, { ...INPUT, amount });
+
+      expect(outcome).toEqual({ kind: "below_minimum" });
+      expect(lanes.operations).toEqual([]);
+      expect(mercadoPago.creationRequests).toEqual([]);
+    },
+  );
+
   it.each([0, -100, 12.5])("refuses the amount %s without recording anything", async (amount) => {
     const { lanes, mercadoPago, ports } = mercadoPagoOrderWorld();
 

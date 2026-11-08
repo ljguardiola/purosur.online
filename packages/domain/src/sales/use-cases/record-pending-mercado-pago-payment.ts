@@ -1,5 +1,6 @@
 import {
   isValidPointOrderAmount,
+  isValidQrOrderAmount,
   nonCashCharge,
   type PointCardType,
 } from "../../payments/index.js";
@@ -7,6 +8,11 @@ import type { ZoneRulesSource } from "../../shared/index.js";
 import { isSaleRefusal, type NewPaymentRefusal, saleOpenToNewPayment } from "./chargeable-sale.js";
 import type { RegisterRestoration } from "./register-restoration.js";
 import type { IdGenerator, SaleLedger } from "./sale-ledger.js";
+
+const AMOUNT_IS_CHARGEABLE = {
+  POINT: isValidPointOrderAmount,
+  QR: isValidQrOrderAmount,
+};
 
 export type RecordPendingMercadoPagoPaymentInput = {
   actorId: string;
@@ -55,7 +61,7 @@ export function recordPendingMercadoPagoPayment(
     if (charge.kind === "invalid_amount" || charge.kind === "exceeds_pending") {
       return charge;
     }
-    if (input.method === "POINT" && !isValidPointOrderAmount(charge.applied)) {
+    if (!AMOUNT_IS_CHARGEABLE[input.method](charge.applied)) {
       return { kind: "below_minimum" };
     }
 

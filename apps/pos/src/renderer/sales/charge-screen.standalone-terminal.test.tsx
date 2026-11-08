@@ -19,6 +19,7 @@ describe("ChargeScreen · terminal independiente", () => {
         qr: "available",
         point: "available",
         point_minimum: 1500,
+        qr_minimum: 1500,
       }),
     ],
     [
@@ -27,6 +28,7 @@ describe("ChargeScreen · terminal independiente", () => {
         qr: "offline",
         point: "offline",
         point_minimum: 1500,
+        qr_minimum: 1500,
       }),
     ],
     ["still loading", () => new Promise<PaymentMethodAvailability | null>(() => {})],

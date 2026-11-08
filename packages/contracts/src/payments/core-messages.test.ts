@@ -377,10 +377,11 @@ describe("asking which payment methods are available", () => {
   });
 
   it.each([
-    { qr: "available", point: "available", point_minimum: 1500 },
-    { qr: "offline", point: "offline", point_minimum: 1500 },
-    { qr: "available", point: "below_minimum", point_minimum: 1500 },
-    { qr: "not_configured", point: "available", point_minimum: 1500 },
+    { qr: "available", point: "available", point_minimum: 1500, qr_minimum: 1500 },
+    { qr: "offline", point: "offline", point_minimum: 1500, qr_minimum: 1500 },
+    { qr: "available", point: "below_minimum", point_minimum: 1500, qr_minimum: 1500 },
+    { qr: "below_minimum", point: "available", point_minimum: 1500, qr_minimum: 1500 },
+    { qr: "not_configured", point: "available", point_minimum: 1500, qr_minimum: 1500 },
     null,
   ])("accepts the answer %o", (availability) => {
     const result = {
@@ -393,11 +394,11 @@ describe("asking which payment methods are available", () => {
   });
 
   it.each([
-    { qr: "below_minimum", point: "available", point_minimum: 1500 },
-    { qr: "available", point: "unknown", point_minimum: 1500 },
-    { qr: "available", point_minimum: 1500 },
-    { point: "available", point_minimum: 1500 },
-    { qr: "available", point: "available" },
+    { qr: "available", point: "unknown", point_minimum: 1500, qr_minimum: 1500 },
+    { qr: "available", point_minimum: 1500, qr_minimum: 1500 },
+    { point: "available", point_minimum: 1500, qr_minimum: 1500 },
+    { qr: "available", point: "available", point_minimum: 1500 },
+    { qr: "available", point: "available", qr_minimum: 1500 },
   ])("rejects the answer %o", (availability) => {
     expect(
       paymentsCoreToRendererMessageSchema.safeParse({

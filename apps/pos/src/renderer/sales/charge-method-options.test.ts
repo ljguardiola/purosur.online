@@ -6,6 +6,7 @@ const AVAILABLE: PaymentMethodAvailability = {
   qr: "available",
   point: "available",
   point_minimum: 1500,
+  qr_minimum: 1500,
 };
 
 function loaded(availability: Partial<PaymentMethodAvailability> = {}) {
@@ -79,6 +80,18 @@ describe("chargeMethodOptions", () => {
 
     expect(shown(options).filter(({ disabled }) => disabled)).toEqual([
       { value: "QR", description: "No configurado en esta caja", disabled: true },
+    ]);
+  });
+
+  it("shows the QR as unavailable below its minimum, disabled, naming that minimum", () => {
+    const { options } = loaded({ qr: "below_minimum" });
+
+    expect(shown(options).filter(({ disabled }) => disabled)).toEqual([
+      {
+        value: "QR",
+        description: "No se ofrece para cobrar menos de $ 15,00",
+        disabled: true,
+      },
     ]);
   });
 

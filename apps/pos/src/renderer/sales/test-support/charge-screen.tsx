@@ -159,6 +159,7 @@ export const AVAILABLE: PaymentMethodAvailability = {
   qr: "available",
   point: "available",
   point_minimum: 1500,
+  qr_minimum: 1500,
 };
 
 export type Overrides = {
