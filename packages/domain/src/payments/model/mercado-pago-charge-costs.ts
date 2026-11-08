@@ -6,9 +6,12 @@ import {
 } from "./mercado-pago-settlement.js";
 import type { MercadoPagoPaymentMethod } from "./payment.js";
 
-export type ChargeCostMethod = MercadoPagoPaymentMethod | "OTHER";
+export const CHARGE_COST_METHODS = ["QR", "POINT", "OTHER"] as const satisfies readonly (
+  | MercadoPagoPaymentMethod
+  | "OTHER"
+)[];
 
-const METHOD_ORDER: readonly ChargeCostMethod[] = ["QR", "POINT", "OTHER"];
+export type ChargeCostMethod = (typeof CHARGE_COST_METHODS)[number];
 
 export interface OwnChargeInput {
   paymentTransactionId: string;
@@ -69,8 +72,6 @@ export interface ChargeCostsSummary {
 interface Counted {
   day: string;
   method: ChargeCostMethod;
-  registerId: string | null;
-  registerName: string | null;
   cost: ChargeCost | null;
 }
 
@@ -114,13 +115,10 @@ function groupBy<Key extends string>(
 }
 
 function earliestDate(movements: readonly SettlementMovement[]): Date | null {
-  let earliest: Date | null = null;
-  for (const movement of movements) {
-    if (earliest === null || movement.transactionDate < earliest) {
-      earliest = movement.transactionDate;
-    }
+  if (movements.length === 0) {
+    return null;
   }
-  return earliest;
+  return new Date(Math.min(...movements.map((movement) => movement.transactionDate.getTime())));
 }
 
 export function summarizeChargeCosts({
@@ -147,8 +145,6 @@ export function summarizeChargeCosts({
   const counted: Counted[] = lines.map((line) => ({
     day: argentinaCalendarDay(line.chargedAt, rules),
     method: line.method,
-    registerId: line.registerId,
-    registerName: line.registerName,
     cost: line.cost,
   }));
   for (const other of otherCharges) {
@@ -163,8 +159,6 @@ export function summarizeChargeCosts({
     counted.push({
       day,
       method: "OTHER",
-      registerId: null,
-      registerName: null,
       cost: chargeCostOf(other.movements),
     });
   }
@@ -173,17 +167,23 @@ export function summarizeChargeCosts({
   for (const item of counted) {
     add(totals, item.cost);
   }
-  const byRegister = new Map<string, ChargeCostsOfRegister>();
-  for (const item of counted) {
-    const key = item.registerId ?? "";
-    const group = byRegister.get(key) ?? {
-      registerId: item.registerId,
-      registerName: item.registerName,
+  const byRegister = new Map<
+    string,
+    { registerId: string; registerName: string } & ChargeCostEntry
+  >();
+  for (const line of lines) {
+    const group = byRegister.get(line.registerId) ?? {
+      registerId: line.registerId,
+      registerName: line.registerName,
       ...emptyEntry(),
     };
-    add(group, item.cost);
-    byRegister.set(key, group);
+    add(group, line.cost);
+    byRegister.set(line.registerId, group);
   }
+  const otherChargesGroup = groupBy(
+    counted.filter((item) => item.method === "OTHER"),
+    () => "other",
+  ).get("other");
   const byMethod = groupBy(counted, (item) => item.method);
 
   return {
@@ -194,16 +194,16 @@ export function summarizeChargeCosts({
     months: [...groupBy(counted, (item) => item.day.slice(0, 7))]
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([month, entry]) => ({ month, ...entry })),
-    methods: METHOD_ORDER.flatMap((method) => {
+    methods: CHARGE_COST_METHODS.flatMap((method) => {
       const entry = byMethod.get(method);
       return entry === undefined ? [] : [{ method, ...entry }];
     }),
-    registers: [...byRegister.values()].sort((a, b) => {
-      if (a.registerName === null || b.registerName === null) {
-        return Number(a.registerName === null) - Number(b.registerName === null);
-      }
-      return a.registerName.localeCompare(b.registerName);
-    }),
+    registers: [
+      ...[...byRegister.values()].sort((a, b) => a.registerName.localeCompare(b.registerName)),
+      ...(otherChargesGroup === undefined
+        ? []
+        : [{ registerId: null, registerName: null, ...otherChargesGroup }]),
+    ],
     totals,
   };
 }
