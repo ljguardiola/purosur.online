@@ -3,8 +3,8 @@ import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
-import { stopOpeningNewSales } from "./sqlite-local-installation";
 import { enrollmentStandingOf } from "./installation-enrollment-requests";
+import { stopOpeningNewSales } from "./sqlite-local-installation";
 
 const STOPPED_AT = new Date("2026-10-01T09:30:00.000Z");
 const databases: LocalDatabase[] = [];

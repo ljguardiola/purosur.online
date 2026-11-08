@@ -101,6 +101,9 @@ import { PinCodeRedemptionScreen } from "../credentials/pin-code-redemption-scre
 import { ClockGuardOffer } from "../fiscal/clock-guard-offer";
 import { HelpScreen } from "../help/help-screen";
 import { help } from "../help/register-help";
+import { EnrollmentScreen, ReEnrollmentScreen } from "../installation/enrollment-screen";
+import { OutOfServiceScreen } from "../installation/out-of-service-screen";
+import { RevokedInstallationScreen } from "../installation/revoked-installation-screen";
 import type {
   CashMovementInput,
   CompleteReturnInput,
@@ -113,12 +116,10 @@ import type {
 import { CashCountScreen } from "../register/cash-count-screen";
 import { CashScreen } from "../register/cash-screen";
 import type { CashSessionState } from "../register/cash-session-state";
-import { EnrollmentScreen, ReEnrollmentScreen } from "../installation/enrollment-screen";
 import { LockedCloseScreen } from "../register/locked-close-screen";
 import { LockedRegisterScreen } from "../register/locked-register-screen";
 import { NoSessionScreen } from "../register/no-session-screen";
 import { OlderVersionScreen } from "../register/older-version-screen";
-import { OutOfServiceScreen } from "../installation/out-of-service-screen";
 import { ReceiptPrinterScreen } from "../register/receipt-printer-screen";
 import type { StartupPendingAnswer } from "../register/register-queries";
 import {
@@ -132,7 +133,6 @@ import {
 import { RestoreRequiredScreen } from "../register/restore-required-screen";
 import type { RestoringStanding } from "../register/restoring-screen";
 import { RestoringScreen } from "../register/restoring-screen";
-import { RevokedInstallationScreen } from "../installation/revoked-installation-screen";
 import { mayConfigureSerialDevices } from "../register/serial-devices-offer";
 import { SerialDevicesScreen } from "../register/serial-devices-screen";
 import { StartupPendingScreen } from "../register/startup-pending-screen";

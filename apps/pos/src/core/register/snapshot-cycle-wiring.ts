@@ -6,10 +6,10 @@ import {
   runSnapshotCycle,
   type SnapshotCorruptionReports,
 } from "@purosur/domain/register/use-cases";
+import { staleSequenceDetected } from "../installation/sqlite-installation-presence";
 import type { CloudClientDeps } from "../platform/cloud-client";
 import type { LocalDatabase } from "../platform/local-database";
 import type { CloudReachability } from "../sync/cloud-reachability";
-import { staleSequenceDetected } from "../installation/sqlite-installation-presence";
 import { sqliteSyncSequences } from "../sync/sqlite-sync-sequences";
 import type { StorageReading } from "../sync/storage-telemetry";
 import { createSnapshotCycleSchedule, type SnapshotCycleSchedule } from "./snapshot-cycle-schedule";

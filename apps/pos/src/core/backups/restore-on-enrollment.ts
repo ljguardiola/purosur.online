@@ -1,6 +1,9 @@
 import type { DeviceCredentials } from "@purosur/contracts";
+import {
+  installationHeld,
+  staleSequenceDetected,
+} from "../installation/sqlite-installation-presence";
 import type { LocalDatabase } from "../platform/local-database";
-import { installationHeld, staleSequenceDetected } from "../installation/sqlite-installation-presence";
 import type { RestorePending } from "./restore-pending";
 
 export function storingEnrollmentCredentials({

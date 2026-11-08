@@ -18,13 +18,13 @@ import { observeRegisterOwnConditions } from "@purosur/domain/register/use-cases
 import { readFiscalEmissionModeIn } from "../fiscal/sqlite-fiscal-emission-mode";
 import { readLatestPreEmissionGateOutcome } from "../fiscal/sqlite-pre-emission-gate";
 import { readLatestClockOffsetMs } from "../fiscal/sqlite-register-health-checks";
+import { salesStopOf } from "../installation/sqlite-local-installation";
 import { inArgentinaTime } from "../platform/argentina-time";
 import type { LocalDatabase } from "../platform/local-database";
 import type { SignedInPerson } from "../sessions/signed-in-person";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import type { CloudReachability } from "../sync/cloud-reachability";
 import { SqliteAcceptedPushLog } from "../sync/sqlite-accepted-push-log";
-import { salesStopOf } from "../installation/sqlite-local-installation";
 import { SqliteLocalReplica } from "../sync/sqlite-local-replica";
 import { readStanding, type SerialDeviceReading } from "./serial-device-watch";
 import { SqliteRegisterConditionStartStore } from "./sqlite-register-condition-start-store";

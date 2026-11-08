@@ -5,9 +5,9 @@ import {
   type LocalInstallation,
 } from "@purosur/domain/sync/use-cases";
 import { type CloudFailure, retryAfterMsOf } from "../sync/cloud-failure";
-import { CloudInstallationCheck } from "./cloud-installation-check";
 import type { GetFromCloud } from "../sync/cloud-pull-feed";
 import type { SyncResult } from "../sync/sync-schedule";
+import { CloudInstallationCheck } from "./cloud-installation-check";
 
 export interface CheckInstallationDeps {
   readCredentials: () => Promise<DeviceCredentials | undefined>;

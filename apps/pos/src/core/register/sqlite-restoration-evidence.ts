@@ -1,9 +1,9 @@
 import { heldReplenishmentFailure, type RestorationEvidence } from "@purosur/domain";
 import type { RestorationProtocolEvidence } from "@purosur/domain/register/use-cases";
 import type { RestorePending } from "../backups/restore-pending";
+import { staleSequenceDetected } from "../installation/sqlite-installation-presence";
 import type { LocalDatabase } from "../platform/local-database";
 import type { CloudReachability } from "../sync/cloud-reachability";
-import { staleSequenceDetected } from "../installation/sqlite-installation-presence";
 import { readPendingReplenishment } from "../sync/sqlite-register-replenishment-store";
 import { registerVersionOf } from "./register-version";
 

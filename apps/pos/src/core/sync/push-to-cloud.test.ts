@@ -1,6 +1,7 @@
 import { cloudError, pushEventsRequestSchema } from "@purosur/contracts";
 import type { OutboxEventDraft } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
+import { SqliteLocalInstallation } from "../installation/sqlite-local-installation";
 import type { CloudResponse } from "../platform/cloud-client";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
@@ -13,7 +14,6 @@ import {
   pushWarningOf,
 } from "./push-to-cloud";
 import { SqliteAcceptedPushLog } from "./sqlite-accepted-push-log";
-import { SqliteLocalInstallation } from "../installation/sqlite-local-installation";
 import { SqliteLocalOutbox } from "./sqlite-local-outbox";
 import { SqliteLocalReplica } from "./sqlite-local-replica";
 import { appendOutboxEvent } from "./sqlite-outbox";
