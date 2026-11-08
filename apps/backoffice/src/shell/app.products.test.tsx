@@ -246,6 +246,28 @@ test("opens Clasificación with its three sections, each one at its own address"
   await expect.poll(() => services.brandsListScreen.fetchBrands).toHaveBeenCalled();
 });
 
+test("editing a brand in Clasificación is a modal and the list stays visible", async () => {
+  const services = productsServices(["products_and_categories"]);
+  vi.mocked(services.brandsListScreen.fetchBrands).mockResolvedValue({
+    kind: "ok",
+    value: [
+      { id: "brand-1", name: "Granuz", active: true, version: 1, productCount: 42 },
+      { id: "brand-2", name: "Vitora", active: true, version: 2, productCount: 18 },
+    ],
+  });
+  window.history.pushState(null, "", "/products/classification/brands");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("table", { name: "Marcas" })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Editar la marca Granuz" }));
+
+  const dialog = screen.getByRole("dialog");
+  await expect.element(dialog.getByRole("textbox", { name: /^Nombre/ })).toHaveValue("Granuz");
+  await expect.element(screen.getByRole("table", { name: "Marcas" })).toBeVisible();
+  await expect.element(screen.getByText("Vitora")).toBeVisible();
+  expect(location()).toBe("/products/classification/brands");
+});
+
 function armadosServices(capabilities: Capability[]) {
   const services = productsServices(capabilities);
   vi.mocked(services.recipesListScreen.fetchRecipes).mockResolvedValue({
