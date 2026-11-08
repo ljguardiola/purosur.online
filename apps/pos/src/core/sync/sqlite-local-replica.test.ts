@@ -2,13 +2,13 @@ import { createHmac } from "node:crypto";
 import type { BranchSettingsBody, SyncChange } from "@purosur/contracts";
 import type { OutboxEventDraft } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { salesStopOf, stopOpeningNewSales } from "../installation/sqlite-local-installation";
 import type { LocalDatabase } from "../platform/local-database";
 import { LOCAL_MIGRATIONS } from "../platform/local-migrations";
 import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import type { RegisterPulledChange } from "./pulled-change";
 import { SqliteAcceptedPushLog } from "./sqlite-accepted-push-log";
-import { salesStopOf, stopOpeningNewSales } from "./sqlite-local-installation";
 import { SqliteLocalReplica } from "./sqlite-local-replica";
 import { appendOutboxEvent } from "./sqlite-outbox";
 

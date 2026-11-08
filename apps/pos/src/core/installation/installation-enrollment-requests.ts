@@ -1,8 +1,8 @@
 import type { EnrollmentStandingAnswer } from "@purosur/contracts";
 import { installationEnrollment, isInstallationRevoked } from "@purosur/domain";
 import type { LocalDatabase } from "../platform/local-database";
-import { heldDeviceId } from "../sync/sqlite-installation-presence";
-import { salesStopOf } from "../sync/sqlite-local-installation";
+import { heldDeviceId } from "./sqlite-installation-presence";
+import { salesStopOf } from "./sqlite-local-installation";
 
 export interface EnrollmentStandingDeps {
   readCredentials: () => Promise<{ device_id: string } | undefined>;

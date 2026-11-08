@@ -7,8 +7,8 @@ import {
   SERIES_WAITING_STATES,
 } from "@purosur/domain";
 import type { LocalOutbox, OutboxPruning } from "@purosur/domain/sync/use-cases";
+import { stopOpeningNewSales } from "../installation/sqlite-local-installation";
 import type { LocalDatabase } from "../platform/local-database";
-import { stopOpeningNewSales } from "./sqlite-local-installation";
 
 interface OutboxRow extends Omit<PushedEvent, "payload"> {
   payload: string;

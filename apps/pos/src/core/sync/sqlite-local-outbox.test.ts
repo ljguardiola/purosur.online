@@ -1,9 +1,9 @@
 import { PUSH_EVENTS_REQUEST_MAX_BYTES } from "@purosur/contracts";
 import { PUSH_BATCH_MAX_EVENTS, type PushedEvent } from "@purosur/domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { salesStopOf } from "../installation/sqlite-local-installation";
 import type { LocalDatabase } from "../platform/local-database";
 import { CloudEventInbox } from "./cloud-event-inbox";
-import { salesStopOf } from "./sqlite-local-installation";
 import { SqliteLocalOutbox } from "./sqlite-local-outbox";
 import { appendOutboxEvent } from "./sqlite-outbox";
 import {
