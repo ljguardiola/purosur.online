@@ -3,7 +3,9 @@ import { ANOTHER_FICTIONAL_CUIT, FICTIONAL_CUIT } from "@purosur/domain/fiscal/t
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
+import type { BackofficeAccess } from "../shell/backoffice-access";
+import { ADMINISTRATOR_ACCESS } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import { type SuppliersListFilters, suppliersListFilters } from "./routes";
 import { SuppliersListScreen } from "./suppliers-list-screen";
@@ -12,8 +14,9 @@ import { suppliersWithCuits } from "./test-support/suppliers";
 
 const { andina, cerealera, granos } = suppliersWithCuits(FICTIONAL_CUIT, ANOTHER_FICTIONAL_CUIT);
 
-beforeEach(() => {
+beforeEach(async () => {
   window.history.pushState(null, "", "/");
+  await page.viewport(1280, 900);
 });
 
 function createServices(
@@ -43,15 +46,27 @@ function screenElement(
   {
     filters = suppliersListFilters.parse({}),
     onFiltersChange = () => {},
+    access = ADMINISTRATOR_ACCESS,
+    openSupplier,
+    panelTab,
+    onOpenSupplierChange = () => {},
   }: {
     filters?: SuppliersListFilters;
     onFiltersChange?: (filters: SuppliersListFilters) => void;
+    access?: BackofficeAccess;
+    openSupplier?: string | undefined;
+    panelTab?: string | undefined;
+    onOpenSupplierChange?: (supplier: string | undefined) => void;
   } = {},
 ) {
   return (
     <FieldSizeProvider size="backoffice">
       <main>
         <SuppliersListScreen
+          access={access}
+          openSupplier={openSupplier}
+          panelTab={panelTab}
+          onOpenSupplierChange={onOpenSupplierChange}
           services={services}
           onSessionEnded={onSessionEnded}
           filters={filters}
@@ -423,4 +438,106 @@ test("has no accessibility violations once loaded, and with the create modal ope
   await expectNoAccessibilityViolations(screen.container);
   await userEvent.click(screen.getByRole("button", { name: "Nuevo proveedor" }));
   await expectNoAccessibilityViolations(document.body);
+});
+
+test("pressing a supplier's row reports it as the one to open", async () => {
+  const onOpenSupplierChange = vi.fn();
+  const screen = await loaded(createServices(), [andina, granos], { onOpenSupplierChange });
+
+  await userEvent.click(screen.getByRole("row", { name: /Granos del Valle/ }));
+
+  expect(onOpenSupplierChange).toHaveBeenLastCalledWith(granos.id);
+});
+
+test("opens the panel of the supplier named, marking its row", async () => {
+  const screen = await loaded(createServices(), [andina, granos], { openSupplier: granos.id });
+
+  await expect.element(screen.getByRole("complementary", { name: granos.name })).toBeVisible();
+  await expect
+    .element(screen.getByRole("row", { name: /Granos del Valle/ }))
+    .toHaveAttribute("aria-current", "true");
+});
+
+test("opens the panel of a supplier the state filter hides", async () => {
+  const screen = await loaded(createServices(), [andina, cerealera], {
+    openSupplier: cerealera.id,
+  });
+
+  await expect.element(screen.getByRole("complementary", { name: cerealera.name })).toBeVisible();
+});
+
+test("the panel's close button reports that no supplier is open", async () => {
+  const onOpenSupplierChange = vi.fn();
+  const screen = await loaded(createServices(), [andina], {
+    openSupplier: andina.id,
+    onOpenSupplierChange,
+  });
+
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
+
+  expect(onOpenSupplierChange).toHaveBeenLastCalledWith(undefined);
+});
+
+test("reports that no supplier is open when the one named is not in the list", async () => {
+  const onOpenSupplierChange = vi.fn();
+  await loaded(createServices(), [andina], { openSupplier: granos.id, onOpenSupplierChange });
+
+  await vi.waitFor(() => expect(onOpenSupplierChange).toHaveBeenCalledExactlyOnceWith(undefined));
+});
+
+test("the panel's edit action opens the supplier's edit modal", async () => {
+  const screen = await loaded(createServices(), [andina], { openSupplier: andina.id });
+
+  await userEvent.click(
+    screen
+      .getByRole("complementary", { name: andina.name })
+      .getByRole("button", { name: "Editar" }),
+  );
+
+  await expect
+    .element(screen.getByRole("dialog").getByRole("textbox", { name: /^Nombre/ }))
+    .toHaveValue("Distribuidora Andina");
+});
+
+test("the panel's deactivate action asks first, then deactivates the supplier", async () => {
+  const services = createServices();
+  vi.mocked(services.deactivateSupplier).mockResolvedValue({ kind: "ok" });
+  const screen = await loaded(services, [andina], { openSupplier: andina.id });
+
+  await userEvent.click(
+    screen
+      .getByRole("complementary", { name: andina.name })
+      .getByRole("button", { name: "Desactivar" }),
+  );
+  await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: /^Desactivar/ }));
+
+  await vi.waitFor(() => expect(services.deactivateSupplier).toHaveBeenCalled());
+});
+
+test("the panel's reactivate action asks first, then reactivates the supplier", async () => {
+  const services = createServices();
+  vi.mocked(services.reactivateSupplier).mockResolvedValue({ kind: "ok" });
+  const screen = await loaded(services, [cerealera], {
+    openSupplier: cerealera.id,
+    filters: suppliersListFilters.parse({ status: "all" }),
+  });
+
+  await userEvent.click(
+    screen
+      .getByRole("complementary", { name: cerealera.name })
+      .getByRole("button", { name: "Reactivar" }),
+  );
+  await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: /^Reactivar/ }));
+
+  await vi.waitFor(() => expect(services.reactivateSupplier).toHaveBeenCalled());
+});
+
+test("shows the panel's tabs by the person's access", async () => {
+  const screen = await loaded(createServices(), [andina], {
+    openSupplier: andina.id,
+    access: ADMINISTRATOR_ACCESS,
+    panelTab: "orders",
+  });
+
+  await expect.element(screen.getByRole("tab", { name: "Pedidos", selected: true })).toBeVisible();
 });

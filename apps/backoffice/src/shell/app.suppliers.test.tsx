@@ -145,3 +145,79 @@ test("opens the page without the tab of a capability the person lacks, keeping t
   expect(screen.getByRole("tab", { name: "Listas de precios" }).query()).toBeNull();
   expect(location()).toBe("/suppliers?status=all");
 });
+
+test("opens the supplier's panel when its row is pressed, naming the supplier in the address", async () => {
+  const services = suppliersServices([
+    "suppliers",
+    "supplier_price_lists",
+    "purchase_order_reads",
+    "purchases",
+    "freights",
+  ]);
+  window.history.pushState(null, "", "/suppliers");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await userEvent.click(screen.getByText(andina.name));
+
+  await expect.element(screen.getByRole("complementary", { name: andina.name })).toBeVisible();
+  expect(location()).toBe(`/suppliers?supplier=${andina.id}`);
+  await expectTabs(screen, "Secciones del proveedor", [
+    "Datos",
+    "Listas",
+    "Pedidos",
+    "Compras",
+    "Fletes",
+  ]);
+});
+
+test("opens the panel of the supplier named in the address, on the tab named", async () => {
+  const services = suppliersServices(["suppliers", "supplier_price_lists", "purchases"]);
+  window.history.pushState(null, "", `/suppliers?supplier=${andina.id}&tab=lists`);
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("complementary", { name: andina.name })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Listas", selected: true })).toBeVisible();
+});
+
+test("writes the panel's tab in the address when it is pressed", async () => {
+  const services = suppliersServices(["suppliers", "supplier_price_lists", "purchases"]);
+  window.history.pushState(null, "", `/suppliers?supplier=${andina.id}`);
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await userEvent.click(screen.getByRole("tab", { name: "Compras" }));
+
+  await expect.element(screen.getByRole("tab", { name: "Compras", selected: true })).toBeVisible();
+  expect(location()).toBe(`/suppliers?supplier=${andina.id}&tab=purchases`);
+});
+
+test("shows no Fletes tab in the panel of a person without the freights capability", async () => {
+  const services = suppliersServices(["suppliers", "purchases"]);
+  window.history.pushState(null, "", `/suppliers?supplier=${andina.id}`);
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("complementary", { name: andina.name })).toBeVisible();
+  await expectTabs(screen, "Secciones del proveedor", ["Datos", "Compras"]);
+});
+
+test("closes the panel by removing the supplier and the tab from the address", async () => {
+  const services = suppliersServices(["suppliers", "purchases"]);
+  window.history.pushState(null, "", `/suppliers?supplier=${andina.id}&tab=purchases&status=all`);
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
+
+  await expect.poll(location).toBe("/suppliers?status=all");
+  expect(screen.getByRole("complementary").query()).toBeNull();
+});
+
+test("keeps the supplier open while its filters change", async () => {
+  const services = suppliersServices(["suppliers"]);
+  window.history.pushState(null, "", `/suppliers?supplier=${andina.id}`);
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await userEvent.fill(screen.getByPlaceholder("Buscar un proveedor"), "dist");
+
+  await expect.poll(location).toBe(`/suppliers?search=dist&supplier=${andina.id}`);
+});
