@@ -107,3 +107,50 @@ test("sends a user with only the reports area to Mi cuenta", async () => {
   await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
   expect(services.mercadoPagoChargeCostsScreen.fetchMercadoPagoChargeCosts).not.toHaveBeenCalled();
 });
+
+test("offers Reportes to who holds only the charge costs permission, leading to the report", async () => {
+  const services = reportsServices(["mercado_pago_charge_costs"]);
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  const areas = screen.getByRole("navigation", { name: "Áreas" });
+  await expect
+    .element(areas.getByRole("link", { name: "Reportes", exact: true }))
+    .toHaveAttribute("href", "/reports/mercado-pago-charge-costs");
+  await userEvent.click(areas.getByRole("link", { name: "Reportes", exact: true }));
+
+  await expect
+    .element(screen.getByRole("heading", { name: "Costos de Mercado Pago", level: 1 }))
+    .toBeVisible();
+  const sections = screen.getByRole("navigation", { name: "Reportes" });
+  await expect
+    .element(sections.getByRole("link", { name: "Costos de Mercado Pago" }))
+    .toBeVisible();
+  expect(sections.getByRole("link", { name: "Todos los reportes" }).query()).toBeNull();
+  expect(sections.getByRole("link", { name: "Ventas por día o por rango" }).query()).toBeNull();
+});
+
+test("leads Reportes to the list of reports for who also holds the reports area", async () => {
+  const services = reportsServices(["reports_area", "mercado_pago_charge_costs"]);
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect
+    .element(
+      screen
+        .getByRole("navigation", { name: "Áreas" })
+        .getByRole("link", { name: "Reportes", exact: true }),
+    )
+    .toHaveAttribute("href", "/reports");
+});
+
+test("hides Reportes from who holds neither the reports area nor the charge costs permission", async () => {
+  const services = reportsServices(["branch_area"]);
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Reportes", exact: true }).query()).toBeNull();
+});
