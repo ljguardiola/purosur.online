@@ -437,6 +437,7 @@ export {
   WSAA_ALREADY_AUTHENTICATED_RETRY_MS,
 } from "./fiscal/index.js";
 export type {
+  ChargeCostMethod,
   ConfirmedByHandMethod,
   HandConfirmedPayment,
   LatePaymentRefund,
@@ -468,6 +469,7 @@ export type {
 } from "./payments/index.js";
 export {
   APPROVED_PAYMENT_STATE,
+  CHARGE_COST_METHODS,
   CONFIRMED_BY_HAND_METHODS,
   cancellableWithoutAuthorization,
   cashCharge,
