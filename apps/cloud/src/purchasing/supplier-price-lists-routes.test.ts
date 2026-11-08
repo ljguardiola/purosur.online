@@ -154,6 +154,28 @@ describe("GET /supplier-price-lists", () => {
       },
     ]);
   });
+
+  it("lists only the lists of the supplier asked for, and refuses an id that is not one", async () => {
+    const { headers } = await manager();
+    const wanted = await storedList({ fileName: "sur.pdf" });
+    await storedList({ fileName: "norte.pdf" });
+
+    const filtered = await app.inject({
+      method: "GET",
+      url: `/supplier-price-lists?supplierId=${wanted.supplierId}`,
+      headers,
+    });
+    const malformed = await app.inject({
+      method: "GET",
+      url: "/supplier-price-lists?supplierId=x",
+      headers,
+    });
+
+    expect(filtered.json()).toMatchObject([{ id: wanted.listId }]);
+    expect(filtered.json()).toHaveLength(1);
+    expect(malformed.statusCode).toBe(400);
+    expect(malformed.json()).toMatchObject({ code: "validation_failed" });
+  });
 });
 
 describe("GET /supplier-price-lists with a list read again", () => {

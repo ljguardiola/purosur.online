@@ -53,6 +53,20 @@ const PURCHASE: PurchaseListing = {
 };
 
 describe("listPurchases", () => {
+  it("lists only the purchases of the supplier asked for", async () => {
+    const reader = new FakePurchasingListReader({
+      purchases: [
+        PURCHASE,
+        { ...PURCHASE, id: "purchase-2", supplier: { id: "s-2", name: "Norte" } },
+      ],
+      lots: [lotOf("lot-1", 1)],
+    });
+
+    const purchases = await listPurchases(ports(reader), BRANCH, "s-2");
+
+    expect(purchases.map(({ id }) => id)).toEqual(["purchase-2"]);
+  });
+
   it("answers each line with its unit cost rounded half up to cents per sale unit", async () => {
     const thirds = {
       ...LINE,

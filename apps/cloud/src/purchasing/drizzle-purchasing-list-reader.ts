@@ -52,8 +52,13 @@ export class DrizzlePurchasingListReader<TQueryResult extends PgQueryResultHKT>
     return new DrizzleLotNameReader(this.db).lotNameFacts(locationId, productIds);
   }
 
-  purchases(locationId: string): Promise<PurchaseListing[]> {
-    return this.readPurchases(eq(purchases.locationId, locationId));
+  purchases(locationId: string, supplierId?: string): Promise<PurchaseListing[]> {
+    return this.readPurchases(
+      and(
+        eq(purchases.locationId, locationId),
+        supplierId === undefined ? undefined : eq(purchases.supplierId, supplierId),
+      ),
+    );
   }
 
   async purchase(purchaseId: string): Promise<PurchaseListing | undefined> {
@@ -61,7 +66,7 @@ export class DrizzlePurchasingListReader<TQueryResult extends PgQueryResultHKT>
     return listing;
   }
 
-  private async readPurchases(where: SQL): Promise<PurchaseListing[]> {
+  private async readPurchases(where: SQL | undefined): Promise<PurchaseListing[]> {
     const purchaseRows = await this.db
       .select({
         id: purchases.id,

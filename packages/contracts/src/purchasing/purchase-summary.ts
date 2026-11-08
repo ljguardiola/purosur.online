@@ -1,5 +1,6 @@
 import { RECEIPT_TYPES } from "@purosur/domain";
 import { z } from "zod";
+import { recordIdSchema } from "../shared/index.js";
 import { purchaseLineProductSchema } from "./purchase-line-product.js";
 
 const purchaseLineSummarySchema = z.object({
@@ -28,4 +29,9 @@ export const purchaseSummarySchema = z.object({
 
 export const purchaseListSchema = z.array(purchaseSummarySchema);
 
+export const purchaseListQuerySchema = z.object({
+  supplierId: recordIdSchema("supplierId must be a supplier's id").optional(),
+});
+
+export type PurchaseListQuery = z.input<typeof purchaseListQuerySchema>;
 export type PurchaseSummary = z.output<typeof purchaseSummarySchema>;

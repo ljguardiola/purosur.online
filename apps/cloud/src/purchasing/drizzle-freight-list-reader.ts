@@ -36,7 +36,12 @@ export class DrizzleFreightListReader<TQueryResult extends PgQueryResultHKT>
     this.db = db;
   }
 
-  async freights({ locationId, from, search }: FreightListQuery): Promise<FreightListing[]> {
+  async freights({
+    locationId,
+    from,
+    search,
+    supplierId,
+  }: FreightListQuery): Promise<FreightListing[]> {
     const rows = await this.db
       .select()
       .from(freights)
@@ -45,6 +50,7 @@ export class DrizzleFreightListReader<TQueryResult extends PgQueryResultHKT>
           eq(freights.locationId, locationId),
           gte(freights.freightOn, from),
           search === undefined ? undefined : this.matches(search),
+          supplierId === undefined ? undefined : this.coversPurchaseOf(supplierId),
         ),
       )
       .orderBy(desc(freights.freightOn), desc(freights.recordedAt), desc(freights.id));
@@ -132,6 +138,18 @@ export class DrizzleFreightListReader<TQueryResult extends PgQueryResultHKT>
             and(eq(freightPurchases.freightId, freights.id), containsText(suppliers.name, search)),
           ),
       ),
+    );
+  }
+
+  private coversPurchaseOf(supplierId: string): SQL {
+    return exists(
+      this.db
+        .select({ purchaseId: freightPurchases.purchaseId })
+        .from(freightPurchases)
+        .innerJoin(purchases, eq(purchases.id, freightPurchases.purchaseId))
+        .where(
+          and(eq(freightPurchases.freightId, freights.id), eq(purchases.supplierId, supplierId)),
+        ),
     );
   }
 

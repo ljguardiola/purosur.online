@@ -283,4 +283,17 @@ describe("DrizzlePurchasingListReader removed lines and withdrawn lots", () => {
     expect(listed?.lines).toHaveLength(1);
     expect(listed?.lines[0]?.lotId).toBe(current);
   });
+
+  it("lists only the purchases of the supplier asked for", async () => {
+    const [other] = await db
+      .insert(suppliers)
+      .values({ name: "Norte", actorId })
+      .returning({ id: suppliers.id });
+    const own = await storedPurchase();
+    await storedPurchase({ supplierId: other?.id as string });
+
+    const listed = await new DrizzlePurchasingListReader(db).purchases(locationId, supplierId);
+
+    expect(listed.map(({ id }) => id)).toEqual([own]);
+  });
 });

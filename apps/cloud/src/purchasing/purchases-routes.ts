@@ -8,6 +8,7 @@ import {
   purchaseLineProductChangeBodySchema,
   purchaseLineQuantityCorrectionBodySchema,
   purchaseLinesAdditionBodySchema,
+  purchaseListQuerySchema,
   purchaseListSchema,
   purchaseRegistrationBodySchema,
   purchaseSummarySchema,
@@ -108,7 +109,15 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
   const writeGuard = { preHandler: backofficeOriginGuard(options.backofficeOrigin), config };
 
   app.get("/purchases", readGuard, async (request, reply) => {
-    const purchases = await listPurchases(listing, openSessionOf(request).locationId);
+    const query = await readValidatedBody(reply, purchaseListQuerySchema, request.query);
+    if (!query) {
+      return;
+    }
+    const purchases = await listPurchases(
+      listing,
+      openSessionOf(request).locationId,
+      query.supplierId,
+    );
     await reply.code(200).send(purchaseListSchema.parse(purchases.map(summaryOf)));
   });
 

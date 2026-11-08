@@ -1,5 +1,6 @@
 import { SUPPLIER_PRICE_LIST_READ_FAILURES, SUPPLIER_PRICE_LIST_STATES } from "@purosur/domain";
 import { z } from "zod";
+import { recordIdSchema } from "../shared/index.js";
 
 const supplierPriceListSourceSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("PDF"), fileName: z.string() }),
@@ -23,4 +24,9 @@ export const supplierPriceListSummarySchema = z.object({
 
 export const supplierPriceListListSchema = z.array(supplierPriceListSummarySchema);
 
+export const supplierPriceListListQuerySchema = z.object({
+  supplierId: recordIdSchema("supplierId must be a supplier's id").optional(),
+});
+
+export type SupplierPriceListListQuery = z.input<typeof supplierPriceListListQuerySchema>;
 export type SupplierPriceListSummary = z.output<typeof supplierPriceListSummarySchema>;

@@ -60,8 +60,12 @@ export interface ReceivableOrderListing {
 }
 
 export interface PurchaseOrderReader {
-  // The branch's orders, most recently created first; every state when none is asked for.
-  orders(locationId: string, state?: PurchaseOrderState): Promise<PurchaseOrderListing[]>;
+  // The branch's orders, most recently created first; every state and supplier when none is asked for.
+  orders(
+    locationId: string,
+    state?: PurchaseOrderState,
+    supplierId?: string,
+  ): Promise<PurchaseOrderListing[]>;
   order(locationId: string, orderId: string): Promise<PurchaseOrderDetailListing | undefined>;
   // The order with what a purchase that receives it needs to be prefilled.
   receivableOrder(locationId: string, orderId: string): Promise<ReceivableOrderListing | undefined>;

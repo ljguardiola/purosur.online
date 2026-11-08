@@ -11,6 +11,7 @@ export const freightListQuerySchema = z.object({
     FREIGHT_DESCRIPTION_MAX_LENGTH,
     isFreightDescriptionTooLong,
   ).transform((search) => search ?? undefined),
+  supplierId: recordIdSchema("supplierId must be a supplier's id").optional(),
 });
 
 export const linkablePurchasesQuerySchema = z.object({
