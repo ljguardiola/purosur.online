@@ -33,11 +33,8 @@ async function overdueProductIds(ports: ListPricesPorts, query: ListPricesQuery)
   const rules = ports.zoneRules.zoneRules();
   const overdue = products.filter(
     ({ lastReviewedAt, earliestPostponedAt }) =>
-      priceReviewAt(
-        { lastReviewedAt, reviewPostponed: false },
-        query.now,
-        reviewWindowDays,
-      ).pending &&
+      priceReviewAt({ lastReviewedAt, reviewPostponed: false }, query.now, reviewWindowDays)
+        .pending &&
       priceReviewDeadlineOf({ lastReviewedAt, earliestPostponedAt }, reviewWindowDays, rules)
         .reason === "overdue",
   );
