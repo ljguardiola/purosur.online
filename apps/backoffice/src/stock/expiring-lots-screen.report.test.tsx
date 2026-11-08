@@ -33,7 +33,7 @@ test("shows the period the cloud answered while the URL names none, and keeps li
   await expect.poll(() => periodSegments(screen).slice(0, 3)).toEqual(["13", "10", "2026"]);
   expect(periodSegments(screen).slice(3)).toEqual(["12", "11", "2026"]);
   expect(services.fetchExpiringLotsReport).toHaveBeenCalledWith({});
-  await expect.element(screen.getByText("Semillas de chía")).toBeVisible();
+  await expect.element(screen.getByText("Semillas de chía").first()).toBeVisible();
   expect(screen.getByText("Queso cremoso").query()).toBeNull();
 });
 
@@ -78,13 +78,15 @@ test("reports the period typed once both days are complete, keeping the other fi
 
   await typePeriodStart(screen, "01112026");
 
-  await expect.poll(() => onFiltersChange.mock.lastCall?.[0]).toEqual({
-    search: "chía",
-    category: "ALL",
-    expiry: "all",
-    from: "2026-11-01",
-    to: "2026-11-12",
-  });
+  await expect
+    .poll(() => onFiltersChange.mock.lastCall?.[0])
+    .toEqual({
+      search: "chía",
+      category: "ALL",
+      expiry: "all",
+      from: "2026-11-01",
+      to: "2026-11-12",
+    });
 });
 
 test("says no lot expires in the period when the report is empty", async () => {

@@ -1,5 +1,6 @@
 import type { ExpiringLot } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
+import { useState } from "react";
 import { vi } from "vitest";
 import { type ReleaseMonitor, ReleaseMonitorContext } from "../../platform/release-monitor";
 import { render } from "../../shell/test-support/render-with-router";
@@ -40,6 +41,35 @@ export function listed(lots = EVERY_LOT) {
   return services;
 }
 
+function Harness({
+  services,
+  initial,
+  onFiltersChange,
+  onSessionEnded,
+}: {
+  services: ExpiringLotsScreenServices;
+  initial: ExpiringLotsFilters;
+  onFiltersChange: (filters: ExpiringLotsFilters) => void;
+  onSessionEnded: () => void;
+}) {
+  const [filters, setFilters] = useState(initial);
+  return (
+    <FieldSizeProvider size="backoffice">
+      <main>
+        <ExpiringLotsScreen
+          services={services}
+          filters={filters}
+          onFiltersChange={(next) => {
+            onFiltersChange(next);
+            setFilters(next);
+          }}
+          onSessionEnded={onSessionEnded}
+        />
+      </main>
+    </FieldSizeProvider>
+  );
+}
+
 export function renderScreen(
   services: ExpiringLotsScreenServices,
   {
@@ -55,16 +85,12 @@ export function renderScreen(
   } = {},
 ) {
   const screen = (
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <ExpiringLotsScreen
-          services={services}
-          filters={filters}
-          onFiltersChange={onFiltersChange}
-          onSessionEnded={onSessionEnded}
-        />
-      </main>
-    </FieldSizeProvider>
+    <Harness
+      services={services}
+      initial={filters}
+      onFiltersChange={onFiltersChange}
+      onSessionEnded={onSessionEnded}
+    />
   );
   return render(
     releaseMonitor ? (
