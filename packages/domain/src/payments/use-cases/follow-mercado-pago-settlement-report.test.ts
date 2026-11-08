@@ -3,7 +3,8 @@ import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-s
 import { followMercadoPagoSettlementReport } from "./follow-mercado-pago-settlement-report.js";
 import type { SettlementReportRow } from "./mercado-pago-settlement-report-ports.js";
 import { FakeMercadoPagoSettlementReports } from "./test-support/fake-mercado-pago-settlement-reports.js";
-import { FakeSettlementReportStore } from "./test-support/fake-settlement-report-store.js";
+import { FakeSettlementReportLanes } from "./test-support/fake-settlement-report-lanes.js";
+import type { FakeSettlementReportStore } from "./test-support/fake-settlement-report-store.js";
 
 const NOW = new Date("2026-11-07T02:30:00.000Z");
 const DAY = "2026-11-06";
@@ -26,13 +27,14 @@ function row(sourceId: string, transactionType: string): SettlementReportRow {
   };
 }
 
-function setup() {
-  const reports = new FakeMercadoPagoSettlementReports();
-  const store = new FakeSettlementReportStore();
+function setup(now = NOW) {
+  const lanes = new FakeSettlementReportLanes();
+  const reports = new FakeMercadoPagoSettlementReports(lanes);
+  const store = lanes.store;
   const ports = {
     reports,
-    store,
-    clock: { now: () => NOW },
+    lanes,
+    clock: { now: () => now },
     zoneRules: new FakeZoneRulesSource(),
   };
   return { reports, store, ports };
@@ -145,12 +147,6 @@ describe("followMercadoPagoSettlementReport", () => {
           r.updating = { kind: "unavailable" };
         },
       ],
-      [
-        "requesting the report",
-        (r: FakeMercadoPagoSettlementReports) => {
-          r.requesting = { kind: "unavailable" };
-        },
-      ],
     ])("records nothing when Mercado Pago is unavailable %s", async (_step, arrange) => {
       const { reports, store, ports } = setup();
       arrange(reports);
@@ -179,6 +175,60 @@ describe("followMercadoPagoSettlementReport", () => {
 
       expect(outcome).toEqual({ kind: "refused" });
       expect(store.requests.get(DAY)).toMatchObject({ refused: true, recordedAt: null });
+      expect(store.writes).toEqual(["recordRequest", "recordRefusal"]);
+    });
+
+    it("records the request before asking Mercado Pago for it, and asks nothing when the record fails", async () => {
+      const { reports, store, ports } = setup();
+      store.failOn = "recordRequest";
+
+      await expect(followMercadoPagoSettlementReport(ports)).rejects.toThrow();
+
+      expect(reports.calls).toEqual(["readConfiguration"]);
+    });
+
+    it("asks Mercado Pago for the report while holding the settlement report lane", async () => {
+      const { reports, ports } = setup();
+
+      await followMercadoPagoSettlementReport(ports);
+
+      expect(reports.heldLaneDuringRequest).toBe(true);
+    });
+
+    it("keeps the request when Mercado Pago is unavailable asking for it, and follows it on the next run instead of asking again", async () => {
+      const { reports, store, ports } = setup();
+      reports.requesting = { kind: "unavailable" };
+
+      const outcome = await followMercadoPagoSettlementReport(ports);
+      const next = await followMercadoPagoSettlementReport(ports);
+
+      expect(outcome).toEqual({ kind: "unavailable" });
+      expect(store.requests.get(DAY)).toMatchObject({ refused: false, recordedAt: null });
+      expect(next).toEqual({ kind: "waiting" });
+      expect(reports.calls).toEqual(["readConfiguration", "requestReport", "listReports"]);
+    });
+
+    it("asks for a window of whole seconds and records the report Mercado Pago lists for it, whatever the clock's milliseconds", async () => {
+      const { reports, store, ports } = setup(new Date("2026-11-07T02:30:00.437Z"));
+
+      await followMercadoPagoSettlementReport(ports);
+      const [sent] = reports.requestedWindows;
+      reports.listing = {
+        kind: "listed",
+        reports: [
+          {
+            fileName: "mine.csv",
+            beginDate: new Date(SIXTY_DAYS_BEFORE.getTime()),
+            endDate: new Date(NOW.getTime()),
+            createdAt: NOW,
+          },
+        ],
+      };
+      const outcome = await followMercadoPagoSettlementReport(ports);
+
+      expect(sent).toEqual({ beginDate: SIXTY_DAYS_BEFORE, endDate: NOW });
+      expect(store.requests.get(DAY)).toMatchObject({ beginDate: SIXTY_DAYS_BEFORE, endDate: NOW });
+      expect(outcome).toEqual({ kind: "recorded", rows: 0 });
     });
   });
 

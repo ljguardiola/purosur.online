@@ -178,6 +178,20 @@ describe("DrizzleMercadoPagoChargeCostsReader.otherChargesOfPeriod", () => {
     expect(await reader().otherChargesOfPeriod({ period: wholeOctober })).toEqual([]);
   });
 
+  it("lists a source a payment transaction of ours names but that was not approved, since no charge of ours lists it", async () => {
+    const registerId = await insertRegister(db, "Caja 1");
+    const locationId = await seededLocationId(db);
+    const expired = await approvedCharge(registerId, { state: "EXPIRED" });
+    await insertSettlementMovements(db, [
+      settlementRow({ sourceId: "EXPIRED", externalReference: expired.id }),
+    ]);
+
+    const others = await reader().otherChargesOfPeriod({ period: wholeOctober });
+
+    expect(await reader().chargesOfPeriod({ locationId, period: wholeOctober })).toEqual([]);
+    expect(others.map((other) => other.sourceId)).toEqual(["EXPIRED"]);
+  });
+
   it("leaves out a source with no movement on a day of the period", async () => {
     await insertSettlementMovements(db, [
       settlementRow({ sourceId: "SEPTEMBER", transactionDate: new Date("2026-09-30T14:00:00Z") }),

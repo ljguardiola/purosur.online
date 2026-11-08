@@ -104,3 +104,21 @@ export const emptyChargeCosts: MercadoPagoChargeCostsBody = {
   registers: [],
   totals: { charges_count: 0, pending_count: 0, ...NO_FIGURES },
 };
+
+export const onlyOtherChargeCosts: MercadoPagoChargeCostsBody = {
+  range: { from: "2026-10-01", to: "2026-10-07" },
+  charges: [],
+  days: [{ day: "2026-10-03", charges_count: 1, pending_count: 0, ...OTHER_FIGURES }],
+  months: [{ month: "2026-10", charges_count: 1, pending_count: 0, ...OTHER_FIGURES }],
+  methods: [{ method: "OTHER", charges_count: 1, pending_count: 0, ...OTHER_FIGURES }],
+  registers: [
+    {
+      register_id: null,
+      register_name: null,
+      charges_count: 1,
+      pending_count: 0,
+      ...OTHER_FIGURES,
+    },
+  ],
+  totals: { charges_count: 1, pending_count: 0, ...OTHER_FIGURES },
+};

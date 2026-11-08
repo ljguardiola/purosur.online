@@ -35,7 +35,7 @@ function runner(reports: FakeMercadoPagoSettlementReports) {
   const jobs = mercadoPagoSettlementReportJobs({
     now: () => NOW,
     reports,
-    db: testDatabase.db,
+    connections: { withConnection: (work) => work(testDatabase.db) },
     zoneRules: fixedZoneRulesSource(),
   });
   const task = jobs.taskList[MERCADO_PAGO_SETTLEMENT_REPORT_TASK_IDENTIFIER];
@@ -54,7 +54,7 @@ describe("mercadoPagoSettlementReportJobs", () => {
     const jobs = mercadoPagoSettlementReportJobs({
       now: () => NOW,
       reports: new FakeMercadoPagoSettlementReports(),
-      db: testDatabase.db,
+      connections: { withConnection: (work) => work(testDatabase.db) },
       zoneRules: fixedZoneRulesSource(),
     });
 

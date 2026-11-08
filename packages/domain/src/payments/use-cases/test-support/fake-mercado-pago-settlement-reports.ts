@@ -4,6 +4,7 @@ import type {
   SettlementReportConfigurationReading,
   SettlementReportRow,
 } from "../mercado-pago-settlement-report-ports.js";
+import type { FakeSettlementReportLanes } from "./fake-settlement-report-lanes.js";
 
 type Writing = { kind: "saved" } | { kind: "unavailable" };
 
@@ -24,6 +25,12 @@ export class FakeMercadoPagoSettlementReports implements MercadoPagoSettlementRe
   readonly calls: string[] = [];
   readonly requestedWindows: { beginDate: Date; endDate: Date }[] = [];
   readonly downloadedFiles: string[] = [];
+  heldLaneDuringRequest: boolean | undefined;
+  private readonly lanes: FakeSettlementReportLanes;
+
+  constructor(lanes: FakeSettlementReportLanes) {
+    this.lanes = lanes;
+  }
 
   async readConfiguration(): Promise<SettlementReportConfigurationReading> {
     this.calls.push("readConfiguration");
@@ -43,6 +50,7 @@ export class FakeMercadoPagoSettlementReports implements MercadoPagoSettlementRe
   async requestReport(beginDate: Date, endDate: Date) {
     this.calls.push("requestReport");
     this.requestedWindows.push({ beginDate, endDate });
+    this.heldLaneDuringRequest = this.lanes.held;
     return this.requesting;
   }
 

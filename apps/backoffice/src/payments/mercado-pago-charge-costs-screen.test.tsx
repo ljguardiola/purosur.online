@@ -13,6 +13,7 @@ import { MercadoPagoChargeCostsScreen } from "./mercado-pago-charge-costs-screen
 import type { MercadoPagoChargeCostsScreenServices } from "./mercado-pago-charge-costs-services";
 import {
   emptyChargeCosts,
+  onlyOtherChargeCosts,
   weekChargeCosts,
 } from "./test-support/mercado-pago-charge-costs-fixtures";
 
@@ -67,6 +68,8 @@ function renderScreen(services: MercadoPagoChargeCostsScreenServices, handlers: 
 type Screen = Awaited<ReturnType<typeof renderScreen>>;
 
 const TITLE = "Costos de Mercado Pago";
+const NO_CHARGES = "No hay cobros de Mercado Pago en este período";
+const NO_REGISTER_CHARGES = "Ninguna caja cobró con Mercado Pago en este período";
 
 function chargesTable(screen: Screen) {
   return screen.getByRole("table", { name: "Cobros de Mercado Pago", exact: true });
@@ -137,15 +140,14 @@ test("lists each charge with its figures and the moment it is released, in Argen
   }
 });
 
-test("shows Pendiente instead of the figures of a charge no report has carried yet", async () => {
+test("shows the amount of a charge no report has carried yet, and Pendiente instead of its costs", async () => {
   const screen = await renderScreen(createServices());
 
   const charge = chargesTable(screen).getByRole("row", { name: /^04\/10\/2026 · 09:05/ });
   await expect.element(charge.getByText("Caja 2", { exact: true })).toBeVisible();
   await expect.element(charge.getByText("Point", { exact: true })).toBeVisible();
-  await expect.element(charge.getByText("Pendiente", { exact: true }).first()).toBeVisible();
-  expect(charge.getByText("Pendiente", { exact: true }).elements()).toHaveLength(6);
-  expect(charge.element().textContent).not.toContain(formatSignedCents(50_000));
+  await expect.element(charge.getByText(formatSignedCents(50_000), { exact: true })).toBeVisible();
+  expect(charge.getByText("Pendiente", { exact: true }).elements()).toHaveLength(5);
 });
 
 test("says which charges were not made from a sale of the system, and that every branch shows them", async () => {
@@ -308,7 +310,7 @@ test("shows placeholders while the report loads", async () => {
   expect(screen.getByText(formatSignedCents(113_004)).query()).toBeNull();
 });
 
-test("says there are no charges in the period when there are none", async () => {
+test("says there are no charges in the period when there are none, and once", async () => {
   const services = createServices();
   vi.mocked(services.fetchMercadoPagoChargeCosts).mockResolvedValue({
     kind: "ok",
@@ -317,12 +319,30 @@ test("says there are no charges in the period when there are none", async () => 
 
   const screen = await renderScreen(services);
 
-  const empty = chargesTable(screen).getByText("No hay cobros de Mercado Pago en este período");
+  const empty = totalsTable(screen, "Totales por día").getByText(NO_CHARGES);
   await expect.element(empty).toBeVisible();
+  await expect.element(chargesTable(screen).getByText(NO_REGISTER_CHARGES)).toBeVisible();
+  expect(screen.getByText(NO_CHARGES).elements()).toHaveLength(1);
   await expect
     .element(screen.getByText(`Cobrado${formatSignedCents(0)}`, { exact: true }))
     .toBeVisible();
   expect(emptyStateIconColor(empty.element())).toBe(tokenRgb("text-accent"));
+});
+
+test("says no register charged in the period when only charges outside the system did, while the totals show them", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchMercadoPagoChargeCosts).mockResolvedValue({
+    kind: "ok",
+    value: onlyOtherChargeCosts,
+  });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(chargesTable(screen).getByText(NO_REGISTER_CHARGES)).toBeVisible();
+  await expect
+    .element(totalsTable(screen, "Totales por día").getByRole("row", { name: /^03\/10\/2026/ }))
+    .toBeVisible();
+  expect(screen.getByText(NO_CHARGES).query()).toBeNull();
 });
 
 test("says there are no charges in the chosen period as a filtered result", async () => {
@@ -336,9 +356,11 @@ test("says there are no charges in the chosen period as a filtered result", asyn
     filters: mercadoPagoChargeCostsFilters.parse({ from: "2026-10-02", to: "2026-10-05" }),
   });
 
-  const empty = chargesTable(screen).getByText("No hay cobros de Mercado Pago en este período");
+  const empty = totalsTable(screen, "Totales por día").getByText(NO_CHARGES);
   await expect.element(empty).toBeVisible();
   expect(emptyStateIconColor(empty.element())).toBe(tokenRgb("text-subtle"));
+  const registersEmpty = chargesTable(screen).getByText(NO_REGISTER_CHARGES);
+  expect(emptyStateIconColor(registersEmpty.element())).toBe(tokenRgb("text-subtle"));
 });
 
 test("shows a failed load with a retry that loads the report again, and no figures", async () => {

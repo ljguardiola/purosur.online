@@ -18,7 +18,6 @@ const request = {
   beginDate: new Date("2026-08-10T03:00:00.000Z"),
   endDate: new Date("2026-10-09T03:00:00.000Z"),
   requestedAt: REQUESTED_AT,
-  refused: false,
 };
 
 let testDatabase: TestDatabase;
@@ -44,21 +43,30 @@ describe("DrizzleSettlementReportStore requests", () => {
     expect(await store().requestOfDay(DAY)).toBeNull();
   });
 
-  it("answers the request recorded for the day, not yet recorded", async () => {
+  it("answers the request recorded for the day, neither refused nor recorded", async () => {
     await store().recordRequest(request);
 
-    expect(await store().requestOfDay(DAY)).toEqual({ ...request, recordedAt: null });
+    expect(await store().requestOfDay(DAY)).toEqual({
+      ...request,
+      refused: false,
+      recordedAt: null,
+    });
   });
 
-  it("keeps a refused request", async () => {
-    await store().recordRequest({ ...request, refused: true });
+  it("marks the request of the day refused", async () => {
+    await store().recordRequest(request);
+    await store().recordRequest({ ...request, day: "2026-10-10" });
+
+    await store().recordRefusal(DAY);
 
     expect(await store().requestOfDay(DAY)).toMatchObject({ refused: true });
+    expect(await store().requestOfDay("2026-10-10")).toMatchObject({ refused: false });
   });
 
   it("replaces the request of a day when it is requested again", async () => {
-    await store().recordRequest({ ...request, refused: true });
-    await store().recordRequest({ ...request, requestedAt: LATER, refused: false });
+    await store().recordRequest(request);
+    await store().recordRefusal(DAY);
+    await store().recordRequest({ ...request, requestedAt: LATER });
 
     expect(await store().requestOfDay(DAY)).toEqual({
       ...request,
