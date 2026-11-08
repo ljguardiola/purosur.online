@@ -13,6 +13,7 @@ import {
   almonds,
   crackers,
   honey,
+  movementReasons,
   oats,
   stockBalanceList,
   tea,
@@ -24,7 +25,7 @@ export function createServices(): StockBalancesScreenServices {
     fetchStockBalances: vi.fn(),
     fetchStockCounts: vi.fn().mockResolvedValue({ kind: "ok", value: { counts: [] } }),
     fetchStockMovements: vi.fn().mockResolvedValue({ kind: "ok", value: { movements: [] } }),
-    fetchStockMovementReasons: vi.fn().mockReturnValue(new Promise(() => {})),
+    fetchStockMovementReasons: vi.fn().mockResolvedValue({ kind: "ok", value: movementReasons }),
     fetchStockProducts: vi.fn().mockResolvedValue({
       kind: "ok",
       value: { products: [almonds, honey, oats, tea].map(withoutBalance) },
