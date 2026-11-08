@@ -4,7 +4,7 @@ import { useDocumentTitle } from "../shell/document-title";
 import { PurchaseOrdersScreen } from "./purchase-orders-screen";
 import { defaultPurchaseOrdersScreenServices } from "./purchase-orders-services";
 
-const route = getRouteApi("/signed-in/orders-area/purchase-orders");
+const route = getRouteApi("/signed-in/purchasing-area/purchase-orders");
 
 export function PurchaseOrdersPage(): ReactElement {
   const { services, sessionActions } = route.useRouteContext();

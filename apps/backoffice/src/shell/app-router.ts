@@ -112,7 +112,7 @@ import { fiscalAreaRoute } from "./fiscal-area";
 import { helpAreaRoute } from "./help-area";
 import { homeAreaRoute } from "./home-area";
 import { ScreenDownloadFailure } from "./lazy-screen";
-import { ordersAreaRoute } from "./orders-area";
+import { purchasingAreaRoute } from "./purchasing-area";
 import { peopleLandingRoute, peopleRoute } from "./people-route";
 import { productsAreaRoute } from "./products-area";
 import { productsRoute } from "./products-route";
@@ -158,7 +158,7 @@ const routeTree = rootRoute.addChildren([
       newPurchaseRoute,
       freightsListRoute,
     ]),
-    ordersAreaRoute.addChildren([
+    purchasingAreaRoute.addChildren([
       supplierPriceListsRoute,
       supplierPriceListReviewRoute,
       supplierPriceComparisonRoute,

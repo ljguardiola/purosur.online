@@ -4,7 +4,7 @@ import { useDocumentTitle } from "../shell/document-title";
 import { SupplierPriceListReviewScreen } from "./supplier-price-list-review-screen";
 import { defaultSupplierPriceListReviewScreenServices } from "./supplier-price-list-review-services";
 
-const route = getRouteApi("/signed-in/orders-area/supplier-price-lists/$listId");
+const route = getRouteApi("/signed-in/purchasing-area/supplier-price-lists/$listId");
 
 export function SupplierPriceListReviewPage(): ReactElement {
   const { session, services, sessionActions } = route.useRouteContext();

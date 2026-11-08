@@ -13,7 +13,7 @@ import {
   canSeeReports,
 } from "../shell/backoffice-access";
 import { lazyScreen } from "../shell/lazy-screen";
-import { ordersAreaRoute } from "../shell/orders-area";
+import { purchasingAreaRoute } from "../shell/purchasing-area";
 import { reportPeriodSearch } from "../shell/report-filters-search";
 import { reportsAreaRoute } from "../shell/reports-area";
 import { refuseWithout } from "../shell/signed-in-route";
@@ -75,7 +75,7 @@ export const freightsListRoute = createRoute({
 });
 
 export const supplierPriceListsRoute = createRoute({
-  getParentRoute: () => ordersAreaRoute,
+  getParentRoute: () => purchasingAreaRoute,
   path: "supplier-price-lists",
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canManageSupplierPriceLists),
   validateSearch: supplierPriceListsFilters,
@@ -84,7 +84,7 @@ export const supplierPriceListsRoute = createRoute({
 });
 
 export const supplierPriceListReviewRoute = createRoute({
-  getParentRoute: () => ordersAreaRoute,
+  getParentRoute: () => purchasingAreaRoute,
   path: "supplier-price-lists/$listId",
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canManageSupplierPriceLists),
   validateSearch: supplierPriceListReviewFilters,
@@ -96,7 +96,7 @@ export const supplierPriceListReviewRoute = createRoute({
 });
 
 export const supplierPriceComparisonRoute = createRoute({
-  getParentRoute: () => ordersAreaRoute,
+  getParentRoute: () => purchasingAreaRoute,
   path: "price-comparison",
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canComparePrices),
   validateSearch: supplierPriceComparisonFilters,
@@ -108,7 +108,7 @@ export const supplierPriceComparisonRoute = createRoute({
 });
 
 export const orderSuggestionRoute = createRoute({
-  getParentRoute: () => ordersAreaRoute,
+  getParentRoute: () => purchasingAreaRoute,
   path: "order-suggestion",
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canComparePrices),
   validateSearch: orderSuggestionFilters,
@@ -117,7 +117,7 @@ export const orderSuggestionRoute = createRoute({
 });
 
 export const purchaseOrdersRoute = createRoute({
-  getParentRoute: () => ordersAreaRoute,
+  getParentRoute: () => purchasingAreaRoute,
   path: "purchase-orders",
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canReadPurchaseOrders),
   validateSearch: purchaseOrdersFilters,
@@ -126,14 +126,14 @@ export const purchaseOrdersRoute = createRoute({
 });
 
 export const purchaseOrderRoute = createRoute({
-  getParentRoute: () => ordersAreaRoute,
+  getParentRoute: () => purchasingAreaRoute,
   path: "purchase-orders/$orderId",
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canReadPurchaseOrders),
   component: lazyScreen(() => import("./purchase-order-page"), "PurchaseOrderPage"),
 });
 
 export const purchaseOrderReceiveRoute = createRoute({
-  getParentRoute: () => ordersAreaRoute,
+  getParentRoute: () => purchasingAreaRoute,
   path: "purchase-orders/$orderId/receive",
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canReceivePurchaseOrders),
   component: lazyScreen(() => import("./purchase-order-receive-page"), "PurchaseOrderReceivePage"),

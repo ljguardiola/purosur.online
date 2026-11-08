@@ -48,7 +48,7 @@ type Area =
   | "home"
   | "products"
   | "stock"
-  | "orders"
+  | "purchasing"
   | "sales-and-cash"
   | "fiscal"
   | "reports"
@@ -133,7 +133,7 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
               to={ordersTarget}
               label="Pedidos"
               icon={<ClipboardList />}
-              active={area === "orders"}
+              active={area === "purchasing"}
             />
           )}
           {canSeeFiscalPage(session) && (

@@ -4,7 +4,7 @@ import { useDocumentTitle } from "../shell/document-title";
 import { SupplierPriceComparisonScreen } from "./supplier-price-comparison-screen";
 import { defaultSupplierPriceComparisonScreenServices } from "./supplier-price-comparison-services";
 
-const route = getRouteApi("/signed-in/orders-area/price-comparison");
+const route = getRouteApi("/signed-in/purchasing-area/price-comparison");
 
 export function SupplierPriceComparisonPage(): ReactElement {
   const { services, sessionActions } = route.useRouteContext();

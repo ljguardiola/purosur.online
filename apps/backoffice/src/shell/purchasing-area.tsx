@@ -8,14 +8,14 @@ import {
 } from "./backoffice-access";
 import { signedInRoute } from "./signed-in-route";
 
-export const ordersAreaRoute = createRoute({
+export const purchasingAreaRoute = createRoute({
   getParentRoute: () => signedInRoute,
-  id: "orders-area",
-  component: OrdersArea,
+  id: "purchasing-area",
+  component: PurchasingArea,
 });
 
-function OrdersArea() {
-  const { session } = ordersAreaRoute.useRouteContext();
+function PurchasingArea() {
+  const { session } = purchasingAreaRoute.useRouteContext();
   const matchRoute = useMatchRoute();
   const supplierPriceListsShown = Boolean(matchRoute({ to: "/supplier-price-lists", fuzzy: true }));
   const priceComparisonShown = Boolean(matchRoute({ to: "/price-comparison" }));
@@ -23,7 +23,7 @@ function OrdersArea() {
   const purchaseOrdersShown = Boolean(matchRoute({ to: "/purchase-orders", fuzzy: true }));
   return (
     <AreaLayout
-      area="orders"
+      area="purchasing"
       sectionColumnLabel="Pedidos"
       sectionColumn={
         <>

@@ -36,7 +36,7 @@ opensOnlyScreens([
 
 beforeEach(resetPageState);
 
-function ordersServices(capabilities: Capability[]) {
+function purchasingServices(capabilities: Capability[]) {
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(
       openSession({
@@ -71,7 +71,7 @@ function ordersServices(capabilities: Capability[]) {
 }
 
 test("opens the supplier price lists from the rail's Pedidos item, listing only that section", async () => {
-  const services = ordersServices(["supplier_price_lists", "orders_area"]);
+  const services = purchasingServices(["supplier_price_lists", "orders_area"]);
   window.history.pushState(null, "", "/help");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -90,7 +90,7 @@ test("opens the supplier price lists from the rail's Pedidos item, listing only 
 });
 
 test("hides the Pedidos item in the rail for a user without the orders area", async () => {
-  const services = ordersServices(["stock_area", "stock_balances"]);
+  const services = purchasingServices(["stock_area", "stock_balances"]);
   window.history.pushState(null, "", "/help");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -100,7 +100,7 @@ test("hides the Pedidos item in the rail for a user without the orders area", as
 });
 
 test("shows the Pedidos item to an Administrator", async () => {
-  const services = ordersServices([]);
+  const services = purchasingServices([]);
   vi.mocked(services.fetchSession).mockResolvedValue(openSession());
   window.history.pushState(null, "", "/help");
 
@@ -112,7 +112,7 @@ test("shows the Pedidos item to an Administrator", async () => {
 test.each(["/supplier-price-lists", `/supplier-price-lists/${READ_LIST.id}`])(
   "sends a user who may not open %s to Mi cuenta",
   async (path) => {
-    const services = ordersServices(["orders_area", "stock_area"]);
+    const services = purchasingServices(["orders_area", "stock_area"]);
     window.history.pushState(null, "", path);
 
     const screen = await render(<App help={emptyHelp} services={services} />);
@@ -122,7 +122,7 @@ test.each(["/supplier-price-lists", `/supplier-price-lists/${READ_LIST.id}`])(
 );
 
 test("opens a list's review from the list", async () => {
-  const services = ordersServices(["supplier_price_lists", "orders_area"]);
+  const services = purchasingServices(["supplier_price_lists", "orders_area"]);
   window.history.pushState(null, "", "/supplier-price-lists?state=EXTRACTED");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -140,7 +140,7 @@ test("opens a list's review from the list", async () => {
 });
 
 test("shows no open alerts count in the list's top bar", async () => {
-  const services = ordersServices([]);
+  const services = purchasingServices([]);
   vi.mocked(services.fetchSession).mockResolvedValue(openSession());
   window.history.pushState(null, "", "/supplier-price-lists");
 
@@ -154,7 +154,7 @@ test("shows no open alerts count in the list's top bar", async () => {
 });
 
 test("lists the price comparison beside the supplier price lists for whoever compares prices", async () => {
-  const services = ordersServices(["supplier_price_lists", "price_comparison", "orders_area"]);
+  const services = purchasingServices(["supplier_price_lists", "price_comparison", "orders_area"]);
   window.history.pushState(null, "", "/supplier-price-lists");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -175,7 +175,7 @@ test("lists the price comparison beside the supplier price lists for whoever com
 });
 
 test("hides the price comparison from whoever may only manage the lists", async () => {
-  const services = ordersServices(["supplier_price_lists", "orders_area"]);
+  const services = purchasingServices(["supplier_price_lists", "orders_area"]);
   window.history.pushState(null, "", "/supplier-price-lists");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -187,7 +187,7 @@ test("hides the price comparison from whoever may only manage the lists", async 
 });
 
 test("opens the price comparison from its section, marking it as the section shown", async () => {
-  const services = ordersServices(["supplier_price_lists", "price_comparison", "orders_area"]);
+  const services = purchasingServices(["supplier_price_lists", "price_comparison", "orders_area"]);
   window.history.pushState(null, "", "/supplier-price-lists");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -201,7 +201,7 @@ test("opens the price comparison from its section, marking it as the section sho
 });
 
 test("sends a user who may not compare prices to Mi cuenta", async () => {
-  const services = ordersServices(["supplier_price_lists", "orders_area"]);
+  const services = purchasingServices(["supplier_price_lists", "orders_area"]);
   window.history.pushState(null, "", "/price-comparison");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -210,7 +210,7 @@ test("sends a user who may not compare prices to Mi cuenta", async () => {
 });
 
 test("hides the order suggestion from whoever may only manage the lists", async () => {
-  const services = ordersServices(["supplier_price_lists", "orders_area"]);
+  const services = purchasingServices(["supplier_price_lists", "orders_area"]);
   window.history.pushState(null, "", "/supplier-price-lists");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -222,7 +222,7 @@ test("hides the order suggestion from whoever may only manage the lists", async 
 });
 
 test("opens the order suggestion from its section, marking it as the section shown", async () => {
-  const services = ordersServices(["supplier_price_lists", "price_comparison", "orders_area"]);
+  const services = purchasingServices(["supplier_price_lists", "price_comparison", "orders_area"]);
   window.history.pushState(null, "", "/supplier-price-lists");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -239,7 +239,7 @@ test("opens the order suggestion from its section, marking it as the section sho
 });
 
 test("sends a user who may not compare prices away from the order suggestion to Mi cuenta", async () => {
-  const services = ordersServices(["supplier_price_lists", "orders_area"]);
+  const services = purchasingServices(["supplier_price_lists", "orders_area"]);
   window.history.pushState(null, "", "/order-suggestion");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -248,7 +248,7 @@ test("sends a user who may not compare prices away from the order suggestion to 
 });
 
 test("lists the purchase orders beside the other sections for whoever manages them", async () => {
-  const services = ordersServices([
+  const services = purchasingServices([
     "supplier_price_lists",
     "purchase_orders",
     "purchase_order_reads",
@@ -270,7 +270,7 @@ test("lists the purchase orders beside the other sections for whoever manages th
 });
 
 test("opens the purchase orders from the rail's Pedidos item when it is all the user may open", async () => {
-  const services = ordersServices(["purchase_orders", "purchase_order_reads", "orders_area"]);
+  const services = purchasingServices(["purchase_orders", "purchase_order_reads", "orders_area"]);
   vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrders).mockResolvedValue({
     kind: "ok",
     value: [],
@@ -290,7 +290,7 @@ test.each([
   ["supplier_price_lists", "/supplier-price-lists"],
   ["price_comparison", "/price-comparison"],
 ] as const)("opens %s first from the rail's Pedidos item", async (capability, path) => {
-  const services = ordersServices([
+  const services = purchasingServices([
     capability,
     "purchase_orders",
     "purchase_order_reads",
@@ -305,7 +305,7 @@ test.each([
 });
 
 test("hides the purchase orders from whoever may only manage the lists", async () => {
-  const services = ordersServices(["supplier_price_lists", "orders_area"]);
+  const services = purchasingServices(["supplier_price_lists", "orders_area"]);
   window.history.pushState(null, "", "/supplier-price-lists");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -317,7 +317,7 @@ test("hides the purchase orders from whoever may only manage the lists", async (
 });
 
 test("sends a user who may not read purchase orders away from them to Mi cuenta", async () => {
-  const services = ordersServices(["supplier_price_lists", "orders_area"]);
+  const services = purchasingServices(["supplier_price_lists", "orders_area"]);
   window.history.pushState(null, "", "/purchase-orders");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -326,7 +326,7 @@ test("sends a user who may not read purchase orders away from them to Mi cuenta"
 });
 
 test("sends a user who may not read purchase orders away from an order to Mi cuenta", async () => {
-  const services = ordersServices(["supplier_price_lists", "orders_area"]);
+  const services = purchasingServices(["supplier_price_lists", "orders_area"]);
   window.history.pushState(null, "", `/purchase-orders/${ORDER_ID}`);
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -338,7 +338,7 @@ test("sends a user who may not read purchase orders away from an order to Mi cue
 test.each(["/purchase-orders", `/purchase-orders/${ORDER_ID}`])(
   "sends a session granted managing but not reading purchase orders away from %s to Mi cuenta",
   async (path) => {
-    const services = ordersServices(["supplier_price_lists", "purchase_orders", "orders_area"]);
+    const services = purchasingServices(["supplier_price_lists", "purchase_orders", "orders_area"]);
     window.history.pushState(null, "", path);
 
     const screen = await render(<App help={emptyHelp} services={services} />);
@@ -350,7 +350,7 @@ test.each(["/purchase-orders", `/purchase-orders/${ORDER_ID}`])(
 );
 
 test("opens an order from the purchase orders, and goes back to them from it", async () => {
-  const services = ordersServices(["purchase_orders", "purchase_order_reads", "orders_area"]);
+  const services = purchasingServices(["purchase_orders", "purchase_order_reads", "orders_area"]);
   vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrders).mockResolvedValue({
     kind: "ok",
     value: [DRAFT_SUMMARY],
@@ -381,7 +381,7 @@ test("opens an order from the purchase orders, and goes back to them from it", a
 });
 
 test("goes to the purchase orders once they are built from the order suggestion", async () => {
-  const services = ordersServices([
+  const services = purchasingServices([
     "price_comparison",
     "purchase_orders",
     "purchase_order_reads",
@@ -407,7 +407,7 @@ test("goes to the purchase orders once they are built from the order suggestion"
 });
 
 test("lists the purchase orders for whoever may only receive them", async () => {
-  const services = ordersServices([
+  const services = purchasingServices([
     "purchase_order_reads",
     "purchase_order_receipts",
     "orders_area",
@@ -429,7 +429,7 @@ test("lists the purchase orders for whoever may only receive them", async () => 
 });
 
 test("opens an order for whoever may read purchase orders", async () => {
-  const services = ordersServices(["purchase_order_reads", "orders_area"]);
+  const services = purchasingServices(["purchase_order_reads", "orders_area"]);
   vi.mocked(services.purchaseOrderScreen.fetchPurchaseOrder).mockResolvedValue({
     kind: "ok",
     value: { kind: "found", order: DRAFT_ORDER },
@@ -444,7 +444,7 @@ test("opens an order for whoever may read purchase orders", async () => {
 });
 
 test("sends a user who may not receive orders away from the receipt to Mi cuenta", async () => {
-  const services = ordersServices(["purchase_order_reads", "orders_area"]);
+  const services = purchasingServices(["purchase_order_reads", "orders_area"]);
   window.history.pushState(null, "", `/purchase-orders/${ORDER_ID}/receive`);
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -454,7 +454,7 @@ test("sends a user who may not receive orders away from the receipt to Mi cuenta
 });
 
 test("opens the receipt of a receivable order from the order, and goes back to the order from it", async () => {
-  const services = ordersServices([
+  const services = purchasingServices([
     "purchase_order_reads",
     "purchase_order_receipts",
     "purchase_choices",
