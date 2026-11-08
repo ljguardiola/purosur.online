@@ -65,7 +65,9 @@ export const stockMovementsSearch = stockMovementsFilters
   .extend({ type: stockMovementKinds })
   .extend(stockRegisterSearch.shape);
 
-const stockBalancesSearch = stockBalancesFilters.extend(stockRegisterSearch.shape);
+const stockBalancesSearch = stockBalancesFilters
+  .extend({ product: z.string().optional().catch(undefined) })
+  .extend(stockRegisterSearch.shape);
 
 export const initialInventoryFilters = z.object({
   search: z.string().default("").catch(""),

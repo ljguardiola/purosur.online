@@ -1,7 +1,16 @@
-import type { StockBalance, StockBalanceList } from "@purosur/contracts";
+import type {
+  StockBalance,
+  StockBalanceList,
+  StockCountResult,
+  StockMovementResult,
+  StockProduct,
+} from "@purosur/contracts";
 import {
   actionsColumn,
+  Card,
   dataColumn,
+  FigureStat,
+  FloatingNotification,
   formatNumber,
   formatSignedCents,
   type ItemOrder,
@@ -17,23 +26,51 @@ import {
 } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
 import { deepEqual } from "@tanstack/react-router";
-import { ChevronDown, ChevronUp, Package, Search } from "lucide-react";
-import { useEffect, useEffectEvent, useState } from "react";
+import { Check, Package, Search } from "lucide-react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import type { ProductCreationModal } from "../platform/creation-parts";
 import { formatStockQuantity } from "../platform/stock-quantity";
+import {
+  type BackofficeAccess,
+  canManageProductsAndCategories,
+  canSeeStockBalances,
+} from "../shell/backoffice-access";
+import { ReportDownload } from "../shell/report-download";
+import { reportFileName } from "../shell/report-file-name";
+import { countMomentNow } from "./count-moment";
+import { NewCountModal } from "./new-count-modal";
+import { OpenStockBalancePanel } from "./open-stock-balance-panel";
 import type { StockBalancesFilters } from "./routes";
-import { StockBalanceLots } from "./stock-balance-lots";
+import { stockBalanceRowActions } from "./stock-balance-row-actions";
 import type { StockBalancesScreenServices } from "./stock-balances-services";
+import { stockBalancesSpreadsheet } from "./stock-balances-spreadsheet";
 import { formatStockUnitCost, formatStockValue } from "./stock-cost";
-import { useStockBalancesQuery } from "./stock-queries";
+import type { MovementKind } from "./stock-movement-form";
+import { StockMovementModal } from "./stock-movement-modal";
+import { useRefreshStock, useStockBalancesQuery } from "./stock-queries";
+import { countRegisteredNotice, movementRegisteredNotice } from "./stock-registered-notices";
 import { categoryFilterOptions } from "./stock-screen-parts";
 
 export type StockBalancesScreenProps = {
+  access: BackofficeAccess;
+  productCreationModal: ProductCreationModal;
   filters: StockBalancesFilters;
   onFiltersChange: (filters: StockBalancesFilters) => void;
+  openProduct?: string | undefined;
+  onOpenProductChange: (product: string | undefined) => void;
   onSessionEnded: () => void;
   services: StockBalancesScreenServices;
+  now?: () => Date;
 };
+
+type RowAction =
+  | { kind: "count"; productId: string; start: ReturnType<typeof countMomentNow> }
+  | { kind: "movement"; productId: string; movement: MovementKind };
+
+type ScreenNotice = { id: number; title: string; description: string };
+
+const MOVEMENT_TITLES = { adjustment: "Cargar ajuste", loss: "Cargar pérdida" } as const;
 
 type BalanceFilter = StockBalancesFilters["balance"];
 type BalanceSortColumn = StockBalancesFilters["sortBy"];
@@ -78,23 +115,47 @@ function matchesBalance(balance: number, filter: BalanceFilter): boolean {
   return true;
 }
 
-function summaryText({ productCount, valueCents, withoutCostCount }: StockBalanceList["summary"]) {
+function coverageText({ productCount, withoutCostCount }: StockBalanceList["summary"]) {
   const products = plural(productCount, {
     one: "1 producto con movimiento",
     other: `${formatNumber(productCount)} productos con movimiento`,
   });
-  const value = `valorizado ${formatSignedCents(valueCents)}`;
   return withoutCostCount === 0
-    ? `${products} · ${value}`
-    : `${products} · ${value} · ${formatNumber(withoutCostCount)} sin costo`;
+    ? products
+    : `${products} · ${formatNumber(withoutCostCount)} sin costo`;
+}
+
+function StockValueSummary({ list }: { list: StockBalanceList | undefined }) {
+  return (
+    <Card>
+      {list === undefined ? (
+        <FigureStat size="heading" label="Valorizado a costo" loading />
+      ) : (
+        <>
+          <FigureStat
+            size="heading"
+            label="Valorizado a costo"
+            value={formatSignedCents(list.summary.valueCents)}
+          />
+          <p className="text-detail text-text-subtle">{coverageText(list.summary)}</p>
+        </>
+      )}
+    </Card>
+  );
 }
 
 export function StockBalancesScreen({
+  access,
+  productCreationModal,
   filters,
   onFiltersChange,
+  openProduct,
+  onOpenProductChange,
   onSessionEnded,
   services,
+  now,
 }: StockBalancesScreenProps) {
+  const clock = now ?? (() => new Date());
   const [search, setSearch] = useState(filters.search);
   const [category, setCategory] = useState(filters.category);
   const [balance, setBalance] = useState<BalanceFilter>(filters.balance);
@@ -102,8 +163,12 @@ export function StockBalancesScreen({
     column: filters.sortBy,
     direction: filters.sort,
   });
-  const [opened, setOpened] = useState<readonly string[]>([]);
+  const [rowAction, setRowAction] = useState<RowAction | null>(null);
+  const [notice, setNotice] = useState<ScreenNotice | null>(null);
+  const lastNoticeId = useRef(0);
   const reportFilters = useEffectEvent(onFiltersChange);
+  const refreshStock = useRefreshStock();
+  const showsBalance = canSeeStockBalances(access);
 
   useEffect(() => {
     const shown: StockBalancesFilters = {
@@ -184,22 +249,20 @@ export function StockBalancesScreen({
     actionsColumn({
       id: "actions",
       header: "Acciones del saldo",
-      actions: [
-        (item: StockBalance) =>
-          item.lotCount === 0
-            ? undefined
-            : opened.includes(item.id)
-              ? {
-                  icon: <ChevronUp />,
-                  "aria-label": `Ocultar los lotes de ${formatProductDescription(item)}`,
-                  onPress: () => setOpened(opened.filter((id) => id !== item.id)),
-                }
-              : {
-                  icon: <ChevronDown />,
-                  "aria-label": `Ver los lotes de ${formatProductDescription(item)}`,
-                  onPress: () => setOpened([...opened, item.id]),
-                },
-      ],
+      ...stockBalanceRowActions(access, {
+        count: (product) => {
+          setNotice(null);
+          setRowAction({ kind: "count", productId: product.id, start: countMomentNow(clock()) });
+        },
+        adjust: (product) => {
+          setNotice(null);
+          setRowAction({ kind: "movement", productId: product.id, movement: "adjustment" });
+        },
+        registerLoss: (product) => {
+          setNotice(null);
+          setRowAction({ kind: "movement", productId: product.id, movement: "loss" });
+        },
+      }),
     }),
   ] as const;
 
@@ -229,64 +292,148 @@ export function StockBalancesScreen({
     onSortChange: setSort,
   });
 
+  // A fresh id for each notice, so a screen reader announces a notice with the same text again.
+  function showNotice(shown: Omit<ScreenNotice, "id">) {
+    lastNoticeId.current += 1;
+    setNotice({ ...shown, id: lastNoticeId.current });
+  }
+
+  function handleCountRegistered(product: StockProduct, result: StockCountResult) {
+    setRowAction(null);
+    void refreshStock();
+    showNotice(countRegisteredNotice(product, result, showsBalance));
+  }
+
+  function handleMovementRegistered(
+    product: StockProduct,
+    result: StockMovementResult,
+    delta: number,
+  ) {
+    setRowAction(null);
+    void refreshStock();
+    showNotice(movementRegisteredNotice(product, result, delta, showsBalance));
+  }
+
+  const creation = canManageProductsAndCategories(access) ? { productCreationModal } : {};
+
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="w-105">
-          <SearchField
-            value={search}
-            onChange={setSearch}
-            placeholder="Buscar un producto"
-            icon={<Search />}
+    <>
+      <div className="flex min-h-0 flex-1">
+        <div className="relative flex min-w-0 flex-1 flex-col gap-4 overflow-auto p-6">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="w-105">
+              <SearchField
+                value={search}
+                onChange={setSearch}
+                placeholder="Buscar un producto"
+                icon={<Search />}
+              />
+            </div>
+            <ListFilter
+              name="category"
+              label="Categoría:"
+              searchable
+              options={categoryOptions}
+              value={categoryIsOffered ? category : "ALL"}
+              onChange={setCategory}
+            />
+            <ListFilter
+              name="balance"
+              label="Saldo:"
+              options={BALANCE_FILTER_OPTIONS}
+              value={balance}
+              onChange={setBalance}
+            />
+            <div className="ml-auto">
+              <ReportDownload
+                dataStatus={data.status}
+                workbook={() =>
+                  data.status === "loaded"
+                    ? stockBalancesSpreadsheet(
+                        data.value.summary,
+                        table.getPrePaginatedRowModel().rows.map((row) => row.original),
+                      )
+                    : null
+                }
+                fileName={reportFileName("Stock valorizado")}
+              />
+            </div>
+          </div>
+          {data.status === "failed" ? null : (
+            <div>
+              <StockValueSummary list={data.status === "loaded" ? data.value : undefined} />
+            </div>
+          )}
+          <Table
+            aria-label="Saldos"
+            table={table}
+            onRowPress={(item) => onOpenProductChange(item.id)}
+            rowState={(item) =>
+              item.id === openProduct ? "selected" : item.correction === null ? undefined : "error"
+            }
+            {...cloudTableState(data, "los saldos")}
+            empty={
+              products.length === 0
+                ? {
+                    icon: <Package />,
+                    title: "No hay productos activos",
+                    description: "Creá uno en Productos para llevar su stock.",
+                    variant: "blank",
+                  }
+                : {
+                    icon: <Search />,
+                    title: "Sin resultados",
+                    description: "Probá con otro nombre, categoría o saldo.",
+                    variant: "filtered",
+                  }
+            }
           />
         </div>
-        <ListFilter
-          name="category"
-          label="Categoría:"
-          searchable
-          options={categoryOptions}
-          value={categoryIsOffered ? category : "ALL"}
-          onChange={setCategory}
-        />
-        <ListFilter
-          name="balance"
-          label="Saldo:"
-          options={BALANCE_FILTER_OPTIONS}
-          value={balance}
-          onChange={setBalance}
+        <OpenStockBalancePanel
+          products={products}
+          productsAreLoaded={data.status === "loaded" && !data.refreshing}
+          openProduct={openProduct}
+          access={access}
+          services={services}
+          onClose={() => onOpenProductChange(undefined)}
+          onSessionEnded={onSessionEnded}
         />
       </div>
-      <Table
-        aria-label="Saldos"
-        table={table}
-        rowState={(item) =>
-          opened.includes(item.id) ? "selected" : item.correction === null ? undefined : "error"
-        }
-        rowDetail={(item) =>
-          opened.includes(item.id) ? <StockBalanceLots product={item} /> : undefined
-        }
-        {...cloudTableState(data, "los saldos")}
-        empty={
-          products.length === 0
-            ? {
-                icon: <Package />,
-                title: "No hay productos activos",
-                description: "Creá uno en Productos para llevar su stock.",
-                variant: "blank",
-              }
-            : {
-                icon: <Search />,
-                title: "Sin resultados",
-                description: "Probá con otro nombre, categoría o saldo.",
-                variant: "filtered",
-              }
-        }
-        footer={
-          data.status === "loaded" ? (
-            <p className="text-text-subtle text-detail">{summaryText(data.value.summary)}</p>
-          ) : undefined
-        }
-      />
-    </div>
+      {rowAction?.kind === "count" ? (
+        <NewCountModal
+          startMoment={rowAction.start}
+          productId={rowAction.productId}
+          showsBalance={showsBalance}
+          {...creation}
+          services={services}
+          onClose={() => setRowAction(null)}
+          onSessionEnded={onSessionEnded}
+          onRegistered={handleCountRegistered}
+        />
+      ) : null}
+      {rowAction?.kind === "movement" ? (
+        <StockMovementModal
+          title={MOVEMENT_TITLES[rowAction.movement]}
+          kinds={[rowAction.movement]}
+          productId={rowAction.productId}
+          showsBalance={showsBalance}
+          {...creation}
+          services={services}
+          onClose={() => setRowAction(null)}
+          onSessionEnded={onSessionEnded}
+          onRegistered={handleMovementRegistered}
+        />
+      ) : null}
+      {notice ? (
+        <FloatingNotification
+          key={notice.id}
+          tone="success"
+          icon={<Check />}
+          title={notice.title}
+          description={notice.description}
+          onDismiss={() => setNotice(null)}
+        />
+      ) : null}
+    </>
   );
 }
