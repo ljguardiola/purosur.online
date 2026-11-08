@@ -1,6 +1,6 @@
 import type { ListedProduct } from "@purosur/contracts";
 import type { RowMenuAction, TableAction } from "@purosur/ui";
-import { Ban, Boxes, Copy, Pencil, RotateCcw, Tag } from "lucide-react";
+import { Ban, Boxes, Copy, Pencil, RotateCcw } from "lucide-react";
 import {
   type BackofficeAccess,
   canSeePricesArea,
@@ -53,10 +53,10 @@ export function productRowActions(access: BackofficeAccess, actions: ProductActi
 
   function menu(item: ListedProduct) {
     const entries: RowMenuAction[] = [];
-    if (mayChangePrice) {
+    if (mayChangePrice && item.active) {
       entries.push({
         label: "Cambiar el precio",
-        icon: <Tag />,
+        icon: <Pencil />,
         onAction: () => actions.openPanel(item, "price"),
       });
     }

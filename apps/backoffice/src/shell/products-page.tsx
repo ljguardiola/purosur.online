@@ -33,7 +33,7 @@ export function ProductsPage(): ReactElement {
           : "products";
 
   return (
-    <ScreenLayout topBar={<AreaTopBar eyebrow="Productos" title="Productos" />} bodyClassName="p-0">
+    <ScreenLayout topBar={<AreaTopBar title="Productos" />} bodyClassName="p-0">
       <Tabs
         label="Secciones de Productos"
         selectedTab={selectedTab}

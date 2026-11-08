@@ -8,8 +8,12 @@ export type ProductPanelSectionProps = {
   onSessionEnded: () => void;
 };
 
+export type ProductPriceCostSectionProps = ProductPanelSectionProps & {
+  onPriceChanged: () => void;
+};
+
 export type ProductRecipeSectionProps = ProductPanelSectionProps & {
-  mayRegisterBatches: boolean;
+  mayManageBatches: boolean;
 };
 
 export type ProductRecipeLookupProps = {
@@ -20,7 +24,7 @@ export type ProductRecipeLookupProps = {
 };
 
 export type ProductPanelSections = {
-  priceAndCost: ComponentType<ProductPanelSectionProps>;
+  priceAndCost: ComponentType<ProductPriceCostSectionProps>;
   stockAndLots: ComponentType<ProductPanelSectionProps>;
   recipeAndBatches: ComponentType<ProductRecipeSectionProps>;
   recipeLookup: ComponentType<ProductRecipeLookupProps>;

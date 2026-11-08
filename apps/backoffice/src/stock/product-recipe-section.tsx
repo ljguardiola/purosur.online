@@ -52,12 +52,13 @@ const defaultServices: ProductRecipeSectionServices = {
 
 export function ProductRecipeSection({
   productId,
-  mayRegisterBatches,
+  mayManageBatches,
   onSessionEnded,
   services = defaultServices,
 }: ProductRecipeSectionProps) {
   const recipes = useRecipesQuery({ fetchRecipes: services.fetchRecipes, onSessionEnded });
   const batches = useAssemblyBatchesQuery({
+    enabled: mayManageBatches,
     days: BATCHES_PERIOD_DAYS,
     fetchAssemblyBatches: services.fetchAssemblyBatches,
     onSessionEnded,
@@ -66,10 +67,6 @@ export function ProductRecipeSection({
   const [registering, setRegistering] = useState(false);
   const [voiding, setVoiding] = useState<AssemblyBatch | null>(null);
 
-  const productBatches =
-    batches.status === "loaded"
-      ? batches.value.batches.filter((batch) => batch.productId === productId)
-      : [];
   const columns = [
     dataColumn({
       id: "date",
@@ -118,7 +115,7 @@ export function ProductRecipeSection({
       header: "Acciones de la tanda",
       actions: [
         (batch: AssemblyBatch) =>
-          mayRegisterBatches && batch.status === "voidable"
+          batch.status === "voidable"
             ? {
                 icon: <Ban />,
                 "aria-label": `Anular tanda de ${formatProductDescription({ name: batch.productName, brandName: batch.brandName, netContent: batch.netContent })}`,
@@ -128,15 +125,20 @@ export function ProductRecipeSection({
       ],
     }),
   ] as const;
-  const table = useTableModel({ items: productBatches, id: (batch) => batch.id, columns });
+  const table = useTableModel({
+    items: batches.status === "loaded" ? batches.value.batches : [],
+    id: (batch) => batch.id,
+    filter: (batch) => batch.productId === productId,
+    columns,
+  });
 
-  if (recipes.status === "loading" || batches.status === "loading") {
+  if (recipes.status === "loading" || (mayManageBatches && batches.status === "loading")) {
     return <LoadingPlaceholder variant="rows" rows={3} />;
   }
   if (recipes.status === "failed") {
     return <LoadFailure {...cloudLoadFailure(recipes, "la receta")} />;
   }
-  if (batches.status === "failed") {
+  if (mayManageBatches && batches.status === "failed") {
     return <LoadFailure {...cloudLoadFailure(batches, "las tandas")} />;
   }
   const recipe: RecipeSummary | undefined = recipes.value.recipes.find(
@@ -169,10 +171,10 @@ export function ProductRecipeSection({
           }
         />
       </div>
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between gap-3">
-          <Eyebrow text="Tandas de los últimos 90 días" />
-          {mayRegisterBatches ? (
+      {mayManageBatches ? (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between gap-3">
+            <Eyebrow text="Tandas de los últimos 90 días" />
             <Button
               variant="secondary"
               size="small"
@@ -181,20 +183,20 @@ export function ProductRecipeSection({
             >
               Registrar tanda
             </Button>
-          ) : null}
+          </div>
+          <Table
+            aria-label="Tandas"
+            table={table}
+            variant="nested"
+            empty={{
+              icon: <CookingPot />,
+              title: "Sin tandas en los últimos 90 días",
+              description: "Cada tanda registra lo que se usó y lo que se obtuvo.",
+              variant: "blank",
+            }}
+          />
         </div>
-        <Table
-          aria-label="Tandas"
-          table={table}
-          variant="nested"
-          empty={{
-            icon: <CookingPot />,
-            title: "Sin tandas en los últimos 90 días",
-            description: "Cada tanda registra lo que se usó y lo que se obtuvo.",
-            variant: "blank",
-          }}
-        />
-      </div>
+      ) : null}
       {registering ? (
         <NewAssemblyBatchModal
           recipes={[recipe]}

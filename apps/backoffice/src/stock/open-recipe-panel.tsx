@@ -50,7 +50,7 @@ export function OpenRecipePanel({
         productId={openRecipe}
         productName={recipe.productName}
         saleUnit={recipe.saleUnit}
-        mayRegisterBatches={canManageBatches(access)}
+        mayManageBatches={canManageBatches(access)}
         onSessionEnded={onSessionEnded}
         services={services}
       />

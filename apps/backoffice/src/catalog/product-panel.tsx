@@ -14,6 +14,7 @@ import {
   canSeeStockBalances,
 } from "../shell/backoffice-access";
 import { barcodesSummary } from "./barcodes-summary";
+import { useRefreshCatalog } from "./catalog-queries";
 
 export type ProductPanelProps = {
   product: ListedProduct;
@@ -68,6 +69,7 @@ function ProductPanelBody({
   onSessionEnded,
   recipe,
 }: ProductPanelProps & { recipe: "assembled" | "simple" | "unknown" }) {
+  const refreshCatalog = useRefreshCatalog();
   const { priceAndCost: PriceAndCost, stockAndLots: StockAndLots } = sections;
   const { recipeAndBatches: RecipeAndBatches } = sections;
   const tabs: readonly PagePart<BackofficeAccess, ProductPanelTab>[] = [
@@ -128,10 +130,12 @@ function ProductPanelBody({
             </div>
           </div>
         )}
-        {selectedTab === "price" && <PriceAndCost {...section} />}
+        {selectedTab === "price" && (
+          <PriceAndCost {...section} onPriceChanged={() => void refreshCatalog()} />
+        )}
         {selectedTab === "stock" && <StockAndLots {...section} />}
         {selectedTab === "recipe" && (
-          <RecipeAndBatches {...section} mayRegisterBatches={canManageBatches(access)} />
+          <RecipeAndBatches {...section} mayManageBatches={canManageBatches(access)} />
         )}
       </Tabs>
     </DetailPanel>

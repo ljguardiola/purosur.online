@@ -279,11 +279,13 @@ export function useAssemblyBatchesQuery(
   params: ReadParams & {
     days: StockPeriodDays;
     fetchAssemblyBatches: typeof fetchAssemblyBatches;
+    enabled?: boolean;
   },
 ) {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQuery<AssemblyBatchList>({
     queryKey: stockKeys.assemblyBatches(params.days),
+    enabled: params.enabled ?? true,
     keepPreviousData: true,
     read: () => params.fetchAssemblyBatches(params.days),
     onSessionEnded: params.onSessionEnded,

@@ -1,7 +1,5 @@
-import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { Package } from "lucide-react";
-import { AreaLayout, SectionLink } from "./area-layout";
-import { canSeeProductsPage } from "./backoffice-access";
+import { createRoute, Outlet } from "@tanstack/react-router";
+import { AreaLayout } from "./area-layout";
 import { signedInRoute } from "./signed-in-route";
 
 export const productsAreaRoute = createRoute({
@@ -11,33 +9,8 @@ export const productsAreaRoute = createRoute({
 });
 
 function ProductsArea() {
-  const { session } = productsAreaRoute.useRouteContext();
-  const matchRoute = useMatchRoute();
-  const productsShown = Boolean(matchRoute({ to: "/products", fuzzy: true }));
   return (
-    <AreaLayout
-      area="products"
-      sectionColumnLabel="Productos"
-      sectionColumn={
-        <>
-          <h2 className="text-text-accent text-heading">Productos</h2>
-          <div className="h-2.5" />
-          <ul className="flex flex-col gap-1">
-            {canSeeProductsPage(session) && (
-              <li>
-                <SectionLink
-                  to="/products"
-                  label="Productos"
-                  icon={<Package />}
-                  search={productsShown ? true : {}}
-                  active={productsShown}
-                />
-              </li>
-            )}
-          </ul>
-        </>
-      }
-    >
+    <AreaLayout area="products">
       <Outlet />
     </AreaLayout>
   );

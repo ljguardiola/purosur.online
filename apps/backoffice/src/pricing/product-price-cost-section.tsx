@@ -13,7 +13,7 @@ import { formatProductDescription } from "@purosur/ui/formatters";
 import { Check, Tag, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
-import type { ProductPanelSectionProps } from "../platform/product-panel-sections";
+import type { ProductPriceCostSectionProps as PlatformProps } from "../platform/product-panel-sections";
 import { formatCentsWithUnit } from "./money";
 import { PriceChangeModal, type PriceModalOutcome } from "./price-change-modal";
 import { PriceCostBreakdown } from "./price-cost-breakdown";
@@ -23,7 +23,7 @@ import {
 } from "./prices-list-services";
 import { useProductPriceQuery, useRefreshPrices, useReloadPrice } from "./pricing-queries";
 
-export type ProductPriceCostSectionProps = ProductPanelSectionProps & {
+export type ProductPriceCostSectionProps = PlatformProps & {
   services?: PricesListScreenServices | undefined;
 };
 
@@ -32,6 +32,7 @@ type SectionNotice = { kind: "saved"; description: string } | { kind: "gone"; de
 export function ProductPriceCostSection({
   productId,
   onSessionEnded,
+  onPriceChanged,
   services = defaultPricesListScreenServices,
 }: ProductPriceCostSectionProps) {
   const data = useProductPriceQuery({
@@ -70,6 +71,7 @@ export function ProductPriceCostSection({
       description: `${formatProductDescription(saved)} pasa a ${cents === undefined ? "" : formatCentsWithUnit(cents, saved.saleUnit)}.`,
     });
     void refreshPrices();
+    onPriceChanged();
   }
 
   function handleGone(gone: PriceProduct) {

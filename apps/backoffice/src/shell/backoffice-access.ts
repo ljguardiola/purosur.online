@@ -55,13 +55,7 @@ export function canManagePromotions(access: BackofficeAccess): boolean {
 }
 
 export function canSeeProductsPage(access: BackofficeAccess): boolean {
-  return (
-    canManageProductsAndCategories(access) ||
-    canSeePricesArea(access) ||
-    canManagePromotions(access) ||
-    canManageRecipes(access) ||
-    canManageBatches(access)
-  );
+  return grants(access, "catalog_area");
 }
 
 export function canSeeFiscalConfigurationArea(access: BackofficeAccess): boolean {
