@@ -83,7 +83,13 @@ test("opens the movements of every kind the person may see", () => {
     view: "list",
     from: "",
     to: "",
+    sort: "descending",
   });
+});
+
+test("keeps the order of the movements a URL names, falling back to the latest first", () => {
+  expect(stockMovementsSearch.parse({ sort: "ascending" }).sort).toBe("ascending");
+  expect(stockMovementsSearch.parse({ sort: "up" }).sort).toBe("descending");
 });
 
 test("keeps the view and the range of the losses by reason a URL names", () => {

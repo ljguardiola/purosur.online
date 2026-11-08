@@ -6,7 +6,7 @@ import { StubProductCreationModal } from "../platform/test-support/creation-part
 import { render } from "../shell/test-support/render-with-router";
 import type { MovementKind } from "./stock-movement-form";
 import { StockMovementModal } from "./stock-movement-modal";
-import type { StockMovementsScreenServices } from "./stock-movements-services";
+import type { StockMovementModalServices } from "./stock-movement-modal-services";
 import {
   almonds,
   honey,
@@ -20,9 +20,8 @@ beforeEach(async () => {
   await page.viewport(1280, 900);
 });
 
-function createServices(products = [almonds, honey]): StockMovementsScreenServices {
+function createServices(products = [almonds, honey]): StockMovementModalServices {
   return {
-    fetchStockMovements: vi.fn(),
     fetchStockMovementReasons: vi.fn().mockResolvedValue({ kind: "ok", value: movementReasons }),
     fetchStockProducts: vi.fn().mockResolvedValue({
       kind: "ok",

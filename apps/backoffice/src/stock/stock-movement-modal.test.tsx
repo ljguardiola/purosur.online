@@ -6,7 +6,7 @@ import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support
 import { render } from "../shell/test-support/render-with-router";
 import type { MovementKind } from "./stock-movement-form";
 import { StockMovementModal } from "./stock-movement-modal";
-import type { StockMovementsScreenServices } from "./stock-movements-services";
+import type { StockMovementModalServices } from "./stock-movement-modal-services";
 import {
   almonds,
   honey,
@@ -21,9 +21,8 @@ beforeEach(async () => {
   await page.viewport(1280, 900);
 });
 
-function createServices(): StockMovementsScreenServices {
+function createServices(): StockMovementModalServices {
   return {
-    fetchStockMovements: vi.fn(),
     fetchStockMovementReasons: vi.fn().mockResolvedValue({ kind: "ok", value: movementReasons }),
     fetchStockProducts: vi.fn().mockResolvedValue({
       kind: "ok",
@@ -41,7 +40,7 @@ function createServices(): StockMovementsScreenServices {
 const TITLE = "Cargar pérdida o ajuste";
 
 async function renderModal(
-  services: StockMovementsScreenServices,
+  services: StockMovementModalServices,
   {
     kinds = ["loss", "adjustment"],
     productId,

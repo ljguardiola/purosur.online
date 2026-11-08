@@ -7,8 +7,7 @@ import { radioLabel } from "../platform/test-support/radio-label";
 import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import { countMomentNow } from "./count-moment";
-import { NewCountModal } from "./new-count-modal";
-import type { StockCountsScreenServices } from "./stock-counts-services";
+import { NewCountModal, type NewCountModalServices } from "./new-count-modal";
 import {
   ALMONDS_FIRST_LOT_ID,
   ALMONDS_SECOND_LOT_ID,
@@ -26,9 +25,8 @@ beforeEach(async () => {
   await page.viewport(1280, 900);
 });
 
-function createServices(): StockCountsScreenServices {
+function createServices(): NewCountModalServices {
   return {
-    fetchStockCounts: vi.fn(),
     fetchStockProducts: vi.fn().mockResolvedValue({
       kind: "ok",
       value: { products: [almonds, honey, tea].map(withoutBalance) },
@@ -54,7 +52,7 @@ type Handlers = {
 };
 
 async function renderModalWithoutWaiting(
-  services: StockCountsScreenServices,
+  services: NewCountModalServices,
   {
     productId,
     showsBalance = true,
@@ -80,7 +78,7 @@ async function renderModalWithoutWaiting(
   return { screen, dialog };
 }
 
-async function renderModal(services: StockCountsScreenServices, handlers: Handlers = {}) {
+async function renderModal(services: NewCountModalServices, handlers: Handlers = {}) {
   const rendered = await renderModalWithoutWaiting(services, handlers);
   await expect.element(rendered.dialog.getByRole("button", { name: /Producto/ })).toBeVisible();
   return rendered;
@@ -510,7 +508,7 @@ test("disables registering and cancelling while the request is in flight", async
   await expect.element(rendered.dialog.getByRole("button", { name: "Cancelar" })).toBeEnabled();
 });
 
-async function countByLot(rendered: Rendered, services: StockCountsScreenServices) {
+async function countByLot(rendered: Rendered, services: NewCountModalServices) {
   vi.mocked(services.fetchExpectedBalance).mockResolvedValue({
     kind: "ok",
     value: almondsExpectedByLot,

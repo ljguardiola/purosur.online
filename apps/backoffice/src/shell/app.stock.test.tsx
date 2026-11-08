@@ -513,6 +513,16 @@ test("opens the initial inventory over Saldos from the old address and clears th
   expect(screen.getByRole("dialog").query()).toBeNull();
 });
 
+test("opens the initial inventory over the first tab from the old address for a person who may not see Saldos", async () => {
+  const services = stockServices(["stock_area", "stock_counts", "initial_inventory"]);
+  window.history.pushState(null, "", "/initial-inventory");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("dialog", { name: "Inventario inicial" })).toBeVisible();
+  expect(location()).toBe("/stock/movements?register=initial-inventory");
+});
+
 test("lets a person holding only initial_inventory open the initial inventory from Registrar", async () => {
   const services = stockServices(["stock_area", "initial_inventory"]);
   window.history.pushState(null, "", "/stock");
@@ -600,7 +610,7 @@ test("lists only the losses with Tipo Pérdida and groups them by reason with th
     kind: "ok",
     value: { movements: [honeyLoss, almondsAdjustment] },
   });
-  vi.mocked(services.lossesByReasonReportScreen.fetchLossesByReasonReport).mockResolvedValue({
+  vi.mocked(services.stockMovementsScreen.fetchLossesByReasonReport).mockResolvedValue({
     kind: "ok",
     value: lossesByReasonReport(),
   });
@@ -622,7 +632,7 @@ test("lists only the losses with Tipo Pérdida and groups them by reason with th
 
 test("opens Movimientos for a person with stock_counts but not stock_movements without reading the movements", async () => {
   const services = stockServices(["stock_area", "stock_counts"]);
-  vi.mocked(services.stockCountsScreen.fetchStockCounts).mockResolvedValue({
+  vi.mocked(services.stockMovementsScreen.fetchStockCounts).mockResolvedValue({
     kind: "ok",
     value: { counts: [almondsCount] },
   });

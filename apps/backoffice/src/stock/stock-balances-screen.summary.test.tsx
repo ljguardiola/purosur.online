@@ -23,6 +23,18 @@ test("shows the total stock value above the list, with how many products it cove
   expect(total.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 });
 
+test("writes how many products the total covers as the total's detail, above it", async () => {
+  const screen = await renderScreen(listed([almonds], SUMMARY));
+
+  const coverage = screen.getByText("7 productos con movimiento · 3 sin costo");
+  await expect.element(coverage).toBeVisible();
+  const total = screen.getByText("$ 383.369,00").element();
+  expect(
+    coverage.element().compareDocumentPosition(total) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  expect(coverage.element().parentElement).toBe(total.parentElement);
+});
+
 test("leaves out the count of products without cost when there is none, and writes a single product in singular", async () => {
   const screen = await renderScreen(
     listed([almonds], { productCount: 1, valueCents: 12_400_100, withoutCostCount: 0 }),

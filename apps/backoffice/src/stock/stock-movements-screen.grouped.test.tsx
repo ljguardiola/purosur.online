@@ -107,12 +107,30 @@ test("downloads the grouped losses as a spreadsheet", async () => {
   expect(file.sheetNames).toEqual(["Resumen", "Mal estado", "Vencimiento"]);
 });
 
-test("lists the losses again when the type no longer is only losses", async () => {
+test("lists the losses again when the type no longer is only losses, and reports the list", async () => {
+  const onFiltersChange = vi.fn();
   const screen = await renderScreen(createServices(), {
     access: EVERYTHING,
     filters: stockMovementsSearch.parse({ type: ["count"], view: "reason" }),
+    onFiltersChange,
   });
 
   await expect.element(screen.getByRole("table", { name: "Movimientos" })).toBeVisible();
   expect(screen.getByRole("region", { name: "Mal estado" }).query()).toBeNull();
+  await expect.poll(() => onFiltersChange.mock.lastCall?.[0]).toMatchObject({ view: "list" });
+});
+
+test("reports the list when the grouped losses stop being only losses", async () => {
+  const onFiltersChange = vi.fn();
+  const screen = await renderScreen(createServices(), {
+    filters: stockMovementsSearch.parse({ type: ["loss"], view: "reason" }),
+    onFiltersChange,
+  });
+  await expect.element(screen.getByRole("region", { name: "Mal estado" })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Ajuste" }));
+
+  await expect
+    .poll(() => onFiltersChange.mock.lastCall?.[0])
+    .toMatchObject({ type: ["adjustment", "loss"], view: "list" });
 });

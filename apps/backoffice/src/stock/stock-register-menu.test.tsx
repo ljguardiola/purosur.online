@@ -5,7 +5,7 @@ import { StubProductCreationModal } from "../platform/test-support/creation-part
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
-import type { InitialInventoryScreenServices } from "./initial-inventory-services";
+import type { ReviewInitialInventoryModalServices } from "./review-initial-inventory-modal-services";
 import { StockRegisterMenu } from "./stock-register-menu";
 import { createServices } from "./test-support/stock-balances-screen";
 import { almondOil, initialLotAlmonds, tea, withoutBalance } from "./test-support/stock-fixtures";
@@ -29,7 +29,7 @@ const EVERYTHING: BackofficeAccess = {
 
 const NOW = () => new Date("2026-09-15T21:40:30.000Z");
 
-function createInitialInventoryServices(): InitialInventoryScreenServices {
+function createInitialInventoryServices(): ReviewInitialInventoryModalServices {
   return {
     fetchInitialInventoryLots: vi
       .fn()

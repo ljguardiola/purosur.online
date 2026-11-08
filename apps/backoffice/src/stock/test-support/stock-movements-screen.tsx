@@ -7,7 +7,7 @@ import { accessWith } from "../../shell/test-support/backoffice-access";
 import { render } from "../../shell/test-support/render-with-router";
 import { type StockMovementsSearchFilters, stockMovementsSearch } from "../routes";
 import { StockMovementsScreen } from "../stock-movements-screen";
-import type { StockRecordsServices } from "../stock-movements-services";
+import type { StockMovementsScreenServices } from "../stock-movements-services";
 import { lossesByReasonReport } from "./losses-by-reason-report-fixtures";
 import { almondsAdjustment, almondsCount, honeyLoss } from "./stock-fixtures";
 
@@ -41,7 +41,7 @@ export const ADJUSTMENTS_ONLY: BackofficeAccess = {
 export function createServices(
   counts: StockCount[] = [almondsCount],
   movements: StockMovement[] = [honeyLoss, almondsAdjustment],
-): StockRecordsServices {
+): StockMovementsScreenServices {
   return {
     fetchStockCounts: vi.fn().mockResolvedValue({ kind: "ok", value: { counts } }),
     fetchStockMovements: vi.fn().mockResolvedValue({ kind: "ok", value: { movements } }),
@@ -59,7 +59,7 @@ function Harness({
   onSessionEnded,
 }: {
   access: BackofficeAccess;
-  services: StockRecordsServices;
+  services: StockMovementsScreenServices;
   initial: StockMovementsSearchFilters;
   onFiltersChange: (filters: StockMovementsSearchFilters) => void;
   onSessionEnded: () => void;
@@ -84,7 +84,7 @@ function Harness({
 }
 
 export function renderScreen(
-  services: StockRecordsServices,
+  services: StockMovementsScreenServices,
   {
     access = EVERYTHING,
     filters = stockMovementsSearch.parse({}),

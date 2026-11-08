@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
+import { accessWith } from "../shell/test-support/backoffice-access";
 import { STOCK_TAB_TARGETS, STOCK_TABS } from "./stock-tabs";
-import { accessWith } from "./test-support/backoffice-access";
 
 function visibleTabs(...capabilities: Parameters<typeof accessWith>) {
   const access = accessWith(...capabilities);

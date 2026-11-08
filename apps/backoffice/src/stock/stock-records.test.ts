@@ -7,25 +7,30 @@ import {
   honeyLoss,
 } from "./test-support/stock-fixtures";
 
-test("lists counts, adjustments and losses together, the latest first", () => {
+test("lists counts, adjustments and losses together", () => {
   const records = stockRecords([honeyCount, almondsCount], [almondsAdjustment, honeyLoss]);
 
   expect(records.map((record) => [record.kind, record.occurredAt])).toEqual([
-    ["loss", honeyLoss.occurredAt],
+    ["count", honeyCount.occurredAt],
     ["count", almondsCount.occurredAt],
     ["adjustment", almondsAdjustment.occurredAt],
-    ["count", honeyCount.occurredAt],
+    ["loss", honeyLoss.occurredAt],
   ]);
 });
 
-test("keeps what a count says about its expected and counted quantities", () => {
+test("keeps what a count says about its expected and counted quantities and its lots", () => {
   const [record] = stockRecords([almondsCount], []);
 
   expect(record).toMatchObject({
     kind: "count",
     delta: almondsCount.delta,
     saleUnit: almondsCount.saleUnit,
-    detail: { kind: "count", expected: almondsCount.expected, counted: almondsCount.counted },
+    detail: {
+      kind: "count",
+      expected: almondsCount.expected,
+      counted: almondsCount.counted,
+      lotCount: almondsCount.lotCount,
+    },
   });
 });
 
