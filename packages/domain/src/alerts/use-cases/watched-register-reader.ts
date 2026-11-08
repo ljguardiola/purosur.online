@@ -1,4 +1,4 @@
-import type { WatchedRegister } from "../../register/index.js";
+import type { WatchedRegister } from "../../installation/index.js";
 
 export interface WatchedRegisterReader {
   watchedRegisters(): Promise<WatchedRegister[]>;

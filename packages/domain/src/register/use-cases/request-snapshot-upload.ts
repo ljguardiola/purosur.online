@@ -1,5 +1,5 @@
+import { latestKeyVersion } from "../../installation/index.js";
 import type { Clock } from "../../shared/index.js";
-import { latestKeyVersion } from "../model/installation-key.js";
 import {
   isAwaitingSnapshotVerification,
   snapshotUploadUrlExpiry,

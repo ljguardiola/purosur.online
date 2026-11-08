@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { FakeLocalDatabaseHealth } from "../../shared/test-support/fake-local-database-health.js";
 import { recordSnapshotCopyFailure } from "./record-snapshot-copy-failure.js";
-import { FakeLocalDatabaseHealth } from "./test-support/fake-local-database-health.js";
 import { FakeSnapshotCorruptionReports } from "./test-support/fake-snapshot-corruption-reports.js";
 
 describe("recordSnapshotCopyFailure", () => {

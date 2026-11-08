@@ -1,7 +1,7 @@
 import {
   authenticateInstallation,
   type InstallationTokenPorts,
-} from "@purosur/domain/register/use-cases";
+} from "@purosur/domain/installation/use-cases";
 
 interface AuthenticatedInstallation {
   deviceId: string;

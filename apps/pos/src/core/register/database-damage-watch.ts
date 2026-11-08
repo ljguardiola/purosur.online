@@ -1,7 +1,5 @@
-import {
-  type LocalDatabaseHealth,
-  reportLocalDatabaseDamage,
-} from "@purosur/domain/register/use-cases";
+import type { LocalDatabaseHealth } from "@purosur/domain";
+import { reportLocalDatabaseDamage } from "@purosur/domain/installation/use-cases";
 import { isDatabaseDamage } from "../platform/database-damage";
 
 export function watchForDatabaseDamage(deps: {

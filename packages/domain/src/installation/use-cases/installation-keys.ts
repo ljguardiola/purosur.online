@@ -1,11 +1,8 @@
 import { contingencyTicketSealingKey } from "../../backups/index.js";
+import type { InstallationKeyGenerator } from "../../shared/index.js";
 import { inVersionOrder, latestKey } from "../../shared/index.js";
 import { FIRST_KEY_VERSION } from "../model/installation-key.js";
-import type {
-  InstallationKeyGenerator,
-  RegisterStoreTransaction,
-  VersionedKey,
-} from "./register-store.js";
+import type { RegisterStoreTransaction, VersionedKey } from "./register-store.js";
 
 export interface InstallationKeys {
   snapshotKeyVersions: VersionedKey[];

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MAX_CASH_AMOUNT_CENTS } from "../../shared/index.js";
+import { FixedClock } from "../../shared/test-support/fixed-clock.js";
 import type { CashSession, OpenedCashSession } from "../model/cash-session.js";
 import { type OpenCashSessionGrant, openCashSession } from "./open-cash-session.js";
 import {
@@ -13,7 +14,6 @@ import {
   granting,
   refusing,
 } from "./test-support/fake-operation-authority.js";
-import { FixedClock } from "./test-support/fake-register-store.js";
 import {
   COMPLETED_RESTORATION,
   FakeRestorationProtocolEvidence,

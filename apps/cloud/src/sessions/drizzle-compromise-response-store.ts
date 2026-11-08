@@ -3,7 +3,7 @@ import {
   removeEveryUserPasskeyWithin,
   requirePinResetOfEveryUserWithin,
 } from "@purosur/domain/credentials/use-cases";
-import { revokeEveryInstallationWithin } from "@purosur/domain/register/use-cases";
+import { revokeEveryInstallationWithin } from "@purosur/domain/installation/use-cases";
 import {
   type AccountPasskeyRemoval,
   type CompromiseResponseStore,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { FixedClock } from "../../shared/test-support/fixed-clock.js";
 import { requestSnapshotUpload } from "./request-snapshot-upload.js";
-import { FixedClock } from "./test-support/fake-register-store.js";
 import { FakeSnapshotStore, FakeSnapshotUploads } from "./test-support/fake-snapshot-store.js";
 
 const NOW = new Date("2026-10-14T15:00:00.000Z");

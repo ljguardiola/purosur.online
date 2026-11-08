@@ -2,7 +2,7 @@ import { compareCodeUnits } from "@purosur/domain";
 import {
   enrollInstallation,
   type RegisterStoreTransaction,
-} from "@purosur/domain/register/use-cases";
+} from "@purosur/domain/installation/use-cases";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { escalateAlertsTask } from "../alerts/alert-escalation-task.js";

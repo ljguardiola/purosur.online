@@ -1,19 +1,19 @@
 import type { VersionedKey } from "../../../shared/index.js";
-import type { RegisterStoreTransaction } from "../register-store.js";
 import type {
   SnapshotKeyRotation,
   SnapshotKeyRotationStore,
   SnapshotKeyRotationStoreTransaction,
 } from "../snapshot-key-rotation-ports.js";
-import type { FakeRegisterStore } from "./fake-register-store.js";
+
+export interface FakeSnapshotKey extends VersionedKey {
+  registerId: string;
+}
 
 class FakeSnapshotKeyRotationTransaction implements SnapshotKeyRotationStoreTransaction {
   private readonly store: FakeSnapshotKeyRotationStore;
-  private readonly registerTransaction: RegisterStoreTransaction;
 
-  constructor(store: FakeSnapshotKeyRotationStore, registerTransaction: RegisterStoreTransaction) {
+  constructor(store: FakeSnapshotKeyRotationStore) {
     this.store = store;
-    this.registerTransaction = registerTransaction;
   }
 
   async lockRegisterSnapshotKeys(registerId: string): Promise<VersionedKey[] | undefined> {
@@ -21,12 +21,14 @@ class FakeSnapshotKeyRotationTransaction implements SnapshotKeyRotationStoreTran
     if (!this.store.registerIds.has(registerId)) {
       return undefined;
     }
-    return (await this.registerTransaction.lockRegisterKeys(registerId)).snapshotKeys;
+    return this.store.snapshotKeys
+      .filter((key) => key.registerId === registerId)
+      .map(({ version, key }) => ({ version, key }));
   }
 
   async recordSnapshotKey(registerId: string, key: VersionedKey): Promise<void> {
     this.store.operationOrder.push("recordSnapshotKey");
-    await this.registerTransaction.recordSnapshotKey(registerId, key);
+    this.store.snapshotKeys.push({ registerId, ...key });
   }
 
   async recordSnapshotKeyRotation(rotation: SnapshotKeyRotation): Promise<void> {
@@ -39,29 +41,29 @@ class FakeSnapshotKeyRotationTransaction implements SnapshotKeyRotationStoreTran
 }
 
 export class FakeSnapshotKeyRotationStore implements SnapshotKeyRotationStore {
-  private readonly registerStore: FakeRegisterStore;
   readonly registerIds = new Set<string>();
+  snapshotKeys: FakeSnapshotKey[] = [];
   rotations: SnapshotKeyRotation[] = [];
   failingAudit = false;
   operationOrder: string[] = [];
-
-  constructor(registerStore: FakeRegisterStore) {
-    this.registerStore = registerStore;
-  }
 
   seedRegister(registerId: string): void {
     this.registerIds.add(registerId);
   }
 
+  seedSnapshotKey(key: FakeSnapshotKey): void {
+    this.snapshotKeys.push({ ...key });
+  }
+
   async transaction<TOutcome>(
     work: (tx: SnapshotKeyRotationStoreTransaction) => Promise<TOutcome>,
   ): Promise<TOutcome> {
+    const keysBefore = [...this.snapshotKeys];
     const rotationsBefore = [...this.rotations];
     try {
-      return await this.registerStore.transaction((registerTransaction) =>
-        work(new FakeSnapshotKeyRotationTransaction(this, registerTransaction)),
-      );
+      return await work(new FakeSnapshotKeyRotationTransaction(this));
     } catch (error) {
+      this.snapshotKeys = keysBefore;
       this.rotations = rotationsBefore;
       throw error;
     }

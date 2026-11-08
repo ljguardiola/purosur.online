@@ -1,5 +1,5 @@
+import type { LocalDatabaseHealthPorts } from "../../shared/index.js";
 import type { RegisterService } from "../model/register-service.js";
-import type { LocalDatabaseHealthPorts } from "./local-database-health.js";
 
 export async function reportLocalDatabaseDamage({
   health,
