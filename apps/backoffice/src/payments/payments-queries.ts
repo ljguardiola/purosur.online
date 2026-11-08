@@ -1,6 +1,8 @@
 import type {
   HandConfirmedPaymentsBody,
   HandConfirmedPaymentsQuery,
+  MercadoPagoChargeCostsBody,
+  MercadoPagoChargeCostsQuery,
   PendingRefundsBody,
   ReportQuery,
   SalesByPaymentMethodBody,
@@ -9,6 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { mapCloudData } from "../platform/map-cloud-data";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { type CloudData, useCloudQuery } from "../platform/use-cloud-query";
+import type { fetchMercadoPagoChargeCosts } from "./mercado-pago-charge-costs-api";
 import type { fetchHandConfirmedPayments, fetchSalesByPaymentMethod } from "./payments-report-api";
 import { madeOutsideTheSystem, sentToMercadoPago } from "./refund-kinds";
 import type { fetchPendingRefunds } from "./refunds-api";
@@ -25,6 +28,8 @@ export const paymentsKeys = {
       query.to ?? "",
       query.register_id ?? "",
     ] as const,
+  mercadoPagoChargeCosts: (query: MercadoPagoChargeCostsQuery) =>
+    [...paymentsKey, "mercado-pago-charge-costs", query.from ?? "", query.to ?? ""] as const,
   handConfirmedPayments: (query: HandConfirmedPaymentsQuery) =>
     [
       ...paymentsKey,
@@ -95,6 +100,21 @@ export function useHandConfirmedPaymentsQuery(params: {
     queryKey: paymentsKeys.handConfirmedPayments(params.query),
     keepPreviousData: true,
     read: () => params.fetchHandConfirmedPayments(params.query),
+    onSessionEnded: params.onSessionEnded,
+    onForbidden: sendToMyAccount,
+  });
+}
+
+export function useMercadoPagoChargeCostsQuery(params: {
+  query: MercadoPagoChargeCostsQuery;
+  fetchMercadoPagoChargeCosts: typeof fetchMercadoPagoChargeCosts;
+  onSessionEnded: () => void;
+}) {
+  const sendToMyAccount = useSendToMyAccount();
+  return useCloudQuery<MercadoPagoChargeCostsBody>({
+    queryKey: paymentsKeys.mercadoPagoChargeCosts(params.query),
+    keepPreviousData: true,
+    read: () => params.fetchMercadoPagoChargeCosts(params.query),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

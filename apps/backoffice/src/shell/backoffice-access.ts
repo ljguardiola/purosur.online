@@ -167,6 +167,10 @@ export function canSeeReturnsReport(access: BackofficeAccess): boolean {
   return grants(access, "returns_report");
 }
 
+export function canSeeMercadoPagoChargeCosts(access: BackofficeAccess): boolean {
+  return grants(access, "mercado_pago_charge_costs");
+}
+
 export function canSeeRefundsArea(access: BackofficeAccess): boolean {
   return grants(access, "refunds_area");
 }

@@ -22,6 +22,7 @@ import type { UnbilledDeferredSalesPillProps } from "../fiscal/unbilled-deferred
 import type { UnbilledDeferredSalesPillServices } from "../fiscal/unbilled-deferred-sales-pill-services";
 import type { BackofficeHelpCatalog } from "../help/help-catalog";
 import type { HandConfirmedPaymentsScreenServices } from "../payments/hand-confirmed-payments-services";
+import type { MercadoPagoChargeCostsScreenServices } from "../payments/mercado-pago-charge-costs-services";
 import type { PendingRefundsScreenServices } from "../payments/pending-refunds-services";
 import type { SalesByPaymentMethodScreenServices } from "../payments/sales-by-payment-method-services";
 import type { RolesListScreenServices } from "../permissions/roles-list-services";
@@ -145,6 +146,7 @@ export type AppServices = {
   issuedFiscalDocumentsReportScreen: IssuedFiscalDocumentsReportScreenServices;
   averageTicketScreen: AverageTicketScreenServices;
   salesByPaymentMethodScreen: SalesByPaymentMethodScreenServices;
+  mercadoPagoChargeCostsScreen: MercadoPagoChargeCostsScreenServices;
   handConfirmedPaymentsScreen: HandConfirmedPaymentsScreenServices;
   cashSessionClosesScreen: CashSessionClosesScreenServices;
   cashMovementsScreen: CashMovementsScreenServices;
