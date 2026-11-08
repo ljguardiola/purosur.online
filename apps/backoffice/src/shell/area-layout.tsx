@@ -16,14 +16,11 @@ import { AccountFooter } from "./account-footer";
 import { AreaTopBarUnbilledDeferredSales } from "./area-top-bar-unbilled-deferred-sales";
 import {
   canComparePrices,
-  canManageFreights,
   canManageSupplierPriceLists,
   canManageSuppliers,
-  canPerformStockCounts,
   canReadPurchaseOrders,
   canRecordPurchases,
   canSeeBranchArea,
-  canSeeExpiringLots,
   canSeeFiscalInformation,
   canSeeFiscalPage,
   canSeeOrdersArea,
@@ -35,8 +32,7 @@ import {
   canSeeRegistersPage,
   canSeeReports,
   canSeeStockArea,
-  canSeeStockBalances,
-  canSeeStockMovements,
+  canSeeStockPage,
 } from "./backoffice-access";
 import { lazyScreen } from "./lazy-screen";
 import { Shell } from "./shell";
@@ -73,21 +69,13 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
   const UnbilledDeferredSales = services.areaTopBarUnbilledDeferredSales;
   const matchRoute = useMatchRoute();
   const productsShown = Boolean(matchRoute({ to: "/products" }));
-  const stockTarget = canSeeStockBalances(session)
-    ? "/inventory"
-    : canPerformStockCounts(session)
-      ? "/inventory-counts"
-      : canSeeStockMovements(session)
-        ? "/inventory-adjustments"
-        : canManageSuppliers(session)
-          ? "/suppliers"
-          : canRecordPurchases(session)
-            ? "/purchases"
-            : canSeeExpiringLots(session)
-              ? "/expiring-lots"
-              : canManageFreights(session)
-                ? "/freights"
-                : "/initial-inventory";
+  const stockTarget = canSeeStockPage(session)
+    ? "/stock"
+    : canManageSuppliers(session)
+      ? "/suppliers"
+      : canRecordPurchases(session)
+        ? "/purchases"
+        : "/freights";
   const salesAndCashTarget = canSeeRegistersPage(session)
     ? "/registers"
     : canSeeRefundsArea(session)

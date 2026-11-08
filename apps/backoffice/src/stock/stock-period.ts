@@ -27,6 +27,10 @@ export const STOCK_PERIOD_OPTIONS: Options<ReturnType<typeof periodOption>> = [
   ...otherDays.map(periodOption),
 ];
 
+export const LONGEST_PERIOD_DAYS = stockPeriodDaysSchema.parse(
+  Math.max(...stockPeriodDaysSchema.values),
+);
+
 export function periodDays(period: StockPeriod) {
   return stockPeriodDaysSchema.parse(Number(period));
 }

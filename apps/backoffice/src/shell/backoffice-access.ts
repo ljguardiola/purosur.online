@@ -143,8 +143,22 @@ export function canSeeStockMovements(access: BackofficeAccess): boolean {
   return grants(access, "stock_movements");
 }
 
+export function canSeeLossesByReason(access: BackofficeAccess): boolean {
+  return grants(access, "stock_losses");
+}
+
 export function canSeeStockArea(access: BackofficeAccess): boolean {
   return grants(access, "stock_area");
+}
+
+export function canSeeStockPage(access: BackofficeAccess): boolean {
+  return (
+    canSeeStockBalances(access) ||
+    canSeeExpiringLots(access) ||
+    canPerformStockCounts(access) ||
+    canSeeStockMovements(access) ||
+    canRecordInitialInventory(access)
+  );
 }
 
 export function canSeeExpiringLots(access: BackofficeAccess): boolean {

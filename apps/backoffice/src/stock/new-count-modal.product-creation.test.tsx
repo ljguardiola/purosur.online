@@ -6,8 +6,7 @@ import type { ProductCreationModal } from "../platform/creation-parts";
 import { StubProductCreationModal } from "../platform/test-support/creation-parts";
 import { render } from "../shell/test-support/render-with-router";
 import { countMomentNow } from "./count-moment";
-import { NewCountModal } from "./new-count-modal";
-import type { StockCountsScreenServices } from "./stock-counts-services";
+import { NewCountModal, type NewCountModalServices } from "./new-count-modal";
 import { almonds, honey, withoutBalance } from "./test-support/stock-fixtures";
 
 beforeEach(async () => {
@@ -15,9 +14,8 @@ beforeEach(async () => {
   await page.viewport(1280, 900);
 });
 
-function createServices(products = [almonds, honey]): StockCountsScreenServices {
+function createServices(products = [almonds, honey]): NewCountModalServices {
   return {
-    fetchStockCounts: vi.fn(),
     fetchStockProducts: vi.fn().mockResolvedValue({
       kind: "ok",
       value: { products: products.map(withoutBalance) },

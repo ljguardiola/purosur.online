@@ -1,4 +1,9 @@
-import type { ExpiredLotDiscardResult, ExpiringLot, ExpiringLotList } from "@purosur/contracts";
+import type {
+  ExpiredLotDiscardResult,
+  ExpiringLot,
+  ExpiringLotList,
+  ExpiringLotsReportBody,
+} from "@purosur/contracts";
 import {
   actionsColumn,
   dataColumn,
@@ -21,14 +26,16 @@ import { cloudTableState } from "../platform/cloud-table-state";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { formatStockQuantity } from "../platform/stock-quantity";
-import { AreaTopBar } from "../shell/area-top-bar";
-import { ScreenLayout } from "../shell/screen-layout";
+import { ReportDownload } from "../shell/report-download";
+import { reportFileName } from "../shell/report-file-name";
+import { ReportFilters } from "../shell/report-filters";
 import { expiryTiming } from "./expiring-lot-timing";
+import { expiringLotsReportSpreadsheet } from "./expiring-lots-report-spreadsheet";
 import type { ExpiringLotsScreenServices } from "./expiring-lots-services";
 import type { ExpiringLotsFilters } from "./routes";
 import type { DiscardExpiredLotOutcome } from "./stock-api";
 import { formatStockValue } from "./stock-cost";
-import { useExpiringLotsQuery, useRefreshStock } from "./stock-queries";
+import { useExpiringLotsQuery, useExpiringLotsReportQuery, useRefreshStock } from "./stock-queries";
 import { categoryFilterOptions } from "./stock-screen-parts";
 
 export type ExpiringLotsScreenProps = {
@@ -47,6 +54,8 @@ type ScreenNotice = {
 };
 
 const NO_LOTS: ExpiringLot[] = [];
+
+const REPORT_TITLE = "Lotes por vencer";
 
 const REFUSAL_REASONS = {
   lot_not_expired: "El lote todavía no venció.",
@@ -85,8 +94,61 @@ function matchesExpiry(lot: ExpiringLot, filter: ExpiryFilter): boolean {
   return filter === "all" || !lot.expired;
 }
 
+function lotOfReport({
+  id,
+  lot_name,
+  expires_on,
+  remaining,
+  value_cents,
+  expired,
+  days_to_expiry,
+  product,
+}: ExpiringLotsReportBody["lots"][number]): ExpiringLot {
+  return {
+    id,
+    lotName: lot_name,
+    expiresOn: expires_on,
+    remaining,
+    valueCents: value_cents,
+    expired,
+    daysToExpiry: days_to_expiry,
+    product: {
+      id: product.id,
+      name: product.name,
+      brandName: product.brand_name,
+      netContent: product.net_content,
+      categoryId: product.category_id,
+      categoryName: product.category_name,
+      saleUnit: product.sale_unit,
+    },
+  };
+}
+
 function lotOf(lot: ExpiringLot): string {
   return `${lot.lotName} de ${formatProductDescription(lot.product)}`;
+}
+
+function emptyList(windowDays: number | undefined, periodChosen: boolean, count: number) {
+  if (windowDays === undefined || count > 0) {
+    return {
+      icon: <Search />,
+      title: "Sin resultados",
+      description: "Probá con otro nombre, categoría o vencimiento.",
+      variant: "filtered" as const,
+    };
+  }
+  return periodChosen
+    ? {
+        icon: <CalendarClock />,
+        title: "No hay lotes que venzan en este período",
+        variant: "blank" as const,
+      }
+    : {
+        icon: <CalendarClock />,
+        title: "Sin lotes por vencer",
+        description: `Ningún lote venció ni vence ${upcomingDays(windowDays)}.`,
+        variant: "blank" as const,
+      };
 }
 
 function summaryText({ valueCents, withoutCostCount }: ExpiringLotList["summary"], count: number) {
@@ -137,18 +199,46 @@ export function ExpiringLotsScreen({
   const retryAdvice = useRetryAdvice();
 
   useEffect(() => {
-    const shown: ExpiringLotsFilters = { search, category, expiry };
+    const shown: ExpiringLotsFilters = {
+      search,
+      category,
+      expiry,
+      from: filters.from,
+      to: filters.to,
+    };
     if (!deepEqual(shown, filters)) {
       reportFilters(shown);
     }
   }, [search, category, expiry, filters]);
 
-  const data = useExpiringLotsQuery({
+  const periodChosen = filters.from !== "";
+  const upcoming = useExpiringLotsQuery({
     fetchExpiringLots: services.fetchExpiringLots,
     onSessionEnded,
   });
-  const lots = data.status === "loaded" ? data.value.lots : NO_LOTS;
-  const windowDays = data.status === "loaded" ? data.value.windowDays : undefined;
+  const report = useExpiringLotsReportQuery({
+    query: periodChosen ? { from: filters.from, to: filters.to } : {},
+    fetchExpiringLotsReport: services.fetchExpiringLotsReport,
+    onSessionEnded,
+  });
+  const shownReport = report.status === "loaded" ? report.value : report.lastValue;
+  const data = periodChosen ? report : upcoming;
+  const listing: ExpiringLotList | undefined = periodChosen
+    ? report.status === "loaded"
+      ? {
+          windowDays: report.value.window_days,
+          lots: report.value.lots.map(lotOfReport),
+          summary: {
+            valueCents: report.value.summary.value_cents,
+            withoutCostCount: report.value.summary.without_cost_count,
+          },
+        }
+      : undefined
+    : upcoming.status === "loaded"
+      ? upcoming.value
+      : undefined;
+  const lots = listing?.lots ?? NO_LOTS;
+  const windowDays = listing?.windowDays;
   const categoryOptions = categoryFilterOptions(lots.map((lot) => lot.product));
   const categoryIsOffered = categoryOptions.some((option) => option.value === category);
 
@@ -265,10 +355,7 @@ export function ExpiringLotsScreen({
 
   return (
     <>
-      <ScreenLayout
-        topBar={<AreaTopBar eyebrow="Stock" title="Vencimientos" />}
-        bodyClassName="gap-4 p-6"
-      >
+      <div className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-6">
         <div className="flex flex-wrap items-center gap-3">
           <div className="w-105">
             <SearchField
@@ -293,35 +380,35 @@ export function ExpiringLotsScreen({
             value={expiry}
             onChange={setExpiry}
           />
+          <ReportFilters
+            filters={filters}
+            onFiltersChange={({ from, to }) =>
+              onFiltersChange({ search, category, expiry, from, to })
+            }
+            answeredPeriod={shownReport?.period}
+            trailing={
+              <ReportDownload
+                dataStatus={report.status}
+                workbook={() => (shownReport ? expiringLotsReportSpreadsheet(shownReport) : null)}
+                fileName={shownReport ? reportFileName(REPORT_TITLE, shownReport.period) : ""}
+              />
+            }
+          />
         </div>
         <Table
           aria-label="Vencimientos"
           table={table}
           {...cloudTableState(data, "los vencimientos")}
-          empty={
-            windowDays !== undefined && lots.length === 0
-              ? {
-                  icon: <CalendarClock />,
-                  title: "Sin lotes por vencer",
-                  description: `Ningún lote venció ni vence ${upcomingDays(windowDays)}.`,
-                  variant: "blank",
-                }
-              : {
-                  icon: <Search />,
-                  title: "Sin resultados",
-                  description: "Probá con otro nombre, categoría o vencimiento.",
-                  variant: "filtered",
-                }
-          }
+          empty={emptyList(windowDays, periodChosen, lots.length)}
           footer={
-            data.status === "loaded" && lots.length > 0 ? (
+            listing && lots.length > 0 ? (
               <p className="text-text-subtle text-detail">
-                {summaryText(data.value.summary, lots.length)}
+                {summaryText(listing.summary, lots.length)}
               </p>
             ) : undefined
           }
         />
-      </ScreenLayout>
+      </div>
       {notice ? (
         <FloatingNotification
           key={shownNoticeCount}

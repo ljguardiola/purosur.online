@@ -138,27 +138,27 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     },
     expiringLotsScreen: {
       fetchExpiringLots: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchExpiringLotsReport: vi.fn().mockReturnValue(new Promise(() => {})),
       discardExpiredLot: vi.fn(),
     },
     stockBalancesScreen: {
       fetchStockBalances: vi.fn().mockReturnValue(new Promise(() => {})),
-    },
-    stockCountsScreen: {
       fetchStockCounts: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchStockMovements: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchStockMovementReasons: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchStockProducts: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchExpectedBalance: vi.fn().mockReturnValue(new Promise(() => {})),
       registerCount: vi.fn(),
       fetchCurrentZoneRules: vi.fn().mockResolvedValue({ kind: "ok", value: ARGENTINA_ZONE_RULES }),
-    },
-    stockMovementsScreen: {
-      fetchStockMovements: vi.fn().mockReturnValue(new Promise(() => {})),
-      fetchStockMovementReasons: vi.fn().mockReturnValue(new Promise(() => {})),
-      fetchStockProducts: vi.fn().mockReturnValue(new Promise(() => {})),
-      fetchStockBalances: vi.fn().mockReturnValue(new Promise(() => {})),
       recordLoss: vi.fn(),
       recordAdjustment: vi.fn(),
     },
-    initialInventoryScreen: {
+    stockMovementsScreen: {
+      fetchStockMovements: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchStockCounts: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchLossesByReasonReport: vi.fn().mockReturnValue(new Promise(() => {})),
+    },
+    reviewInitialInventoryModal: {
       fetchInitialInventoryLots: vi.fn().mockReturnValue(new Promise(() => {})),
       setLotReferenceCost: vi.fn(),
     },

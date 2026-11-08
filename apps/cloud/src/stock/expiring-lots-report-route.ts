@@ -7,7 +7,7 @@ import { DrizzleBranchExpiryWindowReader } from "../branch/drizzle-branch-expiry
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
-  capabilityAccess,
+  anyCapabilityAccess,
   openSessionOf,
   registerRouteAccess,
   routeSessionSource,
@@ -31,7 +31,7 @@ export function registerExpiringLotsReportRoute<TQueryResult extends PgQueryResu
     "/reports/expiring-lots",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
-      config: { access: capabilityAccess("reports_area"), sessionSource },
+      config: { access: anyCapabilityAccess("reports_area", "stock_expiries"), sessionSource },
     },
     async (request, reply) => {
       const query = await readValidatedBody(reply, expiringLotsReportQuerySchema, request.query);

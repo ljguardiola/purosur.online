@@ -6,7 +6,7 @@ import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support
 import { render } from "../shell/test-support/render-with-router";
 import type { MovementKind } from "./stock-movement-form";
 import { StockMovementModal } from "./stock-movement-modal";
-import type { StockMovementsScreenServices } from "./stock-movements-services";
+import type { StockMovementModalServices } from "./stock-movement-modal-services";
 import {
   almonds,
   honey,
@@ -21,9 +21,8 @@ beforeEach(async () => {
   await page.viewport(1280, 900);
 });
 
-function createServices(): StockMovementsScreenServices {
+function createServices(): StockMovementModalServices {
   return {
-    fetchStockMovements: vi.fn(),
     fetchStockMovementReasons: vi.fn().mockResolvedValue({ kind: "ok", value: movementReasons }),
     fetchStockProducts: vi.fn().mockResolvedValue({
       kind: "ok",
@@ -41,15 +40,17 @@ function createServices(): StockMovementsScreenServices {
 const TITLE = "Cargar pérdida o ajuste";
 
 async function renderModal(
-  services: StockMovementsScreenServices,
+  services: StockMovementModalServices,
   {
     kinds = ["loss", "adjustment"],
+    productId,
     showsBalance = true,
     onClose = () => {},
     onSessionEnded = () => {},
     onRegistered = () => {},
   }: {
     kinds?: readonly [MovementKind, ...MovementKind[]];
+    productId?: string;
     showsBalance?: boolean;
     onClose?: () => void;
     onSessionEnded?: () => void;
@@ -61,6 +62,7 @@ async function renderModal(
       <StockMovementModal
         title={TITLE}
         kinds={kinds}
+        {...(productId === undefined ? {} : { productId })}
         services={services}
         onClose={onClose}
         onSessionEnded={onSessionEnded}
@@ -93,6 +95,20 @@ async function chooseProduct({ screen, dialog }: Rendered, name: string) {
   await userEvent.click(dialog.getByRole("button", { name: /Producto/ }));
   await userEvent.click(screen.getByRole("option", { name }));
 }
+
+test.each(["loss", "adjustment"] as const)(
+  "opens the %s form with the product it is given already chosen",
+  async (kind) => {
+    const { dialog } = await renderForm(createServices(), {
+      kinds: [kind],
+      productId: honey.id,
+    });
+
+    await expect
+      .element(dialog.getByRole("combobox", { name: /Producto/ }))
+      .toHaveValue(honey.name);
+  },
+);
 
 test("shows the balance an adjustment that adds leaves", async () => {
   const rendered = await renderForm(createServices());

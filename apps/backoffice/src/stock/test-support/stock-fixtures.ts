@@ -227,16 +227,6 @@ export const honeyCount: StockCount = {
   lotCount: null,
 };
 
-export const supersededCount: StockCount = {
-  ...honeyCount,
-  id: "count-3",
-  occurredAt: "2026-09-10T12:00:00.000Z",
-  expected: 20_000,
-  counted: 18_000,
-  delta: -2000,
-  superseded: true,
-};
-
 export function expectedBalance(
   product: StockBalance,
   balance: number,

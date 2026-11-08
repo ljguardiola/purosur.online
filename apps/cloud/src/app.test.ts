@@ -3266,12 +3266,12 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/reports/expiring-lots",
-        access: capabilityAccess("reports_area"),
+        access: anyCapabilityAccess("reports_area", "stock_expiries"),
       },
       {
         method: "GET",
         url: "/api/reports/losses-by-reason",
-        access: capabilityAccess("reports_area"),
+        access: anyCapabilityAccess("reports_area", "stock_losses"),
       },
       {
         method: "GET",
