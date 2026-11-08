@@ -45,13 +45,15 @@ function railLink(screen: Awaited<ReturnType<typeof render>>) {
 }
 
 function purchasingServices(capabilities: Capability[]) {
+  const sessionCapabilities: Capability[] =
+    capabilities.length > 0 ? ["purchasing_area", ...capabilities] : [];
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(
       openSession({
         userId: "user-2",
         displayName: "Grace Villalba",
         isAdministrator: false,
-        capabilities,
+        capabilities: sessionCapabilities,
       }),
     ),
   });

@@ -191,19 +191,9 @@ test("canSeeSuppliersPage holds for an Administrator and not with other purchasi
   expect(canSeeSuppliersPage(NO_CAPABILITIES_ACCESS)).toBe(false);
 });
 
-test.each([
-  "suppliers",
-  "supplier_price_lists",
-  "price_comparison",
-  "purchase_order_reads",
-  "purchases",
-  "freights",
-] as const)("canSeePurchasingArea holds with only the %s capability", (capability) => {
-  expect(canSeePurchasingArea(accessWith(capability))).toBe(true);
-});
-
-test("canSeePurchasingArea holds for an Administrator and not with the area capabilities alone", () => {
+test("canSeePurchasingArea holds exactly when the purchasing area capability is granted", () => {
   expect(canSeePurchasingArea(ADMINISTRATOR_ACCESS)).toBe(true);
-  expect(canSeePurchasingArea(accessWith("orders_area", "stock_area"))).toBe(false);
+  expect(canSeePurchasingArea(accessWith("purchasing_area"))).toBe(true);
+  expect(canSeePurchasingArea(accessWith("stock_area", "suppliers", "freights"))).toBe(false);
   expect(canSeePurchasingArea(NO_CAPABILITIES_ACCESS)).toBe(false);
 });
