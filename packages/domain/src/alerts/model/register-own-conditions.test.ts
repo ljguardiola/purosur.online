@@ -84,7 +84,10 @@ describe("REGISTER_OWN_CONDITIONS", () => {
       "register_silent",
       "serial_device_missing",
       "disk_space_low",
+      "wal_oversized",
       "battery_low",
+      "on_battery",
+      "battery_missing",
       "critical_battery_action_not_shutdown",
     ]);
   });
@@ -94,10 +97,7 @@ describe("REGISTER_OWN_CONDITIONS", () => {
       "installation_revoked",
       "serial_device_missing",
       "disk_space_low",
-      "wal_oversized",
       "battery_low",
-      "on_battery",
-      "battery_missing",
       "critical_battery_action_not_shutdown",
     ];
     for (const condition of REGISTER_OWN_CONDITIONS) {
