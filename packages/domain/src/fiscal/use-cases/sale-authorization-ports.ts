@@ -1,4 +1,4 @@
-import type { OutboxEventDraft } from "../../shared/index.js";
+import type { IdGenerator, OutboxEventDraft } from "../../shared/index.js";
 import type { ClockMark } from "../model/clock-correction.js";
 import type { DeferredSale } from "../model/deferred-sale.js";
 import type { FiscalOnlineSignalEvidence } from "../model/fiscal-online-signal.js";
@@ -7,9 +7,7 @@ import type { OfflineFiscalDocument } from "../model/offline-fiscal-document.js"
 import type { FacturaC } from "../model/pre-emission-gate.js";
 import type { OfflineSeries, RealTimeSeries } from "../model/real-time-authorization.js";
 
-export interface IdGenerator {
-  next(): string;
-}
+export type { IdGenerator };
 
 export interface FiscalDocumentReservation {
   id: string;
