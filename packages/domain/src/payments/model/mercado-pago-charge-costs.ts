@@ -1,4 +1,10 @@
-import { argentinaCalendarDay, type ReportPeriod, type ZoneRules } from "../../shared/index.js";
+import {
+  argentinaCalendarDay,
+  compareCodeUnits,
+  compareSpanishText,
+  type ReportPeriod,
+  type ZoneRules,
+} from "../../shared/index.js";
 import {
   type ChargeCost,
   chargeCostOf,
@@ -187,17 +193,19 @@ export function summarizeChargeCosts({
   return {
     charges: lines.sort((a, b) => b.chargedAt.getTime() - a.chargedAt.getTime()),
     days: [...groupBy(counted, (item) => item.day)]
-      .sort(([a], [b]) => a.localeCompare(b))
+      .sort(([a], [b]) => compareCodeUnits(a, b))
       .map(([day, entry]) => ({ day, ...entry })),
     months: [...groupBy(counted, (item) => item.day.slice(0, 7))]
-      .sort(([a], [b]) => a.localeCompare(b))
+      .sort(([a], [b]) => compareCodeUnits(a, b))
       .map(([month, entry]) => ({ month, ...entry })),
     methods: CHARGE_COST_METHODS.flatMap((method) => {
       const entry = byMethod.get(method);
       return entry === undefined ? [] : [{ method, ...entry }];
     }),
     registers: [
-      ...[...byRegister.values()].sort((a, b) => a.registerName.localeCompare(b.registerName)),
+      ...[...byRegister.values()].sort((a, b) =>
+        compareSpanishText(a.registerName, b.registerName),
+      ),
       ...(otherChargesGroup === undefined
         ? []
         : [{ registerId: null, registerName: null, ...otherChargesGroup }]),
