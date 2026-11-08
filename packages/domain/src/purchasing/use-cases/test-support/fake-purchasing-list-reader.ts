@@ -29,8 +29,12 @@ export class FakePurchasingListReader implements PurchasingListReader {
     return [...this.data.suppliers].sort(byName);
   }
 
-  async purchases(locationId: string): Promise<PurchaseListing[]> {
-    return this.data.purchases.filter((purchase) => purchase.locationId === locationId);
+  async purchases(locationId: string, supplierId?: string): Promise<PurchaseListing[]> {
+    return this.data.purchases.filter(
+      (purchase) =>
+        purchase.locationId === locationId &&
+        (supplierId === undefined || purchase.supplier.id === supplierId),
+    );
   }
 
   async lotNameFacts(locationId: string, productIds: readonly string[]): Promise<LotNameFacts[]> {

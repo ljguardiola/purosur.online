@@ -83,4 +83,28 @@ describe("listPurchaseOrders", () => {
       ),
     ).toEqual(["old"]);
   });
+
+  it("lists only the orders of the supplier asked for, together with the state asked for", async () => {
+    const other = { id: "supplier-b", name: "Norte" };
+    const reader = new FakePurchaseOrderReader([
+      order({ id: "a-draft" }),
+      order({ id: "a-cancelled", state: "CANCELLED" }),
+      order({ id: "b-draft", supplier: other }),
+    ]);
+
+    expect(
+      (await listPurchaseOrders(reader, { locationId: BRANCH, supplierId: "supplier-a" })).map(
+        ({ id }) => id,
+      ),
+    ).toEqual(["a-draft", "a-cancelled"]);
+    expect(
+      (
+        await listPurchaseOrders(reader, {
+          locationId: BRANCH,
+          supplierId: "supplier-a",
+          state: "CANCELLED",
+        })
+      ).map(({ id }) => id),
+    ).toEqual(["a-cancelled"]);
+  });
 });

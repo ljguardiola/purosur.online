@@ -24,8 +24,9 @@ export class FakeSupplierPriceListReader implements SupplierPriceListReader {
     this.data = { lists: data.lists ?? [], rows: data.rows ?? [] };
   }
 
-  async lists(): Promise<SupplierPriceListListing[]> {
+  async lists(supplierId?: string): Promise<SupplierPriceListListing[]> {
     return this.data.lists
+      .filter((list) => supplierId === undefined || list.supplier.id === supplierId)
       .map(({ version: _version, pricesIncludeVat: _pricesIncludeVat, ...listing }) => listing)
       .sort((first, second) => second.uploadedAt.getTime() - first.uploadedAt.getTime());
   }

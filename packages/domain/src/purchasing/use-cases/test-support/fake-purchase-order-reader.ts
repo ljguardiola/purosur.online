@@ -33,10 +33,15 @@ export class FakePurchaseOrderReader implements PurchaseOrderReader {
     return listing;
   }
 
-  async orders(locationId: string, state?: PurchaseOrderState): Promise<PurchaseOrderListing[]> {
+  async orders(
+    locationId: string,
+    state?: PurchaseOrderState,
+    supplierId?: string,
+  ): Promise<PurchaseOrderListing[]> {
     return this.stored
       .filter((order) => order.locationId === locationId)
       .filter((order) => state === undefined || order.state === state)
+      .filter((order) => supplierId === undefined || order.supplier.id === supplierId)
       .sort((first, second) => second.createdAt.getTime() - first.createdAt.getTime())
       .map(({ id, supplier, state: orderState, createdAt, lines }) => ({
         id,

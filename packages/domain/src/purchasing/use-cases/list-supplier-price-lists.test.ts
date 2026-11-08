@@ -212,4 +212,31 @@ describe("listSupplierPriceLists", () => {
       ["sur", false],
     ]);
   });
+
+  it("lists only the lists of the supplier asked for, marking its replaced lists", async () => {
+    const other = { id: "supplier-b", name: "Norte" };
+    const reviewed = (id: string, day: string, supplier = listing({ id }).supplier) =>
+      listing({
+        id,
+        supplier,
+        state: "REVIEWED",
+        listDate: day,
+        confirmedAt: new Date(`${day}T10:00:00Z`),
+        uploadedAt: new Date(`${day}T09:00:00Z`),
+      });
+    const reader = new FakeSupplierPriceListReader({
+      lists: [
+        reviewed("a-old", "2026-03-01"),
+        reviewed("a-new", "2026-03-05"),
+        reviewed("b-only", "2026-03-03", other),
+      ],
+    });
+
+    const lists = await listSupplierPriceLists(reader, "supplier-a");
+
+    expect(lists.map((list) => [list.id, list.replaced])).toEqual([
+      ["a-new", false],
+      ["a-old", true],
+    ]);
+  });
 });
