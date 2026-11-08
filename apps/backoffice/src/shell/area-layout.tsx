@@ -26,6 +26,7 @@ import {
   canSeeExpiringLots,
   canSeeFiscalInformation,
   canSeeFiscalPage,
+  canSeeMercadoPagoChargeCosts,
   canSeeOrdersArea,
   canSeePeopleArea,
   canSeeProductsPage,
@@ -107,6 +108,11 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
       : canSeeQuarantinedEvents(session)
         ? "/quarantined-events"
         : null;
+  const reportsTarget = canSeeReports(session)
+    ? "/reports"
+    : canSeeMercadoPagoChargeCosts(session)
+      ? "/reports/mercado-pago-charge-costs"
+      : null;
   const stockTargetShown = Boolean(matchRoute({ to: stockTarget }));
   return (
     <Shell
@@ -151,9 +157,9 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
           {canSeeFiscalPage(session) && (
             <AreaLink to="/fiscal" label="Fiscal" icon={<Landmark />} active={area === "fiscal"} />
           )}
-          {canSeeReports(session) && (
+          {reportsTarget !== null && (
             <AreaLink
-              to="/reports"
+              to={reportsTarget}
               label="Reportes"
               icon={<ChartColumn />}
               active={area === "reports"}
