@@ -55,6 +55,8 @@ jobs:
     # environment; the production DSN and cloud are repository variables a push to main reads, as
     # that is where the production installer that ships is built.
     environment: ${{ github.event_name == 'push' && 'staging' || '' }}
+    env:
+      ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.electron-builder-cache
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
@@ -110,6 +112,20 @@ jobs:
 
       - run: pnpm --filter @purosur/pos build
 
+      # electron-builder downloads Electron and its NSIS and signing tools from GitHub releases while
+      # packaging, and retries a failed download for only a few seconds; restoring them from an
+      # earlier run keeps a gateway time-out there from failing the job. A changed lockfile starts
+      # from the newest cache, and electron-builder downloads only what it lacks.
+      - name: Restore electron-builder's downloads
+        id: restore-electron-builder-cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v6.1.0
+        continue-on-error: true
+        timeout-minutes: 2
+        with:
+          path: ${{ env.ELECTRON_BUILDER_CACHE }}
+          key: electron-builder-${{ runner.os }}-${{ github.job }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: electron-builder-${{ runner.os }}-${{ github.job }}-
+
       # The built app code carries nothing channel-specific; the channel, its Sentry DSN and its
       # cloud only reach each channel's resources/channel.json, outside app.asar. An unset variable
       # leaves that feature off.
@@ -126,6 +142,15 @@ jobs:
           POS_VERSION: ${{ steps.version.outputs.version }}
           POS_SENTRY_DSN: ${{ github.event_name == 'push' && vars.POS_SENTRY_DSN || '' }}
           POS_CLOUD_URL: ${{ vars.POS_CLOUD_URL }}
+
+      - name: Save electron-builder's downloads
+        if: ${{ steps.restore-electron-builder-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v6.1.0
+        continue-on-error: true
+        timeout-minutes: 2
+        with:
+          path: ${{ env.ELECTRON_BUILDER_CACHE }}
+          key: electron-builder-${{ runner.os }}-${{ github.job }}-${{ hashFiles('pnpm-lock.yaml') }}
 
       # Each channel's unpacked folder holds its app code, so both can be compared directly.
       - name: Compare the two channels' app.asar
@@ -179,6 +204,8 @@ jobs:
     timeout-minutes: 8
     permissions:
       contents: read
+    env:
+      ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.electron-builder-cache
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -228,11 +255,34 @@ jobs:
 
       - run: pnpm --filter @purosur/pos build
 
+      # electron-builder downloads Electron and its NSIS and signing tools from GitHub releases while
+      # packaging, and retries a failed download for only a few seconds; restoring them from an
+      # earlier run keeps a gateway time-out there from failing the job. A changed lockfile starts
+      # from the newest cache, and electron-builder downloads only what it lacks.
+      - name: Restore electron-builder's downloads
+        id: restore-electron-builder-cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v6.1.0
+        continue-on-error: true
+        timeout-minutes: 2
+        with:
+          path: ${{ env.ELECTRON_BUILDER_CACHE }}
+          key: electron-builder-${{ runner.os }}-${{ github.job }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: electron-builder-${{ runner.os }}-${{ github.job }}-
+
       - run: pnpm --filter @purosur/pos pack:production --dir
         env:
           POS_VERSION: ${{ steps.version.outputs.version }}
           POS_SENTRY_DSN: ""
           POS_CLOUD_URL: ""
+
+      - name: Save electron-builder's downloads
+        if: ${{ steps.restore-electron-builder-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v6.1.0
+        continue-on-error: true
+        timeout-minutes: 2
+        with:
+          path: ${{ env.ELECTRON_BUILDER_CACHE }}
+          key: electron-builder-${{ runner.os }}-${{ github.job }}-${{ hashFiles('pnpm-lock.yaml') }}
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
