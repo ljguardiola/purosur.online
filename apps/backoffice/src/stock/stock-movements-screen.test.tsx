@@ -31,9 +31,9 @@ test("lists counts, adjustments and losses together, the latest first", async ()
   const rows = screen.getByRole("table", { name: TABLE }).getByRole("row").elements();
   expect(rows.map((row) => row.textContent)).toEqual([
     "FechaProductoTipoMotivoCantidad",
-    "16/09/202612:50Miel pura de abeja 1 kgPérdidaRotura o derrame− 1 u",
-    "15/09/202618:32Almendras peladasRecuentoEsperado 12,400 kg · contado 12,150 kg− 0,250 kg",
-    "14/09/202610:00Almendras peladasAjusteCorrección de una tanda+ 1,200 kg",
+    "16/09/202612:50Miel pura de abeja 1 kgAlmacénPérdidaRotura o derrame− 1 u",
+    "15/09/202618:32Almendras peladasFrutos secosRecuentoEsperado 12,400 kg · contado 12,150 kg− 0,250 kg",
+    "14/09/202610:00Almendras peladasFrutos secosAjusteCorrección de una tanda+ 1,200 kg",
   ]);
   await expect.element(screen.getByText("3 movimientos")).toBeVisible();
   await expectNoAccessibilityViolations(screen.container);

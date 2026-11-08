@@ -5,10 +5,13 @@ import { render } from "vitest-browser-react";
 import { openSession } from "../sessions/test-support/open-session";
 import { chiaExpiredLot, expiringLotList } from "../stock/test-support/expiring-lots-fixtures";
 import { expiringLotsReport } from "../stock/test-support/expiring-lots-report-fixtures";
+import { lossesByReasonReport } from "../stock/test-support/losses-by-reason-report-fixtures";
 import {
   almonds,
+  almondsAdjustment,
   almondsCount,
   honey,
+  honeyLoss,
   stockBalanceList,
 } from "../stock/test-support/stock-fixtures";
 import { App } from "./app";
@@ -569,4 +572,54 @@ test("offers the period and the export of Vencimientos to a person with stock_ex
 
   await expect.element(screen.getByRole("group", { name: /^Período/ })).toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Descargar planilla" })).toBeEnabled();
+});
+
+test("lists only the losses with Tipo Pérdida and groups them by reason with the range and the export", async () => {
+  const services = stockServices([]);
+  vi.mocked(services.fetchSession).mockResolvedValue(
+    openSession({
+      userId: "user-2",
+      displayName: "Grace Villalba",
+      isAdministrator: false,
+      capabilities: ["stock_area", "stock_movements", "stock_losses", "stock_adjustments"],
+      stockMovementKinds: ["loss", "adjustment"],
+    }),
+  );
+  vi.mocked(services.stockMovementsScreen.fetchStockMovements).mockResolvedValue({
+    kind: "ok",
+    value: { movements: [honeyLoss, almondsAdjustment] },
+  });
+  vi.mocked(services.lossesByReasonReportScreen.fetchLossesByReasonReport).mockResolvedValue({
+    kind: "ok",
+    value: lossesByReasonReport(),
+  });
+  window.history.pushState(null, "", "/stock/movements");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Pérdida" }));
+
+  await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
+  expect(screen.getByText("Almendras peladas").query()).toBeNull();
+  await expect.poll(location).toBe("/stock/movements?type=loss");
+  await userEvent.click(screen.getByText("Agrupar por motivo"));
+  await expect.element(screen.getByRole("region", { name: "Mal estado" })).toBeVisible();
+  await expect.element(screen.getByRole("group", { name: /^Período/ })).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Descargar planilla" })).toBeEnabled();
+  expect(location()).toBe("/stock/movements?type=loss&view=reason");
+});
+
+test("opens Movimientos for a person with stock_counts but not stock_movements without reading the movements", async () => {
+  const services = stockServices(["stock_area", "stock_counts"]);
+  vi.mocked(services.stockCountsScreen.fetchStockCounts).mockResolvedValue({
+    kind: "ok",
+    value: { counts: [almondsCount] },
+  });
+  window.history.pushState(null, "", "/stock");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
+  await expect.poll(location).toBe("/stock/movements");
+  expect(services.stockMovementsScreen.fetchStockMovements).not.toHaveBeenCalled();
 });

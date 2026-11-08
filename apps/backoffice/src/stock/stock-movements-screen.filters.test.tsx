@@ -17,7 +17,7 @@ beforeEach(async () => {
 
 function offeredTypes(screen: Awaited<ReturnType<typeof renderScreen>>) {
   return screen
-    .getByRole("group", { name: "Tipo" })
+    .getByRole("toolbar", { name: "Tipo" })
     .getByRole("button")
     .elements()
     .map((chip) => chip.textContent);
@@ -31,7 +31,7 @@ test.each([
 ])("offers only the types the session allows: %#", async (access, types) => {
   const screen = await renderScreen(createServices(), { access });
 
-  await expect.element(screen.getByRole("group", { name: "Tipo" })).toBeVisible();
+  await expect.element(screen.getByRole("toolbar", { name: "Tipo" })).toBeVisible();
   expect(offeredTypes(screen)).toEqual(types);
 });
 

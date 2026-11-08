@@ -45,7 +45,7 @@ test("reports the grouping asked for", async () => {
   const onFiltersChange = vi.fn();
   const screen = await renderScreen(createServices(), { filters: ONLY_LOSSES, onFiltersChange });
 
-  await userEvent.click(screen.getByRole(GROUPING.role, { name: GROUPING.name }));
+  await userEvent.click(screen.getByText(GROUPING.name));
 
   await expect.poll(() => onFiltersChange.mock.lastCall?.[0]).toMatchObject({ view: "reason" });
 });
