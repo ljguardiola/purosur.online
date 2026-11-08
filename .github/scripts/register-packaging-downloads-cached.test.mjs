@@ -190,9 +190,9 @@ test("names the scripts that run electron-builder, directly or through another s
   };
 
   assert.deepEqual(packagingScriptNames({ scripts }).sort(), [
+    "pack:production",
     "package:all",
     "package:production",
-    "pack:production",
   ]);
 });
 
