@@ -25,8 +25,8 @@ test.each([
   expect(visibleTabs(capability)).toEqual([tab]);
 });
 
-test("shows no tab with only the batches capability", () => {
-  expect(visibleTabs("batches")).toEqual([]);
+test("shows Armados with only the batches capability", () => {
+  expect(visibleTabs("batches")).toEqual(["assemblies"]);
 });
 
 test("gives each tab its own address", () => {

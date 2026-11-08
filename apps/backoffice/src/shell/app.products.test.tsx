@@ -18,6 +18,7 @@ opensOnlyScreens([
   "/help",
   "/products",
   "/products/assemblies",
+  "/products/assemblies/batches",
   "/products/classification",
   "/products/classification/brands",
   "/products/classification/tags",
@@ -204,14 +205,18 @@ test.each([
   ["/brands", ["products_and_categories"], "/products/classification/brands"],
   ["/tags", ["products_and_categories"], "/products/classification/tags"],
   ["/prices?search=yerba&review=all", ["prices_area"], "/products/prices?review=all&search=yerba"],
+  ["/prices?review=overdue", ["prices_area"], "/products/prices?review=overdue"],
   [
     "/discounts?search=yerba&status=all",
     ["promotions"],
     "/products/promotions?search=yerba&status=all",
   ],
   ["/recipes", ["recipes"], "/products/assemblies"],
-  ["/assembly-batches", ["recipes", "batches"], "/products/assemblies"],
-  ["/products/assemblies/batches", ["recipes", "batches"], "/products/assemblies"],
+  ["/assembly-batches", ["recipes", "batches"], "/products/assemblies/batches"],
+  ["/assembly-batches", ["batches"], "/products/assemblies/batches"],
+  ["/assembly-batches", ["recipes"], "/products/assemblies"],
+  ["/products/assemblies/batches", ["recipes"], "/products/assemblies"],
+  ["/products/assemblies", ["batches"], "/products/assemblies/batches"],
 ] as const)(
   "redirects the old address %s to its tab or section",
   async (old, capabilities, target) => {
@@ -292,14 +297,51 @@ function armadosServices(capabilities: Capability[]) {
   return services;
 }
 
-test("opens Armados as the recipes list alone, with no sections for the batches", async () => {
+test("opens Armados on Recetas, with a Tandas section beside it for a person with batches", async () => {
   const services = armadosServices(["recipes", "batches"]);
   window.history.pushState(null, "", "/products/assemblies");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("table", { name: "Recetas" })).toBeVisible();
-  expect(screen.getByRole("tablist", { name: "Secciones de Armados" }).query()).toBeNull();
+  await expect.element(screen.getByRole("tab", { name: "Recetas", selected: true })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Tandas" })).toBeVisible();
+  expect(services.assemblyBatchesScreen.fetchAssemblyBatches).not.toHaveBeenCalled();
+});
+
+test("shows the batches in the Tandas section", async () => {
+  const services = armadosServices(["recipes", "batches"]);
+  window.history.pushState(null, "", "/products/assemblies");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("table", { name: "Recetas" })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("tab", { name: "Tandas" }));
+
+  await expect.element(screen.getByRole("table", { name: "Tandas" })).toBeVisible();
+  expect(location()).toBe("/products/assemblies/batches");
+});
+
+test("opens Armados with only its Tandas section, and without Recetas, for a person with only batches", async () => {
+  const services = armadosServices(["batches"]);
+  window.history.pushState(null, "", "/products");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("table", { name: "Tandas" })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Armados", selected: true })).toBeVisible();
+  expect(screen.getByRole("tab", { name: "Recetas" }).query()).toBeNull();
+  expect(screen.getByRole("tab", { name: "Tandas" }).query()).toBeNull();
+  expect(location()).toBe("/products/assemblies/batches");
+  expect(services.recipesListScreen.fetchRecipes).not.toHaveBeenCalled();
+});
+
+test("opens Armados as the recipes alone, without a Tandas section, for a person with only recipes", async () => {
+  const services = armadosServices(["recipes"]);
+  window.history.pushState(null, "", "/products/assemblies");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("table", { name: "Recetas" })).toBeVisible();
   expect(screen.getByRole("tab", { name: "Tandas" }).query()).toBeNull();
   expect(services.assemblyBatchesScreen.fetchAssemblyBatches).not.toHaveBeenCalled();
 });
@@ -365,17 +407,6 @@ test("a person who may not register batches sees the batches of the recipe witho
 
   await expect.element(screen.getByText("15/09/2026")).toBeVisible();
   expect(screen.getByRole("button", { name: "Registrar tanda" }).query()).toBeNull();
-});
-
-test("a person with only batches reaches neither Armados nor its batches", async () => {
-  const services = armadosServices(["batches"]);
-  window.history.pushState(null, "", "/assembly-batches");
-
-  const screen = await render(<App help={emptyHelp} services={services} />);
-
-  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
-  expect(location()).toBe("/?account=credentials");
-  expect(services.assemblyBatchesScreen.fetchAssemblyBatches).not.toHaveBeenCalled();
 });
 
 test("walks the prices of a purchase just registered in Precios, on Por revisar, taking them from the page so a reload does not walk them again", async () => {
