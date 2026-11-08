@@ -119,8 +119,76 @@ describe("GET /registers/sync-status", () => {
 
     expect(response.statusCode).toBe(200);
     expect(registerSyncStatusListSchema.parse(response.json())).toEqual([
-      { id: expect.any(String), name: "Caja 1", last_successful_sync_at: null },
-      { id: synced.registerId, name: "Caja 2", last_successful_sync_at: MORNING.toISOString() },
+      {
+        id: expect.any(String),
+        name: "Caja 1",
+        last_successful_sync_at: null,
+        battery: null,
+        disk: null,
+      },
+      {
+        id: synced.registerId,
+        name: "Caja 2",
+        last_successful_sync_at: MORNING.toISOString(),
+        battery: null,
+        disk: null,
+      },
+    ]);
+  });
+
+  it.each([
+    [54, true],
+    [60, false],
+    [null, false],
+  ])(
+    "lists the battery and disk the last synced installation reported, with a health of %s worn: %s",
+    async (healthPercent, worn) => {
+      const installation = await insertEnrolledInstallation(db, { now: NOON });
+      await db.insert(deviceState).values({
+        deviceId: installation.deviceId,
+        lastAcceptedPushAt: MORNING,
+        batteryPresent: true,
+        batteryChargePercent: 64,
+        batteryHealthPercent: healthPercent,
+        batteryOnBattery: true,
+        batteryOnBatteryMinutes: 14,
+        diskFreeBytes: 105_226_698_752,
+        diskFreeRatio: 0.41,
+      });
+      const rawSessionId = await signedInViewer([]);
+
+      const response = await getSyncStatus(rawSessionId);
+
+      expect(response.statusCode).toBe(200);
+      expect(registerSyncStatusListSchema.parse(response.json())).toEqual([
+        expect.objectContaining({
+          battery: {
+            present: true,
+            charge_percent: 64,
+            on_battery: true,
+            on_battery_minutes: 14,
+            ...(healthPercent === null ? {} : { health_percent: healthPercent }),
+            worn,
+          },
+          disk: { free_bytes: 105_226_698_752, free_ratio: 0.41 },
+        }),
+      ]);
+    },
+  );
+
+  it("lists a register that reported no battery as having none", async () => {
+    const installation = await insertEnrolledInstallation(db, { now: NOON });
+    await db.insert(deviceState).values({
+      deviceId: installation.deviceId,
+      lastAcceptedPushAt: MORNING,
+      batteryPresent: false,
+    });
+    const rawSessionId = await signedInViewer([]);
+
+    const response = await getSyncStatus(rawSessionId);
+
+    expect(registerSyncStatusListSchema.parse(response.json())).toEqual([
+      expect.objectContaining({ battery: { present: false }, disk: null }),
     ]);
   });
 
