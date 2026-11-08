@@ -75,6 +75,7 @@ const DIRECTION_OPTIONS = [
 export type StockMovementModalProps = {
   title: string;
   kinds: readonly [MovementKind, ...MovementKind[]];
+  productId?: string | undefined;
   productCreationModal?: ProductCreationModal | undefined;
   services: StockMovementsScreenServices;
   onClose: () => void;
@@ -86,6 +87,7 @@ export type StockMovementModalProps = {
 export function StockMovementModal({
   title,
   kinds,
+  productId,
   showsBalance,
   productCreationModal: ProductCreation,
   services,
@@ -161,7 +163,7 @@ export function StockMovementModal({
   }
 
   const loss = useRequestForm({
-    defaultValues: { productId: null, quantity: "", reason: null } as LossValues,
+    defaultValues: { productId: productId ?? null, quantity: "", reason: null } as LossValues,
     request: {
       schema: stockLossBodySchema,
       from: (values) => ({
@@ -191,7 +193,7 @@ export function StockMovementModal({
 
   const adjustment = useRequestForm({
     defaultValues: {
-      productId: null,
+      productId: productId ?? null,
       quantity: "",
       reason: null,
       direction: "add",

@@ -104,6 +104,7 @@ function CountMomentField() {
 
 export type NewCountModalProps = {
   startMoment: CountStart;
+  productId?: string | undefined;
   showsBalance: boolean;
   productCreationModal?: ProductCreationModal | undefined;
   services: StockCountsScreenServices;
@@ -114,6 +115,7 @@ export type NewCountModalProps = {
 
 export function NewCountModal({
   startMoment,
+  productId,
   showsBalance,
   productCreationModal: ProductCreation,
   services,
@@ -152,7 +154,7 @@ export function NewCountModal({
 
   const { form, submit, submitting, values } = useRequestForm({
     defaultValues: {
-      productId: null,
+      productId: productId ?? null,
       moment: { day: startMoment.day, time: startMoment.time },
       mode: "product",
       counted: "",
