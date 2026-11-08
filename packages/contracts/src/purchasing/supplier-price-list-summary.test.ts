@@ -5,6 +5,7 @@ import {
 } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
+  supplierPriceListListQuerySchema,
   supplierPriceListListSchema,
   supplierPriceListSummarySchema,
 } from "./supplier-price-list-summary.js";
@@ -124,5 +125,20 @@ describe("supplierPriceListListSchema", () => {
 
   it.each([undefined, null, {}, extracted])("refuses %j as a list", (body) => {
     expect(supplierPriceListListSchema.safeParse(body).success).toBe(false);
+  });
+});
+
+describe("supplierPriceListListQuerySchema", () => {
+  const SUPPLIER_ID = "11111111-1111-4111-8111-111111111111";
+
+  it("accepts no filter or a supplier's id, lowercased", () => {
+    expect(supplierPriceListListQuerySchema.parse({})).toEqual({});
+    expect(
+      supplierPriceListListQuerySchema.parse({ supplierId: SUPPLIER_ID.toUpperCase() }),
+    ).toEqual({ supplierId: SUPPLIER_ID });
+  });
+
+  it("refuses a supplier that is not a record id", () => {
+    expect(supplierPriceListListQuerySchema.safeParse({ supplierId: "x" }).success).toBe(false);
   });
 });

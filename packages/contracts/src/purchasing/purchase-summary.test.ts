@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { purchaseListSchema, purchaseSummarySchema } from "./purchase-summary.js";
+import {
+  purchaseListQuerySchema,
+  purchaseListSchema,
+  purchaseSummarySchema,
+} from "./purchase-summary.js";
 
 const packagesLine = {
   id: "line-1",
@@ -151,5 +155,20 @@ describe("purchaseListSchema", () => {
 
   it.each([undefined, null, {}, [{ ...purchase, id: 1 }]])("refuses %j as a list", (body) => {
     expect(purchaseListSchema.safeParse(body).success).toBe(false);
+  });
+});
+
+describe("purchaseListQuerySchema", () => {
+  const SUPPLIER_ID = "11111111-1111-4111-8111-111111111111";
+
+  it("accepts no filter or a supplier's id, lowercased", () => {
+    expect(purchaseListQuerySchema.parse({})).toEqual({});
+    expect(purchaseListQuerySchema.parse({ supplierId: SUPPLIER_ID.toUpperCase() })).toEqual({
+      supplierId: SUPPLIER_ID,
+    });
+  });
+
+  it("refuses a supplier that is not a record id", () => {
+    expect(purchaseListQuerySchema.safeParse({ supplierId: "x" }).success).toBe(false);
   });
 });

@@ -6,6 +6,8 @@ import {
   purchaseOrderSummarySchema,
 } from "./purchase-order-summary.js";
 
+const SUPPLIER_ID = "11111111-1111-4111-8111-111111111111";
+
 const summary = {
   id: "order-1",
   supplier: { id: "s-1", name: "Distribuidora Sur" },
@@ -54,6 +56,13 @@ describe("purchaseOrderListQuerySchema", () => {
   it("rejects a state that does not exist", () => {
     expect(purchaseOrderListQuerySchema.safeParse({ state: "LOST" }).success).toBe(false);
     expect(purchaseOrderListQuerySchema.safeParse({ state: "" }).success).toBe(false);
+  });
+
+  it("accepts a supplier's id, lowercased, and refuses anything else", () => {
+    expect(purchaseOrderListQuerySchema.parse({ supplierId: SUPPLIER_ID.toUpperCase() })).toEqual({
+      supplierId: SUPPLIER_ID,
+    });
+    expect(purchaseOrderListQuerySchema.safeParse({ supplierId: "x" }).success).toBe(false);
   });
 });
 
