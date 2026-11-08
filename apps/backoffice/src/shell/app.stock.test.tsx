@@ -4,7 +4,12 @@ import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { openSession } from "../sessions/test-support/open-session";
 import { expiringLotList } from "../stock/test-support/expiring-lots-fixtures";
-import { stockBalanceList } from "../stock/test-support/stock-fixtures";
+import {
+  almonds,
+  almondsCount,
+  honey,
+  stockBalanceList,
+} from "../stock/test-support/stock-fixtures";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
@@ -136,6 +141,35 @@ test("shows the tab's list under the page's one title, with no title of its own"
   await expect.element(screen.getByRole("table", { name: "Saldos" })).toBeVisible();
   expect(screen.getByRole("heading", { level: 1 }).elements()).toHaveLength(1);
   expect(screen.getByRole("heading", { name: "Saldos" }).query()).toBeNull();
+});
+
+test("opens a panel with the lots and the movements of a product beside the list when its row is pressed on Saldos", async () => {
+  const services = stockServices(["stock_area", "stock_balances", "stock_counts"]);
+  vi.mocked(services.stockBalancesScreen.fetchStockBalances).mockResolvedValue({
+    kind: "ok",
+    value: stockBalanceList([almonds, honey]),
+  });
+  vi.mocked(services.stockBalancesScreen.fetchStockCounts).mockResolvedValue({
+    kind: "ok",
+    value: { counts: [almondsCount] },
+  });
+  window.history.pushState(null, "", "/stock");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await userEvent.click(screen.getByText(almonds.name));
+
+  const panel = screen.getByRole("complementary", { name: almonds.name });
+  await expect
+    .element(panel.getByRole("table", { name: `Lotes de ${almonds.name}` }))
+    .toBeVisible();
+  await expect
+    .element(panel.getByRole("table", { name: `Recuentos de ${almonds.name}` }))
+    .toBeVisible();
+  await expect.element(screen.getByRole("table", { name: "Saldos" })).toBeVisible();
+  expect(location()).toBe(`/stock?product=${almonds.id}`);
+  await userEvent.click(panel.getByRole("button", { name: "Cerrar" }));
+  expect(screen.getByRole("complementary").query()).toBeNull();
+  await expect.poll(location).toBe("/stock");
 });
 
 test.each([
