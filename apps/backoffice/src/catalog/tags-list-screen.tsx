@@ -209,7 +209,7 @@ export function TagsListScreen({
     >
       <NewTagModal
         open={newModalOpen}
-        context="Catálogo"
+        context="Productos · Distintivos"
         services={services}
         onCreated={() => {
           setNewModalOpen(false);

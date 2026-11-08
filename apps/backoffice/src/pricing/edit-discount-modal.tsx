@@ -235,7 +235,7 @@ export function EditDiscountModal({
       width="standard"
       tone="info"
       icon={<Pencil />}
-      context="Catálogo · Promociones"
+      context="Productos · Promociones"
       title={loaded?.name ?? ""}
       closable
       footer={

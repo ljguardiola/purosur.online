@@ -176,7 +176,7 @@ export function EditCategoryModal({
       width="standard"
       tone="info"
       icon={<Tags />}
-      context="Catálogo · Categorías"
+      context="Productos · Categorías"
       title={title}
       closable
       footer={

@@ -220,7 +220,7 @@ function EditBrandModal({
       width="standard"
       tone="info"
       icon={<Pencil />}
-      context="Catálogo · Marcas"
+      context="Productos · Marcas"
       title={loaded?.name ?? ""}
       closable
       footer={
@@ -624,7 +624,7 @@ export function BrandsListScreen({
     >
       <NewBrandModal
         open={newModalOpen}
-        context="Catálogo"
+        context="Productos · Marcas"
         createBrand={createBrand}
         onCreated={() => {
           setNewModalOpen(false);
