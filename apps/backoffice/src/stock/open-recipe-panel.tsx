@@ -32,7 +32,7 @@ export function OpenRecipePanel({
     }
   }, [recipesAreLoaded, openRecipe, recipe]);
 
-  if (recipe === undefined) {
+  if (openRecipe === undefined || recipe === undefined) {
     return null;
   }
   return (
@@ -47,7 +47,7 @@ export function OpenRecipePanel({
       })}
     >
       <ProductRecipeSection
-        productId={recipe.productId}
+        productId={openRecipe}
         productName={recipe.productName}
         saleUnit={recipe.saleUnit}
         mayRegisterBatches={canManageBatches(access)}
