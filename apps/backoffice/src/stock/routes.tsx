@@ -42,15 +42,11 @@ export const stockCountsFilters = z.object({
   sort: z.enum(["ascending", "descending"]).default("descending").catch("descending"),
 });
 
-export type StockCountsFilters = z.output<typeof stockCountsFilters>;
-
 export const stockMovementsFilters = z.object({
   search: z.string().default("").catch(""),
   reason: z.string().default("ALL").catch("ALL"),
   period: periodFilter,
 });
-
-export type StockMovementsFilters = z.output<typeof stockMovementsFilters>;
 
 const stockMovementKind = z.enum(["count", "adjustment", "loss"]);
 
