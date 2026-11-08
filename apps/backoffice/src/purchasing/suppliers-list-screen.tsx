@@ -230,6 +230,8 @@ export function SuppliersListScreen({
           openSupplier={openSupplier}
           tab={panelTab}
           access={access}
+          services={services}
+          onSessionEnded={onSessionEnded}
           onClose={() => onOpenSupplierChange(undefined)}
           onEdit={setEditTarget}
           onDeactivate={setDeactivateTarget}

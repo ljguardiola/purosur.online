@@ -3,6 +3,10 @@ import type { EditSupplierModalServices } from "./edit-supplier-modal";
 import type { NewSupplierModalServices } from "./new-supplier-modal";
 import type { ReactivateSupplierModalServices } from "./reactivate-supplier-modal";
 import {
+  defaultSupplierPanelServices,
+  type SupplierPanelServices,
+} from "./supplier-panel-services";
+import {
   createSupplier,
   deactivateSupplier,
   editSupplier,
@@ -15,7 +19,8 @@ export type SuppliersListScreenServices = {
 } & NewSupplierModalServices &
   EditSupplierModalServices &
   DeactivateSupplierModalServices &
-  ReactivateSupplierModalServices;
+  ReactivateSupplierModalServices &
+  SupplierPanelServices;
 
 export const defaultSuppliersListScreenServices: SuppliersListScreenServices = {
   fetchSuppliers,
@@ -23,4 +28,5 @@ export const defaultSuppliersListScreenServices: SuppliersListScreenServices = {
   editSupplier,
   deactivateSupplier,
   reactivateSupplier,
+  ...defaultSupplierPanelServices,
 };

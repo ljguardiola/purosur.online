@@ -7,6 +7,7 @@ import { SupplierData } from "./supplier-data";
 import { SupplierFreightsTab } from "./supplier-freights-tab";
 import { SupplierListsTab } from "./supplier-lists-tab";
 import { SupplierOrdersTab } from "./supplier-orders-tab";
+import type { SupplierPanelServices } from "./supplier-panel-services";
 import { SUPPLIER_PANEL_TABS, type SupplierPanelTab } from "./supplier-panel-tabs";
 import { SupplierPurchasesTab } from "./supplier-purchases-tab";
 
@@ -24,6 +25,8 @@ export type SupplierPanelProps = {
   supplier: SupplierSummary;
   access: BackofficeAccess;
   tab: string | undefined;
+  services: SupplierPanelServices;
+  onSessionEnded: () => void;
   onClose: () => void;
   onEdit: () => void;
   onDeactivate: () => void;
@@ -34,6 +37,8 @@ export function SupplierPanel({
   supplier,
   access,
   tab,
+  services,
+  onSessionEnded,
   onClose,
   onEdit,
   onDeactivate,
@@ -67,10 +72,34 @@ export function SupplierPanel({
                 onReactivate={onReactivate}
               />
             )}
-            {selectedTab === "lists" && <SupplierListsTab supplierId={supplier.id} />}
-            {selectedTab === "orders" && <SupplierOrdersTab supplierId={supplier.id} />}
-            {selectedTab === "purchases" && <SupplierPurchasesTab supplierId={supplier.id} />}
-            {selectedTab === "freights" && <SupplierFreightsTab supplierId={supplier.id} />}
+            {selectedTab === "lists" && (
+              <SupplierListsTab
+                supplierId={supplier.id}
+                services={services}
+                onSessionEnded={onSessionEnded}
+              />
+            )}
+            {selectedTab === "orders" && (
+              <SupplierOrdersTab
+                supplierId={supplier.id}
+                services={services}
+                onSessionEnded={onSessionEnded}
+              />
+            )}
+            {selectedTab === "purchases" && (
+              <SupplierPurchasesTab
+                supplierId={supplier.id}
+                services={services}
+                onSessionEnded={onSessionEnded}
+              />
+            )}
+            {selectedTab === "freights" && (
+              <SupplierFreightsTab
+                supplierId={supplier.id}
+                services={services}
+                onSessionEnded={onSessionEnded}
+              />
+            )}
           </div>
         </Tabs>
       )}
