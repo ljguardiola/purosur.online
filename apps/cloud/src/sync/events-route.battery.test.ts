@@ -4,7 +4,7 @@ import { deviceState } from "../platform/db/schema.js";
 import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { eventsRouteUnderTest, NOW } from "./test-support/events-route.js";
 
-const TELEMETRY = { wal_size_bytes: 4096, disk_free_bytes: 50_000_000, disk_free_ratio: 0.42 };
+const TELEMETRY = { wal_size_bytes: 4096, disk_free_bytes: 100_000_000_000, disk_free_ratio: 0.42 };
 const PRESENT = {
   present: true,
   charge_percent: 64,

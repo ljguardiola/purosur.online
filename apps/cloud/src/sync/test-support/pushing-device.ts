@@ -39,7 +39,7 @@ export function pushingDevice(app: FastifyInstance, deviceToken: string) {
       headers: { authorization: `Bearer ${deviceToken}` },
       payload: {
         app_version: "1.4.0",
-        telemetry: { wal_size_bytes: 4096, disk_free_bytes: 50_000_000, disk_free_ratio: 0.42 },
+        telemetry: { wal_size_bytes: 4096, disk_free_bytes: 100_000_000_000, disk_free_ratio: 0.42 },
         events,
       },
     });

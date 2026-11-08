@@ -45,7 +45,7 @@ afterAll(async () => {
 const NOW = new Date("2026-10-01T09:30:00.000Z");
 const TELEMETRY: RegisterTelemetry = {
   wal_size_bytes: 4096,
-  disk_free_bytes: 50_000_000,
+  disk_free_bytes: 100_000_000_000,
   disk_free_ratio: 0.42,
 };
 
@@ -298,7 +298,7 @@ describe("the inbox on a real Postgres, as the role the deployed cloud connects 
         reportsEveryCycleSince: null,
         caughtUpAt: null,
         walSizeBytes: 4096,
-        diskFreeBytes: 50_000_000,
+        diskFreeBytes: 100_000_000_000,
         diskFreeRatio: 0.42,
         batteryPresent: null,
         batteryChargePercent: null,
