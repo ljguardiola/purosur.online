@@ -61,11 +61,17 @@ function listed(products = [almonds, honey, crackers, tea], summary?: StockBalan
   return services;
 }
 
+test("shows no title of its own, the page it sits in names it", async () => {
+  const screen = await renderScreen(listed());
+
+  await expect.element(screen.getByRole("table", { name: "Saldos" })).toBeVisible();
+  expect(screen.getByRole("heading").query()).toBeNull();
+  expect(screen.getByText("Stock", { exact: true }).query()).toBeNull();
+});
+
 test("shows each product with its category and its balance in its own unit, a negative one included", async () => {
   const screen = await renderScreen(listed());
 
-  await expect.element(screen.getByRole("heading", { name: "Saldos", level: 1 })).toBeVisible();
-  await expect.element(screen.getByText("Stock", { exact: true })).toBeVisible();
   const table = screen.getByRole("table", { name: "Saldos" });
   await expect.element(table.getByText("Almendras peladas")).toBeVisible();
   await expect.element(table.getByText("Frutos secos")).toBeVisible();

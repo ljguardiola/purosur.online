@@ -2793,7 +2793,7 @@ test("links the alert of lots nearing their expiry to the expiring lots screen f
 
   const link = screen.getByRole("link", { name: "Ver vencimientos" });
   await expect.element(link).toBeVisible();
-  await expect.element(link).toHaveAttribute("href", "/expiring-lots");
+  await expect.element(link).toHaveAttribute("href", "/stock/expiries");
 });
 
 test("does not link the alert of lots nearing their expiry of another branch to the expiring lots screen", async () => {

@@ -96,12 +96,17 @@ function renderScreen(
 
 type Screen = Awaited<ReturnType<typeof renderScreen>>;
 
+test("shows no title of its own and keeps the button that records a movement", async () => {
+  const screen = await renderScreen(createServices());
+
+  await expect.element(screen.getByRole("table", { name: "Ajustes y pérdidas" })).toBeVisible();
+  expect(screen.getByRole("heading").query()).toBeNull();
+  await expect.element(screen.getByRole("button", { name: /^Cargar/ })).toBeVisible();
+});
+
 test("shows each loss and adjustment with its moment, product, kind, reason and quantity", async () => {
   const screen = await renderScreen(createServices());
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Ajustes y pérdidas", level: 1 }))
-    .toBeVisible();
   const table = screen.getByRole("table", { name: "Ajustes y pérdidas" });
   await expect.element(table.getByText("16/09/2026")).toBeVisible();
   await expect.element(table.getByText("12:50")).toBeVisible();

@@ -14,15 +14,13 @@ const PAST_ACTIVITY_THROTTLE_WINDOW_MS = 120_000;
 
 opensOnlyScreens([
   "/",
-  "/expiring-lots",
   "/freights",
   "/help",
-  "/initial-inventory",
-  "/inventory",
-  "/inventory-adjustments",
-  "/inventory-counts",
   "/purchases",
   "/purchases/new",
+  "/stock",
+  "/stock/expiries",
+  "/stock/movements",
   "/suppliers",
 ]);
 
@@ -47,10 +45,6 @@ function stockServices(capabilities: Capability[]) {
     kind: "ok",
     value: stockBalanceList([]),
   });
-  vi.mocked(services.stockCountsScreen.fetchStockCounts).mockResolvedValue({
-    kind: "ok",
-    value: { counts: [] },
-  });
   vi.mocked(services.stockMovementsScreen.fetchStockMovements).mockResolvedValue({
     kind: "ok",
     value: { movements: [] },
@@ -58,10 +52,6 @@ function stockServices(capabilities: Capability[]) {
   vi.mocked(services.expiringLotsScreen.fetchExpiringLots).mockResolvedValue({
     kind: "ok",
     value: expiringLotList([]),
-  });
-  vi.mocked(services.initialInventoryScreen.fetchInitialInventoryLots).mockResolvedValue({
-    kind: "ok",
-    value: { lots: [] },
   });
   vi.mocked(services.suppliersListScreen.fetchSuppliers).mockResolvedValue({
     kind: "ok",
@@ -82,64 +72,233 @@ function stockServices(capabilities: Capability[]) {
   return services;
 }
 
-const SECTION_LABELS = [
-  "Saldos",
-  "Recuentos",
-  "Ajustes y pérdidas",
-  "Proveedores",
-  "Compras",
-  "Vencimientos",
-  "Flete",
-  "Inventario inicial",
-];
+const SECTION_LABELS = ["Stock", "Proveedores", "Compras", "Flete"];
+
+function location() {
+  return window.location.pathname + window.location.search;
+}
+
+function railLink(screen: Awaited<ReturnType<typeof render>>) {
+  return screen.getByRole("navigation", { name: "Áreas" }).getByRole("link", { name: "Stock" });
+}
+
+function sectionLabels(screen: Awaited<ReturnType<typeof render>>) {
+  return screen
+    .getByRole("navigation", { name: "Stock" })
+    .getByRole("link")
+    .elements()
+    .map((link) => link.textContent);
+}
+
+test("opens Stock from the rail with its three tabs for a person with every stock capability", async () => {
+  const services = stockServices([
+    "stock_area",
+    "stock_balances",
+    "stock_expiries",
+    "stock_counts",
+    "stock_movements",
+  ]);
+  window.history.pushState(null, "", "/help");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await userEvent.click(railLink(screen));
+
+  await expect.element(screen.getByRole("heading", { name: "Stock", level: 1 })).toBeVisible();
+  expect(location()).toBe("/stock");
+  expect(document.title).toBe("Stock · Puro Sur");
+  const tabs = screen.getByRole("tablist", { name: "Secciones de Stock" });
+  await expect.element(tabs.getByRole("tab", { name: "Saldos", selected: true })).toBeVisible();
+  for (const [index, name] of ["Saldos", "Vencimientos", "Movimientos"].entries()) {
+    await expect.element(tabs.getByRole("tab").nth(index)).toHaveAccessibleName(name);
+  }
+  await expect.element(railLink(screen)).toHaveAttribute("aria-current", "page");
+});
+
+test("shows an Administrator the three tabs of Stock", async () => {
+  const services = stockServices([]);
+  vi.mocked(services.fetchSession).mockResolvedValue(openSession());
+  window.history.pushState(null, "", "/stock");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  const tabs = screen.getByRole("tablist", { name: "Secciones de Stock" });
+  await expect.element(tabs.getByRole("tab", { name: "Saldos" })).toBeVisible();
+  await expect.element(tabs.getByRole("tab", { name: "Vencimientos" })).toBeVisible();
+  await expect.element(tabs.getByRole("tab", { name: "Movimientos" })).toBeVisible();
+});
+
+test("shows the tab's list under the page's one title, with no title of its own", async () => {
+  const services = stockServices(["stock_area", "stock_balances"]);
+  window.history.pushState(null, "", "/stock");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("table", { name: "Saldos" })).toBeVisible();
+  expect(screen.getByRole("heading", { level: 1 }).elements()).toHaveLength(1);
+  expect(screen.getByRole("heading", { name: "Saldos" }).query()).toBeNull();
+});
 
 test.each([
-  ["stock_balances", "Saldos", "/inventory"],
-  ["stock_counts", "Recuentos", "/inventory-counts"],
-  ["stock_losses", "Ajustes y pérdidas", "/inventory-adjustments"],
-  ["stock_adjustments", "Ajustes y pérdidas", "/inventory-adjustments"],
-  ["suppliers", "Proveedores", "/suppliers"],
-  ["purchases", "Compras", "/purchases"],
-  ["stock_expiries", "Vencimientos", "/expiring-lots"],
-  ["freights", "Flete", "/freights"],
-  ["initial_inventory", "Inventario inicial", "/initial-inventory"],
+  ["Vencimientos", "/stock/expiries", "Vencimientos"],
+  ["Movimientos", "/stock/movements", "Ajustes y pérdidas"],
+] as const)("opens %s from its tab", async (tab, path, table) => {
+  const services = stockServices([
+    "stock_area",
+    "stock_balances",
+    "stock_expiries",
+    "stock_movements",
+  ]);
+  window.history.pushState(null, "", "/stock");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await userEvent.click(screen.getByRole("tab", { name: tab }));
+
+  await expect.element(screen.getByRole("table", { name: table })).toBeVisible();
+  expect(location()).toBe(path);
+  await expect.element(screen.getByRole("tab", { name: tab, selected: true })).toBeVisible();
+});
+
+test.each([
+  ["stock_balances", "/stock", ["Saldos"]],
+  ["stock_expiries", "/stock/expiries", ["Vencimientos"]],
+  ["stock_counts", "/stock/movements", ["Movimientos"]],
+  ["stock_movements", "/stock/movements", ["Movimientos"]],
 ] as const)(
-  "opens only %s's section from the rail's Stock item: %s",
-  async (capability, heading, path) => {
-    const services = stockServices(
-      capability === "stock_losses" || capability === "stock_adjustments"
-        ? [capability, "stock_movements", "stock_area"]
-        : [capability, "stock_area"],
-    );
+  "opens only the tab of %s, as the default, from the rail's Stock item",
+  async (capability, path, tabs) => {
+    const services = stockServices([capability, "stock_area"]);
     window.history.pushState(null, "", "/help");
+    const screen = await render(<App help={emptyHelp} services={services} />);
+
+    await userEvent.click(railLink(screen));
+
+    await expect.element(screen.getByRole("heading", { name: "Stock", level: 1 })).toBeVisible();
+    await expect.poll(location).toBe(path);
+    const tabList = screen.getByRole("tablist", { name: "Secciones de Stock" });
+    expect(
+      tabList
+        .getByRole("tab")
+        .elements()
+        .map((tab) => tab.textContent),
+    ).toEqual(tabs);
+  },
+);
+
+test("shows the page without tabs to a person with only the initial inventory capability", async () => {
+  const services = stockServices(["initial_inventory", "stock_area"]);
+  window.history.pushState(null, "", "/stock");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Stock", level: 1 })).toBeVisible();
+  expect(screen.getByRole("tablist").query()).toBeNull();
+  expect(location()).toBe("/stock");
+});
+
+test.each([
+  ["/stock", "stock_expiries", "/stock/expiries"],
+  ["/stock/expiries", "stock_balances", "/stock"],
+  ["/stock/movements", "stock_balances", "/stock"],
+  ["/stock", "stock_counts", "/stock/movements"],
+] as const)(
+  "sends a person who may not open the tab at %s, holding only %s, to their first tab",
+  async (path, capability, first) => {
+    const services = stockServices([capability, "stock_area"]);
+    window.history.pushState(null, "", path);
 
     const screen = await render(<App help={emptyHelp} services={services} />);
-    await userEvent.click(screen.getByRole("link", { name: "Stock" }));
 
-    await expect.element(screen.getByRole("heading", { name: heading, level: 1 })).toBeVisible();
-    expect(window.location.pathname).toBe(path);
-    const sections = screen.getByRole("navigation", { name: "Stock" });
-    const labels = SECTION_LABELS.filter(
-      (label) => sections.getByRole("link", { name: label }).query() !== null,
-    );
-    expect(labels).toEqual([heading]);
+    await expect.element(screen.getByRole("heading", { name: "Stock", level: 1 })).toBeVisible();
+    await expect.poll(location).toBe(first);
+  },
+);
+
+test.each([
+  ["/inventory?search=miel", "/stock?search=miel"],
+  ["/expiring-lots?expiry=expired", "/stock/expiries?expiry=expired"],
+  ["/inventory-counts?period=7&search=miel", "/stock/movements?period=7&search=miel&type=count"],
+  ["/inventory-adjustments?reason=theft", "/stock/movements?reason=theft&type=adjustment%2Closs"],
+  ["/initial-inventory", "/stock?register=initial-inventory"],
+] as const)("redirects the old address %s to %s", async (old, current) => {
+  const services = stockServices([
+    "stock_area",
+    "stock_balances",
+    "stock_expiries",
+    "stock_counts",
+    "stock_movements",
+    "initial_inventory",
+  ]);
+  window.history.pushState(null, "", old);
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Stock", level: 1 })).toBeVisible();
+  await expect.poll(location).toBe(current);
+});
+
+test.each([
+  ["stock_balances", ["Stock"]],
+  ["stock_expiries", ["Stock"]],
+  ["stock_counts", ["Stock"]],
+  ["stock_movements", ["Stock"]],
+  ["initial_inventory", ["Stock"]],
+  ["suppliers", ["Proveedores"]],
+  ["purchases", ["Compras"]],
+  ["freights", ["Flete"]],
+] as const)(
+  "lists only the sections %s allows in the section column",
+  async (capability, labels) => {
+    const services = stockServices([capability, "stock_area"]);
+    window.history.pushState(null, "", "/help");
+    const screen = await render(<App help={emptyHelp} services={services} />);
+
+    await userEvent.click(railLink(screen));
+
+    await expect.element(screen.getByRole("navigation", { name: "Stock" })).toBeVisible();
+    expect(sectionLabels(screen)).toEqual(labels);
   },
 );
 
 test("lists every section of Stock in that order to an Administrator", async () => {
   const services = stockServices([]);
   vi.mocked(services.fetchSession).mockResolvedValue(openSession());
-  window.history.pushState(null, "", "/inventory");
+  window.history.pushState(null, "", "/stock");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { name: "Saldos", level: 1 })).toBeVisible();
-  const links = screen
-    .getByRole("navigation", { name: "Stock" })
-    .getByRole("link")
-    .elements()
-    .map((link) => link.textContent);
-  expect(links).toEqual(SECTION_LABELS);
+  await expect.element(screen.getByRole("heading", { name: "Stock", level: 1 })).toBeVisible();
+  expect(sectionLabels(screen)).toEqual(SECTION_LABELS);
+  const stockLink = screen.getByRole("navigation", { name: "Stock" }).getByRole("link", {
+    name: "Stock",
+  });
+  await expect.element(stockLink).toHaveAttribute("href", "/stock");
+  await expect.element(stockLink).toHaveAttribute("aria-current", "page");
+});
+
+test("keeps the Stock link of the section column active on every tab", async () => {
+  const services = stockServices([]);
+  vi.mocked(services.fetchSession).mockResolvedValue(openSession());
+  window.history.pushState(null, "", "/stock/movements");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect
+    .element(screen.getByRole("navigation", { name: "Stock" }).getByRole("link", { name: "Stock" }))
+    .toHaveAttribute("aria-current", "page");
+});
+
+test.each([
+  ["suppliers", "/suppliers"],
+  ["purchases", "/purchases"],
+  ["freights", "/freights"],
+] as const)("opens %s's section from the rail's Stock item", async (capability, path) => {
+  const services = stockServices([capability, "stock_area"]);
+  window.history.pushState(null, "", "/help");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await userEvent.click(railLink(screen));
+
+  await expect.poll(location).toBe(path);
 });
 
 test("lists only the sections a user holds the permission for", async () => {
@@ -151,12 +310,7 @@ test("lists only the sections a user holds the permission for", async () => {
   await expect
     .element(screen.getByRole("heading", { name: "Proveedores", level: 1 }))
     .toBeVisible();
-  const links = screen
-    .getByRole("navigation", { name: "Stock" })
-    .getByRole("link")
-    .elements()
-    .map((link) => link.textContent);
-  expect(links).toEqual(["Saldos", "Proveedores"]);
+  expect(sectionLabels(screen)).toEqual(["Stock", "Proveedores"]);
 });
 
 test("confirms a purchase just registered on the purchases list, until it is dismissed", async () => {
@@ -202,18 +356,21 @@ test("hides the Stock item in the rail for a user without a stock permission", a
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
-  expect(screen.getByRole("link", { name: "Stock" }).query()).toBeNull();
+  expect(railLink(screen).query()).toBeNull();
 });
 
 test.each([
-  ["/inventory", "stock_counts"],
-  ["/inventory-counts", "stock_balances"],
-  ["/inventory-adjustments", "stock_counts"],
+  ["/stock", "suppliers"],
+  ["/stock/expiries", "suppliers"],
+  ["/stock/movements", "suppliers"],
+  ["/inventory", "suppliers"],
+  ["/expiring-lots", "suppliers"],
+  ["/inventory-counts", "suppliers"],
+  ["/inventory-adjustments", "suppliers"],
+  ["/initial-inventory", "suppliers"],
   ["/suppliers", "purchases"],
   ["/purchases", "suppliers"],
   ["/purchases/new", "suppliers"],
-  ["/expiring-lots", "suppliers"],
-  ["/initial-inventory", "suppliers"],
   ["/freights", "suppliers"],
 ] as const)("sends a user who may not open %s to Mi cuenta", async (path, capability) => {
   const services = stockServices([capability, "stock_area"]);
@@ -234,7 +391,7 @@ test("offers the kinds of stock movement real use of the open tab reports the us
   });
   const services = stockServices([]);
   vi.mocked(services.fetchSession).mockResolvedValue(lossesOnly);
-  window.history.pushState(null, "", "/inventory-adjustments");
+  window.history.pushState(null, "", "/stock/movements");
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByRole("button", { name: "Cargar pérdida" })).toBeVisible();
 
@@ -255,15 +412,13 @@ test("offers the kinds of stock movement real use of the open tab reports the us
 });
 
 const STOCK_SCREENS = [
-  ["/inventory", "Saldos"],
-  ["/inventory-counts", "Recuentos"],
-  ["/inventory-adjustments", "Ajustes y pérdidas"],
+  ["/stock", "Stock"],
+  ["/stock/expiries", "Stock"],
+  ["/stock/movements", "Stock"],
   ["/suppliers", "Proveedores"],
   ["/purchases", "Compras"],
   ["/purchases/new", "Registrar compra"],
-  ["/expiring-lots", "Vencimientos"],
   ["/freights", "Flete"],
-  ["/initial-inventory", "Inventario inicial"],
 ] as const;
 
 test.each(STOCK_SCREENS)("shows no open alerts count in %s's top bar", async (path, heading) => {

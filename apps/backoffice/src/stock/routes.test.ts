@@ -7,6 +7,7 @@ import {
   stockBalancesFilters,
   stockCountsFilters,
   stockMovementsFilters,
+  stockMovementsSearch,
 } from "./routes";
 
 test("opens the balances on every product of every category", () => {
@@ -71,6 +72,33 @@ test("opens the losses and adjustments of the last 30 days, for every reason", (
 test("keeps the reason a URL names, falling back for one that is not text", () => {
   expect(stockMovementsFilters.parse({ reason: "theft" }).reason).toBe("theft");
   expect(stockMovementsFilters.parse({ reason: 3 }).reason).toBe("ALL");
+});
+
+test("opens the movements of every kind the person may see", () => {
+  expect(stockMovementsSearch.parse({})).toEqual({
+    search: "",
+    reason: "ALL",
+    period: "30",
+    type: [],
+  });
+});
+
+test("keeps the kinds of movement a URL names, as a list or as the text the address writes", () => {
+  expect(stockMovementsSearch.parse({ type: ["adjustment", "loss"] }).type).toEqual([
+    "adjustment",
+    "loss",
+  ]);
+  expect(stockMovementsSearch.parse({ type: "adjustment,loss" }).type).toEqual([
+    "adjustment",
+    "loss",
+  ]);
+  expect(stockMovementsSearch.parse({ type: "count" }).type).toEqual(["count"]);
+});
+
+test("falls back to every kind for a kind of movement it does not offer", () => {
+  expect(stockMovementsSearch.parse({ type: "count,theft" }).type).toEqual([]);
+  expect(stockMovementsSearch.parse({ type: 3 }).type).toEqual([]);
+  expect(stockMovementsSearch.parse({ type: "" }).type).toEqual([]);
 });
 
 test("opens the initial inventory on every lot, whatever its cost", () => {
