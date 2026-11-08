@@ -15,15 +15,21 @@ import { deepEqual } from "@tanstack/react-router";
 import { Ban, Pencil, Plus, RotateCcw, Search, SearchX, Truck } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import type { BackofficeAccess } from "../shell/backoffice-access";
 import { DeactivateSupplierModal } from "./deactivate-supplier-modal";
 import { EditSupplierModal } from "./edit-supplier-modal";
 import { NewSupplierModal } from "./new-supplier-modal";
+import { OpenSupplierPanel } from "./open-supplier-panel";
 import { useRefreshPurchasing, useReloadSupplier, useSuppliersQuery } from "./purchasing-queries";
 import { ReactivateSupplierModal } from "./reactivate-supplier-modal";
 import type { SuppliersListFilters } from "./routes";
 import type { SuppliersListScreenServices } from "./suppliers-list-services";
 
 export type SuppliersListScreenProps = {
+  access: BackofficeAccess;
+  openSupplier: string | undefined;
+  panelTab: string | undefined;
+  onOpenSupplierChange: (supplier: string | undefined) => void;
   filters: SuppliersListFilters;
   onFiltersChange: (filters: SuppliersListFilters) => void;
   onSessionEnded: () => void;
@@ -48,6 +54,10 @@ function showsStatus(supplier: SupplierSummary, status: SupplierStatusFilter): b
 }
 
 export function SuppliersListScreen({
+  access,
+  openSupplier,
+  panelTab,
+  onOpenSupplierChange,
   filters,
   onFiltersChange,
   onSessionEnded,
@@ -188,6 +198,8 @@ export function SuppliersListScreen({
           <Table
             aria-label="Proveedores"
             table={table}
+            onRowPress={(item) => onOpenSupplierChange(item.id)}
+            rowState={(item) => (item.id === openSupplier ? "selected" : undefined)}
             {...cloudTableState(data, "los proveedores")}
             empty={
               suppliers.length === 0
@@ -212,6 +224,17 @@ export function SuppliersListScreen({
             }
           />
         </div>
+        <OpenSupplierPanel
+          suppliers={suppliers}
+          suppliersAreLoaded={data.status === "loaded" && !data.refreshing}
+          openSupplier={openSupplier}
+          tab={panelTab}
+          access={access}
+          onClose={() => onOpenSupplierChange(undefined)}
+          onEdit={setEditTarget}
+          onDeactivate={setDeactivateTarget}
+          onReactivate={setReactivateTarget}
+        />
       </div>
       <NewSupplierModal
         open={newModalOpen}

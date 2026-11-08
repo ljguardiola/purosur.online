@@ -20,6 +20,7 @@ import { refuseWithout, signedInRoute } from "../shell/signed-in-route";
 import { aiCostReportFilters } from "./ai-cost-report-filters";
 import { orderSuggestionFilters } from "./order-suggestion-filters";
 import { purchaseOrdersFilters } from "./purchase-orders-filters";
+import { SUPPLIER_PANEL_TAB_KEYS } from "./supplier-panel-tabs";
 import { supplierPriceComparisonFilters } from "./supplier-price-comparison-filters";
 import {
   supplierPriceListReviewFilters,
@@ -34,6 +35,11 @@ export const suppliersListFilters = z.object({
 });
 
 export type SuppliersListFilters = z.output<typeof suppliersListFilters>;
+
+const suppliersListSearch = suppliersListFilters.extend({
+  supplier: z.string().optional().catch(undefined),
+  tab: z.enum(SUPPLIER_PANEL_TAB_KEYS).optional().catch(undefined),
+});
 
 export const suppliersRoute = createRoute({
   getParentRoute: () => purchasingAreaRoute,
@@ -59,7 +65,7 @@ export const suppliersListRoute = createRoute({
   getParentRoute: () => suppliersRoute,
   path: "/",
   beforeLoad: ({ context: { suppliersTabs } }) => suppliersTabRedirect(suppliersTabs, "suppliers"),
-  validateSearch: suppliersListFilters,
+  validateSearch: suppliersListSearch,
   search: { middlewares: [stripSearchParams(suppliersListFilters.parse({}))] },
   component: lazyScreen(() => import("./suppliers-list-page"), "SuppliersListPage"),
 });
