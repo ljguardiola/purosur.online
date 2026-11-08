@@ -598,6 +598,40 @@ describe("GET /freights", () => {
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ code: "validation_failed" });
   });
+
+  it("returns 400 for a supplier that is not a record id", async () => {
+    const { headers } = await freightManager();
+
+    const response = await app.inject({ method: "GET", url: "/freights?supplierId=x", headers });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "validation_failed" });
+  });
+
+  it("lists only the freights covering a purchase of the supplier asked for", async () => {
+    const { headers, userId, locationId } = await freightManager();
+    const wanted = await purchaseAt(locationId, userId);
+    const other = await purchaseAt(locationId, userId);
+    const found = await insertFreightRow(db, {
+      locationId,
+      actorId: userId,
+      purchaseIds: [wanted.purchaseId],
+      date: "2026-09-20",
+    });
+    await insertFreightRow(db, {
+      locationId,
+      actorId: userId,
+      purchaseIds: [other.purchaseId],
+      date: "2026-09-20",
+    });
+    const response = await app.inject({
+      method: "GET",
+      url: `/freights?supplierId=${wanted.supplierId}`,
+      headers,
+    });
+
+    expect(freightListSchema.parse(response.json()).items.map(({ id }) => id)).toEqual([found]);
+  });
 });
 
 describe("GET /freights/linkable-purchases", () => {

@@ -198,6 +198,65 @@ describe("DrizzleFreightListReader.freights", () => {
       expect(wildcard.map(({ id }) => id)).toEqual([found]);
     });
   });
+
+  describe("narrowing to a supplier", () => {
+    it("lists the freights linked to a purchase of the supplier, each with all its purchases, and none other", async () => {
+      const sur = await purchase({ supplierName: "Distribuidora Sur" });
+      const norte = await purchase({ supplierName: "Mayorista Norte" });
+      const onlySur = await freight([sur.purchaseId]);
+      const onlyNorte = await freight([norte.purchaseId]);
+      const both = await freight([sur.purchaseId, norte.purchaseId]);
+
+      const ofSur = await reader().freights({
+        locationId,
+        from: "2026-01-01",
+        supplierId: sur.supplierId,
+      });
+      const ofNorte = await reader().freights({
+        locationId,
+        from: "2026-01-01",
+        supplierId: norte.supplierId,
+      });
+
+      expect(ofSur.map(({ id }) => id).sort()).toEqual([onlySur, both].sort());
+      expect(ofNorte.map(({ id }) => id).sort()).toEqual([onlyNorte, both].sort());
+      expect(ofNorte.find(({ id }) => id === both)?.purchases).toHaveLength(2);
+    });
+
+    it("does not take a carrier named like the supplier for the supplier", async () => {
+      const sur = await purchase({ supplierName: "Distribuidora Sur" });
+      const other = await purchase({ supplierName: "Mayorista Norte" });
+      await freight([other.purchaseId], {
+        means: { kind: "carrier", name: "Distribuidora Sur" },
+      });
+
+      const listed = await reader().freights({
+        locationId,
+        from: "2026-01-01",
+        supplierId: sur.supplierId,
+      });
+
+      expect(listed).toEqual([]);
+    });
+
+    it("narrows further the period and the search it is combined with", async () => {
+      const sur = await purchase({ supplierName: "Distribuidora Sur" });
+      const found = await freight([sur.purchaseId], { description: "Flete de yerba" });
+      await freight([sur.purchaseId], { description: "Viaje" });
+      await freight([sur.purchaseId], { description: "Flete de yerba", date: "2025-01-01" });
+      const other = await purchase({ supplierName: "Mayorista Norte" });
+      await freight([other.purchaseId], { description: "Flete de yerba" });
+
+      const listed = await reader().freights({
+        locationId,
+        from: "2026-01-01",
+        search: "yerba",
+        supplierId: sur.supplierId,
+      });
+
+      expect(listed.map(({ id }) => id)).toEqual([found]);
+    });
+  });
 });
 
 describe("DrizzleFreightListReader.purchasesSince", () => {

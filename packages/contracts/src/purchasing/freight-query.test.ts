@@ -33,6 +33,16 @@ describe("freightListQuerySchema", () => {
         .success,
     ).toBe(false);
   });
+
+  it("accepts a supplier's id, lowercased, and refuses anything else", () => {
+    const supplierId = "22222222-2222-4222-8222-222222222222";
+
+    expect(freightListQuerySchema.parse({ supplierId: supplierId.toUpperCase() }).supplierId).toBe(
+      supplierId,
+    );
+    expect(freightListQuerySchema.parse({}).supplierId).toBeUndefined();
+    expect(freightListQuerySchema.safeParse({ supplierId: "x" }).success).toBe(false);
+  });
 });
 
 describe("the messages of a refused query", () => {

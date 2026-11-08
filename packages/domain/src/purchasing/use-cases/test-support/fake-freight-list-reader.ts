@@ -30,6 +30,8 @@ export class FakeFreightListReader implements FreightListReader {
       (freight) =>
         freight.locationId === query.locationId &&
         freight.date >= query.from &&
+        (query.supplierId === undefined ||
+          freight.purchases.some((purchase) => purchase.supplier.id === query.supplierId)) &&
         (query.search === undefined || freight.description.includes(query.search)),
     );
   }
