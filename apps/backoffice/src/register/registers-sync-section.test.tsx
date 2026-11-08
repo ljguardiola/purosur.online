@@ -57,7 +57,7 @@ test("marks the table busy while the registers load", async () => {
   const screen = await renderSection({ status: "loading" });
 
   await expect
-    .element(screen.getByRole("table", { name: "Última sincronización de las cajas" }))
+    .element(screen.getByRole("table", { name: "Estado de las cajas" }))
     .toHaveAttribute("aria-busy", "true");
 });
 
@@ -176,4 +176,29 @@ test("shows the share of free disk with the free size below it", async () => {
 
   await expect.element(screen.getByText("41 % libre")).toBeVisible();
   await expect.element(screen.getByText("98 GB")).toHaveClass("text-text-subtle");
+});
+
+test("shows a free share and size just under a limit without rounding them up to it", async () => {
+  const screen = await renderSection({
+    status: "loaded",
+    value: [registerWith({ disk: { freeBytes: 5 * 1024 ** 3 - 1, freeRatio: 0.197 } })],
+    refreshing: false,
+  });
+
+  await expect.element(screen.getByText("19,7 % libre")).toBeVisible();
+  await expect.element(screen.getByText("4,9 GB")).toBeVisible();
+});
+
+test("writes the minutes without mains power the way a number reads in Argentina", async () => {
+  const screen = await renderSection({
+    status: "loaded",
+    value: [
+      registerWith({
+        battery: { ...presentBattery, onBattery: true, onBatteryMinutes: 1500 },
+      }),
+    ],
+    refreshing: false,
+  });
+
+  await expect.element(screen.getByText("Sin corriente hace 1.500 min")).toBeVisible();
 });

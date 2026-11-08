@@ -5,9 +5,13 @@ import { render } from "../shell/test-support/render-with-router";
 import { AlertsLevelCards } from "./alerts-level-cards";
 
 const overview: AlertsOverview = {
-  critical: { openCount: 4, kinds: ["user_email_changed", "user_access_increased"] },
-  warning: { openCount: 2, kinds: ["backoffice_passkey_changed"] },
-  informational: { openCount: 0, kinds: [] },
+  critical: {
+    openCount: 4,
+    kinds: ["user_email_changed", "user_access_increased"],
+    localKinds: [],
+  },
+  warning: { openCount: 2, kinds: ["backoffice_passkey_changed"], localKinds: [] },
+  informational: { openCount: 0, kinds: [], localKinds: [] },
 };
 
 test("shows one card per level, critical first, each with its open count and the kinds open at it", async () => {
@@ -49,7 +53,10 @@ test("filters Inicio by the pressed level without adding a history entry", async
 test("names a kind this app does not know yet by the kind itself", async () => {
   const screen = await render(
     <AlertsLevelCards
-      overview={{ ...overview, informational: { openCount: 1, kinds: ["register_disk_low"] } }}
+      overview={{
+        ...overview,
+        informational: { openCount: 1, kinds: ["register_disk_low"], localKinds: [] },
+      }}
     />,
   );
 
@@ -58,14 +65,36 @@ test("names a kind this app does not know yet by the kind itself", async () => {
     .toBeVisible();
 });
 
-test("names a kind that has a fixed plain-language text by its title", async () => {
+test("names a kind of Local audience that has a fixed plain-language text by its title", async () => {
   const screen = await render(
     <AlertsLevelCards
-      overview={{ ...overview, critical: { openCount: 1, kinds: ["register_silent"] } }}
+      overview={{
+        ...overview,
+        critical: { openCount: 1, kinds: ["register_silent"], localKinds: ["register_silent"] },
+      }}
     />,
   );
 
   await expect
     .element(screen.getByRole("link", { name: "Alertas críticas 1 La caja no está sincronizando" }))
+    .toBeVisible();
+});
+
+test("names a kind of All audience by its label even when the register has a plain-language text for it", async () => {
+  const screen = await render(
+    <AlertsLevelCards
+      overview={{
+        ...overview,
+        warning: { openCount: 1, kinds: ["wal_oversized"], localKinds: [] },
+      }}
+    />,
+  );
+
+  await expect
+    .element(
+      screen.getByRole("link", {
+        name: "Advertencias 1 Registro de cambios de la caja demasiado grande",
+      }),
+    )
     .toBeVisible();
 });

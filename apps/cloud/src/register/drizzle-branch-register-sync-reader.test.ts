@@ -155,6 +155,41 @@ describe("DrizzleBranchRegisterSyncReader", () => {
     });
   });
 
+  it("answers no battery when the register's last accepted push carried no battery reading, though an earlier one did", async () => {
+    const installation = await insertEnrolledInstallation(db, { now: NOW });
+    await db.insert(deviceState).values({
+      deviceId: installation.deviceId,
+      lastAcceptedPushAt: NOW,
+      batteryPresent: true,
+      batteryChargePercent: 64,
+      batteryOnBattery: true,
+      batteryOnBatteryMinutes: 14,
+      batteryReportedAt: EARLIER,
+    });
+
+    const [listed] = await new DrizzleBranchRegisterSyncReader(
+      db,
+    ).lastSuccessfulSyncOfBranchRegisters(installation.locationId);
+
+    expect(listed?.battery).toBeNull();
+  });
+
+  it("answers the battery the register's last accepted push carried", async () => {
+    const installation = await insertEnrolledInstallation(db, { now: NOW });
+    await db.insert(deviceState).values({
+      deviceId: installation.deviceId,
+      lastAcceptedPushAt: NOW,
+      batteryPresent: false,
+      batteryReportedAt: NOW,
+    });
+
+    const [listed] = await new DrizzleBranchRegisterSyncReader(
+      db,
+    ).lastSuccessfulSyncOfBranchRegisters(installation.locationId);
+
+    expect(listed?.battery).toEqual({ present: false });
+  });
+
   it("answers that a register has no battery when it reported none", async () => {
     const installation = await insertEnrolledInstallation(db, { now: NOW });
     await db.insert(deviceState).values({

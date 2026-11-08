@@ -174,7 +174,7 @@ test("describes a deferred sale that is not invoiced yet and nears the day it ca
 
 test("describes the on_battery alert", () => {
   expect(alertKindDescription("on_battery")).toBe(
-    "Una caja lleva 10 minutos o más funcionando solo con la batería",
+    "Una caja lleva un rato funcionando solo con la batería",
   );
 });
 
@@ -184,18 +184,18 @@ test("describes the battery_missing alert", () => {
 
 test("describes the battery_health_low alert", () => {
   expect(alertKindDescription("battery_health_low")).toBe(
-    "La batería de una caja conserva menos del 60 % de su capacidad de diseño",
+    "La batería de una caja perdió buena parte de su capacidad de diseño",
   );
 });
 
 test("describes the wal_oversized alert", () => {
   expect(alertKindDescription("wal_oversized")).toBe(
-    "El registro de cambios de una caja pasó los 256 MB",
+    "El registro de cambios de una caja creció más de lo normal",
   );
 });
 
 test("describes the register_disk_space_low alert", () => {
   expect(alertKindDescription("register_disk_space_low")).toBe(
-    "A una caja le queda menos del 20 % o menos de 5 GB libres del disco",
+    "A una caja le queda poco espacio libre en el disco",
   );
 });

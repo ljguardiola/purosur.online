@@ -234,9 +234,9 @@ test("keeps the alerts on Inicio when the registers fail to load, and retries on
   vi.mocked(services.homeScreen.fetchAlertsOverview).mockResolvedValue({
     kind: "ok",
     value: {
-      critical: { openCount: 0, kinds: [] },
-      warning: { openCount: 2, kinds: ["user_email_changed"] },
-      informational: { openCount: 0, kinds: [] },
+      critical: { openCount: 0, kinds: [], localKinds: [] },
+      warning: { openCount: 2, kinds: ["user_email_changed"], localKinds: [] },
+      informational: { openCount: 0, kinds: [], localKinds: [] },
     },
   });
   vi.mocked(services.homeScreen.fetchRegisterSyncStatus)

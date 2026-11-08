@@ -3407,6 +3407,34 @@ test("tells how large a register's write-ahead log has grown", async () => {
     .toBeVisible();
 });
 
+test("tells a free share and size just under the limit without rounding them up to it", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "register_disk_space_low",
+        level: "warning",
+        audience: "all",
+        closing: "by_itself",
+        scope: "register-1",
+        scopeDisplay: "Caja 1",
+        detail: { deviceId: "device-1", diskFreeBytes: 5 * 1024 ** 3 - 1, diskFreeRatio: 0.197 },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(
+      screen.getByText(
+        "A la caja «Caja 1» le queda libre el 19,7 % del disco, 4,9 GB. Conviene liberar espacio antes de que se llene.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+});
+
 test("tells how much disk a register has free", async () => {
   const services = createServices();
   vi.mocked(services.fetchAlert).mockResolvedValue(

@@ -26,9 +26,9 @@ export const help = defineHelp("es-AR", {
 export const threeOpenAlerts: FetchAlertsOverviewOutcome = {
   kind: "ok",
   value: {
-    critical: { openCount: 1, kinds: ["user_access_increased"] },
-    warning: { openCount: 2, kinds: ["user_email_changed"] },
-    informational: { openCount: 0, kinds: [] },
+    critical: { openCount: 1, kinds: ["user_access_increased"], localKinds: [] },
+    warning: { openCount: 2, kinds: ["user_email_changed"], localKinds: [] },
+    informational: { openCount: 0, kinds: [], localKinds: [] },
   },
 };
 

@@ -21,15 +21,15 @@ beforeEach(() => {
 });
 
 const overview: AlertsOverview = {
-  critical: { openCount: 1, kinds: ["user_access_increased"] },
-  warning: { openCount: 2, kinds: ["user_email_changed"] },
-  informational: { openCount: 0, kinds: [] },
+  critical: { openCount: 1, kinds: ["user_access_increased"], localKinds: [] },
+  warning: { openCount: 2, kinds: ["user_email_changed"], localKinds: [] },
+  informational: { openCount: 0, kinds: [], localKinds: [] },
 };
 
 const NOTHING_OPEN: AlertsOverview = {
-  critical: { openCount: 0, kinds: [] },
-  warning: { openCount: 0, kinds: [] },
-  informational: { openCount: 0, kinds: [] },
+  critical: { openCount: 0, kinds: [], localKinds: [] },
+  warning: { openCount: 0, kinds: [], localKinds: [] },
+  informational: { openCount: 0, kinds: [], localKinds: [] },
 };
 
 const passkeyAlert: AlertSummary = {
@@ -373,7 +373,7 @@ test("shows the registers' loading state until the registers arrive", async () =
   const screen = await renderScreen(services);
 
   await expect
-    .element(screen.getByRole("table", { name: "Última sincronización de las cajas" }))
+    .element(screen.getByRole("table", { name: "Estado de las cajas" }))
     .toHaveAttribute("aria-busy", "true");
   load.resolve({ kind: "ok", value: [neverSynced] });
   await expect.element(screen.getByText("Caja 1")).toBeVisible();
@@ -401,7 +401,7 @@ test("shows the registers' load error whose retry starts again from the loading 
 
   await expect.element(screen.getByText("No pudimos abrir las cajas")).not.toBeInTheDocument();
   await expect
-    .element(screen.getByRole("table", { name: "Última sincronización de las cajas" }))
+    .element(screen.getByRole("table", { name: "Estado de las cajas" }))
     .toHaveAttribute("aria-busy", "true");
   retry.resolve({ kind: "ok", value: [neverSynced] });
   await expect.element(screen.getByText("Caja 1")).toBeVisible();

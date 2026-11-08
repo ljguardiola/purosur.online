@@ -59,6 +59,7 @@ test.each([
   ["subtle", "text-subtle"],
   ["error", "error-strong"],
   ["success", "success-strong"],
+  ["warning", "warning-strong"],
 ] as const)("writes its text in the %s tone", async (tone, token) => {
   const screen = await render(<TableCellText tone={tone}>Coffee</TableCellText>);
   const text = screen.getByText("Coffee", { exact: true }).element() as HTMLElement;
@@ -122,4 +123,43 @@ test("accepts an undefined tone and description tone, for a caller that picks th
     descriptionTone: undefined;
     children: string;
   }>().toExtend<TableCellTextProps>();
+});
+
+test("writes a second description line below the first, each in its own tone", async () => {
+  const screen = await render(
+    <TableCellText
+      description="Sin corriente hace 14 min"
+      descriptionTone="error"
+      secondDescription="Salud 55 %"
+      secondDescriptionTone="warning"
+    >
+      A batería · 64 %
+    </TableCellText>,
+  );
+  const lines = [...screen.container.querySelectorAll("span")].map((line) => line.textContent);
+  const first = screen.getByText("Sin corriente hace 14 min", { exact: true }).element();
+  const second = screen.getByText("Salud 55 %", { exact: true }).element();
+
+  expect(lines).toEqual(["A batería · 64 %", "Sin corriente hace 14 min", "Salud 55 %"]);
+  expect(getComputedStyle(first).color).toBe(tokenRgb("error-strong"));
+  expect(getComputedStyle(second).color).toBe(tokenRgb("warning-strong"));
+  expect(getComputedStyle(second).fontSize).toBe("14px");
+  await expectNoAccessibilityViolations(screen.container);
+});
+
+test("writes a second description line in the subtle tone unless it is asked for another", async () => {
+  const screen = await render(
+    <TableCellText description="SKU-001" secondDescription="Lote 12">
+      Coffee
+    </TableCellText>,
+  );
+  const second = screen.getByText("Lote 12", { exact: true }).element();
+
+  expect(getComputedStyle(second).color).toBe(tokenRgb("text-subtle"));
+});
+
+test("renders no second description line when none is given", async () => {
+  const screen = await render(<TableCellText description="SKU-001">Coffee</TableCellText>);
+
+  expect(screen.container.querySelectorAll("span")).toHaveLength(2);
 });
