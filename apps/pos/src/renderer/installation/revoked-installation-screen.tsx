@@ -1,7 +1,7 @@
 import { Button, InlineNotice, ScreenHeader } from "@purosur/ui";
 import { Ban } from "lucide-react";
 import { BrandPanelScreen } from "../shell/brand-panel-screen";
-import { registerEyebrow } from "./register-eyebrow";
+import { registerEyebrow } from "../shell/register-eyebrow";
 
 export function RevokedInstallationScreen({
   registerName,
