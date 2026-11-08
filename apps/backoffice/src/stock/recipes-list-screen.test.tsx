@@ -680,7 +680,7 @@ test("registers a batch from the panel with a modal", async () => {
 
   await userEvent.click(panel.getByRole("button", { name: "Registrar tanda" }));
 
-  await expect.element(screen.getByRole("dialog")).toBeVisible();
+  await expect.element(screen.getByRole("dialog", { name: "Nueva tanda" })).toBeVisible();
 });
 
 test("asks to confirm in a modal before cancelling a batch from the panel", async () => {
@@ -693,7 +693,9 @@ test("asks to confirm in a modal before cancelling a batch from the panel", asyn
 
   await userEvent.click(panel.getByRole("button", { name: "Anular tanda de Mix de frutos secos" }));
 
-  await expect.element(screen.getByRole("dialog")).toBeVisible();
+  await expect
+    .element(screen.getByRole("dialog", { name: "¿Anular la tanda de Mix de frutos secos?" }))
+    .toBeVisible();
   expect(batchServices.voidAssemblyBatch).not.toHaveBeenCalled();
 });
 

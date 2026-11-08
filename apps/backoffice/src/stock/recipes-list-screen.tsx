@@ -2,6 +2,7 @@ import type { RecipeSummary } from "@purosur/contracts";
 import {
   actionsColumn,
   Button,
+  DetailPanel,
   dataColumn,
   FloatingNotification,
   SearchField,
@@ -20,12 +21,15 @@ import type { ProductCreationModal } from "../platform/creation-parts";
 import type { ProductPriceSection } from "../platform/product-price-section";
 import {
   type BackofficeAccess,
+  canManageBatches,
   canManageProductsAndCategories,
   canSeePricesArea,
 } from "../shell/backoffice-access";
 import { BATCH_COST_INCOMPLETE, batchDayText, batchUnitCostText } from "./assembly-batch-text";
+import type { AssemblyBatchesScreenServices } from "./assembly-batches-services";
 import { EditRecipeModal } from "./edit-recipe-modal";
 import { NewRecipeModal } from "./new-recipe-modal";
+import { ProductRecipeSection } from "./product-recipe-section";
 import {
   recipeComponentCountText,
   recipeComponentNamesText,
@@ -42,6 +46,9 @@ export type RecipesListScreenProps = {
   productPriceSection: ProductPriceSection;
   filters: RecipesListFilters;
   onFiltersChange: (filters: RecipesListFilters) => void;
+  openRecipe: string | undefined;
+  onOpenRecipeChange: (recipe: string | undefined) => void;
+  batchServices: AssemblyBatchesScreenServices;
   onSessionEnded: () => void;
   services: RecipesListScreenServices;
 };
@@ -82,6 +89,9 @@ export function RecipesListScreen({
   productPriceSection,
   filters,
   onFiltersChange,
+  openRecipe,
+  onOpenRecipeChange,
+  batchServices,
   onSessionEnded,
   services,
 }: RecipesListScreenProps) {
@@ -98,6 +108,7 @@ export function RecipesListScreen({
   const [editTarget, setEditTarget] = useState<RecipeSummary | null>(null);
   const [notice, setNotice] = useState<ScreenNotice | null>(null);
   const reportFilters = useEffectEvent(onFiltersChange);
+  const closeUnlisted = useEffectEvent(() => onOpenRecipeChange(undefined));
 
   useEffect(() => {
     const shown: RecipesListFilters = { search, sort: sort.direction };
@@ -114,6 +125,13 @@ export function RecipesListScreen({
 
   const { recipes, products } =
     data.status === "loaded" ? data.value : { recipes: NO_RECIPES, products: NO_PRODUCTS };
+  const recipeInPanel = recipes.find((recipe) => recipe.productId === openRecipe);
+
+  useEffect(() => {
+    if (data.status === "loaded" && openRecipe !== undefined && recipeInPanel === undefined) {
+      closeUnlisted();
+    }
+  }, [data.status, openRecipe, recipeInPanel]);
 
   function saved(title: string, description: string) {
     setNotice((previous) => ({ id: (previous?.id ?? 0) + 1, title, description }));
@@ -208,6 +226,7 @@ export function RecipesListScreen({
         <Table
           aria-label="Recetas"
           table={table}
+          onRowPress={(item) => onOpenRecipeChange(item.productId)}
           {...cloudTableState(data, "las recetas")}
           empty={
             recipes.length === 0
@@ -268,6 +287,27 @@ export function RecipesListScreen({
           onSessionEnded={onSessionEnded}
         />
       ) : null}
+      {recipeInPanel === undefined ? null : (
+        <DetailPanel
+          open
+          onClose={() => onOpenRecipeChange(undefined)}
+          recordKey={recipeInPanel.productId}
+          title={formatProductDescription({
+            name: recipeInPanel.productName,
+            brandName: recipeInPanel.brandName,
+            netContent: recipeInPanel.netContent,
+          })}
+        >
+          <ProductRecipeSection
+            productId={recipeInPanel.productId}
+            productName={recipeInPanel.productName}
+            saleUnit={recipeInPanel.saleUnit}
+            mayRegisterBatches={canManageBatches(access)}
+            onSessionEnded={onSessionEnded}
+            services={{ ...batchServices, fetchRecipes: services.fetchRecipes }}
+          />
+        </DetailPanel>
+      )}
       {notice ? (
         <FloatingNotification
           key={notice.id}

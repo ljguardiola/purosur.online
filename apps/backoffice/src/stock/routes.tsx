@@ -1,8 +1,7 @@
 import { stockPeriodSchema } from "@purosur/contracts";
-import { createRoute, redirect, stripSearchParams } from "@tanstack/react-router";
+import { createRoute, Outlet, redirect, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 import {
-  canManageBatches,
   canPerformStockCounts,
   canRecordInitialInventory,
   canSeeExpiringLots,
@@ -74,14 +73,11 @@ export const recipesListFilters = z.object({
   sort: z.enum(["ascending", "descending"]).default("ascending").catch("ascending"),
 });
 
-export const assemblyBatchesFilters = z.object({
-  search: z.string().default("").catch(""),
-  period: periodFilter,
-});
-
-export type AssemblyBatchesFilters = z.output<typeof assemblyBatchesFilters>;
-
 export type RecipesListFilters = z.output<typeof recipesListFilters>;
+
+const recipesListSearch = recipesListFilters.extend({
+  recipe: z.string().optional().catch(undefined),
+});
 
 export const stockBalancesRoute = createRoute({
   getParentRoute: () => stockAreaRoute,
@@ -168,28 +164,23 @@ export const assembliesRoute = createRoute({
   getParentRoute: () => productsRoute,
   path: "assemblies",
   beforeLoad: ({ context: { productsTabs } }) => productsTabRedirect(productsTabs, "assemblies"),
-  component: lazyScreen(() => import("./assemblies-layout"), "AssembliesLayout"),
+  component: Outlet,
 });
 
 export const recipesListRoute = createRoute({
   getParentRoute: () => assembliesRoute,
   path: "/",
-  validateSearch: recipesListFilters,
+  validateSearch: recipesListSearch,
   search: { middlewares: [stripSearchParams(recipesListFilters.parse({}))] },
   component: lazyScreen(() => import("./recipes-list-page"), "RecipesListPage"),
 });
 
-export const assemblyBatchesRoute = createRoute({
+export const assembliesBatchesRoute = createRoute({
   getParentRoute: () => assembliesRoute,
   path: "batches",
-  beforeLoad: ({ context: { session } }) => {
-    if (!canManageBatches(session)) {
-      throw redirect({ to: "/products/assemblies" });
-    }
+  beforeLoad: () => {
+    throw redirect({ to: "/products/assemblies" });
   },
-  validateSearch: assemblyBatchesFilters,
-  search: { middlewares: [stripSearchParams(assemblyBatchesFilters.parse({}))] },
-  component: lazyScreen(() => import("./assembly-batches-page"), "AssemblyBatchesPage"),
 });
 
 export const legacyRecipesRoute = createRoute({
@@ -204,8 +195,7 @@ export const legacyRecipesRoute = createRoute({
 export const legacyAssemblyBatchesRoute = createRoute({
   getParentRoute: () => signedInRoute,
   path: "assembly-batches",
-  validateSearch: assemblyBatchesFilters,
-  beforeLoad: ({ search }) => {
-    throw redirect({ to: "/products/assemblies/batches", search });
+  beforeLoad: () => {
+    throw redirect({ to: "/products/assemblies" });
   },
 });
