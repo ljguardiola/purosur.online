@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
 import {
   checkFiles,
@@ -163,14 +166,20 @@ test("reports a workflow that does not parse as YAML instead of scanning it sile
 });
 
 test("finds every workflow file, whichever YAML extension it uses", () => {
-  const files = findWorkflowFiles();
+  const dir = mkdtempSync(join(tmpdir(), "dependency-cache-bounded-"));
+  try {
+    mkdirSync(join(dir, ".github/workflows"), { recursive: true });
+    for (const file of ["b.yaml", "a.yml", "README.md"]) {
+      writeFileSync(join(dir, ".github/workflows", file), "");
+    }
 
-  assert.ok(files.includes(".github/workflows/verify.yml"), files.join("\n"));
-  assert.ok(files.includes(".github/workflows/package-pos.yml"), files.join("\n"));
-  assert.ok(
-    files.every((file) => /^\.github\/workflows\/[^/]+\.ya?ml$/.test(file)),
-    files.join("\n"),
-  );
+    assert.deepEqual(findWorkflowFiles(dir), [
+      ".github/workflows/a.yml",
+      ".github/workflows/b.yaml",
+    ]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("describes a violation with its file, line and message", () => {
