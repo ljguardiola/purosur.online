@@ -178,11 +178,14 @@ how a new one is judged.
 
 ### Comments
 
-- A name or comment the change made untrue: a variable kept as
-  `refreshSales` after it was rebound to a hook that refreshes only
-  payments, a test still titled for a setup or a set of values it no longer
-  has ("rejects a status outside starting, down and up" after `updating`
-  became valid), or a comment naming the folder a moved file left.
+- A name, comment or developer-facing message the change made untrue: a
+  variable kept as `refreshSales` after it was rebound to a hook that
+  refreshes only payments, a test still titled for a setup or a set of
+  values it no longer has ("rejects a status outside starting, down and up"
+  after `updating` became valid), a comment naming the folder a moved file
+  left, or an error body reused for a new path while its message still
+  names the old one (a cloud `validation_failed` saying "the integrated
+  terminal" answered for a QR order).
 
 ### Commit order
 
