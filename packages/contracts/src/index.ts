@@ -309,6 +309,45 @@ export {
   unclearOutcomeQuestionSchema,
 } from "./fiscal/unclear-outcome-question.js";
 export type {
+  EnrollmentOutcome,
+  EnrollmentStandingAnswer,
+  InstallationCoreToRendererMessage,
+  InstallationRendererToCoreMessage,
+} from "./installation/core-messages.js";
+export {
+  enrollMessageSchema,
+  installationCoreToRendererMessageSchema,
+  installationRendererToCoreMessageSchema,
+} from "./installation/core-messages.js";
+export type { DeviceEnrollment, DeviceEnrollmentBody } from "./installation/device-enrollment.js";
+export {
+  deviceEnrollmentBodySchema,
+  deviceEnrollmentSchema,
+} from "./installation/device-enrollment.js";
+export type { DeviceTokenRotation } from "./installation/device-token-rotation.js";
+export { deviceTokenRotationSchema } from "./installation/device-token-rotation.js";
+export type { RegisterCreationBody } from "./installation/register-creation.js";
+export { registerCreationBodySchema } from "./installation/register-creation.js";
+export type { RegisterEnrollmentCodeBody } from "./installation/register-enrollment-code.js";
+export { registerEnrollmentCodeSchema } from "./installation/register-enrollment-code.js";
+export type {
+  EveryInstallationRevocationBody,
+  RegisterRevocationBody,
+} from "./installation/register-revocation.js";
+export {
+  everyInstallationRevocationSchema,
+  registerRevocationSchema,
+} from "./installation/register-revocation.js";
+export type { RegisterSummaryBody } from "./installation/register-summary.js";
+export { registerListSchema, registerSummarySchema } from "./installation/register-summary.js";
+export type { RegisterSyncStatusWire } from "./installation/register-sync-status.js";
+export {
+  registerSyncStatusListSchema,
+  registerSyncStatusSchema,
+} from "./installation/register-sync-status.js";
+export type { ReportRegisterListBody } from "./installation/report-register-list.js";
+export { reportRegisterListSchema } from "./installation/report-register-list.js";
+export type {
   AbandonMercadoPagoChargeOutcome,
   ChargeSaleWithPaidOrderOutcome,
   ConvertPaidOrderIntoRefundOutcome,
@@ -648,8 +687,6 @@ export type {
   CashCountPreview,
   CloseCashSessionOutcome,
   CloseLockedCashSessionOutcome,
-  EnrollmentOutcome,
-  EnrollmentStandingAnswer,
   IdentifyLockedCloserOutcome,
   ListedCashMovement,
   OpenCashSessionOutcome,
@@ -670,7 +707,6 @@ export {
   cashMovementTypeSchema,
   closeCashSessionMessageSchema,
   closeLockedCashSessionMessageSchema,
-  enrollMessageSchema,
   openCashSessionMessageSchema,
   recordCashMovementMessageSchema,
   registerCoreToRendererMessageSchema,
@@ -680,16 +716,8 @@ export {
 } from "./register/core-messages.js";
 export type { CurrentZoneRulesWire } from "./register/current-zone-rules.js";
 export { currentZoneRulesSchema } from "./register/current-zone-rules.js";
-export type { DeviceEnrollment, DeviceEnrollmentBody } from "./register/device-enrollment.js";
-export {
-  deviceEnrollmentBodySchema,
-  deviceEnrollmentSchema,
-} from "./register/device-enrollment.js";
-export type { DeviceTokenRotation } from "./register/device-token-rotation.js";
-export { deviceTokenRotationSchema } from "./register/device-token-rotation.js";
 export type { HealthCheck } from "./register/health-check.js";
 export { healthCheckSchema } from "./register/health-check.js";
-export type { InstallationKeysBody } from "./register/installation-keys.js";
 export type {
   CoreReadyMessage,
   CoreRefusedMessage,
@@ -711,25 +739,6 @@ export {
   mainToCoreMessageSchema,
 } from "./register/main-messages.js";
 export { receiptPrinterAddressTextSchema } from "./register/receipt-printer-address.js";
-export type { RegisterCreationBody } from "./register/register-creation.js";
-export { registerCreationBodySchema } from "./register/register-creation.js";
-export type { RegisterEnrollmentCodeBody } from "./register/register-enrollment-code.js";
-export { registerEnrollmentCodeSchema } from "./register/register-enrollment-code.js";
-export type {
-  EveryInstallationRevocationBody,
-  RegisterRevocationBody,
-} from "./register/register-revocation.js";
-export {
-  everyInstallationRevocationSchema,
-  registerRevocationSchema,
-} from "./register/register-revocation.js";
-export type { RegisterSummaryBody } from "./register/register-summary.js";
-export { registerListSchema, registerSummarySchema } from "./register/register-summary.js";
-export type { RegisterSyncStatusWire } from "./register/register-sync-status.js";
-export {
-  registerSyncStatusListSchema,
-  registerSyncStatusSchema,
-} from "./register/register-sync-status.js";
 export type { RegisterUpdateAnswer } from "./register/register-update.js";
 export {
   registerReleaseEntrySchema,
@@ -738,8 +747,6 @@ export {
   registerVersionSchema,
   registerVersionText,
 } from "./register/register-update.js";
-export type { ReportRegisterListBody } from "./register/report-register-list.js";
-export { reportRegisterListSchema } from "./register/report-register-list.js";
 export type { RestorableSnapshots } from "./register/restorable-snapshots.js";
 export { restorableSnapshotsSchema } from "./register/restorable-snapshots.js";
 export type {
@@ -936,6 +943,7 @@ export type {
   AuthorizedBy,
   BranchSettingsBody,
   ErrorReportingConfiguration,
+  InstallationKeysBody,
   IssuerIdentificationBody,
   OpenCashSession,
   PinAttemptRefusal,

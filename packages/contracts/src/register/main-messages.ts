@@ -1,7 +1,6 @@
 import { SNAPSHOT_CORRUPTION_STAGES } from "@purosur/domain";
 import { z } from "zod";
-import { requestIdSchema } from "../shared/index.js";
-import { installationKeysSchema } from "./installation-keys.js";
+import { installationKeysSchema, requestIdSchema } from "../shared/index.js";
 import {
   announcedKeyVersionSchema,
   restoreFirstInstallationSchema,

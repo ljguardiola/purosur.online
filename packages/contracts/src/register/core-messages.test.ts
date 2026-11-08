@@ -20,30 +20,6 @@ describe("registerRendererToCoreMessageSchema", () => {
     expect(registerRendererToCoreMessageSchema.safeParse({ type: "ping" }).success).toBe(true);
   });
 
-  it("accepts a request for whether this installation is enrolled", () => {
-    const message = { type: "enrollment-status-request", request_id: REQUEST_ID };
-
-    expect(registerRendererToCoreMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("accepts a request for whether the register is in service", () => {
-    const message = { type: "register-service-request", request_id: REQUEST_ID };
-
-    expect(registerRendererToCoreMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("rejects a request for whether the register is in service without its request id", () => {
-    expect(
-      registerRendererToCoreMessageSchema.safeParse({ type: "register-service-request" }).success,
-    ).toBe(false);
-  });
-
-  it("accepts a request for the register's own name", () => {
-    const message = { type: "register-name-request", request_id: REQUEST_ID };
-
-    expect(registerRendererToCoreMessageSchema.parse(message)).toEqual(message);
-  });
-
   it("accepts a request for the register's running version", () => {
     const message = { type: "register-version-request", request_id: REQUEST_ID };
 
@@ -56,12 +32,6 @@ describe("registerRendererToCoreMessageSchema", () => {
     ).toBe(false);
   });
 
-  it("accepts an enrollment with the code as typed", () => {
-    const message = { type: "enroll", request_id: REQUEST_ID, code: "p4nx 7kwe 2qrt 6mzd" };
-
-    expect(registerRendererToCoreMessageSchema.parse(message)).toEqual(message);
-  });
-
   it("accepts a request for the people who may close a locked register", () => {
     const message = { type: "locked-closers-request", request_id: REQUEST_ID };
 
@@ -71,25 +41,6 @@ describe("registerRendererToCoreMessageSchema", () => {
   it("rejects a request for the people who may close a locked register without its request id", () => {
     expect(
       registerRendererToCoreMessageSchema.safeParse({ type: "locked-closers-request" }).success,
-    ).toBe(false);
-  });
-
-  it("rejects a request without its request id", () => {
-    expect(
-      registerRendererToCoreMessageSchema.safeParse({ type: "enrollment-status-request" }).success,
-    ).toBe(false);
-    expect(
-      registerRendererToCoreMessageSchema.safeParse({ type: "enroll", code: "x" }).success,
-    ).toBe(false);
-    expect(
-      registerRendererToCoreMessageSchema.safeParse({ type: "register-name-request" }).success,
-    ).toBe(false);
-  });
-
-  it("rejects an enrollment without a code", () => {
-    expect(
-      registerRendererToCoreMessageSchema.safeParse({ type: "enroll", request_id: REQUEST_ID })
-        .success,
     ).toBe(false);
   });
 
@@ -263,52 +214,6 @@ describe("cash movement requests", () => {
 });
 
 describe("registerCoreToRendererMessageSchema", () => {
-  it.each([{ kind: "not_enrolled" }, { kind: "enrolled" }, { kind: "revoked" }])(
-    "accepts the standing of this installation's enrollment: $kind",
-    (standing) => {
-      const message = { type: "enrollment-status", request_id: REQUEST_ID, standing };
-
-      expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
-    },
-  );
-
-  it("accepts the notice that the enrollment standing changed, which answers no request", () => {
-    const message = { type: "enrollment-standing-changed" };
-
-    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it.each(["in_service", "out_of_service"])(
-    "accepts whether the register is in service: %s",
-    (service) => {
-      const message = { type: "register-service", request_id: REQUEST_ID, service };
-
-      expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
-    },
-  );
-
-  it("rejects a register service that is neither in service nor out of service", () => {
-    expect(
-      registerCoreToRendererMessageSchema.safeParse({
-        type: "register-service",
-        request_id: REQUEST_ID,
-        service: "damaged",
-      }).success,
-    ).toBe(false);
-    expect(
-      registerCoreToRendererMessageSchema.safeParse({
-        type: "register-service",
-        request_id: REQUEST_ID,
-      }).success,
-    ).toBe(false);
-  });
-
-  it.each(["Caja 1", null])("accepts the register's own name, or none yet: %s", (name) => {
-    const message = { type: "register-name", request_id: REQUEST_ID, name };
-
-    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
-  });
-
   it.each(["1.0.1539", null])("accepts the register's running version, or none: %s", (version) => {
     const message = { type: "register-version", request_id: REQUEST_ID, version };
 
@@ -326,72 +231,6 @@ describe("registerCoreToRendererMessageSchema", () => {
     expect(
       registerCoreToRendererMessageSchema.safeParse({
         type: "register-version",
-        request_id: REQUEST_ID,
-      }).success,
-    ).toBe(false);
-  });
-
-  it("rejects a register name that is not text or null", () => {
-    expect(
-      registerCoreToRendererMessageSchema.safeParse({
-        type: "register-name",
-        request_id: REQUEST_ID,
-        name: 3,
-      }).success,
-    ).toBe(false);
-    expect(
-      registerCoreToRendererMessageSchema.safeParse({
-        type: "register-name",
-        request_id: REQUEST_ID,
-      }).success,
-    ).toBe(false);
-  });
-
-  it.each([
-    { kind: "enrolled" },
-    { kind: "code_rejected" },
-    { kind: "rate_limited", retry_after_seconds: 600 },
-    { kind: "unreachable" },
-    { kind: "unavailable" },
-    { kind: "storage_unavailable" },
-    { kind: "not_stored" },
-    { kind: "invalid_input", fields: ["code"] },
-  ])("accepts the enrollment result $kind", (outcome) => {
-    const message = { type: "enrollment-result", request_id: REQUEST_ID, outcome };
-
-    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it("rejects a rate limit without when to retry", () => {
-    const message = {
-      type: "enrollment-result",
-      request_id: REQUEST_ID,
-      outcome: { kind: "rate_limited" },
-    };
-
-    expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
-  });
-
-  it("rejects an enrollment refusal naming a field the enrollment does not have", () => {
-    const message = {
-      type: "enrollment-result",
-      request_id: REQUEST_ID,
-      outcome: { kind: "invalid_input", fields: ["hostname"] },
-    };
-
-    expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
-  });
-
-  it("rejects an enrollment result it does not know", () => {
-    const message = { type: "enrollment-result", request_id: REQUEST_ID, outcome: { kind: "x" } };
-
-    expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
-  });
-
-  it("rejects an enrollment status without its standing", () => {
-    expect(
-      registerCoreToRendererMessageSchema.safeParse({
-        type: "enrollment-status",
         request_id: REQUEST_ID,
       }).success,
     ).toBe(false);
@@ -1298,35 +1137,6 @@ describe("cash movement kinds answers", () => {
       registerCoreToRendererMessageSchema.safeParse({ type: "cash-movement-kinds-unavailable" })
         .success,
     ).toBe(false);
-  });
-});
-
-describe("checking typed input", () => {
-  it("accepts a check of an enrollment code as typed", () => {
-    const message = { type: "check-enrollment-code", request_id: REQUEST_ID, code: "p4nx 7kwe" };
-
-    expect(registerRendererToCoreMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it.each([
-    { type: "check-enrollment-code", request_id: REQUEST_ID },
-    { type: "check-enrollment-code", code: "p4nx" },
-  ])("rejects an enrollment code check that is not well formed: %j", (message) => {
-    expect(registerRendererToCoreMessageSchema.safeParse(message).success).toBe(false);
-  });
-
-  it.each([[["code"]], [[]]])("accepts an enrollment code check refusing %j", (fields) => {
-    const message = { type: "enrollment-code-check", request_id: REQUEST_ID, fields };
-
-    expect(registerCoreToRendererMessageSchema.parse(message)).toEqual(message);
-  });
-
-  it.each([
-    { type: "enrollment-code-check", request_id: REQUEST_ID, fields: ["hostname"] },
-    { type: "enrollment-code-check", request_id: REQUEST_ID },
-    { type: "enrollment-code-check", fields: [] },
-  ])("rejects a check answer that is not well formed: %j", (message) => {
-    expect(registerCoreToRendererMessageSchema.safeParse(message).success).toBe(false);
   });
 });
 
