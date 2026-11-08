@@ -1,4 +1,9 @@
-import type { StockCountList, StockMovementList } from "@purosur/contracts";
+import type {
+  StockCount,
+  StockCountList,
+  StockMovement,
+  StockMovementList,
+} from "@purosur/contracts";
 import {
   dataColumn,
   formatNumber,
@@ -50,7 +55,9 @@ export type StockMovementsScreenProps = {
 
 type ReasonFilter = StockMovementsSearchFilters["reason"];
 
-const NO_RECORDS: StockRecord[] = [];
+const NO_COUNTS: StockCount[] = [];
+
+const NO_MOVEMENTS: StockMovement[] = [];
 
 const KIND_LABELS = {
   count: "Recuento",
@@ -71,22 +78,6 @@ const NO_MOVEMENTS_READ: CloudData<StockMovementList> = {
   value: { movements: [] },
   refreshing: false,
 };
-
-function recordsOf(data: CloudData<[StockCountList, StockMovementList]>): CloudData<StockRecord[]> {
-  if (data.status === "loaded") {
-    const [{ counts }, { movements }] = data.value;
-    return {
-      status: "loaded",
-      value: stockRecords(counts, movements),
-      refreshing: data.refreshing,
-    };
-  }
-  if (data.status === "failed") {
-    const { lastValue: _lastValue, ...failure } = data;
-    return failure;
-  }
-  return { status: "loading" };
-}
 
 function recordProduct(record: StockRecord): string {
   return formatProductDescription({
@@ -232,13 +223,16 @@ export function StockMovementsScreen({
     onSessionEnded,
     enabled: mayReadMovements && !grouped,
   });
-  const data = recordsOf(
-    combineCloudData(
-      mayCount ? countsData : NO_COUNTS_READ,
-      mayReadMovements ? movementsData : NO_MOVEMENTS_READ,
-    ),
+  const data = combineCloudData(
+    mayCount ? countsData : NO_COUNTS_READ,
+    mayReadMovements ? movementsData : NO_MOVEMENTS_READ,
   );
-  const records = data.status === "loaded" ? data.value : NO_RECORDS;
+  const counts = mayCount && countsData.status === "loaded" ? countsData.value.counts : NO_COUNTS;
+  const movements =
+    mayReadMovements && movementsData.status === "loaded"
+      ? movementsData.value.movements
+      : NO_MOVEMENTS;
+  const records = stockRecords(counts, movements);
 
   const table = useTableModel({
     items: records,
