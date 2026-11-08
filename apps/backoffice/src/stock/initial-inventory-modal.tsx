@@ -1,10 +1,12 @@
 import {
   actionsColumn,
+  Button,
   dataColumn,
   FloatingNotification,
   formatCalendarDayNumeric,
   formatNumber,
   ListFilter,
+  Modal,
   plural,
   SearchField,
   Table,
@@ -12,25 +14,22 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
-import { deepEqual } from "@tanstack/react-router";
 import { Check, ClipboardList, Pencil, Search } from "lucide-react";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatStockQuantity } from "../platform/stock-quantity";
-import { AreaTopBar } from "../shell/area-top-bar";
-import { ScreenLayout } from "../shell/screen-layout";
 import { EditLotCostModal, type InitialInventoryLot } from "./edit-lot-cost-modal";
 import type { InitialInventoryScreenServices } from "./initial-inventory-services";
-import type { InitialInventoryFilters } from "./routes";
 import { formatStockUnitCost, formatStockValue } from "./stock-cost";
 import { useInitialInventoryLotsQuery, useRefreshStock } from "./stock-queries";
 
-export type InitialInventoryScreenProps = {
-  filters: InitialInventoryFilters;
-  onFiltersChange: (filters: InitialInventoryFilters) => void;
+export type InitialInventoryModalProps = {
+  onClose: () => void;
   onSessionEnded: () => void;
   services: InitialInventoryScreenServices;
 };
+
+type CostFilter = "all" | "known" | "incomplete";
 
 type ScreenNotice = { id: number; title: string; description: string };
 
@@ -120,27 +119,18 @@ function footerText(lots: readonly InitialInventoryLot[]): string {
   return withoutCost === 0 ? counted : `${counted} · ${formatNumber(withoutCost)} sin costo`;
 }
 
-export function InitialInventoryScreen({
-  filters,
-  onFiltersChange,
+export function InitialInventoryModal({
+  onClose,
   onSessionEnded,
   services,
-}: InitialInventoryScreenProps) {
-  const [search, setSearch] = useState(filters.search);
-  const [debouncedSearch, setDebouncedSearch] = useState(filters.search.trim());
-  const [cost, setCost] = useState(filters.cost);
+}: InitialInventoryModalProps) {
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [cost, setCost] = useState<CostFilter>("all");
   const [editTarget, setEditTarget] = useState<InitialInventoryLot | null>(null);
   const [notice, setNotice] = useState<ScreenNotice | null>(null);
   const lastNoticeId = useRef(0);
-  const reportFilters = useEffectEvent(onFiltersChange);
   const refreshStock = useRefreshStock();
-
-  useEffect(() => {
-    const shown: InitialInventoryFilters = { search, cost };
-    if (!deepEqual(shown, filters)) {
-      reportFilters(shown);
-    }
-  }, [search, cost, filters]);
 
   useEffect(() => {
     const handle = setTimeout(() => setDebouncedSearch(search.trim()), SEARCH_DEBOUNCE_MS);
@@ -192,9 +182,23 @@ export function InitialInventoryScreen({
 
   return (
     <>
-      <ScreenLayout
-        topBar={<AreaTopBar eyebrow="Stock" title="Inventario inicial" />}
-        bodyClassName="gap-4 p-6"
+      <Modal
+        open
+        onOpenChange={(open) => {
+          if (!open) {
+            onClose();
+          }
+        }}
+        width="editor"
+        tone="info"
+        icon={<ClipboardList />}
+        context="Stock"
+        title="Inventario inicial"
+        footer={
+          <Button variant="secondary" size="large" onPress={onClose}>
+            Listo
+          </Button>
+        }
       >
         <div className="flex flex-wrap items-center gap-3">
           <div className="w-105">
@@ -238,7 +242,7 @@ export function InitialInventoryScreen({
             )
           }
         />
-      </ScreenLayout>
+      </Modal>
       {editTarget ? (
         <EditLotCostModal
           lot={editTarget}
