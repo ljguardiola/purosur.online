@@ -31,8 +31,9 @@ export function replacedListIds(lists: SupplierPriceListListing[]): Set<string> 
 
 export async function listSupplierPriceLists(
   reader: SupplierPriceListReader,
+  supplierId?: string,
 ): Promise<ListedSupplierPriceList[]> {
-  const lists = await reader.lists();
+  const lists = await reader.lists(supplierId);
   const replaced = replacedListIds(lists);
   return lists.map(({ confirmedAt: _confirmedAt, ...list }) => ({
     ...list,
