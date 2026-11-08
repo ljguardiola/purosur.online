@@ -226,13 +226,7 @@ export function canSeeSuppliersPage(access: BackofficeAccess): boolean {
 }
 
 export function canSeePurchasingArea(access: BackofficeAccess): boolean {
-  return (
-    canSeeSuppliersPage(access) ||
-    canComparePrices(access) ||
-    canReadPurchaseOrders(access) ||
-    canRecordPurchases(access) ||
-    canManageFreights(access)
-  );
+  return grants(access, "purchasing_area");
 }
 
 export function canSeeFiscalInformation(access: BackofficeAccess): boolean {
