@@ -231,13 +231,13 @@ test("keeps the supplier open while its filters change", async () => {
 });
 
 test.each([
-  ["lists", "Listas", "/suppliers/price-lists", "Listas de proveedores"],
-  ["orders", "Pedidos", "/purchase-orders", "Pedidos de compra"],
-  ["purchases", "Compras", "/purchases", "Compras"],
-  ["freights", "Fletes", "/freights", "Fletes"],
+  ["lists", "Listas", `/suppliers/price-lists?supplier=${andina.id}`, "Listas de proveedores"],
+  ["orders", "Pedidos", `/purchase-orders?supplier=${andina.id}`, "Pedidos de compra"],
+  ["purchases", "Compras", `/purchases?supplier=${andina.id}`, "Compras"],
+  ["freights", "Fletes", `/freights?period=365&supplier=${andina.id}`, "Fletes"],
 ] as const)(
   "opens the full list of the panel's %s tab filtered by the supplier when Ver todos is pressed",
-  async (tab, tabName, path, tableName) => {
+  async (tab, tabName, address, tableName) => {
     const services = suppliersServices([
       "suppliers",
       "supplier_price_lists",
@@ -260,6 +260,6 @@ test.each([
     await userEvent.click(screen.getByRole("link", { name: "Ver todos" }));
 
     await expect.element(screen.getByRole("table", { name: tableName })).toBeVisible();
-    expect(location()).toBe(`${path}?supplier=${andina.id}`);
+    expect(location()).toBe(address);
   },
 );

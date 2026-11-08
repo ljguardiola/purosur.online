@@ -20,14 +20,14 @@ function renderTab(services = createSupplierPanelServices(), onSessionEnded = ()
   );
 }
 
-test("asks the cloud for the freights of the supplier over the period the full list opens on", async () => {
+test("asks the cloud for the freights of the supplier over the longest period the freights list offers", async () => {
   const services = createSupplierPanelServices();
 
   await renderTab(services);
 
   await vi.waitFor(() =>
     expect(services.fetchFreights).toHaveBeenCalledWith({
-      period: 90,
+      period: 365,
       search: "",
       supplierId: SUPPLIER_ID,
     }),
@@ -65,12 +65,12 @@ test("offers to retry when the freights could not be read", async () => {
   await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
 });
 
-test("links to every freight of the supplier", async () => {
+test("links to the freights list of the supplier over that same period", async () => {
   const screen = await renderTab();
 
   await expect
     .element(screen.getByRole("link", { name: "Ver todos" }))
-    .toHaveAttribute("href", `/freights?supplier=${SUPPLIER_ID}`);
+    .toHaveAttribute("href", `/freights?period=365&supplier=${SUPPLIER_ID}`);
 });
 
 test("ends the session when the cloud refuses it", async () => {
