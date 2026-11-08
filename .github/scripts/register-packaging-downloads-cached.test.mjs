@@ -131,6 +131,120 @@ test("reads the cache directory from the step's, the job's or the workflow's env
   assert.deepEqual(violationsOf(fromWorkflow), []);
 });
 
+test("takes a cache directory set empty at a nearer level as unset there", () => {
+  for (const value of ['""', '"   "', ""]) {
+    const packWithEmptyCache = step(
+      "run: pnpm --filter @purosur/pos pack:production",
+      "env:",
+      `  ELECTRON_BUILDER_CACHE: ${value}`,
+    );
+    const violations = violationsOf(
+      workflow({ steps: [cacheStep(CACHE_RESTORE), packWithEmptyCache, cacheStep(CACHE_SAVE)] }),
+    );
+
+    assertSingleViolation(
+      violations,
+      /^package job packages the register without ELECTRON_BUILDER_CACHE/,
+    );
+  }
+});
+
+test("flags a blank cache directory even when every cache step names it through the env context", () => {
+  const path = `\${{ env.ELECTRON_BUILDER_CACHE }}`;
+
+  const violations = violationsOf(
+    workflow({
+      jobEnv: ['ELECTRON_BUILDER_CACHE: "  "'],
+      steps: [cacheStep(CACHE_RESTORE, path), PACK, cacheStep(CACHE_SAVE, path)],
+    }),
+  );
+
+  assertSingleViolation(
+    violations,
+    /^package job packages the register without ELECTRON_BUILDER_CACHE/,
+  );
+});
+
+test("flags a cache directory electron-builder ignores for not being absolute", () => {
+  for (const directory of ["electron-builder-cache", "./cache", "~/cache", "$HOME/cache"]) {
+    const violations = violationsOf(
+      workflow({
+        jobEnv: [`ELECTRON_BUILDER_CACHE: ${directory}`],
+        steps: [cacheStep(CACHE_RESTORE, directory), PACK, cacheStep(CACHE_SAVE, directory)],
+      }),
+    );
+
+    assertSingleViolation(
+      violations,
+      /^package job packages the register with ELECTRON_BUILDER_CACHE set to .+, which is not absolute/,
+    );
+  }
+});
+
+test("passes a cache directory that is absolute on the runner", () => {
+  for (const directory of [
+    "D:\\electron-builder-cache",
+    "D:/electron-builder-cache",
+    "/home/runner/electron-builder-cache",
+    `\${{ github.workspace }}/.electron-builder-cache`,
+    `\${{ runner.temp }}\\electron-builder-cache`,
+  ]) {
+    const violations = violationsOf(
+      workflow({
+        jobEnv: [`ELECTRON_BUILDER_CACHE: '${directory}'`],
+        steps: [
+          cacheStep(CACHE_RESTORE, `'${directory}'`),
+          PACK,
+          cacheStep(CACHE_SAVE, `'${directory}'`),
+        ],
+      }),
+    );
+
+    assert.deepEqual(violations, [], directory);
+  }
+});
+
+test("resolves the env context of a cache step's path with that step's own env, then the job's, then the workflow's", () => {
+  const path = `\${{ env.ELECTRON_BUILDER_CACHE }}`;
+  const packIntoB = step(
+    "run: pnpm --filter @purosur/pos pack:production",
+    "env:",
+    "  ELECTRON_BUILDER_CACHE: D:/b",
+  );
+  const cacheStepInto = (uses, directory) => [
+    ...cacheStep(uses, path),
+    "        env:",
+    `          ELECTRON_BUILDER_CACHE: ${directory}`,
+  ];
+
+  const cachingJobDirectory = violationsOf(
+    workflow({
+      jobEnv: ["ELECTRON_BUILDER_CACHE: D:/a"],
+      steps: [cacheStep(CACHE_RESTORE, path), packIntoB, cacheStep(CACHE_SAVE, path)],
+    }),
+  );
+  const cachingWorkflowDirectory = violationsOf(
+    workflow({
+      jobEnv: [],
+      workflowEnv: ["ELECTRON_BUILDER_CACHE: D:/a"],
+      steps: [cacheStep(CACHE_RESTORE, path), packIntoB, cacheStep(CACHE_SAVE, path)],
+    }),
+  );
+  const cachingOwnDirectory = violationsOf(
+    workflow({
+      jobEnv: ["ELECTRON_BUILDER_CACHE: D:/a"],
+      steps: [cacheStepInto(CACHE_RESTORE, "D:/b"), packIntoB, cacheStepInto(CACHE_SAVE, "D:/b")],
+    }),
+  );
+
+  for (const violations of [cachingJobDirectory, cachingWorkflowDirectory]) {
+    assert.equal(violations.length, 2, violations.map((v) => v.message).join("\n"));
+    assert.match(violations[0].message, /before any step restores D:\/b/);
+    assert.match(violations[1].message, /never saves electron-builder's cache D:\/b/);
+  }
+  assert.deepEqual(cachingOwnDirectory, []);
+});
+
 test("flags a packaging step no earlier step restores the cache for", () => {
   for (const steps of [
     [PACK, cacheStep(CACHE_SAVE)],
@@ -232,7 +346,7 @@ test("every workflow that packages the register restores and saves electron-buil
   assert.deepEqual(
     violations.map(describeViolation),
     [],
-    "electron-builder downloads its NSIS and signing tools from GitHub releases while packaging, " +
+    "electron-builder downloads Electron and its NSIS and signing tools from GitHub releases while packaging, " +
       "and a gateway time-out there fails the job; point ELECTRON_BUILDER_CACHE at a directory " +
       "the job restores before packaging and saves after it, as package-pos.yml does.",
   );
