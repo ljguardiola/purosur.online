@@ -2,6 +2,7 @@ import { type MercadoPagoChargeCostsBody, mercadoPagoChargeCostsSchema } from "@
 import {
   Card,
   dataColumn,
+  EmptyState,
   FigureStat,
   formatDayAndTime,
   formatMonthAndYear,
@@ -256,11 +257,7 @@ export function MercadoPagoChargeCostsScreen({
   });
   const noun = GROUPING_OPTIONS.find((option) => option.value === filters.group)?.noun ?? "";
   const variant = filters.from === "" ? ("blank" as const) : ("filtered" as const);
-  const empty = {
-    icon: <Landmark />,
-    title: "No hay cobros de Mercado Pago en este período",
-    variant,
-  };
+  const noCharges = data.status === "loaded" && groupTable.getRowModel().rows.length === 0;
   const noRegisterCharges = {
     icon: <Landmark />,
     title: "Ninguna caja cobró con Mercado Pago en este período",
@@ -299,21 +296,30 @@ export function MercadoPagoChargeCostsScreen({
           ))}
         </div>
       )}
-      <Table
-        aria-label={`Totales por ${noun}`}
-        table={groupTable}
-        {...cloudTableState(data, "los costos de Mercado Pago")}
-        empty={empty}
-      />
-      {data.status === "failed" ? null : (
+      {noCharges ? (
+        <EmptyState
+          icon={<Landmark />}
+          title="No hay cobros de Mercado Pago en este período"
+          variant={variant}
+        />
+      ) : (
         <>
-          <p className="text-text-subtle">{OTHER_CHARGES_NOTE}</p>
           <Table
-            aria-label="Cobros de Mercado Pago"
-            table={chargesTable}
-            {...cloudTableState(data, "los cobros de Mercado Pago")}
-            empty={noRegisterCharges}
+            aria-label={`Totales por ${noun}`}
+            table={groupTable}
+            {...cloudTableState(data, "los costos de Mercado Pago")}
           />
+          {data.status === "failed" ? null : (
+            <>
+              <p className="text-text-subtle">{OTHER_CHARGES_NOTE}</p>
+              <Table
+                aria-label="Cobros de Mercado Pago"
+                table={chargesTable}
+                {...cloudTableState(data, "los cobros de Mercado Pago")}
+                empty={noRegisterCharges}
+              />
+            </>
+          )}
         </>
       )}
     </ScreenLayout>
