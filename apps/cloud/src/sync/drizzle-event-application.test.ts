@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { alerts, inbox } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import {
   APPLICATION_NOW,
   eventApplicationUnderTest,

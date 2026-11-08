@@ -9,9 +9,9 @@ import type { SyncedFact } from "@purosur/domain/sync/use-cases";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { paymentRefunds, paymentTransactions } from "../platform/db/schema.js";
 import { postgresDedicatedConnections } from "../platform/dedicated-connections.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { DrizzleEventApplication } from "../sync/drizzle-event-application.js";
 import {
   createIntegrationDatabase,

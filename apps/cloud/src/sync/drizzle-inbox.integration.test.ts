@@ -4,6 +4,7 @@ import { and, count, eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { insertEnrolledInstallation as enrollInstallation } from "../installation/test-support/enrolled-installation.js";
 import {
   alerts,
   deviceState,
@@ -12,8 +13,7 @@ import {
   registerInstallations,
   serialDeviceState,
 } from "../platform/db/schema.js";
-import { installationKeyCipher } from "../register/installation-key-cipher.js";
-import { insertEnrolledInstallation as enrollInstallation } from "../register/test-support/enrolled-installation.js";
+import { installationKeyCipher } from "../platform/installation-key-cipher.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import {
   createIntegrationDatabase,

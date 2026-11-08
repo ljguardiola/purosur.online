@@ -2,6 +2,7 @@ import type { AuthorizationRequestRecord } from "@purosur/domain/fiscal/use-case
 import { configureRegisterPointOfSale } from "@purosur/domain/fiscal/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { insertEnrolledInstallation } from "../../installation/test-support/enrolled-installation.js";
 import {
   cashSessions,
   fiscalAddresses,
@@ -10,7 +11,6 @@ import {
   sales,
   users,
 } from "../../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../../register/test-support/enrolled-installation.js";
 import { seededLocationId } from "../../test-support/seeded-location.js";
 import { DrizzleRegisterPointOfSaleStore } from "../drizzle-register-point-of-sale-store.js";
 

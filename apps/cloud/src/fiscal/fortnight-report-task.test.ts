@@ -10,6 +10,7 @@ import type {
 } from "@purosur/domain/fiscal/use-cases";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import {
   arcaWsaaTokens,
   fortnightDocumentReports,
@@ -17,7 +18,6 @@ import {
   pointOfSaleClaims,
 } from "../platform/db/schema.js";
 import { scheduleOfCrontabLine } from "../platform/test-support/crontab-schedule.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { insertInboxEvent } from "../sync/test-support/inbox-events.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";

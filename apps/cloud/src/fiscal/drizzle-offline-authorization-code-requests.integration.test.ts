@@ -2,7 +2,7 @@ import { type ChangeLog, pullChanges } from "@purosur/domain/sync/use-cases";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { DrizzleChangeLog } from "../sync/drizzle-change-log.js";
 import type { PulledCloudChange } from "../sync/pulled-changes.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";

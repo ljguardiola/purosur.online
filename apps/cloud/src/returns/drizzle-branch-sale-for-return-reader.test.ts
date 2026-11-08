@@ -4,6 +4,7 @@ import type { SyncedFact, UnappliedEvent } from "@purosur/domain/sync/use-cases"
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { insertDeferredSaleTaskRow } from "../fiscal/test-support/deferred-sale-fixtures.js";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import {
   categories,
   deferredSales,
@@ -18,7 +19,6 @@ import {
   sales,
   users,
 } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import {
   APPLICATION_NOW,
   eventApplicationUnderTest,

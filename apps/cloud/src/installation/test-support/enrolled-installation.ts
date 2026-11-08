@@ -1,10 +1,10 @@
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { registerInstallations, registers } from "../../platform/db/schema.js";
+import { installationKeyCipher } from "../../platform/installation-key-cipher.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../../test-support/installation-keys-encryption-key.js";
 import { seededLocationId } from "../../test-support/seeded-location.js";
 import { issueDeviceToken } from "../device-token.js";
-import { installationKeyCipher } from "../installation-key-cipher.js";
 import { sealOutboxChainKey } from "../outbox-chain-key.js";
 
 const A_DAY_IN_MS = 24 * 60 * 60 * 1000;

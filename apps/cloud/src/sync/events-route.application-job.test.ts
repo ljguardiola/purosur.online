@@ -1,7 +1,7 @@
 import { canonicalOutboxEvent } from "@purosur/domain";
 import { describe, expect, it, vi } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { inbox } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { hmacEventChain } from "./hmac-event-chain.js";
 import { eventsRouteUnderTest, NOW } from "./test-support/events-route.js";
 

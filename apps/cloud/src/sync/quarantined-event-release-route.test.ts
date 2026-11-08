@@ -4,8 +4,8 @@ import { and, eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { openAlert } from "../alerts/open-alert.js";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { alerts, auditLog, inbox } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import {
   BACKOFFICE_ORIGIN,
   type BackofficeSession,

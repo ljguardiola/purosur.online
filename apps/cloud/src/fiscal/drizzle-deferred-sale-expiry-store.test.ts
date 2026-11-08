@@ -1,13 +1,13 @@
 import { CREDIT_NOTE_C_DOCUMENT_TYPE, deferredSaleRegularizationTask } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import {
   deferredSales,
   fiscalRequests,
   fiscalTasks,
   taxAuthorityLastAuthorizedNumbers,
 } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleDeferredSaleExpiryStore } from "./drizzle-deferred-sale-expiry-store.js";
 import { insertRegisterWithPointOfSale } from "./test-support/authorization-request-fixtures.js";

@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { registerInstallations } from "../platform/db/schema.js";
-import type { InstallationKeyCipher } from "./installation-key-cipher.js";
+import type { InstallationKeyCipher } from "../platform/installation-key-cipher.js";
 
 const outboxChainKeyPurpose = (deviceId: string) => `outbox_chain_key:${deviceId}`;
 

@@ -7,13 +7,13 @@ import {
 } from "@purosur/contracts";
 import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import {
   installationRequestAttempts,
   paymentTransactions,
   registerPointTerminals,
   registerQrPointsOfSale,
 } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { insertRequestsUpToLimit } from "../sync/test-support/admitted-requests.js";
 import { createMercadoPagoOrdersClient } from "./mercado-pago-orders-client.js";
 import {

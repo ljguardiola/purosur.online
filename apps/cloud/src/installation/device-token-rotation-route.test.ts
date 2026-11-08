@@ -3,14 +3,14 @@ import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { registerInstallations, registerSnapshotGenerations } from "../platform/db/schema.js";
+import { authenticateDevice } from "../platform/device-authentication.js";
 import { registerHealthRoute } from "../platform/health-route.js";
+import { installationTokenPorts } from "../platform/installation-token-ports.js";
 import { registerRouteAccess } from "../sessions/route-access.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
-import { authenticateDevice } from "./device-authentication.js";
 import { registerDeviceTokenRotationRoute } from "./device-token-rotation-route.js";
-import { installationTokenPorts } from "./installation-token-ports.js";
 import { insertEnrolledInstallation } from "./test-support/enrolled-installation.js";
 import { keyStore } from "./test-support/key-store.js";
 

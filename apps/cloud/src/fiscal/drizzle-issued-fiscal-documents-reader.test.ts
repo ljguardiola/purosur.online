@@ -1,6 +1,6 @@
 import type { IssuedFiscalDocumentsQuery } from "@purosur/domain/fiscal/use-cases";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { insertLocation } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleIssuedFiscalDocumentsReader } from "./drizzle-issued-fiscal-documents-reader.js";

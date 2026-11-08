@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { compareCodeUnits, type ReturnResolution } from "@purosur/domain";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { users } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { applyReturn } from "../returns/test-support/applied-returns.js";
 import { applyCompletedSale } from "../sales/test-support/applied-sales.js";
 import { aCompletedSale, type CompletedSale } from "../sync/test-support/synced-facts.js";

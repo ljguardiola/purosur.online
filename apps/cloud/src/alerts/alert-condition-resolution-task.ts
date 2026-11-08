@@ -33,13 +33,13 @@ import { DrizzleOwedElsewherePresentationReader } from "../fiscal/drizzle-owed-e
 import { DrizzleOwedFortnightPresentationReader } from "../fiscal/drizzle-owed-fortnight-presentation-reader.js";
 import { DrizzlePendingDeferredSaleReader } from "../fiscal/drizzle-pending-deferred-sale-reader.js";
 import { DrizzleRejectedFortnightDocumentReader } from "../fiscal/drizzle-rejected-fortnight-document-reader.js";
+import { DrizzleWatchedRegisterReader } from "../installation/drizzle-watched-register-reader.js";
 import { DrizzleRefundTaskAlertStore } from "../payments/drizzle-refund-task-alert-store.js";
 import {
   type BackgroundJobs,
   crontabLineEvery,
   databaseOfClient,
 } from "../platform/background-jobs.js";
-import { DrizzleWatchedRegisterReader } from "../register/drizzle-watched-register-reader.js";
 import { hashSourceAddress } from "../sessions/sign-in-lockout.js";
 import { DrizzleExpiringLotReader } from "../stock/drizzle-expiring-lot-reader.js";
 import { DrizzleRegisterEventStreams } from "../sync/drizzle-register-event-streams.js";

@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { insertRegisterOf } from "../fiscal/test-support/issued-document-fixtures.js";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { users } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { applyVoidedSale } from "../sales/test-support/applied-sales.js";
 import { aSoldLine } from "../sales/test-support/sold-lines.js";
 import {

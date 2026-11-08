@@ -3,7 +3,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { DrizzleOfflineAuthorizationCodeStore } from "../fiscal/drizzle-offline-authorization-code-store.js";
 import { DrizzleRegisterOfflinePointOfSaleStore } from "../fiscal/drizzle-register-offline-point-of-sale-store.js";
 import { configureOfflinePointOfSale } from "../fiscal/test-support/offline-point-of-sale-fixtures.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { buildChangesRouteApp, pulledPage } from "./test-support/changes-route.js";

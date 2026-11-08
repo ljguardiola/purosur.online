@@ -10,6 +10,8 @@ import {
 import { and, eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { issueDeviceToken } from "../installation/device-token.js";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import {
   auditLog,
   changes,
@@ -21,8 +23,6 @@ import {
   users,
 } from "../platform/db/schema.js";
 import { hashSecretCode } from "../platform/secret-code.js";
-import { issueDeviceToken } from "../register/device-token.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { registerRouteAccess } from "../sessions/route-access.js";
 import { registerChangesRoute } from "../sync/changes-route.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";

@@ -7,12 +7,12 @@ import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { requirePinResetOfUsers } from "../credentials/require-pin-reset-of-users.js";
 import { registerEnrollmentCodes, registers } from "../platform/db/schema.js";
+import type { InstallationKeyCipher } from "../platform/installation-key-cipher.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import {
   DrizzleInstallationRevocation,
   type RevocationTransaction,
 } from "./drizzle-installation-revocation.js";
-import type { InstallationKeyCipher } from "./installation-key-cipher.js";
 
 class DrizzleLostRegisterRevocationTransaction<TQueryResult extends PgQueryResultHKT>
   extends DrizzleInstallationRevocation<TQueryResult>

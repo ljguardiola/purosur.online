@@ -4,6 +4,7 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { registerSnapshotKeys, registers } from "../platform/db/schema.js";
+import { installationKeyCipher } from "../platform/installation-key-cipher.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import {
   createIntegrationDatabase,
@@ -12,7 +13,6 @@ import {
 import { runQueuedBehindHeldLock } from "../test-support/queued-behind-held-lock.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { DrizzleRegisterStore } from "./drizzle-register-store.js";
-import { installationKeyCipher } from "./installation-key-cipher.js";
 
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;

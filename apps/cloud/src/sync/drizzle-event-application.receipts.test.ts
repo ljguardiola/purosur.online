@@ -3,8 +3,8 @@ import { unappliedEventOf } from "@purosur/contracts/sync/test-support/unapplied
 import type { SyncedFact } from "@purosur/domain/sync/use-cases";
 import { describe, expect, it } from "vitest";
 import { insertSaleCreditNote } from "../fiscal/test-support/sale-credit-notes.js";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { saleReprints, sales } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { applyCompletedSale } from "../sales/test-support/applied-sales.js";
 import {
   APPLICATION_NOW,

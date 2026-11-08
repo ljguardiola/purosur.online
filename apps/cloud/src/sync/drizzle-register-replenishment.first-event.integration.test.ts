@@ -11,7 +11,7 @@ import {
   insertInstallation,
   insertRegister,
   T0,
-} from "../register/test-support/restored-register-installations.js";
+} from "../installation/test-support/restored-register-installations.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,

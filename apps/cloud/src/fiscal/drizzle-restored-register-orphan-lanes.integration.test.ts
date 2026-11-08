@@ -3,6 +3,7 @@ import type { RestoredRegisterOrphanLane } from "@purosur/domain/fiscal/use-case
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import {
   alerts,
   creditNotes,
@@ -11,7 +12,6 @@ import {
   numberingFreezes,
 } from "../platform/db/schema.js";
 import { postgresDedicatedConnections } from "../platform/dedicated-connections.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { insertInboxEvent } from "../sync/test-support/inbox-events.js";
 import { insertQuarantinedEvent } from "../sync/test-support/quarantined-events.js";
 import {

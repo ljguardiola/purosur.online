@@ -6,9 +6,9 @@ import type {
 } from "@purosur/domain/register/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { lockRegisterKeysOf, snapshotKeyPurpose } from "../installation/drizzle-register-store.js";
 import { auditLog, registerSnapshotKeys, registers } from "../platform/db/schema.js";
-import { lockRegisterKeysOf, snapshotKeyPurpose } from "./drizzle-register-store.js";
-import type { InstallationKeyCipher } from "./installation-key-cipher.js";
+import type { InstallationKeyCipher } from "../platform/installation-key-cipher.js";
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]

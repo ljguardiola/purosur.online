@@ -6,7 +6,6 @@ import {
 } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { refusedEvents } from "../platform/db/schema.js";
 import {
   aRegisterRestoredTwice,
   hoursAfter,
@@ -14,7 +13,8 @@ import {
   insertInstallation,
   insertRegister,
   T0,
-} from "../register/test-support/restored-register-installations.js";
+} from "../installation/test-support/restored-register-installations.js";
+import { refusedEvents } from "../platform/db/schema.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,

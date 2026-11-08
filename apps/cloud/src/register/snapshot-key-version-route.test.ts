@@ -1,9 +1,9 @@
 import { cloudErrorSchema, currentSnapshotKeyVersionAnswerSchema } from "@purosur/contracts";
 import type { FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
+import { keyStore } from "../installation/test-support/key-store.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
-import { insertEnrolledInstallation } from "./test-support/enrolled-installation.js";
-import { keyStore } from "./test-support/key-store.js";
 import { buildSnapshotKeyVersionRouteApp } from "./test-support/snapshot-key-version-route.js";
 
 const NOW = new Date("2026-10-15T15:00:00.000Z");

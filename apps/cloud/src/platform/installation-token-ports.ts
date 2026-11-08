@@ -1,11 +1,7 @@
-import type {
-  DeviceTokenRotationPorts,
-  InstallationTokenPorts,
-} from "@purosur/domain/installation/use-cases";
+import type { InstallationTokenPorts } from "@purosur/domain/installation/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { deviceTokenRotator } from "./device-token.js";
-import { DrizzleRegisterStore } from "./drizzle-register-store.js";
-import { generateInstallationKey } from "./installation-key.js";
+import { deviceTokenRotator } from "../installation/device-token.js";
+import { DrizzleRegisterStore } from "../installation/drizzle-register-store.js";
 import { installationKeyCipher } from "./installation-key-cipher.js";
 
 export interface DeviceTokensOptions<TQueryResult extends PgQueryResultHKT> {
@@ -23,10 +19,4 @@ export function installationTokenPorts<TQueryResult extends PgQueryResultHKT>(
     clock: { now: options.now },
     tokens: deviceTokenRotator(options.rotationKey),
   };
-}
-
-export function deviceTokenRotationPorts<TQueryResult extends PgQueryResultHKT>(
-  options: DeviceTokensOptions<TQueryResult>,
-): DeviceTokenRotationPorts {
-  return { ...installationTokenPorts(options), keys: { generate: generateInstallationKey } };
 }

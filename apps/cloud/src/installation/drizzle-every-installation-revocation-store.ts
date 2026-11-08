@@ -6,11 +6,11 @@ import type {
 import { asc } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { registerEnrollmentCodes, registers } from "../platform/db/schema.js";
+import type { InstallationKeyCipher } from "../platform/installation-key-cipher.js";
 import {
   DrizzleInstallationRevocation,
   type RevocationTransaction,
 } from "./drizzle-installation-revocation.js";
-import type { InstallationKeyCipher } from "./installation-key-cipher.js";
 
 export class DrizzleEveryInstallationRevocationTransaction<TQueryResult extends PgQueryResultHKT>
   extends DrizzleInstallationRevocation<TQueryResult>

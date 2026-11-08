@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import { unappliedEventOf } from "@purosur/contracts/sync/test-support/unapplied-event";
 import type { SyncedFact, UnappliedEvent } from "@purosur/domain/sync/use-cases";
 import { describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { branchFirstCashSessions } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import {
   APPLICATION_NOW,
   eventApplicationUnderTest,

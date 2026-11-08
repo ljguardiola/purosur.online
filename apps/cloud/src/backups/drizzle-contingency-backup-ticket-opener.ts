@@ -10,9 +10,9 @@ import {
 import type { ContingencyBackupTicketOpening } from "@purosur/domain/backups/use-cases";
 import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { contingencyTicketKeyPurpose } from "../installation/drizzle-register-store.js";
 import { registerContingencyTicketKeys, registers } from "../platform/db/schema.js";
-import { contingencyTicketKeyPurpose } from "../register/drizzle-register-store.js";
-import type { InstallationKeyCipher } from "../register/installation-key-cipher.js";
+import type { InstallationKeyCipher } from "../platform/installation-key-cipher.js";
 
 const AUTH_TAG_BYTES = 16;
 const MAX_TICKET_BYTES = 16 * 1024 * 1024;

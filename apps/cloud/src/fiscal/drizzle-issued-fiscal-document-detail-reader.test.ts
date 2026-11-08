@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { insertLocation } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleIssuedFiscalDocumentDetailReader } from "./drizzle-issued-fiscal-document-detail-reader.js";

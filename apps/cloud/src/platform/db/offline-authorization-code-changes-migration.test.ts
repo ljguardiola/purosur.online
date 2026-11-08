@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { DrizzleOfflineAuthorizationCodeHoldingReader } from "../../fiscal/drizzle-offline-authorization-code-holding-reader.js";
 import { DrizzleOfflineAuthorizationCodeRequests } from "../../fiscal/drizzle-offline-authorization-code-requests.js";
 import { configureOfflinePointOfSale } from "../../fiscal/test-support/offline-point-of-sale-fixtures.js";
-import { insertEnrolledInstallation } from "../../register/test-support/enrolled-installation.js";
+import { insertEnrolledInstallation } from "../../installation/test-support/enrolled-installation.js";
 import { DrizzleChangeLog } from "../../sync/drizzle-change-log.js";
 import { fixedZoneRulesSource } from "../../test-support/fixed-zone-rules-source.js";
 import { databaseBeforeMigration } from "./test-support/migration-under-test.js";

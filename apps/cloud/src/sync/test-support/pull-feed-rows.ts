@@ -11,6 +11,10 @@ import { sql } from "drizzle-orm";
 import { DrizzleIssuerIdentificationStore } from "../../fiscal/drizzle-issuer-identification-store.js";
 import { DrizzleOfflineAuthorizationCodeStore } from "../../fiscal/drizzle-offline-authorization-code-store.js";
 import { configureOfflinePointOfSale } from "../../fiscal/test-support/offline-point-of-sale-fixtures.js";
+import {
+  type EnrolledInstallation,
+  insertEnrolledInstallation,
+} from "../../installation/test-support/enrolled-installation.js";
 import { DrizzlePointTerminalAssignmentStore } from "../../payments/drizzle-point-terminal-assignment-store.js";
 import { DrizzleQrPointOfSaleAssignmentStore } from "../../payments/drizzle-qr-point-of-sale-assignment-store.js";
 import { DrizzleRefundStore } from "../../payments/drizzle-refund-store.js";
@@ -27,10 +31,6 @@ import {
 } from "../../platform/db/schema.js";
 import { DrizzleDiscountStore } from "../../pricing/drizzle-discount-store.js";
 import { DrizzlePricingStore } from "../../pricing/drizzle-pricing-store.js";
-import {
-  type EnrolledInstallation,
-  insertEnrolledInstallation,
-} from "../../register/test-support/enrolled-installation.js";
 import { applyCancelledSale } from "../../sales/test-support/applied-sales.js";
 import { signedInWith } from "../../stock/test-support/stock-route-fixtures.js";
 import type { TestDatabase } from "../../test-support/build-test-database.js";

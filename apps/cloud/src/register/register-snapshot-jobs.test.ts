@@ -1,6 +1,8 @@
 import { SNAPSHOT_RETENTION_INTERVAL_MS, SNAPSHOT_VERIFICATION_INTERVAL_MS } from "@purosur/domain";
 import type { SnapshotObjectContent, SnapshotObjects } from "@purosur/domain/register/use-cases";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
+import { keyStore } from "../installation/test-support/key-store.js";
 import { registerSnapshotGenerations } from "../platform/db/schema.js";
 import { scheduleOfCrontabLine } from "../platform/test-support/crontab-schedule.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
@@ -13,8 +15,6 @@ import {
   registerSnapshotJobs,
   verifyRegisterSnapshotsTask,
 } from "./register-snapshot-jobs.js";
-import { insertEnrolledInstallation } from "./test-support/enrolled-installation.js";
-import { keyStore } from "./test-support/key-store.js";
 
 const NOW = new Date("2026-10-14T15:00:00.000Z");
 const SHA = "ab".repeat(32);

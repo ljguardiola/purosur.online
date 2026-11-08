@@ -10,6 +10,7 @@ import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { DrizzleRegisterStore } from "../installation/drizzle-register-store.js";
 import {
   registerInstallations,
   registerSnapshotGenerations,
@@ -17,6 +18,7 @@ import {
   registers,
 } from "../platform/db/schema.js";
 import { postgresDedicatedConnections } from "../platform/dedicated-connections.js";
+import { installationKeyCipher } from "../platform/installation-key-cipher.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import {
@@ -28,9 +30,7 @@ import {
   waitForLockWaiters,
 } from "../test-support/queued-behind-held-lock.js";
 import { seededLocationId } from "../test-support/seeded-location.js";
-import { DrizzleRegisterStore } from "./drizzle-register-store.js";
 import { DrizzleRegisterSnapshotLanes, DrizzleSnapshotStore } from "./drizzle-snapshot-store.js";
-import { installationKeyCipher } from "./installation-key-cipher.js";
 
 const NOW = new Date("2026-10-14T15:00:00.000Z");
 const GENERATION_ID = "0f8fad5b-d9cb-469f-a165-70867728950e";

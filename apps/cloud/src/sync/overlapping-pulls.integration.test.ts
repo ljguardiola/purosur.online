@@ -6,6 +6,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import { DrizzleOfflineAuthorizationCodeRequests } from "../fiscal/drizzle-offline-authorization-code-requests.js";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import {
   branchHours,
   branchSettings,
@@ -13,7 +14,6 @@ import {
   productBarcodes,
   products,
 } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,

@@ -25,6 +25,7 @@ import { DrizzleRegisterOfflinePointOfSaleStore } from "../fiscal/drizzle-regist
 import { DrizzleRegisterPointOfSaleStore } from "../fiscal/drizzle-register-point-of-sale-store.js";
 import { enqueueOfflineAuthorizationCodeRequest } from "../fiscal/graphile-offline-authorization-code-queue.js";
 import { OFFLINE_AUTHORIZATION_CODE_REQUEST_TASK_IDENTIFIER } from "../fiscal/offline-authorization-code-task.js";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { DrizzlePointTerminalAssignmentStore } from "../payments/drizzle-point-terminal-assignment-store.js";
 import { DrizzleQrPointOfSaleAssignmentStore } from "../payments/drizzle-qr-point-of-sale-assignment-store.js";
 import { DrizzleRoleStore } from "../permissions/drizzle-role-store.js";
@@ -34,7 +35,6 @@ import {
   users,
 } from "../platform/db/schema.js";
 import { DrizzlePricingStore } from "../pricing/drizzle-pricing-store.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,

@@ -10,8 +10,8 @@ import {
   insertAppliedOfflineDocument,
   insertReceivedOfflineDocumentEvent,
 } from "../fiscal/test-support/synced-offline-documents.js";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { locations } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";

@@ -2,9 +2,9 @@ import { randomUUID } from "node:crypto";
 import type { JsonValue } from "@purosur/domain";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { inbox, products, users } from "../platform/db/schema.js";
 import { insertDiscount } from "../pricing/test-support/discount-route-fixtures.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import {
   BACKOFFICE_ORIGIN,
   insertLocation,

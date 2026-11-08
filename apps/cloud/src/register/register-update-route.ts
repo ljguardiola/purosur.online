@@ -12,11 +12,14 @@ import {
 } from "@purosur/domain/register/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
+import { authenticateDevice } from "../platform/device-authentication.js";
+import {
+  type DeviceTokensOptions,
+  installationTokenPorts,
+} from "../platform/installation-token-ports.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { PUBLIC_ACCESS } from "../sessions/route-access.js";
 import { answerErrorsWithCloudEnvelope } from "./cloud-error-handler.js";
-import { authenticateDevice } from "./device-authentication.js";
-import { type DeviceTokensOptions, installationTokenPorts } from "./installation-token-ports.js";
 
 export interface RegisterUpdateFeed {
   releases: RegisterReleases;

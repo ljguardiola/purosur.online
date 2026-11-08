@@ -6,6 +6,7 @@ import {
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { requirePasskeyAuthorization } from "../credentials/passkey-authorization-guard.js";
+import { installationKeyCipher } from "../platform/installation-key-cipher.js";
 import { readRecordIds } from "../platform/record-id-params.js";
 import { backofficeOriginGuard } from "../sessions/backoffice-origin.js";
 import {
@@ -17,7 +18,6 @@ import {
 import { DrizzleEveryInstallationRevocationStore } from "./drizzle-every-installation-revocation-store.js";
 import { DrizzleLostRegisterRevocationStore } from "./drizzle-lost-register-revocation-store.js";
 import { generateInstallationKey } from "./installation-key.js";
-import { installationKeyCipher } from "./installation-key-cipher.js";
 
 export interface RegisterRevocationRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;

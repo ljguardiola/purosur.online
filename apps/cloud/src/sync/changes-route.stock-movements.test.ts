@@ -9,6 +9,7 @@ import {
 import { asc } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import {
   categories,
   locations,
@@ -19,7 +20,6 @@ import {
   users,
 } from "../platform/db/schema.js";
 import { DrizzlePurchasingStore } from "../purchasing/drizzle-purchasing-store.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { DrizzleAssemblyBatchStore } from "../stock/drizzle-assembly-batch-store.js";
 import { DrizzleRecipeStore } from "../stock/drizzle-recipe-store.js";
 import { DrizzleStockStore } from "../stock/drizzle-stock-store.js";

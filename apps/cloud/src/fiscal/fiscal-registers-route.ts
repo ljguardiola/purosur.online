@@ -1,7 +1,7 @@
 import { reportRegisterListSchema } from "@purosur/contracts";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { DrizzleBranchRegisterReader } from "../register/drizzle-branch-register-reader.js";
+import { DrizzleBranchRegisterReader } from "../installation/drizzle-branch-register-reader.js";
 import { sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
   capabilityAccess,

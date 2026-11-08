@@ -10,8 +10,8 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { openAlert } from "../alerts/open-alert.js";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { alerts, auditLog, inbox, users } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   createIntegrationDatabase,

@@ -9,13 +9,13 @@ import { SALE_STATES_AFTER_COMPLETION } from "@purosur/domain";
 import type { BranchSaleFacts } from "@purosur/domain/returns/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { readValidatedBody } from "../platform/request-body-schema.js";
-import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
-import { authenticateDevice } from "../register/device-authentication.js";
+import { authenticateDevice } from "../platform/device-authentication.js";
 import {
   type DeviceTokensOptions,
   installationTokenPorts,
-} from "../register/installation-token-ports.js";
+} from "../platform/installation-token-ports.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
+import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
 import { PUBLIC_ACCESS } from "../sessions/route-access.js";
 import { DrizzleBranchSaleForReturnReader } from "./drizzle-branch-sale-for-return-reader.js";
 

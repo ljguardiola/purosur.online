@@ -16,9 +16,9 @@ import {
   type Mock,
   vi,
 } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { fiscalRequests, inbox, installationRequestAttempts } from "../platform/db/schema.js";
 import type { reportError } from "../platform/error-reporting.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { registerRouteAccess } from "../sessions/route-access.js";
 import { registerEventsRoute } from "../sync/events-route.js";
 import { insertRequestsUpToLimit } from "../sync/test-support/admitted-requests.js";

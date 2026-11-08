@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import { insertEnrolledInstallation } from "../../register/test-support/enrolled-installation.js";
+import { insertEnrolledInstallation } from "../../installation/test-support/enrolled-installation.js";
 import { applyCancelledSale } from "../../sales/test-support/applied-sales.js";
 import { aTransferCancelledSale } from "../../sync/test-support/synced-facts.js";
 

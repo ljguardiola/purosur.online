@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { configureOfflinePointOfSale } from "../fiscal/test-support/offline-point-of-sale-fixtures.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { buildChangesRouteApp, pulledPage } from "../sync/test-support/changes-route.js";
 import { SESSION_NOON } from "../test-support/backoffice-session.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";

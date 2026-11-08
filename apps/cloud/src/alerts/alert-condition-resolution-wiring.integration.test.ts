@@ -20,6 +20,7 @@ import {
   insertRejectedDocumentRemedy,
   WITHOUT_CREDIT_NOTES,
 } from "../fiscal/test-support/rejected-document-remedy-fixtures.js";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import {
   alerts,
   branchHours,
@@ -33,7 +34,6 @@ import {
   products,
   users,
 } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { setUpBackgroundJobs } from "../server.js";
 import { insertPurchasedLot } from "../stock/test-support/lot-fixtures.js";
 import { insertInboxEvent } from "../sync/test-support/inbox-events.js";

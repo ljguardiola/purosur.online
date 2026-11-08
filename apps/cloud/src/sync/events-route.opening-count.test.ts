@@ -1,6 +1,7 @@
 import { canonicalOutboxEvent, type JsonValue } from "@purosur/domain";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import {
   categories,
   inbox,
@@ -10,7 +11,6 @@ import {
   stockMovements,
   users,
 } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { applySyncedEventsTask } from "./apply-synced-events-task.js";
 import { hmacEventChain } from "./hmac-event-chain.js";

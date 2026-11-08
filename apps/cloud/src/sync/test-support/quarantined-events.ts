@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { insertEnrolledInstallation } from "../../installation/test-support/enrolled-installation.js";
 import { locations, registers } from "../../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../../register/test-support/enrolled-installation.js";
 import { insertInboxEvent } from "./inbox-events.js";
 
 export const QUARANTINED_AT = new Date("2026-10-07T12:00:00.000Z");

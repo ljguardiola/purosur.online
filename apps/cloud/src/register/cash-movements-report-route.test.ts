@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import {
   BACKOFFICE_ORIGIN,
   insertLocation,
@@ -10,7 +11,6 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { registerCashMovementsReportRoute } from "./cash-movements-report-route.js";
 import { applyCashMovement, applyOpenedCashSession } from "./test-support/applied-cash-sessions.js";
-import { insertEnrolledInstallation } from "./test-support/enrolled-installation.js";
 
 const NOW = new Date("2026-10-07T15:00:00.000Z");
 const OPENED_AT = new Date("2026-10-07T11:00:00.000Z");
