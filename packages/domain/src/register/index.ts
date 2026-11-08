@@ -7,10 +7,12 @@ export {
   CRITICAL_BATTERY_PERCENT,
   CRITICAL_BATTERY_PUSH_LIMIT_MS,
   CRITICAL_BATTERY_SALE_RECHECK_MS,
+  isBatteryWorn,
   isOnBatteryTooLong,
   nextOnBatteryCountedOnlySinceStart,
   nextOnBatterySince,
   ON_BATTERY_CONDITION_MINUTES,
+  WORN_BATTERY_HEALTH_PERCENT,
 } from "./model/battery.js";
 export {
   hasBitlockerRecoveryKeyShape,
@@ -162,9 +164,11 @@ export { SNAPSHOT_LOCATIONS } from "./model/snapshot-location.js";
 export type { DiskStanding, StorageSalesStop, StorageStanding } from "./model/storage.js";
 export {
   diskStanding,
+  isDiskSpaceBelowAlertLimit,
   STORAGE_READ_INTERVAL_MS,
   startupDiskVerdict,
   storageSalesStopOf,
+  WAL_SIZE_LIMIT_BYTES,
   walOversized,
 } from "./model/storage.js";
 export {
