@@ -214,6 +214,7 @@ export function PricesListScreen({
 
   const reviewFilterOptions = [
     { value: "pending" as const, label: "Por revisar" },
+    { value: "overdue" as const, label: "Vencidos" },
     { value: "all" as const, label: "Todos" },
   ] as const;
 

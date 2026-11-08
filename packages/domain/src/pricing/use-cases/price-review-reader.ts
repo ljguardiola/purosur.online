@@ -2,12 +2,12 @@ import type { ProductNetContent, SaleUnit } from "../../catalog/index.js";
 import type { PriceReview } from "../model/price-review.js";
 import type { CurrentPrice } from "./pricing-store.js";
 
-export type PriceReviewFilter = "pending" | "all";
+export type PriceReviewFilter = "pending" | "overdue" | "all";
 
 export interface PricesUnderReviewQuery {
   locationId: string;
   now: Date;
-  review: PriceReviewFilter;
+  review: Exclude<PriceReviewFilter, "overdue">;
   categoryId?: string;
   productIds?: string[];
   search?: string;
