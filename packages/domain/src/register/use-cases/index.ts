@@ -62,6 +62,8 @@ export { RegisterNameConflict } from "./branch-register-store.js";
 export type {
   BranchRegisterLastSync,
   BranchRegisterSyncReader,
+  RegisterBatteryState,
+  RegisterDiskState,
 } from "./branch-register-sync-reader.js";
 export type {
   CashLedger,

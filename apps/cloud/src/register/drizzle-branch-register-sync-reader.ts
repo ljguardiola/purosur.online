@@ -1,15 +1,45 @@
-import {
-  compareCodeUnits,
-  compareSpanishText,
-  lastSuccessfulSyncOfRegister,
-} from "@purosur/domain";
+import { compareCodeUnits, compareSpanishText, installationSyncedLastOf } from "@purosur/domain";
 import type {
   BranchRegisterLastSync,
   BranchRegisterSyncReader,
+  RegisterBatteryState,
+  RegisterDiskState,
 } from "@purosur/domain/register/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { deviceState, registerInstallations, registers } from "../platform/db/schema.js";
+
+interface ReportedState {
+  batteryPresent: boolean | null;
+  batteryChargePercent: number | null;
+  batteryHealthPercent: number | null;
+  batteryOnBattery: boolean | null;
+  batteryOnBatteryMinutes: number | null;
+  diskFreeBytes: number | null;
+  diskFreeRatio: number | null;
+}
+
+function batteryOf(state: ReportedState): RegisterBatteryState | null {
+  if (state.batteryPresent === null) {
+    return null;
+  }
+  if (!state.batteryPresent) {
+    return { present: false };
+  }
+  return {
+    present: true,
+    chargePercent: state.batteryChargePercent ?? 0,
+    healthPercent: state.batteryHealthPercent,
+    onBattery: state.batteryOnBattery ?? false,
+    onBatteryMinutes: state.batteryOnBatteryMinutes ?? 0,
+  };
+}
+
+function diskOf(state: ReportedState): RegisterDiskState | null {
+  return state.diskFreeBytes === null || state.diskFreeRatio === null
+    ? null
+    : { freeBytes: state.diskFreeBytes, freeRatio: state.diskFreeRatio };
+}
 
 export class DrizzleBranchRegisterSyncReader<TQueryResult extends PgQueryResultHKT>
   implements BranchRegisterSyncReader
@@ -26,6 +56,13 @@ export class DrizzleBranchRegisterSyncReader<TQueryResult extends PgQueryResultH
         id: registers.id,
         name: registers.name,
         lastAcceptedPushAt: deviceState.lastAcceptedPushAt,
+        batteryPresent: deviceState.batteryPresent,
+        batteryChargePercent: deviceState.batteryChargePercent,
+        batteryHealthPercent: deviceState.batteryHealthPercent,
+        batteryOnBattery: deviceState.batteryOnBattery,
+        batteryOnBatteryMinutes: deviceState.batteryOnBatteryMinutes,
+        diskFreeBytes: deviceState.diskFreeBytes,
+        diskFreeRatio: deviceState.diskFreeRatio,
       })
       .from(registers)
       .leftJoin(registerInstallations, eq(registerInstallations.registerId, registers.id))
@@ -35,12 +72,17 @@ export class DrizzleBranchRegisterSyncReader<TQueryResult extends PgQueryResultH
       (a, b) => compareSpanishText(a.name, b.name) || compareCodeUnits(a.id, b.id),
     );
     const registerNames = new Map(installations.map(({ id, name }) => [id, name]));
-    return [...registerNames].map(([id, name]) => ({
-      id,
-      name,
-      lastSuccessfulSyncAt: lastSuccessfulSyncOfRegister(
+    return [...registerNames].map(([id, name]) => {
+      const syncedLast = installationSyncedLastOf(
         installations.filter((installation) => installation.id === id),
-      ),
-    }));
+      );
+      return {
+        id,
+        name,
+        lastSuccessfulSyncAt: syncedLast?.lastAcceptedPushAt ?? null,
+        battery: syncedLast === null ? null : batteryOf(syncedLast),
+        disk: syncedLast === null ? null : diskOf(syncedLast),
+      };
+    });
   }
 }
