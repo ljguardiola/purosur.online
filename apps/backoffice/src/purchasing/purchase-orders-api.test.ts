@@ -68,7 +68,9 @@ describe("fetchPurchaseOrders", () => {
 
     await fetchPurchaseOrders("ALL", { supplierId: "5a900000-0000-4000-8000-000000000001" });
 
-    expect(fetch).toHaveBeenCalledWith("/api/purchase-orders?supplierId=5a900000-0000-4000-8000-000000000001");
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/purchase-orders?supplierId=5a900000-0000-4000-8000-000000000001",
+    );
   });
 
   test("asks the cloud for the orders of one supplier in one state", async () => {

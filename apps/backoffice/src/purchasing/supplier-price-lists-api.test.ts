@@ -52,7 +52,9 @@ describe("fetchSupplierPriceLists", () => {
 
     await fetchSupplierPriceLists({ supplierId: "5a900000-0000-4000-8000-000000000001" });
 
-    expect(fetch).toHaveBeenCalledWith("/api/supplier-price-lists?supplierId=5a900000-0000-4000-8000-000000000001");
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/supplier-price-lists?supplierId=5a900000-0000-4000-8000-000000000001",
+    );
   });
 
   test("returns failed when a listed price list does not have the expected shape", async () => {

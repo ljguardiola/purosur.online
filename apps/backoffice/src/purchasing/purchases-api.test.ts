@@ -52,7 +52,9 @@ describe("fetchPurchases", () => {
 
     await fetchPurchases({ supplierId: "5a900000-0000-4000-8000-000000000001" });
 
-    expect(fetch).toHaveBeenCalledWith("/api/purchases?supplierId=5a900000-0000-4000-8000-000000000001");
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/purchases?supplierId=5a900000-0000-4000-8000-000000000001",
+    );
   });
 
   test("returns failed when the list does not have the expected shape", async () => {
