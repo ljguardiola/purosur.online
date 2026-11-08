@@ -672,18 +672,29 @@ test("closes the panel of a recipe the list does not have", async () => {
   await expect.poll(() => onOpenRecipeChange).toHaveBeenCalledWith(undefined);
 });
 
-test("registers a batch from the panel with a modal, and asks to confirm before cancelling one", async () => {
+test("registers a batch from the panel with a modal", async () => {
   const screen = await loaded(createServices(), [mixDeFrutosSecos], {
     openRecipe: mixDeFrutosSecos.productId,
   });
   const panel = screen.getByRole("complementary", { name: "Mix de frutos secos" });
 
   await userEvent.click(panel.getByRole("button", { name: "Registrar tanda" }));
+
   await expect.element(screen.getByRole("dialog")).toBeVisible();
-  await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+});
+
+test("asks to confirm in a modal before cancelling a batch from the panel", async () => {
+  const batchServices = createBatchServices();
+  const screen = await loaded(createServices(), [mixDeFrutosSecos], {
+    openRecipe: mixDeFrutosSecos.productId,
+    batchServices,
+  });
+  const panel = screen.getByRole("complementary", { name: "Mix de frutos secos" });
+
   await userEvent.click(panel.getByRole("button", { name: "Anular tanda de Mix de frutos secos" }));
 
   await expect.element(screen.getByRole("dialog")).toBeVisible();
+  expect(batchServices.voidAssemblyBatch).not.toHaveBeenCalled();
 });
 
 test("offers no batch action in the panel to a session that may not register batches", async () => {
