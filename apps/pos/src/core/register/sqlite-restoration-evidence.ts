@@ -3,7 +3,7 @@ import type { RestorationProtocolEvidence } from "@purosur/domain/register/use-c
 import type { RestorePending } from "../backups/restore-pending";
 import type { LocalDatabase } from "../platform/local-database";
 import type { CloudReachability } from "../sync/cloud-reachability";
-import { staleSequenceDetected } from "../sync/sqlite-installation-presence";
+import { staleSequenceDetected } from "../installation/sqlite-installation-presence";
 import { readPendingReplenishment } from "../sync/sqlite-register-replenishment-store";
 import { registerVersionOf } from "./register-version";
 

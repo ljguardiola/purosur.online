@@ -9,7 +9,7 @@ import {
 import type { CloudClientDeps } from "../platform/cloud-client";
 import type { LocalDatabase } from "../platform/local-database";
 import type { CloudReachability } from "../sync/cloud-reachability";
-import { staleSequenceDetected } from "../sync/sqlite-installation-presence";
+import { staleSequenceDetected } from "../installation/sqlite-installation-presence";
 import { sqliteSyncSequences } from "../sync/sqlite-sync-sequences";
 import type { StorageReading } from "../sync/storage-telemetry";
 import { createSnapshotCycleSchedule, type SnapshotCycleSchedule } from "./snapshot-cycle-schedule";

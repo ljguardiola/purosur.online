@@ -8,7 +8,7 @@ import { migrationClock } from "../platform/test-support/migration-clock";
 import { openLocalDatabase } from "../platform/test-support/open-local-database";
 import type { RegisterPulledChange } from "./pulled-change";
 import { SqliteAcceptedPushLog } from "./sqlite-accepted-push-log";
-import { salesStopOf, stopOpeningNewSales } from "./sqlite-local-installation";
+import { salesStopOf, stopOpeningNewSales } from "../installation/sqlite-local-installation";
 import { SqliteLocalReplica } from "./sqlite-local-replica";
 import { appendOutboxEvent } from "./sqlite-outbox";
 

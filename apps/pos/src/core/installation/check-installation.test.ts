@@ -11,7 +11,7 @@ import {
   installationCheckWarningOf,
 } from "./check-installation";
 import { SqliteLocalInstallation } from "./sqlite-local-installation";
-import { SqliteLocalReplica } from "./sqlite-local-replica";
+import { SqliteLocalReplica } from "../sync/sqlite-local-replica";
 
 const CREDENTIALS = { device_id: "a4b1", device_token: "prefix.secret", pepper: "cGVwcGVy" };
 const REVOKED_AT = new Date("2026-10-01T09:30:00.000Z");

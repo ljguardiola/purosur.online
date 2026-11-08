@@ -8,7 +8,7 @@ import {
 } from "@purosur/domain";
 import type { LocalOutbox, OutboxPruning } from "@purosur/domain/sync/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
-import { stopOpeningNewSales } from "./sqlite-local-installation";
+import { stopOpeningNewSales } from "../installation/sqlite-local-installation";
 
 interface OutboxRow extends Omit<PushedEvent, "payload"> {
   payload: string;

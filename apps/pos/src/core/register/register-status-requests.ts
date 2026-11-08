@@ -24,7 +24,7 @@ import type { SignedInPerson } from "../sessions/signed-in-person";
 import { SqliteSignInStore } from "../sessions/sqlite-sign-in-store";
 import type { CloudReachability } from "../sync/cloud-reachability";
 import { SqliteAcceptedPushLog } from "../sync/sqlite-accepted-push-log";
-import { salesStopOf } from "../sync/sqlite-local-installation";
+import { salesStopOf } from "../installation/sqlite-local-installation";
 import { SqliteLocalReplica } from "../sync/sqlite-local-replica";
 import { readStanding, type SerialDeviceReading } from "./serial-device-watch";
 import { SqliteRegisterConditionStartStore } from "./sqlite-register-condition-start-store";

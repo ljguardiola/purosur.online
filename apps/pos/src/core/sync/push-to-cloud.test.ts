@@ -13,7 +13,7 @@ import {
   pushWarningOf,
 } from "./push-to-cloud";
 import { SqliteAcceptedPushLog } from "./sqlite-accepted-push-log";
-import { SqliteLocalInstallation } from "./sqlite-local-installation";
+import { SqliteLocalInstallation } from "../installation/sqlite-local-installation";
 import { SqliteLocalOutbox } from "./sqlite-local-outbox";
 import { SqliteLocalReplica } from "./sqlite-local-replica";
 import { appendOutboxEvent } from "./sqlite-outbox";

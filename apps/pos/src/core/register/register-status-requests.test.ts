@@ -36,7 +36,7 @@ import { openLocalDatabase } from "../platform/test-support/open-local-database"
 import { createSignedInPerson, type SignedInPerson } from "../sessions/signed-in-person";
 import type { CloudReachability } from "../sync/cloud-reachability";
 import { SqliteAcceptedPushLog } from "../sync/sqlite-accepted-push-log";
-import { stopOpeningNewSales } from "../sync/sqlite-local-installation";
+import { stopOpeningNewSales } from "../installation/sqlite-local-installation";
 import { type BatteryWatch, createBatteryWatch } from "./battery-watch";
 import { registerStatusFor } from "./register-status-requests";
 import { createSerialDeviceWatch, type SerialDeviceWatch } from "./serial-device-watch";

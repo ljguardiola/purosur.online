@@ -19,7 +19,7 @@ import {
   enrollmentRequestSchema,
   INCOMPLETE_CODE_MESSAGE,
 } from "./enrollment-form";
-import { registerEyebrow } from "./register-eyebrow";
+import { registerEyebrow } from "../shell/register-eyebrow";
 
 type Notice = { icon: Icon; title: string; description: string };
 
