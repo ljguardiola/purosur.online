@@ -281,6 +281,27 @@ describe("followMercadoPagoSettlementReport", () => {
       expect(reports.downloadedFiles).toEqual(["newest.csv"]);
     });
 
+    it("downloads the first listed of several reports created at the same instant", async () => {
+      const { reports, store, ports } = setup();
+      requestOfToday(store);
+      const same = {
+        beginDate: SIXTY_DAYS_BEFORE,
+        endDate: NOW,
+        createdAt: new Date("2026-11-06T22:00:00Z"),
+      };
+      reports.listing = {
+        kind: "listed",
+        reports: [
+          { ...same, fileName: "first.csv" },
+          { ...same, fileName: "second.csv" },
+        ],
+      };
+
+      await followMercadoPagoSettlementReport(ports);
+
+      expect(reports.downloadedFiles).toEqual(["first.csv"]);
+    });
+
     it("records nothing when the listing is unavailable", async () => {
       const { reports, store, ports } = setup();
       requestOfToday(store);

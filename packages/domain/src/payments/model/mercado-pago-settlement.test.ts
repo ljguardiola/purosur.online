@@ -79,6 +79,38 @@ describe("chargeCostOf", () => {
     );
   });
 
+  it("keeps the latest release date when an earlier one comes after it", () => {
+    const earlier: SettlementMovement = {
+      ...SALE,
+      moneyReleaseDate: new Date("2026-09-01T13:00:00Z"),
+    };
+    const later: SettlementMovement = {
+      ...SALE,
+      moneyReleaseDate: new Date("2026-11-01T13:00:00Z"),
+    };
+    expect(chargeCostOf([later, earlier]).moneyReleaseDate).toEqual(
+      new Date("2026-11-01T13:00:00Z"),
+    );
+  });
+
+  it("keeps the first release date when two movements release at the same instant", () => {
+    const first = new Date("2026-10-01T13:00:00Z");
+    const second = new Date("2026-10-01T13:00:00Z");
+    const cost = chargeCostOf([
+      { ...SALE, moneyReleaseDate: first },
+      { ...SALE, moneyReleaseDate: second },
+    ]);
+    expect(cost.moneyReleaseDate).toBe(first);
+  });
+
+  it("adds up the financing fees of the movements", () => {
+    const cost = chargeCostOf([
+      { ...SALE, financingFeeAmount: -200 },
+      { ...REFUND, financingFeeAmount: 50 },
+    ]);
+    expect(cost.financingFeeAmount).toBe(-150);
+  });
+
   it("keeps the release date of the charge, not of a later refund", () => {
     expect(chargeCostOf([REFUND, SALE]).moneyReleaseDate).toEqual(new Date("2026-10-01T13:00:00Z"));
   });
