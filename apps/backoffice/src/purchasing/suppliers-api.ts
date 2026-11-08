@@ -3,6 +3,7 @@ import {
   type SupplierEditBody,
   type SupplierSummary,
   supplierListSchema,
+  supplierNameSchema,
   supplierSummarySchema,
 } from "@purosur/contracts";
 import { cloudFetch } from "../platform/cloud-fetch";
@@ -11,6 +12,10 @@ import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
 
 export type FetchSuppliersOutcome = CloudReadOutcome<SupplierSummary[]>;
+
+export type SupplierNameRead = { kind: "found"; name: string } | { kind: "not_found" };
+
+export type FetchSupplierNameOutcome = CloudReadOutcome<SupplierNameRead>;
 
 type RequestRefusal =
   | { kind: "forbidden" }
@@ -187,4 +192,23 @@ export function deactivateSupplier(id: string): Promise<ChangeSupplierActivation
 
 export function reactivateSupplier(id: string): Promise<ChangeSupplierActivationOutcome> {
   return changeSupplierActivation(id, "DELETE", "supplier_already_active");
+}
+
+export async function fetchSupplierName(supplierId: string): Promise<FetchSupplierNameOutcome> {
+  let response: Response;
+  try {
+    response = await cloudFetch(`/api/suppliers/${supplierId}/name`);
+  } catch {
+    return { kind: "failed" };
+  }
+  if (response.status === 404) {
+    return { kind: "ok", value: { kind: "not_found" } };
+  }
+  if (!response.ok) {
+    return refusal(response);
+  }
+  const parsed = supplierNameSchema.safeParse(await response.json().catch(() => undefined));
+  return parsed.success
+    ? { kind: "ok", value: { kind: "found", name: parsed.data.name } }
+    : { kind: "failed" };
 }

@@ -669,7 +669,11 @@ export {
   supplierPriceListWebPageBodySchema,
 } from "./purchasing/supplier-price-list-web-page-body.js";
 export type { SupplierSummary } from "./purchasing/supplier-summary.js";
-export { supplierListSchema, supplierSummarySchema } from "./purchasing/supplier-summary.js";
+export {
+  supplierListSchema,
+  supplierNameSchema,
+  supplierSummarySchema,
+} from "./purchasing/supplier-summary.js";
 export type {
   BitlockerRecoveryKeyBody,
   BitlockerRecoveryKeyLoadBody,

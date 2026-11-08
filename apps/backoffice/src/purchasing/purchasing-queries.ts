@@ -75,12 +75,13 @@ import type {
   fetchSupplierPriceLists,
   SupplierPriceListReviewRead,
 } from "./supplier-price-lists-api";
-import type { fetchSuppliers } from "./suppliers-api";
+import type { fetchSupplierName, fetchSuppliers, SupplierNameRead } from "./suppliers-api";
 
 export const purchasingKey = ["purchasing"] as const;
 
 export const purchasingKeys = {
   suppliers: [...purchasingKey, "suppliers"] as const,
+  supplierName: [...purchasingKey, "supplier-name"] as const,
   purchases: [...purchasingKey, "purchases"] as const,
   purchaseChoices: [...purchasingKey, "purchase-choices"] as const,
   purchaseChanges: [...purchasingKey, "purchase-changes"] as const,
@@ -168,6 +169,19 @@ export function useSuppliersQuery(params: {
     enabled: params.enabled ?? true,
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
+  });
+}
+
+export function useSupplierNameQuery(params: {
+  supplierId: string;
+  fetchSupplierName: typeof fetchSupplierName;
+  onSessionEnded: () => void;
+}) {
+  const { supplierId, fetchSupplierName: read } = params;
+  return useCloudQuery<SupplierNameRead>({
+    queryKey: [...purchasingKeys.supplierName, supplierId],
+    read: () => read(supplierId),
+    onSessionEnded: params.onSessionEnded,
   });
 }
 

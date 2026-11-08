@@ -12,4 +12,6 @@ export const supplierSummarySchema = z.object({
 
 export const supplierListSchema = z.array(supplierSummarySchema);
 
+export const supplierNameSchema = z.object({ name: z.string() });
+
 export type SupplierSummary = z.output<typeof supplierSummarySchema>;

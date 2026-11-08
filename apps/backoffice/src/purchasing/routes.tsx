@@ -1,4 +1,4 @@
-import { freightPeriodSchema } from "@purosur/contracts";
+import { freightPeriodSchema, recordIdSchema } from "@purosur/contracts";
 import { createRoute, redirect, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 import {
@@ -70,7 +70,7 @@ export const suppliersListRoute = createRoute({
   component: lazyScreen(() => import("./suppliers-list-page"), "SuppliersListPage"),
 });
 
-const supplierFilterSearch = z.object({ supplier: z.string().optional().catch(undefined) });
+const supplierFilterSearch = z.object({ supplier: recordIdSchema().optional().catch(undefined) });
 
 export const purchasesListRoute = createRoute({
   getParentRoute: () => purchasingAreaRoute,

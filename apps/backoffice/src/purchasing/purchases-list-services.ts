@@ -18,12 +18,15 @@ import {
   removePurchaseLine,
   splitPurchaseLineExpiry,
 } from "./purchases-api";
+import type { SupplierFilterServices } from "./purchasing-screen-parts";
 import type { RemovePurchaseLineModalServices } from "./remove-purchase-line-modal";
 import type { SplitPurchaseLineExpiryModalServices } from "./split-purchase-line-expiry-modal";
+import { fetchSupplierName } from "./suppliers-api";
 
 export type PurchasesListScreenServices = {
   fetchPurchases: typeof fetchPurchases;
-} & PurchaseChangesModalServices &
+} & SupplierFilterServices &
+  PurchaseChangesModalServices &
   AddPurchaseLinesModalServices &
   CorrectPurchaseHeaderModalServices &
   CorrectPurchaseLineExpiryModalServices &
@@ -35,6 +38,7 @@ export type PurchasesListScreenServices = {
 
 export const defaultPurchasesListScreenServices: PurchasesListScreenServices = {
   fetchPurchases,
+  fetchSupplierName,
   fetchPurchaseChanges,
   fetchPurchaseChoices,
   addPurchaseLines,

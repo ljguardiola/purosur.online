@@ -147,6 +147,10 @@ export function canSeeLossesByReason(access: BackofficeAccess): boolean {
   return grants(access, "stock_losses");
 }
 
+export function canSeeStockArea(access: BackofficeAccess): boolean {
+  return grants(access, "stock_area");
+}
+
 export function canSeeStockPage(access: BackofficeAccess): boolean {
   return (
     canSeeStockBalances(access) ||

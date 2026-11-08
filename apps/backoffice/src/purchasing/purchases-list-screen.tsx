@@ -20,6 +20,7 @@ import {
   Plus,
   Replace,
   Scale,
+  SearchX,
   ShoppingCart,
   Trash2,
 } from "lucide-react";
@@ -466,11 +467,9 @@ export function PurchasesListScreen({
         {supplierFilter === undefined ? null : (
           <div className="flex flex-wrap items-center gap-3">
             <SupplierFilterButton
-              supplierName={
-                purchases.find((purchase) => purchase.supplier.id === supplierFilter.supplierId)
-                  ?.supplier.name
-              }
-              onClear={supplierFilter.onClear}
+              supplierFilter={supplierFilter}
+              services={services}
+              onSessionEnded={onSessionEnded}
             />
           </div>
         )}
@@ -478,11 +477,20 @@ export function PurchasesListScreen({
           aria-label="Compras"
           table={table}
           {...cloudTableState(data, "las compras")}
-          empty={{
-            icon: <ShoppingCart />,
-            title: "Todavía no hay compras registradas",
-            variant: "blank",
-          }}
+          empty={
+            supplierFilter === undefined
+              ? {
+                  icon: <ShoppingCart />,
+                  title: "Todavía no hay compras registradas",
+                  variant: "blank",
+                }
+              : {
+                  icon: <SearchX />,
+                  title: "Sin resultados",
+                  description: "Probá con otro proveedor.",
+                  variant: "filtered",
+                }
+          }
         />
       </ScreenLayout>
       {data.status === "loaded" ? (

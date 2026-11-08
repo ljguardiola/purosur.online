@@ -145,10 +145,9 @@ export function PurchaseOrdersScreen({
         />
         {supplierFilter === undefined ? null : (
           <SupplierFilterButton
-            supplierName={
-              orders.find((order) => order.supplier.id === supplierFilter.supplierId)?.supplier.name
-            }
-            onClear={supplierFilter.onClear}
+            supplierFilter={supplierFilter}
+            services={services}
+            onSessionEnded={onSessionEnded}
           />
         )}
       </div>
@@ -157,7 +156,7 @@ export function PurchaseOrdersScreen({
         table={table}
         {...cloudTableState(data, "los pedidos")}
         empty={
-          stateFilter === "ALL"
+          stateFilter === "ALL" && supplierFilter === undefined
             ? {
                 icon: <ClipboardList />,
                 title: "Todavía no hay pedidos",
@@ -166,7 +165,10 @@ export function PurchaseOrdersScreen({
             : {
                 icon: <Search />,
                 title: "Sin resultados",
-                description: "Probá con otro estado.",
+                description:
+                  supplierFilter === undefined
+                    ? "Probá con otro estado."
+                    : "Probá con otro estado o proveedor.",
                 variant: "filtered",
               }
         }

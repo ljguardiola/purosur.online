@@ -174,13 +174,9 @@ export function FreightsListScreen({
           />
           {supplierFilter === undefined ? null : (
             <SupplierFilterButton
-              supplierName={
-                freights?.items
-                  .flatMap((freight) => freight.purchases)
-                  .find((purchase) => purchase.supplier.id === supplierFilter.supplierId)?.supplier
-                  .name
-              }
-              onClear={supplierFilter.onClear}
+              supplierFilter={supplierFilter}
+              services={services}
+              onSessionEnded={onSessionEnded}
             />
           )}
         </div>
@@ -189,7 +185,7 @@ export function FreightsListScreen({
           table={table}
           {...cloudTableState(data, "los fletes")}
           empty={
-            debouncedSearch === ""
+            debouncedSearch === "" && supplierFilter === undefined
               ? {
                   icon: <Truck />,
                   title: `Sin fletes en los últimos ${formatNumber(period)} días`,
@@ -199,7 +195,10 @@ export function FreightsListScreen({
               : {
                   icon: <SearchX />,
                   title: "Sin resultados",
-                  description: "Probá con otra descripción o medio.",
+                  description:
+                    supplierFilter === undefined
+                      ? "Probá con otra descripción o medio."
+                      : "Probá con otra descripción, medio o proveedor.",
                   variant: "filtered",
                 }
           }

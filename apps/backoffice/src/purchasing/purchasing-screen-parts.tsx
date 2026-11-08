@@ -1,5 +1,7 @@
 import { Button, formatCents } from "@purosur/ui";
 import { X } from "lucide-react";
+import { useSupplierNameQuery } from "./purchasing-queries";
+import type { fetchSupplierName } from "./suppliers-api";
 
 export function ExpectedTotalAmount({
   cents,
@@ -20,16 +22,26 @@ export function ExpectedTotalAmount({
 
 export type SupplierFilter = { supplierId: string; onClear: () => void };
 
+export type SupplierFilterServices = { fetchSupplierName: typeof fetchSupplierName };
+
 export function SupplierFilterButton({
-  supplierName,
-  onClear,
+  supplierFilter,
+  services,
+  onSessionEnded,
 }: {
-  supplierName: string | undefined;
-  onClear: () => void;
+  supplierFilter: SupplierFilter;
+  services: SupplierFilterServices;
+  onSessionEnded: () => void;
 }) {
+  const data = useSupplierNameQuery({
+    supplierId: supplierFilter.supplierId,
+    fetchSupplierName: services.fetchSupplierName,
+    onSessionEnded,
+  });
+  const supplier = data.status === "loaded" ? data.value : undefined;
   return (
-    <Button variant="secondary" icon={<X />} onPress={onClear}>
-      {`Proveedor: ${supplierName ?? "seleccionado"}`}
+    <Button variant="secondary" icon={<X />} onPress={supplierFilter.onClear}>
+      {supplier?.kind === "found" ? `Proveedor: ${supplier.name}` : "Proveedor"}
     </Button>
   );
 }

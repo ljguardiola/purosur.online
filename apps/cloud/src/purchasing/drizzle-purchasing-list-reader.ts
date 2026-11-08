@@ -48,6 +48,14 @@ export class DrizzlePurchasingListReader<TQueryResult extends PgQueryResultHKT>
     return rows.sort((a, b) => compareSpanishText(a.name, b.name) || compareCodeUnits(a.id, b.id));
   }
 
+  async supplierName(supplierId: string): Promise<string | undefined> {
+    const [row] = await this.db
+      .select({ name: suppliers.name })
+      .from(suppliers)
+      .where(eq(suppliers.id, supplierId));
+    return row?.name;
+  }
+
   lotNameFacts(locationId: string, productIds: readonly string[]): Promise<LotNameFacts[]> {
     return new DrizzleLotNameReader(this.db).lotNameFacts(locationId, productIds);
   }

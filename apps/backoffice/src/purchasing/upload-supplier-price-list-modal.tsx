@@ -219,7 +219,7 @@ export function UploadSupplierPriceListModal({
       tone="info"
       icon={<Upload />}
       context="Compras · Listas de precios"
-      title="Cargar una lista"
+      title="Subir lista"
       closable
       footer={
         <>

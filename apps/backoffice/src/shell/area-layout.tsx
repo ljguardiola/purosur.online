@@ -29,7 +29,7 @@ import {
   canSeeRefundsPage,
   canSeeRegistersPage,
   canSeeReports,
-  canSeeStockPage,
+  canSeeStockArea,
   canSeeSuppliersPage,
 } from "./backoffice-access";
 import { lazyScreen } from "./lazy-screen";
@@ -112,7 +112,7 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
               active={area === "products"}
             />
           )}
-          {canSeeStockPage(session) && (
+          {canSeeStockArea(session) && (
             <AreaLink
               to="/stock"
               search={stockShown ? true : {}}

@@ -272,10 +272,9 @@ export function SupplierPriceListsScreen({
           />
           {supplierFilter === undefined ? null : (
             <SupplierFilterButton
-              supplierName={
-                lists.find((list) => list.supplier.id === supplierFilter.supplierId)?.supplier.name
-              }
-              onClear={supplierFilter.onClear}
+              supplierFilter={supplierFilter}
+              services={services}
+              onSessionEnded={onSessionEnded}
             />
           )}
           <div className="ml-auto">
@@ -284,7 +283,7 @@ export function SupplierPriceListsScreen({
               icon={<Upload />}
               onPress={() => setUpload({ supplierId: null })}
             >
-              Cargar una lista
+              Subir lista
             </Button>
           </div>
         </div>
@@ -293,7 +292,7 @@ export function SupplierPriceListsScreen({
           table={table}
           {...cloudTableState(data, "las listas de proveedores")}
           empty={
-            lists.length === 0
+            lists.length === 0 && supplierFilter === undefined
               ? {
                   icon: <FileText />,
                   title: "Todavía no hay listas cargadas",
