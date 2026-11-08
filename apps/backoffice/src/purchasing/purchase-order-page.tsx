@@ -5,7 +5,7 @@ import { purchaseOrderReceivedIn } from "./purchase-order-received-state";
 import { PurchaseOrderScreen } from "./purchase-order-screen";
 import { defaultPurchaseOrderScreenServices } from "./purchase-order-services";
 
-const route = getRouteApi("/signed-in/orders-area/purchase-orders/$orderId");
+const route = getRouteApi("/signed-in/purchasing-area/purchase-orders/$orderId");
 
 export function PurchaseOrderPage(): ReactElement {
   const { services, session, sessionActions } = route.useRouteContext();

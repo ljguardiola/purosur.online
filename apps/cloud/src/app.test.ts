@@ -2886,6 +2886,17 @@ describe("the route access inventory", () => {
         access: capabilityAccess("products_and_categories"),
       },
       { method: "GET", url: "/api/suppliers", access: capabilityAccess("suppliers") },
+      {
+        method: "GET",
+        url: "/api/suppliers/:id/name",
+        access: anyCapabilityAccess(
+          "suppliers",
+          "supplier_price_lists",
+          "purchase_order_reads",
+          "purchases",
+          "freights",
+        ),
+      },
       { method: "POST", url: "/api/suppliers", access: capabilityAccess("suppliers") },
       { method: "PUT", url: "/api/suppliers/:id", access: capabilityAccess("suppliers") },
       {

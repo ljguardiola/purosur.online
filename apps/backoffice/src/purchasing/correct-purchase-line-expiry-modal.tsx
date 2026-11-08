@@ -114,7 +114,7 @@ export function CorrectPurchaseLineExpiryModal({
       width="wide"
       tone="info"
       icon={<CalendarClock />}
-      context="Stock · Compra"
+      context="Compras · Compra"
       title={shown ? formatProductDescription(shown.line.product) : ""}
       closable={!submitting}
       footer={

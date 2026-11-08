@@ -74,7 +74,7 @@ test("names the purchase whose changes it lists", async () => {
   const screen = await renderModal();
   const dialog = screen.getByRole("dialog");
 
-  await expect.element(dialog.getByText("Stock · Compra · Distribuidora Andina")).toBeVisible();
+  await expect.element(dialog.getByText("Compras · Compra · Distribuidora Andina")).toBeVisible();
   await expect.element(dialog.getByRole("heading", { name: "Cambios de la compra" })).toBeVisible();
 });
 

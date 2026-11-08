@@ -73,4 +73,33 @@ describe("listFreights", () => {
 
     expect(listing).toEqual({ items: [], count: 0, totalCents: 0 });
   });
+
+  it("lists the freights covering a purchase of the supplier asked for, each with all its purchases", async () => {
+    const shared = {
+      ...freight("shared", "2026-03-09", 100_000),
+      purchases: [
+        { id: "p-1", purchasedOn: "2026-03-09", supplier: { id: "supplier-1", name: "Sur" } },
+        { id: "p-2", purchasedOn: "2026-03-09", supplier: { id: "supplier-2", name: "Norte" } },
+      ],
+    };
+    const reader = new FakeFreightListReader({
+      freights: [shared, freight("only-sur", "2026-03-05", 20_000)],
+    });
+
+    const ofNorte = await listFreights(reader, {
+      locationId: BRANCH,
+      from: "2026-03-01",
+      supplierId: "supplier-2",
+    });
+    const ofSur = await listFreights(reader, {
+      locationId: BRANCH,
+      from: "2026-03-01",
+      supplierId: "supplier-1",
+    });
+
+    expect(ofNorte.items.map(({ id }) => id)).toEqual(["shared"]);
+    expect(ofNorte.items[0]?.purchases).toHaveLength(2);
+    expect(ofNorte.totalCents).toBe(100_000);
+    expect(ofSur.items.map(({ id }) => id)).toEqual(["shared", "only-sur"]);
+  });
 });

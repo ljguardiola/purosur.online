@@ -91,7 +91,7 @@ test("shows the eyebrow and the title over the freight's form", async () => {
   const screen = await renderModal();
   const dialog = await readyDialog(screen);
 
-  await expect.element(dialog.getByText("Stock · Flete")).toBeVisible();
+  await expect.element(dialog.getByText("Compras · Flete")).toBeVisible();
   await expect.element(dialog.getByRole("heading", { name: "Nuevo flete" })).toBeVisible();
   await expect.element(dialog.getByRole("textbox", { name: /^Descripción/ })).toBeVisible();
 });

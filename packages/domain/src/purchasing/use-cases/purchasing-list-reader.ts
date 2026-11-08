@@ -30,8 +30,9 @@ export interface PurchaseListing {
 
 export interface PurchasingListReader {
   suppliers(): Promise<Supplier[]>;
-  // The branch's purchases, most recently recorded first.
-  purchases(locationId: string): Promise<PurchaseListing[]>;
+  supplierName(supplierId: string): Promise<string | undefined>;
+  // The branch's purchases, most recently recorded first; every supplier's when none is asked for.
+  purchases(locationId: string, supplierId?: string): Promise<PurchaseListing[]>;
   // Every lot of each product in the branch, whatever purchase or origin created it.
   lotNameFacts(locationId: string, productIds: readonly string[]): Promise<LotNameFacts[]>;
   purchase(purchaseId: string): Promise<PurchaseListing | undefined>;

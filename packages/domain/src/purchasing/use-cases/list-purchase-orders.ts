@@ -4,6 +4,7 @@ import type { PurchaseOrderReader } from "./purchase-order-reader.js";
 export interface ListPurchaseOrdersInput {
   locationId: string;
   state?: PurchaseOrderState;
+  supplierId?: string;
 }
 
 export interface ListedPurchaseOrder {
@@ -18,9 +19,9 @@ export interface ListedPurchaseOrder {
 
 export async function listPurchaseOrders(
   reader: PurchaseOrderReader,
-  { locationId, state }: ListPurchaseOrdersInput,
+  { locationId, state, supplierId }: ListPurchaseOrdersInput,
 ): Promise<ListedPurchaseOrder[]> {
-  const orders = await reader.orders(locationId, state);
+  const orders = await reader.orders(locationId, state, supplierId);
   return orders.map(({ lines, ...order }) => ({
     ...order,
     lineCount: lines.length,

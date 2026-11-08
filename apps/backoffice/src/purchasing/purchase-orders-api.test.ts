@@ -63,6 +63,26 @@ describe("fetchPurchaseOrders", () => {
     expect(fetch).toHaveBeenCalledWith("/api/purchase-orders?state=CANCELLED");
   });
 
+  test("asks the cloud for the orders of one supplier", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [DRAFT_SUMMARY]));
+
+    await fetchPurchaseOrders("ALL", { supplierId: "5a900000-0000-4000-8000-000000000001" });
+
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/purchase-orders?supplierId=5a900000-0000-4000-8000-000000000001",
+    );
+  });
+
+  test("asks the cloud for the orders of one supplier in one state", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [CANCELLED_SUMMARY]));
+
+    await fetchPurchaseOrders("CANCELLED", { supplierId: "5a900000-0000-4000-8000-000000000001" });
+
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/purchase-orders?state=CANCELLED&supplierId=5a900000-0000-4000-8000-000000000001",
+    );
+  });
+
   test("returns failed when a listed order does not have the expected shape", async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [{ ...DRAFT_SUMMARY, state: "OTHER" }]));
 

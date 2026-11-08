@@ -2,12 +2,14 @@ import {
   supplierCreationBodySchema,
   supplierEditBodySchema,
   supplierListSchema,
+  supplierNameSchema,
   supplierSummarySchema,
 } from "@purosur/contracts";
 import {
   createSupplier,
   deactivateSupplier,
   editSupplier,
+  findSupplierName,
   listSuppliers,
   reactivateSupplier,
 } from "@purosur/domain/purchasing/use-cases";
@@ -17,6 +19,7 @@ import { readRecordIds } from "../platform/record-id-params.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { backofficeOriginGuard, sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
+  anyCapabilityAccess,
   capabilityAccess,
   openSessionOf,
   registerRouteAccess,
@@ -63,6 +66,35 @@ export function registerSuppliersRoutes<TQueryResult extends PgQueryResultHKT>(
 
   app.get("/suppliers", readGuard, async (_request, reply) => {
     await reply.code(200).send(supplierListSchema.parse(await listSuppliers(reader)));
+  });
+
+  const nameGuard = {
+    preHandler: sameOriginGuard(options.backofficeOrigin),
+    config: {
+      access: anyCapabilityAccess(
+        "suppliers",
+        "supplier_price_lists",
+        "purchase_order_reads",
+        "purchases",
+        "freights",
+      ),
+      sessionSource,
+    },
+  };
+
+  app.get("/suppliers/:id/name", nameGuard, async (request, reply) => {
+    const ids = await readRecordIds(reply, request.params, ["id"]);
+    if (!ids) {
+      return;
+    }
+
+    const outcome = await findSupplierName(reader, ids.id);
+
+    if (outcome.kind === "not_found") {
+      await reply.code(404).send(NOT_FOUND_RESPONSE);
+      return;
+    }
+    await reply.code(200).send(supplierNameSchema.parse({ name: outcome.name }));
   });
 
   app.post("/suppliers", writeGuard, async (request, reply) => {

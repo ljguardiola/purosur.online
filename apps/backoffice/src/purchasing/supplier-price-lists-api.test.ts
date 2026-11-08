@@ -47,6 +47,16 @@ describe("fetchSupplierPriceLists", () => {
     expect(fetch).toHaveBeenCalledWith("/api/supplier-price-lists");
   });
 
+  test("asks the cloud for the price lists of one supplier", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [READ_LIST]));
+
+    await fetchSupplierPriceLists({ supplierId: "5a900000-0000-4000-8000-000000000001" });
+
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/supplier-price-lists?supplierId=5a900000-0000-4000-8000-000000000001",
+    );
+  });
+
   test("returns failed when a listed price list does not have the expected shape", async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [{ ...READ_LIST, state: "UNKNOWN" }]));
 

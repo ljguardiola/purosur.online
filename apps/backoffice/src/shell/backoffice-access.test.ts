@@ -33,10 +33,10 @@ import {
   canSeeFiscalPage,
   canSeeLossesByReason,
   canSeeMercadoPagoChargeCosts,
-  canSeeOrdersArea,
   canSeePeopleArea,
   canSeePricesArea,
   canSeeProductsPage,
+  canSeePurchasingArea,
   canSeeQuarantinedEvents,
   canSeeRefundsArea,
   canSeeRefundsPage,
@@ -50,6 +50,7 @@ import {
   canSeeStockBalances,
   canSeeStockMovements,
   canSeeStockPage,
+  canSeeSuppliersPage,
   canSeeUsersArea,
   canUseBitlockerRecoveryKey,
 } from "./backoffice-access";
@@ -94,7 +95,6 @@ test.each([
   ["canManagePurchaseOrders", "purchase_orders", canManagePurchaseOrders],
   ["canReadPurchaseOrders", "purchase_order_reads", canReadPurchaseOrders],
   ["canReceivePurchaseOrders", "purchase_order_receipts", canReceivePurchaseOrders],
-  ["canSeeOrdersArea", "orders_area", canSeeOrdersArea],
   ["canSeeReports", "reports_area", canSeeReports],
   ["canSeeReturnsReport", "returns_report", canSeeReturnsReport],
   ["canSeeMercadoPagoChargeCosts", "mercado_pago_charge_costs", canSeeMercadoPagoChargeCosts],
@@ -180,4 +180,24 @@ test("canSeeRegistersList holds with the registers area, fiscal configuration or
   expect(canSeeRegistersList(accessWith("backups_area"))).toBe(true);
   expect(canSeeRegistersList(accessWith("reports_area"))).toBe(false);
   expect(canSeeRegistersList(NO_CAPABILITIES_ACCESS)).toBe(false);
+});
+
+test.each(["suppliers", "supplier_price_lists"] as const)(
+  "canSeeSuppliersPage holds with only the %s capability",
+  (capability) => {
+    expect(canSeeSuppliersPage(accessWith(capability))).toBe(true);
+  },
+);
+
+test("canSeeSuppliersPage holds for an Administrator and not with other purchasing capabilities", () => {
+  expect(canSeeSuppliersPage(ADMINISTRATOR_ACCESS)).toBe(true);
+  expect(canSeeSuppliersPage(accessWith("purchases", "freights", "price_comparison"))).toBe(false);
+  expect(canSeeSuppliersPage(NO_CAPABILITIES_ACCESS)).toBe(false);
+});
+
+test("canSeePurchasingArea holds exactly when the purchasing area capability is granted", () => {
+  expect(canSeePurchasingArea(ADMINISTRATOR_ACCESS)).toBe(true);
+  expect(canSeePurchasingArea(accessWith("purchasing_area"))).toBe(true);
+  expect(canSeePurchasingArea(accessWith("stock_area", "suppliers", "freights"))).toBe(false);
+  expect(canSeePurchasingArea(NO_CAPABILITIES_ACCESS)).toBe(false);
 });

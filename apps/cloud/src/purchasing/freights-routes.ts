@@ -106,6 +106,7 @@ export function registerFreightsRoutes<TQueryResult extends PgQueryResultHKT>(
       locationId: openSessionOf(request).locationId,
       from: freightPeriodStart(query.period, now(), options.zoneRules.zoneRules()),
       ...(query.search === undefined ? {} : { search: query.search }),
+      ...(query.supplierId === undefined ? {} : { supplierId: query.supplierId }),
     });
     await reply.code(200).send(freightListSchema.parse(listed));
   });

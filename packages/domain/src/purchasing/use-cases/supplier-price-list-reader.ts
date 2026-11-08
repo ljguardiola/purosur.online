@@ -64,8 +64,8 @@ export interface SupplierPriceListReview {
 }
 
 export interface SupplierPriceListReader {
-  // Every list, most recently uploaded first.
-  lists(): Promise<SupplierPriceListListing[]>;
+  // Every list, or the supplier only, most recently uploaded first.
+  lists(supplierId?: string): Promise<SupplierPriceListListing[]>;
   // The rows in the order the reading found them.
   review(listId: string): Promise<SupplierPriceListReview | undefined>;
   // Undefined for a list that did not come from an uploaded file.

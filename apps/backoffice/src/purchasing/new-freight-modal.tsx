@@ -113,7 +113,7 @@ export function NewFreightModal({
       width="wide"
       tone="info"
       icon={<Truck />}
-      context="Stock · Flete"
+      context="Compras · Flete"
       title="Nuevo flete"
       closable
       footer={

@@ -83,7 +83,7 @@ async function loaded(
 test("shows the breadcrumb and the heading", async () => {
   const screen = await loaded(createServices());
 
-  await expect.element(screen.getByText("Pedidos").first()).toBeVisible();
+  await expect.element(screen.getByText("Compras").first()).toBeVisible();
   await expect
     .element(screen.getByRole("heading", { name: "Comparación de precios", level: 1 }))
     .toBeVisible();

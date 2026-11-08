@@ -141,7 +141,7 @@ export function EditSupplierModal({
       width="standard"
       tone="info"
       icon={<Pencil />}
-      context="Stock · Proveedores"
+      context="Compras · Proveedores"
       title={loaded?.name ?? ""}
       closable
       footer={

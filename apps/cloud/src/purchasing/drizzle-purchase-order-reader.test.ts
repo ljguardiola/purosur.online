@@ -503,4 +503,31 @@ describe("what a purchase order has received", () => {
     expect(await reader().receivableOrder(otherLocationId, orderId)).toBeUndefined();
     expect(await reader().receivableOrder(locationId, crypto.randomUUID())).toBeUndefined();
   });
+
+  it("lists only the orders of the supplier asked for, together with the state asked for", async () => {
+    const { id: productId } = await insertProduct(db, { name: "Yerba" });
+    const alfa = await offeredBySupplier("Alfa", productId);
+    const beta = await offeredBySupplier("Beta", productId);
+    const alfaDraft = await draftFor("2026-09-01T10:00:00.000Z", {
+      locationId,
+      supplierId: alfa,
+      productId,
+    });
+    const alfaCancelled = await draftFor("2026-09-02T10:00:00.000Z", {
+      locationId,
+      supplierId: alfa,
+      productId,
+    });
+    await draftFor("2026-09-03T10:00:00.000Z", { locationId, supplierId: beta, productId });
+    await cancelPurchaseOrder(
+      { store: new DrizzlePurchaseOrderStore(db), clock: { now: () => new Date() } },
+      { locationId, orderId: alfaCancelled, actorId },
+    );
+
+    const ofAlfa = await reader().orders(locationId, undefined, alfa);
+    const draftsOfAlfa = await reader().orders(locationId, "DRAFT", alfa);
+
+    expect(ofAlfa.map((order) => order.id)).toEqual([alfaCancelled, alfaDraft]);
+    expect(draftsOfAlfa.map((order) => order.id)).toEqual([alfaDraft]);
+  });
 });

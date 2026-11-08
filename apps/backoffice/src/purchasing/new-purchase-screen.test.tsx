@@ -133,7 +133,7 @@ const avenaLine = {
 test("shows the breadcrumb, the heading and the header fields, with today as the purchase date", async () => {
   const screen = await opened();
 
-  await expect.element(screen.getByText("Stock").first()).toBeVisible();
+  await expect.element(screen.getByText("Compras").first()).toBeVisible();
   await expect
     .element(screen.getByRole("heading", { name: "Registrar compra", level: 1 }))
     .toBeVisible();

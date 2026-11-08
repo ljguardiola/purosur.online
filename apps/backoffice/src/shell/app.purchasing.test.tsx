@@ -13,6 +13,7 @@ import {
 import { PRICE_COMPARISON } from "../purchasing/test-support/supplier-price-comparison";
 import {
   EXTRACTED_ROWS,
+  ONLY_DISCARD,
   READ_LIST,
   reviewOf,
 } from "../purchasing/test-support/supplier-price-lists";
@@ -30,20 +31,31 @@ opensOnlyScreens([
   "/purchase-orders",
   "/purchase-orders/$orderId",
   "/purchase-orders/$orderId/receive",
-  "/supplier-price-lists",
   "/supplier-price-lists/$listId",
+  "/suppliers",
+  "/suppliers/price-lists",
+  "/purchases",
+  "/freights",
 ]);
 
 beforeEach(resetPageState);
 
-function ordersServices(capabilities: Capability[]) {
+function railLink(screen: Awaited<ReturnType<typeof render>>) {
+  return screen.getByRole("navigation", { name: "Áreas" }).getByRole("link", { name: "Compras" });
+}
+
+function purchasingServices(capabilities: Capability[], { inPurchasingArea = true } = {}) {
+  const sessionCapabilities: Capability[] =
+    capabilities.length > 0 && inPurchasingArea
+      ? ["purchasing_area", ...capabilities]
+      : capabilities;
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(
       openSession({
         userId: "user-2",
         displayName: "Grace Villalba",
         isAdministrator: false,
-        capabilities,
+        capabilities: sessionCapabilities,
       }),
     ),
   });
@@ -70,60 +82,146 @@ function ordersServices(capabilities: Capability[]) {
   return services;
 }
 
-test("opens the supplier price lists from the rail's Pedidos item, listing only that section", async () => {
-  const services = ordersServices(["supplier_price_lists", "orders_area"]);
+test("opens Proveedores from the rail's Compras item, listing only that section", async () => {
+  const services = purchasingServices(["supplier_price_lists"]);
   window.history.pushState(null, "", "/help");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await userEvent.click(screen.getByRole("link", { name: "Pedidos" }));
+  await userEvent.click(railLink(screen));
 
   await expect
-    .element(screen.getByRole("heading", { name: "Listas de proveedores", level: 1 }))
+    .element(screen.getByRole("heading", { name: "Proveedores", level: 1 }))
     .toBeVisible();
-  expect(window.location.pathname).toBe("/supplier-price-lists");
+  expect(window.location.pathname).toBe("/suppliers/price-lists");
   const links = screen
-    .getByRole("navigation", { name: "Pedidos" })
+    .getByRole("navigation", { name: "Compras" })
     .getByRole("link")
     .elements()
     .map((link) => link.textContent);
-  expect(links).toEqual(["Listas de proveedores"]);
+  expect(links).toEqual(["Proveedores"]);
+  await expect.element(railLink(screen)).toHaveAttribute("aria-current", "page");
 });
 
-test("hides the Pedidos item in the rail for a user without the orders area", async () => {
-  const services = ordersServices(["stock_area", "stock_balances"]);
+test("hides the Compras item in the rail for a user without a purchasing permission", async () => {
+  const services = purchasingServices(["stock_area", "stock_balances"], {
+    inPurchasingArea: false,
+  });
   window.history.pushState(null, "", "/help");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
-  expect(screen.getByRole("link", { name: "Pedidos" }).query()).toBeNull();
+  expect(railLink(screen).query()).toBeNull();
 });
 
-test("shows the Pedidos item to an Administrator", async () => {
-  const services = ordersServices([]);
+test("shows the Compras item to an Administrator, with every section in order", async () => {
+  const services = purchasingServices([]);
   vi.mocked(services.fetchSession).mockResolvedValue(openSession());
-  window.history.pushState(null, "", "/help");
+  window.history.pushState(null, "", "/suppliers");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("link", { name: "Pedidos" })).toBeVisible();
+  await expect.element(railLink(screen)).toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "Proveedores", level: 1 }))
+    .toBeVisible();
+  const links = screen
+    .getByRole("navigation", { name: "Compras" })
+    .getByRole("link")
+    .elements()
+    .map((link) => link.textContent);
+  expect(links).toEqual([
+    "Proveedores",
+    "Pedidos de compra",
+    "Comparación de precios",
+    "Sugerencia de pedido",
+    "Compras",
+    "Flete",
+  ]);
 });
 
-test.each(["/supplier-price-lists", `/supplier-price-lists/${READ_LIST.id}`])(
-  "sends a user who may not open %s to Mi cuenta",
-  async (path) => {
-    const services = ordersServices(["orders_area", "stock_area"]);
-    window.history.pushState(null, "", path);
-
+test.each([
+  ["suppliers", ["Proveedores"]],
+  ["supplier_price_lists", ["Proveedores"]],
+  ["purchases", ["Compras"]],
+  ["freights", ["Flete"]],
+] as const)(
+  "lists only the sections %s allows in the section column",
+  async (capability, labels) => {
+    const services = purchasingServices([capability]);
+    window.history.pushState(null, "", "/help");
     const screen = await render(<App help={emptyHelp} services={services} />);
 
-    await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
+    await userEvent.click(railLink(screen));
+
+    await expect.element(screen.getByRole("navigation", { name: "Compras" })).toBeVisible();
+    const links = screen
+      .getByRole("navigation", { name: "Compras" })
+      .getByRole("link")
+      .elements()
+      .map((link) => link.textContent);
+    expect(links).toEqual(labels);
   },
 );
 
+test.each([
+  ["purchases", "/purchases"],
+  ["freights", "/freights"],
+] as const)(
+  "opens %s's section from the rail's Compras item when it is all the user may open",
+  async (capability, path) => {
+    const services = purchasingServices([capability]);
+    vi.mocked(services.purchasesListScreen.fetchPurchases).mockResolvedValue({
+      kind: "ok",
+      value: [],
+    });
+    vi.mocked(services.freightsListScreen.fetchFreights).mockResolvedValue({
+      kind: "ok",
+      value: { items: [], count: 0, totalCents: 0 },
+    });
+    window.history.pushState(null, "", "/help");
+    const screen = await render(<App help={emptyHelp} services={services} />);
+
+    await userEvent.click(railLink(screen));
+
+    await vi.waitFor(() => expect(window.location.pathname).toBe(path));
+  },
+);
+
+test.each([
+  ["/suppliers", "purchases"],
+  ["/suppliers/price-lists", "purchases"],
+  ["/purchases", "suppliers"],
+  ["/purchases/new", "suppliers"],
+  ["/freights", "suppliers"],
+  ["/supplier-price-lists", "purchases"],
+  [`/supplier-price-lists/${READ_LIST.id}`, "suppliers"],
+] as const)("sends a user who may not open %s to Mi cuenta", async (path, capability) => {
+  const services = purchasingServices([capability]);
+  window.history.pushState(null, "", path);
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
+});
+
+test("redirects the old supplier price lists address to the tab, keeping its search", async () => {
+  const services = purchasingServices(["supplier_price_lists"]);
+  window.history.pushState(null, "", "/supplier-price-lists?state=EXTRACTED&search=Andina");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect
+    .element(screen.getByRole("tab", { name: "Listas de precios", selected: true }))
+    .toBeVisible();
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/suppliers/price-lists?search=Andina&state=EXTRACTED");
+});
+
 test("opens a list's review from the list", async () => {
-  const services = ordersServices(["supplier_price_lists", "orders_area"]);
-  window.history.pushState(null, "", "/supplier-price-lists?state=EXTRACTED");
+  const services = purchasingServices(["supplier_price_lists"]);
+  window.history.pushState(null, "", "/suppliers/price-lists?state=EXTRACTED");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
   await userEvent.click(
@@ -139,56 +237,75 @@ test("opens a list's review from the list", async () => {
   );
 });
 
+test("goes back to Listas de precios once a list's review is finished", async () => {
+  const services = purchasingServices(["supplier_price_lists"]);
+  vi.mocked(services.supplierPriceListReviewScreen.fetchSupplierPriceListReview).mockResolvedValue({
+    kind: "ok",
+    value: { kind: "found", review: reviewOf(READ_LIST, EXTRACTED_ROWS, ONLY_DISCARD) },
+  });
+  vi.mocked(services.supplierPriceListReviewScreen.discardSupplierPriceList).mockResolvedValue({
+    kind: "ok",
+  });
+  window.history.pushState(null, "", `/supplier-price-lists/${READ_LIST.id}`);
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await userEvent.click(screen.getByRole("button", { name: "Descartar la lista" }));
+  await userEvent.click(
+    screen.getByRole("dialog").getByRole("button", { name: "Descartar la lista" }),
+  );
+
+  await expect
+    .element(screen.getByRole("tab", { name: "Listas de precios", selected: true }))
+    .toBeVisible();
+  expect(window.location.pathname).toBe("/suppliers/price-lists");
+});
+
 test("shows no open alerts count in the list's top bar", async () => {
-  const services = ordersServices([]);
+  const services = purchasingServices([]);
   vi.mocked(services.fetchSession).mockResolvedValue(openSession());
-  window.history.pushState(null, "", "/supplier-price-lists");
+  window.history.pushState(null, "", "/suppliers/price-lists");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect
-    .element(screen.getByRole("heading", { name: "Listas de proveedores", level: 1 }))
+    .element(screen.getByRole("heading", { name: "Proveedores", level: 1 }))
     .toBeVisible();
   expect(services.homeScreen.fetchAlertsOverview).not.toHaveBeenCalled();
   expect(screen.getByText(/alertas? abiertas?/).query()).toBeNull();
 });
 
 test("lists the price comparison beside the supplier price lists for whoever compares prices", async () => {
-  const services = ordersServices(["supplier_price_lists", "price_comparison", "orders_area"]);
-  window.history.pushState(null, "", "/supplier-price-lists");
+  const services = purchasingServices(["supplier_price_lists", "price_comparison"]);
+  window.history.pushState(null, "", "/suppliers/price-lists");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect
-    .element(screen.getByRole("heading", { name: "Listas de proveedores", level: 1 }))
+    .element(screen.getByRole("heading", { name: "Proveedores", level: 1 }))
     .toBeVisible();
   const links = screen
-    .getByRole("navigation", { name: "Pedidos" })
+    .getByRole("navigation", { name: "Compras" })
     .getByRole("link")
     .elements()
     .map((link) => link.textContent);
-  expect(links).toEqual([
-    "Listas de proveedores",
-    "Comparación de precios",
-    "Sugerencia de pedido",
-  ]);
+  expect(links).toEqual(["Proveedores", "Comparación de precios", "Sugerencia de pedido"]);
 });
 
 test("hides the price comparison from whoever may only manage the lists", async () => {
-  const services = ordersServices(["supplier_price_lists", "orders_area"]);
-  window.history.pushState(null, "", "/supplier-price-lists");
+  const services = purchasingServices(["supplier_price_lists"]);
+  window.history.pushState(null, "", "/suppliers/price-lists");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect
-    .element(screen.getByRole("heading", { name: "Listas de proveedores", level: 1 }))
+    .element(screen.getByRole("heading", { name: "Proveedores", level: 1 }))
     .toBeVisible();
   expect(screen.getByRole("link", { name: "Comparación de precios" }).query()).toBeNull();
 });
 
 test("opens the price comparison from its section, marking it as the section shown", async () => {
-  const services = ordersServices(["supplier_price_lists", "price_comparison", "orders_area"]);
-  window.history.pushState(null, "", "/supplier-price-lists");
+  const services = purchasingServices(["supplier_price_lists", "price_comparison"]);
+  window.history.pushState(null, "", "/suppliers/price-lists");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
   await userEvent.click(screen.getByRole("link", { name: "Comparación de precios" }));
@@ -201,7 +318,7 @@ test("opens the price comparison from its section, marking it as the section sho
 });
 
 test("sends a user who may not compare prices to Mi cuenta", async () => {
-  const services = ordersServices(["supplier_price_lists", "orders_area"]);
+  const services = purchasingServices(["supplier_price_lists"]);
   window.history.pushState(null, "", "/price-comparison");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -210,20 +327,20 @@ test("sends a user who may not compare prices to Mi cuenta", async () => {
 });
 
 test("hides the order suggestion from whoever may only manage the lists", async () => {
-  const services = ordersServices(["supplier_price_lists", "orders_area"]);
-  window.history.pushState(null, "", "/supplier-price-lists");
+  const services = purchasingServices(["supplier_price_lists"]);
+  window.history.pushState(null, "", "/suppliers/price-lists");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect
-    .element(screen.getByRole("heading", { name: "Listas de proveedores", level: 1 }))
+    .element(screen.getByRole("heading", { name: "Proveedores", level: 1 }))
     .toBeVisible();
   expect(screen.getByRole("link", { name: "Sugerencia de pedido" }).query()).toBeNull();
 });
 
 test("opens the order suggestion from its section, marking it as the section shown", async () => {
-  const services = ordersServices(["supplier_price_lists", "price_comparison", "orders_area"]);
-  window.history.pushState(null, "", "/supplier-price-lists");
+  const services = purchasingServices(["supplier_price_lists", "price_comparison"]);
+  window.history.pushState(null, "", "/suppliers/price-lists");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
   await userEvent.click(screen.getByRole("link", { name: "Sugerencia de pedido" }));
@@ -239,7 +356,7 @@ test("opens the order suggestion from its section, marking it as the section sho
 });
 
 test("sends a user who may not compare prices away from the order suggestion to Mi cuenta", async () => {
-  const services = ordersServices(["supplier_price_lists", "orders_area"]);
+  const services = purchasingServices(["supplier_price_lists"]);
   window.history.pushState(null, "", "/order-suggestion");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -248,29 +365,28 @@ test("sends a user who may not compare prices away from the order suggestion to 
 });
 
 test("lists the purchase orders beside the other sections for whoever manages them", async () => {
-  const services = ordersServices([
+  const services = purchasingServices([
     "supplier_price_lists",
     "purchase_orders",
     "purchase_order_reads",
-    "orders_area",
   ]);
-  window.history.pushState(null, "", "/supplier-price-lists");
+  window.history.pushState(null, "", "/suppliers/price-lists");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect
-    .element(screen.getByRole("heading", { name: "Listas de proveedores", level: 1 }))
+    .element(screen.getByRole("heading", { name: "Proveedores", level: 1 }))
     .toBeVisible();
   const links = screen
-    .getByRole("navigation", { name: "Pedidos" })
+    .getByRole("navigation", { name: "Compras" })
     .getByRole("link")
     .elements()
     .map((link) => link.textContent);
-  expect(links).toEqual(["Listas de proveedores", "Pedidos de compra"]);
+  expect(links).toEqual(["Proveedores", "Pedidos de compra"]);
 });
 
-test("opens the purchase orders from the rail's Pedidos item when it is all the user may open", async () => {
-  const services = ordersServices(["purchase_orders", "purchase_order_reads", "orders_area"]);
+test("opens the purchase orders from the rail's Compras item when it is all the user may open", async () => {
+  const services = purchasingServices(["purchase_orders", "purchase_order_reads"]);
   vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrders).mockResolvedValue({
     kind: "ok",
     value: [],
@@ -278,7 +394,7 @@ test("opens the purchase orders from the rail's Pedidos item when it is all the 
   window.history.pushState(null, "", "/help");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await userEvent.click(screen.getByRole("link", { name: "Pedidos", exact: true }));
+  await userEvent.click(railLink(screen));
 
   await expect
     .element(screen.getByRole("heading", { name: "Pedidos de compra", level: 1 }))
@@ -287,37 +403,34 @@ test("opens the purchase orders from the rail's Pedidos item when it is all the 
 });
 
 test.each([
-  ["supplier_price_lists", "/supplier-price-lists"],
+  ["suppliers", "/suppliers"],
+  ["supplier_price_lists", "/suppliers/price-lists"],
+  ["purchase_order_reads", "/purchase-orders"],
   ["price_comparison", "/price-comparison"],
-] as const)("opens %s first from the rail's Pedidos item", async (capability, path) => {
-  const services = ordersServices([
-    capability,
-    "purchase_orders",
-    "purchase_order_reads",
-    "orders_area",
-  ]);
+] as const)("opens %s first from the rail's Compras item", async (capability, path) => {
+  const services = purchasingServices([capability, "price_comparison", "purchases", "freights"]);
   window.history.pushState(null, "", "/help");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await userEvent.click(screen.getByRole("link", { name: "Pedidos", exact: true }));
+  await userEvent.click(railLink(screen));
 
   await vi.waitFor(() => expect(window.location.pathname).toBe(path));
 });
 
 test("hides the purchase orders from whoever may only manage the lists", async () => {
-  const services = ordersServices(["supplier_price_lists", "orders_area"]);
-  window.history.pushState(null, "", "/supplier-price-lists");
+  const services = purchasingServices(["supplier_price_lists"]);
+  window.history.pushState(null, "", "/suppliers/price-lists");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect
-    .element(screen.getByRole("heading", { name: "Listas de proveedores", level: 1 }))
+    .element(screen.getByRole("heading", { name: "Proveedores", level: 1 }))
     .toBeVisible();
   expect(screen.getByRole("link", { name: "Pedidos de compra" }).query()).toBeNull();
 });
 
 test("sends a user who may not read purchase orders away from them to Mi cuenta", async () => {
-  const services = ordersServices(["supplier_price_lists", "orders_area"]);
+  const services = purchasingServices(["supplier_price_lists"]);
   window.history.pushState(null, "", "/purchase-orders");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -326,7 +439,7 @@ test("sends a user who may not read purchase orders away from them to Mi cuenta"
 });
 
 test("sends a user who may not read purchase orders away from an order to Mi cuenta", async () => {
-  const services = ordersServices(["supplier_price_lists", "orders_area"]);
+  const services = purchasingServices(["supplier_price_lists"]);
   window.history.pushState(null, "", `/purchase-orders/${ORDER_ID}`);
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -338,7 +451,7 @@ test("sends a user who may not read purchase orders away from an order to Mi cue
 test.each(["/purchase-orders", `/purchase-orders/${ORDER_ID}`])(
   "sends a session granted managing but not reading purchase orders away from %s to Mi cuenta",
   async (path) => {
-    const services = ordersServices(["supplier_price_lists", "purchase_orders", "orders_area"]);
+    const services = purchasingServices(["supplier_price_lists", "purchase_orders"]);
     window.history.pushState(null, "", path);
 
     const screen = await render(<App help={emptyHelp} services={services} />);
@@ -350,7 +463,7 @@ test.each(["/purchase-orders", `/purchase-orders/${ORDER_ID}`])(
 );
 
 test("opens an order from the purchase orders, and goes back to them from it", async () => {
-  const services = ordersServices(["purchase_orders", "purchase_order_reads", "orders_area"]);
+  const services = purchasingServices(["purchase_orders", "purchase_order_reads"]);
   vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrders).mockResolvedValue({
     kind: "ok",
     value: [DRAFT_SUMMARY],
@@ -381,11 +494,10 @@ test("opens an order from the purchase orders, and goes back to them from it", a
 });
 
 test("goes to the purchase orders once they are built from the order suggestion", async () => {
-  const services = ordersServices([
+  const services = purchasingServices([
     "price_comparison",
     "purchase_orders",
     "purchase_order_reads",
-    "orders_area",
   ]);
   vi.mocked(services.orderSuggestionScreen.buildPurchaseOrders).mockResolvedValue({
     kind: "ok",
@@ -407,11 +519,7 @@ test("goes to the purchase orders once they are built from the order suggestion"
 });
 
 test("lists the purchase orders for whoever may only receive them", async () => {
-  const services = ordersServices([
-    "purchase_order_reads",
-    "purchase_order_receipts",
-    "orders_area",
-  ]);
+  const services = purchasingServices(["purchase_order_reads", "purchase_order_receipts"]);
   vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrders).mockResolvedValue({
     kind: "ok",
     value: [],
@@ -419,7 +527,7 @@ test("lists the purchase orders for whoever may only receive them", async () => 
   window.history.pushState(null, "", "/help");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await userEvent.click(screen.getByRole("link", { name: "Pedidos", exact: true }));
+  await userEvent.click(railLink(screen));
 
   await expect
     .element(screen.getByRole("heading", { name: "Pedidos de compra", level: 1 }))
@@ -429,7 +537,7 @@ test("lists the purchase orders for whoever may only receive them", async () => 
 });
 
 test("opens an order for whoever may read purchase orders", async () => {
-  const services = ordersServices(["purchase_order_reads", "orders_area"]);
+  const services = purchasingServices(["purchase_order_reads"]);
   vi.mocked(services.purchaseOrderScreen.fetchPurchaseOrder).mockResolvedValue({
     kind: "ok",
     value: { kind: "found", order: DRAFT_ORDER },
@@ -444,7 +552,7 @@ test("opens an order for whoever may read purchase orders", async () => {
 });
 
 test("sends a user who may not receive orders away from the receipt to Mi cuenta", async () => {
-  const services = ordersServices(["purchase_order_reads", "orders_area"]);
+  const services = purchasingServices(["purchase_order_reads"]);
   window.history.pushState(null, "", `/purchase-orders/${ORDER_ID}/receive`);
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -454,11 +562,10 @@ test("sends a user who may not receive orders away from the receipt to Mi cuenta
 });
 
 test("opens the receipt of a receivable order from the order, and goes back to the order from it", async () => {
-  const services = ordersServices([
+  const services = purchasingServices([
     "purchase_order_reads",
     "purchase_order_receipts",
     "purchase_choices",
-    "orders_area",
   ]);
   vi.mocked(services.purchaseOrderScreen.fetchPurchaseOrder).mockResolvedValue({
     kind: "ok",
@@ -490,3 +597,78 @@ test("opens the receipt of a receivable order from the order, and goes back to t
     .toBeVisible();
   expect(window.location.pathname).toBe(`/purchase-orders/${ORDER_ID}`);
 });
+
+test.each([
+  ["/purchase-orders", "purchase_order_reads", "Pedidos de compra"],
+  ["/purchases", "purchases", "Compras"],
+  ["/freights", "freights", "Fletes"],
+  ["/suppliers/price-lists", "supplier_price_lists", "Listas de proveedores"],
+] as const)(
+  "clears the supplier filter of %s from the address when its filter is pressed",
+  async (path, capability, tableName) => {
+    const services = purchasingServices([capability]);
+    vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrders).mockResolvedValue({
+      kind: "ok",
+      value: [],
+    });
+    vi.mocked(services.purchasesListScreen.fetchPurchases).mockResolvedValue({
+      kind: "ok",
+      value: [],
+    });
+    const supplier = READ_LIST.supplier;
+    vi.mocked(services.supplierPriceListsScreen.fetchSupplierPriceLists).mockResolvedValue({
+      kind: "ok",
+      value: [READ_LIST],
+    });
+    window.history.pushState(null, "", `${path}?supplier=${supplier.id}`);
+    const screen = await render(<App help={emptyHelp} services={services} />);
+    await expect.element(screen.getByRole("table", { name: tableName })).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: /^Proveedor/ }));
+
+    await expect.poll(() => window.location.pathname + window.location.search).toBe(path);
+  },
+);
+
+test.each([
+  ["/purchase-orders", "purchase_order_reads", "Pedidos de compra"],
+  ["/purchases", "purchases", "Compras"],
+  ["/freights", "freights", "Fletes"],
+  ["/suppliers/price-lists", "supplier_price_lists", "Listas de proveedores"],
+] as const)(
+  "drops a supplier that is not a supplier's id from the address of %s, without adding a history entry",
+  async (path, capability, tableName) => {
+    const services = purchasingServices([capability]);
+    window.history.pushState(null, "", "/help");
+    window.history.pushState(null, "", `${path}?supplier=andina`);
+    const historyLength = window.history.length;
+
+    const screen = await render(<App help={emptyHelp} services={services} />);
+
+    await expect.element(screen.getByRole("table", { name: tableName })).toBeVisible();
+    await expect.poll(() => window.location.pathname + window.location.search).toBe(path);
+    expect(window.history.length).toBe(historyLength);
+    expect(screen.getByRole("button", { name: /^Proveedor/ }).query()).toBeNull();
+  },
+);
+
+test.each([
+  ["/purchase-orders", "purchase_order_reads", "Pedidos de compra"],
+  ["/purchases", "purchases", "Compras"],
+  ["/freights", "freights", "Fletes"],
+  ["/suppliers/price-lists", "supplier_price_lists", "Listas de proveedores"],
+] as const)(
+  "writes the supplier of the address of %s in lowercase",
+  async (path, capability, tableName) => {
+    const services = purchasingServices([capability]);
+    const supplierId = READ_LIST.supplier.id;
+    window.history.pushState(null, "", `${path}?supplier=${supplierId.toUpperCase()}`);
+
+    const screen = await render(<App help={emptyHelp} services={services} />);
+
+    await expect.element(screen.getByRole("table", { name: tableName })).toBeVisible();
+    await expect
+      .poll(() => window.location.pathname + window.location.search)
+      .toBe(`${path}?supplier=${supplierId}`);
+  },
+);

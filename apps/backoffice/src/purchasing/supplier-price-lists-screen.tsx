@@ -19,10 +19,9 @@ import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatDisplayDate } from "../platform/display-date";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
-import { AreaTopBar } from "../shell/area-top-bar";
 import { type BackofficeAccess, canManageSuppliers } from "../shell/backoffice-access";
-import { ScreenLayout } from "../shell/screen-layout";
 import { useRefreshPurchasing, useSupplierPriceListsQuery } from "./purchasing-queries";
+import { type SupplierFilter, SupplierFilterButton } from "./purchasing-screen-parts";
 import { type ReadNotice, useReadNoticeContent } from "./supplier-price-list-read-notice";
 import { supplierPriceListOriginOf } from "./supplier-price-list-source";
 import { supplierPriceListStatusOf } from "./supplier-price-list-status";
@@ -38,6 +37,7 @@ export type SupplierPriceListsScreenProps = {
   onOpenReview: (listId: string) => void;
   onSessionEnded: () => void;
   services: SupplierPriceListsScreenServices;
+  supplierFilter?: SupplierFilter | undefined;
 };
 
 type StateFilter = SupplierPriceListsFilters["state"];
@@ -94,8 +94,10 @@ export function SupplierPriceListsScreen({
   onOpenReview,
   onSessionEnded,
   services,
+  supplierFilter,
 }: SupplierPriceListsScreenProps) {
   const data = useSupplierPriceListsQuery({
+    supplierId: supplierFilter?.supplierId,
     fetchSupplierPriceLists: services.fetchSupplierPriceLists,
     onSessionEnded,
   });
@@ -251,24 +253,7 @@ export function SupplierPriceListsScreen({
 
   return (
     <>
-      <ScreenLayout
-        topBar={
-          <AreaTopBar
-            eyebrow="Pedidos"
-            title="Listas de proveedores"
-            action={
-              <Button
-                variant="primary"
-                icon={<Upload />}
-                onPress={() => setUpload({ supplierId: null })}
-              >
-                Cargar una lista
-              </Button>
-            }
-          />
-        }
-        bodyClassName="gap-4 p-6"
-      >
+      <div className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-6">
         <div className="flex flex-wrap items-center gap-3">
           <div className="w-105">
             <SearchField
@@ -285,13 +270,29 @@ export function SupplierPriceListsScreen({
             value={stateFilter}
             onChange={setStateFilter}
           />
+          {supplierFilter === undefined ? null : (
+            <SupplierFilterButton
+              supplierFilter={supplierFilter}
+              services={services}
+              onSessionEnded={onSessionEnded}
+            />
+          )}
+          <div className="ml-auto">
+            <Button
+              variant="primary"
+              icon={<Upload />}
+              onPress={() => setUpload({ supplierId: null })}
+            >
+              Subir lista
+            </Button>
+          </div>
         </div>
         <Table
           aria-label="Listas de proveedores"
           table={table}
           {...cloudTableState(data, "las listas de proveedores")}
           empty={
-            lists.length === 0
+            lists.length === 0 && supplierFilter === undefined
               ? {
                   icon: <FileText />,
                   title: "Todavía no hay listas cargadas",
@@ -310,7 +311,7 @@ export function SupplierPriceListsScreen({
             )
           }
         />
-      </ScreenLayout>
+      </div>
       <UploadSupplierPriceListModal
         open={upload !== null}
         initialSupplierId={upload?.supplierId ?? null}

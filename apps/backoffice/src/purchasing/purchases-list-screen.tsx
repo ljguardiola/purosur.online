@@ -20,6 +20,7 @@ import {
   Plus,
   Replace,
   Scale,
+  SearchX,
   ShoppingCart,
   Trash2,
 } from "lucide-react";
@@ -52,6 +53,7 @@ import { PurchaseChangesModal } from "./purchase-changes-modal";
 import { costPaidOf, quantityOf, unitCostOf } from "./purchase-line-text";
 import type { PurchasesListScreenServices } from "./purchases-list-services";
 import { usePurchasesQuery, useRefreshPurchasing } from "./purchasing-queries";
+import { type SupplierFilter, SupplierFilterButton } from "./purchasing-screen-parts";
 import { receiptLabel } from "./receipt-label";
 import {
   type PurchaseLineRemovalTarget,
@@ -69,6 +71,7 @@ export type PurchasesListScreenProps = {
   onNoticeDismissed: () => void;
   onSessionEnded: () => void;
   services: PurchasesListScreenServices;
+  supplierFilter?: SupplierFilter | undefined;
 };
 
 type PurchaseLine = PurchaseSummary["lines"][number];
@@ -343,9 +346,14 @@ export function PurchasesListScreen({
   onNoticeDismissed,
   onSessionEnded,
   services,
+  supplierFilter,
 }: PurchasesListScreenProps) {
   const navigate = useNavigate();
-  const data = usePurchasesQuery({ fetchPurchases: services.fetchPurchases, onSessionEnded });
+  const data = usePurchasesQuery({
+    supplierId: supplierFilter?.supplierId,
+    fetchPurchases: services.fetchPurchases,
+    onSessionEnded,
+  });
   const purchases = data.status === "loaded" ? data.value : NO_PURCHASES;
   const refreshPurchasing = useRefreshPurchasing();
   const [changesTarget, setChangesTarget] = useState<PurchaseSummary | null>(null);
@@ -441,7 +449,7 @@ export function PurchasesListScreen({
       <ScreenLayout
         topBar={
           <AreaTopBar
-            eyebrow="Stock"
+            eyebrow="Compras"
             title="Compras"
             action={
               <Button
@@ -456,15 +464,33 @@ export function PurchasesListScreen({
         }
         bodyClassName="gap-4 p-6"
       >
+        {supplierFilter === undefined ? null : (
+          <div className="flex flex-wrap items-center gap-3">
+            <SupplierFilterButton
+              supplierFilter={supplierFilter}
+              services={services}
+              onSessionEnded={onSessionEnded}
+            />
+          </div>
+        )}
         <Table
           aria-label="Compras"
           table={table}
           {...cloudTableState(data, "las compras")}
-          empty={{
-            icon: <ShoppingCart />,
-            title: "Todavía no hay compras registradas",
-            variant: "blank",
-          }}
+          empty={
+            supplierFilter === undefined
+              ? {
+                  icon: <ShoppingCart />,
+                  title: "Todavía no hay compras registradas",
+                  variant: "blank",
+                }
+              : {
+                  icon: <SearchX />,
+                  title: "Sin resultados",
+                  description: "Probá con otro proveedor.",
+                  variant: "filtered",
+                }
+          }
         />
       </ScreenLayout>
       {data.status === "loaded" ? (

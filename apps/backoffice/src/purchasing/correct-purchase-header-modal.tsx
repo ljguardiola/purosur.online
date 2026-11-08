@@ -108,7 +108,7 @@ export function CorrectPurchaseHeaderModal({
       width="wide"
       tone="info"
       icon={<Pencil />}
-      context="Stock · Compra"
+      context="Compras · Compra"
       title={shown?.supplier.name ?? ""}
       closable={!submitting}
       footer={

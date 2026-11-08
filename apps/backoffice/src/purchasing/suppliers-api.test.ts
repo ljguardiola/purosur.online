@@ -4,6 +4,7 @@ import {
   createSupplier,
   deactivateSupplier,
   editSupplier,
+  fetchSupplierName,
   fetchSuppliers,
   reactivateSupplier,
 } from "./suppliers-api";
@@ -65,6 +66,45 @@ describe("fetchSuppliers", () => {
     vi.mocked(fetch).mockRejectedValue(new Error("network down"));
 
     expect(await fetchSuppliers()).toEqual({ kind: "failed" });
+  });
+});
+
+describe("fetchSupplierName", () => {
+  test("answers the name of the supplier on 200", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { name: andina.name }));
+
+    expect(await fetchSupplierName(andina.id)).toEqual({
+      kind: "ok",
+      value: { kind: "found", name: andina.name },
+    });
+    expect(fetch).toHaveBeenCalledWith(`/api/suppliers/${andina.id}/name`);
+  });
+
+  test("answers not_found on a 404", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(404, { code: "not_found" }));
+
+    expect(await fetchSupplierName(andina.id)).toEqual({
+      kind: "ok",
+      value: { kind: "not_found" },
+    });
+  });
+
+  test("returns failed when the name does not have the expected shape", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { name: 1 }));
+
+    expect(await fetchSupplierName(andina.id)).toEqual({ kind: "failed" });
+  });
+
+  test.each(refusals)("answers a %i as %j", async (status, outcome) => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
+
+    expect(await fetchSupplierName(andina.id)).toEqual(outcome);
+  });
+
+  test("returns failed when the request throws", async () => {
+    vi.mocked(fetch).mockRejectedValue(new TypeError("network"));
+
+    expect(await fetchSupplierName(andina.id)).toEqual({ kind: "failed" });
   });
 });
 

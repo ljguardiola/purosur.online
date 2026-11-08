@@ -24,9 +24,9 @@ const CAPABILITIES_GRANTED_BY: readonly [PermissionKey, readonly Capability[]][]
   ["revoke_register_devices", ["registers_area", "revoke_installations"]],
   ["view_bitlocker_key", ["registers_area", "bitlocker_recovery_key"]],
   ["release_quarantined_events", ["quarantined_events"]],
-  ["manage_suppliers", ["suppliers", "stock_area", "stock_products"]],
-  ["record_purchases", ["purchases", "purchase_choices", "stock_area", "stock_products"]],
-  ["manage_freight", ["freights", "stock_area", "stock_products"]],
+  ["manage_suppliers", ["suppliers", "purchasing_area", "stock_products"]],
+  ["record_purchases", ["purchases", "purchase_choices", "purchasing_area", "stock_products"]],
+  ["manage_freight", ["freights", "purchasing_area", "stock_products"]],
   ["manage_recipes", ["recipes", "stock_products", "catalog_area"]],
   ["manage_batches", ["batches", "stock_products", "catalog_area"]],
   ["view_stock_balances", ["stock_balances", "stock_area", "stock_products"]],
@@ -35,15 +35,15 @@ const CAPABILITIES_GRANTED_BY: readonly [PermissionKey, readonly Capability[]][]
   ["record_stock_losses", ["stock_losses", "stock_movements", "stock_area", "stock_products"]],
   ["adjust_stock", ["stock_adjustments", "stock_movements", "stock_area", "stock_products"]],
   ["manage_expiration_dates", ["stock_expiries", "stock_area", "stock_products"]],
-  ["manage_supplier_price_lists", ["orders_area", "supplier_price_lists"]],
-  ["compare_prices_and_suggest_orders", ["orders_area", "price_comparison"]],
+  ["manage_supplier_price_lists", ["purchasing_area", "supplier_price_lists"]],
+  ["compare_prices_and_suggest_orders", ["purchasing_area", "price_comparison"]],
   [
     "manage_purchase_orders",
-    ["orders_area", "purchase_orders", "purchase_order_reads", "purchase_choices"],
+    ["purchasing_area", "purchase_orders", "purchase_order_reads", "purchase_choices"],
   ],
   [
     "receive_purchase_orders",
-    ["orders_area", "purchase_order_reads", "purchase_order_receipts", "purchase_choices"],
+    ["purchasing_area", "purchase_order_reads", "purchase_order_receipts", "purchase_choices"],
   ],
   ["view_reports", ["reports_area", "report_registers"]],
   ["view_returns_report", ["returns_report", "report_registers"]],
@@ -416,7 +416,7 @@ describe("the stock and purchasing screens' capabilities", () => {
 });
 
 describe("the supplier price lists capabilities", () => {
-  it.each(["supplier_price_lists", "orders_area"] as const)(
+  it.each(["supplier_price_lists", "purchasing_area"] as const)(
     "%s is granted by loading and reviewing supplier price lists alone",
     (capability) => {
       expect(

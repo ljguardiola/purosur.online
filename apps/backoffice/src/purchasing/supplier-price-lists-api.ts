@@ -2,6 +2,7 @@ import {
   type SupplierPriceListAiCostBody,
   type SupplierPriceListConfirmationBody,
   type SupplierPriceListDiscardBody,
+  type SupplierPriceListListQuery,
   type SupplierPriceListPageRefused,
   type SupplierPriceListReview,
   type SupplierPriceListRowLinkBody,
@@ -142,8 +143,14 @@ async function validationFailed(
   return field === undefined ? { kind: "failed" } : { kind: "validation_failed", field };
 }
 
-export function fetchSupplierPriceLists(): Promise<FetchSupplierPriceListsOutcome> {
-  return readCloudJson("/api/supplier-price-lists", supplierPriceListListSchema);
+export function fetchSupplierPriceLists({
+  supplierId,
+}: SupplierPriceListListQuery = {}): Promise<FetchSupplierPriceListsOutcome> {
+  const path =
+    supplierId === undefined
+      ? "/api/supplier-price-lists"
+      : `/api/supplier-price-lists?${new URLSearchParams({ supplierId }).toString()}`;
+  return readCloudJson(path, supplierPriceListListSchema);
 }
 
 export function fetchSupplierPriceListAiCost(

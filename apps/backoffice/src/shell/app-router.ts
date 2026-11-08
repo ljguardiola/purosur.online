@@ -51,6 +51,7 @@ import {
   aiCostReportRoute,
   freightReportRoute,
   freightsListRoute,
+  legacySupplierPriceListsRoute,
   newPurchaseRoute,
   orderSuggestionRoute,
   pendingPurchaseOrdersReportRoute,
@@ -64,6 +65,7 @@ import {
   supplierPriceListReviewRoute,
   supplierPriceListsRoute,
   suppliersListRoute,
+  suppliersRoute,
 } from "../purchasing/routes";
 import {
   cashMovementsRoute,
@@ -113,11 +115,11 @@ import { fiscalAreaRoute } from "./fiscal-area";
 import { helpAreaRoute } from "./help-area";
 import { homeAreaRoute } from "./home-area";
 import { ScreenDownloadFailure } from "./lazy-screen";
-import { ordersAreaRoute } from "./orders-area";
 import { peopleLandingRoute, peopleRoute } from "./people-route";
 import { productsAreaRoute } from "./products-area";
 import { productsRoute } from "./products-route";
 import { publicRoute } from "./public-route";
+import { purchasingAreaRoute } from "./purchasing-area";
 import { refundsRoute } from "./refunds-route";
 import { reportsAreaRoute } from "./reports-area";
 import { type RouterContext, rootRoute } from "./root-route";
@@ -154,13 +156,12 @@ const routeTree = rootRoute.addChildren([
     ]),
     stockAreaRoute.addChildren([
       stockRoute.addChildren([stockBalancesRoute, expiringLotsRoute, stockMovementsRoute]),
-      suppliersListRoute,
+    ]),
+    purchasingAreaRoute.addChildren([
+      suppliersRoute.addChildren([suppliersListRoute, supplierPriceListsRoute]),
       purchasesListRoute,
       newPurchaseRoute,
       freightsListRoute,
-    ]),
-    ordersAreaRoute.addChildren([
-      supplierPriceListsRoute,
       supplierPriceListReviewRoute,
       supplierPriceComparisonRoute,
       orderSuggestionRoute,
@@ -223,6 +224,7 @@ const routeTree = rootRoute.addChildren([
     legacyStockCountsRoute,
     legacyStockMovementsRoute,
     legacyInitialInventoryRoute,
+    legacySupplierPriceListsRoute,
     legacyFiscalTasksRoute,
     legacyFiscalDocumentsRoute,
     legacyExceptionalityRoute,

@@ -4,7 +4,7 @@ import { useDocumentTitle } from "../shell/document-title";
 import { OrderSuggestionScreen } from "./order-suggestion-screen";
 import { defaultOrderSuggestionScreenServices } from "./order-suggestion-services";
 
-const route = getRouteApi("/signed-in/orders-area/order-suggestion");
+const route = getRouteApi("/signed-in/purchasing-area/order-suggestion");
 
 export function OrderSuggestionPage(): ReactElement {
   const { services, session, sessionActions } = route.useRouteContext();

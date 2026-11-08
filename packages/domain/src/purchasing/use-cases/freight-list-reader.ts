@@ -21,6 +21,7 @@ export interface FreightListQuery {
   locationId: string;
   from: string;
   search?: string;
+  supplierId?: string;
 }
 
 export interface LinkablePurchaseListing extends FreightPurchaseListing {
@@ -32,7 +33,8 @@ export interface LinkablePurchaseListing extends FreightPurchaseListing {
 
 export interface FreightListReader {
   // The branch's freights dated within the period, newest first, whose description, carrier or
-  // supplier names contain the search text when there is one.
+  // supplier names contain the search text when there is one, and, when a supplier is asked for,
+  // that cover a purchase of it.
   freights(query: FreightListQuery): Promise<FreightListing[]>;
   purchasesSince(locationId: string, since: string): Promise<LinkablePurchaseListing[]>;
   purchasesLinkedTo(locationId: string, freightId: string): Promise<LinkablePurchaseListing[]>;

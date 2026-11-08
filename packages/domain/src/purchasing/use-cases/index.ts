@@ -81,6 +81,8 @@ export type {
 export { editPurchaseOrder } from "./edit-purchase-order.js";
 export type { EditSupplierInput, EditSupplierOutcome } from "./edit-supplier.js";
 export { editSupplier } from "./edit-supplier.js";
+export type { FindSupplierNameOutcome } from "./find-supplier-name.js";
+export { findSupplierName } from "./find-supplier-name.js";
 export type {
   FindSupplierPriceListAiCostInput,
   FindSupplierPriceListAiCostOutcome,

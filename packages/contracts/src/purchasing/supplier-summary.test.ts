@@ -1,6 +1,10 @@
 import { FICTIONAL_CUIT } from "@purosur/domain/fiscal/test-support";
 import { describe, expect, it } from "vitest";
-import { supplierListSchema, supplierSummarySchema } from "./supplier-summary.js";
+import {
+  supplierListSchema,
+  supplierNameSchema,
+  supplierSummarySchema,
+} from "./supplier-summary.js";
 
 const norte = {
   id: "s-1",
@@ -61,5 +65,16 @@ describe("supplierListSchema", () => {
 
   it.each([undefined, null, {}, "suppliers", norte])("refuses %j as a list", (body) => {
     expect(supplierListSchema.safeParse(body).success).toBe(false);
+  });
+});
+
+describe("supplierNameSchema", () => {
+  it("accepts a supplier's name and strips keys it does not define", () => {
+    expect(supplierNameSchema.parse({ name: "Norte", id: "s-1" })).toEqual({ name: "Norte" });
+  });
+
+  it("refuses a body without a name", () => {
+    expect(supplierNameSchema.safeParse({}).success).toBe(false);
+    expect(supplierNameSchema.safeParse({ name: 1 }).success).toBe(false);
   });
 });

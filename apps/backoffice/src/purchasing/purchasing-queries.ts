@@ -75,12 +75,13 @@ import type {
   fetchSupplierPriceLists,
   SupplierPriceListReviewRead,
 } from "./supplier-price-lists-api";
-import type { fetchSuppliers } from "./suppliers-api";
+import type { fetchSupplierName, fetchSuppliers, SupplierNameRead } from "./suppliers-api";
 
 export const purchasingKey = ["purchasing"] as const;
 
 export const purchasingKeys = {
   suppliers: [...purchasingKey, "suppliers"] as const,
+  supplierName: [...purchasingKey, "supplier-name"] as const,
   purchases: [...purchasingKey, "purchases"] as const,
   purchaseChoices: [...purchasingKey, "purchase-choices"] as const,
   purchaseChanges: [...purchasingKey, "purchase-changes"] as const,
@@ -171,6 +172,19 @@ export function useSuppliersQuery(params: {
   });
 }
 
+export function useSupplierNameQuery(params: {
+  supplierId: string;
+  fetchSupplierName: typeof fetchSupplierName;
+  onSessionEnded: () => void;
+}) {
+  const { supplierId, fetchSupplierName: read } = params;
+  return useCloudQuery<SupplierNameRead>({
+    queryKey: [...purchasingKeys.supplierName, supplierId],
+    read: () => read(supplierId),
+    onSessionEnded: params.onSessionEnded,
+  });
+}
+
 export function usePurchasesReportQuery(params: {
   query: PurchasesBySupplierQuery;
   fetchPurchasesReport: typeof fetchPurchasesReport;
@@ -247,13 +261,14 @@ export function useAiCostReportQuery(params: {
 }
 
 export function usePurchasesQuery(params: {
+  supplierId?: string | undefined;
   fetchPurchases: typeof fetchPurchases;
   onSessionEnded: () => void;
 }) {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQuery<PurchaseSummary[]>({
-    queryKey: purchasingKeys.purchases,
-    read: params.fetchPurchases,
+    queryKey: [...purchasingKeys.purchases, params.supplierId ?? ""],
+    read: () => params.fetchPurchases({ supplierId: params.supplierId }),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });
@@ -322,14 +337,15 @@ export function useLinkablePurchasesQuery(params: {
 }
 
 export function useSupplierPriceListsQuery(params: {
+  supplierId?: string | undefined;
   fetchSupplierPriceLists: typeof fetchSupplierPriceLists;
   onSessionEnded: () => void;
 }) {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQueryWhileReading<SupplierPriceListSummary[]>(
     {
-      queryKey: purchasingKeys.supplierPriceLists,
-      read: params.fetchSupplierPriceLists,
+      queryKey: [...purchasingKeys.supplierPriceLists, params.supplierId ?? ""],
+      read: () => params.fetchSupplierPriceLists({ supplierId: params.supplierId }),
       onSessionEnded: params.onSessionEnded,
       onForbidden: sendToMyAccount,
     },
@@ -702,14 +718,18 @@ export function useReloadSupplier(params: {
 
 export function usePurchaseOrdersQuery(params: {
   state: PurchaseOrderStateFilter;
+  supplierId?: string | undefined;
   fetchPurchaseOrders: typeof fetchPurchaseOrders;
   onSessionEnded: () => void;
 }) {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQuery<PurchaseOrderSummary[]>({
-    queryKey: [...purchasingKeys.purchaseOrders, params.state],
+    queryKey: [...purchasingKeys.purchaseOrders, params.state, params.supplierId ?? ""],
     keepPreviousData: true,
-    read: () => params.fetchPurchaseOrders(params.state),
+    read: () =>
+      params.supplierId === undefined
+        ? params.fetchPurchaseOrders(params.state)
+        : params.fetchPurchaseOrders(params.state, { supplierId: params.supplierId }),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });

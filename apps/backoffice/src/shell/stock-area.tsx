@@ -1,12 +1,7 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { Boxes, Container, ShoppingCart, Truck } from "lucide-react";
+import { Boxes } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
-import {
-  canManageFreights,
-  canManageSuppliers,
-  canRecordPurchases,
-  canSeeStockPage,
-} from "./backoffice-access";
+import { canSeeStockPage } from "./backoffice-access";
 import { signedInRoute } from "./signed-in-route";
 
 export const stockAreaRoute = createRoute({
@@ -20,9 +15,6 @@ function StockArea() {
   const matchRoute = useMatchRoute();
   const stockShown = Boolean(matchRoute({ to: "/stock" }));
   const stockActive = Boolean(matchRoute({ to: "/stock", fuzzy: true }));
-  const suppliersShown = Boolean(matchRoute({ to: "/suppliers" }));
-  const purchasesShown = Boolean(matchRoute({ to: "/purchases", fuzzy: true }));
-  const freightsShown = Boolean(matchRoute({ to: "/freights" }));
   return (
     <AreaLayout
       area="stock"
@@ -40,39 +32,6 @@ function StockArea() {
                   icon={<Boxes />}
                   search={stockShown ? true : {}}
                   active={stockActive}
-                />
-              </li>
-            )}
-            {canManageSuppliers(session) && (
-              <li>
-                <SectionLink
-                  to="/suppliers"
-                  label="Proveedores"
-                  icon={<Truck />}
-                  search={suppliersShown ? true : {}}
-                  active={suppliersShown}
-                />
-              </li>
-            )}
-            {canRecordPurchases(session) && (
-              <li>
-                <SectionLink
-                  to="/purchases"
-                  label="Compras"
-                  icon={<ShoppingCart />}
-                  search={purchasesShown ? true : {}}
-                  active={purchasesShown}
-                />
-              </li>
-            )}
-            {canManageFreights(session) && (
-              <li>
-                <SectionLink
-                  to="/freights"
-                  label="Flete"
-                  icon={<Container />}
-                  search={freightsShown ? true : {}}
-                  active={freightsShown}
                 />
               </li>
             )}

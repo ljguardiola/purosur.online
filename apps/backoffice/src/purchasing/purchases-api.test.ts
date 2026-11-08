@@ -47,6 +47,16 @@ describe("fetchPurchases", () => {
     expect(fetch).toHaveBeenCalledWith("/api/purchases");
   });
 
+  test("asks the cloud for the purchases of one supplier", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [compraDeMiel]));
+
+    await fetchPurchases({ supplierId: "5a900000-0000-4000-8000-000000000001" });
+
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/purchases?supplierId=5a900000-0000-4000-8000-000000000001",
+    );
+  });
+
   test("returns failed when the list does not have the expected shape", async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(200, [{ id: "x" }]));
 

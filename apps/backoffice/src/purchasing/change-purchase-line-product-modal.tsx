@@ -156,7 +156,7 @@ export function ChangePurchaseLineProductModal({
       width="wide"
       tone="info"
       icon={<Replace />}
-      context="Stock · Compra"
+      context="Compras · Compra"
       title={shown ? formatProductDescription(shown.line.product) : ""}
       closable={!submitting}
       footer={

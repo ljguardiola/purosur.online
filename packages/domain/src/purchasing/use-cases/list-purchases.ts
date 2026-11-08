@@ -48,8 +48,9 @@ async function listedPurchases(
 export async function listPurchases(
   ports: PurchaseListingPorts,
   locationId: string,
+  supplierId?: string,
 ): Promise<ListedPurchase[]> {
-  return listedPurchases(ports, locationId, await ports.reader.purchases(locationId));
+  return listedPurchases(ports, locationId, await ports.reader.purchases(locationId, supplierId));
 }
 
 export async function findPurchaseListing(

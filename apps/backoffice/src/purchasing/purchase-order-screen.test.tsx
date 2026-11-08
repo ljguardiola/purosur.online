@@ -41,7 +41,7 @@ async function save(screen: Screen) {
 test("shows the supplier, the creation date, the state and the expected total of the order", async () => {
   const screen = await loaded(createServices());
 
-  await expect.element(screen.getByText("Pedidos", { exact: true }).first()).toBeVisible();
+  await expect.element(screen.getByText("Compras", { exact: true }).first()).toBeVisible();
   await expect.element(screen.getByText("Distribuidora Andina").last()).toBeVisible();
   await expect.element(screen.getByText("10/03/2026")).toBeVisible();
   await expect.element(screen.getByText("Borrador")).toBeVisible();

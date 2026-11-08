@@ -60,10 +60,10 @@ const extracted = reviewOf(READ_LIST, EXTRACTED_ROWS, EVERY_REVIEW_ACTION, true,
   linkedAutomatically: 12,
 });
 
-test("shows the supplier's name in the title, under Pedidos · Listas de proveedores", async () => {
+test("shows the supplier's name in the title, under Compras · Listas de precios", async () => {
   const screen = await loaded(createServices(), extracted);
 
-  await expect.element(screen.getByText("Pedidos · Listas de proveedores")).toBeVisible();
+  await expect.element(screen.getByText("Compras · Listas de precios")).toBeVisible();
   await expect
     .element(screen.getByRole("heading", { name: "Lista de Distribuidora Andina", level: 1 }))
     .toBeVisible();
@@ -638,7 +638,7 @@ test("opens the link modal for the item, with the proposal and the choices read 
   );
 
   const dialog = screen.getByRole("dialog");
-  await expect.element(dialog.getByText("Pedidos · Vincular un ítem")).toBeVisible();
+  await expect.element(dialog.getByText("Compras · Vincular un ítem")).toBeVisible();
   await expect.element(dialog.getByText("Nuez mariposa extra light x 10 kg")).toBeVisible();
   expect(services.fetchSupplierItemLinkProposal).toHaveBeenCalledWith(
     LIST_ID,
@@ -999,7 +999,7 @@ test("moves from the link modal to the create product modal for the same item", 
   await expect
     .element(dialog.getByRole("textbox", { name: /^Nombre/ }))
     .toHaveValue("Nuez mariposa extra light x 10 kg");
-  expect(screen.getByText("Pedidos · Vincular un ítem").query()).toBeNull();
+  expect(screen.getByText("Compras · Vincular un ítem").query()).toBeNull();
 });
 
 test("offers the way to create a product from the link modal to a session that may only review supplier price lists", async () => {

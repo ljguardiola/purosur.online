@@ -115,7 +115,7 @@ export function CorrectPurchaseLineCostModal({
       width="wide"
       tone="info"
       icon={<BadgeDollarSign />}
-      context="Stock · Compra"
+      context="Compras · Compra"
       title={shown ? formatProductDescription(shown.line.product) : ""}
       closable={!submitting}
       footer={

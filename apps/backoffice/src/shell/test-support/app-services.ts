@@ -168,6 +168,13 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       editSupplier: vi.fn(),
       deactivateSupplier: vi.fn(),
       reactivateSupplier: vi.fn(),
+      fetchSupplierPriceLists: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
+      fetchPurchaseOrders: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
+      fetchPurchases: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
+      fetchFreights: vi.fn().mockResolvedValue({
+        kind: "ok",
+        value: { items: [], count: 0, totalCents: 0 },
+      }),
     },
     recipesListScreen: {
       fetchRecipes: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -196,6 +203,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     },
     purchasesListScreen: {
       fetchPurchases: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchSupplierName: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchPurchaseChoices: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchPurchaseChanges: vi.fn().mockReturnValue(new Promise(() => {})),
       addPurchaseLines: vi.fn(),
@@ -217,9 +225,11 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
         .mockResolvedValue({ kind: "ok", value: { purchases: [], today: "2026-09-16" } }),
       recordFreight: vi.fn(),
       editFreight: vi.fn(),
+      fetchSupplierName: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     supplierPriceListsScreen: {
       fetchSupplierPriceLists: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchSupplierName: vi.fn().mockReturnValue(new Promise(() => {})),
       uploadSupplierPriceList: vi.fn(),
       loadSupplierPriceListWebPage: vi.fn(),
       refreshSupplierPriceList: vi.fn(),
@@ -255,6 +265,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     },
     purchaseOrdersScreen: {
       fetchPurchaseOrders: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchSupplierName: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     purchaseOrderScreen: {
       fetchPurchaseOrder: vi.fn().mockReturnValue(new Promise(() => {})),

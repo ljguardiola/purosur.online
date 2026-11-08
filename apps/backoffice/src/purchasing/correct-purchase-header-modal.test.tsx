@@ -80,7 +80,7 @@ test("shows the supplier as the title, with the purchase's date, receipt and not
   const screen = await renderModal({ target: { ...compraDeMiel, note: "Llegó tarde" } });
   const dialog = await readyDialog(screen);
 
-  await expect.element(dialog.getByText("Stock · Compra")).toBeVisible();
+  await expect.element(dialog.getByText("Compras · Compra")).toBeVisible();
   await expect.element(dialog.getByRole("heading", { name: "Distribuidora Andina" })).toBeVisible();
   await expect
     .poll(() =>

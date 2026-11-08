@@ -117,6 +117,55 @@ describe("GET /suppliers", () => {
   });
 });
 
+describe("GET /suppliers/:id/name", () => {
+  it.each([
+    "manage_suppliers",
+    "manage_supplier_price_lists",
+    "manage_purchase_orders",
+    "receive_purchase_orders",
+    "record_purchases",
+    "manage_freight",
+  ] as const)("answers the supplier's name to a user who may %s", async (permission) => {
+    const { headers, userId } = await signedInWith(db, [permission], NOW);
+    const { id } = await storedSupplier(userId, { name: "Alfa", active: false });
+
+    const response = await app.inject({ method: "GET", url: `/suppliers/${id}/name`, headers });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ name: "Alfa" });
+  });
+
+  it("returns 403 to a user who may see none of a supplier's records", async () => {
+    const { headers, userId } = await signedInWith(db, ["sell_and_charge"], NOW);
+    const { id } = await storedSupplier(userId);
+
+    const response = await app.inject({ method: "GET", url: `/suppliers/${id}/name`, headers });
+
+    expect(response.statusCode).toBe(403);
+  });
+
+  it("answers 404 for a supplier that does not exist", async () => {
+    const { headers } = await manager();
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/suppliers/${MISSING_ID}/name`,
+      headers,
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({ code: "not_found" });
+  });
+
+  it("answers 400 for an id that is not a record id", async () => {
+    const { headers } = await manager();
+
+    const response = await app.inject({ method: "GET", url: "/suppliers/andina/name", headers });
+
+    expect(response.statusCode).toBe(400);
+  });
+});
+
 describe("POST /suppliers", () => {
   it("returns 403 to a user without the suppliers permission, creating nothing", async () => {
     const { headers } = await signedInWith(db, ["record_purchases"], NOW);

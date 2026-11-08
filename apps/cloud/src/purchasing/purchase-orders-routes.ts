@@ -169,6 +169,7 @@ export function registerPurchaseOrdersRoutes<TQueryResult extends PgQueryResultH
     const orders = await listPurchaseOrders(reader, {
       locationId: openSessionOf(request).locationId,
       ...(query.state === undefined ? {} : { state: query.state }),
+      ...(query.supplierId === undefined ? {} : { supplierId: query.supplierId }),
     });
     await reply
       .code(200)

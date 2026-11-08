@@ -84,7 +84,7 @@ export function PurchaseOrderReceiveScreen({
       <PurchaseRegistrationForm
         access={access}
         productCreationModal={productCreationModal}
-        eyebrow="Pedidos"
+        eyebrow="Compras"
         title={`Recibir pedido a ${draft.supplier.name}`}
         submitLabel="Registrar la recepción"
         failureTitle="No se registró la recepción"
@@ -119,7 +119,7 @@ export function PurchaseOrderReceiveScreen({
     <ScreenLayout
       topBar={
         <AreaTopBar
-          eyebrow="Pedidos"
+          eyebrow="Compras"
           title="Recibir pedido"
           action={
             <Button variant="text" icon={<ArrowLeft />} onPress={backToOrder}>

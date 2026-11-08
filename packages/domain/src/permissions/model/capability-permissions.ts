@@ -43,9 +43,6 @@ export const CAPABILITY_PERMISSIONS = {
     "record_initial_inventory",
     "record_stock_losses",
     "adjust_stock",
-    "manage_suppliers",
-    "record_purchases",
-    "manage_freight",
     "manage_expiration_dates",
   ],
   stock_products: [
@@ -67,11 +64,14 @@ export const CAPABILITY_PERMISSIONS = {
   freights: ["manage_freight"],
   recipes: ["manage_recipes"],
   batches: ["manage_batches"],
-  orders_area: [
+  purchasing_area: [
+    "manage_suppliers",
     "manage_supplier_price_lists",
     "compare_prices_and_suggest_orders",
     "manage_purchase_orders",
     "receive_purchase_orders",
+    "record_purchases",
+    "manage_freight",
   ],
   supplier_price_lists: ["manage_supplier_price_lists"],
   price_comparison: ["compare_prices_and_suggest_orders"],

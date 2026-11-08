@@ -64,6 +64,20 @@ describe("fetchFreights", () => {
     expect(fetch).toHaveBeenCalledWith("/api/freights?period=30&search=expreso+sur");
   });
 
+  test("asks for the freights of one supplier", async () => {
+    vi.mocked(fetch).mockResolvedValue(jsonResponse(200, freights));
+
+    await fetchFreights({
+      period: 90,
+      search: "",
+      supplierId: "5a900000-0000-4000-8000-000000000001",
+    });
+
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/freights?period=90&supplierId=5a900000-0000-4000-8000-000000000001",
+    );
+  });
+
   test("returns failed when the list does not have the expected shape", async () => {
     vi.mocked(fetch).mockResolvedValue(jsonResponse(200, { items: [{ id: "x" }] }));
 

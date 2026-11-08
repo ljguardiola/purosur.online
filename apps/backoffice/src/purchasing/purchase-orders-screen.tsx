@@ -20,7 +20,11 @@ import { purchaseOrderStatusOf } from "./purchase-order-status";
 import type { PurchaseOrdersFilters } from "./purchase-orders-filters";
 import type { PurchaseOrdersScreenServices } from "./purchase-orders-services";
 import { usePurchaseOrdersQuery } from "./purchasing-queries";
-import { ExpectedTotalAmount } from "./purchasing-screen-parts";
+import {
+  ExpectedTotalAmount,
+  type SupplierFilter,
+  SupplierFilterButton,
+} from "./purchasing-screen-parts";
 
 export type PurchaseOrdersScreenProps = {
   filters: PurchaseOrdersFilters;
@@ -28,6 +32,7 @@ export type PurchaseOrdersScreenProps = {
   onOpenOrder: (orderId: string) => void;
   onSessionEnded: () => void;
   services: PurchaseOrdersScreenServices;
+  supplierFilter?: SupplierFilter | undefined;
 };
 
 type StateFilter = PurchaseOrdersFilters["state"];
@@ -49,10 +54,12 @@ export function PurchaseOrdersScreen({
   onOpenOrder,
   onSessionEnded,
   services,
+  supplierFilter,
 }: PurchaseOrdersScreenProps) {
   const [stateFilter, setStateFilter] = useState<StateFilter>(filters.state);
   const data = usePurchaseOrdersQuery({
     state: stateFilter,
+    supplierId: supplierFilter?.supplierId,
     fetchPurchaseOrders: services.fetchPurchaseOrders,
     onSessionEnded,
   });
@@ -125,7 +132,7 @@ export function PurchaseOrdersScreen({
 
   return (
     <ScreenLayout
-      topBar={<AreaTopBar eyebrow="Pedidos" title="Pedidos de compra" />}
+      topBar={<AreaTopBar eyebrow="Compras" title="Pedidos de compra" />}
       bodyClassName="gap-4 p-6"
     >
       <div className="flex flex-wrap items-center gap-3">
@@ -136,13 +143,20 @@ export function PurchaseOrdersScreen({
           value={stateFilter}
           onChange={setStateFilter}
         />
+        {supplierFilter === undefined ? null : (
+          <SupplierFilterButton
+            supplierFilter={supplierFilter}
+            services={services}
+            onSessionEnded={onSessionEnded}
+          />
+        )}
       </div>
       <Table
         aria-label="Pedidos de compra"
         table={table}
         {...cloudTableState(data, "los pedidos")}
         empty={
-          stateFilter === "ALL"
+          stateFilter === "ALL" && supplierFilter === undefined
             ? {
                 icon: <ClipboardList />,
                 title: "Todavía no hay pedidos",
@@ -151,7 +165,10 @@ export function PurchaseOrdersScreen({
             : {
                 icon: <Search />,
                 title: "Sin resultados",
-                description: "Probá con otro estado.",
+                description:
+                  supplierFilter === undefined
+                    ? "Probá con otro estado."
+                    : "Probá con otro estado o proveedor.",
                 variant: "filtered",
               }
         }
