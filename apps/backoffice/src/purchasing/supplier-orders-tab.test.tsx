@@ -41,7 +41,7 @@ test("lists the supplier's orders with their date, total and state", async () =>
 
   const table = screen.getByRole("table", { name: "Pedidos del proveedor" });
   await expect.element(table).toBeVisible();
-  expect(table.getByRole("row").elements()).toHaveLength(3);
+  await expect.poll(() => table.getByRole("row").elements()).toHaveLength(3);
   await expect.element(table.getByText("10/03/2026")).toBeVisible();
   await expect.element(table.getByText("Enviado")).toBeVisible();
   await expect.element(table.getByText("Cancelado")).toBeVisible();

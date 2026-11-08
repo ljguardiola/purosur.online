@@ -41,7 +41,7 @@ test("lists the supplier's price lists with their file, date and state", async (
 
   const table = screen.getByRole("table", { name: "Listas de precios del proveedor" });
   await expect.element(table).toBeVisible();
-  expect(table.getByRole("row").elements()).toHaveLength(3);
+  await expect.poll(() => table.getByRole("row").elements()).toHaveLength(3);
   await expect.element(table.getByText("lista-septiembre-2026.pdf")).toBeVisible();
   await expect.element(table.getByText("25/09/2026")).toBeVisible();
 });

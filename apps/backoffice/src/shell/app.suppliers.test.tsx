@@ -11,7 +11,15 @@ import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
-opensOnlyScreens(["/", "/help", "/suppliers", "/suppliers/price-lists"]);
+opensOnlyScreens([
+  "/",
+  "/help",
+  "/suppliers",
+  "/suppliers/price-lists",
+  "/purchase-orders",
+  "/purchases",
+  "/freights",
+]);
 
 beforeEach(resetPageState);
 

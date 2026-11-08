@@ -45,7 +45,7 @@ test("lists the supplier's freights with their date, description and amount", as
 
   const table = screen.getByRole("table", { name: "Fletes del proveedor" });
   await expect.element(table).toBeVisible();
-  expect(table.getByRole("row").elements()).toHaveLength(3);
+  await expect.poll(() => table.getByRole("row").elements()).toHaveLength(3);
   await expect.element(table.getByText("Envío desde Buenos Aires")).toBeVisible();
   await expect.element(table.getByText("12/09/2026")).toBeVisible();
 });

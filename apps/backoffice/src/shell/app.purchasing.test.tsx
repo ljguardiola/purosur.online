@@ -44,9 +44,11 @@ function railLink(screen: Awaited<ReturnType<typeof render>>) {
   return screen.getByRole("navigation", { name: "Áreas" }).getByRole("link", { name: "Compras" });
 }
 
-function purchasingServices(capabilities: Capability[]) {
+function purchasingServices(capabilities: Capability[], { inPurchasingArea = true } = {}) {
   const sessionCapabilities: Capability[] =
-    capabilities.length > 0 ? ["purchasing_area", ...capabilities] : [];
+    capabilities.length > 0 && inPurchasingArea
+      ? ["purchasing_area", ...capabilities]
+      : capabilities;
   const services = createAppServices({
     fetchSession: vi.fn().mockResolvedValue(
       openSession({
@@ -101,7 +103,9 @@ test("opens Proveedores from the rail's Compras item, listing only that section"
 });
 
 test("hides the Compras item in the rail for a user without a purchasing permission", async () => {
-  const services = purchasingServices(["stock_area", "stock_balances"]);
+  const services = purchasingServices(["stock_area", "stock_balances"], {
+    inPurchasingArea: false,
+  });
   window.history.pushState(null, "", "/help");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
