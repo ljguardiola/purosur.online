@@ -35,11 +35,7 @@ describe("registerSyncStatusSchema", () => {
   it("accepts a battery that is present, with or without a reported health, and one that is absent", () => {
     const { health_percent: _health, ...withoutHealth } = onBattery;
 
-    for (const battery of [
-      onBattery,
-      { ...withoutHealth, worn: false },
-      { present: false },
-    ]) {
+    for (const battery of [onBattery, { ...withoutHealth, worn: false }, { present: false }]) {
       expect(registerSyncStatusSchema.safeParse({ ...synced, battery }).data?.battery).toEqual(
         battery,
       );
