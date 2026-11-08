@@ -39,9 +39,7 @@ export interface ChargeCostEntry {
   netAmount: number;
 }
 
-export type ChargeCostTotals = ChargeCostEntry;
-
-export interface ChargeCostLine {
+interface ChargeCostLine {
   paymentTransactionId: string;
   saleId: string;
   method: MercadoPagoPaymentMethod;
@@ -52,10 +50,10 @@ export interface ChargeCostLine {
   cost: ChargeCost | null;
 }
 
-export type ChargeCostsOfDay = { day: string } & ChargeCostEntry;
-export type ChargeCostsOfMonth = { month: string } & ChargeCostEntry;
-export type ChargeCostsOfMethod = { method: ChargeCostMethod } & ChargeCostEntry;
-export type ChargeCostsOfRegister = {
+type ChargeCostsOfDay = { day: string } & ChargeCostEntry;
+type ChargeCostsOfMonth = { month: string } & ChargeCostEntry;
+type ChargeCostsOfMethod = { method: ChargeCostMethod } & ChargeCostEntry;
+type ChargeCostsOfRegister = {
   registerId: string | null;
   registerName: string | null;
 } & ChargeCostEntry;
@@ -66,7 +64,7 @@ export interface ChargeCostsSummary {
   months: ChargeCostsOfMonth[];
   methods: ChargeCostsOfMethod[];
   registers: ChargeCostsOfRegister[];
-  totals: ChargeCostTotals;
+  totals: ChargeCostEntry;
 }
 
 interface Counted {

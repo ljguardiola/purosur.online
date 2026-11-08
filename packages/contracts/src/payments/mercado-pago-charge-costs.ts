@@ -12,10 +12,7 @@ const count = z.int().nonnegative();
 const signedCents = z.int();
 const instant = z.iso.datetime().meta({ timeZone: ARGENTINA_TIME_ZONE });
 const calendarDay = z.string().refine(isCalendarDay);
-const calendarMonth = z
-  .string()
-  .regex(/^\d{4}-\d{2}$/)
-  .refine((month) => isCalendarDay(`${month}-01`));
+const calendarMonth = z.string().refine((month) => isCalendarDay(`${month}-01`));
 
 export const mercadoPagoChargeCostsQuerySchema = z
   .object({ from: z.string().optional(), to: z.string().optional() })
