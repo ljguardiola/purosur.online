@@ -310,3 +310,11 @@ test("tells an outdated tab to reload because the backoffice was updated when cr
   await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
   expect(dialog.getByText("Ingresá el nombre de la categoría.").query()).toBeNull();
 });
+
+test("names Productos and Categorías in its eyebrow", async () => {
+  const screen = await renderModal({ categories: [] });
+
+  await expect
+    .element(screen.getByRole("dialog").getByText("Productos · Categorías", { exact: true }))
+    .toBeVisible();
+});

@@ -66,7 +66,7 @@ async function openNewCategoryModal(screen: Awaited<ReturnType<typeof renderScre
   return screen.getByRole("dialog");
 }
 
-test("shows the breadcrumb, heading, each category's full path label and the category count", async () => {
+test("shows each category's full path label and the category count", async () => {
   const services = createServices();
   vi.mocked(services.fetchCategories).mockResolvedValue({
     kind: "ok",
@@ -75,8 +75,7 @@ test("shows the breadcrumb, heading, each category's full path label and the cat
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("Catálogo")).toBeVisible();
-  await expect.element(screen.getByRole("heading", { name: "Categorías", level: 1 })).toBeVisible();
+  expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
   await expect.element(screen.getByText("Almacén")).toBeVisible();
   await expect.element(screen.getByText("Almacén › Untables")).toBeVisible();
   await expect.element(screen.getByText("Bebidas")).toBeVisible();

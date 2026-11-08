@@ -201,7 +201,7 @@ test("goes to the prices to review the products of the lines chosen for it, as w
   await userEvent.click(purchaseLine(dialog, 1).getByText("Revisar el precio ahora"));
   await userEvent.click(dialog.getByRole("button", { name: "Agregar los productos" }));
 
-  await expect.poll(() => window.location.pathname).toBe("/prices");
+  await expect.poll(() => window.location.pathname).toBe("/products/prices");
   expect(window.history.state).toMatchObject({ purchasedProductsToReview: [AVENA_PRODUCT_ID] });
   expect(onSaved).toHaveBeenCalledWith(withNewLine);
 });

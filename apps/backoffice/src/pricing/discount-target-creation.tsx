@@ -138,7 +138,7 @@ export function useDiscountTargetCreation({
         <NewTagModal
           open={tag.open}
           initialName={tag.initialName}
-          context="Catálogo · Promociones"
+          context="Productos · Promociones"
           services={services}
           onCreated={tag.select}
           onClose={tag.close}

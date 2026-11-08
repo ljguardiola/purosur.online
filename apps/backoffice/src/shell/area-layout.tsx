@@ -16,23 +16,19 @@ import { AccountFooter } from "./account-footer";
 import { AreaTopBarUnbilledDeferredSales } from "./area-top-bar-unbilled-deferred-sales";
 import {
   canComparePrices,
-  canManageBatches,
   canManageFreights,
-  canManageProductsAndCategories,
-  canManageRecipes,
   canManageSupplierPriceLists,
   canManageSuppliers,
   canPerformStockCounts,
   canReadPurchaseOrders,
   canRecordPurchases,
   canSeeBranchArea,
-  canSeeCatalogArea,
   canSeeExpiringLots,
   canSeeFiscalInformation,
   canSeeFiscalPage,
   canSeeOrdersArea,
   canSeePeopleArea,
-  canSeePricesArea,
+  canSeeProductsPage,
   canSeeQuarantinedEvents,
   canSeeRefundsArea,
   canSeeRefundsPage,
@@ -54,7 +50,7 @@ export const SectionLink = createLink(SectionNavItem);
 
 type Area =
   | "home"
-  | "catalog"
+  | "products"
   | "stock"
   | "orders"
   | "sales-and-cash"
@@ -76,12 +72,7 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
   const navigate = useNavigate();
   const UnbilledDeferredSales = services.areaTopBarUnbilledDeferredSales;
   const matchRoute = useMatchRoute();
-  const catalogTarget = canManageProductsAndCategories(session)
-    ? "/products"
-    : canSeePricesArea(session)
-      ? "/prices"
-      : "/discounts";
-  const catalogTargetShown = Boolean(matchRoute({ to: catalogTarget }));
+  const productsShown = Boolean(matchRoute({ to: "/products" }));
   const stockTarget = canSeeStockBalances(session)
     ? "/inventory"
     : canPerformStockCounts(session)
@@ -96,11 +87,7 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
               ? "/expiring-lots"
               : canManageFreights(session)
                 ? "/freights"
-                : canManageRecipes(session)
-                  ? "/recipes"
-                  : canManageBatches(session)
-                    ? "/assembly-batches"
-                    : "/initial-inventory";
+                : "/initial-inventory";
   const salesAndCashTarget = canSeeRegistersPage(session)
     ? "/registers"
     : canSeeRefundsArea(session)
@@ -135,13 +122,13 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
               active={area === "sales-and-cash"}
             />
           )}
-          {canSeeCatalogArea(session) && (
+          {canSeeProductsPage(session) && (
             <AreaLink
-              to={catalogTarget}
-              search={catalogTargetShown ? true : {}}
-              label="Catálogo"
+              to="/products"
+              search={productsShown ? true : {}}
+              label="Productos"
               icon={<Package />}
-              active={area === "catalog"}
+              active={area === "products"}
             />
           )}
           {canSeeStockArea(session) && (

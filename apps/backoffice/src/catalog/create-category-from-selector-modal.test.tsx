@@ -96,3 +96,30 @@ test("categories that fail to load show the failure instead of the form, and Rei
     .element(dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }))
     .toHaveValue("Fiambres");
 });
+
+test("names Productos and Categorías in its eyebrow, loaded or still loading", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchCategories).mockReturnValue(new Promise(() => {}));
+
+  const screen = await renderPart(services);
+
+  await expect
+    .element(
+      screen
+        .getByRole("dialog", { name: "Nueva categoría" })
+        .getByText("Productos · Categorías", { exact: true }),
+    )
+    .toBeVisible();
+});
+
+test("keeps the same eyebrow once the categories are loaded", async () => {
+  const screen = await renderPart(createServices());
+
+  await expect
+    .element(
+      screen
+        .getByRole("dialog", { name: "Nueva categoría" })
+        .getByText("Productos · Categorías", { exact: true }),
+    )
+    .toBeVisible();
+});

@@ -172,7 +172,7 @@ export function NewDiscountModal({
       width="standard"
       tone="info"
       icon={<Percent />}
-      context="Catálogo"
+      context="Productos · Promociones"
       title="Nueva promoción"
       closable
       footer={

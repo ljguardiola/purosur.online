@@ -132,7 +132,7 @@ export function NewCategoryModal({
       width="standard"
       tone="info"
       icon={<Tags />}
-      context="Catálogo"
+      context="Productos · Categorías"
       title="Nueva categoría"
       closable
       footer={

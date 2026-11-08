@@ -18,16 +18,16 @@ import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import type { ProductCreationModal } from "../platform/creation-parts";
 import type { ProductPriceSection } from "../platform/product-price-section";
-import { AreaTopBar } from "../shell/area-top-bar";
 import {
   type BackofficeAccess,
   canManageProductsAndCategories,
   canSeePricesArea,
 } from "../shell/backoffice-access";
-import { ScreenLayout } from "../shell/screen-layout";
 import { BATCH_COST_INCOMPLETE, batchDayText, batchUnitCostText } from "./assembly-batch-text";
+import type { AssemblyBatchesScreenServices } from "./assembly-batches-services";
 import { EditRecipeModal } from "./edit-recipe-modal";
 import { NewRecipeModal } from "./new-recipe-modal";
+import { OpenRecipePanel } from "./open-recipe-panel";
 import {
   recipeComponentCountText,
   recipeComponentNamesText,
@@ -44,6 +44,9 @@ export type RecipesListScreenProps = {
   productPriceSection: ProductPriceSection;
   filters: RecipesListFilters;
   onFiltersChange: (filters: RecipesListFilters) => void;
+  openRecipe: string | undefined;
+  onOpenRecipeChange: (recipe: string | undefined) => void;
+  batchServices: AssemblyBatchesScreenServices;
   onSessionEnded: () => void;
   services: RecipesListScreenServices;
 };
@@ -84,6 +87,9 @@ export function RecipesListScreen({
   productPriceSection,
   filters,
   onFiltersChange,
+  openRecipe,
+  onOpenRecipeChange,
+  batchServices,
   onSessionEnded,
   services,
 }: RecipesListScreenProps) {
@@ -116,7 +122,6 @@ export function RecipesListScreen({
 
   const { recipes, products } =
     data.status === "loaded" ? data.value : { recipes: NO_RECIPES, products: NO_PRODUCTS };
-
   function saved(title: string, description: string) {
     setNotice((previous) => ({ id: (previous?.id ?? 0) + 1, title, description }));
     void refreshStock();
@@ -186,36 +191,31 @@ export function RecipesListScreen({
 
   return (
     <>
-      <ScreenLayout
-        topBar={
-          <AreaTopBar
-            eyebrow="Stock"
-            title="Recetas"
-            action={
-              <Button
-                variant="primary"
-                icon={<Plus />}
-                dataStatus={data.status}
-                onPress={() => setNewModalOpen(true)}
-              >
-                Nueva receta
-              </Button>
-            }
-          />
-        }
-        bodyClassName="gap-4 p-6"
-      >
-        <div className="w-105">
-          <SearchField
-            value={search}
-            onChange={setSearch}
-            placeholder="Buscar un producto armado"
-            icon={<Search />}
-          />
+      <div className="flex min-w-0 flex-1 flex-col gap-4 p-6">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="w-105">
+            <SearchField
+              value={search}
+              onChange={setSearch}
+              placeholder="Buscar un producto armado"
+              icon={<Search />}
+            />
+          </div>
+          <div className="ml-auto flex items-center gap-3">
+            <Button
+              variant="primary"
+              icon={<Plus />}
+              dataStatus={data.status}
+              onPress={() => setNewModalOpen(true)}
+            >
+              Nueva receta
+            </Button>
+          </div>
         </div>
         <Table
           aria-label="Recetas"
           table={table}
+          onRowPress={(item) => onOpenRecipeChange(item.productId)}
           {...cloudTableState(data, "las recetas")}
           empty={
             recipes.length === 0
@@ -238,7 +238,7 @@ export function RecipesListScreen({
             )
           }
         />
-      </ScreenLayout>
+      </div>
       <NewRecipeModal
         open={newModalOpen}
         products={products}
@@ -276,6 +276,15 @@ export function RecipesListScreen({
           onSessionEnded={onSessionEnded}
         />
       ) : null}
+      <OpenRecipePanel
+        recipes={recipes}
+        recipesAreLoaded={data.status === "loaded"}
+        openRecipe={openRecipe}
+        access={access}
+        services={{ ...batchServices, fetchRecipes: services.fetchRecipes }}
+        onClose={() => onOpenRecipeChange(undefined)}
+        onSessionEnded={onSessionEnded}
+      />
       {notice ? (
         <FloatingNotification
           key={notice.id}

@@ -17,8 +17,6 @@ import { Ban, Check, CookingPot, Plus, Search, SearchX } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatStockQuantity } from "../platform/stock-quantity";
-import { AreaTopBar } from "../shell/area-top-bar";
-import { ScreenLayout } from "../shell/screen-layout";
 import {
   assemblyBatchesCountText,
   BATCH_COST_INCOMPLETE,
@@ -179,25 +177,7 @@ export function AssemblyBatchesScreen({
 
   return (
     <>
-      <ScreenLayout
-        topBar={
-          <AreaTopBar
-            eyebrow="Stock"
-            title="Tandas"
-            action={
-              <Button
-                variant="primary"
-                icon={<Plus />}
-                dataStatus={data.status}
-                onPress={() => setModalOpen(true)}
-              >
-                Nueva tanda
-              </Button>
-            }
-          />
-        }
-        bodyClassName="gap-4 p-6"
-      >
+      <div className="flex min-w-0 flex-1 flex-col gap-4 p-6">
         <div className="flex flex-wrap items-center gap-3">
           <div className="w-105">
             <SearchField
@@ -214,6 +194,16 @@ export function AssemblyBatchesScreen({
             value={period}
             onChange={setPeriod}
           />
+          <div className="ml-auto flex items-center gap-3">
+            <Button
+              variant="primary"
+              icon={<Plus />}
+              dataStatus={data.status}
+              onPress={() => setModalOpen(true)}
+            >
+              Nueva tanda
+            </Button>
+          </div>
         </div>
         <Table
           aria-label="Tandas"
@@ -242,7 +232,7 @@ export function AssemblyBatchesScreen({
             )
           }
         />
-      </ScreenLayout>
+      </div>
       {modalOpen && data.status === "loaded" ? (
         <NewAssemblyBatchModal
           recipes={recipes}

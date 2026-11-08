@@ -229,7 +229,7 @@ export function NewProductModal({
       width="standard"
       tone="info"
       icon={<PackagePlus />}
-      context="Catálogo · Productos"
+      context="Productos"
       title={source ? "Clonar producto" : "Nuevo producto"}
       closable
       footer={

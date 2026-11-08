@@ -24,7 +24,7 @@ export function registerStockProductsRoute<TQueryResult extends PgQueryResultHKT
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
       config: {
-        access: capabilityAccess("stock_area"),
+        access: capabilityAccess("stock_products"),
         sessionSource,
       },
     },

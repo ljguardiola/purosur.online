@@ -1,23 +1,30 @@
 import { getRouteApi } from "@tanstack/react-router";
 import type { ReactElement } from "react";
-import { useDocumentTitle } from "../shell/document-title";
+import { defaultAssemblyBatchesScreenServices } from "./assembly-batches-services";
 import { RecipesListScreen } from "./recipes-list-screen";
 import { defaultRecipesListScreenServices } from "./recipes-list-services";
 
-const route = getRouteApi("/signed-in/stock-area/recipes");
+const route = getRouteApi("/signed-in/products-area/products/assemblies/");
 
 export function RecipesListPage(): ReactElement {
   const { services, session, sessionActions } = route.useRouteContext();
-  const filters = route.useSearch();
+  const { recipe, ...filters } = route.useSearch();
   const navigate = route.useNavigate();
-  useDocumentTitle("Recetas · Puro Sur");
   return (
     <RecipesListScreen
       access={session}
       productCreationModal={services.productCreationModal}
       productPriceSection={services.productPriceSection}
       filters={filters}
-      onFiltersChange={(next) => void navigate({ search: next, replace: true })}
+      onFiltersChange={(next) => void navigate({ search: { ...next, recipe }, replace: true })}
+      openRecipe={recipe}
+      onOpenRecipeChange={(next) =>
+        void navigate({
+          search: { ...filters, recipe: next },
+          ...(next === undefined ? { replace: true } : {}),
+        })
+      }
+      batchServices={services.assemblyBatchesScreen ?? defaultAssemblyBatchesScreenServices}
       onSessionEnded={sessionActions.sessionEnded}
       services={services.recipesListScreen ?? defaultRecipesListScreenServices}
     />

@@ -13,7 +13,7 @@ beforeEach(() => {
 
 function renderModal({
   createTag = vi.fn<NewTagModalServices["createTag"]>(),
-  context = "Catálogo",
+  context = "Productos · Distintivos",
   initialName,
   onCreated = () => {},
   onClose = () => {},
@@ -51,10 +51,10 @@ async function submitName(screen: Awaited<ReturnType<typeof renderModal>>, name:
 }
 
 test("shows the eyebrow it is given, the title and the name field", async () => {
-  const screen = await renderModal({ context: "Catálogo · Productos" });
+  const screen = await renderModal({ context: "Productos" });
   const dialog = screen.getByRole("dialog");
 
-  await expect.element(dialog.getByText("Catálogo · Productos")).toBeVisible();
+  await expect.element(dialog.getByText("Productos", { exact: true })).toBeVisible();
   await expect.element(dialog.getByRole("heading", { name: "Nuevo distintivo" })).toBeVisible();
   await expect.element(dialog.getByRole("textbox", { name: /^Nombre/ })).toBeVisible();
 });

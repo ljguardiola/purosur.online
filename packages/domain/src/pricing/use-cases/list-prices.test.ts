@@ -3,7 +3,11 @@ import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-s
 import type { AssemblyBatchCost } from "./assembly-batch-cost-reader.js";
 import type { InitialCountCost } from "./initial-count-cost-reader.js";
 import { listPrices } from "./list-prices.js";
-import type { PricesUnderReview, PriceUnderReview } from "./price-review-reader.js";
+import type {
+  PricesUnderReview,
+  PriceUnderReview,
+  ProductPriceReviewHistory,
+} from "./price-review-reader.js";
 import type { PurchaseLineCost } from "./purchase-cost-reader.js";
 import { fakeAssemblyBatchCostReader } from "./test-support/fake-assembly-batch-cost-reader.js";
 import { fakeInitialCountCostReader } from "./test-support/fake-initial-count-cost-reader.js";
@@ -287,5 +291,101 @@ describe("listPrices", () => {
     expect(purchaseCosts.asked).toEqual([{ locationId: "location-1", productIds: ["a", "b"] }]);
     expect(initialCountCosts.asked).toEqual([{ locationId: "location-1", productIds: ["a", "b"] }]);
     expect(batchCosts.asked).toEqual([{ locationId: "location-1", productIds: ["a", "b"] }]);
+  });
+
+  describe("overdue prices", () => {
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const daysBeforeNow = (days: number) => new Date(query.now.getTime() - days * DAY_MS);
+
+    function history(
+      id: string,
+      overrides: Partial<ProductPriceReviewHistory>,
+    ): ProductPriceReviewHistory {
+      return {
+        id,
+        name: `Product `,
+        categoryId: "category-1",
+        categoryName: "Almacén",
+        brandName: null,
+        netContent: null,
+        saleUnit: "UNIT",
+        currentPrice: null,
+        lastReviewedAt: daysBeforeNow(5),
+        earliestPostponedAt: null,
+        ...overrides,
+      };
+    }
+
+    async function listOverdue(histories: ProductPriceReviewHistory[], productIds?: string[]) {
+      const reviews = fakePriceReviewReader(listing([]), {
+        products: histories,
+        reviewWindowDays: 30,
+      });
+      await listPrices(
+        {
+          zoneRules: new FakeZoneRulesSource(),
+          reviews,
+          purchaseCosts: fakePurchaseCostReader([]),
+          initialCountCosts: fakeInitialCountCostReader([]),
+          batchCosts: fakeAssemblyBatchCostReader([]),
+        },
+        { ...query, review: "overdue", ...(productIds ? { productIds } : {}) },
+      );
+      return reviews;
+    }
+
+    it("asks the pending prices of only those past their review term, leaving out postponed, never reviewed and up to date ones", async () => {
+      const reviews = await listOverdue([
+        history("overdue", { lastReviewedAt: daysBeforeNow(40) }),
+        history("postponed", {
+          lastReviewedAt: daysBeforeNow(40),
+          earliestPostponedAt: daysBeforeNow(45),
+        }),
+        history("never-reviewed", { lastReviewedAt: null }),
+        history("up-to-date", { lastReviewedAt: daysBeforeNow(5) }),
+      ]);
+
+      expect(reviews.queries).toEqual([{ ...query, review: "pending", productIds: ["overdue"] }]);
+      expect(reviews.historyReads).toEqual(["location-1"]);
+    });
+
+    it("keeps a price whose term passed before it was postponed", async () => {
+      const reviews = await listOverdue([
+        history("overdue-then-postponed", {
+          lastReviewedAt: daysBeforeNow(60),
+          earliestPostponedAt: daysBeforeNow(2),
+        }),
+      ]);
+
+      expect(reviews.queries[0]?.productIds).toEqual(["overdue-then-postponed"]);
+    });
+
+    it("narrows the overdue prices to the products the query already asks for", async () => {
+      const reviews = await listOverdue(
+        [
+          history("a", { lastReviewedAt: daysBeforeNow(40) }),
+          history("b", { lastReviewedAt: daysBeforeNow(40) }),
+        ],
+        ["b", "c"],
+      );
+
+      expect(reviews.queries[0]?.productIds).toEqual(["b"]);
+    });
+
+    it("does not read the review histories for the other filters", async () => {
+      const reviews = fakePriceReviewReader(listing([]));
+      await listPrices(
+        {
+          zoneRules: new FakeZoneRulesSource(),
+          reviews,
+          purchaseCosts: fakePurchaseCostReader([]),
+          initialCountCosts: fakeInitialCountCostReader([]),
+          batchCosts: fakeAssemblyBatchCostReader([]),
+        },
+        { ...query, review: "pending" },
+      );
+
+      expect(reviews.historyReads).toEqual([]);
+    });
   });
 });

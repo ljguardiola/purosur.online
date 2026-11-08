@@ -331,7 +331,7 @@ export function PrintLabelsModal({
       width="wide"
       tone="info"
       icon={<Printer />}
-      context="Catálogo · Productos"
+      context="Productos"
       title="Imprimir etiquetas"
       closable={!printerPrinting}
       footer={

@@ -31,6 +31,7 @@ import type {
   ProductCreationModal,
   RoleCreationModal,
 } from "../platform/creation-parts";
+import type { ProductPanelSections } from "../platform/product-panel-sections";
 import type { ProductPriceSection } from "../platform/product-price-section";
 import { createQueryClient } from "../platform/query-client";
 import type { RegisterPointOfSaleSection } from "../platform/register-point-of-sale-section";
@@ -95,6 +96,7 @@ import type { UsersListScreenServices } from "../users/users-list-services";
 import { type AccountFooterServices, defaultAccountFooterServices } from "./account-footer";
 import { createAppRouter } from "./app-router";
 import type { HomeScreenServices } from "./home-screen-services";
+import { LazyProductRecipeLookup } from "./lazy-product-recipe-lookup";
 import { lazyScreen } from "./lazy-screen";
 import { NewReleaseNotice } from "./new-release-notice";
 import { useReleaseWatcher } from "./release-watcher";
@@ -150,6 +152,7 @@ export type AppServices = {
   categoryCreationModal: CategoryCreationModal;
   productCreationModal: ProductCreationModal;
   productPriceSection: ProductPriceSection;
+  productPanelSections: ProductPanelSections;
   registerPointOfSaleSection: RegisterPointOfSaleSection;
   contingencyTicketRescueAssistant: ContingencyTicketRescueAssistant;
   roleCreationModal: RoleCreationModal;
@@ -207,6 +210,7 @@ type ShellServiceName =
   | "categoryCreationModal"
   | "productCreationModal"
   | "productPriceSection"
+  | "productPanelSections"
   | "registerPointOfSaleSection"
   | "contingencyTicketRescueAssistant"
   | "roleCreationModal"
@@ -248,6 +252,18 @@ const defaultRouteServices: RouteServices = {
     () => import("../pricing/product-price-section"),
     "ProductPriceSection",
   ),
+  productPanelSections: {
+    priceAndCost: lazyScreen(
+      () => import("../pricing/product-price-cost-section"),
+      "ProductPriceCostSection",
+    ),
+    stockAndLots: lazyScreen(() => import("../stock/product-stock-section"), "ProductStockSection"),
+    recipeAndBatches: lazyScreen(
+      () => import("../stock/product-recipe-section"),
+      "ProductRecipeSection",
+    ),
+    recipeLookup: LazyProductRecipeLookup,
+  },
   registerPointOfSaleSection: lazyScreen(
     () => import("../fiscal/register-point-of-sale-panel-section"),
     "RegisterPointOfSalePanelSection",

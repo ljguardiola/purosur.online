@@ -65,6 +65,39 @@ test("the review filter switches between pending and all, re-fetching each time"
     .toBe(true);
 });
 
+test("the review filter offers the overdue prices, asking the cloud for review=overdue", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockResolvedValue({
+    kind: "ok",
+    value: {
+      products: [rice],
+      pendingCount: 2,
+      activeProductCount: 3,
+      reviewWindowDays: 30,
+      categories: [],
+    },
+  });
+  const onFiltersChange = vi.fn();
+
+  const screen = await renderScreen(services, () => {}, { onFiltersChange });
+  await expect.element(screen.getByText("Arroz")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Revisión: Por revisar" }));
+  await expect.element(screen.getByRole("option", { name: "Vencidos" })).toBeVisible();
+  await userEvent.click(screen.getByRole("option", { name: "Vencidos" }));
+
+  await expect
+    .poll(() =>
+      vi.mocked(services.fetchPrices).mock.calls.some((call) => call[0].review === "overdue"),
+    )
+    .toBe(true);
+  expect(onFiltersChange).toHaveBeenLastCalledWith({
+    search: "",
+    category: "ALL",
+    review: "overdue",
+  });
+});
+
 test("the category filter offers the categories the prices list brings and narrows the request by categoryId", async () => {
   const services = createServices();
   vi.mocked(services.fetchPrices).mockResolvedValue({

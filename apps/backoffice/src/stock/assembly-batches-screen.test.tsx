@@ -22,12 +22,11 @@ beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 
-test("shows the breadcrumb, the heading and each batch with its moment, product, output, cost and expiry", async () => {
+test("shows each batch with its moment, product, output, cost and expiry", async () => {
   const services = createServices();
   const screen = await loaded(services, [mixBatch, infusionsBatch]);
 
-  await expect.element(screen.getByText("Stock").first()).toBeVisible();
-  await expect.element(screen.getByRole("heading", { name: "Tandas", level: 1 })).toBeVisible();
+  expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
   await expect
     .poll(() => rowTexts(screen))
     .toEqual([

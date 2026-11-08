@@ -1,11 +1,10 @@
 import { getRouteApi, useRouterState } from "@tanstack/react-router";
 import type { ReactElement } from "react";
 import { purchasedProductsToReviewIn } from "../platform/purchased-products-to-review";
-import { useDocumentTitle } from "../shell/document-title";
 import { PricesListScreen } from "./prices-list-screen";
 import { defaultPricesListScreenServices } from "./prices-list-services";
 
-const route = getRouteApi("/signed-in/catalog-area/prices");
+const route = getRouteApi("/signed-in/products-area/products/prices");
 
 export function PricesListPage(): ReactElement {
   const { services, sessionActions } = route.useRouteContext();
@@ -14,7 +13,6 @@ export function PricesListPage(): ReactElement {
   const purchasedProductsToReview = useRouterState({
     select: (state) => purchasedProductsToReviewIn(state.location.state),
   });
-  useDocumentTitle("Precios · Puro Sur");
   return (
     <PricesListScreen
       filters={filters}

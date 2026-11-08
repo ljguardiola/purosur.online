@@ -173,7 +173,7 @@ export function NewRecipeModal({
       width="standard"
       tone="info"
       icon={<BookOpen />}
-      context="Stock · Recetas"
+      context="Productos · Armados"
       title="Nueva receta"
       closable
       footer={

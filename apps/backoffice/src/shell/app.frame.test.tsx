@@ -14,7 +14,7 @@ import { opensOnlyScreens } from "./test-support/screen-routes";
 opensOnlyScreens([
   "/",
   "/account-recovery",
-  "/categories",
+  "/products/classification",
   "/fiscal/settings",
   "/help",
   "/products",
@@ -117,8 +117,8 @@ test("provides the backoffice field size at the root, so a screen never has to a
   expect(box.getBoundingClientRect().height).toBeCloseTo(48, 0);
 });
 
-test.each(["/help", "/users", "/categories", "/products"])(
-  "lists Inicio above Catálogo in the rail on %s",
+test.each(["/help", "/users", "/products/classification", "/products"])(
+  "lists Inicio above Productos in the rail on %s",
   async (path) => {
     window.history.pushState(null, "", path);
     const services = createAppServices();
@@ -143,12 +143,12 @@ test.each(["/help", "/users", "/categories", "/products"])(
       .getByRole("link")
       .elements()
       .map((link) => link.textContent);
-    expect(labels.indexOf("Inicio")).toBeLessThan(labels.indexOf("Catálogo"));
+    expect(labels.indexOf("Inicio")).toBeLessThan(labels.indexOf("Productos"));
   },
 );
 
-test.each(["/help", "/users", "/categories", "/products"])(
-  "lists Catálogo above Config in the rail on %s",
+test.each(["/help", "/users", "/products/classification", "/products"])(
+  "lists Productos above Config in the rail on %s",
   async (path) => {
     window.history.pushState(null, "", path);
     const services = createAppServices();
@@ -168,17 +168,17 @@ test.each(["/help", "/users", "/categories", "/products"])(
     const screen = await render(<App help={emptyHelp} services={services} />);
 
     const rail = screen.getByRole("navigation", { name: "Áreas" });
-    await expect.element(rail.getByRole("link", { name: "Catálogo" })).toBeVisible();
+    await expect.element(rail.getByRole("link", { name: "Productos" })).toBeVisible();
     const labels = rail
       .getByRole("link")
       .elements()
       .map((link) => link.textContent);
-    expect(labels.indexOf("Catálogo")).toBeLessThan(labels.indexOf("Config"));
+    expect(labels.indexOf("Productos")).toBeLessThan(labels.indexOf("Config"));
   },
 );
 
 test.each(["/help", "/users", "/products", "/fiscal/settings"])(
-  "lists Catálogo, then Fiscal, then Config in the rail on %s",
+  "lists Productos, then Fiscal, then Config in the rail on %s",
   async (path) => {
     window.history.pushState(null, "", path);
     const services = createAppServices();
@@ -210,7 +210,7 @@ test.each(["/help", "/users", "/products", "/fiscal/settings"])(
       .getByRole("link")
       .elements()
       .map((link) => link.textContent);
-    expect(labels.indexOf("Catálogo")).toBeLessThan(labels.indexOf("Fiscal"));
+    expect(labels.indexOf("Productos")).toBeLessThan(labels.indexOf("Fiscal"));
     expect(labels.indexOf("Fiscal")).toBeLessThan(labels.indexOf("Config"));
   },
 );

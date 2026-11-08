@@ -42,7 +42,12 @@ export type {
 export { listDiscountTargets } from "./list-discount-targets.js";
 export type { ListDiscountsPorts, ListedDiscount } from "./list-discounts.js";
 export { listDiscounts } from "./list-discounts.js";
-export type { ListedPrices, ListPricesPorts, PricedProduct } from "./list-prices.js";
+export type {
+  ListedPrices,
+  ListPricesPorts,
+  ListPricesQuery,
+  PricedProduct,
+} from "./list-prices.js";
 export { listPrices } from "./list-prices.js";
 export type {
   PriceReviewCategory,
