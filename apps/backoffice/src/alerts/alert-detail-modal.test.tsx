@@ -1,5 +1,6 @@
 import type { AlertDetail, PermissionCatalogWire } from "@purosur/contracts";
 import {
+  formatBytes,
   formatCalendarDay,
   formatCalendarDayRange,
   formatCents,
@@ -3291,4 +3292,176 @@ test("tells an outdated tab to reload because the backoffice was updated when cl
 
   await expect.element(screen.getByText("No se pudo cerrar la alerta")).toBeVisible();
   await expect.element(screen.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
+});
+
+test("tells a register on battery for 10 minutes what it means and what to do, from the register's own text", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "on_battery",
+        level: "critical",
+        audience: "local",
+        closing: "by_itself",
+        scope: "register-1",
+        scopeDisplay: "Caja 1",
+        detail: { deviceId: "device-1", onBatteryMinutes: 12, thresholdMinutes: 10 },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(screen.getByText("Caja funcionando a batería", { exact: true }))
+    .toBeVisible();
+  await expect.element(screen.getByText(/más de 10 minutos sin corriente eléctrica/)).toBeVisible();
+  await expect.element(screen.getByText(/Revisar si volvió la luz/)).toBeVisible();
+});
+
+test("tells a register without a battery what it means and what to do, from the register's own text", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "battery_missing",
+        level: "warning",
+        audience: "local",
+        closing: "by_itself",
+        scope: "register-1",
+        scopeDisplay: "Caja 1",
+        detail: { deviceId: "device-1" },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect.element(screen.getByText("Batería no detectada", { exact: true })).toBeVisible();
+  await expect.element(screen.getByText(/Seguir vendiendo con normalidad/)).toBeVisible();
+});
+
+test("tells how worn a register's battery is", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "battery_health_low",
+        level: "warning",
+        audience: "all",
+        closing: "by_itself",
+        scope: "register-1",
+        scopeDisplay: "Caja 1",
+        detail: { deviceId: "device-1", healthPercent: 55, wornBelowPercent: 60 },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(screen.getByText("Batería de la caja desgastada", { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        `La batería de la caja «Caja 1» conserva el ${formatPercent(55)} de su capacidad de diseño, por debajo del ${formatPercent(60)}. Conviene cambiarla antes de que deje de aguantar un corte de luz.`,
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+});
+
+test("tells how large a register's write-ahead log has grown", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "wal_oversized",
+        level: "warning",
+        audience: "all",
+        closing: "by_itself",
+        scope: "register-1",
+        scopeDisplay: "Caja 1",
+        detail: {
+          deviceId: "device-1",
+          walSizeBytes: 300 * 1024 * 1024,
+          limitBytes: 256 * 1024 * 1024,
+        },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(screen.getByText("Registro de cambios de la caja demasiado grande", { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        `El registro de cambios de la caja «Caja 1» pesa ${formatBytes(300 * 1024 * 1024)} y el límite es ${formatBytes(256 * 1024 * 1024)}. Se puede seguir vendiendo; si no baja solo, conviene reiniciar la caja.`,
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+});
+
+test("tells a free share and size just under the limit without rounding them up to it", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "register_disk_space_low",
+        level: "warning",
+        audience: "all",
+        closing: "by_itself",
+        scope: "register-1",
+        scopeDisplay: "Caja 1",
+        detail: { deviceId: "device-1", diskFreeBytes: 5 * 1024 ** 3 - 1, diskFreeRatio: 0.197 },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(
+      screen.getByText(
+        "A la caja «Caja 1» le queda libre el 19,7 % del disco, 4,9 GB. Conviene liberar espacio antes de que se llene.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+});
+
+test("tells how much disk a register has free", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchAlert).mockResolvedValue(
+    ok(
+      baseDetail({
+        kind: "register_disk_space_low",
+        level: "warning",
+        audience: "all",
+        closing: "by_itself",
+        scope: "register-1",
+        scopeDisplay: "Caja 1",
+        detail: { deviceId: "device-1", diskFreeBytes: 4 * 1024 ** 3, diskFreeRatio: 0.15 },
+      }),
+    ),
+  );
+
+  const screen = await renderModal(services);
+
+  await expect
+    .element(screen.getByText("Poco espacio libre en el disco de la caja", { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      screen.getByText(
+        `A la caja «Caja 1» le queda libre el ${formatPercent(15)} del disco, ${formatBytes(4 * 1024 ** 3)}. Conviene liberar espacio antes de que se llene.`,
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
 });

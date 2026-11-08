@@ -9,11 +9,18 @@ import {
 } from "../../fiscal/index.js";
 import {
   type ClockDriftReport,
+  isBatteryWorn,
+  isDiskSpaceBelowAlertLimit,
+  isOnBatteryTooLong,
+  ON_BATTERY_CONDITION_MINUTES,
   runsCloudZoneRulesVersion,
+  WAL_SIZE_LIMIT_BYTES,
+  WORN_BATTERY_HEALTH_PERCENT,
+  walOversized,
   type ZoneRulesVersionReport,
 } from "../../register/index.js";
 import type { SalesDeniedReport } from "../../shared/index.js";
-import type { ReplenishmentFailedReport } from "../../sync/index.js";
+import type { RegisterTelemetry, ReplenishmentFailedReport } from "../../sync/index.js";
 import type { AlertKind, AlertLevel } from "./alert-catalog.js";
 import type { AlertDetails, OpenAlertInput } from "./alert-details.js";
 import type { OffsiteDumpUnverifiedReason } from "./offsite-dump-unverified-reason.js";
@@ -155,6 +162,148 @@ export function registerClockDriftObservation({
   return {
     holds: true,
     alert: { kind: "clock_drift", scope: registerId, locationId, detail: { deviceId } },
+  };
+}
+
+interface RegisterBatteryStanding {
+  registerId: string;
+  deviceId: string;
+  locationId: string;
+  report: RegisterTelemetry;
+}
+
+export function registerOnBatteryObservation({
+  registerId,
+  deviceId,
+  locationId,
+  report: { battery },
+}: RegisterBatteryStanding): AlertConditionObservation | undefined {
+  if (battery === undefined) {
+    return undefined;
+  }
+  if (isOnBatteryTooLong(battery) && battery.present) {
+    return {
+      holds: true,
+      alert: {
+        kind: "on_battery",
+        scope: registerId,
+        locationId,
+        detail: {
+          deviceId,
+          onBatteryMinutes: battery.on_battery_minutes,
+          thresholdMinutes: ON_BATTERY_CONDITION_MINUTES,
+        },
+      },
+    };
+  }
+  return battery.present && battery.on_battery
+    ? undefined
+    : { holds: false, kind: "on_battery", scope: registerId };
+}
+
+export function registerBatteryMissingObservation({
+  registerId,
+  deviceId,
+  locationId,
+  report: { battery },
+}: RegisterBatteryStanding): AlertConditionObservation | undefined {
+  if (battery === undefined) {
+    return undefined;
+  }
+  if (battery.present) {
+    return { holds: false, kind: "battery_missing", scope: registerId };
+  }
+  return {
+    holds: true,
+    alert: { kind: "battery_missing", scope: registerId, locationId, detail: { deviceId } },
+  };
+}
+
+export function registerBatteryHealthObservation({
+  registerId,
+  deviceId,
+  locationId,
+  report: { battery },
+}: RegisterBatteryStanding): AlertConditionObservation | undefined {
+  if (battery === undefined) {
+    return undefined;
+  }
+  if (!battery.present) {
+    return { holds: false, kind: "battery_health_low", scope: registerId };
+  }
+  if (battery.health_percent === undefined) {
+    return undefined;
+  }
+  if (!isBatteryWorn(battery.health_percent)) {
+    return { holds: false, kind: "battery_health_low", scope: registerId };
+  }
+  return {
+    holds: true,
+    alert: {
+      kind: "battery_health_low",
+      scope: registerId,
+      locationId,
+      detail: {
+        deviceId,
+        healthPercent: battery.health_percent,
+        wornBelowPercent: WORN_BATTERY_HEALTH_PERCENT,
+      },
+    },
+  };
+}
+
+interface RegisterStorageStanding {
+  registerId: string;
+  deviceId: string;
+  locationId: string;
+  report: RegisterTelemetry;
+}
+
+export function registerWalSizeObservation({
+  registerId,
+  deviceId,
+  locationId,
+  report,
+}: RegisterStorageStanding): AlertConditionObservation {
+  if (!walOversized(report.wal_size_bytes)) {
+    return { holds: false, kind: "wal_oversized", scope: registerId };
+  }
+  return {
+    holds: true,
+    alert: {
+      kind: "wal_oversized",
+      scope: registerId,
+      locationId,
+      detail: {
+        deviceId,
+        walSizeBytes: report.wal_size_bytes,
+        limitBytes: WAL_SIZE_LIMIT_BYTES,
+      },
+    },
+  };
+}
+
+export function registerDiskSpaceObservation({
+  registerId,
+  deviceId,
+  locationId,
+  report,
+}: RegisterStorageStanding): AlertConditionObservation {
+  if (!isDiskSpaceBelowAlertLimit(report)) {
+    return { holds: false, kind: "register_disk_space_low", scope: registerId };
+  }
+  return {
+    holds: true,
+    alert: {
+      kind: "register_disk_space_low",
+      scope: registerId,
+      locationId,
+      detail: {
+        deviceId,
+        diskFreeBytes: report.disk_free_bytes,
+        diskFreeRatio: report.disk_free_ratio,
+      },
+    },
   };
 }
 

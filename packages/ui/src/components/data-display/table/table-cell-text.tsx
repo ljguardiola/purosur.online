@@ -3,22 +3,50 @@ import type { ReactNode } from "react";
 export type TableCellTextProps = {
   children: ReactNode;
   description?: ReactNode;
-  tone?: "subtle" | "error" | "success" | undefined;
+  tone?: "subtle" | "error" | "success" | "warning" | undefined;
   strong?: boolean;
   size?: "body" | "detail";
-  descriptionTone?: "error" | "warning" | undefined;
+  descriptionTone?: DescriptionTone | undefined;
+  secondDescription?: ReactNode;
+  secondDescriptionTone?: DescriptionTone | undefined;
 };
+
+type DescriptionTone = "error" | "warning";
 
 const TEXT_TONE_CLASS_NAME = {
   subtle: "text-text-subtle",
   error: "text-error-strong",
   success: "text-success-strong",
+  warning: "text-warning-strong",
 } as const;
 
 const DESCRIPTION_TONE_CLASS_NAME = {
   error: "font-bold text-error-strong",
   warning: "font-bold text-warning-strong",
 } as const;
+
+function isShown(description: ReactNode): boolean {
+  return description !== undefined && description !== null && typeof description !== "boolean";
+}
+
+function DescriptionLine({
+  children,
+  tone,
+}: {
+  children: ReactNode;
+  tone: DescriptionTone | undefined;
+}) {
+  return (
+    <span
+      className={[
+        "text-detail",
+        tone === undefined ? "text-text-subtle" : DESCRIPTION_TONE_CLASS_NAME[tone],
+      ].join(" ")}
+    >
+      {children}
+    </span>
+  );
+}
 
 const TEXT_SIZE_CLASS_NAME = { body: "text-body", detail: "text-detail" } as const;
 
@@ -36,9 +64,9 @@ export function TableCellText({
   strong = false,
   size = "body",
   descriptionTone,
+  secondDescription,
+  secondDescriptionTone,
 }: TableCellTextProps) {
-  const hasDescription =
-    description !== undefined && description !== null && typeof description !== "boolean";
   return (
     <div className="flex flex-col gap-1">
       <span
@@ -50,17 +78,11 @@ export function TableCellText({
       >
         {children}
       </span>
-      {hasDescription ? (
-        <span
-          className={[
-            "text-detail",
-            descriptionTone === undefined
-              ? "text-text-subtle"
-              : DESCRIPTION_TONE_CLASS_NAME[descriptionTone],
-          ].join(" ")}
-        >
-          {description}
-        </span>
+      {isShown(description) ? (
+        <DescriptionLine tone={descriptionTone}>{description}</DescriptionLine>
+      ) : null}
+      {isShown(secondDescription) ? (
+        <DescriptionLine tone={secondDescriptionTone}>{secondDescription}</DescriptionLine>
       ) : null}
     </div>
   );

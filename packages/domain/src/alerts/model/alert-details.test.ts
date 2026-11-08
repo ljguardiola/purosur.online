@@ -226,6 +226,60 @@ describe("OpenAlertInput", () => {
     }>().not.toExtend<OpenAlertInput>();
   });
 
+  it("accepts the device and the minutes on battery for an on-battery alert", () => {
+    expectTypeOf<{
+      kind: "on_battery";
+      scope: string;
+      locationId: string;
+      detail: { deviceId: string; onBatteryMinutes: number; thresholdMinutes: number };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("accepts the device for a battery-missing alert", () => {
+    expectTypeOf<{
+      kind: "battery_missing";
+      scope: string;
+      locationId: string;
+      detail: { deviceId: string };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("accepts the device, the health and the worn limit for a battery-health-low alert", () => {
+    expectTypeOf<{
+      kind: "battery_health_low";
+      scope: string;
+      locationId: string;
+      detail: { deviceId: string; healthPercent: number; wornBelowPercent: number };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("accepts the device, the size and the limit for a wal-oversized alert", () => {
+    expectTypeOf<{
+      kind: "wal_oversized";
+      scope: string;
+      locationId: string;
+      detail: { deviceId: string; walSizeBytes: number; limitBytes: number };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("accepts the device and the free disk for a disk-space-low alert", () => {
+    expectTypeOf<{
+      kind: "register_disk_space_low";
+      scope: string;
+      locationId: string;
+      detail: { deviceId: string; diskFreeBytes: number; diskFreeRatio: number };
+    }>().toExtend<OpenAlertInput>();
+  });
+
+  it("refuses an on-battery alert that does not name the minutes on battery", () => {
+    expectTypeOf<{
+      kind: "on_battery";
+      scope: string;
+      locationId: string;
+      detail: { deviceId: string };
+    }>().not.toExtend<OpenAlertInput>();
+  });
+
   it("refuses a register-replenishment-failed alert with a failure the register does not report", () => {
     expectTypeOf<{
       kind: "register_replenishment_failed";

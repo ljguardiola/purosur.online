@@ -26,4 +26,4 @@ export {
 } from "./model/register-name.js";
 export type { RegisterService, WatchedRegister } from "./model/register-service.js";
 export { isOutOfService, isWatchedForQuietness } from "./model/register-service.js";
-export { lastSuccessfulSyncOfRegister } from "./model/register-sync.js";
+export { installationSyncedLastOf, lastSuccessfulSyncOfRegister } from "./model/register-sync.js";

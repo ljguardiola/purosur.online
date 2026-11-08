@@ -151,10 +151,15 @@ export class DrizzleAlertReader<TQueryResult extends PgQueryResultHKT> implement
 
   async overviewOfOpenVisibleAlerts(sight: VisibleAlertSight): Promise<OpenAlertsOverview> {
     const rows = await this.db
-      .select({ level: alerts.level, kind: alerts.kind, openCount: count() })
+      .select({
+        level: alerts.level,
+        kind: alerts.kind,
+        audience: alerts.audience,
+        openCount: count(),
+      })
       .from(alerts)
       .where(and(sightCondition(sight), openAlertCondition()))
-      .groupBy(alerts.level, alerts.kind)
+      .groupBy(alerts.level, alerts.kind, alerts.audience)
       .orderBy(asc(alerts.kind));
     return openAlertsOverviewOf(rows.map((row) => ({ ...row, kind: asAlertKind(row.kind) })));
   }

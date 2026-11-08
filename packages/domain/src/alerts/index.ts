@@ -16,12 +16,17 @@ export {
   offlineAuthorizationCodeMissingObservation,
   registerBackedUpObservation,
   registerBackupOverdueObservation,
+  registerBatteryHealthObservation,
+  registerBatteryMissingObservation,
   registerClockDriftObservation,
+  registerDiskSpaceObservation,
   registerFiscalEmissionObservation,
+  registerOnBatteryObservation,
   registerReplenishmentObservation,
   registerSalesDeniedObservation,
   registerSyncedObservation,
   registerVersionObservation,
+  registerWalSizeObservation,
   registerZoneRulesObservation,
 } from "./model/alert-condition-observation.js";
 export {

@@ -40,8 +40,12 @@ describe("DrizzleBranchRegisterSyncReader", () => {
     ).lastSuccessfulSyncOfBranchRegisters(first.locationId);
 
     expect(listed).toEqual([
-      { id: first.registerId, name: "Caja 1", lastSuccessfulSyncAt: NOW },
-      { id: second.registerId, name: "Caja 2", lastSuccessfulSyncAt: EARLIER },
+      expect.objectContaining({ id: first.registerId, name: "Caja 1", lastSuccessfulSyncAt: NOW }),
+      expect.objectContaining({
+        id: second.registerId,
+        name: "Caja 2",
+        lastSuccessfulSyncAt: EARLIER,
+      }),
     ]);
   });
 
@@ -90,8 +94,169 @@ describe("DrizzleBranchRegisterSyncReader", () => {
     ).lastSuccessfulSyncOfBranchRegisters(replaced.locationId);
 
     expect(listed).toEqual([
-      { id: replaced.registerId, name: "Caja 1", lastSuccessfulSyncAt: NOW },
+      expect.objectContaining({
+        id: replaced.registerId,
+        name: "Caja 1",
+        lastSuccessfulSyncAt: NOW,
+      }),
     ]);
+  });
+
+  it("answers the battery and disk a register reported when it synced", async () => {
+    const installation = await insertEnrolledInstallation(db, { now: NOW });
+    await db.insert(deviceState).values({
+      deviceId: installation.deviceId,
+      lastAcceptedPushAt: NOW,
+      batteryPresent: true,
+      batteryChargePercent: 64,
+      batteryHealthPercent: 55,
+      batteryOnBattery: true,
+      batteryOnBatteryMinutes: 14,
+      diskFreeBytes: 105_226_698_752,
+      diskFreeRatio: 0.41,
+    });
+
+    const [listed] = await new DrizzleBranchRegisterSyncReader(
+      db,
+    ).lastSuccessfulSyncOfBranchRegisters(installation.locationId);
+
+    expect(listed?.battery).toEqual({
+      present: true,
+      chargePercent: 64,
+      healthPercent: 55,
+      onBattery: true,
+      onBatteryMinutes: 14,
+    });
+    expect(listed?.disk).toEqual({ freeBytes: 105_226_698_752, freeRatio: 0.41 });
+  });
+
+  it("answers a battery without a reported health and one that is on mains power", async () => {
+    const installation = await insertEnrolledInstallation(db, { now: NOW });
+    await db.insert(deviceState).values({
+      deviceId: installation.deviceId,
+      lastAcceptedPushAt: NOW,
+      batteryPresent: true,
+      batteryChargePercent: 87,
+      batteryHealthPercent: null,
+      batteryOnBattery: false,
+      batteryOnBatteryMinutes: 0,
+    });
+
+    const [listed] = await new DrizzleBranchRegisterSyncReader(
+      db,
+    ).lastSuccessfulSyncOfBranchRegisters(installation.locationId);
+
+    expect(listed?.battery).toEqual({
+      present: true,
+      chargePercent: 87,
+      healthPercent: null,
+      onBattery: false,
+      onBatteryMinutes: 0,
+    });
+  });
+
+  it("answers no battery when the register's last accepted push carried no battery reading, though an earlier one did", async () => {
+    const installation = await insertEnrolledInstallation(db, { now: NOW });
+    await db.insert(deviceState).values({
+      deviceId: installation.deviceId,
+      lastAcceptedPushAt: NOW,
+      batteryPresent: true,
+      batteryChargePercent: 64,
+      batteryOnBattery: true,
+      batteryOnBatteryMinutes: 14,
+      batteryReportedAt: EARLIER,
+    });
+
+    const [listed] = await new DrizzleBranchRegisterSyncReader(
+      db,
+    ).lastSuccessfulSyncOfBranchRegisters(installation.locationId);
+
+    expect(listed?.battery).toBeNull();
+  });
+
+  it("answers the battery the register's last accepted push carried", async () => {
+    const installation = await insertEnrolledInstallation(db, { now: NOW });
+    await db.insert(deviceState).values({
+      deviceId: installation.deviceId,
+      lastAcceptedPushAt: NOW,
+      batteryPresent: false,
+      batteryReportedAt: NOW,
+    });
+
+    const [listed] = await new DrizzleBranchRegisterSyncReader(
+      db,
+    ).lastSuccessfulSyncOfBranchRegisters(installation.locationId);
+
+    expect(listed?.battery).toEqual({ present: false });
+  });
+
+  it("answers that a register has no battery when it reported none", async () => {
+    const installation = await insertEnrolledInstallation(db, { now: NOW });
+    await db.insert(deviceState).values({
+      deviceId: installation.deviceId,
+      lastAcceptedPushAt: NOW,
+      batteryPresent: false,
+    });
+
+    const [listed] = await new DrizzleBranchRegisterSyncReader(
+      db,
+    ).lastSuccessfulSyncOfBranchRegisters(installation.locationId);
+
+    expect(listed?.battery).toEqual({ present: false });
+  });
+
+  it("answers no battery and no disk for a register that never reported them", async () => {
+    const reportedNothing = await insertEnrolledInstallation(db, {
+      now: NOW,
+      registerName: "Caja 1",
+    });
+    await insertEnrolledInstallation(db, { now: NOW, registerName: "Caja 2" });
+    await recordAcceptedPush(reportedNothing.deviceId, NOW);
+
+    const listed = await new DrizzleBranchRegisterSyncReader(
+      db,
+    ).lastSuccessfulSyncOfBranchRegisters(reportedNothing.locationId);
+
+    expect(listed.map(({ battery, disk }) => ({ battery, disk }))).toEqual([
+      { battery: null, disk: null },
+      { battery: null, disk: null },
+    ]);
+  });
+
+  it("answers the battery and disk of the installation that synced last, not of another installation of the register", async () => {
+    const replaced = await insertEnrolledInstallation(db, {
+      now: NOW,
+      registerName: "Caja 1",
+      revokedAt: EARLIER,
+    });
+    const current = await insertEnrolledInstallation(db, {
+      now: NOW,
+      existingRegisterId: replaced.registerId,
+    });
+    await db.insert(deviceState).values({
+      deviceId: replaced.deviceId,
+      lastAcceptedPushAt: EARLIER,
+      batteryPresent: false,
+      diskFreeBytes: 1,
+      diskFreeRatio: 0.01,
+    });
+    await db.insert(deviceState).values({
+      deviceId: current.deviceId,
+      lastAcceptedPushAt: NOW,
+      batteryPresent: true,
+      batteryChargePercent: 90,
+      batteryOnBattery: false,
+      batteryOnBatteryMinutes: 0,
+      diskFreeBytes: 2_000_000_000,
+      diskFreeRatio: 0.5,
+    });
+
+    const [listed] = await new DrizzleBranchRegisterSyncReader(
+      db,
+    ).lastSuccessfulSyncOfBranchRegisters(replaced.locationId);
+
+    expect(listed?.battery).toMatchObject({ present: true, chargePercent: 90 });
+    expect(listed?.disk).toEqual({ freeBytes: 2_000_000_000, freeRatio: 0.5 });
   });
 
   it("lists no register of another branch", async () => {

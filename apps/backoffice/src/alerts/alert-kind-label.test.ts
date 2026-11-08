@@ -101,3 +101,25 @@ test("names the alert of a month that follows a non-compliant one and may become
 test("names the alert of a deferred sale that is close to the end of its time to be invoiced", () => {
   expect(alertKindLabel("deferred_sale_due")).toBe("Venta diferida por vencer");
 });
+
+test("names the on_battery alert", () => {
+  expect(alertKindLabel("on_battery")).toBe("Caja funcionando con batería");
+});
+
+test("names the battery_missing alert", () => {
+  expect(alertKindLabel("battery_missing")).toBe("Caja sin batería detectada");
+});
+
+test("names the battery_health_low alert", () => {
+  expect(alertKindLabel("battery_health_low")).toBe("Batería de la caja desgastada");
+});
+
+test("names the wal_oversized alert", () => {
+  expect(alertKindLabel("wal_oversized")).toBe("Registro de cambios de la caja demasiado grande");
+});
+
+test("names the register_disk_space_low alert", () => {
+  expect(alertKindLabel("register_disk_space_low")).toBe(
+    "Poco espacio libre en el disco de la caja",
+  );
+});

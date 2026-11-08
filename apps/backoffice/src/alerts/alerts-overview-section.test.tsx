@@ -7,15 +7,19 @@ import { render } from "../shell/test-support/render-with-router";
 import { AlertsOverviewOpenCount, AlertsOverviewSection } from "./alerts-overview-section";
 
 const overview: AlertsOverview = {
-  critical: { openCount: 4, kinds: ["user_access_increased"] },
-  warning: { openCount: 3, kinds: ["backoffice_passkey_changed", "user_email_changed"] },
-  informational: { openCount: 1, kinds: ["backoffice_recovery_requested"] },
+  critical: { openCount: 4, kinds: ["user_access_increased"], localKinds: [] },
+  warning: {
+    openCount: 3,
+    kinds: ["backoffice_passkey_changed", "user_email_changed"],
+    localKinds: [],
+  },
+  informational: { openCount: 1, kinds: ["backoffice_recovery_requested"], localKinds: [] },
 };
 
 const NOTHING_OPEN: AlertsOverview = {
-  critical: { openCount: 0, kinds: [] },
-  warning: { openCount: 0, kinds: [] },
-  informational: { openCount: 0, kinds: [] },
+  critical: { openCount: 0, kinds: [], localKinds: [] },
+  warning: { openCount: 0, kinds: [], localKinds: [] },
+  informational: { openCount: 0, kinds: [], localKinds: [] },
 };
 
 function loaded(value: AlertsOverview): CloudData<AlertsOverview> {

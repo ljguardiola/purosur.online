@@ -10,6 +10,8 @@ export const CRITICAL_BATTERY_PERCENT = 10;
 
 export const ON_BATTERY_CONDITION_MINUTES = 10;
 
+export const WORN_BATTERY_HEALTH_PERCENT = 60;
+
 export type BatteryStanding = "normal" | "low" | "critical";
 
 export type BatteryReading =
@@ -112,6 +114,10 @@ export function batteryStanding(reading: BatteryReading): BatteryStanding {
 
 export function batteryReportStanding(report: BatteryReport | undefined): BatteryStanding {
   return report?.present === true ? standingOf(report.charge_percent, report.on_battery) : "normal";
+}
+
+export function isBatteryWorn(healthPercent: number): boolean {
+  return healthPercent < WORN_BATTERY_HEALTH_PERCENT;
 }
 
 export function isOnBatteryTooLong(report: BatteryReport | undefined): boolean {

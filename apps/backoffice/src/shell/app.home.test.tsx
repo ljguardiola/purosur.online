@@ -204,8 +204,14 @@ test("shows each register of the branch with its last successful sync on Inicio"
   vi.mocked(services.homeScreen.fetchRegisterSyncStatus).mockResolvedValue({
     kind: "ok",
     value: [
-      { id: "register-1", name: "Caja 1", lastSuccessfulSyncAt: "2026-03-02T09:30:00.000Z" },
-      { id: "register-2", name: "Caja 2", lastSuccessfulSyncAt: null },
+      {
+        id: "register-1",
+        name: "Caja 1",
+        lastSuccessfulSyncAt: "2026-03-02T09:30:00.000Z",
+        battery: null,
+        disk: null,
+      },
+      { id: "register-2", name: "Caja 2", lastSuccessfulSyncAt: null, battery: null, disk: null },
     ],
   });
 
@@ -215,10 +221,10 @@ test("shows each register of the branch with its last successful sync on Inicio"
     .element(screen.getByRole("heading", { name: "Estado de las cajas", level: 2 }))
     .toBeVisible();
   await expect
-    .element(screen.getByRole("row", { name: /^Caja 1 02\/03\/2026 06:30$/ }))
+    .element(screen.getByRole("row", { name: /^Caja 1 02\/03\/2026 06:30 Sin datos Sin datos$/ }))
     .toBeVisible();
   await expect
-    .element(screen.getByRole("row", { name: /^Caja 2 Nunca sincronizó$/ }))
+    .element(screen.getByRole("row", { name: /^Caja 2 Nunca sincronizó Sin datos Sin datos$/ }))
     .toBeVisible();
 });
 
@@ -228,16 +234,18 @@ test("keeps the alerts on Inicio when the registers fail to load, and retries on
   vi.mocked(services.homeScreen.fetchAlertsOverview).mockResolvedValue({
     kind: "ok",
     value: {
-      critical: { openCount: 0, kinds: [] },
-      warning: { openCount: 2, kinds: ["user_email_changed"] },
-      informational: { openCount: 0, kinds: [] },
+      critical: { openCount: 0, kinds: [], localKinds: [] },
+      warning: { openCount: 2, kinds: ["user_email_changed"], localKinds: [] },
+      informational: { openCount: 0, kinds: [], localKinds: [] },
     },
   });
   vi.mocked(services.homeScreen.fetchRegisterSyncStatus)
     .mockResolvedValueOnce({ kind: "failed" })
     .mockResolvedValueOnce({
       kind: "ok",
-      value: [{ id: "register-1", name: "Caja 1", lastSuccessfulSyncAt: null }],
+      value: [
+        { id: "register-1", name: "Caja 1", lastSuccessfulSyncAt: null, battery: null, disk: null },
+      ],
     });
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -261,13 +269,15 @@ test("shows each register's last successful sync on Inicio to a user who may not
   });
   vi.mocked(services.homeScreen.fetchRegisterSyncStatus).mockResolvedValue({
     kind: "ok",
-    value: [{ id: "register-1", name: "Caja 1", lastSuccessfulSyncAt: null }],
+    value: [
+      { id: "register-1", name: "Caja 1", lastSuccessfulSyncAt: null, battery: null, disk: null },
+    ],
   });
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect
-    .element(screen.getByRole("row", { name: /^Caja 1 Nunca sincronizó$/ }))
+    .element(screen.getByRole("row", { name: /^Caja 1 Nunca sincronizó Sin datos Sin datos$/ }))
     .toBeVisible();
   expect(screen.getByText("No tenés alertas para ver").query()).toBeNull();
 });

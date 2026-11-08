@@ -21,15 +21,15 @@ beforeEach(() => {
 });
 
 const overview: AlertsOverview = {
-  critical: { openCount: 1, kinds: ["user_access_increased"] },
-  warning: { openCount: 2, kinds: ["user_email_changed"] },
-  informational: { openCount: 0, kinds: [] },
+  critical: { openCount: 1, kinds: ["user_access_increased"], localKinds: [] },
+  warning: { openCount: 2, kinds: ["user_email_changed"], localKinds: [] },
+  informational: { openCount: 0, kinds: [], localKinds: [] },
 };
 
 const NOTHING_OPEN: AlertsOverview = {
-  critical: { openCount: 0, kinds: [] },
-  warning: { openCount: 0, kinds: [] },
-  informational: { openCount: 0, kinds: [] },
+  critical: { openCount: 0, kinds: [], localKinds: [] },
+  warning: { openCount: 0, kinds: [], localKinds: [] },
+  informational: { openCount: 0, kinds: [], localKinds: [] },
 };
 
 const passkeyAlert: AlertSummary = {
@@ -60,6 +60,8 @@ const neverSynced: RegisterSyncStatus = {
   id: "register-1",
   name: "Caja 1",
   lastSuccessfulSyncAt: null,
+  battery: null,
+  disk: null,
 };
 
 function deferred<T>() {
@@ -145,7 +147,7 @@ test("shows Inicio with the open alerts' total, the alerts by level, the alert l
     .element(screen.getByRole("heading", { name: "Estado de las cajas", level: 2 }))
     .toBeVisible();
   await expect
-    .element(screen.getByRole("row", { name: /^Caja 1 Nunca sincronizó$/ }))
+    .element(screen.getByRole("row", { name: /^Caja 1 Nunca sincronizó Sin datos Sin datos$/ }))
     .toBeVisible();
   expect(services.fetchAlertsOverview).toHaveBeenCalledTimes(1);
   expect(services.fetchRegisterSyncStatus).toHaveBeenCalledTimes(1);
@@ -227,7 +229,7 @@ test("shows someone without the alerts permission the registers' last sync and n
 
   await expect.element(screen.getByRole("heading", { name: "Inicio", level: 1 })).toBeVisible();
   await expect
-    .element(screen.getByRole("row", { name: /^Caja 1 Nunca sincronizó$/ }))
+    .element(screen.getByRole("row", { name: /^Caja 1 Nunca sincronizó Sin datos Sin datos$/ }))
     .toBeVisible();
   expect(screen.getByText("No tenés alertas para ver").query()).toBeNull();
   expect(screen.getByRole("heading", { name: "Alertas abiertas" }).query()).toBeNull();
@@ -371,7 +373,7 @@ test("shows the registers' loading state until the registers arrive", async () =
   const screen = await renderScreen(services);
 
   await expect
-    .element(screen.getByRole("table", { name: "Última sincronización de las cajas" }))
+    .element(screen.getByRole("table", { name: "Estado de las cajas" }))
     .toHaveAttribute("aria-busy", "true");
   load.resolve({ kind: "ok", value: [neverSynced] });
   await expect.element(screen.getByText("Caja 1")).toBeVisible();
@@ -399,7 +401,7 @@ test("shows the registers' load error whose retry starts again from the loading 
 
   await expect.element(screen.getByText("No pudimos abrir las cajas")).not.toBeInTheDocument();
   await expect
-    .element(screen.getByRole("table", { name: "Última sincronización de las cajas" }))
+    .element(screen.getByRole("table", { name: "Estado de las cajas" }))
     .toHaveAttribute("aria-busy", "true");
   retry.resolve({ kind: "ok", value: [neverSynced] });
   await expect.element(screen.getByText("Caja 1")).toBeVisible();
