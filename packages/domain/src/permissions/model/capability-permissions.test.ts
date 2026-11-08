@@ -25,10 +25,7 @@ const CAPABILITIES_GRANTED_BY: readonly [PermissionKey, readonly Capability[]][]
   ["view_bitlocker_key", ["registers_area", "bitlocker_recovery_key"]],
   ["release_quarantined_events", ["quarantined_events"]],
   ["manage_suppliers", ["suppliers", "purchasing_area", "stock_products"]],
-  [
-    "record_purchases",
-    ["purchases", "purchase_choices", "purchasing_area", "stock_products"],
-  ],
+  ["record_purchases", ["purchases", "purchase_choices", "purchasing_area", "stock_products"]],
   ["manage_freight", ["freights", "purchasing_area", "stock_products"]],
   ["manage_recipes", ["recipes", "stock_products", "catalog_area"]],
   ["manage_batches", ["batches", "stock_products", "catalog_area"]],
