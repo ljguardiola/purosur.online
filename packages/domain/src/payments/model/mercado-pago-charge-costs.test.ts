@@ -196,6 +196,15 @@ describe("summarizeChargeCosts", () => {
     ]);
   });
 
+  it("orders the registers by their names as people read them, numbers by their value", () => {
+    const { registers } = summarize([
+      charge({ paymentTransactionId: "ten", registerId: "r-10", registerName: "Caja 10" }),
+      charge({ paymentTransactionId: "two", registerId: "r-2", registerName: "caja 2" }),
+    ]);
+
+    expect(registers.map((entry) => entry.registerName)).toEqual(["caja 2", "Caja 10"]);
+  });
+
   it("groups the Point and QR charges of one register together", () => {
     const { registers } = summarize([
       charge({ paymentTransactionId: "q", method: "QR" }),
