@@ -254,7 +254,7 @@ test("the create action opens the new tag modal, and the created tag is listed",
 
   await userEvent.click(screen.getByRole("button", { name: "Nuevo distintivo" }));
   const dialog = screen.getByRole("dialog");
-  await expect.element(dialog.getByText("Catálogo", { exact: true })).toBeVisible();
+  await expect.element(dialog.getByText("Productos · Distintivos", { exact: true })).toBeVisible();
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "Sin conservantes");
   await userEvent.click(dialog.getByRole("button", { name: "Crear el distintivo" }));
 

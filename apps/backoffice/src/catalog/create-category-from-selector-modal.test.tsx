@@ -96,3 +96,15 @@ test("categories that fail to load show the failure instead of the form, and Rei
     .element(dialog.getByRole("textbox", { name: /^Nombre de la categoría/ }))
     .toHaveValue("Fiambres");
 });
+
+test("names Productos in its eyebrow", async () => {
+  const screen = await renderPart(createServices());
+
+  await expect
+    .element(
+      screen
+        .getByRole("dialog", { name: "Nueva categoría" })
+        .getByText("Productos", { exact: true }),
+    )
+    .toBeVisible();
+});

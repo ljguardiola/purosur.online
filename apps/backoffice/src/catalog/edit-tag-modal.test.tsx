@@ -58,7 +58,7 @@ test("opens on the tag's name, titled with it, saying how many products show it"
   const screen = await renderModal();
   const dialog = screen.getByRole("dialog");
 
-  await expect.element(dialog.getByText("Catálogo · Distintivos")).toBeVisible();
+  await expect.element(dialog.getByText("Productos · Distintivos")).toBeVisible();
   await expect.element(dialog.getByRole("heading", { name: "Sin TACC" })).toBeVisible();
   await expect.element(dialog.getByRole("textbox", { name: /^Nombre/ })).toHaveValue("Sin TACC");
   await expect

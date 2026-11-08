@@ -276,7 +276,7 @@ test("creates a brand from the create modal, sending the name trimmed, and lists
   await expect.element(screen.getByText("Granuz")).toBeVisible();
   const dialog = await openNewBrandModal(screen);
 
-  await expect.element(dialog.getByText("Catálogo", { exact: true })).toBeVisible();
+  await expect.element(dialog.getByText("Productos · Marcas", { exact: true })).toBeVisible();
   await expect.element(dialog.getByRole("heading", { name: "Nueva marca" })).toBeVisible();
   await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre/ }), "  Dulcor  ");
   await userEvent.click(dialog.getByRole("button", { name: "Crear la marca" }));
@@ -379,7 +379,7 @@ test("the edit action opens the brand's name, saying how many products show it, 
   await userEvent.click(screen.getByRole("button", { name: "Editar la marca Granuz" }));
   const dialog = screen.getByRole("dialog");
 
-  await expect.element(dialog.getByText("Catálogo · Marcas")).toBeVisible();
+  await expect.element(dialog.getByText("Productos · Marcas")).toBeVisible();
   await expect.element(dialog.getByRole("heading", { name: "Granuz" })).toBeVisible();
   await expect.element(dialog.getByRole("textbox", { name: /^Nombre/ })).toHaveValue("Granuz");
   await expect

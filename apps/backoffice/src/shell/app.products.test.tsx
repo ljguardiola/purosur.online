@@ -88,6 +88,17 @@ test("opens Productos from the rail with its five tabs for a person with every c
     .toHaveAttribute("aria-current", "page");
 });
 
+test("names the area, not the retired Catálogo, in the eyebrow above the page's title", async () => {
+  const services = productsServices(EVERY_PRODUCT_CAPABILITY);
+  window.history.pushState(null, "", "/products");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  const title = screen.getByRole("heading", { name: "Productos", level: 1 });
+  await expect.element(title).toBeVisible();
+  expect(title.element().previousElementSibling?.textContent).toBe("Productos");
+});
+
 test("has no Catálogo item in the rail", async () => {
   const services = productsServices(EVERY_PRODUCT_CAPABILITY);
   window.history.pushState(null, "", "/help");
