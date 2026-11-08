@@ -791,6 +791,7 @@ export {
   INSTALLATION_KEY_BYTES,
   INSTALLATION_REPORT_MAX_LENGTH,
   installationSyncedLastOf,
+  isBatteryWorn,
   isBitlockerKeyIdentifier,
   isBitlockerRecoveryKey,
   isDeviceTokenRotationDue,
