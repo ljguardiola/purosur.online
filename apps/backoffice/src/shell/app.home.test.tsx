@@ -221,10 +221,10 @@ test("shows each register of the branch with its last successful sync on Inicio"
     .element(screen.getByRole("heading", { name: "Estado de las cajas", level: 2 }))
     .toBeVisible();
   await expect
-    .element(screen.getByRole("row", { name: /^Caja 1 02\/03\/2026 06:30$/ }))
+    .element(screen.getByRole("row", { name: /^Caja 1 02\/03\/2026 06:30 Sin datos Sin datos$/ }))
     .toBeVisible();
   await expect
-    .element(screen.getByRole("row", { name: /^Caja 2 Nunca sincronizó$/ }))
+    .element(screen.getByRole("row", { name: /^Caja 2 Nunca sincronizó Sin datos Sin datos$/ }))
     .toBeVisible();
 });
 
@@ -277,7 +277,7 @@ test("shows each register's last successful sync on Inicio to a user who may not
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect
-    .element(screen.getByRole("row", { name: /^Caja 1 Nunca sincronizó$/ }))
+    .element(screen.getByRole("row", { name: /^Caja 1 Nunca sincronizó Sin datos Sin datos$/ }))
     .toBeVisible();
   expect(screen.getByText("No tenés alertas para ver").query()).toBeNull();
 });

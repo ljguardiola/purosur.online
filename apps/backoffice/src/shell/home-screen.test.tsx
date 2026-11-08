@@ -147,7 +147,7 @@ test("shows Inicio with the open alerts' total, the alerts by level, the alert l
     .element(screen.getByRole("heading", { name: "Estado de las cajas", level: 2 }))
     .toBeVisible();
   await expect
-    .element(screen.getByRole("row", { name: /^Caja 1 Nunca sincronizó$/ }))
+    .element(screen.getByRole("row", { name: /^Caja 1 Nunca sincronizó Sin datos Sin datos$/ }))
     .toBeVisible();
   expect(services.fetchAlertsOverview).toHaveBeenCalledTimes(1);
   expect(services.fetchRegisterSyncStatus).toHaveBeenCalledTimes(1);
@@ -229,7 +229,7 @@ test("shows someone without the alerts permission the registers' last sync and n
 
   await expect.element(screen.getByRole("heading", { name: "Inicio", level: 1 })).toBeVisible();
   await expect
-    .element(screen.getByRole("row", { name: /^Caja 1 Nunca sincronizó$/ }))
+    .element(screen.getByRole("row", { name: /^Caja 1 Nunca sincronizó Sin datos Sin datos$/ }))
     .toBeVisible();
   expect(screen.getByText("No tenés alertas para ver").query()).toBeNull();
   expect(screen.getByRole("heading", { name: "Alertas abiertas" }).query()).toBeNull();
