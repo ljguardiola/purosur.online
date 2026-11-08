@@ -593,11 +593,50 @@ test.each([
   expect(await fetchRegisterCoverage()).toEqual({ kind: "failed" });
 });
 
-test("fetchRegisterSyncStatus lists each register with its last successful sync, translating the wire names", async () => {
+test("fetchRegisterSyncStatus lists each register with its last successful sync, battery and disk, translating the wire names", async () => {
   vi.mocked(fetch).mockResolvedValue(
     jsonResponse(200, [
-      { id: "register-1", name: "Caja 1", last_successful_sync_at: "2026-03-02T09:30:00.000Z" },
-      { id: "register-2", name: "Caja 2", last_successful_sync_at: null },
+      {
+        id: "register-1",
+        name: "Caja 1",
+        last_successful_sync_at: "2026-03-02T09:30:00.000Z",
+        battery: {
+          present: true,
+          charge_percent: 64,
+          on_battery: true,
+          on_battery_minutes: 14,
+          health_percent: 55,
+          worn: true,
+        },
+        disk: { free_bytes: 105226698752, free_ratio: 0.41 },
+      },
+      {
+        id: "register-2",
+        name: "Caja 2",
+        last_successful_sync_at: null,
+        battery: { present: false },
+        disk: null,
+      },
+      {
+        id: "register-3",
+        name: "Caja 3",
+        last_successful_sync_at: null,
+        battery: {
+          present: true,
+          charge_percent: 87,
+          on_battery: false,
+          on_battery_minutes: 0,
+          worn: false,
+        },
+        disk: null,
+      },
+      {
+        id: "register-4",
+        name: "Caja 4",
+        last_successful_sync_at: null,
+        battery: null,
+        disk: null,
+      },
     ]),
   );
 
@@ -606,8 +645,48 @@ test("fetchRegisterSyncStatus lists each register with its last successful sync,
   expect(outcome).toEqual({
     kind: "ok",
     value: [
-      { id: "register-1", name: "Caja 1", lastSuccessfulSyncAt: "2026-03-02T09:30:00.000Z" },
-      { id: "register-2", name: "Caja 2", lastSuccessfulSyncAt: null },
+      {
+        id: "register-1",
+        name: "Caja 1",
+        lastSuccessfulSyncAt: "2026-03-02T09:30:00.000Z",
+        battery: {
+          present: true,
+          chargePercent: 64,
+          onBattery: true,
+          onBatteryMinutes: 14,
+          healthPercent: 55,
+          worn: true,
+        },
+        disk: { freeBytes: 105226698752, freeRatio: 0.41 },
+      },
+      {
+        id: "register-2",
+        name: "Caja 2",
+        lastSuccessfulSyncAt: null,
+        battery: { present: false },
+        disk: null,
+      },
+      {
+        id: "register-3",
+        name: "Caja 3",
+        lastSuccessfulSyncAt: null,
+        battery: {
+          present: true,
+          chargePercent: 87,
+          onBattery: false,
+          onBatteryMinutes: 0,
+          healthPercent: null,
+          worn: false,
+        },
+        disk: null,
+      },
+      {
+        id: "register-4",
+        name: "Caja 4",
+        lastSuccessfulSyncAt: null,
+        battery: null,
+        disk: null,
+      },
     ],
   });
   expect(fetch).toHaveBeenCalledWith("/api/registers/sync-status");
