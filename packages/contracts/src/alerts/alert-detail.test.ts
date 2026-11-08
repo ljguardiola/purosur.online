@@ -222,6 +222,15 @@ describe("alertDetailSchema", () => {
     expectTypeOf<WireDetail<"refund_task">>().toEqualTypeOf<AlertDetails["refund_task"]>();
     expectTypeOf<WireDetail<"fiscal_unknown">>().toEqualTypeOf<AlertDetails["fiscal_unknown"]>();
     expectTypeOf<WireDetail<"clock_drift">>().toEqualTypeOf<AlertDetails["clock_drift"]>();
+    expectTypeOf<WireDetail<"on_battery">>().toEqualTypeOf<AlertDetails["on_battery"]>();
+    expectTypeOf<WireDetail<"battery_missing">>().toEqualTypeOf<AlertDetails["battery_missing"]>();
+    expectTypeOf<WireDetail<"battery_health_low">>().toEqualTypeOf<
+      AlertDetails["battery_health_low"]
+    >();
+    expectTypeOf<WireDetail<"wal_oversized">>().toEqualTypeOf<AlertDetails["wal_oversized"]>();
+    expectTypeOf<WireDetail<"register_disk_space_low">>().toEqualTypeOf<
+      AlertDetails["register_disk_space_low"]
+    >();
     expectTypeOf<WireDetail<"tz_rules_mismatch">>().toEqualTypeOf<
       AlertDetails["tz_rules_mismatch"]
     >();
@@ -418,6 +427,15 @@ describe("alertDetailSchema", () => {
       clock_drift: { deviceId: "device-1" },
       register_replenishment_failed: { deviceId: "device-1", failure: "refused" },
       tz_rules_mismatch: { deviceId: "device-1", registerVersion: null, cloudVersion: "2026a" },
+      on_battery: { deviceId: "device-1", onBatteryMinutes: 12, thresholdMinutes: 10 },
+      battery_missing: { deviceId: "device-1" },
+      battery_health_low: { deviceId: "device-1", healthPercent: 55, wornBelowPercent: 60 },
+      wal_oversized: { deviceId: "device-1", walSizeBytes: 300000000, limitBytes: 268435456 },
+      register_disk_space_low: {
+        deviceId: "device-1",
+        diskFreeBytes: 4000000000,
+        diskFreeRatio: 0.1,
+      },
       outbox_chain_broken: { deviceId: "device-1" },
       lots_expiring: { lotCount: 3, windowDays: 30, aboutViewerBranch: true },
       offsite_dump_unverified: { night: "2026-10-14", reason: "not_reported" },
