@@ -2,6 +2,7 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { stockBalancesFilters } from "./routes";
+import { createServices, listed, renderScreen } from "./test-support/stock-balances-screen";
 import {
   almondOil,
   almonds,
@@ -12,7 +13,6 @@ import {
   tea,
   yerba,
 } from "./test-support/stock-fixtures";
-import { createServices, listed, renderScreen } from "./test-support/stock-balances-screen";
 
 beforeEach(async () => {
   await page.viewport(1280, 900);

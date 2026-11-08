@@ -18,7 +18,7 @@ import { ArrowDownUp, Check, Plus, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import type { ProductCreationModal } from "../platform/creation-parts";
-import { formatStockChange, formatStockQuantity } from "../platform/stock-quantity";
+import { formatStockChange } from "../platform/stock-quantity";
 import {
   type BackofficeAccess,
   canManageProductsAndCategories,
@@ -37,6 +37,7 @@ import {
 } from "./stock-period";
 import { useRefreshStock, useStockMovementsQuery } from "./stock-queries";
 import { REASON_LABELS } from "./stock-reason-labels";
+import { movementRegisteredNotice } from "./stock-registered-notices";
 
 export type StockMovementsScreenProps = {
   access: BackofficeAccess;
@@ -110,30 +111,6 @@ const columns = [
     },
   }),
 ] as const;
-
-function registeredNotice(
-  product: StockProduct,
-  result: StockMovementResult,
-  delta: number,
-  showsBalance: boolean,
-) {
-  const name = formatProductDescription(product);
-  const balance = formatStockQuantity(result.balance, product.saleUnit);
-  if (result.superseded) {
-    return {
-      title: "El movimiento no cambió el saldo",
-      description: showsBalance
-        ? `Hay un recuento posterior de ${name}: el saldo sigue en ${balance}.`
-        : `Hay un recuento posterior de ${name}.`,
-    };
-  }
-  return {
-    title: "Saldo actualizado",
-    description: showsBalance
-      ? `${name} queda en ${balance}.`
-      : `${name}: ${formatStockChange(delta, product.saleUnit)}.`,
-  };
-}
 
 function actionLabel(kinds: readonly MovementKind[]): string {
   if (kinds.length > 1) {
@@ -221,7 +198,7 @@ export function StockMovementsScreen({
   function handleRegistered(product: StockProduct, result: StockMovementResult, delta: number) {
     setModalOpen(false);
     void refreshStock();
-    showNotice(registeredNotice(product, result, delta, showsBalance));
+    showNotice(movementRegisteredNotice(product, result, delta, showsBalance));
   }
 
   return (

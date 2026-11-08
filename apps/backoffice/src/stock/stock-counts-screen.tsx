@@ -41,6 +41,7 @@ import {
   type StockPeriod,
 } from "./stock-period";
 import { useRefreshStock, useStockCountsQuery } from "./stock-queries";
+import { countRegisteredNotice } from "./stock-registered-notices";
 import { categoryFilterOptions } from "./stock-screen-parts";
 
 export type StockCountsScreenProps = {
@@ -159,31 +160,6 @@ const columns = [
   }),
 ] as const;
 
-function registeredNotice(product: StockProduct, result: StockCountResult, showsBalance: boolean) {
-  const name = formatProductDescription(product);
-  const balance = formatStockQuantity(result.balance, product.saleUnit);
-  if (result.superseded) {
-    return {
-      title: "El recuento no cambió el saldo",
-      description: showsBalance
-        ? `Hay un recuento posterior de ${name}: el saldo sigue en ${balance}.`
-        : `Hay un recuento posterior de ${name}.`,
-    };
-  }
-  if (result.delta === 0) {
-    return {
-      title: "Sin diferencia",
-      description: showsBalance ? `${name} sigue en ${balance}.` : `${name} sigue igual.`,
-    };
-  }
-  return {
-    title: "Saldo corregido",
-    description: showsBalance
-      ? `${name} queda en ${balance}.`
-      : `${name}: ${formatStockChange(result.delta, product.saleUnit)}.`,
-  };
-}
-
 export function StockCountsScreen({
   access,
   productCreationModal,
@@ -267,7 +243,7 @@ export function StockCountsScreen({
   function handleRegistered(product: StockProduct, result: StockCountResult) {
     setNewCount(null);
     void refreshStock();
-    showNotice(registeredNotice(product, result, showsBalance));
+    showNotice(countRegisteredNotice(product, result, showsBalance));
   }
 
   return (
