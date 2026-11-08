@@ -9,6 +9,7 @@ import {
   supplierPriceListAiCostSchema,
   supplierPriceListConfirmationBodySchema,
   supplierPriceListDiscardBodySchema,
+  supplierPriceListListQuerySchema,
   supplierPriceListListSchema,
   supplierPriceListPageRefusedSchema,
   supplierPriceListRereadStartedSchema,
@@ -404,8 +405,12 @@ export function registerSupplierPriceListsRoutes<TQueryResult extends PgQueryRes
     );
   });
 
-  app.get("/supplier-price-lists", readGuard, async (_request, reply) => {
-    const lists = await listSupplierPriceLists(reader);
+  app.get("/supplier-price-lists", readGuard, async (request, reply) => {
+    const query = await readValidatedBody(reply, supplierPriceListListQuerySchema, request.query);
+    if (!query) {
+      return;
+    }
+    const lists = await listSupplierPriceLists(reader, query.supplierId);
     await reply
       .code(200)
       .send(

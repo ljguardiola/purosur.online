@@ -35,7 +35,11 @@ export class DrizzlePurchaseOrderReader<TQueryResult extends PgQueryResultHKT>
     this.db = db;
   }
 
-  async orders(locationId: string, state?: OrderState): Promise<PurchaseOrderListing[]> {
+  async orders(
+    locationId: string,
+    state?: OrderState,
+    supplierId?: string,
+  ): Promise<PurchaseOrderListing[]> {
     const rows = await this.db
       .select({
         id: purchaseOrders.id,
@@ -50,6 +54,7 @@ export class DrizzlePurchaseOrderReader<TQueryResult extends PgQueryResultHKT>
         and(
           eq(purchaseOrders.locationId, locationId),
           state === undefined ? undefined : eq(purchaseOrders.state, state),
+          supplierId === undefined ? undefined : eq(purchaseOrders.supplierId, supplierId),
         ),
       )
       .orderBy(desc(purchaseOrders.createdAt), desc(purchaseOrders.id));

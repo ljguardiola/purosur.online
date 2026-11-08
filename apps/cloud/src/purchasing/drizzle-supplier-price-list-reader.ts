@@ -95,11 +95,12 @@ export class DrizzleSupplierPriceListReader<TQueryResult extends PgQueryResultHK
     this.db = db;
   }
 
-  async lists(): Promise<SupplierPriceListListing[]> {
+  async lists(supplierId?: string): Promise<SupplierPriceListListing[]> {
     const rows = await this.db
       .select(listingColumns)
       .from(supplierPriceLists)
       .innerJoin(suppliers, eq(suppliers.id, supplierPriceLists.supplierId))
+      .where(supplierId === undefined ? undefined : eq(supplierPriceLists.supplierId, supplierId))
       .orderBy(desc(supplierPriceLists.uploadedAt), asc(supplierPriceLists.id));
     return rows.map(toListing);
   }
