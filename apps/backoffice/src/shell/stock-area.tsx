@@ -1,24 +1,11 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
-import {
-  ArrowDownUp,
-  CalendarClock,
-  ClipboardCheck,
-  ClipboardList,
-  Container,
-  Scale,
-  ShoppingCart,
-  Truck,
-} from "lucide-react";
+import { Boxes, Container, ShoppingCart, Truck } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
 import {
   canManageFreights,
   canManageSuppliers,
-  canPerformStockCounts,
-  canRecordInitialInventory,
   canRecordPurchases,
-  canSeeExpiringLots,
-  canSeeStockBalances,
-  canSeeStockMovements,
+  canSeeStockPage,
 } from "./backoffice-access";
 import { signedInRoute } from "./signed-in-route";
 
@@ -31,14 +18,11 @@ export const stockAreaRoute = createRoute({
 function StockArea() {
   const { session } = stockAreaRoute.useRouteContext();
   const matchRoute = useMatchRoute();
-  const balancesShown = Boolean(matchRoute({ to: "/inventory" }));
-  const countsShown = Boolean(matchRoute({ to: "/inventory-counts" }));
-  const movementsShown = Boolean(matchRoute({ to: "/inventory-adjustments" }));
+  const stockShown = Boolean(matchRoute({ to: "/stock" }));
+  const stockActive = Boolean(matchRoute({ to: "/stock", fuzzy: true }));
   const suppliersShown = Boolean(matchRoute({ to: "/suppliers" }));
   const purchasesShown = Boolean(matchRoute({ to: "/purchases", fuzzy: true }));
-  const expiringLotsShown = Boolean(matchRoute({ to: "/expiring-lots" }));
   const freightsShown = Boolean(matchRoute({ to: "/freights" }));
-  const initialInventoryShown = Boolean(matchRoute({ to: "/initial-inventory" }));
   return (
     <AreaLayout
       area="stock"
@@ -48,36 +32,14 @@ function StockArea() {
           <h2 className="text-text-accent text-heading">Stock</h2>
           <div className="h-2.5" />
           <ul className="flex flex-col gap-1">
-            {canSeeStockBalances(session) && (
+            {canSeeStockPage(session) && (
               <li>
                 <SectionLink
-                  to="/inventory"
-                  label="Saldos"
-                  icon={<Scale />}
-                  search={balancesShown ? true : {}}
-                  active={balancesShown}
-                />
-              </li>
-            )}
-            {canPerformStockCounts(session) && (
-              <li>
-                <SectionLink
-                  to="/inventory-counts"
-                  label="Recuentos"
-                  icon={<ClipboardCheck />}
-                  search={countsShown ? true : {}}
-                  active={countsShown}
-                />
-              </li>
-            )}
-            {canSeeStockMovements(session) && (
-              <li>
-                <SectionLink
-                  to="/inventory-adjustments"
-                  label="Ajustes y pérdidas"
-                  icon={<ArrowDownUp />}
-                  search={movementsShown ? true : {}}
-                  active={movementsShown}
+                  to="/stock"
+                  label="Stock"
+                  icon={<Boxes />}
+                  search={stockShown ? true : {}}
+                  active={stockActive}
                 />
               </li>
             )}
@@ -103,17 +65,6 @@ function StockArea() {
                 />
               </li>
             )}
-            {canSeeExpiringLots(session) && (
-              <li>
-                <SectionLink
-                  to="/expiring-lots"
-                  label="Vencimientos"
-                  icon={<CalendarClock />}
-                  search={expiringLotsShown ? true : {}}
-                  active={expiringLotsShown}
-                />
-              </li>
-            )}
             {canManageFreights(session) && (
               <li>
                 <SectionLink
@@ -122,17 +73,6 @@ function StockArea() {
                   icon={<Container />}
                   search={freightsShown ? true : {}}
                   active={freightsShown}
-                />
-              </li>
-            )}
-            {canRecordInitialInventory(session) && (
-              <li>
-                <SectionLink
-                  to="/initial-inventory"
-                  label="Inventario inicial"
-                  icon={<ClipboardList />}
-                  search={initialInventoryShown ? true : {}}
-                  active={initialInventoryShown}
                 />
               </li>
             )}

@@ -8,7 +8,7 @@ import { UnbilledDeferredSalesPill } from "./unbilled-deferred-sales-pill";
 import type { UnbilledDeferredSalesPillServices } from "./unbilled-deferred-sales-pill-services";
 
 beforeEach(() => {
-  window.history.replaceState(null, "", "/inventory");
+  window.history.replaceState(null, "", "/stock");
 });
 
 type FetchOutcome = Awaited<
@@ -79,12 +79,12 @@ test("offers to read the count again, staying on the screen, when the cloud refu
 
   const retry = screen.getByRole("button", { name: retryName });
   await expect.element(retry).toBeVisible();
-  expect(window.location.pathname).toBe("/inventory");
+  expect(window.location.pathname).toBe("/stock");
 
   await userEvent.click(retry);
 
   await expect.element(screen.getByRole("link", { name: countName })).toBeVisible();
-  expect(window.location.pathname).toBe("/inventory");
+  expect(window.location.pathname).toBe("/stock");
 });
 
 test("offers to read the count again when it cannot be read, from its loading pill", async () => {

@@ -9,7 +9,7 @@ import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
-opensOnlyScreens(["/", "/products", "/inventory", "/fiscal"]);
+opensOnlyScreens(["/", "/products", "/stock", "/fiscal"]);
 
 beforeEach(resetPageState);
 
@@ -36,7 +36,7 @@ function servicesFor(capabilities: Capability[]) {
 test.each([
   ["the home area", "/", "Inicio", []],
   ["the products area", "/products", "Productos", ["products_and_categories", "catalog_area"]],
-  ["the stock area", "/inventory", "Saldos", ["stock_area", "stock_balances"]],
+  ["the stock area", "/stock", "Stock", ["stock_area", "stock_balances"]],
 ] as const)(
   "counts the unbilled deferred sales in the top bar of %s",
   async (_area, path, heading, capabilities) => {
@@ -52,7 +52,7 @@ test.each([
 
 test("opens the fiscal tasks from the count", async () => {
   const services = servicesFor(["stock_area", "stock_balances", "fiscal_information"]);
-  window.history.pushState(null, "", "/inventory");
+  window.history.pushState(null, "", "/stock");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
   await userEvent.click(screen.getByRole("link", { name: PILL }));
@@ -62,11 +62,11 @@ test("opens the fiscal tasks from the count", async () => {
 
 test("hides the count, and never asks for it, from a user who cannot see fiscal information", async () => {
   const services = servicesFor(["stock_area", "stock_balances"]);
-  window.history.pushState(null, "", "/inventory");
+  window.history.pushState(null, "", "/stock");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByRole("heading", { level: 1, name: "Saldos" })).toBeVisible();
+  await expect.element(screen.getByRole("heading", { level: 1, name: "Stock" })).toBeVisible();
   expect(screen.getByRole("link", { name: PILL }).query()).toBeNull();
   expect(services.unbilledDeferredSalesPill.fetchUnbilledDeferredSales).not.toHaveBeenCalled();
 });
@@ -77,7 +77,7 @@ test("hides the count when no deferred sale is unbilled", async () => {
     kind: "ok",
     value: { count: 0, oldest: null },
   });
-  window.history.pushState(null, "", "/inventory");
+  window.history.pushState(null, "", "/stock");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 

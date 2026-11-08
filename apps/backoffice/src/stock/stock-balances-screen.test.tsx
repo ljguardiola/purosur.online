@@ -1,12 +1,8 @@
-import type { StockBalanceList } from "@purosur/contracts";
-import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import { render } from "../shell/test-support/render-with-router";
-import { type StockBalancesFilters, stockBalancesFilters } from "./routes";
-import { StockBalancesScreen } from "./stock-balances-screen";
-import type { StockBalancesScreenServices } from "./stock-balances-services";
+import { stockBalancesFilters } from "./routes";
+import { createServices, listed, renderScreen } from "./test-support/stock-balances-screen";
 import {
   almondOil,
   almonds,
@@ -22,50 +18,17 @@ beforeEach(async () => {
   await page.viewport(1280, 900);
 });
 
-function createServices(): StockBalancesScreenServices {
-  return { fetchStockBalances: vi.fn() };
-}
+test("shows no title of its own, the page it sits in names it", async () => {
+  const screen = await renderScreen(listed());
 
-function renderScreen(
-  services: StockBalancesScreenServices,
-  {
-    filters = stockBalancesFilters.parse({}),
-    onFiltersChange = () => {},
-    onSessionEnded = () => {},
-  }: {
-    filters?: StockBalancesFilters;
-    onFiltersChange?: (filters: StockBalancesFilters) => void;
-    onSessionEnded?: () => void;
-  } = {},
-) {
-  return render(
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <StockBalancesScreen
-          services={services}
-          filters={filters}
-          onFiltersChange={onFiltersChange}
-          onSessionEnded={onSessionEnded}
-        />
-      </main>
-    </FieldSizeProvider>,
-  );
-}
-
-function listed(products = [almonds, honey, crackers, tea], summary?: StockBalanceList["summary"]) {
-  const services = createServices();
-  vi.mocked(services.fetchStockBalances).mockResolvedValue({
-    kind: "ok",
-    value: stockBalanceList(products, summary),
-  });
-  return services;
-}
+  await expect.element(screen.getByRole("table", { name: "Saldos" })).toBeVisible();
+  expect(screen.getByRole("heading").query()).toBeNull();
+  expect(screen.getByText("Stock", { exact: true }).query()).toBeNull();
+});
 
 test("shows each product with its category and its balance in its own unit, a negative one included", async () => {
   const screen = await renderScreen(listed());
 
-  await expect.element(screen.getByRole("heading", { name: "Saldos", level: 1 })).toBeVisible();
-  await expect.element(screen.getByText("Stock", { exact: true })).toBeVisible();
   const table = screen.getByRole("table", { name: "Saldos" });
   await expect.element(table.getByText("Almendras peladas")).toBeVisible();
   await expect.element(table.getByText("Frutos secos")).toBeVisible();
@@ -243,73 +206,11 @@ test("says how a negative balance is corrected, writes its amounts negative and 
   );
 });
 
-test("says a product without lots is corrected with a purchase or a count, and offers no lots to open", async () => {
+test("says a product without lots is corrected with a purchase or a count", async () => {
   const screen = await renderScreen(listed([tea, honey]));
 
   await expect
     .element(screen.getByText("Sin lotes · se corrige con una compra o un recuento"))
-    .toBeVisible();
-  expect(screen.getByRole("button", { name: `Ver los lotes de ${tea.name}` }).query()).toBeNull();
-  await expect
-    .element(screen.getByRole("button", { name: `Ver los lotes de ${honey.name}` }))
-    .toBeVisible();
-});
-
-test("opens a product's lots under it", async () => {
-  const screen = await renderScreen(listed());
-
-  await userEvent.click(screen.getByRole("button", { name: `Ver los lotes de ${almonds.name}` }));
-
-  await expect
-    .element(screen.getByRole("table", { name: `Lotes de ${almonds.name}` }))
-    .toBeVisible();
-  await expectNoAccessibilityViolations(screen.container);
-});
-
-test("closes a product's lots when its button is pressed again", async () => {
-  const screen = await renderScreen(listed());
-  await userEvent.click(screen.getByRole("button", { name: `Ver los lotes de ${almonds.name}` }));
-  await expect.element(screen.getByText("Compra 12/09/2026")).toBeVisible();
-
-  await userEvent.click(
-    screen.getByRole("button", { name: `Ocultar los lotes de ${almonds.name}` }),
-  );
-
-  await expect.element(screen.getByText("Compra 12/09/2026")).not.toBeInTheDocument();
-  await expect
-    .element(screen.getByRole("button", { name: `Ver los lotes de ${almonds.name}` }))
-    .toBeVisible();
-});
-
-test("keeps the lots of every product opened open at once", async () => {
-  const screen = await renderScreen(listed());
-
-  await userEvent.click(screen.getByRole("button", { name: `Ver los lotes de ${almonds.name}` }));
-  await userEvent.click(screen.getByRole("button", { name: `Ver los lotes de ${honey.name}` }));
-
-  await expect
-    .element(screen.getByRole("table", { name: `Lotes de ${almonds.name}` }))
-    .toBeVisible();
-  await expect.element(screen.getByRole("table", { name: `Lotes de ${honey.name}` })).toBeVisible();
-});
-
-test("writes the footer from the cloud's summary", async () => {
-  const screen = await renderScreen(
-    listed([almonds], { productCount: 7, valueCents: 38_336_900, withoutCostCount: 3 }),
-  );
-
-  await expect
-    .element(screen.getByText("7 productos con movimiento · valorizado $ 383.369,00 · 3 sin costo"))
-    .toBeVisible();
-});
-
-test("writes the footer for a single product and leaves out the count of those without cost when there is none", async () => {
-  const screen = await renderScreen(
-    listed([almonds], { productCount: 1, valueCents: 12_400_100, withoutCostCount: 0 }),
-  );
-
-  await expect
-    .element(screen.getByText("1 producto con movimiento · valorizado $ 124.001,00"))
     .toBeVisible();
 });
 
@@ -412,30 +313,4 @@ test("finds a product by the brand shown with it", async () => {
 
   await expect.element(table.getByText("Miel pura de abeja 1 kg")).not.toBeInTheDocument();
   await expect.element(table.getByText("Aceite de Almendras Vitora 30 ml")).toBeVisible();
-});
-
-test("names the product's lots by its brand and net content", async () => {
-  const screen = await renderScreen(listed([almondOil]));
-
-  await userEvent.click(
-    screen.getByRole("button", { name: "Ver los lotes de Aceite de Almendras Vitora 30 ml" }),
-  );
-
-  await expect
-    .element(screen.getByRole("table", { name: "Lotes de Aceite de Almendras Vitora 30 ml" }))
-    .toBeVisible();
-});
-
-test("writes the footer counts with the thousands separator", async () => {
-  const screen = await renderScreen(
-    listed([almonds], { productCount: 1998, valueCents: 12_400_100, withoutCostCount: 1500 }),
-  );
-
-  await expect
-    .element(
-      screen.getByText(
-        "1.998 productos con movimiento · valorizado $ 124.001,00 · 1.500 sin costo",
-      ),
-    )
-    .toBeVisible();
 });

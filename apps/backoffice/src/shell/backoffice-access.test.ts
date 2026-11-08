@@ -31,6 +31,7 @@ import {
   canSeeFiscalConfigurationArea,
   canSeeFiscalInformation,
   canSeeFiscalPage,
+  canSeeLossesByReason,
   canSeeMercadoPagoChargeCosts,
   canSeeOrdersArea,
   canSeePeopleArea,
@@ -48,6 +49,7 @@ import {
   canSeeStockArea,
   canSeeStockBalances,
   canSeeStockMovements,
+  canSeeStockPage,
   canSeeUsersArea,
   canUseBitlockerRecoveryKey,
 } from "./backoffice-access";
@@ -78,6 +80,7 @@ test.each([
   ["canSeeStockBalances", "stock_balances", canSeeStockBalances],
   ["canPerformStockCounts", "stock_counts", canPerformStockCounts],
   ["canSeeStockMovements", "stock_movements", canSeeStockMovements],
+  ["canSeeLossesByReason", "stock_losses", canSeeLossesByReason],
   ["canSeeStockArea", "stock_area", canSeeStockArea],
   ["canSeeExpiringLots", "stock_expiries", canSeeExpiringLots],
   ["canRecordInitialInventory", "initial_inventory", canRecordInitialInventory],
@@ -109,6 +112,22 @@ test.each([
   expect(
     can(accessWith(...ADMINISTRATOR_ACCESS.capabilities.filter((c) => c !== capability))),
   ).toBe(false);
+});
+
+test.each([
+  "stock_balances",
+  "stock_expiries",
+  "stock_counts",
+  "stock_movements",
+  "initial_inventory",
+] as const)("canSeeStockPage holds with only the %s capability", (capability) => {
+  expect(canSeeStockPage(accessWith(capability))).toBe(true);
+});
+
+test("canSeeStockPage does not hold with the stock area alone, nor with no capability", () => {
+  expect(canSeeStockPage(accessWith("stock_area"))).toBe(false);
+  expect(canSeeStockPage(NO_CAPABILITIES_ACCESS)).toBe(false);
+  expect(canSeeStockPage(ADMINISTRATOR_ACCESS)).toBe(true);
 });
 
 test("canSeeAiCostReport holds only when both the reports area and the branch area are granted", () => {

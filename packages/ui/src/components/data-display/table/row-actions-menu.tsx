@@ -58,6 +58,23 @@ function RowMenuItem({ action }: { action: RowMenuAction }) {
   );
 }
 
+export function RowActionsPopover({ actions }: { actions: RowMenuActions }) {
+  return (
+    <AriaPopover
+      placement="bottom end"
+      offset={4}
+      style={menuPopoverStyle}
+      className={popoverClassName}
+    >
+      <AriaMenu className="flex flex-col gap-1 outline-none">
+        {actions.map((action) => (
+          <RowMenuItem key={action.label} action={action} />
+        ))}
+      </AriaMenu>
+    </AriaPopover>
+  );
+}
+
 export function RowActionsMenu({ actions }: { actions: RowMenuActions }) {
   return (
     <AriaMenuTrigger>
@@ -66,18 +83,7 @@ export function RowActionsMenu({ actions }: { actions: RowMenuActions }) {
           <Ellipsis />
         </span>
       </IconOnlyButton>
-      <AriaPopover
-        placement="bottom end"
-        offset={4}
-        style={menuPopoverStyle}
-        className={popoverClassName}
-      >
-        <AriaMenu className="flex flex-col gap-1 outline-none">
-          {actions.map((action) => (
-            <RowMenuItem key={action.label} action={action} />
-          ))}
-        </AriaMenu>
-      </AriaPopover>
+      <RowActionsPopover actions={actions} />
     </AriaMenuTrigger>
   );
 }

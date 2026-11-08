@@ -3,9 +3,8 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
-import { InitialInventoryScreen } from "./initial-inventory-screen";
-import type { InitialInventoryScreenServices } from "./initial-inventory-services";
-import { type InitialInventoryFilters, initialInventoryFilters } from "./routes";
+import { ReviewInitialInventoryModal } from "./review-initial-inventory-modal";
+import type { ReviewInitialInventoryModalServices } from "./review-initial-inventory-modal-services";
 import {
   initialLotAlmondOil,
   initialLotAlmonds,
@@ -21,33 +20,27 @@ beforeEach(async () => {
 
 function createServices(
   lots = [initialLotAlmonds, initialLotHoney, initialLotTeaWithoutCost],
-): InitialInventoryScreenServices {
+): ReviewInitialInventoryModalServices {
   return {
     fetchInitialInventoryLots: vi.fn().mockResolvedValue({ kind: "ok", value: { lots } }),
     setLotReferenceCost: vi.fn(),
   };
 }
 
-function renderScreen(
-  services: InitialInventoryScreenServices,
+function renderModal(
+  services: ReviewInitialInventoryModalServices,
   {
-    filters = initialInventoryFilters.parse({}),
-    onFiltersChange = () => {},
     onSessionEnded = () => {},
-  }: {
-    filters?: InitialInventoryFilters;
-    onFiltersChange?: (filters: InitialInventoryFilters) => void;
-    onSessionEnded?: () => void;
-  } = {},
+    onClose = () => {},
+  }: { onSessionEnded?: () => void; onClose?: () => void } = {},
 ) {
   return render(
     <FieldSizeProvider size="backoffice">
       <main>
-        <InitialInventoryScreen
-          filters={filters}
-          onFiltersChange={onFiltersChange}
-          onSessionEnded={onSessionEnded}
+        <ReviewInitialInventoryModal
           services={services}
+          onClose={onClose}
+          onSessionEnded={onSessionEnded}
         />
       </main>
     </FieldSizeProvider>,
@@ -57,11 +50,9 @@ function renderScreen(
 const TABLE = "Inventario inicial";
 
 test("shows each lot with its product, expiry, counted quantity, reference cost and value", async () => {
-  const screen = await renderScreen(createServices());
+  const screen = await renderModal(createServices());
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Inventario inicial", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("dialog", { name: "Inventario inicial" })).toBeVisible();
   await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
   const rows = screen.getByRole("table", { name: TABLE }).getByRole("row").elements();
   expect(rows.map((row) => row.textContent)).toEqual([
@@ -83,7 +74,7 @@ test.each([
 ])(
   "marks the lot of a withdrawn line under its counted quantity, with what it still holds: %#",
   async (lot, counted, mark) => {
-    const screen = await renderScreen(createServices([lot]));
+    const screen = await renderModal(createServices([lot]));
 
     await expect.element(screen.getByText(mark)).toBeVisible();
     const rows = screen.getByRole("table", { name: TABLE }).getByRole("row").elements();
@@ -92,14 +83,14 @@ test.each([
 );
 
 test("shows no mark on the lots of lines not withdrawn", async () => {
-  const screen = await renderScreen(createServices());
+  const screen = await renderModal(createServices());
 
   await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
   expect(screen.container.textContent).not.toContain("Línea retirada");
 });
 
 test("writes a lot with no cost in the tone of an error", async () => {
-  const screen = await renderScreen(createServices());
+  const screen = await renderModal(createServices());
   const table = screen.getByRole("table", { name: TABLE });
   await expect.element(table.getByText("Sin costo", { exact: true })).toBeVisible();
 
@@ -108,7 +99,7 @@ test("writes a lot with no cost in the tone of an error", async () => {
 });
 
 test("counts the lots and those with no cost under the table", async () => {
-  const screen = await renderScreen(createServices());
+  const screen = await renderModal(createServices());
 
   await expect
     .element(screen.getByText("3 lotes de la puesta en marcha · 1 sin costo"))
@@ -119,13 +110,13 @@ test.each([
   [[initialLotAlmonds], "1 lote de la puesta en marcha"],
   [[initialLotAlmonds, initialLotHoney], "2 lotes de la puesta en marcha"],
 ])("counts only the lots when all have a cost: %#", async (lots, text) => {
-  const screen = await renderScreen(createServices(lots));
+  const screen = await renderModal(createServices(lots));
 
   await expect.element(screen.getByText(text, { exact: true })).toBeVisible();
 });
 
 test("says the shop was not counted yet when there are no lots", async () => {
-  const screen = await renderScreen(createServices([]));
+  const screen = await renderModal(createServices([]));
 
   await expect.element(screen.getByText("Todavía no se contó el local")).toBeVisible();
   await expect
@@ -134,75 +125,56 @@ test("says the shop was not counted yet when there are no lots", async () => {
 });
 
 test("says nothing matches when no lot matches the search", async () => {
-  const screen = await renderScreen(createServices([]), {
-    filters: initialInventoryFilters.parse({ search: "yerba" }),
-  });
+  const screen = await renderModal(createServices([]));
+  await userEvent.fill(screen.getByRole("searchbox", { name: "Buscar un producto" }), "yerba");
 
   await expect.element(screen.getByText("Sin resultados")).toBeVisible();
 });
 
 test("says nothing matches when the cost filter leaves no lots", async () => {
-  const screen = await renderScreen(createServices([]), {
-    filters: initialInventoryFilters.parse({ cost: "incomplete" }),
-  });
+  const screen = await renderModal(createServices([]));
+  await userEvent.click(screen.getByRole("button", { name: /Lotes:/ }));
+  await userEvent.click(screen.getByRole("option", { name: "Sin costo" }));
 
   await expect.element(screen.getByText("Sin resultados")).toBeVisible();
 });
 
-test("asks the cloud for the lots of the product the URL names", async () => {
-  const services = createServices([initialLotHoney]);
-  const screen = await renderScreen(services, {
-    filters: initialInventoryFilters.parse({ search: "miel" }),
-  });
-
-  await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
-  expect(services.fetchInitialInventoryLots).toHaveBeenCalledWith({ product: "miel" });
-});
-
-test("reports the typed search and asks the cloud for its product", async () => {
+test("asks the cloud for the lots of the typed search", async () => {
   const services = createServices();
-  const onFiltersChange = vi.fn();
-  const screen = await renderScreen(services, { onFiltersChange });
+  const screen = await renderModal(services);
 
   await userEvent.fill(screen.getByRole("searchbox", { name: "Buscar un producto" }), "té");
 
-  await expect.poll(() => onFiltersChange.mock.lastCall?.[0]).toMatchObject({ search: "té" });
   await expect
     .poll(() => vi.mocked(services.fetchInitialInventoryLots).mock.lastCall)
     .toEqual([{ product: "té" }]);
 });
 
-test("shows the lots the cloud answers for the search", async () => {
-  const screen = await renderScreen(createServices([initialLotAlmonds]), {
-    filters: initialInventoryFilters.parse({ search: "frutos" }),
-  });
-
-  await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
-});
-
-test("asks the cloud for the lots of the cost the URL names and reports a new one", async () => {
+test("asks the cloud for the lots of the chosen cost", async () => {
   const services = createServices([initialLotTeaWithoutCost]);
-  const onFiltersChange = vi.fn();
-  const screen = await renderScreen(services, {
-    filters: initialInventoryFilters.parse({ cost: "incomplete" }),
-    onFiltersChange,
-  });
+  const screen = await renderModal(services);
   await expect.element(screen.getByText("Té verde en hebras 100 g")).toBeVisible();
-  expect(services.fetchInitialInventoryLots).toHaveBeenCalledWith({ cost: "incomplete" });
 
-  await expect.element(screen.getByRole("button", { name: "Lotes: Sin costo" })).toBeVisible();
   await userEvent.click(screen.getByRole("button", { name: /Lotes:/ }));
   await userEvent.click(screen.getByRole("option", { name: "Con costo" }));
 
   await expect
     .poll(() => vi.mocked(services.fetchInitialInventoryLots).mock.lastCall)
     .toEqual([{ cost: "known" }]);
-  await expect.poll(() => onFiltersChange.mock.lastCall?.[0]).toMatchObject({ cost: "known" });
+});
+
+test("closes on Listo", async () => {
+  const onClose = vi.fn();
+  const screen = await renderModal(createServices(), { onClose });
+
+  await userEvent.click(screen.getByRole("button", { name: "Listo" }));
+
+  expect(onClose).toHaveBeenCalledTimes(1);
 });
 
 test("asks the cloud for every lot when no filter is chosen", async () => {
   const services = createServices();
-  await renderScreen(services);
+  await renderModal(services);
 
   await expect
     .poll(() => vi.mocked(services.fetchInitialInventoryLots).mock.lastCall)
@@ -214,7 +186,7 @@ test("shows a failed load with a retry that loads the lots again", async () => {
   vi.mocked(services.fetchInitialInventoryLots)
     .mockResolvedValueOnce({ kind: "failed" })
     .mockResolvedValueOnce({ kind: "ok", value: { lots: [initialLotAlmonds] } });
-  const screen = await renderScreen(services);
+  const screen = await renderModal(services);
 
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
 
@@ -225,12 +197,12 @@ test("ends the session when the list finds it over", async () => {
   const services = createServices();
   vi.mocked(services.fetchInitialInventoryLots).mockResolvedValue({ kind: "unauthenticated" });
   const onSessionEnded = vi.fn();
-  await renderScreen(services, { onSessionEnded });
+  await renderModal(services, { onSessionEnded });
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
-async function openEdit(screen: Awaited<ReturnType<typeof renderScreen>>, product: string) {
+async function openEdit(screen: Awaited<ReturnType<typeof renderModal>>, product: string) {
   await userEvent.click(screen.getByRole("button", { name: `Editar el costo de ${product}` }));
   const dialog = screen.getByRole("dialog", { name: product });
   await expect.element(dialog).toBeVisible();
@@ -238,7 +210,7 @@ async function openEdit(screen: Awaited<ReturnType<typeof renderScreen>>, produc
 }
 
 test("opens the cost of the lot whose pencil was pressed", async () => {
-  const screen = await renderScreen(createServices());
+  const screen = await renderModal(createServices());
   await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
 
   const dialog = await openEdit(screen, "Miel pura de abeja 1 kg");
@@ -249,7 +221,7 @@ test("opens the cost of the lot whose pencil was pressed", async () => {
 test("closes the modal, reads the lots again and says the cost was saved", async () => {
   const services = createServices();
   vi.mocked(services.setLotReferenceCost).mockResolvedValue({ kind: "ok" });
-  const screen = await renderScreen(services);
+  const screen = await renderModal(services);
   await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
   const dialog = await openEdit(screen, "Té verde en hebras 100 g");
 
@@ -259,7 +231,7 @@ test("closes the modal, reads the lots again and says the cost was saved", async
   await expect
     .element(screen.getByRole("status").getByText("Costo guardado Té verde en hebras 100 g."))
     .toBeInTheDocument();
-  expect(screen.getByRole("dialog").query()).toBeNull();
+  expect(screen.getByRole("dialog", { name: "Té verde en hebras 100 g" }).query()).toBeNull();
   expect(services.setLotReferenceCost).toHaveBeenCalledWith(initialLotTeaWithoutCost.lotId, {
     unitCostCents: 125_000,
   });
@@ -269,7 +241,7 @@ test("closes the modal, reads the lots again and says the cost was saved", async
 test("reads the lots again when the lot being edited no longer exists", async () => {
   const services = createServices();
   vi.mocked(services.setLotReferenceCost).mockResolvedValue({ kind: "lot_withdrawn" });
-  const screen = await renderScreen(services);
+  const screen = await renderModal(services);
   await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
   const dialog = await openEdit(screen, "Almendras peladas");
 
@@ -295,7 +267,7 @@ test("reads the lots again when a typed cost is refused for loaded prices, so th
   vi.mocked(services.setLotReferenceCost).mockResolvedValue({
     kind: "cost_chosen_from_supplier_prices",
   });
-  const screen = await renderScreen(services);
+  const screen = await renderModal(services);
   await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
   const dialog = await openEdit(screen, "Almendras peladas");
 
@@ -315,7 +287,7 @@ test("reads the lots again when a typed cost is refused for loaded prices, so th
 });
 
 test("shows each lot's product with its brand and net content", async () => {
-  const screen = await renderScreen(createServices([initialLotAlmondOil]));
+  const screen = await renderModal(createServices([initialLotAlmondOil]));
 
   const table = screen.getByRole("table", { name: TABLE });
   await expect.element(table.getByText("Aceite de Almendras Vitora 30 ml")).toBeVisible();
@@ -324,7 +296,7 @@ test("shows each lot's product with its brand and net content", async () => {
 test("names the lot's product by its brand and net content when editing its cost", async () => {
   const services = createServices([initialLotAlmondOil]);
   vi.mocked(services.setLotReferenceCost).mockResolvedValue({ kind: "ok" });
-  const screen = await renderScreen(services);
+  const screen = await renderModal(services);
   await expect.element(screen.getByText("Aceite de Almendras Vitora 30 ml")).toBeVisible();
   const dialog = await openEdit(screen, "Aceite de Almendras Vitora 30 ml");
 
@@ -343,7 +315,7 @@ test("counts the lots and those with no cost with the thousands separator", asyn
     ...initialLotTeaWithoutCost,
     lotId: `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`,
   }));
-  const screen = await renderScreen(createServices(manyLots));
+  const screen = await renderModal(createServices(manyLots));
 
   await expect
     .element(screen.getByText("1.000 lotes de la puesta en marcha · 1.000 sin costo"))

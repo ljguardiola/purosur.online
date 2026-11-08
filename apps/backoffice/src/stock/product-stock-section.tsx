@@ -3,23 +3,21 @@ import { Boxes } from "lucide-react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
 import type { ProductPanelSectionProps } from "../platform/product-panel-sections";
 import { formatStockQuantity } from "../platform/stock-quantity";
+import { fetchStockBalances } from "./stock-api";
 import { StockBalanceLots } from "./stock-balance-lots";
-import {
-  defaultStockBalancesScreenServices,
-  type StockBalancesScreenServices,
-} from "./stock-balances-services";
+import type { StockBalancesReader } from "./stock-balances-services";
 import { formatStockUnitCost, formatStockValue } from "./stock-cost";
 import { useStockBalancesQuery } from "./stock-queries";
 
 export type ProductStockSectionProps = ProductPanelSectionProps & {
-  services?: StockBalancesScreenServices | undefined;
+  services?: StockBalancesReader | undefined;
 };
 
 export function ProductStockSection({
   productId,
   saleUnit,
   onSessionEnded,
-  services = defaultStockBalancesScreenServices,
+  services = { fetchStockBalances },
 }: ProductStockSectionProps) {
   const data = useStockBalancesQuery({
     fetchStockBalances: services.fetchStockBalances,

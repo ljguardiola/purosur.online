@@ -1,11 +1,11 @@
 import type { EditLotCostModalServices } from "./edit-lot-cost-modal";
 import { fetchInitialInventoryLots, setLotReferenceCost } from "./stock-api";
 
-export type InitialInventoryScreenServices = EditLotCostModalServices & {
+export type ReviewInitialInventoryModalServices = EditLotCostModalServices & {
   fetchInitialInventoryLots: typeof fetchInitialInventoryLots;
 };
 
-export const defaultInitialInventoryScreenServices: InitialInventoryScreenServices = {
+export const defaultReviewInitialInventoryModalServices: ReviewInitialInventoryModalServices = {
   fetchInitialInventoryLots,
   setLotReferenceCost,
 };
