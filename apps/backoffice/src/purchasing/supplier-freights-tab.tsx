@@ -1,4 +1,8 @@
-import { type FreightSummary, freightPeriodSchema } from "@purosur/contracts";
+import {
+  type FreightSummary,
+  freightPeriodDaysSchema,
+  freightPeriodSchema,
+} from "@purosur/contracts";
 import {
   ButtonLink,
   dataColumn,
@@ -17,7 +21,7 @@ import type { SupplierPanelServices } from "./supplier-panel-services";
 const AllFreightsLink = createLink(ButtonLink);
 
 const NO_FREIGHTS: FreightSummary[] = [];
-const DEFAULT_PERIOD = freightPeriodSchema.parse(undefined);
+const LONGEST_PERIOD = freightPeriodSchema.parse(Math.max(...freightPeriodDaysSchema.values));
 
 const columns = [
   dataColumn({
@@ -52,7 +56,7 @@ export function SupplierFreightsTab({
   onSessionEnded,
 }: SupplierFreightsTabProps) {
   const data = useFreightsQuery({
-    input: { period: DEFAULT_PERIOD, search: "", supplierId },
+    input: { period: LONGEST_PERIOD, search: "", supplierId },
     fetchFreights: services.fetchFreights,
     onSessionEnded,
   });
@@ -71,7 +75,11 @@ export function SupplierFreightsTab({
         empty={{ icon: <Truck />, title: "Sin fletes", variant: "blank" }}
       />
       <div>
-        <AllFreightsLink variant="text" to="/freights" search={{ supplier: supplierId }}>
+        <AllFreightsLink
+          variant="text"
+          to="/freights"
+          search={{ period: LONGEST_PERIOD, supplier: supplierId }}
+        >
           Ver todos
         </AllFreightsLink>
       </div>
