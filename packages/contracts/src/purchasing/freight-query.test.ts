@@ -42,6 +42,10 @@ describe("freightListQuerySchema", () => {
     );
     expect(freightListQuerySchema.parse({}).supplierId).toBeUndefined();
     expect(freightListQuerySchema.safeParse({ supplierId: "x" }).success).toBe(false);
+
+    expect(
+      freightListQuerySchema.safeParse({ supplierId: "x" }).error?.issues[0]?.message,
+    ).toBe("supplierId must be a supplier's id");
   });
 });
 

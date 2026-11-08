@@ -63,6 +63,10 @@ describe("purchaseOrderListQuerySchema", () => {
       supplierId: SUPPLIER_ID,
     });
     expect(purchaseOrderListQuerySchema.safeParse({ supplierId: "x" }).success).toBe(false);
+
+    expect(
+      purchaseOrderListQuerySchema.safeParse({ supplierId: "x" }).error?.issues[0]?.message,
+    ).toBe("supplierId must be a supplier's id");
   });
 });
 

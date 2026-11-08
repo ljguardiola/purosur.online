@@ -170,5 +170,9 @@ describe("purchaseListQuerySchema", () => {
 
   it("refuses a supplier that is not a record id", () => {
     expect(purchaseListQuerySchema.safeParse({ supplierId: "x" }).success).toBe(false);
+
+    expect(
+      purchaseListQuerySchema.safeParse({ supplierId: "x" }).error?.issues[0]?.message,
+    ).toBe("supplierId must be a supplier's id");
   });
 });
