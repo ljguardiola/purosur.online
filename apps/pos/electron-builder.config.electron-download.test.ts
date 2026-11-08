@@ -54,7 +54,7 @@ async function prepareWindowsElectronDownload(channel: string) {
   vi.resetModules();
   process.env["POS_CHANNEL"] = channel;
   process.env["ELECTRON_BUILDER_CACHE"] = cacheDirectory;
-  const { default: config } = await import("../electron-builder.config.mjs");
+  const { default: config } = await import("./electron-builder.config.mjs");
   const { beforePack } = config;
   if (typeof beforePack !== "function") {
     throw new Error("the config has no beforePack hook");
