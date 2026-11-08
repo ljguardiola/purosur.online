@@ -104,7 +104,7 @@ function ProductCounts({
       {...cloudTableState(data, "los recuentos")}
       empty={{
         icon: <ClipboardCheck />,
-        title: `Sin recuentos en los últimos ${formatNumber(LONGEST_PERIOD_DAYS)} días`,
+        title: "Sin recuentos",
         variant: "blank",
       }}
     />
@@ -136,7 +136,7 @@ function ProductMovements({
       {...cloudTableState(data, "los ajustes y las pérdidas")}
       empty={{
         icon: <ArrowDownUp />,
-        title: `Sin ajustes ni pérdidas en los últimos ${formatNumber(LONGEST_PERIOD_DAYS)} días`,
+        title: "Sin ajustes ni pérdidas",
         variant: "blank",
       }}
     />
