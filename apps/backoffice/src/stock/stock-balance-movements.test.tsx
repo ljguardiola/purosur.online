@@ -122,21 +122,21 @@ test("shows nothing and reads nothing when it shows neither list", async () => {
   expect(services.fetchStockMovements).not.toHaveBeenCalled();
 });
 
-test("says in each table that the product has no counts or no adjustments and losses in the period read", async () => {
+test("says in each table that the product has no counts or no adjustments and losses, naming the period only above them", async () => {
   const screen = await renderMovements();
 
   await expect
     .element(
       screen
         .getByRole("table", { name: `Recuentos de ${almonds.name}` })
-        .getByText("Sin recuentos en los últimos 90 días"),
+        .getByText("Sin recuentos", { exact: true }),
     )
     .toBeVisible();
   await expect
     .element(
       screen
         .getByRole("table", { name: `Ajustes y pérdidas de ${almonds.name}` })
-        .getByText("Sin ajustes ni pérdidas en los últimos 90 días"),
+        .getByText("Sin ajustes ni pérdidas", { exact: true }),
     )
     .toBeVisible();
 });
