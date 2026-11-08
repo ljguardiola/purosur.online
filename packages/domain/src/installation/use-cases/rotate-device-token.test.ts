@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { FixedClock } from "../../shared/test-support/fixed-clock.js";
+import { SequentialInstallationKeys } from "../../shared/test-support/sequential-installation-keys.js";
 import { rotateDeviceToken } from "./rotate-device-token.js";
 import {
   derivedDeviceTokens,
   FakeRegisterStore,
-  FixedClock,
-  SequentialInstallationKeys,
   storedTokenOf,
 } from "./test-support/fake-register-store.js";
 
@@ -164,8 +164,7 @@ describe("rotateDeviceToken", () => {
     store.seedSnapshotGeneration({
       registerId: "register-1",
       keyVersion: 1,
-      status: "verified",
-      pruned: false,
+      retained: true,
     });
     store.seedSnapshotKey({ registerId: "register-1", version: 2, key: "snapshot-2" });
     store.seedContingencyTicketKey({ registerId: "register-1", version: 2, key: "ticket-2" });
@@ -195,14 +194,12 @@ describe("rotateDeviceToken", () => {
     store.seedSnapshotGeneration({
       registerId: "register-1",
       keyVersion: 1,
-      status: "verified",
-      pruned: true,
+      retained: false,
     });
     store.seedSnapshotGeneration({
       registerId: "register-1",
       keyVersion: 2,
-      status: "failed",
-      pruned: false,
+      retained: false,
     });
 
     const outcome = await rotate(store, CURRENT);
@@ -211,31 +208,6 @@ describe("rotateDeviceToken", () => {
       keys: { snapshotKeyVersions: [{ version: 3, key: "snapshot-3" }] },
     });
   });
-
-  it.each(["declared", "uploaded", "verified"] as const)(
-    "keeps handing back the snapshot key version of a %s generation",
-    async (status) => {
-      const store = storeWith();
-      store.seedSnapshotKey({ registerId: "register-1", version: 2, key: "snapshot-2" });
-      store.seedSnapshotGeneration({
-        registerId: "register-1",
-        keyVersion: 1,
-        status,
-        pruned: false,
-      });
-
-      const outcome = await rotate(store, CURRENT);
-
-      expect(outcome).toMatchObject({
-        keys: {
-          snapshotKeyVersions: [
-            { version: 1, key: "snapshot-1" },
-            { version: 2, key: "snapshot-2" },
-          ],
-        },
-      });
-    },
-  );
 
   it("generates and keeps the keys of an installation enrolled before it was handed any", async () => {
     const store = storeWith({ outboxChainKey: null, registerKeys: false });

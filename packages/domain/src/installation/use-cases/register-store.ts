@@ -1,5 +1,5 @@
 import type { NumberingFreeze } from "../../fiscal/index.js";
-import type { Clock, VersionedKey } from "../../shared/index.js";
+import type { Clock, InstallationKeyGenerator, VersionedKey } from "../../shared/index.js";
 import type { EnrollmentCodeState } from "../model/enrollment-code.js";
 
 export type { VersionedKey };
@@ -28,10 +28,6 @@ export interface InstallationTokenPorts {
   store: RegisterStore;
   clock: Clock;
   tokens: DeviceTokenRotator;
-}
-
-export interface InstallationKeyGenerator {
-  generate(): string;
 }
 
 export interface DeviceTokenRotationPorts extends InstallationTokenPorts {

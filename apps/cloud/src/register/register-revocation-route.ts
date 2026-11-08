@@ -1,5 +1,8 @@
 import { everyInstallationRevocationSchema, registerRevocationSchema } from "@purosur/contracts";
-import { revokeEveryInstallation, revokeLostRegister } from "@purosur/domain/register/use-cases";
+import {
+  revokeEveryInstallation,
+  revokeLostRegister,
+} from "@purosur/domain/installation/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { requirePasskeyAuthorization } from "../credentials/passkey-authorization-guard.js";

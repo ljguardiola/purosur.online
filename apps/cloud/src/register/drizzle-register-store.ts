@@ -20,7 +20,7 @@ import type {
   RegisterStoreTransaction,
   StoredDeviceToken,
   VersionedKey,
-} from "@purosur/domain/register/use-cases";
+} from "@purosur/domain/installation/use-cases";
 import { and, asc, desc, eq, gt, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";

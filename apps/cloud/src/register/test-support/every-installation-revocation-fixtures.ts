@@ -1,4 +1,4 @@
-import { revokeEveryInstallation } from "@purosur/domain/register/use-cases";
+import { revokeEveryInstallation } from "@purosur/domain/installation/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { registers } from "../../platform/db/schema.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../../test-support/installation-keys-encryption-key.js";

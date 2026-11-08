@@ -1,5 +1,5 @@
+import { nextKeyVersion } from "../../installation/index.js";
 import { latestKey } from "../../shared/index.js";
-import { nextKeyVersion } from "../model/installation-key.js";
 import type { RotateRegisterSnapshotKeyPorts } from "./snapshot-key-rotation-ports.js";
 
 export interface RotateRegisterSnapshotKeyInput {

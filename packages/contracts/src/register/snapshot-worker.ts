@@ -1,7 +1,6 @@
 import { SNAPSHOT_CORRUPTION_STAGES } from "@purosur/domain";
 import { z } from "zod";
-import { recordIdSchema } from "../shared/index.js";
-import { installationKeysSchema, versionedKeySchema } from "./installation-keys.js";
+import { installationKeysSchema, recordIdSchema, versionedKeySchema } from "../shared/index.js";
 
 const sequenceSchema = z.number().int().nonnegative();
 const nonEmptyTextSchema = z.string().min(1);

@@ -2,7 +2,7 @@ import type {
   LostRegisterRevocation,
   LostRegisterRevocationStore,
   LostRegisterRevocationStoreTransaction,
-} from "@purosur/domain/register/use-cases";
+} from "@purosur/domain/installation/use-cases";
 import { and, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { requirePinResetOfUsers } from "../credentials/require-pin-reset-of-users.js";

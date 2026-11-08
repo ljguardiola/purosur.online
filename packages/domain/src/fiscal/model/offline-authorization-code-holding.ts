@@ -1,4 +1,4 @@
-import { isOutOfService } from "../../register/index.js";
+import { isOutOfService } from "../../installation/index.js";
 
 export interface RegisterOfflineAuthorizationCodeHolding {
   registerId: string;

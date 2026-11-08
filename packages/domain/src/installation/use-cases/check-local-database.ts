@@ -1,6 +1,6 @@
+import type { LocalDatabaseHealthPorts } from "../../shared/index.js";
 import { localDatabaseVersionOf } from "../model/local-database-version.js";
 import type { RegisterService } from "../model/register-service.js";
-import type { LocalDatabaseHealthPorts } from "./local-database-health.js";
 import type { LocalDatabaseMigrations } from "./local-database-migrations.js";
 
 export interface CheckLocalDatabasePorts extends LocalDatabaseHealthPorts {

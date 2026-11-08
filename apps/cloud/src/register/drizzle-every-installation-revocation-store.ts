@@ -2,7 +2,7 @@ import type {
   EveryInstallationRevocationRecord,
   EveryInstallationRevocationStore,
   EveryInstallationRevocationStoreTransaction,
-} from "@purosur/domain/register/use-cases";
+} from "@purosur/domain/installation/use-cases";
 import { asc } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { registerEnrollmentCodes, registers } from "../platform/db/schema.js";

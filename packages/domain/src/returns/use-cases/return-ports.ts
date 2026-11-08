@@ -5,6 +5,7 @@ import type {
   SaleInvoiceStanding,
 } from "../../fiscal/index.js";
 import type { CashMovement } from "../../register/index.js";
+import type { IdGenerator } from "../../shared/index.js";
 import type { TicketSource } from "../model/return-reasons.js";
 import type { SaleForReturn } from "../model/return-sale.js";
 import type {
@@ -14,6 +15,8 @@ import type {
 } from "../model/returned-sale.js";
 import type { TicketReference } from "../model/ticket-reference.js";
 import type { LocalReturnOfSale } from "../model/uncounted-returns.js";
+
+export type { IdGenerator };
 
 export type SaleReturnSearch = TicketReference | { kind: "sale"; saleId: string };
 
@@ -55,10 +58,6 @@ export type KeptBranchSale = BranchSaleFacts & { ticket: TicketReference };
 
 export interface RetainedBranchSales {
   keep(sale: KeptBranchSale): void;
-}
-
-export interface IdGenerator {
-  next(): string;
 }
 
 export interface ReturningSession {

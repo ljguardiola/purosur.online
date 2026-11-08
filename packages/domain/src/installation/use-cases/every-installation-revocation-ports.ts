@@ -1,9 +1,8 @@
-import type { Clock } from "../../shared/index.js";
+import type { Clock, InstallationKeyGenerator } from "../../shared/index.js";
 import type {
   InstallationRevocationTransaction,
   KeyVersionChange,
 } from "./installation-revocation-ports.js";
-import type { InstallationKeyGenerator } from "./register-store.js";
 
 export interface EveryInstallationRevocationRecord {
   registerId: string;

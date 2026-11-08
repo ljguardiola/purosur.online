@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { emitEnrollmentCode } from "@purosur/domain/register/use-cases";
+import { emitEnrollmentCode } from "@purosur/domain/installation/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";

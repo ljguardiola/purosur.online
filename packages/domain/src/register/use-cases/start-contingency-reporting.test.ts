@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { FixedClock } from "../../shared/test-support/fixed-clock.js";
 import { startContingencyReporting } from "./start-contingency-reporting.js";
 import { SequentialIds } from "./test-support/fake-cash-ledger.js";
 import {
   FakeContingencyLedger,
   type FakeContingencyLedgerState,
 } from "./test-support/fake-contingency-ledger.js";
-import { FixedClock } from "./test-support/fake-register-store.js";
 
 const NOW = new Date("2026-10-02T15:00:00.000Z");
 

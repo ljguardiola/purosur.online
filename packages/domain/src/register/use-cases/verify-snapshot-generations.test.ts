@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { FixedClock } from "../../shared/test-support/fixed-clock.js";
 import { SNAPSHOT_UPLOAD_DEADLINE_MS } from "../model/snapshot-generation.js";
-import { FixedClock } from "./test-support/fake-register-store.js";
 import { FakeSnapshotObjects, FakeSnapshotStore } from "./test-support/fake-snapshot-store.js";
 import { verifySnapshotGenerations } from "./verify-snapshot-generations.js";
 

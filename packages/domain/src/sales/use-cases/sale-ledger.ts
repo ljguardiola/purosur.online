@@ -16,19 +16,17 @@ import type {
 import type { RoleAccess } from "../../permissions/index.js";
 import type { DiscountRecurrence } from "../../pricing/index.js";
 import type { CashMovement } from "../../register/index.js";
-import type { OutboxEventDraft, ZoneRules } from "../../shared/index.js";
+import type {
+  IdGenerator,
+  OutboxEventDraft,
+  RegisterIdentity,
+  ZoneRules,
+} from "../../shared/index.js";
 import type { LinePromotion, Sale, SaleLine, SaleWithLines } from "../model/sale.js";
 import type { SaleDiscount } from "../model/sale-discount.js";
 import type { ListPrice } from "../model/sale-line.js";
 
-export interface RegisterIdentity {
-  registerId: string;
-  deviceId: string;
-}
-
-export interface IdGenerator {
-  next(): string;
-}
+export type { IdGenerator, RegisterIdentity };
 
 export interface SellingSession {
   id: string;

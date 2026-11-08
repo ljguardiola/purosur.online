@@ -1,4 +1,4 @@
-import { enrollInstallation } from "@purosur/domain/register/use-cases";
+import { enrollInstallation } from "@purosur/domain/installation/use-cases";
 import { asc, eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { registerEnrollmentCodes, registerInstallations } from "../../platform/db/schema.js";

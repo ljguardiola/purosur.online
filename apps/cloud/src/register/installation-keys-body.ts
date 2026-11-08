@@ -1,5 +1,5 @@
 import type { InstallationKeysBody } from "@purosur/contracts";
-import type { InstallationKeys } from "@purosur/domain/register/use-cases";
+import type { InstallationKeys } from "@purosur/domain/installation/use-cases";
 
 export function installationKeysBody(keys: InstallationKeys): InstallationKeysBody {
   return {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { BranchWeeklyHoursRange } from "../../branch/index.js";
-import type { WatchedRegister } from "../../register/index.js";
+import type { WatchedRegister } from "../../installation/index.js";
 import { argentinaInstant, FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
 import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import { detectQuietRegisters } from "./detect-quiet-registers.js";
