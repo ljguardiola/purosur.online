@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { LocalDatabaseHealth } from "@purosur/domain";
+import type { LocalDatabaseHealth } from "@purosur/domain/installation/use-cases";
 import { isDatabaseDamage } from "../platform/database-damage";
 import type { LocalDatabase } from "../platform/local-database";
 

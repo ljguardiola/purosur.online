@@ -7,6 +7,13 @@ export {
 } from "./authorization.js";
 export type { BranchSettingsBody } from "./branch-settings.js";
 export { branchSettingsSchema } from "./branch-settings.js";
+export type {
+  CredentialsReplacement,
+  DeviceCredentials,
+  DeviceCredentialsAnswer,
+  DeviceCredentialsRequest,
+} from "./device-credentials.js";
+export { deviceCredentialsAnswerSchema } from "./device-credentials.js";
 export {
   discountBenefitSchema,
   discountBuyQtySchema,

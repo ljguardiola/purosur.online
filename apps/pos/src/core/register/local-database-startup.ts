@@ -1,8 +1,8 @@
 import { dirname } from "node:path";
 import type { CoreStartupStep } from "@purosur/contracts";
-import type { LocalDatabaseHealth } from "@purosur/domain";
 import {
   checkLocalDatabase,
+  type LocalDatabaseHealth,
   type LocalDatabaseMigrations,
   reportLocalDatabaseDamage,
 } from "@purosur/domain/installation/use-cases";

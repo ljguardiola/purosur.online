@@ -1,6 +1,7 @@
 import type { DeviceCredentials, SnapshotWorkerLaunchRequest } from "@purosur/contracts";
-import type { BatteryReport, LocalDatabaseHealth } from "@purosur/domain";
+import type { BatteryReport } from "@purosur/domain";
 import {
+  type LocalDatabaseHealth,
   recordSnapshotCopyFailure,
   runSnapshotCycle,
   type SnapshotCorruptionReports,

@@ -1,5 +1,6 @@
 export type {
   Clock,
+  LocalDatabaseHealth,
   OperationAuthority,
   OperationAuthorization,
   PublishedZoneRulesReader,

@@ -1,3 +1,4 @@
+export type { LocalDatabaseHealth } from "../../shared/index.js";
 export type {
   AuthenticateInstallationInput,
   AuthenticateInstallationOutcome,

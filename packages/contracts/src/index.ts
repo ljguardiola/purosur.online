@@ -725,17 +725,12 @@ export type {
   CoreStartupStepMessage,
   CoreStatusMessage,
   CoreStatusRequest,
-  CredentialsReplacement,
-  DeviceCredentials,
-  DeviceCredentialsAnswer,
-  DeviceCredentialsRequest,
   MainToCoreMessage,
   QuitRegisterMessage,
   UpdateSafeMomentAnswer,
 } from "./register/main-messages.js";
 export {
   coreStatusMessageSchema,
-  deviceCredentialsAnswerSchema,
   mainToCoreMessageSchema,
 } from "./register/main-messages.js";
 export { receiptPrinterAddressTextSchema } from "./register/receipt-printer-address.js";
@@ -942,6 +937,10 @@ export type {
   AuthorizationRefusal,
   AuthorizedBy,
   BranchSettingsBody,
+  CredentialsReplacement,
+  DeviceCredentials,
+  DeviceCredentialsAnswer,
+  DeviceCredentialsRequest,
   ErrorReportingConfiguration,
   InstallationKeysBody,
   IssuerIdentificationBody,
@@ -957,6 +956,7 @@ export {
   authorizedBySchema,
   branchSettingsSchema,
   decodePinSalt,
+  deviceCredentialsAnswerSchema,
   discountBuyQtySchema,
   discountPayQtySchema,
   discountPercentSchema,

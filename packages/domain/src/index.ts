@@ -1027,7 +1027,6 @@ export {
 export type {
   IsoWeekday,
   LastStableReading,
-  LocalDatabaseHealth,
   ReportPeriod,
   SalesDeniedReason,
   ZoneRules,
