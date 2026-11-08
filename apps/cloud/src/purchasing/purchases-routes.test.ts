@@ -640,9 +640,9 @@ describe("GET /purchases", () => {
     });
     const malformed = await app.inject({ method: "GET", url: "/purchases?supplierId=x", headers });
 
-    expect(purchaseListSchema.parse(filtered.json()).map((purchase) => purchase.supplier.id)).toEqual(
-      [wanted],
-    );
+    expect(
+      purchaseListSchema.parse(filtered.json()).map((purchase) => purchase.supplier.id),
+    ).toEqual([wanted]);
     expect(malformed.statusCode).toBe(400);
     expect(malformed.json()).toMatchObject({ code: "validation_failed" });
   });
