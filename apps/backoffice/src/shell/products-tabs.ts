@@ -1,6 +1,7 @@
 import type { PagePart } from "../platform/page-parts";
 import {
   type BackofficeAccess,
+  canManageBatches,
   canManageProductsAndCategories,
   canManagePromotions,
   canManageRecipes,
@@ -13,7 +14,10 @@ export const PRODUCTS_TABS: readonly PagePart<BackofficeAccess, ProductsTab>[] =
   { key: "products", isVisibleTo: canManageProductsAndCategories },
   { key: "prices", isVisibleTo: canSeePricesArea },
   { key: "promotions", isVisibleTo: canManagePromotions },
-  { key: "assemblies", isVisibleTo: canManageRecipes },
+  {
+    key: "assemblies",
+    isVisibleTo: (access) => canManageRecipes(access) || canManageBatches(access),
+  },
   { key: "classification", isVisibleTo: canManageProductsAndCategories },
 ];
 
