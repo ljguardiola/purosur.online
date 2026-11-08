@@ -143,7 +143,8 @@ test("shows Pendiente instead of the figures of a charge no report has carried y
   const charge = chargesTable(screen).getByRole("row", { name: /^04\/10\/2026 · 09:05/ });
   await expect.element(charge.getByText("Caja 2", { exact: true })).toBeVisible();
   await expect.element(charge.getByText("Point", { exact: true })).toBeVisible();
-  await expect.element(charge.getByText("Pendiente", { exact: true })).toBeVisible();
+  await expect.element(charge.getByText("Pendiente", { exact: true }).first()).toBeVisible();
+  expect(charge.getByText("Pendiente", { exact: true }).elements()).toHaveLength(6);
   expect(charge.element().textContent).not.toContain(formatSignedCents(50_000));
 });
 
