@@ -1,7 +1,12 @@
 import { stockPeriodSchema } from "@purosur/contracts";
 import { createRoute, redirect, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
-import { canManageBatches, canManageRecipes, canSeeReports } from "../shell/backoffice-access";
+import {
+  canManageBatches,
+  canManageRecipes,
+  canSeeReports,
+  canSeeStockPage,
+} from "../shell/backoffice-access";
 import { lazyScreen } from "../shell/lazy-screen";
 import { productsRoute, productsTabRedirect } from "../shell/products-route";
 import {
@@ -11,12 +16,45 @@ import {
 } from "../shell/report-filters-search";
 import { reportsAreaRoute } from "../shell/reports-area";
 import { refuseWithout, signedInRoute } from "../shell/signed-in-route";
-import { stockRegisterSearch, stockRoute, stockTabRedirect } from "../shell/stock-route";
+import { stockAreaRoute } from "../shell/stock-area";
 import { ASSEMBLIES_SECTION_TARGETS, ASSEMBLIES_SECTIONS } from "./assemblies-sections";
 import { currentStockReportFilters } from "./current-stock-report-filters";
 import { marginReportFilters } from "./margin-report-filters";
+import { STOCK_TAB_TARGETS, STOCK_TABS, type StockTab } from "./stock-tabs";
 
 const periodFilter = stockPeriodSchema.default(stockPeriodSchema.parse(undefined));
+
+const stockRegisterSearch = z.object({
+  register: z.enum(["initial-inventory"]).optional().catch(undefined),
+});
+
+export const stockRoute = createRoute({
+  getParentRoute: () => stockAreaRoute,
+  path: "stock",
+  validateSearch: stockRegisterSearch,
+  beforeLoad: ({ context: { session } }) => {
+    refuseWithout(session, canSeeStockPage);
+    return {
+      stockTabs: STOCK_TABS.filter((tab) => tab.isVisibleTo(session)).map((tab) => tab.key),
+    };
+  },
+  component: lazyScreen(() => import("./stock-page"), "StockPage"),
+});
+
+function stockTabRedirect(
+  stockTabs: readonly StockTab[],
+  own: StockTab,
+  { register }: z.output<typeof stockRegisterSearch>,
+): void {
+  const [first] = stockTabs;
+  if (stockTabs.includes(own) || (first === undefined && own === "balances")) {
+    return;
+  }
+  throw redirect({
+    to: first === undefined ? "/stock" : STOCK_TAB_TARGETS[first],
+    search: register === undefined ? {} : { register },
+  });
+}
 
 export const stockBalancesFilters = z.object({
   search: z.string().default("").catch(""),
@@ -67,6 +105,7 @@ export const stockMovementsSearch = stockMovementsFilters
     view: z.enum(["list", "reason"]).default("list").catch("list"),
     from: reportFiltersFields.from,
     to: reportFiltersFields.to,
+    sort: z.enum(["ascending", "descending"]).default("descending").catch("descending"),
   })
   .extend(stockRegisterSearch.shape)
   .transform(withoutRefusedPeriod);
@@ -114,7 +153,8 @@ const recipesListSearch = recipesListFilters.extend({
 export const stockBalancesRoute = createRoute({
   getParentRoute: () => stockRoute,
   path: "/",
-  beforeLoad: ({ context: { stockTabs } }) => stockTabRedirect(stockTabs, "balances"),
+  beforeLoad: ({ context: { stockTabs }, search }) =>
+    stockTabRedirect(stockTabs, "balances", search),
   validateSearch: stockBalancesSearch,
   search: { middlewares: [stripSearchParams(stockBalancesFilters.parse({}))] },
   component: lazyScreen(() => import("./stock-balances-page"), "StockBalancesPage"),
@@ -159,7 +199,8 @@ export const marginReportRoute = createRoute({
 export const stockMovementsRoute = createRoute({
   getParentRoute: () => stockRoute,
   path: "movements",
-  beforeLoad: ({ context: { stockTabs } }) => stockTabRedirect(stockTabs, "movements"),
+  beforeLoad: ({ context: { stockTabs }, search }) =>
+    stockTabRedirect(stockTabs, "movements", search),
   validateSearch: stockMovementsSearch,
   search: {
     middlewares: [
@@ -169,6 +210,7 @@ export const stockMovementsRoute = createRoute({
         view: "list",
         from: "",
         to: "",
+        sort: "descending",
       }),
     ],
   },
@@ -178,7 +220,8 @@ export const stockMovementsRoute = createRoute({
 export const expiringLotsRoute = createRoute({
   getParentRoute: () => stockRoute,
   path: "expiries",
-  beforeLoad: ({ context: { stockTabs } }) => stockTabRedirect(stockTabs, "expiries"),
+  beforeLoad: ({ context: { stockTabs }, search }) =>
+    stockTabRedirect(stockTabs, "expiries", search),
   validateSearch: expiringLotsFilters,
   search: { middlewares: [stripSearchParams(expiringLotsFilters.parse({}))] },
   component: lazyScreen(() => import("./expiring-lots-page"), "ExpiringLotsPage"),

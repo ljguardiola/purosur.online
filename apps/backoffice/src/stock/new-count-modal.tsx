@@ -33,8 +33,14 @@ import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { useStackedCreation } from "../platform/stacked-creation";
 import { parseStockQuantity, quantityFieldKind, quantityMessage } from "../platform/stock-quantity";
 import type { CloudData } from "../platform/use-cloud-query";
+import type { fetchCurrentZoneRules } from "../platform/zone-rules-api";
 import { type CountMoment, type CountStart, countOccurredAt } from "./count-moment";
-import type { RegisterCountOutcome } from "./stock-api";
+import type {
+  fetchExpectedBalance,
+  fetchStockProducts,
+  RegisterCountOutcome,
+  registerCount,
+} from "./stock-api";
 import { CountBalance } from "./stock-count-balance";
 import {
   type CountFormValues,
@@ -44,7 +50,6 @@ import {
   lotsTotal,
 } from "./stock-count-form";
 import { CountLotsField } from "./stock-count-lots";
-import type { StockCountsScreenServices } from "./stock-counts-services";
 import { productOptions } from "./stock-movement-form";
 import {
   useCountZoneRulesQuery,
@@ -102,12 +107,19 @@ function CountMomentField() {
   );
 }
 
+export type NewCountModalServices = {
+  fetchStockProducts: typeof fetchStockProducts;
+  fetchExpectedBalance: typeof fetchExpectedBalance;
+  registerCount: typeof registerCount;
+  fetchCurrentZoneRules: typeof fetchCurrentZoneRules;
+};
+
 export type NewCountModalProps = {
   startMoment: CountStart;
   productId?: string | undefined;
   showsBalance: boolean;
   productCreationModal?: ProductCreationModal | undefined;
-  services: StockCountsScreenServices;
+  services: NewCountModalServices;
   onClose: () => void;
   onSessionEnded: () => void;
   onRegistered: (product: StockProduct, result: StockCountResult) => void;

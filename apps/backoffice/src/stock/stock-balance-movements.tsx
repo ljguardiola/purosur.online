@@ -2,16 +2,16 @@ import type { StockCount, StockMovement } from "@purosur/contracts";
 import {
   dataColumn,
   Eyebrow,
-  LoadFailure,
-  LoadingPlaceholder,
+  formatNumber,
   Table,
   TableCellText,
   Tag,
   useTableModel,
 } from "@purosur/ui";
-import { cloudLoadFailure } from "../platform/cloud-load-failure";
+import { ArrowDownUp, ClipboardCheck } from "lucide-react";
+import { cloudTableState } from "../platform/cloud-table-state";
 import { formatStockChange, formatStockQuantity } from "../platform/stock-quantity";
-import type { StockBalancesScreenServices } from "./stock-balances-services";
+import type { StockMovementsScreenServices } from "./stock-movements-services";
 import { formatStockDay, LONGEST_PERIOD_DAYS } from "./stock-period";
 import { useStockCountsQuery, useStockMovementsQuery } from "./stock-queries";
 import { REASON_LABELS } from "./stock-reason-labels";
@@ -19,13 +19,13 @@ import { REASON_LABELS } from "./stock-reason-labels";
 type ProductMovementsProps = {
   productId: string;
   productName: string;
-  services: StockBalancesScreenServices;
+  services: Pick<StockMovementsScreenServices, "fetchStockCounts" | "fetchStockMovements">;
   onSessionEnded: () => void;
 };
 
-function newestFirst<T extends { occurredAt: string }>(items: readonly T[]): T[] {
-  return [...items].sort((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt));
-}
+const NO_COUNTS: StockCount[] = [];
+
+const NO_MOVEMENTS: StockMovement[] = [];
 
 const countColumns = [
   dataColumn({
@@ -79,24 +79,6 @@ const movementColumns = [
   }),
 ] as const;
 
-function CountsTable({ counts, name }: { counts: StockCount[]; name: string }) {
-  const table = useTableModel({ items: counts, id: (count) => count.id, columns: countColumns });
-  return <Table table={table} aria-label={`Recuentos de ${name}`} variant="nested" />;
-}
-
-function MovementsTable({ movements, name }: { movements: StockMovement[]; name: string }) {
-  const table = useTableModel({
-    items: movements,
-    id: (movement) => movement.id,
-    columns: movementColumns,
-  });
-  return <Table table={table} aria-label={`Ajustes y pérdidas de ${name}`} variant="nested" />;
-}
-
-function EmptyNote({ children }: { children: string }) {
-  return <p className="text-text-subtle text-detail">{children}</p>;
-}
-
 function ProductCounts({
   productId,
   productName,
@@ -108,17 +90,24 @@ function ProductCounts({
     fetchStockCounts: services.fetchStockCounts,
     onSessionEnded,
   });
-  if (data.status === "loading") {
-    return <LoadingPlaceholder variant="rows" rows={2} />;
-  }
-  if (data.status === "failed") {
-    return <LoadFailure {...cloudLoadFailure(data, "los recuentos")} />;
-  }
-  const counts = newestFirst(data.value.counts.filter((count) => count.productId === productId));
-  return counts.length === 0 ? (
-    <EmptyNote>Sin recuentos de este producto</EmptyNote>
-  ) : (
-    <CountsTable counts={counts} name={productName} />
+  const table = useTableModel({
+    items: data.status === "loaded" ? data.value.counts : NO_COUNTS,
+    id: (count) => count.id,
+    filter: (count) => count.productId === productId,
+    columns: countColumns,
+  });
+  return (
+    <Table
+      table={table}
+      aria-label={`Recuentos de ${productName}`}
+      variant="nested"
+      {...cloudTableState(data, "los recuentos")}
+      empty={{
+        icon: <ClipboardCheck />,
+        title: `Sin recuentos en los últimos ${formatNumber(LONGEST_PERIOD_DAYS)} días`,
+        variant: "blank",
+      }}
+    />
   );
 }
 
@@ -133,19 +122,24 @@ function ProductMovements({
     fetchStockMovements: services.fetchStockMovements,
     onSessionEnded,
   });
-  if (data.status === "loading") {
-    return <LoadingPlaceholder variant="rows" rows={2} />;
-  }
-  if (data.status === "failed") {
-    return <LoadFailure {...cloudLoadFailure(data, "los ajustes y las pérdidas")} />;
-  }
-  const movements = newestFirst(
-    data.value.movements.filter((movement) => movement.productId === productId),
-  );
-  return movements.length === 0 ? (
-    <EmptyNote>Sin ajustes ni pérdidas de este producto</EmptyNote>
-  ) : (
-    <MovementsTable movements={movements} name={productName} />
+  const table = useTableModel({
+    items: data.status === "loaded" ? data.value.movements : NO_MOVEMENTS,
+    id: (movement) => movement.id,
+    filter: (movement) => movement.productId === productId,
+    columns: movementColumns,
+  });
+  return (
+    <Table
+      table={table}
+      aria-label={`Ajustes y pérdidas de ${productName}`}
+      variant="nested"
+      {...cloudTableState(data, "los ajustes y las pérdidas")}
+      empty={{
+        icon: <ArrowDownUp />,
+        title: `Sin ajustes ni pérdidas en los últimos ${formatNumber(LONGEST_PERIOD_DAYS)} días`,
+        variant: "blank",
+      }}
+    />
   );
 }
 
@@ -158,7 +152,7 @@ export function StockBalanceMovements(
   }
   return (
     <div className="flex flex-col gap-2">
-      <Eyebrow text="Movimientos" />
+      <Eyebrow text={`Movimientos de los últimos ${formatNumber(LONGEST_PERIOD_DAYS)} días`} />
       {showsCounts ? <ProductCounts {...rest} /> : null}
       {showsMovements ? <ProductMovements {...rest} /> : null}
     </div>

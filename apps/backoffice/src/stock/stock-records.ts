@@ -14,7 +14,7 @@ export type StockRecord = {
   delta: number;
   superseded: boolean;
   detail:
-    | { kind: "count"; expected: number; counted: number }
+    | { kind: "count"; expected: number; counted: number; lotCount: StockCount["lotCount"] }
     | { kind: "movement"; reason: StockMovement["reason"] };
 };
 
@@ -30,7 +30,12 @@ function countRecord(count: StockCount): StockRecord {
     saleUnit: count.saleUnit,
     delta: count.delta,
     superseded: count.superseded,
-    detail: { kind: "count", expected: count.expected, counted: count.counted },
+    detail: {
+      kind: "count",
+      expected: count.expected,
+      counted: count.counted,
+      lotCount: count.lotCount,
+    },
   };
 }
 
@@ -54,7 +59,5 @@ export function stockRecords(
   counts: readonly StockCount[],
   movements: readonly StockMovement[],
 ): StockRecord[] {
-  return [...counts.map(countRecord), ...movements.map(movementRecord)].sort(
-    (a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt),
-  );
+  return [...counts.map(countRecord), ...movements.map(movementRecord)];
 }

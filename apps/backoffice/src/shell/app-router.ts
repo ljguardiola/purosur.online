@@ -104,6 +104,7 @@ import {
   recipesListRoute,
   stockBalancesRoute,
   stockMovementsRoute,
+  stockRoute,
 } from "../stock/routes";
 import { quarantinedEventsRoute } from "../sync/routes";
 import { legacyUserRoute, legacyUsersRoute, usersListRoute } from "../users/routes";
@@ -127,7 +128,6 @@ import { parseSearch, stringifySearch } from "./search-params";
 import { settingsAreaRoute } from "./settings-area";
 import { signedInRoute } from "./signed-in-route";
 import { stockAreaRoute } from "./stock-area";
-import { stockRoute } from "./stock-route";
 
 const unknownPathRoute = createRoute({
   getParentRoute: () => rootRoute,

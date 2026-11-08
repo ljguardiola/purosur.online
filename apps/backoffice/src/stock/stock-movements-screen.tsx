@@ -12,6 +12,7 @@ import {
   SearchField,
   Table,
   TableCellText,
+  type TableSort,
   Tag,
   Toggle,
   ToggleChipGroup,
@@ -33,7 +34,7 @@ import {
 import { LossesByReasonReportContent } from "./losses-by-reason-report-content";
 import type { StockMovementsSearchFilters } from "./routes";
 import { REASONS_OF_KIND } from "./stock-movement-form";
-import type { StockRecordsServices } from "./stock-movements-services";
+import type { StockMovementsScreenServices } from "./stock-movements-services";
 import {
   formatStockDay,
   formatStockTime,
@@ -50,7 +51,7 @@ export type StockMovementsScreenProps = {
   filters: StockMovementsSearchFilters;
   onFiltersChange: (filters: StockMovementsSearchFilters) => void;
   onSessionEnded: () => void;
-  services: StockRecordsServices;
+  services: StockMovementsScreenServices;
 };
 
 type ReasonFilter = StockMovementsSearchFilters["reason"];
@@ -87,21 +88,50 @@ function recordProduct(record: StockRecord): string {
   });
 }
 
-function recordDetail(record: StockRecord): string {
+function countedWay(lotCount: number | null): string {
+  if (lotCount === null) {
+    return "Por producto";
+  }
+  return `Por lote · ${plural(lotCount, { one: "1 lote", other: `${formatNumber(lotCount)} lotes` })}`;
+}
+
+function recordDetail(record: StockRecord) {
   const { detail } = record;
-  return detail.kind === "movement"
-    ? REASON_LABELS[detail.reason]
-    : `Esperado ${formatStockQuantity(detail.expected, record.saleUnit)} · contado ${formatStockQuantity(detail.counted, record.saleUnit)}`;
+  if (detail.kind === "movement") {
+    return REASON_LABELS[detail.reason];
+  }
+  return (
+    <TableCellText
+      description={`Esperado ${formatStockQuantity(detail.expected, record.saleUnit)} · contado ${formatStockQuantity(detail.counted, record.saleUnit)}`}
+    >
+      {countedWay(detail.lotCount)}
+    </TableCellText>
+  );
+}
+
+function differenceTone(delta: number) {
+  if (delta === 0) {
+    return "subtle";
+  }
+  return delta < 0 ? "error" : "success";
+}
+
+function recordChange(record: StockRecord) {
+  if (record.kind !== "count") {
+    return <span>{formatStockChange(record.delta, record.saleUnit)}</span>;
+  }
+  return (
+    <TableCellText strong={record.delta !== 0} tone={differenceTone(record.delta)}>
+      {record.delta === 0 ? "Sin diferencia" : formatStockChange(record.delta, record.saleUnit)}
+    </TableCellText>
+  );
 }
 
 function recordQuantity(record: StockRecord) {
-  const change =
-    record.kind === "count" && record.delta === 0
-      ? "Sin diferencia"
-      : formatStockChange(record.delta, record.saleUnit);
+  const change = recordChange(record);
   return record.superseded ? (
     <div className="flex flex-col items-end gap-1">
-      <span>{change}</span>
+      {change}
       <Tag tone="neutral">Superado por un recuento posterior</Tag>
     </div>
   ) : (
@@ -109,10 +139,22 @@ function recordQuantity(record: StockRecord) {
   );
 }
 
+function filteredSuggestion(offersType: boolean, offersReason: boolean): string {
+  if (!offersReason) {
+    return "Probá con otro nombre.";
+  }
+  return offersType ? "Probá con otro nombre, tipo o motivo." : "Probá con otro nombre o motivo.";
+}
+
 const columns = [
   dataColumn({
     id: "date",
     header: "Fecha",
+    sort: {
+      order: (a: StockRecord, b: StockRecord) =>
+        Date.parse(a.occurredAt) - Date.parse(b.occurredAt),
+      firstDirection: "descending",
+    },
     render: (record: StockRecord) => (
       <TableCellText description={formatStockTime(record.occurredAt)}>
         {formatStockDay(record.occurredAt)}
@@ -135,7 +177,7 @@ const columns = [
   }),
   dataColumn({
     id: "detail",
-    header: "Motivo",
+    header: "Detalle",
     render: recordDetail,
   }),
   dataColumn({
@@ -173,6 +215,10 @@ export function StockMovementsScreen({
   const [view, setView] = useState(filters.view);
   const [from, setFrom] = useState(filters.from);
   const [to, setTo] = useState(filters.to);
+  const [sort, setSort] = useState<TableSort<"date">>({
+    column: "date",
+    direction: filters.sort,
+  });
   const reportFilters = useEffectEvent(onFiltersChange);
 
   const mayGroup = canSeeLossesByReason(access) && types.length === 1 && types[0] === "loss";
@@ -196,6 +242,12 @@ export function StockMovementsScreen({
   }, [reasonIsOffered]);
 
   useEffect(() => {
+    if (!mayGroup) {
+      setView("list");
+    }
+  }, [mayGroup]);
+
+  useEffect(() => {
     const shown: StockMovementsSearchFilters = {
       search,
       reason,
@@ -204,11 +256,12 @@ export function StockMovementsScreen({
       view,
       from,
       to,
+      sort: sort.direction,
     };
     if (!deepEqual(shown, filters)) {
       reportFilters(shown);
     }
-  }, [search, reason, period, types, view, from, to, filters]);
+  }, [search, reason, period, types, view, from, to, sort.direction, filters]);
 
   const days = periodDays(period);
   const countsData = useStockCountsQuery({
@@ -242,6 +295,8 @@ export function StockMovementsScreen({
       (types.length === 0 || types.includes(record.kind)) &&
       (reason === "ALL" || (record.detail.kind === "movement" && record.detail.reason === reason)),
     columns,
+    sort,
+    onSortChange: setSort,
   });
   const matchCount = table.getRowModel().rows.length;
 
@@ -321,7 +376,7 @@ export function StockMovementsScreen({
               : {
                   icon: <Search />,
                   title: "Sin resultados",
-                  description: "Probá con otro nombre, tipo o motivo.",
+                  description: filteredSuggestion(offeredKinds.length > 1, mayReadMovements),
                   variant: "filtered",
                 }
           }

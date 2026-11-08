@@ -11,9 +11,9 @@ import {
   canSeeStockBalances,
 } from "../shell/backoffice-access";
 import { countMomentNow } from "./count-moment";
-import { InitialInventoryModal } from "./initial-inventory-modal";
-import type { InitialInventoryScreenServices } from "./initial-inventory-services";
 import { NewCountModal } from "./new-count-modal";
+import { ReviewInitialInventoryModal } from "./review-initial-inventory-modal";
+import type { ReviewInitialInventoryModalServices } from "./review-initial-inventory-modal-services";
 import type { StockBalancesScreenServices } from "./stock-balances-services";
 import type { MovementKind } from "./stock-movement-form";
 import { StockMovementModal } from "./stock-movement-modal";
@@ -24,7 +24,7 @@ export type StockRegisterMenuProps = {
   access: BackofficeAccess;
   productCreationModal: ProductCreationModal;
   services: StockBalancesScreenServices;
-  initialInventoryServices: InitialInventoryScreenServices;
+  initialInventoryServices: ReviewInitialInventoryModalServices;
   initialInventoryOpen: boolean;
   onInitialInventoryOpenChange: (open: boolean) => void;
   onSessionEnded: () => void;
@@ -146,7 +146,7 @@ export function StockRegisterMenu({
         />
       ) : null}
       {initialInventoryOpen && mayRecordInitialInventory ? (
-        <InitialInventoryModal
+        <ReviewInitialInventoryModal
           services={initialInventoryServices}
           onClose={() => onInitialInventoryOpenChange(false)}
           onSessionEnded={onSessionEnded}

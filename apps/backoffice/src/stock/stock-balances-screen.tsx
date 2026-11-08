@@ -131,14 +131,12 @@ function StockValueSummary({ list }: { list: StockBalanceList | undefined }) {
       {list === undefined ? (
         <FigureStat size="heading" label="Valorizado a costo" loading />
       ) : (
-        <>
-          <FigureStat
-            size="heading"
-            label="Valorizado a costo"
-            value={formatSignedCents(list.summary.valueCents)}
-          />
-          <p className="text-detail text-text-subtle">{coverageText(list.summary)}</p>
-        </>
+        <FigureStat
+          size="heading"
+          label="Valorizado a costo"
+          value={formatSignedCents(list.summary.valueCents)}
+          detail={coverageText(list.summary)}
+        />
       )}
     </Card>
   );

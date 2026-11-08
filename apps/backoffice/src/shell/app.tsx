@@ -81,12 +81,11 @@ import type { AssemblyBatchesScreenServices } from "../stock/assembly-batches-se
 import type { CurrentStockReportScreenServices } from "../stock/current-stock-report-services";
 import type { ExpiringLotsReportScreenServices } from "../stock/expiring-lots-report-services";
 import type { ExpiringLotsScreenServices } from "../stock/expiring-lots-services";
-import type { InitialInventoryScreenServices } from "../stock/initial-inventory-services";
 import type { LossesByReasonReportScreenServices } from "../stock/losses-by-reason-report-services";
 import type { MarginReportScreenServices } from "../stock/margin-report-services";
 import type { RecipesListScreenServices } from "../stock/recipes-list-services";
+import type { ReviewInitialInventoryModalServices } from "../stock/review-initial-inventory-modal-services";
 import type { StockBalancesScreenServices } from "../stock/stock-balances-services";
-import type { StockCountsScreenServices } from "../stock/stock-counts-services";
 import type { StockMovementsScreenServices } from "../stock/stock-movements-services";
 import type { QuarantinedEventsScreenServices } from "../sync/quarantined-events-services";
 import type { UserCredentialSectionsProps } from "../users/user-panel";
@@ -165,7 +164,6 @@ export type AppServices = {
   marginReportScreen: MarginReportScreenServices;
   pricesPastReviewDeadlineReportScreen: PricesPastReviewDeadlineReportScreenServices;
   stockBalancesScreen: StockBalancesScreenServices;
-  stockCountsScreen: StockCountsScreenServices;
   stockMovementsScreen: StockMovementsScreenServices;
   suppliersListScreen: SuppliersListScreenServices;
   purchasesListScreen: PurchasesListScreenServices;
@@ -185,7 +183,7 @@ export type AppServices = {
   recipesListScreen: RecipesListScreenServices;
   assemblyBatchesScreen: AssemblyBatchesScreenServices;
   newPurchaseScreen: NewPurchaseScreenServices;
-  initialInventoryScreen: InitialInventoryScreenServices;
+  reviewInitialInventoryModal: ReviewInitialInventoryModalServices;
   fiscalSettingsScreen: FiscalSettingsScreenServices;
   fiscalTasksScreen: FiscalTasksScreenServices;
   caeaScreen: CaeaScreenServices;

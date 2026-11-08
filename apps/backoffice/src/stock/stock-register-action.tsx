@@ -1,6 +1,6 @@
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import type { ReactElement } from "react";
-import { defaultInitialInventoryScreenServices } from "./initial-inventory-services";
+import { defaultReviewInitialInventoryModalServices } from "./review-initial-inventory-modal-services";
 import { defaultStockBalancesScreenServices } from "./stock-balances-services";
 import { StockRegisterMenu } from "./stock-register-menu";
 
@@ -16,7 +16,7 @@ export function StockRegisterAction(): ReactElement {
       productCreationModal={services.productCreationModal}
       services={services.stockBalancesScreen ?? defaultStockBalancesScreenServices}
       initialInventoryServices={
-        services.initialInventoryScreen ?? defaultInitialInventoryScreenServices
+        services.reviewInitialInventoryModal ?? defaultReviewInitialInventoryModalServices
       }
       initialInventoryOpen={register === "initial-inventory"}
       onInitialInventoryOpenChange={(open) =>

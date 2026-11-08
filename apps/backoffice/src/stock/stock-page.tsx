@@ -1,10 +1,10 @@
 import { Tab, Tabs } from "@purosur/ui";
 import { createLink, getRouteApi, Outlet, useMatchRoute } from "@tanstack/react-router";
 import type { ReactElement } from "react";
-import { StockRegisterAction } from "../stock/stock-register-action";
-import { AreaTopBar } from "./area-top-bar";
-import { useDocumentTitle } from "./document-title";
-import { ScreenLayout } from "./screen-layout";
+import { AreaTopBar } from "../shell/area-top-bar";
+import { useDocumentTitle } from "../shell/document-title";
+import { ScreenLayout } from "../shell/screen-layout";
+import { StockRegisterAction } from "./stock-register-action";
 import { STOCK_TAB_TARGETS, type StockTab } from "./stock-tabs";
 
 const route = getRouteApi("/signed-in/stock-area/stock");

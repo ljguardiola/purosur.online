@@ -5,7 +5,7 @@ import {
   canSeeExpiringLots,
   canSeeStockBalances,
   canSeeStockMovements,
-} from "./backoffice-access";
+} from "../shell/backoffice-access";
 
 export type StockTab = "balances" | "expiries" | "movements";
 

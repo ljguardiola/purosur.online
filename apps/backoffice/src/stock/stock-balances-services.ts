@@ -1,28 +1,32 @@
 import { fetchCurrentZoneRules } from "../platform/zone-rules-api";
+import type { NewCountModalServices } from "./new-count-modal";
 import {
   fetchExpectedBalance,
   fetchStockBalances,
   fetchStockCounts,
+  fetchStockMovements,
   registerCount,
 } from "./stock-api";
-import type { StockCountsScreenServices } from "./stock-counts-services";
 import {
-  defaultStockMovementsScreenServices,
-  type StockMovementsScreenServices,
-} from "./stock-movements-services";
+  defaultStockMovementModalServices,
+  type StockMovementModalServices,
+} from "./stock-movement-modal-services";
+import type { StockMovementsScreenServices } from "./stock-movements-services";
 
 export type StockBalancesReader = {
   fetchStockBalances: typeof fetchStockBalances;
 };
 
 export type StockBalancesScreenServices = StockBalancesReader &
-  StockCountsScreenServices &
-  StockMovementsScreenServices;
+  NewCountModalServices &
+  StockMovementModalServices &
+  Pick<StockMovementsScreenServices, "fetchStockCounts" | "fetchStockMovements">;
 
 export const defaultStockBalancesScreenServices: StockBalancesScreenServices = {
-  ...defaultStockMovementsScreenServices,
+  ...defaultStockMovementModalServices,
   fetchStockBalances,
   fetchStockCounts,
+  fetchStockMovements,
   fetchExpectedBalance,
   registerCount,
   fetchCurrentZoneRules,

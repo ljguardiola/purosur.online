@@ -19,14 +19,14 @@ import { useEffect, useRef, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatStockQuantity } from "../platform/stock-quantity";
 import { EditLotCostModal, type InitialInventoryLot } from "./edit-lot-cost-modal";
-import type { InitialInventoryScreenServices } from "./initial-inventory-services";
+import type { ReviewInitialInventoryModalServices } from "./review-initial-inventory-modal-services";
 import { formatStockUnitCost, formatStockValue } from "./stock-cost";
 import { useInitialInventoryLotsQuery, useRefreshStock } from "./stock-queries";
 
-export type InitialInventoryModalProps = {
+export type ReviewInitialInventoryModalProps = {
   onClose: () => void;
   onSessionEnded: () => void;
-  services: InitialInventoryScreenServices;
+  services: ReviewInitialInventoryModalServices;
 };
 
 type CostFilter = "all" | "known" | "incomplete";
@@ -119,11 +119,11 @@ function footerText(lots: readonly InitialInventoryLot[]): string {
   return withoutCost === 0 ? counted : `${counted} · ${formatNumber(withoutCost)} sin costo`;
 }
 
-export function InitialInventoryModal({
+export function ReviewInitialInventoryModal({
   onClose,
   onSessionEnded,
   services,
-}: InitialInventoryModalProps) {
+}: ReviewInitialInventoryModalProps) {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [cost, setCost] = useState<CostFilter>("all");

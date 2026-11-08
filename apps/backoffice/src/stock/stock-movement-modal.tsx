@@ -43,8 +43,8 @@ import {
   REASON_REQUIRED,
   soleDirection,
 } from "./stock-movement-form";
+import type { StockMovementModalServices } from "./stock-movement-modal-services";
 import { StockMovementNotice } from "./stock-movement-notice";
-import type { StockMovementsScreenServices } from "./stock-movements-services";
 import {
   useMarkStockStale,
   useRefreshStock,
@@ -77,7 +77,7 @@ export type StockMovementModalProps = {
   kinds: readonly [MovementKind, ...MovementKind[]];
   productId?: string | undefined;
   productCreationModal?: ProductCreationModal | undefined;
-  services: StockMovementsScreenServices;
+  services: StockMovementModalServices;
   onClose: () => void;
   onSessionEnded: () => void;
   showsBalance: boolean;
