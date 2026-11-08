@@ -4,7 +4,10 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isValidCuit, type ZoneRulesSource } from "@purosur/domain";
 import { recordAuthorizedCuit } from "@purosur/domain/fiscal/use-cases";
-import type { MercadoPagoOrders } from "@purosur/domain/payments/use-cases";
+import type {
+  MercadoPagoOrders,
+  MercadoPagoSettlementReports,
+} from "@purosur/domain/payments/use-cases";
 import type {
   PriceListExtractor,
   SupplierPriceListFiles,
@@ -88,6 +91,8 @@ import { resolveMercadoPagoConfig } from "./payments/mercado-pago-config.js";
 import { createMercadoPagoOrdersClient } from "./payments/mercado-pago-orders-client.js";
 import { mercadoPagoPendingCheckJobs } from "./payments/mercado-pago-pending-check-task.js";
 import { mercadoPagoRefundFollowJobs } from "./payments/mercado-pago-refund-follow-task.js";
+import { mercadoPagoSettlementReportJobs } from "./payments/mercado-pago-settlement-report-task.js";
+import { createMercadoPagoSettlementReportsClient } from "./payments/mercado-pago-settlement-reports-client.js";
 import {
   type BackgroundJobRunnerHandle,
   type StartBackgroundJobRunnerOptions,
@@ -432,6 +437,7 @@ export interface SetUpBackgroundJobsEnv extends RecoveryEnv {
   arcaBuyerTaxStatus?: { endpoint: string; cuit: string; certificateFingerprint: string };
   arcaInvoicing?: { endpoint: string; cuit: string; certificateFingerprint: string };
   mercadoPago?: MercadoPagoOrders;
+  mercadoPagoSettlementReports?: MercadoPagoSettlementReports;
   registerSnapshotObjects?: SnapshotObjects;
   supplierPriceListReading?: { files: SupplierPriceListFiles; extractor: PriceListExtractor };
 }
@@ -593,6 +599,16 @@ export async function setUpBackgroundJobs(
               mercadoPago: backgroundJobsEnv.mercadoPago,
               db,
               connections,
+            }),
+          ]
+        : []),
+      ...(backgroundJobsEnv.mercadoPagoSettlementReports
+        ? [
+            mercadoPagoSettlementReportJobs({
+              now,
+              reports: backgroundJobsEnv.mercadoPagoSettlementReports,
+              db,
+              zoneRules,
             }),
           ]
         : []),
@@ -784,6 +800,9 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
   const recoveryEnv = resolveRecoveryEnv(env);
   const mercadoPagoConfig = resolveMercadoPagoConfig(env);
   const mercadoPago = mercadoPagoConfig && createMercadoPagoOrdersClient(mercadoPagoConfig);
+  const mercadoPagoSettlementReports =
+    mercadoPagoConfig &&
+    createMercadoPagoSettlementReportsClient({ accessToken: mercadoPagoConfig.accessToken });
   const registerUpdatesBucketConfig = resolveRegisterUpdatesBucketConfig(env);
   const registerReleases =
     registerUpdatesBucketConfig &&
@@ -818,6 +837,7 @@ export async function startServer(env: ServerEnv, deps: StartServerDeps): Promis
             : {}),
           ...resolveArcaSigning(env, arcaEndpoints),
           ...(mercadoPago ? { mercadoPago } : {}),
+          ...(mercadoPagoSettlementReports ? { mercadoPagoSettlementReports } : {}),
           ...(registerSnapshots ? { registerSnapshotObjects: registerSnapshots } : {}),
           ...(supplierPriceListReading ? { supplierPriceListReading } : {}),
         },
