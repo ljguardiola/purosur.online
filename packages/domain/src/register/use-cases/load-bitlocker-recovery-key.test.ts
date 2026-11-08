@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { FixedClock } from "../../shared/test-support/fixed-clock.js";
 import { loadBitlockerRecoveryKey } from "./load-bitlocker-recovery-key.js";
 import { FakeBitlockerRecoveryKeyStore } from "./test-support/fake-bitlocker-recovery-key-store.js";
-import { FixedClock } from "./test-support/fake-register-store.js";
 
 const NOW = new Date("2026-03-10T15:30:00.000Z");
 const RECOVERY_KEY = "000011-000022-000033-000044-000055-000066-000077-000088";

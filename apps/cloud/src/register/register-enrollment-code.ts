@@ -1,5 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
-import type { EnrollmentCodeIssuer } from "@purosur/domain/register/use-cases";
+import type { EnrollmentCodeIssuer } from "@purosur/domain/installation/use-cases";
 import { generateSecretCode, hashSecretCode } from "../platform/secret-code.js";
 
 export function registerEnrollmentCodeMatches(rawCode: string, codeHash: string): boolean {

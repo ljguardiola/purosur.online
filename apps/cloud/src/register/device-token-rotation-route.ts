@@ -1,5 +1,5 @@
 import { cloudError, cloudErrorStatus, deviceTokenRotationSchema } from "@purosur/contracts";
-import { rotateDeviceToken } from "@purosur/domain/register/use-cases";
+import { rotateDeviceToken } from "@purosur/domain/installation/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { PUBLIC_ACCESS } from "../sessions/route-access.js";

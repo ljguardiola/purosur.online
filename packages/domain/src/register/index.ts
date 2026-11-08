@@ -68,26 +68,8 @@ export {
   CRITICAL_BATTERY_ACTIONS,
   criticalBatteryActionShowsCondition,
 } from "./model/critical-battery-action.js";
-export { isDeviceTokenRotationDue } from "./model/device-token.js";
-export { enrollmentAttemptWindowStart } from "./model/enrollment-attempt-limit.js";
-export {
-  ENROLLMENT_CODE_LENGTH,
-  isWellFormedEnrollmentCode,
-  normalizeEnrollmentCode,
-} from "./model/enrollment-code.js";
 export type { CashBreakdown, CashBreakdownLine } from "./model/expected-cash.js";
 export { cashBreakdown, expectedCash } from "./model/expected-cash.js";
-export {
-  hasDistinctKeyVersions,
-  INSTALLATION_KEY_BYTES,
-  isHeldSnapshotKeyOutdated,
-  isWellFormedInstallationKey,
-  latestKeyVersion,
-} from "./model/installation-key.js";
-export {
-  INSTALLATION_REPORT_MAX_LENGTH,
-  isInstallationReportTooLong,
-} from "./model/installation-report.js";
 export type { LocalSnapshotGeneration } from "./model/local-snapshot-generation.js";
 export {
   isPendingSnapshotGeneration,
@@ -97,11 +79,6 @@ export {
 export { nextOperationNumber } from "./model/operation-number.js";
 export type { ReceiptPrinterAddress } from "./model/receipt-printer-address.js";
 export { isLockedToAnother } from "./model/register-lock.js";
-export {
-  isRegisterNameTooLong,
-  REGISTER_NAME_MAX_LENGTH,
-  registerNameLength,
-} from "./model/register-name.js";
 export type {
   RegisterAbility,
   RegisterActor,
@@ -114,9 +91,6 @@ export {
   registerAbilities,
   registerOperationAccess,
 } from "./model/register-operation.js";
-export type { RegisterService, WatchedRegister } from "./model/register-service.js";
-export { isOutOfService, isWatchedForQuietness } from "./model/register-service.js";
-export { lastSuccessfulSyncOfRegister } from "./model/register-sync.js";
 export type { RegisterVersion } from "./model/register-version.js";
 export { isNewerRegisterVersion } from "./model/register-version.js";
 export type { RestorationEvidence, RestorationStanding } from "./model/restoration-protocol.js";

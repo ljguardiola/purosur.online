@@ -1,4 +1,4 @@
-import type { WatchedRegister } from "../../../register/index.js";
+import type { WatchedRegister } from "../../../installation/index.js";
 import type { WatchedRegisterReader } from "../watched-register-reader.js";
 
 export class FakeWatchedRegisterReader implements WatchedRegisterReader {

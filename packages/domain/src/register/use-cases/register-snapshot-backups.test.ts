@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
+import { FixedClock } from "../../shared/test-support/fixed-clock.js";
 import {
   DEFAULT_SNAPSHOT_LIFECYCLE_RULES,
   SNAPSHOT_RECENT_GENERATIONS,
@@ -8,7 +9,6 @@ import {
   listSnapshotBackupRegisters,
   registerSnapshotBackups,
 } from "./register-snapshot-backups.js";
-import { FixedClock } from "./test-support/fake-register-store.js";
 import { FakeSnapshotBackupsReader } from "./test-support/fake-snapshot-backups-reader.js";
 
 const NOW = new Date("2026-10-14T15:30:00.000Z");

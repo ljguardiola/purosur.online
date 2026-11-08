@@ -1,4 +1,4 @@
-import { emitEnrollmentCode } from "@purosur/domain/register/use-cases";
+import { emitEnrollmentCode } from "@purosur/domain/installation/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { afterAll, beforeAll, beforeEach, describe, expect, expectTypeOf, it } from "vitest";
 import {

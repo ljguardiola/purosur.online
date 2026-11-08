@@ -1,5 +1,5 @@
 import { registerCreationBodySchema } from "@purosur/contracts";
-import { createRegister } from "@purosur/domain/register/use-cases";
+import { createRegister } from "@purosur/domain/installation/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { requirePasskeyAuthorization } from "../credentials/passkey-authorization-guard.js";

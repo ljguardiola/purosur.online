@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { VersionedKey } from "../../shared/index.js";
+import { SequentialInstallationKeys } from "../../shared/test-support/sequential-installation-keys.js";
 import { revokeInstallationAndRotateKeys } from "./revoke-installation-and-rotate-keys.js";
 import { FakeEveryInstallationRevocationStore } from "./test-support/fake-every-installation-revocation-store.js";
-import { SequentialInstallationKeys } from "./test-support/fake-register-store.js";
 
 const REVOKED_AT = new Date("2026-03-10T15:30:00.000Z");
 

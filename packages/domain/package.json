@@ -84,6 +84,11 @@
       "types": "./dist/register/use-cases/index.d.ts",
       "default": "./dist/register/use-cases/index.js"
     },
+    "./installation/use-cases": {
+      "@purosur/source": "./src/installation/use-cases/index.ts",
+      "types": "./dist/installation/use-cases/index.d.ts",
+      "default": "./dist/installation/use-cases/index.js"
+    },
     "./returns/use-cases": {
       "@purosur/source": "./src/returns/use-cases/index.ts",
       "types": "./dist/returns/use-cases/index.d.ts",

@@ -1,3 +1,4 @@
+import type { InstallationKeyGenerator } from "../../shared/index.js";
 import { latestKey } from "../../shared/index.js";
 import { nextKeyVersion } from "../model/installation-key.js";
 import type {
@@ -5,7 +6,6 @@ import type {
   KeyVersionChange,
   RevokedInstallation,
 } from "./installation-revocation-ports.js";
-import type { InstallationKeyGenerator } from "./register-store.js";
 
 export interface InstallationRevocationWithRotatedKeys {
   installation: RevokedInstallation;

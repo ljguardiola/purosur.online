@@ -5,7 +5,7 @@ import {
   normalizeEnrollmentCode,
 } from "@purosur/domain";
 import { z } from "zod";
-import { installationKeysSchema } from "./installation-keys.js";
+import { installationKeysSchema } from "../shared/index.js";
 
 const CODE_MESSAGE = "code must be 16 base32 characters";
 

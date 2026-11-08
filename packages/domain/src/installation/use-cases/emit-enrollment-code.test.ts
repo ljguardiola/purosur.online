@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { FixedClock } from "../../shared/test-support/fixed-clock.js";
 import { emitEnrollmentCode } from "./emit-enrollment-code.js";
 import {
   FakeBranchRegisterStore,
   type FakeRegisterEnrollmentCode,
   SequentialEnrollmentCodes,
 } from "./test-support/fake-branch-register-store.js";
-import { FixedClock } from "./test-support/fake-register-store.js";
 
 const NOW = new Date("2026-03-10T12:00:00.000Z");
 const FIFTEEN_MINUTES_LATER = new Date("2026-03-10T12:15:00.000Z");

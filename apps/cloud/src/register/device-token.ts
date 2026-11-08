@@ -1,5 +1,5 @@
 import { createHash, createHmac, randomBytes } from "node:crypto";
-import type { DeviceTokenRotator, IssuedDeviceToken } from "@purosur/domain/register/use-cases";
+import type { DeviceTokenRotator, IssuedDeviceToken } from "@purosur/domain/installation/use-cases";
 
 const LOOKUP_PREFIX_BYTES = 12;
 const SECRET_BYTES = 32;

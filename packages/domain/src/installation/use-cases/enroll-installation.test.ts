@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { FixedClock } from "../../shared/test-support/fixed-clock.js";
+import { SequentialInstallationKeys } from "../../shared/test-support/sequential-installation-keys.js";
 import { enrollInstallation } from "./enroll-installation.js";
 import {
   FakeRegisterStore,
-  FixedClock,
   hashOfCode,
   plainCodeHashes,
   SequentialDeviceTokens,
-  SequentialInstallationKeys,
 } from "./test-support/fake-register-store.js";
 
 const NOW = new Date("2026-09-29T12:00:00.000Z");
@@ -128,8 +128,7 @@ describe("enrollInstallation", () => {
     store.seedSnapshotGeneration({
       registerId: "register-1",
       keyVersion: 1,
-      status: "verified",
-      pruned: false,
+      retained: true,
     });
     store.seedSnapshotKey({ registerId: "register-1", version: 2, key: "snapshot-2" });
     store.seedSnapshotKey({ registerId: "register-1", version: 1, key: "snapshot-1" });

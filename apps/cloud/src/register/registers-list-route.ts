@@ -3,7 +3,7 @@ import type { ZoneRulesSource } from "@purosur/domain";
 import {
   type BranchRegisterSummary,
   listBranchRegisters,
-} from "@purosur/domain/register/use-cases";
+} from "@purosur/domain/installation/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../sessions/backoffice-origin.js";

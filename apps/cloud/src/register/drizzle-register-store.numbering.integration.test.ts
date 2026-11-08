@@ -2,7 +2,7 @@ import {
   enrollInstallation,
   type RegisterStore,
   type RegisterStoreTransaction,
-} from "@purosur/domain/register/use-cases";
+} from "@purosur/domain/installation/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
