@@ -1,5 +1,3 @@
-import { isInstallationRevoked, type SalesStopState } from "./sales-stop.js";
-
 export type InstallationEnrollment =
   | { kind: "not_enrolled" }
   | { kind: "enrolled" }
@@ -8,16 +6,16 @@ export type InstallationEnrollment =
 export function installationEnrollment({
   credentialsDeviceId,
   heldDeviceId,
-  salesStop,
+  installationRevoked,
 }: {
   credentialsDeviceId: string | undefined;
   heldDeviceId: string | undefined;
-  salesStop: SalesStopState;
+  installationRevoked: boolean;
 }): InstallationEnrollment {
   if (credentialsDeviceId === undefined) {
     return { kind: "not_enrolled" };
   }
-  if (credentialsDeviceId === heldDeviceId && isInstallationRevoked(salesStop)) {
+  if (credentialsDeviceId === heldDeviceId && installationRevoked) {
     return { kind: "revoked" };
   }
   return { kind: "enrolled" };

@@ -437,6 +437,7 @@ export {
   WSAA_ALREADY_AUTHENTICATED_RETRY_MS,
 } from "./fiscal/index.js";
 export type {
+  InstallationEnrollment,
   RegisterService,
   WatchedRegister,
 } from "./installation/index.js";
@@ -446,6 +447,7 @@ export {
   hasDistinctKeyVersions,
   INSTALLATION_KEY_BYTES,
   INSTALLATION_REPORT_MAX_LENGTH,
+  installationEnrollment,
   isDeviceTokenRotationDue,
   isHeldSnapshotKeyOutdated,
   isInstallationReportTooLong,
@@ -1121,7 +1123,6 @@ export {
 export type {
   EventInvariantBreaks,
   EventQuarantine,
-  InstallationEnrollment,
   JsonValue,
   OutboxEvent,
   OutboxEventDraft,
@@ -1145,8 +1146,8 @@ export {
   hasPulledChange,
   heldReplenishmentFailure,
   INSTALLATION_REQUEST_LIMITS,
-  installationEnrollment,
   isHeldBackOnlyByRevokedInstallations,
+  isInstallationRevoked,
   isLeftBehindByMinimum,
   isPageAfter,
   isPullCursor,
