@@ -1,10 +1,13 @@
 import { registerSyncStatusSchema } from "@purosur/contracts";
 import {
   dataColumn,
-  formatBytes,
   formatDate,
+  formatFreeBytes,
+  formatFreeRatio,
+  formatNumber,
   formatPercent,
   Table,
+  TableCellText,
   useTableModel,
 } from "@purosur/ui";
 import { Laptop } from "lucide-react";
@@ -42,7 +45,11 @@ function syncDateTime(instant: string): string {
 }
 
 function NoData() {
-  return <span className="text-text-subtle text-detail">Sin datos</span>;
+  return (
+    <TableCellText tone="subtle" size="detail">
+      Sin datos
+    </TableCellText>
+  );
 }
 
 function BatteryCell({ battery }: { battery: RegisterBattery | null }) {
@@ -50,23 +57,35 @@ function BatteryCell({ battery }: { battery: RegisterBattery | null }) {
     return <NoData />;
   }
   if (!battery.present) {
-    return <div className="text-warning-strong text-detail">Sin batería</div>;
+    return (
+      <TableCellText tone="warning" size="detail">
+        Sin batería
+      </TableCellText>
+    );
   }
   const charge = formatPercent(battery.chargePercent);
+  const health =
+    battery.worn && battery.healthPercent !== null
+      ? `Salud ${formatPercent(battery.healthPercent)}`
+      : undefined;
+  if (!battery.onBattery) {
+    return (
+      <TableCellText size="detail" description={health} descriptionTone="warning">
+        {`Con corriente · ${charge}`}
+      </TableCellText>
+    );
+  }
   return (
-    <div className="flex flex-col text-detail">
-      {battery.onBattery ? (
-        <>
-          <div className="text-error-strong">{`A batería · ${charge}`}</div>
-          <div className="text-error-strong">{`Sin corriente hace ${battery.onBatteryMinutes} min`}</div>
-        </>
-      ) : (
-        <div className="text-text">{`Con corriente · ${charge}`}</div>
-      )}
-      {battery.worn && battery.healthPercent !== null ? (
-        <div className="text-warning-strong">{`Salud ${formatPercent(battery.healthPercent)}`}</div>
-      ) : null}
-    </div>
+    <TableCellText
+      tone="error"
+      size="detail"
+      description={`Sin corriente hace ${formatNumber(battery.onBatteryMinutes)} min`}
+      descriptionTone="error"
+      secondDescription={health}
+      secondDescriptionTone="warning"
+    >
+      {`A batería · ${charge}`}
+    </TableCellText>
   );
 }
 
@@ -75,10 +94,9 @@ function DiskCell({ disk }: { disk: RegisterDisk | null }) {
     return <NoData />;
   }
   return (
-    <div className="flex flex-col text-detail">
-      <div className="text-text">{`${formatPercent(Math.round(disk.freeRatio * 100))} libre`}</div>
-      <div className="text-text-subtle">{formatBytes(disk.freeBytes)}</div>
-    </div>
+    <TableCellText size="detail" description={formatFreeBytes(disk.freeBytes)}>
+      {`${formatFreeRatio(disk.freeRatio)} libre`}
+    </TableCellText>
   );
 }
 
@@ -125,7 +143,7 @@ export function RegistersSyncSection({ data }: RegistersSyncSectionProps) {
         Estado de las cajas
       </h2>
       <Table
-        aria-label="Última sincronización de las cajas"
+        aria-label="Estado de las cajas"
         table={table}
         {...cloudTableState(data, "las cajas")}
         empty={{

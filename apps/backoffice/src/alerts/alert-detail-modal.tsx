@@ -14,6 +14,8 @@ import {
   formatCents,
   formatDate,
   formatDayAndTime,
+  formatFreeBytes,
+  formatFreeRatio,
   formatInvoiceNumber,
   formatNumber,
   formatPercent,
@@ -687,7 +689,7 @@ function alertDescription(alert: AlertDetail, catalog: PermissionCatalogWire = [
     case "wal_oversized":
       return `El registro de cambios de la caja «${targetName}» pesa ${formatBytes(alert.detail.walSizeBytes)} y el límite es ${formatBytes(alert.detail.limitBytes)}. Se puede seguir vendiendo; si no baja solo, conviene reiniciar la caja.`;
     case "register_disk_space_low":
-      return `A la caja «${targetName}» le queda libre el ${formatPercent(Math.round(alert.detail.diskFreeRatio * 100))} del disco, ${formatBytes(alert.detail.diskFreeBytes)}. Conviene liberar espacio antes de que se llene.`;
+      return `A la caja «${targetName}» le queda libre el ${formatFreeRatio(alert.detail.diskFreeRatio)} del disco, ${formatFreeBytes(alert.detail.diskFreeBytes)}. Conviene liberar espacio antes de que se llene.`;
     case "outbox_chain_broken":
       return `La caja «${targetName}» envió eventos que no coinciden con su cadena: alguno se alteró, se quitó o se reordenó en el disco de la caja. La nube rechazó el envío y dio de baja la instalación.`;
     case "fiscal_rejected":

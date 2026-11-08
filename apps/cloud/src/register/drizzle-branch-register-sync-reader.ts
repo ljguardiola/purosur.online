@@ -10,6 +10,8 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { deviceState, registerInstallations, registers } from "../platform/db/schema.js";
 
 interface ReportedState {
+  lastAcceptedPushAt: Date | null;
+  batteryReportedAt: Date | null;
   batteryPresent: boolean | null;
   batteryChargePercent: number | null;
   batteryHealthPercent: number | null;
@@ -19,8 +21,16 @@ interface ReportedState {
   diskFreeRatio: number | null;
 }
 
+function batteryReportedBeforeLastAcceptedPush(state: ReportedState): boolean {
+  return (
+    state.batteryReportedAt !== null &&
+    state.lastAcceptedPushAt !== null &&
+    state.batteryReportedAt < state.lastAcceptedPushAt
+  );
+}
+
 function batteryOf(state: ReportedState): RegisterBatteryState | null {
-  if (state.batteryPresent === null) {
+  if (state.batteryPresent === null || batteryReportedBeforeLastAcceptedPush(state)) {
     return null;
   }
   if (!state.batteryPresent) {
@@ -56,6 +66,7 @@ export class DrizzleBranchRegisterSyncReader<TQueryResult extends PgQueryResultH
         id: registers.id,
         name: registers.name,
         lastAcceptedPushAt: deviceState.lastAcceptedPushAt,
+        batteryReportedAt: deviceState.batteryReportedAt,
         batteryPresent: deviceState.batteryPresent,
         batteryChargePercent: deviceState.batteryChargePercent,
         batteryHealthPercent: deviceState.batteryHealthPercent,

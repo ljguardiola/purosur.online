@@ -42,7 +42,10 @@ export interface AlertListPage {
   total: number;
 }
 
-export type OpenAlertsOverview = Record<AlertLevel, { openCount: number; kinds: AlertKind[] }>;
+export type OpenAlertsOverview = Record<
+  AlertLevel,
+  { openCount: number; kinds: AlertKind[]; localKinds: AlertKind[] }
+>;
 
 export interface AlertDelivery {
   channel: string;
