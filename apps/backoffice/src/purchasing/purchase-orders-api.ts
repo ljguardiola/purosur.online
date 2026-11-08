@@ -117,8 +117,17 @@ async function readOrder(response: Response): Promise<PurchaseOrderDetail | unde
 
 export function fetchPurchaseOrders(
   state: PurchaseOrderStateFilter,
+  { supplierId }: Pick<PurchaseOrderListQuery, "supplierId"> = {},
 ): Promise<FetchPurchaseOrdersOutcome> {
-  const path = state === "ALL" ? "/api/purchase-orders" : `/api/purchase-orders?state=${state}`;
+  const query = new URLSearchParams();
+  if (state !== "ALL") {
+    query.set("state", state);
+  }
+  if (supplierId !== undefined) {
+    query.set("supplierId", supplierId);
+  }
+  const queryString = query.toString();
+  const path = queryString === "" ? "/api/purchase-orders" : `/api/purchase-orders?${queryString}`;
   return readCloudJson(path, purchaseOrderListSchema);
 }
 

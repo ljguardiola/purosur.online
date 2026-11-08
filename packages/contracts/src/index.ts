@@ -503,6 +503,7 @@ export {
 } from "./purchasing/freight-by-period.js";
 export type { FreightPeriod } from "./purchasing/freight-period.js";
 export { freightPeriodDaysSchema, freightPeriodSchema } from "./purchasing/freight-period.js";
+export type { FreightListQuery } from "./purchasing/freight-query.js";
 export {
   freightListQuerySchema,
   linkablePurchasesQuerySchema,

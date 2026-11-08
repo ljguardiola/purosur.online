@@ -8,6 +8,7 @@ import {
   type PurchaseLineProductChangeBody,
   type PurchaseLineQuantityCorrectionBody,
   type PurchaseLinesAdditionBody,
+  type PurchaseListQuery,
   type PurchaseRegistrationBody,
   type PurchaseSummary,
   purchaseChangesSchema,
@@ -129,10 +130,16 @@ function isLineRefusal(code: unknown): code is PurchaseLineRefusal {
   return LINE_REFUSALS.some((reason) => reason === code);
 }
 
-export async function fetchPurchases(): Promise<FetchPurchasesOutcome> {
+export async function fetchPurchases({
+  supplierId,
+}: PurchaseListQuery = {}): Promise<FetchPurchasesOutcome> {
+  const path =
+    supplierId === undefined
+      ? "/api/purchases"
+      : `/api/purchases?${new URLSearchParams({ supplierId }).toString()}`;
   let response: Response;
   try {
-    response = await cloudFetch("/api/purchases");
+    response = await cloudFetch(path);
   } catch {
     return { kind: "failed" };
   }

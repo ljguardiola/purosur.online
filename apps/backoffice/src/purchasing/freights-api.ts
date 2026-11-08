@@ -2,6 +2,7 @@ import {
   type Freight,
   type FreightBody,
   type FreightList,
+  type FreightListQuery,
   type FreightPeriod,
   freightListSchema,
   freightSchema,
@@ -15,7 +16,11 @@ import { readValidationFailedField } from "../platform/validation-failed-field";
 
 export type { FreightPeriod };
 
-export type FetchFreightsInput = { period: FreightPeriod; search: string };
+export type FetchFreightsInput = {
+  period: FreightPeriod;
+  search: string;
+  supplierId?: FreightListQuery["supplierId"];
+};
 
 export type FetchLinkablePurchasesInput = { period: FreightPeriod; freightId?: string };
 
@@ -63,10 +68,14 @@ async function readCode(response: Response): Promise<string | undefined> {
 export async function fetchFreights({
   period,
   search,
+  supplierId,
 }: FetchFreightsInput): Promise<FetchFreightsOutcome> {
   const query = new URLSearchParams({ period: String(period) });
   if (search !== "") {
     query.set("search", search);
+  }
+  if (supplierId !== undefined) {
+    query.set("supplierId", supplierId);
   }
   let response: Response;
   try {

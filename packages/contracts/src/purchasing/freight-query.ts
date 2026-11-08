@@ -14,6 +14,8 @@ export const freightListQuerySchema = z.object({
   supplierId: recordIdSchema("supplierId must be a supplier's id").optional(),
 });
 
+export type FreightListQuery = z.input<typeof freightListQuerySchema>;
+
 export const linkablePurchasesQuerySchema = z.object({
   period: freightPeriodSchema,
   freightId: recordIdSchema("freightId must be a freight's id").optional(),
