@@ -204,8 +204,14 @@ test("shows each register of the branch with its last successful sync on Inicio"
   vi.mocked(services.homeScreen.fetchRegisterSyncStatus).mockResolvedValue({
     kind: "ok",
     value: [
-      { id: "register-1", name: "Caja 1", lastSuccessfulSyncAt: "2026-03-02T09:30:00.000Z" },
-      { id: "register-2", name: "Caja 2", lastSuccessfulSyncAt: null },
+      {
+        id: "register-1",
+        name: "Caja 1",
+        lastSuccessfulSyncAt: "2026-03-02T09:30:00.000Z",
+        battery: null,
+        disk: null,
+      },
+      { id: "register-2", name: "Caja 2", lastSuccessfulSyncAt: null, battery: null, disk: null },
     ],
   });
 
@@ -237,7 +243,9 @@ test("keeps the alerts on Inicio when the registers fail to load, and retries on
     .mockResolvedValueOnce({ kind: "failed" })
     .mockResolvedValueOnce({
       kind: "ok",
-      value: [{ id: "register-1", name: "Caja 1", lastSuccessfulSyncAt: null }],
+      value: [
+        { id: "register-1", name: "Caja 1", lastSuccessfulSyncAt: null, battery: null, disk: null },
+      ],
     });
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -261,7 +269,9 @@ test("shows each register's last successful sync on Inicio to a user who may not
   });
   vi.mocked(services.homeScreen.fetchRegisterSyncStatus).mockResolvedValue({
     kind: "ok",
-    value: [{ id: "register-1", name: "Caja 1", lastSuccessfulSyncAt: null }],
+    value: [
+      { id: "register-1", name: "Caja 1", lastSuccessfulSyncAt: null, battery: null, disk: null },
+    ],
   });
 
   const screen = await render(<App help={emptyHelp} services={services} />);

@@ -60,6 +60,8 @@ const neverSynced: RegisterSyncStatus = {
   id: "register-1",
   name: "Caja 1",
   lastSuccessfulSyncAt: null,
+  battery: null,
+  disk: null,
 };
 
 function deferred<T>() {
