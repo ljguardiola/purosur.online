@@ -31,9 +31,12 @@ const REFUND: SettlementMovement = {
 };
 
 describe("isChargeMovement", () => {
-  it.each(["SETTLEMENT", "REFUND", "CHARGEBACK", "DISPUTE"])("counts %s as part of a charge", (type) => {
-    expect(isChargeMovement(type)).toBe(true);
-  });
+  it.each(["SETTLEMENT", "REFUND", "CHARGEBACK", "DISPUTE"])(
+    "counts %s as part of a charge",
+    (type) => {
+      expect(isChargeMovement(type)).toBe(true);
+    },
+  );
 
   it.each(["WITHDRAWAL", "WITHDRAWAL_CANCEL", "PAYOUT"])(
     "leaves %s out, since it moves money out of the account instead of charging",
@@ -77,9 +80,7 @@ describe("chargeCostOf", () => {
   });
 
   it("keeps the release date of the charge, not of a later refund", () => {
-    expect(chargeCostOf([REFUND, SALE]).moneyReleaseDate).toEqual(
-      new Date("2026-10-01T13:00:00Z"),
-    );
+    expect(chargeCostOf([REFUND, SALE]).moneyReleaseDate).toEqual(new Date("2026-10-01T13:00:00Z"));
   });
 
   it("has no release date while no movement of the charge has one", () => {

@@ -2,6 +2,8 @@ const CHARGE_MOVEMENT_TYPES = ["SETTLEMENT", "REFUND", "CHARGEBACK", "DISPUTE"] 
 
 const CHARGE_TYPE = "SETTLEMENT";
 
+export const MERCADO_PAGO_SETTLEMENT_REPORT_DAYS = 60;
+
 export interface SettlementMovement {
   sourceId: string;
   transactionType: string;

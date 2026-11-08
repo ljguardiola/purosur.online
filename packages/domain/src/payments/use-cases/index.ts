@@ -82,6 +82,8 @@ export type {
 export { followMercadoPagoCharge } from "./follow-mercado-pago-charge.js";
 export type { FollowMercadoPagoRefundsOutcome } from "./follow-mercado-pago-refunds.js";
 export { followMercadoPagoRefunds } from "./follow-mercado-pago-refunds.js";
+export type { FollowMercadoPagoSettlementReportOutcome } from "./follow-mercado-pago-settlement-report.js";
+export { followMercadoPagoSettlementReport } from "./follow-mercado-pago-settlement-report.js";
 export type {
   HandConfirmedPaymentsQuery,
   HandConfirmedPaymentsReader,
@@ -158,6 +160,15 @@ export type {
   MercadoPagoRefundStore,
   MercadoPagoRefundTransaction,
 } from "./mercado-pago-refund-ports.js";
+export type {
+  FollowMercadoPagoSettlementReportPorts,
+  ListedSettlementReport,
+  MercadoPagoSettlementReports,
+  SettlementReportConfigurationReading,
+  SettlementReportRequest,
+  SettlementReportRow,
+  SettlementReportStore,
+} from "./mercado-pago-settlement-report-ports.js";
 export type {
   OpenOverdueRefundTaskAlertsOutcome,
   OpenOverdueRefundTaskAlertsPorts,
