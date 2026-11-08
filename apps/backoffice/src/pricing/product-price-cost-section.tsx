@@ -81,6 +81,7 @@ export function ProductPriceCostSection({
       description: `${formatProductDescription(gone)} ya no está en el catálogo.`,
     });
     void refreshPrices();
+    onPriceChanged();
   }
 
   const margin = product.costReference?.marginTenthsOfPercent ?? null;
