@@ -82,8 +82,6 @@ export const initialInventoryFilters = z.object({
   cost: z.enum(["all", "known", "incomplete"]).default("all").catch("all"),
 });
 
-export type InitialInventoryFilters = z.output<typeof initialInventoryFilters>;
-
 export const expiringLotsFilters = z
   .object({
     search: z.string().default("").catch(""),
