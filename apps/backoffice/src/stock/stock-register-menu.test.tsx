@@ -8,7 +8,7 @@ import { render } from "../shell/test-support/render-with-router";
 import type { InitialInventoryScreenServices } from "./initial-inventory-services";
 import { StockRegisterMenu } from "./stock-register-menu";
 import { createServices } from "./test-support/stock-balances-screen";
-import { initialLotAlmonds, tea } from "./test-support/stock-fixtures";
+import { almondOil, initialLotAlmonds, tea, withoutBalance } from "./test-support/stock-fixtures";
 
 beforeEach(async () => {
   await page.viewport(1280, 900);
@@ -240,4 +240,67 @@ test("opens the initial inventory for a person who may only record it", async ()
   });
 
   await expect.element(screen.getByRole("dialog", { name: "Inventario inicial" })).toBeVisible();
+});
+
+test.each([
+  [
+    "a session that manages products and categories",
+    {
+      ...accessWith("stock_area", "stock_movements", "stock_losses", "products_and_categories"),
+      stockMovementKinds: ["loss"] as const,
+    },
+    true,
+  ],
+  [
+    "a session that only loads losses",
+    {
+      ...accessWith("stock_area", "stock_movements", "stock_losses"),
+      stockMovementKinds: ["loss"] as const,
+    },
+    false,
+  ],
+])(
+  "offers creating a product from the loss's product selector to %s only if allowed",
+  async (_name, access, offered) => {
+    const screen = await renderMenu({ access: { ...access, stockMovementKinds: ["loss"] } });
+    await openRegisterMenu(screen);
+    await userEvent.click(screen.getByRole("menuitem", { name: "Pérdida" }));
+    const dialog = screen.getByRole("dialog", { name: "Cargar pérdida" });
+
+    await userEvent.fill(dialog.getByRole("combobox", { name: /Producto/ }), "Yerba mate");
+
+    const entry = screen.getByRole("option", { name: "Crear producto «Yerba mate»" });
+    await expect.element(offered ? entry : screen.getByText("Sin resultados")).toBeVisible();
+    expect(entry.query() !== null).toBe(offered);
+  },
+);
+
+test("names the product of a loss by its brand and net content in the notice", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchStockProducts).mockResolvedValue({
+    kind: "ok",
+    value: { products: [almondOil].map(withoutBalance) },
+  });
+  vi.mocked(services.recordLoss).mockResolvedValue({
+    kind: "ok",
+    value: { balance: 5_000, superseded: false },
+  });
+  const screen = await renderMenu({ services });
+  await openRegisterMenu(screen);
+  await userEvent.click(screen.getByRole("menuitem", { name: "Pérdida" }));
+  const dialog = screen.getByRole("dialog", { name: "Cargar pérdida" });
+  await userEvent.click(dialog.getByRole("button", { name: /Producto/ }));
+  await userEvent.click(screen.getByRole("option", { name: "Aceite de Almendras Vitora 30 ml" }));
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Cantidad perdida/ }), "1");
+  await userEvent.click(screen.getByRole("radio", { name: "Rotura o derrame" }), { force: true });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Registrar la pérdida" }));
+
+  await expect
+    .element(
+      screen
+        .getByRole("status")
+        .getByText("Saldo actualizado Aceite de Almendras Vitora 30 ml queda en 5 u."),
+    )
+    .toBeInTheDocument();
 });
