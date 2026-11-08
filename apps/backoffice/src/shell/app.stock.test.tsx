@@ -415,6 +415,14 @@ test.each([
   await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
 });
 
+async function registerMenuItems(screen: Awaited<ReturnType<typeof render>>) {
+  await userEvent.click(screen.getByRole("button", { name: "Registrar" }));
+  return screen
+    .getByRole("menuitem")
+    .elements()
+    .map((item) => item.textContent);
+}
+
 test("offers the kinds of stock movement real use of the open tab reports the user may now record", async () => {
   const lossesOnly = openSession({
     userId: "user-2",
@@ -427,7 +435,9 @@ test("offers the kinds of stock movement real use of the open tab reports the us
   vi.mocked(services.fetchSession).mockResolvedValue(lossesOnly);
   window.history.pushState(null, "", "/stock/movements");
   const screen = await render(<App help={emptyHelp} services={services} />);
-  await expect.element(screen.getByRole("button", { name: "Cargar pérdida" })).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Registrar" })).toBeVisible();
+  expect(await registerMenuItems(screen)).toEqual(["Pérdida"]);
+  await userEvent.keyboard("{Escape}");
 
   vi.mocked(services.fetchSession).mockResolvedValue({
     ...lossesOnly,
@@ -438,11 +448,68 @@ test("offers the kinds of stock movement real use of the open tab reports the us
     window.dispatchEvent(new KeyboardEvent("keydown"));
 
     await expect
-      .element(screen.getByRole("button", { name: "Cargar pérdida o ajuste" }))
-      .toBeVisible();
+      .poll(async () => {
+        await userEvent.click(screen.getByRole("button", { name: "Registrar" }));
+        const items = screen
+          .getByRole("menuitem")
+          .elements()
+          .map((item) => item.textContent);
+        await userEvent.keyboard("{Escape}");
+        return items;
+      })
+      .toEqual(["Ajuste", "Pérdida"]);
   } finally {
     vi.useRealTimers();
   }
+});
+
+test("offers only Recuento on Registrar to a person with stock_counts but not stock_movements", async () => {
+  const services = stockServices(["stock_area", "stock_counts"]);
+  window.history.pushState(null, "", "/stock/movements");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("button", { name: "Registrar" })).toBeVisible();
+
+  expect(await registerMenuItems(screen)).toEqual(["Recuento"]);
+});
+
+test("offers Registrar on every tab of Stock", async () => {
+  const services = stockServices([
+    "stock_area",
+    "stock_balances",
+    "stock_expiries",
+    "stock_counts",
+  ]);
+  window.history.pushState(null, "", "/stock/expiries");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("button", { name: "Registrar" })).toBeVisible();
+});
+
+test("opens the initial inventory over Saldos from the old address and clears the address on Listo", async () => {
+  const services = stockServices(["stock_area", "stock_balances", "initial_inventory"]);
+  window.history.pushState(null, "", "/initial-inventory");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("dialog", { name: "Inventario inicial" })).toBeVisible();
+  expect(location()).toBe("/stock?register=initial-inventory");
+  await userEvent.click(screen.getByRole("button", { name: "Listo" }));
+  await expect.poll(location).toBe("/stock");
+  expect(screen.getByRole("dialog").query()).toBeNull();
+});
+
+test("lets a person holding only initial_inventory open the initial inventory from Registrar", async () => {
+  const services = stockServices(["stock_area", "initial_inventory"]);
+  window.history.pushState(null, "", "/stock");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("button", { name: "Registrar" })).toBeVisible();
+
+  expect(await registerMenuItems(screen)).toEqual(["Inventario inicial"]);
+  await userEvent.click(screen.getByRole("menuitem", { name: "Inventario inicial" }));
+
+  await expect.element(screen.getByRole("dialog", { name: "Inventario inicial" })).toBeVisible();
+  expect(location()).toBe("/stock?register=initial-inventory");
 });
 
 const STOCK_SCREENS = [
