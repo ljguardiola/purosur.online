@@ -107,7 +107,7 @@ test("names the purchase the products are added to, and offers one empty line", 
   const screen = await renderModal();
   const dialog = await readyDialog(screen);
 
-  await expect.element(dialog.getByText("Stock · Compra · Distribuidora Andina")).toBeVisible();
+  await expect.element(dialog.getByText("Compras · Compra · Distribuidora Andina")).toBeVisible();
   await expect.element(dialog.getByRole("heading", { name: "Agregar productos" })).toBeVisible();
   await expect.element(dialog.getByRole("combobox", { name: /^Producto/ })).toHaveValue("");
 });

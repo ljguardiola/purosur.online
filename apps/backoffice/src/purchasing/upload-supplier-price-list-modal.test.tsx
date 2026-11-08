@@ -95,7 +95,7 @@ test("shows the title, what reading does and the file to choose", async () => {
   const screen = await renderModal();
   const dialog = screen.getByRole("dialog");
 
-  await expect.element(dialog.getByText("Pedidos · Listas de proveedores")).toBeVisible();
+  await expect.element(dialog.getByText("Compras · Listas de precios")).toBeVisible();
   await expect.element(dialog.getByRole("heading", { name: "Cargar una lista" })).toBeVisible();
   await expect
     .element(

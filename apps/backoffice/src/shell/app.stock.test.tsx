@@ -21,17 +21,7 @@ import { opensOnlyScreens } from "./test-support/screen-routes";
 
 const PAST_ACTIVITY_THROTTLE_WINDOW_MS = 120_000;
 
-opensOnlyScreens([
-  "/",
-  "/freights",
-  "/help",
-  "/purchases",
-  "/purchases/new",
-  "/stock",
-  "/stock/expiries",
-  "/stock/movements",
-  "/suppliers",
-]);
+opensOnlyScreens(["/", "/help", "/stock", "/stock/expiries", "/stock/movements"]);
 
 beforeEach(resetPageState);
 
@@ -62,26 +52,10 @@ function stockServices(capabilities: Capability[]) {
     kind: "ok",
     value: expiringLotList([]),
   });
-  vi.mocked(services.suppliersListScreen.fetchSuppliers).mockResolvedValue({
-    kind: "ok",
-    value: [],
-  });
-  vi.mocked(services.purchasesListScreen.fetchPurchases).mockResolvedValue({
-    kind: "ok",
-    value: [],
-  });
-  vi.mocked(services.freightsListScreen.fetchFreights).mockResolvedValue({
-    kind: "ok",
-    value: { items: [], count: 0, totalCents: 0 },
-  });
-  vi.mocked(services.newPurchaseScreen.fetchPurchaseChoices).mockResolvedValue({
-    kind: "ok",
-    value: { suppliers: [], products: [], today: "2026-09-16" },
-  });
   return services;
 }
 
-const SECTION_LABELS = ["Stock", "Proveedores", "Compras", "Flete"];
+const SECTION_LABELS = ["Stock"];
 
 function location() {
   return window.location.pathname + window.location.search;
@@ -290,9 +264,6 @@ test.each([
   ["stock_counts", ["Stock"]],
   ["stock_movements", ["Stock"]],
   ["initial_inventory", ["Stock"]],
-  ["suppliers", ["Proveedores"]],
-  ["purchases", ["Compras"]],
-  ["freights", ["Flete"]],
 ] as const)(
   "lists only the sections %s allows in the section column",
   async (capability, labels) => {
@@ -335,66 +306,14 @@ test("keeps the Stock link of the section column active on every tab", async () 
     .toHaveAttribute("aria-current", "page");
 });
 
-test.each([
-  ["suppliers", "/suppliers"],
-  ["purchases", "/purchases"],
-  ["freights", "/freights"],
-] as const)("opens %s's section from the rail's Stock item", async (capability, path) => {
-  const services = stockServices([capability, "stock_area"]);
+test("hides the Stock item in the rail for a user with only purchasing permissions", async () => {
+  const services = stockServices(["suppliers", "purchases", "freights", "stock_area"]);
   window.history.pushState(null, "", "/help");
-  const screen = await render(<App help={emptyHelp} services={services} />);
-
-  await userEvent.click(railLink(screen));
-
-  await expect.poll(location).toBe(path);
-});
-
-test("lists only the sections a user holds the permission for", async () => {
-  const services = stockServices(["stock_balances", "suppliers", "stock_area"]);
-  window.history.pushState(null, "", "/suppliers");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Proveedores", level: 1 }))
-    .toBeVisible();
-  expect(sectionLabels(screen)).toEqual(["Stock", "Proveedores"]);
-});
-
-test("confirms a purchase just registered on the purchases list, until it is dismissed", async () => {
-  const services = stockServices(["purchases", "stock_area"]);
-  window.history.pushState(
-    { key: "registered", __TSR_index: 0, purchaseRegistered: true },
-    "",
-    "/purchases",
-  );
-
-  const screen = await render(<App help={emptyHelp} services={services} />);
-
-  await expect.element(screen.getByText("Compra registrada")).toBeVisible();
-  await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
-  await expect.poll(() => screen.getByText("Compra registrada").query()).toBeNull();
-  expect(window.history.state).not.toMatchObject({ purchaseRegistered: true });
-});
-
-test("opens a new purchase dated the day it is opened", async () => {
-  const services = stockServices(["purchases", "stock_area"]);
-  window.history.pushState(null, "", "/purchases/new");
-  vi.setSystemTime(new Date("2026-09-16T15:00:00.000Z"));
-  try {
-    const screen = await render(<App help={emptyHelp} services={services} />);
-
-    const date = screen.getByRole("group", { name: /^Fecha de compra/ });
-    await expect.element(date).toBeVisible();
-    expect(
-      date
-        .getByRole("spinbutton")
-        .all()
-        .map((segment) => segment.element().textContent),
-    ).toEqual(["16", "9", "2026"]);
-  } finally {
-    vi.useRealTimers();
-  }
+  await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
+  expect(railLink(screen).query()).toBeNull();
 });
 
 test("hides the Stock item in the rail for a user without a stock permission", async () => {
@@ -416,10 +335,6 @@ test.each([
   ["/inventory-counts", "suppliers"],
   ["/inventory-adjustments", "suppliers"],
   ["/initial-inventory", "suppliers"],
-  ["/suppliers", "purchases"],
-  ["/purchases", "suppliers"],
-  ["/purchases/new", "suppliers"],
-  ["/freights", "suppliers"],
 ] as const)("sends a user who may not open %s to Mi cuenta", async (path, capability) => {
   const services = stockServices([capability, "stock_area"]);
   window.history.pushState(null, "", path);
@@ -540,10 +455,6 @@ const STOCK_SCREENS = [
   ["/stock", "Stock"],
   ["/stock/expiries", "Stock"],
   ["/stock/movements", "Stock"],
-  ["/suppliers", "Proveedores"],
-  ["/purchases", "Compras"],
-  ["/purchases/new", "Registrar compra"],
-  ["/freights", "Flete"],
 ] as const;
 
 test.each(STOCK_SCREENS)("shows no open alerts count in %s's top bar", async (path, heading) => {

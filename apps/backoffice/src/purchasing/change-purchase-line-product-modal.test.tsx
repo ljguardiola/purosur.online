@@ -104,7 +104,7 @@ test("shows the line's product as the title and offers the products to move it t
   const screen = await renderModal();
   const dialog = await readyDialog(screen);
 
-  await expect.element(dialog.getByText("Stock · Compra")).toBeVisible();
+  await expect.element(dialog.getByText("Compras · Compra")).toBeVisible();
   await expect
     .element(dialog.getByRole("heading", { name: "Miel pura de abeja 1 kg" }))
     .toBeVisible();

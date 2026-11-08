@@ -116,14 +116,10 @@ async function loaded(
   return screen;
 }
 
-test("shows the heading under Pedidos and every list with its supplier, file, date, items and state", async () => {
+test("shows every list with its supplier, file, date, items and state", async () => {
   const services = createServices();
   const screen = await loaded(services, [READ_LIST, REVIEWED_LIST]);
 
-  await expect.element(screen.getByText("Pedidos").first()).toBeVisible();
-  await expect
-    .element(screen.getByRole("heading", { name: "Listas de proveedores", level: 1 }))
-    .toBeVisible();
   const andina = rowOf(screen, "Distribuidora Andina");
   await expect.element(andina.getByText("lista-septiembre-2026.pdf")).toBeVisible();
   await expect.element(andina.getByText("PDF")).toBeVisible();

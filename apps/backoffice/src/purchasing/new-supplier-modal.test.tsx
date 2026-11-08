@@ -62,7 +62,7 @@ test("shows the eyebrow, the title and the four fields, only the name required",
   const screen = await renderModal();
   const dialog = screen.getByRole("dialog");
 
-  await expect.element(dialog.getByText("Stock · Proveedores")).toBeVisible();
+  await expect.element(dialog.getByText("Compras · Proveedores")).toBeVisible();
   await expect.element(dialog.getByRole("heading", { name: "Nuevo proveedor" })).toBeVisible();
   await expect.element(dialog.getByRole("textbox", { name: /^Nombre/ })).toBeVisible();
   await expect.element(dialog.getByRole("textbox", { name: "CUIT" })).toBeVisible();

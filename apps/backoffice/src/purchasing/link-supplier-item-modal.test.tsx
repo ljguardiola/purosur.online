@@ -79,7 +79,7 @@ test("names the item and what the list printed about it", async () => {
   const screen = await renderModal();
   const dialog = screen.getByRole("dialog");
 
-  await expect.element(dialog.getByText("Pedidos · Vincular un ítem")).toBeVisible();
+  await expect.element(dialog.getByText("Compras · Vincular un ítem")).toBeVisible();
   await expect
     .element(dialog.getByRole("heading", { name: "Nuez mariposa extra light x 10 kg" }))
     .toBeVisible();

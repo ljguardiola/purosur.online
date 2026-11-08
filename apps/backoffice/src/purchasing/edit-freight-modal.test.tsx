@@ -87,7 +87,7 @@ test("shows the freight's description as the title, with its values filled and i
   const screen = await renderModal();
   const dialog = await readyDialog(screen);
 
-  await expect.element(dialog.getByText("Stock · Flete")).toBeVisible();
+  await expect.element(dialog.getByText("Compras · Flete")).toBeVisible();
   await expect
     .element(dialog.getByRole("heading", { name: "Envío desde Buenos Aires" }))
     .toBeVisible();

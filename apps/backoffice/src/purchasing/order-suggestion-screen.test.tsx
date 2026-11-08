@@ -103,7 +103,7 @@ function supplierSelect(screen: Screen, productName: string) {
 test("shows the breadcrumb and the heading", async () => {
   const screen = await loaded(createServices());
 
-  await expect.element(screen.getByText("Pedidos").first()).toBeVisible();
+  await expect.element(screen.getByText("Compras").first()).toBeVisible();
   await expect
     .element(screen.getByRole("heading", { name: "Sugerencia de pedido", level: 1 }))
     .toBeVisible();

@@ -89,7 +89,7 @@ async function loaded(services: FreightsListScreenServices, options = {}) {
 test("shows the breadcrumb, the heading and each freight with its means, purchases and amount", async () => {
   const screen = await loaded(createServices());
 
-  await expect.element(screen.getByText("Stock").first()).toBeVisible();
+  await expect.element(screen.getByText("Compras").first()).toBeVisible();
   await expect.element(screen.getByRole("heading", { name: "Flete", level: 1 })).toBeVisible();
   await expect
     .poll(() => rowTexts(screen))

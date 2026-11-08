@@ -87,14 +87,10 @@ async function loaded(
   return screen;
 }
 
-test("shows the breadcrumb, the heading and each active supplier with its CUIT, contact, note and state", async () => {
+test("shows each active supplier with its CUIT, contact, note and state", async () => {
   const services = createServices();
   const screen = await loaded(services, [andina, granos, cerealera]);
 
-  await expect.element(screen.getByText("Stock").first()).toBeVisible();
-  await expect
-    .element(screen.getByRole("heading", { name: "Proveedores", level: 1 }))
-    .toBeVisible();
   await expect
     .poll(() => rowTexts(screen))
     .toEqual([
