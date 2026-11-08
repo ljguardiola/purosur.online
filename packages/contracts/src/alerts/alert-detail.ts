@@ -223,6 +223,34 @@ const tzRulesMismatchDetailSchema = z.object({
   cloudVersion: z.string(),
 });
 
+const onBatteryDetailSchema = z.object({
+  deviceId: z.string(),
+  onBatteryMinutes: z.number(),
+  thresholdMinutes: z.number(),
+});
+
+const batteryMissingDetailSchema = z.object({
+  deviceId: z.string(),
+});
+
+const batteryHealthLowDetailSchema = z.object({
+  deviceId: z.string(),
+  healthPercent: z.number(),
+  wornBelowPercent: z.number(),
+});
+
+const walOversizedDetailSchema = z.object({
+  deviceId: z.string(),
+  walSizeBytes: z.number(),
+  limitBytes: z.number(),
+});
+
+const registerDiskSpaceLowDetailSchema = z.object({
+  deviceId: z.string(),
+  diskFreeBytes: z.number(),
+  diskFreeRatio: z.number(),
+});
+
 const registerReplenishmentFailedDetailSchema = z.object({
   deviceId: z.string(),
   failure: z.enum(REPLENISHMENT_FAILURE_KINDS),
@@ -447,6 +475,31 @@ const alertDetailKinds = [
     ...alertBase,
     kind: z.literal("tz_rules_mismatch" satisfies AlertKind),
     detail: tzRulesMismatchDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("on_battery" satisfies AlertKind),
+    detail: onBatteryDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("battery_missing" satisfies AlertKind),
+    detail: batteryMissingDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("battery_health_low" satisfies AlertKind),
+    detail: batteryHealthLowDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("wal_oversized" satisfies AlertKind),
+    detail: walOversizedDetailSchema,
+  }),
+  z.object({
+    ...alertBase,
+    kind: z.literal("register_disk_space_low" satisfies AlertKind),
+    detail: registerDiskSpaceLowDetailSchema,
   }),
   z.object({
     ...alertBase,
