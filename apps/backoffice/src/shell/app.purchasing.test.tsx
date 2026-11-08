@@ -593,3 +593,35 @@ test("opens the receipt of a receivable order from the order, and goes back to t
     .toBeVisible();
   expect(window.location.pathname).toBe(`/purchase-orders/${ORDER_ID}`);
 });
+
+test.each([
+  ["/purchase-orders", "purchase_order_reads", "Pedidos de compra"],
+  ["/purchases", "purchases", "Compras"],
+  ["/freights", "freights", "Fletes"],
+  ["/suppliers/price-lists", "supplier_price_lists", "Listas de proveedores"],
+] as const)(
+  "clears the supplier filter of %s from the address when its filter is pressed",
+  async (path, capability, tableName) => {
+    const services = purchasingServices([capability]);
+    vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrders).mockResolvedValue({
+      kind: "ok",
+      value: [],
+    });
+    vi.mocked(services.purchasesListScreen.fetchPurchases).mockResolvedValue({
+      kind: "ok",
+      value: [],
+    });
+    const supplier = READ_LIST.supplier;
+    vi.mocked(services.supplierPriceListsScreen.fetchSupplierPriceLists).mockResolvedValue({
+      kind: "ok",
+      value: [READ_LIST],
+    });
+    window.history.pushState(null, "", `${path}?supplier=${supplier.id}`);
+    const screen = await render(<App help={emptyHelp} services={services} />);
+    await expect.element(screen.getByRole("table", { name: tableName })).toBeVisible();
+
+    await userEvent.click(screen.getByRole("button", { name: /^Proveedor:/ }));
+
+    await expect.poll(() => window.location.pathname + window.location.search).toBe(path);
+  },
+);

@@ -40,6 +40,7 @@ export type ScreenOptions = {
   registered?: boolean;
   onNoticeDismissed?: () => void;
   access?: BackofficeAccess;
+  supplierFilter?: { supplierId: string; onClear: () => void };
 };
 
 export function screenElement(
@@ -49,6 +50,7 @@ export function screenElement(
     registered = false,
     onNoticeDismissed = () => {},
     access = ADMINISTRATOR_ACCESS,
+    supplierFilter,
   }: ScreenOptions = {},
 ) {
   return (
@@ -61,6 +63,7 @@ export function screenElement(
           onSessionEnded={onSessionEnded}
           registered={registered}
           onNoticeDismissed={onNoticeDismissed}
+          {...(supplierFilter === undefined ? {} : { supplierFilter })}
         />
       </main>
     </FieldSizeProvider>
