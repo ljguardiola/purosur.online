@@ -79,8 +79,8 @@ describe("GET /reports/expiring-lots access", () => {
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
   });
 
-  it.each(["manage_expiration_dates", "view_stock_balances"] as const)(
-    "rejects a user holding %s but not view_reports",
+  it.each(["view_stock_balances", "record_stock_losses"] as const)(
+    "rejects a user holding %s but neither view_reports nor manage_expiration_dates",
     async (permission) => {
       const { headers } = await signedInWith(db, [permission], NOW);
 
@@ -90,13 +90,16 @@ describe("GET /reports/expiring-lots access", () => {
     },
   );
 
-  it("answers a user who may view reports", async () => {
-    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+  it.each(["view_reports", "manage_expiration_dates"] as const)(
+    "answers a user holding %s",
+    async (permission) => {
+      const { headers } = await signedInWith(db, [permission], NOW);
 
-    const response = await expiringLotsReport(headers);
+      const response = await expiringLotsReport(headers);
 
-    expect(response.statusCode).toBe(200);
-  });
+      expect(response.statusCode).toBe(200);
+    },
+  );
 
   it.each([
     ["a period that ends before it starts", "?from=2026-12-31&to=2026-12-01"],

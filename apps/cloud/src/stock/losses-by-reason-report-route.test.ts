@@ -69,7 +69,7 @@ describe("GET /reports/losses-by-reason access", () => {
   });
 
   it.each(["manage_expiration_dates", "view_stock_balances"] as const)(
-    "rejects a user holding %s but not view_reports",
+    "rejects a user holding %s but neither view_reports nor record_stock_losses",
     async (permission) => {
       const { headers } = await signedInWith(db, [permission], NOW);
 
@@ -79,13 +79,16 @@ describe("GET /reports/losses-by-reason access", () => {
     },
   );
 
-  it("answers a user who may view reports", async () => {
-    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+  it.each(["view_reports", "record_stock_losses"] as const)(
+    "answers a user holding %s",
+    async (permission) => {
+      const { headers } = await signedInWith(db, [permission], NOW);
 
-    const response = await lossesReport(headers);
+      const response = await lossesReport(headers);
 
-    expect(response.statusCode).toBe(200);
-  });
+      expect(response.statusCode).toBe(200);
+    },
+  );
 
   it.each([
     ["half a period", "?from=2026-10-01"],
