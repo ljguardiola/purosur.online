@@ -30,7 +30,7 @@ function createServices(): ProductRecipeSectionServices {
 
 function renderSection(
   services: ProductRecipeSectionServices,
-  { mayRegisterBatches = true }: { mayRegisterBatches?: boolean } = {},
+  { mayManageBatches = true }: { mayManageBatches?: boolean } = {},
 ) {
   return render(
     <FieldSizeProvider size="backoffice">
@@ -38,7 +38,7 @@ function renderSection(
         productId={mixDeFrutosSecos.productId}
         productName={mixDeFrutosSecos.productName}
         saleUnit="KG"
-        mayRegisterBatches={mayRegisterBatches}
+        mayManageBatches={mayManageBatches}
         onSessionEnded={() => {}}
         services={services}
       />
@@ -89,10 +89,13 @@ test("asks to confirm before cancelling a batch", async () => {
   await expect.element(screen.getByRole("dialog")).toBeVisible();
 });
 
-test("offers neither registering nor cancelling to a person without the batches capability", async () => {
-  const screen = await renderSection(createServices(), { mayRegisterBatches: false });
+test("shows only the recipe to a person without the batches capability, never asking for its batches", async () => {
+  const services = createServices();
 
-  await expect.element(screen.getByText("15/09/2026")).toBeVisible();
+  const screen = await renderSection(services, { mayManageBatches: false });
+
+  await expect.element(screen.getByText(almendras.name, { exact: true })).toBeVisible();
+  expect(screen.getByRole("table", { name: "Tandas" }).query()).toBeNull();
   expect(screen.getByRole("button", { name: "Registrar tanda" }).query()).toBeNull();
-  expect(screen.getByRole("button", { name: /^Anular tanda/ }).query()).toBeNull();
+  expect(services.fetchAssemblyBatches).not.toHaveBeenCalled();
 });

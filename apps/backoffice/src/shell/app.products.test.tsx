@@ -7,7 +7,7 @@ import { almonds, honey } from "../catalog/test-support/products";
 import { mockLoaded } from "../catalog/test-support/products-list-screen";
 import { openSession } from "../sessions/test-support/open-session";
 import { assemblyBatchList, mixBatch } from "../stock/test-support/assembly-batches";
-import { cajaDeInfusiones, mixDeFrutosSecos } from "../stock/test-support/recipes";
+import { almendras, cajaDeInfusiones, mixDeFrutosSecos } from "../stock/test-support/recipes";
 import { App } from "./app";
 import { emptyHelp, resetPageState } from "./test-support/app";
 import { createAppServices } from "./test-support/app-services";
@@ -29,6 +29,7 @@ opensOnlyScreens([
 beforeEach(resetPageState);
 
 const EVERY_PRODUCT_CAPABILITY: Capability[] = [
+  "catalog_area",
   "products_and_categories",
   "prices_area",
   "promotions",
@@ -80,16 +81,9 @@ test("opens Productos from the rail with its five tabs for a person with every c
     await expect.element(tabs.getByRole("tab").nth(index)).toHaveAccessibleName(name);
   }
   await expect.element(railLink(screen)).toHaveAttribute("aria-current", "page");
-  await expect
-    .element(
-      screen
-        .getByRole("navigation", { name: "Productos" })
-        .getByRole("link", { name: "Productos" }),
-    )
-    .toHaveAttribute("aria-current", "page");
 });
 
-test("names the area, not the retired Catálogo, in the eyebrow above the page's title", async () => {
+test("shows the page's title with neither an eyebrow nor a section column repeating it", async () => {
   const services = productsServices(EVERY_PRODUCT_CAPABILITY);
   window.history.pushState(null, "", "/products");
 
@@ -97,7 +91,22 @@ test("names the area, not the retired Catálogo, in the eyebrow above the page's
 
   const title = screen.getByRole("heading", { name: "Productos", level: 1 });
   await expect.element(title).toBeVisible();
-  expect(title.element().previousElementSibling?.textContent).toBe("Productos");
+  expect(title.element().previousElementSibling).toBeNull();
+  expect(screen.getByRole("navigation", { name: "Productos" }).query()).toBeNull();
+  expect(screen.getByRole("heading", { name: "Productos" }).elements()).toHaveLength(1);
+});
+
+test("shows no Catálogo section column with links to the sections it used to list", async () => {
+  const services = productsServices(EVERY_PRODUCT_CAPABILITY);
+  window.history.pushState(null, "", "/products");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("heading", { name: "Productos", level: 1 })).toBeVisible();
+  expect(screen.getByRole("navigation", { name: "Catálogo" }).query()).toBeNull();
+  for (const section of ["Categorías", "Marcas", "Distintivos", "Precios", "Promociones"]) {
+    expect(screen.getByRole("link", { name: section }).query()).toBeNull();
+  }
 });
 
 test("has no Catálogo item in the rail", async () => {
@@ -111,7 +120,7 @@ test("has no Catálogo item in the rail", async () => {
 });
 
 test("hides the Productos item in the rail for a user without a product capability", async () => {
-  const services = productsServices(["catalog_area", "stock_area", "stock_balances"]);
+  const services = productsServices(["stock_area", "stock_balances"]);
   window.history.pushState(null, "", "/help");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -127,7 +136,7 @@ test.each([
 ] as const)(
   "opens only the tab of %s, as the default, from the rail's Productos item",
   async (capability, path, tab) => {
-    const services = productsServices([capability]);
+    const services = productsServices([capability, "catalog_area"]);
     window.history.pushState(null, "", "/help");
     const screen = await render(<App help={emptyHelp} services={services} />);
 
@@ -141,7 +150,7 @@ test.each([
 );
 
 test("shows only Promociones to a person with only promotions", async () => {
-  const services = productsServices(["promotions"]);
+  const services = productsServices(["promotions", "catalog_area"]);
   window.history.pushState(null, "", "/products");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -162,7 +171,7 @@ test.each([
 ] as const)(
   "sends a person who opens %s without its capability to the first tab they see",
   async (path, capabilities, tab, target) => {
-    const services = productsServices([...capabilities]);
+    const services = productsServices([...capabilities, "catalog_area"]);
     window.history.pushState(null, "", path);
 
     const screen = await render(<App help={emptyHelp} services={services} />);
@@ -220,7 +229,7 @@ test.each([
 ] as const)(
   "redirects the old address %s to its tab or section",
   async (old, capabilities, target) => {
-    const services = productsServices([...capabilities]);
+    const services = productsServices([...capabilities, "catalog_area"]);
     window.history.pushState(null, "", old);
 
     const screen = await render(<App help={emptyHelp} services={services} />);
@@ -233,7 +242,7 @@ test.each([
 );
 
 test("opens Clasificación with its three sections, each one at its own address", async () => {
-  const services = productsServices(["products_and_categories"]);
+  const services = productsServices(["products_and_categories", "catalog_area"]);
   vi.mocked(services.categoriesListScreen.fetchCategories).mockResolvedValue({
     kind: "ok",
     value: [],
@@ -263,7 +272,7 @@ test("opens Clasificación with its three sections, each one at its own address"
 });
 
 test("editing a brand in Clasificación is a modal and the list stays visible", async () => {
-  const services = productsServices(["products_and_categories"]);
+  const services = productsServices(["products_and_categories", "catalog_area"]);
   vi.mocked(services.brandsListScreen.fetchBrands).mockResolvedValue({
     kind: "ok",
     value: [
@@ -285,7 +294,7 @@ test("editing a brand in Clasificación is a modal and the list stays visible", 
 });
 
 function armadosServices(capabilities: Capability[]) {
-  const services = productsServices(capabilities);
+  const services = productsServices([...capabilities, "catalog_area"]);
   vi.mocked(services.recipesListScreen.fetchRecipes).mockResolvedValue({
     kind: "ok",
     value: { recipes: [mixDeFrutosSecos, cajaDeInfusiones], products: [] },
@@ -399,18 +408,25 @@ test("ignores a recipe that is not a text in the address of Armados", async () =
   expect(screen.getByRole("complementary").query()).toBeNull();
 });
 
-test("a person who may not register batches sees the batches of the recipe without actions", async () => {
+test("a person without batches sees the recipe in its panel without its batches, and stays on Armados", async () => {
   const services = armadosServices(["recipes"]);
-  window.history.pushState(null, "", `/products/assemblies?recipe=${mixDeFrutosSecos.productId}`);
+  vi.mocked(services.assemblyBatchesScreen.fetchAssemblyBatches).mockResolvedValue({
+    kind: "forbidden",
+  });
+  const address = `/products/assemblies?recipe=${mixDeFrutosSecos.productId}`;
+  window.history.pushState(null, "", address);
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
-  await expect.element(screen.getByText("15/09/2026")).toBeVisible();
-  expect(screen.getByRole("button", { name: "Registrar tanda" }).query()).toBeNull();
+  const panel = screen.getByRole("complementary");
+  await expect.element(panel.getByText(almendras.name, { exact: true })).toBeVisible();
+  expect(panel.getByRole("table", { name: "Tandas" }).query()).toBeNull();
+  expect(services.assemblyBatchesScreen.fetchAssemblyBatches).not.toHaveBeenCalled();
+  expect(location()).toBe(address);
 });
 
 test("walks the prices of a purchase just registered in Precios, on Por revisar, taking them from the page so a reload does not walk them again", async () => {
-  const services = productsServices(["prices_area"]);
+  const services = productsServices(["prices_area", "catalog_area"]);
   vi.mocked(services.pricesListScreen.fetchPrices).mockResolvedValue({
     kind: "ok",
     value: {
@@ -456,7 +472,7 @@ test("walks the prices of a purchase just registered in Precios, on Por revisar,
 });
 
 test("lists the promotions and opens Nueva promoción for a user holding only manage_promotions", async () => {
-  const services = productsServices(["promotions"]);
+  const services = productsServices(["promotions", "catalog_area"]);
   vi.mocked(services.discountsListScreen.fetchDiscounts).mockResolvedValue({
     kind: "ok",
     value: {

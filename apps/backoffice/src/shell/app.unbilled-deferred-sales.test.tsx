@@ -35,7 +35,7 @@ function servicesFor(capabilities: Capability[]) {
 
 test.each([
   ["the home area", "/", "Inicio", []],
-  ["the products area", "/products", "Productos", ["products_and_categories"]],
+  ["the products area", "/products", "Productos", ["products_and_categories", "catalog_area"]],
   ["the stock area", "/inventory", "Saldos", ["stock_area", "stock_balances"]],
 ] as const)(
   "counts the unbilled deferred sales in the top bar of %s",

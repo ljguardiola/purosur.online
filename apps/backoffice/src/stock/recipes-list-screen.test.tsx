@@ -699,13 +699,14 @@ test("asks to confirm in a modal before cancelling a batch from the panel", asyn
   expect(batchServices.voidAssemblyBatch).not.toHaveBeenCalled();
 });
 
-test("offers no batch action in the panel to a session that may not register batches", async () => {
+test("shows the panel's recipe without its batches to a session without the batches capability", async () => {
   const screen = await loaded(createServices(), [mixDeFrutosSecos], {
     access: accessWith("recipes"),
     openRecipe: mixDeFrutosSecos.productId,
   });
 
-  await expect.element(screen.getByText("15/09/2026")).toBeVisible();
+  const panel = screen.getByRole("complementary");
+  await expect.element(panel.getByText(almendras.name, { exact: true })).toBeVisible();
+  expect(panel.getByRole("table", { name: "Tandas" }).query()).toBeNull();
   expect(screen.getByRole("button", { name: "Registrar tanda" }).query()).toBeNull();
-  expect(screen.getByRole("button", { name: /^Anular tanda/ }).query()).toBeNull();
 });

@@ -62,6 +62,7 @@ test.each([
   ["canManageProductsAndCategories", "products_and_categories", canManageProductsAndCategories],
   ["canSeePricesArea", "prices_area", canSeePricesArea],
   ["canManagePromotions", "promotions", canManagePromotions],
+  ["canSeeProductsPage", "catalog_area", canSeeProductsPage],
   ["canSeeFiscalConfigurationArea", "fiscal_configuration_area", canSeeFiscalConfigurationArea],
   ["canAssignPointTerminal", "fiscal_configuration_area", canAssignPointTerminal],
   ["canAssignQrPointOfSale", "fiscal_configuration_area", canAssignQrPointOfSale],
@@ -114,20 +115,6 @@ test("canSeeAiCostReport holds only when both the reports area and the branch ar
   expect(canSeeAiCostReport(accessWith("reports_area"))).toBe(false);
   expect(canSeeAiCostReport(accessWith("branch_area"))).toBe(false);
   expect(canSeeAiCostReport(NO_CAPABILITIES_ACCESS)).toBe(false);
-});
-
-test.each(["products_and_categories", "prices_area", "promotions", "recipes", "batches"] as const)(
-  "canSeeProductsPage holds with %s alone",
-  (capability) => {
-    expect(canSeeProductsPage(accessWith(capability))).toBe(true);
-  },
-);
-
-test("canSeeProductsPage holds for no one without one of the five product capabilities", () => {
-  expect(canSeeProductsPage(NO_CAPABILITIES_ACCESS)).toBe(false);
-  expect(canSeeProductsPage(accessWith("catalog_area", "stock_area", "stock_balances"))).toBe(
-    false,
-  );
 });
 
 test("canSeePeopleArea holds when either the users area or the roles are granted", () => {

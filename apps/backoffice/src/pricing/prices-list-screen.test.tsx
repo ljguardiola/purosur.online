@@ -14,7 +14,7 @@ import {
   yerbaMate,
 } from "./test-support/prices-list-screen";
 
-test("shows and each product's name", async () => {
+test("shows each product's name without a heading of its own", async () => {
   const services = createServices();
   vi.mocked(services.fetchPrices).mockResolvedValue({
     kind: "ok",

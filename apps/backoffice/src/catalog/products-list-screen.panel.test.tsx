@@ -106,3 +106,13 @@ test("the panel's Editar opens the edit modal of its product, with the panel sti
     .element(screen.getByRole("dialog").getByRole("textbox", { name: /^Nombre/ }))
     .toHaveValue(honey.name);
 });
+
+test("reads the products list again after the panel changes the product's price", async () => {
+  const { screen, services } = await renderWithPanel({ openProduct: honey.id, tab: "price" });
+  await expect.element(screen.getByText(`Precio y costo de ${honey.name}`)).toBeVisible();
+  expect(services.fetchProducts).toHaveBeenCalledOnce();
+
+  await userEvent.click(screen.getByRole("button", { name: "Guardar un precio de prueba" }));
+
+  await vi.waitFor(() => expect(services.fetchProducts).toHaveBeenCalledTimes(2));
+});

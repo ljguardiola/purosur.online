@@ -106,3 +106,34 @@ test("each action acts on its row's product and the menu opens the panel at the 
   expect(actions.openPanel).toHaveBeenNthCalledWith(1, honey, "price");
   expect(actions.openPanel).toHaveBeenNthCalledWith(2, honey, "stock");
 });
+
+test("shows Cambiar el precio with the same pencil icon the price list uses for it", async () => {
+  const { screen } = await renderRow(honey, ADMINISTRATOR_ACCESS);
+
+  await userEvent.click(screen.getByRole("button", { name: "Más acciones" }));
+
+  const changePrice = page.getByRole("menuitem", { name: "Cambiar el precio" });
+  await expect.element(changePrice).toBeVisible();
+  expect(changePrice.element().querySelector("svg.lucide-pencil")).not.toBeNull();
+});
+
+test("offers no Cambiar el precio for an inactive product, which has no price to change", async () => {
+  const { screen } = await renderRow(retiredHoney, ADMINISTRATOR_ACCESS);
+
+  await userEvent.click(screen.getByRole("button", { name: "Más acciones" }));
+
+  await expect.element(page.getByRole("menuitem", { name: "Ver stock y lotes" })).toBeVisible();
+  expect(page.getByRole("menuitem", { name: "Cambiar el precio" }).query()).toBeNull();
+});
+
+test("offers no Más acciones menu for an inactive product to who sees prices but not stock balances", async () => {
+  const { screen } = await renderRow(
+    retiredHoney,
+    accessWith("products_and_categories", "prices_area"),
+  );
+
+  await expect
+    .element(screen.getByRole("button", { name: `Reactivar el producto ${retiredHoney.name}` }))
+    .toBeVisible();
+  expect(screen.getByRole("button", { name: "Más acciones" }).query()).toBeNull();
+});
