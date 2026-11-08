@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { FixedClock } from "../../shared/test-support/fixed-clock.js";
+import { SequentialInstallationKeys } from "../../shared/test-support/sequential-installation-keys.js";
 import { revokeEveryInstallation } from "./revoke-every-installation.js";
 import { FakeEveryInstallationRevocationStore } from "./test-support/fake-every-installation-revocation-store.js";
-import { FixedClock, SequentialInstallationKeys } from "./test-support/fake-register-store.js";
 
 const NOW = new Date("2026-03-10T15:30:00.000Z");
 

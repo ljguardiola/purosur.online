@@ -1,20 +1,20 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { installationEnrollment } from "./installation-enrollment.js";
-import type { SalesStopState } from "./sales-stop.js";
-
-const STOPPED_BY_REVOCATION: SalesStopState = { stopped: true, reason: "installation_revoked" };
-const NOT_STOPPED: SalesStopState = { stopped: false };
 
 describe("installationEnrollment", () => {
   it("is not enrolled without credentials, whatever the local database holds", () => {
     fc.assert(
       fc.property(
         fc.option(fc.uuid(), { nil: undefined }),
-        fc.constantFrom(STOPPED_BY_REVOCATION, NOT_STOPPED),
-        (heldDeviceId, salesStop) => {
+        fc.boolean(),
+        (heldDeviceId, installationRevoked) => {
           expect(
-            installationEnrollment({ credentialsDeviceId: undefined, heldDeviceId, salesStop }),
+            installationEnrollment({
+              credentialsDeviceId: undefined,
+              heldDeviceId,
+              installationRevoked,
+            }),
           ).toEqual({ kind: "not_enrolled" });
         },
       ),
@@ -26,40 +26,27 @@ describe("installationEnrollment", () => {
       installationEnrollment({
         credentialsDeviceId: "device-1",
         heldDeviceId: "device-1",
-        salesStop: STOPPED_BY_REVOCATION,
+        installationRevoked: true,
       }),
     ).toEqual({ kind: "revoked" });
   });
 
-  it.each(["event_history_broken", undefined] as const)(
-    "is enrolled when the sales were stopped for another reason than a revocation: %s",
-    (reason) => {
-      expect(
-        installationEnrollment({
-          credentialsDeviceId: "device-1",
-          heldDeviceId: "device-1",
-          salesStop: { stopped: true, reason },
-        }),
-      ).toEqual({ kind: "enrolled" });
-    },
-  );
-
-  it("is enrolled when the sales are not stopped", () => {
+  it("is enrolled when the installation of the credentials' device is not revoked", () => {
     expect(
       installationEnrollment({
         credentialsDeviceId: "device-1",
         heldDeviceId: "device-1",
-        salesStop: NOT_STOPPED,
+        installationRevoked: false,
       }),
     ).toEqual({ kind: "enrolled" });
   });
 
-  it("is enrolled when the credentials are of another device than the stopped database's", () => {
+  it("is enrolled when the credentials are of another device than the revoked database's", () => {
     expect(
       installationEnrollment({
         credentialsDeviceId: "device-2",
         heldDeviceId: "device-1",
-        salesStop: STOPPED_BY_REVOCATION,
+        installationRevoked: true,
       }),
     ).toEqual({ kind: "enrolled" });
   });
@@ -69,7 +56,7 @@ describe("installationEnrollment", () => {
       installationEnrollment({
         credentialsDeviceId: "device-2",
         heldDeviceId: undefined,
-        salesStop: STOPPED_BY_REVOCATION,
+        installationRevoked: true,
       }),
     ).toEqual({ kind: "enrolled" });
   });

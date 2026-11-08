@@ -1,5 +1,5 @@
+import type { LocalDatabaseHealthPorts } from "../../shared/index.js";
 import type { SnapshotCorruptionStage } from "../model/snapshot-generation.js";
-import type { LocalDatabaseHealthPorts } from "./local-database-health.js";
 import type { SnapshotCorruptionReports } from "./snapshot-corruption-ports.js";
 
 export interface RecordSnapshotCopyFailurePorts extends LocalDatabaseHealthPorts {

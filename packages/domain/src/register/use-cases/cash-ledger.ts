@@ -1,16 +1,9 @@
 import type { RoleAccess } from "../../permissions/index.js";
 import type { SaleDiscount, SaleLine } from "../../sales/index.js";
-import type { OutboxEventDraft } from "../../shared/index.js";
+import type { IdGenerator, OutboxEventDraft, RegisterIdentity } from "../../shared/index.js";
 import type { CashMovement, ClosedCashSession, OpenedCashSession } from "../model/cash-session.js";
 
-export interface RegisterIdentity {
-  registerId: string;
-  deviceId: string;
-}
-
-export interface IdGenerator {
-  next(): string;
-}
+export type { IdGenerator, RegisterIdentity };
 
 export interface OpenSale {
   lines: Pick<SaleLine, "lineTotal">[];

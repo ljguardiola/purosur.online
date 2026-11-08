@@ -4,7 +4,7 @@ import {
   deviceEnrollmentBodySchema,
   deviceEnrollmentSchema,
 } from "@purosur/contracts";
-import { enrollInstallation } from "@purosur/domain/register/use-cases";
+import { enrollInstallation } from "@purosur/domain/installation/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import type { EnqueueNumberingReconciliation } from "../fiscal/enqueue-numbering-conflict.js";

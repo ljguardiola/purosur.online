@@ -16,8 +16,11 @@ export { cheapestOffer } from "./cheapest-offer.js";
 export type { Clock } from "./clock.js";
 export { codePointLength } from "./code-point-length.js";
 export { foldedText } from "./folded-text.js";
+export type { IdGenerator } from "./id-generator.js";
+export type { InstallationKeyGenerator } from "./installation-key-generator.js";
 export type { IsoWeekday } from "./iso-weekday.js";
 export { isoWeekdayOf } from "./iso-weekday.js";
+export type { LocalDatabaseHealth, LocalDatabaseHealthPorts } from "./local-database-health.js";
 export { marginTenthsOfPercent } from "./margin-over-price.js";
 export type { OperationAuthority, OperationAuthorization } from "./operation-authority.js";
 export type { JsonValue, OutboxEvent, OutboxEventDraft } from "./outbox-event.js";
@@ -28,6 +31,7 @@ export {
   SALE_RETURNED_EVENT_TYPE,
   SALE_VOIDED_EVENT_TYPE,
 } from "./outbox-event.js";
+export type { RegisterIdentity } from "./register-identity.js";
 export type { ReplenishmentFailureKind } from "./replenishment-failure-kind.js";
 export { REPLENISHMENT_FAILURE_KINDS } from "./replenishment-failure-kind.js";
 export type { ReportPeriod } from "./report-period.js";

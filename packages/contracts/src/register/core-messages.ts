@@ -34,36 +34,9 @@ const rendererPingMessageSchema = z.object({
   type: z.literal("ping"),
 });
 
-const enrollmentStatusRequestMessageSchema = z.object({
-  type: z.literal("enrollment-status-request"),
-  request_id: requestId,
-});
-
-const registerServiceRequestMessageSchema = z.object({
-  type: z.literal("register-service-request"),
-  request_id: requestId,
-});
-
-const registerNameRequestMessageSchema = z.object({
-  type: z.literal("register-name-request"),
-  request_id: requestId,
-});
-
 const registerVersionRequestMessageSchema = z.object({
   type: z.literal("register-version-request"),
   request_id: requestId,
-});
-
-export const enrollMessageSchema = z.object({
-  type: z.literal("enroll"),
-  request_id: requestId,
-  code: z.string(),
-});
-
-const checkEnrollmentCodeMessageSchema = z.object({
-  type: z.literal("check-enrollment-code"),
-  request_id: requestId,
-  code: z.string(),
 });
 
 export const openCashSessionMessageSchema = z.object({
@@ -184,12 +157,7 @@ export const registerSerialDevicesMessageSchema = z.object({
 
 export const registerRendererToCoreMessageSchema = z.discriminatedUnion("type", [
   rendererPingMessageSchema,
-  enrollmentStatusRequestMessageSchema,
-  registerServiceRequestMessageSchema,
-  registerNameRequestMessageSchema,
   registerVersionRequestMessageSchema,
-  enrollMessageSchema,
-  checkEnrollmentCodeMessageSchema,
   openCashSessionMessageSchema,
   cashSessionRequestMessageSchema,
   recordCashMovementMessageSchema,
@@ -211,18 +179,6 @@ export const registerRendererToCoreMessageSchema = z.discriminatedUnion("type", 
   registerSerialDevicesMessageSchema,
 ]);
 export type RegisterRendererToCoreMessage = z.infer<typeof registerRendererToCoreMessageSchema>;
-
-const enrollmentOutcomeSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("enrolled") }),
-  z.object({ kind: z.literal("code_rejected") }),
-  z.object({ kind: z.literal("rate_limited"), retry_after_seconds: z.int().nonnegative() }),
-  z.object({ kind: z.literal("unreachable") }),
-  z.object({ kind: z.literal("unavailable") }),
-  z.object({ kind: z.literal("storage_unavailable") }),
-  z.object({ kind: z.literal("not_stored") }),
-  z.object({ kind: z.literal("invalid_input"), fields: z.array(z.literal("code")) }),
-]);
-export type EnrollmentOutcome = z.infer<typeof enrollmentOutcomeSchema>;
 
 const openCashSessionOutcomeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("opened"), cash_session: openCashSessionSchema.nullable() }),
@@ -405,13 +361,6 @@ const registerStatusSchema = z.object({
 });
 export type RegisterStatus = z.infer<typeof registerStatusSchema>;
 
-const enrollmentStandingSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("not_enrolled") }),
-  z.object({ kind: z.literal("enrolled") }),
-  z.object({ kind: z.literal("revoked") }),
-]);
-export type EnrollmentStandingAnswer = z.infer<typeof enrollmentStandingSchema>;
-
 const restorationStandingSchema = z.union([
   z.object({ kind: z.literal("completed") }),
   z.object({
@@ -491,34 +440,9 @@ export type RegisterSerialDevicesOutcome = z.infer<typeof registerSerialDevicesO
 
 export const registerCoreToRendererMessageSchema = z.discriminatedUnion("type", [
   z.object({
-    type: z.literal("enrollment-status"),
-    request_id: requestId,
-    standing: enrollmentStandingSchema,
-  }),
-  z.object({
-    type: z.literal("register-service"),
-    request_id: requestId,
-    service: z.enum(["in_service", "out_of_service"]),
-  }),
-  z.object({
-    type: z.literal("register-name"),
-    request_id: requestId,
-    name: z.string().nullable(),
-  }),
-  z.object({
     type: z.literal("register-version"),
     request_id: requestId,
     version: z.string().nullable(),
-  }),
-  z.object({
-    type: z.literal("enrollment-result"),
-    request_id: requestId,
-    outcome: enrollmentOutcomeSchema,
-  }),
-  z.object({
-    type: z.literal("enrollment-code-check"),
-    request_id: requestId,
-    fields: z.array(z.literal("code")),
   }),
   z.object({
     type: z.literal("open-cash-session-result"),
@@ -631,7 +555,6 @@ export const registerCoreToRendererMessageSchema = z.discriminatedUnion("type", 
   z.object({ type: z.literal("battery-standing-changed") }),
   z.object({ type: z.literal("fiscal-mode-changed") }),
   z.object({ type: z.literal("restoration-standing-changed") }),
-  z.object({ type: z.literal("enrollment-standing-changed") }),
   z.object({ type: z.literal("refused-while-updating"), request_id: requestId }),
 ]);
 export type RegisterCoreToRendererMessage = z.infer<typeof registerCoreToRendererMessageSchema>;

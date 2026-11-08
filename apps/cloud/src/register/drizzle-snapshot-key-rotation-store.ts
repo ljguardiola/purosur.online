@@ -1,8 +1,8 @@
+import type { VersionedKey } from "@purosur/domain/installation/use-cases";
 import type {
   SnapshotKeyRotation,
   SnapshotKeyRotationStore,
   SnapshotKeyRotationStoreTransaction,
-  VersionedKey,
 } from "@purosur/domain/register/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";

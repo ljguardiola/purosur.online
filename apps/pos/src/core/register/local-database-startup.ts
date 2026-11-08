@@ -5,7 +5,7 @@ import {
   type LocalDatabaseHealth,
   type LocalDatabaseMigrations,
   reportLocalDatabaseDamage,
-} from "@purosur/domain/register/use-cases";
+} from "@purosur/domain/installation/use-cases";
 import { isDatabaseDamage } from "../platform/database-damage";
 import {
   appliedMigrationNames,

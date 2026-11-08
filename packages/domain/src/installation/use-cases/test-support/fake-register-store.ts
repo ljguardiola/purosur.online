@@ -1,9 +1,4 @@
 import type { NumberingFreeze } from "../../../fiscal/index.js";
-import type { Clock } from "../../../shared/index.js";
-import {
-  isRetainedSnapshotGeneration,
-  type SnapshotGenerationStatus,
-} from "../../model/snapshot-generation.js";
 import type {
   DeviceTokenIssuer,
   DeviceTokenRotator,
@@ -11,7 +6,6 @@ import type {
   EnrollmentAttemptKey,
   EnrollmentCodeVerifier,
   InstallationEnrollment,
-  InstallationKeyGenerator,
   InstallationRevocation,
   IssuedDeviceToken,
   LockedEnrollmentCode,
@@ -49,8 +43,7 @@ export interface FakeRegisterKey extends VersionedKey {
 export interface FakeSnapshotGenerationKeyUse {
   registerId: string;
   keyVersion: number;
-  status: SnapshotGenerationStatus;
-  pruned: boolean;
+  retained: boolean;
 }
 
 export interface FakeRealTimeNumberingLane extends RealTimeNumberingLane {
@@ -245,8 +238,7 @@ class FakeRegisterStoreTransaction implements RegisterStoreTransaction {
         .filter((key) => key.registerId === registerId)
         .map(({ version, key }) => ({ version, key }));
     const retained = this.state.snapshotGenerations.filter(
-      (generation) =>
-        generation.registerId === registerId && isRetainedSnapshotGeneration(generation),
+      (generation) => generation.registerId === registerId && generation.retained,
     );
     return {
       snapshotKeys: ofRegister(this.state.snapshotKeys),
@@ -377,18 +369,6 @@ export class FakeRegisterStore implements RegisterStore {
   }
 }
 
-export class FixedClock implements Clock {
-  private readonly moment: Date;
-
-  constructor(moment: Date) {
-    this.moment = moment;
-  }
-
-  now(): Date {
-    return new Date(this.moment);
-  }
-}
-
 export class SequentialDeviceTokens implements DeviceTokenIssuer {
   private issued = 0;
 
@@ -399,15 +379,6 @@ export class SequentialDeviceTokens implements DeviceTokenIssuer {
       lookupPrefix: `prefix-${this.issued}`,
       tokenHash: `hash-of-token-${this.issued}`,
     };
-  }
-}
-
-export class SequentialInstallationKeys implements InstallationKeyGenerator {
-  private generated = 0;
-
-  generate(): string {
-    this.generated += 1;
-    return `key-${this.generated}`;
   }
 }
 

@@ -5,6 +5,8 @@ import {
   credentialsRendererToCoreMessageSchema,
   type FiscalCoreToRendererMessage,
   fiscalRendererToCoreMessageSchema,
+  type InstallationCoreToRendererMessage,
+  installationRendererToCoreMessageSchema,
   type PaymentsCoreToRendererMessage,
   paymentsRendererToCoreMessageSchema,
   type RegisterCoreToRendererMessage,
@@ -25,6 +27,7 @@ export const rendererToCoreMessageSchema = z.discriminatedUnion("type", [
   sessionsRendererToCoreMessageSchema,
   credentialsRendererToCoreMessageSchema,
   registerRendererToCoreMessageSchema,
+  installationRendererToCoreMessageSchema,
   salesRendererToCoreMessageSchema,
   returnsRendererToCoreMessageSchema,
   paymentsRendererToCoreMessageSchema,
@@ -38,6 +41,7 @@ export type CoreToRendererMessage =
   | SessionsCoreToRendererMessage
   | CredentialsCoreToRendererMessage
   | RegisterCoreToRendererMessage
+  | InstallationCoreToRendererMessage
   | SalesCoreToRendererMessage
   | ReturnsCoreToRendererMessage
   | StockCoreToRendererMessage

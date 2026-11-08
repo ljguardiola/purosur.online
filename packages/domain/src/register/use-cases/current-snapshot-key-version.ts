@@ -1,4 +1,4 @@
-import { latestKeyVersion } from "../model/installation-key.js";
+import { latestKeyVersion } from "../../installation/index.js";
 import type { SnapshotStore } from "./snapshot-generations.js";
 
 export interface CurrentSnapshotKeyVersionPorts {

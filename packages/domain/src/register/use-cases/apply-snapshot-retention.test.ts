@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
+import { FixedClock } from "../../shared/test-support/fixed-clock.js";
 import { applySnapshotRetention } from "./apply-snapshot-retention.js";
 import { reportSnapshotCorruption } from "./report-snapshot-corruption.js";
-import { FixedClock } from "./test-support/fake-register-store.js";
 import { FakeSnapshotObjects, FakeSnapshotStore } from "./test-support/fake-snapshot-store.js";
 
 const NOW = new Date("2026-10-14T15:30:00.000Z");

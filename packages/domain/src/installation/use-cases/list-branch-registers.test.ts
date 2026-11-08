@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { FixedClock } from "../../shared/test-support/fixed-clock.js";
 import { listBranchRegisters } from "./list-branch-registers.js";
 import {
   FakeBranchRegisterStore,
   type FakeRegisterEnrollmentCode,
   type FakeRegisterInstallation,
 } from "./test-support/fake-branch-register-store.js";
-import { FixedClock } from "./test-support/fake-register-store.js";
 
 const NOW = new Date("2026-03-10T12:00:00.000Z");
 const BRANCH = "branch-1";

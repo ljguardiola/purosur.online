@@ -12,6 +12,7 @@ const CONCEPTS = [
   "payments",
   "fiscal",
   "register",
+  "installation",
   "stock",
   "pricing",
   "catalog",

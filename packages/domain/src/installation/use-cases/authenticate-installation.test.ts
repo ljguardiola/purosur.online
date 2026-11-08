@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { FixedClock } from "../../shared/test-support/fixed-clock.js";
 import { authenticateInstallation } from "./authenticate-installation.js";
 import {
   derivedDeviceTokens,
   FakeRegisterStore,
-  FixedClock,
   storedTokenOf,
 } from "./test-support/fake-register-store.js";
 

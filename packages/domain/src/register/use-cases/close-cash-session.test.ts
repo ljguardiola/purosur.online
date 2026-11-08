@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MAX_CASH_AMOUNT_CENTS } from "../../shared/index.js";
+import { FixedClock } from "../../shared/test-support/fixed-clock.js";
 import type { CashMovement, CashSession, OpenedCashSession } from "../model/cash-session.js";
 import { type CloseCashSessionGrant, closeCashSession } from "./close-cash-session.js";
 import {
@@ -13,7 +14,6 @@ import {
   granting,
   refusing,
 } from "./test-support/fake-operation-authority.js";
-import { FixedClock } from "./test-support/fake-register-store.js";
 
 const NOW = new Date("2026-09-30T20:15:00.000Z");
 const OPEN_SESSION: OpenedCashSession = {

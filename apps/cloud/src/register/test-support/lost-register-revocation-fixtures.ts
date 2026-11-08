@@ -1,4 +1,4 @@
-import { revokeLostRegister } from "@purosur/domain/register/use-cases";
+import { revokeLostRegister } from "@purosur/domain/installation/use-cases";
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {

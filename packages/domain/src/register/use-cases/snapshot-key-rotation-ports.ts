@@ -1,5 +1,4 @@
-import type { VersionedKey } from "../../shared/index.js";
-import type { InstallationKeyGenerator } from "./register-store.js";
+import type { InstallationKeyGenerator, VersionedKey } from "../../shared/index.js";
 
 export interface SnapshotKeyRotation {
   registerId: string;

@@ -29,9 +29,9 @@ import {
   deactivateProduct,
   deactivateTag,
 } from "@purosur/domain/catalog/use-cases";
+import { createRegister } from "@purosur/domain/installation/use-cases";
 import { createRole } from "@purosur/domain/permissions/use-cases";
 import { confirmPrice, createDiscount, setPrice } from "@purosur/domain/pricing/use-cases";
-import { createRegister } from "@purosur/domain/register/use-cases";
 import { createUser, deactivateUser } from "@purosur/domain/users/use-cases";
 import { and, eq, like, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";

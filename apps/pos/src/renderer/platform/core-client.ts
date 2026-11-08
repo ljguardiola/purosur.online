@@ -41,6 +41,8 @@ import type {
   FollowMercadoPagoChargeOutcome,
   findDeferredSaleMessageSchema,
   IdentifyLockedCloserOutcome,
+  InstallationCoreToRendererMessage,
+  InstallationRendererToCoreMessage,
   ListedCashMovement,
   ManualAdjustmentRequest,
   OpenCashSession,
@@ -109,6 +111,7 @@ import {
   backupsCoreToRendererMessageSchema,
   credentialsCoreToRendererMessageSchema,
   fiscalCoreToRendererMessageSchema,
+  installationCoreToRendererMessageSchema,
   paymentsCoreToRendererMessageSchema,
   registerCoreToRendererMessageSchema,
   returnsCoreToRendererMessageSchema,
@@ -123,6 +126,7 @@ import { z } from "zod";
 const coreToRendererMessageSchema = z.discriminatedUnion("type", [
   sessionsCoreToRendererMessageSchema,
   credentialsCoreToRendererMessageSchema,
+  installationCoreToRendererMessageSchema,
   registerCoreToRendererMessageSchema,
   salesCoreToRendererMessageSchema,
   returnsCoreToRendererMessageSchema,
@@ -137,6 +141,7 @@ type CoreToRendererMessage =
   | SessionsCoreToRendererMessage
   | CredentialsCoreToRendererMessage
   | RegisterCoreToRendererMessage
+  | InstallationCoreToRendererMessage
   | SalesCoreToRendererMessage
   | ReturnsCoreToRendererMessage
   | PaymentsCoreToRendererMessage
@@ -149,6 +154,7 @@ type RendererToCoreMessage =
   | SessionsRendererToCoreMessage
   | CredentialsRendererToCoreMessage
   | RegisterRendererToCoreMessage
+  | InstallationRendererToCoreMessage
   | SalesRendererToCoreMessage
   | Exclude<ReturnsRendererToCoreMessage, { type: "find-sale-for-return" }>
   | PaymentsRendererToCoreMessage

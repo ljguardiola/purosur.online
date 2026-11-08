@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { FakeLocalDatabaseHealth } from "../../shared/test-support/fake-local-database-health.js";
 import { checkLocalDatabase } from "./check-local-database.js";
-import { FakeLocalDatabaseHealth } from "./test-support/fake-local-database-health.js";
 import { FakeLocalDatabaseMigrations } from "./test-support/fake-local-database-migrations.js";
 
 const KNOWN = new FakeLocalDatabaseMigrations({ applied: ["0000_a"], known: ["0000_a", "0001_b"] });

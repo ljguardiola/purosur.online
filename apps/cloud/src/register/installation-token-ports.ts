@@ -1,7 +1,7 @@
 import type {
   DeviceTokenRotationPorts,
   InstallationTokenPorts,
-} from "@purosur/domain/register/use-cases";
+} from "@purosur/domain/installation/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { deviceTokenRotator } from "./device-token.js";
 import { DrizzleRegisterStore } from "./drizzle-register-store.js";

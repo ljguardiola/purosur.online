@@ -1,5 +1,6 @@
 export type {
   Clock,
+  LocalDatabaseHealth,
   OperationAuthority,
   OperationAuthorization,
   PublishedZoneRulesReader,
@@ -20,11 +21,6 @@ export type {
   SnapshotRetentionSummary,
 } from "./apply-snapshot-retention.js";
 export { applySnapshotRetention } from "./apply-snapshot-retention.js";
-export type {
-  AuthenticateInstallationInput,
-  AuthenticateInstallationOutcome,
-} from "./authenticate-installation.js";
-export { authenticateInstallation } from "./authenticate-installation.js";
 export type { AwaitContingencyTicketRecoveryOutcome } from "./await-contingency-ticket-recovery.js";
 export { awaitContingencyTicketRecovery } from "./await-contingency-ticket-recovery.js";
 export type {
@@ -43,28 +39,6 @@ export type {
   HeldBitlockerRecoveryKey,
   NewBitlockerRecoveryKey,
 } from "./bitlocker-recovery-key-ports.js";
-export type {
-  BranchRegister,
-  BranchRegisterStore,
-  BranchRegisterStoreTransaction,
-  BranchRegisters,
-  EnrollmentCodeEmission,
-  EnrollmentCodeIssuer,
-  EnrollmentCodeState,
-  IssuedEnrollmentCode,
-  LockRegisterResult,
-  NewEnrollmentCode,
-  NewRegister,
-  RegisterCreation,
-  RegisterEnrollmentCode,
-} from "./branch-register-store.js";
-export { RegisterNameConflict } from "./branch-register-store.js";
-export type {
-  BranchRegisterLastSync,
-  BranchRegisterSyncReader,
-  RegisterBatteryState,
-  RegisterDiskState,
-} from "./branch-register-sync-reader.js";
 export type {
   CashLedger,
   CashLedgerTransaction,
@@ -85,7 +59,6 @@ export type {
   ChangeSnapshotLifecycleRulesOutcome,
 } from "./change-snapshot-lifecycle-rules.js";
 export { changeSnapshotLifecycleRules } from "./change-snapshot-lifecycle-rules.js";
-export { checkLocalDatabase } from "./check-local-database.js";
 export type {
   CloseCashSessionGrant,
   CloseCashSessionInput,
@@ -114,31 +87,12 @@ export type {
   OpenContingencyInterval,
   PredecessorOpenContingencyInterval,
 } from "./contingency-ledger.js";
-export type { CreateRegisterInput, CreateRegisterOutcome } from "./create-register.js";
-export { createRegister } from "./create-register.js";
 export type {
   CurrentSnapshotKeyVersionInput,
   CurrentSnapshotKeyVersionOutcome,
   CurrentSnapshotKeyVersionPorts,
 } from "./current-snapshot-key-version.js";
 export { currentSnapshotKeyVersion } from "./current-snapshot-key-version.js";
-export type {
-  EmitEnrollmentCodeInput,
-  EmitEnrollmentCodeOutcome,
-  EmitEnrollmentCodePorts,
-} from "./emit-enrollment-code.js";
-export { emitEnrollmentCode } from "./emit-enrollment-code.js";
-export type {
-  EnrollInstallationInput,
-  EnrollInstallationOutcome,
-} from "./enroll-installation.js";
-export { enrollInstallation } from "./enroll-installation.js";
-export type {
-  EveryInstallationRevocationRecord,
-  EveryInstallationRevocationStore,
-  EveryInstallationRevocationStoreTransaction,
-  RevokeEveryInstallationPorts,
-} from "./every-installation-revocation-ports.js";
 export type {
   FindRegisterUpdateInput,
   FindRegisterUpdatePorts,
@@ -147,21 +101,6 @@ export type {
   RegisterUpdateOutcome,
 } from "./find-register-update.js";
 export { findRegisterUpdate } from "./find-register-update.js";
-export type { InstallationKeys } from "./installation-keys.js";
-export type {
-  HeldRegisterKeys,
-  InstallationRevocationAlert,
-  InstallationRevocationTransaction,
-  KeyVersionChange,
-  RevokedInstallation,
-} from "./installation-revocation-ports.js";
-export type {
-  BranchRegisterSummary,
-  ListBranchRegistersInput,
-  ListBranchRegistersPorts,
-  PendingEnrollmentCode,
-} from "./list-branch-registers.js";
-export { listBranchRegisters } from "./list-branch-registers.js";
 export type {
   ListRestorableSnapshotGenerationsPorts,
   RestorableSnapshotGeneration,
@@ -172,17 +111,6 @@ export type {
   LoadBitlockerRecoveryKeyOutcome,
 } from "./load-bitlocker-recovery-key.js";
 export { loadBitlockerRecoveryKey } from "./load-bitlocker-recovery-key.js";
-export type {
-  LocalDatabaseHealth,
-  LocalDatabaseHealthPorts,
-} from "./local-database-health.js";
-export type { LocalDatabaseMigrations } from "./local-database-migrations.js";
-export type {
-  LostRegisterRevocation,
-  LostRegisterRevocationStore,
-  LostRegisterRevocationStoreTransaction,
-  RevokeLostRegisterPorts,
-} from "./lost-register-revocation-ports.js";
 export type {
   ObserveRegisterOwnConditionsInput,
   ObserveRegisterOwnConditionsOutcome,
@@ -275,30 +203,6 @@ export {
   listSnapshotBackupRegisters,
   registerSnapshotBackups,
 } from "./register-snapshot-backups.js";
-export type {
-  DeviceTokenIssuer,
-  DeviceTokenRotationPorts,
-  DeviceTokenRotator,
-  EnrollmentAlert,
-  EnrollmentAttemptKey,
-  EnrollmentCodeVerifier,
-  EnrollmentPorts,
-  InstallationEnrollment,
-  InstallationKeyGenerator,
-  InstallationRevocation,
-  InstallationTokenPorts,
-  IssuedDeviceToken,
-  LockedEnrollmentCode,
-  LockedInstallation,
-  NewInstallation,
-  PresentedDeviceToken,
-  RealTimeNumberingLane,
-  RegisterKeys,
-  RegisterStore,
-  RegisterStoreTransaction,
-  StoredDeviceToken,
-  VersionedKey,
-} from "./register-store.js";
 export type { RegularizeRestoredOrphanAuthorizationsOutcome } from "./regularize-restored-orphan-authorizations.js";
 export { regularizeRestoredOrphanAuthorizations } from "./regularize-restored-orphan-authorizations.js";
 export type {
@@ -307,7 +211,6 @@ export type {
   OrphanSweepRequester,
   RegularizeRestoredOrphanAuthorizationsPorts,
 } from "./regularize-restored-orphan-authorizations-ports.js";
-export { reportLocalDatabaseDamage } from "./report-local-database-damage.js";
 export type {
   ReportSnapshotCorruptionInput,
   ReportSnapshotCorruptionPorts,
@@ -324,25 +227,6 @@ export type {
   PredecessorStanding,
   RestoredRegisterPredecessors,
 } from "./restored-register-predecessors.js";
-export type {
-  RevokedRegister,
-  RevokeEveryInstallationInput,
-  RevokeEveryInstallationOutcome,
-} from "./revoke-every-installation.js";
-export {
-  revokeEveryInstallation,
-  revokeEveryInstallationWithin,
-} from "./revoke-every-installation.js";
-export type {
-  RevokeLostRegisterInput,
-  RevokeLostRegisterOutcome,
-} from "./revoke-lost-register.js";
-export { revokeLostRegister } from "./revoke-lost-register.js";
-export type {
-  RotateDeviceTokenInput,
-  RotateDeviceTokenOutcome,
-} from "./rotate-device-token.js";
-export { rotateDeviceToken } from "./rotate-device-token.js";
 export type {
   RotateRegisterSnapshotKeyInput,
   RotateRegisterSnapshotKeyOutcome,

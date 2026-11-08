@@ -1,5 +1,5 @@
 import type { EnrollmentStandingAnswer } from "@purosur/contracts";
-import { installationEnrollment } from "@purosur/domain";
+import { installationEnrollment, isInstallationRevoked } from "@purosur/domain";
 import type { LocalDatabase } from "../platform/local-database";
 import { heldDeviceId } from "../sync/sqlite-installation-presence";
 import { salesStopOf } from "../sync/sqlite-local-installation";
@@ -20,6 +20,6 @@ export async function enrollmentStandingOf({
   return installationEnrollment({
     credentialsDeviceId: credentials?.device_id,
     heldDeviceId: heldDeviceId(database),
-    salesStop: salesStopOf(database),
+    installationRevoked: isInstallationRevoked(salesStopOf(database)),
   });
 }
