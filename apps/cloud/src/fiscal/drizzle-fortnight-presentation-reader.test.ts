@@ -1,8 +1,8 @@
 import type { Fortnight } from "@purosur/domain/fiscal/use-cases";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { locations, pointOfSaleClaims, registers, users } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { DrizzleRegisterEventStreams } from "../sync/drizzle-register-event-streams.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";

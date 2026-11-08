@@ -28,6 +28,7 @@ import {
   observeRegisterVersionStanding,
 } from "../alerts/register-standing-alerts.js";
 import { DrizzleRegisterOfflinePointOfSaleStoreTransaction } from "../fiscal/drizzle-register-offline-point-of-sale-store.js";
+import { readOutboxChainKey } from "../installation/outbox-chain-key.js";
 import {
   deviceState,
   inbox,
@@ -36,9 +37,8 @@ import {
   registers,
   serialDeviceState,
 } from "../platform/db/schema.js";
+import type { InstallationKeyCipher } from "../platform/installation-key-cipher.js";
 import { DrizzlePublishedZoneRulesReader } from "../register/drizzle-zone-rules-store.js";
-import type { InstallationKeyCipher } from "../register/installation-key-cipher.js";
-import { readOutboxChainKey } from "../register/outbox-chain-key.js";
 import { type PendingChanges, withPendingChanges } from "./change-log.js";
 import type { EnqueueEventApplication } from "./graphile-event-application-queue.js";
 import { unappliedEventColumns } from "./unapplied-event-columns.js";

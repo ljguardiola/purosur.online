@@ -9,8 +9,8 @@ import {
 } from "@purosur/domain/backups/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
+import { installationKeyCipher } from "../platform/installation-key-cipher.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
-import { installationKeyCipher } from "../register/installation-key-cipher.js";
 import { sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
   capabilityAccess,

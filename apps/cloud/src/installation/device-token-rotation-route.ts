@@ -2,11 +2,14 @@ import { cloudError, cloudErrorStatus, deviceTokenRotationSchema } from "@purosu
 import { rotateDeviceToken } from "@purosur/domain/installation/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
+import { readBearerDeviceToken } from "../platform/device-authentication.js";
+import {
+  type DeviceTokensOptions,
+  deviceTokenRotationPorts,
+} from "../platform/installation-token-ports.js";
+import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
 import { PUBLIC_ACCESS } from "../sessions/route-access.js";
-import { answerErrorsWithCloudEnvelope } from "./cloud-error-handler.js";
-import { readBearerDeviceToken } from "./device-authentication.js";
 import { installationKeysBody } from "./installation-keys-body.js";
-import { type DeviceTokensOptions, deviceTokenRotationPorts } from "./installation-token-ports.js";
 
 const DEVICE_TOKEN_REJECTED = cloudError(
   "device_token_rejected",

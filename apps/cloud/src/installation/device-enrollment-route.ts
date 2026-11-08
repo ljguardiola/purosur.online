@@ -9,15 +9,15 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import type { EnqueueNumberingReconciliation } from "../fiscal/enqueue-numbering-conflict.js";
 import type { EnqueueTaxAuthorityCount } from "../fiscal/graphile-tax-authority-count-queue.js";
+import { installationKeyCipher } from "../platform/installation-key-cipher.js";
 import { sendRateLimited } from "../platform/rate-limited-response.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { resolveSourceAddress } from "../platform/source-address.js";
+import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
 import { PUBLIC_ACCESS } from "../sessions/route-access.js";
-import { answerErrorsWithCloudEnvelope } from "./cloud-error-handler.js";
 import { issueDeviceToken } from "./device-token.js";
 import { DrizzleRegisterStore } from "./drizzle-register-store.js";
 import { generateInstallationKey } from "./installation-key.js";
-import { installationKeyCipher } from "./installation-key-cipher.js";
 import { installationKeysBody } from "./installation-keys-body.js";
 import { registerEnrollmentCodeMatches } from "./register-enrollment-code.js";
 

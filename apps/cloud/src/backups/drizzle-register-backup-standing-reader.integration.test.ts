@@ -5,8 +5,8 @@ import {
 } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { registerSnapshotGenerations, registerSnapshotKeys } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { insertInboxEvent } from "../sync/test-support/inbox-events.js";
 import {
   createIntegrationDatabase,

@@ -9,7 +9,7 @@ import type {
 import { receiveRescuedEvents } from "@purosur/domain/sync/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { auditLog } from "../platform/db/schema.js";
-import type { InstallationKeyCipher } from "../register/installation-key-cipher.js";
+import type { InstallationKeyCipher } from "../platform/installation-key-cipher.js";
 import { DrizzleInbox } from "../sync/drizzle-inbox.js";
 import type { EnqueueEventApplication } from "../sync/graphile-event-application-queue.js";
 import { DrizzleContingencyBackupTicketOpener } from "./drizzle-contingency-backup-ticket-opener.js";

@@ -8,6 +8,7 @@ import { FACTURA_C_DOCUMENT_TYPE } from "@purosur/domain";
 import { FICTIONAL_CUIT, FICTIONAL_LEGAL_NAME } from "@purosur/domain/fiscal/test-support";
 import { eq } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import {
   alerts,
   arcaInvoicingEvidence,
@@ -16,7 +17,6 @@ import {
   installationRequestAttempts,
   sales,
 } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { applySyncedEventsTask } from "../sync/apply-synced-events-task.js";
 import { insertRequestsUpToLimit } from "../sync/test-support/admitted-requests.js";
 import {

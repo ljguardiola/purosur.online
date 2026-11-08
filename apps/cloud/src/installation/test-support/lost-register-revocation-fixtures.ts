@@ -8,10 +8,10 @@ import {
   userPins,
   users,
 } from "../../platform/db/schema.js";
+import { installationKeyCipher } from "../../platform/installation-key-cipher.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../../test-support/installation-keys-encryption-key.js";
 import { DrizzleLostRegisterRevocationStore } from "../drizzle-lost-register-revocation-store.js";
 import { generateInstallationKey } from "../installation-key.js";
-import { installationKeyCipher } from "../installation-key-cipher.js";
 import { keyStore } from "./key-store.js";
 
 export const REVOKED_AT = new Date("2026-10-16T12:00:00.000Z");

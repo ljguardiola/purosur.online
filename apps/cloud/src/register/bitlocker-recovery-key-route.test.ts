@@ -2,6 +2,8 @@ import { bitlockerRecoveryKeySchema } from "@purosur/contracts";
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
+import { insertOtherLocation } from "../installation/test-support/lost-register-revocation-fixtures.js";
 import {
   auditLog,
   registerInstallationBitlockerKeys,
@@ -17,8 +19,6 @@ import {
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import { registerBitlockerRecoveryKeyRoute } from "./bitlocker-recovery-key-route.js";
-import { insertEnrolledInstallation } from "./test-support/enrolled-installation.js";
-import { insertOtherLocation } from "./test-support/lost-register-revocation-fixtures.js";
 
 const BITLOCKER_PERMISSION = "view_bitlocker_key";
 const UNKNOWN_REGISTER_ID = "7d9b1f0e-3c52-4a8e-9d41-0b6f2e8a5c13";

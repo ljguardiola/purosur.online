@@ -3,9 +3,9 @@ import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { deviceState } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { registerRegistersBelowMinimumRoute } from "./registers-below-minimum-route.js";
+import { insertEnrolledInstallation } from "./test-support/enrolled-installation.js";
 
 const NOW = new Date("2026-10-14T12:00:00.000Z");
 const TOKEN = "release-check-token-for-tests";

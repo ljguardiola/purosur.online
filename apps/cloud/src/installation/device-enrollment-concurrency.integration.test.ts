@@ -10,6 +10,7 @@ import {
   registers,
   users,
 } from "../platform/db/schema.js";
+import { installationKeyCipher } from "../platform/installation-key-cipher.js";
 import { hashSecretCode } from "../platform/secret-code.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import {
@@ -25,7 +26,6 @@ import { issueDeviceToken } from "./device-token.js";
 import { DrizzleBranchRegisterStore } from "./drizzle-branch-register-store.js";
 import { DrizzleRegisterStore } from "./drizzle-register-store.js";
 import { generateInstallationKey } from "./installation-key.js";
-import { installationKeyCipher } from "./installation-key-cipher.js";
 import {
   registerEnrollmentCodeMatches,
   secretEnrollmentCodes,

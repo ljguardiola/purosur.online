@@ -1,7 +1,7 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach } from "vitest";
-import { insertEnrolledInstallation } from "../../register/test-support/enrolled-installation.js";
-import { keyStore } from "../../register/test-support/key-store.js";
+import { insertEnrolledInstallation } from "../../installation/test-support/enrolled-installation.js";
+import { keyStore } from "../../installation/test-support/key-store.js";
 import { registerRouteAccess } from "../../sessions/route-access.js";
 import {
   BACKOFFICE_ORIGIN,

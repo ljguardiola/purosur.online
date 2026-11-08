@@ -42,11 +42,11 @@ import { DrizzleBranchSettingsStore } from "../branch/drizzle-branch-settings-st
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import { DrizzleInternalBarcodeStore } from "../catalog/drizzle-internal-barcode-store.js";
 import { voidOutstandingRecoveryTokens } from "../credentials/void-outstanding-recovery-tokens.js";
+import { DrizzleBranchRegisterStore } from "../installation/drizzle-branch-register-store.js";
 import { DrizzleRoleStore } from "../permissions/drizzle-role-store.js";
 import { branchSettings, locations, roles, userRoles, users } from "../platform/db/schema.js";
 import { DrizzleDiscountStore } from "../pricing/drizzle-discount-store.js";
 import { DrizzlePricingStore } from "../pricing/drizzle-pricing-store.js";
-import { DrizzleBranchRegisterStore } from "../register/drizzle-branch-register-store.js";
 import { hashSourceAddress } from "../sessions/sign-in-lockout.js";
 import { PendingChanges } from "../sync/change-log.js";
 import { DrizzleUserStore } from "../users/drizzle-user-store.js";

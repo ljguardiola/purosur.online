@@ -27,6 +27,7 @@ import {
 import { type BuildAppOptions, buildApp as buildRealApp } from "./app.js";
 import { insertRegisterWithPointOfSale } from "./fiscal/test-support/authorization-request-fixtures.js";
 import { seedOfflinePointOfSale } from "./fiscal/test-support/offline-point-of-sale-fixtures.js";
+import { insertEnrolledInstallation } from "./installation/test-support/enrolled-installation.js";
 import {
   arcaVitalityChecks,
   passkeys,
@@ -39,7 +40,6 @@ import {
 } from "./platform/db/schema.js";
 import type { DedicatedConnections } from "./platform/dedicated-connections.js";
 import { hashSecretCode } from "./platform/secret-code.js";
-import { insertEnrolledInstallation } from "./register/test-support/enrolled-installation.js";
 import {
   anyCapabilityAccess,
   capabilityAccess,

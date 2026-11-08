@@ -4,20 +4,20 @@ import {
 } from "@purosur/domain/register/use-cases";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
+import {
+  insertOtherLocation,
+  insertUserWithPin,
+} from "../installation/test-support/lost-register-revocation-fixtures.js";
 import {
   auditLog,
   registerInstallationBitlockerKeys,
   registerInstallations,
 } from "../platform/db/schema.js";
+import { installationKeyCipher } from "../platform/installation-key-cipher.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import { DrizzleBitlockerRecoveryKeyStore } from "./drizzle-bitlocker-recovery-key-store.js";
-import { installationKeyCipher } from "./installation-key-cipher.js";
-import { insertEnrolledInstallation } from "./test-support/enrolled-installation.js";
-import {
-  insertOtherLocation,
-  insertUserWithPin,
-} from "./test-support/lost-register-revocation-fixtures.js";
 
 const LOADED_AT = new Date("2026-10-19T12:00:00.000Z");
 const CONSULTED_AT = new Date("2026-10-20T09:30:00.000Z");

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { auditLog, inbox } from "../platform/db/schema.js";
-import { installationKeyCipher } from "../register/installation-key-cipher.js";
+import { installationKeyCipher } from "../platform/installation-key-cipher.js";
 import { SESSION_NOON } from "../test-support/backoffice-session.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import { DrizzleContingencyBackupTicketRescues } from "./drizzle-contingency-backup-ticket-rescues.js";

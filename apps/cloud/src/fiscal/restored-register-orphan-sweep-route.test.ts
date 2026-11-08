@@ -1,6 +1,7 @@
 import { cloudErrorSchema, restoredRegisterOrphanSweepResponseSchema } from "@purosur/contracts";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import {
   alerts,
   creditNotes,
@@ -8,7 +9,6 @@ import {
   fiscalTasks,
   numberingFreezes,
 } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { registerRouteAccess } from "../sessions/route-access.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";

@@ -10,6 +10,7 @@ import {
 import { eq } from "drizzle-orm";
 import type { PgliteQueryResultHKT } from "drizzle-orm/pglite";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import {
   categories,
   locations,
@@ -22,7 +23,6 @@ import {
   stockMovements,
   users,
 } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { withPendingChanges } from "../sync/change-log.js";
 import { DrizzleEventApplication } from "../sync/drizzle-event-application.js";
 import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";

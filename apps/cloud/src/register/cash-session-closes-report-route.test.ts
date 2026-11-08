@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import {
   BACKOFFICE_ORIGIN,
   insertLocation,
@@ -13,7 +14,6 @@ import {
   applyClosedCashSession,
   applyOpenedCashSession,
 } from "./test-support/applied-cash-sessions.js";
-import { insertEnrolledInstallation } from "./test-support/enrolled-installation.js";
 
 const NOW = new Date("2026-10-07T15:00:00.000Z");
 const CLOSED_AT = new Date("2026-10-07T14:00:00.000Z");

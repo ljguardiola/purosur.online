@@ -2,9 +2,9 @@ import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { sales } from "../platform/db/schema.js";
 import type { AppliedOrigin } from "../register/drizzle-applied-cash-sessions.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { aSalePrintStateFact } from "../sync/test-support/synced-facts.js";
 import {
   createIntegrationDatabase,

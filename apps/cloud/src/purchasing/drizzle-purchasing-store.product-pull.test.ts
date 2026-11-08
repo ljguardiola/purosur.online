@@ -5,8 +5,8 @@ import {
 import { and, asc, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { purchaseLines, stockMovements } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildChangesRouteApp, pulledPage } from "../sync/test-support/changes-route.js";
 import { lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";

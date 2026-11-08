@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { branchFirstCashSessions, locations } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";

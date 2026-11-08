@@ -5,6 +5,7 @@ import {
 } from "@purosur/contracts";
 import { eq } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import {
   alerts,
   creditNotes,
@@ -16,7 +17,6 @@ import {
   registers,
   users,
 } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { insertRequestsUpToLimit } from "../sync/test-support/admitted-requests.js";
 import {
   PUSHING_CHAIN_KEY,

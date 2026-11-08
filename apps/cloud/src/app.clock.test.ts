@@ -19,11 +19,11 @@ import type { BuyerIdentificationThresholdsRouteOptions } from "./fiscal/buyer-i
 import type { FiscalAddressesRouteOptions } from "./fiscal/fiscal-addresses-list-route.js";
 import type { IssuerIdentificationRouteOptions } from "./fiscal/issuer-identification-read-route.js";
 import type { RegistersPointsOfSaleRouteOptions } from "./fiscal/registers-points-of-sale-list-route.js";
+import type { DeviceEnrollmentRouteOptions } from "./installation/device-enrollment-route.js";
+import type { RegistersRouteOptions } from "./installation/registers-list-route.js";
 import type { RolesRouteOptions } from "./permissions/roles-list-route.js";
 import type { DiscountsRouteOptions } from "./pricing/discounts-list-route.js";
 import type { PricesRouteOptions } from "./pricing/prices-list-route.js";
-import type { DeviceEnrollmentRouteOptions } from "./register/device-enrollment-route.js";
-import type { RegistersRouteOptions } from "./register/registers-list-route.js";
 import type { SessionReadRouteOptions } from "./sessions/session-read-route.js";
 import type { SessionSignOutRouteOptions } from "./sessions/session-sign-out-route.js";
 import type { SessionStatusRouteOptions } from "./sessions/session-status-route.js";

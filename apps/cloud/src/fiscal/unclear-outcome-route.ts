@@ -13,16 +13,16 @@ import { admitInstallationRequest } from "@purosur/domain/sync/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
+import { authenticateDevice } from "../platform/device-authentication.js";
 import { reportError } from "../platform/error-reporting.js";
-import { sendRateLimited } from "../platform/rate-limited-response.js";
-import { readValidatedBody } from "../platform/request-body-schema.js";
-import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
-import { authenticateDevice } from "../register/device-authentication.js";
-import { installationKeyCipher } from "../register/installation-key-cipher.js";
+import { installationKeyCipher } from "../platform/installation-key-cipher.js";
 import {
   type DeviceTokensOptions,
   installationTokenPorts,
-} from "../register/installation-token-ports.js";
+} from "../platform/installation-token-ports.js";
+import { sendRateLimited } from "../platform/rate-limited-response.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
+import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
 import { DrizzleSaleCompletions } from "../sales/drizzle-sale-completions.js";
 import { PUBLIC_ACCESS } from "../sessions/route-access.js";
 import { DrizzleInbox } from "../sync/drizzle-inbox.js";

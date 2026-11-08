@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { insertRealTimeInvoice } from "../fiscal/test-support/held-invoice-fixtures.js";
 import { seedOfflinePointOfSale } from "../fiscal/test-support/offline-point-of-sale-fixtures.js";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import {
   alerts,
   creditNotes,
@@ -10,7 +11,6 @@ import {
   offlineFiscalDocuments,
   offlineNumberBlocks,
 } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { applyCompletedSale } from "../sales/test-support/applied-sales.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { applySyncedEventsTask } from "./apply-synced-events-task.js";

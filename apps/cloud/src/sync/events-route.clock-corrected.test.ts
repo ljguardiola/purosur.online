@@ -1,7 +1,7 @@
 import { canonicalOutboxEvent } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { alerts, clockCorrections, inbox, users } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { applySyncedEventsTask } from "./apply-synced-events-task.js";
 import { hmacEventChain } from "./hmac-event-chain.js";

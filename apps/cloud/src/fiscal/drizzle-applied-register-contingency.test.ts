@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import {
   registerContingencyIntervals,
   registerContingencyReporting,
 } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import {
   recordAppliedContingencyEntered,

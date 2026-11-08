@@ -1,7 +1,7 @@
 import { quarantinedEventsListSchema } from "@purosur/contracts";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import {
   BACKOFFICE_ORIGIN,
   type BackofficeSession,

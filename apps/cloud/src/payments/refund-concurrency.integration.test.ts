@@ -2,8 +2,8 @@ import { markRefundDone } from "@purosur/domain/payments/use-cases";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { paymentRefunds, users } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { applyCancelledSale } from "../sales/test-support/applied-sales.js";
 import { aTransferCancelledSale } from "../sync/test-support/synced-facts.js";
 import {

@@ -1,11 +1,11 @@
 import { revokeEveryInstallation } from "@purosur/domain/installation/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { registers } from "../../platform/db/schema.js";
+import { installationKeyCipher } from "../../platform/installation-key-cipher.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../../test-support/installation-keys-encryption-key.js";
 import { seededLocationId } from "../../test-support/seeded-location.js";
 import { DrizzleEveryInstallationRevocationStore } from "../drizzle-every-installation-revocation-store.js";
 import { generateInstallationKey } from "../installation-key.js";
-import { installationKeyCipher } from "../installation-key-cipher.js";
 import { type EnrolledInstallation, insertEnrolledInstallation } from "./enrolled-installation.js";
 import {
   insertFirstKeys,

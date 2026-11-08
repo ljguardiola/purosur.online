@@ -18,6 +18,7 @@ import {
   taxAuthorityLastAuthorizedNumbers,
 } from "../platform/db/schema.js";
 import { postgresDedicatedConnections } from "../platform/dedicated-connections.js";
+import { installationKeyCipher } from "../platform/installation-key-cipher.js";
 import { hashSecretCode } from "../platform/secret-code.js";
 import { changesLoggedAfter, lastLoggedChangeSeq } from "../sync/test-support/logged-changes.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
@@ -28,7 +29,6 @@ import {
 import { issueDeviceToken } from "./device-token.js";
 import { DrizzleRegisterStore } from "./drizzle-register-store.js";
 import { generateInstallationKey } from "./installation-key.js";
-import { installationKeyCipher } from "./installation-key-cipher.js";
 import { registerEnrollmentCodeMatches } from "./register-enrollment-code.js";
 
 const ENROLLED_AT = new Date("2026-10-06T15:00:00.000Z");

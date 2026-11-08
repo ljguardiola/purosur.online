@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { pendingTransaction } from "../payments/test-support/payment-transaction-fixtures.js";
 import {
   alerts,
@@ -14,7 +15,6 @@ import {
   sales,
   users,
 } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { insertProduct } from "../stock/test-support/stock-route-fixtures.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";

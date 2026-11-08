@@ -4,8 +4,8 @@ import { and, eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { insertEnrolledInstallation as enrollInstallation } from "../installation/test-support/enrolled-installation.js";
 import { installationRequestAttempts } from "../platform/db/schema.js";
-import { insertEnrolledInstallation as enrollInstallation } from "../register/test-support/enrolled-installation.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,

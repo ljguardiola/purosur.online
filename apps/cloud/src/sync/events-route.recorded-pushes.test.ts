@@ -2,8 +2,8 @@ import { pushEventsResponseSchema } from "@purosur/contracts";
 import { type RecordedPush, recordedPushes } from "@purosur/contracts/sync/test-support";
 import { asc, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { inbox } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { eventsRouteUnderTest, NOW } from "./test-support/events-route.js";
 
 const RECORDED_PUSHES = recordedPushes();

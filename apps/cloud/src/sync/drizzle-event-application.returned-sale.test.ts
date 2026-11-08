@@ -5,6 +5,7 @@ import type { SyncedFact, UnappliedEvent } from "@purosur/domain/sync/use-cases"
 import { applyPendingEvents } from "@purosur/domain/sync/use-cases";
 import { asc, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { ORDER_ID } from "../payments/test-support/fake-mercado-pago-orders.js";
 import {
   pendingPointTransaction,
@@ -29,7 +30,6 @@ import {
   stockMovements,
   users,
 } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { insertPurchasedLot } from "../stock/test-support/lot-fixtures.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {

@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { insertBrand, insertTag } from "../catalog/test-support/catalog-route-fixtures.js";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { registers } from "../platform/db/schema.js";
 import { insertDiscount } from "../pricing/test-support/discount-route-fixtures.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { insertLocation } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzlePromotionSalesReportReader } from "./drizzle-promotion-sales-report-reader.js";

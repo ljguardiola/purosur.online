@@ -1,9 +1,9 @@
 import { markRefundDone } from "@purosur/domain/payments/use-cases";
 import type { FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { DrizzleRefundStore } from "../payments/drizzle-refund-store.js";
 import { locations, registers } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { applyCancelledSale } from "../sales/test-support/applied-sales.js";
 import { signedInWith } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";

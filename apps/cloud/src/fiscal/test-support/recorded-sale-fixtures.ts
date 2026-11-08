@@ -1,6 +1,6 @@
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { insertEnrolledInstallation } from "../../installation/test-support/enrolled-installation.js";
 import { cashSessions, sales } from "../../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../../register/test-support/enrolled-installation.js";
 import { seededLocationId } from "../../test-support/seeded-location.js";
 
 export async function insertRecordedSale<TQueryResult extends PgQueryResultHKT>(

@@ -4,9 +4,9 @@ import { unappliedEventOf } from "@purosur/contracts/sync/test-support/unapplied
 import { applyPendingEvents, type SyncedFact } from "@purosur/domain/sync/use-cases";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { pendingTransaction } from "../payments/test-support/payment-transaction-fixtures.js";
 import { alerts, inbox, paymentRefunds, paymentTransactions } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   APPLICATION_NOW,

@@ -5,6 +5,7 @@ import type { SyncedFact, UnappliedEvent } from "@purosur/domain/sync/use-cases"
 import { applyPendingEvents } from "@purosur/domain/sync/use-cases";
 import { asc, eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import {
   cashMovements,
   categories,
@@ -18,7 +19,6 @@ import {
   stockMovements,
   users,
 } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import {
   APPLICATION_NOW,

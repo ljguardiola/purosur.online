@@ -127,6 +127,23 @@ import {
   registerUnclearOutcomeRoute,
   type UnclearOutcomeRouteOptions,
 } from "./fiscal/unclear-outcome-route.js";
+import { registerDeviceEnrollmentRoute } from "./installation/device-enrollment-route.js";
+import { registerDeviceTokenRotationRoute } from "./installation/device-token-rotation-route.js";
+import { registerRegisterCoverageRoute } from "./installation/register-coverage-route.js";
+import { registerRegisterCreationRoute } from "./installation/register-creation-route.js";
+import { registerRegisterEnrollmentCodeRoute } from "./installation/register-enrollment-code-route.js";
+import {
+  type RegisterRevocationRouteOptions,
+  registerRegisterRevocationRoute,
+} from "./installation/register-revocation-route.js";
+import { registerRegisterSyncStatusRoute } from "./installation/register-sync-status-route.js";
+import {
+  type RegistersBelowMinimumRouteOptions,
+  registerRegistersBelowMinimumRoute,
+} from "./installation/registers-below-minimum-route.js";
+import type { RegistersRouteOptions } from "./installation/registers-list-route.js";
+import { registerRegistersListRoute } from "./installation/registers-list-route.js";
+import { registerReportRegistersRoute } from "./installation/report-registers-route.js";
 import {
   type MercadoPagoNotificationRoutesOptions,
   registerMercadoPagoNotificationRoutes,
@@ -149,9 +166,14 @@ import { registerRoleEditRoutes } from "./permissions/role-edit-route.js";
 import { registerRoleReadRoute } from "./permissions/role-read-route.js";
 import type { RolesRouteOptions } from "./permissions/roles-list-route.js";
 import { registerRolesListRoute } from "./permissions/roles-list-route.js";
+import { authenticateDevice } from "./platform/device-authentication.js";
 import { registerEdgeOriginGuard } from "./platform/edge-origin-guard.js";
 import { reportError } from "./platform/error-reporting.js";
 import { registerHealthRoute } from "./platform/health-route.js";
+import {
+  type DeviceTokensOptions,
+  installationTokenPorts,
+} from "./platform/installation-token-ports.js";
 import { registerDiscountCreationRoute } from "./pricing/discount-creation-route.js";
 import { registerDiscountEditRoute } from "./pricing/discount-edit-route.js";
 import { registerDiscountTargetsRoute } from "./pricing/discount-targets-route.js";
@@ -188,32 +210,14 @@ import {
   type CurrentZoneRulesRouteOptions,
   registerCurrentZoneRulesRoute,
 } from "./register/current-zone-rules-route.js";
-import { authenticateDevice } from "./register/device-authentication.js";
-import { registerDeviceEnrollmentRoute } from "./register/device-enrollment-route.js";
-import { registerDeviceTokenRotationRoute } from "./register/device-token-rotation-route.js";
-import {
-  type DeviceTokensOptions,
-  installationTokenPorts,
-} from "./register/installation-token-ports.js";
-import { registerRegisterCoverageRoute } from "./register/register-coverage-route.js";
-import { registerRegisterCreationRoute } from "./register/register-creation-route.js";
-import { registerRegisterEnrollmentCodeRoute } from "./register/register-enrollment-code-route.js";
-import {
-  type RegisterRevocationRouteOptions,
-  registerRegisterRevocationRoute,
-} from "./register/register-revocation-route.js";
 import {
   type RegisterSnapshotUrls,
   registerRegisterSnapshotRoutes,
 } from "./register/register-snapshot-routes.js";
-import { registerRegisterSyncStatusRoute } from "./register/register-sync-status-route.js";
 import {
   type RegisterUpdateFeed,
   registerRegisterUpdateRoute,
 } from "./register/register-update-route.js";
-import type { RegistersRouteOptions } from "./register/registers-list-route.js";
-import { registerRegistersListRoute } from "./register/registers-list-route.js";
-import { registerReportRegistersRoute } from "./register/report-registers-route.js";
 import {
   registerSnapshotBackupsRoutes,
   type SnapshotBackupsRouteOptions,
@@ -267,10 +271,6 @@ import {
   type ReadableEventVersionsRouteOptions,
   registerReadableEventVersionsRoute,
 } from "./sync/readable-event-versions-route.js";
-import {
-  type RegistersBelowMinimumRouteOptions,
-  registerRegistersBelowMinimumRoute,
-} from "./sync/registers-below-minimum-route.js";
 import { registerUserCreationRoutes } from "./users/user-creation-route.js";
 import { registerUserDeactivationRoutes } from "./users/user-deactivation-route.js";
 import { registerUserEditRoutes } from "./users/user-edit-route.js";

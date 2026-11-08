@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { insertEnrolledInstallation } from "../../installation/test-support/enrolled-installation.js";
 import { paymentRefunds, paymentTransactions } from "../../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../../register/test-support/enrolled-installation.js";
 import { applyCancelledSale } from "../../sales/test-support/applied-sales.js";
 import { insertInboxEvent } from "../../sync/test-support/inbox-events.js";
 import { ORDER_ID } from "./fake-mercado-pago-orders.js";

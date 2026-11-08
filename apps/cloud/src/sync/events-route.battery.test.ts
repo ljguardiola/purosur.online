@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { deviceState } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { eventsRouteUnderTest, NOW } from "./test-support/events-route.js";
 
 const TELEMETRY = { wal_size_bytes: 4096, disk_free_bytes: 100_000_000_000, disk_free_ratio: 0.42 };

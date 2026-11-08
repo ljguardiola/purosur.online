@@ -1,13 +1,13 @@
 import { eq } from "drizzle-orm";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import {
   auditLog,
   locations,
   registers,
   revokedInstallationConfirmations,
 } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { insertInboxEvent } from "../sync/test-support/inbox-events.js";
 import {
   BACKOFFICE_ORIGIN,

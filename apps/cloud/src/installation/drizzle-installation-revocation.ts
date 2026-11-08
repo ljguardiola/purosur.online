@@ -15,12 +15,12 @@ import {
   registerInstallations,
   registerSnapshotKeys,
 } from "../platform/db/schema.js";
+import type { InstallationKeyCipher } from "../platform/installation-key-cipher.js";
 import {
   contingencyTicketKeyPurpose,
   lockRegisterKeysOf,
   snapshotKeyPurpose,
 } from "./drizzle-register-store.js";
-import type { InstallationKeyCipher } from "./installation-key-cipher.js";
 
 export type RevocationTransaction<TQueryResult extends PgQueryResultHKT> = Parameters<
   Parameters<PgDatabase<TQueryResult>["transaction"]>[0]

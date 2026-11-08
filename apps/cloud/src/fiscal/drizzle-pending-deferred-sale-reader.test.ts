@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzlePendingDeferredSaleReader } from "./drizzle-pending-deferred-sale-reader.js";
 import { insertDeferredSaleRow } from "./test-support/deferred-sale-fixtures.js";

@@ -10,6 +10,7 @@ import {
   insertSaleCreditNote,
   REQUESTED_AT,
 } from "../fiscal/test-support/sale-credit-notes.js";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import {
   fiscalRequests,
   inbox,
@@ -19,7 +20,6 @@ import {
   userRoles,
   users,
 } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { registerRouteAccess } from "../sessions/route-access.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";

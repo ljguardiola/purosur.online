@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { cashMovements, registers } from "../platform/db/schema.js";
 import { insertLocation } from "../stock/test-support/stock-route-fixtures.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleCashMovementsReader } from "./drizzle-cash-movements-reader.js";
 import { applyCashMovement, applyOpenedCashSession } from "./test-support/applied-cash-sessions.js";
-import { insertEnrolledInstallation } from "./test-support/enrolled-installation.js";
 
 const NOW = new Date("2026-10-07T15:00:00.000Z");
 const OPENED_AT = new Date("2026-10-06T11:00:00.000Z");

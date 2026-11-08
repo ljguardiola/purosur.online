@@ -18,14 +18,14 @@ import { toBranchSettingsWire } from "../branch/branch-settings-wire.js";
 import { DrizzleOfflineAuthorizationCodeRequests } from "../fiscal/drizzle-offline-authorization-code-requests.js";
 import type { EnqueueOfflineAuthorizationCodeRequest } from "../fiscal/graphile-offline-authorization-code-queue.js";
 import { toIssuerIdentificationWire } from "../fiscal/issuer-identification-read-route.js";
-import { sendRateLimited } from "../platform/rate-limited-response.js";
-import { readValidatedBody } from "../platform/request-body-schema.js";
-import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
-import { authenticateDevice } from "../register/device-authentication.js";
+import { authenticateDevice } from "../platform/device-authentication.js";
 import {
   type DeviceTokensOptions,
   installationTokenPorts,
-} from "../register/installation-token-ports.js";
+} from "../platform/installation-token-ports.js";
+import { sendRateLimited } from "../platform/rate-limited-response.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
+import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
 import { PUBLIC_ACCESS } from "../sessions/route-access.js";
 import { DrizzleChangeLog } from "./drizzle-change-log.js";
 import { DrizzleRequestAdmission } from "./drizzle-request-admission.js";
