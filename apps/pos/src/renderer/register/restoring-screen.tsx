@@ -2,7 +2,7 @@ import type { RestorationStandingAnswer } from "@purosur/contracts";
 import { InlineNotice, ScreenHeader } from "@purosur/ui";
 import { Printer, QrCode, TriangleAlert, WifiOff } from "lucide-react";
 import { BrandPanelScreen } from "../shell/brand-panel-screen";
-import { registerEyebrow } from "./register-eyebrow";
+import { registerEyebrow } from "../shell/register-eyebrow";
 
 export type RestoringStanding =
   | Exclude<Extract<RestorationStandingAnswer, { kind: "in_progress" }>, { step: "enroll" }>
