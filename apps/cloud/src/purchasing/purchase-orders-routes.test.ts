@@ -182,6 +182,29 @@ describe("GET /purchase-orders", () => {
     expect(unknown.statusCode).toBe(400);
     expect(unknown.json()).toMatchObject({ code: "validation_failed" });
   });
+
+  it("lists only the orders of the supplier asked for, and refuses an id that is not one", async () => {
+    const { headers, userId, locationId } = await orderer();
+    const wanted = await draftOf(userId, locationId);
+    await draftOf(userId, locationId, 2, { keyValue: "other" });
+
+    const filtered = await app.inject({
+      method: "GET",
+      url: `/purchase-orders?supplierId=${wanted.supplierId}`,
+      headers,
+    });
+    const malformed = await app.inject({
+      method: "GET",
+      url: "/purchase-orders?supplierId=x",
+      headers,
+    });
+
+    expect(purchaseOrderListSchema.parse(filtered.json()).map(({ id }) => id)).toEqual([
+      wanted.orderId,
+    ]);
+    expect(malformed.statusCode).toBe(400);
+    expect(malformed.json()).toMatchObject({ code: "validation_failed" });
+  });
 });
 
 describe("GET /purchase-orders/:id", () => {

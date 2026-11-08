@@ -618,4 +618,32 @@ describe("GET /purchases", () => {
 
     expect(purchaseListSchema.parse(response.json())).toEqual([]);
   });
+
+  it("lists only the purchases of the supplier asked for, and refuses an id that is not one", async () => {
+    const { headers, userId } = await buyer();
+    const wanted = await storedSupplier(userId);
+    const other = await storedSupplier(userId, { name: "Norte" });
+    const { productId } = await insertProduct(db, { name: "Yerba" });
+    for (const supplierId of [wanted, other]) {
+      await app.inject({
+        method: "POST",
+        url: "/purchases",
+        headers,
+        payload: bodyWith(supplierId, [quantityLine(productId)]),
+      });
+    }
+
+    const filtered = await app.inject({
+      method: "GET",
+      url: `/purchases?supplierId=${wanted}`,
+      headers,
+    });
+    const malformed = await app.inject({ method: "GET", url: "/purchases?supplierId=x", headers });
+
+    expect(purchaseListSchema.parse(filtered.json()).map((purchase) => purchase.supplier.id)).toEqual(
+      [wanted],
+    );
+    expect(malformed.statusCode).toBe(400);
+    expect(malformed.json()).toMatchObject({ code: "validation_failed" });
+  });
 });

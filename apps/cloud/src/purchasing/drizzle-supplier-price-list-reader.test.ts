@@ -65,6 +65,16 @@ describe("listing the supplier price lists", () => {
     expect(lists.map(({ id }) => id)).toEqual([newest, middle, oldest]);
   });
 
+  it("lists only the lists of the supplier asked for", async () => {
+    const otherSupplierId = await insertSupplier(db, { actorId, name: "Norte" });
+    const own = await insertPriceList(db, { supplierId, locationId, actorId });
+    await insertPriceList(db, { supplierId: otherSupplierId, locationId, actorId });
+
+    const lists = await reader().lists(supplierId);
+
+    expect(lists.map(({ id }) => id)).toEqual([own]);
+  });
+
   it("describes a list with its supplier, file, date, state, failure and counts of rows", async () => {
     const uploadedAt = new Date("2026-03-02T10:00:00.000Z");
     const confirmedAt = new Date("2026-03-04T10:00:00.000Z");
