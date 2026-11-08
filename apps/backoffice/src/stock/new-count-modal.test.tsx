@@ -7,8 +7,7 @@ import { radioLabel } from "../platform/test-support/radio-label";
 import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import { countMomentNow } from "./count-moment";
-import { NewCountModal } from "./new-count-modal";
-import type { StockCountsScreenServices } from "./stock-counts-services";
+import { NewCountModal, type NewCountModalServices } from "./new-count-modal";
 import {
   ALMONDS_FIRST_LOT_ID,
   ALMONDS_SECOND_LOT_ID,
@@ -26,9 +25,8 @@ beforeEach(async () => {
   await page.viewport(1280, 900);
 });
 
-function createServices(): StockCountsScreenServices {
+function createServices(): NewCountModalServices {
   return {
-    fetchStockCounts: vi.fn(),
     fetchStockProducts: vi.fn().mockResolvedValue({
       kind: "ok",
       value: { products: [almonds, honey, tea].map(withoutBalance) },
@@ -46,6 +44,7 @@ function createServices(): StockCountsScreenServices {
 }
 
 type Handlers = {
+  productId?: string;
   showsBalance?: boolean;
   onClose?: () => void;
   onSessionEnded?: () => void;
@@ -53,8 +52,9 @@ type Handlers = {
 };
 
 async function renderModalWithoutWaiting(
-  services: StockCountsScreenServices,
+  services: NewCountModalServices,
   {
+    productId,
     showsBalance = true,
     onClose = () => {},
     onSessionEnded = () => {},
@@ -65,6 +65,7 @@ async function renderModalWithoutWaiting(
     <FieldSizeProvider size="backoffice">
       <NewCountModal
         startMoment={countMomentNow(new Date("2026-09-15T21:40:30.000Z"))}
+        {...(productId === undefined ? {} : { productId })}
         showsBalance={showsBalance}
         services={services}
         onClose={onClose}
@@ -77,7 +78,7 @@ async function renderModalWithoutWaiting(
   return { screen, dialog };
 }
 
-async function renderModal(services: StockCountsScreenServices, handlers: Handlers = {}) {
+async function renderModal(services: NewCountModalServices, handlers: Handlers = {}) {
   const rendered = await renderModalWithoutWaiting(services, handlers);
   await expect.element(rendered.dialog.getByRole("button", { name: /Producto/ })).toBeVisible();
   return rendered;
@@ -99,6 +100,24 @@ async function count(rendered: Rendered, product: string, counted: string) {
 }
 
 const REGISTER = "Registrar el recuento";
+
+test("opens with the product it is given already chosen, and registers the count for it", async () => {
+  const services = createServices();
+  vi.mocked(services.registerCount).mockResolvedValue({
+    kind: "ok",
+    value: { expected: 24_000, delta: -1000, balance: 23_000, superseded: false },
+  });
+  const rendered = await renderModal(services, { productId: honey.id });
+  const { dialog } = rendered;
+
+  await expect.element(dialog.getByRole("combobox", { name: /Producto/ })).toHaveValue(honey.name);
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Cantidad contada/ }), "23");
+  await userEvent.click(dialog.getByRole("button", { name: REGISTER }));
+
+  await expect
+    .poll(() => vi.mocked(services.registerCount).mock.lastCall?.[0])
+    .toMatchObject({ productId: honey.id });
+});
 
 test("offers a deactivated product in the selector marked as deactivated", async () => {
   const services = createServices();
@@ -489,7 +508,7 @@ test("disables registering and cancelling while the request is in flight", async
   await expect.element(rendered.dialog.getByRole("button", { name: "Cancelar" })).toBeEnabled();
 });
 
-async function countByLot(rendered: Rendered, services: StockCountsScreenServices) {
+async function countByLot(rendered: Rendered, services: NewCountModalServices) {
   vi.mocked(services.fetchExpectedBalance).mockResolvedValue({
     kind: "ok",
     value: almondsExpectedByLot,

@@ -187,12 +187,17 @@ export function useStockProductsQuery(
 }
 
 export function useStockCountsQuery(
-  params: ReadParams & { days: StockPeriodDays; fetchStockCounts: typeof fetchStockCounts },
+  params: ReadParams & {
+    days: StockPeriodDays;
+    fetchStockCounts: typeof fetchStockCounts;
+    enabled?: boolean;
+  },
 ) {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQuery<StockCountList>({
     queryKey: stockKeys.counts(params.days),
     keepPreviousData: true,
+    enabled: params.enabled ?? true,
     read: () => params.fetchStockCounts(params.days),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
@@ -200,12 +205,17 @@ export function useStockCountsQuery(
 }
 
 export function useStockMovementsQuery(
-  params: ReadParams & { days: StockPeriodDays; fetchStockMovements: typeof fetchStockMovements },
+  params: ReadParams & {
+    days: StockPeriodDays;
+    fetchStockMovements: typeof fetchStockMovements;
+    enabled?: boolean;
+  },
 ) {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQuery<StockMovementList>({
     queryKey: stockKeys.movements(params.days),
     keepPreviousData: true,
+    enabled: params.enabled ?? true,
     read: () => params.fetchStockMovements(params.days),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,

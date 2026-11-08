@@ -1,5 +1,6 @@
 import type { ExpiringLot } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
+import { useState } from "react";
 import { vi } from "vitest";
 import { type ReleaseMonitor, ReleaseMonitorContext } from "../../platform/release-monitor";
 import { render } from "../../shell/test-support/render-with-router";
@@ -24,7 +25,11 @@ export const EVERY_LOT: ExpiringLot[] = [
 ];
 
 export function createServices(): ExpiringLotsScreenServices {
-  return { fetchExpiringLots: vi.fn(), discardExpiredLot: vi.fn() };
+  return {
+    fetchExpiringLots: vi.fn(),
+    fetchExpiringLotsReport: vi.fn().mockReturnValue(new Promise(() => {})),
+    discardExpiredLot: vi.fn(),
+  };
 }
 
 export function listed(lots = EVERY_LOT) {
@@ -34,6 +39,35 @@ export function listed(lots = EVERY_LOT) {
     value: expiringLotList(lots),
   });
   return services;
+}
+
+function Harness({
+  services,
+  initial,
+  onFiltersChange,
+  onSessionEnded,
+}: {
+  services: ExpiringLotsScreenServices;
+  initial: ExpiringLotsFilters;
+  onFiltersChange: (filters: ExpiringLotsFilters) => void;
+  onSessionEnded: () => void;
+}) {
+  const [filters, setFilters] = useState(initial);
+  return (
+    <FieldSizeProvider size="backoffice">
+      <main>
+        <ExpiringLotsScreen
+          services={services}
+          filters={filters}
+          onFiltersChange={(next) => {
+            onFiltersChange(next);
+            setFilters(next);
+          }}
+          onSessionEnded={onSessionEnded}
+        />
+      </main>
+    </FieldSizeProvider>
+  );
 }
 
 export function renderScreen(
@@ -51,16 +85,12 @@ export function renderScreen(
   } = {},
 ) {
   const screen = (
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <ExpiringLotsScreen
-          services={services}
-          filters={filters}
-          onFiltersChange={onFiltersChange}
-          onSessionEnded={onSessionEnded}
-        />
-      </main>
-    </FieldSizeProvider>
+    <Harness
+      services={services}
+      initial={filters}
+      onFiltersChange={onFiltersChange}
+      onSessionEnded={onSessionEnded}
+    />
   );
   return render(
     releaseMonitor ? (

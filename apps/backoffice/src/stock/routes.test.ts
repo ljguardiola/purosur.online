@@ -7,6 +7,7 @@ import {
   stockBalancesFilters,
   stockCountsFilters,
   stockMovementsFilters,
+  stockMovementsSearch,
 } from "./routes";
 
 test("opens the balances on every product of every category", () => {
@@ -73,6 +74,59 @@ test("keeps the reason a URL names, falling back for one that is not text", () =
   expect(stockMovementsFilters.parse({ reason: 3 }).reason).toBe("ALL");
 });
 
+test("opens the movements of every kind the person may see", () => {
+  expect(stockMovementsSearch.parse({})).toEqual({
+    search: "",
+    reason: "ALL",
+    period: "30",
+    type: [],
+    view: "list",
+    from: "",
+    to: "",
+    sort: "descending",
+  });
+});
+
+test("keeps the order of the movements a URL names, falling back to the latest first", () => {
+  expect(stockMovementsSearch.parse({ sort: "ascending" }).sort).toBe("ascending");
+  expect(stockMovementsSearch.parse({ sort: "up" }).sort).toBe("descending");
+});
+
+test("keeps the view and the range of the losses by reason a URL names", () => {
+  expect(
+    stockMovementsSearch.parse({ view: "reason", from: "2026-12-01", to: "2026-12-31" }),
+  ).toMatchObject({ view: "reason", from: "2026-12-01", to: "2026-12-31" });
+});
+
+test("falls back to the list for a view it does not offer", () => {
+  expect(stockMovementsSearch.parse({ view: "category" }).view).toBe("list");
+});
+
+test("drops a range the report refuses", () => {
+  expect(stockMovementsSearch.parse({ from: "2026-12-31", to: "2026-12-01" })).toMatchObject({
+    from: "",
+    to: "",
+  });
+});
+
+test("keeps the kinds of movement a URL names, as a list or as the text the address writes", () => {
+  expect(stockMovementsSearch.parse({ type: ["adjustment", "loss"] }).type).toEqual([
+    "adjustment",
+    "loss",
+  ]);
+  expect(stockMovementsSearch.parse({ type: "adjustment,loss" }).type).toEqual([
+    "adjustment",
+    "loss",
+  ]);
+  expect(stockMovementsSearch.parse({ type: "count" }).type).toEqual(["count"]);
+});
+
+test("falls back to every kind for a kind of movement it does not offer", () => {
+  expect(stockMovementsSearch.parse({ type: "count,theft" }).type).toEqual([]);
+  expect(stockMovementsSearch.parse({ type: 3 }).type).toEqual([]);
+  expect(stockMovementsSearch.parse({ type: "" }).type).toEqual([]);
+});
+
 test("opens the initial inventory on every lot, whatever its cost", () => {
   expect(initialInventoryFilters.parse({})).toEqual({ search: "", cost: "all" });
 });
@@ -88,12 +142,29 @@ test("keeps the initial inventory filters a URL names, falling back for a value 
   );
 });
 
-test("opens the expiring lots on every lot, whatever its category or expiry", () => {
-  expect(expiringLotsFilters.parse({})).toEqual({ search: "", category: "ALL", expiry: "all" });
+test("opens the expiring lots on every lot, whatever its category, expiry or period", () => {
+  expect(expiringLotsFilters.parse({})).toEqual({
+    search: "",
+    category: "ALL",
+    expiry: "all",
+    from: "",
+    to: "",
+  });
+});
+
+test("keeps the period an expiring lots URL names and drops one the cloud would refuse", () => {
+  expect(expiringLotsFilters.parse({ from: "2026-12-01", to: "2026-12-31" })).toMatchObject({
+    from: "2026-12-01",
+    to: "2026-12-31",
+  });
+  expect(expiringLotsFilters.parse({ from: "2026-12-31", to: "2026-12-01" })).toMatchObject({
+    from: "",
+    to: "",
+  });
 });
 
 test("keeps the expiring lots filters a URL names, falling back for a value it does not offer", () => {
-  const filters = { search: "chía", category: "category-2", expiry: "expired" };
+  const filters = { search: "chía", category: "category-2", expiry: "expired", from: "", to: "" };
   expect(expiringLotsFilters.parse(filters)).toEqual(filters);
   expect(expiringLotsFilters.parse({ expiry: "upcoming" }).expiry).toBe("upcoming");
   expect(expiringLotsFilters.parse({ search: 1, category: false, expiry: "soon" })).toEqual(

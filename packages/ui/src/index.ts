@@ -130,6 +130,8 @@ export type {
 export { LabelledFieldList } from "./components/forms/labelled-field-list";
 export type { ListFilterProps } from "./components/forms/list-filter";
 export { ListFilter } from "./components/forms/list-filter";
+export type { MenuButtonProps } from "./components/forms/menu-button";
+export { MenuButton } from "./components/forms/menu-button";
 export type { NarrowedOption, Option, Options } from "./components/forms/option";
 export type { OptionCardGroupProps } from "./components/forms/option-card-group";
 export { OptionCardGroup } from "./components/forms/option-card-group";

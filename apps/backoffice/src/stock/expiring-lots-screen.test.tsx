@@ -23,13 +23,17 @@ beforeEach(async () => {
 
 const PRODUCT_NAMES = ["Semillas de chía", "Avena arrollada", "Yogur natural"];
 
+test("shows no title of its own, the page it sits in names it", async () => {
+  const screen = await renderScreen(listed());
+
+  await expect.element(screen.getByRole("table", { name: "Vencimientos" })).toBeVisible();
+  expect(screen.getByRole("heading").query()).toBeNull();
+  expect(screen.getByText("Stock", { exact: true }).query()).toBeNull();
+});
+
 test("shows each lot with its product, category, name, expiry day, stock and value", async () => {
   const screen = await renderScreen(listed());
 
-  await expect
-    .element(screen.getByRole("heading", { name: "Vencimientos", level: 1 }))
-    .toBeVisible();
-  await expect.element(screen.getByText("Stock", { exact: true })).toBeVisible();
   const table = screen.getByRole("table", { name: "Vencimientos" });
   await expect.element(table.getByText("Compra 03/10/2026")).toBeVisible();
   await expect.element(table.getByText("Semillas", { exact: true }).first()).toBeVisible();
