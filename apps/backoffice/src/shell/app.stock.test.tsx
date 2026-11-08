@@ -307,7 +307,17 @@ test("keeps the Stock link of the section column active on every tab", async () 
 });
 
 test("hides the Stock item in the rail for a user with only purchasing permissions", async () => {
-  const services = stockServices(["suppliers", "purchases", "freights", "stock_area"]);
+  const services = stockServices(["suppliers", "purchases", "freights"]);
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("navigation", { name: "Áreas" })).toBeVisible();
+  expect(railLink(screen).query()).toBeNull();
+});
+
+test("hides the Stock item in the rail for a user without the stock area", async () => {
+  const services = stockServices(["stock_balances"]);
   window.history.pushState(null, "", "/help");
 
   const screen = await render(<App help={emptyHelp} services={services} />);

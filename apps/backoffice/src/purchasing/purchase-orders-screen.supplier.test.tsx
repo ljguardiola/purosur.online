@@ -27,9 +27,13 @@ function renderScreen(
   );
 }
 
-function servicesWithOrders() {
+function servicesWithOrders(orders = [DRAFT_SUMMARY]) {
   return {
-    fetchPurchaseOrders: vi.fn().mockResolvedValue({ kind: "ok", value: [DRAFT_SUMMARY] }),
+    fetchPurchaseOrders: vi.fn().mockResolvedValue({ kind: "ok", value: orders }),
+    fetchSupplierName: vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: { kind: "found", name: "Distribuidora Andina" },
+    }),
   } satisfies PurchaseOrdersScreenServices;
 }
 
@@ -45,7 +49,7 @@ test("asks the cloud only for the orders of the supplier it is filtered by", asy
 
 test("names the supplier it is filtered by and asks to clear the filter when it is pressed", async () => {
   const onClear = vi.fn();
-  const screen = await renderScreen(servicesWithOrders(), { supplierId: SUPPLIER_ID, onClear });
+  const screen = await renderScreen(servicesWithOrders([]), { supplierId: SUPPLIER_ID, onClear });
 
   await userEvent.click(screen.getByRole("button", { name: "Proveedor: Distribuidora Andina" }));
 
@@ -57,4 +61,14 @@ test("shows no supplier filter when it is not filtered by a supplier", async () 
 
   await expect.element(screen.getByRole("table", { name: "Pedidos de compra" })).toBeVisible();
   expect(screen.getByRole("button", { name: /^Proveedor:/ }).query()).toBeNull();
+});
+
+test("tells that the supplier filter hides every order when the supplier has none", async () => {
+  const screen = await renderScreen(servicesWithOrders([]), {
+    supplierId: SUPPLIER_ID,
+    onClear: () => {},
+  });
+
+  await expect.element(screen.getByText("Sin resultados")).toBeVisible();
+  expect(screen.getByText("Todavía no hay pedidos").query()).toBeNull();
 });

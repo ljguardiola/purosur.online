@@ -21,7 +21,7 @@ beforeEach(() => {
 function createServices(
   overrides: Partial<PurchaseOrdersScreenServices> = {},
 ): PurchaseOrdersScreenServices {
-  return { fetchPurchaseOrders: vi.fn(), ...overrides };
+  return { fetchPurchaseOrders: vi.fn(), fetchSupplierName: vi.fn(), ...overrides };
 }
 
 function deferred<T>() {

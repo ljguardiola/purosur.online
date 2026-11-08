@@ -36,6 +36,7 @@ function createServices(
 ): SupplierPriceListsScreenServices {
   return {
     fetchSupplierPriceLists: vi.fn(),
+    fetchSupplierName: vi.fn(),
     uploadSupplierPriceList: vi.fn(),
     loadSupplierPriceListWebPage: vi.fn(),
     refreshSupplierPriceList: vi.fn(),
@@ -276,7 +277,7 @@ test("loading a failed list again opens the upload with its supplier chosen", as
     }),
   );
 
-  await expect.element(screen.getByRole("heading", { name: "Cargar una lista" })).toBeVisible();
+  await expect.element(screen.getByRole("heading", { name: "Subir lista" })).toBeVisible();
   await expect
     .element(screen.getByRole("dialog").getByRole("combobox", { name: /Proveedor/ }))
     .toHaveValue("Molinos San Javier");
@@ -305,7 +306,7 @@ test("uploading a list closes the modal, reads the lists again and says it was l
     value: [READING_LIST],
   });
 
-  await userEvent.click(screen.getByRole("button", { name: "Cargar una lista" }));
+  await userEvent.click(screen.getByRole("button", { name: "Subir lista" }));
   const dialog = screen.getByRole("dialog");
   await userEvent.click(dialog.getByRole("combobox", { name: /Proveedor/ }));
   await userEvent.click(screen.getByRole("option", { name: "Distribuidora Andina" }));
@@ -583,7 +584,7 @@ test("the upload action stays available while the lists load and after they fail
   await expect
     .element(screen.getByText("No pudimos abrir las listas de proveedores"))
     .toBeVisible();
-  await expect.element(screen.getByRole("button", { name: "Cargar una lista" })).toBeEnabled();
+  await expect.element(screen.getByRole("button", { name: "Subir lista" })).toBeEnabled();
 });
 
 test("shows a load error with a retry action that starts again from the loading placeholder", async () => {
@@ -683,7 +684,7 @@ test("has no accessibility violations once loaded, and with the upload modal ope
   const screen = await loaded(services, [READ_LIST, FAILED_LIST]);
 
   await expectNoAccessibilityViolations(screen.container);
-  await userEvent.click(screen.getByRole("button", { name: "Cargar una lista" }));
+  await userEvent.click(screen.getByRole("button", { name: "Subir lista" }));
   await expectNoAccessibilityViolations(document.body);
 });
 
@@ -704,7 +705,7 @@ async function openUploadAndTypeUnknownSupplier(access: BackofficeAccess) {
     ],
   });
   const screen = await loaded(services, [], { access });
-  await userEvent.click(screen.getByRole("button", { name: "Cargar una lista" }));
+  await userEvent.click(screen.getByRole("button", { name: "Subir lista" }));
   await userEvent.fill(
     screen.getByRole("dialog").getByRole("combobox", { name: /^Proveedor/ }),
     "Distribuidora Sur",

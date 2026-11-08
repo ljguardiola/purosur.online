@@ -10,9 +10,13 @@ import { READ_LIST } from "./test-support/supplier-price-lists";
 
 const SUPPLIER_ID = READ_LIST.supplier.id;
 
-function createServices(): SupplierPriceListsScreenServices {
+function createServices(lists = [READ_LIST]): SupplierPriceListsScreenServices {
   return {
-    fetchSupplierPriceLists: vi.fn().mockResolvedValue({ kind: "ok", value: [READ_LIST] }),
+    fetchSupplierPriceLists: vi.fn().mockResolvedValue({ kind: "ok", value: lists }),
+    fetchSupplierName: vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: { kind: "found", name: "Distribuidora Andina" },
+    }),
     uploadSupplierPriceList: vi.fn(),
     loadSupplierPriceListWebPage: vi.fn(),
     refreshSupplierPriceList: vi.fn(),
@@ -54,7 +58,7 @@ test("asks the cloud only for the price lists of the supplier it is filtered by"
 
 test("names the supplier it is filtered by and asks to clear the filter when it is pressed", async () => {
   const onClear = vi.fn();
-  const screen = await renderScreen(createServices(), { supplierId: SUPPLIER_ID, onClear });
+  const screen = await renderScreen(createServices([]), { supplierId: SUPPLIER_ID, onClear });
 
   await userEvent.click(screen.getByRole("button", { name: "Proveedor: Distribuidora Andina" }));
 
@@ -66,4 +70,14 @@ test("shows no supplier filter when it is not filtered by a supplier", async () 
 
   await expect.element(screen.getByRole("table", { name: "Listas de proveedores" })).toBeVisible();
   expect(screen.getByRole("button", { name: /^Proveedor:/ }).query()).toBeNull();
+});
+
+test("tells that the supplier filter hides every list when the supplier has none", async () => {
+  const screen = await renderScreen(createServices([]), {
+    supplierId: SUPPLIER_ID,
+    onClear: () => {},
+  });
+
+  await expect.element(screen.getByText("Sin resultados")).toBeVisible();
+  expect(screen.getByText("Todavía no hay listas cargadas").query()).toBeNull();
 });

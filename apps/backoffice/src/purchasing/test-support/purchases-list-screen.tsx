@@ -13,6 +13,7 @@ export function createServices(
 ): PurchasesListScreenServices {
   return {
     fetchPurchases: vi.fn(),
+    fetchSupplierName: vi.fn(),
     fetchPurchaseChoices: vi.fn().mockResolvedValue({ kind: "ok", value: purchaseChoicesFrom([]) }),
     fetchPurchaseChanges: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     addPurchaseLines: vi.fn(),

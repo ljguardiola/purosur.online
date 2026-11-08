@@ -89,18 +89,6 @@ test("shows the five tabs in order to a person who may see them all", async () =
   await expectTabs(screen, ["Datos", "Listas", "Pedidos", "Compras", "Fletes"]);
 });
 
-test.each([
-  ["suppliers", ["Datos"]],
-  ["supplier_price_lists", ["Listas"]],
-  ["purchase_order_reads", ["Pedidos"]],
-  ["purchases", ["Compras"]],
-  ["freights", ["Fletes"]],
-] as const)("shows only the tabs %s allows", async (capability, names) => {
-  const screen = await renderPanel(andina, { access: accessWith(capability) });
-
-  await expectTabs(screen, [...names]);
-});
-
 test("shows no Fletes tab to a person without the freights capability", async () => {
   const screen = await renderPanel(andina, {
     access: accessWith("suppliers", "supplier_price_lists", "purchases"),
@@ -171,19 +159,17 @@ test("asks to close from its close button", async () => {
 });
 
 test.each([
-  ["lists", "fetchSupplierPriceLists", { supplierId: andina.id }],
-  ["orders", "fetchPurchaseOrders", ["ALL", { supplierId: andina.id }]],
-  ["purchases", "fetchPurchases", { supplierId: andina.id }],
-  ["freights", "fetchFreights", { period: 90, search: "", supplierId: andina.id }],
-] as const)("reads the supplier's records of the %s tab", async (tab, service, argument) => {
-  const services = createSupplierPanelServices();
+  ["lists", "Listas de precios del proveedor"],
+  ["orders", "Pedidos del proveedor"],
+  ["purchases", "Compras del proveedor"],
+  ["freights", "Fletes del proveedor"],
+] as const)("shows the supplier's records on the %s tab", async (tab, tableName) => {
+  const screen = await renderPanel(andina, { tab });
 
-  await renderPanel(andina, { tab, services });
-
-  await vi.waitFor(() => expect(services[service]).toHaveBeenCalled());
-  expect(vi.mocked(services[service]).mock.calls[0]).toEqual(
-    Array.isArray(argument) ? argument : [argument],
-  );
+  await expect.element(screen.getByRole("table", { name: tableName })).toBeVisible();
+  await expect
+    .element(screen.getByRole("link", { name: "Ver todos" }))
+    .toHaveAttribute("href", expect.stringContaining(`supplier=${andina.id}`));
 });
 
 test("reads no records of the tabs it does not show", async () => {

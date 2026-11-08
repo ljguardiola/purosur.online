@@ -39,6 +39,7 @@ function createServices(
       .mockResolvedValue({ kind: "ok", value: linkablePurchases }),
     recordFreight: vi.fn<FreightsListScreenServices["recordFreight"]>(),
     editFreight: vi.fn<FreightsListScreenServices["editFreight"]>(),
+    fetchSupplierName: vi.fn<FreightsListScreenServices["fetchSupplierName"]>(),
     ...overrides,
   };
 }

@@ -624,8 +624,51 @@ test.each([
     const screen = await render(<App help={emptyHelp} services={services} />);
     await expect.element(screen.getByRole("table", { name: tableName })).toBeVisible();
 
-    await userEvent.click(screen.getByRole("button", { name: /^Proveedor:/ }));
+    await userEvent.click(screen.getByRole("button", { name: /^Proveedor/ }));
 
     await expect.poll(() => window.location.pathname + window.location.search).toBe(path);
+  },
+);
+
+test.each([
+  ["/purchase-orders", "purchase_order_reads", "Pedidos de compra"],
+  ["/purchases", "purchases", "Compras"],
+  ["/freights", "freights", "Fletes"],
+  ["/suppliers/price-lists", "supplier_price_lists", "Listas de proveedores"],
+] as const)(
+  "drops a supplier that is not a supplier's id from the address of %s, without adding a history entry",
+  async (path, capability, tableName) => {
+    const services = purchasingServices([capability]);
+    window.history.pushState(null, "", "/help");
+    window.history.pushState(null, "", `${path}?supplier=andina`);
+    const historyLength = window.history.length;
+
+    const screen = await render(<App help={emptyHelp} services={services} />);
+
+    await expect.element(screen.getByRole("table", { name: tableName })).toBeVisible();
+    await expect.poll(() => window.location.pathname + window.location.search).toBe(path);
+    expect(window.history.length).toBe(historyLength);
+    expect(screen.getByRole("button", { name: /^Proveedor/ }).query()).toBeNull();
+  },
+);
+
+test.each([
+  ["/purchase-orders", "purchase_order_reads", "Pedidos de compra"],
+  ["/purchases", "purchases", "Compras"],
+  ["/freights", "freights", "Fletes"],
+  ["/suppliers/price-lists", "supplier_price_lists", "Listas de proveedores"],
+] as const)(
+  "writes the supplier of the address of %s in lowercase",
+  async (path, capability, tableName) => {
+    const services = purchasingServices([capability]);
+    const supplierId = READ_LIST.supplier.id;
+    window.history.pushState(null, "", `${path}?supplier=${supplierId.toUpperCase()}`);
+
+    const screen = await render(<App help={emptyHelp} services={services} />);
+
+    await expect.element(screen.getByRole("table", { name: tableName })).toBeVisible();
+    await expect
+      .poll(() => window.location.pathname + window.location.search)
+      .toBe(`${path}?supplier=${supplierId}`);
   },
 );

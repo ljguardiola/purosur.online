@@ -9,13 +9,18 @@ import {
 
 const SUPPLIER_ID = compraDeMiel.supplier.id;
 
-function servicesWithPurchase() {
-  const services = createServices();
-  vi.mocked(services.fetchPurchases).mockResolvedValue({ kind: "ok", value: [compraDeMiel] });
+function servicesWithPurchases(purchases = [compraDeMiel]) {
+  const services = createServices({
+    fetchSupplierName: vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: { kind: "found", name: "Distribuidora Andina" },
+    }),
+  });
+  vi.mocked(services.fetchPurchases).mockResolvedValue({ kind: "ok", value: purchases });
   return services;
 }
 
-function renderFiltered(services = servicesWithPurchase(), options: ScreenOptions = {}) {
+function renderFiltered(services = servicesWithPurchases(), options: ScreenOptions = {}) {
   return renderScreen(services, {
     supplierFilter: { supplierId: SUPPLIER_ID, onClear: () => {} },
     ...options,
@@ -23,7 +28,7 @@ function renderFiltered(services = servicesWithPurchase(), options: ScreenOption
 }
 
 test("asks the cloud only for the purchases of the supplier it is filtered by", async () => {
-  const services = servicesWithPurchase();
+  const services = servicesWithPurchases();
 
   await renderFiltered(services);
 
@@ -34,7 +39,7 @@ test("asks the cloud only for the purchases of the supplier it is filtered by", 
 
 test("names the supplier it is filtered by and asks to clear the filter when it is pressed", async () => {
   const onClear = vi.fn();
-  const screen = await renderFiltered(servicesWithPurchase(), {
+  const screen = await renderFiltered(servicesWithPurchases([]), {
     supplierFilter: { supplierId: SUPPLIER_ID, onClear },
   });
 
@@ -44,8 +49,15 @@ test("names the supplier it is filtered by and asks to clear the filter when it 
 });
 
 test("shows no supplier filter when it is not filtered by a supplier", async () => {
-  const screen = await renderScreen(servicesWithPurchase());
+  const screen = await renderScreen(servicesWithPurchases());
 
   await expect.element(screen.getByRole("table", { name: "Compras" })).toBeVisible();
   expect(screen.getByRole("button", { name: /^Proveedor:/ }).query()).toBeNull();
+});
+
+test("tells that the supplier filter hides every purchase when the supplier has none", async () => {
+  const screen = await renderFiltered(servicesWithPurchases([]));
+
+  await expect.element(screen.getByText("Sin resultados")).toBeVisible();
+  expect(screen.getByText("Todavía no hay compras registradas").query()).toBeNull();
 });

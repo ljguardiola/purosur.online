@@ -108,7 +108,7 @@ test("opens Listas de precios from its tab, with the lists and their upload acti
     .toBeVisible();
   expect(location()).toBe("/suppliers/price-lists");
   await expect.element(screen.getByRole("table", { name: "Listas de proveedores" })).toBeVisible();
-  await expect.element(screen.getByRole("button", { name: "Cargar una lista" })).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Subir lista" })).toBeVisible();
   expect(screen.getByRole("heading", { level: 1 }).elements()).toHaveLength(1);
 });
 

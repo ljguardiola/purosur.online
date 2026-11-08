@@ -98,4 +98,15 @@ describe("DrizzlePurchasingListReader", () => {
       "00000000-0000-4000-8000-00000000000b",
     ]);
   });
+
+  it("reads the name of the supplier with an id, deactivated or not, and nothing for an id no supplier has", async () => {
+    await db.insert(suppliers).values([
+      { id: "00000000-0000-4000-8000-00000000000a", name: "Alfa", active: false, actorId },
+      { id: "00000000-0000-4000-8000-00000000000b", name: "Beta", actorId },
+    ]);
+    const reader = new DrizzlePurchasingListReader(db);
+
+    expect(await reader.supplierName("00000000-0000-4000-8000-00000000000a")).toBe("Alfa");
+    expect(await reader.supplierName("00000000-0000-4000-8000-00000000000c")).toBeUndefined();
+  });
 });

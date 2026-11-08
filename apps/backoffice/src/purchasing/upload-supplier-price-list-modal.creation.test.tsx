@@ -53,7 +53,7 @@ async function renderModal(
       </main>
     </FieldSizeProvider>,
   );
-  const dialog = screen.getByRole("dialog", { name: "Cargar una lista" });
+  const dialog = screen.getByRole("dialog", { name: "Subir lista" });
   await expect
     .element(
       empty && !mayCreateSupplier
