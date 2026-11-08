@@ -44,12 +44,14 @@ async function renderModal(
   services: StockMovementsScreenServices,
   {
     kinds = ["loss", "adjustment"],
+    productId,
     showsBalance = true,
     onClose = () => {},
     onSessionEnded = () => {},
     onRegistered = () => {},
   }: {
     kinds?: readonly [MovementKind, ...MovementKind[]];
+    productId?: string;
     showsBalance?: boolean;
     onClose?: () => void;
     onSessionEnded?: () => void;
@@ -61,6 +63,7 @@ async function renderModal(
       <StockMovementModal
         title={TITLE}
         kinds={kinds}
+        {...(productId === undefined ? {} : { productId })}
         services={services}
         onClose={onClose}
         onSessionEnded={onSessionEnded}
@@ -93,6 +96,20 @@ async function chooseProduct({ screen, dialog }: Rendered, name: string) {
   await userEvent.click(dialog.getByRole("button", { name: /Producto/ }));
   await userEvent.click(screen.getByRole("option", { name }));
 }
+
+test.each(["loss", "adjustment"] as const)(
+  "opens the %s form with the product it is given already chosen",
+  async (kind) => {
+    const { dialog } = await renderForm(createServices(), {
+      kinds: [kind],
+      productId: honey.id,
+    });
+
+    await expect
+      .element(dialog.getByRole("combobox", { name: /Producto/ }))
+      .toHaveValue(honey.name);
+  },
+);
 
 test("shows the balance an adjustment that adds leaves", async () => {
   const rendered = await renderForm(createServices());

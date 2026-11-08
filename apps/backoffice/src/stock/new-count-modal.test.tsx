@@ -46,6 +46,7 @@ function createServices(): StockCountsScreenServices {
 }
 
 type Handlers = {
+  productId?: string;
   showsBalance?: boolean;
   onClose?: () => void;
   onSessionEnded?: () => void;
@@ -55,6 +56,7 @@ type Handlers = {
 async function renderModalWithoutWaiting(
   services: StockCountsScreenServices,
   {
+    productId,
     showsBalance = true,
     onClose = () => {},
     onSessionEnded = () => {},
@@ -65,6 +67,7 @@ async function renderModalWithoutWaiting(
     <FieldSizeProvider size="backoffice">
       <NewCountModal
         startMoment={countMomentNow(new Date("2026-09-15T21:40:30.000Z"))}
+        {...(productId === undefined ? {} : { productId })}
         showsBalance={showsBalance}
         services={services}
         onClose={onClose}
@@ -99,6 +102,24 @@ async function count(rendered: Rendered, product: string, counted: string) {
 }
 
 const REGISTER = "Registrar el recuento";
+
+test("opens with the product it is given already chosen, and registers the count for it", async () => {
+  const services = createServices();
+  vi.mocked(services.registerCount).mockResolvedValue({
+    kind: "ok",
+    value: { expected: 24_000, delta: -1000, balance: 23_000, superseded: false },
+  });
+  const rendered = await renderModal(services, { productId: honey.id });
+  const { dialog } = rendered;
+
+  await expect.element(dialog.getByRole("combobox", { name: /Producto/ })).toHaveValue(honey.name);
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Cantidad contada/ }), "23");
+  await userEvent.click(dialog.getByRole("button", { name: REGISTER }));
+
+  await expect
+    .poll(() => vi.mocked(services.registerCount).mock.lastCall?.[0])
+    .toMatchObject({ productId: honey.id });
+});
 
 test("offers a deactivated product in the selector marked as deactivated", async () => {
   const services = createServices();
