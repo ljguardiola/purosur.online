@@ -58,9 +58,7 @@ describe("mercadoPagoChargeCostsQuerySchema", () => {
   });
 
   it("refuses a period with only one end", () => {
-    expect(mercadoPagoChargeCostsQuerySchema.safeParse({ from: "2026-10-01" }).success).toBe(
-      false,
-    );
+    expect(mercadoPagoChargeCostsQuerySchema.safeParse({ from: "2026-10-01" }).success).toBe(false);
   });
 });
 
@@ -79,7 +77,10 @@ describe("mercadoPagoChargeCostsSchema", () => {
   });
 
   it.each([
-    ["a charge of a method that is not Mercado Pago's", { charges: [{ ...reported, method: "CASH" }] }],
+    [
+      "a charge of a method that is not Mercado Pago's",
+      { charges: [{ ...reported, method: "CASH" }] },
+    ],
     ["a method group that does not exist", { methods: [{ method: "CASH", ...entry }] }],
     ["a negative count", { totals: { ...entry, charges_count: -1 } }],
     ["an amount with decimals", { totals: { ...entry, fee_amount: -3.4 } }],
