@@ -9,12 +9,13 @@ test("hands unknown to the render function while the lookup code downloads, and 
     <LazyProductRecipeLookup productId="product-1" enabled={false} onSessionEnded={() => {}}>
       {(lookup) => {
         handed.push(lookup);
-        return <p>{`lookup `}</p>;
+        return null;
       }}
     </LazyProductRecipeLookup>,
   );
 
   expect(handed[0]).toBe("unknown");
+  await import("../stock/product-recipe-lookup");
   await expect.poll(() => handed.length).toBeGreaterThan(1);
   expect(handed.every((lookup) => lookup === "unknown")).toBe(true);
 });

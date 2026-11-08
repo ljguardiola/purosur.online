@@ -133,6 +133,22 @@ test("tells the panel the price changed once it is saved", async () => {
   await vi.waitFor(() => expect(onPriceChanged).toHaveBeenCalledOnce());
 });
 
+test("tells the panel the product changed when saving finds it deactivated", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchPrices).mockResolvedValue(priceListOf(rice));
+  vi.mocked(services.setPrice).mockResolvedValue({ kind: "not_found" });
+  const onPriceChanged = vi.fn();
+  const screen = await renderSection(services, rice, () => {}, onPriceChanged);
+  await expect.element(screen.getByText("$ 7.500,00 / kg")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Cambiar el precio" }));
+  await userEvent.fill(screen.getByLabelText("Precio de venta por kilo"), "8000");
+  await userEvent.click(screen.getByRole("button", { name: "Guardar el precio nuevo" }));
+
+  await expect.element(screen.getByText("Producto desactivado")).toBeVisible();
+  await vi.waitFor(() => expect(onPriceChanged).toHaveBeenCalledOnce());
+});
+
 test("ends the session when the cloud answers that it is over", async () => {
   const services = createServices();
   vi.mocked(services.fetchPrices).mockResolvedValue({ kind: "unauthenticated" });

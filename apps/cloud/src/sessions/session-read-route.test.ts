@@ -240,7 +240,7 @@ describe("GET /sessions/current", () => {
     const response = await getSession(rawSessionId);
 
     expect(response.json()).toMatchObject({
-      capabilities: ["stock_losses", "stock_movements", "stock_area"],
+      capabilities: ["stock_losses", "stock_movements", "stock_area", "stock_products"],
       stock_movement_kinds: ["loss"],
     });
   });
@@ -264,7 +264,7 @@ describe("GET /sessions/current", () => {
 
     expect(before.json()).toMatchObject({ capabilities: [] });
     expect(after.json()).toMatchObject({
-      capabilities: ["stock_losses", "stock_movements", "stock_area"],
+      capabilities: ["stock_losses", "stock_movements", "stock_area", "stock_products"],
     });
   });
 
