@@ -256,6 +256,22 @@ describe("summarizeChargeCosts", () => {
     expect(days.map((day) => day.day)).toEqual(["2026-10-04"]);
   });
 
+  it("dates a charge outside the system by its earliest movement when that one comes first", () => {
+    const { days } = summarize(
+      [],
+      [
+        other({
+          movements: [
+            movement({ transactionDate: new Date("2026-10-04T15:00:00Z") }),
+            movement({ transactionDate: new Date("2026-10-09T15:00:00Z") }),
+          ],
+        }),
+      ],
+    );
+
+    expect(days.map((day) => day.day)).toEqual(["2026-10-04"]);
+  });
+
   it("leaves out a charge outside the system whose day falls outside the period", () => {
     const { totals } = summarize(
       [],
