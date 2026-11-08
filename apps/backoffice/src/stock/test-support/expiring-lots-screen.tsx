@@ -24,7 +24,11 @@ export const EVERY_LOT: ExpiringLot[] = [
 ];
 
 export function createServices(): ExpiringLotsScreenServices {
-  return { fetchExpiringLots: vi.fn(), discardExpiredLot: vi.fn() };
+  return {
+    fetchExpiringLots: vi.fn(),
+    fetchExpiringLotsReport: vi.fn().mockReturnValue(new Promise(() => {})),
+    discardExpiredLot: vi.fn(),
+  };
 }
 
 export function listed(lots = EVERY_LOT) {

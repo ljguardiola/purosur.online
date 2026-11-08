@@ -3,7 +3,8 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { openSession } from "../sessions/test-support/open-session";
-import { expiringLotList } from "../stock/test-support/expiring-lots-fixtures";
+import { chiaExpiredLot, expiringLotList } from "../stock/test-support/expiring-lots-fixtures";
+import { expiringLotsReport } from "../stock/test-support/expiring-lots-report-fixtures";
 import {
   almonds,
   almondsCount,
@@ -464,4 +465,43 @@ test.each(STOCK_SCREENS)("shows no open alerts count in %s's top bar", async (pa
   await expect.element(screen.getByRole("heading", { name: heading, level: 1 })).toBeVisible();
   expect(services.homeScreen.fetchAlertsOverview).not.toHaveBeenCalled();
   expect(screen.getByText(/alertas? abiertas?/).query()).toBeNull();
+});
+
+test("writes an expired lot off from Vencimientos, recording it as a loss", async () => {
+  const services = stockServices(["stock_area", "stock_expiries"]);
+  vi.mocked(services.expiringLotsScreen.fetchExpiringLots).mockResolvedValue({
+    kind: "ok",
+    value: expiringLotList([chiaExpiredLot]),
+  });
+  vi.mocked(services.expiringLotsScreen.discardExpiredLot).mockResolvedValue({
+    kind: "ok",
+    value: { movementId: "movement-9", quantity: 1_200, balance: 0, superseded: false },
+  });
+  window.history.pushState(null, "", "/stock/expiries");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await userEvent.click(
+    screen.getByRole("button", {
+      name: "Dar de baja el lote Compra 03/10/2026 de Semillas de chía",
+    }),
+  );
+
+  expect(services.expiringLotsScreen.discardExpiredLot).toHaveBeenCalledWith(chiaExpiredLot.id);
+  await expect.element(screen.getByText("Lote dado de baja")).toBeVisible();
+});
+
+test("offers the period and the export of Vencimientos to a person with stock_expiries but not reports_area", async () => {
+  const services = stockServices(["stock_area", "stock_expiries"]);
+  vi.mocked(services.expiringLotsScreen.fetchExpiringLotsReport).mockResolvedValue({
+    kind: "ok",
+    value: expiringLotsReport([]),
+  });
+  window.history.pushState(null, "", "/stock/expiries");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("group", { name: /^Período/ })).toBeVisible();
+  await expect
+    .element(screen.getByRole("button", { name: "Descargar planilla" }))
+    .toBeEnabled();
 });

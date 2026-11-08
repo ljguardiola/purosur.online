@@ -138,6 +138,7 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
     },
     expiringLotsScreen: {
       fetchExpiringLots: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchExpiringLotsReport: vi.fn().mockReturnValue(new Promise(() => {})),
       discardExpiredLot: vi.fn(),
     },
     stockBalancesScreen: {

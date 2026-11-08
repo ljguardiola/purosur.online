@@ -116,12 +116,29 @@ test("keeps the initial inventory filters a URL names, falling back for a value 
   );
 });
 
-test("opens the expiring lots on every lot, whatever its category or expiry", () => {
-  expect(expiringLotsFilters.parse({})).toEqual({ search: "", category: "ALL", expiry: "all" });
+test("opens the expiring lots on every lot, whatever its category, expiry or period", () => {
+  expect(expiringLotsFilters.parse({})).toEqual({
+    search: "",
+    category: "ALL",
+    expiry: "all",
+    from: "",
+    to: "",
+  });
+});
+
+test("keeps the period an expiring lots URL names and drops one the cloud would refuse", () => {
+  expect(expiringLotsFilters.parse({ from: "2026-12-01", to: "2026-12-31" })).toMatchObject({
+    from: "2026-12-01",
+    to: "2026-12-31",
+  });
+  expect(expiringLotsFilters.parse({ from: "2026-12-31", to: "2026-12-01" })).toMatchObject({
+    from: "",
+    to: "",
+  });
 });
 
 test("keeps the expiring lots filters a URL names, falling back for a value it does not offer", () => {
-  const filters = { search: "chía", category: "category-2", expiry: "expired" };
+  const filters = { search: "chía", category: "category-2", expiry: "expired", from: "", to: "" };
   expect(expiringLotsFilters.parse(filters)).toEqual(filters);
   expect(expiringLotsFilters.parse({ expiry: "upcoming" }).expiry).toBe("upcoming");
   expect(expiringLotsFilters.parse({ search: 1, category: false, expiry: "soon" })).toEqual(
