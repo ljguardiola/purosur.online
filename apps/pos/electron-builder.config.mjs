@@ -1,5 +1,7 @@
-import { writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, writeFile } from "node:fs/promises";
+import { join, parse } from "node:path";
+import electronChecksums from "electron/checksums.json" with { type: "json" };
+import electronPackage from "electron/package.json" with { type: "json" };
 import { registerVersionSchema } from "../../packages/contracts/src/register/register-update.ts";
 import { CHANNELS, serializeChannelFile } from "./src/shared/channel.ts";
 
@@ -32,6 +34,11 @@ if (version !== undefined && !registerVersionSchema.safeParse(version).success) 
 const sentryDsn = process.env.POS_SENTRY_DSN;
 const cloudUrl = process.env.POS_CLOUD_URL;
 
+// electron-builder keeps its downloads under ELECTRON_BUILDER_CACHE only when it is absolute.
+const builderCache = process.env.ELECTRON_BUILDER_CACHE?.trim();
+const electronCache =
+  builderCache && parse(builderCache).root ? join(builderCache, "electron") : undefined;
+
 const channelFile = serializeChannelFile({
   channel,
   ...(sentryDsn ? { sentryDsn } : {}),
@@ -61,12 +68,25 @@ export default {
     allowToChangeInstallationDirectory: true,
   },
   publish: null,
+  ...(electronCache === undefined ? {} : { electronDownload: { cache: electronCache } }),
   // Unset, the package's own version stays; the installer's file name and app.getVersion() carry it.
   ...(version === undefined ? {} : { extraMetadata: { version } }),
   // The NSIS installer names the folder it keeps a copy of itself in (`<name>-updater`) after this
   // in-memory package name, so it is renamed here to keep channels apart.
-  beforePack: (context) => {
+  beforePack: async (context) => {
     context.packager.info.metadata.name = packageName;
+    // Unless electron-builder finds Electron's checksums seeded in its cache, it fetches them from
+    // GitHub on every build, even when the Electron zip is already cached. These are the checksums
+    // the electron package ships and verifies its own download with.
+    if (electronCache !== undefined) {
+      await mkdir(electronCache, { recursive: true });
+      await writeFile(
+        join(electronCache, `SHASUMS256.txt-${electronPackage.version}`),
+        Object.entries(electronChecksums)
+          .map(([file, checksum]) => `${checksum} *${file}`)
+          .join("\n"),
+      );
+    }
   },
   // The channel lives next to app.asar rather than inside it, before the installer is built from
   // this folder.

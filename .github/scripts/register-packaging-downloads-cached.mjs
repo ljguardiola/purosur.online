@@ -1,8 +1,11 @@
 import { readFileSync } from "node:fs";
+import { win32 } from "node:path";
 import { isMap, isSeq, LineCounter, parseDocument } from "yaml";
 
 const CACHE_DIR_VARIABLE = "ELECTRON_BUILDER_CACHE";
 const ENV_REFERENCE = new RegExp(`^\\$\\{\\{\\s*env\\.${CACHE_DIR_VARIABLE}\\s*\\}\\}$`);
+const ABSOLUTE_RUNNER_DIRECTORY =
+  /^\$\{\{\s*(github\.workspace|runner\.temp|runner\.tool_cache)\s*\}\}/;
 
 function escapeRegExp(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -28,9 +31,14 @@ export function packagingScriptNames({ scripts = {} }) {
   return [...packaging];
 }
 
-function envValue(node) {
-  const value = isMap(node) ? node.get(CACHE_DIR_VARIABLE) : undefined;
+function cacheDirectoryIn(...envs) {
+  const nearest = envs.find((env) => isMap(env) && env.has(CACHE_DIR_VARIABLE));
+  const value = nearest?.get(CACHE_DIR_VARIABLE);
   return typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;
+}
+
+function isAbsoluteOnRunner(directory) {
+  return ABSOLUTE_RUNNER_DIRECTORY.test(directory) || win32.parse(directory).root !== "";
 }
 
 function usesCache(step, actions) {
@@ -38,15 +46,14 @@ function usesCache(step, actions) {
   return typeof uses === "string" && actions.some((action) => uses.startsWith(`${action}@`));
 }
 
-function cachesDirectory(step, directory) {
+function cachesDirectory(step, directory, outerEnvs) {
   const path = step.getIn(["with", "path"]);
-  return (
-    typeof path === "string" &&
-    path
-      .split("\n")
-      .map((line) => line.trim().replace(ENV_REFERENCE, directory))
-      .includes(directory)
-  );
+  if (typeof path !== "string") return false;
+  const stepDirectory = cacheDirectoryIn(step.get("env", true), ...outerEnvs);
+  return path
+    .split("\n")
+    .map((line) => line.trim())
+    .some((line) => (ENV_REFERENCE.test(line) ? stepDirectory === directory : line === directory));
 }
 
 function violationsOf(doc, lineCounter, packagingScripts) {
@@ -68,13 +75,17 @@ function violationsOf(doc, lineCounter, packagingScripts) {
           line: lineCounter.linePos(step.range[0]).line,
           message: `${key} job ${message}`,
         });
-      const directory =
-        envValue(step.get("env", true)) ??
-        envValue(job.get("env", true)) ??
-        envValue(doc.get("env", true));
+      const outerEnvs = [job.get("env", true), doc.get("env", true)];
+      const directory = cacheDirectoryIn(step.get("env", true), ...outerEnvs);
       if (directory === undefined) {
         report(
           `packages the register without ${CACHE_DIR_VARIABLE}, so electron-builder downloads its tools into a directory no step restores`,
+        );
+        return;
+      }
+      if (!isAbsoluteOnRunner(directory)) {
+        report(
+          `packages the register with ${CACHE_DIR_VARIABLE} set to ${directory}, which is not absolute, so electron-builder ignores it and downloads its tools into a directory no step restores`,
         );
         return;
       }
@@ -83,7 +94,7 @@ function violationsOf(doc, lineCounter, packagingScripts) {
       const restores = before.some(
         (other) =>
           usesCache(other, ["actions/cache", "actions/cache/restore"]) &&
-          cachesDirectory(other, directory),
+          cachesDirectory(other, directory, outerEnvs),
       );
       if (!restores) {
         report(
@@ -92,10 +103,13 @@ function violationsOf(doc, lineCounter, packagingScripts) {
       }
       const saves =
         before.some(
-          (other) => usesCache(other, ["actions/cache"]) && cachesDirectory(other, directory),
+          (other) =>
+            usesCache(other, ["actions/cache"]) && cachesDirectory(other, directory, outerEnvs),
         ) ||
         after.some(
-          (other) => usesCache(other, ["actions/cache/save"]) && cachesDirectory(other, directory),
+          (other) =>
+            usesCache(other, ["actions/cache/save"]) &&
+            cachesDirectory(other, directory, outerEnvs),
         );
       if (!saves) {
         report(
