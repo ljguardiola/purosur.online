@@ -70,10 +70,13 @@ export const suppliersListRoute = createRoute({
   component: lazyScreen(() => import("./suppliers-list-page"), "SuppliersListPage"),
 });
 
+const supplierFilterSearch = z.object({ supplier: z.string().optional().catch(undefined) });
+
 export const purchasesListRoute = createRoute({
   getParentRoute: () => purchasingAreaRoute,
   path: "purchases",
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canRecordPurchases),
+  validateSearch: supplierFilterSearch,
   component: lazyScreen(() => import("./purchases-list-page"), "PurchasesListPage"),
 });
 
@@ -89,13 +92,15 @@ export const freightsListFilters = z.object({
   period: freightPeriodSchema.catch(freightPeriodSchema.parse(undefined)),
 });
 
+const freightsListSearch = freightsListFilters.extend(supplierFilterSearch.shape);
+
 export type FreightsListFilters = z.output<typeof freightsListFilters>;
 
 export const freightsListRoute = createRoute({
   getParentRoute: () => purchasingAreaRoute,
   path: "freights",
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canManageFreights),
-  validateSearch: freightsListFilters,
+  validateSearch: freightsListSearch,
   search: { middlewares: [stripSearchParams(freightsListFilters.parse({}))] },
   component: lazyScreen(() => import("./freights-list-page"), "FreightsListPage"),
 });
@@ -105,7 +110,7 @@ export const supplierPriceListsRoute = createRoute({
   path: "price-lists",
   beforeLoad: ({ context: { suppliersTabs } }) =>
     suppliersTabRedirect(suppliersTabs, "price-lists"),
-  validateSearch: supplierPriceListsFilters,
+  validateSearch: supplierPriceListsFilters.extend(supplierFilterSearch.shape),
   search: { middlewares: [stripSearchParams(supplierPriceListsFilters.parse({}))] },
   component: lazyScreen(() => import("./supplier-price-lists-page"), "SupplierPriceListsPage"),
 });
@@ -156,7 +161,7 @@ export const purchaseOrdersRoute = createRoute({
   getParentRoute: () => purchasingAreaRoute,
   path: "purchase-orders",
   beforeLoad: ({ context: { session } }) => refuseWithout(session, canReadPurchaseOrders),
-  validateSearch: purchaseOrdersFilters,
+  validateSearch: purchaseOrdersFilters.extend(supplierFilterSearch.shape),
   search: { middlewares: [stripSearchParams(purchaseOrdersFilters.parse({}))] },
   component: lazyScreen(() => import("./purchase-orders-page"), "PurchaseOrdersPage"),
 });

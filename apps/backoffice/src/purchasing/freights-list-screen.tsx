@@ -24,6 +24,7 @@ import { freightPeriodOf, freightPeriodOptions } from "./freight-form";
 import type { FreightsListScreenServices } from "./freights-list-services";
 import { NewFreightModal } from "./new-freight-modal";
 import { useFreightsQuery, useRefreshPurchasing } from "./purchasing-queries";
+import { type SupplierFilter, SupplierFilterButton } from "./purchasing-screen-parts";
 import type { FreightsListFilters } from "./routes";
 
 export type FreightsListScreenProps = {
@@ -31,6 +32,7 @@ export type FreightsListScreenProps = {
   onFiltersChange: (filters: FreightsListFilters) => void;
   onSessionEnded: () => void;
   services: FreightsListScreenServices;
+  supplierFilter?: SupplierFilter | undefined;
 };
 
 const NO_FREIGHTS: FreightSummary[] = [];
@@ -49,6 +51,7 @@ export function FreightsListScreen({
   onFiltersChange,
   onSessionEnded,
   services,
+  supplierFilter,
 }: FreightsListScreenProps) {
   const refreshPurchasing = useRefreshPurchasing();
   const [search, setSearch] = useState(filters.search);
@@ -71,7 +74,7 @@ export function FreightsListScreen({
   }, [search]);
 
   const data = useFreightsQuery({
-    input: { period, search: debouncedSearch },
+    input: { period, search: debouncedSearch, supplierId: supplierFilter?.supplierId },
     fetchFreights: services.fetchFreights,
     onSessionEnded,
   });
@@ -169,6 +172,17 @@ export function FreightsListScreen({
             value={String(period)}
             onChange={(value) => setPeriod(freightPeriodOf(value) ?? period)}
           />
+          {supplierFilter === undefined ? null : (
+            <SupplierFilterButton
+              supplierName={
+                freights?.items
+                  .flatMap((freight) => freight.purchases)
+                  .find((purchase) => purchase.supplier.id === supplierFilter.supplierId)?.supplier
+                  .name
+              }
+              onClear={supplierFilter.onClear}
+            />
+          )}
         </div>
         <Table
           aria-label="Fletes"

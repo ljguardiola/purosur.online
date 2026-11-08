@@ -21,6 +21,7 @@ import { formatDisplayDate } from "../platform/display-date";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { type BackofficeAccess, canManageSuppliers } from "../shell/backoffice-access";
 import { useRefreshPurchasing, useSupplierPriceListsQuery } from "./purchasing-queries";
+import { type SupplierFilter, SupplierFilterButton } from "./purchasing-screen-parts";
 import { type ReadNotice, useReadNoticeContent } from "./supplier-price-list-read-notice";
 import { supplierPriceListOriginOf } from "./supplier-price-list-source";
 import { supplierPriceListStatusOf } from "./supplier-price-list-status";
@@ -36,6 +37,7 @@ export type SupplierPriceListsScreenProps = {
   onOpenReview: (listId: string) => void;
   onSessionEnded: () => void;
   services: SupplierPriceListsScreenServices;
+  supplierFilter?: SupplierFilter | undefined;
 };
 
 type StateFilter = SupplierPriceListsFilters["state"];
@@ -92,8 +94,10 @@ export function SupplierPriceListsScreen({
   onOpenReview,
   onSessionEnded,
   services,
+  supplierFilter,
 }: SupplierPriceListsScreenProps) {
   const data = useSupplierPriceListsQuery({
+    supplierId: supplierFilter?.supplierId,
     fetchSupplierPriceLists: services.fetchSupplierPriceLists,
     onSessionEnded,
   });
@@ -266,6 +270,14 @@ export function SupplierPriceListsScreen({
             value={stateFilter}
             onChange={setStateFilter}
           />
+          {supplierFilter === undefined ? null : (
+            <SupplierFilterButton
+              supplierName={
+                lists.find((list) => list.supplier.id === supplierFilter.supplierId)?.supplier.name
+              }
+              onClear={supplierFilter.onClear}
+            />
+          )}
           <div className="ml-auto">
             <Button
               variant="primary"

@@ -20,7 +20,11 @@ import { purchaseOrderStatusOf } from "./purchase-order-status";
 import type { PurchaseOrdersFilters } from "./purchase-orders-filters";
 import type { PurchaseOrdersScreenServices } from "./purchase-orders-services";
 import { usePurchaseOrdersQuery } from "./purchasing-queries";
-import { ExpectedTotalAmount } from "./purchasing-screen-parts";
+import {
+  ExpectedTotalAmount,
+  type SupplierFilter,
+  SupplierFilterButton,
+} from "./purchasing-screen-parts";
 
 export type PurchaseOrdersScreenProps = {
   filters: PurchaseOrdersFilters;
@@ -28,6 +32,7 @@ export type PurchaseOrdersScreenProps = {
   onOpenOrder: (orderId: string) => void;
   onSessionEnded: () => void;
   services: PurchaseOrdersScreenServices;
+  supplierFilter?: SupplierFilter | undefined;
 };
 
 type StateFilter = PurchaseOrdersFilters["state"];
@@ -49,10 +54,12 @@ export function PurchaseOrdersScreen({
   onOpenOrder,
   onSessionEnded,
   services,
+  supplierFilter,
 }: PurchaseOrdersScreenProps) {
   const [stateFilter, setStateFilter] = useState<StateFilter>(filters.state);
   const data = usePurchaseOrdersQuery({
     state: stateFilter,
+    supplierId: supplierFilter?.supplierId,
     fetchPurchaseOrders: services.fetchPurchaseOrders,
     onSessionEnded,
   });
@@ -136,6 +143,14 @@ export function PurchaseOrdersScreen({
           value={stateFilter}
           onChange={setStateFilter}
         />
+        {supplierFilter === undefined ? null : (
+          <SupplierFilterButton
+            supplierName={
+              orders.find((order) => order.supplier.id === supplierFilter.supplierId)?.supplier.name
+            }
+            onClear={supplierFilter.onClear}
+          />
+        )}
       </div>
       <Table
         aria-label="Pedidos de compra"

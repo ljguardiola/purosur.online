@@ -7,18 +7,32 @@ const route = getRouteApi("/signed-in/purchasing-area/suppliers/price-lists");
 
 export function SupplierPriceListsPage(): ReactElement {
   const { services, session, sessionActions } = route.useRouteContext();
-  const filters = route.useSearch();
+  const { supplier, ...filters } = route.useSearch();
   const navigate = route.useNavigate();
   return (
     <SupplierPriceListsScreen
       access={session}
       filters={filters}
-      onFiltersChange={(next) => void navigate({ search: next, replace: true })}
+      onFiltersChange={(next) =>
+        void navigate({ search: (current) => ({ ...current, ...next }), replace: true })
+      }
       onOpenReview={(listId) =>
         void navigate({ to: "/supplier-price-lists/$listId", params: { listId } })
       }
       onSessionEnded={sessionActions.sessionEnded}
       services={services.supplierPriceListsScreen ?? defaultSupplierPriceListsScreenServices}
+      supplierFilter={
+        supplier === undefined
+          ? undefined
+          : {
+              supplierId: supplier,
+              onClear: () =>
+                void navigate({
+                  search: (current) => ({ ...current, supplier: undefined }),
+                  replace: true,
+                }),
+            }
+      }
     />
   );
 }

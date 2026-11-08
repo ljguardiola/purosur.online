@@ -247,13 +247,14 @@ export function useAiCostReportQuery(params: {
 }
 
 export function usePurchasesQuery(params: {
+  supplierId?: string | undefined;
   fetchPurchases: typeof fetchPurchases;
   onSessionEnded: () => void;
 }) {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQuery<PurchaseSummary[]>({
-    queryKey: purchasingKeys.purchases,
-    read: params.fetchPurchases,
+    queryKey: [...purchasingKeys.purchases, params.supplierId ?? ""],
+    read: () => params.fetchPurchases({ supplierId: params.supplierId }),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });
@@ -322,14 +323,15 @@ export function useLinkablePurchasesQuery(params: {
 }
 
 export function useSupplierPriceListsQuery(params: {
+  supplierId?: string | undefined;
   fetchSupplierPriceLists: typeof fetchSupplierPriceLists;
   onSessionEnded: () => void;
 }) {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQueryWhileReading<SupplierPriceListSummary[]>(
     {
-      queryKey: purchasingKeys.supplierPriceLists,
-      read: params.fetchSupplierPriceLists,
+      queryKey: [...purchasingKeys.supplierPriceLists, params.supplierId ?? ""],
+      read: () => params.fetchSupplierPriceLists({ supplierId: params.supplierId }),
       onSessionEnded: params.onSessionEnded,
       onForbidden: sendToMyAccount,
     },
@@ -702,14 +704,18 @@ export function useReloadSupplier(params: {
 
 export function usePurchaseOrdersQuery(params: {
   state: PurchaseOrderStateFilter;
+  supplierId?: string | undefined;
   fetchPurchaseOrders: typeof fetchPurchaseOrders;
   onSessionEnded: () => void;
 }) {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQuery<PurchaseOrderSummary[]>({
-    queryKey: [...purchasingKeys.purchaseOrders, params.state],
+    queryKey: [...purchasingKeys.purchaseOrders, params.state, params.supplierId ?? ""],
     keepPreviousData: true,
-    read: () => params.fetchPurchaseOrders(params.state),
+    read: () =>
+      params.supplierId === undefined
+        ? params.fetchPurchaseOrders(params.state)
+        : params.fetchPurchaseOrders(params.state, { supplierId: params.supplierId }),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });
