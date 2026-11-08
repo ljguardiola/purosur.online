@@ -319,10 +319,11 @@ test("says there are no charges in the period when there are none, and once", as
 
   const screen = await renderScreen(services);
 
-  const empty = totalsTable(screen, "Totales por día").getByText(NO_CHARGES);
+  const empty = screen.getByText(NO_CHARGES);
   await expect.element(empty).toBeVisible();
-  await expect.element(chargesTable(screen).getByText(NO_REGISTER_CHARGES)).toBeVisible();
   expect(screen.getByText(NO_CHARGES).elements()).toHaveLength(1);
+  expect(screen.getByText(NO_REGISTER_CHARGES).query()).toBeNull();
+  expect(screen.getByRole("table").query()).toBeNull();
   await expect
     .element(screen.getByText(`Cobrado${formatSignedCents(0)}`, { exact: true }))
     .toBeVisible();
@@ -356,11 +357,9 @@ test("says there are no charges in the chosen period as a filtered result", asyn
     filters: mercadoPagoChargeCostsFilters.parse({ from: "2026-10-02", to: "2026-10-05" }),
   });
 
-  const empty = totalsTable(screen, "Totales por día").getByText(NO_CHARGES);
+  const empty = screen.getByText(NO_CHARGES);
   await expect.element(empty).toBeVisible();
   expect(emptyStateIconColor(empty.element())).toBe(tokenRgb("text-subtle"));
-  const registersEmpty = chargesTable(screen).getByText(NO_REGISTER_CHARGES);
-  expect(emptyStateIconColor(registersEmpty.element())).toBe(tokenRgb("text-subtle"));
 });
 
 test("shows a failed load with a retry that loads the report again, and no figures", async () => {
