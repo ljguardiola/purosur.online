@@ -35,6 +35,7 @@ import {
   handConfirmedPaymentsRoute,
   legacyMercadoPagoRefundsRoute,
   legacyOutsideRefundsRoute,
+  mercadoPagoChargeCostsRoute,
   pendingRefundsRoute,
   salesByPaymentMethodRoute,
 } from "../payments/routes";
@@ -184,6 +185,7 @@ const routeTree = rootRoute.addChildren([
       reportsIndexRoute,
       salesByDayRoute,
       salesByPaymentMethodRoute,
+      mercadoPagoChargeCostsRoute,
       handConfirmedPaymentsRoute,
       salesByProductAndCategoryRoute,
       salesByCashierRoute,

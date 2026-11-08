@@ -372,6 +372,14 @@ export {
   handConfirmedPaymentsSchema,
 } from "./payments/hand-confirmed-payments.js";
 export type {
+  MercadoPagoChargeCostsBody,
+  MercadoPagoChargeCostsQuery,
+} from "./payments/mercado-pago-charge-costs.js";
+export {
+  mercadoPagoChargeCostsQuerySchema,
+  mercadoPagoChargeCostsSchema,
+} from "./payments/mercado-pago-charge-costs.js";
+export type {
   MercadoPagoCancellationBody,
   MercadoPagoCancellationRequestBody,
   MercadoPagoOrderRequestBody,

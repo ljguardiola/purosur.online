@@ -1,6 +1,6 @@
 import { getRouteApi } from "@tanstack/react-router";
 import type { ReactElement } from "react";
-import { canSeeAiCostReport } from "../shell/backoffice-access";
+import { canSeeAiCostReport, canSeeMercadoPagoChargeCosts } from "../shell/backoffice-access";
 import { useDocumentTitle } from "../shell/document-title";
 import { ReportsIndexScreen } from "./reports-index-screen";
 
@@ -9,5 +9,10 @@ const route = getRouteApi("/signed-in/reports-area/reports");
 export function ReportsIndexPage(): ReactElement {
   const { session } = route.useRouteContext();
   useDocumentTitle("Reportes · Puro Sur");
-  return <ReportsIndexScreen aiCostShown={canSeeAiCostReport(session)} />;
+  return (
+    <ReportsIndexScreen
+      aiCostShown={canSeeAiCostReport(session)}
+      mercadoPagoChargeCostsShown={canSeeMercadoPagoChargeCosts(session)}
+    />
+  );
 }

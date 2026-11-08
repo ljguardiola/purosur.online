@@ -4,11 +4,20 @@ import { expect, test } from "vitest";
 import { render } from "../shell/test-support/render-with-router";
 import { ReportsIndexScreen } from "./reports-index-screen";
 
-async function renderScreen({ aiCostShown = false }: { aiCostShown?: boolean } = {}) {
+async function renderScreen({
+  aiCostShown = false,
+  mercadoPagoChargeCostsShown = false,
+}: {
+  aiCostShown?: boolean;
+  mercadoPagoChargeCostsShown?: boolean;
+} = {}) {
   return render(
     <FieldSizeProvider size="backoffice">
       <main>
-        <ReportsIndexScreen aiCostShown={aiCostShown} />
+        <ReportsIndexScreen
+          aiCostShown={aiCostShown}
+          mercadoPagoChargeCostsShown={mercadoPagoChargeCostsShown}
+        />
       </main>
     </FieldSizeProvider>,
   );
@@ -251,6 +260,24 @@ test("leaves the AI cost by period report out when it is not shown", async () =>
   const screen = await renderScreen();
 
   expect(screen.getByRole("link", { name: "Costo de IA por período" }).query()).toBeNull();
+});
+
+test("lists the Mercado Pago charge costs report under Caja when it is shown", async () => {
+  const screen = await renderScreen({ mercadoPagoChargeCostsShown: true });
+
+  await expect
+    .element(
+      screen
+        .getByRole("region", { name: "Caja" })
+        .getByRole("link", { name: "Costos de Mercado Pago" }),
+    )
+    .toHaveAttribute("href", "/reports/mercado-pago-charge-costs");
+});
+
+test("leaves the Mercado Pago charge costs report out when it is not shown", async () => {
+  const screen = await renderScreen();
+
+  expect(screen.getByRole("link", { name: "Costos de Mercado Pago" }).query()).toBeNull();
 });
 
 test("groups the profitability reports in a card titled Rentabilidad", async () => {

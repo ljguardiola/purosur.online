@@ -3790,3 +3790,43 @@ export const supplierPriceListAiCalls = pgTable(
     ),
   ],
 );
+
+export const mercadoPagoSettlementReportRequests = pgTable(
+  "mercado_pago_settlement_report_requests",
+  {
+    day: text("day").primaryKey(),
+    beginDate: timestamp("begin_date", { withTimezone: true }).notNull(),
+    endDate: timestamp("end_date", { withTimezone: true }).notNull(),
+    requestedAt: timestamp("requested_at", { withTimezone: true }).notNull(),
+    refused: boolean("refused").notNull(),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }),
+  },
+);
+
+export const mercadoPagoSettlementMovements = pgTable(
+  "mercado_pago_settlement_movements",
+  {
+    sourceId: text("source_id").notNull(),
+    transactionType: text("transaction_type").notNull(),
+    transactionDate: timestamp("transaction_date", { withTimezone: true }).notNull(),
+    externalReference: text("external_reference"),
+    paymentMethod: text("payment_method"),
+    paymentMethodType: text("payment_method_type"),
+    grossAmount: bigint("gross_amount", { mode: "number" }).notNull(),
+    feeAmount: bigint("fee_amount", { mode: "number" }).notNull(),
+    financingFeeAmount: bigint("financing_fee_amount", { mode: "number" }).notNull(),
+    taxesAmount: bigint("taxes_amount", { mode: "number" }).notNull(),
+    netAmount: bigint("net_amount", { mode: "number" }).notNull(),
+    moneyReleaseDate: timestamp("money_release_date", { withTimezone: true }),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    primaryKey({
+      name: "mercado_pago_settlement_movements_pkey",
+      columns: [table.sourceId, table.transactionType, table.transactionDate],
+    }),
+    index("mercado_pago_settlement_movements_external_reference_lower_idx").on(
+      sql`lower(${table.externalReference})`,
+    ),
+  ],
+);
