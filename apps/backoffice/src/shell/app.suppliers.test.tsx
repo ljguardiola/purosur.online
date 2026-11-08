@@ -221,3 +221,37 @@ test("keeps the supplier open while its filters change", async () => {
 
   await expect.poll(location).toBe(`/suppliers?search=dist&supplier=${andina.id}`);
 });
+
+test.each([
+  ["lists", "Listas", "/suppliers/price-lists", "Listas de proveedores"],
+  ["orders", "Pedidos", "/purchase-orders", "Pedidos de compra"],
+  ["purchases", "Compras", "/purchases", "Compras"],
+  ["freights", "Fletes", "/freights", "Fletes"],
+] as const)(
+  "opens the full list of the panel's %s tab filtered by the supplier when Ver todos is pressed",
+  async (tab, tabName, path, tableName) => {
+    const services = suppliersServices([
+      "suppliers",
+      "supplier_price_lists",
+      "purchase_order_reads",
+      "purchases",
+      "freights",
+    ]);
+    vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrders).mockResolvedValue({
+      kind: "ok",
+      value: [],
+    });
+    vi.mocked(services.purchasesListScreen.fetchPurchases).mockResolvedValue({
+      kind: "ok",
+      value: [],
+    });
+    window.history.pushState(null, "", `/suppliers?supplier=${andina.id}&tab=${tab}`);
+    const screen = await render(<App help={emptyHelp} services={services} />);
+    await expect.element(screen.getByRole("tab", { name: tabName, selected: true })).toBeVisible();
+
+    await userEvent.click(screen.getByRole("link", { name: "Ver todos" }));
+
+    await expect.element(screen.getByRole("table", { name: tableName })).toBeVisible();
+    expect(location()).toBe(`${path}?supplier=${andina.id}`);
+  },
+);

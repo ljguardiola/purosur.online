@@ -7,6 +7,8 @@ import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import { SupplierPanel } from "./supplier-panel";
+import type { SupplierPanelServices } from "./supplier-panel-services";
+import { createSupplierPanelServices } from "./test-support/supplier-panel-services";
 import { suppliersWithCuits } from "./test-support/suppliers";
 
 const { andina, granos, cerealera } = suppliersWithCuits(FICTIONAL_CUIT, ANOTHER_FICTIONAL_CUIT);
@@ -16,6 +18,7 @@ function renderPanel(
   {
     access = ADMINISTRATOR_ACCESS,
     tab,
+    services = createSupplierPanelServices(),
     onClose = () => {},
     onEdit = () => {},
     onDeactivate = () => {},
@@ -23,6 +26,7 @@ function renderPanel(
   }: {
     access?: BackofficeAccess;
     tab?: string | undefined;
+    services?: SupplierPanelServices;
     onClose?: () => void;
     onEdit?: () => void;
     onDeactivate?: () => void;
@@ -35,6 +39,8 @@ function renderPanel(
         supplier={supplier}
         access={access}
         tab={tab}
+        services={services}
+        onSessionEnded={() => {}}
         onClose={onClose}
         onEdit={onEdit}
         onDeactivate={onDeactivate}
@@ -162,4 +168,32 @@ test("asks to close from its close button", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
 
   expect(onClose).toHaveBeenCalledOnce();
+});
+
+test.each([
+  ["lists", "fetchSupplierPriceLists", { supplierId: andina.id }],
+  ["orders", "fetchPurchaseOrders", ["ALL", { supplierId: andina.id }]],
+  ["purchases", "fetchPurchases", { supplierId: andina.id }],
+  ["freights", "fetchFreights", { period: 90, search: "", supplierId: andina.id }],
+] as const)("reads the supplier's records of the %s tab", async (tab, service, argument) => {
+  const services = createSupplierPanelServices();
+
+  await renderPanel(andina, { tab, services });
+
+  await vi.waitFor(() => expect(services[service]).toHaveBeenCalled());
+  expect(vi.mocked(services[service]).mock.calls[0]).toEqual(
+    Array.isArray(argument) ? argument : [argument],
+  );
+});
+
+test("reads no records of the tabs it does not show", async () => {
+  const services = createSupplierPanelServices();
+
+  const screen = await renderPanel(andina, { services });
+  await expect.element(screen.getByRole("tab", { name: "Datos", selected: true })).toBeVisible();
+
+  expect(services.fetchSupplierPriceLists).not.toHaveBeenCalled();
+  expect(services.fetchPurchaseOrders).not.toHaveBeenCalled();
+  expect(services.fetchPurchases).not.toHaveBeenCalled();
+  expect(services.fetchFreights).not.toHaveBeenCalled();
 });

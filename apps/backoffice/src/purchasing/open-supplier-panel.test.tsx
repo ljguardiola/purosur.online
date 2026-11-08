@@ -4,6 +4,7 @@ import { expect, test, vi } from "vitest";
 import { ADMINISTRATOR_ACCESS } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import { OpenSupplierPanel } from "./open-supplier-panel";
+import { createSupplierPanelServices } from "./test-support/supplier-panel-services";
 import { suppliersWithCuits } from "./test-support/suppliers";
 
 const { andina, granos, cerealera } = suppliersWithCuits(FICTIONAL_CUIT, ANOTHER_FICTIONAL_CUIT);
@@ -25,6 +26,8 @@ function renderOpenPanel({
         openSupplier={openSupplier}
         tab={undefined}
         access={ADMINISTRATOR_ACCESS}
+        services={createSupplierPanelServices()}
+        onSessionEnded={() => {}}
         onClose={onClose}
         onEdit={() => {}}
         onDeactivate={() => {}}

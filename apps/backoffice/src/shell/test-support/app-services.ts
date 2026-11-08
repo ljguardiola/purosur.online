@@ -168,6 +168,13 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       editSupplier: vi.fn(),
       deactivateSupplier: vi.fn(),
       reactivateSupplier: vi.fn(),
+      fetchSupplierPriceLists: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
+      fetchPurchaseOrders: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
+      fetchPurchases: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
+      fetchFreights: vi.fn().mockResolvedValue({
+        kind: "ok",
+        value: { items: [], count: 0, totalCents: 0 },
+      }),
     },
     recipesListScreen: {
       fetchRecipes: vi.fn().mockReturnValue(new Promise(() => {})),

@@ -10,6 +10,7 @@ import { render } from "../shell/test-support/render-with-router";
 import { type SuppliersListFilters, suppliersListFilters } from "./routes";
 import { SuppliersListScreen } from "./suppliers-list-screen";
 import type { SuppliersListScreenServices } from "./suppliers-list-services";
+import { createSupplierPanelServices } from "./test-support/supplier-panel-services";
 import { suppliersWithCuits } from "./test-support/suppliers";
 
 const { andina, cerealera, granos } = suppliersWithCuits(FICTIONAL_CUIT, ANOTHER_FICTIONAL_CUIT);
@@ -28,6 +29,7 @@ function createServices(
     editSupplier: vi.fn(),
     deactivateSupplier: vi.fn(),
     reactivateSupplier: vi.fn(),
+    ...createSupplierPanelServices(),
     ...overrides,
   };
 }
