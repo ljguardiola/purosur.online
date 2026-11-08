@@ -1,6 +1,6 @@
 import { registerSyncStatusListSchema } from "@purosur/contracts";
 import { isBatteryWorn } from "@purosur/domain";
-import type { RegisterBatteryState } from "@purosur/domain/register/use-cases";
+import type { RegisterBatteryState } from "@purosur/domain/installation/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { sameOriginGuard } from "../sessions/backoffice-origin.js";
