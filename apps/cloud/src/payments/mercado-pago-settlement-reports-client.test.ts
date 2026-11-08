@@ -125,11 +125,13 @@ describe("reading the configuration", () => {
   });
 
   it("logs only the status and never the token", async () => {
-    const { client } = clientAnswering(answer(500, { message: "boom", code: "internal_error" }));
+    const { client } = clientAnswering(
+      answer(500, { message: "boom", error: "internal_error", status: 500 }),
+    );
 
     await client.readConfiguration();
 
-    expect(consoleCalls).toEqual([[expect.any(String), { status: 500, code: expect.anything() }]]);
+    expect(consoleCalls).toEqual([[expect.any(String), { status: 500, code: "internal_error" }]]);
     expect(JSON.stringify(consoleCalls)).not.toContain(ACCESS_TOKEN);
   });
 });
