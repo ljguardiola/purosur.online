@@ -92,14 +92,17 @@ import {
   currentStockReportRoute,
   expiringLotsReportRoute,
   expiringLotsRoute,
-  initialInventoryRoute,
   legacyAssemblyBatchesRoute,
+  legacyExpiringLotsRoute,
+  legacyInitialInventoryRoute,
   legacyRecipesRoute,
+  legacyStockBalancesRoute,
+  legacyStockCountsRoute,
+  legacyStockMovementsRoute,
   lossesByReasonReportRoute,
   marginReportRoute,
   recipesListRoute,
   stockBalancesRoute,
-  stockCountsRoute,
   stockMovementsRoute,
 } from "../stock/routes";
 import { quarantinedEventsRoute } from "../sync/routes";
@@ -124,6 +127,7 @@ import { parseSearch, stringifySearch } from "./search-params";
 import { settingsAreaRoute } from "./settings-area";
 import { signedInRoute } from "./signed-in-route";
 import { stockAreaRoute } from "./stock-area";
+import { stockRoute } from "./stock-route";
 
 const unknownPathRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -148,15 +152,11 @@ const routeTree = rootRoute.addChildren([
       ]),
     ]),
     stockAreaRoute.addChildren([
-      stockBalancesRoute,
-      stockCountsRoute,
-      stockMovementsRoute,
+      stockRoute.addChildren([stockBalancesRoute, expiringLotsRoute, stockMovementsRoute]),
       suppliersListRoute,
       purchasesListRoute,
       newPurchaseRoute,
-      expiringLotsRoute,
       freightsListRoute,
-      initialInventoryRoute,
     ]),
     ordersAreaRoute.addChildren([
       supplierPriceListsRoute,
@@ -216,6 +216,11 @@ const routeTree = rootRoute.addChildren([
     legacyDiscountsRoute,
     legacyRecipesRoute,
     legacyAssemblyBatchesRoute,
+    legacyStockBalancesRoute,
+    legacyExpiringLotsRoute,
+    legacyStockCountsRoute,
+    legacyStockMovementsRoute,
+    legacyInitialInventoryRoute,
     legacyFiscalTasksRoute,
     legacyFiscalDocumentsRoute,
     legacyExceptionalityRoute,

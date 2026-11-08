@@ -21,8 +21,6 @@ import { ChevronDown, ChevronUp, Package, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatStockQuantity } from "../platform/stock-quantity";
-import { AreaTopBar } from "../shell/area-top-bar";
-import { ScreenLayout } from "../shell/screen-layout";
 import type { StockBalancesFilters } from "./routes";
 import { StockBalanceLots } from "./stock-balance-lots";
 import type { StockBalancesScreenServices } from "./stock-balances-services";
@@ -232,7 +230,7 @@ export function StockBalancesScreen({
   });
 
   return (
-    <ScreenLayout topBar={<AreaTopBar eyebrow="Stock" title="Saldos" />} bodyClassName="gap-4 p-6">
+    <div className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-6">
       <div className="flex flex-wrap items-center gap-3">
         <div className="w-105">
           <SearchField
@@ -289,6 +287,6 @@ export function StockBalancesScreen({
           ) : undefined
         }
       />
-    </ScreenLayout>
+    </div>
   );
 }

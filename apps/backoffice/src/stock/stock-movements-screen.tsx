@@ -19,13 +19,11 @@ import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import type { ProductCreationModal } from "../platform/creation-parts";
 import { formatStockChange, formatStockQuantity } from "../platform/stock-quantity";
-import { AreaTopBar } from "../shell/area-top-bar";
 import {
   type BackofficeAccess,
   canManageProductsAndCategories,
   canSeeStockBalances,
 } from "../shell/backoffice-access";
-import { ScreenLayout } from "../shell/screen-layout";
 import type { StockMovementsFilters } from "./routes";
 import { type MovementKind, REASONS_OF_KIND } from "./stock-movement-form";
 import { StockMovementModal } from "./stock-movement-modal";
@@ -228,27 +226,7 @@ export function StockMovementsScreen({
 
   return (
     <>
-      <ScreenLayout
-        topBar={
-          <AreaTopBar
-            eyebrow="Stock"
-            title="Ajustes y pérdidas"
-            action={
-              <Button
-                variant="primary"
-                icon={<Plus />}
-                onPress={() => {
-                  setNotice(null);
-                  setModalOpen(true);
-                }}
-              >
-                {actionLabel(kinds)}
-              </Button>
-            }
-          />
-        }
-        bodyClassName="gap-4 p-6"
-      >
+      <div className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-6">
         <div className="flex flex-wrap items-center gap-3">
           <div className="w-105">
             <SearchField
@@ -272,6 +250,18 @@ export function StockMovementsScreen({
             value={period}
             onChange={setPeriod}
           />
+          <div className="ml-auto">
+            <Button
+              variant="primary"
+              icon={<Plus />}
+              onPress={() => {
+                setNotice(null);
+                setModalOpen(true);
+              }}
+            >
+              {actionLabel(kinds)}
+            </Button>
+          </div>
         </div>
         <Table
           aria-label="Ajustes y pérdidas"
@@ -302,7 +292,7 @@ export function StockMovementsScreen({
             )
           }
         />
-      </ScreenLayout>
+      </div>
       {modalOpen && firstKind ? (
         <StockMovementModal
           title={actionLabel(kinds)}

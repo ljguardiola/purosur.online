@@ -21,8 +21,6 @@ import { cloudTableState } from "../platform/cloud-table-state";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { formatStockQuantity } from "../platform/stock-quantity";
-import { AreaTopBar } from "../shell/area-top-bar";
-import { ScreenLayout } from "../shell/screen-layout";
 import { expiryTiming } from "./expiring-lot-timing";
 import type { ExpiringLotsScreenServices } from "./expiring-lots-services";
 import type { ExpiringLotsFilters } from "./routes";
@@ -265,10 +263,7 @@ export function ExpiringLotsScreen({
 
   return (
     <>
-      <ScreenLayout
-        topBar={<AreaTopBar eyebrow="Stock" title="Vencimientos" />}
-        bodyClassName="gap-4 p-6"
-      >
+      <div className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-6">
         <div className="flex flex-wrap items-center gap-3">
           <div className="w-105">
             <SearchField
@@ -321,7 +316,7 @@ export function ExpiringLotsScreen({
             ) : undefined
           }
         />
-      </ScreenLayout>
+      </div>
       {notice ? (
         <FloatingNotification
           key={shownNoticeCount}

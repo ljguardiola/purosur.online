@@ -1098,7 +1098,7 @@ function OpenAlertDetailModal({
             {alert.kind === "lots_expiring" &&
             alert.detail.aboutViewerBranch &&
             canSeeExpiringLots(access) ? (
-              <ScreenLink to="/expiring-lots" variant="text">
+              <ScreenLink to="/stock/expiries" variant="text">
                 Ver vencimientos
               </ScreenLink>
             ) : null}
