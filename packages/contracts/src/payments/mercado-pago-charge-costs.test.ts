@@ -1,3 +1,4 @@
+import { ARGENTINA_TIME_ZONE } from "@purosur/domain";
 import { describe, expect, it } from "vitest";
 import {
   mercadoPagoChargeCostsQuerySchema,
@@ -65,6 +66,15 @@ describe("mercadoPagoChargeCostsQuerySchema", () => {
 describe("mercadoPagoChargeCostsSchema", () => {
   it("accepts the costs of each charge, a pending one included, with the period's totals", () => {
     expect(mercadoPagoChargeCostsSchema.parse(report)).toEqual(report);
+  });
+
+  it("declares the zone the charge and release instants are shown in", () => {
+    const charge = mercadoPagoChargeCostsSchema.shape.charges.element.shape;
+
+    expect(charge.charged_at.meta()).toEqual({ timeZone: ARGENTINA_TIME_ZONE });
+    expect(charge.cost.unwrap().shape.money_release_date.unwrap().meta()).toEqual({
+      timeZone: ARGENTINA_TIME_ZONE,
+    });
   });
 
   it("accepts a charge whose money has no release date yet", () => {

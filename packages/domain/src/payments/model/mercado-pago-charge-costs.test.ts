@@ -272,6 +272,12 @@ describe("summarizeChargeCosts", () => {
     expect(days.map((day) => day.day)).toEqual(["2026-10-04"]);
   });
 
+  it("leaves out a charge outside the system that has no movement", () => {
+    const { totals } = summarize([], [other({ movements: [] })]);
+
+    expect(totals).toEqual(NO_FIGURES);
+  });
+
   it("leaves out a charge outside the system whose day falls outside the period", () => {
     const { totals } = summarize(
       [],
