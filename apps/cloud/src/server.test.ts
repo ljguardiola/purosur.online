@@ -988,6 +988,11 @@ describe("startServer", () => {
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
         zoneRules,
       },
+      mercadoPagoChargeCosts: {
+        db: fakeBackgroundJobs.db,
+        backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
+        zoneRules,
+      },
       refunds: {
         db: fakeBackgroundJobs.db,
         backofficeOrigin: fakeBackgroundJobs.backofficeOrigin,
