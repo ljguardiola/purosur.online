@@ -23,6 +23,7 @@ import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js
 import { seededLocationId } from "../test-support/seeded-location.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { registerPricesListRoute } from "./prices-list-route.js";
+import { insertPriceReviewPostponement } from "./test-support/price-review-postponements.js";
 
 const BACKOFFICE_ORIGIN = "https://staging.purosur.online";
 const NOON = new Date("2026-01-05T12:00:00.000Z");
@@ -372,6 +373,35 @@ describe("GET /prices", () => {
 
     expect(await idsFor({ review: "pending", categoryId: groceries })).toEqual([riceId]);
     expect(await idsFor({ search: "fid" })).toEqual([noodlesId]);
+  });
+
+  it("lists only the pending prices past their review term for review=overdue, leaving out postponed and never reviewed ones", async () => {
+    const userId = await insertUserWithPermission();
+    const rawSessionId = await insertSession(userId);
+    const categoryId = await insertCategory("Almacén");
+    const priceListId = await seededPriceListId(db);
+    const longAgo = new Date(NOON.getTime() - 400 * DAY_MS);
+    const riceId = await insertProduct("Arroz", categoryId);
+    const noodlesId = await insertProduct("Fideos", categoryId);
+    await insertProduct("Harina", categoryId);
+    for (const productId of [riceId, noodlesId]) {
+      await insertReview(
+        productId,
+        priceListId,
+        await insertPrice(productId, priceListId, 500, longAgo),
+        userId,
+        longAgo,
+      );
+    }
+    await insertPriceReviewPostponement(db, {
+      productId: noodlesId,
+      actorId: userId,
+      postponedAt: new Date(NOON.getTime() - 400 * DAY_MS),
+    });
+
+    const response = await listPricesRequest(rawSessionId, { review: "overdue" });
+
+    expect(response.json().products.map((product: { id: string }) => product.id)).toEqual([riceId]);
   });
 
   it("hands the comma-separated product ids to the reader", async () => {
