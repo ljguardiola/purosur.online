@@ -53,7 +53,7 @@ function PendingNewProductModal({
       width="standard"
       tone="info"
       icon={<PackagePlus />}
-      context="Catálogo · Productos"
+      context="Productos"
       title="Nuevo producto"
       closable
       footer={

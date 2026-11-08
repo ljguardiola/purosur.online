@@ -90,7 +90,7 @@ test("shows the header with the promotion's name, and its values filled in", asy
   const { dialog } = await renderModal(createServices(), { target: sinTaccWinter });
 
   await expect.element(dialog.getByRole("heading", { name: "Sin TACC de invierno" })).toBeVisible();
-  await expect.element(dialog.getByText("Catálogo · Promociones", { exact: true })).toBeVisible();
+  await expect.element(dialog.getByText("Productos · Promociones", { exact: true })).toBeVisible();
   await expect
     .element(dialog.getByRole("textbox", { name: /^Nombre/ }))
     .toHaveValue("Sin TACC de invierno");

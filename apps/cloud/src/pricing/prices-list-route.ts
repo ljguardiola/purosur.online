@@ -41,7 +41,7 @@ function toPriceListBody(result: ListedPrices) {
 }
 
 function readReviewFilter(value: unknown): PriceReviewFilter {
-  return value === "pending" ? "pending" : "all";
+  return value === "pending" || value === "overdue" ? value : "all";
 }
 
 function readSearchFilter(value: unknown): string | undefined {

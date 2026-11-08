@@ -10,7 +10,7 @@ export function useReviewPurchasedPrices(): (lines: readonly PurchaseLineValues[
       return false;
     }
     void navigate({
-      to: "/prices",
+      to: "/products/prices",
       state: (previous) => ({ ...previous, ...purchasedProductsToReviewState(productIds) }),
     });
     return true;

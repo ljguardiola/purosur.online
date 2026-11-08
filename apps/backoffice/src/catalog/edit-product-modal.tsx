@@ -283,7 +283,7 @@ export function EditProductModal({
       width="standard"
       tone="info"
       icon={<Pencil />}
-      context="Catálogo · Productos"
+      context="Productos"
       title={title}
       closable
       footer={

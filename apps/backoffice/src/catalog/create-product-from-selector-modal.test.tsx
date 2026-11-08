@@ -124,3 +124,15 @@ test("a catalog that fails to load shows the failure instead of the form, and Re
     .element(dialog.getByRole("textbox", { name: /^Nombre/ }))
     .toHaveValue("Pasta de maní");
 });
+
+test("names Productos in its eyebrow", async () => {
+  const screen = await renderPart(createServices());
+
+  await expect
+    .element(
+      screen
+        .getByRole("dialog", { name: "Nuevo producto" })
+        .getByText("Productos", { exact: true }),
+    )
+    .toBeVisible();
+});

@@ -18,3 +18,11 @@ test("shows the eyebrow, the title as the page heading and the action", async ()
     .toBeVisible();
   await expect.element(screen.getByRole("button", { name: "Cargar una lista" })).toBeVisible();
 });
+
+test("shows only the title when it has no eyebrow", async () => {
+  const screen = await render(<AreaTopBar title="Productos" />);
+
+  const title = screen.getByRole("heading", { name: "Productos", level: 1 });
+  await expect.element(title).toBeVisible();
+  expect(title.element().previousElementSibling).toBeNull();
+});

@@ -76,7 +76,7 @@ test("lists each pending task with its count as a link to the place where it is 
   const outside = screen.getByRole("link", { name: "Reembolsos fuera del sistema 1" });
   expect(hrefOf(outside)).toBe("/refunds?channel=without-api");
   const prices = screen.getByRole("link", { name: "Precios a revisar 7" });
-  expect(hrefOf(prices)).toBe("/prices");
+  expect(hrefOf(prices)).toBe("/products/prices");
   expect(services.fetchPendingRefunds).toHaveBeenCalledTimes(1);
   await expectNoAccessibilityViolations(document.body);
 });

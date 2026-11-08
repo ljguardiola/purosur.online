@@ -22,7 +22,7 @@ test("the create action opens the new promotion modal, and the created promotion
 
   await userEvent.click(screen.getByRole("button", { name: "Nueva promoción" }));
   const dialog = screen.getByRole("dialog");
-  await expect.element(dialog.getByText("Catálogo", { exact: true })).toBeVisible();
+  await expect.element(dialog.getByText("Productos · Promociones", { exact: true })).toBeVisible();
   await fillValidNewDiscount(dialog);
   await userEvent.click(dialog.getByRole("button", { name: "Crear la promoción" }));
 

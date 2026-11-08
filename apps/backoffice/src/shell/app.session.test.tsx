@@ -203,7 +203,7 @@ test("a list the previous person had open is read again from the loading placeho
   vi.mocked(services.productsListScreen.fetchProducts).mockReturnValue(new Promise(() => {}));
   await userEvent.click(screen.getByRole("button", { name: "Ingresar con passkey" }));
 
-  await userEvent.click(screen.getByRole("link", { name: "Catálogo" }));
+  await userEvent.click(screen.getByRole("link", { name: "Productos" }));
 
   await expect
     .element(screen.getByRole("table", { name: "Productos" }))

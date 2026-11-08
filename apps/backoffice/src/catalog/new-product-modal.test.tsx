@@ -883,3 +883,9 @@ test("tells an outdated tab to reload because the backoffice was updated when cr
   await expect.element(dialog.getByText("No se pudo crear el producto")).toBeVisible();
   await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
 });
+
+test("names Productos in its eyebrow", async () => {
+  const { dialog } = await renderModal(createServices());
+
+  await expect.element(dialog.getByText("Productos", { exact: true })).toBeVisible();
+});

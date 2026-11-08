@@ -278,7 +278,7 @@ test("goes to the prices to review the products of the lines chosen for it, inst
   await chooseReviewPriceNow(screen, 1);
   await register(screen);
 
-  await expect.poll(() => window.location.pathname).toBe("/prices");
+  await expect.poll(() => window.location.pathname).toBe("/products/prices");
   expect(window.location.search).toBe("");
   expect(window.history.state).toMatchObject({
     purchasedProductsToReview: [AVENA_PRODUCT_ID],

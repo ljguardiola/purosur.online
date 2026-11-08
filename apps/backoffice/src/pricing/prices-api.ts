@@ -13,7 +13,7 @@ import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
 import { rateLimitOutcome } from "../platform/rate-limit-outcome";
 import { readValidationFailedField } from "../platform/validation-failed-field";
 
-export type PricesReviewFilter = "pending" | "all";
+export type PricesReviewFilter = "pending" | "overdue" | "all";
 
 export type FetchPricesInput = {
   review: PricesReviewFilter;

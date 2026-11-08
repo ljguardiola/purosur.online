@@ -859,3 +859,9 @@ test("tells a tab that turns outdated while saving is refused to reload because 
 
   await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
 });
+
+test("names Productos in its eyebrow", async () => {
+  const { dialog } = await renderModal(honey, createServices());
+
+  await expect.element(dialog.getByText("Productos", { exact: true })).toBeVisible();
+});

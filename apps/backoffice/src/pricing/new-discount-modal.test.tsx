@@ -84,7 +84,7 @@ async function renderModal(services: NewDiscountModalServices, options: ModalOpt
 test("shows the header, the percentage kind chosen and every field of a new promotion", async () => {
   const { dialog } = await renderModal(createServices());
 
-  await expect.element(dialog.getByText("Catálogo", { exact: true })).toBeVisible();
+  await expect.element(dialog.getByText("Productos · Promociones", { exact: true })).toBeVisible();
   await expect.element(dialog.getByRole("textbox", { name: /^Nombre/ })).toBeVisible();
   await expect
     .element(dialog.getByRole("radio", { name: "Porcentaje de descuento" }))

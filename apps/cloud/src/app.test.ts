@@ -3281,7 +3281,7 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/inventory-items",
-        access: capabilityAccess("stock_area"),
+        access: capabilityAccess("stock_products"),
       },
       {
         method: "GET",

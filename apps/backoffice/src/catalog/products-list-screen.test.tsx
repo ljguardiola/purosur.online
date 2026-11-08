@@ -19,14 +19,13 @@ beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 
-test("shows the breadcrumb, heading, each product's data and the product count", async () => {
+test("shows each product's data and the product count", async () => {
   const services = createServices();
   mockLoaded(services, [honey, almonds]);
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("Catálogo")).toBeVisible();
-  await expect.element(screen.getByRole("heading", { name: "Productos", level: 1 })).toBeVisible();
+  expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
   await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
   await expect.element(screen.getByText("Almendras peladas")).toBeVisible();
   await expect.element(screen.getByRole("cell", { name: "Por unidad" })).toBeVisible();

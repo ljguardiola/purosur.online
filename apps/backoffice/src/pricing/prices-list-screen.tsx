@@ -32,8 +32,6 @@ import { useRetryAdvice } from "../platform/action-failure-notice";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
-import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTitle } from "../shell/screen-title";
 import { IncompleteCostTag } from "./incomplete-cost-tag";
 import { formatCentsWithUnit } from "./money";
 import { PriceChangeModal, type PriceModalOutcome, type ScreenNotice } from "./price-change-modal";
@@ -216,6 +214,7 @@ export function PricesListScreen({
 
   const reviewFilterOptions = [
     { value: "pending" as const, label: "Por revisar" },
+    { value: "overdue" as const, label: "Vencidos" },
     { value: "all" as const, label: "Todos" },
   ] as const;
 
@@ -515,35 +514,7 @@ export function PricesListScreen({
 
   return (
     <>
-      <ScreenLayout
-        topBar={
-          <div className="flex h-18 shrink-0 items-center justify-between border-border border-b bg-surface px-8">
-            <div className="flex flex-col justify-center">
-              <p className="text-text-subtle text-detail">Catálogo</p>
-              <ScreenTitle>Precios</ScreenTitle>
-            </div>
-            {loaded && pendingCount === 0 ? null : (
-              <Button
-                variant="primary"
-                icon={<ListChecks />}
-                dataStatus={data.status}
-                disabled={screenRequestInFlight}
-                onPress={() => void startReview(purchaseReview ?? undefined)}
-              >
-                {purchaseReview
-                  ? "Revisar lo comprado"
-                  : loaded
-                    ? plural(pendingCount, {
-                        one: "Revisar 1",
-                        other: `Revisar los ${formatNumber(pendingCount)}`,
-                      })
-                    : "Revisar"}
-              </Button>
-            )}
-          </div>
-        }
-        bodyClassName="gap-4 p-6"
-      >
+      <div className="flex min-w-0 flex-1 flex-col gap-4 p-6">
         <div className="flex flex-wrap items-center gap-3">
           <div className="w-105">
             <SearchField
@@ -577,6 +548,26 @@ export function PricesListScreen({
               setReviewFilter(value);
             }}
           />
+          <div className="ml-auto flex items-center gap-3">
+            {loaded && pendingCount === 0 ? null : (
+              <Button
+                variant="primary"
+                icon={<ListChecks />}
+                dataStatus={data.status}
+                disabled={screenRequestInFlight}
+                onPress={() => void startReview(purchaseReview ?? undefined)}
+              >
+                {purchaseReview
+                  ? "Revisar lo comprado"
+                  : loaded
+                    ? plural(pendingCount, {
+                        one: "Revisar 1",
+                        other: `Revisar los ${formatNumber(pendingCount)}`,
+                      })
+                    : "Revisar"}
+              </Button>
+            )}
+          </div>
         </div>
         <Table
           aria-label="Precios"
@@ -604,7 +595,7 @@ export function PricesListScreen({
             )
           }
         />
-      </ScreenLayout>
+      </div>
       <PriceChangeModal
         target={modal?.target ?? null}
         previousProductNotice={modal?.previousProductNotice ?? null}

@@ -8,11 +8,15 @@ import type {
 import { FieldSizeProvider } from "@purosur/ui";
 import { expect, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import type { ProductPanelSections } from "../../platform/product-panel-sections";
 import { tagList } from "../../platform/test-support/tags";
+import type { BackofficeAccess } from "../../shell/backoffice-access";
+import { ADMINISTRATOR_ACCESS } from "../../shell/test-support/backoffice-access";
 import { render } from "../../shell/test-support/render-with-router";
 import { ProductsListScreen } from "../products-list-screen";
 import type { ProductsListScreenServices } from "../products-list-services";
 import { type ProductsListFilters, productsListFilters } from "../routes";
+import { productPanelSections } from "./product-panel-sections";
 import { driedFruits, groceries } from "./products";
 
 export function createServices(
@@ -64,9 +68,19 @@ export function screenElement(
   {
     filters = productsListFilters.parse({}),
     onFiltersChange = () => {},
+    access = ADMINISTRATOR_ACCESS,
+    sections = productPanelSections(),
+    openProduct,
+    tab,
+    onPanelChange = () => {},
   }: {
     filters?: ProductsListFilters;
     onFiltersChange?: (filters: ProductsListFilters) => void;
+    access?: BackofficeAccess;
+    sections?: ProductPanelSections;
+    openProduct?: string | undefined;
+    tab?: string | undefined;
+    onPanelChange?: (panel: { product: string; tab?: "price" | "stock" } | undefined) => void;
   } = {},
 ) {
   return (
@@ -77,6 +91,11 @@ export function screenElement(
           onSessionEnded={onSessionEnded}
           filters={filters}
           onFiltersChange={onFiltersChange}
+          access={access}
+          productPanelSections={sections}
+          openProduct={openProduct}
+          tab={tab}
+          onPanelChange={onPanelChange}
         />
       </main>
     </FieldSizeProvider>

@@ -694,3 +694,11 @@ test("tells an outdated tab to reload because the backoffice was updated when pr
   await expect.element(dialog.getByText("No se pudo generar la hoja")).toBeVisible();
   await expect.element(dialog.getByText(OUTDATED_TAB_ADVICE)).toBeVisible();
 });
+
+test("names Productos in its eyebrow", async () => {
+  const screen = await renderModal(createServices(), { products: [honeyWithInternalBarcode] });
+
+  const dialog = await openPrintLabelsModal(screen);
+
+  await expect.element(dialog.getByText("Productos", { exact: true })).toBeVisible();
+});

@@ -35,7 +35,7 @@ test("goes to the prices with the products of the lines chosen for review", asyn
     { ...emptyPurchaseLine(2), productId: "product-b" },
   ]);
 
-  await expect.poll(() => window.location.pathname).toBe("/prices");
+  await expect.poll(() => window.location.pathname).toBe("/products/prices");
   expect(window.history.state).toMatchObject({ purchasedProductsToReview: ["product-a"] });
   expect(answers).toEqual([true]);
 });

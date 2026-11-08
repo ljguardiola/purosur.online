@@ -1,26 +1,22 @@
 import type { TagSummary } from "@purosur/contracts";
 import {
   actionsColumn,
-  Button,
   dataColumn,
   formatNumber,
   type ItemOrder,
   ListFilter,
-  SearchField,
   StatusIndicator,
-  Table,
   type TableSort,
   textOrder,
   useTableModel,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
-import { Ban, Pencil, Plus, RotateCcw, Search, SearchX, Sparkles } from "lucide-react";
+import { Ban, Pencil, RotateCcw, SearchX, Sparkles } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { NewTagModal } from "../platform/new-tag-modal";
-import { ScreenLayout } from "../shell/screen-layout";
-import { ScreenTitle } from "../shell/screen-title";
 import { useRefreshCatalog, useReloadTag, useTagsQuery } from "./catalog-queries";
+import { ClassificationList } from "./classification-list";
 import { DeactivateTagModal } from "./deactivate-tag-modal";
 import { EditTagModal } from "./edit-tag-modal";
 import { ReactivateTagModal } from "./reactivate-tag-modal";
@@ -163,76 +159,57 @@ export function TagsListScreen({
   const matchedTags = table.getRowModel().rows.map((row) => row.original);
 
   return (
-    <>
-      <ScreenLayout
-        topBar={
-          <div className="flex h-18 shrink-0 items-center justify-between border-border border-b bg-surface px-8">
-            <div className="flex flex-col justify-center">
-              <p className="text-text-subtle text-detail">Catálogo</p>
-              <ScreenTitle>Distintivos</ScreenTitle>
-            </div>
-            <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
-              Nuevo distintivo
-            </Button>
-          </div>
-        }
-        bodyClassName="gap-4 p-6"
-      >
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="w-105">
-            <SearchField
-              value={search}
-              onChange={setSearch}
-              placeholder="Buscar un distintivo"
-              icon={<Search />}
-            />
-          </div>
-          <ListFilter
-            name="status"
-            label="Estado:"
-            options={statusFilterOptions}
-            value={statusFilter}
-            onChange={setStatusFilter}
-          />
-        </div>
-        <Table
-          aria-label="Distintivos"
-          table={table}
-          {...cloudTableState(data, "los distintivos")}
-          empty={
-            tags.length === 0
-              ? {
-                  icon: <Sparkles />,
-                  title: "Todavía no hay distintivos",
-                  description:
-                    'Se cargan para marcar características como "Sin TACC" o "Vegano" en los productos.',
-                  variant: "blank",
-                }
-              : search.trim() === ""
-                ? {
-                    icon: <SearchX />,
-                    title: TAG_STATUS_EMPTY_TITLE[statusFilter],
-                    variant: "filtered",
-                  }
-                : {
-                    icon: <SearchX />,
-                    title: "Sin resultados",
-                    description: "Probá con otro nombre.",
-                    variant: "filtered",
-                  }
-          }
-          footer={
-            matchedTags.length === 0 ? undefined : (
-              <p className="text-text-subtle text-detail">
-                {tagsFooterText(matchedTags, taggedProductCount)}
-              </p>
-            )
-          }
+    <ClassificationList
+      label="Distintivos"
+      searchPlaceholder="Buscar un distintivo"
+      search={search}
+      onSearchChange={setSearch}
+      filters={
+        <ListFilter
+          name="status"
+          label="Estado:"
+          options={statusFilterOptions}
+          value={statusFilter}
+          onChange={setStatusFilter}
         />
-      </ScreenLayout>
+      }
+      createLabel="Nuevo distintivo"
+      onCreate={() => setNewModalOpen(true)}
+      table={table}
+      {...cloudTableState(data, "los distintivos")}
+      empty={
+        tags.length === 0
+          ? {
+              icon: <Sparkles />,
+              title: "Todavía no hay distintivos",
+              description:
+                'Se cargan para marcar características como "Sin TACC" o "Vegano" en los productos.',
+              variant: "blank",
+            }
+          : search.trim() === ""
+            ? {
+                icon: <SearchX />,
+                title: TAG_STATUS_EMPTY_TITLE[statusFilter],
+                variant: "filtered",
+              }
+            : {
+                icon: <SearchX />,
+                title: "Sin resultados",
+                description: "Probá con otro nombre.",
+                variant: "filtered",
+              }
+      }
+      footer={
+        matchedTags.length === 0 ? undefined : (
+          <p className="text-text-subtle text-detail">
+            {tagsFooterText(matchedTags, taggedProductCount)}
+          </p>
+        )
+      }
+    >
       <NewTagModal
         open={newModalOpen}
-        context="Catálogo"
+        context="Productos · Distintivos"
         services={services}
         onCreated={() => {
           setNewModalOpen(false);
@@ -274,6 +251,6 @@ export function TagsListScreen({
         onSessionEnded={onSessionEnded}
         services={services}
       />
-    </>
+    </ClassificationList>
   );
 }

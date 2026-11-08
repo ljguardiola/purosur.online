@@ -55,6 +55,12 @@ function CreationHost({
       >
         Crear el producto tipeado
       </Button>
+      <Button
+        variant="secondary"
+        onPress={() => creation.creationOf("TAG")?.onCreate("Sin colorantes")}
+      >
+        Crear el distintivo tipeado
+      </Button>
       <Button variant="secondary" onPress={creation.reset}>
         Abrir de nuevo
       </Button>
@@ -260,5 +266,19 @@ test("a form shown again after leaving the screen starts from the targets it is 
 
   await expect
     .element(screen.getByText("Productos: Yerba Hoja Alta 1 kg, Almendras peladas"))
+    .toBeVisible();
+});
+
+test("names Productos and Promociones in the eyebrow of the distintivo it creates", async () => {
+  const { screen } = await hosted(listing(discountTargets));
+
+  await userEvent.click(screen.getByRole("button", { name: "Crear el distintivo tipeado" }));
+
+  await expect
+    .element(
+      page
+        .getByRole("dialog", { name: "Nuevo distintivo" })
+        .getByText("Productos · Promociones", { exact: true }),
+    )
     .toBeVisible();
 });

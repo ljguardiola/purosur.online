@@ -137,7 +137,7 @@ export function EditTagModal({
       width="standard"
       tone="info"
       icon={<Pencil />}
-      context="Catálogo · Distintivos"
+      context="Productos · Distintivos"
       title={loaded?.name ?? ""}
       closable
       footer={

@@ -33,7 +33,7 @@ test("shows the product's name as the title, with its components and quantities 
   const screen = await renderEditRecipeModal();
   const dialog = screen.getByRole("dialog");
 
-  await expect.element(dialog.getByText("Stock · Recetas")).toBeVisible();
+  await expect.element(dialog.getByText("Productos · Armados")).toBeVisible();
   await expect.element(dialog.getByRole("heading", { name: "Mix de frutos secos" })).toBeVisible();
   await expect.element(dialog.getByText("Componentes por kg de producto terminado")).toBeVisible();
   await expect

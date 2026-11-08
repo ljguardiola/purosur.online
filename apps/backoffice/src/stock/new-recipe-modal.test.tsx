@@ -48,7 +48,7 @@ test("shows the eyebrow, the title, the product field, the help text and both ac
   const screen = await renderNewRecipeModal();
   const dialog = screen.getByRole("dialog");
 
-  await expect.element(dialog.getByText("Stock · Recetas")).toBeVisible();
+  await expect.element(dialog.getByText("Productos · Armados")).toBeVisible();
   await expect.element(dialog.getByRole("heading", { name: "Nueva receta" })).toBeVisible();
   await expect.element(dialog.getByRole("combobox", { name: /^Producto armado/ })).toBeVisible();
   await expect

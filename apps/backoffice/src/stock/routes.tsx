@@ -1,5 +1,5 @@
 import { stockPeriodSchema } from "@purosur/contracts";
-import { createRoute, stripSearchParams } from "@tanstack/react-router";
+import { createRoute, redirect, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 import {
   canManageBatches,
@@ -12,10 +12,12 @@ import {
   canSeeStockMovements,
 } from "../shell/backoffice-access";
 import { lazyScreen } from "../shell/lazy-screen";
+import { productsRoute, productsTabRedirect } from "../shell/products-route";
 import { reportPeriodSearch } from "../shell/report-filters-search";
 import { reportsAreaRoute } from "../shell/reports-area";
-import { refuseWithout } from "../shell/signed-in-route";
+import { refuseWithout, signedInRoute } from "../shell/signed-in-route";
 import { stockAreaRoute } from "../shell/stock-area";
+import { ASSEMBLIES_SECTION_TARGETS, ASSEMBLIES_SECTIONS } from "./assemblies-sections";
 import { currentStockReportFilters } from "./current-stock-report-filters";
 import { marginReportFilters } from "./margin-report-filters";
 
@@ -82,6 +84,10 @@ export const assemblyBatchesFilters = z.object({
 export type AssemblyBatchesFilters = z.output<typeof assemblyBatchesFilters>;
 
 export type RecipesListFilters = z.output<typeof recipesListFilters>;
+
+const recipesListSearch = recipesListFilters.extend({
+  recipe: z.string().optional().catch(undefined),
+});
 
 export const stockBalancesRoute = createRoute({
   getParentRoute: () => stockAreaRoute,
@@ -164,20 +170,64 @@ export const expiringLotsRoute = createRoute({
   component: lazyScreen(() => import("./expiring-lots-page"), "ExpiringLotsPage"),
 });
 
+export const assembliesRoute = createRoute({
+  getParentRoute: () => productsRoute,
+  path: "assemblies",
+  beforeLoad: ({ context: { productsTabs, session } }) => {
+    productsTabRedirect(productsTabs, "assemblies");
+    return {
+      assembliesSections: ASSEMBLIES_SECTIONS.filter((section) => section.isVisibleTo(session)).map(
+        (section) => section.key,
+      ),
+    };
+  },
+  component: lazyScreen(() => import("./assemblies-layout"), "AssembliesLayout"),
+});
+
 export const recipesListRoute = createRoute({
-  getParentRoute: () => stockAreaRoute,
-  path: "recipes",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canManageRecipes),
-  validateSearch: recipesListFilters,
+  getParentRoute: () => assembliesRoute,
+  path: "/",
+  beforeLoad: ({ context: { session } }) => {
+    if (!canManageRecipes(session)) {
+      throw redirect({ to: ASSEMBLIES_SECTION_TARGETS.batches });
+    }
+  },
+  validateSearch: recipesListSearch,
   search: { middlewares: [stripSearchParams(recipesListFilters.parse({}))] },
   component: lazyScreen(() => import("./recipes-list-page"), "RecipesListPage"),
 });
 
 export const assemblyBatchesRoute = createRoute({
-  getParentRoute: () => stockAreaRoute,
-  path: "assembly-batches",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canManageBatches),
+  getParentRoute: () => assembliesRoute,
+  path: "batches",
+  beforeLoad: ({ context: { session } }) => {
+    if (!canManageBatches(session)) {
+      throw redirect({ to: ASSEMBLIES_SECTION_TARGETS.recipes });
+    }
+  },
   validateSearch: assemblyBatchesFilters,
   search: { middlewares: [stripSearchParams(assemblyBatchesFilters.parse({}))] },
   component: lazyScreen(() => import("./assembly-batches-page"), "AssemblyBatchesPage"),
+});
+
+export const legacyRecipesRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: "recipes",
+  validateSearch: recipesListFilters,
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/products/assemblies", search });
+  },
+});
+
+export const legacyAssemblyBatchesRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: "assembly-batches",
+  validateSearch: assemblyBatchesFilters,
+  beforeLoad: ({ context: { session }, search }) => {
+    throw redirect(
+      canManageBatches(session)
+        ? { to: ASSEMBLIES_SECTION_TARGETS.batches, search }
+        : { to: ASSEMBLIES_SECTION_TARGETS.recipes },
+    );
+  },
 });

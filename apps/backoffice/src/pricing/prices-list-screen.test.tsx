@@ -14,7 +14,7 @@ import {
   yerbaMate,
 } from "./test-support/prices-list-screen";
 
-test("shows the breadcrumb, heading, and each product's name", async () => {
+test("shows each product's name without a heading of its own", async () => {
   const services = createServices();
   vi.mocked(services.fetchPrices).mockResolvedValue({
     kind: "ok",
@@ -29,8 +29,7 @@ test("shows the breadcrumb, heading, and each product's name", async () => {
 
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("Catálogo")).toBeVisible();
-  await expect.element(screen.getByRole("heading", { name: "Precios", level: 1 })).toBeVisible();
+  expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
   await expect.element(screen.getByText("Fideos")).toBeVisible();
   await expect.element(screen.getByText("Arroz")).toBeVisible();
   await expectNoAccessibilityViolations(screen.container);

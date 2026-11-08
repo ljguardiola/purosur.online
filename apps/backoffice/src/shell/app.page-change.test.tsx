@@ -175,7 +175,6 @@ test("opens every help page at the top of its content, not where the previous pa
   window.history.pushState(null, "", "/help/getting_started/intro");
   const screen = await render(<App help={longHelp} services={createAppServices()} />);
 
-  // Scoped to main: the rail's own Catálogo area item shares this fixture article's title.
   const link = screen.getByRole("main").getByRole("link", { name: "Catálogo" });
   await expect.element(link).toBeInTheDocument();
   const firstBody = scrollingAncestor(link.element());
