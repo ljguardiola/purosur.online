@@ -10,11 +10,13 @@ import {
   CRITICAL_BATTERY_PERCENT,
   CRITICAL_BATTERY_PUSH_LIMIT_MS,
   CRITICAL_BATTERY_SALE_RECHECK_MS,
+  isBatteryWorn,
   isOnBatteryTooLong,
   LOW_BATTERY_PERCENT,
   nextOnBatteryCountedOnlySinceStart,
   nextOnBatterySince,
   ON_BATTERY_CONDITION_MINUTES,
+  WORN_BATTERY_HEALTH_PERCENT,
 } from "./battery.js";
 
 const onBattery: BatteryReading = { kind: "present", chargePercent: 80, onBattery: true };
@@ -277,5 +279,25 @@ describe("batteryReportStanding", () => {
   it("is normal with no battery or no report", () => {
     expect(batteryReportStanding({ present: false })).toBe("normal");
     expect(batteryReportStanding(undefined)).toBe("normal");
+  });
+});
+
+describe("WORN_BATTERY_HEALTH_PERCENT", () => {
+  it("is 60 percent of the design capacity", () => {
+    expect(WORN_BATTERY_HEALTH_PERCENT).toBe(60);
+  });
+});
+
+describe("isBatteryWorn", () => {
+  it("is true for a health below 60 percent", () => {
+    expect(isBatteryWorn(59)).toBe(true);
+  });
+
+  it("is false for a health of exactly 60 percent", () => {
+    expect(isBatteryWorn(60)).toBe(false);
+  });
+
+  it("is false for a health above 60 percent", () => {
+    expect(isBatteryWorn(100)).toBe(false);
   });
 });

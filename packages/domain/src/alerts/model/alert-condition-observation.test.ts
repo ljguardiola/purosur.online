@@ -16,12 +16,17 @@ import {
   quietRegisterObservation,
   registerBackedUpObservation,
   registerBackupOverdueObservation,
+  registerBatteryHealthObservation,
+  registerBatteryMissingObservation,
   registerClockDriftObservation,
+  registerDiskSpaceObservation,
   registerFiscalEmissionObservation,
+  registerOnBatteryObservation,
   registerReplenishmentObservation,
   registerSalesDeniedObservation,
   registerSyncedObservation,
   registerVersionObservation,
+  registerWalSizeObservation,
   registerZoneRulesObservation,
 } from "./alert-condition-observation.js";
 
@@ -594,6 +599,207 @@ describe("registerBackedUpObservation", () => {
       holds: false,
       kind: "register_backup_overdue",
       scope: "register-1",
+    });
+  });
+});
+
+describe("register battery and storage observations", () => {
+  const register = { registerId: "register-1", deviceId: "device-1", locationId: "location-1" };
+  const storage = { wal_size_bytes: 0, disk_free_bytes: 100 * 1024 ** 3, disk_free_ratio: 0.5 };
+  const onBattery = (minutes: number) => ({
+    present: true as const,
+    charge_percent: 80,
+    on_battery: true,
+    on_battery_minutes: minutes,
+  });
+  const onMains = {
+    present: true as const,
+    charge_percent: 80,
+    on_battery: false,
+    on_battery_minutes: 0,
+  };
+
+  describe("registerOnBatteryObservation", () => {
+    it("holds the on-battery condition, naming the device, the minutes and the threshold, once the register has run on battery for 10 minutes", () => {
+      expect(
+        registerOnBatteryObservation({
+          ...register,
+          report: { ...storage, battery: onBattery(12) },
+        }),
+      ).toEqual({
+        holds: true,
+        alert: {
+          kind: "on_battery",
+          scope: "register-1",
+          locationId: "location-1",
+          detail: { deviceId: "device-1", onBatteryMinutes: 12, thresholdMinutes: 10 },
+        },
+      });
+    });
+
+    it("observes nothing while the register has run on battery for under 10 minutes", () => {
+      expect(
+        registerOnBatteryObservation({
+          ...register,
+          report: { ...storage, battery: onBattery(9) },
+        }),
+      ).toBeUndefined();
+    });
+
+    it.each([
+      ["back on mains power", onMains],
+      ["without a battery", { present: false as const }],
+    ])("clears the on-battery condition for a register %s", (_name, battery) => {
+      expect(
+        registerOnBatteryObservation({ ...register, report: { ...storage, battery } }),
+      ).toEqual({
+        holds: false,
+        kind: "on_battery",
+        scope: "register-1",
+      });
+    });
+
+    it("observes nothing of a register whose battery could not be read", () => {
+      expect(registerOnBatteryObservation({ ...register, report: storage })).toBeUndefined();
+    });
+  });
+
+  describe("registerBatteryMissingObservation", () => {
+    it("holds the battery-missing condition, naming the device, for a register that reports no battery", () => {
+      expect(
+        registerBatteryMissingObservation({
+          ...register,
+          report: { ...storage, battery: { present: false } },
+        }),
+      ).toEqual({
+        holds: true,
+        alert: {
+          kind: "battery_missing",
+          scope: "register-1",
+          locationId: "location-1",
+          detail: { deviceId: "device-1" },
+        },
+      });
+    });
+
+    it("clears the battery-missing condition for a register that reports a battery", () => {
+      expect(
+        registerBatteryMissingObservation({
+          ...register,
+          report: { ...storage, battery: onMains },
+        }),
+      ).toEqual({ holds: false, kind: "battery_missing", scope: "register-1" });
+    });
+
+    it("observes nothing of a register whose battery could not be read", () => {
+      expect(registerBatteryMissingObservation({ ...register, report: storage })).toBeUndefined();
+    });
+  });
+
+  describe("registerBatteryHealthObservation", () => {
+    it("holds the battery-health condition, naming the device, the health and the worn limit, for a health below 60 percent", () => {
+      expect(
+        registerBatteryHealthObservation({
+          ...register,
+          report: { ...storage, battery: { ...onMains, health_percent: 59 } },
+        }),
+      ).toEqual({
+        holds: true,
+        alert: {
+          kind: "battery_health_low",
+          scope: "register-1",
+          locationId: "location-1",
+          detail: { deviceId: "device-1", healthPercent: 59, wornBelowPercent: 60 },
+        },
+      });
+    });
+
+    it.each([60, 95])(
+      "clears the battery-health condition for a health of %s percent",
+      (health) => {
+        expect(
+          registerBatteryHealthObservation({
+            ...register,
+            report: { ...storage, battery: { ...onMains, health_percent: health } },
+          }),
+        ).toEqual({ holds: false, kind: "battery_health_low", scope: "register-1" });
+      },
+    );
+
+    it("clears the battery-health condition for a register that reports no battery", () => {
+      expect(
+        registerBatteryHealthObservation({
+          ...register,
+          report: { ...storage, battery: { present: false } },
+        }),
+      ).toEqual({ holds: false, kind: "battery_health_low", scope: "register-1" });
+    });
+
+    it("observes nothing of a battery that reports no health", () => {
+      expect(
+        registerBatteryHealthObservation({ ...register, report: { ...storage, battery: onMains } }),
+      ).toBeUndefined();
+    });
+
+    it("observes nothing of a register whose battery could not be read", () => {
+      expect(registerBatteryHealthObservation({ ...register, report: storage })).toBeUndefined();
+    });
+  });
+
+  describe("registerWalSizeObservation", () => {
+    it("holds the oversized-WAL condition, naming the device, its size and the limit, once it passes 256 MB", () => {
+      const walSizeBytes = 256 * 1024 * 1024 + 1;
+      expect(
+        registerWalSizeObservation({
+          ...register,
+          report: { ...storage, wal_size_bytes: walSizeBytes },
+        }),
+      ).toEqual({
+        holds: true,
+        alert: {
+          kind: "wal_oversized",
+          scope: "register-1",
+          locationId: "location-1",
+          detail: { deviceId: "device-1", walSizeBytes, limitBytes: 256 * 1024 * 1024 },
+        },
+      });
+    });
+
+    it("clears the oversized-WAL condition at 256 MB", () => {
+      expect(
+        registerWalSizeObservation({
+          ...register,
+          report: { ...storage, wal_size_bytes: 256 * 1024 * 1024 },
+        }),
+      ).toEqual({ holds: false, kind: "wal_oversized", scope: "register-1" });
+    });
+  });
+
+  describe("registerDiskSpaceObservation", () => {
+    it("holds the disk-space condition, naming the device and the free disk, below 20 percent free", () => {
+      expect(
+        registerDiskSpaceObservation({
+          ...register,
+          report: { ...storage, disk_free_bytes: 50 * 1024 ** 3, disk_free_ratio: 0.19 },
+        }),
+      ).toEqual({
+        holds: true,
+        alert: {
+          kind: "register_disk_space_low",
+          scope: "register-1",
+          locationId: "location-1",
+          detail: { deviceId: "device-1", diskFreeBytes: 50 * 1024 ** 3, diskFreeRatio: 0.19 },
+        },
+      });
+    });
+
+    it("clears the disk-space condition at 20 percent and 5 GB free", () => {
+      expect(
+        registerDiskSpaceObservation({
+          ...register,
+          report: { ...storage, disk_free_bytes: 5 * 1024 ** 3, disk_free_ratio: 0.2 },
+        }),
+      ).toEqual({ holds: false, kind: "register_disk_space_low", scope: "register-1" });
     });
   });
 });
