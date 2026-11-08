@@ -6,14 +6,14 @@ import {
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { DrizzleRegisterStore } from "../installation/drizzle-register-store.js";
 import {
   fiscalAddresses,
   registers,
   taxAuthorityLastAuthorizedNumbers,
   users,
 } from "../platform/db/schema.js";
-import { DrizzleRegisterStore } from "../register/drizzle-register-store.js";
-import { installationKeyCipher } from "../register/installation-key-cipher.js";
+import { installationKeyCipher } from "../platform/installation-key-cipher.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import {
   createIntegrationDatabase,

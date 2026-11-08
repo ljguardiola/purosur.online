@@ -5,11 +5,11 @@ import {
 } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { saleCreditNoteRefusals } from "../platform/db/schema.js";
 import {
   insertBranch,
   insertRegister,
-} from "../register/test-support/restored-register-installations.js";
+} from "../installation/test-support/restored-register-installations.js";
+import { saleCreditNoteRefusals } from "../platform/db/schema.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,

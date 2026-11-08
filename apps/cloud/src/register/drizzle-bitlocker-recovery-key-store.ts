@@ -14,7 +14,7 @@ import {
   registerInstallations,
   registers,
 } from "../platform/db/schema.js";
-import type { InstallationKeyCipher } from "./installation-key-cipher.js";
+import type { InstallationKeyCipher } from "../platform/installation-key-cipher.js";
 
 const AUDIT_ENTITY = "register_installation_bitlocker_key";
 

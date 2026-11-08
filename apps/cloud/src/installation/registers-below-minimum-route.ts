@@ -7,7 +7,7 @@ import {
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { RELEASE_CHECK_ACCESS, registerRouteAccess } from "../sessions/route-access.js";
-import { DrizzleInstallationsLeftBehindReader } from "./drizzle-installations-left-behind-reader.js";
+import { DrizzleInstallationsLeftBehindReader } from "../sync/drizzle-installations-left-behind-reader.js";
 
 export interface RegistersBelowMinimumRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;

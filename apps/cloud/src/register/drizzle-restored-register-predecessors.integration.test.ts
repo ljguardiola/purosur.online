@@ -7,18 +7,18 @@ import {
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
-  createIntegrationDatabase,
-  type IntegrationDatabase,
-} from "../test-support/integration-database.js";
-import { DrizzleRestoredRegisterPredecessors } from "./drizzle-restored-register-predecessors.js";
-import {
   aRegisterRestoredTwice,
   hoursAfter,
   insertBranch,
   insertInstallation,
   insertRegister,
   T0,
-} from "./test-support/restored-register-installations.js";
+} from "../installation/test-support/restored-register-installations.js";
+import {
+  createIntegrationDatabase,
+  type IntegrationDatabase,
+} from "../test-support/integration-database.js";
+import { DrizzleRestoredRegisterPredecessors } from "./drizzle-restored-register-predecessors.js";
 
 let integrationDb: IntegrationDatabase;
 let sql: ReturnType<typeof postgres>;

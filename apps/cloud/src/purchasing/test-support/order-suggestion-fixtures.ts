@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { insertEnrolledInstallation } from "../../installation/test-support/enrolled-installation.js";
 import { products, registers, stockBalances } from "../../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../../register/test-support/enrolled-installation.js";
 import { applyCompletedSale } from "../../sales/test-support/applied-sales.js";
 import { aSoldLine } from "../../sales/test-support/sold-lines.js";
 

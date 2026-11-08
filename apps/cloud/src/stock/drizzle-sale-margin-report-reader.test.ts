@@ -4,8 +4,8 @@ import { compareCodeUnits, compareSpanishText } from "@purosur/domain";
 import { readMarginReport } from "@purosur/domain/stock/use-cases";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { lotCostChanges, lots, products, registers, users } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { applyReturn } from "../returns/test-support/applied-returns.js";
 import {
   applyCancelledSale,

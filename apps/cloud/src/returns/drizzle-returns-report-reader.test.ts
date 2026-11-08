@@ -8,8 +8,8 @@ import {
   insertCaeaDocument,
   insertReceiptRequest,
 } from "../fiscal/test-support/issued-document-fixtures.js";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { registers, sales, users } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { applyCompletedSale, applyVoidedSale } from "../sales/test-support/applied-sales.js";
 import { aSoldLine } from "../sales/test-support/sold-lines.js";
 import { insertLocation } from "../stock/test-support/stock-route-fixtures.js";

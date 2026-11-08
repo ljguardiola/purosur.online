@@ -18,17 +18,17 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { drizzlePasskeyHolders } from "../credentials/drizzle-passkey-holders.js";
 import { DrizzlePasskeyRemovalStoreTransaction } from "../credentials/drizzle-passkey-removal-store.js";
 import { DrizzlePinResetStoreTransaction } from "../credentials/drizzle-pin-reset-store.js";
+import { DrizzleEveryInstallationRevocationTransaction } from "../installation/drizzle-every-installation-revocation-store.js";
+import { generateInstallationKey } from "../installation/installation-key.js";
 import {
   auditLog,
   compromiseResponseCompletions,
   compromiseResponses,
 } from "../platform/db/schema.js";
-import { DrizzleEveryInstallationRevocationTransaction } from "../register/drizzle-every-installation-revocation-store.js";
-import { generateInstallationKey } from "../register/installation-key.js";
 import {
   type InstallationKeyCipher,
   installationKeyCipher,
-} from "../register/installation-key-cipher.js";
+} from "../platform/installation-key-cipher.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 import { DrizzleBackofficeSessionEndingStoreTransaction } from "./drizzle-backoffice-session-ending-store.js";
 

@@ -11,7 +11,7 @@ import {
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
 import { runQueuedBehindHeldLock } from "../test-support/queued-behind-held-lock.js";
-import { deviceTokenRotationPorts } from "./installation-token-ports.js";
+import { deviceTokenRotationPorts } from "./device-token-rotation-ports.js";
 import { insertEnrolledInstallation } from "./test-support/enrolled-installation.js";
 
 const FIRST_ROTATION_AT = new Date("2026-09-29T12:00:00.000Z");

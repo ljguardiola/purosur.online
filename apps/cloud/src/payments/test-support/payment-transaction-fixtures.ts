@@ -1,6 +1,7 @@
 import type { MercadoPagoOrderTransaction, PaymentTransactionState } from "@purosur/domain";
 import { and, eq, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import { insertEnrolledInstallation } from "../../installation/test-support/enrolled-installation.js";
 import {
   cashSessions,
   registerInstallations,
@@ -8,7 +9,6 @@ import {
   salePayments,
   sales,
 } from "../../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../../register/test-support/enrolled-installation.js";
 import { seededLocationId } from "../../test-support/seeded-location.js";
 
 export const CREATED_AT = new Date("2026-10-09T12:00:00.000Z");

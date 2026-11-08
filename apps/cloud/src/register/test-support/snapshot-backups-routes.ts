@@ -1,5 +1,7 @@
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import Fastify, { type FastifyInstance } from "fastify";
+import { insertEnrolledInstallation } from "../../installation/test-support/enrolled-installation.js";
+import { keyStore } from "../../installation/test-support/key-store.js";
 import { registerSnapshotGenerations } from "../../platform/db/schema.js";
 import {
   BACKOFFICE_ORIGIN,
@@ -11,8 +13,6 @@ import { fixedZoneRulesSource } from "../../test-support/fixed-zone-rules-source
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../../test-support/installation-keys-encryption-key.js";
 import { seededLocationId } from "../../test-support/seeded-location.js";
 import { registerSnapshotBackupsRoutes } from "../snapshot-backups-routes.js";
-import { insertEnrolledInstallation } from "./enrolled-installation.js";
-import { keyStore } from "./key-store.js";
 
 const BACKUPS_PERMISSION = "view_backups_and_rotate_key";
 

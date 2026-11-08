@@ -2,7 +2,10 @@ import { loadBitlockerRecoveryKey } from "@purosur/domain/register/use-cases";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
+import { insertUserWithPin } from "../installation/test-support/lost-register-revocation-fixtures.js";
 import { registerInstallationBitlockerKeys } from "../platform/db/schema.js";
+import { installationKeyCipher } from "../platform/installation-key-cipher.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import {
   createIntegrationDatabase,
@@ -10,9 +13,6 @@ import {
 } from "../test-support/integration-database.js";
 import { runQueuedBehindHeldLock } from "../test-support/queued-behind-held-lock.js";
 import { DrizzleBitlockerRecoveryKeyStore } from "./drizzle-bitlocker-recovery-key-store.js";
-import { installationKeyCipher } from "./installation-key-cipher.js";
-import { insertEnrolledInstallation } from "./test-support/enrolled-installation.js";
-import { insertUserWithPin } from "./test-support/lost-register-revocation-fixtures.js";
 
 const LOADED_AT = new Date("2026-10-19T12:00:00.000Z");
 const FIRST_KEY = "000011-000022-000033-000044-000055-000066-000077-000088";

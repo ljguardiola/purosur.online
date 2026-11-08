@@ -4,6 +4,7 @@ import { unappliedEventOf } from "@purosur/contracts/sync/test-support/unapplied
 import type { SyncedFact } from "@purosur/domain/sync/use-cases";
 import type { FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import {
   categories,
   fiscalRequests,
@@ -12,7 +13,6 @@ import {
   registers,
   users,
 } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { DrizzleEventApplication } from "../sync/drizzle-event-application.js";
 import {
   aCashSessionOpenedFact,

@@ -2,9 +2,9 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { insertSaleCreditNote } from "../fiscal/test-support/sale-credit-notes.js";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { saleReprints, sales } from "../platform/db/schema.js";
 import type { AppliedOrigin } from "../register/drizzle-applied-cash-sessions.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import {
   APPLICATION_NOW,
   eventApplicationUnderTest,

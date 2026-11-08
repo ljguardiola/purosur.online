@@ -206,7 +206,7 @@ test("no source in the repository compares text by the machine's locale", () => 
     "packages/domain/src/shared/text-order.ts",
     "packages/ui/src/ordering/item-ordering.ts",
     "apps/backoffice/src/pricing/discounts-list-screen.tsx",
-    "apps/cloud/src/register/drizzle-register-store.test.ts",
+    "apps/cloud/src/installation/drizzle-register-store.test.ts",
     ".github/scripts/pulled-table-redelivery.mjs",
   ]) {
     assert.ok(files.includes(sentinel), `expected the scan to include ${sentinel}`);

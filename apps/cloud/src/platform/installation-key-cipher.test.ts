@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { generateInstallationKey } from "../installation/installation-key.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
-import { generateInstallationKey } from "./installation-key.js";
 import { installationKeyCipher } from "./installation-key-cipher.js";
 
 const cipher = installationKeyCipher(TEST_INSTALLATION_KEYS_ENCRYPTION_KEY);

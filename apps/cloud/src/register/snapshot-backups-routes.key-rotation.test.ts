@@ -1,10 +1,10 @@
 import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { keyStore } from "../installation/test-support/key-store.js";
 import { auditLog, registerSnapshotKeys } from "../platform/db/schema.js";
 import { BACKOFFICE_ORIGIN, SESSION_NOON } from "../test-support/backoffice-session.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
-import { keyStore } from "./test-support/key-store.js";
 import {
   backupsSession,
   buildBackupsApp,

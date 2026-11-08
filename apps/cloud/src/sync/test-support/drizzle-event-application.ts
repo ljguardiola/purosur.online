@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { unappliedEventOf } from "@purosur/contracts/sync/test-support/unapplied-event";
 import type { EventApplication, SyncedFact, UnappliedEvent } from "@purosur/domain/sync/use-cases";
 import { afterAll, beforeAll, beforeEach } from "vitest";
-import { insertEnrolledInstallation } from "../../register/test-support/enrolled-installation.js";
+import { insertEnrolledInstallation } from "../../installation/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../../test-support/build-test-database.js";
 import { DrizzleEventApplication } from "../drizzle-event-application.js";
 import { aCashSessionOpenedFact } from "./synced-facts.js";

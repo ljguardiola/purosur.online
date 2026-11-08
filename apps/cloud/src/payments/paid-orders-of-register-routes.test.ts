@@ -6,12 +6,12 @@ import {
 } from "@purosur/contracts";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import {
   installationRequestAttempts,
   paymentRefunds,
   paymentTransactions,
 } from "../platform/db/schema.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { insertRequestsUpToLimit } from "../sync/test-support/admitted-requests.js";
 import { NOW } from "./test-support/fake-mercado-pago-orders.js";
 import { paidOrdersOfRegisterRoutesUnderTest } from "./test-support/paid-orders-of-register-routes-under-test.js";

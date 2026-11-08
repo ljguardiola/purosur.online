@@ -14,6 +14,8 @@ import {
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { requirePasskeyAuthorization } from "../credentials/passkey-authorization-guard.js";
+import { generateInstallationKey } from "../installation/installation-key.js";
+import { installationKeyCipher } from "../platform/installation-key-cipher.js";
 import { readRecordIds } from "../platform/record-id-params.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { sameOriginGuard } from "../sessions/backoffice-origin.js";
@@ -26,8 +28,6 @@ import {
 import { DrizzleSnapshotBackupsReader } from "./drizzle-snapshot-backups-reader.js";
 import { DrizzleSnapshotKeyRotationStore } from "./drizzle-snapshot-key-rotation-store.js";
 import { DrizzleSnapshotLifecycleRulesStore } from "./drizzle-snapshot-lifecycle-rules-store.js";
-import { generateInstallationKey } from "./installation-key.js";
-import { installationKeyCipher } from "./installation-key-cipher.js";
 
 export interface SnapshotBackupsRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;

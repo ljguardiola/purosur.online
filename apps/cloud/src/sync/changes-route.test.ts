@@ -22,6 +22,9 @@ import { DrizzleBranchSettingsStore } from "../branch/drizzle-branch-settings-st
 import { DrizzleCatalogStore } from "../catalog/drizzle-catalog-store.js";
 import { insertProductWithTags } from "../catalog/test-support/catalog-route-fixtures.js";
 import { voidOutstandingRecoveryTokens } from "../credentials/void-outstanding-recovery-tokens.js";
+import { issueDeviceToken } from "../installation/device-token.js";
+import { DrizzleBranchRegisterStore } from "../installation/drizzle-branch-register-store.js";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { DrizzleRoleStore } from "../permissions/drizzle-role-store.js";
 import {
   branchSettings,
@@ -48,9 +51,6 @@ import {
 } from "../platform/db/schema.js";
 import { DrizzleDiscountStore } from "../pricing/drizzle-discount-store.js";
 import { DrizzlePricingStore } from "../pricing/drizzle-pricing-store.js";
-import { issueDeviceToken } from "../register/device-token.js";
-import { DrizzleBranchRegisterStore } from "../register/drizzle-branch-register-store.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededLocationId } from "../test-support/seeded-location.js";

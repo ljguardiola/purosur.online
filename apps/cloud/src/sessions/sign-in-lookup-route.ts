@@ -7,13 +7,13 @@ import {
 import { lookUpSignIn } from "@purosur/domain/sessions/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
-import { readValidatedBody } from "../platform/request-body-schema.js";
-import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
-import { authenticateDevice } from "../register/device-authentication.js";
+import { authenticateDevice } from "../platform/device-authentication.js";
 import {
   type DeviceTokensOptions,
   installationTokenPorts,
-} from "../register/installation-token-ports.js";
+} from "../platform/installation-token-ports.js";
+import { readValidatedBody } from "../platform/request-body-schema.js";
+import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
 import { DrizzleSignInLookupStore } from "./drizzle-sign-in-lookup-store.js";
 import { PUBLIC_ACCESS } from "./route-access.js";
 

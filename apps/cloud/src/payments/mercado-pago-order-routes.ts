@@ -20,15 +20,15 @@ import { admitInstallationRequest } from "@purosur/domain/sync/use-cases";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import type { DedicatedConnections } from "../platform/dedicated-connections.js";
+import { authenticateDevice } from "../platform/device-authentication.js";
+import {
+  type DeviceTokensOptions,
+  installationTokenPorts,
+} from "../platform/installation-token-ports.js";
 import { sendRateLimited } from "../platform/rate-limited-response.js";
 import { readRecordIds } from "../platform/record-id-params.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { answerErrorsWithCloudEnvelope } from "../register/cloud-error-handler.js";
-import { authenticateDevice } from "../register/device-authentication.js";
-import {
-  type DeviceTokensOptions,
-  installationTokenPorts,
-} from "../register/installation-token-ports.js";
 import { PUBLIC_ACCESS } from "../sessions/route-access.js";
 import { DrizzleRequestAdmission } from "../sync/drizzle-request-admission.js";
 import { DrizzlePaymentTransactionLanes } from "./drizzle-payment-transaction-lanes.js";

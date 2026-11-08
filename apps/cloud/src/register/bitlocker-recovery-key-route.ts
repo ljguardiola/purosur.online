@@ -6,6 +6,7 @@ import {
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { requirePasskeyAuthorization } from "../credentials/passkey-authorization-guard.js";
+import { installationKeyCipher } from "../platform/installation-key-cipher.js";
 import { readRecordIds } from "../platform/record-id-params.js";
 import { readValidatedBody } from "../platform/request-body-schema.js";
 import { backofficeOriginGuard } from "../sessions/backoffice-origin.js";
@@ -16,7 +17,6 @@ import {
   routeSessionSource,
 } from "../sessions/route-access.js";
 import { DrizzleBitlockerRecoveryKeyStore } from "./drizzle-bitlocker-recovery-key-store.js";
-import { installationKeyCipher } from "./installation-key-cipher.js";
 
 export interface BitlockerRecoveryKeyRouteOptions<TQueryResult extends PgQueryResultHKT> {
   db: PgDatabase<TQueryResult>;

@@ -3,10 +3,8 @@ import { admitInstallationRequest } from "@purosur/domain/sync/use-cases";
 import Fastify, { type FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { arcaOnlineStatusOf } from "../fiscal/arca-online-status.js";
-import { authenticateDevice } from "../register/device-authentication.js";
-import { issueDeviceToken } from "../register/device-token.js";
-import { installationTokenPorts } from "../register/installation-token-ports.js";
-import { insertEnrolledInstallation } from "../register/test-support/enrolled-installation.js";
+import { issueDeviceToken } from "../installation/device-token.js";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { registerRouteAccess } from "../sessions/route-access.js";
 import { DrizzleRequestAdmission } from "../sync/drizzle-request-admission.js";
 import { insertRequestsUpToLimit } from "../sync/test-support/admitted-requests.js";
@@ -14,7 +12,9 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { TEST_DEVICE_TOKEN_ROTATION_KEY } from "../test-support/device-token-rotation-key.js";
 import { TEST_INSTALLATION_KEYS_ENCRYPTION_KEY } from "../test-support/installation-keys-encryption-key.js";
 import { arcaVitalityChecks, arcaWsaaTokens } from "./db/schema.js";
+import { authenticateDevice } from "./device-authentication.js";
 import { registerHealthRoute } from "./health-route.js";
+import { installationTokenPorts } from "./installation-token-ports.js";
 
 const NOW = new Date("2026-09-29T12:00:00.000Z");
 const CERTIFICATE_FINGERPRINT = "AA:BB:CC";

@@ -7,7 +7,7 @@ import { describe, expect, inject, it } from "vitest";
 describe("the built cloud", { timeout: 0 }, () => {
   it("runs a module that imports @purosur/contracts under plain Node", () => {
     const registerCreationRouteUrl = pathToFileURL(
-      join(inject("cloudBuildDir"), "register", "register-creation-route.js"),
+      join(inject("cloudBuildDir"), "installation", "register-creation-route.js"),
     ).href;
     const script = `
       const module = await import(${JSON.stringify(registerCreationRouteUrl)});

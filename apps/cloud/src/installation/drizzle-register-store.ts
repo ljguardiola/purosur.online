@@ -1,10 +1,5 @@
 import { randomUUID } from "node:crypto";
-import {
-  enrollmentAttemptWindowStart,
-  FACTURA_C_DOCUMENT_TYPE,
-  isRetainedSnapshotGeneration,
-  OFFLINE_SERIES_DOCUMENT_TYPES,
-} from "@purosur/domain";
+import { enrollmentAttemptWindowStart } from "@purosur/domain";
 import type { NumberingFreeze } from "@purosur/domain/fiscal/use-cases";
 import type {
   EnrollmentAlert,
@@ -24,24 +19,24 @@ import type {
 import { and, asc, desc, eq, gt, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
+import {
+  requireFreshTaxAuthorityCountOfRegister,
+  takeRegisterRealTimeNumberingLane,
+} from "../fiscal/drizzle-register-numbering.js";
 import type { EnqueueNumberingReconciliation } from "../fiscal/enqueue-numbering-conflict.js";
 import { freezePointOfSaleNumbering } from "../fiscal/freeze-point-of-sale-numbering.js";
 import type { EnqueueTaxAuthorityCount } from "../fiscal/graphile-tax-authority-count-queue.js";
-import { pointOfSaleLaneLockKey } from "../fiscal/point-of-sale-lane-lock.js";
 import {
   auditLog,
   registerContingencyTicketKeys,
   registerEnrollmentAttempts,
   registerEnrollmentCodes,
   registerInstallations,
-  registerOfflinePointsOfSale,
-  registerPointsOfSale,
-  registerSnapshotGenerations,
   registerSnapshotKeys,
-  taxAuthorityLastAuthorizedNumbers,
 } from "../platform/db/schema.js";
+import type { InstallationKeyCipher } from "../platform/installation-key-cipher.js";
+import { retainedSnapshotKeyVersions } from "../register/drizzle-retained-snapshot-key-versions.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
-import type { InstallationKeyCipher } from "./installation-key-cipher.js";
 import { readOutboxChainKey, sealOutboxChainKey } from "./outbox-chain-key.js";
 
 type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
@@ -318,24 +313,12 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
     };
     return {
       snapshotKeys: await versionsOf(registerSnapshotKeys, snapshotKeyPurpose),
-      retainedSnapshotKeyVersions: await this.retainedSnapshotKeyVersions(registerId),
+      retainedSnapshotKeyVersions: await retainedSnapshotKeyVersions(this.tx, registerId),
       contingencyTicketKeys: await versionsOf(
         registerContingencyTicketKeys,
         contingencyTicketKeyPurpose,
       ),
     };
-  }
-
-  private async retainedSnapshotKeyVersions(registerId: string): Promise<number[]> {
-    const kinds = await this.tx
-      .selectDistinct({
-        keyVersion: registerSnapshotGenerations.keyVersion,
-        status: registerSnapshotGenerations.status,
-        pruned: registerSnapshotGenerations.pruned,
-      })
-      .from(registerSnapshotGenerations)
-      .where(eq(registerSnapshotGenerations.registerId, registerId));
-    return [...new Set(kinds.filter(isRetainedSnapshotGeneration).map((kind) => kind.keyVersion))];
   }
 
   async recordSnapshotKey(registerId: string, key: VersionedKey): Promise<void> {
@@ -365,26 +348,7 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
     if (this.enqueueNumberingReconciliation === undefined) {
       return null;
     }
-    const [realTime] = await this.tx
-      .select({ pointOfSale: registerPointsOfSale.pointOfSaleNumber })
-      .from(registerPointsOfSale)
-      .where(eq(registerPointsOfSale.registerId, registerId));
-    if (realTime === undefined) {
-      return null;
-    }
-    await this.tx.execute(
-      sql`select pg_advisory_xact_lock(hashtextextended(${pointOfSaleLaneLockKey(realTime.pointOfSale)}, 0))`,
-    );
-    const [held] = await this.tx
-      .select({ lastAuthorized: taxAuthorityLastAuthorizedNumbers.lastAuthorized })
-      .from(taxAuthorityLastAuthorizedNumbers)
-      .where(
-        and(
-          eq(taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber, realTime.pointOfSale),
-          eq(taxAuthorityLastAuthorizedNumbers.documentType, FACTURA_C_DOCUMENT_TYPE),
-        ),
-      );
-    return { pointOfSale: realTime.pointOfSale, heldCount: held?.lastAuthorized ?? null };
+    return takeRegisterRealTimeNumberingLane(this.tx, registerId);
   }
 
   async freezeRealTimeNumbering(pointOfSale: number, freeze: NumberingFreeze): Promise<void> {
@@ -402,25 +366,11 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
     if (this.enqueueTaxAuthorityCount === undefined) {
       return;
     }
-    const [realTime] = await this.tx
-      .select({ pointOfSale: registerPointsOfSale.pointOfSaleNumber })
-      .from(registerPointsOfSale)
-      .where(eq(registerPointsOfSale.registerId, registerId));
-    const [offline] = await this.tx
-      .select({ pointOfSale: registerOfflinePointsOfSale.pointOfSaleNumber })
-      .from(registerOfflinePointsOfSale)
-      .where(eq(registerOfflinePointsOfSale.registerId, registerId));
-    if (realTime !== undefined) {
-      await this.enqueueTaxAuthorityCount(this.tx, realTime.pointOfSale, FACTURA_C_DOCUMENT_TYPE);
-    }
-    if (offline !== undefined) {
-      await this.tx
-        .delete(taxAuthorityLastAuthorizedNumbers)
-        .where(eq(taxAuthorityLastAuthorizedNumbers.pointOfSaleNumber, offline.pointOfSale));
-      for (const documentType of OFFLINE_SERIES_DOCUMENT_TYPES) {
-        await this.enqueueTaxAuthorityCount(this.tx, offline.pointOfSale, documentType);
-      }
-    }
+    await requireFreshTaxAuthorityCountOfRegister(
+      this.tx,
+      registerId,
+      this.enqueueTaxAuthorityCount,
+    );
   }
 
   async openEnrollmentAlert(alert: EnrollmentAlert): Promise<void> {

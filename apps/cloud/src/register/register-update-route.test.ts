@@ -2,8 +2,8 @@ import { cloudErrorSchema, registerUpdateAnswerSchema } from "@purosur/contracts
 import type { RegisterRelease, RegisterReleases } from "@purosur/domain/register/use-cases";
 import type { FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
-import { insertEnrolledInstallation } from "./test-support/enrolled-installation.js";
 import { buildRegisterUpdateRouteApp } from "./test-support/register-update-route.js";
 
 const NOW = new Date("2026-10-12T09:30:00.000Z");

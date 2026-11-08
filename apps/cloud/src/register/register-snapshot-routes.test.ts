@@ -6,6 +6,8 @@ import {
 } from "@purosur/contracts";
 import type { FastifyInstance } from "fastify";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { insertEnrolledInstallation } from "../installation/test-support/enrolled-installation.js";
+import { keyStore } from "../installation/test-support/key-store.js";
 import {
   registerSnapshotGenerations,
   registerSnapshotRetentionFreezes,
@@ -13,8 +15,6 @@ import {
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { BucketRegisterSnapshots } from "./bucket-register-snapshots.js";
 import type { RegisterSnapshotUrls } from "./register-snapshot-routes.js";
-import { insertEnrolledInstallation } from "./test-support/enrolled-installation.js";
-import { keyStore } from "./test-support/key-store.js";
 import { buildRegisterSnapshotRoutesApp } from "./test-support/register-snapshot-routes.js";
 
 const NOW = new Date("2026-10-14T15:00:00.000Z");
