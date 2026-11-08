@@ -3,9 +3,10 @@ import {
   followMercadoPagoSettlementReport,
   type MercadoPagoSettlementReports,
 } from "@purosur/domain/payments/use-cases";
-import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
+import type { PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { BackgroundJobs } from "../platform/background-jobs.js";
-import { DrizzleSettlementReportStore } from "./drizzle-settlement-report-store.js";
+import type { DedicatedConnections } from "../platform/dedicated-connections.js";
+import { DrizzleSettlementReportLanes } from "./drizzle-settlement-report-lanes.js";
 
 export const MERCADO_PAGO_SETTLEMENT_REPORT_TASK_IDENTIFIER = "mercado-pago-settlement-report";
 
@@ -14,14 +15,14 @@ const MERCADO_PAGO_SETTLEMENT_REPORT_CRONTAB_LINE = `0 * * * * ${MERCADO_PAGO_SE
 export interface MercadoPagoSettlementReportInput<TQueryResult extends PgQueryResultHKT> {
   now: () => Date;
   reports: MercadoPagoSettlementReports;
-  db: PgDatabase<TQueryResult>;
+  connections: DedicatedConnections<TQueryResult>;
   zoneRules: ZoneRulesSource;
 }
 
 export function mercadoPagoSettlementReportJobs<TQueryResult extends PgQueryResultHKT>({
   now,
   reports,
-  db,
+  connections,
   zoneRules,
 }: MercadoPagoSettlementReportInput<TQueryResult>): BackgroundJobs {
   return {
@@ -29,7 +30,7 @@ export function mercadoPagoSettlementReportJobs<TQueryResult extends PgQueryResu
       [MERCADO_PAGO_SETTLEMENT_REPORT_TASK_IDENTIFIER]: async (_payload, helpers) => {
         const outcome = await followMercadoPagoSettlementReport({
           reports,
-          store: new DrizzleSettlementReportStore(db),
+          lanes: new DrizzleSettlementReportLanes(connections),
           clock: { now },
           zoneRules,
         });

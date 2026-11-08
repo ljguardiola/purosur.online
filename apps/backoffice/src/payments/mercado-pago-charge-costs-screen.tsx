@@ -178,8 +178,7 @@ const chargeColumns = [
     id: "amount",
     header: "Monto cobrado",
     align: "end",
-    render: (charge: Charge) =>
-      costOrPending(charge, (cost) => formatSignedCents(cost.gross_amount)),
+    render: (charge: Charge) => formatSignedCents(charge.cost?.gross_amount ?? charge.amount),
   }),
   dataColumn({
     id: "fee",
@@ -256,10 +255,16 @@ export function MercadoPagoChargeCostsScreen({
     columns: chargeColumns,
   });
   const noun = GROUPING_OPTIONS.find((option) => option.value === filters.group)?.noun ?? "";
+  const variant = filters.from === "" ? ("blank" as const) : ("filtered" as const);
   const empty = {
     icon: <Landmark />,
     title: "No hay cobros de Mercado Pago en este período",
-    variant: filters.from === "" ? ("blank" as const) : ("filtered" as const),
+    variant,
+  };
+  const noRegisterCharges = {
+    icon: <Landmark />,
+    title: "Ninguna caja cobró con Mercado Pago en este período",
+    variant,
   };
 
   return (
@@ -307,7 +312,7 @@ export function MercadoPagoChargeCostsScreen({
             aria-label="Cobros de Mercado Pago"
             table={chargesTable}
             {...cloudTableState(data, "los cobros de Mercado Pago")}
-            empty={empty}
+            empty={noRegisterCharges}
           />
         </>
       )}

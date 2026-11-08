@@ -2,7 +2,10 @@ const CHARGE_MOVEMENT_TYPES = ["SETTLEMENT", "REFUND", "CHARGEBACK", "DISPUTE"] 
 
 const CHARGE_TYPE = "SETTLEMENT";
 
-export const MERCADO_PAGO_SETTLEMENT_REPORT_DAYS = 60;
+const MERCADO_PAGO_SETTLEMENT_REPORT_DAYS = 60;
+
+const SECOND_MS = 1000;
+const DAY_MS = 24 * 60 * 60 * SECOND_MS;
 
 export interface SettlementMovement {
   sourceId: string;
@@ -23,6 +26,15 @@ export interface ChargeCost {
   taxesAmount: number;
   netAmount: number;
   moneyReleaseDate: Date | null;
+}
+
+// Mercado Pago takes and echoes a report's window in whole seconds.
+export function settlementReportWindow(now: Date): { beginDate: Date; endDate: Date } {
+  const end = now.getTime() - (now.getTime() % SECOND_MS);
+  return {
+    beginDate: new Date(end - MERCADO_PAGO_SETTLEMENT_REPORT_DAYS * DAY_MS),
+    endDate: new Date(end),
+  };
 }
 
 export function isChargeMovement(transactionType: string): boolean {

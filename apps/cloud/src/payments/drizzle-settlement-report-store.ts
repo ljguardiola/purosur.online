@@ -27,14 +27,24 @@ export class DrizzleSettlementReportStore<TQueryResult extends PgQueryResultHKT>
     return row ?? null;
   }
 
-  async recordRequest(request: Omit<SettlementReportRequest, "recordedAt">): Promise<void> {
+  async recordRequest(
+    request: Omit<SettlementReportRequest, "refused" | "recordedAt">,
+  ): Promise<void> {
+    const unanswered = { ...request, refused: false };
     await this.db
       .insert(mercadoPagoSettlementReportRequests)
-      .values(request)
+      .values(unanswered)
       .onConflictDoUpdate({
         target: mercadoPagoSettlementReportRequests.day,
-        set: { ...request, recordedAt: null },
+        set: { ...unanswered, recordedAt: null },
       });
+  }
+
+  async recordRefusal(day: string): Promise<void> {
+    await this.db
+      .update(mercadoPagoSettlementReportRequests)
+      .set({ refused: true })
+      .where(eq(mercadoPagoSettlementReportRequests.day, day));
   }
 
   async recordRows(day: string, rows: SettlementReportRow[], recordedAt: Date): Promise<void> {

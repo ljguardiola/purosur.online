@@ -135,7 +135,12 @@ export class DrizzleMercadoPagoChargeCostsReader<TQueryResult extends PgQueryRes
               .select({ one: sql`1` })
               .from(explaining)
               .innerJoin(paymentTransactions, referencesTransaction(explaining.externalReference))
-              .where(eq(explaining.sourceId, movements.sourceId)),
+              .where(
+                and(
+                  eq(explaining.sourceId, movements.sourceId),
+                  eq(paymentTransactions.state, APPROVED_PAYMENT_STATE),
+                ),
+              ),
           ),
           exists(
             this.db

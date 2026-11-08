@@ -47,13 +47,20 @@ export interface SettlementReportRequest {
 
 export interface SettlementReportStore {
   requestOfDay(day: string): Promise<SettlementReportRequest | null>;
-  recordRequest(request: Omit<SettlementReportRequest, "recordedAt">): Promise<void>;
+  recordRequest(request: Omit<SettlementReportRequest, "refused" | "recordedAt">): Promise<void>;
+  recordRefusal(day: string): Promise<void>;
   recordRows(day: string, rows: SettlementReportRow[], recordedAt: Date): Promise<void>;
+}
+
+export interface SettlementReportLanes {
+  inSettlementReportLane<TOutcome>(
+    work: (store: SettlementReportStore) => Promise<TOutcome>,
+  ): Promise<TOutcome>;
 }
 
 export interface FollowMercadoPagoSettlementReportPorts {
   reports: MercadoPagoSettlementReports;
-  store: SettlementReportStore;
+  lanes: SettlementReportLanes;
   clock: Clock;
   zoneRules: ZoneRulesSource;
 }

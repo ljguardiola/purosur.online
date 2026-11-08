@@ -1,11 +1,10 @@
 import { argentinaCalendarDay } from "../../shared/index.js";
-import {
-  isChargeMovement,
-  MERCADO_PAGO_SETTLEMENT_REPORT_DAYS,
-} from "../model/mercado-pago-settlement.js";
+import { isChargeMovement, settlementReportWindow } from "../model/mercado-pago-settlement.js";
 import type {
   FollowMercadoPagoSettlementReportPorts,
+  MercadoPagoSettlementReports,
   SettlementReportRequest,
+  SettlementReportStore,
 } from "./mercado-pago-settlement-report-ports.js";
 
 export type FollowMercadoPagoSettlementReportOutcome =
@@ -16,11 +15,9 @@ export type FollowMercadoPagoSettlementReportOutcome =
   | { kind: "recorded"; rows: number }
   | { kind: "unavailable" };
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-async function ensureConfiguration({
-  reports,
-}: FollowMercadoPagoSettlementReportPorts): Promise<"ready" | "unavailable"> {
+async function ensureConfiguration(
+  reports: MercadoPagoSettlementReports,
+): Promise<"ready" | "unavailable"> {
   const reading = await reports.readConfiguration();
   if (reading.kind === "unavailable") {
     return "unavailable";
@@ -36,30 +33,26 @@ async function ensureConfiguration({
 }
 
 async function requestTodaysReport(
-  ports: FollowMercadoPagoSettlementReportPorts,
+  reports: MercadoPagoSettlementReports,
+  store: SettlementReportStore,
   day: string,
   now: Date,
 ): Promise<FollowMercadoPagoSettlementReportOutcome> {
-  if ((await ensureConfiguration(ports)) === "unavailable") {
+  if ((await ensureConfiguration(reports)) === "unavailable") {
     return { kind: "unavailable" };
   }
-  const beginDate = new Date(now.getTime() - MERCADO_PAGO_SETTLEMENT_REPORT_DAYS * DAY_MS);
-  const requested = await ports.reports.requestReport(beginDate, now);
-  if (requested.kind === "unavailable") {
-    return { kind: "unavailable" };
+  const { beginDate, endDate } = settlementReportWindow(now);
+  await store.recordRequest({ day, beginDate, endDate, requestedAt: now });
+  const requested = await reports.requestReport(beginDate, endDate);
+  if (requested.kind === "refused") {
+    await store.recordRefusal(day);
   }
-  await ports.store.recordRequest({
-    day,
-    beginDate,
-    endDate: now,
-    requestedAt: now,
-    refused: requested.kind === "refused",
-  });
   return { kind: requested.kind };
 }
 
 async function recordTodaysReport(
-  { reports, store }: FollowMercadoPagoSettlementReportPorts,
+  reports: MercadoPagoSettlementReports,
+  store: SettlementReportStore,
   request: SettlementReportRequest,
   now: Date,
 ): Promise<FollowMercadoPagoSettlementReportOutcome> {
@@ -91,17 +84,19 @@ async function recordTodaysReport(
 export async function followMercadoPagoSettlementReport(
   ports: FollowMercadoPagoSettlementReportPorts,
 ): Promise<FollowMercadoPagoSettlementReportOutcome> {
-  const now = ports.clock.now();
-  const day = argentinaCalendarDay(now, ports.zoneRules.zoneRules());
-  const request = await ports.store.requestOfDay(day);
-  if (request === null) {
-    return requestTodaysReport(ports, day, now);
-  }
-  if (request.recordedAt !== null) {
-    return { kind: "already_recorded" };
-  }
-  if (request.refused) {
-    return { kind: "refused" };
-  }
-  return recordTodaysReport(ports, request, now);
+  return ports.lanes.inSettlementReportLane(async (store) => {
+    const now = ports.clock.now();
+    const day = argentinaCalendarDay(now, ports.zoneRules.zoneRules());
+    const request = await store.requestOfDay(day);
+    if (request === null) {
+      return requestTodaysReport(ports.reports, store, day, now);
+    }
+    if (request.recordedAt !== null) {
+      return { kind: "already_recorded" };
+    }
+    if (request.refused) {
+      return { kind: "refused" };
+    }
+    return recordTodaysReport(ports.reports, store, request, now);
+  });
 }

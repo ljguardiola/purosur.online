@@ -607,7 +607,7 @@ export async function setUpBackgroundJobs(
             mercadoPagoSettlementReportJobs({
               now,
               reports: backgroundJobsEnv.mercadoPagoSettlementReports,
-              db,
+              connections,
               zoneRules,
             }),
           ]

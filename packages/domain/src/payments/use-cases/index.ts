@@ -170,6 +170,7 @@ export type {
   ListedSettlementReport,
   MercadoPagoSettlementReports,
   SettlementReportConfigurationReading,
+  SettlementReportLanes,
   SettlementReportRequest,
   SettlementReportRow,
   SettlementReportStore,
