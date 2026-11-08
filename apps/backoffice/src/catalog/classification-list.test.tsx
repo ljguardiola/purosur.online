@@ -1,4 +1,5 @@
 import { dataColumn, FieldSizeProvider, useTableModel } from "@purosur/ui";
+import { Tags } from "lucide-react";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "../shell/test-support/render-with-router";
@@ -14,7 +15,12 @@ const ITEMS: Item[] = [
 function Harness({
   items = ITEMS,
   ...props
-}: Partial<Omit<ClassificationListProps<Item>, "table">> & { items?: Item[] }) {
+}: Partial<
+  Pick<
+    ClassificationListProps<Item>,
+    "filters" | "footer" | "empty" | "createStatus" | "children" | "onSearchChange" | "onCreate"
+  >
+> & { items?: Item[] }) {
   const table = useTableModel({
     items,
     id: (item) => item.id,
@@ -97,7 +103,12 @@ test("shows the empty state it is given when there are no rows", async () => {
   const screen = await render(
     <Harness
       items={[]}
-      empty={{ title: "Todavía no hay marcas", variant: "blank", description: "Creá la primera." }}
+      empty={{
+        icon: <Tags />,
+        title: "Todavía no hay marcas",
+        variant: "blank",
+        description: "Creá la primera.",
+      }}
     />,
   );
 

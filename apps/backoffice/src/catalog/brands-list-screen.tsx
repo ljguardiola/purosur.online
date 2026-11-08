@@ -9,9 +9,7 @@ import {
   ListFilter,
   Modal,
   plural,
-  SearchField,
   StatusIndicator,
-  Table,
   type TableSort,
   textOrder,
   useRequestForm,
@@ -23,9 +21,7 @@ import {
   Check,
   Factory,
   Pencil,
-  Plus,
   RotateCcw,
-  Search,
   SearchX,
   ShieldX,
   TriangleAlert,
@@ -46,6 +42,7 @@ import {
   useRefreshCatalog,
   useReloadBrand,
 } from "./catalog-queries";
+import { ClassificationList } from "./classification-list";
 import type { BrandsListFilters } from "./routes";
 
 export type BrandsListScreenProps = {
@@ -579,63 +576,52 @@ export function BrandsListScreen({
   const matchedBrands = table.getRowModel().rows.map((row) => row.original);
 
   return (
-    <>
-      <div className="flex min-w-0 flex-1 flex-col gap-4 p-6">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="w-105">
-            <SearchField
-              value={search}
-              onChange={setSearch}
-              placeholder="Buscar una marca"
-              icon={<Search />}
-            />
-          </div>
-          <ListFilter
-            name="status"
-            label="Estado:"
-            options={statusFilterOptions}
-            value={statusFilter}
-            onChange={setStatusFilter}
-          />
-          <div className="ml-auto flex items-center gap-3">
-            <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
-              Nueva marca
-            </Button>
-          </div>
-        </div>
-        <Table
-          aria-label="Marcas"
-          table={table}
-          {...cloudTableState(data, "las marcas")}
-          empty={
-            brands.length === 0
-              ? {
-                  icon: <Factory />,
-                  title: "Todavía no hay marcas",
-                  description:
-                    "Se cargan para identificar el fabricante o la línea comercial de un producto.",
-                  variant: "blank",
-                }
-              : search.trim() === ""
-                ? {
-                    icon: <SearchX />,
-                    title: BRAND_STATUS_EMPTY_TITLE[statusFilter],
-                    variant: "filtered",
-                  }
-                : {
-                    icon: <SearchX />,
-                    title: "Sin resultados",
-                    description: "Probá con otro nombre.",
-                    variant: "filtered",
-                  }
-          }
-          footer={
-            matchedBrands.length === 0 ? undefined : (
-              <p className="text-text-subtle text-detail">{brandsFooterText(matchedBrands)}</p>
-            )
-          }
+    <ClassificationList
+      label="Marcas"
+      searchPlaceholder="Buscar una marca"
+      search={search}
+      onSearchChange={setSearch}
+      filters={
+        <ListFilter
+          name="status"
+          label="Estado:"
+          options={statusFilterOptions}
+          value={statusFilter}
+          onChange={setStatusFilter}
         />
-      </div>
+      }
+      createLabel="Nueva marca"
+      onCreate={() => setNewModalOpen(true)}
+      table={table}
+      {...cloudTableState(data, "las marcas")}
+      empty={
+        brands.length === 0
+          ? {
+              icon: <Factory />,
+              title: "Todavía no hay marcas",
+              description:
+                "Se cargan para identificar el fabricante o la línea comercial de un producto.",
+              variant: "blank",
+            }
+          : search.trim() === ""
+            ? {
+                icon: <SearchX />,
+                title: BRAND_STATUS_EMPTY_TITLE[statusFilter],
+                variant: "filtered",
+              }
+            : {
+                icon: <SearchX />,
+                title: "Sin resultados",
+                description: "Probá con otro nombre.",
+                variant: "filtered",
+              }
+      }
+      footer={
+        matchedBrands.length === 0 ? undefined : (
+          <p className="text-text-subtle text-detail">{brandsFooterText(matchedBrands)}</p>
+        )
+      }
+    >
       <NewBrandModal
         open={newModalOpen}
         context="Catálogo"
@@ -670,6 +656,6 @@ export function BrandsListScreen({
         onSessionEnded={onSessionEnded}
         changeActivation={{ deactivate: deactivateBrand, reactivate: reactivateBrand }}
       />
-    </>
+    </ClassificationList>
   );
 }

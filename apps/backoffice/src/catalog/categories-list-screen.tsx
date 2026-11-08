@@ -1,22 +1,20 @@
 import type { CategorySummary } from "@purosur/contracts";
 import {
   actionsColumn,
-  Button,
   dataColumn,
   formatNumber,
   plural,
-  SearchField,
-  Table,
   type TableSort,
   useTableModel,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
-import { Pencil, Plus, Search, Tags } from "lucide-react";
+import { Pencil, Search, Tags } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { categoryNameOrder, categoryParentId, categoryPathLabels } from "../platform/category-path";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { useCategoriesQuery, useRefreshCatalog, useReloadCategory } from "./catalog-queries";
 import type { CategoriesListScreenServices } from "./categories-list-services";
+import { ClassificationList } from "./classification-list";
 import { EditCategoryModal } from "./edit-category-modal";
 import { NewCategoryModal } from "./new-category-modal";
 import type { CategoriesListFilters } from "./routes";
@@ -97,59 +95,42 @@ export function CategoriesListScreen({
   const matchCount = table.getRowModel().rows.length;
 
   return (
-    <>
-      <div className="flex min-w-0 flex-1 flex-col gap-4 p-6">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="w-105">
-            <SearchField
-              value={search}
-              onChange={setSearch}
-              placeholder="Buscar una categoría"
-              icon={<Search />}
-            />
-          </div>
-          <div className="ml-auto flex items-center gap-3">
-            <Button
-              variant="primary"
-              icon={<Plus />}
-              dataStatus={data.status}
-              onPress={() => setNewModalOpen(true)}
-            >
-              Nueva categoría
-            </Button>
-          </div>
-        </div>
-        <Table
-          aria-label="Categorías"
-          table={table}
-          {...cloudTableState(data, "las categorías")}
-          empty={
-            categories.length === 0
-              ? {
-                  icon: <Tags />,
-                  title: "Todavía no hay categorías",
-                  description: "Creá la primera para poder darle una a un producto.",
-                  variant: "blank",
-                }
-              : {
-                  icon: <Search />,
-                  title: "Sin resultados",
-                  description: "Probá con otro nombre.",
-                  variant: "filtered",
-                }
-          }
-          footer={
-            matchCount === 0 ? undefined : (
-              <p className="text-text-subtle text-detail">
-                {plural(matchCount, {
-                  one: "1 categoría",
-                  other: `${formatNumber(matchCount)} categorías`,
-                })}
-              </p>
-            )
-          }
-        />
-      </div>
+    <ClassificationList
+      label="Categorías"
+      searchPlaceholder="Buscar una categoría"
+      search={search}
+      onSearchChange={setSearch}
+      createLabel="Nueva categoría"
+      onCreate={() => setNewModalOpen(true)}
+      createStatus={data.status}
+      table={table}
+      {...cloudTableState(data, "las categorías")}
+      empty={
+        categories.length === 0
+          ? {
+              icon: <Tags />,
+              title: "Todavía no hay categorías",
+              description: "Creá la primera para poder darle una a un producto.",
+              variant: "blank",
+            }
+          : {
+              icon: <Search />,
+              title: "Sin resultados",
+              description: "Probá con otro nombre.",
+              variant: "filtered",
+            }
+      }
+      footer={
+        matchCount === 0 ? undefined : (
+          <p className="text-text-subtle text-detail">
+            {plural(matchCount, {
+              one: "1 categoría",
+              other: `${formatNumber(matchCount)} categorías`,
+            })}
+          </p>
+        )
+      }
+    >
       <NewCategoryModal
         open={newModalOpen}
         onClose={() => setNewModalOpen(false)}
@@ -176,6 +157,6 @@ export function CategoriesListScreen({
           categories={data.value}
         />
       ) : null}
-    </>
+    </ClassificationList>
   );
 }
