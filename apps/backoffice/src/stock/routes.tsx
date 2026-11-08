@@ -50,8 +50,6 @@ export type StockMovementsFilters = z.output<typeof stockMovementsFilters>;
 
 const stockMovementKind = z.enum(["count", "adjustment", "loss"]);
 
-export type StockMovementKind = z.output<typeof stockMovementKind>;
-
 const stockMovementKinds = z
   .union([
     z.array(stockMovementKind),

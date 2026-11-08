@@ -1,5 +1,5 @@
-import { fetchCurrentZoneRules } from "../platform/zone-rules-api";
-import {
+import type { fetchCurrentZoneRules } from "../platform/zone-rules-api";
+import type {
   fetchExpectedBalance,
   fetchStockCounts,
   fetchStockProducts,
@@ -12,12 +12,4 @@ export type StockCountsScreenServices = {
   fetchExpectedBalance: typeof fetchExpectedBalance;
   registerCount: typeof registerCount;
   fetchCurrentZoneRules: typeof fetchCurrentZoneRules;
-};
-
-export const defaultStockCountsScreenServices: StockCountsScreenServices = {
-  fetchStockCounts,
-  fetchStockProducts,
-  fetchExpectedBalance,
-  registerCount,
-  fetchCurrentZoneRules,
 };
