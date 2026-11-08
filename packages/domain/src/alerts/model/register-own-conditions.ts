@@ -47,10 +47,7 @@ export const REGISTER_OWN_CONDITIONS = [
   | "installation_revoked"
   | "serial_device_missing"
   | "disk_space_low"
-  | "wal_oversized"
   | "battery_low"
-  | "on_battery"
-  | "battery_missing"
   | "critical_battery_action_not_shutdown"
 )[];
 
@@ -112,10 +109,7 @@ const LEVELS_OF_CONDITIONS_THAT_ARE_NOT_ALERTS = {
   installation_revoked: "critical",
   serial_device_missing: "warning",
   disk_space_low: "warning",
-  wal_oversized: "warning",
   battery_low: "warning",
-  on_battery: "critical",
-  battery_missing: "warning",
   critical_battery_action_not_shutdown: "warning",
 } as const satisfies Record<Exclude<RegisterOwnCondition, AlertKind>, AlertLevel>;
 

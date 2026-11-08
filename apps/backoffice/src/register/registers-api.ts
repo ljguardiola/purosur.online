@@ -8,6 +8,7 @@ import {
   qrPointOfSaleAssignmentSchema,
   type RegisterCreationBody,
   type RegisterSummaryBody,
+  type RegisterSyncStatusWire,
   registerCoverageSchema,
   registerEnrollmentCodeSchema,
   registerListSchema,
@@ -57,10 +58,25 @@ export type RegisterName = { id: string; name: string };
 
 export type FetchRegisterNamesOutcome = CloudReadOutcome<RegisterName[]>;
 
+export type RegisterBattery =
+  | { present: false }
+  | {
+      present: true;
+      chargePercent: number;
+      onBattery: boolean;
+      onBatteryMinutes: number;
+      healthPercent: number | null;
+      worn: boolean;
+    };
+
+export type RegisterDisk = { freeBytes: number; freeRatio: number };
+
 export type RegisterSyncStatus = {
   id: string;
   name: string;
   lastSuccessfulSyncAt: string | null;
+  battery: RegisterBattery | null;
+  disk: RegisterDisk | null;
 };
 
 export type FetchRegisterSyncStatusOutcome = CloudReadOutcome<RegisterSyncStatus[]>;
@@ -147,6 +163,20 @@ function postJson(path: string, body?: unknown): Promise<Response> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body ?? {}),
   });
+}
+
+function batteryFromWire(battery: RegisterSyncStatusWire["battery"]): RegisterBattery | null {
+  if (battery === null || !battery.present) {
+    return battery;
+  }
+  return {
+    present: true,
+    chargePercent: battery.charge_percent,
+    onBattery: battery.on_battery,
+    onBatteryMinutes: battery.on_battery_minutes,
+    healthPercent: battery.health_percent ?? null,
+    worn: battery.worn,
+  };
 }
 
 function installationFromWire(
@@ -263,6 +293,8 @@ export function fetchRegisterSyncStatus(): Promise<FetchRegisterSyncStatusOutcom
       id: row.id,
       name: row.name,
       lastSuccessfulSyncAt: row.last_successful_sync_at,
+      battery: batteryFromWire(row.battery),
+      disk: row.disk && { freeBytes: row.disk.free_bytes, freeRatio: row.disk.free_ratio },
     })),
   );
 }

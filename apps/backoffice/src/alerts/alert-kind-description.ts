@@ -44,6 +44,11 @@ const ALERT_KIND_DESCRIPTIONS = {
   register_backup_overdue:
     "Una caja registró cambios y lleva más de una hora sin un backup verificado",
   clock_drift: "La hora de una caja difiere en más de un minuto de la hora real",
+  on_battery: "Una caja lleva un rato funcionando solo con la batería",
+  battery_missing: "Una caja no informa tener batería",
+  battery_health_low: "La batería de una caja perdió buena parte de su capacidad de diseño",
+  wal_oversized: "El registro de cambios de una caja creció más de lo normal",
+  register_disk_space_low: "A una caja le queda poco espacio libre en el disco",
   tz_rules_mismatch:
     "La caja aplica reglas de zona horaria de una versión distinta de la de la nube. Se resuelve sola cuando la caja recibe y aplica la versión de la nube.",
   register_replenishment_failed:

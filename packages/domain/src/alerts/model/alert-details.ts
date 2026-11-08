@@ -180,6 +180,34 @@ interface TzRulesMismatchDetail {
   cloudVersion: string;
 }
 
+interface OnBatteryDetail {
+  deviceId: string;
+  onBatteryMinutes: number;
+  thresholdMinutes: number;
+}
+
+interface BatteryMissingDetail {
+  deviceId: string;
+}
+
+interface BatteryHealthLowDetail {
+  deviceId: string;
+  healthPercent: number;
+  wornBelowPercent: number;
+}
+
+interface WalOversizedDetail {
+  deviceId: string;
+  walSizeBytes: number;
+  limitBytes: number;
+}
+
+interface RegisterDiskSpaceLowDetail {
+  deviceId: string;
+  diskFreeBytes: number;
+  diskFreeRatio: number;
+}
+
 interface OutboxChainBrokenDetail {
   deviceId: string;
 }
@@ -290,6 +318,11 @@ export interface AlertDetails {
   clock_drift: ClockDriftDetail;
   register_replenishment_failed: RegisterReplenishmentFailedDetail;
   tz_rules_mismatch: TzRulesMismatchDetail;
+  on_battery: OnBatteryDetail;
+  battery_missing: BatteryMissingDetail;
+  battery_health_low: BatteryHealthLowDetail;
+  wal_oversized: WalOversizedDetail;
+  register_disk_space_low: RegisterDiskSpaceLowDetail;
   outbox_chain_broken: OutboxChainBrokenDetail;
   lots_expiring: LotsExpiringDetail;
   offsite_dump_unverified: OffsiteDumpUnverifiedDetail;

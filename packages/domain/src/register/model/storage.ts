@@ -11,6 +11,10 @@ const STARTUP_HEADROOM_BYTES = 2 * GIGABYTE;
 
 export const WAL_SIZE_LIMIT_BYTES = 256 * MEGABYTE;
 
+export const DISK_FREE_ALERT_RATIO = 0.2;
+
+export const DISK_FREE_ALERT_BYTES = 5 * GIGABYTE;
+
 export type DiskStanding = "enough" | "low" | "full";
 
 export function requiredFreeBytes(databaseSizeBytes: number): number {
@@ -34,6 +38,16 @@ export function diskStanding({
     return "low";
   }
   return "enough";
+}
+
+export function isDiskSpaceBelowAlertLimit({
+  disk_free_bytes,
+  disk_free_ratio,
+}: {
+  disk_free_bytes: number;
+  disk_free_ratio: number;
+}): boolean {
+  return disk_free_ratio < DISK_FREE_ALERT_RATIO || disk_free_bytes < DISK_FREE_ALERT_BYTES;
 }
 
 export function walOversized(walSizeBytes: number): boolean {

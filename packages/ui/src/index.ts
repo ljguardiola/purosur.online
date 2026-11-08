@@ -226,6 +226,8 @@ export {
   formatDate,
   formatDayAndTime,
   formatDuration,
+  formatFreeBytes,
+  formatFreeRatio,
   formatInvoiceNumber,
   formatMonthAndYear,
   formatMonthAndYearInSentence,
