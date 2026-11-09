@@ -33,7 +33,7 @@ export function PurchaseOrderReceipts({
   }
   return (
     <section className="flex flex-col gap-4">
-      <h2 className="text-text-accent text-subheading">Recepciones</h2>
+      <h2 className="text-text-accent text-subheading">Diferencias de recepción</h2>
       {order.receipts.map((receipt) => (
         <ReceiptCard
           key={receipt.id}

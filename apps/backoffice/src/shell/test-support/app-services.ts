@@ -276,11 +276,11 @@ export function createAppServices(
       fetchOrderSuggestion: vi.fn().mockReturnValue(new Promise(() => {})),
       buildPurchaseOrders: vi.fn(),
     },
-    purchaseOrdersScreen: {
+    purchaseOrdersListScreen: {
       fetchPurchaseOrders: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchSupplierName: vi.fn().mockReturnValue(new Promise(() => {})),
-    },
-    purchaseOrderScreen: {
+      fetchPendingPurchaseOrdersReport: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchReceiptDifferencesReport: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchPurchaseOrder: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchPurchaseChoices: vi.fn().mockReturnValue(new Promise(() => {})),
       editPurchaseOrderLines: vi.fn(),

@@ -20,8 +20,6 @@ import { Scale, Search, SearchX } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatDisplayDate } from "../platform/display-date";
-import { AreaTopBar } from "../shell/area-top-bar";
-import { ScreenLayout } from "../shell/screen-layout";
 import { useSupplierPriceComparisonQuery } from "./purchasing-queries";
 import type { SupplierPriceComparisonFilters } from "./supplier-price-comparison-filters";
 import type { SupplierPriceComparisonScreenServices } from "./supplier-price-comparison-services";
@@ -181,10 +179,7 @@ export function SupplierPriceComparisonScreen({
   const productCount = new Set(shownRows.map((row) => row.original.product.id)).size;
 
   return (
-    <ScreenLayout
-      topBar={<AreaTopBar eyebrow="Compras" title="Comparación de precios" />}
-      bodyClassName="gap-4 p-6"
-    >
+    <div className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-6">
       <div className="flex flex-wrap items-center gap-3">
         <div className="w-105">
           <SearchField
@@ -227,6 +222,6 @@ export function SupplierPriceComparisonScreen({
           )
         }
       />
-    </ScreenLayout>
+    </div>
   );
 }

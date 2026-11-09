@@ -54,7 +54,7 @@ function screenElement(
   }: {
     filters?: OrderSuggestionFilters;
     onFiltersChange?: (filters: OrderSuggestionFilters) => void;
-    onOrdersBuilt?: () => void;
+    onOrdersBuilt?: (orderIds: readonly string[]) => void;
     onSessionEnded?: () => void;
     access?: BackofficeAccess;
   } = {},
@@ -100,13 +100,11 @@ function supplierSelect(screen: Screen, productName: string) {
   return screen.getByRole("button", { name: new RegExp(`Proveedor de ${productName}`) });
 }
 
-test("shows the breadcrumb and the heading", async () => {
+test("renders no heading of its own, as the Pedidos page frames it", async () => {
   const screen = await loaded(createServices());
 
-  await expect.element(screen.getByText("Compras").first()).toBeVisible();
-  await expect
-    .element(screen.getByRole("heading", { name: "Sugerencia de pedido", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("table", { name: "Sugerencia de pedido" })).toBeVisible();
+  expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
 });
 
 test("shows a row for each product, with its description and category, sold, stock and coverage", async () => {
@@ -474,7 +472,7 @@ test("ends the session when the suggestion comes back unauthenticated", async ()
 });
 
 test("navigates to Mi cuenta when the suggestion comes back forbidden", async () => {
-  window.history.pushState(null, "", "/order-suggestion");
+  window.history.pushState(null, "", "/purchase-orders/suggestion");
   const services = createServices();
   vi.mocked(services.fetchOrderSuggestion).mockResolvedValue({ kind: "forbidden" });
   await renderScreen(services);
@@ -526,6 +524,7 @@ test("Armar pedidos sends the packages of the offer proposed for each line and g
     ],
   });
   await expect.poll(() => onOrdersBuilt.mock.calls.length).toBe(1);
+  expect(onOrdersBuilt).toHaveBeenCalledWith(["o-1"]);
 });
 
 test("Armar pedidos follows the supplier chosen and leaves out the lines left out of the order", async () => {
@@ -624,7 +623,7 @@ test("ends the session when building the orders finds no open session", async ()
 });
 
 test("navigates to Mi cuenta when building the orders comes back forbidden", async () => {
-  window.history.pushState(null, "", "/order-suggestion");
+  window.history.pushState(null, "", "/purchase-orders/suggestion");
   const services = createServices();
   vi.mocked(services.buildPurchaseOrders).mockResolvedValue({ kind: "forbidden" });
   const screen = await loaded(services);

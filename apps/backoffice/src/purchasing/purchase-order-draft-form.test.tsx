@@ -5,7 +5,7 @@ import { userEvent } from "vitest/browser";
 import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import { PurchaseOrderDraftForm } from "./purchase-order-draft-form";
-import type { PurchaseOrderScreenServices } from "./purchase-order-services";
+import type { PurchaseOrderPanelServices } from "./purchase-order-panel-services";
 import { DRAFT_ORDER, ORDER_ID } from "./test-support/purchase-orders";
 import {
   AVENA_PRODUCT_ID,
@@ -17,7 +17,7 @@ beforeEach(() => {
   window.history.pushState(null, "", "/");
 });
 
-type EditPurchaseOrderLines = PurchaseOrderScreenServices["editPurchaseOrderLines"];
+type EditPurchaseOrderLines = PurchaseOrderPanelServices["editPurchaseOrderLines"];
 
 function renderForm({
   order = DRAFT_ORDER,

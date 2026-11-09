@@ -1,46 +1,18 @@
-import { FieldSizeProvider } from "@purosur/ui";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import { render } from "../shell/test-support/render-with-router";
-import { purchaseOrdersFilters } from "./purchase-orders-filters";
-import { PurchaseOrdersScreen } from "./purchase-orders-screen";
-import type { PurchaseOrdersScreenServices } from "./purchase-orders-services";
 import { DRAFT_SUMMARY, SUPPLIER_ID } from "./test-support/purchase-orders";
-
-function renderScreen(
-  services: PurchaseOrdersScreenServices,
-  supplierFilter?: { supplierId: string; onClear: () => void },
-) {
-  return render(
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <PurchaseOrdersScreen
-          services={services}
-          filters={purchaseOrdersFilters.parse({})}
-          onFiltersChange={() => {}}
-          onOpenOrder={() => {}}
-          onSessionEnded={() => {}}
-          {...(supplierFilter === undefined ? {} : { supplierFilter })}
-        />
-      </main>
-    </FieldSizeProvider>,
-  );
-}
+import { createServices, renderScreen } from "./test-support/purchase-orders-list-screen";
 
 function servicesWithOrders(orders = [DRAFT_SUMMARY]) {
-  return {
+  return createServices({
     fetchPurchaseOrders: vi.fn().mockResolvedValue({ kind: "ok", value: orders }),
-    fetchSupplierName: vi.fn().mockResolvedValue({
-      kind: "ok",
-      value: { kind: "found", name: "Distribuidora Andina" },
-    }),
-  } satisfies PurchaseOrdersScreenServices;
+  });
 }
 
 test("asks the cloud only for the orders of the supplier it is filtered by", async () => {
   const services = servicesWithOrders();
 
-  await renderScreen(services, { supplierId: SUPPLIER_ID, onClear: () => {} });
+  await renderScreen(services, { supplierFilter: { supplierId: SUPPLIER_ID, onClear: () => {} } });
 
   await vi.waitFor(() =>
     expect(services.fetchPurchaseOrders).toHaveBeenCalledWith("ALL", { supplierId: SUPPLIER_ID }),
@@ -49,7 +21,9 @@ test("asks the cloud only for the orders of the supplier it is filtered by", asy
 
 test("names the supplier it is filtered by and asks to clear the filter when it is pressed", async () => {
   const onClear = vi.fn();
-  const screen = await renderScreen(servicesWithOrders([]), { supplierId: SUPPLIER_ID, onClear });
+  const screen = await renderScreen(servicesWithOrders([]), {
+    supplierFilter: { supplierId: SUPPLIER_ID, onClear },
+  });
 
   await userEvent.click(screen.getByRole("button", { name: "Proveedor: Distribuidora Andina" }));
 
@@ -65,8 +39,7 @@ test("shows no supplier filter when it is not filtered by a supplier", async () 
 
 test("tells that the supplier filter hides every order when the supplier has none", async () => {
   const screen = await renderScreen(servicesWithOrders([]), {
-    supplierId: SUPPLIER_ID,
-    onClear: () => {},
+    supplierFilter: { supplierId: SUPPLIER_ID, onClear: () => {} },
   });
 
   await expect.element(screen.getByText("Sin resultados")).toBeVisible();

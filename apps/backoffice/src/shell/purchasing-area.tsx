@@ -1,11 +1,10 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { ClipboardList, Container, PackageCheck, Scale, ShoppingCart, Truck } from "lucide-react";
+import { Container, PackageCheck, ShoppingCart, Truck } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
 import {
-  canComparePrices,
   canManageFreights,
-  canReadPurchaseOrders,
   canRecordPurchases,
+  canSeePurchaseOrdersPage,
   canSeeSuppliersPage,
 } from "./backoffice-access";
 import { signedInRoute } from "./signed-in-route";
@@ -23,9 +22,8 @@ function PurchasingArea() {
   const suppliersActive =
     Boolean(matchRoute({ to: "/suppliers", fuzzy: true })) ||
     Boolean(matchRoute({ to: "/supplier-price-lists", fuzzy: true }));
-  const purchaseOrdersShown = Boolean(matchRoute({ to: "/purchase-orders", fuzzy: true }));
-  const priceComparisonShown = Boolean(matchRoute({ to: "/price-comparison" }));
-  const orderSuggestionShown = Boolean(matchRoute({ to: "/order-suggestion" }));
+  const purchaseOrdersShown = Boolean(matchRoute({ to: "/purchase-orders" }));
+  const purchaseOrdersActive = Boolean(matchRoute({ to: "/purchase-orders", fuzzy: true }));
   const purchasesShown = Boolean(matchRoute({ to: "/purchases", fuzzy: true }));
   const freightsShown = Boolean(matchRoute({ to: "/freights" }));
   return (
@@ -48,36 +46,14 @@ function PurchasingArea() {
                 />
               </li>
             )}
-            {canReadPurchaseOrders(session) && (
+            {canSeePurchaseOrdersPage(session) && (
               <li>
                 <SectionLink
                   to="/purchase-orders"
-                  label="Pedidos de compra"
+                  label="Pedidos"
                   icon={<PackageCheck />}
                   search={purchaseOrdersShown ? true : {}}
-                  active={purchaseOrdersShown}
-                />
-              </li>
-            )}
-            {canComparePrices(session) && (
-              <li>
-                <SectionLink
-                  to="/price-comparison"
-                  label="Comparación de precios"
-                  icon={<Scale />}
-                  search={priceComparisonShown ? true : {}}
-                  active={priceComparisonShown}
-                />
-              </li>
-            )}
-            {canComparePrices(session) && (
-              <li>
-                <SectionLink
-                  to="/order-suggestion"
-                  label="Sugerencia de pedido"
-                  icon={<ClipboardList />}
-                  search={orderSuggestionShown ? true : {}}
-                  active={orderSuggestionShown}
+                  active={purchaseOrdersActive}
                 />
               </li>
             )}

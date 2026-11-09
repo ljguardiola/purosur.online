@@ -39,14 +39,16 @@ function withReceiptLines(
 test("shows nothing for an order nothing was received of", async () => {
   const screen = await renderReceipts(SENT_ORDER);
 
-  expect(screen.getByRole("heading", { name: "Recepciones" }).query()).toBeNull();
+  expect(screen.getByRole("heading", { name: "Diferencias de recepción" }).query()).toBeNull();
   expect(screen.getByRole("table").query()).toBeNull();
 });
 
 test("lists each receipt with its day and, per line, what was received, what was missing and the price difference", async () => {
   const screen = await renderReceipts(PARTIALLY_RECEIVED_ORDER);
 
-  await expect.element(screen.getByRole("heading", { name: "Recepciones" })).toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "Diferencias de recepción" }))
+    .toBeVisible();
   const table = screen.getByRole("table", { name: "Recepción del 12/03/2026" });
   const miel = table.getByRole("row", { name: /Miel pura de abeja 1 kg/ });
   await expect.element(miel.getByRole("cell").nth(1)).toHaveTextContent("24 u");
@@ -117,13 +119,17 @@ test("offers Ver compras on each receipt when it may open the purchases, and ope
 test("offers no Ver compras when it may not open the purchases", async () => {
   const screen = await renderReceipts(PARTIALLY_RECEIVED_ORDER);
 
-  await expect.element(screen.getByRole("heading", { name: "Recepciones" })).toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "Diferencias de recepción" }))
+    .toBeVisible();
   expect(screen.getByRole("button", { name: "Ver compras" }).query()).toBeNull();
 });
 
 test("has no accessibility violations with its receipts listed", async () => {
   const screen = await renderReceipts(PARTIALLY_RECEIVED_ORDER, { canOpenPurchases: true });
 
-  await expect.element(screen.getByRole("heading", { name: "Recepciones" })).toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "Diferencias de recepción" }))
+    .toBeVisible();
   await expectNoAccessibilityViolations(screen.container);
 });

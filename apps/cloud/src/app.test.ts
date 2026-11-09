@@ -2965,12 +2965,12 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/reports/pending-purchase-orders",
-        access: capabilityAccess("reports_area"),
+        access: anyCapabilityAccess("reports_area", "purchase_order_reads"),
       },
       {
         method: "GET",
         url: "/api/reports/receipt-differences",
-        access: capabilityAccess("reports_area"),
+        access: anyCapabilityAccess("reports_area", "purchase_order_reads"),
       },
       {
         method: "GET",

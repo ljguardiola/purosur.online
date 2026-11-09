@@ -1,31 +1,32 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { accessWith } from "../shell/test-support/backoffice-access";
-import type { PurchaseOrderScreenServices } from "./purchase-order-services";
+import type { PurchaseOrderPanelServices } from "./purchase-order-panel-services";
 import {
-  createServices,
+  createPanelServices,
   deferred,
   loaded,
-  renderScreen,
-  type Screen,
-} from "./test-support/purchase-order-screen";
+  type Panel,
+  renderPanel,
+} from "./test-support/purchase-order-panel";
 import { CANCELLED_ORDER, DRAFT_ORDER, ORDER_ID, SENT_ORDER } from "./test-support/purchase-orders";
 import { AVENA_PRODUCT_ID, MIEL_PRODUCT_ID } from "./test-support/purchase-products";
 
 const ALMENDRAS_PRODUCT_ID = "90d00000-0000-4000-8000-000000000003";
 
-beforeEach(() => {
+beforeEach(async () => {
+  await page.viewport(1280, 900);
   window.history.pushState(null, "", "/");
 });
 
-function line(screen: Screen, number: number) {
+function line(screen: Panel, number: number) {
   return screen.getByRole("group", { name: `Línea ${number}` });
 }
 
 async function chooseFromComboBox(
-  screen: Screen,
-  scope: Pick<Screen, "getByRole">,
+  screen: Panel,
+  scope: Pick<Panel, "getByRole">,
   label: RegExp,
   name: string,
 ) {
@@ -34,14 +35,13 @@ async function chooseFromComboBox(
   (screen.getByRole("option", { name }).element() as HTMLElement).click();
 }
 
-async function save(screen: Screen) {
+async function save(screen: Panel) {
   await userEvent.click(screen.getByRole("button", { name: "Guardar" }));
 }
 
 test("shows the supplier, the creation date, the state and the expected total of the order", async () => {
-  const screen = await loaded(createServices());
+  const screen = await loaded(createPanelServices());
 
-  await expect.element(screen.getByText("Compras", { exact: true }).first()).toBeVisible();
   await expect.element(screen.getByText("Distribuidora Andina").last()).toBeVisible();
   await expect.element(screen.getByText("10/03/2026")).toBeVisible();
   await expect.element(screen.getByText("Borrador")).toBeVisible();
@@ -51,7 +51,7 @@ test("shows the supplier, the creation date, the state and the expected total of
 
 test("shows the day the order was created in Argentina", async () => {
   const screen = await loaded(
-    createServices({
+    createPanelServices({
       fetchPurchaseOrder: vi.fn().mockResolvedValue({
         kind: "ok",
         value: { kind: "found", order: { ...DRAFT_ORDER, createdAt: "2026-03-10T01:30:00.000Z" } },
@@ -63,7 +63,7 @@ test("shows the day the order was created in Argentina", async () => {
 });
 
 test("shows each line of a draft with its product, packages, quantity each holds, expected package price and total", async () => {
-  const screen = await loaded(createServices());
+  const screen = await loaded(createPanelServices());
 
   const miel = line(screen, 1);
   await expect.element(miel.getByText("Miel pura de abeja 1 kg")).toBeVisible();
@@ -84,13 +84,13 @@ test("shows each line of a draft with its product, packages, quantity each holds
 });
 
 test("never asks for a price", async () => {
-  const screen = await loaded(createServices());
+  const screen = await loaded(createPanelServices());
 
   expect(screen.getByRole("textbox", { name: /precio/i }).query()).toBeNull();
 });
 
 test("saving sends the lines as typed and says the order was saved", async () => {
-  const services = createServices();
+  const services = createPanelServices();
   vi.mocked(services.editPurchaseOrderLines).mockResolvedValue({
     kind: "ok",
     order: DRAFT_ORDER,
@@ -117,7 +117,7 @@ test("saving sends the lines as typed and says the order was saved", async () =>
 });
 
 test("reads the order again after saving", async () => {
-  const services = createServices();
+  const services = createPanelServices();
   vi.mocked(services.editPurchaseOrderLines).mockResolvedValue({
     kind: "ok",
     order: DRAFT_ORDER,
@@ -139,7 +139,7 @@ test("reads the order again after saving", async () => {
 });
 
 test("adds a product that is not in the order yet and saves it", async () => {
-  const services = createServices();
+  const services = createPanelServices();
   vi.mocked(services.editPurchaseOrderLines).mockResolvedValue({
     kind: "ok",
     order: DRAFT_ORDER,
@@ -166,7 +166,7 @@ test("adds a product that is not in the order yet and saves it", async () => {
 });
 
 test("removes a line and saves the rest", async () => {
-  const services = createServices();
+  const services = createPanelServices();
   vi.mocked(services.editPurchaseOrderLines).mockResolvedValue({
     kind: "ok",
     order: DRAFT_ORDER,
@@ -182,7 +182,7 @@ test("removes a line and saves the rest", async () => {
 });
 
 test("names the first line whose values cannot be read and sends nothing", async () => {
-  const services = createServices();
+  const services = createPanelServices();
   const screen = await loaded(services);
 
   await userEvent.fill(
@@ -198,7 +198,7 @@ test("names the first line whose values cannot be read and sends nothing", async
 });
 
 test("asks for a line when every line was removed, as the cloud refuses an empty order", async () => {
-  const services = createServices();
+  const services = createPanelServices();
   vi.mocked(services.editPurchaseOrderLines).mockResolvedValue({
     kind: "validation_failed",
     field: "lines",
@@ -231,7 +231,7 @@ test.each([
     "Se puede volver a intentar en 1 minuto.",
   ],
 ] as const)("shows %j when saving", async (outcome, title, description) => {
-  const services = createServices();
+  const services = createPanelServices();
   vi.mocked(services.editPurchaseOrderLines).mockResolvedValue(outcome);
   const screen = await loaded(services);
 
@@ -242,7 +242,7 @@ test.each([
 });
 
 test("reads the order again when saving finds it no longer editable, and keeps saying why nothing was saved", async () => {
-  const services = createServices();
+  const services = createPanelServices();
   vi.mocked(services.editPurchaseOrderLines).mockResolvedValue({ kind: "not_editable" });
   const screen = await loaded(services);
   vi.mocked(services.fetchPurchaseOrder).mockResolvedValue({
@@ -261,7 +261,7 @@ test("reads the order again when saving finds it no longer editable, and keeps s
 });
 
 test("ends the session when saving finds no open session", async () => {
-  const services = createServices();
+  const services = createPanelServices();
   vi.mocked(services.editPurchaseOrderLines).mockResolvedValue({ kind: "unauthenticated" });
   const onSessionEnded = vi.fn();
   const screen = await loaded(services, { onSessionEnded });
@@ -273,7 +273,7 @@ test("ends the session when saving finds no open session", async () => {
 
 test("navigates to Mi cuenta when saving comes back forbidden", async () => {
   window.history.pushState(null, "", "/purchase-orders");
-  const services = createServices();
+  const services = createPanelServices();
   vi.mocked(services.editPurchaseOrderLines).mockResolvedValue({ kind: "forbidden" });
   const screen = await loaded(services);
 
@@ -285,7 +285,7 @@ test("navigates to Mi cuenta when saving comes back forbidden", async () => {
 });
 
 test("cancelling the order asks first, then cancels it and shows it cancelled", async () => {
-  const services = createServices();
+  const services = createPanelServices();
   vi.mocked(services.cancelPurchaseOrder).mockResolvedValue({ kind: "ok", order: CANCELLED_ORDER });
   const screen = await loaded(services);
   vi.mocked(services.fetchPurchaseOrder).mockResolvedValue({
@@ -310,7 +310,7 @@ test("cancelling the order asks first, then cancels it and shows it cancelled", 
 });
 
 test("a cancelled order is read-only: its lines are shown in a table with no inputs and no actions", async () => {
-  const services = createServices({
+  const services = createPanelServices({
     fetchPurchaseOrder: vi.fn().mockResolvedValue({
       kind: "ok",
       value: { kind: "found", order: CANCELLED_ORDER },
@@ -330,7 +330,7 @@ test("a cancelled order is read-only: its lines are shown in a table with no inp
 });
 
 test("decides whether the lines are editable from the cloud's answer, not from the state", async () => {
-  const services = createServices({
+  const services = createPanelServices({
     fetchPurchaseOrder: vi.fn().mockResolvedValue({
       kind: "ok",
       value: { kind: "found", order: { ...DRAFT_ORDER, editable: false, cancellable: false } },
@@ -344,7 +344,7 @@ test("decides whether the lines are editable from the cloud's answer, not from t
 });
 
 test("offers no cancellation when the cloud answers the order cannot be cancelled", async () => {
-  const services = createServices({
+  const services = createPanelServices({
     fetchPurchaseOrder: vi.fn().mockResolvedValue({
       kind: "ok",
       value: { kind: "found", order: { ...DRAFT_ORDER, cancellable: false } },
@@ -357,7 +357,7 @@ test("offers no cancellation when the cloud answers the order cannot be cancelle
 });
 
 test("shows the totals the cloud answers", async () => {
-  const services = createServices({
+  const services = createPanelServices({
     fetchPurchaseOrder: vi.fn().mockResolvedValue({
       kind: "ok",
       value: {
@@ -379,7 +379,7 @@ test("shows the totals the cloud answers", async () => {
 });
 
 test("offers no way to add a product while the products fail to load, and keeps the rest editable", async () => {
-  const services = createServices({
+  const services = createPanelServices({
     fetchPurchaseChoices: vi.fn().mockResolvedValue({ kind: "failed" }),
   });
   const screen = await loaded(services);
@@ -390,42 +390,45 @@ test("offers no way to add a product while the products fail to load, and keeps 
     .toBeEnabled();
 });
 
-test("the back action goes to the orders", async () => {
-  const onBack = vi.fn();
-  const screen = await loaded(createServices(), { onBack });
+test("closing the panel asks to close it", async () => {
+  const onClose = vi.fn();
+  const screen = await loaded(createPanelServices(), { onClose });
 
-  await userEvent.click(screen.getByRole("button", { name: "Volver a los pedidos" }));
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
 
-  expect(onBack).toHaveBeenCalledTimes(1);
+  expect(onClose).toHaveBeenCalledTimes(1);
 });
 
 test("says the order no longer exists when the cloud has none", async () => {
-  const services = createServices({
+  const services = createPanelServices({
     fetchPurchaseOrder: vi.fn().mockResolvedValue({ kind: "ok", value: { kind: "not_found" } }),
   });
-  const screen = await renderScreen(services);
+  const screen = await renderPanel(services);
 
   await expect.element(screen.getByText("Este pedido ya no existe")).toBeVisible();
   expect(screen.getByRole("button", { name: "Guardar" }).query()).toBeNull();
 });
 
 test("shows a placeholder while the order loads, with no actions", async () => {
-  const pending =
-    deferred<Awaited<ReturnType<PurchaseOrderScreenServices["fetchPurchaseOrder"]>>>();
-  const services = createServices({ fetchPurchaseOrder: vi.fn().mockReturnValue(pending.promise) });
-  const screen = await renderScreen(services);
+  const pending = deferred<Awaited<ReturnType<PurchaseOrderPanelServices["fetchPurchaseOrder"]>>>();
+  const services = createPanelServices({
+    fetchPurchaseOrder: vi.fn().mockReturnValue(pending.promise),
+  });
+  const screen = await renderPanel(services);
 
-  await expect.element(screen.getByRole("heading", { name: "Pedido", level: 1 })).toBeVisible();
+  await expect
+    .element(screen.getByRole("complementary", { name: "Pedido", exact: true }))
+    .toBeVisible();
   expect(screen.getByRole("button", { name: "Guardar" }).query()).toBeNull();
   expect(screen.getByRole("button", { name: "Cancelar pedido" }).query()).toBeNull();
 });
 
 test("shows a load error with a retry action", async () => {
-  const services = createServices();
+  const services = createPanelServices();
   vi.mocked(services.fetchPurchaseOrder)
     .mockResolvedValueOnce({ kind: "failed" })
     .mockResolvedValueOnce({ kind: "ok", value: { kind: "found", order: DRAFT_ORDER } });
-  const screen = await renderScreen(services);
+  const screen = await renderPanel(services);
   await expect.element(screen.getByText("No pudimos abrir el pedido")).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
@@ -434,21 +437,21 @@ test("shows a load error with a retry action", async () => {
 });
 
 test("ends the session when the order comes back unauthenticated", async () => {
-  const services = createServices({
+  const services = createPanelServices({
     fetchPurchaseOrder: vi.fn().mockResolvedValue({ kind: "unauthenticated" }),
   });
   const onSessionEnded = vi.fn();
-  await renderScreen(services, { onSessionEnded });
+  await renderPanel(services, { onSessionEnded });
 
   await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
 });
 
 test("navigates to Mi cuenta when the order comes back forbidden", async () => {
   window.history.pushState(null, "", "/purchase-orders");
-  const services = createServices({
+  const services = createPanelServices({
     fetchPurchaseOrder: vi.fn().mockResolvedValue({ kind: "forbidden" }),
   });
-  await renderScreen(services);
+  await renderPanel(services);
 
   await expect
     .poll(() => window.location.pathname + window.location.search)
@@ -456,7 +459,7 @@ test("navigates to Mi cuenta when the order comes back forbidden", async () => {
 });
 
 test("has no accessibility violations as a draft and with the cancel question open", async () => {
-  const services = createServices();
+  const services = createPanelServices();
   const screen = await loaded(services);
 
   await expectNoAccessibilityViolations(screen.container);
@@ -465,7 +468,7 @@ test("has no accessibility violations as a draft and with the cancel question op
 });
 
 test("has no accessibility violations once cancelled", async () => {
-  const services = createServices({
+  const services = createPanelServices({
     fetchPurchaseOrder: vi.fn().mockResolvedValue({
       kind: "ok",
       value: { kind: "found", order: CANCELLED_ORDER },
@@ -476,8 +479,8 @@ test("has no accessibility violations once cancelled", async () => {
   await expectNoAccessibilityViolations(screen.container);
 });
 
-function sentServices(overrides: Partial<PurchaseOrderScreenServices> = {}) {
-  return createServices({
+function sentServices(overrides: Partial<PurchaseOrderPanelServices> = {}) {
+  return createPanelServices({
     fetchPurchaseOrder: vi.fn().mockResolvedValue({
       kind: "ok",
       value: { kind: "found", order: SENT_ORDER },
@@ -531,7 +534,7 @@ test("offers no cancellation of a read-only order the cloud answers cannot be ca
 });
 
 test("Compartir pedido opens the sharing of a draft", async () => {
-  const draft = await loaded(createServices());
+  const draft = await loaded(createPanelServices());
   await userEvent.click(draft.getByRole("button", { name: "Compartir pedido" }));
   await expect
     .element(draft.getByRole("dialog").getByRole("heading", { name: "Compartir pedido" }))
@@ -551,7 +554,7 @@ test("Compartir pedido opens the sharing of a sent order, which offers no markin
 
 test("a cancelled order offers no sharing", async () => {
   const screen = await loaded(
-    createServices({
+    createPanelServices({
       fetchPurchaseOrder: vi.fn().mockResolvedValue({
         kind: "ok",
         value: { kind: "found", order: CANCELLED_ORDER },
@@ -578,7 +581,7 @@ test("decides whether the order may be shared from the cloud's answer, not from 
 });
 
 test("marking as sent closes the sharing, says so and shows the order sent", async () => {
-  const services = createServices();
+  const services = createPanelServices();
   vi.mocked(services.sharePurchaseOrder).mockResolvedValue({ kind: "ok", order: SENT_ORDER });
   const screen = await loaded(services);
   vi.mocked(services.fetchPurchaseOrder).mockResolvedValue({
@@ -600,7 +603,7 @@ test("marking as sent closes the sharing, says so and shows the order sent", asy
 });
 
 test("reads the order again when sharing finds it no longer shareable", async () => {
-  const services = createServices();
+  const services = createPanelServices();
   vi.mocked(services.sharePurchaseOrder).mockResolvedValue({ kind: "not_shareable" });
   const screen = await loaded(services);
   vi.mocked(services.fetchPurchaseOrder).mockResolvedValue({
@@ -628,7 +631,9 @@ test("offers neither cancelling nor sharing a sent order to whoever may read and
 });
 
 test("shows a draft's lines read-only, with no saving, cancelling or sharing, to whoever may not manage purchase orders", async () => {
-  const screen = await loaded(createServices(), { access: accessWith("purchase_order_reads") });
+  const screen = await loaded(createPanelServices(), {
+    access: accessWith("purchase_order_reads"),
+  });
 
   await expect.element(screen.getByRole("table", { name: "Líneas del pedido" })).toBeVisible();
   expect(screen.getByRole("button", { name: "Guardar" }).query()).toBeNull();
@@ -637,7 +642,7 @@ test("shows a draft's lines read-only, with no saving, cancelling or sharing, to
 });
 
 test("offers editing, cancelling and sharing a draft to whoever may manage purchase orders", async () => {
-  const screen = await loaded(createServices(), {
+  const screen = await loaded(createPanelServices(), {
     access: accessWith("purchase_order_reads", "purchase_orders"),
   });
 

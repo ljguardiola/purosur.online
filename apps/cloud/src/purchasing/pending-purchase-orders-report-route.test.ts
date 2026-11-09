@@ -108,8 +108,8 @@ describe("GET /reports/pending-purchase-orders access", () => {
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
   });
 
-  it("rejects a user who may not view reports", async () => {
-    const { headers } = await signedInWith(db, ["receive_purchase_orders"], NOW);
+  it("rejects a user who may neither view reports nor read purchase orders", async () => {
+    const { headers } = await signedInWith(db, ["compare_prices_and_suggest_orders"], NOW);
 
     const response = await pendingOrders(headers);
 
@@ -118,6 +118,14 @@ describe("GET /reports/pending-purchase-orders access", () => {
 
   it("answers a user who may view reports", async () => {
     const { headers } = await signedInWith(db, ["view_reports"], NOW);
+
+    const response = await pendingOrders(headers);
+
+    expect(response.statusCode).toBe(200);
+  });
+
+  it("answers a user who may read purchase orders without viewing reports", async () => {
+    const { headers } = await signedInWith(db, ["manage_purchase_orders"], NOW);
 
     const response = await pendingOrders(headers);
 

@@ -15,8 +15,6 @@ import { type ReactNode, Suspense } from "react";
 import { AccountFooter } from "./account-footer";
 import { AreaTopBarUnbilledDeferredSales } from "./area-top-bar-unbilled-deferred-sales";
 import {
-  canComparePrices,
-  canReadPurchaseOrders,
   canRecordPurchases,
   canSeeBranchArea,
   canSeeFiscalInformation,
@@ -24,6 +22,7 @@ import {
   canSeeMercadoPagoChargeCosts,
   canSeePeopleArea,
   canSeeProductsPage,
+  canSeePurchaseOrdersPage,
   canSeePurchasingArea,
   canSeeQuarantinedEvents,
   canSeeRefundsArea,
@@ -75,13 +74,11 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
       : "/refunds/history";
   const purchasingTarget = canSeeSuppliersPage(session)
     ? "/suppliers"
-    : canReadPurchaseOrders(session)
+    : canSeePurchaseOrdersPage(session)
       ? "/purchase-orders"
-      : canComparePrices(session)
-        ? "/price-comparison"
-        : canRecordPurchases(session)
-          ? "/purchases"
-          : "/freights";
+      : canRecordPurchases(session)
+        ? "/purchases"
+        : "/freights";
   const settingsTarget = canSeePeopleArea(session)
     ? "/people"
     : canSeeBranchArea(session)

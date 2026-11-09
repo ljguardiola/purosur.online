@@ -10,14 +10,14 @@ import {
 import { fetchPurchaseChoices } from "./purchases-api";
 import type { SharePurchaseOrderModalServices } from "./share-purchase-order-modal";
 
-export type PurchaseOrderScreenServices = {
+export type PurchaseOrderPanelServices = {
   fetchPurchaseOrder: typeof fetchPurchaseOrder;
   fetchPurchaseChoices: typeof fetchPurchaseChoices;
   editPurchaseOrderLines: typeof editPurchaseOrderLines;
 } & CancelPurchaseOrderModalServices &
   SharePurchaseOrderModalServices;
 
-export const defaultPurchaseOrderScreenServices: PurchaseOrderScreenServices = {
+export const defaultPurchaseOrderPanelServices: PurchaseOrderPanelServices = {
   fetchPurchaseOrder,
   fetchPurchaseChoices,
   editPurchaseOrderLines,

@@ -2,13 +2,12 @@ import { freightPeriodSchema, recordIdSchema } from "@purosur/contracts";
 import { createRoute, redirect, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 import {
-  canComparePrices,
   canManageFreights,
   canManageSupplierPriceLists,
-  canReadPurchaseOrders,
   canReceivePurchaseOrders,
   canRecordPurchases,
   canSeeAiCostReport,
+  canSeePurchaseOrdersPage,
   canSeeReports,
   canSeeSuppliersPage,
 } from "../shell/backoffice-access";
@@ -19,7 +18,12 @@ import { reportsAreaRoute } from "../shell/reports-area";
 import { refuseWithout, signedInRoute } from "../shell/signed-in-route";
 import { aiCostReportFilters } from "./ai-cost-report-filters";
 import { orderSuggestionFilters } from "./order-suggestion-filters";
-import { purchaseOrdersFilters } from "./purchase-orders-filters";
+import { purchaseOrdersFilters, purchaseOrdersListSearch } from "./purchase-orders-filters";
+import {
+  PURCHASE_ORDERS_TAB_TARGETS,
+  PURCHASE_ORDERS_TABS,
+  type PurchaseOrdersTab,
+} from "./purchase-orders-tabs";
 import { SUPPLIER_PANEL_TAB_KEYS } from "./supplier-panel-tabs";
 import { supplierPriceComparisonFilters } from "./supplier-price-comparison-filters";
 import {
@@ -136,10 +140,46 @@ export const supplierPriceListReviewRoute = createRoute({
   ),
 });
 
-export const supplierPriceComparisonRoute = createRoute({
+export const purchaseOrdersRoute = createRoute({
   getParentRoute: () => purchasingAreaRoute,
-  path: "price-comparison",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canComparePrices),
+  path: "purchase-orders",
+  beforeLoad: ({ context: { session } }) => {
+    refuseWithout(session, canSeePurchaseOrdersPage);
+    return {
+      purchaseOrdersTabs: PURCHASE_ORDERS_TABS.filter((tab) => tab.isVisibleTo(session)).map(
+        (tab) => tab.key,
+      ),
+    };
+  },
+  component: lazyScreen(() => import("./purchase-orders-page"), "PurchaseOrdersPage"),
+});
+
+function purchaseOrdersTabRedirect(
+  purchaseOrdersTabs: readonly PurchaseOrdersTab[],
+  own: PurchaseOrdersTab,
+): void {
+  const [first] = purchaseOrdersTabs;
+  if (first === undefined || purchaseOrdersTabs.includes(own)) {
+    return;
+  }
+  throw redirect({ to: PURCHASE_ORDERS_TAB_TARGETS[first] });
+}
+
+export const purchaseOrdersListRoute = createRoute({
+  getParentRoute: () => purchaseOrdersRoute,
+  path: "/",
+  beforeLoad: ({ context: { purchaseOrdersTabs } }) =>
+    purchaseOrdersTabRedirect(purchaseOrdersTabs, "orders"),
+  validateSearch: purchaseOrdersListSearch,
+  search: { middlewares: [stripSearchParams(purchaseOrdersFilters.parse({}))] },
+  component: lazyScreen(() => import("./purchase-orders-list-page"), "PurchaseOrdersListPage"),
+});
+
+export const supplierPriceComparisonRoute = createRoute({
+  getParentRoute: () => purchaseOrdersRoute,
+  path: "comparison",
+  beforeLoad: ({ context: { purchaseOrdersTabs } }) =>
+    purchaseOrdersTabRedirect(purchaseOrdersTabs, "comparison"),
   validateSearch: supplierPriceComparisonFilters,
   search: { middlewares: [stripSearchParams(supplierPriceComparisonFilters.parse({}))] },
   component: lazyScreen(
@@ -149,28 +189,39 @@ export const supplierPriceComparisonRoute = createRoute({
 });
 
 export const orderSuggestionRoute = createRoute({
-  getParentRoute: () => purchasingAreaRoute,
-  path: "order-suggestion",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canComparePrices),
+  getParentRoute: () => purchaseOrdersRoute,
+  path: "suggestion",
+  beforeLoad: ({ context: { purchaseOrdersTabs } }) =>
+    purchaseOrdersTabRedirect(purchaseOrdersTabs, "suggestion"),
   validateSearch: orderSuggestionFilters,
   search: { middlewares: [stripSearchParams(orderSuggestionFilters.parse({}))] },
   component: lazyScreen(() => import("./order-suggestion-page"), "OrderSuggestionPage"),
 });
 
-export const purchaseOrdersRoute = createRoute({
-  getParentRoute: () => purchasingAreaRoute,
-  path: "purchase-orders",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canReadPurchaseOrders),
-  validateSearch: purchaseOrdersFilters.extend(supplierFilterSearch.shape),
-  search: { middlewares: [stripSearchParams(purchaseOrdersFilters.parse({}))] },
-  component: lazyScreen(() => import("./purchase-orders-page"), "PurchaseOrdersPage"),
+export const legacyOrderSuggestionRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: "order-suggestion",
+  validateSearch: orderSuggestionFilters,
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/purchase-orders/suggestion", search });
+  },
 });
 
-export const purchaseOrderRoute = createRoute({
-  getParentRoute: () => purchasingAreaRoute,
+export const legacySupplierPriceComparisonRoute = createRoute({
+  getParentRoute: () => signedInRoute,
+  path: "price-comparison",
+  validateSearch: supplierPriceComparisonFilters,
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/purchase-orders/comparison", search });
+  },
+});
+
+export const legacyPurchaseOrderRoute = createRoute({
+  getParentRoute: () => signedInRoute,
   path: "purchase-orders/$orderId",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canReadPurchaseOrders),
-  component: lazyScreen(() => import("./purchase-order-page"), "PurchaseOrderPage"),
+  beforeLoad: ({ params }) => {
+    throw redirect({ to: "/purchase-orders", search: { order: params.orderId } });
+  },
 });
 
 export const purchaseOrderReceiveRoute = createRoute({

@@ -245,7 +245,7 @@ test.each([
       "purchases",
       "freights",
     ]);
-    vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrders).mockResolvedValue({
+    vi.mocked(services.purchaseOrdersListScreen.fetchPurchaseOrders).mockResolvedValue({
       kind: "ok",
       value: [],
     });

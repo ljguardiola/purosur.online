@@ -1,8 +1,8 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { accessWith } from "../shell/test-support/backoffice-access";
-import { createServices, loaded } from "./test-support/purchase-order-screen";
+import { createPanelServices, loaded } from "./test-support/purchase-order-panel";
 import {
   CANCELLED_ORDER,
   ORDER_ID,
@@ -11,12 +11,13 @@ import {
   SENT_ORDER,
 } from "./test-support/purchase-orders";
 
-beforeEach(() => {
+beforeEach(async () => {
+  await page.viewport(1280, 900);
   window.history.pushState(null, "", "/");
 });
 
 function servicesFor(order: typeof SENT_ORDER) {
-  return createServices({
+  return createPanelServices({
     fetchPurchaseOrder: vi.fn().mockResolvedValue({
       kind: "ok",
       value: { kind: "found", order },
@@ -114,7 +115,7 @@ test("shows no received or outstanding columns and no receipts for an order noth
   await expect.element(screen.getByRole("table", { name: "Líneas del pedido" })).toBeVisible();
   expect(screen.getByRole("columnheader", { name: "Recibido" }).query()).toBeNull();
   expect(screen.getByRole("columnheader", { name: "Pendiente" }).query()).toBeNull();
-  expect(screen.getByRole("heading", { name: "Recepciones" }).query()).toBeNull();
+  expect(screen.getByRole("heading", { name: "Diferencias de recepción" }).query()).toBeNull();
 });
 
 test("links each receipt to the purchases for whoever records purchases", async () => {
@@ -132,7 +133,9 @@ test("links each receipt to the purchases for whoever records purchases", async 
 test("offers no link to the purchases to whoever may not record them", async () => {
   const screen = await loaded(servicesFor(PARTIALLY_RECEIVED_ORDER), { access: RECEIVER });
 
-  await expect.element(screen.getByRole("heading", { name: "Recepciones" })).toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "Diferencias de recepción" }))
+    .toBeVisible();
   expect(screen.getByRole("button", { name: "Ver compras" }).query()).toBeNull();
 });
 
@@ -146,7 +149,7 @@ test("says the receipt was registered when the person comes back from it, and cl
 
   await expect.element(screen.getByText("Recepción registrada")).toBeVisible();
   await expect.element(screen.getByText("Se creó la compra con lo que llegó.")).toBeVisible();
-  await userEvent.click(screen.getByRole("button", { name: /Cerrar/ }));
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar" }).last());
   expect(onNoticeDismissed).toHaveBeenCalled();
 });
 
@@ -155,6 +158,8 @@ test("has no accessibility violations with the lines received and the receipts l
     access: accessWith("purchase_order_reads", "purchase_order_receipts", "purchases"),
   });
 
-  await expect.element(screen.getByRole("heading", { name: "Recepciones" })).toBeVisible();
+  await expect
+    .element(screen.getByRole("heading", { name: "Diferencias de recepción" }))
+    .toBeVisible();
   await expectNoAccessibilityViolations(screen.container);
 });

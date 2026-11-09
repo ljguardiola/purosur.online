@@ -76,7 +76,7 @@ export function PurchaseOrderReceiveScreen({
     fetchPurchaseChoices: services.fetchPurchaseChoices,
     onSessionEnded,
   });
-  const backToOrder = () => void navigate({ to: "/purchase-orders/$orderId", params: { orderId } });
+  const backToOrder = () => void navigate({ to: "/purchase-orders", search: { order: orderId } });
 
   if (draftRead.status === "loaded" && draftRead.value.kind === "found") {
     const { draft } = draftRead.value;
@@ -104,8 +104,8 @@ export function PurchaseOrderReceiveScreen({
             return;
           }
           void navigate({
-            to: "/purchase-orders/$orderId",
-            params: { orderId },
+            to: "/purchase-orders",
+            search: { order: orderId },
             state: (previous) => ({ ...previous, ...PURCHASE_ORDER_RECEIVED_STATE }),
           });
         }}

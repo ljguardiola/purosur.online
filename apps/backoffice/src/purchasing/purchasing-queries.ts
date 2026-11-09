@@ -719,6 +719,7 @@ export function useReloadSupplier(params: {
 export function usePurchaseOrdersQuery(params: {
   state: PurchaseOrderStateFilter;
   supplierId?: string | undefined;
+  enabled?: boolean;
   fetchPurchaseOrders: typeof fetchPurchaseOrders;
   onSessionEnded: () => void;
 }) {
@@ -726,6 +727,7 @@ export function usePurchaseOrdersQuery(params: {
   return useCloudQuery<PurchaseOrderSummary[]>({
     queryKey: [...purchasingKeys.purchaseOrders, params.state, params.supplierId ?? ""],
     keepPreviousData: true,
+    enabled: params.enabled ?? true,
     read: () =>
       params.supplierId === undefined
         ? params.fetchPurchaseOrders(params.state)

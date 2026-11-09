@@ -148,6 +148,11 @@ export const PARTIALLY_RECEIVED_ORDER: PurchaseOrderDetail = {
   ],
 };
 
+export const SENT_ORDER_WITH_RECEIPTS: PurchaseOrderDetail = {
+  ...SENT_ORDER,
+  receipts: PARTIALLY_RECEIVED_ORDER.receipts,
+};
+
 export const RECEIVED_ORDER: PurchaseOrderDetail = {
   ...PARTIALLY_RECEIVED_ORDER,
   state: "RECEIVED",
