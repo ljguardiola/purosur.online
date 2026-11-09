@@ -1,6 +1,6 @@
 import type { Capability } from "@purosur/domain";
 import { beforeEach, expect, test, vi } from "vitest";
-import { page, userEvent } from "vitest/browser";
+import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { ORDER_SUGGESTION } from "../purchasing/test-support/order-suggestion";
 import {
@@ -35,10 +35,7 @@ opensOnlyScreens([
   "/freights",
 ]);
 
-beforeEach(async () => {
-  await page.viewport(1280, 900);
-  resetPageState();
-});
+beforeEach(resetPageState);
 
 function railLink(screen: Awaited<ReturnType<typeof render>>) {
   return screen.getByRole("navigation", { name: "Áreas" }).getByRole("link", { name: "Compras" });
