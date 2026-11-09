@@ -3,6 +3,7 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { ORDER_SUGGESTION } from "../purchasing/test-support/order-suggestion";
+import { pendingPurchaseOrdersReport } from "../purchasing/test-support/pending-purchase-orders-report-fixtures";
 import {
   DRAFT_SUMMARY,
   ORDER_ID,
@@ -10,6 +11,7 @@ import {
   SENT_ORDER,
   SENT_ORDER_WITH_RECEIPTS,
 } from "../purchasing/test-support/purchase-orders";
+import { receiptDifferencesReport } from "../purchasing/test-support/receipt-differences-report-fixtures";
 import { PRICE_COMPARISON } from "../purchasing/test-support/supplier-price-comparison";
 import { openSession } from "../sessions/test-support/open-session";
 import { App } from "./app";
@@ -273,4 +275,49 @@ test("redirects the old price comparison address to its tab, keeping its search"
     .element(screen.getByRole("tab", { name: "Comparar precios", selected: true }))
     .toBeVisible();
   await expect.poll(location).toBe("/purchase-orders/comparison?search=almendras");
+});
+
+test("lists only the pending orders, with the date range and export, when the status is Pendientes de recibir", async () => {
+  const services = purchaseOrdersServices(["purchase_order_reads"]);
+  vi.mocked(services.purchaseOrdersScreen.fetchPendingPurchaseOrdersReport).mockResolvedValue({
+    kind: "ok",
+    value: pendingPurchaseOrdersReport,
+  });
+  window.history.pushState(null, "", "/purchase-orders");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("table", { name: "Pedidos de compra" })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: /Estado:/ }));
+  await userEvent.click(screen.getByRole("option", { name: "Pendientes de recibir" }));
+
+  const table = screen.getByRole("table", { name: "Pedidos pendientes de recibir", exact: true });
+  await expect.element(table.getByText("Granos del Sur")).toBeVisible();
+  await expect.element(screen.getByRole("group", { name: /^Período/ })).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Descargar planilla" })).toBeEnabled();
+  expect(location()).toBe("/purchase-orders?state=PENDING_RECEIPT");
+
+  await userEvent.click(table.getByRole("button", { name: "Abrir el pedido de Granos del Sur" }));
+
+  await expect
+    .poll(location)
+    .toBe("/purchase-orders?state=PENDING_RECEIPT&order=90e00000-0000-4000-8000-0000000000b2");
+  await expect.element(table.getByText("Granos del Sur")).toBeVisible();
+});
+
+test("shows the receipt differences, with the date range in the address, when Con diferencias de recepción is on", async () => {
+  const services = purchaseOrdersServices(["purchase_order_reads"]);
+  vi.mocked(services.purchaseOrdersScreen.fetchReceiptDifferencesReport).mockResolvedValue({
+    kind: "ok",
+    value: receiptDifferencesReport,
+  });
+  window.history.pushState(null, "", "/purchase-orders");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("table", { name: "Pedidos de compra" })).toBeVisible();
+
+  await userEvent.click(screen.getByText("Con diferencias de recepción", { exact: true }));
+
+  const table = screen.getByRole("table", { name: "Diferencias de recepción", exact: true });
+  await expect.element(table.getByText("Granos del Sur")).toBeVisible();
+  expect(location()).toBe("/purchase-orders?differences=true");
+  await expect.element(screen.getByRole("button", { name: "Descargar planilla" })).toBeEnabled();
 });

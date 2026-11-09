@@ -31,6 +31,8 @@ function createServices(
   return {
     fetchPurchaseOrders: vi.fn(),
     fetchSupplierName: vi.fn(),
+    fetchPendingPurchaseOrdersReport: vi.fn(),
+    fetchReceiptDifferencesReport: vi.fn(),
     ...createPanelServices(),
     ...overrides,
   };

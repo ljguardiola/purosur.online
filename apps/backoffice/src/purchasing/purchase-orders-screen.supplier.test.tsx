@@ -42,6 +42,8 @@ function servicesWithOrders(orders = [DRAFT_SUMMARY]) {
       kind: "ok",
       value: { kind: "found", name: "Distribuidora Andina" },
     }),
+    fetchPendingPurchaseOrdersReport: vi.fn(),
+    fetchReceiptDifferencesReport: vi.fn(),
     ...createPanelServices(),
   } satisfies PurchaseOrdersScreenServices;
 }
