@@ -16,11 +16,12 @@ import { Check, Laptop, Plus } from "lucide-react";
 import { Suspense, useEffect, useEffectEvent, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
 import { cloudTableState } from "../platform/cloud-table-state";
+import type { RegisterKeyModalRequest, RegisterKeyModals } from "../platform/register-key-modals";
 import type { RegisterPanelSections } from "../platform/register-panel-sections";
 import type {
-  RegisterPaymentAndKeyModalRequest,
-  RegisterPaymentAndKeyModals,
-} from "../platform/register-payment-and-key-modals";
+  RegisterPaymentModalRequest,
+  RegisterPaymentModals,
+} from "../platform/register-payment-modals";
 import type { RegisterPointOfSaleSection } from "../platform/register-point-of-sale-section";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import {
@@ -59,7 +60,8 @@ export type RegistersListScreenProps = {
   services: RegistersListScreenServices;
   registerPointOfSaleSection: RegisterPointOfSaleSection;
   registerPanelSections: RegisterPanelSections;
-  registerPaymentAndKeyModals: RegisterPaymentAndKeyModals;
+  registerPaymentModals: RegisterPaymentModals;
+  registerKeyModals: RegisterKeyModals;
   openRegister?: string | undefined;
   tab?: string | undefined;
   sessionsPeriod: ReportPeriodFilters;
@@ -69,6 +71,12 @@ export type RegistersListScreenProps = {
 const RegisterRowLink = createLink(ButtonLink);
 
 const NO_REGISTERS: RegisterSummary[] = [];
+
+function isPaymentModalRequest(
+  request: RegisterPaymentModalRequest | RegisterKeyModalRequest | null,
+): request is RegisterPaymentModalRequest {
+  return request?.kind === "assignTerminal" || request?.kind === "assignQr";
+}
 
 export function RegistersListScreen(props: RegistersListScreenProps) {
   return canSeeRegistersArea(props.access) ? (
@@ -84,7 +92,8 @@ function FullRegistersListScreen({
   services,
   registerPointOfSaleSection,
   registerPanelSections,
-  registerPaymentAndKeyModals: PaymentAndKeyModals,
+  registerPaymentModals: PaymentModals,
+  registerKeyModals: KeyModals,
   openRegister,
   tab,
   sessionsPeriod,
@@ -105,7 +114,9 @@ function FullRegistersListScreen({
   const refreshRegisters = useRefreshRegisters();
   const reloadRegister = useReloadRegister({ fetchRegisters });
   const [newModalOpen, setNewModalOpen] = useState(false);
-  const [modalRequest, setModalRequest] = useState<RegisterPaymentAndKeyModalRequest | null>(null);
+  const [modalRequest, setModalRequest] = useState<
+    RegisterPaymentModalRequest | RegisterKeyModalRequest | null
+  >(null);
   const [revokeTarget, setRevokeTarget] = useState<RegisterSummary | null>(null);
   const [revokeEveryOpen, setRevokeEveryOpen] = useState(false);
   const [revokedNotice, setRevokedNotice] = useState<{ id: number; registers: number } | null>(
@@ -405,14 +416,19 @@ function FullRegistersListScreen({
         services={services}
       />
       <Suspense fallback={null}>
-        <PaymentAndKeyModals
-          request={modalRequest}
+        <PaymentModals
+          request={isPaymentModalRequest(modalRequest) ? modalRequest : null}
           reload={reloadRegister}
           onClose={() => setModalRequest(null)}
           onAssigned={() => {
             setModalRequest(null);
             void refreshRegisters();
           }}
+          onSessionEnded={onSessionEnded}
+        />
+        <KeyModals
+          request={isPaymentModalRequest(modalRequest) ? null : modalRequest}
+          onClose={() => setModalRequest(null)}
           onKeyLoaded={() => void refreshRegisters()}
           onOutdated={() => void refreshRegisters()}
           onSessionEnded={onSessionEnded}

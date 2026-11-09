@@ -15,7 +15,6 @@ export {
   customerDocumentPrinted,
   paidSaleCancellationLeavesBackupTicket,
 } from "./model/contingency-backup-ticket.js";
-export { contingencyTicketSealingKey } from "./model/contingency-ticket-key.js";
 export type {
   OffsiteDumpCheckResult,
   OffsiteDumpFailureReason,

@@ -136,7 +136,7 @@ export async function renderScreen(
   // Wider than the phone-sized default viewport, or five row actions leave the name column no room.
   await page.viewport(1280, 900);
   onTestFinished(() => page.viewport(414, 896));
-  const { panelSections, paymentAndKeyModals } = registerPartsOf(services);
+  const { panelSections, paymentModals, keyModals } = registerPartsOf(services);
   return render(
     <main>
       <RegistersListScreen
@@ -144,7 +144,8 @@ export async function renderScreen(
         services={services}
         registerPointOfSaleSection={RegisterPointOfSaleSectionStub}
         registerPanelSections={panelSections}
-        registerPaymentAndKeyModals={paymentAndKeyModals}
+        registerPaymentModals={paymentModals}
+        registerKeyModals={keyModals}
         onSessionEnded={onSessionEnded}
         sessionsPeriod={{ from: "", to: "" }}
         onSessionsPeriodChange={() => {}}
