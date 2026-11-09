@@ -639,8 +639,10 @@ export {
   priceReviewAt,
 } from "./pricing/index.js";
 export type {
+  FreightLine,
   FreightMeans,
   FreightPeriodDays,
+  FreightToDistribute,
   PendingPurchaseOrderRow,
   PricedAiCall,
   PurchasedLine,
@@ -676,6 +678,7 @@ export {
   FREIGHT_DESCRIPTION_MAX_LENGTH,
   FREIGHT_PERIOD_DAYS,
   freightPeriodStart,
+  freightPerUnit,
   hasPurchaseLines,
   hasValidReceiptNumber,
   isCostPaid,

@@ -1,4 +1,3 @@
-import { type FreightToDistribute, freightPerUnit } from "../../purchasing/index.js";
 import {
   argentinaCalendarDay,
   type Fraction,
@@ -20,7 +19,7 @@ export type CostSource =
       purchasedOn: string;
       recordedAt: Date;
       cost: LotCost;
-      freights: FreightToDistribute[];
+      freightPerUnit: () => Fraction;
     }
   | {
       kind: "assembly_batch";
@@ -139,9 +138,7 @@ function noFreight(): Fraction {
 }
 
 function freightFraction({ source }: DatedCost): Fraction {
-  return source.kind === "purchase_line"
-    ? freightPerUnit(source.lineId, source.freights)
-    : noFreight();
+  return source.kind === "purchase_line" ? source.freightPerUnit() : noFreight();
 }
 
 function sum(left: Fraction, right: Fraction): Fraction {
