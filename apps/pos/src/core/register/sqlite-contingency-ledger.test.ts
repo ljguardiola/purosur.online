@@ -270,7 +270,7 @@ describe("SqliteContingencyLedger", () => {
 
   it("leaves nothing behind when the event cannot be appended for lack of a chain key", () => {
     openSession();
-    const withoutKey = { ledger: ledger(undefined, OFFLINE) };
+    const withoutKey = { ledger: new SqliteContingencyLedger(database, undefined, () => OFFLINE) };
 
     expect(() =>
       recordContingencyChange({ ...withoutKey, clock: { now: () => T1 }, ids: ids() }),
