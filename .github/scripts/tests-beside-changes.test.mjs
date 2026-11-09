@@ -4,6 +4,7 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import {
   APP_OPTIONS_TEST,
+  browserProjectsOfSpecifications,
   changedFilesSince,
   MIGRATION_TESTS,
   MOST_FILES_PER_RUN,
@@ -399,6 +400,7 @@ test("runs each project's selected files by absolute path, one file at a time", 
   const exitCode = await runChangedTests({
     root: "/repo",
     projects: PROJECTS,
+    browserProjects: new Set(["ui-browser"]),
     changedFiles: [
       "packages/domain/src/catalog/model/price.ts",
       "apps/backoffice/src/catalog/product-form.tsx",
@@ -433,20 +435,21 @@ test("runs each project's selected files by absolute path, one file at a time", 
   ]);
 });
 
-function browserTestFiles(count) {
+function numberedTestFiles(count) {
   return Array.from(
     { length: count },
     (_, index) => `apps/backoffice/src/shell/app.part-${String(index).padStart(3, "0")}.test.tsx`,
   );
 }
 
-test("splits a project's files into runs of at most the most files one run holds, in order", async () => {
-  const files = browserTestFiles(2 * MOST_FILES_PER_RUN + 1);
+test("splits a browser project's files into runs of at most the most files one run holds, in order", async () => {
+  const files = numberedTestFiles(2 * MOST_FILES_PER_RUN + 1);
   const { runs, run } = recordingRunner();
 
   const exitCode = await runChangedTests({
     root: "/repo",
     projects: new Map(files.map((file) => [file, ["browser"]])),
+    browserProjects: new Set(["browser"]),
     changedFiles: [],
     requestedFiles: files,
     run,
@@ -468,8 +471,8 @@ test("splits a project's files into runs of at most the most files one run holds
   );
 });
 
-test("keeps running a project's later runs after one of them fails, and reports the failure", async () => {
-  const files = browserTestFiles(MOST_FILES_PER_RUN + 1);
+test("keeps running a browser project's later runs after one of them fails, and reports the failure", async () => {
+  const files = numberedTestFiles(MOST_FILES_PER_RUN + 1);
   let runCount = 0;
   const run = async () => {
     runCount += 1;
@@ -479,6 +482,7 @@ test("keeps running a project's later runs after one of them fails, and reports 
   const exitCode = await runChangedTests({
     root: "/repo",
     projects: new Map(files.map((file) => [file, ["browser"]])),
+    browserProjects: new Set(["browser"]),
     changedFiles: [],
     requestedFiles: files,
     run,
@@ -489,12 +493,38 @@ test("keeps running a project's later runs after one of them fails, and reports 
   assert.equal(exitCode, 1);
 });
 
+test("runs every file of a project outside the browser in one run, however many there are", async () => {
+  const files = numberedTestFiles(MOST_FILES_PER_RUN + 1);
+  const { runs, run } = recordingRunner();
+
+  const exitCode = await runChangedTests({
+    root: "/repo",
+    projects: new Map(files.map((file) => [file, ["backoffice"]])),
+    browserProjects: new Set(["browser"]),
+    changedFiles: [],
+    requestedFiles: files,
+    run,
+    log: () => {},
+  });
+
+  assert.equal(exitCode, 0);
+  assert.deepEqual(runs, [
+    [
+      "run",
+      "--project=backoffice",
+      "--no-file-parallelism",
+      ...files.map((file) => `/repo/${file}`),
+    ],
+  ]);
+});
+
 test("exits with a failure when a project's run fails", async () => {
   const { run } = recordingRunner("domain");
 
   const exitCode = await runChangedTests({
     root: "/repo",
     projects: PROJECTS,
+    browserProjects: new Set(["ui-browser"]),
     changedFiles: ["packages/domain/src/catalog/model/price.ts"],
     requestedFiles: [],
     run,
@@ -511,6 +541,7 @@ test("runs nothing and says so when no test is selected", async () => {
   const exitCode = await runChangedTests({
     root: "/repo",
     projects: PROJECTS,
+    browserProjects: new Set(["ui-browser"]),
     changedFiles: ["packages/domain/package.json"],
     requestedFiles: [],
     run,
@@ -531,6 +562,7 @@ test("runs nothing and fails when a path asked for is not a test file", async ()
   const exitCode = await runChangedTests({
     root: "/repo",
     projects: PROJECTS,
+    browserProjects: new Set(["ui-browser"]),
     changedFiles: ["packages/domain/src/catalog/model/price.ts"],
     requestedFiles: ["packages/ui/src/button.tsx"],
     run,
@@ -557,6 +589,18 @@ test("maps each test file, relative to the root, to every project that holds it"
       ["packages/ui/src/button.test.tsx", ["ui", "ui-browser"]],
       ["apps/cloud/src/app.test.ts", ["cloud"]],
     ]),
+  );
+});
+
+test("names each project that runs its files in a browser", () => {
+  assert.deepEqual(
+    browserProjectsOfSpecifications([
+      { project: { name: "ui", config: { browser: { enabled: false } } } },
+      { project: { name: "ui-browser", config: { browser: { enabled: true } } } },
+      { project: { name: "cloud", config: { browser: { enabled: false } } } },
+      { project: { name: "ui-browser", config: { browser: { enabled: true } } } },
+    ]),
+    new Set(["ui-browser"]),
   );
 });
 
