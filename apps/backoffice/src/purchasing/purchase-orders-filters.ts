@@ -4,7 +4,7 @@ import { reportFiltersFields, withoutRefusedPeriod } from "../shell/report-filte
 
 const STATES = purchaseOrderListQuerySchema.shape.state.unwrap().options;
 
-export const purchaseOrdersFilterFields = z.object({
+const purchaseOrdersFilterFields = z.object({
   state: z
     .enum(["ALL", "PENDING_RECEIPT", ...STATES])
     .default("ALL")
