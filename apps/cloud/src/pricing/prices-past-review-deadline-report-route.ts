@@ -29,7 +29,7 @@ export function registerPricesPastReviewDeadlineReportRoute<TQueryResult extends
     "/reports/prices-past-review-deadline",
     {
       preHandler: sameOriginGuard(options.backofficeOrigin),
-      config: { access: capabilityAccess("reports_area"), sessionSource },
+      config: { access: capabilityAccess("prices_area"), sessionSource },
     },
     async (request, reply) => {
       const query = await readValidatedBody(
