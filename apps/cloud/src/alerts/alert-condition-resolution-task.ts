@@ -6,6 +6,7 @@ import {
   detectFortnightReportDeadlines,
   detectFortnightReportRegularizations,
   detectMissingOfflineAuthorizationCodes,
+  detectOverdueRegisterBackups,
   detectOwedElsewherePresentations,
   detectQuietRegisters,
   detectRejectedFortnightDocuments,
@@ -13,7 +14,6 @@ import {
   openOverdueUnclearOutcomeAlerts,
   resolveStablyClearedAlerts,
 } from "@purosur/domain/alerts/use-cases";
-import { detectOverdueRegisterBackups } from "@purosur/domain/backups/use-cases";
 import {
   recordExceptionShareBreaches,
   regularizeUninvoiceableDeferredSales,

@@ -1,5 +1,5 @@
-import type { AlertConditionObservation } from "../../../alerts/index.js";
-import type { RegisterBackupStanding } from "../../model/register-backup-overdue.js";
+import type { RegisterBackupStanding } from "../../../backups/index.js";
+import type { AlertConditionObservation } from "../../model/alert-condition-observation.js";
 import type {
   RegisterBackupOverdueAlerts,
   RegisterBackupStandingReader,
