@@ -1,5 +1,12 @@
-import { DetailPanel, Tab, Tabs } from "@purosur/ui";
+import {
+  DetailPanel,
+  LoadingPlaceholder,
+  type LoadingPlaceholderProps,
+  Tab,
+  Tabs,
+} from "@purosur/ui";
 import { createLink } from "@tanstack/react-router";
+import { Suspense } from "react";
 import { landingPart, type PagePart, pagePartsFor } from "../platform/page-parts";
 import type { RegisterPanelSections } from "../platform/register-panel-sections";
 import type { RegisterPointOfSaleSection } from "../platform/register-point-of-sale-section";
@@ -53,6 +60,14 @@ const TAB_LABELS: Record<RegisterPanelTab, string> = {
 };
 
 const RegisterTabLink = createLink(Tab);
+
+function SectionPlaceholder({ shape }: { shape: LoadingPlaceholderProps }) {
+  return (
+    <div className="pt-4">
+      <LoadingPlaceholder {...shape} />
+    </div>
+  );
+}
 
 export function RegisterPanel({
   register,
@@ -115,25 +130,31 @@ export function RegisterPanel({
           (details === undefined ? (
             <div className="flex flex-col gap-4 pt-4">{pointOfSaleSlot}</div>
           ) : (
-            <PaymentsSection
-              register={details.summary}
-              mayAssignPointTerminal={canAssignPointTerminal(access)}
-              mayAssignQrPointOfSale={canAssignQrPointOfSale(access)}
-              onAssignPointTerminal={() => details.actions.assignTerminal(details.summary)}
-              onAssignQrPointOfSale={() => details.actions.assignQr(details.summary)}
-              pointOfSaleSlot={pointOfSaleSlot}
-            />
+            <Suspense fallback={<SectionPlaceholder shape={{ variant: "card", lines: 2 }} />}>
+              <PaymentsSection
+                register={details.summary}
+                mayAssignPointTerminal={canAssignPointTerminal(access)}
+                mayAssignQrPointOfSale={canAssignQrPointOfSale(access)}
+                onAssignPointTerminal={() => details.actions.assignTerminal(details.summary)}
+                onAssignQrPointOfSale={() => details.actions.assignQr(details.summary)}
+                pointOfSaleSlot={pointOfSaleSlot}
+              />
+            </Suspense>
           ))}
         {selectedTab === "backups" && (
-          <BackupsSection register={register} onSessionEnded={onSessionEnded} />
+          <Suspense fallback={<SectionPlaceholder shape={{ variant: "rows", rows: 5 }} />}>
+            <BackupsSection register={register} onSessionEnded={onSessionEnded} />
+          </Suspense>
         )}
         {selectedTab === "sessions" && (
-          <SessionsSection
-            registerId={register.id}
-            period={sessionsPeriod}
-            onPeriodChange={onSessionsPeriodChange}
-            onSessionEnded={onSessionEnded}
-          />
+          <Suspense fallback={<SectionPlaceholder shape={{ variant: "rows", rows: 5 }} />}>
+            <SessionsSection
+              registerId={register.id}
+              period={sessionsPeriod}
+              onPeriodChange={onSessionsPeriodChange}
+              onSessionEnded={onSessionEnded}
+            />
+          </Suspense>
         )}
       </Tabs>
     </DetailPanel>
