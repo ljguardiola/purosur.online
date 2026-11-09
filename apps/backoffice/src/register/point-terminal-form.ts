@@ -1,5 +1,5 @@
 import type { PointTerminalAssignmentBody } from "@purosur/contracts";
-import type { RegisterSummary } from "./registers-api";
+import type { RegisterPaymentsTarget } from "../platform/register-payments-target";
 
 export type PointTerminalFormValues = {
   terminalId: string;
@@ -9,7 +9,7 @@ export type PointTerminalFormValues = {
 export const EMPTY_POINT_TERMINAL_FORM: PointTerminalFormValues = { terminalId: "", version: 0 };
 
 export function pointTerminalFormValuesFrom(
-  register: Pick<RegisterSummary, "pointTerminalId" | "pointTerminalVersion">,
+  register: Pick<RegisterPaymentsTarget, "pointTerminalId" | "pointTerminalVersion">,
 ): PointTerminalFormValues {
   return { terminalId: register.pointTerminalId ?? "", version: register.pointTerminalVersion };
 }

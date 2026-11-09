@@ -2,6 +2,7 @@ import type { Capability } from "@purosur/domain";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page } from "vitest/browser";
 import { accessWith } from "../shell/test-support/backoffice-access";
+import { registerPartsOf } from "../shell/test-support/register-parts";
 import { render } from "../shell/test-support/render-with-router";
 import { RegistersListScreen } from "./registers-list-screen";
 import { RegisterPointOfSaleSectionStub } from "./test-support/register-point-of-sale-section-stub";
@@ -25,6 +26,8 @@ async function renderList(capabilities: Capability[]) {
         access={accessWith(...capabilities)}
         services={services}
         registerPointOfSaleSection={RegisterPointOfSaleSectionStub}
+        registerPanelSections={registerPartsOf(services).panelSections}
+        registerPaymentAndKeyModals={registerPartsOf(services).paymentAndKeyModals}
         onSessionEnded={() => {}}
         sessionsPeriod={{ from: "", to: "" }}
         onSessionsPeriodChange={() => {}}

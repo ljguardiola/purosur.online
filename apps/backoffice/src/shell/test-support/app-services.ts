@@ -6,24 +6,37 @@ import { CreateProductFromSelectorModal } from "../../catalog/create-product-fro
 import { UserCredentialSections } from "../../credentials/user-credential-sections";
 import { RegisterPointOfSalePanelSection } from "../../fiscal/register-point-of-sale-panel-section";
 import { UnbilledDeferredSalesPill } from "../../fiscal/unbilled-deferred-sales-pill";
+import { ReportRegisterFilter } from "../../installation/report-register-filter";
 import { CreateRoleFromSelectorModal } from "../../permissions/create-role-from-selector-modal";
 import { permissionCatalogFixture } from "../../platform/test-support/permission-catalog";
 import { fakeReleaseMonitor } from "../../platform/test-support/release-monitor";
 import { ARGENTINA_ZONE_RULES } from "../../platform/test-support/zone-rules";
 import { ProductPriceCostSection } from "../../pricing/product-price-cost-section";
 import { ProductPriceSection } from "../../pricing/product-price-section";
-import { ReportRegisterFilter } from "../../register/report-register-filter";
 import { EndEverySessionSection } from "../../sessions/end-every-session-section";
 import { openSession } from "../../sessions/test-support/open-session";
 import { ProductRecipeLookup } from "../../stock/product-recipe-lookup";
 import { ProductRecipeSection } from "../../stock/product-recipe-section";
 import { ProductStockSection } from "../../stock/product-stock-section";
 import type { AppServices } from "../app";
+import {
+  createRegisterPartsServices,
+  type RegisterPartsServices,
+  registerPartsOf,
+} from "./register-parts";
 
 const permissionCatalogOutcome = { kind: "ok", value: permissionCatalogFixture } as const;
 
-export function createAppServices(overrides: Partial<AppServices> = {}): AppServices {
+export function createAppServices(
+  overrides: Partial<AppServices> = {},
+): AppServices & { registerParts: RegisterPartsServices } {
+  const registerParts = createRegisterPartsServices({
+    fetchSnapshotBackups: vi.fn().mockReturnValue(new Promise(() => {})),
+    fetchCashSessionCloses: vi.fn().mockReturnValue(new Promise(() => {})),
+  });
+  const { panelSections, paymentAndKeyModals } = registerPartsOf(registerParts);
   return {
+    registerParts,
     fetchSession: vi.fn().mockResolvedValue(openSession()),
     checkSessionStatus: vi.fn().mockReturnValue(new Promise(() => {})),
     signInScreen: {
@@ -358,6 +371,8 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       recipeLookup: ProductRecipeLookup,
     },
     registerPointOfSaleSection: RegisterPointOfSalePanelSection,
+    registerPanelSections: panelSections,
+    registerPaymentAndKeyModals: paymentAndKeyModals,
     contingencyTicketRescueAssistant: ContingencyTicketRescueAssistant,
     roleCreationModal: CreateRoleFromSelectorModal,
     reportRegisterFilter: {
@@ -398,22 +413,14 @@ export function createAppServices(overrides: Partial<AppServices> = {}): AppServ
       fetchRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchRegisterCoverage: vi.fn().mockReturnValue(new Promise(() => {})),
       createRegister: vi.fn(),
-      assignPointTerminal: vi.fn(),
-      assignQrPointOfSale: vi.fn(),
       emitEnrollmentCode: vi.fn(),
       revokeRegister: vi.fn(),
       revokeEveryInstallation: vi.fn(),
-      loadBitlockerRecoveryKey: vi.fn(),
-      consultBitlockerRecoveryKey: vi.fn(),
       fetchSessionAuthorizationOptions: vi.fn(),
       authorizeSession: vi.fn(),
       startAuthentication: vi.fn(),
-      fetchSnapshotBackups: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchSnapshotBackupRegisters: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchFiscalRegisterNames: vi.fn().mockReturnValue(new Promise(() => {})),
-      changeSnapshotLifecycleRules: vi.fn(),
-      rotateSnapshotKey: vi.fn(),
-      fetchCashSessionCloses: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     contingencyTicketRescueModal: {
       rescueContingencyBackupTicket: vi.fn(),

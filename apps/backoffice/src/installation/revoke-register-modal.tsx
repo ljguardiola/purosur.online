@@ -2,13 +2,13 @@ import { Button, InlineNotice, Modal } from "@purosur/ui";
 import type { startAuthentication } from "@simplewebauthn/browser";
 import { Ban, Key, ShieldX, TriangleAlert, X } from "lucide-react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
+import { registerModalContext } from "../platform/register-modal-context";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import type {
   authorizeSession,
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
 import { useAuthorizedAttempt } from "../platform/use-authorized-attempt";
-import { registerModalContext } from "./register-modal-context";
 import type { RegisterSummary, RevokeRegisterOutcome, revokeRegister } from "./registers-api";
 
 export type RevokeRegisterModalServices = {

@@ -1,6 +1,6 @@
 import { vi } from "vitest";
-import { ReportRegisterFilter } from "../../register/report-register-filter";
-import type { ReportRegisterFilterServices } from "../../register/report-register-filter-services";
+import { ReportRegisterFilter } from "../../installation/report-register-filter";
+import type { ReportRegisterFilterServices } from "../../installation/report-register-filter-services";
 import { reportRegisterFieldOf } from "../report-register-field";
 import { registers } from "./report-fixtures";
 

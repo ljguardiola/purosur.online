@@ -1,8 +1,7 @@
 import { vi } from "vitest";
 import type { RegisterActions } from "../register-row-actions";
 import type { RegisterSummary } from "../registers-api";
-import type { RegistersListScreenServices } from "../registers-list-services";
-import { createServices } from "./registers-list-screen";
+import { createServices, type RegistersListTestServices } from "./registers-list-screen";
 
 function action() {
   return vi.fn<(register: RegisterSummary) => void>();
@@ -20,7 +19,7 @@ export function createActions() {
 }
 
 export function panelServices(
-  overrides: Partial<RegistersListScreenServices> = {},
-): RegistersListScreenServices {
+  overrides: Partial<RegistersListTestServices> = {},
+): RegistersListTestServices {
   return createServices(overrides);
 }

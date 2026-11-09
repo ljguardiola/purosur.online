@@ -1,13 +1,17 @@
 import type { Capability } from "@purosur/domain";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { backups } from "../register/test-support/snapshot-backups-section";
 import { accessWith } from "../shell/test-support/backoffice-access";
+import { registerPartsOf } from "../shell/test-support/register-parts";
 import { render } from "../shell/test-support/render-with-router";
 import { RegisterNamesListScreen } from "./register-names-list-screen";
-import type { RegistersListScreenServices } from "./registers-list-services";
 import { RegisterPointOfSaleSectionStub } from "./test-support/register-point-of-sale-section-stub";
-import { createServices, rowOf } from "./test-support/registers-list-screen";
-import { backups } from "./test-support/snapshot-backups-section";
+import {
+  createServices,
+  type RegistersListTestServices,
+  rowOf,
+} from "./test-support/registers-list-screen";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
@@ -18,7 +22,7 @@ const NAMES = [
   { id: "register-2", name: "Caja 2" },
 ];
 
-function namesServices(): RegistersListScreenServices {
+function namesServices(): RegistersListTestServices {
   const services = createServices();
   vi.mocked(services.fetchSnapshotBackupRegisters).mockResolvedValue({ kind: "ok", value: NAMES });
   vi.mocked(services.fetchFiscalRegisterNames).mockResolvedValue({ kind: "ok", value: NAMES });
@@ -32,7 +36,7 @@ async function renderNames(
     services = namesServices(),
     openRegister,
   }: {
-    services?: RegistersListScreenServices;
+    services?: RegistersListTestServices;
     openRegister?: string;
   } = {},
 ) {
@@ -43,6 +47,7 @@ async function renderNames(
         access={accessWith(...capabilities)}
         services={services}
         registerPointOfSaleSection={RegisterPointOfSaleSectionStub}
+        registerPanelSections={registerPartsOf(services).panelSections}
         onSessionEnded={() => {}}
         openRegister={openRegister}
         sessionsPeriod={{ from: "", to: "" }}

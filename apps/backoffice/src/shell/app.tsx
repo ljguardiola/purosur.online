@@ -21,6 +21,9 @@ import type { IssuedFiscalDocumentsScreenServices } from "../fiscal/issued-fisca
 import type { UnbilledDeferredSalesPillProps } from "../fiscal/unbilled-deferred-sales-pill";
 import type { UnbilledDeferredSalesPillServices } from "../fiscal/unbilled-deferred-sales-pill-services";
 import type { BackofficeHelpCatalog } from "../help/help-catalog";
+import type { RegistersListScreenServices } from "../installation/registers-list-services";
+import type { ReportRegisterFilterProps } from "../installation/report-register-filter";
+import type { ReportRegisterFilterServices } from "../installation/report-register-filter-services";
 import type { HandConfirmedPaymentsScreenServices } from "../payments/hand-confirmed-payments-services";
 import type { MercadoPagoChargeCostsScreenServices } from "../payments/mercado-pago-charge-costs-services";
 import type { PendingRefundsScreenServices } from "../payments/pending-refunds-services";
@@ -35,6 +38,8 @@ import type {
 import type { ProductPanelSections } from "../platform/product-panel-sections";
 import type { ProductPriceSection } from "../platform/product-price-section";
 import { createQueryClient } from "../platform/query-client";
+import type { RegisterPanelSections } from "../platform/register-panel-sections";
+import type { RegisterPaymentAndKeyModals } from "../platform/register-payment-and-key-modals";
 import type { RegisterPointOfSaleSection } from "../platform/register-point-of-sale-section";
 import {
   defaultReleaseMonitor,
@@ -62,9 +67,6 @@ import type { SupplierPriceListsScreenServices } from "../purchasing/supplier-pr
 import type { SuppliersListScreenServices } from "../purchasing/suppliers-list-services";
 import type { CashMovementsScreenServices } from "../register/cash-movements-services";
 import type { CashSessionClosesScreenServices } from "../register/cash-session-closes-services";
-import type { RegistersListScreenServices } from "../register/registers-list-services";
-import type { ReportRegisterFilterProps } from "../register/report-register-filter";
-import type { ReportRegisterFilterServices } from "../register/report-register-filter-services";
 import type { ReturnsHistoryScreenServices } from "../returns/returns-history-services";
 import type { AverageTicketScreenServices } from "../sales/average-ticket-services";
 import type { CashRoundingScreenServices } from "../sales/cash-rounding-services";
@@ -155,6 +157,8 @@ export type AppServices = {
   productPriceSection: ProductPriceSection;
   productPanelSections: ProductPanelSections;
   registerPointOfSaleSection: RegisterPointOfSaleSection;
+  registerPanelSections: RegisterPanelSections;
+  registerPaymentAndKeyModals: RegisterPaymentAndKeyModals;
   contingencyTicketRescueAssistant: ContingencyTicketRescueAssistant;
   roleCreationModal: RoleCreationModal;
   reportRegisterFilter: ReportRegisterFilterServices;
@@ -212,6 +216,8 @@ type ShellServiceName =
   | "productPriceSection"
   | "productPanelSections"
   | "registerPointOfSaleSection"
+  | "registerPanelSections"
+  | "registerPaymentAndKeyModals"
   | "contingencyTicketRescueAssistant"
   | "roleCreationModal"
   | "accountFooter"
@@ -237,7 +243,7 @@ const defaultRouteServices: RouteServices = {
     "UnbilledDeferredSalesPill",
   ),
   reportFiltersRegisterFilter: lazyScreen(
-    () => import("../register/report-register-filter"),
+    () => import("../installation/report-register-filter"),
     "ReportRegisterFilter",
   ),
   categoryCreationModal: lazyScreen(
@@ -267,6 +273,24 @@ const defaultRouteServices: RouteServices = {
   registerPointOfSaleSection: lazyScreen(
     () => import("../fiscal/register-point-of-sale-panel-section"),
     "RegisterPointOfSalePanelSection",
+  ),
+  registerPanelSections: {
+    payments: lazyScreen(
+      () => import("../register/register-payments-section"),
+      "RegisterPaymentsSection",
+    ),
+    backups: lazyScreen(
+      () => import("../register/snapshot-backups-section"),
+      "SnapshotBackupsSection",
+    ),
+    sessions: lazyScreen(
+      () => import("../register/register-sessions-section"),
+      "RegisterSessionsSection",
+    ),
+  },
+  registerPaymentAndKeyModals: lazyScreen(
+    () => import("../register/register-payment-and-key-modals"),
+    "RegisterPaymentAndKeyModals",
   ),
   contingencyTicketRescueAssistant: lazyScreen(
     () => import("../backups/contingency-ticket-rescue-assistant"),

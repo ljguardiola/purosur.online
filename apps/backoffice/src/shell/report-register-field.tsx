@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from "react";
-import type { ReportRegisterFilterProps } from "../register/report-register-filter";
+import type { ReportRegisterFilterProps } from "../installation/report-register-filter";
 
 export type ReportRegisterField = (
   field: Pick<ReportRegisterFilterProps, "value" | "onChange" | "onLabelChange">,

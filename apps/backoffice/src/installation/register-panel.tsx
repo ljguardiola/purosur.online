@@ -1,9 +1,19 @@
-import { DetailPanel, Tab, Tabs } from "@purosur/ui";
+import {
+  DetailPanel,
+  LoadingPlaceholder,
+  type LoadingPlaceholderProps,
+  Tab,
+  Tabs,
+} from "@purosur/ui";
 import { createLink } from "@tanstack/react-router";
+import { Suspense } from "react";
 import { landingPart, type PagePart, pagePartsFor } from "../platform/page-parts";
+import type { RegisterPanelSections } from "../platform/register-panel-sections";
 import type { RegisterPointOfSaleSection } from "../platform/register-point-of-sale-section";
 import {
   type BackofficeAccess,
+  canAssignPointTerminal,
+  canAssignQrPointOfSale,
   canSeeBackupsArea,
   canSeeFiscalConfigurationArea,
   canSeeRegistersArea,
@@ -11,12 +21,8 @@ import {
 } from "../shell/backoffice-access";
 import type { ReportPeriodFilters } from "../shell/report-filters-search";
 import { RegisterDataSection } from "./register-data-section";
-import { RegisterPaymentsSection } from "./register-payments-section";
 import type { RegisterActions } from "./register-row-actions";
-import { RegisterSessionsSection } from "./register-sessions-section";
 import type { RegisterName, RegisterSummary } from "./registers-api";
-import type { RegistersListScreenServices } from "./registers-list-services";
-import { SnapshotBackupsSection } from "./snapshot-backups-section";
 
 export type RegisterPanelProps = RegisterPanelBaseProps &
   (
@@ -34,7 +40,7 @@ type RegisterPanelBaseProps = {
   onClose: () => void;
   onPointOfSaleSaved: () => void;
   onSessionEnded: () => void;
-  services: RegistersListScreenServices;
+  registerPanelSections: RegisterPanelSections;
 };
 
 type RegisterPanelTab = "data" | "fiscal" | "backups" | "sessions";
@@ -55,6 +61,14 @@ const TAB_LABELS: Record<RegisterPanelTab, string> = {
 
 const RegisterTabLink = createLink(Tab);
 
+function SectionPlaceholder({ shape }: { shape: LoadingPlaceholderProps }) {
+  return (
+    <div className="pt-4">
+      <LoadingPlaceholder {...shape} />
+    </div>
+  );
+}
+
 export function RegisterPanel({
   register,
   summary,
@@ -68,7 +82,11 @@ export function RegisterPanel({
   onClose,
   onPointOfSaleSaved,
   onSessionEnded,
-  services,
+  registerPanelSections: {
+    payments: PaymentsSection,
+    backups: BackupsSection,
+    sessions: SessionsSection,
+  },
 }: RegisterPanelProps) {
   const details = summary === undefined ? undefined : { summary, actions, secondsSinceRead };
   const parts = pagePartsFor(access, REGISTER_PANEL_TABS);
@@ -112,28 +130,31 @@ export function RegisterPanel({
           (details === undefined ? (
             <div className="flex flex-col gap-4 pt-4">{pointOfSaleSlot}</div>
           ) : (
-            <RegisterPaymentsSection
-              register={details.summary}
-              access={access}
-              actions={details.actions}
-              pointOfSaleSlot={pointOfSaleSlot}
-            />
+            <Suspense fallback={<SectionPlaceholder shape={{ variant: "card", lines: 2 }} />}>
+              <PaymentsSection
+                register={details.summary}
+                mayAssignPointTerminal={canAssignPointTerminal(access)}
+                mayAssignQrPointOfSale={canAssignQrPointOfSale(access)}
+                onAssignPointTerminal={() => details.actions.assignTerminal(details.summary)}
+                onAssignQrPointOfSale={() => details.actions.assignQr(details.summary)}
+                pointOfSaleSlot={pointOfSaleSlot}
+              />
+            </Suspense>
           ))}
         {selectedTab === "backups" && (
-          <SnapshotBackupsSection
-            register={register}
-            onSessionEnded={onSessionEnded}
-            services={services}
-          />
+          <Suspense fallback={<SectionPlaceholder shape={{ variant: "rows", rows: 5 }} />}>
+            <BackupsSection register={register} onSessionEnded={onSessionEnded} />
+          </Suspense>
         )}
         {selectedTab === "sessions" && (
-          <RegisterSessionsSection
-            registerId={register.id}
-            period={sessionsPeriod}
-            onPeriodChange={onSessionsPeriodChange}
-            onSessionEnded={onSessionEnded}
-            services={services}
-          />
+          <Suspense fallback={<SectionPlaceholder shape={{ variant: "rows", rows: 5 }} />}>
+            <SessionsSection
+              registerId={register.id}
+              period={sessionsPeriod}
+              onPeriodChange={onSessionsPeriodChange}
+              onSessionEnded={onSessionEnded}
+            />
+          </Suspense>
         )}
       </Tabs>
     </DetailPanel>

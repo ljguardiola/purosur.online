@@ -1,25 +1,31 @@
+import { Suspense } from "react";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import type { RegisterPanelSections } from "../platform/register-panel-sections";
+import { weekCashSessionClosesReport } from "../register/test-support/cash-session-closes-fixtures";
+import { backups } from "../register/test-support/snapshot-backups-section";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
+import { registerPartsOf } from "../shell/test-support/register-parts";
 import { render } from "../shell/test-support/render-with-router";
 import { RegisterPanel } from "./register-panel";
-import { weekCashSessionClosesReport } from "./test-support/cash-session-closes-fixtures";
+import { neverDownloaded } from "./test-support/never-downloaded";
 import { createActions, panelServices } from "./test-support/register-panel";
 import { RegisterPointOfSaleSectionStub } from "./test-support/register-point-of-sale-section-stub";
 import { enrolledRegister } from "./test-support/registers-list-screen";
-import { backups } from "./test-support/snapshot-backups-section";
 
 function renderPanel({
   access = ADMINISTRATOR_ACCESS,
   tab,
   onClose = () => {},
   nameOnly = false,
+  sections = {},
 }: {
   access?: BackofficeAccess;
   tab?: string;
   onClose?: () => void;
   nameOnly?: boolean;
+  sections?: Partial<RegisterPanelSections>;
 } = {}) {
   const services = panelServices();
   vi.mocked(services.fetchSnapshotBackups).mockResolvedValue({ kind: "ok", value: backups });
@@ -28,21 +34,23 @@ function renderPanel({
     value: weekCashSessionClosesReport,
   });
   return render(
-    <RegisterPanel
-      register={enrolledRegister}
-      {...(nameOnly
-        ? {}
-        : { summary: enrolledRegister, actions: createActions(), secondsSinceRead: 0 })}
-      access={access}
-      registerPointOfSaleSection={RegisterPointOfSaleSectionStub}
-      tab={tab}
-      sessionsPeriod={{ from: "", to: "" }}
-      onSessionsPeriodChange={() => {}}
-      onClose={onClose}
-      onPointOfSaleSaved={() => {}}
-      onSessionEnded={() => {}}
-      services={services}
-    />,
+    <Suspense fallback={<p>Descargando la pantalla</p>}>
+      <RegisterPanel
+        register={enrolledRegister}
+        {...(nameOnly
+          ? {}
+          : { summary: enrolledRegister, actions: createActions(), secondsSinceRead: 0 })}
+        access={access}
+        registerPointOfSaleSection={RegisterPointOfSaleSectionStub}
+        tab={tab}
+        sessionsPeriod={{ from: "", to: "" }}
+        onSessionsPeriodChange={() => {}}
+        onClose={onClose}
+        onPointOfSaleSaved={() => {}}
+        onSessionEnded={() => {}}
+        registerPanelSections={{ ...registerPartsOf(services).panelSections, ...sections }}
+      />
+    </Suspense>,
   ).then((screen) => ({ screen, services }));
 }
 
@@ -171,3 +179,18 @@ test("without the register's full data, Copias and Sesiones read from the regist
   await expect.element(screen.getByText("Cerró: Beto")).toBeVisible();
   expect(services.fetchCashSessionCloses).toHaveBeenCalledWith({ register_id: "register-3" });
 });
+
+test.each([
+  { tab: "fiscal", name: "Fiscal y cobros", sections: { payments: neverDownloaded() } },
+  { tab: "backups", name: "Copias", sections: { backups: neverDownloaded() } },
+  { tab: "sessions", name: "Sesiones", sections: { sessions: neverDownloaded() } },
+] satisfies { tab: string; name: string; sections: Partial<RegisterPanelSections> }[])(
+  "keeps the panel open with a placeholder in $name while its section downloads",
+  async ({ tab, name, sections }) => {
+    const { screen } = await renderPanel({ tab, sections });
+
+    await expect.element(screen.getByRole("tab", { name, selected: true })).toBeVisible();
+    await expect.element(screen.getByRole("status").first()).toHaveTextContent("Cargando…");
+    expect(screen.getByText("Descargando la pantalla").query()).toBeNull();
+  },
+);

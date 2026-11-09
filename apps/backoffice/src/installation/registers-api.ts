@@ -1,11 +1,5 @@
 import {
-  type BitlockerRecoveryKeyLoadBody,
-  bitlockerRecoveryKeySchema,
   everyInstallationRevocationSchema,
-  type PointTerminalAssignmentBody,
-  pointTerminalAssignmentSchema,
-  type QrPointOfSaleAssignmentBody,
-  qrPointOfSaleAssignmentSchema,
   type RegisterCreationBody,
   type RegisterSummaryBody,
   type RegisterSyncStatusWire,
@@ -15,6 +9,7 @@ import {
   registerPointOfSaleOverviewListSchema,
   registerRevocationSchema,
   registerSyncStatusListSchema,
+  snapshotBackupRegistersSchema,
 } from "@purosur/contracts";
 import type { PermissionKey } from "@purosur/domain";
 import { cloudFetch } from "../platform/cloud-fetch";
@@ -95,28 +90,6 @@ export type CreateRegisterOutcome =
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
 
-export type AssignPointTerminalOutcome =
-  | { kind: "ok" }
-  | { kind: "validation_failed"; field: string }
-  | { kind: "point_terminal_taken" }
-  | { kind: "stale_version" }
-  | { kind: "not_found" }
-  | { kind: "forbidden" }
-  | { kind: "unauthenticated" }
-  | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "failed" };
-
-export type AssignQrPointOfSaleOutcome =
-  | { kind: "ok" }
-  | { kind: "validation_failed"; field: string }
-  | { kind: "qr_point_of_sale_taken" }
-  | { kind: "stale_version" }
-  | { kind: "not_found" }
-  | { kind: "forbidden" }
-  | { kind: "unauthenticated" }
-  | { kind: "rate_limited"; retryAfterSeconds: number }
-  | { kind: "failed" };
-
 type EmittedEnrollmentCode = { code: string; expiresAt: string };
 
 export type EmitEnrollmentCodeOutcome =
@@ -137,20 +110,6 @@ export type RevokeRegisterOutcome =
   | { kind: "authorization_required" }
   | { kind: "rate_limited"; retryAfterSeconds: number }
   | { kind: "failed" };
-
-export type LoadBitlockerRecoveryKeyOutcome =
-  | { kind: "ok" }
-  | { kind: "not_found" }
-  | { kind: "no_current_installation" }
-  | { kind: "already_loaded" }
-  | GatedActionErrorOutcome;
-
-export type ConsultBitlockerRecoveryKeyOutcome =
-  | { kind: "ok"; value: { recoveryKey: string; keyIdentifier: string } }
-  | { kind: "not_found" }
-  | { kind: "no_current_installation" }
-  | { kind: "not_loaded" }
-  | GatedActionErrorOutcome;
 
 export type RevokeEveryInstallationOutcome =
   | { kind: "ok"; value: { revokedAt: string; revokedRegisters: number } }
@@ -287,6 +246,13 @@ export function fetchFiscalRegisterNames(): Promise<FetchRegisterNamesOutcome> {
   );
 }
 
+export function fetchSnapshotBackupRegisters(): Promise<FetchRegisterNamesOutcome> {
+  return readCloud(
+    "/api/snapshot-backups/registers",
+    (body) => snapshotBackupRegistersSchema.safeParse(body).data?.registers,
+  );
+}
+
 export function fetchRegisterSyncStatus(): Promise<FetchRegisterSyncStatusOutcome> {
   return readCloud("/api/registers/sync-status", (body) =>
     registerSyncStatusListSchema.safeParse(body).data?.map((row) => ({
@@ -365,71 +331,6 @@ export async function revokeRegister(id: string): Promise<RevokeRegisterOutcome>
   return gatedActionErrorOutcome(response);
 }
 
-async function conflictCode(response: Response): Promise<string | undefined> {
-  const body = (await response.json().catch(() => undefined)) as { code?: string } | undefined;
-  return body?.code;
-}
-
-export async function loadBitlockerRecoveryKey(
-  id: string,
-  body: BitlockerRecoveryKeyLoadBody,
-): Promise<LoadBitlockerRecoveryKeyOutcome> {
-  let response: Response;
-  try {
-    response = await postJson(`/api/registers/${id}/bitlocker-recovery-key`, body);
-  } catch {
-    return { kind: "failed" };
-  }
-  if (response.ok) {
-    return { kind: "ok" };
-  }
-  if (response.status === 404) {
-    return { kind: "not_found" };
-  }
-  if (response.status === 409) {
-    const code = await conflictCode(response);
-    return code === "no_current_installation" || code === "already_loaded"
-      ? { kind: code }
-      : { kind: "failed" };
-  }
-  return gatedActionErrorOutcome(response);
-}
-
-export async function consultBitlockerRecoveryKey(
-  id: string,
-): Promise<ConsultBitlockerRecoveryKeyOutcome> {
-  let response: Response;
-  try {
-    response = await postJson(`/api/registers/${id}/bitlocker-recovery-key/consultations`);
-  } catch {
-    return { kind: "failed" };
-  }
-  if (response.ok) {
-    const parsed = bitlockerRecoveryKeySchema.safeParse(
-      await response.json().catch(() => undefined),
-    );
-    return parsed.success
-      ? {
-          kind: "ok",
-          value: {
-            recoveryKey: parsed.data.recovery_key,
-            keyIdentifier: parsed.data.key_identifier,
-          },
-        }
-      : { kind: "failed" };
-  }
-  if (response.status === 404) {
-    return { kind: "not_found" };
-  }
-  if (response.status === 409) {
-    const code = await conflictCode(response);
-    return code === "no_current_installation" || code === "not_loaded"
-      ? { kind: code }
-      : { kind: "failed" };
-  }
-  return gatedActionErrorOutcome(response);
-}
-
 export async function revokeEveryInstallation(): Promise<RevokeEveryInstallationOutcome> {
   let response: Response;
   try {
@@ -457,96 +358,4 @@ export async function revokeEveryInstallation(): Promise<RevokeEveryInstallation
     return code === "no_active_installation" ? { kind: code } : { kind: "failed" };
   }
   return gatedActionErrorOutcome(response);
-}
-
-export async function assignPointTerminal(
-  registerId: string,
-  body: PointTerminalAssignmentBody,
-): Promise<AssignPointTerminalOutcome> {
-  let response: Response;
-  try {
-    response = await cloudFetch(`/api/registers/${registerId}/point-terminal`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-  } catch {
-    return { kind: "failed" };
-  }
-  if (response.ok) {
-    const parsed = pointTerminalAssignmentSchema.safeParse(
-      await response.json().catch(() => undefined),
-    );
-    return parsed.success ? { kind: "ok" } : { kind: "failed" };
-  }
-  if (response.status === 400) {
-    const field = await readValidationFailedField(response);
-    return field === undefined ? { kind: "failed" } : { kind: "validation_failed", field };
-  }
-  if (response.status === 404) {
-    return { kind: "not_found" };
-  }
-  if (response.status === 409) {
-    const code = ((await response.json().catch(() => undefined)) as { code?: string } | undefined)
-      ?.code;
-    return code === "point_terminal_taken" || code === "stale_version"
-      ? { kind: code }
-      : { kind: "failed" };
-  }
-  if (response.status === 401) {
-    return { kind: "unauthenticated" };
-  }
-  if (response.status === 403) {
-    return { kind: "forbidden" };
-  }
-  if (response.status === 429) {
-    return rateLimitOutcome(response);
-  }
-  return { kind: "failed" };
-}
-
-export async function assignQrPointOfSale(
-  registerId: string,
-  body: QrPointOfSaleAssignmentBody,
-): Promise<AssignQrPointOfSaleOutcome> {
-  let response: Response;
-  try {
-    response = await cloudFetch(`/api/registers/${registerId}/qr-point-of-sale`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-  } catch {
-    return { kind: "failed" };
-  }
-  if (response.ok) {
-    const parsed = qrPointOfSaleAssignmentSchema.safeParse(
-      await response.json().catch(() => undefined),
-    );
-    return parsed.success ? { kind: "ok" } : { kind: "failed" };
-  }
-  if (response.status === 400) {
-    const field = await readValidationFailedField(response);
-    return field === undefined ? { kind: "failed" } : { kind: "validation_failed", field };
-  }
-  if (response.status === 404) {
-    return { kind: "not_found" };
-  }
-  if (response.status === 409) {
-    const code = ((await response.json().catch(() => undefined)) as { code?: string } | undefined)
-      ?.code;
-    return code === "qr_point_of_sale_taken" || code === "stale_version"
-      ? { kind: code }
-      : { kind: "failed" };
-  }
-  if (response.status === 401) {
-    return { kind: "unauthenticated" };
-  }
-  if (response.status === 403) {
-    return { kind: "forbidden" };
-  }
-  if (response.status === 429) {
-    return rateLimitOutcome(response);
-  }
-  return { kind: "failed" };
 }

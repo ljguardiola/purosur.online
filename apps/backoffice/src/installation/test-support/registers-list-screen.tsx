@@ -1,38 +1,35 @@
-import { useIsFetching, useQueryClient } from "@tanstack/react-query";
+import { useIsFetching } from "@tanstack/react-query";
 import { onTestFinished, vi } from "vitest";
 import { page } from "vitest/browser";
 import type { BackofficeAccess } from "../../shell/backoffice-access";
+import { useRefreshRegisters } from "../../shell/refresh-registers";
 import { ADMINISTRATOR_ACCESS } from "../../shell/test-support/backoffice-access";
+import {
+  createRegisterPartsServices,
+  type RegisterPartsServices,
+  registerPartsOf,
+} from "../../shell/test-support/register-parts";
 import { render } from "../../shell/test-support/render-with-router";
-import { registerKey } from "../register-queries";
 import type { RegisterSummary } from "../registers-api";
 import { RegistersListScreen } from "../registers-list-screen";
 import type { RegistersListScreenServices } from "../registers-list-services";
 import { RegisterPointOfSaleSectionStub } from "./register-point-of-sale-section-stub";
 
+export type RegistersListTestServices = RegistersListScreenServices & RegisterPartsServices;
+
 export function createServices(
-  overrides: Partial<RegistersListScreenServices> = {},
-): RegistersListScreenServices {
+  overrides: Partial<RegistersListTestServices> = {},
+): RegistersListTestServices {
   return {
+    ...createRegisterPartsServices(),
     fetchRegisters: vi.fn(),
     fetchRegisterCoverage: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     createRegister: vi.fn(),
-    assignPointTerminal: vi.fn(),
-    assignQrPointOfSale: vi.fn(),
     emitEnrollmentCode: vi.fn(),
     revokeRegister: vi.fn(),
     revokeEveryInstallation: vi.fn(),
-    loadBitlockerRecoveryKey: vi.fn(),
-    consultBitlockerRecoveryKey: vi.fn(),
-    fetchSessionAuthorizationOptions: vi.fn(),
-    authorizeSession: vi.fn(),
-    startAuthentication: vi.fn(),
-    fetchSnapshotBackups: vi.fn(),
     fetchSnapshotBackupRegisters: vi.fn(),
     fetchFiscalRegisterNames: vi.fn(),
-    changeSnapshotLifecycleRules: vi.fn(),
-    rotateSnapshotKey: vi.fn(),
-    fetchCashSessionCloses: vi.fn(),
     ...overrides,
   };
 }
@@ -109,7 +106,7 @@ export const revokedRegister: RegisterSummary = {
 const authorizationOptions = { challenge: "session-auth" } as never;
 const assertion = { id: "existing-cred" } as never;
 
-export function grantAuthorization(services: RegistersListScreenServices) {
+export function grantAuthorization(services: RegistersListTestServices) {
   vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
     kind: "ok",
     value: authorizationOptions,
@@ -123,28 +120,31 @@ function FetchesInFlight() {
 }
 
 function RefreshRegisters() {
-  const client = useQueryClient();
+  const refreshRegisters = useRefreshRegisters();
   return (
-    <button type="button" onClick={() => void client.invalidateQueries({ queryKey: registerKey })}>
+    <button type="button" onClick={() => void refreshRegisters()}>
       Refrescar
     </button>
   );
 }
 
 export async function renderScreen(
-  services: RegistersListScreenServices,
+  services: RegistersListTestServices,
   onSessionEnded: () => void = () => {},
   access: BackofficeAccess = ADMINISTRATOR_ACCESS,
 ) {
   // Wider than the phone-sized default viewport, or five row actions leave the name column no room.
   await page.viewport(1280, 900);
   onTestFinished(() => page.viewport(414, 896));
+  const { panelSections, paymentAndKeyModals } = registerPartsOf(services);
   return render(
     <main>
       <RegistersListScreen
         access={access}
         services={services}
         registerPointOfSaleSection={RegisterPointOfSaleSectionStub}
+        registerPanelSections={panelSections}
+        registerPaymentAndKeyModals={paymentAndKeyModals}
         onSessionEnded={onSessionEnded}
         sessionsPeriod={{ from: "", to: "" }}
         onSessionsPeriodChange={() => {}}
