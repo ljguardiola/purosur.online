@@ -1,10 +1,6 @@
 import { vi } from "vitest";
-import type { RegisterKeyTarget } from "../../platform/register-payment-and-key-modals";
-import type { ConsultBitlockerRecoveryKeyModalServices } from "../consult-bitlocker-recovery-key-modal";
-import type { LoadBitlockerRecoveryKeyModalServices } from "../load-bitlocker-recovery-key-modal";
-
-type RegisterKeyModalsServices = LoadBitlockerRecoveryKeyModalServices &
-  ConsultBitlockerRecoveryKeyModalServices;
+import type { RegisterKeyTarget } from "../../platform/register-key-modals";
+import type { RegisterKeyModalsServices } from "../register-key-modals";
 
 export function createServices(): RegisterKeyModalsServices {
   return {

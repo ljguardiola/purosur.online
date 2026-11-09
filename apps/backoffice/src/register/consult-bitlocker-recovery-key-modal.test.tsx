@@ -1,7 +1,7 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
-import type { RegisterKeyTarget } from "../platform/register-payment-and-key-modals";
+import type { RegisterKeyTarget } from "../platform/register-key-modals";
 import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import type { ConsultBitlockerRecoveryKeyOutcome } from "./bitlocker-recovery-key-api";
