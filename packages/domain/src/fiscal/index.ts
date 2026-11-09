@@ -108,8 +108,6 @@ export {
   type DeferredSaleSatisfiedFact,
   deferredSaleSatisfiedEvent,
 } from "./model/deferred-sale-satisfied-event.js";
-export type { InstallationStreamReach } from "./model/event-stream-reach.js";
-export { isInstallationActiveDuring } from "./model/event-stream-reach.js";
 export type {
   ExceptionShareCounts,
   RecordedExceptionShareBreach,
