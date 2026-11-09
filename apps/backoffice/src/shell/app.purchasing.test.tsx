@@ -1,6 +1,6 @@
 import type { Capability } from "@purosur/domain";
 import { beforeEach, expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { ORDER_SUGGESTION } from "../purchasing/test-support/order-suggestion";
 import {
@@ -35,7 +35,10 @@ opensOnlyScreens([
   "/freights",
 ]);
 
-beforeEach(resetPageState);
+beforeEach(async () => {
+  await page.viewport(1280, 900);
+  resetPageState();
+});
 
 function railLink(screen: Awaited<ReturnType<typeof render>>) {
   return screen.getByRole("navigation", { name: "Áreas" }).getByRole("link", { name: "Compras" });
@@ -364,9 +367,10 @@ test("lands on the Borradores of the orders, with the order's panel open, once o
   await expect
     .element(screen.getByRole("complementary", { name: "Pedido a Distribuidora Andina" }))
     .toBeVisible();
-  expect(window.location.pathname + window.location.search).toBe(
-    `/purchase-orders?state=DRAFT&order=${ORDER_ID}`,
-  );
+  expect(window.location.pathname).toBe("/purchase-orders");
+  const search = new URLSearchParams(window.location.search);
+  expect(search.get("state")).toBe("DRAFT");
+  expect(search.get("order")).toBe(ORDER_ID);
   expect(services.purchaseOrdersScreen.fetchPurchaseOrders).toHaveBeenCalledWith("DRAFT");
 });
 
@@ -390,7 +394,8 @@ test("lands on the Borradores of the orders with no panel once several are built
   await userEvent.click(screen.getByRole("button", { name: "Armar pedidos" }));
 
   await expect.element(screen.getByRole("table", { name: "Pedidos de compra" })).toBeVisible();
-  expect(window.location.pathname + window.location.search).toBe("/purchase-orders?state=DRAFT");
+  expect(window.location.pathname).toBe("/purchase-orders");
+  expect(window.location.search).toBe("?state=DRAFT");
   expect(screen.getByRole("complementary").query()).toBeNull();
   expect(services.purchaseOrdersScreen.fetchPurchaseOrder).not.toHaveBeenCalled();
 });

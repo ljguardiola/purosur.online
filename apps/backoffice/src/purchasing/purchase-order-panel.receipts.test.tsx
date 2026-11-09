@@ -1,6 +1,6 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { accessWith } from "../shell/test-support/backoffice-access";
 import { createPanelServices, loaded } from "./test-support/purchase-order-panel";
 import {
@@ -11,7 +11,8 @@ import {
   SENT_ORDER,
 } from "./test-support/purchase-orders";
 
-beforeEach(() => {
+beforeEach(async () => {
+  await page.viewport(1280, 900);
   window.history.pushState(null, "", "/");
 });
 

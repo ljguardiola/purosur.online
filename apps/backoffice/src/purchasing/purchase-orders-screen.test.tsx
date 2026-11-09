@@ -2,7 +2,7 @@ import type { PurchaseOrderSummary } from "@purosur/contracts";
 import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
@@ -14,13 +14,14 @@ import {
   CANCELLED_SUMMARY,
   DRAFT_SUMMARY,
   ORDER_ID,
-  PARTIALLY_RECEIVED_ORDER,
   PRICED_SUMMARY,
   SENT_ORDER,
+  SENT_ORDER_WITH_RECEIPTS,
   SENT_SUMMARY,
 } from "./test-support/purchase-orders";
 
-beforeEach(() => {
+beforeEach(async () => {
+  await page.viewport(1280, 900);
   window.history.pushState(null, "", "/");
 });
 
@@ -294,7 +295,7 @@ test("shows the open order in a panel with its lines, sharing, cancelling and re
   const services = createServices({
     fetchPurchaseOrder: vi.fn().mockResolvedValue({
       kind: "ok",
-      value: { kind: "found", order: { ...PARTIALLY_RECEIVED_ORDER, id: ORDER_ID } },
+      value: { kind: "found", order: SENT_ORDER_WITH_RECEIPTS },
     }),
   });
   const screen = await loaded(services, [DRAFT_SUMMARY, CANCELLED_SUMMARY], {

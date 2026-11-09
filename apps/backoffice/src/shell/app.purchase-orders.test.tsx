@@ -1,14 +1,14 @@
 import type { Capability } from "@purosur/domain";
 import { beforeEach, expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { ORDER_SUGGESTION } from "../purchasing/test-support/order-suggestion";
 import {
   DRAFT_SUMMARY,
   ORDER_ID,
-  PARTIALLY_RECEIVED_ORDER,
   RECEIPT_DRAFT,
   SENT_ORDER,
+  SENT_ORDER_WITH_RECEIPTS,
 } from "../purchasing/test-support/purchase-orders";
 import { PRICE_COMPARISON } from "../purchasing/test-support/supplier-price-comparison";
 import { openSession } from "../sessions/test-support/open-session";
@@ -26,7 +26,10 @@ opensOnlyScreens([
   "/purchase-orders/$orderId/receive",
 ]);
 
-beforeEach(resetPageState);
+beforeEach(async () => {
+  await page.viewport(1280, 900);
+  resetPageState();
+});
 
 function purchaseOrdersServices(capabilities: Capability[]) {
   const services = createAppServices({
@@ -149,7 +152,7 @@ test("opens an order's panel from its row, keeping the list and the tabs in view
   const services = purchaseOrdersServices(["purchase_orders", "purchase_order_reads"]);
   vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrder).mockResolvedValue({
     kind: "ok",
-    value: { kind: "found", order: { ...PARTIALLY_RECEIVED_ORDER, id: ORDER_ID } },
+    value: { kind: "found", order: SENT_ORDER_WITH_RECEIPTS },
   });
   window.history.pushState(null, "", "/purchase-orders");
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -235,7 +238,7 @@ test("says the receipt was registered over the panel of the order the person com
   const services = purchaseOrdersServices(["purchase_order_reads", "purchase_order_receipts"]);
   vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrder).mockResolvedValue({
     kind: "ok",
-    value: { kind: "found", order: { ...PARTIALLY_RECEIVED_ORDER, id: ORDER_ID } },
+    value: { kind: "found", order: SENT_ORDER_WITH_RECEIPTS },
   });
   window.history.pushState(
     { purchaseOrderReceived: true },

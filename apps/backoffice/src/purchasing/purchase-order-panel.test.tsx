@@ -1,6 +1,6 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { accessWith } from "../shell/test-support/backoffice-access";
 import type { PurchaseOrderPanelServices } from "./purchase-order-panel-services";
 import {
@@ -15,7 +15,8 @@ import { AVENA_PRODUCT_ID, MIEL_PRODUCT_ID } from "./test-support/purchase-produ
 
 const ALMENDRAS_PRODUCT_ID = "90d00000-0000-4000-8000-000000000003";
 
-beforeEach(() => {
+beforeEach(async () => {
+  await page.viewport(1280, 900);
   window.history.pushState(null, "", "/");
 });
 
