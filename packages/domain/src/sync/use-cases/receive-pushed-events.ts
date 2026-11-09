@@ -3,7 +3,7 @@ import type { PushedEvent } from "../../shared/index.js";
 import { highestContiguousSeq } from "../model/contiguous-seq.js";
 import { eventLinkHolds, placementOfEvent, seqsJoinedBy } from "../model/event-placement.js";
 import type { RegisterTelemetry } from "../model/push-batch.js";
-import { registerVersionAccepted } from "../model/register-version.js";
+import { registerVersionAccepted } from "../model/register-version-acceptance.js";
 import type { EventChain, InboxTransaction, ReceivePorts } from "./sync-ports.js";
 
 export interface ReceivePushedEventsInput {

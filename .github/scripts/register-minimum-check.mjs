@@ -7,10 +7,12 @@ import { promisify } from "node:util";
 
 const LOG_PREFIX = "register-minimum-check";
 const VERSION_MODULE_PATH = "packages/domain/src/sync/model/register-version.ts";
+const ORDERING_MODULE_PATH = "packages/domain/src/register/model/register-version.ts";
 const REQUEST_TIMEOUT_MS = 30_000;
 
-// The module is a single dependency-free file, so Node can run it as the raw TypeScript the
-// commit holds.
+// Each module is a single dependency-free file, so Node can run it as the raw TypeScript the
+// commit holds. Releases before the ordering moved to register declare versionAtLeast beside the
+// minimum.
 export async function loadRegisterVersionModule(source) {
   const dir = await mkdtemp(join(tmpdir(), "register-version-"));
   try {
@@ -22,19 +24,29 @@ export async function loadRegisterVersionModule(source) {
   }
 }
 
+async function readOrdering({ sha, runGit, loadModule }) {
+  const loaded = await loadModule(await runGit(["show", `${sha}:${ORDERING_MODULE_PATH}`]));
+  if (typeof loaded.isRegisterVersionAtLeast !== "function") {
+    throw new Error(
+      `${LOG_PREFIX}: ${ORDERING_MODULE_PATH} at ${sha} does not export isRegisterVersionAtLeast`,
+    );
+  }
+  return loaded.isRegisterVersionAtLeast;
+}
+
 export async function readMinimumVersion({ sha, runGit, loadModule = loadRegisterVersionModule }) {
   const loaded = await loadModule(await runGit(["show", `${sha}:${VERSION_MODULE_PATH}`]));
-  if (
-    typeof loaded.MINIMUM_ACCEPTED_REGISTER_VERSION !== "string" ||
-    typeof loaded.versionAtLeast !== "function"
-  ) {
+  if (typeof loaded.MINIMUM_ACCEPTED_REGISTER_VERSION !== "string") {
     throw new Error(
-      `${LOG_PREFIX}: ${VERSION_MODULE_PATH} at ${sha} does not export MINIMUM_ACCEPTED_REGISTER_VERSION and versionAtLeast`,
+      `${LOG_PREFIX}: ${VERSION_MODULE_PATH} at ${sha} does not export MINIMUM_ACCEPTED_REGISTER_VERSION`,
     );
   }
   return {
     minimum: loaded.MINIMUM_ACCEPTED_REGISTER_VERSION,
-    versionAtLeast: loaded.versionAtLeast,
+    versionAtLeast:
+      typeof loaded.versionAtLeast === "function"
+        ? loaded.versionAtLeast
+        : await readOrdering({ sha, runGit, loadModule }),
   };
 }
 

@@ -20,7 +20,7 @@ export {
   REGISTER_STOCK_MOVEMENT_KINDS,
   stockMovementReachesRegisters,
 } from "./model/register-stock-movements.js";
-export { isLeftBehindByMinimum } from "./model/register-version.js";
+export { isLeftBehindByMinimum } from "./model/register-version-acceptance.js";
 export type {
   PendingReplenishment,
   ReplenishmentFailedReport,
