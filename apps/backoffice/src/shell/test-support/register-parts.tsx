@@ -1,10 +1,15 @@
 import { vi } from "vitest";
+import type { RegisterKeyModals } from "../../platform/register-key-modals";
 import type { RegisterPanelSections } from "../../platform/register-panel-sections";
-import type { RegisterPaymentAndKeyModals } from "../../platform/register-payment-and-key-modals";
+import type { RegisterPaymentModals } from "../../platform/register-payment-modals";
 import {
-  RegisterPaymentAndKeyModals as RealRegisterPaymentAndKeyModals,
-  type RegisterPaymentAndKeyModalsServices,
-} from "../../register/register-payment-and-key-modals";
+  RegisterKeyModals as RealRegisterKeyModals,
+  type RegisterKeyModalsServices,
+} from "../../register/register-key-modals";
+import {
+  RegisterPaymentModals as RealRegisterPaymentModals,
+  type RegisterPaymentModalsServices,
+} from "../../register/register-payment-modals";
 import { RegisterPaymentsSection } from "../../register/register-payments-section";
 import {
   RegisterSessionsSection,
@@ -15,7 +20,8 @@ import type { SnapshotBackupsSectionServices } from "../../register/snapshot-bac
 
 export type RegisterPartsServices = SnapshotBackupsSectionServices &
   RegisterSessionsSectionServices &
-  RegisterPaymentAndKeyModalsServices;
+  RegisterPaymentModalsServices &
+  RegisterKeyModalsServices;
 
 export function createRegisterPartsServices(
   overrides: Partial<RegisterPartsServices> = {},
@@ -38,7 +44,8 @@ export function createRegisterPartsServices(
 
 export function registerPartsOf(services: RegisterPartsServices): {
   panelSections: RegisterPanelSections;
-  paymentAndKeyModals: RegisterPaymentAndKeyModals;
+  paymentModals: RegisterPaymentModals;
+  keyModals: RegisterKeyModals;
 } {
   return {
     panelSections: {
@@ -46,8 +53,7 @@ export function registerPartsOf(services: RegisterPartsServices): {
       backups: (props) => <SnapshotBackupsSection {...props} services={services} />,
       sessions: (props) => <RegisterSessionsSection {...props} services={services} />,
     },
-    paymentAndKeyModals: (props) => (
-      <RealRegisterPaymentAndKeyModals {...props} services={services} />
-    ),
+    paymentModals: (props) => <RealRegisterPaymentModals {...props} services={services} />,
+    keyModals: (props) => <RealRegisterKeyModals {...props} services={services} />,
   };
 }

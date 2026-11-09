@@ -38,8 +38,9 @@ import type {
 import type { ProductPanelSections } from "../platform/product-panel-sections";
 import type { ProductPriceSection } from "../platform/product-price-section";
 import { createQueryClient } from "../platform/query-client";
+import type { RegisterKeyModals } from "../platform/register-key-modals";
 import type { RegisterPanelSections } from "../platform/register-panel-sections";
-import type { RegisterPaymentAndKeyModals } from "../platform/register-payment-and-key-modals";
+import type { RegisterPaymentModals } from "../platform/register-payment-modals";
 import type { RegisterPointOfSaleSection } from "../platform/register-point-of-sale-section";
 import {
   defaultReleaseMonitor,
@@ -157,7 +158,8 @@ export type AppServices = {
   productPanelSections: ProductPanelSections;
   registerPointOfSaleSection: RegisterPointOfSaleSection;
   registerPanelSections: RegisterPanelSections;
-  registerPaymentAndKeyModals: RegisterPaymentAndKeyModals;
+  registerPaymentModals: RegisterPaymentModals;
+  registerKeyModals: RegisterKeyModals;
   contingencyTicketRescueAssistant: ContingencyTicketRescueAssistant;
   roleCreationModal: RoleCreationModal;
   reportRegisterFilter: ReportRegisterFilterServices;
@@ -215,7 +217,8 @@ type ShellServiceName =
   | "productPanelSections"
   | "registerPointOfSaleSection"
   | "registerPanelSections"
-  | "registerPaymentAndKeyModals"
+  | "registerPaymentModals"
+  | "registerKeyModals"
   | "contingencyTicketRescueAssistant"
   | "roleCreationModal"
   | "accountFooter"
@@ -286,9 +289,13 @@ const defaultRouteServices: RouteServices = {
       "RegisterSessionsSection",
     ),
   },
-  registerPaymentAndKeyModals: lazyScreen(
-    () => import("../register/register-payment-and-key-modals"),
-    "RegisterPaymentAndKeyModals",
+  registerPaymentModals: lazyScreen(
+    () => import("../register/register-payment-modals"),
+    "RegisterPaymentModals",
+  ),
+  registerKeyModals: lazyScreen(
+    () => import("../register/register-key-modals"),
+    "RegisterKeyModals",
   ),
   contingencyTicketRescueAssistant: lazyScreen(
     () => import("../backups/contingency-ticket-rescue-assistant"),
