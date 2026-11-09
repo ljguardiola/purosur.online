@@ -1,8 +1,8 @@
+import { isRegisterBackupOverdue } from "../../backups/index.js";
 import {
   registerBackedUpObservation,
   registerBackupOverdueObservation,
-} from "../../alerts/index.js";
-import { isRegisterBackupOverdue } from "../model/register-backup-overdue.js";
+} from "../model/alert-condition-observation.js";
 import type { OverdueRegisterBackupDetectionPorts } from "./overdue-register-backup-ports.js";
 
 export async function detectOverdueRegisterBackups({

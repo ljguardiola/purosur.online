@@ -1,6 +1,6 @@
-import type { AlertConditionObservation } from "../../alerts/index.js";
+import type { RegisterBackupStanding } from "../../backups/index.js";
 import type { Clock } from "../../shared/index.js";
-import type { RegisterBackupStanding } from "../model/register-backup-overdue.js";
+import type { AlertConditionObservation } from "../model/alert-condition-observation.js";
 
 export interface RegisterBackupStandingReader {
   watchedRegisterBackupStandings(): Promise<RegisterBackupStanding[]>;
