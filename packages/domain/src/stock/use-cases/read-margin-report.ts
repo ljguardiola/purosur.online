@@ -1,6 +1,6 @@
-import type { SalesReportGroup } from "../../sales/index.js";
 import {
   type Clock,
+  type ReportGroup,
   type ReportPeriod,
   reportPeriodOf,
   type ZoneRulesSource,
@@ -12,12 +12,12 @@ export interface ReadMarginReportInput {
   locationId: string;
   asked: { from: string | undefined; to: string | undefined };
   registerId: string | undefined;
-  group: SalesReportGroup;
+  group: ReportGroup;
 }
 
 export interface MarginReportView {
   range: ReportPeriod;
-  group: SalesReportGroup;
+  group: ReportGroup;
   rows: MarginOfGroup[];
   totals: MarginTotals;
 }

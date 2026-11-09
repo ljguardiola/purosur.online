@@ -967,8 +967,8 @@ export type {
   IssuerIdentificationBody,
   OpenCashSession,
   PinAttemptRefusal,
+  ReportGroupBody,
   ReportQuery,
-  SalesReportGroupBody,
   SignInUser,
 } from "./shared/index.js";
 export {
@@ -987,9 +987,9 @@ export {
   PIN_HASH_SCHEME,
   pinAttemptRefusalSchema,
   recordIdSchema,
+  reportGroupSchema,
   reportQuerySchema,
   reportsFailedQuery,
-  salesReportGroupSchema,
   scrubErrorReport,
   scrubErrorReportBreadcrumb,
   scrubErrorReportLog,

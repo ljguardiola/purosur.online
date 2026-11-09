@@ -59,6 +59,8 @@ export { optionalTagIdsSchema, requiredTagIdsSchema } from "./product-tag-ids.js
 export { pushedEventSchema } from "./pushed-event.js";
 export { qrExternalPosIdSchema } from "./qr-external-pos-id.js";
 export { recordIdSchema } from "./record-id.js";
+export type { ReportGroupBody } from "./report-group.js";
+export { reportGroupSchema } from "./report-group.js";
 export type { ReportQuery } from "./report-query.js";
 export { reportQuerySchema } from "./report-query.js";
 export { requestIdSchema } from "./request-id.js";
@@ -71,8 +73,6 @@ export {
   partiallyPaidOutcomeSchema,
   reachesThresholdRefusalSchema,
 } from "./sale-charge-outcome.js";
-export type { SalesReportGroupBody } from "./sales-report-group.js";
-export { salesReportGroupSchema } from "./sales-report-group.js";
 export { serialDeviceIdentitySchema } from "./serial-device-identity.js";
 export type { SignInUser } from "./sign-in-user.js";
 export { signInUserSchema } from "./sign-in-user.js";
