@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PushedEvent } from "../../sync/index.js";
+import type { PushedEvent } from "../../shared/index.js";
 import type { SaleDocument, VoucherReference } from "../model/orphan-authorization.js";
 import type { RealTimeAuthorizationAnswer } from "../model/real-time-authorization.js";
 import {

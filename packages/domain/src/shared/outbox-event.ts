@@ -20,6 +20,8 @@ export type OutboxEvent = {
 
 export type OutboxEventDraft = Omit<OutboxEvent, "device_seq">;
 
+export type PushedEvent = OutboxEvent & { chain_hmac: string };
+
 export const SALE_COMPLETED_EVENT_TYPE = "sale_completed";
 export const SALE_VOIDED_EVENT_TYPE = "sale_voided";
 export const SALE_RETURNED_EVENT_TYPE = "sale_returned";

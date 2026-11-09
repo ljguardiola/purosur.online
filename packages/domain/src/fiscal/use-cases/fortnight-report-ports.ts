@@ -1,5 +1,5 @@
 import type { Clock, ZoneRulesSource } from "../../shared/index.js";
-import type { InstallationStreamReach } from "../../sync/index.js";
+import type { InstallationStreamReach } from "../model/event-stream-reach.js";
 import type { TaxAuthorityRejection } from "../model/fiscal-rejection-standing.js";
 import type { OfflineSeriesDocumentType } from "../model/fiscal-voucher-type.js";
 import type {

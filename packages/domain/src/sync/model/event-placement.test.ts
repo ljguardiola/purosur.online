@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { PushedEvent } from "../../shared/index.js";
 import { canonicalOutboxEvent, type OutboxEvent } from "../../shared/index.js";
 import {
   chainedEventsHold,
@@ -6,7 +7,6 @@ import {
   placementOfEvent,
   seqsJoinedBy,
 } from "./event-placement.js";
-import type { PushedEvent } from "./push-batch.js";
 
 const DEVICE = "device-1";
 const CHAIN_KEY = "chain-key-1";

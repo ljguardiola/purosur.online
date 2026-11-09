@@ -24,7 +24,7 @@ export { isoWeekdayOf } from "./iso-weekday.js";
 export type { LocalDatabaseHealth, LocalDatabaseHealthPorts } from "./local-database-health.js";
 export { marginTenthsOfPercent } from "./margin-over-price.js";
 export type { OperationAuthority, OperationAuthorization } from "./operation-authority.js";
-export type { JsonValue, OutboxEvent, OutboxEventDraft } from "./outbox-event.js";
+export type { JsonValue, OutboxEvent, OutboxEventDraft, PushedEvent } from "./outbox-event.js";
 export {
   canonicalOutboxEvent,
   canonicalOutboxPayload,

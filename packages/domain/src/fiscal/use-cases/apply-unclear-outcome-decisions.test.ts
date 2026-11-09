@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PushedEvent } from "../../sync/index.js";
+import type { PushedEvent } from "../../shared/index.js";
 import { deferredSaleSatisfiedEvent } from "../model/deferred-sale-satisfied-event.js";
 import type { FacturaC } from "../model/pre-emission-gate.js";
 import {

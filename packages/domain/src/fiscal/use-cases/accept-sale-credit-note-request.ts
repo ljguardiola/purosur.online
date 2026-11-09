@@ -1,4 +1,4 @@
-import type { PushedEvent } from "../../sync/index.js";
+import type { PushedEvent } from "../../shared/index.js";
 import { creditWithinInvoice } from "../model/credit-note.js";
 import {
   type CreditNoteAnswer,

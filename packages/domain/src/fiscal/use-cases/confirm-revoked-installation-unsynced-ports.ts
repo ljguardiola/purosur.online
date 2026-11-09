@@ -1,5 +1,5 @@
 import type { Clock, ZoneRulesSource } from "../../shared/index.js";
-import type { InstallationStreamReach } from "../../sync/index.js";
+import type { InstallationStreamReach } from "../model/event-stream-reach.js";
 import type { FortnightReportState } from "../model/fortnight-report.js";
 import type { Fortnight } from "../model/offline-authorization-code.js";
 import type { FortnightReportKey } from "./fortnight-report-ports.js";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PushedEvent } from "../../sync/index.js";
+import type { PushedEvent } from "../../shared/index.js";
 import { authorizeFiscalDocument } from "./authorize-fiscal-document.js";
 import type { SolicitationAnswer } from "./fiscal-document-authorization-ports.js";
 import { ManualClock } from "./test-support/fake-arca-vitality.js";

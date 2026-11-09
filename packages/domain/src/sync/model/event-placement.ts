@@ -1,6 +1,6 @@
+import type { PushedEvent } from "../../shared/index.js";
 import { canonicalOutboxEvent } from "../../shared/index.js";
 import { highestContiguousSeq } from "./contiguous-seq.js";
-import type { PushedEvent } from "./push-batch.js";
 
 interface EventPosition {
   deviceId: string;

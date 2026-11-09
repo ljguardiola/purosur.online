@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
-import type { InstallationStreamReach } from "../../sync/index.js";
+import type { InstallationStreamReach } from "../model/event-stream-reach.js";
 import { confirmRevokedInstallationUnsynced } from "./confirm-revoked-installation-unsynced.js";
 import {
   DEFAULT_LOCATION_ID,

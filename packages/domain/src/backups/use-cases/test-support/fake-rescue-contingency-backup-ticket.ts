@@ -1,4 +1,4 @@
-import type { PushedEvent } from "../../../sync/index.js";
+import type { PushedEvent } from "../../../shared/index.js";
 import type { RescuedTicketFact } from "../../model/rescued-ticket-summary.js";
 import type {
   ContingencyBackupTicketOpening,

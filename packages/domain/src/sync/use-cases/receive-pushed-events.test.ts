@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { PushedEvent, RegisterTelemetry } from "../model/push-batch.js";
+import type { PushedEvent } from "../../shared/index.js";
+import type { RegisterTelemetry } from "../model/push-batch.js";
 import { type ReceivePushedEventsInput, receivePushedEvents } from "./receive-pushed-events.js";
 import { fakeEventChain } from "./test-support/fake-event-chain.js";
 import {

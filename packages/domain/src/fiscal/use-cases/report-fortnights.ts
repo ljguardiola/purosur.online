@@ -1,5 +1,6 @@
 import { argentinaCalendarDay, shiftCalendarDay } from "../../shared/index.js";
-import { isInstallationActiveDuring, streamReachesPastOnceConfirmed } from "../../sync/index.js";
+import { streamReachesPastOnceConfirmed } from "../model/confirmed-stream-reach.js";
+import { isInstallationActiveDuring } from "../model/event-stream-reach.js";
 import type { TaxAuthorityRejection } from "../model/fiscal-rejection-standing.js";
 import {
   CREDIT_NOTE_C_DOCUMENT_TYPE,
