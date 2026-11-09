@@ -95,7 +95,9 @@ export function isRefundOriginDiscardable(origin: string): boolean {
   return origin === LATE_PAYMENT_REFUND_ORIGIN;
 }
 
-export function refundAlertKind(origin: string): "late_payment_refund" | "refund_task" {
+export type RefundAlertKind = "late_payment_refund" | "refund_task";
+
+export function refundAlertKind(origin: string): RefundAlertKind {
   return origin === LATE_PAYMENT_REFUND_ORIGIN ? "late_payment_refund" : "refund_task";
 }
 

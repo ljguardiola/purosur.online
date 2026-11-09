@@ -1,7 +1,6 @@
-import type { AlertKind } from "../../alerts/index.js";
 import type { MercadoPagoRefundStage } from "../model/mercado-pago-refund.js";
 import type { PaymentMethod, PointCardType } from "../model/payment.js";
-import type { RefundOrigin } from "../model/payment-refund.js";
+import type { RefundAlertKind, RefundOrigin } from "../model/payment-refund.js";
 import type { RefundTransfer } from "../model/refund-transfer.js";
 
 export interface LockedRefund {
@@ -62,7 +61,7 @@ export interface RefundStoreTransaction {
   recordRefundDiscarded(refundId: string, discardedBy: string, discardedAt: Date): Promise<void>;
   resolveRefundAlert(
     refundId: string,
-    kind: AlertKind,
+    kind: RefundAlertKind,
     resolvedBy: string,
     resolvedAt: Date,
   ): Promise<void>;

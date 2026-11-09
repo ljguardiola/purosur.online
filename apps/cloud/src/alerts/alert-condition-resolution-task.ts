@@ -11,6 +11,7 @@ import {
   detectQuietRegisters,
   detectRejectedFortnightDocuments,
   detectSecondNonCompliantMonthRisks,
+  openOverdueRefundTaskAlerts,
   openOverdueUnclearOutcomeAlerts,
   resolveStablyClearedAlerts,
 } from "@purosur/domain/alerts/use-cases";
@@ -18,7 +19,6 @@ import {
   recordExceptionShareBreaches,
   regularizeUninvoiceableDeferredSales,
 } from "@purosur/domain/fiscal/use-cases";
-import { openOverdueRefundTaskAlerts } from "@purosur/domain/payments/use-cases";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { PoolClient } from "pg";
@@ -34,7 +34,6 @@ import { DrizzleOwedFortnightPresentationReader } from "../fiscal/drizzle-owed-f
 import { DrizzlePendingDeferredSaleReader } from "../fiscal/drizzle-pending-deferred-sale-reader.js";
 import { DrizzleRejectedFortnightDocumentReader } from "../fiscal/drizzle-rejected-fortnight-document-reader.js";
 import { DrizzleWatchedRegisterReader } from "../installation/drizzle-watched-register-reader.js";
-import { DrizzleRefundTaskAlertStore } from "../payments/drizzle-refund-task-alert-store.js";
 import {
   type BackgroundJobs,
   crontabLineEvery,
@@ -52,6 +51,7 @@ import { DrizzleFortnightReportRegularizationAlerts } from "./drizzle-fortnight-
 import { DrizzleMissingOfflineAuthorizationCodeAlerts } from "./drizzle-missing-offline-authorization-code-alerts.js";
 import { DrizzleOwedElsewhereAlerts } from "./drizzle-owed-elsewhere-alerts.js";
 import { DrizzleRecordedExceptionShareBreachReader } from "./drizzle-recorded-exception-share-breach-reader.js";
+import { DrizzleRefundTaskAlertStore } from "./drizzle-refund-task-alert-store.js";
 import { DrizzleRejectedFortnightDocumentAlerts } from "./drizzle-rejected-fortnight-document-alerts.js";
 import { DrizzleSecondMonthAtRiskAlerts } from "./drizzle-second-month-at-risk-alerts.js";
 import { DrizzleSecondMonthRiskReader } from "./drizzle-second-month-risk-reader.js";
