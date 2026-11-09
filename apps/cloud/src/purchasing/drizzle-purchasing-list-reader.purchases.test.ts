@@ -391,7 +391,11 @@ describe("DrizzlePurchasingListReader linked freights", () => {
 
   it("finds a purchase with the freights linked to it", async () => {
     const purchaseId = await storedPurchase();
-    const freightId = await insertFreightRow(db, { locationId, actorId, purchaseIds: [purchaseId] });
+    const freightId = await insertFreightRow(db, {
+      locationId,
+      actorId,
+      purchaseIds: [purchaseId],
+    });
 
     const found = await new DrizzlePurchasingListReader(db).purchase(purchaseId);
 

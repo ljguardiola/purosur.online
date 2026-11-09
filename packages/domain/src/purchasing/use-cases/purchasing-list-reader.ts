@@ -1,5 +1,6 @@
 import type { ProductBrandAndNetContent, SaleUnit } from "../../catalog/index.js";
 import type { LotNameFacts } from "../../stock/index.js";
+import type { FreightMeans } from "../model/freight.js";
 import type { ReceiptType } from "../model/purchase.js";
 import type { Supplier } from "./purchasing-store.js";
 
@@ -16,6 +17,14 @@ export interface PurchaseLineListing {
   expiresOn: string | null;
 }
 
+export interface PurchaseFreightListing {
+  id: string;
+  date: string;
+  description: string;
+  amountCents: number;
+  means: FreightMeans;
+}
+
 export interface PurchaseListing {
   id: string;
   locationId: string;
@@ -26,6 +35,8 @@ export interface PurchaseListing {
   note: string | null;
   recordedAt: Date;
   lines: PurchaseLineListing[];
+  // Every freight linked to the purchase, newest first, whatever its date.
+  freights: PurchaseFreightListing[];
 }
 
 export interface PurchasingListReader {

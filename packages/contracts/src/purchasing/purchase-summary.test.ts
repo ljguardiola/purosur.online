@@ -89,19 +89,16 @@ describe("purchaseSummarySchema", () => {
     expect(parsed.data).toEqual({ ...purchase, freights: [carrierFreight] });
   });
 
-  it.each([
-    "id",
-    "date",
-    "description",
-    "amountCents",
-    "means",
-  ])("requires a linked freight's %s", (field) => {
-    const { [field as keyof typeof carrierFreight]: _omitted, ...freight } = carrierFreight;
+  it.each(["id", "date", "description", "amountCents", "means"])(
+    "requires a linked freight's %s",
+    (field) => {
+      const { [field as keyof typeof carrierFreight]: _omitted, ...freight } = carrierFreight;
 
-    expect(purchaseSummarySchema.safeParse({ ...purchase, freights: [freight] }).success).toBe(
-      false,
-    );
-  });
+      expect(purchaseSummarySchema.safeParse({ ...purchase, freights: [freight] }).success).toBe(
+        false,
+      );
+    },
+  );
 
   it.each([
     ["id", 1],

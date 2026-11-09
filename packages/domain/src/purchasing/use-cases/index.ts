@@ -294,6 +294,7 @@ export type {
   PurchasesReportReader,
 } from "./purchases-report-reader.js";
 export type {
+  PurchaseFreightListing,
   PurchaseLineListing,
   PurchaseListing,
   PurchasingListReader,

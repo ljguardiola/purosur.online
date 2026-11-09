@@ -5,6 +5,7 @@ import {
   type SaleUnit,
 } from "@purosur/domain";
 import type {
+  PurchaseFreightListing,
   PurchaseLineListing,
   PurchaseListing,
   PurchasingListReader,
@@ -16,6 +17,8 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { netContentRow } from "../catalog/net-content-row.js";
 import {
   brands,
+  freightPurchases,
+  freights,
   lots,
   products,
   purchaseLines,
@@ -160,11 +163,40 @@ export class DrizzlePurchasingListReader<TQueryResult extends PgQueryResultHKT>
       linesOf.set(purchaseId, lines);
     }
 
+    const freightRows = await this.db
+      .select({
+        purchaseId: freightPurchases.purchaseId,
+        id: freights.id,
+        date: freights.freightOn,
+        description: freights.description,
+        amountCents: freights.amountCents,
+        carrierName: freights.carrierName,
+      })
+      .from(freightPurchases)
+      .innerJoin(freights, eq(freights.id, freightPurchases.freightId))
+      .where(
+        inArray(
+          freightPurchases.purchaseId,
+          purchaseRows.map((row) => row.id),
+        ),
+      )
+      .orderBy(desc(freights.freightOn), desc(freights.recordedAt), desc(freights.id));
+    const freightsOf = new Map<string, PurchaseFreightListing[]>();
+    for (const { purchaseId, carrierName, ...row } of freightRows) {
+      const linked = freightsOf.get(purchaseId) ?? [];
+      linked.push({
+        ...row,
+        means: carrierName === null ? { kind: "own_trip" } : { kind: "carrier", name: carrierName },
+      });
+      freightsOf.set(purchaseId, linked);
+    }
+
     return purchaseRows.map(({ supplierId, supplierName, receiptType, ...row }) => ({
       ...row,
       supplier: { id: supplierId, name: supplierName },
       receiptType: receiptType as ReceiptType,
       lines: linesOf.get(row.id) ?? [],
+      freights: freightsOf.get(row.id) ?? [],
     }));
   }
 }
