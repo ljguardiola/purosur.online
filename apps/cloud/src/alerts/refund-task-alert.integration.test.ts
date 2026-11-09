@@ -1,19 +1,22 @@
-import { escalateOverdueAlerts } from "@purosur/domain/alerts/use-cases";
-import { markRefundDone, openOverdueRefundTaskAlerts } from "@purosur/domain/payments/use-cases";
+import {
+  escalateOverdueAlerts,
+  openOverdueRefundTaskAlerts,
+} from "@purosur/domain/alerts/use-cases";
+import { markRefundDone } from "@purosur/domain/payments/use-cases";
 import { eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { DrizzleAlertStore } from "../alerts/drizzle-alert-store.js";
+import { DrizzleRefundStore } from "../payments/drizzle-refund-store.js";
+import { aPendingRefundOfCancelledSale } from "../payments/test-support/cancelled-sale-refund-fixtures.js";
+import { aPendingLatePaymentRefund } from "../payments/test-support/late-payment-refund-fixtures.js";
 import { alerts, users } from "../platform/db/schema.js";
 import {
   createIntegrationDatabase,
   type IntegrationDatabase,
 } from "../test-support/integration-database.js";
-import { DrizzleRefundStore } from "./drizzle-refund-store.js";
+import { DrizzleAlertStore } from "./drizzle-alert-store.js";
 import { DrizzleRefundTaskAlertStore } from "./drizzle-refund-task-alert-store.js";
-import { aPendingRefundOfCancelledSale } from "./test-support/cancelled-sale-refund-fixtures.js";
-import { aPendingLatePaymentRefund } from "./test-support/late-payment-refund-fixtures.js";
 
 const CANCELLED_AT = new Date("2026-10-01T08:00:00.000Z");
 const HOUR_MS = 60 * 60 * 1000;

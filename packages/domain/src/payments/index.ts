@@ -35,6 +35,7 @@ export type {
   MercadoPagoRefundAnswer,
 } from "./model/mercado-pago-refund.js";
 export {
+  isRefundInCloudHands,
   isRefundSentByCloud,
   MERCADO_PAGO_REFUND_FOLLOW_INTERVAL_MS,
   MERCADO_PAGO_REFUND_STAGES,

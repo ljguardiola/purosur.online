@@ -1,11 +1,11 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { aPendingRefundOfCancelledSale } from "../payments/test-support/cancelled-sale-refund-fixtures.js";
+import { aPendingLatePaymentRefund } from "../payments/test-support/late-payment-refund-fixtures.js";
+import { aPendingRefundOfVoidedSale } from "../payments/test-support/voided-sale-refund-fixtures.js";
 import { alerts, paymentRefunds } from "../platform/db/schema.js";
 import { buildTestDatabase, type TestDatabase } from "../test-support/build-test-database.js";
 import { DrizzleRefundTaskAlertStore } from "./drizzle-refund-task-alert-store.js";
-import { aPendingRefundOfCancelledSale } from "./test-support/cancelled-sale-refund-fixtures.js";
-import { aPendingLatePaymentRefund } from "./test-support/late-payment-refund-fixtures.js";
-import { aPendingRefundOfVoidedSale } from "./test-support/voided-sale-refund-fixtures.js";
 
 const CANCELLED_AT = new Date("2026-10-07T15:00:00.000Z");
 const HOUR_MS = 60 * 60 * 1000;

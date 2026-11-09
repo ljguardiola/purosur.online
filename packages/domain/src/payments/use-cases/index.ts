@@ -176,11 +176,6 @@ export type {
   SettlementReportStore,
 } from "./mercado-pago-settlement-report-ports.js";
 export type {
-  OpenOverdueRefundTaskAlertsOutcome,
-  OpenOverdueRefundTaskAlertsPorts,
-} from "./open-overdue-refund-task-alerts.js";
-export { openOverdueRefundTaskAlerts } from "./open-overdue-refund-task-alerts.js";
-export type {
   OpenRegisterLatePaymentRefundInput,
   OpenRegisterLatePaymentRefundOutcome,
   OpenRegisterLatePaymentRefundPorts,
@@ -270,11 +265,6 @@ export type {
   RefundStore,
   RefundStoreTransaction,
 } from "./refund-store.js";
-export type {
-  PendingRefundOfCancelledSale,
-  RefundTaskAlertStore,
-  RefundTaskAlertTransaction,
-} from "./refund-task-alert-ports.js";
 export type {
   StartMercadoPagoChargeInput,
   StartMercadoPagoChargeOutcome,
