@@ -1,8 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 import { expect, test, vi } from "vitest";
-import { registerKey } from "../platform/register-query-roots";
 import { render } from "../shell/test-support/render-with-router";
-import { registerKeys, useSnapshotBackupsQuery } from "./register-queries";
+import { registerKey, registerKeys, useSnapshotBackupsQuery } from "./register-queries";
 import type { fetchSnapshotBackups } from "./snapshot-backups-api";
 import { backups } from "./test-support/snapshot-backups-section";
 

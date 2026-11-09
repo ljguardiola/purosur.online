@@ -1,10 +1,11 @@
 import type { CashMovementsBody, CashSessionClosesBody, ReportQuery } from "@purosur/contracts";
-import { registerKey } from "../platform/register-query-roots";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchCashMovements } from "./cash-movements-api";
 import type { fetchCashSessionCloses } from "./cash-session-closes-api";
 import type { fetchSnapshotBackups, SnapshotBackups } from "./snapshot-backups-api";
+
+export const registerKey = ["register"] as const;
 
 export const registerKeys = {
   cashMovements: (query: ReportQuery) =>

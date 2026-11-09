@@ -2,7 +2,6 @@ import type { ReportRegisterListBody } from "@purosur/contracts";
 import type { PermissionKey } from "@purosur/domain";
 import { useQueryClient } from "@tanstack/react-query";
 import type { CloudReadOutcome } from "../platform/cloud-read-outcome";
-import { installationKey } from "../platform/register-query-roots";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { fetchCloudQuery, useCloudQuery } from "../platform/use-cloud-query";
 import type {
@@ -17,6 +16,8 @@ import type {
 import type { fetchReportRegisters } from "./report-registers-api";
 
 export type RegisterNamesSource = "fiscal" | "backups";
+
+export const installationKey = ["installation"] as const;
 
 export const installationKeys = {
   registers: [...installationKey, "registers"] as const,

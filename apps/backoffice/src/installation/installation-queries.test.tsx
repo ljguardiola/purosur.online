@@ -1,7 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 import { expect, test } from "vitest";
-import { installationKey } from "../platform/register-query-roots";
-import { installationKeys } from "./installation-queries";
+import { installationKey, installationKeys } from "./installation-queries";
 
 test("invalidating the installation key marks the registers list, their coverage, their last sync and the registers a report filters by stale and leaves other concepts alone", async () => {
   const client = new QueryClient();
