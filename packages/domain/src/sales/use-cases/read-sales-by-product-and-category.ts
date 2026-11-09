@@ -1,10 +1,10 @@
 import {
   type Clock,
+  type ReportGroup,
   type ReportPeriod,
   reportPeriodOf,
   type ZoneRulesSource,
 } from "../../shared/index.js";
-import type { SalesReportGroup } from "../model/sales-report-group.js";
 import {
   type SalesOfGroup,
   type SoldTotals,
@@ -17,12 +17,12 @@ export interface ReadSalesByProductAndCategoryInput {
   locationId: string;
   asked: { from: string | undefined; to: string | undefined };
   registerId: string | undefined;
-  group: SalesReportGroup;
+  group: ReportGroup;
 }
 
 export interface SalesByProductAndCategoryReport {
   range: ReportPeriod;
-  group: SalesReportGroup;
+  group: ReportGroup;
   rows: SalesOfGroup[];
   totals: SoldTotals;
 }
