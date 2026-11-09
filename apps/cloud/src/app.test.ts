@@ -2960,7 +2960,7 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/reports/purchases-by-supplier",
-        access: capabilityAccess("reports_area"),
+        access: anyCapabilityAccess("reports_area", "purchases"),
       },
       {
         method: "GET",
@@ -2975,7 +2975,7 @@ describe("the route access inventory", () => {
       {
         method: "GET",
         url: "/api/reports/freight-by-period",
-        access: capabilityAccess("reports_area"),
+        access: anyCapabilityAccess("reports_area", "freights"),
       },
       {
         method: "GET",

@@ -86,12 +86,20 @@ describe("GET /reports/freight-by-period access", () => {
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
   });
 
-  it("rejects a user who may not view reports", async () => {
-    const { headers } = await signedInWith(db, ["manage_freight"], NOW);
+  it("rejects a user who may neither view reports nor manage freights", async () => {
+    const { headers } = await signedInWith(db, ["record_purchases"], NOW);
 
     const response = await freightByPeriod(headers);
 
     expect(response.statusCode).toBe(403);
+  });
+
+  it("answers a user who may manage freights without viewing reports", async () => {
+    const { headers } = await signedInWith(db, ["manage_freight"], NOW);
+
+    const response = await freightByPeriod(headers);
+
+    expect(response.statusCode).toBe(200);
   });
 
   it("answers a user who may view reports", async () => {
