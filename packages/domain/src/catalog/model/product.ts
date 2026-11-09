@@ -83,6 +83,10 @@ export const SALE_UNITS = ["UNIT", "KG"] as const;
 
 export type SaleUnit = (typeof SALE_UNITS)[number];
 
+export type SoldQuantity =
+  | { saleUnit: "UNIT"; units: number }
+  | { saleUnit: "KG"; thousandths: number };
+
 export type NetContentUnit = "G" | "KG" | "ML" | "L" | "UNIT";
 
 export interface ProductNetContent {

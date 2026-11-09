@@ -1,10 +1,10 @@
 import {
+  averageTicket,
   isCalendarDay,
   type ReportPeriod,
   roundHalfUp,
   shiftCalendarDay,
 } from "../../shared/index.js";
-import { averageTicket } from "./average-ticket.js";
 import { type SalesOfDay, salesReportTotals } from "./sales-report.js";
 
 const DAYS_PER_WEEK = 7;

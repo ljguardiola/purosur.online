@@ -5,6 +5,7 @@ export {
   localClock,
   utcOffsetText,
 } from "./argentina-calendar.js";
+export { averageTicket } from "./average-ticket.js";
 export {
   addCalendarMonths,
   isCalendarDay,

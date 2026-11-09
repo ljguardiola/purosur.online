@@ -22,8 +22,26 @@ overrides:
   # affected by GHSA-67mh-4wv8-2f99. Remove once drizzle-kit no longer depends on @esbuild-kit.
   "@esbuild-kit/core-utils>esbuild": ^0.25.0
   # @stryker-mutator/core depends on typed-rest-client 2.3.x, which pins a qs affected by
-  # GHSA-q8mj-m7cp-5q26. Remove once @stryker-mutator/core moves to typed-rest-client 3 or later.
-  "typed-rest-client>qs": ^6.16.0
+  # GHSA-q8mj-m7cp-5q26 and GHSA-6pq8-jhm2-2vcw. Remove once @stryker-mutator/core moves to
+  # typed-rest-client 3 or later.
+  "typed-rest-client>qs": ^6.16.1
+  # GHSA-3g3m-2fjr-6pw4 affects glob 9 to 14.0.1 and GHSA-g3hv-75wg-m249 affects minimatch 7 to
+  # 11.0.0, with no patched release in an earlier major. Each entry below lifts a dependent whose
+  # release resolved here asks for an earlier major, either because its newest release still does
+  # or because the package that brings it in pins an older release; the new majors keep every glob
+  # and minimatch API those releases call. Remove an entry once the release resolved for its
+  # dependent asks for glob 14.0.2 or minimatch 11.0.1 itself, or no longer depends on it.
+  "archiver-utils>glob": ^14.0.2
+  "@joshwooding/vite-plugin-react-docgen-typescript>glob": ^14.0.2
+  "@sentry/bundler-plugins>glob": ^14.0.2
+  "app-builder-lib>minimatch": ^11.0.1
+  "@electron/universal>minimatch": ^11.0.1
+  "@stryker-mutator/core>minimatch": ^11.0.1
+  # node-gyp 12, which @electron/rebuild 4 asks for, accepts undici 6.29.1, patched for
+  # GHSA-2m5v-pch6-74hx, GHSA-qrxm-fqhp-jwvm, GHSA-9fm3-97px-rjf6, GHSA-xjj6-f33q-929c and
+  # GHSA-4qv8-2p9j-2685, but its lockfile entry does not move without a floor. Remove once
+  # @electron/rebuild moves to node-gyp 13 or later.
+  "node-gyp>undici": ^6.29.1
 
 patchedDependencies:
   # Two Vitest 5 changes make this runner report caught mutants as surviving: Vitest now matches a
