@@ -27,6 +27,7 @@ export type PendingPurchaseOrdersReportContentProps = {
   filters: ReportPeriodFilters;
   onFiltersChange: (filters: ReportPeriodFilters) => void;
   onOpenOrder: ((orderId: string) => void) | undefined;
+  openOrder?: string | undefined;
   onSessionEnded: () => void;
   services: PendingPurchaseOrdersReportScreenServices;
 };
@@ -41,6 +42,7 @@ export function PendingPurchaseOrdersReportContent({
   filters,
   onFiltersChange,
   onOpenOrder,
+  openOrder,
   onSessionEnded,
   services,
 }: PendingPurchaseOrdersReportContentProps) {
@@ -146,6 +148,12 @@ export function PendingPurchaseOrdersReportContent({
       <Table
         aria-label={PENDING_PURCHASE_ORDERS_REPORT_TITLE}
         table={table}
+        {...(onOpenOrder === undefined
+          ? {}
+          : {
+              onRowPress: (order: PendingOrder) => onOpenOrder(order.id),
+              rowState: (order: PendingOrder) => (order.id === openOrder ? "selected" : undefined),
+            })}
         {...cloudTableState(data, "los pedidos pendientes de recibir")}
         empty={{
           icon: <PackageOpen />,

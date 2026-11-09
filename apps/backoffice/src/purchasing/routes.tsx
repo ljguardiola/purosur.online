@@ -13,12 +13,12 @@ import {
 } from "../shell/backoffice-access";
 import { lazyScreen } from "../shell/lazy-screen";
 import { purchasingAreaRoute } from "../shell/purchasing-area";
-import { reportPeriodSearch } from "../shell/report-filters-search";
+import { reportPeriodSearch, withoutRefusedPeriod } from "../shell/report-filters-search";
 import { reportsAreaRoute } from "../shell/reports-area";
 import { refuseWithout, signedInRoute } from "../shell/signed-in-route";
 import { aiCostReportFilters } from "./ai-cost-report-filters";
 import { orderSuggestionFilters } from "./order-suggestion-filters";
-import { purchaseOrdersFilters } from "./purchase-orders-filters";
+import { purchaseOrdersFilterFields, purchaseOrdersFilters } from "./purchase-orders-filters";
 import {
   PURCHASE_ORDERS_TAB_TARGETS,
   PURCHASE_ORDERS_TABS,
@@ -170,10 +170,12 @@ export const purchaseOrdersListRoute = createRoute({
   path: "/",
   beforeLoad: ({ context: { purchaseOrdersTabs } }) =>
     purchaseOrdersTabRedirect(purchaseOrdersTabs, "orders"),
-  validateSearch: purchaseOrdersFilters.extend({
-    ...supplierFilterSearch.shape,
-    order: recordIdSchema().optional().catch(undefined),
-  }),
+  validateSearch: purchaseOrdersFilterFields
+    .extend({
+      ...supplierFilterSearch.shape,
+      order: recordIdSchema().optional().catch(undefined),
+    })
+    .transform(withoutRefusedPeriod),
   search: { middlewares: [stripSearchParams(purchaseOrdersFilters.parse({}))] },
   component: lazyScreen(() => import("./purchase-orders-list-page"), "PurchaseOrdersListPage"),
 });

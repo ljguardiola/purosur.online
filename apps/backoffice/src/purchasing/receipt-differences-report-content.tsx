@@ -1,5 +1,6 @@
 import type { ReceiptDifferencesBody } from "@purosur/contracts";
 import {
+  actionsColumn,
   Card,
   dataColumn,
   FigureStat,
@@ -11,7 +12,7 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
-import { PackageMinus } from "lucide-react";
+import { Eye, PackageMinus } from "lucide-react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { ReportDownload } from "../shell/report-download";
 import { reportFileName } from "../shell/report-file-name";
@@ -23,6 +24,8 @@ import { receiptDifferencesReportSpreadsheet } from "./receipt-differences-repor
 import { reportMonthText } from "./report-month-text";
 
 export type ReceiptDifferencesReportContentProps = {
+  onOpenOrder?: ((orderId: string) => void) | undefined;
+  openOrder?: string | undefined;
   filters: ReportPeriodFilters;
   onFiltersChange: (filters: ReportPeriodFilters) => void;
   onSessionEnded: () => void;
@@ -42,6 +45,7 @@ type Quantities = {
 type DifferenceRow = {
   id: string;
   parentId: string | null;
+  orderId: string | null;
   label: string;
   quantities: Quantities | null;
   priceDifferenceCents: number | null;
@@ -88,6 +92,7 @@ function rowsOf(report: ReceiptDifferencesBody | undefined): DifferenceRow[] {
     {
       id: supplier.supplier_id,
       parentId: null,
+      orderId: null,
       label: supplier.name,
       quantities: null,
       priceDifferenceCents: supplier.price_difference_cents,
@@ -98,6 +103,7 @@ function rowsOf(report: ReceiptDifferencesBody | undefined): DifferenceRow[] {
         {
           id: monthId,
           parentId: supplier.supplier_id,
+          orderId: null,
           label: reportMonthText(month.month),
           quantities: null,
           priceDifferenceCents: month.price_difference_cents,
@@ -105,6 +111,7 @@ function rowsOf(report: ReceiptDifferencesBody | undefined): DifferenceRow[] {
         ...month.lines.map((line) => ({
           id: `${monthId}:${line.receipt_id}:${line.product.id}`,
           parentId: monthId,
+          orderId: line.order_id,
           label: `${formatProductDescription(line.product)} · ${formatCalendarDayNumeric(line.received_on)}`,
           quantities: {
             received: line.received_quantity,
@@ -121,6 +128,8 @@ function rowsOf(report: ReceiptDifferencesBody | undefined): DifferenceRow[] {
 export function ReceiptDifferencesReportContent({
   filters,
   onFiltersChange,
+  onOpenOrder,
+  openOrder,
   onSessionEnded,
   services,
 }: ReceiptDifferencesReportContentProps) {
@@ -130,11 +139,28 @@ export function ReceiptDifferencesReportContent({
     onSessionEnded,
   });
   const shown = data.status === "loaded" ? data.value : data.lastValue;
+  const openOrderColumn = actionsColumn({
+    id: "actions",
+    header: "Acciones",
+    actions: [
+      (row: DifferenceRow) =>
+        row.orderId === null
+          ? undefined
+          : {
+              icon: <Eye />,
+              "aria-label": "Abrir el pedido",
+              onPress: () => row.orderId !== null && onOpenOrder?.(row.orderId),
+            },
+    ],
+  });
+  const columns = onOpenOrder
+    ? ([...differenceColumns, openOrderColumn] as const)
+    : differenceColumns;
   const table = useTableModel({
     items: rowsOf(shown),
     id: (row) => row.id,
     parentId: (row) => row.parentId,
-    columns: differenceColumns,
+    columns,
   });
   const cards = [
     { label: "Líneas con faltante", value: shown && formatNumber(shown.totals.short_lines) },
@@ -178,6 +204,13 @@ export function ReceiptDifferencesReportContent({
       <Table
         aria-label={RECEIPT_DIFFERENCES_REPORT_TITLE}
         table={table}
+        {...(onOpenOrder === undefined
+          ? {}
+          : {
+              onRowPress: (row: DifferenceRow) => row.orderId !== null && onOpenOrder(row.orderId),
+              rowState: (row: DifferenceRow) =>
+                row.orderId !== null && row.orderId === openOrder ? "selected" : undefined,
+            })}
         {...cloudTableState(data, "las diferencias de recepción")}
         empty={{
           icon: <PackageMinus />,

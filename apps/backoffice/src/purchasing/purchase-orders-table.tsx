@@ -18,7 +18,7 @@ import { usePurchaseOrdersQuery } from "./purchasing-queries";
 import { ExpectedTotalAmount } from "./purchasing-screen-parts";
 
 export type PurchaseOrdersTableProps = {
-  state: PurchaseOrdersFilters["state"];
+  state: Exclude<PurchaseOrdersFilters["state"], "PENDING_RECEIPT">;
   supplierId: string | undefined;
   openOrder: string | undefined;
   onOpenOrderChange: (orderId: string | undefined) => void;
