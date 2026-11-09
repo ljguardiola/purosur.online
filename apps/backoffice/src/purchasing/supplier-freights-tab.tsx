@@ -77,7 +77,7 @@ export function SupplierFreightsTab({
       <div>
         <AllFreightsLink
           variant="text"
-          to="/freights"
+          to="/purchases/freights"
           search={{ period: LONGEST_PERIOD, supplier: supplierId }}
         >
           Ver todos

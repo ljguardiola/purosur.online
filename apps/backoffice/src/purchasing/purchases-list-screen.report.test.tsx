@@ -39,7 +39,7 @@ test("reports the grouping when it is turned on", async () => {
   const onFiltersChange = vi.fn();
   const screen = await loaded(createServices(), { onFiltersChange });
 
-  await userEvent.click(screen.getByRole("switch", { name: "Agrupar por proveedor" }));
+  await userEvent.click(screen.getByText("Agrupar por proveedor", { exact: true }));
 
   await expect
     .poll(() => onFiltersChange.mock.lastCall?.[0])
@@ -65,7 +65,7 @@ test("keeps the grouping toggle on while grouped and returns to the list when it
   const screen = await renderScreen(services, { filters: { bySupplier: true } });
   await expect.element(reportTable(screen)).toBeVisible();
 
-  await userEvent.click(screen.getByRole("switch", { name: "Agrupar por proveedor" }));
+  await userEvent.click(screen.getByText("Agrupar por proveedor", { exact: true }));
 
   await expect.element(screen.getByRole("table", { name: "Compras", exact: true })).toBeVisible();
   expect(reportTable(screen).query()).toBeNull();

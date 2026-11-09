@@ -94,7 +94,7 @@ test("reports the grouping, with the search and the period, when it is turned on
   const onFiltersChange = vi.fn();
   const screen = await renderScreen(createServices(), { onFiltersChange });
 
-  await userEvent.click(screen.getByRole("switch", { name: "Agrupar por mes" }));
+  await userEvent.click(screen.getByText("Agrupar por mes", { exact: true }));
 
   await expect
     .poll(() => onFiltersChange.mock.lastCall?.[0])
@@ -137,7 +137,7 @@ test("returns to the freights list when the grouping is turned off", async () =>
   const screen = await renderScreen(createServices(), { filters: { byMonth: true } });
   await expect.element(reportTable(screen)).toBeVisible();
 
-  await userEvent.click(screen.getByRole("switch", { name: "Agrupar por mes" }));
+  await userEvent.click(screen.getByText("Agrupar por mes", { exact: true }));
 
   await expect.element(screen.getByRole("table", { name: "Fletes", exact: true })).toBeVisible();
   await expect.element(screen.getByPlaceholder("Buscar por descripción o medio")).toBeVisible();

@@ -159,7 +159,7 @@ test("groups the freights by month, with the range in the address, and exports t
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByRole("table", { name: "Fletes", exact: true })).toBeVisible();
 
-  await userEvent.click(screen.getByRole("switch", { name: "Agrupar por mes" }));
+  await userEvent.click(screen.getByText("Agrupar por mes", { exact: true }));
 
   const table = screen.getByRole("table", { name: "Flete por período", exact: true });
   await expect.element(table.getByText("octubre de 2026")).toBeVisible();
@@ -203,7 +203,7 @@ test("groups the purchases by supplier, showing each supplier's totals with the 
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByRole("table", { name: "Compras", exact: true })).toBeVisible();
 
-  await userEvent.click(screen.getByRole("switch", { name: "Agrupar por proveedor" }));
+  await userEvent.click(screen.getByText("Agrupar por proveedor", { exact: true }));
 
   const table = screen.getByRole("table", { name: "Compras por proveedor", exact: true });
   const dairy = table.getByRole("row", { name: /^Lácteos del Sur/ });

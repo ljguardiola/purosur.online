@@ -5,10 +5,11 @@ import {
   dataColumn,
   FloatingNotification,
   Table,
+  Toggle,
   useTableModel,
 } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
-import { useNavigate } from "@tanstack/react-router";
+import { deepEqual, useNavigate } from "@tanstack/react-router";
 import {
   BadgeDollarSign,
   CalendarClock,
@@ -24,13 +25,11 @@ import {
   ShoppingCart,
   Trash2,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import type { ProductCreationModal } from "../platform/creation-parts";
 import { formatDisplayDate } from "../platform/display-date";
-import { AreaTopBar } from "../shell/area-top-bar";
 import { type BackofficeAccess, canRecordPurchases } from "../shell/backoffice-access";
-import { ScreenLayout } from "../shell/screen-layout";
 import { AddPurchaseLinesModal } from "./add-purchase-lines-modal";
 import {
   ChangePurchaseLineProductModal,
@@ -52,6 +51,7 @@ import {
 import { PurchaseChangesModal } from "./purchase-changes-modal";
 import { costPaidOf, quantityOf, unitCostOf } from "./purchase-line-text";
 import type { PurchasesListScreenServices } from "./purchases-list-services";
+import { PurchasesReportContent } from "./purchases-report-content";
 import { usePurchasesQuery, useRefreshPurchasing } from "./purchasing-queries";
 import { type SupplierFilter, SupplierFilterButton } from "./purchasing-screen-parts";
 import { receiptLabel } from "./receipt-label";
@@ -59,12 +59,15 @@ import {
   type PurchaseLineRemovalTarget,
   RemovePurchaseLineModal,
 } from "./remove-purchase-line-modal";
+import type { PurchasesListFilters } from "./routes";
 import {
   SplitPurchaseLineExpiryModal,
   type SplitPurchaseLineExpiryTarget,
 } from "./split-purchase-line-expiry-modal";
 
 export type PurchasesListScreenProps = {
+  filters: PurchasesListFilters;
+  onFiltersChange: (filters: PurchasesListFilters) => void;
   access: BackofficeAccess;
   productCreationModal: ProductCreationModal;
   registered: boolean;
@@ -340,6 +343,8 @@ function columnsFor(
 }
 
 export function PurchasesListScreen({
+  filters,
+  onFiltersChange,
   access,
   productCreationModal,
   registered,
@@ -349,8 +354,11 @@ export function PurchasesListScreen({
   supplierFilter,
 }: PurchasesListScreenProps) {
   const navigate = useNavigate();
+  const [bySupplier, setBySupplier] = useState(filters.bySupplier);
+  const reportFilters = useEffectEvent(onFiltersChange);
   const data = usePurchasesQuery({
     supplierId: supplierFilter?.supplierId,
+    enabled: !bySupplier,
     fetchPurchases: services.fetchPurchases,
     onSessionEnded,
   });
@@ -366,6 +374,13 @@ export function PurchasesListScreen({
   const [productTarget, setProductTarget] = useState<PurchaseLineProductTarget | null>(null);
   const [removalTarget, setRemovalTarget] = useState<PurchaseLineRemovalTarget | null>(null);
   const [notice, setNotice] = useState<CorrectionNotice | null>(null);
+
+  useEffect(() => {
+    const shown: PurchasesListFilters = { bySupplier, from: filters.from, to: filters.to };
+    if (!deepEqual(shown, filters)) {
+      reportFilters(shown);
+    }
+  }, [bySupplier, filters]);
 
   useEffect(() => {
     if (data.status === "failed") {
@@ -446,12 +461,20 @@ export function PurchasesListScreen({
 
   return (
     <>
-      <ScreenLayout
-        topBar={
-          <AreaTopBar
-            eyebrow="Compras"
-            title="Compras"
-            action={
+      <div className="flex min-h-0 flex-1">
+        <div className="relative flex min-w-0 flex-1 flex-col gap-4 overflow-auto p-6">
+          <div className="flex flex-wrap items-center gap-3">
+            <Toggle name="bySupplier" checked={bySupplier} onCheckedChange={setBySupplier}>
+              Agrupar por proveedor
+            </Toggle>
+            {supplierFilter === undefined || bySupplier ? null : (
+              <SupplierFilterButton
+                supplierFilter={supplierFilter}
+                services={services}
+                onSessionEnded={onSessionEnded}
+              />
+            )}
+            <div className="ml-auto">
               <Button
                 variant="primary"
                 icon={<Plus />}
@@ -459,40 +482,38 @@ export function PurchasesListScreen({
               >
                 Registrar compra
               </Button>
-            }
-          />
-        }
-        bodyClassName="gap-4 p-6"
-      >
-        {supplierFilter === undefined ? null : (
-          <div className="flex flex-wrap items-center gap-3">
-            <SupplierFilterButton
-              supplierFilter={supplierFilter}
-              services={services}
-              onSessionEnded={onSessionEnded}
-            />
+            </div>
           </div>
-        )}
-        <Table
-          aria-label="Compras"
-          table={table}
-          {...cloudTableState(data, "las compras")}
-          empty={
-            supplierFilter === undefined
-              ? {
-                  icon: <ShoppingCart />,
-                  title: "Todavía no hay compras registradas",
-                  variant: "blank",
-                }
-              : {
-                  icon: <SearchX />,
-                  title: "Sin resultados",
-                  description: "Probá con otro proveedor.",
-                  variant: "filtered",
-                }
-          }
-        />
-      </ScreenLayout>
+          {bySupplier ? (
+            <PurchasesReportContent
+              filters={{ from: filters.from, to: filters.to }}
+              onFiltersChange={(next) => onFiltersChange({ bySupplier, ...next })}
+              onSessionEnded={onSessionEnded}
+              services={services}
+            />
+          ) : (
+            <Table
+              aria-label="Compras"
+              table={table}
+              {...cloudTableState(data, "las compras")}
+              empty={
+                supplierFilter === undefined
+                  ? {
+                      icon: <ShoppingCart />,
+                      title: "Todavía no hay compras registradas",
+                      variant: "blank",
+                    }
+                  : {
+                      icon: <SearchX />,
+                      title: "Sin resultados",
+                      description: "Probá con otro proveedor.",
+                      variant: "filtered",
+                    }
+              }
+            />
+          )}
+        </div>
+      </div>
       {data.status === "loaded" ? (
         <>
           <PurchaseChangesModal

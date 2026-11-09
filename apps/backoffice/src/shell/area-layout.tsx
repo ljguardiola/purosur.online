@@ -15,7 +15,6 @@ import { type ReactNode, Suspense } from "react";
 import { AccountFooter } from "./account-footer";
 import { AreaTopBarUnbilledDeferredSales } from "./area-top-bar-unbilled-deferred-sales";
 import {
-  canRecordPurchases,
   canSeeBranchArea,
   canSeeFiscalInformation,
   canSeeFiscalPage,
@@ -76,9 +75,7 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
     ? "/suppliers"
     : canSeePurchaseOrdersPage(session)
       ? "/purchase-orders"
-      : canRecordPurchases(session)
-        ? "/purchases"
-        : "/freights";
+      : "/purchases";
   const settingsTarget = canSeePeopleArea(session)
     ? "/people"
     : canSeeBranchArea(session)
