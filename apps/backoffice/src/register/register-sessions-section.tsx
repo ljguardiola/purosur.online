@@ -2,9 +2,10 @@ import { ButtonLink, Table, useTableModel } from "@purosur/ui";
 import { createLink } from "@tanstack/react-router";
 import { Calculator, ExternalLink } from "lucide-react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import type { RegisterSessionsSectionProps as RegisterSessionsSlotProps } from "../platform/register-panel-sections";
 import { ReportFilters } from "../shell/report-filters";
-import { type ReportPeriodFilters, reportQueryOf } from "../shell/report-filters-search";
-import type { fetchCashSessionCloses } from "./cash-session-closes-api";
+import { reportQueryOf } from "../shell/report-filters-search";
+import { fetchCashSessionCloses } from "./cash-session-closes-api";
 import {
   type CashSessionCloseRow,
   registerSessionCloseColumns,
@@ -15,12 +16,12 @@ export type RegisterSessionsSectionServices = {
   fetchCashSessionCloses: typeof fetchCashSessionCloses;
 };
 
-export type RegisterSessionsSectionProps = {
-  registerId: string;
-  period: ReportPeriodFilters;
-  onPeriodChange: (period: ReportPeriodFilters) => void;
-  onSessionEnded: () => void;
-  services: RegisterSessionsSectionServices;
+export type RegisterSessionsSectionProps = RegisterSessionsSlotProps & {
+  services?: RegisterSessionsSectionServices | undefined;
+};
+
+const defaultRegisterSessionsSectionServices: RegisterSessionsSectionServices = {
+  fetchCashSessionCloses,
 };
 
 const ClosesLink = createLink(ButtonLink);
@@ -32,7 +33,7 @@ export function RegisterSessionsSection({
   period,
   onPeriodChange,
   onSessionEnded,
-  services,
+  services = defaultRegisterSessionsSectionServices,
 }: RegisterSessionsSectionProps) {
   const data = useCashSessionClosesQuery({
     query: reportQueryOf({ ...period, register: registerId }),

@@ -6,12 +6,12 @@ import {
   RegisterPointOfSalePanelSection,
   type RegisterPointOfSalePanelSectionServices,
 } from "../fiscal/register-point-of-sale-panel-section";
+import { register1 } from "../installation/test-support/registers-list-screen";
 import {
   emptyCashMovementsReport,
   weekCashMovementsReport,
 } from "../register/test-support/cash-movements-fixtures";
 import { weekCashSessionClosesReport } from "../register/test-support/cash-session-closes-fixtures";
-import { register1 } from "../register/test-support/registers-list-screen";
 import { backups } from "../register/test-support/snapshot-backups-section";
 import { openSession } from "../sessions/test-support/open-session";
 import { App } from "./app";
@@ -56,11 +56,11 @@ function registersServices(capabilities: Capability[]) {
     kind: "ok",
     value: [{ ...register1, id: REGISTER_ID }],
   });
-  vi.mocked(services.registersListScreen.fetchSnapshotBackups).mockResolvedValue({
+  vi.mocked(services.registerParts.fetchSnapshotBackups).mockResolvedValue({
     kind: "ok",
     value: backups,
   });
-  vi.mocked(services.registersListScreen.fetchCashSessionCloses).mockResolvedValue({
+  vi.mocked(services.registerParts.fetchCashSessionCloses).mockResolvedValue({
     kind: "ok",
     value: weekCashSessionClosesReport,
   });
@@ -290,7 +290,7 @@ test("redirects /backups naming a register to /registers with that register's pa
   await expect.element(screen.getByRole("tab", { name: "Copias", selected: true })).toBeVisible();
   await expect.element(screen.getByRole("complementary", { name: "Caja 1" })).toBeVisible();
   expect(location()).toBe(`/registers?register=${REGISTER_ID}&tab=backups`);
-  expect(services.registersListScreen.fetchSnapshotBackups).toHaveBeenCalledWith(REGISTER_ID);
+  expect(services.registerParts.fetchSnapshotBackups).toHaveBeenCalledWith(REGISTER_ID);
 });
 
 test("redirects /reports/cash-session-closes to /registers/closes keeping the period and the register", async () => {
@@ -393,7 +393,7 @@ test("opens the panel tab the URL names, and moving between tabs rewrites the UR
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByRole("tab", { name: "Sesiones", selected: true })).toBeVisible();
   await expect.element(screen.getByText("Cerró: Beto")).toBeVisible();
-  expect(services.registersListScreen.fetchCashSessionCloses).toHaveBeenCalledWith({
+  expect(services.registerParts.fetchCashSessionCloses).toHaveBeenCalledWith({
     register_id: REGISTER_ID,
   });
 
@@ -448,7 +448,7 @@ test("shows no Copias tab in the panel to a person with registers_area but not b
 
   await expect.element(screen.getByRole("tab", { name: "Datos", selected: true })).toBeVisible();
   expect(screen.getByRole("tab", { name: "Copias" }).query()).toBeNull();
-  expect(services.registersListScreen.fetchSnapshotBackups).not.toHaveBeenCalled();
+  expect(services.registerParts.fetchSnapshotBackups).not.toHaveBeenCalled();
 });
 
 test("the panel's Sesiones links to Cierres de caja narrowed to the register", async () => {
@@ -473,7 +473,7 @@ test("reads the panel's Sesiones over the period the URL names, and its link tak
   );
   const screen = await render(<App help={emptyHelp} services={services} />);
   await expect.element(screen.getByText("Cerró: Beto")).toBeVisible();
-  expect(services.registersListScreen.fetchCashSessionCloses).toHaveBeenCalledWith({
+  expect(services.registerParts.fetchCashSessionCloses).toHaveBeenCalledWith({
     from: "2026-10-01",
     to: "2026-10-07",
     register_id: REGISTER_ID,
@@ -502,7 +502,7 @@ test("writes the period typed in the panel's Sesiones into the URL, replacing th
     .poll(location)
     .toBe(`/registers?from=2026-10-02&register=${REGISTER_ID}&tab=sessions&to=2026-10-07`);
   expect(window.history.length).toBe(entries);
-  expect(services.registersListScreen.fetchCashSessionCloses).toHaveBeenLastCalledWith({
+  expect(services.registerParts.fetchCashSessionCloses).toHaveBeenLastCalledWith({
     from: "2026-10-02",
     to: "2026-10-07",
     register_id: REGISTER_ID,

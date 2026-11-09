@@ -1,14 +1,15 @@
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { weekCashSessionClosesReport } from "../register/test-support/cash-session-closes-fixtures";
+import { backups } from "../register/test-support/snapshot-backups-section";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
+import { registerPartsOf } from "../shell/test-support/register-parts";
 import { render } from "../shell/test-support/render-with-router";
 import { RegisterPanel } from "./register-panel";
-import { weekCashSessionClosesReport } from "./test-support/cash-session-closes-fixtures";
 import { createActions, panelServices } from "./test-support/register-panel";
 import { RegisterPointOfSaleSectionStub } from "./test-support/register-point-of-sale-section-stub";
 import { enrolledRegister } from "./test-support/registers-list-screen";
-import { backups } from "./test-support/snapshot-backups-section";
 
 function renderPanel({
   access = ADMINISTRATOR_ACCESS,
@@ -41,7 +42,7 @@ function renderPanel({
       onClose={onClose}
       onPointOfSaleSaved={() => {}}
       onSessionEnded={() => {}}
-      services={services}
+      registerPanelSections={registerPartsOf(services).panelSections}
     />,
   ).then((screen) => ({ screen, services }));
 }

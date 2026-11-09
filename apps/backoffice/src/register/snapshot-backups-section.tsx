@@ -13,11 +13,16 @@ import {
 import { Check, HardDriveDownload, RefreshCw, SlidersHorizontal } from "lucide-react";
 import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import type { RegisterBackupsSectionProps } from "../platform/register-panel-sections";
+import { useRefreshRegisters } from "../platform/register-query-roots";
 import { ChangeSnapshotLifecycleRulesModal } from "./change-snapshot-lifecycle-rules-modal";
-import { useRefreshRegisters, useSnapshotBackupsQuery } from "./register-queries";
+import { useSnapshotBackupsQuery } from "./register-queries";
 import { RotateSnapshotKeyModal } from "./rotate-snapshot-key-modal";
 import type { SnapshotBackupGeneration, SnapshotBackupRegister } from "./snapshot-backups-api";
-import type { SnapshotBackupsSectionServices } from "./snapshot-backups-services";
+import {
+  defaultSnapshotBackupsSectionServices,
+  type SnapshotBackupsSectionServices,
+} from "./snapshot-backups-services";
 import {
   SNAPSHOT_LOCATION_TEXT,
   snapshotGenerationDate,
@@ -25,10 +30,8 @@ import {
   snapshotTierCaptions,
 } from "./snapshot-backups-text";
 
-export type SnapshotBackupsSectionProps = {
-  register: SnapshotBackupRegister;
-  onSessionEnded: () => void;
-  services: SnapshotBackupsSectionServices;
+export type SnapshotBackupsSectionProps = RegisterBackupsSectionProps & {
+  services?: SnapshotBackupsSectionServices | undefined;
 };
 
 type Notice = { id: number; title: string; description: string };
@@ -52,7 +55,7 @@ function generationStatus(generation: SnapshotBackupGeneration) {
 export function SnapshotBackupsSection({
   register,
   onSessionEnded,
-  services,
+  services = defaultSnapshotBackupsSectionServices,
 }: SnapshotBackupsSectionProps) {
   const backupsData = useSnapshotBackupsQuery({
     registerId: register.id,

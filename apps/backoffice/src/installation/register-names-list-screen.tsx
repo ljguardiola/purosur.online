@@ -11,11 +11,13 @@ import { createLink, useNavigate } from "@tanstack/react-router";
 import { Laptop } from "lucide-react";
 import { useEffect, useEffectEvent } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import type { RegisterPanelSections } from "../platform/register-panel-sections";
 import type { RegisterPointOfSaleSection } from "../platform/register-point-of-sale-section";
+import { useRefreshRegisters } from "../platform/register-query-roots";
 import { type BackofficeAccess, canSeeFiscalConfigurationArea } from "../shell/backoffice-access";
 import type { ReportPeriodFilters } from "../shell/report-filters-search";
+import { useRegisterNamesQuery } from "./installation-queries";
 import { RegisterPanel } from "./register-panel";
-import { useRefreshRegisters, useRegisterNamesQuery } from "./register-queries";
 import type { RegisterName } from "./registers-api";
 import type { RegistersListScreenServices } from "./registers-list-services";
 
@@ -24,6 +26,7 @@ export type RegisterNamesListScreenProps = {
   onSessionEnded: () => void;
   services: RegistersListScreenServices;
   registerPointOfSaleSection: RegisterPointOfSaleSection;
+  registerPanelSections: RegisterPanelSections;
   openRegister?: string | undefined;
   tab?: string | undefined;
   sessionsPeriod: ReportPeriodFilters;
@@ -39,6 +42,7 @@ export function RegisterNamesListScreen({
   onSessionEnded,
   services,
   registerPointOfSaleSection,
+  registerPanelSections,
   openRegister,
   tab,
   sessionsPeriod,
@@ -150,7 +154,7 @@ export function RegisterNamesListScreen({
           onClose={closeRegister}
           onPointOfSaleSaved={() => void refreshRegisters()}
           onSessionEnded={onSessionEnded}
-          services={services}
+          registerPanelSections={registerPanelSections}
           registerPointOfSaleSection={registerPointOfSaleSection}
         />
       )}

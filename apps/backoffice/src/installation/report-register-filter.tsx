@@ -1,6 +1,6 @@
 import { ListFilter, sortedItems, textOrder } from "@purosur/ui";
 import { useEffect, useEffectEvent } from "react";
-import { useReportRegistersQuery } from "./register-queries";
+import { useReportRegistersQuery } from "./installation-queries";
 import {
   defaultReportRegisterFilterServices,
   type ReportRegisterFilterServices,

@@ -1,9 +1,12 @@
 import { DetailPanel, Tab, Tabs } from "@purosur/ui";
 import { createLink } from "@tanstack/react-router";
 import { landingPart, type PagePart, pagePartsFor } from "../platform/page-parts";
+import type { RegisterPanelSections } from "../platform/register-panel-sections";
 import type { RegisterPointOfSaleSection } from "../platform/register-point-of-sale-section";
 import {
   type BackofficeAccess,
+  canAssignPointTerminal,
+  canAssignQrPointOfSale,
   canSeeBackupsArea,
   canSeeFiscalConfigurationArea,
   canSeeRegistersArea,
@@ -11,12 +14,8 @@ import {
 } from "../shell/backoffice-access";
 import type { ReportPeriodFilters } from "../shell/report-filters-search";
 import { RegisterDataSection } from "./register-data-section";
-import { RegisterPaymentsSection } from "./register-payments-section";
 import type { RegisterActions } from "./register-row-actions";
-import { RegisterSessionsSection } from "./register-sessions-section";
 import type { RegisterName, RegisterSummary } from "./registers-api";
-import type { RegistersListScreenServices } from "./registers-list-services";
-import { SnapshotBackupsSection } from "./snapshot-backups-section";
 
 export type RegisterPanelProps = RegisterPanelBaseProps &
   (
@@ -34,7 +33,7 @@ type RegisterPanelBaseProps = {
   onClose: () => void;
   onPointOfSaleSaved: () => void;
   onSessionEnded: () => void;
-  services: RegistersListScreenServices;
+  registerPanelSections: RegisterPanelSections;
 };
 
 type RegisterPanelTab = "data" | "fiscal" | "backups" | "sessions";
@@ -68,7 +67,11 @@ export function RegisterPanel({
   onClose,
   onPointOfSaleSaved,
   onSessionEnded,
-  services,
+  registerPanelSections: {
+    payments: PaymentsSection,
+    backups: BackupsSection,
+    sessions: SessionsSection,
+  },
 }: RegisterPanelProps) {
   const details = summary === undefined ? undefined : { summary, actions, secondsSinceRead };
   const parts = pagePartsFor(access, REGISTER_PANEL_TABS);
@@ -112,27 +115,24 @@ export function RegisterPanel({
           (details === undefined ? (
             <div className="flex flex-col gap-4 pt-4">{pointOfSaleSlot}</div>
           ) : (
-            <RegisterPaymentsSection
+            <PaymentsSection
               register={details.summary}
-              access={access}
-              actions={details.actions}
+              mayAssignPointTerminal={canAssignPointTerminal(access)}
+              mayAssignQrPointOfSale={canAssignQrPointOfSale(access)}
+              onAssignPointTerminal={() => details.actions.assignTerminal(details.summary)}
+              onAssignQrPointOfSale={() => details.actions.assignQr(details.summary)}
               pointOfSaleSlot={pointOfSaleSlot}
             />
           ))}
         {selectedTab === "backups" && (
-          <SnapshotBackupsSection
-            register={register}
-            onSessionEnded={onSessionEnded}
-            services={services}
-          />
+          <BackupsSection register={register} onSessionEnded={onSessionEnded} />
         )}
         {selectedTab === "sessions" && (
-          <RegisterSessionsSection
+          <SessionsSection
             registerId={register.id}
             period={sessionsPeriod}
             onPeriodChange={onSessionsPeriodChange}
             onSessionEnded={onSessionEnded}
-            services={services}
           />
         )}
       </Tabs>

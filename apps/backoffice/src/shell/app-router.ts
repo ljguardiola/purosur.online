@@ -73,7 +73,6 @@ import {
   legacyBackupsRoute,
   legacyCashMovementsRoute,
   legacyCashSessionClosesRoute,
-  registersListRoute,
   registersRoute,
 } from "../register/routes";
 import { legacyReturnsReportRoute, returnsHistoryRoute } from "../returns/routes";
@@ -121,6 +120,7 @@ import { productsRoute } from "./products-route";
 import { publicRoute } from "./public-route";
 import { purchasingAreaRoute } from "./purchasing-area";
 import { refundsRoute } from "./refunds-route";
+import { registersListRoute } from "./registers-list-route";
 import { reportsAreaRoute } from "./reports-area";
 import { type RouterContext, rootRoute } from "./root-route";
 import { salesAndCashAreaRoute } from "./sales-and-cash-area";

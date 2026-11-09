@@ -3,6 +3,7 @@ import { StrictMode } from "react";
 import { beforeEach, expect, onTestFinished, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
+import { registerPartsOf } from "../shell/test-support/register-parts";
 import { render } from "../shell/test-support/render-with-router";
 import { RegistersListScreen } from "./registers-list-screen";
 import type { RegistersListScreenServices } from "./registers-list-services";
@@ -343,6 +344,8 @@ test("under StrictMode, clicking the row action emits the code exactly once and 
           access={ADMINISTRATOR_ACCESS}
           services={services}
           registerPointOfSaleSection={RegisterPointOfSaleSectionStub}
+          registerPanelSections={registerPartsOf(services).panelSections}
+          registerPaymentAndKeyModals={registerPartsOf(services).paymentAndKeyModals}
           onSessionEnded={() => {}}
           sessionsPeriod={{ from: "", to: "" }}
           onSessionsPeriodChange={() => {}}

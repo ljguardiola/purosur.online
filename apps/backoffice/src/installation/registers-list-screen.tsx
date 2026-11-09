@@ -16,7 +16,13 @@ import { Check, Laptop, Plus } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
 import { cloudTableState } from "../platform/cloud-table-state";
+import type { RegisterPanelSections } from "../platform/register-panel-sections";
+import type {
+  RegisterPaymentAndKeyModalRequest,
+  RegisterPaymentAndKeyModals,
+} from "../platform/register-payment-and-key-modals";
 import type { RegisterPointOfSaleSection } from "../platform/register-point-of-sale-section";
+import { useRefreshRegisters } from "../platform/register-query-roots";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import {
   type BackofficeAccess,
@@ -25,11 +31,12 @@ import {
   canSeeRegistersArea,
 } from "../shell/backoffice-access";
 import type { ReportPeriodFilters } from "../shell/report-filters-search";
-import { AssignPointTerminalModal } from "./assign-point-terminal-modal";
-import { AssignQrPointOfSaleModal } from "./assign-qr-point-of-sale-modal";
-import { ConsultBitlockerRecoveryKeyModal } from "./consult-bitlocker-recovery-key-modal";
 import { type EmissionState, EnrollmentCodeModal } from "./enrollment-code-modal";
-import { LoadBitlockerRecoveryKeyModal } from "./load-bitlocker-recovery-key-modal";
+import {
+  useRegisterCoverageQuery,
+  useRegistersQuery,
+  useReloadRegister,
+} from "./installation-queries";
 import { NewRegisterModal } from "./new-register-modal";
 import { RegisterCoverageNotice } from "./register-coverage-notice";
 import {
@@ -39,12 +46,6 @@ import {
 } from "./register-installation-summary";
 import { RegisterNamesListScreen } from "./register-names-list-screen";
 import { RegisterPanel } from "./register-panel";
-import {
-  useRefreshRegisters,
-  useRegisterCoverageQuery,
-  useRegistersQuery,
-  useReloadRegister,
-} from "./register-queries";
 import { type RegisterActions, registerRowActions } from "./register-row-actions";
 import type { EmitEnrollmentCodeOutcome, RegisterSummary } from "./registers-api";
 import type { RegistersListScreenServices } from "./registers-list-services";
@@ -57,6 +58,8 @@ export type RegistersListScreenProps = {
   onSessionEnded: () => void;
   services: RegistersListScreenServices;
   registerPointOfSaleSection: RegisterPointOfSaleSection;
+  registerPanelSections: RegisterPanelSections;
+  registerPaymentAndKeyModals: RegisterPaymentAndKeyModals;
   openRegister?: string | undefined;
   tab?: string | undefined;
   sessionsPeriod: ReportPeriodFilters;
@@ -80,6 +83,8 @@ function FullRegistersListScreen({
   onSessionEnded,
   services,
   registerPointOfSaleSection,
+  registerPanelSections,
+  registerPaymentAndKeyModals: PaymentAndKeyModals,
   openRegister,
   tab,
   sessionsPeriod,
@@ -100,11 +105,8 @@ function FullRegistersListScreen({
   const refreshRegisters = useRefreshRegisters();
   const reloadRegister = useReloadRegister({ fetchRegisters });
   const [newModalOpen, setNewModalOpen] = useState(false);
-  const [terminalTarget, setTerminalTarget] = useState<RegisterSummary | null>(null);
-  const [qrTarget, setQrTarget] = useState<RegisterSummary | null>(null);
+  const [modalRequest, setModalRequest] = useState<RegisterPaymentAndKeyModalRequest | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<RegisterSummary | null>(null);
-  const [loadKeyTarget, setLoadKeyTarget] = useState<RegisterSummary | null>(null);
-  const [consultKeyTarget, setConsultKeyTarget] = useState<RegisterSummary | null>(null);
   const [revokeEveryOpen, setRevokeEveryOpen] = useState(false);
   const [revokedNotice, setRevokedNotice] = useState<{ id: number; registers: number } | null>(
     null,
@@ -210,10 +212,10 @@ function FullRegistersListScreen({
   const actions: RegisterActions = {
     emitCode: (register) => void handleEmitClick(register),
     revoke: setRevokeTarget,
-    loadKey: setLoadKeyTarget,
-    consultKey: setConsultKeyTarget,
-    assignTerminal: setTerminalTarget,
-    assignQr: setQrTarget,
+    loadKey: (register) => setModalRequest({ kind: "loadKey", register }),
+    consultKey: (register) => setModalRequest({ kind: "consultKey", register }),
+    assignTerminal: (register) => setModalRequest({ kind: "assignTerminal", register }),
+    assignQr: (register) => setModalRequest({ kind: "assignQr", register }),
   };
   const rowActions = registerRowActions(access, actions);
 
@@ -348,7 +350,7 @@ function FullRegistersListScreen({
             onClose={closeRegister}
             onPointOfSaleSaved={() => void refreshRegisters()}
             onSessionEnded={onSessionEnded}
-            services={services}
+            registerPanelSections={registerPanelSections}
             registerPointOfSaleSection={registerPointOfSaleSection}
           />
         )}
@@ -388,28 +390,6 @@ function FullRegistersListScreen({
           onDismiss={() => setRevokedNotice(null)}
         />
       )}
-      <AssignPointTerminalModal
-        target={terminalTarget}
-        onClose={() => setTerminalTarget(null)}
-        onSaved={() => {
-          setTerminalTarget(null);
-          void refreshRegisters();
-        }}
-        reload={reloadRegister}
-        onSessionEnded={onSessionEnded}
-        services={services}
-      />
-      <AssignQrPointOfSaleModal
-        target={qrTarget}
-        onClose={() => setQrTarget(null)}
-        onSaved={() => {
-          setQrTarget(null);
-          void refreshRegisters();
-        }}
-        reload={reloadRegister}
-        onSessionEnded={onSessionEnded}
-        services={services}
-      />
       <EnrollmentCodeModal
         emission={emission}
         onClose={closeEmission}
@@ -424,20 +404,17 @@ function FullRegistersListScreen({
         onSessionEnded={onSessionEnded}
         services={services}
       />
-      <LoadBitlockerRecoveryKeyModal
-        target={loadKeyTarget}
-        onClose={() => setLoadKeyTarget(null)}
-        onLoaded={() => void refreshRegisters()}
+      <PaymentAndKeyModals
+        request={modalRequest}
+        reload={reloadRegister}
+        onClose={() => setModalRequest(null)}
+        onAssigned={() => {
+          setModalRequest(null);
+          void refreshRegisters();
+        }}
+        onKeyLoaded={() => void refreshRegisters()}
         onOutdated={() => void refreshRegisters()}
         onSessionEnded={onSessionEnded}
-        services={services}
-      />
-      <ConsultBitlockerRecoveryKeyModal
-        target={consultKeyTarget}
-        onClose={() => setConsultKeyTarget(null)}
-        onOutdated={() => void refreshRegisters()}
-        onSessionEnded={onSessionEnded}
-        services={services}
       />
       {emissionAuthModal}
     </>

@@ -1,16 +1,16 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import type { RegisterKeyTarget } from "../platform/register-payment-and-key-modals";
 import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import { LoadBitlockerRecoveryKeyModal } from "./load-bitlocker-recovery-key-modal";
-import type { RegisterSummary } from "./registers-api";
-import type { RegistersListScreenServices } from "./registers-list-services";
+
 import {
   createServices,
   enrolledRegister,
   grantAuthorization,
-} from "./test-support/registers-list-screen";
+} from "./test-support/register-key-modals";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
@@ -20,14 +20,14 @@ const KEY = "111111-222222-333333-444444-555555-666666-707707-110000";
 const TITLE = "Cargar clave de recuperación de BitLocker";
 
 type Handlers = {
-  target?: RegisterSummary | null;
+  target?: RegisterKeyTarget | null;
   onClose?: () => void;
   onLoaded?: () => void;
   onOutdated?: () => void;
   onSessionEnded?: () => void;
 };
 
-async function renderModal(services: RegistersListScreenServices, handlers: Handlers = {}) {
+async function renderModal(services: ReturnType<typeof createServices>, handlers: Handlers = {}) {
   const screen = await render(
     <main>
       <LoadBitlockerRecoveryKeyModal

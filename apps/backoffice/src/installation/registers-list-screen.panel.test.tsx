@@ -1,6 +1,8 @@
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
+import { backups } from "../register/test-support/snapshot-backups-section";
 import { ADMINISTRATOR_ACCESS } from "../shell/test-support/backoffice-access";
+import { registerPartsOf } from "../shell/test-support/register-parts";
 import { render } from "../shell/test-support/render-with-router";
 import { RegistersListScreen } from "./registers-list-screen";
 import { RegisterPointOfSaleSectionStub } from "./test-support/register-point-of-sale-section-stub";
@@ -10,7 +12,6 @@ import {
   register1,
   rowOf,
 } from "./test-support/registers-list-screen";
-import { backups } from "./test-support/snapshot-backups-section";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
@@ -30,6 +31,8 @@ async function renderListWithPanel(openRegister: string | undefined, tab?: strin
         access={ADMINISTRATOR_ACCESS}
         services={services}
         registerPointOfSaleSection={RegisterPointOfSaleSectionStub}
+        registerPanelSections={registerPartsOf(services).panelSections}
+        registerPaymentAndKeyModals={registerPartsOf(services).paymentAndKeyModals}
         onSessionEnded={() => {}}
         openRegister={openRegister}
         tab={tab}
