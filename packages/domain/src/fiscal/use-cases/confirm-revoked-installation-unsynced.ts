@@ -1,7 +1,5 @@
-import {
-  isInstallationActiveDuring,
-  revokedInstallationsAwaitingConfirmation,
-} from "../../sync/index.js";
+import { revokedInstallationsAwaitingConfirmation } from "../model/confirmed-stream-reach.js";
+import { isInstallationActiveDuring } from "../model/event-stream-reach.js";
 import { fortnightPeriod, isFortnightReportOutstanding } from "../model/fortnight-report.js";
 import { fortnightContaining } from "../model/offline-authorization-code.js";
 import type { ConfirmRevokedInstallationUnsyncedPorts } from "./confirm-revoked-installation-unsynced-ports.js";

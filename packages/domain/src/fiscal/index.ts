@@ -33,6 +33,11 @@ export {
   REPLAYED_CLOCK_CORRECTION_PERIOD_KEY,
   replayedClockMark,
 } from "./model/clock-correction.js";
+export {
+  isHeldBackOnlyByRevokedInstallations,
+  revokedInstallationsAwaitingConfirmation,
+  streamReachesPastOnceConfirmed,
+} from "./model/confirmed-stream-reach.js";
 export { CONTINGENCY_KINDS, contingencyOf } from "./model/connectivity-gap.js";
 export { selectConsumerBuyerTaxStatus } from "./model/consumer-buyer-tax-status.js";
 export { countsAsContingencyTime } from "./model/contingency-time.js";
@@ -103,6 +108,8 @@ export {
   type DeferredSaleSatisfiedFact,
   deferredSaleSatisfiedEvent,
 } from "./model/deferred-sale-satisfied-event.js";
+export type { InstallationStreamReach } from "./model/event-stream-reach.js";
+export { isInstallationActiveDuring } from "./model/event-stream-reach.js";
 export type {
   ExceptionShareCounts,
   RecordedExceptionShareBreach,

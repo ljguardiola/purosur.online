@@ -1,5 +1,5 @@
 import { FIXED_ARGENTINA_ZONE_RULES } from "../../../shared/index.js";
-import type { InstallationStreamReach } from "../../../sync/index.js";
+import type { InstallationStreamReach } from "../../model/event-stream-reach.js";
 import type { Fortnight } from "../../model/offline-authorization-code.js";
 import type { OfflineAuthorizationCode } from "../offline-authorization-code-ports.js";
 import { reportFortnights } from "../report-fortnights.js";
