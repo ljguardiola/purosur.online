@@ -13,8 +13,6 @@ import { deepEqual } from "@tanstack/react-router";
 import { ClipboardList, Eye, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
-import { AreaTopBar } from "../shell/area-top-bar";
-import { ScreenLayout } from "../shell/screen-layout";
 import { formatPurchaseOrderCreatedDay } from "./purchase-order-day";
 import { purchaseOrderStatusOf } from "./purchase-order-status";
 import type { PurchaseOrdersFilters } from "./purchase-orders-filters";
@@ -131,10 +129,7 @@ export function PurchaseOrdersScreen({
   const shownCount = table.getRowModel().rows.length;
 
   return (
-    <ScreenLayout
-      topBar={<AreaTopBar eyebrow="Compras" title="Pedidos de compra" />}
-      bodyClassName="gap-4 p-6"
-    >
+    <div className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-6">
       <div className="flex flex-wrap items-center gap-3">
         <ListFilter
           name="state"
@@ -183,6 +178,6 @@ export function PurchaseOrdersScreen({
           )
         }
       />
-    </ScreenLayout>
+    </div>
   );
 }

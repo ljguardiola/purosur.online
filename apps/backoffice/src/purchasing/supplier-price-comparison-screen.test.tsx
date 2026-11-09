@@ -374,7 +374,7 @@ test("ends the session when the comparison comes back unauthenticated", async ()
 });
 
 test("navigates to Mi cuenta when the comparison comes back forbidden", async () => {
-  window.history.pushState(null, "", "/price-comparison");
+  window.history.pushState(null, "", "/purchase-orders/comparison");
   const services = createServices();
   vi.mocked(services.fetchSupplierPriceComparison).mockResolvedValue({ kind: "forbidden" });
   await renderScreen(services);

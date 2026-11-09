@@ -472,7 +472,7 @@ test("ends the session when the suggestion comes back unauthenticated", async ()
 });
 
 test("navigates to Mi cuenta when the suggestion comes back forbidden", async () => {
-  window.history.pushState(null, "", "/order-suggestion");
+  window.history.pushState(null, "", "/purchase-orders/suggestion");
   const services = createServices();
   vi.mocked(services.fetchOrderSuggestion).mockResolvedValue({ kind: "forbidden" });
   await renderScreen(services);
@@ -622,7 +622,7 @@ test("ends the session when building the orders finds no open session", async ()
 });
 
 test("navigates to Mi cuenta when building the orders comes back forbidden", async () => {
-  window.history.pushState(null, "", "/order-suggestion");
+  window.history.pushState(null, "", "/purchase-orders/suggestion");
   const services = createServices();
   vi.mocked(services.buildPurchaseOrders).mockResolvedValue({ kind: "forbidden" });
   const screen = await loaded(services);

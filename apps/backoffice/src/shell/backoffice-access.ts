@@ -233,6 +233,10 @@ export function canSeeSuppliersPage(access: BackofficeAccess): boolean {
   return canManageSuppliers(access) || canManageSupplierPriceLists(access);
 }
 
+export function canSeePurchaseOrdersPage(access: BackofficeAccess): boolean {
+  return canReadPurchaseOrders(access) || canComparePrices(access);
+}
+
 export function canSeePurchasingArea(access: BackofficeAccess): boolean {
   return grants(access, "purchasing_area");
 }

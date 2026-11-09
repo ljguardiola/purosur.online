@@ -287,7 +287,7 @@ test("lists Pedidos beside the supplier price lists for whoever compares prices"
 test.each(["/purchase-orders/comparison", "/purchase-orders/suggestion"])(
   "sends a user who may not compare prices away from %s to Mi cuenta",
   async (path) => {
-    const services = purchasingServices(["supplier_price_lists", "purchase_order_reads"]);
+    const services = purchasingServices(["supplier_price_lists"]);
     window.history.pushState(null, "", path);
 
     const screen = await render(<App help={emptyHelp} services={services} />);

@@ -26,9 +26,7 @@ import { formatDisplayDate } from "../platform/display-date";
 import { ownEntry } from "../platform/own-entry";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
-import { AreaTopBar } from "../shell/area-top-bar";
 import { type BackofficeAccess, canManagePurchaseOrders } from "../shell/backoffice-access";
-import { ScreenLayout } from "../shell/screen-layout";
 import {
   chosenOrder,
   chosenSupplierId,
@@ -328,38 +326,32 @@ export function OrderSuggestionScreen({
 
   return (
     <>
-      <ScreenLayout
-        topBar={
-          <AreaTopBar
-            eyebrow="Compras"
-            title="Sugerencia de pedido"
-            action={
-              canManagePurchaseOrders(access) ? (
-                <Button
-                  variant="primary"
-                  icon={<FilePlus />}
-                  dataStatus={data.status}
-                  disabled={choices.length === 0 || build.isPending}
-                  onPress={() => {
-                    setBuildNotice(null);
-                    build.mutate(choices);
-                  }}
-                >
-                  Armar pedidos
-                </Button>
-              ) : undefined
-            }
-          />
-        }
-        bodyClassName="gap-4 p-6"
-      >
-        <div className="w-105">
-          <SearchField
-            value={search}
-            onChange={setSearch}
-            placeholder="Buscar un producto"
-            icon={<Search />}
-          />
+      <div className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-6">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="w-105">
+            <SearchField
+              value={search}
+              onChange={setSearch}
+              placeholder="Buscar un producto"
+              icon={<Search />}
+            />
+          </div>
+          {canManagePurchaseOrders(access) ? (
+            <div className="ml-auto">
+              <Button
+                variant="primary"
+                icon={<FilePlus />}
+                dataStatus={data.status}
+                disabled={choices.length === 0 || build.isPending}
+                onPress={() => {
+                  setBuildNotice(null);
+                  build.mutate(choices);
+                }}
+              >
+                Armar pedidos
+              </Button>
+            </div>
+          ) : null}
         </div>
         <Table
           aria-label="Sugerencia de pedido"
@@ -382,7 +374,7 @@ export function OrderSuggestionScreen({
             )
           }
         />
-      </ScreenLayout>
+      </div>
       {buildNotice === null ? null : (
         <FloatingNotification
           tone="error"
