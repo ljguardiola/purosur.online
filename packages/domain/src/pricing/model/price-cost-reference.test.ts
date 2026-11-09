@@ -9,14 +9,14 @@ function purchase(
   recordedAt: string,
   cost = { totalCents: 1000, quantity: 1000 },
   freightPerUnit: Fraction = { numerator: 0n, denominator: 1n },
-): CostSource {
+): Extract<CostSource, { kind: "purchase_line" }> {
   return {
     kind: "purchase_line",
     lineId,
     purchasedOn,
     recordedAt: new Date(recordedAt),
     cost,
-    freightPerUnit,
+    freightPerUnit: () => freightPerUnit,
   };
 }
 
@@ -594,6 +594,39 @@ describe("the freight in the cost reference", () => {
       marginTenthsOfPercent: 650,
       costIncomplete: false,
     });
+  });
+
+  it("works out the freight only of the purchase line the last cost comes from", () => {
+    const older: CostSource = {
+      ...purchase("older", "2026-03-01", "2026-03-01T10:00:00Z"),
+      freightPerUnit: () => {
+        throw new Error("the older line's freight was worked out");
+      },
+    };
+    const last = purchase(
+      "last",
+      "2026-03-05",
+      "2026-03-05T10:00:00Z",
+      { totalCents: 1000, quantity: 1000 },
+      { numerator: 250n, denominator: 1n },
+    );
+
+    expect(
+      priceCostReference([older, last], 2000, FIXED_ARGENTINA_ZONE_RULES)?.freightPerUnitCents,
+    ).toBe(250);
+  });
+
+  it("fails as the freight of the last cost's purchase line fails to be worked out", () => {
+    const last: CostSource = {
+      ...purchase("a", "2026-03-01", "2026-03-01T10:00:00Z"),
+      freightPerUnit: () => {
+        throw new Error("the freight cannot be worked out");
+      },
+    };
+
+    expect(() => priceCostReference([last], 2000, FIXED_ARGENTINA_ZONE_RULES)).toThrow(
+      "the freight cannot be worked out",
+    );
   });
 
   it("adds the freight and lowers the margin for every cost, price and freight", () => {

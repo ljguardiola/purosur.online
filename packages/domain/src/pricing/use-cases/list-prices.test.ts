@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { Fraction } from "../../shared/index.js";
 import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { AssemblyBatchCost } from "./assembly-batch-cost-reader.js";
 import type { InitialCountCost } from "./initial-count-cost-reader.js";
@@ -46,7 +47,7 @@ function purchase(
   productId: string,
   lineId: string,
   totalCents: number,
-  freightPerUnit: PurchaseLineCost["freightPerUnit"] = { numerator: 0n, denominator: 1n },
+  freightPerUnit: Fraction = { numerator: 0n, denominator: 1n },
 ): PurchaseLineCost {
   return {
     productId,
@@ -54,7 +55,7 @@ function purchase(
     purchasedOn: "2026-03-01",
     recordedAt: new Date("2026-03-01T10:00:00Z"),
     cost: { totalCents, quantity: 1000 },
-    freightPerUnit,
+    freightPerUnit: () => freightPerUnit,
   };
 }
 

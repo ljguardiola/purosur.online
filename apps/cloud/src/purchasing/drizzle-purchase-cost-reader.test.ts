@@ -56,9 +56,9 @@ describe("DrizzlePurchaseCostReader.purchaseLineCostsOf", () => {
       quantityPerPackage: 1_000,
     });
 
-    const lines = await new DrizzlePurchaseCostReader(db).purchaseLineCostsOf(locationId, [
-      productId,
-    ]);
+    const lines = (
+      await new DrizzlePurchaseCostReader(db).purchaseLineCostsOf(locationId, [productId])
+    ).map((line) => ({ ...line, freightPerUnit: line.freightPerUnit() }));
 
     expect(lines).toHaveLength(2);
     expect(lines).toContainEqual({
@@ -167,7 +167,7 @@ describe("DrizzlePurchaseCostReader.purchaseLineCostsOf freight per unit", () =>
       productId,
     ]);
 
-    expect(line?.freightPerUnit).toEqual({ numerator: 0n, denominator: 1n });
+    expect(line?.freightPerUnit()).toEqual({ numerator: 0n, denominator: 1n });
   });
 
   it("answers the line's share of the freight, distributed over all the lines of its purchase", async () => {
@@ -193,7 +193,7 @@ describe("DrizzlePurchaseCostReader.purchaseLineCostsOf freight per unit", () =>
     ]);
 
     expect(lines).toHaveLength(1);
-    expect(lines[0]?.freightPerUnit).toEqual({ numerator: 571_000n, denominator: 1_000n });
+    expect(lines[0]?.freightPerUnit()).toEqual({ numerator: 571_000n, denominator: 1_000n });
   });
 
   it("answers the share of a freight over two purchases to the line of each of them", async () => {
@@ -216,8 +216,8 @@ describe("DrizzlePurchaseCostReader.purchaseLineCostsOf freight per unit", () =>
     const [ofFirst] = await reader.purchaseLineCostsOf(locationId, [productId]);
     const [ofSecond] = await reader.purchaseLineCostsOf(locationId, [otherId]);
 
-    expect(ofFirst?.freightPerUnit).toEqual({ numerator: 1_000_000n, denominator: 1_000n });
-    expect(ofSecond?.freightPerUnit).toEqual({ numerator: 5_000_000n, denominator: 1_000n });
+    expect(ofFirst?.freightPerUnit()).toEqual({ numerator: 1_000_000n, denominator: 1_000n });
+    expect(ofSecond?.freightPerUnit()).toEqual({ numerator: 5_000_000n, denominator: 1_000n });
   });
 
   it("adds up the shares of every freight covering the line's purchase", async () => {
@@ -238,7 +238,7 @@ describe("DrizzlePurchaseCostReader.purchaseLineCostsOf freight per unit", () =>
       productId,
     ]);
 
-    expect(line?.freightPerUnit).toEqual({ numerator: 3_500_000n, denominator: 1_000n });
+    expect(line?.freightPerUnit()).toEqual({ numerator: 3_500_000n, denominator: 1_000n });
   });
 
   it("answers the freight per unit of the lines of several products in one read", async () => {
@@ -260,10 +260,56 @@ describe("DrizzlePurchaseCostReader.purchaseLineCostsOf freight per unit", () =>
       otherId,
     ]);
 
-    expect(Object.fromEntries(lines.map((line) => [line.productId, line.freightPerUnit]))).toEqual({
+    expect(
+      Object.fromEntries(lines.map((line) => [line.productId, line.freightPerUnit()])),
+    ).toEqual({
       [productId]: { numerator: 900_000n, denominator: 1_000n },
       [otherId]: { numerator: 0n, denominator: 1n },
     });
+  });
+});
+
+describe("DrizzlePurchaseCostReader.purchaseLineCostsOf freight that cannot be distributed", () => {
+  it("still answers every line when an older line's freight cannot be distributed", async () => {
+    const { actorId, locationId, productId } = await setUp();
+    const older = await insertPurchaseWithLines(db, {
+      locationId,
+      actorId,
+      purchasedOn: "2026-03-01",
+      recordedAt: new Date("2026-03-01T12:00:00.000Z"),
+      lines: [{ productId, costPaidCents: 100, quantity: 1_000, quantityPerPackage: 1_000 }],
+    });
+    await insertFreightRow(db, {
+      locationId,
+      actorId,
+      purchaseIds: [older.purchaseId],
+      amountCents: 500,
+    });
+    await db
+      .update(purchaseLines)
+      .set({ costPaidCents: 0 })
+      .where(eq(purchaseLines.id, older.lineIds[0] as string));
+    const newer = await insertPurchaseWithLines(db, {
+      locationId,
+      actorId,
+      purchasedOn: "2026-03-05",
+      recordedAt: new Date("2026-03-05T12:00:00.000Z"),
+      lines: [{ productId, costPaidCents: 900, quantity: 1_000, quantityPerPackage: 1_000 }],
+    });
+
+    const lines = await new DrizzlePurchaseCostReader(db).purchaseLineCostsOf(locationId, [
+      productId,
+    ]);
+
+    expect(lines.map(({ lineId }) => lineId).sort()).toEqual(
+      [older.lineIds[0], newer.lineIds[0]].sort(),
+    );
+    const ofNewer = lines.find(({ lineId }) => lineId === newer.lineIds[0]);
+    expect(ofNewer?.freightPerUnit()).toEqual({ numerator: 0n, denominator: 1n });
+    const ofOlder = lines.find(({ lineId }) => lineId === older.lineIds[0]);
+    expect(() => ofOlder?.freightPerUnit()).toThrow(
+      "A freight cannot be distributed across lines worth nothing",
+    );
   });
 });
 
@@ -326,6 +372,6 @@ describe("DrizzlePurchaseCostReader.purchaseLineCostsOf removed lines", () => {
     ]);
 
     expect(lines).toHaveLength(1);
-    expect(lines[0]?.freightPerUnit).toEqual({ numerator: 4_000_000n, denominator: 1_000n });
+    expect(lines[0]?.freightPerUnit()).toEqual({ numerator: 4_000_000n, denominator: 1_000n });
   });
 });

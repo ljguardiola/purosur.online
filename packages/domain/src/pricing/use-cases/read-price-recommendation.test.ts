@@ -52,7 +52,7 @@ function ports({
     purchasedOn: "2026-03-20",
     recordedAt: new Date("2026-03-20T10:00:00Z"),
     cost: { totalCents: 1, quantity: 1000 },
-    freightPerUnit: { numerator: 0n, denominator: 1n },
+    freightPerUnit: () => ({ numerator: 0n, denominator: 1n }),
   };
   return {
     products: fakeActiveProductReader(active),
