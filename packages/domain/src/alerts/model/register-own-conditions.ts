@@ -10,21 +10,19 @@ import {
   type CriticalBatteryAction,
   criticalBatteryActionShowsCondition,
   isClockDrifted,
+  isInstallationRevoked,
   isOnBatteryTooLong,
   isSerialDeviceMissing,
   ON_BATTERY_CONDITION_MINUTES,
+  type SalesDenial,
+  type SalesStopState,
   type SerialDeviceRole,
   type SerialDeviceStanding,
   type StorageStanding,
+  salesDenialOf,
   storageSalesStopOf,
 } from "../../register/index.js";
 import type { ZoneRules } from "../../shared/index.js";
-import {
-  isInstallationRevoked,
-  type SalesDenial,
-  type SalesStopState,
-  salesDenialOf,
-} from "../../sync/index.js";
 import { type AlertKind, type AlertLevel, isAlertKind } from "./alert-catalog.js";
 import { alertKindPolicy } from "./alert-kind-policy.js";
 import { isRegisterQuiet } from "./quiet-register.js";

@@ -1,5 +1,5 @@
-import type { StorageSalesStop } from "../../register/index.js";
-import type { SalesDeniedReport } from "../../shared/index.js";
+import type { SalesDeniedReport } from "./sales-denied.js";
+import type { StorageSalesStop } from "./storage.js";
 
 export const SALES_STOP_REASONS = ["event_history_broken", "installation_revoked"] as const;
 

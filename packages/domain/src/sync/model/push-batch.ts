@@ -2,10 +2,10 @@ import type { FiscalEmissionStoppedReport } from "../../fiscal/index.js";
 import type {
   BatteryReport,
   ClockDriftReport,
+  SalesDeniedReport,
   SerialDevicesReport,
   ZoneRulesVersionReport,
 } from "../../register/index.js";
-import type { SalesDeniedReport } from "../../shared/index.js";
 import type { ReplenishmentFailedReport } from "./replenishment-failure.js";
 
 export const PUSH_BATCH_MAX_EVENTS = 200;

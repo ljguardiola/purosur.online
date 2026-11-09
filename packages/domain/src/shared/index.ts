@@ -41,12 +41,6 @@ export type { ReportPeriod } from "./report-period.js";
 export { isReportPeriodAsked, reportPeriodOf } from "./report-period.js";
 export type { Fraction } from "./rounding.js";
 export { compareFractions, roundHalfUp } from "./rounding.js";
-export type {
-  SalesDeniedReason,
-  SalesDeniedReport,
-  StorageSalesDeniedReason,
-} from "./sales-denied.js";
-export { SALES_DENIED_REASONS, STORAGE_SALES_DENIED_REASONS } from "./sales-denied.js";
 export type { Scale, ScaleReading, WeighingReading } from "./scale.js";
 export type { ScaleWeighingStep } from "./scale-weighing.js";
 export { scaleWeighingStep } from "./scale-weighing.js";
