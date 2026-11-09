@@ -1,19 +1,16 @@
-import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
-import { useState } from "react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
-import { ADMINISTRATOR_ACCESS } from "../shell/test-support/backoffice-access";
-import { render } from "../shell/test-support/render-with-router";
 import { periodSegments, typePeriodEnd, typePeriodStart } from "../shell/test-support/report-dates";
 import { spyOnDownloads } from "../shell/test-support/spy-on-downloads";
-import { type PurchaseOrdersFilters, purchaseOrdersFilters } from "./purchase-orders-filters";
-import { PurchaseOrdersScreen } from "./purchase-orders-screen";
-import type { PurchaseOrdersScreenServices } from "./purchase-orders-services";
 import { pendingPurchaseOrdersReport } from "./test-support/pending-purchase-orders-report-fixtures";
-import { createPanelServices } from "./test-support/purchase-order-panel";
-import { DRAFT_SUMMARY, ORDER_ID } from "./test-support/purchase-orders";
+import { ORDER_ID } from "./test-support/purchase-orders";
+import {
+  createServices,
+  renderScreen,
+  type Screen,
+} from "./test-support/purchase-orders-list-screen";
 import { receiptDifferencesReport } from "./test-support/receipt-differences-report-fixtures";
 
 beforeEach(async () => {
@@ -27,70 +24,6 @@ afterEach(() => {
 
 const ANDINA_ORDER = "90e00000-0000-4000-8000-0000000000b1";
 const GRANOS_ORDER = "90e00000-0000-4000-8000-0000000000b2";
-
-function createServices(): PurchaseOrdersScreenServices {
-  return {
-    fetchPurchaseOrders: vi.fn().mockResolvedValue({ kind: "ok", value: [DRAFT_SUMMARY] }),
-    fetchSupplierName: vi.fn(),
-    fetchPendingPurchaseOrdersReport: vi
-      .fn()
-      .mockResolvedValue({ kind: "ok", value: pendingPurchaseOrdersReport }),
-    fetchReceiptDifferencesReport: vi
-      .fn()
-      .mockResolvedValue({ kind: "ok", value: receiptDifferencesReport }),
-    ...createPanelServices(),
-  };
-}
-
-type Handlers = {
-  filters?: Partial<PurchaseOrdersFilters>;
-  openOrder?: string;
-  onFiltersChange?: (filters: PurchaseOrdersFilters) => void;
-  onOpenOrderChange?: (orderId: string | undefined) => void;
-  onSessionEnded?: () => void;
-  supplierFilter?: { supplierId: string; onClear: () => void };
-};
-
-function ControlledScreen({
-  services,
-  filters: initial = {},
-  openOrder,
-  onFiltersChange = () => {},
-  onOpenOrderChange = () => {},
-  onSessionEnded = () => {},
-  supplierFilter,
-}: Handlers & { services: PurchaseOrdersScreenServices }) {
-  const [filters, setFilters] = useState(purchaseOrdersFilters.parse(initial));
-  return (
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <PurchaseOrdersScreen
-          services={services}
-          filters={filters}
-          onFiltersChange={(next) => {
-            onFiltersChange(next);
-            setFilters(next);
-          }}
-          access={ADMINISTRATOR_ACCESS}
-          openOrder={openOrder}
-          received={false}
-          onOpenOrderChange={onOpenOrderChange}
-          onReceive={() => {}}
-          onOpenPurchases={() => {}}
-          onReceivedNoticeDismissed={() => {}}
-          onSessionEnded={onSessionEnded}
-          supplierFilter={supplierFilter}
-        />
-      </main>
-    </FieldSizeProvider>
-  );
-}
-
-function renderScreen(services: PurchaseOrdersScreenServices, handlers: Handlers = {}) {
-  return render(<ControlledScreen services={services} {...handlers} />);
-}
-
-type Screen = Awaited<ReturnType<typeof renderScreen>>;
 
 function pendingTable(screen: Screen) {
   return screen.getByRole("table", { name: "Pedidos pendientes de recibir", exact: true });
@@ -325,7 +258,7 @@ test("asks the differences for the range in the URL and reports a typed one with
   });
 });
 
-test("opens the order of a difference line", async () => {
+test("opens the order of a difference line from its button", async () => {
   const onOpenOrderChange = vi.fn();
   const screen = await renderScreen(createServices(), {
     filters: { differences: true },
@@ -336,7 +269,7 @@ test("opens the order of a difference line", async () => {
   });
   await expect.element(line).toBeVisible();
 
-  await userEvent.click(line);
+  await userEvent.click(line.getByRole("button", { name: "Abrir el pedido" }));
   expect(onOpenOrderChange).toHaveBeenLastCalledWith(GRANOS_ORDER);
 
   await userEvent.click(

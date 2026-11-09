@@ -10,6 +10,7 @@ import {
   RECEIPT_DRAFT,
   SENT_ORDER,
   SENT_ORDER_WITH_RECEIPTS,
+  SUPPLIER_ID,
 } from "../purchasing/test-support/purchase-orders";
 import { receiptDifferencesReport } from "../purchasing/test-support/receipt-differences-report-fixtures";
 import { PRICE_COMPARISON } from "../purchasing/test-support/supplier-price-comparison";
@@ -45,7 +46,7 @@ function purchaseOrdersServices(capabilities: Capability[]) {
     kind: "ok",
     value: [],
   });
-  vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrders).mockResolvedValue({
+  vi.mocked(services.purchaseOrdersListScreen.fetchPurchaseOrders).mockResolvedValue({
     kind: "ok",
     value: [DRAFT_SUMMARY],
   });
@@ -121,7 +122,7 @@ test("opens on Sugerir pedido, without the Pedidos tab, for a person with only p
     .toBeVisible();
   await expectTabs(screen, ["Sugerir pedido", "Comparar precios"]);
   await expect.poll(location).toBe("/purchase-orders/suggestion");
-  expect(services.purchaseOrdersScreen.fetchPurchaseOrders).not.toHaveBeenCalled();
+  expect(services.purchaseOrdersListScreen.fetchPurchaseOrders).not.toHaveBeenCalled();
 });
 
 test("sends a person with only purchase_order_reads away from the price tabs to Pedidos", async () => {
@@ -149,7 +150,7 @@ test("shows one Pedidos item in the Compras column, active on every tab", async 
 
 test("opens an order's panel from its row, keeping the list and the tabs in view", async () => {
   const services = purchaseOrdersServices(["purchase_orders", "purchase_order_reads"]);
-  vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrder).mockResolvedValue({
+  vi.mocked(services.purchaseOrdersListScreen.fetchPurchaseOrder).mockResolvedValue({
     kind: "ok",
     value: { kind: "found", order: SENT_ORDER_WITH_RECEIPTS },
   });
@@ -163,7 +164,7 @@ test("opens an order's panel from its row, keeping the list and the tabs in view
   const panel = screen.getByRole("complementary", { name: "Pedido a Distribuidora Andina" });
   await expect.element(panel).toBeVisible();
   expect(location()).toBe(`/purchase-orders?order=${ORDER_ID}`);
-  expect(services.purchaseOrdersScreen.fetchPurchaseOrder).toHaveBeenCalledWith(ORDER_ID);
+  expect(services.purchaseOrdersListScreen.fetchPurchaseOrder).toHaveBeenCalledWith(ORDER_ID);
   await expect.element(panel.getByRole("table", { name: "Líneas del pedido" })).toBeVisible();
   await expect.element(panel.getByRole("button", { name: "Compartir pedido" })).toBeVisible();
   await expect.element(panel.getByRole("button", { name: "Cancelar pedido" })).toBeVisible();
@@ -188,7 +189,7 @@ test("closing the panel takes the order out of the address", async () => {
 
 test("opens the panel of the order when the old order address is opened", async () => {
   const services = purchaseOrdersServices(["purchase_order_reads"]);
-  vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrder).mockResolvedValue({
+  vi.mocked(services.purchaseOrdersListScreen.fetchPurchaseOrder).mockResolvedValue({
     kind: "ok",
     value: { kind: "found", order: { ...SENT_ORDER, id: ORDER_ID } },
   });
@@ -205,7 +206,7 @@ test("opens the panel of the order when the old order address is opened", async 
 
 test("goes from the panel's Recibir pedido to the receipt, and back to the panel of that order", async () => {
   const services = purchaseOrdersServices(["purchase_order_reads", "purchase_order_receipts"]);
-  vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrder).mockResolvedValue({
+  vi.mocked(services.purchaseOrdersListScreen.fetchPurchaseOrder).mockResolvedValue({
     kind: "ok",
     value: { kind: "found", order: { ...SENT_ORDER, id: ORDER_ID } },
   });
@@ -235,7 +236,7 @@ test("goes from the panel's Recibir pedido to the receipt, and back to the panel
 
 test("says the receipt was registered over the panel of the order the person comes back to", async () => {
   const services = purchaseOrdersServices(["purchase_order_reads", "purchase_order_receipts"]);
-  vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrder).mockResolvedValue({
+  vi.mocked(services.purchaseOrdersListScreen.fetchPurchaseOrder).mockResolvedValue({
     kind: "ok",
     value: { kind: "found", order: SENT_ORDER_WITH_RECEIPTS },
   });
@@ -248,6 +249,29 @@ test("says the receipt was registered over the panel of the order the person com
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByText("Recepción registrada")).toBeVisible();
+  await expect
+    .element(screen.getByRole("complementary", { name: "Pedido a Distribuidora Andina" }))
+    .toBeVisible();
+});
+
+test("dismissing the receipt notice keeps the open order and the list's filters in the address", async () => {
+  const services = purchaseOrdersServices(["purchase_order_reads", "purchase_order_receipts"]);
+  vi.mocked(services.purchaseOrdersListScreen.fetchPurchaseOrder).mockResolvedValue({
+    kind: "ok",
+    value: { kind: "found", order: SENT_ORDER_WITH_RECEIPTS },
+  });
+  window.history.pushState(
+    { key: "receipt-return", __TSR_index: 0, purchaseOrderReceived: true },
+    "",
+    `/purchase-orders?order=${ORDER_ID}&state=SENT`,
+  );
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByText("Recepción registrada")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar" }).last());
+
+  await expect.element(screen.getByText("Recepción registrada")).not.toBeInTheDocument();
+  expect(location()).toBe(`/purchase-orders?order=${ORDER_ID}&state=SENT`);
   await expect
     .element(screen.getByRole("complementary", { name: "Pedido a Distribuidora Andina" }))
     .toBeVisible();
@@ -279,7 +303,7 @@ test("redirects the old price comparison address to its tab, keeping its search"
 
 test("lists only the pending orders, with the date range and export, when the status is Pendientes de recibir", async () => {
   const services = purchaseOrdersServices(["purchase_order_reads"]);
-  vi.mocked(services.purchaseOrdersScreen.fetchPendingPurchaseOrdersReport).mockResolvedValue({
+  vi.mocked(services.purchaseOrdersListScreen.fetchPendingPurchaseOrdersReport).mockResolvedValue({
     kind: "ok",
     value: pendingPurchaseOrdersReport,
   });
@@ -306,7 +330,7 @@ test("lists only the pending orders, with the date range and export, when the st
 
 test("shows the receipt differences, with the date range in the address, when Con diferencias de recepción is on", async () => {
   const services = purchaseOrdersServices(["purchase_order_reads"]);
-  vi.mocked(services.purchaseOrdersScreen.fetchReceiptDifferencesReport).mockResolvedValue({
+  vi.mocked(services.purchaseOrdersListScreen.fetchReceiptDifferencesReport).mockResolvedValue({
     kind: "ok",
     value: receiptDifferencesReport,
   });
@@ -320,4 +344,46 @@ test("shows the receipt differences, with the date range in the address, when Co
   await expect.element(table.getByText("Granos del Sur")).toBeVisible();
   expect(location()).toBe("/purchase-orders?differences=true");
   await expect.element(screen.getByRole("button", { name: "Descargar planilla" })).toBeEnabled();
+});
+
+test("takes the supplier out of the address when it opens on a view the supplier does not filter", async () => {
+  const services = purchaseOrdersServices(["purchase_order_reads"]);
+  vi.mocked(services.purchaseOrdersListScreen.fetchPendingPurchaseOrdersReport).mockResolvedValue({
+    kind: "ok",
+    value: pendingPurchaseOrdersReport,
+  });
+  window.history.pushState(
+    null,
+    "",
+    `/purchase-orders?state=PENDING_RECEIPT&supplier=${SUPPLIER_ID}`,
+  );
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  const table = screen.getByRole("table", { name: "Pedidos pendientes de recibir", exact: true });
+  await expect.element(table.getByText("Granos del Sur")).toBeVisible();
+  await expect.poll(location).toBe("/purchase-orders?state=PENDING_RECEIPT");
+});
+
+test("takes the supplier out of the address when the person turns to the receipt differences", async () => {
+  const services = purchaseOrdersServices(["purchase_order_reads"]);
+  vi.mocked(services.purchaseOrdersListScreen.fetchSupplierName).mockResolvedValue({
+    kind: "ok",
+    value: { kind: "found", name: "Distribuidora Andina" },
+  });
+  vi.mocked(services.purchaseOrdersListScreen.fetchReceiptDifferencesReport).mockResolvedValue({
+    kind: "ok",
+    value: receiptDifferencesReport,
+  });
+  window.history.pushState(null, "", `/purchase-orders?supplier=${SUPPLIER_ID}`);
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect
+    .element(screen.getByRole("button", { name: "Proveedor: Distribuidora Andina" }))
+    .toBeVisible();
+
+  await userEvent.click(screen.getByText("Con diferencias de recepción", { exact: true }));
+
+  const table = screen.getByRole("table", { name: "Diferencias de recepción", exact: true });
+  await expect.element(table.getByText("Granos del Sur")).toBeVisible();
+  await expect.poll(location).toBe("/purchase-orders?differences=true");
 });

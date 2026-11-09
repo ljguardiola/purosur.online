@@ -179,6 +179,21 @@ test.each([
 );
 
 test.each([
+  ["suppliers", "/suppliers"],
+  ["supplier_price_lists", "/suppliers/price-lists"],
+  ["purchase_order_reads", "/purchase-orders"],
+  ["price_comparison", "/purchase-orders/suggestion"],
+] as const)("opens %s first from the rail's Compras item", async (capability, path) => {
+  const services = purchasingServices([capability, "price_comparison", "purchases", "freights"]);
+  window.history.pushState(null, "", "/help");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await userEvent.click(railLink(screen));
+
+  await vi.waitFor(() => expect(window.location.pathname).toBe(path));
+});
+
+test.each([
   ["/suppliers", "purchases"],
   ["/suppliers/price-lists", "purchases"],
   ["/purchases", "suppliers"],
@@ -321,7 +336,7 @@ test("sends a user who may not read purchase orders away from an order to Mi cue
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
-  expect(services.purchaseOrdersScreen.fetchPurchaseOrder).not.toHaveBeenCalled();
+  expect(services.purchaseOrdersListScreen.fetchPurchaseOrder).not.toHaveBeenCalled();
 });
 
 test.each(["/purchase-orders", `/purchase-orders/${ORDER_ID}`])(
@@ -333,8 +348,8 @@ test.each(["/purchase-orders", `/purchase-orders/${ORDER_ID}`])(
     const screen = await render(<App help={emptyHelp} services={services} />);
 
     await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
-    expect(services.purchaseOrdersScreen.fetchPurchaseOrders).not.toHaveBeenCalled();
-    expect(services.purchaseOrdersScreen.fetchPurchaseOrder).not.toHaveBeenCalled();
+    expect(services.purchaseOrdersListScreen.fetchPurchaseOrders).not.toHaveBeenCalled();
+    expect(services.purchaseOrdersListScreen.fetchPurchaseOrder).not.toHaveBeenCalled();
   },
 );
 
@@ -348,11 +363,11 @@ test("lands on the Borradores of the orders, with the order's panel open, once o
     kind: "ok",
     orderIds: [ORDER_ID],
   });
-  vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrders).mockResolvedValue({
+  vi.mocked(services.purchaseOrdersListScreen.fetchPurchaseOrders).mockResolvedValue({
     kind: "ok",
     value: [DRAFT_SUMMARY],
   });
-  vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrder).mockResolvedValue({
+  vi.mocked(services.purchaseOrdersListScreen.fetchPurchaseOrder).mockResolvedValue({
     kind: "ok",
     value: { kind: "found", order: DRAFT_ORDER },
   });
@@ -368,7 +383,7 @@ test("lands on the Borradores of the orders, with the order's panel open, once o
   const search = new URLSearchParams(window.location.search);
   expect(search.get("state")).toBe("DRAFT");
   expect(search.get("order")).toBe(ORDER_ID);
-  expect(services.purchaseOrdersScreen.fetchPurchaseOrders).toHaveBeenCalledWith("DRAFT");
+  expect(services.purchaseOrdersListScreen.fetchPurchaseOrders).toHaveBeenCalledWith("DRAFT");
 });
 
 test("lands on the Borradores of the orders with no panel once several are built from the order suggestion", async () => {
@@ -381,7 +396,7 @@ test("lands on the Borradores of the orders with no panel once several are built
     kind: "ok",
     orderIds: [ORDER_ID, PRICED_SUMMARY.id],
   });
-  vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrders).mockResolvedValue({
+  vi.mocked(services.purchaseOrdersListScreen.fetchPurchaseOrders).mockResolvedValue({
     kind: "ok",
     value: [DRAFT_SUMMARY, PRICED_SUMMARY],
   });
@@ -394,12 +409,12 @@ test("lands on the Borradores of the orders with no panel once several are built
   expect(window.location.pathname).toBe("/purchase-orders");
   expect(window.location.search).toBe("?state=DRAFT");
   expect(screen.getByRole("complementary").query()).toBeNull();
-  expect(services.purchaseOrdersScreen.fetchPurchaseOrder).not.toHaveBeenCalled();
+  expect(services.purchaseOrdersListScreen.fetchPurchaseOrder).not.toHaveBeenCalled();
 });
 
 test("lists the purchase orders for whoever may only receive them", async () => {
   const services = purchasingServices(["purchase_order_reads", "purchase_order_receipts"]);
-  vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrders).mockResolvedValue({
+  vi.mocked(services.purchaseOrdersListScreen.fetchPurchaseOrders).mockResolvedValue({
     kind: "ok",
     value: [],
   });
@@ -432,7 +447,7 @@ test.each([
   "clears the supplier filter of %s from the address when its filter is pressed",
   async (path, capability, tableName) => {
     const services = purchasingServices([capability]);
-    vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrders).mockResolvedValue({
+    vi.mocked(services.purchaseOrdersListScreen.fetchPurchaseOrders).mockResolvedValue({
       kind: "ok",
       value: [],
     });

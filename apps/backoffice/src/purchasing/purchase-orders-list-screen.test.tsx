@@ -1,15 +1,10 @@
 import type { PurchaseOrderSummary } from "@purosur/contracts";
-import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import type { BackofficeAccess } from "../shell/backoffice-access";
-import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
-import { render } from "../shell/test-support/render-with-router";
-import { type PurchaseOrdersFilters, purchaseOrdersFilters } from "./purchase-orders-filters";
-import { PurchaseOrdersScreen } from "./purchase-orders-screen";
-import type { PurchaseOrdersScreenServices } from "./purchase-orders-services";
-import { createPanelServices } from "./test-support/purchase-order-panel";
+import { accessWith } from "../shell/test-support/backoffice-access";
+import type { PurchaseOrdersListScreenServices } from "./purchase-orders-list-services";
+import { deferred } from "./test-support/purchase-order-panel";
 import {
   CANCELLED_SUMMARY,
   DRAFT_SUMMARY,
@@ -19,90 +14,26 @@ import {
   SENT_ORDER_WITH_RECEIPTS,
   SENT_SUMMARY,
 } from "./test-support/purchase-orders";
+import {
+  createServices,
+  renderScreen,
+  type Screen,
+  type ScreenOptions,
+} from "./test-support/purchase-orders-list-screen";
 
 beforeEach(async () => {
   await page.viewport(1280, 900);
   window.history.pushState(null, "", "/");
 });
 
-function createServices(
-  overrides: Partial<PurchaseOrdersScreenServices> = {},
-): PurchaseOrdersScreenServices {
-  return {
-    fetchPurchaseOrders: vi.fn(),
-    fetchSupplierName: vi.fn(),
-    fetchPendingPurchaseOrdersReport: vi.fn(),
-    fetchReceiptDifferencesReport: vi.fn(),
-    ...createPanelServices(),
-    ...overrides,
-  };
-}
-
-function deferred<T>() {
-  let resolve: (value: T) => void = () => {};
-  const promise = new Promise<T>((settle) => {
-    resolve = settle;
-  });
-  return { promise, resolve };
-}
-
-function renderScreen(
-  services: PurchaseOrdersScreenServices,
-  {
-    filters = purchaseOrdersFilters.parse({}),
-    onFiltersChange = () => {},
-    access = ADMINISTRATOR_ACCESS,
-    openOrder,
-    received = false,
-    onOpenOrderChange = () => {},
-    onReceive = () => {},
-    onOpenPurchases = () => {},
-    onReceivedNoticeDismissed = () => {},
-    onSessionEnded = () => {},
-  }: {
-    filters?: PurchaseOrdersFilters;
-    onFiltersChange?: (filters: PurchaseOrdersFilters) => void;
-    access?: BackofficeAccess;
-    openOrder?: string;
-    received?: boolean;
-    onOpenOrderChange?: (orderId: string | undefined) => void;
-    onReceive?: (orderId: string) => void;
-    onOpenPurchases?: () => void;
-    onReceivedNoticeDismissed?: () => void;
-    onSessionEnded?: () => void;
-  } = {},
-) {
-  return render(
-    <FieldSizeProvider size="backoffice">
-      <main>
-        <PurchaseOrdersScreen
-          services={services}
-          filters={filters}
-          onFiltersChange={onFiltersChange}
-          access={access}
-          openOrder={openOrder}
-          received={received}
-          onOpenOrderChange={onOpenOrderChange}
-          onReceive={onReceive}
-          onOpenPurchases={onOpenPurchases}
-          onReceivedNoticeDismissed={onReceivedNoticeDismissed}
-          onSessionEnded={onSessionEnded}
-        />
-      </main>
-    </FieldSizeProvider>,
-  );
-}
-
-type Screen = Awaited<ReturnType<typeof renderScreen>>;
-
 function rowOf(screen: Screen, supplier: string) {
   return screen.getByRole("row", { name: new RegExp(supplier) });
 }
 
 async function loaded(
-  services: PurchaseOrdersScreenServices,
+  services: PurchaseOrdersListScreenServices,
   orders: PurchaseOrderSummary[],
-  options: Parameters<typeof renderScreen>[1] = {},
+  options: ScreenOptions = {},
 ) {
   vi.mocked(services.fetchPurchaseOrders).mockResolvedValue({ kind: "ok", value: orders });
   const screen = await renderScreen(services, options);
@@ -247,7 +178,7 @@ test("the state filter offers Enviados and asks the cloud for them", async () =>
 test("opens on the filter the URL carries", async () => {
   const services = createServices();
   await loaded(services, [CANCELLED_SUMMARY], {
-    filters: purchaseOrdersFilters.parse({ state: "CANCELLED" }),
+    filters: { state: "CANCELLED" },
   });
 
   expect(services.fetchPurchaseOrders).toHaveBeenCalledWith("CANCELLED");
@@ -256,7 +187,7 @@ test("opens on the filter the URL carries", async () => {
 test("says nothing matches when a state has no orders", async () => {
   const services = createServices();
   const screen = await loaded(services, [], {
-    filters: purchaseOrdersFilters.parse({ state: "CANCELLED" }),
+    filters: { state: "CANCELLED" },
   });
 
   const table = screen.getByRole("table", { name: "Pedidos de compra" });
@@ -291,6 +222,16 @@ test("the open action of an order's row asks to open its order", async () => {
   );
 
   expect(onOpenOrderChange).toHaveBeenCalledWith(DRAFT_SUMMARY.id);
+});
+
+test("marks the open order's row as the current one", async () => {
+  const services = createServices();
+  const screen = await loaded(services, [DRAFT_SUMMARY, PRICED_SUMMARY], { openOrder: ORDER_ID });
+
+  await expect
+    .element(rowOf(screen, "Distribuidora Andina"))
+    .toHaveAttribute("aria-current", "true");
+  await expect.element(rowOf(screen, "Granos del Sur").first()).not.toHaveAttribute("aria-current");
 });
 
 test("shows no panel while no order is open", async () => {

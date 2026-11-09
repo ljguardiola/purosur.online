@@ -276,7 +276,7 @@ export function createAppServices(
       fetchOrderSuggestion: vi.fn().mockReturnValue(new Promise(() => {})),
       buildPurchaseOrders: vi.fn(),
     },
-    purchaseOrdersScreen: {
+    purchaseOrdersListScreen: {
       fetchPurchaseOrders: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchSupplierName: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchPendingPurchaseOrdersReport: vi.fn().mockReturnValue(new Promise(() => {})),
