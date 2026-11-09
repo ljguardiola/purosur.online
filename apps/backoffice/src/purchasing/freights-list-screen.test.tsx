@@ -8,6 +8,7 @@ import { FreightsListScreen } from "./freights-list-screen";
 import type { FreightsListScreenServices } from "./freights-list-services";
 import { type FreightsListFilters, freightsListFilters } from "./routes";
 import { fillFreight } from "./test-support/freight-form-fill";
+import { quarterFreightReport } from "./test-support/freight-report-fixtures";
 import {
   envioDesdeBuenosAires,
   linkablePurchases,
@@ -34,6 +35,9 @@ function createServices(
     fetchFreights: vi
       .fn<FreightsListScreenServices["fetchFreights"]>()
       .mockResolvedValue({ kind: "ok", value: twoFreights }),
+    fetchFreightReport: vi
+      .fn<FreightsListScreenServices["fetchFreightReport"]>()
+      .mockResolvedValue({ kind: "ok", value: quarterFreightReport }),
     fetchLinkablePurchases: vi
       .fn<FreightsListScreenServices["fetchLinkablePurchases"]>()
       .mockResolvedValue({ kind: "ok", value: linkablePurchases }),
@@ -87,11 +91,10 @@ async function loaded(services: FreightsListScreenServices, options = {}) {
   return screen;
 }
 
-test("shows the breadcrumb, the heading and each freight with its means, purchases and amount", async () => {
+test("shows each freight with its means, purchases and amount, without a heading of its own", async () => {
   const screen = await loaded(createServices());
 
-  await expect.element(screen.getByText("Compras").first()).toBeVisible();
-  await expect.element(screen.getByRole("heading", { name: "Flete", level: 1 })).toBeVisible();
+  expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
   await expect
     .poll(() => rowTexts(screen))
     .toEqual([
@@ -177,7 +180,7 @@ test("reports the search and the period that change", async () => {
 
   await expect
     .poll(() => onFiltersChange.mock.calls.at(-1))
-    .toEqual([{ search: "molino", period: 365 }]);
+    .toEqual([{ search: "molino", period: 365, byMonth: false, from: "", to: "" }]);
 });
 
 test("says there are no freights in the period, following the chosen period", async () => {

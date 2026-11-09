@@ -5,6 +5,7 @@ import { render } from "../shell/test-support/render-with-router";
 import { FreightsListScreen } from "./freights-list-screen";
 import type { FreightsListScreenServices } from "./freights-list-services";
 import { freightsListFilters } from "./routes";
+import { quarterFreightReport } from "./test-support/freight-report-fixtures";
 import { envioDesdeBuenosAires, linkablePurchases } from "./test-support/freights";
 
 const SUPPLIER_ID = envioDesdeBuenosAires.purchases[0]?.supplier.id ?? "";
@@ -15,6 +16,7 @@ function createServices(
 ): FreightsListScreenServices {
   return {
     fetchFreights: vi.fn().mockResolvedValue({ kind: "ok", value }),
+    fetchFreightReport: vi.fn().mockResolvedValue({ kind: "ok", value: quarterFreightReport }),
     fetchSupplierName: vi.fn().mockResolvedValue({
       kind: "ok",
       value: { kind: "found", name: "Distribuidora Andina" },

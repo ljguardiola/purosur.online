@@ -216,6 +216,7 @@ export function createAppServices(
     },
     purchasesListScreen: {
       fetchPurchases: vi.fn().mockReturnValue(new Promise(() => {})),
+      fetchPurchasesReport: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchSupplierName: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchPurchaseChoices: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchPurchaseChanges: vi.fn().mockReturnValue(new Promise(() => {})),
@@ -233,6 +234,7 @@ export function createAppServices(
         kind: "ok",
         value: { items: [], count: 0, totalCents: 0 },
       }),
+      fetchFreightReport: vi.fn().mockReturnValue(new Promise(() => {})),
       fetchLinkablePurchases: vi
         .fn()
         .mockResolvedValue({ kind: "ok", value: { purchases: [], today: "2026-09-16" } }),

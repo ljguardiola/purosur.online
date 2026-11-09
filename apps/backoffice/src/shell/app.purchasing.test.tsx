@@ -32,7 +32,7 @@ opensOnlyScreens([
   "/suppliers",
   "/suppliers/price-lists",
   "/purchases",
-  "/freights",
+  "/purchases/freights",
 ]);
 
 beforeEach(resetPageState);
@@ -127,14 +127,14 @@ test("shows the Compras item to an Administrator, with every section in order", 
     .getByRole("link")
     .elements()
     .map((link) => link.textContent);
-  expect(links).toEqual(["Proveedores", "Pedidos", "Compras", "Flete"]);
+  expect(links).toEqual(["Proveedores", "Pedidos", "Compras"]);
 });
 
 test.each([
   ["suppliers", ["Proveedores"]],
   ["supplier_price_lists", ["Proveedores"]],
   ["purchases", ["Compras"]],
-  ["freights", ["Flete"]],
+  ["freights", ["Compras"]],
 ] as const)(
   "lists only the sections %s allows in the section column",
   async (capability, labels) => {
@@ -156,7 +156,7 @@ test.each([
 
 test.each([
   ["purchases", "/purchases"],
-  ["freights", "/freights"],
+  ["freights", "/purchases/freights"],
 ] as const)(
   "opens %s's section from the rail's Compras item when it is all the user may open",
   async (capability, path) => {
@@ -199,6 +199,7 @@ test.each([
   ["/purchases", "suppliers"],
   ["/purchases/new", "suppliers"],
   ["/freights", "suppliers"],
+  ["/purchases/freights", "suppliers"],
   ["/supplier-price-lists", "purchases"],
   [`/supplier-price-lists/${READ_LIST.id}`, "suppliers"],
 ] as const)("sends a user who may not open %s to Mi cuenta", async (path, capability) => {
@@ -441,7 +442,7 @@ test("sends a user who may not receive orders away from the receipt to Mi cuenta
 test.each([
   ["/purchase-orders", "purchase_order_reads", "Pedidos de compra"],
   ["/purchases", "purchases", "Compras"],
-  ["/freights", "freights", "Fletes"],
+  ["/purchases/freights", "freights", "Fletes"],
   ["/suppliers/price-lists", "supplier_price_lists", "Listas de proveedores"],
 ] as const)(
   "clears the supplier filter of %s from the address when its filter is pressed",
@@ -473,7 +474,7 @@ test.each([
 test.each([
   ["/purchase-orders", "purchase_order_reads", "Pedidos de compra"],
   ["/purchases", "purchases", "Compras"],
-  ["/freights", "freights", "Fletes"],
+  ["/purchases/freights", "freights", "Fletes"],
   ["/suppliers/price-lists", "supplier_price_lists", "Listas de proveedores"],
 ] as const)(
   "drops a supplier that is not a supplier's id from the address of %s, without adding a history entry",
@@ -495,7 +496,7 @@ test.each([
 test.each([
   ["/purchase-orders", "purchase_order_reads", "Pedidos de compra"],
   ["/purchases", "purchases", "Compras"],
-  ["/freights", "freights", "Fletes"],
+  ["/purchases/freights", "freights", "Fletes"],
   ["/suppliers/price-lists", "supplier_price_lists", "Listas de proveedores"],
 ] as const)(
   "writes the supplier of the address of %s in lowercase",

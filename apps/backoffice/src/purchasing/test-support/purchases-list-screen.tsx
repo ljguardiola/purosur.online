@@ -1,18 +1,23 @@
 import { FieldSizeProvider } from "@purosur/ui";
+import { useState } from "react";
 import { expect, vi } from "vitest";
+import type { z } from "zod";
 import { StubProductCreationModal } from "../../platform/test-support/creation-parts";
 import type { BackofficeAccess } from "../../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS } from "../../shell/test-support/backoffice-access";
 import { render } from "../../shell/test-support/render-with-router";
 import { PurchasesListScreen } from "../purchases-list-screen";
 import type { PurchasesListScreenServices } from "../purchases-list-services";
+import { type PurchasesListFilters, purchasesListFilters } from "../routes";
 import { compraDeAvena, compraDeMiel, purchaseChoicesFrom } from "./purchases";
+import { quarterPurchasesReport } from "./purchases-report-fixtures";
 
 export function createServices(
   overrides: Partial<PurchasesListScreenServices> = {},
 ): PurchasesListScreenServices {
   return {
     fetchPurchases: vi.fn(),
+    fetchPurchasesReport: vi.fn().mockResolvedValue({ kind: "ok", value: quarterPurchasesReport }),
     fetchSupplierName: vi.fn(),
     fetchPurchaseChoices: vi.fn().mockResolvedValue({ kind: "ok", value: purchaseChoicesFrom([]) }),
     fetchPurchaseChanges: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
@@ -37,6 +42,8 @@ export function deferred<T>() {
 }
 
 export type ScreenOptions = {
+  filters?: Partial<z.input<typeof purchasesListFilters>>;
+  onFiltersChange?: (filters: PurchasesListFilters) => void;
   onSessionEnded?: () => void;
   registered?: boolean;
   onNoticeDismissed?: () => void;
@@ -44,16 +51,17 @@ export type ScreenOptions = {
   supplierFilter?: { supplierId: string; onClear: () => void };
 };
 
-export function screenElement(
-  services: PurchasesListScreenServices,
-  {
-    onSessionEnded = () => {},
-    registered = false,
-    onNoticeDismissed = () => {},
-    access = ADMINISTRATOR_ACCESS,
-    supplierFilter,
-  }: ScreenOptions = {},
-) {
+function ControlledScreen({
+  services,
+  filters: initial = {},
+  onFiltersChange = () => {},
+  onSessionEnded = () => {},
+  registered = false,
+  onNoticeDismissed = () => {},
+  access = ADMINISTRATOR_ACCESS,
+  supplierFilter,
+}: ScreenOptions & { services: PurchasesListScreenServices }) {
+  const [filters, setFilters] = useState(purchasesListFilters.parse(initial));
   return (
     <FieldSizeProvider size="backoffice">
       <main>
@@ -61,6 +69,11 @@ export function screenElement(
           access={access}
           productCreationModal={StubProductCreationModal}
           services={services}
+          filters={filters}
+          onFiltersChange={(next) => {
+            onFiltersChange(next);
+            setFilters(next);
+          }}
           onSessionEnded={onSessionEnded}
           registered={registered}
           onNoticeDismissed={onNoticeDismissed}
@@ -69,6 +82,10 @@ export function screenElement(
       </main>
     </FieldSizeProvider>
   );
+}
+
+export function screenElement(services: PurchasesListScreenServices, options: ScreenOptions = {}) {
+  return <ControlledScreen services={services} {...options} />;
 }
 
 export function renderScreen(...args: Parameters<typeof screenElement>) {

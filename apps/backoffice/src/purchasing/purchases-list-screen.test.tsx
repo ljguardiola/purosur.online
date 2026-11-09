@@ -16,11 +16,18 @@ beforeEach(async () => {
   onTestFinished(() => page.viewport(414, 896));
 });
 
-test("shows the breadcrumb and the heading", async () => {
+test("offers Registrar compra beside the filters and opens the new purchase page", async () => {
   const screen = await loaded(createServices());
 
-  await expect.element(screen.getByText("Compras").first()).toBeVisible();
-  await expect.element(screen.getByRole("heading", { name: "Compras", level: 1 })).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Registrar compra" }));
+
+  await expect.poll(() => window.location.pathname).toBe("/purchases/new");
+});
+
+test("brings no heading or breadcrumb of its own, since the page frame writes them", async () => {
+  const screen = await loaded(createServices());
+
+  expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
 });
 
 test("lists each purchase with its date, supplier and receipt, followed by its lines", async () => {
