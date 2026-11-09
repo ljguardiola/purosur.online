@@ -150,11 +150,13 @@ how a new one is judged.
 - A modal handling an answer that arrives after it closed: a stale notice on
   its next opening, a late success whose list refresh is dropped, or a late
   callback resetting a later opening.
-- A guard out of step with what it guards: every route to a screen refused
-  while the core refuses only one action, a person sent back to the screen
-  they are leaving, or an action left pressable while its own request is
-  out, so a second press sends it again and its refusal replaces the first
-  answer's notice.
+- A guard or a navigation out of step with where the person is: every route
+  to a screen refused while the core refuses only one action, a person sent
+  back to the screen they are leaving, an action left pressable while its
+  own request is out, so a second press sends it again, or a navigation that
+  changes one part of the location and drops the rest, such as a notice's
+  dismissal that clears history state with no `search`, closing the open
+  panel and dropping the list's filters.
 
 ### User-facing text
 
