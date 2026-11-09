@@ -100,13 +100,11 @@ function supplierSelect(screen: Screen, productName: string) {
   return screen.getByRole("button", { name: new RegExp(`Proveedor de ${productName}`) });
 }
 
-test("shows the breadcrumb and the heading", async () => {
+test("renders no heading of its own, as the Pedidos page frames it", async () => {
   const screen = await loaded(createServices());
 
-  await expect.element(screen.getByText("Compras").first()).toBeVisible();
-  await expect
-    .element(screen.getByRole("heading", { name: "Sugerencia de pedido", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("table", { name: "Sugerencia de pedido" })).toBeVisible();
+  expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
 });
 
 test("shows a row for each product, with its description and category, sold, stock and coverage", async () => {

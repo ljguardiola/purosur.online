@@ -80,13 +80,11 @@ async function loaded(
   return screen;
 }
 
-test("shows the breadcrumb and the heading", async () => {
+test("renders no heading of its own, as the Pedidos page frames it", async () => {
   const screen = await loaded(createServices());
 
-  await expect.element(screen.getByText("Compras").first()).toBeVisible();
-  await expect
-    .element(screen.getByRole("heading", { name: "Comparación de precios", level: 1 }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("table", { name: "Comparación de precios" })).toBeVisible();
+  expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
 });
 
 test("shows a row for each offer, with the product and its category on the first offer of each", async () => {

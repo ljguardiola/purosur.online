@@ -78,14 +78,11 @@ async function loaded(
   return screen;
 }
 
-test("shows the heading under Compras and every order with its supplier, date, lines, expected total and state", async () => {
+test("shows every order with its supplier, date, lines, expected total and state", async () => {
   const services = createServices();
   const screen = await loaded(services, [PRICED_SUMMARY, CANCELLED_SUMMARY]);
 
-  await expect.element(screen.getByText("Compras", { exact: true }).first()).toBeVisible();
-  await expect
-    .element(screen.getByRole("heading", { name: "Pedidos de compra", level: 1 }))
-    .toBeVisible();
+  expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
   const priced = rowOf(screen, "Granos del Sur").first();
   await expect.element(priced.getByText("11/03/2026")).toBeVisible();
   await expect.element(priced.getByText("1", { exact: true })).toBeVisible();
