@@ -1,18 +1,11 @@
-import type { AlertLevel } from "../../alerts/index.js";
 import type { TaxAuthorityRejection } from "../model/fiscal-rejection-standing.js";
 import type { ExternalInvoicingVoucher, FiscalTaskDocumentType } from "../model/fiscal-task.js";
-
-export interface FiscalTaskAlert {
-  level: AlertLevel;
-  escalatedAt: Date | null;
-}
 
 interface OpenFiscalTaskBase {
   id: string;
   registerId: string;
   registerName: string;
   createdAt: Date;
-  alert: FiscalTaskAlert | null;
 }
 
 export type OpenFiscalTask =
