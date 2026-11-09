@@ -277,7 +277,7 @@ const defaultRouteServices: RouteServices = {
   ),
   registerPanelSections: {
     payments: lazyScreen(
-      () => import("../register/register-payments-section"),
+      () => import("../payments/register-payments-section"),
       "RegisterPaymentsSection",
     ),
     backups: lazyScreen(
@@ -290,7 +290,7 @@ const defaultRouteServices: RouteServices = {
     ),
   },
   registerPaymentModals: lazyScreen(
-    () => import("../register/register-payment-modals"),
+    () => import("../payments/register-payment-modals"),
     "RegisterPaymentModals",
   ),
   registerKeyModals: lazyScreen(

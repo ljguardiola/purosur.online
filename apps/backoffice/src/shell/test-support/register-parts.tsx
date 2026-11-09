@@ -1,4 +1,9 @@
 import { vi } from "vitest";
+import {
+  RegisterPaymentModals as RealRegisterPaymentModals,
+  type RegisterPaymentModalsServices,
+} from "../../payments/register-payment-modals";
+import { RegisterPaymentsSection } from "../../payments/register-payments-section";
 import type { RegisterKeyModals } from "../../platform/register-key-modals";
 import type { RegisterPanelSections } from "../../platform/register-panel-sections";
 import type { RegisterPaymentModals } from "../../platform/register-payment-modals";
@@ -6,11 +11,6 @@ import {
   RegisterKeyModals as RealRegisterKeyModals,
   type RegisterKeyModalsServices,
 } from "../../register/register-key-modals";
-import {
-  RegisterPaymentModals as RealRegisterPaymentModals,
-  type RegisterPaymentModalsServices,
-} from "../../register/register-payment-modals";
-import { RegisterPaymentsSection } from "../../register/register-payments-section";
 import {
   RegisterSessionsSection,
   type RegisterSessionsSectionServices,
