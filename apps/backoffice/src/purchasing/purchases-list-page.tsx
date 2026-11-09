@@ -8,7 +8,7 @@ const route = getRouteApi("/signed-in/purchasing-area/purchases/");
 
 export function PurchasesListPage(): ReactElement {
   const { services, session, sessionActions } = route.useRouteContext();
-  const { supplier, ...filters } = route.useSearch();
+  const { supplier, purchase, ...filters } = route.useSearch();
   const navigate = route.useNavigate();
   const registered = useRouterState({
     select: (state) => purchaseRegisteredIn(state.location.state),
@@ -19,6 +19,13 @@ export function PurchasesListPage(): ReactElement {
       filters={filters}
       onFiltersChange={(next) =>
         void navigate({ search: (current) => ({ ...current, ...next }), replace: true })
+      }
+      openPurchase={purchase}
+      onOpenPurchaseChange={(opened) =>
+        void navigate({
+          search: (current) => ({ ...current, purchase: opened }),
+          ...(opened === undefined ? { replace: true } : {}),
+        })
       }
       productCreationModal={services.productCreationModal}
       registered={registered}

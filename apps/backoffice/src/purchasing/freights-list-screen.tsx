@@ -20,6 +20,7 @@ import { cloudTableState } from "../platform/cloud-table-state";
 import { formatDisplayDate } from "../platform/display-date";
 import { EditFreightModal } from "./edit-freight-modal";
 import { freightPeriodOf, freightPeriodOptions } from "./freight-form";
+import { freightMeansLabel } from "./freight-means-label";
 import { FreightReportContent } from "./freight-report-content";
 import type { FreightsListScreenServices } from "./freights-list-services";
 import { NewFreightModal } from "./new-freight-modal";
@@ -37,10 +38,6 @@ export type FreightsListScreenProps = {
 
 const NO_FREIGHTS: FreightSummary[] = [];
 const SEARCH_DEBOUNCE_MS = 300;
-
-function meansLabel(freight: FreightSummary): string {
-  return freight.means.kind === "carrier" ? freight.means.name : "Viaje propio · costo estimado";
-}
 
 function supplierNames(freight: FreightSummary): string {
   return [...new Set(freight.purchases.map((purchase) => purchase.supplier.name))].join(" · ");
@@ -107,7 +104,9 @@ export function FreightsListScreen({
       id: "freight",
       header: "Flete",
       render: (item: FreightSummary) => (
-        <TableCellText description={meansLabel(item)}>{item.description}</TableCellText>
+        <TableCellText description={freightMeansLabel(item.means)}>
+          {item.description}
+        </TableCellText>
       ),
     }),
     dataColumn({

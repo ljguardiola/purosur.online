@@ -96,6 +96,7 @@ export type PurchasesListFilters = z.output<typeof purchasesListFilters>;
 
 export const purchasesListSearch = purchasesListFilterFields
   .extend(supplierFilterSearch.shape)
+  .extend({ purchase: recordIdSchema().optional().catch(undefined) })
   .transform(withoutRefusedPeriod)
   .transform((search) => (search.bySupplier ? { ...search, supplier: undefined } : search));
 
