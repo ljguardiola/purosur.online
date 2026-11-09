@@ -6,12 +6,13 @@ import { ADMINISTRATOR_ACCESS } from "../../shell/test-support/backoffice-access
 import { render } from "../../shell/test-support/render-with-router";
 import { PurchasePanel, type PurchasePanelProps } from "../purchase-panel";
 import type { PurchasePanelServices } from "../purchase-panel-services";
-import { compraDeMiel } from "./purchases";
+import { compraDeMiel, purchaseChoicesFrom } from "./purchases";
 
 export function createPanelServices(
   overrides: Partial<PurchasePanelServices> = {},
 ): PurchasePanelServices {
   return {
+    fetchPurchaseChoices: vi.fn().mockResolvedValue({ kind: "ok", value: purchaseChoicesFrom([]) }),
     correctPurchaseLineExpiry: vi.fn(),
     splitPurchaseLineExpiry: vi.fn(),
     correctPurchaseLineCost: vi.fn(),

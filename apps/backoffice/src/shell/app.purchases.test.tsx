@@ -1,6 +1,6 @@
 import type { Capability } from "@purosur/domain";
 import { beforeEach, expect, test, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
 import { quarterFreightReport } from "../purchasing/test-support/freight-report-fixtures";
@@ -249,6 +249,7 @@ test("opens Registrar compra beside the filters", async () => {
 });
 
 test("opens a purchase's panel with its lines, lots, linked freights and corrections while the list stays visible", async () => {
+  await page.viewport(1280, 900);
   const services = purchasesServices(["purchases", "freights"]);
   window.history.pushState(null, "", "/purchases");
   const screen = await render(<App help={emptyHelp} services={services} />);

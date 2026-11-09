@@ -110,5 +110,5 @@ test("drops the supplier of the purchases list while it is grouped by supplier",
 test("keeps the purchase open in the purchases list when it is a record id, and drops anything else", () => {
   expect(purchasesListSearch.parse({ purchase: SUPPLIER })).toMatchObject({ purchase: SUPPLIER });
   expect(purchasesListSearch.parse({ purchase: "x" })).toMatchObject({ purchase: undefined });
-  expect(purchasesListSearch.parse({})).toMatchObject({ purchase: undefined });
+  expect(purchasesListSearch.parse({}).purchase).toBeUndefined();
 });

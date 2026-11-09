@@ -2,6 +2,7 @@ import type { PurchaseSummary } from "@purosur/contracts";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { accessWith } from "../shell/test-support/backoffice-access";
+import type { PurchasesListScreenServices } from "./purchases-list-services";
 import { lineExpiryCorrection } from "./test-support/purchase-changes";
 import { chooseProduct, fillQuantityLine } from "./test-support/purchase-lines-fill";
 import { compraDeAvena, compraDeMiel } from "./test-support/purchases";
@@ -11,7 +12,6 @@ import {
   type Screen,
   type ScreenOptions,
 } from "./test-support/purchases-list-screen";
-import type { PurchasesListScreenServices } from "./purchases-list-services";
 
 beforeEach(async () => {
   await page.viewport(1280, 900);

@@ -31,7 +31,7 @@ async function renderCorrecting(services = createPanelServices()) {
   const onCorrectionStarted = vi.fn();
   const onStale = vi.fn();
   const screen = await renderPanel(services, { onCorrected, onCorrectionStarted, onStale });
-  await expect.element(screen.getByText("Miel pura de abeja 1 kg").first()).toBeVisible();
+  await expect.element(screen.getByRole("table", { name: "Productos de la compra" })).toBeVisible();
   return { screen, onCorrected, onCorrectionStarted, onStale };
 }
 
