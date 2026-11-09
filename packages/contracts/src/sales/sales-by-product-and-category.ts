@@ -3,20 +3,20 @@ import {
   answeredRangeSchema,
   netContentSchema,
   recordIdSchema,
+  reportGroupSchema,
   reportQuerySchema,
-  salesReportGroupSchema,
 } from "../shared/index.js";
 
 const count = z.int().nonnegative();
 const cents = z.int().nonnegative();
 
 export const salesByProductAndCategoryQuerySchema = reportQuerySchema.and(
-  z.object({ group: salesReportGroupSchema }),
+  z.object({ group: reportGroupSchema }),
 );
 
 export const salesByProductAndCategorySchema = z.object({
   range: answeredRangeSchema,
-  group: salesReportGroupSchema,
+  group: reportGroupSchema,
   rows: z.array(
     z.object({
       id: recordIdSchema().nullable(),

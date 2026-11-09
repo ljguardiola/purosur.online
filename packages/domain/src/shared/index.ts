@@ -5,6 +5,7 @@ export {
   localClock,
   utcOffsetText,
 } from "./argentina-calendar.js";
+export { averageTicket } from "./average-ticket.js";
 export {
   addCalendarMonths,
   isCalendarDay,
@@ -34,6 +35,8 @@ export {
 export type { RegisterIdentity } from "./register-identity.js";
 export type { ReplenishmentFailureKind } from "./replenishment-failure-kind.js";
 export { REPLENISHMENT_FAILURE_KINDS } from "./replenishment-failure-kind.js";
+export type { ReportGroup } from "./report-group.js";
+export { REPORT_GROUPS } from "./report-group.js";
 export type { ReportPeriod } from "./report-period.js";
 export { isReportPeriodAsked, reportPeriodOf } from "./report-period.js";
 export type { Fraction } from "./rounding.js";

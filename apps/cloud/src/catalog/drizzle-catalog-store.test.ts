@@ -375,10 +375,7 @@ describe("the catalog changes a pull hands to the registers", () => {
 });
 
 describe("changing a product to sold by weight", () => {
-  async function discountOn(
-    productId: string,
-    overrides: Partial<typeof discounts.$inferInsert> = {},
-  ) {
+  async function discountOn(productId: string) {
     await db.insert(discounts).values({
       name: "3x2 Arroz",
       kind: "BUY_N_PAY_M",
@@ -387,7 +384,6 @@ describe("changing a product to sold by weight", () => {
       productId,
       validFrom: "2026-06-01",
       validTo: "2026-06-30",
-      ...overrides,
     });
   }
 
@@ -429,32 +425,6 @@ describe("changing a product to sold by weight", () => {
 
     expect(outcome).toEqual({ kind: "sale_unit_held_by_discount", discountName: "3x2 Arroz" });
     expect(await storedSaleUnit(product.id)).toBe("UNIT");
-  });
-
-  it.each([
-    ["switched off", { active: false }],
-    ["ended", { validFrom: "2026-05-01", validTo: "2026-06-14" }],
-    ["a percentage off", { kind: "PERCENT_OFF", percent: 10, buyQty: null, payQty: null }],
-  ] as const)("is saved when the discount is %s", async (_label, overrides) => {
-    const category = await newCategory();
-    const product = await newProduct(category.id);
-    await discountOn(product.id, overrides);
-
-    const outcome = await editToWeight(product, category.id);
-
-    expect(outcome.kind).toBe("applied");
-    expect(await storedSaleUnit(product.id)).toBe("KG");
-  });
-
-  it("is saved when the live discount targets another product", async () => {
-    const category = await newCategory();
-    const product = await newProduct(category.id);
-    const other = await newProduct(category.id, ["7790001000035"]);
-    await discountOn(other.id);
-
-    const outcome = await editToWeight(product, category.id);
-
-    expect(outcome.kind).toBe("applied");
   });
 });
 

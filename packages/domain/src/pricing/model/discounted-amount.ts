@@ -1,9 +1,6 @@
+import type { SoldQuantity } from "../../catalog/index.js";
 import type { Fraction } from "../../shared/index.js";
 import type { DiscountBenefit } from "./discount-benefit.js";
-
-export type SoldQuantity =
-  | { saleUnit: "UNIT"; units: number }
-  | { saleUnit: "KG"; thousandths: number };
 
 export function lineAmount(quantity: SoldQuantity, unitPrice: number): Fraction {
   return quantity.saleUnit === "UNIT"

@@ -1,7 +1,13 @@
-import { QueryClient } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { expect, test, vi } from "vitest";
+import { renderHook } from "vitest-browser-react";
 import { render } from "../shell/test-support/render-with-router";
-import { registerKey, registerKeys, useSnapshotBackupsQuery } from "./register-queries";
+import {
+  registerKey,
+  registerKeys,
+  useRefreshRegister,
+  useSnapshotBackupsQuery,
+} from "./register-queries";
 import type { fetchSnapshotBackups } from "./snapshot-backups-api";
 import { backups } from "./test-support/snapshot-backups-section";
 
@@ -20,21 +26,13 @@ function SnapshotBackupsProbe({
   return <p>{data.status === "loaded" ? `${data.value.tiers.recent} recientes` : data.status}</p>;
 }
 
-test("invalidating the register key marks the registers list, their coverage, their last sync, the registers a report filters by, each register's backups stale and leaves other concepts alone", async () => {
+test("invalidating the register key marks each register's backups stale and leaves other concepts alone", async () => {
   const client = new QueryClient();
-  client.setQueryData(registerKeys.registers, []);
-  client.setQueryData(registerKeys.coverage, []);
-  client.setQueryData(registerKeys.syncStatus, []);
-  client.setQueryData(registerKeys.reportRegisters, []);
   client.setQueryData(registerKeys.snapshotBackups("register-1"), {});
   client.setQueryData(["catalog", "categories"], []);
 
   await client.invalidateQueries({ queryKey: registerKey, refetchType: "none" });
 
-  expect(client.getQueryState(registerKeys.registers)?.isInvalidated).toBe(true);
-  expect(client.getQueryState(registerKeys.coverage)?.isInvalidated).toBe(true);
-  expect(client.getQueryState(registerKeys.syncStatus)?.isInvalidated).toBe(true);
-  expect(client.getQueryState(registerKeys.reportRegisters)?.isInvalidated).toBe(true);
   expect(client.getQueryState(registerKeys.snapshotBackups("register-1"))?.isInvalidated).toBe(
     true,
   );
@@ -107,4 +105,22 @@ test("invalidating the register key marks the cash movements stale", async () =>
   await client.invalidateQueries({ queryKey: registerKey, refetchType: "none" });
 
   expect(client.getQueryState(registerKeys.cashMovements({}))?.isInvalidated).toBe(true);
+});
+
+test("refreshing the register marks each register's backups stale and leaves every other concept alone", async () => {
+  const client = new QueryClient();
+  client.setQueryData(registerKeys.snapshotBackups("register-1"), {});
+  client.setQueryData(["installation", "registers"], []);
+  const { result } = await renderHook(() => useRefreshRegister(), {
+    wrapper: ({ children }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    ),
+  });
+
+  await result.current();
+
+  expect(client.getQueryState(registerKeys.snapshotBackups("register-1"))?.isInvalidated).toBe(
+    true,
+  );
+  expect(client.getQueryState(["installation", "registers"])?.isInvalidated).toBe(false);
 });

@@ -3,18 +3,18 @@ import type { startAuthentication } from "@simplewebauthn/browser";
 import { Check, Info, KeyRound, ShieldX, TriangleAlert } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
+import { registerModalContext } from "../platform/register-modal-context";
+import type { RegisterKeyTarget } from "../platform/register-payment-and-key-modals";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import type {
   authorizeSession,
   fetchSessionAuthorizationOptions,
 } from "../platform/session-authorization-api";
 import { useAuthorizedAttempt } from "../platform/use-authorized-attempt";
-import { registerModalContext } from "./register-modal-context";
 import type {
   ConsultBitlockerRecoveryKeyOutcome,
   consultBitlockerRecoveryKey,
-  RegisterSummary,
-} from "./registers-api";
+} from "./bitlocker-recovery-key-api";
 
 export type ConsultBitlockerRecoveryKeyModalServices = {
   consultBitlockerRecoveryKey: typeof consultBitlockerRecoveryKey;
@@ -24,7 +24,7 @@ export type ConsultBitlockerRecoveryKeyModalServices = {
 };
 
 type ConsultBitlockerRecoveryKeyModalProps = {
-  target: RegisterSummary | null;
+  target: RegisterKeyTarget | null;
   onClose: () => void;
   onOutdated: () => void;
   onSessionEnded: () => void;

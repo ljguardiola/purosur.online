@@ -1,0 +1,167 @@
+import { useIsFetching } from "@tanstack/react-query";
+import { onTestFinished, vi } from "vitest";
+import { page } from "vitest/browser";
+import type { BackofficeAccess } from "../../shell/backoffice-access";
+import { useRefreshRegisters } from "../../shell/refresh-registers";
+import { ADMINISTRATOR_ACCESS } from "../../shell/test-support/backoffice-access";
+import {
+  createRegisterPartsServices,
+  type RegisterPartsServices,
+  registerPartsOf,
+} from "../../shell/test-support/register-parts";
+import { render } from "../../shell/test-support/render-with-router";
+import type { RegisterSummary } from "../registers-api";
+import { RegistersListScreen } from "../registers-list-screen";
+import type { RegistersListScreenServices } from "../registers-list-services";
+import { RegisterPointOfSaleSectionStub } from "./register-point-of-sale-section-stub";
+
+export type RegistersListTestServices = RegistersListScreenServices & RegisterPartsServices;
+
+export function createServices(
+  overrides: Partial<RegistersListTestServices> = {},
+): RegistersListTestServices {
+  return {
+    ...createRegisterPartsServices(),
+    fetchRegisters: vi.fn(),
+    fetchRegisterCoverage: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
+    createRegister: vi.fn(),
+    emitEnrollmentCode: vi.fn(),
+    revokeRegister: vi.fn(),
+    revokeEveryInstallation: vi.fn(),
+    fetchSnapshotBackupRegisters: vi.fn(),
+    fetchFiscalRegisterNames: vi.fn(),
+    ...overrides,
+  };
+}
+
+export const register1: RegisterSummary = {
+  id: "register-1",
+  name: "Caja 1",
+  pendingCode: null,
+  pointOfSaleNumber: null,
+  pointTerminalId: null,
+  pointTerminalVersion: 0,
+  qrExternalPosId: null,
+  qrPointOfSaleVersion: 0,
+  installation: null,
+};
+export const register2: RegisterSummary = {
+  id: "register-2",
+  name: "Caja 2",
+  pendingCode: { secondsSinceIssued: 240, secondsUntilExpiry: 660 },
+  pointOfSaleNumber: 3,
+  pointTerminalId: "TERM-0042",
+  pointTerminalVersion: 2,
+  qrExternalPosId: "CAJA2_STORE_POS",
+  qrPointOfSaleVersion: 4,
+  installation: null,
+};
+export const enrolledRegister: RegisterSummary = {
+  id: "register-3",
+  name: "Caja 3",
+  pendingCode: null,
+  pointOfSaleNumber: null,
+  pointTerminalId: null,
+  pointTerminalVersion: 0,
+  qrExternalPosId: null,
+  qrPointOfSaleVersion: 0,
+  installation: {
+    state: "enrolled",
+    hostname: "CAJA-MOSTRADOR",
+    windowsVersion: "Windows 11 Pro 10.0.26100",
+    enrolledAt: "2026-08-02T01:30:00.000Z",
+    bitlockerKeyLoaded: false,
+  },
+};
+export const registerWithBitlockerKey: RegisterSummary = {
+  ...enrolledRegister,
+  id: "register-5",
+  name: "Caja 5",
+  installation: {
+    state: "enrolled",
+    hostname: "NOTEBOOK-MOSTRADOR",
+    windowsVersion: "Windows 11",
+    enrolledAt: "2026-08-02T01:30:00.000Z",
+    bitlockerKeyLoaded: true,
+  },
+};
+export const revokedRegister: RegisterSummary = {
+  id: "register-4",
+  name: "Caja 4",
+  pendingCode: null,
+  pointOfSaleNumber: null,
+  pointTerminalId: null,
+  pointTerminalVersion: 0,
+  qrExternalPosId: null,
+  qrPointOfSaleVersion: 0,
+  installation: {
+    state: "revoked",
+    hostname: "CAJA-DEPOSITO",
+    windowsVersion: "Windows 10 Pro 10.0.19045",
+    enrolledAt: "2026-08-01T15:00:00.000Z",
+    revokedAt: "2026-08-04T02:00:00.000Z",
+  },
+};
+
+const authorizationOptions = { challenge: "session-auth" } as never;
+const assertion = { id: "existing-cred" } as never;
+
+export function grantAuthorization(services: RegistersListTestServices) {
+  vi.mocked(services.fetchSessionAuthorizationOptions).mockResolvedValue({
+    kind: "ok",
+    value: authorizationOptions,
+  });
+  vi.mocked(services.startAuthentication).mockResolvedValue(assertion);
+  vi.mocked(services.authorizeSession).mockResolvedValue({ kind: "ok" });
+}
+
+function FetchesInFlight() {
+  return <output aria-label="Lecturas en curso">{useIsFetching()}</output>;
+}
+
+function RefreshRegisters() {
+  const refreshRegisters = useRefreshRegisters();
+  return (
+    <button type="button" onClick={() => void refreshRegisters()}>
+      Refrescar
+    </button>
+  );
+}
+
+export async function renderScreen(
+  services: RegistersListTestServices,
+  onSessionEnded: () => void = () => {},
+  access: BackofficeAccess = ADMINISTRATOR_ACCESS,
+) {
+  // Wider than the phone-sized default viewport, or five row actions leave the name column no room.
+  await page.viewport(1280, 900);
+  onTestFinished(() => page.viewport(414, 896));
+  const { panelSections, paymentAndKeyModals } = registerPartsOf(services);
+  return render(
+    <main>
+      <RegistersListScreen
+        access={access}
+        services={services}
+        registerPointOfSaleSection={RegisterPointOfSaleSectionStub}
+        registerPanelSections={panelSections}
+        registerPaymentAndKeyModals={paymentAndKeyModals}
+        onSessionEnded={onSessionEnded}
+        sessionsPeriod={{ from: "", to: "" }}
+        onSessionsPeriodChange={() => {}}
+      />
+      <FetchesInFlight />
+      <RefreshRegisters />
+    </main>,
+  );
+}
+
+export async function renderRegisters(registers: RegisterSummary[], access?: BackofficeAccess) {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: registers });
+  const screen = await renderScreen(services, undefined, access);
+  return { services, screen };
+}
+
+export function rowOf(screen: Awaited<ReturnType<typeof renderScreen>>, registerName: string) {
+  return screen.getByRole("row").filter({ hasText: registerName });
+}

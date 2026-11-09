@@ -1,4 +1,4 @@
-import type { SoldQuantity } from "../../pricing/index.js";
+import type { SoldQuantity } from "../../catalog/index.js";
 import { discountedAmount, lineAmount } from "../../pricing/index.js";
 import { roundHalfUp } from "../../shared/index.js";
 import type { ManualAdjustmentValue } from "./manual-adjustment.js";
