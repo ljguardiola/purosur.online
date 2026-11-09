@@ -1,4 +1,3 @@
-import { isDiscountLive } from "../../pricing/index.js";
 import { argentinaCalendarDay, type ZoneRulesSource } from "../../shared/index.js";
 import { addsInternalBarcodeToProductWithBarcodes, type SaleUnit } from "../model/product.js";
 import type { CatalogNetContent, CatalogPorts, CatalogProduct } from "./catalog-store.js";
@@ -68,10 +67,7 @@ export async function editProduct(
         // discount created meanwhile waits on this product row, so it either commits before this
         // read or sees the product sold by weight.
         const today = argentinaCalendarDay(clock.now(), zoneRules.zoneRules());
-        const [holding] = (await tx.buyNPayMDiscountsOn(id))
-          .filter((discount) => isDiscountLive(discount, today))
-          .map((discount) => discount.name)
-          .sort();
+        const [holding] = (await tx.liveBuyNPayMDiscountNamesOn(id, today)).sort();
         if (holding !== undefined) {
           return { kind: "sale_unit_held_by_discount", discountName: holding };
         }

@@ -624,6 +624,7 @@ export {
   discountNameLength,
   discountsTargeting,
   discountTargetKeys,
+  isDiscountLive,
   isDiscountNameTooLong,
   isDiscountWindowOrdered,
   isTargetKindAllowedFor,

@@ -8,7 +8,6 @@ import {
 } from "@purosur/domain";
 import {
   type BrandFields,
-  type BuyNPayMDiscount,
   CatalogBarcodeConflict,
   CatalogBrandNameConflict,
   CatalogCategoryNameConflict,
@@ -33,7 +32,6 @@ import { postgresErrorChain } from "../platform/db/postgres-error-chain.js";
 import {
   brands,
   categories,
-  discounts,
   productBarcodes,
   products,
   productTags,
@@ -42,6 +40,7 @@ import {
   supplierPriceLists,
   tags,
 } from "../platform/db/schema.js";
+import { liveBuyNPayMDiscountNamesOn } from "../pricing/live-buy-n-pay-m-discount-names.js";
 import { type PendingChanges, withPendingChanges } from "../sync/change-log.js";
 
 const UNIQUE_VIOLATION = "23505";
@@ -150,16 +149,8 @@ class DrizzleCatalogStoreTransaction<TQueryResult extends PgQueryResultHKT>
     };
   }
 
-  async buyNPayMDiscountsOn(productId: string): Promise<BuyNPayMDiscount[]> {
-    return this.tx
-      .select({
-        name: discounts.name,
-        active: discounts.active,
-        validFrom: discounts.validFrom,
-        validTo: discounts.validTo,
-      })
-      .from(discounts)
-      .where(and(eq(discounts.productId, productId), eq(discounts.kind, "BUY_N_PAY_M")));
+  liveBuyNPayMDiscountNamesOn(productId: string, today: string): Promise<string[]> {
+    return liveBuyNPayMDiscountNamesOn(this.tx, productId, today);
   }
 
   async hasCurrentSupplierItemLink(productId: string, saleUnit: SaleUnit): Promise<boolean> {
