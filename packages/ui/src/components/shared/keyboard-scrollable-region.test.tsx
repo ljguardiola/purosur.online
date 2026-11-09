@@ -1,4 +1,5 @@
-import { type ReactNode, useId } from "react";
+import { type ReactNode, useId, useState } from "react";
+import { flushSync } from "react-dom";
 import { expect, test } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -56,6 +57,20 @@ function TextInABoxOfFixedSize({ text }: { text: string }) {
     <div>
       <span style={{ whiteSpace: "nowrap" }}>{text}</span>
     </div>
+  );
+}
+
+function ShrinkableScrollingBox() {
+  const [height, setHeight] = useState(1000);
+  return (
+    <>
+      <button type="button" onClick={() => setHeight(100)}>
+        Achicar
+      </button>
+      <ScrollingBox height={height}>
+        <BoxOfFixedSize />
+      </ScrollingBox>
+    </>
   );
 }
 
@@ -169,6 +184,17 @@ test("becomes a tab stop once it shrinks below content that keeps its size", asy
   );
 
   await expect.element(region()).toHaveAttribute("tabindex", "0");
+});
+
+test("is a tab stop as soon as the render that shrinks it below its content commits", async () => {
+  await render(<ShrinkableScrollingBox />);
+  await nextFrame();
+  await nextFrame();
+  expect(page.getByRole("region").query()).toBeNull();
+
+  flushSync(() => page.getByRole("button", { name: "Achicar" }).element().click());
+
+  expect(region().query()?.getAttribute("tabindex")).toBe("0");
 });
 
 test("stops being a tab stop once its content fits again while it is not focused", async () => {
