@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { OFFLINE_FISCAL_DOCUMENT_ISSUED_EVENT_TYPE } from "../../fiscal/index.js";
-import type { PushedEvent } from "../model/push-batch.js";
+import type { PushedEvent } from "../../shared/index.js";
 import { receiveRescuedEvents } from "./receive-rescued-events.js";
 import { FakeInbox, fakeEvent } from "./test-support/fake-inbox.js";
 

@@ -1,4 +1,4 @@
-import type { PushedEvent } from "../../../sync/index.js";
+import type { PushedEvent } from "../../../shared/index.js";
 import type { AttachedSaleEvents } from "../attached-sale-event-ports.js";
 
 export class FakeAttachedSaleEvents implements AttachedSaleEvents {

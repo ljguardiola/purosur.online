@@ -1,6 +1,6 @@
 import { OFFLINE_FISCAL_DOCUMENT_ISSUED_EVENT_TYPE } from "../../fiscal/index.js";
+import type { PushedEvent } from "../../shared/index.js";
 import { placementOfEvent } from "../model/event-placement.js";
-import type { PushedEvent } from "../model/push-batch.js";
 import type { ReceivePorts } from "./sync-ports.js";
 
 export interface ReceiveRescuedEventsInput {

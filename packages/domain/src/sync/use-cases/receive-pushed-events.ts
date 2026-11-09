@@ -1,7 +1,8 @@
 import { OFFLINE_FISCAL_DOCUMENT_ISSUED_EVENT_TYPE } from "../../fiscal/index.js";
+import type { PushedEvent } from "../../shared/index.js";
 import { highestContiguousSeq } from "../model/contiguous-seq.js";
 import { eventLinkHolds, placementOfEvent, seqsJoinedBy } from "../model/event-placement.js";
-import type { PushedEvent, RegisterTelemetry } from "../model/push-batch.js";
+import type { RegisterTelemetry } from "../model/push-batch.js";
 import { registerVersionAccepted } from "../model/register-version.js";
 import type { EventChain, InboxTransaction, ReceivePorts } from "./sync-ports.js";
 
