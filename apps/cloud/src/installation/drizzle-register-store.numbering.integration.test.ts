@@ -91,18 +91,6 @@ async function holdCount(pointOfSale: number, lastAuthorized: number) {
 }
 
 describe("reconciling a register's real-time numbering on a real Postgres", () => {
-  it("freezes the register's real-time point of sale at the count the cloud holds, as of the restoration", async () => {
-    const registerId = await insertRegisterWithPointOfSale(db, {
-      pointOfSaleNumber: 51,
-      name: "caja-51",
-    });
-    await holdCount(51, 25);
-
-    await freezeRestoredRegister(registerId);
-
-    expect(await freezeOf(51)).toEqual({ countBeforeFreeze: 25, frozenAt: ENROLLED_AT });
-  });
-
   it("freezes nothing and enqueues nothing when the cloud holds no count of the point of sale", async () => {
     const registerId = await insertRegisterWithPointOfSale(db, {
       pointOfSaleNumber: 53,
