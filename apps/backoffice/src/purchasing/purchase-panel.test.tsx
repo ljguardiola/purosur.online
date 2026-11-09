@@ -2,8 +2,8 @@ import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { accessWith } from "../shell/test-support/backoffice-access";
-import { compraDeAceite, compraDeAvena, compraDeMiel } from "./test-support/purchases";
 import { createPanelServices, type Panel, renderPanel } from "./test-support/purchase-panel";
+import { compraDeAceite, compraDeAvena, compraDeMiel } from "./test-support/purchases";
 
 beforeEach(async () => {
   await page.viewport(1280, 900);
@@ -57,8 +57,10 @@ test("lists each line with its quantity, cost paid, unit cost, lot and expiry", 
   await expect
     .poll(() => rowTexts(screen, "Productos de la compra"))
     .toEqual([
-      "Miel pura de abeja 1 kg2 × 12 u (24 u)$ 7.200,00 por paquete$ 600,00 por uCompra 14/09/202631/01/2027",
-      "Avena arrollada12,500 kg$ 2.000,00 por kg$ 2.000,00 por kgCompra 10/09/2026",
+      "Miel pura de abeja 1 kg",
+      "Cantidad2 × 12 u (24 u)Costo pagado$ 7.200,00 por paqueteCosto unitario$ 600,00 por uLoteCompra 14/09/2026Vencimiento31/01/2027",
+      "Avena arrollada",
+      "Cantidad12,500 kgCosto pagado$ 2.000,00 por kgCosto unitario$ 2.000,00 por kgLoteCompra 10/09/2026",
     ]);
 });
 
