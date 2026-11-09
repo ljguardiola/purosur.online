@@ -4,93 +4,47 @@ import {
   Button,
   dataColumn,
   FloatingNotification,
+  formatNumber,
   Table,
+  Toggle,
   useTableModel,
 } from "@purosur/ui";
-import { formatProductDescription } from "@purosur/ui/formatters";
-import { useNavigate } from "@tanstack/react-router";
-import {
-  BadgeDollarSign,
-  CalendarClock,
-  CalendarRange,
-  Check,
-  History,
-  PackagePlus,
-  Pencil,
-  Plus,
-  Replace,
-  Scale,
-  SearchX,
-  ShoppingCart,
-  Trash2,
-} from "lucide-react";
-import { useEffect, useState } from "react";
+import { deepEqual, useNavigate } from "@tanstack/react-router";
+import { Check, History, PackagePlus, Pencil, Plus, SearchX, ShoppingCart } from "lucide-react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import type { ProductCreationModal } from "../platform/creation-parts";
 import { formatDisplayDate } from "../platform/display-date";
-import { AreaTopBar } from "../shell/area-top-bar";
 import { type BackofficeAccess, canRecordPurchases } from "../shell/backoffice-access";
-import { ScreenLayout } from "../shell/screen-layout";
 import { AddPurchaseLinesModal } from "./add-purchase-lines-modal";
-import {
-  ChangePurchaseLineProductModal,
-  type PurchaseLineProductTarget,
-} from "./change-purchase-line-product-modal";
 import { CorrectPurchaseHeaderModal } from "./correct-purchase-header-modal";
-import {
-  CorrectPurchaseLineCostModal,
-  type PurchaseLineCostTarget,
-} from "./correct-purchase-line-cost-modal";
-import {
-  CorrectPurchaseLineExpiryModal,
-  type PurchaseLineExpiryTarget,
-} from "./correct-purchase-line-expiry-modal";
-import {
-  CorrectPurchaseLineQuantityModal,
-  type PurchaseLineQuantityTarget,
-} from "./correct-purchase-line-quantity-modal";
+import { OpenPurchasePanel } from "./open-purchase-panel";
 import { PurchaseChangesModal } from "./purchase-changes-modal";
-import { costPaidOf, quantityOf, unitCostOf } from "./purchase-line-text";
+import type { PurchaseLineCorrection } from "./purchase-panel";
 import type { PurchasesListScreenServices } from "./purchases-list-services";
+import { PurchasesReportContent } from "./purchases-report-content";
 import { usePurchasesQuery, useRefreshPurchasing } from "./purchasing-queries";
 import { type SupplierFilter, SupplierFilterButton } from "./purchasing-screen-parts";
 import { receiptLabel } from "./receipt-label";
-import {
-  type PurchaseLineRemovalTarget,
-  RemovePurchaseLineModal,
-} from "./remove-purchase-line-modal";
-import {
-  SplitPurchaseLineExpiryModal,
-  type SplitPurchaseLineExpiryTarget,
-} from "./split-purchase-line-expiry-modal";
+import type { PurchasesListFilters } from "./routes";
 
 export type PurchasesListScreenProps = {
+  filters: PurchasesListFilters;
+  onFiltersChange: (filters: PurchasesListFilters) => void;
   access: BackofficeAccess;
   productCreationModal: ProductCreationModal;
   registered: boolean;
   onNoticeDismissed: () => void;
   onSessionEnded: () => void;
+  openPurchase: string | undefined;
+  onOpenPurchaseChange: (purchaseId: string | undefined) => void;
   services: PurchasesListScreenServices;
   supplierFilter?: SupplierFilter | undefined;
 };
 
-type PurchaseLine = PurchaseSummary["lines"][number];
-
-type PurchaseRow =
-  | { kind: "purchase"; id: string; purchase: PurchaseSummary }
-  | { kind: "line"; id: string; parentId: string; line: PurchaseLine };
-
 const NO_PURCHASES: PurchaseSummary[] = [];
 
-type Correction =
-  | "linesAdded"
-  | "headerCorrected"
-  | "expiryCorrected"
-  | "expirySplit"
-  | "costCorrected"
-  | "quantityCorrected"
-  | "productChanged"
-  | "lineRemoved";
+type Correction = "linesAdded" | "headerCorrected" | PurchaseLineCorrection;
 
 type CorrectionNotice = { correction: Correction; purchase: PurchaseSummary };
 
@@ -134,51 +88,10 @@ const CORRECTION_NOTICES = {
   (purchase: PurchaseSummary) => { title: string; description: string }
 >;
 
-function rowsOf(purchases: readonly PurchaseSummary[]): PurchaseRow[] {
-  return purchases.flatMap((purchase) => [
-    { kind: "purchase" as const, id: purchase.id, purchase },
-    ...purchase.lines.map((line) => ({
-      kind: "line" as const,
-      id: line.id,
-      parentId: purchase.id,
-      line,
-    })),
-  ]);
-}
-
-function remainingInLotOf(
-  purchases: readonly PurchaseSummary[],
-  { purchase, line }: SplitPurchaseLineExpiryTarget | PurchaseLineQuantityTarget,
-): number {
-  return (
-    purchases
-      .find((candidate) => candidate.id === purchase.id)
-      ?.lines.find((candidate) => candidate.id === line.id)?.remainingInLot ?? line.remainingInLot
-  );
-}
-
-function parentIdOf(row: PurchaseRow): string | null {
-  return row.kind === "line" ? row.parentId : null;
-}
-
-function ofPurchase(row: PurchaseRow, render: (purchase: PurchaseSummary) => string): string {
-  return row.kind === "purchase" ? render(row.purchase) : "";
-}
-
-function ofLine(row: PurchaseRow, render: (line: PurchaseLine) => string): string {
-  return row.kind === "line" ? render(row.line) : "";
-}
-
 type RowActions = {
   seeChanges: (purchase: PurchaseSummary) => void;
   addLines: (purchase: PurchaseSummary) => void;
   correctHeader: (purchase: PurchaseSummary) => void;
-  correctExpiry: (target: PurchaseLineExpiryTarget) => void;
-  splitExpiry: (target: SplitPurchaseLineExpiryTarget) => void;
-  correctCost: (target: PurchaseLineCostTarget) => void;
-  correctQuantity: (target: PurchaseLineQuantityTarget) => void;
-  changeProduct: (target: PurchaseLineProductTarget) => void;
-  removeLine: (target: PurchaseLineRemovalTarget) => void;
 };
 
 function purchaseSubject(purchase: PurchaseSummary): string {
@@ -189,168 +102,79 @@ const dataColumns = [
   dataColumn({
     id: "purchasedOn",
     header: "Fecha",
-    render: (row: PurchaseRow) =>
-      ofPurchase(row, (purchase) => formatDisplayDate(purchase.purchasedOn)),
+    render: (purchase: PurchaseSummary) => formatDisplayDate(purchase.purchasedOn),
   }),
   dataColumn({
     id: "supplier",
     header: "Proveedor",
-    render: (row: PurchaseRow) => ofPurchase(row, (purchase) => purchase.supplier.name),
+    render: (purchase: PurchaseSummary) => purchase.supplier.name,
   }),
   dataColumn({
     id: "receipt",
     header: "Comprobante",
-    render: (row: PurchaseRow) =>
-      ofPurchase(row, (purchase) => receiptLabel(purchase.receiptType, purchase.receiptNumber)),
+    render: (purchase: PurchaseSummary) =>
+      receiptLabel(purchase.receiptType, purchase.receiptNumber),
   }),
   dataColumn({
-    id: "product",
-    header: "Producto",
-    render: (row: PurchaseRow) => ofLine(row, (line) => formatProductDescription(line.product)),
-  }),
-  dataColumn({
-    id: "quantity",
-    header: "Cantidad",
-    render: (row: PurchaseRow) => ofLine(row, quantityOf),
-  }),
-  dataColumn({
-    id: "costPaid",
-    header: "Costo pagado",
-    render: (row: PurchaseRow) => ofLine(row, costPaidOf),
-  }),
-  dataColumn({
-    id: "unitCost",
-    header: "Costo unitario",
-    render: (row: PurchaseRow) => ofLine(row, unitCostOf),
-  }),
-  dataColumn({
-    id: "lot",
-    header: "Lote",
-    render: (row: PurchaseRow) => ofLine(row, (line) => line.lotName),
-  }),
-  dataColumn({
-    id: "expiresOn",
-    header: "Vencimiento",
-    render: (row: PurchaseRow) =>
-      ofLine(row, (line) => (line.expiresOn === null ? "" : formatDisplayDate(line.expiresOn))),
+    id: "products",
+    header: "Productos",
+    align: "end",
+    render: (purchase: PurchaseSummary) => formatNumber(purchase.lines.length),
   }),
 ] as const;
 
-function columnsFor(
-  actions: RowActions,
-  purchaseOf: (parentId: string) => PurchaseSummary | undefined,
-  mayRecord: boolean,
-) {
+function columnsFor(actions: RowActions, mayRecord: boolean) {
   return [
     ...dataColumns,
     actionsColumn({
       id: "actions",
       header: "Acciones",
       actions: [
-        (row: PurchaseRow) => {
-          if (row.kind === "purchase") {
-            return {
-              icon: <History />,
-              "aria-label": `Ver los cambios de ${purchaseSubject(row.purchase)}`,
-              onPress: () => actions.seeChanges(row.purchase),
-            };
-          }
-          const purchase = mayRecord ? purchaseOf(row.parentId) : undefined;
-          return purchase
+        (purchase: PurchaseSummary) => ({
+          icon: <History />,
+          "aria-label": `Ver los cambios de ${purchaseSubject(purchase)}`,
+          onPress: () => actions.seeChanges(purchase),
+        }),
+        (purchase: PurchaseSummary) =>
+          mayRecord
             ? {
-                icon: <Replace />,
-                "aria-label": `Cambiar el producto de ${formatProductDescription(row.line.product)}`,
-                onPress: () => actions.changeProduct({ purchase, line: row.line }),
+                icon: <PackagePlus />,
+                "aria-label": `Agregar productos a ${purchaseSubject(purchase)}`,
+                onPress: () => actions.addLines(purchase),
               }
-            : undefined;
-        },
-        (row: PurchaseRow) => {
-          if (!mayRecord) {
-            return undefined;
-          }
-          if (row.kind === "purchase") {
-            return {
-              icon: <PackagePlus />,
-              "aria-label": `Agregar productos a ${purchaseSubject(row.purchase)}`,
-              onPress: () => actions.addLines(row.purchase),
-            };
-          }
-          const purchase = purchaseOf(row.parentId);
-          return purchase
+            : undefined,
+        (purchase: PurchaseSummary) =>
+          mayRecord
             ? {
-                icon: <CalendarClock />,
-                "aria-label": `Corregir el vencimiento de ${formatProductDescription(row.line.product)}`,
-                onPress: () => actions.correctExpiry({ purchase, line: row.line }),
+                icon: <Pencil />,
+                "aria-label": `Corregir los datos de ${purchaseSubject(purchase)}`,
+                onPress: () => actions.correctHeader(purchase),
               }
-            : undefined;
-        },
-        (row: PurchaseRow) => {
-          if (!mayRecord) {
-            return undefined;
-          }
-          if (row.kind === "purchase") {
-            return {
-              icon: <Pencil />,
-              "aria-label": `Corregir los datos de ${purchaseSubject(row.purchase)}`,
-              onPress: () => actions.correctHeader(row.purchase),
-            };
-          }
-          const purchase = purchaseOf(row.parentId);
-          return purchase
-            ? {
-                icon: <CalendarRange />,
-                "aria-label": `Dar otro vencimiento a algunas unidades de ${formatProductDescription(row.line.product)}`,
-                onPress: () => actions.splitExpiry({ purchase, line: row.line }),
-              }
-            : undefined;
-        },
-        (row: PurchaseRow) => {
-          const purchase = row.kind === "line" ? purchaseOf(row.parentId) : undefined;
-          return mayRecord && row.kind === "line" && purchase
-            ? {
-                icon: <BadgeDollarSign />,
-                "aria-label": `Corregir el costo de ${formatProductDescription(row.line.product)}`,
-                onPress: () => actions.correctCost({ purchase, line: row.line }),
-              }
-            : undefined;
-        },
-        (row: PurchaseRow) => {
-          const purchase = row.kind === "line" ? purchaseOf(row.parentId) : undefined;
-          return mayRecord && row.kind === "line" && purchase
-            ? {
-                icon: <Scale />,
-                "aria-label": `Corregir la cantidad de ${formatProductDescription(row.line.product)}`,
-                onPress: () => actions.correctQuantity({ purchase, line: row.line }),
-              }
-            : undefined;
-        },
-        (row: PurchaseRow) => {
-          const purchase = row.kind === "line" ? purchaseOf(row.parentId) : undefined;
-          return mayRecord && row.kind === "line" && purchase
-            ? {
-                icon: <Trash2 />,
-                "aria-label": `Quitar ${formatProductDescription(row.line.product)} de la compra`,
-                onPress: () => actions.removeLine({ purchase, line: row.line }),
-              }
-            : undefined;
-        },
+            : undefined,
       ],
     }),
   ] as const;
 }
 
 export function PurchasesListScreen({
+  filters,
+  onFiltersChange,
   access,
   productCreationModal,
   registered,
   onNoticeDismissed,
   onSessionEnded,
+  openPurchase,
+  onOpenPurchaseChange,
   services,
   supplierFilter,
 }: PurchasesListScreenProps) {
   const navigate = useNavigate();
+  const [bySupplier, setBySupplier] = useState(filters.bySupplier);
+  const reportFilters = useEffectEvent(onFiltersChange);
   const data = usePurchasesQuery({
     supplierId: supplierFilter?.supplierId,
+    enabled: !bySupplier,
     fetchPurchases: services.fetchPurchases,
     onSessionEnded,
   });
@@ -359,37 +183,26 @@ export function PurchasesListScreen({
   const [changesTarget, setChangesTarget] = useState<PurchaseSummary | null>(null);
   const [addTarget, setAddTarget] = useState<PurchaseSummary | null>(null);
   const [headerTarget, setHeaderTarget] = useState<PurchaseSummary | null>(null);
-  const [expiryTarget, setExpiryTarget] = useState<PurchaseLineExpiryTarget | null>(null);
-  const [splitTarget, setSplitTarget] = useState<SplitPurchaseLineExpiryTarget | null>(null);
-  const [costTarget, setCostTarget] = useState<PurchaseLineCostTarget | null>(null);
-  const [quantityTarget, setQuantityTarget] = useState<PurchaseLineQuantityTarget | null>(null);
-  const [productTarget, setProductTarget] = useState<PurchaseLineProductTarget | null>(null);
-  const [removalTarget, setRemovalTarget] = useState<PurchaseLineRemovalTarget | null>(null);
   const [notice, setNotice] = useState<CorrectionNotice | null>(null);
+
+  useEffect(() => {
+    const shown: PurchasesListFilters = { bySupplier, from: filters.from, to: filters.to };
+    if (!deepEqual(shown, filters)) {
+      reportFilters(shown);
+    }
+  }, [bySupplier, filters]);
 
   useEffect(() => {
     if (data.status === "failed") {
       setChangesTarget(null);
       setAddTarget(null);
       setHeaderTarget(null);
-      setExpiryTarget(null);
-      setSplitTarget(null);
-      setCostTarget(null);
-      setQuantityTarget(null);
-      setProductTarget(null);
-      setRemovalTarget(null);
     }
   }, [data.status]);
 
   function corrected(correction: Correction, purchase: PurchaseSummary) {
     setAddTarget(null);
     setHeaderTarget(null);
-    setExpiryTarget(null);
-    setSplitTarget(null);
-    setCostTarget(null);
-    setQuantityTarget(null);
-    setProductTarget(null);
-    setRemovalTarget(null);
     setNotice({ correction, purchase });
     if (registered) {
       onNoticeDismissed();
@@ -408,50 +221,32 @@ export function PurchasesListScreen({
         setNotice(null);
         setHeaderTarget(purchase);
       },
-      correctExpiry: (target) => {
-        setNotice(null);
-        setExpiryTarget(target);
-      },
-      splitExpiry: (target) => {
-        setNotice(null);
-        setSplitTarget(target);
-      },
-      correctCost: (target) => {
-        setNotice(null);
-        setCostTarget(target);
-      },
-      correctQuantity: (target) => {
-        setNotice(null);
-        setQuantityTarget(target);
-      },
-      changeProduct: (target) => {
-        setNotice(null);
-        setProductTarget(target);
-      },
-      removeLine: (target) => {
-        setNotice(null);
-        setRemovalTarget(target);
-      },
     },
-    (parentId) => purchases.find((purchase) => purchase.id === parentId),
     canRecordPurchases(access),
   );
 
   const table = useTableModel({
-    items: rowsOf(purchases),
-    id: (row) => row.id,
-    parentId: parentIdOf,
+    items: purchases,
+    id: (purchase) => purchase.id,
     columns,
   });
 
   return (
     <>
-      <ScreenLayout
-        topBar={
-          <AreaTopBar
-            eyebrow="Compras"
-            title="Compras"
-            action={
+      <div className="flex min-h-0 flex-1">
+        <div className="relative flex min-w-0 flex-1 flex-col gap-4 overflow-auto p-6">
+          <div className="flex flex-wrap items-center gap-3">
+            <Toggle name="bySupplier" checked={bySupplier} onCheckedChange={setBySupplier}>
+              Agrupar por proveedor
+            </Toggle>
+            {supplierFilter === undefined || bySupplier ? null : (
+              <SupplierFilterButton
+                supplierFilter={supplierFilter}
+                services={services}
+                onSessionEnded={onSessionEnded}
+              />
+            )}
+            <div className="ml-auto">
               <Button
                 variant="primary"
                 icon={<Plus />}
@@ -459,40 +254,54 @@ export function PurchasesListScreen({
               >
                 Registrar compra
               </Button>
-            }
-          />
-        }
-        bodyClassName="gap-4 p-6"
-      >
-        {supplierFilter === undefined ? null : (
-          <div className="flex flex-wrap items-center gap-3">
-            <SupplierFilterButton
-              supplierFilter={supplierFilter}
-              services={services}
-              onSessionEnded={onSessionEnded}
-            />
+            </div>
           </div>
+          {bySupplier ? (
+            <PurchasesReportContent
+              filters={{ from: filters.from, to: filters.to }}
+              onFiltersChange={(next) => onFiltersChange({ bySupplier, ...next })}
+              onSessionEnded={onSessionEnded}
+              services={services}
+            />
+          ) : (
+            <Table
+              aria-label="Compras"
+              table={table}
+              onRowPress={(purchase) => onOpenPurchaseChange(purchase.id)}
+              rowState={(purchase) => (purchase.id === openPurchase ? "selected" : undefined)}
+              {...cloudTableState(data, "las compras")}
+              empty={
+                supplierFilter === undefined
+                  ? {
+                      icon: <ShoppingCart />,
+                      title: "Todavía no hay compras registradas",
+                      variant: "blank",
+                    }
+                  : {
+                      icon: <SearchX />,
+                      title: "Sin resultados",
+                      description: "Probá con otro proveedor.",
+                      variant: "filtered",
+                    }
+              }
+            />
+          )}
+        </div>
+        {bySupplier ? null : (
+          <OpenPurchasePanel
+            purchases={purchases}
+            purchasesAreLoaded={data.status === "loaded" && !data.refreshing}
+            openPurchase={openPurchase}
+            access={access}
+            services={services}
+            onClose={() => onOpenPurchaseChange(undefined)}
+            onCorrected={corrected}
+            onCorrectionStarted={() => setNotice(null)}
+            onStale={() => void refreshPurchasing()}
+            onSessionEnded={onSessionEnded}
+          />
         )}
-        <Table
-          aria-label="Compras"
-          table={table}
-          {...cloudTableState(data, "las compras")}
-          empty={
-            supplierFilter === undefined
-              ? {
-                  icon: <ShoppingCart />,
-                  title: "Todavía no hay compras registradas",
-                  variant: "blank",
-                }
-              : {
-                  icon: <SearchX />,
-                  title: "Sin resultados",
-                  description: "Probá con otro proveedor.",
-                  variant: "filtered",
-                }
-          }
-        />
-      </ScreenLayout>
+      </div>
       {data.status === "loaded" ? (
         <>
           <PurchaseChangesModal
@@ -515,54 +324,6 @@ export function PurchasesListScreen({
             services={services}
             onSaved={(purchase) => corrected("headerCorrected", purchase)}
             onClose={() => setHeaderTarget(null)}
-            onSessionEnded={onSessionEnded}
-          />
-          <CorrectPurchaseLineCostModal
-            target={costTarget}
-            services={services}
-            onSaved={(purchase) => corrected("costCorrected", purchase)}
-            onClose={() => setCostTarget(null)}
-            onSessionEnded={onSessionEnded}
-          />
-          <CorrectPurchaseLineQuantityModal
-            target={quantityTarget}
-            remainingInLot={quantityTarget ? remainingInLotOf(purchases, quantityTarget) : 0}
-            services={services}
-            onSaved={(purchase) => corrected("quantityCorrected", purchase)}
-            onLotChanged={() => void refreshPurchasing()}
-            onClose={() => setQuantityTarget(null)}
-            onSessionEnded={onSessionEnded}
-          />
-          <ChangePurchaseLineProductModal
-            target={productTarget}
-            services={services}
-            onSaved={(purchase) => corrected("productChanged", purchase)}
-            onStale={() => void refreshPurchasing()}
-            onClose={() => setProductTarget(null)}
-            onSessionEnded={onSessionEnded}
-          />
-          <RemovePurchaseLineModal
-            target={removalTarget}
-            services={services}
-            onRemoved={(purchase) => corrected("lineRemoved", purchase)}
-            onStale={() => void refreshPurchasing()}
-            onClose={() => setRemovalTarget(null)}
-            onSessionEnded={onSessionEnded}
-          />
-          <CorrectPurchaseLineExpiryModal
-            target={expiryTarget}
-            services={services}
-            onSaved={(purchase) => corrected("expiryCorrected", purchase)}
-            onClose={() => setExpiryTarget(null)}
-            onSessionEnded={onSessionEnded}
-          />
-          <SplitPurchaseLineExpiryModal
-            target={splitTarget}
-            remainingInLot={splitTarget ? remainingInLotOf(purchases, splitTarget) : 0}
-            services={services}
-            onSaved={(purchase) => corrected("expirySplit", purchase)}
-            onLotChanged={() => void refreshPurchasing()}
-            onClose={() => setSplitTarget(null)}
             onSessionEnded={onSessionEnded}
           />
         </>

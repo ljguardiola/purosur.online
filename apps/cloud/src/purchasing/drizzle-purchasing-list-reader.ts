@@ -5,6 +5,7 @@ import {
   type SaleUnit,
 } from "@purosur/domain";
 import type {
+  LinkedFreightListing,
   PurchaseLineListing,
   PurchaseListing,
   PurchasingListReader,
@@ -16,6 +17,8 @@ import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { netContentRow } from "../catalog/net-content-row.js";
 import {
   brands,
+  freightPurchases,
+  freights,
   lots,
   products,
   purchaseLines,
@@ -72,6 +75,29 @@ export class DrizzlePurchasingListReader<TQueryResult extends PgQueryResultHKT>
   async purchase(purchaseId: string): Promise<PurchaseListing | undefined> {
     const [listing] = await this.readPurchases(eq(purchases.id, purchaseId));
     return listing;
+  }
+
+  async linkedFreights(purchaseIds: readonly string[]): Promise<LinkedFreightListing[]> {
+    if (purchaseIds.length === 0) {
+      return [];
+    }
+    const rows = await this.db
+      .select({
+        purchaseId: freightPurchases.purchaseId,
+        id: freights.id,
+        date: freights.freightOn,
+        description: freights.description,
+        amountCents: freights.amountCents,
+        carrierName: freights.carrierName,
+      })
+      .from(freightPurchases)
+      .innerJoin(freights, eq(freights.id, freightPurchases.freightId))
+      .where(inArray(freightPurchases.purchaseId, [...purchaseIds]))
+      .orderBy(desc(freights.freightOn), desc(freights.recordedAt), desc(freights.id));
+    return rows.map(({ carrierName, ...row }) => ({
+      ...row,
+      means: carrierName === null ? { kind: "own_trip" } : { kind: "carrier", name: carrierName },
+    }));
   }
 
   private async readPurchases(where: SQL | undefined): Promise<PurchaseListing[]> {

@@ -37,6 +37,7 @@ import {
   canSeePricesArea,
   canSeeProductsPage,
   canSeePurchaseOrdersPage,
+  canSeePurchasesPage,
   canSeePurchasingArea,
   canSeeQuarantinedEvents,
   canSeeRefundsArea,
@@ -216,4 +217,19 @@ test("canSeePurchaseOrdersPage holds for an Administrator and not with other pur
     false,
   );
   expect(canSeePurchaseOrdersPage(NO_CAPABILITIES_ACCESS)).toBe(false);
+});
+
+test.each(["purchases", "freights"] as const)(
+  "canSeePurchasesPage holds with only the %s capability",
+  (capability) => {
+    expect(canSeePurchasesPage(accessWith(capability))).toBe(true);
+  },
+);
+
+test("canSeePurchasesPage holds for an Administrator and not with other purchasing capabilities", () => {
+  expect(canSeePurchasesPage(ADMINISTRATOR_ACCESS)).toBe(true);
+  expect(canSeePurchasesPage(accessWith("purchase_orders", "suppliers", "purchase_choices"))).toBe(
+    false,
+  );
+  expect(canSeePurchasesPage(NO_CAPABILITIES_ACCESS)).toBe(false);
 });

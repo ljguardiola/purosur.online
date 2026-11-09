@@ -1,5 +1,6 @@
 import type { ProductBrandAndNetContent, SaleUnit } from "../../catalog/index.js";
 import type { LotNameFacts } from "../../stock/index.js";
+import type { FreightMeans } from "../model/freight.js";
 import type { ReceiptType } from "../model/purchase.js";
 import type { Supplier } from "./purchasing-store.js";
 
@@ -14,6 +15,18 @@ export interface PurchaseLineListing {
   lotId: string;
   remainingInLot: number;
   expiresOn: string | null;
+}
+
+export interface PurchaseFreightListing {
+  id: string;
+  date: string;
+  description: string;
+  amountCents: number;
+  means: FreightMeans;
+}
+
+export interface LinkedFreightListing extends PurchaseFreightListing {
+  purchaseId: string;
 }
 
 export interface PurchaseListing {
@@ -36,4 +49,6 @@ export interface PurchasingListReader {
   // Every lot of each product in the branch, whatever purchase or origin created it.
   lotNameFacts(locationId: string, productIds: readonly string[]): Promise<LotNameFacts[]>;
   purchase(purchaseId: string): Promise<PurchaseListing | undefined>;
+  // Every freight linked to each purchase, whatever its date, newest first.
+  linkedFreights(purchaseIds: readonly string[]): Promise<LinkedFreightListing[]>;
 }

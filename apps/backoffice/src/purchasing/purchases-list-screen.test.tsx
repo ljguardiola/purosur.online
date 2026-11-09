@@ -1,7 +1,7 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, onTestFinished, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
-import { compraDeAceite, compraDeAvena, compraDeMiel } from "./test-support/purchases";
+import { compraDeMiel } from "./test-support/purchases";
 import {
   createServices,
   deferred,
@@ -16,35 +16,32 @@ beforeEach(async () => {
   onTestFinished(() => page.viewport(414, 896));
 });
 
-test("shows the breadcrumb and the heading", async () => {
+test("offers Registrar compra beside the filters and opens the new purchase page", async () => {
   const screen = await loaded(createServices());
 
-  await expect.element(screen.getByText("Compras").first()).toBeVisible();
-  await expect.element(screen.getByRole("heading", { name: "Compras", level: 1 })).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Registrar compra" }));
+
+  await expect.poll(() => window.location.pathname).toBe("/purchases/new");
 });
 
-test("lists each purchase with its date, supplier and receipt, followed by its lines", async () => {
+test("brings no heading or breadcrumb of its own, since the page frame writes them", async () => {
+  const screen = await loaded(createServices());
+
+  expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
+});
+
+test("lists one row per purchase with its date, supplier, receipt and count of products", async () => {
   const screen = await loaded(createServices());
 
   await expect
     .poll(() => rowTexts(screen))
     .toEqual([
-      "14/09/2026Distribuidora AndinaFactura B 0001-00001234",
-      "Miel pura de abeja 1 kg2 × 12 u (24 u)$ 7.200,00 por paquete$ 600,00 por uCompra 14/09/202631/01/2027",
-      "10/09/2026Granos del ValleSin comprobante",
-      "Avena arrollada12,500 kg$ 2.000,00 por kg$ 2.000,00 por kgCompra 10/09/2026",
+      "14/09/2026Distribuidora AndinaFactura B 0001-000012341",
+      "10/09/2026Granos del ValleSin comprobante1",
     ]);
 });
 
-test("describes each line's product with its brand name and net content", async () => {
-  const services = createServices();
-  vi.mocked(services.fetchPurchases).mockResolvedValue({ kind: "ok", value: [compraDeAceite] });
-  const screen = await renderScreen(services);
-
-  await expect.element(screen.getByText("Aceite de Almendras Vitora 30 ml")).toBeVisible();
-});
-
-test("writes a line's count of packages the way every amount reads", async () => {
+test("counts the products of a purchase with several lines", async () => {
   const [line] = compraDeMiel.lines;
   if (!line) {
     throw new Error("test setup: the purchase has no line");
@@ -52,31 +49,21 @@ test("writes a line's count of packages the way every amount reads", async () =>
   const services = createServices();
   vi.mocked(services.fetchPurchases).mockResolvedValue({
     kind: "ok",
-    value: [{ ...compraDeMiel, lines: [{ ...line, packages: 1_500, quantity: 18_000_000 }] }],
-  });
-  const screen = await renderScreen(services);
-
-  await expect.element(screen.getByText("1.500 × 12 u (18.000 u)")).toBeVisible();
-});
-
-test("writes a line of a product sold by weight with each package's weight in kilos", async () => {
-  const [line] = compraDeAvena.lines;
-  if (!line) {
-    throw new Error("test setup: the purchase has no line");
-  }
-  const services = createServices();
-  vi.mocked(services.fetchPurchases).mockResolvedValue({
-    kind: "ok",
     value: [
-      {
-        ...compraDeAvena,
-        lines: [{ ...line, packages: 3, quantityPerPackage: 2_500, quantity: 7_500 }],
-      },
+      { ...compraDeMiel, lines: [line, { ...line, id: "second" }, { ...line, id: "third" }] },
     ],
   });
   const screen = await renderScreen(services);
 
-  await expect.element(screen.getByText("3 × 2,500 kg (7,500 kg)")).toBeVisible();
+  await expect
+    .poll(() => rowTexts(screen))
+    .toEqual(["14/09/2026Distribuidora AndinaFactura B 0001-000012343"]);
+});
+
+test("shows no line rows in the list, whose lines are in the purchase's panel", async () => {
+  const screen = await loaded(createServices());
+
+  expect(screen.getByText("Miel pura de abeja 1 kg").query()).toBeNull();
 });
 
 test("shows the blank empty state when there are no purchases yet", async () => {

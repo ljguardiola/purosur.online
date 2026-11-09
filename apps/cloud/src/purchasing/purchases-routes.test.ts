@@ -27,6 +27,7 @@ import { buildTestDatabase, type TestDatabase } from "../test-support/build-test
 import { fixedZoneRulesSource } from "../test-support/fixed-zone-rules-source.js";
 import { seededPriceListId } from "../test-support/seeded-price-list.js";
 import { registerPurchasesRoutes } from "./purchases-routes.js";
+import { insertFreightRow } from "./test-support/freight-fixtures.js";
 
 const NOW = new Date("2026-10-05T15:00:00.000Z");
 const MISSING_ID = "00000000-0000-4000-8000-000000000000";
@@ -225,6 +226,7 @@ describe("POST /purchases", () => {
           remainingInLot: 24_000,
         },
       ],
+      freights: null,
     });
     expect(response.json().lines[0]).not.toHaveProperty("packaging");
     const [stored] = await db.select().from(purchases).where(eq(purchases.id, summary.id));
@@ -600,6 +602,62 @@ describe("GET /purchases", () => {
 
     const [listed] = purchaseListSchema.parse(response.json());
     expect(listed?.lines.map((line) => line.product.name)).toEqual(["Yerba", "Arroz"]);
+  });
+
+  it("lists each purchase with the freights linked to it to who manages freights", async () => {
+    const { headers, userId, locationId } = await signedInWith(
+      db,
+      ["record_purchases", "manage_freight"],
+      NOW,
+    );
+    const supplierId = await storedSupplier(userId);
+    const { productId } = await insertProduct(db, { name: "Yerba" });
+    const registered = await app.inject({
+      method: "POST",
+      url: "/purchases",
+      headers,
+      payload: bodyWith(supplierId, [quantityLine(productId)]),
+    });
+    const purchaseId = purchaseSummarySchema.parse(registered.json()).id;
+    const freightId = await insertFreightRow(db, {
+      locationId,
+      actorId: userId,
+      purchaseIds: [purchaseId],
+      date: "2026-10-04",
+      description: "Flete de la semana",
+      amountCents: 15_000,
+      means: { kind: "carrier", name: "Transportes del Sur" },
+    });
+
+    const response = await app.inject({ method: "GET", url: "/purchases", headers });
+
+    expect(purchaseListSchema.parse(response.json())[0]?.freights).toEqual([
+      {
+        id: freightId,
+        date: "2026-10-04",
+        description: "Flete de la semana",
+        amountCents: 15_000,
+        means: { kind: "carrier", name: "Transportes del Sur" },
+      },
+    ]);
+  });
+
+  it("answers no linked freights to who does not manage freights", async () => {
+    const { headers, userId, locationId } = await buyer();
+    const supplierId = await storedSupplier(userId);
+    const { productId } = await insertProduct(db, { name: "Yerba" });
+    const registered = await app.inject({
+      method: "POST",
+      url: "/purchases",
+      headers,
+      payload: bodyWith(supplierId, [quantityLine(productId)]),
+    });
+    const purchaseId = purchaseSummarySchema.parse(registered.json()).id;
+    await insertFreightRow(db, { locationId, actorId: userId, purchaseIds: [purchaseId] });
+
+    const response = await app.inject({ method: "GET", url: "/purchases", headers });
+
+    expect(purchaseListSchema.parse(response.json())[0]?.freights).toBeNull();
   });
 
   it("lists only the purchases of the session's branch", async () => {

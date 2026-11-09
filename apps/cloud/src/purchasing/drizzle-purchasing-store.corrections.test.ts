@@ -26,6 +26,8 @@ import { DrizzlePurchasingStore } from "./drizzle-purchasing-store.js";
 import { insertActor, insertProduct } from "./test-support/purchasing-fixtures.js";
 import { quantityLine, registeredPurchase } from "./test-support/registered-purchase.js";
 
+const BUYER = { isAdministrator: false, permissionKeys: ["record_purchases"] };
+
 const REGISTERED_AT = new Date("2026-10-02T12:00:00.000Z");
 const CORRECTED_AT = new Date("2026-10-06T15:00:00.000Z");
 
@@ -259,7 +261,7 @@ describe("correcting a registered purchase's header", () => {
     };
     const names = [];
     for (const purchaseId of purchaseIds) {
-      const listing = await findPurchaseListing(ports, purchaseId);
+      const listing = await findPurchaseListing(ports, purchaseId, BUYER);
       const name = listing?.lines[0]?.lotName;
       names.push([name?.day, name?.number]);
     }

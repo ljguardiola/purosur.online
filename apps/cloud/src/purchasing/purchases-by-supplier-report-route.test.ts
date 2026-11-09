@@ -65,12 +65,20 @@ describe("GET /reports/purchases-by-supplier access", () => {
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
   });
 
-  it("rejects a user who may not view reports", async () => {
-    const { headers } = await signedInWith(db, ["record_purchases"], NOW);
+  it("rejects a user who may neither view reports nor record purchases", async () => {
+    const { headers } = await signedInWith(db, ["manage_freight"], NOW);
 
     const response = await purchasesBySupplier(headers);
 
     expect(response.statusCode).toBe(403);
+  });
+
+  it("answers a user who may record purchases without viewing reports", async () => {
+    const { headers } = await signedInWith(db, ["record_purchases"], NOW);
+
+    const response = await purchasesBySupplier(headers);
+
+    expect(response.statusCode).toBe(200);
   });
 
   it("answers a user who may view reports", async () => {

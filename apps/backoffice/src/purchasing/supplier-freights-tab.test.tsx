@@ -70,7 +70,7 @@ test("links to the freights list of the supplier over that same period", async (
 
   await expect
     .element(screen.getByRole("link", { name: "Ver todos" }))
-    .toHaveAttribute("href", `/freights?period=365&supplier=${SUPPLIER_ID}`);
+    .toHaveAttribute("href", `/purchases/freights?period=365&supplier=${SUPPLIER_ID}`);
 });
 
 test("ends the session when the cloud refuses it", async () => {

@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest";
 import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { LotNameFacts } from "../../stock/index.js";
 import { findPurchaseListing, listPurchases } from "./list-purchases.js";
-import type { PurchaseListing } from "./purchasing-list-reader.js";
+import type { LinkedFreightListing, PurchaseListing } from "./purchasing-list-reader.js";
 import { FakePurchasingListReader } from "./test-support/fake-purchasing-list-reader.js";
 
 const BRANCH = "branch-1";
+const BUYER = { isAdministrator: false, permissionKeys: ["record_purchases"] };
+const FREIGHT_MANAGER = { isAdministrator: false, permissionKeys: ["manage_freight"] };
+const ADMINISTRATOR = { isAdministrator: true, permissionKeys: [] };
+const VIEWER = { ...BUYER, locationId: BRANCH };
 
 function lotOf(lotId: string, nameOrder: number, purchasedOn = "2026-10-01"): LotNameFacts {
   return {
@@ -52,6 +56,38 @@ const PURCHASE: PurchaseListing = {
   lines: [LINE],
 };
 
+const FREIGHTS: LinkedFreightListing[] = [
+  {
+    purchaseId: "purchase-1",
+    id: "freight-1",
+    date: "2026-10-03",
+    description: "Flete de la semana",
+    amountCents: 15_000,
+    means: { kind: "carrier", name: "Transportes del Sur" },
+  },
+  {
+    purchaseId: "purchase-1",
+    id: "freight-2",
+    date: "2026-10-01",
+    description: "Viaje propio",
+    amountCents: 8_000,
+    means: { kind: "own_trip" },
+  },
+];
+
+const OTHER_PURCHASE_FREIGHT: LinkedFreightListing = {
+  purchaseId: "purchase-2",
+  id: "freight-3",
+  date: "2026-10-02",
+  description: "Flete de otra compra",
+  amountCents: 5_000,
+  means: { kind: "own_trip" },
+};
+
+function withoutPurchaseId({ purchaseId: _purchaseId, ...freight }: LinkedFreightListing) {
+  return freight;
+}
+
 describe("listPurchases", () => {
   it("lists only the purchases of the supplier asked for", async () => {
     const reader = new FakePurchasingListReader({
@@ -62,7 +98,7 @@ describe("listPurchases", () => {
       lots: [lotOf("lot-1", 1)],
     });
 
-    const purchases = await listPurchases(ports(reader), BRANCH, "s-2");
+    const purchases = await listPurchases(ports(reader), VIEWER, "s-2");
 
     expect(purchases.map(({ id }) => id)).toEqual(["purchase-2"]);
   });
@@ -80,7 +116,7 @@ describe("listPurchases", () => {
       lots: [lotOf("lot-1", 1), lotOf("lot-2", 2)],
     });
 
-    const [purchase] = await listPurchases(ports(reader), BRANCH);
+    const [purchase] = await listPurchases(ports(reader), VIEWER);
 
     expect(purchase?.lines.map((line) => line.unitCostCents)).toEqual([2_000, 333]);
     expect(purchase?.lines[1]).toMatchObject({ costPaidCents: 1_000, quantityPerPackage: 3_000 });
@@ -92,7 +128,7 @@ describe("listPurchases", () => {
       lots: [lotOf("lot-1", 1)],
     });
 
-    const [purchase] = await listPurchases(ports(reader), BRANCH);
+    const [purchase] = await listPurchases(ports(reader), VIEWER);
 
     expect(purchase?.lines[0]?.remainingInLot).toBe(18_000);
   });
@@ -103,7 +139,7 @@ describe("listPurchases", () => {
       lots: [lotOf("lot-1", 1, "2026-11-03")],
     });
 
-    const [purchase] = await listPurchases(ports(reader), BRANCH);
+    const [purchase] = await listPurchases(ports(reader), VIEWER);
 
     expect(purchase?.lines[0]?.lotName).toEqual({
       origin: "purchase",
@@ -122,7 +158,7 @@ describe("listPurchases", () => {
       lots: [lotOf("lot-1", 1), lotOf("lot-2", 2)],
     });
 
-    const purchases = await listPurchases(ports(reader), BRANCH);
+    const purchases = await listPurchases(ports(reader), VIEWER);
 
     expect(purchases.map((purchase) => purchase.lines[0]?.lotName.number)).toEqual([2, 1]);
   });
@@ -139,7 +175,7 @@ describe("listPurchases", () => {
       lots: [lotOf("lot-1", 1), lotOf("lot-2", 2), lotOf("lot-3", 3)],
     });
 
-    await listPurchases(ports(reader), BRANCH);
+    await listPurchases(ports(reader), VIEWER);
 
     expect(reader.lotNameReads).toEqual([{ locationId: BRANCH, productIds: ["p-unit", "p-2"] }]);
   });
@@ -147,7 +183,7 @@ describe("listPurchases", () => {
   it("refuses a line whose lot the reader gave no name facts for, naming the lot", async () => {
     const reader = new FakePurchasingListReader({ purchases: [PURCHASE], lots: [] });
 
-    await expect(listPurchases(ports(reader), BRANCH)).rejects.toThrow(
+    await expect(listPurchases(ports(reader), VIEWER)).rejects.toThrow(
       "no name facts for lot lot-1",
     );
   });
@@ -159,13 +195,46 @@ describe("listPurchases", () => {
       lots: [lotOf("lot-1", 1)],
     });
 
-    const purchases = await listPurchases(ports(reader), BRANCH);
+    const purchases = await listPurchases(ports(reader), VIEWER);
 
     expect(purchases.map((purchase) => purchase.id)).toEqual(["purchase-1"]);
   });
 
+  it.each([
+    ["who manages freights", FREIGHT_MANAGER],
+    ["an administrator", ADMINISTRATOR],
+  ])("answers each purchase with the freights linked to it to %s", async (_who, access) => {
+    const reader = new FakePurchasingListReader({
+      purchases: [PURCHASE, { ...PURCHASE, id: "purchase-2" }, { ...PURCHASE, id: "purchase-3" }],
+      lots: [lotOf("lot-1", 1)],
+      freights: [...FREIGHTS, OTHER_PURCHASE_FREIGHT],
+    });
+
+    const purchases = await listPurchases(ports(reader), { ...access, locationId: BRANCH });
+
+    expect(purchases.map((purchase) => purchase.freights)).toEqual([
+      FREIGHTS.map(withoutPurchaseId),
+      [withoutPurchaseId(OTHER_PURCHASE_FREIGHT)],
+      [],
+    ]);
+    expect(reader.linkedFreightReads).toEqual([["purchase-1", "purchase-2", "purchase-3"]]);
+  });
+
+  it("answers no linked freights to who does not manage freights, without reading them", async () => {
+    const reader = new FakePurchasingListReader({
+      purchases: [PURCHASE],
+      lots: [lotOf("lot-1", 1)],
+      freights: FREIGHTS,
+    });
+
+    const [purchase] = await listPurchases(ports(reader), VIEWER);
+
+    expect(purchase?.freights).toBeNull();
+    expect(reader.linkedFreightReads).toEqual([]);
+  });
+
   it("answers nothing when the branch has no purchases", async () => {
-    expect(await listPurchases(ports(new FakePurchasingListReader()), BRANCH)).toEqual([]);
+    expect(await listPurchases(ports(new FakePurchasingListReader()), VIEWER)).toEqual([]);
   });
 });
 
@@ -177,15 +246,41 @@ describe("findPurchaseListing", () => {
       lots: [lotOf("lot-1", 1)],
     });
 
-    const purchase = await findPurchaseListing(ports(reader), "purchase-1");
+    const purchase = await findPurchaseListing(ports(reader), "purchase-1", BUYER);
 
     expect(purchase?.id).toBe("purchase-1");
     expect(purchase?.lines[0]?.unitCostCents).toBe(2_000);
   });
 
+  it("answers the purchase with the freights linked to it to who manages freights", async () => {
+    const reader = new FakePurchasingListReader({
+      purchases: [PURCHASE, { ...PURCHASE, id: "purchase-2" }],
+      lots: [lotOf("lot-1", 1)],
+      freights: [...FREIGHTS, OTHER_PURCHASE_FREIGHT],
+    });
+
+    const purchase = await findPurchaseListing(ports(reader), "purchase-1", FREIGHT_MANAGER);
+
+    expect(purchase?.freights).toEqual(FREIGHTS.map(withoutPurchaseId));
+    expect(reader.linkedFreightReads).toEqual([["purchase-1"]]);
+  });
+
+  it("answers the purchase with no linked freights to who does not manage freights, without reading them", async () => {
+    const reader = new FakePurchasingListReader({
+      purchases: [PURCHASE],
+      lots: [lotOf("lot-1", 1)],
+      freights: FREIGHTS,
+    });
+
+    const purchase = await findPurchaseListing(ports(reader), "purchase-1", BUYER);
+
+    expect(purchase?.freights).toBeNull();
+    expect(reader.linkedFreightReads).toEqual([]);
+  });
+
   it("answers nothing for a purchase that does not exist", async () => {
     expect(
-      await findPurchaseListing(ports(new FakePurchasingListReader()), "missing"),
+      await findPurchaseListing(ports(new FakePurchasingListReader()), "missing", FREIGHT_MANAGER),
     ).toBeUndefined();
   });
 });

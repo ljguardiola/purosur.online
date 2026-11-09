@@ -1,10 +1,9 @@
 import { createRoute, Outlet, useMatchRoute } from "@tanstack/react-router";
-import { Container, PackageCheck, ShoppingCart, Truck } from "lucide-react";
+import { PackageCheck, ShoppingCart, Truck } from "lucide-react";
 import { AreaLayout, SectionLink } from "./area-layout";
 import {
-  canManageFreights,
-  canRecordPurchases,
   canSeePurchaseOrdersPage,
+  canSeePurchasesPage,
   canSeeSuppliersPage,
 } from "./backoffice-access";
 import { signedInRoute } from "./signed-in-route";
@@ -24,8 +23,8 @@ function PurchasingArea() {
     Boolean(matchRoute({ to: "/supplier-price-lists", fuzzy: true }));
   const purchaseOrdersShown = Boolean(matchRoute({ to: "/purchase-orders" }));
   const purchaseOrdersActive = Boolean(matchRoute({ to: "/purchase-orders", fuzzy: true }));
-  const purchasesShown = Boolean(matchRoute({ to: "/purchases", fuzzy: true }));
-  const freightsShown = Boolean(matchRoute({ to: "/freights" }));
+  const purchasesShown = Boolean(matchRoute({ to: "/purchases" }));
+  const purchasesActive = Boolean(matchRoute({ to: "/purchases", fuzzy: true }));
   return (
     <AreaLayout
       area="purchasing"
@@ -57,25 +56,14 @@ function PurchasingArea() {
                 />
               </li>
             )}
-            {canRecordPurchases(session) && (
+            {canSeePurchasesPage(session) && (
               <li>
                 <SectionLink
                   to="/purchases"
                   label="Compras"
                   icon={<ShoppingCart />}
                   search={purchasesShown ? true : {}}
-                  active={purchasesShown}
-                />
-              </li>
-            )}
-            {canManageFreights(session) && (
-              <li>
-                <SectionLink
-                  to="/freights"
-                  label="Flete"
-                  icon={<Container />}
-                  search={freightsShown ? true : {}}
-                  active={freightsShown}
+                  active={purchasesActive}
                 />
               </li>
             )}

@@ -29,6 +29,22 @@ export const compraDeMiel: PurchaseSummary = {
       expiresOn: "2027-01-31",
     },
   ],
+  freights: [
+    {
+      id: "f1a00000-0000-4000-8000-000000000001",
+      date: "2026-09-15",
+      description: "Flete de la miel",
+      amountCents: 45_000_00,
+      means: { kind: "carrier", name: "Transportes del Valle" },
+    },
+    {
+      id: "f1a00000-0000-4000-8000-000000000002",
+      date: "2026-09-12",
+      description: "Viaje a buscar la miel",
+      amountCents: 12_000_00,
+      means: { kind: "own_trip" },
+    },
+  ],
 };
 
 export const compraDeAvena: PurchaseSummary = {
@@ -59,6 +75,7 @@ export const compraDeAvena: PurchaseSummary = {
       expiresOn: null,
     },
   ],
+  freights: [],
 };
 
 export function purchaseChoicesFrom(suppliers: SupplierSummary[]): PurchaseChoices {

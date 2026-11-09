@@ -262,12 +262,14 @@ export function useAiCostReportQuery(params: {
 
 export function usePurchasesQuery(params: {
   supplierId?: string | undefined;
+  enabled?: boolean;
   fetchPurchases: typeof fetchPurchases;
   onSessionEnded: () => void;
 }) {
   const sendToMyAccount = useSendToMyAccount();
   return useCloudQuery<PurchaseSummary[]>({
     queryKey: [...purchasingKeys.purchases, params.supplierId ?? ""],
+    enabled: params.enabled ?? true,
     read: () => params.fetchPurchases({ supplierId: params.supplierId }),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
@@ -307,6 +309,7 @@ export function usePurchaseChangesQuery(params: {
 
 export function useFreightsQuery(params: {
   input: FetchFreightsInput;
+  enabled?: boolean;
   fetchFreights: typeof fetchFreights;
   onSessionEnded: () => void;
 }) {
@@ -314,6 +317,7 @@ export function useFreightsQuery(params: {
   return useCloudQuery<FreightList>({
     queryKey: [...purchasingKeys.freights, params.input],
     keepPreviousData: true,
+    enabled: params.enabled ?? true,
     read: () => params.fetchFreights(params.input),
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,

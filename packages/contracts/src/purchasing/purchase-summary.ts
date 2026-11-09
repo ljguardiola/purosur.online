@@ -1,6 +1,7 @@
 import { RECEIPT_TYPES } from "@purosur/domain";
 import { z } from "zod";
 import { recordIdSchema } from "../shared/index.js";
+import { freightMeansSchema } from "./freight-summary.js";
 import { purchaseLineProductSchema } from "./purchase-line-product.js";
 
 const purchaseLineSummarySchema = z.object({
@@ -16,6 +17,14 @@ const purchaseLineSummarySchema = z.object({
   remainingInLot: z.int(),
 });
 
+const purchaseFreightSchema = z.object({
+  id: z.string(),
+  date: z.string(),
+  description: z.string(),
+  amountCents: z.int(),
+  means: freightMeansSchema,
+});
+
 export const purchaseSummarySchema = z.object({
   id: z.string(),
   purchasedOn: z.string(),
@@ -25,6 +34,7 @@ export const purchaseSummarySchema = z.object({
   note: z.string().nullable(),
   recordedAt: z.iso.datetime(),
   lines: z.array(purchaseLineSummarySchema),
+  freights: z.array(purchaseFreightSchema).nullable(),
 });
 
 export const purchaseListSchema = z.array(purchaseSummarySchema);

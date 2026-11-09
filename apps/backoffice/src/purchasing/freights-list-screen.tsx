@@ -10,6 +10,7 @@ import {
   SearchField,
   Table,
   TableCellText,
+  Toggle,
   useTableModel,
 } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
@@ -17,10 +18,10 @@ import { Pencil, Plus, Search, SearchX, Truck } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import { formatDisplayDate } from "../platform/display-date";
-import { AreaTopBar } from "../shell/area-top-bar";
-import { ScreenLayout } from "../shell/screen-layout";
 import { EditFreightModal } from "./edit-freight-modal";
 import { freightPeriodOf, freightPeriodOptions } from "./freight-form";
+import { freightMeansLabel } from "./freight-means-label";
+import { FreightReportContent } from "./freight-report-content";
 import type { FreightsListScreenServices } from "./freights-list-services";
 import { NewFreightModal } from "./new-freight-modal";
 import { useFreightsQuery, useRefreshPurchasing } from "./purchasing-queries";
@@ -38,10 +39,6 @@ export type FreightsListScreenProps = {
 const NO_FREIGHTS: FreightSummary[] = [];
 const SEARCH_DEBOUNCE_MS = 300;
 
-function meansLabel(freight: FreightSummary): string {
-  return freight.means.kind === "carrier" ? freight.means.name : "Viaje propio · costo estimado";
-}
-
 function supplierNames(freight: FreightSummary): string {
   return [...new Set(freight.purchases.map((purchase) => purchase.supplier.name))].join(" · ");
 }
@@ -57,16 +54,23 @@ export function FreightsListScreen({
   const [search, setSearch] = useState(filters.search);
   const [debouncedSearch, setDebouncedSearch] = useState(filters.search.trim());
   const [period, setPeriod] = useState(filters.period);
+  const [byMonth, setByMonth] = useState(filters.byMonth);
   const [newModalOpen, setNewModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<FreightSummary | null>(null);
   const reportFilters = useEffectEvent(onFiltersChange);
 
   useEffect(() => {
-    const shown: FreightsListFilters = { search, period };
+    const shown: FreightsListFilters = {
+      search,
+      period,
+      byMonth,
+      from: filters.from,
+      to: filters.to,
+    };
     if (!deepEqual(shown, filters)) {
       reportFilters(shown);
     }
-  }, [search, period, filters]);
+  }, [search, period, byMonth, filters]);
 
   useEffect(() => {
     const handle = setTimeout(() => setDebouncedSearch(search.trim()), SEARCH_DEBOUNCE_MS);
@@ -75,6 +79,7 @@ export function FreightsListScreen({
 
   const data = useFreightsQuery({
     input: { period, search: debouncedSearch, supplierId: supplierFilter?.supplierId },
+    enabled: !byMonth,
     fetchFreights: services.fetchFreights,
     onSessionEnded,
   });
@@ -99,7 +104,9 @@ export function FreightsListScreen({
       id: "freight",
       header: "Flete",
       render: (item: FreightSummary) => (
-        <TableCellText description={meansLabel(item)}>{item.description}</TableCellText>
+        <TableCellText description={freightMeansLabel(item.means)}>
+          {item.description}
+        </TableCellText>
       ),
     }),
     dataColumn({
@@ -142,80 +149,90 @@ export function FreightsListScreen({
 
   return (
     <>
-      <ScreenLayout
-        topBar={
-          <AreaTopBar
-            eyebrow="Compras"
-            title="Flete"
-            action={
+      <div className="flex min-h-0 flex-1">
+        <div className="relative flex min-w-0 flex-1 flex-col gap-4 overflow-auto p-6">
+          <div className="flex flex-wrap items-center gap-3">
+            {byMonth ? null : (
+              <>
+                <div className="w-105">
+                  <SearchField
+                    value={search}
+                    onChange={setSearch}
+                    placeholder="Buscar por descripción o medio"
+                    icon={<Search />}
+                  />
+                </div>
+                <ListFilter
+                  name="period"
+                  label="Período:"
+                  options={freightPeriodOptions}
+                  value={String(period)}
+                  onChange={(value) => setPeriod(freightPeriodOf(value) ?? period)}
+                />
+              </>
+            )}
+            <Toggle name="byMonth" checked={byMonth} onCheckedChange={setByMonth}>
+              Agrupar por mes
+            </Toggle>
+            {supplierFilter === undefined || byMonth ? null : (
+              <SupplierFilterButton
+                supplierFilter={supplierFilter}
+                services={services}
+                onSessionEnded={onSessionEnded}
+              />
+            )}
+            <div className="ml-auto">
               <Button variant="primary" icon={<Plus />} onPress={() => setNewModalOpen(true)}>
                 Nuevo flete
               </Button>
-            }
-          />
-        }
-        bodyClassName="gap-4 p-6"
-      >
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="w-105">
-            <SearchField
-              value={search}
-              onChange={setSearch}
-              placeholder="Buscar por descripción o medio"
-              icon={<Search />}
-            />
+            </div>
           </div>
-          <ListFilter
-            name="period"
-            label="Período:"
-            options={freightPeriodOptions}
-            value={String(period)}
-            onChange={(value) => setPeriod(freightPeriodOf(value) ?? period)}
-          />
-          {supplierFilter === undefined ? null : (
-            <SupplierFilterButton
-              supplierFilter={supplierFilter}
-              services={services}
+          {byMonth ? (
+            <FreightReportContent
+              filters={{ from: filters.from, to: filters.to }}
+              onFiltersChange={(next) => onFiltersChange({ search, period, byMonth, ...next })}
               onSessionEnded={onSessionEnded}
+              services={services}
+            />
+          ) : (
+            <Table
+              aria-label="Fletes"
+              table={table}
+              {...cloudTableState(data, "los fletes")}
+              empty={
+                debouncedSearch === "" && supplierFilter === undefined
+                  ? {
+                      icon: <Truck />,
+                      title: `Sin fletes en los últimos ${formatNumber(period)} días`,
+                      description: "Un flete se vincula a una o varias compras.",
+                      variant: "blank",
+                    }
+                  : {
+                      icon: <SearchX />,
+                      title: "Sin resultados",
+                      description:
+                        supplierFilter === undefined
+                          ? "Probá con otra descripción o medio."
+                          : "Probá con otra descripción, medio o proveedor.",
+                      variant: "filtered",
+                    }
+              }
+              footer={
+                freights === undefined || freights.count === 0 ? undefined : (
+                  <p className="text-text-subtle text-detail">
+                    {plural(freights.count, {
+                      one: "1 flete",
+                      other: `${formatNumber(freights.count)} fletes`,
+                    })}
+                    {" · "}
+                    {formatCents(freights.totalCents)}
+                  </p>
+                )
+              }
             />
           )}
         </div>
-        <Table
-          aria-label="Fletes"
-          table={table}
-          {...cloudTableState(data, "los fletes")}
-          empty={
-            debouncedSearch === "" && supplierFilter === undefined
-              ? {
-                  icon: <Truck />,
-                  title: `Sin fletes en los últimos ${formatNumber(period)} días`,
-                  description: "Un flete se vincula a una o varias compras.",
-                  variant: "blank",
-                }
-              : {
-                  icon: <SearchX />,
-                  title: "Sin resultados",
-                  description:
-                    supplierFilter === undefined
-                      ? "Probá con otra descripción o medio."
-                      : "Probá con otra descripción, medio o proveedor.",
-                  variant: "filtered",
-                }
-          }
-          footer={
-            freights === undefined || freights.count === 0 ? undefined : (
-              <p className="text-text-subtle text-detail">
-                {plural(freights.count, {
-                  one: "1 flete",
-                  other: `${formatNumber(freights.count)} fletes`,
-                })}
-                {" · "}
-                {formatCents(freights.totalCents)}
-              </p>
-            )
-          }
-        />
-      </ScreenLayout>
+      </div>
       <NewFreightModal
         open={newModalOpen}
         period={period}

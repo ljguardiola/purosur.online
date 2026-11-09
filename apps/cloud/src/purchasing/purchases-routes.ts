@@ -13,7 +13,7 @@ import {
   purchaseRegistrationBodySchema,
   purchaseSummarySchema,
 } from "@purosur/contracts";
-import { PRODUCTS_PURCHASES_MAY_BE_REGISTERED_FOR } from "@purosur/domain";
+import { PRODUCTS_PURCHASES_MAY_BE_REGISTERED_FOR, type RoleAccess } from "@purosur/domain";
 import {
   addPurchaseLines,
   changePurchaseLineProduct,
@@ -113,11 +113,7 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
     if (!query) {
       return;
     }
-    const purchases = await listPurchases(
-      listing,
-      openSessionOf(request).locationId,
-      query.supplierId,
-    );
+    const purchases = await listPurchases(listing, openSessionOf(request), query.supplierId);
     await reply.code(200).send(purchaseListSchema.parse(purchases.map(summaryOf)));
   });
 
@@ -138,7 +134,7 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
       await sendPurchaseRefusal(reply, outcome);
       return;
     }
-    const purchase = await findPurchaseListing(listing, outcome.purchase.id);
+    const purchase = await findPurchaseListing(listing, outcome.purchase.id, openSession);
     if (!purchase) {
       throw new Error("the purchase vanished after it was registered");
     }
@@ -147,8 +143,13 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
 
   const changes = new DrizzlePurchaseChangeReader(options.db);
 
-  async function sendPurchase(reply: FastifyReply, status: 200 | 201, purchaseId: string) {
-    const purchase = await findPurchaseListing(listing, purchaseId);
+  async function sendPurchase(
+    reply: FastifyReply,
+    status: 200 | 201,
+    purchaseId: string,
+    viewer: RoleAccess,
+  ) {
+    const purchase = await findPurchaseListing(listing, purchaseId, viewer);
     if (!purchase) {
       throw new Error("the purchase vanished after it was corrected");
     }
@@ -181,7 +182,7 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
       await sendPurchaseRefusal(reply, outcome);
       return;
     }
-    await sendPurchase(reply, 201, outcome.purchaseId);
+    await sendPurchase(reply, 201, outcome.purchaseId, openSession);
   });
 
   app.patch("/purchases/:purchaseId", writeGuard, async (request, reply) => {
@@ -214,7 +215,7 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
       await sendUnchanged(reply, "purchase_unchanged");
       return;
     }
-    await sendPurchase(reply, 200, ids.purchaseId);
+    await sendPurchase(reply, 200, ids.purchaseId, openSession);
   });
 
   app.patch("/purchases/:purchaseId/lines/:lineId/expiry", writeGuard, async (request, reply) => {
@@ -247,7 +248,7 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
       await sendUnchanged(reply, "expiry_unchanged");
       return;
     }
-    await sendPurchase(reply, 200, ids.purchaseId);
+    await sendPurchase(reply, 200, ids.purchaseId, openSession);
   });
 
   app.post(
@@ -294,7 +295,7 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
         });
         return;
       }
-      await sendPurchase(reply, 200, ids.purchaseId);
+      await sendPurchase(reply, 200, ids.purchaseId, openSession);
     },
   );
 
@@ -332,7 +333,7 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
       await sendUnchanged(reply, "cost_unchanged");
       return;
     }
-    await sendPurchase(reply, 200, ids.purchaseId);
+    await sendPurchase(reply, 200, ids.purchaseId, openSession);
   });
 
   app.patch("/purchases/:purchaseId/lines/:lineId/quantity", writeGuard, async (request, reply) => {
@@ -380,7 +381,7 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
       });
       return;
     }
-    await sendPurchase(reply, 200, ids.purchaseId);
+    await sendPurchase(reply, 200, ids.purchaseId, openSession);
   });
 
   app.patch("/purchases/:purchaseId/lines/:lineId/product", writeGuard, async (request, reply) => {
@@ -435,7 +436,7 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
         await sendLineRefusal(reply, outcome.kind);
         return;
       case "changed":
-        await sendPurchase(reply, 200, ids.purchaseId);
+        await sendPurchase(reply, 200, ids.purchaseId, openSession);
         return;
     }
   });
@@ -464,7 +465,7 @@ export function registerPurchasesRoutes<TQueryResult extends PgQueryResultHKT>(
         await sendLineRefusal(reply, outcome.kind);
         return;
       case "removed":
-        await sendPurchase(reply, 200, ids.purchaseId);
+        await sendPurchase(reply, 200, ids.purchaseId, openSession);
         return;
     }
   });

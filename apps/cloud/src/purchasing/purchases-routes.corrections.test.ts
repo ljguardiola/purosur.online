@@ -326,6 +326,31 @@ describe("PATCH /purchases/:purchaseId", () => {
     expect(await db.select().from(auditLog).where(eq(auditLog.entity, "purchase"))).toHaveLength(1);
   });
 
+  it("answers the corrected purchase's linked freights only to who manages freights", async () => {
+    const owner = await buyer();
+    const yerba = await insertProduct(db, { name: "Yerba" });
+    const purchase = await registeredPurchase(owner.headers, owner.userId, [
+      quantityLine(yerba.productId),
+    ]);
+    const onlyPurchases = await signedInWith(db, ["record_purchases"], NOW);
+
+    const unanswered = await app.inject({
+      method: "PATCH",
+      url: `/purchases/${purchase.id}`,
+      headers: onlyPurchases.headers,
+      payload: headerBody({ receiptNumber: "0001-00001243" }),
+    });
+    const answered = await app.inject({
+      method: "PATCH",
+      url: `/purchases/${purchase.id}`,
+      headers: owner.headers,
+      payload: headerBody({ receiptNumber: "0001-00001244" }),
+    });
+
+    expect(purchaseSummarySchema.parse(unanswered.json()).freights).toBeNull();
+    expect(purchaseSummarySchema.parse(answered.json()).freights).toEqual([]);
+  });
+
   it("answers 409 purchase_unchanged and records nothing when nothing changes", async () => {
     const { headers, userId } = await buyer();
     const yerba = await insertProduct(db, { name: "Yerba" });

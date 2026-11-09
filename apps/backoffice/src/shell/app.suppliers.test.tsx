@@ -18,7 +18,7 @@ opensOnlyScreens([
   "/suppliers/price-lists",
   "/purchase-orders",
   "/purchases",
-  "/freights",
+  "/purchases/freights",
 ]);
 
 beforeEach(resetPageState);
@@ -234,7 +234,7 @@ test.each([
   ["lists", "Listas", `/suppliers/price-lists?supplier=${andina.id}`, "Listas de proveedores"],
   ["orders", "Pedidos", `/purchase-orders?supplier=${andina.id}`, "Pedidos de compra"],
   ["purchases", "Compras", `/purchases?supplier=${andina.id}`, "Compras"],
-  ["freights", "Fletes", `/freights?period=365&supplier=${andina.id}`, "Fletes"],
+  ["freights", "Fletes", `/purchases/freights?period=365&supplier=${andina.id}`, "Fletes"],
 ] as const)(
   "opens the full list of the panel's %s tab filtered by the supplier when Ver todos is pressed",
   async (tab, tabName, address, tableName) => {

@@ -28,6 +28,8 @@ import { DrizzlePurchasingStore } from "./drizzle-purchasing-store.js";
 import { insertActor, insertProduct } from "./test-support/purchasing-fixtures.js";
 import { quantityLine, registeredPurchase } from "./test-support/registered-purchase.js";
 
+const BUYER = { isAdministrator: false, permissionKeys: ["record_purchases"] };
+
 const REGISTERED_AT = new Date("2026-10-02T12:00:00.000Z");
 const COUNTED_AT = new Date("2026-10-03T10:00:00.000Z");
 const CORRECTED_AT = new Date("2026-10-06T15:00:00.000Z");
@@ -300,7 +302,7 @@ describe("changing the product of a purchase line", () => {
     };
     const names = [];
     for (const purchaseId of [first, third]) {
-      const name = (await findPurchaseListing(ports, purchaseId))?.lines[0]?.lotName;
+      const name = (await findPurchaseListing(ports, purchaseId, BUYER))?.lines[0]?.lotName;
       names.push([name?.day, name?.number]);
     }
     expect(names).toEqual([
