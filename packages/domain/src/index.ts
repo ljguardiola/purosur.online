@@ -314,6 +314,7 @@ export {
   clockCorrectedEvent,
   clockCorrectionPeriodKey,
   contingencyOf,
+  countsAsContingencyTime,
   creditLeftOnInvoice,
   creditNoteCFiscalBlock,
   creditNoteToIssuePayload,

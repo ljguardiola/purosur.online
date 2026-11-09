@@ -42,10 +42,10 @@ export function createContingencyRecording({
         const credentials = await readCredentials();
         if (credentials === undefined) {
           recordRegisterSeenUnenrolled({
-            ledger: new SqliteContingencyLedger(database, undefined),
+            ledger: new SqliteContingencyLedger(database, undefined, readMode),
           });
         } else if (credentials.keys !== undefined) {
-          work(new SqliteContingencyLedger(database, credentials.keys.outbox_chain_key));
+          work(new SqliteContingencyLedger(database, credentials.keys.outbox_chain_key, readMode));
         }
       } catch (error) {
         reportFailure(error);
@@ -58,7 +58,7 @@ export function createContingencyRecording({
     const clock = { now };
     closePredecessorContingency({ ledger, ids });
     startContingencyReporting({ ledger, clock, ids });
-    recordContingencyChange({ ledger, clock, ids }, { mode: readMode() });
+    recordContingencyChange({ ledger, clock, ids });
   }
 
   return {

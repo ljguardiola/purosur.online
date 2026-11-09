@@ -156,7 +156,6 @@ export type {
 } from "./record-cash-movement.js";
 export { recordCashMovement } from "./record-cash-movement.js";
 export type {
-  RecordContingencyChangeInput,
   RecordContingencyChangeOutcome,
   RecordContingencyChangePorts,
 } from "./record-contingency-change.js";
