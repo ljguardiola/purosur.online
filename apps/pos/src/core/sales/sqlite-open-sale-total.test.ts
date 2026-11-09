@@ -10,10 +10,16 @@ let database: LocalDatabase;
 function addSale(id: string, state: string, lineTotals: number[], sessionId = "session-1"): void {
   database
     .prepare(
-      `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at)
-       VALUES (?, 'r1', 'device-1', ?, 'u1', ?, ?)`,
+      `INSERT INTO sales (id, register_id, device_id, session_id, actor_id, state, occurred_at, voided_at)
+       VALUES (?, 'r1', 'device-1', ?, 'u1', ?, ?, ?)`,
     )
-    .run(id, sessionId, state, state === "OPEN" ? null : "2026-10-08T12:00:00.000Z");
+    .run(
+      id,
+      sessionId,
+      state,
+      state === "OPEN" ? null : "2026-10-08T12:00:00.000Z",
+      state === "VOIDED" ? "2026-10-08T12:30:00.000Z" : null,
+    );
   lineTotals.forEach((lineTotal, index) => {
     database
       .prepare(
