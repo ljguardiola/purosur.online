@@ -100,6 +100,14 @@ function LinesThatAddThemselves() {
 
 const region = () => page.getByRole("region", { name: "Detalle" });
 const nextButton = () => page.getByRole("button", { name: "Siguiente" });
+function pressInOneCommit(name: string) {
+  const button = page.getByRole("button", { name }).element();
+  if (!(button instanceof HTMLButtonElement)) {
+    throw new Error(`No button named ${name}`);
+  }
+  flushSync(() => button.click());
+}
+
 const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
 
 test("adds no tab stop to content that fits", async () => {
@@ -216,7 +224,7 @@ test("is a tab stop as soon as the render that shrinks it below its content comm
   await nextFrame();
   expect(page.getByRole("region").query()).toBeNull();
 
-  flushSync(() => page.getByRole("button", { name: "Achicar" }).element().click());
+  pressInOneCommit("Achicar");
 
   expect(region().query()?.getAttribute("tabindex")).toBe("0");
 });
@@ -231,7 +239,7 @@ test("is a tab stop before any other task runs once content that renders on its 
   await nextFrame();
   expect(page.getByRole("region").query()).toBeNull();
 
-  flushSync(() => page.getByRole("button", { name: "Agrandar" }).element().click());
+  pressInOneCommit("Agrandar");
   await Promise.resolve();
 
   expect(region().query()?.getAttribute("tabindex")).toBe("0");
@@ -247,7 +255,7 @@ test("is a tab stop before any other task runs once content that renders on its 
   await nextFrame();
   expect(page.getByRole("region").query()).toBeNull();
 
-  flushSync(() => page.getByRole("button", { name: "Agregar" }).element().click());
+  pressInOneCommit("Agregar");
   await Promise.resolve();
 
   expect(region().query()?.getAttribute("tabindex")).toBe("0");
