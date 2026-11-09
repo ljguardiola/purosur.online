@@ -1,3 +1,4 @@
+import type { FiscalEmissionMode } from "@purosur/domain";
 import {
   closeInterruptedContingency,
   closePredecessorContingency,
@@ -14,8 +15,8 @@ import { openLocalDatabase } from "../platform/test-support/open-local-database"
 import { SqliteContingencyLedger } from "./sqlite-contingency-ledger";
 
 const CHAIN_KEY = Buffer.from("0123456789abcdef0123456789abcdef").toString("base64");
-const OFFLINE = { kind: "offline_code", cause: "no_connectivity" } as const;
-const REAL_TIME = { kind: "real_time" } as const;
+const OFFLINE: FiscalEmissionMode = { kind: "offline_code", cause: "no_connectivity" };
+const REAL_TIME: FiscalEmissionMode = { kind: "real_time" };
 const T1 = new Date("2026-10-12T12:00:00.000Z");
 const T2 = new Date("2026-10-12T12:30:00.000Z");
 const T3 = new Date("2026-10-12T13:00:00.000Z");
@@ -32,15 +33,19 @@ function ids(): IdGenerator {
   };
 }
 
-function ledger(chainKey: string | undefined = CHAIN_KEY): SqliteContingencyLedger {
-  return new SqliteContingencyLedger(database, chainKey);
+function ledger(
+  chainKey: string | undefined = CHAIN_KEY,
+  mode: FiscalEmissionMode = REAL_TIME,
+): SqliteContingencyLedger {
+  return new SqliteContingencyLedger(database, chainKey, () => mode);
 }
 
-function change(mode: typeof OFFLINE | typeof REAL_TIME, at: Date, chainKey?: string) {
-  return recordContingencyChange(
-    { ledger: ledger(chainKey), clock: { now: () => at }, ids: ids() },
-    { mode },
-  );
+function change(mode: FiscalEmissionMode, at: Date, chainKey?: string) {
+  return recordContingencyChange({
+    ledger: ledger(chainKey, mode),
+    clock: { now: () => at },
+    ids: ids(),
+  });
 }
 
 function openSession(): void {
@@ -265,13 +270,10 @@ describe("SqliteContingencyLedger", () => {
 
   it("leaves nothing behind when the event cannot be appended for lack of a chain key", () => {
     openSession();
-    const withoutKey = { ledger: new SqliteContingencyLedger(database, undefined) };
+    const withoutKey = { ledger: new SqliteContingencyLedger(database, undefined, () => OFFLINE) };
 
     expect(() =>
-      recordContingencyChange(
-        { ...withoutKey, clock: { now: () => T1 }, ids: ids() },
-        { mode: OFFLINE },
-      ),
+      recordContingencyChange({ ...withoutKey, clock: { now: () => T1 }, ids: ids() }),
     ).toThrow("the ledger has no outbox chain key");
     expect(intervals()).toEqual([]);
   });

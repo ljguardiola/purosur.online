@@ -14,6 +14,7 @@ interface RecordedContingencyInterval extends OpenContingencyInterval {
 export interface FakeContingencyLedgerState {
   registerId: string | undefined;
   cashSessionOpen: boolean;
+  emittingInContingencyTime: boolean;
   replenishmentPending: boolean;
   intervals: RecordedContingencyInterval[];
   reportingStartedAt: Date | undefined;
@@ -38,6 +39,7 @@ export class FakeContingencyLedger implements ContingencyLedger {
     this.state = {
       registerId: "register-1",
       cashSessionOpen: true,
+      emittingInContingencyTime: true,
       replenishmentPending: false,
       intervals: [],
       reportingStartedAt: undefined,
@@ -53,6 +55,7 @@ export class FakeContingencyLedger implements ContingencyLedger {
     const outcome = work({
       registerId: () => working.registerId,
       cashSessionOpen: () => working.cashSessionOpen,
+      emittingInContingencyTime: () => working.emittingInContingencyTime,
       replenishmentPending: () => working.replenishmentPending,
       openInterval: () => {
         const open = working.intervals.find(
