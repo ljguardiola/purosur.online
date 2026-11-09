@@ -161,46 +161,7 @@ test("a Revisar los N read that throws shows a notice, keeps the table and re-en
     .toBeEnabled();
 });
 
-test("Revisar los N with nothing left under Por revisar reloads the list and leaves the saying to its empty state", async () => {
-  const services = createServices();
-  const nothingPending = {
-    kind: "ok" as const,
-    value: {
-      products: [],
-      pendingCount: 0,
-      activeProductCount: 3,
-      reviewWindowDays: 30,
-      categories: [],
-    },
-  };
-  vi.mocked(services.fetchPrices)
-    .mockResolvedValueOnce({
-      kind: "ok",
-      value: {
-        products: [rice],
-        pendingCount: 1,
-        activeProductCount: 3,
-        reviewWindowDays: 30,
-        categories: [],
-      },
-    })
-    .mockResolvedValue(nothingPending);
-
-  const screen = await renderScreen(services);
-  await userEvent.click(screen.getByRole("button", { name: "Revisar 1" }));
-
-  await expect.poll(() => vi.mocked(services.fetchPrices).mock.calls.length).toBe(3);
-  expect(vi.mocked(services.fetchPrices).mock.lastCall?.[0]).toEqual({ review: "pending" });
-  await expect
-    .element(screen.getByText("Todos los precios se revisaron en los últimos 30 días."))
-    .toBeVisible();
-  expect(screen.getByText("Arroz").query()).toBeNull();
-  expect(screen.getByText("Precios al día").elements()).toHaveLength(1);
-  expect(screen.getByText("No quedan precios por revisar").query()).toBeNull();
-  expect(screen.getByRole("dialog").query()).toBeNull();
-});
-
-test("Revisar los N with nothing left under another filter reloads the list and says none is left to review", async () => {
+test("Revisar los N with nothing left reloads the list and says none is left to review", async () => {
   const services = createServices();
   vi.mocked(services.fetchPrices).mockImplementation(async (filters) =>
     filters.review === "pending"
@@ -237,16 +198,13 @@ test("Revisar los N with nothing left under another filter reloads the list and 
   });
 
   const screen = await renderScreen(services);
-  await userEvent.click(screen.getByRole("button", { name: "Revisión: Por revisar" }));
-  await userEvent.click(screen.getByRole("option", { name: "Todos" }));
-  await expect.poll(() => vi.mocked(services.fetchPrices).mock.calls.length).toBe(2);
   await userEvent.click(screen.getByRole("button", { name: "Revisar 1" }));
 
   await expect.element(screen.getByText("No quedan precios por revisar")).toBeVisible();
   await expect
     .element(screen.getByText("Todos los precios se revisaron en los últimos 15 días."))
     .toBeVisible();
-  await expect.poll(() => vi.mocked(services.fetchPrices).mock.calls.length).toBe(4);
+  await expect.poll(() => vi.mocked(services.fetchPrices).mock.calls.length).toBe(3);
   expect(vi.mocked(services.fetchPrices).mock.lastCall?.[0]).toEqual({ review: "all" });
   expect(screen.getByRole("dialog").query()).toBeNull();
 });

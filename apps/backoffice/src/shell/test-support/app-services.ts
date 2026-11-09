@@ -130,6 +130,7 @@ export function createAppServices(
       fetchPrices: vi.fn().mockReturnValue(new Promise(() => {})),
       setPrice: vi.fn(),
       confirmPrice: vi.fn(),
+      fetchPricesPastReviewDeadlineReport: vi.fn().mockReturnValue(new Promise(() => {})),
     },
     discountsListScreen: {
       fetchDiscounts: vi.fn().mockReturnValue(new Promise(() => {})),
