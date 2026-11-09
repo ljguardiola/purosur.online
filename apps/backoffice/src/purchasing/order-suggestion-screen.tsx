@@ -40,7 +40,7 @@ import { useOrderSuggestionQuery, useRefreshPurchasing } from "./purchasing-quer
 
 export type OrderSuggestionScreenProps = {
   access: BackofficeAccess;
-  onOrdersBuilt: () => void;
+  onOrdersBuilt: (orderIds: readonly string[]) => void;
   filters: OrderSuggestionFilters;
   onFiltersChange: (filters: OrderSuggestionFilters) => void;
   onSessionEnded: () => void;
@@ -153,7 +153,7 @@ export function OrderSuggestionScreen({
       switch (outcome.kind) {
         case "ok":
           void refreshPurchasing();
-          onOrdersBuilt();
+          onOrdersBuilt(outcome.orderIds);
           return;
         case "unauthenticated":
           onSessionEnded();

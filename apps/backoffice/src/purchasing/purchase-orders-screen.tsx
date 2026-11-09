@@ -13,7 +13,9 @@ import { deepEqual } from "@tanstack/react-router";
 import { ClipboardList, Eye, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
+import type { BackofficeAccess } from "../shell/backoffice-access";
 import { formatPurchaseOrderCreatedDay } from "./purchase-order-day";
+import { PurchaseOrderPanel } from "./purchase-order-panel";
 import { purchaseOrderStatusOf } from "./purchase-order-status";
 import type { PurchaseOrdersFilters } from "./purchase-orders-filters";
 import type { PurchaseOrdersScreenServices } from "./purchase-orders-services";
@@ -27,7 +29,13 @@ import {
 export type PurchaseOrdersScreenProps = {
   filters: PurchaseOrdersFilters;
   onFiltersChange: (filters: PurchaseOrdersFilters) => void;
-  onOpenOrder: (orderId: string) => void;
+  access: BackofficeAccess;
+  openOrder: string | undefined;
+  received: boolean;
+  onOpenOrderChange: (orderId: string | undefined) => void;
+  onReceive: (orderId: string) => void;
+  onOpenPurchases: () => void;
+  onReceivedNoticeDismissed: () => void;
   onSessionEnded: () => void;
   services: PurchaseOrdersScreenServices;
   supplierFilter?: SupplierFilter | undefined;
@@ -49,7 +57,13 @@ const STATE_FILTER_OPTIONS = [
 export function PurchaseOrdersScreen({
   filters,
   onFiltersChange,
-  onOpenOrder,
+  access,
+  openOrder,
+  received,
+  onOpenOrderChange,
+  onReceive,
+  onOpenPurchases,
+  onReceivedNoticeDismissed,
   onSessionEnded,
   services,
   supplierFilter,
@@ -115,7 +129,7 @@ export function PurchaseOrdersScreen({
         (order: PurchaseOrderSummary) => ({
           icon: <Eye />,
           "aria-label": `Abrir el pedido de ${order.supplier.name}`,
-          onPress: () => onOpenOrder(order.id),
+          onPress: () => onOpenOrderChange(order.id),
         }),
       ],
     }),
@@ -129,55 +143,73 @@ export function PurchaseOrdersScreen({
   const shownCount = table.getRowModel().rows.length;
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <ListFilter
-          name="state"
-          label="Estado:"
-          options={STATE_FILTER_OPTIONS}
-          value={stateFilter}
-          onChange={setStateFilter}
-        />
-        {supplierFilter === undefined ? null : (
-          <SupplierFilterButton
-            supplierFilter={supplierFilter}
-            services={services}
-            onSessionEnded={onSessionEnded}
+    <div className="flex min-h-0 flex-1">
+      <div className="relative flex min-w-0 flex-1 flex-col gap-4 overflow-auto p-6">
+        <div className="flex flex-wrap items-center gap-3">
+          <ListFilter
+            name="state"
+            label="Estado:"
+            options={STATE_FILTER_OPTIONS}
+            value={stateFilter}
+            onChange={setStateFilter}
           />
-        )}
+          {supplierFilter === undefined ? null : (
+            <SupplierFilterButton
+              supplierFilter={supplierFilter}
+              services={services}
+              onSessionEnded={onSessionEnded}
+            />
+          )}
+        </div>
+        <Table
+          aria-label="Pedidos de compra"
+          table={table}
+          onRowPress={(order) => onOpenOrderChange(order.id)}
+          rowState={(order) => (order.id === openOrder ? "selected" : undefined)}
+          {...cloudTableState(data, "los pedidos")}
+          empty={
+            stateFilter === "ALL" && supplierFilter === undefined
+              ? {
+                  icon: <ClipboardList />,
+                  title: "Todavía no hay pedidos",
+                  variant: "blank",
+                }
+              : {
+                  icon: <Search />,
+                  title: "Sin resultados",
+                  description:
+                    supplierFilter === undefined
+                      ? "Probá con otro estado."
+                      : "Probá con otro estado o proveedor.",
+                  variant: "filtered",
+                }
+          }
+          footer={
+            shownCount === 0 ? undefined : (
+              <p className="text-text-subtle text-detail">
+                {plural(shownCount, {
+                  one: "1 pedido",
+                  other: `${formatNumber(shownCount)} pedidos`,
+                })}
+              </p>
+            )
+          }
+        />
       </div>
-      <Table
-        aria-label="Pedidos de compra"
-        table={table}
-        {...cloudTableState(data, "los pedidos")}
-        empty={
-          stateFilter === "ALL" && supplierFilter === undefined
-            ? {
-                icon: <ClipboardList />,
-                title: "Todavía no hay pedidos",
-                variant: "blank",
-              }
-            : {
-                icon: <Search />,
-                title: "Sin resultados",
-                description:
-                  supplierFilter === undefined
-                    ? "Probá con otro estado."
-                    : "Probá con otro estado o proveedor.",
-                variant: "filtered",
-              }
-        }
-        footer={
-          shownCount === 0 ? undefined : (
-            <p className="text-text-subtle text-detail">
-              {plural(shownCount, {
-                one: "1 pedido",
-                other: `${formatNumber(shownCount)} pedidos`,
-              })}
-            </p>
-          )
-        }
-      />
+      {openOrder === undefined ? null : (
+        <PurchaseOrderPanel
+          key={openOrder}
+          orderId={openOrder}
+          access={access}
+          received={received}
+          services={services}
+          onClose={() => onOpenOrderChange(undefined)}
+          onReceive={() => onReceive(openOrder)}
+          onOpenPurchases={onOpenPurchases}
+          onNoticeDismissed={onReceivedNoticeDismissed}
+          onSessionEnded={onSessionEnded}
+        />
+      )}
     </div>
   );
 }

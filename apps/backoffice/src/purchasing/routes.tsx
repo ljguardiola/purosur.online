@@ -4,7 +4,6 @@ import { z } from "zod";
 import {
   canManageFreights,
   canManageSupplierPriceLists,
-  canReadPurchaseOrders,
   canReceivePurchaseOrders,
   canRecordPurchases,
   canSeeAiCostReport,
@@ -171,7 +170,10 @@ export const purchaseOrdersListRoute = createRoute({
   path: "/",
   beforeLoad: ({ context: { purchaseOrdersTabs } }) =>
     purchaseOrdersTabRedirect(purchaseOrdersTabs, "orders"),
-  validateSearch: purchaseOrdersFilters.extend(supplierFilterSearch.shape),
+  validateSearch: purchaseOrdersFilters.extend({
+    ...supplierFilterSearch.shape,
+    order: recordIdSchema().optional().catch(undefined),
+  }),
   search: { middlewares: [stripSearchParams(purchaseOrdersFilters.parse({}))] },
   component: lazyScreen(() => import("./purchase-orders-list-page"), "PurchaseOrdersListPage"),
 });
@@ -217,11 +219,12 @@ export const legacySupplierPriceComparisonRoute = createRoute({
   },
 });
 
-export const purchaseOrderRoute = createRoute({
-  getParentRoute: () => purchasingAreaRoute,
+export const legacyPurchaseOrderRoute = createRoute({
+  getParentRoute: () => signedInRoute,
   path: "purchase-orders/$orderId",
-  beforeLoad: ({ context: { session } }) => refuseWithout(session, canReadPurchaseOrders),
-  component: lazyScreen(() => import("./purchase-order-page"), "PurchaseOrderPage"),
+  beforeLoad: ({ params }) => {
+    throw redirect({ to: "/purchase-orders", search: { order: params.orderId } });
+  },
 });
 
 export const purchaseOrderReceiveRoute = createRoute({

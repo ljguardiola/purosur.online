@@ -18,7 +18,7 @@ export function PendingPurchaseOrdersReportPage(): ReactElement {
       mayOpenOrders={canReadPurchaseOrders(session)}
       onFiltersChange={(next) => void navigate({ search: next, replace: true })}
       onOpenOrder={(orderId) =>
-        void navigate({ to: "/purchase-orders/$orderId", params: { orderId } })
+        void navigate({ to: "/purchase-orders", search: { order: orderId } })
       }
       onSessionEnded={sessionActions.sessionEnded}
       services={

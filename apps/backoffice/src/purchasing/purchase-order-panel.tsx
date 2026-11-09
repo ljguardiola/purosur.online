@@ -2,6 +2,7 @@ import type { PurchaseOrderDetail } from "@purosur/contracts";
 import {
   Button,
   Card,
+  DetailPanel,
   dataColumn,
   EmptyState,
   FloatingNotification,
@@ -17,22 +18,20 @@ import {
   useTableModel,
 } from "@purosur/ui";
 import { formatProductDescription } from "@purosur/ui/formatters";
-import { ArrowLeft, Check, FileX, PackageCheck, Send, Trash2, TriangleAlert } from "lucide-react";
+import { Check, FileX, PackageCheck, Send, Trash2, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { cloudLoadFailure } from "../platform/cloud-load-failure";
-import { AreaTopBar } from "../shell/area-top-bar";
 import {
   type BackofficeAccess,
   canManagePurchaseOrders,
   canReceivePurchaseOrders,
   canRecordPurchases,
 } from "../shell/backoffice-access";
-import { ScreenLayout } from "../shell/screen-layout";
 import { CancelPurchaseOrderModal } from "./cancel-purchase-order-modal";
 import { formatPurchaseOrderCreatedDay } from "./purchase-order-day";
 import { PurchaseOrderDraftForm } from "./purchase-order-draft-form";
+import type { PurchaseOrderPanelServices } from "./purchase-order-panel-services";
 import { PurchaseOrderReceipts } from "./purchase-order-receipts";
-import type { PurchaseOrderScreenServices } from "./purchase-order-services";
 import { purchaseOrderStatusOf } from "./purchase-order-status";
 import {
   usePurchaseChoicesQuery,
@@ -41,16 +40,16 @@ import {
 } from "./purchasing-queries";
 import { SharePurchaseOrderModal } from "./share-purchase-order-modal";
 
-export type PurchaseOrderScreenProps = {
+export type PurchaseOrderPanelProps = {
   orderId: string;
   access: BackofficeAccess;
   received: boolean;
-  onBack: () => void;
+  onClose: () => void;
   onReceive: () => void;
   onOpenPurchases: () => void;
   onNoticeDismissed: () => void;
   onSessionEnded: () => void;
-  services: PurchaseOrderScreenServices;
+  services: PurchaseOrderPanelServices;
 };
 
 type OrderLine = PurchaseOrderDetail["lines"][number];
@@ -76,17 +75,17 @@ function supplierItemText(item: NonNullable<OrderLine["supplierItem"]>): string 
 
 const NO_PRICE = "Sin precio de lista";
 
-export function PurchaseOrderScreen({
+export function PurchaseOrderPanel({
   orderId,
   access,
   received,
-  onBack,
+  onClose,
   onReceive,
   onOpenPurchases,
   onNoticeDismissed,
   onSessionEnded,
   services,
-}: PurchaseOrderScreenProps) {
+}: PurchaseOrderPanelProps) {
   const data = usePurchaseOrderQuery({
     orderId,
     fetchPurchaseOrder: services.fetchPurchaseOrder,
@@ -179,112 +178,106 @@ export function PurchaseOrderScreen({
 
   return (
     <>
-      <ScreenLayout
-        topBar={
-          <AreaTopBar
-            eyebrow="Compras"
-            title={order === null ? "Pedido" : `Pedido a ${order.supplier.name}`}
-            action={
-              <Button variant="text" icon={<ArrowLeft />} onPress={onBack}>
-                Volver a los pedidos
-              </Button>
-            }
-          />
-        }
-        bodyClassName="gap-4 p-6"
+      <DetailPanel
+        open
+        onClose={onClose}
+        recordKey={orderId}
+        title={order === null ? "Pedido" : `Pedido a ${order.supplier.name}`}
       >
-        {data.status === "loading" && <LoadingPlaceholder variant="form" fields={4} />}
-        {data.status === "failed" && <LoadFailure {...cloudLoadFailure(data, "el pedido")} />}
-        {read?.kind === "not_found" && (
-          <EmptyState icon={<FileX />} title="Este pedido ya no existe" variant="blank" />
-        )}
-        {editRefused ? (
-          <InlineNotice
-            tone="error"
-            icon={<TriangleAlert />}
-            title="Este pedido ya no se puede editar"
-            description="Actualizamos el pedido con su estado actual."
-          />
-        ) : null}
-        {order !== null && status !== null && (
-          <>
-            <Card>
-              <dl className="flex flex-wrap gap-x-10 gap-y-3">
-                <div>
-                  <dt className="text-detail text-text-subtle">Proveedor</dt>
-                  <dd>{order.supplier.name}</dd>
-                </div>
-                <div>
-                  <dt className="text-detail text-text-subtle">Fecha de creación</dt>
-                  <dd>{formatPurchaseOrderCreatedDay(order.createdAt)}</dd>
-                </div>
-                <div>
-                  <dt className="text-detail text-text-subtle">Estado</dt>
-                  <dd>
-                    <StatusIndicator tone={status.tone}>{status.label}</StatusIndicator>
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-detail text-text-subtle">Total esperado</dt>
-                  <dd className="flex flex-col">
-                    <span>{formatCents(order.expectedTotalCents)}</span>
-                    {order.hasUnpricedLine ? (
-                      <span className="text-detail text-text-subtle">
-                        Hay líneas sin precio de lista
-                      </span>
-                    ) : null}
-                  </dd>
-                </div>
-              </dl>
-            </Card>
-            <div className="flex justify-end gap-2">
-              {order.receivable && canReceivePurchaseOrders(access) ? (
-                <Button variant="primary" icon={<PackageCheck />} onPress={onReceive}>
-                  Recibir pedido
-                </Button>
-              ) : null}
-              {order.editable || !order.cancellable || !mayManage ? null : (
-                <Button
-                  variant="secondary"
-                  destructive
-                  icon={<Trash2 />}
-                  onPress={() => setCancelTarget(order)}
-                >
-                  Cancelar pedido
-                </Button>
-              )}
-              {order.editable || !order.documentShareable || !mayManage ? null : (
-                <Button variant="secondary" icon={<Send />} onPress={() => setShareTarget(order)}>
-                  Compartir pedido
-                </Button>
-              )}
-            </div>
-            {draftEditable ? (
-              <PurchaseOrderDraftForm
-                order={order}
-                products={choices.status === "loaded" ? choices.value.products : NO_PRODUCTS}
-                productsStatus={choices.status}
-                services={services}
-                onSaved={() => {
-                  setEditRefused(false);
-                  setNotice("saved");
-                }}
-                onNotEditable={() => setEditRefused(true)}
-                onCancelOrder={() => setCancelTarget(order)}
-                onShareOrder={() => setShareTarget(order)}
-                onSessionEnded={onSessionEnded}
-              />
-            ) : (
-              <Table aria-label="Líneas del pedido" table={table} loading={false} />
-            )}
-            <PurchaseOrderReceipts
-              order={order}
-              canOpenPurchases={canRecordPurchases(access)}
-              onOpenPurchases={onOpenPurchases}
+        <div className="flex flex-col gap-4 p-6">
+          {data.status === "loading" && <LoadingPlaceholder variant="form" fields={4} />}
+          {data.status === "failed" && <LoadFailure {...cloudLoadFailure(data, "el pedido")} />}
+          {read?.kind === "not_found" && (
+            <EmptyState icon={<FileX />} title="Este pedido ya no existe" variant="blank" />
+          )}
+          {editRefused ? (
+            <InlineNotice
+              tone="error"
+              icon={<TriangleAlert />}
+              title="Este pedido ya no se puede editar"
+              description="Actualizamos el pedido con su estado actual."
             />
-          </>
-        )}
-      </ScreenLayout>
+          ) : null}
+          {order !== null && status !== null && (
+            <>
+              <Card>
+                <dl className="flex flex-wrap gap-x-10 gap-y-3">
+                  <div>
+                    <dt className="text-detail text-text-subtle">Proveedor</dt>
+                    <dd>{order.supplier.name}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-detail text-text-subtle">Fecha de creación</dt>
+                    <dd>{formatPurchaseOrderCreatedDay(order.createdAt)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-detail text-text-subtle">Estado</dt>
+                    <dd>
+                      <StatusIndicator tone={status.tone}>{status.label}</StatusIndicator>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-detail text-text-subtle">Total esperado</dt>
+                    <dd className="flex flex-col">
+                      <span>{formatCents(order.expectedTotalCents)}</span>
+                      {order.hasUnpricedLine ? (
+                        <span className="text-detail text-text-subtle">
+                          Hay líneas sin precio de lista
+                        </span>
+                      ) : null}
+                    </dd>
+                  </div>
+                </dl>
+              </Card>
+              <div className="flex justify-end gap-2">
+                {order.receivable && canReceivePurchaseOrders(access) ? (
+                  <Button variant="primary" icon={<PackageCheck />} onPress={onReceive}>
+                    Recibir pedido
+                  </Button>
+                ) : null}
+                {order.editable || !order.cancellable || !mayManage ? null : (
+                  <Button
+                    variant="secondary"
+                    destructive
+                    icon={<Trash2 />}
+                    onPress={() => setCancelTarget(order)}
+                  >
+                    Cancelar pedido
+                  </Button>
+                )}
+                {order.editable || !order.documentShareable || !mayManage ? null : (
+                  <Button variant="secondary" icon={<Send />} onPress={() => setShareTarget(order)}>
+                    Compartir pedido
+                  </Button>
+                )}
+              </div>
+              {draftEditable ? (
+                <PurchaseOrderDraftForm
+                  order={order}
+                  products={choices.status === "loaded" ? choices.value.products : NO_PRODUCTS}
+                  productsStatus={choices.status}
+                  services={services}
+                  onSaved={() => {
+                    setEditRefused(false);
+                    setNotice("saved");
+                  }}
+                  onNotEditable={() => setEditRefused(true)}
+                  onCancelOrder={() => setCancelTarget(order)}
+                  onShareOrder={() => setShareTarget(order)}
+                  onSessionEnded={onSessionEnded}
+                />
+              ) : (
+                <Table aria-label="Líneas del pedido" table={table} loading={false} />
+              )}
+              <PurchaseOrderReceipts
+                order={order}
+                canOpenPurchases={canRecordPurchases(access)}
+                onOpenPurchases={onOpenPurchases}
+              />
+            </>
+          )}
+        </div>
+      </DetailPanel>
       <CancelPurchaseOrderModal
         target={cancelTarget}
         services={services}

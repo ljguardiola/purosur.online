@@ -12,7 +12,12 @@ export function OrderSuggestionPage(): ReactElement {
   return (
     <OrderSuggestionScreen
       access={session}
-      onOrdersBuilt={() => void navigate({ to: "/purchase-orders" })}
+      onOrdersBuilt={(orderIds) =>
+        void navigate({
+          to: "/purchase-orders",
+          search: { state: "DRAFT", order: orderIds.length === 1 ? orderIds[0] : undefined },
+        })
+      }
       filters={filters}
       onFiltersChange={(next) => void navigate({ search: next, replace: true })}
       onSessionEnded={sessionActions.sessionEnded}
