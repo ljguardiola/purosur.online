@@ -238,7 +238,6 @@ export {
   awaitsNumberingDiagnosis,
   isNumberingConflictAnswer,
   NUMBERING_CONFLICT_REASK_INTERVAL_MS,
-  type NumberingFreeze,
   restorationNumberingFreeze,
 } from "./model/numbering-conflict.js";
 export type { Fortnight } from "./model/offline-authorization-code.js";

@@ -44,7 +44,7 @@ export interface FakeSnapshotGenerationKeyUse {
   retained: boolean;
 }
 
-export interface FakeRestoredRegisterNumberingFreeze {
+interface FakeRestoredRegisterNumberingFreeze {
   registerId: string;
   restoredAt: Date;
 }
