@@ -1,25 +1,13 @@
 import { Button } from "@purosur/ui";
 import { CreditCard, QrCode } from "lucide-react";
-import type { ReactNode } from "react";
-import {
-  type BackofficeAccess,
-  canAssignPointTerminal,
-  canAssignQrPointOfSale,
-} from "../shell/backoffice-access";
-import type { RegisterActions } from "./register-row-actions";
-import type { RegisterSummary } from "./registers-api";
-
-export type RegisterPaymentsSectionProps = {
-  register: RegisterSummary;
-  access: BackofficeAccess;
-  actions: RegisterActions;
-  pointOfSaleSlot?: ReactNode | undefined;
-};
+import type { RegisterPaymentsSectionProps } from "../platform/register-panel-sections";
 
 export function RegisterPaymentsSection({
   register,
-  access,
-  actions,
+  mayAssignPointTerminal,
+  mayAssignQrPointOfSale,
+  onAssignPointTerminal,
+  onAssignQrPointOfSale,
   pointOfSaleSlot,
 }: RegisterPaymentsSectionProps) {
   return (
@@ -29,31 +17,31 @@ export function RegisterPaymentsSection({
         <p className="text-body text-text">
           {`Terminal Point: ${register.pointTerminalId ?? "sin asignar"}`}
         </p>
-        {canAssignPointTerminal(access) && (
+        {mayAssignPointTerminal ? (
           <Button
             variant="secondary"
             size="small"
             icon={<CreditCard />}
-            onPress={() => actions.assignTerminal(register)}
+            onPress={onAssignPointTerminal}
           >
             Asignar terminal Point
           </Button>
-        )}
+        ) : null}
       </div>
       <div className="flex flex-col items-start gap-2">
         <p className="text-body text-text">
           {`QR de Mercado Pago: ${register.qrExternalPosId ?? "sin asignar"}`}
         </p>
-        {canAssignQrPointOfSale(access) && (
+        {mayAssignQrPointOfSale ? (
           <Button
             variant="secondary"
             size="small"
             icon={<QrCode />}
-            onPress={() => actions.assignQr(register)}
+            onPress={onAssignQrPointOfSale}
           >
             Asignar QR de Mercado Pago
           </Button>
-        )}
+        ) : null}
       </div>
     </div>
   );

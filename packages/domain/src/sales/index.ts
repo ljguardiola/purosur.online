@@ -101,8 +101,6 @@ export type {
 } from "./model/sales-by-promotion.js";
 export type { SalesOfDay, SalesReportTotals } from "./model/sales-report.js";
 export { SALES_REPORT_SALE_STATE } from "./model/sales-report.js";
-export type { SalesReportGroup } from "./model/sales-report-group.js";
-export { SALES_REPORT_GROUPS } from "./model/sales-report-group.js";
 export type {
   SalesOfGroup,
   SoldLinesOfGroup,

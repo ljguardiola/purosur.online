@@ -9,10 +9,10 @@ import type { AccountRecoveryScreenProps } from "../credentials/account-recovery
 import type { OwnCredentialsSectionProps } from "../credentials/own-credentials-section";
 import type { RegisterPasskeyScreenProps } from "../credentials/register-passkey-screen";
 import type { FiscalSettingsScreenProps } from "../fiscal/fiscal-settings-screen";
+import type { RegistersListScreenProps } from "../installation/registers-list-screen";
 import type { RolesListScreenProps } from "../permissions/roles-list-screen";
 import type { DiscountsListScreenProps } from "../pricing/discounts-list-screen";
 import type { PricesListScreenProps } from "../pricing/prices-list-screen";
-import type { RegistersListScreenProps } from "../register/registers-list-screen";
 import type { SignInScreenProps } from "../sessions/sign-in-screen";
 import type { UserPanelProps } from "../users/user-panel";
 import type { UsersListScreenProps } from "../users/users-list-screen";

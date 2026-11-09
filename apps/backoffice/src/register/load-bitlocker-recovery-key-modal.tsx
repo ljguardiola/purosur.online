@@ -4,6 +4,8 @@ import type { startAuthentication } from "@simplewebauthn/browser";
 import { Check, Info, ShieldX, TriangleAlert, Upload, X } from "lucide-react";
 import { useEffect } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
+import { registerModalContext } from "../platform/register-modal-context";
+import type { RegisterKeyTarget } from "../platform/register-payment-and-key-modals";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import type {
   authorizeSession,
@@ -16,12 +18,10 @@ import {
   bitlockerRecoveryKeyMessage,
   EMPTY_BITLOCKER_KEY_FORM,
 } from "./bitlocker-key-form";
-import { registerModalContext } from "./register-modal-context";
 import type {
   LoadBitlockerRecoveryKeyOutcome,
   loadBitlockerRecoveryKey,
-  RegisterSummary,
-} from "./registers-api";
+} from "./bitlocker-recovery-key-api";
 
 export type LoadBitlockerRecoveryKeyModalServices = {
   loadBitlockerRecoveryKey: typeof loadBitlockerRecoveryKey;
@@ -31,7 +31,7 @@ export type LoadBitlockerRecoveryKeyModalServices = {
 };
 
 type LoadBitlockerRecoveryKeyModalProps = {
-  target: RegisterSummary | null;
+  target: RegisterKeyTarget | null;
   onClose: () => void;
   onLoaded: () => void;
   onOutdated: () => void;

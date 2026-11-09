@@ -1,5 +1,5 @@
 import type { QrPointOfSaleAssignmentBody } from "@purosur/contracts";
-import type { RegisterSummary } from "./registers-api";
+import type { RegisterPaymentsTarget } from "../platform/register-payments-target";
 
 export type QrPointOfSaleFormValues = {
   externalPosId: string;
@@ -12,7 +12,7 @@ export const EMPTY_QR_POINT_OF_SALE_FORM: QrPointOfSaleFormValues = {
 };
 
 export function qrPointOfSaleFormValuesFrom(
-  register: Pick<RegisterSummary, "qrExternalPosId" | "qrPointOfSaleVersion">,
+  register: Pick<RegisterPaymentsTarget, "qrExternalPosId" | "qrPointOfSaleVersion">,
 ): QrPointOfSaleFormValues {
   return {
     externalPosId: register.qrExternalPosId ?? "",

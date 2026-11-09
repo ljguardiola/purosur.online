@@ -5,11 +5,14 @@ import { userEvent } from "vitest/browser";
 import type { FetchAlertsOverviewOutcome } from "../alerts/alerts-api";
 import { type AlertsListFilters, alertsListFilters } from "../alerts/routes";
 import { fiscalTasks, noFiscalTasks } from "../fiscal/test-support/fiscal-task-fixtures";
+import type {
+  FetchRegisterSyncStatusOutcome,
+  RegisterSyncStatus,
+} from "../installation/registers-api";
 import {
   noPendingRefunds,
   pendingRefundsWithUnconfirmedCloudRefund,
 } from "../payments/test-support/refund-fixtures";
-import type { FetchRegisterSyncStatusOutcome, RegisterSyncStatus } from "../register/registers-api";
 import type { BackofficeAccess } from "./backoffice-access";
 import { HomeScreen } from "./home-screen";
 import type { HomeScreenServices } from "./home-screen-services";
