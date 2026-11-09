@@ -300,7 +300,7 @@ test("lists only the pending orders, with the date range and export, when the st
 
   await expect
     .poll(location)
-    .toBe("/purchase-orders?state=PENDING_RECEIPT&order=90e00000-0000-4000-8000-0000000000b2");
+    .toBe("/purchase-orders?order=90e00000-0000-4000-8000-0000000000b2&state=PENDING_RECEIPT");
   await expect.element(table.getByText("Granos del Sur")).toBeVisible();
 });
 

@@ -175,10 +175,17 @@ test("the state filter asks the cloud for that state and reports the filters", a
 
   await expect.poll(() => services.fetchPurchaseOrders).toHaveBeenCalledWith("CANCELLED");
   await expect.element(screen.getByText("Distribuidora Andina")).not.toBeInTheDocument();
-  await expect.poll(() => onFiltersChange.mock.lastCall?.[0]).toEqual({ state: "CANCELLED" });
+  await expect
+    .poll(() => onFiltersChange.mock.lastCall?.[0])
+    .toEqual({
+      state: "CANCELLED",
+      differences: false,
+      from: "",
+      to: "",
+    });
 });
 
-test("the state filter offers Todos, Borradores, Enviados, Recibidos en parte, Recibidos and Cancelados", async () => {
+test("the state filter offers Todos, Borradores, Pendientes de recibir, Enviados, Recibidos en parte, Recibidos and Cancelados", async () => {
   const services = createServices();
   const screen = await loaded(services, [DRAFT_SUMMARY]);
 
@@ -186,6 +193,7 @@ test("the state filter offers Todos, Borradores, Enviados, Recibidos en parte, R
 
   await expect.element(screen.getByRole("option", { name: "Todos" })).toBeVisible();
   await expect.element(screen.getByRole("option", { name: "Borradores" })).toBeVisible();
+  await expect.element(screen.getByRole("option", { name: "Pendientes de recibir" })).toBeVisible();
   await expect.element(screen.getByRole("option", { name: "Enviados" })).toBeVisible();
   await expect.element(screen.getByRole("option", { name: "Recibidos en parte" })).toBeVisible();
   await expect
