@@ -22,7 +22,6 @@ import type {
   RegisterPaymentAndKeyModals,
 } from "../platform/register-payment-and-key-modals";
 import type { RegisterPointOfSaleSection } from "../platform/register-point-of-sale-section";
-import { useRefreshRegisters } from "../platform/register-query-roots";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import {
   type BackofficeAccess,
@@ -30,6 +29,7 @@ import {
   canRevokeInstallations,
   canSeeRegistersArea,
 } from "../shell/backoffice-access";
+import { useRefreshRegisters } from "../shell/refresh-registers";
 import type { ReportPeriodFilters } from "../shell/report-filters-search";
 import { type EmissionState, EnrollmentCodeModal } from "./enrollment-code-modal";
 import {

@@ -115,3 +115,8 @@ export function useReloadRegister(params: {
     return register ? { kind: "found", register } : { kind: "not_found" };
   };
 }
+
+export function useRefreshInstallation(): () => Promise<void> {
+  const client = useQueryClient();
+  return () => client.invalidateQueries({ queryKey: installationKey });
+}

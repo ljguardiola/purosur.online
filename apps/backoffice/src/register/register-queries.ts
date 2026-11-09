@@ -1,4 +1,5 @@
 import type { CashMovementsBody, CashSessionClosesBody, ReportQuery } from "@purosur/contracts";
+import { useQueryClient } from "@tanstack/react-query";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import { useCloudQuery } from "../platform/use-cloud-query";
 import type { fetchCashMovements } from "./cash-movements-api";
@@ -72,4 +73,9 @@ export function useSnapshotBackupsQuery(params: {
     onSessionEnded: params.onSessionEnded,
     onForbidden: sendToMyAccount,
   });
+}
+
+export function useRefreshRegister(): () => Promise<void> {
+  const client = useQueryClient();
+  return () => client.invalidateQueries({ queryKey: registerKey });
 }

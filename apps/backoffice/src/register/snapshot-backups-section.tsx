@@ -14,7 +14,7 @@ import { Check, HardDriveDownload, RefreshCw, SlidersHorizontal } from "lucide-r
 import { useState } from "react";
 import { cloudTableState } from "../platform/cloud-table-state";
 import type { RegisterBackupsSectionProps } from "../platform/register-panel-sections";
-import { useRefreshRegisters } from "../platform/register-query-roots";
+import { useRefreshRegisters } from "../shell/refresh-registers";
 import { ChangeSnapshotLifecycleRulesModal } from "./change-snapshot-lifecycle-rules-modal";
 import { useSnapshotBackupsQuery } from "./register-queries";
 import { RotateSnapshotKeyModal } from "./rotate-snapshot-key-modal";
