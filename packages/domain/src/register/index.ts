@@ -94,7 +94,11 @@ export {
   registerOperationAccess,
 } from "./model/register-operation.js";
 export type { RegisterVersion } from "./model/register-version.js";
-export { isNewerRegisterVersion } from "./model/register-version.js";
+export {
+  isNewerRegisterVersion,
+  isRegisterVersionAtLeast,
+  isWellFormedRegisterVersion,
+} from "./model/register-version.js";
 export type { RestorationEvidence, RestorationStanding } from "./model/restoration-protocol.js";
 export { RESTORATION_STEPS, restorationStanding } from "./model/restoration-protocol.js";
 export type {

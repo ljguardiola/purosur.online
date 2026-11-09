@@ -1,5 +1,5 @@
+import { isRegisterVersionAtLeast } from "../../register/index.js";
 import type { StockMovementKind } from "../../stock/index.js";
-import { versionAtLeast } from "./register-version.js";
 
 const ENTITY_READABLE_SINCE: ReadonlyMap<string, string> = new Map([
   ["brand", "1.0.1364"],
@@ -13,7 +13,10 @@ const STOCK_MOVEMENT_KIND_READABLE_SINCE: Readonly<Partial<Record<StockMovementK
 };
 
 function readsSince(readerVersion: string | null, since: string | undefined): boolean {
-  return since === undefined || (readerVersion !== null && versionAtLeast(readerVersion, since));
+  return (
+    since === undefined ||
+    (readerVersion !== null && isRegisterVersionAtLeast(readerVersion, since))
+  );
 }
 
 export function readsPulledEntity(readerVersion: string | null, entity: string): boolean {
