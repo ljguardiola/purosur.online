@@ -1068,8 +1068,16 @@ describe("editProduct", () => {
 
     it("names the first blocking discount by name when several block", async () => {
       const store = unitProductWithDiscount({ name: "Zeta" });
-      store.seedLiveBuyNPayMDiscount({ name: "Alfa", productId: "product-1", liveOn: ["2026-06-15"] });
-      store.seedLiveBuyNPayMDiscount({ name: "Beta", productId: "product-1", liveOn: ["2026-06-15"] });
+      store.seedLiveBuyNPayMDiscount({
+        name: "Alfa",
+        productId: "product-1",
+        liveOn: ["2026-06-15"],
+      });
+      store.seedLiveBuyNPayMDiscount({
+        name: "Beta",
+        productId: "product-1",
+        liveOn: ["2026-06-15"],
+      });
 
       expect(await edit(store, "KG")).toEqual({
         kind: "sale_unit_held_by_discount",

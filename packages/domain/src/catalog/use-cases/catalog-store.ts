@@ -74,13 +74,6 @@ export interface LockedProduct {
   barcodes: string[];
 }
 
-export interface BuyNPayMDiscount {
-  name: string;
-  active: boolean;
-  validFrom: string;
-  validTo: string;
-}
-
 export type LockProductResult = { kind: "not_found" } | { kind: "locked"; product: LockedProduct };
 
 export type LockCategoryResult =
@@ -144,9 +137,10 @@ export interface CatalogStoreTransaction {
   lockLeafCategory(categoryId: string): Promise<LockLeafCategoryResult>;
   lockParentForNewChild(parentId: string): Promise<LockParentForNewChildResult>;
   lockProduct(productId: string): Promise<LockProductResult>;
-  // Read only, never locking: a caller holds the product's row lock first, and the discount
-  // creation that could race it takes that same product row before inserting.
-  buyNPayMDiscountsOn(productId: string): Promise<BuyNPayMDiscount[]>;
+  // Names the buy N pay M discounts on the product that are live on the calendar day given. Read
+  // only, never locking: a caller holds the product's row lock first, and the discount creation
+  // that could race it takes that same product row before inserting.
+  liveBuyNPayMDiscountNamesOn(productId: string, today: string): Promise<string[]>;
   // Whether a supplier item, or a row of a supplier price list that can still be linked, refers
   // to the product through a link that is current for the sale unit given. Read only, never
   // locking, like the discounts: a caller holds the product's row lock first, and every write

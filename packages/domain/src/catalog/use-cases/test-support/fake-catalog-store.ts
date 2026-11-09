@@ -1,7 +1,6 @@
 import { DEFAULT_PRODUCT_COVERAGE_DAYS, type SaleUnit } from "../../model/product.js";
 import type {
   BrandFields,
-  BuyNPayMDiscount,
   CatalogNetContent,
   CatalogStore,
   CatalogStoreTransaction,
@@ -66,16 +65,6 @@ export interface FakeLiveBuyNPayMDiscountRow {
   liveOn: string[];
 }
 
-export interface FakeDiscountRow {
-  id: string;
-  name: string;
-  kind: "BUY_N_PAY_M" | "PERCENT_OFF";
-  productId: string;
-  active: boolean;
-  validFrom: string;
-  validTo: string;
-}
-
 export interface FakeSupplierItemLinkRow {
   productId: string;
   saleUnit: SaleUnit;
@@ -100,7 +89,6 @@ export interface FakeCatalogState {
   products: FakeProductRow[];
   barcodes: FakeBarcodeRow[];
   productTags: FakeProductTagRow[];
-  discounts: FakeDiscountRow[];
   liveBuyNPayMDiscounts: FakeLiveBuyNPayMDiscountRow[];
   supplierItemLinks: FakeSupplierItemLinkRow[];
   nextId: number;
@@ -114,7 +102,6 @@ function emptyState(): FakeCatalogState {
     products: [],
     barcodes: [],
     productTags: [],
-    discounts: [],
     liveBuyNPayMDiscounts: [],
     supplierItemLinks: [],
     nextId: 1,
@@ -132,7 +119,6 @@ function cloneState(state: FakeCatalogState): FakeCatalogState {
     })),
     barcodes: state.barcodes.map((row) => ({ ...row })),
     productTags: state.productTags.map((row) => ({ ...row })),
-    discounts: state.discounts.map((row) => ({ ...row })),
     liveBuyNPayMDiscounts: state.liveBuyNPayMDiscounts.map((row) => ({
       ...row,
       liveOn: [...row.liveOn],
@@ -211,13 +197,6 @@ class FakeCatalogStoreTransaction implements CatalogStoreTransaction {
           },
         }
       : { kind: "not_found" };
-  }
-
-  async buyNPayMDiscountsOn(productId: string): Promise<BuyNPayMDiscount[]> {
-    this.store.lockCallOrder.push("buyNPayMDiscountsOn");
-    return this.state.discounts
-      .filter((row) => row.kind === "BUY_N_PAY_M" && sameId(row.productId, productId))
-      .map(({ name, active, validFrom, validTo }) => ({ name, active, validFrom, validTo }));
   }
 
   async liveBuyNPayMDiscountNamesOn(productId: string, today: string): Promise<string[]> {
@@ -517,10 +496,6 @@ export class FakeCatalogStore implements CatalogStore {
 
   seedCategory(category: FakeCategoryRow): void {
     this.state.categories.push({ ...category });
-  }
-
-  seedDiscount(discount: FakeDiscountRow): void {
-    this.state.discounts.push({ ...discount });
   }
 
   seedLiveBuyNPayMDiscount(discount: FakeLiveBuyNPayMDiscountRow): void {
