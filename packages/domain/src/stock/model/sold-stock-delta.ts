@@ -1,4 +1,4 @@
-import type { SoldQuantity } from "../../pricing/index.js";
+import type { SoldQuantity } from "../../catalog/index.js";
 import { STOCK_QUANTITY_PER_UNIT } from "./stock-quantity.js";
 
 export function soldStockDelta(sold: SoldQuantity): number {
