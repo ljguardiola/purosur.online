@@ -238,7 +238,7 @@ test("says the receipt was registered over the panel of the order the person com
     value: { kind: "found", order: SENT_ORDER_WITH_RECEIPTS },
   });
   window.history.pushState(
-    { purchaseOrderReceived: true },
+    { key: "receipt-return", __TSR_index: 0, purchaseOrderReceived: true },
     "",
     `/purchase-orders?order=${ORDER_ID}`,
   );
