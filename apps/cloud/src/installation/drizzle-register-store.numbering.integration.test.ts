@@ -66,14 +66,8 @@ function registerStore(database: PostgresJsDatabase<Record<string, never>> = db)
   );
 }
 
-function takeLane(registerId: string) {
-  return registerStore().transaction((tx) => tx.takeRealTimeNumberingLane(registerId));
-}
-
-function freeze(pointOfSale: number, countBeforeFreeze: number) {
-  return registerStore().transaction((tx) =>
-    tx.freezeRealTimeNumbering(pointOfSale, { countBeforeFreeze, frozenAt: ENROLLED_AT }),
-  );
+function freezeRestoredRegister(registerId: string, store: RegisterStore = registerStore()) {
+  return store.transaction((tx) => tx.freezeRestoredRegisterNumbering(registerId, ENROLLED_AT));
 }
 
 async function freezeOf(pointOfSale: number) {
@@ -97,30 +91,37 @@ async function holdCount(pointOfSale: number, lastAuthorized: number) {
 }
 
 describe("reconciling a register's real-time numbering on a real Postgres", () => {
-  it("takes the lane of the register's real-time point of sale with the count the cloud holds", async () => {
+  it("freezes the register's real-time point of sale at the count the cloud holds, as of the restoration", async () => {
     const registerId = await insertRegisterWithPointOfSale(db, {
       pointOfSaleNumber: 51,
       name: "caja-51",
     });
     await holdCount(51, 25);
 
-    expect(await takeLane(registerId)).toEqual({ pointOfSale: 51, heldCount: 25 });
+    await freezeRestoredRegister(registerId);
+
+    expect(await freezeOf(51)).toEqual({ countBeforeFreeze: 25, frozenAt: ENROLLED_AT });
   });
 
-  it("takes the lane with no count when the cloud holds none", async () => {
+  it("freezes nothing and enqueues nothing when the cloud holds no count of the point of sale", async () => {
     const registerId = await insertRegisterWithPointOfSale(db, {
       pointOfSaleNumber: 53,
       name: "caja-53",
     });
 
-    expect(await takeLane(registerId)).toEqual({ pointOfSale: 53, heldCount: null });
+    await freezeRestoredRegister(registerId);
+
+    expect(await freezeOf(53)).toBeUndefined();
+    expect(enqueuedReconciliations).toEqual([]);
   });
 
-  it("takes no lane for a register without a real-time point of sale", async () => {
-    expect(await takeLane(crypto.randomUUID())).toBeNull();
+  it("freezes nothing for a register without a real-time point of sale", async () => {
+    await freezeRestoredRegister(crypto.randomUUID());
+
+    expect(enqueuedReconciliations).toEqual([]);
   });
 
-  it("takes no lane when invoicing is not configured, so nothing reconciles its numbering", async () => {
+  it("freezes nothing when invoicing is not configured, so nothing reconciles its numbering", async () => {
     const registerId = await insertRegisterWithPointOfSale(db, {
       pointOfSaleNumber: 59,
       name: "caja-59",
@@ -131,7 +132,9 @@ describe("reconciling a register's real-time numbering on a real Postgres", () =
       installationKeyCipher(TEST_INSTALLATION_KEYS_ENCRYPTION_KEY),
     );
 
-    expect(await store.transaction((tx) => tx.takeRealTimeNumberingLane(registerId))).toBeNull();
+    await freezeRestoredRegister(registerId, store);
+
+    expect(await freezeOf(59)).toBeUndefined();
   });
 
   it("keeps the count of the real-time point of sale held when a fresh count is required, so the next enrollment freezes it again", async () => {
@@ -142,8 +145,9 @@ describe("reconciling a register's real-time numbering on a real Postgres", () =
     await holdCount(60, 31);
 
     await registerStore().transaction((tx) => tx.requireFreshTaxAuthorityCount(registerId));
+    await freezeRestoredRegister(registerId);
 
-    expect(await takeLane(registerId)).toEqual({ pointOfSale: 60, heldCount: 31 });
+    expect(await freezeOf(60)).toEqual({ countBeforeFreeze: 31, frozenAt: ENROLLED_AT });
   });
 
   it("freezes the point of sale, tells the register that holds it and enqueues the reconciliation", async () => {
@@ -151,9 +155,10 @@ describe("reconciling a register's real-time numbering on a real Postgres", () =
       pointOfSaleNumber: 52,
       name: "caja-52",
     });
+    await holdCount(52, 25);
     const before = await lastLoggedChangeSeq(db);
 
-    await freeze(52, 25);
+    await freezeRestoredRegister(registerId);
 
     expect(await freezeOf(52)).toEqual({ countBeforeFreeze: 25, frozenAt: ENROLLED_AT });
     expect(enqueuedReconciliations).toEqual([52]);
@@ -163,20 +168,27 @@ describe("reconciling a register's real-time numbering on a real Postgres", () =
   });
 
   it("enqueues the real reconciliation job with the freeze and none when the enrollment rolls back", async () => {
-    await insertRegisterWithPointOfSale(db, { pointOfSaleNumber: 61, name: "caja-61" });
-    await insertRegisterWithPointOfSale(db, { pointOfSaleNumber: 57, name: "caja-57" });
+    const frozenRegisterId = await insertRegisterWithPointOfSale(db, {
+      pointOfSaleNumber: 61,
+      name: "caja-61",
+    });
+    const rolledBackRegisterId = await insertRegisterWithPointOfSale(db, {
+      pointOfSaleNumber: 57,
+      name: "caja-57",
+    });
+    await holdCount(61, 7);
+    await holdCount(57, 7);
     const store = new DrizzleRegisterStore(
       db,
       installationKeyCipher(TEST_INSTALLATION_KEYS_ENCRYPTION_KEY),
       undefined,
       enqueueNumberingReconciliationJob,
     );
-    const at = { countBeforeFreeze: 7, frozenAt: ENROLLED_AT };
 
-    await store.transaction((tx) => tx.freezeRealTimeNumbering(61, at));
+    await freezeRestoredRegister(frozenRegisterId, store);
     await expect(
       store.transaction(async (tx) => {
-        await tx.freezeRealTimeNumbering(57, at);
+        await tx.freezeRestoredRegisterNumbering(rolledBackRegisterId, ENROLLED_AT);
         throw new Error("the enrollment failed after freezing");
       }),
     ).rejects.toThrow("the enrollment failed");
@@ -191,17 +203,21 @@ describe("reconciling a register's real-time numbering on a real Postgres", () =
   });
 
   it("keeps the range of a freeze already in place", async () => {
-    await insertRegisterWithPointOfSale(db, { pointOfSaleNumber: 54, name: "caja-54" });
+    const registerId = await insertRegisterWithPointOfSale(db, {
+      pointOfSaleNumber: 54,
+      name: "caja-54",
+    });
+    await holdCount(54, 40);
     await db
       .insert(numberingFreezes)
       .values({ pointOfSaleNumber: 54, countBeforeFreeze: 12, frozenAt: EARLIER_FREEZE });
 
-    await freeze(54, 40);
+    await freezeRestoredRegister(registerId);
 
     expect(await freezeOf(54)).toEqual({ countBeforeFreeze: 12, frozenAt: EARLIER_FREEZE });
   });
 
-  it("waits for a numbering diagnosis running on the same point of sale before it takes the lane", async () => {
+  it("waits for a numbering diagnosis running on the same point of sale before it freezes it", async () => {
     const registerId = await insertRegisterWithPointOfSale(db, {
       pointOfSaleNumber: 56,
       name: "caja-56",
@@ -234,10 +250,9 @@ describe("reconciling a register's real-time numbering on a real Postgres", () =
     try {
       let taken = false;
       const enrollment = registerStore(drizzle(enrolling))
-        .transaction((tx) => tx.takeRealTimeNumberingLane(registerId))
-        .then((lane) => {
+        .transaction((tx) => tx.freezeRestoredRegisterNumbering(registerId, ENROLLED_AT))
+        .then(() => {
           taken = true;
-          return lane;
         });
       await vi.waitFor(async () => {
         const waiting = await sql`
@@ -254,7 +269,8 @@ describe("reconciling a register's real-time numbering on a real Postgres", () =
       endDiagnosis();
       await diagnosis;
 
-      expect(await enrollment).toEqual({ pointOfSale: 56, heldCount: 30 });
+      await enrollment;
+      expect(await freezeOf(56)).toEqual({ countBeforeFreeze: 30, frozenAt: ENROLLED_AT });
     } finally {
       await enrolling.end({ timeout: 1 });
     }
