@@ -34,7 +34,7 @@ export const purchaseSummarySchema = z.object({
   note: z.string().nullable(),
   recordedAt: z.iso.datetime(),
   lines: z.array(purchaseLineSummarySchema),
-  freights: z.array(purchaseFreightSchema),
+  freights: z.array(purchaseFreightSchema).nullable(),
 });
 
 export const purchaseListSchema = z.array(purchaseSummarySchema);

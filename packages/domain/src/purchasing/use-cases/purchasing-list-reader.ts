@@ -25,6 +25,10 @@ export interface PurchaseFreightListing {
   means: FreightMeans;
 }
 
+export interface LinkedFreightListing extends PurchaseFreightListing {
+  purchaseId: string;
+}
+
 export interface PurchaseListing {
   id: string;
   locationId: string;
@@ -35,8 +39,6 @@ export interface PurchaseListing {
   note: string | null;
   recordedAt: Date;
   lines: PurchaseLineListing[];
-  // Every freight linked to the purchase, newest first, whatever its date.
-  freights: PurchaseFreightListing[];
 }
 
 export interface PurchasingListReader {
@@ -47,4 +49,6 @@ export interface PurchasingListReader {
   // Every lot of each product in the branch, whatever purchase or origin created it.
   lotNameFacts(locationId: string, productIds: readonly string[]): Promise<LotNameFacts[]>;
   purchase(purchaseId: string): Promise<PurchaseListing | undefined>;
+  // Every freight linked to each purchase, whatever its date, newest first.
+  linkedFreights(purchaseIds: readonly string[]): Promise<LinkedFreightListing[]>;
 }

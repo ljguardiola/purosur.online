@@ -17,14 +17,11 @@ import {
   Replace,
   Scale,
   Trash2,
+  Truck,
 } from "lucide-react";
 import { useState } from "react";
 import { formatDisplayDate } from "../platform/display-date";
-import {
-  type BackofficeAccess,
-  canManageFreights,
-  canRecordPurchases,
-} from "../shell/backoffice-access";
+import { type BackofficeAccess, canRecordPurchases } from "../shell/backoffice-access";
 import { ChangePurchaseLineProductModal } from "./change-purchase-line-product-modal";
 import { CorrectPurchaseLineCostModal } from "./correct-purchase-line-cost-modal";
 import { CorrectPurchaseLineExpiryModal } from "./correct-purchase-line-expiry-modal";
@@ -56,7 +53,7 @@ export type PurchasePanelProps = {
 };
 
 type PurchaseLine = PurchaseSummary["lines"][number];
-type PurchaseFreight = PurchaseSummary["freights"][number];
+type PurchaseFreight = NonNullable<PurchaseSummary["freights"]>[number];
 
 type Correcting = {
   kind: "expiry" | "split" | "cost" | "quantity" | "product" | "removal";
@@ -199,7 +196,7 @@ export function PurchasePanel({
     columns: mayRecord ? [...lineColumns, correctionsColumn] : lineColumns,
   });
   const freightsTable = useTableModel({
-    items: purchase.freights,
+    items: purchase.freights ?? [],
     id: (freight) => freight.id,
     columns: freightColumns,
   });
@@ -242,21 +239,18 @@ export function PurchasePanel({
             rowDetail={(line) => <LineFacts line={line} />}
             loading={false}
           />
-          {canManageFreights(access) ? (
+          {purchase.freights === null ? null : (
             <section className="flex flex-col gap-4">
               <h2 className="text-text-accent text-subheading">Fletes vinculados</h2>
-              {purchase.freights.length === 0 ? (
-                <p className="text-text-subtle">Esta compra no tiene fletes vinculados.</p>
-              ) : (
-                <Table
-                  aria-label="Fletes vinculados"
-                  variant="nested"
-                  table={freightsTable}
-                  loading={false}
-                />
-              )}
+              <Table
+                aria-label="Fletes vinculados"
+                variant="nested"
+                table={freightsTable}
+                loading={false}
+                empty={{ icon: <Truck />, title: "Sin fletes vinculados", variant: "blank" }}
+              />
             </section>
-          ) : null}
+          )}
         </div>
       </DetailPanel>
       <CorrectPurchaseLineCostModal
