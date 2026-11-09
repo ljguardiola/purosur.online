@@ -1,10 +1,10 @@
 import {
+  averageTicket,
   type Clock,
   type ReportPeriod,
   reportPeriodOf,
   type ZoneRulesSource,
 } from "../../shared/index.js";
-import { averageTicket } from "../model/average-ticket.js";
 import {
   previousReportPeriod,
   type SalesOfWeek,

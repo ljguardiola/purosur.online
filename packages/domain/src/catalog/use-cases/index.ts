@@ -10,7 +10,6 @@ export type {
 } from "./catalog-list-reader.js";
 export type {
   BrandFields,
-  BuyNPayMDiscount,
   CatalogBrand,
   CatalogCategory,
   CatalogNetContent,
