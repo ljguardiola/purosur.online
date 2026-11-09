@@ -7,7 +7,7 @@ export interface PurchaseLineCost {
   purchasedOn: string;
   recordedAt: Date;
   cost: LotCost;
-  freightPerUnit: Fraction;
+  freightPerUnit: () => Fraction;
 }
 
 export interface PurchaseCostReader {

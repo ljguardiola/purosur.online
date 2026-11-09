@@ -19,7 +19,7 @@ export type CostSource =
       purchasedOn: string;
       recordedAt: Date;
       cost: LotCost;
-      freightPerUnit: Fraction;
+      freightPerUnit: () => Fraction;
     }
   | {
       kind: "assembly_batch";
@@ -138,7 +138,7 @@ function noFreight(): Fraction {
 }
 
 function freightFraction({ source }: DatedCost): Fraction {
-  return source.kind === "purchase_line" ? source.freightPerUnit : noFreight();
+  return source.kind === "purchase_line" ? source.freightPerUnit() : noFreight();
 }
 
 function sum(left: Fraction, right: Fraction): Fraction {

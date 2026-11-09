@@ -47,7 +47,7 @@ export class DrizzlePurchaseCostReader<TQueryResult extends PgQueryResultHKT>
       ...line,
       lineId,
       cost: { totalCents: costPaidCents, quantity: quantityPerPackage },
-      freightPerUnit: freightPerUnit(lineId, freightsOf.get(purchaseId) ?? []),
+      freightPerUnit: () => freightPerUnit(lineId, freightsOf.get(purchaseId) ?? []),
     }));
   }
 
