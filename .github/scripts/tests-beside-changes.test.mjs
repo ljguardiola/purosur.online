@@ -6,6 +6,7 @@ import {
   APP_OPTIONS_TEST,
   changedFilesSince,
   MIGRATION_TESTS,
+  MOST_FILES_PER_RUN,
   projectsOfSpecifications,
   ROUTE_INVENTORY_TEST,
   runChangedTests,
@@ -430,6 +431,62 @@ test("runs each project's selected files by absolute path, one file at a time", 
       "/repo/packages/ui/src/button.test.tsx",
     ],
   ]);
+});
+
+function browserTestFiles(count) {
+  return Array.from(
+    { length: count },
+    (_, index) => `apps/backoffice/src/shell/app.part-${String(index).padStart(3, "0")}.test.tsx`,
+  );
+}
+
+test("splits a project's files into runs of at most the most files one run holds, in order", async () => {
+  const files = browserTestFiles(2 * MOST_FILES_PER_RUN + 1);
+  const { runs, run } = recordingRunner();
+
+  const exitCode = await runChangedTests({
+    root: "/repo",
+    projects: new Map(files.map((file) => [file, ["browser"]])),
+    changedFiles: [],
+    requestedFiles: files,
+    run,
+    log: () => {},
+  });
+
+  assert.equal(exitCode, 0);
+  const filesOfEachRun = runs.map((args) => {
+    assert.deepEqual(args.slice(0, 3), ["run", "--project=browser", "--no-file-parallelism"]);
+    return args.slice(3);
+  });
+  assert.deepEqual(
+    filesOfEachRun.map((runFiles) => runFiles.length),
+    [MOST_FILES_PER_RUN, MOST_FILES_PER_RUN, 1],
+  );
+  assert.deepEqual(
+    filesOfEachRun.flat(),
+    files.map((file) => `/repo/${file}`),
+  );
+});
+
+test("keeps running a project's later runs after one of them fails, and reports the failure", async () => {
+  const files = browserTestFiles(MOST_FILES_PER_RUN + 1);
+  let runCount = 0;
+  const run = async () => {
+    runCount += 1;
+    return runCount !== 1;
+  };
+
+  const exitCode = await runChangedTests({
+    root: "/repo",
+    projects: new Map(files.map((file) => [file, ["browser"]])),
+    changedFiles: [],
+    requestedFiles: files,
+    run,
+    log: () => {},
+  });
+
+  assert.equal(runCount, 2);
+  assert.equal(exitCode, 1);
 });
 
 test("exits with a failure when a project's run fails", async () => {
