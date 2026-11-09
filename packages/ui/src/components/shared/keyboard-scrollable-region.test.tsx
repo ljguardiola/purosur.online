@@ -1,4 +1,5 @@
-import { type ReactNode, useId } from "react";
+import { type ReactNode, useId, useState } from "react";
+import { flushSync } from "react-dom";
 import { expect, test } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
@@ -59,8 +60,54 @@ function TextInABoxOfFixedSize({ text }: { text: string }) {
   );
 }
 
+function ShrinkableScrollingBox() {
+  const [height, setHeight] = useState(1000);
+  return (
+    <>
+      <button type="button" onClick={() => setHeight(100)}>
+        Achicar
+      </button>
+      <ScrollingBox height={height}>
+        <BoxOfFixedSize />
+      </ScrollingBox>
+    </>
+  );
+}
+
+function BoxThatGrowsItself() {
+  const [height, setHeight] = useState(50);
+  return (
+    <>
+      <button type="button" onClick={() => setHeight(1000)}>
+        Agrandar
+      </button>
+      <div style={{ height: `${height}px` }} />
+    </>
+  );
+}
+
+function LinesThatAddThemselves() {
+  const [count, setCount] = useState(2);
+  return (
+    <>
+      <button type="button" onClick={() => setCount(40)}>
+        Agregar
+      </button>
+      <Lines count={count} />
+    </>
+  );
+}
+
 const region = () => page.getByRole("region", { name: "Detalle" });
 const nextButton = () => page.getByRole("button", { name: "Siguiente" });
+function pressInOneCommit(name: string) {
+  const button = page.getByRole("button", { name }).element();
+  if (!(button instanceof HTMLButtonElement)) {
+    throw new Error(`No button named ${name}`);
+  }
+  flushSync(() => button.click());
+}
+
 const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
 
 test("adds no tab stop to content that fits", async () => {
@@ -169,6 +216,49 @@ test("becomes a tab stop once it shrinks below content that keeps its size", asy
   );
 
   await expect.element(region()).toHaveAttribute("tabindex", "0");
+});
+
+test("is a tab stop as soon as the render that shrinks it below its content commits", async () => {
+  await render(<ShrinkableScrollingBox />);
+  await nextFrame();
+  await nextFrame();
+  expect(page.getByRole("region").query()).toBeNull();
+
+  pressInOneCommit("Achicar");
+
+  expect(region().query()?.getAttribute("tabindex")).toBe("0");
+});
+
+test("is a tab stop before any other task runs once content that renders on its own grows a box past it", async () => {
+  await render(
+    <ScrollingBox>
+      <BoxThatGrowsItself />
+    </ScrollingBox>,
+  );
+  await nextFrame();
+  await nextFrame();
+  expect(page.getByRole("region").query()).toBeNull();
+
+  pressInOneCommit("Agrandar");
+  await Promise.resolve();
+
+  expect(region().query()?.getAttribute("tabindex")).toBe("0");
+});
+
+test("is a tab stop before any other task runs once content that renders on its own adds lines past it", async () => {
+  await render(
+    <ScrollingBox>
+      <LinesThatAddThemselves />
+    </ScrollingBox>,
+  );
+  await nextFrame();
+  await nextFrame();
+  expect(page.getByRole("region").query()).toBeNull();
+
+  pressInOneCommit("Agregar");
+  await Promise.resolve();
+
+  expect(region().query()?.getAttribute("tabindex")).toBe("0");
 });
 
 test("stops being a tab stop once its content fits again while it is not focused", async () => {
