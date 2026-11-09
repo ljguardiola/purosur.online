@@ -88,4 +88,11 @@ describe("openSaleTotalOf", () => {
 
     expect(openSaleTotalOf(database, "session-1")).toBe(4000);
   });
+
+  it("takes the sale's recorded cash rounding off the amount to charge, as the sale itself does", () => {
+    addSale("sale-1", "OPEN", [1250, 3000]);
+    database.prepare("UPDATE sales SET cash_rounding = 50 WHERE id = 'sale-1'").run();
+
+    expect(openSaleTotalOf(database, "session-1")).toBe(4200);
+  });
 });
