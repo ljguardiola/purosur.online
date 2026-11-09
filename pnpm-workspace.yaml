@@ -27,9 +27,10 @@ overrides:
   "typed-rest-client>qs": ^6.16.1
   # GHSA-3g3m-2fjr-6pw4 affects glob 9 to 14.0.1 and GHSA-g3hv-75wg-m249 affects minimatch 7 to
   # 11.0.0, with no patched release in an earlier major. Each entry below lifts a dependent whose
-  # newest release still asks for an earlier major; the dependent calls only minimatch(),
-  # Minimatch#match, #hasMagic and #set, or glob(), globSync() and glob.sync(), which the new
-  # majors keep. Remove an entry once its dependent asks for glob 14.0.2 or minimatch 11.0.1 itself.
+  # release resolved here asks for an earlier major, either because its newest release still does
+  # or because the package that brings it in pins an older release; the new majors keep every glob
+  # and minimatch API those releases call. Remove an entry once the release resolved for its
+  # dependent asks for glob 14.0.2 or minimatch 11.0.1 itself, or no longer depends on it.
   "archiver-utils>glob": ^14.0.2
   "@joshwooding/vite-plugin-react-docgen-typescript>glob": ^14.0.2
   "@sentry/bundler-plugins>glob": ^14.0.2
