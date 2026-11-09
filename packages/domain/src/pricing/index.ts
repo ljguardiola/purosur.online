@@ -35,7 +35,6 @@ export type {
 export { discountsTargeting, discountTargetKeys } from "./model/discount-targeting.js";
 export { isDiscountWindowOrdered } from "./model/discount-validity.js";
 export { isValidDiscountWeekdays } from "./model/discount-weekdays.js";
-export type { SoldQuantity } from "./model/discounted-amount.js";
 export { discountedAmount, lineAmount } from "./model/discounted-amount.js";
 export { MAX_UNIT_PRICE_CENTS } from "./model/price.js";
 export type { PriceReviewPostponement } from "./model/price-review.js";
