@@ -21,9 +21,9 @@ function overflowsItsBox(region: HTMLElement) {
 // takes a tab stop of its own only while it overflows, kept while it holds the focus so the focus
 // never drops out of its container when its content shrinks. Its size stops changing once it reaches
 // its container's cap, so the content's boxes are observed too, and mutations catch text, nodes and
-// styles that change inside a box that keeps its size. Mutations report in a microtask and resizes
-// before the next paint, and both commit what they measure at once, so no other task runs while it
-// scrolls without a tab stop; a render of its owner is measured as it commits.
+// styles that change inside a box that keeps its size. A mutation inside it is committed in a
+// microtask and a render of its owner as it commits; any other size change is committed when the
+// resize observer reports, before the next paint.
 export function useKeyboardScrollableRegion(labelledBy: string) {
   const [overflows, setOverflows] = useState(false);
   const [holdsFocus, setHoldsFocus] = useState(false);
