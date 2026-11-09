@@ -49,6 +49,8 @@ export type ScreenOptions = {
   onNoticeDismissed?: () => void;
   access?: BackofficeAccess;
   supplierFilter?: { supplierId: string; onClear: () => void };
+  openPurchase?: string;
+  onOpenPurchaseChange?: (purchaseId: string | undefined) => void;
 };
 
 function ControlledScreen({
@@ -60,8 +62,11 @@ function ControlledScreen({
   onNoticeDismissed = () => {},
   access = ADMINISTRATOR_ACCESS,
   supplierFilter,
+  openPurchase: initialOpenPurchase,
+  onOpenPurchaseChange = () => {},
 }: ScreenOptions & { services: PurchasesListScreenServices }) {
   const [filters, setFilters] = useState(purchasesListFilters.parse(initial));
+  const [openPurchase, setOpenPurchase] = useState(initialOpenPurchase);
   return (
     <FieldSizeProvider size="backoffice">
       <main>
@@ -75,6 +80,11 @@ function ControlledScreen({
             setFilters(next);
           }}
           onSessionEnded={onSessionEnded}
+          openPurchase={openPurchase}
+          onOpenPurchaseChange={(purchaseId) => {
+            onOpenPurchaseChange(purchaseId);
+            setOpenPurchase(purchaseId);
+          }}
           registered={registered}
           onNoticeDismissed={onNoticeDismissed}
           {...(supplierFilter === undefined ? {} : { supplierFilter })}
@@ -96,6 +106,7 @@ export type Screen = Awaited<ReturnType<typeof renderScreen>>;
 
 export function rowTexts(screen: Screen): string[] {
   return screen
+    .getByRole("table", { name: "Compras" })
     .getByRole("row")
     .all()
     .slice(1)

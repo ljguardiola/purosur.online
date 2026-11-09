@@ -247,3 +247,83 @@ test("opens Registrar compra beside the filters", async () => {
 
   await expect.element(screen.getByRole("button", { name: "Registrar compra" })).toBeVisible();
 });
+
+test("opens a purchase's panel with its lines, lots, linked freights and corrections while the list stays visible", async () => {
+  const services = purchasesServices(["purchases", "freights"]);
+  window.history.pushState(null, "", "/purchases");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("table", { name: "Compras", exact: true })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("cell", { name: "Distribuidora Andina" }));
+
+  const panel = screen.getByRole("complementary", { name: "Compra a Distribuidora Andina" });
+  await expect.element(panel.getByText("Miel pura de abeja 1 kg")).toBeVisible();
+  await expect.element(panel.getByText("Compra 14/09/2026")).toBeVisible();
+  await expect.element(panel.getByText("Flete de la miel")).toBeVisible();
+  await expect
+    .element(panel.getByRole("button", { name: "Corregir el costo de Miel pura de abeja 1 kg" }))
+    .toBeVisible();
+  await expect.element(screen.getByRole("table", { name: "Compras", exact: true })).toBeVisible();
+  expect(location()).toBe(`/purchases?purchase=${compraDeMiel.id}`);
+});
+
+test("opens a purchase's panel from the address and takes the purchase out of it when the panel closes", async () => {
+  const services = purchasesServices(["purchases"]);
+  window.history.pushState(null, "", `/purchases?purchase=${compraDeMiel.id}`);
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  const panel = screen.getByRole("complementary", { name: "Compra a Distribuidora Andina" });
+  await expect.element(panel).toBeVisible();
+
+  await userEvent.click(panel.getByRole("button", { name: "Cerrar" }));
+
+  await expect.poll(location).toBe("/purchases");
+  expect(screen.getByRole("complementary").query()).toBeNull();
+});
+
+test("takes an unknown purchase out of the address instead of opening a panel", async () => {
+  const services = purchasesServices(["purchases"]);
+  window.history.pushState(null, "", "/purchases?purchase=c0a00000-0000-4000-8000-0000000000ff");
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByRole("table", { name: "Compras", exact: true })).toBeVisible();
+
+  await expect.poll(location).toBe("/purchases");
+  expect(screen.getByRole("complementary").query()).toBeNull();
+});
+
+test("corrects a line's cost from the panel with its own modal, confirming and reading the purchases again", async () => {
+  const services = purchasesServices(["purchases"]);
+  vi.mocked(services.purchasesListScreen.correctPurchaseLineCost).mockResolvedValue({
+    kind: "ok",
+    purchase: compraDeMiel,
+  });
+  window.history.pushState(null, "", `/purchases?purchase=${compraDeMiel.id}`);
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await userEvent.click(
+    screen.getByRole("button", { name: "Corregir el costo de Miel pura de abeja 1 kg" }),
+  );
+  const dialog = screen.getByRole("dialog");
+  await expect
+    .element(dialog.getByRole("heading", { name: "Miel pura de abeja 1 kg" }))
+    .toBeVisible();
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar el costo" }));
+
+  await expect.element(screen.getByText("Costo corregido")).toBeVisible();
+  expect(screen.getByRole("dialog").query()).toBeNull();
+  await expect
+    .poll(() => vi.mocked(services.purchasesListScreen.fetchPurchases).mock.calls.length)
+    .toBe(2);
+});
+
+test("hides the linked freights in the panel from a person without freights", async () => {
+  const services = purchasesServices(["purchases"]);
+  window.history.pushState(null, "", `/purchases?purchase=${compraDeMiel.id}`);
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect
+    .element(screen.getByRole("complementary", { name: "Compra a Distribuidora Andina" }))
+    .toBeVisible();
+  expect(screen.getByRole("heading", { name: "Fletes vinculados" }).query()).toBeNull();
+});
