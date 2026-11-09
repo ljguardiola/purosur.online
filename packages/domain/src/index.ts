@@ -495,6 +495,7 @@ export type {
   RebuildablePaidOrder,
   RebuiltPaidOrderStanding,
   RebuiltSaleState,
+  RefundAlertKind,
   RefundOrigin,
   RefundState,
   RefundTransfer,

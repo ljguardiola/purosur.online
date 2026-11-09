@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { openOverdueRefundTaskAlerts } from "./open-overdue-refund-task-alerts.js";
-import { FixedClock } from "./test-support/fake-refund-store.js";
+import { FixedClock } from "./test-support/fake-alert-store.js";
 import {
   type FakeRefundOfSale,
   FakeRefundTaskAlertStore,
