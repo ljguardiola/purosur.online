@@ -3,7 +3,13 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { ORDER_SUGGESTION } from "../purchasing/test-support/order-suggestion";
-import { DRAFT_ORDER, DRAFT_SUMMARY, ORDER_ID } from "../purchasing/test-support/purchase-orders";
+import {
+  DRAFT_SUMMARY,
+  ORDER_ID,
+  PARTIALLY_RECEIVED_ORDER,
+  RECEIPT_DRAFT,
+  SENT_ORDER,
+} from "../purchasing/test-support/purchase-orders";
 import { PRICE_COMPARISON } from "../purchasing/test-support/supplier-price-comparison";
 import { openSession } from "../sessions/test-support/open-session";
 import { App } from "./app";
@@ -17,7 +23,7 @@ opensOnlyScreens([
   "/purchase-orders",
   "/purchase-orders/suggestion",
   "/purchase-orders/comparison",
-  "/purchase-orders/$orderId",
+  "/purchase-orders/$orderId/receive",
 ]);
 
 beforeEach(resetPageState);
@@ -139,11 +145,11 @@ test("shows one Pedidos item in the Compras column, active on every tab", async 
   await expect.element(links.first()).toHaveAttribute("aria-current", "page");
 });
 
-test("keeps the order's detail outside the tabs", async () => {
-  const services = purchaseOrdersServices(["purchase_order_reads"]);
-  vi.mocked(services.purchaseOrderScreen.fetchPurchaseOrder).mockResolvedValue({
+test("opens an order's panel from its row, keeping the list and the tabs in view", async () => {
+  const services = purchaseOrdersServices(["purchase_orders", "purchase_order_reads"]);
+  vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrder).mockResolvedValue({
     kind: "ok",
-    value: { kind: "found", order: DRAFT_ORDER },
+    value: { kind: "found", order: { ...PARTIALLY_RECEIVED_ORDER, id: ORDER_ID } },
   });
   window.history.pushState(null, "", "/purchase-orders");
   const screen = await render(<App help={emptyHelp} services={services} />);
@@ -152,11 +158,97 @@ test("keeps the order's detail outside the tabs", async () => {
     screen.getByRole("button", { name: "Abrir el pedido de Distribuidora Andina" }),
   );
 
+  const panel = screen.getByRole("complementary", { name: "Pedido a Distribuidora Andina" });
+  await expect.element(panel).toBeVisible();
+  expect(location()).toBe(`/purchase-orders?order=${ORDER_ID}`);
+  expect(services.purchaseOrdersScreen.fetchPurchaseOrder).toHaveBeenCalledWith(ORDER_ID);
+  await expect.element(panel.getByRole("table", { name: "Líneas del pedido" })).toBeVisible();
+  await expect.element(panel.getByRole("button", { name: "Compartir pedido" })).toBeVisible();
+  await expect.element(panel.getByRole("button", { name: "Cancelar pedido" })).toBeVisible();
   await expect
-    .element(screen.getByRole("heading", { name: "Pedido a Distribuidora Andina", level: 1 }))
+    .element(panel.getByRole("heading", { name: "Diferencias de recepción" }))
     .toBeVisible();
-  expect(location()).toBe(`/purchase-orders/${ORDER_ID}`);
-  expect(screen.getByRole("tablist", { name: "Secciones de Pedidos" }).query()).toBeNull();
+  await expect.element(screen.getByRole("table", { name: "Pedidos de compra" })).toBeVisible();
+  await expect.element(screen.getByRole("tab", { name: "Pedidos", selected: true })).toBeVisible();
+});
+
+test("closing the panel takes the order out of the address", async () => {
+  const services = purchaseOrdersServices(["purchase_order_reads"]);
+  window.history.pushState(null, "", `/purchase-orders?order=${ORDER_ID}`);
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await expect.element(screen.getByRole("complementary", { name: /^Pedido/ })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
+
+  await expect.poll(location).toBe("/purchase-orders");
+  expect(screen.getByRole("complementary").query()).toBeNull();
+});
+
+test("opens the panel of the order when the old order address is opened", async () => {
+  const services = purchaseOrdersServices(["purchase_order_reads"]);
+  vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrder).mockResolvedValue({
+    kind: "ok",
+    value: { kind: "found", order: { ...SENT_ORDER, id: ORDER_ID } },
+  });
+  window.history.pushState(null, "", `/purchase-orders/${ORDER_ID}`);
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect
+    .element(screen.getByRole("complementary", { name: "Pedido a Distribuidora Andina" }))
+    .toBeVisible();
+  await expect.poll(location).toBe(`/purchase-orders?order=${ORDER_ID}`);
+  await expect.element(screen.getByRole("table", { name: "Pedidos de compra" })).toBeVisible();
+});
+
+test("goes from the panel's Recibir pedido to the receipt, and back to the panel of that order", async () => {
+  const services = purchaseOrdersServices(["purchase_order_reads", "purchase_order_receipts"]);
+  vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrder).mockResolvedValue({
+    kind: "ok",
+    value: { kind: "found", order: { ...SENT_ORDER, id: ORDER_ID } },
+  });
+  vi.mocked(services.purchaseOrderReceiveScreen.fetchPurchaseOrderReceiptDraft).mockResolvedValue({
+    kind: "ok",
+    value: { kind: "found", draft: RECEIPT_DRAFT },
+  });
+  window.history.pushState(null, "", `/purchase-orders?order=${ORDER_ID}`);
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await userEvent.click(screen.getByRole("button", { name: "Recibir pedido" }));
+
+  await expect
+    .element(
+      screen.getByRole("heading", { name: "Recibir pedido a Distribuidora Andina", level: 1 }),
+    )
+    .toBeVisible();
+  expect(location()).toBe(`/purchase-orders/${ORDER_ID}/receive`);
+
+  await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+
+  await expect
+    .element(screen.getByRole("complementary", { name: "Pedido a Distribuidora Andina" }))
+    .toBeVisible();
+  expect(location()).toBe(`/purchase-orders?order=${ORDER_ID}`);
+});
+
+test("says the receipt was registered over the panel of the order the person comes back to", async () => {
+  const services = purchaseOrdersServices(["purchase_order_reads", "purchase_order_receipts"]);
+  vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrder).mockResolvedValue({
+    kind: "ok",
+    value: { kind: "found", order: { ...PARTIALLY_RECEIVED_ORDER, id: ORDER_ID } },
+  });
+  window.history.pushState(
+    { purchaseOrderReceived: true },
+    "",
+    `/purchase-orders?order=${ORDER_ID}`,
+  );
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  await expect.element(screen.getByText("Recepción registrada")).toBeVisible();
+  await expect
+    .element(screen.getByRole("complementary", { name: "Pedido a Distribuidora Andina" }))
+    .toBeVisible();
 });
 
 test("redirects the old order suggestion address to its tab, keeping its search", async () => {

@@ -3,14 +3,14 @@ import { expect, vi } from "vitest";
 import type { BackofficeAccess } from "../../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS } from "../../shell/test-support/backoffice-access";
 import { render } from "../../shell/test-support/render-with-router";
-import { PurchaseOrderScreen } from "../purchase-order-screen";
-import type { PurchaseOrderScreenServices } from "../purchase-order-services";
+import { PurchaseOrderPanel } from "../purchase-order-panel";
+import type { PurchaseOrderPanelServices } from "../purchase-order-panel-services";
 import { DRAFT_ORDER, ORDER_ID } from "./purchase-orders";
 import { purchasableProducts } from "./purchase-products";
 
-export function createServices(
-  overrides: Partial<PurchaseOrderScreenServices> = {},
-): PurchaseOrderScreenServices {
+export function createPanelServices(
+  overrides: Partial<PurchaseOrderPanelServices> = {},
+): PurchaseOrderPanelServices {
   return {
     fetchPurchaseOrder: vi.fn().mockResolvedValue({
       kind: "ok",
@@ -40,9 +40,9 @@ export function deferred<T>() {
   return { promise, resolve };
 }
 
-export type ScreenOptions = {
+export type PanelOptions = {
   access?: BackofficeAccess;
-  onBack?: () => void;
+  onClose?: () => void;
   onSessionEnded?: () => void;
   onReceive?: () => void;
   onOpenPurchases?: () => void;
@@ -50,26 +50,26 @@ export type ScreenOptions = {
   onNoticeDismissed?: () => void;
 };
 
-export function renderScreen(
-  services: PurchaseOrderScreenServices,
+export function renderPanel(
+  services: PurchaseOrderPanelServices,
   {
     access = ADMINISTRATOR_ACCESS,
-    onBack = () => {},
+    onClose = () => {},
     onSessionEnded = () => {},
     onReceive = () => {},
     onOpenPurchases = () => {},
     received = false,
     onNoticeDismissed = () => {},
-  }: ScreenOptions = {},
+  }: PanelOptions = {},
 ) {
   return render(
     <FieldSizeProvider size="backoffice">
       <main>
-        <PurchaseOrderScreen
+        <PurchaseOrderPanel
           orderId={ORDER_ID}
           access={access}
           services={services}
-          onBack={onBack}
+          onClose={onClose}
           onReceive={onReceive}
           onOpenPurchases={onOpenPurchases}
           received={received}
@@ -81,12 +81,12 @@ export function renderScreen(
   );
 }
 
-export type Screen = Awaited<ReturnType<typeof renderScreen>>;
+export type Panel = Awaited<ReturnType<typeof renderPanel>>;
 
-export async function loaded(services: PurchaseOrderScreenServices, options: ScreenOptions = {}) {
-  const screen = await renderScreen(services, options);
+export async function loaded(services: PurchaseOrderPanelServices, options: PanelOptions = {}) {
+  const screen = await renderPanel(services, options);
   await expect
-    .element(screen.getByRole("heading", { name: "Pedido a Distribuidora Andina", level: 1 }))
+    .element(screen.getByRole("complementary", { name: "Pedido a Distribuidora Andina" }))
     .toBeVisible();
   return screen;
 }

@@ -3,14 +3,20 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import type { BackofficeAccess } from "../shell/backoffice-access";
+import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import { type PurchaseOrdersFilters, purchaseOrdersFilters } from "./purchase-orders-filters";
 import { PurchaseOrdersScreen } from "./purchase-orders-screen";
 import type { PurchaseOrdersScreenServices } from "./purchase-orders-services";
+import { createPanelServices } from "./test-support/purchase-order-panel";
 import {
   CANCELLED_SUMMARY,
   DRAFT_SUMMARY,
+  ORDER_ID,
+  PARTIALLY_RECEIVED_ORDER,
   PRICED_SUMMARY,
+  SENT_ORDER,
   SENT_SUMMARY,
 } from "./test-support/purchase-orders";
 
@@ -21,7 +27,12 @@ beforeEach(() => {
 function createServices(
   overrides: Partial<PurchaseOrdersScreenServices> = {},
 ): PurchaseOrdersScreenServices {
-  return { fetchPurchaseOrders: vi.fn(), fetchSupplierName: vi.fn(), ...overrides };
+  return {
+    fetchPurchaseOrders: vi.fn(),
+    fetchSupplierName: vi.fn(),
+    ...createPanelServices(),
+    ...overrides,
+  };
 }
 
 function deferred<T>() {
@@ -37,12 +48,24 @@ function renderScreen(
   {
     filters = purchaseOrdersFilters.parse({}),
     onFiltersChange = () => {},
-    onOpenOrder = () => {},
+    access = ADMINISTRATOR_ACCESS,
+    openOrder,
+    received = false,
+    onOpenOrderChange = () => {},
+    onReceive = () => {},
+    onOpenPurchases = () => {},
+    onReceivedNoticeDismissed = () => {},
     onSessionEnded = () => {},
   }: {
     filters?: PurchaseOrdersFilters;
     onFiltersChange?: (filters: PurchaseOrdersFilters) => void;
-    onOpenOrder?: (orderId: string) => void;
+    access?: BackofficeAccess;
+    openOrder?: string;
+    received?: boolean;
+    onOpenOrderChange?: (orderId: string | undefined) => void;
+    onReceive?: (orderId: string) => void;
+    onOpenPurchases?: () => void;
+    onReceivedNoticeDismissed?: () => void;
     onSessionEnded?: () => void;
   } = {},
 ) {
@@ -53,7 +76,13 @@ function renderScreen(
           services={services}
           filters={filters}
           onFiltersChange={onFiltersChange}
-          onOpenOrder={onOpenOrder}
+          access={access}
+          openOrder={openOrder}
+          received={received}
+          onOpenOrderChange={onOpenOrderChange}
+          onReceive={onReceive}
+          onOpenPurchases={onOpenPurchases}
+          onReceivedNoticeDismissed={onReceivedNoticeDismissed}
           onSessionEnded={onSessionEnded}
         />
       </main>
@@ -225,10 +254,24 @@ test("says nothing matches when a state has no orders", async () => {
   expect(table.getByText("Todavía no hay pedidos").query()).toBeNull();
 });
 
-test("opens an order from its row", async () => {
+test("pressing an order's row asks to open its order", async () => {
   const services = createServices();
-  const onOpenOrder = vi.fn();
-  const screen = await loaded(services, [DRAFT_SUMMARY, CANCELLED_SUMMARY], { onOpenOrder });
+  const onOpenOrderChange = vi.fn();
+  const screen = await loaded(services, [DRAFT_SUMMARY, CANCELLED_SUMMARY], {
+    onOpenOrderChange,
+  });
+
+  await userEvent.click(rowOf(screen, "Distribuidora Andina").getByText("Borrador"));
+
+  expect(onOpenOrderChange).toHaveBeenCalledWith(DRAFT_SUMMARY.id);
+});
+
+test("the open action of an order's row asks to open its order", async () => {
+  const services = createServices();
+  const onOpenOrderChange = vi.fn();
+  const screen = await loaded(services, [DRAFT_SUMMARY, CANCELLED_SUMMARY], {
+    onOpenOrderChange,
+  });
 
   await userEvent.click(
     rowOf(screen, "Distribuidora Andina").getByRole("button", {
@@ -236,7 +279,109 @@ test("opens an order from its row", async () => {
     }),
   );
 
-  expect(onOpenOrder).toHaveBeenCalledWith(DRAFT_SUMMARY.id);
+  expect(onOpenOrderChange).toHaveBeenCalledWith(DRAFT_SUMMARY.id);
+});
+
+test("shows no panel while no order is open", async () => {
+  const services = createServices();
+  const screen = await loaded(services, [DRAFT_SUMMARY]);
+
+  expect(screen.getByRole("complementary").query()).toBeNull();
+  expect(services.fetchPurchaseOrder).not.toHaveBeenCalled();
+});
+
+test("shows the open order in a panel with its lines, sharing, cancelling and receipt differences, beside the list", async () => {
+  const services = createServices({
+    fetchPurchaseOrder: vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: { kind: "found", order: { ...PARTIALLY_RECEIVED_ORDER, id: ORDER_ID } },
+    }),
+  });
+  const screen = await loaded(services, [DRAFT_SUMMARY, CANCELLED_SUMMARY], {
+    openOrder: ORDER_ID,
+  });
+
+  const panel = screen.getByRole("complementary", { name: "Pedido a Distribuidora Andina" });
+  await expect.element(panel).toBeVisible();
+  expect(services.fetchPurchaseOrder).toHaveBeenCalledWith(ORDER_ID);
+  await expect.element(panel.getByRole("table", { name: "Líneas del pedido" })).toBeVisible();
+  await expect.element(panel.getByRole("button", { name: "Compartir pedido" })).toBeVisible();
+  await expect.element(panel.getByRole("button", { name: "Cancelar pedido" })).toBeVisible();
+  await expect
+    .element(panel.getByRole("heading", { name: "Diferencias de recepción" }))
+    .toBeVisible();
+  await expect.element(screen.getByRole("table", { name: "Pedidos de compra" })).toBeVisible();
+  await expect.element(rowOf(screen, "Granos del Sur")).toBeVisible();
+});
+
+test("closing the panel asks to open no order", async () => {
+  const services = createServices();
+  const onOpenOrderChange = vi.fn();
+  const screen = await loaded(services, [DRAFT_SUMMARY], {
+    openOrder: ORDER_ID,
+    onOpenOrderChange,
+  });
+  await expect
+    .element(screen.getByRole("complementary", { name: "Pedido a Distribuidora Andina" }))
+    .toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar" }));
+
+  expect(onOpenOrderChange).toHaveBeenCalledWith(undefined);
+});
+
+test("the panel's Recibir pedido asks to receive that order", async () => {
+  const services = createServices({
+    fetchPurchaseOrder: vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: { kind: "found", order: SENT_ORDER },
+    }),
+  });
+  const onReceive = vi.fn();
+  const screen = await loaded(services, [SENT_SUMMARY], {
+    openOrder: ORDER_ID,
+    access: accessWith("purchase_order_reads", "purchase_order_receipts"),
+    onReceive,
+  });
+
+  await userEvent.click(screen.getByRole("button", { name: "Recibir pedido" }));
+
+  expect(onReceive).toHaveBeenCalledWith(ORDER_ID);
+});
+
+test("says the receipt was registered when the person comes back from it, and asks to clear the mark when dismissed", async () => {
+  const services = createServices();
+  const onReceivedNoticeDismissed = vi.fn();
+  const screen = await loaded(services, [DRAFT_SUMMARY], {
+    openOrder: ORDER_ID,
+    received: true,
+    onReceivedNoticeDismissed,
+  });
+
+  await expect.element(screen.getByText("Recepción registrada")).toBeVisible();
+  await userEvent.click(screen.getByRole("button", { name: "Cerrar" }).last());
+  expect(onReceivedNoticeDismissed).toHaveBeenCalled();
+});
+
+test("reads the orders again after the panel cancels one", async () => {
+  const services = createServices({
+    fetchPurchaseOrder: vi.fn().mockResolvedValue({
+      kind: "ok",
+      value: { kind: "found", order: SENT_ORDER },
+    }),
+    cancelPurchaseOrder: vi.fn().mockResolvedValue({ kind: "ok", order: SENT_ORDER }),
+  });
+  const screen = await loaded(services, [SENT_SUMMARY], { openOrder: ORDER_ID });
+  const readsBefore = vi.mocked(services.fetchPurchaseOrders).mock.calls.length;
+
+  await userEvent.click(screen.getByRole("button", { name: "Cancelar pedido" }));
+  await userEvent.click(
+    screen.getByRole("dialog").getByRole("button", { name: "Cancelar pedido" }),
+  );
+
+  await expect
+    .poll(() => vi.mocked(services.fetchPurchaseOrders).mock.calls.length)
+    .toBeGreaterThan(readsBefore);
 });
 
 test("shows a load error with a retry action that starts again from the loading placeholder", async () => {

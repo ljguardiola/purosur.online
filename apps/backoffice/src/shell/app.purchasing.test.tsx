@@ -7,8 +7,7 @@ import {
   DRAFT_ORDER,
   DRAFT_SUMMARY,
   ORDER_ID,
-  RECEIPT_DRAFT,
-  SENT_ORDER,
+  PRICED_SUMMARY,
 } from "../purchasing/test-support/purchase-orders";
 import { PRICE_COMPARISON } from "../purchasing/test-support/supplier-price-comparison";
 import {
@@ -29,8 +28,6 @@ opensOnlyScreens([
   "/purchase-orders",
   "/purchase-orders/suggestion",
   "/purchase-orders/comparison",
-  "/purchase-orders/$orderId",
-  "/purchase-orders/$orderId/receive",
   "/supplier-price-lists/$listId",
   "/suppliers",
   "/suppliers/price-lists",
@@ -324,7 +321,7 @@ test("sends a user who may not read purchase orders away from an order to Mi cue
   const screen = await render(<App help={emptyHelp} services={services} />);
 
   await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
-  expect(services.purchaseOrderScreen.fetchPurchaseOrder).not.toHaveBeenCalled();
+  expect(services.purchaseOrdersScreen.fetchPurchaseOrder).not.toHaveBeenCalled();
 });
 
 test.each(["/purchase-orders", `/purchase-orders/${ORDER_ID}`])(
@@ -337,40 +334,11 @@ test.each(["/purchase-orders", `/purchase-orders/${ORDER_ID}`])(
 
     await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
     expect(services.purchaseOrdersScreen.fetchPurchaseOrders).not.toHaveBeenCalled();
-    expect(services.purchaseOrderScreen.fetchPurchaseOrder).not.toHaveBeenCalled();
+    expect(services.purchaseOrdersScreen.fetchPurchaseOrder).not.toHaveBeenCalled();
   },
 );
 
-test("opens an order from the purchase orders, and goes back to them from it", async () => {
-  const services = purchasingServices(["purchase_orders", "purchase_order_reads"]);
-  vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrders).mockResolvedValue({
-    kind: "ok",
-    value: [DRAFT_SUMMARY],
-  });
-  vi.mocked(services.purchaseOrderScreen.fetchPurchaseOrder).mockResolvedValue({
-    kind: "ok",
-    value: { kind: "found", order: DRAFT_ORDER },
-  });
-  window.history.pushState(null, "", "/purchase-orders");
-
-  const screen = await render(<App help={emptyHelp} services={services} />);
-  await userEvent.click(
-    screen.getByRole("button", { name: "Abrir el pedido de Distribuidora Andina" }),
-  );
-
-  await expect
-    .element(screen.getByRole("heading", { name: "Pedido a Distribuidora Andina", level: 1 }))
-    .toBeVisible();
-  expect(window.location.pathname).toBe(`/purchase-orders/${ORDER_ID}`);
-  expect(services.purchaseOrderScreen.fetchPurchaseOrder).toHaveBeenCalledWith(ORDER_ID);
-
-  await userEvent.click(screen.getByRole("button", { name: "Volver a los pedidos" }));
-
-  await expect.element(screen.getByRole("heading", { name: "Pedidos", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/purchase-orders");
-});
-
-test("goes to the purchase orders once they are built from the order suggestion", async () => {
+test("lands on the Borradores of the orders, with the order's panel open, once one is built from the order suggestion", async () => {
   const services = purchasingServices([
     "price_comparison",
     "purchase_orders",
@@ -384,13 +352,47 @@ test("goes to the purchase orders once they are built from the order suggestion"
     kind: "ok",
     value: [DRAFT_SUMMARY],
   });
+  vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrder).mockResolvedValue({
+    kind: "ok",
+    value: { kind: "found", order: DRAFT_ORDER },
+  });
   window.history.pushState(null, "", "/purchase-orders/suggestion");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
   await userEvent.click(screen.getByRole("button", { name: "Armar pedidos" }));
 
-  await expect.element(screen.getByRole("heading", { name: "Pedidos", level: 1 })).toBeVisible();
-  expect(window.location.pathname).toBe("/purchase-orders");
+  await expect
+    .element(screen.getByRole("complementary", { name: "Pedido a Distribuidora Andina" }))
+    .toBeVisible();
+  expect(window.location.pathname + window.location.search).toBe(
+    `/purchase-orders?state=DRAFT&order=${ORDER_ID}`,
+  );
+  expect(services.purchaseOrdersScreen.fetchPurchaseOrders).toHaveBeenCalledWith("DRAFT");
+});
+
+test("lands on the Borradores of the orders with no panel once several are built from the order suggestion", async () => {
+  const services = purchasingServices([
+    "price_comparison",
+    "purchase_orders",
+    "purchase_order_reads",
+  ]);
+  vi.mocked(services.orderSuggestionScreen.buildPurchaseOrders).mockResolvedValue({
+    kind: "ok",
+    orderIds: [ORDER_ID, PRICED_SUMMARY.id],
+  });
+  vi.mocked(services.purchaseOrdersScreen.fetchPurchaseOrders).mockResolvedValue({
+    kind: "ok",
+    value: [DRAFT_SUMMARY, PRICED_SUMMARY],
+  });
+  window.history.pushState(null, "", "/purchase-orders/suggestion");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+  await userEvent.click(screen.getByRole("button", { name: "Armar pedidos" }));
+
+  await expect.element(screen.getByRole("table", { name: "Pedidos de compra" })).toBeVisible();
+  expect(window.location.pathname + window.location.search).toBe("/purchase-orders?state=DRAFT");
+  expect(screen.getByRole("complementary").query()).toBeNull();
+  expect(services.purchaseOrdersScreen.fetchPurchaseOrder).not.toHaveBeenCalled();
 });
 
 test("lists the purchase orders for whoever may only receive them", async () => {
@@ -409,21 +411,6 @@ test("lists the purchase orders for whoever may only receive them", async () => 
   expect(screen.getByRole("link", { name: "Pedidos" }).query()).not.toBeNull();
 });
 
-test("opens an order for whoever may read purchase orders", async () => {
-  const services = purchasingServices(["purchase_order_reads"]);
-  vi.mocked(services.purchaseOrderScreen.fetchPurchaseOrder).mockResolvedValue({
-    kind: "ok",
-    value: { kind: "found", order: DRAFT_ORDER },
-  });
-  window.history.pushState(null, "", `/purchase-orders/${ORDER_ID}`);
-
-  const screen = await render(<App help={emptyHelp} services={services} />);
-
-  await expect
-    .element(screen.getByRole("heading", { name: "Pedido a Distribuidora Andina", level: 1 }))
-    .toBeVisible();
-});
-
 test("sends a user who may not receive orders away from the receipt to Mi cuenta", async () => {
   const services = purchasingServices(["purchase_order_reads"]);
   window.history.pushState(null, "", `/purchase-orders/${ORDER_ID}/receive`);
@@ -432,43 +419,6 @@ test("sends a user who may not receive orders away from the receipt to Mi cuenta
 
   await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
   expect(services.purchaseOrderReceiveScreen.fetchPurchaseOrderReceiptDraft).not.toHaveBeenCalled();
-});
-
-test("opens the receipt of a receivable order from the order, and goes back to the order from it", async () => {
-  const services = purchasingServices([
-    "purchase_order_reads",
-    "purchase_order_receipts",
-    "purchase_choices",
-  ]);
-  vi.mocked(services.purchaseOrderScreen.fetchPurchaseOrder).mockResolvedValue({
-    kind: "ok",
-    value: { kind: "found", order: SENT_ORDER },
-  });
-  vi.mocked(services.purchaseOrderReceiveScreen.fetchPurchaseOrderReceiptDraft).mockResolvedValue({
-    kind: "ok",
-    value: { kind: "found", draft: RECEIPT_DRAFT },
-  });
-  window.history.pushState(null, "", `/purchase-orders/${ORDER_ID}`);
-
-  const screen = await render(<App help={emptyHelp} services={services} />);
-  await userEvent.click(screen.getByRole("button", { name: "Recibir pedido" }));
-
-  await expect
-    .element(
-      screen.getByRole("heading", { name: "Recibir pedido a Distribuidora Andina", level: 1 }),
-    )
-    .toBeVisible();
-  expect(window.location.pathname).toBe(`/purchase-orders/${ORDER_ID}/receive`);
-  expect(services.purchaseOrderReceiveScreen.fetchPurchaseOrderReceiptDraft).toHaveBeenCalledWith(
-    ORDER_ID,
-  );
-
-  await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
-
-  await expect
-    .element(screen.getByRole("heading", { name: "Pedido a Distribuidora Andina", level: 1 }))
-    .toBeVisible();
-  expect(window.location.pathname).toBe(`/purchase-orders/${ORDER_ID}`);
 });
 
 test.each([

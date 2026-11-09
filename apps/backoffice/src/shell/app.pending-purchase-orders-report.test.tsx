@@ -10,7 +10,7 @@ import { createAppServices } from "./test-support/app-services";
 import { opensOnlyScreens } from "./test-support/screen-routes";
 
 opensOnlyScreens(["/", "/help", "/reports", "/reports/pending-purchase-orders"], {
-  downloadedInTest: ["/purchase-orders/$orderId"],
+  downloadedInTest: ["/purchase-orders"],
 });
 
 beforeEach(resetPageState);
@@ -110,8 +110,8 @@ test("opens an order from its row", async () => {
   await userEvent.click(screen.getByRole("button", { name: "Abrir el pedido de Granos del Sur" }));
 
   await expect
-    .poll(() => window.location.pathname)
-    .toBe("/purchase-orders/90e00000-0000-4000-8000-0000000000b2");
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/purchase-orders?order=90e00000-0000-4000-8000-0000000000b2");
 });
 
 test("offers no way to open an order to a user who may not read orders", async () => {

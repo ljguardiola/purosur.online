@@ -160,7 +160,9 @@ test("registers the receipt as a purchase without a supplier, as corrected, then
       },
     ],
   });
-  await expect.poll(() => window.location.pathname).toBe(`/purchase-orders/${ORDER_ID}`);
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe(`/purchase-orders?order=${ORDER_ID}`);
   expect(window.history.state).toMatchObject({ purchaseOrderReceived: true });
 });
 
@@ -318,7 +320,9 @@ test("cancel goes back to the order", async () => {
 
   await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
 
-  await expect.poll(() => window.location.pathname).toBe(`/purchase-orders/${ORDER_ID}`);
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe(`/purchase-orders?order=${ORDER_ID}`);
   expect(window.history.state).not.toMatchObject({ purchaseOrderReceived: true });
 });
 
@@ -347,7 +351,9 @@ test("the way back from a draft that is not ready goes to the order", async () =
 
   await userEvent.click(screen.getByRole("button", { name: "Volver al pedido" }));
 
-  await expect.poll(() => window.location.pathname).toBe(`/purchase-orders/${ORDER_ID}`);
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe(`/purchase-orders?order=${ORDER_ID}`);
 });
 
 test("shows a load error with a retry action that reads the draft again", async () => {

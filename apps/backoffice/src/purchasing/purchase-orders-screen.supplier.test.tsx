@@ -1,10 +1,12 @@
 import { FieldSizeProvider } from "@purosur/ui";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import { ADMINISTRATOR_ACCESS } from "../shell/test-support/backoffice-access";
 import { render } from "../shell/test-support/render-with-router";
 import { purchaseOrdersFilters } from "./purchase-orders-filters";
 import { PurchaseOrdersScreen } from "./purchase-orders-screen";
 import type { PurchaseOrdersScreenServices } from "./purchase-orders-services";
+import { createPanelServices } from "./test-support/purchase-order-panel";
 import { DRAFT_SUMMARY, SUPPLIER_ID } from "./test-support/purchase-orders";
 
 function renderScreen(
@@ -18,7 +20,13 @@ function renderScreen(
           services={services}
           filters={purchaseOrdersFilters.parse({})}
           onFiltersChange={() => {}}
-          onOpenOrder={() => {}}
+          access={ADMINISTRATOR_ACCESS}
+          openOrder={undefined}
+          received={false}
+          onOpenOrderChange={() => {}}
+          onReceive={() => {}}
+          onOpenPurchases={() => {}}
+          onReceivedNoticeDismissed={() => {}}
           onSessionEnded={() => {}}
           {...(supplierFilter === undefined ? {} : { supplierFilter })}
         />
@@ -34,6 +42,7 @@ function servicesWithOrders(orders = [DRAFT_SUMMARY]) {
       kind: "ok",
       value: { kind: "found", name: "Distribuidora Andina" },
     }),
+    ...createPanelServices(),
   } satisfies PurchaseOrdersScreenServices;
 }
 

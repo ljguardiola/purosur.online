@@ -54,7 +54,7 @@ function screenElement(
   }: {
     filters?: OrderSuggestionFilters;
     onFiltersChange?: (filters: OrderSuggestionFilters) => void;
-    onOrdersBuilt?: () => void;
+    onOrdersBuilt?: (orderIds: readonly string[]) => void;
     onSessionEnded?: () => void;
     access?: BackofficeAccess;
   } = {},
@@ -524,6 +524,7 @@ test("Armar pedidos sends the packages of the offer proposed for each line and g
     ],
   });
   await expect.poll(() => onOrdersBuilt.mock.calls.length).toBe(1);
+  expect(onOrdersBuilt).toHaveBeenCalledWith(["o-1"]);
 });
 
 test("Armar pedidos follows the supplier chosen and leaves out the lines left out of the order", async () => {
