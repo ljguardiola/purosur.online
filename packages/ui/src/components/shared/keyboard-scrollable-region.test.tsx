@@ -74,6 +74,30 @@ function ShrinkableScrollingBox() {
   );
 }
 
+function BoxThatGrowsItself() {
+  const [height, setHeight] = useState(50);
+  return (
+    <>
+      <button type="button" onClick={() => setHeight(1000)}>
+        Agrandar
+      </button>
+      <div style={{ height: `${height}px` }} />
+    </>
+  );
+}
+
+function LinesThatAddThemselves() {
+  const [count, setCount] = useState(2);
+  return (
+    <>
+      <button type="button" onClick={() => setCount(40)}>
+        Agregar
+      </button>
+      <Lines count={count} />
+    </>
+  );
+}
+
 const region = () => page.getByRole("region", { name: "Detalle" });
 const nextButton = () => page.getByRole("button", { name: "Siguiente" });
 const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
@@ -193,6 +217,38 @@ test("is a tab stop as soon as the render that shrinks it below its content comm
   expect(page.getByRole("region").query()).toBeNull();
 
   flushSync(() => page.getByRole("button", { name: "Achicar" }).element().click());
+
+  expect(region().query()?.getAttribute("tabindex")).toBe("0");
+});
+
+test("is a tab stop before any other task runs once content that renders on its own grows a box past it", async () => {
+  await render(
+    <ScrollingBox>
+      <BoxThatGrowsItself />
+    </ScrollingBox>,
+  );
+  await nextFrame();
+  await nextFrame();
+  expect(page.getByRole("region").query()).toBeNull();
+
+  flushSync(() => page.getByRole("button", { name: "Agrandar" }).element().click());
+  await Promise.resolve();
+
+  expect(region().query()?.getAttribute("tabindex")).toBe("0");
+});
+
+test("is a tab stop before any other task runs once content that renders on its own adds lines past it", async () => {
+  await render(
+    <ScrollingBox>
+      <LinesThatAddThemselves />
+    </ScrollingBox>,
+  );
+  await nextFrame();
+  await nextFrame();
+  expect(page.getByRole("region").query()).toBeNull();
+
+  flushSync(() => page.getByRole("button", { name: "Agregar" }).element().click());
+  await Promise.resolve();
 
   expect(region().query()?.getAttribute("tabindex")).toBe("0");
 });
