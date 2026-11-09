@@ -316,15 +316,3 @@ test("corrects a line's cost from the panel with its own modal, confirming and r
     .poll(() => vi.mocked(services.purchasesListScreen.fetchPurchases).mock.calls.length)
     .toBe(2);
 });
-
-test("hides the linked freights in the panel from a person without freights", async () => {
-  const services = purchasesServices(["purchases"]);
-  window.history.pushState(null, "", `/purchases?purchase=${compraDeMiel.id}`);
-
-  const screen = await render(<App help={emptyHelp} services={services} />);
-
-  await expect
-    .element(screen.getByRole("complementary", { name: "Compra a Distribuidora Andina" }))
-    .toBeVisible();
-  expect(screen.getByRole("heading", { name: "Fletes vinculados" }).query()).toBeNull();
-});

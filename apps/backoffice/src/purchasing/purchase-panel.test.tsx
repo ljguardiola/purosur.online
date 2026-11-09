@@ -107,22 +107,18 @@ test("lists the freights linked to the purchase as the cloud answers them", asyn
 test("says the purchase has no linked freights when it has none", async () => {
   const screen = await renderPanel(createPanelServices(), { purchase: compraDeAvena });
 
-  await expect.element(screen.getByText("Esta compra no tiene fletes vinculados.")).toBeVisible();
-  expect(screen.getByRole("table", { name: "Fletes vinculados" }).query()).toBeNull();
+  const freights = screen.getByRole("table", { name: "Fletes vinculados" });
+  await expect.element(freights.getByText("Sin fletes vinculados")).toBeVisible();
 });
 
-test("shows the linked freights to who manages freights even without recording purchases", async () => {
-  const screen = await renderPanel(createPanelServices(), { access: accessWith("freights") });
-
-  await expect.element(screen.getByRole("heading", { name: "Fletes vinculados" })).toBeVisible();
-});
-
-test("hides the linked freights from who does not manage freights", async () => {
-  const screen = await renderPanel(createPanelServices(), { access: accessWith("purchases") });
+test("shows no linked freights when the cloud does not answer them", async () => {
+  const screen = await renderPanel(createPanelServices(), {
+    purchase: { ...compraDeMiel, freights: null },
+  });
 
   await expect.element(screen.getByText("Miel pura de abeja 1 kg")).toBeVisible();
   expect(screen.getByRole("heading", { name: "Fletes vinculados" }).query()).toBeNull();
-  expect(screen.getByText("Esta compra no tiene fletes vinculados.").query()).toBeNull();
+  expect(screen.getByRole("table", { name: "Fletes vinculados" }).query()).toBeNull();
 });
 
 test("offers, on each line, the cost, quantity and expiry corrections and the rest in Más acciones", async () => {

@@ -81,6 +81,11 @@ describe("purchaseSummarySchema", () => {
     expect(purchaseSummarySchema.safeParse(bare).data).toEqual(bare);
   });
 
+  it("accepts a purchase whose linked freights are not answered", () => {
+    const unanswered = { ...purchase, freights: null };
+    expect(purchaseSummarySchema.safeParse(unanswered).data).toEqual(unanswered);
+  });
+
   it("strips the purchases a linked freight covers and any other key it does not define", () => {
     const parsed = purchaseSummarySchema.safeParse({
       ...purchase,

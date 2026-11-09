@@ -300,9 +300,10 @@ describe("DrizzlePurchasingListReader removed lines and withdrawn lots", () => {
 });
 
 describe("DrizzlePurchasingListReader linked freights", () => {
-  it("lists each purchase with the freights linked to it, whatever their date, newest first", async () => {
+  it("answers the freights linked to each purchase asked for, whatever their date, newest first", async () => {
     const purchaseId = await storedPurchase({ purchasedOn: "2026-10-01" });
     const other = await storedPurchase({ purchasedOn: "2026-10-01" });
+    const notAsked = await storedPurchase();
     const oldest = await insertFreightRow(db, {
       locationId,
       actorId,
@@ -320,44 +321,45 @@ describe("DrizzlePurchasingListReader linked freights", () => {
       amountCents: 15_000,
       means: { kind: "carrier", name: "Transportes del Sur" },
     });
-    const middle = await insertFreightRow(db, {
-      locationId,
-      actorId,
-      purchaseIds: [purchaseId],
-      date: "2026-10-02",
-      description: "Viaje propio",
-      amountCents: 8_000,
-    });
+    await insertFreightRow(db, { locationId, actorId, purchaseIds: [notAsked] });
 
-    const listed = await new DrizzlePurchasingListReader(db).purchases(locationId);
+    const linked = await new DrizzlePurchasingListReader(db).linkedFreights([purchaseId, other]);
 
-    expect(listed.find(({ id }) => id === purchaseId)?.freights).toEqual([
-      {
-        id: newest,
-        date: "2026-10-04",
-        description: "Flete compartido",
-        amountCents: 15_000,
-        means: { kind: "carrier", name: "Transportes del Sur" },
-      },
-      {
-        id: middle,
-        date: "2026-10-02",
-        description: "Viaje propio",
-        amountCents: 8_000,
-        means: { kind: "own_trip" },
-      },
-      {
-        id: oldest,
-        date: "2025-01-15",
-        description: "Flete del año pasado",
-        amountCents: 7_000,
-        means: { kind: "own_trip" },
-      },
-    ]);
-    expect(listed.find(({ id }) => id === other)?.freights.map(({ id }) => id)).toEqual([newest]);
+    expect(linked).toEqual(
+      expect.arrayContaining([
+        {
+          purchaseId,
+          id: newest,
+          date: "2026-10-04",
+          description: "Flete compartido",
+          amountCents: 15_000,
+          means: { kind: "carrier", name: "Transportes del Sur" },
+        },
+        {
+          purchaseId,
+          id: oldest,
+          date: "2025-01-15",
+          description: "Flete del año pasado",
+          amountCents: 7_000,
+          means: { kind: "own_trip" },
+        },
+        {
+          purchaseId: other,
+          id: newest,
+          date: "2026-10-04",
+          description: "Flete compartido",
+          amountCents: 15_000,
+          means: { kind: "carrier", name: "Transportes del Sur" },
+        },
+      ]),
+    );
+    expect(linked).toHaveLength(3);
+    expect(
+      linked.filter((freight) => freight.purchaseId === purchaseId).map(({ id }) => id),
+    ).toEqual([newest, oldest]);
   });
 
-  it("lists freights of one date by when they were recorded, the latest first", async () => {
+  it("answers freights of one date by when they were recorded, the latest first", async () => {
     const purchaseId = await storedPurchase();
     const first = await insertFreightRow(db, {
       locationId,
@@ -374,31 +376,27 @@ describe("DrizzlePurchasingListReader linked freights", () => {
       recordedAt: new Date("2026-10-02T15:00:00.000Z"),
     });
 
-    const [listed] = await new DrizzlePurchasingListReader(db).purchases(locationId);
+    const linked = await new DrizzlePurchasingListReader(db).linkedFreights([purchaseId]);
 
-    expect(listed?.freights.map(({ id }) => id)).toEqual([second, first]);
+    expect(linked.map(({ id }) => id)).toEqual([second, first]);
   });
 
-  it("lists a purchase no freight is linked to as having none", async () => {
+  it("answers no freight when no purchase is asked for", async () => {
     const purchaseId = await storedPurchase();
-    const unlinked = await storedPurchase();
-    await insertFreightRow(db, { locationId, actorId, purchaseIds: [unlinked] });
+    await insertFreightRow(db, { locationId, actorId, purchaseIds: [purchaseId] });
 
-    const listed = await new DrizzlePurchasingListReader(db).purchases(locationId);
-
-    expect(listed.find(({ id }) => id === purchaseId)?.freights).toEqual([]);
+    expect(await new DrizzlePurchasingListReader(db).linkedFreights([])).toEqual([]);
   });
 
-  it("finds a purchase with the freights linked to it", async () => {
+  it("lists and finds a purchase without reading its linked freights", async () => {
     const purchaseId = await storedPurchase();
-    const freightId = await insertFreightRow(db, {
-      locationId,
-      actorId,
-      purchaseIds: [purchaseId],
-    });
+    await insertFreightRow(db, { locationId, actorId, purchaseIds: [purchaseId] });
+    const reader = new DrizzlePurchasingListReader(db);
 
-    const found = await new DrizzlePurchasingListReader(db).purchase(purchaseId);
+    const [listed] = await reader.purchases(locationId);
+    const found = await reader.purchase(purchaseId);
 
-    expect(found?.freights.map(({ id }) => id)).toEqual([freightId]);
+    expect(listed).not.toHaveProperty("freights");
+    expect(found).not.toHaveProperty("freights");
   });
 });

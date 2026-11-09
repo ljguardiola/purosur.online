@@ -31,6 +31,8 @@ import { DrizzlePurchasingStore } from "./drizzle-purchasing-store.js";
 import { insertActor, insertProduct } from "./test-support/purchasing-fixtures.js";
 import { quantityLine, registeredPurchase } from "./test-support/registered-purchase.js";
 
+const BUYER = { isAdministrator: false, permissionKeys: ["record_purchases"] };
+
 const REGISTERED_AT = new Date("2026-10-02T12:00:00.000Z");
 const SPLIT_AT = new Date("2026-10-06T15:00:00.000Z");
 
@@ -369,8 +371,8 @@ describe("correcting a purchase line that has a split lot", () => {
       zoneRules: fixedZoneRulesSource(),
     };
 
-    const listed = await findPurchaseListing(ports, purchase.id);
-    const otherListed = await findPurchaseListing(ports, other.id);
+    const listed = await findPurchaseListing(ports, purchase.id, BUYER);
+    const otherListed = await findPurchaseListing(ports, other.id, BUYER);
 
     expect(listed?.lines).toHaveLength(1);
     expect(listed?.lines[0]).toMatchObject({

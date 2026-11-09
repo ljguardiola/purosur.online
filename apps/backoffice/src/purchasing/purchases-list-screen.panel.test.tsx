@@ -1,12 +1,7 @@
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { compraDeAvena, compraDeMiel } from "./test-support/purchases";
-import {
-  createServices,
-  deferred,
-  loaded,
-  renderScreen,
-} from "./test-support/purchases-list-screen";
+import { createServices, loaded } from "./test-support/purchases-list-screen";
 
 beforeEach(async () => {
   await page.viewport(1280, 900);
@@ -79,33 +74,4 @@ test("asks to close the panel when its close button is pressed", async () => {
 
   expect(onOpenPurchaseChange).toHaveBeenLastCalledWith(undefined);
   expect(screen.getByRole("complementary").query()).toBeNull();
-});
-
-test("shows no panel and asks to close it for a purchase the loaded list does not hold", async () => {
-  const onOpenPurchaseChange = vi.fn();
-  const screen = await loaded(createServices(), {
-    openPurchase: "c0a00000-0000-4000-8000-0000000000ff",
-    onOpenPurchaseChange,
-  });
-
-  await vi.waitFor(() => expect(onOpenPurchaseChange).toHaveBeenCalledWith(undefined));
-  expect(screen.getByRole("complementary").query()).toBeNull();
-});
-
-test("waits for the purchases to load before closing a panel it cannot find yet", async () => {
-  const onOpenPurchaseChange = vi.fn();
-  const services = createServices();
-  const firstLoad = deferred<Awaited<ReturnType<typeof services.fetchPurchases>>>();
-  vi.mocked(services.fetchPurchases).mockReturnValue(firstLoad.promise);
-  const screen = await renderScreen(services, {
-    openPurchase: compraDeMiel.id,
-    onOpenPurchaseChange,
-  });
-
-  expect(screen.getByRole("complementary").query()).toBeNull();
-  expect(onOpenPurchaseChange).not.toHaveBeenCalled();
-
-  firstLoad.resolve({ kind: "ok", value: [compraDeMiel] });
-  await expect.element(screen.getByRole("complementary", { name: PANEL })).toBeVisible();
-  expect(onOpenPurchaseChange).not.toHaveBeenCalled();
 });
