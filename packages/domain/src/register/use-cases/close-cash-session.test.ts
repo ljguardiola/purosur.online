@@ -250,31 +250,15 @@ describe("closeCashSession", () => {
   });
 
   it("refuses while a sale is open, telling its total, and records nothing", async () => {
-    const store = ledger({
-      openSale: { lines: [{ lineTotal: 1_250 }, { lineTotal: 3_000 }], saleDiscount: null },
-    });
+    const store = ledger({ openSaleTotal: 4_250 });
     const before = structuredClone(store.state);
 
     expect(await close(store)).toEqual({ kind: "open_sale", total: 4_250 });
     expect(store.state).toEqual(before);
   });
 
-  it("tells the total of an open sale with the discount on the total taken off", async () => {
-    const store = ledger({
-      openSale: {
-        lines: [{ lineTotal: 1_250 }, { lineTotal: 3_000 }],
-        saleDiscount: { kind: "AMOUNT", amount: 250, reason: "regalo", authorizedBy: null },
-      },
-    });
-
-    expect(await close(store)).toEqual({ kind: "open_sale", total: 4_000 });
-  });
-
   it("refuses an open sale even when its total is zero", async () => {
-    expect(await close(ledger({ openSale: { lines: [], saleDiscount: null } }))).toEqual({
-      kind: "open_sale",
-      total: 0,
-    });
+    expect(await close(ledger({ openSaleTotal: 0 }))).toEqual({ kind: "open_sale", total: 0 });
   });
 
   it("answers the authority's refusal and records nothing when the closing is not authorized", async () => {
@@ -297,7 +281,7 @@ describe("closeCashSession", () => {
   it("checks the session before the open sale", async () => {
     const store = ledger({
       sessions: [],
-      openSale: { lines: [{ lineTotal: 100 }], saleDiscount: null },
+      openSaleTotal: 100,
     });
 
     expect(await close(store)).toEqual({ kind: "no_open_session" });
