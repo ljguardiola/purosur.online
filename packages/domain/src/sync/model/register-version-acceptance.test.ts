@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  isLeftBehindByMinimum,
-  MINIMUM_ACCEPTED_REGISTER_VERSION,
-  registerVersionAccepted,
-} from "./register-version.js";
+import { MINIMUM_ACCEPTED_REGISTER_VERSION } from "./register-version.js";
+import { isLeftBehindByMinimum, registerVersionAccepted } from "./register-version-acceptance.js";
 
 describe("registerVersionAccepted", () => {
   it("accepts the version every register reports before any release exists", () => {
