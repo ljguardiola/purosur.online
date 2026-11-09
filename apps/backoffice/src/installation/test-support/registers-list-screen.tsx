@@ -1,8 +1,8 @@
 import { useIsFetching } from "@tanstack/react-query";
 import { onTestFinished, vi } from "vitest";
 import { page } from "vitest/browser";
-import { useRefreshRegisters } from "../../platform/register-query-roots";
 import type { BackofficeAccess } from "../../shell/backoffice-access";
+import { useRefreshRegisters } from "../../shell/refresh-registers";
 import { ADMINISTRATOR_ACCESS } from "../../shell/test-support/backoffice-access";
 import {
   createRegisterPartsServices,

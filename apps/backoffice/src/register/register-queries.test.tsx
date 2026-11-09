@@ -1,7 +1,13 @@
-import { QueryClient } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { expect, test, vi } from "vitest";
+import { renderHook } from "vitest-browser-react";
 import { render } from "../shell/test-support/render-with-router";
-import { registerKey, registerKeys, useSnapshotBackupsQuery } from "./register-queries";
+import {
+  registerKey,
+  registerKeys,
+  useRefreshRegister,
+  useSnapshotBackupsQuery,
+} from "./register-queries";
 import type { fetchSnapshotBackups } from "./snapshot-backups-api";
 import { backups } from "./test-support/snapshot-backups-section";
 
@@ -99,4 +105,22 @@ test("invalidating the register key marks the cash movements stale", async () =>
   await client.invalidateQueries({ queryKey: registerKey, refetchType: "none" });
 
   expect(client.getQueryState(registerKeys.cashMovements({}))?.isInvalidated).toBe(true);
+});
+
+test("refreshing the register marks each register's backups stale and leaves every other concept alone", async () => {
+  const client = new QueryClient();
+  client.setQueryData(registerKeys.snapshotBackups("register-1"), {});
+  client.setQueryData(["installation", "registers"], []);
+  const { result } = await renderHook(() => useRefreshRegister(), {
+    wrapper: ({ children }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    ),
+  });
+
+  await result.current();
+
+  expect(client.getQueryState(registerKeys.snapshotBackups("register-1"))?.isInvalidated).toBe(
+    true,
+  );
+  expect(client.getQueryState(["installation", "registers"])?.isInvalidated).toBe(false);
 });

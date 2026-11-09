@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { expect, test } from "vitest";
 import { renderHook } from "vitest-browser-react";
-import { useRefreshRegisters } from "./register-query-roots";
+import { useRefreshRegisters } from "./refresh-registers";
 
 test("refreshing the registers marks the installation and register queries stale and leaves other concepts alone", async () => {
   const client = new QueryClient();
