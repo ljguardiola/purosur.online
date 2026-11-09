@@ -1,8 +1,8 @@
 import { createRoute, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
-import { registersRoute, registersTabRedirect } from "../register/routes";
-import { lazyScreen } from "./lazy-screen";
-import { reportFiltersFields, withoutRefusedPeriod } from "./report-filters-search";
+import { lazyScreen } from "../shell/lazy-screen";
+import { registersRoute, registersTabRedirect } from "../shell/registers-route";
+import { reportFiltersFields, withoutRefusedPeriod } from "../shell/report-filters-search";
 
 export const registersSearch = z
   .object({
@@ -19,5 +19,5 @@ export const registersListRoute = createRoute({
   beforeLoad: ({ context: { registersTabs } }) => registersTabRedirect(registersTabs, "registers"),
   validateSearch: registersSearch,
   search: { middlewares: [stripSearchParams(registersSearch.parse({}))] },
-  component: lazyScreen(() => import("../installation/registers-list-page"), "RegistersListPage"),
+  component: lazyScreen(() => import("./registers-list-page"), "RegistersListPage"),
 });

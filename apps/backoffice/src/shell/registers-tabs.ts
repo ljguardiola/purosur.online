@@ -1,9 +1,5 @@
 import type { PagePart } from "../platform/page-parts";
-import {
-  type BackofficeAccess,
-  canSeeRegistersList,
-  canSeeReports,
-} from "../shell/backoffice-access";
+import { type BackofficeAccess, canSeeRegistersList, canSeeReports } from "./backoffice-access";
 
 export type RegistersTab = "registers" | "closes" | "movements";
 

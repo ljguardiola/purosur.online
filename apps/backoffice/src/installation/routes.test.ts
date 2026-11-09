@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { registersSearch } from "./registers-list-route";
+import { registersSearch } from "./routes";
 
 test("names no register, no panel tab and no sessions' period by default", () => {
   expect(registersSearch.parse({})).toEqual({ from: "", to: "" });

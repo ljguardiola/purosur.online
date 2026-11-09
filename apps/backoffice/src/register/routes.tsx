@@ -1,37 +1,9 @@
 import { createRoute, redirect, stripSearchParams } from "@tanstack/react-router";
 import { z } from "zod";
 import { lazyScreen } from "../shell/lazy-screen";
+import { registersRoute, registersTabRedirect } from "../shell/registers-route";
 import { reportFiltersSearch } from "../shell/report-filters-search";
-import { salesAndCashAreaRoute } from "../shell/sales-and-cash-area";
-import { refuseWithout, signedInRoute } from "../shell/signed-in-route";
-import {
-  canSeeRegistersTabs,
-  REGISTERS_TAB_TARGETS,
-  REGISTERS_TABS,
-  type RegistersTab,
-} from "./registers-tabs";
-
-export const registersRoute = createRoute({
-  getParentRoute: () => salesAndCashAreaRoute,
-  path: "registers",
-  beforeLoad: ({ context: { session } }) => {
-    refuseWithout(session, canSeeRegistersTabs);
-    return {
-      registersTabs: REGISTERS_TABS.filter((tab) => tab.isVisibleTo(session)).map((tab) => tab.key),
-    };
-  },
-  component: lazyScreen(() => import("./register-layout"), "RegisterLayout"),
-});
-
-export function registersTabRedirect(
-  registersTabs: readonly RegistersTab[],
-  own: RegistersTab,
-): void {
-  const [first] = registersTabs;
-  if (first !== undefined && !registersTabs.includes(own)) {
-    throw redirect({ to: REGISTERS_TAB_TARGETS[first] });
-  }
-}
+import { signedInRoute } from "../shell/signed-in-route";
 
 export const cashSessionClosesRoute = createRoute({
   getParentRoute: () => registersRoute,
