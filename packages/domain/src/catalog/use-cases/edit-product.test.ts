@@ -447,7 +447,7 @@ describe("editProduct", () => {
     expect(store.lockCallOrder).toEqual([
       "lockProduct",
       "hasCurrentSupplierItemLink",
-      "buyNPayMDiscountsOn",
+      "liveBuyNPayMDiscountNamesOn",
       "lockLeafCategory",
     ]);
   });
@@ -989,26 +989,15 @@ describe("editProduct", () => {
 
   describe("changing the sale unit from unit to weight", () => {
     function unitProductWithDiscount(
-      discount: Partial<{
-        name: string;
-        active: boolean;
-        validFrom: string;
-        validTo: string;
-        kind: "BUY_N_PAY_M" | "PERCENT_OFF";
-        productId: string;
-      }> = {},
+      discount: Partial<{ name: string; productId: string; liveOn: string[] }> = {},
     ): FakeCatalogStore {
       const store = new FakeCatalogStore();
       leafCategory(store);
       activeProduct(store);
-      store.seedDiscount({
-        id: "discount-1",
+      store.seedLiveBuyNPayMDiscount({
         name: discount.name ?? "3x2 Yerba",
-        kind: discount.kind ?? "BUY_N_PAY_M",
         productId: discount.productId ?? "product-1",
-        active: discount.active ?? true,
-        validFrom: discount.validFrom ?? "2026-06-01",
-        validTo: discount.validTo ?? "2026-06-30",
+        liveOn: discount.liveOn ?? ["2026-06-15"],
       });
       return store;
     }
@@ -1046,17 +1035,8 @@ describe("editProduct", () => {
       expect(store.snapshot()).toEqual(before);
     });
 
-    it("is refused by a scheduled buy-n-pay-m discount", async () => {
-      const store = unitProductWithDiscount({ validFrom: "2026-07-01", validTo: "2026-07-31" });
-
-      expect(await edit(store, "KG")).toEqual({
-        kind: "sale_unit_held_by_discount",
-        discountName: "3x2 Yerba",
-      });
-    });
-
-    it("is refused on the last day of the discount, judged by Argentina's calendar day", async () => {
-      const store = unitProductWithDiscount({ validFrom: "2026-06-01", validTo: "2026-06-15" });
+    it("is refused by a discount live on Argentina's calendar day", async () => {
+      const store = unitProductWithDiscount({ liveOn: ["2026-06-15"] });
       const lateInArgentina = { now: () => new Date("2026-06-16T01:00:00Z") };
 
       expect(await edit(store, "KG", lateInArgentina)).toEqual({
@@ -1065,8 +1045,8 @@ describe("editProduct", () => {
       });
     });
 
-    it("judges the last day of the discount by the calendar day of the zone rules it is given", async () => {
-      const store = unitProductWithDiscount({ validFrom: "2026-06-01", validTo: "2026-06-15" });
+    it("asks for the discounts live on the calendar day of the zone rules it is given", async () => {
+      const store = unitProductWithDiscount({ liveOn: ["2026-06-15"] });
       const lateInArgentina = { now: () => new Date("2026-06-16T01:00:00Z") };
 
       expect(
@@ -1074,25 +1054,13 @@ describe("editProduct", () => {
       ).toMatchObject({ kind: "applied" });
     });
 
-    it("is allowed once the discount has ended", async () => {
-      const store = unitProductWithDiscount({ validFrom: "2026-05-01", validTo: "2026-06-14" });
+    it("is allowed when no discount is live today", async () => {
+      const store = unitProductWithDiscount({ liveOn: ["2026-06-14"] });
 
       expect(await edit(store, "KG")).toMatchObject({ kind: "applied" });
     });
 
-    it("is allowed when the discount is switched off", async () => {
-      const store = unitProductWithDiscount({ active: false });
-
-      expect(await edit(store, "KG")).toMatchObject({ kind: "applied" });
-    });
-
-    it("is allowed when the discount is a percentage off", async () => {
-      const store = unitProductWithDiscount({ kind: "PERCENT_OFF" });
-
-      expect(await edit(store, "KG")).toMatchObject({ kind: "applied" });
-    });
-
-    it("is allowed when the discount targets another product", async () => {
+    it("is allowed when the live discount holds another product", async () => {
       const store = unitProductWithDiscount({ productId: "decoy" });
 
       expect(await edit(store, "KG")).toMatchObject({ kind: "applied" });
@@ -1100,24 +1068,8 @@ describe("editProduct", () => {
 
     it("names the first blocking discount by name when several block", async () => {
       const store = unitProductWithDiscount({ name: "Zeta" });
-      store.seedDiscount({
-        id: "discount-2",
-        name: "Alfa",
-        kind: "BUY_N_PAY_M",
-        productId: "product-1",
-        active: true,
-        validFrom: "2026-06-01",
-        validTo: "2026-06-30",
-      });
-      store.seedDiscount({
-        id: "discount-3",
-        name: "Beta",
-        kind: "BUY_N_PAY_M",
-        productId: "product-1",
-        active: false,
-        validFrom: "2026-06-01",
-        validTo: "2026-06-30",
-      });
+      store.seedLiveBuyNPayMDiscount({ name: "Alfa", productId: "product-1", liveOn: ["2026-06-15"] });
+      store.seedLiveBuyNPayMDiscount({ name: "Beta", productId: "product-1", liveOn: ["2026-06-15"] });
 
       expect(await edit(store, "KG")).toEqual({
         kind: "sale_unit_held_by_discount",
@@ -1179,14 +1131,14 @@ describe("editProduct", () => {
     });
 
     it("locks the product before reading the discounts", async () => {
-      const store = unitProductWithDiscount({ active: false });
+      const store = unitProductWithDiscount({ liveOn: [] });
 
       await edit(store, "KG");
 
       expect(store.lockCallOrder).toEqual([
         "lockProduct",
         "hasCurrentSupplierItemLink",
-        "buyNPayMDiscountsOn",
+        "liveBuyNPayMDiscountNamesOn",
         "lockLeafCategory",
       ]);
     });
@@ -1297,14 +1249,10 @@ describe("editProduct", () => {
 
     it("is refused for a link before it is refused for a live discount", async () => {
       const store = productWithLinks("UNIT", [{}]);
-      store.seedDiscount({
-        id: "discount-1",
+      store.seedLiveBuyNPayMDiscount({
         name: "3x2 Yerba",
-        kind: "BUY_N_PAY_M",
         productId: "product-1",
-        active: true,
-        validFrom: "2026-06-01",
-        validTo: "2026-06-30",
+        liveOn: ["2026-06-15"],
       });
 
       expect(await edit(store, "KG")).toEqual({ kind: "sale_unit_held_by_supplier_item" });
