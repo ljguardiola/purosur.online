@@ -8,7 +8,8 @@ import type {
   TaxAuthorityRejection,
 } from "../../fiscal/index.js";
 import type { MercadoPagoPaymentMethod } from "../../payments/index.js";
-import type { ReplenishmentFailureKind, SalesDeniedReason } from "../../shared/index.js";
+import type { SalesDeniedReason } from "../../register/index.js";
+import type { ReplenishmentFailureKind } from "../../shared/index.js";
 import type { AlertKind } from "./alert-catalog.js";
 import type { OffsiteDumpUnverifiedReason } from "./offsite-dump-unverified-reason.js";
 

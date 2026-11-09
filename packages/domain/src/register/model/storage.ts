@@ -1,4 +1,4 @@
-import type { StorageSalesDeniedReason } from "../../shared/index.js";
+import type { StorageSalesDeniedReason } from "./sales-denied.js";
 
 export const STORAGE_READ_INTERVAL_MS = 60_000;
 
