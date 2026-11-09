@@ -26,6 +26,10 @@ export const APP_OPTIONS_TEST = "apps/cloud/src/server.test.ts";
 
 const CLOUD_APP = "apps/cloud/src/app.ts";
 
+// A browser project runs all of one run's files in a single Chromium page, which grows with every
+// file and, a few dozen files in, loses every connection it holds; each run opens a fresh page.
+export const MOST_FILES_PER_RUN = 15;
+
 const CLOUD_SOURCE = "apps/cloud/src/";
 
 function stemOf(path) {
@@ -170,13 +174,23 @@ export async function runChangedTests({ root, projects, changedFiles, requestedF
 
   const passed = await runProjectsInTurn({
     filesByProject: groupByProject({ files, projects }),
-    run: (project, projectFiles) =>
-      run([
-        "run",
-        `--project=${project}`,
-        "--no-file-parallelism",
-        ...projectFiles.map((file) => join(root, file)),
-      ]),
+    run: async (project, projectFiles) => {
+      let projectPassed = true;
+      for (let start = 0; start < projectFiles.length; start += MOST_FILES_PER_RUN) {
+        const runFiles = projectFiles.slice(start, start + MOST_FILES_PER_RUN);
+        if (
+          !(await run([
+            "run",
+            `--project=${project}`,
+            "--no-file-parallelism",
+            ...runFiles.map((file) => join(root, file)),
+          ]))
+        ) {
+          projectPassed = false;
+        }
+      }
+      return projectPassed;
+    },
   });
   return passed ? 0 : 1;
 }
