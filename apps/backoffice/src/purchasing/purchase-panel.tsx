@@ -60,7 +60,7 @@ type PurchaseFreight = PurchaseSummary["freights"][number];
 
 type Correcting = {
   kind: "expiry" | "split" | "cost" | "quantity" | "product" | "removal";
-  line: PurchaseLine;
+  target: { purchase: PurchaseSummary; line: PurchaseLine };
 };
 
 const lineColumns = [
@@ -133,11 +133,11 @@ export function PurchasePanel({
 
   function correct(kind: Correcting["kind"], line: PurchaseLine) {
     onCorrectionStarted();
-    setCorrecting({ kind, line });
+    setCorrecting({ kind, target: { purchase, line } });
   }
 
   function targetOf(kind: Correcting["kind"]) {
-    return correcting?.kind === kind ? { purchase, line: correcting.line } : null;
+    return correcting?.kind === kind ? correcting.target : null;
   }
 
   function corrected(correction: PurchaseLineCorrection, saved: PurchaseSummary) {
@@ -146,7 +146,7 @@ export function PurchasePanel({
   }
 
   function remainingInLotOf(kind: Correcting["kind"]): number {
-    const line = correcting?.kind === kind ? correcting.line : undefined;
+    const line = correcting?.kind === kind ? correcting.target.line : undefined;
     return line === undefined
       ? 0
       : (purchase.lines.find((candidate) => candidate.id === line.id)?.remainingInLot ??
