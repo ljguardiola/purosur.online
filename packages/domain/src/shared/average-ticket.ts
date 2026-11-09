@@ -1,4 +1,4 @@
-import { roundHalfUp } from "../../shared/index.js";
+import { roundHalfUp } from "./rounding.js";
 
 export function averageTicket({
   total,
