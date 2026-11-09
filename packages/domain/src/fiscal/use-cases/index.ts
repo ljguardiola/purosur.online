@@ -398,11 +398,7 @@ export type {
   OfflineNumberBlockRecord,
   OfflineNumberBlockStore,
 } from "./offline-number-block-store.js";
-export type {
-  FiscalTaskAlert,
-  OpenFiscalTask,
-  OpenFiscalTaskReader,
-} from "./open-fiscal-task-reader.js";
+export type { OpenFiscalTask, OpenFiscalTaskReader } from "./open-fiscal-task-reader.js";
 export type {
   AuthorizationNumber,
   OrphanRegularizationLane,
