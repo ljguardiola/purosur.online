@@ -57,7 +57,7 @@ describe("GET /reports/purchases-by-supplier access", () => {
   });
 
   it("rejects an Origin that is not the backoffice's own", async () => {
-    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers } = await signedInWith(db, ["record_purchases"], NOW);
 
     const response = await purchasesBySupplier({ ...headers, origin: "https://attacker.example" });
 
@@ -65,24 +65,19 @@ describe("GET /reports/purchases-by-supplier access", () => {
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
   });
 
-  it("rejects a user who may neither view reports nor record purchases", async () => {
-    const { headers } = await signedInWith(db, ["manage_freight"], NOW);
+  it.each(["view_reports", "manage_freight"] as const)(
+    "rejects a user holding %s but not record_purchases",
+    async (permission) => {
+      const { headers } = await signedInWith(db, [permission], NOW);
 
-    const response = await purchasesBySupplier(headers);
+      const response = await purchasesBySupplier(headers);
 
-    expect(response.statusCode).toBe(403);
-  });
+      expect(response.statusCode).toBe(403);
+    },
+  );
 
-  it("answers a user who may record purchases without viewing reports", async () => {
+  it("answers a user who may record purchases", async () => {
     const { headers } = await signedInWith(db, ["record_purchases"], NOW);
-
-    const response = await purchasesBySupplier(headers);
-
-    expect(response.statusCode).toBe(200);
-  });
-
-  it("answers a user who may view reports", async () => {
-    const { headers } = await signedInWith(db, ["view_reports"], NOW);
 
     const response = await purchasesBySupplier(headers);
 
@@ -92,7 +87,7 @@ describe("GET /reports/purchases-by-supplier access", () => {
 
 describe("GET /reports/purchases-by-supplier", () => {
   it("answers 400 to a range the contract refuses", async () => {
-    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers } = await signedInWith(db, ["record_purchases"], NOW);
 
     const response = await purchasesBySupplier(headers, "?from=2026-10-09&to=2026-10-01");
 
@@ -101,7 +96,7 @@ describe("GET /reports/purchases-by-supplier", () => {
   });
 
   it("reports the current Argentina day when no range is asked", async () => {
-    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers } = await signedInWith(db, ["record_purchases"], NOW);
 
     const response = await purchasesBySupplier(headers);
 
@@ -113,7 +108,7 @@ describe("GET /reports/purchases-by-supplier", () => {
   });
 
   it("reports the purchases of the branch of the session by supplier and month", async () => {
-    const { headers, userId, locationId } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers, userId, locationId } = await signedInWith(db, ["record_purchases"], NOW);
     const { productId } = await insertProduct(db);
     const supplierId = await insertSupplier(db, { actorId: userId, name: "Distribuidora Sur" });
     const line = { costPaidCents: 1_000, quantity: 2_000, quantityPerPackage: 1_000 };
@@ -153,7 +148,7 @@ describe("GET /reports/purchases-by-supplier", () => {
   });
 
   it("includes a purchase from the moment it is registered", async () => {
-    const { headers, userId } = await signedInWith(db, ["view_reports", "record_purchases"], NOW);
+    const { headers, userId } = await signedInWith(db, ["record_purchases"], NOW);
     const { productId } = await insertProduct(db);
     const supplierId = await insertSupplier(db, { actorId: userId, name: "Distribuidora Sur" });
     const before = await purchasesBySupplier(headers, "?from=2026-10-04&to=2026-10-04");

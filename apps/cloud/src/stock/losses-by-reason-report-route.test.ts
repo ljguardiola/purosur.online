@@ -60,7 +60,7 @@ describe("GET /reports/losses-by-reason access", () => {
   });
 
   it("rejects an Origin that is not the backoffice's own", async () => {
-    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers } = await signedInWith(db, ["record_stock_losses"], NOW);
 
     const response = await lossesReport({ ...headers, origin: "https://attacker.example" });
 
@@ -68,8 +68,8 @@ describe("GET /reports/losses-by-reason access", () => {
     expect(response.json()).toMatchObject({ code: "origin_rejected" });
   });
 
-  it.each(["manage_expiration_dates", "view_stock_balances"] as const)(
-    "rejects a user holding %s but neither view_reports nor record_stock_losses",
+  it.each(["view_reports", "manage_expiration_dates", "view_stock_balances"] as const)(
+    "rejects a user holding %s but not record_stock_losses",
     async (permission) => {
       const { headers } = await signedInWith(db, [permission], NOW);
 
@@ -79,22 +79,19 @@ describe("GET /reports/losses-by-reason access", () => {
     },
   );
 
-  it.each(["view_reports", "record_stock_losses"] as const)(
-    "answers a user holding %s",
-    async (permission) => {
-      const { headers } = await signedInWith(db, [permission], NOW);
+  it("answers a user holding record_stock_losses", async () => {
+    const { headers } = await signedInWith(db, ["record_stock_losses"], NOW);
 
-      const response = await lossesReport(headers);
+    const response = await lossesReport(headers);
 
-      expect(response.statusCode).toBe(200);
-    },
-  );
+    expect(response.statusCode).toBe(200);
+  });
 
   it.each([
     ["half a period", "?from=2026-10-01"],
     ["a parameter given twice", "?from=2026-10-01&from=2026-10-02&to=2026-10-31"],
   ])("answers 400 to %s", async (_name, query) => {
-    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers } = await signedInWith(db, ["record_stock_losses"], NOW);
 
     const response = await lossesReport(headers, query);
 
@@ -107,7 +104,7 @@ describe("GET /reports/losses-by-reason", () => {
   const range = "?from=2026-10-06&to=2026-10-06";
 
   it("answers today's Argentine day with no losses when nothing was lost", async () => {
-    const { headers } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers } = await signedInWith(db, ["record_stock_losses"], NOW);
 
     const response = await lossesReport(headers);
 
@@ -118,7 +115,7 @@ describe("GET /reports/losses-by-reason", () => {
   });
 
   it("answers the losses of the session's branch grouped by reason, as the wire describes them", async () => {
-    const { headers, locationId, userId } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers, locationId, userId } = await signedInWith(db, ["record_stock_losses"], NOW);
     const elsewhere = await insertLocation(db);
     const { productId } = await insertProduct(db, {
       name: "Almendras peladas",
@@ -166,7 +163,7 @@ describe("GET /reports/losses-by-reason", () => {
   });
 
   it("includes a discarded return line from the moment its event is applied, beside a hand-recorded loss", async () => {
-    const { headers, locationId, userId } = await signedInWith(db, ["view_reports"], NOW);
+    const { headers, locationId, userId } = await signedInWith(db, ["record_stock_losses"], NOW);
     const { deviceId } = await insertEnrolledInstallation(db, { now: NOW, registerName: "Caja 1" });
     const { productId } = await insertProduct(db, { name: "Yerba 1 kg" });
     await insertMovement(db, {
