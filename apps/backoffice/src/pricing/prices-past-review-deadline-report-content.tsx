@@ -1,0 +1,177 @@
+import type { PricesPastReviewDeadlineReportBody } from "@purosur/contracts";
+import {
+  Card,
+  dataColumn,
+  FigureStat,
+  formatCalendarDayNumeric,
+  formatNumber,
+  plural,
+  Table,
+  TableCellText,
+  useTableModel,
+} from "@purosur/ui";
+import { formatProductDescription } from "@purosur/ui/formatters";
+import { TagX } from "lucide-react";
+import { cloudTableState } from "../platform/cloud-table-state";
+import { ReportDownload } from "../shell/report-download";
+import { reportFileName } from "../shell/report-file-name";
+import { ReportFilters } from "../shell/report-filters";
+import type { ReportPeriodFilters } from "../shell/report-filters-search";
+import { formatCentsWithUnit } from "./money";
+import { lastReviewedText } from "./prices-past-review-deadline-moments";
+import { REASON_TEXT } from "./prices-past-review-deadline-reason-text";
+import type { PricesPastReviewDeadlineReportScreenServices } from "./prices-past-review-deadline-report-services";
+import { pricesPastReviewDeadlineReportSpreadsheet } from "./prices-past-review-deadline-report-spreadsheet";
+import { usePricesPastReviewDeadlineReportQuery } from "./pricing-queries";
+
+export type PricesPastReviewDeadlineReportContentProps = {
+  filters: ReportPeriodFilters;
+  onFiltersChange: (filters: ReportPeriodFilters) => void;
+  onSessionEnded: () => void;
+  services: PricesPastReviewDeadlineReportScreenServices;
+};
+
+type Price = PricesPastReviewDeadlineReportBody["prices"][number];
+
+const NO_PRICES: Price[] = [];
+
+export const PRICES_PAST_REVIEW_DEADLINE_REPORT_TITLE = "Precios sin revisar";
+
+function windowText(windowDays: number): string {
+  return `Plazo de revisión: ${plural(windowDays, { one: "1 día", other: `${windowDays} días` })}`;
+}
+
+const columns = [
+  dataColumn({
+    id: "product",
+    header: "Producto",
+    render: (price: Price) => (
+      <TableCellText>
+        {formatProductDescription({
+          name: price.product.name,
+          brandName: price.product.brand_name,
+          netContent: price.product.net_content,
+        })}
+      </TableCellText>
+    ),
+  }),
+  dataColumn({
+    id: "category",
+    header: "Categoría",
+    render: (price: Price) => (
+      <TableCellText tone="subtle">{price.product.category_name}</TableCellText>
+    ),
+  }),
+  dataColumn({
+    id: "currentPrice",
+    width: 160,
+    header: "Precio actual",
+    align: "end",
+    render: (price: Price) =>
+      price.current_price === null ? (
+        <TableCellText tone="subtle">Sin precio</TableCellText>
+      ) : (
+        <TableCellText strong>
+          {formatCentsWithUnit(price.current_price.unit_price_cents, price.product.sale_unit)}
+        </TableCellText>
+      ),
+  }),
+  dataColumn({
+    id: "lastReviewed",
+    width: 190,
+    header: "Última revisión",
+    render: (price: Price) => (
+      <TableCellText tone={price.last_reviewed_at === null ? "subtle" : undefined}>
+        {lastReviewedText(price.last_reviewed_at)}
+      </TableCellText>
+    ),
+  }),
+  dataColumn({
+    id: "pastDeadlineOn",
+    width: 150,
+    header: "Venció el",
+    render: (price: Price) =>
+      price.past_deadline_on === null ? (
+        <TableCellText tone="subtle">—</TableCellText>
+      ) : (
+        <TableCellText>{formatCalendarDayNumeric(price.past_deadline_on)}</TableCellText>
+      ),
+  }),
+  dataColumn({
+    id: "reason",
+    width: 200,
+    header: "Motivo",
+    render: (price: Price) => <TableCellText>{REASON_TEXT[price.reason]}</TableCellText>,
+  }),
+] as const;
+
+export function PricesPastReviewDeadlineReportContent({
+  filters,
+  onFiltersChange,
+  onSessionEnded,
+  services,
+}: PricesPastReviewDeadlineReportContentProps) {
+  const data = usePricesPastReviewDeadlineReportQuery({
+    query: filters.from === "" ? {} : { from: filters.from, to: filters.to },
+    fetchPricesPastReviewDeadlineReport: services.fetchPricesPastReviewDeadlineReport,
+    onSessionEnded,
+  });
+  const shown = data.status === "loaded" ? data.value : data.lastValue;
+  const table = useTableModel({
+    items: shown?.prices ?? NO_PRICES,
+    id: (price) => price.product.id,
+    columns,
+  });
+
+  return (
+    <>
+      <div className="flex flex-wrap items-end gap-3">
+        <ReportFilters
+          filters={filters}
+          onFiltersChange={onFiltersChange}
+          answeredPeriod={shown?.period}
+          trailing={
+            <ReportDownload
+              dataStatus={data.status}
+              workbook={() => (shown ? pricesPastReviewDeadlineReportSpreadsheet(shown) : null)}
+              fileName={
+                shown ? reportFileName(PRICES_PAST_REVIEW_DEADLINE_REPORT_TITLE, shown.period) : ""
+              }
+            />
+          }
+        />
+      </div>
+      {data.status === "failed" || shown === undefined ? null : (
+        <p className="text-detail text-text-subtle">{windowText(shown.window_days)}</p>
+      )}
+      {data.status === "failed" ? null : (
+        <div className="grid grid-cols-3 gap-4">
+          <Card>
+            {data.status === "loaded" ? (
+              <FigureStat
+                size="heading"
+                label="Precios"
+                value={plural(data.value.summary.price_count, {
+                  one: "1 precio",
+                  other: `${formatNumber(data.value.summary.price_count)} precios`,
+                })}
+              />
+            ) : (
+              <FigureStat size="heading" label="Precios" loading />
+            )}
+          </Card>
+        </div>
+      )}
+      <Table
+        aria-label={PRICES_PAST_REVIEW_DEADLINE_REPORT_TITLE}
+        table={table}
+        {...cloudTableState(data, "los precios sin revisar")}
+        empty={{
+          icon: <TagX />,
+          title: "No hay precios sin revisar en este período",
+          variant: filters.from === "" ? "blank" : "filtered",
+        }}
+      />
+    </>
+  );
+}
