@@ -120,6 +120,20 @@ export default {
       },
     },
     {
+      name: "no-concept-folder-cycles",
+      comment:
+        "Domain concepts, shared included, must not depend on each other in a cycle, " +
+        "even when the files involved form no module cycle: a concept cycle means two " +
+        "concepts each hold part of the other's rules.",
+      severity: "error",
+      scope: "folder",
+      from: { path: "^packages/domain/src/([^/]+)$" },
+      to: {
+        path: "^packages/domain/src/(?!$1$)[^/]+$",
+        circular: true,
+      },
+    },
+    {
       name: "screens-types-only-from-domain",
       comment:
         "apps/pos/src/renderer/ and apps/backoffice/src/ may depend on packages/domain " +
