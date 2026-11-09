@@ -35,6 +35,20 @@ const quantityLine = {
   expiresOn: null,
   remainingInLot: -500,
 };
+const carrierFreight = {
+  id: "f-1",
+  date: "2026-03-10",
+  description: "Flete de la semana",
+  amountCents: 15_000,
+  means: { kind: "carrier", name: "Transportes del Sur" },
+};
+const ownTripFreight = {
+  id: "f-2",
+  date: "2026-03-09",
+  description: "Viaje propio",
+  amountCents: 8_000,
+  means: { kind: "own_trip" },
+};
 const purchase = {
   id: "purchase-1",
   purchasedOn: "2026-03-09",
@@ -44,6 +58,7 @@ const purchase = {
   note: "Entrega de la tarde",
   recordedAt: "2026-03-10T15:00:00.000Z",
   lines: [packagesLine, quantityLine],
+  freights: [carrierFreight, ownTripFreight],
 };
 
 describe("purchaseSummarySchema", () => {
@@ -59,6 +74,49 @@ describe("purchaseSummarySchema", () => {
       note: null,
     };
     expect(purchaseSummarySchema.safeParse(bare).data).toEqual(bare);
+  });
+
+  it("accepts a purchase with no linked freights", () => {
+    const bare = { ...purchase, freights: [] };
+    expect(purchaseSummarySchema.safeParse(bare).data).toEqual(bare);
+  });
+
+  it("strips the purchases a linked freight covers and any other key it does not define", () => {
+    const parsed = purchaseSummarySchema.safeParse({
+      ...purchase,
+      freights: [{ ...carrierFreight, purchases: [{ id: "p-1" }], recordedAt: "x" }],
+    });
+    expect(parsed.data).toEqual({ ...purchase, freights: [carrierFreight] });
+  });
+
+  it.each([
+    "id",
+    "date",
+    "description",
+    "amountCents",
+    "means",
+  ])("requires a linked freight's %s", (field) => {
+    const { [field as keyof typeof carrierFreight]: _omitted, ...freight } = carrierFreight;
+
+    expect(purchaseSummarySchema.safeParse({ ...purchase, freights: [freight] }).success).toBe(
+      false,
+    );
+  });
+
+  it.each([
+    ["id", 1],
+    ["date", 20_260_310],
+    ["description", null],
+    ["amountCents", 1.5],
+    ["means", { kind: "ship" }],
+    ["means", { kind: "carrier" }],
+  ])("refuses a linked freight's %s as %j", (field, value) => {
+    expect(
+      purchaseSummarySchema.safeParse({
+        ...purchase,
+        freights: [{ ...carrierFreight, [field]: value }],
+      }).success,
+    ).toBe(false);
   });
 
   it("strips a packaging from a line", () => {
@@ -88,6 +146,7 @@ describe("purchaseSummarySchema", () => {
     "note",
     "recordedAt",
     "lines",
+    "freights",
   ])("requires %s", (field) => {
     const { [field as keyof typeof purchase]: _omitted, ...rest } = purchase;
 
@@ -103,6 +162,7 @@ describe("purchaseSummarySchema", () => {
     ["note", 5],
     ["recordedAt", "yesterday"],
     ["lines", {}],
+    ["freights", {}],
   ])("refuses %s as %j", (field, value) => {
     expect(purchaseSummarySchema.safeParse({ ...purchase, [field]: value }).success).toBe(false);
   });

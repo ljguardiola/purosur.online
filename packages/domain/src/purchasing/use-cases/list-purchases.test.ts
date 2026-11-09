@@ -50,7 +50,25 @@ const PURCHASE: PurchaseListing = {
   note: null,
   recordedAt: new Date("2026-10-02T12:00:00.000Z"),
   lines: [LINE],
+  freights: [],
 };
+
+const FREIGHTS: PurchaseListing["freights"] = [
+  {
+    id: "freight-1",
+    date: "2026-10-03",
+    description: "Flete de la semana",
+    amountCents: 15_000,
+    means: { kind: "carrier", name: "Transportes del Sur" },
+  },
+  {
+    id: "freight-2",
+    date: "2026-10-01",
+    description: "Viaje propio",
+    amountCents: 8_000,
+    means: { kind: "own_trip" },
+  },
+];
 
 describe("listPurchases", () => {
   it("lists only the purchases of the supplier asked for", async () => {
@@ -164,6 +182,17 @@ describe("listPurchases", () => {
     expect(purchases.map((purchase) => purchase.id)).toEqual(["purchase-1"]);
   });
 
+  it("answers each purchase with the freights linked to it", async () => {
+    const reader = new FakePurchasingListReader({
+      purchases: [{ ...PURCHASE, freights: FREIGHTS }],
+      lots: [lotOf("lot-1", 1)],
+    });
+
+    const [purchase] = await listPurchases(ports(reader), BRANCH);
+
+    expect(purchase?.freights).toEqual(FREIGHTS);
+  });
+
   it("answers nothing when the branch has no purchases", async () => {
     expect(await listPurchases(ports(new FakePurchasingListReader()), BRANCH)).toEqual([]);
   });
@@ -181,6 +210,17 @@ describe("findPurchaseListing", () => {
 
     expect(purchase?.id).toBe("purchase-1");
     expect(purchase?.lines[0]?.unitCostCents).toBe(2_000);
+  });
+
+  it("answers the purchase with the freights linked to it", async () => {
+    const reader = new FakePurchasingListReader({
+      purchases: [{ ...PURCHASE, freights: FREIGHTS }],
+      lots: [lotOf("lot-1", 1)],
+    });
+
+    const purchase = await findPurchaseListing(ports(reader), "purchase-1");
+
+    expect(purchase?.freights).toEqual(FREIGHTS);
   });
 
   it("answers nothing for a purchase that does not exist", async () => {
