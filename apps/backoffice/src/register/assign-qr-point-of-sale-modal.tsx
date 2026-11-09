@@ -3,6 +3,10 @@ import { Button, InlineNotice, Modal, useRequestForm } from "@purosur/ui";
 import { Check, QrCode, RotateCcw, ShieldX, TriangleAlert, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
+import type {
+  RegisterPaymentsReload,
+  RegisterPaymentsTarget,
+} from "../platform/register-payments-target";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import { useSendToMyAccount } from "../platform/send-to-my-account";
 import {
@@ -11,8 +15,7 @@ import {
   qrPointOfSaleMessage,
   qrPointOfSaleRequestFrom,
 } from "./qr-point-of-sale-form";
-import type { RegisterReload } from "./register-queries";
-import type { assignQrPointOfSale, RegisterSummary } from "./registers-api";
+import type { assignQrPointOfSale } from "./register-payments-api";
 
 export type AssignQrPointOfSaleModalServices = {
   assignQrPointOfSale: typeof assignQrPointOfSale;
@@ -26,10 +29,10 @@ type ModalNotice =
   | { kind: "rateLimited"; retryAfterSeconds: number };
 
 type AssignQrPointOfSaleModalProps = {
-  target: RegisterSummary | null;
+  target: RegisterPaymentsTarget | null;
   onClose: () => void;
   onSaved: () => void;
-  reload: (id: string) => Promise<RegisterReload>;
+  reload: (id: string) => Promise<RegisterPaymentsReload>;
   onSessionEnded: () => void;
   services: AssignQrPointOfSaleModalServices;
 };
@@ -45,15 +48,15 @@ export function AssignQrPointOfSaleModal({
   const sendToMyAccount = useSendToMyAccount();
   const { assignQrPointOfSale } = services;
   const open = target !== null;
-  const [seededFrom, setSeededFrom] = useState<RegisterSummary | null>(null);
-  const [loaded, setLoaded] = useState<RegisterSummary | null>(null);
+  const [seededFrom, setSeededFrom] = useState<RegisterPaymentsTarget | null>(null);
+  const [loaded, setLoaded] = useState<RegisterPaymentsTarget | null>(null);
   const [notice, setNotice] = useState<ModalNotice | null>(null);
   const [reloading, setReloading] = useState(false);
   const [removing, setRemoving] = useState(false);
 
   async function settle(
     outcome: Awaited<ReturnType<typeof assignQrPointOfSale>>,
-    register: RegisterSummary,
+    register: RegisterPaymentsTarget,
   ): Promise<boolean> {
     if (outcome.kind === "ok") {
       onSaved();
@@ -138,7 +141,7 @@ export function AssignQrPointOfSaleModal({
     setRemoving(false);
   }
 
-  function applyReload(outcome: RegisterReload) {
+  function applyReload(outcome: RegisterPaymentsReload) {
     if (outcome.kind === "found") {
       reset(qrPointOfSaleFormValuesFrom(outcome.register));
       setLoaded(outcome.register);

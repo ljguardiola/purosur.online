@@ -1,5 +1,4 @@
-import type { SaleUnit } from "../../catalog/index.js";
-import type { SoldQuantity } from "../../pricing/index.js";
+import type { SaleUnit, SoldQuantity } from "../../catalog/index.js";
 import { mayBeMovementQuantity, soldStockDelta } from "../../stock/index.js";
 import { chargeLine, listLineTotal } from "./line-pricing.js";
 import type { ManualAdjustment, ManualAdjustmentValue } from "./manual-adjustment.js";

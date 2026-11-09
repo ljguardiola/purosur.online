@@ -1,16 +1,16 @@
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
+import type { RegisterKeyTarget } from "../platform/register-payment-and-key-modals";
 import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
+import type { ConsultBitlockerRecoveryKeyOutcome } from "./bitlocker-recovery-key-api";
 import { ConsultBitlockerRecoveryKeyModal } from "./consult-bitlocker-recovery-key-modal";
-import type { ConsultBitlockerRecoveryKeyOutcome, RegisterSummary } from "./registers-api";
-import type { RegistersListScreenServices } from "./registers-list-services";
 import {
   createServices,
   grantAuthorization,
   registerWithBitlockerKey,
-} from "./test-support/registers-list-screen";
+} from "./test-support/register-key-modals";
 
 beforeEach(() => {
   window.history.pushState(null, "", "/");
@@ -25,13 +25,13 @@ const KEY_OUTCOME: ConsultBitlockerRecoveryKeyOutcome = {
 };
 
 type Handlers = {
-  target?: RegisterSummary | null;
+  target?: RegisterKeyTarget | null;
   onClose?: () => void;
   onOutdated?: () => void;
   onSessionEnded?: () => void;
 };
 
-function modalFor(services: RegistersListScreenServices, handlers: Handlers = {}) {
+function modalFor(services: ReturnType<typeof createServices>, handlers: Handlers = {}) {
   return (
     <main>
       <ConsultBitlockerRecoveryKeyModal
@@ -45,7 +45,7 @@ function modalFor(services: RegistersListScreenServices, handlers: Handlers = {}
   );
 }
 
-async function renderModal(services: RegistersListScreenServices, handlers: Handlers = {}) {
+async function renderModal(services: ReturnType<typeof createServices>, handlers: Handlers = {}) {
   const screen = await render(modalFor(services, handlers));
   const dialog = screen.getByRole("dialog", { name: TITLE });
   await expect.element(dialog).toBeVisible();

@@ -1,0 +1,859 @@
+import { expectNoAccessibilityViolations } from "@purosur/ui/test";
+import { StrictMode } from "react";
+import { beforeEach, expect, onTestFinished, test, vi } from "vitest";
+import { page, userEvent } from "vitest/browser";
+import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
+import { registerPartsOf } from "../shell/test-support/register-parts";
+import { render } from "../shell/test-support/render-with-router";
+import { RegistersListScreen } from "./registers-list-screen";
+import type { RegistersListScreenServices } from "./registers-list-services";
+import { RegisterPointOfSaleSectionStub } from "./test-support/register-point-of-sale-section-stub";
+import {
+  createServices,
+  grantAuthorization,
+  register1,
+  register2,
+  renderScreen,
+  rowOf,
+} from "./test-support/registers-list-screen";
+
+beforeEach(() => {
+  window.history.pushState(null, "", "/");
+});
+
+test("shows each register's name and count, with no title of its own", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({
+    kind: "ok",
+    value: [register1, register2],
+  });
+
+  const screen = await renderScreen(services);
+
+  expect(screen.getByRole("heading", { level: 1 }).query()).toBeNull();
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+  await expect.element(screen.getByText("Caja 2")).toBeVisible();
+  await expect.element(screen.getByText("2 cajas")).toBeVisible();
+});
+
+test("shows Sin instalación and the Esperando alta tag for every register", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("Sin instalación")).toBeVisible();
+  await expect.element(screen.getByText("Esperando alta")).toBeVisible();
+});
+
+test("shows a configured register's point of sale as the tax authority prints it", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register2] });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByRole("columnheader", { name: "Punto de venta" })).toBeVisible();
+  await expect.element(screen.getByText("00003")).toBeVisible();
+  await expect.element(screen.getByText("Sin configurar")).not.toBeInTheDocument();
+});
+
+test("shows Sin configurar for a register without a point of sale", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("Sin configurar")).toBeVisible();
+  await expect.element(screen.getByText("00003")).not.toBeInTheDocument();
+});
+
+test("shows an empty state when there are no registers yet", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [] });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("Todavía no hay cajas registradoras")).toBeVisible();
+});
+
+test("shows no count under the empty state", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [] });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("Todavía no hay cajas registradoras")).toBeVisible();
+  await expect.element(screen.getByText("0 cajas")).not.toBeInTheDocument();
+});
+
+test("shows loading placeholders while the first read runs", async () => {
+  const services = createServices();
+  const firstLoad = deferred<Awaited<ReturnType<RegistersListScreenServices["fetchRegisters"]>>>();
+  vi.mocked(services.fetchRegisters).mockReturnValueOnce(firstLoad.promise);
+
+  const screen = await renderScreen(services);
+
+  await expect
+    .element(screen.getByRole("table", { name: "Cajas registradoras" }))
+    .toHaveAttribute("aria-busy", "true");
+  expect(screen.getByText("Todavía no hay cajas registradoras").query()).toBeNull();
+  firstLoad.resolve({ kind: "ok", value: [register1] });
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+});
+
+test("retrying a failed load starts again from the loading placeholders", async () => {
+  const services = createServices();
+  const retry = deferred<Awaited<ReturnType<RegistersListScreenServices["fetchRegisters"]>>>();
+  vi.mocked(services.fetchRegisters)
+    .mockResolvedValueOnce({ kind: "failed" })
+    .mockReturnValueOnce(retry.promise);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("No pudimos abrir las cajas registradoras")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect
+    .element(screen.getByText("No pudimos abrir las cajas registradoras"))
+    .not.toBeInTheDocument();
+  await expect
+    .element(screen.getByRole("table", { name: "Cajas registradoras" }))
+    .toHaveAttribute("aria-busy", "true");
+  retry.resolve({ kind: "ok", value: [register1] });
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+});
+
+test("the create action stays available while the registers load and after they fail to load", async () => {
+  const services = createServices();
+  const firstLoad = deferred<Awaited<ReturnType<RegistersListScreenServices["fetchRegisters"]>>>();
+  vi.mocked(services.fetchRegisters).mockReturnValueOnce(firstLoad.promise);
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByRole("button", { name: "Nueva caja" })).toBeEnabled();
+
+  firstLoad.resolve({ kind: "failed" });
+  await expect.element(screen.getByText("No pudimos abrir las cajas registradoras")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Nueva caja" })).toBeEnabled();
+});
+
+test("an older read never replaces a newer one", async () => {
+  const services = createServices();
+  const older = deferred<Awaited<ReturnType<RegistersListScreenServices["fetchRegisters"]>>>();
+  const newer = deferred<Awaited<ReturnType<RegistersListScreenServices["fetchRegisters"]>>>();
+  vi.mocked(services.fetchRegisters)
+    .mockResolvedValueOnce({ kind: "ok", value: [register1] })
+    .mockReturnValueOnce(older.promise)
+    .mockReturnValueOnce(newer.promise);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+  (screen.getByRole("button", { name: "Refrescar" }).element() as HTMLElement).click();
+  await expect.poll(() => vi.mocked(services.fetchRegisters).mock.calls.length).toBe(2);
+  (screen.getByRole("button", { name: "Refrescar" }).element() as HTMLElement).click();
+  await expect.poll(() => vi.mocked(services.fetchRegisters).mock.calls.length).toBe(3);
+
+  newer.resolve({ kind: "ok", value: [register2] });
+  await expect.element(screen.getByText("Caja 2")).toBeVisible();
+  older.resolve({ kind: "ok", value: [register1, register2] });
+  await expect.element(screen.getByLabelText("Lecturas en curso")).toHaveTextContent("0");
+
+  await expect.element(screen.getByText("1 caja")).toBeVisible();
+  expect(screen.getByText("Caja 1").query()).toBeNull();
+});
+
+test("shows a load error with a retry action when the registers fail to load", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "failed" });
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("No pudimos abrir las cajas registradoras")).toBeVisible();
+
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register1] });
+  await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+  await expect.element(screen.getByText("1 caja")).toBeVisible();
+});
+
+test("shows the rate-limited notice with a retry action", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({
+    kind: "rate_limited",
+    retryAfterSeconds: 120,
+  });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("Demasiadas solicitudes")).toBeVisible();
+  await expect.element(screen.getByText("Se puede volver a intentar en 2 minutos.")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Reintentar" })).toBeVisible();
+});
+
+test("navigates to Mi cuenta when the registers request comes back forbidden", async () => {
+  window.history.pushState(null, "", "/registers");
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "forbidden" });
+
+  await renderScreen(services);
+
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
+});
+
+test("ends the session when the registers request finds no open session", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "unauthenticated" });
+  const onSessionEnded = vi.fn();
+
+  await renderScreen(services, onSessionEnded);
+
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+async function openNewRegisterModal(screen: Awaited<ReturnType<typeof renderScreen>>) {
+  await userEvent.click(screen.getByRole("button", { name: "Nueva caja" }));
+  return screen.getByRole("dialog");
+}
+
+test("opens the create modal, and cancel closes it without calling the API", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [] });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay cajas registradoras")).toBeVisible();
+
+  const dialog = await openNewRegisterModal(screen);
+  await expect.element(dialog.getByRole("heading", { name: "Nueva caja" })).toBeVisible();
+
+  await userEvent.click(dialog.getByRole("button", { name: "Cancelar" }));
+
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  expect(services.createRegister).not.toHaveBeenCalled();
+});
+
+test("creates a register and shows it in the list", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register1] });
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({
+    kind: "ok",
+    value: [
+      register1,
+      {
+        id: "register-3",
+        name: "Caja 3",
+        pendingCode: null,
+        pointOfSaleNumber: null,
+        pointTerminalId: null,
+        pointTerminalVersion: 0,
+        qrExternalPosId: null,
+        qrPointOfSaleVersion: 0,
+        installation: null,
+      },
+    ],
+  });
+  vi.mocked(services.createRegister).mockResolvedValue({ kind: "ok" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("1 caja")).toBeVisible();
+  const dialog = await openNewRegisterModal(screen);
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la caja/ }), "Caja 3");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la caja" }));
+
+  await expect.poll(() => vi.mocked(services.createRegister).mock.calls.length).toBe(1);
+  expect(services.createRegister).toHaveBeenCalledWith({ name: "Caja 3" });
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.element(screen.getByText("Caja 3")).toBeVisible();
+  await expect.element(screen.getByText("2 cajas")).toBeVisible();
+});
+
+test("shows a created register in the same order the server lists registers", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register2] });
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({
+    kind: "ok",
+    value: [register1, register2],
+  });
+  vi.mocked(services.createRegister).mockResolvedValue({ kind: "ok" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("1 caja")).toBeVisible();
+  const dialog = await openNewRegisterModal(screen);
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la caja/ }), "Caja 1");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la caja" }));
+
+  await expect.element(screen.getByText("2 cajas")).toBeVisible();
+  const rowNames = screen
+    .getByRole("row")
+    .all()
+    .map((row) => row.element().textContent ?? "")
+    .map((text) => text.match(/Caja \d/)?.[0])
+    .filter((name) => name !== undefined);
+  expect(rowNames).toEqual(["Caja 1", "Caja 2"]);
+});
+
+async function openEmitModal(screen: Awaited<ReturnType<typeof renderScreen>>, name: string) {
+  await userEvent.click(screen.getByRole("button", { name: `Emitir código de alta para ${name}` }));
+  return screen.getByRole("dialog", { name: "Código de alta" });
+}
+
+test("the row action emits a code for that register and shows it in the code modal", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });
+  const pendingEmission =
+    deferred<Awaited<ReturnType<RegistersListScreenServices["emitEnrollmentCode"]>>>();
+  vi.mocked(services.emitEnrollmentCode).mockReturnValue(pendingEmission.promise);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+
+  const dialog = await openEmitModal(screen, "Caja 1");
+
+  await expect.element(dialog.getByText("Emitiendo el código…")).toBeVisible();
+  pendingEmission.resolve({
+    kind: "ok",
+    value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:00.000Z" },
+  });
+  await expect.element(dialog.getByText("P4NX 7KWE 2QRT 8MZD")).toBeVisible();
+  expect(services.emitEnrollmentCode).toHaveBeenCalledWith("register-1");
+});
+
+test("emit's not_found closes the modal and refreshes the list", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register1] });
+  vi.mocked(services.emitEnrollmentCode).mockResolvedValue({ kind: "not_found" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register2] });
+
+  await userEvent.click(screen.getByRole("button", { name: "Emitir código de alta para Caja 1" }));
+
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.poll(() => vi.mocked(services.fetchRegisters).mock.calls.length).toBe(2);
+  await expect.element(screen.getByText("Caja 2")).toBeVisible();
+});
+
+test("under StrictMode, clicking the row action emits the code exactly once and shows that call's code", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });
+  vi.mocked(services.emitEnrollmentCode).mockResolvedValue({
+    kind: "ok",
+    value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:00.000Z" },
+  });
+  await page.viewport(1280, 900);
+  onTestFinished(() => page.viewport(414, 896));
+  const screen = await render(
+    <StrictMode>
+      <main>
+        <RegistersListScreen
+          access={ADMINISTRATOR_ACCESS}
+          services={services}
+          registerPointOfSaleSection={RegisterPointOfSaleSectionStub}
+          registerPanelSections={registerPartsOf(services).panelSections}
+          registerPaymentAndKeyModals={registerPartsOf(services).paymentAndKeyModals}
+          onSessionEnded={() => {}}
+          sessionsPeriod={{ from: "", to: "" }}
+          onSessionsPeriodChange={() => {}}
+        />
+      </main>
+    </StrictMode>,
+  );
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Emitir código de alta para Caja 1" }));
+
+  const dialog = screen.getByRole("dialog", { name: "Código de alta" });
+  await expect.element(dialog.getByText("P4NX 7KWE 2QRT 8MZD")).toBeVisible();
+  expect(services.emitEnrollmentCode).toHaveBeenCalledTimes(1);
+});
+
+test("Listo closes the code modal and refreshes the list", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register1] });
+  vi.mocked(services.emitEnrollmentCode).mockResolvedValue({
+    kind: "ok",
+    value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:00.000Z" },
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+  const dialog = await openEmitModal(screen, "Caja 1");
+  await expect.element(dialog.getByText("P4NX 7KWE 2QRT 8MZD")).toBeVisible();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register2] });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Listo" }));
+
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.poll(() => vi.mocked(services.fetchRegisters).mock.calls.length).toBe(2);
+  await expect.element(screen.getByText("Caja 2")).toBeVisible();
+});
+
+test("shows the pending code the cloud reports once the code modal closes", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register1] });
+  vi.mocked(services.emitEnrollmentCode).mockResolvedValue({
+    kind: "ok",
+    value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:00.000Z" },
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+  const dialog = await openEmitModal(screen, "Caja 1");
+  await expect.element(dialog.getByText("P4NX 7KWE 2QRT 8MZD")).toBeVisible();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({
+    kind: "ok",
+    value: [{ ...register1, pendingCode: { secondsSinceIssued: 0, secondsUntilExpiry: 900 } }],
+  });
+
+  await userEvent.click(dialog.getByRole("button", { name: "Listo" }));
+
+  await expect.element(screen.getByText("Código emitido recién")).toBeVisible();
+  await expect.element(screen.getByText("Vence en 15 minutos")).toBeVisible();
+});
+
+function deferred<T>() {
+  let resolve: (value: T) => void = () => {};
+  const promise = new Promise<T>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+}
+
+type CloseCodeModalCase = {
+  name: string;
+  arrange: (services: RegistersListScreenServices) => void;
+  close: (
+    screen: Awaited<ReturnType<typeof renderScreen>>,
+    dialog: Awaited<ReturnType<typeof openEmitModal>>,
+  ) => Promise<void>;
+};
+
+test.each<CloseCodeModalCase>([
+  {
+    name: "an issued code's modal with the close button",
+    arrange: (services) => {
+      vi.mocked(services.emitEnrollmentCode).mockResolvedValue({
+        kind: "ok",
+        value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:00.000Z" },
+      });
+    },
+    close: async (_screen, dialog) => {
+      await expect.element(dialog.getByText("P4NX 7KWE 2QRT 8MZD")).toBeVisible();
+      await userEvent.click(dialog.getByRole("button", { name: "Cerrar" }));
+    },
+  },
+  {
+    name: "an issued code's modal with Escape",
+    arrange: (services) => {
+      vi.mocked(services.emitEnrollmentCode).mockResolvedValue({
+        kind: "ok",
+        value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:00.000Z" },
+      });
+    },
+    close: async (_screen, dialog) => {
+      await expect.element(dialog.getByText("P4NX 7KWE 2QRT 8MZD")).toBeVisible();
+      await userEvent.keyboard("{Escape}");
+    },
+  },
+  {
+    name: "the code modal with Escape after a failed emission",
+    arrange: (services) => {
+      vi.mocked(services.emitEnrollmentCode).mockResolvedValue({ kind: "failed" });
+    },
+    close: async (_screen, dialog) => {
+      await expect.element(dialog.getByRole("button", { name: "Reintentar" })).toBeVisible();
+      await userEvent.keyboard("{Escape}");
+    },
+  },
+  {
+    name: "the code modal with Escape after a rate-limited emission",
+    arrange: (services) => {
+      vi.mocked(services.emitEnrollmentCode).mockResolvedValue({
+        kind: "rate_limited",
+        retryAfterSeconds: 120,
+      });
+    },
+    close: async (_screen, dialog) => {
+      await expect.element(dialog.getByRole("button", { name: "Reintentar" })).toBeVisible();
+      await userEvent.keyboard("{Escape}");
+    },
+  },
+  {
+    name: "the code modal by cancelling a retry's authorization",
+    arrange: (services) => {
+      vi.mocked(services.emitEnrollmentCode).mockResolvedValueOnce({ kind: "failed" });
+      vi.mocked(services.emitEnrollmentCode).mockResolvedValueOnce({
+        kind: "authorization_required",
+      });
+    },
+    close: async (screen, dialog) => {
+      await expect.element(dialog.getByRole("button", { name: "Reintentar" })).toBeVisible();
+      await userEvent.click(dialog.getByRole("button", { name: "Reintentar" }));
+      const authDialog = screen.getByRole("dialog", { name: "Autorizá este cambio" });
+      await expect.element(authDialog).toBeVisible();
+      await userEvent.click(authDialog.getByRole("button", { name: "Cancelar" }));
+    },
+  },
+])("closing $name refreshes the list", async ({ arrange, close }) => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register1] });
+  arrange(services);
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+  const dialog = await openEmitModal(screen, "Caja 1");
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register2] });
+
+  await close(screen, dialog);
+
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.poll(() => vi.mocked(services.fetchRegisters).mock.calls.length).toBe(2);
+  await expect.element(screen.getByText("Caja 2")).toBeVisible();
+});
+
+test("keeps the current rows visible while the list refreshes after closing the code modal", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register1] });
+  vi.mocked(services.emitEnrollmentCode).mockResolvedValue({
+    kind: "ok",
+    value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:00.000Z" },
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+  const dialog = await openEmitModal(screen, "Caja 1");
+  await expect.element(dialog.getByText("P4NX 7KWE 2QRT 8MZD")).toBeVisible();
+  const pendingRefresh =
+    deferred<Awaited<ReturnType<RegistersListScreenServices["fetchRegisters"]>>>();
+  vi.mocked(services.fetchRegisters).mockReturnValueOnce(pendingRefresh.promise);
+
+  await userEvent.click(dialog.getByRole("button", { name: "Listo" }));
+
+  await expect.poll(() => vi.mocked(services.fetchRegisters).mock.calls.length).toBe(2);
+  await expect.element(screen.getByRole("table")).toHaveAttribute("aria-busy", "true");
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+  await expect.element(screen.getByText("1 caja")).toBeVisible();
+
+  pendingRefresh.resolve({ kind: "ok", value: [register2] });
+
+  await expect.element(screen.getByText("Caja 2")).toBeVisible();
+  await expect.element(screen.getByRole("table")).not.toHaveAttribute("aria-busy");
+});
+
+test("keeps the current rows visible while the list refreshes after creating a register", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register1] });
+  const pendingRefresh =
+    deferred<Awaited<ReturnType<RegistersListScreenServices["fetchRegisters"]>>>();
+  vi.mocked(services.fetchRegisters).mockReturnValueOnce(pendingRefresh.promise);
+  vi.mocked(services.createRegister).mockResolvedValue({ kind: "ok" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("1 caja")).toBeVisible();
+  const dialog = await openNewRegisterModal(screen);
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la caja/ }), "Caja 3");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la caja" }));
+
+  await expect.poll(() => vi.mocked(services.fetchRegisters).mock.calls.length).toBe(2);
+  await expect.element(screen.getByRole("table")).toHaveAttribute("aria-busy", "true");
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+
+  pendingRefresh.resolve({
+    kind: "ok",
+    value: [
+      register1,
+      {
+        id: "register-3",
+        name: "Caja 3",
+        pendingCode: null,
+        pointOfSaleNumber: null,
+        pointTerminalId: null,
+        pointTerminalVersion: 0,
+        qrExternalPosId: null,
+        qrPointOfSaleVersion: 0,
+        installation: null,
+      },
+    ],
+  });
+
+  await expect.element(screen.getByText("2 cajas")).toBeVisible();
+});
+
+test("shows loading placeholders, not an empty table, while the list refreshes from an empty list", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [] });
+  const pendingRefresh =
+    deferred<Awaited<ReturnType<RegistersListScreenServices["fetchRegisters"]>>>();
+  vi.mocked(services.fetchRegisters).mockReturnValueOnce(pendingRefresh.promise);
+  vi.mocked(services.createRegister).mockResolvedValue({ kind: "ok" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Todavía no hay cajas registradoras")).toBeVisible();
+  const dialog = await openNewRegisterModal(screen);
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: /^Nombre de la caja/ }), "Caja 3");
+  await userEvent.click(dialog.getByRole("button", { name: "Crear la caja" }));
+
+  await expect.poll(() => vi.mocked(services.fetchRegisters).mock.calls.length).toBe(2);
+  await expect.element(screen.getByRole("table")).toHaveAttribute("aria-busy", "true");
+  expect(screen.getByText("Todavía no hay cajas registradoras").query()).toBeNull();
+  expect(screen.getByText("0 cajas").query()).toBeNull();
+
+  pendingRefresh.resolve({
+    kind: "ok",
+    value: [
+      {
+        id: "register-3",
+        name: "Caja 3",
+        pendingCode: null,
+        pointOfSaleNumber: null,
+        pointTerminalId: null,
+        pointTerminalVersion: 0,
+        qrExternalPosId: null,
+        qrPointOfSaleVersion: 0,
+        installation: null,
+      },
+    ],
+  });
+
+  await expect.element(screen.getByText("Caja 3")).toBeVisible();
+  await expect.element(screen.getByText("1 caja")).toBeVisible();
+});
+
+test("a refresh that fails shows the load error with its retry action, like a failed first load", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register1] });
+  vi.mocked(services.emitEnrollmentCode).mockResolvedValue({ kind: "failed" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+  await openEmitModal(screen, "Caja 1");
+  await expect
+    .element(screen.getByRole("dialog").getByRole("button", { name: "Reintentar" }))
+    .toBeVisible();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "failed" });
+
+  await userEvent.keyboard("{Escape}");
+
+  await expect.element(screen.getByText("No pudimos abrir las cajas registradoras")).toBeVisible();
+  expect(screen.getByText("Caja 1").query()).toBeNull();
+});
+
+test("navigates to Mi cuenta when emitting a code comes back forbidden", async () => {
+  window.history.pushState(null, "", "/registers");
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });
+  vi.mocked(services.emitEnrollmentCode).mockResolvedValue({ kind: "forbidden" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Emitir código de alta para Caja 1" }));
+
+  await expect
+    .poll(() => window.location.pathname + window.location.search)
+    .toBe("/?account=credentials");
+});
+
+test("ends the session when emitting a code finds no open session", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });
+  vi.mocked(services.emitEnrollmentCode).mockResolvedValue({ kind: "unauthenticated" });
+  const onSessionEnded = vi.fn();
+  const screen = await renderScreen(services, onSessionEnded);
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Emitir código de alta para Caja 1" }));
+
+  await expect.poll(() => onSessionEnded.mock.calls.length).toBe(1);
+});
+
+test("opens the authorization modal on emit's authorization_required, then authorizes and shows the code", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });
+  vi.mocked(services.emitEnrollmentCode).mockResolvedValueOnce({ kind: "authorization_required" });
+  grantAuthorization(services);
+  vi.mocked(services.emitEnrollmentCode).mockResolvedValueOnce({
+    kind: "ok",
+    value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:00.000Z" },
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Emitir código de alta para Caja 1" }));
+  const authDialog = screen.getByRole("dialog", { name: "Autorizá este cambio" });
+  await expect.element(authDialog).toBeVisible();
+  await expect
+    .element(
+      authDialog.getByText(
+        "Emitir un código de alta necesita tu autorización. Confirmala con tu passkey.",
+      ),
+    )
+    .toBeVisible();
+
+  await userEvent.click(authDialog.getByRole("button", { name: "Usar mi passkey" }));
+
+  await expect.poll(() => vi.mocked(services.emitEnrollmentCode).mock.calls.length).toBe(2);
+  const dialog = screen.getByRole("dialog", { name: "Código de alta" });
+  await expect.element(dialog.getByText("P4NX 7KWE 2QRT 8MZD")).toBeVisible();
+});
+
+test("has no accessibility violations once loaded, with the create modal open, and with the code modal open", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({
+    kind: "ok",
+    value: [register1, register2],
+  });
+  vi.mocked(services.emitEnrollmentCode).mockResolvedValue({
+    kind: "ok",
+    value: { code: "P4NX7KWE2QRT8MZD", expiresAt: "2026-09-25T12:15:00.000Z" },
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("2 cajas")).toBeVisible();
+  await expectNoAccessibilityViolations(document.body);
+
+  await openNewRegisterModal(screen);
+  await expectNoAccessibilityViolations(document.body);
+  await userEvent.click(screen.getByRole("dialog").getByRole("button", { name: "Cancelar" }));
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+
+  await openEmitModal(screen, "Caja 1");
+  await expectNoAccessibilityViolations(document.body);
+});
+
+test("shows each register's Point terminal, or Sin asignar when it has none", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({
+    kind: "ok",
+    value: [register1, register2],
+  });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByRole("columnheader", { name: "Terminal Point" })).toBeVisible();
+  await expect.element(screen.getByText("TERM-0042")).toBeVisible();
+  await expect.element(screen.getByText("Sin asignar").first()).toBeVisible();
+});
+
+async function openTerminalModal(screen: Awaited<ReturnType<typeof renderScreen>>, name: string) {
+  await userEvent.click(
+    rowOf(screen, name).getByRole("button", { name: `Asignar terminal Point a ${name}` }),
+  );
+  return screen.getByRole("dialog", { name: "Terminal Point integrada" });
+}
+
+test("the row action opens the terminal modal for that register with its current terminal", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({
+    kind: "ok",
+    value: [register1, register2],
+  });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Caja 2")).toBeVisible();
+
+  const dialog = await openTerminalModal(screen, "Caja 2");
+
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Identificador de la terminal/ }))
+    .toHaveValue("TERM-0042");
+});
+
+test("assigning a terminal closes the modal and reads the list again", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register1] });
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({
+    kind: "ok",
+    value: [{ ...register1, pointTerminalId: "TERM-0100", pointTerminalVersion: 1 }],
+  });
+  vi.mocked(services.assignPointTerminal).mockResolvedValue({ kind: "ok" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Sin asignar").first()).toBeVisible();
+  const dialog = await openTerminalModal(screen, "Caja 1");
+
+  await userEvent.fill(
+    dialog.getByRole("textbox", { name: /^Identificador de la terminal/ }),
+    "TERM-0100",
+  );
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar" }));
+
+  expect(services.assignPointTerminal).toHaveBeenCalledWith("register-1", {
+    terminal_id: "TERM-0100",
+    version: 0,
+  });
+  await expect.poll(() => screen.getByRole("dialog").query()).toBeNull();
+  await expect.element(screen.getByText("TERM-0100")).toBeVisible();
+});
+
+test("offers the Point terminal action only to who may assign it", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [register1] });
+
+  const withoutIt = await renderScreen(
+    services,
+    () => {},
+    accessWith("registers_area", "enroll_registers"),
+  );
+  await expect.element(withoutIt.getByText("Caja 1")).toBeVisible();
+  expect(
+    withoutIt.getByRole("button", { name: "Asignar terminal Point a Caja 1" }).query(),
+  ).toBeNull();
+  await expect
+    .element(withoutIt.getByRole("button", { name: "Emitir código de alta para Caja 1" }))
+    .toBeVisible();
+  await withoutIt.unmount();
+
+  const withIt = await renderScreen(
+    services,
+    () => {},
+    accessWith("registers_area", "enroll_registers", "fiscal_configuration_area"),
+  );
+  await expect
+    .element(withIt.getByRole("button", { name: "Asignar terminal Point a Caja 1" }))
+    .toBeVisible();
+});
+
+test("Recargar in the terminal modal reads the registers once and shows what changed", async () => {
+  const services = createServices();
+  const changed = { ...register1, pointTerminalId: "TERM-0077", pointTerminalVersion: 5 };
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register1] });
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [changed] });
+  vi.mocked(services.assignPointTerminal).mockResolvedValue({ kind: "stale_version" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+  const dialog = await openTerminalModal(screen, "Caja 1");
+  await userEvent.fill(
+    dialog.getByRole("textbox", { name: /^Identificador de la terminal/ }),
+    "TERM-0100",
+  );
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar" }));
+  await expect.element(dialog.getByRole("button", { name: "Recargar" })).toBeVisible();
+
+  await userEvent.click(dialog.getByRole("button", { name: "Recargar" }));
+
+  await expect
+    .element(dialog.getByRole("textbox", { name: /^Identificador de la terminal/ }))
+    .toHaveValue("TERM-0077");
+  await expect.element(screen.getByRole("cell", { name: "TERM-0077" })).toBeVisible();
+  await expect.poll(() => vi.mocked(services.fetchRegisters).mock.calls.length).toBe(2);
+});
+
+test("a register that disappears while its terminal is edited is reported in the modal and dropped from the list", async () => {
+  const services = createServices();
+  vi.mocked(services.fetchRegisters).mockResolvedValueOnce({ kind: "ok", value: [register1] });
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: [] });
+  vi.mocked(services.assignPointTerminal).mockResolvedValue({ kind: "not_found" });
+  const screen = await renderScreen(services);
+  await expect.element(screen.getByText("Caja 1")).toBeVisible();
+  const dialog = await openTerminalModal(screen, "Caja 1");
+  await userEvent.fill(
+    dialog.getByRole("textbox", { name: /^Identificador de la terminal/ }),
+    "TERM-0100",
+  );
+
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar" }));
+
+  await expect.element(dialog.getByText("La caja ya no existe")).toBeVisible();
+  await expect.element(screen.getByText("Todavía no hay cajas registradoras")).toBeVisible();
+});
+
+test("shows the register count with the thousands separator", async () => {
+  const services = createServices();
+  const manyRegisters = Array.from({ length: 1000 }, (_, index) => ({
+    ...register1,
+    id: `register-${index}`,
+    name: `Caja ${index}`,
+  }));
+  vi.mocked(services.fetchRegisters).mockResolvedValue({ kind: "ok", value: manyRegisters });
+
+  const screen = await renderScreen(services);
+
+  await expect.element(screen.getByText("1.000 cajas")).toBeVisible();
+});

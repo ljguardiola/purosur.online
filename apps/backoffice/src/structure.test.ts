@@ -19,6 +19,7 @@ const CONCEPTS = [
   "sync",
   "users",
   "credentials",
+  "installation",
   "sessions",
 ];
 const OUTSIDE_ANY_CONCEPT = ["help", "platform", "shell"];

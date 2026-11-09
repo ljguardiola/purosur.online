@@ -26,6 +26,10 @@ export const APP_OPTIONS_TEST = "apps/cloud/src/server.test.ts";
 
 const CLOUD_APP = "apps/cloud/src/app.ts";
 
+// A browser project runs all of one run's files in a single Chromium page, which grows with every
+// file and, a few dozen files in, loses every connection it holds; each run opens a fresh page.
+export const MOST_FILES_PER_RUN = 15;
+
 const CLOUD_SOURCE = "apps/cloud/src/";
 
 function stemOf(path) {
@@ -125,14 +129,23 @@ export function projectsOfSpecifications({ root, specifications }) {
   return projects;
 }
 
-async function projectsByTestFile(root) {
+export function browserProjectsOfSpecifications(specifications) {
+  return new Set(
+    specifications
+      .filter((specification) => specification.project.config.browser.enabled)
+      .map((specification) => specification.project.name),
+  );
+}
+
+async function testProjects(root) {
   const { createVitest } = await import("vitest/node");
   const vitest = await createVitest("test", { root, watch: false });
   try {
-    return projectsOfSpecifications({
-      root,
-      specifications: await vitest.globTestSpecifications(),
-    });
+    const specifications = await vitest.globTestSpecifications();
+    return {
+      projects: projectsOfSpecifications({ root, specifications }),
+      browserProjects: browserProjectsOfSpecifications(specifications),
+    };
   } finally {
     await vitest.close();
   }
@@ -155,7 +168,26 @@ function groupByProject({ files, projects }) {
   return filesByProject;
 }
 
-export async function runChangedTests({ root, projects, changedFiles, requestedFiles, run, log }) {
+function runsOf({ files, inBrowser }) {
+  if (!inBrowser) {
+    return [files];
+  }
+  const runs = [];
+  for (let start = 0; start < files.length; start += MOST_FILES_PER_RUN) {
+    runs.push(files.slice(start, start + MOST_FILES_PER_RUN));
+  }
+  return runs;
+}
+
+export async function runChangedTests({
+  root,
+  projects,
+  browserProjects,
+  changedFiles,
+  requestedFiles,
+  run,
+  log,
+}) {
   let files;
   try {
     files = testsToRun({ testFiles: [...projects.keys()], changedFiles, requestedFiles });
@@ -170,13 +202,25 @@ export async function runChangedTests({ root, projects, changedFiles, requestedF
 
   const passed = await runProjectsInTurn({
     filesByProject: groupByProject({ files, projects }),
-    run: (project, projectFiles) =>
-      run([
-        "run",
-        `--project=${project}`,
-        "--no-file-parallelism",
-        ...projectFiles.map((file) => join(root, file)),
-      ]),
+    run: async (project, projectFiles) => {
+      let projectPassed = true;
+      for (const runFiles of runsOf({
+        files: projectFiles,
+        inBrowser: browserProjects.has(project),
+      })) {
+        if (
+          !(await run([
+            "run",
+            `--project=${project}`,
+            "--no-file-parallelism",
+            ...runFiles.map((file) => join(root, file)),
+          ]))
+        ) {
+          projectPassed = false;
+        }
+      }
+      return projectPassed;
+    },
   });
   return passed ? 0 : 1;
 }
@@ -186,7 +230,7 @@ async function runCli(requestedFiles) {
   const runGit = (args) => execFileSync("git", args, { cwd: root });
   return runChangedTests({
     root,
-    projects: await projectsByTestFile(root),
+    ...(await testProjects(root)),
     changedFiles: changedFilesSince({ base: resolveBaseRef(process.env), runGit }),
     requestedFiles,
     run: (args) => runCommand({ command: join(root, "node_modules/.bin/vitest"), args, cwd: root }),

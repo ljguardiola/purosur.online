@@ -1,5 +1,5 @@
-import { averageTicket } from "../../sales/index.js";
 import {
+  averageTicket,
   type Clock,
   type ReportPeriod,
   reportPeriodOf,

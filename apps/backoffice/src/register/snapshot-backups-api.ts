@@ -1,7 +1,6 @@
 import {
   type SnapshotBackups as SnapshotBackupsBody,
   type SnapshotLifecycleRulesBody,
-  snapshotBackupRegistersSchema,
   snapshotBackupsSchema,
   snapshotKeyRotationSchema,
   snapshotLifecycleRulesSchema,
@@ -30,8 +29,6 @@ export type SnapshotBackups = {
   recentLimit: number;
   generations: SnapshotBackupGeneration[];
 };
-
-export type FetchSnapshotBackupRegistersOutcome = CloudReadOutcome<SnapshotBackupRegister[]>;
 
 export type FetchSnapshotBackupsOutcome = CloudReadOutcome<SnapshotBackups>;
 
@@ -113,13 +110,6 @@ async function gatedFailureOf(response: Response): Promise<GatedFailure> {
     return rateLimitOutcome(response);
   }
   return { kind: "failed" };
-}
-
-export function fetchSnapshotBackupRegisters(): Promise<FetchSnapshotBackupRegistersOutcome> {
-  return readCloud(
-    "/api/snapshot-backups/registers",
-    (body) => snapshotBackupRegistersSchema.safeParse(body).data?.registers,
-  );
 }
 
 export function fetchSnapshotBackups(registerId: string): Promise<FetchSnapshotBackupsOutcome> {

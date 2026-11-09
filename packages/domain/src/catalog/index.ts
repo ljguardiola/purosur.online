@@ -25,6 +25,7 @@ export type {
   ProductBrandAndNetContent,
   ProductNetContent,
   SaleUnit,
+  SoldQuantity,
 } from "./model/product.js";
 export {
   BARCODE_MAX_LENGTH,

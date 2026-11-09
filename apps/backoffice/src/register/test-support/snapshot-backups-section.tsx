@@ -1,7 +1,7 @@
-import { useIsFetching, useQueryClient } from "@tanstack/react-query";
+import { useIsFetching } from "@tanstack/react-query";
 import { vi } from "vitest";
+import { useRefreshRegisters } from "../../shell/refresh-registers";
 import { render } from "../../shell/test-support/render-with-router";
-import { registerKey } from "../register-queries";
 import type {
   SnapshotBackupGeneration,
   SnapshotBackupRegister,
@@ -102,9 +102,9 @@ function FetchesInFlight() {
 }
 
 function RefreshRegisters() {
-  const client = useQueryClient();
+  const refreshRegisters = useRefreshRegisters();
   return (
-    <button type="button" onClick={() => void client.invalidateQueries({ queryKey: registerKey })}>
+    <button type="button" onClick={() => void refreshRegisters()}>
       Refrescar
     </button>
   );

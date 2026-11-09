@@ -2,14 +2,16 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expectNoAccessibilityViolations } from "@purosur/ui/test";
 import { expect, test, vi } from "vitest";
 import { type Locator, userEvent } from "vitest/browser";
+import type {
+  RegisterPaymentsReload,
+  RegisterPaymentsTarget,
+} from "../platform/register-payments-target";
 import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import { render } from "../shell/test-support/render-with-router";
 import {
   AssignPointTerminalModal,
   type AssignPointTerminalModalServices,
 } from "./assign-point-terminal-modal";
-import type { RegisterReload } from "./register-queries";
-import type { RegisterSummary } from "./registers-api";
 
 function createServices(
   overrides: Partial<AssignPointTerminalModalServices> = {},
@@ -20,30 +22,31 @@ function createServices(
   };
 }
 
-const assigned: RegisterSummary = {
+const assigned: RegisterPaymentsTarget = {
   id: "register-1",
   name: "Caja 1",
-  pendingCode: null,
-  pointOfSaleNumber: null,
   pointTerminalId: "TERM-0042",
   pointTerminalVersion: 2,
   qrExternalPosId: null,
   qrPointOfSaleVersion: 0,
-  installation: null,
 };
 
-const unassigned: RegisterSummary = { ...assigned, pointTerminalId: null, pointTerminalVersion: 0 };
+const unassigned: RegisterPaymentsTarget = {
+  ...assigned,
+  pointTerminalId: null,
+  pointTerminalVersion: 0,
+};
 
 type ModalOptions = {
-  target?: RegisterSummary | null;
+  target?: RegisterPaymentsTarget | null;
   services?: AssignPointTerminalModalServices;
   onClose?: () => void;
   onSaved?: () => void;
-  reload?: (id: string) => Promise<RegisterReload>;
+  reload?: (id: string) => Promise<RegisterPaymentsReload>;
   onSessionEnded?: () => void;
 };
 
-function found(register: RegisterSummary) {
+function found(register: RegisterPaymentsTarget) {
   return Promise.resolve({ kind: "found", register } as const);
 }
 
@@ -281,7 +284,7 @@ test("ends the session when reading the register again finds no open session", a
 test("shows a stale-version notice, and Recargar reads the register again so the second save sends the new version", async () => {
   const services = createServices();
   vi.mocked(services.assignPointTerminal).mockResolvedValueOnce({ kind: "stale_version" });
-  const changed: RegisterSummary = {
+  const changed: RegisterPaymentsTarget = {
     ...assigned,
     pointTerminalId: "TERM-0077",
     pointTerminalVersion: 5,
@@ -307,7 +310,7 @@ test("shows a stale-version notice, and Recargar reads the register again so the
 test("removing after a reload sends the reloaded version", async () => {
   const services = createServices();
   vi.mocked(services.assignPointTerminal).mockResolvedValueOnce({ kind: "stale_version" });
-  const changed: RegisterSummary = {
+  const changed: RegisterPaymentsTarget = {
     ...assigned,
     pointTerminalId: "TERM-0077",
     pointTerminalVersion: 5,
