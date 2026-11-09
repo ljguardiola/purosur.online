@@ -86,6 +86,7 @@ export type {
   LatePaymentRefund,
   PlannedRefund,
   PlannedRefundState,
+  RefundAlertKind,
   RefundablePayment,
   RefundOrigin,
   RefundState,

@@ -1,4 +1,4 @@
-import type { AlertKind } from "../../../alerts/index.js";
+import type { RefundAlertKind } from "../../model/payment-refund.js";
 import type { RefundTransfer } from "../../model/refund-transfer.js";
 import type {
   AppliedCorrection,
@@ -139,7 +139,7 @@ class FakeMercadoPagoRefundTransaction implements MercadoPagoRefundTransaction {
 
   async resolveRefundAlert(
     refundId: string,
-    kind: AlertKind,
+    kind: RefundAlertKind,
     resolvedBy: string,
     resolvedAt: Date,
   ): Promise<void> {

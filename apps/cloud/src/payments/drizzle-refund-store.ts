@@ -1,8 +1,8 @@
 import {
-  type AlertKind,
   REFUND_DISCARDED_STATE,
   REFUND_DONE_STATE,
   REFUND_PENDING_STATE,
+  type RefundAlertKind,
   type RefundTransfer,
 } from "@purosur/domain";
 import { closeAlert } from "@purosur/domain/alerts/use-cases";
@@ -164,7 +164,7 @@ export class DrizzleRefundStoreTransaction<TQueryResult extends PgQueryResultHKT
 
   async resolveRefundAlert(
     refundId: string,
-    kind: AlertKind,
+    kind: RefundAlertKind,
     resolvedBy: string,
     resolvedAt: Date,
   ): Promise<void> {
