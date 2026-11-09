@@ -13,7 +13,7 @@ import {
 } from "@purosur/ui";
 import { createLink, useNavigate } from "@tanstack/react-router";
 import { Check, Laptop, Plus } from "lucide-react";
-import { useEffect, useEffectEvent, useState } from "react";
+import { Suspense, useEffect, useEffectEvent, useState } from "react";
 import { useAuthorization } from "../platform/authorization-modal";
 import { cloudTableState } from "../platform/cloud-table-state";
 import type { RegisterPanelSections } from "../platform/register-panel-sections";
@@ -404,18 +404,20 @@ function FullRegistersListScreen({
         onSessionEnded={onSessionEnded}
         services={services}
       />
-      <PaymentAndKeyModals
-        request={modalRequest}
-        reload={reloadRegister}
-        onClose={() => setModalRequest(null)}
-        onAssigned={() => {
-          setModalRequest(null);
-          void refreshRegisters();
-        }}
-        onKeyLoaded={() => void refreshRegisters()}
-        onOutdated={() => void refreshRegisters()}
-        onSessionEnded={onSessionEnded}
-      />
+      <Suspense fallback={null}>
+        <PaymentAndKeyModals
+          request={modalRequest}
+          reload={reloadRegister}
+          onClose={() => setModalRequest(null)}
+          onAssigned={() => {
+            setModalRequest(null);
+            void refreshRegisters();
+          }}
+          onKeyLoaded={() => void refreshRegisters()}
+          onOutdated={() => void refreshRegisters()}
+          onSessionEnded={onSessionEnded}
+        />
+      </Suspense>
       {emissionAuthModal}
     </>
   );
