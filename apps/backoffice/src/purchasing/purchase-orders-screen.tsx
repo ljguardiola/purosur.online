@@ -1,30 +1,12 @@
-import type { PurchaseOrderSummary } from "@purosur/contracts";
-import {
-  actionsColumn,
-  dataColumn,
-  formatNumber,
-  ListFilter,
-  plural,
-  StatusIndicator,
-  Table,
-  useTableModel,
-} from "@purosur/ui";
+import { ListFilter } from "@purosur/ui";
 import { deepEqual } from "@tanstack/react-router";
-import { ClipboardList, Eye, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useState } from "react";
-import { cloudTableState } from "../platform/cloud-table-state";
 import type { BackofficeAccess } from "../shell/backoffice-access";
-import { formatPurchaseOrderCreatedDay } from "./purchase-order-day";
 import { PurchaseOrderPanel } from "./purchase-order-panel";
-import { purchaseOrderStatusOf } from "./purchase-order-status";
 import type { PurchaseOrdersFilters } from "./purchase-orders-filters";
 import type { PurchaseOrdersScreenServices } from "./purchase-orders-services";
-import { usePurchaseOrdersQuery } from "./purchasing-queries";
-import {
-  ExpectedTotalAmount,
-  type SupplierFilter,
-  SupplierFilterButton,
-} from "./purchasing-screen-parts";
+import { PurchaseOrdersTable } from "./purchase-orders-table";
+import { type SupplierFilter, SupplierFilterButton } from "./purchasing-screen-parts";
 
 export type PurchaseOrdersScreenProps = {
   filters: PurchaseOrdersFilters;
@@ -42,8 +24,6 @@ export type PurchaseOrdersScreenProps = {
 };
 
 type StateFilter = PurchaseOrdersFilters["state"];
-
-const NO_ORDERS: PurchaseOrderSummary[] = [];
 
 const STATE_FILTER_OPTIONS = [
   { value: "ALL" as const, label: "Todos" },
@@ -69,12 +49,6 @@ export function PurchaseOrdersScreen({
   supplierFilter,
 }: PurchaseOrdersScreenProps) {
   const [stateFilter, setStateFilter] = useState<StateFilter>(filters.state);
-  const data = usePurchaseOrdersQuery({
-    state: stateFilter,
-    supplierId: supplierFilter?.supplierId,
-    fetchPurchaseOrders: services.fetchPurchaseOrders,
-    onSessionEnded,
-  });
   const reportFilters = useEffectEvent(onFiltersChange);
 
   useEffect(() => {
@@ -83,64 +57,6 @@ export function PurchaseOrdersScreen({
       reportFilters(shown);
     }
   }, [stateFilter, filters]);
-
-  const orders = data.status === "loaded" ? data.value : NO_ORDERS;
-
-  const columns = [
-    dataColumn({
-      id: "supplier",
-      header: "Proveedor",
-      render: (order: PurchaseOrderSummary) => order.supplier.name,
-    }),
-    dataColumn({
-      id: "createdAt",
-      header: "Fecha de creación",
-      render: (order: PurchaseOrderSummary) => formatPurchaseOrderCreatedDay(order.createdAt),
-    }),
-    dataColumn({
-      id: "lines",
-      header: "Líneas",
-      align: "end",
-      render: (order: PurchaseOrderSummary) => formatNumber(order.lineCount),
-    }),
-    dataColumn({
-      id: "expectedTotal",
-      header: "Total esperado",
-      align: "end",
-      render: (order: PurchaseOrderSummary) => (
-        <ExpectedTotalAmount
-          cents={order.expectedTotalCents}
-          hasUnpricedLine={order.hasUnpricedLine}
-        />
-      ),
-    }),
-    dataColumn({
-      id: "state",
-      header: "Estado",
-      render: (order: PurchaseOrderSummary) => {
-        const status = purchaseOrderStatusOf(order.state);
-        return <StatusIndicator tone={status.tone}>{status.label}</StatusIndicator>;
-      },
-    }),
-    actionsColumn({
-      id: "actions",
-      header: "Acciones",
-      actions: [
-        (order: PurchaseOrderSummary) => ({
-          icon: <Eye />,
-          "aria-label": `Abrir el pedido de ${order.supplier.name}`,
-          onPress: () => onOpenOrderChange(order.id),
-        }),
-      ],
-    }),
-  ] as const;
-
-  const table = useTableModel({
-    items: orders,
-    id: (order) => order.id,
-    columns,
-  });
-  const shownCount = table.getRowModel().rows.length;
 
   return (
     <div className="flex min-h-0 flex-1">
@@ -161,39 +77,13 @@ export function PurchaseOrdersScreen({
             />
           )}
         </div>
-        <Table
-          aria-label="Pedidos de compra"
-          table={table}
-          onRowPress={(order) => onOpenOrderChange(order.id)}
-          rowState={(order) => (order.id === openOrder ? "selected" : undefined)}
-          {...cloudTableState(data, "los pedidos")}
-          empty={
-            stateFilter === "ALL" && supplierFilter === undefined
-              ? {
-                  icon: <ClipboardList />,
-                  title: "Todavía no hay pedidos",
-                  variant: "blank",
-                }
-              : {
-                  icon: <Search />,
-                  title: "Sin resultados",
-                  description:
-                    supplierFilter === undefined
-                      ? "Probá con otro estado."
-                      : "Probá con otro estado o proveedor.",
-                  variant: "filtered",
-                }
-          }
-          footer={
-            shownCount === 0 ? undefined : (
-              <p className="text-text-subtle text-detail">
-                {plural(shownCount, {
-                  one: "1 pedido",
-                  other: `${formatNumber(shownCount)} pedidos`,
-                })}
-              </p>
-            )
-          }
+        <PurchaseOrdersTable
+          state={stateFilter}
+          supplierId={supplierFilter?.supplierId}
+          openOrder={openOrder}
+          onOpenOrderChange={onOpenOrderChange}
+          onSessionEnded={onSessionEnded}
+          services={services}
         />
       </div>
       {openOrder === undefined ? null : (
