@@ -1,4 +1,3 @@
-import type { NumberingFreeze } from "../../../fiscal/index.js";
 import type {
   DeviceTokenIssuer,
   DeviceTokenRotator,
@@ -12,7 +11,6 @@ import type {
   LockedInstallation,
   NewInstallation,
   PresentedDeviceToken,
-  RealTimeNumberingLane,
   RegisterKeys,
   RegisterStore,
   RegisterStoreTransaction,
@@ -46,12 +44,9 @@ export interface FakeSnapshotGenerationKeyUse {
   retained: boolean;
 }
 
-export interface FakeRealTimeNumberingLane extends RealTimeNumberingLane {
+interface FakeRestoredRegisterNumberingFreeze {
   registerId: string;
-}
-
-interface FakeNumberingFreeze extends NumberingFreeze {
-  pointOfSale: number;
+  restoredAt: Date;
 }
 
 export interface FakeRegisterState {
@@ -65,8 +60,7 @@ export interface FakeRegisterState {
   installationRevocations: InstallationRevocation[];
   installationEnrollments: InstallationEnrollment[];
   freshTaxAuthorityCountRequiredFor: string[];
-  realTimeNumberingLanes: FakeRealTimeNumberingLane[];
-  numberingFreezes: FakeNumberingFreeze[];
+  restoredRegisterNumberingFreezes: FakeRestoredRegisterNumberingFreeze[];
   nextId: number;
 }
 
@@ -84,7 +78,7 @@ type WriteOperation =
   | "recordContingencyTicketKey"
   | "markEnrollmentCodeRedeemed"
   | "openEnrollmentAlert"
-  | "freezeRealTimeNumbering"
+  | "freezeRestoredRegisterNumbering"
   | "requireFreshTaxAuthorityCount";
 
 function cloneState(state: FakeRegisterState): FakeRegisterState {
@@ -271,15 +265,12 @@ class FakeRegisterStoreTransaction implements RegisterStoreTransaction {
     this.state.enrollmentAlerts.push(structuredClone(alert));
   }
 
-  async takeRealTimeNumberingLane(registerId: string): Promise<RealTimeNumberingLane | null> {
-    this.store.operationOrder.push("takeRealTimeNumberingLane");
-    const lane = this.state.realTimeNumberingLanes.find((row) => row.registerId === registerId);
-    return lane ? { pointOfSale: lane.pointOfSale, heldCount: lane.heldCount } : null;
-  }
-
-  async freezeRealTimeNumbering(pointOfSale: number, freeze: NumberingFreeze): Promise<void> {
-    this.beforeWrite("freezeRealTimeNumbering");
-    this.state.numberingFreezes.push({ pointOfSale, ...structuredClone(freeze) });
+  async freezeRestoredRegisterNumbering(registerId: string, restoredAt: Date): Promise<void> {
+    this.beforeWrite("freezeRestoredRegisterNumbering");
+    this.state.restoredRegisterNumberingFreezes.push({
+      registerId,
+      restoredAt: new Date(restoredAt),
+    });
   }
 
   async requireFreshTaxAuthorityCount(registerId: string): Promise<void> {
@@ -315,8 +306,7 @@ export class FakeRegisterStore implements RegisterStore {
     installationRevocations: [],
     installationEnrollments: [],
     freshTaxAuthorityCountRequiredFor: [],
-    realTimeNumberingLanes: [],
-    numberingFreezes: [],
+    restoredRegisterNumberingFreezes: [],
     nextId: 1,
   };
 
@@ -346,10 +336,6 @@ export class FakeRegisterStore implements RegisterStore {
 
   seedContingencyTicketKey(key: FakeRegisterKey): void {
     this.state.contingencyTicketKeys.push({ ...key });
-  }
-
-  seedRealTimeNumberingLane(lane: FakeRealTimeNumberingLane): void {
-    this.state.realTimeNumberingLanes.push({ ...lane });
   }
 
   snapshot(): FakeRegisterState {

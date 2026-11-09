@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import { enrollmentAttemptWindowStart } from "@purosur/domain";
-import type { NumberingFreeze } from "@purosur/domain/fiscal/use-cases";
 import type {
   EnrollmentAlert,
   EnrollmentAttemptKey,
@@ -9,7 +8,6 @@ import type {
   LockedEnrollmentCode,
   LockedInstallation,
   NewInstallation,
-  RealTimeNumberingLane,
   RegisterKeys,
   RegisterStore,
   RegisterStoreTransaction,
@@ -19,12 +17,9 @@ import type {
 import { and, asc, desc, eq, gt, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { openAlert } from "../alerts/open-alert.js";
-import {
-  requireFreshTaxAuthorityCountOfRegister,
-  takeRegisterRealTimeNumberingLane,
-} from "../fiscal/drizzle-register-numbering.js";
+import { requireFreshTaxAuthorityCountOfRegister } from "../fiscal/drizzle-register-numbering.js";
 import type { EnqueueNumberingReconciliation } from "../fiscal/enqueue-numbering-conflict.js";
-import { freezePointOfSaleNumbering } from "../fiscal/freeze-point-of-sale-numbering.js";
+import { freezeRestoredRegisterNumbering } from "../fiscal/freeze-restored-register-numbering.js";
 import type { EnqueueTaxAuthorityCount } from "../fiscal/graphile-tax-authority-count-queue.js";
 import {
   auditLog,
@@ -344,20 +339,13 @@ class DrizzleRegisterStoreTransaction<TQueryResult extends PgQueryResultHKT>
       .where(eq(registerEnrollmentCodes.registerId, registerId));
   }
 
-  async takeRealTimeNumberingLane(registerId: string): Promise<RealTimeNumberingLane | null> {
-    if (this.enqueueNumberingReconciliation === undefined) {
-      return null;
-    }
-    return takeRegisterRealTimeNumberingLane(this.tx, registerId);
-  }
-
-  async freezeRealTimeNumbering(pointOfSale: number, freeze: NumberingFreeze): Promise<void> {
+  async freezeRestoredRegisterNumbering(registerId: string, restoredAt: Date): Promise<void> {
     if (this.enqueueNumberingReconciliation === undefined) {
       return;
     }
-    await freezePointOfSaleNumbering(this.tx, this.pending, {
-      pointOfSale,
-      freeze,
+    await freezeRestoredRegisterNumbering(this.tx, this.pending, {
+      registerId,
+      restoredAt,
       enqueueReconciliation: this.enqueueNumberingReconciliation,
     });
   }

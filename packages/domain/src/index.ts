@@ -428,6 +428,7 @@ export {
   recordedRequestDocumentState,
   remedyAwaitsResend,
   replayedClockMark,
+  restorationNumberingFreeze,
   SERIES_WAITING_STATES,
   SHORT_CODE_ALPHABET,
   selectConsumerBuyerTaxStatus,
