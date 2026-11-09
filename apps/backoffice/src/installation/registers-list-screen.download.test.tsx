@@ -23,7 +23,8 @@ test("shows the registers while the payment and key modals download", async () =
         services={services}
         registerPointOfSaleSection={RegisterPointOfSaleSectionStub}
         registerPanelSections={registerPartsOf(services).panelSections}
-        registerPaymentAndKeyModals={neverDownloaded()}
+        registerPaymentModals={neverDownloaded()}
+        registerKeyModals={neverDownloaded()}
         onSessionEnded={() => {}}
         sessionsPeriod={{ from: "", to: "" }}
         onSessionsPeriodChange={() => {}}

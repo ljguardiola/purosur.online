@@ -345,7 +345,8 @@ test("under StrictMode, clicking the row action emits the code exactly once and 
           services={services}
           registerPointOfSaleSection={RegisterPointOfSaleSectionStub}
           registerPanelSections={registerPartsOf(services).panelSections}
-          registerPaymentAndKeyModals={registerPartsOf(services).paymentAndKeyModals}
+          registerPaymentModals={registerPartsOf(services).paymentModals}
+          registerKeyModals={registerPartsOf(services).keyModals}
           onSessionEnded={() => {}}
           sessionsPeriod={{ from: "", to: "" }}
           onSessionsPeriodChange={() => {}}
