@@ -1,10 +1,8 @@
+import { type FreightLine, type FreightToDistribute, freightPerUnit } from "@purosur/domain";
 import type { PurchaseCostReader, PurchaseLineCost } from "@purosur/domain/pricing/use-cases";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import { freightPurchases, freights, purchaseLines, purchases } from "../platform/db/schema.js";
-
-type FreightToDistribute = PurchaseLineCost["freights"][number];
-type FreightLine = FreightToDistribute["lines"][number];
 
 export class DrizzlePurchaseCostReader<TQueryResult extends PgQueryResultHKT>
   implements PurchaseCostReader
@@ -45,10 +43,11 @@ export class DrizzlePurchaseCostReader<TQueryResult extends PgQueryResultHKT>
       locationId,
       lines.map(({ purchaseId }) => purchaseId),
     );
-    return lines.map(({ costPaidCents, quantityPerPackage, purchaseId, ...line }) => ({
+    return lines.map(({ costPaidCents, quantityPerPackage, purchaseId, lineId, ...line }) => ({
       ...line,
+      lineId,
       cost: { totalCents: costPaidCents, quantity: quantityPerPackage },
-      freights: freightsOf.get(purchaseId) ?? [],
+      freightPerUnit: freightPerUnit(lineId, freightsOf.get(purchaseId) ?? []),
     }));
   }
 
