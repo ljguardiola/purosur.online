@@ -101,11 +101,7 @@ export {
 } from "./model/register-version.js";
 export type { RestorationEvidence, RestorationStanding } from "./model/restoration-protocol.js";
 export { RESTORATION_STEPS, restorationStanding } from "./model/restoration-protocol.js";
-export type {
-  SalesDeniedReason,
-  SalesDeniedReport,
-  StorageSalesDeniedReason,
-} from "./model/sales-denied.js";
+export type { SalesDeniedReason, SalesDeniedReport } from "./model/sales-denied.js";
 export { SALES_DENIED_REASONS, STORAGE_SALES_DENIED_REASONS } from "./model/sales-denied.js";
 export type { SalesDenial, SalesStopReason, SalesStopState } from "./model/sales-stop.js";
 export {
