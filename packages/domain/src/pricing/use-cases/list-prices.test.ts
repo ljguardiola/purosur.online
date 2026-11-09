@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { Fraction } from "../../shared/index.js";
 import { FakeZoneRulesSource } from "../../shared/test-support/fake-zone-rules-source.js";
 import type { AssemblyBatchCost } from "./assembly-batch-cost-reader.js";
 import type { InitialCountCost } from "./initial-count-cost-reader.js";
@@ -46,7 +47,7 @@ function purchase(
   productId: string,
   lineId: string,
   totalCents: number,
-  freights: PurchaseLineCost["freights"] = [],
+  freightPerUnit: Fraction = { numerator: 0n, denominator: 1n },
 ): PurchaseLineCost {
   return {
     productId,
@@ -54,7 +55,7 @@ function purchase(
     purchasedOn: "2026-03-01",
     recordedAt: new Date("2026-03-01T10:00:00Z"),
     cost: { totalCents, quantity: 1000 },
-    freights,
+    freightPerUnit: () => freightPerUnit,
   };
 }
 
@@ -157,18 +158,13 @@ describe("listPrices", () => {
   });
 
   it("adds the freight of the purchase line the last cost comes from", async () => {
-    const freights = [
-      {
-        amountCents: 300,
-        lines: [{ id: "line-a", costPaidCents: 1200, quantity: 1000, quantityPerPackage: 1000 }],
-      },
-    ];
+    const freightPerUnit = { numerator: 300n, denominator: 1n };
 
     const result = await listPrices(
       {
         zoneRules: new FakeZoneRulesSource(),
         reviews: fakePriceReviewReader(listing([product("a", 2000)])),
-        purchaseCosts: fakePurchaseCostReader([purchase("a", "line-a", 1200, freights)]),
+        purchaseCosts: fakePurchaseCostReader([purchase("a", "line-a", 1200, freightPerUnit)]),
         initialCountCosts: fakeInitialCountCostReader([]),
         batchCosts: fakeAssemblyBatchCostReader([]),
       },

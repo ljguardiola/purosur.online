@@ -1,4 +1,4 @@
-import type { FreightToDistribute } from "../../purchasing/index.js";
+import type { Fraction } from "../../shared/index.js";
 import type { LotCost } from "../../stock/index.js";
 
 export interface PurchaseLineCost {
@@ -7,8 +7,7 @@ export interface PurchaseLineCost {
   purchasedOn: string;
   recordedAt: Date;
   cost: LotCost;
-  // Every freight linked to the line's purchase, with all the lines of the purchases it covers.
-  freights: FreightToDistribute[];
+  freightPerUnit: () => Fraction;
 }
 
 export interface PurchaseCostReader {
