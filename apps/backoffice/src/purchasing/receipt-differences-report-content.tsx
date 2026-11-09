@@ -204,13 +204,9 @@ export function ReceiptDifferencesReportContent({
       <Table
         aria-label={RECEIPT_DIFFERENCES_REPORT_TITLE}
         table={table}
-        {...(onOpenOrder === undefined
-          ? {}
-          : {
-              onRowPress: (row: DifferenceRow) => row.orderId !== null && onOpenOrder(row.orderId),
-              rowState: (row: DifferenceRow) =>
-                row.orderId !== null && row.orderId === openOrder ? "selected" : undefined,
-            })}
+        rowState={(row) =>
+          row.orderId !== null && row.orderId === openOrder ? "selected" : undefined
+        }
         {...cloudTableState(data, "las diferencias de recepción")}
         empty={{
           icon: <PackageMinus />,

@@ -1,8 +1,8 @@
 import { getRouteApi, useRouterState } from "@tanstack/react-router";
 import type { ReactElement } from "react";
 import { purchaseOrderReceivedIn } from "./purchase-order-received-state";
-import { PurchaseOrdersScreen } from "./purchase-orders-screen";
-import { defaultPurchaseOrdersScreenServices } from "./purchase-orders-services";
+import { PurchaseOrdersListScreen } from "./purchase-orders-list-screen";
+import { defaultPurchaseOrdersListScreenServices } from "./purchase-orders-list-services";
 
 const route = getRouteApi("/signed-in/purchasing-area/purchase-orders/");
 
@@ -14,7 +14,7 @@ export function PurchaseOrdersListPage(): ReactElement {
     select: (state) => purchaseOrderReceivedIn(state.location.state),
   });
   return (
-    <PurchaseOrdersScreen
+    <PurchaseOrdersListScreen
       access={session}
       filters={filters}
       onFiltersChange={(next) =>
@@ -32,9 +32,11 @@ export function PurchaseOrdersListPage(): ReactElement {
         void navigate({ to: "/purchase-orders/$orderId/receive", params: { orderId } })
       }
       onOpenPurchases={() => void navigate({ to: "/purchases" })}
-      onReceivedNoticeDismissed={() => void navigate({ replace: true, state: {} })}
+      onReceivedNoticeDismissed={() =>
+        void navigate({ search: (current) => current, replace: true, state: {} })
+      }
       onSessionEnded={sessionActions.sessionEnded}
-      services={services.purchaseOrdersScreen ?? defaultPurchaseOrdersScreenServices}
+      services={services.purchaseOrdersListScreen ?? defaultPurchaseOrdersListScreenServices}
       supplierFilter={
         supplier === undefined
           ? undefined
