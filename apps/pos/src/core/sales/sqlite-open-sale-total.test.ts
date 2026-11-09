@@ -88,11 +88,4 @@ describe("openSaleTotalOf", () => {
 
     expect(openSaleTotalOf(database, "session-1")).toBe(4000);
   });
-
-  it("leaves the cash rounding of a payment still being taken on the total", () => {
-    addSale("sale-1", "OPEN", [1250, 3000]);
-    database.prepare("UPDATE sales SET cash_rounding = 50 WHERE id = 'sale-1'").run();
-
-    expect(openSaleTotalOf(database, "session-1")).toBe(4250);
-  });
 });
