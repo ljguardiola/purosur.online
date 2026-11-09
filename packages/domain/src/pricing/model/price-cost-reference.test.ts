@@ -1,7 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import type { FreightLine, FreightToDistribute } from "../../purchasing/index.js";
-import { FIXED_ARGENTINA_ZONE_RULES } from "../../shared/index.js";
+import { FIXED_ARGENTINA_ZONE_RULES, type Fraction } from "../../shared/index.js";
 import { type CostSource, priceCostReference } from "./price-cost-reference.js";
 
 function purchase(
@@ -9,7 +8,7 @@ function purchase(
   purchasedOn: string,
   recordedAt: string,
   cost = { totalCents: 1000, quantity: 1000 },
-  freights: FreightToDistribute[] = [],
+  freightPerUnit: Fraction = { numerator: 0n, denominator: 1n },
 ): CostSource {
   return {
     kind: "purchase_line",
@@ -17,7 +16,7 @@ function purchase(
     purchasedOn,
     recordedAt: new Date(recordedAt),
     cost,
-    freights,
+    freightPerUnit,
   };
 }
 
@@ -515,26 +514,21 @@ describe("priceCostReference", () => {
   });
 });
 
-function freightLine(id: string, costPaidCents: number, quantity = 1000): FreightLine {
-  return { id, costPaidCents, quantity, quantityPerPackage: 1000 };
-}
-
-function boughtWithFreights(
+function boughtWithFreight(
   cost: { totalCents: number; quantity: number },
-  freights: FreightToDistribute[],
+  freightPerUnit: Fraction,
 ): CostSource {
-  return purchase("a", "2026-03-01", "2026-03-01T10:00:00Z", cost, freights);
+  return purchase("a", "2026-03-01", "2026-03-01T10:00:00Z", cost, freightPerUnit);
 }
 
 describe("the freight in the cost reference", () => {
-  const ownLine = freightLine("a", 1000);
-
   it("adds the freight per unit to the last cost, and lowers the margin", () => {
     const reference = priceCostReference(
       [
-        boughtWithFreights({ totalCents: 1000, quantity: 1000 }, [
-          { amountCents: 250, lines: [ownLine] },
-        ]),
+        boughtWithFreight(
+          { totalCents: 1000, quantity: 1000 },
+          { numerator: 250n, denominator: 1n },
+        ),
       ],
       2000,
       FIXED_ARGENTINA_ZONE_RULES,
@@ -551,7 +545,7 @@ describe("the freight in the cost reference", () => {
 
   it("leaves the cost as it is without a freight", () => {
     const reference = priceCostReference(
-      [boughtWithFreights({ totalCents: 1000, quantity: 1000 }, [])],
+      [boughtWithFreight({ totalCents: 1000, quantity: 1000 }, { numerator: 0n, denominator: 1n })],
       2000,
       FIXED_ARGENTINA_ZONE_RULES,
     );
@@ -565,46 +559,13 @@ describe("the freight in the cost reference", () => {
     });
   });
 
-  it("takes the line's share of the freight, in proportion to its value, over its quantity", () => {
-    const line = freightLine("a", 1000, 2000);
-    const other = freightLine("b", 2000, 2000);
-
-    const reference = priceCostReference(
-      [
-        boughtWithFreights({ totalCents: 2000, quantity: 2000 }, [
-          { amountCents: 3000, lines: [line, other] },
-        ]),
-      ],
-      null,
-      FIXED_ARGENTINA_ZONE_RULES,
-    );
-
-    expect(reference).toMatchObject({ freightPerUnitCents: 500, totalCostCents: 1500 });
-  });
-
-  it("sums the shares from every freight of the purchase", () => {
-    const reference = priceCostReference(
-      [
-        boughtWithFreights({ totalCents: 1000, quantity: 1000 }, [
-          { amountCents: 250, lines: [ownLine] },
-          { amountCents: 100, lines: [ownLine] },
-        ]),
-      ],
-      null,
-      FIXED_ARGENTINA_ZONE_RULES,
-    );
-
-    expect(reference).toMatchObject({ freightPerUnitCents: 350, totalCostCents: 1350 });
-  });
-
   it("rounds the total cost once, from the exact cost and the exact freight", () => {
-    const line = freightLine("a", 500, 5000);
-
     const reference = priceCostReference(
       [
-        boughtWithFreights({ totalCents: 2502, quantity: 5000 }, [
-          { amountCents: 2, lines: [line] },
-        ]),
+        boughtWithFreight(
+          { totalCents: 2502, quantity: 5000 },
+          { numerator: 2000n, denominator: 5000n },
+        ),
       ],
       1000,
       FIXED_ARGENTINA_ZONE_RULES,
@@ -620,9 +581,10 @@ describe("the freight in the cost reference", () => {
   });
 
   it("never carries over to a cost counted rather than bought", () => {
-    const bought = boughtWithFreights({ totalCents: 1000, quantity: 1000 }, [
-      { amountCents: 250, lines: [ownLine] },
-    ]);
+    const bought = boughtWithFreight(
+      { totalCents: 1000, quantity: 1000 },
+      { numerator: 250n, denominator: 1n },
+    );
     const counted = initialCountCosting(700, "2026-03-05T15:00:00Z");
 
     expect(priceCostReference([bought, counted], 2000, FIXED_ARGENTINA_ZONE_RULES)).toEqual({
@@ -643,9 +605,13 @@ describe("the freight in the cost reference", () => {
         fc.integer({ min: 1, max: 1_000_000_000 }),
         (c, p, amountCents, quantity) => {
           const without = priceCostReference([sourceWith(c)], p, FIXED_ARGENTINA_ZONE_RULES);
-          const line = freightLine("a", 1000, quantity);
           const reference = priceCostReference(
-            [boughtWithFreights(c, [{ amountCents, lines: [line] }])],
+            [
+              boughtWithFreight(c, {
+                numerator: BigInt(amountCents) * 1000n,
+                denominator: BigInt(quantity),
+              }),
+            ],
             p,
             FIXED_ARGENTINA_ZONE_RULES,
           );

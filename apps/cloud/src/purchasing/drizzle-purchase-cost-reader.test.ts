@@ -67,7 +67,7 @@ describe("DrizzlePurchaseCostReader.purchaseLineCostsOf", () => {
       purchasedOn: "2026-03-01",
       recordedAt: new Date("2026-03-02T15:00:00.000Z"),
       cost: { totalCents: 1001, quantity: 2_000 },
-      freights: [],
+      freightPerUnit: { numerator: 0n, denominator: 1n },
     });
     expect(lines).toContainEqual({
       productId,
@@ -75,7 +75,7 @@ describe("DrizzlePurchaseCostReader.purchaseLineCostsOf", () => {
       purchasedOn: "2026-03-05",
       recordedAt: new Date("2026-03-05T12:00:00.000Z"),
       cost: { totalCents: 900, quantity: 1_000 },
-      freights: [],
+      freightPerUnit: { numerator: 0n, denominator: 1n },
     });
   });
 
@@ -145,7 +145,7 @@ describe("DrizzlePurchaseCostReader.purchaseLineCostsOf", () => {
   });
 });
 
-describe("DrizzlePurchaseCostReader.purchaseLineCostsOf freights", () => {
+describe("DrizzlePurchaseCostReader.purchaseLineCostsOf freight per unit", () => {
   async function purchaseOf(
     productId: string,
     locationId: string,
@@ -159,7 +159,7 @@ describe("DrizzlePurchaseCostReader.purchaseLineCostsOf freights", () => {
     });
   }
 
-  it("answers a line with no freight when none covers its purchase", async () => {
+  it("answers no freight per unit when none covers the line's purchase", async () => {
     const { actorId, locationId, productId } = await setUp();
     await purchaseOf(productId, locationId, actorId, [{ costPaidCents: 100, quantity: 1_000 }]);
 
@@ -167,10 +167,10 @@ describe("DrizzlePurchaseCostReader.purchaseLineCostsOf freights", () => {
       productId,
     ]);
 
-    expect(line?.freights).toEqual([]);
+    expect(line?.freightPerUnit).toEqual({ numerator: 0n, denominator: 1n });
   });
 
-  it("answers each line of a purchase with the freight covering it and all the lines it is distributed over", async () => {
+  it("answers the line's share of the freight, distributed over all the lines of its purchase", async () => {
     const { actorId, locationId, productId } = await setUp();
     const { productId: otherId } = await insertProduct(db, { name: "Yerba 1 kg" });
     const purchase = await insertPurchaseWithLines(db, {
@@ -193,19 +193,10 @@ describe("DrizzlePurchaseCostReader.purchaseLineCostsOf freights", () => {
     ]);
 
     expect(lines).toHaveLength(1);
-    const [freight] = lines[0]?.freights ?? [];
-    expect(lines[0]?.freights).toHaveLength(1);
-    expect(freight?.amountCents).toBe(4_000);
-    expect(freight?.lines).toHaveLength(2);
-    expect(freight?.lines).toEqual(
-      expect.arrayContaining([
-        { id: purchase.lineIds[0], costPaidCents: 100, quantity: 1_000, quantityPerPackage: 1_000 },
-        { id: purchase.lineIds[1], costPaidCents: 300, quantity: 2_000, quantityPerPackage: 1_000 },
-      ]),
-    );
+    expect(lines[0]?.freightPerUnit).toEqual({ numerator: 571_000n, denominator: 1_000n });
   });
 
-  it("answers a freight over two purchases to each of them with the lines of both", async () => {
+  it("answers the share of a freight over two purchases to the line of each of them", async () => {
     const { actorId, locationId, productId } = await setUp();
     const { productId: otherId } = await insertProduct(db, { name: "Yerba 1 kg" });
     const first = await purchaseOf(productId, locationId, actorId, [
@@ -225,16 +216,11 @@ describe("DrizzlePurchaseCostReader.purchaseLineCostsOf freights", () => {
     const [ofFirst] = await reader.purchaseLineCostsOf(locationId, [productId]);
     const [ofSecond] = await reader.purchaseLineCostsOf(locationId, [otherId]);
 
-    for (const line of [ofFirst, ofSecond]) {
-      expect(line?.freights).toHaveLength(1);
-      expect(line?.freights[0]?.amountCents).toBe(6_000);
-      expect(line?.freights[0]?.lines.map(({ id }) => id).sort()).toEqual(
-        [first.lineIds[0], second.lineIds[0]].sort(),
-      );
-    }
+    expect(ofFirst?.freightPerUnit).toEqual({ numerator: 1_000_000n, denominator: 1_000n });
+    expect(ofSecond?.freightPerUnit).toEqual({ numerator: 5_000_000n, denominator: 1_000n });
   });
 
-  it("answers every freight covering a purchase", async () => {
+  it("adds up the shares of every freight covering the line's purchase", async () => {
     const { actorId, locationId, productId } = await setUp();
     const purchase = await purchaseOf(productId, locationId, actorId, [
       { costPaidCents: 100, quantity: 1_000 },
@@ -252,10 +238,10 @@ describe("DrizzlePurchaseCostReader.purchaseLineCostsOf freights", () => {
       productId,
     ]);
 
-    expect(line?.freights.map(({ amountCents }) => amountCents).sort()).toEqual([1_000, 2_500]);
+    expect(line?.freightPerUnit).toEqual({ numerator: 3_500_000n, denominator: 1_000n });
   });
 
-  it("answers the freights of the lines of several products in one read", async () => {
+  it("answers the freight per unit of the lines of several products in one read", async () => {
     const { actorId, locationId, productId } = await setUp();
     const { productId: otherId } = await insertProduct(db, { name: "Yerba 1 kg" });
     const first = await purchaseOf(productId, locationId, actorId, [
@@ -274,9 +260,10 @@ describe("DrizzlePurchaseCostReader.purchaseLineCostsOf freights", () => {
       otherId,
     ]);
 
-    expect(Object.fromEntries(lines.map((line) => [line.productId, line.freights.length]))).toEqual(
-      { [productId]: 1, [otherId]: 0 },
-    );
+    expect(Object.fromEntries(lines.map((line) => [line.productId, line.freightPerUnit]))).toEqual({
+      [productId]: { numerator: 900_000n, denominator: 1_000n },
+      [otherId]: { numerator: 0n, denominator: 1n },
+    });
   });
 });
 
@@ -339,6 +326,6 @@ describe("DrizzlePurchaseCostReader.purchaseLineCostsOf removed lines", () => {
     ]);
 
     expect(lines).toHaveLength(1);
-    expect(lines[0]?.freights[0]?.lines.map(({ id }) => id)).toEqual([purchase.lineIds[0]]);
+    expect(lines[0]?.freightPerUnit).toEqual({ numerator: 4_000_000n, denominator: 1_000n });
   });
 });
