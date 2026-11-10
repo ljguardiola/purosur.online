@@ -54,7 +54,7 @@ function SettingsArea() {
               <li>
                 <SectionLink
                   to="/quarantined-events"
-                  label="Eventos en cuarentena"
+                  label="Cambios de cajas retenidos"
                   icon={<PackageX />}
                   active={Boolean(matchRoute({ to: "/quarantined-events" }))}
                 />
@@ -70,7 +70,7 @@ function SettingsArea() {
                 <li>
                   <SectionLink
                     to="/reports/ai-cost-by-period"
-                    label="Costo de IA por período"
+                    label="Costo de IA"
                     icon={<Bot />}
                     active={Boolean(matchRoute({ to: "/reports/ai-cost-by-period" }))}
                   />

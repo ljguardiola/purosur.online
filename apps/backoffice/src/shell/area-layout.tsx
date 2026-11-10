@@ -106,6 +106,14 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
               active={area === "products"}
             />
           )}
+          {canSeePurchasingArea(session) && (
+            <AreaLink
+              to={purchasingTarget}
+              label="Compras"
+              icon={<ClipboardList />}
+              active={area === "purchasing"}
+            />
+          )}
           {canSeeStockArea(session) && (
             <AreaLink
               to="/stock"
@@ -113,14 +121,6 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
               label="Stock"
               icon={<Boxes />}
               active={area === "stock"}
-            />
-          )}
-          {canSeePurchasingArea(session) && (
-            <AreaLink
-              to={purchasingTarget}
-              label="Compras"
-              icon={<ClipboardList />}
-              active={area === "purchasing"}
             />
           )}
           {canSeeFiscalPage(session) && (
@@ -138,14 +138,14 @@ export function AreaLayout({ area, sectionColumnLabel, sectionColumn, children }
             <AreaLink
               to="/"
               search={{ account: "credentials" }}
-              label="Config"
+              label="Configuración"
               icon={<Settings />}
               active={area === "settings"}
             />
           ) : (
             <AreaLink
               to={settingsTarget}
-              label="Config"
+              label="Configuración"
               icon={<Settings />}
               active={area === "settings"}
             />
