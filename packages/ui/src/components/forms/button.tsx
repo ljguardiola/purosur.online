@@ -13,7 +13,7 @@ import type { LoadStatus } from "../shared/load-status";
 export type ButtonVariant = "primary" | "secondary" | "text";
 export type ButtonSize = "small" | "medium" | "large" | "sale";
 
-export type ButtonIconPosition = "start" | "end";
+type ButtonIconPosition = "start" | "end";
 
 export type ButtonTextSize = Extract<ButtonSize, "small" | "large">;
 
