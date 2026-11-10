@@ -94,9 +94,9 @@ export function TagsListScreen({
     data.status === "loaded" ? data.value : { tags: NO_TAGS, taggedProductCount: 0 };
 
   const statusFilterOptions = [
-    { value: "active" as const, label: "Activos" },
-    { value: "inactive" as const, label: "Inactivos" },
-    { value: "all" as const, label: "Todos" },
+    { value: "active" as const, label: "Activas" },
+    { value: "inactive" as const, label: "Inactivas" },
+    { value: "all" as const, label: "Todas" },
   ] as const;
 
   const columns = [

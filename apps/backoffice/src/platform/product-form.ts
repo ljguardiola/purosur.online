@@ -130,5 +130,5 @@ export function tagInactiveError(tags: TagSummary[], tagId: string): string {
   const tag = tags.find((candidate) => candidate.id === tagId);
   return tag
     ? `"${tag.name}" se dio de baja. Quitalo para guardar.`
-    : "Una etiqueta elegida se dio de baja. Quitalo para guardar.";
+    : "Una etiqueta elegida se dio de baja. Quitala para guardar.";
 }

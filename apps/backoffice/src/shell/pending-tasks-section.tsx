@@ -115,7 +115,7 @@ function PendingTasks({
     },
     {
       key: "outside-refunds",
-      label: "Reembolsos fuera del sistema",
+      label: "Reembolsos fuera de Mercado Pago",
       subject: "los reembolsos",
       to: "/refunds",
       channel: "outside-mercado-pago",

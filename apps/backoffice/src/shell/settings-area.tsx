@@ -50,31 +50,33 @@ function SettingsArea() {
                 />
               </li>
             )}
-            {canSeeQuarantinedEvents(session) && (
-              <li>
-                <SectionLink
-                  to="/held-register-changes"
-                  label="Cambios de cajas retenidos"
-                  icon={<PackageX />}
-                  active={Boolean(matchRoute({ to: "/held-register-changes" }))}
-                />
-              </li>
-            )}
           </ul>
-          {canSeeAiCostReport(session) && (
+          {(canSeeQuarantinedEvents(session) || canSeeAiCostReport(session)) && (
             <>
               <div id={diagnosticsHeadingId} className="mt-4 mb-1 px-3">
                 <Eyebrow text="Diagnóstico" headingLevel={3} />
               </div>
               <ul aria-labelledby={diagnosticsHeadingId} className="flex flex-col gap-1">
-                <li>
-                  <SectionLink
-                    to="/ai-cost"
-                    label="Costo de IA"
-                    icon={<Bot />}
-                    active={Boolean(matchRoute({ to: "/ai-cost" }))}
-                  />
-                </li>
+                {canSeeQuarantinedEvents(session) && (
+                  <li>
+                    <SectionLink
+                      to="/held-register-changes"
+                      label="Cambios de cajas retenidos"
+                      icon={<PackageX />}
+                      active={Boolean(matchRoute({ to: "/held-register-changes" }))}
+                    />
+                  </li>
+                )}
+                {canSeeAiCostReport(session) && (
+                  <li>
+                    <SectionLink
+                      to="/ai-cost"
+                      label="Costo de IA"
+                      icon={<Bot />}
+                      active={Boolean(matchRoute({ to: "/ai-cost" }))}
+                    />
+                  </li>
+                )}
               </ul>
             </>
           )}

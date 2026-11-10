@@ -137,7 +137,7 @@ export function DeactivateTagModal({
     >
       <div className="flex flex-col gap-4">
         <p className="text-body text-text">
-          Deja de ofrecerse para asignar a un producto nuevo. Los productos que ya lo tienen lo
+          Deja de ofrecerse para asignar a un producto nuevo. Los productos que ya la tienen la
           conservan.
         </p>
         {notice?.kind === "attemptFailed" && (
@@ -147,7 +147,7 @@ export function DeactivateTagModal({
           />
         )}
         {notice?.kind === "alreadyChanged" && (
-          <InlineNotice tone="error" icon={<TriangleAlert />} title="Ya estaba desactivado" />
+          <InlineNotice tone="error" icon={<TriangleAlert />} title="Ya estaba desactivada" />
         )}
         {notice?.kind === "notFound" && (
           <InlineNotice tone="error" icon={<TriangleAlert />} title="Esta etiqueta ya no existe" />

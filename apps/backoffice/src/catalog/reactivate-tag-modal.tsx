@@ -135,7 +135,7 @@ export function ReactivateTagModal({
       }
     >
       <div className="flex flex-col gap-4">
-        <p className="text-body text-text">Vuelve a ofrecerse para asignarlo a productos nuevos.</p>
+        <p className="text-body text-text">Vuelve a ofrecerse para asignarla a productos nuevos.</p>
         {notice?.kind === "attemptFailed" && (
           <ActionFailureNotice
             title="No se reactivó la etiqueta"
@@ -143,7 +143,7 @@ export function ReactivateTagModal({
           />
         )}
         {notice?.kind === "alreadyChanged" && (
-          <InlineNotice tone="error" icon={<TriangleAlert />} title="Ya estaba activo" />
+          <InlineNotice tone="error" icon={<TriangleAlert />} title="Ya estaba activa" />
         )}
         {notice?.kind === "notFound" && (
           <InlineNotice tone="error" icon={<TriangleAlert />} title="Esta etiqueta ya no existe" />
