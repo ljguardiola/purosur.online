@@ -1,7 +1,11 @@
 import { beforeEach, expect, test, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 import { readDownloadedXlsx } from "../platform/spreadsheet/test-support/read-xlsx";
-import { periodSegments, typePeriodStart } from "../shell/test-support/report-dates";
+import {
+  erasePeriodEnd,
+  periodSegments,
+  typePeriodStart,
+} from "../shell/test-support/report-dates";
 import { spyOnDownloads } from "../shell/test-support/spy-on-downloads";
 import {
   createServices,
@@ -72,7 +76,7 @@ test("keeps the review action beside the report rows", async () => {
   await expect.element(screen.getByRole("button", { name: "Revisar 1" })).toBeVisible();
 });
 
-test("typing a period reports it with the list filters, asks the report again and swaps the prices for its rows", async () => {
+test("typing a period reports it with no search or category, asks the report again and swaps the prices for its rows", async () => {
   const services = servicesWithOneProduct();
   const onFiltersChange = vi.fn();
   const screen = await renderControlledScreen(services, { review: "pending" }, onFiltersChange);
@@ -128,6 +132,40 @@ test("typing a period drops the search from the filters it reports", async () =>
     to: "2026-10-13",
   });
   expect(screen.getByPlaceholder("Buscar un producto").query()).toBeNull();
+});
+
+test("switching to Por revisar with a period already chosen drops the search, which does not come back once the period is erased", async () => {
+  const services = servicesWithOneProduct();
+  const onFiltersChange = vi.fn();
+  const screen = await renderControlledScreen(
+    services,
+    { review: "all", search: "Arroz", ...PERIOD },
+    onFiltersChange,
+  );
+  await expect.element(screen.getByRole("table", PRICES_TABLE).getByText("Arroz")).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Revisión: Todos" }));
+  await userEvent.click(screen.getByRole("option", { name: "Por revisar" }));
+
+  await expect.element(screen.getByRole("table", REPORT_TABLE)).toBeVisible();
+  expect(onFiltersChange).toHaveBeenLastCalledWith({
+    search: "",
+    category: "ALL",
+    review: "pending",
+    ...PERIOD,
+  });
+
+  await erasePeriodEnd(screen, "start");
+  await erasePeriodEnd(screen, "end");
+
+  await expect.element(screen.getByPlaceholder("Buscar un producto")).toHaveValue("");
+  expect(onFiltersChange).toHaveBeenLastCalledWith({
+    search: "",
+    category: "ALL",
+    review: "pending",
+    from: "",
+    to: "",
+  });
 });
 
 test.each([
