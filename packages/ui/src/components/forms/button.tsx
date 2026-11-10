@@ -162,7 +162,7 @@ export function Button({
   dataStatus,
   onTintedSurface = false,
   keycap,
-  iconPosition = variant === "primary" ? "end" : "start",
+  iconPosition,
   ...props
 }: ButtonProps) {
   const color = destructive ? "destructive" : "regular";
@@ -181,15 +181,16 @@ export function Button({
     .filter(Boolean)
     .join(" ");
 
+  const iconPlacement = iconPosition ?? (variant === "primary" ? "end" : "start");
   const glyph = variant === "text" && destructive ? <X aria-hidden="true" /> : icon;
   const sizedIcon = glyph ? <span className={iconWrapperClassName[variant]}>{glyph}</span> : null;
   const content = (
     <>
-      {iconPosition === "start" && sizedIcon}
+      {iconPlacement === "start" && sizedIcon}
       {/* truncate on this justify-center flex container itself would clip both ends with no
           ellipsis; it needs its own box to truncate correctly. */}
       <span className="truncate">{children}</span>
-      {iconPosition === "end" && sizedIcon}
+      {iconPlacement === "end" && sizedIcon}
       {keycap === undefined ? null : (
         <span aria-hidden="true" className="ml-auto flex shrink-0">
           <Keycap keyName={keycap} variant={variant === "primary" ? "onPrimary" : "default"} />
