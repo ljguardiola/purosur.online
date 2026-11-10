@@ -65,8 +65,10 @@ test("shows its key action inside the field, after the input, with the key befor
   expect(actionBox.left).toBeGreaterThanOrEqual(input.right - 1);
   expect(actionBox.right).toBeLessThanOrEqual(fieldBox.right);
   expect(box(screen).contains(action)).toBe(true);
+  const labelRange = document.createRange();
+  labelRange.selectNodeContents(action.lastChild as Node);
   expect(keycap.getBoundingClientRect().right).toBeLessThan(
-    screen.getByText("Cerrar").element().getBoundingClientRect().left,
+    labelRange.getBoundingClientRect().left,
   );
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -94,7 +96,9 @@ test("draws no action when none is given", async () => {
 });
 
 test("combines the error border with a key action", async () => {
-  const screen = await render(<Harness initial="7790000000123" invalid action={closeAction(() => {})} />);
+  const screen = await render(
+    <Harness initial="7790000000123" invalid action={closeAction(() => {})} />,
+  );
 
   expect(paintedBoxShadowLayers(box(screen))).toEqual([insetBoundary("error", "2px")]);
   await expectNoAccessibilityViolations(screen.container);

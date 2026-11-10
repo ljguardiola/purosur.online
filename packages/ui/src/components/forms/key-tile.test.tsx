@@ -13,7 +13,9 @@ const tile = (props: Partial<KeyTileProps> = {}) => (
 test("is a button named by its label, with its key left out of the name", async () => {
   const screen = await render(tile());
 
-  await expect.element(screen.getByRole("button", { name: "Point débito", exact: true })).toBeVisible();
+  await expect
+    .element(screen.getByRole("button", { name: "Point débito", exact: true }))
+    .toBeVisible();
   expect(screen.container.querySelector("kbd")?.textContent).toBe("F9");
   await expectNoAccessibilityViolations(screen.container);
 });
@@ -67,7 +69,9 @@ test("turns subtle on hover", async () => {
 
   await userEvent.hover(button);
 
-  await expect.poll(() => getComputedStyle(button).backgroundColor).toBe(tokenRgb("surface-subtle"));
+  await expect
+    .poll(() => getComputedStyle(button).backgroundColor)
+    .toBe(tokenRgb("surface-subtle"));
 });
 
 test("shows a focus ring when reached by keyboard", async () => {

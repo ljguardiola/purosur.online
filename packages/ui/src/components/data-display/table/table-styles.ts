@@ -35,10 +35,12 @@ export function rowStateClassName(
   }
 }
 
-export function tableContainerClassName(variant: TableVariant): string {
-  return variant === "nested"
-    ? "relative isolate overflow-clip"
-    : "relative isolate overflow-clip rounded-lg border border-border bg-surface";
+export function tableContainerClassName(variant: TableVariant, fill = false): string {
+  const base =
+    variant === "nested"
+      ? "relative isolate overflow-clip"
+      : "relative isolate overflow-clip rounded-lg border border-border bg-surface";
+  return fill ? `${base} flex h-full flex-col` : base;
 }
 
 // An inset shadow, not a real border, so it never adds width to a row whose height is otherwise

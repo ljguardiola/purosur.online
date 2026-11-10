@@ -51,6 +51,7 @@ test("needs its items, whose labels come from the app", () => {
   expectTypeOf<{ items: [] }>().toExtend<KeyLegendProps>();
   expectTypeOf<{ items: [{ keyName: "F2"; label: string }] }>().toExtend<KeyLegendProps>();
   expectTypeOf<{ items: [{ keyName: "F2" }] }>().not.toExtend<KeyLegendProps>();
-  expectTypeOf<{ items: [{ keyName: "F1"; label: string }] }>().not.toExtend<KeyLegendProps>();
+  expectTypeOf<{ items: [{ keyName: "F1"; label: string }] }>().toExtend<KeyLegendProps>();
+  expectTypeOf<{ items: [{ keyName: "F0"; label: string }] }>().not.toExtend<KeyLegendProps>();
   expectTypeOf<object>().not.toExtend<KeyLegendProps>();
 });

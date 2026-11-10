@@ -6,15 +6,20 @@ import { tokenRgb } from "../../../test/token-colors";
 import type { KeyLegendItem } from "../key-legend";
 import { Table } from "./table";
 import { dataColumn } from "./table-columns";
-import type { TableProps } from "./table-types";
+import type { TableColumns, TableProps, TableSort } from "./table-types";
 import { useTableModel } from "./use-table-model";
 
 type Line = { id: string; name: string; amount: string };
 
-const columns = [
+const columns: TableColumns<Line> = [
   dataColumn({ id: "name", header: "Producto", render: (line: Line) => line.name }),
-  dataColumn({ id: "amount", header: "Importe", align: "end", render: (line: Line) => line.amount }),
-] as const;
+  dataColumn({
+    id: "amount",
+    header: "Importe",
+    align: "end",
+    render: (line: Line) => line.amount,
+  }),
+];
 
 const lines: Line[] = [
   { id: "1", name: "Almendras peladas", amount: "$ 6.142,50" },
@@ -28,22 +33,26 @@ const legend: readonly KeyLegendItem[] = [
   { keyName: "Delete", label: "Quitar" },
 ];
 
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+
+const noSort: TableSort = { column: "", direction: "ascending" };
+
 function LinesTable({
   items = lines,
   ...tableProps
-}: Omit<TableProps<Line>, "table" | "aria-label"> & { items?: readonly Line[] }) {
+}: DistributiveOmit<TableProps<Line>, "table" | "aria-label"> & { items?: readonly Line[] }) {
   const table = useTableModel({
     items,
     id: (line) => line.id,
     columns,
-    sort: { column: "", direction: "ascending" },
+    sort: noSort,
     onSortChange: () => {},
   });
   return <Table table={table} aria-label="Líneas" {...tableProps} />;
 }
 
-function card(table: HTMLElement): HTMLElement {
-  let element = table.parentElement as HTMLElement;
+function card(inside: Element): HTMLElement {
+  let element = inside.parentElement as HTMLElement;
   while (getComputedStyle(element).borderTopWidth !== "1px") {
     element = element.parentElement as HTMLElement;
   }
@@ -180,13 +189,15 @@ test("centers the failure in the card body, with no column header and no retry b
     .toHaveTextContent("No se pudo cargar la venta Volvé a intentarlo en unos segundos.");
   expect(screen.getByRole("button").elements()).toHaveLength(0);
   const cardBox = card(screen.getByRole("alert").element()).getBoundingClientRect();
-  const alertBox = screen.getByRole("alert").element().getBoundingClientRect();
+  const alertBox = (
+    screen.getByText("No se pudo cargar la venta").element().parentElement as HTMLElement
+  ).getBoundingClientRect();
   const footerBox = (
     screen.getByRole("list").element().parentElement as HTMLElement
   ).getBoundingClientRect();
-  expect(Math.abs(alertBox.top - cardBox.top - (footerBox.top - alertBox.bottom))).toBeLessThanOrEqual(
-    2,
-  );
+  expect(
+    Math.abs(alertBox.top - cardBox.top - (footerBox.top - alertBox.bottom)),
+  ).toBeLessThanOrEqual(2);
   await expectNoAccessibilityViolations(screen.container);
 });
 

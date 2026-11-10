@@ -1,5 +1,14 @@
 import type { Decorator, Meta, StoryObj } from "@storybook/react-vite";
-import { Archive, Barcode, CircleAlert, Package, Pencil, SearchX, Trash2, TriangleAlert } from "lucide-react";
+import {
+  Archive,
+  Barcode,
+  CircleAlert,
+  Package,
+  Pencil,
+  SearchX,
+  Trash2,
+  TriangleAlert,
+} from "lucide-react";
 import { useState } from "react";
 import { expect, userEvent, within } from "storybook/test";
 import { plural } from "../../../messages/formatters";
