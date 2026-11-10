@@ -57,8 +57,6 @@ function conditionTone(condition: Condition): "error" | "warning" {
   return condition.level === "critical" ? "error" : "warning";
 }
 
-const openedByTheNotificationPanel = () => {};
-
 function NoticesPill({
   conditions,
   contingency,
@@ -83,7 +81,7 @@ function NoticesPill({
     <NotificationPanel
       title="Avisos de esta caja"
       trigger={
-        <StatusPillButton tone={tone} onPress={openedByTheNotificationPanel}>
+        <StatusPillButton tone={tone}>
           {`${count} ${plural(count, { one: "aviso", other: "avisos" })}`}
         </StatusPillButton>
       }
