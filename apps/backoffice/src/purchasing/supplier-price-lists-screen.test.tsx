@@ -6,6 +6,7 @@ import { userEvent } from "vitest/browser";
 import { OUTDATED_TAB_ADVICE, openAsOutdatedTab } from "../platform/test-support/release-monitor";
 import type { BackofficeAccess } from "../shell/backoffice-access";
 import { ADMINISTRATOR_ACCESS, accessWith } from "../shell/test-support/backoffice-access";
+import { createBranchTermServices } from "../shell/test-support/branch-term";
 import { render } from "../shell/test-support/render-with-router";
 import {
   type SupplierPriceListsFilters,
@@ -42,6 +43,7 @@ function createServices(
     refreshSupplierPriceList: vi.fn(),
     fetchSuppliers: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     createSupplier: vi.fn(),
+    branchTerm: createBranchTermServices(),
     ...overrides,
   };
 }
@@ -739,4 +741,47 @@ test("counts the lists in the footer with the thousands separator", async () => 
   const screen = await loaded(services, manyLists);
 
   await expect.element(screen.getByText("1.000 listas")).toBeVisible();
+});
+
+test("shows the daily cap of lists the branch has, with Cambiar for who can change the branch", async () => {
+  const services = createServices();
+  const screen = await loaded(services, [READ_LIST], {
+    access: accessWith("supplier_price_lists", "branch_area"),
+  });
+
+  await expect.element(screen.getByText("Tope diario de listas: 10")).toBeVisible();
+  await expect.element(screen.getByRole("button", { name: "Cambiar" })).toBeVisible();
+});
+
+test("shows the daily cap without Cambiar to who cannot change the branch", async () => {
+  const services = createServices();
+  const screen = await loaded(services, [READ_LIST], {
+    access: accessWith("supplier_price_lists"),
+  });
+
+  await expect.element(screen.getByText("Tope diario de listas: 10")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Cambiar" }).query()).toBeNull();
+});
+
+test("shows the new daily cap, answered by the cloud, once it is saved", async () => {
+  const services = createServices();
+  vi.mocked(services.branchTerm.fetchSupplierPriceListDailyCap)
+    .mockResolvedValueOnce({ kind: "ok", value: 10 })
+    .mockResolvedValue({ kind: "ok", value: 25 });
+  const screen = await loaded(services, [READ_LIST], {
+    access: accessWith("supplier_price_lists", "branch_area"),
+  });
+  await userEvent.click(screen.getByRole("button", { name: "Cambiar" }));
+  const dialog = screen.getByRole("dialog");
+  await expect
+    .element(dialog.getByRole("textbox", { name: "Listas leídas por día" }))
+    .toHaveValue("10");
+
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Listas leídas por día" }), "25");
+  await userEvent.click(dialog.getByRole("button", { name: "Guardar" }));
+
+  await expect.element(screen.getByText("Tope diario de listas: 25")).toBeVisible();
+  expect(services.branchTerm.saveBranchSettings).toHaveBeenCalledWith(
+    expect.objectContaining({ supplier_price_list_daily_extraction_cap: 25 }),
+  );
 });

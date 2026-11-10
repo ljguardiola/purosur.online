@@ -2,6 +2,7 @@ import { FieldSizeProvider } from "@purosur/ui";
 import { expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { ADMINISTRATOR_ACCESS } from "../shell/test-support/backoffice-access";
+import { createBranchTermServices } from "../shell/test-support/branch-term";
 import { render } from "../shell/test-support/render-with-router";
 import { supplierPriceListsFilters } from "./supplier-price-lists-filters";
 import { SupplierPriceListsScreen } from "./supplier-price-lists-screen";
@@ -22,6 +23,7 @@ function createServices(lists = [READ_LIST]): SupplierPriceListsScreenServices {
     refreshSupplierPriceList: vi.fn(),
     fetchSuppliers: vi.fn().mockResolvedValue({ kind: "ok", value: [] }),
     createSupplier: vi.fn(),
+    branchTerm: createBranchTermServices(),
   };
 }
 

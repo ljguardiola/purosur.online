@@ -31,6 +31,7 @@ import {
 import { registerBranchSettingsEditRoute } from "./branch/branch-settings-edit-route.js";
 import type { BranchSettingsRouteOptions } from "./branch/branch-settings-read-route.js";
 import { registerBranchSettingsReadRoute } from "./branch/branch-settings-read-route.js";
+import { registerBranchTermsReadRoutes } from "./branch/branch-terms-read-routes.js";
 import { registerBrandCreationRoute } from "./catalog/brand-creation-route.js";
 import { registerBrandDeactivationRoute } from "./catalog/brand-deactivation-route.js";
 import { registerBrandEditRoute } from "./catalog/brand-edit-route.js";
@@ -638,6 +639,7 @@ export function buildApp<TQueryResult extends PgQueryResultHKT = PostgresJsQuery
 
       if (options.branchSettings) {
         registerBranchSettingsReadRoute(api, { ...options.branchSettings, now });
+        registerBranchTermsReadRoutes(api, { ...options.branchSettings, now });
         registerBranchSettingsEditRoute(api, { ...options.branchSettings, now });
       }
 
