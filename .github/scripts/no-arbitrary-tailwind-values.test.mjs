@@ -28,6 +28,42 @@ test("finds an arbitrary variant that starts a class", () => {
   assert.deepEqual(matchedTexts('"[&>svg]:h-full"'), ["[&>svg]"]);
 });
 
+test("finds an arbitrary variant that starts a class whatever its bracket opens with", () => {
+  assert.deepEqual(
+    matchedTexts('"[.dark_&]:p-4 [@supports(display:grid)]:p-4 [:hover>&]:p-4 [#a_&]:p-4"'),
+    ["[.dark_&]", "[@supports(display:grid)]", "[:hover>&]", "[#a_&]"],
+  );
+});
+
+test("finds an arbitrary variant holding nested brackets that starts a class", () => {
+  assert.deepEqual(matchedTexts('cn("[[data-side=left]_&]:p-4", `[.a_[b_[c=d]]_&]:p-4`)'), [
+    "[[data-side=left]_&]",
+    "[.a_[b_[c=d]]_&]",
+  ]);
+});
+
+test("reports the line and column where an arbitrary variant starting a class opens", () => {
+  const source = ["const a = 1;", 'const b = "flex [.dark_&]:p-4";'].join("\n");
+
+  assert.deepEqual(findArbitraryValues(source), [{ line: 2, column: 17, text: "[.dark_&]" }]);
+});
+
+test("does not flag computed properties, destructuring or index signatures on their own line", () => {
+  const source = [
+    "const a = {",
+    "  [Symbol.iterator]: () => x,",
+    '  ["data-x"]: 1,',
+    "  [keys.first]: [a, b],",
+    "};",
+    "const [first]: [string] = pair;",
+    "type B = {",
+    "  [K in Keys]: string;",
+    "};",
+  ].join("\n");
+
+  assert.deepEqual(findArbitraryValues(source), []);
+});
+
 test("finds an arbitrary property that starts a class", () => {
   assert.deepEqual(matchedTexts("`flex [mask-type:luminance]`"), ["[mask-type:luminance]"]);
 });
@@ -249,6 +285,19 @@ test("reports the file of every match across several files", () => {
   const violations = checkFiles(Object.keys(files), (path) => files[path]);
 
   assert.deepEqual(violations, [{ path: "a.tsx", line: 1, column: 16, text: "-[13px]" }]);
+});
+
+test("reports the file of an arbitrary variant that starts a class", () => {
+  const files = {
+    "a.tsx": 'const a = "[@supports(display:grid)]:p-4";\n',
+    "b.tsx": 'const b = "p-4";\n',
+  };
+
+  const violations = checkFiles(Object.keys(files), (path) => files[path]);
+
+  assert.deepEqual(violations.map(describeViolation), [
+    "a.tsx:1:12: [@supports(display:grid)]",
+  ]);
 });
 
 test("reports the file of every numeric z-index utility beside the arbitrary values", () => {
