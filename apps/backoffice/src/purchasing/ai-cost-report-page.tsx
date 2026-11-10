@@ -10,7 +10,7 @@ export function AiCostReportPage(): ReactElement {
   const { services, sessionActions } = route.useRouteContext();
   const filters = route.useSearch();
   const navigate = route.useNavigate();
-  useDocumentTitle("Costo de IA por período · Puro Sur");
+  useDocumentTitle("Costo de IA · Puro Sur");
   return (
     <AiCostReportScreen
       filters={filters}

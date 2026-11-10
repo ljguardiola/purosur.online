@@ -33,7 +33,7 @@ export function aiCostReportSpreadsheet(
         ["Costo total: llamadas sin precio", cell.count(total.unpricedCalls)],
       ]),
       {
-        name: "Costo de IA por período",
+        name: "Costo de IA",
         header: [
           GROUPING_LABELS[grouping],
           "Lectura",
