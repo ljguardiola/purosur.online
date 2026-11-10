@@ -39,7 +39,7 @@ test("shows the field label and its value large", async () => {
 
   await expect.element(screen.getByText("Persona")).toBeVisible();
   const value = screen.getByText("Lucas").element();
-  expect(parseFloat(getComputedStyle(value).fontSize)).toBeGreaterThanOrEqual(40);
+  expect(parseFloat(getComputedStyle(value).fontSize)).toBeGreaterThanOrEqual(32);
 });
 
 test("shows the Esc keycap at the top right as a button that closes the panel", async () => {

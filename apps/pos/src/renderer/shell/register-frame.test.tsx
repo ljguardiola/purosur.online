@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished } from "vitest";
+import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { FramePanel, RegisterFrame } from "./register-frame";
 import type { RegisterStatusData } from "./register-status-context";
@@ -69,6 +70,8 @@ describe("RegisterFrame", () => {
   });
 
   it("covers the aside with a panel rendered through the frame's panel slot, from the rail", async () => {
+    await page.viewport(1280, 900);
+    onTestFinished(() => page.viewport(414, 896));
     const screen = await render(
       <div style={{ height: "600px", width: "1024px" }}>
         <RegisterFrame
@@ -76,7 +79,9 @@ describe("RegisterFrame", () => {
           rail={
             <nav aria-label="Riel">
               <FramePanel>
-                <section aria-label="Confirmación">confirmar</section>
+                <section aria-label="Confirmación" style={{ width: "100%" }}>
+                  confirmar
+                </section>
               </FramePanel>
             </nav>
           }
