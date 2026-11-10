@@ -14,7 +14,6 @@ const meta: Meta<typeof StatusPillButton> = {
   args: {
     tone: "warning",
     children: "4 avisos",
-    onPress: () => {},
   },
 };
 

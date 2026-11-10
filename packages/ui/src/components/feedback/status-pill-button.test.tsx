@@ -1,4 +1,5 @@
-import { expect, expectTypeOf, test, vi } from "vitest";
+import { Dialog, DialogTrigger, Popover } from "react-aria-components";
+import { expect, expectTypeOf, test } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import { expectNoAccessibilityViolations } from "../../test/axe";
@@ -20,9 +21,7 @@ const drawnProperties = [
 test("renders as a button named by its text", async () => {
   const screen = await render(
     <main>
-      <StatusPillButton tone="warning" onPress={() => {}}>
-        4 avisos
-      </StatusPillButton>
+      <StatusPillButton tone="warning">4 avisos</StatusPillButton>
     </main>,
   );
 
@@ -30,19 +29,24 @@ test("renders as a button named by its text", async () => {
   await expectNoAccessibilityViolations(document.body);
 });
 
-test("calls its action when pressed by pointer or by keyboard", async () => {
-  const onPress = vi.fn();
+test("opens what the trigger it sits in opens, by pointer or by keyboard", async () => {
   const screen = await render(
-    <StatusPillButton tone="warning" onPress={onPress}>
-      4 avisos
-    </StatusPillButton>,
+    <DialogTrigger>
+      <StatusPillButton tone="warning">4 avisos</StatusPillButton>
+      <Popover>
+        <Dialog aria-label="Avisos de esta caja">Detalle</Dialog>
+      </Popover>
+    </DialogTrigger>,
   );
 
-  await userEvent.tab();
-  await userEvent.keyboard("{Enter}");
   await userEvent.click(screen.getByRole("button", { name: "4 avisos" }));
+  await expect.element(screen.getByRole("dialog", { name: "Avisos de esta caja" })).toBeVisible();
+  await userEvent.keyboard("{Escape}");
+  await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
 
-  expect(onPress).toHaveBeenCalledTimes(2);
+  screen.getByRole("button", { name: "4 avisos" }).element().focus();
+  await userEvent.keyboard("{Enter}");
+  await expect.element(screen.getByRole("dialog", { name: "Avisos de esta caja" })).toBeVisible();
 });
 
 test("looks the same as the non-interactive pill of its tone", async () => {
@@ -52,9 +56,7 @@ test("looks the same as the non-interactive pill of its tone", async () => {
     const expected = drawnProperties.map((property) => pillStyle[property]);
     await pill.unmount();
 
-    const button = await render(
-      <StatusPillButton tone={tone} onPress={() => {}}>{`Aviso ${tone}`}</StatusPillButton>,
-    );
+    const button = await render(<StatusPillButton tone={tone}>{`Aviso ${tone}`}</StatusPillButton>);
     const buttonStyle = getComputedStyle(button.getByRole("button").element());
 
     expect(
@@ -65,17 +67,10 @@ test("looks the same as the non-interactive pill of its tone", async () => {
   }
 });
 
-test("accepts the neutral, warning and error tones, and needs its text and action", () => {
-  expectTypeOf<{
-    tone: "neutral";
-    children: string;
-    onPress: () => void;
-  }>().toExtend<StatusPillButtonProps>();
-  expectTypeOf<{
-    tone: "info";
-    children: string;
-    onPress: () => void;
-  }>().not.toExtend<StatusPillButtonProps>();
-  expectTypeOf<{ tone: "warning"; children: string }>().not.toExtend<StatusPillButtonProps>();
+test("accepts the neutral, warning and error tones, and needs its text but no action of its own", () => {
+  expectTypeOf<{ tone: "neutral"; children: string }>().toExtend<StatusPillButtonProps>();
+  expectTypeOf<{ tone: "info"; children: string }>().not.toExtend<StatusPillButtonProps>();
+  expectTypeOf<{ tone: "warning" }>().not.toExtend<StatusPillButtonProps>();
+  expectTypeOf<StatusPillButtonProps>().not.toHaveProperty("onPress");
   expectTypeOf<StatusPillButtonProps>().not.toHaveProperty("className");
 });
