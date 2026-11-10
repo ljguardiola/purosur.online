@@ -134,7 +134,7 @@ test("shows the rate-limited notice with the time to wait", async () => {
 });
 
 test("navigates to Mi cuenta when the release comes back forbidden", async () => {
-  window.history.pushState(null, "", "/quarantined-events");
+  window.history.pushState(null, "", "/held-register-changes");
   const releaseQuarantinedEvent = vi.fn<Release>().mockResolvedValue({ kind: "forbidden" });
   const screen = await renderModal({ releaseQuarantinedEvent });
 

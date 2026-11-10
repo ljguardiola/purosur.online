@@ -14,7 +14,7 @@ opensOnlyScreens([
   "/help",
   "/people/users",
   "/products",
-  "/location-settings",
+  "/branch",
   "/sign-in",
 ]);
 

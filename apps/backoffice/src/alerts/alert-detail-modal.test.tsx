@@ -1025,7 +1025,7 @@ test("links a quarantined event's alert to the quarantined events screen for a p
 
   const link = screen.getByRole("link", { name: "Ver cambios de cajas retenidos" });
   await expect.element(link).toBeVisible();
-  await expect.element(link).toHaveAttribute("href", "/quarantined-events");
+  await expect.element(link).toHaveAttribute("href", "/held-register-changes");
   await expectNoAccessibilityViolations(document.body);
 });
 

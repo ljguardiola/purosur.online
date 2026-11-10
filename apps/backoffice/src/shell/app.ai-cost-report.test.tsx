@@ -10,9 +10,9 @@ import { opensOnlyScreens } from "./test-support/screen-routes";
 opensOnlyScreens([
   "/",
   "/help",
-  "/location-settings",
+  "/branch",
   "/reports/sales-by-day",
-  "/reports/ai-cost-by-period",
+  "/ai-cost",
 ]);
 
 beforeEach(resetPageState);
@@ -28,7 +28,7 @@ function reportsServices(capabilities: Capability[]) {
 
 test("opens the report at its address, under Configuración > Diagnóstico, and reads it from the cloud", async () => {
   const services = reportsServices(["reports_area", "branch_area"]);
-  window.history.pushState(null, "", "/reports/ai-cost-by-period");
+  window.history.pushState(null, "", "/ai-cost");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
@@ -48,7 +48,7 @@ test("opens the report at its address, under Configuración > Diagnóstico, and 
 
 test("offers the report under Diagnóstico in the Configuración column, after the other items, to who may see it", async () => {
   const services = reportsServices(["reports_area", "branch_area"]);
-  window.history.pushState(null, "", "/reports/ai-cost-by-period");
+  window.history.pushState(null, "", "/ai-cost");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
@@ -79,7 +79,7 @@ test("offers the report under Diagnóstico in the Configuración column, after t
 
 test("leaves the report out of the Configuración column without the reports area", async () => {
   const services = reportsServices(["branch_area"]);
-  window.history.pushState(null, "", "/location-settings");
+  window.history.pushState(null, "", "/branch");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
@@ -110,7 +110,7 @@ test("keeps the period and the grouping in the URL and asks the cloud for them",
   window.history.pushState(
     null,
     "",
-    "/reports/ai-cost-by-period?from=2026-10-01&group=day&to=2026-10-31",
+    "/ai-cost?from=2026-10-01&group=day&to=2026-10-31",
   );
 
   await render(<App help={emptyHelp} services={services} />);
@@ -121,9 +121,26 @@ test("keeps the period and the grouping in the URL and asks the cloud for them",
   expect(window.location.search).toBe("?from=2026-10-01&group=day&to=2026-10-31");
 });
 
+test("redirects the old /reports/ai-cost-by-period address to /ai-cost keeping the period and the grouping", async () => {
+  const services = reportsServices(["reports_area", "branch_area"]);
+  window.history.pushState(
+    null,
+    "",
+    "/reports/ai-cost-by-period?from=2026-10-01&group=day&to=2026-10-31",
+  );
+
+  await render(<App help={emptyHelp} services={services} />);
+
+  await expect
+    .poll(() => services.aiCostReportScreen.fetchAiCostReport)
+    .toHaveBeenCalledWith({ from: "2026-10-01", to: "2026-10-31", group_by: "day" });
+  expect(window.location.pathname).toBe("/ai-cost");
+  expect(window.location.search).toBe("?from=2026-10-01&group=day&to=2026-10-31");
+});
+
 test("sends a user without the branch area to Mi cuenta", async () => {
   const services = reportsServices(["reports_area"]);
-  window.history.pushState(null, "", "/reports/ai-cost-by-period");
+  window.history.pushState(null, "", "/ai-cost");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
@@ -133,7 +150,7 @@ test("sends a user without the branch area to Mi cuenta", async () => {
 
 test("sends a user without the reports area to Mi cuenta", async () => {
   const services = reportsServices(["branch_area"]);
-  window.history.pushState(null, "", "/reports/ai-cost-by-period");
+  window.history.pushState(null, "", "/ai-cost");
 
   const screen = await render(<App help={emptyHelp} services={services} />);
 
