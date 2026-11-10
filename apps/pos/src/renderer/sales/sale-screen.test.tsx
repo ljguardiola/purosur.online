@@ -864,7 +864,11 @@ describe("SaleScreen", () => {
       await expect.element(field).toHaveFocus();
 
       await userEvent.keyboard("7790009{Enter}");
-      await expect.element(screen.getByRole("status").getByRole("paragraph").first()).toBeVisible();
+      const notice =
+        outcome.kind === "unknown_code"
+          ? screen.getByText("No hay ningún producto con ese código")
+          : screen.getByRole("status").getByRole("paragraph").first();
+      await expect.element(notice).toBeVisible();
       await expect.element(field).toHaveValue("7790009");
       await userEvent.keyboard("7790001{Enter}");
 
