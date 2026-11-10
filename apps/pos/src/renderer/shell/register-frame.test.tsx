@@ -47,6 +47,20 @@ describe("RegisterFrame", () => {
       .not.toBeInTheDocument();
   });
 
+  it("ends the header's crumbs with the crumb of its screen", async () => {
+    const screen = await render(
+      <RegisterStatusProvider value={STATUS}>
+        <RegisterFrame background="surface" rail={null} crumb="Antes de empezar">
+          <main>contenido</main>
+        </RegisterFrame>
+      </RegisterStatusProvider>,
+    );
+
+    await expect
+      .element(screen.getByRole("region", { name: "Estado de la caja" }))
+      .toHaveTextContent(/^CAJA 1•Ada•Sin sesión abierta•Antes de empezar/);
+  });
+
   it("shows the header above the content, between the rail and the panel", async () => {
     const screen = await render(
       <RegisterStatusProvider value={STATUS}>{frame()}</RegisterStatusProvider>,
