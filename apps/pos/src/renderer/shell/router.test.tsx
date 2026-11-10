@@ -1210,7 +1210,6 @@ describe("the register's router", () => {
 
     await expect.element(screen.getByRole("heading", { name: "Caja bloqueada" })).toBeVisible();
     await expect.element(screen.getByRole("radio", { name: "Grace" })).toBeVisible();
-    await expect.element(screen.getByText("Sesión abierta 09:02")).toBeVisible();
   });
 
   it("renders the out-of-service notice while the register is out of service", async () => {
@@ -2150,7 +2149,6 @@ describe("the register's router", () => {
     await expect
       .element(screen.getByRole("region", { name: "Estado de la caja" }).getByText("Grace"))
       .toBeVisible();
-    await expect.element(screen.getByText("Sesión abierta 09:02")).toBeVisible();
   });
 
   it("reads the sale in progress and scans products through the core", async () => {
@@ -3027,7 +3025,7 @@ describe("the register's router", () => {
   });
 });
 
-describe("the register's status bar", () => {
+describe("the register's header", () => {
   const STATUS_BAR_NAME = "Estado de la caja";
   const LOCKED_SESSION = { ...OPEN_SESSION, locked: true } satisfies CashSessionState;
 
@@ -3085,8 +3083,6 @@ describe("the register's status bar", () => {
     { path: "/history", cashSession: OPEN_SESSION, person: undefined },
     { path: "/deferred-sale", cashSession: NO_SESSION, person: undefined },
     { path: "/deferred-sale", cashSession: OPEN_SESSION, person: undefined },
-    { path: "/locked", cashSession: LOCKED_SESSION, person: null },
-    { path: "/locked-close", cashSession: LOCKED_SESSION, person: null },
   ])("is shown on $path", async ({ path, cashSession, person, context }) => {
     const router = createRegisterRouter(
       routeTree,
@@ -3100,6 +3096,20 @@ describe("the register's status bar", () => {
     expect(router.state.location.pathname).toBe(path);
   });
 
+  it.each<RoutePath>(["/locked", "/locked-close"])(
+    "is not shown on %s, which has no rail",
+    async (path) => {
+      const router = routerAt(path, "up", "enrolled", null, LOCKED_SESSION);
+
+      const screen = await render(<RouterProvider router={router} />);
+
+      await expect.element(screenFor[path](screen)).toBeVisible();
+      await expect
+        .element(screen.getByRole("region", { name: STATUS_BAR_NAME }))
+        .not.toBeInTheDocument();
+    },
+  );
+
   it("is not shown on the sign-in screen", async () => {
     const router = routerAt("/sign-in", "up", "enrolled", null);
 
@@ -3111,26 +3121,24 @@ describe("the register's status bar", () => {
       .not.toBeInTheDocument();
   });
 
-  it("shows the first name of the person signed in and the session it is in", async () => {
+  it("shows the register's name and the first name of the person signed in", async () => {
     const router = routerAt("/session", "up", "enrolled", undefined, OPEN_SESSION);
 
     const screen = await render(<RouterProvider router={router} />);
 
     const bar = screen.getByRole("region", { name: STATUS_BAR_NAME });
     await expect.element(bar).toBeVisible();
-    expect(bar.element().textContent).toContain("Ada");
-    expect(bar.element().textContent).toContain("Sesión abierta 09:02");
+    expect(bar.element().textContent).toBe("CAJA 1•Ada");
   });
 
-  it("shows neither a name nor the session while the register is locked", async () => {
-    const router = routerAt("/locked", "up", "enrolled", null, LOCKED_SESSION);
+  it("adds the crumb 'Sin sesión abierta' while there is no cash session", async () => {
+    const router = routerAt("/", "up", "enrolled", undefined, NO_SESSION);
 
     const screen = await render(<RouterProvider router={router} />);
 
-    const bar = screen.getByRole("region", { name: STATUS_BAR_NAME });
-    await expect.element(bar).toBeVisible();
-    expect(bar.element().textContent).not.toMatch(/sesión|bloqueada/i);
-    expect(bar.element().textContent).not.toContain("Ada");
+    await expect
+      .element(screen.getByRole("region", { name: STATUS_BAR_NAME }))
+      .toHaveTextContent("CAJA 1•Ada•Sin sesión abierta");
   });
 
   it("shows the conditions and the cloud the core answers", async () => {
