@@ -113,42 +113,6 @@ test("lists the average ticket report as a link to it", async () => {
     .toHaveAttribute("href", "/reports/average-ticket");
 });
 
-test("groups the cash reports in a card titled Caja", async () => {
-  const screen = await renderScreen();
-
-  const cash = screen.getByRole("region", { name: "Caja" });
-  await expect.element(cash).toBeVisible();
-  expect(cash.getByRole("link").elements()).toHaveLength(1);
-});
-
-test("lists only its own reports in the Caja card, without the returns report", async () => {
-  const screen = await renderScreen();
-
-  const cash = screen.getByRole("region", { name: "Caja" });
-  await expect.element(cash).toBeVisible();
-  expect(cash.getByRole("link").elements()).toHaveLength(1);
-  expect(screen.getByRole("link", { name: "Anulaciones y devoluciones" }).query()).toBeNull();
-});
-
-test("groups the fiscal reports in a card titled Fiscal", async () => {
-  const screen = await renderScreen();
-
-  const fiscal = screen.getByRole("region", { name: "Fiscal" });
-  await expect.element(fiscal).toBeVisible();
-  expect(fiscal.getByRole("link").elements()).toHaveLength(1);
-  await expect
-    .element(fiscal.getByRole("link", { name: "Comprobantes emitidos" }))
-    .toHaveAttribute("href", "/reports/fiscal-documents");
-});
-
-test("lists the payments confirmed by hand report as a link to it", async () => {
-  const screen = await renderScreen();
-
-  await expect
-    .element(screen.getByRole("link", { name: "Pagos confirmados a mano" }))
-    .toHaveAttribute("href", "/reports/hand-confirmed-payments");
-});
-
 test.each([
   "Cierres de sesión",
   "Movimientos de caja",
@@ -159,89 +123,6 @@ test.each([
 
   await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
   expect(screen.getByRole("link", { name }).query()).toBeNull();
-});
-
-test("groups the stock reports in a card titled Stock", async () => {
-  const screen = await renderScreen();
-
-  const stock = screen.getByRole("region", { name: "Stock" });
-  await expect.element(stock).toBeVisible();
-  expect(stock.getByRole("link").elements()).toHaveLength(3);
-});
-
-test("lists the valued current stock report as a link to it", async () => {
-  const screen = await renderScreen();
-
-  await expect
-    .element(screen.getByRole("link", { name: "Stock actual valorizado" }))
-    .toHaveAttribute("href", "/reports/current-stock");
-});
-
-test("lists the lots approaching their expiry report as a link to it", async () => {
-  const screen = await renderScreen();
-
-  await expect
-    .element(screen.getByRole("link", { name: "Lotes por vencer" }))
-    .toHaveAttribute("href", "/reports/expiring-lots");
-});
-
-test("lists the losses by reason report as a link to it", async () => {
-  const screen = await renderScreen();
-
-  await expect
-    .element(screen.getByRole("link", { name: "Mermas por motivo" }))
-    .toHaveAttribute("href", "/reports/losses-by-reason");
-});
-
-test("groups the purchases reports in a card titled Compras", async () => {
-  const screen = await renderScreen();
-
-  const purchases = screen.getByRole("region", { name: "Compras" });
-  await expect.element(purchases).toBeVisible();
-  expect(purchases.getByRole("link").elements()).toHaveLength(4);
-});
-
-test("lists the purchases by supplier report as a link to it", async () => {
-  const screen = await renderScreen();
-
-  await expect
-    .element(screen.getByRole("link", { name: "Compras por proveedor" }))
-    .toHaveAttribute("href", "/reports/purchases-by-supplier");
-});
-
-test("lists the pending purchase orders report as a link to it", async () => {
-  const screen = await renderScreen();
-
-  await expect
-    .element(screen.getByRole("link", { name: "Pedidos pendientes de recibir" }))
-    .toHaveAttribute("href", "/reports/pending-purchase-orders");
-});
-
-test("lists the receipt differences report as a link to it", async () => {
-  const screen = await renderScreen();
-
-  await expect
-    .element(screen.getByRole("link", { name: "Diferencias de recepción" }))
-    .toHaveAttribute("href", "/reports/receipt-differences");
-});
-
-test("groups the price reports in a card titled Precios", async () => {
-  const screen = await renderScreen();
-
-  const prices = screen.getByRole("region", { name: "Precios" });
-  await expect.element(prices).toBeVisible();
-  expect(prices.getByRole("link").elements()).toHaveLength(1);
-  await expect
-    .element(prices.getByRole("link", { name: "Precios sin revisar" }))
-    .toHaveAttribute("href", "/reports/prices-past-review-deadline");
-});
-
-test("lists the freight by period report as a link to it", async () => {
-  const screen = await renderScreen();
-
-  await expect
-    .element(screen.getByRole("link", { name: "Flete por período" }))
-    .toHaveAttribute("href", "/reports/freight-by-period");
 });
 
 test("lists the AI cost by period report under Compras when it is shown", async () => {
@@ -290,3 +171,31 @@ test("groups the profitability reports in a card titled Rentabilidad", async () 
     .element(profitability.getByRole("link", { name: "Margen por producto y por categoría" }))
     .toHaveAttribute("href", "/reports/margin");
 });
+
+test.each([
+  "Pagos confirmados a mano",
+  "Comprobantes emitidos",
+  "Precios sin revisar",
+  "Stock actual valorizado",
+  "Lotes por vencer",
+  "Mermas por motivo",
+  "Compras por proveedor",
+  "Flete por período",
+  "Pedidos pendientes de recibir",
+  "Diferencias de recepción",
+])("does not list %s, which its destination page holds", async (name) => {
+  const screen = await renderScreen({ aiCostShown: true, mercadoPagoChargeCostsShown: true });
+
+  await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
+  expect(screen.getByRole("link", { name }).query()).toBeNull();
+});
+
+test.each(["Caja", "Fiscal", "Compras", "Precios", "Stock"])(
+  "shows no %s card when every report of it was retired",
+  async (title) => {
+    const screen = await renderScreen();
+
+    await expect.element(screen.getByRole("heading", { name: "Reportes", level: 1 })).toBeVisible();
+    expect(screen.getByRole("region", { name: title }).query()).toBeNull();
+  },
+);

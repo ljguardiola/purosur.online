@@ -2,7 +2,6 @@ import type { Capability } from "@purosur/domain";
 import { beforeEach, expect, test, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
-import { issuedFiscalDocumentsReport } from "../fiscal/test-support/issued-fiscal-documents-report-fixtures";
 import {
   weekHandConfirmedReport,
   weekPaymentsReport,
@@ -32,7 +31,6 @@ opensOnlyScreens([
   "/reports",
   "/reports/sales-by-day",
   "/reports/sales-by-payment-method",
-  "/reports/hand-confirmed-payments",
   "/reports/sales-by-product-and-category",
   "/reports/sales-by-cashier",
   "/reports/hand-typed-weights",
@@ -40,7 +38,6 @@ opensOnlyScreens([
   "/reports/manual-discounts",
   "/reports/cash-rounding",
   "/reports/average-ticket",
-  "/reports/fiscal-documents",
 ]);
 
 beforeEach(resetPageState);
@@ -67,10 +64,6 @@ function reportsServices(capabilities: Capability[]) {
   vi.mocked(services.salesByPaymentMethodScreen.fetchSalesByPaymentMethod).mockResolvedValue({
     kind: "ok",
     value: weekPaymentsReport,
-  });
-  vi.mocked(services.handConfirmedPaymentsScreen.fetchHandConfirmedPayments).mockResolvedValue({
-    kind: "ok",
-    value: weekHandConfirmedReport,
   });
   vi.mocked(
     services.salesByProductAndCategoryScreen.fetchSalesByProductAndCategory,
@@ -103,9 +96,6 @@ function reportsServices(capabilities: Capability[]) {
     kind: "ok",
     value: returnsReport,
   });
-  vi.mocked(
-    services.issuedFiscalDocumentsReportScreen.fetchIssuedFiscalDocumentsReport,
-  ).mockResolvedValue({ kind: "ok", value: issuedFiscalDocumentsReport });
   vi.mocked(services.reportRegisterFilter.fetchReportRegisters).mockResolvedValue({
     kind: "ok",
     value: registers,
@@ -130,9 +120,6 @@ test("opens the list of reports from the rail's Reportes item", async () => {
   await expect
     .element(sections.getByRole("link", { name: "Ventas por medio de pago" }))
     .toBeVisible();
-  await expect
-    .element(sections.getByRole("link", { name: "Pagos confirmados a mano" }))
-    .toBeVisible();
   expect(sections.getByRole("link", { name: "Cierres de sesión" }).query()).toBeNull();
   expect(sections.getByRole("link", { name: "Movimientos de caja" }).query()).toBeNull();
   await expect
@@ -140,6 +127,28 @@ test("opens the list of reports from the rail's Reportes item", async () => {
     .toBeVisible();
   await expect.element(sections.getByRole("link", { name: "Ventas por cajero" })).toBeVisible();
   await expect.element(sections.getByRole("link", { name: "Ticket promedio" })).toBeVisible();
+});
+
+test.each([
+  "Pagos confirmados a mano",
+  "Comprobantes emitidos",
+  "Precios sin revisar",
+  "Stock actual valorizado",
+  "Lotes por vencer",
+  "Mermas por motivo",
+  "Compras por proveedor",
+  "Flete por período",
+  "Pedidos pendientes de recibir",
+  "Diferencias de recepción",
+])("leaves %s out of the reports column, which its destination page holds", async (name) => {
+  const services = reportsServices(["reports_area"]);
+  window.history.pushState(null, "", "/reports");
+
+  const screen = await render(<App help={emptyHelp} services={services} />);
+
+  const sections = screen.getByRole("navigation", { name: "Reportes" });
+  await expect.element(sections.getByRole("link", { name: "Todos los reportes" })).toBeVisible();
+  expect(sections.getByRole("link", { name }).query()).toBeNull();
 });
 
 test("leaves the returns report out of the reports column, which the Devoluciones y reembolsos page holds", async () => {
@@ -151,54 +160,6 @@ test("leaves the returns report out of the reports column, which the Devolucione
   const sections = screen.getByRole("navigation", { name: "Reportes" });
   await expect.element(sections.getByRole("link", { name: "Todos los reportes" })).toBeVisible();
   expect(sections.getByRole("link", { name: "Anulaciones y devoluciones" }).query()).toBeNull();
-});
-
-test("opens the issued fiscal documents report from the list and reads it from the cloud", async () => {
-  const services = reportsServices(["reports_area"]);
-  window.history.pushState(null, "", "/reports");
-
-  const screen = await render(<App help={emptyHelp} services={services} />);
-  await userEvent.click(
-    screen.getByRole("main").getByRole("link", { name: "Comprobantes emitidos" }),
-  );
-
-  await expect
-    .element(screen.getByRole("heading", { name: "Comprobantes emitidos", level: 1 }))
-    .toBeVisible();
-  expect(window.location.pathname).toBe("/reports/fiscal-documents");
-  await expect
-    .element(
-      screen.getByRole("table", { name: "Comprobantes emitidos" }).getByText("Nota de crédito C"),
-    )
-    .toBeVisible();
-  expect(
-    services.issuedFiscalDocumentsReportScreen.fetchIssuedFiscalDocumentsReport,
-  ).toHaveBeenCalledWith({});
-  expect(document.title).toBe("Comprobantes emitidos · Puro Sur");
-});
-
-test("lists the issued fiscal documents report in the reports section column", async () => {
-  const services = reportsServices(["reports_area"]);
-  window.history.pushState(null, "", "/reports");
-
-  const screen = await render(<App help={emptyHelp} services={services} />);
-
-  const sections = screen.getByRole("navigation", { name: "Reportes" });
-  await expect.element(sections.getByRole("link", { name: "Comprobantes emitidos" })).toBeVisible();
-});
-
-test("keeps the issued fiscal documents report's filters in the address", async () => {
-  const services = reportsServices(["reports_area"]);
-  window.history.pushState(null, "", "/reports/fiscal-documents");
-  const screen = await render(<App help={emptyHelp} services={services} />);
-  await expect.element(screen.getByRole("table", { name: "Comprobantes emitidos" })).toBeVisible();
-
-  await userEvent.click(screen.getByRole("button", { name: /Caja:/ }));
-  await userEvent.click(screen.getByRole("option", { name: "Caja principal" }));
-
-  await expect
-    .poll(() => window.location.search)
-    .toBe("?register=11111111-1111-4111-8111-111111111111");
 });
 
 test("hides the Reportes item from someone who can only see the returns report", async () => {
@@ -280,39 +241,6 @@ test("opens the sales by payment method report from the list and reads it from t
   await expect.element(screen.getByText("Efectivo")).toBeVisible();
   expect(services.salesByPaymentMethodScreen.fetchSalesByPaymentMethod).toHaveBeenCalledWith({});
   expect(document.title).toBe("Ventas por medio de pago · Puro Sur");
-});
-
-test("opens the payments confirmed by hand report from the list and reads it from the cloud", async () => {
-  const services = reportsServices(["reports_area"]);
-  window.history.pushState(null, "", "/reports");
-
-  const screen = await render(<App help={emptyHelp} services={services} />);
-  await userEvent.click(
-    screen.getByRole("main").getByRole("link", { name: "Pagos confirmados a mano" }),
-  );
-
-  await expect
-    .element(screen.getByRole("heading", { name: "Pagos confirmados a mano", level: 1 }))
-    .toBeVisible();
-  expect(window.location.pathname).toBe("/reports/hand-confirmed-payments");
-  await expect.element(screen.getByText("Operación 000007")).toBeVisible();
-  expect(services.handConfirmedPaymentsScreen.fetchHandConfirmedPayments).toHaveBeenCalledWith({});
-  expect(document.title).toBe("Pagos confirmados a mano · Puro Sur");
-});
-
-test("keeps the method of the payments confirmed by hand report in the address", async () => {
-  const services = reportsServices(["reports_area"]);
-  window.history.pushState(null, "", "/reports/hand-confirmed-payments");
-  const screen = await render(<App help={emptyHelp} services={services} />);
-  await expect.element(screen.getByText("Operación 000007")).toBeVisible();
-
-  await userEvent.click(screen.getByRole("button", { name: /Medio:/ }));
-  await userEvent.click(screen.getByRole("option", { name: "Transferencia" }));
-
-  await expect.poll(() => window.location.search).toBe("?method=TRANSFER");
-  expect(services.handConfirmedPaymentsScreen.fetchHandConfirmedPayments).toHaveBeenLastCalledWith({
-    method: "TRANSFER",
-  });
 });
 
 test("opens the sales by product and category report from the list and reads it from the cloud", async () => {
@@ -764,7 +692,6 @@ test.each([
   "/reports",
   "/reports/sales-by-day",
   "/reports/sales-by-payment-method",
-  "/reports/hand-confirmed-payments",
   "/reports/sales-by-product-and-category",
   "/reports/sales-by-cashier",
   "/reports/hand-typed-weights",
@@ -773,7 +700,6 @@ test.each([
   "/reports/cash-rounding",
   "/reports/average-ticket",
   "/reports/returns",
-  "/reports/fiscal-documents",
 ])("sends a user without the reports permission who opens %s to Mi cuenta", async (path) => {
   const services = reportsServices(["stock_area"]);
   window.history.pushState(null, "", path);
@@ -783,7 +709,6 @@ test.each([
   await expect.element(screen.getByRole("tab", { name: "Passkeys y PIN" })).toBeVisible();
   expect(services.salesByDayScreen.fetchSalesReport).not.toHaveBeenCalled();
   expect(services.salesByPaymentMethodScreen.fetchSalesByPaymentMethod).not.toHaveBeenCalled();
-  expect(services.handConfirmedPaymentsScreen.fetchHandConfirmedPayments).not.toHaveBeenCalled();
   expect(
     services.salesByProductAndCategoryScreen.fetchSalesByProductAndCategory,
   ).not.toHaveBeenCalled();
@@ -794,9 +719,6 @@ test.each([
   expect(services.cashRoundingScreen.fetchCashRounding).not.toHaveBeenCalled();
   expect(services.averageTicketScreen.fetchAverageTicket).not.toHaveBeenCalled();
   expect(services.returnsHistoryScreen.fetchReturnsReport).not.toHaveBeenCalled();
-  expect(
-    services.issuedFiscalDocumentsReportScreen.fetchIssuedFiscalDocumentsReport,
-  ).not.toHaveBeenCalled();
 });
 
 test("shows no open alerts count in Reportes' top bar", async () => {
