@@ -5,6 +5,9 @@ import { expect, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import type { z } from "zod";
 import { type ReleaseMonitor, ReleaseMonitorContext } from "../../platform/release-monitor";
+import type { BackofficeAccess } from "../../shell/backoffice-access";
+import { ADMINISTRATOR_ACCESS } from "../../shell/test-support/backoffice-access";
+import { createBranchTermServices } from "../../shell/test-support/branch-term";
 import { render } from "../../shell/test-support/render-with-router";
 import { PricesListScreen } from "../prices-list-screen";
 import type { PricesListScreenServices } from "../prices-list-services";
@@ -25,6 +28,7 @@ export function createServices(
     fetchPricesPastReviewDeadlineReport: vi
       .fn()
       .mockResolvedValue({ kind: "ok", value: pricesPastReviewDeadlineReport() }),
+    branchTerm: createBranchTermServices(),
     ...overrides,
   };
 }
@@ -98,7 +102,9 @@ export function screenElement(
     purchasedProductsToReview = [],
     onPurchaseReviewTaken = () => {},
     releaseMonitor,
+    access = ADMINISTRATOR_ACCESS,
   }: {
+    access?: BackofficeAccess;
     filters?: z.input<typeof pricesListFilters>;
     onFiltersChange?: (filters: PricesListFilters) => void;
     purchasedProductsToReview?: readonly string[];
@@ -110,6 +116,7 @@ export function screenElement(
     <FieldSizeProvider size="backoffice">
       <main>
         <PricesListScreen
+          access={access}
           services={services}
           onSessionEnded={onSessionEnded}
           filters={pricesListFilters.parse(filters)}
@@ -206,6 +213,7 @@ function ControlledScreen({
     <FieldSizeProvider size="backoffice">
       <main>
         <PricesListScreen
+          access={access}
           services={services}
           onSessionEnded={() => {}}
           filters={filters}
