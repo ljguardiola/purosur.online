@@ -8,19 +8,33 @@ import { readFileSync } from "node:fs";
 const ARBITRARY_VALUE =
   /(?<=[a-z0-9])[-/](?:\[[^\]\s]*\]|\(--[^)\s]*\))|(?<=[a-z0-9]:)\[[^\]\s]*\]|(?<![^\s"'`])\[(?:&|[a-z-]+:[^\s\]])[^\]\s]*\]/gi;
 
+const NUMERIC_Z_INDEX = /(?<![^\s"'`])(?:[a-z0-9-]+:)*!?-?z-\d+(?![\w.-])/gi;
+
 const SCANNED_ROOTS = ["packages/ui/src/", "apps/backoffice/src/", "apps/pos/src/renderer/"];
 
-export function findArbitraryValues(source) {
-  return [...source.matchAll(ARBITRARY_VALUE)].map((match) => {
+function findMatches(source, pattern) {
+  return [...source.matchAll(pattern)].map((match) => {
     const before = source.slice(0, match.index).split("\n");
     return { line: before.length, column: before.at(-1).length + 1, text: match[0] };
   });
 }
 
+export function findArbitraryValues(source) {
+  return findMatches(source, ARBITRARY_VALUE);
+}
+
+export function findNumericZIndexUtilities(source) {
+  return findMatches(source, NUMERIC_Z_INDEX);
+}
+
 export function checkFiles(paths, readFile = (path) => readFileSync(path, "utf8")) {
-  return paths.flatMap((path) =>
-    findArbitraryValues(readFile(path)).map((match) => ({ path, ...match })),
-  );
+  return paths.flatMap((path) => {
+    const source = readFile(path);
+    return [...findArbitraryValues(source), ...findNumericZIndexUtilities(source)].map((match) => ({
+      path,
+      ...match,
+    }));
+  });
 }
 
 export function describeViolation({ path, line, column, text }) {
