@@ -94,9 +94,24 @@ export {
   registerOperationAccess,
 } from "./model/register-operation.js";
 export type { RegisterVersion } from "./model/register-version.js";
-export { isNewerRegisterVersion } from "./model/register-version.js";
+export {
+  isNewerRegisterVersion,
+  isRegisterVersionAtLeast,
+  isWellFormedRegisterVersion,
+} from "./model/register-version.js";
 export type { RestorationEvidence, RestorationStanding } from "./model/restoration-protocol.js";
 export { RESTORATION_STEPS, restorationStanding } from "./model/restoration-protocol.js";
+export type { SalesDeniedReason, SalesDeniedReport } from "./model/sales-denied.js";
+export { SALES_DENIED_REASONS, STORAGE_SALES_DENIED_REASONS } from "./model/sales-denied.js";
+export type { SalesDenial, SalesStopReason, SalesStopState } from "./model/sales-stop.js";
+export {
+  areNewSalesStopped,
+  isInstallationRevoked,
+  isSalesStopReason,
+  SALES_DENIED_FOR_DAMAGED_LOCAL_DATABASE,
+  salesDenialOf,
+  salesDeniedReportOf,
+} from "./model/sales-stop.js";
 export type {
   DetectedSerialDevice,
   RegisteredSerialDevices,

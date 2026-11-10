@@ -1,5 +1,5 @@
 import { FIXED_ARGENTINA_ZONE_RULES } from "../../../shared/index.js";
-import type { InstallationStreamReach } from "../../../sync/index.js";
+import type { InstallationStreamReach } from "../../model/event-stream-reach.js";
 import type { OfflineSeriesDocumentType } from "../../model/fiscal-voucher-type.js";
 import {
   isFortnightPresentationOwed,

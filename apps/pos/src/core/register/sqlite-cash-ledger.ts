@@ -10,11 +10,10 @@ import {
 import type {
   CashLedger,
   CashLedgerTransaction,
-  OpenSale,
   RegisterIdentity,
 } from "@purosur/domain/register/use-cases";
 import type { LocalDatabase } from "../platform/local-database";
-import { readOpenSale } from "../sales/sqlite-open-sale";
+import { openSaleTotalOf } from "../sales/sqlite-open-sale-total";
 import type { SignInStore } from "../sessions/sqlite-sign-in-store";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
 
@@ -242,7 +241,7 @@ export class SqliteCashLedger implements CashLedger {
     return {
       openerAccess: (userId) => this.people.activePerson(userId)?.access,
       openSession: () => readOpenSession(this.database),
-      openSale: (sessionId) => this.openSale(sessionId),
+      openSaleTotal: (sessionId) => openSaleTotalOf(this.database, sessionId),
       sessionMovements: (sessionId) => readSessionMovements(this.database, sessionId),
       registerIdentity: () => readRegisterIdentity(this.database),
       recordOpenedSession: (session) => insertOpenedSession(this.database, session),
@@ -250,11 +249,6 @@ export class SqliteCashLedger implements CashLedger {
       recordCashMovement: (movement) => insertCashMovement(this.database, movement),
       appendOutboxEvent: (draft) => this.appendOutboxEvent(draft),
     };
-  }
-
-  private openSale(sessionId: string): OpenSale | undefined {
-    const sale = readOpenSale(this.database, sessionId);
-    return sale && { lines: sale.lines, saleDiscount: sale.saleDiscount };
   }
 
   private appendOutboxEvent(draft: OutboxEventDraft): void {

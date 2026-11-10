@@ -1,5 +1,5 @@
+import type { PushedEvent } from "../../../shared/index.js";
 import { canonicalOutboxEvent, type OutboxEvent } from "../../../shared/index.js";
-import type { PushedEvent } from "../../model/push-batch.js";
 import type {
   Inbox,
   InboxTransaction,

@@ -1,10 +1,11 @@
-import type { OutboxEventDraft } from "@purosur/domain";
+import type { FiscalEmissionMode, OutboxEventDraft } from "@purosur/domain";
 import type {
   ContingencyLedger,
   ContingencyLedgerTransaction,
   OpenContingencyInterval,
   PredecessorOpenContingencyInterval,
 } from "@purosur/domain/register/use-cases";
+import { readEmittingInContingencyTime } from "../fiscal/contingency-time-read";
 import type { LocalDatabase } from "../platform/local-database";
 import { appendOutboxEvent } from "../sync/sqlite-outbox";
 import { readOpenSession, readRegisterIdentity } from "./sqlite-cash-ledger";
@@ -22,10 +23,16 @@ interface PredecessorOpenIntervalRow extends OpenIntervalRow {
 export class SqliteContingencyLedger implements ContingencyLedger {
   private readonly database: LocalDatabase;
   private readonly outboxChainKey: string | undefined;
+  private readonly readMode: () => FiscalEmissionMode;
 
-  constructor(database: LocalDatabase, outboxChainKey: string | undefined) {
+  constructor(
+    database: LocalDatabase,
+    outboxChainKey: string | undefined,
+    readMode: () => FiscalEmissionMode,
+  ) {
     this.database = database;
     this.outboxChainKey = outboxChainKey;
+    this.readMode = readMode;
   }
 
   transaction<TOutcome>(work: (tx: ContingencyLedgerTransaction) => TOutcome): TOutcome {
@@ -33,10 +40,11 @@ export class SqliteContingencyLedger implements ContingencyLedger {
   }
 
   private transactionScope(): ContingencyLedgerTransaction {
-    const { database } = this;
+    const { database, readMode } = this;
     return {
       registerId: () => readRegisterIdentity(database)?.registerId,
       cashSessionOpen: () => readOpenSession(database) !== undefined,
+      emittingInContingencyTime: () => readEmittingInContingencyTime(readMode),
       replenishmentPending: () =>
         database.prepare("SELECT 1 FROM register_predecessor").get() !== undefined,
       openInterval: () => readOpenInterval(database),

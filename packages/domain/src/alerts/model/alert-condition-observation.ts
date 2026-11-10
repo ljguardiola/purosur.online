@@ -14,12 +14,12 @@ import {
   isOnBatteryTooLong,
   ON_BATTERY_CONDITION_MINUTES,
   runsCloudZoneRulesVersion,
+  type SalesDeniedReport,
   WAL_SIZE_LIMIT_BYTES,
   WORN_BATTERY_HEALTH_PERCENT,
   walOversized,
   type ZoneRulesVersionReport,
 } from "../../register/index.js";
-import type { SalesDeniedReport } from "../../shared/index.js";
 import type { RegisterTelemetry, ReplenishmentFailedReport } from "../../sync/index.js";
 import type { AlertKind, AlertLevel } from "./alert-catalog.js";
 import type { AlertDetails, OpenAlertInput } from "./alert-details.js";

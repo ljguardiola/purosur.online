@@ -1,6 +1,4 @@
 import { describe, expect, it } from "vitest";
-import type { FiscalEmissionMode } from "../../fiscal/index.js";
-import { DEFERRAL_REASONS, OFFLINE_AUTHORIZATION_CAUSES } from "../../fiscal/index.js";
 import { FixedClock } from "../../shared/test-support/fixed-clock.js";
 import { recordContingencyChange } from "./record-contingency-change.js";
 import { SequentialIds } from "./test-support/fake-cash-ledger.js";
@@ -13,8 +11,8 @@ import {
 const NOW = new Date("2026-10-02T15:00:00.000Z");
 const STARTED = new Date("2026-10-02T12:00:00.000Z");
 const SEEN = new Date("2026-10-02T14:00:00.000Z");
-const OFFLINE: FiscalEmissionMode = { kind: "offline_code", cause: "no_connectivity" };
-const REAL_TIME: FiscalEmissionMode = { kind: "real_time" };
+const IN_CONTINGENCY = true;
+const OUT_OF_CONTINGENCY = false;
 
 const OPEN_INTERVAL = {
   id: "interval-1",
@@ -23,18 +21,22 @@ const OPEN_INTERVAL = {
   endedAt: null,
 };
 
-function record(mode: FiscalEmissionMode, state: Partial<FakeContingencyLedgerState> = {}) {
-  const ledger = new FakeContingencyLedger(state);
-  const outcome = recordContingencyChange(
-    { ledger, clock: new FixedClock(NOW), ids: new SequentialIds() },
-    { mode },
-  );
+function record(
+  emittingInContingencyTime: boolean,
+  state: Partial<FakeContingencyLedgerState> = {},
+) {
+  const ledger = new FakeContingencyLedger({ ...state, emittingInContingencyTime });
+  const outcome = recordContingencyChange({
+    ledger,
+    clock: new FixedClock(NOW),
+    ids: new SequentialIds(),
+  });
   return { ledger, outcome };
 }
 
 describe("recordContingencyChange", () => {
-  it("opens an interval, started now, when the register goes fiscally offline with a session open", () => {
-    const { ledger, outcome } = record(OFFLINE);
+  it("opens an interval, started now, when the register starts emitting in contingency time with a session open", () => {
+    const { ledger, outcome } = record(IN_CONTINGENCY);
 
     expect(outcome).toEqual({ kind: "entered", intervalId: "id-1" });
     expect(ledger.state.intervals).toEqual([
@@ -54,8 +56,8 @@ describe("recordContingencyChange", () => {
     ]);
   });
 
-  it("closes the open interval, ended now, when the register is back online", () => {
-    const { ledger, outcome } = record(REAL_TIME, { intervals: [OPEN_INTERVAL] });
+  it("closes the open interval, ended now, when the register stops emitting in contingency time", () => {
+    const { ledger, outcome } = record(OUT_OF_CONTINGENCY, { intervals: [OPEN_INTERVAL] });
 
     expect(outcome).toEqual({ kind: "left", intervalId: "interval-1" });
     expect(ledger.state.intervals).toEqual([{ ...OPEN_INTERVAL, endedAt: NOW }]);
@@ -77,17 +79,17 @@ describe("recordContingencyChange", () => {
     ]);
   });
 
-  it("only refreshes the last moment seen while the register stays offline", () => {
-    const { ledger, outcome } = record(OFFLINE, { intervals: [OPEN_INTERVAL] });
+  it("only refreshes the last moment seen while the register keeps emitting in contingency time", () => {
+    const { ledger, outcome } = record(IN_CONTINGENCY, { intervals: [OPEN_INTERVAL] });
 
     expect(outcome).toEqual({ kind: "refreshed", intervalId: "interval-1" });
     expect(ledger.state.intervals).toEqual([{ ...OPEN_INTERVAL, lastSeenAt: NOW }]);
     expect(ledger.state.outbox).toEqual([]);
   });
 
-  it("keeps the last moment seen when the clock was set back while the register stays offline", () => {
+  it("keeps the last moment seen when the clock was set back while the register keeps emitting in contingency time", () => {
     const seenLater = { ...OPEN_INTERVAL, lastSeenAt: new Date("2026-10-02T16:00:00.000Z") };
-    const { ledger, outcome } = record(OFFLINE, { intervals: [seenLater] });
+    const { ledger, outcome } = record(IN_CONTINGENCY, { intervals: [seenLater] });
 
     expect(outcome).toEqual({ kind: "refreshed", intervalId: "interval-1" });
     expect(ledger.state.intervals).toEqual([seenLater]);
@@ -96,7 +98,7 @@ describe("recordContingencyChange", () => {
   it("ends the interval at its start when the clock was set back before it started", () => {
     const LATER = new Date("2026-10-02T16:00:00.000Z");
     const startedLater = { ...OPEN_INTERVAL, startedAt: LATER, lastSeenAt: LATER };
-    const { ledger, outcome } = record(REAL_TIME, { intervals: [startedLater] });
+    const { ledger, outcome } = record(OUT_OF_CONTINGENCY, { intervals: [startedLater] });
 
     expect(outcome).toEqual({ kind: "left", intervalId: "interval-1" });
     expect(ledger.state.intervals).toEqual([{ ...startedLater, endedAt: LATER }]);
@@ -111,20 +113,20 @@ describe("recordContingencyChange", () => {
     ]);
   });
 
-  it("emits one event when the register is checked again and again while offline", () => {
+  it("emits one event when the register is checked again and again while emitting in contingency time", () => {
     const ledger = new FakeContingencyLedger();
     const ports = { ledger, clock: new FixedClock(NOW), ids: new SequentialIds() };
 
-    recordContingencyChange(ports, { mode: OFFLINE });
-    recordContingencyChange(ports, { mode: OFFLINE });
-    recordContingencyChange(ports, { mode: OFFLINE });
+    recordContingencyChange(ports);
+    recordContingencyChange(ports);
+    recordContingencyChange(ports);
 
     expect(ledger.state.outbox.map((event) => event.event_type)).toEqual(["contingency_entered"]);
     expect(ledger.state.intervals).toHaveLength(1);
   });
 
-  it("ends the interval when the cash session closes while the register is still offline", () => {
-    const { ledger, outcome } = record(OFFLINE, {
+  it("ends the interval when the cash session closes while the register still emits in contingency time", () => {
+    const { ledger, outcome } = record(IN_CONTINGENCY, {
       intervals: [OPEN_INTERVAL],
       cashSessionOpen: false,
     });
@@ -133,16 +135,16 @@ describe("recordContingencyChange", () => {
     expect(ledger.state.intervals[0]?.endedAt).toEqual(NOW);
   });
 
-  it("starts no interval while the register is offline without a cash session", () => {
-    const { ledger, outcome } = record(OFFLINE, { cashSessionOpen: false });
+  it("starts no interval while the register emits in contingency time without a cash session", () => {
+    const { ledger, outcome } = record(IN_CONTINGENCY, { cashSessionOpen: false });
 
     expect(outcome).toEqual({ kind: "unchanged" });
     expect(ledger.state.intervals).toEqual([]);
     expect(ledger.state.outbox).toEqual([]);
   });
 
-  it("does nothing while the register is online and no interval is open", () => {
-    const { ledger, outcome } = record(REAL_TIME);
+  it("does nothing while the register is out of contingency time and no interval is open", () => {
+    const { ledger, outcome } = record(OUT_OF_CONTINGENCY);
 
     expect(outcome).toEqual({ kind: "unchanged" });
     expect(ledger.state.outbox).toEqual([]);
@@ -150,47 +152,21 @@ describe("recordContingencyChange", () => {
 
   it("starts a new interval after a closed one", () => {
     const closed = { ...OPEN_INTERVAL, endedAt: SEEN };
-    const { ledger, outcome } = record(OFFLINE, { intervals: [closed] });
+    const { ledger, outcome } = record(IN_CONTINGENCY, { intervals: [closed] });
 
     expect(outcome).toEqual({ kind: "entered", intervalId: "id-1" });
     expect(ledger.state.intervals).toHaveLength(2);
   });
 
-  it.each(OFFLINE_AUTHORIZATION_CAUSES.filter((cause) => cause !== "no_connectivity"))(
-    "never opens an interval while issuing offline because of %s",
-    (cause) => {
-      const { ledger, outcome } = record({ kind: "offline_code", cause });
-
-      expect(outcome).toEqual({ kind: "unchanged" });
-      expect(ledger.state.intervals).toEqual([]);
-    },
-  );
-
-  it.each(DEFERRAL_REASONS)("never opens an interval while deferring for %s", (reason) => {
-    const { ledger, outcome } = record({ kind: "deferring", reason });
-
-    expect(outcome).toEqual({ kind: "unchanged" });
-    expect(ledger.state.intervals).toEqual([]);
-  });
-
-  it("closes the open interval when the register starts deferring", () => {
-    const { outcome } = record(
-      { kind: "deferring", reason: "fiscally_offline" },
-      { intervals: [OPEN_INTERVAL] },
-    );
-
-    expect(outcome).toEqual({ kind: "left", intervalId: "interval-1" });
-  });
-
   it("changes nothing when the register has no identity yet", () => {
-    const { ledger, outcome } = record(OFFLINE, { registerId: undefined });
+    const { ledger, outcome } = record(IN_CONTINGENCY, { registerId: undefined });
 
     expect(outcome).toEqual({ kind: "unavailable" });
     expect(ledger.state.intervals).toEqual([]);
   });
 
   it("runs in one transaction", () => {
-    const { ledger } = record(OFFLINE);
+    const { ledger } = record(IN_CONTINGENCY);
 
     expect(ledger.transactions).toBe(1);
   });
@@ -202,10 +178,7 @@ describe("recordContingencyChange", () => {
       ledger.failOn = write;
 
       expect(() =>
-        recordContingencyChange(
-          { ledger, clock: new FixedClock(NOW), ids: new SequentialIds() },
-          { mode: OFFLINE },
-        ),
+        recordContingencyChange({ ledger, clock: new FixedClock(NOW), ids: new SequentialIds() }),
       ).toThrow(`${write} failed`);
       expect(ledger.state.intervals).toEqual([]);
       expect(ledger.state.outbox).toEqual([]);
@@ -213,14 +186,14 @@ describe("recordContingencyChange", () => {
   );
 
   it("leaves the interval open when the event of closing it fails", () => {
-    const ledger = new FakeContingencyLedger({ intervals: [OPEN_INTERVAL] });
+    const ledger = new FakeContingencyLedger({
+      intervals: [OPEN_INTERVAL],
+      emittingInContingencyTime: OUT_OF_CONTINGENCY,
+    });
     ledger.failOn = "appendOutboxEvent";
 
     expect(() =>
-      recordContingencyChange(
-        { ledger, clock: new FixedClock(NOW), ids: new SequentialIds() },
-        { mode: REAL_TIME },
-      ),
+      recordContingencyChange({ ledger, clock: new FixedClock(NOW), ids: new SequentialIds() }),
     ).toThrow("appendOutboxEvent failed");
     expect(ledger.state.intervals).toEqual([OPEN_INTERVAL]);
   });

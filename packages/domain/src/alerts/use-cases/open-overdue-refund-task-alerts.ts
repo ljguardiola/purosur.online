@@ -1,6 +1,6 @@
-import { refundTaskAlertIsDue, refundTaskAlertLevel } from "../../alerts/index.js";
+import { isRefundInCloudHands } from "../../payments/index.js";
 import type { Clock } from "../../shared/index.js";
-import { isRefundInCloudHands } from "../model/mercado-pago-refund.js";
+import { refundTaskAlertIsDue, refundTaskAlertLevel } from "../model/refund-task-alert.js";
 import type { RefundTaskAlertStore } from "./refund-task-alert-ports.js";
 
 export interface OpenOverdueRefundTaskAlertsPorts {

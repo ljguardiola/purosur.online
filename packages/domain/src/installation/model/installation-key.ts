@@ -20,6 +20,12 @@ export function latestKeyVersion(versions: readonly number[]): number | undefine
   return versions.length === 0 ? undefined : Math.max(...versions);
 }
 
+export function contingencyTicketSealingKey(
+  heldKeys: readonly VersionedKey[],
+): VersionedKey | undefined {
+  return latestKey(heldKeys);
+}
+
 export function nextKeyVersion(keys: readonly VersionedKey[]): number {
   const latest = latestKey(keys);
   return latest === undefined ? FIRST_KEY_VERSION : latest.version + 1;

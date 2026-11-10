@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PushedEvent } from "../../sync/index.js";
+import type { PushedEvent } from "../../shared/index.js";
 import type { CreditNoteAnswer, SaleInvoice } from "../model/sale-credit-note.js";
 import type { SaleInvoiceStanding } from "../model/sale-credit-note-route.js";
 import type { PendingCreditNote } from "./request-credit-notes-ports.js";

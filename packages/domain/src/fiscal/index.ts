@@ -33,6 +33,11 @@ export {
   REPLAYED_CLOCK_CORRECTION_PERIOD_KEY,
   replayedClockMark,
 } from "./model/clock-correction.js";
+export {
+  isHeldBackOnlyByRevokedInstallations,
+  revokedInstallationsAwaitingConfirmation,
+  streamReachesPastOnceConfirmed,
+} from "./model/confirmed-stream-reach.js";
 export { CONTINGENCY_KINDS, contingencyOf } from "./model/connectivity-gap.js";
 export { selectConsumerBuyerTaxStatus } from "./model/consumer-buyer-tax-status.js";
 export { countsAsContingencyTime } from "./model/contingency-time.js";
@@ -238,7 +243,6 @@ export {
   awaitsNumberingDiagnosis,
   isNumberingConflictAnswer,
   NUMBERING_CONFLICT_REASK_INTERVAL_MS,
-  type NumberingFreeze,
   restorationNumberingFreeze,
 } from "./model/numbering-conflict.js";
 export type { Fortnight } from "./model/offline-authorization-code.js";

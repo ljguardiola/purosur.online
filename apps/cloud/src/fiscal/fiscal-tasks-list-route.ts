@@ -1,8 +1,9 @@
 import { fiscalTasksSchema } from "@purosur/contracts";
-import type { FiscalTaskAlert, OpenFiscalTask } from "@purosur/domain/fiscal/use-cases";
+import type { OpenFiscalTask } from "@purosur/domain/fiscal/use-cases";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import type { FastifyInstance } from "fastify";
 import { DrizzleOpenAlertStandingReader } from "../alerts/drizzle-open-alert-standing-reader.js";
+import { type FiscalTaskAlert, openFiscalTaskAlerts } from "../alerts/open-fiscal-task-alerts.js";
 import { sameOriginGuard } from "../sessions/backoffice-origin.js";
 import {
   capabilityAccess,
@@ -24,14 +25,14 @@ function alertToWire(alert: FiscalTaskAlert | null) {
     : { level: alert.level, escalated_at: alert.escalatedAt?.toISOString() ?? null };
 }
 
-function toWire(task: OpenFiscalTask, now: Date) {
+function toWire(task: OpenFiscalTask, alert: FiscalTaskAlert | null, now: Date) {
   const common = {
     id: task.id,
     register_id: task.registerId,
     register_name: task.registerName,
     created_at: task.createdAt.toISOString(),
     open_for_seconds: Math.max(0, Math.floor((now.getTime() - task.createdAt.getTime()) / 1000)),
-    alert: alertToWire(task.alert),
+    alert: alertToWire(alert),
   };
   switch (task.kind) {
     case "external_invoicing":
@@ -74,10 +75,8 @@ export function registerFiscalTasksListRoute<TQueryResult extends PgQueryResultH
   const { now } = options;
   registerRouteAccess(app);
   const sessionSource = routeSessionSource({ db: options.db, now });
-  const reader = new DrizzleOpenFiscalTaskReader(
-    options.db,
-    new DrizzleOpenAlertStandingReader(options.db),
-  );
+  const reader = new DrizzleOpenFiscalTaskReader(options.db);
+  const alertStandings = new DrizzleOpenAlertStandingReader(options.db);
 
   app.get(
     "/fiscal/tasks",
@@ -87,10 +86,13 @@ export function registerFiscalTasksListRoute<TQueryResult extends PgQueryResultH
     },
     async (request, reply) => {
       const tasks = await reader.openTasksOfBranch(openSessionOf(request).locationId);
+      const alerts = await openFiscalTaskAlerts(alertStandings, tasks);
       const asOf = now();
-      await reply
-        .code(200)
-        .send(fiscalTasksSchema.parse({ tasks: tasks.map((task) => toWire(task, asOf)) }));
+      await reply.code(200).send(
+        fiscalTasksSchema.parse({
+          tasks: tasks.map((task) => toWire(task, alerts.get(task.id) ?? null, asOf)),
+        }),
+      );
     },
   );
 }

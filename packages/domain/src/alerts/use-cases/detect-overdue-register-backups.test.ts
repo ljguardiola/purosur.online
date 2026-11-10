@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   REGISTER_BACKUP_OVERDUE_AFTER_MS,
   type RegisterBackupStanding,
-} from "../model/register-backup-overdue.js";
+} from "../../backups/index.js";
 import { detectOverdueRegisterBackups } from "./detect-overdue-register-backups.js";
 import {
   FakeRegisterBackupOverdueAlerts,

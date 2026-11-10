@@ -6,7 +6,6 @@ export {
   isAlertKind,
   isAlertLevel,
 } from "./model/alert-catalog.js";
-export type { AlertConditionObservation } from "./model/alert-condition-observation.js";
 export {
   clockCorrectedObservation,
   externalBillingObservation,
@@ -14,8 +13,6 @@ export {
   invoiceAlreadyCreditedObservation,
   offlineAuthorizationCodeHeldObservation,
   offlineAuthorizationCodeMissingObservation,
-  registerBackedUpObservation,
-  registerBackupOverdueObservation,
   registerBatteryHealthObservation,
   registerBatteryMissingObservation,
   registerClockDriftObservation,
@@ -90,7 +87,6 @@ export {
 export type { OffsiteDumpUnverifiedReason } from "./model/offsite-dump-unverified-reason.js";
 export { OFFSITE_DUMP_UNVERIFIED_REASONS } from "./model/offsite-dump-unverified-reason.js";
 export { isOpenAlert } from "./model/open-alert-state.js";
-export { refundTaskAlertIsDue, refundTaskAlertLevel } from "./model/refund-task-alert.js";
 export {
   REGISTER_FORTNIGHT_SCOPE_SEPARATOR,
   registerFortnightScope,

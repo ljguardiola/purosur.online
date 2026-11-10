@@ -30,7 +30,6 @@ export type {
   LockedContingencyTicketRecovery,
   OpenContingencyTicketRecovery,
 } from "./contingency-ticket-recovery-ports.js";
-export { detectOverdueRegisterBackups } from "./detect-overdue-register-backups.js";
 export type { DiscardContingencyBackupTicketsOutcome } from "./discard-contingency-backup-tickets.js";
 export { discardContingencyBackupTickets } from "./discard-contingency-backup-tickets.js";
 export type {
@@ -43,11 +42,6 @@ export type {
   OffsiteDumpCheckStore,
   OffsiteDumpCheckStoreTransaction,
 } from "./offsite-dump-check-store.js";
-export type {
-  OverdueRegisterBackupDetectionPorts,
-  RegisterBackupOverdueAlerts,
-  RegisterBackupStandingReader,
-} from "./overdue-register-backup-ports.js";
 export type { PrintNextContingencyBackupTicketOutcome } from "./print-next-contingency-backup-ticket.js";
 export { printNextContingencyBackupTicket } from "./print-next-contingency-backup-ticket.js";
 export type {

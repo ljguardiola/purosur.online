@@ -27,7 +27,8 @@ async function renderList(capabilities: Capability[]) {
         services={services}
         registerPointOfSaleSection={RegisterPointOfSaleSectionStub}
         registerPanelSections={registerPartsOf(services).panelSections}
-        registerPaymentAndKeyModals={registerPartsOf(services).paymentAndKeyModals}
+        registerPaymentModals={registerPartsOf(services).paymentModals}
+        registerKeyModals={registerPartsOf(services).keyModals}
         onSessionEnded={() => {}}
         sessionsPeriod={{ from: "", to: "" }}
         onSessionsPeriodChange={() => {}}

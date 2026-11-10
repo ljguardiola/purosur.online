@@ -34,7 +34,7 @@ export function createAppServices(
     fetchSnapshotBackups: vi.fn().mockReturnValue(new Promise(() => {})),
     fetchCashSessionCloses: vi.fn().mockReturnValue(new Promise(() => {})),
   });
-  const { panelSections, paymentAndKeyModals } = registerPartsOf(registerParts);
+  const { panelSections, paymentModals, keyModals } = registerPartsOf(registerParts);
   return {
     registerParts,
     fetchSession: vi.fn().mockResolvedValue(openSession()),
@@ -375,7 +375,8 @@ export function createAppServices(
     },
     registerPointOfSaleSection: RegisterPointOfSalePanelSection,
     registerPanelSections: panelSections,
-    registerPaymentAndKeyModals: paymentAndKeyModals,
+    registerPaymentModals: paymentModals,
+    registerKeyModals: keyModals,
     contingencyTicketRescueAssistant: ContingencyTicketRescueAssistant,
     roleCreationModal: CreateRoleFromSelectorModal,
     reportRegisterFilter: {

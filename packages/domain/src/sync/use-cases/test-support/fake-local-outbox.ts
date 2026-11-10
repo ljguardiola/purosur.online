@@ -1,4 +1,4 @@
-import type { PushedEvent } from "../../model/push-batch.js";
+import type { PushedEvent } from "../../../shared/index.js";
 import type { CloudEventInbox, CloudEventInboxAnswer, LocalOutbox } from "../sync-ports.js";
 
 export class FakeLocalOutbox implements LocalOutbox {

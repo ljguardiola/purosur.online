@@ -12,6 +12,7 @@ import {
 const NEW_SHA = "a".repeat(40);
 const OLD_SHA = "b".repeat(40);
 const MODULE_PATH = "packages/domain/src/sync/model/register-version.ts";
+const ORDERING_PATH = "packages/domain/src/register/model/register-version.ts";
 
 function moduleSource(minimum) {
   return `export const MINIMUM_ACCEPTED_REGISTER_VERSION = "${minimum}";
@@ -26,14 +27,53 @@ export function versionAtLeast(version: string, minimum: string): boolean {
 `;
 }
 
-test("loads the domain's own register version module straight from its source", async () => {
-  const source = readFileSync(new URL(`../../${MODULE_PATH}`, import.meta.url), "utf8");
+function minimumSource(minimum) {
+  return `export const MINIMUM_ACCEPTED_REGISTER_VERSION = "${minimum}";\n`;
+}
 
-  const loaded = await loadRegisterVersionModule(source);
+const orderingSource = `export function isRegisterVersionAtLeast(version: string, minimum: string): boolean {
+  return version.localeCompare(minimum, "en", { numeric: true }) >= 0;
+}
+`;
 
-  assert.equal(typeof loaded.MINIMUM_ACCEPTED_REGISTER_VERSION, "string");
-  assert.equal(loaded.versionAtLeast("1.2.3", "1.2.0"), true);
-  assert.equal(loaded.versionAtLeast("1.1.9", "1.2.0"), false);
+test("reads the minimum and the version ordering from the domain's own source", async () => {
+  const runGit = async (args) => {
+    const path = args[1].slice(`${NEW_SHA}:`.length);
+    return readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
+  };
+
+  const result = await readMinimumVersion({ sha: NEW_SHA, runGit });
+
+  assert.equal(typeof result.minimum, "string");
+  assert.equal(result.versionAtLeast("1.2.3", "1.2.0"), true);
+  assert.equal(result.versionAtLeast("1.1.9", "1.2.0"), false);
+});
+
+test("reads the minimum from sync and the version ordering from register when sync declares only the minimum", async () => {
+  const shown = [];
+  const runGit = async (args) => {
+    shown.push(args);
+    if (args[1] === `${NEW_SHA}:${MODULE_PATH}`) return minimumSource("2.0.0");
+    if (args[1] === `${NEW_SHA}:${ORDERING_PATH}`) return orderingSource;
+    throw new Error(`unexpected git ${args.join(" ")}`);
+  };
+
+  const result = await readMinimumVersion({ sha: NEW_SHA, runGit });
+
+  assert.equal(result.minimum, "2.0.0");
+  assert.equal(result.versionAtLeast("2.0.0", "1.10.0"), true);
+  assert.equal(result.versionAtLeast("1.9.0", "1.10.0"), false);
+  assert.deepEqual(shown, [
+    ["show", `${NEW_SHA}:${MODULE_PATH}`],
+    ["show", `${NEW_SHA}:${ORDERING_PATH}`],
+  ]);
+});
+
+test("refuses a commit whose register module declares no version ordering", async () => {
+  const runGit = async (args) =>
+    args[1] === `${NEW_SHA}:${MODULE_PATH}` ? minimumSource("2.0.0") : "export const other = 1;\n";
+
+  await assert.rejects(readMinimumVersion({ sha: NEW_SHA, runGit }), /isRegisterVersionAtLeast/);
 });
 
 test("reads the minimum version a commit's module declares", async () => {
@@ -211,6 +251,34 @@ test("refuses when the minimum is raised and registers are below it, naming each
   const errors = calls.errors.join("\n");
   assert.match(errors, /Caja 1.*1\.0\.0/);
   assert.match(errors, /Caja 2.*never reported/);
+});
+
+test("compares a target whose ordering lives in register with a previous release that declares it beside the minimum", async () => {
+  const { fetchImpl, calls: fetchCalls } = fakeFetch(jsonResponse({ registers: [] }));
+  const runGit = async (args) => {
+    if (args[0] === "rev-parse") return `${OLD_SHA}\n`;
+    if (args[1] === `${NEW_SHA}:${MODULE_PATH}`) return minimumSource("1.10.0");
+    if (args[1] === `${NEW_SHA}:${ORDERING_PATH}`) return orderingSource;
+    if (args[1] === `${OLD_SHA}:${MODULE_PATH}`) return moduleSource("1.9.0");
+    throw new Error(`unexpected git ${args.join(" ")}`);
+  };
+
+  const exitCode = await runCli({
+    env: {
+      TARGET_SHA: NEW_SHA,
+      PREVIOUS_TAG: "cloud-v1.0.0",
+      PRODUCTION_ORIGIN: "https://prod.example.test",
+      RELEASE_CHECK_TOKEN: "release-token",
+    },
+    runGit,
+    fetchImpl,
+    log: () => {},
+    logError: () => {},
+  });
+
+  assert.equal(exitCode, 0);
+  assert.equal(fetchCalls.length, 1);
+  assert.match(fetchCalls[0].url, /minimum=1\.10\.0$/);
 });
 
 test("refuses when production cannot answer", async () => {

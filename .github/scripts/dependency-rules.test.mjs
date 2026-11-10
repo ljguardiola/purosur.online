@@ -565,6 +565,93 @@ test("no-concept-cycles flags a cycle crossing concepts and allows one contained
   assert.equal(violationsFor(controlReport, "no-concept-cycles").length, 0);
 });
 
+function conceptFile(concept, name, importedConcept) {
+  if (importedConcept === undefined) {
+    return { [`packages/domain/src/${concept}/model/${name}.ts`]: `export const ${name} = 1;\n` };
+  }
+  return {
+    [`packages/domain/src/${concept}/model/${name}.ts`]: [
+      `import type { ${importedConcept}Entry } from "../../${importedConcept}/index";`,
+      `export type ${name} = ${importedConcept}Entry;`,
+    ].join("\n"),
+  };
+}
+
+function conceptEntry(concept) {
+  return {
+    [`packages/domain/src/${concept}/index.ts`]: [
+      `import { own } from "./model/own";`,
+      `export type ${concept}Entry = typeof own;`,
+    ].join("\n"),
+    ...conceptFile(concept, "own"),
+  };
+}
+
+test("no-concept-folder-cycles flags concepts importing each other through files that form no module cycle", async (t) => {
+  const root = await makeFixture(t, {
+    ...conceptEntry("sales"),
+    ...conceptEntry("returns"),
+    ...conceptFile("sales", "refundShare", "returns"),
+    ...conceptFile("returns", "credit", "sales"),
+  });
+
+  const report = await cruiseFixture(root, ["packages"]);
+
+  assert.equal(violationsFor(report, "no-concept-cycles").length, 0);
+  assert.deepEqual(
+    violationsFor(report, "no-concept-folder-cycles")
+      .map((violation) => `${violation.from} -> ${violation.to}`)
+      .sort(),
+    [
+      "packages/domain/src/returns -> packages/domain/src/sales",
+      "packages/domain/src/sales -> packages/domain/src/returns",
+    ],
+  );
+});
+
+test("no-concept-folder-cycles flags a cycle running through three concepts", async (t) => {
+  const root = await makeFixture(t, {
+    ...conceptEntry("sales"),
+    ...conceptEntry("fiscal"),
+    ...conceptEntry("alerts"),
+    ...conceptFile("sales", "invoice", "fiscal"),
+    ...conceptFile("fiscal", "rejection", "alerts"),
+    ...conceptFile("alerts", "saleAlert", "sales"),
+  });
+
+  const report = await cruiseFixture(root, ["packages"]);
+
+  assert.equal(violationsFor(report, "no-concept-folder-cycles").length, 3);
+});
+
+test("no-concept-folder-cycles flags a cycle running through shared", async (t) => {
+  const root = await makeFixture(t, {
+    ...conceptEntry("sales"),
+    ...conceptEntry("shared"),
+    ...conceptFile("sales", "money", "shared"),
+    ...conceptFile("shared", "saleTotal", "sales"),
+  });
+
+  const report = await cruiseFixture(root, ["packages"]);
+
+  assert.equal(violationsFor(report, "no-concept-folder-cycles").length, 2);
+});
+
+test("no-concept-folder-cycles allows concepts depending on each other in one direction only", async (t) => {
+  const root = await makeFixture(t, {
+    ...conceptEntry("sales"),
+    ...conceptEntry("fiscal"),
+    ...conceptEntry("alerts"),
+    ...conceptFile("sales", "invoice", "fiscal"),
+    ...conceptFile("sales", "saleAlert", "alerts"),
+    ...conceptFile("fiscal", "rejection", "alerts"),
+  });
+
+  const report = await cruiseFixture(root, ["packages"]);
+
+  assert.equal(violationsFor(report, "no-concept-folder-cycles").length, 0);
+});
+
 test("screens-types-only-from-domain flags a value import from domain and allows a type-only one", async (t) => {
   const root = await makeFixture(t, {
     "apps/pos/src/renderer/view.ts": [

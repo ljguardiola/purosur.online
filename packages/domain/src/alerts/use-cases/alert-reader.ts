@@ -1,4 +1,4 @@
-import type { SalesDeniedReason } from "../../shared/index.js";
+import type { SalesDeniedReason } from "../../register/index.js";
 import type { AlertAudience, AlertKind, AlertLevel } from "../model/alert-catalog.js";
 import type { VisibleAlertSight } from "../model/alert-visibility.js";
 

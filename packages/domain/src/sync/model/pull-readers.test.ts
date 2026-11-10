@@ -1,5 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
+import { isRegisterVersionAtLeast } from "../../register/index.js";
 import { STOCK_MOVEMENT_KINDS } from "../../stock/index.js";
 import { PULLED_ENTITIES } from "./pull-audience.js";
 import {
@@ -7,7 +8,6 @@ import {
   readsPulledEntity,
   unreadableStockMovementKinds,
 } from "./pull-readers.js";
-import { versionAtLeast } from "./register-version.js";
 
 const LATER_ADDED_ENTITIES = ["brand", "zone_rules"] as const;
 const LATER_ADDED_KINDS = ["return", "assembly_void", "exchange_out"] as const;
@@ -62,7 +62,7 @@ describe("the entities a register version reads", () => {
   it("is read by a newer version whenever an older one reads it", () => {
     fc.assert(
       fc.property(aVersion, aVersion, (older, newer) => {
-        fc.pre(versionAtLeast(newer, older));
+        fc.pre(isRegisterVersionAtLeast(newer, older));
         for (const entity of PULLED_ENTITIES) {
           if (readsPulledEntity(older, entity)) {
             expect(readsPulledEntity(newer, entity)).toBe(true);

@@ -24,7 +24,7 @@ export { isoWeekdayOf } from "./iso-weekday.js";
 export type { LocalDatabaseHealth, LocalDatabaseHealthPorts } from "./local-database-health.js";
 export { marginTenthsOfPercent } from "./margin-over-price.js";
 export type { OperationAuthority, OperationAuthorization } from "./operation-authority.js";
-export type { JsonValue, OutboxEvent, OutboxEventDraft } from "./outbox-event.js";
+export type { JsonValue, OutboxEvent, OutboxEventDraft, PushedEvent } from "./outbox-event.js";
 export {
   canonicalOutboxEvent,
   canonicalOutboxPayload,
@@ -41,12 +41,6 @@ export type { ReportPeriod } from "./report-period.js";
 export { isReportPeriodAsked, reportPeriodOf } from "./report-period.js";
 export type { Fraction } from "./rounding.js";
 export { compareFractions, roundHalfUp } from "./rounding.js";
-export type {
-  SalesDeniedReason,
-  SalesDeniedReport,
-  StorageSalesDeniedReason,
-} from "./sales-denied.js";
-export { SALES_DENIED_REASONS, STORAGE_SALES_DENIED_REASONS } from "./sales-denied.js";
 export type { Scale, ScaleReading, WeighingReading } from "./scale.js";
 export type { ScaleWeighingStep } from "./scale-weighing.js";
 export { scaleWeighingStep } from "./scale-weighing.js";

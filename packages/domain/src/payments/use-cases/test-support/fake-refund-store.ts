@@ -1,5 +1,5 @@
-import type { AlertKind } from "../../../alerts/index.js";
 import type { Clock } from "../../../shared/index.js";
+import type { RefundAlertKind } from "../../model/payment-refund.js";
 import type { RefundTransfer } from "../../model/refund-transfer.js";
 import type {
   LockedRefund,
@@ -20,7 +20,7 @@ export interface FakeStoredRefund extends LockedRefund {
 
 export interface ResolvedRefundAlert {
   refundId: string;
-  kind: AlertKind;
+  kind: RefundAlertKind;
   resolvedBy: string;
   resolvedAt: Date;
 }
@@ -111,7 +111,7 @@ class FakeRefundStoreTransaction implements RefundStoreTransaction {
 
   async resolveRefundAlert(
     refundId: string,
-    kind: AlertKind,
+    kind: RefundAlertKind,
     resolvedBy: string,
     resolvedAt: Date,
   ): Promise<void> {

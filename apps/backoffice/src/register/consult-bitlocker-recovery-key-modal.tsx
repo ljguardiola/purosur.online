@@ -3,8 +3,8 @@ import type { startAuthentication } from "@simplewebauthn/browser";
 import { Check, Info, KeyRound, ShieldX, TriangleAlert } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { ActionFailureNotice } from "../platform/action-failure-notice";
+import type { RegisterKeyTarget } from "../platform/register-key-modals";
 import { registerModalContext } from "../platform/register-modal-context";
-import type { RegisterKeyTarget } from "../platform/register-payment-and-key-modals";
 import { retryAfterDetail } from "../platform/retry-after-detail";
 import type {
   authorizeSession,

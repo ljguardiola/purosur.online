@@ -1,5 +1,4 @@
 import { FACTURA_C_DOCUMENT_TYPE, OFFLINE_SERIES_DOCUMENT_TYPES } from "@purosur/domain";
-import type { RealTimeNumberingLane } from "@purosur/domain/installation/use-cases";
 import { and, eq, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
@@ -17,7 +16,7 @@ type Transaction<TQueryResult extends PgQueryResultHKT> = Parameters<
 export async function takeRegisterRealTimeNumberingLane<TQueryResult extends PgQueryResultHKT>(
   tx: Transaction<TQueryResult>,
   registerId: string,
-): Promise<RealTimeNumberingLane | null> {
+): Promise<{ pointOfSale: number; heldCount: number | null } | null> {
   const [realTime] = await tx
     .select({ pointOfSale: registerPointsOfSale.pointOfSaleNumber })
     .from(registerPointsOfSale)

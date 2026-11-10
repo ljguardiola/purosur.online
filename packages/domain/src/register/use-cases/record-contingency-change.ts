@@ -1,4 +1,3 @@
-import { countsAsContingencyTime, type FiscalEmissionMode } from "../../fiscal/index.js";
 import type { Clock } from "../../shared/index.js";
 import { contingencyEnteredEvent, contingencyLeftEvent } from "../model/contingency-events.js";
 import { contingencyIntervalEnd } from "../model/contingency-interval.js";
@@ -11,10 +10,6 @@ export interface RecordContingencyChangePorts {
   ids: IdGenerator;
 }
 
-export interface RecordContingencyChangeInput {
-  mode: FiscalEmissionMode;
-}
-
 export type RecordContingencyChangeOutcome =
   | { kind: "unavailable" }
   | { kind: "entered"; intervalId: string }
@@ -22,16 +17,17 @@ export type RecordContingencyChangeOutcome =
   | { kind: "refreshed"; intervalId: string }
   | { kind: "unchanged" };
 
-export function recordContingencyChange(
-  { ledger, clock, ids }: RecordContingencyChangePorts,
-  { mode }: RecordContingencyChangeInput,
-): RecordContingencyChangeOutcome {
+export function recordContingencyChange({
+  ledger,
+  clock,
+  ids,
+}: RecordContingencyChangePorts): RecordContingencyChangeOutcome {
   return ledger.transaction<RecordContingencyChangeOutcome>((tx) => {
     const registerId = tx.registerId();
     if (registerId === undefined) {
       return { kind: "unavailable" };
     }
-    const counts = countsAsContingencyTime(mode) && tx.cashSessionOpen();
+    const counts = tx.emittingInContingencyTime() && tx.cashSessionOpen();
     const open = tx.openInterval();
     const now = clock.now();
 

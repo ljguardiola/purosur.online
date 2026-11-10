@@ -15,7 +15,6 @@ export {
   customerDocumentPrinted,
   paidSaleCancellationLeavesBackupTicket,
 } from "./model/contingency-backup-ticket.js";
-export { contingencyTicketSealingKey } from "./model/contingency-ticket-key.js";
 export type {
   OffsiteDumpCheckResult,
   OffsiteDumpFailureReason,
@@ -34,3 +33,7 @@ export {
   offsiteDumpNightOf,
 } from "./model/offsite-dump-deadline.js";
 export type { RegisterBackupStanding } from "./model/register-backup-overdue.js";
+export {
+  isRegisterBackupOverdue,
+  REGISTER_BACKUP_OVERDUE_AFTER_MS,
+} from "./model/register-backup-overdue.js";

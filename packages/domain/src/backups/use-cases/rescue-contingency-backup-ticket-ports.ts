@@ -1,5 +1,4 @@
-import type { Clock } from "../../shared/index.js";
-import type { PushedEvent } from "../../sync/index.js";
+import type { Clock, PushedEvent } from "../../shared/index.js";
 import type { RescuedTicketFact } from "../model/rescued-ticket-summary.js";
 
 export type ContingencyBackupTicketOpening =

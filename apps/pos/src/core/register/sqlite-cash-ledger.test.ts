@@ -240,39 +240,17 @@ describe("the open sale", () => {
     ledger.transaction((tx) => tx.recordOpenedSession(session()));
   });
 
-  it("is none while the session has no sale", () => {
-    expect(ledger.transaction((tx) => tx.openSale("session-1"))).toBeUndefined();
-  });
-
-  it("is none while the session only has sales that are over", () => {
-    addSale("sale-1", "COMPLETED", [1500]);
-    addSale("sale-2", "VOIDED", [700]);
-
-    expect(ledger.transaction((tx) => tx.openSale("session-1"))).toBeUndefined();
-  });
-
-  it("carries the lines of the sale in progress", () => {
+  it("tells the total of the session's sale in progress", () => {
     addSale("sale-1", "COMPLETED", [999]);
     addSale("sale-2", "OPEN", [1500, 250]);
 
-    const openSale = ledger.transaction((tx) => tx.openSale("session-1"));
-
-    expect(openSale?.lines.map((line) => line.lineTotal)).toEqual([1500, 250]);
+    expect(ledger.transaction((tx) => tx.openSaleTotal("session-1"))).toBe(1750);
   });
 
-  it("carries no lines for a sale in progress whose lines were all removed", () => {
-    addSale("sale-1", "OPEN", []);
+  it("is none while the session has no sale in progress", () => {
+    addSale("sale-1", "COMPLETED", [1500]);
 
-    expect(ledger.transaction((tx) => tx.openSale("session-1"))).toEqual({
-      lines: [],
-      saleDiscount: null,
-    });
-  });
-
-  it("is none for a session whose sale is not the one in progress", () => {
-    addSale("sale-1", "OPEN", [1500]);
-
-    expect(ledger.transaction((tx) => tx.openSale("session-2"))).toBeUndefined();
+    expect(ledger.transaction((tx) => tx.openSaleTotal("session-1"))).toBeUndefined();
   });
 
   describe("when closing the session", () => {

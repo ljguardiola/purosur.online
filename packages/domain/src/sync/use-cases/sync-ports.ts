@@ -1,5 +1,10 @@
 import type { Fortnight } from "../../fiscal/index.js";
-import type { Clock, PublishedZoneRulesReader, ZoneRulesSource } from "../../shared/index.js";
+import type {
+  Clock,
+  PublishedZoneRulesReader,
+  PushedEvent,
+  ZoneRulesSource,
+} from "../../shared/index.js";
 import type { LimitedEndpoint } from "../model/installation-request-limit.js";
 import type {
   PullAudience,
@@ -8,7 +13,7 @@ import type {
   PullReach,
 } from "../model/pull-audience.js";
 import type { PulledChange, PullPage } from "../model/pull-page.js";
-import type { PushedEvent, RegisterTelemetry } from "../model/push-batch.js";
+import type { RegisterTelemetry } from "../model/push-batch.js";
 
 export type { PullAudience, PulledChange, PulledEntity, PullingRegister, PullPage, PullReach };
 

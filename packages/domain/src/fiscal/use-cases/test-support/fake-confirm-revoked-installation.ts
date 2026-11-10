@@ -1,4 +1,4 @@
-import type { InstallationStreamReach } from "../../../sync/index.js";
+import type { InstallationStreamReach } from "../../model/event-stream-reach.js";
 import type { FortnightReportState } from "../../model/fortnight-report.js";
 import type {
   ConfirmRevokedInstallationStore,

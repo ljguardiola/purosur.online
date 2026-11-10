@@ -17,6 +17,7 @@ export interface ContingencyLedger {
 export interface ContingencyLedgerTransaction {
   registerId(): string | undefined;
   cashSessionOpen(): boolean;
+  emittingInContingencyTime(): boolean;
   replenishmentPending(): boolean;
   openInterval(): OpenContingencyInterval | undefined;
   predecessorOpenIntervals(): PredecessorOpenContingencyInterval[];
