@@ -42,6 +42,34 @@ test("finds an arbitrary variant holding nested brackets that starts a class", (
   ]);
 });
 
+test("finds an arbitrary variant holding a quote that starts a class", () => {
+  assert.deepEqual(
+    matchedTexts(`cn("[&[data-state='open']]:p-4", "[[data-state='open']_&]:p-4")`),
+    ["[&[data-state='open']]", "[[data-state='open']_&]"],
+  );
+});
+
+test("finds an arbitrary variant opening with a relative combinator that starts a class", () => {
+  assert.deepEqual(matchedTexts('"[>svg]:p-4 [+p]:p-4 [~p]:p-4"'), ["[>svg]", "[+p]", "[~p]"]);
+});
+
+test("reports once an arbitrary variant starting a class whose bracket opens like a property", () => {
+  assert.deepEqual(matchedTexts('"[input:checked_&]:p-4 [input:checked_&[x]]:p-4"'), [
+    "[input:checked_&]",
+    "[input:checked_&[x]]",
+  ]);
+});
+
+test("does not flag a CSS selector string", () => {
+  const source = [
+    `const a = root.querySelector("[aria-live]:not([aria-live='off'])");`,
+    'const b = root.querySelectorAll("[role=switch]:checked");',
+    'const c = root.querySelector("[data-slot]:first-child");',
+  ].join("\n");
+
+  assert.deepEqual(findArbitraryValues(source), []);
+});
+
 test("reports the line and column where an arbitrary variant starting a class opens", () => {
   const source = ["const a = 1;", 'const b = "flex [.dark_&]:p-4";'].join("\n");
 
