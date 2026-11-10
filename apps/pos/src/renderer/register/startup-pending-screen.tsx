@@ -13,22 +13,19 @@ import type { AuthorizablePermissionKey } from "@purosur/domain";
 import type { TableLoadingState } from "@purosur/ui";
 import {
   actionsColumn,
-  Button,
   dataColumn,
-  Eyebrow,
-  FloatingNotification,
   formatCents,
   formatClockTime,
-  ScreenHeader,
-  SidePanel,
   StatusIndicator,
   Table,
   TableCellText,
+  Toast,
   useTableModel,
 } from "@purosur/ui";
-import { ArrowRight, CheckCheck, Printer, ShoppingCart, TriangleAlert, Undo2 } from "lucide-react";
+import { CheckCheck, Printer, ShoppingCart, TriangleAlert, Undo2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
+import { useKeys } from "../platform/key-layer";
 import type { CoreData } from "../platform/use-core-query";
 import { OpenSessionRail } from "../shell/open-session-rail";
 import { RegisterFrame } from "../shell/register-frame";
@@ -43,12 +40,11 @@ import {
   useStartupPendingQuery,
 } from "./register-queries";
 import { hasStartupPendingItems } from "./startup-pending-items";
+import { StartupPendingSessionPanel } from "./startup-pending-session-panel";
 
 type SaleToPrint = StartupPending["sales_to_print"][number];
 type PaidOrder = StartupPending["paid_orders_without_sale"][number];
 
-const SELLING_BLOCKED_REASON = "Pasá el cobro a reembolso para empezar a vender.";
-const CHECKING_REASON = "Esperá a que la caja termine de consultar los cobros pagados.";
 const UNCHECKED_PAID_ORDERS =
   "Puede haber un cobro pagado para esta caja sin venta. La caja lo va a consultar cuando vuelva la conexión.";
 const CONSULTING_PAID_ORDERS =
@@ -472,15 +468,12 @@ export function StartupPendingScreen({
     !pending.value.may_go_selling
       ? pending.value
       : undefined;
-  const since = `Desde las ${formatClockTime(openedAt)}`;
-  const openingFloat =
-    balance.status === "loaded"
-      ? ` · fondo ${formatCents(balance.value.opening_float.amount)}`
-      : "";
+  useKeys([{ key: "Enter", run: onGoSelling, enabled: keptFromSelling === undefined }]);
 
   return (
     <RegisterFrame
       background="surface"
+      crumb="Antes de empezar"
       rail={
         <OpenSessionRail
           registerName={registerName}
@@ -490,44 +483,18 @@ export function StartupPendingScreen({
         />
       }
       aside={
-        <SidePanel
-          label="Sesión abierta"
-          footer={
-            keptFromSelling ? (
-              <Button
-                size="sale"
-                fullWidth
-                icon={<ArrowRight />}
-                disabledReason={
-                  keptFromSelling.selling_blocked ? SELLING_BLOCKED_REASON : CHECKING_REASON
-                }
-              >
-                Ir a vender
-              </Button>
-            ) : (
-              <>
-                <p className="text-detail text-text-subtle">
-                  Lo que quedó pendiente se puede resolver después.
-                </p>
-                <Button size="sale" fullWidth icon={<ArrowRight />} onPress={onGoSelling}>
-                  Ir a vender
-                </Button>
-              </>
-            )
+        <StartupPendingSessionPanel
+          sessionOwner={sessionOwner}
+          openedAt={openedAt}
+          openingFloat={
+            balance.status === "loaded" ? balance.value.opening_float.amount : undefined
           }
-        >
-          <Eyebrow text="Sesión abierta" />
-          <p className="text-title text-text-accent">{sessionOwner.first_name}</p>
-          <p className="text-detail text-text-subtle">{`${since}${openingFloat}`}</p>
-        </SidePanel>
+          keptFromSelling={keptFromSelling}
+          onGoSelling={onGoSelling}
+        />
       }
     >
-      <main className="flex min-w-0 flex-1 flex-col gap-4 bg-surface-soft p-6">
-        <ScreenHeader
-          eyebrow="Antes de empezar"
-          title="Hay cosas para resolver"
-          description="La caja se cerró sin terminar algunas operaciones. Esto es lo que quedó."
-        />
+      <main className="relative flex min-w-0 flex-1 flex-col gap-4 px-8 pt-4 pb-6">
         {clockGuard}
         <PendingTable
           data={pending}
@@ -537,6 +504,35 @@ export function StartupPendingScreen({
           onGoToSale={onGoToSale}
           onRefund={setRefundOf}
         />
+        <div className="absolute bottom-20 left-8 flex flex-col gap-2">
+          {refunded ? (
+            <Toast
+              tone="success"
+              icon={<Undo2 />}
+              title="El cobro quedó como reembolso"
+              description="Se confirma después en el backoffice."
+              onDismiss={() => setRefunded(false)}
+            />
+          ) : null}
+          {sent === undefined ? null : (
+            <Toast
+              tone="success"
+              icon={<Printer />}
+              title="El ticket sale en cuanto la impresora esté lista"
+              description={`${receiptCopyPresentation(sent).comesOutAs}.`}
+              onDismiss={() => setSent(undefined)}
+            />
+          )}
+          {problem === undefined ? null : (
+            <Toast
+              tone="error"
+              icon={<TriangleAlert />}
+              title={problem.title}
+              description={problem.description}
+              onDismiss={() => setProblem(undefined)}
+            />
+          )}
+        </div>
       </main>
       {duplicateOf === undefined ? null : (
         <ReprintReceiptModal
@@ -577,33 +573,6 @@ export function StartupPendingScreen({
           }}
           onSessionInvalid={onSessionInvalid}
           onClose={() => setRefundOf(undefined)}
-        />
-      )}
-      {refunded ? (
-        <FloatingNotification
-          tone="success"
-          icon={<Undo2 />}
-          title="El cobro quedó como reembolso"
-          description="Se confirma después en el backoffice."
-          onDismiss={() => setRefunded(false)}
-        />
-      ) : null}
-      {sent === undefined ? null : (
-        <FloatingNotification
-          tone="success"
-          icon={<Printer />}
-          title="El ticket sale en cuanto la impresora esté lista"
-          description={`${receiptCopyPresentation(sent).comesOutAs}.`}
-          onDismiss={() => setSent(undefined)}
-        />
-      )}
-      {problem === undefined ? null : (
-        <FloatingNotification
-          tone="error"
-          icon={<TriangleAlert />}
-          title={problem.title}
-          description={problem.description}
-          onDismiss={() => setProblem(undefined)}
         />
       )}
     </RegisterFrame>
