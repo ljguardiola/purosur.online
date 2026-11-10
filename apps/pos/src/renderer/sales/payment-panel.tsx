@@ -12,9 +12,9 @@ import {
   SummaryRowGroup,
 } from "@purosur/ui";
 import {
+  ArrowRight,
   BadgePercent,
   Banknote,
-  ChevronRight,
   CreditCard,
   Lock,
   OctagonAlert,
@@ -112,24 +112,8 @@ export function PaymentPanel({
         },
   ];
   return (
-    <SidePanel
-      label="Panel de cobro"
-      footer={
-        cancellable && lineCount > 0 ? (
-          <Button
-            variant="secondary"
-            destructive
-            fullWidth
-            icon={<X />}
-            disabled={!canCancel}
-            onPress={onCancel}
-          >
-            {hasApprovedPayment ? "Cancelar venta" : "Vaciar"}
-          </Button>
-        ) : undefined
-      }
-    >
-      <FigureStat label="Total" value={formatCents(total)} />
+    <SidePanel label="Panel de cobro">
+      <FigureStat size="hero" label="Total" value={formatCents(total)} />
       {saleStatus === "loading" ? (
         <LoadingPlaceholder variant="card" lines={2} />
       ) : (
@@ -149,6 +133,18 @@ export function PaymentPanel({
           onPress={onDiscount}
         >
           Aplicar descuento al total
+        </Button>
+      ) : null}
+      {cancellable && lineCount > 0 ? (
+        <Button
+          variant="secondary"
+          destructive
+          fullWidth
+          icon={<X />}
+          disabled={!canCancel}
+          onPress={onCancel}
+        >
+          {hasApprovedPayment ? "Cancelar venta" : "Vaciar"}
         </Button>
       ) : null}
       {paid === 0 ? null : (
@@ -212,12 +208,12 @@ export function PaymentPanel({
             </div>
             <Button
               variant="text"
-              icon={<ChevronRight />}
               keycap="F1"
               disabled={!canCharge}
               onPress={() => onCharge(undefined)}
             >
               Otros medios
+              <ArrowRight aria-hidden="true" className="ml-2 inline size-icon-md" />
             </Button>
           </>
         ) : (
