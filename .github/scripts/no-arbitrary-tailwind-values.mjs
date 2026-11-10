@@ -156,6 +156,23 @@ const CSS_PSEUDO_NAMES = new Set([
   "where",
 ]);
 
+// No Tailwind utility starts with `-webkit-` or `-moz-`, but `-ms-` also starts a negative
+// margin-inline-start (`-ms-4`), so Microsoft's pseudos are named one by one.
+const MICROSOFT_PSEUDO_NAMES = new Set([
+  "-ms-browse",
+  "-ms-check",
+  "-ms-clear",
+  "-ms-expand",
+  "-ms-fill",
+  "-ms-fill-lower",
+  "-ms-fill-upper",
+  "-ms-input-placeholder",
+  "-ms-reveal",
+  "-ms-thumb",
+  "-ms-track",
+  "-ms-value",
+]);
+
 function segmentsAfterColon(source, start) {
   const segments = [];
   let depth = 0;
@@ -178,7 +195,13 @@ function segmentsAfterColon(source, start) {
 function isCssPseudo(segment) {
   if (segment === "") return true;
   const name = /^[a-z-]+(?![\w-])/i.exec(segment);
-  return name !== null && CSS_PSEUDO_NAMES.has(name[0].toLowerCase());
+  if (name === null) return false;
+  const lowerCaseName = name[0].toLowerCase();
+  return (
+    CSS_PSEUDO_NAMES.has(lowerCaseName) ||
+    MICROSOFT_PSEUDO_NAMES.has(lowerCaseName) ||
+    /^-(?:webkit|moz)-/.test(lowerCaseName)
+  );
 }
 
 // A class that opens with a bracket closed right before a colon and a utility (`[data-slot]:p-4`). A
