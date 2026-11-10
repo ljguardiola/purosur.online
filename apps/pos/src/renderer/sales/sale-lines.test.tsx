@@ -77,14 +77,14 @@ describe("SaleLines", () => {
     await expect.element(headers.nth(2)).toHaveTextContent("Cantidad");
     await expect.element(headers.nth(3)).toHaveTextContent("Importe");
     const yerba = screen.getByRole("row").nth(1);
-    expect((yerba).element().textContent).toMatch(/Yerba mate 1 kg/);
-    expect((yerba).element().textContent).toMatch(/\$ 2\.380,00 \/ u/);
-    expect((yerba).element().textContent).toMatch(/2 u/);
-    expect((yerba).element().textContent).toMatch(/\$ 4\.760,00/);
+    expect(yerba.element().textContent).toMatch(/Yerba mate 1 kg/);
+    expect(yerba.element().textContent).toMatch(/\$ 2\.380,00 \/ u/);
+    expect(yerba.element().textContent).toMatch(/2 u/);
+    expect(yerba.element().textContent).toMatch(/\$ 4\.760,00/);
     const queso = screen.getByRole("row").nth(2);
-    expect((queso).element().textContent).toMatch(/\$ 12\.500,00 \/ kg/);
-    expect((queso).element().textContent).toMatch(/1,250 kg/);
-    expect((queso).element().textContent).toMatch(/\$ 15\.625,00/);
+    expect(queso.element().textContent).toMatch(/\$ 12\.500,00 \/ kg/);
+    expect(queso.element().textContent).toMatch(/1,250 kg/);
+    expect(queso.element().textContent).toMatch(/\$ 15\.625,00/);
   });
 
   it("marks the selected line only and gives it the same height as the others", async () => {
@@ -134,15 +134,15 @@ describe("SaleLines", () => {
     const { screen } = await renderLines();
 
     const legend = screen.getByRole("listitem");
-    expect((legend.nth(0)).element().textContent).toMatch(/Líneas/);
-    expect((legend.nth(1)).element().textContent).toMatch(/Buscar/);
+    expect(legend.nth(0).element().textContent).toMatch(/Líneas/);
+    expect(legend.nth(1).element().textContent).toMatch(/Buscar/);
   });
 
   it("says the sale is empty, with the legend and no column header, when there are no lines", async () => {
     const { screen } = await renderLines({ lines: [] });
 
     await expect.element(screen.getByText("La venta está vacía")).toBeVisible();
-    expect((screen.getByRole("listitem").nth(1)).element().textContent).toMatch(/Buscar/);
+    expect(screen.getByRole("listitem").nth(1).element().textContent).toMatch(/Buscar/);
     await expect.element(screen.getByRole("columnheader")).not.toBeInTheDocument();
   });
 

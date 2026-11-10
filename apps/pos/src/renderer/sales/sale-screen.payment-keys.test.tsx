@@ -87,7 +87,10 @@ describe("SaleScreen with a paid order not yet applied", () => {
     await expect
       .element(screen.getByText("Aplicado a la venta antes de cobrar con otro medio."))
       .toBeVisible();
-    expect((screen.getByRole("button", { name: "Cobrar con el pago de Mercado Pago" })).element().textContent).toMatch(/Enter/);
+    expect(
+      screen.getByRole("button", { name: "Cobrar con el pago de Mercado Pago" }).element()
+        .textContent,
+    ).toMatch(/Enter/);
     for (const name of [
       "Cobrar en efectivo",
       "Point débito",
