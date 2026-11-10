@@ -42,8 +42,12 @@ afterEach(async () => {
 });
 
 describe("what the cloud keeps from a register in the field", () => {
-  it("has a reader for the release in the field and for the current one", () => {
-    expect(FIELD_READERS.map(({ version }) => version)).toEqual(["0.0.1271", "1.0.1385"]);
+  it("has a reader for each register release in the field", () => {
+    expect(FIELD_READERS.map(({ version }) => version)).toEqual([
+      "0.0.1271",
+      "1.0.1385",
+      "1.0.1687",
+    ]);
   });
 
   it.each(FIELD_READERS.map((reader) => [reader.version, reader] as const))(
@@ -81,6 +85,7 @@ const WHAT_EACH_RELEASE_CANNOT_READ = {
     kinds: ["return", "assembly_void", "exchange_out"],
   },
   "1.0.1385": { entities: [], kinds: ["exchange_out"] },
+  "1.0.1687": { entities: [], kinds: [] },
 } as const;
 
 type ReceivedChange = { entity: string; entity_id: string; row?: { kind?: string } };
