@@ -47,3 +47,21 @@ test("has no placeholder unless one is given", async () => {
     screen.getByRole("textbox", { name: "Nombre" }).element().hasAttribute("placeholder"),
   ).toBe(false);
 });
+
+test("shows the placeholder in an empty read-only field that explains why it is locked", async () => {
+  const screen = await render(
+    <TextField
+      kind="plain-text"
+      label="Código de alta"
+      placeholder="Escribí el código del backoffice"
+      value=""
+      onChange={() => {}}
+      readOnly
+      readOnlyReason="El código se genera en el backoffice."
+    />,
+  );
+
+  expect(
+    screen.getByRole("textbox", { name: "Código de alta" }).element().getAttribute("placeholder"),
+  ).toBe("Escribí el código del backoffice");
+});

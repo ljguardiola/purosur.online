@@ -408,6 +408,42 @@ describe("useKeys", () => {
     });
   });
 
+  describe("with a focused button", () => {
+    it("leaves Enter to the focused button instead of the screen's Enter", async () => {
+      const run = vi.fn();
+      const clicked = vi.fn();
+      const screen = await renderLayer(
+        <>
+          <Keys bindings={[{ key: "Enter", run }]} />
+          <button type="button" onClick={clicked}>
+            Volver
+          </button>
+        </>,
+      );
+
+      screen.getByRole("button", { name: "Volver" }).element().focus();
+      await userEvent.keyboard("{Enter}");
+
+      expect(run).not.toHaveBeenCalled();
+      expect(clicked).toHaveBeenCalledTimes(1);
+    });
+
+    it("still runs the screen's other keys from the focused button", async () => {
+      const run = vi.fn();
+      const screen = await renderLayer(
+        <>
+          <Keys bindings={[{ key: "Escape", run }]} />
+          <button type="button">Volver</button>
+        </>,
+      );
+
+      screen.getByRole("button", { name: "Volver" }).element().focus();
+      await userEvent.keyboard("{Escape}");
+
+      expect(run).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe("scoped to an element", () => {
     it("runs its keys while the focus is inside the element", async () => {
       const run = vi.fn();

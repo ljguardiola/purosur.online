@@ -2513,13 +2513,17 @@ describe("the register's router", () => {
     expect(registerName).toHaveBeenCalledOnce();
   });
 
-  it.each(["/sign-in", "/enroll"] as const)(
+  it.each([
+    ["/sign-in", "enrolled"],
+    ["/enroll", "not_enrolled"],
+    ["/re-enroll", REVOKED],
+  ] as const)(
     "reads the running version on %s before any PIN or code",
-    async (route) => {
+    async (route, enrollment) => {
       const router = createRegisterRouter(
         routeTree,
         {
-          ...contextWith("up", route === "/enroll" ? "not_enrolled" : "enrolled", null),
+          ...contextWith("up", enrollment, null),
           registerVersion: async () => "1.0.1539",
         },
         route,

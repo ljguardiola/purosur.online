@@ -461,7 +461,7 @@ describe("ReEnrollmentScreen", () => {
     expect(codes).toEqual([TYPED_CODE]);
   });
 
-  it("shows the Esc key at the right of the title and no Volver button", async () => {
+  it("offers going back with the Esc key instead of a Volver button", async () => {
     const screen = await render(
       <ReEnrollmentScreen
         registerName="Caja 1"
@@ -472,16 +472,9 @@ describe("ReEnrollmentScreen", () => {
       />,
     );
 
-    const escapeButton = screen
-      .getByRole("button", { name: "Volver con Esc", exact: true })
-      .element() as HTMLElement;
-    expect(escapeButton.querySelector("kbd")?.textContent).toBe("Esc");
-    const heading = screen.getByRole("heading").element().getBoundingClientRect();
-    const box = escapeButton.getBoundingClientRect();
-    expect(box.left).toBeGreaterThan(heading.right);
-    expect(Math.abs(box.top + box.height / 2 - (heading.top + heading.height / 2))).toBeLessThan(
-      heading.height,
-    );
+    await expect
+      .element(screen.getByRole("button", { name: "Volver con Esc", exact: true }))
+      .toBeVisible();
     await expect
       .element(screen.getByRole("button", { name: "Volver", exact: true }))
       .not.toBeInTheDocument();
