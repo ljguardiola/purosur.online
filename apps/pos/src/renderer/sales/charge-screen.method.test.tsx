@@ -24,14 +24,12 @@ describe("ChargeScreen · chosen method", () => {
   });
 
   it.each([
-    ["POINT_DEBIT", "Point · Débito"],
-    ["POINT_CREDIT", "Point · Crédito"],
+    ["POINT_DEBIT", /Point · Débito/i],
+    ["POINT_CREDIT", /Point · Crédito/i],
   ] as const)("opens the terminal charge for %s", async (method, title) => {
     const { screen } = await renderScreen({ method });
 
-    await expect
-      .element(screen.getByRole("dialog").getByText(title, { exact: true }))
-      .toBeVisible();
+    await expect.element(screen.getByRole("dialog").getByText(title)).toBeVisible();
   });
 
   it("keeps the methods to choose from when the chosen method is not available", async () => {

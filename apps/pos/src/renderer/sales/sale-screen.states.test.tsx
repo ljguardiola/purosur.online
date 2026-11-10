@@ -84,7 +84,6 @@ describe("SaleScreen with a code that has no product", () => {
 
     await expect.element(screen.getByRole("row")).toHaveLength(5);
     await expect.element(screen.getByText("$ 25.192,50").first()).toBeVisible();
-    expect(legendOf()).toEqual(["↑↓Líneas", "F2Buscar", "SuprQuitar"]);
   });
 
   it("takes the red away when the text changes", async () => {

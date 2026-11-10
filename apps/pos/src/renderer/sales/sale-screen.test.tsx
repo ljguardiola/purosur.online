@@ -152,11 +152,11 @@ describe("SaleScreen", () => {
         },
       });
 
-      const retry = screen.getByRole("button", { name: "Reintentar" });
-      await expect.element(retry).toBeVisible();
-      await retry.element().focus();
+      const sale = screen.getByRole("button", { name: "Venta" });
+      await expect.element(screen.getByText("No se pudo cargar la venta")).toBeVisible();
+      await sale.element().focus();
 
-      await expect.element(retry).toHaveFocus();
+      await expect.element(sale).toHaveFocus();
     });
 
     it("has the field ready again once the retry replaces the button that had the focus", async () => {

@@ -68,7 +68,7 @@ describe("SaleScreen telling the manual discount was removed", () => {
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
     pressKeypad("+");
 
-    await expect.element(screen.getByText("3", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("3 u", { exact: true })).toBeVisible();
     await expect.element(screen.getByText(REMOVED_TITLE)).not.toBeInTheDocument();
   });
 

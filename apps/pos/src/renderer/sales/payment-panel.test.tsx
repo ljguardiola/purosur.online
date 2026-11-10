@@ -241,17 +241,11 @@ describe("PaymentPanel", () => {
       const screen = await renderPanel();
 
       const cash = screen.getByRole("button", { name: "Cobrar en efectivo" });
-      await expect.element(cash).toHaveTextContent("F12");
-      await expect
-        .element(screen.getByRole("button", { name: "Point débito" }))
-        .toHaveTextContent("F9");
-      await expect
-        .element(screen.getByRole("button", { name: "Point crédito" }))
-        .toHaveTextContent("F10");
-      await expect.element(screen.getByRole("button", { name: "QR" })).toHaveTextContent("F11");
-      await expect
-        .element(screen.getByRole("button", { name: "Otros medios" }))
-        .toHaveTextContent("F1");
+      expect((cash).element().textContent).toMatch(/F12/);
+      expect((screen.getByRole("button", { name: "Point débito" })).element().textContent).toMatch(/F9/);
+      expect((screen.getByRole("button", { name: "Point crédito" })).element().textContent).toMatch(/F10/);
+      expect((screen.getByRole("button", { name: "QR" })).element().textContent).toMatch(/F11/);
+      expect((screen.getByRole("button", { name: "Otros medios" })).element().textContent).toMatch(/F1$/);
     });
 
     it("asks to charge with the method of the button pressed, and with none for the other methods", async () => {
@@ -300,7 +294,7 @@ describe("PaymentPanel", () => {
           "Pago con Mercado Pago de $ 9.200,00 Aplicado a la venta antes de cobrar con otro medio.",
         );
       const apply = screen.getByRole("button", { name: "Cobrar con el pago de Mercado Pago" });
-      await expect.element(apply).toHaveTextContent("Enter");
+      expect((apply).element().textContent).toMatch(/Enter/);
       for (const name of [
         "Cobrar en efectivo",
         "Point débito",

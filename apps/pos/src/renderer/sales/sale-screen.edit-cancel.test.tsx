@@ -122,7 +122,7 @@ describe("SaleScreen editing the lines", () => {
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
     pressKeypad("+");
 
-    await expect.element(screen.getByText("3", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("3 u", { exact: true })).toBeVisible();
     expect(changeLineQuantity).toHaveBeenCalledExactlyOnceWith("line-1", 3, 2);
   });
 
@@ -143,7 +143,7 @@ describe("SaleScreen editing the lines", () => {
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
     pressKeypad("-");
 
-    await expect.element(screen.getByText("1", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("1 u", { exact: true })).toBeVisible();
     expect(changeLineQuantity).toHaveBeenCalledExactlyOnceWith("line-1", 1, 2);
   });
 
@@ -218,7 +218,7 @@ describe("SaleScreen editing the lines", () => {
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
     pressKeypad("+");
 
-    await expect.element(screen.getByText("3", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("3 u", { exact: true })).toBeVisible();
     await expect.element(field).toHaveFocus();
   });
 
@@ -291,7 +291,7 @@ describe("SaleScreen editing the lines", () => {
     await expect.element(screen.getByText("Yerba mate 1 kg")).toBeVisible();
     pressKeypad("-");
 
-    await expect.element(screen.getByText("3", { exact: true })).toBeVisible();
+    await expect.element(screen.getByText("3 u", { exact: true })).toBeVisible();
     expect(currentSale).toHaveBeenCalledTimes(2);
     await expect
       .element(screen.getByText("No se pudo cambiar la cantidad"))

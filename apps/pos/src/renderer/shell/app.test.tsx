@@ -2172,7 +2172,6 @@ describe("App", () => {
     await resumeLockedRegister(screen);
 
     await userEvent.click(screen.getByRole("button", { name: "Cobrar en efectivo" }));
-    await userEvent.click(screen.getByText("Efectivo", { exact: true }));
     await userEvent.fill(
       screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
       "2500,00",
@@ -2269,7 +2268,6 @@ describe("App", () => {
     postCoreStatus("up");
     await resumeLockedRegister(screen);
     await userEvent.click(screen.getByRole("button", { name: "Cobrar en efectivo" }));
-    await userEvent.click(screen.getByText("Efectivo", { exact: true }));
     await userEvent.fill(
       screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
       "2500,00",
@@ -2396,7 +2394,6 @@ describe("App", () => {
     postCoreStatus("up");
     await resumeLockedRegister(screen);
     await userEvent.click(screen.getByRole("button", { name: "Cobrar en efectivo" }));
-    await userEvent.click(screen.getByText("Efectivo", { exact: true }));
     await userEvent.fill(
       screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
       "2500,00",
@@ -2464,7 +2461,7 @@ describe("App", () => {
     postCoreStatus("up");
     await resumeLockedRegister(screen);
 
-    await userEvent.click(screen.getByRole("button", { name: "Cobrar en efectivo" }));
+    await userEvent.click(screen.getByRole("button", { name: "Otros medios" }));
     await userEvent.click(screen.getByText("Transferencia", { exact: true }));
     await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
 
@@ -2527,7 +2524,7 @@ describe("App", () => {
     postCoreStatus("up");
     await resumeLockedRegister(screen);
 
-    await userEvent.click(screen.getByRole("button", { name: "Cobrar en efectivo" }));
+    await userEvent.click(screen.getByRole("button", { name: "Otros medios" }));
     await userEvent.click(screen.getByText("Terminal independiente", { exact: true }));
     await userEvent.click(screen.getByRole("button", { name: "Registrar pago aprobado" }));
 
@@ -2594,7 +2591,7 @@ describe("App", () => {
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
     await resumeLockedRegister(screen);
-    await userEvent.click(screen.getByRole("button", { name: "Cobrar en efectivo" }));
+    await userEvent.click(screen.getByRole("button", { name: "Otros medios" }));
     await userEvent.click(screen.getByText("Transferencia", { exact: true }));
     await userEvent.click(screen.getByRole("button", { name: "Vi el ingreso" }));
     await expect
@@ -2659,7 +2656,7 @@ describe("App", () => {
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
     await resumeLockedRegister(screen);
-    await userEvent.click(screen.getByRole("button", { name: "Cobrar en efectivo" }));
+    await userEvent.click(screen.getByRole("button", { name: "Otros medios" }));
     await expect.poll(() => availabilityReads).toBeGreaterThan(0);
     const readsBefore = availabilityReads;
 
@@ -2732,7 +2729,7 @@ describe("App", () => {
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
     await resumeLockedRegister(screen);
-    await userEvent.click(screen.getByRole("button", { name: "Cobrar en efectivo" }));
+    await userEvent.click(screen.getByRole("button", { name: "Otros medios" }));
     await userEvent.click(screen.getByText("QR", { exact: true }));
     await userEvent.click(screen.getByRole("button", { name: "Crear orden" }));
     await userEvent.click(screen.getByRole("button", { name: "Continuar" }));
@@ -2813,7 +2810,7 @@ describe("App", () => {
     const screen = await render(<App core={core} />);
     postCoreStatus("up");
     await resumeLockedRegister(screen);
-    await userEvent.click(screen.getByRole("button", { name: "Cobrar en efectivo" }));
+    await userEvent.click(screen.getByRole("button", { name: "Otros medios" }));
     await userEvent.click(screen.getByText("QR", { exact: true }));
     await userEvent.click(screen.getByRole("button", { name: "Crear orden" }));
     await userEvent.click(screen.getByRole("button", { name: "Cobrar con otro medio" }));
@@ -3870,7 +3867,6 @@ describe("App", () => {
       postCoreStatus("up");
       await resumeLockedRegister(screen);
       await userEvent.click(screen.getByRole("button", { name: "Cobrar en efectivo" }));
-      await userEvent.click(screen.getByText("Efectivo", { exact: true }));
       await userEvent.fill(
         screen.getByRole("textbox", { name: "Importe entregado por el cliente" }),
         "2500,00",
