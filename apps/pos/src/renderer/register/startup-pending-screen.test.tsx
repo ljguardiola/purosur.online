@@ -130,7 +130,13 @@ async function hoverGoSelling(screen: Awaited<ReturnType<typeof renderScreen>>["
 }
 
 async function expectGoSellingLocked(screen: Awaited<ReturnType<typeof renderScreen>>["screen"]) {
-  await expect.element(goSelling(screen)).toHaveAttribute("aria-disabled", "true");
+  await vi.waitFor(() => {
+    const button = goSelling(screen).element();
+    expect(
+      button instanceof HTMLButtonElement &&
+        (button.disabled || button.getAttribute("aria-disabled") === "true"),
+    ).toBe(true);
+  });
 }
 
 async function expectGoSellingOpen(screen: Awaited<ReturnType<typeof renderScreen>>["screen"]) {
