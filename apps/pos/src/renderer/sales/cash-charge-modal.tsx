@@ -26,7 +26,6 @@ import {
 import { ArrowLeft, Banknote, Check, TriangleAlert } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AuthorizationModal } from "../shell/authorization-modal";
-import type { SignedInPerson } from "../shell/signed-in-person";
 import { useAuthorization } from "../shell/use-authorization";
 import {
   cashChargeRequestFrom,
@@ -61,7 +60,6 @@ export type CashChargeModalProps = {
   discountOffered: boolean;
   appliedDiscountAmount: number | null;
   authorizationRequired: boolean;
-  person: SignedInPerson;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   previewSaleDiscount: (discount: SaleDiscountRequest) => Promise<PreviewSaleDiscountOutcome>;
   readCharge: (tendered: number, saleDiscount?: number) => Promise<CashChargeAnswer>;
@@ -87,7 +85,6 @@ export function CashChargeModal({
   discountOffered,
   appliedDiscountAmount,
   authorizationRequired,
-  person,
   loadAuthorizers,
   previewSaleDiscount,
   readCharge,
@@ -168,7 +165,6 @@ export function CashChargeModal({
   const typedDiscount = typedChangeDiscount(values.discount);
   const discountInvalid = values.discount.trim() !== "" && typedDiscount === undefined;
   const authorization = useAuthorization({
-    person,
     permission: PERMISSION,
     required: authorizationRequired && typedDiscount !== undefined,
     loadAuthorizers,

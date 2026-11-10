@@ -6,7 +6,6 @@ import { useRef, useState } from "react";
 import type { CoreData } from "../platform/use-core-query";
 import { useCountdown } from "../platform/use-countdown";
 import { useAuthorizersQuery, useResetAuthorizers } from "../sessions/sessions-queries";
-import type { SignedInPerson } from "./signed-in-person";
 
 export type ShownRefusal =
   | Exclude<AuthorizationRefusal, { kind: "lacks_permission" | "locked" }>
@@ -26,14 +25,12 @@ export function sortedAuthorizers(users: readonly SignInUser[]): SignInUser[] {
 }
 
 export type UseAuthorizationInput = {
-  person: SignedInPerson;
   permission: AuthorizablePermissionKey;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   required: boolean;
 };
 
 export type AuthorizationState = {
-  person: SignedInPerson;
   required: boolean;
   ready: boolean;
   asking: boolean;
@@ -54,7 +51,6 @@ export type AuthorizationState = {
 };
 
 export function useAuthorization({
-  person,
   permission,
   loadAuthorizers,
   required,
@@ -96,7 +92,6 @@ export function useAuthorization({
   }
 
   return {
-    person,
     required,
     ready,
     asking,

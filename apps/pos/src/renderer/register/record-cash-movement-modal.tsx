@@ -108,7 +108,6 @@ export type RecordCashMovementModalProps = {
 
 function MovementModal({
   kinds,
-  person,
   registerName,
   openedAt,
   expectedCash: givenExpectedCash,
@@ -116,7 +115,7 @@ function MovementModal({
   recordCashMovement,
   onClose,
   onRecorded,
-}: Omit<RecordCashMovementModalProps, "open" | "loadKinds"> & {
+}: Omit<RecordCashMovementModalProps, "open" | "loadKinds" | "person"> & {
   kinds: RecordableCashMovementKinds;
 }) {
   const [refusedExpectedCash, setRefusedExpectedCash] = useState<number>();
@@ -128,9 +127,13 @@ function MovementModal({
     fields: { kind: null, amount: "amount", reason: null },
     messages: { amount: amountMessage },
     onSubmit: async (request, { showFieldError }) => {
+      if (!authorization.ready) {
+        authorization.ask();
+        return;
+      }
       const outcome = await recordCashMovement({
         ...request,
-        authorization: authorization.ready ? authorization.value : undefined,
+        authorization: authorization.value,
       }).catch((): "failed" => "failed");
       authorization.dismiss();
       if (outcome === "failed") {
@@ -179,7 +182,6 @@ function MovementModal({
   });
   const { kind } = values;
   const authorization = useAuthorization({
-    person,
     permission: kinds[kind].permission,
     required: kinds[kind].authorization_required,
     loadAuthorizers,
@@ -193,10 +195,6 @@ function MovementModal({
 
   function handleSubmit() {
     if (submitting) {
-      return;
-    }
-    if (!authorization.ready) {
-      authorization.ask();
       return;
     }
     setNotice(undefined);

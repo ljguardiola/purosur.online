@@ -105,7 +105,6 @@ export function ReprintReceiptModal({
   const copy = receiptCopyPresentation(sale.next_copy);
   const comprobante = documentComprobante(document, sale);
   const authorization = useAuthorization({
-    person,
     permission: PERMISSION,
     required: !person.abilities.includes("reprint_receipt"),
     loadAuthorizers,

@@ -883,7 +883,6 @@ export function SaleScreen({
           quantity={adjusting.quantity}
           saleUnit={adjusting.sale_unit}
           authorizationRequired={sale.adjust_authorization_required}
-          person={person}
           loadAuthorizers={loadAuthorizers}
           adjustSaleLine={adjustSaleLine}
           previewAdjustment={previewSaleLineAdjustment}
@@ -900,7 +899,6 @@ export function SaleScreen({
           lineCount={sale.lines.length}
           subtotal={sale.subtotal}
           authorizationRequired={sale.sale_discount_authorization_required}
-          person={person}
           loadAuthorizers={loadAuthorizers}
           applySaleDiscount={applySaleDiscount}
           previewSaleDiscount={previewSaleDiscount}
@@ -917,7 +915,6 @@ export function SaleScreen({
           paid={sale.paid}
           refunds={refundsOnCancel}
           authorizationRequired={sale.cancel_authorization_required}
-          person={person}
           loadAuthorizers={loadAuthorizers}
           cancelPaidSale={cancelPaidSale}
           onCancelled={(refunds) => void takeCancelledPaidSale(refunds)}

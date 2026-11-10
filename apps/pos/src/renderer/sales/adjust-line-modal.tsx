@@ -24,7 +24,6 @@ import {
 import { ArrowLeft, Check, Percent, Tag, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { AuthorizationModal } from "../shell/authorization-modal";
-import type { SignedInPerson } from "../shell/signed-in-person";
 import { useAuthorization } from "../shell/use-authorization";
 import type { AdjustmentKind } from "./adjust-line-form";
 import {
@@ -63,7 +62,6 @@ export type AdjustLineModalProps = {
   quantity: number;
   saleUnit: OpenSale["lines"][number]["sale_unit"];
   authorizationRequired: boolean;
-  person: SignedInPerson;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   adjustSaleLine: (
     lineId: string,
@@ -112,7 +110,6 @@ export function AdjustLineModal({
   quantity,
   saleUnit,
   authorizationRequired,
-  person,
   loadAuthorizers,
   adjustSaleLine,
   previewAdjustment,
@@ -123,7 +120,6 @@ export function AdjustLineModal({
 }: AdjustLineModalProps) {
   const [notice, setNotice] = useState<string>();
   const authorization = useAuthorization({
-    person,
     permission: PERMISSION,
     required: authorizationRequired,
     loadAuthorizers,
@@ -143,6 +139,10 @@ export function AdjustLineModal({
       reason: REQUIRED_REASON_MESSAGE,
     },
     onSubmit: async ({ adjustment, reason }, { showFieldError }) => {
+      if (!authorization.ready) {
+        authorization.ask();
+        return;
+      }
       const outcome = await adjustSaleLine(lineId, adjustment, reason, authorization.value).catch(
         (): "failed" => "failed",
       );
@@ -212,10 +212,6 @@ export function AdjustLineModal({
 
   function handleSubmit() {
     if (submitting) {
-      return;
-    }
-    if (!authorization.ready) {
-      authorization.ask();
       return;
     }
     setNotice(undefined);

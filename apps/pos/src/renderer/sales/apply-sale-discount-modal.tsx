@@ -25,7 +25,6 @@ import {
 import { ArrowLeft, Check, Percent, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { AuthorizationModal } from "../shell/authorization-modal";
-import type { SignedInPerson } from "../shell/signed-in-person";
 import { useAuthorization } from "../shell/use-authorization";
 import { REQUIRED_REASON_MESSAGE } from "./adjust-line-form";
 import type { SaleDiscountKind } from "./sale-discount-form";
@@ -55,7 +54,6 @@ export type ApplySaleDiscountModalProps = {
   lineCount: number;
   subtotal: number;
   authorizationRequired: boolean;
-  person: SignedInPerson;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   applySaleDiscount: (
     discount: SaleDiscountRequest,
@@ -77,7 +75,6 @@ export function ApplySaleDiscountModal({
   lineCount,
   subtotal,
   authorizationRequired,
-  person,
   loadAuthorizers,
   applySaleDiscount,
   previewSaleDiscount,
@@ -88,7 +85,6 @@ export function ApplySaleDiscountModal({
 }: ApplySaleDiscountModalProps) {
   const [notice, setNotice] = useState<string>();
   const authorization = useAuthorization({
-    person,
     permission: PERMISSION,
     required: authorizationRequired,
     loadAuthorizers,
@@ -108,6 +104,10 @@ export function ApplySaleDiscountModal({
       reason: REQUIRED_REASON_MESSAGE,
     },
     onSubmit: async ({ discount, reason }, { showFieldError }) => {
+      if (!authorization.ready) {
+        authorization.ask();
+        return;
+      }
       const outcome = await applySaleDiscount(discount, reason, authorization.value).catch(
         (): "failed" => "failed",
       );
@@ -175,10 +175,6 @@ export function ApplySaleDiscountModal({
 
   function handleSubmit() {
     if (submitting) {
-      return;
-    }
-    if (!authorization.ready) {
-      authorization.ask();
       return;
     }
     setNotice(undefined);

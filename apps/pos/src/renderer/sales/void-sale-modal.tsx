@@ -22,7 +22,6 @@ import { useState } from "react";
 import { AuthorizationModal } from "../shell/authorization-modal";
 import type { SaleDetail } from "../shell/sale-receipt-text";
 import { comprobantePresentation } from "../shell/sale-receipt-text";
-import type { SignedInPerson } from "../shell/signed-in-person";
 import { useAuthorization } from "../shell/use-authorization";
 import type { VoidCreditNoteCorrects, VoidRefund } from "./void-sale-text";
 import { voidRefundPresentation, voidRefusalReason } from "./void-sale-text";
@@ -39,7 +38,6 @@ export type VoidSaleModalProps = {
   refunds: readonly VoidRefund[];
   creditNoteCorrects: VoidCreditNoteCorrects;
   authorizationRequired: boolean;
-  person: SignedInPerson;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   voidSale: (
     saleId: string,
@@ -58,7 +56,6 @@ export function VoidSaleModal({
   refunds,
   creditNoteCorrects,
   authorizationRequired,
-  person,
   loadAuthorizers,
   voidSale,
   onVoided,
@@ -72,7 +69,6 @@ export function VoidSaleModal({
   const [refusalReason, setRefusalReason] = useState<string>();
   const [confirmed, setConfirmed] = useState<readonly number[]>([]);
   const authorization = useAuthorization({
-    person,
     permission: "void_sale",
     required: authorizationRequired,
     loadAuthorizers,

@@ -61,7 +61,6 @@ function ReturnFlow({
   const [standing, setStanding] = useState<Standing>({ step: "find" });
   const [authorizationRequired, setAuthorizationRequired] = useState(false);
   const authorization = useAuthorization({
-    person,
     permission: "process_return",
     required: authorizationRequired,
     loadAuthorizers,

@@ -6,7 +6,6 @@ import { useState } from "react";
 import { AuthorizationModal } from "../shell/authorization-modal";
 import type { Refund } from "../shell/refund-lines";
 import { RefundLines } from "../shell/refund-lines";
-import type { SignedInPerson } from "../shell/signed-in-person";
 import { useAuthorization } from "../shell/use-authorization";
 
 const FAILED_MESSAGE = "No se pudo cancelar la venta. Probá de nuevo.";
@@ -20,7 +19,6 @@ export type CancelPaidSaleModalProps = {
   paid: number;
   refunds: readonly Refund[];
   authorizationRequired: boolean;
-  person: SignedInPerson;
   loadAuthorizers: (permission: AuthorizablePermissionKey) => Promise<SignInUser[]>;
   cancelPaidSale: (
     saleId: string,
@@ -38,7 +36,6 @@ export function CancelPaidSaleModal({
   paid,
   refunds,
   authorizationRequired,
-  person,
   loadAuthorizers,
   cancelPaidSale,
   onCancelled,
@@ -49,7 +46,6 @@ export function CancelPaidSaleModal({
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState<string>();
   const authorization = useAuthorization({
-    person,
     permission: "void_sale",
     required: authorizationRequired,
     loadAuthorizers,

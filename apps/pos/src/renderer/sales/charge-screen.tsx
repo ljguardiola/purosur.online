@@ -318,7 +318,6 @@ export function ChargeScreen({
           discountOffered={sale.sale_discount_refusal === null && sale.lines_lock === null}
           appliedDiscountAmount={sale.sale_discount?.amount ?? null}
           authorizationRequired={sale.sale_discount_authorization_required}
-          person={person}
           loadAuthorizers={loadAuthorizers}
           previewSaleDiscount={previewSaleDiscount}
           readCharge={(tendered, saleDiscount) =>

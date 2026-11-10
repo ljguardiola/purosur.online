@@ -50,6 +50,7 @@ export function ReturnFindStep({
   onSessionInvalid,
 }: ReturnFindStepProps) {
   const [refusal, setRefusal] = useState<FindRefusalKind>();
+  const [looking, setLooking] = useState(false);
   const finding = useRef(false);
   const lastReading = useRef<SaleForReturnReading | undefined>(undefined);
 
@@ -58,12 +59,15 @@ export function ReturnFindStep({
       return;
     }
     finding.current = true;
+    setLooking(true);
     lastReading.current = reading;
     setRefusal(undefined);
-    const outcome = await findSaleForReturn(reading, authorization.value)
+    const sent = authorization.value;
+    const outcome = await findSaleForReturn(reading, sent)
       .catch((): "failed" => "failed")
       .finally(() => {
         finding.current = false;
+        setLooking(false);
       });
     authorization.dismiss();
     if (outcome === "failed") {
@@ -84,12 +88,11 @@ export function ReturnFindStep({
         onSessionInvalid();
         break;
       case "lacks_permission":
-        if (authorization.required) {
-          authorization.refuse(outcome);
-        } else {
+        if (sent === undefined) {
           onAuthorizationRequired();
           authorization.ask();
-          setRefusal("lacks_permission");
+        } else {
+          authorization.refuse(outcome);
         }
         break;
       case "wrong_pin":
@@ -197,7 +200,7 @@ export function ReturnFindStep({
             authorization={authorization}
             subtitle="Devolución"
             action="hacer devoluciones"
-            submitting={submitting}
+            submitting={submitting || looking}
             onConfirm={retryLastReading}
           />
         </SidePanel>
